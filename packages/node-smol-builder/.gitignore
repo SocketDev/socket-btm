@@ -1,0 +1,3 @@
+# WASM build artifacts.
+wasm-bundle/pkg/
+wasm-bundle/target/

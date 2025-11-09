@@ -1,0 +1,16 @@
+{
+  "name": "minilm-builder",
+  "version": "1.0.0",
+  "description": "MiniLM model conversion and optimization for Socket CLI",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:force": "node scripts/build.mjs --force",
+    "clean": "node scripts/clean.mjs"
+  },
+  "dependencies": {
+    "build-infra": "workspace:*",
+    "@socketsecurity/lib": "catalog:"
+  }
+}

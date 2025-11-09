@@ -1,0 +1,19 @@
+{
+  "name": "onnxruntime-builder",
+  "version": "1.21.1",
+  "description": "Custom ONNX Runtime WASM build optimized for Socket CLI",
+  "private": true,
+  "exports": {
+    "./build/wasm/ort-wasm-simd-threaded.mjs": "./build/wasm/ort-wasm-simd-threaded.mjs",
+    "./build/wasm/ort-wasm-simd-threaded.wasm": "./build/wasm/ort-wasm-simd-threaded.wasm"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:force": "node scripts/build.mjs --force",
+    "clean": "node scripts/clean.mjs"
+  },
+  "dependencies": {
+    "build-infra": "workspace:*",
+    "@socketsecurity/lib": "catalog:"
+  }
+}

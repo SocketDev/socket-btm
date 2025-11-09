@@ -1,0 +1,474 @@
+name: Release Smol Binaries
+
+on:
+  push:
+    tags:
+      - 'node-smol-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.2.0)'
+        required: true
+        type: string
+      publish:
+        description: 'Publish release (not draft)'
+        required: false
+        type: boolean
+        default: false
+      force:
+        description: 'Force rebuild (ignore cache)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '10.20.0'
+  # Feature flag for rollback: set to 'false' in repository variables to disable caching.
+  USE_CACHE: ${{ vars.USE_CACHE != 'false' }}
+
+permissions:
+  contents: write  # Required to create releases
+
+concurrency:
+  group: release-smol-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Build binaries for each platform in parallel (8 platforms total).
+  build-smol:
+    name: ⚡ Smol - ${{ matrix.platform }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: ${{ inputs.force && 180 || 150 }}
+    strategy:
+      fail-fast: true
+      max-parallel: 8
+      matrix:
+        include:
+          # macOS builds.
+          - runner: macos-14
+            os: darwin
+            platform: darwin
+            arch: arm64
+          - runner: macos-13
+            os: darwin
+            platform: darwin
+            arch: x64
+
+          # Linux builds.
+          - runner: ubuntu-22.04
+            os: linux
+            platform: linux
+            arch: x64
+          - runner: ubuntu-22.04
+            os: linux
+            platform: linux
+            arch: arm64
+
+          # Alpine Linux builds (musl).
+          - runner: ubuntu-22.04
+            os: linux
+            platform: linux-musl
+            arch: x64
+          - runner: ubuntu-22.04
+            os: linux
+            platform: linux-musl
+            arch: arm64
+
+          # Windows builds.
+          - runner: windows-2022
+            os: windows
+            platform: win32
+            arch: x64
+          - runner: windows-2022
+            os: windows
+            platform: win32
+            arch: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Record build start time
+        id: build-start
+        shell: bash
+        run: echo "timestamp=$(date +%s)" >> $GITHUB_OUTPUT
+
+      - name: Generate smol build cache key
+        id: smol-cache-key
+        shell: bash
+        run: |
+          # Generate content-based hash from patches, additions, and build scripts.
+          PATCHES_HASH=$(find packages/node-smol-builder/patches packages/node-smol-builder/additions packages/node-smol-builder/scripts -type f \( -name "*.patch" -o -name "*.mjs" -o -name "*.h" -o -name "*.c" -o -name "*.cc" \) 2>/dev/null | sort | xargs sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1)
+          echo "hash=$PATCHES_HASH" >> $GITHUB_OUTPUT
+          echo "Cache key hash: $PATCHES_HASH"
+
+      - name: Setup ccache (Linux/macOS)
+        if: matrix.os != 'windows' && inputs.force != true && env.USE_CACHE == 'true'
+        uses: hendrikmuhs/ccache-action@ed74d11c0b343532753ecead8a951bb09bb34bc9 # v1.2.14
+        with:
+          key: build-${{ matrix.platform }}-${{ matrix.arch }}-v${{ env.NODE_VERSION }}-${{ steps.smol-cache-key.outputs.hash }}
+          max-size: 2G
+
+      - name: Restore node-source cache
+        if: inputs.force != true && env.USE_CACHE == 'true'
+        id: node-source-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: packages/node-smol-builder/build/node-source
+          key: node-source-${{ env.NODE_VERSION }}-${{ steps.smol-cache-key.outputs.hash }}
+          restore-keys: node-source-${{ env.NODE_VERSION }}-
+
+      - name: Restore Release binary cache
+        if: inputs.force != true && env.USE_CACHE == 'true'
+        id: release-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: packages/node-smol-builder/build/out/Release
+          key: node-smol-release-${{ matrix.platform }}-${{ matrix.arch }}-v${{ env.NODE_VERSION }}-${{ steps.smol-cache-key.outputs.hash }}
+          restore-keys: node-smol-release-${{ matrix.platform }}-${{ matrix.arch }}-v${{ env.NODE_VERSION }}-
+
+      - name: Restore Stripped binary cache
+        if: inputs.force != true && env.USE_CACHE == 'true'
+        id: stripped-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: packages/node-smol-builder/build/out/Stripped
+          key: node-smol-stripped-${{ matrix.platform }}-${{ matrix.arch }}-v${{ env.NODE_VERSION }}-${{ steps.smol-cache-key.outputs.hash }}
+          restore-keys: node-smol-stripped-${{ matrix.platform }}-${{ matrix.arch }}-v${{ env.NODE_VERSION }}-
+
+      - name: Restore Compressed binary cache
+        if: inputs.force != true && env.USE_CACHE == 'true'
+        id: compressed-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: packages/node-smol-builder/build/out/Compressed
+          key: node-smol-compressed-${{ matrix.platform }}-${{ matrix.arch }}-v${{ env.NODE_VERSION }}-${{ steps.smol-cache-key.outputs.hash }}
+          restore-keys: node-smol-compressed-${{ matrix.platform }}-${{ matrix.arch }}-v${{ env.NODE_VERSION }}-
+
+      - name: Restore Final binary cache
+        if: inputs.force != true && env.USE_CACHE == 'true'
+        id: final-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: packages/node-smol-builder/build/out/Final
+          key: node-smol-final-${{ matrix.platform }}-${{ matrix.arch }}-v${{ env.NODE_VERSION }}-${{ steps.smol-cache-key.outputs.hash }}
+          restore-keys: node-smol-final-${{ matrix.platform }}-${{ matrix.arch }}-v${{ env.NODE_VERSION }}-
+
+      - name: Restore checkpoints cache
+        if: inputs.force != true && env.USE_CACHE == 'true'
+        id: checkpoints-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: packages/node-smol-builder/build/.checkpoints
+          key: node-smol-checkpoints-${{ matrix.platform }}-${{ matrix.arch }}-v${{ env.NODE_VERSION }}-${{ steps.smol-cache-key.outputs.hash }}
+          restore-keys: node-smol-checkpoints-${{ matrix.platform }}-${{ matrix.arch }}-v${{ env.NODE_VERSION }}-
+
+      - name: Validate build cache integrity
+        id: cache-valid
+        shell: bash
+        run: |
+          CACHE_VALID="true"
+          BINARY_PATH="packages/node-smol-builder/build/out/Final/node"
+
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            BINARY_PATH="${BINARY_PATH}.exe"
+          fi
+
+          # Check if final binary exists.
+          if [ -f "$BINARY_PATH" ]; then
+            echo "✓ Final binary exists: $BINARY_PATH"
+
+            # Verify checkpoint files exist.
+            for checkpoint in cloned built complete; do
+              CHECKPOINT_FILE="packages/node-smol-builder/build/.checkpoints/$checkpoint"
+              if [ ! -f "$CHECKPOINT_FILE" ]; then
+                echo "✗ Missing checkpoint: $checkpoint"
+                CACHE_VALID="false"
+              else
+                echo "✓ Checkpoint exists: $checkpoint"
+              fi
+            done
+
+            # Smoke test: verify binary can execute --version.
+            if [ "$CACHE_VALID" = "true" ]; then
+              echo "Running smoke test..."
+              VERSION_OUTPUT=$("$BINARY_PATH" --version 2>&1 || true)
+
+              if [ -n "$VERSION_OUTPUT" ]; then
+                echo "✓ Binary executes: $VERSION_OUTPUT"
+
+                # Validate Node.js version matches expected version.
+                EXPECTED_VERSION="${{ env.NODE_VERSION }}"
+                ACTUAL_VERSION=$(echo "$VERSION_OUTPUT" | grep -oE 'v[0-9]+' | sed 's/v//' || echo "")
+
+                if [ -n "$ACTUAL_VERSION" ] && [ "$ACTUAL_VERSION" = "$EXPECTED_VERSION" ]; then
+                  echo "✓ Version validation passed (Node.js v$ACTUAL_VERSION)"
+                  echo "valid=true" >> $GITHUB_OUTPUT
+                else
+                  echo "✗ Version mismatch: expected v$EXPECTED_VERSION, got v$ACTUAL_VERSION"
+                  CACHE_VALID="false"
+                  echo "valid=false" >> $GITHUB_OUTPUT
+                fi
+              else
+                echo "✗ Binary exists but failed smoke test"
+                CACHE_VALID="false"
+                echo "valid=false" >> $GITHUB_OUTPUT
+              fi
+            else
+              echo "valid=false" >> $GITHUB_OUTPUT
+            fi
+
+            # Invalidate corrupted cache.
+            if [ "$CACHE_VALID" = "false" ]; then
+              echo "⚠ Invalidating corrupted build cache..."
+              rm -rf packages/node-smol-builder/build/
+            fi
+          else
+            echo "✗ Final binary not found: $BINARY_PATH"
+            echo "valid=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Python
+        if: steps.cache-valid.outputs.valid != 'true' || inputs.force
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          # Use 3.11 to match Alpine 3.19 which ships Python 3.11.
+          # Python 3.13 breaks gyp with: TypeError: Strings must be encoded before hashing.
+          python-version: '3.11'
+
+      - name: Install build dependencies (Linux)
+        if: (steps.cache-valid.outputs.valid != 'true' || inputs.force) && matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
+      - name: Install build dependencies (Linux ARM64 cross-compile)
+        if: (steps.cache-valid.outputs.valid != 'true' || inputs.force) && matrix.platform == 'linux' && matrix.arch == 'arm64'
+        run: |
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+      - name: Setup QEMU (Linux ARM64)
+        if: (steps.cache-valid.outputs.valid != 'true' || inputs.force) && matrix.platform == 'linux' && matrix.arch == 'arm64'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Setup Docker Buildx (Linux musl)
+        if: (steps.cache-valid.outputs.valid != 'true' || inputs.force) && matrix.platform == 'linux-musl'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Alpine builder image (Linux musl)
+        if: (steps.cache-valid.outputs.valid != 'true' || inputs.force) && matrix.platform == 'linux-musl'
+        run: |
+          docker buildx build \
+            --platform linux/${{ matrix.arch == 'x64' && 'amd64' || 'arm64' }} \
+            --build-arg NODE_VERSION=${{ env.NODE_VERSION }} \
+            -t smol-builder-alpine-${{ matrix.arch }} \
+            -f packages/node-smol-builder/docker/Dockerfile.alpine \
+            --load \
+            .
+
+      - name: Build smol binary (Linux musl - Docker)
+        if: (steps.cache-valid.outputs.valid != 'true' || inputs.force) && matrix.platform == 'linux-musl'
+        run: |
+          docker run --rm \
+            -v $PWD:/workspace \
+            -w /workspace \
+            smol-builder-alpine-${{ matrix.arch }} \
+            pnpm --filter @socketbin/node-smol-builder build --prod
+
+      - name: Build smol binary (Standard platforms)
+        if: (steps.cache-valid.outputs.valid != 'true' || inputs.force) && matrix.platform != 'linux-musl'
+        run: pnpm --filter @socketbin/node-smol-builder build --prod
+
+      - name: Verify smol binary
+        shell: bash
+        run: |
+          echo "⚡ Socket smol binary verification"
+          BINARY_PATH="packages/node-smol-builder/build/out/Final/node"
+
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            BINARY_PATH="${BINARY_PATH}.exe"
+          fi
+
+          if [ -f "$BINARY_PATH" ]; then
+            SIZE=$(du -h "$BINARY_PATH" | cut -f1)
+            echo "✓ ${{ matrix.platform }}-${{ matrix.arch }}: $SIZE"
+
+            # Verify binary works.
+            "$BINARY_PATH" --version
+          else
+            echo "✗ Binary not found at expected path: $BINARY_PATH"
+            exit 1
+          fi
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-smol-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            packages/node-smol-builder/build/out/Final/node
+            packages/node-smol-builder/build/out/Final/node.exe
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Calculate and report build metrics
+        if: always() && steps.build-start.outputs.timestamp
+        shell: bash
+        run: |
+          # Calculate build duration.
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - ${{ steps.build-start.outputs.timestamp }}))
+          DURATION_MIN=$((DURATION / 60))
+          DURATION_SEC=$((DURATION % 60))
+
+          # Determine cache status.
+          CACHE_STATUS="${{ steps.cache-valid.outputs.valid == 'true' && 'Hit' || 'Miss' }}"
+          BUILD_STATUS="${{ job.status }}"
+
+          # Create metrics JSON.
+          cat > build-metrics.json <<EOF
+          {
+            "platform": "${{ matrix.platform }}",
+            "arch": "${{ matrix.arch }}",
+            "duration_seconds": $DURATION,
+            "duration_formatted": "${DURATION_MIN}m ${DURATION_SEC}s",
+            "cache_status": "$CACHE_STATUS",
+            "build_status": "$BUILD_STATUS",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+
+          # Report to step summary.
+          echo "## Build Metrics: ${{ matrix.platform }}-${{ matrix.arch }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Duration: **${DURATION_MIN}m ${DURATION_SEC}s**" >> $GITHUB_STEP_SUMMARY
+          echo "- Cache: **$CACHE_STATUS**" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: **$BUILD_STATUS**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload build metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-metrics-${{ matrix.platform }}-${{ matrix.arch }}
+          path: build-metrics.json
+          retention-days: 30
+          if-no-files-found: ignore
+
+  # Create GitHub release with all binaries.
+  release:
+    name: Create GitHub Release
+    needs: build-smol
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Download all built binaries.
+      - name: Download macOS ARM64
+        uses: actions/download-artifact@v4
+        with:
+          name: node-smol-darwin-arm64
+          path: packages/node-smol-builder/build/cache/
+
+      - name: Rename macOS ARM64
+        run: mv packages/node-smol-builder/build/cache/node packages/node-smol-builder/build/cache/node-compiled-darwin-arm64
+
+      - name: Download macOS x64
+        uses: actions/download-artifact@v4
+        with:
+          name: node-smol-darwin-x64
+          path: packages/node-smol-builder/build/cache/
+
+      - name: Rename macOS x64
+        run: mv packages/node-smol-builder/build/cache/node packages/node-smol-builder/build/cache/node-compiled-darwin-x64
+
+      - name: Download Linux x64
+        uses: actions/download-artifact@v4
+        with:
+          name: node-smol-linux-x64
+          path: packages/node-smol-builder/build/cache/
+
+      - name: Rename Linux x64
+        run: mv packages/node-smol-builder/build/cache/node packages/node-smol-builder/build/cache/node-compiled-linux-x64
+
+      - name: Download Linux ARM64
+        uses: actions/download-artifact@v4
+        with:
+          name: node-smol-linux-arm64
+          path: packages/node-smol-builder/build/cache/
+
+      - name: Rename Linux ARM64
+        run: mv packages/node-smol-builder/build/cache/node packages/node-smol-builder/build/cache/node-compiled-linux-arm64
+
+      - name: Download Linux musl x64
+        uses: actions/download-artifact@v4
+        with:
+          name: node-smol-linux-musl-x64
+          path: packages/node-smol-builder/build/cache/
+
+      - name: Rename Linux musl x64
+        run: mv packages/node-smol-builder/build/cache/node packages/node-smol-builder/build/cache/node-compiled-linux-musl-x64
+
+      - name: Download Linux musl ARM64
+        uses: actions/download-artifact@v4
+        with:
+          name: node-smol-linux-musl-arm64
+          path: packages/node-smol-builder/build/cache/
+
+      - name: Rename Linux musl ARM64
+        run: mv packages/node-smol-builder/build/cache/node packages/node-smol-builder/build/cache/node-compiled-linux-musl-arm64
+
+      - name: Download Windows x64
+        uses: actions/download-artifact@v4
+        with:
+          name: node-smol-win32-x64
+          path: packages/node-smol-builder/build/cache/
+
+      - name: Rename Windows x64
+        run: mv packages/node-smol-builder/build/cache/node.exe packages/node-smol-builder/build/cache/node-compiled-win32-x64
+
+      - name: Download Windows ARM64
+        uses: actions/download-artifact@v4
+        with:
+          name: node-smol-win32-arm64
+          path: packages/node-smol-builder/build/cache/
+
+      - name: Rename Windows ARM64
+        run: mv packages/node-smol-builder/build/cache/node.exe packages/node-smol-builder/build/cache/node-compiled-win32-arm64
+
+      # Create release.
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event.inputs.publish }}" = "true" ]; then
+            pnpm --filter @socketbin/node-smol-builder run release:publish
+          else
+            pnpm --filter @socketbin/node-smol-builder run release
+          fi

@@ -292,28 +292,32 @@ except Exception as e:
  */
 async function runPythonScript(scriptName, args, options = {}) {
   const scriptPath = path.join(PYTHON_DIR, scriptName)
-  const command = `python3 "${scriptPath}" ${args.map(a => `"${a}"`).join(' ')}`
 
-  const { stdout } = await exec(command, {
+  const result = await spawn('python3', [scriptPath, ...args], {
     stdio: 'pipe',
+    stdioString: true,
     ...options
   })
 
+  if (result.code !== 0) {
+    throw new Error(`Python script failed: ${result.stderr}`)
+  }
+
   // Parse JSON output from Python script.
-  const lines = stdout.split('\n').filter(Boolean)
+  const lines = result.stdout.split('\n').filter(Boolean)
   const results = []
 
   for (const line of lines) {
     try {
-      const result = JSON.parse(line)
-      results.push(result)
+      const parsedResult = JSON.parse(line)
+      results.push(parsedResult)
 
-      if (result.error) {
-        throw new Error(result.error)
+      if (parsedResult.error) {
+        throw new Error(parsedResult.error)
       }
 
-      if (result.code && result.code !== 'complete') {
-        printStep(`  ${result.code.replace(/_/g, ' ')}...`)
+      if (parsedResult.code && parsedResult.code !== 'complete') {
+        printStep(`  ${parsedResult.code.replace(/_/g, ' ')}...`)
       }
     } catch (e) {
       if (e.message.startsWith('{')) {
@@ -617,6 +621,7 @@ async function main() {
 }
 
 // Run build.
+const logger = getDefaultLogger()
 main().catch((e) => {
   printError('Build Failed')
   logger.error(e.message)

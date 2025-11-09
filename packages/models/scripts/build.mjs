@@ -25,10 +25,9 @@ import { existsSync } from 'node:fs'
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { exec } from 'node:child_process'
-import { promisify } from 'node:util'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 import {
   cleanCheckpoint,
@@ -36,8 +35,6 @@ import {
   getCheckpointData,
   shouldRun,
 } from '@socketsecurity/build-infra/lib/checkpoint-manager'
-
-const execAsync = promisify(exec)
 
 // Check if running in CI.
 const IS_CI = !!(
@@ -67,6 +64,8 @@ const DIST = join(ROOT, 'dist')
 const BUILD = join(ROOT, 'build')
 const MODELS = join(BUILD, 'models')
 const PACKAGE_NAME = 'models'
+
+const logger = getDefaultLogger()
 
 // Model sources (with fallbacks and versions).
 const MODEL_SOURCES = {
@@ -102,7 +101,6 @@ async function downloadModel(modelKey) {
     return
   }
 
-  const logger = getDefaultLogger()
   logger.step(`Downloading ${modelKey} model`)
 
   const config = MODEL_SOURCES[modelKey]
@@ -119,10 +117,16 @@ async function downloadModel(modelKey) {
       try {
         // Try huggingface-cli first.
         const revisionFlag = revision ? `--revision=${revision}` : ''
-        await execAsync(
-          `huggingface-cli download ${source} ${revisionFlag} --local-dir ${MODELS}/${modelKey}`,
-          { stdio: 'inherit' }
-        )
+        const cliCommand = `huggingface-cli download ${source} ${revisionFlag} --local-dir ${MODELS}/${modelKey}`
+        const cliResult = await spawn(cliCommand, {
+          shell: WIN32,
+          stdio: 'inherit',
+        })
+
+        if (cliResult.code !== 0) {
+          throw new Error(`huggingface-cli failed with exit code ${cliResult.code}`)
+        }
+
         logger.success(`Downloaded from ${source}`)
         await createCheckpoint(PACKAGE_NAME, `downloaded-${modelKey}`, {
           source,
@@ -133,13 +137,22 @@ async function downloadModel(modelKey) {
       } catch {
         // Fallback to Python transformers.
         const revisionParam = revision ? `, revision='${revision}'` : ''
-        await execAsync(
+        const pythonCommand =
           `python3 -c "from transformers import AutoTokenizer, AutoModel; ` +
           `tokenizer = AutoTokenizer.from_pretrained('${source}'${revisionParam}); ` +
           `model = AutoModel.from_pretrained('${source}'${revisionParam}); ` +
           `tokenizer.save_pretrained('${MODELS}/${modelKey}'); ` +
           `model.save_pretrained('${MODELS}/${modelKey}')"`
-        )
+
+        const pythonResult = await spawn(pythonCommand, {
+          shell: WIN32,
+          stdio: 'inherit',
+        })
+
+        if (pythonResult.code !== 0) {
+          throw new Error(`Python download failed with exit code ${pythonResult.code}`)
+        }
+
         logger.success(`Downloaded from ${source}`)
         await createCheckpoint(PACKAGE_NAME, `downloaded-${modelKey}`, {
           source,
@@ -182,10 +195,16 @@ async function convertToOnnx(modelKey) {
 
   // Convert using optimum-cli with task specified.
   try {
-    await execAsync(
-      `python3 -m optimum.exporters.onnx --model ${modelDir} --task ${config.task} ${modelDir}`,
-      { stdio: 'inherit' }
-    )
+    const convertCommand = `python3 -m optimum.exporters.onnx --model ${modelDir} --task ${config.task} ${modelDir}`
+    const convertResult = await spawn(convertCommand, {
+      shell: true,
+      stdio: 'inherit',
+    })
+
+    if (convertResult.code !== 0) {
+      throw new Error(`Conversion failed with exit code ${convertResult.code}`)
+    }
+
     logger.success('Converted to ONNX')
     await createCheckpoint(PACKAGE_NAME, `converted-${modelKey}`, { modelKey })
   } catch (e) {
@@ -249,16 +268,23 @@ async function quantizeModel(modelKey, quantLevel) {
     try {
       if (quantLevel === 'INT8') {
         // INT8: Use dynamic quantization (simpler, more compatible).
-        await execAsync(
+        const int8Command =
           `python3 -c "` +
           `from onnxruntime.quantization import quantize_dynamic, QuantType; ` +
           `quantize_dynamic('${onnxPath}', '${quantPath}', weight_type=QuantType.QUInt8)` +
-          `"`,
-          { stdio: 'inherit' }
-        )
+          `"`
+
+        const int8Result = await spawn(int8Command, {
+          shell: WIN32,
+          stdio: 'inherit',
+        })
+
+        if (int8Result.code !== 0) {
+          throw new Error(`INT8 quantization failed with exit code ${int8Result.code}`)
+        }
       } else {
         // INT4: Use MatMulNBitsQuantizer (maximum compression).
-        await execAsync(
+        const int4Command =
           `python3 -c "` +
           `from onnxruntime.quantization.matmul_nbits_quantizer import MatMulNBitsQuantizer, RTNWeightOnlyQuantConfig; ` +
           `from onnxruntime.quantization import quant_utils; ` +
@@ -268,9 +294,16 @@ async function quantizeModel(modelKey, quantLevel) {
           `quant = MatMulNBitsQuantizer(model, algo_config=quant_config); ` +
           `quant.process(); ` +
           `quant.model.save_model_to_file('${quantPath}', True)` +
-          `"`,
-          { stdio: 'inherit' }
-        )
+          `"`
+
+        const int4Result = await spawn(int4Command, {
+          shell: WIN32,
+          stdio: 'inherit',
+        })
+
+        if (int4Result.code !== 0) {
+          throw new Error(`INT4 quantization failed with exit code ${int4Result.code}`)
+        }
       }
 
       // Get sizes.

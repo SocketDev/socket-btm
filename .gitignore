@@ -107,3 +107,4 @@
 **/tmp/
 **/temp/
 **/*.tmp
+**/.claude/

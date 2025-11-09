@@ -40,11 +40,8 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
 
   afterAll(async () => {
     // Clean up test tmp directory.
-    try {
-      await fs.rm(testTmpDir, { recursive: true, force: true })
-    } catch {
-      // Ignore cleanup errors.
-    }
+    const { safeDelete } = await import('@socketsecurity/lib/fs')
+    await safeDelete(testTmpDir)
   })
 
   describe('hello-world with plain JavaScript blob', () => {

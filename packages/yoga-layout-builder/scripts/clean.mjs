@@ -2,12 +2,12 @@
  * Clean yoga-layout build artifacts.
  */
 
-import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { cleanCheckpoint } from '@socketsecurity/build-infra/lib/checkpoint-manager'
 import { printHeader, printSuccess } from '@socketsecurity/build-infra/lib/build-output'
+import { safeDelete } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -20,7 +20,7 @@ async function main() {
   printHeader('Cleaning yoga-layout')
 
   // Remove build directory (includes source).
-  await fs.rm(BUILD_DIR, { recursive: true, force: true }).catch(() => {})
+  await safeDelete(BUILD_DIR)
 
   // Clean checkpoints.
   await cleanCheckpoint('yoga-layout')

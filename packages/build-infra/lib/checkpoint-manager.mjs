@@ -8,6 +8,8 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
+import { safeDelete } from '@socketsecurity/lib/fs'
+
 import { printStep, printSubstep } from './build-output.mjs'
 
 /**
@@ -107,15 +109,8 @@ export async function cleanCheckpoint(packageName) {
 
   const checkpointDir = getCheckpointDir(packageName)
 
-  try {
-    await fs.rm(checkpointDir, { force: true, recursive: true })
-    printSubstep('Checkpoints cleaned')
-  } catch (e) {
-    // Ignore if directory doesn't exist.
-    if (e.code !== 'ENOENT') {
-      throw e
-    }
-  }
+  await safeDelete(checkpointDir)
+  printSubstep('Checkpoints cleaned')
 }
 
 /**
@@ -128,14 +123,7 @@ export async function cleanCheckpoint(packageName) {
 export async function removeCheckpoint(packageName, checkpointName) {
   const checkpointFile = getCheckpointFile(packageName, checkpointName)
 
-  try {
-    await fs.rm(checkpointFile)
-  } catch (e) {
-    // Ignore if file doesn't exist.
-    if (e.code !== 'ENOENT') {
-      throw e
-    }
-  }
+  await safeDelete(checkpointFile)
 }
 
 /**

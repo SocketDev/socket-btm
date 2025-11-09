@@ -55,14 +55,14 @@ const PLATFORM_CONFIG = {
     binaryFormat: 'Mach-O',
     defaultQuality: 'lzfse',
     qualityOptions: ['lz4', 'zlib', 'lzfse', 'lzma'],
-    buildCommand: '/usr/bin/make -f Makefile'
+    buildCommand: 'make -f Makefile'
   },
   linux: {
     toolName: 'socketsecurity_elf_compress',
     binaryFormat: 'ELF',
     defaultQuality: 'lzma',
     qualityOptions: ['lzma'],
-    buildCommand: '/usr/bin/make -f Makefile.linux'
+    buildCommand: 'make -f Makefile.linux'
   },
   win32: {
     toolName: 'socketsecurity_pe_compress',

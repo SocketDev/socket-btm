@@ -79,10 +79,14 @@ async function cloneYogaSource() {
   await fs.mkdir(BUILD_DIR, { recursive: true })
 
   printStep(`Cloning Yoga ${YOGA_VERSION}...`)
-  await spawn('git', ['clone', '--depth', '1', '--branch', YOGA_VERSION, YOGA_REPO, YOGA_SOURCE_DIR], {
+  const cloneResult = await spawn('git', ['clone', '--depth', '1', '--branch', YOGA_VERSION, YOGA_REPO, YOGA_SOURCE_DIR], {
     shell: WIN32,
     stdio: 'inherit',
   })
+
+  if (cloneResult.code !== 0) {
+    throw new Error('Failed to clone Yoga repository')
+  }
 
   printSuccess(`Yoga ${YOGA_VERSION} cloned`)
   await createCheckpoint('yoga-layout', 'cloned')
@@ -168,7 +172,11 @@ async function configure() {
   printStep(`  CXX: ${cxxFlags.join(' ')}`)
   printStep(`  Linker: ${linkerFlags.join(' ')}`)
 
-  await spawn('emcmake', cmakeArgs, { shell: WIN32, stdio: 'inherit' })
+  const cmakeResult = await spawn('emcmake', cmakeArgs, { shell: WIN32, stdio: 'inherit' })
+
+  if (cmakeResult.code !== 0) {
+    throw new Error('CMake configuration failed')
+  }
 
   printSuccess('CMake configured')
   await createCheckpoint('yoga-layout', 'configured')
@@ -189,10 +197,14 @@ async function build() {
 
   // Build static library with CMake.
   printStep('Compiling C++ to static library...')
-  await spawn('emmake', ['cmake', '--build', cmakeBuildDir, '--target', 'yogacore'], {
+  const buildResult = await spawn('emmake', ['cmake', '--build', cmakeBuildDir, '--target', 'yogacore'], {
     shell: WIN32,
     stdio: 'inherit',
   })
+
+  if (buildResult.code !== 0) {
+    throw new Error('Static library build failed')
+  }
 
   // Link WASM module with Emscripten bindings.
   printStep('Linking WASM module with Emscripten bindings...')
@@ -241,10 +253,14 @@ async function build() {
     jsOutput,
   ]
 
-  await spawn('em++', emArgs, {
+  const emppResult = await spawn('em++', emArgs, {
     shell: WIN32,
     stdio: 'inherit',
   })
+
+  if (emppResult.code !== 0) {
+    throw new Error('WASM compilation failed')
+  }
 
   printSuccess(`JS glue code created: ${jsOutput}`)
   printSuccess(`WASM module created: ${wasmOutput}`)
@@ -480,6 +496,7 @@ async function main() {
 }
 
 // Run build.
+const logger = getDefaultLogger()
 main().catch((e) => {
   printError('Build Failed')
   logger.error(e.message)

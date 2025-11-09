@@ -109,7 +109,7 @@ async function cloneOnnxSource() {
       // Source exists but patches not applied - need to re-clone.
       printWarning('Source exists but patches not applied')
       printStep('Removing old source to re-clone with patches...')
-      await fs.rm(ONNX_SOURCE_DIR, { recursive: true, force: true })
+      await safeDelete(ONNX_SOURCE_DIR)
       printSuccess('Old source removed')
     } else {
       printStep('All patches already applied, skipping clone')
@@ -121,10 +121,15 @@ async function cloneOnnxSource() {
   await fs.mkdir(BUILD_DIR, { recursive: true })
 
   printStep(`Cloning ONNX Runtime ${ONNX_VERSION}...`)
-  await spawn('git', ['clone', '--depth', '1', '--branch', ONNX_VERSION, ONNX_REPO, ONNX_SOURCE_DIR], {
+  const cloneResult = await spawn('git', ['clone', '--depth', '1', '--branch', ONNX_VERSION, ONNX_REPO, ONNX_SOURCE_DIR], {
     shell: WIN32,
     stdio: 'inherit',
   })
+
+  if (cloneResult.code !== 0) {
+    throw new Error('Failed to clone ONNX Runtime repository')
+  }
+
   printSuccess(`ONNX Runtime ${ONNX_VERSION} cloned`)
 
   // Patch 1: Update Eigen hash (see docs/patches.md).
@@ -207,7 +212,7 @@ async function build() {
   // GitHub Actions may have restored old unpatched files from cache after clone step.
   // Delete them now to force CMake to recopy patched versions from source.
   printStep('Checking for stale cached build files...')
-  const platform = process.platform === 'darwin' ? 'Darwin' : 'Linux'
+  const platform = process.platform === 'darwin' ? 'MacOS' : 'Linux'
   const buildCacheDir = path.join(ONNX_SOURCE_DIR, 'build', platform, 'Release')
 
   // Delete cached wasm_post_build.js (CMake will recopy from patched source).
@@ -243,7 +248,7 @@ async function build() {
   // MLFloat16 to be missing Negate(), IsNegative(), and FromBits() methods.
   // Workaround (if threading can't be used): Comment out BUILD_MLAS_NO_ONNXRUNTIME
   // in cmake/onnxruntime_webassembly.cmake after cloning.
-  await spawn(buildScript, [
+  const buildScriptResult = await spawn(buildScript, [
     '--config', 'Release',
     '--build_wasm',
     '--skip_tests',
@@ -255,6 +260,10 @@ async function build() {
     shell: WIN32,
     stdio: 'inherit',
   })
+
+  if (buildScriptResult.code !== 0) {
+    throw new Error('ONNX Runtime build script failed')
+  }
 
   const duration = formatDuration(Date.now() - startTime)
   printSuccess(`Build completed in ${duration}`)
@@ -270,8 +279,8 @@ async function exportWasm() {
   await fs.mkdir(OUTPUT_DIR, { recursive: true })
 
   // ONNX Runtime build outputs to: build/Linux/Release/
-  // or build/Darwin/Release/ on macOS
-  const platform = process.platform === 'darwin' ? 'Darwin' : 'Linux'
+  // or build/MacOS/Release/ on macOS
+  const platform = process.platform === 'darwin' ? 'MacOS' : 'Linux'
   const buildOutputDir = path.join(ONNX_SOURCE_DIR, 'build', platform, 'Release')
 
   // Look for threaded WASM files (threading + SIMD enabled).
@@ -381,6 +390,7 @@ async function main() {
 }
 
 // Run build.
+const logger = getDefaultLogger()
 main().catch((e) => {
   printError('Build Failed')
   logger.error(e.message)

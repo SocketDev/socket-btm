@@ -13,8 +13,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.join(__dirname, '..')
 const BUILD_DIR = path.join(ROOT_DIR, 'build')
 
+const logger = getDefaultLogger()
+
 async function clean() {
-  const logger = getDefaultLogger()
   logger.info('Cleaning onnxruntime build artifacts...')
 
   await safeDelete(BUILD_DIR)

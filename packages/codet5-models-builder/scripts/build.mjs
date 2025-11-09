@@ -65,14 +65,21 @@ async function downloadModels() {
   await fs.mkdir(MODELS_DIR, { recursive: true })
 
   // Use Hugging Face CLI to download models.
-  await exec(
+  const downloadCommand =
     `python3 -c "from transformers import AutoTokenizer, AutoModelForSeq2SeqLM; ` +
     `tokenizer = AutoTokenizer.from_pretrained('${MODEL_NAME}'); ` +
     `model = AutoModelForSeq2SeqLM.from_pretrained('${MODEL_NAME}'); ` +
     `tokenizer.save_pretrained('${MODELS_DIR}'); ` +
-    `model.save_pretrained('${MODELS_DIR}')"`,
-    { stdio: 'inherit' }
-  )
+    `model.save_pretrained('${MODELS_DIR}')"`
+
+  const downloadResult = await spawn(downloadCommand, {
+    shell: WIN32,
+    stdio: 'inherit',
+  })
+
+  if (downloadResult.code !== 0) {
+    throw new Error('Failed to download models')
+  }
 
   printSuccess('Models downloaded')
   await createCheckpoint('codet5-models', 'downloaded')
@@ -92,10 +99,16 @@ async function convertToOnnx() {
 
   // Convert encoder.
   printStep('Converting encoder')
-  await exec(
-    `python3 -m transformers.onnx --model=${MODELS_DIR} --feature=seq2seq-lm ${BUILD_DIR}`,
-    { stdio: 'inherit' }
-  )
+  const convertCommand = `python3 -m transformers.onnx --model=${MODELS_DIR} --feature=seq2seq-lm ${BUILD_DIR}`
+
+  const convertResult = await spawn(convertCommand, {
+    shell: WIN32,
+    stdio: 'inherit',
+  })
+
+  if (convertResult.code !== 0) {
+    throw new Error('Failed to convert models to ONNX')
+  }
 
   printSuccess('Models converted to ONNX')
   await createCheckpoint('codet5-models', 'converted')
@@ -116,19 +129,33 @@ async function quantizeModels() {
 
   // Quantize encoder with INT8.
   printStep('Quantizing encoder (INT8)')
-  await exec(
+  const quantizeEncoderCommand =
     `python3 -c "from onnxruntime.quantization import quantize_dynamic, QuantType; ` +
-    `quantize_dynamic('${encoderPath}', '${encoderPath}.quant', weight_type=QuantType.QInt8)"`,
-    { stdio: 'inherit' }
-  )
+    `quantize_dynamic('${encoderPath}', '${encoderPath}.quant', weight_type=QuantType.QInt8)"`
+
+  const quantizeEncoderResult = await spawn(quantizeEncoderCommand, {
+    shell: WIN32,
+    stdio: 'inherit',
+  })
+
+  if (quantizeEncoderResult.code !== 0) {
+    throw new Error('Failed to quantize encoder')
+  }
 
   // Quantize decoder with INT8.
   printStep('Quantizing decoder (INT8)')
-  await exec(
+  const quantizeDecoderCommand =
     `python3 -c "from onnxruntime.quantization import quantize_dynamic, QuantType; ` +
-    `quantize_dynamic('${decoderPath}', '${decoderPath}.quant', weight_type=QuantType.QInt8)"`,
-    { stdio: 'inherit' }
-  )
+    `quantize_dynamic('${decoderPath}', '${decoderPath}.quant', weight_type=QuantType.QInt8)"`
+
+  const quantizeDecoderResult = await spawn(quantizeDecoderCommand, {
+    shell: WIN32,
+    stdio: 'inherit',
+  })
+
+  if (quantizeDecoderResult.code !== 0) {
+    throw new Error('Failed to quantize decoder')
+  }
 
   // Replace original models with quantized versions.
   await fs.rename(`${encoderPath}.quant`, encoderPath)
@@ -159,19 +186,33 @@ async function optimizeModels() {
 
   // Optimize encoder.
   printStep('Optimizing encoder')
-  await exec(
+  const optimizeEncoderCommand =
     `python3 -c "from onnxruntime.transformers import optimizer; ` +
-    `optimizer.optimize_model('${encoderPath}', model_type='bert', num_heads=12, hidden_size=768)"`,
-    { stdio: 'inherit' }
-  )
+    `optimizer.optimize_model('${encoderPath}', model_type='bert', num_heads=12, hidden_size=768)"`
+
+  const optimizeEncoderResult = await spawn(optimizeEncoderCommand, {
+    shell: WIN32,
+    stdio: 'inherit',
+  })
+
+  if (optimizeEncoderResult.code !== 0) {
+    throw new Error('Failed to optimize encoder')
+  }
 
   // Optimize decoder.
   printStep('Optimizing decoder')
-  await exec(
+  const optimizeDecoderCommand =
     `python3 -c "from onnxruntime.transformers import optimizer; ` +
-    `optimizer.optimize_model('${decoderPath}', model_type='bert', num_heads=12, hidden_size=768)"`,
-    { stdio: 'inherit' }
-  )
+    `optimizer.optimize_model('${decoderPath}', model_type='bert', num_heads=12, hidden_size=768)"`
+
+  const optimizeDecoderResult = await spawn(optimizeDecoderCommand, {
+    shell: WIN32,
+    stdio: 'inherit',
+  })
+
+  if (optimizeDecoderResult.code !== 0) {
+    throw new Error('Failed to optimize decoder')
+  }
 
   printSuccess('Models optimized')
   await createCheckpoint('codet5-models', 'optimized')
@@ -196,12 +237,19 @@ async function verifyModels() {
   }
 
   printStep('Testing encoder inference')
-  await exec(
+  const verifyCommand =
     `python3 -c "import onnxruntime as ort; ` +
     `sess = ort.InferenceSession('${encoderPath}'); ` +
-    `print('Encoder loaded successfully')"`,
-    { stdio: 'inherit' }
-  )
+    `print('Encoder loaded successfully')"`
+
+  const verifyResult = await spawn(verifyCommand, {
+    shell: WIN32,
+    stdio: 'inherit',
+  })
+
+  if (verifyResult.code !== 0) {
+    throw new Error('Failed to verify models')
+  }
 
   printSuccess('Models verified')
   await createCheckpoint('codet5-models', 'verified')
@@ -265,13 +313,15 @@ async function main() {
 
   // Check for required Python packages.
   printStep('Checking Python dependencies')
-  try {
-    await execCapture('python3 -c "import transformers, onnx, onnxruntime"')
-  } catch {
-    printError(
-      'Missing Python dependencies',
-      'Install required packages: pip install transformers onnx onnxruntime'
-    )
+  const checkDepsResult = await spawn('python3 -c "import transformers, onnx, onnxruntime"', {
+    shell: WIN32,
+    stdio: 'pipe',
+    stdioString: true,
+  })
+
+  if (checkDepsResult.code !== 0) {
+    printError('Missing Python dependencies')
+    printError('Install required packages: pip install transformers onnx onnxruntime')
     throw new Error('Python dependencies not installed')
   }
 
@@ -299,7 +349,9 @@ async function main() {
 }
 
 // Run build.
+const logger = getDefaultLogger()
 main().catch((e) => {
-  printError('Build Failed', e)
+  printError('Build Failed')
+  logger.error(e.message)
   throw e
 })

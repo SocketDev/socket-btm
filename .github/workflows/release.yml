@@ -330,16 +330,25 @@ jobs:
       - name: Calculate and report build metrics
         if: always() && steps.build-start.outputs.timestamp
         shell: bash
+        env:
+          BUILD_START_TIMESTAMP: ${{ steps.build-start.outputs.timestamp }}
+          CACHE_VALID: ${{ steps.cache-valid.outputs.valid }}
+          JOB_STATUS: ${{ job.status }}
         run: |
           # Calculate build duration.
           END_TIME=$(date +%s)
-          DURATION=$((END_TIME - ${{ steps.build-start.outputs.timestamp }}))
+          DURATION=$((END_TIME - $BUILD_START_TIMESTAMP))
           DURATION_MIN=$((DURATION / 60))
           DURATION_SEC=$((DURATION % 60))
 
           # Determine cache status.
-          CACHE_STATUS="${{ steps.cache-valid.outputs.valid == 'true' && 'Hit' || 'Miss' }}"
-          BUILD_STATUS="${{ job.status }}"
+          CACHE_STATUS="${CACHE_VALID}"
+          if [ "$CACHE_STATUS" = "true" ]; then
+            CACHE_STATUS="Hit"
+          else
+            CACHE_STATUS="Miss"
+          fi
+          BUILD_STATUS="$JOB_STATUS"
 
           # Create metrics JSON.
           cat > build-metrics.json <<EOF
@@ -470,8 +479,9 @@ jobs:
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PUBLISH_RELEASE: ${{ github.event.inputs.publish }}
         run: |
-          if [ "${{ github.event.inputs.publish }}" = "true" ]; then
+          if [ "$PUBLISH_RELEASE" = "true" ]; then
             pnpm --filter @socketbin/node-smol-builder run release:publish
           else
             pnpm --filter @socketbin/node-smol-builder run release

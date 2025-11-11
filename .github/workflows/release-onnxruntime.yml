@@ -1,0 +1,85 @@
+name: Release ONNX Runtime WASM
+
+on:
+  push:
+    tags:
+      - 'onnxruntime-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.21.1)'
+        required: true
+        type: string
+      publish:
+        description: 'Publish release (not draft)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '10.20.0'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-onnxruntime-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build or Use Cached WASM
+    uses: ./.github/workflows/build-onnxruntime.yml
+    with:
+      force: false
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download WASM artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: onnxruntime-wasm
+          path: packages/onnxruntime-builder/build/wasm/
+
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ github.event.inputs.version || github.ref_name }}
+          PUBLISH: ${{ github.event.inputs.publish || 'false' }}
+        run: |
+          # Extract version from tag (onnxruntime-v1.21.1 -> 1.21.1)
+          VERSION_NUM="${VERSION#onnxruntime-v}"
+
+          # Create release draft
+          gh release create "onnxruntime-v${VERSION_NUM}" \
+            --title "ONNX Runtime WASM v${VERSION_NUM}" \
+            --notes "ONNX Runtime WebAssembly build with SIMD and threading support." \
+            ${PUBLISH:+--draft=false} \
+            ${PUBLISH:-
+
+--draft} \
+            packages/onnxruntime-builder/build/wasm/ort-wasm-simd-threaded.wasm \
+            packages/onnxruntime-builder/build/wasm/ort-wasm-simd-threaded.mjs

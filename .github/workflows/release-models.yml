@@ -1,0 +1,156 @@
+name: Release AI Models
+
+on:
+  push:
+    tags:
+      - 'models-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
+      quant_level:
+        description: 'Quantization level to release (int8, int4, or both)'
+        required: false
+        type: choice
+        options:
+          - both
+          - int8
+          - int4
+        default: both
+      publish:
+        description: 'Publish release (not draft)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '10.20.0'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-models-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build or Use Cached Models
+    uses: ./.github/workflows/build-models.yml
+    with:
+      force: false
+      quant_level: ${{ inputs.quant_level || 'both' }}
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download model artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: packages/models/dist/
+          pattern: models-*
+          merge-multiple: true
+
+      - name: List downloaded artifacts
+        run: |
+          echo "Downloaded model artifacts:"
+          ls -lh packages/models/dist/
+
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ github.event.inputs.version || github.ref_name }}
+          PUBLISH: ${{ github.event.inputs.publish || 'false' }}
+          QUANT_LEVEL: ${{ github.event.inputs.quant_level || 'both' }}
+        run: |
+          # Extract version from tag (models-v1.0.0 -> 1.0.0)
+          VERSION_NUM="${VERSION#models-v}"
+
+          # Build release notes
+          NOTES="AI Models (MiniLM-L6, CodeT5) optimized for Socket CLI.
+
+          ## Models Included
+
+          ### MiniLM-L6
+          - Sentence embedding model for semantic search
+          - Input: Text strings
+          - Output: 384-dimensional embeddings"
+
+          # Add INT8 models if included
+          if [ "$QUANT_LEVEL" = "both" ] || [ "$QUANT_LEVEL" = "int8" ]; then
+            NOTES="${NOTES}
+
+          ### INT8 Quantization
+          - Better compatibility with older hardware
+          - ~50% size reduction vs. full precision
+          - Minimal accuracy loss"
+          fi
+
+          # Add INT4 models if included
+          if [ "$QUANT_LEVEL" = "both" ] || [ "$QUANT_LEVEL" = "int4" ]; then
+            NOTES="${NOTES}
+
+          ### INT4 Quantization
+          - Maximum compression for mobile/edge devices
+          - ~75% size reduction vs. full precision
+          - Small accuracy tradeoff for significant size savings"
+          fi
+
+          NOTES="${NOTES}
+
+          ### CodeT5
+          - Code understanding and generation model
+          - Input: Source code
+          - Output: Code embeddings, summaries, or completions"
+
+          # Determine which files to upload
+          FILES=""
+          if [ "$QUANT_LEVEL" = "both" ] || [ "$QUANT_LEVEL" = "int8" ]; then
+            FILES="$FILES packages/models/dist/minilm-l6-int8.onnx"
+            FILES="$FILES packages/models/dist/codet5-encoder-int8.onnx"
+            FILES="$FILES packages/models/dist/codet5-decoder-int8.onnx"
+          fi
+
+          if [ "$QUANT_LEVEL" = "both" ] || [ "$QUANT_LEVEL" = "int4" ]; then
+            FILES="$FILES packages/models/dist/minilm-l6-int4.onnx"
+            FILES="$FILES packages/models/dist/codet5-encoder-int4.onnx"
+            FILES="$FILES packages/models/dist/codet5-decoder-int4.onnx"
+          fi
+
+          # Always include tokenizers (shared across quantization levels)
+          FILES="$FILES packages/models/dist/minilm-l6-tokenizer.json"
+          FILES="$FILES packages/models/dist/codet5-tokenizer.json"
+
+          # Create release
+          gh release create "models-v${VERSION_NUM}" \
+            --title "AI Models v${VERSION_NUM}" \
+            --notes "$NOTES" \
+            ${PUBLISH:+--draft=false} \
+            ${PUBLISH:-
+
+--draft} \
+            $FILES

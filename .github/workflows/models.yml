@@ -53,11 +53,7 @@ jobs:
     timeout-minutes: 90
     strategy:
       matrix:
-        quant_level: ${{
-          (inputs.quant_level == 'both' || inputs.quant_level == '' || inputs.quant_level == null)
-          && fromJSON('["int8", "int4"]') ||
-          fromJSON(format('["{0}"]', inputs.quant_level))
-        }}
+        quant_level: ${{ (inputs.quant_level == 'both' || inputs.quant_level == '' || inputs.quant_level == null) && fromJSON('["int8", "int4"]') || fromJSON(format('["{0}"]', inputs.quant_level)) }}
 
     steps:
       - name: Checkout repository

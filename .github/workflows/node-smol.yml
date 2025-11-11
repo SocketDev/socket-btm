@@ -150,7 +150,7 @@ jobs:
         run: |
           BUILD_MODE="${{ inputs.build_mode || 'prod' }}"
           PATCHES_HASH=$(find packages/node-smol-builder/patches -type f 2>/dev/null | xargs shasum -a 256 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
-          CONFIG_HASH=$(shasum -a 256 packages/node-smol-builder/configure.mjs | cut -d' ' -f1)
+          CONFIG_HASH=$(shasum -a 256 packages/node-smol-builder/scripts/build.mjs | cut -d' ' -f1)
           COMBINED_HASH=$(echo "${PATCHES_HASH}${CONFIG_HASH}" | shasum -a 256 | cut -d' ' -f1)
           echo "hash=${COMBINED_HASH}" >> $GITHUB_OUTPUT
           echo "build_mode=${BUILD_MODE}" >> $GITHUB_OUTPUT
@@ -276,7 +276,11 @@ jobs:
         shell: bash
         run: |
           BUILD_MODE="${{ inputs.build_mode || 'prod' }}"
-          pnpm --filter node-smol-builder build --mode="${BUILD_MODE}" --platform=${{ matrix.platform }} --arch=${{ matrix.arch }}
+          if [ "$BUILD_MODE" = "prod" ]; then
+            pnpm --filter node-smol-builder build --prod
+          else
+            pnpm --filter node-smol-builder build --dev
+          fi
 
       - name: Collect build metrics
         if: always()

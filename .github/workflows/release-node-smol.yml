@@ -1,0 +1,149 @@
+name: Release Node Smol Binaries
+
+on:
+  push:
+    tags:
+      - 'node-smol-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.2.0)'
+        required: true
+        type: string
+      publish:
+        description: 'Publish release (not draft)'
+        required: false
+        type: boolean
+        default: false
+      force:
+        description: 'Force rebuild (ignore cache)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '10.20.0'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-node-smol-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Build binaries using the reusable build workflow.
+  build:
+    name: Build or Use Cached Binaries
+    uses: ./.github/workflows/build-node-smol.yml
+    with:
+      force: ${{ inputs.force || false }}
+      build_mode: prod
+
+  # Create GitHub release with all binaries.
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Download all built binaries.
+      - name: Download macOS ARM64
+        uses: actions/download-artifact@v4
+        with:
+          name: node-smol-darwin-arm64
+          path: packages/node-smol-builder/build/cache/
+
+      - name: Rename macOS ARM64
+        run: mv packages/node-smol-builder/build/cache/node packages/node-smol-builder/build/cache/node-compiled-darwin-arm64
+
+      - name: Download macOS x64
+        uses: actions/download-artifact@v4
+        with:
+          name: node-smol-darwin-x64
+          path: packages/node-smol-builder/build/cache/
+
+      - name: Rename macOS x64
+        run: mv packages/node-smol-builder/build/cache/node packages/node-smol-builder/build/cache/node-compiled-darwin-x64
+
+      - name: Download Linux x64
+        uses: actions/download-artifact@v4
+        with:
+          name: node-smol-linux-x64
+          path: packages/node-smol-builder/build/cache/
+
+      - name: Rename Linux x64
+        run: mv packages/node-smol-builder/build/cache/node packages/node-smol-builder/build/cache/node-compiled-linux-x64
+
+      - name: Download Linux ARM64
+        uses: actions/download-artifact@v4
+        with:
+          name: node-smol-linux-arm64
+          path: packages/node-smol-builder/build/cache/
+
+      - name: Rename Linux ARM64
+        run: mv packages/node-smol-builder/build/cache/node packages/node-smol-builder/build/cache/node-compiled-linux-arm64
+
+      - name: Download Linux musl x64
+        uses: actions/download-artifact@v4
+        with:
+          name: node-smol-linux-musl-x64
+          path: packages/node-smol-builder/build/cache/
+
+      - name: Rename Linux musl x64
+        run: mv packages/node-smol-builder/build/cache/node packages/node-smol-builder/build/cache/node-compiled-linux-musl-x64
+
+      - name: Download Linux musl ARM64
+        uses: actions/download-artifact@v4
+        with:
+          name: node-smol-linux-musl-arm64
+          path: packages/node-smol-builder/build/cache/
+
+      - name: Rename Linux musl ARM64
+        run: mv packages/node-smol-builder/build/cache/node packages/node-smol-builder/build/cache/node-compiled-linux-musl-arm64
+
+      - name: Download Windows x64
+        uses: actions/download-artifact@v4
+        with:
+          name: node-smol-win32-x64
+          path: packages/node-smol-builder/build/cache/
+
+      - name: Rename Windows x64
+        run: mv packages/node-smol-builder/build/cache/node.exe packages/node-smol-builder/build/cache/node-compiled-win32-x64
+
+      - name: Download Windows ARM64
+        uses: actions/download-artifact@v4
+        with:
+          name: node-smol-win32-arm64
+          path: packages/node-smol-builder/build/cache/
+
+      - name: Rename Windows ARM64
+        run: mv packages/node-smol-builder/build/cache/node.exe packages/node-smol-builder/build/cache/node-compiled-win32-arm64
+
+      # Create release.
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PUBLISH_RELEASE: ${{ github.event.inputs.publish }}
+        run: |
+          if [ "$PUBLISH_RELEASE" = "true" ]; then
+            pnpm --filter @socketbin/node-smol-builder run release:publish
+          else
+            pnpm --filter @socketbin/node-smol-builder run release
+          fi

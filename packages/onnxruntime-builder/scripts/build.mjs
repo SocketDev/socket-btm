@@ -42,6 +42,8 @@ import {
   createCheckpoint,
   shouldRun,
 } from 'build-infra/lib/checkpoint-manager'
+import { ensureEmscripten } from 'build-infra/lib/emscripten-installer'
+import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -344,29 +346,61 @@ async function main() {
     printWarning('Could not check disk space')
   }
 
-  // Setup build environment (check for Emscripten SDK).
-  const envSetup = await setupBuildEnvironment({
-    emscripten: true,
-    autoSetup: false,
+  // Ensure CMake is installed.
+  printStep('Checking for CMake...')
+  const cmakeResult = await ensureToolInstalled('cmake', { autoInstall: true })
+  if (!cmakeResult.available) {
+    printError('CMake is required but not found')
+    printError('Install CMake from: https://cmake.org/download/')
+    throw new Error('CMake required')
+  }
+
+  if (cmakeResult.installed) {
+    printSuccess('Installed CMake')
+  } else {
+    printSuccess('CMake found')
+  }
+
+  // Ensure Emscripten SDK is available.
+  printStep('Checking for Emscripten SDK...')
+  const emscriptenResult = await ensureEmscripten({
+    version: 'latest',
+    autoInstall: true,
+    quiet: false,
   })
 
-  printSetupResults(envSetup)
+  if (!emscriptenResult.available) {
+    printError('')
+    printError('Failed to install Emscripten SDK')
+    printError('Please install manually:')
+    printError('  git clone https://github.com/emscripten-core/emsdk.git')
+    printError('  cd emsdk')
+    printError('  ./emsdk install latest')
+    printError('  ./emsdk activate latest')
+    printError('  source ./emsdk_env.sh')
+    printError('')
+    throw new Error('Emscripten SDK required')
+  }
 
-  if (!envSetup.success) {
-    // Fallback: Check if emcc is in PATH.
-    printStep('Checking for emcc in PATH...')
-    const emccCheck = await checkCompiler('emcc')
+  if (emscriptenResult.installed) {
+    printSuccess('Installed Emscripten SDK')
+  } else if (emscriptenResult.activated) {
+    printSuccess('Activated Emscripten SDK')
+  } else {
+    printSuccess('Emscripten SDK found')
+  }
 
-    if (emccCheck) {
-      printSuccess('Emscripten (emcc) found in PATH')
+  // Optional: Check for wasm-opt (Binaryen) for additional optimization.
+  printStep('Checking for wasm-opt (optional)...')
+  const wasmOptResult = await ensureToolInstalled('wasm-opt', { autoInstall: true })
+  if (wasmOptResult.available) {
+    if (wasmOptResult.installed) {
+      printSuccess('Installed wasm-opt (Binaryen)')
     } else {
-      printError('')
-      printError('Build environment setup failed')
-      printError('Install Emscripten SDK:')
-      printError('  https://emscripten.org/docs/getting_started/downloads.html')
-      printError('')
-      throw new Error('Emscripten SDK required')
+      printSuccess('wasm-opt found')
     }
+  } else {
+    printWarning('wasm-opt not found (optional, provides additional optimization)')
   }
 
   printSuccess('Pre-flight checks passed')

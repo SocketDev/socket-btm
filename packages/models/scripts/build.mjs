@@ -36,6 +36,8 @@ import {
   getCheckpointData,
   shouldRun,
 } from 'build-infra/lib/checkpoint-manager'
+import { ensureAllPythonPackages } from 'build-infra/lib/python-installer'
+import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 
 // Check if running in CI.
 const IS_CI = !!(
@@ -364,6 +366,58 @@ async function copyToDist(modelKey, quantizedPaths, quantLevel) {
 }
 
 /**
+ * Check and install prerequisites.
+ */
+async function checkPrerequisites() {
+  logger.step('Checking prerequisites')
+
+  // Ensure Python 3 is installed.
+  const pythonResult = await ensureToolInstalled('python3', { autoInstall: true })
+  if (!pythonResult.available) {
+    logger.error('Python 3 is required but not found')
+    logger.error('Please install Python 3.6+ manually')
+    process.exit(1)
+  }
+
+  if (pythonResult.installed) {
+    logger.success('Installed Python 3')
+  }
+
+  // Ensure required Python packages are installed.
+  logger.substep('Checking Python packages...')
+  const requiredPackages = [
+    'transformers',
+    'torch',
+    'onnx',
+    { name: 'onnxruntime', importName: 'onnxruntime' },
+  ]
+
+  const packagesResult = await ensureAllPythonPackages(requiredPackages, {
+    autoInstall: true,
+    quiet: false,
+  })
+
+  if (!packagesResult.allAvailable) {
+    logger.error('Failed to install required Python packages:')
+    for (const pkg of packagesResult.missing) {
+      logger.error(`  - ${pkg}`)
+    }
+    logger.error('')
+    logger.error('Please install manually:')
+    logger.error('  pip3 install --user transformers torch onnx onnxruntime')
+    process.exit(1)
+  }
+
+  if (packagesResult.installed.length > 0) {
+    logger.success(`Installed Python packages: ${packagesResult.installed.join(', ')}`)
+  } else {
+    logger.success('All Python packages available')
+  }
+
+  logger.log('')
+}
+
+/**
  * Main build.
  */
 async function main() {
@@ -373,6 +427,9 @@ async function main() {
   logger.info('')
 
   const startTime = Date.now()
+
+  // Check and install prerequisites.
+  await checkPrerequisites()
 
   const suffix = QUANT_LEVEL.toLowerCase()
 

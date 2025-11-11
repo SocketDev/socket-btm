@@ -37,6 +37,8 @@ import {
   createCheckpoint,
   shouldRun,
 } from 'build-infra/lib/checkpoint-manager'
+import { ensureAllPythonPackages } from 'build-infra/lib/python-installer'
+import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -76,7 +78,7 @@ async function downloadModels() {
     `tokenizer.save_pretrained('${MODELS_DIR}'); ` +
     `model.save_pretrained('${MODELS_DIR}')"`
 
-  const downloadResult = await spawn(downloadCommand, {
+  const downloadResult = await spawn(downloadCommand, [], {
     shell: WIN32,
     stdio: 'inherit',
   })
@@ -310,23 +312,55 @@ async function main() {
     throw new Error('Insufficient disk space (need 2GB)')
   }
 
-  const pythonOk = await checkPythonVersion('3.8')
-  if (!pythonOk) {
+  // Ensure Python 3 is installed.
+  const pythonResult = await ensureToolInstalled('python3', { autoInstall: true })
+  if (!pythonResult.available) {
+    printError('Python 3.8+ is required but not found')
+    printError('Install Python from: https://www.python.org/downloads/')
     throw new Error('Python 3.8+ required')
   }
 
-  // Check for required Python packages.
-  printStep('Checking Python dependencies')
-  const checkDepsResult = await spawn('python3', ['-c', 'import transformers, onnx, onnxruntime'], {
-    shell: WIN32,
-    stdio: 'pipe',
-    stdioString: true,
+  if (pythonResult.installed) {
+    printSuccess('Installed Python 3')
+  }
+
+  // Check Python version.
+  const pythonOk = await checkPythonVersion('3.8')
+  if (!pythonOk) {
+    printError('Python 3.8+ required (found older version)')
+    printError('Install Python from: https://www.python.org/downloads/')
+    throw new Error('Python 3.8+ required')
+  }
+
+  // Ensure required Python packages are installed.
+  printStep('Checking Python packages...')
+  const requiredPackages = [
+    'transformers',
+    'torch',
+    'onnx',
+    { name: 'onnxruntime', importName: 'onnxruntime' },
+  ]
+
+  const packagesResult = await ensureAllPythonPackages(requiredPackages, {
+    autoInstall: true,
+    quiet: false,
   })
 
-  if (checkDepsResult.code !== 0) {
-    printError('Missing Python dependencies')
-    printError('Install required packages: pip install transformers onnx onnxruntime')
-    throw new Error('Python dependencies not installed')
+  if (!packagesResult.allAvailable) {
+    printError('Failed to install required Python packages:')
+    for (const pkg of packagesResult.missing) {
+      logger.error(`  - ${pkg}`)
+    }
+    logger.error('')
+    logger.error('Please install manually:')
+    logger.error('  pip3 install --user transformers torch onnx onnxruntime')
+    throw new Error('Missing Python dependencies')
+  }
+
+  if (packagesResult.installed.length > 0) {
+    printSuccess(`Installed Python packages: ${packagesResult.installed.join(', ')}`)
+  } else {
+    printSuccess('All Python packages available')
   }
 
   printSuccess('Pre-flight checks passed')

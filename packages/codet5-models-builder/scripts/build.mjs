@@ -52,9 +52,11 @@ const QUANT_LEVEL = args.includes('--int4') ? 'int4' : 'int8'
 // Configuration.
 const MODEL_NAME = 'Salesforce/codet5-base'
 const ROOT_DIR = path.join(__dirname, '..')
+const BUILD_ROOT = path.join(ROOT_DIR, 'build')
+// Shared models cache (same source models for both int8/int4)
+const MODELS_DIR = path.join(BUILD_ROOT, 'models')
 // Isolate builds by quantization level to allow concurrent int4/int8 builds
-const BUILD_DIR = path.join(ROOT_DIR, 'build', QUANT_LEVEL)
-const MODELS_DIR = path.join(BUILD_DIR, 'models')
+const BUILD_DIR = path.join(BUILD_ROOT, QUANT_LEVEL)
 const OUTPUT_DIR = path.join(BUILD_DIR, 'output')
 
 /**

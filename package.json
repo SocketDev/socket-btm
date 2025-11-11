@@ -17,8 +17,9 @@
     "@socketsecurity/lib": "catalog:",
     "vitest": "catalog:"
   },
-  "packageManager": "pnpm@10.20.0",
+  "packageManager": "pnpm@10.21.0",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=18",
+    "pnpm": ">=10.21.0"
   }
 }

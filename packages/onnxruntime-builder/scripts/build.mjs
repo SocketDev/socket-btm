@@ -16,6 +16,7 @@ import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { whichBinSync } from '@socketsecurity/lib/bin'
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { safeDelete, safeReadFile } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
@@ -123,7 +124,7 @@ async function cloneOnnxSource() {
   await fs.mkdir(BUILD_DIR, { recursive: true })
 
   printStep(`Cloning ONNX Runtime ${ONNX_VERSION}...`)
-  const cloneResult = await spawn('git', ['clone', '--depth', '1', '--branch', ONNX_VERSION, ONNX_REPO, ONNX_SOURCE_DIR], {
+  const cloneResult = await spawn('git', ['-c', 'http.postBuffer=524288000', '-c', 'http.version=HTTP/1.1', 'clone', '--depth', '1', '--branch', ONNX_VERSION, ONNX_REPO, ONNX_SOURCE_DIR], {
     shell: WIN32,
     stdio: 'inherit',
   })
@@ -250,14 +251,28 @@ async function build() {
   // MLFloat16 to be missing Negate(), IsNegative(), and FromBits() methods.
   // Workaround (if threading can't be used): Comment out BUILD_MLAS_NO_ONNXRUNTIME
   // in cmake/onnxruntime_webassembly.cmake after cloning.
-  const buildScriptResult = await spawn(buildScript, [
+
+  // Check if Ninja is available for faster builds
+  const ninjaAvailable = whichBinSync('ninja', { nothrow: true })
+
+  const buildArgs = [
     '--config', 'Release',
     '--build_wasm',
     '--skip_tests',
     '--parallel',
     '--enable_wasm_threads', // Required for ONNX Runtime v1.19.0+ (non-threaded builds deprecated).
     '--enable_wasm_simd', // Enable SIMD for better performance.
-  ], {
+  ]
+
+  // Use Ninja if available (much faster than Make for large C++ projects)
+  if (ninjaAvailable) {
+    printStep('Using Ninja build system (faster)')
+    buildArgs.push('--cmake_generator', 'Ninja')
+  } else {
+    printWarning('Ninja not found - using Make (slower). Install: brew install ninja')
+  }
+
+  const buildScriptResult = await spawn(buildScript, buildArgs, {
     cwd: ONNX_SOURCE_DIR,
     shell: WIN32,
     stdio: 'inherit',
@@ -388,6 +403,20 @@ async function main() {
     printSuccess('Activated Emscripten SDK')
   } else {
     printSuccess('Emscripten SDK found')
+  }
+
+  // Optional: Check for Ninja (much faster than Make for large C++ projects).
+  printStep('Checking for Ninja build system (optional, recommended)...')
+  const ninjaResult = await ensureToolInstalled('ninja', { autoInstall: true })
+  if (ninjaResult.available) {
+    if (ninjaResult.installed) {
+      printSuccess('Installed Ninja build system')
+    } else {
+      printSuccess('Ninja found')
+    }
+  } else {
+    printWarning('Ninja not found (optional, but MUCH faster than Make for C++ builds)')
+    printWarning('Install: brew install ninja')
   }
 
   // Optional: Check for wasm-opt (Binaryen) for additional optimization.

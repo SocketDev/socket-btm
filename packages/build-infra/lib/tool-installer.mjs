@@ -76,6 +76,14 @@ const TOOL_CONFIGS = {
       win32: { choco: 'binaryen', scoop: 'binaryen' },
     },
   },
+  ninja: {
+    description: 'Ninja build system (faster than Make)',
+    packages: {
+      darwin: { brew: 'ninja' },
+      linux: { apt: 'ninja-build', yum: 'ninja-build', dnf: 'ninja-build', apk: 'samurai' },
+      win32: { choco: 'ninja', scoop: 'ninja' },
+    },
+  },
 }
 
 /**

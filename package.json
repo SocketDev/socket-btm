@@ -1,9 +1,14 @@
 {
   "name": "socket-btm-monorepo",
   "version": "0.0.0",
+  "packageManager": "pnpm@10.21.0",
   "private": true,
-  "description": "Socket Build Tree Manager - Build infrastructure for Node.js binaries and ML models",
   "license": "MIT",
+  "description": "Socket Build Tree Manager - Build infrastructure for Node.js binaries and ML models",
+  "engines": {
+    "node": ">=18",
+    "pnpm": ">=10.21.0"
+  },
   "scripts": {
     "build": "pnpm --filter @socketbin/node-smol-builder build",
     "build:all": "pnpm --filter @socketbin/node-smol-builder build:all",
@@ -16,10 +21,5 @@
   "devDependencies": {
     "@socketsecurity/lib": "catalog:",
     "vitest": "catalog:"
-  },
-  "packageManager": "pnpm@10.21.0",
-  "engines": {
-    "node": ">=18",
-    "pnpm": ">=10.21.0"
   }
 }

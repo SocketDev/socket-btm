@@ -34,6 +34,9 @@
 # Distribution binaries (E2E test artifacts, regenerated on each build)
 **/dist/
 
+# Downloaded model cache (intermediate files for model builders)
+**/.models/
+
 # ==============================================================================
 # Dependencies
 # ==============================================================================

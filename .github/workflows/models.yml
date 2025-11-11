@@ -1,0 +1,319 @@
+name: AI Models
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/models/**'
+      - '.github/workflows/models.yml'
+  pull_request:
+    paths:
+      - 'packages/models/**'
+      - '.github/workflows/models.yml'
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      quant_level:
+        description: 'Quantization level'
+        type: choice
+        options:
+          - both
+          - int8
+          - int4
+        default: both
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+      force:
+        type: boolean
+        default: false
+      quant_level:
+        type: string
+        default: both
+
+env:
+  NODE_VERSION: 22.x
+  PNPM_VERSION: 9.x
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    strategy:
+      matrix:
+        quant_level: ${{
+          (inputs.quant_level == 'both' || inputs.quant_level == '' || inputs.quant_level == null)
+          && fromJSON('["int8", "int4"]') ||
+          fromJSON(format('["{0}"]', inputs.quant_level))
+        }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Python
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Restore pnpm cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        with:
+          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+          pip install transformers optimum onnx onnxruntime
+
+      - name: Generate model cache key
+        id: cache-key
+        run: |
+          BUILD_FILES_HASH=$(find packages/models/scripts packages/models/package.json -type f | xargs shasum -a 256 | shasum -a 256 | cut -d' ' -f1)
+          echo "hash=$BUILD_FILES_HASH" >> $GITHUB_OUTPUT
+
+      - name: Restore model cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        id: model-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: packages/models/dist/${{ matrix.quant_level }}
+          key: models-${{ matrix.quant_level }}-${{ steps.cache-key.outputs.hash }}
+
+      - name: Validate model cache integrity
+        id: validate-cache
+        if: steps.model-cache.outputs.cache-hit == 'true'
+        run: |
+          echo "Validating cached models for ${{ matrix.quant_level }}..."
+
+          # Check if model files exist
+          if [ ! -f "packages/models/dist/${{ matrix.quant_level }}/minilm-l6/model.onnx" ]; then
+            echo "❌ MiniLM model missing, invalidating cache"
+            rm -rf packages/models/dist/${{ matrix.quant_level }}
+            echo "cache_valid=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if [ ! -f "packages/models/dist/${{ matrix.quant_level }}/codet5/model.onnx" ]; then
+            echo "❌ CodeT5 model missing, invalidating cache"
+            rm -rf packages/models/dist/${{ matrix.quant_level }}
+            echo "cache_valid=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check file sizes are reasonable (ONNX models should be > 1MB)
+          MINILM_SIZE=$(stat -c%s packages/models/dist/${{ matrix.quant_level }}/minilm-l6/model.onnx)
+          CODET5_SIZE=$(stat -c%s packages/models/dist/${{ matrix.quant_level }}/codet5/model.onnx)
+
+          if [ "$MINILM_SIZE" -lt 1000000 ]; then
+            echo "❌ MiniLM model too small ($MINILM_SIZE bytes), invalidating cache"
+            rm -rf packages/models/dist/${{ matrix.quant_level }}
+            echo "cache_valid=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if [ "$CODET5_SIZE" -lt 1000000 ]; then
+            echo "❌ CodeT5 model too small ($CODET5_SIZE bytes), invalidating cache"
+            rm -rf packages/models/dist/${{ matrix.quant_level }}
+            echo "cache_valid=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "✅ Cache validation passed"
+          echo "cache_valid=true" >> $GITHUB_OUTPUT
+
+      - name: Build models
+        if: steps.model-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.cache_valid == 'false'
+        run: pnpm --filter models build --${{ matrix.quant_level }}
+
+      - name: Validate build output
+        run: |
+          echo "Validating models build output for ${{ matrix.quant_level }}..."
+
+          if [ ! -f "packages/models/dist/${{ matrix.quant_level }}/minilm-l6/model.onnx" ]; then
+            echo "❌ Build failed: MiniLM model missing"
+            exit 1
+          fi
+
+          if [ ! -f "packages/models/dist/${{ matrix.quant_level }}/codet5/model.onnx" ]; then
+            echo "❌ Build failed: CodeT5 model missing"
+            exit 1
+          fi
+
+          MINILM_SIZE=$(stat -c%s packages/models/dist/${{ matrix.quant_level }}/minilm-l6/model.onnx)
+          CODET5_SIZE=$(stat -c%s packages/models/dist/${{ matrix.quant_level }}/codet5/model.onnx)
+
+          if [ "$MINILM_SIZE" -lt 1000000 ]; then
+            echo "❌ Build failed: MiniLM model too small ($MINILM_SIZE bytes)"
+            exit 1
+          fi
+
+          if [ "$CODET5_SIZE" -lt 1000000 ]; then
+            echo "❌ Build failed: CodeT5 model too small ($CODET5_SIZE bytes)"
+            exit 1
+          fi
+
+          echo "✅ Build validation passed"
+
+      - name: Upload model artifacts
+        uses: actions/upload-artifact@ea165da598d47c5c63f3a64d861423ce9564af31 # v4.6.0
+        with:
+          name: models-${{ matrix.quant_level }}
+          path: packages/models/dist/${{ matrix.quant_level }}/
+          retention-days: 30
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: |
+      (github.event_name == 'workflow_dispatch' && !inputs.dry_run) ||
+      (github.event_name == 'release')
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download all model artifacts
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da32fa3c3640b8 # v4.1.8
+        with:
+          path: packages/models/dist/
+          pattern: models-*
+          merge-multiple: true
+
+      - name: Validate all quantization levels present
+        run: |
+          if [ ! -d "packages/models/dist/int8" ]; then
+            echo "❌ int8 models missing"
+            exit 1
+          fi
+
+          if [ ! -d "packages/models/dist/int4" ]; then
+            echo "❌ int4 models missing"
+            exit 1
+          fi
+
+          # Verify model files exist
+          REQUIRED_MODELS=(
+            "int8/minilm-l6/model.onnx"
+            "int8/codet5/model.onnx"
+            "int4/minilm-l6/model.onnx"
+            "int4/codet5/model.onnx"
+          )
+
+          for model in "${REQUIRED_MODELS[@]}"; do
+            if [ ! -f "packages/models/dist/$model" ]; then
+              echo "❌ Required model missing: $model"
+              exit 1
+            fi
+          done
+
+          echo "✅ All models present"
+
+      - name: Extract version from package.json
+        id: version
+        run: |
+          VERSION=$(node -p "require('./packages/models/package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Generate checksums
+        run: |
+          cd packages/models/dist
+          find . -name "*.onnx" -exec shasum -a 256 {} \; > checksums.txt
+          cat checksums.txt
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="models-v${VERSION}"
+
+          # Check if release already exists
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, uploading assets..."
+
+            # Create archives for each quantization level
+            cd packages/models/dist
+            tar -czf models-int8.tar.gz int8/
+            tar -czf models-int4.tar.gz int4/
+
+            gh release upload "$TAG" \
+              models-int8.tar.gz \
+              models-int4.tar.gz \
+              checksums.txt \
+              --clobber
+          else
+            echo "Creating new release $TAG..."
+
+            # Create archives for each quantization level
+            cd packages/models/dist
+            tar -czf models-int8.tar.gz int8/
+            tar -czf models-int4.tar.gz int4/
+
+            gh release create "$TAG" \
+              --title "AI Models v${VERSION}" \
+              --notes "Pre-trained AI models for Socket BTM, quantized to int8 and int4.
+
+          ## Included Models
+
+          ### MiniLM-L6-v2
+          - Sentence embeddings model
+          - 384-dimensional embeddings
+          - Available in int8 and int4 quantization
+
+          ### CodeT5
+          - Code understanding model
+          - Available in int8 and int4 quantization
+
+          ## Archives
+          - \`models-int8.tar.gz\` - All models with int8 quantization
+          - \`models-int4.tar.gz\` - All models with int4 quantization
+          - \`checksums.txt\` - SHA256 checksums for all .onnx files
+
+          ## Usage
+          Extract the archive and load models with ONNX Runtime:
+          \`\`\`javascript
+          import * as ort from 'onnxruntime-node';
+          const session = await ort.InferenceSession.create('./int8/minilm-l6/model.onnx');
+          \`\`\`" \
+              models-int8.tar.gz \
+              models-int4.tar.gz \
+              checksums.txt
+          fi

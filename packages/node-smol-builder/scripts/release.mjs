@@ -35,7 +35,6 @@ import { platform as osPlatform, arch as osArch } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from '@socketsecurity/lib/argv/parse'
-import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
@@ -45,7 +44,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.join(__dirname, '..')
 const BUILD_DIR = path.join(ROOT_DIR, 'build')
 const PACKAGE_JSON = JSON.parse(
-  await fs.readFile(path.join(ROOT_DIR, 'package.json'), 'utf-8')
+  await fs.readFile(path.join(ROOT_DIR, 'package.json'), 'utf-8'),
 )
 
 const logger = getDefaultLogger()
@@ -135,12 +134,20 @@ async function calculateChecksum(filePath) {
 async function findBinary(platform, arch) {
   // Check Final build (if current platform).
   const finalBinary = path.join(BUILD_DIR, 'out', 'Final', 'node')
-  if (platform === osPlatform() && arch === osArch() && existsSync(finalBinary)) {
+  if (
+    platform === osPlatform() &&
+    arch === osArch() &&
+    existsSync(finalBinary)
+  ) {
     return finalBinary
   }
 
   // Check cached build.
-  const cachedBinary = path.join(BUILD_DIR, 'cache', `node-compiled-${platform}-${arch}`)
+  const cachedBinary = path.join(
+    BUILD_DIR,
+    'cache',
+    `node-compiled-${platform}-${arch}`,
+  )
   if (existsSync(cachedBinary)) {
     return cachedBinary
   }
@@ -217,20 +224,12 @@ async function createReleaseArchive(platform, arch, version) {
 
   if (config.ext === 'tar.gz') {
     // Create tar.gz.
-    await spawn('tar', [
-      '-czf',
-      archivePath,
-      '-C',
-      tempDir,
-      tempBinaryName
-    ], { stdio: 'inherit' })
+    await spawn('tar', ['-czf', archivePath, '-C', tempDir, tempBinaryName], {
+      stdio: 'inherit',
+    })
   } else {
     // Create zip.
-    await spawn('zip', [
-      '-j',
-      archivePath,
-      tempBinary
-    ], { stdio: 'inherit' })
+    await spawn('zip', ['-j', archivePath, tempBinary], { stdio: 'inherit' })
   }
 
   // Calculate checksum (for release notes only, not uploaded as separate file).
@@ -255,7 +254,9 @@ async function createReleaseArchive(platform, arch, version) {
  */
 async function releaseExists(tag) {
   try {
-    const result = await spawn('gh', ['release', 'view', tag], { stdio: 'pipe' })
+    const result = await spawn('gh', ['release', 'view', tag], {
+      stdio: 'pipe',
+    })
     return result.code === 0
   } catch {
     return false
@@ -358,7 +359,9 @@ async function main() {
   logger.log('')
   logger.log(`Version: ${colors.green(VERSION)}`)
   logger.log(`Tag: ${colors.green(TAG)}`)
-  logger.log(`Mode: ${PUBLISH ? colors.yellow('PUBLISH') : colors.blue('DRAFT')}`)
+  logger.log(
+    `Mode: ${PUBLISH ? colors.yellow('PUBLISH') : colors.blue('DRAFT')}`,
+  )
   if (DRY_RUN) {
     logger.log(`${colors.yellow('DRY RUN - No changes will be made')}`)
   }
@@ -417,7 +420,9 @@ async function main() {
   await createGitHubRelease(TAG, archives, PUBLISH)
 
   logger.log('')
-  logger.log(`${colors.green('✓')} Release ${PUBLISH ? 'published' : 'created as draft'}!`)
+  logger.log(
+    `${colors.green('✓')} Release ${PUBLISH ? 'published' : 'created as draft'}!`,
+  )
   logger.log('')
   logger.log('View release:')
   logger.log(`  gh release view ${TAG}`)

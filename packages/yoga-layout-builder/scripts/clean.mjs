@@ -28,7 +28,7 @@ async function main() {
   printSuccess('Clean complete')
 }
 
-main().catch((e) => {
+main().catch(e => {
   const logger = getDefaultLogger()
   logger.error('Clean failed:', e.message)
   process.exit(1)

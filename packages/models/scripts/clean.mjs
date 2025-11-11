@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * MiniLM Model Builder Cleanup
+ * Models Package Cleanup
  *
  * Removes build artifacts and cached files.
  *
@@ -23,17 +23,30 @@ const packageDir = path.join(__dirname, '..')
  */
 async function main() {
   const logger = getDefaultLogger()
-  logger.log('🧹 Cleaning MiniLM Builder')
+  logger.log('🧹 Cleaning Models Package')
   logger.log('='.repeat(50))
 
   const buildDir = path.join(packageDir, 'build')
+  const distDir = path.join(packageDir, 'dist')
+  let cleaned = false
 
   if (existsSync(buildDir)) {
     logger.log('')
     logger.log(`Removing: ${buildDir}`)
     await safeDelete(buildDir)
     logger.success('Build directory removed')
-  } else {
+    cleaned = true
+  }
+
+  if (existsSync(distDir)) {
+    logger.log('')
+    logger.log(`Removing: ${distDir}`)
+    await safeDelete(distDir)
+    logger.success('Dist directory removed')
+    cleaned = true
+  }
+
+  if (!cleaned) {
     logger.log('')
     logger.success('Nothing to clean')
   }

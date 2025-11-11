@@ -22,11 +22,6 @@ import { safeDelete, safeReadFile } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 import {
-  printSetupResults,
-  setupBuildEnvironment,
-} from 'build-infra/lib/build-env'
-import {
-  checkCompiler,
   checkDiskSpace,
   formatDuration,
   getFileSize,
@@ -59,7 +54,9 @@ const ROOT_DIR = path.join(__dirname, '..')
 const BUILD_DIR = path.join(ROOT_DIR, 'build')
 const OUTPUT_DIR = path.join(BUILD_DIR, 'wasm')
 // Read ONNX Runtime version from package.json (matches ONNX Runtime release version).
-const packageJson = JSON.parse(await fs.readFile(path.join(ROOT_DIR, 'package.json'), 'utf-8'))
+const packageJson = JSON.parse(
+  await fs.readFile(path.join(ROOT_DIR, 'package.json'), 'utf-8'),
+)
 const ONNX_VERSION = `v${packageJson.version}`
 const ONNX_REPO = 'https://github.com/microsoft/onnxruntime.git'
 const ONNX_SOURCE_DIR = path.join(BUILD_DIR, 'onnxruntime-source')
@@ -87,12 +84,22 @@ async function cloneOnnxSource() {
       },
       {
         name: 'MLFloat16 build',
-        path: path.join(ONNX_SOURCE_DIR, 'cmake', 'onnxruntime_webassembly.cmake'),
+        path: path.join(
+          ONNX_SOURCE_DIR,
+          'cmake',
+          'onnxruntime_webassembly.cmake',
+        ),
         marker: '# add_compile_definitions(\n  #   BUILD_MLAS_NO_ONNXRUNTIME',
       },
       {
         name: 'wasm_post_build.js',
-        path: path.join(ONNX_SOURCE_DIR, 'js', 'web', 'script', 'wasm_post_build.js'),
+        path: path.join(
+          ONNX_SOURCE_DIR,
+          'js',
+          'web',
+          'script',
+          'wasm_post_build.js',
+        ),
         marker: 'if (matches.length === 0) {',
       },
     ]
@@ -102,10 +109,10 @@ async function cloneOnnxSource() {
       patches.map(async ({ path: filePath, marker }) => {
         const content = await safeReadFile(filePath, 'utf-8')
         return content?.includes(marker) ?? false
-      })
+      }),
     )
     const allPatchesApplied = results.every(
-      r => r.status === 'fulfilled' && r.value === true
+      r => r.status === 'fulfilled' && r.value === true,
     )
 
     if (!allPatchesApplied) {
@@ -124,10 +131,26 @@ async function cloneOnnxSource() {
   await fs.mkdir(BUILD_DIR, { recursive: true })
 
   printStep(`Cloning ONNX Runtime ${ONNX_VERSION}...`)
-  const cloneResult = await spawn('git', ['-c', 'http.postBuffer=524288000', '-c', 'http.version=HTTP/1.1', 'clone', '--depth', '1', '--branch', ONNX_VERSION, ONNX_REPO, ONNX_SOURCE_DIR], {
-    shell: WIN32,
-    stdio: 'inherit',
-  })
+  const cloneResult = await spawn(
+    'git',
+    [
+      '-c',
+      'http.postBuffer=524288000',
+      '-c',
+      'http.version=HTTP/1.1',
+      'clone',
+      '--depth',
+      '1',
+      '--branch',
+      ONNX_VERSION,
+      ONNX_REPO,
+      ONNX_SOURCE_DIR,
+    ],
+    {
+      shell: WIN32,
+      stdio: 'inherit',
+    },
+  )
 
   if (cloneResult.code !== 0) {
     throw new Error('Failed to clone ONNX Runtime repository')
@@ -141,18 +164,22 @@ async function cloneOnnxSource() {
   const depsContent = await fs.readFile(depsPath, 'utf-8')
   const updatedDeps = depsContent.replace(
     /eigen;([^;]+);5ea4d05e62d7f954a46b3213f9b2535bdd866803/g,
-    'eigen;$1;51982be81bbe52572b54180454df11a3ece9a934'
+    'eigen;$1;51982be81bbe52572b54180454df11a3ece9a934',
   )
   await fs.writeFile(depsPath, updatedDeps, 'utf-8')
   printSuccess('Eigen hash updated in deps.txt')
 
   // Patch 2: Fix MLFloat16 build (see docs/patches.md).
   printStep('Patching onnxruntime_webassembly.cmake to fix MLFloat16 build...')
-  const cmakePath = path.join(ONNX_SOURCE_DIR, 'cmake', 'onnxruntime_webassembly.cmake')
+  const cmakePath = path.join(
+    ONNX_SOURCE_DIR,
+    'cmake',
+    'onnxruntime_webassembly.cmake',
+  )
   let cmakeContent = await fs.readFile(cmakePath, 'utf-8')
   cmakeContent = cmakeContent.replace(
     /add_compile_definitions\(\s*BUILD_MLAS_NO_ONNXRUNTIME\s*\)/,
-    '# add_compile_definitions(\n  #   BUILD_MLAS_NO_ONNXRUNTIME\n  # )'
+    '# add_compile_definitions(\n  #   BUILD_MLAS_NO_ONNXRUNTIME\n  # )',
   )
   await fs.writeFile(cmakePath, cmakeContent, 'utf-8')
   printSuccess('BUILD_MLAS_NO_ONNXRUNTIME commented out')
@@ -174,7 +201,13 @@ async function cloneOnnxSource() {
   // 2. Delete cached build copy if present (forces CMake recopy from patched source)
   // 3. Clear CMake cache (ensures full reconfiguration)
   printStep('Patching wasm_post_build.js to handle modern Emscripten...')
-  const postBuildSourcePath = path.join(ONNX_SOURCE_DIR, 'js', 'web', 'script', 'wasm_post_build.js')
+  const postBuildSourcePath = path.join(
+    ONNX_SOURCE_DIR,
+    'js',
+    'web',
+    'script',
+    'wasm_post_build.js',
+  )
   if (existsSync(postBuildSourcePath)) {
     let postBuildContent = await fs.readFile(postBuildSourcePath, 'utf-8')
 
@@ -182,14 +215,14 @@ async function cloneOnnxSource() {
     // Insert early return when no Worker URL pattern found.
     postBuildContent = postBuildContent.replace(
       /if \(matches\.length !== 1\) \{/,
-      `if (matches.length === 0) {\n      console.log('No Worker URL pattern found - skipping post-build transformation (modern Emscripten)');\n      return;\n    }\n    if (matches.length !== 1) {`
+      `if (matches.length === 0) {\n      console.log('No Worker URL pattern found - skipping post-build transformation (modern Emscripten)');\n      return;\n    }\n    if (matches.length !== 1) {`,
     )
 
     // Patch 2: Improve error message to show actual match count.
     // Helps debug if we get unexpected pattern variations.
     postBuildContent = postBuildContent.replace(
       /Unexpected number of matches for "" in "": \./,
-      `Unexpected number of Worker URL matches: found \${matches.length}, expected 1. Pattern: \${regex}`
+      'Unexpected number of Worker URL matches: found ${matches.length}, expected 1. Pattern: ${regex}',
     )
 
     await fs.writeFile(postBuildSourcePath, postBuildContent, 'utf-8')
@@ -256,7 +289,8 @@ async function build() {
   const ninjaAvailable = whichBinSync('ninja', { nothrow: true })
 
   const buildArgs = [
-    '--config', 'Release',
+    '--config',
+    'Release',
     '--build_wasm',
     '--skip_tests',
     '--parallel',
@@ -269,7 +303,9 @@ async function build() {
     printStep('Using Ninja build system (faster)')
     buildArgs.push('--cmake_generator', 'Ninja')
   } else {
-    printWarning('Ninja not found - using Make (slower). Install: brew install ninja')
+    printWarning(
+      'Ninja not found - using Make (slower). Install: brew install ninja',
+    )
   }
 
   const buildScriptResult = await spawn(buildScript, buildArgs, {
@@ -298,7 +334,12 @@ async function exportWasm() {
   // ONNX Runtime build outputs to: build/Linux/Release/
   // or build/MacOS/Release/ on macOS
   const platform = process.platform === 'darwin' ? 'MacOS' : 'Linux'
-  const buildOutputDir = path.join(ONNX_SOURCE_DIR, 'build', platform, 'Release')
+  const buildOutputDir = path.join(
+    ONNX_SOURCE_DIR,
+    'build',
+    platform,
+    'Release',
+  )
 
   // Look for threaded WASM files (threading + SIMD enabled).
   // With threading enabled, outputs are: ort-wasm-simd-threaded.{wasm,mjs}.
@@ -415,13 +456,17 @@ async function main() {
       printSuccess('Ninja found')
     }
   } else {
-    printWarning('Ninja not found (optional, but MUCH faster than Make for C++ builds)')
+    printWarning(
+      'Ninja not found (optional, but MUCH faster than Make for C++ builds)',
+    )
     printWarning('Install: brew install ninja')
   }
 
   // Optional: Check for wasm-opt (Binaryen) for additional optimization.
   printStep('Checking for wasm-opt (optional)...')
-  const wasmOptResult = await ensureToolInstalled('wasm-opt', { autoInstall: true })
+  const wasmOptResult = await ensureToolInstalled('wasm-opt', {
+    autoInstall: true,
+  })
   if (wasmOptResult.available) {
     if (wasmOptResult.installed) {
       printSuccess('Installed wasm-opt (Binaryen)')
@@ -429,7 +474,9 @@ async function main() {
       printSuccess('wasm-opt found')
     }
   } else {
-    printWarning('wasm-opt not found (optional, provides additional optimization)')
+    printWarning(
+      'wasm-opt not found (optional, provides additional optimization)',
+    )
   }
 
   printSuccess('Pre-flight checks passed')
@@ -454,7 +501,7 @@ async function main() {
 
 // Run build.
 const logger = getDefaultLogger()
-main().catch((e) => {
+main().catch(e => {
   printError('Build Failed')
   logger.error(e.message)
   throw e

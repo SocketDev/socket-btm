@@ -32,11 +32,7 @@ import {
   printStep,
   printSuccess,
 } from 'build-infra/lib/build-output'
-import {
-  cleanCheckpoint,
-  createCheckpoint,
-  shouldRun,
-} from 'build-infra/lib/checkpoint-manager'
+import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import { ensureAllPythonPackages } from 'build-infra/lib/python-installer'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 
@@ -63,7 +59,9 @@ const OUTPUT_DIR = path.join(BUILD_DIR, 'output')
  * Download CodeT5 models from Hugging Face.
  */
 async function downloadModels() {
-  if (!(await shouldRun(BUILD_DIR, 'codet5-models', 'downloaded', FORCE_BUILD))) {
+  if (
+    !(await shouldRun(BUILD_DIR, 'codet5-models', 'downloaded', FORCE_BUILD))
+  ) {
     return
   }
 
@@ -97,7 +95,9 @@ async function downloadModels() {
  * Convert models to ONNX format.
  */
 async function convertToOnnx() {
-  if (!(await shouldRun(BUILD_DIR, 'codet5-models', 'converted', FORCE_BUILD))) {
+  if (
+    !(await shouldRun(BUILD_DIR, 'codet5-models', 'converted', FORCE_BUILD))
+  ) {
     return
   }
 
@@ -126,7 +126,9 @@ async function convertToOnnx() {
  * Apply quantization to models.
  */
 async function quantizeModels() {
-  if (!(await shouldRun(BUILD_DIR, 'codet5-models', 'quantized', FORCE_BUILD))) {
+  if (
+    !(await shouldRun(BUILD_DIR, 'codet5-models', 'quantized', FORCE_BUILD))
+  ) {
     return
   }
 
@@ -183,7 +185,9 @@ async function quantizeModels() {
  * Optimize ONNX graphs.
  */
 async function optimizeModels() {
-  if (!(await shouldRun(BUILD_DIR, 'codet5-models', 'optimized', FORCE_BUILD))) {
+  if (
+    !(await shouldRun(BUILD_DIR, 'codet5-models', 'optimized', FORCE_BUILD))
+  ) {
     return
   }
 
@@ -282,7 +286,12 @@ async function exportModels() {
   await fs.copyFile(encoderPath, outputEncoder)
   await fs.copyFile(decoderPath, outputDecoder)
 
-  if (await fs.access(tokenizerPath).then(() => true).catch(() => false)) {
+  if (
+    await fs
+      .access(tokenizerPath)
+      .then(() => true)
+      .catch(() => false)
+  ) {
     await fs.copyFile(tokenizerPath, outputTokenizer)
   }
 
@@ -315,7 +324,9 @@ async function main() {
   }
 
   // Ensure Python 3 is installed.
-  const pythonResult = await ensureToolInstalled('python3', { autoInstall: true })
+  const pythonResult = await ensureToolInstalled('python3', {
+    autoInstall: true,
+  })
   if (!pythonResult.available) {
     printError('Python 3.8+ is required but not found')
     printError('Install Python from: https://www.python.org/downloads/')
@@ -360,7 +371,9 @@ async function main() {
   }
 
   if (packagesResult.installed.length > 0) {
-    printSuccess(`Installed Python packages: ${packagesResult.installed.join(', ')}`)
+    printSuccess(
+      `Installed Python packages: ${packagesResult.installed.join(', ')}`,
+    )
   } else {
     printSuccess('All Python packages available')
   }
@@ -390,7 +403,7 @@ async function main() {
 
 // Run build.
 const logger = getDefaultLogger()
-main().catch((e) => {
+main().catch(e => {
   printError('Build Failed')
   logger.error(e.message)
   throw e

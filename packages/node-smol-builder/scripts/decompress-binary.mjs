@@ -19,7 +19,6 @@ import { fileURLToPath } from 'node:url'
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/registry/lib/spawn'
-import colors from 'yoctocolors-cjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const TOOLS_DIR = path.resolve(__dirname, '../additions/tools')
@@ -32,18 +31,18 @@ const PLATFORM_CONFIG = {
   darwin: {
     toolName: 'socket_macho_decompress',
     binaryFormat: 'Mach-O',
-    buildCommand: 'make -f Makefile'
+    buildCommand: 'make -f Makefile',
   },
   linux: {
     toolName: 'socket_elf_decompress',
     binaryFormat: 'ELF',
-    buildCommand: 'make -f Makefile.linux'
+    buildCommand: 'make -f Makefile.linux',
   },
   win32: {
     toolName: 'socket_pe_decompress',
     binaryFormat: 'PE',
-    buildCommand: 'mingw32-make -f Makefile.windows'
-  }
+    buildCommand: 'mingw32-make -f Makefile.windows',
+  },
 }
 
 /**
@@ -58,8 +57,12 @@ function parseArgs() {
     logger.error('')
     logger.error('Examples:')
     logger.error('  node scripts/decompress-binary.mjs ./node.compressed')
-    logger.error('  node scripts/decompress-binary.mjs ./node.compressed --version')
-    logger.error('  node scripts/decompress-binary.mjs ./node.compressed script.js')
+    logger.error(
+      '  node scripts/decompress-binary.mjs ./node.compressed --version',
+    )
+    logger.error(
+      '  node scripts/decompress-binary.mjs ./node.compressed script.js',
+    )
     process.exit(1)
   }
 
@@ -77,7 +80,9 @@ function getPlatformConfig() {
   const config = PLATFORM_CONFIG[platform]
 
   if (!config) {
-    throw new Error(`Unsupported platform: ${platform}. Supported: macOS, Linux, Windows`)
+    throw new Error(
+      `Unsupported platform: ${platform}. Supported: macOS, Linux, Windows`,
+    )
   }
 
   return config
@@ -102,11 +107,13 @@ async function ensureToolBuilt(config) {
   const result = await spawn(config.buildCommand, {
     cwd: TOOLS_DIR,
     shell: WIN32,
-    stdio: 'inherit'
+    stdio: 'inherit',
   })
 
   if (result.code !== 0) {
-    throw new Error(`Failed to build decompression tool (exit code: ${result.code})`)
+    throw new Error(
+      `Failed to build decompression tool (exit code: ${result.code})`,
+    )
   }
 
   // Verify tool was built.
@@ -120,7 +127,12 @@ async function ensureToolBuilt(config) {
 /**
  * Decompress and execute binary using platform-specific tool.
  */
-async function decompressAndExecute(toolPath, compressedPath, binaryArgs, config) {
+async function decompressAndExecute(
+  toolPath,
+  compressedPath,
+  binaryArgs,
+  config,
+) {
   // Validate compressed file exists.
   if (!existsSync(compressedPath)) {
     throw new Error(`Compressed file not found: ${compressedPath}`)
@@ -138,7 +150,7 @@ async function decompressAndExecute(toolPath, compressedPath, binaryArgs, config
 
   // Execute decompression tool (it will decompress and execute the binary).
   const result = await spawn(toolPath, args, {
-    stdio: 'inherit'
+    stdio: 'inherit',
   })
 
   // Exit with same code as the decompressed binary.
@@ -163,7 +175,6 @@ async function main() {
 
     // Decompress and execute binary.
     await decompressAndExecute(toolPath, compressedPath, binaryArgs, config)
-
   } catch (e) {
     logger.error(`Error: ${e.message}`)
     process.exit(1)

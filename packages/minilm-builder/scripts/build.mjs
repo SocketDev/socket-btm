@@ -20,7 +20,6 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 import {
@@ -36,11 +35,7 @@ import {
   printSuccess,
   printWarning,
 } from 'build-infra/lib/build-output'
-import {
-  cleanCheckpoint,
-  createCheckpoint,
-  shouldRun,
-} from 'build-infra/lib/checkpoint-manager'
+import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import { ensureAllPythonPackages } from 'build-infra/lib/python-installer'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 
@@ -302,7 +297,7 @@ async function runPythonScript(scriptName, args, options = {}) {
   const result = await spawn('python3', [scriptPath, ...args], {
     stdio: 'pipe',
     stdioString: true,
-    ...options
+    ...options,
   })
 
   if (result.code !== 0) {
@@ -458,14 +453,18 @@ async function optimizeGraphs() {
     printStep(`Optimizing: ${model.outputName}`)
 
     try {
-      const modelInput = path.join(MODELS_DIR, `${model.outputName}-quantized`, 'model.onnx')
+      const modelInput = path.join(
+        MODELS_DIR,
+        `${model.outputName}-quantized`,
+        'model.onnx',
+      )
       const modelOutput = path.join(MODELS_DIR, `${model.outputName}.onnx`)
 
       await runPythonScript('optimize.py', [
         modelInput,
         modelOutput,
         String(model.numHeads),
-        String(model.hiddenSize)
+        String(model.hiddenSize),
       ])
 
       const finalSize = await getFileSize(modelOutput)
@@ -501,18 +500,23 @@ async function verifyModels() {
 
     try {
       const modelPath = path.join(MODELS_DIR, `${model.outputName}.onnx`)
-      const tokenizerPath = path.join(MODELS_DIR, `${model.outputName}-quantized`)
+      const tokenizerPath = path.join(
+        MODELS_DIR,
+        `${model.outputName}-quantized`,
+      )
       const testText = 'This is a test'
 
       const result = await runPythonScript('verify.py', [
         modelPath,
         tokenizerPath,
-        testText
+        testText,
       ])
 
       printStep(`  Test: "${result.test_text}"`)
       printStep(`  Output shape: [${result.output_shape.join(', ')}]`)
-      printStep(`  Mean: ${result.output_mean.toFixed(4)}, Std: ${result.output_std.toFixed(4)}`)
+      printStep(
+        `  Mean: ${result.output_mean.toFixed(4)}, Std: ${result.output_std.toFixed(4)}`,
+      )
 
       printSuccess(`Verified: ${model.outputName}`)
     } catch (e) {
@@ -543,23 +547,36 @@ async function exportModels() {
     const tokenizerDst = path.join(MODELS_DIR, `${model.outputName}-tokenizer`)
 
     // Check if models exist.
-    const modelExists = await fs.access(modelPath).then(() => true).catch(() => false)
+    const modelExists = await fs
+      .access(modelPath)
+      .then(() => true)
+      .catch(() => false)
 
     if (!modelExists) {
       printWarning(`Model not found: ${modelPath}`)
-      printWarning(`Run build to generate models`)
+      printWarning('Run build to generate models')
       continue
     }
 
     // Copy tokenizer files.
     await fs.mkdir(tokenizerDst, { recursive: true })
 
-    const tokenizerFiles = ['tokenizer.json', 'tokenizer_config.json', 'special_tokens_map.json', 'vocab.txt']
+    const tokenizerFiles = [
+      'tokenizer.json',
+      'tokenizer_config.json',
+      'special_tokens_map.json',
+      'vocab.txt',
+    ]
     for (const file of tokenizerFiles) {
       const src = path.join(tokenizerSrc, file)
       const dst = path.join(tokenizerDst, file)
 
-      if (await fs.access(src).then(() => true).catch(() => false)) {
+      if (
+        await fs
+          .access(src)
+          .then(() => true)
+          .catch(() => false)
+      ) {
         await fs.copyFile(src, dst)
       }
     }
@@ -592,7 +609,9 @@ async function main() {
   }
 
   // Ensure Python 3 is installed.
-  const pythonResult = await ensureToolInstalled('python3', { autoInstall: true })
+  const pythonResult = await ensureToolInstalled('python3', {
+    autoInstall: true,
+  })
   if (!pythonResult.available) {
     printError('Python 3.8+ is required but not found')
     printError('Install Python from: https://www.python.org/downloads/')
@@ -637,7 +656,9 @@ async function main() {
   }
 
   if (packagesResult.installed.length > 0) {
-    printSuccess(`Installed Python packages: ${packagesResult.installed.join(', ')}`)
+    printSuccess(
+      `Installed Python packages: ${packagesResult.installed.join(', ')}`,
+    )
   } else {
     printSuccess('All Python packages available')
   }
@@ -672,7 +693,7 @@ async function main() {
 
 // Run build.
 const logger = getDefaultLogger()
-main().catch((e) => {
+main().catch(e => {
   printError('Build Failed')
   logger.error(e.message)
   throw e

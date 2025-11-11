@@ -20,11 +20,6 @@ import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 import {
-  printSetupResults,
-  setupBuildEnvironment,
-} from 'build-infra/lib/build-env'
-import {
-  checkCompiler,
   checkDiskSpace,
   formatDuration,
   getFileSize,
@@ -57,7 +52,9 @@ const ROOT_DIR = path.join(__dirname, '..')
 const BUILD_DIR = path.join(ROOT_DIR, 'build')
 const OUTPUT_DIR = path.join(BUILD_DIR, 'wasm')
 // Read Yoga version from package.json (matches Yoga Layout release version).
-const packageJson = JSON.parse(await fs.readFile(path.join(ROOT_DIR, 'package.json'), 'utf-8'))
+const packageJson = JSON.parse(
+  await fs.readFile(path.join(ROOT_DIR, 'package.json'), 'utf-8'),
+)
 const YOGA_VERSION = `v${packageJson.version}`
 const YOGA_REPO = 'https://github.com/facebook/yoga.git'
 const YOGA_SOURCE_DIR = path.join(BUILD_DIR, 'yoga-source')
@@ -81,10 +78,22 @@ async function cloneYogaSource() {
   await fs.mkdir(BUILD_DIR, { recursive: true })
 
   printStep(`Cloning Yoga ${YOGA_VERSION}...`)
-  const cloneResult = await spawn('git', ['clone', '--depth', '1', '--branch', YOGA_VERSION, YOGA_REPO, YOGA_SOURCE_DIR], {
-    shell: WIN32,
-    stdio: 'inherit',
-  })
+  const cloneResult = await spawn(
+    'git',
+    [
+      'clone',
+      '--depth',
+      '1',
+      '--branch',
+      YOGA_VERSION,
+      YOGA_REPO,
+      YOGA_SOURCE_DIR,
+    ],
+    {
+      shell: WIN32,
+      stdio: 'inherit',
+    },
+  )
 
   if (cloneResult.code !== 0) {
     throw new Error('Failed to clone Yoga repository')
@@ -112,12 +121,12 @@ async function configure() {
   if (process.env.EMSCRIPTEN) {
     toolchainFile = path.join(
       process.env.EMSCRIPTEN,
-      'cmake/Modules/Platform/Emscripten.cmake'
+      'cmake/Modules/Platform/Emscripten.cmake',
     )
   } else if (process.env.EMSDK) {
     toolchainFile = path.join(
       process.env.EMSDK,
-      'upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake'
+      'upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake',
     )
   } else {
     printWarning('Emscripten SDK path not set')
@@ -164,9 +173,9 @@ async function configure() {
     `-DCMAKE_CXX_FLAGS=${cxxFlags.join(' ')}`,
     `-DCMAKE_EXE_LINKER_FLAGS=${linkerFlags.join(' ')}`,
     `-DCMAKE_SHARED_LINKER_FLAGS=${linkerFlags.join(' ')}`,
-    `-S`,
+    '-S',
     YOGA_SOURCE_DIR,
-    `-B`,
+    '-B',
     cmakeBuildDir,
   ]
 
@@ -174,7 +183,10 @@ async function configure() {
   printStep(`  CXX: ${cxxFlags.join(' ')}`)
   printStep(`  Linker: ${linkerFlags.join(' ')}`)
 
-  const cmakeResult = await spawn('emcmake', cmakeArgs, { shell: WIN32, stdio: 'inherit' })
+  const cmakeResult = await spawn('emcmake', cmakeArgs, {
+    shell: WIN32,
+    stdio: 'inherit',
+  })
 
   if (cmakeResult.code !== 0) {
     throw new Error('CMake configuration failed')
@@ -199,10 +211,14 @@ async function build() {
 
   // Build static library with CMake.
   printStep('Compiling C++ to static library...')
-  const buildResult = await spawn('emmake', ['cmake', '--build', cmakeBuildDir, '--target', 'yogacore'], {
-    shell: WIN32,
-    stdio: 'inherit',
-  })
+  const buildResult = await spawn(
+    'emmake',
+    ['cmake', '--build', cmakeBuildDir, '--target', 'yogacore'],
+    {
+      shell: WIN32,
+      stdio: 'inherit',
+    },
+  )
 
   if (buildResult.code !== 0) {
     throw new Error('Static library build failed')
@@ -321,17 +337,26 @@ async function optimize() {
   // Emscripten SDK has wasm-opt in: $EMSDK/upstream/bin/wasm-opt
   let wasmOptCmd = 'wasm-opt'
   if (process.env.EMSDK) {
-    const emsdkWasmOpt = path.join(process.env.EMSDK, 'upstream', 'bin', 'wasm-opt')
+    const emsdkWasmOpt = path.join(
+      process.env.EMSDK,
+      'upstream',
+      'bin',
+      'wasm-opt',
+    )
     if (existsSync(emsdkWasmOpt)) {
       wasmOptCmd = emsdkWasmOpt
       printStep(`Using wasm-opt from EMSDK: ${wasmOptCmd}`)
     }
   }
 
-  const result = await spawn(wasmOptCmd, [...wasmOptFlags, wasmFile, '-o', wasmFile], {
-    shell: WIN32,
-    stdio: 'inherit',
-  })
+  const result = await spawn(
+    wasmOptCmd,
+    [...wasmOptFlags, wasmFile, '-o', wasmFile],
+    {
+      shell: WIN32,
+      stdio: 'inherit',
+    },
+  )
   if (result.code !== 0) {
     throw new Error(`wasm-opt failed with exit code ${result.code}`)
   }
@@ -406,7 +431,10 @@ async function exportWasm() {
   if (existsSync(jsFile)) {
     const jsContent = await fs.readFile(jsFile, 'utf-8')
     // Strip the export statement at the end of the file.
-    const withoutExport = jsContent.replace(/;?\s*export\s+default\s+\w+\s*;\s*$/, '')
+    const withoutExport = jsContent.replace(
+      /;?\s*export\s+default\s+\w+\s*;\s*$/,
+      '',
+    )
     await fs.writeFile(outputJs, withoutExport, 'utf-8')
     printStep(`JS: ${outputJs}`)
   }
@@ -495,7 +523,9 @@ async function main() {
 
   // Optional: Check for wasm-opt (Binaryen) for additional optimization.
   printStep('Checking for wasm-opt (optional)...')
-  const wasmOptResult = await ensureToolInstalled('wasm-opt', { autoInstall: true })
+  const wasmOptResult = await ensureToolInstalled('wasm-opt', {
+    autoInstall: true,
+  })
   if (wasmOptResult.available) {
     if (wasmOptResult.installed) {
       printSuccess('Installed wasm-opt (Binaryen)')
@@ -503,7 +533,9 @@ async function main() {
       printSuccess('wasm-opt found')
     }
   } else {
-    printWarning('wasm-opt not found (optional, provides additional optimization)')
+    printWarning(
+      'wasm-opt not found (optional, provides additional optimization)',
+    )
   }
 
   printSuccess('Pre-flight checks passed')
@@ -531,7 +563,7 @@ async function main() {
 
 // Run build.
 const logger = getDefaultLogger()
-main().catch((e) => {
+main().catch(e => {
   printError('Build Failed')
   logger.error(e.message)
   throw e

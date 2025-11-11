@@ -15,7 +15,7 @@
  *   node packages/node-smol-builder/scripts/optimize.mjs              # Optimize build/out/Release/node
  */
 
-import { execSync, spawn } from 'node:child_process'
+import { execSync, } from 'node:child_process'
 import { existsSync, promises as fs } from 'node:fs'
 import { platform as osPlatform } from 'node:os'
 import path from 'node:path'
@@ -85,7 +85,7 @@ function exec(command, args, options = {}) {
 /**
  * Optimize binary for macOS (darwin).
  */
-async function optimizeDarwin(binaryPath) {
+async function _optimizeDarwin(binaryPath) {
   logger.log('\n🍎 Optimizing macOS binary...')
 
   const beforeSize = await getFileSizeMB(binaryPath)
@@ -121,13 +121,13 @@ async function optimizeDarwin(binaryPath) {
     exec('codesign', ['--force', '--sign', '-', binaryPath])
   }
 
-  return { before: parseFloat(beforeSize), after: parseFloat(afterSize), savings: parseFloat(savings) }
+  return { before: Number.parseFloat(beforeSize), after: Number.parseFloat(afterSize), savings: Number.parseFloat(savings) }
 }
 
 /**
  * Optimize binary for Linux.
  */
-async function optimizeLinux(binaryPath) {
+async function _optimizeLinux(binaryPath) {
   logger.log('\n🐧 Optimizing Linux binary...')
 
   const beforeSize = await getFileSizeMB(binaryPath)
@@ -162,7 +162,7 @@ async function optimizeLinux(binaryPath) {
   const savings = ((beforeSize - afterSize) / beforeSize * 100).toFixed(1)
   logger.log(`\n  After: ${afterSize} MB (${savings}% reduction)`)
 
-  return { before: parseFloat(beforeSize), after: parseFloat(afterSize), savings: parseFloat(savings) }
+  return { before: Number.parseFloat(beforeSize), after: Number.parseFloat(afterSize), savings: Number.parseFloat(savings) }
 }
 
 /**
@@ -189,7 +189,7 @@ async function optimizeWindows(binaryPath) {
   const savings = ((beforeSize - afterSize) / beforeSize * 100).toFixed(1)
   logger.log(`\n  After: ${afterSize} MB (${savings}% reduction)`)
 
-  return { before: parseFloat(beforeSize), after: parseFloat(afterSize), savings: parseFloat(savings) }
+  return { before: Number.parseFloat(beforeSize), after: Number.parseFloat(afterSize), savings: Number.parseFloat(savings) }
 }
 
 /**
@@ -328,7 +328,7 @@ async function main() {
 
   // Summary.
   if (results.length > 0) {
-    logger.log('\n' + '='.repeat(50))
+    logger.log(`\n${'='.repeat(50)}`)
     logger.log('📊 Optimization Summary')
     logger.log('='.repeat(50))
     logger.log('')

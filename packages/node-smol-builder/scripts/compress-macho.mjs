@@ -20,7 +20,7 @@
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import path from 'node:path'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
@@ -29,12 +29,12 @@ import colors from 'yoctocolors-cjs'
 const execFileAsync = promisify(execFile)
 
 const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+const __dirname = path.dirname(__filename)
 
 // Path to compression tools.
-const TOOLS_DIR = join(__dirname, '..', 'additions', 'tools')
-const COMPRESS_TOOL = join(TOOLS_DIR, 'socket_macho_compress')
-const DECOMPRESS_TOOL = join(TOOLS_DIR, 'socket_macho_decompress')
+const TOOLS_DIR = path.join(__dirname, '..', 'additions', 'tools')
+const COMPRESS_TOOL = path.join(TOOLS_DIR, 'socket_macho_compress')
+const DECOMPRESS_TOOL = path.join(TOOLS_DIR, 'socket_macho_decompress')
 
 /**
  * Build compression tools if needed.
@@ -91,7 +91,7 @@ async function compressBinary(inputPath, outputPath, quality = 'lzfse') {
   }
 
   // Create output directory.
-  await mkdir(dirname(outputPath), { recursive: true })
+  await mkdir(path.dirname(outputPath), { recursive: true })
 
   // Run compression tool.
   try {
@@ -123,21 +123,28 @@ async function main() {
   const args = process.argv.slice(2)
 
   if (args.length < 1) {
-    logger.error('Usage: node compress-macho.mjs <input_binary> [output_binary] [--quality=lzfse|lz4|lzma|zlib]')
+    logger.error(
+      'Usage: node compress-macho.mjs <input_binary> [output_binary] [--quality=lzfse|lz4|lzma|zlib]',
+    )
     logger.error()
     logger.error('Example:')
-    logger.error('  node compress-macho.mjs build/out/Signed/node build/out/Compressed/node')
+    logger.error(
+      '  node compress-macho.mjs build/out/Signed/node build/out/Compressed/node',
+    )
     logger.error()
     logger.error('Quality options:')
     logger.error('  lz4    - Fast decompression, lower compression (~20-30%)')
     logger.error('  zlib   - Balanced, good compatibility (~30-40%)')
-    logger.error('  lzfse  - Apple default, best for binaries (~35-45%) [default]')
+    logger.error(
+      '  lzfse  - Apple default, best for binaries (~35-45%) [default]',
+    )
     logger.error('  lzma   - Maximum compression, slower (~40-50%)')
     process.exit(1)
   }
 
   const inputPath = args[0]
-  const outputPath = args[1] || inputPath.replace(/(\.[^.]+)?$/, '.compressed$1')
+  const outputPath =
+    args[1] || inputPath.replace(/(\.[^.]+)?$/, '.compressed$1')
 
   // Parse quality argument.
   let quality = 'lzfse'
@@ -166,7 +173,7 @@ async function main() {
     logger.log('3. Distribute the compressed binary with the decompressor')
     logger.log(`   cp ${DECOMPRESS_TOOL} <distribution-directory>/`)
     logger.log('')
-  } catch (error) {
+  } catch (_error) {
     logger.error()
     logger.error(`${colors.red('✗')} Compression failed`)
     process.exit(1)

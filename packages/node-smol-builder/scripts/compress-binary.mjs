@@ -55,22 +55,22 @@ const PLATFORM_CONFIG = {
     binaryFormat: 'Mach-O',
     defaultQuality: 'lzfse',
     qualityOptions: ['lz4', 'zlib', 'lzfse', 'lzma'],
-    buildCommand: 'make -f Makefile'
+    buildCommand: 'make -f Makefile',
   },
   linux: {
     toolName: 'socketsecurity_elf_compress',
     binaryFormat: 'ELF',
     defaultQuality: 'lzma',
     qualityOptions: ['lzma'],
-    buildCommand: 'make -f Makefile.linux'
+    buildCommand: 'make -f Makefile.linux',
   },
   win32: {
     toolName: 'socketsecurity_pe_compress',
     binaryFormat: 'PE',
     defaultQuality: 'lzms',
     qualityOptions: ['xpress', 'xpress_huff', 'lzms'],
-    buildCommand: 'mingw32-make -f Makefile.windows'
-  }
+    buildCommand: 'mingw32-make -f Makefile.windows',
+  },
 }
 
 /**
@@ -80,12 +80,18 @@ function parseArgs() {
   const args = process.argv.slice(2)
 
   if (args.length < 2) {
-    logger.error('Usage: compress-binary.mjs <input> <output> [--quality=lzma|lzfse|xpress] [--spec=package@version]')
+    logger.error(
+      'Usage: compress-binary.mjs <input> <output> [--quality=lzma|lzfse|xpress] [--spec=package@version]',
+    )
     logger.error('')
     logger.error('Examples:')
     logger.error('  node scripts/compress-binary.mjs ./node ./node.compressed')
-    logger.error('  node scripts/compress-binary.mjs ./node ./node.compressed --quality=lzma')
-    logger.error('  node scripts/compress-binary.mjs ./node ./node.compressed --spec=@socketbin/node-smol-builder-darwin-arm64@0.0.0-24.10.0')
+    logger.error(
+      '  node scripts/compress-binary.mjs ./node ./node.compressed --quality=lzma',
+    )
+    logger.error(
+      '  node scripts/compress-binary.mjs ./node ./node.compressed --spec=@socketbin/node-smol-builder-darwin-arm64@0.0.0-24.10.0',
+    )
     process.exit(1)
   }
 
@@ -113,7 +119,9 @@ function getPlatformConfig() {
   const config = PLATFORM_CONFIG[platform]
 
   if (!config) {
-    throw new Error(`Unsupported platform: ${platform}. Supported: macOS, Linux, Windows`)
+    throw new Error(
+      `Unsupported platform: ${platform}. Supported: macOS, Linux, Windows`,
+    )
   }
 
   return config
@@ -140,11 +148,13 @@ async function ensureToolBuilt(config) {
   const result = await spawn(config.buildCommand, [], {
     cwd: TOOLS_DIR,
     shell: WIN32,
-    stdio: 'inherit'
+    stdio: 'inherit',
   })
 
   if (result.code !== 0) {
-    throw new Error(`Failed to build compression tool (exit code: ${result.code})`)
+    throw new Error(
+      `Failed to build compression tool (exit code: ${result.code})`,
+    )
   }
 
   // Verify tool was built.
@@ -166,7 +176,14 @@ async function getFileSizeMB(filePath) {
 /**
  * Compress binary using platform-specific tool.
  */
-async function compressBinary(toolPath, inputPath, outputPath, quality, spec, config) {
+async function compressBinary(
+  toolPath,
+  inputPath,
+  outputPath,
+  quality,
+  spec,
+  config,
+) {
   // Validate input file exists.
   if (!existsSync(inputPath)) {
     throw new Error(`Input file not found: ${inputPath}`)
@@ -192,7 +209,7 @@ async function compressBinary(toolPath, inputPath, outputPath, quality, spec, co
 
   // Execute compression tool.
   const result = await spawn(toolPath, args, {
-    stdio: 'inherit'
+    stdio: 'inherit',
   })
 
   if (result.code !== 0) {
@@ -201,24 +218,31 @@ async function compressBinary(toolPath, inputPath, outputPath, quality, spec, co
 
   // Verify compressed data file was created.
   if (!existsSync(compressedDataPath)) {
-    throw new Error(`Compressed data file was not created: ${compressedDataPath}`)
+    throw new Error(
+      `Compressed data file was not created: ${compressedDataPath}`,
+    )
   }
 
   // Get compressed data size.
   const compressedSizeMB = await getFileSizeMB(compressedDataPath)
 
   logger.log('')
-  logger.log(`✓ Compression complete!`)
+  logger.log('✓ Compression complete!')
   logger.log(`  Original: ${inputSizeMB.toFixed(2)} MB`)
   logger.log(`  Compressed data: ${compressedSizeMB.toFixed(2)} MB`)
-  logger.log(`  Reduction: ${(((inputSizeMB - compressedSizeMB) / inputSizeMB) * 100).toFixed(1)}%`)
+  logger.log(
+    `  Reduction: ${(((inputSizeMB - compressedSizeMB) / inputSizeMB) * 100).toFixed(1)}%`,
+  )
   logger.log(`  Saved: ${(inputSizeMB - compressedSizeMB).toFixed(2)} MB`)
   logger.log('')
 
   // Combine decompressor stub with compressed data to create self-extracting binary.
   logger.log('Creating self-extracting binary...')
 
-  const decompressorPath = path.join(TOOLS_DIR, config.toolName.replace('_compress', '_decompress'))
+  const decompressorPath = path.join(
+    TOOLS_DIR,
+    config.toolName.replace('_compress', '_decompress'),
+  )
 
   if (!existsSync(decompressorPath)) {
     throw new Error(`Decompressor not found: ${decompressorPath}`)
@@ -258,7 +282,7 @@ async function compressBinary(toolPath, inputPath, outputPath, quality, spec, co
 
   logger.log(`  Final binary: ${outputSizeMB.toFixed(2)} MB`)
   logger.log('')
-  logger.log(`✓ Self-extracting binary created!`)
+  logger.log('✓ Self-extracting binary created!')
   logger.log(`  Total size: ${outputSizeMB.toFixed(2)} MB`)
   logger.log(`  Total reduction: ${reduction.toFixed(1)}%`)
   logger.log(`  Total saved: ${(inputSizeMB - outputSizeMB).toFixed(2)} MB`)
@@ -282,7 +306,6 @@ async function main() {
 
     // Compress binary.
     await compressBinary(toolPath, inputPath, outputPath, quality, spec, config)
-
   } catch (e) {
     logger.error(`Error: ${e.message}`)
     process.exit(1)

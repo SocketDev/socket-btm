@@ -13,12 +13,16 @@
     "build": "pnpm --filter @socketbin/node-smol-builder build",
     "build:all": "pnpm --filter @socketbin/node-smol-builder build:all",
     "clean": "pnpm --filter @socketbin/node-smol-builder clean",
+    "format": "biome format --write .",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write --unsafe .",
     "release": "pnpm --filter @socketbin/node-smol-builder release",
     "release:publish": "pnpm --filter @socketbin/node-smol-builder release:publish",
     "test": "pnpm --recursive test",
     "test:smol": "pnpm --filter @socketbin/node-smol-builder test"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.2.4",
     "@socketsecurity/lib": "catalog:",
     "vitest": "catalog:"
   }

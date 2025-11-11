@@ -1,65 +1,48 @@
-# @socketbin/node-smol-builder-builder
+# node-smol-builder
 
-Custom Node.js binary builder with Socket security patches.
-
-**This is a private package used for building Socket CLI binaries.**
-
-## What It Does
-
-Builds a custom Node.js v24.10.0 binary from source with:
-- Socket security patches
-- Brotli compression support
-- SEA (Single Executable Application) support
-- Bootstrap integration
+Minimal Node.js v22.11.0 binaries with SEA (Single Executable Application) support.
 
 ## Building
 
-### Standard Build
-
 ```bash
-cd packages/node-smol-builder
-node scripts/build.mjs
+pnpm build              # Build for current platform
+pnpm build --mode=prod  # Production build with V8 Lite Mode
+pnpm build --mode=dev   # Development build with full V8
 ```
-
-### Build without Compression (Opt-out)
-
-Compression is **enabled by default** (it's called "smol" for a reason! 😄)
-
-```bash
-cd packages/node-smol-builder
-node scripts/build.mjs                     # Default: WITH compression (33 MB → 13 MB)
-COMPRESS_BINARY=0 node scripts/build.mjs   # Opt-out: WITHOUT compression (33 MB)
-```
-
-The build process:
-1. Downloads Node.js v24.10.0 source
-2. Applies Socket security patches from `patches/`
-3. Configures and compiles Node.js with size optimizations
-4. Copies bootstrap code to internal modules
-5. Strips debug symbols (44 MB → 23-27 MB)
-6. Signs the binary (macOS ARM64)
-7. **Default:** Compresses binary (23-27 MB → 10-12 MB)
-8. **Default:** Bundles platform-specific decompression tool
-
-## Output
-
-**Default build (with compression):**
-- `build/out/Release/node` - Unstripped binary (44 MB)
-- `build/out/Stripped/node` - Stripped binary (23-27 MB)
-- `build/out/Signed/node` - Stripped + signed (macOS ARM64)
-- `build/out/Final/node` - Final binary for distribution (23-27 MB)
-- `build/out/Compressed/node` - **Compressed binary (10-12 MB)** ← Default output
-- `build/out/Compressed/socket_*_decompress` - Decompression tool (~90 KB)
-- `dist/socket-smol` - E2E test binary (copy of Compressed)
-
-**Without compression (`COMPRESS_BINARY=0`):**
-- Same as above, but skips Compressed directory
-- `dist/socket-smol` - E2E test binary (copy of Final, uncompressed)
 
 ## Platform Support
 
-Currently builds for the host platform only. Cross-compilation not yet supported.
+Builds for 8 platforms:
+- macOS (arm64, x64)
+- Linux glibc (x64, arm64)
+- Linux musl/Alpine (x64, arm64)
+- Windows (x64, arm64)
 
-## License
+## Output
 
-MIT
+- `build/prod/Release/node` - Compiled binary (~44 MB)
+- `build/prod/Stripped/node` - Stripped binary (~23-27 MB)
+- `build/prod/Compressed/node` - Compressed binary (~8-12 MB)
+- `build/prod/Final/node` - Distribution binary
+
+## Features
+
+- Small ICU (English-only, Unicode escapes supported)
+- V8 Lite Mode (prod builds, 5-10x slower JS, normal WASM)
+- SEA support with automatic Brotli compression (70-80% reduction)
+- No npm, corepack, inspector, sqlite
+
+## SEA Usage
+
+```bash
+# Create SEA config
+echo '{"main": "app.js", "output": "app.blob"}' > sea-config.json
+
+# Generate blob (automatically Brotli compressed)
+node --experimental-sea-config sea-config.json
+
+# Inject into binary
+cp build/prod/Final/node ./my-app
+npx postject ./my-app NODE_SEA_BLOB app.blob \
+  --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+```

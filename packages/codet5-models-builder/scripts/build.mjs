@@ -52,10 +52,10 @@ const QUANT_LEVEL = args.includes('--int4') ? 'int4' : 'int8'
 // Configuration.
 const MODEL_NAME = 'Salesforce/codet5-base'
 const ROOT_DIR = path.join(__dirname, '..')
-const MODELS_DIR = path.join(ROOT_DIR, '.models')
 // Isolate builds by quantization level to allow concurrent int4/int8 builds
 const BUILD_DIR = path.join(ROOT_DIR, 'build', QUANT_LEVEL)
-const OUTPUT_DIR = path.join(BUILD_DIR, 'models')
+const MODELS_DIR = path.join(BUILD_DIR, 'models')
+const OUTPUT_DIR = path.join(BUILD_DIR, 'output')
 
 /**
  * Download CodeT5 models from Hugging Face.

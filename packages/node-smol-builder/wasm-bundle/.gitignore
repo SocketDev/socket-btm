@@ -2,9 +2,3 @@
 /target/
 /pkg/
 Cargo.lock
-
-# Editor files
-*.swp
-*.swo
-*~
-.DS_Store

@@ -1,0 +1,203 @@
+/**
+ * Python Package Installation Utilities
+ *
+ * Provides utilities for automatically installing Python packages using pip.
+ */
+
+import binPkg from '@socketsecurity/lib/bin'
+import spawnPkg from '@socketsecurity/lib/spawn'
+
+const { whichBinSync } = binPkg
+const { spawn } = spawnPkg
+
+import { printError, printStep, printSubstep, printSuccess } from './build-output.mjs'
+
+/**
+ * Check if pip is available.
+ *
+ * @returns {boolean} True if pip is available.
+ */
+export function checkPipAvailable() {
+  return !!(whichBinSync('pip3', { nothrow: true }) || whichBinSync('pip', { nothrow: true }))
+}
+
+/**
+ * Get pip command (pip3 or pip).
+ *
+ * @returns {string|null} pip command or null if not found.
+ */
+export function getPipCommand() {
+  if (whichBinSync('pip3', { nothrow: true })) {
+    return 'pip3'
+  }
+  if (whichBinSync('pip', { nothrow: true })) {
+    return 'pip'
+  }
+  return null
+}
+
+/**
+ * Check if a Python package is installed.
+ *
+ * @param {string} packageName - Package name to check.
+ * @returns {Promise<boolean>} True if package is installed.
+ */
+export async function checkPythonPackage(packageName) {
+  try {
+    const pythonCmd = whichBinSync('python3', { nothrow: true }) ? 'python3' : 'python'
+    const result = await spawn(pythonCmd, ['-c', `import ${packageName}`], {
+      stdio: 'pipe',
+    })
+    return result.code === 0
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Install a Python package using pip.
+ *
+ * @param {string} packageName - Package name to install.
+ * @param {object} options - Installation options.
+ * @param {boolean} options.user - Install to user site-packages (--user flag).
+ * @param {boolean} options.upgrade - Upgrade if already installed (--upgrade flag).
+ * @param {boolean} options.quiet - Suppress output.
+ * @returns {Promise<boolean>} True if installation succeeded.
+ */
+export async function installPythonPackage(
+  packageName,
+  { user = true, upgrade = false, quiet = false } = {}
+) {
+  const pip = getPipCommand()
+  if (!pip) {
+    if (!quiet) {
+      printError('pip not found. Please install Python 3 with pip.')
+    }
+    return false
+  }
+
+  if (!quiet) {
+    printSubstep(`Installing Python package: ${packageName}`)
+  }
+
+  try {
+    const args = ['install']
+    if (user) args.push('--user')
+    if (upgrade) args.push('--upgrade')
+    args.push(packageName)
+
+    const result = await spawn(pip, args, {
+      env: process.env,
+      stdio: quiet ? 'pipe' : 'inherit',
+    })
+
+    const exitCode = result.code ?? 0
+    if (exitCode !== 0) {
+      if (!quiet) {
+        printError(`Failed to install ${packageName}`)
+      }
+      return false
+    }
+
+    if (!quiet) {
+      printSuccess(`Installed ${packageName}`)
+    }
+    return true
+  } catch (e) {
+    if (!quiet) {
+      printError(`Error installing ${packageName}: ${e.message}`)
+    }
+    return false
+  }
+}
+
+/**
+ * Ensure a Python package is installed, installing if needed.
+ *
+ * @param {string} packageName - Package name to check/install.
+ * @param {object} options - Options.
+ * @param {string} options.importName - Import name if different from package name.
+ * @param {boolean} options.autoInstall - Attempt auto-installation if missing (default: true).
+ * @param {boolean} options.quiet - Suppress output (default: false).
+ * @returns {Promise<{available: boolean, installed: boolean}>}
+ */
+export async function ensurePythonPackage(
+  packageName,
+  { importName, autoInstall = true, quiet = false } = {}
+) {
+  const checkName = importName || packageName
+
+  // Check if already installed.
+  const isInstalled = await checkPythonPackage(checkName)
+  if (isInstalled) {
+    return { available: true, installed: false }
+  }
+
+  if (!autoInstall) {
+    return { available: false, installed: false }
+  }
+
+  // Attempt to install.
+  if (!quiet) {
+    printStep(`Python package '${packageName}' not found, attempting to install...`)
+  }
+
+  const installed = await installPythonPackage(packageName, { quiet })
+
+  return {
+    available: installed,
+    installed,
+  }
+}
+
+/**
+ * Ensure all required Python packages are installed.
+ *
+ * @param {Array<string|{name: string, importName?: string}>} packages - Packages to check.
+ * @param {object} options - Options.
+ * @param {boolean} options.autoInstall - Attempt auto-installation (default: true).
+ * @param {boolean} options.quiet - Suppress output (default: false).
+ * @returns {Promise<{allAvailable: boolean, missing: string[], installed: string[]}>}
+ */
+export async function ensureAllPythonPackages(
+  packages,
+  { autoInstall = true, quiet = false } = {}
+) {
+  const missing = []
+  const installed = []
+
+  for (const pkg of packages) {
+    const packageName = typeof pkg === 'string' ? pkg : pkg.name
+    const importName = typeof pkg === 'string' ? undefined : pkg.importName
+
+    const result = await ensurePythonPackage(packageName, {
+      importName,
+      autoInstall,
+      quiet,
+    })
+
+    if (!result.available) {
+      missing.push(packageName)
+    } else if (result.installed) {
+      installed.push(packageName)
+    }
+  }
+
+  return {
+    allAvailable: missing.length === 0,
+    installed,
+    missing,
+  }
+}
+
+/**
+ * Get installation instructions for Python packages.
+ *
+ * @param {string[]} packages - Package names.
+ * @returns {string[]} Array of installation instruction strings.
+ */
+export function getPythonPackageInstructions(packages) {
+  const instructions = ['Install required Python packages:']
+  instructions.push(`  pip3 install --user ${packages.join(' ')}`)
+  return instructions
+}

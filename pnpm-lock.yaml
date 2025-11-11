@@ -50,6 +50,10 @@ importers:
       magic-string:
         specifier: 'catalog:'
         version: 0.30.19
+    devDependencies:
+      vitest:
+        specifier: 'catalog:'
+        version: 4.0.3
 
   packages/codet5-models-builder:
     dependencies:

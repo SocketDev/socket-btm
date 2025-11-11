@@ -22,25 +22,25 @@ import { spawn } from '@socketsecurity/lib/spawn'
 import {
   printSetupResults,
   setupBuildEnvironment,
-} from '@socketsecurity/build-infra/lib/build-env'
+} from 'build-infra/lib/build-env'
 import {
   checkCompiler,
   checkDiskSpace,
   formatDuration,
   getFileSize,
-} from '@socketsecurity/build-infra/lib/build-helpers'
+} from 'build-infra/lib/build-helpers'
 import {
   printError,
   printHeader,
   printStep,
   printSuccess,
   printWarning,
-} from '@socketsecurity/build-infra/lib/build-output'
+} from 'build-infra/lib/build-output'
 import {
   cleanCheckpoint,
   createCheckpoint,
   shouldRun,
-} from '@socketsecurity/build-infra/lib/checkpoint-manager'
+} from 'build-infra/lib/checkpoint-manager'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -64,7 +64,7 @@ const YOGA_SOURCE_DIR = path.join(BUILD_DIR, 'yoga-source')
  * Clone Yoga source if not already present.
  */
 async function cloneYogaSource() {
-  if (!(await shouldRun('yoga-layout', 'cloned', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, 'yoga-layout', 'cloned', FORCE_BUILD))) {
     return
   }
 
@@ -72,7 +72,7 @@ async function cloneYogaSource() {
 
   if (existsSync(YOGA_SOURCE_DIR)) {
     printStep('Yoga source already exists, skipping clone')
-    await createCheckpoint('yoga-layout', 'cloned')
+    await createCheckpoint(BUILD_DIR, 'yoga-layout', 'cloned')
     return
   }
 
@@ -89,14 +89,14 @@ async function cloneYogaSource() {
   }
 
   printSuccess(`Yoga ${YOGA_VERSION} cloned`)
-  await createCheckpoint('yoga-layout', 'cloned')
+  await createCheckpoint(BUILD_DIR, 'yoga-layout', 'cloned')
 }
 
 /**
  * Configure CMake with Emscripten.
  */
 async function configure() {
-  if (!(await shouldRun('yoga-layout', 'configured', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, 'yoga-layout', 'configured', FORCE_BUILD))) {
     return
   }
 
@@ -179,14 +179,14 @@ async function configure() {
   }
 
   printSuccess('CMake configured')
-  await createCheckpoint('yoga-layout', 'configured')
+  await createCheckpoint(BUILD_DIR, 'yoga-layout', 'configured')
 }
 
 /**
  * Build Yoga with Emscripten.
  */
 async function build() {
-  if (!(await shouldRun('yoga-layout', 'built', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, 'yoga-layout', 'built', FORCE_BUILD))) {
     return
   }
 
@@ -267,14 +267,14 @@ async function build() {
 
   const duration = formatDuration(Date.now() - startTime)
   printSuccess(`Build completed in ${duration}`)
-  await createCheckpoint('yoga-layout', 'built')
+  await createCheckpoint(BUILD_DIR, 'yoga-layout', 'built')
 }
 
 /**
  * Optimize WASM with wasm-opt.
  */
 async function optimize() {
-  if (!(await shouldRun('yoga-layout', 'optimized', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, 'yoga-layout', 'optimized', FORCE_BUILD))) {
     return
   }
 
@@ -338,14 +338,14 @@ async function optimize() {
   printStep(`Size after: ${sizeAfter}`)
 
   printSuccess('WASM optimized')
-  await createCheckpoint('yoga-layout', 'optimized')
+  await createCheckpoint(BUILD_DIR, 'yoga-layout', 'optimized')
 }
 
 /**
  * Verify WASM can load.
  */
 async function verify() {
-  if (!(await shouldRun('yoga-layout', 'verified', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, 'yoga-layout', 'verified', FORCE_BUILD))) {
     return
   }
 
@@ -356,7 +356,7 @@ async function verify() {
 
   if (!existsSync(wasmFile)) {
     printWarning('WASM file not found, skipping verification')
-    await createCheckpoint('yoga-layout', 'verified')
+    await createCheckpoint(BUILD_DIR, 'yoga-layout', 'verified')
     return
   }
 
@@ -374,7 +374,7 @@ async function verify() {
   }
 
   printSuccess('WASM verified')
-  await createCheckpoint('yoga-layout', 'verified')
+  await createCheckpoint(BUILD_DIR, 'yoga-layout', 'verified')
 }
 
 /**
@@ -436,7 +436,7 @@ async function main() {
     if (outputMissing) {
       printStep('Output artifacts missing - cleaning stale checkpoints')
     }
-    await cleanCheckpoint('yoga-layout')
+    await cleanCheckpoint(BUILD_DIR, 'yoga-layout')
   }
 
   // Pre-flight checks.

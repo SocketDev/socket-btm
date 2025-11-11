@@ -35,7 +35,7 @@ import {
   createCheckpoint,
   getCheckpointData,
   shouldRun,
-} from '@socketsecurity/build-infra/lib/checkpoint-manager'
+} from 'build-infra/lib/checkpoint-manager'
 
 // Check if running in CI.
 const IS_CI = !!(
@@ -55,14 +55,15 @@ const NO_SELF_UPDATE = args.includes('--no-self-update')
 const BUILD_MINILM = args.includes('--all') || args.includes('--minilm') || !args.includes('--codet5')
 const BUILD_CODET5 = args.includes('--all') || args.includes('--codet5')
 
-// Quantization level (default: INT4 for maximum compression).
-const QUANT_LEVEL = args.includes('--int8') ? 'INT8' : 'INT4'
+// Quantization level: int8 (dev, default) vs int4 (prod, smaller).
+const QUANT_LEVEL = args.includes('--int4') ? 'int4' : 'int8'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const ROOT = join(__dirname, '..')
 const DIST = join(ROOT, 'dist')
-const BUILD = join(ROOT, 'build')
+// Isolate builds by quantization level to allow concurrent int4/int8 builds
+const BUILD = join(ROOT, 'build', QUANT_LEVEL)
 const MODELS = join(BUILD, 'models')
 const PACKAGE_NAME = 'models'
 
@@ -98,7 +99,7 @@ const MODEL_SOURCES = {
  * Download model from Hugging Face.
  */
 async function downloadModel(modelKey) {
-  if (!(await shouldRun(PACKAGE_NAME, `downloaded-${modelKey}`, FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD, PACKAGE_NAME, `downloaded-${modelKey}`, FORCE_BUILD))) {
     return
   }
 
@@ -129,7 +130,7 @@ async function downloadModel(modelKey) {
         }
 
         logger.success(`Downloaded from ${source}`)
-        await createCheckpoint(PACKAGE_NAME, `downloaded-${modelKey}`, {
+        await createCheckpoint(BUILD, PACKAGE_NAME, `downloaded-${modelKey}`, {
           source,
           revision,
           modelKey,
@@ -155,7 +156,7 @@ async function downloadModel(modelKey) {
         }
 
         logger.success(`Downloaded from ${source}`)
-        await createCheckpoint(PACKAGE_NAME, `downloaded-${modelKey}`, {
+        await createCheckpoint(BUILD, PACKAGE_NAME, `downloaded-${modelKey}`, {
           source,
           revision,
           modelKey,
@@ -175,7 +176,7 @@ async function downloadModel(modelKey) {
  * Convert model to ONNX if needed.
  */
 async function convertToOnnx(modelKey) {
-  if (!(await shouldRun(PACKAGE_NAME, `converted-${modelKey}`, FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD, PACKAGE_NAME, `converted-${modelKey}`, FORCE_BUILD))) {
     return
   }
 
@@ -190,7 +191,7 @@ async function convertToOnnx(modelKey) {
 
   if (allExist) {
     logger.success('Already in ONNX format')
-    await createCheckpoint(PACKAGE_NAME, `converted-${modelKey}`, { modelKey })
+    await createCheckpoint(BUILD, PACKAGE_NAME, `converted-${modelKey}`, { modelKey })
     return
   }
 
@@ -207,7 +208,7 @@ async function convertToOnnx(modelKey) {
     }
 
     logger.success('Converted to ONNX')
-    await createCheckpoint(PACKAGE_NAME, `converted-${modelKey}`, { modelKey })
+    await createCheckpoint(BUILD, PACKAGE_NAME, `converted-${modelKey}`, { modelKey })
   } catch (e) {
     logger.error(`Conversion failed: ${e.message}`)
     throw e
@@ -227,7 +228,7 @@ async function quantizeModel(modelKey, quantLevel) {
   const suffix = quantLevel.toLowerCase()
   const checkpointKey = `quantized-${modelKey}-${suffix}`
 
-  if (!(await shouldRun(PACKAGE_NAME, checkpointKey, FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD, PACKAGE_NAME, checkpointKey, FORCE_BUILD))) {
     // Return existing quantized paths.
     const modelDir = join(MODELS, modelKey)
     if (modelKey === 'codet5') {
@@ -326,7 +327,7 @@ async function quantizeModel(modelKey, quantLevel) {
   }
 
   logger.success(`Quantized to ${method}`)
-  await createCheckpoint(PACKAGE_NAME, checkpointKey, {
+  await createCheckpoint(BUILD, PACKAGE_NAME, checkpointKey, {
     modelKey,
     method,
     quantLevel,
@@ -382,7 +383,7 @@ async function main() {
     if (outputMissing) {
       logger.step('Output artifacts missing - cleaning stale checkpoints')
     }
-    await cleanCheckpoint(PACKAGE_NAME)
+    await cleanCheckpoint(BUILD, PACKAGE_NAME)
   }
 
   // Create directories.

@@ -104,24 +104,24 @@ import {
   saveBuildLog,
   smokeTestBinary,
   verifyGitTag,
-} from '@socketsecurity/build-infra/lib/build-helpers'
+} from 'build-infra/lib/build-helpers'
 import {
   generateHashComment,
   shouldExtract,
-} from '@socketsecurity/build-infra/lib/extraction-cache'
-import { printError, printHeader, printWarning } from '@socketsecurity/build-infra/lib/build-output'
+} from 'build-infra/lib/extraction-cache'
+import { printError, printHeader, printWarning } from 'build-infra/lib/build-output'
 import {
   analyzePatchContent,
   checkPatchConflicts,
   testPatchApplication,
   validatePatch,
-} from '@socketsecurity/build-infra/lib/patch-validator'
+} from 'build-infra/lib/patch-validator'
 import {
   ensureAllToolsInstalled,
   ensurePackageManagerAvailable,
   getInstallInstructions,
   getPackageManagerInstructions,
-} from '@socketsecurity/build-infra/lib/tool-installer'
+} from 'build-infra/lib/tool-installer'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -211,7 +211,7 @@ const ADDITIONS_DIR = join(ROOT_DIR, 'additions')
  *
  * Cache Key Strategy (Local Script):
  * ===================================
- * This function generates a content-based hash using @socketsecurity/build-infra/lib/extraction-cache.
+ * This function generates a content-based hash using build-infra/lib/extraction-cache.
  * The cache key is determined by hashing the CONTENT of these files:
  *
  * 1. All patch files (patches/*.patch)

@@ -23,25 +23,25 @@ import { spawn } from '@socketsecurity/lib/spawn'
 import {
   printSetupResults,
   setupBuildEnvironment,
-} from '@socketsecurity/build-infra/lib/build-env'
+} from 'build-infra/lib/build-env'
 import {
   checkCompiler,
   checkDiskSpace,
   formatDuration,
   getFileSize,
-} from '@socketsecurity/build-infra/lib/build-helpers'
+} from 'build-infra/lib/build-helpers'
 import {
   printError,
   printHeader,
   printStep,
   printSuccess,
   printWarning,
-} from '@socketsecurity/build-infra/lib/build-output'
+} from 'build-infra/lib/build-output'
 import {
   cleanCheckpoint,
   createCheckpoint,
   shouldRun,
-} from '@socketsecurity/build-infra/lib/checkpoint-manager'
+} from 'build-infra/lib/checkpoint-manager'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -65,7 +65,7 @@ const ONNX_SOURCE_DIR = path.join(BUILD_DIR, 'onnxruntime-source')
  * Clone ONNX Runtime source if not already present.
  */
 async function cloneOnnxSource() {
-  if (!(await shouldRun('onnxruntime', 'cloned', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, 'onnxruntime', 'cloned', FORCE_BUILD))) {
     return
   }
 
@@ -113,7 +113,7 @@ async function cloneOnnxSource() {
       printSuccess('Old source removed')
     } else {
       printStep('All patches already applied, skipping clone')
-      await createCheckpoint('onnxruntime', 'cloned')
+      await createCheckpoint(BUILD_DIR, 'onnxruntime', 'cloned')
       return
     }
   }
@@ -193,14 +193,14 @@ async function cloneOnnxSource() {
     printSuccess('wasm_post_build.js (source) patched')
   }
 
-  await createCheckpoint('onnxruntime', 'cloned')
+  await createCheckpoint(BUILD_DIR, 'onnxruntime', 'cloned')
 }
 
 /**
  * Build ONNX Runtime with Emscripten using official build script.
  */
 async function build() {
-  if (!(await shouldRun('onnxruntime', 'built', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, 'onnxruntime', 'built', FORCE_BUILD))) {
     return
   }
 
@@ -267,7 +267,7 @@ async function build() {
 
   const duration = formatDuration(Date.now() - startTime)
   printSuccess(`Build completed in ${duration}`)
-  await createCheckpoint('onnxruntime', 'built')
+  await createCheckpoint(BUILD_DIR, 'onnxruntime', 'built')
 }
 
 /**
@@ -333,7 +333,7 @@ async function main() {
     if (outputMissing) {
       printStep('Output artifacts missing - cleaning stale checkpoints')
     }
-    await cleanCheckpoint('onnxruntime')
+    await cleanCheckpoint(BUILD_DIR, 'onnxruntime')
   }
 
   // Pre-flight checks.

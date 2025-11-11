@@ -5,8 +5,8 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { cleanCheckpoint } from '@socketsecurity/build-infra/lib/checkpoint-manager'
-import { printHeader, printSuccess } from '@socketsecurity/build-infra/lib/build-output'
+import { cleanCheckpoint } from 'build-infra/lib/checkpoint-manager'
+import { printHeader, printSuccess } from 'build-infra/lib/build-output'
 import { safeDelete } from '@socketsecurity/lib/fs'
 import loggerPkg from '@socketsecurity/lib/logger'
 
@@ -28,8 +28,11 @@ async function main() {
   // Remove build directory.
   await safeDelete(BUILD_DIR).catch(() => {})
 
-  // Clean checkpoints.
-  await cleanCheckpoint('codet5-models')
+  // Clean checkpoints for both int4 and int8 builds.
+  const int8BuildDir = path.join(ROOT_DIR, 'build', 'int8')
+  const int4BuildDir = path.join(ROOT_DIR, 'build', 'int4')
+  await cleanCheckpoint(int8BuildDir, 'codet5-models')
+  await cleanCheckpoint(int4BuildDir, 'codet5-models')
 
   printSuccess('Clean complete')
 }

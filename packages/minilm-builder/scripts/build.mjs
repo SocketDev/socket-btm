@@ -11,7 +11,8 @@
  * 6. Export to distribution location
  *
  * Usage:
- *   node scripts/build.mjs          # Normal build with checkpoints
+ *   node scripts/build.mjs          # Dev build (INT8 quantization, default)
+ *   node scripts/build.mjs --int4   # Prod build (INT4 quantization, smaller)
  *   node scripts/build.mjs --force  # Force rebuild (ignore checkpoints)
  */
 
@@ -27,19 +28,19 @@ import {
   checkPythonVersion,
   formatDuration,
   getFileSize,
-} from '@socketsecurity/build-infra/lib/build-helpers'
+} from 'build-infra/lib/build-helpers'
 import {
   printError,
   printHeader,
   printStep,
   printSuccess,
   printWarning,
-} from '@socketsecurity/build-infra/lib/build-output'
+} from 'build-infra/lib/build-output'
 import {
   cleanCheckpoint,
   createCheckpoint,
   shouldRun,
-} from '@socketsecurity/build-infra/lib/checkpoint-manager'
+} from 'build-infra/lib/checkpoint-manager'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -47,10 +48,13 @@ const __dirname = path.dirname(__filename)
 // Parse arguments.
 const args = process.argv.slice(2)
 const FORCE_BUILD = args.includes('--force')
+// Quantization level: int8 (dev, default) vs int4 (prod, smaller).
+const QUANT_LEVEL = args.includes('--int4') ? 'int4' : 'int8'
 
 // Configuration.
 const ROOT_DIR = path.join(__dirname, '..')
-const BUILD_DIR = path.join(ROOT_DIR, 'build')
+// Isolate builds by quantization level to allow concurrent int4/int8 builds
+const BUILD_DIR = path.join(ROOT_DIR, 'build', QUANT_LEVEL)
 const MODELS_DIR = path.join(BUILD_DIR, 'models')
 const CACHE_DIR = path.join(BUILD_DIR, 'cache')
 const PYTHON_DIR = path.join(ROOT_DIR, 'python')
@@ -334,7 +338,7 @@ async function runPythonScript(scriptName, args, options = {}) {
  * Download models from Hugging Face.
  */
 async function downloadModels() {
-  if (!(await shouldRun('minilm', 'downloaded', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, 'minilm', 'downloaded', FORCE_BUILD))) {
     return
   }
 
@@ -360,14 +364,14 @@ async function downloadModels() {
   }
 
   printSuccess('Model download complete')
-  await createCheckpoint('minilm', 'downloaded')
+  await createCheckpoint(BUILD_DIR, 'minilm', 'downloaded')
 }
 
 /**
  * Convert models to ONNX format.
  */
 async function convertToOnnx() {
-  if (!(await shouldRun('minilm', 'converted', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, 'minilm', 'converted', FORCE_BUILD))) {
     return
   }
 
@@ -395,14 +399,14 @@ async function convertToOnnx() {
   }
 
   printSuccess('ONNX conversion complete')
-  await createCheckpoint('minilm', 'converted')
+  await createCheckpoint(BUILD_DIR, 'minilm', 'converted')
 }
 
 /**
  * Apply mixed-precision quantization.
  */
 async function quantizeModels() {
-  if (!(await shouldRun('minilm', 'quantized', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, 'minilm', 'quantized', FORCE_BUILD))) {
     return
   }
 
@@ -435,14 +439,14 @@ async function quantizeModels() {
   }
 
   printSuccess('Quantization complete')
-  await createCheckpoint('minilm', 'quantized')
+  await createCheckpoint(BUILD_DIR, 'minilm', 'quantized')
 }
 
 /**
  * Optimize ONNX graphs.
  */
 async function optimizeGraphs() {
-  if (!(await shouldRun('minilm', 'optimized', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, 'minilm', 'optimized', FORCE_BUILD))) {
     return
   }
 
@@ -477,14 +481,14 @@ async function optimizeGraphs() {
   }
 
   printSuccess('Graph optimization complete')
-  await createCheckpoint('minilm', 'optimized')
+  await createCheckpoint(BUILD_DIR, 'minilm', 'optimized')
 }
 
 /**
  * Verify models work correctly.
  */
 async function verifyModels() {
-  if (!(await shouldRun('minilm', 'verified', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, 'minilm', 'verified', FORCE_BUILD))) {
     return
   }
 
@@ -520,7 +524,7 @@ async function verifyModels() {
   }
 
   printSuccess('Model verification complete')
-  await createCheckpoint('minilm', 'verified')
+  await createCheckpoint(BUILD_DIR, 'minilm', 'verified')
 }
 
 /**

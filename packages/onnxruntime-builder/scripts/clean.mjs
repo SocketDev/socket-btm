@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 
 import { safeDelete } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { cleanCheckpoint } from '@socketsecurity/build-infra/lib/checkpoint-manager'
+import { cleanCheckpoint } from 'build-infra/lib/checkpoint-manager'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.join(__dirname, '..')
@@ -21,7 +21,7 @@ async function clean() {
   await safeDelete(BUILD_DIR)
   logger.success('Build directory cleaned')
 
-  await cleanCheckpoint('onnxruntime')
+  await cleanCheckpoint(BUILD_DIR, 'onnxruntime')
   logger.success('Checkpoints cleaned')
 }
 

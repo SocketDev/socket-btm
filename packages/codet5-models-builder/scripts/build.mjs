@@ -8,7 +8,8 @@
  * - Optimizes ONNX graphs
  *
  * Usage:
- *   node scripts/build.mjs          # Normal build with checkpoints
+ *   node scripts/build.mjs          # Dev build (INT8 quantization, default)
+ *   node scripts/build.mjs --int4   # Prod build (INT4 quantization, smaller)
  *   node scripts/build.mjs --force  # Force rebuild (ignore checkpoints)
  */
 
@@ -24,18 +25,18 @@ import {
   checkPythonVersion,
   formatDuration,
   getFileSize,
-} from '@socketsecurity/build-infra/lib/build-helpers'
+} from 'build-infra/lib/build-helpers'
 import {
   printError,
   printHeader,
   printStep,
   printSuccess,
-} from '@socketsecurity/build-infra/lib/build-output'
+} from 'build-infra/lib/build-output'
 import {
   cleanCheckpoint,
   createCheckpoint,
   shouldRun,
-} from '@socketsecurity/build-infra/lib/checkpoint-manager'
+} from 'build-infra/lib/checkpoint-manager'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -43,19 +44,22 @@ const __dirname = path.dirname(__filename)
 // Parse arguments.
 const args = process.argv.slice(2)
 const FORCE_BUILD = args.includes('--force')
+// Quantization level: int8 (dev, default) vs int4 (prod, smaller).
+const QUANT_LEVEL = args.includes('--int4') ? 'int4' : 'int8'
 
 // Configuration.
 const MODEL_NAME = 'Salesforce/codet5-base'
 const ROOT_DIR = path.join(__dirname, '..')
 const MODELS_DIR = path.join(ROOT_DIR, '.models')
-const BUILD_DIR = path.join(ROOT_DIR, 'build')
+// Isolate builds by quantization level to allow concurrent int4/int8 builds
+const BUILD_DIR = path.join(ROOT_DIR, 'build', QUANT_LEVEL)
 const OUTPUT_DIR = path.join(BUILD_DIR, 'models')
 
 /**
  * Download CodeT5 models from Hugging Face.
  */
 async function downloadModels() {
-  if (!(await shouldRun('codet5-models', 'downloaded', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, 'codet5-models', 'downloaded', FORCE_BUILD))) {
     return
   }
 
@@ -82,14 +86,14 @@ async function downloadModels() {
   }
 
   printSuccess('Models downloaded')
-  await createCheckpoint('codet5-models', 'downloaded')
+  await createCheckpoint(BUILD_DIR, 'codet5-models', 'downloaded')
 }
 
 /**
  * Convert models to ONNX format.
  */
 async function convertToOnnx() {
-  if (!(await shouldRun('codet5-models', 'converted', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, 'codet5-models', 'converted', FORCE_BUILD))) {
     return
   }
 
@@ -111,14 +115,14 @@ async function convertToOnnx() {
   }
 
   printSuccess('Models converted to ONNX')
-  await createCheckpoint('codet5-models', 'converted')
+  await createCheckpoint(BUILD_DIR, 'codet5-models', 'converted')
 }
 
 /**
  * Apply quantization to models.
  */
 async function quantizeModels() {
-  if (!(await shouldRun('codet5-models', 'quantized', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, 'codet5-models', 'quantized', FORCE_BUILD))) {
     return
   }
 
@@ -168,14 +172,14 @@ async function quantizeModels() {
   printStep(`Decoder: ${decoderSize}`)
 
   printSuccess('Models quantized')
-  await createCheckpoint('codet5-models', 'quantized')
+  await createCheckpoint(BUILD_DIR, 'codet5-models', 'quantized')
 }
 
 /**
  * Optimize ONNX graphs.
  */
 async function optimizeModels() {
-  if (!(await shouldRun('codet5-models', 'optimized', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, 'codet5-models', 'optimized', FORCE_BUILD))) {
     return
   }
 
@@ -215,14 +219,14 @@ async function optimizeModels() {
   }
 
   printSuccess('Models optimized')
-  await createCheckpoint('codet5-models', 'optimized')
+  await createCheckpoint(BUILD_DIR, 'codet5-models', 'optimized')
 }
 
 /**
  * Verify models can load and run inference.
  */
 async function verifyModels() {
-  if (!(await shouldRun('codet5-models', 'verified', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, 'codet5-models', 'verified', FORCE_BUILD))) {
     return
   }
 
@@ -252,7 +256,7 @@ async function verifyModels() {
   }
 
   printSuccess('Models verified')
-  await createCheckpoint('codet5-models', 'verified')
+  await createCheckpoint(BUILD_DIR, 'codet5-models', 'verified')
 }
 
 /**
@@ -313,7 +317,7 @@ async function main() {
 
   // Check for required Python packages.
   printStep('Checking Python dependencies')
-  const checkDepsResult = await spawn('python3 -c "import transformers, onnx, onnxruntime"', {
+  const checkDepsResult = await spawn('python3', ['-c', 'import transformers, onnx, onnxruntime'], {
     shell: WIN32,
     stdio: 'pipe',
     stdioString: true,

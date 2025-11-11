@@ -22,10 +22,17 @@
     "./lib/tool-installer": "./lib/tool-installer.mjs",
     "./lib/unicode-property-escape-transform": "./lib/unicode-property-escape-transform.mjs"
   },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
   "dependencies": {
     "@babel/parser": "catalog:",
     "@babel/traverse": "catalog:",
     "@socketsecurity/lib": "catalog:",
     "magic-string": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
   }
 }

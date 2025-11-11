@@ -60,6 +60,22 @@ const TOOL_CONFIGS = {
       win32: { choco: 'python', scoop: 'python' },
     },
   },
+  cmake: {
+    description: 'CMake build system',
+    packages: {
+      darwin: { brew: 'cmake' },
+      linux: { apt: 'cmake', yum: 'cmake', dnf: 'cmake', apk: 'cmake' },
+      win32: { choco: 'cmake', scoop: 'cmake' },
+    },
+  },
+  'wasm-opt': {
+    description: 'Binaryen WebAssembly optimizer',
+    packages: {
+      darwin: { brew: 'binaryen' },
+      linux: { apt: 'binaryen', yum: 'binaryen', dnf: 'binaryen', apk: 'binaryen' },
+      win32: { choco: 'binaryen', scoop: 'binaryen' },
+    },
+  },
 }
 
 /**

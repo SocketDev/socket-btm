@@ -1,15 +1,6 @@
-name: AI Models
+name: Models
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'packages/models/**'
-      - '.github/workflows/models.yml'
-  pull_request:
-    paths:
-      - 'packages/models/**'
-      - '.github/workflows/models.yml'
   release:
     types: [published]
   workflow_dispatch:
@@ -42,6 +33,9 @@ on:
         type: string
         default: both
 
+permissions:
+  contents: read
+
 env:
   NODE_VERSION: 22.x
   PNPM_VERSION: 9.x
@@ -49,6 +43,8 @@ env:
 
 jobs:
   build:
+    permissions:
+      contents: read
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     strategy:
@@ -58,6 +54,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
@@ -66,14 +64,12 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
-        with:
-          version: ${{ env.PNPM_VERSION }}
+        # Note: version is specified in package.json packageManager field, not here
 
       - name: Setup Python
         uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
 
       - name: Get pnpm store directory
         id: pnpm-cache
@@ -113,79 +109,101 @@ jobs:
         id: validate-cache
         if: steps.model-cache.outputs.cache-hit == 'true'
         run: |
-          echo "Validating cached models for ${{ matrix.quant_level }}..."
+          echo "Validating cached models for ${MATRIX_QUANT_LEVEL}..."
 
           # Check if model files exist
-          if [ ! -f "packages/models/dist/${{ matrix.quant_level }}/minilm-l6/model.onnx" ]; then
+          if [ ! -f "packages/models/dist/${MATRIX_QUANT_LEVEL}/minilm-l6/model.onnx" ]; then
             echo "❌ MiniLM model missing, invalidating cache"
-            rm -rf packages/models/dist/${{ matrix.quant_level }}
+            rm -rf packages/models/dist/${MATRIX_QUANT_LEVEL}
             echo "cache_valid=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          if [ ! -f "packages/models/dist/${{ matrix.quant_level }}/codet5/model.onnx" ]; then
+          if [ ! -f "packages/models/dist/${MATRIX_QUANT_LEVEL}/codet5/model.onnx" ]; then
             echo "❌ CodeT5 model missing, invalidating cache"
-            rm -rf packages/models/dist/${{ matrix.quant_level }}
+            rm -rf packages/models/dist/${MATRIX_QUANT_LEVEL}
             echo "cache_valid=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          # Check file sizes are reasonable (ONNX models should be > 1MB)
-          MINILM_SIZE=$(stat -c%s packages/models/dist/${{ matrix.quant_level }}/minilm-l6/model.onnx)
-          CODET5_SIZE=$(stat -c%s packages/models/dist/${{ matrix.quant_level }}/codet5/model.onnx)
+          # Check file sizes are reasonable
+          # INT8: ~20MB (expect >1MB), INT4: ~600KB (expect >100KB)
+          MINILM_SIZE=$(stat -c%s packages/models/dist/${MATRIX_QUANT_LEVEL}/minilm-l6/model.onnx)
+          CODET5_SIZE=$(stat -c%s packages/models/dist/${MATRIX_QUANT_LEVEL}/codet5/model.onnx)
 
-          if [ "$MINILM_SIZE" -lt 1000000 ]; then
-            echo "❌ MiniLM model too small ($MINILM_SIZE bytes), invalidating cache"
-            rm -rf packages/models/dist/${{ matrix.quant_level }}
+          if [ "${MATRIX_QUANT_LEVEL}" = "int4" ]; then
+            MIN_SIZE=100000  # 100KB minimum for int4
+          else
+            MIN_SIZE=1000000  # 1MB minimum for int8
+          fi
+
+          if [ "$MINILM_SIZE" -lt "$MIN_SIZE" ]; then
+            echo "❌ MiniLM model too small ($MINILM_SIZE bytes, expected >$MIN_SIZE), invalidating cache"
+            rm -rf packages/models/dist/${MATRIX_QUANT_LEVEL}
             echo "cache_valid=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          if [ "$CODET5_SIZE" -lt 1000000 ]; then
-            echo "❌ CodeT5 model too small ($CODET5_SIZE bytes), invalidating cache"
-            rm -rf packages/models/dist/${{ matrix.quant_level }}
+          if [ "$CODET5_SIZE" -lt "$MIN_SIZE" ]; then
+            echo "❌ CodeT5 model too small ($CODET5_SIZE bytes, expected >$MIN_SIZE), invalidating cache"
+            rm -rf packages/models/dist/${MATRIX_QUANT_LEVEL}
             echo "cache_valid=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
           echo "✅ Cache validation passed"
           echo "cache_valid=true" >> $GITHUB_OUTPUT
+        env:
+          MATRIX_QUANT_LEVEL: ${{ matrix.quant_level }}
 
       - name: Build models
         if: steps.model-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.cache_valid == 'false'
-        run: pnpm --filter models build --${{ matrix.quant_level }}
+        run: pnpm --filter models build --${MATRIX_QUANT_LEVEL}
+        env:
+          MATRIX_QUANT_LEVEL: ${{ matrix.quant_level }}
 
       - name: Validate build output
         run: |
-          echo "Validating models build output for ${{ matrix.quant_level }}..."
+          echo "Validating models build output for ${MATRIX_QUANT_LEVEL}..."
 
-          if [ ! -f "packages/models/dist/${{ matrix.quant_level }}/minilm-l6/model.onnx" ]; then
+          if [ ! -f "packages/models/dist/${MATRIX_QUANT_LEVEL}/minilm-l6/model.onnx" ]; then
             echo "❌ Build failed: MiniLM model missing"
             exit 1
           fi
 
-          if [ ! -f "packages/models/dist/${{ matrix.quant_level }}/codet5/model.onnx" ]; then
+          if [ ! -f "packages/models/dist/${MATRIX_QUANT_LEVEL}/codet5/model.onnx" ]; then
             echo "❌ Build failed: CodeT5 model missing"
             exit 1
           fi
 
-          MINILM_SIZE=$(stat -c%s packages/models/dist/${{ matrix.quant_level }}/minilm-l6/model.onnx)
-          CODET5_SIZE=$(stat -c%s packages/models/dist/${{ matrix.quant_level }}/codet5/model.onnx)
+          MINILM_SIZE=$(stat -c%s packages/models/dist/${MATRIX_QUANT_LEVEL}/minilm-l6/model.onnx)
+          CODET5_SIZE=$(stat -c%s packages/models/dist/${MATRIX_QUANT_LEVEL}/codet5/model.onnx)
 
-          if [ "$MINILM_SIZE" -lt 1000000 ]; then
-            echo "❌ Build failed: MiniLM model too small ($MINILM_SIZE bytes)"
+          # Different size thresholds for different quantization levels
+          # INT8: ~20MB (expect >1MB after quantization)
+          # INT4: ~600KB (expect >100KB after aggressive quantization)
+          if [ "${MATRIX_QUANT_LEVEL}" = "int4" ]; then
+            MIN_SIZE=100000  # 100KB minimum for int4
+          else
+            MIN_SIZE=1000000  # 1MB minimum for int8
+          fi
+
+          if [ "$MINILM_SIZE" -lt "$MIN_SIZE" ]; then
+            echo "❌ Build failed: MiniLM model too small ($MINILM_SIZE bytes, expected >$MIN_SIZE)"
             exit 1
           fi
 
-          if [ "$CODET5_SIZE" -lt 1000000 ]; then
-            echo "❌ Build failed: CodeT5 model too small ($CODET5_SIZE bytes)"
+          if [ "$CODET5_SIZE" -lt "$MIN_SIZE" ]; then
+            echo "❌ Build failed: CodeT5 model too small ($CODET5_SIZE bytes, expected >$MIN_SIZE)"
             exit 1
           fi
 
           echo "✅ Build validation passed"
+        env:
+          MATRIX_QUANT_LEVEL: ${{ matrix.quant_level }}
 
       - name: Upload model artifacts
-        uses: actions/upload-artifact@ea165da598d47c5c63f3a64d861423ce9564af31 # v4.6.0
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: models-${{ matrix.quant_level }}
           path: packages/models/dist/${{ matrix.quant_level }}/
@@ -204,6 +222,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Download all model artifacts
         uses: actions/download-artifact@95815c38cf2ff2164869cbab79da32fa3c3640b8 # v4.1.8
@@ -257,8 +277,9 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          STEPS_VERSION_OUTPUTS_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
+          VERSION="${STEPS_VERSION_OUTPUTS_VERSION}"
           TAG="models-v${VERSION}"
 
           # Check if release already exists

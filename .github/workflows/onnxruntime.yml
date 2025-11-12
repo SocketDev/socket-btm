@@ -1,15 +1,6 @@
 name: ONNX Runtime WASM
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'packages/onnxruntime-builder/**'
-      - '.github/workflows/onnxruntime.yml'
-  pull_request:
-    paths:
-      - 'packages/onnxruntime-builder/**'
-      - '.github/workflows/onnxruntime.yml'
   release:
     types: [published]
   workflow_dispatch:
@@ -31,6 +22,9 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: read
+
 env:
   ONNX_VERSION: 1.20.1
   NODE_VERSION: 22.x
@@ -38,12 +32,16 @@ env:
 
 jobs:
   build:
+    permissions:
+      contents: read
     runs-on: ubuntu-22.04
     timeout-minutes: 60
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
@@ -52,8 +50,7 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
-        with:
-          version: ${{ env.PNPM_VERSION }}
+        # Note: version is specified in package.json packageManager field, not here
 
       - name: Get pnpm store directory
         id: pnpm-cache
@@ -90,7 +87,7 @@ jobs:
         with:
           path: |
             packages/onnxruntime-builder/build/Release
-            packages/onnxruntime-builder/dist
+            packages/onnxruntime-builder/build/wasm
           key: onnx-build-v${{ env.ONNX_VERSION }}-${{ runner.os }}-${{ steps.cache-key.outputs.hash }}
 
       - name: Validate build cache integrity
@@ -100,18 +97,18 @@ jobs:
           echo "Validating cached ONNX Runtime build..."
 
           # Check if WASM files exist
-          if [ ! -f "packages/onnxruntime-builder/dist/ort-wasm-simd-threaded.wasm" ]; then
+          if [ ! -f "packages/onnxruntime-builder/build/wasm/ort-wasm-simd-threaded.wasm" ]; then
             echo "❌ WASM file missing, invalidating cache"
-            rm -rf packages/onnxruntime-builder/build/Release packages/onnxruntime-builder/dist
+            rm -rf packages/onnxruntime-builder/build/Release packages/onnxruntime-builder/build/wasm
             echo "cache_valid=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
           # Check file sizes are reasonable
-          WASM_SIZE=$(stat -f%z packages/onnxruntime-builder/dist/ort-wasm-simd-threaded.wasm 2>/dev/null || stat -c%s packages/onnxruntime-builder/dist/ort-wasm-simd-threaded.wasm)
+          WASM_SIZE=$(stat -f%z packages/onnxruntime-builder/build/wasm/ort-wasm-simd-threaded.wasm 2>/dev/null || stat -c%s packages/onnxruntime-builder/build/wasm/ort-wasm-simd-threaded.wasm)
           if [ "$WASM_SIZE" -lt 1000000 ]; then
             echo "❌ WASM file too small ($WASM_SIZE bytes), invalidating cache"
-            rm -rf packages/onnxruntime-builder/build/Release packages/onnxruntime-builder/dist
+            rm -rf packages/onnxruntime-builder/build/Release packages/onnxruntime-builder/build/wasm
             echo "cache_valid=false" >> $GITHUB_OUTPUT
             exit 0
           fi
@@ -127,17 +124,17 @@ jobs:
         run: |
           echo "Validating ONNX Runtime build output..."
 
-          if [ ! -f "packages/onnxruntime-builder/dist/ort-wasm-simd-threaded.wasm" ]; then
+          if [ ! -f "packages/onnxruntime-builder/build/wasm/ort-wasm-simd-threaded.wasm" ]; then
             echo "❌ Build failed: WASM file missing"
             exit 1
           fi
 
-          if [ ! -f "packages/onnxruntime-builder/dist/ort-wasm-simd-threaded.mjs" ]; then
+          if [ ! -f "packages/onnxruntime-builder/build/wasm/ort-wasm-simd-threaded.mjs" ]; then
             echo "❌ Build failed: MJS file missing"
             exit 1
           fi
 
-          WASM_SIZE=$(stat -c%s packages/onnxruntime-builder/dist/ort-wasm-simd-threaded.wasm 2>/dev/null || stat -f%z packages/onnxruntime-builder/dist/ort-wasm-simd-threaded.wasm)
+          WASM_SIZE=$(stat -c%s packages/onnxruntime-builder/build/wasm/ort-wasm-simd-threaded.wasm 2>/dev/null || stat -f%z packages/onnxruntime-builder/build/wasm/ort-wasm-simd-threaded.wasm)
           if [ "$WASM_SIZE" -lt 1000000 ]; then
             echo "❌ Build failed: WASM file too small ($WASM_SIZE bytes)"
             exit 1
@@ -146,10 +143,10 @@ jobs:
           echo "✅ Build validation passed"
 
       - name: Upload ONNX Runtime artifacts
-        uses: actions/upload-artifact@ea165da598d47c5c63f3a64d861423ce9564af31 # v4.6.0
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: onnxruntime-wasm
-          path: packages/onnxruntime-builder/dist/
+          path: packages/onnxruntime-builder/build/wasm/
           retention-days: 30
           if-no-files-found: error
 
@@ -165,12 +162,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Download ONNX Runtime artifacts
         uses: actions/download-artifact@95815c38cf2ff2164869cbab79da32fa3c3640b8 # v4.1.8
         with:
           name: onnxruntime-wasm
-          path: packages/onnxruntime-builder/dist/
+          path: packages/onnxruntime-builder/build/wasm/
 
       - name: Extract version from package.json
         id: version
@@ -181,24 +180,25 @@ jobs:
 
       - name: Generate checksums
         run: |
-          cd packages/onnxruntime-builder/dist
+          cd packages/onnxruntime-builder/build/wasm
           shasum -a 256 *.wasm *.js > checksums.txt
           cat checksums.txt
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          STEPS_VERSION_OUTPUTS_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
+          VERSION="${STEPS_VERSION_OUTPUTS_VERSION}"
           TAG="onnxruntime-v${VERSION}"
 
           # Check if release already exists
           if gh release view "$TAG" &>/dev/null; then
             echo "Release $TAG already exists, uploading assets..."
             gh release upload "$TAG" \
-              packages/onnxruntime-builder/dist/*.wasm \
-              packages/onnxruntime-builder/dist/*.js \
-              packages/onnxruntime-builder/dist/checksums.txt \
+              packages/onnxruntime-builder/build/wasm/*.wasm \
+              packages/onnxruntime-builder/build/wasm/*.js \
+              packages/onnxruntime-builder/build/wasm/checksums.txt \
               --clobber
           else
             echo "Creating new release $TAG..."
@@ -217,7 +217,7 @@ jobs:
           \`\`\`
 
           Built from ONNX Runtime v${{ env.ONNX_VERSION }}" \
-              packages/onnxruntime-builder/dist/*.wasm \
-              packages/onnxruntime-builder/dist/*.js \
-              packages/onnxruntime-builder/dist/checksums.txt
+              packages/onnxruntime-builder/build/wasm/*.wasm \
+              packages/onnxruntime-builder/build/wasm/*.js \
+              packages/onnxruntime-builder/build/wasm/checksums.txt
           fi

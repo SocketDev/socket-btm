@@ -3,38 +3,35 @@
 # @phase: 1
 #
 # This patch fixes "multiple rules generate" ninja errors when cross-compiling
-# by restricting v8_inspector_headers to host toolset only. The inspector
-# protocol generator is a build tool that only needs to run on the host machine.
+# by making v8_inspector_headers actions run only on the host toolset.
 #
 # Error without this patch:
 #   ninja: error: obj.host/tools/v8_gypfiles/v8_inspector_headers.ninja:14:
 #   multiple rules generate gen/inspector-generated-output-root/src/js_protocol.stamp
 #
-# Root cause: GYP generates duplicate rules when a target with toolsets: ['host', 'target']
-# has actions that output to the same path. The inspector header generator should
-# only run once on the host to generate headers used by both host and target builds.
+# Root cause: When cross-compiling, v8_inspector_headers has toolsets: ['host', 'target']
+# and actions that generate files. GYP tries to run the actions twice (once for each
+# toolset), creating duplicate build rules for the same output files.
 #
-# We also update node_inspector.gypi to explicitly depend on v8_inspector_headers#host.
+# Solution: Keep v8_inspector_headers available for both toolsets (so dependencies resolve),
+# but make the actions conditional to only run on 'host'. The generated header files are
+# placed in SHARED_INTERMEDIATE_DIR and used by both host and target builds.
 
 --- a/tools/v8_gypfiles/v8.gyp
 +++ b/tools/v8_gypfiles/v8.gyp
-@@ -102,7 +102,7 @@
-     {
-       'target_name': 'v8_inspector_headers',
-       'type': 'none',
--      'toolsets': ['host', 'target'],
-+      'toolsets': ['host'],
-       'hard_dependency': 1,
-       'includes': ['inspector.gypi'],
-       'direct_dependent_settings': {
---- a/src/inspector/node_inspector.gypi
-+++ b/src/inspector/node_inspector.gypi
-@@ -88,7 +88,7 @@
-   ],
-   'dependencies': [
-     '<(protocol_tool_path)/inspector_protocol.gyp:crdtp',
--    '<(v8_gypfiles_dir)/v8.gyp:v8_inspector_headers',
-+    '<(v8_gypfiles_dir)/v8.gyp:v8_inspector_headers#host',
-   ],
-   'actions': [
-     {
+@@ -109,6 +109,7 @@
+       'actions': [
+         {
+           'action_name': 'protocol_compatibility',
++          'toolsets': ['host'],
+           'inputs': [
+             '<(v8_inspector_js_protocol)',
+           ],
+@@ -125,6 +126,7 @@
+         },
+         {
+           'action_name': 'protocol_generated_sources',
++          'toolsets': ['host'],
+           'inputs': [
+             '<(v8_inspector_js_protocol)',
+             '<(inspector_path)/inspector_protocol_config.json',

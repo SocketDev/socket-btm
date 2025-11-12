@@ -5,6 +5,7 @@ Custom Node.js patches for Socket smol binaries.
 ## Patches Applied
 
 Socket-specific patches:
+- `001-socketsecurity_bootstrap_preexec` - Bootstrap loader injection (generated from template)
 - `002-socketsecurity_brotli_builtin` - Brotli-compressed builtins
 - `003-socketsecurity_brotli_friend` - Brotli friend declarations
 - `004-socketsecurity_brotli2c_build` - Build brotli2c compression tool

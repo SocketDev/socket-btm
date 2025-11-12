@@ -11,6 +11,7 @@ const { whichBinSync } = binPkg
 const { spawn } = spawnPkg
 
 import { printError, printStep, printSubstep, printSuccess } from './build-output.mjs'
+import { getPinnedPackage } from './pinned-versions.mjs'
 
 /**
  * Check if pip is available.
@@ -76,15 +77,18 @@ export async function installPythonPackage(
     return false
   }
 
+  // Use pinned version for reproducible builds
+  const pinnedPackage = getPinnedPackage(packageName)
+
   if (!quiet) {
-    printSubstep(`Installing Python package: ${packageName}`)
+    printSubstep(`Installing Python package: ${pinnedPackage}`)
   }
 
   try {
     const args = ['install']
     if (user) args.push('--user')
     if (upgrade) args.push('--upgrade')
-    args.push(packageName)
+    args.push(pinnedPackage)
 
     const result = await spawn(pip, args, {
       env: process.env,
@@ -197,7 +201,8 @@ export async function ensureAllPythonPackages(
  * @returns {string[]} Array of installation instruction strings.
  */
 export function getPythonPackageInstructions(packages) {
+  const pinnedPackages = packages.map(pkg => getPinnedPackage(pkg))
   const instructions = ['Install required Python packages:']
-  instructions.push(`  pip3 install --user ${packages.join(' ')}`)
+  instructions.push(`  pip3 install --user ${pinnedPackages.join(' ')}`)
   return instructions
 }

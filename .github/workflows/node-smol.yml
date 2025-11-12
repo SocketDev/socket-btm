@@ -1,15 +1,6 @@
 name: Node.js Smol
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'packages/node-smol-builder/**'
-      - '.github/workflows/node-smol.yml'
-  pull_request:
-    paths:
-      - 'packages/node-smol-builder/**'
-      - '.github/workflows/node-smol.yml'
   release:
     types: [published]
   workflow_dispatch:
@@ -41,12 +32,18 @@ on:
         type: string
         default: prod
 
+permissions:
+  contents: read
+
 env:
   NODE_VERSION: 22.11.0
   PNPM_VERSION: 9.x
+  CACHE_VERSION: v9
 
 jobs:
   build:
+    permissions:
+      contents: read
     name: Build (${{ matrix.platform }}-${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
@@ -69,7 +66,7 @@ jobs:
             platform: linux
             arch: x64
             os: linux
-          - runner: ubuntu-22.04
+          - runner: ubuntu-22.04-arm
             platform: linux
             arch: arm64
             os: linux
@@ -79,7 +76,7 @@ jobs:
             platform: linux-musl
             arch: x64
             os: linux
-          - runner: ubuntu-22.04
+          - runner: ubuntu-22.04-arm
             platform: linux-musl
             arch: arm64
             os: linux
@@ -89,7 +86,7 @@ jobs:
             platform: win32
             arch: x64
             os: windows
-          - runner: windows-2022
+          - runner: windows-arm64
             platform: win32
             arch: arm64
             os: windows
@@ -97,11 +94,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
-        with:
-          version: ${{ env.PNPM_VERSION }}
+        # Note: version is specified in package.json packageManager field, not here
 
       - name: Setup Node.js
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
@@ -123,12 +121,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Setup Docker (Linux ARM64 cross-compile)
-        if: matrix.os == 'linux' && matrix.arch == 'arm64'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-user-static
-
       - name: Setup ccache (Unix)
         if: matrix.os != 'windows'
         uses: hendrikmuhs/ccache-action@ed74d11c0b343532753ecead8a951bb09bb34bc9 # v1.2.14
@@ -147,11 +139,24 @@ jobs:
       - name: Generate smol build cache key
         id: smol-cache-key
         shell: bash
+        env:
+          INPUT_BUILD_MODE: ${{ inputs.build_mode || 'prod' }}
         run: |
-          BUILD_MODE="${{ inputs.build_mode || 'prod' }}"
-          PATCHES_HASH=$(find packages/node-smol-builder/patches -type f 2>/dev/null | xargs shasum -a 256 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
-          CONFIG_HASH=$(shasum -a 256 packages/node-smol-builder/scripts/build.mjs | cut -d' ' -f1)
-          COMBINED_HASH=$(echo "${PATCHES_HASH}${CONFIG_HASH}" | shasum -a 256 | cut -d' ' -f1)
+          BUILD_MODE="${INPUT_BUILD_MODE}"
+
+          # Cross-platform hash function
+          if command -v shasum &> /dev/null; then
+            hash_cmd="shasum -a 256"
+          elif command -v sha256sum &> /dev/null; then
+            hash_cmd="sha256sum"
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+
+          PATCHES_HASH=$(find packages/node-smol-builder/patches -type f 2>/dev/null | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          CONFIG_HASH=$($hash_cmd packages/node-smol-builder/scripts/build.mjs | cut -d' ' -f1)
+          COMBINED_HASH=$(echo "${PATCHES_HASH}${CONFIG_HASH}" | $hash_cmd | cut -d' ' -f1)
           echo "hash=${COMBINED_HASH}" >> $GITHUB_OUTPUT
           echo "build_mode=${BUILD_MODE}" >> $GITHUB_OUTPUT
 
@@ -161,15 +166,17 @@ jobs:
         if: ${{ !inputs.force }}
         with:
           path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/node-source
-          key: node-source-${{ env.NODE_VERSION }}-${{ steps.smol-cache-key.outputs.hash }}
+          key: node-source-${{ env.CACHE_VERSION }}-${{ env.NODE_VERSION }}-${{ steps.smol-cache-key.outputs.hash }}
 
-      - name: Restore node Release cache
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        id: node-release-cache
-        if: ${{ !inputs.force }}
-        with:
-          path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/Release
-          key: node-release-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.hash }}
+      # Disabled: Release cache causes ninja errors when patches change
+      # The out/ directory contains .ninja files tied to specific GYP configs
+      # - name: Restore node Release cache
+      #   uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+      #   id: node-release-cache
+      #   if: ${{ !inputs.force }}
+      #   with:
+      #     path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/Release
+      #     key: node-release-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.hash }}
 
       - name: Restore node Stripped cache
         uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
@@ -208,7 +215,7 @@ jobs:
         if: steps.node-final-cache.outputs.cache-hit == 'true'
         shell: bash
         run: |
-          BUILD_MODE="${{ steps.smol-cache-key.outputs.build_mode }}"
+          BUILD_MODE="${STEPS_SMOL_CACHE_KEY_OUTPUTS_BUILD_MODE}"
           FINAL_DIR="packages/node-smol-builder/build/${BUILD_MODE}/Final"
           CHECKPOINT_DIR="packages/node-smol-builder/build/${BUILD_MODE}/.checkpoints"
 
@@ -239,17 +246,10 @@ jobs:
             exit 0
           fi
 
-          # Smoke test: check version (only on native builds where we can execute the binary)
-          SKIP_SMOKE_TEST=true
-          if [ "${{ matrix.os }}" = "macos" ]; then
-            # macOS runners match their arch, so always test
-            SKIP_SMOKE_TEST=false
-          elif [ "${{ matrix.os }}" = "linux" ] && [ "${{ matrix.arch }}" = "x64" ]; then
-            # Linux x64 runs on x64 runner
-            SKIP_SMOKE_TEST=false
-          fi
-
-          if [ "$SKIP_SMOKE_TEST" = "false" ]; then
+          # Smoke test: check version (all builds are native now, so always test)
+          # Note: We build natively on each architecture (arm64 on arm64, x64 on x64)
+          # matching Node.js's approach, so we can always execute and test the binary
+          if true; then
             "${FINAL_DIR}/${BINARY_NAME}" --version > /dev/null 2>&1
             if [ $? -ne 0 ]; then
               echo "❌ Binary smoke test failed"
@@ -270,23 +270,42 @@ jobs:
 
           echo "✅ Cache validation passed"
           echo "cache_valid=true" >> $GITHUB_OUTPUT
+        env:
+          STEPS_SMOL_CACHE_KEY_OUTPUTS_BUILD_MODE: ${{ steps.smol-cache-key.outputs.build_mode }}
+
+      - name: Clean stale ninja files
+        shell: bash
+        run: |
+          BUILD_MODE="${{ steps.smol-cache-key.outputs.build_mode }}"
+          OUT_DIR="packages/node-smol-builder/build/${BUILD_MODE}/node-source/out"
+          if [ -d "$OUT_DIR" ]; then
+            echo "Cleaning stale ninja files to prevent duplicate rules..."
+            rm -rf "$OUT_DIR"
+            echo "✅ Cleaned $OUT_DIR"
+          else
+            echo "No out/ directory to clean"
+          fi
 
       - name: Build Node.js smol
         if: steps.node-final-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.cache_valid == 'false'
         shell: bash
+        env:
+          INPUT_BUILD_MODE: ${{ inputs.build_mode || 'prod' }}
+          MATRIX_PLATFORM: ${{ matrix.platform }}
+          MATRIX_ARCH: ${{ matrix.arch }}
         run: |
-          BUILD_MODE="${{ inputs.build_mode || 'prod' }}"
+          BUILD_MODE="${INPUT_BUILD_MODE}"
           if [ "$BUILD_MODE" = "prod" ]; then
-            pnpm --filter node-smol-builder build --prod
+            pnpm --filter node-smol-builder build --prod --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}"
           else
-            pnpm --filter node-smol-builder build --dev
+            pnpm --filter node-smol-builder build --dev --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}"
           fi
 
       - name: Collect build metrics
         if: always()
         shell: bash
         run: |
-          BUILD_MODE="${{ steps.smol-cache-key.outputs.build_mode }}"
+          BUILD_MODE="${STEPS_SMOL_CACHE_KEY_OUTPUTS_BUILD_MODE}"
           FINAL_DIR="packages/node-smol-builder/build/${BUILD_MODE}/Final"
 
           if [ "${{ matrix.os }}" = "windows" ]; then
@@ -307,9 +326,11 @@ jobs:
           else
             echo "❌ Binary not found"
           fi
+        env:
+          STEPS_SMOL_CACHE_KEY_OUTPUTS_BUILD_MODE: ${{ steps.smol-cache-key.outputs.build_mode }}
 
       - name: Upload Node.js smol artifacts
-        uses: actions/upload-artifact@ea165da598d47c5c63f3a64d861423ce9564af31 # v4.6.0
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: node-smol-${{ matrix.platform }}-${{ matrix.arch }}
           path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/Final/node${{ matrix.os == 'windows' && '.exe' || '' }}
@@ -328,6 +349,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Download all artifacts
         uses: actions/download-artifact@95815c38cf2ff2164869cbab79da32fa3c3640b8 # v4.1.8
@@ -403,16 +426,28 @@ jobs:
           echo "Version: $VERSION"
 
       - name: Generate checksums
+        shell: bash
         run: |
           cd packages/node-smol-builder/dist
-          shasum -a 256 node-compiled-* > checksums.txt
+
+          # Use sha256sum on Windows/Linux, shasum on macOS
+          if command -v shasum &> /dev/null; then
+            shasum -a 256 node-compiled-* > checksums.txt
+          elif command -v sha256sum &> /dev/null; then
+            sha256sum node-compiled-* > checksums.txt
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+
           cat checksums.txt
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          STEPS_VERSION_OUTPUTS_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
+          VERSION="${STEPS_VERSION_OUTPUTS_VERSION}"
           TAG="node-smol-v${VERSION}"
 
           # Check if release already exists

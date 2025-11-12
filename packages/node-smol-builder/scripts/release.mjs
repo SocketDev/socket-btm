@@ -11,12 +11,15 @@
  *   - Assets: One per platform/arch combo
  *   - Format: tar.gz with SMOL_SPEC embedded
  *
- * Release Assets:
- *   - node-smol-darwin-arm64.tar.gz
- *   - node-smol-darwin-x64.tar.gz
- *   - node-smol-linux-x64.tar.gz
- *   - node-smol-linux-arm64.tar.gz
- *   - node-smol-win32-x64.zip
+ * Release Assets (aligned with Node.js official naming):
+ *   - node-v24.10.0-darwin-arm64.tar.gz
+ *   - node-v24.10.0-darwin-x64.tar.gz
+ *   - node-v24.10.0-linux-x64.tar.gz
+ *   - node-v24.10.0-linux-arm64.tar.gz
+ *   - node-v24.10.0-linux-musl-x64.tar.gz
+ *   - node-v24.10.0-linux-musl-arm64.tar.gz
+ *   - node-v24.10.0-win-x64.zip
+ *   - node-v24.10.0-win-arm64.zip
  *
  * Usage:
  *   pnpm release              # Create draft release from cached binaries
@@ -63,12 +66,14 @@ const DRY_RUN = !!values['dry-run']
 const FORCE = !!values.force
 const PUBLISH = !!values.publish
 
-// Version from package.json.
-const VERSION = PACKAGE_JSON.version
-const TAG = `node-smol-v${VERSION}`
+// Node.js version from package.json (e.g., 24.10.0)
+const NODE_VERSION = PACKAGE_JSON.version
+const TAG = `node-smol-v${NODE_VERSION}`
 
 /**
  * Platform configurations for release assets.
+ * Naming aligned with Node.js official releases:
+ *   node-v{VERSION}-{PLATFORM}-{ARCH}.{EXT}
  */
 const PLATFORMS = [
   { platform: 'darwin', arch: 'arm64', ext: 'tar.gz' },
@@ -77,8 +82,8 @@ const PLATFORMS = [
   { platform: 'linux', arch: 'arm64', ext: 'tar.gz' },
   { platform: 'linux-musl', arch: 'x64', ext: 'tar.gz' },
   { platform: 'linux-musl', arch: 'arm64', ext: 'tar.gz' },
-  { platform: 'win32', arch: 'x64', ext: 'zip' },
-  { platform: 'win32', arch: 'arm64', ext: 'zip' },
+  { platform: 'win', arch: 'x64', ext: 'zip' }, // Note: 'win' not 'win32' to match Node.js
+  { platform: 'win', arch: 'arm64', ext: 'zip' },
 ]
 
 /**
@@ -158,12 +163,13 @@ async function findBinary(platform, arch) {
 /**
  * Embed SMOL_SPEC marker in binary.
  *
- * Format: SMOL_SPEC:@socketbin/node-smol-{platform}-{arch}@{version}\n
+ * Format: SMOL_SPEC:@socketbin/node-v{version}-{platform}-{arch}\n
  *
  * This enables deterministic cache keys when the binary is used.
+ * Naming aligned with Node.js official releases.
  */
 async function embedSmolSpec(binaryPath, platform, arch, version) {
-  const spec = `SMOL_SPEC:@socketbin/node-smol-${platform}-${arch}@${version}\n`
+  const spec = `SMOL_SPEC:@socketbin/node-v${version}-${platform}-${arch}\n`
   const specBuffer = Buffer.from(spec, 'utf-8')
 
   // Read binary.
@@ -216,8 +222,8 @@ async function createReleaseArchive(platform, arch, version) {
     await fs.chmod(tempBinary, 0o755)
   }
 
-  // Create archive.
-  const archiveName = `node-smol-${platform}-${arch}.${config.ext}`
+  // Create archive (Node.js naming: node-v{VERSION}-{PLATFORM}-{ARCH}.{EXT})
+  const archiveName = `node-v${NODE_VERSION}-${platform}-${arch}.${config.ext}`
   const archivePath = path.join(BUILD_DIR, '.release-temp', archiveName)
 
   logger.log(`  Creating archive: ${archiveName}`)
@@ -279,7 +285,7 @@ async function createGitHubRelease(tag, archives, publish) {
 
   // Build release notes.
   const notes = [
-    `# Node.js Smol Binary v${VERSION}`,
+    `# Node.js Smol Binary v${NODE_VERSION}`,
     '',
     'Optimized Node.js binaries with SEA support and automatic Brotli compression.',
     '',
@@ -303,7 +309,7 @@ async function createGitHubRelease(tag, archives, publish) {
     '',
     '```bash',
     '# Download binary',
-    `curl -L https://github.com/SocketDev/socket-btm/releases/download/${tag}/node-smol-darwin-arm64.tar.gz | tar xz`,
+    `curl -L https://github.com/SocketDev/socket-btm/releases/download/${tag}/node-v${NODE_VERSION}-darwin-arm64.tar.gz | tar xz`,
     '',
     '# Verify checksum (GitHub provides checksums automatically)',
     `gh release view ${tag}`,
@@ -324,7 +330,7 @@ async function createGitHubRelease(tag, archives, publish) {
     'create',
     tag,
     '--title',
-    `Node.js Smol v${VERSION}`,
+    `Node.js Smol v${NODE_VERSION}`,
     '--notes-file',
     notesPath,
   ]
@@ -357,7 +363,7 @@ async function main() {
   logger.log(`${colors.cyan('Node.js Smol Binary Release')}`)
   logger.log(`${colors.cyan('━'.repeat(60))}`)
   logger.log('')
-  logger.log(`Version: ${colors.green(VERSION)}`)
+  logger.log(`Version: ${colors.green(NODE_VERSION)}`)
   logger.log(`Tag: ${colors.green(TAG)}`)
   logger.log(
     `Mode: ${PUBLISH ? colors.yellow('PUBLISH') : colors.blue('DRAFT')}`,
@@ -401,7 +407,7 @@ async function main() {
 
   const archives = []
   for (const { platform, arch } of PLATFORMS) {
-    const archive = await createReleaseArchive(platform, arch, VERSION)
+    const archive = await createReleaseArchive(platform, arch, NODE_VERSION)
     if (archive) {
       archives.push(archive)
     }

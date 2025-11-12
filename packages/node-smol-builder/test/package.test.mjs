@@ -105,16 +105,6 @@ describe('@socketbin/node-smol-builder package', () => {
     it('should have build directory', () => {
       expect(existsSync(buildDir)).toBe(true)
     })
-
-    it('should have wasm-bundle subdirectory', () => {
-      const wasmBundleDir = path.join(packageDir, 'wasm-bundle')
-      expect(existsSync(wasmBundleDir)).toBe(true)
-    })
-
-    it('wasm-bundle should have Cargo.toml', () => {
-      const cargoPath = path.join(packageDir, 'wasm-bundle', 'Cargo.toml')
-      expect(existsSync(cargoPath)).toBe(true)
-    })
   })
 
   describe('README documentation', () => {

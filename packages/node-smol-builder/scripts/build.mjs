@@ -1775,6 +1775,27 @@ async function main() {
     logger.log('')
   }
 
+  // Windows: Clean up any stale Release/Debug junction links before building.
+  // vcbuild.bat creates junction links from Release -> out\Release after MSBuild.
+  // If a previous build left a junction, vcbuild's 'rd' command may fail.
+  // We use /Q (quiet, no confirmation) and check for junctions specifically.
+  if (WIN32) {
+    const configDirs = ['Release', 'Debug']
+    for (const configDir of configDirs) {
+      const junctionPath = path.join(NODE_DIR, configDir)
+      if (existsSync(junctionPath)) {
+        // If it exists, try to remove it (works for both junctions and directories)
+        logger.log(`Removing stale ${configDir} directory/junction...`)
+        // Use rd /S /Q on Windows to remove junction or directory
+        await exec('cmd.exe', ['/c', `rd /S /Q "${configDir}"`], {
+          cwd: NODE_DIR,
+          shell: false,
+        })
+        logger.log(`Removed ${configDir}`)
+      }
+    }
+  }
+
   // Windows uses vcbuild.bat wrapper, Unix uses ./configure wrapper script.
   // vcbuild.bat handles Visual Studio detection, vcvarsall.bat environment setup,
   // and invokes configure.py with the correct environment automatically.

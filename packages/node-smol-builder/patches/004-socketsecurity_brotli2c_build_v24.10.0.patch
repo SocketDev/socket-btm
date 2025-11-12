@@ -48,6 +48,9 @@
 +        'src/embedded_data.h',
 +        'src/embedded_data.cc',
 +      ],
++      'dependencies': [
++        'deps/brotli/brotli.gyp:brotli#host',
++      ],
 +      'conditions': [
 +        [ 'node_shared_simdutf=="false"', {
 +          'dependencies': [ 'tools/v8_gypfiles/v8.gyp:simdutf#host' ],

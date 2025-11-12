@@ -1,34 +1,9 @@
 # @node-versions: v24.10.0+
-# @description: Enable socketsecurity_brotli2c build tool for Brotli compression
+# @description: Enable socketsecurity_brotli2c build tool
 # @requires: tools/socketsecurity_brotli2c.cc
 #
-# Adds the socketsecurity_brotli2c build target to node.gyp, which compiles the
-# Socket Security Brotli compression tool used to convert Brotli-compressed data
-# into C++ byte arrays for embedding in the Node.js binary.
-#
-# This patch also modifies the node_js2c action to use socketsecurity_brotli2c
-# instead of the standard js2c tool, ensuring Brotli-compressed binary
-# data is output as byte arrays rather than string literals.
-#
-# This enables Brotli compression of JavaScript built-in modules for
-# approximately 3.36 MB binary size reduction.
-#
-# CRITICAL: socketsecurity_brotli2c does NOT define NODE_JS2C_USE_STRING_LITERALS because
-# Brotli-compressed binary data must be output as byte arrays, not string literals.
-#
-# PATCH CREATION PROCESS:
-# This patch was created using standard unified diff format (not git format).
-# Steps:
-#   1. Clone Node.js v24.10.0
-#   2. Modify node.gyp to:
-#      - Add socketsecurity_brotli2c target
-#      - Add socketsecurity_brotli2c_exec variable
-#      - Modify node_js2c action to use socketsecurity_brotli2c_exec
-#   3. Generate patch with: diff -u original.gyp modified.gyp
-#   4. Validate with: patch -p1 --dry-run < patch-file
-#
---- a/node.gyp
-+++ b/node.gyp
+--- a/node.gyp	2025-11-11 21:16:12
++++ b/node.gyp	2025-11-11 21:33:16
 @@ -434,6 +434,7 @@
      ],
      'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
@@ -55,11 +30,10 @@
              '<@(_outputs)',
              'lib',
              'config.gypi',
-@@ -1389,6 +1390,43 @@
-         }],
+@@ -1390,6 +1391,40 @@
        ]
      },
-+    {
+     {
 +      'target_name': 'socketsecurity_brotli2c',
 +      'type': 'executable',
 +      'toolsets': ['host'],
@@ -81,9 +55,6 @@
 +        [ 'node_shared_libuv=="false"', {
 +          'dependencies': [ 'deps/uv/uv.gyp:libuv#host' ],
 +        }],
-+        [ 'node_shared_brotli=="false"', {
-+          'dependencies': [ 'deps/brotli/brotli.gyp:brotli#host' ],
-+        }],
 +        [ 'debug_node=="true"', {
 +          'cflags!': [ '-O3' ],
 +          'cflags': [ '-g', '-O0' ],
@@ -96,6 +67,7 @@
 +        }],
 +      ]
 +    },
-     {
++    {
        'target_name': 'node_mksnapshot',
        'type': 'executable',
+ 

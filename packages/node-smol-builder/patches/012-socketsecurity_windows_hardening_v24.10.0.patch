@@ -1,0 +1,21 @@
+# @node-versions: v24+
+# @description: Enable Windows hardening flags
+#
+# Enable ASLR and DEP for Windows builds.
+# Control Flow Guard is already supported via control_flow_guard variable.
+#
+# Flags added:
+# - RandomizedBaseAddress: 2 - Address Space Layout Randomization (ASLR)
+# - DataExecutionPrevention: 2 - Data Execution Prevention (DEP)
+
+--- a/common.gypi
++++ b/common.gypi
+@@ -355,6 +355,8 @@
+           }],
+         ],
+         'GenerateDebugInformation': 'true',
++        'RandomizedBaseAddress': 2,  # ASLR
++        'DataExecutionPrevention': 2,  # DEP
+         'SuppressStartupBanner': 'true',
+       },
+     },

@@ -1,0 +1,22 @@
+# @node-versions: v24+
+# @description: Fix V8 TypeIndex constructor for macOS C++20 compatibility
+#
+# Fixes compilation error on macOS with Xcode where functional-style cast
+# requires an explicit constructor for TypeIndex struct.
+#
+# Error: no matching conversion for functional-style cast from 'unsigned int' to 'TypeIndex'
+# at line 701: return TypeIndex(value_type_impl::PayloadField::decode(bit_field_));
+
+--- a/deps/v8/src/wasm/value-type.h
++++ b/deps/v8/src/wasm/value-type.h
+@@ -51,6 +51,10 @@
+ struct TypeIndex {
+   uint32_t index;
+
++  // Constructors for C++20 functional-style cast compatibility
++  constexpr TypeIndex() : index(kInvalid) {}
++  constexpr TypeIndex(uint32_t idx) : index(idx) {}
++
+   // We intentionally don't define comparison operators here, because
+   // different subclasses must not be compared to each other.
+

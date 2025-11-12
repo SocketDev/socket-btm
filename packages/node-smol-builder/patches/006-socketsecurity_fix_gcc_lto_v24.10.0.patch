@@ -1,7 +1,13 @@
 # @node-versions: v24.10.0+
 # @description: Fix GCC LTO configuration for compatibility
 #
-# Removes -fuse-linker-plugin flag that causes issues with some GCC versions
+# Removes -fuse-linker-plugin flag that causes linker errors with GCC < 10.
+# The flag enables gold linker plugin for better LTO, but older GCC versions
+# may not have gold linker properly configured, causing build failures.
+#
+# Trade-off: Slightly reduced LTO optimization on GCC < 10, but maintains
+# build compatibility across different GCC versions. Modern GCC (10+) and
+# Clang LTO remain fully optimized.
 
 --- a/common.gypi
 +++ b/common.gypi

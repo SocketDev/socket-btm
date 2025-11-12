@@ -1,0 +1,27 @@
+# @node-versions: v24.10.0+
+# @description: Fix v8_inspector_headers for cross-compilation
+# @phase: 1
+#
+# This patch fixes "multiple rules generate" ninja errors when cross-compiling
+# by restricting v8_inspector_headers to host toolset only. The inspector
+# protocol generator is a build tool that only needs to run on the host machine.
+#
+# Error without this patch:
+#   ninja: error: obj.host/tools/v8_gypfiles/v8_inspector_headers.ninja:14:
+#   multiple rules generate gen/inspector-generated-output-root/src/js_protocol.stamp
+#
+# Root cause: GYP generates duplicate rules when a target with toolsets: ['host', 'target']
+# has actions that output to the same path. The inspector header generator should
+# only run once on the host to generate headers used by both host and target builds.
+
+--- a/tools/v8_gypfiles/v8.gyp
++++ b/tools/v8_gypfiles/v8.gyp
+@@ -102,7 +102,7 @@
+     {
+       'target_name': 'v8_inspector_headers',
+       'type': 'none',
+-      'toolsets': ['host', 'target'],
++      'toolsets': ['host'],
+       'hard_dependency': 1,
+       'includes': ['inspector.gypi'],
+       'direct_dependent_settings': {

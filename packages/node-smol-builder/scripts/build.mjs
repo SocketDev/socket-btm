@@ -1122,6 +1122,9 @@ function convertToVcbuildFlags(configureFlags) {
   // Always add download-all to download pre-built ICU data (avoids genccode crashes on Windows)
   vcbuildFlags.push('download-all')
 
+  // Add nobuild so vcbuild only configures (we'll use ninja to build, like on Unix)
+  vcbuildFlags.push('nobuild')
+
   // vcbuild.bat flag mappings that differ from configure.py
   const flagMap = {
     '--without-npm': 'nonpm',

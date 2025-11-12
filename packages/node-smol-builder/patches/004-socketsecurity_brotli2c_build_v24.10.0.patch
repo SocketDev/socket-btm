@@ -1,9 +1,19 @@
 # @node-versions: v24.10.0+
-# @description: Enable socketsecurity_brotli2c build tool
+# @description: Enable socketsecurity_brotli2c build tool with brotli host toolset support
 # @requires: tools/socketsecurity_brotli2c.cc
 #
+--- a/deps/brotli/brotli.gyp	2025-11-11 21:16:12
++++ b/deps/brotli/brotli.gyp	2025-11-11 22:00:00
+@@ -44,6 +44,7 @@
+     {
+       'target_name': 'brotli',
+       'type': 'static_library',
++      'toolsets': ['host', 'target'],
+       'include_dirs': ['c/include'],
+       'conditions': [
+         ['OS=="linux"', {
 --- a/node.gyp	2025-11-11 21:16:12
-+++ b/node.gyp	2025-11-11 21:33:16
++++ b/node.gyp	2025-11-11 22:00:00
 @@ -434,6 +434,7 @@
      ],
      'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',

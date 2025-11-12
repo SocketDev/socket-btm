@@ -1135,7 +1135,9 @@ function convertToVcbuildFlags(configureFlags) {
     if (flag === '--dest-cpu=arm64') vcbuildFlags.push('arm64')
     else if (flag === '--dest-cpu=x64') vcbuildFlags.push('x64')
     // ICU flags.
-    else if (flag === '--with-intl=small-icu') vcbuildFlags.push('small-icu')
+    // Windows: Use full-icu with download-all to avoid genccode crashes
+    // Unix/Linux/macOS: Use small-icu as specified
+    else if (flag === '--with-intl=small-icu') vcbuildFlags.push('full-icu')
     else if (flag === '--with-intl=none') vcbuildFlags.push('intl-none')
     // LTO flags (Windows uses LTCG).
     else if (flag === '--enable-lto') vcbuildFlags.push('ltcg')

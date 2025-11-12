@@ -1,19 +1,23 @@
 # @node-versions: v24.10.0+
-# @description: Fix v8_inspector_headers for cross-compilation
+# @description: Fix v8_inspector_headers and run_torque for cross-compilation
 # @phase: 1
 #
 # This patch fixes "multiple rules generate" ninja errors when cross-compiling
 # by conditionally including actions only when building for the host toolset.
 #
-# Error without this patch:
+# Errors without this patch:
 #   ninja: error: obj.host/tools/v8_gypfiles/v8_inspector_headers.ninja:26:
 #   multiple rules generate gen/inspector-generated-output-root/src/js_protocol.stamp
+#
+#   ninja: error: obj.host/tools/v8_gypfiles/run_torque.ninja:1640:
+#   multiple rules generate gen/torque-generated/bit-fields.h
 #
 # Root cause: When cross-compiling with toolsets: ['host', 'target'], GYP generates
 # the actions for both toolsets, causing duplicate output files.
 #
-# Solution: Use GYP conditions to only include actions when _toolset=='host'.
-# The generated files are in SHARED_INTERMEDIATE_DIR and used by both toolsets.
+# Solution: Use GYP conditions to only include actions when _toolset=='host' or
+# _toolset is empty (native builds). The generated files are in SHARED_INTERMEDIATE_DIR
+# and used by both toolsets.
 
 diff --git a/tools/v8_gypfiles/v8.gyp b/tools/v8_gypfiles/v8.gyp
 index 32f00097..cde82572 100644
@@ -50,7 +54,7 @@ index 32f00097..cde82572 100644
 -          'outputs': [
 -            '<@(inspector_generated_sources)',
 +      'conditions': [
-+        ['_toolset=="host"', {
++        ['_toolset=="host" or _toolset==""', {
 +          'actions': [
 +            {
 +              'action_name': 'protocol_compatibility',
@@ -107,3 +111,96 @@ index 32f00097..cde82572 100644
        ],
      },  # v8_inspector_headers
      {
++@@ -100,51 +104,55 @@
++           '<(SHARED_INTERMEDIATE_DIR)',
++         ],
++       },
++-      'actions': [
++-        {
++-          'action_name': 'run_torque_action',
++-          'inputs': [  # Order matters.
++-            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)torque<(EXECUTABLE_SUFFIX)',
++-            '<@(torque_files)',
++-          ],
++-          'outputs': [
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/bit-fields.h",
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtin-definitions.h",
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-debug-readers.cc",
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-debug-readers.h",
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-forward-declarations.h",
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-verifiers.cc",
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-verifiers.h",
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/csa-types.h",
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/debug-macros.cc",
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/debug-macros.h",
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/enum-verifiers.cc",
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/exported-macros-assembler.cc",
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/exported-macros-assembler.h",
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/factory.cc",
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/factory.inc",
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/instance-types.h",
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/interface-descriptors.inc",
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/objects-body-descriptors-inl.inc",
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/objects-printer.cc",
++-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/visitor-lists.h",
++-            '<@(torque_outputs_csa_cc)',
++-            '<@(torque_outputs_csa_h)',
++-            '<@(torque_outputs_inl_inc)',
++-            '<@(torque_outputs_cc)',
++-            '<@(torque_outputs_inc)',
++-          ],
++-          'action': [
++-            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)torque<(EXECUTABLE_SUFFIX)',
++-            '-o', '<(SHARED_INTERMEDIATE_DIR)/torque-generated',
++-            '-v8-root', '<(V8_ROOT)',
++-            '<@(torque_files_without_v8_root)',
++-          ],
++-        },
+++      'conditions': [
+++        ['_toolset=="host" or _toolset==""', {
+++          'actions': [
+++            {
+++              'action_name': 'run_torque_action',
+++              'inputs': [  # Order matters.
+++                '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)torque<(EXECUTABLE_SUFFIX)',
+++                '<@(torque_files)',
+++              ],
+++              'outputs': [
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/bit-fields.h",
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtin-definitions.h",
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-debug-readers.cc",
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-debug-readers.h",
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-forward-declarations.h",
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-verifiers.cc",
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-verifiers.h",
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/csa-types.h",
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/debug-macros.cc",
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/debug-macros.h",
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/enum-verifiers.cc",
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/exported-macros-assembler.cc",
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/exported-macros-assembler.h",
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/factory.cc",
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/factory.inc",
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/instance-types.h",
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/interface-descriptors.inc",
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/objects-body-descriptors-inl.inc",
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/objects-printer.cc",
+++                "<(SHARED_INTERMEDIATE_DIR)/torque-generated/visitor-lists.h",
+++                '<@(torque_outputs_csa_cc)',
+++                '<@(torque_outputs_csa_h)',
+++                '<@(torque_outputs_inl_inc)',
+++                '<@(torque_outputs_cc)',
+++                '<@(torque_outputs_inc)',
+++              ],
+++              'action': [
+++                '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)torque<(EXECUTABLE_SUFFIX)',
+++                '-o', '<(SHARED_INTERMEDIATE_DIR)/torque-generated',
+++                '-v8-root', '<(V8_ROOT)',
+++                '<@(torque_files_without_v8_root)',
+++              ],
+++            },
+++          ],
+++        }],
++       ],
++     },  # run_torque
++     {

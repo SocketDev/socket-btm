@@ -2175,7 +2175,7 @@ async function main() {
     // Format: @socketbin/cli-{platform}-{arch}@{version}
     // This enables deterministic cache keys based on the published package.
     const socketbinPkgPath = path.join(
-      dirname(ROOT_DIR),
+      path.dirname(ROOT_DIR),
       `socketbin-cli-${TARGET_PLATFORM}-${ARCH}`,
       'package.json',
     )

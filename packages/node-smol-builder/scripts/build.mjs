@@ -1122,9 +1122,6 @@ function convertToVcbuildFlags(configureFlags) {
   // Always add download-all to download pre-built ICU data (avoids genccode crashes on Windows)
   vcbuildFlags.push('download-all')
 
-  // Add nobuild so vcbuild only configures (we'll use ninja to build, like on Unix)
-  vcbuildFlags.push('nobuild')
-
   // vcbuild.bat flag mappings that differ from configure.py
   const flagMap = {
     '--without-npm': 'nonpm',
@@ -1769,11 +1766,16 @@ async function main() {
 
   await exec(configureCommand, configureArgs, execOptions)
   logger.log('::endgroup::')
-  logger.log(`${colors.green('✓')} Configuration complete`)
+  logger.log(`${colors.green('✓')} ${WIN32 ? 'Build' : 'Configuration'} complete`)
   logger.log('')
 
-  // Build Node.js.
-  printHeader('Building Node.js')
+  // Build Node.js (skip on Windows - vcbuild already did it).
+  if (WIN32) {
+    logger.log(`${colors.green('✓')} Windows build completed by vcbuild.bat`)
+    logger.log('')
+  } else {
+    printHeader('Building Node.js')
+  }
 
   // Define binary path early (used for both cache and build).
   const nodeBinary = path.join(NODE_DIR, 'out', 'Release', 'node')
@@ -1792,8 +1794,8 @@ async function main() {
     logger.log('')
   }
 
-  // Skip compilation if restored from cache.
-  if (!restoredFromCache) {
+  // Skip compilation if restored from cache or if Windows (vcbuild already built it).
+  if (!restoredFromCache && !WIN32) {
     const jobCount = IS_DARWIN ? 1 : CPU_COUNT
     const timeEstimate = estimateBuildTime(jobCount)
     logger.log(

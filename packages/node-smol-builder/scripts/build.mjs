@@ -380,7 +380,7 @@ async function copyBuildAdditions() {
   }
 
   // Fix: Copy polyfill to lib/internal/socketsecurity_polyfills/ for external loading.
-  const localeCompareSource = path.join(ADDITIONS_DIR, 'localeCompare.js')
+  const localeCompareSource = path.join(ADDITIONS_DIR, 'localeCompare.polyfill.js')
   const polyfillsDestDir = path.join(
     NODE_DIR,
     'lib',

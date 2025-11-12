@@ -10,7 +10,7 @@ Socket-specific patches:
 - `004-socketsecurity_brotli2c_build` - Build brotli2c compression tool
 - `005-socketsecurity_disable_modules` - Disable unused modules
 - `006-socketsecurity_fix_gcc_lto` - GCC LTO compatibility
-- `007-socketsecurity_polyfills` - ICU polyfills (localeCompare, normalize)
+- `007-socketsecurity_polyfills` - ICU polyfill (localeCompare)
 - `008-socketsecurity_fix_gyp_py3_hashlib` - Python 3 compatibility
 - `009-socketsecurity_fix_abseil_windows_duplicate_symbols` - Windows build fix
 - `010-socketsecurity_fix_inspector_protocol_windows` - Windows inspector fix

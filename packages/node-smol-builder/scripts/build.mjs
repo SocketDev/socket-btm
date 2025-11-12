@@ -104,6 +104,7 @@ import {
   smokeTestBinary,
   verifyGitTag,
 } from 'build-infra/lib/build-helpers'
+import { ensureGccVersion, getGccInstructions } from 'build-infra/lib/compiler-installer'
 import {
   generateHashComment,
   shouldExtract,
@@ -1053,6 +1054,21 @@ async function checkBuildEnvironment() {
     allChecks = false
   }
 
+  // Check 3b: GCC version (Linux only, Node.js v24 requires GCC 12.2+)
+  if (process.platform === 'linux' && compiler.compiler === 'g++') {
+    logger.log('Checking GCC version...')
+    const gccCheck = await ensureGccVersion({ autoInstall: true, quiet: false })
+    if (gccCheck.available) {
+      logger.success(`GCC ${gccCheck.version} meets requirements`)
+    } else {
+      logger.fail('GCC version does not meet requirements')
+      logger.substep('Node.js v24 requires GCC 12.2+ for C++20 support')
+      const instructions = getGccInstructions()
+      instructions.forEach(line => logger.substep(line))
+      allChecks = false
+    }
+  }
+
   // Check 4: Network connectivity.
   logger.log('Checking network connectivity...')
   const network = await checkNetworkConnectivity()
@@ -1095,6 +1111,17 @@ async function checkBuildEnvironment() {
 function convertToVcbuildFlags(configureFlags) {
   const vcbuildFlags = []
 
+  // Always add openssl-no-asm to avoid NASM requirement in CI environments
+  vcbuildFlags.push('openssl-no-asm')
+
+  // vcbuild.bat flag mappings that differ from configure.py
+  const flagMap = {
+    '--without-npm': 'nonpm',
+    '--without-corepack': 'nocorepack',
+    '--without-node-options': 'no-NODE-OPTIONS',
+    '--without-snapshot': 'nosnapshot',
+  }
+
   for (const flag of configureFlags) {
     // Architecture flags.
     if (flag === '--dest-cpu=arm64') vcbuildFlags.push('arm64')
@@ -1102,17 +1129,20 @@ function convertToVcbuildFlags(configureFlags) {
     // ICU flags.
     else if (flag === '--with-intl=small-icu') vcbuildFlags.push('small-icu')
     else if (flag === '--with-intl=none') vcbuildFlags.push('intl-none')
-    // Feature flags (remove leading '--without-').
-    else if (flag.startsWith('--without-')) {
-      vcbuildFlags.push(flag.replace('--without-', 'without-'))
-    }
-
     // V8 flags.
     else if (flag === '--v8-lite-mode') vcbuildFlags.push('v8-lite')
     // LTO flags (Windows uses LTCG).
     else if (flag === '--enable-lto') vcbuildFlags.push('ltcg')
     // Ninja is default, skip.
     else if (flag === '--ninja') continue
+    // Known flag mappings.
+    else if (flag in flagMap) {
+      vcbuildFlags.push(flagMap[flag])
+    }
+    // Unsupported flags - skip silently (e.g., --without-amaro, --without-sqlite not supported by vcbuild).
+    else if (flag.startsWith('--without-')) {
+      continue
+    }
     // Unknown flags - log warning.
     else {
       logger.warn(`Unknown vcbuild.bat flag mapping for: ${flag}`)
@@ -1430,6 +1460,7 @@ async function main() {
 
   // Apply Socket patches (including the dynamically generated bootstrap loader).
   const socketPatches = findSocketPatches()
+  let patchesApplied = false
 
   if (socketPatches.length > 0) {
     // Validate Socket patches before applying.
@@ -1543,6 +1574,7 @@ async function main() {
             { cwd: NODE_DIR },
           )
           logger.log(`${colors.green('✓')} ${name} applied`)
+          patchesApplied = true
         } catch (e) {
           throw new Error(
             'Socket patch application failed.\n\n' +
@@ -1681,11 +1713,28 @@ async function main() {
     }
   }
 
-  // Add architecture flag for cross-compilation or explicit targeting.
+  // Add architecture flag for explicit targeting.
+  // Note: We always build natively (arm64 on arm64, x64 on x64 runners).
+  // This matches Node.js's approach - they don't cross-compile either.
   if (ARCH === 'arm64') {
     configureFlags.unshift('--dest-cpu=arm64')
   } else if (ARCH === 'x64') {
     configureFlags.unshift('--dest-cpu=x64')
+  }
+
+  // Clean stale build files before configure to prevent ninja errors
+  // This prevents "multiple rules generate" errors from stale .ninja files
+  printHeader('Cleaning Build Directory')
+  const outDir = path.join(NODE_DIR, 'out')
+  if (existsSync(outDir)) {
+    logger.log(`Removing ${outDir} to prevent ninja duplicate rules...`)
+    const { rm } = await import('node:fs/promises')
+    await rm(outDir, { recursive: true, force: true })
+    logger.success(`Cleaned ${outDir}`)
+    logger.log('')
+  } else {
+    logger.log('No out/ directory found (clean state)')
+    logger.log('')
   }
 
   // Windows uses vcbuild.bat wrapper, Unix uses ./configure wrapper script.
@@ -1694,12 +1743,14 @@ async function main() {
   // https://github.com/nodejs/node/blob/main/BUILDING.md#windows
   // https://github.com/nodejs/node/blob/main/vcbuild.bat
   const configureCommand = WIN32 ? 'vcbuild.bat' : './configure'
+
+  // On Windows, vcbuild.bat automatically handles project file regeneration
   const configureArgs = WIN32
-    ? ['noprojgen', ...convertToVcbuildFlags(configureFlags)]
+    ? convertToVcbuildFlags(configureFlags)
     : configureFlags
 
   logger.log(
-    `::group::Running ${WIN32 ? 'vcbuild.bat noprojgen' : './configure'}`,
+    `::group::Running ${WIN32 ? 'vcbuild.bat' : './configure'}`,
   )
 
   const execOptions = {

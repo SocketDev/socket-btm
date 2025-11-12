@@ -3,8 +3,7 @@
  * Validates that the build process generates correct file structure and formats.
  */
 
-import { existsSync } from 'node:fs'
-import { promises as fs } from 'node:fs'
+import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -119,7 +118,9 @@ describe('onnxruntime-builder WASM output', () => {
       const content = await fs.readFile(syncJsPath, 'utf-8')
       expect(content).toContain('const base64Wasm =')
       // Check that base64 contains typical base64 characters and is substantial
-      const base64Match = content.match(/base64Wasm = ['"]([A-Za-z0-9+/=]+)['"]/)
+      const base64Match = content.match(
+        /base64Wasm = ['"]([A-Za-z0-9+/=]+)['"]/,
+      )
       expect(base64Match).toBeTruthy()
       // ONNX Runtime WASM is large, base64 should be several MB (>10MB characters)
       expect(base64Match[1].length).toBeGreaterThan(10_000_000)

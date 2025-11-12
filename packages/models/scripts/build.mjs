@@ -25,10 +25,6 @@ import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { WIN32 } from '@socketsecurity/lib/constants/platform'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
-
 import {
   cleanCheckpoint,
   createCheckpoint,
@@ -36,6 +32,10 @@ import {
 } from 'build-infra/lib/checkpoint-manager'
 import { ensureAllPythonPackages } from 'build-infra/lib/python-installer'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
+
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 // Check if running in CI.
 const _IS_CI = !!(
@@ -54,9 +54,13 @@ const _NO_SELF_UPDATE = args.includes('--no-self-update')
 // Model selection flags.
 // Build all models by default unless a specific model is selected.
 const hasModelFlag =
-  args.includes('--minilm') || args.includes('--codet5') || args.includes('--all')
-const BUILD_MINILM = !hasModelFlag || args.includes('--all') || args.includes('--minilm')
-const BUILD_CODET5 = !hasModelFlag || args.includes('--all') || args.includes('--codet5')
+  args.includes('--minilm') ||
+  args.includes('--codet5') ||
+  args.includes('--all')
+const BUILD_MINILM =
+  !hasModelFlag || args.includes('--all') || args.includes('--minilm')
+const BUILD_CODET5 =
+  !hasModelFlag || args.includes('--all') || args.includes('--codet5')
 
 // Quantization level: int8 (dev, default) vs int4 (prod, smaller).
 const QUANT_LEVEL = args.includes('--int4') ? 'int4' : 'int8'
@@ -134,9 +138,7 @@ async function downloadModel(modelKey) {
         })
 
         if (cliResult.code !== 0) {
-          throw new Error(
-            `hf CLI failed with exit code ${cliResult.code}`,
-          )
+          throw new Error(`hf CLI failed with exit code ${cliResult.code}`)
         }
 
         logger.success(`Downloaded from ${source}`)
@@ -153,7 +155,7 @@ async function downloadModel(modelKey) {
         )
         const revisionParam = revision ? `, revision='${revision}'` : ''
         const pythonCommand =
-          `from transformers import AutoTokenizer, AutoModel; ` +
+          'from transformers import AutoTokenizer, AutoModel; ' +
           `tokenizer = AutoTokenizer.from_pretrained('${source}'${revisionParam}); ` +
           `model = AutoModel.from_pretrained('${source}'${revisionParam}); ` +
           `tokenizer.save_pretrained('${MODELS}/${modelKey}'); ` +

@@ -49,7 +49,9 @@ export function getPlatform() {
 export function commandExists(cmd) {
   try {
     const checkCmd =
-      getPlatform() === 'win32' ? `where ${cmd} 2>nul` : `which ${cmd} 2>/dev/null`
+      getPlatform() === 'win32'
+        ? `where ${cmd} 2>nul`
+        : `which ${cmd} 2>/dev/null`
     execSync(checkCmd, { stdio: 'pipe' })
     return true
   } catch {
@@ -84,7 +86,7 @@ export function findEmscriptenSDK() {
   if (commandExists('emcc')) {
     try {
       let emccPath = getCommandOutput(
-        getPlatform() === 'win32' ? 'where emcc' : 'which emcc'
+        getPlatform() === 'win32' ? 'where emcc' : 'which emcc',
       )
 
       if (emccPath) {
@@ -93,7 +95,9 @@ export function findEmscriptenSDK() {
         const platform = getPlatform()
         if (platform !== 'win32' && existsSync(emccPath)) {
           try {
-            const realPath = getCommandOutput(`readlink -f "${emccPath}" 2>/dev/null || readlink "${emccPath}"`)
+            const realPath = getCommandOutput(
+              `readlink -f "${emccPath}" 2>/dev/null || readlink "${emccPath}"`,
+            )
             if (realPath) {
               emccPath = realPath
             }
@@ -113,7 +117,7 @@ export function findEmscriptenSDK() {
             // Verify Emscripten.cmake exists.
             const cmakeFile = path.join(
               homebrewPath,
-              'libexec/cmake/Modules/Platform/Emscripten.cmake'
+              'libexec/cmake/Modules/Platform/Emscripten.cmake',
             )
             if (existsSync(cmakeFile)) {
               return { path: homebrewPath, type: 'homebrew' }
@@ -130,7 +134,7 @@ export function findEmscriptenSDK() {
 
         const emsdkScript = path.join(
           emsdkPath,
-          getPlatform() === 'win32' ? 'emsdk.bat' : 'emsdk'
+          getPlatform() === 'win32' ? 'emsdk.bat' : 'emsdk',
         )
 
         if (existsSync(emsdkScript)) {
@@ -154,7 +158,7 @@ export function findEmscriptenSDK() {
   for (const emsdkPath of searchPaths) {
     const emsdkScript = path.join(
       emsdkPath,
-      getPlatform() === 'win32' ? 'emsdk.bat' : 'emsdk'
+      getPlatform() === 'win32' ? 'emsdk.bat' : 'emsdk',
     )
 
     if (existsSync(emsdkScript)) {
@@ -200,10 +204,10 @@ export function activateEmscriptenSDK() {
       }
 
       // Run emsdk_env.bat and capture resulting environment.
-      const envOutput = execSync(
-        `cmd /c "${envScript} && set"`,
-        { encoding: 'utf8', stdio: 'pipe' }
-      )
+      const envOutput = execSync(`cmd /c "${envScript} && set"`, {
+        encoding: 'utf8',
+        stdio: 'pipe',
+      })
 
       // Parse environment variables.
       const envLines = envOutput.split('\n')
@@ -223,7 +227,7 @@ export function activateEmscriptenSDK() {
       // Run bash to source script and print environment.
       const envOutput = execSync(
         `bash -c "source ${envScript} > /dev/null 2>&1 && env"`,
-        { encoding: 'utf8', stdio: 'pipe' }
+        { encoding: 'utf8', stdio: 'pipe' },
       )
 
       // Parse environment variables.
@@ -310,9 +314,9 @@ export function checkPython() {
       const match = version.match(/Python (\d+)\.(\d+)\.(\d+)/)
 
       if (match) {
-        const major = parseInt(match[1])
-        const minor = parseInt(match[2])
-        const patch = parseInt(match[3])
+        const major = Number.parseInt(match[1], 10)
+        const minor = Number.parseInt(match[2], 10)
+        const patch = Number.parseInt(match[3], 10)
 
         return {
           available: true,
@@ -342,10 +346,10 @@ export function checkPython() {
  */
 export async function setupBuildEnvironment(options = {}) {
   const {
-    emscripten = false,
-    rust = false,
-    python = false,
     autoSetup = true,
+    emscripten = false,
+    python = false,
+    rust = false,
   } = options
 
   const results = {
@@ -367,11 +371,11 @@ export async function setupBuildEnvironment(options = {}) {
 
       if (autoSetup) {
         results.errors.push(
-          '  Run: node scripts/setup-build-toolchain.mjs --emscripten'
+          '  Run: node scripts/setup-build-toolchain.mjs --emscripten',
         )
       } else {
         results.errors.push(
-          '  Install from: https://emscripten.org/docs/getting_started/downloads.html'
+          '  Install from: https://emscripten.org/docs/getting_started/downloads.html',
         )
       }
     }
@@ -391,7 +395,7 @@ export async function setupBuildEnvironment(options = {}) {
         results.errors.push(`  Fix: ${rustCheck.fix}`)
       } else if (autoSetup) {
         results.errors.push(
-          '  Run: node scripts/setup-build-toolchain.mjs --rust'
+          '  Run: node scripts/setup-build-toolchain.mjs --rust',
         )
       }
     }
@@ -407,12 +411,12 @@ export async function setupBuildEnvironment(options = {}) {
       } else {
         results.success = false
         results.errors.push(
-          `✗ Python ${pythonCheck.version} is too old (need 3.8+)`
+          `✗ Python ${pythonCheck.version} is too old (need 3.8+)`,
         )
 
         if (autoSetup) {
           results.errors.push(
-            '  Run: node scripts/setup-build-toolchain.mjs --python'
+            '  Run: node scripts/setup-build-toolchain.mjs --python',
           )
         }
       }
@@ -422,7 +426,7 @@ export async function setupBuildEnvironment(options = {}) {
 
       if (autoSetup) {
         results.errors.push(
-          '  Run: node scripts/setup-build-toolchain.mjs --python'
+          '  Run: node scripts/setup-build-toolchain.mjs --python',
         )
       }
     }

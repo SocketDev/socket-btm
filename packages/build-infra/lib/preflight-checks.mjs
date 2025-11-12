@@ -3,15 +3,16 @@
  * Provides a DRY way to run common pre-build validation checks.
  */
 
-import loggerPkg from '@socketsecurity/lib/logger'
-const { getDefaultLogger } = loggerPkg
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
-import { printError, printSuccess } from './build-output.mjs'
+const logger = getDefaultLogger()
+
 import {
   checkCompiler,
   checkDiskSpace,
   checkPythonVersion,
 } from './build-helpers.mjs'
+import { printError, printSuccess } from './build-output.mjs'
 
 /**
  * Run preflight checks for build scripts.

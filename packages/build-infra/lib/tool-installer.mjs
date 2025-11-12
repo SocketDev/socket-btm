@@ -13,7 +13,12 @@ const { whichBinSync } = binPkg
 const { WIN32 } = platformPkg
 const { spawn } = spawnPkg
 
-import { printError, printStep, printSubstep, printWarning } from './build-output.mjs'
+import {
+  printError,
+  printStep,
+  printSubstep,
+  printWarning,
+} from './build-output.mjs'
 
 /**
  * Tool installation configurations.
@@ -72,7 +77,12 @@ const TOOL_CONFIGS = {
     description: 'Binaryen WebAssembly optimizer',
     packages: {
       darwin: { brew: 'binaryen' },
-      linux: { apt: 'binaryen', yum: 'binaryen', dnf: 'binaryen', apk: 'binaryen' },
+      linux: {
+        apt: 'binaryen',
+        yum: 'binaryen',
+        dnf: 'binaryen',
+        apk: 'binaryen',
+      },
       win32: { choco: 'binaryen', scoop: 'binaryen' },
     },
   },
@@ -80,7 +90,12 @@ const TOOL_CONFIGS = {
     description: 'Ninja build system (faster than Make)',
     packages: {
       darwin: { brew: 'ninja' },
-      linux: { apt: 'ninja-build', yum: 'ninja-build', dnf: 'ninja-build', apk: 'samurai' },
+      linux: {
+        apt: 'ninja-build',
+        yum: 'ninja-build',
+        dnf: 'ninja-build',
+        apk: 'samurai',
+      },
       win32: { choco: 'ninja', scoop: 'ninja' },
     },
   },
@@ -97,7 +112,8 @@ const PACKAGE_MANAGER_CONFIGS = {
     brew: {
       name: 'Homebrew',
       binary: 'brew',
-      installScript: '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
+      installScript:
+        '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
       checkCommand: 'brew --version',
       description: 'macOS package manager',
     },
@@ -140,14 +156,16 @@ const PACKAGE_MANAGER_CONFIGS = {
     choco: {
       name: 'Chocolatey',
       binary: 'choco',
-      installScript: 'powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString(\'https://chocolatey.org/install.ps1\'))"',
+      installScript:
+        'powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString(\'https://chocolatey.org/install.ps1\'))"',
       checkCommand: 'choco --version',
       description: 'Windows package manager',
     },
     scoop: {
       name: 'Scoop',
       binary: 'scoop',
-      installScript: 'powershell -Command "iex (new-object net.webclient).downloadstring(\'https://get.scoop.sh\')"',
+      installScript:
+        'powershell -Command "iex (new-object net.webclient).downloadstring(\'https://get.scoop.sh\')"',
       checkCommand: 'scoop --version',
       description: 'Windows command-line installer',
     },
@@ -199,7 +217,10 @@ export function getPreferredPackageManager() {
  * @param {boolean} options.autoYes - Auto-yes to prompts (default: false).
  * @returns {Promise<boolean>} True if installation succeeded.
  */
-export async function installPackageManager(managerName, { autoYes = false } = {}) {
+export async function installPackageManager(
+  managerName,
+  { autoYes = false } = {},
+) {
   const platform = process.platform
   const platformConfig = PACKAGE_MANAGER_CONFIGS[platform]
 
@@ -227,12 +248,16 @@ export async function installPackageManager(managerName, { autoYes = false } = {
   }
 
   printStep(`Installing ${managerConfig.name}...`)
-  printWarning('This will execute an installation script from the package manager\'s official source')
+  printWarning(
+    "This will execute an installation script from the package manager's official source",
+  )
 
   // For non-auto-yes mode, prompt user.
   if (!autoYes) {
     printSubstep(`Run: ${managerConfig.installScript}`)
-    printWarning('Please run the above command manually with appropriate permissions')
+    printWarning(
+      'Please run the above command manually with appropriate permissions',
+    )
     return false
   }
 
@@ -256,7 +281,9 @@ export async function installPackageManager(managerName, { autoYes = false } = {
       return true
     }
 
-    printWarning(`${managerConfig.name} installation completed but binary not found`)
+    printWarning(
+      `${managerConfig.name} installation completed but binary not found`,
+    )
     return false
   } catch (e) {
     printError(`Error installing ${managerConfig.name}`, e)
@@ -272,7 +299,10 @@ export async function installPackageManager(managerName, { autoYes = false } = {
  * @param {boolean} options.autoYes - Auto-yes to prompts (default: false).
  * @returns {Promise<{available: boolean, manager: string|null, installed: boolean}>}
  */
-export async function ensurePackageManagerAvailable({ autoInstall = false, autoYes = false } = {}) {
+export async function ensurePackageManagerAvailable({
+  autoInstall = false,
+  autoYes = false,
+} = {}) {
   // Check if any package manager is already available.
   const managers = detectPackageManagers()
   if (managers.length > 0) {
@@ -329,7 +359,7 @@ export function getPackageManagerInstructions() {
 
   instructions.push(`Install ${preferred.name} (${preferred.description}):`)
   if (preferred.installScript) {
-    instructions.push('  ' + preferred.installScript)
+    instructions.push(`  ${preferred.installScript}`)
   } else {
     instructions.push('  (Pre-installed on this system)')
   }
@@ -348,9 +378,7 @@ export async function checkElevatedPrivileges() {
   if (platform === 'win32') {
     // On Windows, check if running as administrator.
     try {
-      const result = await execCapture(
-        'net session 2>nul'
-      )
+      const result = await spawn('net', ['session'], { shell: true })
       return result.code === 0
     } catch {
       return false
@@ -364,7 +392,7 @@ export async function checkElevatedPrivileges() {
 
   // Check if sudo is available.
   try {
-    const result = await execCapture('sudo -n true 2>/dev/null')
+    const result = await spawn('sudo', ['-n', 'true'])
     return result.code === 0
   } catch {
     return false
@@ -380,7 +408,11 @@ export async function checkElevatedPrivileges() {
  * @param {boolean} options.autoYes - Automatically answer yes to prompts.
  * @returns {Promise<boolean>} True if installation succeeded.
  */
-export async function installTool(tool, packageManager, { autoYes = false } = {}) {
+export async function installTool(
+  tool,
+  packageManager,
+  { autoYes = false } = {},
+) {
   const config = TOOL_CONFIGS[tool]
   if (!config) {
     printError(`Unknown tool: ${tool}`)
@@ -391,7 +423,9 @@ export async function installTool(tool, packageManager, { autoYes = false } = {}
   const packageInfo = config.packages[platform]
 
   if (!packageInfo || !packageInfo[packageManager]) {
-    printError(`No ${packageManager} package available for ${tool} on ${platform}`)
+    printError(
+      `No ${packageManager} package available for ${tool} on ${platform}`,
+    )
     return false
   }
 
@@ -401,7 +435,9 @@ export async function installTool(tool, packageManager, { autoYes = false } = {}
   try {
     let command
     let args
-    const needsSudo = platform !== 'win32' && ['apt', 'apk', 'yum', 'dnf'].includes(packageManager)
+    const needsSudo =
+      platform !== 'win32' &&
+      ['apt', 'apk', 'yum', 'dnf'].includes(packageManager)
 
     switch (packageManager) {
       case 'brew':
@@ -492,7 +528,7 @@ export async function installTool(tool, packageManager, { autoYes = false } = {}
  */
 export async function ensureToolInstalled(
   tool,
-  { autoInstall = true, autoYes = false } = {}
+  { autoInstall = true, autoYes = false } = {},
 ) {
   // Check if already installed.
   const binPath = whichBinSync(tool, { nothrow: true })
@@ -507,9 +543,7 @@ export async function ensureToolInstalled(
   // Detect available package managers.
   const managers = detectPackageManagers()
   if (!managers.length) {
-    printWarning(
-      `No package manager detected for auto-installing ${tool}`
-    )
+    printWarning(`No package manager detected for auto-installing ${tool}`)
     return { available: false, installed: false, packageManager: null }
   }
 
@@ -544,28 +578,28 @@ export function getInstallInstructions(tool) {
   instructions.push(`Install ${tool} (${config.description}):`)
 
   if (platform === 'darwin') {
-    instructions.push('  brew install ' + config.packages.darwin.brew)
+    instructions.push(`  brew install ${config.packages.darwin.brew}`)
   } else if (platform === 'linux') {
     const pkg = config.packages.linux
     if (pkg.apt) {
-      instructions.push('  sudo apt-get install -y ' + pkg.apt)
+      instructions.push(`  sudo apt-get install -y ${pkg.apt}`)
     }
     if (pkg.apk) {
-      instructions.push('  sudo apk add --no-cache ' + pkg.apk)
+      instructions.push(`  sudo apk add --no-cache ${pkg.apk}`)
     }
     if (pkg.yum) {
-      instructions.push('  sudo yum install -y ' + pkg.yum)
+      instructions.push(`  sudo yum install -y ${pkg.yum}`)
     }
     if (pkg.dnf) {
-      instructions.push('  sudo dnf install -y ' + pkg.dnf)
+      instructions.push(`  sudo dnf install -y ${pkg.dnf}`)
     }
   } else if (platform === 'win32') {
     const pkg = config.packages.win32
     if (pkg.choco) {
-      instructions.push('  choco install ' + pkg.choco)
+      instructions.push(`  choco install ${pkg.choco}`)
     }
     if (pkg.scoop) {
-      instructions.push('  scoop install ' + pkg.scoop)
+      instructions.push(`  scoop install ${pkg.scoop}`)
     }
   }
 
@@ -583,7 +617,7 @@ export function getInstallInstructions(tool) {
  */
 export async function ensureAllToolsInstalled(
   tools,
-  { autoInstall = true, autoYes = false } = {}
+  { autoInstall = true, autoYes = false } = {},
 ) {
   const missing = []
   const installed = []

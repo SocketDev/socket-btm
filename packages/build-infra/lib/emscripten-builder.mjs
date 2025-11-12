@@ -69,7 +69,7 @@ export class EmscriptenBuilder {
 
     const sourceFiles = sources.join(' ')
     const includeFlags = includes.join(' ')
-    const defineFlags = defines.map((d) => `-D${d}`).join(' ')
+    const defineFlags = defines.map(d => `-D${d}`).join(' ')
     const compilerFlags = flags.join(' ')
     const outputPath = path.join(this.buildDir, output)
 
@@ -106,7 +106,12 @@ export class EmscriptenBuilder {
     // Find wasm-opt in Emscripten SDK or system PATH.
     let wasmOptCmd = 'wasm-opt'
     if (process.env.EMSDK) {
-      const emsdkWasmOpt = path.join(process.env.EMSDK, 'upstream', 'bin', 'wasm-opt')
+      const emsdkWasmOpt = path.join(
+        process.env.EMSDK,
+        'upstream',
+        'bin',
+        'wasm-opt',
+      )
       const { existsSync } = await import('node:fs')
       if (existsSync(emsdkWasmOpt)) {
         wasmOptCmd = emsdkWasmOpt
@@ -117,14 +122,16 @@ export class EmscriptenBuilder {
       wasmOptCmd,
       [
         `-O${optimizeLevel}`,
-        '-s', shrinkLevel.toString(),
+        '-s',
+        shrinkLevel.toString(),
         '--enable-bulk-memory',
         '--enable-nontrapping-float-to-int',
         '--enable-sign-ext',
         wasmPath,
-        '-o', wasmPath
+        '-o',
+        wasmPath,
       ],
-      { shell: WIN32, stdio: 'inherit' }
+      { shell: WIN32, stdio: 'inherit' },
     )
     if (result.code !== 0) {
       throw new Error(`wasm-opt failed with exit code ${result.code}`)
@@ -145,7 +152,12 @@ export class EmscriptenBuilder {
     // Find wasm-strip in Emscripten SDK or system PATH.
     let wasmStripCmd = 'wasm-strip'
     if (process.env.EMSDK) {
-      const emsdkWasmStrip = path.join(process.env.EMSDK, 'upstream', 'bin', 'wasm-strip')
+      const emsdkWasmStrip = path.join(
+        process.env.EMSDK,
+        'upstream',
+        'bin',
+        'wasm-strip',
+      )
       const { existsSync } = await import('node:fs')
       if (existsSync(emsdkWasmStrip)) {
         wasmStripCmd = emsdkWasmStrip
@@ -192,7 +204,7 @@ export class EmscriptenBuilder {
     const result = await spawn(
       `emcmake cmake -S ${this.sourceDir} -B ${this.buildDir} ${cmakeArgs}`,
       [],
-      { shell: WIN32, stdio: 'inherit' }
+      { shell: WIN32, stdio: 'inherit' },
     )
     if (result.code !== 0) {
       throw new Error(`emcmake configure failed with exit code ${result.code}`)
@@ -214,7 +226,7 @@ export class EmscriptenBuilder {
     const result = await spawn(
       `emmake cmake --build ${this.buildDir} --target ${target} -j ${jobs}`,
       [],
-      { shell: WIN32, stdio: 'inherit' }
+      { shell: WIN32, stdio: 'inherit' },
     )
     if (result.code !== 0) {
       throw new Error(`emmake build failed with exit code ${result.code}`)

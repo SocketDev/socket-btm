@@ -5,9 +5,10 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { cleanCheckpoint } from 'build-infra/lib/checkpoint-manager'
+
 import { safeDelete } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { cleanCheckpoint } from 'build-infra/lib/checkpoint-manager'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.join(__dirname, '..')

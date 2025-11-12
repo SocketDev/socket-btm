@@ -16,7 +16,12 @@ const { whichBinSync } = binPkg
 const { WIN32 } = platformPkg
 const { spawn } = spawnPkg
 
-import { printError, printStep, printSubstep, printWarning } from './build-output.mjs'
+import {
+  printError,
+  printStep,
+  printSubstep,
+  printWarning,
+} from './build-output.mjs'
 
 /**
  * Check available disk space.
@@ -32,16 +37,20 @@ export async function checkDiskSpace(dir, requiredGB = 5) {
     // Use Node.js built-in fs.statfs for cross-platform disk space check.
     const stats = await fs.statfs(dir)
     const availableBytes = stats.bavail * stats.bsize
-    const availableGBValue = Number((availableBytes / (1024 * 1024 * 1024)).toFixed(2))
+    const availableGBValue = Number(
+      (availableBytes / (1024 * 1024 * 1024)).toFixed(2),
+    )
     const sufficient = availableGBValue >= requiredGB
 
-    printSubstep(`Available: ${availableGBValue} GB, Required: ${requiredGB} GB`)
+    printSubstep(
+      `Available: ${availableGBValue} GB, Required: ${requiredGB} GB`,
+    )
 
     return {
       availableGB: availableGBValue,
       sufficient,
     }
-  } catch (error) {
+  } catch (_error) {
     // Fallback to df command if fs.statfs fails (older Node versions).
     try {
       const result = await spawn('df', ['-k', dir], {
@@ -58,10 +67,14 @@ export async function checkDiskSpace(dir, requiredGB = 5) {
       const stats = lines[1].split(/\s+/)
       const availableKB = Number.parseInt(stats[3], 10)
       const availableBytes = availableKB * 1024
-      const availableGBValue = Number((availableBytes / (1024 * 1024 * 1024)).toFixed(2))
+      const availableGBValue = Number(
+        (availableBytes / (1024 * 1024 * 1024)).toFixed(2),
+      )
       const sufficient = availableGBValue >= requiredGB
 
-      printSubstep(`Available: ${availableGBValue} GB, Required: ${requiredGB} GB`)
+      printSubstep(
+        `Available: ${availableGBValue} GB, Required: ${requiredGB} GB`,
+      )
 
       return {
         availableGB: availableGBValue,
@@ -117,8 +130,11 @@ export async function checkPythonVersion(minVersion = '3.6') {
     try {
       const result = await spawn(
         pythonCmd,
-        ['-c', "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"],
-        { shell: WIN32, stdio: 'pipe', stdioString: true }
+        [
+          '-c',
+          "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
+        ],
+        { shell: WIN32, stdio: 'pipe', stdioString: true },
       )
 
       // Check if spawn failed or returned undefined code.
@@ -142,17 +158,15 @@ export async function checkPythonVersion(minVersion = '3.6') {
       const [major, minor] = version.split('.').map(Number)
       const [minMajor, minMinor] = minVersion.split('.').map(Number)
 
-      const sufficient = major > minMajor || (major === minMajor && minor >= minMinor)
+      const sufficient =
+        major > minMajor || (major === minMajor && minor >= minMinor)
 
       return {
         available: true,
         sufficient,
         version,
       }
-    } catch (e) {
-      // Try next command.
-      continue
-    }
+    } catch (_e) {}
   }
 
   // None of the Python commands worked.
@@ -175,9 +189,7 @@ export function estimateBuildTime(baseMinutes, cores) {
   const parallelFraction = 0.8
   const serialFraction = 1 - parallelFraction
 
-  return Math.ceil(
-    baseMinutes * (serialFraction + parallelFraction / cores)
-  )
+  return Math.ceil(baseMinutes * (serialFraction + parallelFraction / cores))
 }
 
 /**
@@ -379,7 +391,7 @@ export async function checkNetworkConnectivity() {
           '-Command',
           'try { $null = Invoke-WebRequest -Uri "https://github.com" -Method Head -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop; Write-Output "200" } catch { Write-Output "0" }',
         ],
-        { shell: false, stdio: 'pipe', stdioString: true }
+        { shell: false, stdio: 'pipe', stdioString: true },
       )
 
       const statusCode = (result.stdout ?? '').trim()
@@ -392,8 +404,17 @@ export async function checkNetworkConnectivity() {
     // Unix/Linux/macOS: Use curl.
     const result = await spawn(
       'curl',
-      ['-s', '-o', '/dev/null', '-w', '%{http_code}', '--connect-timeout', '5', 'https://github.com'],
-      { shell: false, stdio: 'pipe', stdioString: true }
+      [
+        '-s',
+        '-o',
+        '/dev/null',
+        '-w',
+        '%{http_code}',
+        '--connect-timeout',
+        '5',
+        'https://github.com',
+      ],
+      { shell: false, stdio: 'pipe', stdioString: true },
     )
 
     const statusCode = (result.stdout ?? '').trim()
@@ -418,7 +439,7 @@ export async function verifyGitTag(version) {
     const result = await spawn(
       'git',
       ['ls-remote', '--tags', 'https://github.com/nodejs/node.git', version],
-      { shell: WIN32, stdio: 'pipe', stdioString: true }
+      { shell: WIN32, stdio: 'pipe', stdioString: true },
     )
 
     return {

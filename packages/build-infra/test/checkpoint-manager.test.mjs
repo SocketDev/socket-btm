@@ -2,8 +2,7 @@
  * @fileoverview Tests for checkpoint-manager utilities.
  */
 
-import { existsSync } from 'node:fs'
-import { promises as fs } from 'node:fs'
+import { existsSync, promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -25,7 +24,10 @@ describe('checkpoint-manager', () => {
   beforeEach(async () => {
     // Create unique temp directory for each test
     const tmpBase = path.join(tmpdir(), 'checkpoint-test')
-    testBuildDir = path.join(tmpBase, `test-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+    testBuildDir = path.join(
+      tmpBase,
+      `test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    )
     await fs.mkdir(testBuildDir, { recursive: true })
   })
 
@@ -38,7 +40,11 @@ describe('checkpoint-manager', () => {
 
   describe('hasCheckpoint', () => {
     it('should return false for non-existent checkpoint', async () => {
-      const exists = await hasCheckpoint(testBuildDir, 'test-pkg', 'non-existent')
+      const exists = await hasCheckpoint(
+        testBuildDir,
+        'test-pkg',
+        'non-existent',
+      )
       expect(exists).toBe(false)
     })
 
@@ -53,15 +59,29 @@ describe('checkpoint-manager', () => {
     it('should create checkpoint file', async () => {
       await createCheckpoint(testBuildDir, 'test-pkg', 'test-checkpoint')
 
-      const checkpointPath = path.join(testBuildDir, 'checkpoints', 'test-pkg', 'test-checkpoint.json')
+      const checkpointPath = path.join(
+        testBuildDir,
+        'checkpoints',
+        'test-pkg',
+        'test-checkpoint.json',
+      )
       expect(existsSync(checkpointPath)).toBe(true)
     })
 
     it('should create checkpoint with metadata', async () => {
       const metadata = { foo: 'bar', num: 123 }
-      await createCheckpoint(testBuildDir, 'test-pkg', 'test-checkpoint', metadata)
+      await createCheckpoint(
+        testBuildDir,
+        'test-pkg',
+        'test-checkpoint',
+        metadata,
+      )
 
-      const data = await getCheckpointData(testBuildDir, 'test-pkg', 'test-checkpoint')
+      const data = await getCheckpointData(
+        testBuildDir,
+        'test-pkg',
+        'test-checkpoint',
+      )
       expect(data.foo).toBe('bar')
       expect(data.num).toBe(123)
       expect(data.name).toBe('test-checkpoint')
@@ -72,14 +92,23 @@ describe('checkpoint-manager', () => {
     it('should create nested checkpoint directories', async () => {
       await createCheckpoint(testBuildDir, 'nested/pkg/name', 'checkpoint')
 
-      const checkpointPath = path.join(testBuildDir, 'checkpoints', 'nested/pkg/name', 'checkpoint.json')
+      const checkpointPath = path.join(
+        testBuildDir,
+        'checkpoints',
+        'nested/pkg/name',
+        'checkpoint.json',
+      )
       expect(existsSync(checkpointPath)).toBe(true)
     })
   })
 
   describe('getCheckpointData', () => {
     it('should return null for non-existent checkpoint', async () => {
-      const data = await getCheckpointData(testBuildDir, 'test-pkg', 'non-existent')
+      const data = await getCheckpointData(
+        testBuildDir,
+        'test-pkg',
+        'non-existent',
+      )
       expect(data).toBeNull()
     })
 
@@ -87,7 +116,11 @@ describe('checkpoint-manager', () => {
       const metadata = { version: '1.0.0', hash: 'abc123' }
       await createCheckpoint(testBuildDir, 'test-pkg', 'checkpoint', metadata)
 
-      const data = await getCheckpointData(testBuildDir, 'test-pkg', 'checkpoint')
+      const data = await getCheckpointData(
+        testBuildDir,
+        'test-pkg',
+        'checkpoint',
+      )
       expect(data.version).toBe('1.0.0')
       expect(data.hash).toBe('abc123')
       expect(data.name).toBe('checkpoint')
@@ -137,7 +170,7 @@ describe('checkpoint-manager', () => {
 
     it('should not throw on non-existent checkpoint', async () => {
       await expect(
-        removeCheckpoint(testBuildDir, 'test-pkg', 'non-existent')
+        removeCheckpoint(testBuildDir, 'test-pkg', 'non-existent'),
       ).resolves.toBeUndefined()
     })
   })
@@ -169,13 +202,23 @@ describe('checkpoint-manager', () => {
 
   describe('shouldRun', () => {
     it('should return true when checkpoint does not exist', async () => {
-      const result = await shouldRun(testBuildDir, 'test-pkg', 'new-checkpoint', false)
+      const result = await shouldRun(
+        testBuildDir,
+        'test-pkg',
+        'new-checkpoint',
+        false,
+      )
       expect(result).toBe(true)
     })
 
     it('should return false when checkpoint exists', async () => {
       await createCheckpoint(testBuildDir, 'test-pkg', 'existing')
-      const result = await shouldRun(testBuildDir, 'test-pkg', 'existing', false)
+      const result = await shouldRun(
+        testBuildDir,
+        'test-pkg',
+        'existing',
+        false,
+      )
       expect(result).toBe(false)
     })
 
@@ -186,7 +229,12 @@ describe('checkpoint-manager', () => {
     })
 
     it('should return true when force flag is set even without checkpoint', async () => {
-      const result = await shouldRun(testBuildDir, 'test-pkg', 'non-existent', true)
+      const result = await shouldRun(
+        testBuildDir,
+        'test-pkg',
+        'non-existent',
+        true,
+      )
       expect(result).toBe(true)
     })
   })
@@ -205,15 +253,27 @@ describe('checkpoint-manager', () => {
 
       // Both should exist independently
       const devHas = await hasCheckpoint(devBuildDir, 'test-pkg', 'checkpoint')
-      const prodHas = await hasCheckpoint(prodBuildDir, 'test-pkg', 'checkpoint')
+      const prodHas = await hasCheckpoint(
+        prodBuildDir,
+        'test-pkg',
+        'checkpoint',
+      )
       expect(devHas).toBe(true)
       expect(prodHas).toBe(true)
 
       // Clean one should not affect the other
       await cleanCheckpoint(devBuildDir, 'test-pkg')
 
-      const devHasAfter = await hasCheckpoint(devBuildDir, 'test-pkg', 'checkpoint')
-      const prodHasAfter = await hasCheckpoint(prodBuildDir, 'test-pkg', 'checkpoint')
+      const devHasAfter = await hasCheckpoint(
+        devBuildDir,
+        'test-pkg',
+        'checkpoint',
+      )
+      const prodHasAfter = await hasCheckpoint(
+        prodBuildDir,
+        'test-pkg',
+        'checkpoint',
+      )
       expect(devHasAfter).toBe(false)
       expect(prodHasAfter).toBe(true)
     })

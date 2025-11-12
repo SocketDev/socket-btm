@@ -5,8 +5,9 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { cleanCheckpoint } from 'build-infra/lib/checkpoint-manager'
 import { printHeader, printSuccess } from 'build-infra/lib/build-output'
+import { cleanCheckpoint } from 'build-infra/lib/checkpoint-manager'
+
 import { safeDelete } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 

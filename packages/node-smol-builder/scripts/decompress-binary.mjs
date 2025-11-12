@@ -22,6 +22,7 @@ import { spawn } from '@socketsecurity/registry/lib/spawn'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const TOOLS_DIR = path.resolve(__dirname, '../additions/tools')
+const logger = getDefaultLogger()
 
 /**
  * Platform configuration.
@@ -162,7 +163,7 @@ async function decompressAndExecute(
  */
 async function main() {
   try {
-    const { compressedPath, binaryArgs } = parseArgs()
+    const { binaryArgs, compressedPath } = parseArgs()
     const config = getPlatformConfig()
 
     logger.log('Socket Binary Decompression')

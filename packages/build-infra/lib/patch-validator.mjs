@@ -15,7 +15,6 @@ const { spawn } = spawnPkg
 
 import { printError, printStep, printSubstep } from './build-output.mjs'
 
-
 /**
  * Validate a patch file can be applied cleanly.
  *
@@ -83,14 +82,14 @@ export async function applyPatch(patchFile, targetDir) {
 export async function applyPatchDirectory(
   patchDir,
   targetDir,
-  { validate = true } = {}
+  { validate = true } = {},
 ) {
   printStep('Applying patches')
 
   const entries = await fs.readdir(patchDir, { withFileTypes: true })
   const patchFiles = entries
-    .filter((entry) => entry.isFile() && entry.name.endsWith('.patch'))
-    .map((entry) => path.join(patchDir, entry.name))
+    .filter(entry => entry.isFile() && entry.name.endsWith('.patch'))
+    .map(entry => path.join(patchDir, entry.name))
     .sort()
 
   if (!patchFiles.length) {
@@ -156,7 +155,7 @@ export async function testPatchApplication(patchFile, targetDir) {
 export async function createPatchFromGit(
   repoDir,
   outputFile,
-  { staged = false } = {}
+  { staged = false } = {},
 ) {
   printStep('Creating patch from git diff')
 
@@ -225,7 +224,7 @@ export function analyzePatchContent(content) {
  * @param {string} version - Node.js version
  * @returns {Array} Array of conflict objects
  */
-export function checkPatchConflicts(patchData, version) {
+export function checkPatchConflicts(_patchData, _version) {
   // Stub implementation - no conflicts detected by default.
   // In a full implementation, this would analyze patch overlaps.
   return []

@@ -77,6 +77,9 @@
         "noBannedTypes": "off",
         "useLiteralKeys": "off"
       },
+      "correctness": {
+        "noUndeclaredVariables": "error"
+      },
       "suspicious": {
         "noExplicitAny": "off",
         "noAsyncPromiseExecutor": "off",

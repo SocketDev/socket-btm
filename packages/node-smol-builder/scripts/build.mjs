@@ -75,19 +75,8 @@
 
 import { existsSync, readdirSync, promises as fs } from 'node:fs'
 import { cpus, platform } from 'node:os'
-import path from 'node:path'
+import path, { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-
-import { parseArgs } from '@socketsecurity/lib/argv/parse'
-import { whichBinSync } from '@socketsecurity/lib/bin'
-import { WIN32 } from '@socketsecurity/lib/constants/platform'
-import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
-import colors from 'yoctocolors-cjs'
-
-// Node.js version to build
-const NODE_VERSION = 'v24.10.0'
 
 import {
   checkCompiler,
@@ -104,16 +93,19 @@ import {
   smokeTestBinary,
   verifyGitTag,
 } from 'build-infra/lib/build-helpers'
-import { ensureGccVersion, getGccInstructions } from 'build-infra/lib/compiler-installer'
-import {
-  generateHashComment,
-  shouldExtract,
-} from 'build-infra/lib/extraction-cache'
 import {
   printError,
   printHeader,
   printWarning,
 } from 'build-infra/lib/build-output'
+import {
+  ensureGccVersion,
+  getGccInstructions,
+} from 'build-infra/lib/compiler-installer'
+import {
+  generateHashComment,
+  shouldExtract,
+} from 'build-infra/lib/extraction-cache'
 import {
   analyzePatchContent,
   checkPatchConflicts,
@@ -125,6 +117,17 @@ import {
   getInstallInstructions,
   getPackageManagerInstructions,
 } from 'build-infra/lib/tool-installer'
+import colors from 'yoctocolors-cjs'
+
+import { parseArgs } from '@socketsecurity/lib/argv/parse'
+import { whichBinSync } from '@socketsecurity/lib/bin'
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { spawn } from '@socketsecurity/lib/spawn'
+
+// Node.js version to build
+const NODE_VERSION = 'v24.10.0'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -155,6 +158,13 @@ async function exec(command, args = [], options = {}) {
   }
 }
 
+/**
+ * Check if a command exists in PATH.
+ */
+function commandExists(cmd) {
+  return !!whichBinSync(cmd, { nothrow: true })
+}
+
 // Parse arguments.
 const { values } = parseArgs({
   options: {
@@ -182,9 +192,9 @@ const RUN_FULL_TESTS = !!values['test-full'] || !!values.testFull
 const AUTO_YES = !!values.yes
 
 // Platform detection constants
-const IS_DARWIN = TARGET_PLATFORM === 'darwin'
+const _IS_DARWIN = TARGET_PLATFORM === 'darwin'
 const IS_LINUX = TARGET_PLATFORM === 'linux' || TARGET_PLATFORM === 'linux-musl'
-const IS_WIN32 = TARGET_PLATFORM === 'win32'
+const _IS_WIN32 = TARGET_PLATFORM === 'win32'
 
 // Build mode: dev (fast builds) vs prod (optimized builds).
 // Default to dev unless CI or --prod specified.
@@ -380,7 +390,10 @@ async function copyBuildAdditions() {
   }
 
   // Fix: Copy polyfill to lib/internal/socketsecurity_polyfills/ for external loading.
-  const localeCompareSource = path.join(ADDITIONS_DIR, 'localeCompare.polyfill.js')
+  const localeCompareSource = path.join(
+    ADDITIONS_DIR,
+    'localeCompare.polyfill.js',
+  )
   const polyfillsDestDir = path.join(
     NODE_DIR,
     'lib',
@@ -622,7 +635,9 @@ async function getFileSize(filePath) {
   const stats = await fs.stat(filePath)
   const bytes = stats.size
 
-  if (bytes === 0) return '0B'
+  if (bytes === 0) {
+    return '0B'
+  }
 
   const k = 1024
   const sizes = ['B', 'K', 'M', 'G', 'T']
@@ -644,7 +659,7 @@ async function getFileSize(filePath) {
  */
 async function smoketestBinary(
   binaryPath,
-  { isSEA = false, isCheckpoint = false } = {},
+  { isCheckpoint = false, isSEA = false } = {},
 ) {
   const tests = []
 
@@ -711,7 +726,7 @@ async function smoketestBinary(
   // Run all tests.
   for (const test of tests) {
     try {
-      const { success, reason } = await test.run()
+      const { reason, success } = await test.run()
       if (!success) {
         return { valid: false, reason: `${test.name} failed: ${reason}` }
       }
@@ -1085,21 +1100,29 @@ async function checkBuildEnvironment() {
       const match = stdout.match(/Xcode (\d+\.\d+)/)
       if (match) {
         const version = match[1]
-        const majorVersion = parseInt(version.split('.')[0])
+        const majorVersion = Number.parseInt(version.split('.')[0], 10)
         if (majorVersion >= 16) {
           logger.success(`Xcode ${version} meets requirements (clang 19+)`)
         } else {
           logger.fail(`Xcode ${version} is too old (need Xcode 16+)`)
-          logger.substep('Node.js v24 requires Xcode 16+ with clang 19+ for C++20 support')
-          logger.substep('Older clang versions crash on large V8 files with -O3 optimization')
-          logger.substep('Install Xcode 16.1+ from: https://developer.apple.com/xcode/')
-          logger.substep('After install, run: sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer')
+          logger.substep(
+            'Node.js v24 requires Xcode 16+ with clang 19+ for C++20 support',
+          )
+          logger.substep(
+            'Older clang versions crash on large V8 files with -O3 optimization',
+          )
+          logger.substep(
+            'Install Xcode 16.1+ from: https://developer.apple.com/xcode/',
+          )
+          logger.substep(
+            'After install, run: sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer',
+          )
           allChecks = false
         }
       } else {
         logger.warn('Could not parse Xcode version (continuing anyway)')
       }
-    } catch (e) {
+    } catch (_e) {
       logger.warn('Could not check Xcode version (continuing anyway)')
     }
   }
@@ -1162,24 +1185,32 @@ function convertToVcbuildFlags(configureFlags) {
 
   for (const flag of configureFlags) {
     // Architecture flags.
-    if (flag === '--dest-cpu=arm64') vcbuildFlags.push('arm64')
-    else if (flag === '--dest-cpu=x64') vcbuildFlags.push('x64')
+    if (flag === '--dest-cpu=arm64') {
+      vcbuildFlags.push('arm64')
+    } else if (flag === '--dest-cpu=x64') {
+      vcbuildFlags.push('x64')
+    }
     // ICU flags.
     // Windows: Use full-icu with download-all to avoid genccode crashes
     // Unix/Linux/macOS: Use small-icu as specified
-    else if (flag === '--with-intl=small-icu') vcbuildFlags.push('full-icu')
-    else if (flag === '--with-intl=none') vcbuildFlags.push('intl-none')
+    else if (flag === '--with-intl=small-icu') {
+      vcbuildFlags.push('full-icu')
+    } else if (flag === '--with-intl=none') {
+      vcbuildFlags.push('intl-none')
+    }
     // LTO flags (Windows uses LTCG).
-    else if (flag === '--enable-lto') vcbuildFlags.push('ltcg')
+    else if (flag === '--enable-lto') {
+      vcbuildFlags.push('ltcg')
+    }
     // Ninja is default, skip.
-    else if (flag === '--ninja') continue
+    else if (flag === '--ninja') {
+    }
     // Known flag mappings.
     else if (flag in flagMap) {
       vcbuildFlags.push(flagMap[flag])
     }
     // Unsupported flags - skip silently (e.g., --without-amaro, --without-sqlite not supported by vcbuild).
     else if (flag.startsWith('--without-')) {
-      continue
     }
     // Unknown flags - log warning.
     else {
@@ -1498,7 +1529,7 @@ async function main() {
 
   // Apply Socket patches (including the dynamically generated bootstrap loader).
   const socketPatches = findSocketPatches()
-  let patchesApplied = false
+  let _patchesApplied = false
 
   if (socketPatches.length > 0) {
     // Validate Socket patches before applying.
@@ -1612,7 +1643,7 @@ async function main() {
             { cwd: NODE_DIR },
           )
           logger.log(`${colors.green('✓')} ${name} applied`)
-          patchesApplied = true
+          _patchesApplied = true
         } catch (e) {
           throw new Error(
             'Socket patch application failed.\n\n' +
@@ -1698,9 +1729,7 @@ async function main() {
       `  ${colors.green('✓')} ICU: small-icu (English-only, needed for polyfills)`,
     )
     const ltoNote = IS_LINUX ? 'LTO enabled' : 'LTO disabled (compiler issues)'
-    logger.log(
-      `  ${colors.green('✓')} OPTIMIZATIONS: no-inspector, ${ltoNote}`,
-    )
+    logger.log(`  ${colors.green('✓')} OPTIMIZATIONS: no-inspector, ${ltoNote}`)
     logger.log('')
     logger.log(
       `  ${colors.green('✓')} JavaScript: Full speed (TurboFan JIT enabled)`,
@@ -1808,9 +1837,7 @@ async function main() {
     ? convertToVcbuildFlags(configureFlags)
     : configureFlags
 
-  logger.log(
-    `::group::Running ${WIN32 ? 'vcbuild.bat' : './configure'}`,
-  )
+  logger.log(`::group::Running ${WIN32 ? 'vcbuild.bat' : './configure'}`)
 
   const execOptions = {
     cwd: NODE_DIR,
@@ -1819,7 +1846,9 @@ async function main() {
 
   await exec(configureCommand, configureArgs, execOptions)
   logger.log('::endgroup::')
-  logger.log(`${colors.green('✓')} ${WIN32 ? 'Build' : 'Configuration'} complete`)
+  logger.log(
+    `${colors.green('✓')} ${WIN32 ? 'Build' : 'Configuration'} complete`,
+  )
   logger.log('')
 
   // Build Node.js (skip on Windows - vcbuild already did it).
@@ -1996,44 +2025,58 @@ async function main() {
   logger.log('Removing debug symbols and unnecessary sections...')
   logger.log('')
 
-  // Platform-specific strip flags:
-  // - macOS (LLVM strip): Use -x (remove local symbols)
-  //   macOS strip does NOT support --strip-all (GNU-only flag)
-  // - Linux (GNU strip): Try --strip-all first, fall back to -x
-  //   --strip-all removes all symbols + section headers (most aggressive)
+  // Platform-specific stripping with enhanced optimization:
+  // - macOS: Multi-phase (strip → llvm-strip if available)
+  // - Linux: Aggressive (strip --strip-all → objcopy section removal → sstrip if available)
   // - Windows: Skip stripping (no strip command)
-  let stripArgs
   if (IS_WINDOWS) {
     logger.log('Windows detected - skipping strip (not supported)')
     logger.log('')
   } else if (IS_MACOS) {
-    // macOS always uses -x (LLVM strip doesn't support --strip-all).
-    stripArgs = ['-x', nodeBinary]
-    logger.log('Using macOS strip flags: -x (remove local symbols)')
-  } else {
-    // Linux/Alpine: Test if --strip-all is supported.
-    logger.log('Testing strip capabilities...')
-    const testResult = await spawn('strip', ['--help'], {
-      stdio: 'pipe',
-      stdioString: true,
-    })
-    const supportsStripAll = (testResult.stdout ?? '').includes('--strip-all')
+    // macOS: Multi-phase stripping for maximum size reduction.
+    logger.log('Phase 1: Basic stripping')
+    await exec('strip', [nodeBinary])
 
-    if (supportsStripAll) {
-      stripArgs = ['--strip-all', nodeBinary]
-      logger.log(
-        'Using GNU strip flags: --strip-all (remove all symbols + sections)',
-      )
+    // Phase 2: Try llvm-strip for more aggressive optimization.
+    if (commandExists('llvm-strip')) {
+      logger.log('Phase 2: Aggressive LLVM stripping')
+      await exec('llvm-strip', [nodeBinary])
     } else {
-      stripArgs = ['-x', nodeBinary]
-      logger.log(
-        'Using fallback strip flags: -x (GNU --strip-all not supported)',
-      )
+      logger.log('Phase 2: Skipped (llvm-strip not available)')
     }
-  }
+  } else {
+    // Linux/Alpine: Aggressive multi-phase stripping.
+    logger.log('Phase 1: Aggressive stripping')
+    await exec('strip', ['--strip-all', nodeBinary])
 
-  if (stripArgs) {
-    await exec('strip', stripArgs)
+    // Phase 2: Remove unnecessary ELF sections if objcopy is available.
+    if (commandExists('objcopy')) {
+      logger.log('Phase 2: Removing unnecessary ELF sections')
+      const sections = [
+        '.note.ABI-tag',
+        '.note.gnu.build-id',
+        '.comment',
+        '.gnu.version',
+      ]
+      for (const section of sections) {
+        try {
+          await exec('objcopy', [`--remove-section=${section}`, nodeBinary])
+        } catch (_error) {
+          // Section might not exist, continue.
+          logger.log(`  Skipped ${section} (not present)`)
+        }
+      }
+    } else {
+      logger.log('Phase 2: Skipped (objcopy not available)')
+    }
+
+    // Phase 3: Super strip if available (removes section headers).
+    if (commandExists('sstrip')) {
+      logger.log('Phase 3: Super strip (removing section headers)')
+      await exec('sstrip', [nodeBinary])
+    } else {
+      logger.log('Phase 3: Skipped (sstrip not available)')
+    }
   }
 
   const sizeAfterStrip = await getFileSize(nodeBinary)

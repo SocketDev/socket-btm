@@ -72,7 +72,7 @@ export class RustBuilder {
     const result = await spawn(
       'rustup',
       ['target', 'add', 'wasm32-unknown-unknown'],
-      { shell: WIN32, stdio: 'inherit' }
+      { shell: WIN32, stdio: 'inherit' },
     )
     if (result.code !== 0) {
       throw new Error(`rustup target add failed with exit code ${result.code}`)
@@ -97,8 +97,10 @@ export class RustBuilder {
   } = {}) {
     printStep('Building Rust to WASM with Cargo')
 
-    const featuresFlag = features.length > 0 ? `--features ${features.join(',')}` : ''
-    const profileFlag = profile !== 'release' ? `--profile ${profile}` : '--release'
+    const featuresFlag =
+      features.length > 0 ? `--features ${features.join(',')}` : ''
+    const profileFlag =
+      profile !== 'release' ? `--profile ${profile}` : '--release'
     const jobs = parallel ? cpus().length : 1
 
     const env = {
@@ -109,7 +111,7 @@ export class RustBuilder {
     const result = await spawn(
       `cargo build --target wasm32-unknown-unknown ${profileFlag} ${featuresFlag} -j ${jobs}`,
       [],
-      { cwd: this.projectDir, env, shell: WIN32, stdio: 'inherit' }
+      { cwd: this.projectDir, env, shell: WIN32, stdio: 'inherit' },
     )
     if (result.code !== 0) {
       throw new Error(`cargo build failed with exit code ${result.code}`)
@@ -143,7 +145,7 @@ export class RustBuilder {
     const result = await spawn(
       `wasm-bindgen --target ${target} ${tsFlag} ${debugFlag} --out-dir ${outputPath} ${input}`,
       [],
-      { cwd: this.projectDir, shell: WIN32, stdio: 'inherit' }
+      { cwd: this.projectDir, shell: WIN32, stdio: 'inherit' },
     )
     if (result.code !== 0) {
       throw new Error(`wasm-bindgen failed with exit code ${result.code}`)
@@ -168,7 +170,7 @@ export class RustBuilder {
     const result = await spawn(
       `wasm-opt ${flags} "${inputPath}" -o "${outputPath}"`,
       [],
-      { shell: WIN32, stdio: 'inherit' }
+      { shell: WIN32, stdio: 'inherit' },
     )
     if (result.code !== 0) {
       throw new Error(`wasm-opt failed with exit code ${result.code}`)

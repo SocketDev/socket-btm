@@ -42,12 +42,14 @@ export const COMPILER_REQUIREMENTS = {
  */
 function parseVersion(versionString) {
   const match = versionString.match(/(\d+)\.(\d+)\.(\d+)/)
-  if (!match) return null
+  if (!match) {
+    return null
+  }
 
   return {
-    major: parseInt(match[1], 10),
-    minor: parseInt(match[2], 10),
-    patch: parseInt(match[3], 10),
+    major: Number.parseInt(match[1], 10),
+    minor: Number.parseInt(match[2], 10),
+    patch: Number.parseInt(match[3], 10),
   }
 }
 
@@ -62,11 +64,19 @@ function compareVersions(version1, version2) {
   const v1 = parseVersion(version1)
   const v2 = parseVersion(version2)
 
-  if (!v1 || !v2) return 0
+  if (!v1 || !v2) {
+    return 0
+  }
 
-  if (v1.major !== v2.major) return v1.major < v2.major ? -1 : 1
-  if (v1.minor !== v2.minor) return v1.minor < v2.minor ? -1 : 1
-  if (v1.patch !== v2.patch) return v1.patch < v2.patch ? -1 : 1
+  if (v1.major !== v2.major) {
+    return v1.major < v2.major ? -1 : 1
+  }
+  if (v1.minor !== v2.minor) {
+    return v1.minor < v2.minor ? -1 : 1
+  }
+  if (v1.patch !== v2.patch) {
+    return v1.patch < v2.patch ? -1 : 1
+  }
 
   return 0
 }
@@ -83,7 +93,9 @@ async function getGccVersion(gccPath = 'gcc') {
       stdio: 'pipe',
     })
 
-    if (result.code !== 0) return null
+    if (result.code !== 0) {
+      return null
+    }
 
     const stdout = result.stdout?.toString() || ''
     const match = stdout.match(/gcc.*?(\d+\.\d+\.\d+)/)
@@ -198,7 +210,10 @@ async function installGccApt(version) {
  * @param {boolean} options.quiet - Suppress output (default: false)
  * @returns {Promise<{available: boolean, version: string|null, installed: boolean}>}
  */
-export async function ensureGccVersion({ autoInstall = true, quiet = false } = {}) {
+export async function ensureGccVersion({
+  autoInstall = true,
+  quiet = false,
+} = {}) {
   const requirement = COMPILER_REQUIREMENTS.gcc
   const minVersion = requirement.minVersion
 
@@ -211,7 +226,9 @@ export async function ensureGccVersion({ autoInstall = true, quiet = false } = {
 
   if (currentCheck.meetsRequirements) {
     if (!quiet) {
-      printSuccess(`GCC ${currentCheck.version} meets requirements (>= ${minVersion})`)
+      printSuccess(
+        `GCC ${currentCheck.version} meets requirements (>= ${minVersion})`,
+      )
     }
     return {
       available: true,
@@ -315,8 +332,12 @@ export function getGccInstructions() {
     instructions.push('Install GCC 12 on Ubuntu/Debian:')
     instructions.push('  sudo apt-get update')
     instructions.push('  sudo apt-get install -y gcc-12 g++-12')
-    instructions.push('  sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100')
-    instructions.push('  sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100')
+    instructions.push(
+      '  sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100',
+    )
+    instructions.push(
+      '  sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100',
+    )
   } else if (platform === 'darwin') {
     instructions.push('On macOS, use the Xcode Command Line Tools:')
     instructions.push('  xcode-select --install')

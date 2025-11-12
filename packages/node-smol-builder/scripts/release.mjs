@@ -32,16 +32,18 @@
  *   - GITHUB_TOKEN environment variable (for CI)
  */
 
-import { createReadStream, existsSync, promises as fs } from 'node:fs'
 import { createHash } from 'node:crypto'
+import { createReadStream, existsSync, promises as fs } from 'node:fs'
 import { platform as osPlatform, arch as osArch } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import colors from 'yoctocolors-cjs'
+
 import { parseArgs } from '@socketsecurity/lib/argv/parse'
 import { safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
-import colors from 'yoctocolors-cjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.join(__dirname, '..')
@@ -406,7 +408,7 @@ async function main() {
   logger.log('\nCreating release archives...')
 
   const archives = []
-  for (const { platform, arch } of PLATFORMS) {
+  for (const { arch, platform } of PLATFORMS) {
     const archive = await createReleaseArchive(platform, arch, NODE_VERSION)
     if (archive) {
       archives.push(archive)

@@ -10,14 +10,14 @@
  * Run `pnpm build` first to create the binary.
  */
 
-import { existsSync } from 'node:fs'
-import { promises as fs } from 'node:fs'
+import { existsSync, promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { spawn } from '@socketsecurity/lib/spawn'
 import { describe, expect, it, beforeAll, afterAll } from 'vitest'
+
+import { spawn } from '@socketsecurity/lib/spawn'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const packageDir = path.join(__dirname, '..')
@@ -463,7 +463,10 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
         'app.blob',
       )
 
-      if (!existsSync(compressedBlobPath) || !existsSync(uncompressedBlobPath)) {
+      if (
+        !existsSync(compressedBlobPath) ||
+        !existsSync(uncompressedBlobPath)
+      ) {
         // Skip if blobs don't exist (tests might be run individually).
         return
       }

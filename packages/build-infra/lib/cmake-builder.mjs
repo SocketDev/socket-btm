@@ -29,14 +29,14 @@ export class CMakeBuilder {
   async configure(options = {}) {
     printStep('Configuring CMake')
 
-    const cmakeArgs = Object.entries(options)
-      .map(([key, value]) => [`-D${key}=${value}`])
-      .flat()
+    const cmakeArgs = Object.entries(options).flatMap(([key, value]) => [
+      `-D${key}=${value}`,
+    ])
 
     const result = await spawn(
       'cmake',
       ['-S', this.sourceDir, '-B', this.buildDir, ...cmakeArgs],
-      { shell: WIN32, stdio: 'inherit' }
+      { shell: WIN32, stdio: 'inherit' },
     )
     if (result.code !== 0) {
       throw new Error(`cmake configure failed with exit code ${result.code}`)
@@ -58,7 +58,7 @@ export class CMakeBuilder {
     const result = await spawn(
       'cmake',
       ['--build', this.buildDir, '--target', target, '-j', String(jobs)],
-      { shell: WIN32, stdio: 'inherit' }
+      { shell: WIN32, stdio: 'inherit' },
     )
     if (result.code !== 0) {
       throw new Error(`cmake build failed with exit code ${result.code}`)
@@ -75,7 +75,7 @@ export class CMakeBuilder {
     const result = await spawn(
       'cmake',
       ['--build', this.buildDir, '--target', 'clean'],
-      { shell: WIN32, stdio: 'inherit' }
+      { shell: WIN32, stdio: 'inherit' },
     )
     if (result.code !== 0) {
       throw new Error(`cmake clean failed with exit code ${result.code}`)

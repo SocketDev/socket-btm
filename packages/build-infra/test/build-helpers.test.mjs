@@ -4,10 +4,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import {
-  estimateBuildTime,
-  formatDuration,
-} from '../lib/build-helpers.mjs'
+import { estimateBuildTime, formatDuration } from '../lib/build-helpers.mjs'
 
 describe('build-helpers', () => {
   describe('formatDuration', () => {
@@ -28,17 +25,17 @@ describe('build-helpers', () => {
       expect(formatDuration(3600 * 1000)).toBe('1h 0m')
       expect(formatDuration(3660 * 1000)).toBe('1h 1m')
       expect(formatDuration(7200 * 1000)).toBe('2h 0m')
-      expect(formatDuration(86399 * 1000)).toBe('23h 59m')
+      expect(formatDuration(86_399 * 1000)).toBe('23h 59m')
     })
 
     it('should handle fractional seconds', () => {
       expect(formatDuration(1500)).toBe('1s')
-      expect(formatDuration(59900)).toBe('59s')
-      expect(formatDuration(60100)).toBe('1m 0s')
+      expect(formatDuration(59_900)).toBe('59s')
+      expect(formatDuration(60_100)).toBe('1m 0s')
     })
 
     it('should handle very large values', () => {
-      expect(formatDuration(100000 * 1000)).toBe('27h 46m')
+      expect(formatDuration(100_000 * 1000)).toBe('27h 46m')
     })
   })
 
@@ -49,7 +46,7 @@ describe('build-helpers', () => {
       expect(result).toBe(60)
     })
 
-    it('should apply Amdahl\'s law with 80% parallelization (default)', () => {
+    it("should apply Amdahl's law with 80% parallelization (default)", () => {
       // With 60 minutes and 80% parallelizable work on 4 cores:
       // Result = 60 * (0.2 + 0.8/4) = 60 * 0.4 = 24 minutes
       const result = estimateBuildTime(60, 4)
@@ -65,7 +62,7 @@ describe('build-helpers', () => {
       expect(fourCore).toBeLessThan(twoCore)
     })
 
-    it('should show diminishing returns (Amdahl\'s law)', () => {
+    it("should show diminishing returns (Amdahl's law)", () => {
       const base = estimateBuildTime(100, 2)
       const double = estimateBuildTime(100, 4)
       const quad = estimateBuildTime(100, 8)

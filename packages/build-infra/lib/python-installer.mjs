@@ -10,7 +10,12 @@ import spawnPkg from '@socketsecurity/lib/spawn'
 const { whichBinSync } = binPkg
 const { spawn } = spawnPkg
 
-import { printError, printStep, printSubstep, printSuccess } from './build-output.mjs'
+import {
+  printError,
+  printStep,
+  printSubstep,
+  printSuccess,
+} from './build-output.mjs'
 import { getPinnedPackage } from './pinned-versions.mjs'
 
 /**
@@ -19,7 +24,10 @@ import { getPinnedPackage } from './pinned-versions.mjs'
  * @returns {boolean} True if pip is available.
  */
 export function checkPipAvailable() {
-  return !!(whichBinSync('pip3', { nothrow: true }) || whichBinSync('pip', { nothrow: true }))
+  return !!(
+    whichBinSync('pip3', { nothrow: true }) ||
+    whichBinSync('pip', { nothrow: true })
+  )
 }
 
 /**
@@ -45,7 +53,9 @@ export function getPipCommand() {
  */
 export async function checkPythonPackage(packageName) {
   try {
-    const pythonCmd = whichBinSync('python3', { nothrow: true }) ? 'python3' : 'python'
+    const pythonCmd = whichBinSync('python3', { nothrow: true })
+      ? 'python3'
+      : 'python'
     const result = await spawn(pythonCmd, ['-c', `import ${packageName}`], {
       stdio: 'pipe',
     })
@@ -67,7 +77,7 @@ export async function checkPythonPackage(packageName) {
  */
 export async function installPythonPackage(
   packageName,
-  { user = true, upgrade = false, quiet = false } = {}
+  { quiet = false, upgrade = false, user = true } = {},
 ) {
   const pip = getPipCommand()
   if (!pip) {
@@ -86,8 +96,12 @@ export async function installPythonPackage(
 
   try {
     const args = ['install']
-    if (user) args.push('--user')
-    if (upgrade) args.push('--upgrade')
+    if (user) {
+      args.push('--user')
+    }
+    if (upgrade) {
+      args.push('--upgrade')
+    }
     args.push(pinnedPackage)
 
     const result = await spawn(pip, args, {
@@ -127,7 +141,7 @@ export async function installPythonPackage(
  */
 export async function ensurePythonPackage(
   packageName,
-  { importName, autoInstall = true, quiet = false } = {}
+  { autoInstall = true, importName, quiet = false } = {},
 ) {
   const checkName = importName || packageName
 
@@ -143,7 +157,9 @@ export async function ensurePythonPackage(
 
   // Attempt to install.
   if (!quiet) {
-    printStep(`Python package '${packageName}' not found, attempting to install...`)
+    printStep(
+      `Python package '${packageName}' not found, attempting to install...`,
+    )
   }
 
   const installed = await installPythonPackage(packageName, { quiet })
@@ -165,7 +181,7 @@ export async function ensurePythonPackage(
  */
 export async function ensureAllPythonPackages(
   packages,
-  { autoInstall = true, quiet = false } = {}
+  { autoInstall = true, quiet = false } = {},
 ) {
   const missing = []
   const installed = []

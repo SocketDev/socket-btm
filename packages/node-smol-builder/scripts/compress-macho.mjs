@@ -21,12 +21,15 @@ import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
-import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { promisify } from 'node:util'
+
 import colors from 'yoctocolors-cjs'
 
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+
 const execFileAsync = promisify(execFile)
+const logger = getDefaultLogger()
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -51,13 +54,17 @@ async function buildTools() {
   logger.log('')
 
   try {
-    const { stdout, stderr } = await execFileAsync('make', ['all'], {
+    const { stderr, stdout } = await execFileAsync('make', ['all'], {
       cwd: TOOLS_DIR,
       env: { ...process.env },
     })
 
-    if (stdout) logger.log(stdout)
-    if (stderr) logger.error(stderr)
+    if (stdout) {
+      logger.log(stdout)
+    }
+    if (stderr) {
+      logger.error(stderr)
+    }
 
     if (!existsSync(COMPRESS_TOOL)) {
       throw new Error('Compressor tool was not built')
@@ -96,12 +103,16 @@ async function compressBinary(inputPath, outputPath, quality = 'lzfse') {
   // Run compression tool.
   try {
     const args = [inputPath, outputPath, `--quality=${quality}`]
-    const { stdout, stderr } = await execFileAsync(COMPRESS_TOOL, args, {
+    const { stderr, stdout } = await execFileAsync(COMPRESS_TOOL, args, {
       maxBuffer: 10 * 1024 * 1024, // 10MB buffer for output.
     })
 
-    if (stdout) logger.log(stdout)
-    if (stderr) logger.error(stderr)
+    if (stdout) {
+      logger.log(stdout)
+    }
+    if (stderr) {
+      logger.error(stderr)
+    }
 
     if (!existsSync(outputPath)) {
       throw new Error('Compressed binary was not created')

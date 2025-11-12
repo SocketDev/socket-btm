@@ -12,7 +12,6 @@
 
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
 import { platform, arch } from 'node:process'
 
 /**
@@ -20,20 +19,14 @@ import { platform, arch } from 'node:process'
  * When these packages are updated, caches must be rebuilt.
  */
 const CACHE_BUSTING_DEPS = {
-  bootstrap: [
-    '@socketsecurity/lib',
-    '@socketsecurity/packageurl-js',
-  ],
+  bootstrap: ['@socketsecurity/lib', '@socketsecurity/packageurl-js'],
   cli: [
     '@socketsecurity/lib',
     '@socketsecurity/packageurl-js',
     '@socketsecurity/sdk',
     '@socketsecurity/registry',
   ],
-  'cli-with-sentry': [
-    '@socketsecurity/lib',
-    '@socketsecurity/packageurl-js',
-  ],
+  'cli-with-sentry': ['@socketsecurity/lib', '@socketsecurity/packageurl-js'],
 }
 
 /**
@@ -49,14 +42,16 @@ function getDependencyVersions(packageJsonPath, depNames) {
     const versions = {}
 
     for (const depName of depNames) {
-      const version = packageJson.dependencies?.[depName] || packageJson.devDependencies?.[depName]
+      const version =
+        packageJson.dependencies?.[depName] ||
+        packageJson.devDependencies?.[depName]
       if (version) {
         versions[depName] = version
       }
     }
 
     return versions
-  } catch (error) {
+  } catch (_error) {
     return {}
   }
 }
@@ -76,14 +71,14 @@ function getDependencyVersions(packageJsonPath, depNames) {
  * @returns {string} Cache key
  */
 export function generateCacheKey({
-  nodeVersion,
-  platform: targetPlatform = platform,
   arch: targetArch = arch,
-  packageVersion,
-  packageName,
-  packageJsonPath,
-  contentFiles = [],
   cacheBustingDeps,
+  contentFiles = [],
+  nodeVersion,
+  packageJsonPath,
+  packageName,
+  packageVersion,
+  platform: targetPlatform = platform,
 }) {
   // Hash content files.
   const hash = createHash('sha256')
@@ -92,14 +87,15 @@ export function generateCacheKey({
     try {
       const content = readFileSync(file, 'utf8')
       hash.update(content)
-    } catch (error) {
+    } catch (_error) {
       // File doesn't exist - use filename in hash.
       hash.update(file)
     }
   }
 
   // Include cache-busting dependency versions.
-  const depsToCheck = cacheBustingDeps || (packageName ? CACHE_BUSTING_DEPS[packageName] : null)
+  const depsToCheck =
+    cacheBustingDeps || (packageName ? CACHE_BUSTING_DEPS[packageName] : null)
   if (depsToCheck && packageJsonPath) {
     const depVersions = getDependencyVersions(packageJsonPath, depsToCheck)
     // Sort for consistent hashing.
@@ -123,7 +119,9 @@ export function generateCacheKey({
  */
 export function parseCacheKey(cacheKey) {
   const match = cacheKey.match(/^v([\d.]+)-(\w+)-([a-f0-9]+)-(\d+)$/)
-  if (!match) return null
+  if (!match) {
+    return null
+  }
 
   return {
     nodeVersion: match[1],
@@ -142,7 +140,9 @@ export function parseCacheKey(cacheKey) {
  */
 export function isCacheValid(cacheKey, currentOptions) {
   const parsed = parseCacheKey(cacheKey)
-  if (!parsed) return false
+  if (!parsed) {
+    return false
+  }
 
   const currentKey = generateCacheKey(currentOptions)
   return cacheKey === currentKey

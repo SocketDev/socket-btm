@@ -17,9 +17,6 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { WIN32 } from '@socketsecurity/lib/constants/platform'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
 import {
   checkDiskSpace,
   checkPythonVersion,
@@ -35,6 +32,10 @@ import {
 import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import { ensureAllPythonPackages } from 'build-infra/lib/python-installer'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
+
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

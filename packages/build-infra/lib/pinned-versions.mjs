@@ -72,7 +72,9 @@ export function getPinnedPackage(packageName) {
 
   // Add extras if specified
   const extras = PYTHON_PACKAGE_EXTRAS[packageName]
-  const packageSpec = extras ? `${packageName}[${extras.join(',')}]` : packageName
+  const packageSpec = extras
+    ? `${packageName}[${extras.join(',')}]`
+    : packageName
 
   return `${packageSpec}==${version}`
 }

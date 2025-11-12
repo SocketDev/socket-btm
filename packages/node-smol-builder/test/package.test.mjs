@@ -2,8 +2,7 @@
  * @fileoverview Tests for @socketbin/node-smol-builder package structure and configuration.
  */
 
-import { existsSync } from 'node:fs'
-import { promises as fs } from 'node:fs'
+import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -35,7 +34,9 @@ describe('@socketbin/node-smol-builder package', () => {
 
       expect(pkgJson.scripts).toBeDefined()
       expect(pkgJson.scripts.build).toBe('node scripts/build.mjs')
-      expect(pkgJson.scripts['build:all']).toBe('node scripts/build.mjs --all-platforms')
+      expect(pkgJson.scripts['build:all']).toBe(
+        'node scripts/build.mjs --all-platforms',
+      )
     })
   })
 

@@ -3,8 +3,9 @@
  * Automatically retries on network errors and 5xx server errors.
  */
 
-import loggerPkg from '@socketsecurity/lib/logger'
-const { getDefaultLogger } = loggerPkg
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+
+const logger = getDefaultLogger()
 
 /**
  * Fetch with automatic retry on transient failures.
@@ -21,9 +22,9 @@ const { getDefaultLogger } = loggerPkg
  */
 export async function fetchWithRetry(url, options = {}, retryOptions = {}) {
   const {
-    retries = 3,
     initialDelay = 1000,
     maxDelay = 30_000,
+    retries = 3,
     silent = false,
   } = retryOptions
 
@@ -80,7 +81,9 @@ export async function fetchWithRetry(url, options = {}, retryOptions = {}) {
         if (attempt < retries) {
           const delay = Math.min(initialDelay * 2 ** (attempt - 1), maxDelay)
           if (!silent) {
-            logger.warn(`✗ Attempt ${attempt}/${retries} failed: ${error.message}`)
+            logger.warn(
+              `✗ Attempt ${attempt}/${retries} failed: ${error.message}`,
+            )
             logger.log(`  Retrying in ${delay}ms...`)
           }
           await sleep(delay)

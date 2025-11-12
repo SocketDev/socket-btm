@@ -32,7 +32,10 @@ function getCheckpointDir(buildDir, packageName) {
  * @returns {string} Checkpoint file path
  */
 function getCheckpointFile(buildDir, packageName, checkpointName) {
-  return path.join(getCheckpointDir(buildDir, packageName), `${checkpointName}.json`)
+  return path.join(
+    getCheckpointDir(buildDir, packageName),
+    `${checkpointName}.json`,
+  )
 }
 
 /**
@@ -44,7 +47,11 @@ function getCheckpointFile(buildDir, packageName, checkpointName) {
  * @returns {Promise<boolean>}
  */
 export async function hasCheckpoint(buildDir, packageName, checkpointName) {
-  const checkpointFile = getCheckpointFile(buildDir, packageName, checkpointName)
+  const checkpointFile = getCheckpointFile(
+    buildDir,
+    packageName,
+    checkpointName,
+  )
 
   try {
     await fs.access(checkpointFile)
@@ -63,13 +70,22 @@ export async function hasCheckpoint(buildDir, packageName, checkpointName) {
  * @param {object} data - Optional data to save with checkpoint
  * @returns {Promise<void>}
  */
-export async function createCheckpoint(buildDir, packageName, checkpointName, data = {}) {
+export async function createCheckpoint(
+  buildDir,
+  packageName,
+  checkpointName,
+  data = {},
+) {
   printSubstep(`Creating checkpoint: ${checkpointName}`)
 
   const checkpointDir = getCheckpointDir(buildDir, packageName)
   await fs.mkdir(checkpointDir, { recursive: true })
 
-  const checkpointFile = getCheckpointFile(buildDir, packageName, checkpointName)
+  const checkpointFile = getCheckpointFile(
+    buildDir,
+    packageName,
+    checkpointName,
+  )
   const checkpointData = {
     created: new Date().toISOString(),
     name: checkpointName,
@@ -80,7 +96,7 @@ export async function createCheckpoint(buildDir, packageName, checkpointName, da
   await fs.writeFile(
     checkpointFile,
     JSON.stringify(checkpointData, null, 2),
-    'utf8'
+    'utf8',
   )
 }
 
@@ -93,7 +109,11 @@ export async function createCheckpoint(buildDir, packageName, checkpointName, da
  * @returns {Promise<object|null>} Checkpoint data or null if not found
  */
 export async function getCheckpointData(buildDir, packageName, checkpointName) {
-  const checkpointFile = getCheckpointFile(buildDir, packageName, checkpointName)
+  const checkpointFile = getCheckpointFile(
+    buildDir,
+    packageName,
+    checkpointName,
+  )
 
   try {
     const content = await fs.readFile(checkpointFile, 'utf8')
@@ -128,7 +148,11 @@ export async function cleanCheckpoint(buildDir, packageName) {
  * @returns {Promise<void>}
  */
 export async function removeCheckpoint(buildDir, packageName, checkpointName) {
-  const checkpointFile = getCheckpointFile(buildDir, packageName, checkpointName)
+  const checkpointFile = getCheckpointFile(
+    buildDir,
+    packageName,
+    checkpointName,
+  )
 
   await safeDelete(checkpointFile)
 }
@@ -146,8 +170,8 @@ export async function listCheckpoints(buildDir, packageName) {
   try {
     const files = await fs.readdir(checkpointDir)
     return files
-      .filter((file) => file.endsWith('.json'))
-      .map((file) => file.replace('.json', ''))
+      .filter(file => file.endsWith('.json'))
+      .map(file => file.replace('.json', ''))
       .sort()
   } catch {
     return []
@@ -163,7 +187,12 @@ export async function listCheckpoints(buildDir, packageName) {
  * @param {boolean} force - Force rebuild flag
  * @returns {Promise<boolean>} True if should run, false if should skip
  */
-export async function shouldRun(buildDir, packageName, checkpointName, force = false) {
+export async function shouldRun(
+  buildDir,
+  packageName,
+  checkpointName,
+  force = false,
+) {
   if (force) {
     return true
   }

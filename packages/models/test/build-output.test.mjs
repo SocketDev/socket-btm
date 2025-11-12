@@ -3,8 +3,7 @@
  * Validates that the build process generates correct model structure and formats.
  */
 
-import { existsSync } from 'node:fs'
-import { promises as fs } from 'node:fs'
+import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -172,10 +171,7 @@ describe('models build output', () => {
 
   describe('tokenizer validation', () => {
     it('minilm tokenizer should be valid JSON', async () => {
-      const tokenizerPath = path.join(
-        distDir,
-        'int8/minilm-l6/tokenizer.json',
-      )
+      const tokenizerPath = path.join(distDir, 'int8/minilm-l6/tokenizer.json')
       if (!existsSync(tokenizerPath)) {
         return // Skip if not built yet
       }

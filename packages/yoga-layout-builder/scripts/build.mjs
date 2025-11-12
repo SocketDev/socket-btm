@@ -16,9 +16,6 @@ import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { WIN32 } from '@socketsecurity/lib/constants/platform'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
 import {
   checkDiskSpace,
   formatDuration,
@@ -38,6 +35,10 @@ import {
 } from 'build-infra/lib/checkpoint-manager'
 import { ensureEmscripten } from 'build-infra/lib/emscripten-installer'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
+
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -488,7 +489,7 @@ if (typeof module !== 'undefined' && module.exports) {
 
 // ES module export.
 export default yoga;
-`;
+`
 
   await fs.writeFile(outputSyncJs, jsContent, 'utf-8')
 

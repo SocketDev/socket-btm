@@ -16,11 +16,6 @@ import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { whichBinSync } from '@socketsecurity/lib/bin'
-import { WIN32 } from '@socketsecurity/lib/constants/platform'
-import { safeDelete, safeReadFile } from '@socketsecurity/lib/fs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
 import {
   checkDiskSpace,
   formatDuration,
@@ -40,6 +35,12 @@ import {
 } from 'build-infra/lib/checkpoint-manager'
 import { ensureEmscripten } from 'build-infra/lib/emscripten-installer'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
+
+import { whichBinSync } from '@socketsecurity/lib/bin'
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
+import { safeDelete, safeReadFile } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -106,7 +107,7 @@ async function cloneOnnxSource() {
 
     // Check if all patches have been applied.
     const results = await Promise.allSettled(
-      patches.map(async ({ path: filePath, marker }) => {
+      patches.map(async ({ marker, path: filePath }) => {
         const content = await safeReadFile(filePath, 'utf-8')
         return content?.includes(marker) ?? false
       }),
@@ -421,7 +422,7 @@ if (typeof module !== 'undefined' && module.exports) {
 export default ort;
 export const InferenceSession = ort.InferenceSession;
 export const Tensor = ort.Tensor;
-`;
+`
 
   await fs.writeFile(outputSyncJs, jsContent, 'utf-8')
   const syncJsSize = await getFileSize(outputSyncJs)
@@ -559,7 +560,9 @@ async function main() {
   logger.info('')
   logger.info('Next steps:')
   logger.info('  1. Test WASM with Socket CLI')
-  logger.info('  2. Run extract-onnx-runtime.mjs in socket-cli to create synchronous loader')
+  logger.info(
+    '  2. Run extract-onnx-runtime.mjs in socket-cli to create synchronous loader',
+  )
   logger.info('')
 }
 

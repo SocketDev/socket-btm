@@ -1,18 +1,20 @@
-diff --git a/common.gypi b/common.gypi
-index 1234567890..abcdef1234 100644
---- a/common.gypi
-+++ b/common.gypi
-@@ -196,7 +196,11 @@
+# @node-versions: v24.10.0+
+# @description: Use O2 optimization for macOS to mitigate known issues with O3
+# @impact: Reduces optimization level on macOS from O3 to O2, other platforms remain at O3
+#
+--- a/common.gypi	2025-11-11 21:16:12
++++ b/common.gypi	2025-11-12 00:00:00
+@@ -196,8 +196,12 @@
              }],
            ],
          },
 -        'cflags': [ '-O3' ],
-+        'cflags': [ '-O2' ],  # Use -O2 instead of -O3 to avoid clang crashes on macOS
-+        'conditions': [
-+          ['OS!="mac"', {
-+            'cflags': [ '-O3' ],  # Non-macOS: Use -O3 for maximum optimization
-+          }],
-+        ],
++        # Use O2 optimization for macOS to mitigate known issues with O3
++        'cflags': [ '-O2' ],
          'conditions': [
++          ['OS!="mac"', {
++            'cflags': [ '-O3' ],
++          }],
            ['enable_lto=="true"', {
              'cflags': ['<(lto)'],
+             'ldflags': ['<(lto)'],

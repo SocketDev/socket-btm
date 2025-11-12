@@ -36,7 +36,7 @@ permissions:
   contents: read
 
 env:
-  NODE_VERSION: 22.11.0
+  NODE_VERSION: 24.10.0  # Match the version we're building
   PNPM_VERSION: 9.x
   CACHE_VERSION: v9
 
@@ -104,7 +104,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
-          node-version: 22.x
+          node-version: 24.x  # Match the version we're building
 
       - name: Get pnpm store directory
         id: pnpm-cache

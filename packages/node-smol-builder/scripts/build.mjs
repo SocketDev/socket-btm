@@ -1114,6 +1114,9 @@ function convertToVcbuildFlags(configureFlags) {
   // Always add openssl-no-asm to avoid NASM requirement in CI environments
   vcbuildFlags.push('openssl-no-asm')
 
+  // Always add download-all to download pre-built ICU data (avoids genccode crashes on Windows)
+  vcbuildFlags.push('download-all')
+
   // vcbuild.bat flag mappings that differ from configure.py
   const flagMap = {
     '--without-npm': 'nonpm',
@@ -1129,8 +1132,6 @@ function convertToVcbuildFlags(configureFlags) {
     // ICU flags.
     else if (flag === '--with-intl=small-icu') vcbuildFlags.push('small-icu')
     else if (flag === '--with-intl=none') vcbuildFlags.push('intl-none')
-    // V8 flags.
-    else if (flag === '--v8-lite-mode') vcbuildFlags.push('v8-lite')
     // LTO flags (Windows uses LTCG).
     else if (flag === '--enable-lto') vcbuildFlags.push('ltcg')
     // Ninja is default, skip.
@@ -1651,34 +1652,31 @@ async function main() {
     logger.log('')
     logger.log('Optimization flags:')
     logger.log(
-      `  ${colors.green('✓')} KEEP: V8 Lite Mode (baseline compiler), WASM (Liftoff), SSL/crypto`,
+      `  ${colors.green('✓')} KEEP: V8 TurboFan JIT, WASM (Liftoff), SSL/crypto`,
     )
     logger.log(
-      `  ${colors.green('✓')} REMOVE: npm, corepack, inspector, amaro, sqlite, SEA, TurboFan JIT`,
+      `  ${colors.green('✓')} REMOVE: npm, corepack, inspector, amaro, sqlite`,
     )
     logger.log(
       `  ${colors.green('✓')} ICU: small-icu (English-only, needed for polyfills)`,
     )
+    const ltoNote = LINUX ? 'LTO enabled' : 'LTO disabled (compiler issues)'
     logger.log(
-      `  ${colors.green('✓')} V8 Lite Mode: Disables TurboFan optimizer (saves ~15-20 MB)`,
-    )
-    const ltoNote = WIN32 ? ', LTCG' : ', LTO'
-    logger.log(
-      `  ${colors.green('✓')} OPTIMIZATIONS: no-snapshot, with-code-cache (for errors), no-SEA, V8 Lite${ltoNote}`,
+      `  ${colors.green('✓')} OPTIMIZATIONS: no-inspector, ${ltoNote}`,
     )
     logger.log('')
     logger.log(
-      `  ${colors.green('✓')} V8 LITE MODE: JavaScript runs 5-10x slower (CPU-bound code)`,
+      `  ${colors.green('✓')} JavaScript: Full speed (TurboFan JIT enabled)`,
     )
     logger.log(
-      `  ${colors.green('✓')} WASM: Full speed (uses Liftoff compiler, unaffected)`,
+      `  ${colors.green('✓')} WASM: Full speed (Liftoff baseline compiler)`,
     )
     logger.log(
-      `  ${colors.green('✓')} I/O: No impact (network, file operations)`,
+      `  ${colors.green('✓')} I/O: Full speed (network, file operations)`,
     )
     logger.log('')
     logger.log(
-      'Expected binary size: ~60MB (before stripping), ~45-50MB (after)',
+      'Expected binary size: ~75MB (before stripping), ~60-65MB (after)',
     )
   }
   logger.log('')
@@ -1703,13 +1701,16 @@ async function main() {
   // Production-only optimizations (slow builds, smaller binaries).
   if (IS_PROD_BUILD) {
     configureFlags.push('--without-inspector') // -3-5 MB: Remove debugging/profiling support
-    configureFlags.push('--v8-lite-mode') // -15-20 MB: Disables TurboFan JIT (JS slower, WASM unaffected)
+    // NOTE: --v8-lite-mode disabled (not supported on Windows, and causes inconsistency)
+    // This keeps TurboFan JIT enabled for full JavaScript performance on all platforms
     // Link Time Optimization (very slow, saves ~5-10MB).
-    // NOTE: LTCG disabled on Windows due to LNK2005 multiply defined symbol errors.
+    // NOTE: LTO disabled due to compiler issues:
+    // - Windows: LTCG causes LNK2005 multiply defined symbol errors
+    // - macOS: clang crashes with segfault on V8 files (json-stringifier.cc)
+    // - Linux: Enable LTO (works reliably with GCC)
     // See: https://github.com/nodejs/node/pull/21186 (Node.js made LTCG optional)
-    // Error: abseil.lib(mutex.obj) conflicts with v8_libbase.lib(mutex.obj)
-    if (!WIN32) {
-      configureFlags.push('--enable-lto') // Unix/Linux/macOS: Use standard LTO.
+    if (LINUX) {
+      configureFlags.push('--enable-lto') // Linux only: Use standard LTO with GCC
     }
   }
 

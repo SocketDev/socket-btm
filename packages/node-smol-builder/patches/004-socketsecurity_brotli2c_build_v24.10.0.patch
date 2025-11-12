@@ -8,7 +8,7 @@
      {
        'target_name': 'brotli',
        'type': 'static_library',
-+      'toolsets': ['host', 'target'],
++      'toolsets': ['host'],
        'include_dirs': ['c/include'],
        'conditions': [
          ['OS=="linux"', {
@@ -59,7 +59,7 @@
 +        'src/embedded_data.cc',
 +      ],
 +      'dependencies': [
-+        'deps/brotli/brotli.gyp:brotli#host',
++        'deps/brotli/brotli.gyp:brotli',
 +      ],
 +      'conditions': [
 +        [ 'node_shared_simdutf=="false"', {

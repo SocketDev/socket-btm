@@ -18,6 +18,7 @@ Socket-specific patches:
 - `011-socketsecurity_windows_hardening` - Windows security hardening
 - `012-socketsecurity_arm64_branch_protection` - ARM64 branch protection
 - `013-socketsecurity_fix_v8_typeindex_macos` - macOS V8 typeindex fix
+- `014-socketsecurity_brotli_host_toolset` - Enable brotli for host toolset
 
 ## Building
 

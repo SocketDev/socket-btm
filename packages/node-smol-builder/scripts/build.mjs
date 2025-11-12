@@ -1074,6 +1074,36 @@ async function checkBuildEnvironment() {
     }
   }
 
+  // Check 3c: Xcode version (macOS only, Node.js v24 requires Xcode 16+)
+  if (process.platform === 'darwin') {
+    logger.log('Checking Xcode version...')
+    try {
+      const { stdout } = await exec('xcodebuild', ['-version'], {
+        encoding: 'utf8',
+        shell: false,
+      })
+      const match = stdout.match(/Xcode (\d+\.\d+)/)
+      if (match) {
+        const version = match[1]
+        const majorVersion = parseInt(version.split('.')[0])
+        if (majorVersion >= 16) {
+          logger.success(`Xcode ${version} meets requirements (clang 19+)`)
+        } else {
+          logger.fail(`Xcode ${version} is too old (need Xcode 16+)`)
+          logger.substep('Node.js v24 requires Xcode 16+ with clang 19+ for C++20 support')
+          logger.substep('Older clang versions crash on large V8 files with -O3 optimization')
+          logger.substep('Install Xcode 16.1+ from: https://developer.apple.com/xcode/')
+          logger.substep('After install, run: sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer')
+          allChecks = false
+        }
+      } else {
+        logger.warn('Could not parse Xcode version (continuing anyway)')
+      }
+    } catch (e) {
+      logger.warn('Could not check Xcode version (continuing anyway)')
+    }
+  }
+
   // Check 4: Network connectivity.
   logger.log('Checking network connectivity...')
   const network = await checkNetworkConnectivity()
@@ -1798,13 +1828,13 @@ async function main() {
 
   // Skip compilation if restored from cache or if Windows (vcbuild already built it).
   if (!restoredFromCache && !WIN32) {
-    const jobCount = IS_DARWIN ? 1 : CPU_COUNT
+    const jobCount = CPU_COUNT
     const timeEstimate = estimateBuildTime(jobCount)
     logger.log(
       `⏱️  Estimated time: ${timeEstimate.estimatedMinutes} minutes (${timeEstimate.minMinutes}-${timeEstimate.maxMinutes} min range)`,
     )
     logger.log(
-      `🚀 Using ${jobCount} CPU core${jobCount > 1 ? 's' : ''} for parallel compilation${IS_DARWIN ? ' (macOS: -j1 to avoid clang crashes)' : ''}`,
+      `🚀 Using ${jobCount} CPU core${jobCount > 1 ? 's' : ''} for parallel compilation`,
     )
     logger.log('')
     logger.log('You can:')
@@ -1829,10 +1859,8 @@ async function main() {
     try {
       // Resolve full path to ninja since we use shell: false.
       const ninjaCommand = whichBinSync('ninja')
-      // macOS: Reduce parallelism to avoid clang crashes with -O3 on large V8 files
-      // Windows/Linux: Use all available cores
-      const jobCount = IS_DARWIN ? 1 : CPU_COUNT
-      await exec(ninjaCommand, ['-C', 'out/Release', `-j${jobCount}`], {
+      // Use all available CPU cores for parallel compilation (matching Node.js official builds)
+      await exec(ninjaCommand, ['-C', 'out/Release', `-j${CPU_COUNT}`], {
         cwd: NODE_DIR,
         env: process.env,
         shell: false,

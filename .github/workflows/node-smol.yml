@@ -97,6 +97,15 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Select Xcode version (macOS)
+        if: matrix.os == 'macos'
+        run: |
+          # Node.js official builds use Xcode 16.1 for v24.10.0
+          # This ensures we have clang 19+ which fixes segfaults on large V8 files with -O3
+          sudo xcode-select --switch /Applications/Xcode_16.1.app/Contents/Developer
+          xcodebuild -version
+          clang --version
+
       - name: Setup pnpm
         uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
         # Note: version is specified in package.json packageManager field, not here

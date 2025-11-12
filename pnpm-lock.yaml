@@ -84,6 +84,10 @@ importers:
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
+    devDependencies:
+      vitest:
+        specifier: 'catalog:'
+        version: 4.0.3
 
   packages/node-smol-builder:
     dependencies:
@@ -109,6 +113,10 @@ importers:
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
+    devDependencies:
+      vitest:
+        specifier: 'catalog:'
+        version: 4.0.3
 
   packages/yoga-layout-builder:
     dependencies:
@@ -118,6 +126,10 @@ importers:
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
+    devDependencies:
+      vitest:
+        specifier: 'catalog:'
+        version: 4.0.3
 
 packages:
 

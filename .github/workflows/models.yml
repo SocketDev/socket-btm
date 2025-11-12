@@ -274,6 +274,36 @@ jobs:
           find . -name "*.onnx" -exec shasum -a 256 {} \; > checksums.txt
           cat checksums.txt
 
+      - name: Import GPG key
+        if: ${{ env.GPG_PRIVATE_KEY != '' }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+            echo "GPG key imported successfully"
+          else
+            echo "⚠️  GPG_PRIVATE_KEY secret not set, skipping signature"
+          fi
+
+      - name: Sign checksums
+        if: ${{ env.GPG_PRIVATE_KEY != '' }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            cd packages/models/dist
+            if [ -n "$GPG_PASSPHRASE" ]; then
+              echo "$GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --detach-sign --armor checksums.txt
+            else
+              gpg --batch --yes --detach-sign --armor checksums.txt
+            fi
+            echo "✓ Created checksums.txt.asc"
+            ls -lh checksums.txt.asc
+          fi
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -286,23 +316,28 @@ jobs:
           if gh release view "$TAG" &>/dev/null; then
             echo "Release $TAG already exists, uploading assets..."
 
-            # Create archives for each quantization level
+            # Create archives for each quantization level with versioned names
             cd packages/models/dist
-            tar -czf models-int8.tar.gz int8/
-            tar -czf models-int4.tar.gz int4/
+            tar -czf models-v${VERSION}-int8.tar.gz int8/
+            tar -czf models-v${VERSION}-int4.tar.gz int4/
 
-            gh release upload "$TAG" \
-              models-int8.tar.gz \
-              models-int4.tar.gz \
-              checksums.txt \
-              --clobber
+            UPLOAD_ARGS="models-v${VERSION}-int8.tar.gz \
+              models-v${VERSION}-int4.tar.gz \
+              checksums.txt"
+
+            # Add signature if it exists
+            if [ -f checksums.txt.asc ]; then
+              UPLOAD_ARGS="$UPLOAD_ARGS checksums.txt.asc"
+            fi
+
+            gh release upload "$TAG" $UPLOAD_ARGS --clobber
           else
             echo "Creating new release $TAG..."
 
-            # Create archives for each quantization level
+            # Create archives for each quantization level with versioned names
             cd packages/models/dist
-            tar -czf models-int8.tar.gz int8/
-            tar -czf models-int4.tar.gz int4/
+            tar -czf models-v${VERSION}-int8.tar.gz int8/
+            tar -czf models-v${VERSION}-int4.tar.gz int4/
 
             gh release create "$TAG" \
               --title "AI Models v${VERSION}" \
@@ -320,9 +355,26 @@ jobs:
           - Available in int8 and int4 quantization
 
           ## Archives
-          - \`models-int8.tar.gz\` - All models with int8 quantization
-          - \`models-int4.tar.gz\` - All models with int4 quantization
+          - \`models-v${VERSION}-int8.tar.gz\` - All models with int8 quantization
+          - \`models-v${VERSION}-int4.tar.gz\` - All models with int4 quantization
           - \`checksums.txt\` - SHA256 checksums for all .onnx files
+          - \`checksums.txt.asc\` - GPG signature (if available)
+
+          ## Download URLs
+          \`\`\`
+          https://github.com/SocketDev/socket-btm/releases/download/${TAG}/models-v${VERSION}-int8.tar.gz
+          https://github.com/SocketDev/socket-btm/releases/download/${TAG}/models-v${VERSION}-int4.tar.gz
+          \`\`\`
+
+          ## Verification
+          \`\`\`bash
+          # Verify checksums
+          cd int8  # or int4
+          shasum -a 256 -c ../checksums.txt
+
+          # Verify GPG signature (if GPG key is available)
+          gpg --verify checksums.txt.asc checksums.txt
+          \`\`\`
 
           ## Usage
           Extract the archive and load models with ONNX Runtime:
@@ -330,7 +382,8 @@ jobs:
           import * as ort from 'onnxruntime-node';
           const session = await ort.InferenceSession.create('./int8/minilm-l6/model.onnx');
           \`\`\`" \
-              models-int8.tar.gz \
-              models-int4.tar.gz \
-              checksums.txt
+              models-v${VERSION}-int8.tar.gz \
+              models-v${VERSION}-int4.tar.gz \
+              checksums.txt \
+              $([ -f checksums.txt.asc ] && echo "checksums.txt.asc" || echo "")
           fi

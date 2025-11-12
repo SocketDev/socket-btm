@@ -16,10 +16,15 @@
     "build:minilm": "node scripts/build.mjs --minilm",
     "build:codet5": "node scripts/build.mjs --codet5",
     "build:force": "node scripts/build.mjs --force",
-    "clean": "node scripts/clean.mjs"
+    "clean": "node scripts/clean.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "build-infra": "workspace:*",
     "@socketsecurity/lib": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
   }
 }

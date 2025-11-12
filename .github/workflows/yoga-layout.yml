@@ -197,11 +197,48 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
+      - name: Rename assets with version
+        run: |
+          VERSION=$(node -p "require('./packages/yoga-layout-builder/package.json').version")
+          cd packages/yoga-layout-builder/build/wasm
+          mv yoga.wasm yoga-v${VERSION}.wasm
+          mv yoga.js yoga-v${VERSION}.js
+
       - name: Generate checksums
         run: |
           cd packages/yoga-layout-builder/build/wasm
-          shasum -a 256 *.wasm *.js > checksums.txt
+          shasum -a 256 yoga-v*.wasm yoga-v*.js > checksums.txt
           cat checksums.txt
+
+      - name: Import GPG key
+        if: ${{ env.GPG_PRIVATE_KEY != '' }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+            echo "GPG key imported successfully"
+          else
+            echo "⚠️  GPG_PRIVATE_KEY secret not set, skipping signature"
+          fi
+
+      - name: Sign checksums
+        if: ${{ env.GPG_PRIVATE_KEY != '' }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            cd packages/yoga-layout-builder/build/wasm
+            if [ -n "$GPG_PASSPHRASE" ]; then
+              echo "$GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --detach-sign --armor checksums.txt
+            else
+              gpg --batch --yes --detach-sign --armor checksums.txt
+            fi
+            echo "✓ Created checksums.txt.asc"
+            ls -lh checksums.txt.asc
+          fi
 
       - name: Create GitHub Release
         env:
@@ -214,11 +251,16 @@ jobs:
           # Check if release already exists
           if gh release view "$TAG" &>/dev/null; then
             echo "Release $TAG already exists, uploading assets..."
-            gh release upload "$TAG" \
-              packages/yoga-layout-builder/build/wasm/*.wasm \
-              packages/yoga-layout-builder/build/wasm/*.js \
-              packages/yoga-layout-builder/build/wasm/checksums.txt \
-              --clobber
+            UPLOAD_ARGS="packages/yoga-layout-builder/build/wasm/yoga-v${VERSION}.wasm \
+              packages/yoga-layout-builder/build/wasm/yoga-v${VERSION}.js \
+              packages/yoga-layout-builder/build/wasm/checksums.txt"
+
+            # Add signature if it exists
+            if [ -f packages/yoga-layout-builder/build/wasm/checksums.txt.asc ]; then
+              UPLOAD_ARGS="$UPLOAD_ARGS packages/yoga-layout-builder/build/wasm/checksums.txt.asc"
+            fi
+
+            gh release upload "$TAG" $UPLOAD_ARGS --clobber
           else
             echo "Creating new release $TAG..."
             gh release create "$TAG" \
@@ -226,17 +268,34 @@ jobs:
               --notes "Yoga Layout v${{ env.YOGA_VERSION }} compiled to WASM for flexbox layout calculations.
 
           ## Included Files
-          - \`yoga.wasm\` - Yoga Layout WASM binary
-          - \`yoga.js\` - JavaScript bindings
+          - \`yoga-v${VERSION}.wasm\` - Yoga Layout WASM binary
+          - \`yoga-v${VERSION}.js\` - JavaScript bindings
           - \`checksums.txt\` - SHA256 checksums for verification
+          - \`checksums.txt.asc\` - GPG signature (if available)
+
+          ## Download URLs
+          \`\`\`
+          https://github.com/SocketDev/socket-btm/releases/download/${TAG}/yoga-v${VERSION}.wasm
+          https://github.com/SocketDev/socket-btm/releases/download/${TAG}/yoga-v${VERSION}.js
+          \`\`\`
+
+          ## Verification
+          \`\`\`bash
+          # Verify checksums
+          shasum -a 256 -c checksums.txt
+
+          # Verify GPG signature (if GPG key is available)
+          gpg --verify checksums.txt.asc checksums.txt
+          \`\`\`
 
           ## Usage
           \`\`\`javascript
-          import Yoga from './yoga.js';
+          import Yoga from './yoga-v${VERSION}.js';
           \`\`\`
 
           Built from Yoga Layout v${{ env.YOGA_VERSION }}" \
-              packages/yoga-layout-builder/build/wasm/*.wasm \
-              packages/yoga-layout-builder/build/wasm/*.js \
-              packages/yoga-layout-builder/build/wasm/checksums.txt
+              packages/yoga-layout-builder/build/wasm/yoga-v${VERSION}.wasm \
+              packages/yoga-layout-builder/build/wasm/yoga-v${VERSION}.js \
+              packages/yoga-layout-builder/build/wasm/checksums.txt \
+              $([ -f packages/yoga-layout-builder/build/wasm/checksums.txt.asc ] && echo "packages/yoga-layout-builder/build/wasm/checksums.txt.asc" || echo "")
           fi

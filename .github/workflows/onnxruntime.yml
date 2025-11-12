@@ -97,7 +97,7 @@ jobs:
           echo "Validating cached ONNX Runtime build..."
 
           # Check if WASM files exist
-          if [ ! -f "packages/onnxruntime-builder/build/wasm/ort-wasm-simd-threaded.wasm" ]; then
+          if [ ! -f "packages/onnxruntime-builder/build/wasm/ort.wasm" ]; then
             echo "❌ WASM file missing, invalidating cache"
             rm -rf packages/onnxruntime-builder/build/Release packages/onnxruntime-builder/build/wasm
             echo "cache_valid=false" >> $GITHUB_OUTPUT
@@ -105,7 +105,7 @@ jobs:
           fi
 
           # Check file sizes are reasonable
-          WASM_SIZE=$(stat -f%z packages/onnxruntime-builder/build/wasm/ort-wasm-simd-threaded.wasm 2>/dev/null || stat -c%s packages/onnxruntime-builder/build/wasm/ort-wasm-simd-threaded.wasm)
+          WASM_SIZE=$(stat -f%z packages/onnxruntime-builder/build/wasm/ort.wasm 2>/dev/null || stat -c%s packages/onnxruntime-builder/build/wasm/ort.wasm)
           if [ "$WASM_SIZE" -lt 1000000 ]; then
             echo "❌ WASM file too small ($WASM_SIZE bytes), invalidating cache"
             rm -rf packages/onnxruntime-builder/build/Release packages/onnxruntime-builder/build/wasm
@@ -124,17 +124,17 @@ jobs:
         run: |
           echo "Validating ONNX Runtime build output..."
 
-          if [ ! -f "packages/onnxruntime-builder/build/wasm/ort-wasm-simd-threaded.wasm" ]; then
+          if [ ! -f "packages/onnxruntime-builder/build/wasm/ort.wasm" ]; then
             echo "❌ Build failed: WASM file missing"
             exit 1
           fi
 
-          if [ ! -f "packages/onnxruntime-builder/build/wasm/ort-wasm-simd-threaded.mjs" ]; then
+          if [ ! -f "packages/onnxruntime-builder/build/wasm/ort.mjs" ]; then
             echo "❌ Build failed: MJS file missing"
             exit 1
           fi
 
-          WASM_SIZE=$(stat -c%s packages/onnxruntime-builder/build/wasm/ort-wasm-simd-threaded.wasm 2>/dev/null || stat -f%z packages/onnxruntime-builder/build/wasm/ort-wasm-simd-threaded.wasm)
+          WASM_SIZE=$(stat -c%s packages/onnxruntime-builder/build/wasm/ort.wasm 2>/dev/null || stat -f%z packages/onnxruntime-builder/build/wasm/ort.wasm)
           if [ "$WASM_SIZE" -lt 1000000 ]; then
             echo "❌ Build failed: WASM file too small ($WASM_SIZE bytes)"
             exit 1
@@ -207,13 +207,13 @@ jobs:
               --notes "ONNX Runtime v${{ env.ONNX_VERSION }} compiled to WASM with SIMD and threading support.
 
           ## Included Files
-          - \`ort-wasm-simd-threaded.wasm\` - Main WASM binary with SIMD + threading
-          - \`ort-wasm-simd-threaded.mjs\` - ES module loader
+          - \`ort.wasm\` - Main WASM binary with SIMD + threading
+          - \`ort.mjs\` - ES module loader
           - \`checksums.txt\` - SHA256 checksums for verification
 
           ## Usage
           \`\`\`javascript
-          import * as ort from './ort-wasm-simd-threaded.mjs';
+          import * as ort from './ort.mjs';
           \`\`\`
 
           Built from ONNX Runtime v${{ env.ONNX_VERSION }}" \

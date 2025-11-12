@@ -21,8 +21,7 @@
  * --clean  Clean all checkpoints before building
  */
 
-import { existsSync } from 'node:fs'
-import { copyFile, mkdir, readFile } from 'node:fs/promises'
+import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -53,11 +52,11 @@ const CLEAN_BUILD = args.includes('--clean')
 const _NO_SELF_UPDATE = args.includes('--no-self-update')
 
 // Model selection flags.
-const BUILD_MINILM =
-  args.includes('--all') ||
-  args.includes('--minilm') ||
-  !args.includes('--codet5')
-const BUILD_CODET5 = args.includes('--all') || args.includes('--codet5')
+// Build all models by default unless a specific model is selected.
+const hasModelFlag =
+  args.includes('--minilm') || args.includes('--codet5') || args.includes('--all')
+const BUILD_MINILM = !hasModelFlag || args.includes('--all') || args.includes('--minilm')
+const BUILD_CODET5 = !hasModelFlag || args.includes('--all') || args.includes('--codet5')
 
 // Quantization level: int8 (dev, default) vs int4 (prod, smaller).
 const QUANT_LEVEL = args.includes('--int4') ? 'int4' : 'int8'
@@ -84,13 +83,13 @@ const MODEL_SOURCES = {
     files: ['model.onnx', 'tokenizer.json'],
     task: 'feature-extraction',
   },
-  // CodeT5 for code analysis.
+  // CodeT5 for code analysis (encoder only for feature extraction).
   codet5: {
     primary: 'Salesforce/codet5-base',
     revision: 'main',
     fallbacks: ['Salesforce/codet5-small'],
-    files: ['encoder_model.onnx', 'decoder_model.onnx', 'tokenizer.json'],
-    task: 'text2text-generation',
+    files: ['model.onnx', 'tokenizer.json'],
+    task: 'feature-extraction',
   },
 }
 
@@ -119,21 +118,24 @@ async function downloadModel(modelKey) {
     try {
       logger.substep(`Trying: ${source}@${revision}`)
 
-      await mkdir(MODELS, { recursive: true })
+      await fs.mkdir(MODELS, { recursive: true })
 
-      // Download using huggingface-cli (fastest) or fallback to Python.
+      // Download using hf CLI (fastest) or fallback to Python.
       try {
-        // Try huggingface-cli first.
-        const revisionFlag = revision ? `--revision=${revision}` : ''
-        const cliCommand = `huggingface-cli download ${source} ${revisionFlag} --local-dir ${MODELS}/${modelKey}`
-        const cliResult = await spawn(cliCommand, {
+        // Try hf CLI first.
+        const cliArgs = ['download', source]
+        if (revision) {
+          cliArgs.push(`--revision=${revision}`)
+        }
+        cliArgs.push('--local-dir', `${MODELS}/${modelKey}`)
+        const cliResult = await spawn('hf', cliArgs, {
           shell: WIN32,
           stdio: 'inherit',
         })
 
         if (cliResult.code !== 0) {
           throw new Error(
-            `huggingface-cli failed with exit code ${cliResult.code}`,
+            `hf CLI failed with exit code ${cliResult.code}`,
           )
         }
 
@@ -144,17 +146,20 @@ async function downloadModel(modelKey) {
           modelKey,
         })
         return
-      } catch {
+      } catch (cliError) {
         // Fallback to Python transformers.
+        logger.substep(
+          `hf CLI unavailable or failed, trying Python: ${cliError.message}`,
+        )
         const revisionParam = revision ? `, revision='${revision}'` : ''
         const pythonCommand =
-          `python3 -c "from transformers import AutoTokenizer, AutoModel; ` +
+          `from transformers import AutoTokenizer, AutoModel; ` +
           `tokenizer = AutoTokenizer.from_pretrained('${source}'${revisionParam}); ` +
           `model = AutoModel.from_pretrained('${source}'${revisionParam}); ` +
           `tokenizer.save_pretrained('${MODELS}/${modelKey}'); ` +
-          `model.save_pretrained('${MODELS}/${modelKey}')"`
+          `model.save_pretrained('${MODELS}/${modelKey}')`
 
-        const pythonResult = await spawn(pythonCommand, {
+        const pythonResult = await spawn('python3', ['-c', pythonCommand], {
           shell: WIN32,
           stdio: 'inherit',
         })
@@ -173,8 +178,8 @@ async function downloadModel(modelKey) {
         })
         return
       }
-    } catch (_e) {
-      logger.error(`Failed: ${source}`)
+    } catch (e) {
+      logger.error(`Failed: ${source} - ${e.message}`)
       // Continue to next fallback.
     }
   }
@@ -214,10 +219,78 @@ async function convertToOnnx(modelKey) {
     return
   }
 
-  // Convert using optimum-cli with task specified.
+  // Convert using direct torch.onnx.export() to avoid Optimum/PyTorch 2.6+ incompatibility.
   try {
-    const convertCommand = `python3 -m optimum.exporters.onnx --model ${modelDir} --task ${config.task} ${modelDir}`
-    const convertResult = await spawn(convertCommand, {
+    const convertScript = path.join(BUILD, 'onnx_export.py')
+    const scriptContent = `#!/usr/bin/env python3
+"""Direct PyTorch ONNX export for transformer models."""
+import sys
+import torch
+from pathlib import Path
+from transformers import AutoTokenizer, AutoModel, AutoConfig, T5EncoderModel
+
+model_path = "${modelDir}"
+output_path = Path(model_path) / "model.onnx"
+
+# Load tokenizer and config
+tokenizer = AutoTokenizer.from_pretrained(model_path)
+config = AutoConfig.from_pretrained(model_path)
+
+# Load appropriate model based on architecture
+model_type = config.model_type
+if model_type == "t5":
+    # For T5 models (like CodeT5), use encoder only for feature extraction
+    model = T5EncoderModel.from_pretrained(model_path)
+    print(f"Loaded T5 encoder model ({config.architectures})")
+else:
+    # For BERT, RoBERTa, etc., use AutoModel
+    model = AutoModel.from_pretrained(model_path)
+    print(f"Loaded {model_type} model ({config.architectures})")
+
+model.eval()
+
+# Create dummy inputs
+dummy_text = "This is a sample sentence."
+inputs = tokenizer(dummy_text, return_tensors="pt", padding=True, truncation=True, max_length=128)
+
+# Determine which inputs are present
+input_names = ['input_ids', 'attention_mask']
+input_tuple = (inputs['input_ids'], inputs['attention_mask'])
+dynamic_axes = {
+    'input_ids': {0: 'batch_size', 1: 'sequence_length'},
+    'attention_mask': {0: 'batch_size', 1: 'sequence_length'}
+}
+
+# Add token_type_ids if present
+if 'token_type_ids' in inputs:
+    input_names.append('token_type_ids')
+    input_tuple = input_tuple + (inputs['token_type_ids'],)
+    dynamic_axes['token_type_ids'] = {0: 'batch_size', 1: 'sequence_length'}
+
+# Output dynamic axes
+dynamic_axes['last_hidden_state'] = {0: 'batch_size', 1: 'sequence_length'}
+
+# Export using PyTorch native ONNX exporter
+with torch.no_grad():
+    torch.onnx.export(
+        model,
+        input_tuple,
+        str(output_path),
+        opset_version=18,
+        input_names=input_names,
+        output_names=['last_hidden_state'],
+        dynamic_axes=dynamic_axes,
+        do_constant_folding=True,
+        export_params=True,
+    )
+
+print(f"Successfully exported model to {output_path}")
+`
+
+    await fs.writeFile(convertScript, scriptContent, 'utf8')
+    await fs.chmod(convertScript, 0o755)
+
+    const convertResult = await spawn('python3', [convertScript], {
       shell: true,
       stdio: 'inherit',
     })
@@ -252,12 +325,6 @@ async function quantizeModel(modelKey, quantLevel) {
   if (!(await shouldRun(BUILD, PACKAGE_NAME, checkpointKey, FORCE_BUILD))) {
     // Return existing quantized paths.
     const modelDir = path.join(MODELS, modelKey)
-    if (modelKey === 'codet5') {
-      return [
-        path.join(modelDir, `encoder_model.${suffix}.onnx`),
-        path.join(modelDir, `decoder_model.${suffix}.onnx`),
-      ]
-    }
     return [path.join(modelDir, `model.${suffix}.onnx`)]
   }
 
@@ -265,20 +332,8 @@ async function quantizeModel(modelKey, quantLevel) {
 
   const modelDir = path.join(MODELS, modelKey)
 
-  // Different files for codet5 (encoder/decoder) vs minilm (single model).
-  const models =
-    modelKey === 'codet5'
-      ? [
-          {
-            input: 'encoder_model.onnx',
-            output: `encoder_model.${suffix}.onnx`,
-          },
-          {
-            input: 'decoder_model.onnx',
-            output: `decoder_model.${suffix}.onnx`,
-          },
-        ]
-      : [{ input: 'model.onnx', output: `model.${suffix}.onnx` }]
+  // All models use single model.onnx file.
+  const models = [{ input: 'model.onnx', output: `model.${suffix}.onnx` }]
 
   const quantizedPaths = []
   let method = quantLevel
@@ -296,15 +351,13 @@ async function quantizeModel(modelKey, quantLevel) {
     let quantSize
 
     try {
-      if (quantLevel === 'INT8') {
+      if (quantLevel.toLowerCase() === 'int8') {
         // INT8: Use dynamic quantization (simpler, more compatible).
         const int8Command =
-          `python3 -c "` +
           'from onnxruntime.quantization import quantize_dynamic, QuantType; ' +
-          `quantize_dynamic('${onnxPath}', '${quantPath}', weight_type=QuantType.QUInt8)` +
-          `"`
+          `quantize_dynamic('${onnxPath}', '${quantPath}', weight_type=QuantType.QUInt8)`
 
-        const int8Result = await spawn(int8Command, {
+        const int8Result = await spawn('python3', ['-c', int8Command], {
           shell: WIN32,
           stdio: 'inherit',
         })
@@ -317,7 +370,6 @@ async function quantizeModel(modelKey, quantLevel) {
       } else {
         // INT4: Use MatMulNBitsQuantizer (maximum compression).
         const int4Command =
-          `python3 -c "` +
           'from onnxruntime.quantization.matmul_nbits_quantizer import MatMulNBitsQuantizer, RTNWeightOnlyQuantConfig; ' +
           'from onnxruntime.quantization import quant_utils; ' +
           'from pathlib import Path; ' +
@@ -325,10 +377,9 @@ async function quantizeModel(modelKey, quantLevel) {
           `model = quant_utils.load_model_with_shape_infer(Path('${onnxPath}')); ` +
           'quant = MatMulNBitsQuantizer(model, algo_config=quant_config); ' +
           'quant.process(); ' +
-          `quant.model.save_model_to_file('${quantPath}', True)` +
-          `"`
+          `quant.model.save_model_to_file('${quantPath}', True)`
 
-        const int4Result = await spawn(int4Command, {
+        const int4Result = await spawn('python3', ['-c', int4Command], {
           shell: WIN32,
           stdio: 'inherit',
         })
@@ -341,8 +392,8 @@ async function quantizeModel(modelKey, quantLevel) {
       }
 
       // Get sizes.
-      originalSize = (await readFile(onnxPath)).length
-      quantSize = (await readFile(quantPath)).length
+      originalSize = (await fs.readFile(onnxPath)).length
+      quantSize = (await fs.readFile(quantPath)).length
       const savings = ((1 - quantSize / originalSize) * 100).toFixed(1)
 
       logger.substep(
@@ -353,9 +404,9 @@ async function quantizeModel(modelKey, quantLevel) {
         `${quantLevel} quantization failed for ${input}, using FP32 model: ${e.message}`,
       )
       // Copy the original ONNX model as the "quantized" version.
-      await copyFile(onnxPath, quantPath)
+      await fs.copyFile(onnxPath, quantPath)
       method = 'FP32'
-      originalSize = (await readFile(onnxPath)).length
+      originalSize = (await fs.readFile(onnxPath)).length
       quantSize = originalSize
     }
 
@@ -374,44 +425,46 @@ async function quantizeModel(modelKey, quantLevel) {
 
 /**
  * Copy quantized models and tokenizers to dist.
+ * Output structure: dist/${quantLevel}/${modelKey}/model.onnx
  */
 async function copyToDist(modelKey, quantizedPaths, quantLevel) {
   logger.step('Copying models to dist')
 
-  await mkdir(DIST, { recursive: true })
+  // Create nested directory structure: dist/int8/minilm-l6/
+  const outputDir = path.join(DIST, quantLevel.toLowerCase(), modelKey)
+  await fs.mkdir(outputDir, { recursive: true })
 
   const modelDir = path.join(MODELS, modelKey)
-  const suffix = quantLevel.toLowerCase()
 
-  if (modelKey === 'codet5') {
-    // CodeT5: encoder, decoder, tokenizer.
-    await copyFile(
-      quantizedPaths[0],
-      path.join(DIST, `codet5-encoder-${suffix}.onnx`),
-    )
-    await copyFile(
-      quantizedPaths[1],
-      path.join(DIST, `codet5-decoder-${suffix}.onnx`),
-    )
-    await copyFile(
-      path.join(modelDir, 'tokenizer.json'),
-      path.join(DIST, 'codet5-tokenizer.json'),
-    )
+  // Copy quantized model
+  await fs.copyFile(quantizedPaths[0], path.join(outputDir, 'model.onnx'))
 
-    logger.success(`Copied codet5 models (${quantLevel}) to dist/`)
+  // Copy or generate tokenizer.json
+  const tokenizerJsonPath = path.join(modelDir, 'tokenizer.json')
+  if (existsSync(tokenizerJsonPath)) {
+    await fs.copyFile(tokenizerJsonPath, path.join(outputDir, 'tokenizer.json'))
   } else {
-    // MiniLM: single model + tokenizer.
-    await copyFile(
-      quantizedPaths[0],
-      path.join(DIST, `minilm-l6-${suffix}.onnx`),
-    )
-    await copyFile(
-      path.join(modelDir, 'tokenizer.json'),
-      path.join(DIST, 'minilm-l6-tokenizer.json'),
-    )
-
-    logger.success(`Copied minilm-l6 model (${quantLevel}) to dist/`)
+    // Generate tokenizer.json from tokenizer files
+    logger.substep('Generating tokenizer.json from tokenizer files')
+    const generateScript = `
+from transformers import AutoTokenizer
+tokenizer = AutoTokenizer.from_pretrained('${modelDir}')
+tokenizer.save_pretrained('${outputDir}')
+`
+    const result = await spawn('python3', ['-c', generateScript], {
+      shell: WIN32,
+      stdio: 'inherit',
+    })
+    if (result.code !== 0) {
+      throw new Error(
+        `Failed to generate tokenizer.json with exit code ${result.code}`,
+      )
+    }
   }
+
+  logger.success(
+    `Copied ${modelKey} model (${quantLevel}) to dist/${quantLevel}/${modelKey}/`,
+  )
 }
 
 /**
@@ -441,6 +494,10 @@ async function checkPrerequisites() {
     'torch',
     'onnx',
     { name: 'onnxruntime', importName: 'onnxruntime' },
+    'onnxscript',
+    { name: 'huggingface_hub', importName: 'huggingface_hub' },
+    { name: 'optimum', importName: 'optimum.exporters.onnx' },
+    { name: 'sentence_transformers', importName: 'sentence_transformers' },
   ]
 
   const packagesResult = await ensureAllPythonPackages(requiredPackages, {
@@ -455,7 +512,9 @@ async function checkPrerequisites() {
     }
     logger.error('')
     logger.error('Please install manually:')
-    logger.error('  pip3 install --user transformers torch onnx onnxruntime')
+    logger.error(
+      '  pip3 install --user transformers torch onnx onnxruntime onnxscript huggingface_hub optimum[exporters] sentence_transformers',
+    )
     process.exit(1)
   }
 
@@ -488,8 +547,8 @@ async function main() {
 
   // Clean checkpoints if requested or if output is missing.
   const outputMissing =
-    !existsSync(join(DIST, `minilm-l6-${suffix}.onnx`)) &&
-    !existsSync(join(DIST, `codet5-encoder-${suffix}.onnx`))
+    !existsSync(path.join(DIST, `minilm-l6-${suffix}.onnx`)) &&
+    !existsSync(path.join(DIST, `codet5-encoder-${suffix}.onnx`))
 
   if (CLEAN_BUILD || outputMissing) {
     if (outputMissing) {
@@ -499,8 +558,8 @@ async function main() {
   }
 
   // Create directories.
-  await mkdir(DIST, { recursive: true })
-  await mkdir(BUILD, { recursive: true })
+  await fs.mkdir(DIST, { recursive: true })
+  await fs.mkdir(BUILD, { recursive: true })
 
   try {
     // Build MiniLM-L6 if requested.
@@ -535,20 +594,15 @@ async function main() {
     logger.info('')
     logger.substep(`Duration: ${duration}s`)
     logger.info('')
-    logger.substep(`Output: ${DIST}`)
+    logger.substep(`Output: ${DIST}/${suffix}`)
 
     if (BUILD_MINILM) {
-      logger.substep(`  - minilm-l6-${suffix}.onnx (${QUANT_LEVEL} quantized)`)
-      logger.substep('  - minilm-l6-tokenizer.json')
+      logger.substep(`  - minilm-l6/model.onnx (${QUANT_LEVEL} quantized)`)
+      logger.substep('  - minilm-l6/tokenizer.json')
     }
     if (BUILD_CODET5) {
-      logger.substep(
-        `  - codet5-encoder-${suffix}.onnx (${QUANT_LEVEL} quantized)`,
-      )
-      logger.substep(
-        `  - codet5-decoder-${suffix}.onnx (${QUANT_LEVEL} quantized)`,
-      )
-      logger.substep('  - codet5-tokenizer.json')
+      logger.substep(`  - codet5/model.onnx (${QUANT_LEVEL} quantized)`)
+      logger.substep('  - codet5/tokenizer.json')
     }
   } catch (error) {
     logger.info('')

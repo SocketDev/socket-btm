@@ -181,6 +181,11 @@ const RUN_TESTS = !!values.test
 const RUN_FULL_TESTS = !!values['test-full'] || !!values.testFull
 const AUTO_YES = !!values.yes
 
+// Platform detection constants
+const IS_DARWIN = TARGET_PLATFORM === 'darwin'
+const IS_LINUX = TARGET_PLATFORM === 'linux' || TARGET_PLATFORM === 'linux-musl'
+const IS_WIN32 = TARGET_PLATFORM === 'win32'
+
 // Build mode: dev (fast builds) vs prod (optimized builds).
 // Default to dev unless CI or --prod specified.
 const IS_PROD_BUILD = values.prod || (!values.dev && 'CI' in process.env)
@@ -1660,7 +1665,7 @@ async function main() {
     logger.log(
       `  ${colors.green('✓')} ICU: small-icu (English-only, needed for polyfills)`,
     )
-    const ltoNote = LINUX ? 'LTO enabled' : 'LTO disabled (compiler issues)'
+    const ltoNote = IS_LINUX ? 'LTO enabled' : 'LTO disabled (compiler issues)'
     logger.log(
       `  ${colors.green('✓')} OPTIMIZATIONS: no-inspector, ${ltoNote}`,
     )
@@ -1709,7 +1714,7 @@ async function main() {
     // - macOS: clang crashes with segfault on V8 files (json-stringifier.cc)
     // - Linux: Enable LTO (works reliably with GCC)
     // See: https://github.com/nodejs/node/pull/21186 (Node.js made LTCG optional)
-    if (LINUX) {
+    if (IS_LINUX) {
       configureFlags.push('--enable-lto') // Linux only: Use standard LTO with GCC
     }
   }
@@ -1786,11 +1791,14 @@ async function main() {
 
   // Skip compilation if restored from cache.
   if (!restoredFromCache) {
-    const timeEstimate = estimateBuildTime(CPU_COUNT)
+    const jobCount = IS_DARWIN ? 1 : CPU_COUNT
+    const timeEstimate = estimateBuildTime(jobCount)
     logger.log(
       `⏱️  Estimated time: ${timeEstimate.estimatedMinutes} minutes (${timeEstimate.minMinutes}-${timeEstimate.maxMinutes} min range)`,
     )
-    logger.log(`🚀 Using ${CPU_COUNT} CPU cores for parallel compilation`)
+    logger.log(
+      `🚀 Using ${jobCount} CPU core${jobCount > 1 ? 's' : ''} for parallel compilation${IS_DARWIN ? ' (macOS: -j1 to avoid clang crashes)' : ''}`,
+    )
     logger.log('')
     logger.log('You can:')
     logger.log('  • Grab coffee ☕')
@@ -1814,7 +1822,10 @@ async function main() {
     try {
       // Resolve full path to ninja since we use shell: false.
       const ninjaCommand = whichBinSync('ninja')
-      await exec(ninjaCommand, ['-C', 'out/Release', `-j${CPU_COUNT}`], {
+      // macOS: Reduce parallelism to avoid clang crashes with -O3 on large V8 files
+      // Windows/Linux: Use all available cores
+      const jobCount = IS_DARWIN ? 1 : CPU_COUNT
+      await exec(ninjaCommand, ['-C', 'out/Release', `-j${jobCount}`], {
         cwd: NODE_DIR,
         env: process.env,
         shell: false,

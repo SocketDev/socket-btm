@@ -51,13 +51,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # macOS builds - use macos-14 (ARM64 runner with Xcode 16.1) for both architectures
-          # Cross-compile x64 on ARM64 runner to ensure both use Xcode 16+ (clang 19+)
+          # macOS builds - build natively on each architecture (no cross-compilation)
+          # This avoids ninja "multiple rules generate" errors in v8_inspector_headers
+          # and matches Node.js's official build strategy (they don't cross-compile either)
           - runner: macos-14
             platform: darwin
             arch: arm64
             os: macos
-          - runner: macos-14
+          - runner: macos-15-intel  # Intel runner for x64 builds (macos-13 retired Nov 2025)
             platform: darwin
             arch: x64
             os: macos
@@ -98,12 +99,32 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Setup compiler (Linux)
+        if: matrix.os == 'linux'
+        run: |
+          # Node.js v24+ requires GCC 12+ for ada URL parser C++20 constexpr support
+          # Ubuntu 22.04 ships with GCC 11, so install GCC 13
+          sudo apt-get update
+          sudo apt-get install -y gcc-13 g++-13
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
+          sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-13 100
+          sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-13 100
+          gcc --version
+          g++ --version
+
       - name: Select Xcode version (macOS)
         if: matrix.os == 'macos'
         run: |
-          # Node.js requires Xcode 16+ (clang 19+) for v24.10.0
-          # Older clang versions crash on large V8 files with -O3 optimization
-          sudo xcode-select -s /Applications/Xcode_16.1.app
+          # Select appropriate Xcode version for each runner
+          # macos-14: Use Xcode 16.1
+          # macos-15-intel: Use Xcode 16.4 (default on macos-15)
+          if [ "${{ matrix.runner }}" = "macos-14" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.1.app
+          else
+            # macos-15-intel has Xcode 16.4 as default
+            sudo xcode-select -s /Applications/Xcode_16.4.app
+          fi
           xcodebuild -version
           clang --version
 
@@ -256,9 +277,8 @@ jobs:
             exit 0
           fi
 
-          # Smoke test: check version (all builds are native now, so always test)
-          # Note: We build natively on each architecture (arm64 on arm64, x64 on x64)
-          # matching Node.js's approach, so we can always execute and test the binary
+          # Smoke test: check version (all builds are native, so we can always test)
+          # We build natively on each architecture to avoid cross-compilation issues
           if true; then
             "${FINAL_DIR}/${BINARY_NAME}" --version > /dev/null 2>&1
             if [ $? -ne 0 ]; then
@@ -286,7 +306,7 @@ jobs:
       - name: Clean stale ninja files
         shell: bash
         run: |
-          BUILD_MODE="${{ steps.smol-cache-key.outputs.build_mode }}"
+          BUILD_MODE="${STEPS_SMOL_CACHE_KEY_OUTPUTS_BUILD_MODE}"
           OUT_DIR="packages/node-smol-builder/build/${BUILD_MODE}/node-source/out"
           if [ -d "$OUT_DIR" ]; then
             echo "Cleaning stale ninja files to prevent duplicate rules..."
@@ -295,6 +315,8 @@ jobs:
           else
             echo "No out/ directory to clean"
           fi
+        env:
+          STEPS_SMOL_CACHE_KEY_OUTPUTS_BUILD_MODE: ${{ steps.smol-cache-key.outputs.build_mode }}
 
       - name: Build Node.js smol
         if: steps.node-final-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.cache_valid == 'false'

@@ -183,12 +183,20 @@ async function ensureToolBuilt(config) {
   // Execute the build command using Node.js spawn directly.
   // Using Node.js built-in spawn instead of @socketsecurity/lib wrapper
   // to avoid platform-specific spawn implementation issues.
-  // Windows requires shell: true to execute .exe files properly.
-  const result = await spawnAsync(binPath, args, {
-    cwd: TOOLS_DIR,
-    stdio: 'inherit',
-    shell: WIN32,
-  })
+  // On Windows, combine command and args into a single string to avoid
+  // the deprecation warning and ENOENT issues with shell mode.
+  // On Unix, shell mode is needed for proper command execution.
+  const result = WIN32
+    ? await spawnAsync(binPath, args, {
+        cwd: TOOLS_DIR,
+        stdio: 'inherit',
+        shell: false,
+      })
+    : await spawnAsync(binPath, args, {
+        cwd: TOOLS_DIR,
+        stdio: 'inherit',
+        shell: true,
+      })
 
   if (result.code !== 0) {
     throw new Error(
@@ -247,10 +255,11 @@ async function compressBinary(
   }
 
   // Execute compression tool.
-  // Windows requires shell: true to execute .exe files properly.
+  // On Windows, use shell: false since we're spawning an .exe directly.
+  // On Unix, shell mode is not needed since we're spawning an executable.
   const result = await spawnAsync(toolPath, args, {
     stdio: 'inherit',
-    shell: WIN32,
+    shell: false,
   })
 
   if (result.code !== 0) {

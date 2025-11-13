@@ -22,12 +22,6 @@ pnpm --filter models build
 pnpm --filter node-smol-builder build
 ```
 
-## CI/CD
-
-Workflows automatically build on push/PR. Releases are created manually via GitHub Actions or on release events.
-
-All workflows support dry-run mode by default (build only, no release).
-
 ## License
 
 MIT

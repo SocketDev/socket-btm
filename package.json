@@ -12,16 +12,20 @@
   "scripts": {
     "build": "pnpm --filter @socketbin/node-smol-builder build",
     "build:all": "pnpm --filter @socketbin/node-smol-builder build:all",
-    "check": "node scripts/lint.mjs",
+    "check": "node scripts/check.mjs",
     "clean": "pnpm --filter @socketbin/node-smol-builder clean",
     "fix": "node scripts/lint.mjs --fix",
     "format": "biome format --write .",
+    "format:check": "biome format .",
     "lint": "node scripts/lint.mjs",
     "lint:fix": "node scripts/lint.mjs --fix",
+    "prepare": "husky",
     "release": "pnpm --filter @socketbin/node-smol-builder release",
     "release:publish": "pnpm --filter @socketbin/node-smol-builder release:publish",
-    "test": "pnpm --recursive test",
-    "test:smol": "pnpm --filter @socketbin/node-smol-builder test"
+    "setup": "node scripts/setup.mjs",
+    "test": "node scripts/test.mjs",
+    "test:smol": "pnpm --filter @socketbin/node-smol-builder test",
+    "update": "node scripts/update.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.4",
@@ -36,6 +40,7 @@
     "eslint-plugin-sort-destructure-keys": "2.0.0",
     "eslint-plugin-unicorn": "56.0.1",
     "globals": "16.4.0",
+    "husky": "9.1.7",
     "typescript-eslint": "8.44.1",
     "vitest": "catalog:",
     "yoctocolors-cjs": "catalog:"

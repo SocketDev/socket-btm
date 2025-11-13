@@ -9,12 +9,9 @@ Socket-specific patches:
 - `002-socketsecurity_fix_gcc_lto` - GCC LTO compatibility
 - `003-socketsecurity_polyfills` - ICU polyfill (localeCompare)
 - `004-socketsecurity_fix_gyp_py3_hashlib` - Python 3 compatibility
-- `005-socketsecurity_fix_abseil_windows_duplicate_symbols` - Windows build fix
-- `006-socketsecurity_fix_inspector_protocol_windows` - Windows inspector fix
-- `007-socketsecurity_fix_v8_safepoint_macos` - macOS V8 safepoint fix
-- `008-socketsecurity_windows_hardening` - Windows security hardening
-- `009-socketsecurity_arm64_branch_protection` - ARM64 branch protection
-- `010-socketsecurity_fix_v8_typeindex_macos` - macOS V8 typeindex fix
+- `005-socketsecurity_fix_v8_safepoint_macos` - macOS V8 safepoint fix
+- `006-socketsecurity_arm64_branch_protection` - ARM64 branch protection
+- `007-socketsecurity_fix_v8_typeindex_macos` - macOS V8 typeindex fix
 
 ## Building
 

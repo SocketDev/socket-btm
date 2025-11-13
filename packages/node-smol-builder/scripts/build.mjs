@@ -1595,14 +1595,27 @@ async function main() {
     }
   }
 
-  // Add architecture flag for explicit targeting.
-  // Note: We always build natively (arm64 on arm64, x64 on x64 runners).
-  // This matches Node.js's approach - they don't cross-compile either.
-  if (ARCH === 'arm64') {
-    configureFlags.unshift('--dest-cpu=arm64')
-  } else if (ARCH === 'x64') {
-    configureFlags.unshift('--dest-cpu=x64')
+  // Only add --dest-cpu when truly cross-compiling (e.g., building x64 on arm64 runner).
+  // When --dest-cpu matches the host architecture, configure.py doesn't enable cross-compilation.
+  // When --dest-cpu differs from host, it enables toolsets: ['host', 'target'], which causes
+  // "multiple rules generate" ninja errors in v8_inspector_headers and run_torque.
+  //
+  // Example error when cross-compiling:
+  //   ninja: error: obj.host/tools/v8_gypfiles/v8_inspector_headers.ninja:26:
+  //   multiple rules generate gen/inspector-generated-output-root/src/js_protocol.stamp
+  //
+  // Solution: Don't use cross-compilation. Build natively on each architecture instead.
+  // This matches Node.js's official release strategy - they don't cross-compile either.
+  const hostArch = process.arch // 'arm64', 'x64', etc.
+  if (ARCH !== hostArch) {
+    logger.fail(
+      `Cross-compilation not supported: building ${ARCH} on ${hostArch} host`,
+    )
+    logger.log(`   Use a native ${ARCH} runner instead.`)
+    logger.log('   Example: For darwin-x64, use runs-on: macos-15-intel')
+    process.exit(1)
   }
+  // For native builds, don't pass --dest-cpu. Node.js configure.py will auto-detect the host arch.
 
   // Clean stale build files before configure to prevent ninja errors
   // This prevents "multiple rules generate" errors from stale .ninja files
@@ -1675,7 +1688,8 @@ async function main() {
   }
 
   // Define binary path early (used for both cache and build).
-  const nodeBinary = path.join(NODE_DIR, 'out', 'Release', 'node')
+  const binaryName = IS_WINDOWS ? 'node.exe' : 'node'
+  const nodeBinary = path.join(NODE_DIR, 'out', 'Release', binaryName)
 
   // Try to restore from cache (skip compilation if successful).
   let restoredFromCache = false
@@ -1821,7 +1835,7 @@ async function main() {
 
   const outputReleaseDir = path.join(BUILD_DIR, 'out', 'Release')
   await safeMkdir(outputReleaseDir)
-  const outputReleaseBinary = path.join(outputReleaseDir, 'node')
+  const outputReleaseBinary = path.join(outputReleaseDir, binaryName)
   await fs.cp(nodeBinary, outputReleaseBinary, {
     force: true,
     preserveTimestamps: true,

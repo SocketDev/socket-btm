@@ -5,6 +5,10 @@
  * using platform-specific package managers (brew, apt, choco, etc.).
  */
 
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 import binPkg from '@socketsecurity/lib/bin'
 import platformPkg from '@socketsecurity/lib/constants/platform'
 import spawnPkg from '@socketsecurity/lib/spawn'
@@ -19,6 +23,22 @@ import {
   printSubstep,
   printWarning,
 } from './build-output.mjs'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
+/**
+ * Read externalTools from package.json
+ */
+function getExternalTools() {
+  try {
+    const packageJsonPath = join(__dirname, '..', 'package.json')
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
+    return packageJson.externalTools || {}
+  } catch {
+    printWarning('Could not read externalTools from package.json')
+    return {}
+  }
+}
 
 /**
  * Tool installation configurations.
@@ -99,6 +119,14 @@ const TOOL_CONFIGS = {
       win32: { choco: 'ninja', scoop: 'ninja' },
     },
   },
+  gh: {
+    description: 'GitHub CLI',
+    packages: {
+      darwin: { brew: 'gh' },
+      linux: { apt: 'gh', yum: 'gh', dnf: 'gh', apk: 'github-cli' },
+      win32: { choco: 'gh', scoop: 'gh' },
+    },
+  },
 }
 
 /**
@@ -124,28 +152,32 @@ const PACKAGE_MANAGER_CONFIGS = {
     apt: {
       name: 'APT',
       binary: 'apt-get',
-      installScript: null, // Pre-installed on Debian/Ubuntu.
+      // Pre-installed on Debian/Ubuntu.
+      installScript: null,
       checkCommand: 'apt-get --version',
       description: 'Debian/Ubuntu package manager',
     },
     apk: {
       name: 'APK',
       binary: 'apk',
-      installScript: null, // Pre-installed on Alpine Linux.
+      // Pre-installed on Alpine Linux.
+      installScript: null,
       checkCommand: 'apk --version',
       description: 'Alpine Linux package manager',
     },
     dnf: {
       name: 'DNF',
       binary: 'dnf',
-      installScript: null, // Pre-installed on Fedora 22+/RHEL 8+.
+      // Pre-installed on Fedora 22+/RHEL 8+.
+      installScript: null,
       checkCommand: 'dnf --version',
       description: 'Fedora/RHEL 8+ package manager',
     },
     yum: {
       name: 'YUM',
       binary: 'yum',
-      installScript: null, // Pre-installed on older RHEL/CentOS.
+      // Pre-installed on older RHEL/CentOS.
+      installScript: null,
       checkCommand: 'yum --version',
       description: 'RHEL/CentOS package manager',
     },
@@ -411,7 +443,7 @@ export async function checkElevatedPrivileges() {
 export async function installTool(
   tool,
   packageManager,
-  { autoYes = false } = {},
+  { autoYes = false, version = null } = {},
 ) {
   const config = TOOL_CONFIGS[tool]
   if (!config) {
@@ -430,7 +462,15 @@ export async function installTool(
   }
 
   const packageName = packageInfo[packageManager]
-  printSubstep(`Installing ${tool} via ${packageManager}...`)
+
+  // Get version from externalTools if not provided
+  if (!version) {
+    const externalTools = getExternalTools()
+    version = externalTools[tool]
+  }
+
+  const versionInfo = version ? ` (version ${version})` : ''
+  printSubstep(`Installing ${tool}${versionInfo} via ${packageManager}...`)
 
   try {
     let command
@@ -441,49 +481,70 @@ export async function installTool(
 
     switch (packageManager) {
       case 'brew':
+        // Homebrew doesn't support version pinning for most formulas
         command = 'brew'
         args = ['install', packageName]
+        if (version) {
+          printWarning('Homebrew may not support version pinning for this tool')
+        }
         break
 
-      case 'apt':
+      case 'apt': {
+        // APT version pinning: package=version
         command = needsSudo ? 'sudo' : 'apt-get'
+        const aptPackage = version ? `${packageName}=${version}*` : packageName
         args = needsSudo
-          ? ['apt-get', 'install', '-y', packageName]
-          : ['install', '-y', packageName]
+          ? ['apt-get', 'install', '-y', aptPackage]
+          : ['install', '-y', aptPackage]
         break
+      }
 
-      case 'apk':
+      case 'apk': {
+        // APK version pinning: package=version
         command = needsSudo ? 'sudo' : 'apk'
+        const apkPackage = version ? `${packageName}=${version}` : packageName
         args = needsSudo
-          ? ['apk', 'add', '--no-cache', packageName]
-          : ['add', '--no-cache', packageName]
+          ? ['apk', 'add', '--no-cache', apkPackage]
+          : ['add', '--no-cache', apkPackage]
         break
+      }
 
-      case 'yum':
+      case 'yum': {
+        // YUM version pinning: package-version
         command = needsSudo ? 'sudo' : 'yum'
+        const yumPackage = version ? `${packageName}-${version}` : packageName
         args = needsSudo
-          ? ['yum', 'install', '-y', packageName]
-          : ['install', '-y', packageName]
+          ? ['yum', 'install', '-y', yumPackage]
+          : ['install', '-y', yumPackage]
         break
+      }
 
-      case 'dnf':
+      case 'dnf': {
+        // DNF version pinning: package-version
         command = needsSudo ? 'sudo' : 'dnf'
+        const dnfPackage = version ? `${packageName}-${version}` : packageName
         args = needsSudo
-          ? ['dnf', 'install', '-y', packageName]
-          : ['install', '-y', packageName]
+          ? ['dnf', 'install', '-y', dnfPackage]
+          : ['install', '-y', dnfPackage]
         break
+      }
 
       case 'choco':
+        // Chocolatey version pinning: --version flag
         command = 'choco'
-        args = autoYes
-          ? ['install', packageName, '-y']
-          : ['install', packageName]
+        args = version
+          ? ['install', packageName, '--version', version, autoYes ? '-y' : '']
+          : [' install', packageName, autoYes ? '-y' : '']
+        args = args.filter(Boolean)
         break
 
-      case 'scoop':
+      case 'scoop': {
+        // Scoop version pinning: package@version
         command = 'scoop'
-        args = ['install', packageName]
+        const scoopPackage = version ? `${packageName}@${version}` : packageName
+        args = ['install', scoopPackage]
         break
+      }
 
       default:
         printError(`Unsupported package manager: ${packageManager}`)
@@ -623,6 +684,7 @@ export async function ensureAllToolsInstalled(
   const installed = []
 
   for (const tool of tools) {
+    // eslint-disable-next-line no-await-in-loop -- Tools must be installed sequentially
     const result = await ensureToolInstalled(tool, { autoInstall, autoYes })
 
     if (!result.available) {

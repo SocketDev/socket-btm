@@ -38,6 +38,7 @@ import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { which } from '@socketsecurity/lib/bin'
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
@@ -144,9 +145,22 @@ async function ensureToolBuilt(config) {
   logger.log(`  Command: ${config.buildCommand}`)
   logger.log('')
 
-  // Use the same spawn pattern as build.mjs exec function.
-  // Pass full command string with empty args array, using shell: WIN32.
-  const result = await spawn(config.buildCommand, [], {
+  // Parse the build command to extract binary name and arguments
+  const commandParts = config.buildCommand.split(/\s+/)
+  const binName = commandParts[0]
+  const args = commandParts.slice(1)
+
+  // Resolve the binary path using which
+  const binPath = await which(binName, { nothrow: true })
+  if (!binPath) {
+    throw new Error(
+      `Build tool '${binName}' not found in PATH. ` +
+        `Please install it: ${binName === 'make' ? 'Install Xcode Command Line Tools on macOS' : `Install ${binName}`}`,
+    )
+  }
+
+  // Execute the build command with resolved binary path
+  const result = await spawn(binPath, args, {
     cwd: TOOLS_DIR,
     shell: WIN32,
     stdio: 'inherit',

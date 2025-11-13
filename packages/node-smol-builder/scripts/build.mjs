@@ -87,6 +87,7 @@ import {
   createCheckpoint,
   estimateBuildTime,
   formatDuration,
+  shouldRun,
   getBuildLogPath,
   getLastLogLines,
   saveBuildLog,
@@ -206,6 +207,7 @@ const ROOT_DIR = path.join(__dirname, '..')
 const BUILD_MODE = IS_DEV_BUILD ? 'dev' : 'prod'
 const BUILD_ROOT = path.join(ROOT_DIR, 'build') // Shared cache directory.
 const BUILD_DIR = path.join(BUILD_ROOT, BUILD_MODE) // Mode-specific build outputs.
+const PACKAGE_NAME = 'node-smol' // For checkpoint management
 const NODE_SOURCE_DIR = path.join(BUILD_DIR, 'node-source')
 const NODE_DIR = NODE_SOURCE_DIR // Alias for compatibility.
 const PATCHES_DIR = path.join(ROOT_DIR, 'patches')
@@ -1153,6 +1155,13 @@ async function main() {
   // Ensure build directory exists.
   await safeMkdir(BUILD_DIR, { recursive: true })
 
+  // Check if build is already complete (checkpoint system).
+  if (!(await shouldRun(BUILD_DIR, PACKAGE_NAME, 'complete', CLEAN_BUILD))) {
+    printSuccess('Build already complete (checkpoint exists)')
+    logger.log('')
+    return
+  }
+
   // Check if we can use cached build (skip if --clean).
   if (!CLEAN_BUILD) {
     const finalOutputBinary = path.join(
@@ -1223,13 +1232,16 @@ async function main() {
   logger.log('')
 
   // Clone or reset Node.js repository.
-  if (!existsSync(NODE_DIR) || CLEAN_BUILD) {
+  if (!(await shouldRun(BUILD_DIR, PACKAGE_NAME, 'cloned', CLEAN_BUILD))) {
+    printStep('Checkpoint "cloned" exists, skipping source clone')
+    logger.log('')
+  } else if (!existsSync(NODE_DIR) || CLEAN_BUILD) {
     if (existsSync(NODE_DIR) && CLEAN_BUILD) {
       printHeader('Clean Build Requested')
       logger.log('Removing existing Node.js source directory...')
       const { rm } = await import('node:fs/promises')
       await safeDelete(NODE_DIR, { recursive: true, force: true })
-      await cleanCheckpoint(BUILD_DIR)
+      await cleanCheckpoint(BUILD_DIR, PACKAGE_NAME)
       logger.log(`${colors.green('✓')} Cleaned build directory`)
       logger.log('')
     }
@@ -1307,7 +1319,7 @@ async function main() {
 
     if (cloneSuccess) {
       logger.log(`${colors.green('✓')} Node.js source cloned successfully`)
-      await createCheckpoint(BUILD_DIR, 'cloned')
+      await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'cloned')
       logger.log('')
     }
   } else {
@@ -1706,7 +1718,10 @@ async function main() {
   }
 
   // Skip compilation if restored from cache or if Windows (vcbuild already built it).
-  if (!restoredFromCache && !WIN32) {
+  if (!(await shouldRun(BUILD_DIR, PACKAGE_NAME, 'built', CLEAN_BUILD))) {
+    printStep('Checkpoint "built" exists, skipping build')
+    logger.log('')
+  } else if (!restoredFromCache && !WIN32) {
     const jobCount = CPU_COUNT
     const timeEstimate = estimateBuildTime(jobCount)
     logger.log(
@@ -1782,7 +1797,7 @@ async function main() {
 
     logger.log('')
     logger.log(`${colors.green('✓')} Build completed in ${buildTime}`)
-    await createCheckpoint(BUILD_DIR, 'built')
+    await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'built')
     logger.log('')
 
     // Cache the compiled binary for future runs.
@@ -1793,9 +1808,6 @@ async function main() {
       ARCH,
       NODE_VERSION,
     )
-    logger.log('')
-  } else {
-    logger.log(`${colors.cyan('ℹ')} Skipped compilation (using cached binary)`)
     logger.log('')
   }
 
@@ -2315,8 +2327,8 @@ async function main() {
 
   // Report build complete.
   const binarySize = await getFileSize(finalBinary)
-  await createCheckpoint(BUILD_DIR, 'complete')
-  await cleanCheckpoint(BUILD_DIR)
+  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'complete')
+  await cleanCheckpoint(BUILD_DIR, PACKAGE_NAME)
 
   // Calculate total build time.
   const totalDuration = Date.now() - totalStart

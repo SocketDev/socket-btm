@@ -34,6 +34,7 @@
  *   node scripts/compress-binary.mjs ./node ./node.compressed --quality=lzma
  */
 
+import { spawn as nodeSpawn } from 'node:child_process'
 import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -41,7 +42,23 @@ import { fileURLToPath } from 'node:url'
 import { which } from '@socketsecurity/lib/bin'
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
+
+/**
+ * Promise wrapper for child_process.spawn that resolves with exit code.
+ */
+function spawnAsync(command, args, options) {
+  return new Promise((resolve, reject) => {
+    const child = nodeSpawn(command, args, options)
+
+    child.on('error', error => {
+      reject(error)
+    })
+
+    child.on('close', code => {
+      resolve({ code })
+    })
+  })
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const logger = getDefaultLogger()
@@ -159,11 +176,18 @@ async function ensureToolBuilt(config) {
     )
   }
 
-  // Execute the build command with resolved binary path
-  const result = await spawn(binPath, args, {
+  logger.substep(`Resolved ${binName} to: ${binPath}`)
+  logger.substep(`Arguments: ${args.join(' ')}`)
+  logger.log('')
+
+  // Execute the build command using Node.js spawn directly.
+  // Using Node.js built-in spawn instead of @socketsecurity/lib wrapper
+  // to avoid platform-specific spawn implementation issues.
+  // Windows requires shell: true to execute .exe files properly.
+  const result = await spawnAsync(binPath, args, {
     cwd: TOOLS_DIR,
-    shell: WIN32,
     stdio: 'inherit',
+    shell: WIN32,
   })
 
   if (result.code !== 0) {
@@ -223,8 +247,10 @@ async function compressBinary(
   }
 
   // Execute compression tool.
-  const result = await spawn(toolPath, args, {
+  // Windows requires shell: true to execute .exe files properly.
+  const result = await spawnAsync(toolPath, args, {
     stdio: 'inherit',
+    shell: WIN32,
   })
 
   if (result.code !== 0) {

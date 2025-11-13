@@ -87,7 +87,6 @@ import {
   createCheckpoint,
   estimateBuildTime,
   formatDuration,
-  shouldRun,
   getBuildLogPath,
   getLastLogLines,
   saveBuildLog,
@@ -99,6 +98,7 @@ import {
   printHeader,
   printWarning,
 } from 'build-infra/lib/build-output'
+import { shouldRun } from 'build-infra/lib/checkpoint-manager'
 import {
   ensureGccVersion,
   getGccInstructions,
@@ -150,7 +150,6 @@ async function exec(command, args = [], options = {}) {
     Array.isArray(args) ? args : [],
     {
       stdio: 'inherit',
-      shell: WIN32,
       ...options,
     },
   )
@@ -484,7 +483,9 @@ async function smoketestBinary(
   tests.push({
     name: '--version',
     async run() {
-      const result = await spawn(binaryPath, ['--version'], { timeout: 5000 })
+      const result = await spawn(binaryPath, ['--version'], {
+        timeout: 5000,
+      })
       return { success: result.code === 0, reason: `exit code ${result.code}` }
     },
   })
@@ -497,7 +498,7 @@ async function smoketestBinary(
         const result = await spawn(
           binaryPath,
           ['-e', 'console.log("hello world")'],
-          { timeout: 5000 },
+          { timeout: 5000, stdioString: true },
         )
         const success =
           result.code === 0 && result.stdout.trim() === 'hello world'
@@ -530,7 +531,10 @@ async function smoketestBinary(
     tests.push({
       name: 'SEA help command',
       async run() {
-        const result = await spawn(binaryPath, ['--help'], { timeout: 5000 })
+        const result = await spawn(binaryPath, ['--help'], {
+          timeout: 5000,
+          stdioString: true,
+        })
         const success = result.code === 0 && result.stdout.includes('Usage:')
         return {
           success,
@@ -1157,7 +1161,8 @@ async function main() {
 
   // Check if build is already complete (checkpoint system).
   if (!(await shouldRun(BUILD_DIR, PACKAGE_NAME, 'complete', CLEAN_BUILD))) {
-    printSuccess('Build already complete (checkpoint exists)')
+    logger.log('')
+    logger.success('Build already complete')
     logger.log('')
     return
   }
@@ -1233,7 +1238,7 @@ async function main() {
 
   // Clone or reset Node.js repository.
   if (!(await shouldRun(BUILD_DIR, PACKAGE_NAME, 'cloned', CLEAN_BUILD))) {
-    printStep('Checkpoint "cloned" exists, skipping source clone')
+    // shouldRun already printed the skip message
     logger.log('')
   } else if (!existsSync(NODE_DIR) || CLEAN_BUILD) {
     if (existsSync(NODE_DIR) && CLEAN_BUILD) {
@@ -1658,7 +1663,6 @@ async function main() {
         // Use rd /S /Q on Windows to remove junction or directory
         await exec('cmd.exe', ['/c', `rd /S /Q "${configDir}"`], {
           cwd: NODE_DIR,
-          shell: false,
         })
         logger.log(`Removed ${configDir}`)
       }
@@ -1719,7 +1723,7 @@ async function main() {
 
   // Skip compilation if restored from cache or if Windows (vcbuild already built it).
   if (!(await shouldRun(BUILD_DIR, PACKAGE_NAME, 'built', CLEAN_BUILD))) {
-    printStep('Checkpoint "built" exists, skipping build')
+    // shouldRun already printed the skip message
     logger.log('')
   } else if (!restoredFromCache && !WIN32) {
     const jobCount = CPU_COUNT
@@ -1751,13 +1755,12 @@ async function main() {
     )
 
     try {
-      // Resolve full path to ninja since we use shell: false.
+      // Resolve full path to ninja for execution
       const ninjaCommand = whichBinSync('ninja')
       // Use all available CPU cores for parallel compilation (matching Node.js official builds)
       await exec(ninjaCommand, ['-C', 'out/Release', `-j${CPU_COUNT}`], {
         cwd: NODE_DIR,
         env: process.env,
-        shell: false,
       })
       logger.log('::endgroup::')
     } catch (e) {
@@ -2058,23 +2061,27 @@ async function main() {
     // Read socketbin package spec from actual package.json for socket-lib cache key generation.
     // Format: @socketbin/cli-{platform}-{arch}@{version}
     // This enables deterministic cache keys based on the published package.
+    // Note: This path only exists in published npm packages, not in the dev monorepo.
     const socketbinPkgPath = path.join(
       path.dirname(ROOT_DIR),
       `socketbin-cli-${TARGET_PLATFORM}-${ARCH}`,
       'package.json',
     )
     let socketbinSpec = null
-    try {
-      const socketbinPkg = JSON.parse(
-        await fs.readFile(socketbinPkgPath, 'utf-8'),
-      )
-      socketbinSpec = `${socketbinPkg.name}@${socketbinPkg.version}`
-      logger.substep(`Found socketbin package: ${socketbinSpec}`)
-    } catch (_e) {
-      logger.warn(
-        `Could not read socketbin package.json at ${socketbinPkgPath}`,
-      )
-      logger.warn('Compression will use fallback cache key generation')
+    if (existsSync(socketbinPkgPath)) {
+      try {
+        const socketbinPkg = JSON.parse(
+          await fs.readFile(socketbinPkgPath, 'utf-8'),
+        )
+        socketbinSpec = `${socketbinPkg.name}@${socketbinPkg.version}`
+        logger.substep(`Found socketbin package: ${socketbinSpec}`)
+      } catch (_e) {
+        // Failed to read or parse package.json - use fallback
+        logger.substep('Using fallback cache key generation')
+      }
+    } else {
+      // Expected in dev builds - socketbin packages only exist when published
+      logger.substep('Using fallback cache key generation (dev mode)')
     }
 
     logger.substep(`Input: ${outputStrippedBinary}`)
@@ -2100,6 +2107,7 @@ async function main() {
     if (socketbinSpec) {
       compressArgs.push(`--spec=${socketbinSpec}`)
     }
+    // Shell required on Windows for the compression script to spawn executables
     await exec(process.execPath, compressArgs, { cwd: ROOT_DIR })
 
     const sizeAfterCompress = await getFileSize(compressedBinary)

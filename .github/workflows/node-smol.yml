@@ -239,7 +239,7 @@ jobs:
         id: checkpoint-cache
         if: ${{ !inputs.force }}
         with:
-          path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/.checkpoints
+          path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/checkpoints
           key: node-checkpoints-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.hash }}
 
       - name: Validate build cache integrity
@@ -249,7 +249,7 @@ jobs:
         run: |
           BUILD_MODE="${STEPS_SMOL_CACHE_KEY_OUTPUTS_BUILD_MODE}"
           FINAL_DIR="packages/node-smol-builder/build/${BUILD_MODE}/Final"
-          CHECKPOINT_DIR="packages/node-smol-builder/build/${BUILD_MODE}/.checkpoints"
+          CHECKPOINT_DIR="packages/node-smol-builder/build/${BUILD_MODE}/checkpoints"
 
           echo "Validating cached build for ${{ matrix.platform }}-${{ matrix.arch }}..."
 
@@ -269,9 +269,8 @@ jobs:
           fi
 
           # Check if checkpoint files exist
-          if [ ! -f "${CHECKPOINT_DIR}/compiled" ] || \
-             [ ! -f "${CHECKPOINT_DIR}/stripped" ] || \
-             [ ! -f "${CHECKPOINT_DIR}/compressed" ]; then
+          if [ ! -f "${CHECKPOINT_DIR}/node-smol/built.json" ] || \
+             [ ! -f "${CHECKPOINT_DIR}/node-smol/complete.json" ]; then
             echo "❌ Checkpoint files incomplete"
             rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
             echo "cache_valid=false" >> $GITHUB_OUTPUT

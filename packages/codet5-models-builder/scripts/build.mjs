@@ -37,6 +37,7 @@ import * as ort from 'onnxruntime-node'
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
+import { which } from '@socketsecurity/lib/which'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -83,6 +84,11 @@ async function downloadModels() {
 
   await fs.mkdir(MODELS_DIR, { recursive: true })
 
+  const python3Path = await which('python3', { nothrow: true })
+  if (!python3Path) {
+    throw new Error('python3 not found in PATH')
+  }
+
   // Use Hugging Face CLI to download models.
   const pythonScript =
     'from transformers import AutoTokenizer, AutoModelForSeq2SeqLM; ' +
@@ -91,7 +97,7 @@ async function downloadModels() {
     `tokenizer.save_pretrained('${MODELS_DIR}'); ` +
     `model.save_pretrained('${MODELS_DIR}')`
 
-  const downloadResult = await spawn('python3', ['-c', pythonScript], {
+  const downloadResult = await spawn(python3Path, ['-c', pythonScript], {
     shell: WIN32,
     stdio: 'inherit',
   })
@@ -130,11 +136,16 @@ async function convertToOnnx() {
 
   await fs.mkdir(BUILD_DIR, { recursive: true })
 
+  const python3Path = await which('python3', { nothrow: true })
+  if (!python3Path) {
+    throw new Error('python3 not found in PATH')
+  }
+
   // Convert to ONNX using optimum (transformers.onnx is deprecated).
   printStep('Converting models to ONNX')
 
   const convertResult = await spawn(
-    'python3',
+    python3Path,
     [
       '-m',
       'optimum.exporters.onnx',
@@ -228,8 +239,13 @@ async function quantizeModels() {
     'from onnxruntime.quantization import quantize_dynamic, QuantType; ' +
     `quantize_dynamic('${encoderPath}', '${encoderPath}.quant', weight_type=QuantType.QInt8)`
 
+  const python3Path = whichBinSync('python3', { nothrow: true })
+  if (!python3Path) {
+    throw new Error('python3 not found in PATH')
+  }
+
   const quantizeEncoderResult = await spawn(
-    'python3',
+    python3Path,
     ['-c', quantizeEncoderScript],
     {
       shell: WIN32,
@@ -247,8 +263,13 @@ async function quantizeModels() {
     'from onnxruntime.quantization import quantize_dynamic, QuantType; ' +
     `quantize_dynamic('${decoderPath}', '${decoderPath}.quant', weight_type=QuantType.QInt8)`
 
+  const python3PathDecoder = await which('python3', { nothrow: true })
+  if (!python3PathDecoder) {
+    throw new Error('python3 not found in PATH')
+  }
+
   const quantizeDecoderResult = await spawn(
-    'python3',
+    python3PathDecoder,
     ['-c', quantizeDecoderScript],
     {
       shell: WIN32,
@@ -349,14 +370,20 @@ async function optimizeModels() {
     'decoder_model_optimized.onnx',
   )
 
+  // Resolve python3 path for optimization
+  const python3PathOpt = await which('python3', { nothrow: true })
+  if (!python3PathOpt) {
+    throw new Error('python3 not found in PATH')
+  }
+
   // Optimize encoder.
   printStep('Optimizing encoder graph')
-  const optimizeEncoderCommand =
-    `python3 -c "from onnxruntime.transformers import optimizer; ` +
+  const optimizeEncoderScript =
+    `from onnxruntime.transformers import optimizer; ` +
     `opt = optimizer.optimize_model('${encoderPath}', model_type='bert', num_heads=12, hidden_size=768); ` +
-    `opt.save_model_to_file('${optimizedEncoderPath}')"`
+    `opt.save_model_to_file('${optimizedEncoderPath}')`
 
-  const optimizeEncoderResult = await spawn(optimizeEncoderCommand, [], {
+  const optimizeEncoderResult = await spawn(python3PathOpt, ['-c', optimizeEncoderScript], {
     shell: WIN32,
     stdio: 'inherit',
   })
@@ -367,12 +394,12 @@ async function optimizeModels() {
 
   // Optimize decoder.
   printStep('Optimizing decoder graph')
-  const optimizeDecoderCommand =
-    `python3 -c "from onnxruntime.transformers import optimizer; ` +
+  const optimizeDecoderScript =
+    `from onnxruntime.transformers import optimizer; ` +
     `opt = optimizer.optimize_model('${decoderPath}', model_type='bert', num_heads=12, hidden_size=768); ` +
-    `opt.save_model_to_file('${optimizedDecoderPath}')"`
+    `opt.save_model_to_file('${optimizedDecoderPath}')`
 
-  const optimizeDecoderResult = await spawn(optimizeDecoderCommand, [], {
+  const optimizeDecoderResult = await spawn(python3PathOpt, ['-c', optimizeDecoderScript], {
     shell: WIN32,
     stdio: 'inherit',
   })

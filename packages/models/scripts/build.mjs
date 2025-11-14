@@ -36,6 +36,7 @@ import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
+import { which } from '@socketsecurity/lib/which'
 
 // Check if running in CI.
 const _IS_CI = !!(
@@ -127,12 +128,17 @@ async function downloadModel(modelKey) {
       // Download using hf CLI (fastest) or fallback to Python.
       try {
         // Try hf CLI first.
+        const hfPath = await which('hf', { nothrow: true })
+        if (!hfPath) {
+          throw new Error('hf not found in PATH')
+        }
+
         const cliArgs = ['download', source]
         if (revision) {
           cliArgs.push(`--revision=${revision}`)
         }
         cliArgs.push('--local-dir', `${MODELS}/${modelKey}`)
-        const cliResult = await spawn('hf', cliArgs, {
+        const cliResult = await spawn(hfPath, cliArgs, {
           shell: WIN32,
           stdio: 'inherit',
         })
@@ -153,6 +159,11 @@ async function downloadModel(modelKey) {
         logger.substep(
           `hf CLI unavailable or failed, trying Python: ${cliError.message}`,
         )
+        const python3Path = await which('python3', { nothrow: true })
+        if (!python3Path) {
+          throw new Error('python3 not found in PATH')
+        }
+
         const revisionParam = revision ? `, revision='${revision}'` : ''
         const pythonCommand =
           'from transformers import AutoTokenizer, AutoModel; ' +
@@ -161,7 +172,7 @@ async function downloadModel(modelKey) {
           `tokenizer.save_pretrained('${MODELS}/${modelKey}'); ` +
           `model.save_pretrained('${MODELS}/${modelKey}')`
 
-        const pythonResult = await spawn('python3', ['-c', pythonCommand], {
+        const pythonResult = await spawn(python3Path, ['-c', pythonCommand], {
           shell: WIN32,
           stdio: 'inherit',
         })
@@ -292,7 +303,12 @@ print(f"Successfully exported model to {output_path}")
     await fs.writeFile(convertScript, scriptContent, 'utf8')
     await fs.chmod(convertScript, 0o755)
 
-    const convertResult = await spawn('python3', [convertScript], {
+    const python3Path = await which('python3', { nothrow: true })
+    if (!python3Path) {
+      throw new Error('python3 not found in PATH')
+    }
+
+    const convertResult = await spawn(python3Path, [convertScript], {
       shell: true,
       stdio: 'inherit',
     })
@@ -353,13 +369,18 @@ async function quantizeModel(modelKey, quantLevel) {
     let quantSize
 
     try {
+      const python3Path = await which('python3', { nothrow: true })
+      if (!python3Path) {
+        throw new Error('python3 not found in PATH')
+      }
+
       if (quantLevel.toLowerCase() === 'int8') {
         // INT8: Use dynamic quantization (simpler, more compatible).
         const int8Command =
           'from onnxruntime.quantization import quantize_dynamic, QuantType; ' +
           `quantize_dynamic('${onnxPath}', '${quantPath}', weight_type=QuantType.QUInt8)`
 
-        const int8Result = await spawn('python3', ['-c', int8Command], {
+        const int8Result = await spawn(python3Path, ['-c', int8Command], {
           shell: WIN32,
           stdio: 'inherit',
         })
@@ -381,7 +402,7 @@ async function quantizeModel(modelKey, quantLevel) {
           'quant.process(); ' +
           `quant.model.save_model_to_file('${quantPath}', True)`
 
-        const int4Result = await spawn('python3', ['-c', int4Command], {
+        const int4Result = await spawn(python3Path, ['-c', int4Command], {
           shell: WIN32,
           stdio: 'inherit',
         })
@@ -448,12 +469,17 @@ async function copyToDist(modelKey, quantizedPaths, quantLevel) {
   } else {
     // Generate tokenizer.json from tokenizer files
     logger.substep('Generating tokenizer.json from tokenizer files')
+    const python3Path = await which('python3', { nothrow: true })
+    if (!python3Path) {
+      throw new Error('python3 not found in PATH')
+    }
+
     const generateScript = `
 from transformers import AutoTokenizer
 tokenizer = AutoTokenizer.from_pretrained('${modelDir}')
 tokenizer.save_pretrained('${outputDir}')
 `
-    const result = await spawn('python3', ['-c', generateScript], {
+    const result = await spawn(python3Path, ['-c', generateScript], {
       shell: WIN32,
       stdio: 'inherit',
     })

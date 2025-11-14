@@ -9,6 +9,7 @@ import path from 'node:path'
 
 import platformPkg from '@socketsecurity/lib/constants/platform'
 import spawnPkg from '@socketsecurity/lib/spawn'
+import { which } from '@socketsecurity/lib/which'
 
 const { WIN32 } = platformPkg
 const { spawn } = spawnPkg
@@ -184,7 +185,11 @@ export class RustBuilder {
    */
   async checkRustInstalled() {
     try {
-      const result = await spawn('rustc', ['--version'], {
+      const rustcPath = await which('rustc', { nothrow: true })
+      if (!rustcPath) {
+        return false
+      }
+      const result = await spawn(rustcPath, ['--version'], {
         shell: WIN32,
         stdio: 'pipe',
       })

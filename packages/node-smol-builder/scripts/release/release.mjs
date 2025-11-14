@@ -44,6 +44,7 @@ import { parseArgs } from '@socketsecurity/lib/argv/parse'
 import { safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
+import { which } from '@socketsecurity/lib/which'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.join(__dirname, '..')
@@ -93,7 +94,13 @@ const PLATFORMS = [
  */
 async function checkGitHubCLI() {
   try {
-    const result = await spawn('gh', ['--version'], { stdio: 'pipe' })
+    const ghPath = await which('gh', { nothrow: true })
+    if (!ghPath) {
+      logger.error('GitHub CLI (gh) not found')
+      logger.error('Install: https://cli.github.com/')
+      return false
+    }
+    const result = await spawn(ghPath, ['--version'], { stdio: 'pipe' })
     if (result.code !== 0) {
       throw new Error('gh command failed')
     }
@@ -110,7 +117,11 @@ async function checkGitHubCLI() {
  */
 async function checkGitHubAuth() {
   try {
-    const result = await spawn('gh', ['auth', 'status'], { stdio: 'pipe' })
+    const ghPath = await which('gh', { nothrow: true })
+    if (!ghPath) {
+      return false
+    }
+    const result = await spawn(ghPath, ['auth', 'status'], { stdio: 'pipe' })
     return result.code === 0
   } catch {
     return false
@@ -232,12 +243,20 @@ async function createReleaseArchive(platform, arch, version) {
 
   if (config.ext === 'tar.gz') {
     // Create tar.gz.
-    await spawn('tar', ['-czf', archivePath, '-C', tempDir, tempBinaryName], {
+    const tarPath = await which('tar', { nothrow: true })
+    if (!tarPath) {
+      throw new Error('tar not found in PATH')
+    }
+    await spawn(tarPath, ['-czf', archivePath, '-C', tempDir, tempBinaryName], {
       stdio: 'inherit',
     })
   } else {
     // Create zip.
-    await spawn('zip', ['-j', archivePath, tempBinary], { stdio: 'inherit' })
+    const zipPath = await which('zip', { nothrow: true })
+    if (!zipPath) {
+      throw new Error('zip not found in PATH')
+    }
+    await spawn(zipPath, ['-j', archivePath, tempBinary], { stdio: 'inherit' })
   }
 
   // Calculate checksum (for release notes only, not uploaded as separate file).
@@ -262,7 +281,11 @@ async function createReleaseArchive(platform, arch, version) {
  */
 async function releaseExists(tag) {
   try {
-    const result = await spawn('gh', ['release', 'view', tag], {
+    const ghPath = await which('gh', { nothrow: true })
+    if (!ghPath) {
+      return false
+    }
+    const result = await spawn(ghPath, ['release', 'view', tag], {
       stdio: 'pipe',
     })
     return result.code === 0
@@ -276,7 +299,11 @@ async function releaseExists(tag) {
  */
 async function deleteRelease(tag) {
   logger.log(`\nDeleting existing release: ${tag}`)
-  await spawn('gh', ['release', 'delete', tag, '--yes'], { stdio: 'inherit' })
+  const ghPath = await which('gh', { nothrow: true })
+  if (!ghPath) {
+    throw new Error('gh not found in PATH')
+  }
+  await spawn(ghPath, ['release', 'delete', tag, '--yes'], { stdio: 'inherit' })
 }
 
 /**
@@ -353,7 +380,12 @@ async function createGitHubRelease(tag, archives, publish) {
     return
   }
 
-  await spawn('gh', ghArgs, { stdio: 'inherit' })
+  const ghPath = await which('gh', { nothrow: true })
+  if (!ghPath) {
+    throw new Error('gh not found in PATH')
+  }
+
+  await spawn(ghPath, ghArgs, { stdio: 'inherit' })
 }
 
 /**

@@ -11,6 +11,7 @@ import path from 'node:path'
 import binPkg from '@socketsecurity/lib/bin'
 import platformPkg from '@socketsecurity/lib/constants/platform'
 import spawnPkg from '@socketsecurity/lib/spawn'
+import { which } from '@socketsecurity/lib/which'
 
 const { whichBinSync } = binPkg
 const { WIN32 } = platformPkg
@@ -62,7 +63,12 @@ export async function checkDiskSpace(dir, requiredGB = 5) {
   } catch (_error) {
     // Fallback to df command if fs.statfs fails (older Node versions).
     try {
-      const result = await spawn('df', ['-k', dir], {
+      const dfPath = await which('df', { nothrow: true })
+      if (!dfPath) {
+        printWarning('Could not check disk space (df not found)')
+        return { availableGB: null, sufficient: true }
+      }
+      const result = await spawn(dfPath, ['-k', dir], {
         shell: WIN32,
         stdio: 'pipe',
         stdioString: true,

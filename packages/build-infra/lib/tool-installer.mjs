@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url'
 import binPkg from '@socketsecurity/lib/bin'
 import platformPkg from '@socketsecurity/lib/constants/platform'
 import spawnPkg from '@socketsecurity/lib/spawn'
+import { which } from '@socketsecurity/lib/which'
 
 const { whichBinSync } = binPkg
 const { WIN32 } = platformPkg
@@ -294,7 +295,13 @@ export async function installPackageManager(
   }
 
   try {
-    const result = await spawn('sh', ['-c', managerConfig.installScript], {
+    const shPath = await which('sh', { nothrow: true })
+    if (!shPath) {
+      printError('sh not found in PATH')
+      return false
+    }
+
+    const result = await spawn(shPath, ['-c', managerConfig.installScript], {
       env: process.env,
       shell: WIN32,
       stdio: 'inherit',
@@ -410,7 +417,11 @@ export async function checkElevatedPrivileges() {
   if (platform === 'win32') {
     // On Windows, check if running as administrator.
     try {
-      const result = await spawn('net', ['session'], { shell: true })
+      const netPath = await which('net', { nothrow: true })
+      if (!netPath) {
+        return false
+      }
+      const result = await spawn(netPath, ['session'], { shell: true })
       return result.code === 0
     } catch {
       return false
@@ -424,7 +435,11 @@ export async function checkElevatedPrivileges() {
 
   // Check if sudo is available.
   try {
-    const result = await spawn('sudo', ['-n', 'true'])
+    const sudoPath = await which('sudo', { nothrow: true })
+    if (!sudoPath) {
+      return false
+    }
+    const result = await spawn(sudoPath, ['-n', 'true'])
     return result.code === 0
   } catch {
     return false

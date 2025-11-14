@@ -126,6 +126,7 @@ import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
+import { which } from '@socketsecurity/lib/which'
 
 // Node.js version to build
 const NODE_VERSION = 'v24.10.0'
@@ -410,7 +411,11 @@ const ARCH = TARGET_ARCH
  */
 async function isNodeSourceDirty() {
   try {
-    const result = await spawn('git', ['status', '--porcelain'], {
+    const gitPath = await which('git', { nothrow: true })
+    if (!gitPath) {
+      return false
+    }
+    const result = await spawn(gitPath, ['status', '--porcelain'], {
       cwd: NODE_DIR,
       stdio: 'pipe',
       stdioString: true,

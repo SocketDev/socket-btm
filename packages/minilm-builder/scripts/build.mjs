@@ -39,6 +39,7 @@ import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
+import { which } from '@socketsecurity/lib/which'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -295,7 +296,12 @@ except Exception as e:
 async function runPythonScript(scriptName, args, options = {}) {
   const scriptPath = path.join(PYTHON_DIR, scriptName)
 
-  const result = await spawn('python3', [scriptPath, ...args], {
+  const python3Path = await which('python3', { nothrow: true })
+  if (!python3Path) {
+    throw new Error('python3 not found in PATH')
+  }
+
+  const result = await spawn(python3Path, [scriptPath, ...args], {
     stdio: 'pipe',
     stdioString: true,
     ...options,

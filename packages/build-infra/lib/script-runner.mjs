@@ -6,6 +6,7 @@
 import platformPkg from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import spawnPkg from '@socketsecurity/lib/spawn'
+import { which } from '@socketsecurity/lib/which'
 
 const { WIN32 } = platformPkg
 const logger = getDefaultLogger()
@@ -26,9 +27,14 @@ export async function runPnpmScript(
   args = [],
   options = {},
 ) {
+  const pnpmPath = await which('pnpm', { nothrow: true })
+  if (!pnpmPath) {
+    throw new Error('pnpm not found in PATH')
+  }
+
   const pnpmArgs = ['--filter', packageName, 'run', scriptName, ...args]
 
-  return spawn('pnpm', pnpmArgs, {
+  return spawn(pnpmPath, pnpmArgs, {
     shell: WIN32,
     stdio: 'inherit',
     ...options,
@@ -44,9 +50,14 @@ export async function runPnpmScript(
  * @returns {Promise<{code: number, stdout?: string, stderr?: string}>}
  */
 export async function runPnpmScriptAll(scriptName, args = [], options = {}) {
+  const pnpmPath = await which('pnpm', { nothrow: true })
+  if (!pnpmPath) {
+    throw new Error('pnpm not found in PATH')
+  }
+
   const pnpmArgs = ['run', '-r', scriptName, ...args]
 
-  return spawn('pnpm', pnpmArgs, {
+  return spawn(pnpmPath, pnpmArgs, {
     shell: WIN32,
     stdio: 'inherit',
     ...options,
@@ -128,7 +139,11 @@ export const pnpm = {
    */
   install: async (options = {}) => {
     logger.step('Installing dependencies')
-    return spawn('pnpm', ['install', '--frozen-lockfile'], {
+    const pnpmPath = await which('pnpm', { nothrow: true })
+    if (!pnpmPath) {
+      throw new Error('pnpm not found in PATH')
+    }
+    return spawn(pnpmPath, ['install', '--frozen-lockfile'], {
       shell: WIN32,
       stdio: 'inherit',
       ...options,
@@ -140,11 +155,15 @@ export const pnpm = {
    */
   build: async (packageName = null, options = {}) => {
     logger.step(packageName ? `Building ${packageName}` : 'Building packages')
+    const pnpmPath = await which('pnpm', { nothrow: true })
+    if (!pnpmPath) {
+      throw new Error('pnpm not found in PATH')
+    }
     const args = packageName
       ? ['--filter', packageName, 'run', 'build']
       : ['run', '-r', 'build']
 
-    return spawn('pnpm', args, {
+    return spawn(pnpmPath, args, {
       shell: WIN32,
       stdio: 'inherit',
       ...options,
@@ -156,11 +175,15 @@ export const pnpm = {
    */
   test: async (packageName = null, options = {}) => {
     logger.step(packageName ? `Testing ${packageName}` : 'Running tests')
+    const pnpmPath = await which('pnpm', { nothrow: true })
+    if (!pnpmPath) {
+      throw new Error('pnpm not found in PATH')
+    }
     const args = packageName
       ? ['--filter', packageName, 'run', 'test']
       : ['run', '-r', 'test']
 
-    return spawn('pnpm', args, {
+    return spawn(pnpmPath, args, {
       shell: WIN32,
       stdio: 'inherit',
       ...options,

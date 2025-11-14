@@ -39,6 +39,7 @@ import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
+import { which } from '@socketsecurity/lib/which'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -280,7 +281,12 @@ async function configure() {
   printStep(`  CXX: ${cxxFlags.join(' ')}`)
   printStep(`  Linker: ${linkerFlags.join(' ')}`)
 
-  const cmakeResult = await spawn('emcmake', cmakeArgs, {
+  const emcmakePath = await which('emcmake', { nothrow: true })
+  if (!emcmakePath) {
+    throw new Error('emcmake not found in PATH')
+  }
+
+  const cmakeResult = await spawn(emcmakePath, cmakeArgs, {
     shell: WIN32,
     stdio: 'inherit',
   })

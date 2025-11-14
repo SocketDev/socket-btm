@@ -75,7 +75,7 @@
 
 import { existsSync, readdirSync, promises as fs } from 'node:fs'
 import { cpus, platform } from 'node:os'
-import path, { dirname } from 'node:path'
+import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import {
@@ -466,102 +466,6 @@ async function getFileSize(filePath) {
 }
 
 /**
- * Smoke test a Node.js binary with comprehensive checks.
- * Works for both vanilla Node.js (smol) and SEA binaries.
- *
- * @param {string} binaryPath - Path to Node.js binary
- * @param {object} options - Test options
- * @param {boolean} options.isSEA - Is this a SEA binary?
- * @param {boolean} options.isCheckpoint - Is this a checkpoint smoketest (affects error handling)?
- * @returns {Promise<{valid: boolean, reason?: string}>}
- */
-async function smoketestBinary(
-  binaryPath,
-  { isCheckpoint = false, isSEA = false } = {},
-) {
-  const tests = []
-
-  // Test 1: --version (works for both vanilla Node and SEA).
-  tests.push({
-    name: '--version',
-    async run() {
-      const result = await spawn(binaryPath, ['--version'], {
-        timeout: 5000,
-      })
-      return { success: result.code === 0, reason: `exit code ${result.code}` }
-    },
-  })
-
-  if (!isSEA) {
-    // Test 2: JavaScript execution (vanilla Node only).
-    tests.push({
-      name: 'JavaScript execution',
-      async run() {
-        const result = await spawn(
-          binaryPath,
-          ['--eval', 'console.log("hello world")'],
-          { timeout: 5000, stdioString: true },
-        )
-        const success =
-          result.code === 0 && result.stdout.trim() === 'hello world'
-        return {
-          success,
-          reason: success
-            ? 'ok'
-            : `exit code ${result.code}, output: ${result.stdout.trim()}`,
-        }
-      },
-    })
-
-    // Test 3: Module system (vanilla Node only).
-    tests.push({
-      name: 'Module system',
-      async run() {
-        const result = await spawn(
-          binaryPath,
-          ['--eval', 'require("path").join("a","b")'],
-          { timeout: 5000 },
-        )
-        return {
-          success: result.code === 0,
-          reason: `exit code ${result.code}`,
-        }
-      },
-    })
-  } else {
-    // Test 2: SEA help command (tests bundled CLI).
-    tests.push({
-      name: 'SEA help command',
-      async run() {
-        const result = await spawn(binaryPath, ['--help'], {
-          timeout: 5000,
-          stdioString: true,
-        })
-        const success = result.code === 0 && result.stdout.includes('Usage:')
-        return {
-          success,
-          reason: success ? 'ok' : `exit code ${result.code}, no usage text`,
-        }
-      },
-    })
-  }
-
-  // Run all tests.
-  for (const test of tests) {
-    try {
-      const { reason, success } = await test.run()
-      if (!success) {
-        return { valid: false, reason: `${test.name} failed: ${reason}` }
-      }
-    } catch (e) {
-      return { valid: false, reason: `${test.name} threw: ${e.message}` }
-    }
-  }
-
-  return { valid: true }
-}
-
-/**
  * Check if required tools are available, auto-installing if possible.
  */
 async function checkRequiredTools() {
@@ -624,7 +528,7 @@ async function checkRequiredTools() {
 
   // Step 6: Check manual tools.
   let allManualAvailable = true
-  for (const { checkExists, cmd, name } of manualTools) {
+  for (const { cmd, name } of manualTools) {
     const binPath = whichBinSync(cmd, { nothrow: true })
     if (binPath) {
       logger.log(`${colors.green('✓')} ${name} is available`)
@@ -1003,26 +907,19 @@ async function main() {
       'Final',
       IS_WINDOWS ? 'node.exe' : 'node',
     )
-    const distBinary = path.join(ROOT_DIR, 'dist', 'socket-smol')
-    const distSeaBinary = path.join(ROOT_DIR, 'dist', 'socket-sea')
 
     // Collect all source files that affect the build.
     const sourcePaths = collectBuildSourceFiles()
 
     // Check if build is needed based on source file hashes.
-    // Store hash in per-mode cache/ directory for full isolation.
-    const cacheDir = getCacheDir(BUILD_DIR)
+    const cacheDir = path.join(BUILD_ROOT, '.cache')
     const hashFilePath = path.join(cacheDir, 'cache-validation.hash')
     const needsExtraction = await shouldExtract({
       sourcePaths,
       outputPath: hashFilePath,
       validateOutput: () => {
-        // Verify final binary, hash file, and at least one dist binary exist.
-        return (
-          existsSync(finalOutputBinary) &&
-          existsSync(hashFilePath) &&
-          (existsSync(distBinary) || existsSync(distSeaBinary))
-        )
+        // Verify final binary and hash file exist.
+        return existsSync(finalOutputBinary) && existsSync(hashFilePath)
       },
     })
 
@@ -1033,9 +930,6 @@ async function main() {
       logger.log('All source files unchanged since last build.')
       logger.log('')
       logger.substep(`Final binary: ${finalOutputBinary}`)
-      logger.substep(
-        `E2E binary: ${existsSync(distBinary) ? distBinary : distSeaBinary}`,
-      )
       logger.log('')
       logger.success('Cached build is ready to use')
       logger.log('')
@@ -1072,7 +966,6 @@ async function main() {
     if (existsSync(NODE_DIR) && CLEAN_BUILD) {
       printHeader('Clean Build Requested')
       logger.log('Removing existing Node.js source directory...')
-      const { rm } = await import('node:fs/promises')
       await safeDelete(NODE_DIR, { recursive: true, force: true })
       await cleanCheckpoint(BUILD_DIR, PACKAGE_NAME)
       logger.log(`${colors.green('✓')} Cleaned build directory`)
@@ -1136,7 +1029,6 @@ async function main() {
 
         // Clean up partial clone.
         try {
-          const { rm } = await import('node:fs/promises')
           await safeDelete(NODE_DIR, { recursive: true, force: true })
         } catch {
           // Ignore cleanup errors.
@@ -1539,7 +1431,7 @@ async function main() {
   if (!(await shouldRun(BUILD_DIR, PACKAGE_NAME, 'built', CLEAN_BUILD))) {
     // shouldRun already printed the skip message
     logger.log('')
-  } else if (!restoredFromCache && !WIN32) {
+  } else if (!WIN32) {
     const jobCount = CPU_COUNT
     const timeEstimate = estimateBuildTime(jobCount)
     logger.log(
@@ -1963,9 +1855,17 @@ async function main() {
     logger.log('')
 
     // Create checkpoint for Compressed build after successful smoke test.
+    // This is the final checkpoint - calculate checksum for cache validation.
+    const { createHash } = await import('node:crypto')
+    const compressedBinaryContent = await fs.readFile(compressedBinary)
+    const compressedChecksum = createHash('sha256')
+      .update(compressedBinaryContent)
+      .digest('hex')
+
     const compressedBinarySize = await getFileSize(compressedBinary)
     await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'compressed', {
       binarySize: compressedBinarySize,
+      checksum: compressedChecksum,
       binaryPath: path.relative(BUILD_DIR, compressedBinary),
     })
 
@@ -2103,62 +2003,6 @@ async function main() {
     logger.logNewline()
   }
 
-  // Copy signed binary to build/out/Sea (for SEA builds).
-  printHeader('Copying to Build Output (Sea)')
-  logger.log(
-    'Copying signed binary to build/out/Sea directory for SEA builds...',
-  )
-  logger.logNewline()
-
-  const outputSeaDir = path.join(BUILD_DIR, 'out', 'Sea')
-  await safeMkdir(outputSeaDir)
-  const outputSeaBinary = path.join(outputSeaDir, 'node')
-  await fs.cp(nodeBinary, outputSeaBinary, {
-    force: true,
-    preserveTimestamps: true,
-  })
-
-  logger.substep(`Sea directory: ${outputSeaDir}`)
-  logger.substep('Binary: node (stripped + signed, ready for SEA)')
-  logger.logNewline()
-  logger.success('Binary copied to build/out/Sea')
-  logger.logNewline()
-
-  // Copy to dist/ for E2E testing.
-  printHeader('Copying to dist/ for E2E Testing')
-  logger.log(
-    'Creating dist/socket-smol and dist/socket-sea for e2e test suite...',
-  )
-  logger.logNewline()
-
-  const distDir = path.join(ROOT_DIR, 'dist')
-  await safeMkdir(distDir)
-
-  // Copy final binary (compressed or stripped) to dist/socket-smol.
-  const distSmolBinary = path.join(distDir, 'socket-smol')
-  await fs.cp(finalBinary, distSmolBinary, {
-    force: true,
-    preserveTimestamps: true,
-  })
-  await exec('chmod', ['+x', distSmolBinary])
-
-  // Copy SEA binary to dist/socket-sea.
-  const distSeaBinary = path.join(distDir, 'socket-sea')
-  await fs.cp(outputSeaBinary, distSeaBinary, {
-    force: true,
-    preserveTimestamps: true,
-  })
-  await exec('chmod', ['+x', distSeaBinary])
-
-  logger.substep(`E2E smol binary: ${distSmolBinary}`)
-  logger.substep(`E2E sea binary: ${distSeaBinary}`)
-  logger.substep('Test commands:')
-  logger.substep('  pnpm --filter @socketsecurity/cli run e2e:smol')
-  logger.substep('  pnpm --filter @socketsecurity/cli run e2e:sea')
-  logger.logNewline()
-  logger.success('Binaries copied to dist/ for e2e testing')
-  logger.logNewline()
-
   // Write source hash to cache file for future builds.
   const sourcePaths = collectBuildSourceFiles()
   const sourceHashComment = await generateHashComment(sourcePaths)
@@ -2172,16 +2016,7 @@ async function main() {
   // Report build complete.
   const binarySize = await getFileSize(finalBinary)
 
-  // Calculate checksum for cache validation
-  const { createHash } = await import('node:crypto')
-  const binaryContent = await fs.readFile(finalBinary)
-  const checksum = createHash('sha256').update(binaryContent).digest('hex')
-
-  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'final', {
-    binarySize,
-    checksum,
-    binaryPath: path.relative(BUILD_DIR, finalBinary),
-  })
+  // Clean old checkpoint files.
   await cleanCheckpoint(BUILD_DIR, PACKAGE_NAME)
 
   // Calculate total build time.

@@ -361,7 +361,7 @@ async function copyBuildAdditions() {
     },
   ]
 
-  for (const { source, dest } of additionsMappings) {
+  for (const { dest, source } of additionsMappings) {
     const sourceDir = path.join(ADDITIONS_RELEASE_DIR, source)
     const destDir = path.join(NODE_DIR, dest)
 
@@ -1199,9 +1199,10 @@ async function main() {
           result = await spawn(
             'sh',
             ['-c', `patch -p1 --batch --forward < "${patchPath}"`],
+            // Capture stdout/stderr instead of inherit
             {
               cwd: NODE_DIR,
-              stdio: 'pipe', // Capture stdout/stderr instead of inherit
+              stdio: 'pipe',
             },
           )
         } catch (e) {
@@ -1211,7 +1212,10 @@ async function main() {
 
         if (result.code !== 0) {
           // Check if patch was already applied (patch --forward exits with 1 when skipping).
-          const output = (result.stdout || '') + (result.stderr || '')
+          // Handle both string and Buffer types for stdout/stderr
+          const stdout = (result.stdout ?? '').toString()
+          const stderr = (result.stderr ?? '').toString()
+          const output = stdout + stderr
           const isAlreadyApplied =
             output.includes('Ignoring previously applied') ||
             output.includes('Reversed (or previously applied) patch detected')
@@ -1817,7 +1821,23 @@ async function main() {
   // Default: always compress (it's smol!)
   const shouldCompress = !values['no-compress-binary']
 
-  if (shouldCompress) {
+  // Check if compression tools exist before attempting compression.
+  // Path: ROOT_DIR/compression-tools
+  const toolsDir = path.join(ROOT_DIR, 'compression-tools')
+  const compressionToolsExist = existsSync(toolsDir)
+
+  if (shouldCompress && !compressionToolsExist) {
+    logger.warn('Binary compression requested but compression tools not found')
+    logger.warn(
+      `Expected tools directory: ${path.relative(ROOT_DIR, toolsDir)}`,
+    )
+    logger.warn(
+      'Skipping compression (build will continue with uncompressed binary)',
+    )
+    logger.logNewline()
+  }
+
+  if (shouldCompress && compressionToolsExist) {
     printHeader('Compressing Binary for Distribution')
     logger.log(
       'Compressing stripped binary using platform-specific compression...',

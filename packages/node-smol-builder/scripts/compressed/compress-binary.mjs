@@ -45,7 +45,8 @@ import { spawn } from '@socketsecurity/lib/spawn'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const logger = getDefaultLogger()
-const TOOLS_DIR = path.resolve(__dirname, '../additions/003-compression-tools')
+// Path: scripts/compressed -> scripts -> root -> compression-tools
+const TOOLS_DIR = path.resolve(__dirname, '../../../compression-tools')
 
 /**
  * Platform configuration.

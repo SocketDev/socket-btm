@@ -1,0 +1,29 @@
+# Makefile for Windows compression tools
+# Uses Windows Compression API (LZMS, XPRESS)
+
+CC = gcc
+CFLAGS = -O3 -Wall -Wextra -std=c11
+LDFLAGS = -lcabinet -lkernel32
+
+# Targets
+COMPRESS = socketsecurity_pe_compress.exe
+DECOMPRESS = socketsecurity_pe_decompress.exe
+
+.PHONY: all clean
+
+all: $(COMPRESS) $(DECOMPRESS)
+
+$(COMPRESS): pe_compress.c
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
+
+$(DECOMPRESS): pe_decompress.c
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
+
+clean:
+	del /Q $(COMPRESS) $(DECOMPRESS) 2>NUL || true
+	del /Q *.obj *.pdb *.ilk 2>NUL || true
+
+install: all
+	@echo "Compression tools built successfully"
+	@echo "  - $(COMPRESS)"
+	@echo "  - $(DECOMPRESS)"

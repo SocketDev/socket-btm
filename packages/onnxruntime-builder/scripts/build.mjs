@@ -172,6 +172,7 @@ async function cloneOnnxSource() {
       'clone',
       '--depth',
       '1',
+      '--single-branch',
       '--branch',
       ONNX_VERSION,
       ONNX_REPO,

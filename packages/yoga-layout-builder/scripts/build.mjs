@@ -109,6 +109,7 @@ async function cloneYogaSource() {
       'clone',
       '--depth',
       '1',
+      '--single-branch',
       '--branch',
       YOGA_VERSION,
       YOGA_REPO,

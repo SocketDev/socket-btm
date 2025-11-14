@@ -34,30 +34,13 @@
  *   node scripts/compress-binary.mjs ./node ./node.compressed --quality=lzma
  */
 
-import { spawn as nodeSpawn } from 'node:child_process'
 import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { which } from '@socketsecurity/lib/bin'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
-
-/**
- * Promise wrapper for child_process.spawn that resolves with exit code.
- */
-function spawnAsync(command, args, options) {
-  return new Promise((resolve, reject) => {
-    const child = nodeSpawn(command, args, options)
-
-    child.on('error', error => {
-      reject(error)
-    })
-
-    child.on('close', code => {
-      resolve({ code })
-    })
-  })
-}
+import { spawn } from '@socketsecurity/lib/spawn'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const logger = getDefaultLogger()
@@ -166,7 +149,7 @@ async function ensureToolBuilt(config) {
   const binName = commandParts[0]
   const args = commandParts.slice(1)
 
-  // Resolve the binary path using which
+  // Resolve the binary path using which to verify it exists
   const binPath = await which(binName, { nothrow: true })
   if (!binPath) {
     throw new Error(
@@ -179,20 +162,19 @@ async function ensureToolBuilt(config) {
   logger.substep(`Arguments: ${args.join(' ')}`)
   logger.log('')
 
-  // Execute the build command using Node.js spawn directly.
-  // Using Node.js built-in spawn instead of @socketsecurity/lib wrapper
-  // to avoid platform-specific spawn implementation issues.
-  // Shell mode is required on both Windows and Unix for proper execution
-  // of build tools like mingw32-make and make.
-  const result = await spawnAsync(binPath, args, {
+  // Execute the build command using @socketsecurity/lib spawn.
+  // Use the resolved binary path directly without shell mode to avoid
+  // shell spawning issues on all platforms (cmd.exe ENOENT on Windows,
+  // sh ENOENT on Linux). Direct binary execution is more reliable.
+  const result = await spawn(binPath, args, {
     cwd: TOOLS_DIR,
     stdio: 'inherit',
-    shell: true,
+    shell: false,
   })
 
-  if (result.code !== 0) {
+  if (result.exitCode !== 0) {
     throw new Error(
-      `Failed to build compression tool (exit code: ${result.code})`,
+      `Failed to build compression tool (exit code: ${result.exitCode})`,
     )
   }
 
@@ -246,16 +228,15 @@ async function compressBinary(
     args.push(`--quality=${quality}`)
   }
 
-  // Execute compression tool.
-  // On Windows, use shell: false since we're spawning an .exe directly.
-  // On Unix, shell mode is not needed since we're spawning an executable.
-  const result = await spawnAsync(toolPath, args, {
+  // Execute compression tool using @socketsecurity/lib spawn.
+  // No shell mode needed since we're spawning a native executable directly.
+  const result = await spawn(toolPath, args, {
     stdio: 'inherit',
     shell: false,
   })
 
-  if (result.code !== 0) {
-    throw new Error(`Compression failed (exit code: ${result.code})`)
+  if (result.exitCode !== 0) {
+    throw new Error(`Compression failed (exit code: ${result.exitCode})`)
   }
 
   // Verify compressed data file was created.

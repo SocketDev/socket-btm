@@ -32,11 +32,11 @@ import {
 import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import { ensureAllPythonPackages } from 'build-infra/lib/python-installer'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
+import * as ort from 'onnxruntime-node'
 
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
-import * as ort from 'onnxruntime-node'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -224,14 +224,18 @@ async function quantizeModels() {
 
   // Quantize encoder with INT8.
   printStep('Quantizing encoder (INT8)')
-  const quantizeEncoderCommand =
-    `python3 -c "from onnxruntime.quantization import quantize_dynamic, QuantType; ` +
-    `quantize_dynamic('${encoderPath}', '${encoderPath}.quant', weight_type=QuantType.QInt8)"`
+  const quantizeEncoderScript =
+    'from onnxruntime.quantization import quantize_dynamic, QuantType; ' +
+    `quantize_dynamic('${encoderPath}', '${encoderPath}.quant', weight_type=QuantType.QInt8)`
 
-  const quantizeEncoderResult = await spawn(quantizeEncoderCommand, [], {
-    shell: WIN32,
-    stdio: 'inherit',
-  })
+  const quantizeEncoderResult = await spawn(
+    'python3',
+    ['-c', quantizeEncoderScript],
+    {
+      shell: WIN32,
+      stdio: 'inherit',
+    },
+  )
 
   if (quantizeEncoderResult.code !== 0) {
     throw new Error('Failed to quantize encoder')
@@ -239,14 +243,18 @@ async function quantizeModels() {
 
   // Quantize decoder with INT8.
   printStep('Quantizing decoder (INT8)')
-  const quantizeDecoderCommand =
-    `python3 -c "from onnxruntime.quantization import quantize_dynamic, QuantType; ` +
-    `quantize_dynamic('${decoderPath}', '${decoderPath}.quant', weight_type=QuantType.QInt8)"`
+  const quantizeDecoderScript =
+    'from onnxruntime.quantization import quantize_dynamic, QuantType; ' +
+    `quantize_dynamic('${decoderPath}', '${decoderPath}.quant', weight_type=QuantType.QInt8)`
 
-  const quantizeDecoderResult = await spawn(quantizeDecoderCommand, [], {
-    shell: WIN32,
-    stdio: 'inherit',
-  })
+  const quantizeDecoderResult = await spawn(
+    'python3',
+    ['-c', quantizeDecoderScript],
+    {
+      shell: WIN32,
+      stdio: 'inherit',
+    },
+  )
 
   if (quantizeDecoderResult.code !== 0) {
     throw new Error('Failed to quantize decoder')

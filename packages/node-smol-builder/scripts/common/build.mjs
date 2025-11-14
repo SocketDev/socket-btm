@@ -211,7 +211,7 @@ const BUILD_DIR = path.join(BUILD_ROOT, BUILD_MODE) // Mode-specific build outpu
 const PACKAGE_NAME = '' // Empty for flat checkpoint structure (no subdirectory needed)
 const NODE_SOURCE_DIR = path.join(BUILD_DIR, 'node-source')
 const NODE_DIR = NODE_SOURCE_DIR // Alias for compatibility.
-const PATCHES_DIR = path.join(ROOT_DIR, 'patches', 'release')
+const PATCHES_DIR = path.join(ROOT_DIR, 'scripts', 'patches', 'release')
 const ADDITIONS_DIR = path.join(ROOT_DIR, 'additions')
 
 // Directory structure (fully isolated by build mode for concurrent builds).

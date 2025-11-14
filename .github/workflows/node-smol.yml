@@ -186,7 +186,7 @@ jobs:
             exit 1
           fi
 
-          PATCHES_HASH=$(find packages/node-smol-builder/patches -type f 2>/dev/null | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          PATCHES_HASH=$(find packages/node-smol-builder/patches -type f 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
           CONFIG_HASH=$($hash_cmd packages/node-smol-builder/scripts/build.mjs | cut -d' ' -f1)
           COMBINED_HASH=$(echo "${PATCHES_HASH}${CONFIG_HASH}" | $hash_cmd | cut -d' ' -f1)
           echo "hash=${COMBINED_HASH}" >> $GITHUB_OUTPUT

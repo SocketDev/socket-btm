@@ -1646,14 +1646,6 @@ async function main() {
   logger.log(`${colors.green('✓')} Binary is functional`)
   logger.log('')
 
-  // Create checkpoint for Release build after successful smoke test.
-  const releaseBinarySize = await getFileSize(nodeBinary)
-  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'release', {
-    binarySize: releaseBinarySize,
-    binaryPath: path.relative(BUILD_DIR, nodeBinary),
-  })
-  logger.log('')
-
   // Copy unmodified binary to build/out/Release.
   printHeader('Copying to Build Output (Release)')
   logger.log('Copying unmodified binary to build/out/Release directory...')
@@ -1672,6 +1664,14 @@ async function main() {
   logger.logNewline()
   logger.success('Unmodified binary copied to build/out/Release')
   logger.logNewline()
+
+  // Create checkpoint for Release build after copying to output.
+  const releaseBinarySize = await getFileSize(outputReleaseBinary)
+  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'release', {
+    binarySize: releaseBinarySize,
+    binaryPath: path.relative(BUILD_DIR, outputReleaseBinary),
+  })
+  logger.log('')
 
   // Strip debug symbols to reduce size.
   printHeader('Optimizing Binary Size')
@@ -1826,13 +1826,6 @@ async function main() {
   logger.log(`${colors.green('✓')} Binary functional after stripping`)
   logger.log('')
 
-  // Create checkpoint for Stripped build after successful smoke test.
-  const strippedBinarySize = await getFileSize(nodeBinary)
-  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'stripped', {
-    binarySize: strippedBinarySize,
-    binaryPath: path.relative(BUILD_DIR, nodeBinary),
-  })
-
   // Copy stripped binary to build/out/Stripped.
   printHeader('Copying to Build Output (Stripped)')
   logger.log('Copying stripped binary to build/out/Stripped directory...')
@@ -1851,6 +1844,14 @@ async function main() {
   logger.logNewline()
   logger.success('Stripped binary copied to build/out/Stripped')
   logger.logNewline()
+
+  // Create checkpoint for Stripped build after copying to output.
+  const strippedBinarySize = await getFileSize(outputStrippedBinary)
+  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'stripped', {
+    binarySize: strippedBinarySize,
+    binaryPath: path.relative(BUILD_DIR, outputStrippedBinary),
+  })
+  logger.log('')
 
   // Compress binary for smaller distribution size (DEFAULT for smol builds).
   // Uses native platform APIs (Apple Compression, liblzma, Windows Compression API) instead of UPX.

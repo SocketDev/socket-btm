@@ -68,7 +68,7 @@ const OUTPUT_DIR = path.join(BUILD_DIR, 'output')
  */
 async function downloadModels() {
   if (
-    !(await shouldRun(BUILD_DIR, 'codet5-models', 'downloaded', FORCE_BUILD))
+    !(await shouldRun(BUILD_DIR, '', 'downloaded', FORCE_BUILD))
   ) {
     return
   }
@@ -96,7 +96,7 @@ async function downloadModels() {
   }
 
   printSuccess('Models downloaded')
-  await createCheckpoint(BUILD_DIR, 'codet5-models', 'downloaded')
+  await createCheckpoint(BUILD_DIR, '', 'downloaded')
 }
 
 /**
@@ -104,7 +104,7 @@ async function downloadModels() {
  */
 async function convertToOnnx() {
   if (
-    !(await shouldRun(BUILD_DIR, 'codet5-models', 'converted', FORCE_BUILD))
+    !(await shouldRun(BUILD_DIR, '', 'converted', FORCE_BUILD))
   ) {
     return
   }
@@ -127,7 +127,7 @@ async function convertToOnnx() {
   }
 
   printSuccess('Models converted to ONNX')
-  await createCheckpoint(BUILD_DIR, 'codet5-models', 'converted')
+  await createCheckpoint(BUILD_DIR, '', 'converted')
 }
 
 /**
@@ -135,7 +135,7 @@ async function convertToOnnx() {
  */
 async function quantizeModels() {
   if (
-    !(await shouldRun(BUILD_DIR, 'codet5-models', 'quantized', FORCE_BUILD))
+    !(await shouldRun(BUILD_DIR, '', 'quantized', FORCE_BUILD))
   ) {
     return
   }
@@ -186,7 +186,7 @@ async function quantizeModels() {
   printStep(`Decoder: ${decoderSize}`)
 
   printSuccess('Models quantized')
-  await createCheckpoint(BUILD_DIR, 'codet5-models', 'quantized')
+  await createCheckpoint(BUILD_DIR, '', 'quantized')
 }
 
 /**
@@ -194,7 +194,7 @@ async function quantizeModels() {
  */
 async function optimizeModels() {
   if (
-    !(await shouldRun(BUILD_DIR, 'codet5-models', 'optimized', FORCE_BUILD))
+    !(await shouldRun(BUILD_DIR, '', 'optimized', FORCE_BUILD))
   ) {
     return
   }
@@ -235,7 +235,7 @@ async function optimizeModels() {
   }
 
   printSuccess('Models optimized')
-  await createCheckpoint(BUILD_DIR, 'codet5-models', 'optimized')
+  await createCheckpoint(BUILD_DIR, '', 'optimized')
 }
 
 /**
@@ -244,7 +244,7 @@ async function optimizeModels() {
  * Uses onnxruntime-node (native) to validate model structure.
  */
 async function verifyModels() {
-  if (!(await shouldRun(BUILD_DIR, 'codet5-models', 'verified', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, '', 'verified', FORCE_BUILD))) {
     return
   }
 
@@ -306,7 +306,7 @@ async function verifyModels() {
   }
 
   printSuccess('Models verified')
-  await createCheckpoint(BUILD_DIR, 'codet5-models', 'verified')
+  await createCheckpoint(BUILD_DIR, '', 'verified')
 }
 
 /**

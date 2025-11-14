@@ -33,7 +33,7 @@ async function main() {
   for (const mode of ['prod', 'dev']) {
     for (const quant of ['int4', 'int8']) {
       const buildDir = path.join(ROOT_DIR, 'build', mode, quant)
-      await cleanCheckpoint(buildDir, 'codet5-models')
+      await cleanCheckpoint(buildDir, '')
     }
   }
 

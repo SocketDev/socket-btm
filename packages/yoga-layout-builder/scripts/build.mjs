@@ -70,7 +70,7 @@ const YOGA_SOURCE_DIR = path.join(BUILD_DIR, 'yoga-source')
  * Clone Yoga source if not already present.
  */
 async function cloneYogaSource() {
-  if (!(await shouldRun(BUILD_DIR, 'yoga-layout', 'cloned', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, '', 'cloned', FORCE_BUILD))) {
     return
   }
 
@@ -78,7 +78,7 @@ async function cloneYogaSource() {
 
   if (existsSync(YOGA_SOURCE_DIR)) {
     printStep('Yoga source already exists, skipping clone')
-    await createCheckpoint(BUILD_DIR, 'yoga-layout', 'cloned')
+    await createCheckpoint(BUILD_DIR, '', 'cloned')
     return
   }
 
@@ -107,14 +107,14 @@ async function cloneYogaSource() {
   }
 
   printSuccess(`Yoga ${YOGA_VERSION} cloned`)
-  await createCheckpoint(BUILD_DIR, 'yoga-layout', 'cloned')
+  await createCheckpoint(BUILD_DIR, '', 'cloned')
 }
 
 /**
  * Configure CMake with Emscripten.
  */
 async function configure() {
-  if (!(await shouldRun(BUILD_DIR, 'yoga-layout', 'configured', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, '', 'configured', FORCE_BUILD))) {
     return
   }
 
@@ -223,14 +223,14 @@ async function configure() {
   }
 
   printSuccess('CMake configured')
-  await createCheckpoint(BUILD_DIR, 'yoga-layout', 'configured')
+  await createCheckpoint(BUILD_DIR, '', 'configured')
 }
 
 /**
  * Build Yoga with Emscripten.
  */
 async function build() {
-  if (!(await shouldRun(BUILD_DIR, 'yoga-layout', 'built', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, '', 'built', FORCE_BUILD))) {
     return
   }
 
@@ -315,14 +315,14 @@ async function build() {
 
   const duration = formatDuration(Date.now() - startTime)
   printSuccess(`Build completed in ${duration}`)
-  await createCheckpoint(BUILD_DIR, 'yoga-layout', 'built')
+  await createCheckpoint(BUILD_DIR, '', 'built')
 }
 
 /**
  * Optimize WASM with wasm-opt.
  */
 async function optimize() {
-  if (!(await shouldRun(BUILD_DIR, 'yoga-layout', 'optimized', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, '', 'optimized', FORCE_BUILD))) {
     return
   }
 
@@ -395,14 +395,14 @@ async function optimize() {
   printStep(`Size after: ${sizeAfter}`)
 
   printSuccess('WASM optimized')
-  await createCheckpoint(BUILD_DIR, 'yoga-layout', 'optimized')
+  await createCheckpoint(BUILD_DIR, '', 'optimized')
 }
 
 /**
  * Verify WASM can load.
  */
 async function verify() {
-  if (!(await shouldRun(BUILD_DIR, 'yoga-layout', 'verified', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, '', 'verified', FORCE_BUILD))) {
     return
   }
 
@@ -413,7 +413,7 @@ async function verify() {
 
   if (!existsSync(wasmFile)) {
     printWarning('WASM file not found, skipping verification')
-    await createCheckpoint(BUILD_DIR, 'yoga-layout', 'verified')
+    await createCheckpoint(BUILD_DIR, '', 'verified')
     return
   }
 
@@ -450,14 +450,14 @@ async function verify() {
   }
 
   printSuccess('WASM verified')
-  await createCheckpoint(BUILD_DIR, 'yoga-layout', 'verified')
+  await createCheckpoint(BUILD_DIR, '', 'verified')
 }
 
 /**
  * Verify synchronous JS wrapper can load.
  */
 async function verifySyncJs() {
-  if (!(await shouldRun(BUILD_DIR, 'yoga-layout', 'sync-verified', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, '', 'sync-verified', FORCE_BUILD))) {
     return
   }
 
@@ -467,7 +467,7 @@ async function verifySyncJs() {
 
   if (!existsSync(outputSyncJs)) {
     printWarning('Sync JS file not found, skipping verification')
-    await createCheckpoint(BUILD_DIR, 'yoga-layout', 'sync-verified')
+    await createCheckpoint(BUILD_DIR, '', 'sync-verified')
     return
   }
 
@@ -488,7 +488,7 @@ async function verifySyncJs() {
   }
 
   printSuccess('Sync JS verified')
-  await createCheckpoint(BUILD_DIR, 'yoga-layout', 'sync-verified')
+  await createCheckpoint(BUILD_DIR, '', 'sync-verified')
 }
 
 /**
@@ -614,7 +614,7 @@ async function main() {
     if (outputMissing) {
       printStep('Output artifacts missing - cleaning stale checkpoints')
     }
-    await cleanCheckpoint(BUILD_DIR, 'yoga-layout')
+    await cleanCheckpoint(BUILD_DIR, '')
   }
 
   // Pre-flight checks.

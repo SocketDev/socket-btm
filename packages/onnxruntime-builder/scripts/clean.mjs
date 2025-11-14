@@ -22,7 +22,11 @@ async function clean() {
   await safeDelete(BUILD_DIR)
   logger.success('Build directory cleaned')
 
-  await cleanCheckpoint(BUILD_DIR, 'onnxruntime')
+  // Clean checkpoints for both prod and dev modes.
+  for (const mode of ['prod', 'dev']) {
+    const modeDir = path.join(BUILD_DIR, mode)
+    await cleanCheckpoint(modeDir, '')
+  }
   logger.success('Checkpoints cleaned')
 }
 

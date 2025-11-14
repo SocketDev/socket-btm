@@ -72,7 +72,7 @@ const ONNX_SOURCE_DIR = path.join(BUILD_DIR, 'onnxruntime-source')
  * Clone ONNX Runtime source if not already present.
  */
 async function cloneOnnxSource() {
-  if (!(await shouldRun(BUILD_DIR, 'onnxruntime', 'cloned', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, '', 'cloned', FORCE_BUILD))) {
     return
   }
 
@@ -130,7 +130,7 @@ async function cloneOnnxSource() {
       printSuccess('Old source removed')
     } else {
       printStep('All patches already applied, skipping clone')
-      await createCheckpoint(BUILD_DIR, 'onnxruntime', 'cloned')
+      await createCheckpoint(BUILD_DIR, '', 'cloned')
       return
     }
   }
@@ -236,14 +236,14 @@ async function cloneOnnxSource() {
     printSuccess('wasm_post_build.js (source) patched')
   }
 
-  await createCheckpoint(BUILD_DIR, 'onnxruntime', 'cloned')
+  await createCheckpoint(BUILD_DIR, '', 'cloned')
 }
 
 /**
  * Build ONNX Runtime with Emscripten using official build script.
  */
 async function build() {
-  if (!(await shouldRun(BUILD_DIR, 'onnxruntime', 'built', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, '', 'built', FORCE_BUILD))) {
     return
   }
 
@@ -339,14 +339,14 @@ async function build() {
 
   const duration = formatDuration(Date.now() - startTime)
   printSuccess(`Build completed in ${duration}`)
-  await createCheckpoint(BUILD_DIR, 'onnxruntime', 'built')
+  await createCheckpoint(BUILD_DIR, '', 'built')
 }
 
 /**
  * Verify WASM can load.
  */
 async function verify() {
-  if (!(await shouldRun(BUILD_DIR, 'onnxruntime', 'verified', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, '', 'verified', FORCE_BUILD))) {
     return
   }
 
@@ -364,7 +364,7 @@ async function verify() {
 
   if (!existsSync(wasmFile)) {
     printWarning('WASM file not found, skipping verification')
-    await createCheckpoint(BUILD_DIR, 'onnxruntime', 'verified')
+    await createCheckpoint(BUILD_DIR, '', 'verified')
     return
   }
 
@@ -401,14 +401,14 @@ async function verify() {
   }
 
   printSuccess('WASM verified')
-  await createCheckpoint(BUILD_DIR, 'onnxruntime', 'verified')
+  await createCheckpoint(BUILD_DIR, '', 'verified')
 }
 
 /**
  * Verify synchronous JS wrapper can load.
  */
 async function verifySyncJs() {
-  if (!(await shouldRun(BUILD_DIR, 'onnxruntime', 'sync-verified', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, '', 'sync-verified', FORCE_BUILD))) {
     return
   }
 
@@ -418,7 +418,7 @@ async function verifySyncJs() {
 
   if (!existsSync(outputSyncJs)) {
     printWarning('Sync JS file not found, skipping verification')
-    await createCheckpoint(BUILD_DIR, 'onnxruntime', 'sync-verified')
+    await createCheckpoint(BUILD_DIR, '', 'sync-verified')
     return
   }
 
@@ -448,7 +448,7 @@ async function verifySyncJs() {
   }
 
   printSuccess('Sync JS verified')
-  await createCheckpoint(BUILD_DIR, 'onnxruntime', 'sync-verified')
+  await createCheckpoint(BUILD_DIR, '', 'sync-verified')
 }
 
 /**
@@ -584,7 +584,7 @@ async function main() {
     if (outputMissing) {
       printStep('Output artifacts missing - cleaning stale checkpoints')
     }
-    await cleanCheckpoint(BUILD_DIR, 'onnxruntime')
+    await cleanCheckpoint(BUILD_DIR, '')
   }
 
   // Pre-flight checks.

@@ -23,8 +23,11 @@ async function main() {
   // Remove build directory (includes source).
   await safeDelete(BUILD_DIR)
 
-  // Clean checkpoints.
-  await cleanCheckpoint(BUILD_DIR, 'yoga-layout')
+  // Clean checkpoints for both prod and dev modes.
+  for (const mode of ['prod', 'dev']) {
+    const modeDir = path.join(BUILD_DIR, mode)
+    await cleanCheckpoint(modeDir, '')
+  }
 
   printSuccess('Clean complete')
 }

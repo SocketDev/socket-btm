@@ -50,9 +50,15 @@ const args = process.argv.slice(2)
 const FORCE_BUILD = args.includes('--force')
 const CLEAN_BUILD = args.includes('--clean')
 
+// Build mode: prod (default for CI) or dev (default for local, faster builds).
+const IS_CI = Boolean(process.env.CI)
+const PROD_BUILD = args.includes('--prod')
+const DEV_BUILD = args.includes('--dev')
+const BUILD_MODE = PROD_BUILD ? 'prod' : DEV_BUILD ? 'dev' : IS_CI ? 'prod' : 'dev'
+
 // Configuration.
 const ROOT_DIR = path.join(__dirname, '..')
-const BUILD_DIR = path.join(ROOT_DIR, 'build')
+const BUILD_DIR = path.join(ROOT_DIR, 'build', BUILD_MODE)
 const OUTPUT_DIR = path.join(BUILD_DIR, 'wasm')
 // Read ONNX Runtime version from package.json (matches ONNX Runtime release version).
 const packageJson = JSON.parse(
@@ -289,6 +295,8 @@ async function build() {
   // Check if Ninja is available for faster builds
   const ninjaAvailable = whichBinSync('ninja', { nothrow: true })
 
+  printStep(`Build mode: ${BUILD_MODE}`)
+
   const buildArgs = [
     '--config',
     'Release',
@@ -298,6 +306,16 @@ async function build() {
     '--enable_wasm_threads', // Required for ONNX Runtime v1.19.0+ (non-threaded builds deprecated).
     '--enable_wasm_simd', // Enable SIMD for better performance.
   ]
+
+  // Add optimization flags based on build mode
+  if (BUILD_MODE === 'prod') {
+    // Production: Maximum optimization (slower compile, smaller output)
+    buildArgs.push('--enable_wasm_size_optimization')
+    printStep('Optimization: Size optimization enabled (prod mode)')
+  } else {
+    // Development: Faster compile, larger output
+    printStep('Optimization: Standard build (dev mode, faster)')
+  }
 
   // Use Ninja if available (much faster than Make for large C++ projects)
   if (ninjaAvailable) {
@@ -550,6 +568,7 @@ async function main() {
   printHeader('🔨 Building onnxruntime')
   const logger = getDefaultLogger()
   logger.info(`ONNX Runtime ${ONNX_VERSION} build for Socket CLI`)
+  logger.info(`Build mode: ${BUILD_MODE}`)
   logger.info('')
 
   // Clean checkpoints if requested or if output is missing.

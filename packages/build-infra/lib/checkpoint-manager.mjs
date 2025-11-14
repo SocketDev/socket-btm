@@ -70,22 +70,56 @@ export async function hasCheckpoint(buildDir, packageName, checkpointName) {
  * Checkpoints are tracked by GitHub Actions workflows to enable
  * phase-specific caching and build resumption.
  *
+ * IMPORTANT: This function requires a smokeTest callback to ensure
+ * all checkpoints are created AFTER validating the build artifacts.
+ * This enforces the pattern: build → smoke test → checkpoint.
+ *
  * Stores:
  * - Metadata JSON: build/{mode}/checkpoints/{package}/{phase}.json
- * - Binary: build/{mode}/checkpoints/{package}/{phase}.bin
+ * - Binary: build/{mode}/checkpoints/{package}/{phase}.bin (if binaryPath provided)
  *
  * @param {string} buildDir - Build directory path
  * @param {string} packageName - Package name
- * @param {string} checkpointName - Checkpoint name (e.g., 'release', 'stripped', 'final')
- * @param {object} data - Checkpoint data (must include binaryPath: path to binary to checkpoint)
+ * @param {string} checkpointName - Checkpoint name (e.g., 'release', 'wasm-opt')
+ * @param {Function} smokeTest - Async function that validates build artifacts (REQUIRED)
+ * @param {object} data - Checkpoint metadata (can include binaryPath for artifact storage)
  * @returns {Promise<void>}
+ *
+ * @example
+ * await createCheckpoint(BUILD_DIR, '', 'release', async () => {
+ *   // Smoke test: Verify WASM is valid
+ *   const buffer = await fs.readFile(wasmFile)
+ *   const magic = buffer.slice(0, 4).toString('hex')
+ *   if (magic !== '0061736d') throw new Error('Invalid WASM')
+ *   const module = new WebAssembly.Module(buffer)
+ * }, { binaryPath: wasmFile, binarySize: buffer.length })
  */
 export async function createCheckpoint(
   buildDir,
   packageName,
   checkpointName,
+  smokeTest,
   data = {},
 ) {
+  // Enforce smoke test requirement
+  if (typeof smokeTest !== 'function') {
+    throw new Error(
+      'createCheckpoint requires a smokeTest callback function. ' +
+        `Got: ${typeof smokeTest}. ` +
+        'Pattern: createCheckpoint(buildDir, pkg, name, async () => { /* test */ }, data)',
+    )
+  }
+
+  // Run smoke test BEFORE creating checkpoint
+  printSubstep(`Smoke testing for checkpoint: ${checkpointName}`)
+  try {
+    await smokeTest()
+  } catch (error) {
+    throw new Error(
+      `Smoke test failed for checkpoint '${checkpointName}': ${error.message}`,
+    )
+  }
+
   printSubstep(`Creating checkpoint: ${checkpointName}`)
 
   const checkpointDir = getCheckpointDir(buildDir, packageName)

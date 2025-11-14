@@ -560,48 +560,48 @@ async function smoketestBinary(
 }
 
 /**
- * Get cache directory for compiled binaries.
+ * Get local checkpoint directory for compiled binaries.
+ * Uses the same checkpoints/ directory as workflow checkpoints.
  *
  * @param {string} buildDir - Build directory path
- * @returns {string} Cache directory path
+ * @returns {string} Local checkpoint directory path
  */
-function getCacheDir(buildDir) {
-  // Each build mode has its own cache directory for full isolation.
-  return path.join(buildDir, 'cache')
+function getLocalCheckpointDir(buildDir) {
+  // Local checkpoints stored alongside workflow checkpoints
+  return path.join(buildDir, 'checkpoints', 'local')
 }
 
 /**
- * Get cache file path for compiled binary.
+ * Get local checkpoint file path for compiled binary.
  *
  * @param {string} buildDir - Build directory path
  * @param {string} platform - Target platform
  * @param {string} arch - Target architecture
- * @returns {string} Cache file path
+ * @returns {string} Local checkpoint binary path
  */
-function getCachePath(buildDir, platform, arch) {
-  // No need to include BUILD_MODE in filename since cache is per-build-mode directory.
-  return path.join(getCacheDir(buildDir), `node-compiled-${platform}-${arch}`)
+function getLocalCheckpointPath(buildDir, platform, arch) {
+  return path.join(getLocalCheckpointDir(buildDir), `node-compiled-${platform}-${arch}`)
 }
 
 /**
- * Get cache metadata file path.
+ * Get local checkpoint metadata file path.
  *
  * @param {string} buildDir - Build directory path
  * @param {string} platform - Target platform
  * @param {string} arch - Target architecture
- * @returns {string} Cache metadata file path
+ * @returns {string} Local checkpoint metadata file path
  */
-function getCacheMetadataPath(buildDir, platform, arch) {
+function getLocalCheckpointMetadataPath(buildDir, platform, arch) {
   return path.join(
-    getCacheDir(buildDir),
+    getLocalCheckpointDir(buildDir),
     `node-compiled-${platform}-${arch}.json`,
   )
 }
 
 /**
- * Cache compiled binary locally after successful build.
- * This creates a local file cache to allow resuming from this point
- * if post-processing fails. This is separate from GitHub Actions cache.
+ * Create local checkpoint after successful binary compilation.
+ * This saves the compiled binary locally to allow resuming from this point
+ * if post-processing fails. Stored in checkpoints/local/ directory.
  *
  * @param {string} buildDir - Build directory path
  * @param {string} nodeBinary - Path to compiled Node.js binary
@@ -610,34 +610,34 @@ function getCacheMetadataPath(buildDir, platform, arch) {
  * @param {string} version - Node.js version
  * @returns {Promise<void>}
  */
-async function cacheLocalCompiledBinary(
+async function createLocalCheckpoint(
   buildDir,
   nodeBinary,
   platform,
   arch,
   version,
 ) {
-  const cacheDir = getCacheDir(buildDir)
-  const cacheFile = getCachePath(buildDir, platform, arch)
-  const cacheMetaFile = getCacheMetadataPath(buildDir, platform, arch)
+  const checkpointDir = getLocalCheckpointDir(buildDir)
+  const checkpointFile = getLocalCheckpointPath(buildDir, platform, arch)
+  const checkpointMetaFile = getLocalCheckpointMetadataPath(buildDir, platform, arch)
 
-  // CHECKPOINT: Smoketest binary before caching.
-  // Prevent caching broken/segfaulting binaries.
+  // Smoketest binary before creating checkpoint.
+  // Prevent checkpointing broken/segfaulting binaries.
   const smoketest = await smoketestBinary(nodeBinary, {
     isSEA: false,
     isCheckpoint: true,
   })
   if (!smoketest.valid) {
     logger.error(`Binary smoketest failed: ${smoketest.reason}`)
-    logger.error('NOT caching this binary')
+    logger.error('NOT creating local checkpoint')
     return
   }
 
-  // Create cache directory.
-  await safeMkdir(cacheDir, { recursive: true })
+  // Create checkpoint directory.
+  await safeMkdir(checkpointDir, { recursive: true })
 
-  // Copy binary to cache.
-  await fs.copyFile(nodeBinary, cacheFile)
+  // Copy binary to checkpoint.
+  await fs.copyFile(nodeBinary, checkpointFile)
 
   // Get binary stats for metadata.
   const stats = await fs.stat(nodeBinary)
@@ -652,54 +652,54 @@ async function cacheLocalCompiledBinary(
     size: stats.size,
     humanSize: size,
   }
-  await fs.writeFile(cacheMetaFile, JSON.stringify(metadata, null, 2))
+  await fs.writeFile(checkpointMetaFile, JSON.stringify(metadata, null, 2))
 
-  logger.log(`${colors.green('✓')} Cached compiled binary (${size})`)
-  logger.log(`   Cache location: ${cacheFile}`)
+  logger.log(`${colors.green('✓')} Created local checkpoint (${size})`)
+  logger.log(`   Checkpoint location: ${checkpointFile}`)
 }
 
 /**
- * Restore locally cached binary if available and valid.
- * Returns true if restore successful, false if no valid cache exists.
- * This restores from local file cache, not GitHub Actions cache.
+ * Restore from local checkpoint if available and valid.
+ * Returns true if restore successful, false if no valid checkpoint exists.
+ * This restores from local checkpoints/, not GitHub Actions cache.
  *
  * @param {string} buildDir - Build directory path
  * @param {string} nodeBinary - Path where to restore Node.js binary
  * @param {string} platform - Target platform
  * @param {string} arch - Target architecture
  * @param {string} version - Expected Node.js version
- * @returns {Promise<boolean>} True if restored, false if no valid cache
+ * @returns {Promise<boolean>} True if restored, false if no valid checkpoint
  */
-async function restoreLocalCachedBinary(
+async function restoreLocalCheckpoint(
   buildDir,
   nodeBinary,
   platform,
   arch,
   version,
 ) {
-  const cacheFile = getCachePath(buildDir, platform, arch)
-  const cacheMetaFile = getCacheMetadataPath(buildDir, platform, arch)
+  const checkpointFile = getLocalCheckpointPath(buildDir, platform, arch)
+  const checkpointMetaFile = getLocalCheckpointMetadataPath(buildDir, platform, arch)
 
-  // Check if cache files exist.
-  if (!existsSync(cacheFile) || !existsSync(cacheMetaFile)) {
+  // Check if checkpoint files exist.
+  if (!existsSync(checkpointFile) || !existsSync(checkpointMetaFile)) {
     return false
   }
 
   try {
     // Validate metadata matches current build.
-    const metaContent = await fs.readFile(cacheMetaFile, 'utf8')
+    const metaContent = await fs.readFile(checkpointMetaFile, 'utf8')
     const meta = JSON.parse(metaContent)
 
     if (meta.platform !== platform || meta.arch !== arch) {
       logger.warn(
-        'Cached binary is for different platform/arch, ignoring cache',
+        'Checkpointed binary is for different platform/arch, ignoring',
       )
       return false
     }
 
     if (meta.version !== version) {
       logger.warn(
-        `Cached binary is for Node.js ${meta.version}, expected ${version}, ignoring cache`,
+        `Checkpointed binary is for Node.js ${meta.version}, expected ${version}, ignoring`,
       )
       return false
     }
@@ -707,30 +707,30 @@ async function restoreLocalCachedBinary(
     // Ensure output directory exists.
     await safeMkdir(dirname(nodeBinary), { recursive: true })
 
-    // Restore binary.
-    await fs.copyFile(cacheFile, nodeBinary)
+    // Restore binary from checkpoint.
+    await fs.copyFile(checkpointFile, nodeBinary)
 
     const size = await getFileSize(nodeBinary)
-    logger.log(`${colors.green('✓')} Restored cached binary (${size})`)
-    logger.log(`   From: ${cacheFile}`)
+    logger.log(`${colors.green('✓')} Restored from local checkpoint (${size})`)
+    logger.log(`   From: ${checkpointFile}`)
 
-    // CHECKPOINT: Smoketest restored binary.
+    // Smoketest restored binary.
     const smoketest = await smoketestBinary(nodeBinary, {
       isSEA: false,
       isCheckpoint: true,
     })
     if (!smoketest.valid) {
-      logger.warn(`Cached binary smoketest failed: ${smoketest.reason}`)
+      logger.warn(`Checkpointed binary smoketest failed: ${smoketest.reason}`)
       logger.warn('Will rebuild from source')
       return false
     }
     logger.log(
-      `${colors.green('✓')} Cached binary smoketest passed (all tests)`,
+      `${colors.green('✓')} Checkpointed binary smoketest passed (all tests)`,
     )
 
     return true
   } catch (e) {
-    logger.warn(`Failed to restore cache: ${e.message}`)
+    logger.warn(`Failed to restore from local checkpoint: ${e.message}`)
     return false
   }
 }
@@ -1712,8 +1712,8 @@ async function main() {
   // Try to restore from cache (skip compilation if successful).
   let restoredFromCache = false
   if (!CLEAN_BUILD) {
-    logger.log('Checking for locally cached binary from previous build...')
-    restoredFromCache = await restoreLocalCachedBinary(
+    logger.log('Checking for local checkpoint from previous build...')
+    restoredFromCache = await restoreLocalCheckpoint(
       BUILD_DIR,
       nodeBinary,
       TARGET_PLATFORM,
@@ -1841,8 +1841,8 @@ async function main() {
     binaryPath: path.relative(BUILD_DIR, nodeBinary),
   })
 
-  // Cache the compiled binary locally for future runs.
-  await cacheLocalCompiledBinary(
+  // Create local checkpoint for future runs.
+  await createLocalCheckpoint(
     BUILD_DIR,
     nodeBinary,
     TARGET_PLATFORM,

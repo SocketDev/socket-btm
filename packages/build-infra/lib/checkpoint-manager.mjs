@@ -182,7 +182,7 @@ export async function listCheckpoints(buildDir, packageName) {
   }
 }
 
-// Backward compatibility aliases
+// Backward compatibility aliases (legacy names still work)
 export const createCheckpoint = createWorkflowCheckpoint
 export const cleanCheckpoint = cleanWorkflowCheckpoint
 

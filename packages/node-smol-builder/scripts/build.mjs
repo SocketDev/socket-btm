@@ -2335,7 +2335,17 @@ async function main() {
 
   // Report build complete.
   const binarySize = await getFileSize(finalBinary)
-  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'complete')
+
+  // Calculate checksum for cache validation
+  const { createHash } = await import('node:crypto')
+  const binaryContent = await fs.readFile(finalBinary)
+  const checksum = createHash('sha256').update(binaryContent).digest('hex')
+
+  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'complete', {
+    binarySize,
+    checksum,
+    binaryPath: path.relative(BUILD_DIR, finalBinary),
+  })
   await cleanCheckpoint(BUILD_DIR, PACKAGE_NAME)
 
   // Calculate total build time.

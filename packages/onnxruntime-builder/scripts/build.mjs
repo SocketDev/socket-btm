@@ -16,6 +16,9 @@ import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { parse } from '@babel/parser'
+import MagicString from 'magic-string'
+
 import {
   checkDiskSpace,
   formatDuration,
@@ -487,20 +490,32 @@ async function exportWasm() {
   const base64Wasm = wasmBinary.toString('base64')
   let mjsContent = await fs.readFile(outputMjs, 'utf-8')
 
-  // Remove ONLY export keywords from mjs content to avoid module syntax conflicts.
-  // The Emscripten-generated file has exports that would be invalid when inlined.
-  // We keep all declarations and named exports but strip the export keywords.
-  // Our wrapper will re-export everything at the end (lines 542-544).
-  mjsContent = mjsContent
-    // Remove default exports entirely: "export default ortWasmThreaded;" → ""
-    // (The ortWasmThreaded function is already defined earlier in the file)
-    .replace(/^export\s+default\s+.+;?\s*$/gm, '')
-    // Remove export keyword from declarations: "export const foo" → "const foo"
-    // This preserves the declarations so they're accessible in our wrapper scope
-    .replace(/^export\s+(const|let|var|function|class)\s+/gm, '$1 ')
-    // Remove standalone named export statements: "export { InferenceSession, Tensor };" → ""
-    // (These become accessible through the ortWasmThreaded() return value)
-    .replace(/^export\s+\{[^}]+\};?\s*$/gm, '')
+  // Use @babel/parser + magic-string to properly remove export statements.
+  // This is more robust than regex for handling ES module syntax.
+  const ast = parse(mjsContent, {
+    sourceType: 'module',
+    plugins: [],
+  })
+
+  const s = new MagicString(mjsContent)
+
+  // Remove all export statements by walking the AST.
+  for (const node of ast.program.body) {
+    if (node.type === 'ExportDefaultDeclaration') {
+      // Remove: export default ortWasmThreaded;
+      s.remove(node.start, node.end)
+    } else if (node.type === 'ExportNamedDeclaration') {
+      if (node.declaration) {
+        // Remove "export" keyword: "export const foo" → "const foo"
+        s.remove(node.start, node.declaration.start)
+      } else {
+        // Remove standalone: export { InferenceSession, Tensor };
+        s.remove(node.start, node.end)
+      }
+    }
+  }
+
+  mjsContent = s.toString()
 
   const jsContent = `'use strict';
 

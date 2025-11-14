@@ -33,7 +33,6 @@ import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import { ensureAllPythonPackages } from 'build-infra/lib/python-installer'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 
-import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
@@ -131,7 +130,7 @@ async function convertToOnnx() {
 
   // Convert to ONNX using optimum (transformers.onnx is deprecated).
   printStep('Converting models to ONNX')
-  const convertCommand = `python3 -m optimum.exporters.onnx -m ${MODELS_DIR} --task seq2seq-lm ${BUILD_DIR}`
+  const convertCommand = `python3 -m optimum.exporters.onnx -m ${MODELS_DIR} --task seq2seq-lm --opset 14 ${BUILD_DIR}`
 
   const convertResult = await spawn(convertCommand, [], {
     shell: true,
@@ -476,6 +475,7 @@ async function exportModels() {
       printStep('ONNX protobuf format valid')
 
       // Comprehensive test: Load model with ONNX Runtime (native Node.js).
+      // eslint-disable-next-line import-x/no-unresolved
       const ort = await import('onnxruntime-node').catch(e => {
         if (e.code === 'ERR_MODULE_NOT_FOUND') {
           throw new Error(

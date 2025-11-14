@@ -142,7 +142,7 @@ async function cloneOnnxSource() {
         'source-cloned',
         async () => {
           // Smoke test: Verify source directory exists with CMakeLists.txt
-          const cmakeLists = path.join(ONNX_SOURCE_DIR, 'CMakeLists.txt')
+          const cmakeLists = path.join(ONNX_SOURCE_DIR, 'cmake', 'CMakeLists.txt')
           await fs.access(cmakeLists)
           printStep('Source directory validated')
         },
@@ -259,7 +259,7 @@ async function cloneOnnxSource() {
     'source-cloned',
     async () => {
       // Smoke test: Verify source directory exists with CMakeLists.txt
-      const cmakeLists = path.join(ONNX_SOURCE_DIR, 'CMakeLists.txt')
+      const cmakeLists = path.join(ONNX_SOURCE_DIR, 'cmake', 'CMakeLists.txt')
       await fs.access(cmakeLists)
       printStep('Source directory validated')
     },

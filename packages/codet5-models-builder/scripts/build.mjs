@@ -133,7 +133,7 @@ async function convertToOnnx() {
   printStep('Converting encoder')
   const convertCommand = `python3 -m transformers.onnx --model=${MODELS_DIR} --feature=seq2seq-lm ${BUILD_DIR}`
 
-  const convertResult = await spawn(convertCommand, {
+  const convertResult = await spawn(convertCommand, [], {
     shell: true,
     stdio: 'inherit',
   })

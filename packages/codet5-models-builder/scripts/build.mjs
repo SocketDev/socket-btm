@@ -144,6 +144,7 @@ async function convertToOnnx() {
   // Convert to ONNX using optimum (transformers.onnx is deprecated).
   printStep('Converting models to ONNX')
 
+  const opsetVersion = BUILD_MODE === 'prod' ? '14' : '13'
   const convertResult = await spawn(
     python3Path,
     [
@@ -154,7 +155,7 @@ async function convertToOnnx() {
       '--task',
       'seq2seq-lm',
       '--opset',
-      '14',
+      opsetVersion,
       BUILD_DIR,
     ],
     {
@@ -239,7 +240,7 @@ async function quantizeModels() {
     'from onnxruntime.quantization import quantize_dynamic, QuantType; ' +
     `quantize_dynamic('${encoderPath}', '${encoderPath}.quant', weight_type=QuantType.QInt8)`
 
-  const python3Path = whichBinSync('python3', { nothrow: true })
+  const python3Path = await which('python3', { nothrow: true })
   if (!python3Path) {
     throw new Error('python3 not found in PATH')
   }
@@ -379,14 +380,18 @@ async function optimizeModels() {
   // Optimize encoder.
   printStep('Optimizing encoder graph')
   const optimizeEncoderScript =
-    `from onnxruntime.transformers import optimizer; ` +
+    'from onnxruntime.transformers import optimizer; ' +
     `opt = optimizer.optimize_model('${encoderPath}', model_type='bert', num_heads=12, hidden_size=768); ` +
     `opt.save_model_to_file('${optimizedEncoderPath}')`
 
-  const optimizeEncoderResult = await spawn(python3PathOpt, ['-c', optimizeEncoderScript], {
-    shell: WIN32,
-    stdio: 'inherit',
-  })
+  const optimizeEncoderResult = await spawn(
+    python3PathOpt,
+    ['-c', optimizeEncoderScript],
+    {
+      shell: WIN32,
+      stdio: 'inherit',
+    },
+  )
 
   if (optimizeEncoderResult.code !== 0) {
     throw new Error('Failed to optimize encoder')
@@ -395,14 +400,18 @@ async function optimizeModels() {
   // Optimize decoder.
   printStep('Optimizing decoder graph')
   const optimizeDecoderScript =
-    `from onnxruntime.transformers import optimizer; ` +
+    'from onnxruntime.transformers import optimizer; ' +
     `opt = optimizer.optimize_model('${decoderPath}', model_type='bert', num_heads=12, hidden_size=768); ` +
     `opt.save_model_to_file('${optimizedDecoderPath}')`
 
-  const optimizeDecoderResult = await spawn(python3PathOpt, ['-c', optimizeDecoderScript], {
-    shell: WIN32,
-    stdio: 'inherit',
-  })
+  const optimizeDecoderResult = await spawn(
+    python3PathOpt,
+    ['-c', optimizeDecoderScript],
+    {
+      shell: WIN32,
+      stdio: 'inherit',
+    },
+  )
 
   if (optimizeDecoderResult.code !== 0) {
     throw new Error('Failed to optimize decoder')

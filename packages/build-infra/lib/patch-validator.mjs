@@ -33,13 +33,17 @@ export async function validatePatch(patchFile, targetDir) {
       return false
     }
 
-    const result = await spawn(patchPath, ['-p1', '--dry-run', '-i', patchFile], {
-      cwd: targetDir,
-      env: process.env,
-      shell: WIN32,
-      stdio: 'pipe',
-      stdioString: true,
-    })
+    const result = await spawn(
+      patchPath,
+      ['-p1', '--dry-run', '-i', patchFile],
+      {
+        cwd: targetDir,
+        env: process.env,
+        shell: WIN32,
+        stdio: 'pipe',
+        stdioString: true,
+      },
+    )
 
     const exitCode = result.code ?? 0
     if (exitCode !== 0) {
@@ -112,6 +116,7 @@ export async function applyPatchDirectory(
   // Validate all patches first if requested.
   if (validate) {
     for (const patchFile of patchFiles) {
+      // eslint-disable-next-line no-await-in-loop
       const isValid = await validatePatch(patchFile, targetDir)
       if (!isValid) {
         throw new Error(`Patch validation failed: ${patchFile}`)
@@ -121,6 +126,7 @@ export async function applyPatchDirectory(
 
   // Apply patches in order.
   for (const patchFile of patchFiles) {
+    // eslint-disable-next-line no-await-in-loop
     await applyPatch(patchFile, targetDir)
   }
 

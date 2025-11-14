@@ -554,14 +554,10 @@ const ort = ortWasmThreaded({
 // Note: We don't add module.exports.default here to avoid conflicts with ES module default export
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = ort;
-  module.exports.InferenceSession = ort.InferenceSession;
-  module.exports.Tensor = ort.Tensor;
 }
 
 // ES module export.
 export default ort;
-export const InferenceSession = ort.InferenceSession;
-export const Tensor = ort.Tensor;
 `
 
   await fs.writeFile(outputSyncJs, jsContent, 'utf-8')

@@ -36,8 +36,6 @@ import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
-
-// eslint-disable-next-line import-x/no-unresolved
 import * as ort from 'onnxruntime-node'
 
 const __filename = fileURLToPath(import.meta.url)

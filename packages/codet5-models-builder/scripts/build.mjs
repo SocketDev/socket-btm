@@ -132,12 +132,25 @@ async function convertToOnnx() {
 
   // Convert to ONNX using optimum (transformers.onnx is deprecated).
   printStep('Converting models to ONNX')
-  const convertCommand = `python3 -m optimum.exporters.onnx -m ${MODELS_DIR} --task seq2seq-lm --opset 14 ${BUILD_DIR}`
 
-  const convertResult = await spawn(convertCommand, [], {
-    shell: WIN32,
-    stdio: 'inherit',
-  })
+  const convertResult = await spawn(
+    'python3',
+    [
+      '-m',
+      'optimum.exporters.onnx',
+      '-m',
+      MODELS_DIR,
+      '--task',
+      'seq2seq-lm',
+      '--opset',
+      '14',
+      BUILD_DIR,
+    ],
+    {
+      shell: WIN32,
+      stdio: 'inherit',
+    },
+  )
 
   if (convertResult.code !== 0) {
     throw new Error('Failed to convert models to ONNX')

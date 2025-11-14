@@ -39,8 +39,8 @@ importers:
         specifier: 9.35.0
         version: 9.35.0
       '@socketsecurity/lib':
-        specifier: 3.3.5
-        version: 3.3.5(typescript@5.9.3)
+        specifier: 3.3.6
+        version: 3.3.6(typescript@5.9.3)
       eslint:
         specifier: 9.35.0
         version: 9.35.0
@@ -669,8 +669,8 @@ packages:
       typescript:
         optional: true
 
-  '@socketsecurity/lib@3.3.5':
-    resolution: {integrity: sha512-byu8J12C53Gpo5WTNgmvNygUZ5OQkCRUp5gyLR9ON+FWzz8bORB8BCtTLWfHXXgKr9UoOjz0UwzvMy/9Y4jahA==}
+  '@socketsecurity/lib@3.3.6':
+    resolution: {integrity: sha512-kryoWO1rm/SoIFRMC/L0NXNY6LDr8g54rfFHy8eO10YHfVnP8gy3gUskf//hr/h2RnWoPqhqiihxGqncdQO8Aw==}
     engines: {node: '>=22', pnpm: '>=10.22.0'}
     peerDependencies:
       typescript: '>=5.0.0'
@@ -2137,7 +2137,7 @@ snapshots:
     optionalDependencies:
       typescript: 5.9.3
 
-  '@socketsecurity/lib@3.3.5(typescript@5.9.3)':
+  '@socketsecurity/lib@3.3.6(typescript@5.9.3)':
     optionalDependencies:
       typescript: 5.9.3
 

@@ -387,6 +387,53 @@ async function verify() {
 }
 
 /**
+ * Verify synchronous JS wrapper can load.
+ */
+async function verifySyncJs() {
+  if (!(await shouldRun(BUILD_DIR, 'onnxruntime', 'sync-verified', FORCE_BUILD))) {
+    return
+  }
+
+  printHeader('Verifying Synchronous JS Wrapper')
+
+  const outputSyncJs = path.join(OUTPUT_DIR, 'ort-sync.js')
+
+  if (!existsSync(outputSyncJs)) {
+    printWarning('Sync JS file not found, skipping verification')
+    await createCheckpoint(BUILD_DIR, 'onnxruntime', 'sync-verified')
+    return
+  }
+
+  // Smoke test: Try to load the sync.js file.
+  printStep('Testing ort-sync.js loading...')
+  try {
+    // Import the sync.js file dynamically.
+    const syncModule = await import(outputSyncJs)
+
+    if (!syncModule.default) {
+      throw new Error('Sync module has no default export')
+    }
+
+    // Check for expected ONNX Runtime exports.
+    if (!syncModule.InferenceSession) {
+      throw new Error('Sync module missing InferenceSession export')
+    }
+
+    if (!syncModule.Tensor) {
+      throw new Error('Sync module missing Tensor export')
+    }
+
+    printStep('Sync JS module loaded successfully')
+    printStep('Module exports: default, InferenceSession, Tensor')
+  } catch (e) {
+    throw new Error(`Failed to load sync JS module: ${e.message}`)
+  }
+
+  printSuccess('Sync JS verified')
+  await createCheckpoint(BUILD_DIR, 'onnxruntime', 'sync-verified')
+}
+
+/**
  * Export WASM to output directory.
  */
 async function exportWasm() {
@@ -613,6 +660,7 @@ async function main() {
   await build()
   await verify()
   await exportWasm()
+  await verifySyncJs()
 
   // Report completion.
   const totalDuration = formatDuration(Date.now() - totalStart)

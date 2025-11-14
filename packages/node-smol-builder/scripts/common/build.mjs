@@ -83,8 +83,8 @@ import {
   checkDiskSpace,
   checkNetworkConnectivity,
   checkPythonVersion,
-  cleanCheckpoint,
-  createCheckpoint,
+  cleanWorkflowCheckpoint,
+  createWorkflowCheckpoint,
   estimateBuildTime,
   formatDuration,
   getBuildLogPath,
@@ -1248,7 +1248,7 @@ async function main() {
       logger.log('Removing existing Node.js source directory...')
       const { rm } = await import('node:fs/promises')
       await safeDelete(NODE_DIR, { recursive: true, force: true })
-      await cleanCheckpoint(BUILD_DIR, PACKAGE_NAME)
+      await cleanWorkflowCheckpoint(BUILD_DIR, PACKAGE_NAME)
       logger.log(`${colors.green('✓')} Cleaned build directory`)
       logger.log('')
     }
@@ -1326,7 +1326,7 @@ async function main() {
 
     if (cloneSuccess) {
       logger.log(`${colors.green('✓')} Node.js source cloned successfully`)
-      await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'cloned')
+      await createWorkflowCheckpoint(BUILD_DIR, PACKAGE_NAME, 'cloned')
       logger.log('')
     }
   } else {
@@ -1836,7 +1836,7 @@ async function main() {
 
   // Create checkpoint for Release build after successful smoke test.
   const releaseBinarySize = await getFileSize(nodeBinary)
-  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'release', {
+  await createWorkflowCheckpoint(BUILD_DIR, PACKAGE_NAME, 'release', {
     binarySize: releaseBinarySize,
     binaryPath: path.relative(BUILD_DIR, nodeBinary),
   })
@@ -2025,7 +2025,7 @@ async function main() {
 
   // Create checkpoint for Stripped build after successful smoke test.
   const strippedBinarySize = await getFileSize(nodeBinary)
-  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'stripped', {
+  await createWorkflowCheckpoint(BUILD_DIR, PACKAGE_NAME, 'stripped', {
     binarySize: strippedBinarySize,
     binaryPath: path.relative(BUILD_DIR, nodeBinary),
   })
@@ -2150,7 +2150,7 @@ async function main() {
 
     // Create checkpoint for Compressed build (smoke test skipped - decompressor needs fix).
     const compressedBinarySize = await getFileSize(compressedBinary)
-    await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'compressed', {
+    await createWorkflowCheckpoint(BUILD_DIR, PACKAGE_NAME, 'compressed', {
       binarySize: compressedBinarySize,
       binaryPath: path.relative(BUILD_DIR, compressedBinary),
       smokeTestSkipped: true,
@@ -2364,12 +2364,12 @@ async function main() {
   const binaryContent = await fs.readFile(finalBinary)
   const checksum = createHash('sha256').update(binaryContent).digest('hex')
 
-  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'final', {
+  await createWorkflowCheckpoint(BUILD_DIR, PACKAGE_NAME, 'final', {
     binarySize,
     checksum,
     binaryPath: path.relative(BUILD_DIR, finalBinary),
   })
-  await cleanCheckpoint(BUILD_DIR, PACKAGE_NAME)
+  await cleanWorkflowCheckpoint(BUILD_DIR, PACKAGE_NAME)
 
   // Calculate total build time.
   const totalDuration = Date.now() - totalStart

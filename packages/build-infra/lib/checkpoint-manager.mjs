@@ -64,14 +64,18 @@ export async function hasCheckpoint(buildDir, packageName, checkpointName) {
 }
 
 /**
- * Create a workflow checkpoint with optional metadata.
+ * Create a workflow checkpoint with binary and metadata.
  * Checkpoints are tracked by GitHub Actions workflows to enable
  * phase-specific caching and build resumption.
+ *
+ * Stores:
+ * - Metadata JSON: build/{mode}/checkpoints/{package}/{phase}.json
+ * - Binary: build/{mode}/checkpoints/{package}/{phase}.bin
  *
  * @param {string} buildDir - Build directory path
  * @param {string} packageName - Package name
  * @param {string} checkpointName - Checkpoint name (e.g., 'release', 'stripped', 'final')
- * @param {object} data - Optional data to save with checkpoint
+ * @param {object} data - Checkpoint data (must include binaryPath: path to binary to checkpoint)
  * @returns {Promise<void>}
  */
 export async function createWorkflowCheckpoint(
@@ -90,10 +94,25 @@ export async function createWorkflowCheckpoint(
     packageName,
     checkpointName,
   )
+
+  // If binaryPath is provided, copy the binary to checkpoint
+  let binaryCheckpointPath = null
+  if (data.binaryPath) {
+    const path = await import('node:path')
+    const binaryPath = path.default.isAbsolute(data.binaryPath)
+      ? data.binaryPath
+      : path.default.join(buildDir, data.binaryPath)
+
+    binaryCheckpointPath = checkpointFile.replace('.json', '.bin')
+    await fs.copyFile(binaryPath, binaryCheckpointPath)
+    printSubstep(`Binary saved: ${path.default.basename(binaryCheckpointPath)}`)
+  }
+
   const checkpointData = {
     created: new Date().toISOString(),
     name: checkpointName,
     package: packageName,
+    hasBinary: !!binaryCheckpointPath,
     ...data,
   }
 
@@ -181,10 +200,6 @@ export async function listCheckpoints(buildDir, packageName) {
     return []
   }
 }
-
-// Backward compatibility aliases (legacy names still work)
-export const createCheckpoint = createWorkflowCheckpoint
-export const cleanCheckpoint = cleanWorkflowCheckpoint
 
 /**
  * Check if build should run based on checkpoint and --force flag.

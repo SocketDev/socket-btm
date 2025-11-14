@@ -5,7 +5,7 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { cleanCheckpoint } from 'build-infra/lib/checkpoint-manager'
+import { cleanWorkflowCheckpoint } from 'build-infra/lib/checkpoint-manager'
 
 import { safeDelete } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
@@ -22,7 +22,7 @@ async function clean() {
   await safeDelete(BUILD_DIR)
   logger.success('Build directory cleaned')
 
-  await cleanCheckpoint(BUILD_DIR, 'onnxruntime')
+  await cleanWorkflowCheckpoint(BUILD_DIR, 'onnxruntime')
   logger.success('Checkpoints cleaned')
 }
 

@@ -33,7 +33,7 @@ import {
   printSuccess,
   printWarning,
 } from 'build-infra/lib/build-output'
-import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
+import { createWorkflowCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import { ensureAllPythonPackages } from 'build-infra/lib/python-installer'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 
@@ -362,7 +362,7 @@ async function downloadModels() {
   }
 
   printSuccess('Model download complete')
-  await createCheckpoint(BUILD_DIR, 'minilm', 'downloaded')
+  await createWorkflowCheckpoint(BUILD_DIR, 'minilm', 'downloaded')
 }
 
 /**
@@ -397,7 +397,7 @@ async function convertToOnnx() {
   }
 
   printSuccess('ONNX conversion complete')
-  await createCheckpoint(BUILD_DIR, 'minilm', 'converted')
+  await createWorkflowCheckpoint(BUILD_DIR, 'minilm', 'converted')
 }
 
 /**
@@ -437,7 +437,7 @@ async function quantizeModels() {
   }
 
   printSuccess('Quantization complete')
-  await createCheckpoint(BUILD_DIR, 'minilm', 'quantized')
+  await createWorkflowCheckpoint(BUILD_DIR, 'minilm', 'quantized')
 }
 
 /**
@@ -483,7 +483,7 @@ async function optimizeGraphs() {
   }
 
   printSuccess('Graph optimization complete')
-  await createCheckpoint(BUILD_DIR, 'minilm', 'optimized')
+  await createWorkflowCheckpoint(BUILD_DIR, 'minilm', 'optimized')
 }
 
 /**
@@ -531,7 +531,7 @@ async function verifyModels() {
   }
 
   printSuccess('Model verification complete')
-  await createCheckpoint(BUILD_DIR, 'minilm', 'verified')
+  await createWorkflowCheckpoint(BUILD_DIR, 'minilm', 'verified')
 }
 
 /**

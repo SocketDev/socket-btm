@@ -414,11 +414,9 @@ export async function verifyGitTag(version) {
   }
 }
 
-// Re-export advanced checkpoint functions from checkpoint-manager
+// Re-export workflow checkpoint functions from checkpoint-manager
 // These provide GitHub Actions workflow checkpoint support with metadata
 export {
   createWorkflowCheckpoint,
   cleanWorkflowCheckpoint,
-  createCheckpoint,
-  cleanCheckpoint,
 } from './checkpoint-manager.mjs'

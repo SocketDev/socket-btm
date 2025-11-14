@@ -27,10 +27,10 @@ import { RustBuilder } from '@socketsecurity/build-infra/lib/rust-builder'
 import { applyPatch, applyPatchDirectory } from '@socketsecurity/build-infra/lib/patch-validator'
 
 // Checkpoint system (for GitHub Actions workflow checkpoints)
-import { createWorkflowCheckpoint, hasCheckpoint } from '@socketsecurity/build-infra/lib/checkpoint-manager'
+import { createWorkflowCheckpoint, cleanWorkflowCheckpoint, hasCheckpoint } from '@socketsecurity/build-infra/lib/checkpoint-manager'
 
-// Backward compatibility (legacy names still work)
-import { createCheckpoint, cleanCheckpoint } from '@socketsecurity/build-infra/lib/checkpoint-manager'
+// Local checkpoints (for build resumption)
+import { createLocalCheckpoint, restoreLocalCheckpoint } from '@socketsecurity/node-smol-builder/scripts/common/build.mjs'
 ```
 
 ## Usage

@@ -186,26 +186,35 @@ jobs:
             exit 1
           fi
 
-          # Hash only node-smol-builder specific files to prevent unrelated changes from invalidating cache
-          PATCHES_HASH=$(find packages/node-smol-builder/patches -type f 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
-          ADDITIONS_HASH=$(find packages/node-smol-builder/additions -type f 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
-
-          # Phase-specific script hashes for granular caching
+          # Phase-specific hashing for granular cache invalidation
           # Each phase includes its dependencies (cumulative hashing)
-          RELEASE_HASH=$(find packages/node-smol-builder/scripts/release -type f -name "*.mjs" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
-          STRIPPED_HASH=$(find packages/node-smol-builder/scripts/{release,stripped} -type f -name "*.mjs" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
-          COMPRESSED_HASH=$(find packages/node-smol-builder/scripts/{release,stripped,compressed} -type f -name "*.mjs" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
-          FINAL_HASH=$(find packages/node-smol-builder/scripts/{release,stripped,compressed,final} -type f -name "*.mjs" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
 
-          # Also hash build.mjs and clean.mjs (common to all phases)
-          COMMON_SCRIPTS_HASH=$(find packages/node-smol-builder/scripts -maxdepth 1 -type f -name "*.mjs" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          # Common scripts (used by all phases)
+          COMMON_SCRIPTS=$(find packages/node-smol-builder/scripts/common -type f -name "*.mjs" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
 
-          # Combine base hashes (patches + additions + common scripts) with phase-specific hashes
-          BASE_HASH=$(echo "${PATCHES_HASH}${ADDITIONS_HASH}${COMMON_SCRIPTS_HASH}" | $hash_cmd | cut -d' ' -f1)
-          RELEASE_KEY=$(echo "${BASE_HASH}${RELEASE_HASH}" | $hash_cmd | cut -d' ' -f1)
-          STRIPPED_KEY=$(echo "${BASE_HASH}${STRIPPED_HASH}" | $hash_cmd | cut -d' ' -f1)
-          COMPRESSED_KEY=$(echo "${BASE_HASH}${COMPRESSED_HASH}" | $hash_cmd | cut -d' ' -f1)
-          FINAL_KEY=$(echo "${BASE_HASH}${FINAL_HASH}" | $hash_cmd | cut -d' ' -f1)
+          # Release phase: patches/release + additions/release + scripts/release + common
+          RELEASE_PATCHES=$(find packages/node-smol-builder/patches/release -type f 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          RELEASE_ADDITIONS=$(find packages/node-smol-builder/additions/release -type f 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          RELEASE_SCRIPTS=$(find packages/node-smol-builder/scripts/release -type f -name "*.mjs" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          RELEASE_KEY=$(echo "${COMMON_SCRIPTS}${RELEASE_PATCHES}${RELEASE_ADDITIONS}${RELEASE_SCRIPTS}" | $hash_cmd | cut -d' ' -f1)
+
+          # Stripped phase: release + patches/stripped + additions/stripped + scripts/stripped
+          STRIPPED_PATCHES=$(find packages/node-smol-builder/patches/{release,stripped} -type f 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          STRIPPED_ADDITIONS=$(find packages/node-smol-builder/additions/{release,stripped} -type f 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          STRIPPED_SCRIPTS=$(find packages/node-smol-builder/scripts/{release,stripped} -type f -name "*.mjs" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          STRIPPED_KEY=$(echo "${COMMON_SCRIPTS}${STRIPPED_PATCHES}${STRIPPED_ADDITIONS}${STRIPPED_SCRIPTS}" | $hash_cmd | cut -d' ' -f1)
+
+          # Compressed phase: release + stripped + patches/compressed + additions/compressed + scripts/compressed
+          COMPRESSED_PATCHES=$(find packages/node-smol-builder/patches/{release,stripped,compressed} -type f 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          COMPRESSED_ADDITIONS=$(find packages/node-smol-builder/additions/{release,stripped,compressed} -type f 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          COMPRESSED_SCRIPTS=$(find packages/node-smol-builder/scripts/{release,stripped,compressed} -type f -name "*.mjs" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          COMPRESSED_KEY=$(echo "${COMMON_SCRIPTS}${COMPRESSED_PATCHES}${COMPRESSED_ADDITIONS}${COMPRESSED_SCRIPTS}" | $hash_cmd | cut -d' ' -f1)
+
+          # Final phase: release + stripped + compressed + patches/final + additions/final + scripts/final
+          FINAL_PATCHES=$(find packages/node-smol-builder/patches/{release,stripped,compressed,final} -type f 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          FINAL_ADDITIONS=$(find packages/node-smol-builder/additions/{release,stripped,compressed,final} -type f 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          FINAL_SCRIPTS=$(find packages/node-smol-builder/scripts/{release,stripped,compressed,final} -type f -name "*.mjs" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          FINAL_KEY=$(echo "${COMMON_SCRIPTS}${FINAL_PATCHES}${FINAL_ADDITIONS}${FINAL_SCRIPTS}" | $hash_cmd | cut -d' ' -f1)
 
           echo "release_hash=${RELEASE_KEY}" >> $GITHUB_OUTPUT
           echo "stripped_hash=${STRIPPED_KEY}" >> $GITHUB_OUTPUT

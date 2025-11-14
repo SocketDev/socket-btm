@@ -151,8 +151,19 @@ async function configure() {
   const cmakeBuildDir = path.join(BUILD_DIR, 'cmake')
   await fs.mkdir(cmakeBuildDir, { recursive: true })
 
+  // Auto-detect and activate Emscripten SDK.
+  const emscriptenResult = await ensureEmscripten({
+    version: 'latest',
+    autoInstall: false,
+    quiet: true,
+  })
+
+  if (!emscriptenResult.available) {
+    printError('Emscripten SDK required')
+    throw new Error('Emscripten SDK required')
+  }
+
   // Determine Emscripten toolchain file location.
-  // ensureEmscripten() in main() has already set these environment variables.
   let toolchainFile
   if (process.env.EMSCRIPTEN) {
     toolchainFile = path.join(
@@ -166,7 +177,6 @@ async function configure() {
     )
   } else {
     printError('Emscripten SDK path not set')
-    printError('ensureEmscripten() should have been called before configure()')
     throw new Error('Emscripten SDK required')
   }
 

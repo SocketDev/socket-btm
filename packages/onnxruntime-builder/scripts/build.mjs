@@ -142,7 +142,11 @@ async function cloneOnnxSource() {
         'source-cloned',
         async () => {
           // Smoke test: Verify source directory exists with CMakeLists.txt
-          const cmakeLists = path.join(ONNX_SOURCE_DIR, 'cmake', 'CMakeLists.txt')
+          const cmakeLists = path.join(
+            ONNX_SOURCE_DIR,
+            'cmake',
+            'CMakeLists.txt',
+          )
           await fs.access(cmakeLists)
           printStep('Source directory validated')
         },
@@ -277,6 +281,18 @@ async function build() {
 
   printHeader('Building ONNX Runtime with Emscripten')
 
+  // Auto-detect and activate Emscripten SDK.
+  const emscriptenResult = await ensureEmscripten({
+    version: 'latest',
+    autoInstall: false,
+    quiet: true,
+  })
+
+  if (!emscriptenResult.available) {
+    printError('Emscripten SDK required')
+    throw new Error('Emscripten SDK required')
+  }
+
   const startTime = Date.now()
 
   // Clean stale cached files before build.
@@ -335,15 +351,18 @@ async function build() {
     '--build_wasm',
     '--skip_tests',
     '--parallel',
-    '--enable_wasm_threads', // Required for ONNX Runtime v1.19.0+ (non-threaded builds deprecated).
-    '--enable_wasm_simd', // Enable SIMD for better performance.
+    // Required for ONNX Runtime v1.19.0+ (non-threaded builds deprecated).
+    '--enable_wasm_threads',
+    // Enable SIMD for better performance.
+    '--enable_wasm_simd',
   ]
 
   // Add optimization flags based on build mode
   if (BUILD_MODE === 'prod') {
     // Production: Maximum optimization (slower compile, smaller output)
-    buildArgs.push('--enable_wasm_size_optimization')
-    printStep('Optimization: Size optimization enabled (prod mode)')
+    // Note: --enable_wasm_size_optimization was removed in ONNX Runtime v1.21+
+    // Size optimization is now controlled via CMAKE_CXX_FLAGS in CMakeLists.txt
+    printStep('Optimization: Production build (size optimized via CMake flags)')
   } else {
     // Development: Faster compile, larger output
     printStep('Optimization: Standard build (dev mode, faster)')
@@ -604,7 +623,8 @@ async function main() {
   // Pre-flight checks.
   printHeader('Pre-flight Checks')
 
-  const diskOk = await checkDiskSpace(BUILD_DIR, 5) // ONNX needs more space.
+  // ONNX needs more space.
+  const diskOk = await checkDiskSpace(BUILD_DIR, 5)
   if (!diskOk) {
     printWarning('Could not check disk space')
   }

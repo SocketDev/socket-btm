@@ -499,7 +499,7 @@ async function smoketestBinary(
       async run() {
         const result = await spawn(
           binaryPath,
-          ['-e', 'console.log("hello world")'],
+          ['--eval', 'console.log("hello world")'],
           { timeout: 5000, stdioString: true },
         )
         const success =
@@ -519,7 +519,7 @@ async function smoketestBinary(
       async run() {
         const result = await spawn(
           binaryPath,
-          ['-e', 'require("path").join("a","b")'],
+          ['--eval', 'require("path").join("a","b")'],
           { timeout: 5000 },
         )
         return {

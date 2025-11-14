@@ -186,11 +186,31 @@ jobs:
             exit 1
           fi
 
+          # Hash only node-smol-builder specific files to prevent unrelated changes from invalidating cache
           PATCHES_HASH=$(find packages/node-smol-builder/patches -type f 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
           ADDITIONS_HASH=$(find packages/node-smol-builder/additions -type f 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
-          SCRIPTS_HASH=$(find packages/node-smol-builder/scripts -type f -name "*.mjs" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
-          COMBINED_HASH=$(echo "${PATCHES_HASH}${ADDITIONS_HASH}${SCRIPTS_HASH}" | $hash_cmd | cut -d' ' -f1)
-          echo "hash=${COMBINED_HASH}" >> $GITHUB_OUTPUT
+
+          # Phase-specific script hashes for granular caching
+          # Each phase includes its dependencies (cumulative hashing)
+          RELEASE_HASH=$(find packages/node-smol-builder/scripts/release -type f -name "*.mjs" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          STRIPPED_HASH=$(find packages/node-smol-builder/scripts/{release,stripped} -type f -name "*.mjs" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          COMPRESSED_HASH=$(find packages/node-smol-builder/scripts/{release,stripped,compressed} -type f -name "*.mjs" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          FINAL_HASH=$(find packages/node-smol-builder/scripts/{release,stripped,compressed,final} -type f -name "*.mjs" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+
+          # Also hash build.mjs and clean.mjs (common to all phases)
+          COMMON_SCRIPTS_HASH=$(find packages/node-smol-builder/scripts -maxdepth 1 -type f -name "*.mjs" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+
+          # Combine base hashes (patches + additions + common scripts) with phase-specific hashes
+          BASE_HASH=$(echo "${PATCHES_HASH}${ADDITIONS_HASH}${COMMON_SCRIPTS_HASH}" | $hash_cmd | cut -d' ' -f1)
+          RELEASE_KEY=$(echo "${BASE_HASH}${RELEASE_HASH}" | $hash_cmd | cut -d' ' -f1)
+          STRIPPED_KEY=$(echo "${BASE_HASH}${STRIPPED_HASH}" | $hash_cmd | cut -d' ' -f1)
+          COMPRESSED_KEY=$(echo "${BASE_HASH}${COMPRESSED_HASH}" | $hash_cmd | cut -d' ' -f1)
+          FINAL_KEY=$(echo "${BASE_HASH}${FINAL_HASH}" | $hash_cmd | cut -d' ' -f1)
+
+          echo "release_hash=${RELEASE_KEY}" >> $GITHUB_OUTPUT
+          echo "stripped_hash=${STRIPPED_KEY}" >> $GITHUB_OUTPUT
+          echo "compressed_hash=${COMPRESSED_KEY}" >> $GITHUB_OUTPUT
+          echo "final_hash=${FINAL_KEY}" >> $GITHUB_OUTPUT
           echo "build_mode=${BUILD_MODE}" >> $GITHUB_OUTPUT
 
       - name: Restore node-source cache
@@ -199,17 +219,15 @@ jobs:
         if: ${{ !inputs.force }}
         with:
           path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/node-source
-          key: node-source-${{ env.CACHE_VERSION }}-${{ env.NODE_VERSION }}-${{ steps.smol-cache-key.outputs.hash }}
+          key: node-source-${{ env.CACHE_VERSION }}-${{ env.NODE_VERSION }}-${{ steps.smol-cache-key.outputs.release_hash }}
 
-      # Disabled: Release cache causes ninja errors when patches change
-      # The out/ directory contains .ninja files tied to specific GYP configs
-      # - name: Restore node Release cache
-      #   uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-      #   id: node-release-cache
-      #   if: ${{ !inputs.force }}
-      #   with:
-      #     path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/Release
-      #     key: node-release-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.hash }}
+      - name: Restore node Release cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        id: node-release-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/Release
+          key: node-release-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.release_hash }}
 
       - name: Restore node Stripped cache
         uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
@@ -217,7 +235,7 @@ jobs:
         if: ${{ !inputs.force }}
         with:
           path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/Stripped
-          key: node-stripped-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.hash }}
+          key: node-stripped-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.stripped_hash }}
 
       - name: Restore node Compressed cache
         uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
@@ -225,7 +243,7 @@ jobs:
         if: ${{ !inputs.force }}
         with:
           path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/Compressed
-          key: node-compressed-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.hash }}
+          key: node-compressed-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.compressed_hash }}
 
       - name: Restore node Final cache
         uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
@@ -233,7 +251,7 @@ jobs:
         if: ${{ !inputs.force }}
         with:
           path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/Final
-          key: node-final-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.hash }}
+          key: node-final-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.final_hash }}
 
       - name: Restore checkpoint cache
         uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
@@ -241,7 +259,7 @@ jobs:
         if: ${{ !inputs.force }}
         with:
           path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/checkpoints
-          key: node-checkpoints-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.hash }}
+          key: node-checkpoints-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.final_hash }}
 
       - name: Validate build cache integrity
         id: validate-cache

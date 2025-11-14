@@ -2099,7 +2099,7 @@ async function main() {
 
     // Run platform-specific compression.
     const compressArgs = [
-      path.join(ROOT_DIR, 'scripts', 'compress-binary.mjs'),
+      path.join(ROOT_DIR, 'scripts', 'compressed', 'compress-binary.mjs'),
       outputStrippedBinary,
       compressedBinary,
       `--quality=${compressionQuality}`,

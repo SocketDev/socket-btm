@@ -1,29 +1,6 @@
 # @node-versions: v24.10.0+
-# @description: Load external polyfill for small-icu builds
-# @requires: lib/internal/socketsecurity_polyfills/locale-compare.js
-#
-# Loads Socket CLI's external polyfill from lib/internal/socketsecurity_polyfills/:
-# - localeCompare: Coerces unsupported locales to 'en-US' to prevent errors
-#
-# This patch adds a require() call in bootstrap/node.js (late bootstrap stage) to load
-# the external polyfill module. The polyfill ensures robustness by coercing non-English
-# locales to English-only (small-icu compatible) locale data, preventing errors when
-# application code passes unsupported locales like 'zh-CN' or 'ar-SA'.
-#
-# NOTE: normalize() polyfill is NOT needed because small-icu provides full Unicode
-# normalization support (NFC, NFD, NFKC, NFKD) identical to full ICU. Normalization
-# is algorithm-based, not locale-data-based.
-#
-# IMPORTANT: Loaded in bootstrap/node.js (late bootstrap) instead of primordials.js (early bootstrap)
-# because the polyfill uses direct property assignment which requires String.prototype to be fully initialized.
-#
-# PATCH CREATION PROCESS:
-# This patch was created using standard unified diff format (not git format).
-# Steps:
-#   1. Clone Node.js v24.10.0
-#   2. Add both require() calls at end of lib/internal/bootstrap/node.js (after setupBuffer)
-#   3. Generate patch with: diff -u original.js modified.js
-#   4. Validate with: patch -p1 --dry-run < patch-file
+# @description: Load polyfill for small-icu builds
+# @requires: additions/release/polyfill/locale-compare.js
 #
 --- a/lib/internal/bootstrap/node.js
 +++ b/lib/internal/bootstrap/node.js

@@ -1,10 +1,6 @@
 # @node-versions: v24+
 # @description: Enable ARM64 branch protection
 #
-# Enable branch protection for ARM64 builds on macOS and Linux.
-# Provides pointer authentication (PAC) to prevent branch hijacking attacks.
-#
-# This matches official Node.js ARM64 configuration.
 
 --- a/common.gypi
 +++ b/common.gypi

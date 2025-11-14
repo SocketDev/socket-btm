@@ -74,7 +74,7 @@
  */
 
 import { existsSync, readdirSync, promises as fs } from 'node:fs'
-import { cpus, platform } from 'node:os'
+import { cpus, platform, totalmem } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -387,7 +387,43 @@ async function copyBuildAdditions() {
   logger.log('')
 }
 
-const CPU_COUNT = cpus().length
+/**
+ * Calculate optimal number of parallel build jobs.
+ *
+ * Strategy:
+ * 1. Honor NODE_BUILD_JOBS environment variable if set
+ * 2. Otherwise, use adaptive calculation based on available memory
+ *    - Each C++ compilation job can consume 400-800MB of RAM
+ *    - Formula: min(CPU_COUNT, floor(TOTAL_RAM_GB / 3))
+ *    - Ensures we don't exceed ~33% of available RAM per job
+ *
+ * Examples:
+ *   - 36GB RAM, 14 CPUs → min(14, 12) = 12 jobs
+ *   - 16GB RAM, 8 CPUs  → min(8, 5) = 5 jobs
+ *   - 8GB RAM, 4 CPUs   → min(4, 2) = 2 jobs
+ */
+const CPU_COUNT = (() => {
+  // Check for explicit override via environment variable
+  if (process.env.NODE_BUILD_JOBS) {
+    const envJobs = Number.parseInt(process.env.NODE_BUILD_JOBS, 10)
+    if (Number.isNaN(envJobs) || envJobs < 1) {
+      throw new Error(
+        `Invalid NODE_BUILD_JOBS value: ${process.env.NODE_BUILD_JOBS} (must be a positive integer)`,
+      )
+    }
+    return envJobs
+  }
+
+  // Adaptive calculation based on available memory
+  const totalCpus = cpus().length
+  const totalRamGB = Math.floor(totalmem() / (1024 * 1024 * 1024))
+  const memoryBasedJobs = Math.floor(totalRamGB / 3)
+
+  // Use the minimum of CPU count and memory-based calculation
+  // Ensure at least 1 job even on very low-memory systems
+  return Math.max(1, Math.min(totalCpus, memoryBasedJobs))
+})()
+
 const IS_MACOS = TARGET_PLATFORM === 'darwin'
 const IS_WINDOWS = TARGET_PLATFORM === 'win32'
 const ARCH = TARGET_ARCH
@@ -1495,12 +1531,33 @@ async function main() {
   } else if (!WIN32) {
     const jobCount = CPU_COUNT
     const timeEstimate = estimateBuildTime(jobCount)
+
+    // Show job count information with context about why it might be reduced
+    const totalCpus = cpus().length
+    const totalRamGB = Math.floor(totalmem() / (1024 * 1024 * 1024))
+    const isMemoryConstrained = jobCount < totalCpus
+    const isEnvOverride = !!process.env.NODE_BUILD_JOBS
+
     logger.log(
       `⏱️  Estimated time: ${timeEstimate.estimatedMinutes} minutes (${timeEstimate.minMinutes}-${timeEstimate.maxMinutes} min range)`,
     )
-    logger.log(
-      `🚀 Using ${jobCount} CPU core${jobCount > 1 ? 's' : ''} for parallel compilation`,
-    )
+
+    if (isEnvOverride) {
+      logger.log(
+        `🚀 Using ${jobCount} CPU core${jobCount > 1 ? 's' : ''} for parallel compilation (NODE_BUILD_JOBS override)`,
+      )
+    } else if (isMemoryConstrained) {
+      logger.log(
+        `🚀 Using ${jobCount} CPU core${jobCount > 1 ? 's' : ''} for parallel compilation (${totalCpus} CPUs available, reduced for ${totalRamGB}GB RAM)`,
+      )
+      logger.log(
+        '   Memory-optimized build to prevent resource exhaustion (each job uses ~400-800MB RAM)',
+      )
+    } else {
+      logger.log(
+        `🚀 Using ${jobCount} CPU core${jobCount > 1 ? 's' : ''} for parallel compilation`,
+      )
+    }
     logger.log('')
     logger.log('You can:')
     logger.log('  • Grab coffee ☕')

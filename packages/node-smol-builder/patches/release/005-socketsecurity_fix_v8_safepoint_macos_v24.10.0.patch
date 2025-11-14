@@ -1,11 +1,6 @@
 # @node-versions: v24+
-# @description: Add constructor to RunningLocalHeap for macOS compatibility
+# @description: Fix V8 RunningLocalHeap constructor for macOS
 #
-# Fixes compilation error on macOS with newer Xcode versions where
-# emplace_back requires an explicit constructor for RunningLocalHeap.
-#
-# Error: no matching constructor for initialization of
-# 'v8::internal::IsolateSafepoint::RunningLocalHeap'
 
 --- a/deps/v8/src/heap/safepoint.h
 +++ b/deps/v8/src/heap/safepoint.h

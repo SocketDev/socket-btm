@@ -1,18 +1,7 @@
 # @node-versions: v24.10.0+
-# @description: Disable unused Node.js modules (1.5-3MB savings)
+# @description: Disable unused modules (http2, wasi)
 # @phase: 1
 #
-# Disables HTTP/2 and WASI bindings.
-# Socket CLI doesn't use these features, so removing them reduces binary size.
-#
-# IMPORTANT: These bindings are REQUIRED and cannot be disabled:
-# - contextify: Required for realm initialization
-# - worker: Required for main thread detection (is_main_thread check)
-# - trace_events: Required by internal modules (util/debuglog, timers)
-#
-# Expected savings:
-#   - http2: 1-2MB
-#   - wasi: 500KB-1MB
 
 --- a/src/node_binding.cc
 +++ b/src/node_binding.cc

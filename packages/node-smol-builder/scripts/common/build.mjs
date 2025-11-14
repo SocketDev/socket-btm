@@ -215,8 +215,8 @@ const PACKAGE_NAME = ''
 const NODE_SOURCE_DIR = path.join(BUILD_DIR, 'node-source')
 // Alias for compatibility.
 const NODE_DIR = NODE_SOURCE_DIR
-const PATCHES_DIR = path.join(ROOT_DIR, 'patches', 'release')
-const ADDITIONS_DIR = path.join(ROOT_DIR, 'additions')
+const PATCHES_RELEASE_DIR = path.join(ROOT_DIR, 'patches', 'release')
+const ADDITIONS_RELEASE_DIR = path.join(ROOT_DIR, 'additions', 'release')
 
 // Directory structure (fully isolated by build mode for concurrent builds).
 // build/dev/ - Dev build workspace (all artifacts isolated).
@@ -262,18 +262,18 @@ function collectBuildSourceFiles() {
   const sources = []
 
   // Add all patch files.
-  if (existsSync(PATCHES_DIR)) {
-    const patchFiles = readdirSync(PATCHES_DIR)
+  if (existsSync(PATCHES_RELEASE_DIR)) {
+    const patchFiles = readdirSync(PATCHES_RELEASE_DIR)
       .filter(f => f.endsWith('.patch'))
-      .map(f => path.join(PATCHES_DIR, f))
+      .map(f => path.join(PATCHES_RELEASE_DIR, f))
     sources.push(...patchFiles)
   }
 
   // Add all addition files recursively.
-  if (existsSync(ADDITIONS_DIR)) {
-    const addFiles = readdirSync(ADDITIONS_DIR, { recursive: true })
+  if (existsSync(ADDITIONS_RELEASE_DIR)) {
+    const addFiles = readdirSync(ADDITIONS_RELEASE_DIR, { recursive: true })
       .filter(f => {
-        const fullPath = path.join(ADDITIONS_DIR, f)
+        const fullPath = path.join(ADDITIONS_RELEASE_DIR, f)
         try {
           return (
             existsSync(fullPath) &&
@@ -284,7 +284,7 @@ function collectBuildSourceFiles() {
           return true
         }
       })
-      .map(f => path.join(ADDITIONS_DIR, f))
+      .map(f => path.join(ADDITIONS_RELEASE_DIR, f))
     sources.push(...addFiles)
   }
 
@@ -302,12 +302,12 @@ function findSocketPatches() {
   const patches = []
 
   // Get static patches from patches/ directory.
-  if (existsSync(PATCHES_DIR)) {
-    const staticPatches = readdirSync(PATCHES_DIR)
+  if (existsSync(PATCHES_RELEASE_DIR)) {
+    const staticPatches = readdirSync(PATCHES_RELEASE_DIR)
       .filter(f => f.endsWith('.patch') && !f.endsWith('.template.patch'))
       .map(f => ({
         name: f,
-        path: path.join(PATCHES_DIR, f),
+        path: path.join(PATCHES_RELEASE_DIR, f),
         source: 'patches/',
       }))
     patches.push(...staticPatches)
@@ -340,66 +340,46 @@ function findSocketPatches() {
 }
 
 /**
- * Copy build additions to Node.js source tree
+ * Copy build additions to Node.js source tree.
+ *
+ * Maps subdirectories from additions/release/ to their destinations:
+ * - polyfills/ → lib/internal/socketsecurity_polyfills/
  */
 async function copyBuildAdditions() {
-  if (!existsSync(ADDITIONS_DIR)) {
+  if (!existsSync(ADDITIONS_RELEASE_DIR)) {
     logger.log('   No build additions directory found, skipping')
     return
   }
 
   printHeader('Copying Build Additions')
 
-  // Recursively copy entire additions directory structure to Node.js source.
-  await fs.cp(ADDITIONS_DIR, NODE_DIR, {
-    recursive: true,
-    force: true,
-    errorOnExist: false,
-  })
+  // Map subdirectories to their destinations in Node.js source tree.
+  const additionsMappings = [
+    {
+      source: 'polyfills',
+      dest: 'lib/internal/socketsecurity_polyfills',
+    },
+  ]
 
-  logger.log(
-    `✅ Copied ${ADDITIONS_DIR.replace(`${ROOT_DIR}/`, '')}/ → ${NODE_DIR}/`,
-  )
+  for (const { source, dest } of additionsMappings) {
+    const sourceDir = path.join(ADDITIONS_RELEASE_DIR, source)
+    const destDir = path.join(NODE_DIR, dest)
 
-  // Fix: The bootstrap loader needs to be in lib/internal/ for Node.js to embed it as an internal module.
-  const bootstrapLoaderSource = path.join(
-    NODE_DIR,
-    '002-bootstrap-loader',
-    'internal',
-    'socketsecurity_bootstrap_loader.js',
-  )
-  const bootstrapLoaderDest = path.join(
-    NODE_DIR,
-    'lib',
-    'internal',
-    'socketsecurity_bootstrap_loader.js',
-  )
+    if (!existsSync(sourceDir)) {
+      continue
+    }
 
-  if (existsSync(bootstrapLoaderSource)) {
-    await fs.copyFile(bootstrapLoaderSource, bootstrapLoaderDest)
-    logger.log('✅ Copied socketsecurity_bootstrap_loader.js to lib/internal/')
-  }
+    await safeMkdir(destDir)
 
-  // Fix: Copy polyfill to lib/internal/socketsecurity_polyfills/ for external loading.
-  const localeCompareSource = path.join(
-    ADDITIONS_DIR,
-    'localeCompare.polyfill.js',
-  )
-  const polyfillsDestDir = path.join(
-    NODE_DIR,
-    'lib',
-    'internal',
-    'socketsecurity_polyfills',
-  )
+    // Copy all files from source to destination.
+    const files = await fs.readdir(sourceDir)
+    for (const file of files) {
+      const sourcePath = path.join(sourceDir, file)
+      const destPath = path.join(destDir, file)
+      await fs.copyFile(sourcePath, destPath)
+    }
 
-  if (existsSync(localeCompareSource)) {
-    await safeMkdir(polyfillsDestDir)
-
-    const localeCompareDest = path.join(polyfillsDestDir, 'localeCompare.js')
-    await fs.copyFile(localeCompareSource, localeCompareDest)
-    logger.log(
-      '✅ Copied localeCompare.js to lib/internal/socketsecurity_polyfills/',
-    )
+    logger.log(`✅ Copied ${files.length} file(s) from ${source}/ → ${dest}/`)
   }
 
   logger.log('')
@@ -1155,7 +1135,7 @@ async function main() {
           `  - Patches don't match this Node.js version\n` +
           '  - Node.js source has unexpected modifications\n\n' +
           'To fix:\n' +
-          `  1. Verify patch files in ${PATCHES_DIR}\n` +
+          `  1. Verify patch files in ${PATCHES_RELEASE_DIR}\n` +
           '  2. Regenerate patches if needed:\n' +
           `     node scripts/regenerate-node-patches.mjs --version=${NODE_VERSION}\n` +
           '  3. Check build/patches/README.md for patch creation guide',
@@ -1209,24 +1189,45 @@ async function main() {
       printHeader('Applying Socket Patches')
       for (const { name, path: patchPath } of patchData) {
         logger.log(`Applying ${name}...`)
+
+        // Use -p1 to match Git patch format (strips a/ and b/ prefixes).
+        // Use --batch to avoid interactive prompts.
+        // Use --forward to skip if already applied.
+        // Use spawn directly with stdio: pipe to capture output for error detection.
+        let result
         try {
-          // Use -p1 to match Git patch format (strips a/ and b/ prefixes).
-          // Use --batch to avoid interactive prompts.
-          // Use --forward to skip if already applied.
-          await exec(
+          result = await spawn(
             'sh',
             ['-c', `patch -p1 --batch --forward < "${patchPath}"`],
-            { cwd: NODE_DIR },
+            {
+              cwd: NODE_DIR,
+              stdio: 'pipe', // Capture stdout/stderr instead of inherit
+            },
           )
-          logger.log(`${colors.green('✓')} ${name} applied`)
-          _patchesApplied = true
         } catch (e) {
+          // spawn() throws on non-zero exit code, extract result from error
+          result = e
+        }
+
+        if (result.code !== 0) {
+          // Check if patch was already applied (patch --forward exits with 1 when skipping).
+          const output = (result.stdout || '') + (result.stderr || '')
+          const isAlreadyApplied =
+            output.includes('Ignoring previously applied') ||
+            output.includes('Reversed (or previously applied) patch detected')
+
+          if (isAlreadyApplied) {
+            logger.log(`${colors.cyan('↻')} ${name} already applied, skipping`)
+            continue
+          }
+
+          // Not an already-applied patch, this is a real error.
           throw new Error(
             'Socket patch application failed.\n\n' +
               `Failed to apply patch: ${name}\n` +
               `Node.js version: ${NODE_VERSION}\n` +
               `Patch path: ${patchPath}\n\n` +
-              `Error: ${e.message}\n\n` +
+              `Output:\n${output}\n\n` +
               'This usually means:\n' +
               '  - The patch is outdated for this Node.js version\n' +
               '  - Node.js source has unexpected modifications\n' +
@@ -1238,6 +1239,9 @@ async function main() {
               '  3. See build/patches/README.md for troubleshooting',
           )
         }
+
+        logger.log(`${colors.green('✓')} ${name} applied`)
+        _patchesApplied = true
       }
       logger.log(`${colors.green('✓')} All Socket patches applied successfully`)
       logger.log('')
@@ -1245,7 +1249,7 @@ async function main() {
   } else {
     throw new Error(
       `No Socket patches found for Node.js ${NODE_VERSION}.\n\n` +
-        `Expected patches in: ${PATCHES_DIR}\n\n` +
+        `Expected patches in: ${PATCHES_RELEASE_DIR}\n\n` +
         'Socket patches are required for all Node.js builds. Patches must exist before building.\n\n' +
         'To fix:\n' +
         `  1. Create patches for ${NODE_VERSION}:\n` +

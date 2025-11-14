@@ -1,6 +1,6 @@
 # @node-versions: v24.10.0+
 # @description: Load external polyfill for small-icu builds
-# @requires: lib/internal/socketsecurity_polyfills/localeCompare.js
+# @requires: lib/internal/socketsecurity_polyfills/locale-compare.js
 #
 # Loads Socket CLI's external polyfill from lib/internal/socketsecurity_polyfills/:
 # - localeCompare: Coerces unsupported locales to 'en-US' to prevent errors
@@ -33,4 +33,4 @@
  }
 +
 +// Socket CLI: Polyfill localeCompare for small-icu builds.
-+require('internal/socketsecurity_polyfills/localeCompare');
++require('internal/socketsecurity_polyfills/locale-compare');

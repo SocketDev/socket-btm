@@ -39,6 +39,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { which } from '@socketsecurity/lib/bin'
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
@@ -149,7 +150,7 @@ async function ensureToolBuilt(config) {
   const binName = commandParts[0]
   const args = commandParts.slice(1)
 
-  // Resolve the binary path using which to verify it exists
+  // Resolve binary path using which()
   const binPath = await which(binName, { nothrow: true })
   if (!binPath) {
     throw new Error(
@@ -159,17 +160,18 @@ async function ensureToolBuilt(config) {
   }
 
   logger.substep(`Resolved ${binName} to: ${binPath}`)
+  logger.substep(`Checking if path exists: ${existsSync(binPath)}`)
   logger.substep(`Arguments: ${args.join(' ')}`)
   logger.log('')
 
   // Execute the build command using @socketsecurity/lib spawn.
-  // Use the resolved binary path directly without shell mode to avoid
-  // shell spawning issues on all platforms (cmd.exe ENOENT on Windows,
-  // sh ENOENT on Linux). Direct binary execution is more reliable.
+  // Use shell: WIN32 for cross-platform compatibility (true on Windows, false elsewhere).
+  // On Windows, shell mode is needed for proper .cmd/.bat script execution.
+  // On Unix, direct binary execution avoids shell spawning issues.
   const result = await spawn(binPath, args, {
     cwd: TOOLS_DIR,
     stdio: 'inherit',
-    shell: false,
+    shell: WIN32,
   })
 
   if (result.exitCode !== 0) {
@@ -229,10 +231,10 @@ async function compressBinary(
   }
 
   // Execute compression tool using @socketsecurity/lib spawn.
-  // No shell mode needed since we're spawning a native executable directly.
+  // Use shell: WIN32 for cross-platform compatibility (true on Windows, false elsewhere).
   const result = await spawn(toolPath, args, {
     stdio: 'inherit',
-    shell: false,
+    shell: WIN32,
   })
 
   if (result.exitCode !== 0) {

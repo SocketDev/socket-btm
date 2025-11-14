@@ -144,7 +144,8 @@ async function convertToOnnx() {
   // Convert to ONNX using optimum (transformers.onnx is deprecated).
   printStep('Converting models to ONNX')
 
-  const opsetVersion = BUILD_MODE === 'prod' ? '14' : '13'
+  // Use opset 14 for both prod and dev (opset 13 lacks aten::triu support).
+  const opsetVersion = '14'
   const convertResult = await spawn(
     python3Path,
     [

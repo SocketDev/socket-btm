@@ -17,7 +17,9 @@
   },
   "dependencies": {
     "build-infra": "workspace:*",
-    "@socketsecurity/lib": "catalog:"
+    "@socketsecurity/lib": "catalog:",
+    "@babel/parser": "catalog:",
+    "magic-string": "catalog:"
   },
   "devDependencies": {
     "vitest": "catalog:"

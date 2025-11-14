@@ -394,12 +394,12 @@ async function copyBuildAdditions() {
  * 1. Honor NODE_BUILD_JOBS environment variable if set
  * 2. Otherwise, use adaptive calculation based on available memory
  *    - Each C++ compilation job can consume 400-800MB of RAM
- *    - Formula: min(CPU_COUNT, floor(TOTAL_RAM_GB / 3))
- *    - Ensures we don't exceed ~33% of available RAM per job
+ *    - Formula: min(CPU_COUNT, floor(TOTAL_RAM_GB / 4))
+ *    - Ensures we don't exceed ~25% of available RAM per job
  *
  * Examples:
- *   - 36GB RAM, 14 CPUs → min(14, 12) = 12 jobs
- *   - 16GB RAM, 8 CPUs  → min(8, 5) = 5 jobs
+ *   - 36GB RAM, 14 CPUs → min(14, 9) = 9 jobs
+ *   - 16GB RAM, 8 CPUs  → min(8, 4) = 4 jobs
  *   - 8GB RAM, 4 CPUs   → min(4, 2) = 2 jobs
  */
 const CPU_COUNT = (() => {
@@ -417,7 +417,7 @@ const CPU_COUNT = (() => {
   // Adaptive calculation based on available memory
   const totalCpus = cpus().length
   const totalRamGB = Math.floor(totalmem() / (1024 * 1024 * 1024))
-  const memoryBasedJobs = Math.floor(totalRamGB / 3)
+  const memoryBasedJobs = Math.floor(totalRamGB / 4)
 
   // Use the minimum of CPU count and memory-based calculation
   // Ensure at least 1 job even on very low-memory systems

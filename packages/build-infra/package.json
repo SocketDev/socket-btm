@@ -31,15 +31,138 @@
     "test:watch": "vitest"
   },
   "externalTools": {
-    "cmake": "3.30.5",
-    "emsdk": "3.1.69",
-    "gh": "2.62.0",
-    "git": "2.47.1",
-    "make": "4.4.1",
-    "ninja": "1.12.1",
-    "patch": "2.7.6",
-    "python": "3.10.18",
-    "rust": "1.82.0"
+    "cmake": {
+      "description": "CMake build system",
+      "packages": {
+        "darwin": { "brew": "cmake" },
+        "linux": { "apt": "cmake", "yum": "cmake", "dnf": "cmake", "apk": "cmake" },
+        "win32": { "choco": "cmake", "scoop": "cmake" }
+      },
+      "versions": {
+        "brew": "3.31.4",
+        "apt": "3.22.1",
+        "choco": "3.31.4"
+      }
+    },
+    "ninja": {
+      "description": "Ninja build system (faster than Make)",
+      "packages": {
+        "darwin": { "brew": "ninja" },
+        "linux": { "apt": "ninja-build", "yum": "ninja-build", "dnf": "ninja-build", "apk": "samurai" },
+        "win32": { "choco": "ninja", "scoop": "ninja" }
+      },
+      "versions": {
+        "brew": "1.12.1",
+        "apt": "1.11.1",
+        "choco": "1.12.1"
+      }
+    },
+    "python3": {
+      "description": "Python 3 interpreter",
+      "packages": {
+        "darwin": { "brew": "python3" },
+        "linux": { "apt": "python3", "yum": "python3", "dnf": "python3", "apk": "python3" },
+        "win32": { "choco": "python", "scoop": "python" }
+      },
+      "versions": {
+        "brew": "3.13.1",
+        "apt": "3.10.12",
+        "choco": "3.13.1"
+      }
+    },
+    "binaryen": {
+      "description": "Binaryen WebAssembly optimizer (wasm-opt)",
+      "packages": {
+        "darwin": { "brew": "binaryen" },
+        "linux": { "apt": "binaryen", "yum": "binaryen", "dnf": "binaryen", "apk": "binaryen" },
+        "win32": { "choco": "binaryen", "scoop": "binaryen" }
+      },
+      "versions": {
+        "brew": "120",
+        "apt": "105",
+        "choco": "120"
+      }
+    },
+    "z3": {
+      "description": "Z3 Theorem Prover (required by llvm-strip)",
+      "packages": {
+        "darwin": { "brew": "z3" },
+        "linux": { "apt": "z3", "yum": "z3", "dnf": "z3", "apk": "z3" },
+        "win32": { "choco": "z3", "scoop": "z3" }
+      },
+      "versions": {
+        "brew": "4.12.2",
+        "apt": "4.8.12",
+        "choco": "4.12.2"
+      }
+    },
+    "llvm-strip": {
+      "description": "LLVM binary stripper tool",
+      "packages": {
+        "darwin": { "brew": "llvm@16" },
+        "linux": { "apt": "llvm-16", "yum": "llvm16", "dnf": "llvm16", "apk": "llvm16" },
+        "win32": { "choco": "llvm", "scoop": "llvm" }
+      },
+      "versions": {
+        "brew": "16.0.6",
+        "apt": "16.0.0",
+        "choco": "16.0.6"
+      }
+    },
+    "git": {
+      "description": "Git version control system",
+      "packages": {
+        "darwin": { "brew": "git" },
+        "linux": { "apt": "git", "yum": "git", "dnf": "git", "apk": "git" },
+        "win32": { "choco": "git", "scoop": "git" }
+      },
+      "versions": {}
+    },
+    "curl": {
+      "description": "Command-line tool for transferring data",
+      "packages": {
+        "darwin": { "brew": "curl" },
+        "linux": { "apt": "curl", "yum": "curl", "dnf": "curl", "apk": "curl" },
+        "win32": { "choco": "curl", "scoop": "curl" }
+      },
+      "versions": {}
+    },
+    "patch": {
+      "description": "GNU patch utility for applying diffs",
+      "packages": {
+        "darwin": { "brew": "gpatch" },
+        "linux": { "apt": "patch", "yum": "patch", "dnf": "patch", "apk": "patch" },
+        "win32": { "choco": "patch", "scoop": "patch" }
+      },
+      "versions": {}
+    },
+    "make": {
+      "description": "GNU Make build tool",
+      "packages": {
+        "darwin": { "brew": "make" },
+        "linux": { "apt": "make", "yum": "make", "dnf": "make", "apk": "make" },
+        "win32": { "choco": "make", "scoop": "make" }
+      },
+      "versions": {}
+    },
+    "wasm-opt": {
+      "description": "Binaryen WebAssembly optimizer",
+      "packages": {
+        "darwin": { "brew": "binaryen" },
+        "linux": { "apt": "binaryen", "yum": "binaryen", "dnf": "binaryen", "apk": "binaryen" },
+        "win32": { "choco": "binaryen", "scoop": "binaryen" }
+      },
+      "versions": {}
+    },
+    "gh": {
+      "description": "GitHub CLI",
+      "packages": {
+        "darwin": { "brew": "gh" },
+        "linux": { "apt": "gh", "yum": "gh", "dnf": "gh", "apk": "github-cli" },
+        "win32": { "choco": "gh", "scoop": "gh" }
+      },
+      "versions": {}
+    }
   },
   "dependencies": {
     "@babel/parser": "catalog:",

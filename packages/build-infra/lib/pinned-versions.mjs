@@ -5,18 +5,42 @@
  * to specific versions to ensure reproducible builds and prevent supply chain attacks.
  */
 
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
+/**
+ * Load external tools configuration from package.json.
+ * This is the single source of truth for all external tool dependencies.
+ */
+function loadExternalTools() {
+  try {
+    const packageJsonPath = join(__dirname, '..', 'package.json')
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
+    return packageJson.externalTools || {}
+  } catch (error) {
+    console.error(
+      'Failed to load externalTools from package.json:',
+      error.message,
+    )
+    return {}
+  }
+}
+
 /**
  * Pinned Python package versions.
  * Format: { packageName: 'version' }
  */
 export const PYTHON_VERSIONS = {
-  transformers: '4.48.0',
-  torch: '2.6.0',
-  onnx: '1.17.0',
-  onnxruntime: '1.20.1',
+  transformers: '4.57.1',
+  torch: '2.8.0',
+  onnx: '1.19.1',
+  onnxruntime: '1.19.2',
   onnxscript: '0.5.6',
   huggingface_hub: '0.27.0',
-  optimum: '1.23.3',
+  optimum: '1.17.0',
   sentence_transformers: '3.3.1',
 }
 
@@ -29,32 +53,27 @@ export const PYTHON_PACKAGE_EXTRAS = {
 }
 
 /**
- * Pinned tool versions for package managers.
- * Format: { toolName: { packageManager: 'version' } }
- * Use '@latest' to always get the latest version (not recommended for production).
+ * Pinned tool versions and package names for package managers.
+ *
+ * Loaded from package.json externalTools field.
+ * Format:
+ * {
+ *   toolName: {
+ *     description: 'Human-readable description',
+ *     packages: {
+ *       darwin: { brew: 'package-name' },
+ *       linux: { apt: 'package-name', ... },
+ *       win32: { choco: 'package-name', ... }
+ *     },
+ *     versions: {
+ *       brew: 'version',
+ *       apt: 'version',
+ *       ...
+ *     }
+ *   }
+ * }
  */
-export const TOOL_VERSIONS = {
-  cmake: {
-    brew: '3.31.4',
-    apt: '3.22.1',
-    choco: '3.31.4',
-  },
-  ninja: {
-    brew: '1.12.1',
-    apt: '1.11.1',
-    choco: '1.12.1',
-  },
-  python3: {
-    brew: '3.13.1',
-    apt: '3.10.12', // Ubuntu 22.04 default
-    choco: '3.13.1',
-  },
-  binaryen: {
-    brew: '120',
-    apt: '105', // Ubuntu 22.04 repo version
-    choco: '120',
-  },
-}
+export const TOOL_VERSIONS = loadExternalTools()
 
 /**
  * Get pinned package specifier for pip install.
@@ -98,10 +117,20 @@ export function getPinnedPackages(packageNames) {
  */
 export function getToolVersion(toolName, packageManager) {
   const tool = TOOL_VERSIONS[toolName]
-  if (!tool) {
+  if (!tool || !tool.versions) {
     return null
   }
-  return tool[packageManager] || null
+  return tool.versions[packageManager] || null
+}
+
+/**
+ * Get tool configuration (description and packages).
+ *
+ * @param {string} toolName - Tool name
+ * @returns {object|null} Tool configuration or null if not found
+ */
+export function getToolConfig(toolName) {
+  return TOOL_VERSIONS[toolName] || null
 }
 
 /**
@@ -115,7 +144,8 @@ export function getToolVersion(toolName, packageManager) {
 export function getToolPackageSpec(toolName, packageName, packageManager) {
   const version = getToolVersion(toolName, packageManager)
   if (!version) {
-    return packageName // No version pinned, return bare package name
+    // No version pinned, return bare package name
+    return packageName
   }
 
   // Format version specifier based on package manager

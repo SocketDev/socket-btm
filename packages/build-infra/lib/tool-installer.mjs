@@ -23,11 +23,13 @@ import {
   printSubstep,
   printWarning,
 } from './build-output.mjs'
+import { getToolVersion, getToolConfig } from './pinned-versions.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 /**
- * Read externalTools from package.json
+ * Read externalTools from package.json (fallback for backward compatibility).
+ * Note: pinned-versions.mjs is the preferred source of truth for tool versions.
  */
 function getExternalTools() {
   try {
@@ -42,92 +44,9 @@ function getExternalTools() {
 
 /**
  * Tool installation configurations.
+ * NOTE: This is now sourced from pinned-versions.mjs via getToolConfig().
+ * TOOL_CONFIGS is deprecated - use getToolConfig(toolName) instead.
  */
-const TOOL_CONFIGS = {
-  __proto__: null,
-  git: {
-    description: 'Git version control system',
-    packages: {
-      darwin: { brew: 'git' },
-      linux: { apt: 'git', yum: 'git', dnf: 'git', apk: 'git' },
-      win32: { choco: 'git', scoop: 'git' },
-    },
-  },
-  curl: {
-    description: 'Command-line tool for transferring data',
-    packages: {
-      darwin: { brew: 'curl' },
-      linux: { apt: 'curl', yum: 'curl', dnf: 'curl', apk: 'curl' },
-      win32: { choco: 'curl', scoop: 'curl' },
-    },
-  },
-  patch: {
-    description: 'GNU patch utility for applying diffs',
-    packages: {
-      darwin: { brew: 'gpatch' },
-      linux: { apt: 'patch', yum: 'patch', dnf: 'patch', apk: 'patch' },
-      win32: { choco: 'patch', scoop: 'patch' },
-    },
-  },
-  make: {
-    description: 'GNU Make build tool',
-    packages: {
-      darwin: { brew: 'make' },
-      linux: { apt: 'make', yum: 'make', dnf: 'make', apk: 'make' },
-      win32: { choco: 'make', scoop: 'make' },
-    },
-  },
-  python3: {
-    description: 'Python 3 interpreter',
-    packages: {
-      darwin: { brew: 'python3' },
-      linux: { apt: 'python3', yum: 'python3', dnf: 'python3', apk: 'python3' },
-      win32: { choco: 'python', scoop: 'python' },
-    },
-  },
-  cmake: {
-    description: 'CMake build system',
-    packages: {
-      darwin: { brew: 'cmake' },
-      linux: { apt: 'cmake', yum: 'cmake', dnf: 'cmake', apk: 'cmake' },
-      win32: { choco: 'cmake', scoop: 'cmake' },
-    },
-  },
-  'wasm-opt': {
-    description: 'Binaryen WebAssembly optimizer',
-    packages: {
-      darwin: { brew: 'binaryen' },
-      linux: {
-        apt: 'binaryen',
-        yum: 'binaryen',
-        dnf: 'binaryen',
-        apk: 'binaryen',
-      },
-      win32: { choco: 'binaryen', scoop: 'binaryen' },
-    },
-  },
-  ninja: {
-    description: 'Ninja build system (faster than Make)',
-    packages: {
-      darwin: { brew: 'ninja' },
-      linux: {
-        apt: 'ninja-build',
-        yum: 'ninja-build',
-        dnf: 'ninja-build',
-        apk: 'samurai',
-      },
-      win32: { choco: 'ninja', scoop: 'ninja' },
-    },
-  },
-  gh: {
-    description: 'GitHub CLI',
-    packages: {
-      darwin: { brew: 'gh' },
-      linux: { apt: 'gh', yum: 'gh', dnf: 'gh', apk: 'github-cli' },
-      win32: { choco: 'gh', scoop: 'gh' },
-    },
-  },
-}
 
 /**
  * Package manager configuration per platform.
@@ -459,14 +378,14 @@ export async function installTool(
   packageManager,
   { autoYes = false, version = null } = {},
 ) {
-  const config = TOOL_CONFIGS[tool]
+  const config = getToolConfig(tool)
   if (!config) {
     printError(`Unknown tool: ${tool}`)
     return false
   }
 
   const platform = process.platform
-  const packageInfo = config.packages[platform]
+  const packageInfo = config.packages?.[platform]
 
   if (!packageInfo || !packageInfo[packageManager]) {
     printError(
@@ -477,10 +396,16 @@ export async function installTool(
 
   const packageName = packageInfo[packageManager]
 
-  // Get version from externalTools if not provided
+  // Get version from pinned-versions.mjs if not provided
   if (!version) {
-    const externalTools = getExternalTools()
-    version = externalTools[tool]
+    // First try pinned-versions.mjs (preferred source of truth)
+    version = getToolVersion(tool, packageManager)
+
+    // Fallback to package.json externalTools if not in pinned versions
+    if (!version) {
+      const externalTools = getExternalTools()
+      version = externalTools[tool]
+    }
   }
 
   const versionInfo = version ? ` (version ${version})` : ''
@@ -642,7 +567,7 @@ export async function ensureToolInstalled(
  * @returns {string[]} Array of installation instruction strings.
  */
 export function getInstallInstructions(tool) {
-  const config = TOOL_CONFIGS[tool]
+  const config = getToolConfig(tool)
   if (!config) {
     return [`Unknown tool: ${tool}`]
   }

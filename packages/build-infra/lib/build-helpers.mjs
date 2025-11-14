@@ -35,7 +35,16 @@ export async function checkDiskSpace(dir, requiredGB = 5) {
 
   try {
     // Use Node.js built-in fs.statfs for cross-platform disk space check.
-    const stats = await fs.statfs(dir)
+    // If directory doesn't exist yet, check parent or current directory.
+    let checkDir = dir
+    try {
+      await fs.access(dir)
+    } catch {
+      // Directory doesn't exist - check parent directory.
+      checkDir = path.dirname(dir)
+    }
+
+    const stats = await fs.statfs(checkDir)
     const availableBytes = stats.bavail * stats.bsize
     const availableGBValue = Number(
       (availableBytes / (1024 * 1024 * 1024)).toFixed(2),

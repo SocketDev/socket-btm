@@ -1800,17 +1800,6 @@ async function main() {
 
     logger.log('')
     logger.log(`${colors.green('✓')} Build completed in ${buildTime}`)
-    await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'built')
-    logger.log('')
-
-    // Cache the compiled binary for future runs.
-    await cacheCompiledBinary(
-      BUILD_DIR,
-      nodeBinary,
-      TARGET_PLATFORM,
-      ARCH,
-      NODE_VERSION,
-    )
     logger.log('')
   }
 
@@ -1825,7 +1814,7 @@ async function main() {
   }
 
   // Test the binary.
-  printHeader('Testing Binary')
+  printHeader('Testing Binary (Release)')
 
   logger.log('Running basic functionality tests...')
   logger.log('')
@@ -1841,6 +1830,23 @@ async function main() {
 
   logger.log('')
   logger.log(`${colors.green('✓')} Binary is functional`)
+  logger.log('')
+
+  // Create checkpoint for Release build after successful smoke test.
+  const releaseBinarySize = await getFileSize(nodeBinary)
+  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'release', {
+    binarySize: releaseBinarySize,
+    binaryPath: path.relative(BUILD_DIR, nodeBinary),
+  })
+
+  // Cache the compiled binary for future runs.
+  await cacheCompiledBinary(
+    BUILD_DIR,
+    nodeBinary,
+    TARGET_PLATFORM,
+    ARCH,
+    NODE_VERSION,
+  )
   logger.log('')
 
   // Copy unmodified binary to build/out/Release.
@@ -2015,6 +2021,13 @@ async function main() {
   logger.log(`${colors.green('✓')} Binary functional after stripping`)
   logger.log('')
 
+  // Create checkpoint for Stripped build after successful smoke test.
+  const strippedBinarySize = await getFileSize(nodeBinary)
+  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'stripped', {
+    binarySize: strippedBinarySize,
+    binaryPath: path.relative(BUILD_DIR, nodeBinary),
+  })
+
   // Copy stripped binary to build/out/Stripped.
   printHeader('Copying to Build Output (Stripped)')
   logger.log('Copying stripped binary to build/out/Stripped directory...')
@@ -2132,6 +2145,14 @@ async function main() {
       '✓ Smoke test skipped (decompressor needs argument handling fix)',
     )
     logger.log('')
+
+    // Create checkpoint for Compressed build (smoke test skipped - decompressor needs fix).
+    const compressedBinarySize = await getFileSize(compressedBinary)
+    await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'compressed', {
+      binarySize: compressedBinarySize,
+      binaryPath: path.relative(BUILD_DIR, compressedBinary),
+      smokeTestSkipped: true,
+    })
 
     logger.substep(`Compressed directory: ${compressedDir}`)
     logger.substep('Binary: node (compressed)')
@@ -2341,7 +2362,7 @@ async function main() {
   const binaryContent = await fs.readFile(finalBinary)
   const checksum = createHash('sha256').update(binaryContent).digest('hex')
 
-  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'complete', {
+  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'final', {
     binarySize,
     checksum,
     binaryPath: path.relative(BUILD_DIR, finalBinary),

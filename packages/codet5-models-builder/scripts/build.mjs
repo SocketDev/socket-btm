@@ -213,7 +213,7 @@ async function quantizeModels() {
     `python3 -c "from onnxruntime.quantization import quantize_dynamic, QuantType; ` +
     `quantize_dynamic('${encoderPath}', '${encoderPath}.quant', weight_type=QuantType.QInt8)"`
 
-  const quantizeEncoderResult = await spawn(quantizeEncoderCommand, {
+  const quantizeEncoderResult = await spawn(quantizeEncoderCommand, [], {
     shell: true,
     stdio: 'inherit',
   })
@@ -228,7 +228,7 @@ async function quantizeModels() {
     `python3 -c "from onnxruntime.quantization import quantize_dynamic, QuantType; ` +
     `quantize_dynamic('${decoderPath}', '${decoderPath}.quant', weight_type=QuantType.QInt8)"`
 
-  const quantizeDecoderResult = await spawn(quantizeDecoderCommand, {
+  const quantizeDecoderResult = await spawn(quantizeDecoderCommand, [], {
     shell: true,
     stdio: 'inherit',
   })
@@ -333,7 +333,7 @@ async function optimizeModels() {
     `opt = optimizer.optimize_model('${encoderPath}', model_type='bert', num_heads=12, hidden_size=768); ` +
     `opt.save_model_to_file('${optimizedEncoderPath}')"`
 
-  const optimizeEncoderResult = await spawn(optimizeEncoderCommand, {
+  const optimizeEncoderResult = await spawn(optimizeEncoderCommand, [], {
     shell: true,
     stdio: 'inherit',
   })
@@ -349,7 +349,7 @@ async function optimizeModels() {
     `opt = optimizer.optimize_model('${decoderPath}', model_type='bert', num_heads=12, hidden_size=768); ` +
     `opt.save_model_to_file('${optimizedDecoderPath}')"`
 
-  const optimizeDecoderResult = await spawn(optimizeDecoderCommand, {
+  const optimizeDecoderResult = await spawn(optimizeDecoderCommand, [], {
     shell: true,
     stdio: 'inherit',
   })

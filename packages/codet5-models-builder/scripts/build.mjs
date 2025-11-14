@@ -84,15 +84,15 @@ async function downloadModels() {
   await fs.mkdir(MODELS_DIR, { recursive: true })
 
   // Use Hugging Face CLI to download models.
-  const downloadCommand =
-    `python3 -c "from transformers import AutoTokenizer, AutoModelForSeq2SeqLM; ` +
+  const pythonScript =
+    'from transformers import AutoTokenizer, AutoModelForSeq2SeqLM; ' +
     `tokenizer = AutoTokenizer.from_pretrained('${MODEL_NAME}'); ` +
     `model = AutoModelForSeq2SeqLM.from_pretrained('${MODEL_NAME}'); ` +
     `tokenizer.save_pretrained('${MODELS_DIR}'); ` +
-    `model.save_pretrained('${MODELS_DIR}')"`
+    `model.save_pretrained('${MODELS_DIR}')`
 
-  const downloadResult = await spawn(downloadCommand, [], {
-    shell: true,
+  const downloadResult = await spawn('python3', ['-c', pythonScript], {
+    shell: WIN32,
     stdio: 'inherit',
   })
 

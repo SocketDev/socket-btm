@@ -129,9 +129,9 @@ async function convertToOnnx() {
 
   await fs.mkdir(BUILD_DIR, { recursive: true })
 
-  // Convert encoder.
-  printStep('Converting encoder')
-  const convertCommand = `python3 -m transformers.onnx --model=${MODELS_DIR} --feature=seq2seq-lm ${BUILD_DIR}`
+  // Convert to ONNX using optimum (transformers.onnx is deprecated).
+  printStep('Converting models to ONNX')
+  const convertCommand = `python3 -m optimum.exporters.onnx -m ${MODELS_DIR} --task seq2seq-lm ${BUILD_DIR}`
 
   const convertResult = await spawn(convertCommand, [], {
     shell: true,

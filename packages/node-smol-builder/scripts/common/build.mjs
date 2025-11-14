@@ -197,13 +197,15 @@ const IS_LINUX = TARGET_PLATFORM === 'linux' || TARGET_PLATFORM === 'linux-musl'
 const _IS_WIN32 = TARGET_PLATFORM === 'win32'
 
 // Build mode: dev (fast builds) vs prod (optimized builds).
-// Default to dev unless CI or --prod specified.
-const IS_PROD_BUILD = values.prod || (!values.dev && 'CI' in process.env)
+// - CI: defaults to prod (unless --dev specified)
+// - Local: defaults to dev (unless --prod specified)
+const IS_CI = 'CI' in process.env
+const IS_PROD_BUILD = values.prod || (!values.dev && IS_CI)
 const IS_DEV_BUILD = !IS_PROD_BUILD
 
 // Configuration
 const ROOT_DIR = path.join(__dirname, '..')
-const BUILD_MODE = IS_DEV_BUILD ? 'dev' : 'prod'
+const BUILD_MODE = IS_PROD_BUILD ? 'prod' : 'dev'
 const BUILD_ROOT = path.join(ROOT_DIR, 'build') // Shared cache directory.
 const BUILD_DIR = path.join(BUILD_ROOT, BUILD_MODE) // Mode-specific build outputs.
 const PACKAGE_NAME = '' // Empty for flat checkpoint structure (no subdirectory needed)

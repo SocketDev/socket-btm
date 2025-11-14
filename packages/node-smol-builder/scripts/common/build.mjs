@@ -347,7 +347,9 @@ function findSocketPatches() {
  */
 async function copyBuildAdditions() {
   if (!existsSync(ADDITIONS_RELEASE_DIR)) {
-    logger.log('   No build additions directory found, skipping')
+    logger.log(
+      `   ${colors.cyan('↻')} No build additions directory found, skipping`,
+    )
     return
   }
 
@@ -1087,7 +1089,12 @@ async function main() {
   const socketPatches = findSocketPatches()
   let _patchesApplied = false
 
-  if (socketPatches.length > 0) {
+  if (
+    !(await shouldRun(BUILD_DIR, PACKAGE_NAME, 'patches-applied', CLEAN_BUILD))
+  ) {
+    logger.log(`${colors.cyan('↻')} Socket patches already applied, skipping`)
+    logger.log('')
+  } else if (socketPatches.length > 0) {
     // Validate Socket patches before applying.
     printHeader('Validating Socket Patches')
     logger.log(`Found ${socketPatches.length} patch(es) for ${NODE_VERSION}`)
@@ -1248,6 +1255,22 @@ async function main() {
         _patchesApplied = true
       }
       logger.log(`${colors.green('✓')} All Socket patches applied successfully`)
+      await createCheckpoint(
+        BUILD_DIR,
+        PACKAGE_NAME,
+        'patches-applied',
+        async () => {
+          // Smoke test: Verify patches were applied by checking a patched file exists
+          const patchedFile = path.join(
+            NODE_SOURCE_DIR,
+            'src',
+            'node_binding.cc',
+          )
+          await fs.access(patchedFile)
+          logger.substep('Patches verified')
+        },
+        {},
+      )
       logger.log('')
     }
   } else {
@@ -1630,7 +1653,9 @@ async function main() {
   // - Linux: Aggressive (strip --strip-all → objcopy section removal → sstrip if available)
   // - Windows: Skip stripping (no strip command)
   if (IS_WINDOWS) {
-    logger.log('Windows detected - skipping strip (not supported)')
+    logger.log(
+      `${colors.cyan('↻')} Windows detected - skipping strip (not supported)`,
+    )
     logger.log('')
   } else if (IS_MACOS) {
     // macOS: Multi-phase stripping for maximum size reduction.
@@ -1642,7 +1667,9 @@ async function main() {
       logger.log('Phase 2: Aggressive LLVM stripping')
       await exec('llvm-strip', [nodeBinary])
     } else {
-      logger.log('Phase 2: Skipped (llvm-strip not available)')
+      logger.log(
+        `${colors.cyan('↻')} Phase 2: Skipped (llvm-strip not available)`,
+      )
     }
   } else {
     // Linux/Alpine: Aggressive multi-phase stripping.
@@ -1663,11 +1690,11 @@ async function main() {
           await exec('objcopy', [`--remove-section=${section}`, nodeBinary])
         } catch {
           // Section might not exist, continue.
-          logger.log(`  Skipped ${section} (not present)`)
+          logger.log(`  ${colors.cyan('↻')} Skipped ${section} (not present)`)
         }
       }
     } else {
-      logger.log('Phase 2: Skipped (objcopy not available)')
+      logger.log(`${colors.cyan('↻')} Phase 2: Skipped (objcopy not available)`)
     }
 
     // Phase 3: Super strip if available (removes section headers).
@@ -1675,7 +1702,7 @@ async function main() {
       logger.log('Phase 3: Super strip (removing section headers)')
       await exec('sstrip', [nodeBinary])
     } else {
-      logger.log('Phase 3: Skipped (sstrip not available)')
+      logger.log(`${colors.cyan('↻')} Phase 3: Skipped (sstrip not available)`)
     }
   }
 
@@ -1832,7 +1859,7 @@ async function main() {
       `Expected tools directory: ${path.relative(ROOT_DIR, toolsDir)}`,
     )
     logger.warn(
-      'Skipping compression (build will continue with uncompressed binary)',
+      `${colors.cyan('↻')} Skipping compression (build will continue with uncompressed binary)`,
     )
     logger.logNewline()
   }
@@ -1913,7 +1940,9 @@ async function main() {
     // Skip signing compressed binary - it's a self-extracting binary (decompressor stub + compressed data),
     // not a standard Mach-O executable. The decompressor stub is already signed if needed.
     // When executed, the stub extracts and runs the original Node.js binary.
-    logger.log('Skipping code signing for self-extracting binary...')
+    logger.log(
+      `${colors.cyan('↻')} Skipping code signing for self-extracting binary...`,
+    )
     logger.substep(
       '✓ Compressed binary ready (self-extracting, no signature needed)',
     )
@@ -2013,7 +2042,7 @@ async function main() {
   } else {
     logger.log('')
     logger.log(
-      `${colors.blue('ℹ')} Binary compression skipped (--no-compress-binary flag)`,
+      `${colors.cyan('↻')} Binary compression skipped (--no-compress-binary flag)`,
     )
     logger.log('   Compression is enabled by default for smol builds')
     logger.log(

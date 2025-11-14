@@ -250,9 +250,7 @@ async function cloneOnnxSource() {
     // Helps debug if we get unexpected pattern variations.
     postBuildContent = postBuildContent.replace(
       /Unexpected number of matches for "" in "": \./,
-      'Unexpected number of Worker URL matches: found $' +
-        '{matches.length}, expected 1. Pattern: $' +
-        '{regex}',
+      'Unexpected number of Worker URL matches: found ${matches.length}, expected 1. Pattern: ${regex}',
     )
 
     await fs.writeFile(postBuildSourcePath, postBuildContent, 'utf-8')

@@ -40,7 +40,6 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { which } from '@socketsecurity/lib/bin'
-import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 /**
@@ -183,20 +182,13 @@ async function ensureToolBuilt(config) {
   // Execute the build command using Node.js spawn directly.
   // Using Node.js built-in spawn instead of @socketsecurity/lib wrapper
   // to avoid platform-specific spawn implementation issues.
-  // On Windows, combine command and args into a single string to avoid
-  // the deprecation warning and ENOENT issues with shell mode.
-  // On Unix, shell mode is needed for proper command execution.
-  const result = WIN32
-    ? await spawnAsync(binPath, args, {
-        cwd: TOOLS_DIR,
-        stdio: 'inherit',
-        shell: false,
-      })
-    : await spawnAsync(binPath, args, {
-        cwd: TOOLS_DIR,
-        stdio: 'inherit',
-        shell: true,
-      })
+  // Shell mode is required on both Windows and Unix for proper execution
+  // of build tools like mingw32-make and make.
+  const result = await spawnAsync(binPath, args, {
+    cwd: TOOLS_DIR,
+    stdio: 'inherit',
+    shell: true,
+  })
 
   if (result.code !== 0) {
     throw new Error(

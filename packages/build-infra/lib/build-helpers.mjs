@@ -316,28 +316,6 @@ export async function getLastLogLines(buildDir, lines = 50) {
 }
 
 /**
- * Create checkpoint for build resume.
- *
- * @param {string} buildDir - Build directory
- * @param {string} step - Checkpoint step name
- * @returns {Promise<void>}
- */
-export async function createCheckpoint(buildDir, step) {
-  const checkpointFile = path.join(buildDir, 'build-checkpoint')
-  try {
-    await fs.writeFile(
-      checkpointFile,
-      JSON.stringify({
-        step,
-        timestamp: Date.now(),
-      }),
-    )
-  } catch {
-    // Don't fail if checkpoint creation fails.
-  }
-}
-
-/**
  * Read checkpoint.
  *
  * @param {string} buildDir - Build directory
@@ -350,21 +328,6 @@ export async function readCheckpoint(buildDir) {
     return JSON.parse(content)
   } catch {
     return null
-  }
-}
-
-/**
- * Clean checkpoint.
- *
- * @param {string} buildDir - Build directory
- * @returns {Promise<void>}
- */
-export async function cleanCheckpoint(buildDir) {
-  const checkpointFile = path.join(buildDir, 'build-checkpoint')
-  try {
-    await fs.unlink(checkpointFile)
-  } catch {
-    // Ignore errors.
   }
 }
 
@@ -450,3 +413,12 @@ export async function verifyGitTag(version) {
     return { exists: false, output: null }
   }
 }
+
+// Re-export advanced checkpoint functions from checkpoint-manager
+// These provide GitHub Actions workflow checkpoint support with metadata
+export {
+  createWorkflowCheckpoint,
+  cleanWorkflowCheckpoint,
+  createCheckpoint,
+  cleanCheckpoint,
+} from './checkpoint-manager.mjs'

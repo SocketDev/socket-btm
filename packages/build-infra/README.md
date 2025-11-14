@@ -26,8 +26,11 @@ import { RustBuilder } from '@socketsecurity/build-infra/lib/rust-builder'
 // Patch management
 import { applyPatch, applyPatchDirectory } from '@socketsecurity/build-infra/lib/patch-validator'
 
-// Checkpoint system
-import { createCheckpoint, hasCheckpoint } from '@socketsecurity/build-infra/lib/checkpoint-manager'
+// Checkpoint system (for GitHub Actions workflow checkpoints)
+import { createWorkflowCheckpoint, hasCheckpoint } from '@socketsecurity/build-infra/lib/checkpoint-manager'
+
+// Backward compatibility (legacy names still work)
+import { createCheckpoint, cleanCheckpoint } from '@socketsecurity/build-infra/lib/checkpoint-manager'
 ```
 
 ## Usage

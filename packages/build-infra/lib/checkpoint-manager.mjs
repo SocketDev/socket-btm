@@ -2,7 +2,9 @@
  * Build Checkpoint Manager
  *
  * Provides utilities for saving and restoring build state to enable
- * incremental builds and faster iterations.
+ * incremental builds and faster iterations. These checkpoints are used
+ * by GitHub Actions workflows to track build progress and enable caching
+ * at each build phase.
  */
 
 import { promises as fs } from 'node:fs'
@@ -62,15 +64,17 @@ export async function hasCheckpoint(buildDir, packageName, checkpointName) {
 }
 
 /**
- * Create a checkpoint with optional metadata.
+ * Create a workflow checkpoint with optional metadata.
+ * Checkpoints are tracked by GitHub Actions workflows to enable
+ * phase-specific caching and build resumption.
  *
  * @param {string} buildDir - Build directory path
  * @param {string} packageName - Package name
- * @param {string} checkpointName - Checkpoint name
+ * @param {string} checkpointName - Checkpoint name (e.g., 'release', 'stripped', 'final')
  * @param {object} data - Optional data to save with checkpoint
  * @returns {Promise<void>}
  */
-export async function createCheckpoint(
+export async function createWorkflowCheckpoint(
   buildDir,
   packageName,
   checkpointName,
@@ -124,13 +128,13 @@ export async function getCheckpointData(buildDir, packageName, checkpointName) {
 }
 
 /**
- * Clean all checkpoints for a package.
+ * Clean all workflow checkpoints for a package.
  *
  * @param {string} buildDir - Build directory path
  * @param {string} packageName - Package name
  * @returns {Promise<void>}
  */
-export async function cleanCheckpoint(buildDir, packageName) {
+export async function cleanWorkflowCheckpoint(buildDir, packageName) {
   printStep(`Cleaning checkpoints for ${packageName}`)
 
   const checkpointDir = getCheckpointDir(buildDir, packageName)
@@ -177,6 +181,10 @@ export async function listCheckpoints(buildDir, packageName) {
     return []
   }
 }
+
+// Backward compatibility aliases
+export const createCheckpoint = createWorkflowCheckpoint
+export const cleanCheckpoint = cleanWorkflowCheckpoint
 
 /**
  * Check if build should run based on checkpoint and --force flag.

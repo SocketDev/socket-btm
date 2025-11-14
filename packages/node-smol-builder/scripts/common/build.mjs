@@ -599,8 +599,9 @@ function getCacheMetadataPath(buildDir, platform, arch) {
 }
 
 /**
- * Cache compiled binary after successful build.
- * This allows resuming from this point if post-processing fails.
+ * Cache compiled binary locally after successful build.
+ * This creates a local file cache to allow resuming from this point
+ * if post-processing fails. This is separate from GitHub Actions cache.
  *
  * @param {string} buildDir - Build directory path
  * @param {string} nodeBinary - Path to compiled Node.js binary
@@ -609,7 +610,7 @@ function getCacheMetadataPath(buildDir, platform, arch) {
  * @param {string} version - Node.js version
  * @returns {Promise<void>}
  */
-async function cacheCompiledBinary(
+async function cacheLocalCompiledBinary(
   buildDir,
   nodeBinary,
   platform,
@@ -658,8 +659,9 @@ async function cacheCompiledBinary(
 }
 
 /**
- * Restore cached binary if available and valid.
+ * Restore locally cached binary if available and valid.
  * Returns true if restore successful, false if no valid cache exists.
+ * This restores from local file cache, not GitHub Actions cache.
  *
  * @param {string} buildDir - Build directory path
  * @param {string} nodeBinary - Path where to restore Node.js binary
@@ -668,7 +670,7 @@ async function cacheCompiledBinary(
  * @param {string} version - Expected Node.js version
  * @returns {Promise<boolean>} True if restored, false if no valid cache
  */
-async function restoreCachedBinary(
+async function restoreLocalCachedBinary(
   buildDir,
   nodeBinary,
   platform,
@@ -1710,8 +1712,8 @@ async function main() {
   // Try to restore from cache (skip compilation if successful).
   let restoredFromCache = false
   if (!CLEAN_BUILD) {
-    logger.log('Checking for cached binary from previous build...')
-    restoredFromCache = await restoreCachedBinary(
+    logger.log('Checking for locally cached binary from previous build...')
+    restoredFromCache = await restoreLocalCachedBinary(
       BUILD_DIR,
       nodeBinary,
       TARGET_PLATFORM,
@@ -1839,8 +1841,8 @@ async function main() {
     binaryPath: path.relative(BUILD_DIR, nodeBinary),
   })
 
-  // Cache the compiled binary for future runs.
-  await cacheCompiledBinary(
+  // Cache the compiled binary locally for future runs.
+  await cacheLocalCompiledBinary(
     BUILD_DIR,
     nodeBinary,
     TARGET_PLATFORM,

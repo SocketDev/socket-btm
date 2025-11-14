@@ -312,10 +312,10 @@ jobs:
           fi
           echo "✓ Binary size OK: $BINARY_SIZE bytes"
 
-          # Check if checkpoint files exist (new phase-based structure)
-          if [ ! -f "${CHECKPOINT_DIR}/node-smol/release.json" ] || \
-             [ ! -f "${CHECKPOINT_DIR}/node-smol/stripped.json" ] || \
-             [ ! -f "${CHECKPOINT_DIR}/node-smol/final.json" ]; then
+          # Check if checkpoint files exist (phase-based structure, flat directory)
+          if [ ! -f "${CHECKPOINT_DIR}/release.json" ] || \
+             [ ! -f "${CHECKPOINT_DIR}/stripped.json" ] || \
+             [ ! -f "${CHECKPOINT_DIR}/final.json" ]; then
             echo "❌ Checkpoint files incomplete"
             rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
             echo "cache_valid=false" >> $GITHUB_OUTPUT
@@ -324,7 +324,7 @@ jobs:
 
           # Validate checksum if available in checkpoint
           if command -v jq &> /dev/null; then
-            EXPECTED_CHECKSUM=$(jq -r '.checksum // empty' "${CHECKPOINT_DIR}/node-smol/final.json")
+            EXPECTED_CHECKSUM=$(jq -r '.checksum // empty' "${CHECKPOINT_DIR}/final.json")
             if [ -n "$EXPECTED_CHECKSUM" ]; then
               if command -v shasum &> /dev/null; then
                 ACTUAL_CHECKSUM=$(shasum -a 256 "${FINAL_DIR}/${BINARY_NAME}" | cut -d' ' -f1)

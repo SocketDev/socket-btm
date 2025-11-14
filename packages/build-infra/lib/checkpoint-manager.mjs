@@ -18,11 +18,13 @@ import { printStep, printSubstep } from './build-output.mjs'
  * Get checkpoint directory for a package.
  *
  * @param {string} buildDir - Build directory path (e.g., '/path/to/package/build/int4')
- * @param {string} packageName - Package name (e.g., 'onnx-runtime-builder')
+ * @param {string} packageName - Package name (e.g., 'onnx-runtime-builder'), or empty string for flat structure
  * @returns {string} Checkpoint directory path
  */
 function getCheckpointDir(buildDir, packageName) {
-  return path.join(buildDir, 'checkpoints', packageName)
+  return packageName
+    ? path.join(buildDir, 'checkpoints', packageName)
+    : path.join(buildDir, 'checkpoints')
 }
 
 /**

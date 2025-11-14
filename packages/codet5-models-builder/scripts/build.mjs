@@ -232,7 +232,7 @@ async function optimizeModels() {
 }
 
 /**
- * Verify models can load and run inference.
+ * Verify models can load with ONNX Runtime WASM.
  */
 async function verifyModels() {
   if (!(await shouldRun(BUILD_DIR, 'codet5-models', 'verified', FORCE_BUILD))) {
@@ -249,19 +249,40 @@ async function verifyModels() {
     throw new Error('Encoder model is empty')
   }
 
-  printStep('Testing encoder inference')
-  const verifyCommand =
-    `python3 -c "import onnxruntime as ort; ` +
-    `sess = ort.InferenceSession('${encoderPath}'); ` +
-    `print('Encoder loaded successfully')"`
+  // Check if onnxruntime WASM is available.
+  const onnxruntimePath = path.join(
+    ROOT_DIR,
+    '..',
+    'onnxruntime-builder',
+    'build',
+    'wasm',
+    'ort-sync.js',
+  )
 
-  const verifyResult = await spawn(verifyCommand, {
-    shell: WIN32,
-    stdio: 'inherit',
-  })
+  if (!existsSync(onnxruntimePath)) {
+    printWarning('ONNX Runtime WASM not found, skipping model verification')
+    printWarning('Build onnxruntime-builder first to enable model verification')
+    await createCheckpoint(BUILD_DIR, 'codet5-models', 'verified')
+    return
+  }
 
-  if (verifyResult.code !== 0) {
-    throw new Error('Failed to verify models')
+  // Smoke test: Load model with ONNX Runtime WASM.
+  printStep('Testing encoder model with ONNX Runtime WASM...')
+  try {
+    // Dynamically import ONNX Runtime.
+    const ort = await import(onnxruntimePath)
+
+    // Read the model file.
+    const modelBuffer = await fs.readFile(encoderPath)
+
+    // Create an inference session (validates model structure).
+    const session = await ort.InferenceSession.create(modelBuffer)
+
+    printStep(`Model loaded successfully (${stats.size} bytes)`)
+    printStep(`Input names: ${session.inputNames.join(', ')}`)
+    printStep(`Output names: ${session.outputNames.join(', ')}`)
+  } catch (e) {
+    throw new Error(`Failed to load model with ONNX Runtime: ${e.message}`)
   }
 
   printSuccess('Models verified')

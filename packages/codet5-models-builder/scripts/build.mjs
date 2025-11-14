@@ -91,7 +91,7 @@ async function downloadModels() {
     `model.save_pretrained('${MODELS_DIR}')"`
 
   const downloadResult = await spawn(downloadCommand, [], {
-    shell: WIN32,
+    shell: true,
     stdio: 'inherit',
   })
 
@@ -134,7 +134,7 @@ async function convertToOnnx() {
   const convertCommand = `python3 -m transformers.onnx --model=${MODELS_DIR} --feature=seq2seq-lm ${BUILD_DIR}`
 
   const convertResult = await spawn(convertCommand, {
-    shell: WIN32,
+    shell: true,
     stdio: 'inherit',
   })
 
@@ -215,7 +215,7 @@ async function quantizeModels() {
     `quantize_dynamic('${encoderPath}', '${encoderPath}.quant', weight_type=QuantType.QInt8)"`
 
   const quantizeEncoderResult = await spawn(quantizeEncoderCommand, {
-    shell: WIN32,
+    shell: true,
     stdio: 'inherit',
   })
 
@@ -230,7 +230,7 @@ async function quantizeModels() {
     `quantize_dynamic('${decoderPath}', '${decoderPath}.quant', weight_type=QuantType.QInt8)"`
 
   const quantizeDecoderResult = await spawn(quantizeDecoderCommand, {
-    shell: WIN32,
+    shell: true,
     stdio: 'inherit',
   })
 
@@ -335,7 +335,7 @@ async function optimizeModels() {
     `opt.save_model_to_file('${optimizedEncoderPath}')"`
 
   const optimizeEncoderResult = await spawn(optimizeEncoderCommand, {
-    shell: WIN32,
+    shell: true,
     stdio: 'inherit',
   })
 
@@ -351,7 +351,7 @@ async function optimizeModels() {
     `opt.save_model_to_file('${optimizedDecoderPath}')"`
 
   const optimizeDecoderResult = await spawn(optimizeDecoderCommand, {
-    shell: WIN32,
+    shell: true,
     stdio: 'inherit',
   })
 

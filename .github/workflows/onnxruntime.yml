@@ -69,7 +69,7 @@ jobs:
       - name: Generate ONNX Runtime cache key
         id: cache-key
         run: |
-          BUILD_FILES_HASH=$(find packages/onnxruntime-builder/scripts -type f | xargs shasum -a 256 | shasum -a 256 | cut -d' ' -f1)
+          BUILD_FILES_HASH=$(find packages/onnxruntime-builder/scripts -type f | sort | xargs shasum -a 256 | shasum -a 256 | cut -d' ' -f1)
           echo "hash=$BUILD_FILES_HASH" >> $GITHUB_OUTPUT
 
       - name: Restore ONNX Runtime source cache

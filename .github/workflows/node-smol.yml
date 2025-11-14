@@ -187,8 +187,9 @@ jobs:
           fi
 
           PATCHES_HASH=$(find packages/node-smol-builder/patches -type f 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
-          CONFIG_HASH=$($hash_cmd packages/node-smol-builder/scripts/build.mjs | cut -d' ' -f1)
-          COMBINED_HASH=$(echo "${PATCHES_HASH}${CONFIG_HASH}" | $hash_cmd | cut -d' ' -f1)
+          ADDITIONS_HASH=$(find packages/node-smol-builder/additions -type f 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          SCRIPTS_HASH=$(find packages/node-smol-builder/scripts -type f -name "*.mjs" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          COMBINED_HASH=$(echo "${PATCHES_HASH}${ADDITIONS_HASH}${SCRIPTS_HASH}" | $hash_cmd | cut -d' ' -f1)
           echo "hash=${COMBINED_HASH}" >> $GITHUB_OUTPUT
           echo "build_mode=${BUILD_MODE}" >> $GITHUB_OUTPUT
 
@@ -268,6 +269,22 @@ jobs:
             exit 0
           fi
 
+          # Check binary size (minimum 50MB for node binary)
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            BINARY_SIZE=$(stat -c%s "${FINAL_DIR}/${BINARY_NAME}" 2>/dev/null || powershell -Command "(Get-Item '${FINAL_DIR}/${BINARY_NAME}').Length")
+          else
+            BINARY_SIZE=$(stat -f%z "${FINAL_DIR}/${BINARY_NAME}" 2>/dev/null || stat -c%s "${FINAL_DIR}/${BINARY_NAME}")
+          fi
+
+          MIN_SIZE=52428800  # 50MB in bytes
+          if [ "$BINARY_SIZE" -lt "$MIN_SIZE" ]; then
+            echo "❌ Binary too small: $BINARY_SIZE bytes (minimum $MIN_SIZE)"
+            rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
+            echo "cache_valid=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "✓ Binary size OK: $BINARY_SIZE bytes"
+
           # Check if checkpoint files exist
           if [ ! -f "${CHECKPOINT_DIR}/node-smol/built.json" ] || \
              [ ! -f "${CHECKPOINT_DIR}/node-smol/complete.json" ]; then
@@ -275,6 +292,28 @@ jobs:
             rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
             echo "cache_valid=false" >> $GITHUB_OUTPUT
             exit 0
+          fi
+
+          # Validate checksum if available in checkpoint
+          if command -v jq &> /dev/null; then
+            EXPECTED_CHECKSUM=$(jq -r '.checksum // empty' "${CHECKPOINT_DIR}/node-smol/complete.json")
+            if [ -n "$EXPECTED_CHECKSUM" ]; then
+              if command -v shasum &> /dev/null; then
+                ACTUAL_CHECKSUM=$(shasum -a 256 "${FINAL_DIR}/${BINARY_NAME}" | cut -d' ' -f1)
+              else
+                ACTUAL_CHECKSUM=$(sha256sum "${FINAL_DIR}/${BINARY_NAME}" | cut -d' ' -f1)
+              fi
+
+              if [ "$EXPECTED_CHECKSUM" != "$ACTUAL_CHECKSUM" ]; then
+                echo "❌ Checksum mismatch (cache corruption detected)"
+                echo "   Expected: $EXPECTED_CHECKSUM"
+                echo "   Actual:   $ACTUAL_CHECKSUM"
+                rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
+                echo "cache_valid=false" >> $GITHUB_OUTPUT
+                exit 0
+              fi
+              echo "✓ Checksum validation passed"
+            fi
           fi
 
           # Smoke test: check version (all builds are native, so we can always test)

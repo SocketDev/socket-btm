@@ -86,7 +86,7 @@ jobs:
       - name: Generate Yoga cache key
         id: cache-key
         run: |
-          BUILD_FILES_HASH=$(find packages/yoga-layout-builder/scripts -type f 2>/dev/null | xargs shasum -a 256 | shasum -a 256 | cut -d' ' -f1)
+          BUILD_FILES_HASH=$(find packages/yoga-layout-builder/scripts -type f 2>/dev/null | sort | xargs shasum -a 256 | shasum -a 256 | cut -d' ' -f1)
           echo "hash=$BUILD_FILES_HASH" >> $GITHUB_OUTPUT
 
       - name: Restore Yoga source cache

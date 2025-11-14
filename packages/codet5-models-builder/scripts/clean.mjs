@@ -29,11 +29,13 @@ async function main() {
   // Remove build directory.
   await safeDelete(BUILD_DIR).catch(() => {})
 
-  // Clean checkpoints for both int4 and int8 builds.
-  const int8BuildDir = path.join(ROOT_DIR, 'build', 'int8')
-  const int4BuildDir = path.join(ROOT_DIR, 'build', 'int4')
-  await cleanCheckpoint(int8BuildDir, 'codet5-models')
-  await cleanCheckpoint(int4BuildDir, 'codet5-models')
+  // Clean checkpoints for both prod/dev modes and int4/int8 builds.
+  for (const mode of ['prod', 'dev']) {
+    for (const quant of ['int4', 'int8']) {
+      const buildDir = path.join(ROOT_DIR, 'build', mode, quant)
+      await cleanCheckpoint(buildDir, 'codet5-models')
+    }
+  }
 
   printSuccess('Clean complete')
 }

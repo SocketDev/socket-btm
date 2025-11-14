@@ -43,6 +43,13 @@ const __dirname = path.dirname(__filename)
 // Parse arguments.
 const args = process.argv.slice(2)
 const FORCE_BUILD = args.includes('--force')
+
+// Build mode: prod (default for CI) or dev (default for local).
+const IS_CI = Boolean(process.env.CI)
+const PROD_BUILD = args.includes('--prod')
+const DEV_BUILD = args.includes('--dev')
+const BUILD_MODE = PROD_BUILD ? 'prod' : DEV_BUILD ? 'dev' : IS_CI ? 'prod' : 'dev'
+
 // Quantization level: int8 (dev, default) vs int4 (prod, smaller).
 const QUANT_LEVEL = args.includes('--int4') ? 'int4' : 'int8'
 
@@ -52,8 +59,8 @@ const ROOT_DIR = path.join(__dirname, '..')
 const BUILD_ROOT = path.join(ROOT_DIR, 'build')
 // Shared models cache (same source models for both int8/int4)
 const MODELS_DIR = path.join(BUILD_ROOT, 'models')
-// Isolate builds by quantization level to allow concurrent int4/int8 builds
-const BUILD_DIR = path.join(BUILD_ROOT, QUANT_LEVEL)
+// Isolate builds by mode and quantization level
+const BUILD_DIR = path.join(BUILD_ROOT, BUILD_MODE, QUANT_LEVEL)
 const OUTPUT_DIR = path.join(BUILD_DIR, 'output')
 
 /**
@@ -348,6 +355,8 @@ async function main() {
   printHeader('🔨 Building codet5-models')
   const logger = getDefaultLogger()
   logger.info('Converting and optimizing CodeT5 models')
+  logger.info(`Build mode: ${BUILD_MODE}`)
+  logger.info(`Quantization: ${QUANT_LEVEL}`)
   logger.info('')
 
   // Pre-flight checks.

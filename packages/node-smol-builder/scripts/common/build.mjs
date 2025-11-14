@@ -206,11 +206,15 @@ const IS_DEV_BUILD = !IS_PROD_BUILD
 // Configuration
 const ROOT_DIR = path.join(__dirname, '..', '..')
 const BUILD_MODE = IS_PROD_BUILD ? 'prod' : 'dev'
-const BUILD_ROOT = path.join(ROOT_DIR, 'build') // Shared cache directory.
-const BUILD_DIR = path.join(BUILD_ROOT, BUILD_MODE) // Mode-specific build outputs.
-const PACKAGE_NAME = '' // Empty for flat checkpoint structure (no subdirectory needed)
+// Shared cache directory.
+const BUILD_ROOT = path.join(ROOT_DIR, 'build')
+// Mode-specific build outputs.
+const BUILD_DIR = path.join(BUILD_ROOT, BUILD_MODE)
+// Empty for flat checkpoint structure (no subdirectory needed)
+const PACKAGE_NAME = ''
 const NODE_SOURCE_DIR = path.join(BUILD_DIR, 'node-source')
-const NODE_DIR = NODE_SOURCE_DIR // Alias for compatibility.
+// Alias for compatibility.
+const NODE_DIR = NODE_SOURCE_DIR
 const PATCHES_DIR = path.join(ROOT_DIR, 'patches', 'release')
 const ADDITIONS_DIR = path.join(ROOT_DIR, 'additions')
 
@@ -276,7 +280,8 @@ function collectBuildSourceFiles() {
             !readdirSync(fullPath, { withFileTypes: true }).length
           )
         } catch {
-          return true // It's a file, not a directory.
+          // It's a file, not a directory.
+          return true
         }
       })
       .map(f => path.join(ADDITIONS_DIR, f))
@@ -679,7 +684,7 @@ async function checkBuildEnvironment() {
       } else {
         logger.warn('Could not parse Xcode version (continuing anyway)')
       }
-    } catch (_e) {
+    } catch {
       logger.warn('Could not check Xcode version (continuing anyway)')
     }
   }
@@ -761,6 +766,7 @@ function convertToVcbuildFlags(configureFlags) {
     }
     // Ninja is default, skip.
     else if (flag === '--ninja') {
+      // No-op: Ninja is the default build system on Windows
     }
     // Known flag mappings.
     else if (flag in flagMap) {
@@ -768,6 +774,7 @@ function convertToVcbuildFlags(configureFlags) {
     }
     // Unsupported flags - skip silently (e.g., --without-amaro, --without-sqlite not supported by vcbuild).
     else if (flag.startsWith('--without-')) {
+      // No-op: Most --without flags are not supported by vcbuild.bat
     }
     // Unknown flags - log warning.
     else {
@@ -1317,9 +1324,11 @@ async function main() {
   logger.log('')
 
   const configureFlags = [
-    '--ninja', // Use Ninja build system (faster parallel builds than make)
-    '--with-intl=small-icu', // -5 MB: English-only ICU (supports Unicode property escapes, needed for polyfills)
+    // Use Ninja build system (faster parallel builds than make)
+    '--ninja',
+    // -5 MB: English-only ICU (supports Unicode property escapes, needed for polyfills)
     // Note: small-icu provides essential Unicode support while keeping binary small
+    '--with-intl=small-icu',
     '--without-npm',
     '--without-corepack',
     '--without-amaro',
@@ -1335,7 +1344,8 @@ async function main() {
 
   // Production-only optimizations (slow builds, smaller binaries).
   if (IS_PROD_BUILD) {
-    configureFlags.push('--without-inspector') // -3-5 MB: Remove debugging/profiling support
+    // -3-5 MB: Remove debugging/profiling support
+    configureFlags.push('--without-inspector')
     // NOTE: --v8-lite-mode disabled (not supported on Windows, and causes inconsistency)
     // This keeps TurboFan JIT enabled for full JavaScript performance on all platforms
     // Link Time Optimization (very slow, saves ~5-10MB).
@@ -1345,7 +1355,8 @@ async function main() {
     // - Linux: Enable LTO (works reliably with GCC)
     // See: https://github.com/nodejs/node/pull/21186 (Node.js made LTCG optional)
     if (IS_LINUX) {
-      configureFlags.push('--enable-lto') // Linux only: Use standard LTO with GCC
+      // Linux only: Use standard LTO with GCC
+      configureFlags.push('--enable-lto')
     }
   }
 
@@ -1360,7 +1371,8 @@ async function main() {
   //
   // Solution: Don't use cross-compilation. Build natively on each architecture instead.
   // This matches Node.js's official release strategy - they don't cross-compile either.
-  const hostArch = process.arch // 'arm64', 'x64', etc.
+  // 'arm64', 'x64', etc.
+  const hostArch = process.arch
   if (ARCH !== hostArch) {
     logger.fail(
       `Cross-compilation not supported: building ${ARCH} on ${hostArch} host`,
@@ -1422,7 +1434,8 @@ async function main() {
 
   const execOptions = {
     cwd: NODE_DIR,
-    shell: WIN32, // Required for batch file execution on Windows.
+    // Required for batch file execution on Windows.
+    shell: WIN32,
   }
 
   await exec(configureCommand, configureArgs, execOptions)
@@ -1640,7 +1653,7 @@ async function main() {
       for (const section of sections) {
         try {
           await exec('objcopy', [`--remove-section=${section}`, nodeBinary])
-        } catch (_error) {
+        } catch {
           // Section might not exist, continue.
           logger.log(`  Skipped ${section} (not present)`)
         }
@@ -1797,7 +1810,8 @@ async function main() {
   // Benefits: 75-79% compression (vs UPX's 50-60%), works with code signing, zero AV false positives.
   // Opt-out: Use --no-compress-binary flag to skip binary compression.
   let compressedBinary = null
-  const shouldCompress = !values['no-compress-binary'] // Default: always compress (it's smol!)
+  // Default: always compress (it's smol!)
+  const shouldCompress = !values['no-compress-binary']
 
   if (shouldCompress) {
     printHeader('Compressing Binary for Distribution')
@@ -1833,7 +1847,7 @@ async function main() {
         )
         socketbinSpec = `${socketbinPkg.name}@${socketbinPkg.version}`
         logger.substep(`Found socketbin package: ${socketbinSpec}`)
-      } catch (_e) {
+      } catch {
         // Failed to read or parse package.json - use fallback
         logger.substep('Using fallback cache key generation')
       }
@@ -2159,7 +2173,7 @@ async function main() {
           cwd: ROOT_DIR,
         },
       )
-    } catch (_e) {
+    } catch {
       printWarning(
         'Verification Failed',
         'Build completed but verification found issues.',
@@ -2195,7 +2209,7 @@ async function main() {
       logger.logNewline()
       logger.success('Tests passed with custom Node.js binary!')
       logger.logNewline()
-    } catch (_e) {
+    } catch {
       printError(
         'Tests Failed',
         'Tests failed when using the custom Node.js binary.',

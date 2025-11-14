@@ -69,7 +69,7 @@ const sharedRules = {
         'ReadableStream',
         'events.getMaxListeners',
       ],
-      version: getMaintainedNodeVersions().current,
+      version: '>=24.10.0',
     },
   ],
   'n/prefer-node-protocol': 'error',

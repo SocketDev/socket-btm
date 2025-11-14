@@ -325,6 +325,68 @@ async function build() {
 }
 
 /**
+ * Verify WASM can load.
+ */
+async function verify() {
+  if (!(await shouldRun(BUILD_DIR, 'onnxruntime', 'verified', FORCE_BUILD))) {
+    return
+  }
+
+  printHeader('Verifying WASM')
+
+  // Find the built WASM file.
+  const platform = process.platform === 'darwin' ? 'MacOS' : 'Linux'
+  const buildOutputDir = path.join(
+    ONNX_SOURCE_DIR,
+    'build',
+    platform,
+    'Release',
+  )
+  const wasmFile = path.join(buildOutputDir, 'ort-wasm-simd-threaded.wasm')
+
+  if (!existsSync(wasmFile)) {
+    printWarning('WASM file not found, skipping verification')
+    await createCheckpoint(BUILD_DIR, 'onnxruntime', 'verified')
+    return
+  }
+
+  // Check WASM file exists and is valid.
+  const stats = await fs.stat(wasmFile)
+  if (stats.size === 0) {
+    throw new Error('WASM file is empty')
+  }
+
+  // Verify WASM magic number.
+  const buffer = await fs.readFile(wasmFile)
+  const magic = buffer.slice(0, 4).toString('hex')
+  if (magic !== '0061736d') {
+    throw new Error('Invalid WASM file (bad magic number)')
+  }
+
+  printStep('WASM magic number valid')
+
+  // Smoke test: Load WASM with WebAssembly API.
+  printStep('Testing WASM loading...')
+  try {
+    // Compile the WASM module to verify it's valid.
+    const module = new WebAssembly.Module(buffer)
+    printStep(`WASM module compiled successfully (${buffer.length} bytes)`)
+
+    // Check exports exist (ONNX Runtime should export functions).
+    const exports = WebAssembly.Module.exports(module)
+    if (exports.length === 0) {
+      throw new Error('WASM module has no exports')
+    }
+    printStep(`WASM module has ${exports.length} exports`)
+  } catch (e) {
+    throw new Error(`Failed to load WASM module: ${e.message}`)
+  }
+
+  printSuccess('WASM verified')
+  await createCheckpoint(BUILD_DIR, 'onnxruntime', 'verified')
+}
+
+/**
  * Export WASM to output directory.
  */
 async function exportWasm() {
@@ -549,6 +611,7 @@ async function main() {
   // Build phases.
   await cloneOnnxSource()
   await build()
+  await verify()
   await exportWasm()
 
   // Report completion.

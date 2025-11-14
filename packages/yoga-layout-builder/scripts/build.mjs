@@ -52,7 +52,13 @@ const CLEAN_BUILD = args.includes('--clean')
 const IS_CI = Boolean(process.env.CI)
 const PROD_BUILD = args.includes('--prod')
 const DEV_BUILD = args.includes('--dev')
-const BUILD_MODE = PROD_BUILD ? 'prod' : DEV_BUILD ? 'dev' : IS_CI ? 'prod' : 'dev'
+const BUILD_MODE = PROD_BUILD
+  ? 'prod'
+  : DEV_BUILD
+    ? 'dev'
+    : IS_CI
+      ? 'prod'
+      : 'dev'
 
 // Configuration.
 const ROOT_DIR = path.join(__dirname, '..')
@@ -315,18 +321,56 @@ async function build() {
 
   const duration = formatDuration(Date.now() - startTime)
   printSuccess(`Build completed in ${duration}`)
-  await createCheckpoint(BUILD_DIR, '', 'built')
+
+  // Create checkpoint with smoke test.
+  const wasmSize = await getFileSize(wasmOutput)
+  await createCheckpoint(
+    BUILD_DIR,
+    '',
+    'release',
+    async () => {
+      // Smoke test: Verify WASM is valid.
+      const buffer = await fs.readFile(wasmOutput)
+
+      // Check WASM magic number.
+      const magic = buffer.slice(0, 4).toString('hex')
+      if (magic !== '0061736d') {
+        throw new Error('Invalid WASM file (bad magic number)')
+      }
+
+      // Try to compile with WebAssembly API.
+      const module = new WebAssembly.Module(buffer)
+      const exports = WebAssembly.Module.exports(module)
+      if (exports.length === 0) {
+        throw new Error('WASM module has no exports')
+      }
+      printStep(`WASM valid: ${exports.length} exports, ${buffer.length} bytes`)
+    },
+    {
+      binarySize: wasmSize,
+      binaryPath: path.relative(BUILD_DIR, wasmOutput),
+    },
+  )
 }
 
 /**
- * Optimize WASM with wasm-opt.
+ * Optimize WASM with wasm-opt (prod mode only).
+ *
+ * In dev mode, skip this step for faster builds.
+ * In prod mode, run aggressive wasm-opt on top of emscripten's optimizations.
  */
 async function optimize() {
-  if (!(await shouldRun(BUILD_DIR, '', 'optimized', FORCE_BUILD))) {
+  // Skip wasm-opt in dev mode (emscripten -O1 is sufficient for fast iteration).
+  if (BUILD_MODE === 'dev') {
+    printStep('Skipping wasm-opt (dev mode - faster builds)')
     return
   }
 
-  printHeader('Optimizing WASM')
+  if (!(await shouldRun(BUILD_DIR, '', 'wasm-opt', FORCE_BUILD))) {
+    return
+  }
+
+  printHeader('Optimizing WASM with wasm-opt (prod mode)')
 
   // Find the built WASM file.
   const cmakeBuildDir = path.join(BUILD_DIR, 'cmake')
@@ -395,100 +439,37 @@ async function optimize() {
   printStep(`Size after: ${sizeAfter}`)
 
   printSuccess('WASM optimized')
-  await createCheckpoint(BUILD_DIR, '', 'optimized')
-}
 
-/**
- * Verify WASM can load.
- */
-async function verify() {
-  if (!(await shouldRun(BUILD_DIR, '', 'verified', FORCE_BUILD))) {
-    return
-  }
+  // Create checkpoint with smoke test.
+  await createCheckpoint(
+    BUILD_DIR,
+    '',
+    'wasm-opt',
+    async () => {
+      // Smoke test: Verify optimized WASM is still valid.
+      const buffer = await fs.readFile(wasmFile)
 
-  printHeader('Verifying WASM')
+      // Check WASM magic number.
+      const magic = buffer.slice(0, 4).toString('hex')
+      if (magic !== '0061736d') {
+        throw new Error(
+          'Invalid WASM file after optimization (bad magic number)',
+        )
+      }
 
-  const cmakeBuildDir = path.join(BUILD_DIR, 'cmake')
-  const wasmFile = path.join(cmakeBuildDir, 'yoga.wasm')
-
-  if (!existsSync(wasmFile)) {
-    printWarning('WASM file not found, skipping verification')
-    await createCheckpoint(BUILD_DIR, '', 'verified')
-    return
-  }
-
-  // Check WASM file exists and is valid.
-  const stats = await fs.stat(wasmFile)
-  if (stats.size === 0) {
-    throw new Error('WASM file is empty')
-  }
-
-  // Verify WASM magic number.
-  const buffer = await fs.readFile(wasmFile)
-  const magic = buffer.slice(0, 4).toString('hex')
-  if (magic !== '0061736d') {
-    throw new Error('Invalid WASM file (bad magic number)')
-  }
-
-  printStep('WASM magic number valid')
-
-  // Smoke test: Load WASM with WebAssembly API.
-  printStep('Testing WASM loading...')
-  try {
-    // Compile the WASM module to verify it's valid.
-    const module = new WebAssembly.Module(buffer)
-    printStep(`WASM module compiled successfully (${buffer.length} bytes)`)
-
-    // Check exports exist (Yoga should export functions).
-    const exports = WebAssembly.Module.exports(module)
-    if (exports.length === 0) {
-      throw new Error('WASM module has no exports')
-    }
-    printStep(`WASM module has ${exports.length} exports`)
-  } catch (e) {
-    throw new Error(`Failed to load WASM module: ${e.message}`)
-  }
-
-  printSuccess('WASM verified')
-  await createCheckpoint(BUILD_DIR, '', 'verified')
-}
-
-/**
- * Verify synchronous JS wrapper can load.
- */
-async function verifySyncJs() {
-  if (!(await shouldRun(BUILD_DIR, '', 'sync-verified', FORCE_BUILD))) {
-    return
-  }
-
-  printHeader('Verifying Synchronous JS Wrapper')
-
-  const outputSyncJs = path.join(OUTPUT_DIR, 'yoga-sync.js')
-
-  if (!existsSync(outputSyncJs)) {
-    printWarning('Sync JS file not found, skipping verification')
-    await createCheckpoint(BUILD_DIR, '', 'sync-verified')
-    return
-  }
-
-  // Smoke test: Try to load the sync.js file.
-  printStep('Testing yoga-sync.js loading...')
-  try {
-    // Import the sync.js file dynamically.
-    const syncModule = await import(outputSyncJs)
-
-    if (!syncModule.default) {
-      throw new Error('Sync module has no default export')
-    }
-
-    printStep('Sync JS module loaded successfully')
-    printStep('Module exports: default (yoga instance)')
-  } catch (e) {
-    throw new Error(`Failed to load sync JS module: ${e.message}`)
-  }
-
-  printSuccess('Sync JS verified')
-  await createCheckpoint(BUILD_DIR, '', 'sync-verified')
+      // Try to compile with WebAssembly API.
+      const module = new WebAssembly.Module(buffer)
+      const exports = WebAssembly.Module.exports(module)
+      if (exports.length === 0) {
+        throw new Error('WASM module has no exports after optimization')
+      }
+      printStep(`Optimized WASM valid: ${exports.length} exports`)
+    },
+    {
+      binarySize: sizeAfter,
+      binaryPath: path.relative(BUILD_DIR, wasmFile),
+    },
+  )
 }
 
 /**
@@ -587,6 +568,44 @@ export default yoga;
   printStep(`Sync JS size: ${syncJsSize}`)
 
   printSuccess('WASM exported')
+
+  // Smoke test: Verify exported WASM file.
+  printStep('Smoke testing exported WASM...')
+  const wasmBuffer = await fs.readFile(outputWasm)
+
+  // Check WASM magic number.
+  const magic = wasmBuffer.slice(0, 4).toString('hex')
+  if (magic !== '0061736d') {
+    throw new Error('Invalid exported WASM file (bad magic number)')
+  }
+
+  // Try to compile with WebAssembly API.
+  try {
+    const module = new WebAssembly.Module(wasmBuffer)
+    const exports = WebAssembly.Module.exports(module)
+    if (exports.length === 0) {
+      throw new Error('Exported WASM module has no exports')
+    }
+    printStep(`Exported WASM valid: ${exports.length} exports`)
+  } catch (e) {
+    throw new Error(`Failed to load exported WASM: ${e.message}`)
+  }
+
+  // Smoke test: Verify sync.js can load.
+  printStep('Smoke testing yoga-sync.js...')
+  try {
+    const syncModule = await import(outputSyncJs)
+
+    if (!syncModule.default) {
+      throw new Error('Sync module has no default export')
+    }
+
+    printStep('Sync JS module loaded successfully')
+  } catch (e) {
+    throw new Error(`Failed to load sync JS module: ${e.message}`)
+  }
+
+  printSuccess('Export complete')
 }
 
 /**
@@ -693,9 +712,7 @@ async function main() {
   await configure()
   await build()
   await optimize()
-  await verify()
   await exportWasm()
-  await verifySyncJs()
 
   // Report completion.
   const totalDuration = formatDuration(Date.now() - totalStart)

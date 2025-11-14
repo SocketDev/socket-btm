@@ -959,7 +959,9 @@ async function main() {
   logger.log('')
 
   // Clone or reset Node.js repository.
-  if (!(await shouldRun(BUILD_DIR, PACKAGE_NAME, 'cloned', CLEAN_BUILD))) {
+  if (
+    !(await shouldRun(BUILD_DIR, PACKAGE_NAME, 'source-cloned', CLEAN_BUILD))
+  ) {
     // shouldRun already printed the skip message
     logger.log('')
   } else if (!existsSync(NODE_DIR) || CLEAN_BUILD) {
@@ -1044,7 +1046,18 @@ async function main() {
 
     if (cloneSuccess) {
       logger.log(`${colors.green('✓')} Node.js source cloned successfully`)
-      await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'cloned')
+      await createCheckpoint(
+        BUILD_DIR,
+        PACKAGE_NAME,
+        'source-cloned',
+        async () => {
+          // Smoke test: Verify Node.js source directory with configure script
+          const configureScript = path.join(NODE_SOURCE_DIR, 'configure')
+          await fs.access(configureScript)
+          logger.substep('Source directory validated')
+        },
+        {},
+      )
       logger.log('')
     }
   } else {
@@ -1557,12 +1570,27 @@ async function main() {
   logger.success('Unmodified binary copied to build/out/Release')
   logger.logNewline()
 
-  // Create checkpoint for Release build after copying to output.
+  // Create checkpoint with smoke test.
   const releaseBinarySize = await getFileSize(outputReleaseBinary)
-  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'release', {
-    binarySize: releaseBinarySize,
-    binaryPath: path.relative(BUILD_DIR, outputReleaseBinary),
-  })
+  await createCheckpoint(
+    BUILD_DIR,
+    PACKAGE_NAME,
+    'release',
+    async () => {
+      // Smoke test: Verify binary is executable and runs.
+      const versionResult = await spawn(outputReleaseBinary, ['--version'], {
+        timeout: 5000,
+      })
+      if (versionResult.code !== 0) {
+        throw new Error('Binary failed to execute --version')
+      }
+      logger.substep('Binary executable validated')
+    },
+    {
+      binarySize: releaseBinarySize,
+      binaryPath: path.relative(BUILD_DIR, outputReleaseBinary),
+    },
+  )
   logger.log('')
 
   // Strip debug symbols to reduce size.
@@ -1737,12 +1765,27 @@ async function main() {
   logger.success('Stripped binary copied to build/out/Stripped')
   logger.logNewline()
 
-  // Create checkpoint for Stripped build after copying to output.
+  // Create checkpoint with smoke test.
   const strippedBinarySize = await getFileSize(outputStrippedBinary)
-  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'stripped', {
-    binarySize: strippedBinarySize,
-    binaryPath: path.relative(BUILD_DIR, outputStrippedBinary),
-  })
+  await createCheckpoint(
+    BUILD_DIR,
+    PACKAGE_NAME,
+    'stripped',
+    async () => {
+      // Smoke test: Verify stripped binary is executable and runs.
+      const versionResult = await spawn(outputStrippedBinary, ['--version'], {
+        timeout: 5000,
+      })
+      if (versionResult.code !== 0) {
+        throw new Error('Stripped binary failed to execute --version')
+      }
+      logger.substep('Stripped binary executable validated')
+    },
+    {
+      binarySize: strippedBinarySize,
+      binaryPath: path.relative(BUILD_DIR, outputStrippedBinary),
+    },
+  )
   logger.log('')
 
   // Compress binary for smaller distribution size (DEFAULT for smol builds).
@@ -1834,27 +1877,7 @@ async function main() {
     )
     logger.logNewline()
 
-    // Smoke test compressed binary.
-    logger.log('Testing compressed binary...')
-    const compressedSmokeTest = await smokeTestBinary(compressedBinary)
-
-    if (!compressedSmokeTest) {
-      printError(
-        'Compressed Binary Failed',
-        'Compressed binary failed smoke test',
-        [
-          'Compression may have corrupted the binary',
-          'Decompressor stub may have issues',
-          'Try rebuilding: node scripts/build-custom-node.mjs --clean',
-        ],
-      )
-      throw new Error('Compressed binary failed smoke test')
-    }
-
-    logger.log(`${colors.green('✓')} Compressed binary functional`)
-    logger.log('')
-
-    // Create checkpoint for Compressed build after successful smoke test.
+    // Create checkpoint for Compressed build with smoke test.
     // This is the final checkpoint - calculate checksum for cache validation.
     const { createHash } = await import('node:crypto')
     const compressedBinaryContent = await fs.readFile(compressedBinary)
@@ -1863,11 +1886,37 @@ async function main() {
       .digest('hex')
 
     const compressedBinarySize = await getFileSize(compressedBinary)
-    await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'compressed', {
-      binarySize: compressedBinarySize,
-      checksum: compressedChecksum,
-      binaryPath: path.relative(BUILD_DIR, compressedBinary),
-    })
+    await createCheckpoint(
+      BUILD_DIR,
+      PACKAGE_NAME,
+      'compressed',
+      async () => {
+        // Smoke test: Verify compressed binary is executable.
+        logger.log('Testing compressed binary...')
+        const compressedSmokeTest = await smokeTestBinary(compressedBinary)
+
+        if (!compressedSmokeTest) {
+          printError(
+            'Compressed Binary Failed',
+            'Compressed binary failed smoke test',
+            [
+              'Compression may have corrupted the binary',
+              'Decompressor stub may have issues',
+              'Try rebuilding: node scripts/build-custom-node.mjs --clean',
+            ],
+          )
+          throw new Error('Compressed binary failed smoke test')
+        }
+
+        logger.log(`${colors.green('✓')} Compressed binary functional`)
+        logger.log('')
+      },
+      {
+        binarySize: compressedBinarySize,
+        checksum: compressedChecksum,
+        binaryPath: path.relative(BUILD_DIR, compressedBinary),
+      },
+    )
 
     logger.substep(`Compressed directory: ${compressedDir}`)
     logger.substep('Binary: node (compressed)')

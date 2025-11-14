@@ -48,7 +48,13 @@ const FORCE_BUILD = args.includes('--force')
 const IS_CI = Boolean(process.env.CI)
 const PROD_BUILD = args.includes('--prod')
 const DEV_BUILD = args.includes('--dev')
-const BUILD_MODE = PROD_BUILD ? 'prod' : DEV_BUILD ? 'dev' : IS_CI ? 'prod' : 'dev'
+const BUILD_MODE = PROD_BUILD
+  ? 'prod'
+  : DEV_BUILD
+    ? 'dev'
+    : IS_CI
+      ? 'prod'
+      : 'dev'
 
 // Quantization level: int8 (dev, default) vs int4 (prod, smaller).
 const QUANT_LEVEL = args.includes('--int4') ? 'int4' : 'int8'
@@ -67,9 +73,7 @@ const OUTPUT_DIR = path.join(BUILD_DIR, 'output')
  * Download CodeT5 models from Hugging Face.
  */
 async function downloadModels() {
-  if (
-    !(await shouldRun(BUILD_DIR, '', 'downloaded', FORCE_BUILD))
-  ) {
+  if (!(await shouldRun(BUILD_DIR, '', 'downloaded', FORCE_BUILD))) {
     return
   }
 
@@ -96,16 +100,28 @@ async function downloadModels() {
   }
 
   printSuccess('Models downloaded')
-  await createCheckpoint(BUILD_DIR, '', 'downloaded')
+
+  await createCheckpoint(
+    BUILD_DIR,
+    '',
+    'downloaded',
+    async () => {
+      // Smoke test: Verify tokenizer.json and model config exist.
+      const tokenizerPath = path.join(MODELS_DIR, 'tokenizer.json')
+      const configPath = path.join(MODELS_DIR, 'config.json')
+      await fs.access(tokenizerPath)
+      await fs.access(configPath)
+      printStep('Model files validated')
+    },
+    {},
+  )
 }
 
 /**
  * Convert models to ONNX format.
  */
 async function convertToOnnx() {
-  if (
-    !(await shouldRun(BUILD_DIR, '', 'converted', FORCE_BUILD))
-  ) {
+  if (!(await shouldRun(BUILD_DIR, '', 'convert-onnx', FORCE_BUILD))) {
     return
   }
 
@@ -127,16 +143,63 @@ async function convertToOnnx() {
   }
 
   printSuccess('Models converted to ONNX')
-  await createCheckpoint(BUILD_DIR, '', 'converted')
+
+  const encoderPath = path.join(BUILD_DIR, 'encoder_model.onnx')
+  const decoderPath = path.join(BUILD_DIR, 'decoder_model.onnx')
+  const encoderSize = await getFileSize(encoderPath)
+  const decoderSize = await getFileSize(decoderPath)
+
+  // Create checkpoint with smoke test.
+  await createCheckpoint(
+    BUILD_DIR,
+    '',
+    'convert-onnx',
+    async () => {
+      // Smoke test: Verify converted models are valid ONNX files.
+      // Check encoder.
+      const encoderBuffer = await fs.readFile(encoderPath)
+      if (encoderBuffer.length < 100) {
+        throw new Error('Encoder model file too small to be valid ONNX')
+      }
+
+      const encoderMagic = encoderBuffer[0]
+      if (encoderMagic !== 0x08 && encoderMagic !== 0x0a) {
+        throw new Error(
+          `Invalid ONNX encoder protobuf header (expected 0x08 or 0x0a, got 0x${encoderMagic.toString(16).padStart(2, '0')})`,
+        )
+      }
+
+      // Check decoder.
+      const decoderBuffer = await fs.readFile(decoderPath)
+      if (decoderBuffer.length < 100) {
+        throw new Error('Decoder model file too small to be valid ONNX')
+      }
+
+      const decoderMagic = decoderBuffer[0]
+      if (decoderMagic !== 0x08 && decoderMagic !== 0x0a) {
+        throw new Error(
+          `Invalid ONNX decoder protobuf header (expected 0x08 or 0x0a, got 0x${decoderMagic.toString(16).padStart(2, '0')})`,
+        )
+      }
+
+      printStep(
+        `Converted models valid: encoder ${encoderSize}, decoder ${decoderSize}`,
+      )
+    },
+    {
+      encoderSize,
+      decoderSize,
+      encoderPath: path.relative(BUILD_DIR, encoderPath),
+      decoderPath: path.relative(BUILD_DIR, decoderPath),
+    },
+  )
 }
 
 /**
  * Apply quantization to models.
  */
 async function quantizeModels() {
-  if (
-    !(await shouldRun(BUILD_DIR, '', 'quantized', FORCE_BUILD))
-  ) {
+  if (!(await shouldRun(BUILD_DIR, '', 'quantized', FORCE_BUILD))) {
     return
   }
 
@@ -186,29 +249,90 @@ async function quantizeModels() {
   printStep(`Decoder: ${decoderSize}`)
 
   printSuccess('Models quantized')
-  await createCheckpoint(BUILD_DIR, '', 'quantized')
+
+  // Create checkpoint with smoke test.
+  await createCheckpoint(
+    BUILD_DIR,
+    '',
+    'quantized',
+    async () => {
+      // Smoke test: Verify quantized models are still valid ONNX files.
+      const encoderBuffer = await fs.readFile(encoderPath)
+      if (encoderBuffer.length < 100) {
+        throw new Error('Quantized encoder too small to be valid ONNX')
+      }
+
+      const encoderMagic = encoderBuffer[0]
+      if (encoderMagic !== 0x08 && encoderMagic !== 0x0a) {
+        throw new Error(
+          `Invalid ONNX quantized encoder header (expected 0x08 or 0x0a, got 0x${encoderMagic.toString(16).padStart(2, '0')})`,
+        )
+      }
+
+      const decoderBuffer = await fs.readFile(decoderPath)
+      if (decoderBuffer.length < 100) {
+        throw new Error('Quantized decoder too small to be valid ONNX')
+      }
+
+      const decoderMagic = decoderBuffer[0]
+      if (decoderMagic !== 0x08 && decoderMagic !== 0x0a) {
+        throw new Error(
+          `Invalid ONNX quantized decoder header (expected 0x08 or 0x0a, got 0x${decoderMagic.toString(16).padStart(2, '0')})`,
+        )
+      }
+
+      printStep('Quantized models valid')
+    },
+    {
+      encoderSize,
+      decoderSize,
+      encoderPath: path.relative(BUILD_DIR, encoderPath),
+      decoderPath: path.relative(BUILD_DIR, decoderPath),
+    },
+  )
 }
 
 /**
- * Optimize ONNX graphs.
+ * Optimize ONNX graphs with transformer-specific optimizations (prod mode only).
+ *
+ * Uses onnxruntime.transformers.optimizer to apply graph optimizations like:
+ * - Fusing operations (LayerNorm, Attention)
+ * - Constant folding
+ * - Removing redundant nodes
+ *
+ * In dev mode (int8), skip this for faster builds.
+ * In prod mode (int4), apply optimizations for maximum performance.
  */
 async function optimizeModels() {
-  if (
-    !(await shouldRun(BUILD_DIR, '', 'optimized', FORCE_BUILD))
-  ) {
+  // Skip optimization in dev mode (int8 - faster iteration).
+  if (QUANT_LEVEL === 'int8') {
+    printStep('Skipping ONNX graph optimization (dev mode - faster builds)')
     return
   }
 
-  printHeader('Optimizing ONNX Graphs')
+  if (!(await shouldRun(BUILD_DIR, '', 'optimize-model', FORCE_BUILD))) {
+    return
+  }
+
+  printHeader('Optimizing ONNX Graphs (prod mode)')
 
   const encoderPath = path.join(BUILD_DIR, 'encoder_model.onnx')
   const decoderPath = path.join(BUILD_DIR, 'decoder_model.onnx')
+  const optimizedEncoderPath = path.join(
+    BUILD_DIR,
+    'encoder_model_optimized.onnx',
+  )
+  const optimizedDecoderPath = path.join(
+    BUILD_DIR,
+    'decoder_model_optimized.onnx',
+  )
 
   // Optimize encoder.
-  printStep('Optimizing encoder')
+  printStep('Optimizing encoder graph')
   const optimizeEncoderCommand =
     `python3 -c "from onnxruntime.transformers import optimizer; ` +
-    `optimizer.optimize_model('${encoderPath}', model_type='bert', num_heads=12, hidden_size=768)"`
+    `opt = optimizer.optimize_model('${encoderPath}', model_type='bert', num_heads=12, hidden_size=768); ` +
+    `opt.save_model_to_file('${optimizedEncoderPath}')"`
 
   const optimizeEncoderResult = await spawn(optimizeEncoderCommand, {
     shell: WIN32,
@@ -220,10 +344,11 @@ async function optimizeModels() {
   }
 
   // Optimize decoder.
-  printStep('Optimizing decoder')
+  printStep('Optimizing decoder graph')
   const optimizeDecoderCommand =
     `python3 -c "from onnxruntime.transformers import optimizer; ` +
-    `optimizer.optimize_model('${decoderPath}', model_type='bert', num_heads=12, hidden_size=768)"`
+    `opt = optimizer.optimize_model('${decoderPath}', model_type='bert', num_heads=12, hidden_size=768); ` +
+    `opt.save_model_to_file('${optimizedDecoderPath}')"`
 
   const optimizeDecoderResult = await spawn(optimizeDecoderCommand, {
     shell: WIN32,
@@ -234,79 +359,58 @@ async function optimizeModels() {
     throw new Error('Failed to optimize decoder')
   }
 
-  printSuccess('Models optimized')
-  await createCheckpoint(BUILD_DIR, '', 'optimized')
-}
+  // Replace original models with optimized versions.
+  await fs.rename(optimizedEncoderPath, encoderPath)
+  await fs.rename(optimizedDecoderPath, decoderPath)
 
-/**
- * Verify models are valid ONNX files.
- *
- * Uses onnxruntime-node (native) to validate model structure.
- */
-async function verifyModels() {
-  if (!(await shouldRun(BUILD_DIR, '', 'verified', FORCE_BUILD))) {
-    return
-  }
+  const encoderSize = await getFileSize(encoderPath)
+  const decoderSize = await getFileSize(decoderPath)
 
-  printHeader('Verifying Models')
+  printStep(`Encoder: ${encoderSize}`)
+  printStep(`Decoder: ${decoderSize}`)
 
-  const encoderPath = path.join(BUILD_DIR, 'encoder_model.onnx')
+  printSuccess('ONNX graphs optimized')
 
-  // Basic validation: Check file exists and is not empty.
-  const stats = await fs.stat(encoderPath)
-  if (stats.size === 0) {
-    throw new Error('Encoder model is empty')
-  }
+  // Create checkpoint with smoke test.
+  await createCheckpoint(
+    BUILD_DIR,
+    '',
+    'optimize-model',
+    async () => {
+      // Smoke test: Verify optimized models are still valid ONNX files.
+      const encoderBuffer = await fs.readFile(encoderPath)
+      if (encoderBuffer.length < 100) {
+        throw new Error('Optimized encoder too small to be valid ONNX')
+      }
 
-  printStep(`Model file size: ${stats.size} bytes`)
+      const encoderMagic = encoderBuffer[0]
+      if (encoderMagic !== 0x08 && encoderMagic !== 0x0a) {
+        throw new Error(
+          `Invalid ONNX optimized encoder header (expected 0x08 or 0x0a, got 0x${encoderMagic.toString(16).padStart(2, '0')})`,
+        )
+      }
 
-  // Verify ONNX protobuf format.
-  const buffer = await fs.readFile(encoderPath)
+      const decoderBuffer = await fs.readFile(decoderPath)
+      if (decoderBuffer.length < 100) {
+        throw new Error('Optimized decoder too small to be valid ONNX')
+      }
 
-  // ONNX models are Protocol Buffer files with specific structure.
-  // Check for valid protobuf format (field markers in first bytes).
-  if (buffer.length < 100) {
-    throw new Error('Model file too small to be valid ONNX')
-  }
+      const decoderMagic = decoderBuffer[0]
+      if (decoderMagic !== 0x08 && decoderMagic !== 0x0a) {
+        throw new Error(
+          `Invalid ONNX optimized decoder header (expected 0x08 or 0x0a, got 0x${decoderMagic.toString(16).padStart(2, '0')})`,
+        )
+      }
 
-  // Check for common ONNX/protobuf patterns in header.
-  // ONNX models typically start with field 1 (IR version): 0x08
-  // or may have other valid protobuf field markers.
-  const firstByte = buffer[0]
-  const validProtobufStart = firstByte === 0x08 || firstByte === 0x0a
-
-  if (!validProtobufStart) {
-    throw new Error(
-      `Invalid ONNX protobuf header (expected 0x08 or 0x0a, got 0x${firstByte.toString(16).padStart(2, '0')})`,
-    )
-  }
-
-  printStep('ONNX protobuf format valid')
-
-  // Smoke test: Load model with ONNX Runtime (native Node.js).
-  printStep('Testing model loading with ONNX Runtime...')
-  try {
-    // Dynamically import onnxruntime-node (dev dependency).
-    const ort = await import('onnxruntime-node')
-
-    // Create an inference session (validates model structure).
-    const session = await ort.InferenceSession.create(encoderPath)
-
-    printStep(`Model loaded successfully`)
-    printStep(`Input names: ${session.inputNames.join(', ')}`)
-    printStep(`Output names: ${session.outputNames.join(', ')}`)
-  } catch (e) {
-    // If onnxruntime-node is not installed, provide helpful error.
-    if (e.code === 'ERR_MODULE_NOT_FOUND') {
-      throw new Error(
-        'onnxruntime-node not found. Run: pnpm install --filter codet5-models-builder',
-      )
-    }
-    throw new Error(`Failed to load model with ONNX Runtime: ${e.message}`)
-  }
-
-  printSuccess('Models verified')
-  await createCheckpoint(BUILD_DIR, '', 'verified')
+      printStep('Optimized models valid')
+    },
+    {
+      encoderSize,
+      decoderSize,
+      encoderPath: path.relative(BUILD_DIR, encoderPath),
+      decoderPath: path.relative(BUILD_DIR, decoderPath),
+    },
+  )
 }
 
 /**
@@ -338,12 +442,62 @@ async function exportModels() {
   }
 
   const encoderSize = await getFileSize(outputEncoder)
-  const decoderSize = await getFileSize(outputDecoder)
+  const decoderSize = await getFileSize(decoderPath)
 
   printStep(`Encoder: ${outputEncoder} (${encoderSize})`)
   printStep(`Decoder: ${outputDecoder} (${decoderSize})`)
 
   printSuccess('Models exported')
+
+  // Create checkpoint with comprehensive smoke test.
+  await createCheckpoint(
+    BUILD_DIR,
+    '',
+    'release',
+    async () => {
+      // Smoke test: Verify exported models with onnxruntime-node.
+      // Verify ONNX protobuf format.
+      const buffer = await fs.readFile(outputEncoder)
+
+      if (buffer.length < 100) {
+        throw new Error('Exported encoder too small to be valid ONNX')
+      }
+
+      // Check for common ONNX/protobuf patterns in header.
+      const firstByte = buffer[0]
+      const validProtobufStart = firstByte === 0x08 || firstByte === 0x0a
+
+      if (!validProtobufStart) {
+        throw new Error(
+          `Invalid ONNX protobuf header (expected 0x08 or 0x0a, got 0x${firstByte.toString(16).padStart(2, '0')})`,
+        )
+      }
+
+      printStep('ONNX protobuf format valid')
+
+      // Comprehensive test: Load model with ONNX Runtime (native Node.js).
+      const ort = await import('onnxruntime-node').catch(e => {
+        if (e.code === 'ERR_MODULE_NOT_FOUND') {
+          throw new Error(
+            'onnxruntime-node not found. Run: pnpm install --filter codet5-models-builder',
+          )
+        }
+        throw e
+      })
+
+      const session = await ort.InferenceSession.create(outputEncoder)
+
+      printStep('Model loaded successfully')
+      printStep(`Input names: ${session.inputNames.join(', ')}`)
+      printStep(`Output names: ${session.outputNames.join(', ')}`)
+    },
+    {
+      encoderSize,
+      decoderSize,
+      encoderPath: path.relative(BUILD_DIR, outputEncoder),
+      decoderPath: path.relative(BUILD_DIR, outputDecoder),
+    },
+  )
 }
 
 /**
@@ -429,7 +583,6 @@ async function main() {
   await convertToOnnx()
   await quantizeModels()
   await optimizeModels()
-  await verifyModels()
   await exportModels()
 
   // Report completion.

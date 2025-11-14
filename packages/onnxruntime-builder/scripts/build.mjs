@@ -54,7 +54,13 @@ const CLEAN_BUILD = args.includes('--clean')
 const IS_CI = Boolean(process.env.CI)
 const PROD_BUILD = args.includes('--prod')
 const DEV_BUILD = args.includes('--dev')
-const BUILD_MODE = PROD_BUILD ? 'prod' : DEV_BUILD ? 'dev' : IS_CI ? 'prod' : 'dev'
+const BUILD_MODE = PROD_BUILD
+  ? 'prod'
+  : DEV_BUILD
+    ? 'dev'
+    : IS_CI
+      ? 'prod'
+      : 'dev'
 
 // Configuration.
 const ROOT_DIR = path.join(__dirname, '..')
@@ -72,7 +78,7 @@ const ONNX_SOURCE_DIR = path.join(BUILD_DIR, 'onnxruntime-source')
  * Clone ONNX Runtime source if not already present.
  */
 async function cloneOnnxSource() {
-  if (!(await shouldRun(BUILD_DIR, '', 'cloned', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, '', 'source-cloned', FORCE_BUILD))) {
     return
   }
 
@@ -130,7 +136,18 @@ async function cloneOnnxSource() {
       printSuccess('Old source removed')
     } else {
       printStep('All patches already applied, skipping clone')
-      await createCheckpoint(BUILD_DIR, '', 'cloned')
+      await createCheckpoint(
+        BUILD_DIR,
+        '',
+        'source-cloned',
+        async () => {
+          // Smoke test: Verify source directory exists with CMakeLists.txt
+          const cmakeLists = path.join(ONNX_SOURCE_DIR, 'CMakeLists.txt')
+          await fs.access(cmakeLists)
+          printStep('Source directory validated')
+        },
+        {},
+      )
       return
     }
   }
@@ -236,7 +253,18 @@ async function cloneOnnxSource() {
     printSuccess('wasm_post_build.js (source) patched')
   }
 
-  await createCheckpoint(BUILD_DIR, '', 'cloned')
+  await createCheckpoint(
+    BUILD_DIR,
+    '',
+    'source-cloned',
+    async () => {
+      // Smoke test: Verify source directory exists with CMakeLists.txt
+      const cmakeLists = path.join(ONNX_SOURCE_DIR, 'CMakeLists.txt')
+      await fs.access(cmakeLists)
+      printStep('Source directory validated')
+    },
+    {},
+  )
 }
 
 /**
@@ -255,8 +283,12 @@ async function build() {
   // GitHub Actions may have restored old unpatched files from cache after clone step.
   // Delete them now to force CMake to recopy patched versions from source.
   printStep('Checking for stale cached build files...')
-  const platform = process.platform === 'darwin' ? 'MacOS' : 'Linux'
-  const buildCacheDir = path.join(ONNX_SOURCE_DIR, 'build', platform, 'Release')
+  const buildCacheDir = path.join(
+    ONNX_SOURCE_DIR,
+    'build',
+    process.platform === 'darwin' ? 'MacOS' : 'Linux',
+    'Release',
+  )
 
   // Delete cached wasm_post_build.js (CMake will recopy from patched source).
   const postBuildBuildPath = path.join(buildCacheDir, 'wasm_post_build.js')
@@ -339,20 +371,8 @@ async function build() {
 
   const duration = formatDuration(Date.now() - startTime)
   printSuccess(`Build completed in ${duration}`)
-  await createCheckpoint(BUILD_DIR, '', 'built')
-}
 
-/**
- * Verify WASM can load.
- */
-async function verify() {
-  if (!(await shouldRun(BUILD_DIR, '', 'verified', FORCE_BUILD))) {
-    return
-  }
-
-  printHeader('Verifying WASM')
-
-  // Find the built WASM file.
+  // Smoke test: Verify built WASM is valid.
   const platform = process.platform === 'darwin' ? 'MacOS' : 'Linux'
   const buildOutputDir = path.join(
     ONNX_SOURCE_DIR,
@@ -362,93 +382,41 @@ async function verify() {
   )
   const wasmFile = path.join(buildOutputDir, 'ort-wasm-simd-threaded.wasm')
 
-  if (!existsSync(wasmFile)) {
-    printWarning('WASM file not found, skipping verification')
-    await createCheckpoint(BUILD_DIR, '', 'verified')
-    return
+  if (existsSync(wasmFile)) {
+    // Create checkpoint with smoke test.
+    const wasmSize = await getFileSize(wasmFile)
+    await createCheckpoint(
+      BUILD_DIR,
+      '',
+      'release',
+      async () => {
+        // Smoke test: Verify WASM is valid.
+        const buffer = await fs.readFile(wasmFile)
+
+        // Check WASM magic number.
+        const magic = buffer.slice(0, 4).toString('hex')
+        if (magic !== '0061736d') {
+          throw new Error('Invalid WASM file (bad magic number)')
+        }
+
+        // Try to compile with WebAssembly API.
+        const module = new WebAssembly.Module(buffer)
+        const exports = WebAssembly.Module.exports(module)
+        if (exports.length === 0) {
+          throw new Error('WASM module has no exports')
+        }
+        printStep(
+          `WASM valid: ${exports.length} exports, ${buffer.length} bytes`,
+        )
+      },
+      {
+        binarySize: wasmSize,
+        binaryPath: path.relative(BUILD_DIR, wasmFile),
+      },
+    )
+  } else {
+    throw new Error('WASM file not found after build')
   }
-
-  // Check WASM file exists and is valid.
-  const stats = await fs.stat(wasmFile)
-  if (stats.size === 0) {
-    throw new Error('WASM file is empty')
-  }
-
-  // Verify WASM magic number.
-  const buffer = await fs.readFile(wasmFile)
-  const magic = buffer.slice(0, 4).toString('hex')
-  if (magic !== '0061736d') {
-    throw new Error('Invalid WASM file (bad magic number)')
-  }
-
-  printStep('WASM magic number valid')
-
-  // Smoke test: Load WASM with WebAssembly API.
-  printStep('Testing WASM loading...')
-  try {
-    // Compile the WASM module to verify it's valid.
-    const module = new WebAssembly.Module(buffer)
-    printStep(`WASM module compiled successfully (${buffer.length} bytes)`)
-
-    // Check exports exist (ONNX Runtime should export functions).
-    const exports = WebAssembly.Module.exports(module)
-    if (exports.length === 0) {
-      throw new Error('WASM module has no exports')
-    }
-    printStep(`WASM module has ${exports.length} exports`)
-  } catch (e) {
-    throw new Error(`Failed to load WASM module: ${e.message}`)
-  }
-
-  printSuccess('WASM verified')
-  await createCheckpoint(BUILD_DIR, '', 'verified')
-}
-
-/**
- * Verify synchronous JS wrapper can load.
- */
-async function verifySyncJs() {
-  if (!(await shouldRun(BUILD_DIR, '', 'sync-verified', FORCE_BUILD))) {
-    return
-  }
-
-  printHeader('Verifying Synchronous JS Wrapper')
-
-  const outputSyncJs = path.join(OUTPUT_DIR, 'ort-sync.js')
-
-  if (!existsSync(outputSyncJs)) {
-    printWarning('Sync JS file not found, skipping verification')
-    await createCheckpoint(BUILD_DIR, '', 'sync-verified')
-    return
-  }
-
-  // Smoke test: Try to load the sync.js file.
-  printStep('Testing ort-sync.js loading...')
-  try {
-    // Import the sync.js file dynamically.
-    const syncModule = await import(outputSyncJs)
-
-    if (!syncModule.default) {
-      throw new Error('Sync module has no default export')
-    }
-
-    // Check for expected ONNX Runtime exports.
-    if (!syncModule.InferenceSession) {
-      throw new Error('Sync module missing InferenceSession export')
-    }
-
-    if (!syncModule.Tensor) {
-      throw new Error('Sync module missing Tensor export')
-    }
-
-    printStep('Sync JS module loaded successfully')
-    printStep('Module exports: default, InferenceSession, Tensor')
-  } catch (e) {
-    throw new Error(`Failed to load sync JS module: ${e.message}`)
-  }
-
-  printSuccess('Sync JS verified')
-  await createCheckpoint(BUILD_DIR, '', 'sync-verified')
 }
 
 /**
@@ -492,10 +460,6 @@ async function exportWasm() {
     await fs.copyFile(jsFile, outputMjs)
     printStep(`MJS: ${outputMjs}`)
   }
-
-  const wasmSize = await getFileSize(outputWasm)
-  printStep(`WASM: ${outputWasm}`)
-  printStep(`WASM size: ${wasmSize}`)
 
   // Generate companion -sync.js with synchronous loading and base64-embedded WASM.
   printStep('Generating synchronous .js wrapper with embedded WASM...')
@@ -552,11 +516,61 @@ export const Tensor = ort.Tensor;
 `
 
   await fs.writeFile(outputSyncJs, jsContent, 'utf-8')
+  const wasmSize = await getFileSize(outputWasm)
   const syncJsSize = await getFileSize(outputSyncJs)
+  printStep(`WASM: ${outputWasm}`)
+  printStep(`WASM size: ${wasmSize}`)
   printStep(`Sync JS (sync + embedded): ${outputSyncJs}`)
   printStep(`Sync JS size: ${syncJsSize}`)
 
   printSuccess('WASM exported with synchronous -sync.js wrapper')
+
+  // Smoke test: Verify exported WASM file.
+  printStep('Smoke testing exported WASM...')
+  const wasmBuffer = await fs.readFile(outputWasm)
+
+  // Check WASM magic number.
+  const magic = wasmBuffer.slice(0, 4).toString('hex')
+  if (magic !== '0061736d') {
+    throw new Error('Invalid exported WASM file (bad magic number)')
+  }
+
+  // Try to compile with WebAssembly API.
+  try {
+    const module = new WebAssembly.Module(wasmBuffer)
+    const exports = WebAssembly.Module.exports(module)
+    if (exports.length === 0) {
+      throw new Error('Exported WASM module has no exports')
+    }
+    printStep(`Exported WASM valid: ${exports.length} exports`)
+  } catch (e) {
+    throw new Error(`Failed to load exported WASM: ${e.message}`)
+  }
+
+  // Smoke test: Verify sync.js can load.
+  printStep('Smoke testing ort-sync.js...')
+  try {
+    const syncModule = await import(outputSyncJs)
+
+    if (!syncModule.default) {
+      throw new Error('Sync module has no default export')
+    }
+
+    // Check for expected ONNX Runtime exports.
+    if (!syncModule.InferenceSession) {
+      throw new Error('Sync module missing InferenceSession export')
+    }
+
+    if (!syncModule.Tensor) {
+      throw new Error('Sync module missing Tensor export')
+    }
+
+    printStep('Sync JS module loaded successfully')
+  } catch (e) {
+    throw new Error(`Failed to load sync JS module: ${e.message}`)
+  }
+
+  printSuccess('Export complete')
 }
 
 /**
@@ -677,9 +691,7 @@ async function main() {
   // Build phases.
   await cloneOnnxSource()
   await build()
-  await verify()
   await exportWasm()
-  await verifySyncJs()
 
   // Report completion.
   const totalDuration = formatDuration(Date.now() - totalStart)

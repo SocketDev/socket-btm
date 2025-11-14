@@ -29,7 +29,7 @@ import {
   printStep,
   printSuccess,
 } from 'build-infra/lib/build-output'
-import { createWorkflowCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
+import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import { ensureAllPythonPackages } from 'build-infra/lib/python-installer'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 
@@ -89,7 +89,7 @@ async function downloadModels() {
   }
 
   printSuccess('Models downloaded')
-  await createWorkflowCheckpoint(BUILD_DIR, 'codet5-models', 'downloaded')
+  await createCheckpoint(BUILD_DIR, 'codet5-models', 'downloaded')
 }
 
 /**
@@ -120,7 +120,7 @@ async function convertToOnnx() {
   }
 
   printSuccess('Models converted to ONNX')
-  await createWorkflowCheckpoint(BUILD_DIR, 'codet5-models', 'converted')
+  await createCheckpoint(BUILD_DIR, 'codet5-models', 'converted')
 }
 
 /**
@@ -179,7 +179,7 @@ async function quantizeModels() {
   printStep(`Decoder: ${decoderSize}`)
 
   printSuccess('Models quantized')
-  await createWorkflowCheckpoint(BUILD_DIR, 'codet5-models', 'quantized')
+  await createCheckpoint(BUILD_DIR, 'codet5-models', 'quantized')
 }
 
 /**
@@ -228,7 +228,7 @@ async function optimizeModels() {
   }
 
   printSuccess('Models optimized')
-  await createWorkflowCheckpoint(BUILD_DIR, 'codet5-models', 'optimized')
+  await createCheckpoint(BUILD_DIR, 'codet5-models', 'optimized')
 }
 
 /**
@@ -265,7 +265,7 @@ async function verifyModels() {
   }
 
   printSuccess('Models verified')
-  await createWorkflowCheckpoint(BUILD_DIR, 'codet5-models', 'verified')
+  await createCheckpoint(BUILD_DIR, 'codet5-models', 'verified')
 }
 
 /**

@@ -83,8 +83,8 @@ import {
   checkDiskSpace,
   checkNetworkConnectivity,
   checkPythonVersion,
-  cleanWorkflowCheckpoint,
-  createWorkflowCheckpoint,
+  cleanCheckpoint,
+  createCheckpoint,
   estimateBuildTime,
   formatDuration,
   getBuildLogPath,
@@ -559,182 +559,6 @@ async function smoketestBinary(
   }
 
   return { valid: true }
-}
-
-/**
- * Get local checkpoint directory for compiled binaries.
- * Uses the same checkpoints/ directory as workflow checkpoints.
- *
- * @param {string} buildDir - Build directory path
- * @returns {string} Local checkpoint directory path
- */
-function getLocalCheckpointDir(buildDir) {
-  // Local checkpoints stored alongside workflow checkpoints
-  return path.join(buildDir, 'checkpoints', 'local')
-}
-
-/**
- * Get local checkpoint file path for compiled binary.
- *
- * @param {string} buildDir - Build directory path
- * @param {string} platform - Target platform
- * @param {string} arch - Target architecture
- * @returns {string} Local checkpoint binary path
- */
-function getLocalCheckpointPath(buildDir, platform, arch) {
-  return path.join(getLocalCheckpointDir(buildDir), `node-compiled-${platform}-${arch}`)
-}
-
-/**
- * Get local checkpoint metadata file path.
- *
- * @param {string} buildDir - Build directory path
- * @param {string} platform - Target platform
- * @param {string} arch - Target architecture
- * @returns {string} Local checkpoint metadata file path
- */
-function getLocalCheckpointMetadataPath(buildDir, platform, arch) {
-  return path.join(
-    getLocalCheckpointDir(buildDir),
-    `node-compiled-${platform}-${arch}.json`,
-  )
-}
-
-/**
- * Create local checkpoint after successful binary compilation.
- * This saves the compiled binary locally to allow resuming from this point
- * if post-processing fails. Stored in checkpoints/local/ directory.
- *
- * @param {string} buildDir - Build directory path
- * @param {string} nodeBinary - Path to compiled Node.js binary
- * @param {string} platform - Target platform
- * @param {string} arch - Target architecture
- * @param {string} version - Node.js version
- * @returns {Promise<void>}
- */
-async function createLocalCheckpoint(
-  buildDir,
-  nodeBinary,
-  platform,
-  arch,
-  version,
-) {
-  const checkpointDir = getLocalCheckpointDir(buildDir)
-  const checkpointFile = getLocalCheckpointPath(buildDir, platform, arch)
-  const checkpointMetaFile = getLocalCheckpointMetadataPath(buildDir, platform, arch)
-
-  // Smoketest binary before creating checkpoint.
-  // Prevent checkpointing broken/segfaulting binaries.
-  const smoketest = await smoketestBinary(nodeBinary, {
-    isSEA: false,
-    isCheckpoint: true,
-  })
-  if (!smoketest.valid) {
-    logger.error(`Binary smoketest failed: ${smoketest.reason}`)
-    logger.error('NOT creating local checkpoint')
-    return
-  }
-
-  // Create checkpoint directory.
-  await safeMkdir(checkpointDir, { recursive: true })
-
-  // Copy binary to checkpoint.
-  await fs.copyFile(nodeBinary, checkpointFile)
-
-  // Get binary stats for metadata.
-  const stats = await fs.stat(nodeBinary)
-  const size = await getFileSize(nodeBinary)
-
-  // Save metadata.
-  const metadata = {
-    platform,
-    arch,
-    version,
-    timestamp: Date.now(),
-    size: stats.size,
-    humanSize: size,
-  }
-  await fs.writeFile(checkpointMetaFile, JSON.stringify(metadata, null, 2))
-
-  logger.log(`${colors.green('✓')} Created local checkpoint (${size})`)
-  logger.log(`   Checkpoint location: ${checkpointFile}`)
-}
-
-/**
- * Restore from local checkpoint if available and valid.
- * Returns true if restore successful, false if no valid checkpoint exists.
- * This restores from local checkpoints/, not GitHub Actions cache.
- *
- * @param {string} buildDir - Build directory path
- * @param {string} nodeBinary - Path where to restore Node.js binary
- * @param {string} platform - Target platform
- * @param {string} arch - Target architecture
- * @param {string} version - Expected Node.js version
- * @returns {Promise<boolean>} True if restored, false if no valid checkpoint
- */
-async function restoreLocalCheckpoint(
-  buildDir,
-  nodeBinary,
-  platform,
-  arch,
-  version,
-) {
-  const checkpointFile = getLocalCheckpointPath(buildDir, platform, arch)
-  const checkpointMetaFile = getLocalCheckpointMetadataPath(buildDir, platform, arch)
-
-  // Check if checkpoint files exist.
-  if (!existsSync(checkpointFile) || !existsSync(checkpointMetaFile)) {
-    return false
-  }
-
-  try {
-    // Validate metadata matches current build.
-    const metaContent = await fs.readFile(checkpointMetaFile, 'utf8')
-    const meta = JSON.parse(metaContent)
-
-    if (meta.platform !== platform || meta.arch !== arch) {
-      logger.warn(
-        'Checkpointed binary is for different platform/arch, ignoring',
-      )
-      return false
-    }
-
-    if (meta.version !== version) {
-      logger.warn(
-        `Checkpointed binary is for Node.js ${meta.version}, expected ${version}, ignoring`,
-      )
-      return false
-    }
-
-    // Ensure output directory exists.
-    await safeMkdir(dirname(nodeBinary), { recursive: true })
-
-    // Restore binary from checkpoint.
-    await fs.copyFile(checkpointFile, nodeBinary)
-
-    const size = await getFileSize(nodeBinary)
-    logger.log(`${colors.green('✓')} Restored from local checkpoint (${size})`)
-    logger.log(`   From: ${checkpointFile}`)
-
-    // Smoketest restored binary.
-    const smoketest = await smoketestBinary(nodeBinary, {
-      isSEA: false,
-      isCheckpoint: true,
-    })
-    if (!smoketest.valid) {
-      logger.warn(`Checkpointed binary smoketest failed: ${smoketest.reason}`)
-      logger.warn('Will rebuild from source')
-      return false
-    }
-    logger.log(
-      `${colors.green('✓')} Checkpointed binary smoketest passed (all tests)`,
-    )
-
-    return true
-  } catch (e) {
-    logger.warn(`Failed to restore from local checkpoint: ${e.message}`)
-    return false
-  }
 }
 
 /**
@@ -1250,7 +1074,7 @@ async function main() {
       logger.log('Removing existing Node.js source directory...')
       const { rm } = await import('node:fs/promises')
       await safeDelete(NODE_DIR, { recursive: true, force: true })
-      await cleanWorkflowCheckpoint(BUILD_DIR, PACKAGE_NAME)
+      await cleanCheckpoint(BUILD_DIR, PACKAGE_NAME)
       logger.log(`${colors.green('✓')} Cleaned build directory`)
       logger.log('')
     }
@@ -1328,7 +1152,7 @@ async function main() {
 
     if (cloneSuccess) {
       logger.log(`${colors.green('✓')} Node.js source cloned successfully`)
-      await createWorkflowCheckpoint(BUILD_DIR, PACKAGE_NAME, 'cloned')
+      await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'cloned')
       logger.log('')
     }
   } else {
@@ -1707,25 +1531,11 @@ async function main() {
     printHeader('Building Node.js')
   }
 
-  // Define binary path early (used for both cache and build).
+  // Define binary path early (used for build).
   const binaryName = IS_WINDOWS ? 'node.exe' : 'node'
   const nodeBinary = path.join(NODE_DIR, 'out', 'Release', binaryName)
 
-  // Try to restore from cache (skip compilation if successful).
-  let restoredFromCache = false
-  if (!CLEAN_BUILD) {
-    logger.log('Checking for local checkpoint from previous build...')
-    restoredFromCache = await restoreLocalCheckpoint(
-      BUILD_DIR,
-      nodeBinary,
-      TARGET_PLATFORM,
-      ARCH,
-      NODE_VERSION,
-    )
-    logger.log('')
-  }
-
-  // Skip compilation if restored from cache or if Windows (vcbuild already built it).
+  // Skip compilation if already built (checkpoints handle resumption).
   if (!(await shouldRun(BUILD_DIR, PACKAGE_NAME, 'built', CLEAN_BUILD))) {
     // shouldRun already printed the skip message
     logger.log('')
@@ -1838,19 +1648,10 @@ async function main() {
 
   // Create checkpoint for Release build after successful smoke test.
   const releaseBinarySize = await getFileSize(nodeBinary)
-  await createWorkflowCheckpoint(BUILD_DIR, PACKAGE_NAME, 'release', {
+  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'release', {
     binarySize: releaseBinarySize,
     binaryPath: path.relative(BUILD_DIR, nodeBinary),
   })
-
-  // Create local checkpoint for future runs.
-  await createLocalCheckpoint(
-    BUILD_DIR,
-    nodeBinary,
-    TARGET_PLATFORM,
-    ARCH,
-    NODE_VERSION,
-  )
   logger.log('')
 
   // Copy unmodified binary to build/out/Release.
@@ -2027,7 +1828,7 @@ async function main() {
 
   // Create checkpoint for Stripped build after successful smoke test.
   const strippedBinarySize = await getFileSize(nodeBinary)
-  await createWorkflowCheckpoint(BUILD_DIR, PACKAGE_NAME, 'stripped', {
+  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'stripped', {
     binarySize: strippedBinarySize,
     binaryPath: path.relative(BUILD_DIR, nodeBinary),
   })
@@ -2140,22 +1941,31 @@ async function main() {
     )
     logger.logNewline()
 
-    // Skip smoke test for self-extracting binary.
-    // TODO: The decompressor stub needs to be updated to properly handle command-line arguments.
-    // Currently it treats arguments as filenames instead of passing them to the decompressed binary.
-    // Once fixed, we can enable smoke testing for compressed binaries.
-    logger.log('Skipping smoke test for self-extracting binary...')
-    logger.substep(
-      '✓ Smoke test skipped (decompressor needs argument handling fix)',
-    )
+    // Smoke test compressed binary.
+    logger.log('Testing compressed binary...')
+    const compressedSmokeTest = await smokeTestBinary(compressedBinary)
+
+    if (!compressedSmokeTest) {
+      printError(
+        'Compressed Binary Failed',
+        'Compressed binary failed smoke test',
+        [
+          'Compression may have corrupted the binary',
+          'Decompressor stub may have issues',
+          'Try rebuilding: node scripts/build-custom-node.mjs --clean',
+        ],
+      )
+      throw new Error('Compressed binary failed smoke test')
+    }
+
+    logger.log(`${colors.green('✓')} Compressed binary functional`)
     logger.log('')
 
-    // Create checkpoint for Compressed build (smoke test skipped - decompressor needs fix).
+    // Create checkpoint for Compressed build after successful smoke test.
     const compressedBinarySize = await getFileSize(compressedBinary)
-    await createWorkflowCheckpoint(BUILD_DIR, PACKAGE_NAME, 'compressed', {
+    await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'compressed', {
       binarySize: compressedBinarySize,
       binaryPath: path.relative(BUILD_DIR, compressedBinary),
-      smokeTestSkipped: true,
     })
 
     logger.substep(`Compressed directory: ${compressedDir}`)
@@ -2366,12 +2176,12 @@ async function main() {
   const binaryContent = await fs.readFile(finalBinary)
   const checksum = createHash('sha256').update(binaryContent).digest('hex')
 
-  await createWorkflowCheckpoint(BUILD_DIR, PACKAGE_NAME, 'final', {
+  await createCheckpoint(BUILD_DIR, PACKAGE_NAME, 'final', {
     binarySize,
     checksum,
     binaryPath: path.relative(BUILD_DIR, finalBinary),
   })
-  await cleanWorkflowCheckpoint(BUILD_DIR, PACKAGE_NAME)
+  await cleanCheckpoint(BUILD_DIR, PACKAGE_NAME)
 
   // Calculate total build time.
   const totalDuration = Date.now() - totalStart

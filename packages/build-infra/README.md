@@ -26,11 +26,8 @@ import { RustBuilder } from '@socketsecurity/build-infra/lib/rust-builder'
 // Patch management
 import { applyPatch, applyPatchDirectory } from '@socketsecurity/build-infra/lib/patch-validator'
 
-// Checkpoint system (for GitHub Actions workflow checkpoints)
-import { createWorkflowCheckpoint, cleanWorkflowCheckpoint, hasCheckpoint } from '@socketsecurity/build-infra/lib/checkpoint-manager'
-
-// Local checkpoints (for build resumption)
-import { createLocalCheckpoint, restoreLocalCheckpoint } from '@socketsecurity/node-smol-builder/scripts/common/build.mjs'
+// Checkpoint system
+import { createCheckpoint, cleanCheckpoint, hasCheckpoint } from '@socketsecurity/build-infra/lib/checkpoint-manager'
 ```
 
 ## Usage

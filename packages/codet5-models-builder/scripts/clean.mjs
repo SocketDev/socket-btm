@@ -6,7 +6,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { printHeader, printSuccess } from 'build-infra/lib/build-output'
-import { cleanWorkflowCheckpoint } from 'build-infra/lib/checkpoint-manager'
+import { cleanCheckpoint } from 'build-infra/lib/checkpoint-manager'
 
 import { safeDelete } from '@socketsecurity/lib/fs'
 import loggerPkg from '@socketsecurity/lib/logger'
@@ -32,8 +32,8 @@ async function main() {
   // Clean checkpoints for both int4 and int8 builds.
   const int8BuildDir = path.join(ROOT_DIR, 'build', 'int8')
   const int4BuildDir = path.join(ROOT_DIR, 'build', 'int4')
-  await cleanWorkflowCheckpoint(int8BuildDir, 'codet5-models')
-  await cleanWorkflowCheckpoint(int4BuildDir, 'codet5-models')
+  await cleanCheckpoint(int8BuildDir, 'codet5-models')
+  await cleanCheckpoint(int4BuildDir, 'codet5-models')
 
   printSuccess('Clean complete')
 }

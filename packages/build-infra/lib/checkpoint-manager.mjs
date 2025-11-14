@@ -80,7 +80,7 @@ export async function hasCheckpoint(buildDir, packageName, checkpointName) {
  * @param {object} data - Checkpoint data (must include binaryPath: path to binary to checkpoint)
  * @returns {Promise<void>}
  */
-export async function createWorkflowCheckpoint(
+export async function createCheckpoint(
   buildDir,
   packageName,
   checkpointName,
@@ -98,14 +98,13 @@ export async function createWorkflowCheckpoint(
   )
 
   // If binaryPath is provided, copy the binary to checkpoint
-  let binaryCheckpointPath = null
   if (data.binaryPath) {
     const path = await import('node:path')
     const binaryPath = path.default.isAbsolute(data.binaryPath)
       ? data.binaryPath
       : path.default.join(buildDir, data.binaryPath)
 
-    binaryCheckpointPath = checkpointFile.replace('.json', '.bin')
+    const binaryCheckpointPath = checkpointFile.replace('.json', '.bin')
     await fs.copyFile(binaryPath, binaryCheckpointPath)
     printSubstep(`Binary saved: ${path.default.basename(binaryCheckpointPath)}`)
   }
@@ -113,8 +112,6 @@ export async function createWorkflowCheckpoint(
   const checkpointData = {
     created: new Date().toISOString(),
     name: checkpointName,
-    package: packageName,
-    hasBinary: !!binaryCheckpointPath,
     ...data,
   }
 
@@ -155,7 +152,7 @@ export async function getCheckpointData(buildDir, packageName, checkpointName) {
  * @param {string} packageName - Package name
  * @returns {Promise<void>}
  */
-export async function cleanWorkflowCheckpoint(buildDir, packageName) {
+export async function cleanCheckpoint(buildDir, packageName) {
   printStep(`Cleaning checkpoints for ${packageName}`)
 
   const checkpointDir = getCheckpointDir(buildDir, packageName)

@@ -6,7 +6,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { printHeader, printSuccess } from 'build-infra/lib/build-output'
-import { cleanWorkflowCheckpoint } from 'build-infra/lib/checkpoint-manager'
+import { cleanCheckpoint } from 'build-infra/lib/checkpoint-manager'
 
 import { safeDelete } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
@@ -24,7 +24,7 @@ async function main() {
   await safeDelete(BUILD_DIR)
 
   // Clean checkpoints.
-  await cleanWorkflowCheckpoint(BUILD_DIR, 'yoga-layout')
+  await cleanCheckpoint(BUILD_DIR, 'yoga-layout')
 
   printSuccess('Clean complete')
 }

@@ -232,7 +232,9 @@ async function optimizeModels() {
 }
 
 /**
- * Verify models can load with ONNX Runtime WASM.
+ * Verify models are valid ONNX files.
+ *
+ * Uses onnxruntime-node (native) to validate model structure.
  */
 async function verifyModels() {
   if (!(await shouldRun(BUILD_DIR, 'codet5-models', 'verified', FORCE_BUILD))) {
@@ -243,45 +245,56 @@ async function verifyModels() {
 
   const encoderPath = path.join(BUILD_DIR, 'encoder_model.onnx')
 
-  // Verify ONNX file is valid.
+  // Basic validation: Check file exists and is not empty.
   const stats = await fs.stat(encoderPath)
   if (stats.size === 0) {
     throw new Error('Encoder model is empty')
   }
 
-  // Check if onnxruntime WASM is available.
-  const onnxruntimePath = path.join(
-    ROOT_DIR,
-    '..',
-    'onnxruntime-builder',
-    'build',
-    'wasm',
-    'ort-sync.js',
-  )
+  printStep(`Model file size: ${stats.size} bytes`)
 
-  if (!existsSync(onnxruntimePath)) {
-    printWarning('ONNX Runtime WASM not found, skipping model verification')
-    printWarning('Build onnxruntime-builder first to enable model verification')
-    await createCheckpoint(BUILD_DIR, 'codet5-models', 'verified')
-    return
+  // Verify ONNX protobuf format.
+  const buffer = await fs.readFile(encoderPath)
+
+  // ONNX models are Protocol Buffer files with specific structure.
+  // Check for valid protobuf format (field markers in first bytes).
+  if (buffer.length < 100) {
+    throw new Error('Model file too small to be valid ONNX')
   }
 
-  // Smoke test: Load model with ONNX Runtime WASM.
-  printStep('Testing encoder model with ONNX Runtime WASM...')
-  try {
-    // Dynamically import ONNX Runtime.
-    const ort = await import(onnxruntimePath)
+  // Check for common ONNX/protobuf patterns in header.
+  // ONNX models typically start with field 1 (IR version): 0x08
+  // or may have other valid protobuf field markers.
+  const firstByte = buffer[0]
+  const validProtobufStart = firstByte === 0x08 || firstByte === 0x0a
 
-    // Read the model file.
-    const modelBuffer = await fs.readFile(encoderPath)
+  if (!validProtobufStart) {
+    throw new Error(
+      `Invalid ONNX protobuf header (expected 0x08 or 0x0a, got 0x${firstByte.toString(16).padStart(2, '0')})`,
+    )
+  }
+
+  printStep('ONNX protobuf format valid')
+
+  // Smoke test: Load model with ONNX Runtime (native Node.js).
+  printStep('Testing model loading with ONNX Runtime...')
+  try {
+    // Dynamically import onnxruntime-node (dev dependency).
+    const ort = await import('onnxruntime-node')
 
     // Create an inference session (validates model structure).
-    const session = await ort.InferenceSession.create(modelBuffer)
+    const session = await ort.InferenceSession.create(encoderPath)
 
-    printStep(`Model loaded successfully (${stats.size} bytes)`)
+    printStep(`Model loaded successfully`)
     printStep(`Input names: ${session.inputNames.join(', ')}`)
     printStep(`Output names: ${session.outputNames.join(', ')}`)
   } catch (e) {
+    // If onnxruntime-node is not installed, provide helpful error.
+    if (e.code === 'ERR_MODULE_NOT_FOUND') {
+      throw new Error(
+        'onnxruntime-node not found. Run: pnpm install --filter codet5-models-builder',
+      )
+    }
     throw new Error(`Failed to load model with ONNX Runtime: ${e.message}`)
   }
 

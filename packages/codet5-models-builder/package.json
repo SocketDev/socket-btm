@@ -12,5 +12,8 @@
   "dependencies": {
     "build-infra": "workspace:*",
     "@socketsecurity/lib": "catalog:"
+  },
+  "devDependencies": {
+    "onnxruntime-node": "^1.20.1"
   }
 }

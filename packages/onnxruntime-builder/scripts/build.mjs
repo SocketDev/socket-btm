@@ -36,7 +36,7 @@ import {
 import { ensureEmscripten } from 'build-infra/lib/emscripten-installer'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 
-import { whichBinSync } from '@socketsecurity/lib/bin'
+import { whichSync } from '@socketsecurity/lib/bin'
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { safeDelete, safeReadFile } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
@@ -250,7 +250,9 @@ async function cloneOnnxSource() {
     // Helps debug if we get unexpected pattern variations.
     postBuildContent = postBuildContent.replace(
       /Unexpected number of matches for "" in "": \./,
-      'Unexpected number of Worker URL matches: found ${matches.length}, expected 1. Pattern: ${regex}',
+      'Unexpected number of Worker URL matches: found $' +
+        '{matches.length}, expected 1. Pattern: $' +
+        '{regex}',
     )
 
     await fs.writeFile(postBuildSourcePath, postBuildContent, 'utf-8')
@@ -341,7 +343,7 @@ async function build() {
   // in cmake/onnxruntime_webassembly.cmake after cloning.
 
   // Check if Ninja is available for faster builds
-  const ninjaAvailable = whichBinSync('ninja', { nothrow: true })
+  const ninjaAvailable = whichSync('ninja', { nothrow: true })
 
   printStep(`Build mode: ${BUILD_MODE}`)
 

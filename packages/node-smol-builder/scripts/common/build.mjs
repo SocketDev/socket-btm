@@ -121,12 +121,11 @@ import {
 import colors from 'yoctocolors-cjs'
 
 import { parseArgs } from '@socketsecurity/lib/argv/parse'
-import { whichBinSync } from '@socketsecurity/lib/bin'
+import { whichSync, which } from '@socketsecurity/lib/bin'
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
-import { which } from '@socketsecurity/lib/which'
 
 // Node.js version to build
 const NODE_VERSION = 'v24.10.0'
@@ -163,7 +162,7 @@ async function exec(command, args = [], options = {}) {
  * Check if a command exists in PATH.
  */
 function commandExists(cmd) {
-  return !!whichBinSync(cmd, { nothrow: true })
+  return !!whichSync(cmd, { nothrow: true })
 }
 
 // Parse arguments.
@@ -534,7 +533,7 @@ async function checkRequiredTools() {
   // Step 6: Check manual tools.
   let allManualAvailable = true
   for (const { cmd, name } of manualTools) {
-    const binPath = whichBinSync(cmd, { nothrow: true })
+    const binPath = whichSync(cmd, { nothrow: true })
     if (binPath) {
       logger.log(`${colors.green('✓')} ${name} is available`)
     } else {
@@ -548,7 +547,7 @@ async function checkRequiredTools() {
     const missingTools = [
       ...result.missing,
       ...manualTools
-        .filter(t => !whichBinSync(t.cmd, { nothrow: true }))
+        .filter(t => !whichSync(t.cmd, { nothrow: true }))
         .map(t => t.name),
     ]
 
@@ -1480,7 +1479,7 @@ async function main() {
 
     try {
       // Resolve full path to ninja for execution
-      const ninjaCommand = whichBinSync('ninja')
+      const ninjaCommand = whichSync('ninja')
       // Use all available CPU cores for parallel compilation (matching Node.js official builds)
       await exec(ninjaCommand, ['-C', 'out/Release', `-j${CPU_COUNT}`], {
         cwd: NODE_DIR,

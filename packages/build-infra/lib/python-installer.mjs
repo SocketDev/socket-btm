@@ -7,7 +7,7 @@
 import binPkg from '@socketsecurity/lib/bin'
 import spawnPkg from '@socketsecurity/lib/spawn'
 
-const { whichBinSync } = binPkg
+const { whichSync } = binPkg
 const { spawn } = spawnPkg
 
 import {
@@ -25,8 +25,7 @@ import { getPinnedPackage } from './pinned-versions.mjs'
  */
 export function checkPipAvailable() {
   return !!(
-    whichBinSync('pip3', { nothrow: true }) ||
-    whichBinSync('pip', { nothrow: true })
+    whichSync('pip3', { nothrow: true }) || whichSync('pip', { nothrow: true })
   )
 }
 
@@ -36,11 +35,11 @@ export function checkPipAvailable() {
  * @returns {string|null} Resolved pip command path or null if not found.
  */
 export function getPipCommand() {
-  const pip3Path = whichBinSync('pip3', { nothrow: true })
+  const pip3Path = whichSync('pip3', { nothrow: true })
   if (pip3Path) {
     return pip3Path
   }
-  const pipPath = whichBinSync('pip', { nothrow: true })
+  const pipPath = whichSync('pip', { nothrow: true })
   if (pipPath) {
     return pipPath
   }
@@ -55,8 +54,8 @@ export function getPipCommand() {
  */
 export async function checkPythonPackage(packageName) {
   try {
-    const python3Path = whichBinSync('python3', { nothrow: true })
-    const pythonPath = whichBinSync('python', { nothrow: true })
+    const python3Path = whichSync('python3', { nothrow: true })
+    const pythonPath = whichSync('python', { nothrow: true })
     const pythonCmd = python3Path || pythonPath
     if (!pythonCmd) {
       return false

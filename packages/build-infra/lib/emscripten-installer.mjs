@@ -13,7 +13,7 @@ import binPkg from '@socketsecurity/lib/bin'
 import platformPkg from '@socketsecurity/lib/constants/platform'
 import spawnPkg from '@socketsecurity/lib/spawn'
 
-const { whichBinSync } = binPkg
+const { whichSync } = binPkg
 const { WIN32 } = platformPkg
 const { spawn } = spawnPkg
 
@@ -38,7 +38,7 @@ export function getDefaultEmsdkPath() {
  * @returns {boolean} True if emcc is in PATH.
  */
 export function checkEmscriptenAvailable() {
-  return !!whichBinSync('emcc', { nothrow: true })
+  return !!whichSync('emcc', { nothrow: true })
 }
 
 /**
@@ -80,7 +80,7 @@ export async function installEmscripten({
   const emsdkPath = path || getDefaultEmsdkPath()
 
   // Check if git is available.
-  if (!whichBinSync('git', { nothrow: true })) {
+  if (!whichSync('git', { nothrow: true })) {
     if (!quiet) {
       printError('git is required to install Emscripten SDK')
     }

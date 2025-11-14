@@ -5,10 +5,8 @@
  * and configured for building native dependencies.
  */
 
-import binPkg from '@socketsecurity/lib/bin'
 import spawnPkg from '@socketsecurity/lib/spawn'
 
-const { whichBinSync } = binPkg
 const { spawn } = spawnPkg
 
 import {

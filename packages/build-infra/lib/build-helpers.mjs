@@ -8,12 +8,11 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
-import binPkg from '@socketsecurity/lib/bin'
+import binPkg, { which } from '@socketsecurity/lib/bin'
 import platformPkg from '@socketsecurity/lib/constants/platform'
 import spawnPkg from '@socketsecurity/lib/spawn'
-import { which } from '@socketsecurity/lib/which'
 
-const { whichBinSync } = binPkg
+const { whichSync } = binPkg
 const { WIN32 } = platformPkg
 const { spawn } = spawnPkg
 
@@ -119,7 +118,7 @@ export async function checkCompiler(compilers) {
   for (const compiler of compilerList) {
     printStep(`Checking for ${compiler}`)
 
-    const binPath = whichBinSync(compiler, { nothrow: true })
+    const binPath = whichSync(compiler, { nothrow: true })
     if (binPath) {
       return { available: true, compiler }
     }

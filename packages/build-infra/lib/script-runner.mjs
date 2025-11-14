@@ -3,10 +3,10 @@
  * Provides DRY helpers for running pnpm scripts, commands, and sequences.
  */
 
+import { which } from '@socketsecurity/lib/bin'
 import platformPkg from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import spawnPkg from '@socketsecurity/lib/spawn'
-import { which } from '@socketsecurity/lib/which'
 
 const { WIN32 } = platformPkg
 const logger = getDefaultLogger()

@@ -36,10 +36,10 @@ import {
 import { ensureEmscripten } from 'build-infra/lib/emscripten-installer'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 
+import { which } from '@socketsecurity/lib/bin'
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
-import { which } from '@socketsecurity/lib/which'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

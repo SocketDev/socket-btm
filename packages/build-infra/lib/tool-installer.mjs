@@ -9,12 +9,11 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import binPkg from '@socketsecurity/lib/bin'
+import binPkg, { which } from '@socketsecurity/lib/bin'
 import platformPkg from '@socketsecurity/lib/constants/platform'
 import spawnPkg from '@socketsecurity/lib/spawn'
-import { which } from '@socketsecurity/lib/which'
 
-const { whichBinSync } = binPkg
+const { whichSync } = binPkg
 const { WIN32 } = platformPkg
 const { spawn } = spawnPkg
 
@@ -222,7 +221,7 @@ export function detectPackageManagers() {
 
   for (const managerName of config.available) {
     const managerConfig = config[managerName]
-    if (whichBinSync(managerConfig.binary, { nothrow: true })) {
+    if (whichSync(managerConfig.binary, { nothrow: true })) {
       managers.push(managerName)
     }
   }
@@ -269,7 +268,7 @@ export async function installPackageManager(
   }
 
   // Check if already installed.
-  if (whichBinSync(managerConfig.binary, { nothrow: true })) {
+  if (whichSync(managerConfig.binary, { nothrow: true })) {
     printSubstep(`${managerConfig.name} is already installed`)
     return true
   }
@@ -314,7 +313,7 @@ export async function installPackageManager(
     }
 
     // Verify installation.
-    const installed = whichBinSync(managerConfig.binary, { nothrow: true })
+    const installed = whichSync(managerConfig.binary, { nothrow: true })
     if (installed) {
       printSubstep(`✅ ${managerConfig.name} installed successfully`)
       return true
@@ -579,7 +578,7 @@ export async function installTool(
     }
 
     // Verify installation.
-    const installed = whichBinSync(tool, { nothrow: true })
+    const installed = whichSync(tool, { nothrow: true })
     if (installed) {
       printSubstep(`✅ ${tool} installed successfully`)
       return true
@@ -607,7 +606,7 @@ export async function ensureToolInstalled(
   { autoInstall = true, autoYes = false } = {},
 ) {
   // Check if already installed.
-  const binPath = whichBinSync(tool, { nothrow: true })
+  const binPath = whichSync(tool, { nothrow: true })
   if (binPath) {
     return { available: true, installed: false, packageManager: null }
   }

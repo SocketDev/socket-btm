@@ -200,6 +200,7 @@ async function configure() {
           '--gc-sections', // Garbage collect unused sections.
           '-flto=thin',
           '-Oz',
+          '-sDISABLE_EXCEPTION_CATCHING=1', // Disable exception catching (we use -fno-exceptions).
           '-sALLOW_MEMORY_GROWTH=1', // Dynamic memory.
           '-sASSERTIONS=0', // No runtime assertions (smaller, faster).
           '-sEXPORT_ES6=1', // ES6 module export.
@@ -215,6 +216,7 @@ async function configure() {
       : [
           // Development: Faster linking, debug info.
           '-O1',
+          '-sDISABLE_EXCEPTION_CATCHING=1', // Disable exception catching (we use -fno-exceptions).
           '-sALLOW_MEMORY_GROWTH=1',
           '-sASSERTIONS=2', // Enable runtime assertions for debugging.
           '-sEXPORT_ES6=1',
@@ -301,41 +303,59 @@ async function build() {
   const wasmOutput = path.join(cmakeBuildDir, 'yoga.wasm')
   const jsOutput = path.join(cmakeBuildDir, 'yoga.js')
 
-  // Use optimization flags (note: bindings require RTTI and exceptions).
-  const cxxFlags = [
-    '-Oz',
-    '-flto=thin',
-    '-ffunction-sections',
-    '-fdata-sections',
-    '-ffast-math',
-    '-fno-finite-math-only',
-  ]
+  // Use optimization flags for final linking (respecting BUILD_MODE).
+  // Note: Emscripten bindings require RTTI, so we can't use -fno-rtti here.
+  const linkCxxFlags =
+    BUILD_MODE === 'prod'
+      ? [
+          '-Oz',
+          '-flto=thin',
+          '-ffunction-sections',
+          '-fdata-sections',
+          '-ffast-math',
+          '-fno-finite-math-only',
+        ]
+      : ['-O1']
 
-  const linkerFlags = [
-    '--closure=1',
-    '-Wl,--gc-sections',
-    '-flto=thin',
-    '-Oz',
-    '-sALLOW_MEMORY_GROWTH=1',
-    '-sASSERTIONS=0',
-    '-sEXPORT_ES6=1',
-    '-sFILESYSTEM=0',
-    '-sINITIAL_MEMORY=64KB',
-    '-sMALLOC=emmalloc',
-    '-sMODULARIZE=1',
-    '-sNO_EXIT_RUNTIME=1',
-    '-sSTACK_SIZE=16KB',
-    '-sSUPPORT_LONGJMP=0',
-    '--bind',
-  ]
+  const linkLinkerFlags =
+    BUILD_MODE === 'prod'
+      ? [
+          '--closure=1',
+          '-Wl,--gc-sections',
+          '-flto=thin',
+          '-Oz',
+          '-sDISABLE_EXCEPTION_CATCHING=1',
+          '-sALLOW_MEMORY_GROWTH=1',
+          '-sASSERTIONS=0',
+          '-sEXPORT_ES6=1',
+          '-sFILESYSTEM=0',
+          '-sINITIAL_MEMORY=64KB',
+          '-sMALLOC=emmalloc',
+          '-sMODULARIZE=1',
+          '-sNO_EXIT_RUNTIME=1',
+          '-sSTACK_SIZE=16KB',
+          '-sSUPPORT_LONGJMP=0',
+          '--bind',
+        ]
+      : [
+          '-sDISABLE_EXCEPTION_CATCHING=1',
+          '-sALLOW_MEMORY_GROWTH=1',
+          '-sASSERTIONS=2',
+          '-sEXPORT_ES6=1',
+          '-sFILESYSTEM=0',
+          '-sMODULARIZE=1',
+          '-sNO_EXIT_RUNTIME=1',
+          '-sWASM_ASYNC_COMPILATION=0',
+          '--bind',
+        ]
 
   // Compile and link in one step.
   const emArgs = [
     `-I${path.join(BUILD_DIR, 'yoga-source')}`,
-    ...cxxFlags,
+    ...linkCxxFlags,
     bindingsFile,
     staticLib,
-    ...linkerFlags,
+    ...linkLinkerFlags,
     '-o',
     jsOutput,
   ]

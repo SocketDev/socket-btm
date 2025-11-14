@@ -153,12 +153,18 @@ importers:
 
   packages/onnxruntime-builder:
     dependencies:
+      '@babel/parser':
+        specifier: 'catalog:'
+        version: 7.28.4
       '@socketsecurity/lib':
         specifier: 'catalog:'
         version: 3.3.1(typescript@5.9.3)
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
+      magic-string:
+        specifier: 'catalog:'
+        version: 0.30.19
     devDependencies:
       vitest:
         specifier: 'catalog:'
@@ -1992,7 +1998,7 @@ snapshots:
   '@babel/template@7.27.2':
     dependencies:
       '@babel/code-frame': 7.27.1
-      '@babel/parser': 7.28.4
+      '@babel/parser': 7.28.5
       '@babel/types': 7.28.5
 
   '@babel/traverse@7.28.4':

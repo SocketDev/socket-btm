@@ -33,14 +33,16 @@ export function checkPipAvailable() {
 /**
  * Get pip command (pip3 or pip).
  *
- * @returns {string|null} pip command or null if not found.
+ * @returns {string|null} Resolved pip command path or null if not found.
  */
 export function getPipCommand() {
-  if (whichBinSync('pip3', { nothrow: true })) {
-    return 'pip3'
+  const pip3Path = whichBinSync('pip3', { nothrow: true })
+  if (pip3Path) {
+    return pip3Path
   }
-  if (whichBinSync('pip', { nothrow: true })) {
-    return 'pip'
+  const pipPath = whichBinSync('pip', { nothrow: true })
+  if (pipPath) {
+    return pipPath
   }
   return null
 }
@@ -53,9 +55,12 @@ export function getPipCommand() {
  */
 export async function checkPythonPackage(packageName) {
   try {
-    const pythonCmd = whichBinSync('python3', { nothrow: true })
-      ? 'python3'
-      : 'python'
+    const python3Path = whichBinSync('python3', { nothrow: true })
+    const pythonPath = whichBinSync('python', { nothrow: true })
+    const pythonCmd = python3Path || pythonPath
+    if (!pythonCmd) {
+      return false
+    }
     const result = await spawn(pythonCmd, ['-c', `import ${packageName}`], {
       stdio: 'pipe',
     })
@@ -190,6 +195,7 @@ export async function ensureAllPythonPackages(
     const packageName = typeof pkg === 'string' ? pkg : pkg.name
     const importName = typeof pkg === 'string' ? undefined : pkg.importName
 
+    // eslint-disable-next-line no-await-in-loop
     const result = await ensurePythonPackage(packageName, {
       importName,
       autoInstall,

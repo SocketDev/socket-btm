@@ -33,8 +33,12 @@ import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import { ensureAllPythonPackages } from 'build-infra/lib/python-installer'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
+
+// eslint-disable-next-line import-x/no-unresolved
+import * as ort from 'onnxruntime-node'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -133,7 +137,7 @@ async function convertToOnnx() {
   const convertCommand = `python3 -m optimum.exporters.onnx -m ${MODELS_DIR} --task seq2seq-lm --opset 14 ${BUILD_DIR}`
 
   const convertResult = await spawn(convertCommand, [], {
-    shell: true,
+    shell: WIN32,
     stdio: 'inherit',
   })
 
@@ -214,7 +218,7 @@ async function quantizeModels() {
     `quantize_dynamic('${encoderPath}', '${encoderPath}.quant', weight_type=QuantType.QInt8)"`
 
   const quantizeEncoderResult = await spawn(quantizeEncoderCommand, [], {
-    shell: true,
+    shell: WIN32,
     stdio: 'inherit',
   })
 
@@ -229,7 +233,7 @@ async function quantizeModels() {
     `quantize_dynamic('${decoderPath}', '${decoderPath}.quant', weight_type=QuantType.QInt8)"`
 
   const quantizeDecoderResult = await spawn(quantizeDecoderCommand, [], {
-    shell: true,
+    shell: WIN32,
     stdio: 'inherit',
   })
 
@@ -334,7 +338,7 @@ async function optimizeModels() {
     `opt.save_model_to_file('${optimizedEncoderPath}')"`
 
   const optimizeEncoderResult = await spawn(optimizeEncoderCommand, [], {
-    shell: true,
+    shell: WIN32,
     stdio: 'inherit',
   })
 
@@ -350,7 +354,7 @@ async function optimizeModels() {
     `opt.save_model_to_file('${optimizedDecoderPath}')"`
 
   const optimizeDecoderResult = await spawn(optimizeDecoderCommand, [], {
-    shell: true,
+    shell: WIN32,
     stdio: 'inherit',
   })
 
@@ -475,16 +479,6 @@ async function exportModels() {
       printStep('ONNX protobuf format valid')
 
       // Comprehensive test: Load model with ONNX Runtime (native Node.js).
-      // eslint-disable-next-line import-x/no-unresolved
-      const ort = await import('onnxruntime-node').catch(e => {
-        if (e.code === 'ERR_MODULE_NOT_FOUND') {
-          throw new Error(
-            'onnxruntime-node not found. Run: pnpm install --filter codet5-models-builder',
-          )
-        }
-        throw e
-      })
-
       const session = await ort.InferenceSession.create(outputEncoder)
 
       printStep('Model loaded successfully')

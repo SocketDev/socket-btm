@@ -1,8 +1,11 @@
 /**
  * Generate cache keys with version and content hash for proper invalidation.
  *
- * Cache directory format: v{nodeVersion}-{arch}-{contentHash}-{pkgVersion}
- * Example: v24.10.0-arm64-b71671ba-2.1.5
+ * Cache directory format: v{nodeVersion}-{platform}-{arch}-{contentHash}-{pkgVersion}
+ * Example: v24.10.0-darwin-arm64-b71671ba-2.1.5
+ *
+ * Platform and arch should be specified explicitly for cross-compilation builds.
+ * Defaults to current system values if not provided.
  *
  * Cache-busting dependencies:
  * - Bootstrap: @socketsecurity/lib, @socketsecurity/packageurl-js
@@ -51,7 +54,7 @@ function getDependencyVersions(packageJsonPath, depNames) {
     }
 
     return versions
-  } catch (_error) {
+  } catch {
     return {}
   }
 }
@@ -61,8 +64,8 @@ function getDependencyVersions(packageJsonPath, depNames) {
  *
  * @param {object} options
  * @param {string} options.nodeVersion - Node.js version (e.g., '24.10.0')
- * @param {string} [options.platform] - Platform (defaults to current)
- * @param {string} [options.arch] - Architecture (defaults to current)
+ * @param {string} [options.platform] - Platform (e.g., 'darwin', 'linux', 'win32') - defaults to current
+ * @param {string} [options.arch] - Architecture (e.g., 'arm64', 'x64') - defaults to current
  * @param {string} options.packageVersion - Package version from package.json
  * @param {string} [options.packageName] - Package name for dependency tracking (e.g., 'bootstrap', 'cli')
  * @param {string} [options.packageJsonPath] - Path to package.json for dependency resolution
@@ -87,7 +90,7 @@ export function generateCacheKey({
     try {
       const content = readFileSync(file, 'utf8')
       hash.update(content)
-    } catch (_error) {
+    } catch {
       // File doesn't exist - use filename in hash.
       hash.update(file)
     }
@@ -107,8 +110,9 @@ export function generateCacheKey({
 
   const contentHash = hash.digest('hex').slice(0, 8)
 
-  // Format: v{nodeVersion}-{arch}-{contentHash}-{pkgVersion}
-  return `v${nodeVersion}-${targetArch}-${contentHash}-${packageVersion.replace(/\./g, '')}`
+  // Format: v{nodeVersion}-{platform}-{arch}-{contentHash}-{pkgVersion}
+  // Platform and arch default to current system values
+  return `v${nodeVersion}-${targetPlatform}-${targetArch}-${contentHash}-${packageVersion.replace(/\./g, '')}`
 }
 
 /**
@@ -118,16 +122,19 @@ export function generateCacheKey({
  * @returns {object|null}
  */
 export function parseCacheKey(cacheKey) {
-  const match = cacheKey.match(/^v([\d.]+)-(\w+)-([a-f0-9]+)-(\d+)$/)
+  // Format: v{nodeVersion}-{platform}-{arch}-{contentHash}-{pkgVersion}
+  const match = cacheKey.match(/^v([\d.]+)-(\w+)-(\w+)-([a-f0-9]+)-(\d+)$/)
   if (!match) {
     return null
   }
 
   return {
     nodeVersion: match[1],
-    arch: match[2],
-    contentHash: match[3],
-    packageVersion: match[4].replace(/(\d)(\d)(\d)/, '$1.$2.$3'), // Restore dots.
+    platform: match[2],
+    arch: match[3],
+    contentHash: match[4],
+    // Restore dots.
+    packageVersion: match[5].replace(/(\d)(\d)(\d)/, '$1.$2.$3'),
   }
 }
 

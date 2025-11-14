@@ -48,9 +48,15 @@ const args = process.argv.slice(2)
 const FORCE_BUILD = args.includes('--force')
 const CLEAN_BUILD = args.includes('--clean')
 
+// Build mode: prod (default for CI) or dev (default for local, faster builds).
+const IS_CI = Boolean(process.env.CI)
+const PROD_BUILD = args.includes('--prod')
+const DEV_BUILD = args.includes('--dev')
+const BUILD_MODE = PROD_BUILD ? 'prod' : DEV_BUILD ? 'dev' : IS_CI ? 'prod' : 'dev'
+
 // Configuration.
 const ROOT_DIR = path.join(__dirname, '..')
-const BUILD_DIR = path.join(ROOT_DIR, 'build')
+const BUILD_DIR = path.join(ROOT_DIR, 'build', BUILD_MODE)
 const OUTPUT_DIR = path.join(BUILD_DIR, 'wasm')
 // Read Yoga version from package.json (matches Yoga Layout release version).
 const packageJson = JSON.parse(
@@ -135,37 +141,60 @@ async function configure() {
   }
 
   printStep(`Using toolchain: ${toolchainFile}`)
+  printStep(`Build mode: ${BUILD_MODE}`)
 
-  // Configure CMake with aggressive size + performance optimizations.
-  // MAXIMUM AGGRESSIVE - NO BACKWARDS COMPATIBILITY!
-  const cxxFlags = [
-    '-Oz', // Optimize aggressively for size.
-    '-flto=thin', // Thin LTO for faster builds, similar size reduction.
-    '-fno-exceptions', // No C++ exceptions (smaller).
-    '-fno-rtti', // No runtime type information (smaller).
-    '-ffunction-sections', // Separate functions for better dead code elimination.
-    '-fdata-sections', // Separate data sections.
-    '-ffast-math', // Fast math optimizations (performance).
-    '-fno-finite-math-only', // Re-enable infinity checks (Yoga needs this).
-  ]
+  // Configure optimization flags based on build mode.
+  const cxxFlags =
+    BUILD_MODE === 'prod'
+      ? [
+          // Production: Maximum size + performance optimizations.
+          '-Oz', // Optimize aggressively for size.
+          '-flto=thin', // Thin LTO for faster builds, similar size reduction.
+          '-fno-exceptions', // No C++ exceptions (smaller).
+          '-fno-rtti', // No runtime type information (smaller).
+          '-ffunction-sections', // Separate functions for better dead code elimination.
+          '-fdata-sections', // Separate data sections.
+          '-ffast-math', // Fast math optimizations (performance).
+          '-fno-finite-math-only', // Re-enable infinity checks (Yoga needs this).
+        ]
+      : [
+          // Development: Faster compilation, larger output.
+          '-O1', // Basic optimization (fast compile).
+          '-fno-exceptions',
+          '-fno-rtti',
+        ]
 
-  const linkerFlags = [
-    '--closure=1', // Google Closure Compiler (aggressive minification).
-    '--gc-sections', // Garbage collect unused sections.
-    '-flto=thin',
-    '-Oz',
-    '-sALLOW_MEMORY_GROWTH=1', // Dynamic memory.
-    '-sASSERTIONS=0', // No runtime assertions (smaller, faster).
-    '-sEXPORT_ES6=1', // ES6 module export.
-    '-sFILESYSTEM=0', // No filesystem support (smaller).
-    '-sINITIAL_MEMORY=64KB', // Minimal initial memory.
-    '-sMALLOC=emmalloc', // Smaller allocator.
-    '-sMODULARIZE=1', // Modular output.
-    '-sNO_EXIT_RUNTIME=1', // Keep runtime alive (needed for WASM).
-    '-sSTACK_SIZE=16KB', // Small stack.
-    '-sSUPPORT_LONGJMP=0', // No longjmp (smaller).
-    '-sWASM_ASYNC_COMPILATION=0', // CRITICAL: Synchronous instantiation for bundling.
-  ]
+  const linkerFlags =
+    BUILD_MODE === 'prod'
+      ? [
+          // Production: Aggressive minification.
+          '--closure=1', // Google Closure Compiler (aggressive minification).
+          '--gc-sections', // Garbage collect unused sections.
+          '-flto=thin',
+          '-Oz',
+          '-sALLOW_MEMORY_GROWTH=1', // Dynamic memory.
+          '-sASSERTIONS=0', // No runtime assertions (smaller, faster).
+          '-sEXPORT_ES6=1', // ES6 module export.
+          '-sFILESYSTEM=0', // No filesystem support (smaller).
+          '-sINITIAL_MEMORY=64KB', // Minimal initial memory.
+          '-sMALLOC=emmalloc', // Smaller allocator.
+          '-sMODULARIZE=1', // Modular output.
+          '-sNO_EXIT_RUNTIME=1', // Keep runtime alive (needed for WASM).
+          '-sSTACK_SIZE=16KB', // Small stack.
+          '-sSUPPORT_LONGJMP=0', // No longjmp (smaller).
+          '-sWASM_ASYNC_COMPILATION=0', // Synchronous instantiation for bundling.
+        ]
+      : [
+          // Development: Faster linking, debug info.
+          '-O1',
+          '-sALLOW_MEMORY_GROWTH=1',
+          '-sASSERTIONS=2', // Enable runtime assertions for debugging.
+          '-sEXPORT_ES6=1',
+          '-sFILESYSTEM=0',
+          '-sMODULARIZE=1',
+          '-sNO_EXIT_RUNTIME=1',
+          '-sWASM_ASYNC_COMPILATION=0',
+        ]
 
   const cmakeArgs = [
     'cmake',
@@ -569,6 +598,7 @@ async function main() {
   printHeader('🔨 Building yoga-layout')
   const logger = getDefaultLogger()
   logger.info(`Yoga Layout ${YOGA_VERSION} minimal build`)
+  logger.info(`Build mode: ${BUILD_MODE}`)
   logger.info('')
 
   // Clean checkpoints if requested or if output is missing.

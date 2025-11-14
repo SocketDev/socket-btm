@@ -76,7 +76,7 @@ const YOGA_SOURCE_DIR = path.join(BUILD_DIR, 'yoga-source')
  * Clone Yoga source if not already present.
  */
 async function cloneYogaSource() {
-  if (!(await shouldRun(BUILD_DIR, '', 'cloned', FORCE_BUILD))) {
+  if (!(await shouldRun(BUILD_DIR, '', 'source-cloned', FORCE_BUILD))) {
     return
   }
 
@@ -84,7 +84,18 @@ async function cloneYogaSource() {
 
   if (existsSync(YOGA_SOURCE_DIR)) {
     printStep('Yoga source already exists, skipping clone')
-    await createCheckpoint(BUILD_DIR, '', 'cloned')
+    await createCheckpoint(
+      BUILD_DIR,
+      '',
+      'source-cloned',
+      async () => {
+        // Smoke test: Verify source directory exists with CMakeLists.txt
+        const cmakeLists = path.join(YOGA_SOURCE_DIR, 'CMakeLists.txt')
+        await fs.access(cmakeLists)
+        printStep('Source directory validated')
+      },
+      {},
+    )
     return
   }
 
@@ -113,7 +124,18 @@ async function cloneYogaSource() {
   }
 
   printSuccess(`Yoga ${YOGA_VERSION} cloned`)
-  await createCheckpoint(BUILD_DIR, '', 'cloned')
+  await createCheckpoint(
+    BUILD_DIR,
+    '',
+    'source-cloned',
+    async () => {
+      // Smoke test: Verify source directory exists with CMakeLists.txt
+      const cmakeLists = path.join(YOGA_SOURCE_DIR, 'CMakeLists.txt')
+      await fs.access(cmakeLists)
+      printStep('Source directory validated')
+    },
+    {},
+  )
 }
 
 /**
@@ -229,7 +251,18 @@ async function configure() {
   }
 
   printSuccess('CMake configured')
-  await createCheckpoint(BUILD_DIR, '', 'configured')
+  await createCheckpoint(
+    BUILD_DIR,
+    '',
+    'configured',
+    async () => {
+      // Smoke test: Verify CMake build directory exists
+      const cmakeBuildDir = path.join(BUILD_DIR, 'cmake')
+      await fs.access(cmakeBuildDir)
+      printStep('CMake build directory validated')
+    },
+    {},
+  )
 }
 
 /**

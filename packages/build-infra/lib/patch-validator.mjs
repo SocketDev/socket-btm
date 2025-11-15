@@ -8,11 +8,9 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
 import { which } from '@socketsecurity/lib/bin'
-import platformPkg from '@socketsecurity/lib/constants/platform'
-import spawnPkg from '@socketsecurity/lib/spawn'
-
-const { WIN32 } = platformPkg
-const { spawn } = spawnPkg
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
+import { normalizePath } from '@socketsecurity/lib/path'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 import { printError, printStep, printSubstep } from './build-output.mjs'
 
@@ -33,21 +31,36 @@ export async function validatePatch(patchFile, targetDir) {
       return false
     }
 
-    // Read patch content to pass via stdin for better cross-platform compatibility
-    const patchContent = await fs.readFile(patchFile, 'utf8')
+    // Resolve to absolute path and normalize for cross-platform compatibility
+    const absolutePatchFile = normalizePath(path.resolve(patchFile))
 
-    const result = await spawn(patchPath, ['-p1', '--dry-run'], {
-      cwd: targetDir,
-      env: process.env,
-      shell: WIN32,
-      stdio: 'pipe',
-      stdioString: true,
-      input: patchContent,
-    })
+    let result
+    try {
+      result = await spawn(
+        patchPath,
+        ['-p1', '--dry-run', '-i', absolutePatchFile],
+        {
+          cwd: targetDir,
+          env: process.env,
+          shell: WIN32,
+          stdio: 'pipe',
+          stdioString: true,
+        },
+      )
+    } catch (spawnError) {
+      // spawn() throws when command exits with non-zero code
+      result = spawnError
+    }
 
     const exitCode = result.code ?? 0
     if (exitCode !== 0) {
       printError(`Patch validation failed: ${patchFile}`)
+      if (result.stderr) {
+        printError(`stderr: ${result.stderr}`)
+      }
+      if (result.stdout) {
+        printError(`stdout: ${result.stdout}`)
+      }
       return false
     }
 
@@ -73,17 +86,22 @@ export async function applyPatch(patchFile, targetDir) {
     throw new Error('patch not found in PATH')
   }
 
-  // Read patch content to pass via stdin for better cross-platform compatibility
-  const patchContent = await fs.readFile(patchFile, 'utf8')
+  // Resolve to absolute path since we're changing cwd
+  const absolutePatchFile = path.resolve(patchFile)
 
-  const result = await spawn(patchPath, ['-p1'], {
-    cwd: targetDir,
-    env: process.env,
-    shell: WIN32,
-    stdio: 'pipe',
-    stdioString: true,
-    input: patchContent,
-  })
+  let result
+  try {
+    result = await spawn(patchPath, ['-p1', '-i', absolutePatchFile], {
+      cwd: targetDir,
+      env: process.env,
+      shell: WIN32,
+      stdio: 'pipe',
+      stdioString: true,
+    })
+  } catch (spawnError) {
+    // spawn() throws when command exits with non-zero code
+    result = spawnError
+  }
 
   const exitCode = result.code ?? 0
   if (exitCode !== 0) {
@@ -152,17 +170,26 @@ export async function testPatchApplication(patchFile, targetDir) {
       return false
     }
 
-    // Read patch content to pass via stdin for better cross-platform compatibility
-    const patchContent = await fs.readFile(patchFile, 'utf8')
+    // Resolve to absolute path and normalize for cross-platform compatibility
+    const absolutePatchFile = normalizePath(path.resolve(patchFile))
 
-    const result = await spawn(patchPath, ['-p1', '--dry-run', '--reverse'], {
-      cwd: targetDir,
-      env: process.env,
-      shell: WIN32,
-      stdio: 'pipe',
-      stdioString: true,
-      input: patchContent,
-    })
+    let result
+    try {
+      result = await spawn(
+        patchPath,
+        ['-p1', '--dry-run', '--reverse', '-i', absolutePatchFile],
+        {
+          cwd: targetDir,
+          env: process.env,
+          shell: WIN32,
+          stdio: 'pipe',
+          stdioString: true,
+        },
+      )
+    } catch (spawnError) {
+      // spawn() throws when command exits with non-zero code
+      result = spawnError
+    }
 
     // If reverse patch succeeds, the patch has been applied.
     return (result.code ?? 0) === 0
@@ -228,17 +255,26 @@ export async function revertPatch(patchFile, targetDir) {
     throw new Error('patch not found in PATH')
   }
 
-  // Read patch content to pass via stdin for better cross-platform compatibility
-  const patchContent = await fs.readFile(patchFile, 'utf8')
+  // Resolve to absolute path since we're changing cwd
+  const absolutePatchFile = path.resolve(patchFile)
 
-  const result = await spawn(patchPath, ['-p1', '--reverse'], {
-    cwd: targetDir,
-    env: process.env,
-    shell: WIN32,
-    stdio: 'pipe',
-    stdioString: true,
-    input: patchContent,
-  })
+  let result
+  try {
+    result = await spawn(
+      patchPath,
+      ['-p1', '--reverse', '-i', absolutePatchFile],
+      {
+        cwd: targetDir,
+        env: process.env,
+        shell: WIN32,
+        stdio: 'pipe',
+        stdioString: true,
+      },
+    )
+  } catch (spawnError) {
+    // spawn() throws when command exits with non-zero code
+    result = spawnError
+  }
 
   const exitCode = result.code ?? 0
   if (exitCode !== 0) {

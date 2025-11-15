@@ -14,6 +14,7 @@
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
+import { which } from '@socketsecurity/lib/which'
 
 async function main() {
   const quiet = process.argv.includes('--quiet')
@@ -41,7 +42,7 @@ async function main() {
     }
 
     // Run taze (recursive flag will check all packages).
-    const result = await spawn('pnpm', tazeArgs, {
+    const result = await spawn(await which('pnpm'), tazeArgs, {
       shell: WIN32,
       stdio: quiet ? 'pipe' : 'inherit',
     })

@@ -404,7 +404,7 @@ async function build() {
     jsOutput,
   ]
 
-  const emppResult = await spawn('em++', emArgs, {
+  const emppResult = await spawn(await which('em++'), emArgs, {
     shell: WIN32,
     stdio: 'inherit',
   })

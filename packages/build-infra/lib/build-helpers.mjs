@@ -356,7 +356,7 @@ export async function checkNetworkConnectivity() {
     // Platform-specific network connectivity check.
     if (WIN32) {
       // Windows: Use PowerShell's Invoke-WebRequest.
-      const result = await spawn('powershell', [
+      const result = await spawn(await which('powershell'), [
         '-NoProfile',
         '-Command',
         'try { $null = Invoke-WebRequest -Uri "https://github.com" -Method Head -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop; Write-Output "200" } catch { Write-Output "0" }',
@@ -370,7 +370,7 @@ export async function checkNetworkConnectivity() {
     }
 
     // Unix/Linux/macOS: Use curl.
-    const result = await spawn('curl', [
+    const result = await spawn(await which('curl'), [
       '-s',
       '-o',
       '/dev/null',

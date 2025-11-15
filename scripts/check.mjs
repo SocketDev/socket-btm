@@ -15,6 +15,7 @@ import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 import { printHeader, printFooter } from '@socketsecurity/lib/stdio/header'
+import { which } from '@socketsecurity/lib/which'
 
 const logger = getDefaultLogger()
 
@@ -23,7 +24,7 @@ async function runLint(fix = false) {
 
   logger.step(fix ? 'Auto-fixing lint issues' : 'Running lint checks')
 
-  const result = await spawn('pnpm', args, {
+  const result = await spawn(await which('pnpm'), args, {
     shell: WIN32,
     stdio: 'inherit',
   })
@@ -47,7 +48,7 @@ async function runFormat(write = false) {
     ? ['exec', 'biome', 'format', '--write', '.']
     : ['exec', 'biome', 'format', '.']
 
-  const result = await spawn('pnpm', checkArgs, {
+  const result = await spawn(await which('pnpm'), checkArgs, {
     shell: WIN32,
     stdio: 'inherit',
   })

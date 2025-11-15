@@ -33,17 +33,17 @@ export async function validatePatch(patchFile, targetDir) {
       return false
     }
 
-    const result = await spawn(
-      patchPath,
-      ['-p1', '--dry-run', '-i', patchFile],
-      {
-        cwd: targetDir,
-        env: process.env,
-        shell: WIN32,
-        stdio: 'pipe',
-        stdioString: true,
-      },
-    )
+    // Read patch content to pass via stdin for better cross-platform compatibility
+    const patchContent = await fs.readFile(patchFile, 'utf8')
+
+    const result = await spawn(patchPath, ['-p1', '--dry-run'], {
+      cwd: targetDir,
+      env: process.env,
+      shell: WIN32,
+      stdio: 'pipe',
+      stdioString: true,
+      input: patchContent,
+    })
 
     const exitCode = result.code ?? 0
     if (exitCode !== 0) {
@@ -73,11 +73,16 @@ export async function applyPatch(patchFile, targetDir) {
     throw new Error('patch not found in PATH')
   }
 
-  const result = await spawn(patchPath, ['-p1', '-i', patchFile], {
+  // Read patch content to pass via stdin for better cross-platform compatibility
+  const patchContent = await fs.readFile(patchFile, 'utf8')
+
+  const result = await spawn(patchPath, ['-p1'], {
     cwd: targetDir,
     env: process.env,
     shell: WIN32,
-    stdio: 'inherit',
+    stdio: 'pipe',
+    stdioString: true,
+    input: patchContent,
   })
 
   const exitCode = result.code ?? 0

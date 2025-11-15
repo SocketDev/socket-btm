@@ -347,9 +347,7 @@ function findSocketPatches() {
  */
 async function copyBuildAdditions() {
   if (!existsSync(ADDITIONS_RELEASE_DIR)) {
-    logger.log(
-      `   ${colors.cyan('↻')} No build additions directory found, skipping`,
-    )
+    logger.skip('No build additions directory found, skipping')
     return
   }
 
@@ -1128,7 +1126,7 @@ async function main() {
   if (
     !(await shouldRun(BUILD_DIR, PACKAGE_NAME, 'patches-applied', CLEAN_BUILD))
   ) {
-    logger.log(`${colors.cyan('↻')} Socket patches already applied, skipping`)
+    logger.skip('Socket patches already applied, skipping')
     logger.log('')
   } else if (socketPatches.length > 0) {
     // Validate Socket patches before applying.
@@ -1264,7 +1262,7 @@ async function main() {
             output.includes('Reversed (or previously applied) patch detected')
 
           if (isAlreadyApplied) {
-            logger.log(`${colors.cyan('↻')} ${name} already applied, skipping`)
+            logger.skip(`${name} already applied, skipping`)
             continue
           }
 
@@ -1710,9 +1708,7 @@ async function main() {
   // - Linux: Aggressive (strip --strip-all → objcopy section removal → sstrip if available)
   // - Windows: Skip stripping (no strip command)
   if (IS_WINDOWS) {
-    logger.log(
-      `${colors.cyan('↻')} Windows detected - skipping strip (not supported)`,
-    )
+    logger.skip('Windows detected - skipping strip (not supported)')
     logger.log('')
   } else if (IS_MACOS) {
     // macOS: Multi-phase stripping for maximum size reduction.
@@ -1724,9 +1720,7 @@ async function main() {
       logger.log('Phase 2: Aggressive LLVM stripping')
       await exec('llvm-strip', [nodeBinary])
     } else {
-      logger.log(
-        `${colors.cyan('↻')} Phase 2: Skipped (llvm-strip not available)`,
-      )
+      logger.skip('Phase 2: Skipped (llvm-strip not available)')
     }
   } else {
     // Linux/Alpine: Aggressive multi-phase stripping.
@@ -1747,11 +1741,11 @@ async function main() {
           await exec('objcopy', [`--remove-section=${section}`, nodeBinary])
         } catch {
           // Section might not exist, continue.
-          logger.log(`  ${colors.cyan('↻')} Skipped ${section} (not present)`)
+          logger.skip(`Skipped ${section} (not present)`)
         }
       }
     } else {
-      logger.log(`${colors.cyan('↻')} Phase 2: Skipped (objcopy not available)`)
+      logger.skip('Phase 2: Skipped (objcopy not available)')
     }
 
     // Phase 3: Super strip if available (removes section headers).
@@ -1759,7 +1753,7 @@ async function main() {
       logger.log('Phase 3: Super strip (removing section headers)')
       await exec('sstrip', [nodeBinary])
     } else {
-      logger.log(`${colors.cyan('↻')} Phase 3: Skipped (sstrip not available)`)
+      logger.skip('Phase 3: Skipped (sstrip not available)')
     }
   }
 
@@ -1915,9 +1909,7 @@ async function main() {
     logger.warn(
       `Expected tools directory: ${path.relative(ROOT_DIR, toolsDir)}`,
     )
-    logger.warn(
-      `${colors.cyan('↻')} Skipping compression (build will continue with uncompressed binary)`,
-    )
+    logger.skip('Skipping compression (build will continue with uncompressed binary)')
     logger.logNewline()
   }
 
@@ -1997,9 +1989,7 @@ async function main() {
     // Skip signing compressed binary - it's a self-extracting binary (decompressor stub + compressed data),
     // not a standard Mach-O executable. The decompressor stub is already signed if needed.
     // When executed, the stub extracts and runs the original Node.js binary.
-    logger.log(
-      `${colors.cyan('↻')} Skipping code signing for self-extracting binary...`,
-    )
+    logger.skip('Skipping code signing for self-extracting binary...')
     logger.substep(
       '✓ Compressed binary ready (self-extracting, no signature needed)',
     )
@@ -2098,9 +2088,7 @@ async function main() {
     }
   } else {
     logger.log('')
-    logger.log(
-      `${colors.cyan('↻')} Binary compression skipped (--no-compress-binary flag)`,
-    )
+    logger.skip('Binary compression skipped (--no-compress-binary flag)')
     logger.log('   Compression is enabled by default for smol builds')
     logger.log(
       '   Remove --no-compress-binary flag to enable binary compression',

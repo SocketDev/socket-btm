@@ -173,7 +173,6 @@ async function downloadModel(modelKey) {
           `model.save_pretrained('${MODELS}/${modelKey}')`
 
         const pythonResult = await spawn(python3Path, ['-c', pythonCommand], {
-          shell: WIN32,
           stdio: 'inherit',
         })
 
@@ -381,7 +380,6 @@ async function quantizeModel(modelKey, quantLevel) {
           `quantize_dynamic('${onnxPath}', '${quantPath}', weight_type=QuantType.QUInt8)`
 
         const int8Result = await spawn(python3Path, ['-c', int8Command], {
-          shell: WIN32,
           stdio: 'inherit',
         })
 
@@ -403,7 +401,6 @@ async function quantizeModel(modelKey, quantLevel) {
           `quant.model.save_model_to_file('${quantPath}', True)`
 
         const int4Result = await spawn(python3Path, ['-c', int4Command], {
-          shell: WIN32,
           stdio: 'inherit',
         })
 
@@ -480,7 +477,6 @@ tokenizer = AutoTokenizer.from_pretrained('${modelDir}')
 tokenizer.save_pretrained('${outputDir}')
 `
     const result = await spawn(python3Path, ['-c', generateScript], {
-      shell: WIN32,
       stdio: 'inherit',
     })
     if (result.code !== 0) {

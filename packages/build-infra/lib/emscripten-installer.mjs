@@ -219,7 +219,6 @@ export async function activateEmscripten({
         cwd: emsdkPath,
         env: process.env,
         shell: WIN32,
-        stdio: 'pipe',
       },
     )
 

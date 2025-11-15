@@ -5,9 +5,8 @@
  * and configured for building native dependencies.
  */
 
-import spawnPkg from '@socketsecurity/lib/spawn'
-
-const { spawn } = spawnPkg
+import { which } from '@socketsecurity/lib/bin'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 import {
   printError,
@@ -87,9 +86,7 @@ function compareVersions(version1, version2) {
  */
 async function getGccVersion(gccPath = 'gcc') {
   try {
-    const result = await spawn(gccPath, ['--version'], {
-      stdio: 'pipe',
-    })
+    const result = await spawn(gccPath, ['--version'], {})
 
     if (result.code !== 0) {
       return null
@@ -143,9 +140,15 @@ async function installGccApt(version) {
   printSubstep(`Installing ${gccPackage} and ${gxxPackage}...`)
 
   try {
+    const sudoPath = await which('sudo', { nothrow: true })
+    if (!sudoPath || Array.isArray(sudoPath)) {
+      printError('sudo not found in PATH')
+      return false
+    }
+
     // Install GCC and G++
     const installResult = await spawn(
-      'sudo',
+      sudoPath,
       ['apt-get', 'install', '-y', gccPackage, gxxPackage],
       {
         stdio: 'inherit',
@@ -164,7 +167,7 @@ async function installGccApt(version) {
     const gxxPath = `/usr/bin/g++-${version}`
 
     const gccAltResult = await spawn(
-      'sudo',
+      sudoPath,
       [
         'update-alternatives',
         '--install',
@@ -177,7 +180,7 @@ async function installGccApt(version) {
     )
 
     const gxxAltResult = await spawn(
-      'sudo',
+      sudoPath,
       [
         'update-alternatives',
         '--install',

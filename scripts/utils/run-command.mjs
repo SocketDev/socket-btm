@@ -97,8 +97,6 @@ export async function runCommandQuiet(command, args = [], options = {}) {
     const result = await spawn(command, args, {
       ...options,
       ...(process.platform === 'win32' && { shell: true }),
-      stdio: 'pipe',
-      stdioString: true,
     })
 
     return {

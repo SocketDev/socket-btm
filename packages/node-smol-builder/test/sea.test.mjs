@@ -80,7 +80,6 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
         ['--experimental-sea-config', 'sea-config.json'],
         {
           cwd: testDir,
-          stdio: 'pipe',
         },
       )
 
@@ -110,7 +109,6 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
         ],
         {
           cwd: testDir,
-          stdio: 'pipe',
         },
       )
 
@@ -120,7 +118,6 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
     it('should execute and output hello-world message', async () => {
       const result = await spawn(seaBinary, [], {
         cwd: testDir,
-        stdio: 'pipe',
       })
 
       expect(result.code).toBe(0)
@@ -140,7 +137,6 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
       // First run decompresses and caches.
       const firstRun = await spawn(seaBinary, [], {
         cwd: testDir,
-        stdio: 'pipe',
       })
 
       expect(firstRun.code).toBe(0)
@@ -170,7 +166,8 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
       const appJsContent = await fs.readFile(appJs)
       const compressed = await compress(appJsContent, {
         params: {
-          [11]: 11, // BROTLI_PARAM_QUALITY = 11
+          // BROTLI_PARAM_QUALITY = 11
+          [11]: 11,
         },
       })
 
@@ -199,7 +196,6 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
         ['--experimental-sea-config', 'sea-config.json'],
         {
           cwd: testDir,
-          stdio: 'pipe',
         },
       )
 
@@ -229,7 +225,6 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
         ],
         {
           cwd: testDir,
-          stdio: 'pipe',
         },
       )
 
@@ -239,7 +234,6 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
     it('should execute and output hello-world message', async () => {
       const result = await spawn(seaBinary, [], {
         cwd: testDir,
-        stdio: 'pipe',
       })
 
       expect(result.code).toBe(0)
@@ -251,7 +245,6 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
       // Pre-compressed blobs should work identically to plain JS.
       const result = await spawn(seaBinary, [], {
         cwd: testDir,
-        stdio: 'pipe',
       })
 
       expect(result.code).toBe(0)
@@ -283,7 +276,8 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
             output: 'app.blob',
             disableExperimentalSEAWarning: true,
             useCodeCache: true,
-            useCompression: false, // Explicitly disable compression
+            // Explicitly disable compression
+            useCompression: false,
           },
           null,
           2,
@@ -296,7 +290,6 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
         ['--experimental-sea-config', 'sea-config.json'],
         {
           cwd: testDir,
-          stdio: 'pipe',
         },
       )
 
@@ -326,7 +319,6 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
         ],
         {
           cwd: testDir,
-          stdio: 'pipe',
         },
       )
 
@@ -336,7 +328,6 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
     it('should execute and output hello-world message', async () => {
       const result = await spawn(seaBinary, [], {
         cwd: testDir,
-        stdio: 'pipe',
       })
 
       expect(result.code).toBe(0)
@@ -378,7 +369,8 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
             output: 'app.blob',
             disableExperimentalSEAWarning: true,
             useCodeCache: true,
-            useCompression: true, // Explicitly enable compression (default behavior)
+            // Explicitly enable compression (default behavior)
+            useCompression: true,
           },
           null,
           2,
@@ -391,7 +383,6 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
         ['--experimental-sea-config', 'sea-config.json'],
         {
           cwd: testDir,
-          stdio: 'pipe',
         },
       )
 
@@ -421,7 +412,6 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
         ],
         {
           cwd: testDir,
-          stdio: 'pipe',
         },
       )
 
@@ -431,7 +421,6 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
     it('should execute and output hello-world message', async () => {
       const result = await spawn(seaBinary, [], {
         cwd: testDir,
-        stdio: 'pipe',
       })
 
       expect(result.code).toBe(0)
@@ -445,7 +434,8 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
 
       // Compressed blobs should be reasonably sized.
       expect(blobStats.size).toBeGreaterThan(0)
-      expect(blobStats.size).toBeLessThan(1000) // Small JS should compress well
+      // Small JS should compress well
+      expect(blobStats.size).toBeLessThan(1000)
     })
   })
 
@@ -503,7 +493,6 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
         ['--experimental-sea-config', 'sea-config.json'],
         {
           cwd: testDir,
-          stdio: 'pipe',
         },
       )
 
@@ -536,7 +525,6 @@ describeOrSkip('SEA (Single Executable Application) support', () => {
         ['--experimental-sea-config', 'sea-config.json'],
         {
           cwd: testDir,
-          stdio: 'pipe',
         },
       )
 

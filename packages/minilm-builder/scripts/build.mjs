@@ -302,8 +302,6 @@ async function runPythonScript(scriptName, args, options = {}) {
   }
 
   const result = await spawn(python3Path, [scriptPath, ...args], {
-    stdio: 'pipe',
-    stdioString: true,
     ...options,
   })
 

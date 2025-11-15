@@ -8,11 +8,7 @@ import { cpus } from 'node:os'
 import path from 'node:path'
 
 import { which } from '@socketsecurity/lib/bin'
-import platformPkg from '@socketsecurity/lib/constants/platform'
-import spawnPkg from '@socketsecurity/lib/spawn'
-
-const { WIN32 } = platformPkg
-const { spawn } = spawnPkg
+import { spawn } from '@socketsecurity/lib/spawn'
 
 import { printStep } from './build-output.mjs'
 
@@ -37,7 +33,8 @@ export const MODERN_WASM_RUSTFLAGS = [
  * Aggressive wasm-opt optimization flags for size.
  */
 export const WASM_OPT_SIZE_FLAGS = [
-  '-Oz', // Optimize aggressively for size
+  // Optimize aggressively for size
+  '-Oz',
   '--enable-simd',
   '--enable-bulk-memory',
   '--enable-sign-ext',
@@ -70,10 +67,16 @@ export class RustBuilder {
    */
   async installWasmTarget() {
     printStep('Installing wasm32-unknown-unknown target')
+
+    const rustupPath = await which('rustup', { nothrow: true })
+    if (!rustupPath || Array.isArray(rustupPath)) {
+      throw new Error('rustup not found in PATH')
+    }
+
     const result = await spawn(
-      'rustup',
+      rustupPath,
       ['target', 'add', 'wasm32-unknown-unknown'],
-      { shell: WIN32, stdio: 'inherit' },
+      { stdio: 'inherit' },
     )
     if (result.code !== 0) {
       throw new Error(`rustup target add failed with exit code ${result.code}`)
@@ -98,10 +101,11 @@ export class RustBuilder {
   } = {}) {
     printStep('Building Rust to WASM with Cargo')
 
-    const featuresFlag =
-      features.length > 0 ? `--features ${features.join(',')}` : ''
-    const profileFlag =
-      profile !== 'release' ? `--profile ${profile}` : '--release'
+    const cargoPath = await which('cargo', { nothrow: true })
+    if (!cargoPath || Array.isArray(cargoPath)) {
+      throw new Error('cargo not found in PATH')
+    }
+
     const jobs = parallel ? cpus().length : 1
 
     const env = {
@@ -109,11 +113,22 @@ export class RustBuilder {
       RUSTFLAGS: rustflags,
     }
 
-    const result = await spawn(
-      `cargo build --target wasm32-unknown-unknown ${profileFlag} ${featuresFlag} -j ${jobs}`,
-      [],
-      { cwd: this.projectDir, env, shell: WIN32, stdio: 'inherit' },
-    )
+    const args = ['build', '--target', 'wasm32-unknown-unknown']
+    if (profile !== 'release') {
+      args.push('--profile', profile)
+    } else {
+      args.push('--release')
+    }
+    if (features.length > 0) {
+      args.push('--features', features.join(','))
+    }
+    args.push('-j', String(jobs))
+
+    const result = await spawn(cargoPath, args, {
+      cwd: this.projectDir,
+      env,
+      stdio: 'inherit',
+    })
     if (result.code !== 0) {
       throw new Error(`cargo build failed with exit code ${result.code}`)
     }
@@ -139,15 +154,28 @@ export class RustBuilder {
   }) {
     printStep('Generating JavaScript bindings with wasm-bindgen')
 
-    const debugFlag = debug ? '--debug' : ''
-    const tsFlag = typescript ? '--typescript' : '--no-typescript'
+    const wasmBindgenPath = await which('wasm-bindgen', { nothrow: true })
+    if (!wasmBindgenPath || Array.isArray(wasmBindgenPath)) {
+      throw new Error('wasm-bindgen not found in PATH')
+    }
+
     const outputPath = path.join(this.projectDir, outDir)
 
-    const result = await spawn(
-      `wasm-bindgen --target ${target} ${tsFlag} ${debugFlag} --out-dir ${outputPath} ${input}`,
-      [],
-      { cwd: this.projectDir, shell: WIN32, stdio: 'inherit' },
-    )
+    const args = ['--target', target]
+    if (typescript) {
+      args.push('--typescript')
+    } else {
+      args.push('--no-typescript')
+    }
+    if (debug) {
+      args.push('--debug')
+    }
+    args.push('--out-dir', outputPath, input)
+
+    const result = await spawn(wasmBindgenPath, args, {
+      cwd: this.projectDir,
+      stdio: 'inherit',
+    })
     if (result.code !== 0) {
       throw new Error(`wasm-bindgen failed with exit code ${result.code}`)
     }
@@ -165,14 +193,19 @@ export class RustBuilder {
   async optimize(wasmFile, { flags = WASM_OPT_SIZE_FLAGS, output } = {}) {
     printStep('Optimizing WASM with wasm-opt')
 
+    const wasmOptPath = await which('wasm-opt', { nothrow: true })
+    if (!wasmOptPath || Array.isArray(wasmOptPath)) {
+      throw new Error('wasm-opt not found in PATH')
+    }
+
     const inputPath = path.join(this.projectDir, wasmFile)
     const outputPath = output ? path.join(this.projectDir, output) : inputPath
 
-    const result = await spawn(
-      `wasm-opt ${flags} "${inputPath}" -o "${outputPath}"`,
-      [],
-      { shell: WIN32, stdio: 'inherit' },
-    )
+    // Parse flags string into array
+    const flagsArray = flags.split(/\s+/).filter(f => f.length > 0)
+    const args = [...flagsArray, inputPath, '-o', outputPath]
+
+    const result = await spawn(wasmOptPath, args, { stdio: 'inherit' })
     if (result.code !== 0) {
       throw new Error(`wasm-opt failed with exit code ${result.code}`)
     }
@@ -186,13 +219,10 @@ export class RustBuilder {
   async checkRustInstalled() {
     try {
       const rustcPath = await which('rustc', { nothrow: true })
-      if (!rustcPath) {
+      if (!rustcPath || Array.isArray(rustcPath)) {
         return false
       }
-      const result = await spawn(rustcPath, ['--version'], {
-        shell: WIN32,
-        stdio: 'pipe',
-      })
+      const result = await spawn(rustcPath, ['--version'], {})
       return result.code === 0
     } catch {
       return false
@@ -206,10 +236,11 @@ export class RustBuilder {
    */
   async checkWasmBindgenInstalled() {
     try {
-      const result = await spawn('wasm-bindgen', ['--version'], {
-        shell: WIN32,
-        stdio: 'pipe',
-      })
+      const wasmBindgenPath = await which('wasm-bindgen', { nothrow: true })
+      if (!wasmBindgenPath || Array.isArray(wasmBindgenPath)) {
+        return false
+      }
+      const result = await spawn(wasmBindgenPath, ['--version'], {})
       return result.code === 0
     } catch {
       return false
@@ -223,10 +254,11 @@ export class RustBuilder {
    */
   async checkWasmOptInstalled() {
     try {
-      const result = await spawn('wasm-opt', ['--version'], {
-        shell: WIN32,
-        stdio: 'pipe',
-      })
+      const wasmOptPath = await which('wasm-opt', { nothrow: true })
+      if (!wasmOptPath || Array.isArray(wasmOptPath)) {
+        return false
+      }
+      const result = await spawn(wasmOptPath, ['--version'], {})
       return result.code === 0
     } catch {
       return false

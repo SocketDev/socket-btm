@@ -437,8 +437,6 @@ async function isNodeSourceDirty() {
     }
     const result = await spawn(gitPath, ['status', '--porcelain'], {
       cwd: NODE_DIR,
-      stdio: 'pipe',
-      stdioString: true,
     })
     return result.code === 0 && (result.stdout ?? '').trim().length > 0
   } catch {
@@ -1243,7 +1241,6 @@ async function main() {
             // Capture stdout/stderr instead of inherit
             {
               cwd: NODE_DIR,
-              stdio: 'pipe',
             },
           )
         } catch (e) {

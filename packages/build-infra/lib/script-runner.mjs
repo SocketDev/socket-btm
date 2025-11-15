@@ -35,7 +35,6 @@ export async function runPnpmScript(
   const pnpmArgs = ['--filter', packageName, 'run', scriptName, ...args]
 
   return spawn(pnpmPath, pnpmArgs, {
-    shell: WIN32,
     stdio: 'inherit',
     ...options,
   })
@@ -58,7 +57,6 @@ export async function runPnpmScriptAll(scriptName, args = [], options = {}) {
   const pnpmArgs = ['run', '-r', scriptName, ...args]
 
   return spawn(pnpmPath, pnpmArgs, {
-    shell: WIN32,
     stdio: 'inherit',
     ...options,
   })
@@ -78,6 +76,7 @@ export async function runSequence(commands, globalOptions = {}) {
       logger.step(description)
     }
 
+    // eslint-disable-next-line no-await-in-loop
     const result = await spawn(command, args, {
       shell: WIN32,
       stdio: 'inherit',
@@ -124,8 +123,6 @@ export async function runParallel(commands, globalOptions = {}) {
 export async function runQuiet(command, args = [], options = {}) {
   return spawn(command, args, {
     shell: WIN32,
-    stdio: 'pipe',
-    stdioString: true,
     ...options,
   })
 }
@@ -144,7 +141,6 @@ export const pnpm = {
       throw new Error('pnpm not found in PATH')
     }
     return spawn(pnpmPath, ['install', '--frozen-lockfile'], {
-      shell: WIN32,
       stdio: 'inherit',
       ...options,
     })
@@ -164,7 +160,6 @@ export const pnpm = {
       : ['run', '-r', 'build']
 
     return spawn(pnpmPath, args, {
-      shell: WIN32,
       stdio: 'inherit',
       ...options,
     })
@@ -184,7 +179,6 @@ export const pnpm = {
       : ['run', '-r', 'test']
 
     return spawn(pnpmPath, args, {
-      shell: WIN32,
       stdio: 'inherit',
       ...options,
     })

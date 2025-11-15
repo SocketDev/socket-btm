@@ -85,7 +85,8 @@ const PLATFORMS = [
   { platform: 'linux', arch: 'arm64', ext: 'tar.gz' },
   { platform: 'linux-musl', arch: 'x64', ext: 'tar.gz' },
   { platform: 'linux-musl', arch: 'arm64', ext: 'tar.gz' },
-  { platform: 'win', arch: 'x64', ext: 'zip' }, // Note: 'win' not 'win32' to match Node.js
+  // Note: 'win' not 'win32' to match Node.js
+  { platform: 'win', arch: 'x64', ext: 'zip' },
   { platform: 'win', arch: 'arm64', ext: 'zip' },
 ]
 
@@ -285,9 +286,7 @@ async function releaseExists(tag) {
     if (!ghPath) {
       return false
     }
-    const result = await spawn(ghPath, ['release', 'view', tag], {
-      stdio: 'pipe',
-    })
+    const result = await spawn(ghPath, ['release', 'view', tag], {})
     return result.code === 0
   } catch {
     return false

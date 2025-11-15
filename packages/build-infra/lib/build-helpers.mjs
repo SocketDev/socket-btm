@@ -59,7 +59,7 @@ export async function checkDiskSpace(dir, requiredGB = 5) {
       availableGB: availableGBValue,
       sufficient,
     }
-  } catch (_error) {
+  } catch {
     // Fallback to df command if fs.statfs fails (older Node versions).
     try {
       const dfPath = await which('df', { nothrow: true })
@@ -67,11 +67,7 @@ export async function checkDiskSpace(dir, requiredGB = 5) {
         printWarning('Could not check disk space (df not found)')
         return { availableGB: null, sufficient: true }
       }
-      const result = await spawn(dfPath, ['-k', dir], {
-        shell: WIN32,
-        stdio: 'pipe',
-        stdioString: true,
-      })
+      const result = await spawn(dfPath, ['-k', dir], {})
       const lines = (result.stdout ?? '').trim().split('\n')
       if (lines.length < 2) {
         printWarning('Could not determine disk space')
@@ -142,13 +138,14 @@ export async function checkPythonVersion(minVersion = '3.6') {
 
   for (const pythonCmd of pythonCommands) {
     try {
+      // eslint-disable-next-line no-await-in-loop
       const result = await spawn(
         pythonCmd,
         [
           '-c',
           "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
         ],
-        { shell: WIN32, stdio: 'pipe', stdioString: true },
+        { shell: WIN32 },
       )
 
       // Check if spawn failed or returned undefined code.
@@ -180,7 +177,7 @@ export async function checkPythonVersion(minVersion = '3.6') {
         sufficient,
         version,
       }
-    } catch (_e) {}
+    } catch {}
   }
 
   // None of the Python commands worked.
@@ -244,8 +241,6 @@ export async function smokeTestBinary(binaryPath, args = ['--version']) {
     await fs.access(binaryPath)
     const result = await spawn(binaryPath, args, {
       shell: WIN32,
-      stdio: 'pipe',
-      stdioString: true,
     })
 
     if ((result.code ?? 0) !== 0) {
@@ -361,15 +356,11 @@ export async function checkNetworkConnectivity() {
     // Platform-specific network connectivity check.
     if (WIN32) {
       // Windows: Use PowerShell's Invoke-WebRequest.
-      const result = await spawn(
-        'powershell',
-        [
-          '-NoProfile',
-          '-Command',
-          'try { $null = Invoke-WebRequest -Uri "https://github.com" -Method Head -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop; Write-Output "200" } catch { Write-Output "0" }',
-        ],
-        { shell: false, stdio: 'pipe', stdioString: true },
-      )
+      const result = await spawn('powershell', [
+        '-NoProfile',
+        '-Command',
+        'try { $null = Invoke-WebRequest -Uri "https://github.com" -Method Head -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop; Write-Output "200" } catch { Write-Output "0" }',
+      ])
 
       const statusCode = (result.stdout ?? '').trim()
       return {
@@ -379,20 +370,16 @@ export async function checkNetworkConnectivity() {
     }
 
     // Unix/Linux/macOS: Use curl.
-    const result = await spawn(
-      'curl',
-      [
-        '-s',
-        '-o',
-        '/dev/null',
-        '-w',
-        '%{http_code}',
-        '--connect-timeout',
-        '5',
-        'https://github.com',
-      ],
-      { shell: false, stdio: 'pipe', stdioString: true },
-    )
+    const result = await spawn('curl', [
+      '-s',
+      '-o',
+      '/dev/null',
+      '-w',
+      '%{http_code}',
+      '--connect-timeout',
+      '5',
+      'https://github.com',
+    ])
 
     const statusCode = (result.stdout ?? '').trim()
     return {
@@ -416,7 +403,7 @@ export async function verifyGitTag(version) {
     const result = await spawn(
       'git',
       ['ls-remote', '--tags', 'https://github.com/nodejs/node.git', version],
-      { shell: WIN32, stdio: 'pipe', stdioString: true },
+      { shell: WIN32, stdio: 'pipe' },
     )
 
     return {

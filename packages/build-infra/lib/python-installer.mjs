@@ -60,9 +60,7 @@ export async function checkPythonPackage(packageName) {
     if (!pythonCmd) {
       return false
     }
-    const result = await spawn(pythonCmd, ['-c', `import ${packageName}`], {
-      stdio: 'pipe',
-    })
+    const result = await spawn(pythonCmd, ['-c', `import ${packageName}`], {})
     return result.code === 0
   } catch {
     return false

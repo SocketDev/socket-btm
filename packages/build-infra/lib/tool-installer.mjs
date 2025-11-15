@@ -10,12 +10,9 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import binPkg, { which } from '@socketsecurity/lib/bin'
-import platformPkg from '@socketsecurity/lib/constants/platform'
-import spawnPkg from '@socketsecurity/lib/spawn'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 const { whichSync } = binPkg
-const { WIN32 } = platformPkg
-const { spawn } = spawnPkg
 
 import {
   printError,
@@ -214,14 +211,13 @@ export async function installPackageManager(
 
   try {
     const shPath = await which('sh', { nothrow: true })
-    if (!shPath) {
+    if (!shPath || Array.isArray(shPath)) {
       printError('sh not found in PATH')
       return false
     }
 
     const result = await spawn(shPath, ['-c', managerConfig.installScript], {
       env: process.env,
-      shell: WIN32,
       stdio: 'inherit',
     })
 
@@ -336,10 +332,10 @@ export async function checkElevatedPrivileges() {
     // On Windows, check if running as administrator.
     try {
       const netPath = await which('net', { nothrow: true })
-      if (!netPath) {
+      if (!netPath || Array.isArray(netPath)) {
         return false
       }
-      const result = await spawn(netPath, ['session'], { shell: true })
+      const result = await spawn(netPath, ['session'], {})
       return result.code === 0
     } catch {
       return false
@@ -354,7 +350,7 @@ export async function checkElevatedPrivileges() {
   // Check if sudo is available.
   try {
     const sudoPath = await which('sudo', { nothrow: true })
-    if (!sudoPath) {
+    if (!sudoPath || Array.isArray(sudoPath)) {
       return false
     }
     const result = await spawn(sudoPath, ['-n', 'true'])
@@ -490,9 +486,15 @@ export async function installTool(
         return false
     }
 
-    const result = await spawn(command, args, {
+    // Resolve command path
+    const commandPath = await which(command, { nothrow: true })
+    if (!commandPath || Array.isArray(commandPath)) {
+      printError(`${command} not found in PATH`)
+      return false
+    }
+
+    const result = await spawn(commandPath, args, {
       env: process.env,
-      shell: WIN32,
       stdio: 'inherit',
     })
 

@@ -6,6 +6,7 @@
 
 import { cpus } from 'node:os'
 
+import { which } from '@socketsecurity/lib/bin'
 import platformPkg from '@socketsecurity/lib/constants/platform'
 import spawnPkg from '@socketsecurity/lib/spawn'
 
@@ -13,6 +14,9 @@ const { WIN32 } = platformPkg
 const { spawn } = spawnPkg
 
 import { printStep } from './build-output.mjs'
+
+// Cache cmake path
+let _cmakePath = null
 
 export class CMakeBuilder {
   constructor(sourceDir, buildDir) {
@@ -29,12 +33,19 @@ export class CMakeBuilder {
   async configure(options = {}) {
     printStep('Configuring CMake')
 
+    if (!_cmakePath) {
+      _cmakePath = await which('cmake', { nothrow: true })
+      if (!_cmakePath) {
+        throw new Error('cmake not found in PATH')
+      }
+    }
+
     const cmakeArgs = Object.entries(options).flatMap(([key, value]) => [
       `-D${key}=${value}`,
     ])
 
     const result = await spawn(
-      'cmake',
+      _cmakePath,
       ['-S', this.sourceDir, '-B', this.buildDir, ...cmakeArgs],
       { shell: WIN32, stdio: 'inherit' },
     )
@@ -54,9 +65,16 @@ export class CMakeBuilder {
   async build({ parallel = true, target = 'all' } = {}) {
     printStep('Building with CMake')
 
+    if (!_cmakePath) {
+      _cmakePath = await which('cmake', { nothrow: true })
+      if (!_cmakePath) {
+        throw new Error('cmake not found in PATH')
+      }
+    }
+
     const jobs = parallel ? cpus().length : 1
     const result = await spawn(
-      'cmake',
+      _cmakePath,
       ['--build', this.buildDir, '--target', target, '-j', String(jobs)],
       { shell: WIN32, stdio: 'inherit' },
     )
@@ -72,8 +90,16 @@ export class CMakeBuilder {
    */
   async clean() {
     printStep('Cleaning CMake build')
+
+    if (!_cmakePath) {
+      _cmakePath = await which('cmake', { nothrow: true })
+      if (!_cmakePath) {
+        throw new Error('cmake not found in PATH')
+      }
+    }
+
     const result = await spawn(
-      'cmake',
+      _cmakePath,
       ['--build', this.buildDir, '--target', 'clean'],
       { shell: WIN32, stdio: 'inherit' },
     )

@@ -206,7 +206,6 @@ export function activateEmscriptenSDK() {
       // Run emsdk_env.bat and capture resulting environment.
       const envOutput = execSync(`cmd /c "${envScript} && set"`, {
         encoding: 'utf8',
-        stdio: 'pipe',
       })
 
       // Parse environment variables.

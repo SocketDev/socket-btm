@@ -35,7 +35,6 @@ import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 import * as ort from 'onnxruntime-node'
 
 import { which } from '@socketsecurity/lib/bin'
-import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
@@ -98,7 +97,6 @@ async function downloadModels() {
     `model.save_pretrained('${MODELS_DIR}')`
 
   const downloadResult = await spawn(python3Path, ['-c', pythonScript], {
-    shell: WIN32,
     stdio: 'inherit',
   })
 
@@ -160,7 +158,6 @@ async function convertToOnnx() {
       BUILD_DIR,
     ],
     {
-      shell: WIN32,
       stdio: 'inherit',
     },
   )
@@ -250,7 +247,6 @@ async function quantizeModels() {
     python3Path,
     ['-c', quantizeEncoderScript],
     {
-      shell: WIN32,
       stdio: 'inherit',
     },
   )
@@ -274,7 +270,6 @@ async function quantizeModels() {
     python3PathDecoder,
     ['-c', quantizeDecoderScript],
     {
-      shell: WIN32,
       stdio: 'inherit',
     },
   )
@@ -389,7 +384,6 @@ async function optimizeModels() {
     python3PathOpt,
     ['-c', optimizeEncoderScript],
     {
-      shell: WIN32,
       stdio: 'inherit',
     },
   )
@@ -409,7 +403,6 @@ async function optimizeModels() {
     python3PathOpt,
     ['-c', optimizeDecoderScript],
     {
-      shell: WIN32,
       stdio: 'inherit',
     },
   )

@@ -7,7 +7,7 @@ catalog:
   '@babel/traverse': 7.28.4
   '@babel/types': 7.28.5
   '@biomejs/biome': 2.2.4
-  '@socketsecurity/lib': 3.3.11
+  '@socketsecurity/lib': 3.4.0
   '@types/node': 24.9.2
   del-cli: 6.0.0
   esbuild: 0.25.11

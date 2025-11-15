@@ -9,7 +9,7 @@
     "vitest": "catalog:"
   },
   "license": "MIT",
-  "name": "node-smol-builder",
+  "name": "@socketbin/node-smol-builder",
   "private": true,
   "scripts": {
     "build": "node scripts/common/build.mjs",

@@ -1909,7 +1909,9 @@ async function main() {
     logger.warn(
       `Expected tools directory: ${path.relative(ROOT_DIR, toolsDir)}`,
     )
-    logger.skip('Skipping compression (build will continue with uncompressed binary)')
+    logger.skip(
+      'Skipping compression (build will continue with uncompressed binary)',
+    )
     logger.logNewline()
   }
 

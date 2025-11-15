@@ -13,8 +13,8 @@ catalogs:
       specifier: 7.28.4
       version: 7.28.4
     '@socketsecurity/lib':
-      specifier: 3.3.11
-      version: 3.3.11
+      specifier: 3.4.0
+      version: 3.4.0
     magic-string:
       specifier: 0.30.19
       version: 0.30.19
@@ -91,7 +91,7 @@ importers:
         version: 7.28.4
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 3.3.11(typescript@5.9.3)
+        version: 3.4.0(typescript@5.9.3)
       magic-string:
         specifier: 'catalog:'
         version: 0.30.19
@@ -104,7 +104,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 3.3.11(typescript@5.9.3)
+        version: 3.4.0(typescript@5.9.3)
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -117,7 +117,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 3.3.11(typescript@5.9.3)
+        version: 3.4.0(typescript@5.9.3)
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -126,7 +126,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 3.3.11(typescript@5.9.3)
+        version: 3.4.0(typescript@5.9.3)
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -139,7 +139,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 3.3.11(typescript@5.9.3)
+        version: 3.4.0(typescript@5.9.3)
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -158,7 +158,7 @@ importers:
         version: 7.28.4
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 3.3.11(typescript@5.9.3)
+        version: 3.4.0(typescript@5.9.3)
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -174,7 +174,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 3.3.11(typescript@5.9.3)
+        version: 3.4.0(typescript@5.9.3)
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -679,15 +679,6 @@ packages:
     resolution: {integrity: sha512-rLarc1Ofcs3DHtgSzFO31pZsCh8g05R2azN1q3fF+H423Co87My0R+tazOEvYVKXSLh8C4LerMK41/K7wlklcg==}
     cpu: [x64]
     os: [win32]
-
-  '@socketsecurity/lib@3.3.11':
-    resolution: {integrity: sha512-hlLulYHcdsOytW5neD3GfuMW1lgoNziAgVGMghbvngzLYVFRtHSl4QODMdX8sxkhLySHYlCA0A/49sscE86qTw==}
-    engines: {node: '>=22', pnpm: '>=10.22.0'}
-    peerDependencies:
-      typescript: '>=5.0.0'
-    peerDependenciesMeta:
-      typescript:
-        optional: true
 
   '@socketsecurity/lib@3.4.0':
     resolution: {integrity: sha512-D86ui36CZkAfYtz8gkYDWafuakCnBS17ln1Y+HbE0YZjMnZv5vFUxYeGcb44pK7C2Pb6P5oT1WE0iIC7TWGUwQ==}
@@ -2322,10 +2313,6 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.53.1':
     optional: true
-
-  '@socketsecurity/lib@3.3.11(typescript@5.9.3)':
-    optionalDependencies:
-      typescript: 5.9.3
 
   '@socketsecurity/lib@3.4.0(typescript@5.9.3)':
     optionalDependencies:

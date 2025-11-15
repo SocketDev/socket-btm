@@ -7,9 +7,9 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
+import { win32Quote } from '@socketsecurity/lib/argv/quote'
 import { which } from '@socketsecurity/lib/bin'
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
-import { normalizePath } from '@socketsecurity/lib/path'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 import { printError, printStep, printSubstep } from './build-output.mjs'
@@ -31,14 +31,20 @@ export async function validatePatch(patchFile, targetDir) {
       return false
     }
 
-    // Resolve to absolute path and normalize for cross-platform compatibility
-    const absolutePatchFile = normalizePath(path.resolve(patchFile))
+    // Resolve to absolute path
+    const absolutePatchFile = path.resolve(patchFile)
+
+    // On Windows with shell: WIN32, quote paths that contain special characters
+    // On Unix with shell: false, no quoting needed (args passed as array to kernel)
+    const patchFileArg = WIN32
+      ? win32Quote(absolutePatchFile)
+      : absolutePatchFile
 
     let result
     try {
       result = await spawn(
         patchPath,
-        ['-p1', '--dry-run', '-i', absolutePatchFile],
+        ['-p1', '--dry-run', '-i', patchFileArg],
         {
           cwd: targetDir,
           env: process.env,
@@ -89,9 +95,13 @@ export async function applyPatch(patchFile, targetDir) {
   // Resolve to absolute path since we're changing cwd
   const absolutePatchFile = path.resolve(patchFile)
 
+  // On Windows with shell: WIN32, quote paths that contain special characters
+  // On Unix with shell: false, no quoting needed (args passed as array to kernel)
+  const patchFileArg = WIN32 ? win32Quote(absolutePatchFile) : absolutePatchFile
+
   let result
   try {
-    result = await spawn(patchPath, ['-p1', '-i', absolutePatchFile], {
+    result = await spawn(patchPath, ['-p1', '-i', patchFileArg], {
       cwd: targetDir,
       env: process.env,
       shell: WIN32,
@@ -170,14 +180,20 @@ export async function testPatchApplication(patchFile, targetDir) {
       return false
     }
 
-    // Resolve to absolute path and normalize for cross-platform compatibility
-    const absolutePatchFile = normalizePath(path.resolve(patchFile))
+    // Resolve to absolute path
+    const absolutePatchFile = path.resolve(patchFile)
+
+    // On Windows with shell: WIN32, quote paths that contain special characters
+    // On Unix with shell: false, no quoting needed (args passed as array to kernel)
+    const patchFileArg = WIN32
+      ? win32Quote(absolutePatchFile)
+      : absolutePatchFile
 
     let result
     try {
       result = await spawn(
         patchPath,
-        ['-p1', '--dry-run', '--reverse', '-i', absolutePatchFile],
+        ['-p1', '--dry-run', '--reverse', '-i', patchFileArg],
         {
           cwd: targetDir,
           env: process.env,
@@ -258,19 +274,19 @@ export async function revertPatch(patchFile, targetDir) {
   // Resolve to absolute path since we're changing cwd
   const absolutePatchFile = path.resolve(patchFile)
 
+  // On Windows with shell: WIN32, quote paths that contain special characters
+  // On Unix with shell: false, no quoting needed (args passed as array to kernel)
+  const patchFileArg = WIN32 ? win32Quote(absolutePatchFile) : absolutePatchFile
+
   let result
   try {
-    result = await spawn(
-      patchPath,
-      ['-p1', '--reverse', '-i', absolutePatchFile],
-      {
-        cwd: targetDir,
-        env: process.env,
-        shell: WIN32,
-        stdio: 'pipe',
-        stdioString: true,
-      },
-    )
+    result = await spawn(patchPath, ['-p1', '--reverse', '-i', patchFileArg], {
+      cwd: targetDir,
+      env: process.env,
+      shell: WIN32,
+      stdio: 'pipe',
+      stdioString: true,
+    })
   } catch (spawnError) {
     // spawn() throws when command exits with non-zero code
     result = spawnError

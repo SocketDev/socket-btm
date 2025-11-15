@@ -169,16 +169,21 @@ async function ensureToolBuilt(config) {
   // Use shell: WIN32 for cross-platform compatibility (true on Windows, false elsewhere).
   // On Windows, shell mode is needed for proper .cmd/.bat script execution.
   // On Unix, direct binary execution avoids shell spawning issues.
-  const result = await spawn(binPath, args, {
-    cwd: TOOLS_DIR,
-    stdio: 'inherit',
-    shell: WIN32,
-  })
+  let result
+  try {
+    result = await spawn(binPath, args, {
+      cwd: TOOLS_DIR,
+      stdio: 'inherit',
+      shell: WIN32,
+    })
+  } catch (spawnError) {
+    // spawn() throws when command exits with non-zero code
+    result = spawnError
+  }
 
-  if (result.exitCode !== 0) {
-    throw new Error(
-      `Failed to build compression tool (exit code: ${result.exitCode})`,
-    )
+  const exitCode = result.code ?? 0
+  if (exitCode !== 0) {
+    throw new Error(`Failed to build compression tool (exit code: ${exitCode})`)
   }
 
   // Verify tool was built.
@@ -233,13 +238,20 @@ async function compressBinary(
 
   // Execute compression tool using @socketsecurity/lib spawn.
   // Use shell: WIN32 for cross-platform compatibility (true on Windows, false elsewhere).
-  const result = await spawn(toolPath, args, {
-    stdio: 'inherit',
-    shell: WIN32,
-  })
+  let result
+  try {
+    result = await spawn(toolPath, args, {
+      stdio: 'inherit',
+      shell: WIN32,
+    })
+  } catch (spawnError) {
+    // spawn() throws when command exits with non-zero code
+    result = spawnError
+  }
 
-  if (result.exitCode !== 0) {
-    throw new Error(`Compression failed (exit code: ${result.exitCode})`)
+  const exitCode = result.code ?? 0
+  if (exitCode !== 0) {
+    throw new Error(`Compression failed (exit code: ${exitCode})`)
   }
 
   // Verify compressed data file was created.

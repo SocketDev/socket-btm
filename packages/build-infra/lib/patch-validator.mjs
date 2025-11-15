@@ -152,17 +152,17 @@ export async function testPatchApplication(patchFile, targetDir) {
       return false
     }
 
-    const result = await spawn(
-      patchPath,
-      ['-p1', '--dry-run', '--reverse', '-i', patchFile],
-      {
-        cwd: targetDir,
-        env: process.env,
-        shell: WIN32,
-        stdio: 'pipe',
-        stdioString: true,
-      },
-    )
+    // Read patch content to pass via stdin for better cross-platform compatibility
+    const patchContent = await fs.readFile(patchFile, 'utf8')
+
+    const result = await spawn(patchPath, ['-p1', '--dry-run', '--reverse'], {
+      cwd: targetDir,
+      env: process.env,
+      shell: WIN32,
+      stdio: 'pipe',
+      stdioString: true,
+      input: patchContent,
+    })
 
     // If reverse patch succeeds, the patch has been applied.
     return (result.code ?? 0) === 0
@@ -228,11 +228,16 @@ export async function revertPatch(patchFile, targetDir) {
     throw new Error('patch not found in PATH')
   }
 
-  const result = await spawn(patchPath, ['-p1', '--reverse', '-i', patchFile], {
+  // Read patch content to pass via stdin for better cross-platform compatibility
+  const patchContent = await fs.readFile(patchFile, 'utf8')
+
+  const result = await spawn(patchPath, ['-p1', '--reverse'], {
     cwd: targetDir,
     env: process.env,
     shell: WIN32,
-    stdio: 'inherit',
+    stdio: 'pipe',
+    stdioString: true,
+    input: patchContent,
   })
 
   const exitCode = result.code ?? 0

@@ -1117,6 +1117,17 @@ async function main() {
   // Copy build additions (no bootstrap embedding).
   await copyBuildAdditions()
 
+  // Force reconfigure on Windows after copying additions.
+  // Windows vcbuild.bat skips configure if .gyp_configure_stamp exists,
+  // which would prevent newly copied files from being discovered.
+  if (WIN32) {
+    const stampFile = path.join(NODE_DIR, '.gyp_configure_stamp')
+    if (existsSync(stampFile)) {
+      await safeDelete(stampFile)
+      logger.info('Removed .gyp_configure_stamp to force project regeneration')
+    }
+  }
+
   // Apply Socket patches (including the dynamically generated bootstrap loader).
   const socketPatches = findSocketPatches()
   let _patchesApplied = false

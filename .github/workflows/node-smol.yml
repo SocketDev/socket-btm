@@ -1,0 +1,661 @@
+name: Node.js Smol
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      build_mode:
+        description: 'Build mode'
+        type: choice
+        options:
+          - prod
+          - dev
+        default: prod
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+      force:
+        type: boolean
+        default: false
+      build_mode:
+        type: string
+        default: prod
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 24.10.0  # Match the version we're building
+  PNPM_VERSION: 9.x
+  CACHE_VERSION: v9
+
+jobs:
+  build:
+    permissions:
+      contents: read
+    name: Build (${{ matrix.platform }}-${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS builds - build natively on each architecture (no cross-compilation)
+          # This avoids ninja "multiple rules generate" errors in v8_inspector_headers
+          # and matches Node.js's official build strategy (they don't cross-compile either)
+          - runner: macos-14
+            platform: darwin
+            arch: arm64
+            os: macos
+          - runner: macos-15-intel  # Intel runner for x64 builds (macos-13 retired Nov 2025)
+            platform: darwin
+            arch: x64
+            os: macos
+
+          # Linux glibc builds
+          - runner: ubuntu-22.04
+            platform: linux
+            arch: x64
+            os: linux
+          - runner: ubuntu-22.04-arm
+            platform: linux
+            arch: arm64
+            os: linux
+
+          # Linux musl builds (Alpine)
+          - runner: ubuntu-22.04
+            platform: linux-musl
+            arch: x64
+            os: linux
+          - runner: ubuntu-22.04-arm
+            platform: linux-musl
+            arch: arm64
+            os: linux
+
+          # Windows builds
+          - runner: windows-2022
+            platform: win32
+            arch: x64
+            os: windows
+          - runner: windows-arm64
+            platform: win32
+            arch: arm64
+            os: windows
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Setup compiler (Linux)
+        if: matrix.os == 'linux'
+        run: |
+          # Node.js v24+ requires GCC 12+ for ada URL parser C++20 constexpr support
+          # Ubuntu 22.04 ships with GCC 11, so install GCC 13 from toolchain PPA
+          # Versions pinned in packages/build-infra/package.json externalTools
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y gcc-13=13.1.0-* g++-13=13.1.0-*
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
+          sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-13 100
+          sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-13 100
+          gcc --version
+          g++ --version
+
+      - name: Select Xcode version (macOS)
+        if: matrix.os == 'macos'
+        run: |
+          # Select appropriate Xcode version for each runner
+          # macos-14: Use Xcode 16.1
+          # macos-15-intel: Use Xcode 16.4 (default on macos-15)
+          if [ "${{ matrix.runner }}" = "macos-14" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.1.app
+          else
+            # macos-15-intel has Xcode 16.4 as default
+            sudo xcode-select -s /Applications/Xcode_16.4.app
+          fi
+          xcodebuild -version
+          clang --version
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+        # Note: version is specified in package.json packageManager field, not here
+
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: 24.x  # Match the version we're building
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Restore pnpm cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        with:
+          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup ccache (Unix)
+        if: matrix.os != 'windows'
+        uses: hendrikmuhs/ccache-action@ed74d11c0b343532753ecead8a951bb09bb34bc9 # v1.2.14
+        with:
+          key: ${{ matrix.os }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ inputs.build_mode || 'prod' }}
+          max-size: 2G
+
+      - name: Setup ccache (Windows)
+        if: matrix.os == 'windows'
+        uses: hendrikmuhs/ccache-action@ed74d11c0b343532753ecead8a951bb09bb34bc9 # v1.2.14
+        with:
+          key: windows-${{ matrix.platform }}-${{ matrix.arch }}-${{ inputs.build_mode || 'prod' }}
+          max-size: 2G
+          variant: sccache
+
+      - name: Build compression tools
+        shell: bash
+        run: |
+          cd packages/node-smol-builder/compression-tools
+
+          if [ "${{ matrix.os }}" = "linux" ]; then
+            # Install liblzma development headers for Linux builds
+            # Version pinned in packages/build-infra/package.json externalTools
+            if [ "${{ matrix.platform }}" = "linux" ] || [ "${{ matrix.platform }}" = "linux-musl" ]; then
+              sudo apt-get update
+              sudo apt-get install -y liblzma-dev=5.2.5-*
+            fi
+
+            # Build Linux ELF compression tools
+            echo "Building Linux compression tools..."
+            make -f Makefile.linux
+            ls -lh socketsecurity_elf_*
+
+          elif [ "${{ matrix.os }}" = "windows" ]; then
+            # Build Windows PE compression tools using MinGW
+            echo "Building Windows compression tools..."
+            make -f Makefile.windows
+            ls -lh socketsecurity_pe_*.exe
+
+          elif [ "${{ matrix.os }}" = "macos" ]; then
+            # Build macOS Mach-O compression tools
+            echo "Building macOS compression tools..."
+            make -f Makefile
+            ls -lh socketsecurity_macho_*
+          fi
+
+      - name: Generate smol build cache key
+        id: smol-cache-key
+        shell: bash
+        env:
+          BUILD_MODE: ${{ inputs.build_mode || 'prod' }}
+        run: |
+          # Cross-platform hash function
+          if command -v shasum &> /dev/null; then
+            hash_cmd="shasum -a 256"
+          elif command -v sha256sum &> /dev/null; then
+            hash_cmd="sha256sum"
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+
+          # Helper function to hash files, returns empty string if no files found
+          hash_files() {
+            local files=$(find "$@" 2>/dev/null | sort)
+            if [ -z "$files" ]; then
+              echo ""
+            else
+              echo "$files" | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1
+            fi
+          }
+
+          # Helper function to get hierarchical paths for a category/phase/platform/arch
+          # Returns: shared/, platform/shared/, platform/arch/
+          get_hierarchical_paths() {
+            local category=$1    # scripts, patches, additions
+            local phase=$2       # release, stripped, compressed, final
+            local platform=$3    # darwin, linux, linux-musl, win32
+            local arch=$4        # arm64, x64
+
+            local base="packages/node-smol-builder/${category}/${phase}"
+
+            echo "${base}/shared ${base}/${platform}/shared ${base}/${platform}/${arch}"
+          }
+
+          # Get platform and arch from matrix
+          PLATFORM="${{ matrix.platform }}"
+          ARCH="${{ matrix.arch }}"
+
+          # Phase-specific hashing for granular cache invalidation
+          # Each phase includes its dependencies (cumulative hashing)
+          # Now with hierarchical paths: shared/ → platform/shared/ → platform/arch/
+
+          # Common scripts (used by all phases) - hierarchical
+          COMMON_PATHS=$(get_hierarchical_paths scripts common "$PLATFORM" "$ARCH")
+          COMMON_SCRIPTS=$(hash_files $COMMON_PATHS -type f -name "*.mjs")
+
+          # Release phase: patches/release + additions/release + scripts/release + common
+          RELEASE_PATCH_PATHS=$(get_hierarchical_paths patches release "$PLATFORM" "$ARCH")
+          RELEASE_ADDITION_PATHS=$(get_hierarchical_paths additions release "$PLATFORM" "$ARCH")
+          RELEASE_SCRIPT_PATHS=$(get_hierarchical_paths scripts release "$PLATFORM" "$ARCH")
+          RELEASE_PATCHES=$(hash_files $RELEASE_PATCH_PATHS -type f)
+          RELEASE_ADDITIONS=$(hash_files $RELEASE_ADDITION_PATHS -type f)
+          RELEASE_SCRIPTS=$(hash_files $RELEASE_SCRIPT_PATHS -type f -name "*.mjs")
+          RELEASE_KEY=$(echo "${COMMON_SCRIPTS}${RELEASE_PATCHES}${RELEASE_ADDITIONS}${RELEASE_SCRIPTS}" | $hash_cmd | cut -d' ' -f1)
+
+          # Stripped phase: release + patches/stripped + additions/stripped + scripts/stripped
+          STRIPPED_PATCH_PATHS=$(get_hierarchical_paths patches stripped "$PLATFORM" "$ARCH")
+          STRIPPED_ADDITION_PATHS=$(get_hierarchical_paths additions stripped "$PLATFORM" "$ARCH")
+          STRIPPED_SCRIPT_PATHS=$(get_hierarchical_paths scripts stripped "$PLATFORM" "$ARCH")
+          STRIPPED_PATCHES=$(hash_files $RELEASE_PATCH_PATHS $STRIPPED_PATCH_PATHS -type f)
+          STRIPPED_ADDITIONS=$(hash_files $RELEASE_ADDITION_PATHS $STRIPPED_ADDITION_PATHS -type f)
+          STRIPPED_SCRIPTS=$(hash_files $RELEASE_SCRIPT_PATHS $STRIPPED_SCRIPT_PATHS -type f -name "*.mjs")
+          STRIPPED_KEY=$(echo "${COMMON_SCRIPTS}${STRIPPED_PATCHES}${STRIPPED_ADDITIONS}${STRIPPED_SCRIPTS}" | $hash_cmd | cut -d' ' -f1)
+
+          # Compressed phase: release + stripped + patches/compressed + additions/compressed + scripts/compressed
+          COMPRESSED_PATCH_PATHS=$(get_hierarchical_paths patches compressed "$PLATFORM" "$ARCH")
+          COMPRESSED_ADDITION_PATHS=$(get_hierarchical_paths additions compressed "$PLATFORM" "$ARCH")
+          COMPRESSED_SCRIPT_PATHS=$(get_hierarchical_paths scripts compressed "$PLATFORM" "$ARCH")
+          COMPRESSED_PATCHES=$(hash_files $RELEASE_PATCH_PATHS $STRIPPED_PATCH_PATHS $COMPRESSED_PATCH_PATHS -type f)
+          COMPRESSED_ADDITIONS=$(hash_files $RELEASE_ADDITION_PATHS $STRIPPED_ADDITION_PATHS $COMPRESSED_ADDITION_PATHS -type f)
+          COMPRESSED_SCRIPTS=$(hash_files $RELEASE_SCRIPT_PATHS $STRIPPED_SCRIPT_PATHS $COMPRESSED_SCRIPT_PATHS -type f -name "*.mjs")
+          COMPRESSED_KEY=$(echo "${COMMON_SCRIPTS}${COMPRESSED_PATCHES}${COMPRESSED_ADDITIONS}${COMPRESSED_SCRIPTS}" | $hash_cmd | cut -d' ' -f1)
+
+          # Final phase: release + stripped + compressed + patches/final + additions/final + scripts/final
+          FINAL_PATCH_PATHS=$(get_hierarchical_paths patches final "$PLATFORM" "$ARCH")
+          FINAL_ADDITION_PATHS=$(get_hierarchical_paths additions final "$PLATFORM" "$ARCH")
+          FINAL_SCRIPT_PATHS=$(get_hierarchical_paths scripts final "$PLATFORM" "$ARCH")
+          FINAL_PATCHES=$(hash_files $RELEASE_PATCH_PATHS $STRIPPED_PATCH_PATHS $COMPRESSED_PATCH_PATHS $FINAL_PATCH_PATHS -type f)
+          FINAL_ADDITIONS=$(hash_files $RELEASE_ADDITION_PATHS $STRIPPED_ADDITION_PATHS $COMPRESSED_ADDITION_PATHS $FINAL_ADDITION_PATHS -type f)
+          FINAL_SCRIPTS=$(hash_files $RELEASE_SCRIPT_PATHS $STRIPPED_SCRIPT_PATHS $COMPRESSED_SCRIPT_PATHS $FINAL_SCRIPT_PATHS -type f -name "*.mjs")
+          FINAL_KEY=$(echo "${COMMON_SCRIPTS}${FINAL_PATCHES}${FINAL_ADDITIONS}${FINAL_SCRIPTS}" | $hash_cmd | cut -d' ' -f1)
+
+          echo "release_hash=${RELEASE_KEY}" >> $GITHUB_OUTPUT
+          echo "stripped_hash=${STRIPPED_KEY}" >> $GITHUB_OUTPUT
+          echo "compressed_hash=${COMPRESSED_KEY}" >> $GITHUB_OUTPUT
+          echo "final_hash=${FINAL_KEY}" >> $GITHUB_OUTPUT
+          echo "build_mode=${BUILD_MODE}" >> $GITHUB_OUTPUT
+
+      - name: Restore node-source cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        id: node-source-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/source
+          key: node-source-${{ env.CACHE_VERSION }}-${{ env.NODE_VERSION }}-${{ steps.smol-cache-key.outputs.release_hash }}
+
+      - name: Restore node Release cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        id: node-release-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/out/Release
+          key: node-release-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.release_hash }}
+
+      - name: Restore node Stripped cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        id: node-stripped-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/out/Stripped
+          key: node-stripped-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.stripped_hash }}
+
+      - name: Restore node Compressed cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        id: node-compressed-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/out/Compressed
+          key: node-compressed-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.compressed_hash }}
+
+      - name: Restore node Final cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        id: node-final-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/out/Final
+          key: node-final-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.final_hash }}
+
+      - name: Restore checkpoint cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        id: checkpoint-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/checkpoints
+          key: node-checkpoints-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.final_hash }}
+
+      - name: Validate build cache integrity
+        id: validate-cache
+        if: steps.node-final-cache.outputs.cache-hit == 'true'
+        shell: bash
+        run: |
+          BUILD_MODE="${STEPS_SMOL_CACHE_KEY_OUTPUTS_BUILD_MODE}"
+          FINAL_DIR="packages/node-smol-builder/build/${BUILD_MODE}/out/Final"
+          CHECKPOINT_DIR="packages/node-smol-builder/build/${BUILD_MODE}/checkpoints"
+
+          echo "Validating cached build for ${{ matrix.platform }}-${{ matrix.arch }}..."
+
+          # Determine expected binary name
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            BINARY_NAME="node.exe"
+          else
+            BINARY_NAME="node"
+          fi
+
+          # Check if binary exists
+          if [ ! -f "${FINAL_DIR}/${BINARY_NAME}" ]; then
+            echo "❌ Binary missing: ${FINAL_DIR}/${BINARY_NAME}"
+            rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
+            echo "cache_valid=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check binary size (minimum 50MB for node binary)
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            BINARY_SIZE=$(stat -c%s "${FINAL_DIR}/${BINARY_NAME}" 2>/dev/null || powershell -Command "(Get-Item '${FINAL_DIR}/${BINARY_NAME}').Length")
+          else
+            BINARY_SIZE=$(stat -f%z "${FINAL_DIR}/${BINARY_NAME}" 2>/dev/null || stat -c%s "${FINAL_DIR}/${BINARY_NAME}")
+          fi
+
+          MIN_SIZE=52428800  # 50MB in bytes
+          if [ "$BINARY_SIZE" -lt "$MIN_SIZE" ]; then
+            echo "❌ Binary too small: $BINARY_SIZE bytes (minimum $MIN_SIZE)"
+            rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
+            echo "cache_valid=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "✓ Binary size OK: $BINARY_SIZE bytes"
+
+          # Check if checkpoint files exist (phase-based structure, flat directory)
+          if [ ! -f "${CHECKPOINT_DIR}/release.json" ] || \
+             [ ! -f "${CHECKPOINT_DIR}/stripped.json" ] || \
+             [ ! -f "${CHECKPOINT_DIR}/compressed.json" ]; then
+            echo "❌ Checkpoint files incomplete"
+            rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
+            echo "cache_valid=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Validate checksum if available in checkpoint
+          if command -v jq &> /dev/null; then
+            EXPECTED_CHECKSUM=$(jq -r '.checksum // empty' "${CHECKPOINT_DIR}/compressed.json")
+            if [ -n "$EXPECTED_CHECKSUM" ]; then
+              if command -v shasum &> /dev/null; then
+                ACTUAL_CHECKSUM=$(shasum -a 256 "${FINAL_DIR}/${BINARY_NAME}" | cut -d' ' -f1)
+              else
+                ACTUAL_CHECKSUM=$(sha256sum "${FINAL_DIR}/${BINARY_NAME}" | cut -d' ' -f1)
+              fi
+
+              if [ "$EXPECTED_CHECKSUM" != "$ACTUAL_CHECKSUM" ]; then
+                echo "❌ Checksum mismatch (cache corruption detected)"
+                echo "   Expected: $EXPECTED_CHECKSUM"
+                echo "   Actual:   $ACTUAL_CHECKSUM"
+                rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
+                echo "cache_valid=false" >> $GITHUB_OUTPUT
+                exit 0
+              fi
+              echo "✓ Checksum validation passed"
+            fi
+          fi
+
+          # Smoke test: check version (all builds are native, so we can always test)
+          # We build natively on each architecture to avoid cross-compilation issues
+          if true; then
+            "${FINAL_DIR}/${BINARY_NAME}" --version > /dev/null 2>&1
+            if [ $? -ne 0 ]; then
+              echo "❌ Binary smoke test failed"
+              rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
+              echo "cache_valid=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+
+            # Verify Node.js version matches
+            NODE_VER=$("${FINAL_DIR}/${BINARY_NAME}" --version | sed 's/v//')
+            if [ "$NODE_VER" != "${{ env.NODE_VERSION }}" ]; then
+              echo "❌ Version mismatch: expected ${{ env.NODE_VERSION }}, got $NODE_VER"
+              rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
+              echo "cache_valid=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
+
+          echo "✅ Cache validation passed"
+          echo "cache_valid=true" >> $GITHUB_OUTPUT
+        env:
+          STEPS_SMOL_CACHE_KEY_OUTPUTS_BUILD_MODE: ${{ steps.smol-cache-key.outputs.build_mode }}
+
+      - name: Clean stale ninja files
+        shell: bash
+        run: |
+          BUILD_MODE="${STEPS_SMOL_CACHE_KEY_OUTPUTS_BUILD_MODE}"
+          OUT_DIR="packages/node-smol-builder/build/${BUILD_MODE}/source/out"
+          if [ -d "$OUT_DIR" ]; then
+            echo "Cleaning stale ninja files to prevent duplicate rules..."
+            rm -rf "$OUT_DIR"
+            echo "✅ Cleaned $OUT_DIR"
+          else
+            echo "No out/ directory to clean"
+          fi
+        env:
+          STEPS_SMOL_CACHE_KEY_OUTPUTS_BUILD_MODE: ${{ steps.smol-cache-key.outputs.build_mode }}
+
+      - name: Build Node.js smol
+        if: steps.node-final-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.cache_valid == 'false'
+        shell: bash
+        env:
+          BUILD_MODE: ${{ inputs.build_mode || 'prod' }}
+          MATRIX_PLATFORM: ${{ matrix.platform }}
+          MATRIX_ARCH: ${{ matrix.arch }}
+        run: |
+          if [ "$BUILD_MODE" = "prod" ]; then
+            pnpm --filter node-smol-builder build --prod --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}"
+          else
+            pnpm --filter node-smol-builder build --dev --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}"
+          fi
+
+      - name: Collect build metrics
+        if: always()
+        shell: bash
+        run: |
+          BUILD_MODE="${STEPS_SMOL_CACHE_KEY_OUTPUTS_BUILD_MODE}"
+          FINAL_DIR="packages/node-smol-builder/build/${BUILD_MODE}/out/Final"
+
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            BINARY_NAME="node.exe"
+          else
+            BINARY_NAME="node"
+          fi
+
+          if [ -f "${FINAL_DIR}/${BINARY_NAME}" ]; then
+            if [ "${{ matrix.os }}" = "windows" ]; then
+              BINARY_SIZE_MB=$(powershell -Command "[math]::Round((Get-Item '${FINAL_DIR}/${BINARY_NAME}').Length / 1MB, 2)")
+            else
+              BINARY_SIZE=$(stat -f%z "${FINAL_DIR}/${BINARY_NAME}" 2>/dev/null || stat -c%s "${FINAL_DIR}/${BINARY_NAME}")
+              BINARY_SIZE_MB=$(echo "scale=2; $BINARY_SIZE / 1024 / 1024" | bc 2>/dev/null || awk "BEGIN {printf \"%.2f\", $BINARY_SIZE / 1024 / 1024}")
+            fi
+            echo "✅ Binary size: ${BINARY_SIZE_MB} MB"
+            echo "binary_size_mb=${BINARY_SIZE_MB}" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Binary not found"
+          fi
+        env:
+          STEPS_SMOL_CACHE_KEY_OUTPUTS_BUILD_MODE: ${{ steps.smol-cache-key.outputs.build_mode }}
+
+      - name: Upload Node.js smol artifacts
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: node-smol-${{ matrix.platform }}-${{ matrix.arch }}
+          path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/out/Final/node${{ matrix.os == 'windows' && '.exe' || '' }}
+          retention-days: 30
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: |
+      (github.event_name == 'workflow_dispatch' && !inputs.dry_run) ||
+      (github.event_name == 'release')
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da32fa3c3640b8 # v4.1.8
+        with:
+          path: artifacts/
+          pattern: node-smol-*
+
+      - name: Organize release assets
+        run: |
+          mkdir -p packages/node-smol-builder/dist
+
+          # Darwin ARM64
+          mv artifacts/node-smol-darwin-arm64/node packages/node-smol-builder/dist/node-compiled-darwin-arm64
+
+          # Darwin x64
+          mv artifacts/node-smol-darwin-x64/node packages/node-smol-builder/dist/node-compiled-darwin-x64
+
+          # Linux x64
+          mv artifacts/node-smol-linux-x64/node packages/node-smol-builder/dist/node-compiled-linux-x64
+
+          # Linux ARM64
+          mv artifacts/node-smol-linux-arm64/node packages/node-smol-builder/dist/node-compiled-linux-arm64
+
+          # Linux musl x64
+          mv artifacts/node-smol-linux-musl-x64/node packages/node-smol-builder/dist/node-compiled-linux-musl-x64
+
+          # Linux musl ARM64
+          mv artifacts/node-smol-linux-musl-arm64/node packages/node-smol-builder/dist/node-compiled-linux-musl-arm64
+
+          # Windows x64
+          mv artifacts/node-smol-win32-x64/node.exe packages/node-smol-builder/dist/node-compiled-win32-x64.exe
+
+          # Windows ARM64
+          mv artifacts/node-smol-win32-arm64/node.exe packages/node-smol-builder/dist/node-compiled-win32-arm64.exe
+
+          # Make Unix binaries executable
+          chmod +x packages/node-smol-builder/dist/node-compiled-*
+
+      - name: Validate all platform binaries exist
+        run: |
+          REQUIRED_FILES=(
+            "node-compiled-darwin-arm64"
+            "node-compiled-darwin-x64"
+            "node-compiled-linux-x64"
+            "node-compiled-linux-arm64"
+            "node-compiled-linux-musl-x64"
+            "node-compiled-linux-musl-arm64"
+            "node-compiled-win32-x64.exe"
+            "node-compiled-win32-arm64.exe"
+          )
+
+          MISSING=()
+          for file in "${REQUIRED_FILES[@]}"; do
+            if [ ! -f "packages/node-smol-builder/dist/$file" ]; then
+              MISSING+=("$file")
+            fi
+          done
+
+          if [ ${#MISSING[@]} -ne 0 ]; then
+            echo "❌ Missing required binaries:"
+            printf '%s\n' "${MISSING[@]}"
+            exit 1
+          fi
+
+          echo "✅ All platform binaries present"
+          ls -lh packages/node-smol-builder/dist/
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./packages/node-smol-builder/package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          cd packages/node-smol-builder/dist
+
+          # Use sha256sum on Windows/Linux, shasum on macOS
+          if command -v shasum &> /dev/null; then
+            shasum -a 256 node-compiled-* > checksums.txt
+          elif command -v sha256sum &> /dev/null; then
+            sha256sum node-compiled-* > checksums.txt
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+
+          cat checksums.txt
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STEPS_VERSION_OUTPUTS_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          VERSION="${STEPS_VERSION_OUTPUTS_VERSION}"
+          TAG="node-smol-v${VERSION}"
+
+          # Check if release already exists
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, uploading assets..."
+            gh release upload "$TAG" \
+              packages/node-smol-builder/dist/node-compiled-* \
+              packages/node-smol-builder/dist/checksums.txt \
+              --clobber
+          else
+            echo "Creating new release $TAG..."
+            gh release create "$TAG" \
+              --title "Node.js Smol v${VERSION}" \
+              --notes "Minimal Node.js v${{ env.NODE_VERSION }} binaries for all platforms.
+
+          ## Platforms
+          - **macOS**: arm64, x64
+          - **Linux (glibc)**: x64, arm64
+          - **Linux (musl/Alpine)**: x64, arm64
+          - **Windows**: x64, arm64
+
+          ## Files
+          - \`node-compiled-darwin-arm64\` - macOS Apple Silicon
+          - \`node-compiled-darwin-x64\` - macOS Intel
+          - \`node-compiled-linux-x64\` - Linux x64 (glibc)
+          - \`node-compiled-linux-arm64\` - Linux ARM64 (glibc)
+          - \`node-compiled-linux-musl-x64\` - Alpine Linux x64
+          - \`node-compiled-linux-musl-arm64\` - Alpine Linux ARM64
+          - \`node-compiled-win32-x64.exe\` - Windows x64
+          - \`node-compiled-win32-arm64.exe\` - Windows ARM64
+          - \`checksums.txt\` - SHA256 checksums
+
+          ## Usage
+          Download the appropriate binary for your platform and run it:
+          \`\`\`bash
+          ./node-compiled-darwin-arm64 script.js
+          \`\`\`
+
+          Built from Node.js v${{ env.NODE_VERSION }}" \
+              packages/node-smol-builder/dist/node-compiled-* \
+              packages/node-smol-builder/dist/checksums.txt
+          fi

@@ -1,0 +1,244 @@
+name: ONNX Runtime WASM
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      build_mode:
+        description: 'Build mode'
+        type: choice
+        options:
+          - prod
+          - dev
+        default: prod
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+      force:
+        type: boolean
+        default: false
+      build_mode:
+        type: string
+        default: prod
+
+permissions:
+  contents: read
+
+env:
+  ONNX_VERSION: 1.20.1
+  NODE_VERSION: 22.x
+  PNPM_VERSION: 9.x
+
+jobs:
+  build:
+    permissions:
+      contents: read
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+        # Note: version is specified in package.json packageManager field, not here
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Restore pnpm cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        with:
+          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Set build mode
+        id: build-mode
+        run: |
+          BUILD_MODE="${{ inputs.build_mode || 'prod' }}"
+          echo "mode=$BUILD_MODE" >> $GITHUB_OUTPUT
+          echo "Build mode: $BUILD_MODE"
+
+      - name: Generate ONNX Runtime cache key
+        id: cache-key
+        run: |
+          BUILD_FILES_HASH=$(find packages/onnxruntime-builder/scripts -type f | sort | xargs shasum -a 256 | shasum -a 256 | cut -d' ' -f1)
+          echo "hash=$BUILD_FILES_HASH" >> $GITHUB_OUTPUT
+
+      - name: Restore ONNX Runtime source cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        id: onnx-source-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: packages/onnxruntime-builder/build/shared/source
+          key: onnx-source-v${{ env.ONNX_VERSION }}-${{ steps.cache-key.outputs.hash }}
+
+      - name: Restore ONNX Runtime build cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        id: onnx-build-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: packages/onnxruntime-builder/build/${{ steps.build-mode.outputs.mode }}/wasm
+          key: onnx-build-v${{ env.ONNX_VERSION }}-${{ runner.os }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.hash }}
+
+      - name: Validate build cache integrity
+        id: validate-cache
+        if: steps.onnx-build-cache.outputs.cache-hit == 'true'
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "Validating cached ONNX Runtime build..."
+
+          # Check if WASM files exist
+          if [ ! -f "packages/onnxruntime-builder/build/${BUILD_MODE}/wasm/ort.wasm" ]; then
+            echo "❌ WASM file missing, invalidating cache"
+            rm -rf "packages/onnxruntime-builder/build/${BUILD_MODE}/wasm"
+            echo "cache_valid=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check file sizes are reasonable
+          WASM_SIZE=$(stat -f%z "packages/onnxruntime-builder/build/${BUILD_MODE}/wasm/ort.wasm" 2>/dev/null || stat -c%s "packages/onnxruntime-builder/build/${BUILD_MODE}/wasm/ort.wasm")
+          if [ "$WASM_SIZE" -lt 1000000 ]; then
+            echo "❌ WASM file too small ($WASM_SIZE bytes), invalidating cache"
+            rm -rf "packages/onnxruntime-builder/build/${BUILD_MODE}/wasm"
+            echo "cache_valid=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "✅ Cache validation passed"
+          echo "cache_valid=true" >> $GITHUB_OUTPUT
+
+      - name: Build ONNX Runtime WASM
+        if: steps.onnx-build-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.cache_valid == 'false'
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: pnpm --filter onnxruntime-builder build --${{ steps.build-mode.outputs.mode }}
+
+      - name: Validate build output
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "Validating ONNX Runtime build output..."
+
+          if [ ! -f "packages/onnxruntime-builder/build/${BUILD_MODE}/wasm/ort.wasm" ]; then
+            echo "❌ Build failed: WASM file missing"
+            exit 1
+          fi
+
+          if [ ! -f "packages/onnxruntime-builder/build/${BUILD_MODE}/wasm/ort.mjs" ]; then
+            echo "❌ Build failed: MJS file missing"
+            exit 1
+          fi
+
+          WASM_SIZE=$(stat -c%s "packages/onnxruntime-builder/build/${BUILD_MODE}/wasm/ort.wasm" 2>/dev/null || stat -f%z "packages/onnxruntime-builder/build/${BUILD_MODE}/wasm/ort.wasm")
+          if [ "$WASM_SIZE" -lt 1000000 ]; then
+            echo "❌ Build failed: WASM file too small ($WASM_SIZE bytes)"
+            exit 1
+          fi
+
+          echo "✅ Build validation passed"
+
+      - name: Upload ONNX Runtime artifacts
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: onnxruntime-wasm
+          path: packages/onnxruntime-builder/build/${{ steps.build-mode.outputs.mode }}/wasm/
+          retention-days: 30
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: |
+      (github.event_name == 'workflow_dispatch' && !inputs.dry_run) ||
+      (github.event_name == 'release')
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Download ONNX Runtime artifacts
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da32fa3c3640b8 # v4.1.8
+        with:
+          name: onnxruntime-wasm
+          path: packages/onnxruntime-builder/build/prod/wasm/
+
+      - name: Extract version from package.json
+        id: version
+        run: |
+          VERSION=$(node -p "require('./packages/onnxruntime-builder/package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Generate checksums
+        run: |
+          cd packages/onnxruntime-builder/build/prod/wasm
+          shasum -a 256 *.wasm *.js > checksums.txt
+          cat checksums.txt
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STEPS_VERSION_OUTPUTS_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          VERSION="${STEPS_VERSION_OUTPUTS_VERSION}"
+          TAG="onnxruntime-v${VERSION}"
+
+          # Check if release already exists
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, uploading assets..."
+            gh release upload "$TAG" \
+              packages/onnxruntime-builder/build/prod/wasm/*.wasm \
+              packages/onnxruntime-builder/build/prod/wasm/*.js \
+              packages/onnxruntime-builder/build/prod/wasm/checksums.txt \
+              --clobber
+          else
+            echo "Creating new release $TAG..."
+            gh release create "$TAG" \
+              --title "ONNX Runtime WASM v${VERSION}" \
+              --notes "ONNX Runtime v${{ env.ONNX_VERSION }} compiled to WASM with SIMD and threading support.
+
+          ## Included Files
+          - \`ort.wasm\` - Main WASM binary with SIMD + threading
+          - \`ort.mjs\` - ES module loader
+          - \`checksums.txt\` - SHA256 checksums for verification
+
+          ## Usage
+          \`\`\`javascript
+          import * as ort from './ort.mjs';
+          \`\`\`
+
+          Built from ONNX Runtime v${{ env.ONNX_VERSION }}" \
+              packages/onnxruntime-builder/build/prod/wasm/*.wasm \
+              packages/onnxruntime-builder/build/prod/wasm/*.js \
+              packages/onnxruntime-builder/build/prod/wasm/checksums.txt
+          fi

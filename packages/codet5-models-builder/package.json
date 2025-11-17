@@ -1,0 +1,56 @@
+{
+  "name": "codet5-models-builder",
+  "version": "1.0.0",
+  "description": "CodeT5 model conversion and optimization for Socket CLI",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:force": "node scripts/build.mjs --force",
+    "clean": "node scripts/clean.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "build-infra": "workspace:*",
+    "@socketsecurity/lib": "catalog:"
+  },
+  "devDependencies": {
+    "onnxruntime-node": "1.20.1",
+    "vitest": "catalog:"
+  },
+  "externalTools": {
+    "transformers": {
+      "description": "Hugging Face Transformers library",
+      "type": "python",
+      "versions": {
+        "pip": "4.46.3"
+      },
+      "extras": []
+    },
+    "torch": {
+      "description": "PyTorch machine learning framework",
+      "type": "python",
+      "versions": {
+        "pip": "2.5.1"
+      },
+      "extras": []
+    },
+    "onnx": {
+      "description": "ONNX - Open Neural Network Exchange",
+      "type": "python",
+      "versions": {
+        "pip": "1.17.0"
+      },
+      "extras": []
+    },
+    "onnxruntime": {
+      "description": "ONNX Runtime inference engine",
+      "type": "python",
+      "versions": {
+        "pip": "1.19.2"
+      },
+      "extras": []
+    }
+  }
+}

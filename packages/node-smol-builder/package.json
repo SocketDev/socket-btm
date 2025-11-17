@@ -1,0 +1,24 @@
+{
+  "dependencies": {
+    "build-infra": "workspace:*",
+    "@socketsecurity/lib": "catalog:",
+    "yoctocolors-cjs": "catalog:"
+  },
+  "description": "Custom Node.js binary builder with Socket security patches",
+  "devDependencies": {
+    "vitest": "catalog:"
+  },
+  "license": "MIT",
+  "name": "@socketbin/node-smol-builder",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/common/shared/build.mjs",
+    "build:all": "node scripts/common/shared/build.mjs --all-platforms",
+    "clean": "node scripts/clean.mjs",
+    "clean:build": "node scripts/clean.mjs --build",
+    "clean:dist": "node scripts/clean.mjs --dist",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "version": "1.2.0"
+}

@@ -1,0 +1,355 @@
+name: Models
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      build_mode:
+        description: 'Build mode'
+        type: choice
+        options:
+          - prod
+          - dev
+        default: prod
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+      force:
+        type: boolean
+        default: false
+      build_mode:
+        type: string
+        default: prod
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 22.x
+  PNPM_VERSION: 9.x
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  build:
+    permissions:
+      contents: read
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+        # Note: version is specified in package.json packageManager field, not here
+
+      - name: Setup Python
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Restore pnpm cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        with:
+          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          # Python packages are installed with pinned versions by build script
+          # via ensureAllPythonPackages() from build-infra/lib/python-installer.mjs
+          # Pinned versions defined in build-infra/lib/pinned-versions.mjs
+
+      - name: Set build mode
+        id: build-mode
+        run: |
+          BUILD_MODE="${{ inputs.build_mode || 'prod' }}"
+          echo "mode=$BUILD_MODE" >> $GITHUB_OUTPUT
+          echo "Build mode: $BUILD_MODE"
+
+      - name: Generate model cache key
+        id: cache-key
+        run: |
+          BUILD_FILES_HASH=$(find packages/models/scripts packages/models/package.json -type f | sort | xargs shasum -a 256 | shasum -a 256 | cut -d' ' -f1)
+          echo "hash=$BUILD_FILES_HASH" >> $GITHUB_OUTPUT
+
+      - name: Restore model cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        id: model-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: packages/models/dist/${{ steps.build-mode.outputs.mode }}
+          key: models-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.hash }}
+
+      - name: Validate model cache integrity
+        id: validate-cache
+        if: steps.model-cache.outputs.cache-hit == 'true'
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "Validating cached models for ${BUILD_MODE}..."
+
+          # Check if model files exist
+          if [ ! -f "packages/models/dist/${BUILD_MODE}/minilm-l6/model.onnx" ]; then
+            echo "❌ MiniLM model missing, invalidating cache"
+            rm -rf packages/models/dist/${BUILD_MODE}
+            echo "cache_valid=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if [ ! -f "packages/models/dist/${BUILD_MODE}/codet5/model.onnx" ]; then
+            echo "❌ CodeT5 model missing, invalidating cache"
+            rm -rf packages/models/dist/${BUILD_MODE}
+            echo "cache_valid=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check file sizes are reasonable
+          # prod (int4): ~600KB (expect >100KB), dev (int8): ~20MB (expect >1MB)
+          MINILM_SIZE=$(stat -c%s packages/models/dist/${BUILD_MODE}/minilm-l6/model.onnx)
+          CODET5_SIZE=$(stat -c%s packages/models/dist/${BUILD_MODE}/codet5/model.onnx)
+
+          if [ "${BUILD_MODE}" = "prod" ]; then
+            MIN_SIZE=100000  # 100KB minimum for prod (int4)
+          else
+            MIN_SIZE=1000000  # 1MB minimum for dev (int8)
+          fi
+
+          if [ "$MINILM_SIZE" -lt "$MIN_SIZE" ]; then
+            echo "❌ MiniLM model too small ($MINILM_SIZE bytes, expected >$MIN_SIZE), invalidating cache"
+            rm -rf packages/models/dist/${BUILD_MODE}
+            echo "cache_valid=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if [ "$CODET5_SIZE" -lt "$MIN_SIZE" ]; then
+            echo "❌ CodeT5 model too small ($CODET5_SIZE bytes, expected >$MIN_SIZE), invalidating cache"
+            rm -rf packages/models/dist/${BUILD_MODE}
+            echo "cache_valid=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "✅ Cache validation passed"
+          echo "cache_valid=true" >> $GITHUB_OUTPUT
+
+      - name: Build models
+        if: steps.model-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.cache_valid == 'false'
+        run: pnpm --filter models build --${{ steps.build-mode.outputs.mode }}
+
+      - name: Validate build output
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "Validating models build output for ${BUILD_MODE}..."
+
+          if [ ! -f "packages/models/dist/${BUILD_MODE}/minilm-l6/model.onnx" ]; then
+            echo "❌ Build failed: MiniLM model missing"
+            exit 1
+          fi
+
+          if [ ! -f "packages/models/dist/${BUILD_MODE}/codet5/model.onnx" ]; then
+            echo "❌ Build failed: CodeT5 model missing"
+            exit 1
+          fi
+
+          MINILM_SIZE=$(stat -c%s packages/models/dist/${BUILD_MODE}/minilm-l6/model.onnx)
+          CODET5_SIZE=$(stat -c%s packages/models/dist/${BUILD_MODE}/codet5/model.onnx)
+
+          # Different size thresholds for different build modes
+          # dev (int8): ~20MB (expect >1MB after quantization)
+          # prod (int4): ~600KB (expect >100KB after aggressive quantization)
+          if [ "${BUILD_MODE}" = "prod" ]; then
+            MIN_SIZE=100000  # 100KB minimum for prod (int4)
+          else
+            MIN_SIZE=1000000  # 1MB minimum for dev (int8)
+          fi
+
+          if [ "$MINILM_SIZE" -lt "$MIN_SIZE" ]; then
+            echo "❌ Build failed: MiniLM model too small ($MINILM_SIZE bytes, expected >$MIN_SIZE)"
+            exit 1
+          fi
+
+          if [ "$CODET5_SIZE" -lt "$MIN_SIZE" ]; then
+            echo "❌ Build failed: CodeT5 model too small ($CODET5_SIZE bytes, expected >$MIN_SIZE)"
+            exit 1
+          fi
+
+          echo "✅ Build validation passed"
+
+      - name: Upload model artifacts
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: models
+          path: packages/models/dist/${{ steps.build-mode.outputs.mode }}/
+          retention-days: 30
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: |
+      (github.event_name == 'workflow_dispatch' && !inputs.dry_run) ||
+      (github.event_name == 'release')
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Download model artifacts
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da32fa3c3640b8 # v4.1.8
+        with:
+          name: models
+          path: packages/models/dist/prod/
+
+      - name: Extract version from package.json
+        id: version
+        run: |
+          VERSION=$(node -p "require('./packages/models/package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Generate checksums
+        run: |
+          cd packages/models/dist/prod
+          find . -name "*.onnx" -exec shasum -a 256 {} \; > checksums.txt
+          cat checksums.txt
+
+      - name: Import GPG key
+        if: ${{ env.GPG_PRIVATE_KEY != '' }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+            echo "GPG key imported successfully"
+          else
+            echo "⚠️  GPG_PRIVATE_KEY secret not set, skipping signature"
+          fi
+
+      - name: Sign checksums
+        if: ${{ env.GPG_PRIVATE_KEY != '' }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            cd packages/models/dist/prod
+            if [ -n "$GPG_PASSPHRASE" ]; then
+              echo "$GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --detach-sign --armor checksums.txt
+            else
+              gpg --batch --yes --detach-sign --armor checksums.txt
+            fi
+            echo "✓ Created checksums.txt.asc"
+            ls -lh checksums.txt.asc
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STEPS_VERSION_OUTPUTS_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          VERSION="${STEPS_VERSION_OUTPUTS_VERSION}"
+          TAG="models-v${VERSION}"
+
+          # Check if release already exists
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, uploading assets..."
+
+            # Create archive with versioned name
+            cd packages/models/dist/prod
+            tar -czf ../models-v${VERSION}.tar.gz .
+
+            UPLOAD_ARGS="../models-v${VERSION}.tar.gz \
+              checksums.txt"
+
+            # Add signature if it exists
+            if [ -f checksums.txt.asc ]; then
+              UPLOAD_ARGS="$UPLOAD_ARGS checksums.txt.asc"
+            fi
+
+            gh release upload "$TAG" $UPLOAD_ARGS --clobber
+          else
+            echo "Creating new release $TAG..."
+
+            # Create archive with versioned name
+            cd packages/models/dist/prod
+            tar -czf ../models-v${VERSION}.tar.gz .
+
+            gh release create "$TAG" \
+              --title "AI Models v${VERSION}" \
+              --notes "Production AI models for Socket BTM, optimized with INT4 quantization.
+
+          ## Included Models
+
+          ### MiniLM-L6-v2
+          - Sentence embeddings model
+          - 384-dimensional embeddings
+          - INT4 quantized (~75% size reduction)
+
+          ### CodeT5
+          - Code understanding model
+          - INT4 quantized (~75% size reduction)
+
+          ## Files
+          - \`models-v${VERSION}.tar.gz\` - All production models
+          - \`checksums.txt\` - SHA256 checksums for all .onnx files
+          - \`checksums.txt.asc\` - GPG signature (if available)
+
+          ## Download URL
+          \`\`\`
+          https://github.com/SocketDev/socket-btm/releases/download/${TAG}/models-v${VERSION}.tar.gz
+          \`\`\`
+
+          ## Verification
+          \`\`\`bash
+          # Extract and verify checksums
+          tar -xzf models-v${VERSION}.tar.gz
+          shasum -a 256 -c checksums.txt
+
+          # Verify GPG signature (if GPG key is available)
+          gpg --verify checksums.txt.asc checksums.txt
+          \`\`\`
+
+          ## Usage
+          Extract the archive and load models with ONNX Runtime:
+          \`\`\`javascript
+          import * as ort from 'onnxruntime-node';
+          const session = await ort.InferenceSession.create('./minilm-l6/model.onnx');
+          \`\`\`" \
+              ../models-v${VERSION}.tar.gz \
+              checksums.txt \
+              $([ -f checksums.txt.asc ] && echo "checksums.txt.asc" || echo "")
+          fi

@@ -131,7 +131,7 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 // Node.js version to build
-const NODE_VERSION = 'v24.10.0'
+const NODE_VERSION = 'v24.11.1'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -1106,15 +1106,16 @@ async function main() {
   logger.log(`Checking if ${NODE_VERSION} exists in Node.js repository...`)
   const tagCheck = await verifyGitTag(NODE_VERSION)
   if (!tagCheck.exists) {
-    printError(
-      'Invalid Node.js Version',
+    logger.error('Invalid Node.js Version')
+    logger.error(
       `Version ${NODE_VERSION} does not exist in Node.js repository.`,
-      [
-        'Check available versions: https://github.com/nodejs/node/tags',
-        'Update NODE_VERSION in this script to a valid version',
-        'Make sure version starts with "v" (e.g., v24.10.0)',
-      ],
     )
+    logger.error('Suggestions:')
+    logger.error(
+      '  - Check available versions: https://github.com/nodejs/node/tags',
+    )
+    logger.error('  - Update NODE_VERSION in this script to a valid version')
+    logger.error('  - Make sure version starts with "v" (e.g., v24.11.1)')
     throw new Error('Invalid Node.js version')
   }
   logger.log(

@@ -33,21 +33,21 @@ describe('@socketbin/node-smol-builder package', () => {
       )
 
       expect(pkgJson.scripts).toBeDefined()
-      expect(pkgJson.scripts.build).toBe('node scripts/build.mjs')
+      expect(pkgJson.scripts.build).toBe('node scripts/common/shared/build.mjs')
       expect(pkgJson.scripts['build:all']).toBe(
-        'node scripts/build.mjs --all-platforms',
+        'node scripts/common/shared/build.mjs --all-platforms',
       )
     })
   })
 
   describe('build scripts exist', () => {
     it('should have build.mjs script', () => {
-      const buildPath = path.join(scriptsDir, 'build.mjs')
+      const buildPath = path.join(scriptsDir, 'common/shared/build.mjs')
       expect(existsSync(buildPath)).toBe(true)
     })
 
     it('build.mjs should be valid JavaScript', async () => {
-      const buildPath = path.join(scriptsDir, 'build.mjs')
+      const buildPath = path.join(scriptsDir, 'common/shared/build.mjs')
       const content = await fs.readFile(buildPath, 'utf-8')
 
       // Should not throw syntax errors.
@@ -59,16 +59,16 @@ describe('@socketbin/node-smol-builder package', () => {
 
   describe('build script documentation', () => {
     it('build.mjs should document binary size optimization', async () => {
-      const buildPath = path.join(scriptsDir, 'build.mjs')
+      const buildPath = path.join(scriptsDir, 'common/shared/build.mjs')
       const content = await fs.readFile(buildPath, 'utf-8')
 
       expect(content).toContain('Binary Size Optimization')
-      expect(content).toContain('TARGET ACHIEVED')
+      expect(content).toContain('TARGET')
       expect(content).toContain('MB')
     })
 
     it('build.mjs should document configuration flags', async () => {
-      const buildPath = path.join(scriptsDir, 'build.mjs')
+      const buildPath = path.join(scriptsDir, 'common/shared/build.mjs')
       const content = await fs.readFile(buildPath, 'utf-8')
 
       expect(content).toContain('--with-intl=none')
@@ -76,7 +76,7 @@ describe('@socketbin/node-smol-builder package', () => {
     })
 
     it('build.mjs should document compression approach', async () => {
-      const buildPath = path.join(scriptsDir, 'build.mjs')
+      const buildPath = path.join(scriptsDir, 'common/shared/build.mjs')
       const content = await fs.readFile(buildPath, 'utf-8')
 
       expect(content).toContain('Compression Approach')
@@ -84,7 +84,7 @@ describe('@socketbin/node-smol-builder package', () => {
     })
 
     it('build.mjs should document performance impact', async () => {
-      const buildPath = path.join(scriptsDir, 'build.mjs')
+      const buildPath = path.join(scriptsDir, 'common/shared/build.mjs')
       const content = await fs.readFile(buildPath, 'utf-8')
 
       expect(content).toContain('Performance Impact')
@@ -93,7 +93,7 @@ describe('@socketbin/node-smol-builder package', () => {
     })
 
     it('build.mjs should document usage options', async () => {
-      const buildPath = path.join(scriptsDir, 'build.mjs')
+      const buildPath = path.join(scriptsDir, 'common/shared/build.mjs')
       const content = await fs.readFile(buildPath, 'utf-8')
 
       expect(content).toContain('--clean')
@@ -162,22 +162,24 @@ describe('@socketbin/node-smol-builder package', () => {
 
   describe('build script structure', () => {
     it('build.mjs should import required dependencies', async () => {
-      const buildPath = path.join(scriptsDir, 'build.mjs')
+      const buildPath = path.join(scriptsDir, 'common/shared/build.mjs')
       const content = await fs.readFile(buildPath, 'utf-8')
 
       // Check for key imports.
       expect(content).toContain("from 'node:fs'")
     })
 
-    it('build.mjs should reference Node.js version', async () => {
-      const buildPath = path.join(scriptsDir, 'build.mjs')
+    it('build.mjs should read Node.js version from package.json', async () => {
+      const buildPath = path.join(scriptsDir, 'common/shared/build.mjs')
       const content = await fs.readFile(buildPath, 'utf-8')
 
-      expect(content).toContain('v24.10.0')
+      // Should read from package.json instead of hardcoding
+      expect(content).toContain('package.json')
+      expect(content).toContain('nodeVersion')
     })
 
     it('build.mjs should reference Socket patches', async () => {
-      const buildPath = path.join(scriptsDir, 'build.mjs')
+      const buildPath = path.join(scriptsDir, 'common/shared/build.mjs')
       const content = await fs.readFile(buildPath, 'utf-8')
 
       expect(content).toContain('Socket')

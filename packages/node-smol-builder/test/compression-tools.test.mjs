@@ -238,12 +238,12 @@ describe('compression tools', () => {
   })
 
   describe('compression tool implementation', () => {
-    it('macOS decompressor should use Brotli', async () => {
+    it('macOS decompressor should use Apple compression', async () => {
       const sourceFile = path.join(compressionToolsDir, 'macho_decompress.c')
       const content = await fs.readFile(sourceFile, 'utf-8')
 
-      expect(content).toContain('BrotliDecoderDecompress')
-      expect(content).toContain('<brotli/decode.h>')
+      expect(content).toContain('<compression.h>')
+      expect(content).toContain('COMPRESSION_')
     })
 
     it('Linux decompressor should use LZMA', async () => {

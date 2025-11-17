@@ -1,13 +1,16 @@
-# node-smol-builder
+# @socketbin/node-smol-builder
 
-Minimal Node.js v22.11.0 binaries with SEA (Single Executable Application) support.
+Custom Node.js v24.10.0 binary builder with Socket security patches.
+
+## What it does
+
+This package Downloads the Node.js v24.10.0 source code, applies Socket security patches, and then compiles a custom Node.js binary optimized for size and security.
 
 ## Building
 
 ```bash
-pnpm build              # Build for current platform
-pnpm build --mode=prod  # Production build with V8 Lite Mode
-pnpm build --mode=dev   # Development build with full V8
+pnpm run build              # Build for current platform
+pnpm run build:all          # Build for all platforms
 ```
 
 ## Platform Support
@@ -20,10 +23,11 @@ Builds for 8 platforms:
 
 ## Output
 
-- `build/prod/Release/node` - Compiled binary (~44 MB)
-- `build/prod/Stripped/node` - Stripped binary (~23-27 MB)
-- `build/prod/Compressed/node` - Compressed binary (~8-12 MB)
-- `build/prod/Final/node` - Distribution binary
+Final binaries are located in `build/out/`:
+- `build/out/Release/node` - Compiled binary (~44 MB)
+- `build/out/Stripped/node` - Stripped binary (~23-27 MB)
+- `build/out/Compressed/node` - Compressed binary (~8-12 MB)
+- `build/out/Final/node` - Distribution binary
 
 ## Features
 

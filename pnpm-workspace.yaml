@@ -6,7 +6,7 @@ catalog:
   '@babel/parser': 7.28.4
   '@babel/traverse': 7.28.4
   '@babel/types': 7.28.5
-  '@biomejs/biome': 2.2.4
+  '@biomejs/biome': 2.3.4
   '@socketsecurity/lib': 4.0.1
   '@types/node': 24.9.2
   del-cli: 6.0.0

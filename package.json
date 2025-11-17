@@ -5,6 +5,7 @@
   "private": true,
   "license": "MIT",
   "description": "Socket Build Tree Manager - Build infrastructure for Node.js binaries and ML models",
+  "nodeVersion": "v24.10.0",
   "engines": {
     "node": ">=18",
     "pnpm": ">=10.22.0"

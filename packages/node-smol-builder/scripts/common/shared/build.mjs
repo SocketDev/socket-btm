@@ -130,11 +130,21 @@ import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
-// Node.js version to build
-const NODE_VERSION = 'v24.11.1'
-
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+// Read Node.js version from root package.json
+const rootPackageJsonPath = path.join(__dirname, '../../../../package.json')
+const rootPackageJson = JSON.parse(
+  await fs.readFile(rootPackageJsonPath, 'utf-8'),
+)
+const NODE_VERSION = rootPackageJson.nodeVersion
+
+if (!NODE_VERSION) {
+  throw new Error(
+    'NODE_VERSION not found in root package.json. Please add "nodeVersion" field.',
+  )
+}
 
 // Hoist logger for consistent usage throughout the script.
 const logger = getDefaultLogger()
@@ -1114,8 +1124,10 @@ async function main() {
     logger.error(
       '  - Check available versions: https://github.com/nodejs/node/tags',
     )
-    logger.error('  - Update NODE_VERSION in this script to a valid version')
-    logger.error('  - Make sure version starts with "v" (e.g., v24.11.1)')
+    logger.error(
+      '  - Update "nodeVersion" in root package.json to a valid version',
+    )
+    logger.error('  - Make sure version starts with "v" (e.g., v24.10.0)')
     throw new Error('Invalid Node.js version')
   }
   logger.log(

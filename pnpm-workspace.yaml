@@ -10,7 +10,7 @@ catalog:
   '@socketsecurity/lib': 4.0.1
   '@types/node': 24.9.2
   del-cli: 6.0.0
-  esbuild: 0.25.11
+  esbuild: 0.27.0
   magic-string: 0.30.19
   postject: 1.0.0-alpha.6
   vitest: 4.0.3

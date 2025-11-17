@@ -499,7 +499,7 @@ jobs:
           STEPS_SMOL_CACHE_KEY_OUTPUTS_BUILD_MODE: ${{ steps.smol-cache-key.outputs.build_mode }}
 
       - name: Upload Node.js smol artifacts
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: node-smol-${{ matrix.platform }}-${{ matrix.arch }}
           path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/out/Final/node${{ matrix.os == 'windows' && '.exe' || '' }}

@@ -1,0 +1,18 @@
+# Compiled binaries
+socketsecurity_macho_compress
+socketsecurity_macho_decompress
+socketsecurity_elf_compress
+socketsecurity_elf_decompress
+socketsecurity_pe_compress.exe
+socketsecurity_pe_decompress.exe
+
+# Object files
+*.o
+*.obj
+
+# Build artifacts
+*.dSYM/
+*.pdb
+*.ilk
+*.exp
+*.lib

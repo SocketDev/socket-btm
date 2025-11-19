@@ -1,0 +1,73 @@
+{
+  "name": "minilm-builder",
+  "version": "0.0.0",
+  "description": "MiniLM model conversion and optimization for Socket CLI",
+  "type": "module",
+  "private": true,
+  "sources": {
+    "minilm": {
+      "version": "sentence-transformers/all-MiniLM-L6-v2",
+      "type": "huggingface",
+      "url": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2",
+      "ref": "main"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:force": "node scripts/build.mjs --force",
+    "clean": "node scripts/clean.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "build-infra": "workspace:*",
+    "@socketsecurity/lib": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
+  },
+  "externalTools": {
+    "transformers": {
+      "description": "Hugging Face Transformers library",
+      "type": "python",
+      "versions": {
+        "pip": "4.46.3"
+      },
+      "extras": []
+    },
+    "torch": {
+      "description": "PyTorch machine learning framework",
+      "type": "python",
+      "versions": {
+        "pip": "2.5.1"
+      },
+      "extras": []
+    },
+    "onnx": {
+      "description": "ONNX - Open Neural Network Exchange",
+      "type": "python",
+      "versions": {
+        "pip": "1.17.0"
+      },
+      "extras": []
+    },
+    "onnxruntime": {
+      "description": "ONNX Runtime inference engine",
+      "type": "python",
+      "versions": {
+        "pip": "1.19.2"
+      },
+      "extras": []
+    },
+    "optimum": {
+      "description": "Hugging Face Optimum - ONNX optimization toolkit",
+      "type": "python",
+      "versions": {
+        "pip": "1.23.3"
+      },
+      "extras": [
+        "exporters"
+      ]
+    }
+  }
+}

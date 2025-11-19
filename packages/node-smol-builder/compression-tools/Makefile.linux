@@ -1,0 +1,30 @@
+# Makefile for Linux compression tools
+# Uses liblzma (LZMA compression)
+
+CC = gcc
+CFLAGS = -O3 -Wall -Wextra -std=c11
+LDFLAGS = -llzma
+# Static linking for decompressor (no runtime dependencies)
+LDFLAGS_STATIC = -static -llzma
+
+# Targets
+COMPRESS = socketsecurity_elf_compress
+DECOMPRESS = socketsecurity_elf_decompress
+
+.PHONY: all clean
+
+all: $(COMPRESS) $(DECOMPRESS)
+
+$(COMPRESS): elf_compress.c
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
+
+$(DECOMPRESS): elf_decompress.c
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS_STATIC)
+
+clean:
+	rm -f $(COMPRESS) $(DECOMPRESS)
+
+install: all
+	@echo "Compression tools built successfully"
+	@echo "  - $(COMPRESS)"
+	@echo "  - $(DECOMPRESS)"

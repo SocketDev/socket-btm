@@ -1,0 +1,21 @@
+# @node-versions: v24+
+# @description: Fix V8 RunningLocalHeap constructor for macOS
+#
+
+--- a/deps/v8/src/heap/safepoint.h
++++ b/deps/v8/src/heap/safepoint.h
+@@ -50,6 +50,14 @@ class V8_EXPORT_PRIVATE IsolateSafepoint final {
+  private:
+   struct RunningLocalHeap {
+     LocalHeap* local_heap;
++#if V8_OS_DARWIN
++    // Explicit constructor for macOS C++20 compatibility
++    RunningLocalHeap(LocalHeap* lh, pthread_override_t qos)
++        : local_heap(lh), qos_override(qos) {}
++#else
++    // Constructor for other platforms (no qos_override field)
++    explicit RunningLocalHeap(LocalHeap* lh) : local_heap(lh) {}
++#endif
+ #if V8_OS_DARWIN
+     pthread_override_t qos_override;
+ #endif

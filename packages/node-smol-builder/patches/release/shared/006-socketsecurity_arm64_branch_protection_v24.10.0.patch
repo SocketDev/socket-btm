@@ -1,0 +1,17 @@
+# @node-versions: v24+
+# @description: Enable ARM64 branch protection
+#
+
+--- a/common.gypi
++++ b/common.gypi
+@@ -233,6 +233,10 @@
+             # frames otherwise, even with --call-graph dwarf.
+             'cflags': [ '-fno-omit-frame-pointer' ],
+           }],
++        # ARM64 branch protection (pointer authentication)
++        ['target_arch=="arm64" and OS!="win"', {
++          'cflags': [ '-mbranch-protection=standard' ],
++        }],
+           ['OS=="linux" or OS=="openharmony"', {
+             'conditions': [
+               ['enable_pgo_generate=="true"', {

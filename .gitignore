@@ -1,0 +1,149 @@
+# ==============================================================================
+# Build Artifacts
+# ==============================================================================
+
+# All build artifacts are gitignored but used differently:
+#
+# - build/dev/                : Dev build workspace (isolated for concurrent builds)
+#   - build/dev/node-source/  : Dev Node.js source code
+#   - build/dev/out/          : Dev build outputs (Release, Stripped, Compressed, Final)
+#   - build/dev/cache/        : Dev compiled binary cache + cache-validation.hash
+#   - build/dev/build-checkpoint : Dev build resume checkpoint
+#
+# - build/prod/               : Prod build workspace (isolated for concurrent builds)
+#   - build/prod/node-source/ : Prod Node.js source code
+#   - build/prod/out/         : Prod build outputs (Release, Stripped, Compressed, Final)
+#   - build/prod/cache/       : Prod compiled binary cache + cache-validation.hash
+#   - build/prod/build-checkpoint : Prod build resume checkpoint
+#
+# - build/.release-temp/      : Temporary release packaging directory
+#                               (gitignored, created during release)
+#
+# CI Workflow:
+#   1. Build jobs: Upload build/{dev,prod}/out/Final/node as GitHub Actions artifacts
+#   2. Release job: Download artifacts to build/{dev,prod}/cache/node-compiled-{platform}-{arch}
+#   3. Release job: Run scripts/release.mjs to package and publish
+#
+# Local Workflow:
+#   1. First build: Compile and cache to build/{dev,prod}/cache/node-compiled-{platform}-{arch}
+#   2. Subsequent builds: Restore from cache if source unchanged
+#   3. Concurrent builds: Dev and prod builds fully isolated in separate directories
+#
+**/build/
+
+# Distribution binaries (E2E test artifacts, regenerated on each build)
+**/dist/
+
+# ==============================================================================
+# Dependencies
+# ==============================================================================
+
+**/node_modules/
+
+# ==============================================================================
+# Logs
+# ==============================================================================
+
+**/*.log
+
+# ==============================================================================
+# Generated Files
+# ==============================================================================
+
+# Bootstrap loader (generated from template during build)
+**/socketsecurity_bootstrap_loader.js
+
+# Compiled compression tool binaries (built from C++ source)
+**/socketsecurity_macho_compress
+**/socketsecurity_macho_decompress
+**/socketsecurity_elf_compress
+**/socketsecurity_elf_decompress
+**/socketsecurity_pe_compress
+**/socketsecurity_pe_decompress
+
+# ==============================================================================
+# Platform-Specific
+# ==============================================================================
+
+# macOS
+**/.DS_Store
+**/.AppleDouble
+**/.LSOverride
+
+# Windows
+**/Thumbs.db
+**/ehthumbs.db
+**/Desktop.ini
+
+# Linux
+**/.directory
+
+# ==============================================================================
+# Editor Files
+# ==============================================================================
+
+# Vim
+**/*.swp
+**/*.swo
+**/*~
+
+# VSCode
+**/.vscode/
+**/*.code-workspace
+
+# IntelliJ IDEA
+**/.idea/
+**/*.iml
+
+# Emacs
+**/*~
+**/\#*\#
+**/.\#*
+
+# ==============================================================================
+# Environment
+# ==============================================================================
+
+**/.env
+**/.env.local
+**/.env.*.local
+
+# ==============================================================================
+# Python
+# ==============================================================================
+
+# Byte-compiled / optimized / DLL files
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/*.so
+
+# Distribution / packaging
+**/*.egg-info/
+**/dist/
+**/build/
+
+# Virtual environments
+**/.venv/
+**/venv/
+**/ENV/
+**/env/
+
+# Testing and linting
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.coverage
+**/.tox/
+
+# ==============================================================================
+# Temporary Files
+# ==============================================================================
+
+**/tmp/
+**/temp/
+**/*.tmp
+**/.claude/
+
+# Archive directories
+**/docs/archive/

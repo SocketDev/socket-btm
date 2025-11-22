@@ -206,6 +206,21 @@ jobs:
           echo "✅ Checkpoint cache validation passed"
           echo "cache_valid=true" >> $GITHUB_OUTPUT
 
+      - name: Restore outputs from checkpoint cache
+        if: steps.onnx-checkpoint-cache.outputs.cache-hit == 'true' && steps.validate-cache.outputs.cache_valid == 'true'
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "Restoring build outputs from checkpoint cache..."
+          CHECKPOINT_DIR="packages/onnxruntime-builder/build/${BUILD_MODE}/checkpoints"
+          OUTPUT_DIR="packages/onnxruntime-builder/build/${BUILD_MODE}/out/Final"
+
+          mkdir -p "${OUTPUT_DIR}"
+          tar -xzf "${CHECKPOINT_DIR}/wasm-finalized.tar.gz" -C "${OUTPUT_DIR}"
+
+          echo "✅ Outputs restored from cache"
+          ls -lh "${OUTPUT_DIR}"
+
       - name: Build ONNX Runtime WASM
         if: steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.cache_valid == 'false'
         env:

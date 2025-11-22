@@ -1,0 +1,15 @@
+# @node-versions: v24.10.0+
+# @description: Fix gyp Python 3 hashlib.md5() compatibility
+#
+
+--- a/tools/gyp/pylib/gyp/generator/ninja.py
++++ b/tools/gyp/pylib/gyp/generator/ninja.py
+@@ -810,7 +810,7 @@
+                 if self.flavor == "win":
+                     # WriteNewNinjaRule uses unique_name to create a rsp file on win.
+                     extra_bindings.append(
+-                        ("unique_name", hashlib.md5(outputs[0]).hexdigest())
++                        ("unique_name", hashlib.md5(outputs[0].encode()).hexdigest())
+                     )
+
+                 self.ninja.build(

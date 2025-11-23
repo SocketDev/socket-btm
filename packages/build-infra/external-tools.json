@@ -1,0 +1,219 @@
+{
+  "$schema": "./lib/external-tools-schema.json",
+  "description": "Core fundamental tools required across all build processes",
+  "tools": {
+    "node": {
+      "description": "Node.js runtime for build scripts and CI workflows",
+      "packages": {
+        "darwin": {
+          "brew": "node"
+        },
+        "linux": {
+          "apt": "nodejs",
+          "yum": "nodejs",
+          "dnf": "nodejs",
+          "apk": "nodejs"
+        },
+        "win32": {
+          "choco": "nodejs",
+          "scoop": "nodejs"
+        }
+      },
+      "versions": {
+        "minimumVersion": "18.0.0",
+        "recommendedVersion": "24.10.0"
+      },
+      "notes": "recommendedVersion is the version we build/test against. All CI workflows use this version."
+    },
+    "pnpm": {
+      "description": "Fast, disk space efficient package manager",
+      "packages": {
+        "darwin": {
+          "brew": "pnpm"
+        },
+        "linux": {
+          "npm": "pnpm"
+        },
+        "win32": {
+          "choco": "pnpm",
+          "scoop": "pnpm",
+          "npm": "pnpm"
+        }
+      },
+      "versions": {
+        "npm": "9.15.3"
+      },
+      "notes": "Version is managed via packageManager field in package.json. This is the minimum compatible version."
+    },
+    "python": {
+      "description": "Python interpreter for build scripts and model tooling",
+      "packages": {
+        "darwin": {
+          "brew": "python@3.11"
+        },
+        "linux": {
+          "apt": "python3",
+          "yum": "python3",
+          "dnf": "python3",
+          "apk": "python3"
+        },
+        "win32": {
+          "choco": "python",
+          "scoop": "python"
+        }
+      },
+      "versions": {
+        "recommendedVersion": "3.11",
+        "apt": "3.10.12",
+        "brew": "3.13.1"
+      },
+      "notes": "recommendedVersion is used for CI workflows. apt version is Ubuntu 22.04 default."
+    },
+    "git": {
+      "description": "Git version control system (fundamental for source cloning)",
+      "packages": {
+        "darwin": {
+          "brew": "git"
+        },
+        "linux": {
+          "apt": "git",
+          "yum": "git",
+          "dnf": "git",
+          "apk": "git"
+        },
+        "win32": {
+          "choco": "git",
+          "scoop": "git"
+        }
+      },
+      "versions": {},
+      "notes": "Usually pre-installed on most systems. Required for git clone operations."
+    },
+    "curl": {
+      "description": "Command-line tool for transferring data (fundamental for downloads)",
+      "packages": {
+        "darwin": {
+          "brew": "curl"
+        },
+        "linux": {
+          "apt": "curl",
+          "yum": "curl",
+          "dnf": "curl",
+          "apk": "curl"
+        },
+        "win32": {
+          "choco": "curl",
+          "scoop": "curl"
+        }
+      },
+      "versions": {},
+      "notes": "Usually pre-installed. Required for downloading archives and files."
+    },
+    "patch": {
+      "description": "GNU patch utility for applying diffs (fundamental for patching)",
+      "packages": {
+        "darwin": {
+          "brew": "gpatch"
+        },
+        "linux": {
+          "apt": "patch",
+          "yum": "patch",
+          "dnf": "patch",
+          "apk": "patch"
+        },
+        "win32": {
+          "choco": "patch",
+          "scoop": "patch"
+        }
+      },
+      "versions": {},
+      "notes": "Required for applying patch files to source code."
+    },
+    "make": {
+      "description": "GNU Make build tool (fundamental build orchestration)",
+      "packages": {
+        "darwin": {
+          "brew": "make"
+        },
+        "linux": {
+          "apt": "make",
+          "yum": "make",
+          "dnf": "make",
+          "apk": "make"
+        },
+        "win32": {
+          "choco": "make",
+          "scoop": "make"
+        }
+      },
+      "versions": {},
+      "notes": "Standard build tool. Usually pre-installed on Unix systems."
+    },
+    "ninja": {
+      "description": "Ninja build system (faster than Make for C++ projects)",
+      "packages": {
+        "darwin": {
+          "brew": "ninja"
+        },
+        "linux": {
+          "apt": "ninja-build",
+          "yum": "ninja-build",
+          "dnf": "ninja-build",
+          "apk": "ninja"
+        },
+        "win32": {
+          "choco": "ninja",
+          "scoop": "ninja"
+        }
+      },
+      "versions": {
+        "apt": "1.10.1",
+        "brew": "1.12.1",
+        "choco": "1.12.1"
+      },
+      "notes": "Much faster than Make for large C++ projects. Recommended for ONNX Runtime and Yoga Layout builds."
+    },
+    "ccache": {
+      "description": "Compiler cache for faster recompilation",
+      "packages": {
+        "darwin": {
+          "brew": "ccache"
+        },
+        "linux": {
+          "apt": "ccache",
+          "yum": "ccache",
+          "dnf": "ccache",
+          "apk": "ccache"
+        },
+        "win32": {
+          "choco": "ccache",
+          "scoop": "ccache"
+        }
+      },
+      "versions": {
+        "apt": "4.5.1",
+        "brew": "4.10.2",
+        "choco": "4.10.2"
+      },
+      "notes": "Significantly speeds up recompilation by caching previous compilations."
+    },
+    "bc": {
+      "description": "Basic calculator for shell arithmetic",
+      "packages": {
+        "darwin": {},
+        "linux": {
+          "apt": "bc",
+          "yum": "bc",
+          "dnf": "bc",
+          "apk": "bc"
+        },
+        "win32": {}
+      },
+      "versions": {
+        "apt": "1.07.1"
+      },
+      "notes": "Pre-installed on macOS. Used for floating-point arithmetic in build scripts."
+    }
+  },
+  "notes": "This file contains ONLY core fundamental tools. All package-specific and checkpoint-specific tools are declared in their respective external-tools.json files."
+}

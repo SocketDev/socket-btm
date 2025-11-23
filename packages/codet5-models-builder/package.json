@@ -1,0 +1,30 @@
+{
+  "name": "codet5-models-builder",
+  "version": "0.0.0",
+  "description": "CodeT5 model conversion and optimization for Socket CLI",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:force": "node scripts/build.mjs --force",
+    "clean": "node scripts/clean.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "build-infra": "workspace:*",
+    "@socketsecurity/lib": "catalog:"
+  },
+  "devDependencies": {
+    "onnxruntime-node": "1.20.1",
+    "vitest": "catalog:"
+  },
+  "sources": {
+    "codet5": {
+      "version": "Salesforce/codet5-base",
+      "type": "huggingface",
+      "url": "https://huggingface.co/Salesforce/codet5-base",
+      "ref": "main"
+    }
+  }
+}

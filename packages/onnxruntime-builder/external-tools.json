@@ -1,0 +1,60 @@
+{
+  "$schema": "../build-infra/lib/external-tools-schema.json",
+  "description": "Package-level external tools for onnxruntime-builder (shared across all checkpoints)",
+  "tools": {
+    "cmake": {
+      "description": "CMake build system (required for ONNX Runtime)",
+      "packages": {
+        "darwin": {
+          "brew": "cmake"
+        },
+        "linux": {
+          "apt": "cmake",
+          "yum": "cmake",
+          "dnf": "cmake",
+          "apk": "cmake"
+        },
+        "win32": {
+          "choco": "cmake",
+          "scoop": "cmake"
+        }
+      },
+      "versions": {
+        "brew": "3.31.4",
+        "apt": "3.22.1",
+        "choco": "3.31.4"
+      }
+    },
+    "emscripten": {
+      "description": "Emscripten WASM compiler toolchain",
+      "packages": {},
+      "versions": {
+        "emsdk": "4.0.20"
+      },
+      "notes": "Installed via emsdk. Version 4.0+ required for correct WASM module generation."
+    },
+    "python3": {
+      "description": "Python 3 interpreter (required for Emscripten and build scripts)",
+      "packages": {
+        "darwin": {
+          "brew": "python3"
+        },
+        "linux": {
+          "apt": "python3",
+          "yum": "python3",
+          "dnf": "python3",
+          "apk": "python3"
+        },
+        "win32": {
+          "choco": "python",
+          "scoop": "python"
+        }
+      },
+      "versions": {
+        "brew": "3.13.1",
+        "apt": "3.10.12",
+        "choco": "3.13.1"
+      }
+    }
+  }
+}

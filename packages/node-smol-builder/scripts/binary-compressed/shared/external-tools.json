@@ -1,0 +1,79 @@
+{
+  "$schema": "../../../build-infra/lib/external-tools-schema.json",
+  "description": "External tools required for the binary-compressed checkpoint phase",
+  "tools": {
+    "gcc": {
+      "description": "GCC C compiler (required for building compression tools)",
+      "packages": {
+        "darwin": {
+          "brew": "gcc"
+        },
+        "linux": {
+          "apt": "gcc",
+          "yum": "gcc",
+          "dnf": "gcc",
+          "apk": "gcc"
+        },
+        "win32": {
+          "choco": "mingw",
+          "scoop": "mingw"
+        }
+      },
+      "versions": {
+        "brew": "14.2.0",
+        "apt": "11.4.0",
+        "choco": "14.2.0",
+        "github-runner": "14.2.0"
+      }
+    },
+    "make": {
+      "description": "GNU Make build tool (required for building compression tools)",
+      "packages": {
+        "darwin": {
+          "brew": "make"
+        },
+        "linux": {
+          "apt": "make",
+          "yum": "make",
+          "dnf": "make",
+          "apk": "make"
+        },
+        "win32": {
+          "choco": "make",
+          "scoop": "make"
+        }
+      },
+      "versions": {}
+    },
+    "liblzma-dev": {
+      "description": "LZMA compression library development files (required for ELF compression)",
+      "packages": {
+        "linux": {
+          "apt": "liblzma-dev",
+          "yum": "xz-devel",
+          "dnf": "xz-devel",
+          "apk": "xz-dev"
+        }
+      },
+      "versions": {
+        "apt": "5.2.5"
+      },
+      "notes": "Required for static linking in Linux ELF compression tools"
+    },
+    "libssl-dev": {
+      "description": "OpenSSL development files (required for SHA-512 hashing in compression tools)",
+      "packages": {
+        "linux": {
+          "apt": "libssl-dev",
+          "yum": "openssl-devel",
+          "dnf": "openssl-devel",
+          "apk": "openssl-dev"
+        }
+      },
+      "versions": {
+        "apt": "3.0.2"
+      },
+      "notes": "Ubuntu 22.04 uses OpenSSL 3.0.2. Required for static linking SHA-512 hash calculation in ELF decompressor."
+    }
+  }
+}

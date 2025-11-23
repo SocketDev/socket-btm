@@ -1,0 +1,280 @@
+name: LIEF
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      build_mode:
+        description: 'Build mode'
+        type: choice
+        options:
+          - prod
+          - dev
+        default: prod
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+      build_mode:
+        type: string
+        default: prod
+
+permissions:
+  contents: read
+
+jobs:
+  build-lief:
+    permissions:
+      contents: read
+      id-token: write
+    name: ${{ matrix.platform && format('lief / {0}-{1}', matrix.platform, matrix.arch) || 'lief' }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS builds
+          - runner: depot-macos-14
+            platform: darwin
+            arch: arm64
+            os: macos
+          - runner: depot-macos-15
+            platform: darwin
+            arch: x64
+            os: macos
+          # Linux builds (glibc)
+          - runner: depot-ubuntu-24.04
+            platform: linux
+            arch: x64
+            os: linux
+            libc: glibc
+          - runner: depot-ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            os: linux
+            libc: glibc
+          # Linux builds (musl)
+          - runner: depot-ubuntu-24.04
+            platform: linux
+            arch: x64
+            os: linux
+            libc: musl
+          - runner: depot-ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            os: linux
+            libc: musl
+          # Windows builds
+          - runner: depot-windows-2022
+            platform: win32
+            arch: x64
+            os: windows
+          - runner: depot-windows-2022
+            platform: win32
+            arch: arm64
+            os: windows
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          submodules: recursive
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Initialize LIEF submodule
+        shell: bash
+        run: |
+          git submodule update --init --recursive packages/bin-infra/upstream/lief
+
+      - name: Setup Depot CLI
+        uses: depot/setup-action@b0b1ea4f69e92ebf5dea3f8713a1b0c37b2126a5 # v1.6.0
+        with:
+          oidc: true
+
+      - name: Build LIEF with Depot (Linux - offloads compute)
+        if: matrix.os == 'linux'
+        uses: depot/build-push-action@9785b135c3c76c33db102e45be96a25ab55cd507 # v1.16.2
+        with:
+          project: 8fpj9495vw
+          platforms: linux/${{ matrix.arch }}
+          build-args: |
+            BUILD_MODE=${{ inputs.build_mode || 'prod' }}
+            LIBC=${{ matrix.libc || 'glibc' }}
+          file: packages/bin-infra/Dockerfile.build
+          target: export
+          outputs: type=local,dest=packages/bin-infra/build/${{ inputs.build_mode || 'prod' }}
+          context: .
+
+      - name: Verify Depot build output (Linux)
+        if: matrix.os == 'linux'
+        shell: bash
+        env:
+          BUILD_MODE: ${{ inputs.build_mode || 'prod' }}
+        run: |
+          echo "Verifying Depot build output structure..."
+          ls -lah packages/bin-infra/build/$BUILD_MODE/
+
+          # Check for library file.
+          if [ -f "packages/bin-infra/build/$BUILD_MODE/lief/libLIEF.a" ]; then
+            echo "✅ libLIEF.a found"
+          elif [ -f "packages/bin-infra/build/$BUILD_MODE/lief/LIEF.lib" ]; then
+            echo "✅ LIEF.lib found"
+          else
+            echo "❌ LIEF library not found!"
+            echo "Contents of output directory:"
+            find packages/bin-infra/build/$BUILD_MODE/ -type f
+            exit 1
+          fi
+
+      - name: Setup build toolchain (macOS)
+        if: matrix.os == 'macos'
+        shell: bash
+        run: |
+          brew install cmake ccache
+
+      - name: Setup build toolchain (Windows)
+        if: matrix.os == 'windows'
+        shell: bash
+        run: |
+          choco install cmake mingw ccache -y
+
+      - name: Build LIEF native (macOS/Windows)
+        if: matrix.os != 'linux'
+        shell: bash
+        env:
+          BUILD_MODE: ${{ inputs.build_mode || 'prod' }}
+        run: |
+          cd packages/bin-infra
+          pnpm run build:lief
+
+      - name: Create archive
+        shell: bash
+        env:
+          BUILD_MODE: ${{ inputs.build_mode || 'prod' }}
+        run: |
+          cd packages/bin-infra/build/${BUILD_MODE}/lief
+
+          # Determine library name (platform-specific).
+          if [ -f "libLIEF.a" ]; then
+            LIB_NAME="libLIEF.a"
+          elif [ -f "LIEF.lib" ]; then
+            LIB_NAME="LIEF.lib"
+          else
+            echo "Error: LIEF library not found"
+            exit 1
+          fi
+
+          # Construct archive name (musl suffix after arch).
+          ARCHIVE_NAME="lief-${{ matrix.platform }}-${{ matrix.arch }}"
+          if [ "${{ matrix.libc }}" = "musl" ]; then
+            ARCHIVE_NAME="${ARCHIVE_NAME}-musl"
+          fi
+
+          # Create tar.gz with library and headers.
+          tar -czf ../${ARCHIVE_NAME}.tar.gz \
+            ${LIB_NAME} \
+            include/
+
+      - name: Set artifact name
+        shell: bash
+        run: |
+          # Construct artifact name (musl suffix after arch).
+          ARTIFACT_NAME="lief-${{ matrix.platform }}-${{ matrix.arch }}"
+          if [ "${{ matrix.libc }}" = "musl" ]; then
+            ARTIFACT_NAME="${ARTIFACT_NAME}-musl"
+          fi
+          echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: packages/bin-infra/build/${{ inputs.build_mode || 'prod' }}/${{ env.ARTIFACT_NAME }}.tar.gz
+          retention-days: 7
+
+  release:
+    needs: build-lief
+    if: ${{ !inputs.dry_run }}
+    permissions:
+      contents: write
+    runs-on: depot-ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Initialize LIEF submodule
+        shell: bash
+        run: |
+          git submodule update --init --recursive packages/bin-infra/upstream/lief
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          path: artifacts
+
+      - name: Get LIEF version
+        id: version
+        shell: bash
+        run: |
+          cd packages/bin-infra/upstream/lief
+          MAJOR=$(grep -oP 'set\(LIEF_VERSION_MAJOR \K\d+' CMakeLists.txt)
+          MINOR=$(grep -oP 'set\(LIEF_VERSION_MINOR \K\d+' CMakeLists.txt)
+          PATCH=$(grep -oP 'set\(LIEF_VERSION_PATCH \K\d+' CMakeLists.txt)
+          LIEF_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "version=${LIEF_VERSION}" >> $GITHUB_OUTPUT
+          echo "LIEF version: ${LIEF_VERSION}"
+
+      - name: Generate release tag
+        id: tag
+        shell: bash
+        run: |
+          DATE=$(date +%Y%m%d)
+          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          TAG="lief-${DATE}-${SHORT_SHA}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Release tag: ${TAG}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          # Move artifacts to release directory.
+          mkdir -p release
+          find artifacts -name "*.tar.gz" -exec mv {} release/ \;
+
+          # Create release.
+          gh release create "${{ steps.tag.outputs.tag }}" \
+            --title "LIEF ${{ steps.version.outputs.version }} (${{ steps.tag.outputs.tag }})" \
+            --notes "Prebuilt LIEF library (v${{ steps.version.outputs.version }}) for all platforms.
+
+          **Platforms:**
+          - darwin-arm64 (macOS Apple Silicon)
+          - darwin-x64 (macOS Intel)
+          - linux-arm64 (Linux ARM64 - glibc)
+          - linux-arm64-musl (Linux ARM64 - musl)
+          - linux-x64 (Linux x64 - glibc)
+          - linux-x64-musl (Linux x64 - musl)
+          - win32-arm64 (Windows ARM64)
+          - win32-x64 (Windows x64)
+
+          **Usage:**
+          Download the appropriate archive for your platform and extract it to \`packages/bin-infra/build/prod/lief/\`" \
+            release/*.tar.gz

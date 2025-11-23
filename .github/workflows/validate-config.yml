@@ -1,0 +1,226 @@
+name: Validate Configs
+
+on:
+  push:
+    paths:
+      - '.github/cache-versions.json'
+      - '.github/workflows/validate-config.yml'
+  pull_request:
+    paths:
+      - '.github/cache-versions.json'
+      - '.github/workflows/validate-config.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-cache-versions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2  # Fetch current and previous commit for version comparison
+
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .node-version
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate cache-versions.json format
+        run: |
+          echo "Validating cache-versions.json format..."
+
+          # Check if file exists
+          if [ ! -f .github/cache-versions.json ]; then
+            echo "❌ Error: .github/cache-versions.json not found"
+            exit 1
+          fi
+
+          # Check JSON is valid
+          if ! jq empty .github/cache-versions.json 2>/dev/null; then
+            echo "❌ Error: cache-versions.json is not valid JSON"
+            exit 1
+          fi
+
+          echo "✓ JSON syntax is valid"
+
+      - name: Validate required structure
+        run: |
+          echo "Validating required structure..."
+
+          # Check for versions object
+          if ! jq -e '.versions' .github/cache-versions.json >/dev/null; then
+            echo "❌ Error: Missing 'versions' object in cache-versions.json"
+            exit 1
+          fi
+
+          echo "✓ Required 'versions' object exists"
+
+      - name: Validate all required packages
+        run: |
+          echo "Validating all required packages exist..."
+
+          REQUIRED_PACKAGES="node-smol onnxruntime yoga-layout models"
+          MISSING_PACKAGES=""
+
+          for pkg in $REQUIRED_PACKAGES; do
+            VERSION=$(jq -r ".versions[\"$pkg\"]" .github/cache-versions.json)
+
+            if [ "$VERSION" = "null" ] || [ -z "$VERSION" ]; then
+              echo "❌ Missing version for package: $pkg"
+              MISSING_PACKAGES="$MISSING_PACKAGES $pkg"
+            else
+              echo "✓ $pkg: $VERSION"
+            fi
+          done
+
+          if [ -n "$MISSING_PACKAGES" ]; then
+            echo ""
+            echo "❌ Error: Missing versions for packages:$MISSING_PACKAGES"
+            exit 1
+          fi
+
+          echo ""
+          echo "✓ All required packages have versions defined"
+
+      - name: Validate version format
+        run: |
+          echo "Validating version format (v<number>)..."
+
+          INVALID_VERSIONS=""
+
+          for pkg in $(jq -r '.versions | keys[]' .github/cache-versions.json); do
+            VERSION=$(jq -r ".versions[\"$pkg\"]" .github/cache-versions.json)
+
+            if ! echo "$VERSION" | grep -qE '^v[0-9]+$'; then
+              echo "❌ Invalid version format for $pkg: $VERSION (expected: v<number>)"
+              INVALID_VERSIONS="$INVALID_VERSIONS $pkg"
+            else
+              echo "✓ $pkg: $VERSION (valid format)"
+            fi
+          done
+
+          if [ -n "$INVALID_VERSIONS" ]; then
+            echo ""
+            echo "❌ Error: Invalid version format for packages:$INVALID_VERSIONS"
+            echo "Expected format: v<number> (e.g., v1, v9, v42)"
+            exit 1
+          fi
+
+          echo ""
+          echo "✓ All versions follow correct format (v<number>)"
+
+      - name: Validate no duplicate keys
+        run: |
+          echo "Checking for duplicate keys..."
+
+          # Count unique keys vs total keys
+          TOTAL_KEYS=$(jq -r '.versions | keys[]' .github/cache-versions.json | wc -l)
+          UNIQUE_KEYS=$(jq -r '.versions | keys[]' .github/cache-versions.json | sort -u | wc -l)
+
+          if [ "$TOTAL_KEYS" -ne "$UNIQUE_KEYS" ]; then
+            echo "❌ Error: Duplicate keys found in cache-versions.json"
+            exit 1
+          fi
+
+          echo "✓ No duplicate keys found"
+
+      - name: Validate version monotonicity
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        run: |
+          echo "Validating version numbers do not decrease..."
+
+          # Check if previous version of file exists
+          if ! git show HEAD~1:.github/cache-versions.json >/dev/null 2>&1; then
+            echo "ℹ️  No previous version to compare (new file or first commit)"
+            echo "✓ Skipping monotonicity check"
+            exit 0
+          fi
+
+          DECREASED_VERSIONS=""
+
+          for pkg in $(jq -r '.versions | keys[]' .github/cache-versions.json); do
+            CURRENT_VERSION=$(jq -r ".versions[\"$pkg\"]" .github/cache-versions.json)
+            PREVIOUS_VERSION=$(git show HEAD~1:.github/cache-versions.json | jq -r ".versions[\"$pkg\"]" 2>/dev/null || echo "null")
+
+            # Skip if package didn't exist before (new package)
+            if [ "$PREVIOUS_VERSION" = "null" ] || [ -z "$PREVIOUS_VERSION" ]; then
+              echo "ℹ️  $pkg: (new package) → $CURRENT_VERSION"
+              continue
+            fi
+
+            # Extract numeric version (remove 'v' prefix)
+            CURRENT_NUM=$(echo "$CURRENT_VERSION" | sed 's/^v//')
+            PREVIOUS_NUM=$(echo "$PREVIOUS_VERSION" | sed 's/^v//')
+
+            # Validate both versions are numeric (prevent integer comparison on non-numeric values)
+            if ! [[ "$CURRENT_NUM" =~ ^[0-9]+$ ]] || ! [[ "$PREVIOUS_NUM" =~ ^[0-9]+$ ]]; then
+              echo "❌ $pkg: Non-numeric version detected"
+              echo "   Current: $CURRENT_VERSION (extracted: '$CURRENT_NUM')"
+              echo "   Previous: $PREVIOUS_VERSION (extracted: '$PREVIOUS_NUM')"
+              echo "   Versions must be in format: v<number> (e.g., v1, v9, v42)"
+              exit 1
+            fi
+
+            # Validate version numbers are within safe range (prevent integer overflow)
+            # Check string length FIRST since bash -gt fails silently on oversized integers
+            MAX_VERSION=9007199254740991  # 2^53 - 1 (safe integer limit for bash)
+            MAX_LEN=${#MAX_VERSION}  # 16 digits
+
+            if [ ${#CURRENT_NUM} -gt $MAX_LEN ] || [ ${#PREVIOUS_NUM} -gt $MAX_LEN ]; then
+              echo "❌ $pkg: Version number has too many digits (max: $MAX_LEN digits)"
+              echo "   Current: $CURRENT_NUM (${#CURRENT_NUM} digits)"
+              echo "   Previous: $PREVIOUS_NUM (${#PREVIOUS_NUM} digits)"
+              exit 1
+            fi
+
+            # Now safe to use integer comparison (numbers fit in bash integers)
+            if [ "$CURRENT_NUM" -gt "$MAX_VERSION" ] || [ "$PREVIOUS_NUM" -gt "$MAX_VERSION" ]; then
+              echo "❌ $pkg: Version number too large (max: $MAX_VERSION)"
+              echo "   Current: $CURRENT_NUM"
+              echo "   Previous: $PREVIOUS_NUM"
+              exit 1
+            fi
+
+            if [ "$CURRENT_NUM" -lt "$PREVIOUS_NUM" ]; then
+              echo "❌ $pkg: $PREVIOUS_VERSION → $CURRENT_VERSION (decreased!)"
+              DECREASED_VERSIONS="$DECREASED_VERSIONS $pkg"
+            elif [ "$CURRENT_NUM" -gt "$PREVIOUS_NUM" ]; then
+              echo "✓ $pkg: $PREVIOUS_VERSION → $CURRENT_VERSION (increased)"
+            else
+              echo "✓ $pkg: $CURRENT_VERSION (unchanged)"
+            fi
+          done
+
+          if [ -n "$DECREASED_VERSIONS" ]; then
+            echo ""
+            echo "❌ Error: Cache versions decreased for packages:$DECREASED_VERSIONS"
+            echo ""
+            echo "Cache versions should be monotonically increasing to prevent stale cache usage."
+            echo "If you need to invalidate cache, increment the version number instead of decreasing it."
+            exit 1
+          fi
+
+          echo ""
+          echo "✓ All version numbers are monotonically increasing or unchanged"
+
+      - name: Report validation success
+        run: |
+          echo ""
+          echo "=================================================="
+          echo "✓ cache-versions.json validation passed"
+          echo "=================================================="
+          echo ""
+          echo "Configuration summary:"
+          jq -r '.versions | to_entries[] | "  \(.key): \(.value)"' .github/cache-versions.json

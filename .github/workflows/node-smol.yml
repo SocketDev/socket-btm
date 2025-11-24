@@ -145,7 +145,7 @@ jobs:
           clang --version
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
         # Note: version is specified in package.json packageManager field, not here
 
       - name: Setup Node.js
@@ -238,13 +238,9 @@ jobs:
           fi
 
           # Helper function to hash files, returns empty string if no files found
+          # Callers must pass -type f and optionally -name "*.mjs" to filter appropriately
           hash_files() {
-            local files=$(find "$@" 2>/dev/null | sort)
-            if [ -z "$files" ]; then
-              echo ""
-            else
-              echo "$files" | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1
-            fi
+            find "$@" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1 || echo ""
           }
 
           # Helper function to get hierarchical paths for a category/phase/platform/arch
@@ -269,6 +265,8 @@ jobs:
           # Now with hierarchical paths: shared/ → platform/shared/ → platform/arch/
 
           # Common scripts (used by all phases) - hierarchical
+          # Each checkpoint now has its own paths.mjs that re-exports from scripts/paths.mjs
+          # This makes dependencies explicit and ensures changes to paths.mjs are tracked per-checkpoint
           COMMON_PATHS=$(get_hierarchical_paths scripts common "$PLATFORM" "$ARCH")
           COMMON_SCRIPTS=$(hash_files $COMMON_PATHS -type f -name "*.mjs")
 
@@ -334,165 +332,58 @@ jobs:
           echo "final_hash=${FINAL_KEY}" >> $GITHUB_OUTPUT
           echo "build_mode=${BUILD_MODE}" >> $GITHUB_OUTPUT
 
-      - name: Restore node-source cache
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        id: node-source-cache
-        if: ${{ !inputs.force }}
-        with:
-          path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/source
-          key: node-source-${{ env.CACHE_VERSION }}-${{ steps.tool-versions.outputs.node-build-version }}-${{ steps.smol-cache-key.outputs.source_cloned_hash }}
-
-      - name: Clean stale ninja files from cache
-        shell: bash
-        run: |
-          BUILD_MODE="${STEPS_SMOL_CACHE_KEY_OUTPUTS_BUILD_MODE}"
-          OUT_DIR="packages/node-smol-builder/build/${BUILD_MODE}/source/out"
-          if [ -d "$OUT_DIR" ]; then
-            echo "Cleaning stale ninja files from cached source to free disk space..."
-            rm -rf "$OUT_DIR"
-            echo "✅ Cleaned $OUT_DIR"
-          else
-            echo "No out/ directory to clean"
-          fi
-        env:
-          STEPS_SMOL_CACHE_KEY_OUTPUTS_BUILD_MODE: ${{ steps.smol-cache-key.outputs.build_mode }}
-
-      - name: Restore node Release cache
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        id: node-release-cache
-        if: ${{ !inputs.force }}
-        with:
-          path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/out/Release
-          key: node-release-${{ steps.tool-versions.outputs.node-build-version }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.binary_released_hash }}
-
-      - name: Restore node Stripped cache
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        id: node-stripped-cache
-        if: ${{ !inputs.force }}
-        with:
-          path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/out/Stripped
-          key: node-stripped-${{ steps.tool-versions.outputs.node-build-version }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.binary_stripped_hash }}
-
-      - name: Restore node Compressed cache
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        id: node-compressed-cache
-        if: ${{ !inputs.force }}
-        with:
-          path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/out/Compressed
-          key: node-compressed-${{ steps.tool-versions.outputs.node-build-version }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.binary_compressed_hash }}
-
-      - name: Restore node Final cache
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        id: node-final-cache
-        if: ${{ !inputs.force }}
-        with:
-          path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/out/Final
-          key: node-final-${{ steps.tool-versions.outputs.node-build-version }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.final_hash }}
-
       - name: Restore checkpoint cache
         uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         id: checkpoint-cache
         if: ${{ !inputs.force }}
         with:
           path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/checkpoints
-          key: node-checkpoints-${{ steps.tool-versions.outputs.node-build-version }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.final_hash }}
+          key: node-checkpoints-${{ env.CACHE_VERSION }}-${{ steps.tool-versions.outputs.node-build-version }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.final_hash }}
 
-      - name: Validate build cache integrity
+      - name: Validate checkpoint cache integrity
         id: validate-cache
-        if: steps.node-final-cache.outputs.cache-hit == 'true'
+        if: steps.checkpoint-cache.outputs.cache-hit == 'true'
         shell: bash
         run: |
           BUILD_MODE="${STEPS_SMOL_CACHE_KEY_OUTPUTS_BUILD_MODE}"
-          FINAL_DIR="packages/node-smol-builder/build/${BUILD_MODE}/out/Final"
           CHECKPOINT_DIR="packages/node-smol-builder/build/${BUILD_MODE}/checkpoints"
 
-          echo "Validating cached build for ${{ matrix.platform }}-${{ matrix.arch }}..."
+          echo "Validating cached checkpoints for ${{ matrix.platform }}-${{ matrix.arch }}..."
 
-          # Determine expected binary name
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            BINARY_NAME="node.exe"
-          else
-            BINARY_NAME="node"
-          fi
-
-          # Check if binary exists
-          if [ ! -f "${FINAL_DIR}/${BINARY_NAME}" ]; then
-            echo "❌ Binary missing: ${FINAL_DIR}/${BINARY_NAME}"
-            rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
-            echo "cache_valid=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Check binary size (minimum 50MB for node binary)
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            BINARY_SIZE=$(stat -c%s "${FINAL_DIR}/${BINARY_NAME}" 2>/dev/null || powershell -Command "(Get-Item '${FINAL_DIR}/${BINARY_NAME}').Length")
-          else
-            BINARY_SIZE=$(stat -f%z "${FINAL_DIR}/${BINARY_NAME}" 2>/dev/null || stat -c%s "${FINAL_DIR}/${BINARY_NAME}")
-          fi
-
-          MIN_SIZE=52428800  # 50MB in bytes
-          if [ "$BINARY_SIZE" -lt "$MIN_SIZE" ]; then
-            echo "❌ Binary too small: $BINARY_SIZE bytes (minimum $MIN_SIZE)"
-            rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
-            echo "cache_valid=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          echo "✓ Binary size OK: $BINARY_SIZE bytes"
-
-          # Check if checkpoint files exist (phase-based structure, flat directory)
-          if [ ! -f "${CHECKPOINT_DIR}/binary-released.json" ] || \
+          # Check if required checkpoint files exist (phase-based structure, flat directory)
+          if [ ! -f "${CHECKPOINT_DIR}/source-cloned.json" ] || \
+             [ ! -f "${CHECKPOINT_DIR}/binary-released.json" ] || \
              [ ! -f "${CHECKPOINT_DIR}/binary-stripped.json" ] || \
-             [ ! -f "${CHECKPOINT_DIR}/binary-compressed.json" ]; then
+             [ ! -f "${CHECKPOINT_DIR}/binary-compressed.json" ] || \
+             [ ! -f "${CHECKPOINT_DIR}/finalized.json" ]; then
             echo "❌ Checkpoint files incomplete"
-            rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
+            rm -rf "$CHECKPOINT_DIR"
             echo "cache_valid=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          # Validate checksum if available in checkpoint
-          if command -v jq &> /dev/null; then
-            EXPECTED_CHECKSUM=$(jq -r '.checksum // empty' "${CHECKPOINT_DIR}/binary-compressed.json")
-            if [ -n "$EXPECTED_CHECKSUM" ]; then
-              if command -v shasum &> /dev/null; then
-                ACTUAL_CHECKSUM=$(shasum -a 256 "${FINAL_DIR}/${BINARY_NAME}" | cut -d' ' -f1)
-              else
-                ACTUAL_CHECKSUM=$(sha256sum "${FINAL_DIR}/${BINARY_NAME}" | cut -d' ' -f1)
-              fi
+          # Check if checkpoint tarballs exist
+          if [ ! -f "${CHECKPOINT_DIR}/source-cloned.tar.gz" ] || \
+             [ ! -f "${CHECKPOINT_DIR}/finalized.tar.gz" ]; then
+            echo "❌ Checkpoint tarballs incomplete"
+            rm -rf "$CHECKPOINT_DIR"
+            echo "cache_valid=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
 
-              if [ "$EXPECTED_CHECKSUM" != "$ACTUAL_CHECKSUM" ]; then
-                echo "❌ Checksum mismatch (cache corruption detected)"
-                echo "   Expected: $EXPECTED_CHECKSUM"
-                echo "   Actual:   $ACTUAL_CHECKSUM"
-                rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
+          # Check tarball integrity
+          for tarball in "${CHECKPOINT_DIR}"/*.tar.gz; do
+            if [ -f "$tarball" ]; then
+              if ! gzip -t "$tarball" 2>/dev/null; then
+                echo "❌ Corrupted tarball: $(basename "$tarball")"
+                rm -rf "$CHECKPOINT_DIR"
                 echo "cache_valid=false" >> $GITHUB_OUTPUT
                 exit 0
               fi
-              echo "✓ Checksum validation passed"
             fi
-          fi
+          done
 
-          # Smoke test: check version (only for native builds, skip cross-compiled)
-          # We build natively on each architecture except Windows ARM64 (cross-compiled on x64)
-          if [ "${{ matrix.cross_compile }}" != "true" ]; then
-            "${FINAL_DIR}/${BINARY_NAME}" --version > /dev/null 2>&1
-            if [ $? -ne 0 ]; then
-              echo "❌ Binary smoke test failed"
-              rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
-              echo "cache_valid=false" >> $GITHUB_OUTPUT
-              exit 0
-            fi
-
-            # Verify Node.js version matches
-            NODE_VER=$("${FINAL_DIR}/${BINARY_NAME}" --version | sed 's/v//')
-            if [ "$NODE_VER" != "${{ steps.tool-versions.outputs.node-build-version }}" ]; then
-              echo "❌ Version mismatch: expected ${{ steps.tool-versions.outputs.node-build-version }}, got $NODE_VER"
-              rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
-              echo "cache_valid=false" >> $GITHUB_OUTPUT
-              exit 0
-            fi
-          fi
-
-          echo "✅ Cache validation passed"
+          echo "✅ Checkpoint cache validation passed"
           echo "cache_valid=true" >> $GITHUB_OUTPUT
         env:
           STEPS_SMOL_CACHE_KEY_OUTPUTS_BUILD_MODE: ${{ steps.smol-cache-key.outputs.build_mode }}
@@ -526,7 +417,7 @@ jobs:
           fi
 
       - name: Build Node.js smol
-        if: steps.node-final-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.cache_valid == 'false'
+        if: steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.cache_valid == 'false'
         shell: bash
         env:
           BUILD_MODE: ${{ inputs.build_mode || 'prod' }}

@@ -63,7 +63,7 @@ jobs:
           node-version: ${{ steps.tool-versions.outputs.node-version }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
         # Note: version is specified in package.json packageManager field, not here
 
       - name: Setup Python
@@ -133,6 +133,9 @@ jobs:
             fi
           }
 
+          # Cache version - bump to force-invalidate all caches
+          CACHE_VERSION="v1"
+
           COMMON=$(hash_dir packages/models/scripts/common)
           PACKAGE_JSON=$(shasum -a 256 packages/models/package.json | cut -d' ' -f1)
           BUILD_MJS=$(shasum -a 256 packages/models/scripts/build.mjs | cut -d' ' -f1)
@@ -149,6 +152,7 @@ jobs:
           QUANTIZED_DIR=$(hash_dir packages/models/scripts/quantized)
           QUANTIZED_HASH=$(echo "${CONVERTED_HASH}${QUANTIZED_DIR}" | shasum -a 256 | cut -d' ' -f1)
 
+          echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
           echo "downloaded_hash=${DOWNLOADED_HASH}" >> $GITHUB_OUTPUT
           echo "quantized_hash=${QUANTIZED_HASH}" >> $GITHUB_OUTPUT
 
@@ -158,7 +162,7 @@ jobs:
         if: ${{ !inputs.force }}
         with:
           path: packages/models/build/${{ steps.build-mode.outputs.mode }}/out/Final
-          key: model-final-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.quantized_hash }}
+          key: model-final-${{ steps.cache-key.outputs.cache_version }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.quantized_hash }}
 
       - name: Restore model checkpoint cache
         uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
@@ -166,7 +170,7 @@ jobs:
         if: ${{ !inputs.force }}
         with:
           path: packages/models/build/${{ steps.build-mode.outputs.mode }}/checkpoints
-          key: model-checkpoints-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.quantized_hash }}
+          key: model-checkpoints-${{ steps.cache-key.outputs.cache_version }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.quantized_hash }}
 
       - name: Validate build cache integrity
         id: validate-cache

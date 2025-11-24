@@ -14,7 +14,6 @@ const paths = createPathBuilder(import.meta.url)
 export const PACKAGE_ROOT = paths.packageRoot
 
 // Source files
-export const SRC_DIR = paths.srcRoot
 export const BINDINGS_FILE = paths.joinSrc('yoga-wasm.cpp')
 
 // Build directories

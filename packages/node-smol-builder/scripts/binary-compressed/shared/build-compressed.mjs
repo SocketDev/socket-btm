@@ -33,7 +33,7 @@ import {
   COMPRESS_BINARY_SCRIPT,
   COMPRESSION_TOOLS_DIR,
   PACKAGE_ROOT,
-} from '../../paths.mjs'
+} from './paths.mjs'
 
 const logger = getDefaultLogger()
 

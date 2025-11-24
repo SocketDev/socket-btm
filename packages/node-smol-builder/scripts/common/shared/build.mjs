@@ -90,6 +90,14 @@ import { parseArgs } from '@socketsecurity/lib/argv/parse'
 import { safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
+import {
+  NODE_VERSION_FILE,
+  PACKAGE_ROOT,
+  getBuildPaths,
+  getSharedBuildPaths,
+  getBuildSourcePaths,
+  getExistingPaths,
+} from './paths.mjs'
 import { printBuildSummary } from '../../lib/build-summary.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -129,14 +137,6 @@ const IS_CI = 'CI' in process.env
 const IS_PROD_BUILD = values.prod || (!values.dev && IS_CI)
 
 // Configuration
-import {
-  NODE_VERSION_FILE,
-  PACKAGE_ROOT,
-  getBuildPaths,
-  getSharedBuildPaths,
-  getBuildSourcePaths,
-  getExistingPaths,
-} from '../../paths.mjs'
 
 // Read Node.js version from .node-version file
 const nodeVersionRaw = (await fs.readFile(NODE_VERSION_FILE, 'utf-8')).trim()

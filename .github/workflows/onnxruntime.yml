@@ -63,7 +63,7 @@ jobs:
           node-version: ${{ steps.tool-versions.outputs.node-version }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
         # Note: version is specified in package.json packageManager field, not here
 
       - name: Install dependencies
@@ -84,7 +84,7 @@ jobs:
           }
 
           # Cache version - bump to force-invalidate all caches
-          CACHE_VERSION="v2"
+          CACHE_VERSION="v3"
 
           COMMON=$(hash_dir packages/onnxruntime-builder/scripts/common)
           PACKAGE_JSON=$(shasum -a 256 packages/onnxruntime-builder/package.json | cut -d' ' -f1)
@@ -115,6 +115,7 @@ jobs:
           WASM_FINAL_DIR=$(hash_dir packages/onnxruntime-builder/scripts/wasm-finalized)
           WASM_FINAL_HASH=$(echo "${WASM_SYNC_HASH}${WASM_FINAL_DIR}" | shasum -a 256 | cut -d' ' -f1)
 
+          echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
           echo "source_cloned_hash=${SOURCE_CLONED_HASH}" >> $GITHUB_OUTPUT
           echo "wasm_final_hash=${WASM_FINAL_HASH}" >> $GITHUB_OUTPUT
 
@@ -123,26 +124,8 @@ jobs:
           sudo apt-get update
           # Load versions from external-tools.json (single source of truth)
           NINJA_VERSION=$(node packages/build-infra/scripts/get-tool-version.mjs ninja apt)
-          CCACHE_VERSION=$(node packages/build-infra/scripts/get-tool-version.mjs ccache apt)
-          sudo apt-get install -y ninja-build=${NINJA_VERSION}-* ccache=${CCACHE_VERSION}-*
-          echo "Installed ninja-build ${NINJA_VERSION} and ccache ${CCACHE_VERSION} for faster builds"
-
-      - name: Setup ccache
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        with:
-          path: ~/.ccache
-          key: ccache-${{ runner.os }}-onnx-v${{ steps.tool-versions.outputs.onnx-version }}-${{ steps.cache-key.outputs.source_cloned_hash }}
-          restore-keys: |
-            ccache-${{ runner.os }}-onnx-v${{ steps.tool-versions.outputs.onnx-version }}-
-            ccache-${{ runner.os }}-onnx-
-
-      - name: Configure ccache
-        run: |
-          ccache --set-config=max_size=10G
-          ccache --set-config=compression=true
-          ccache --set-config=compression_level=6
-          ccache --zero-stats
-          ccache --show-stats
+          sudo apt-get install -y ninja-build=${NINJA_VERSION}-*
+          echo "Installed ninja-build ${NINJA_VERSION} for faster builds"
 
       - name: Set build mode
         id: build-mode
@@ -158,83 +141,66 @@ jobs:
           echo "mode=$BUILD_MODE" >> $GITHUB_OUTPUT
           echo "Build mode: $BUILD_MODE"
 
-      - name: Restore ONNX Runtime source cache
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        id: onnx-source-cache
-        if: ${{ !inputs.force }}
-        with:
-          path: packages/onnxruntime-builder/build/shared/source
-          key: onnx-source-v${{ steps.tool-versions.outputs.onnx-version }}-${{ steps.cache-key.outputs.source_cloned_hash }}
-          restore-keys: |
-            onnx-source-v${{ steps.tool-versions.outputs.onnx-version }}-
-
-      - name: Restore ONNX Runtime Final cache
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        id: onnx-final-cache
-        if: ${{ !inputs.force }}
-        with:
-          path: packages/onnxruntime-builder/build/${{ steps.build-mode.outputs.mode }}/out/Final
-          key: onnx-final-v${{ steps.tool-versions.outputs.onnx-version }}-${{ runner.os }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.wasm_final_hash }}
-
       - name: Restore ONNX Runtime checkpoint cache
         uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         id: onnx-checkpoint-cache
         if: ${{ !inputs.force }}
         with:
           path: packages/onnxruntime-builder/build/${{ steps.build-mode.outputs.mode }}/checkpoints
-          key: onnx-checkpoints-v${{ steps.tool-versions.outputs.onnx-version }}-${{ runner.os }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.wasm_final_hash }}
+          key: onnx-checkpoints-${{ steps.cache-key.outputs.cache_version }}-v${{ steps.tool-versions.outputs.onnx-version }}-${{ runner.os }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.wasm_final_hash }}
 
-      - name: Validate build cache integrity
+      - name: Validate checkpoint cache integrity
         id: validate-cache
-        if: steps.onnx-final-cache.outputs.cache-hit == 'true'
+        if: steps.onnx-checkpoint-cache.outputs.cache-hit == 'true'
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
         run: |
-          echo "Validating cached ONNX Runtime build..."
+          echo "Validating cached ONNX Runtime checkpoints..."
 
-          FINAL_DIR="packages/onnxruntime-builder/build/${BUILD_MODE}/out/Final"
           CHECKPOINT_DIR="packages/onnxruntime-builder/build/${BUILD_MODE}/checkpoints"
 
-          # Check if WASM file exists
-          if [ ! -f "${FINAL_DIR}/ort.wasm" ]; then
-            echo "❌ WASM file missing: ${FINAL_DIR}/ort.wasm"
-            rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
+          # Check if required checkpoint files exist
+          if [ ! -f "${CHECKPOINT_DIR}/source-cloned.json" ] || \
+             [ ! -f "${CHECKPOINT_DIR}/wasm-compiled.json" ] || \
+             [ ! -f "${CHECKPOINT_DIR}/wasm-released.json" ] || \
+             [ ! -f "${CHECKPOINT_DIR}/wasm-optimized.json" ] || \
+             [ ! -f "${CHECKPOINT_DIR}/wasm-synced.json" ] || \
+             [ ! -f "${CHECKPOINT_DIR}/wasm-finalized.json" ]; then
+            echo "❌ Checkpoint files incomplete"
+            rm -rf "$CHECKPOINT_DIR"
             echo "cache_valid=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          # Check if MJS file exists
-          if [ ! -f "${FINAL_DIR}/ort.mjs" ]; then
-            echo "❌ MJS file missing: ${FINAL_DIR}/ort.mjs"
-            rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
+          # Check if checkpoint tarballs exist
+          if [ ! -f "${CHECKPOINT_DIR}/source-cloned.tar.gz" ] || \
+             [ ! -f "${CHECKPOINT_DIR}/wasm-finalized.tar.gz" ]; then
+            echo "❌ Checkpoint tarballs incomplete"
+            rm -rf "$CHECKPOINT_DIR"
             echo "cache_valid=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          # Check WASM file size (minimum 1MB)
-          WASM_SIZE=$(stat -c%s "${FINAL_DIR}/ort.wasm" 2>/dev/null || stat -f%z "${FINAL_DIR}/ort.wasm")
-          MIN_SIZE=1000000  # 1MB
-          if [ "$WASM_SIZE" -lt "$MIN_SIZE" ]; then
-            echo "❌ WASM file too small: $WASM_SIZE bytes (minimum $MIN_SIZE)"
-            rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
-            echo "cache_valid=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
+          # Check tarball integrity
+          for tarball in "${CHECKPOINT_DIR}"/*.tar.gz; do
+            if [ -f "$tarball" ]; then
+              if ! gzip -t "$tarball" 2>/dev/null; then
+                echo "❌ Corrupted tarball: $(basename "$tarball")"
+                rm -rf "$CHECKPOINT_DIR"
+                echo "cache_valid=false" >> $GITHUB_OUTPUT
+                exit 0
+              fi
+            fi
+          done
 
-          echo "✅ Cache validation passed"
+          echo "✅ Checkpoint cache validation passed"
           echo "cache_valid=true" >> $GITHUB_OUTPUT
 
       - name: Build ONNX Runtime WASM
-        if: steps.onnx-final-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.cache_valid == 'false'
+        if: steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.cache_valid == 'false'
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
         run: pnpm --filter onnxruntime-builder build --$BUILD_MODE
-
-      - name: Show ccache statistics
-        if: steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.cache_valid == 'false'
-        run: |
-          echo "ccache statistics after build:"
-          ccache --show-stats
 
       - name: Validate build output
         env:

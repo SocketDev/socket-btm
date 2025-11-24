@@ -60,7 +60,7 @@ import {
   ADDITIONS_MAPPINGS,
   COMPRESSION_TOOLS_DIR,
   PATCHES_RELEASE_DIR,
-} from '../../paths.mjs'
+} from './paths.mjs'
 import { cloneNodeSource } from '../../source-cloned/shared/clone-source.mjs'
 import { applySocketPatches } from '../../source-patched/shared/apply-patches.mjs'
 

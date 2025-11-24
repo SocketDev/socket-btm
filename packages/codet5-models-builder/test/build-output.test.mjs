@@ -7,6 +7,7 @@ import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { loadAllTools } from 'build-infra/lib/pinned-versions'
 import { describe, expect, it } from 'vitest'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -192,15 +193,16 @@ describe.skipIf(!hasBuiltArtifacts)(
 
       it('should have external-tools.json for Python dependencies', async () => {
         const externalToolsPath = path.join(packageDir, 'external-tools.json')
-        const externalTools = JSON.parse(
-          await fs.readFile(externalToolsPath, 'utf-8'),
-        )
+        expect(existsSync(externalToolsPath)).toBe(true)
 
-        expect(externalTools.tools).toBeDefined()
-        expect(externalTools.tools.transformers).toBeDefined()
-        expect(externalTools.tools.torch).toBeDefined()
-        expect(externalTools.tools.onnx).toBeDefined()
-        expect(externalTools.tools.onnxruntime).toBeDefined()
+        // Load tools with extends support
+        const tools = loadAllTools({ packageRoot: packageDir })
+
+        expect(tools).toBeDefined()
+        expect(tools.transformers).toBeDefined()
+        expect(tools.torch).toBeDefined()
+        expect(tools.onnx).toBeDefined()
+        expect(tools.onnxruntime).toBeDefined()
       })
     })
 

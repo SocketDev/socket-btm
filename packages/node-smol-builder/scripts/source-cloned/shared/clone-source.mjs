@@ -21,7 +21,7 @@ import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
-import { SUBMODULE_PATH } from '../../paths.mjs'
+import { SUBMODULE_PATH } from './paths.mjs'
 
 const logger = getDefaultLogger()
 

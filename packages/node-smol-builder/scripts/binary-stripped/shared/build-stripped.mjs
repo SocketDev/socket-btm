@@ -29,7 +29,7 @@ import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
-import { PACKAGE_ROOT } from '../../paths.mjs'
+import { PACKAGE_ROOT } from './paths.mjs'
 
 const logger = getDefaultLogger()
 

@@ -140,7 +140,6 @@ async function downloadModels() {
 
   await createCheckpoint(
     BUILD_DIR,
-    '',
     'downloaded',
     async () => {
       // Smoke test: Verify tokenizer.json and model config exist.
@@ -206,7 +205,6 @@ async function convertToOnnx() {
   // Create checkpoint with smoke test.
   await createCheckpoint(
     BUILD_DIR,
-    '',
     'convert-onnx',
     async () => {
       // Smoke test: Verify converted models are valid ONNX files.
@@ -323,7 +321,6 @@ async function quantizeModels() {
   // Create checkpoint with smoke test.
   await createCheckpoint(
     BUILD_DIR,
-    '',
     'quantized',
     async () => {
       // Smoke test: Verify quantized models are still valid ONNX files.
@@ -458,7 +455,6 @@ async function optimizeModels() {
   // Create checkpoint with smoke test.
   await createCheckpoint(
     BUILD_DIR,
-    '',
     'optimize-model',
     async () => {
       // Smoke test: Verify optimized models are still valid ONNX files.
@@ -536,7 +532,6 @@ async function exportModels() {
   // Create checkpoint with comprehensive smoke test.
   await createCheckpoint(
     BUILD_DIR,
-    '',
     'release',
     async () => {
       // Smoke test: Verify exported models with onnxruntime-node.

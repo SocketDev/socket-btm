@@ -1,15 +1,17 @@
 /**
- * WASM finalization phase for Yoga Layout
+ * WASM finalization phase for ONNX Runtime
  *
  * Copies final artifacts to Final directory for distribution.
  */
 
 import { existsSync, promises as fs } from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 
 import { getFileSize } from 'build-infra/lib/build-helpers'
 import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 
+import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 const logger = getDefaultLogger()
@@ -37,7 +39,7 @@ export async function finalizeWasm(options) {
     outputWasmFile,
   } = options
 
-  if (!(await shouldRun(buildDir, '', 'wasm-finalized', forceRebuild))) {
+  if (!(await shouldRun(buildDir, '', 'finalized', forceRebuild))) {
     return
   }
 
@@ -45,18 +47,45 @@ export async function finalizeWasm(options) {
   logger.log('Copying final artifacts to dev/out/Final...')
   logger.logNewline()
 
-  await fs.mkdir(outputFinalDir, { recursive: true })
-
   // Copy from Sync directory to Final
-  const syncWasmFile = path.join(outputSyncDir, 'yoga.wasm')
-  const syncMjsFile = path.join(outputSyncDir, 'yoga.mjs')
-  const syncJsFile = path.join(outputSyncDir, 'yoga-sync.js')
+  const syncWasmFile = path.join(outputSyncDir, 'ort.wasm')
+  const syncMjsFile = path.join(outputSyncDir, 'ort.mjs')
+  const syncJsFile = path.join(outputSyncDir, 'ort-sync.js')
+  const syncEsmFile = path.join(outputSyncDir, 'ort-sync.mjs')
+
+  // If Sync directory doesn't exist, restore from wasm-synced checkpoint
+  if (!existsSync(syncWasmFile)) {
+    logger.log('Sync files not found, restoring from wasm-synced checkpoint...')
+    const { restoreCheckpoint } = await import(
+      'build-infra/lib/checkpoint-manager'
+    )
+    const restored = await restoreCheckpoint(buildDir, '', 'wasm-synced', {
+      destDir: buildDir,
+    })
+    if (!restored || !existsSync(syncWasmFile)) {
+      throw new Error(
+        'Failed to restore Sync directory from wasm-synced checkpoint',
+      )
+    }
+    logger.substep('Sync files restored from checkpoint')
+    logger.logNewline()
+  }
+
+  // Clean Final directory before copying to ensure only intended files are archived
+  await safeDelete(outputFinalDir)
+  await safeMkdir(outputFinalDir)
 
   await fs.copyFile(syncWasmFile, outputWasmFile)
   if (existsSync(syncMjsFile)) {
     await fs.copyFile(syncMjsFile, outputMjsFile)
   }
   await fs.copyFile(syncJsFile, outputSyncJsFile)
+
+  // Copy ESM sync wrapper (.mjs)
+  const outputSyncEsmFile = path.join(outputFinalDir, 'ort-sync.mjs')
+  if (existsSync(syncEsmFile)) {
+    await fs.copyFile(syncEsmFile, outputSyncEsmFile)
+  }
 
   const wasmSize = await getFileSize(outputWasmFile)
   const syncSize = await getFileSize(outputSyncJsFile)
@@ -69,8 +98,7 @@ export async function finalizeWasm(options) {
   // Create checkpoint with smoke test.
   await createCheckpoint(
     buildDir,
-    '',
-    'wasm-finalized',
+    'finalized',
     async () => {
       // Smoke test: Verify all files exist and are valid.
       const wasmBuffer = await fs.readFile(outputWasmFile)
@@ -79,9 +107,18 @@ export async function finalizeWasm(options) {
         throw new Error('Invalid WASM file (bad magic number)')
       }
 
-      const syncStats = await fs.stat(outputSyncJsFile)
-      if (syncStats.size === 0) {
-        throw new Error('Sync wrapper file is empty')
+      // Validate WASM file size (should be >1MB for valid build)
+      const wasmStats = await fs.stat(outputWasmFile)
+      if (wasmStats.size < 1_000_000) {
+        throw new Error(
+          `WASM file too small: ${wasmStats.size} bytes (expected >1MB)`,
+        )
+      }
+
+      const _require = createRequire(import.meta.url)
+      const syncModule = _require(outputSyncJsFile)
+      if (!syncModule) {
+        throw new Error('Sync module failed to load')
       }
 
       logger.substep('Final artifacts validated')

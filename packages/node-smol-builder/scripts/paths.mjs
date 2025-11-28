@@ -276,53 +276,11 @@ export function getCumulativeBuildSourcePaths(phase, platform, arch) {
   }
 }
 
-// Legacy exports for backward compatibility (point to shared locations)
-export const PATCHES_RELEASE_DIR = path.join(
-  PACKAGE_ROOT,
-  'patches',
-  'release',
-  'shared',
-)
-export const ADDITIONS_RELEASE_DIR = path.join(
-  PACKAGE_ROOT,
-  'additions',
-  'release',
-  'shared',
-)
-export const ADDITIONS_RELEASE_POLYFILLS_DIR = path.join(
-  ADDITIONS_RELEASE_DIR,
-  'polyfills',
-)
-
-// Additions mappings for copying into Node.js source
-export const ADDITIONS_MAPPINGS = [
-  {
-    source: ADDITIONS_RELEASE_POLYFILLS_DIR,
-    dest: 'lib/internal/socketsecurity_polyfills',
-  },
-]
-
-// Compression tools
-export const COMPRESSION_TOOLS_DIR = path.join(
-  PACKAGE_ROOT,
-  'compression-tools',
-)
-
-// Additions directories
-export const ADDITIONS_COMPRESSION_TOOLS_DIR = path.join(
-  PACKAGE_ROOT,
-  'additions',
-  '003-compression-tools',
-)
-
-// Compression script
-export const COMPRESS_BINARY_SCRIPT = path.join(
-  PACKAGE_ROOT,
-  'scripts',
-  'binary-compressed',
-  'shared',
-  'compress-binary.mjs',
-)
+// Note: Checkpoint-specific paths have been moved to respective checkpoint paths.mjs files:
+// - PATCHES_RELEASE_DIR, ADDITIONS_RELEASE_DIR, ADDITIONS_MAPPINGS → binary-released/shared/paths.mjs
+// - COMPRESSION_TOOLS_DIR → binary-released/shared/paths.mjs, binary-compressed/shared/paths.mjs
+// - ADDITIONS_COMPRESSION_TOOLS_DIR, COMPRESS_BINARY_SCRIPT → binary-compressed/shared/paths.mjs
+// This ensures checkpoint-specific paths are tracked in cache keys appropriately.
 
 // Build directories
 export const BUILD_ROOT = path.join(PACKAGE_ROOT, 'build')

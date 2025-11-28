@@ -427,6 +427,10 @@ export function formatDuration(milliseconds) {
  * @returns {Promise<boolean>}
  */
 export async function smokeTestBinary(binaryPath, args = ['--version']) {
+  // Sign binary first if on macOS (required for execution)
+  const { adHocSign } = await import('./checkpoint-manager.mjs')
+  await adHocSign(binaryPath)
+
   logger.substep(`Smoke testing ${path.basename(binaryPath)}`)
 
   try {
@@ -587,6 +591,7 @@ export async function checkNetworkConnectivity() {
 // Re-export workflow checkpoint functions from checkpoint-manager
 // These provide GitHub Actions workflow checkpoint support with metadata
 export {
+  adHocSign,
   createCheckpoint,
   restoreCheckpoint,
   cleanCheckpoint,

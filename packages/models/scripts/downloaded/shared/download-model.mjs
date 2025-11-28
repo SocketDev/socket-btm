@@ -79,7 +79,6 @@ export async function downloadModel(options) {
         logger.success(`Downloaded from ${source}`)
         await createCheckpoint(
           buildDir,
-          packageName,
           `downloaded-${modelKey}`,
           async () => {
             // Smoke test: Verify model directory and files exist
@@ -95,6 +94,8 @@ export async function downloadModel(options) {
             }
           },
           {
+            packageName,
+            artifactPath: path.join(modelsDir, modelKey),
             source,
             revision,
             modelKey,
@@ -132,7 +133,6 @@ export async function downloadModel(options) {
         logger.success(`Downloaded from ${source}`)
         await createCheckpoint(
           buildDir,
-          packageName,
           `downloaded-${modelKey}`,
           async () => {
             // Smoke test: Verify model directory and files exist
@@ -148,6 +148,8 @@ export async function downloadModel(options) {
             }
           },
           {
+            packageName,
+            artifactPath: path.join(modelsDir, modelKey),
             source,
             revision,
             modelKey,

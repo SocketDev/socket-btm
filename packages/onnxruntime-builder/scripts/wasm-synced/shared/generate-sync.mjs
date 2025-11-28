@@ -12,6 +12,7 @@ import { getFileSize } from 'build-infra/lib/build-helpers'
 import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import { generateWasmSyncWrapper } from 'build-infra/wasm-synced/wasm-sync-wrapper'
 
+import { safeDelete } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { hasKeys } from '@socketsecurity/lib/objects'
 
@@ -50,6 +51,8 @@ export async function generateSync(options) {
 
   const _require = createRequire(import.meta.url)
 
+  // Clean Sync directory before copying to ensure only intended files are archived
+  await safeDelete(outputSyncDir)
   await fs.mkdir(outputSyncDir, { recursive: true })
 
   // Determine source directory (Optimized for prod, Release for dev)
@@ -104,7 +107,6 @@ export async function generateSync(options) {
   // Create checkpoint with smoke test.
   await createCheckpoint(
     buildDir,
-    '',
     'wasm-synced',
     async () => {
       // Smoke test: Verify sync wrapper loads and initializes without runtime errors
@@ -157,8 +159,8 @@ export async function generateSync(options) {
     },
     {
       binarySize: syncSize,
-      binaryPath: path.relative(buildDir, syncJsFile),
-      artifactPath: syncJsFile,
+      binaryPath: path.relative(buildDir, outputSyncDir),
+      artifactPath: outputSyncDir,
     },
   )
 

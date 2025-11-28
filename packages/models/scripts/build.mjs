@@ -27,7 +27,10 @@ import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 
 import { freeDiskSpace } from 'build-infra/lib/build-helpers'
-import { cleanCheckpoint } from 'build-infra/lib/checkpoint-manager'
+import {
+  cleanCheckpoint,
+  createCheckpoint,
+} from 'build-infra/lib/checkpoint-manager'
 import { ensureAllPythonPackages } from 'build-infra/lib/python-installer'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 
@@ -79,7 +82,6 @@ const {
   outputFinalDir,
 } = getBuildPaths(BUILD_MODE)
 const DIST_MODE = outputFinalDir
-const PACKAGE_NAME = 'models'
 
 const logger = getDefaultLogger()
 
@@ -108,11 +110,12 @@ const MODEL_SOURCES = {
  * Download model from Hugging Face.
  */
 async function downloadModel(modelKey) {
+  // Use empty packageName for flat checkpoint structure (workflow caching requirement)
   return downloadModelImpl({
     modelKey,
     modelSources: MODEL_SOURCES,
     buildDir: BUILD,
-    packageName: PACKAGE_NAME,
+    packageName: '',
     modelsDir: MODELS,
     forceRebuild: FORCE_BUILD,
   })
@@ -122,11 +125,12 @@ async function downloadModel(modelKey) {
  * Convert model to ONNX if needed.
  */
 async function convertToOnnx(modelKey) {
+  // Use empty packageName for flat checkpoint structure (workflow caching requirement)
   return convertToOnnxImpl({
     modelKey,
     modelSources: MODEL_SOURCES,
     buildDir: BUILD,
-    packageName: PACKAGE_NAME,
+    packageName: '',
     modelsDir: MODELS,
     forceRebuild: FORCE_BUILD,
   })
@@ -142,11 +146,12 @@ async function convertToOnnx(modelKey) {
  * Results in significant size reduction with minimal accuracy loss.
  */
 async function quantizeModel(modelKey, quantLevel) {
+  // Use empty packageName for flat checkpoint structure (workflow caching requirement)
   return quantizeModelImpl({
     modelKey,
     quantLevel,
     buildDir: BUILD,
-    packageName: PACKAGE_NAME,
+    packageName: '',
     modelsDir: MODELS,
     forceRebuild: FORCE_BUILD,
   })
@@ -289,7 +294,7 @@ async function main() {
     if (outputMissing) {
       logger.step('Output artifacts missing - cleaning stale checkpoints')
     }
-    await cleanCheckpoint(BUILD, PACKAGE_NAME)
+    await cleanCheckpoint(BUILD)
   }
 
   // Create directories.
@@ -320,6 +325,82 @@ async function main() {
       await copyToDist('codet5', quantizedPaths, QUANT_LEVEL)
     }
 
+    // Create aggregate phase checkpoints for workflow caching
+    // These are used by GitHub Actions to cache at phase boundaries
+
+    // Downloaded checkpoint: Archive all downloaded models
+    await createCheckpoint(
+      BUILD,
+      'downloaded',
+      async () => {
+        // Smoke test: Verify models directory exists and has models
+        const stats = await fs.stat(MODELS)
+        if (!stats.isDirectory()) {
+          throw new Error(`Models directory not found: ${MODELS}`)
+        }
+        const modelDirs = await fs.readdir(MODELS)
+        if (modelDirs.length === 0) {
+          throw new Error('No models downloaded')
+        }
+      },
+      {
+        artifactPath: MODELS,
+        buildMode: BUILD_MODE,
+      },
+    )
+
+    // Converted checkpoint: Archive all converted models (same directory)
+    await createCheckpoint(
+      BUILD,
+      'converted',
+      async () => {
+        // Smoke test: Verify at least one ONNX file exists
+        const modelDirs = await fs.readdir(MODELS)
+        let hasOnnx = false
+        for (const modelDir of modelDirs) {
+          const modelPath = path.join(MODELS, modelDir, 'model.onnx')
+          if (existsSync(modelPath)) {
+            hasOnnx = true
+            break
+          }
+        }
+        if (!hasOnnx) {
+          throw new Error('No ONNX models found after conversion')
+        }
+      },
+      {
+        artifactPath: MODELS,
+        buildMode: BUILD_MODE,
+      },
+    )
+
+    // Quantized checkpoint: Archive all quantized models (same directory)
+    await createCheckpoint(
+      BUILD,
+      'quantized',
+      async () => {
+        // Smoke test: Verify at least one quantized model exists
+        const modelDirs = await fs.readdir(MODELS)
+        let hasQuantized = false
+        for (const modelDir of modelDirs) {
+          const int4Path = path.join(MODELS, modelDir, 'model.int4.onnx')
+          const int8Path = path.join(MODELS, modelDir, 'model.int8.onnx')
+          if (existsSync(int4Path) || existsSync(int8Path)) {
+            hasQuantized = true
+            break
+          }
+        }
+        if (!hasQuantized) {
+          throw new Error('No quantized models found')
+        }
+      },
+      {
+        artifactPath: MODELS,
+        buildMode: BUILD_MODE,
+        quantLevel: QUANT_LEVEL,
+      },
+    )
+
     const duration = ((Date.now() - startTime) / 1000).toFixed(1)
 
     logger.info('')
@@ -338,6 +419,64 @@ async function main() {
       logger.substep(`  - codet5/model.onnx (${QUANT_LEVEL} quantized)`)
       logger.substep('  - codet5/tokenizer.json')
     }
+
+    // Create finalized checkpoint for caching
+    await createCheckpoint(
+      BUILD,
+      'finalized',
+      async () => {
+        // Smoke test: Verify final output files exist and meet size requirements
+        // Different thresholds for dev (INT8) vs prod (INT4)
+        // 100KB (INT4) or 1MB (INT8)
+        const minSize = BUILD_MODE === 'prod' ? 100_000 : 1_000_000
+
+        if (BUILD_MINILM) {
+          const minilmModel = path.join(DIST_MODE, 'minilm-l6', 'model.onnx')
+          const minilmTokenizer = path.join(
+            DIST_MODE,
+            'minilm-l6',
+            'tokenizer.json',
+          )
+          if (!existsSync(minilmModel)) {
+            throw new Error(`MiniLM model not found: ${minilmModel}`)
+          }
+          if (!existsSync(minilmTokenizer)) {
+            throw new Error(`MiniLM tokenizer not found: ${minilmTokenizer}`)
+          }
+          const stats = await fs.stat(minilmModel)
+          if (stats.size < minSize) {
+            throw new Error(
+              `MiniLM model too small: ${stats.size} bytes (expected >${minSize})`,
+            )
+          }
+        }
+        if (BUILD_CODET5) {
+          const codet5Model = path.join(DIST_MODE, 'codet5', 'model.onnx')
+          const codet5Tokenizer = path.join(
+            DIST_MODE,
+            'codet5',
+            'tokenizer.json',
+          )
+          if (!existsSync(codet5Model)) {
+            throw new Error(`CodeT5 model not found: ${codet5Model}`)
+          }
+          if (!existsSync(codet5Tokenizer)) {
+            throw new Error(`CodeT5 tokenizer not found: ${codet5Tokenizer}`)
+          }
+          const stats = await fs.stat(codet5Model)
+          if (stats.size < minSize) {
+            throw new Error(
+              `CodeT5 model too small: ${stats.size} bytes (expected >${minSize})`,
+            )
+          }
+        }
+      },
+      {
+        artifactPath: DIST_MODE,
+        buildMode: BUILD_MODE,
+        quantLevel: QUANT_LEVEL,
+      },
+    )
   } catch (error) {
     logger.info('')
     logger.error(`Build failed: ${error.message}`)

@@ -25,9 +25,11 @@ import { printError } from 'build-infra/lib/build-output'
 import { cleanCheckpoint } from 'build-infra/lib/checkpoint-manager'
 import { ensureEmscripten } from 'build-infra/lib/emscripten-installer'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
+import { getEmscriptenVersion } from 'build-infra/lib/version-helpers'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
+import { finalizeWasm as finalizeWasmModule } from './finalized/shared/finalize-wasm.mjs'
 import {
   PACKAGE_ROOT,
   getBuildOutputPaths,
@@ -39,7 +41,6 @@ import {
 import { cloneOnnxSource as cloneOnnxSourceModule } from './source-cloned/shared/clone-source.mjs'
 import { extractSourceForMode as extractSourceModule } from './source-cloned/shared/extract-source.mjs'
 import { compileWasm as compileWasmModule } from './wasm-compiled/shared/compile-wasm.mjs'
-import { finalizeWasm as finalizeWasmModule } from './wasm-finalized/shared/finalize-wasm.mjs'
 import { optimizeWasm as optimizeWasmModule } from './wasm-optimized/shared/optimize-wasm.mjs'
 import { copyToRelease as copyToReleaseModule } from './wasm-released/shared/copy-to-release.mjs'
 import { generateSync as generateSyncModule } from './wasm-synced/shared/generate-sync.mjs'
@@ -89,12 +90,7 @@ const EIGEN_COMMIT = eigenSource.ref
 const EIGEN_SHA1 = eigenSource.sha1
 
 // Load emscripten version from package-level external-tools.json
-const externalToolsPath = path.join(PACKAGE_ROOT, 'external-tools.json')
-const externalToolsData = JSON.parse(
-  await fs.readFile(externalToolsPath, 'utf-8'),
-)
-const emscriptenConfig = externalToolsData.tools?.emscripten || {}
-const emscriptenVersion = emscriptenConfig.versions?.emsdk || 'latest'
+const emscriptenVersion = await getEmscriptenVersion(PACKAGE_ROOT)
 
 // Get paths from source of truth
 const {

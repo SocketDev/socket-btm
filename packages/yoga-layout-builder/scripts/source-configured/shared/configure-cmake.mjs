@@ -120,7 +120,6 @@ export async function configureCMake(options) {
   logger.success('CMake configured')
   await createCheckpoint(
     buildDir,
-    '',
     'source-configured',
     async () => {
       // Smoke test: Verify CMake build directory exists

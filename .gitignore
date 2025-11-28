@@ -21,11 +21,11 @@
 #
 # CI Workflow:
 #   1. Build jobs: Upload build/{dev,prod}/out/Final/node as GitHub Actions artifacts
-#   2. Release job: Download artifacts to build/{dev,prod}/cache/node-compiled-{platform}-{arch}
+#   2. Release job: Download artifacts to build/{dev,prod}/cache/node-{platform}-{arch}
 #   3. Release job: Run scripts/release.mjs to package and publish
 #
 # Local Workflow:
-#   1. First build: Compile and cache to build/{dev,prod}/cache/node-compiled-{platform}-{arch}
+#   1. First build: Compile and cache to build/{dev,prod}/cache/node-{platform}-{arch}
 #   2. Subsequent builds: Restore from cache if source unchanged
 #   3. Concurrent builds: Dev and prod builds fully isolated in separate directories
 #

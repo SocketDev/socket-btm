@@ -29,7 +29,7 @@ import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
-import { PACKAGE_ROOT } from '../../paths.mjs'
+import { PACKAGE_ROOT } from './paths.mjs'
 
 const logger = getDefaultLogger()
 
@@ -203,55 +203,13 @@ export async function buildStripped({
 
   logger.log('')
 
-  // Re-sign after stripping for macOS ARM64 (strip invalidates code signature).
-  if (IS_MACOS && arch === 'arm64') {
-    logger.step('Code Signing (macOS ARM64 - After Stripping)')
-    logger.log(
-      'Re-signing binary after stripping for macOS ARM64 compatibility...',
-    )
-    logger.log(
-      '(strip command invalidates code signature, re-signing required)',
-    )
-    logger.logNewline()
-    await exec('codesign', ['--sign', '-', '--force', outputStrippedBinary])
-    logger.success('Binary re-signed successfully after stripping')
-    logger.logNewline()
-
-    // Smoke test after signing to ensure signature is valid.
-    if (isCrossCompiling) {
-      logger.log(
-        'Skipping smoke test (binary cross-compiled for different architecture)',
-      )
-      logger.log('')
-    } else {
-      logger.log('Testing binary after signing...')
-      const signTestPassed = await smokeTestBinary(outputStrippedBinary)
-
-      if (!signTestPassed) {
-        printError(
-          'Binary Corrupted After Signing',
-          'Binary failed smoke test after code signing',
-          [
-            'Code signing may have corrupted the binary',
-            'Try rebuilding: pnpm build --clean',
-            'Report this issue if it persists',
-          ],
-        )
-        throw new Error('Binary corrupted after signing')
-      }
-
-      logger.log(`${colors.green('✓')} Binary functional after signing`)
-      logger.log('')
-    }
-  }
-
-  // Smoke test binary after stripping (ensure strip didn't corrupt it).
+  // Smoke test stripped binary (signing happens automatically inside smoke test for macOS).
+  logger.step('Testing Stripped Binary')
   if (isCrossCompiling) {
     logger.log(
       'Skipping smoke test (binary cross-compiled for different architecture)',
     )
   } else {
-    logger.log('Testing binary after stripping...')
     const smokeTestPassed = await smokeTestBinary(outputStrippedBinary)
 
     if (!smokeTestPassed) {
@@ -271,11 +229,24 @@ export async function buildStripped({
   }
   logger.log('')
 
+  // Clean Stripped directory before checkpoint to ensure only the stripped binary is archived
+  // This removes any leftover files from previous stages (e.g., release binary)
+  logger.substep('Cleaning checkpoint directory...')
+  const strippedDirFiles = await fs.readdir(outputStrippedDir)
+  const strippedBinaryName = path.basename(outputStrippedBinary)
+  for (const file of strippedDirFiles) {
+    if (file !== strippedBinaryName) {
+      const filePath = path.join(outputStrippedDir, file)
+      await fs.rm(filePath, { recursive: true, force: true })
+      logger.substep(`Removed: ${file}`)
+    }
+  }
+  logger.logNewline()
+
   // Create checkpoint with smoke test.
   const strippedBinarySize = await getFileSize(outputStrippedBinary)
   await createCheckpoint(
     buildDir,
-    packageName,
     'binary-stripped',
     async () => {
       if (isCrossCompiling) {
@@ -295,9 +266,10 @@ export async function buildStripped({
       logger.substep('Stripped binary executable validated')
     },
     {
+      packageName,
       binarySize: strippedBinarySize,
       binaryPath: path.relative(buildDir, outputStrippedBinary),
-      artifactPath: outputStrippedBinary,
+      artifactPath: outputStrippedDir,
       // Cache depends on same sources as release
       sourcePaths: buildSourcePaths,
       packageRoot: PACKAGE_ROOT,

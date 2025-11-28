@@ -56,7 +56,6 @@ export async function convertToOnnx(options) {
     logger.success('Already in ONNX format')
     await createCheckpoint(
       buildDir,
-      packageName,
       `converted-${modelKey}`,
       async () => {
         // Smoke test: Verify ONNX files are valid
@@ -70,6 +69,8 @@ export async function convertToOnnx(options) {
         }
       },
       {
+        packageName,
+        artifactPath: path.join(modelsDir, modelKey),
         modelKey,
       },
     )
@@ -164,7 +165,6 @@ print(f"Successfully exported model to {output_path}")
     logger.success('Converted to ONNX')
     await createCheckpoint(
       buildDir,
-      packageName,
       `converted-${modelKey}`,
       async () => {
         // Smoke test: Verify converted ONNX model exists and is valid
@@ -181,6 +181,8 @@ print(f"Successfully exported model to {output_path}")
         }
       },
       {
+        packageName,
+        artifactPath: path.join(modelsDir, modelKey),
         modelKey,
       },
     )

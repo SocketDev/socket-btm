@@ -63,7 +63,7 @@ jobs:
           node-version: ${{ steps.tool-versions.outputs.node-version }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
         # Note: version is specified in package.json packageManager field, not here
 
       - name: Setup Python
@@ -119,8 +119,22 @@ jobs:
           echo "mode=$BUILD_MODE" >> $GITHUB_OUTPUT
           echo "Build mode: $BUILD_MODE"
 
+      - name: Load cache version from centralized config
+        id: cache-version
+        shell: bash
+        run: |
+          CACHE_VERSION=$(jq -r '.versions["models"]' .github/cache-versions.json)
+          if [ -z "$CACHE_VERSION" ] || [ "$CACHE_VERSION" = "null" ]; then
+            echo "❌ Error: Cache version not found for models in .github/cache-versions.json"
+            exit 1
+          fi
+          echo "version=$CACHE_VERSION" >> $GITHUB_OUTPUT
+          echo "Cache version: $CACHE_VERSION"
+
       - name: Generate model cache key
         id: cache-key
+        env:
+          CACHE_VERSION: ${{ steps.cache-version.outputs.version }}
         run: |
           # Per-phase cumulative hashing (like node-smol)
 
@@ -149,16 +163,9 @@ jobs:
           QUANTIZED_DIR=$(hash_dir packages/models/scripts/quantized)
           QUANTIZED_HASH=$(echo "${CONVERTED_HASH}${QUANTIZED_DIR}" | shasum -a 256 | cut -d' ' -f1)
 
+          echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
           echo "downloaded_hash=${DOWNLOADED_HASH}" >> $GITHUB_OUTPUT
           echo "quantized_hash=${QUANTIZED_HASH}" >> $GITHUB_OUTPUT
-
-      - name: Restore model Final cache
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        id: model-final-cache
-        if: ${{ !inputs.force }}
-        with:
-          path: packages/models/build/${{ steps.build-mode.outputs.mode }}/out/Final
-          key: model-final-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.quantized_hash }}
 
       - name: Restore model checkpoint cache
         uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
@@ -166,69 +173,61 @@ jobs:
         if: ${{ !inputs.force }}
         with:
           path: packages/models/build/${{ steps.build-mode.outputs.mode }}/checkpoints
-          key: model-checkpoints-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.quantized_hash }}
+          key: model-checkpoints-${{ steps.cache-key.outputs.cache_version }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.quantized_hash }}
 
-      - name: Validate build cache integrity
-        id: validate-cache
-        if: steps.model-final-cache.outputs.cache-hit == 'true'
+      - name: Set checkpoint chain
+        id: checkpoint-chain
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
         run: |
-          echo "Validating cached models build for ${BUILD_MODE}..."
+          # Use get-checkpoint-chain.mjs to ensure consistency with local builds
+          CHAIN=$(node packages/models/scripts/get-checkpoint-chain.mjs --$BUILD_MODE)
+          echo "checkpoint_chain=$CHAIN" >> $GITHUB_OUTPUT
+          # Convert comma-separated to space-separated for validation
+          CHECKPOINTS=$(echo "$CHAIN" | tr ',' ' ')
+          echo "checkpoints=$CHECKPOINTS" >> $GITHUB_OUTPUT
+          echo "Checkpoint chain: $CHAIN"
 
-          FINAL_DIR="packages/models/build/${BUILD_MODE}/out/Final"
-          CHECKPOINT_DIR="packages/models/build/${BUILD_MODE}/checkpoints"
+      - name: Validate checkpoint cache integrity
+        id: validate-cache
+        if: steps.model-checkpoint-cache.outputs.cache-hit == 'true'
+        uses: ./.github/actions/validate-checkpoints
+        with:
+          checkpoint-dirs: packages/models/build/${{ steps.build-mode.outputs.mode }}/checkpoints
+          checkpoints: ${{ steps.checkpoint-chain.outputs.checkpoints }}
+          package-name: models
 
-          # Check if MiniLM model exists
-          if [ ! -f "${FINAL_DIR}/minilm-l6/model.onnx" ]; then
-            echo "❌ MiniLM model missing: ${FINAL_DIR}/minilm-l6/model.onnx"
-            rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
-            echo "cache_valid=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Check if CodeT5 model exists
-          if [ ! -f "${FINAL_DIR}/codet5/model.onnx" ]; then
-            echo "❌ CodeT5 model missing: ${FINAL_DIR}/codet5/model.onnx"
-            rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
-            echo "cache_valid=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Check MiniLM model size
-          MINILM_SIZE=$(stat -c%s "${FINAL_DIR}/minilm-l6/model.onnx" 2>/dev/null || stat -f%z "${FINAL_DIR}/minilm-l6/model.onnx")
-
-          # Determine minimum size based on build mode
-          if [ "${BUILD_MODE}" = "prod" ]; then
-            MIN_SIZE=100000  # 100KB for prod (int4)
-          else
-            MIN_SIZE=1000000  # 1MB for dev (int8)
-          fi
-
-          if [ "$MINILM_SIZE" -lt "$MIN_SIZE" ]; then
-            echo "❌ MiniLM model too small: $MINILM_SIZE bytes (minimum $MIN_SIZE)"
-            rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
-            echo "cache_valid=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Check CodeT5 model size
-          CODET5_SIZE=$(stat -c%s "${FINAL_DIR}/codet5/model.onnx" 2>/dev/null || stat -f%z "${FINAL_DIR}/codet5/model.onnx")
-          if [ "$CODET5_SIZE" -lt "$MIN_SIZE" ]; then
-            echo "❌ CodeT5 model too small: $CODET5_SIZE bytes (minimum $MIN_SIZE)"
-            rm -rf "$FINAL_DIR" "$CHECKPOINT_DIR"
-            echo "cache_valid=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          echo "✅ Cache validation passed"
-          echo "cache_valid=true" >> $GITHUB_OUTPUT
+      - name: Restore build output from checkpoint chain
+        id: restore-checkpoint
+        uses: ./.github/actions/restore-checkpoint
+        with:
+          package-name: 'models'
+          build-mode: ${{ steps.build-mode.outputs.mode }}
+          checkpoint-chain: ${{ steps.checkpoint-chain.outputs.checkpoint_chain }}
+          cache-hit: ${{ steps.model-checkpoint-cache.outputs.cache-hit }}
+          cache-valid: ${{ steps.validate-cache.outputs.valid }}
 
       - name: Build models
-        if: steps.model-final-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.cache_valid == 'false'
+        if: |
+          (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          steps.restore-checkpoint.outputs.needs-build == 'true'
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
-        run: pnpm --filter models build --$BUILD_MODE
+        run: |
+          echo "⏱️ Build started at $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          BUILD_START=$(date +%s)
+
+          pnpm --filter models build --$BUILD_MODE
+
+          BUILD_END=$(date +%s)
+          BUILD_DURATION=$((BUILD_END - BUILD_START))
+          # Note: date +%s requires GNU date (available on GitHub Actions runners: ubuntu, macos, windows)
+          # Not portable to busybox (Alpine) or pure BSD systems without GNU coreutils
+          # Time formatting uses pure POSIX arithmetic for maximum portability
+          HOURS=$((BUILD_DURATION / 3600))
+          MINUTES=$(((BUILD_DURATION % 3600) / 60))
+          SECONDS=$((BUILD_DURATION % 60))
+          printf "⏱️ Build completed in %ds (%02d:%02d:%02d)\n" "$BUILD_DURATION" "$HOURS" "$MINUTES" "$SECONDS"
 
       - name: Validate build output
         env:
@@ -375,46 +374,16 @@ jobs:
             tar -czf ../models-v${VERSION}.tar.gz .
 
             gh release create "$TAG" \
-              --title "AI Models v${VERSION}" \
-              --notes "Production AI models for Socket BTM, optimized with INT4 quantization.
+              --title "Models v${VERSION}" \
+              --notes "Production models for Socket BTM, optimized with INT4 quantization.
 
           ## Included Models
-
-          ### MiniLM-L6-v2
-          - Sentence embeddings model
-          - 384-dimensional embeddings
-          - INT4 quantized (~75% size reduction)
-
-          ### CodeT5
-          - Code understanding model
-          - INT4 quantized (~75% size reduction)
+          - \`minilm-l6/model.onnx\` - Sentence embeddings (384-dim)
+          - \`codet5/model.onnx\` - Code understanding
 
           ## Files
           - \`models-v${VERSION}.tar.gz\` - All production models
-          - \`checksums.txt\` - SHA256 checksums for all .onnx files
-          - \`checksums.txt.asc\` - GPG signature (if available)
-
-          ## Download URL
-          \`\`\`
-          https://github.com/SocketDev/socket-btm/releases/download/${TAG}/models-v${VERSION}.tar.gz
-          \`\`\`
-
-          ## Verification
-          \`\`\`bash
-          # Extract and verify checksums
-          tar -xzf models-v${VERSION}.tar.gz
-          shasum -a 256 -c checksums.txt
-
-          # Verify GPG signature (if GPG key is available)
-          gpg --verify checksums.txt.asc checksums.txt
-          \`\`\`
-
-          ## Usage
-          Extract the archive and load models with ONNX Runtime:
-          \`\`\`javascript
-          import * as ort from 'onnxruntime-node';
-          const session = await ort.InferenceSession.create('./minilm-l6/model.onnx');
-          \`\`\`" \
+          - \`checksums.txt\` - SHA256 checksums" \
               ../models-v${VERSION}.tar.gz \
               checksums.txt \
               $([ -f checksums.txt.asc ] && echo "checksums.txt.asc" || echo "")

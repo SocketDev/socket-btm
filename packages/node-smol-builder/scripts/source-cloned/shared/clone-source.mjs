@@ -21,7 +21,7 @@ import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
-import { SUBMODULE_PATH } from '../../paths.mjs'
+import { SUBMODULE_PATH } from './paths.mjs'
 
 const logger = getDefaultLogger()
 
@@ -151,7 +151,6 @@ export async function cloneNodeSource(options) {
     logger.log('Creating shared checkpoint (pristine source for dev/prod)...')
     await createCheckpoint(
       sharedBuildDir,
-      packageName,
       'source-cloned',
       async () => {
         const configureScript = path.join(sharedSourceDir, 'configure')
@@ -159,6 +158,7 @@ export async function cloneNodeSource(options) {
         logger.substep('Source directory validated')
       },
       {
+        packageName,
         nodeVersion,
         nodeSha,
         artifactPath: sharedSourceDir,

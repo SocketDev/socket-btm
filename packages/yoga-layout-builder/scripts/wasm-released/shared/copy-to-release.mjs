@@ -11,6 +11,7 @@ import { getFileSize } from 'build-infra/lib/build-helpers'
 import { printError } from 'build-infra/lib/build-output'
 import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 
+import { safeDelete } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 const logger = getDefaultLogger()
@@ -42,6 +43,8 @@ export async function copyToRelease(options) {
   logger.log('Copying WASM artifacts from cmake build to dev/out/Release...')
   logger.logNewline()
 
+  // Clean Release directory before copying to ensure only intended files are archived
+  await safeDelete(outputReleaseDir)
   await fs.mkdir(outputReleaseDir, { recursive: true })
 
   if (!existsSync(buildWasmFile)) {
@@ -68,7 +71,6 @@ export async function copyToRelease(options) {
   // Create checkpoint with smoke test.
   await createCheckpoint(
     buildDir,
-    '',
     'wasm-released',
     async () => {
       // Smoke test: Verify WASM file.
@@ -90,8 +92,8 @@ export async function copyToRelease(options) {
     },
     {
       binarySize: wasmSize,
-      binaryPath: path.relative(buildDir, releaseWasmFile),
-      artifactPath: releaseWasmFile,
+      binaryPath: path.relative(buildDir, outputReleaseDir),
+      artifactPath: outputReleaseDir,
     },
   )
 

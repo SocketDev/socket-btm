@@ -12,6 +12,7 @@ import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
+import { safeDelete } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
@@ -46,6 +47,8 @@ export async function optimizeWasm(options) {
   logger.log('Running wasm-opt for additional size reduction...')
   logger.logNewline()
 
+  // Clean Optimized directory before copying to ensure only intended files are archived
+  await safeDelete(optimizedDir)
   await fs.mkdir(optimizedDir, { recursive: true })
 
   const inputWasmFile = path.join(releaseDir, 'ort.wasm')
@@ -94,7 +97,6 @@ export async function optimizeWasm(options) {
   const wasmSize = await getFileSize(optimizedWasmFile)
   await createCheckpoint(
     buildDir,
-    '',
     'wasm-optimized',
     async () => {
       // Smoke test: Verify optimized WASM is valid.
@@ -117,7 +119,7 @@ export async function optimizeWasm(options) {
     {
       binarySize: wasmSize,
       binaryPath: path.relative(buildDir, optimizedWasmFile),
-      artifactPath: optimizedWasmFile,
+      artifactPath: optimizedDir,
     },
   )
 

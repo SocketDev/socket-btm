@@ -85,11 +85,20 @@ import {
   getFileSize,
   writeCacheHash,
 } from 'build-infra/lib/build-helpers'
+import { createCheckpoint } from 'build-infra/lib/checkpoint-manager'
 
 import { parseArgs } from '@socketsecurity/lib/argv/parse'
 import { safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
+import {
+  NODE_VERSION_FILE,
+  PACKAGE_ROOT,
+  getBuildPaths,
+  getSharedBuildPaths,
+  getBuildSourcePaths,
+  getExistingPaths,
+} from './paths.mjs'
 import { printBuildSummary } from '../../lib/build-summary.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -100,6 +109,7 @@ const logger = getDefaultLogger()
 // Parse arguments.
 const { values } = parseArgs({
   options: {
+    'allow-cross': { type: 'boolean', short: 'X' },
     arch: { type: 'string' },
     clean: { type: 'boolean' },
     dev: { type: 'boolean' },
@@ -129,14 +139,6 @@ const IS_CI = 'CI' in process.env
 const IS_PROD_BUILD = values.prod || (!values.dev && IS_CI)
 
 // Configuration
-import {
-  NODE_VERSION_FILE,
-  PACKAGE_ROOT,
-  getBuildPaths,
-  getSharedBuildPaths,
-  getBuildSourcePaths,
-  getExistingPaths,
-} from '../../paths.mjs'
 
 // Read Node.js version from .node-version file
 const nodeVersionRaw = (await fs.readFile(NODE_VERSION_FILE, 'utf-8')).trim()
@@ -323,6 +325,7 @@ async function main() {
     autoYes: AUTO_YES,
     isCI: IS_CI,
     isProdBuild: IS_PROD_BUILD,
+    allowCross: !!values['allow-cross'],
     collectBuildSourceFiles: () => collectBuildSourceFiles('binary-released'),
     packageRoot: PACKAGE_ROOT,
   })
@@ -480,6 +483,33 @@ async function main() {
   const finalSourcePaths = collectBuildSourceFiles('finalized')
   await writeCacheHash(cacheDir, finalSourcePaths)
   logger.logNewline()
+
+  // Create finalized checkpoint
+  const finalBinarySize = await getFileSize(finalBinary)
+  await createCheckpoint(
+    BUILD_DIR,
+    'finalized',
+    async () => {
+      // Smoke test: Verify final binary exists and is executable
+      if (!existsSync(finalBinary)) {
+        throw new Error('Final binary not found')
+      }
+      const stats = await fs.stat(finalBinary)
+      if (stats.size === 0) {
+        throw new Error('Final binary is empty')
+      }
+      // Check executable bit on Unix
+      if (platform() !== 'win32' && !(stats.mode & 0o111)) {
+        throw new Error('Final binary is not executable')
+      }
+      logger.substep(`Final binary validated: ${finalBinarySize}`)
+    },
+    {
+      binarySize: finalBinarySize,
+      binaryPath: path.relative(BUILD_DIR, outputFinalDir),
+      artifactPath: outputFinalDir,
+    },
+  )
 
   // Report build complete.
   const binarySize = await getFileSize(finalBinary)

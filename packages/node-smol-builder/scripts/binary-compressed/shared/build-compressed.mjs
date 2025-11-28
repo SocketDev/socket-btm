@@ -33,7 +33,7 @@ import {
   COMPRESS_BINARY_SCRIPT,
   COMPRESSION_TOOLS_DIR,
   PACKAGE_ROOT,
-} from '../../paths.mjs'
+} from './paths.mjs'
 
 const logger = getDefaultLogger()
 
@@ -175,6 +175,20 @@ export async function buildCompressed({
   )
   logger.logNewline()
 
+  // Clean Compressed directory before checkpoint to ensure only the compressed binary is archived
+  // This removes any leftover files from previous stages (e.g., stripped binary)
+  logger.substep('Cleaning checkpoint directory...')
+  const compressedDirFiles = await fs.readdir(outputCompressedDir)
+  const compressedBinaryName = path.basename(outputCompressedBinary)
+  for (const file of compressedDirFiles) {
+    if (file !== compressedBinaryName) {
+      const filePath = path.join(outputCompressedDir, file)
+      await fs.rm(filePath, { recursive: true, force: true })
+      logger.substep(`Removed: ${file}`)
+    }
+  }
+  logger.logNewline()
+
   // Create checkpoint for Compressed build with smoke test.
   // This is the final checkpoint - calculate checksum for cache validation.
   const compressedBinaryContent = await fs.readFile(outputCompressedBinary)
@@ -185,7 +199,6 @@ export async function buildCompressed({
   const compressedBinarySize = await getFileSize(outputCompressedBinary)
   await createCheckpoint(
     buildDir,
-    packageName,
     'binary-compressed',
     async () => {
       if (isCrossCompiling) {
@@ -217,10 +230,11 @@ export async function buildCompressed({
       logger.log('')
     },
     {
+      packageName,
       binarySize: compressedBinarySize,
       checksum: compressedChecksum,
       binaryPath: path.relative(buildDir, outputCompressedBinary),
-      artifactPath: outputCompressedBinary,
+      artifactPath: outputCompressedDir,
       // Cache depends on build sources
       sourcePaths: buildSourcePaths,
       packageRoot: PACKAGE_ROOT,

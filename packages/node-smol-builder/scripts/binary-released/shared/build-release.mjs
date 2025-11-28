@@ -35,6 +35,7 @@ import {
 } from 'build-infra/lib/build-helpers'
 import { printError } from 'build-infra/lib/build-output'
 import {
+  hasCheckpoint,
   restoreCheckpoint,
   shouldRun,
 } from 'build-infra/lib/checkpoint-manager'
@@ -52,7 +53,7 @@ import colors from 'yoctocolors-cjs'
 
 import { which, whichSync } from '@socketsecurity/lib/bin'
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
-import { safeMkdir } from '@socketsecurity/lib/fs'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
@@ -60,11 +61,34 @@ import {
   ADDITIONS_MAPPINGS,
   COMPRESSION_TOOLS_DIR,
   PATCHES_RELEASE_DIR,
-} from '../../paths.mjs'
+} from './paths.mjs'
 import { cloneNodeSource } from '../../source-cloned/shared/clone-source.mjs'
 import { applySocketPatches } from '../../source-patched/shared/apply-patches.mjs'
 
 const logger = getDefaultLogger()
+
+/**
+ * Get checkpoint chain for progressive restoration (newest → oldest).
+ * Matches CI restore-checkpoint action chain.
+ *
+ * This function is the single source of truth for checkpoint ordering.
+ * CI workflows should use this same function to generate their checkpoint chain.
+ *
+ * @param {string} _buildMode - Build mode ('dev' or 'prod') - unused for node-smol but kept for API consistency
+ * @returns {string[]} Checkpoint chain array
+ */
+export function getCheckpointChain(_buildMode) {
+  // Node-smol-builder chain is same for dev and prod
+  // (Other builders like onnxruntime/yoga vary by mode - they skip optimization in dev)
+  return [
+    'finalized',
+    'binary-compressed',
+    'binary-stripped',
+    'binary-released',
+    'source-patched',
+    'source-cloned',
+  ]
+}
 
 /**
  * Build Release binary phase.
@@ -94,11 +118,13 @@ const logger = getDefaultLogger()
  * @param {boolean} options.autoYes - Auto-yes to prompts
  * @param {boolean} options.isCI - Whether running in CI
  * @param {boolean} options.isProdBuild - Whether this is a production build
+ * @param {boolean} options.allowCross - Allow cross-compilation (experimental)
  * @param {function} options.collectBuildSourceFiles - Function to collect build source files
  * @param {string} options.packageRoot - Package root directory
  */
 export async function buildRelease(options) {
   const {
+    allowCross,
     arch,
     autoYes,
     bootstrapFile,
@@ -208,27 +234,6 @@ export async function buildRelease(options) {
     } catch {
       return false
     }
-  }
-
-  /**
-   * Reset Node.js source to pristine state by restoring from checkpoint.
-   * Note: Source directory never contains .git (filtered during extraction),
-   * so we always restore from the source-cloned checkpoint.
-   */
-  async function resetNodeSource() {
-    logger.log('Restoring pristine source from checkpoint...')
-    // Re-extract from the shared source checkpoint
-    const restored = await restoreCheckpoint(
-      sharedBuildDir,
-      packageName,
-      'source-cloned',
-      { destDir: buildDir },
-    )
-    if (!restored) {
-      throw new Error('Failed to restore source from checkpoint')
-    }
-    logger.success('Source restored from checkpoint')
-    logger.log('')
   }
 
   /**
@@ -721,12 +726,41 @@ export async function buildRelease(options) {
   // Ensure build directory exists.
   await safeMkdir(buildDir, { recursive: true })
 
-  // Check if build is already complete.
-  if (!(await shouldRun(buildDir, packageName, 'finalized', cleanBuild))) {
+  // Progressive checkpoint restoration (same as CI restore-checkpoint action).
+  // Walk backward through checkpoint chain to find latest valid checkpoint.
+  // This allows local builds to resume from the same point as CI builds.
+  const checkpointChain = getCheckpointChain(buildMode)
+  let resumeFromCheckpoint = null
+
+  for (const checkpoint of checkpointChain) {
+    // Check if this checkpoint exists
+    const exists = await hasCheckpoint(buildDir, packageName, checkpoint)
+
+    if (exists) {
+      // Found latest checkpoint
+      resumeFromCheckpoint = checkpoint
+      logger.log('')
+      logger.step('Progressive Checkpoint Restoration')
+      logger.substep(`Found checkpoint: ${checkpoint}`)
+
+      // If finalized, build is complete
+      if (checkpoint === 'finalized') {
+        logger.success('Build already complete')
+        logger.log('')
+        return { releaseBinaryPath: outputReleaseBinary }
+      }
+
+      logger.substep(`Build will resume from ${checkpoint} checkpoint`)
+      logger.log('')
+      break
+    }
+  }
+
+  if (!resumeFromCheckpoint) {
     logger.log('')
-    logger.success('Build already complete')
+    logger.step('Starting Fresh Build')
+    logger.substep('No checkpoints found - building from scratch')
     logger.log('')
-    return { releaseBinaryPath: outputReleaseBinary }
   }
 
   // Check if we can use cached build.
@@ -763,36 +797,13 @@ export async function buildRelease(options) {
     cleanBuild,
   })
 
-  // Extract source to mode-specific directory.
-  if (!existsSync(modeSourceDir)) {
-    logger.step(`Extracting Node.js Source to ${buildMode} Build`)
-    logger.log(`Extracting from shared checkpoint to ${buildMode}/source...`)
-    logger.log('')
-
-    const restored = await restoreCheckpoint(
-      sharedBuildDir,
-      packageName,
-      'source-cloned',
-      { destDir: buildDir },
-    )
-
-    if (!restored) {
-      printError(
-        'Source Extraction Failed',
-        'Shared checkpoint not found or could not be restored.',
-        [
-          'The shared checkpoint may be missing or corrupted',
-          'Expected checkpoint: source-cloned',
-          'Try running with --clean to re-clone from GitHub',
-        ],
-      )
-      throw new Error('Source extraction failed')
-    }
-
-    logger.success(`Source extracted to ${buildMode}/source`)
-    logger.log('')
-  } else {
-    logger.step('Using Existing Node.js Source')
+  // Check if mode source needs to be reset before extraction.
+  // This handles two cases:
+  // 1. Source exists but needs patching (source-patched checkpoint doesn't exist)
+  // 2. Source has uncommitted changes (local dev modified files)
+  // In both cases, delete the directory so it will be re-extracted below.
+  if (existsSync(modeSourceDir)) {
+    logger.step('Checking Existing Node.js Source')
 
     // Check if we need to apply patches (source-patched checkpoint doesn't exist).
     const needsPatching = await shouldRun(
@@ -802,15 +813,12 @@ export async function buildRelease(options) {
       cleanBuild,
     )
 
-    // If we need to apply patches but source already exists, restore from
-    // source-cloned to ensure pristine state (patches may have been applied
-    // in a previous cached build).
     if (needsPatching) {
       logger.warn(
-        'Source exists but patches need to be applied - restoring pristine source',
+        'Source exists but patches need to be applied - will re-extract pristine source',
       )
+      await safeDelete(modeSourceDir)
       logger.log('')
-      await resetNodeSource()
     } else {
       // Check for uncommitted changes only if we're not patching.
       const isDirty = await isNodeSourceDirty()
@@ -832,13 +840,63 @@ export async function buildRelease(options) {
           logger.log('')
         } else {
           logger.log(
-            '⚠️  Node.js source has uncommitted changes (auto-resetting with --yes)',
+            '⚠️  Node.js source has uncommitted changes (will re-extract with --yes)',
           )
           logger.log('')
         }
 
-        await resetNodeSource()
+        await safeDelete(modeSourceDir)
+      } else {
+        logger.success('Source is clean and ready')
+        logger.log('')
       }
+    }
+  }
+
+  // Extract source to mode-specific directory (if needed).
+  // Try checkpoints in order from newest to oldest (progressive restoration).
+  // This matches CI behavior where restore-checkpoint action walks backward.
+  if (!existsSync(modeSourceDir)) {
+    logger.step(`Extracting Node.js Source to ${buildMode} Build`)
+    logger.log('Looking for source checkpoints...')
+    logger.log('')
+
+    // Try source-patched first (mode-specific, already has patches applied)
+    let restored = await restoreCheckpoint(
+      buildDir,
+      packageName,
+      'source-patched',
+      { destDir: buildDir },
+    )
+
+    if (restored) {
+      logger.success(
+        'Restored from source-patched checkpoint (patches already applied)',
+      )
+      logger.log('')
+    } else {
+      // Fall back to source-cloned (shared, pristine source)
+      logger.log('source-patched not found, trying source-cloned...')
+      logger.log('')
+
+      restored = await restoreCheckpoint(
+        sharedBuildDir,
+        packageName,
+        'source-cloned',
+        { destDir: buildDir },
+      )
+
+      if (!restored) {
+        printError('Source Extraction Failed', 'No source checkpoints found.', [
+          'Neither source-patched nor source-cloned checkpoints exist',
+          'This should not happen - source-cloned is created during clone phase',
+          'Try running with --clean to re-clone from GitHub',
+        ])
+        throw new Error('Source extraction failed')
+      }
+
+      logger.success('Restored from source-cloned checkpoint')
+      logger.log('')
     }
   }
 
@@ -900,18 +958,27 @@ export async function buildRelease(options) {
     }
   }
 
-  // Cross-compilation support (Windows only).
+  // Cross-compilation support (Windows only, or with --allow-cross flag).
   const hostArch = process.arch
   const isArchMismatch = arch !== hostArch
-  const isCrossCompiling = isArchMismatch && IS_WINDOWS
+  const isCrossCompiling = isArchMismatch && (IS_WINDOWS || allowCross)
   if (isCrossCompiling) {
-    logger.log(`Cross-compiling for Windows ${arch} on ${hostArch} host`)
+    if (IS_WINDOWS) {
+      logger.log(`Cross-compiling for Windows ${arch} on ${hostArch} host`)
+    } else {
+      logger.warn(
+        `Cross-compiling for ${platform} ${arch} on ${hostArch} host (experimental)`,
+      )
+      logger.warn(
+        '   This may cause build errors. Use a native runner if possible.',
+      )
+    }
     configureFlags.push(`--dest-cpu=${arch}`)
   } else if (isArchMismatch) {
     logger.fail(
       `Cross-compilation not supported: building ${arch} on ${hostArch} host`,
     )
-    logger.log(`   Use a native ${arch} runner instead.`)
+    logger.log(`   Use a native ${arch} runner or add --allow-cross flag.`)
     process.exit(1)
   }
 
@@ -1106,11 +1173,24 @@ export async function buildRelease(options) {
   logger.success('Unmodified binary copied to build/out/Release')
   logger.logNewline()
 
+  // Clean Release directory before checkpoint to ensure only the release binary is archived
+  // This removes any leftover files from previous builds
+  logger.substep('Cleaning checkpoint directory...')
+  const releaseDirFiles = await fs.readdir(outputReleaseDir)
+  const releaseBinaryName = path.basename(outputReleaseBinary)
+  for (const file of releaseDirFiles) {
+    if (file !== releaseBinaryName) {
+      const filePath = path.join(outputReleaseDir, file)
+      await fs.rm(filePath, { recursive: true, force: true })
+      logger.substep(`Removed: ${file}`)
+    }
+  }
+  logger.logNewline()
+
   // Create Release checkpoint.
   const releaseBinarySize = await getFileSize(outputReleaseBinary)
   await createCheckpoint(
     buildDir,
-    packageName,
     'binary-release',
     async () => {
       if (isCrossCompiling) {
@@ -1128,8 +1208,9 @@ export async function buildRelease(options) {
       logger.substep('Binary executable validated')
     },
     {
+      packageName,
       binarySize: releaseBinarySize,
-      artifactPath: outputReleaseBinary,
+      artifactPath: outputReleaseDir,
       sourcePaths: buildSourcePaths,
       packageRoot,
       platform,

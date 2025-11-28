@@ -170,7 +170,7 @@ async function downloadModels() {
   }
 
   logger.success('Model download complete')
-  await createCheckpoint(BUILD_DIR, 'minilm', 'downloaded', async () => {
+  await createCheckpoint(BUILD_DIR, 'downloaded', async () => {
     // Smoke test: Verify model cache directory exists
     if (!existsSync(CACHE_DIR)) {
       throw new Error('Model cache directory not found')
@@ -213,7 +213,7 @@ async function convertToOnnx() {
   }
 
   logger.success('ONNX conversion complete')
-  await createCheckpoint(BUILD_DIR, 'minilm', 'converted', async () => {
+  await createCheckpoint(BUILD_DIR, 'converted', async () => {
     // Smoke test: Verify ONNX models exist
     for (const model of MODELS) {
       const { onnxModelFile } = getModelPaths(QUANT_LEVEL, model.outputName)
@@ -269,7 +269,7 @@ async function quantizeModels() {
   }
 
   logger.success('Quantization complete')
-  await createCheckpoint(BUILD_DIR, 'minilm', 'quantized', async () => {
+  await createCheckpoint(BUILD_DIR, 'quantized', async () => {
     // Smoke test: Verify quantized models exist
     for (const model of MODELS) {
       const { quantizedModelFile } = getModelPaths(
@@ -328,7 +328,7 @@ async function optimizeGraphs() {
   }
 
   logger.success('Graph optimization complete')
-  await createCheckpoint(BUILD_DIR, 'minilm', 'optimized', async () => {
+  await createCheckpoint(BUILD_DIR, 'optimized', async () => {
     // Smoke test: Verify optimized models exist
     for (const model of MODELS) {
       const { optimizedModelFile } = getModelPaths(
@@ -387,7 +387,7 @@ async function verifyModels() {
   }
 
   logger.success('Model verification complete')
-  await createCheckpoint(BUILD_DIR, 'minilm', 'verified', async () => {
+  await createCheckpoint(BUILD_DIR, 'verified', async () => {
     // Smoke test: Verify quantized models exist
     for (const model of MODELS) {
       const { quantizedModelFile } = getModelPaths(

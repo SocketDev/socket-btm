@@ -42,7 +42,7 @@ import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
-import { COMPRESSION_TOOLS_DIR } from '../../paths.mjs'
+import { COMPRESSION_TOOLS_DIR } from './paths.mjs'
 
 const logger = getDefaultLogger()
 const TOOLS_DIR = COMPRESSION_TOOLS_DIR

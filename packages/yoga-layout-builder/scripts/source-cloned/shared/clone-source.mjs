@@ -46,7 +46,6 @@ export async function cloneYogaSource(options) {
     logger.substep('Yoga source already exists, skipping clone')
     await createCheckpoint(
       sharedBuildDir,
-      '',
       'source-cloned',
       async () => {
         // Smoke test: Verify source directory exists with CMakeLists.txt
@@ -118,7 +117,6 @@ export async function cloneYogaSource(options) {
 
   await createCheckpoint(
     sharedBuildDir,
-    '',
     'source-cloned',
     async () => {
       // Smoke test: Verify source directory exists with CMakeLists.txt

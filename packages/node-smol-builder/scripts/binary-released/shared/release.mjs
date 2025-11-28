@@ -27,7 +27,7 @@
  *   pnpm release --force      # Overwrite existing release
  *
  * Prerequisites:
- *   - Built binaries in build/out/Final/node (or build/cache/node-compiled-*)
+ *   - Built binaries in build/out/Final/node (or build/cache/node-*)
  *   - GitHub CLI (gh) installed and authenticated
  *   - GITHUB_TOKEN environment variable (for CI)
  */
@@ -186,7 +186,7 @@ async function calculateChecksum(filePath) {
  *
  * Looks in:
  * 1. build/out/Final/node (if building for current platform)
- * 2. build/cache/node-compiled-{platform}-{arch} (from cached builds)
+ * 2. build/cache/node-{platform}-{arch} (from cached builds)
  */
 async function findBinary(platform, arch) {
   // Check Final build (if current platform).
@@ -200,11 +200,15 @@ async function findBinary(platform, arch) {
     return finalBinary
   }
 
-  // Check cached build.
+  // Transform platform name to match Node.js convention for cache lookup.
+  const archivePlatform = getArchivePlatform(platform, arch)
+
+  // Check cached build (uses Node.js naming convention).
+  const ext = platform === 'win32' ? '.exe' : ''
   const cachedBinary = path.join(
     BUILD_DIR,
     'cache',
-    `node-compiled-${platform}-${arch}`,
+    `node-${archivePlatform}${ext}`,
   )
   if (existsSync(cachedBinary)) {
     return cachedBinary

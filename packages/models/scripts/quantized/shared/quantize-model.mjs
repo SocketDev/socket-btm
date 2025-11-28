@@ -137,7 +137,6 @@ export async function quantizeModel(options) {
   logger.success(`Quantized to ${method}`)
   await createCheckpoint(
     buildDir,
-    packageName,
     checkpointKey,
     async () => {
       // Smoke test: Verify all quantized models exist and are valid
@@ -158,6 +157,8 @@ export async function quantizeModel(options) {
       }
     },
     {
+      packageName,
+      artifactPath: modelDir,
       modelKey,
       method,
       quantLevel,

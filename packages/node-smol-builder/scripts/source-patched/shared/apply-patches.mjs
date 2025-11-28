@@ -235,13 +235,13 @@ export async function applySocketPatches(options) {
     logger.log(`${colors.green('✓')} All Socket patches applied successfully`)
     await createCheckpoint(
       buildDir,
-      packageName,
       'source-patched',
       async () => {
         await fs.access(patchedFile)
         logger.substep('Patches verified')
       },
       {
+        packageName,
         patchCount: socketPatches.length,
         sourcePaths: patchFilePaths,
         artifactPath: modeSourceDir,

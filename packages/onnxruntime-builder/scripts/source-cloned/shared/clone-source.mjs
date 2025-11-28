@@ -99,7 +99,6 @@ export async function cloneOnnxSource(options) {
       logger.substep('All patches already applied, skipping clone')
       await createCheckpoint(
         sharedBuildDir,
-        '',
         'source-cloned',
         async () => {
           // Smoke test: Verify source directory exists with CMakeLists.txt
@@ -292,7 +291,6 @@ export async function cloneOnnxSource(options) {
 
   await createCheckpoint(
     sharedBuildDir,
-    '',
     'source-cloned',
     async () => {
       // Smoke test: Verify source directory exists with CMakeLists.txt

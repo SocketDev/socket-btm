@@ -5,7 +5,7 @@
  * using platform-specific package managers (brew, apt, choco, etc.).
  */
 
-import { dirname } from 'node:path'
+import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import binPkg, { which } from '@socketsecurity/lib/bin'
@@ -17,7 +17,7 @@ import { getToolVersion, getToolConfig } from './pinned-versions.mjs'
 
 const { whichSync } = binPkg
 const logger = getDefaultLogger()
-const __dirname = dirname(fileURLToPath(import.meta.url))
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 /**
  * Tool installation configurations.

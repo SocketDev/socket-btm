@@ -28,6 +28,50 @@ import {
 const logger = getDefaultLogger()
 
 /**
+ * Ad-hoc code sign a binary for macOS.
+ *
+ * Uses ad-hoc signing (no certificate required) to satisfy macOS code signing
+ * requirements. This is necessary for binaries to execute on modern macOS,
+ * especially ARM64 systems.
+ *
+ * Skips signing if binary is already validly signed (idempotent).
+ * Uses --force to replace invalid signatures (e.g., after stripping).
+ *
+ * @param {string} binaryPath - Absolute path to binary to sign
+ * @param {Function} [beforeSign] - Optional callback executed before signing (only on macOS when signing is needed)
+ * @returns {Promise<void>}
+ */
+export async function adHocSign(binaryPath, beforeSign) {
+  if (process.platform !== 'darwin') {
+    return
+  }
+
+  try {
+    // Check if already signed
+    const checkResult = await spawn('codesign', ['--verify', binaryPath], {
+      stdio: 'ignore',
+    })
+    if (checkResult.code === 0) {
+      // Already signed, skip
+      return
+    }
+
+    // Execute pre-signing callback (e.g., for logging)
+    if (beforeSign) {
+      await beforeSign()
+    }
+
+    // Sign the binary with --force (replace any invalid signature)
+    logger.info(`Ad-hoc signing: ${path.basename(binaryPath)}`)
+    await spawn('codesign', ['--sign', '-', '--force', binaryPath])
+    logger.info('Binary signed successfully')
+  } catch {
+    // Ignore signing errors (codesign may not be available)
+    // This is non-critical - smoke test will catch if binary is unusable
+  }
+}
+
+/**
  * Get checkpoint directory for a package.
  *
  * @param {string} buildDir - Build directory path (e.g., '/path/to/package/build/int4')
@@ -102,36 +146,62 @@ export async function hasCheckpoint(buildDir, packageName, checkpointName) {
  * - Tarball: build/{mode}/checkpoints/{package}/{phase}.tar.gz (if artifactPath provided)
  *
  * @param {string} buildDir - Build directory path
- * @param {string} packageName - Package name
  * @param {string} checkpointName - Checkpoint name (e.g., 'release', 'patches-applied')
  * @param {Function} smokeTest - Async function that validates build artifacts (REQUIRED)
- * @param {object} data - Checkpoint metadata
- * @param {string} [data.artifactPath] - Path to file or directory to archive in checkpoint
- * @param {string[]} [data.sourcePaths] - Source file paths to hash for cache validation
- * @param {string} [data.packageRoot] - Package root for relative path display
- * @param {string} [data.platform] - Platform (darwin, linux, win32)
- * @param {string} [data.arch] - Architecture (x64, arm64)
+ * @param {object} [options] - Optional checkpoint metadata
+ * @param {string | undefined} [options.packageName=''] - Package name (defaults to '' for flat structure)
+ * @param {string | undefined} [options.artifactPath] - Path to file or directory to archive in checkpoint
+ * @param {string[] | undefined} [options.sourcePaths] - Source file paths to hash for cache validation
+ * @param {string | undefined} [options.packageRoot] - Package root for relative path display
+ * @param {string | undefined} [options.platform=process.platform] - Platform (darwin, linux, win32)
+ * @param {string | undefined} [options.arch=process.arch] - Architecture (x64, arm64)
+ * @param {string | undefined} [options.binaryPath] - Binary path for macOS code signing
  * @returns {Promise<void>}
  *
  * @example
- * await createCheckpoint(BUILD_DIR, '', 'release', async () => {
- *   // Smoke test: Verify binary runs
+ * // Minimal usage
+ * await createCheckpoint(BUILD_DIR, 'release', async () => {
+ *   await spawn(binaryPath, ['--version'])
+ * })
+ *
+ * // With options
+ * await createCheckpoint(BUILD_DIR, 'release', async () => {
  *   await spawn(binaryPath, ['--version'])
  * }, {
- *   artifactPath: './out/Release/node', // Archive this binary
- *   sourcePaths: ['build.mjs', 'patches/*.patch'], // Cache key
+ *   artifactPath: './out/Release/node',
+ *   sourcePaths: ['build.mjs', 'patches/*.patch'],
  *   packageRoot: PACKAGE_ROOT,
- *   platform: 'darwin',
- *   arch: 'arm64',
  * })
  */
 export async function createCheckpoint(
   buildDir,
-  packageName,
   checkpointName,
   smokeTest,
-  data = {},
+  options = {},
 ) {
+  // Extract options with defaults
+  const {
+    arch = process.arch,
+    artifactPath,
+    binaryPath,
+    packageName = '',
+    packageRoot,
+    platform = process.platform,
+    sourcePaths,
+    ...rest
+  } = options
+
+  // Build data object for legacy code paths
+  const data = {
+    artifactPath,
+    sourcePaths,
+    packageRoot,
+    platform,
+    arch,
+    binaryPath,
+    ...rest,
+  }
+
   // Enforce smoke test requirement
   if (typeof smokeTest !== 'function') {
     const actualValue =
@@ -143,48 +213,31 @@ export async function createCheckpoint(
         'ERROR: createCheckpoint() called incorrectly!\n' +
         `${'='.repeat(70)}\n` +
         `Checkpoint: "${checkpointName}"\n` +
-        `Package: "${packageName || '(none)'}"\n` +
         '\n' +
-        'Expected parameter 4: smokeTest callback function\n' +
-        `Actual parameter 4: ${actualValue}\n` +
+        'Expected parameter 3: smokeTest callback function\n' +
+        `Actual parameter 3: ${actualValue}\n` +
         '\n' +
         'Correct pattern:\n' +
-        '  createCheckpoint(buildDir, pkg, name, async () => {\n' +
+        '  createCheckpoint(buildDir, checkpointName, async () => {\n' +
         '    // Smoke test validation code here\n' +
-        '  }, data)\n' +
+        '  }, options)\n' +
         '\n' +
         'You passed:\n' +
-        '  createCheckpoint(buildDir, pkg, name, data) ❌ Missing callback!\n' +
+        '  createCheckpoint(buildDir, checkpointName, options) ❌ Missing callback!\n' +
         `${'='.repeat(70)}\n`,
     )
   }
 
   // Sign binary on macOS BEFORE smoke test (required for execution)
-  if (data.binaryPath && process.platform === 'darwin') {
+  if (data.binaryPath) {
     const binaryPath = path.isAbsolute(data.binaryPath)
       ? data.binaryPath
       : path.join(buildDir, data.binaryPath)
 
-    try {
-      // Check if binary is already signed
-      const checkResult = await spawn('codesign', ['--verify', binaryPath], {
-        stdio: 'ignore',
-      })
-
-      // If not signed (non-zero exit), sign it
-      if (checkResult.code !== 0) {
-        logger.info(`Signing binary on macOS: ${path.basename(binaryPath)}`)
-        await spawn('codesign', ['--sign', '-', '--force', binaryPath])
-        logger.info('Binary signed successfully')
-      }
-    } catch {
-      // Ignore signing errors (codesign may not be available)
-      // This is non-critical - smoke test will catch if binary is unusable
-    }
+    await adHocSign(binaryPath)
   }
 
   // Build checkpoint identifier with platform/arch if provided
-  const { arch, packageRoot, platform } = data
   let checkpointId = checkpointName
   if (platform && arch) {
     checkpointId = `${checkpointName} (${platform}-${arch})`
@@ -262,6 +315,16 @@ export async function createCheckpoint(
     const unixTarDir = toUnixPath(tarDir)
 
     try {
+      // Create tarball with artifact as top-level entry
+      // -c: create archive
+      // -z: compress with gzip
+      // -f: output file
+      // -C: change to directory before archiving (ensures artifact becomes top-level entry)
+      // tarBase: the artifact basename to archive (file or directory)
+      //
+      // Example: tar -czf checkpoint.tar.gz -C /build/dev/out Final
+      //   → Creates tarball containing Final/ as top-level entry
+      //   → During extraction, use --strip-components=1 to remove this wrapper
       await spawn(
         tarBin,
         ['-czf', unixTarballPath, '-C', unixTarDir, tarBase],

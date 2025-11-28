@@ -7,7 +7,7 @@
 import { existsSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import path from 'node:path'
 
 import binPkg from '@socketsecurity/lib/bin'
 import platformPkg from '@socketsecurity/lib/constants/platform'
@@ -25,7 +25,7 @@ const { spawn } = spawnPkg
  * Default Emscripten SDK installation path.
  */
 export function getDefaultEmsdkPath() {
-  return join(homedir(), '.emsdk')
+  return path.join(homedir(), '.emsdk')
 }
 
 /**
@@ -54,8 +54,8 @@ export function getEmsdkPath() {
  */
 export function checkEmsdkInstalled(emsdkPath = getEmsdkPath()) {
   return (
-    existsSync(join(emsdkPath, 'emsdk')) ||
-    existsSync(join(emsdkPath, 'emsdk.bat'))
+    existsSync(path.join(emsdkPath, 'emsdk')) ||
+    existsSync(path.join(emsdkPath, 'emsdk.bat'))
   )
 }
 
@@ -64,16 +64,16 @@ export function checkEmsdkInstalled(emsdkPath = getEmsdkPath()) {
  *
  * @param {object} options - Installation options.
  * @param {string} options.version - Version to install (default: 'latest').
- * @param {string} options.path - Installation path (default: ~/.emsdk).
+ * @param {string} options.installPath - Installation path (default: ~/.emsdk).
  * @param {boolean} options.quiet - Suppress output.
  * @returns {Promise<boolean>} True if installation succeeded.
  */
 export async function installEmscripten({
-  path,
+  installPath,
   quiet = false,
   version = 'latest',
 } = {}) {
-  const emsdkPath = path || getDefaultEmsdkPath()
+  const emsdkPath = installPath || getDefaultEmsdkPath()
 
   // Check if git is available.
   if (!whichSync('git', { nothrow: true })) {
@@ -165,21 +165,21 @@ export async function installEmscripten({
  * Activate Emscripten SDK environment for current process.
  *
  * @param {object} options - Options.
- * @param {string} options.path - Emscripten SDK path (default: auto-detect).
+ * @param {string} options.emsdkPath - Emscripten SDK path (default: auto-detect).
  * @param {string} options.version - Version to activate (default: 'latest').
  * @param {boolean} options.quiet - Suppress output.
  * @returns {Promise<{activated: boolean, env: object}>}
  */
 export async function activateEmscripten({
-  path,
+  emsdkPath,
   quiet = false,
   version = 'latest',
 } = {}) {
-  const emsdkPath = path || getEmsdkPath()
+  const resolvedEmsdkPath = emsdkPath || getEmsdkPath()
 
-  if (!checkEmsdkInstalled(emsdkPath)) {
+  if (!checkEmsdkInstalled(resolvedEmsdkPath)) {
     if (!quiet) {
-      printError(`Emscripten SDK not found at ${emsdkPath}`)
+      printError(`Emscripten SDK not found at ${resolvedEmsdkPath}`)
     }
     return { activated: false, env: {} }
   }
@@ -193,7 +193,7 @@ export async function activateEmscripten({
     }
 
     const activateResult = await spawn(emsdkCmd, ['activate', version], {
-      cwd: emsdkPath,
+      cwd: resolvedEmsdkPath,
       env: process.env,
       shell: WIN32,
       stdio: quiet ? 'pipe' : 'inherit',
@@ -212,7 +212,7 @@ export async function activateEmscripten({
       WIN32 ? constructEnvCmd : 'bash',
       WIN32 ? [] : ['-c', `source ${constructEnvCmd} && env`],
       {
-        cwd: emsdkPath,
+        cwd: resolvedEmsdkPath,
         env: process.env,
         shell: WIN32,
       },
@@ -241,10 +241,14 @@ export async function activateEmscripten({
 
     // Ensure critical environment variables are set even if parsing failed.
     if (!envVars.EMSDK) {
-      envVars.EMSDK = emsdkPath
+      envVars.EMSDK = resolvedEmsdkPath
     }
     if (!envVars.EMSCRIPTEN) {
-      envVars.EMSCRIPTEN = join(emsdkPath, 'upstream', 'emscripten')
+      envVars.EMSCRIPTEN = path.join(
+        resolvedEmsdkPath,
+        'upstream',
+        'emscripten',
+      )
     }
 
     // Apply to current process environment.
@@ -268,14 +272,14 @@ export async function activateEmscripten({
  *
  * @param {object} options - Options.
  * @param {string} options.version - Version to install (default: 'latest').
- * @param {string} options.path - Installation path (default: auto-detect).
+ * @param {string} options.installPath - Installation path (default: auto-detect).
  * @param {boolean} options.autoInstall - Attempt auto-installation (default: true).
  * @param {boolean} options.quiet - Suppress output (default: false).
  * @returns {Promise<{available: boolean, installed: boolean, activated: boolean}>}
  */
 export async function ensureEmscripten({
   autoInstall = true,
-  path,
+  installPath,
   quiet = false,
   version = 'latest',
 } = {}) {
@@ -284,7 +288,7 @@ export async function ensureEmscripten({
     return { available: true, installed: false, activated: false }
   }
 
-  const emsdkPath = path || getEmsdkPath()
+  const emsdkPath = installPath || getEmsdkPath()
 
   // Check if emsdk is installed but not activated.
   if (checkEmsdkInstalled(emsdkPath)) {
@@ -292,7 +296,7 @@ export async function ensureEmscripten({
       logger.substep('Emscripten SDK found, activating...')
     }
     const activation = await activateEmscripten({
-      path: emsdkPath,
+      emsdkPath,
       version,
       quiet,
     })
@@ -312,14 +316,18 @@ export async function ensureEmscripten({
     logger.substep('Emscripten not found, installing...')
   }
 
-  const installed = await installEmscripten({ version, path: emsdkPath, quiet })
+  const installed = await installEmscripten({
+    version,
+    installPath: emsdkPath,
+    quiet,
+  })
   if (!installed) {
     return { available: false, installed: false, activated: false }
   }
 
   // Activate after installation.
   const activation = await activateEmscripten({
-    path: emsdkPath,
+    emsdkPath,
     version,
     quiet,
   })
@@ -335,11 +343,11 @@ export async function ensureEmscripten({
  * Get Emscripten installation instructions.
  *
  * @param {object} options - Options.
- * @param {string} options.path - Installation path suggestion.
+ * @param {string} options.installPath - Installation path suggestion.
  * @returns {string[]} Array of installation instruction strings.
  */
-export function getEmscriptenInstructions({ path } = {}) {
-  const emsdkPath = path || getDefaultEmsdkPath()
+export function getEmscriptenInstructions({ installPath } = {}) {
+  const emsdkPath = installPath || getDefaultEmsdkPath()
   return [
     'Install Emscripten SDK:',
     `  git clone https://github.com/emscripten-core/emsdk.git ${emsdkPath}`,

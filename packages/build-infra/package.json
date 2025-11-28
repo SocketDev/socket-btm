@@ -28,6 +28,7 @@
     "./lib/test-helpers": "./lib/test-helpers.mjs",
     "./lib/tool-installer": "./lib/tool-installer.mjs",
     "./lib/unicode-property-escape-transform": "./lib/unicode-property-escape-transform.mjs",
+    "./lib/version-helpers": "./lib/version-helpers.mjs",
     "./wasm-synced/wasm-sync-wrapper": "./wasm-synced/wasm-sync-wrapper.mjs"
   },
   "scripts": {

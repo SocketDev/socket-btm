@@ -25,9 +25,11 @@ import { printError } from 'build-infra/lib/build-output'
 import { cleanCheckpoint } from 'build-infra/lib/checkpoint-manager'
 import { ensureEmscripten } from 'build-infra/lib/emscripten-installer'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
+import { getEmscriptenVersion } from 'build-infra/lib/version-helpers'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
+import { finalizeWasm as finalizeWasmModule } from './finalized/shared/finalize-wasm.mjs'
 import {
   BINDINGS_FILE,
   PACKAGE_ROOT,
@@ -38,7 +40,6 @@ import { cloneYogaSource } from './source-cloned/shared/clone-source.mjs'
 import { extractSourceForMode as extractSourceModule } from './source-cloned/shared/extract-source.mjs'
 import { configureCMake } from './source-configured/shared/configure-cmake.mjs'
 import { compileWasm } from './wasm-compiled/shared/compile-wasm.mjs'
-import { finalizeWasm as finalizeWasmModule } from './wasm-finalized/shared/finalize-wasm.mjs'
 import { optimizeWasm } from './wasm-optimized/shared/optimize-wasm.mjs'
 import { copyToRelease as copyToReleaseModule } from './wasm-released/shared/copy-to-release.mjs'
 import { generateSync as generateSyncModule } from './wasm-synced/shared/generate-sync.mjs'
@@ -76,6 +77,9 @@ if (!yogaSource) {
 const YOGA_VERSION = `v${yogaSource.version}`
 const YOGA_SHA = yogaSource.ref
 const YOGA_REPO = yogaSource.url
+
+// Load Emscripten version from external-tools.json (single source of truth)
+const emscriptenVersion = await getEmscriptenVersion(PACKAGE_ROOT)
 
 // Get paths from source of truth
 const { buildDir: SHARED_BUILD_DIR, sourceDir: SHARED_SOURCE_DIR } =
@@ -262,9 +266,11 @@ async function main() {
   }
 
   // Ensure Emscripten SDK is available.
-  logger.substep('Checking for Emscripten SDK...')
+  logger.substep(
+    `Checking for Emscripten SDK (version ${emscriptenVersion})...`,
+  )
   const emscriptenResult = await ensureEmscripten({
-    version: 'latest',
+    version: emscriptenVersion,
     autoInstall: true,
     quiet: false,
   })

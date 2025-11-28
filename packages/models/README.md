@@ -1,32 +1,58 @@
-# models
+# @socketsecurity/models
 
-Compiled AI models for Socket security analysis.
+Production-ready AI models for Socket BTM, optimized with aggressive quantization.
 
-## Building
+## Package Architecture
 
-```bash
-pnpm build        # Build production models (INT4 quantization, default)
-pnpm build --prod # Build production models (INT4 quantization)
-pnpm build --dev  # Build development models (INT8 quantization)
+This is a **private build package** (not published to npm) used to generate tagged GitHub releases. It consumes builds from:
+- `codet5-models-builder`: Standalone CodeT5 build infrastructure
+- `minilm-builder`: Standalone MiniLM build infrastructure
 
-# Legacy aliases (still supported)
-pnpm build --int4 # Alias for --prod
-pnpm build --int8 # Alias for --dev
-```
+**Release Process**:
+- All packages are `"private": true` and not published to npm
+- Builds create tagged GitHub releases with model artifacts
+- Individual model builders can be used for isolated development and testing
+- This unified package combines all models for the final release
 
 ## Models
 
 - **MiniLM-L6-v2** - Sentence embeddings (384-dimensional)
 - **CodeT5** - Code understanding and analysis
 
+## Building
+
+```bash
+# Build all models (production, INT4 quantization, default)
+pnpm --filter models build
+
+# Development build (INT8, faster, larger)
+pnpm --filter models build --dev
+
+# Build specific model only
+pnpm --filter models build --minilm
+pnpm --filter models build --codet5
+
+# Force rebuild (ignore cache)
+pnpm --filter models build --force
+
+# Clean all checkpoints
+pnpm --filter models build --clean
+```
+
+## Quantization
+
+Models are quantized for optimal size/performance:
+- **Production** (default): INT4 quantization (~75% size reduction)
+- **Development**: INT8 quantization (~50% size reduction, better compatibility)
+
 ## Output
 
 ```
-dist/
-├── dev/    # INT8 quantization (development)
+build/
+├── dev/out/Final/    # INT8 quantization (development)
 │   ├── minilm-l6/model.onnx
 │   └── codet5/model.onnx
-└── prod/   # INT4 quantization (production)
+└── prod/out/Final/   # INT4 quantization (production)
     ├── minilm-l6/model.onnx
     └── codet5/model.onnx
 ```
@@ -37,6 +63,16 @@ dist/
 import * as ort from 'onnxruntime-node'
 
 // Use production models (INT4, smaller)
-const session = await ort.InferenceSession.create('./dist/prod/minilm-l6/model.onnx')
+const session = await ort.InferenceSession.create('./build/prod/out/Final/minilm-l6/model.onnx')
 const results = await session.run(inputs)
 ```
+
+## Related Packages
+
+All packages are private build infrastructure for generating GitHub releases:
+- `codet5-models-builder` - CodeT5 build infrastructure
+- `minilm-builder` - MiniLM build infrastructure
+- `onnxruntime-builder` - ONNX Runtime WASM build
+- `yoga-layout-builder` - Yoga Layout WASM build
+- `node-smol-builder` - Node.js custom binary build
+- `build-infra` - Shared build infrastructure

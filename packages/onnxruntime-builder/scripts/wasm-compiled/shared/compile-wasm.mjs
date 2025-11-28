@@ -204,7 +204,6 @@ export async function compileWasm(options) {
     const wasmSize = await getFileSize(wasmFile)
     await createCheckpoint(
       buildDir,
-      '',
       'wasm-compiled',
       async () => {
         // Smoke test: Verify WASM is valid.
@@ -229,7 +228,7 @@ export async function compileWasm(options) {
       {
         binarySize: wasmSize,
         binaryPath: path.relative(buildDir, wasmFile),
-        artifactPath: wasmFile,
+        artifactPath: path.dirname(wasmFile),
       },
     )
   } else {

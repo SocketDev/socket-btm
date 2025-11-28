@@ -17,18 +17,42 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 /**
- * Load external tools from an external-tools.json file.
+ * Load external tools from an external-tools.json file with extends support.
  *
  * @param {string} jsonPath - Path to external-tools.json
+ * @param {Set<string>} [visited] - Set of visited paths to prevent circular dependencies
  * @returns {object} Tools configuration
  */
-function loadExternalToolsJson(jsonPath) {
+function loadExternalToolsJson(jsonPath, visited = new Set()) {
   try {
     if (!existsSync(jsonPath)) {
       return {}
     }
+
+    // Prevent circular dependencies
+    const resolvedPath = path.resolve(jsonPath)
+    if (visited.has(resolvedPath)) {
+      console.warn(`Circular dependency detected: ${resolvedPath}`)
+      return {}
+    }
+    visited.add(resolvedPath)
+
     const data = JSON.parse(readFileSync(jsonPath, 'utf8'))
-    return data.tools || {}
+    let tools = {}
+
+    // Handle extends field
+    if (data.extends) {
+      const extendsPath = path.resolve(path.dirname(jsonPath), data.extends)
+      const extendedTools = loadExternalToolsJson(extendsPath, visited)
+      tools = { ...extendedTools }
+    }
+
+    // Merge with current file's tools
+    if (data.tools) {
+      tools = { ...tools, ...data.tools }
+    }
+
+    return tools
   } catch (e) {
     console.error(
       `Failed to load external-tools.json from ${jsonPath}:`,

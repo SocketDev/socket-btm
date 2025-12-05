@@ -1,0 +1,46 @@
+# Makefile for macOS compression tools
+# References pre-built binaries from package directories
+
+# Package directories
+BINPRESS_DIR = ../../../../../binpress
+BINFLATE_DIR = ../../../../../binflate
+
+# Built binaries from packages
+COMPRESS_SOURCE = $(BINPRESS_DIR)/out/binpress
+DECOMPRESS_SOURCE = $(BINFLATE_DIR)/out/binflate
+
+# Output directories
+OUT_COMPRESS = out/compress
+OUT_DECOMPRESS = out/decompress
+
+# Final targets
+COMPRESS = $(OUT_COMPRESS)/binpress
+DECOMPRESS = $(OUT_DECOMPRESS)/binflate
+
+.PHONY: all clean build-packages
+
+all: build-packages $(COMPRESS) $(DECOMPRESS)
+
+build-packages:
+	@echo "Building compression packages..."
+	$(MAKE) -C $(BINPRESS_DIR)
+	$(MAKE) -C $(BINFLATE_DIR)
+
+$(COMPRESS): $(COMPRESS_SOURCE) | $(OUT_COMPRESS)
+	cp $< $@
+
+$(DECOMPRESS): $(DECOMPRESS_SOURCE) | $(OUT_DECOMPRESS)
+	cp $< $@
+
+$(OUT_COMPRESS) $(OUT_DECOMPRESS):
+	mkdir -p $@
+
+clean:
+	rm -rf out/
+	$(MAKE) -C $(BINPRESS_DIR) clean
+	$(MAKE) -C $(BINFLATE_DIR) clean
+
+install: all
+	@echo "Compression tools installed successfully"
+	@echo "  - $(COMPRESS)"
+	@echo "  - $(DECOMPRESS)"

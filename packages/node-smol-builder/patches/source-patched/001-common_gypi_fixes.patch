@@ -1,0 +1,25 @@
+# @node-versions: v24+
+# @description: Fix GCC LTO linker configuration and enable ARM64 branch protection
+#
+
+--- a/common.gypi
++++ b/common.gypi
+@@ -192,7 +192,7 @@
+             ['clang==1', {
+               'lto': ' -flto ', # Clang
+             }, {
+-              'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ', # GCC
++              'lto': ' -flto=4 -ffat-lto-objects ', # GCC
+             }],
+           ],
+         },
+@@ -233,6 +233,9 @@
+             # frames otherwise, even with --call-graph dwarf.
+             'cflags': [ '-fno-omit-frame-pointer' ],
+           }],
++        ['target_arch=="arm64" and OS!="win"', {
++          'cflags': [ '-mbranch-protection=standard' ],
++        }],
+           ['OS=="linux" or OS=="openharmony"', {
+             'conditions': [
+               ['enable_pgo_generate=="true"', {

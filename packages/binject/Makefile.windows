@@ -1,0 +1,80 @@
+# binject Makefile for Windows
+# PE binary injection tool
+
+CC = gcc
+CXX = g++
+CFLAGS = -Wall -Wextra -Os -s -std=c11 -I../bin-infra/src
+CXXFLAGS = -Wall -Wextra -Os -s -std=c++17 -I../bin-infra/src
+LDFLAGS = -L$(BUILD_DIR) -lcabinet -lkernel32 -Wl,--gc-sections
+
+TARGET = binject.exe
+BUILD_DIR = build
+BIN_DIR = out
+SRC_DIR = src
+TEST_DIR = test
+IMPORT_LIB = $(BUILD_DIR)/libcabinet.a
+
+# Source files
+SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/binject.c $(SRC_DIR)/pe_inject_stub.c ../bin-infra/src/compression_common.c
+OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/pe_inject_stub.o $(BUILD_DIR)/compression_common.o
+
+# Test files
+TEST_SRCS = $(TEST_DIR)/binject_test.c $(SRC_DIR)/binject.c $(SRC_DIR)/pe_inject_stub.c ../bin-infra/src/compression_common.c
+TEST_OBJS = $(BUILD_DIR)/binject_test.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/pe_inject_stub.o $(BUILD_DIR)/compression_common.o
+TEST_TARGET = $(BUILD_DIR)/binject_test.exe
+
+.PHONY: all clean test check-tools
+
+# Check that required build tools are available
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }
+	@command -v $(CXX) >/dev/null 2>&1 || { echo "ERROR: $(CXX) not found. Install build tools first."; exit 1; }
+	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
+	@command -v dlltool >/dev/null 2>&1 || { echo "ERROR: dlltool not found. Install MinGW binutils."; exit 1; }
+
+# Default target
+all: check-tools $(BIN_DIR)/$(TARGET)
+
+# Create directories
+$(BUILD_DIR) $(BIN_DIR):
+	@mkdir -p $@
+
+# Generate import library from Cabinet.dll
+$(IMPORT_LIB): cabinet.def | $(BUILD_DIR)
+	dlltool -d cabinet.def -l $@
+
+# Build binary
+$(BIN_DIR)/$(TARGET): $(IMPORT_LIB) $(OBJS) | $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LDFLAGS)
+	@echo "Built: $(BIN_DIR)/$(TARGET)"
+
+# Compile C files
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile C++ files
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Compile compression_common from bin-infra
+$(BUILD_DIR)/compression_common.o: ../bin-infra/src/compression_common.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Clean build artifacts
+clean:
+	rm -rf $(BUILD_DIR)
+	rm -rf $(BIN_DIR)
+
+# Build test binary
+$(TEST_TARGET): $(IMPORT_LIB) $(TEST_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $(TEST_OBJS) $(LDFLAGS)
+	@echo "Built: $(TEST_TARGET)"
+
+# Compile test source
+$(BUILD_DIR)/binject_test.o: $(TEST_DIR)/binject_test.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Run tests
+test: $(TEST_TARGET)
+	@echo "\nRunning binject tests..."
+	@$(TEST_TARGET)

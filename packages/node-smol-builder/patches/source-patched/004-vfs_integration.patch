@@ -1,0 +1,89 @@
+# @node-versions: v24.11.1
+# @description: Add Virtual Filesystem (VFS) support via CUSTOM_VFS_BLOB
+# @requires: additions/source-patched/js/vfs/*.js
+# @requires: additions/source-patched/cpp/vfs/*.{cc,h}
+# @requires: ../../../placeholders/placeholder_sea.dat
+# @requires: ../../../placeholders/placeholder_vfs.dat
+# @phase: 1
+#
+# Adds VFS binding registration, C++ files to build, process.binding() access,
+# and pre-created Mach-O sections for VFS and SEA on macOS.
+# Actual implementation is in additions/source-patched/cpp/vfs/
+#
+# Pre-creates ONE segment (NODE_SEA) with TWO sections (2 bytes total):
+# Segment NODE_SEA (2 bytes):
+#   1. __NODE_SEA_BLOB section: 1 byte for SEA blob (resized at injection time)
+#   2. __NODE_VFS_BLOB section: 1 byte for VFS data (resized at injection time)
+#
+# This matches postject's behavior which creates a NODE_SEA segment dynamically.
+# By pre-creating it with minimal placeholder sections, binject can resize sections as needed:
+# - SEA-only: __NODE_SEA_BLOB gets exact size, __NODE_VFS_BLOB stays 1 byte
+# - SEA+VFS: Both sections sized exactly to their data
+# - No SEA/VFS: Both sections stay 1 byte (minimal space waste)
+#
+# Note: Mach-O section names limited to 16 characters.
+# Both sections use __ prefix to match Node.js/postject conventions.
+--- a/node.gyp
++++ b/node.gyp
+@@ -138,6 +138,7 @@
+       'src/node_report_module.cc',
+       'src/node_report_utils.cc',
+       'src/node_sea.cc',
++      'src/node_vfs.cc',
+       'src/node_serdes.cc',
+       'src/node_shadow_realm.cc',
+       'src/node_snapshotable.cc',
+@@ -273,6 +274,7 @@
+       'src/node_root_certs.h',
+       'src/node_sea.h',
+       'src/node_shadow_realm.h',
++      'src/node_vfs.h',
+       'src/node_snapshotable.h',
+       'src/node_snapshot_builder.h',
+       'src/node_sockaddr.h',
+@@ -670,6 +670,14 @@
+             ],
+           },
+         }],
++        ['OS=="mac"', {
++          'xcode_settings': {
++            'OTHER_LDFLAGS': [
++              '-Wl,-sectcreate,NODE_SEA,__NODE_SEA_BLOB,<(DEPTH)/../../../placeholders/placeholder_sea.dat',
++              '-Wl,-sectcreate,NODE_SEA,__NODE_VFS_BLOB,<(DEPTH)/../../../placeholders/placeholder_vfs.dat',
++            ],
++          },
++        }],
+         ['OS=="win"', {
+           'libraries': [
+             'Dbghelp.lib',
+--- a/src/node_binding.cc
++++ b/src/node_binding.cc
+@@ -53,7 +53,7 @@
+   V(fs_dir)                                                                    \
+   V(fs_event_wrap)                                                             \
+   V(heap_utils)                                                                \
+-  V(http2)                                                                     \
++  /* V(http2) */                                                               \
+   V(http_parser)                                                               \
+   V(inspector)                                                                 \
+   V(internal_only_v8)                                                          \
+@@ -92,7 +92,8 @@
+   V(util)                                                                      \
+   V(uv)                                                                        \
+   V(v8)                                                                        \
+-  V(wasi)                                                                      \
++  V(smol_vfs)                                                                  \
++  /* V(wasi) */                                                                \
+   V(wasm_web_api)                                                              \
+   V(watchdog)                                                                  \
+   V(worker)  // Socket: REQUIRED for Node.js bootstrap (main thread detection) \
+--- a/lib/internal/bootstrap/realm.js
++++ b/lib/internal/bootstrap/realm.js
+@@ -98,6 +98,7 @@
+   'os',
+   'pipe_wrap',
+   'process_wrap',
++  'smol_vfs',
+   'spawn_sync',
+   'stream_wrap',
+   'tcp_wrap',

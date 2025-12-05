@@ -1,0 +1,13 @@
+{
+  "name": "binflate",
+  "version": "0.0.0",
+  "description": "Binary decompression tool",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "clean": "node scripts/clean.mjs",
+    "test": "node scripts/test.mjs",
+    "coverage": "node ../bin-infra/scripts/run-coverage.js binflate"
+  }
+}

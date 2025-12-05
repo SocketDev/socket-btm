@@ -1,0 +1,12 @@
+# @node-versions: v24.11.1
+# @description: Load polyfill for small-icu builds
+# @requires: additions/source-patched/js/polyfills/locale-compare.js
+#
+--- a/lib/internal/bootstrap/node.js
++++ b/lib/internal/bootstrap/node.js
+@@ -473,3 +473,5 @@ function setupBuffer() {
+     configurable: true,
+   });
+ }
++
++require('internal/socketsecurity_polyfills/locale-compare');

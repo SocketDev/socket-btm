@@ -1,0 +1,45 @@
+{
+  "description": "External tools required for building binject",
+  "tools": {
+    "lief": {
+      "description": "Library to Instrument Executable Formats - C++ library for Mach-O/ELF/PE manipulation",
+      "version": "0.14.0",
+      "source": {
+        "type": "github-release",
+        "repo": "lief-project/LIEF",
+        "tag": "0.14.0",
+        "note": "Testing older version for Mach-O corruption fix"
+      },
+      "downloads": {
+        "darwin-arm64": {
+          "url": "https://github.com/lief-project/LIEF/releases/download/0.14.0/LIEF-0.14.0-Darwin-arm64.tar.gz",
+          "sha256": "f8ecc3f985610cc699991d3747c20c141c918705b88b321c9172a8ec9c964173"
+        },
+        "darwin-x64": {
+          "url": "https://github.com/lief-project/LIEF/releases/download/0.14.0/LIEF-0.14.0-Darwin-x86_64.tar.gz",
+          "sha256": "TBD"
+        },
+        "linux-x64": {
+          "url": "https://github.com/lief-project/LIEF/releases/download/0.14.0/LIEF-0.14.0-Linux-x86_64.tar.gz",
+          "sha256": "TBD"
+        },
+        "linux-arm64": {
+          "url": "https://github.com/lief-project/LIEF/releases/download/0.14.0/LIEF-0.14.0-Linux-aarch64.tar.gz",
+          "sha256": "TBD"
+        },
+        "win32-x64": {
+          "url": "https://github.com/lief-project/LIEF/releases/download/0.14.0/LIEF-0.14.0-win64.zip",
+          "sha256": "TBD"
+        }
+      },
+      "installDir": "external/lief",
+      "installScript": "scripts/setup-lief.mjs",
+      "notes": [
+        "LIEF provides robust binary manipulation capabilities used by postject",
+        "Pre-built binaries downloaded from GitHub releases (no source build required)",
+        "Run 'scripts/setup-lief.mjs' to install for your platform",
+        "Library size: ~35MB static, ~4MB dynamic per platform"
+      ]
+    }
+  }
+}

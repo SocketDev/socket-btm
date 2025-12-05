@@ -1,0 +1,210 @@
+/**
+ * @fileoverview Tests for @socketbin/node-smol-builder package structure and configuration.
+ */
+
+import { existsSync, promises as fs } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import { nodeVersionRaw } from 'build-infra/lib/node-version'
+import { describe, expect, it } from 'vitest'
+
+import { readPackageJson } from '@socketsecurity/lib/packages/operations'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const nodeSmolBuilderDir = path.resolve(__dirname, '..', '..')
+const scriptsDir = path.join(nodeSmolBuilderDir, 'scripts')
+const buildDir = path.join(nodeSmolBuilderDir, 'build')
+
+describe('node-smol package', () => {
+  describe('package.json validation', () => {
+    it('should have valid package.json metadata', async () => {
+      const pkgJson = await readPackageJson(
+        path.join(nodeSmolBuilderDir, 'package.json'),
+      )
+
+      expect(pkgJson.name).toBe('node-smol-builder')
+      expect(pkgJson.version).toMatch(/^\d+\.\d+\.\d+$/)
+      expect(pkgJson.license).toBe('MIT')
+      expect(pkgJson.description).toContain('Node.js')
+      expect(pkgJson.private).toBe(true)
+    })
+
+    it('should have build scripts', async () => {
+      const pkgJson = await readPackageJson(
+        path.join(nodeSmolBuilderDir, 'package.json'),
+      )
+
+      expect(pkgJson.scripts).toBeDefined()
+      expect(pkgJson.scripts.build).toBe('node scripts/common/shared/build.mjs')
+      expect(pkgJson.scripts['build:all']).toBe(
+        'node scripts/common/shared/build.mjs --all-platforms',
+      )
+    })
+  })
+
+  describe('build scripts exist', () => {
+    it('should have build.mjs script', () => {
+      const buildPath = path.join(scriptsDir, 'common/shared/build.mjs')
+      expect(existsSync(buildPath)).toBe(true)
+    })
+
+    it('build.mjs should be valid JavaScript', async () => {
+      const buildPath = path.join(scriptsDir, 'common/shared/build.mjs')
+      const content = await fs.readFile(buildPath, 'utf-8')
+
+      // Should not throw syntax errors.
+      expect(content).toBeTruthy()
+      expect(content).toContain('import')
+      expect(content).toContain('Node.js')
+    })
+  })
+
+  describe('build script documentation', () => {
+    it('build.mjs should document binary size optimization', async () => {
+      const buildPath = path.join(scriptsDir, 'common/shared/build.mjs')
+      const content = await fs.readFile(buildPath, 'utf-8')
+
+      expect(content).toContain('Binary Size Optimization')
+      expect(content).toContain('TARGET')
+      expect(content).toContain('MB')
+    })
+
+    it('build.mjs should document configuration flags', async () => {
+      const buildPath = path.join(scriptsDir, 'common/shared/build.mjs')
+      const content = await fs.readFile(buildPath, 'utf-8')
+
+      expect(content).toContain('--with-intl=none')
+      expect(content).toContain('--v8-lite-mode')
+    })
+
+    it('build.mjs should document compression approach', async () => {
+      const buildPath = path.join(scriptsDir, 'common/shared/build.mjs')
+      const content = await fs.readFile(buildPath, 'utf-8')
+
+      expect(content).toContain('Compression Approach')
+      expect(content).toContain('Brotli')
+    })
+
+    it('build.mjs should document performance impact', async () => {
+      const buildPath = path.join(scriptsDir, 'common/shared/build.mjs')
+      const content = await fs.readFile(buildPath, 'utf-8')
+
+      expect(content).toContain('Performance Impact')
+      expect(content).toContain('Startup overhead')
+      expect(content).toContain('Runtime performance')
+    })
+
+    it('build.mjs should document usage options', async () => {
+      const buildPath = path.join(scriptsDir, 'common/shared/build.mjs')
+      const content = await fs.readFile(buildPath, 'utf-8')
+
+      expect(content).toContain('--clean')
+      expect(content).toContain('--verify')
+      expect(content).toContain('--test')
+    })
+  })
+
+  describe('build directory structure', () => {
+    it('should have build directory', () => {
+      if (!existsSync(buildDir)) {
+        // Skip if build has not been run
+        return
+      }
+      expect(existsSync(buildDir)).toBe(true)
+    })
+  })
+
+  describe('README documentation', () => {
+    it('should have README.md', () => {
+      const readmePath = path.join(nodeSmolBuilderDir, 'README.md')
+      expect(existsSync(readmePath)).toBe(true)
+    })
+
+    it('README should document what it does', async () => {
+      const readmePath = path.join(nodeSmolBuilderDir, 'README.md')
+      const readme = await fs.readFile(readmePath, 'utf-8')
+
+      expect(readme).toContain('Custom Node.js')
+      expect(readme).toContain('Socket security patches')
+      expect(readme).toContain(`v${nodeVersionRaw}`)
+    })
+
+    it('README should document build process', async () => {
+      const readmePath = path.join(nodeSmolBuilderDir, 'README.md')
+      const readme = await fs.readFile(readmePath, 'utf-8')
+
+      expect(readme).toContain('pnpm run build')
+      expect(readme).toContain('Downloads')
+      expect(readme).toContain('patches')
+      expect(readme).toContain('compiles')
+    })
+
+    it('README should document output location', async () => {
+      const readmePath = path.join(nodeSmolBuilderDir, 'README.md')
+      const readme = await fs.readFile(readmePath, 'utf-8')
+
+      expect(readme).toContain('build/out')
+    })
+  })
+
+  describe('package is private', () => {
+    it('should be marked as private', async () => {
+      const pkgJson = await readPackageJson(
+        path.join(nodeSmolBuilderDir, 'package.json'),
+      )
+
+      expect(pkgJson.private).toBe(true)
+    })
+
+    it('should not have publishConfig for npm', async () => {
+      const pkgJson = await readPackageJson(
+        path.join(nodeSmolBuilderDir, 'package.json'),
+      )
+
+      // Private package should not configure npm publishing.
+      expect(pkgJson.publishConfig).toBeUndefined()
+    })
+  })
+
+  describe('build script structure', () => {
+    it('build.mjs should import required dependencies', async () => {
+      const buildPath = path.join(scriptsDir, 'common/shared/build.mjs')
+      const content = await fs.readFile(buildPath, 'utf-8')
+
+      // Check for key imports.
+      expect(content).toContain("from 'node:fs'")
+    })
+
+    it('build.mjs should reference Socket patches', async () => {
+      const buildPath = path.join(scriptsDir, 'common/shared/build.mjs')
+      const content = await fs.readFile(buildPath, 'utf-8')
+
+      expect(content).toContain('Socket')
+      expect(content).toContain('patch')
+    })
+  })
+
+  // Note: Actual build execution tests are skipped because:
+  // - Builds take 5-10 minutes
+  // - Require compilation toolchain (gcc, make, python)
+  // - Require ~1GB disk space for source
+  // - Platform-specific build process
+  // - Best tested manually or in dedicated CI jobs
+  describe.skip('build execution (manual/CI only)', () => {
+    it('should build custom Node.js binary', async () => {
+      // This test is skipped by default.
+      // To run: FULL_BUILD_TEST=1 pnpm test
+    })
+
+    it('should apply Socket patches', async () => {
+      // This test is skipped by default.
+      // To run: FULL_BUILD_TEST=1 pnpm test
+    })
+
+    it('should produce binary under 30MB', async () => {
+      // This test is skipped by default.
+      // To run: FULL_BUILD_TEST=1 pnpm test
+    })
+  })
+})

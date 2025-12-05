@@ -1,0 +1,36 @@
+{
+  "name": "node-smol-builder",
+  "version": "0.0.0",
+  "description": "Optimized Node.js binaries with SEA support and Socket security patches",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "node scripts/common/shared/build.mjs",
+    "build:all": "node scripts/common/shared/build.mjs --all-platforms",
+    "clean": "node scripts/clean.mjs",
+    "clean:build": "node scripts/clean.mjs --build",
+    "clean:dist": "node scripts/clean.mjs --dist",
+    "cover": "node scripts/cover.mjs",
+    "test": "vitest run",
+    "test:node-suite": "node scripts/test-node-suite.mjs",
+    "test:node-suite:dev": "node scripts/test-node-suite.mjs --dev",
+    "test:node-suite:prod": "node scripts/test-node-suite.mjs --prod",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "build-infra": "workspace:*",
+    "@socketsecurity/lib": "catalog:",
+    "yoctocolors-cjs": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
+  },
+  "sources": {
+    "node": {
+      "version": "24.11.1",
+      "type": "git",
+      "url": "https://github.com/nodejs/node.git",
+      "ref": "18aefb2d2b36938316d27b5cb53089e97632f0c3"
+    }
+  }
+}

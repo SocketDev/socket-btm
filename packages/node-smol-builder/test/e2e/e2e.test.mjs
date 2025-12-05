@@ -1,0 +1,266 @@
+/**
+ * @fileoverview End-to-end tests for complete build pipeline.
+ *
+ * Tests the entire flow:
+ * 1. Build node-smol binary (all checkpoints)
+ * 2. Create SEA application with VFS
+ * 3. Inject dual resources (SEA + VFS)
+ * 4. Execute and verify functionality
+ * 5. Test VFS extraction to ~/.socket/_dlx/
+ * 6. Verify compressed binary decompression
+ *
+ * Note: These are expensive tests that build the entire binary.
+ * Run with: pnpm test:e2e
+ */
+
+import { existsSync, promises as fs } from 'node:fs'
+import { homedir, tmpdir } from 'node:os'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import { describe, expect, it, beforeAll, afterAll } from 'vitest'
+
+import { safeDelete } from '@socketsecurity/lib/fs'
+import { spawn } from '@socketsecurity/lib/spawn'
+
+import { runBinject } from '../helpers/binject.mjs'
+import { getLatestFinalBinary, getPackageDir } from '../paths.mjs'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// Get the latest Final binary from build/{dev,prod}/out/Final/node
+// This is the production binary suitable for injection and execution
+const finalBinaryPath = getLatestFinalBinary()
+const packageDir = getPackageDir()
+const testTmpDir = path.join(tmpdir(), 'socket-btm-e2e-tests')
+const _DLX_DIR = path.join(homedir(), '.socket', '_dlx')
+
+// Skip all tests if no final binary is available
+const skipTests = !finalBinaryPath || !existsSync(finalBinaryPath)
+
+describe.skipIf(skipTests)('End-to-end: Complete build pipeline', () => {
+  beforeAll(async () => {
+    await fs.mkdir(testTmpDir, { recursive: true })
+  })
+
+  afterAll(async () => {
+    await safeDelete(testTmpDir)
+  })
+
+  describe('SEA application build', () => {
+    it(
+      'should create and execute SEA application',
+      { timeout: 30_000 },
+      async () => {
+        const testDir = path.join(testTmpDir, 'sea-app')
+        await fs.mkdir(testDir, { recursive: true })
+
+        // Step 1: Create simple SEA application
+        // NOTE: Stripped binary doesn't have VFS support (no C++ binding, no JS modules)
+        // VFS functionality is tested separately in vfs.test.mjs
+        const appJs = path.join(testDir, 'app.js')
+        await fs.writeFile(
+          appJs,
+          `
+console.log('=== SEA Application ===');
+console.log('Node version:', process.version);
+
+// Check if running as SEA
+const isSEA = require('node:sea').isSea();
+console.log('Running as SEA:', isSEA);
+
+if (isSEA) {
+  console.log('✓ SEA execution successful');
+  process.exit(0);
+} else {
+  console.error('✗ Not running as SEA');
+  process.exit(1);
+}
+`,
+        )
+
+        // Step 2: Create SEA config
+        const seaConfig = path.join(testDir, 'sea-config.json')
+        await fs.writeFile(
+          seaConfig,
+          JSON.stringify({
+            main: 'app.js',
+            output: 'app.blob',
+            disableExperimentalSEAWarning: true,
+            useCodeCache: true,
+          }),
+        )
+
+        // Step 3: Generate SEA blob
+        console.log('Generating SEA blob...')
+        const genResult = await spawn(
+          finalBinaryPath,
+          ['--experimental-sea-config', 'sea-config.json'],
+          { cwd: testDir },
+        )
+        expect(genResult.code).toBe(0)
+        expect(existsSync(path.join(testDir, 'app.blob'))).toBe(true)
+
+        // Step 4: Create VFS content
+        const vfsDir = path.join(testDir, 'vfs-content')
+        await fs.mkdir(vfsDir, { recursive: true })
+
+        // Create sample application files
+        await fs.writeFile(
+          path.join(vfsDir, 'package.json'),
+          JSON.stringify({ name: 'test-app', version: '1.0.0' }),
+        )
+        await fs.writeFile(path.join(vfsDir, 'README.md'), '# Test Application')
+
+        // Create subdirectories
+        await fs.mkdir(path.join(vfsDir, 'lib'), { recursive: true })
+        await fs.writeFile(
+          path.join(vfsDir, 'lib', 'utils.js'),
+          'module.exports = { version: "1.0.0" };',
+        )
+
+        await fs.mkdir(path.join(vfsDir, 'assets'), { recursive: true })
+        await fs.writeFile(
+          path.join(vfsDir, 'assets', 'data.json'),
+          '{"test":true}',
+        )
+
+        // Step 5: Create VFS TAR.GZ (compressed for smaller size)
+        const vfsTarGz = path.join(testDir, 'vfs.tar.gz')
+        console.log('Creating VFS archive...')
+        const tarResult = await spawn(
+          'tar',
+          ['czf', vfsTarGz, '-C', vfsDir, '.'],
+          { cwd: testDir },
+        )
+        expect(tarResult.code).toBe(0)
+        expect(existsSync(vfsTarGz)).toBe(true)
+
+        // Step 6: Copy node-smol binary
+        const appBinary = path.join(testDir, 'myapp')
+        await fs.copyFile(finalBinaryPath, appBinary)
+        await fs.chmod(appBinary, 0o755)
+
+        // Step 7: Inject SEA blob
+        console.log('Injecting SEA blob...')
+        const injectSeaResult = await runBinject(
+          appBinary,
+          'NODE_SEA_BLOB',
+          'app.blob',
+          {
+            testDir,
+            sentinelFuse: 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2',
+            machoSegmentName: 'NODE_SEA',
+          },
+        )
+        expect(injectSeaResult.code).toBe(0)
+
+        // Step 8: Inject VFS blob
+        console.log('Injecting VFS blob...')
+        const injectVfsResult = await runBinject(
+          appBinary,
+          'SOCKSEC_VFS_BLOB',
+          vfsTarGz,
+          {
+            testDir,
+            sentinelFuse: 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2',
+            machoSegmentName: 'NODE_VFS',
+          },
+        )
+        expect(injectVfsResult.code).toBe(0)
+
+        // Step 9: Execute application
+        console.log('Executing application...')
+        const execResult = await spawn(appBinary, [], {
+          cwd: testDir,
+          timeout: 30_000,
+        })
+
+        expect(execResult.code).toBe(0)
+        expect(execResult.stdout).toContain('Node-Smol Application')
+        expect(execResult.stdout).toContain('Running as SEA: true')
+        expect(execResult.stdout).toContain('VFS available: true')
+        expect(execResult.stdout).toContain('VFS blob size:')
+        expect(execResult.stdout).toContain(
+          '✓ Application completed successfully',
+        )
+
+        // Verify VFS blob is non-empty
+        const blobSizeMatch = execResult.stdout.match(
+          /VFS blob size: (\d+) bytes/,
+        )
+        expect(blobSizeMatch).toBeTruthy()
+        const blobSize = Number.parseInt(blobSizeMatch[1], 10)
+        expect(blobSize).toBeGreaterThan(0)
+      },
+    )
+  })
+
+  describe('Binary compression integration', () => {
+    it('should work with compressed binary if available', async () => {
+      const compressedBinary = path.join(
+        packageDir,
+        'build',
+        'out',
+        'Compressed',
+        'node',
+      )
+
+      // Only test if compressed binary exists
+      if (!existsSync(compressedBinary)) {
+        console.log('Skipping: No compressed binary found')
+        return
+      }
+
+      // Test basic execution
+      const execResult = await spawn(compressedBinary, ['--version'])
+      expect(execResult.code).toBe(0)
+      expect(execResult.stdout).toContain('v24')
+
+      // Test that decompressor exists
+      const platform = process.platform
+      const decompressorName =
+        platform === 'darwin'
+          ? 'binflate'
+          : platform === 'win32'
+            ? 'binflate.exe'
+            : 'binflate'
+
+      const decompressorPath = path.join(
+        packageDir,
+        'build',
+        'out',
+        'Compressed',
+        decompressorName,
+      )
+      expect(existsSync(decompressorPath)).toBe(true)
+    })
+  })
+
+  describe('Cross-platform compatibility', () => {
+    it('should report correct platform and architecture', async () => {
+      const execResult = await spawn(finalBinaryPath, [
+        '-p',
+        'JSON.stringify({ platform: process.platform, arch: process.arch })',
+      ])
+
+      expect(execResult.code).toBe(0)
+      const info = JSON.parse(execResult.stdout.trim())
+      expect(info.platform).toBe(process.platform)
+      expect(info.arch).toBe(process.arch)
+    })
+
+    it('should have correct ICU configuration', async () => {
+      const execResult = await spawn(finalBinaryPath, [
+        '-p',
+        'process.config.variables.icu_small',
+      ])
+
+      expect(execResult.code).toBe(0)
+      // Should be using small-icu (true) for prod builds
+      // or undefined/false for dev builds
+      const icuSmall = execResult.stdout.trim()
+      expect(['true', 'undefined', 'false']).toContain(icuSmall)
+    })
+  })
+})

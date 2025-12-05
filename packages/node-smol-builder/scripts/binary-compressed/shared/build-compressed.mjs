@@ -1,0 +1,548 @@
+#!/usr/bin/env node
+/**
+ * @fileoverview Compressed Binary Build Phase
+ *
+ * This script handles the "Compressed" build phase:
+ * 1. Compress stripped binary using platform-specific compression
+ * 2. Create self-extracting binary
+ * 3. Smoke test compressed binary
+ * 4. Create compressed checkpoint
+ * 5. Bundle decompression tool
+ *
+ * This phase depends on the Stripped phase checkpoint.
+ */
+
+import { createHash } from 'node:crypto'
+import { existsSync, promises as fs } from 'node:fs'
+import path from 'node:path'
+
+import {
+  createCheckpoint,
+  exec,
+  getFileSize,
+  smokeTestBinary,
+} from 'build-infra/lib/build-helpers'
+import { printError } from 'build-infra/lib/build-output'
+import colors from 'yoctocolors-cjs'
+
+import { which } from '@socketsecurity/lib/bin'
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { spawn } from '@socketsecurity/lib/spawn'
+
+import {
+  BINFLATE_DIR,
+  BINJECT_DIR,
+  BINPRESS_DIR,
+  COMPRESS_BINARY_SCRIPT,
+  PACKAGE_ROOT,
+} from './paths.mjs'
+
+const logger = getDefaultLogger()
+
+// Tool output directory within external packages
+const BINPRESS_OUT_DIR = path.join(BINPRESS_DIR, 'out')
+const BINFLATE_OUT_DIR = path.join(BINFLATE_DIR, 'out')
+const BINJECT_OUT_DIR = path.join(BINJECT_DIR, 'out')
+
+/**
+ * Platform configuration for compression tools.
+ * Note: Tool names are simplified (no platform prefix) after Makefile refactor.
+ * Compress tools are in binpress/out/, decompress tools are in binflate/out/.
+ */
+const PLATFORM_CONFIG = {
+  __proto__: null,
+  darwin: {
+    toolName: 'binpress',
+    decompressorName: 'binflate',
+    binaryFormat: 'Mach-O',
+    buildCommand: 'make -f Makefile',
+  },
+  linux: {
+    toolName: 'binpress',
+    decompressorName: 'binflate',
+    binaryFormat: 'ELF',
+    buildCommand: 'make -f Makefile',
+  },
+  'linux-musl': {
+    toolName: 'binpress',
+    decompressorName: 'binflate',
+    binaryFormat: 'ELF',
+    buildCommand: 'make -f Makefile',
+  },
+  win32: {
+    toolName: 'binpress.exe',
+    decompressorName: 'binflate.exe',
+    binaryFormat: 'PE',
+    buildCommand: 'mingw32-make -f Makefile',
+  },
+}
+
+/**
+ * Build compression tools if they don't exist.
+ *
+ * @param {string} platform - Target platform (darwin, linux, win32)
+ */
+async function ensureCompressionToolsBuilt(platform) {
+  const config = PLATFORM_CONFIG[platform]
+  if (!config) {
+    throw new Error(
+      `Unsupported platform: ${platform}. Supported: macOS, Linux, Windows`,
+    )
+  }
+
+  // Check if both compress and decompress tools exist in out/ directories
+  const compressorPath = path.join(BINPRESS_OUT_DIR, config.toolName)
+  const decompressorPath = path.join(BINFLATE_OUT_DIR, config.decompressorName)
+
+  const compressorExists = existsSync(compressorPath)
+  const decompressorExists = existsSync(decompressorPath)
+
+  if (compressorExists && decompressorExists) {
+    logger.substep(
+      `Compression tools already built: ${config.toolName}, ${config.decompressorName}`,
+    )
+    return
+  }
+
+  logger.step(`Building ${config.binaryFormat} Compression Tools`)
+  logger.log(
+    `Building platform-specific compression tools for ${config.binaryFormat} binaries...`,
+  )
+  logger.logNewline()
+
+  // Parse the build command
+  const commandParts = config.buildCommand.split(/\s+/)
+  const binName = commandParts[0]
+  const args = commandParts.slice(1)
+
+  // Add 'all' target to build both compress and decompress tools
+  args.push('all')
+
+  // Resolve binary path
+  const binPath = await which(binName, { nothrow: true })
+  if (!binPath) {
+    printError(
+      'Build Tool Not Found',
+      `Build tool '${binName}' not found in PATH`,
+      [
+        binName === 'make'
+          ? 'Install Xcode Command Line Tools on macOS: xcode-select --install'
+          : `Install ${binName}`,
+        'Compression tools are required for binary compression',
+        'Or skip compression: pnpm build --no-compress-binary',
+      ],
+    )
+    throw new Error(
+      `Build tool '${binName}' not found. Install it first or use --no-compress-binary`,
+    )
+  }
+
+  logger.substep(`Using ${binName}: ${binPath}`)
+  logger.substep(`Command: ${binName} ${args.join(' ')}`)
+  logger.logNewline()
+
+  // Build binpress (compressor)
+  logger.substep(
+    `Building compressor in ${path.relative(PACKAGE_ROOT, BINPRESS_DIR)}`,
+  )
+  let result
+  try {
+    result = await spawn(binPath, args, {
+      cwd: BINPRESS_DIR,
+      stdio: 'inherit',
+      shell: WIN32,
+    })
+  } catch (spawnError) {
+    result = spawnError
+  }
+
+  let exitCode = result.code ?? 0
+  if (exitCode !== 0) {
+    printError(
+      'Compressor Build Failed',
+      `Failed to build binpress (exit code: ${exitCode})`,
+      [
+        'Check that gcc/clang and make are installed',
+        'Check build logs above for compilation errors',
+        'Or skip compression: pnpm build --no-compress-binary',
+      ],
+    )
+    throw new Error(`Failed to build binpress (exit code: ${exitCode})`)
+  }
+
+  // Build binflate (decompressor)
+  logger.substep(
+    `Building decompressor in ${path.relative(PACKAGE_ROOT, BINFLATE_DIR)}`,
+  )
+  try {
+    result = await spawn(binPath, args, {
+      cwd: BINFLATE_DIR,
+      stdio: 'inherit',
+      shell: WIN32,
+    })
+  } catch (spawnError) {
+    result = spawnError
+  }
+
+  exitCode = result.code ?? 0
+  if (exitCode !== 0) {
+    printError(
+      'Decompressor Build Failed',
+      `Failed to build binflate (exit code: ${exitCode})`,
+      [
+        'Check that gcc/clang and make are installed',
+        'Check build logs above for compilation errors',
+        'Or skip compression: pnpm build --no-compress-binary',
+      ],
+    )
+    throw new Error(`Failed to build binflate (exit code: ${exitCode})`)
+  }
+
+  // Verify tools were built
+  const compressorBuilt = existsSync(compressorPath)
+  const decompressorBuilt = existsSync(decompressorPath)
+
+  if (!compressorBuilt || !decompressorBuilt) {
+    printError(
+      'Compression Tools Not Created',
+      'Build completed but tools were not created',
+      [
+        !compressorBuilt && `Missing: ${config.toolName}`,
+        !decompressorBuilt && `Missing: ${config.decompressorName}`,
+        'Check build logs for errors',
+      ].filter(Boolean),
+    )
+    throw new Error(
+      'Compression tools were not created after build. Check build logs.',
+    )
+  }
+
+  logger.logNewline()
+  logger.success(`${config.binaryFormat} compression tools built successfully`)
+  logger.substep(`Compressor: ${config.toolName}`)
+  logger.substep(`Decompressor: ${config.decompressorName}`)
+  logger.logNewline()
+}
+
+/**
+ * Build binject injection tool if it doesn't exist.
+ */
+async function ensureBinjectBuilt() {
+  // Check if binject binary exists
+  const binjectBinaryName =
+    process.platform === 'win32' ? 'binject.exe' : 'binject'
+  const binjectBinaryPath = path.join(BINJECT_OUT_DIR, binjectBinaryName)
+  const binjectExists = existsSync(binjectBinaryPath)
+
+  if (binjectExists) {
+    logger.substep('Binary injection tool already built: binject')
+    return
+  }
+
+  logger.step('Building Binary Injection Tool (binject)')
+  logger.log('Building binject for SEA binary injection...')
+  logger.logNewline()
+
+  // Resolve make path
+  const makePath = await which('make', { nothrow: true })
+  if (!makePath) {
+    printError('Build Tool Not Found', "Build tool 'make' not found in PATH", [
+      'Install Xcode Command Line Tools on macOS: xcode-select --install',
+      'Or install make via your package manager',
+      'binject is required for binary injection in tests',
+    ])
+    throw new Error("Build tool 'make' not found. Install it first.")
+  }
+
+  // Select platform-specific Makefile
+  let makefile = 'Makefile'
+  if (process.platform === 'linux') {
+    makefile = 'Makefile.linux'
+  } else if (process.platform === 'win32') {
+    makefile = 'Makefile.windows'
+  }
+
+  logger.substep(`Using make: ${makePath}`)
+  logger.substep(`Command: make -f ${makefile} all`)
+  logger.substep(`Directory: ${path.relative(PACKAGE_ROOT, BINJECT_DIR)}`)
+  logger.logNewline()
+
+  // Execute make all in binject directory
+  let result
+  try {
+    result = await spawn(makePath, ['-f', makefile, 'all'], {
+      cwd: BINJECT_DIR,
+      stdio: 'inherit',
+      shell: WIN32,
+    })
+  } catch (spawnError) {
+    result = spawnError
+  }
+
+  const exitCode = result.code ?? 0
+  if (exitCode !== 0) {
+    printError(
+      'binject Build Failed',
+      `Failed to build binject (exit code: ${exitCode})`,
+      [
+        'Check that gcc/clang and make are installed',
+        'Check build logs above for compilation errors',
+        'binject is required for binary injection in tests',
+      ],
+    )
+    throw new Error(`Failed to build binject (exit code: ${exitCode})`)
+  }
+
+  // Verify binject was built
+  const binjectBuilt = existsSync(binjectBinaryPath)
+  if (!binjectBuilt) {
+    printError(
+      'binject Binary Not Created',
+      'Build completed but binject binary was not created',
+      [`Missing: ${binjectBinaryPath}`],
+    )
+    throw new Error('binject binary was not created after build')
+  }
+
+  logger.logNewline()
+  logger.success('binject built successfully')
+  logger.logNewline()
+}
+
+/**
+ * Build compressed binary phase.
+ *
+ * @param {object} options - Build options
+ * @param {string} options.buildDir - Build directory
+ * @param {string} options.packageName - Package name
+ * @param {string} options.outputStrippedBinary - Stripped binary path
+ * @param {string} options.outputCompressedDir - Compressed directory
+ * @param {string} options.outputCompressedBinary - Compressed binary path
+ * @param {string} options.decompressorName - Decompressor tool name
+ * @param {string} options.decompressorInCompressed - Decompressor path in Compressed dir
+ * @param {string} options.platform - Target platform (darwin, linux, win32)
+ * @param {string} options.arch - Target architecture (arm64, x64)
+ * @param {boolean} options.shouldCompress - Whether to compress (default: true)
+ * @param {boolean} options.isCrossCompiling - Whether cross-compiling
+ * @param {string[]} options.buildSourcePaths - Source paths for cache key
+ */
+export async function buildCompressed({
+  arch,
+  buildDir,
+  buildSourcePaths,
+  decompressorInCompressed,
+  decompressorName,
+  isCrossCompiling,
+  outputCompressedBinary,
+  outputCompressedDir,
+  outputStrippedBinary,
+  packageName,
+  platform,
+  shouldCompress = true,
+}) {
+  const IS_MACOS = platform === 'darwin'
+
+  // Build compression tools if needed (before checking if they exist)
+  if (shouldCompress) {
+    await ensureCompressionToolsBuilt(platform)
+  }
+
+  // Build binject tool (needed for tests)
+  await ensureBinjectBuilt()
+
+  // Check if compression tools exist before attempting compression.
+  const compressionToolsExist = existsSync(BINPRESS_DIR)
+
+  if (shouldCompress && !compressionToolsExist) {
+    printError(
+      'Compression Tools Not Found',
+      'Binary compression requested but compression tools are missing',
+      [
+        `Expected tools directory: ${path.relative(PACKAGE_ROOT, BINPRESS_DIR)}`,
+        'Build compression tools first: cd packages/binpress && make all',
+        'Or skip compression: pnpm build --no-compress-binary',
+      ],
+    )
+    throw new Error(
+      'Compression tools not found. Build them first or use --no-compress-binary',
+    )
+  }
+
+  if (!shouldCompress || !compressionToolsExist) {
+    logger.log('')
+    logger.skip('Binary compression skipped (--no-compress-binary flag)')
+    logger.log('   Compression is enabled by default for smol builds')
+    logger.log(
+      '   Remove --no-compress-binary flag to enable binary compression',
+    )
+    logger.log('')
+    return { compressed: false }
+  }
+
+  logger.step('Compressing Binary for Distribution')
+  logger.log(
+    'Compressing stripped binary using platform-specific compression...',
+  )
+  logger.logNewline()
+
+  await safeMkdir(outputCompressedDir)
+
+  // Select compression quality based on platform.
+  // macOS: LZFSE (faster) or LZMA (better compression).
+  // Linux: LZMA (best for ELF).
+  // Windows: LZMS (best for PE).
+  const compressionQuality = IS_MACOS ? 'lzfse' : 'lzma'
+
+  logger.substep(`Input: ${outputStrippedBinary}`)
+  logger.substep(`Output: ${outputCompressedBinary}`)
+  logger.substep(`Algorithm: ${compressionQuality.toUpperCase()}`)
+  logger.logNewline()
+
+  const sizeBeforeCompress = await getFileSize(outputStrippedBinary)
+  logger.log(`Size before compression: ${sizeBeforeCompress}`)
+  logger.log('Running compression tool...')
+  logger.logNewline()
+
+  // Run platform-specific compression.
+  const compressArgs = [
+    COMPRESS_BINARY_SCRIPT,
+    outputStrippedBinary,
+    outputCompressedBinary,
+    `--quality=${compressionQuality}`,
+    `--target-arch=${arch}`,
+  ]
+  // Shell required on Windows for the compression script to spawn executables
+  await exec(process.execPath, compressArgs, { cwd: PACKAGE_ROOT })
+
+  const sizeAfterCompress = await getFileSize(outputCompressedBinary)
+  logger.log(`Size after compression: ${sizeAfterCompress}`)
+  logger.logNewline()
+
+  // Skip signing compressed binary - it's a self-extracting binary (decompressor + compressed data),
+  // not a standard Mach-O executable. The decompressor is already signed if needed.
+  // When executed, the decompressor extracts and runs the original Node.js binary.
+  logger.skip('Skipping code signing for self-extracting binary...')
+  logger.substep(
+    '✓ Compressed binary ready (self-extracting, no signature needed)',
+  )
+  logger.logNewline()
+
+  // Copy decompression tool to Compressed directory BEFORE checkpoint creation
+  // This ensures the decompressor is included in the checkpoint archive
+  logger.step('Bundling Decompression Tool')
+  logger.log('Copying platform-specific decompression tool for distribution...')
+  logger.logNewline()
+
+  const decompressToolSource = path.join(BINFLATE_OUT_DIR, decompressorName)
+  const decompressToolDest = decompressorInCompressed
+
+  if (!existsSync(decompressToolSource)) {
+    printError(
+      'Decompression Tool Not Found',
+      `Decompressor tool is missing: ${decompressorName}`,
+      [
+        `Expected at: ${path.relative(PACKAGE_ROOT, decompressToolSource)}`,
+        'Build decompression tools: cd packages/binflate && make all',
+        'The decompressor must be bundled with the compressed binary',
+      ],
+    )
+    throw new Error(
+      `Decompression tool not found: ${decompressorName}. Build decompression tools first.`,
+    )
+  }
+
+  await fs.cp(decompressToolSource, decompressToolDest, {
+    force: true,
+    preserveTimestamps: true,
+  })
+
+  // Ensure tool is executable.
+  await exec('chmod', ['+x', decompressToolDest])
+
+  const toolSize = await getFileSize(decompressToolDest)
+  logger.substep(`Tool: ${decompressorName} (${toolSize})`)
+  logger.substep(`Location: ${outputCompressedDir}`)
+  logger.logNewline()
+  logger.success('Decompression tool bundled for distribution')
+  logger.logNewline()
+
+  // Clean Compressed directory before checkpoint to ensure only compressed binary and decompressor are archived
+  // This removes any leftover files from previous stages (e.g., stripped binary)
+  logger.substep('Cleaning checkpoint directory...')
+  const compressedDirFiles = await fs.readdir(outputCompressedDir)
+  const compressedBinaryName = path.basename(outputCompressedBinary)
+  const decompressorBinaryName = path.basename(decompressorInCompressed)
+  for (const file of compressedDirFiles) {
+    if (file !== compressedBinaryName && file !== decompressorBinaryName) {
+      const filePath = path.join(outputCompressedDir, file)
+      await safeDelete(filePath)
+      logger.substep(`Removed: ${file}`)
+    }
+  }
+  logger.logNewline()
+
+  // Create checkpoint for Compressed build with smoke test.
+  // This is the final checkpoint - calculate checksum for cache validation.
+  const compressedBinaryContent = await fs.readFile(outputCompressedBinary)
+  const compressedChecksum = createHash('sha256')
+    .update(compressedBinaryContent)
+    .digest('hex')
+
+  const compressedBinarySize = await getFileSize(outputCompressedBinary)
+  await createCheckpoint(
+    buildDir,
+    'binary-compressed',
+    async () => {
+      if (isCrossCompiling) {
+        // Skip smoke test for cross-compiled binaries
+        logger.log(
+          'Skipping smoke test (binary cross-compiled for different architecture)',
+        )
+        logger.log('')
+        return
+      }
+      // Smoke test: Verify compressed binary is executable.
+      logger.log('Testing compressed binary...')
+      const compressedSmokeTest = await smokeTestBinary(outputCompressedBinary)
+
+      if (!compressedSmokeTest) {
+        printError(
+          'Compressed Binary Failed',
+          'Compressed binary failed smoke test',
+          [
+            'Compression may have corrupted the binary',
+            'Decompressor may have issues',
+            'Try rebuilding: pnpm build --clean',
+          ],
+        )
+        throw new Error('Compressed binary failed smoke test')
+      }
+
+      logger.log(`${colors.green('✓')} Compressed binary functional`)
+      logger.log('')
+    },
+    {
+      packageName,
+      binarySize: compressedBinarySize,
+      checksum: compressedChecksum,
+      binaryPath: path.relative(buildDir, outputCompressedBinary),
+      artifactPath: outputCompressedDir,
+      // Cache depends on build sources
+      sourcePaths: buildSourcePaths,
+      packageRoot: PACKAGE_ROOT,
+      platform,
+      arch,
+    },
+  )
+
+  logger.substep(`Compressed directory: ${outputCompressedDir}`)
+  logger.substep('Binary: node (compressed)')
+  logger.substep(`Decompressor: ${decompressorName}`)
+  logger.logNewline()
+  logger.success('Binary compressed successfully')
+  logger.logNewline()
+
+  return { compressed: true }
+}

@@ -1,0 +1,55 @@
+/**
+ * Centralized path resolution for models package.
+ *
+ * This is the source of truth for all build paths.
+ */
+
+import path from 'node:path'
+
+import { createPathBuilder } from 'build-infra/lib/path-builder'
+
+const paths = createPathBuilder(import.meta.url)
+
+// Package root: scripts/../
+export const PACKAGE_ROOT = paths.packageRoot
+
+// Build directories
+export const BUILD_ROOT = paths.buildRoot
+
+/**
+ * Get shared build directories for models (shared across dev/prod).
+ */
+export function getSharedBuildPaths() {
+  const buildDir = path.join(BUILD_ROOT, 'shared')
+  const modelsDir = path.join(buildDir, 'models')
+  const checkpointsDir = path.join(buildDir, 'checkpoints')
+
+  return {
+    buildDir,
+    checkpointsDir,
+    modelsDir,
+  }
+}
+
+/**
+ * Get build directories for a specific mode (dev/prod).
+ */
+export function getBuildPaths(mode) {
+  const buildDir = path.join(BUILD_ROOT, mode)
+  const modelsDir = path.join(buildDir, 'models')
+  const checkpointsDir = path.join(buildDir, 'checkpoints')
+
+  // Output directories (aligned with checkpoint names)
+  const outDir = path.join(buildDir, 'out')
+  const outputReleaseDir = path.join(outDir, 'Release')
+  const outputFinalDir = path.join(outDir, 'Final')
+
+  return {
+    buildDir,
+    checkpointsDir,
+    modelsDir,
+    outDir,
+    outputFinalDir,
+    outputReleaseDir,
+  }
+}

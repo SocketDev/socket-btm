@@ -1,0 +1,14 @@
+LIBRARY api-ms-win-core-compression-l1-1-0
+EXPORTS
+CreateCompressor
+CreateDecompressor
+Compress
+Decompress
+CloseCompressor
+CloseDecompressor
+QueryCompressorInformation
+QueryDecompressorInformation
+SetCompressorInformation
+SetDecompressorInformation
+ResetCompressor
+ResetDecompressor

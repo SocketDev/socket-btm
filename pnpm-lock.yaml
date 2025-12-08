@@ -10,8 +10,8 @@ catalogs:
       specifier: 7.28.4
       version: 7.28.4
     '@babel/traverse':
-      specifier: 7.28.4
-      version: 7.28.4
+      specifier: 7.28.5
+      version: 7.28.5
     '@biomejs/biome':
       specifier: 2.2.4
       version: 2.2.4
@@ -97,7 +97,7 @@ importers:
         version: 7.28.4
       '@babel/traverse':
         specifier: 'catalog:'
-        version: 7.28.4
+        version: 7.28.5
       '@socketsecurity/lib':
         specifier: 'catalog:'
         version: 5.0.0(typescript@5.9.3)
@@ -174,7 +174,7 @@ importers:
         version: 7.28.4
       '@babel/traverse':
         specifier: 'catalog:'
-        version: 7.28.4
+        version: 7.28.5
       '@socketsecurity/lib':
         specifier: 'catalog:'
         version: 5.0.0(typescript@5.9.3)
@@ -196,7 +196,7 @@ importers:
         version: 7.28.4
       '@babel/traverse':
         specifier: 'catalog:'
-        version: 7.28.4
+        version: 7.28.5
       '@socketsecurity/lib':
         specifier: 'catalog:'
         version: 5.0.0(typescript@5.9.3)
@@ -251,8 +251,8 @@ packages:
     resolution: {integrity: sha512-LPDZ85aEJyYSd18/DkjNh4/y1ntkE5KwUHWTiqgRxruuZL2F1yuHligVHLvcHY2vMHXttKFpJn6LwfI7cw7ODw==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/traverse@7.28.4':
-    resolution: {integrity: sha512-YEzuboP2qvQavAcjgQNVgsvHIDv6ZpwXvcvjmyySP2DIMuByS/6ioU5G9pYrWHM6T2YDfc7xga9iNzYOs12CFQ==}
+  '@babel/traverse@7.28.5':
+    resolution: {integrity: sha512-TCCj4t55U90khlYkVV/0TfkJkAkUg3jZFA3Neb7unZT8CPok7iiRfaX0F+WnqWqt7OxhOn0uBKXCw4lbL8W0aQ==}
     engines: {node: '>=6.9.0'}
 
   '@babel/types@7.28.5':
@@ -1970,7 +1970,7 @@ snapshots:
       '@babel/parser': 7.28.5
       '@babel/types': 7.28.5
 
-  '@babel/traverse@7.28.4':
+  '@babel/traverse@7.28.5':
     dependencies:
       '@babel/code-frame': 7.27.1
       '@babel/generator': 7.28.5

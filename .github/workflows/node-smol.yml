@@ -172,14 +172,14 @@ jobs:
 
       - name: Setup ccache (Unix)
         if: matrix.os != 'windows'
-        uses: hendrikmuhs/ccache-action@ed74d11c0b343532753ecead8a951bb09bb34bc9 # v1.2.14
+        uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639 # v1.2.20
         with:
           key: ${{ matrix.os }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ inputs.build_mode || 'prod' }}
           max-size: 2G
 
       - name: Setup ccache (Windows)
         if: matrix.os == 'windows'
-        uses: hendrikmuhs/ccache-action@ed74d11c0b343532753ecead8a951bb09bb34bc9 # v1.2.14
+        uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639 # v1.2.20
         with:
           key: windows-${{ matrix.platform }}-${{ matrix.arch }}-${{ inputs.build_mode || 'prod' }}
           max-size: 2G

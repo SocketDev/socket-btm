@@ -41,7 +41,7 @@
     "eslint-plugin-n": "17.23.1",
     "eslint-plugin-sort-destructure-keys": "2.0.0",
     "eslint-plugin-unicorn": "56.0.1",
-    "globals": "16.4.0",
+    "globals": "16.5.0",
     "husky": "9.1.7",
     "taze": "19.6.0",
     "typescript-eslint": "8.44.1",

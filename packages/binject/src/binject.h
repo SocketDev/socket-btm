@@ -36,8 +36,11 @@ typedef enum {
 } binject_format_t;
 
 /* CLI commands */
-int binject_inject(const char *executable, const char *resource_file,
+int binject_inject(const char *executable, const char *output, const char *resource_file,
                    const char *section_name, int compress, int overwrite);
+int binject_inject_batch(const char *executable, const char *output,
+                         const char *sea_resource, const char *vfs_resource,
+                         int compress, int overwrite);
 int binject_list(const char *executable);
 int binject_extract(const char *executable, const char *section_name,
                     const char *output_file);
@@ -65,6 +68,14 @@ uint32_t binject_checksum(const uint8_t *data, size_t size);
 /* Platform-specific operations - Mach-O */
 int binject_inject_macho_lief(const char *executable, const char *segment_name,
                                const char *section_name, const uint8_t *data, size_t size, int overwrite);
+int binject_inject_macho_lief_batch(const char *executable,
+                                     const char *output,
+                                     const uint8_t *sea_data, size_t sea_size,
+                                     const uint8_t *vfs_data, size_t vfs_size,
+                                     int overwrite);
+int binject_list_macho_lief(const char *executable);
+int binject_extract_macho_lief(const char *executable, const char *section_name, const char *output_file);
+int binject_verify_macho_lief(const char *executable, const char *section_name);
 
 int binject_inject_macho(const char *executable, const char *segment_name,
                           const char *section_name, const uint8_t *data, size_t size, int overwrite);

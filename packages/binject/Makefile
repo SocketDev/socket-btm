@@ -53,13 +53,13 @@ SRC_DIR = src
 TEST_DIR = test
 
 # Source files
-SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/binject.c $(SRC_DIR)/macho_inject_lief_wrapper.c ../bin-infra/src/compression_common.c
-OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/macho_inject_lief_wrapper.o $(BUILD_DIR)/compression_common.o
+SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/binject.c $(SRC_DIR)/stub_repack.c $(SRC_DIR)/macho_inject_lief_wrapper.c ../bin-infra/src/compression_common.c
+OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/stub_repack.o $(BUILD_DIR)/macho_inject_lief_wrapper.o $(BUILD_DIR)/compression_common.o
 
-# Add LIEF C++ source if library exists.
+# Add LIEF C++ sources if library exists.
 ifneq (,$(wildcard $(LIEF_LIB)))
-    SRCS += $(SRC_DIR)/macho_inject_lief.cpp
-    OBJS += $(BUILD_DIR)/macho_inject_lief.o
+    SRCS += $(SRC_DIR)/macho_inject_lief.cpp $(SRC_DIR)/macho_compress_segment.cpp
+    OBJS += $(BUILD_DIR)/macho_inject_lief.o $(BUILD_DIR)/macho_compress_segment.o
 endif
 
 # Test files

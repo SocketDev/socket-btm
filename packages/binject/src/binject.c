@@ -7,6 +7,9 @@
 #include <string.h>
 #include <errno.h>
 #include "binject.h"
+#ifdef __APPLE__
+#include "stub_repack.h"
+#endif
 
 /* Shared compression library from bin-infra */
 #include "compression_common.h"
@@ -107,7 +110,7 @@ int binject_is_compressed_stub(const char *executable) {
     fclose(fp);
 
     /* Search for magic marker */
-    const char *marker = "__SOCKETSEC_COMPRESSED_DATA_MAGIC_MARKER";
+    const char *marker = "__SMOL_PRESSED_DATA_MAGIC_MARKER";
     size_t marker_len = strlen(marker);
     int found = 0;
 
@@ -143,7 +146,7 @@ int binject_get_extracted_path(const char *compressed_stub, char *extracted_path
     fclose(fp);
 
     /* Search for magic marker */
-    const char *marker = "__SOCKETSEC_COMPRESSED_DATA_MAGIC_MARKER";
+    const char *marker = "__SMOL_PRESSED_DATA_MAGIC_MARKER";
     size_t marker_len = strlen(marker);
     size_t marker_offset = 0;
     int found = 0;
@@ -288,7 +291,7 @@ int binject_get_extracted_path(const char *compressed_stub, char *extracted_path
 }
 
 /* CLI: inject command */
-int binject_inject(const char *executable, const char *resource_file,
+int binject_inject(const char *executable, const char *output, const char *resource_file,
                    const char *section_name, int compress, int overwrite) {
     /* Check if executable is a compressed self-extracting stub */
     char extracted_path[1024];
@@ -368,7 +371,7 @@ int binject_inject(const char *executable, const char *resource_file,
         if (strcmp(section_name, "sea") == 0) {
             macho_section = "__NODE_SEA_BLOB";
         } else if (strcmp(section_name, "vfs") == 0) {
-            macho_section = "__NODE_VFS_BLOB";
+            macho_section = "__SMOL_VFS_BLOB";
         } else {
             fprintf(stderr, "Error: Unknown section identifier '%s'\n", section_name);
             free(final_data);
@@ -400,6 +403,132 @@ int binject_inject(const char *executable, const char *resource_file,
     }
 
     free(final_data);
+
+    /* If we injected into an extracted cache binary, repack the compressed stub */
+    if (rc == BINJECT_OK && target_executable != executable) {
+#ifdef __APPLE__
+        printf("\nInjection into extracted binary complete.\n");
+        printf("Now repacking compressed stub with modified binary...\n");
+
+        /* Run the complete repack workflow:
+         * 1. Sign modified extracted binary
+         * 2. Re-compress
+         * 3. Repack stub
+         * 4. Sign stub
+         */
+        int repack_rc = binject_repack_workflow(executable, target_executable, output);
+        if (repack_rc != 0) {
+            fprintf(stderr, "Error: Failed to repack compressed stub\n");
+            return BINJECT_ERROR;
+        }
+
+        printf("\n✓ Successfully repacked compressed stub with injected resource\n");
+        printf("  Output: %s\n", output);
+#else
+        fprintf(stderr, "Error: Stub repack workflow is only supported on macOS\n");
+        return BINJECT_ERROR_INVALID_FORMAT;
+#endif
+    }
+
+    return rc;
+}
+
+/* CLI: batch inject command (SEA and/or VFS in one pass) */
+int binject_inject_batch(const char *executable, const char *output,
+                         const char *sea_resource, const char *vfs_resource,
+                         int compress, int overwrite) {
+    /* Check if executable is a compressed self-extracting stub */
+    char extracted_path[1024];
+    const char *target_executable = executable;
+    int is_compressed = 0;
+
+    if (binject_is_compressed_stub(executable)) {
+        is_compressed = 1;
+        printf("Detected compressed self-extracting stub: %s\n", executable);
+        printf("Looking up extracted binary in cache...\n");
+
+        int rc = binject_get_extracted_path(executable, extracted_path, sizeof(extracted_path));
+        if (rc == BINJECT_OK) {
+            printf("Found extracted binary: %s\n", extracted_path);
+            target_executable = extracted_path;
+        } else {
+            /* Error message already printed by binject_get_extracted_path */
+            return rc;
+        }
+    }
+
+    printf("Batch injection into %s...\n", target_executable);
+
+    /* Detect binary format */
+    binject_format_t format = binject_detect_format(target_executable);
+    const char *format_name[] = {"unknown", "Mach-O", "ELF", "PE"};
+    printf("  Format: %s\n", format_name[format]);
+
+    if (format != BINJECT_FORMAT_MACHO) {
+        fprintf(stderr, "Error: Batch injection currently only supported for Mach-O\n");
+        return BINJECT_ERROR_INVALID_FORMAT;
+    }
+
+    /* Read SEA resource if provided */
+    uint8_t *sea_data = NULL;
+    size_t sea_size = 0;
+    if (sea_resource) {
+        int rc = binject_read_resource(sea_resource, &sea_data, &sea_size);
+        if (rc != BINJECT_OK) {
+            return rc;
+        }
+        printf("  SEA resource: %s (%zu bytes)\n", sea_resource, sea_size);
+    }
+
+    /* Read VFS resource if provided */
+    uint8_t *vfs_data = NULL;
+    size_t vfs_size = 0;
+    if (vfs_resource) {
+        int rc = binject_read_resource(vfs_resource, &vfs_data, &vfs_size);
+        if (rc != BINJECT_OK) {
+            free(sea_data);
+            return rc;
+        }
+        printf("  VFS resource: %s (%zu bytes)\n", vfs_resource, vfs_size);
+    }
+
+#if defined(__APPLE__) || defined(__MACH__)
+    /* Call batch LIEF injection to inject both sections before writing */
+    int rc = binject_inject_macho_lief_batch(target_executable, output, sea_data, sea_size, vfs_data, vfs_size, overwrite);
+#else
+    fprintf(stderr, "Error: Batch injection not supported on this platform\n");
+    int rc = BINJECT_ERROR_INVALID_FORMAT;
+#endif
+
+    free(sea_data);
+    free(vfs_data);
+
+    /* If we injected into an extracted cache binary, repack the compressed stub */
+    if (rc == BINJECT_OK && is_compressed && target_executable != executable) {
+#ifdef __APPLE__
+        printf("\nBatch injection into extracted binary complete.\n");
+        printf("Now repacking compressed stub with modified binary...\n");
+
+        /* Run the complete repack workflow:
+         * 1. Sign modified extracted binary
+         * 2. Re-compress
+         * 3. Repack stub
+         * 4. Sign stub
+         */
+        int repack_rc = binject_repack_workflow(executable, target_executable, output);
+        if (repack_rc != 0) {
+            fprintf(stderr, "Error: Failed to repack compressed stub\n");
+            return BINJECT_ERROR;
+        }
+
+        printf("\n✓ Successfully repacked compressed stub with injected resources\n");
+        printf("  Output: %s\n", output);
+#else
+        fprintf(stderr, "Error: Stub repack workflow is only supported on macOS\n");
+        return BINJECT_ERROR_INVALID_FORMAT;
+#endif
+    }
+
     return rc;
 }
 
@@ -452,9 +581,19 @@ int binject_extract(const char *executable, const char *section_name,
         return BINJECT_ERROR_INVALID_FORMAT;
     }
 
+    /* Map section identifier to actual section name for Mach-O */
+    const char *actual_section_name = section_name;
+    if (format == BINJECT_FORMAT_MACHO) {
+        if (strcmp(section_name, "sea") == 0) {
+            actual_section_name = "__NODE_SEA_BLOB";
+        } else if (strcmp(section_name, "vfs") == 0) {
+            actual_section_name = "__SMOL_VFS_BLOB";
+        }
+    }
+
     if (format == BINJECT_FORMAT_MACHO) {
 #if defined(__APPLE__) || defined(__MACH__)
-        return binject_extract_macho(executable, section_name, output_file);
+        return binject_extract_macho(executable, actual_section_name, output_file);
 #else
         fprintf(stderr, "Error: Mach-O format not supported on this platform\n");
         return BINJECT_ERROR_INVALID_FORMAT;
@@ -489,9 +628,19 @@ int binject_verify(const char *executable, const char *section_name) {
         return BINJECT_ERROR_INVALID_FORMAT;
     }
 
+    /* Map section identifier to actual section name for Mach-O */
+    const char *actual_section_name = section_name;
+    if (format == BINJECT_FORMAT_MACHO) {
+        if (strcmp(section_name, "sea") == 0) {
+            actual_section_name = "__NODE_SEA_BLOB";
+        } else if (strcmp(section_name, "vfs") == 0) {
+            actual_section_name = "__SMOL_VFS_BLOB";
+        }
+    }
+
     if (format == BINJECT_FORMAT_MACHO) {
 #if defined(__APPLE__) || defined(__MACH__)
-        return binject_verify_macho(executable, section_name);
+        return binject_verify_macho(executable, actual_section_name);
 #else
         fprintf(stderr, "Error: Mach-O format not supported on this platform\n");
         return BINJECT_ERROR_INVALID_FORMAT;

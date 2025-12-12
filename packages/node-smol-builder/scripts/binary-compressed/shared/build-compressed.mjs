@@ -24,6 +24,7 @@ import {
 } from 'build-infra/lib/build-helpers'
 import { printError } from 'build-infra/lib/build-output'
 import { restoreCheckpoint } from 'build-infra/lib/checkpoint-manager'
+import { adHocSign } from 'build-infra/lib/sign'
 
 import { which } from '@socketsecurity/lib/bin'
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
@@ -447,14 +448,13 @@ export async function buildCompressed({
   logger.log(`Size after compression: ${sizeAfterCompress}`)
   logger.logNewline()
 
-  // Skip signing compressed binary - it's a self-extracting binary (decompressor + compressed data),
-  // not a standard Mach-O executable. The decompressor is already signed if needed.
-  // When executed, the decompressor extracts and runs the original Node.js binary.
-  logger.skip('Skipping code signing for self-extracting binary...')
-  logger.substep(
-    '✓ Compressed binary ready (self-extracting, no signature needed)',
-  )
-  logger.logNewline()
+  // Sign the compressed stub on macOS (ad-hoc signature)
+  // The stub needs to be signed so it can execute properly
+  await adHocSign(outputCompressedBinary, async () => {
+    logger.step('Signing Compressed Stub')
+    logger.log('Ad-hoc signing the self-extracting binary...')
+    logger.logNewline()
+  })
 
   // Copy decompression tool to Compressed directory BEFORE checkpoint creation
   // This ensures the decompressor is included in the checkpoint archive

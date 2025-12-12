@@ -6,9 +6,10 @@ Binary resource injection tool for Mach-O, ELF, and PE executables.
 
 - Inject resources into NODE_SEA or NODE_VFS sections
 - Automatic compression (LZFSE/LZMA/LZMS based on platform)
+- **Segment-based compression with valid code signatures** (macOS) - See [SEGMENT_COMPRESSION.md](docs/SEGMENT_COMPRESSION.md)
 - List, extract, and verify embedded resources
 - Platform-specific implementations:
-  - **macOS**: Mach-O using [`segedit`](https://ss64.com/mac/segedit.html) for section manipulation
+  - **macOS**: Mach-O using LIEF library for proper binary manipulation
   - **Linux**: ELF using direct binary manipulation
   - **Windows**: PE using direct binary manipulation
 
@@ -113,16 +114,48 @@ binject extract -e ./node --sea -o app.blob
 binject extract -e ./node --vfs -o vfs.blob
 ```
 
-## Section Names
+### Segment-Based Compression (macOS)
 
-- `NODE_SEA_BLOB` - SEA (Single Executable Application) blob
-- `NODE_VFS_BLOB` - VFS (Virtual File System) blob
+Create validly-signed compressed binaries by embedding data as a proper Mach-O segment:
+
+```bash
+# Embed compressed data as SMOL segment (maintains valid signatures)
+binject compress-segment \
+  --stub stub.bin \
+  --data compressed.data \
+  --output output.bin \
+  --uncompressed-size 59462872
+
+# Extract compressed data from segment
+binject extract-segment \
+  --executable binary.bin \
+  --output extracted.data
+```
+
+**Benefits:**
+- ✓ Valid code signatures (passes `codesign --verify --strict`)
+- ✓ App Store compatible
+- ✓ Gatekeeper friendly
+- ✓ Only 0.3% size overhead
+
+See [SEGMENT_COMPRESSION.md](docs/SEGMENT_COMPRESSION.md) for full documentation.
+
+## Segments and Sections
+
+### Compressed Stub Binary (created by binpress + segment compression)
+- **Segment**: `SMOL`
+  - `__PRESSED_DATA` - Compressed Node.js binary data
+
+### Node.js Binary (SEA/VFS injection target)
+- **Segment**: `NODE_SEA` (created by binject on first injection)
+  - `__NODE_SEA_BLOB` - Single Executable Application code (injected with `--sea`)
+  - `__SMOL_VFS_BLOB` - Virtual File System data (injected with `--vfs`)
 
 ## Platform Support
 
 | Platform | Binary Format | Compression | Status |
 |----------|--------------|-------------|--------|
-| macOS    | Mach-O       | LZFSE/LZMA  | ✅ Fully implemented (uses [`segedit`](https://ss64.com/mac/segedit.html)) |
+| macOS    | Mach-O       | LZFSE/LZMA  | ✅ Fully implemented (LIEF library + segment compression) |
 | Linux    | ELF          | LZMA        | ✅ Fully implemented |
 | Windows  | PE           | LZMS        | ✅ Fully implemented |
 

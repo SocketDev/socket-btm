@@ -15,7 +15,7 @@
  *
  * @param executable Path to the Mach-O binary.
  * @param segment_name Segment name (e.g., "NODE_SEA").
- * @param section_name Section name (e.g., "__NODE_VFS_BLOB").
+ * @param section_name Section name (e.g., "__SMOL_VFS_BLOB").
  * @param data Resource data to inject.
  * @param size Size of resource data.
  * @param overwrite Whether to overwrite existing section.
@@ -58,8 +58,7 @@ int binject_list_macho(const char *executable) {
     }
 
 #ifdef HAVE_LIEF
-    fprintf(stderr, "Error: List operation not yet implemented with LIEF\n");
-    return BINJECT_ERROR;
+    return binject_list_macho_lief(executable);
 #else
     fprintf(stderr, "Error: LIEF not available\n");
     return BINJECT_ERROR;
@@ -82,8 +81,7 @@ int binject_extract_macho(const char *executable, const char *section_name,
     }
 
 #ifdef HAVE_LIEF
-    fprintf(stderr, "Error: Extract operation not yet implemented with LIEF\n");
-    return BINJECT_ERROR;
+    return binject_extract_macho_lief(executable, section_name, output_file);
 #else
     fprintf(stderr, "Error: LIEF not available\n");
     return BINJECT_ERROR;
@@ -104,8 +102,7 @@ int binject_verify_macho(const char *executable, const char *section_name) {
     }
 
 #ifdef HAVE_LIEF
-    fprintf(stderr, "Error: Verify operation not yet implemented with LIEF\n");
-    return BINJECT_ERROR;
+    return binject_verify_macho_lief(executable, section_name);
 #else
     fprintf(stderr, "Error: LIEF not available\n");
     return BINJECT_ERROR;

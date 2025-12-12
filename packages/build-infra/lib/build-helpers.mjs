@@ -941,7 +941,7 @@ export async function saveBuildLog(buildDir, content) {
  */
 export async function smokeTestBinary(binaryPath, args = null, options = {}) {
   // Sign binary first if on macOS (required for execution)
-  const { adHocSign } = await import('./checkpoint-manager.mjs')
+  const { adHocSign } = await import('./sign.mjs')
   await adHocSign(binaryPath)
 
   logger.substep(`Smoke testing ${path.basename(binaryPath)}`)
@@ -1088,7 +1088,6 @@ export async function smokeTestBinary(binaryPath, args = null, options = {}) {
 // Re-export workflow checkpoint functions from checkpoint-manager
 // These provide GitHub Actions workflow checkpoint support with metadata
 export {
-  adHocSign,
   createCheckpoint,
   restoreCheckpoint,
   cleanCheckpoint,

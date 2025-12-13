@@ -1,0 +1,141 @@
+name: Validate Checkpoint Cache
+description: Validates checkpoint cache integrity for build system packages
+
+inputs:
+  checkpoint-dirs:
+    description: 'Colon-separated list of directories containing checkpoint files'
+    required: true
+  checkpoints:
+    description: 'Space-separated list of checkpoint names to validate'
+    required: true
+  package-name:
+    description: 'Package name (for error messages)'
+    required: true
+
+outputs:
+  valid:
+    description: 'Whether checkpoint cache is valid (true/false)'
+    value: ${{ steps.validate.outputs.valid }}
+  message:
+    description: 'Validation result message'
+    value: ${{ steps.validate.outputs.message }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate checkpoint files
+      id: validate
+      shell: bash
+      env:
+        CHECKPOINT_DIRS: ${{ inputs.checkpoint-dirs }}
+        CHECKPOINTS: ${{ inputs.checkpoints }}
+        PACKAGE_NAME: ${{ inputs.package-name }}
+      run: |
+        echo "Validating checkpoint cache for ${PACKAGE_NAME}..."
+        echo "Checkpoint directories: ${CHECKPOINT_DIRS}"
+        echo "Expected checkpoints: ${CHECKPOINTS}"
+        echo ""
+
+        # Parse colon-separated directories (localize IFS to prevent side effects)
+        # Use trap to ensure IFS is restored even if script exits unexpectedly
+        restore_ifs() {
+          IFS="$OLD_IFS"
+        }
+        OLD_IFS="$IFS"
+        trap restore_ifs EXIT
+        IFS=':'
+        read -ra DIRS <<< "$CHECKPOINT_DIRS"
+        IFS="$OLD_IFS"
+        trap - EXIT
+
+        # Check if all checkpoint directories exist
+        ALL_DIRS_EXIST=true
+        for DIR in "${DIRS[@]}"; do
+          if [ ! -d "$DIR" ]; then
+            echo "✓ Checkpoint directory does not exist: $DIR (will build from scratch)"
+            ALL_DIRS_EXIST=false
+            break
+          fi
+        done
+
+        if [ "$ALL_DIRS_EXIST" = "false" ]; then
+          echo "valid=false" >> $GITHUB_OUTPUT
+          echo "message=Checkpoint directories do not exist" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        # Validate each checkpoint (search across all directories)
+        MISSING_CHECKPOINTS=""
+        CORRUPTED_CHECKPOINTS=""
+
+        for checkpoint in ${CHECKPOINTS}; do
+          # Search for checkpoint in all directories
+          FOUND=false
+          for DIR in "${DIRS[@]}"; do
+            JSON_FILE="${DIR}/${checkpoint}.json"
+            TARBALL_FILE="${DIR}/${checkpoint}.tar.gz"
+
+            # Check if both files exist in this directory
+            if [ -f "${JSON_FILE}" ] && [ -f "${TARBALL_FILE}" ]; then
+              FOUND=true
+
+              # Validate tarball integrity
+              if ! gzip -t "${TARBALL_FILE}" 2>/dev/null; then
+                echo "❌ Corrupted tarball: ${checkpoint}.tar.gz (in ${DIR})"
+                CORRUPTED_CHECKPOINTS="${CORRUPTED_CHECKPOINTS} ${checkpoint}"
+                break
+              fi
+
+              # Validate JSON is parseable
+              if ! jq empty "${JSON_FILE}" 2>/dev/null; then
+                echo "❌ Malformed JSON: ${checkpoint}.json (in ${DIR})"
+                CORRUPTED_CHECKPOINTS="${CORRUPTED_CHECKPOINTS} ${checkpoint}"
+                break
+              fi
+
+              echo "✓ ${checkpoint} (valid in ${DIR})"
+              break
+            fi
+          done
+
+          if [ "$FOUND" = "false" ]; then
+            echo "❌ Missing checkpoint: ${checkpoint}"
+            MISSING_CHECKPOINTS="${MISSING_CHECKPOINTS} ${checkpoint}"
+          fi
+        done
+
+        # Report results
+        if [ -n "${MISSING_CHECKPOINTS}" ] || [ -n "${CORRUPTED_CHECKPOINTS}" ]; then
+          echo ""
+
+          if [ -n "${CORRUPTED_CHECKPOINTS}" ]; then
+            echo "❌ Checkpoint validation failed - corrupted checkpoints found"
+            echo "Corrupted checkpoints:${CORRUPTED_CHECKPOINTS}"
+            echo ""
+            echo "Cleaning checkpoint directories to force rebuild..."
+            for DIR in "${DIRS[@]}"; do
+              if [ -d "$DIR" ]; then
+                echo "  Removing: $DIR"
+                rm -rf "$DIR"
+              fi
+            done
+            echo "valid=false" >> $GITHUB_OUTPUT
+            echo "message=Checkpoint validation failed - corrupted checkpoints removed" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if [ -n "${MISSING_CHECKPOINTS}" ]; then
+            echo "⚠️  Checkpoint validation incomplete - some checkpoints missing"
+            echo "Missing checkpoints:${MISSING_CHECKPOINTS}"
+            echo ""
+            echo "✓ Will restore from latest valid checkpoint and resume build"
+            echo "valid=partial" >> $GITHUB_OUTPUT
+            echo "message=Partial checkpoint chain - will restore from latest valid checkpoint" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+        fi
+
+        echo ""
+        echo "✓ All checkpoints validated successfully"
+        echo "valid=true" >> $GITHUB_OUTPUT
+        echo "message=All checkpoints valid" >> $GITHUB_OUTPUT

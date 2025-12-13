@@ -1,0 +1,21 @@
+{
+  "name": "binject",
+  "version": "0.0.0",
+  "description": "Binary resource injection tool",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:lief": "node scripts/build-lief.mjs",
+    "clean": "node scripts/clean.mjs",
+    "test": "vitest run",
+    "test:unit": "node scripts/test.mjs",
+    "coverage": "node ../bin-infra/scripts/run-coverage.js binject",
+    "postinstall": "node scripts/setup-build-toolchain.mjs"
+  },
+  "devDependencies": {
+    "@socketsecurity/lib": "catalog:",
+    "build-infra": "workspace:*",
+    "vitest": "catalog:"
+  }
+}

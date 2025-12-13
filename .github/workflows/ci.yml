@@ -1,0 +1,65 @@
+name: ⚡ CI
+
+# Dependencies:
+#   - SocketDev/socket-registry/.github/workflows/ci.yml
+
+on:
+  push:
+    branches: [main]
+    tags: ['*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      node-versions:
+        description: 'Node.js versions to test (JSON array)'
+        required: false
+        type: string
+        # Default should match packages/build-infra/external-tools.json -> tools.node.versions.recommendedVersion
+        default: '["24.11.1"]'
+
+permissions:
+  contents: read
+
+jobs:
+  versions:
+    name: Load Tool Versions
+    runs-on: ubuntu-latest
+    outputs:
+      node: ${{ steps.load.outputs.node }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version-file: .node-version
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Load Node.js version from external-tools.json
+        id: load
+        run: |
+          NODE_VERSION=$(jq -r '.tools.node.versions.recommendedVersion' packages/build-infra/external-tools.json)
+          echo "node=[\"$NODE_VERSION\"]" >> $GITHUB_OUTPUT
+          echo "Loaded Node.js: $NODE_VERSION"
+
+  ci:
+    name: Run CI Pipeline
+    needs: versions
+    uses: SocketDev/socket-registry/.github/workflows/ci.yml@4709a2443e5a036bb0cd94e5d1559f138f05994c # main
+    with:
+      lint-script: 'pnpm run lint'
+      type-check-script: 'pnpm run check'
+      test-setup-script: 'node .github/scripts/setup-linux-deps.mjs && pnpm --filter binject build'
+      test-script: 'pnpm run test'
+      node-versions: ${{ inputs.node-versions || needs.versions.outputs.node }}
+      os-versions: '["ubuntu-latest", "macos-latest", "windows-latest"]'
+      fail-fast: false
+      max-parallel: 4
+      test-timeout-minutes: 15

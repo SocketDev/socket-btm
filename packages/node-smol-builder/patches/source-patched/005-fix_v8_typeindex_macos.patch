@@ -1,0 +1,16 @@
+# @node-versions: v24.12.0
+# @description: Fix V8 TypeIndex constructor for macOS
+#
+
+--- a/deps/v8/src/wasm/value-type.h
++++ b/deps/v8/src/wasm/value-type.h
+@@ -51,6 +51,9 @@
+ struct TypeIndex {
+   uint32_t index;
+
++  constexpr TypeIndex() : index(kInvalid) {}
++  constexpr TypeIndex(uint32_t idx) : index(idx) {}
++
+   // We intentionally don't define comparison operators here, because
+   // different subclasses must not be compared to each other.
+

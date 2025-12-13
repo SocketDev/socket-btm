@@ -1,0 +1,123 @@
+# binject Makefile for Windows
+# PE binary injection tool
+
+# Build mode: dev (default locally, fast builds) or prod (optimized for size/speed)
+# Auto-detects CI environment and defaults accordingly:
+# - Local: defaults to dev for fast iteration
+# - CI: defaults to prod for optimized releases
+ifdef CI
+BUILD_MODE ?= prod
+else
+BUILD_MODE ?= dev
+endif
+
+# Version info: YYYYMMDD-commit format
+BUILD_DATE := $(shell date -u +"%Y%m%d")
+BUILD_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+VERSION := $(BUILD_DATE)-$(BUILD_COMMIT)
+
+# Build mode flags
+ifeq ($(BUILD_MODE),prod)
+    # Production: optimize for size and speed, strip symbols
+    OPT_FLAGS = -Os -s -DNDEBUG
+else
+    # Development: optimize for build speed, keep debug symbols
+    OPT_FLAGS = -O0 -g
+endif
+
+# Build output directory includes mode for proper isolation
+BUILD_MODE_DIR = build/$(BUILD_MODE)
+
+# Note: CC/CXX can be overridden via environment variables (e.g., clang in CI)
+CC ?= gcc
+CXX ?= g++
+CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 -I../bin-infra/src -DVERSION=\"$(VERSION)\"
+CXXFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c++17 -I../bin-infra/src
+LDFLAGS = -Wl,--gc-sections -lcabinet
+
+TARGET = binject.exe
+BUILD_DIR = $(BUILD_MODE_DIR)
+BIN_DIR = $(BUILD_MODE_DIR)/out
+SRC_DIR = src
+TEST_DIR = test
+IMPORT_LIB = $(BUILD_DIR)/libcabinet.a
+
+# Source files
+SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/binject.c $(SRC_DIR)/single_pe_inject.c $(SRC_DIR)/pe_inject.c $(SRC_DIR)/elf_inject.c ../bin-infra/src/compression_common.c ../bin-infra/src/file_io_common.c
+OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/single_pe_inject.o $(BUILD_DIR)/pe_inject.o $(BUILD_DIR)/elf_inject.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o
+
+# Test files
+TEST_SRCS = $(TEST_DIR)/binject_test.c $(SRC_DIR)/binject.c $(SRC_DIR)/single_pe_inject.c $(SRC_DIR)/pe_inject.c ../bin-infra/src/compression_common.c ../bin-infra/src/file_io_common.c
+TEST_OBJS = $(BUILD_DIR)/binject_test.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/single_pe_inject.o $(BUILD_DIR)/pe_inject.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o
+TEST_TARGET = $(BUILD_DIR)/binject_test.exe
+
+.PHONY: all clean test check-tools
+
+# Check that required build tools are available
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }
+	@command -v $(CXX) >/dev/null 2>&1 || { echo "ERROR: $(CXX) not found. Install build tools first."; exit 1; }
+	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
+	@command -v dlltool >/dev/null 2>&1 || { echo "ERROR: dlltool not found. Install MinGW binutils."; exit 1; }
+
+# Default target
+all: check-tools $(BIN_DIR)/$(TARGET)
+
+# Create directories
+$(BUILD_DIR) $(BIN_DIR):
+	@mkdir -p $@
+
+# Generate import library from Cabinet.dll
+$(IMPORT_LIB): cabinet.def | $(BUILD_DIR)
+	dlltool -d cabinet.def -l $@
+
+# Build binary
+$(BIN_DIR)/$(TARGET): $(IMPORT_LIB) $(OBJS) | $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LDFLAGS)
+	@echo "Built: $(BIN_DIR)/$(TARGET)"
+
+# Compile C files
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile C++ files
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Compile compression_common from bin-infra
+$(BUILD_DIR)/compression_common.o: ../bin-infra/src/compression_common.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile file_io_common from bin-infra
+$(BUILD_DIR)/file_io_common.o: ../bin-infra/src/file_io_common.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Clean build artifacts
+clean:
+	@echo "Cleaning build artifacts..."
+	@if exist build\dev\*.o del /Q build\dev\*.o 2>NUL
+	@if exist build\prod\*.o del /Q build\prod\*.o 2>NUL
+	@if exist build\dev\*.gcda del /Q build\dev\*.gcda 2>NUL
+	@if exist build\prod\*.gcda del /Q build\prod\*.gcda 2>NUL
+	@if exist build\dev\*.gcno del /Q build\dev\*.gcno 2>NUL
+	@if exist build\prod\*.gcno del /Q build\prod\*.gcno 2>NUL
+	@if exist build\dev\binject_test.exe del /Q build\dev\binject_test.exe 2>NUL
+	@if exist build\prod\binject_test.exe del /Q build\prod\binject_test.exe 2>NUL
+	@if exist build\dev\binject_test_coverage.exe del /Q build\dev\binject_test_coverage.exe 2>NUL
+	@if exist build\prod\binject_test_coverage.exe del /Q build\prod\binject_test_coverage.exe 2>NUL
+	@if exist build\dev\out rmdir /S /Q build\dev\out 2>NUL
+	@if exist build\prod\out rmdir /S /Q build\prod\out 2>NUL
+
+# Build test binary
+$(TEST_TARGET): $(IMPORT_LIB) $(TEST_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $(TEST_OBJS) $(LDFLAGS)
+	@echo "Built: $(TEST_TARGET)"
+
+# Compile test source
+$(BUILD_DIR)/binject_test.o: $(TEST_DIR)/binject_test.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Run tests
+test: $(TEST_TARGET)
+	@echo "\nRunning binject tests..."
+	@$(TEST_TARGET)

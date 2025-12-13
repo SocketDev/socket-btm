@@ -1,0 +1,90 @@
+# binpress Makefile for Windows
+# PE binary compression tool
+
+# Build mode: dev (default locally, fast builds) or prod (optimized for size/speed)
+# Auto-detects CI environment and defaults accordingly:
+# - Local: defaults to dev for fast iteration
+# - CI: defaults to prod for optimized releases
+ifdef CI
+BUILD_MODE ?= prod
+else
+BUILD_MODE ?= dev
+endif
+
+# Build output directory includes mode for proper isolation
+BUILD_MODE_DIR = build/$(BUILD_MODE)
+
+# Version info: YYYYMMDD-commit format
+BUILD_DATE := $(shell date -u +"%Y%m%d")
+BUILD_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+VERSION := $(BUILD_DATE)-$(BUILD_COMMIT)
+
+# Build mode flags
+ifeq ($(BUILD_MODE),prod)
+    # Production: optimize for size and speed, strip symbols
+    OPT_FLAGS = -Os -s -DNDEBUG
+else
+    # Development: optimize for build speed, keep debug symbols
+    OPT_FLAGS = -O0 -g
+endif
+
+# Note: CC can be overridden via environment variables (e.g., clang in CI)
+CC ?= gcc
+CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 -I../bin-infra/src -DVERSION=\"$(VERSION)\"
+LDFLAGS = -Wl,--gc-sections -lcabinet
+
+BUILD_DIR = $(BUILD_MODE_DIR)
+BIN_DIR = $(BUILD_MODE_DIR)/out
+
+TARGET = binpress.exe
+SOURCE = src/pe_compress.c
+OUT_DIR = $(BIN_DIR)
+IMPORT_LIB = $(OUT_DIR)/libcabinet.a
+
+.PHONY: all clean test check-tools install
+
+# Check that required build tools are available
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }
+	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
+	@command -v dlltool >/dev/null 2>&1 || { echo "ERROR: dlltool not found. Install MinGW binutils."; exit 1; }
+
+all: check-tools $(OUT_DIR)/$(TARGET)
+
+# Generate Cabinet.dll import library
+$(IMPORT_LIB): cabinet.def | $(OUT_DIR)
+	dlltool -d cabinet.def -l $@
+
+$(OUT_DIR)/$(TARGET): $(SOURCE) $(IMPORT_LIB) | $(OUT_DIR)
+	@echo "DEBUG: Building $@ from $<"
+	@echo "DEBUG: LDFLAGS = $(LDFLAGS)"
+	@echo "DEBUG: Import lib exists:" && ls -la $(IMPORT_LIB) || echo "NOT FOUND"
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
+	@echo "DEBUG: GCC exit code: $$?"
+	@echo "DEBUG: Directory contents:" && ls -la $(OUT_DIR) || echo "DIR NOT FOUND"
+	@test -f $@ && echo "DEBUG: Binary created successfully" || (echo "ERROR: Binary NOT created at $@" && exit 1)
+
+$(OUT_DIR):
+	mkdir -p $@
+
+clean:
+	@echo "Cleaning build artifacts..."
+	@if exist build\dev\*.o del /Q build\dev\*.o 2>NUL
+	@if exist build\prod\*.o del /Q build\prod\*.o 2>NUL
+	@if exist build\dev\*.gcda del /Q build\dev\*.gcda 2>NUL
+	@if exist build\prod\*.gcda del /Q build\prod\*.gcda 2>NUL
+	@if exist build\dev\*.gcno del /Q build\dev\*.gcno 2>NUL
+	@if exist build\prod\*.gcno del /Q build\prod\*.gcno 2>NUL
+	@if exist build\dev\binpress_test.exe del /Q build\dev\binpress_test.exe 2>NUL
+	@if exist build\prod\binpress_test.exe del /Q build\prod\binpress_test.exe 2>NUL
+	@if exist build\dev\binpress_test_coverage.exe del /Q build\dev\binpress_test_coverage.exe 2>NUL
+	@if exist build\prod\binpress_test_coverage.exe del /Q build\prod\binpress_test_coverage.exe 2>NUL
+	@if exist build\dev\out rmdir /S /Q build\dev\out 2>NUL
+	@if exist build\prod\out rmdir /S /Q build\prod\out 2>NUL
+
+install: all
+	@echo "Compression tool built successfully: $(OUT_DIR)/$(TARGET)"
+
+test: all
+	@echo "Running binpress tests..."
+	@bash test/test.sh

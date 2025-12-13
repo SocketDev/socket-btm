@@ -1,0 +1,30 @@
+{
+  "description": "External tools required for building and running binflate",
+  "tools": {
+    "xz-utils": {
+      "description": "XZ Utils provides liblzma decompression library (for Linux ELF decompression)",
+      "packages": {
+        "darwin": {
+          "brew": "xz"
+        },
+        "linux": {
+          "apt": "liblzma-dev",
+          "yum": "xz-devel",
+          "dnf": "xz-devel",
+          "apk": "xz-dev"
+        },
+        "win32": {}
+      },
+      "versions": {
+        "apt": "5.2.5",
+        "brew": "5.4.5"
+      },
+      "notes": [
+        "liblzma is used for LZMA decompression on Linux (ELF binaries)",
+        "On Linux: provides both liblzma.so (runtime) and lzma.h (build-time)",
+        "On macOS: LZFSE is used instead (built-in macOS compression framework)",
+        "On Windows: Windows Compression API is used (built-in)"
+      ]
+    }
+  }
+}

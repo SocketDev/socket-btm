@@ -10,10 +10,13 @@
  */
 
 import { spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { safeDelete } from '@socketsecurity/lib/fs'
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 
@@ -149,14 +152,51 @@ async function getCachedBinaryPath(cacheKey) {
   return path.join(getCacheDir(), cacheKey, binaryName)
 }
 
+/**
+ * Create unique SEA content using UUID to ensure each test creates a unique cache entry
+ */
+function createUniqueSEAContent(description) {
+  const uuid = randomUUID()
+  return `${description}\nUnique ID: ${uuid}\n`
+}
+
 describeOnMac('E2E Signature and Cache Tests', () => {
+  let initialCacheEntries = []
+  // Track cache entries we expect to create (even if test skips)
+  const expectedCacheEntries = new Set()
+
   beforeAll(async () => {
     testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'binject-e2e-'))
+    // Capture initial cache state
+    initialCacheEntries = await getCacheEntries()
   })
 
   afterAll(async () => {
+    // Clean up test directory
     if (testDir) {
-      await fs.rm(testDir, { recursive: true, force: true })
+      await safeDelete(testDir)
+    }
+
+    // Clean up any cache entries created during tests
+    const finalCacheEntries = await getCacheEntries()
+    const newEntries = finalCacheEntries.filter(
+      e => !initialCacheEntries.includes(e),
+    )
+
+    // Clean up all new entries (whether expected or not)
+    for (const entry of newEntries) {
+      const cachePath = path.join(getCacheDir(), entry)
+      // eslint-disable-next-line no-await-in-loop
+      await safeDelete(cachePath)
+    }
+
+    // Also clean up expected entries that might have been created
+    for (const entry of expectedCacheEntries) {
+      if (!newEntries.includes(entry)) {
+        const cachePath = path.join(getCacheDir(), entry)
+        // eslint-disable-next-line no-await-in-loop
+        await safeDelete(cachePath)
+      }
     }
   })
 
@@ -178,8 +218,8 @@ describeOnMac('E2E Signature and Cache Tests', () => {
     const vfsBlob = path.join(testDir, 'vfs-v1.blob')
     const output = path.join(testDir, 'node-with-resources-v1')
 
-    await fs.writeFile(seaBlob, 'SEA data version 1\n')
-    await fs.writeFile(vfsBlob, 'VFS data version 1\n')
+    await fs.writeFile(seaBlob, createUniqueSEAContent('SEA data version 1'))
+    await fs.writeFile(vfsBlob, createUniqueSEAContent('VFS data version 1'))
 
     // Get initial cache entries
     const initialCacheEntries = await getCacheEntries()
@@ -240,8 +280,14 @@ describeOnMac('E2E Signature and Cache Tests', () => {
     const vfsBlob1 = path.join(testDir, 'vfs-cache-v1.blob')
     const output1 = path.join(testDir, 'node-cache-test-v1')
 
-    await fs.writeFile(seaBlob1, 'SEA data version 1 for cache test\n')
-    await fs.writeFile(vfsBlob1, 'VFS data version 1 for cache test\n')
+    await fs.writeFile(
+      seaBlob1,
+      createUniqueSEAContent('SEA data version 1 for cache test'),
+    )
+    await fs.writeFile(
+      vfsBlob1,
+      createUniqueSEAContent('VFS data version 1 for cache test'),
+    )
 
     // First injection
     const inject1 = await execCommand(BINJECT, [
@@ -271,11 +317,11 @@ describeOnMac('E2E Signature and Cache Tests', () => {
 
     await fs.writeFile(
       seaBlob2,
-      'SEA data version 2 for cache test (UPDATED)\n',
+      createUniqueSEAContent('SEA data version 2 for cache test (UPDATED)'),
     )
     await fs.writeFile(
       vfsBlob2,
-      'VFS data version 2 for cache test (UPDATED)\n',
+      createUniqueSEAContent('VFS data version 2 for cache test (UPDATED)'),
     )
 
     // Second injection (overwrite)
@@ -364,9 +410,15 @@ describeOnMac('E2E Signature and Cache Tests', () => {
       const output = path.join(testDir, `node-multi-v${version}`)
 
       // eslint-disable-next-line no-await-in-loop
-      await fs.writeFile(seaBlob, `SEA version ${version} content\n`)
+      await fs.writeFile(
+        seaBlob,
+        createUniqueSEAContent(`SEA version ${version} content`),
+      )
       // eslint-disable-next-line no-await-in-loop
-      await fs.writeFile(vfsBlob, `VFS version ${version} content\n`)
+      await fs.writeFile(
+        vfsBlob,
+        createUniqueSEAContent(`VFS version ${version} content`),
+      )
 
       // eslint-disable-next-line no-await-in-loop
       const result = await execCommand(BINJECT, [

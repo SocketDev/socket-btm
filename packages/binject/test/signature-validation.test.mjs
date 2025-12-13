@@ -13,6 +13,7 @@ import { spawn } from 'node:child_process'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
@@ -28,7 +29,7 @@ const describeOnMac = os.platform() === 'darwin' ? describe : describe.skip
 let testDir
 
 async function execCommand(command, args = [], options = {}) {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     const proc = spawn(command, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       ...options,
@@ -36,22 +37,57 @@ async function execCommand(command, args = [], options = {}) {
 
     let stdout = ''
     let stderr = ''
+    let resolved = false
 
-    proc.stdout.on('data', data => {
+    // Add timeout protection (45 seconds default to stay under test timeout)
+    const timeoutMs = options.timeout || 45_000
+    const timeout =
+      timeoutMs > 0
+        ? setTimeout(() => {
+            if (!resolved) {
+              resolved = true
+              proc.kill('SIGTERM')
+              reject(
+                new Error(
+                  `Command timed out after ${timeoutMs}ms: ${command} ${args.join(' ')}`,
+                ),
+              )
+            }
+          }, timeoutMs)
+        : null
+
+    proc.stdout?.on('data', data => {
       stdout += data.toString()
     })
 
-    proc.stderr.on('data', data => {
+    proc.stderr?.on('data', data => {
       stderr += data.toString()
     })
 
+    proc.on('error', err => {
+      if (!resolved) {
+        resolved = true
+        if (timeout) {
+          clearTimeout(timeout)
+        }
+        reject(err)
+      }
+    })
+
     proc.on('close', code => {
-      resolve({
-        code,
-        stdout,
-        stderr,
-        output: stdout + stderr,
-      })
+      if (!resolved) {
+        resolved = true
+        if (timeout) {
+          clearTimeout(timeout)
+        }
+        // Ensure code is never null
+        resolve({
+          code: code ?? -1,
+          stdout,
+          stderr,
+          output: stdout + stderr,
+        })
+      }
     })
   })
 }
@@ -72,6 +108,84 @@ async function getSignatureInfo(binaryPath) {
   return result.stderr
 }
 
+async function checkFileLocks(filePath) {
+  try {
+    const { stdout } = await execCommand('lsof', [filePath], { timeout: 5000 })
+    return stdout.trim()
+  } catch {
+    return ''
+  }
+}
+
+async function waitForFileReady(filePath, maxWaitMs = 10_000) {
+  const startTime = Date.now()
+  while (Date.now() - startTime < maxWaitMs) {
+    try {
+      // Try to open the file for reading
+      // eslint-disable-next-line no-await-in-loop
+      const handle = await fs.open(filePath, 'r')
+      // eslint-disable-next-line no-await-in-loop
+      await handle.close()
+
+      // Check for file locks
+      // eslint-disable-next-line no-await-in-loop
+      const locks = await checkFileLocks(filePath)
+      if (locks) {
+        console.log(`  ⚠ File still has open handles: ${locks}`)
+        // eslint-disable-next-line no-await-in-loop
+        await sleep(1000)
+        continue
+      }
+
+      // Long delay to ensure codesign and any background processes complete
+      // macOS codesign can take time to release file handles
+      // eslint-disable-next-line no-await-in-loop
+      await sleep(3000)
+      return true
+    } catch {
+      // File not ready, wait and try again
+      // eslint-disable-next-line no-await-in-loop
+      await sleep(200)
+    }
+  }
+  return false
+}
+
+/**
+ * Helper to inject SEA resource and verify signature
+ */
+async function injectAndVerify(binaryPath, seaBlob, vfsBlob = null) {
+  const args = ['inject', '-e', binaryPath, '-o', binaryPath, '--sea', seaBlob]
+  if (vfsBlob) {
+    args.push('--vfs', vfsBlob)
+  }
+
+  const result = await execCommand(BINJECT, args)
+  expect(result.code).toBe(0)
+  expect(result.output).toMatch(/Binary signed successfully/i)
+
+  const isValid = await verifySignature(binaryPath)
+  expect(isValid).toBe(true)
+
+  const sigInfo = await getSignatureInfo(binaryPath)
+  expect(sigInfo).toMatch(/Signature.*adhoc/i)
+
+  return result
+}
+
+/**
+ * Helper to prepare a test binary
+ */
+async function prepareTestBinary(name) {
+  const binaryPath = path.join(testDir, name)
+  await fs.copyFile(BINJECT, binaryPath)
+
+  const originalSigned = await verifySignature(binaryPath)
+  expect(originalSigned).toBe(true)
+
+  return binaryPath
+}
+
 describeOnMac('Signature Validation', () => {
   beforeAll(async () => {
     testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'binject-sig-'))
@@ -84,180 +198,88 @@ describeOnMac('Signature Validation', () => {
   })
 
   it('should maintain valid signature after SEA injection', async () => {
-    // Use binject itself as the test binary
-    const testBinary = path.join(testDir, 'test-binary')
-    await fs.copyFile(BINJECT, testBinary)
+    const testBinary = await prepareTestBinary('test-binary')
 
-    // Verify original binary is signed
-    const originalSigned = await verifySignature(testBinary)
-    expect(originalSigned).toBe(true)
-
-    // Create test SEA blob
     const seaBlob = path.join(testDir, 'app.blob')
     await fs.writeFile(seaBlob, 'SEA application data\n')
 
-    // Inject SEA into binary
-    const injectResult = await execCommand(BINJECT, [
-      'inject',
-      '-e',
-      testBinary,
-      '-o',
-      testBinary,
-      '--sea',
-      seaBlob,
-    ])
-
-    expect(injectResult.code).toBe(0)
-    expect(injectResult.output).toMatch(/Success|injected/i)
-    expect(injectResult.output).toMatch(/Signing binary with ad-hoc signature/i)
-    expect(injectResult.output).toMatch(/Binary signed successfully/i)
-
-    // Binary should be validly signed after injection
-    const isValid = await verifySignature(testBinary)
-    expect(isValid).toBe(true)
-
-    // Verify it has an adhoc signature
-    const sigInfo = await getSignatureInfo(testBinary)
-    expect(sigInfo).toMatch(/Signature.*adhoc/i)
+    const result = await injectAndVerify(testBinary, seaBlob)
+    expect(result.output).toMatch(/Success|injected/i)
+    expect(result.output).toMatch(/Signing binary with ad-hoc signature/i)
   }, 30_000)
 
   it('should maintain valid signature after SEA+VFS injection', async () => {
-    // Use binject itself as the test binary
-    const testBinary = path.join(testDir, 'test-binary-vfs')
-    await fs.copyFile(BINJECT, testBinary)
+    const testBinary = await prepareTestBinary('test-binary-vfs')
 
-    // Verify original binary is signed
-    const originalSigned = await verifySignature(testBinary)
-    expect(originalSigned).toBe(true)
-
-    // Create test blobs
     const seaBlob = path.join(testDir, 'app-vfs.blob')
     const vfsBlob = path.join(testDir, 'vfs.blob')
     await fs.writeFile(seaBlob, 'SEA application data\n')
     await fs.writeFile(vfsBlob, 'Virtual filesystem data\n')
 
-    // Inject SEA + VFS into binary
-    const injectResult = await execCommand(BINJECT, [
-      'inject',
-      '-e',
-      testBinary,
-      '-o',
-      testBinary,
-      '--sea',
-      seaBlob,
-      '--vfs',
-      vfsBlob,
-    ])
-
-    expect(injectResult.code).toBe(0)
-    expect(injectResult.output).toMatch(/Success|injected/i)
-    expect(injectResult.output).toMatch(/Signing binary with ad-hoc signature/i)
-    expect(injectResult.output).toMatch(/Binary signed successfully/i)
-
-    // Binary should be validly signed after injection
-    const isValid = await verifySignature(testBinary)
-    expect(isValid).toBe(true)
-
-    // Verify it has an adhoc signature
-    const sigInfo = await getSignatureInfo(testBinary)
-    expect(sigInfo).toMatch(/Signature.*adhoc/i)
+    const result = await injectAndVerify(testBinary, seaBlob, vfsBlob)
+    expect(result.output).toMatch(/Success|injected/i)
+    expect(result.output).toMatch(/Signing binary with ad-hoc signature/i)
   }, 30_000)
 
-  it('should maintain valid signature through overwrite injection', async () => {
-    // Use binject itself as the test binary
-    const testBinary1 = path.join(testDir, 'test-binary-overwrite-v1')
-    const testBinary2 = path.join(testDir, 'test-binary-overwrite-v2')
-    await fs.copyFile(BINJECT, testBinary1)
+  describe.sequential('Sequential Injections', () => {
+    let testBinary1
+    let testBinary2
 
-    // Verify original is signed
-    const originalSigned = await verifySignature(testBinary1)
-    expect(originalSigned).toBe(true)
+    it('should perform first injection successfully', async () => {
+      testBinary1 = await prepareTestBinary('test-binary-seq-v1')
 
-    // First injection
-    const seaBlob1 = path.join(testDir, 'app-v1.blob')
-    await fs.writeFile(seaBlob1, 'SEA version 1\n')
+      const seaBlob1 = path.join(testDir, 'app-v1.blob')
+      await fs.writeFile(seaBlob1, 'SEA version 1\n')
 
-    const inject1 = await execCommand(BINJECT, [
-      'inject',
-      '-e',
-      testBinary1,
-      '-o',
-      testBinary1,
-      '--sea',
-      seaBlob1,
-    ])
+      await injectAndVerify(testBinary1, seaBlob1)
 
-    expect(inject1.code).toBe(0)
-    expect(inject1.output).toMatch(/Binary signed successfully/i)
+      // Wait for file to be fully written and released by macOS codesign
+      const fileReady = await waitForFileReady(testBinary1)
+      expect(fileReady).toBe(true)
+    }, 30_000)
 
-    // Binary should be signed after first injection
-    let isValid = await verifySignature(testBinary1)
-    expect(isValid).toBe(true)
+    it('should perform second injection (overwrite) successfully', async () => {
+      // Wait between tests to ensure file handles are released
+      await sleep(2000)
 
-    // Second injection (overwrite) - use first injected binary as input
-    const seaBlob2 = path.join(testDir, 'app-v2.blob')
-    await fs.writeFile(seaBlob2, 'SEA version 2 (different content)\n')
+      // Use the already-injected binary from first test as input
+      // This tests that binject can handle re-injecting into already-injected binaries
+      testBinary2 = path.join(testDir, 'test-binary-seq-v2')
+      await fs.copyFile(testBinary1, testBinary2)
 
-    const inject2 = await execCommand(BINJECT, [
-      'inject',
-      '-e',
-      testBinary1,
-      '-o',
-      testBinary2,
-      '--sea',
-      seaBlob2,
-    ])
+      // Wait for copied file to be ready
+      const copyReady = await waitForFileReady(testBinary2, 15_000)
+      expect(copyReady).toBe(true)
 
-    expect(inject2.code).toBe(0)
-    expect(inject2.output).toMatch(/Binary signed successfully/i)
+      // Second injection with different content (overwrite)
+      const seaBlob2 = path.join(testDir, 'app-v2.blob')
+      await fs.writeFile(seaBlob2, 'SEA version 2 (different content)\n')
 
-    // Binary should remain signed after overwrite
-    isValid = await verifySignature(testBinary2)
-    expect(isValid).toBe(true)
-
-    // Verify it has an adhoc signature
-    const sigInfo = await getSignatureInfo(testBinary2)
-    expect(sigInfo).toMatch(/Signature.*adhoc/i)
-  }, 45_000)
+      // The fix works - LIEF can now parse already-injected binaries because
+      // we remove signatures before parsing.
+      await injectAndVerify(testBinary2, seaBlob2)
+    }, 60_000)
+  })
 
   it('should maintain valid signature after re-injection', async () => {
-    // Use binject itself as the test binary
-    const v0Binary = path.join(testDir, 'test-binary-reinject-v0')
+    const v0Binary = await prepareTestBinary('test-binary-reinject-v0')
     const v1Binary = path.join(testDir, 'test-binary-reinject-v1')
-    await fs.copyFile(BINJECT, v0Binary)
 
-    // Verify original is signed
-    const originalSigned = await verifySignature(v0Binary)
-    expect(originalSigned).toBe(true)
-
-    // First injection
     const seaBlob1 = path.join(testDir, 'app-reinject-v1.blob')
     await fs.writeFile(seaBlob1, 'SEA version 1 content\n')
 
-    const result1 = await execCommand(BINJECT, [
-      'inject',
-      '-e',
-      v0Binary,
-      '-o',
-      v1Binary,
-      '--sea',
-      seaBlob1,
-    ])
+    // Inject into fresh binary writing to a different output file
+    const args = ['inject', '-e', v0Binary, '-o', v1Binary, '--sea', seaBlob1]
+    const result = await execCommand(BINJECT, args)
 
-    expect(result1.code).toBe(0)
-    expect(result1.output).toMatch(/Success|injected/i)
-    expect(result1.output).toMatch(/Binary signed successfully/i)
+    expect(result.code).toBe(0)
+    expect(result.output).toMatch(/Success|injected/i)
+    expect(result.output).toMatch(/Binary signed successfully/i)
 
-    // Binary should be validly signed after injection
     const isValid = await verifySignature(v1Binary)
     expect(isValid).toBe(true)
 
-    // Verify it has an adhoc signature
     const sigInfo = await getSignatureInfo(v1Binary)
     expect(sigInfo).toMatch(/Signature.*adhoc/i)
-
-    // Note: Chaining multiple injections (using an already-injected binary
-    // as input for another injection) causes LIEF to crash when parsing the
-    // signed binary structure. This is a known LIEF limitation.
   }, 60_000)
 })

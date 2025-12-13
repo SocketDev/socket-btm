@@ -39,6 +39,9 @@
 
 extern "C" {
 #include "binject.h"
+
+// From remove_signature.c
+int remove_macho_signature(const char *path);
 }
 
 #ifdef __APPLE__
@@ -138,6 +141,15 @@ extern "C" int binject_inject_macho_lief(const char* executable,
   }
 
   try {
+#ifdef __APPLE__
+    // CRITICAL: Remove any existing code signature before parsing with LIEF.
+    // LIEF cannot reliably parse already-signed binaries and may hang or crash.
+    // We'll re-sign with an adhoc signature after injection is complete.
+    printf("Removing any existing code signature before parsing...\n");
+    remove_macho_signature(executable);
+    printf("Ready to parse binary\n");
+#endif
+
     // Parse Mach-O binary.
     std::unique_ptr<LIEF::MachO::FatBinary> fat_binary =
         LIEF::MachO::Parser::parse(executable);
@@ -570,6 +582,15 @@ extern "C" int binject_inject_macho_lief_batch(
 ) {
   try {
     printf("Using LIEF for batch injection...\n");
+
+#ifdef __APPLE__
+    // CRITICAL: Remove any existing code signature before parsing with LIEF.
+    // LIEF cannot reliably parse already-signed binaries and may hang or crash.
+    // We'll re-sign with an adhoc signature after injection is complete.
+    printf("Removing any existing code signature before parsing...\n");
+    remove_macho_signature(executable);
+    printf("Ready to parse binary\n");
+#endif
 
     // Parse the Mach-O binary
     std::unique_ptr<LIEF::MachO::FatBinary> fat_binary =

@@ -166,9 +166,47 @@ describe('binject CLI', () => {
       expect(output).toContain('--vfs')
     })
 
-    it('--help should document --no-compress flag', async () => {
+    it('--help should document --vfs-in-memory flag', async () => {
       const { output } = await execCommand(BINJECT, ['--help'])
-      expect(output).toContain('--no-compress')
+      expect(output).toContain('--vfs-in-memory')
+    })
+
+    it('--help should document --vfs-on-disk flag', async () => {
+      const { output } = await execCommand(BINJECT, ['--help'])
+      expect(output).toContain('--vfs-on-disk')
+    })
+
+    it('should accept both --vfs-on-disk and --vfs-in-memory flags together', async () => {
+      const binary = await createTestBinary('test-both-flags.bin')
+      const seaResource = await createTestResource('test-both.blob')
+      const vfsResource = await createTestResource('test-both.tar')
+      const output = path.join(testDir, 'output-both-flags.bin')
+
+      const result = await execCommand(BINJECT, [
+        'inject',
+        '-e',
+        binary,
+        '-o',
+        output,
+        '--sea',
+        seaResource,
+        '--vfs-on-disk',
+        vfsResource,
+        '--vfs-in-memory',
+      ])
+
+      // Should not error - both flags are valid together
+      // On macOS (Mach-O), expect success; on other platforms, accept the unsupported message
+      if (os.platform() === 'darwin') {
+        expect(result.output).toMatch(/(Success|both)/i)
+        await expect(
+          fs.access(output, FS_CONSTANTS.F_OK),
+        ).resolves.toBeUndefined()
+      } else {
+        expect(result.output).toMatch(
+          /(Batch injection currently only supported for Mach-O|currently only supported)/i,
+        )
+      }
     })
 
     it('--version should show program name', async () => {

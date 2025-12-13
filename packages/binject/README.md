@@ -5,6 +5,7 @@ Binary resource injection tool for Mach-O, ELF, and PE executables.
 ## Features
 
 - **Auto-overwrite**: Automatically replaces existing resources without manual flags
+- **Automatic SEA blob generation**: Pass `.json` config files directly - binject runs `node --experimental-sea-config` automatically
 - Inject resources into NODE_SEA or NODE_VFS sections
 - **Batch injection**: Inject both SEA and VFS resources in a single operation
 - Automatic compression (LZFSE/LZMA/LZMS based on platform)
@@ -16,7 +17,31 @@ Binary resource injection tool for Mach-O, ELF, and PE executables.
   - **Linux**: ELF using direct binary manipulation
   - **Windows**: PE using direct binary manipulation
 
-## Building
+## Installation
+
+### Quick Install (Pre-built Binary)
+
+Download the latest release for your platform and make it executable:
+
+**macOS/Linux:**
+```bash
+# Download binary (replace URL with latest release)
+curl -L -o binject https://github.com/your-org/binject/releases/latest/download/binject-$(uname -s)-$(uname -m)
+
+# Make executable
+chmod +x binject
+
+# Move to PATH
+sudo mv binject /usr/local/bin/
+```
+
+**Verify:**
+```bash
+binject --version
+binject --help
+```
+
+### Building from Source
 
 ```bash
 make
@@ -24,63 +49,16 @@ make
 
 Outputs `out/binject` (or `out/binject.exe` on Windows).
 
-## Installation
-
-After building, you can install binject to make it available system-wide:
-
-### macOS
-
+**Install built binary:**
 ```bash
-# Option 1: Install to /usr/local/bin (Requires sudo)
+# Option 1: Use make
 sudo make install
 
-# Option 2: Create symlink
-ln -s $(pwd)/out/binject /usr/local/bin/binject
+# Option 2: Manual install
+sudo cp out/binject /usr/local/bin/
 
 # Option 3: Add to PATH (add to ~/.zshrc or ~/.bashrc)
 export PATH="$PATH:$(pwd)/out"
-```
-
-<details>
-<summary>Linux Installation</summary>
-
-```bash
-# Option 1: Install to /usr/local/bin (Requires sudo)
-sudo make install
-
-# Option 2: Create symlink
-ln -s $(pwd)/out/binject /usr/local/bin/binject
-
-# Option 3: Add to PATH (add to ~/.bashrc)
-export PATH="$PATH:$(pwd)/out"
-```
-
-</details>
-
-<details>
-<summary>Windows Installation</summary>
-
-```powershell
-# Copy to a directory in your PATH
-copy out\binject.exe C:\Windows\System32\
-
-# Or add to PATH
-$env:PATH += ";$(Get-Location)\out"
-```
-
-</details>
-
-### Verify Installation
-
-```bash
-binject --help
-# Should display usage information
-```
-
-### Uninstall
-
-```bash
-sudo make uninstall
 ```
 
 ## Usage
@@ -89,21 +67,35 @@ sudo make uninstall
 
 ```bash
 # Inject SEA blob (Single Executable Application)
-binject inject -e ./node -o ./node-sea -r app.blob --sea
+binject inject -e ./node -o ./node-sea --sea app.blob
 
-# Inject VFS blob (Virtual File System)
-binject inject -e ./node -o ./node-vfs -r vfs.blob --vfs
+# Inject VFS blob (Virtual File System) - extracts to disk at runtime by default
+binject inject -e ./node -o ./node-vfs --sea app.blob --vfs vfs.tar.gz
 
-# Inject both SEA and VFS in one operation
-binject inject -e ./node -o ./node-sea-vfs --sea app.blob --vfs vfs.tar.gz
+# Inject VFS with --vfs-on-disk (alias for --vfs)
+binject inject -e ./node -o ./node-vfs --sea app.blob --vfs-on-disk vfs.tar.gz
 
-# Inject without compression
-binject inject -e ./node -o ./node-sea -r app.blob --sea --no-compress
+# Inject both SEA and VFS, keep VFS in memory at runtime
+binject inject -e ./node -o ./node-sea-vfs --sea app.blob --vfs vfs.tar.gz --vfs-in-memory
 
 # Auto-overwrite: Automatically replaces existing resources
 # No --overwrite flag needed - binject automatically detects and replaces existing segments
-binject inject -e ./node-sea -o ./node-sea -r updated-app.blob --sea
+binject inject -e ./node-sea -o ./node-sea --sea updated-app.blob
 ```
+
+### SEA from JSON Config
+
+Pass any `.json` file to `--sea` and binject automatically generates the blob:
+
+```bash
+# Create config (any .json filename works)
+echo '{ "main": "app.js", "output": "sea-prep.blob" }' > sea-config.json
+
+# Auto-generates blob via: node --experimental-sea-config sea-config.json
+binject inject -e ./node -o ./node-sea --sea sea-config.json --vfs vfs.tar.gz
+```
+
+Paths in config are relative to current directory (matches [Node.js SEA](https://nodejs.org/api/single-executable-applications.html) behavior).
 
 ### List Resources
 
@@ -184,8 +176,9 @@ binject inject -e node-app -o node-app --sea app-v3.blob
 ## Notes
 
 - On macOS, binaries are automatically code-signed with ad-hoc signature after injection
-- Compression can be disabled with `--no-compress` flag
-- VFS blobs are NOT compressed (binpress compresses entire binary instead)
+- VFS files are extracted to `~/.socket/_dlx/<hash>/vfs/` at runtime by default for lower memory usage
+- Use `--vfs-in-memory` flag to keep VFS in memory (useful for read-only filesystems or security-sensitive environments)
+- Use runtime environment variable `VFS_IN_MEMORY=1` to override extraction behavior
 - SEA blobs automatically flip sentinel byte for Node.js compatibility (once)
 - Unicode symbols used for output: `✓` (success), `⚠` (warning), consistent with socket-lib
 

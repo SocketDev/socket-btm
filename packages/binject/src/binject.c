@@ -292,7 +292,7 @@ int binject_get_extracted_path(const char *compressed_stub, char *extracted_path
 
 /* CLI: inject command */
 int binject_inject(const char *executable, const char *output, const char *resource_file,
-                   const char *section_name, int compress) {
+                   const char *section_name) {
     /* Check if executable is a compressed self-extracting stub */
     char extracted_path[1024];
     const char *target_executable = executable;
@@ -314,7 +314,6 @@ int binject_inject(const char *executable, const char *output, const char *resou
     printf("Injecting resource into %s...\n", target_executable);
     printf("  Resource: %s\n", resource_file);
     printf("  Section: %s\n", section_name);
-    printf("  Compress: %s\n", compress ? "yes" : "no");
 
     /* Detect binary format */
     binject_format_t format = binject_detect_format(target_executable);
@@ -336,30 +335,9 @@ int binject_inject(const char *executable, const char *output, const char *resou
 
     printf("  Resource size: %zu bytes\n", size);
 
-    /* Calculate checksum of original data */
+    /* Calculate checksum */
     uint32_t checksum = binject_checksum(data, size);
     printf("  Checksum: 0x%08x\n", checksum);
-
-    /* Compress if requested */
-    uint8_t *final_data = data;
-    size_t final_size = size;
-
-    if (compress) {
-        uint8_t *compressed = NULL;
-        size_t compressed_size = 0;
-
-        rc = binject_compress(data, size, &compressed, &compressed_size);
-        if (rc == BINJECT_OK) {
-            printf("  Compressed size: %zu bytes (%.1f%% reduction)\n",
-                   compressed_size, 100.0 * (1.0 - (double)compressed_size / size));
-            free(data);
-            final_data = compressed;
-            final_size = compressed_size;
-        } else {
-            fprintf(stderr, "⚠ Compression failed, storing uncompressed\n");
-            compress = 0;
-        }
-    }
 
     /* Platform-specific injection */
     if (format == BINJECT_FORMAT_MACHO) {
@@ -374,25 +352,25 @@ int binject_inject(const char *executable, const char *output, const char *resou
             macho_section = "__SMOL_VFS_BLOB";
         } else {
             fprintf(stderr, "Error: Unknown section identifier '%s'\n", section_name);
-            free(final_data);
+            free(data);
             return BINJECT_ERROR_INVALID_ARGS;
         }
 
-        rc = binject_inject_macho(target_executable, segment, macho_section, final_data, final_size);
+        rc = binject_inject_macho(target_executable, segment, macho_section, data, size);
 #else
         fprintf(stderr, "Error: Mach-O injection not supported on this platform\n");
         rc = BINJECT_ERROR_INVALID_FORMAT;
 #endif
     } else if (format == BINJECT_FORMAT_ELF) {
 #if defined(__linux__)
-        rc = binject_inject_elf(target_executable, section_name, final_data, final_size, checksum, compress);
+        rc = binject_inject_elf(target_executable, section_name, data, size, checksum, 0);
 #else
         fprintf(stderr, "Error: ELF injection not supported on this platform\n");
         rc = BINJECT_ERROR_INVALID_FORMAT;
 #endif
     } else if (format == BINJECT_FORMAT_PE) {
 #if defined(_WIN32)
-        rc = binject_inject_pe(target_executable, section_name, final_data, final_size, checksum, compress);
+        rc = binject_inject_pe(target_executable, section_name, data, size, checksum, 0);
 #else
         fprintf(stderr, "Error: PE injection not supported on this platform\n");
         rc = BINJECT_ERROR_INVALID_FORMAT;
@@ -402,7 +380,7 @@ int binject_inject(const char *executable, const char *output, const char *resou
         rc = BINJECT_ERROR_INVALID_FORMAT;
     }
 
-    free(final_data);
+    free(data);
 
     /* If we injected into an extracted cache binary, repack the compressed stub */
     if (rc == BINJECT_OK && target_executable != executable) {
@@ -436,8 +414,8 @@ int binject_inject(const char *executable, const char *output, const char *resou
 /* CLI: batch inject command (SEA and/or VFS in one pass) */
 int binject_inject_batch(const char *executable, const char *output,
                          const char *sea_resource, const char *vfs_resource,
-                         int compress) {
-    (void)compress; // Unused parameter - kept for API compatibility
+                         int vfs_in_memory) {
+    (void)vfs_in_memory; // Reserved for future VFS extraction control at runtime
     /* Check if executable is a compressed self-extracting stub */
     char extracted_path[1024];
     const char *target_executable = executable;

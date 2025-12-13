@@ -37,10 +37,10 @@ typedef enum {
 
 /* CLI commands */
 int binject_inject(const char *executable, const char *output, const char *resource_file,
-                   const char *section_name, int compress);
+                   const char *section_name);
 int binject_inject_batch(const char *executable, const char *output,
                          const char *sea_resource, const char *vfs_resource,
-                         int compress);
+                         int vfs_in_memory);
 int binject_list(const char *executable);
 int binject_extract(const char *executable, const char *section_name,
                     const char *output_file);
@@ -50,7 +50,7 @@ int binject_verify(const char *executable, const char *section_name);
 binject_format_t binject_detect_format(const char *executable);
 int binject_read_resource(const char *resource_file, uint8_t **data, size_t *size);
 int binject_write_resource(const char *executable, const char *section_name,
-                           const uint8_t *data, size_t size, int compress);
+                           const uint8_t *data, size_t size);
 
 /* Compressed binary cache support */
 int binject_is_compressed_stub(const char *executable);

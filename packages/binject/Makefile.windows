@@ -35,15 +35,23 @@ CXX ?= g++
 # LIEF paths.
 LIEF_UPSTREAM = upstream/lief
 LIEF_BUILD_DIR = build/lief
-LIEF_LIB = $(LIEF_BUILD_DIR)/libLIEF.a
+LIEF_LIB_A = $(LIEF_BUILD_DIR)/libLIEF.a
+LIEF_LIB_LIB = $(LIEF_BUILD_DIR)/LIEF.lib
 LIEF_INCLUDE_DIR = $(LIEF_UPSTREAM)/include
 
 CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 -I../bin-infra/src -DVERSION=\"$(VERSION)\"
 CXXFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c++17 -I../bin-infra/src -I$(LIEF_INCLUDE_DIR) -I$(LIEF_BUILD_DIR)/include
 LDFLAGS = -Wl,--gc-sections -lcabinet
 
-# Add LIEF library if it exists.
-ifneq (,$(wildcard $(LIEF_LIB)))
+# Add LIEF library if it exists (check both .a and .lib extensions).
+LIEF_LIB :=
+ifneq (,$(wildcard $(LIEF_LIB_A)))
+    LIEF_LIB = $(LIEF_LIB_A)
+else ifneq (,$(wildcard $(LIEF_LIB_LIB)))
+    LIEF_LIB = $(LIEF_LIB_LIB)
+endif
+
+ifneq ($(LIEF_LIB),)
     LDFLAGS += $(LIEF_LIB)
     CFLAGS += -DHAVE_LIEF=1
     CXXFLAGS += -DHAVE_LIEF=1
@@ -62,10 +70,10 @@ IMPORT_LIB = $(BUILD_DIR)/libcabinet.a
 SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/binject.c $(SRC_DIR)/single_pe_inject.c $(SRC_DIR)/single_elf_inject_stub.c $(SRC_DIR)/pe_inject.c $(SRC_DIR)/elf_inject.c ../bin-infra/src/compression_common.c ../bin-infra/src/file_io_common.c
 OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/single_pe_inject.o $(BUILD_DIR)/single_elf_inject_stub.o $(BUILD_DIR)/pe_inject.o $(BUILD_DIR)/elf_inject.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o
 
-# Add LIEF C++ sources if library exists.
+# Add LIEF C++ sources if library exists (for cross-platform binary injection).
 ifneq (,$(wildcard $(LIEF_LIB)))
-    SRCS += $(SRC_DIR)/elf_inject_lief.cpp $(SRC_DIR)/pe_inject_lief.cpp
-    OBJS += $(BUILD_DIR)/elf_inject_lief.o $(BUILD_DIR)/pe_inject_lief.o
+    SRCS += $(SRC_DIR)/elf_inject_lief.cpp $(SRC_DIR)/pe_inject_lief.cpp $(SRC_DIR)/macho_inject_lief.cpp $(SRC_DIR)/macho_inject_lief_wrapper.c
+    OBJS += $(BUILD_DIR)/elf_inject_lief.o $(BUILD_DIR)/pe_inject_lief.o $(BUILD_DIR)/macho_inject_lief.o $(BUILD_DIR)/macho_inject_lief_wrapper.o
 endif
 
 # Test files

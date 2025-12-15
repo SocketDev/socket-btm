@@ -1037,6 +1037,8 @@ jobs:
         run: |
           echo "Installing CMake for LIEF build..."
           choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+          echo "Refreshing PATH to include CMake..."
+          export PATH="/c/Program Files/CMake/bin:$PATH"
           echo "Verifying CMake installation..."
           cmake --version
 

@@ -498,7 +498,7 @@ int binject_single(const char *executable, const char *output, const char *resou
 
     /* Platform-specific injection */
     if (format == BINJECT_FORMAT_MACHO) {
-#if defined(__APPLE__) || defined(__MACH__)
+#ifdef HAVE_LIEF
         /* Map section identifier to Mach-O segment/section names. */
         const char *segment = "NODE_SEA";
         const char *macho_section = NULL;
@@ -515,7 +515,15 @@ int binject_single(const char *executable, const char *output, const char *resou
 
         rc = binject_macho(executable, segment, macho_section, data, size);
 #else
-        fprintf(stderr, "Error: Mach-O injection not supported on this platform\n");
+        fprintf(stderr, "Error: Mach-O injection requires LIEF library on %s\n",
+#if defined(_WIN32)
+                "Windows"
+#elif defined(__linux__)
+                "Linux"
+#else
+                "this platform"
+#endif
+        );
         rc = BINJECT_ERROR_INVALID_FORMAT;
 #endif
     } else if (format == BINJECT_FORMAT_ELF) {
@@ -590,10 +598,18 @@ int binject_batch(const char *executable, const char *output,
     /* Perform injection based on format */
     int rc;
     if (format == BINJECT_FORMAT_MACHO) {
-#if defined(__APPLE__) || defined(__MACH__)
+#ifdef HAVE_LIEF
         rc = binject_macho_lief_batch(executable, output, sea_data, sea_size, vfs_data, vfs_size);
 #else
-        fprintf(stderr, "Error: Mach-O injection requires macOS\n");
+        fprintf(stderr, "Error: Mach-O injection requires LIEF library on %s\n",
+#if defined(_WIN32)
+                "Windows"
+#elif defined(__linux__)
+                "Linux"
+#else
+                "this platform"
+#endif
+        );
         rc = BINJECT_ERROR_INVALID_FORMAT;
 #endif
     } else if (format == BINJECT_FORMAT_ELF) {
@@ -623,10 +639,18 @@ int binject_list(const char *executable) {
     }
 
     if (format == BINJECT_FORMAT_MACHO) {
-#if defined(__APPLE__) || defined(__MACH__)
+#ifdef HAVE_LIEF
         return binject_macho_list(executable);
 #else
-        fprintf(stderr, "Error: Mach-O format not supported on this platform\n");
+        fprintf(stderr, "Error: Mach-O listing requires LIEF library on %s\n",
+#if defined(_WIN32)
+                "Windows"
+#elif defined(__linux__)
+                "Linux"
+#else
+                "this platform"
+#endif
+        );
         return BINJECT_ERROR_INVALID_FORMAT;
 #endif
     } else if (format == BINJECT_FORMAT_ELF) {
@@ -672,11 +696,19 @@ int binject_extract(const char *executable, const char *section_name,
     }
 
     if (format == BINJECT_FORMAT_MACHO) {
-#if defined(__APPLE__) || defined(__MACH__)
+#ifdef HAVE_LIEF
         return binject_macho_extract(executable, actual_section_name, output_file);
 #else
-        (void)actual_section_name;  /* Suppress unused warning on non-macOS platforms */
-        fprintf(stderr, "Error: Mach-O format not supported on this platform\n");
+        (void)actual_section_name;  /* Suppress unused warning when LIEF not available */
+        fprintf(stderr, "Error: Mach-O extraction requires LIEF library on %s\n",
+#if defined(_WIN32)
+                "Windows"
+#elif defined(__linux__)
+                "Linux"
+#else
+                "this platform"
+#endif
+        );
         return BINJECT_ERROR_INVALID_FORMAT;
 #endif
     } else if (format == BINJECT_FORMAT_ELF) {
@@ -720,11 +752,19 @@ int binject_verify(const char *executable, const char *section_name) {
     }
 
     if (format == BINJECT_FORMAT_MACHO) {
-#if defined(__APPLE__) || defined(__MACH__)
+#ifdef HAVE_LIEF
         return binject_macho_verify(executable, actual_section_name);
 #else
-        (void)actual_section_name;  /* Suppress unused warning on non-macOS platforms */
-        fprintf(stderr, "Error: Mach-O format not supported on this platform\n");
+        (void)actual_section_name;  /* Suppress unused warning when LIEF not available */
+        fprintf(stderr, "Error: Mach-O verification requires LIEF library on %s\n",
+#if defined(_WIN32)
+                "Windows"
+#elif defined(__linux__)
+                "Linux"
+#else
+                "this platform"
+#endif
+        );
         return BINJECT_ERROR_INVALID_FORMAT;
 #endif
     } else if (format == BINJECT_FORMAT_ELF) {

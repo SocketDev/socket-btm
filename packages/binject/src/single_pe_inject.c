@@ -21,6 +21,11 @@
 /* Shared compression library from bin-infra */
 #include "compression_common.h"
 
+/* Fallback for PATH_MAX if not defined */
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
 /* Maximum PE file size (200MB) - same as ELF for consistency (Node.js binaries) */
 #define MAX_PE_SIZE (200 * 1024 * 1024)
 

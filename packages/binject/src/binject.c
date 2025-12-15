@@ -523,14 +523,14 @@ int binject_single(const char *executable, const char *output, const char *resou
 #ifdef HAVE_LIEF
         rc = binject_elf_lief(executable, section_name, data, size);
 #else
-        rc = binject_single_elf(executable, executable, data, size, section_name, 0, 0);
+        rc = binject_single_elf(executable, executable, section_name, data, size, 0, 0);
 #endif
     } else if (format == BINJECT_FORMAT_PE) {
         /* Use LIEF for cross-platform PE injection */
 #ifdef HAVE_LIEF
         rc = binject_pe_lief(executable, section_name, data, size);
 #else
-        rc = binject_single_pe(executable, executable, data, size, section_name, 0, 0);
+        rc = binject_single_pe(executable, executable, section_name, data, size, 0, 0);
 #endif
     } else {
         fprintf(stderr, "Error: Unsupported binary format\n");

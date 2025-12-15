@@ -25,7 +25,11 @@ int binject_batch_pe(const char *executable, const char *output,
     int rc = BINJECT_OK;
 
     if (sea_data && rc == BINJECT_OK) {
+#ifdef HAVE_LIEF
         rc = binject_pe_lief(temp_path, "NODE_SEA", sea_data, sea_size);
+#else
+        rc = binject_single_pe(temp_path, temp_path, sea_data, sea_size, "NODE_SEA", 0, 0);
+#endif
         if (rc != BINJECT_OK) {
             fprintf(stderr, "Error: Failed to inject SEA section\n");
             remove(temp_path);
@@ -34,7 +38,11 @@ int binject_batch_pe(const char *executable, const char *output,
     }
 
     if (vfs_data && rc == BINJECT_OK) {
+#ifdef HAVE_LIEF
         rc = binject_pe_lief(temp_path, "NODE_VFS", vfs_data, vfs_size);
+#else
+        rc = binject_single_pe(temp_path, temp_path, vfs_data, vfs_size, "NODE_VFS", 0, 0);
+#endif
         if (rc != BINJECT_OK) {
             fprintf(stderr, "Error: Failed to inject VFS section\n");
             remove(temp_path);

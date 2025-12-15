@@ -57,8 +57,8 @@ SRC_DIR = src
 TEST_DIR = test
 
 # Source files
-SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/binject.c $(SRC_DIR)/single_elf_inject.c $(SRC_DIR)/elf_inject.c $(SRC_DIR)/pe_inject.c ../bin-infra/src/compression_common.c ../bin-infra/src/file_io_common.c
-OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/single_elf_inject.o $(BUILD_DIR)/elf_inject.o $(BUILD_DIR)/pe_inject.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o
+SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/binject.c $(SRC_DIR)/single_elf_inject.c $(SRC_DIR)/single_pe_inject.c $(SRC_DIR)/elf_inject.c $(SRC_DIR)/pe_inject.c ../bin-infra/src/compression_common.c ../bin-infra/src/file_io_common.c
+OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/single_elf_inject.o $(BUILD_DIR)/single_pe_inject.o $(BUILD_DIR)/elf_inject.o $(BUILD_DIR)/pe_inject.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o
 
 # Add LIEF C++ sources if library exists.
 ifneq (,$(wildcard $(LIEF_LIB)))

@@ -23,7 +23,6 @@ const liefUpstream = path.join(packageRoot, 'upstream/lief')
 const liefBuildDir = path.join(packageRoot, 'build/lief')
 
 const WIN32 = process.platform === 'win32'
-const DARWIN = process.platform === 'darwin'
 
 // LIEF version (tracked in upstream).
 const LIEF_VERSION = '0.17.1'
@@ -64,15 +63,26 @@ async function main() {
 
     logger.info('🔨 Building LIEF library...\n')
 
-    // Only build LIEF on macOS (where it's needed for unlimited segment sizes).
-    if (!DARWIN) {
-      logger.info('Skipping LIEF build (not on macOS)')
+    // Skip LIEF build only if submodule not initialized
+    const liefSourceDir = path.join(packageRoot, 'upstream', 'lief')
+    const liefCMakeLists = path.join(liefSourceDir, 'CMakeLists.txt')
+
+    if (!existsSync(liefCMakeLists)) {
+      logger.info('Skipping LIEF build (submodule not initialized)')
+      logger.info(
+        '  Run: git submodule update --init --recursive packages/binject/upstream/lief',
+      )
       await createCheckpoint(buildDir, 'lief-built', async () => {}, {
         skipped: true,
         platform: process.platform,
+        reason: 'submodule-not-initialized',
       })
       return
     }
+
+    logger.info(
+      `Building LIEF on ${process.platform} for cross-platform binary injection support`,
+    )
 
     // Create build directory.
     await fs.mkdir(buildDir, { recursive: true })

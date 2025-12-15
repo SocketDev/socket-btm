@@ -34,14 +34,18 @@ describe('Cross-platform binary manipulation', () => {
 
   // Test each platform/arch combination
   for (const { arch, format, platform } of getSupportedPlatforms()) {
-    // Determine if this format can be injected on the current platform (without LIEF)
-    // PE works cross-platform (native APIs on all platforms)
-    // ELF works on Linux/macOS (native elf.h support), NOT on Windows (requires LIEF)
-    // Mach-O only works on macOS (native APIs), requires LIEF on other platforms
+    // Determine if this format can be injected on the current platform
+    // With LIEF built on all platforms in CI, all formats work cross-platform:
+    // PE: native APIs on all platforms
+    // ELF: native (Linux/macOS) or LIEF (Windows)
+    // Mach-O: native (macOS) or LIEF (Linux/Windows)
     const canInject =
       format === 'pe' ||
       (format === 'elf' && os.platform() !== 'win32') ||
-      (format === 'macho' && os.platform() === 'darwin')
+      (format === 'macho' && os.platform() === 'darwin') ||
+      // With LIEF built in CI, these formats now work cross-platform
+      (format === 'elf' && os.platform() === 'win32') ||
+      (format === 'macho' && os.platform() !== 'darwin')
 
     const describeOrSkip = canInject ? describe : describe.skip
 

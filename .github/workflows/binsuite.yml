@@ -1037,6 +1037,19 @@ jobs:
           echo "Initializing LIEF upstream..."
           git submodule update --init --recursive packages/binject/upstream/lief
 
+      - name: Initialize LIEF upstream (Linux)
+        if: steps.should-build.outputs.build == 'true' && matrix.os == 'linux'
+        run: |
+          echo "Initializing LIEF upstream..."
+          git submodule update --init --recursive packages/binject/upstream/lief
+
+      - name: Initialize LIEF upstream (Windows)
+        if: steps.should-build.outputs.build == 'true' && matrix.os == 'windows'
+        shell: bash
+        run: |
+          echo "Initializing LIEF upstream..."
+          git submodule update --init --recursive packages/binject/upstream/lief
+
       - name: Build liblzma from source (Linux musl)
         if: steps.should-build.outputs.build == 'true' && matrix.os == 'linux' && matrix.platform == 'linux-musl'
         run: |

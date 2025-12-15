@@ -9,7 +9,7 @@
 #include <stdio.h>
 
 /**
- * Stub for ELF injection on Windows - always returns unsupported error
+ * Stub for ELF injection on Windows - always returns invalid format error
  */
 int binject_single_elf(const char *executable, const char *output, const char *section_name,
                       const uint8_t *data, size_t size, uint32_t checksum, int is_compressed) {
@@ -22,5 +22,5 @@ int binject_single_elf(const char *executable, const char *output, const char *s
     (void)is_compressed;
 
     fprintf(stderr, "Error: ELF injection requires LIEF library on Windows\n");
-    return BINJECT_ERROR_UNSUPPORTED_PLATFORM;
+    return BINJECT_ERROR_INVALID_FORMAT;
 }

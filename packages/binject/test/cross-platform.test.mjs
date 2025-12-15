@@ -1,19 +1,24 @@
 /**
  * Cross-platform binary manipulation tests
  * Tests ability to inject into any binary format from any platform
+ *
+ * Note: Mach-O injection requires macOS (or LIEF library on other platforms).
+ * Without LIEF, only native platform injection works for Mach-O.
  */
 
 import { existsSync } from 'node:fs'
 import { unlink } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import os from 'node:os'
 import path from 'node:path'
-
-import { spawn } from '@socketsecurity/lib/spawn'
 
 import { beforeAll, describe, expect, it } from 'vitest'
 
+import { spawn } from '@socketsecurity/lib/spawn'
+
 import { getNodeBinary, getSupportedPlatforms } from './helpers/binaries.mjs'
 import { getBinjectPath } from './helpers/paths.mjs'
+
+const { tmpdir } = os
 
 const BINJECT_PATH = getBinjectPath()
 
@@ -29,7 +34,19 @@ describe('Cross-platform binary manipulation', () => {
 
   // Test each platform/arch combination
   for (const { arch, format, platform } of getSupportedPlatforms()) {
-    describe(`${platform}-${arch} (${format})`, () => {
+    // Determine if this format can be injected on the current platform
+    // PE and ELF work cross-platform, but Mach-O requires macOS (without LIEF)
+    // PE works everywhere
+    // ELF works everywhere
+    // Mach-O only on macOS
+    const canInject =
+      format === 'pe' ||
+      format === 'elf' ||
+      (format === 'macho' && os.platform() === 'darwin')
+
+    const describeOrSkip = canInject ? describe : describe.skip
+
+    describeOrSkip(`${platform}-${arch} (${format})`, () => {
       // With LIEF, all formats can be injected on any platform
       let binaryPath
       let testSeaBlob

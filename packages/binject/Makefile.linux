@@ -31,10 +31,24 @@ BUILD_MODE_DIR = build/$(BUILD_MODE)
 
 CC ?= gcc
 CXX ?= g++
+
+# LIEF paths.
+LIEF_UPSTREAM = upstream/lief
+LIEF_BUILD_DIR = build/lief
+LIEF_LIB = $(LIEF_BUILD_DIR)/libLIEF.a
+LIEF_INCLUDE_DIR = $(LIEF_UPSTREAM)/include
+
 # CFLAGS/CXXFLAGS/LDFLAGS can be set via environment (e.g., for musl include/lib paths)
 CFLAGS := -Wall -Wextra $(OPT_FLAGS) -std=c11 -I../bin-infra/src -DVERSION=\"$(VERSION)\" $(CFLAGS)
-CXXFLAGS := -Wall -Wextra $(OPT_FLAGS) -std=c++17 -I../bin-infra/src $(CXXFLAGS)
+CXXFLAGS := -Wall -Wextra $(OPT_FLAGS) -std=c++17 -I../bin-infra/src -I$(LIEF_INCLUDE_DIR) -I$(LIEF_BUILD_DIR)/include $(CXXFLAGS)
 LDFLAGS := -llzma -Wl,--gc-sections $(LDFLAGS)
+
+# Add LIEF library if it exists.
+ifneq (,$(wildcard $(LIEF_LIB)))
+    LDFLAGS += $(LIEF_LIB)
+    CFLAGS += -DHAVE_LIEF=1
+    CXXFLAGS += -DHAVE_LIEF=1
+endif
 
 TARGET = binject
 BUILD_DIR = $(BUILD_MODE_DIR)
@@ -43,8 +57,14 @@ SRC_DIR = src
 TEST_DIR = test
 
 # Source files
-SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/binject.c $(SRC_DIR)/single_elf_inject.c $(SRC_DIR)/elf_inject.c ../bin-infra/src/compression_common.c ../bin-infra/src/file_io_common.c
-OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/single_elf_inject.o $(BUILD_DIR)/elf_inject.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o
+SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/binject.c $(SRC_DIR)/single_elf_inject.c $(SRC_DIR)/elf_inject.c $(SRC_DIR)/pe_inject.c ../bin-infra/src/compression_common.c ../bin-infra/src/file_io_common.c
+OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/single_elf_inject.o $(BUILD_DIR)/elf_inject.o $(BUILD_DIR)/pe_inject.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o
+
+# Add LIEF C++ sources if library exists.
+ifneq (,$(wildcard $(LIEF_LIB)))
+    SRCS += $(SRC_DIR)/elf_inject_lief.cpp $(SRC_DIR)/pe_inject_lief.cpp
+    OBJS += $(BUILD_DIR)/elf_inject_lief.o $(BUILD_DIR)/pe_inject_lief.o
+endif
 
 # Test files
 TEST_SRCS = $(TEST_DIR)/binject_test.c $(SRC_DIR)/binject.c $(SRC_DIR)/single_elf_inject.c $(SRC_DIR)/elf_inject.c ../bin-infra/src/compression_common.c ../bin-infra/src/file_io_common.c

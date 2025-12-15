@@ -18,16 +18,16 @@ const IS_WINDOWS = process.platform === 'win32'
 // Tools that can be auto-installed via package managers
 const autoInstallableTools = ['make']
 
-// Add platform-specific compilers
+// Add platform-specific compilers (both C and C++ for LIEF support)
 if (IS_MACOS) {
-  // On macOS, clang is preferred and comes with Xcode Command Line Tools
-  autoInstallableTools.push('clang')
+  // On macOS, clang/clang++ come with Xcode Command Line Tools
+  autoInstallableTools.push('clang', 'clang++')
 } else if (IS_LINUX) {
-  // On Linux, gcc is standard
-  autoInstallableTools.push('gcc')
+  // On Linux, gcc/g++ are standard
+  autoInstallableTools.push('gcc', 'g++')
 } else if (IS_WINDOWS) {
-  // On Windows, gcc comes with MinGW
-  autoInstallableTools.push('gcc')
+  // On Windows, gcc/g++ come with MinGW
+  autoInstallableTools.push('gcc', 'g++')
 }
 
 // Tools that must exist but can't be auto-installed easily
@@ -96,11 +96,14 @@ async function main() {
 
       if (IS_MACOS) {
         console.error('\nTo install missing tools on macOS:')
-        if (result.missing.includes('clang')) {
+        if (
+          result.missing.includes('clang') ||
+          result.missing.includes('clang++')
+        ) {
           console.error('  xcode-select --install')
         }
         for (const tool of result.missing) {
-          if (tool !== 'clang') {
+          if (tool !== 'clang' && tool !== 'clang++') {
             console.error(`  brew install ${tool}`)
           }
         }

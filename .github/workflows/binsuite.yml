@@ -1031,6 +1031,15 @@ jobs:
           xcodebuild -version
           clang --version
 
+      - name: Install CMake (Windows)
+        if: steps.should-build.outputs.build == 'true' && matrix.os == 'windows'
+        shell: bash
+        run: |
+          echo "Installing CMake for LIEF build..."
+          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+          echo "Verifying CMake installation..."
+          cmake --version
+
       - name: Initialize LIEF upstream (macOS)
         if: steps.should-build.outputs.build == 'true' && matrix.os == 'macos'
         run: |
@@ -1072,7 +1081,7 @@ jobs:
           if [ "${{ matrix.platform }}" = "linux-musl" ]; then
             if [ "${{ matrix.arch }}" = "x64" ]; then
               export CC="musl-gcc"
-              export CXX="musl-gcc"
+              export CXX="musl-g++"
               # Point to musl-compiled liblzma.
               export CFLAGS="-I/usr/local/musl/include"
               export CXXFLAGS="-I/usr/local/musl/include"

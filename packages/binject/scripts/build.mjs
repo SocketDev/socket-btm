@@ -71,28 +71,32 @@ async function main() {
     )
     logger.info('')
 
-    // Build LIEF library first on macOS (required for binject).
-    if (process.platform === 'darwin') {
-      const liefLibPath = path.join(packageRoot, 'build', 'lief', 'libLIEF.a')
-      const liefCheckpointExists = await shouldRun(
-        buildDir,
-        '',
-        'lief-built',
-        false,
-      )
+    // Build LIEF library first (required for cross-platform binary injection).
+    // LIEF enables injecting into non-native binary formats:
+    // - macOS: inject into PE/ELF (Mach-O is native)
+    // - Linux: inject into PE/Mach-O (ELF is native)
+    // - Windows: inject into ELF/Mach-O (PE is native)
+    const liefLibPath = path.join(packageRoot, 'build', 'lief', 'libLIEF.a')
+    const liefCheckpointExists = await shouldRun(
+      buildDir,
+      '',
+      'lief-built',
+      false,
+    )
 
-      if (!liefCheckpointExists || !existsSync(liefLibPath)) {
-        logger.info('🔧 Building LIEF library for macOS...')
-        await runCommand(
-          'node',
-          [path.join(packageRoot, 'scripts', 'build-lief.mjs')],
-          packageRoot,
-        )
-        logger.info('')
-      } else {
-        logger.info('✓ LIEF library already built')
-        logger.info('')
-      }
+    if (!liefCheckpointExists || !existsSync(liefLibPath)) {
+      logger.info(
+        `🔧 Building LIEF library on ${process.platform} for cross-platform binary injection...`,
+      )
+      await runCommand(
+        'node',
+        [path.join(packageRoot, 'scripts', 'build-lief.mjs')],
+        packageRoot,
+      )
+      logger.info('')
+    } else {
+      logger.info('✓ LIEF library already built')
+      logger.info('')
     }
 
     // Select platform-specific Makefile

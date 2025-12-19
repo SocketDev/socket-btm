@@ -1,0 +1,57 @@
+{
+  "$schema": "./lib/external-tools-schema.json",
+  "description": "Shared external tools for ML model building (PyTorch, ONNX, Transformers)",
+  "tools": {
+    "python3": {
+      "description": "Python 3 interpreter (required for all ML tools)",
+      "packages": {
+        "darwin": {
+          "brew": "python3"
+        },
+        "linux": {
+          "apt": "python3",
+          "yum": "python3",
+          "dnf": "python3",
+          "apk": "python3"
+        },
+        "win32": {
+          "choco": "python",
+          "scoop": "python"
+        }
+      },
+      "versions": {
+        "brew": "3.13.1",
+        "apt": "3.10.12",
+        "choco": "3.13.1"
+      }
+    },
+    "transformers": {
+      "description": "Hugging Face Transformers library",
+      "type": "python",
+      "versions": {
+        "pip": "4.46.3"
+      }
+    },
+    "torch": {
+      "description": "PyTorch machine learning framework",
+      "type": "python",
+      "versions": {
+        "pip": "2.5.1"
+      }
+    },
+    "onnx": {
+      "description": "ONNX - Open Neural Network Exchange",
+      "type": "python",
+      "versions": {
+        "pip": "1.17.0"
+      }
+    },
+    "onnxruntime": {
+      "description": "ONNX Runtime inference engine",
+      "type": "python",
+      "versions": {
+        "pip": "1.19.2"
+      }
+    }
+  }
+}

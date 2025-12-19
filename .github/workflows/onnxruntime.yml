@@ -1,0 +1,370 @@
+name: ONNX Runtime WASM
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      build_mode:
+        description: 'Build mode'
+        type: choice
+        options:
+          - prod
+          - dev
+        default: prod
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+      force:
+        type: boolean
+        default: false
+      build_mode:
+        type: string
+        default: prod
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    permissions:
+      contents: read
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Load tool versions from external-tools.json
+        id: tool-versions
+        run: |
+          NODE_VERSION=$(jq -r '.tools.node.versions.recommendedVersion' packages/build-infra/external-tools.json)
+          ONNX_VERSION=$(jq -r '.sources.onnxruntime.version' packages/onnxruntime-builder/package.json)
+          echo "node-version=$NODE_VERSION" >> $GITHUB_OUTPUT
+          echo "onnx-version=$ONNX_VERSION" >> $GITHUB_OUTPUT
+          echo "Loaded Node.js: $NODE_VERSION, ONNX Runtime: $ONNX_VERSION"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: ${{ steps.tool-versions.outputs.node-version }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+        # Note: version is specified in package.json packageManager field, not here
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Load cache version from centralized config
+        id: cache-version
+        shell: bash
+        run: |
+          CACHE_VERSION=$(jq -r '.versions["onnxruntime"]' .github/cache-versions.json)
+          if [ -z "$CACHE_VERSION" ] || [ "$CACHE_VERSION" = "null" ]; then
+            echo "❌ Error: Cache version not found for onnxruntime in .github/cache-versions.json"
+            exit 1
+          fi
+          echo "version=$CACHE_VERSION" >> $GITHUB_OUTPUT
+          echo "Cache version: $CACHE_VERSION"
+
+      - name: Generate ONNX Runtime cache key
+        id: cache-key
+        env:
+          CACHE_VERSION: ${{ steps.cache-version.outputs.version }}
+        run: |
+          # Per-checkpoint cumulative hashing (like node-smol)
+
+          hash_dir() {
+            local dir=$1
+            if [ -d "$dir" ]; then
+              find "$dir" -type f -name "*.mjs" 2>/dev/null | sort | xargs shasum -a 256 2>/dev/null | shasum -a 256 | cut -d' ' -f1 || echo ""
+            else
+              echo ""
+            fi
+          }
+
+          COMMON=$(hash_dir packages/onnxruntime-builder/scripts/common)
+          PACKAGE_JSON=$(shasum -a 256 packages/onnxruntime-builder/package.json | cut -d' ' -f1)
+          BUILD_MJS=$(shasum -a 256 packages/onnxruntime-builder/scripts/build.mjs | cut -d' ' -f1)
+
+          # source-cloned: cache-version + common + source-cloned + build.mjs + package.json
+          SOURCE_CLONED_DIR=$(hash_dir packages/onnxruntime-builder/scripts/source-cloned)
+          SOURCE_CLONED_HASH=$(echo "${CACHE_VERSION}${COMMON}${SOURCE_CLONED_DIR}${BUILD_MJS}${PACKAGE_JSON}" | shasum -a 256 | cut -d' ' -f1)
+
+          # wasm-compiled
+          WASM_COMPILED_DIR=$(hash_dir packages/onnxruntime-builder/scripts/wasm-compiled)
+          WASM_COMPILED_HASH=$(echo "${SOURCE_CLONED_HASH}${WASM_COMPILED_DIR}" | shasum -a 256 | cut -d' ' -f1)
+
+          # wasm-released
+          WASM_RELEASE_DIR=$(hash_dir packages/onnxruntime-builder/scripts/wasm-released)
+          WASM_RELEASE_HASH=$(echo "${WASM_COMPILED_HASH}${WASM_RELEASE_DIR}" | shasum -a 256 | cut -d' ' -f1)
+
+          # wasm-optimized
+          WASM_OPTIMIZED_DIR=$(hash_dir packages/onnxruntime-builder/scripts/wasm-optimized)
+          WASM_OPTIMIZED_HASH=$(echo "${WASM_RELEASE_HASH}${WASM_OPTIMIZED_DIR}" | shasum -a 256 | cut -d' ' -f1)
+
+          # wasm-synced: wasm-optimized + wasm-synced + wasm-sync-wrapper.mjs (shared infra)
+          WASM_SYNC_DIR=$(hash_dir packages/onnxruntime-builder/scripts/wasm-synced)
+          WASM_SYNC_WRAPPER=$(shasum -a 256 packages/build-infra/wasm-synced/wasm-sync-wrapper.mjs | cut -d' ' -f1)
+          WASM_SYNC_HASH=$(echo "${WASM_OPTIMIZED_HASH}${WASM_SYNC_DIR}${WASM_SYNC_WRAPPER}" | shasum -a 256 | cut -d' ' -f1)
+
+          # finalized
+          FINAL_DIR=$(hash_dir packages/onnxruntime-builder/scripts/finalized)
+          FINAL_HASH=$(echo "${WASM_SYNC_HASH}${FINAL_DIR}" | shasum -a 256 | cut -d' ' -f1)
+
+          echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
+          echo "source_cloned_hash=${SOURCE_CLONED_HASH}" >> $GITHUB_OUTPUT
+          echo "wasm_final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          # Load versions from external-tools.json (single source of truth)
+          NINJA_VERSION=$(node packages/build-infra/scripts/get-tool-version.mjs ninja apt)
+          sudo apt-get install -y ninja-build=${NINJA_VERSION}-*
+          echo "Installed ninja-build ${NINJA_VERSION} for faster builds"
+
+      - name: Set build mode
+        id: build-mode
+        env:
+          INPUT_BUILD_MODE: ${{ inputs.build_mode }}
+        run: |
+          # Sanitize input - only allow 'prod' or 'dev'
+          if [ "$INPUT_BUILD_MODE" = "dev" ]; then
+            BUILD_MODE="dev"
+          else
+            BUILD_MODE="prod"
+          fi
+          echo "mode=$BUILD_MODE" >> $GITHUB_OUTPUT
+          echo "Build mode: $BUILD_MODE"
+
+      - name: Restore ONNX Runtime checkpoint cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        id: onnx-checkpoint-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: |
+            packages/onnxruntime-builder/build/shared/checkpoints
+            packages/onnxruntime-builder/build/${{ steps.build-mode.outputs.mode }}/checkpoints
+          key: onnx-checkpoints-${{ steps.cache-key.outputs.cache_version }}-v${{ steps.tool-versions.outputs.onnx-version }}-${{ runner.os }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.wasm_final_hash }}
+
+      - name: Set checkpoint chain for build mode
+        id: checkpoint-chain
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          # Use get-checkpoint-chain.mjs to ensure consistency with local builds
+          # Dev mode: skip wasm-optimized (optimization is disabled)
+          # Prod mode: include wasm-optimized
+          CHAIN=$(node packages/onnxruntime-builder/scripts/get-checkpoint-chain.mjs --$BUILD_MODE)
+          echo "checkpoint_chain=$CHAIN" >> $GITHUB_OUTPUT
+          # Convert comma-separated to space-separated for validation
+          CHECKPOINTS=$(echo "$CHAIN" | tr ',' ' ')
+          echo "checkpoints=$CHECKPOINTS" >> $GITHUB_OUTPUT
+          echo "Checkpoint chain for $BUILD_MODE mode: $CHAIN"
+
+      - name: Validate checkpoint cache integrity
+        id: validate-cache
+        if: steps.onnx-checkpoint-cache.outputs.cache-hit == 'true'
+        uses: ./.github/actions/validate-checkpoints
+        with:
+          checkpoint-dirs: packages/onnxruntime-builder/build/shared/checkpoints:packages/onnxruntime-builder/build/${{ steps.build-mode.outputs.mode }}/checkpoints
+          checkpoints: ${{ steps.checkpoint-chain.outputs.checkpoints }}
+          package-name: onnxruntime-builder
+
+      - name: Restore build output from checkpoint chain
+        id: restore-checkpoint
+        uses: ./.github/actions/restore-checkpoint
+        with:
+          package-name: 'onnxruntime-builder'
+          build-mode: ${{ steps.build-mode.outputs.mode }}
+          checkpoint-chain: ${{ steps.checkpoint-chain.outputs.checkpoint_chain }}
+          cache-hit: ${{ steps.onnx-checkpoint-cache.outputs.cache-hit }}
+          cache-valid: ${{ steps.validate-cache.outputs.valid }}
+
+      - name: Build ONNX Runtime WASM
+        id: build
+        if: |
+          (steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          steps.restore-checkpoint.outputs.needs-build == 'true'
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "⏱️ Build started at $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          BUILD_START=$(date +%s)
+
+          pnpm --filter onnxruntime-builder build --$BUILD_MODE
+
+          BUILD_END=$(date +%s)
+          BUILD_DURATION=$((BUILD_END - BUILD_START))
+          # Note: date +%s requires GNU date (available on GitHub Actions runners: ubuntu, macos, windows)
+          # Not portable to busybox (Alpine) or pure BSD systems without GNU coreutils
+          # Time formatting uses pure POSIX arithmetic for maximum portability
+          HOURS=$((BUILD_DURATION / 3600))
+          MINUTES=$(((BUILD_DURATION % 3600) / 60))
+          SECONDS=$((BUILD_DURATION % 60))
+          printf "⏱️ Build completed in %ds (%02d:%02d:%02d)\n" "$BUILD_DURATION" "$HOURS" "$MINUTES" "$SECONDS"
+
+      - name: Validate build output
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "Validating ONNX Runtime build output..."
+
+          if [ ! -f "packages/onnxruntime-builder/build/${BUILD_MODE}/out/Final/ort.wasm" ]; then
+            echo "❌ Build failed: WASM file missing"
+            exit 1
+          fi
+
+          if [ ! -f "packages/onnxruntime-builder/build/${BUILD_MODE}/out/Final/ort.mjs" ]; then
+            echo "❌ Build failed: MJS file missing"
+            exit 1
+          fi
+
+          if [ ! -f "packages/onnxruntime-builder/build/${BUILD_MODE}/out/Final/ort-sync.js" ]; then
+            echo "❌ Build failed: Sync JS file missing"
+            exit 1
+          fi
+
+          if [ ! -f "packages/onnxruntime-builder/build/${BUILD_MODE}/out/Final/ort-sync.mjs" ]; then
+            echo "❌ Build failed: Sync MJS file missing"
+            exit 1
+          fi
+
+          WASM_SIZE=$(stat -c%s "packages/onnxruntime-builder/build/${BUILD_MODE}/out/Final/ort.wasm" 2>/dev/null || stat -f%z "packages/onnxruntime-builder/build/${BUILD_MODE}/out/Final/ort.wasm")
+          if [ "$WASM_SIZE" -lt 1000000 ]; then
+            echo "❌ Build failed: WASM file too small ($WASM_SIZE bytes)"
+            exit 1
+          fi
+
+          echo "✅ Build validation passed"
+
+      - name: Upload ONNX Runtime artifacts
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: onnxruntime-wasm
+          path: packages/onnxruntime-builder/build/${{ steps.build-mode.outputs.mode }}/out/Final/
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Cleanup before cache save
+        if: always()
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "Cleaning up temporary files before cache save..."
+
+          # Remove temporary build files that shouldn't be cached
+          TEMP_DIRS=(
+            "packages/onnxruntime-builder/build/${BUILD_MODE}/temp"
+            "packages/onnxruntime-builder/build/${BUILD_MODE}/out"
+          )
+
+          for DIR in "${TEMP_DIRS[@]}"; do
+            if [ -d "$DIR" ]; then
+              echo "Removing: $DIR"
+              rm -rf "$DIR"
+            fi
+          done
+
+          echo "✅ Cleanup complete"
+
+  release:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .node-version
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Load ONNX version from package.json
+        id: tool-versions
+        run: |
+          ONNX_VERSION=$(jq -r '.sources.onnxruntime.version' packages/onnxruntime-builder/package.json)
+          echo "onnx-version=$ONNX_VERSION" >> $GITHUB_OUTPUT
+          echo "Loaded ONNX Runtime: $ONNX_VERSION"
+
+      - name: Download ONNX Runtime artifacts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: onnxruntime-wasm
+          path: packages/onnxruntime-builder/build/prod/out/Final/
+
+      - name: Generate version
+        id: version
+        run: |
+          source .github/scripts/generate-version.sh
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Generate checksums
+        run: |
+          cd packages/onnxruntime-builder/build/prod/out/Final
+          shasum -a 256 *.wasm *.mjs *.js > checksums.txt
+          cat checksums.txt
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STEPS_VERSION_OUTPUTS_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          VERSION="${STEPS_VERSION_OUTPUTS_VERSION}"
+          RELEASE_NAME="onnxruntime"
+          TAG="${RELEASE_NAME}-v${VERSION}"
+
+          # Check if release already exists
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, uploading assets..."
+            gh release upload "$TAG" \
+              packages/onnxruntime-builder/build/prod/out/Final/*.wasm \
+              packages/onnxruntime-builder/build/prod/out/Final/*.mjs \
+              packages/onnxruntime-builder/build/prod/out/Final/*.js \
+              packages/onnxruntime-builder/build/prod/out/Final/checksums.txt \
+              --clobber
+          else
+            echo "Creating new release $TAG..."
+            gh release create "$TAG" \
+              --title "ONNX Runtime WASM v${VERSION}" \
+              --notes "ONNX Runtime v${{ steps.tool-versions.outputs.onnx-version }} compiled to WASM with SIMD and threading support.
+
+          ## Included Files
+          - \`ort.wasm\` - WASM binary with SIMD + threading
+          - \`ort.mjs\` - ES module loader
+          - \`ort-sync.js\` - Synchronous CommonJS wrapper
+          - \`ort-sync.mjs\` - Synchronous ES module wrapper
+          - \`checksums.txt\` - SHA256 checksums
+
+          Built from ONNX Runtime v${{ steps.tool-versions.outputs.onnx-version }}" \
+              packages/onnxruntime-builder/build/prod/out/Final/*.wasm \
+              packages/onnxruntime-builder/build/prod/out/Final/*.mjs \
+              packages/onnxruntime-builder/build/prod/out/Final/*.js \
+              packages/onnxruntime-builder/build/prod/out/Final/checksums.txt
+          fi

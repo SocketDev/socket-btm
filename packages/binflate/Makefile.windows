@@ -1,0 +1,79 @@
+# binflate Makefile for Windows
+# PE binary decompression tool
+
+# Build mode: dev (default locally, fast builds) or prod (optimized for size/speed)
+# Auto-detects CI environment and defaults accordingly:
+# - Local: defaults to dev for fast iteration
+# - CI: defaults to prod for optimized releases
+ifdef CI
+BUILD_MODE ?= prod
+else
+BUILD_MODE ?= dev
+endif
+
+# Version info: YYYYMMDD-commit format
+BUILD_DATE := $(shell date -u +"%Y%m%d")
+BUILD_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+VERSION := $(BUILD_DATE)-$(BUILD_COMMIT)
+
+# Build mode flags
+ifeq ($(BUILD_MODE),prod)
+    # Production: optimize for size and speed, strip symbols
+    OPT_FLAGS = -Os -s -DNDEBUG
+else
+    # Development: optimize for build speed, keep debug symbols
+    OPT_FLAGS = -O0 -g
+endif
+
+# Build output directory includes mode for proper isolation
+BUILD_MODE_DIR = build/$(BUILD_MODE)
+
+# Windows builds use gcc/g++ (MinGW) for consistent ABI and static linking
+CC ?= gcc
+CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 -I../bin-infra/src -DVERSION=\"$(VERSION)\"
+LDFLAGS = -Wl,--gc-sections -lcabinet
+
+TARGET_CLI = binflate.exe
+SOURCE_CLI = src/pe_extract_cli.c
+BUILD_DIR = $(BUILD_MODE_DIR)
+BIN_DIR = $(BUILD_MODE_DIR)/out
+OUT_DIR = $(BIN_DIR)
+IMPORT_LIB = $(OUT_DIR)/libcabinet.a
+
+.PHONY: all clean test check-tools install
+
+# Check that required build tools are available
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }
+	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
+	@command -v dlltool >/dev/null 2>&1 || { echo "ERROR: dlltool not found. Install MinGW binutils."; exit 1; }
+
+# Build CLI extraction tool
+all: check-tools $(OUT_DIR)/$(TARGET_CLI)
+
+# Generate Cabinet.dll import library
+$(IMPORT_LIB): cabinet.def | $(OUT_DIR)
+	dlltool -d cabinet.def -l $@
+
+$(OUT_DIR)/$(TARGET_CLI): $(SOURCE_CLI) $(IMPORT_LIB) | $(OUT_DIR)
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
+	@echo "Built: $(OUT_DIR)/$(TARGET_CLI)"
+
+$(OUT_DIR):
+	mkdir -p $@
+
+clean:
+	@echo "Cleaning build artifacts..."
+	@rm -f build/dev/*.o build/prod/*.o 2>/dev/null || true
+	@rm -f build/dev/*.gcda build/prod/*.gcda 2>/dev/null || true
+	@rm -f build/dev/*.gcno build/prod/*.gcno 2>/dev/null || true
+	@rm -f build/dev/binflate_test.exe build/prod/binflate_test.exe 2>/dev/null || true
+	@rm -f build/dev/binflate_test_coverage.exe build/prod/binflate_test_coverage.exe 2>/dev/null || true
+	@rm -rf build/dev/out build/prod/out 2>/dev/null || true
+
+install: all
+	@echo "Decompression CLI tool built successfully: $(OUT_DIR)/$(TARGET_CLI)"
+
+test: all
+	@echo "Running binflate tests..."
+	@bash test/test.sh

@@ -1,0 +1,1167 @@
+name: BinSuite
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      build_mode:
+        description: 'Build mode'
+        type: choice
+        options:
+          - prod
+          - dev
+        default: prod
+      tools:
+        description: 'Tools to build (comma-separated: binpress,binflate,binject or "all")'
+        type: string
+        default: 'all'
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+      build_mode:
+        type: string
+        default: prod
+      tools:
+        type: string
+        default: 'all'
+
+permissions:
+  contents: read
+
+jobs:
+  # Job group 1: binpress
+  binpress:
+    permissions:
+      contents: read
+    name: ${{ matrix.platform && format('binpress / {0}-{1}', matrix.platform, matrix.arch) || 'binpress' }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    if: inputs.tools == 'all' || contains(inputs.tools, 'binpress')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS builds
+          - runner: macos-14
+            platform: darwin
+            arch: arm64
+            os: macos
+          - runner: macos-15-large
+            platform: darwin
+            arch: x64
+            os: macos
+
+          # Linux glibc builds
+          - runner: ubuntu-22.04
+            platform: linux
+            arch: x64
+            os: linux
+          - runner: ubuntu-22.04-arm
+            platform: linux
+            arch: arm64
+            os: linux
+
+          # Linux musl builds (Alpine)
+          - runner: ubuntu-22.04
+            platform: linux-musl
+            arch: x64
+            os: linux
+          - runner: ubuntu-22.04-arm
+            platform: linux-musl
+            arch: arm64
+            os: linux
+
+          # Windows builds
+          - runner: windows-2022
+            platform: win32
+            arch: x64
+            os: windows
+          # Windows ARM64: Cross-compile on x64 runner (no ARM64 hosted runners available)
+          - runner: windows-2022
+            platform: win32
+            arch: arm64
+            os: windows
+            cross_compile: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .node-version
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check if tool should be built
+        id: build-enabled
+        shell: bash
+        run: |
+          TOOLS_INPUT="${{ inputs.tools || 'all' }}"
+          TOOL="binpress"
+
+          if [ "$TOOLS_INPUT" = "all" ]; then
+            echo "build=true" >> $GITHUB_OUTPUT
+            echo "✓ Building $TOOL (all tools selected)"
+          elif echo "$TOOLS_INPUT" | grep -q "$TOOL"; then
+            echo "build=true" >> $GITHUB_OUTPUT
+            echo "✓ Building $TOOL (explicitly selected)"
+          else
+            echo "build=false" >> $GITHUB_OUTPUT
+            echo "⏭ Skipping $TOOL (not selected)"
+          fi
+
+      - name: Setup checkpoint caching
+        if: steps.build-enabled.outputs.build == 'true'
+        id: setup-checkpoints
+        uses: ./.github/actions/setup-checkpoints
+        with:
+          package-name: binpress
+          build-mode: ${{ inputs.build_mode || 'prod' }}
+          platform: ${{ matrix.platform }}
+          arch: ${{ matrix.arch }}
+
+      - name: Install QEMU and Docker (Linux - for cross-compiled binary testing)
+        if: matrix.os == 'linux' && (matrix.arch == 'arm64' || matrix.platform == 'linux-musl')
+        run: |
+          sudo apt-get update
+
+          # Install QEMU for ARM64 emulation (if ARM64 build)
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            echo "Installing QEMU user-mode for ARM64 emulation..."
+            sudo apt-get install -y qemu-user-static
+            echo "✓ QEMU installed"
+          fi
+
+          # Docker is pre-installed on GitHub Actions runners (for musl testing)
+          if [ "${{ matrix.platform }}" = "linux-musl" ]; then
+            echo "Verifying Docker is available for musl testing..."
+            docker --version || echo "⚠ Docker not available"
+          fi
+
+      - name: Setup compiler (Linux)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc g++ make
+
+      - name: Install dependencies (Linux glibc)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'linux' && matrix.platform == 'linux'
+        run: |
+          # Install liblzma and OpenSSL for Linux builds
+          sudo apt-get install -y liblzma-dev libssl-dev
+
+      - name: Install musl toolchain (Linux musl)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'linux' && matrix.platform == 'linux-musl'
+        run: |
+          # Install musl cross-compilation toolchain
+          sudo apt-get install -y musl-tools
+
+          # For ARM64, we need the cross-compiler
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu
+          fi
+
+      - name: Setup Windows build tools
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'windows'
+        shell: bash
+        run: |
+          # Install MinGW for gcc/g++ (consistent ABI with LIEF library)
+          choco install -y mingw
+          gcc --version
+          g++ --version
+
+          # Ensure make is available
+          where make || choco install -y make
+
+      - name: Select Xcode version (macOS)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'macos'
+        run: |
+          # Select appropriate Xcode version for each runner
+          # macos-14: Use Xcode 16.1 (ARM64)
+          # macos-15-large: Use Xcode 16.4 (Intel x64, default on macOS 15)
+          if [ "${{ matrix.runner }}" = "macos-14" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.1.app
+          elif [ "${{ matrix.runner }}" = "macos-15-large" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.4.app
+          fi
+          xcodebuild -version
+          clang --version
+
+      - name: Build liblzma from source (Linux musl)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'linux' && matrix.platform == 'linux-musl'
+        run: |
+          # Build liblzma from source with musl for static linking.
+          node ./.github/scripts/install-musl-liblzma.mjs "${{ matrix.arch }}"
+
+      - name: Debug build decision
+        if: steps.build-enabled.outputs.build == 'true'
+        shell: bash
+        run: |
+          echo "🔍 Build decision variables:"
+          echo "  build-enabled: ${{ steps.build-enabled.outputs.build }}"
+          echo "  build-required: ${{ steps.setup-checkpoints.outputs.build-required }}"
+          echo "  cache-hit: ${{ steps.setup-checkpoints.outputs.cache-hit }}"
+          echo "  cache-valid: ${{ steps.setup-checkpoints.outputs.cache-valid }}"
+          echo ""
+          if [ "${{ steps.setup-checkpoints.outputs.build-required }}" = "true" ]; then
+            echo "✅ Build will run"
+          else
+            echo "⏭️  Build will be skipped (checkpoint restored)"
+          fi
+
+      - name: Build binpress
+        if: steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'true'
+        shell: bash
+        working-directory: packages/binpress
+        env:
+          BUILD_MODE: ${{ steps.setup-checkpoints.outputs.build-mode }}
+        run: |
+          echo "🔨 Building binpress for ${{ matrix.platform }}-${{ matrix.arch }} (${BUILD_MODE} mode)"
+
+          # Linux musl builds: use musl-gcc or cross-compiler
+          if [ "${{ matrix.platform }}" = "linux-musl" ]; then
+            if [ "${{ matrix.arch }}" = "x64" ]; then
+              export CC="musl-gcc"
+              # Point to musl-compiled liblzma
+              export CFLAGS="-I/usr/local/musl/include"
+              export LDFLAGS="-static -L/usr/local/musl/lib"
+            elif [ "${{ matrix.arch }}" = "arm64" ]; then
+              export CC="aarch64-linux-gnu-gcc"
+              export CFLAGS="-I/usr/local/musl/include"
+              export LDFLAGS="-static -L/usr/local/musl/lib"
+            fi
+          fi
+
+          # Windows builds: use gcc/g++ (MinGW) - no env vars needed, Makefile defaults are correct
+          # For ARM64 cross-compile, MinGW would need aarch64-w64-mingw32-gcc (not currently supported)
+
+          # Use build script with --force to bypass checkpoint check
+          # (checkpoint restoration is handled by setup-checkpoints action)
+          pnpm run build -- --force
+
+          echo "✅ Build complete"
+          ls -lh build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/
+
+      - name: Verify binary
+        if: steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'false'
+        shell: bash
+        working-directory: packages/binpress
+        run: |
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            BINARY="build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/binpress.exe"
+          else
+            BINARY="build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/binpress"
+          fi
+
+          if [ ! -f "$BINARY" ]; then
+            echo "❌ Binary not found: $BINARY"
+            exit 1
+          fi
+
+          echo "✅ Binary exists: $BINARY"
+
+          # Show binary info
+          if [ "${{ matrix.os }}" = "macos" ]; then
+            file "$BINARY"
+            otool -L "$BINARY" || true
+          elif [ "${{ matrix.os }}" = "linux" ]; then
+            file "$BINARY"
+            ldd "$BINARY" || true
+          elif [ "${{ matrix.os }}" = "windows" ]; then
+            file "$BINARY" || true
+          fi
+
+      - name: Test binary (functional test)
+        if: steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'true' && matrix.arch == 'x64' && matrix.platform != 'linux-musl'
+        shell: bash
+        working-directory: packages/binpress
+        run: |
+          # Run full functional tests on native x64 platforms
+          echo "Running functional tests for binpress..."
+          bash test/test.sh
+
+      - name: Smoke test binary
+        if: steps.build-enabled.outputs.build == 'true'
+        shell: bash
+        working-directory: packages/binpress
+        run: |
+          # Deterministic smoke test: native execution, Docker, QEMU, or static verification
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            BINARY="build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/binpress.exe"
+          else
+            BINARY="build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/binpress"
+          fi
+
+          # Prepare smoke test options
+          SMOKE_TEST_ARGS="$BINARY"
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            SMOKE_TEST_ARGS="$SMOKE_TEST_ARGS --arch arm64"
+          fi
+          if [ "${{ matrix.platform }}" = "linux-musl" ]; then
+            SMOKE_TEST_ARGS="$SMOKE_TEST_ARGS --musl"
+          fi
+
+          echo "Running smoke test: node ../../packages/build-infra/scripts/smoke-test-binary.mjs $SMOKE_TEST_ARGS"
+          node ../../packages/build-infra/scripts/smoke-test-binary.mjs $SMOKE_TEST_ARGS
+
+      - name: Upload artifacts
+        if: steps.build-enabled.outputs.build == 'true'
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: binpress-${{ matrix.platform }}-${{ matrix.arch }}
+          path: packages/binpress/build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/binpress${{ matrix.os == 'windows' && '.exe' || '' }}
+          retention-days: 30
+          if-no-files-found: error
+
+
+  # Job group 2: binflate
+  binflate:
+    permissions:
+      contents: read
+    name: ${{ matrix.platform && format('binflate / {0}-{1}', matrix.platform, matrix.arch) || 'binflate' }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    if: inputs.tools == 'all' || contains(inputs.tools, 'binflate')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS builds
+          - runner: macos-14
+            platform: darwin
+            arch: arm64
+            os: macos
+          - runner: macos-15-large
+            platform: darwin
+            arch: x64
+            os: macos
+
+          # Linux glibc builds
+          - runner: ubuntu-22.04
+            platform: linux
+            arch: x64
+            os: linux
+          - runner: ubuntu-22.04-arm
+            platform: linux
+            arch: arm64
+            os: linux
+
+          # Linux musl builds (Alpine)
+          - runner: ubuntu-22.04
+            platform: linux-musl
+            arch: x64
+            os: linux
+          - runner: ubuntu-22.04-arm
+            platform: linux-musl
+            arch: arm64
+            os: linux
+
+          # Windows builds
+          - runner: windows-2022
+            platform: win32
+            arch: x64
+            os: windows
+          # Windows ARM64: Cross-compile on x64 runner (no ARM64 hosted runners available)
+          - runner: windows-2022
+            platform: win32
+            arch: arm64
+            os: windows
+            cross_compile: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .node-version
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install QEMU and Docker (Linux - for cross-compiled binary testing)
+        if: matrix.os == 'linux' && (matrix.arch == 'arm64' || matrix.platform == 'linux-musl')
+        run: |
+          sudo apt-get update
+
+          # Install QEMU for ARM64 emulation (if ARM64 build)
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            echo "Installing QEMU user-mode for ARM64 emulation..."
+            sudo apt-get install -y qemu-user-static
+            echo "✓ QEMU installed"
+          fi
+
+          # Docker is pre-installed on GitHub Actions runners (for musl testing)
+          if [ "${{ matrix.platform }}" = "linux-musl" ]; then
+            echo "Verifying Docker is available for musl testing..."
+            docker --version || echo "⚠ Docker not available"
+          fi
+
+      - name: Check if tool should be built
+        id: build-enabled
+        shell: bash
+        run: |
+          TOOLS_INPUT="${{ inputs.tools || 'all' }}"
+          TOOL="binflate"
+
+          if [ "$TOOLS_INPUT" = "all" ]; then
+            echo "build=true" >> $GITHUB_OUTPUT
+            echo "✓ Building $TOOL (all tools selected)"
+          elif echo "$TOOLS_INPUT" | grep -q "$TOOL"; then
+            echo "build=true" >> $GITHUB_OUTPUT
+            echo "✓ Building $TOOL (explicitly selected)"
+          else
+            echo "build=false" >> $GITHUB_OUTPUT
+            echo "⏭ Skipping $TOOL (not selected)"
+          fi
+
+      - name: Setup checkpoint caching
+        if: steps.build-enabled.outputs.build == 'true'
+        id: setup-checkpoints
+        uses: ./.github/actions/setup-checkpoints
+        with:
+          package-name: binflate
+          build-mode: ${{ inputs.build_mode || 'prod' }}
+          platform: ${{ matrix.platform }}
+          arch: ${{ matrix.arch }}
+
+      - name: Setup compiler (Linux)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc g++ make
+
+      - name: Install dependencies (Linux glibc)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'linux' && matrix.platform == 'linux'
+        run: |
+          # Install liblzma and OpenSSL for Linux builds
+          sudo apt-get install -y liblzma-dev libssl-dev
+
+      - name: Install musl toolchain (Linux musl)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'linux' && matrix.platform == 'linux-musl'
+        run: |
+          # Install musl cross-compilation toolchain
+          sudo apt-get install -y musl-tools
+
+          # For ARM64, we need the cross-compiler
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu
+          fi
+
+      - name: Setup Windows build tools
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'windows'
+        shell: bash
+        run: |
+          # Install MinGW for gcc/g++ (consistent ABI with LIEF library)
+          choco install -y mingw
+          gcc --version
+          g++ --version
+
+          # Ensure make is available
+          where make || choco install -y make
+
+      - name: Select Xcode version (macOS)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'macos'
+        run: |
+          # Select appropriate Xcode version for each runner
+          # macos-14: Use Xcode 16.1 (ARM64)
+          # macos-15-large: Use Xcode 16.4 (Intel x64, default on macOS 15)
+          if [ "${{ matrix.runner }}" = "macos-14" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.1.app
+          elif [ "${{ matrix.runner }}" = "macos-15-large" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.4.app
+          fi
+          xcodebuild -version
+          clang --version
+
+      - name: Build liblzma from source (Linux musl)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'linux' && matrix.platform == 'linux-musl'
+        run: |
+          # Build liblzma from source with musl for static linking.
+          node ./.github/scripts/install-musl-liblzma.mjs "${{ matrix.arch }}"
+
+      - name: Debug build decision
+        if: steps.build-enabled.outputs.build == 'true'
+        shell: bash
+        run: |
+          echo "🔍 Build decision variables:"
+          echo "  build-enabled: ${{ steps.build-enabled.outputs.build }}"
+          echo "  build-required: ${{ steps.setup-checkpoints.outputs.build-required }}"
+          echo "  cache-hit: ${{ steps.setup-checkpoints.outputs.cache-hit }}"
+          echo "  cache-valid: ${{ steps.setup-checkpoints.outputs.cache-valid }}"
+          echo ""
+          if [ "${{ steps.setup-checkpoints.outputs.build-required }}" = "true" ]; then
+            echo "✅ Build will run"
+          else
+            echo "⏭️  Build will be skipped (checkpoint restored)"
+          fi
+
+      - name: Build binflate
+        if: steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'true'
+        shell: bash
+        working-directory: packages/binflate
+        env:
+          BUILD_MODE: ${{ steps.setup-checkpoints.outputs.build-mode }}
+        run: |
+          echo "🔨 Building binflate for ${{ matrix.platform }}-${{ matrix.arch }} (${BUILD_MODE} mode)"
+
+          # Linux musl builds: use musl-gcc or cross-compiler
+          if [ "${{ matrix.platform }}" = "linux-musl" ]; then
+            if [ "${{ matrix.arch }}" = "x64" ]; then
+              export CC="musl-gcc"
+              # Point to musl-compiled liblzma
+              export CFLAGS="-I/usr/local/musl/include"
+              export LDFLAGS="-static -L/usr/local/musl/lib"
+            elif [ "${{ matrix.arch }}" = "arm64" ]; then
+              export CC="aarch64-linux-gnu-gcc"
+              export CFLAGS="-I/usr/local/musl/include"
+              export LDFLAGS="-static -L/usr/local/musl/lib"
+            fi
+          fi
+
+          # Windows builds: use gcc/g++ (MinGW) - no env vars needed, Makefile defaults are correct
+          # For ARM64 cross-compile, MinGW would need aarch64-w64-mingw32-gcc (not currently supported)
+
+          # Use build script with --force to bypass checkpoint check
+          # (checkpoint restoration is handled by setup-checkpoints action)
+          pnpm run build -- --force
+
+          echo "✅ Build complete"
+          ls -lh build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/
+
+      - name: Verify binary
+        if: steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'false'
+        shell: bash
+        working-directory: packages/binflate
+        run: |
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            BINARY="build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/binflate.exe"
+          else
+            BINARY="build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/binflate"
+          fi
+
+          if [ ! -f "$BINARY" ]; then
+            echo "❌ Binary not found: $BINARY"
+            exit 1
+          fi
+
+          echo "✅ Binary exists: $BINARY"
+
+          # Show binary info
+          if [ "${{ matrix.os }}" = "macos" ]; then
+            file "$BINARY"
+            otool -L "$BINARY" || true
+          elif [ "${{ matrix.os }}" = "linux" ]; then
+            file "$BINARY"
+            ldd "$BINARY" || true
+          elif [ "${{ matrix.os }}" = "windows" ]; then
+            file "$BINARY" || true
+          fi
+
+      - name: Test binary (functional test)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.arch == 'x64' && matrix.platform != 'linux-musl'
+        shell: bash
+        working-directory: packages/binflate
+        run: |
+          # Run full functional tests on native x64 platforms
+          echo "Running functional tests for binflate..."
+          bash test/test.sh
+
+      - name: Smoke test binary
+        if: steps.build-enabled.outputs.build == 'true'
+        shell: bash
+        working-directory: packages/binflate
+        run: |
+          # Deterministic smoke test: native execution, Docker, QEMU, or static verification
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            BINARY="build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/binflate.exe"
+          else
+            BINARY="build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/binflate"
+          fi
+
+          # Prepare smoke test options
+          SMOKE_TEST_ARGS="$BINARY"
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            SMOKE_TEST_ARGS="$SMOKE_TEST_ARGS --arch arm64"
+          fi
+          if [ "${{ matrix.platform }}" = "linux-musl" ]; then
+            SMOKE_TEST_ARGS="$SMOKE_TEST_ARGS --musl"
+          fi
+
+          echo "Running smoke test: node ../../packages/build-infra/scripts/smoke-test-binary.mjs $SMOKE_TEST_ARGS"
+          node ../../packages/build-infra/scripts/smoke-test-binary.mjs $SMOKE_TEST_ARGS
+
+      - name: Upload artifacts
+        if: steps.build-enabled.outputs.build == 'true'
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: binflate-${{ matrix.platform }}-${{ matrix.arch }}
+          path: packages/binflate/build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/binflate${{ matrix.os == 'windows' && '.exe' || '' }}
+          retention-days: 30
+          if-no-files-found: error
+
+
+  # Job group 3: binject
+  binject:
+    permissions:
+      contents: read
+    name: ${{ matrix.platform && format('binject / {0}-{1}', matrix.platform, matrix.arch) || 'binject' }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    if: inputs.tools == 'all' || contains(inputs.tools, 'binject')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS builds
+          - runner: macos-14
+            platform: darwin
+            arch: arm64
+            os: macos
+          - runner: macos-15-large
+            platform: darwin
+            arch: x64
+            os: macos
+
+          # Linux glibc builds
+          - runner: ubuntu-22.04
+            platform: linux
+            arch: x64
+            os: linux
+          - runner: ubuntu-22.04-arm
+            platform: linux
+            arch: arm64
+            os: linux
+
+          # Linux musl builds (Alpine)
+          - runner: ubuntu-22.04
+            platform: linux-musl
+            arch: x64
+            os: linux
+          - runner: ubuntu-22.04-arm
+            platform: linux-musl
+            arch: arm64
+            os: linux
+
+          # Windows builds
+          - runner: windows-2022
+            platform: win32
+            arch: x64
+            os: windows
+          # Windows ARM64: Cross-compile on x64 runner (no ARM64 hosted runners available)
+          - runner: windows-2022
+            platform: win32
+            arch: arm64
+            os: windows
+            cross_compile: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .node-version
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install QEMU and Docker (Linux - for cross-compiled binary testing)
+        if: matrix.os == 'linux' && (matrix.arch == 'arm64' || matrix.platform == 'linux-musl')
+        run: |
+          sudo apt-get update
+
+          # Install QEMU for ARM64 emulation (if ARM64 build)
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            echo "Installing QEMU user-mode for ARM64 emulation..."
+            sudo apt-get install -y qemu-user-static
+            echo "✓ QEMU installed"
+          fi
+
+          # Docker is pre-installed on GitHub Actions runners (for musl testing)
+          if [ "${{ matrix.platform }}" = "linux-musl" ]; then
+            echo "Verifying Docker is available for musl testing..."
+            docker --version || echo "⚠ Docker not available"
+          fi
+
+      - name: Check if tool should be built
+        id: build-enabled
+        shell: bash
+        run: |
+          TOOLS_INPUT="${{ inputs.tools || 'all' }}"
+          TOOL="binject"
+
+          if [ "$TOOLS_INPUT" = "all" ]; then
+            echo "build=true" >> $GITHUB_OUTPUT
+            echo "✓ Building $TOOL (all tools selected)"
+          elif echo "$TOOLS_INPUT" | grep -q "$TOOL"; then
+            echo "build=true" >> $GITHUB_OUTPUT
+            echo "✓ Building $TOOL (explicitly selected)"
+          else
+            echo "build=false" >> $GITHUB_OUTPUT
+            echo "⏭ Skipping $TOOL (not selected)"
+          fi
+
+      - name: Setup checkpoint caching
+        if: steps.build-enabled.outputs.build == 'true'
+        id: setup-checkpoints
+        uses: ./.github/actions/setup-checkpoints
+        with:
+          package-name: binject
+          build-mode: ${{ inputs.build_mode || 'prod' }}
+          platform: ${{ matrix.platform }}
+          arch: ${{ matrix.arch }}
+          include-lief: true
+
+      - name: Setup compiler (Linux)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc g++ make
+
+      - name: Install dependencies (Linux glibc)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'linux' && matrix.platform == 'linux'
+        run: |
+          # Install liblzma and OpenSSL for Linux builds
+          sudo apt-get install -y liblzma-dev libssl-dev
+
+      - name: Install musl toolchain (Linux musl)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'linux' && matrix.platform == 'linux-musl'
+        run: |
+          # Install musl cross-compilation toolchain
+          sudo apt-get install -y musl-tools
+
+          # For ARM64, we need the cross-compiler
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu
+          fi
+
+      - name: Setup Windows build tools
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'windows'
+        shell: bash
+        run: |
+          # Install MinGW for gcc/g++ (consistent ABI with LIEF library)
+          choco install -y mingw
+          gcc --version
+          g++ --version
+
+          # Ensure make is available
+          where make || choco install -y make
+
+      - name: Select Xcode version (macOS)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'macos'
+        run: |
+          # Select appropriate Xcode version for each runner
+          # macos-14: Use Xcode 16.1 (ARM64)
+          # macos-15-large: Use Xcode 16.4 (Intel x64, default on macOS 15)
+          if [ "${{ matrix.runner }}" = "macos-14" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.1.app
+          elif [ "${{ matrix.runner }}" = "macos-15-large" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.4.app
+          fi
+          xcodebuild -version
+          clang --version
+
+      - name: Install CMake (Windows)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'windows'
+        shell: bash
+        run: |
+          echo "Installing CMake for LIEF build..."
+          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+          echo "Refreshing PATH to include CMake..."
+          export PATH="/c/Program Files/CMake/bin:$PATH"
+          echo "Verifying CMake installation..."
+          cmake --version
+
+      - name: Initialize LIEF upstream (macOS)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'macos'
+        run: |
+          echo "Initializing LIEF upstream..."
+          git submodule update --init --recursive packages/bin-infra/upstream/lief
+
+      - name: Initialize LIEF upstream (Linux)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'linux'
+        run: |
+          echo "Initializing LIEF upstream..."
+          git submodule update --init --recursive packages/bin-infra/upstream/lief
+
+      - name: Initialize LIEF upstream (Windows)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'windows'
+        shell: bash
+        run: |
+          echo "Initializing LIEF upstream..."
+          git submodule update --init --recursive packages/bin-infra/upstream/lief
+
+      - name: Build liblzma from source (Linux musl)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.os == 'linux' && matrix.platform == 'linux-musl'
+        run: |
+          # Build liblzma from source with musl for static linking.
+          node ./.github/scripts/install-musl-liblzma.mjs "${{ matrix.arch }}"
+
+      - name: Debug build decision
+        if: steps.build-enabled.outputs.build == 'true'
+        shell: bash
+        run: |
+          echo "🔍 Build decision variables:"
+          echo "  build-enabled: ${{ steps.build-enabled.outputs.build }}"
+          echo "  build-required: ${{ steps.setup-checkpoints.outputs.build-required }}"
+          echo "  cache-hit: ${{ steps.setup-checkpoints.outputs.cache-hit }}"
+          echo "  cache-valid: ${{ steps.setup-checkpoints.outputs.cache-valid }}"
+          echo ""
+          if [ "${{ steps.setup-checkpoints.outputs.build-required }}" = "true" ]; then
+            echo "✅ Build will run"
+          else
+            echo "⏭️  Build will be skipped (checkpoint restored)"
+          fi
+
+      - name: Build binject
+        if: steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'true'
+        shell: bash
+        working-directory: packages/binject
+        env:
+          BUILD_MODE: ${{ steps.setup-checkpoints.outputs.build-mode }}
+        run: |
+          echo "🔨 Building binject for ${{ matrix.platform }}-${{ matrix.arch }} (${BUILD_MODE} mode)"
+
+          # Linux musl builds: use musl-gcc or cross-compiler.
+          if [ "${{ matrix.platform }}" = "linux-musl" ]; then
+            if [ "${{ matrix.arch }}" = "x64" ]; then
+              export CC="musl-gcc"
+              export CXX="g++"
+              # Point to musl-compiled liblzma.
+              export CFLAGS="-I/usr/local/musl/include"
+              export CXXFLAGS="-static-libgcc -static-libstdc++ -I/usr/local/musl/include"
+              export LDFLAGS="-static -L/usr/local/musl/lib"
+            elif [ "${{ matrix.arch }}" = "arm64" ]; then
+              export CC="aarch64-linux-gnu-gcc"
+              export CXX="aarch64-linux-gnu-g++"
+              export CFLAGS="-I/usr/local/musl/include"
+              export CXXFLAGS="-I/usr/local/musl/include"
+              export LDFLAGS="-static -L/usr/local/musl/lib"
+            fi
+          fi
+
+          # Windows builds: use gcc/g++ (MinGW) - no env vars needed, Makefile defaults are correct
+          # For ARM64 cross-compile, MinGW would need aarch64-w64-mingw32-gcc (not currently supported)
+
+          # Use build script with --force to bypass checkpoint check
+          # (checkpoint restoration is handled by setup-checkpoints action)
+          # Build script handles LIEF (macOS), platform detection, and Makefile selection.
+          pnpm run build -- --force
+
+          echo "✅ Build complete"
+          ls -lh build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/
+
+      - name: Verify binary
+        if: steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'false'
+        shell: bash
+        working-directory: packages/binject
+        run: |
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            BINARY="build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/binject.exe"
+          else
+            BINARY="build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/binject"
+          fi
+
+          if [ ! -f "$BINARY" ]; then
+            echo "❌ Binary not found: $BINARY"
+            exit 1
+          fi
+
+          echo "✅ Binary exists: $BINARY"
+
+          # Show binary info
+          if [ "${{ matrix.os }}" = "macos" ]; then
+            file "$BINARY"
+            otool -L "$BINARY" || true
+          elif [ "${{ matrix.os }}" = "linux" ]; then
+            file "$BINARY"
+            ldd "$BINARY" || true
+          elif [ "${{ matrix.os }}" = "windows" ]; then
+            file "$BINARY" || true
+          fi
+
+      - name: Test binary (functional test)
+        if: steps.build-enabled.outputs.build == 'true' && matrix.arch == 'x64' && matrix.platform != 'linux-musl'
+        shell: bash
+        working-directory: packages/binject
+        run: |
+          # Run full functional tests on native x64 platforms
+          echo "Running functional tests for binject..."
+          node scripts/test.mjs
+
+      - name: Smoke test binary
+        if: steps.build-enabled.outputs.build == 'true'
+        shell: bash
+        working-directory: packages/binject
+        run: |
+          # Deterministic smoke test: native execution, Docker, QEMU, or static verification
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            BINARY="build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/binject.exe"
+          else
+            BINARY="build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/binject"
+          fi
+
+          # Prepare smoke test options
+          SMOKE_TEST_ARGS="$BINARY"
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            SMOKE_TEST_ARGS="$SMOKE_TEST_ARGS --arch arm64"
+          fi
+          if [ "${{ matrix.platform }}" = "linux-musl" ]; then
+            SMOKE_TEST_ARGS="$SMOKE_TEST_ARGS --musl"
+          fi
+
+          echo "Running smoke test: node ../../packages/build-infra/scripts/smoke-test-binary.mjs $SMOKE_TEST_ARGS"
+          node ../../packages/build-infra/scripts/smoke-test-binary.mjs $SMOKE_TEST_ARGS
+
+      - name: Upload artifacts
+        if: steps.build-enabled.outputs.build == 'true'
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: binject-${{ matrix.platform }}-${{ matrix.arch }}
+          path: packages/binject/build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/binject${{ matrix.os == 'windows' && '.exe' || '' }}
+          retention-days: 30
+          if-no-files-found: error
+
+  release:
+    needs: [binpress, binflate, binject]
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        tool: [binpress, binflate, binject]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .node-version
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check if tool should be released
+        id: should-release
+        shell: bash
+        run: |
+          TOOLS_INPUT="${{ inputs.tools || 'all' }}"
+          TOOL="${{ matrix.tool }}"
+
+          if [ "$TOOLS_INPUT" = "all" ]; then
+            echo "release=true" >> $GITHUB_OUTPUT
+            echo "✓ Releasing $TOOL (all tools selected)"
+          elif echo "$TOOLS_INPUT" | grep -q "$TOOL"; then
+            echo "release=true" >> $GITHUB_OUTPUT
+            echo "✓ Releasing $TOOL (explicitly selected)"
+          else
+            echo "release=false" >> $GITHUB_OUTPUT
+            echo "⏭ Skipping $TOOL release (not selected)"
+          fi
+
+      - name: Download all artifacts for ${{ matrix.tool }}
+        if: steps.should-release.outputs.release == 'true'
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          path: artifacts/
+          pattern: ${{ matrix.tool }}-*
+
+      - name: Organize release assets
+        if: steps.should-release.outputs.release == 'true'
+        env:
+          TOOL: ${{ matrix.tool }}
+        run: |
+          mkdir -p dist/${TOOL}
+
+          # Darwin ARM64
+          if [ -d "artifacts/${TOOL}-darwin-arm64" ]; then
+            mv artifacts/${TOOL}-darwin-arm64/${TOOL} \
+               dist/${TOOL}/${TOOL}-darwin-arm64 2>/dev/null || \
+            mv artifacts/${TOOL}-darwin-arm64/${TOOL}.exe \
+               dist/${TOOL}/${TOOL}-darwin-arm64.exe 2>/dev/null || true
+          fi
+
+          # Darwin x64
+          if [ -d "artifacts/${TOOL}-darwin-x64" ]; then
+            mv artifacts/${TOOL}-darwin-x64/${TOOL} \
+               dist/${TOOL}/${TOOL}-darwin-x64 2>/dev/null || \
+            mv artifacts/${TOOL}-darwin-x64/${TOOL}.exe \
+               dist/${TOOL}/${TOOL}-darwin-x64.exe 2>/dev/null || true
+          fi
+
+          # Linux glibc x64
+          if [ -d "artifacts/${TOOL}-linux-x64" ]; then
+            mv artifacts/${TOOL}-linux-x64/${TOOL} \
+               dist/${TOOL}/${TOOL}-linux-x64 2>/dev/null || \
+            mv artifacts/${TOOL}-linux-x64/${TOOL}.exe \
+               dist/${TOOL}/${TOOL}-linux-x64.exe 2>/dev/null || true
+          fi
+
+          # Linux glibc ARM64
+          if [ -d "artifacts/${TOOL}-linux-arm64" ]; then
+            mv artifacts/${TOOL}-linux-arm64/${TOOL} \
+               dist/${TOOL}/${TOOL}-linux-arm64 2>/dev/null || \
+            mv artifacts/${TOOL}-linux-arm64/${TOOL}.exe \
+               dist/${TOOL}/${TOOL}-linux-arm64.exe 2>/dev/null || true
+          fi
+
+          # Linux musl x64
+          if [ -d "artifacts/${TOOL}-linux-musl-x64" ]; then
+            mv artifacts/${TOOL}-linux-musl-x64/${TOOL} \
+               dist/${TOOL}/${TOOL}-linux-musl-x64 2>/dev/null || \
+            mv artifacts/${TOOL}-linux-musl-x64/${TOOL}.exe \
+               dist/${TOOL}/${TOOL}-linux-musl-x64.exe 2>/dev/null || true
+          fi
+
+          # Linux musl ARM64
+          if [ -d "artifacts/${TOOL}-linux-musl-arm64" ]; then
+            mv artifacts/${TOOL}-linux-musl-arm64/${TOOL} \
+               dist/${TOOL}/${TOOL}-linux-musl-arm64 2>/dev/null || \
+            mv artifacts/${TOOL}-linux-musl-arm64/${TOOL}.exe \
+               dist/${TOOL}/${TOOL}-linux-musl-arm64.exe 2>/dev/null || true
+          fi
+
+          # Windows x64
+          if [ -d "artifacts/${TOOL}-win32-x64" ]; then
+            mv artifacts/${TOOL}-win32-x64/${TOOL}.exe \
+               dist/${TOOL}/${TOOL}-win-x64.exe 2>/dev/null || \
+            mv artifacts/${TOOL}-win32-x64/${TOOL} \
+               dist/${TOOL}/${TOOL}-win-x64 2>/dev/null || true
+          fi
+
+          # Windows ARM64
+          if [ -d "artifacts/${TOOL}-win32-arm64" ]; then
+            mv artifacts/${TOOL}-win32-arm64/${TOOL}.exe \
+               dist/${TOOL}/${TOOL}-win-arm64.exe 2>/dev/null || \
+            mv artifacts/${TOOL}-win32-arm64/${TOOL} \
+               dist/${TOOL}/${TOOL}-win-arm64 2>/dev/null || true
+          fi
+
+          # Make Unix binaries executable
+          chmod +x dist/${TOOL}/${TOOL}-* 2>/dev/null || true
+
+          ls -lh dist/${TOOL}/
+
+      - name: Generate version
+        if: steps.should-release.outputs.release == 'true'
+        id: version
+        run: |
+          source .github/scripts/generate-version.sh
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Generate checksums
+        if: steps.should-release.outputs.release == 'true'
+        shell: bash
+        env:
+          TOOL: ${{ matrix.tool }}
+        run: |
+          cd dist/${TOOL}
+
+          if command -v shasum &> /dev/null; then
+            shasum -a 256 ${TOOL}-* > checksums.txt
+          elif command -v sha256sum &> /dev/null; then
+            sha256sum ${TOOL}-* > checksums.txt
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+
+          cat checksums.txt
+
+      - name: Create GitHub Release
+        if: steps.should-release.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TOOL: ${{ matrix.tool }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          RELEASE_NAME="${TOOL}"
+          TAG="${RELEASE_NAME}-${VERSION}"
+
+          # Tool descriptions
+          case "$RELEASE_NAME" in
+            binpress)
+              DESCRIPTION="Binary compression tool for Mach-O, ELF, and PE executables."
+              ;;
+            binflate)
+              DESCRIPTION="Binary decompression tool for extracting compressed executables."
+              ;;
+            binject)
+              DESCRIPTION="Binary resource injection tool for Mach-O, ELF, and PE executables."
+              ;;
+          esac
+
+          # Check if release already exists
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, uploading assets..."
+            gh release upload "$TAG" \
+              dist/${TOOL}/${TOOL}-* \
+              dist/${TOOL}/checksums.txt \
+              --clobber
+          else
+            echo "Creating new release $TAG..."
+            gh release create "$TAG" \
+              --title "${TOOL} ${VERSION}" \
+              --notes "${DESCRIPTION}
+
+          ## Platforms
+          - **macOS**: arm64, x64
+          - **Linux (glibc)**: x64, arm64
+          - **Linux (musl/Alpine)**: x64, arm64
+          - **Windows**: x64, arm64
+
+          ## Files
+          - \`${TOOL}-darwin-arm64\` - macOS Apple Silicon
+          - \`${TOOL}-darwin-x64\` - macOS Intel
+          - \`${TOOL}-linux-x64\` - Linux x64 (glibc)
+          - \`${TOOL}-linux-arm64\` - Linux ARM64 (glibc)
+          - \`${TOOL}-linux-musl-x64\` - Linux x64 (musl/Alpine)
+          - \`${TOOL}-linux-musl-arm64\` - Linux ARM64 (musl/Alpine)
+          - \`${TOOL}-win-x64.exe\` - Windows x64
+          - \`${TOOL}-win-arm64.exe\` - Windows ARM64
+          - \`checksums.txt\` - SHA256 checksums
+
+          ## Usage
+          Download the appropriate binary for your platform and run it:
+          \`\`\`bash
+          ./${TOOL}-darwin-arm64 --help
+          \`\`\`" \
+              dist/${TOOL}/${TOOL}-* \
+              dist/${TOOL}/checksums.txt
+          fi

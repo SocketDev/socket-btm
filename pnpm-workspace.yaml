@@ -16,5 +16,5 @@ catalog:
   magic-string: 0.30.19
   postject: 1.0.0-alpha.6
   tar: 7.4.3
-  vitest: 4.0.3
+  vitest: 4.0.15
   yoctocolors-cjs: 2.1.3

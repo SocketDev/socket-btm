@@ -98,7 +98,7 @@ async function main() {
     if (!existsSync(liefCMakeLists)) {
       logger.info('Skipping LIEF build (submodule not initialized)')
       logger.info(
-        '  Run: git submodule update --init --recursive packages/binject/upstream/lief',
+        '  Run: git submodule update --init --recursive packages/bin-infra/upstream/lief',
       )
       await createCheckpoint(buildDir, 'lief-built', async () => {}, {
         skipped: true,

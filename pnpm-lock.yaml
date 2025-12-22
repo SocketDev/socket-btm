@@ -93,6 +93,15 @@ importers:
         specifier: 'catalog:'
         version: 2.1.3
 
+  packages/bin-infra:
+    devDependencies:
+      '@socketsecurity/lib':
+        specifier: 'catalog:'
+        version: 5.1.0(typescript@5.9.3)
+      build-infra:
+        specifier: workspace:*
+        version: link:../build-infra
+
   packages/binflate:
     devDependencies:
       '@dotenvx/dotenvx':

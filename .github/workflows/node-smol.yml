@@ -450,6 +450,18 @@ jobs:
           cache-hit: ${{ steps.checkpoint-cache.outputs.cache-hit }}
           cache-valid: ${{ steps.validate-cache.outputs.valid }}
 
+      - name: Ensure binsuite tools (binpress, binflate, binject)
+        if: |
+          (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          steps.restore-checkpoint.outputs.needs-build == 'true'
+        shell: bash
+        env:
+          BUILD_MODE: ${{ inputs.build_mode || 'prod' }}
+        run: |
+          echo "🔧 Ensuring binsuite tools are available (download from releases or build from source)..."
+          node packages/node-smol-builder/scripts/binary-compressed/shared/download-binsuite-tools.mjs
+          echo "✅ Binsuite tools ready"
+
       - name: Build Node.js smol
         if: |
           (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||

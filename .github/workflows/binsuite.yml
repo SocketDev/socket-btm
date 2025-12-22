@@ -319,7 +319,7 @@ jobs:
 
       - name: Upload artifacts
         if: steps.build-enabled.outputs.build == 'true'
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: binpress-${{ matrix.platform }}-${{ matrix.arch }}
           path: packages/binpress/build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/binpress${{ matrix.os == 'windows' && '.exe' || '' }}
@@ -612,7 +612,7 @@ jobs:
 
       - name: Upload artifacts
         if: steps.build-enabled.outputs.build == 'true'
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: binflate-${{ matrix.platform }}-${{ matrix.arch }}
           path: packages/binflate/build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/binflate${{ matrix.os == 'windows' && '.exe' || '' }}
@@ -941,7 +941,7 @@ jobs:
 
       - name: Upload artifacts
         if: steps.build-enabled.outputs.build == 'true'
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: binject-${{ matrix.platform }}-${{ matrix.arch }}
           path: packages/binject/build/${{ steps.setup-checkpoints.outputs.build-mode }}/out/binject${{ matrix.os == 'windows' && '.exe' || '' }}

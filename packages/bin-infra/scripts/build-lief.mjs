@@ -24,7 +24,6 @@ const packageRoot = path.join(__dirname, '..')
 const BUILD_MODE = process.env.BUILD_MODE || (process.env.CI ? 'prod' : 'dev')
 const buildDir = path.join(packageRoot, 'build', BUILD_MODE)
 
-const liefUpstream = path.join(packageRoot, 'upstream/lief')
 const liefBuildDir = path.join(
   packageRoot,
   'build',
@@ -33,8 +32,6 @@ const liefBuildDir = path.join(
   'Final',
   'lief',
 )
-
-const WIN32 = process.platform === 'win32'
 
 // LIEF version (tracked in upstream).
 const LIEF_VERSION = '0.17.1'
@@ -232,220 +229,49 @@ async function main() {
 
     logger.info('🔨 Building LIEF library...\n')
 
-    // Try downloading prebuilt LIEF first.
+    // Download prebuilt LIEF (required).
     const downloaded = await downloadPrebuiltLIEF()
-    if (downloaded) {
-      // Verify library exists after download.
-      const liefLibUnixNew = path.join(
-        buildDir,
-        'out',
-        'Final',
-        'lief',
-        'libLIEF.a',
-      )
-      const liefLibMSVCNew = path.join(
-        buildDir,
-        'out',
-        'Final',
-        'lief',
-        'LIEF.lib',
-      )
-      const liefLibPathNew = existsSync(liefLibUnixNew)
-        ? liefLibUnixNew
-        : existsSync(liefLibMSVCNew)
-          ? liefLibMSVCNew
-          : null
-
-      if (liefLibPathNew && existsSync(liefLibPathNew)) {
-        const stats = await fs.stat(liefLibPathNew)
-        const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
-
-        await createCheckpoint(
-          buildDir,
-          'lief-built',
-          async () => {
-            // Verify library exists and has reasonable size.
-            const libStats = await fs.stat(liefLibPathNew)
-            if (libStats.size < 1_000_000) {
-              throw new Error(
-                `LIEF library too small: ${libStats.size} bytes (expected >1MB)`,
-              )
-            }
-
-            // Verify config.h was generated (required for compilation).
-            const configHeader = path.join(
-              liefBuildDir,
-              'include',
-              'LIEF',
-              'config.h',
-            )
-            if (!existsSync(configHeader)) {
-              throw new Error(
-                `LIEF config.h not found at ${configHeader} - incomplete download`,
-              )
-            }
-          },
-          {
-            source: 'prebuilt-release',
-            version: LIEF_VERSION,
-            libPath: path.relative(buildDir, liefLibPathNew),
-            libSize: stats.size,
-            libSizeMB: sizeMB,
-            buildDir: path.relative(packageRoot, liefBuildDir),
-            artifactPath: liefBuildDir,
-          },
-        )
-        return
-      }
-    }
-
-    // Fall back to building from source.
-    logger.info('Building LIEF from source...')
-
-    // Skip LIEF build only if submodule not initialized.
-    const liefSourceDir = path.join(packageRoot, 'upstream', 'lief')
-    const liefCMakeLists = path.join(liefSourceDir, 'CMakeLists.txt')
-
-    if (!existsSync(liefCMakeLists)) {
-      logger.info('Skipping LIEF build (submodule not initialized)')
-      logger.info(
-        '  Run: git submodule update --init --recursive packages/bin-infra/upstream/lief',
-      )
-      await createCheckpoint(buildDir, 'lief-built', async () => {}, {
-        skipped: true,
-        platform: process.platform,
-        reason: 'submodule-not-initialized',
-        artifactPath: liefBuildDir,
-      })
-      return
-    }
-
-    logger.info(
-      `Building LIEF on ${process.platform} for cross-platform binary injection support`,
-    )
-
-    // Create build directory.
-    await fs.mkdir(buildDir, { recursive: true })
-
-    // Check if LIEF upstream exists.
-    if (!existsSync(liefUpstream)) {
+    if (!downloaded) {
       throw new Error(
-        `LIEF upstream not found at ${liefUpstream}. Run 'git submodule update --init --recursive' first.`,
+        `Prebuilt LIEF not found for platform ${getPlatformArch()}. ` +
+          'Ensure LIEF workflow has created a release with the required artifacts.',
       )
     }
-    logger.info('LIEF upstream found')
 
-    // Create build directory.
-    await fs.mkdir(liefBuildDir, { recursive: true })
-
-    // Configure LIEF with CMake.
-    logger.info('Configuring LIEF with CMake...')
-    const cmakeArgs = [
-      liefUpstream,
-      '-DCMAKE_BUILD_TYPE=Release',
-      '-DLIEF_PYTHON_API=OFF',
-      '-DLIEF_C_API=OFF',
-      '-DLIEF_EXAMPLES=OFF',
-      '-DLIEF_TESTS=OFF',
-      '-DLIEF_DOC=OFF',
-      '-DLIEF_LOGGING=OFF',
-      '-DLIEF_LOGGING_DEBUG=OFF',
-      '-DLIEF_ENABLE_JSON=OFF',
-    ]
-
-    // On Windows, use gcc/MinGW for consistent ABI (CI and binsuite)
-    // LIEF must use the same compiler/ABI as binject to avoid linker errors
-    if (WIN32) {
-      // Always use gcc/g++ on Windows for MinGW ABI compatibility
-      // Even if CC/CXX env vars are set to clang, override for LIEF build
-      const cc = 'gcc'
-      const cxx = 'g++'
-
-      cmakeArgs.push(`-DCMAKE_C_COMPILER=${cc}`, `-DCMAKE_CXX_COMPILER=${cxx}`)
-
-      // Use MinGW Makefiles generator for MinGW toolchain
-      cmakeArgs.push('-G', 'MinGW Makefiles')
-
-      logger.info('Building LIEF with gcc/g++ using MinGW Makefiles')
-    }
-
-    // On musl, disable fortify source to avoid glibc-specific fortify functions.
-    // musl libc does not provide __*_chk functions (e.g., __snprintf_chk, __memcpy_chk).
-    // This prevents linking errors when binject (built on musl) tries to link LIEF.
-    // Use -U to undefine first in case it's set elsewhere, then define as 0.
-    if (isMusl()) {
-      cmakeArgs.push(
-        '-DCMAKE_C_FLAGS=-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0',
-        '-DCMAKE_CXX_FLAGS=-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0',
-      )
-      logger.info('Disabling fortify source for musl libc compatibility')
-    }
-
-    // Use ccache if available.
-    try {
-      await runCommand('which', ['ccache'], liefBuildDir)
-      cmakeArgs.push('-DCMAKE_CXX_COMPILER_LAUNCHER=ccache')
-      logger.info('Using ccache for faster compilation')
-    } catch {
-      logger.info('ccache not available, building without cache')
-    }
-
-    // Clear compiler flags that may have been set for the main binject build.
-    // LIEF build uses its own compiler settings and shouldn't inherit these.
-    // Exception: For musl, we must set CFLAGS/CXXFLAGS as environment variables
-    // to ensure subdependencies (like mbedtls) also disable fortify source.
-    const cleanEnv = {
-      CFLAGS: isMusl() ? '-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0' : undefined,
-      CXXFLAGS: isMusl() ? '-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0' : undefined,
-      LDFLAGS: undefined,
-    }
-    await runCommand('cmake', cmakeArgs, liefBuildDir, cleanEnv)
-    logger.info('')
-
-    // Build LIEF.
-    logger.info('Building LIEF (this may take 10-20 minutes)...')
-    const buildStart = Date.now()
-    // Use the same cleanEnv to ensure subdependencies get the flags.
-    await runCommand(
-      'cmake',
-      ['--build', '.', '--config', 'Release', '-j2'],
-      liefBuildDir,
-      cleanEnv,
+    // Verify library exists after download.
+    const liefLibUnixNew = path.join(
+      buildDir,
+      'out',
+      'Final',
+      'lief',
+      'libLIEF.a',
     )
-    const buildDuration = Math.round((Date.now() - buildStart) / 1000)
-    logger.info(
-      `LIEF build completed in ${buildDuration}s (${Math.floor(buildDuration / 60)}m ${buildDuration % 60}s)`,
+    const liefLibMSVCNew = path.join(
+      buildDir,
+      'out',
+      'Final',
+      'lief',
+      'LIEF.lib',
     )
-    logger.info('')
+    const liefLibPathNew = existsSync(liefLibUnixNew)
+      ? liefLibUnixNew
+      : existsSync(liefLibMSVCNew)
+        ? liefLibMSVCNew
+        : null
 
-    logger.success('LIEF build completed successfully!')
-
-    // Verify library exists (platform-specific naming).
-    // When using clang on Windows with Ninja/Unix Makefiles, it produces LIEF.lib (MSVC-style)
-    // When using gcc/MinGW on Windows, it produces libLIEF.a (Unix-style)
-    // On Unix platforms: libLIEF.a
-    let libPath = path.join(liefBuildDir, 'libLIEF.a')
-    if (!existsSync(libPath)) {
-      // Try Windows MSVC-style naming
-      libPath = path.join(liefBuildDir, 'LIEF.lib')
-      if (!existsSync(libPath)) {
-        throw new Error(
-          `LIEF library not found (checked libLIEF.a and LIEF.lib in ${liefBuildDir})`,
-        )
-      }
+    if (!liefLibPathNew || !existsSync(liefLibPathNew)) {
+      throw new Error('LIEF library not found after download')
     }
 
-    const stats = await fs.stat(libPath)
+    const stats = await fs.stat(liefLibPathNew)
     const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
-    logger.info(`LIEF library size: ${sizeMB} MB`)
 
-    // Create checkpoint.
     await createCheckpoint(
       buildDir,
       'lief-built',
       async () => {
         // Verify library exists and has reasonable size.
-        const libStats = await fs.stat(libPath)
+        const libStats = await fs.stat(liefLibPathNew)
         if (libStats.size < 1_000_000) {
           throw new Error(
             `LIEF library too small: ${libStats.size} bytes (expected >1MB)`,
@@ -461,13 +287,14 @@ async function main() {
         )
         if (!existsSync(configHeader)) {
           throw new Error(
-            `LIEF config.h not found at ${configHeader} - incomplete build`,
+            `LIEF config.h not found at ${configHeader} - incomplete download`,
           )
         }
       },
       {
+        source: 'prebuilt-release',
         version: LIEF_VERSION,
-        libPath: path.relative(buildDir, libPath),
+        libPath: path.relative(buildDir, liefLibPathNew),
         libSize: stats.size,
         libSizeMB: sizeMB,
         buildDir: path.relative(packageRoot, liefBuildDir),

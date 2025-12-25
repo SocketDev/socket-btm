@@ -1,0 +1,20 @@
+{
+  "name": "binpress",
+  "version": "0.0.0",
+  "description": "Binary compression tool",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "clean": "node scripts/clean.mjs",
+    "test": "dotenvx run --env-file=.env.test -- node scripts/test.mjs",
+    "coverage": "node ../bin-infra/scripts/run-coverage.js binpress",
+    "postinstall": "node scripts/setup-build-toolchain.mjs"
+  },
+  "devDependencies": {
+    "@dotenvx/dotenvx": "catalog:",
+    "@socketsecurity/lib": "catalog:",
+    "build-infra": "workspace:*"
+  }
+}

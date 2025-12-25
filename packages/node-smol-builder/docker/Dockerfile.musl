@@ -14,7 +14,10 @@ RUN apk add --no-cache \
     curl \
     patch \
     ccache \
-    ninja
+    ninja \
+    openssl-dev \
+    openssl-libs-static \
+    xz-dev
 
 # Install pnpm globally.
 RUN npm install -g pnpm@10.20.0

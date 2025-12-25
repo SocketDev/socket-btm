@@ -1,0 +1,5 @@
+{
+  "$schema": "../build-infra/lib/external-tools-schema.json",
+  "description": "External tools required for building binject",
+  "tools": {}
+}

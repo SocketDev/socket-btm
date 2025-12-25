@@ -1,0 +1,50 @@
+# Build binflate in container to offload compute from GitHub Actions.
+# This Dockerfile supports building for linux/amd64 and linux/arm64.
+# musl variant using Alpine 3.19.
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+FROM alpine:3.19 AS build
+
+# Install build dependencies.
+RUN apk add --no-cache \
+        nodejs \
+        npm \
+        make \
+        g++ \
+        git \
+        curl \
+        musl-dev \
+        xz-dev \
+        xz-static \
+        pkgconf \
+        && \
+    ln -sf /usr/bin/pkgconf /usr/bin/pkg-config && \
+    npm install -g pnpm@10.26.1
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy repository files.
+COPY . .
+
+# Install workspace dependencies.
+ENV CI=true
+RUN pnpm install --frozen-lockfile
+
+# Build binflate.
+ARG BUILD_MODE=prod
+ARG CACHE_VERSION=1
+ENV BUILD_MODE=$BUILD_MODE
+
+RUN echo "Cache version: ${CACHE_VERSION}" && cd packages/binflate && pnpm run build -- --force
+
+# Export stage: Copy build artifacts and checkpoints (not entire filesystem).
+# We export the entire build/ directory to preserve both:
+# - Build artifacts at build/${BUILD_MODE}/out/Final/
+# - Checkpoints at build/${BUILD_MODE}/checkpoints/ and build/shared/checkpoints/
+# Checkpoints enable GitHub Actions caching to skip expensive build steps on repeated runs.
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=build /workspace/packages/binflate/build /

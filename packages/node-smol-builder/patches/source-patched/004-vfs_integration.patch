@@ -1,0 +1,58 @@
+# @node-versions: v24.12.0
+# @description: Add Virtual Filesystem (VFS) support via CUSTOM_VFS_BLOB
+# @requires: additions/source-patched/js/vfs/*.js
+# @requires: additions/source-patched/cpp/vfs/*.{cc,h}
+# @phase: 1
+#
+# Adds VFS binding registration, C++ files to build, and process.binding() access.
+# Actual implementation is in additions/source-patched/cpp/vfs/
+#
+# NODE_SEA_BLOB and NODE_VFS_BLOB sections are added dynamically by binject at injection time.
+# No placeholder sections needed - binject creates sections on-demand on all platforms:
+# - Linux: Appends new ELF sections
+# - Windows: Appends new PE sections
+# - macOS: Uses LIEF to create new Mach-O sections in NODE_SEA segment
+#
+# This matches Node.js's official SEA workflow which expects dynamic injection.
+# Note: Mach-O section names limited to 16 characters.
+# Both sections use __ prefix to match Node.js/postject conventions.
+--- a/node.gyp
++++ b/node.gyp
+@@ -136,6 +136,7 @@
+       'src/node_report_module.cc',
+       'src/node_report_utils.cc',
+       'src/node_sea.cc',
++      'src/node_vfs.cc',
+       'src/node_serdes.cc',
+       'src/node_shadow_realm.cc',
+       'src/node_snapshotable.cc',
+@@ -272,6 +273,7 @@
+       'src/node_root_certs.h',
+       'src/node_sea.h',
+       'src/node_shadow_realm.h',
++      'src/node_vfs.h',
+       'src/node_snapshotable.h',
+       'src/node_snapshot_builder.h',
+       'src/node_sockaddr.h',
+--- a/src/node_binding.cc
++++ b/src/node_binding.cc
+@@ -92,7 +92,8 @@
+   V(util)                                                                      \
+   V(uv)                                                                        \
+   V(v8)                                                                        \
+-  V(wasi)                                                                      \
++  V(smol_vfs)                                                                  \
++  /* V(wasi) */                                                                \
+   V(wasm_web_api)                                                              \
+   V(watchdog)                                                                  \
+   V(worker)                                                                    \
+--- a/lib/internal/bootstrap/realm.js
++++ b/lib/internal/bootstrap/realm.js
+@@ -101,6 +101,7 @@
+   'os',
+   'pipe_wrap',
+   'process_wrap',
++  'smol_vfs',
+   'spawn_sync',
+   'stream_wrap',
+   'tcp_wrap',

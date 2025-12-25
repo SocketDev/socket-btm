@@ -1,19 +1,13 @@
-# Build Node.js smol in container to offload compute from GitHub Actions.
+# Build Node.js smol for glibc (Ubuntu).
 # This Dockerfile supports building for linux/amd64 and linux/arm64.
-# Supports both glibc (Ubuntu) and musl (Alpine) builds.
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
-ARG LIBC=glibc
 
-# Use Ubuntu 22.04 for glibc builds, Alpine 3.19 for musl builds.
-FROM ubuntu:22.04 AS base-glibc
-FROM alpine:3.19 AS base-musl
-FROM base-${LIBC} AS build
+FROM ubuntu:22.04
 
-# Install build dependencies (glibc/Ubuntu).
-RUN if [ -f /etc/debian_version ]; then \
-    export DEBIAN_FRONTEND=noninteractive && \
+# Install build dependencies.
+RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update && \
     apt-get install -y \
         build-essential \
@@ -40,30 +34,7 @@ RUN if [ -f /etc/debian_version ]; then \
     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100 && \
     update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-13 100 && \
     update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-13 100 && \
-    rm -rf /var/lib/apt/lists/*; \
-fi
-
-# Install build dependencies (musl/Alpine).
-RUN if [ -f /etc/alpine-release ]; then \
-    apk add --no-cache \
-        nodejs \
-        npm \
-        python3 \
-        make \
-        g++ \
-        linux-headers \
-        git \
-        curl \
-        patch \
-        ccache \
-        ninja \
-        musl-dev \
-        xz-dev \
-        openssl-dev \
-        openssl-libs-static \
-        && \
-    npm install -g pnpm@10.26.1; \
-fi
+    rm -rf /var/lib/apt/lists/*
 
 # Set working directory.
 WORKDIR /workspace
@@ -89,11 +60,7 @@ else \
     pnpm --filter node-smol-builder build --dev --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}"; \
 fi
 
-# Export stage: Copy build artifacts and checkpoints (not entire filesystem).
-# We export the entire build/ directory to preserve both:
-# - Build artifacts at build/${BUILD_MODE}/out/Final/
-# - Checkpoints at build/${BUILD_MODE}/checkpoints/ and build/shared/checkpoints/
-# Checkpoints enable GitHub Actions caching to skip expensive build steps on repeated runs.
+# Export stage: Copy build artifacts and checkpoints.
 FROM scratch AS export
 ARG BUILD_MODE=prod
-COPY --from=build /workspace/packages/node-smol-builder/build /
+COPY --from=0 /workspace/packages/node-smol-builder/build /

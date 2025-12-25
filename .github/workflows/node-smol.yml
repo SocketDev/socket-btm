@@ -489,8 +489,7 @@ jobs:
             BUILD_MODE=${{ steps.build-mode.outputs.mode }}
             MATRIX_PLATFORM=${{ matrix.platform }}
             MATRIX_ARCH=${{ matrix.arch }}
-            LIBC=${{ matrix.libc || 'glibc' }}
-          file: packages/node-smol-builder/docker/Dockerfile.build
+          file: packages/node-smol-builder/docker/Dockerfile.${{ matrix.libc || 'glibc' }}
           target: export
           outputs: type=local,dest=packages/node-smol-builder/build
           context: .

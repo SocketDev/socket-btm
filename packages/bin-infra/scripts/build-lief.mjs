@@ -110,6 +110,64 @@ async function runCommand(command, args, cwd, env = {}) {
   }
 }
 
+/**
+ * Verify that a prebuilt LIEF library is compatible with musl libc.
+ * Checks for glibc-specific fortify symbols that would cause linker errors.
+ * @param {string} libPath - Path to libLIEF.a
+ * @returns {Promise<{compatible: boolean, reason?: string}>}
+ */
+async function verifyMuslCompatibility(libPath) {
+  if (!isMusl()) {
+    return { compatible: true }
+  }
+
+  try {
+    // Use nm to check for glibc-specific fortify symbols.
+    // These symbols (__memcpy_chk, __printf_chk, etc.) don't exist in musl.
+    const { execSync } = require('node:child_process')
+    const nmOutput = execSync(`nm ${libPath} 2>/dev/null || true`, {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+
+    // Check for common glibc fortify symbols.
+    const glibcSymbols = [
+      '__memcpy_chk',
+      '__memmove_chk',
+      '__memset_chk',
+      '__strcpy_chk',
+      '__strncpy_chk',
+      '__strcat_chk',
+      '__strncat_chk',
+      '__sprintf_chk',
+      '__snprintf_chk',
+      '__printf_chk',
+      '__fprintf_chk',
+      '__vprintf_chk',
+      '__vfprintf_chk',
+      '__vsprintf_chk',
+      '__vsnprintf_chk',
+    ]
+
+    const foundSymbols = glibcSymbols.filter(sym => nmOutput.includes(sym))
+
+    if (foundSymbols.length > 0) {
+      return {
+        compatible: false,
+        reason: `Library contains glibc-specific fortify symbols: ${foundSymbols.slice(0, 3).join(', ')}${foundSymbols.length > 3 ? ` (and ${foundSymbols.length - 3} more)` : ''}`,
+      }
+    }
+
+    return { compatible: true }
+  } catch (error) {
+    // If we can't check, warn but don't fail.
+    logger.info(
+      `Warning: Could not verify musl compatibility: ${error.message}`,
+    )
+    return { compatible: true }
+  }
+}
+
 async function downloadPrebuiltLIEF() {
   try {
     logger.info('Checking for prebuilt LIEF releases...')
@@ -188,6 +246,21 @@ async function downloadPrebuiltLIEF() {
 
     // Clean up archive.
     await safeDelete(path.join(liefBuildDir, assetName))
+
+    // Verify the downloaded library is compatible with musl if running on musl.
+    const liefLibPath = path.join(liefBuildDir, 'libLIEF.a')
+    if (existsSync(liefLibPath)) {
+      const compatibility = await verifyMuslCompatibility(liefLibPath)
+      if (!compatibility.compatible) {
+        logger.info(
+          `Prebuilt LIEF is not compatible with musl: ${compatibility.reason}`,
+        )
+        logger.info('Will need to build from source for musl compatibility')
+        // Clean up the incompatible download.
+        await safeDelete(liefBuildDir)
+        return false
+      }
+    }
 
     logger.success('Successfully downloaded and extracted prebuilt LIEF')
     return true
@@ -364,10 +437,17 @@ async function main() {
     // musl libc does not provide __*_chk functions (e.g., __snprintf_chk, __memcpy_chk).
     // This prevents linking errors when binject (built on musl) tries to link LIEF.
     // Use -U to undefine first in case it's set elsewhere, then define as 0.
+    // The -Wp,-U_FORTIFY_SOURCE passes -U directly to the preprocessor (more reliable).
     if (isMusl()) {
+      // Use multiple approaches to ensure _FORTIFY_SOURCE is disabled:
+      // 1. -Wp,-U passes to preprocessor directly (bypasses compiler default flags)
+      // 2. -U_FORTIFY_SOURCE undefines at compiler level
+      // 3. -D_FORTIFY_SOURCE=0 explicitly sets to 0
+      const fortifyDisableFlags =
+        '-Wp,-U_FORTIFY_SOURCE -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0'
       cmakeArgs.push(
-        '-DCMAKE_C_FLAGS=-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0',
-        '-DCMAKE_CXX_FLAGS=-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0',
+        `-DCMAKE_C_FLAGS=${fortifyDisableFlags}`,
+        `-DCMAKE_CXX_FLAGS=${fortifyDisableFlags}`,
       )
       logger.info('Disabling fortify source for musl libc compatibility')
     }
@@ -385,9 +465,13 @@ async function main() {
     // LIEF build uses its own compiler settings and shouldn't inherit these.
     // Exception: For musl, we must set CFLAGS/CXXFLAGS as environment variables
     // to ensure subdependencies (like mbedtls) also disable fortify source.
+    // Use multiple approaches for reliability (see cmake flags comment above).
+    const muslFortifyFlags = isMusl()
+      ? '-Wp,-U_FORTIFY_SOURCE -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0'
+      : undefined
     const cleanEnv = {
-      CFLAGS: isMusl() ? '-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0' : undefined,
-      CXXFLAGS: isMusl() ? '-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0' : undefined,
+      CFLAGS: muslFortifyFlags,
+      CXXFLAGS: muslFortifyFlags,
       LDFLAGS: undefined,
     }
     await runCommand('cmake', cmakeArgs, liefBuildDir, cleanEnv)
@@ -429,6 +513,20 @@ async function main() {
     const stats = await fs.stat(libPath)
     const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
     logger.info(`LIEF library size: ${sizeMB} MB`)
+
+    // Verify musl compatibility immediately after build (fail fast).
+    const compatibility = await verifyMuslCompatibility(libPath)
+    if (!compatibility.compatible) {
+      throw new Error(
+        `LIEF build produced musl-incompatible library: ${compatibility.reason}. ` +
+          'This indicates _FORTIFY_SOURCE was not properly disabled during compilation.',
+      )
+    }
+    if (isMusl()) {
+      logger.success(
+        'LIEF library verified musl-compatible (no glibc fortify symbols)',
+      )
+    }
 
     // Create checkpoint.
     await createCheckpoint(

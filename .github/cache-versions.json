@@ -5,7 +5,7 @@
     "binflate": "v3",
     "binject": "v3",
     "binpress": "v3",
-    "lief": "v2",
+    "lief": "v3",
     "models": "v3",
     "node-smol": "v11",
     "onnxruntime": "v3",

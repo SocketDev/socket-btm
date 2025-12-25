@@ -390,11 +390,13 @@ async function main() {
       logger.info('ccache not available, building without cache')
     }
 
-    // Clear compiler flags that may have been set for the main binject build
-    // LIEF build uses its own compiler settings and shouldn't inherit these
+    // Clear compiler flags that may have been set for the main binject build.
+    // LIEF build uses its own compiler settings and shouldn't inherit these.
+    // Exception: For musl, we must set CFLAGS/CXXFLAGS as environment variables
+    // to ensure subdependencies (like mbedtls) also disable fortify source.
     const cleanEnv = {
-      CFLAGS: undefined,
-      CXXFLAGS: undefined,
+      CFLAGS: isMusl() ? '-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0' : undefined,
+      CXXFLAGS: isMusl() ? '-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0' : undefined,
       LDFLAGS: undefined,
     }
     await runCommand('cmake', cmakeArgs, liefBuildDir, cleanEnv)
@@ -403,6 +405,7 @@ async function main() {
     // Build LIEF.
     logger.info('Building LIEF (this may take 10-20 minutes)...')
     const buildStart = Date.now()
+    // Use the same cleanEnv to ensure subdependencies get the flags.
     await runCommand(
       'cmake',
       ['--build', '.', '--config', 'Release', '-j2'],

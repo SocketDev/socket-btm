@@ -293,7 +293,6 @@ async function main() {
               }
             },
             {
-              source: 'prebuilt-release',
               version: LIEF_VERSION,
               libPath: path.relative(buildDir, liefLibPathNew),
               libSize: stats.size,

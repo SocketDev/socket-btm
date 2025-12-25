@@ -1,8 +1,12 @@
+# Build Node.js smol for musl (Alpine).
+# This Dockerfile supports building for linux/amd64 and linux/arm64.
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
 FROM alpine:3.19
 
 # Install build dependencies.
-# Note: curl and patch can be auto-installed by the build script,
-# but pre-installing them improves build performance.
 RUN apk add --no-cache \
     nodejs \
     npm \
@@ -20,7 +24,33 @@ RUN apk add --no-cache \
     xz-dev
 
 # Install pnpm globally.
-RUN npm install -g pnpm@10.20.0
+RUN npm install -g pnpm@10.26.1
 
 # Set working directory.
 WORKDIR /workspace
+
+# Copy repository files.
+COPY . .
+
+# Install workspace dependencies.
+ENV CI=true
+RUN pnpm install --frozen-lockfile
+
+# Build Node.js smol.
+ARG BUILD_MODE=prod
+ARG MATRIX_PLATFORM=linux
+ARG MATRIX_ARCH=x64
+ENV BUILD_MODE=$BUILD_MODE
+ENV MATRIX_PLATFORM=$MATRIX_PLATFORM
+ENV MATRIX_ARCH=$MATRIX_ARCH
+
+RUN if [ "$BUILD_MODE" = "prod" ]; then \
+    pnpm --filter node-smol-builder build --prod --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}"; \
+else \
+    pnpm --filter node-smol-builder build --dev --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}"; \
+fi
+
+# Export stage: Copy build artifacts and checkpoints.
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=0 /workspace/packages/node-smol-builder/build /

@@ -1,0 +1,80 @@
+# Build LIEF library in container to offload compute from GitHub Actions.
+# This Dockerfile supports building LIEF for linux/amd64 and linux/arm64.
+# Supports both glibc (Ubuntu) and musl (Alpine) builds.
+
+ARG LIBC=glibc
+
+# Use Ubuntu 22.04 for glibc builds, Alpine 3.19 for musl builds.
+FROM ubuntu:22.04 AS base-glibc
+FROM alpine:3.19 AS base-musl
+FROM base-${LIBC} AS build
+
+# Install build dependencies (glibc/Ubuntu).
+RUN if [ -f /etc/debian_version ]; then \
+    export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update && \
+    apt-get install -y \
+        g++ \
+        git \
+        ccache \
+        ninja-build \
+        curl \
+        ca-certificates \
+        python3-pip \
+        && \
+    rm -rf /var/lib/apt/lists/* && \
+    pip3 install --no-cache-dir cmake>=3.24 && \
+    curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g pnpm@10.26.1 && \
+    rm -rf /var/lib/apt/lists/*; \
+fi
+
+# Install build dependencies (musl/Alpine).
+RUN if [ -f /etc/alpine-release ]; then \
+    apk add --no-cache \
+        g++ \
+        git \
+        ccache \
+        make \
+        ninja \
+        curl \
+        ca-certificates \
+        python3 \
+        py3-pip \
+        nodejs \
+        npm \
+        && \
+    pip3 install --no-cache-dir --break-system-packages cmake>=3.24 && \
+    npm install -g pnpm@10.26.1; \
+fi
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy workspace configuration files (needed for pnpm workspace).
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+
+# Copy build-infra package (workspace dependency).
+COPY packages/build-infra ./packages/build-infra
+
+# Copy bin-infra package (what we're building).
+COPY packages/bin-infra ./packages/bin-infra
+
+# Install workspace dependencies (only bin-infra package).
+ENV CI=true
+RUN pnpm install --frozen-lockfile --filter bin-infra
+
+# Build LIEF.
+ARG BUILD_MODE=prod
+ENV BUILD_MODE=$BUILD_MODE
+RUN cd packages/bin-infra && pnpm run build:lief
+
+# Export stage: Copy build artifacts (not entire filesystem).
+# We export the entire build/ directory to preserve both:
+# - Build artifacts at build/${BUILD_MODE}/out/Final/
+# - Checkpoints at build/${BUILD_MODE}/checkpoints/ and build/shared/checkpoints/
+# Checkpoints enable GitHub Actions caching to skip expensive build steps on repeated runs.
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=build /workspace/packages/bin-infra/build /

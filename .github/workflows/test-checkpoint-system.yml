@@ -1,0 +1,345 @@
+name: Test Checkpoint System
+
+# Integration tests for the checkpoint-based caching system.
+#
+# Tests the complete checkpoint lifecycle:
+# 1. Cache miss → Full build → Validation → Cache save
+# 2. Cache hit → Validation → Restore → Build
+# 3. Corrupted cache → Validation failure → Full rebuild
+#
+# This workflow validates that the checkpoint system works correctly
+# across different scenarios without requiring actual package builds.
+
+on:
+  workflow_dispatch:
+    inputs:
+      test-scenario:
+        description: 'Test scenario to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - cache-miss
+          - cache-hit
+          - corrupted-cache
+  pull_request:
+    paths:
+      - '.github/actions/validate-depot-checkpoints/**'
+      - '.github/workflows/test-checkpoint-system.yml'
+      - 'tests/validate-checkpoints.mts'
+      - 'tests/validate-checkpoints.test.mts'
+  push:
+    branches:
+      - main
+      - stable
+    paths:
+      - '.github/actions/validate-depot-checkpoints/**'
+      - '.github/workflows/test-checkpoint-system.yml'
+      - 'tests/validate-checkpoints.mts'
+      - 'tests/validate-checkpoints.test.mts'
+
+jobs:
+  # Test 1: Cache miss scenario (first build).
+  test-cache-miss:
+    name: Integration - Cache Miss
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.test-scenario == 'all' || github.event.inputs.test-scenario == 'cache-miss' || github.event.inputs.test-scenario == ''
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Create test package structure
+        run: |
+          mkdir -p packages/test-pkg/build/prod/checkpoints
+          mkdir -p packages/test-pkg/build/prod/out
+
+      - name: Create mock checkpoint archives
+        run: |
+          cd packages/test-pkg/build/prod/checkpoints
+          echo "stage1 content" > stage1.txt
+          tar -czf stage1.tar.gz stage1.txt
+          echo "stage2 content" > stage2.txt
+          tar -czf stage2.tar.gz stage2.txt
+          rm stage1.txt stage2.txt
+
+      - name: Validate checkpoints
+        uses: ./.github/actions/validate-depot-checkpoints
+        with:
+          package-path: packages/test-pkg
+          build-mode: prod
+          package-name: test-pkg
+
+      - name: Verify validation output
+        run: |
+          echo "✅ Cache miss scenario: Checkpoints validated successfully"
+
+      - name: Cache checkpoints (simulate cache save)
+        uses: actions/cache/save@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        with:
+          path: packages/test-pkg/build/prod/checkpoints
+          key: test-checkpoint-cache-miss-${{ github.run_id }}
+
+  # Test 3: Cache hit scenario (restore from cache).
+  test-cache-hit:
+    name: Integration - Cache Hit
+    runs-on: ubuntu-latest
+    needs: test-cache-miss
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.test-scenario == 'all' || github.event.inputs.test-scenario == 'cache-hit' || github.event.inputs.test-scenario == ''
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Create test package structure
+        run: |
+          mkdir -p packages/test-pkg/build/prod
+
+      - name: Restore checkpoints from cache
+        id: restore-cache
+        uses: actions/cache/restore@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        with:
+          path: packages/test-pkg/build/prod/checkpoints
+          key: test-checkpoint-cache-miss-${{ github.run_id }}
+
+      - name: Verify cache was restored
+        run: |
+          if [ "${{ steps.restore-cache.outputs.cache-hit }}" != "true" ]; then
+            echo "❌ Cache restoration failed"
+            exit 1
+          fi
+          echo "✅ Cache restored successfully"
+
+      - name: Validate restored checkpoints
+        uses: ./.github/actions/validate-depot-checkpoints
+        with:
+          package-path: packages/test-pkg
+          build-mode: prod
+          package-name: test-pkg
+
+      - name: Verify checkpoints are valid
+        run: |
+          echo "✅ Cache hit scenario: Restored checkpoints validated successfully"
+
+  # Test 4: Corrupted cache scenario (validation should fail).
+  test-corrupted-cache:
+    name: Integration - Corrupted Cache
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.test-scenario == 'all' || github.event.inputs.test-scenario == 'corrupted-cache' || github.event.inputs.test-scenario == ''
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Create test package structure
+        run: |
+          mkdir -p packages/test-pkg/build/prod/checkpoints
+
+      - name: Create corrupted checkpoint archive
+        run: |
+          cd packages/test-pkg/build/prod/checkpoints
+          echo "not a valid tar archive" > corrupted.tar
+
+      - name: Validate checkpoints (should fail)
+        id: validate
+        continue-on-error: true
+        uses: ./.github/actions/validate-depot-checkpoints
+        with:
+          package-path: packages/test-pkg
+          build-mode: prod
+          package-name: test-pkg
+
+      - name: Verify validation failed as expected
+        run: |
+          if [ "${{ steps.validate.outcome }}" == "success" ]; then
+            echo "❌ Validation should have failed for corrupted checkpoint"
+            exit 1
+          fi
+          echo "✅ Corrupted cache scenario: Validation correctly failed"
+
+  # Test 5: Empty checkpoint directories (warning scenario).
+  test-empty-directories:
+    name: Integration - Empty Directories
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.test-scenario == 'all' || github.event.inputs.test-scenario == ''
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Create empty checkpoint directories
+        run: |
+          mkdir -p packages/test-pkg/build/prod/checkpoints
+          mkdir -p packages/test-pkg/build/shared/checkpoints
+
+      - name: Validate checkpoints (should warn)
+        id: validate
+        uses: ./.github/actions/validate-depot-checkpoints
+        with:
+          package-path: packages/test-pkg
+          build-mode: prod
+          package-name: test-pkg
+
+      - name: Verify validation output
+        run: |
+          if [ "${{ steps.validate.outputs.valid }}" == "true" ]; then
+            echo "❌ Validation should report invalid for empty directories"
+            exit 1
+          fi
+          if [ "${{ steps.validate.outputs.checkpoints-found }}" != "true" ]; then
+            echo "❌ Validation should report directories found"
+            exit 1
+          fi
+          echo "✅ Empty directories scenario: Validation correctly reported no archives"
+
+  # Test 6: Mixed archive formats (.tar, .tar.gz, .tgz).
+  test-mixed-formats:
+    name: Integration - Mixed Formats
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.test-scenario == 'all' || github.event.inputs.test-scenario == ''
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Create test package structure
+        run: |
+          mkdir -p packages/test-pkg/build/prod/checkpoints
+
+      - name: Create checkpoints in different formats
+        run: |
+          cd packages/test-pkg/build/prod/checkpoints
+
+          # Create .tar checkpoint.
+          echo "stage1 content" > stage1.txt
+          tar -cf stage1.tar stage1.txt
+          rm stage1.txt
+
+          # Create .tar.gz checkpoint.
+          echo "stage2 content" > stage2.txt
+          tar -czf stage2.tar.gz stage2.txt
+          rm stage2.txt
+
+          # Create .tgz checkpoint.
+          echo "stage3 content" > stage3.txt
+          tar -czf stage3.tgz stage3.txt
+          rm stage3.txt
+
+      - name: Validate checkpoints
+        uses: ./.github/actions/validate-depot-checkpoints
+        with:
+          package-path: packages/test-pkg
+          build-mode: prod
+          package-name: test-pkg
+
+      - name: Verify all formats validated
+        run: |
+          echo "✅ Mixed formats scenario: All checkpoint formats validated successfully"
+
+  # Test 7: Shared checkpoints across build modes.
+  test-shared-checkpoints:
+    name: Integration - Shared Checkpoints
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.test-scenario == 'all' || github.event.inputs.test-scenario == ''
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Create test package structure
+        run: |
+          mkdir -p packages/test-pkg/build/prod/checkpoints
+          mkdir -p packages/test-pkg/build/shared/checkpoints
+
+      - name: Create mode-specific and shared checkpoints
+        run: |
+          # Mode-specific checkpoint.
+          cd packages/test-pkg/build/prod/checkpoints
+          echo "prod-specific content" > prod-stage.txt
+          tar -czf prod-stage.tar.gz prod-stage.txt
+          rm prod-stage.txt
+
+          # Shared checkpoint.
+          cd ../../shared/checkpoints
+          echo "shared content" > base.txt
+          tar -czf base.tar.gz base.txt
+          rm base.txt
+
+      - name: Validate checkpoints
+        uses: ./.github/actions/validate-depot-checkpoints
+        with:
+          package-path: packages/test-pkg
+          build-mode: prod
+          package-name: test-pkg
+
+      - name: Verify validation output
+        run: |
+          echo "✅ Shared checkpoints scenario: Both mode-specific and shared checkpoints validated"
+
+  # Test 8: Dev mode validation.
+  test-dev-mode:
+    name: Integration - Dev Mode
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.test-scenario == 'all' || github.event.inputs.test-scenario == ''
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Create test package structure
+        run: |
+          mkdir -p packages/test-pkg/build/dev/checkpoints
+
+      - name: Create dev mode checkpoints
+        run: |
+          cd packages/test-pkg/build/dev/checkpoints
+          echo "dev content" > dev-stage.txt
+          tar -czf dev-stage.tar.gz dev-stage.txt
+          rm dev-stage.txt
+
+      - name: Validate checkpoints
+        uses: ./.github/actions/validate-depot-checkpoints
+        with:
+          package-path: packages/test-pkg
+          build-mode: dev
+          package-name: test-pkg
+
+      - name: Verify validation output
+        run: |
+          echo "✅ Dev mode scenario: Dev mode checkpoints validated successfully"
+
+  # Summary job that depends on all tests.
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs:
+      - test-cache-miss
+      - test-cache-hit
+      - test-corrupted-cache
+      - test-empty-directories
+      - test-mixed-formats
+      - test-shared-checkpoints
+      - test-dev-mode
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          echo "=========================================="
+          echo "Checkpoint System Integration Test Summary"
+          echo "=========================================="
+          echo ""
+          echo "Cache Miss: ${{ needs.test-cache-miss.result }}"
+          echo "Cache Hit: ${{ needs.test-cache-hit.result }}"
+          echo "Corrupted Cache: ${{ needs.test-corrupted-cache.result }}"
+          echo "Empty Directories: ${{ needs.test-empty-directories.result }}"
+          echo "Mixed Formats: ${{ needs.test-mixed-formats.result }}"
+          echo "Shared Checkpoints: ${{ needs.test-shared-checkpoints.result }}"
+          echo "Dev Mode: ${{ needs.test-dev-mode.result }}"
+          echo ""
+
+          if [ "${{ needs.test-cache-miss.result }}" != "success" ] || \
+             [ "${{ needs.test-cache-hit.result }}" != "success" ] || \
+             [ "${{ needs.test-corrupted-cache.result }}" != "success" ] || \
+             [ "${{ needs.test-empty-directories.result }}" != "success" ] || \
+             [ "${{ needs.test-mixed-formats.result }}" != "success" ] || \
+             [ "${{ needs.test-shared-checkpoints.result }}" != "success" ] || \
+             [ "${{ needs.test-dev-mode.result }}" != "success" ]; then
+            echo "❌ Some tests failed"
+            exit 1
+          fi
+
+          echo "✅ All tests passed!"

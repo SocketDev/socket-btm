@@ -1,0 +1,113 @@
+{
+  "$schema": "../build-infra/lib/external-tools-schema.json",
+  "description": "Package-level external tools for AI model building (shared Python environment)",
+  "tools": {
+    "python3": {
+      "description": "Python 3 interpreter (required for all ML tools)",
+      "packages": {
+        "darwin": {
+          "brew": "python3"
+        },
+        "linux": {
+          "apt": "python3",
+          "yum": "python3",
+          "dnf": "python3",
+          "apk": "python3"
+        },
+        "win32": {
+          "choco": "python",
+          "scoop": "python"
+        }
+      },
+      "versions": {
+        "brew": "3.13.1",
+        "apt": "3.10.12",
+        "choco": "3.13.1"
+      }
+    },
+    "pip": {
+      "description": "Python package installer",
+      "type": "python",
+      "packages": {
+        "darwin": {
+          "brew": "python3"
+        },
+        "linux": {
+          "apt": "python3-pip"
+        },
+        "win32": {
+          "choco": "python"
+        }
+      },
+      "versions": {
+        "pip": "24.3.1",
+        "apt": "22.0.2"
+      },
+      "notes": "Installed with Python. Ubuntu 22.04 ships with pip 22.0.2, but we upgrade to 24.3.1 for better dependency resolution and security fixes."
+    },
+    "huggingface_hub": {
+      "description": "HuggingFace Hub client library",
+      "type": "python",
+      "versions": {
+        "pip": "0.27.0"
+      }
+    },
+    "neural_compressor": {
+      "description": "Intel Neural Compressor for model quantization",
+      "type": "python",
+      "versions": {
+        "pip": "3.1"
+      }
+    },
+    "torch": {
+      "description": "PyTorch machine learning framework",
+      "type": "python",
+      "versions": {
+        "pip": "2.5.1"
+      }
+    },
+    "transformers": {
+      "description": "HuggingFace Transformers library for NLP models",
+      "type": "python",
+      "versions": {
+        "pip": "4.46.3"
+      }
+    },
+    "optimum": {
+      "description": "HuggingFace Optimum library for model optimization",
+      "type": "python",
+      "versions": {
+        "pip": "1.23.3"
+      },
+      "extras": ["exporters"]
+    },
+    "onnx": {
+      "description": "ONNX (Open Neural Network Exchange) format library",
+      "type": "python",
+      "versions": {
+        "pip": "1.17.0"
+      }
+    },
+    "sentence_transformers": {
+      "description": "Sentence Transformers for sentence embeddings",
+      "type": "python",
+      "versions": {
+        "pip": "3.3.1"
+      }
+    },
+    "onnxruntime": {
+      "description": "ONNX Runtime inference engine",
+      "type": "python",
+      "versions": {
+        "pip": "1.21.0"
+      }
+    },
+    "onnxscript": {
+      "description": "ONNX Script for ONNX model authoring",
+      "type": "python",
+      "versions": {
+        "pip": "0.5.7"
+      }
+    }
+  }
+}

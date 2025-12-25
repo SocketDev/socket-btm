@@ -1,0 +1,29 @@
+{
+  "name": "minilm-builder",
+  "version": "0.0.0",
+  "description": "MiniLM model conversion and optimization for Socket CLI",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:force": "node scripts/build.mjs --force",
+    "clean": "node scripts/clean.mjs",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "build-infra": "workspace:*",
+    "@socketsecurity/lib": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
+  },
+  "sources": {
+    "minilm": {
+      "version": "sentence-transformers/all-MiniLM-L6-v2",
+      "type": "huggingface",
+      "url": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2",
+      "ref": "main"
+    }
+  }
+}

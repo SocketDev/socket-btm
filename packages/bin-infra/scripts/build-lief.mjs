@@ -232,92 +232,84 @@ async function main() {
 
     logger.info('🔨 Building LIEF library...\n')
 
-    // Try downloading prebuilt LIEF first.
-    const downloaded = await downloadPrebuiltLIEF()
-    if (downloaded) {
-      // Verify library exists after download.
-      const liefLibUnixNew = path.join(
-        buildDir,
-        'out',
-        'Final',
-        'lief',
-        'libLIEF.a',
-      )
-      const liefLibMSVCNew = path.join(
-        buildDir,
-        'out',
-        'Final',
-        'lief',
-        'LIEF.lib',
-      )
-      const liefLibPathNew = existsSync(liefLibUnixNew)
-        ? liefLibUnixNew
-        : existsSync(liefLibMSVCNew)
-          ? liefLibMSVCNew
-          : null
-
-      if (liefLibPathNew && existsSync(liefLibPathNew)) {
-        const stats = await fs.stat(liefLibPathNew)
-        const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
-
-        await createCheckpoint(
-          buildDir,
-          'lief-built',
-          async () => {
-            // Verify library exists and has reasonable size.
-            const libStats = await fs.stat(liefLibPathNew)
-            if (libStats.size < 1_000_000) {
-              throw new Error(
-                `LIEF library too small: ${libStats.size} bytes (expected >1MB)`,
-              )
-            }
-
-            // Verify config.h was generated (required for compilation).
-            const configHeader = path.join(
-              liefBuildDir,
-              'include',
-              'LIEF',
-              'config.h',
-            )
-            if (!existsSync(configHeader)) {
-              throw new Error(
-                `LIEF config.h not found at ${configHeader} - incomplete download`,
-              )
-            }
-          },
-          {
-            source: 'prebuilt-release',
-            version: LIEF_VERSION,
-            libPath: path.relative(buildDir, liefLibPathNew),
-            libSize: stats.size,
-            libSizeMB: sizeMB,
-            buildDir: path.relative(packageRoot, liefBuildDir),
-            artifactPath: liefBuildDir,
-          },
-        )
-        return
-      }
-    }
-
-    // Prebuilt not available, build from source.
-    logger.info('Building LIEF from source...')
-
-    // Skip LIEF build only if submodule not initialized.
+    // Check if LIEF submodule is initialized.
     const liefSourceDir = path.join(packageRoot, 'upstream', 'lief')
     const liefCMakeLists = path.join(liefSourceDir, 'CMakeLists.txt')
+    const isLiefBuild = existsSync(liefCMakeLists)
 
-    if (!existsSync(liefCMakeLists)) {
-      logger.info('Skipping LIEF build (submodule not initialized)')
-      logger.info(
-        '  Run: git submodule update --init --recursive packages/bin-infra/upstream/lief',
+    if (!isLiefBuild) {
+      // Not building LIEF itself - download prebuilt.
+      logger.info('LIEF submodule not initialized, downloading prebuilt...')
+      const downloaded = await downloadPrebuiltLIEF()
+      if (downloaded) {
+        // Verify library exists after download.
+        const liefLibUnixNew = path.join(
+          buildDir,
+          'out',
+          'Final',
+          'lief',
+          'libLIEF.a',
+        )
+        const liefLibMSVCNew = path.join(
+          buildDir,
+          'out',
+          'Final',
+          'lief',
+          'LIEF.lib',
+        )
+        const liefLibPathNew = existsSync(liefLibUnixNew)
+          ? liefLibUnixNew
+          : existsSync(liefLibMSVCNew)
+            ? liefLibMSVCNew
+            : null
+
+        if (liefLibPathNew && existsSync(liefLibPathNew)) {
+          const stats = await fs.stat(liefLibPathNew)
+          const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
+
+          await createCheckpoint(
+            buildDir,
+            'lief-built',
+            async () => {
+              // Verify library exists and has reasonable size.
+              const libStats = await fs.stat(liefLibPathNew)
+              if (libStats.size < 1_000_000) {
+                throw new Error(
+                  `LIEF library too small: ${libStats.size} bytes (expected >1MB)`,
+                )
+              }
+
+              // Verify config.h was generated (required for compilation).
+              const configHeader = path.join(
+                liefBuildDir,
+                'include',
+                'LIEF',
+                'config.h',
+              )
+              if (!existsSync(configHeader)) {
+                throw new Error(
+                  `LIEF config.h not found at ${configHeader} - incomplete download`,
+                )
+              }
+            },
+            {
+              source: 'prebuilt-release',
+              version: LIEF_VERSION,
+              libPath: path.relative(buildDir, liefLibPathNew),
+              libSize: stats.size,
+              libSizeMB: sizeMB,
+              buildDir: path.relative(packageRoot, liefBuildDir),
+              artifactPath: liefBuildDir,
+            },
+          )
+          return
+        }
+      }
+
+      // Prebuilt download failed - cannot continue.
+      throw new Error(
+        'Failed to download prebuilt LIEF. Run: git submodule update --init --recursive packages/bin-infra/upstream/lief',
       )
-      await createCheckpoint(buildDir, 'lief-built', async () => {}, {
-        skipped: true,
-        platform: process.platform,
-        reason: 'submodule-not-initialized',
-        artifactPath: liefBuildDir,
-      })
-      return
     }
 
     logger.info(

@@ -16,6 +16,6 @@ catalog:
   magic-string: 0.30.19
   octokit: 5.0.5
   postject: 1.0.0-alpha.6
-  tar: 7.4.3
+  tar: 7.5.2
   vitest: 4.0.3
   yoctocolors-cjs: 2.1.3

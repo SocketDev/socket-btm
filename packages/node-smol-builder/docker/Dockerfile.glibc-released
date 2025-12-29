@@ -1,0 +1,70 @@
+# Build Node.js smol for glibc (Ubuntu) - RELEASED ONLY.
+# This Dockerfile builds only to the binary-released stage for Depot CI.
+# Uses --build-only to skip checkpoint creation (checkpoints created in GHA).
+# Post-processing (strip, compress, finalize) runs in GitHub Actions.
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+FROM ubuntu:22.04
+
+# Install build dependencies.
+# Uses system Python 3.10 (meets minimum 3.9+ requirement).
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update && \
+    apt-get install -y \
+        build-essential \
+        git \
+        curl \
+        ccache \
+        ninja-build \
+        ca-certificates \
+        liblzma-dev \
+        libssl-dev \
+        jq \
+        python3 \
+        software-properties-common \
+        && \
+    # Install Node.js from NodeSource.
+    curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g pnpm@10.26.1 && \
+    # Install GCC 13 for Node.js v24+ (requires C++20 support).
+    add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
+    apt-get update && \
+    apt-get install -y gcc-13 g++-13 && \
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100 && \
+    update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-13 100 && \
+    update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-13 100 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy repository files.
+COPY . .
+
+# Install workspace dependencies.
+ENV CI=true
+RUN pnpm install --frozen-lockfile
+
+# Build Node.js smol (build only, no checkpoint).
+ARG BUILD_MODE=prod
+ARG MATRIX_PLATFORM=linux
+ARG MATRIX_ARCH=x64
+ENV BUILD_MODE=$BUILD_MODE
+ENV MATRIX_PLATFORM=$MATRIX_PLATFORM
+ENV MATRIX_ARCH=$MATRIX_ARCH
+
+RUN if [ "$BUILD_MODE" = "prod" ]; then \
+    pnpm --filter node-smol-builder build --prod --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}" --build-only=binary-released; \
+else \
+    pnpm --filter node-smol-builder build --dev --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}" --build-only=binary-released; \
+fi
+
+# Export stage: Copy only the Release binary (no checkpoint - created in GHA).
+# Structure must match expected paths: ${BUILD_MODE}/out/Release
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=0 /workspace/packages/node-smol-builder/build/${BUILD_MODE}/out/Release /${BUILD_MODE}/out/Release

@@ -1,0 +1,41 @@
+# Makefile for smol_stub - minimal launcher that extracts and calls binflate (Linux)
+
+CC ?= gcc
+
+# CFLAGS/LDFLAGS can be set via environment (e.g., for musl include/lib paths).
+CFLAGS := -Os -s -Wall -Wextra -std=c11 -I../../../../../build-infra/src -I../../../../../bin-infra/src $(CFLAGS)
+LDFLAGS := -static -lssl -lcrypto -llzma -Wl,--gc-sections $(LDFLAGS)
+
+SOURCE_STUB = src/elf_stub.c
+TARGET_STUB = smol_stub
+
+# Output directories.
+OUT_DIR = out
+
+# Shared source files from bin-infra.
+BIN_INFRA_SRC = ../../../../../bin-infra/src
+SMOL_SEGMENT_READER_SRC = $(BIN_INFRA_SRC)/smol_segment_reader.c
+SMOL_SEGMENT_READER_OBJ = $(OUT_DIR)/smol_segment_reader.o
+
+.PHONY: all clean install
+
+# Build self-extracting stub.
+# This stub is used by compress-binary.mjs to create self-extracting smol binaries.
+all: $(OUT_DIR)/$(TARGET_STUB)
+
+# Compile smol_segment_reader object file.
+$(SMOL_SEGMENT_READER_OBJ): $(SMOL_SEGMENT_READER_SRC) | $(OUT_DIR)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# Self-extracting stub (used during smol binary compression).
+$(OUT_DIR)/$(TARGET_STUB): $(SOURCE_STUB) $(SMOL_SEGMENT_READER_OBJ) | $(OUT_DIR)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+$(OUT_DIR):
+	mkdir -p $@
+
+clean:
+	rm -rf $(OUT_DIR)
+
+install: all
+	@echo "Self-extracting stub built successfully: $(OUT_DIR)/$(TARGET_STUB)"

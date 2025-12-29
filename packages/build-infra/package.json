@@ -1,0 +1,48 @@
+{
+  "name": "build-infra",
+  "version": "0.0.0",
+  "description": "Shared build infrastructure for building third-party dependencies from source",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./lib/build-env": "./lib/build-env.mjs",
+    "./lib/build-helpers": "./lib/build-helpers.mjs",
+    "./lib/build-output": "./lib/build-output.mjs",
+    "./lib/c-package-builder": "./lib/c-package-builder.mjs",
+    "./lib/ci-cleanup-paths": "./lib/ci-cleanup-paths.mjs",
+    "./lib/constants": "./lib/constants.mjs",
+    "./lib/checkpoint-manager": "./lib/checkpoint-manager.mjs",
+    "./lib/clean-builder": "./lib/clean-builder.mjs",
+    "./lib/compiler-installer": "./lib/compiler-installer.mjs",
+    "./lib/emscripten-installer": "./lib/emscripten-installer.mjs",
+    "./lib/environment-constants": "./lib/environment-constants.mjs",
+    "./lib/esbuild-plugin-unicode-transform": "./lib/esbuild-plugin-unicode-transform.mjs",
+    "./lib/github-releases": "./lib/github-releases.mjs",
+    "./lib/lief-downloader": "./lib/lief-downloader.mjs",
+    "./lib/node-version": "./lib/node-version.mjs",
+    "./lib/patch-validator": "./lib/patch-validator.mjs",
+    "./lib/path-builder": "./lib/path-builder.mjs",
+    "./lib/pinned-versions": "./lib/pinned-versions.mjs",
+    "./lib/python-installer": "./lib/python-installer.mjs",
+    "./lib/script-runner": "./lib/script-runner.mjs",
+    "./lib/setup-build-toolchain": "./lib/setup-build-toolchain.mjs",
+    "./lib/sign": "./lib/sign.mjs",
+    "./lib/test-helpers": "./lib/test-helpers.mjs",
+    "./lib/tool-installer": "./lib/tool-installer.mjs",
+    "./lib/version-helpers": "./lib/version-helpers.mjs",
+    "./wasm-synced/wasm-sync-wrapper": "./wasm-synced/wasm-sync-wrapper.mjs"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@socketsecurity/lib": "catalog:",
+    "acorn": "catalog:",
+    "acorn-walk": "catalog:",
+    "magic-string": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
+  }
+}

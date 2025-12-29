@@ -1,0 +1,44 @@
+# Makefile for smol_stub - minimal launcher that extracts and calls binflate (macOS)
+
+CC ?= /usr/bin/clang
+OPENSSL_PREFIX = $(shell brew --prefix openssl@3 2>/dev/null || brew --prefix openssl 2>/dev/null || echo "/usr/local")
+
+# Support cross-compilation via TARGET_ARCH environment variable (x64 = x86_64, arm64 = arm64).
+ARCH_FLAG = $(if $(TARGET_ARCH),-arch $(subst x64,x86_64,$(TARGET_ARCH)),)
+
+CFLAGS = -Os -s -Wall -Wextra -std=c11 $(ARCH_FLAG) -I../../../../../build-infra/src -I../../../../../bin-infra/src -I$(OPENSSL_PREFIX)/include
+LDFLAGS = -L$(OPENSSL_PREFIX)/lib -lssl -lcrypto -lcompression -Wl,-dead_strip
+
+SOURCE_STUB = src/macho_stub.c
+TARGET_STUB = smol_stub
+
+# Output directories.
+OUT_DIR = out
+
+# Shared source files from bin-infra.
+BIN_INFRA_SRC = ../../../../../bin-infra/src
+SMOL_SEGMENT_READER_SRC = $(BIN_INFRA_SRC)/smol_segment_reader.c
+SMOL_SEGMENT_READER_OBJ = $(OUT_DIR)/smol_segment_reader.o
+
+.PHONY: all clean install
+
+# Build self-extracting stub.
+# This stub is used by compress-binary.mjs to create self-extracting smol binaries.
+all: $(OUT_DIR)/$(TARGET_STUB)
+
+# Compile smol_segment_reader object file.
+$(SMOL_SEGMENT_READER_OBJ): $(SMOL_SEGMENT_READER_SRC) | $(OUT_DIR)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# Self-extracting stub (used during smol binary compression).
+$(OUT_DIR)/$(TARGET_STUB): $(SOURCE_STUB) $(SMOL_SEGMENT_READER_OBJ) | $(OUT_DIR)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+$(OUT_DIR):
+	mkdir -p $@
+
+clean:
+	rm -rf $(OUT_DIR)
+
+install: all
+	@echo "Self-extracting stub built successfully: $(OUT_DIR)/$(TARGET_STUB)"

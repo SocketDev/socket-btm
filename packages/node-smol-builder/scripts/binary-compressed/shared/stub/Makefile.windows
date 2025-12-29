@@ -1,0 +1,48 @@
+# Makefile for smol_stub - minimal launcher that extracts and calls binflate (Windows)
+
+# Note: CC can be overridden via environment variables (e.g., clang in CI).
+CC ?= gcc
+
+CFLAGS = -Os -Wall -Wextra -std=c11 -I../../../../../build-infra/src -I../../../../../bin-infra/src -D_CRT_SECURE_NO_WARNINGS
+LDFLAGS = -L$(OUT_DIR) -lcabinet -ladvapi32 -lshell32 -Wl,--gc-sections
+
+SOURCE_STUB = src/pe_stub.c
+TARGET_STUB = smol_stub.exe
+IMPORT_LIB = $(OUT_DIR)/libcabinet.a
+
+# Output directories.
+OUT_DIR = out
+
+# Shared source files from bin-infra.
+BIN_INFRA_SRC = ../../../../../bin-infra/src
+SMOL_SEGMENT_READER_SRC = $(BIN_INFRA_SRC)/smol_segment_reader.c
+SMOL_SEGMENT_READER_OBJ = $(OUT_DIR)/smol_segment_reader.o
+
+.PHONY: all clean install
+
+# Build self-extracting stub.
+# This stub is used by compress-binary.mjs to create self-extracting smol binaries.
+all: $(OUT_DIR)/$(TARGET_STUB)
+
+# Generate Cabinet.dll import library on Windows.
+$(IMPORT_LIB): ../../../../../bin-infra/src/cabinet.def | $(OUT_DIR)
+	dlltool -d ../../../../../bin-infra/src/cabinet.def -l $@
+
+$(OUT_DIR)/$(TARGET_STUB): $(IMPORT_LIB)
+
+# Compile smol_segment_reader object file.
+$(SMOL_SEGMENT_READER_OBJ): $(SMOL_SEGMENT_READER_SRC) | $(OUT_DIR)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# Self-extracting stub (used during smol binary compression).
+$(OUT_DIR)/$(TARGET_STUB): $(SOURCE_STUB) $(SMOL_SEGMENT_READER_OBJ) | $(OUT_DIR)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+$(OUT_DIR):
+	mkdir -p $@
+
+clean:
+	rm -rf $(OUT_DIR)
+
+install: all
+	@echo "Self-extracting stub built successfully: $(OUT_DIR)/$(TARGET_STUB)"

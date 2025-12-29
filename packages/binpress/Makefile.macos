@@ -1,0 +1,172 @@
+# binpress Makefile for macOS
+# Mach-O binary compression tool
+
+# Build mode: dev (default locally, fast builds) or prod (optimized for size/speed)
+# Auto-detects CI environment and defaults accordingly:
+# - Local: defaults to dev for fast iteration
+# - CI: defaults to prod for optimized releases
+ifdef CI
+BUILD_MODE ?= prod
+else
+BUILD_MODE ?= dev
+endif
+
+# Build output directory includes mode for proper isolation
+BUILD_MODE_DIR = build/$(BUILD_MODE)
+
+# Version info: YYYYMMDD-commit format
+BUILD_DATE := $(shell date -u +"%Y%m%d")
+BUILD_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+VERSION := $(BUILD_DATE)-$(BUILD_COMMIT)
+
+# Build mode flags
+ifeq ($(BUILD_MODE),prod)
+    # Production: optimize for size and speed, strip symbols
+    # Note: macOS can safely use -s flag for stripping
+    OPT_FLAGS = -Os -s -DNDEBUG
+else
+    # Development: optimize for build speed, keep debug symbols
+    OPT_FLAGS = -O0 -g
+endif
+
+CC = /usr/bin/clang
+CXX = /usr/bin/clang++
+
+# LIEF paths.
+# LIEF is now built in bin-infra (shared with binject).
+# LIEF is built in mode-specific directories (build/{mode}/out/Final/lief) following node-smol pattern.
+LIEF_UPSTREAM = ../bin-infra/upstream/lief
+LIEF_BUILD_DIR = ../bin-infra/build/$(BUILD_MODE)/out/Final/lief
+LIEF_LIB = $(LIEF_BUILD_DIR)/libLIEF.a
+LIEF_INCLUDE_DIR = $(LIEF_UPSTREAM)/include
+
+CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 -I../build-infra/src -I../bin-infra/src -DVERSION=\"$(VERSION)\" -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700
+CXXFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c++17 -I../build-infra/src -I../bin-infra/src -I$(LIEF_INCLUDE_DIR) -I$(LIEF_BUILD_DIR)/include
+LDFLAGS = -lcompression -Wl,-dead_strip
+
+LDFLAGS += $(LIEF_LIB)
+CFLAGS += -DHAVE_LIEF=1
+CXXFLAGS += -DHAVE_LIEF=1
+
+BUILD_DIR = $(BUILD_MODE_DIR)
+BIN_DIR = $(BUILD_MODE_DIR)/out/Final
+SRC_DIR = src
+
+TARGET = binpress
+
+# Source files.
+SRCS = $(SRC_DIR)/macho_compress.c ../bin-infra/src/compression_common.c ../bin-infra/src/file_io_common.c ../bin-infra/src/smol_segment.c
+OBJS = $(BUILD_DIR)/macho_compress.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o $(BUILD_DIR)/smol_segment.o
+
+# LIEF C++ sources are now always included (LIEF is required).
+SRCS += $(SRC_DIR)/macho_compress_segment.cpp
+OBJS += $(BUILD_DIR)/macho_compress_segment.o
+
+OUT_DIR = $(BIN_DIR)
+
+.PHONY: all clean test check-tools install cover clean-coverage
+
+# Check that required build tools are available
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }
+	@command -v $(CXX) >/dev/null 2>&1 || { echo "ERROR: $(CXX) not found. Install build tools first."; exit 1; }
+	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
+
+# Default target
+all: check-tools $(OUT_DIR)/$(TARGET)
+
+# Create directories
+$(BUILD_DIR) $(OUT_DIR):
+	@mkdir -p $@
+
+# Build binary (always use CXX since LIEF C++ is required).
+$(OUT_DIR)/$(TARGET): $(OBJS) | $(BUILD_DIR) $(OUT_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LDFLAGS)
+	@echo "Built: $(OUT_DIR)/$(TARGET)"
+	@# Sign binary with ad-hoc signature on macOS (required for Node.js spawn)
+	@codesign -s - $@ 2>/dev/null || true
+	@echo "Signed: $(OUT_DIR)/$(TARGET)"
+
+# Compile C files
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile C++ files
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Compile compression_common from bin-infra
+$(BUILD_DIR)/compression_common.o: ../bin-infra/src/compression_common.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile file_io_common from bin-infra
+$(BUILD_DIR)/file_io_common.o: ../bin-infra/src/file_io_common.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile smol_segment from bin-infra
+$(BUILD_DIR)/smol_segment.o: ../bin-infra/src/smol_segment.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Clean build artifacts (preserve LIEF installation).
+clean:
+	@echo "Cleaning build artifacts (preserving LIEF)..."
+	@find build/dev build/prod -type f -name '*.o' -delete 2>/dev/null || true
+	@find build/dev build/prod -type f -name '*.gcda' -delete 2>/dev/null || true
+	@find build/dev build/prod -type f -name '*.gcno' -delete 2>/dev/null || true
+	@rm -f build/dev/binpress_test build/prod/binpress_test 2>/dev/null || true
+	@rm -f build/dev/binpress_test_coverage build/prod/binpress_test_coverage 2>/dev/null || true
+	@rm -rf build/dev/out build/prod/out 2>/dev/null || true
+
+install: all
+	@echo "Compression tool built successfully: $(OUT_DIR)/$(TARGET)"
+
+test: all
+	@echo "Running binpress tests..."
+	@bash test/test.sh
+
+# Coverage target - build with coverage instrumentation and generate reports
+COVERAGE_DIR = coverage
+COVERAGE_CFLAGS = $(CFLAGS) -fprofile-arcs -ftest-coverage -O0 -g
+COVERAGE_LDFLAGS = $(LDFLAGS) -fprofile-arcs -ftest-coverage
+COVERAGE_TARGET = $(OUT_DIR)/$(TARGET)_coverage
+
+$(COVERAGE_TARGET): $(SOURCE) | $(OUT_DIR)
+	$(CC) $(COVERAGE_CFLAGS) -o $@ $< $(COVERAGE_LDFLAGS)
+
+cover: $(COVERAGE_TARGET) | $(COVERAGE_DIR)
+	@echo "Running compression tests with coverage..."
+	@# Create test data
+	@mkdir -p $(OUT_DIR)/test_data
+	@dd if=/dev/zero of=$(OUT_DIR)/test_data/zeros.bin bs=1024 count=1024 2>/dev/null
+	@dd if=/dev/urandom of=$(OUT_DIR)/test_data/random.bin bs=64 count=1 2>/dev/null
+	@for i in {1..20}; do echo "Test line $$i with repetitive content for compression testing" >> $(OUT_DIR)/test_data/text.txt; done
+	@# Test various compression scenarios
+	@echo "Testing compressible file..."
+	@$(COVERAGE_TARGET) $(OUT_DIR)/test_data/zeros.bin $(OUT_DIR)/test_data/zeros.bin.compressed > /dev/null 2>&1 || true
+	@echo "Testing small incompressible file..."
+	@$(COVERAGE_TARGET) $(OUT_DIR)/test_data/random.bin $(OUT_DIR)/test_data/random.bin.compressed > /dev/null 2>&1 || true
+	@echo "Testing text file..."
+	@$(COVERAGE_TARGET) $(OUT_DIR)/test_data/text.txt $(OUT_DIR)/test_data/text.txt.compressed > /dev/null 2>&1 || true
+	@echo "Testing error handling (missing file)..."
+	@$(COVERAGE_TARGET) /tmp/nonexistent_file_12345.txt $(OUT_DIR)/test_data/out.compressed > /dev/null 2>&1 || true
+	@echo "Testing error handling (invalid args)..."
+	@$(COVERAGE_TARGET) > /dev/null 2>&1 || true
+	@echo "\nGenerating coverage report..."
+	@gcov -o $(OUT_DIR) $(SOURCE)
+	@mkdir -p $(COVERAGE_DIR)
+	@mv *.gcov $(COVERAGE_DIR)/ 2>/dev/null || true
+	@echo "\nCoverage Summary:"
+	@echo "================="
+	@grep -A 3 "File" $(COVERAGE_DIR)/*.gcov | head -10 || echo "Coverage data not found"
+	@echo "\nLine Coverage:"
+	@grep "Lines executed" $(COVERAGE_DIR)/*.gcov || echo "No coverage metrics found"
+	@echo "\nDetailed reports in $(COVERAGE_DIR)/"
+	@rm -rf $(OUT_DIR)/test_data
+
+$(COVERAGE_DIR):
+	@mkdir -p $@
+
+clean-coverage:
+	rm -rf $(COVERAGE_DIR)
+	rm -f $(OUT_DIR)/*.gcda $(OUT_DIR)/*.gcno
+	rm -f *.gcov

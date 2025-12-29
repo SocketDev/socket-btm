@@ -1,0 +1,41 @@
+diff --git a/lib/internal/main/embedding.js b/lib/internal/main/embedding.js
+index 1111111111..2222222222 100644
+--- a/lib/internal/main/embedding.js
++++ b/lib/internal/main/embedding.js
+@@ -16,6 +16,7 @@ const { isExperimentalSeaWarningNeeded, isSea } = internalBinding('sea');
+ const { emitExperimentalWarning } = require('internal/util');
+ const { emitWarningSync } = require('internal/process/warning');
+ const { BuiltinModule: { normalizeRequirableId } } = require('internal/bootstrap/realm');
++const smolBootstrap = require('internal/socketsecurity_smol/smol_bootstrap');
+ const { Module } = require('internal/modules/cjs/loader');
+ const { compileFunctionForCJSLoader } = internalBinding('contextify');
+ const { maybeCacheSourceMap } = require('internal/source_map/source_map_cache');
+@@ -30,7 +31,8 @@ const { codes: {
+ prepareMainThreadExecution(false, true);
+
+ const isLoadingSea = isSea();
+-const isBuiltinWarningNeeded = isLoadingSea && isExperimentalSeaWarningNeeded();
++const hasVirtualFS = smolBootstrap.hasVFS();
++const isBuiltinWarningNeeded = hasVirtualFS ? false : isLoadingSea && isExperimentalSeaWarningNeeded();
+ if (isExperimentalSeaWarningNeeded()) {
+   emitExperimentalWarning('Single executable application');
+ }
+@@ -110,9 +112,17 @@ function embedderRequire(id) {
+         'discussions in https://github.com/nodejs/single-executable');
+       warnedAboutBuiltins = true;
+     }
+-    throw new ERR_UNKNOWN_BUILTIN_MODULE(id);
++    // throw new ERR_UNKNOWN_BUILTIN_MODULE(id);
++    return require(id);
+   }
+   return require(normalizedId);
+ }
+
++// Socket Security: Setup process.smol and argv handling.
++smolBootstrap.setupProcessForSmol();
++
++if (hasVirtualFS) {
++  embedderRequire = smolBootstrap.createVFSRequire();
++}
++
+ return [process, embedderRequire, embedderRunCjs];

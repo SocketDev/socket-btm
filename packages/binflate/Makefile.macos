@@ -1,0 +1,107 @@
+# binflate Makefile for macOS
+# Mach-O binary decompression tool
+
+# Build mode: dev (default locally, fast builds) or prod (optimized for size/speed)
+# Auto-detects CI environment and defaults accordingly:
+# - Local: defaults to dev for fast iteration
+# - CI: defaults to prod for optimized releases
+ifdef CI
+BUILD_MODE ?= prod
+else
+BUILD_MODE ?= dev
+endif
+
+# Version info: YYYYMMDD-commit format
+BUILD_DATE := $(shell date -u +"%Y%m%d")
+BUILD_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+VERSION := $(BUILD_DATE)-$(BUILD_COMMIT)
+
+# Build mode flags
+ifeq ($(BUILD_MODE),prod)
+    # Production: optimize for size and speed, strip symbols
+    # Note: macOS can safely use -s flag for stripping
+    OPT_FLAGS = -Os -s -DNDEBUG
+else
+    # Development: optimize for build speed, keep debug symbols
+    OPT_FLAGS = -O0 -g
+endif
+
+# Build output directory includes mode for proper isolation
+BUILD_MODE_DIR = build/$(BUILD_MODE)
+
+CC = /usr/bin/clang
+CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 -I../build-infra/src -I../bin-infra/src -DVERSION=\"$(VERSION)\"
+LDFLAGS = -lcompression -Wl,-dead_strip
+
+TARGET_CLI = binflate
+SOURCE_CLI = src/extract_cli.c ../bin-infra/src/compression_common.c
+BUILD_DIR = $(BUILD_MODE_DIR)
+BIN_DIR = $(BUILD_MODE_DIR)/out/Final
+OUT_DIR = $(BIN_DIR)
+
+.PHONY: all clean test check-tools install cover clean-coverage
+
+# Check that required build tools are available
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }
+	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
+
+# Build CLI extraction tool
+all: check-tools $(OUT_DIR)/$(TARGET_CLI)
+
+$(OUT_DIR)/$(TARGET_CLI): $(SOURCE_CLI) | $(OUT_DIR)
+	$(CC) $(CFLAGS) -o $@ $(SOURCE_CLI) $(LDFLAGS)
+	@echo "Built: $(OUT_DIR)/$(TARGET_CLI)"
+
+$(OUT_DIR):
+	mkdir -p $@
+
+clean:
+	@echo "Cleaning build artifacts..."
+	@find build/dev build/prod -type f -name '*.o' -delete 2>/dev/null || true
+	@find build/dev build/prod -type f -name '*.gcda' -delete 2>/dev/null || true
+	@find build/dev build/prod -type f -name '*.gcno' -delete 2>/dev/null || true
+	@rm -f build/dev/binflate_test build/prod/binflate_test 2>/dev/null || true
+	@rm -f build/dev/binflate_test_coverage build/prod/binflate_test_coverage 2>/dev/null || true
+	@rm -rf build/dev/out build/prod/out 2>/dev/null || true
+
+install: all
+	@echo "Decompression CLI tool built successfully: $(OUT_DIR)/$(TARGET_CLI)"
+
+test: all
+	@echo "Running binflate tests..."
+	@bash test/test.sh
+
+# Coverage target - build with coverage instrumentation
+COVERAGE_DIR = coverage
+COVERAGE_CFLAGS = $(CFLAGS) -fprofile-arcs -ftest-coverage -O0 -g
+COVERAGE_LDFLAGS = $(LDFLAGS) -fprofile-arcs -ftest-coverage
+COVERAGE_TARGET = $(OUT_DIR)/$(TARGET_CLI)_coverage
+
+$(COVERAGE_TARGET): $(SOURCE_CLI) | $(OUT_DIR)
+	$(CC) $(COVERAGE_CFLAGS) -o $@ $< $(COVERAGE_LDFLAGS)
+
+cover: $(COVERAGE_TARGET) | $(COVERAGE_DIR)
+	@echo "Running decompression tests with coverage..."
+	@echo "Note: Coverage shows decompressor source paths exercised during binary execution"
+	@echo "Executing instrumented binary..."
+	@$(COVERAGE_TARGET) || true
+	@echo "\nGenerating coverage report..."
+	@gcov -o $(OUT_DIR) $(SOURCE_CLI)
+	@mkdir -p $(COVERAGE_DIR)
+	@mv *.gcov $(COVERAGE_DIR)/ 2>/dev/null || true
+	@echo "\nCoverage Summary:"
+	@echo "================="
+	@echo "This shows which code paths in the decompressor are executed."
+	@grep -A 3 "File" $(COVERAGE_DIR)/*.gcov | head -10 || echo "Coverage data not found"
+	@echo "\nLine Coverage:"
+	@grep "Lines executed" $(COVERAGE_DIR)/*.gcov || echo "No coverage metrics found"
+	@echo "\nDetailed reports in $(COVERAGE_DIR)/"
+
+$(COVERAGE_DIR):
+	@mkdir -p $@
+
+clean-coverage:
+	rm -rf $(COVERAGE_DIR)
+	rm -f $(OUT_DIR)/*.gcda $(OUT_DIR)/*.gcno
+	rm -f *.gcov

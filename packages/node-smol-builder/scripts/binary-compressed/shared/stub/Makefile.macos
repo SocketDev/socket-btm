@@ -1,0 +1,16 @@
+# Makefile for smol_stub - minimal launcher that extracts and calls binflate (macOS).
+
+CC ?= /usr/bin/clang
+OPENSSL_PREFIX = $(shell brew --prefix openssl@3 2>/dev/null || brew --prefix openssl 2>/dev/null || echo "/usr/local")
+
+# Support cross-compilation via TARGET_ARCH environment variable (x64 = x86_64, arm64 = arm64).
+ARCH_FLAG = $(if $(TARGET_ARCH),-arch $(subst x64,x86_64,$(TARGET_ARCH)),)
+
+CFLAGS = -Os -Wall -Wextra -std=c11 $(ARCH_FLAG) -I../../../../../../packages/build-infra/src -I../../../../../../packages/bin-infra/src -I$(OPENSSL_PREFIX)/include
+LDFLAGS = -L$(OPENSSL_PREFIX)/lib -lssl -lcrypto -lcompression -Wl,-dead_strip
+
+SOURCE_STUB = src/macho_stub.c
+TARGET_STUB = smol_stub
+
+# Include common stub build rules.
+include ../../../../../../build-infra/make/stub-rules.mk

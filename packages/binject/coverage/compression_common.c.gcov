@@ -1,0 +1,260 @@
+        -:    0:Source:../bin-infra/src/compression_common.c
+        -:    0:Graph:build/coverage_compression_common.gcno
+        -:    0:Data:build/coverage_compression_common.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:/**
+        -:    2: * compression_common.c
+        -:    3: *
+        -:    4: * Platform-agnostic compression/decompression implementation.
+        -:    5: */
+        -:    6:
+        -:    7:#include "compression_common.h"
+        -:    8:#include <stdlib.h>
+        -:    9:#include <string.h>
+        -:   10:
+        -:   11:/* Platform-specific compression headers */
+        -:   12:#ifdef __APPLE__
+        -:   13:#include <compression.h>
+        -:   14:#elif defined(_WIN32)
+        -:   15:#include <windows.h>
+        -:   16:#include <compressapi.h>
+        -:   17:#else
+        -:   18:#include <lzma.h>
+        -:   19:#endif
+        -:   20:
+        -:   21:/* Compress data using platform-specific compression */
+    #####:   22:int compress_buffer(const uint8_t *input, size_t input_size,
+        -:   23:                   uint8_t **output, size_t *output_size) {
+    #####:   24:    if (!input || !output || !output_size || input_size == 0) {
+    #####:   25:        return COMPRESS_ERROR_INVALID_INPUT;
+        -:   26:    }
+        -:   27:
+        -:   28:#ifdef __APPLE__
+        -:   29:    /* macOS: Use Apple Compression framework with LZFSE */
+    #####:   30:    size_t dst_size = compression_encode_scratch_buffer_size(COMPRESSION_LZFSE);
+    #####:   31:    if (dst_size < input_size + 4096) {
+    #####:   32:        dst_size = input_size + 4096;
+    #####:   33:    }
+        -:   34:
+    #####:   35:    uint8_t *dst_buffer = malloc(dst_size);
+    #####:   36:    if (!dst_buffer) {
+    #####:   37:        return COMPRESS_ERROR_ALLOC_FAILED;
+        -:   38:    }
+        -:   39:
+    #####:   40:    size_t compressed_size = compression_encode_buffer(
+    #####:   41:        dst_buffer, dst_size,
+    #####:   42:        input, input_size,
+        -:   43:        NULL,
+        -:   44:        COMPRESSION_LZFSE
+        -:   45:    );
+        -:   46:
+    #####:   47:    if (compressed_size == 0 || compressed_size >= input_size) {
+    #####:   48:        free(dst_buffer);
+    #####:   49:        return COMPRESS_ERROR_COMPRESS_FAILED;
+        -:   50:    }
+        -:   51:
+    #####:   52:    *output = realloc(dst_buffer, compressed_size);
+    #####:   53:    if (!*output) {
+    #####:   54:        *output = dst_buffer;
+    #####:   55:    }
+    #####:   56:    *output_size = compressed_size;
+        -:   57:
+        -:   58:#elif defined(_WIN32)
+        -:   59:    /* Windows: Use Compression API with LZMS */
+        -:   60:    COMPRESSOR_HANDLE compressor = NULL;
+        -:   61:    if (!CreateCompressor(COMPRESS_ALGORITHM_LZMS, NULL, &compressor)) {
+        -:   62:        return COMPRESS_ERROR_COMPRESS_FAILED;
+        -:   63:    }
+        -:   64:
+        -:   65:    SIZE_T compressed_size = 0;
+        -:   66:    if (!Compress(compressor, (PVOID)input, input_size, NULL, 0, &compressed_size)) {
+        -:   67:        if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+        -:   68:            CloseCompressor(compressor);
+        -:   69:            return COMPRESS_ERROR_COMPRESS_FAILED;
+        -:   70:        }
+        -:   71:    }
+        -:   72:
+        -:   73:    uint8_t *dst_buffer = malloc(compressed_size);
+        -:   74:    if (!dst_buffer) {
+        -:   75:        CloseCompressor(compressor);
+        -:   76:        return COMPRESS_ERROR_ALLOC_FAILED;
+        -:   77:    }
+        -:   78:
+        -:   79:    if (!Compress(compressor, (PVOID)input, input_size, dst_buffer, compressed_size, &compressed_size)) {
+        -:   80:        free(dst_buffer);
+        -:   81:        CloseCompressor(compressor);
+        -:   82:        return COMPRESS_ERROR_COMPRESS_FAILED;
+        -:   83:    }
+        -:   84:
+        -:   85:    CloseCompressor(compressor);
+        -:   86:    *output = dst_buffer;
+        -:   87:    *output_size = compressed_size;
+        -:   88:
+        -:   89:#else
+        -:   90:    /* Linux: Use LZMA */
+        -:   91:    lzma_stream strm = LZMA_STREAM_INIT;
+        -:   92:    lzma_ret ret = lzma_easy_encoder(&strm, 6, LZMA_CHECK_CRC64);
+        -:   93:    if (ret != LZMA_OK) {
+        -:   94:        return COMPRESS_ERROR_COMPRESS_FAILED;
+        -:   95:    }
+        -:   96:
+        -:   97:    size_t dst_size = lzma_stream_buffer_bound(input_size);
+        -:   98:    uint8_t *dst_buffer = malloc(dst_size);
+        -:   99:    if (!dst_buffer) {
+        -:  100:        lzma_end(&strm);
+        -:  101:        return COMPRESS_ERROR_ALLOC_FAILED;
+        -:  102:    }
+        -:  103:
+        -:  104:    strm.next_in = input;
+        -:  105:    strm.avail_in = input_size;
+        -:  106:    strm.next_out = dst_buffer;
+        -:  107:    strm.avail_out = dst_size;
+        -:  108:
+        -:  109:    ret = lzma_code(&strm, LZMA_FINISH);
+        -:  110:    if (ret != LZMA_STREAM_END) {
+        -:  111:        free(dst_buffer);
+        -:  112:        lzma_end(&strm);
+        -:  113:        return COMPRESS_ERROR_COMPRESS_FAILED;
+        -:  114:    }
+        -:  115:
+        -:  116:    size_t compressed_size = dst_size - strm.avail_out;
+        -:  117:    lzma_end(&strm);
+        -:  118:
+        -:  119:    *output = realloc(dst_buffer, compressed_size);
+        -:  120:    if (!*output) {
+        -:  121:        *output = dst_buffer;
+        -:  122:    }
+        -:  123:    *output_size = compressed_size;
+        -:  124:#endif
+        -:  125:
+    #####:  126:    return COMPRESS_OK;
+    #####:  127:}
+        -:  128:
+        -:  129:/* Decompress data using platform-specific decompression */
+    #####:  130:int decompress_buffer(const uint8_t *input, size_t input_size,
+        -:  131:                     uint8_t **output, size_t *output_size) {
+    #####:  132:    if (!input || !output || !output_size || input_size == 0) {
+    #####:  133:        return COMPRESS_ERROR_INVALID_INPUT;
+        -:  134:    }
+        -:  135:
+        -:  136:#ifdef __APPLE__
+        -:  137:    /* macOS: Try progressively larger buffers */
+    #####:  138:    size_t dst_size = input_size * 4;
+    #####:  139:    uint8_t *dst_buffer = NULL;
+        -:  140:
+    #####:  141:    for (int attempt = 0; attempt < 3; attempt++) {
+    #####:  142:        dst_buffer = realloc(dst_buffer, dst_size);
+    #####:  143:        if (!dst_buffer) {
+    #####:  144:            return COMPRESS_ERROR_ALLOC_FAILED;
+        -:  145:        }
+        -:  146:
+    #####:  147:        size_t decompressed_size = compression_decode_buffer(
+    #####:  148:            dst_buffer, dst_size,
+    #####:  149:            input, input_size,
+        -:  150:            NULL,
+        -:  151:            COMPRESSION_LZFSE
+        -:  152:        );
+        -:  153:
+    #####:  154:        if (decompressed_size > 0 && decompressed_size <= dst_size) {
+    #####:  155:            *output = realloc(dst_buffer, decompressed_size);
+    #####:  156:            if (!*output) {
+    #####:  157:                *output = dst_buffer;
+    #####:  158:            }
+    #####:  159:            *output_size = decompressed_size;
+    #####:  160:            return COMPRESS_OK;
+        -:  161:        }
+        -:  162:
+    #####:  163:        dst_size *= 2;
+    #####:  164:    }
+        -:  165:
+    #####:  166:    free(dst_buffer);
+    #####:  167:    return COMPRESS_ERROR_DECOMPRESS_FAILED;
+        -:  168:
+        -:  169:#elif defined(_WIN32)
+        -:  170:    /* Windows: Use Decompression API */
+        -:  171:    DECOMPRESSOR_HANDLE decompressor = NULL;
+        -:  172:    if (!CreateDecompressor(COMPRESS_ALGORITHM_LZMS, NULL, &decompressor)) {
+        -:  173:        return COMPRESS_ERROR_DECOMPRESS_FAILED;
+        -:  174:    }
+        -:  175:
+        -:  176:    SIZE_T decompressed_size = 0;
+        -:  177:    if (!Decompress(decompressor, (PVOID)input, input_size, NULL, 0, &decompressed_size)) {
+        -:  178:        if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+        -:  179:            CloseDecompressor(decompressor);
+        -:  180:            return COMPRESS_ERROR_DECOMPRESS_FAILED;
+        -:  181:        }
+        -:  182:    }
+        -:  183:
+        -:  184:    uint8_t *dst_buffer = malloc(decompressed_size);
+        -:  185:    if (!dst_buffer) {
+        -:  186:        CloseDecompressor(decompressor);
+        -:  187:        return COMPRESS_ERROR_ALLOC_FAILED;
+        -:  188:    }
+        -:  189:
+        -:  190:    if (!Decompress(decompressor, (PVOID)input, input_size, dst_buffer, decompressed_size, &decompressed_size)) {
+        -:  191:        free(dst_buffer);
+        -:  192:        CloseDecompressor(decompressor);
+        -:  193:        return COMPRESS_ERROR_DECOMPRESS_FAILED;
+        -:  194:    }
+        -:  195:
+        -:  196:    CloseDecompressor(decompressor);
+        -:  197:    *output = dst_buffer;
+        -:  198:    *output_size = decompressed_size;
+        -:  199:
+        -:  200:#else
+        -:  201:    /* Linux: Use LZMA */
+        -:  202:    lzma_stream strm = LZMA_STREAM_INIT;
+        -:  203:    lzma_ret ret = lzma_stream_decoder(&strm, UINT64_MAX, LZMA_CONCATENATED);
+        -:  204:    if (ret != LZMA_OK) {
+        -:  205:        return COMPRESS_ERROR_DECOMPRESS_FAILED;
+        -:  206:    }
+        -:  207:
+        -:  208:    size_t dst_size = input_size * 4;
+        -:  209:    uint8_t *dst_buffer = malloc(dst_size);
+        -:  210:    if (!dst_buffer) {
+        -:  211:        lzma_end(&strm);
+        -:  212:        return COMPRESS_ERROR_ALLOC_FAILED;
+        -:  213:    }
+        -:  214:
+        -:  215:    strm.next_in = input;
+        -:  216:    strm.avail_in = input_size;
+        -:  217:    strm.next_out = dst_buffer;
+        -:  218:    strm.avail_out = dst_size;
+        -:  219:
+        -:  220:    while (ret == LZMA_OK) {
+        -:  221:        ret = lzma_code(&strm, LZMA_FINISH);
+        -:  222:
+        -:  223:        if (ret == LZMA_BUF_ERROR) {
+        -:  224:            dst_size *= 2;
+        -:  225:            uint8_t *new_buffer = realloc(dst_buffer, dst_size);
+        -:  226:            if (!new_buffer) {
+        -:  227:                free(dst_buffer);
+        -:  228:                lzma_end(&strm);
+        -:  229:                return COMPRESS_ERROR_ALLOC_FAILED;
+        -:  230:            }
+        -:  231:            dst_buffer = new_buffer;
+        -:  232:            strm.next_out = dst_buffer + (dst_size / 2);
+        -:  233:            strm.avail_out = dst_size / 2;
+        -:  234:            ret = LZMA_OK;
+        -:  235:        }
+        -:  236:    }
+        -:  237:
+        -:  238:    if (ret != LZMA_STREAM_END) {
+        -:  239:        free(dst_buffer);
+        -:  240:        lzma_end(&strm);
+        -:  241:        return COMPRESS_ERROR_DECOMPRESS_FAILED;
+        -:  242:    }
+        -:  243:
+        -:  244:    size_t decompressed_size = dst_size - strm.avail_out;
+        -:  245:    lzma_end(&strm);
+        -:  246:
+        -:  247:    *output = realloc(dst_buffer, decompressed_size);
+        -:  248:    if (!*output) {
+        -:  249:        *output = dst_buffer;
+        -:  250:    }
+        -:  251:    *output_size = decompressed_size;
+        -:  252:#endif
+        -:  253:
+        -:  254:    return COMPRESS_OK;
+    #####:  255:}

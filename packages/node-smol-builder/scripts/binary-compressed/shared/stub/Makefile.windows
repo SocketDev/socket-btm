@@ -1,0 +1,21 @@
+# Makefile for smol_stub - minimal launcher that extracts and calls binflate (Windows).
+
+# Note: CC can be overridden via environment variables (e.g., clang in CI).
+CC ?= gcc
+
+CFLAGS = -Os -Wall -Wextra -std=c11 -I../../../../../../packages/build-infra/src -I../../../../../../packages/bin-infra/src -D_CRT_SECURE_NO_WARNINGS
+LDFLAGS = -L$(OUT_DIR) -lcabinet -ladvapi32 -lshell32 -Wl,--gc-sections
+
+SOURCE_STUB = src/pe_stub.c
+TARGET_STUB = smol_stub.exe
+IMPORT_LIB = $(OUT_DIR)/libcabinet.a
+
+# Generate Cabinet.dll import library on Windows.
+$(IMPORT_LIB): ../../../../../../packages/bin-infra/src/cabinet.def | $(OUT_DIR)
+	dlltool -d ../../../../../../packages/bin-infra/src/cabinet.def -l $@
+
+# Add import library as prerequisite for stub binary.
+$(OUT_DIR)/$(TARGET_STUB): $(IMPORT_LIB)
+
+# Include common stub build rules.
+include ../../../../../../build-infra/make/stub-rules.mk

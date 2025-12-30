@@ -1,0 +1,211 @@
+        -:    0:Source:src/binject.c
+        -:    0:Graph:build/coverage_binject.gcno
+        -:    0:Data:build/coverage_binject.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:/**
+        -:    2: * binject - Core implementation
+        -:    3: */
+        -:    4:
+        -:    5:#include <stdio.h>
+        -:    6:#include <stdlib.h>
+        -:    7:#include <string.h>
+        -:    8:#include "binject.h"
+        -:    9:
+        -:   10:/* Shared compression library from bin-infra */
+        -:   11:#include "compression_common.h"
+        -:   12:
+        -:   13:/* Detect binary format by magic bytes */
+        8:   14:binject_format_t binject_detect_format(const char *executable) {
+        8:   15:    FILE *fp = fopen(executable, "rb");
+        8:   16:    if (!fp) {
+        1:   17:        return BINJECT_FORMAT_UNKNOWN;
+        -:   18:    }
+        -:   19:
+        -:   20:    uint8_t magic[4];
+        7:   21:    if (fread(magic, 1, 4, fp) != 4) {
+    #####:   22:        fclose(fp);
+    #####:   23:        return BINJECT_FORMAT_UNKNOWN;
+        -:   24:    }
+        7:   25:    fclose(fp);
+        -:   26:
+        -:   27:    /* Mach-O magic: 0xFEEDFACE, 0xFEEDFACF, 0xCAFEBABE, 0xBEBAFECA */
+        7:   28:    if ((magic[0] == 0xFE && magic[1] == 0xED && magic[2] == 0xFA && (magic[3] == 0xCE || magic[3] == 0xCF)) ||
+        5:   29:        (magic[0] == 0xCF && magic[1] == 0xFA && magic[2] == 0xED && magic[3] == 0xFE) ||
+        4:   30:        (magic[0] == 0xCA && magic[1] == 0xFE && magic[2] == 0xBA && magic[3] == 0xBE) ||
+        3:   31:        (magic[0] == 0xBE && magic[1] == 0xBA && magic[2] == 0xFE && magic[3] == 0xCA)) {
+        4:   32:        return BINJECT_FORMAT_MACHO;
+        -:   33:    }
+        -:   34:
+        -:   35:    /* ELF magic: 0x7F 'E' 'L' 'F' */
+        3:   36:    if (magic[0] == 0x7F && magic[1] == 'E' && magic[2] == 'L' && magic[3] == 'F') {
+        1:   37:        return BINJECT_FORMAT_ELF;
+        -:   38:    }
+        -:   39:
+        -:   40:    /* PE magic: 'M' 'Z' */
+        2:   41:    if (magic[0] == 'M' && magic[1] == 'Z') {
+        1:   42:        return BINJECT_FORMAT_PE;
+        -:   43:    }
+        -:   44:
+        1:   45:    return BINJECT_FORMAT_UNKNOWN;
+        8:   46:}
+        -:   47:
+        -:   48:/* Read resource file into memory */
+        3:   49:int binject_read_resource(const char *resource_file, uint8_t **data, size_t *size) {
+        3:   50:    FILE *fp = fopen(resource_file, "rb");
+        3:   51:    if (!fp) {
+        1:   52:        fprintf(stderr, "Error: Cannot open resource file: %s\n", resource_file);
+        1:   53:        return BINJECT_ERROR_FILE_NOT_FOUND;
+        -:   54:    }
+        -:   55:
+        2:   56:    fseek(fp, 0, SEEK_END);
+        2:   57:    *size = ftell(fp);
+        2:   58:    fseek(fp, 0, SEEK_SET);
+        -:   59:
+        2:   60:    *data = malloc(*size);
+        2:   61:    if (!*data) {
+    #####:   62:        fclose(fp);
+    #####:   63:        fprintf(stderr, "Error: Out of memory\n");
+    #####:   64:        return BINJECT_ERROR;
+        -:   65:    }
+        -:   66:
+        2:   67:    if (fread(*data, 1, *size, fp) != *size) {
+    #####:   68:        free(*data);
+    #####:   69:        fclose(fp);
+    #####:   70:        fprintf(stderr, "Error: Failed to read resource file\n");
+    #####:   71:        return BINJECT_ERROR;
+        -:   72:    }
+        -:   73:
+        2:   74:    fclose(fp);
+        2:   75:    return BINJECT_OK;
+        3:   76:}
+        -:   77:
+        -:   78:/* CLI: inject command */
+    #####:   79:int binject_inject(const char *executable, const char *resource_file,
+        -:   80:                   const char *section_name, int compress, int overwrite __attribute__((unused))) {
+    #####:   81:    printf("Injecting resource into %s...\n", executable);
+    #####:   82:    printf("  Resource: %s\n", resource_file);
+    #####:   83:    printf("  Section: %s\n", section_name);
+    #####:   84:    printf("  Compress: %s\n", compress ? "yes" : "no");
+        -:   85:
+        -:   86:    /* Detect binary format */
+    #####:   87:    binject_format_t format = binject_detect_format(executable);
+    #####:   88:    const char *format_name[] = {"unknown", "Mach-O", "ELF", "PE"};
+    #####:   89:    printf("  Format: %s\n", format_name[format]);
+        -:   90:
+    #####:   91:    if (format == BINJECT_FORMAT_UNKNOWN) {
+    #####:   92:        fprintf(stderr, "Error: Unsupported binary format\n");
+    #####:   93:        return BINJECT_ERROR_INVALID_FORMAT;
+        -:   94:    }
+        -:   95:
+        -:   96:    /* Read resource */
+    #####:   97:    uint8_t *data = NULL;
+    #####:   98:    size_t size = 0;
+    #####:   99:    int rc = binject_read_resource(resource_file, &data, &size);
+    #####:  100:    if (rc != BINJECT_OK) {
+    #####:  101:        return rc;
+        -:  102:    }
+        -:  103:
+    #####:  104:    printf("  Resource size: %zu bytes\n", size);
+        -:  105:
+        -:  106:    /* Compress if requested */
+    #####:  107:    uint8_t *final_data = data;
+        -:  108:
+    #####:  109:    if (compress) {
+    #####:  110:        uint8_t *compressed = NULL;
+    #####:  111:        size_t compressed_size = 0;
+        -:  112:
+    #####:  113:        rc = binject_compress(data, size, &compressed, &compressed_size);
+    #####:  114:        if (rc == BINJECT_OK) {
+    #####:  115:            printf("  Compressed size: %zu bytes (%.1f%% reduction)\n",
+    #####:  116:                   compressed_size, 100.0 * (1.0 - (double)compressed_size / size));
+    #####:  117:            free(data);
+    #####:  118:            final_data = compressed;
+    #####:  119:        } else {
+    #####:  120:            fprintf(stderr, "Warning: Compression failed, storing uncompressed\n");
+    #####:  121:            compress = 0;
+        -:  122:        }
+    #####:  123:    }
+        -:  124:
+        -:  125:    /* TODO: Implement platform-specific injection */
+        -:  126:
+    #####:  127:    free(final_data);
+        -:  128:
+    #####:  129:    printf("\nNote: Injection implementation coming soon!\n");
+    #####:  130:    return BINJECT_OK;
+    #####:  131:}
+        -:  132:
+        -:  133:/* CLI: list command */
+    #####:  134:int binject_list(const char *executable) {
+    #####:  135:    printf("Listing resources in %s...\n\n", executable);
+        -:  136:
+    #####:  137:    binject_format_t format = binject_detect_format(executable);
+    #####:  138:    if (format == BINJECT_FORMAT_UNKNOWN) {
+    #####:  139:        fprintf(stderr, "Error: Unsupported binary format\n");
+    #####:  140:        return BINJECT_ERROR_INVALID_FORMAT;
+        -:  141:    }
+        -:  142:
+    #####:  143:    printf("No resources found (implementation coming soon)\n");
+    #####:  144:    return BINJECT_OK;
+    #####:  145:}
+        -:  146:
+        -:  147:/* CLI: extract command */
+    #####:  148:int binject_extract(const char *executable, const char *section_name,
+        -:  149:                    const char *output_file) {
+    #####:  150:    printf("Extracting section '%s' from %s...\n", section_name, executable);
+    #####:  151:    printf("  Output: %s\n", output_file);
+        -:  152:
+        -:  153:    /* TODO: Implement platform-specific extraction */
+        -:  154:    /* This would:
+        -:  155:     * 1. Extract the section data from the binary
+        -:  156:     * 2. Check if it's compressed (via metadata)
+        -:  157:     * 3. Decompress if needed using binject_decompress()
+        -:  158:     * 4. Write to output file
+        -:  159:     */
+        -:  160:
+    #####:  161:    printf("\nNote: Extraction implementation coming soon!\n");
+    #####:  162:    return BINJECT_OK;
+        -:  163:}
+        -:  164:
+        -:  165:/* CLI: verify command */
+    #####:  166:int binject_verify(const char *executable, const char *section_name) {
+    #####:  167:    printf("Verifying section '%s' in %s...\n", section_name, executable);
+        -:  168:
+    #####:  169:    printf("\nNote: Implementation coming soon!\n");
+    #####:  170:    return BINJECT_OK;
+        -:  171:}
+        -:  172:
+        -:  173:/* Simple checksum (CRC32-like) */
+        6:  174:uint32_t binject_checksum(const uint8_t *data, size_t size) {
+        6:  175:    uint32_t checksum = 0;
+       31:  176:    for (size_t i = 0; i < size; i++) {
+       25:  177:        checksum = (checksum << 1) ^ data[i];
+       25:  178:    }
+        6:  179:    return checksum;
+        -:  180:}
+        -:  181:
+        -:  182:/* Compress data using shared compression library */
+    #####:  183:int binject_compress(const uint8_t *input, size_t input_size,
+        -:  184:                    uint8_t **output, size_t *output_size) {
+    #####:  185:    int result = compress_buffer(input, input_size, output, output_size);
+        -:  186:
+        -:  187:    /* Map compression_common error codes to binject error codes */
+    #####:  188:    if (result == COMPRESS_OK) {
+    #####:  189:        return BINJECT_OK;
+        -:  190:    } else {
+    #####:  191:        return BINJECT_ERROR_COMPRESSION_FAILED;
+        -:  192:    }
+    #####:  193:}
+        -:  194:
+        -:  195:/* Decompress data using shared compression library */
+    #####:  196:int binject_decompress(const uint8_t *input, size_t input_size,
+        -:  197:                      uint8_t **output, size_t *output_size) {
+    #####:  198:    int result = decompress_buffer(input, input_size, output, output_size);
+        -:  199:
+        -:  200:    /* Map compression_common error codes to binject error codes */
+    #####:  201:    if (result == COMPRESS_OK) {
+    #####:  202:        return BINJECT_OK;
+        -:  203:    } else {
+    #####:  204:        return BINJECT_ERROR_DECOMPRESSION_FAILED;
+        -:  205:    }
+    #####:  206:}

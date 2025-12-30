@@ -1,0 +1,13 @@
+{
+  "name": "bin-infra",
+  "version": "0.0.0",
+  "description": "Shared binary infrastructure for binject and binpress",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "devDependencies": {
+    "@socketsecurity/lib": "catalog:",
+    "build-infra": "workspace:*",
+    "octokit": "catalog:"
+  }
+}

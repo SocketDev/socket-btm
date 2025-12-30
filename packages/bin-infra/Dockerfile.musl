@@ -1,0 +1,55 @@
+# Build LIEF library in container to offload compute from GitHub Actions.
+# This Dockerfile supports building LIEF for linux/amd64 and linux/arm64.
+# musl variant using Alpine 3.19.
+
+FROM alpine:3.19 AS build
+
+# Install build dependencies.
+RUN apk add --no-cache \
+        g++ \
+        git \
+        ccache \
+        make \
+        ninja \
+        curl \
+        ca-certificates \
+        python3 \
+        py3-pip \
+        nodejs \
+        npm \
+        binutils \
+        && \
+    pip3 install --no-cache-dir --break-system-packages cmake>=3.24 && \
+    npm install -g pnpm@10.26.1
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy workspace configuration files (needed for pnpm workspace).
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+
+# Copy build-infra package (workspace dependency).
+COPY packages/build-infra ./packages/build-infra
+
+# Copy bin-infra package (what we're building).
+COPY packages/bin-infra ./packages/bin-infra
+
+# Install workspace dependencies (only bin-infra package).
+ENV CI=true
+RUN pnpm install --frozen-lockfile --filter bin-infra
+
+# Build LIEF.
+ARG BUILD_MODE=prod
+ARG CACHE_VERSION=1
+ENV BUILD_MODE=$BUILD_MODE
+
+RUN echo "Cache version: ${CACHE_VERSION}" && cd packages/bin-infra && pnpm run build:lief
+
+# Export stage: Copy build artifacts (not entire filesystem).
+# We export the entire build/ directory to preserve both:
+# - Build artifacts at build/${BUILD_MODE}/out/Final/
+# - Checkpoints at build/${BUILD_MODE}/checkpoints/ and build/shared/checkpoints/
+# Checkpoints enable GitHub Actions caching to skip expensive build steps on repeated runs.
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=build /workspace/packages/bin-infra/build /

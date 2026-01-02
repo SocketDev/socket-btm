@@ -1108,9 +1108,10 @@ jobs:
         if: steps.build-enabled.outputs.build == 'true'
         shell: bash
         env:
+          BUILD_MODE: ${{ steps.setup-checkpoints.outputs.build-mode }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          echo "Downloading prebuilt LIEF from releases..."
+          echo "Downloading prebuilt LIEF from releases for ${BUILD_MODE} mode..."
           node packages/bin-infra/scripts/download-binsuite-tools.mjs --tool=lief
           echo "✅ LIEF ready"
 

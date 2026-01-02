@@ -128,10 +128,7 @@ export async function ensureLief({ BUILD_MODE, force, packageDir, platforms }) {
   })
 
   if (result.code !== 0) {
-    logger.warn(
-      `Failed to download LIEF library (exit code ${result.code}). ` +
-        'Building without LIEF support (Mach-O/PE cross-platform compression unavailable).',
-    )
+    logger.error(`Failed to download LIEF library (exit code ${result.code}).`)
     // Clean up any stale LIEF files from cache to prevent build errors.
     try {
       const { safeDeleteSync } = await import('@socketsecurity/lib/fs')
@@ -142,7 +139,10 @@ export async function ensureLief({ BUILD_MODE, force, packageDir, platforms }) {
     } catch {
       // Ignore cleanup errors.
     }
-    return
+    throw new Error(
+      'LIEF library is required for cross-platform binary injection. ' +
+        'Please ensure LIEF releases are available or build LIEF first.',
+    )
   }
 
   // Get the downloaded version and save it.

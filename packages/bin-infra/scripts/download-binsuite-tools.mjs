@@ -19,6 +19,7 @@ import {
   downloadReleaseAsset,
   getLatestRelease,
 } from 'build-infra/lib/github-releases'
+import { getPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { safeDeleteSync } from '@socketsecurity/lib/fs'
@@ -73,46 +74,21 @@ function isMusl() {
 }
 
 /**
- * Get platform-arch string for binary naming.
+ * Get platform-arch string for binary naming using shared mapping.
+ *
+ * @returns {string} Platform-arch string (e.g., 'linux-x64', 'linux-x64-musl').
  */
-function getPlatformArch() {
-  const platform = process.platform
-  const arch = process.arch
-
-  // Map Node.js platform names to release names.
-  // All tools use consistent naming: win (not win32).
-  const platformMap = {
-    __proto__: null,
-    darwin: 'darwin',
-    linux: 'linux',
-    win32: 'win',
-  }
-
-  // Map Node.js arch names to release names.
-  const archMap = {
-    __proto__: null,
-    arm64: 'arm64',
-    x64: 'x64',
-  }
-
-  const releasePlatform = platformMap[platform]
-  const releaseArch = archMap[arch]
-
-  if (!releasePlatform || !releaseArch) {
-    throw new Error(`Unsupported platform/arch: ${platform}/${arch}`)
-  }
-
-  // Append -musl for musl libc on Linux.
-  const muslSuffix = isMusl() ? '-musl' : ''
-
-  return `${releasePlatform}-${releaseArch}${muslSuffix}`
+function getCurrentPlatformArch() {
+  // Use shared platform mapping for consistent naming.
+  const libc = isMusl() ? 'musl' : null
+  return getPlatformArch(process.platform, process.arch, libc)
 }
 
 /**
  * Download binary from GitHub release with retry logic.
  */
 async function downloadBinary(tool, tag, outputPath) {
-  const platformArch = getPlatformArch()
+  const platformArch = getCurrentPlatformArch()
   const isLief = tool === 'lief'
 
   // LIEF releases are tar.gz archives, binsuite tools are standalone binaries.
@@ -140,7 +116,8 @@ async function downloadBinary(tool, tag, outputPath) {
       logger.info(`Extracting ${assetName}...`)
       const extractDir = path.dirname(outputPath)
 
-      // Extract tar.gz.
+      // Extract tar.gz directly to target directory.
+      // Release tarballs have libLIEF.a and include/ at root level (no parent directory).
       // Convert paths to forward slashes on Windows for tar compatibility.
       const tarResult = await spawn(
         'tar',

@@ -22,7 +22,7 @@ endif
 
 CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 $(COMMON_INCLUDES) $(LZFSE_CFLAGS) -DVERSION=\"$(VERSION)\"
 CXXFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c++17 $(COMMON_INCLUDES) $(LIEF_CFLAGS) $(LZFSE_CFLAGS) $(LIEF_DEFINES)
-LDFLAGS = $(LDFLAGS_BASE) $(LZFSE_LDFLAGS) $(LIEF_LDFLAGS)
+LDFLAGS = -static-libgcc -static-libstdc++ $(LDFLAGS_BASE) $(LZFSE_LDFLAGS) $(LIEF_LDFLAGS) $(LDFLAGS_POST)
 
 # Check that required build tools are available.
 check-tools:

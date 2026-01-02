@@ -17,12 +17,15 @@ endif
 LDFLAGS_BASE = -static -llzma -Wl,--gc-sections
 
 # Post-build strip command.
-define STRIP_BINARY
 ifeq ($(BUILD_MODE),prod)
+define STRIP_BINARY
 	@echo "Stripping debug symbols (preserves pthread symbols)..."
 	strip $(1)
-endif
 endef
+else
+define STRIP_BINARY
+endef
+endif
 
 # Clean command implementation.
 define CLEAN_IMPL

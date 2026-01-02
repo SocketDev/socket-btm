@@ -17,6 +17,7 @@ import {
   downloadReleaseAsset,
   getLatestRelease,
 } from 'build-infra/lib/github-releases'
+import { getPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { safeDelete } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
@@ -56,38 +57,14 @@ function isMusl() {
 }
 
 /**
- * Get platform-arch string for binary naming.
+ * Get platform-arch string for binary naming using shared mapping.
+ *
+ * @returns {string} Platform-arch string (e.g., 'linux-x64', 'linux-x64-musl').
  */
-function getPlatformArch() {
-  const platform = process.platform
-  const arch = process.arch
-
-  // Map Node.js platform names to release names.
-  const platformMap = {
-    __proto__: null,
-    darwin: 'darwin',
-    linux: 'linux',
-    win32: 'win',
-  }
-
-  // Map Node.js arch names to release names.
-  const archMap = {
-    __proto__: null,
-    arm64: 'arm64',
-    x64: 'x64',
-  }
-
-  const releasePlatform = platformMap[platform]
-  const releaseArch = archMap[arch]
-
-  if (!releasePlatform || !releaseArch) {
-    throw new Error(`Unsupported platform/arch: ${platform}/${arch}`)
-  }
-
-  // Append -musl for musl libc on Linux.
-  const muslSuffix = isMusl() ? '-musl' : ''
-
-  return `${releasePlatform}-${releaseArch}${muslSuffix}`
+function getCurrentPlatformArch() {
+  // Use shared platform mapping for consistent naming.
+  const libc = isMusl() ? 'musl' : null
+  return getPlatformArch(process.platform, process.arch, libc)
 }
 
 /**
@@ -100,7 +77,7 @@ function getPlatformArch() {
  * @param {string} [options.platformArch] - Override platform-arch (e.g., 'linux-x64-musl')
  */
 async function downloadTool(tool, options = {}) {
-  const { force = false, platformArch = getPlatformArch() } = options
+  const { force = false, platformArch = getCurrentPlatformArch() } = options
 
   // Determine file extension based on platform in platformArch string
   const isWindows = platformArch.startsWith('win')
@@ -207,24 +184,21 @@ async function main() {
       return
     }
 
-    // Map to release naming convention
-    const platformMap = { darwin: 'darwin', linux: 'linux', win32: 'win' }
-    const archMap = { arm64: 'arm64', x64: 'x64' }
-
-    const releasePlatform = platformMap[platform]
-    const releaseArch = archMap[arch]
-
-    if (!releasePlatform || !releaseArch) {
-      logger.fail(`Unsupported platform/arch: ${platform}/${arch}`)
+    // Use shared platform mapping for custom platform-arch.
+    try {
+      customPlatformArch = getPlatformArch(
+        platform,
+        arch,
+        platform === 'linux' ? libc : null,
+      )
+    } catch (e) {
+      logger.fail(e.message)
       process.exitCode = 1
       return
     }
-
-    const muslSuffix = platform === 'linux' && libc === 'musl' ? '-musl' : ''
-    customPlatformArch = `${releasePlatform}-${releaseArch}${muslSuffix}`
   }
 
-  const targetPlatformArch = customPlatformArch || getPlatformArch()
+  const targetPlatformArch = customPlatformArch || getCurrentPlatformArch()
 
   logger.info('Downloading binsuite tools for node-smol-builder...')
   logger.info(`Platform: ${targetPlatformArch}`)

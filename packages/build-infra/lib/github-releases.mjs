@@ -13,9 +13,75 @@ const OWNER = 'SocketDev'
 const REPO = 'socket-btm'
 
 /**
+ * Retry configuration for GitHub API requests.
+ *
+ * Uses exponential backoff to handle transient failures and rate limiting.
+ */
+const RETRY_CONFIG = Object.freeze({
+  __proto__: null,
+  // Exponential backoff: delay doubles with each retry (5s, 10s, 20s).
+  backoffFactor: 2,
+  // Initial delay before first retry.
+  baseDelayMs: 5000,
+  // Maximum number of retry attempts (excluding initial request).
+  retries: 2,
+})
+
+/**
  * Get GitHub authentication headers if token is available.
  *
- * @returns {object} - Headers object with Authorization if token exists.
+ * This function constructs the necessary headers for GitHub API requests,
+ * including authentication if a token is provided via environment variables.
+ *
+ * Environment Variables:
+ * - GH_TOKEN: GitHub Personal Access Token (preferred).
+ * - GITHUB_TOKEN: Alternative token environment variable (checked if GH_TOKEN not set).
+ *
+ * Authentication:
+ * - Without token: Unauthenticated requests are subject to GitHub's rate limits
+ *   (60 requests per hour per IP address).
+ * - With token: Authenticated requests have higher rate limits
+ *   (5,000 requests per hour for personal tokens).
+ *
+ * Required Token Permissions:
+ * - For public repositories: No specific permissions required (public access).
+ * - For private repositories: 'repo' scope required.
+ * - Classic tokens: Use 'repo' scope.
+ * - Fine-grained tokens: Use 'Contents' repository permission (read-only).
+ *
+ * Rate Limits:
+ * - Unauthenticated: 60 requests/hour per IP.
+ * - Authenticated (personal token): 5,000 requests/hour.
+ * - Authenticated (GitHub Actions): 1,000 requests/hour.
+ * - Rate limit headers are included in API responses:
+ *   - X-RateLimit-Limit: Maximum requests allowed.
+ *   - X-RateLimit-Remaining: Requests remaining in current window.
+ *   - X-RateLimit-Reset: Unix timestamp when limit resets.
+ *
+ * Error Codes:
+ * - 401: Authentication failed (invalid or expired token).
+ * - 403: Rate limit exceeded or insufficient permissions.
+ * - 404: Resource not found (or insufficient permissions to view).
+ *
+ * @returns {object} Headers object with Authorization header if token exists.
+ * @returns {string} return.Accept - GitHub API version specification.
+ * @returns {string} return['X-GitHub-Api-Version'] - API version date.
+ * @returns {string} [return.Authorization] - Bearer token (if available).
+ *
+ * @example
+ * // Without token (unauthenticated)
+ * const headers = getAuthHeaders()
+ * // { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }
+ *
+ * @example
+ * // With token (authenticated)
+ * process.env.GH_TOKEN = 'ghp_abc123'
+ * const headers = getAuthHeaders()
+ * // {
+ * //   Accept: 'application/vnd.github+json',
+ * //   'X-GitHub-Api-Version': '2022-11-28',
+ * //   Authorization: 'Bearer ghp_abc123'
+ * // }
  */
 function getAuthHeaders() {
   const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN
@@ -71,17 +137,17 @@ export async function getLatestRelease(tool, { quiet = false } = {}) {
       return null
     },
     {
-      backoffFactor: 1,
-      baseDelayMs: 5000,
+      ...RETRY_CONFIG,
       onRetry: (attempt, error) => {
         if (!quiet) {
           logger.info(
-            `  Retry attempt ${attempt + 1}/3 for ${tool} release list...`,
+            `  Retry attempt ${attempt + 1}/${RETRY_CONFIG.retries + 1} for ${tool} release list...`,
           )
-          logger.warn(`  Attempt ${attempt + 1}/3 failed: ${error.message}`)
+          logger.warn(
+            `  Attempt ${attempt + 1}/${RETRY_CONFIG.retries + 1} failed: ${error.message}`,
+          )
         }
       },
-      retries: 2,
     },
   )
 }
@@ -132,15 +198,17 @@ export async function getReleaseAssetUrl(
       return asset.browser_download_url
     },
     {
-      backoffFactor: 1,
-      baseDelayMs: 5000,
+      ...RETRY_CONFIG,
       onRetry: (attempt, error) => {
         if (!quiet) {
-          logger.info(`  Retry attempt ${attempt + 1}/3 for asset URL...`)
-          logger.warn(`  Attempt ${attempt + 1}/3 failed: ${error.message}`)
+          logger.info(
+            `  Retry attempt ${attempt + 1}/${RETRY_CONFIG.retries + 1} for asset URL...`,
+          )
+          logger.warn(
+            `  Attempt ${attempt + 1}/${RETRY_CONFIG.retries + 1} failed: ${error.message}`,
+          )
         }
       },
-      retries: 2,
     },
   )
 }

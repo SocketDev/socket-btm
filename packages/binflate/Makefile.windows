@@ -27,7 +27,7 @@ all: check-tools $(OUT_DIR)/$(TARGET_CLI)
 $(IMPORT_LIB): ../bin-infra/src/cabinet.def | $(OUT_DIR)
 	dlltool -d ../bin-infra/src/cabinet.def -l $@
 
-$(OUT_DIR)/$(TARGET_CLI): $(SOURCE_CLI) $(IMPORT_LIB) | $(OUT_DIR)
+$(OUT_DIR)/$(TARGET_CLI): $(SOURCE_CLI) $(LZFSE_LIB) $(IMPORT_LIB) | $(OUT_DIR)
 	$(CC) $(CFLAGS) -o $@ $(SOURCE_CLI) $(LDFLAGS)
 	@echo "Built: $(OUT_DIR)/$(TARGET_CLI)"
 

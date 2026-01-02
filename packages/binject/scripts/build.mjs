@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 
 import { buildCPackage } from 'build-infra/lib/c-package-builder'
 import { ensureLief } from 'build-infra/lib/lief-downloader'
+import { ensureLzfse } from 'build-infra/lib/lzfse-init'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -20,14 +21,17 @@ const packageRoot = path.join(__dirname, '..')
 // - Linux: inject into PE/Mach-O (ELF is native).
 // - Windows: inject into ELF/Mach-O (PE is native).
 // LIEF is downloaded from releases if needed.
-async function ensureLiefForBinject({ BUILD_MODE, packageDir }) {
+//
+// Ensure lzfse submodule is initialized (required for lzfse compression).
+async function ensureDependencies({ BUILD_MODE, packageDir }) {
   await ensureLief({ BUILD_MODE, packageDir })
+  await ensureLzfse({ packageDir })
 }
 
 buildCPackage({
   packageName: 'binject',
   packageDir: packageRoot,
-  beforeBuild: ensureLiefForBinject,
+  beforeBuild: ensureDependencies,
   skipClean: true,
   validateCheckpointWithBinary: true,
 })

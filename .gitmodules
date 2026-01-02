@@ -22,3 +22,9 @@
 	# v0.17.1
 	ref = fe54643fe3d7a699c68b164dae87afb1eb059342
 	shallow = true
+[submodule "packages/bin-infra/upstream/lzfse"]
+	path = packages/bin-infra/upstream/lzfse
+	url = https://github.com/lzfse/lzfse.git
+	# Latest commit on master as of 2024-12-31
+	ref = e634ca58b4821d9f3d560cdc6df5dec02ffc93fd
+	shallow = true

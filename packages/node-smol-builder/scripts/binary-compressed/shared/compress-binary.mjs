@@ -39,6 +39,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { ALPINE_RELEASE_FILE } from 'build-infra/lib/environment-constants'
+import { getPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { which } from '@socketsecurity/lib/bin'
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
@@ -193,34 +194,10 @@ function isMusl() {
 }
 
 function getBinpressPlatformArch() {
-  const platform = process.platform
-  const arch = process.arch
-
-  const platformMap = {
-    __proto__: null,
-    darwin: 'darwin',
-    linux: 'linux',
-    win32: 'win',
-  }
-
-  const archMap = {
-    __proto__: null,
-    arm64: 'arm64',
-    ia32: 'x86',
-    x64: 'x64',
-  }
-
-  const binpressPlatform = platformMap[platform]
-  const binpressArch = archMap[arch]
-
-  if (!binpressPlatform || !binpressArch) {
-    throw new Error(`Unsupported platform/arch: ${platform}/${arch}`)
-  }
-
-  // Append -musl for musl libc on Linux.
-  const muslSuffix = isMusl() ? '-musl' : ''
-
-  return `${binpressPlatform}-${binpressArch}${muslSuffix}`
+  // Use shared platform mapping for binpress tool path.
+  // Linux uses musl variant for broader compatibility.
+  const libc = isMusl() ? 'musl' : null
+  return getPlatformArch(process.platform, process.arch, libc)
 }
 
 /**

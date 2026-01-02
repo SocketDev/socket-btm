@@ -98,6 +98,13 @@ static int extract_and_execute(int self_fd, const char *exe_path, int argc, char
         total_read += n;
     }
 
+    // Debug: Check first few bytes of compressed data
+    fprintf(stderr, "Debug: First 16 bytes of compressed data: ");
+    for (int i = 0; i < 16 && i < (int)compressed_size; i++) {
+        fprintf(stderr, "%02x ", compressed_data[i]);
+    }
+    fprintf(stderr, "\n");
+
     // Check if already cached
     if (dlx_get_cached_binary_path(cache_key, uncompressed_size, output_path, sizeof(output_path)) == 0) {
         // Already cached - execute directly
@@ -124,7 +131,9 @@ static int extract_and_execute(int self_fd, const char *exe_path, int argc, char
     );
 
     if (decompressed_bytes != uncompressed_size) {
-        fprintf(stderr, "Error: Decompression failed\n");
+        fprintf(stderr, "Error: Decompression failed (got %zu bytes, expected %llu bytes)\n",
+                decompressed_bytes, (unsigned long long)uncompressed_size);
+        fprintf(stderr, "Compressed size: %llu bytes\n", (unsigned long long)compressed_size);
         goto cleanup;
     }
 

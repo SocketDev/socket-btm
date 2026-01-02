@@ -40,7 +40,8 @@ RUN pnpm install --frozen-lockfile --filter bin-infra
 
 # Build LIEF.
 ARG BUILD_MODE=prod
-ARG CACHE_VERSION=1
+# Cache version - managed centrally in .github/cache-versions.json
+ARG CACHE_VERSION=unset
 ENV BUILD_MODE=$BUILD_MODE
 
 RUN echo "Cache version: ${CACHE_VERSION}" && cd packages/bin-infra && pnpm run build:lief

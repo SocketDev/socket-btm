@@ -128,10 +128,21 @@ export async function ensureLief({ BUILD_MODE, force, packageDir, platforms }) {
   })
 
   if (result.code !== 0) {
-    throw new Error(
+    logger.warn(
       `Failed to download LIEF library (exit code ${result.code}). ` +
-        'LIEF must be available in socket-btm releases.',
+        'Building without LIEF support (Mach-O/PE cross-platform compression unavailable).',
     )
+    // Clean up any stale LIEF files from cache to prevent build errors.
+    try {
+      const { safeDeleteSync } = await import('@socketsecurity/lib/fs')
+      if (existsSync(liefDir)) {
+        safeDeleteSync(liefDir)
+        logger.info('Removed stale LIEF cache files')
+      }
+    } catch {
+      // Ignore cleanup errors.
+    }
+    return
   }
 
   // Get the downloaded version and save it.
@@ -143,6 +154,19 @@ export async function ensureLief({ BUILD_MODE, force, packageDir, platforms }) {
   // Verify download succeeded.
   const stillMissing = requiredPaths.filter(p => !existsSync(p))
   if (stillMissing.length > 0) {
+    // Debug: List what files are actually present.
+    logger.error('LIEF extraction completed but expected files are missing.')
+    logger.info(`Expected paths: ${requiredPaths.join(', ')}`)
+    try {
+      const { readdirSync } = await import('node:fs')
+      logger.info(
+        `Files in ${liefDir}: ${readdirSync(liefDir, { withFileTypes: true })
+          .map(d => d.name)
+          .join(', ')}`,
+      )
+    } catch {
+      logger.warn(`Could not list contents of ${liefDir}`)
+    }
     throw new Error(
       `LIEF library download completed but files are missing: ${stillMissing.join(', ')}`,
     )

@@ -7,6 +7,7 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 
 import { printError } from 'build-infra/lib/build-output'
+import { getPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
@@ -16,38 +17,15 @@ const logger = getDefaultLogger()
 
 /**
  * Get platform-arch-libc string for tool paths.
- * Maps Node.js platform/arch/libc names to release asset naming convention.
+ * Wrapper around shared getPlatformArch for consistency.
  *
- * @param {string} platform - Platform (darwin, linux, win32)
- * @param {string} arch - Architecture (arm64, x64, ia32)
- * @param {string|null} [libc] - C library variant (musl, glibc, or null)
- * @returns {string} Platform-arch string (e.g., 'linux-x64', 'linux-x64-musl')
+ * @param {string} platform - Platform (darwin, linux, win32).
+ * @param {string} arch - Architecture (arm64, x64, ia32).
+ * @param {string|null} [libc] - C library variant (musl, glibc, or null).
+ * @returns {string} Platform-arch string (e.g., 'linux-x64', 'linux-x64-musl').
  */
 function getToolPlatformArch(platform, arch, libc = null) {
-  const platformMap = {
-    __proto__: null,
-    darwin: 'darwin',
-    linux: 'linux',
-    win32: 'win',
-  }
-
-  const archMap = {
-    __proto__: null,
-    arm64: 'arm64',
-    ia32: 'x86',
-    x64: 'x64',
-  }
-
-  const toolPlatform = platformMap[platform]
-  const toolArch = archMap[arch]
-
-  if (!toolPlatform || !toolArch) {
-    throw new Error(`Unsupported platform/arch for tools: ${platform}/${arch}`)
-  }
-
-  // Add musl suffix for Linux musl builds
-  const muslSuffix = platform === 'linux' && libc === 'musl' ? '-musl' : ''
-  return `${toolPlatform}-${toolArch}${muslSuffix}`
+  return getPlatformArch(platform, arch, libc)
 }
 
 /**

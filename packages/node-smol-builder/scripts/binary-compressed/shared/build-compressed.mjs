@@ -24,25 +24,16 @@ import {
   smokeTestBinary,
 } from 'build-infra/lib/build-helpers'
 import { printError } from 'build-infra/lib/build-output'
-import { restoreCheckpoint } from 'build-infra/lib/checkpoint-manager'
-import { getBinOutDir } from 'build-infra/lib/constants'
 import { ALPINE_RELEASE_FILE } from 'build-infra/lib/environment-constants'
 import { adHocSign } from 'build-infra/lib/sign'
 
-import { which } from '@socketsecurity/lib/bin'
-import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
 
-import { BINJECT_DIR, COMPRESS_BINARY_SCRIPT, PACKAGE_ROOT } from './paths.mjs'
+import { COMPRESS_BINARY_SCRIPT, PACKAGE_ROOT } from './paths.mjs'
 import { verifyCompressionTools } from '../../common/shared/compression-tools.mjs'
 
 const logger = getDefaultLogger()
-
-// binject is built from source (not downloaded) for tests.
-// Output directory: packages/binject/build/{mode}/out/Final/
-const BINJECT_OUT_DIR = getBinOutDir(BINJECT_DIR)
 
 /**
  * Detect if running on musl libc (Alpine Linux).
@@ -69,118 +60,6 @@ function detectHostLibc() {
     // Default to glibc if detection fails
     return 'glibc'
   }
-}
-
-/**
- * Build binject injection tool if it doesn't exist.
- */
-async function ensureBinjectBuilt() {
-  // Check if binject binary exists.
-  const binjectBinaryName =
-    process.platform === 'win32' ? 'binject.exe' : 'binject'
-  const binjectBinaryPath = path.join(BINJECT_OUT_DIR, binjectBinaryName)
-  const binjectExists = existsSync(binjectBinaryPath)
-
-  if (binjectExists) {
-    logger.substep('Binary injection tool already built: binject')
-    return
-  }
-
-  logger.step('Building Binary Injection Tool (binject)')
-  logger.log('Building binject for SEA binary injection...')
-  logger.logNewline()
-
-  // Try to restore from checkpoint chain (finalized, then lief-built).
-  const binjectBuildDir = path.join(BINJECT_DIR, 'build')
-  const checkpointChain = ['finalized', 'lief-built']
-
-  let checkpointRestored = false
-  for (const checkpoint of checkpointChain) {
-    logger.substep(`Checking checkpoint: ${checkpoint}`)
-    checkpointRestored = await restoreCheckpoint(
-      binjectBuildDir,
-      'binject',
-      checkpoint,
-      { destDir: BINJECT_OUT_DIR },
-    )
-
-    if (checkpointRestored) {
-      logger.substep(`Restored binject from checkpoint: ${checkpoint}`)
-
-      // Verify binject was restored.
-      const binjectRestored = existsSync(binjectBinaryPath)
-      if (binjectRestored) {
-        logger.logNewline()
-        logger.success(`binject restored from checkpoint: ${checkpoint}`)
-        logger.logNewline()
-        return
-      }
-
-      logger.warn(
-        'Checkpoint restored but binary not found, trying next checkpoint...',
-      )
-    }
-  }
-
-  // Build from source.
-  logger.substep('No checkpoint available, building from source...')
-  logger.logNewline()
-
-  // Use pnpm to run the build script which handles LIEF on macOS.
-  const pnpmPath = await which('pnpm', { nothrow: true })
-  if (!pnpmPath) {
-    printError('Build Tool Not Found', "Build tool 'pnpm' not found in PATH", [
-      'Install pnpm: npm install -g pnpm',
-      'binject is required for binary injection in tests',
-    ])
-    throw new Error("Build tool 'pnpm' not found. Install it first.")
-  }
-
-  logger.substep(`Using pnpm: ${pnpmPath}`)
-  logger.substep('Command: pnpm run build')
-  logger.substep(`Directory: ${path.relative(PACKAGE_ROOT, BINJECT_DIR)}`)
-  logger.logNewline()
-
-  // Execute pnpm run build in binject directory.
-  let result
-  try {
-    result = await spawn(pnpmPath, ['run', 'build'], {
-      cwd: BINJECT_DIR,
-      stdio: 'inherit',
-      shell: WIN32,
-    })
-  } catch (spawnError) {
-    result = spawnError
-  }
-
-  const exitCode = result.code ?? 0
-  if (exitCode !== 0) {
-    printError(
-      'binject Build Failed',
-      `Failed to build binject (exit code: ${exitCode})`,
-      [
-        'Check that build dependencies are installed',
-        'Check build logs above for compilation errors',
-        'binject is required for binary injection in tests',
-      ],
-    )
-    throw new Error(`Failed to build binject (exit code: ${exitCode})`)
-  }
-
-  // Verify binject was built.
-  const binjectBuilt = existsSync(binjectBinaryPath)
-  if (!binjectBuilt) {
-    printError(
-      'binject Binary Not Created',
-      'Build completed but binject binary was not created',
-      [`Missing: ${binjectBinaryPath}`],
-    )
-    throw new Error('binject binary was not created after build')
-  }
-
-  logger.logNewline()
-  logger.success('binject built successfully')
-  logger.logNewline()
 }
 
 /**
@@ -247,9 +126,6 @@ export async function buildCompressed(config, buildOptions = {}) {
   })
 
   logger.substep('Compression tools available (host)')
-
-  // Build binject tool (needed for tests).
-  await ensureBinjectBuilt()
 
   logger.step('Compressing Binary for Distribution')
   logger.log(

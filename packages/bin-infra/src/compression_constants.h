@@ -73,10 +73,10 @@
 #define LIBC_MUSL 1
 #define LIBC_NA 255
 
-/* Compression algorithm values. */
-#define COMPRESSION_LZFSE 0
-#define COMPRESSION_LZMA 1
-#define COMPRESSION_LZMS 2
+/* Compression algorithm values (for metadata, not for Apple Compression framework). */
+#define SMOL_COMPRESSION_LZFSE 0
+#define SMOL_COMPRESSION_LZMA 1
+#define SMOL_COMPRESSION_LZMS 2
 
 /**
  * Binflate marker to identify the embedded binflate tool in self-extracting binaries.

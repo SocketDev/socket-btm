@@ -98,7 +98,6 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           persist-credentials: false
-          submodules: recursive
 
       - name: Setup Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
@@ -110,6 +109,19 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Setup Windows build dependencies
+        if: matrix.os == 'windows'
+        shell: bash
+        run: |
+          # Install xz package for liblzma headers and library.
+          # Required by compression_common.c for LZMA compression support.
+          C:/msys64/usr/bin/bash -lc "pacman -Sy --noconfirm mingw-w64-x86_64-xz"
+          # Add MinGW bin to PATH for build tools.
+          echo "C:/msys64/mingw64/bin" >> $GITHUB_PATH
+          # Add MinGW include and lib paths for gcc/g++.
+          echo "CPATH=C:/msys64/mingw64/include" >> $GITHUB_ENV
+          echo "LIBRARY_PATH=C:/msys64/mingw64/lib" >> $GITHUB_ENV
 
       - name: Setup Depot CLI
         if: matrix.os == 'linux'
@@ -379,6 +391,15 @@ jobs:
             file "$BINARY" || true
           fi
 
+      - name: Debug compression test
+        if: steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'true' && matrix.arch == 'x64' && matrix.libc != 'musl' && runner.os == 'Windows'
+        shell: bash
+        working-directory: packages/binpress
+        run: |
+          # Run debug compression test to diagnose issues
+          echo "Running debug compression test..."
+          bash test/debug-compress.sh || true
+
       - name: Test binary (functional test)
         if: steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'true' && matrix.arch == 'x64' && matrix.libc != 'musl'
         shell: bash
@@ -496,7 +517,6 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           persist-credentials: false
-          submodules: recursive
 
       - name: Setup Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
@@ -508,6 +528,19 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Setup Windows build dependencies
+        if: matrix.os == 'windows'
+        shell: bash
+        run: |
+          # Install xz package for liblzma headers and library.
+          # Required by compression_common.c for LZMA compression support.
+          C:/msys64/usr/bin/bash -lc "pacman -Sy --noconfirm mingw-w64-x86_64-xz"
+          # Add MinGW bin to PATH for build tools.
+          echo "C:/msys64/mingw64/bin" >> $GITHUB_PATH
+          # Add MinGW include and lib paths for gcc/g++.
+          echo "CPATH=C:/msys64/mingw64/include" >> $GITHUB_ENV
+          echo "LIBRARY_PATH=C:/msys64/mingw64/lib" >> $GITHUB_ENV
 
       - name: Setup Depot CLI
         if: matrix.os == 'linux'
@@ -894,7 +927,6 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           persist-credentials: false
-          submodules: recursive
 
       - name: Setup Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
@@ -906,6 +938,19 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Setup Windows build dependencies
+        if: matrix.os == 'windows'
+        shell: bash
+        run: |
+          # Install xz package for liblzma headers and library.
+          # Required by compression_common.c for LZMA compression support.
+          C:/msys64/usr/bin/bash -lc "pacman -Sy --noconfirm mingw-w64-x86_64-xz"
+          # Add MinGW bin to PATH for build tools.
+          echo "C:/msys64/mingw64/bin" >> $GITHUB_PATH
+          # Add MinGW include and lib paths for gcc/g++.
+          echo "CPATH=C:/msys64/mingw64/include" >> $GITHUB_ENV
+          echo "LIBRARY_PATH=C:/msys64/mingw64/lib" >> $GITHUB_ENV
 
       - name: Setup Depot CLI
         if: matrix.os == 'linux'
@@ -1269,7 +1314,6 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           persist-credentials: false
-          submodules: recursive
 
       - name: Setup Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0

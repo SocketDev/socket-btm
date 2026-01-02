@@ -36,7 +36,7 @@ RUN pnpm install --frozen-lockfile
 
 # Build binpress.
 ARG BUILD_MODE=prod
-ARG CACHE_VERSION=1
+ARG CACHE_VERSION=unset
 ENV BUILD_MODE=$BUILD_MODE
 
 RUN echo "Cache version: ${CACHE_VERSION}" && cd packages/binpress && pnpm run build -- --force

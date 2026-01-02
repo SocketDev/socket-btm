@@ -30,13 +30,26 @@ test_suite() {
 run_test() {
     TOTAL_COUNT=$((TOTAL_COUNT + 1))
     echo -n "  "
-    if eval "$2" > /dev/null 2>&1; then
+
+    # Capture both stdout and stderr for error reporting.
+    local output
+    output=$(eval "$2" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -eq 0 ]; then
         PASS_COUNT=$((PASS_COUNT + 1))
         echo -e "${GREEN}✓${RESET} $1"
         return 0
     else
         FAIL_COUNT=$((FAIL_COUNT + 1))
         echo -e "${RED}✗${RESET} $1"
+        if [ -n "$output" ]; then
+            echo -e "${RED}    Error output:${RESET}"
+            # Use pure bash to indent output, avoiding sed/awk for Windows compatibility.
+            while IFS= read -r line || [ -n "$line" ]; do
+                echo "      $line"
+            done <<< "$output"
+        fi
         return 1
     fi
 }
@@ -98,6 +111,20 @@ done
 run_test "create_test_file" "[ -f '$TEST_DIR/test.txt' ]"
 
 # Test: Compress file (basic)
+echo "DEBUG: About to run compress test"
+echo "DEBUG: COMPRESSOR=$COMPRESSOR"
+echo "DEBUG: TEST_DIR=$TEST_DIR"
+echo "DEBUG: Attempting direct execution..."
+set +e
+"$COMPRESSOR" "$TEST_DIR/test.txt" --data-only -o "$TEST_DIR/test.txt.compressed"
+direct_exit=$?
+set -e
+echo "DEBUG: Direct execution exit code: $direct_exit"
+if [ $direct_exit -ne 0 ]; then
+    echo "DEBUG: Direct execution failed, checking if binary exists and is readable..."
+    ls -lh "$COMPRESSOR"
+    file "$COMPRESSOR" || true
+fi
 run_test "compress_basic" "$COMPRESSOR '$TEST_DIR/test.txt' --data-only -o '$TEST_DIR/test.txt.compressed'"
 
 # Test: Compressed file exists

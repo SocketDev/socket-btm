@@ -23,7 +23,7 @@ check-tools:
 # Build CLI extraction tool.
 all: check-tools $(OUT_DIR)/$(TARGET_CLI)
 
-$(OUT_DIR)/$(TARGET_CLI): $(SOURCE_CLI) | $(OUT_DIR)
+$(OUT_DIR)/$(TARGET_CLI): $(SOURCE_CLI) $(LZFSE_LIB) | $(OUT_DIR)
 	$(CC) $(CFLAGS) -o $@ $(SOURCE_CLI) $(LDFLAGS)
 	$(call STRIP_BINARY,$@)
 	@echo "Built: $(OUT_DIR)/$(TARGET_CLI)"

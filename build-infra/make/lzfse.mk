@@ -9,3 +9,8 @@ LZFSE_CFLAGS = -I$(LZFSE_INCLUDE_DIR)
 
 # LZFSE linker flags.
 LZFSE_LDFLAGS = $(LZFSE_LIB)
+
+# Build lzfse library if not already built.
+$(LZFSE_LIB):
+	@echo "Building lzfse library..."
+	@$(MAKE) -C $(LZFSE_UPSTREAM) --no-print-directory

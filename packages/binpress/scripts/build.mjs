@@ -4,11 +4,14 @@
  * Wraps the Makefile build target for pnpm integration
  */
 
+import { promises as fs } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { buildCPackage } from 'build-infra/lib/c-package-builder'
 import { ensureLief } from 'build-infra/lib/lief-downloader'
+import { ensureLzfse } from 'build-infra/lib/lzfse-init'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -20,12 +23,25 @@ const packageRoot = path.join(__dirname, '..')
 // - Linux: compress Mach-O/PE (ELF is native)
 // - Windows: compress Mach-O/ELF (PE is native)
 // LIEF is downloaded from releases if needed.
-async function ensureLiefForBinpress({ BUILD_MODE, packageDir }) {
+//
+// Ensure lzfse submodule is initialized (required for lzfse compression).
+async function ensureDependencies({ BUILD_MODE, packageDir }) {
   await ensureLief({ BUILD_MODE, packageDir })
+  await ensureLzfse({ packageDir })
+}
+
+// Custom smoke test for Windows: only verify file exists and size.
+// Skip --version test to avoid DLL dependency issues and cross-architecture execution problems.
+async function windowsSmokeTest(binaryPath) {
+  const stats = await fs.stat(binaryPath)
+  if (stats.size < 1000) {
+    throw new Error(`Binary too small: ${stats.size} bytes (expected >1KB)`)
+  }
 }
 
 buildCPackage({
   packageName: 'binpress',
   packageDir: packageRoot,
-  beforeBuild: ensureLiefForBinpress,
+  beforeBuild: ensureDependencies,
+  smokeTest: os.platform() === 'win32' ? windowsSmokeTest : undefined,
 })

@@ -18,6 +18,8 @@
  *   [Compressed data]
  */
 
+#define _POSIX_C_SOURCE 200809L
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,7 +40,7 @@ static void print_usage(const char *program) {
     printf("binflate - Extract compressed binaries\n\n");
     printf("Usage:\n");
     printf("  %s <compressed_binary> [-o|--output <output_path>]\n", program);
-    printf("  %s --help\n");
+    printf("  %s --help\n", program);
     printf("  %s --version\n\n", program);
     printf("Options:\n");
     printf("  -o, --output <path>  Output path (default: current directory)\n");

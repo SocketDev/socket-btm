@@ -79,11 +79,14 @@ RUN pnpm install --frozen-lockfile
 ARG BUILD_MODE=prod
 ARG MATRIX_PLATFORM=linux
 ARG MATRIX_ARCH=x64
+# Cache version - managed centrally in .github/cache-versions.json
+ARG CACHE_VERSION=unset
 ENV BUILD_MODE=$BUILD_MODE
 ENV MATRIX_PLATFORM=$MATRIX_PLATFORM
 ENV MATRIX_ARCH=$MATRIX_ARCH
 
-RUN if [ "$BUILD_MODE" = "prod" ]; then \
+RUN echo "Cache version: ${CACHE_VERSION}" && \
+    if [ "$BUILD_MODE" = "prod" ]; then \
     pnpm --filter node-smol-builder build --prod --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}"; \
 else \
     pnpm --filter node-smol-builder build --dev --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}"; \

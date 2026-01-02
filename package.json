@@ -20,7 +20,6 @@
     "format:check": "biome format .",
     "lint": "node scripts/lint.mjs",
     "lint:fix": "node scripts/lint.mjs --fix",
-    "postinstall": "git submodule update --init --recursive || true",
     "prepare": "husky",
     "release": "pnpm --filter @socketbin/node-smol-builder release",
     "release:publish": "pnpm --filter @socketbin/node-smol-builder release:publish",

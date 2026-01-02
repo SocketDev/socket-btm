@@ -577,6 +577,41 @@ async function main() {
       )
     }
 
+    // Copy upstream headers to build directory for standalone distribution.
+    // The checkpoint tarball needs to include all headers required for compilation,
+    // not just the generated config.h and version.h from the CMake build.
+    logger.info('Copying upstream headers for standalone distribution...')
+    const upstreamIncludeDir = path.join(liefUpstream, 'include', 'LIEF')
+    const buildIncludeDir = path.join(liefBuildDir, 'include', 'LIEF')
+
+    // Ensure target directory exists.
+    await fs.mkdir(buildIncludeDir, { recursive: true })
+
+    // Recursively copy all header files from upstream to build directory.
+    const copyUpstreamHeaders = async (src, dest) => {
+      const entries = await fs.readdir(src, { withFileTypes: true })
+
+      for (const entry of entries) {
+        const srcPath = path.join(src, entry.name)
+        const destPath = path.join(dest, entry.name)
+
+        if (entry.isDirectory()) {
+          await fs.mkdir(destPath, { recursive: true })
+          await copyUpstreamHeaders(srcPath, destPath)
+        } else if (
+          entry.name.endsWith('.hpp') ||
+          entry.name.endsWith('.h') ||
+          entry.name.endsWith('.def')
+        ) {
+          await fs.copyFile(srcPath, destPath)
+        }
+      }
+    }
+
+    await copyUpstreamHeaders(upstreamIncludeDir, buildIncludeDir)
+    logger.success('Upstream headers copied to build directory')
+    logger.info('')
+
     // Create checkpoint.
     await createCheckpoint(
       buildDir,

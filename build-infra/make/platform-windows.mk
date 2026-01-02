@@ -12,8 +12,19 @@ else
     OPT_FLAGS = -O0 -g
 endif
 
+# Windows liblzma support (MinGW typically has this in standard paths).
+# If using MSYS2/MinGW, lzma.h should be available via xz package.
+WINDOWS_LZMA_CFLAGS =
+WINDOWS_LZMA_LDFLAGS = -llzma
+
 # Windows-specific linker flags base.
-LDFLAGS_BASE = -Wl,--gc-sections -lcabinet
+# Note: -llzma is required for compression_common.c LZMA support, -lcabinet for Cabinet compression.
+# -L$(OUT_DIR) ensures linker finds our generated libcabinet.a import library.
+LDFLAGS_BASE = -Wl,--gc-sections -L$(OUT_DIR) -lcabinet $(WINDOWS_LZMA_LDFLAGS)
+
+# Windows post-link libraries (must come after LIEF library on linker command line).
+# Note: -lws2_32 provides inet_pton for LIEF's mbedtls.
+LDFLAGS_POST = -lws2_32
 
 # Cabinet.dll import library generation.
 IMPORT_LIB = $(OUT_DIR)/libcabinet.a

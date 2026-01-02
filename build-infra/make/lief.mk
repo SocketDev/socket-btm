@@ -13,11 +13,10 @@ else
     LIEF_CFLAGS = -I$(LIEF_BUILD_DIR)/include
 endif
 
-# Add LIEF library if it exists.
-ifneq (,$(wildcard $(LIEF_LIB)))
-    LIEF_LDFLAGS = $(LIEF_LIB)
-    LIEF_DEFINES = -DHAVE_LIEF=1
-else
-    LIEF_LDFLAGS =
-    LIEF_DEFINES =
+# LIEF library is required for binject.
+ifeq (,$(wildcard $(LIEF_LIB)))
+    $(error LIEF library not found at $(LIEF_LIB). Please download LIEF from releases or build it first.)
 endif
+
+LIEF_LDFLAGS = $(LIEF_LIB)
+LIEF_DEFINES = -DHAVE_LIEF=1

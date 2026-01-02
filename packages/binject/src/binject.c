@@ -599,9 +599,8 @@ int binject_single(const char *executable, const char *output, const char *resou
     uint32_t checksum = binject_checksum(data, size);
     printf("  Checksum: 0x%08x\n", checksum);
 
-    /* Platform-specific injection */
+    /* Platform-specific injection. */
     if (format == BINJECT_FORMAT_MACHO) {
-#ifdef HAVE_LIEF
         /* Map section identifier to Mach-O segment/section names. */
         const char *segment = "NODE_SEA";
         const char *macho_section = NULL;
@@ -617,32 +616,12 @@ int binject_single(const char *executable, const char *output, const char *resou
         }
 
         rc = binject_macho(executable, segment, macho_section, data, size);
-#else
-        fprintf(stderr, "Error: Mach-O injection requires LIEF library on %s\n",
-#if defined(_WIN32)
-                "Windows"
-#elif defined(__linux__)
-                "Linux"
-#else
-                "this platform"
-#endif
-        );
-        rc = BINJECT_ERROR_INVALID_FORMAT;
-#endif
     } else if (format == BINJECT_FORMAT_ELF) {
-        /* Use LIEF for cross-platform ELF injection */
-#ifdef HAVE_LIEF
+        /* Use LIEF for cross-platform ELF injection. */
         rc = binject_elf_lief(executable, section_name, data, size);
-#else
-        rc = binject_single_elf(executable, executable, section_name, data, size, 0, 0);
-#endif
     } else if (format == BINJECT_FORMAT_PE) {
-        /* Use LIEF for cross-platform PE injection */
-#ifdef HAVE_LIEF
+        /* Use LIEF for cross-platform PE injection. */
         rc = binject_pe_lief(executable, section_name, data, size);
-#else
-        rc = binject_single_pe(executable, executable, section_name, data, size, 0, 0);
-#endif
     } else {
         fprintf(stderr, "Error: Unsupported binary format\n");
         rc = BINJECT_ERROR_INVALID_FORMAT;
@@ -740,20 +719,7 @@ int binject_batch(const char *executable, const char *output,
     const char *injection_output = is_compressed ? target_binary : output;
 
     if (format == BINJECT_FORMAT_MACHO) {
-#ifdef HAVE_LIEF
         rc = binject_macho_lief_batch(target_binary, injection_output, sea_data, sea_size, vfs_data, vfs_size, vfs_compat_mode);
-#else
-        fprintf(stderr, "Error: Mach-O injection requires LIEF library on %s\n",
-#if defined(_WIN32)
-                "Windows"
-#elif defined(__linux__)
-                "Linux"
-#else
-                "this platform"
-#endif
-        );
-        rc = BINJECT_ERROR_INVALID_FORMAT;
-#endif
     } else if (format == BINJECT_FORMAT_ELF) {
         rc = binject_batch_elf(target_binary, injection_output, sea_data, sea_size, vfs_data, vfs_size, vfs_compat_mode);
     } else if (format == BINJECT_FORMAT_PE) {
@@ -796,34 +762,11 @@ int binject_list(const char *executable) {
     }
 
     if (format == BINJECT_FORMAT_MACHO) {
-#ifdef HAVE_LIEF
         return binject_macho_list(executable);
-#else
-        fprintf(stderr, "Error: Mach-O listing requires LIEF library on %s\n",
-#if defined(_WIN32)
-                "Windows"
-#elif defined(__linux__)
-                "Linux"
-#else
-                "this platform"
-#endif
-        );
-        return BINJECT_ERROR_INVALID_FORMAT;
-#endif
     } else if (format == BINJECT_FORMAT_ELF) {
-#if defined(__linux__)
         return binject_elf_list(executable);
-#else
-        fprintf(stderr, "Error: ELF format not supported on this platform\n");
-        return BINJECT_ERROR_INVALID_FORMAT;
-#endif
     } else if (format == BINJECT_FORMAT_PE) {
-#if defined(_WIN32)
         return binject_pe_list(executable);
-#else
-        fprintf(stderr, "Error: PE format not supported on this platform\n");
-        return BINJECT_ERROR_INVALID_FORMAT;
-#endif
     } else {
         fprintf(stderr, "Error: Unsupported binary format\n");
         return BINJECT_ERROR_INVALID_FORMAT;
@@ -853,35 +796,11 @@ int binject_extract(const char *executable, const char *section_name,
     }
 
     if (format == BINJECT_FORMAT_MACHO) {
-#ifdef HAVE_LIEF
         return binject_macho_extract(executable, actual_section_name, output_file);
-#else
-        (void)actual_section_name;  /* Suppress unused warning when LIEF not available */
-        fprintf(stderr, "Error: Mach-O extraction requires LIEF library on %s\n",
-#if defined(_WIN32)
-                "Windows"
-#elif defined(__linux__)
-                "Linux"
-#else
-                "this platform"
-#endif
-        );
-        return BINJECT_ERROR_INVALID_FORMAT;
-#endif
     } else if (format == BINJECT_FORMAT_ELF) {
-#if defined(__linux__)
         return binject_elf_extract(executable, section_name, output_file);
-#else
-        fprintf(stderr, "Error: ELF format not supported on this platform\n");
-        return BINJECT_ERROR_INVALID_FORMAT;
-#endif
     } else if (format == BINJECT_FORMAT_PE) {
-#if defined(_WIN32)
         return binject_pe_extract(executable, section_name, output_file);
-#else
-        fprintf(stderr, "Error: PE format not supported on this platform\n");
-        return BINJECT_ERROR_INVALID_FORMAT;
-#endif
     } else {
         fprintf(stderr, "Error: Unsupported binary format\n");
         return BINJECT_ERROR_INVALID_FORMAT;
@@ -909,35 +828,11 @@ int binject_verify(const char *executable, const char *section_name) {
     }
 
     if (format == BINJECT_FORMAT_MACHO) {
-#ifdef HAVE_LIEF
         return binject_macho_verify(executable, actual_section_name);
-#else
-        (void)actual_section_name;  /* Suppress unused warning when LIEF not available */
-        fprintf(stderr, "Error: Mach-O verification requires LIEF library on %s\n",
-#if defined(_WIN32)
-                "Windows"
-#elif defined(__linux__)
-                "Linux"
-#else
-                "this platform"
-#endif
-        );
-        return BINJECT_ERROR_INVALID_FORMAT;
-#endif
     } else if (format == BINJECT_FORMAT_ELF) {
-#if defined(__linux__)
         return binject_elf_verify(executable, section_name);
-#else
-        fprintf(stderr, "Error: ELF format not supported on this platform\n");
-        return BINJECT_ERROR_INVALID_FORMAT;
-#endif
     } else if (format == BINJECT_FORMAT_PE) {
-#if defined(_WIN32)
         return binject_pe_verify(executable, section_name);
-#else
-        fprintf(stderr, "Error: PE format not supported on this platform\n");
-        return BINJECT_ERROR_INVALID_FORMAT;
-#endif
     } else {
         fprintf(stderr, "Error: Unsupported binary format\n");
         return BINJECT_ERROR_INVALID_FORMAT;

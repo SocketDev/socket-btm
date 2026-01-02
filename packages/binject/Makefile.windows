@@ -12,25 +12,23 @@ SRC_DIR = src
 TEST_DIR = test
 
 # Source files.
-SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/binject.c $(SRC_DIR)/single_elf_inject_stub.c $(SRC_DIR)/single_pe_inject.c $(SRC_DIR)/elf_inject.c $(SRC_DIR)/pe_inject.c $(SRC_DIR)/stub_repack.c ../bin-infra/src/compression_common.c ../bin-infra/src/file_io_common.c ../bin-infra/src/smol_segment.c ../bin-infra/src/smol_segment_reader.c
-OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/single_elf_inject_stub.o $(BUILD_DIR)/single_pe_inject.o $(BUILD_DIR)/elf_inject.o $(BUILD_DIR)/pe_inject.o $(BUILD_DIR)/stub_repack.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o $(BUILD_DIR)/smol_segment.o $(BUILD_DIR)/smol_segment_reader.o
+SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/binject.c $(SRC_DIR)/single_pe_inject.c $(SRC_DIR)/elf_inject.c $(SRC_DIR)/pe_inject.c $(SRC_DIR)/stub_repack.c ../bin-infra/src/compression_common.c ../bin-infra/src/file_io_common.c ../bin-infra/src/smol_segment.c ../bin-infra/src/smol_segment_reader.c
+OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/single_pe_inject.o $(BUILD_DIR)/elf_inject.o $(BUILD_DIR)/pe_inject.o $(BUILD_DIR)/stub_repack.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o $(BUILD_DIR)/smol_segment.o $(BUILD_DIR)/smol_segment_reader.o
 
-# Add LIEF C++ sources if library exists.
-ifneq (,$(wildcard $(LIEF_LIB)))
-    SRCS += $(SRC_DIR)/macho_inject_lief.cpp $(SRC_DIR)/elf_inject_lief.cpp $(SRC_DIR)/pe_inject_lief.cpp
-    OBJS += $(BUILD_DIR)/macho_inject_lief.o $(BUILD_DIR)/elf_inject_lief.o $(BUILD_DIR)/pe_inject_lief.o
-endif
+# LIEF C++ sources (required).
+SRCS += $(SRC_DIR)/macho_inject_lief.cpp $(SRC_DIR)/elf_inject_lief.cpp $(SRC_DIR)/pe_inject_lief.cpp
+OBJS += $(BUILD_DIR)/macho_inject_lief.o $(BUILD_DIR)/elf_inject_lief.o $(BUILD_DIR)/pe_inject_lief.o
 
 # Test files.
-TEST_SRCS = $(TEST_DIR)/binject_test.c $(SRC_DIR)/binject.c $(SRC_DIR)/single_elf_inject_stub.c $(SRC_DIR)/single_pe_inject.c $(SRC_DIR)/elf_inject.c $(SRC_DIR)/pe_inject.c $(SRC_DIR)/stub_repack.c ../bin-infra/src/compression_common.c ../bin-infra/src/file_io_common.c ../bin-infra/src/smol_segment.c ../bin-infra/src/smol_segment_reader.c
-TEST_OBJS = $(BUILD_DIR)/binject_test.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/single_elf_inject_stub.o $(BUILD_DIR)/single_pe_inject.o $(BUILD_DIR)/elf_inject.o $(BUILD_DIR)/pe_inject.o $(BUILD_DIR)/stub_repack.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o $(BUILD_DIR)/smol_segment.o $(BUILD_DIR)/smol_segment_reader.o
+TEST_SRCS = $(TEST_DIR)/binject_test.c $(SRC_DIR)/binject.c $(SRC_DIR)/single_pe_inject.c $(SRC_DIR)/elf_inject.c $(SRC_DIR)/pe_inject.c $(SRC_DIR)/stub_repack.c ../bin-infra/src/compression_common.c ../bin-infra/src/file_io_common.c ../bin-infra/src/smol_segment.c ../bin-infra/src/smol_segment_reader.c
+TEST_OBJS = $(BUILD_DIR)/binject_test.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/single_pe_inject.o $(BUILD_DIR)/elf_inject.o $(BUILD_DIR)/pe_inject.o $(BUILD_DIR)/stub_repack.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o $(BUILD_DIR)/smol_segment.o $(BUILD_DIR)/smol_segment_reader.o
 TEST_TARGET = $(BUILD_DIR)/binject_test.exe
 
 # Force gcc/g++ on Windows for ABI consistency with LIEF.
 CC = gcc
 CXX = g++
 
-CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 $(COMMON_INCLUDES) $(LZFSE_CFLAGS) -DVERSION=\"$(VERSION)\" -D_CRT_NONSTDC_NO_DEPRECATE -D_CRT_SECURE_NO_WARNINGS
+CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 $(COMMON_INCLUDES) $(LZFSE_CFLAGS) -DVERSION=\"$(VERSION)\" -D_CRT_NONSTDC_NO_DEPRECATE -D_CRT_SECURE_NO_WARNINGS $(LIEF_CFLAGS) $(LIEF_DEFINES)
 CXXFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c++17 $(COMMON_INCLUDES) $(LIEF_CFLAGS) $(LZFSE_CFLAGS) $(LIEF_DEFINES) -D_CRT_NONSTDC_NO_DEPRECATE -D_CRT_SECURE_NO_WARNINGS
 LDFLAGS = -static-libgcc -static-libstdc++ $(LDFLAGS_BASE) $(LZFSE_LDFLAGS) $(LIEF_LDFLAGS) $(LDFLAGS_POST)
 

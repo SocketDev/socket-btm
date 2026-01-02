@@ -268,7 +268,6 @@ int binject_repack_stub(const char *stub_path, const char *compressed_data_path,
     printf("  Compressed size: %zu\n", compressed_size);
 
     /* Use LIEF to properly update the SMOL segment. */
-#ifdef HAVE_LIEF
     int result = binject_macho_repack_smol(stub_path, section.data, section.size, output_path);
     smol_free_section(&section);
 
@@ -279,12 +278,6 @@ int binject_repack_stub(const char *stub_path, const char *compressed_data_path,
 
     printf("  Stub repacked successfully\n");
     return 0;
-#else
-    smol_free_section(&section);
-    fprintf(stderr, "Error: LIEF not available - cannot repack SMOL segment properly\n");
-    fprintf(stderr, "       Build binject with LIEF support for proper Mach-O manipulation\n");
-    return -1;
-#endif
 }
 
 /**

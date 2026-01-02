@@ -22,15 +22,11 @@ int binject_batch_elf(const char *executable, const char *output,
         return BINJECT_ERROR_FILE_NOT_FOUND;
     }
 
-    /* Now inject sections into the temp file using LIEF (cross-platform) */
+    /* Now inject sections into the temp file using LIEF (cross-platform). */
     int rc = BINJECT_OK;
 
     if (sea_data && rc == BINJECT_OK) {
-#ifdef HAVE_LIEF
         rc = binject_elf_lief(temp_path, "NODE_SEA_BLOB", sea_data, sea_size);
-#else
-        rc = binject_single_elf(temp_path, temp_path, "NODE_SEA_BLOB", sea_data, sea_size, 0, 0);
-#endif
         if (rc != BINJECT_OK) {
             fprintf(stderr, "Error: Failed to inject SEA section\n");
             remove(temp_path);
@@ -40,19 +36,11 @@ int binject_batch_elf(const char *executable, const char *output,
 
     if ((vfs_data || vfs_compat_mode) && rc == BINJECT_OK) {
         if (vfs_compat_mode && vfs_size == 0) {
-            /* VFS compatibility mode - inject 0-byte section */
+            /* VFS compatibility mode - inject 0-byte section. */
             uint8_t empty = 0;
-#ifdef HAVE_LIEF
             rc = binject_elf_lief(temp_path, "NODE_VFS_BLOB", &empty, 0);
-#else
-            rc = binject_single_elf(temp_path, temp_path, "NODE_VFS_BLOB", &empty, 0, 0, 0);
-#endif
         } else {
-#ifdef HAVE_LIEF
             rc = binject_elf_lief(temp_path, "NODE_VFS_BLOB", vfs_data, vfs_size);
-#else
-            rc = binject_single_elf(temp_path, temp_path, "NODE_VFS_BLOB", vfs_data, vfs_size, 0, 0);
-#endif
         }
         if (rc != BINJECT_OK) {
             fprintf(stderr, "Error: Failed to inject VFS section\n");

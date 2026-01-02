@@ -27,7 +27,6 @@ int binject_macho(const char *executable, const char *segment_name,
         return BINJECT_ERROR_INVALID_ARGS;
     }
 
-#ifdef HAVE_LIEF
     printf("Using LIEF for injection (data size: %zu bytes)...\n", size);
     int result = binject_macho_lief(executable, segment_name, section_name, data, size);
     if (result == BINJECT_OK) {
@@ -37,11 +36,6 @@ int binject_macho(const char *executable, const char *segment_name,
 
     fprintf(stderr, "Error: LIEF injection failed (exit code %d)\n", result);
     return result;
-#else
-    fprintf(stderr, "Error: LIEF not available\n");
-    fprintf(stderr, "       Build binject with LIEF support: pnpm run build:lief && pnpm run build\n");
-    return BINJECT_ERROR;
-#endif
 }
 
 /**
@@ -56,12 +50,7 @@ int binject_macho_list(const char *executable) {
         return BINJECT_ERROR_INVALID_ARGS;
     }
 
-#ifdef HAVE_LIEF
     return binject_macho_list_lief(executable);
-#else
-    fprintf(stderr, "Error: LIEF not available\n");
-    return BINJECT_ERROR;
-#endif
 }
 
 /**
@@ -79,12 +68,7 @@ int binject_macho_extract(const char *executable, const char *section_name,
         return BINJECT_ERROR_INVALID_ARGS;
     }
 
-#ifdef HAVE_LIEF
     return binject_macho_extract_lief(executable, section_name, output_file);
-#else
-    fprintf(stderr, "Error: LIEF not available\n");
-    return BINJECT_ERROR;
-#endif
 }
 
 /**
@@ -100,12 +84,7 @@ int binject_macho_verify(const char *executable, const char *section_name) {
         return BINJECT_ERROR_INVALID_ARGS;
     }
 
-#ifdef HAVE_LIEF
     return binject_macho_verify_lief(executable, section_name);
-#else
-    fprintf(stderr, "Error: LIEF not available\n");
-    return BINJECT_ERROR;
-#endif
 }
 
 /**
@@ -124,10 +103,5 @@ int binject_macho_repack_smol(const char *stub_path, const uint8_t *section_data
         return BINJECT_ERROR_INVALID_ARGS;
     }
 
-#ifdef HAVE_LIEF
     return binject_macho_repack_smol_lief(stub_path, section_data, section_size, output_path);
-#else
-    fprintf(stderr, "Error: LIEF not available - cannot repack SMOL segment\n");
-    return BINJECT_ERROR;
-#endif
 }

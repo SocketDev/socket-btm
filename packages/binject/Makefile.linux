@@ -12,8 +12,8 @@ SRC_DIR = src
 TEST_DIR = test
 
 # Source files.
-SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/binject.c $(SRC_DIR)/macho_inject_lief_wrapper.c $(SRC_DIR)/single_elf_inject.c $(SRC_DIR)/single_pe_inject.c $(SRC_DIR)/elf_inject.c $(SRC_DIR)/pe_inject.c $(SRC_DIR)/stub_repack.c ../bin-infra/src/compression_common.c ../bin-infra/src/file_io_common.c ../bin-infra/src/smol_segment.c ../bin-infra/src/smol_segment_reader.c
-OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/macho_inject_lief_wrapper.o $(BUILD_DIR)/single_elf_inject.o $(BUILD_DIR)/single_pe_inject.o $(BUILD_DIR)/elf_inject.o $(BUILD_DIR)/pe_inject.o $(BUILD_DIR)/stub_repack.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o $(BUILD_DIR)/smol_segment.o $(BUILD_DIR)/smol_segment_reader.o
+SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/binject.c $(SRC_DIR)/macho_inject_lief_wrapper.c $(SRC_DIR)/single_elf_inject.c $(SRC_DIR)/elf_pe_cross_platform.c $(SRC_DIR)/elf_inject.c $(SRC_DIR)/pe_inject.c $(SRC_DIR)/stub_repack.c ../bin-infra/src/compression_common.c ../bin-infra/src/file_io_common.c ../bin-infra/src/smol_segment.c ../bin-infra/src/smol_segment_reader.c
+OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/macho_inject_lief_wrapper.o $(BUILD_DIR)/single_elf_inject.o $(BUILD_DIR)/elf_pe_cross_platform.o $(BUILD_DIR)/elf_inject.o $(BUILD_DIR)/pe_inject.o $(BUILD_DIR)/stub_repack.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o $(BUILD_DIR)/smol_segment.o $(BUILD_DIR)/smol_segment_reader.o
 
 # LIEF C++ sources (required).
 SRCS += $(SRC_DIR)/macho_inject_lief.cpp $(SRC_DIR)/elf_inject_lief.cpp $(SRC_DIR)/pe_inject_lief.cpp

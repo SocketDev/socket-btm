@@ -1,5 +1,8 @@
 # Compilation rules for bin-infra shared sources.
 
+$(BUILD_DIR)/binary_format.o: ../bin-infra/src/binary_format.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
 $(BUILD_DIR)/compression_common.o: ../bin-infra/src/compression_common.c $(LZFSE_LIB) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 

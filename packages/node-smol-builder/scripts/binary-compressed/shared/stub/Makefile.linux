@@ -1,0 +1,13 @@
+# Makefile for smol_stub - minimal launcher that extracts and calls binflate (Linux).
+
+CC ?= gcc
+
+# CFLAGS/LDFLAGS can be set via environment (e.g., for musl include/lib paths).
+CFLAGS := -Os -s -Wall -Wextra -std=c11 -I../../../../../../packages/build-infra/src -I../../../../../../packages/bin-infra/src $(CFLAGS)
+LDFLAGS := -static -lssl -lcrypto -llzma -Wl,--gc-sections $(LDFLAGS)
+
+SOURCE_STUB = src/elf_stub.c
+TARGET_STUB = smol_stub
+
+# Include common stub build rules.
+include ../../../../../../build-infra/make/stub-rules.mk

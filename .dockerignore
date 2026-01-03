@@ -49,10 +49,9 @@ coverage
 circle.yml
 appveyor.yml
 
-# Package manager lock files
+# Package manager lock files (keep pnpm-lock.yaml for reproducible builds)
 package-lock.json
 yarn.lock
-pnpm-lock.yaml
 
 # Environment files
 .env

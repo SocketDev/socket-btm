@@ -1,9 +1,7 @@
-# Git
-.git
+# Git (keep .git for submodule initialization in Docker builds)
 .github
 .gitignore
 .gitattributes
-.gitmodules
 
 # Node.js
 node_modules

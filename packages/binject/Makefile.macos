@@ -19,8 +19,8 @@ SRCS += $(SRC_DIR)/macho_inject_lief.cpp $(SRC_DIR)/elf_inject_lief.cpp $(SRC_DI
 OBJS += $(BUILD_DIR)/macho_inject_lief.o $(BUILD_DIR)/elf_inject_lief.o $(BUILD_DIR)/pe_inject_lief.o
 
 # Test files.
-TEST_SRCS = $(TEST_DIR)/binject_test.c $(SRC_DIR)/binject.c ../bin-infra/src/compression_common.c
-TEST_OBJS = $(BUILD_DIR)/binject_test.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/compression_common.o
+TEST_SRCS = $(TEST_DIR)/binject_test.c $(SRC_DIR)/binject.c ../bin-infra/src/binary_format.c ../bin-infra/src/compression_common.c
+TEST_OBJS = $(BUILD_DIR)/binject_test.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/binary_format.o $(BUILD_DIR)/compression_common.o
 TEST_TARGET = $(BUILD_DIR)/binject_test
 
 CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 $(COMMON_INCLUDES) -I$(LZMA_INCLUDE) $(POSIX_MACROS) -DVERSION=\"$(VERSION)\" $(LIEF_CFLAGS) $(LIEF_DEFINES)

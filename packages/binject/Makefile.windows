@@ -20,8 +20,8 @@ SRCS += $(SRC_DIR)/macho_inject_lief.cpp $(SRC_DIR)/elf_inject_lief.cpp $(SRC_DI
 OBJS += $(BUILD_DIR)/macho_inject_lief.o $(BUILD_DIR)/elf_inject_lief.o $(BUILD_DIR)/pe_inject_lief.o
 
 # Test files.
-TEST_SRCS = $(TEST_DIR)/binject_test.c $(SRC_DIR)/binject.c $(SRC_DIR)/macho_inject_lief_wrapper.c $(SRC_DIR)/elf_pe_cross_platform.c $(SRC_DIR)/single_pe_inject.c $(SRC_DIR)/elf_inject.c $(SRC_DIR)/pe_inject.c $(SRC_DIR)/stub_repack.c ../bin-infra/src/compression_common.c ../bin-infra/src/file_io_common.c ../bin-infra/src/smol_segment.c ../bin-infra/src/smol_segment_reader.c
-TEST_OBJS = $(BUILD_DIR)/binject_test.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/macho_inject_lief_wrapper.o $(BUILD_DIR)/elf_pe_cross_platform.o $(BUILD_DIR)/single_pe_inject.o $(BUILD_DIR)/elf_inject.o $(BUILD_DIR)/pe_inject.o $(BUILD_DIR)/stub_repack.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o $(BUILD_DIR)/smol_segment.o $(BUILD_DIR)/smol_segment_reader.o
+TEST_SRCS = $(TEST_DIR)/binject_test.c $(SRC_DIR)/binject.c $(SRC_DIR)/macho_inject_lief_wrapper.c $(SRC_DIR)/elf_pe_cross_platform.c $(SRC_DIR)/single_pe_inject.c $(SRC_DIR)/elf_inject.c $(SRC_DIR)/pe_inject.c $(SRC_DIR)/stub_repack.c ../bin-infra/src/binary_format.c ../bin-infra/src/compression_common.c ../bin-infra/src/file_io_common.c ../bin-infra/src/smol_segment.c ../bin-infra/src/smol_segment_reader.c
+TEST_OBJS = $(BUILD_DIR)/binject_test.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/macho_inject_lief_wrapper.o $(BUILD_DIR)/elf_pe_cross_platform.o $(BUILD_DIR)/single_pe_inject.o $(BUILD_DIR)/elf_inject.o $(BUILD_DIR)/pe_inject.o $(BUILD_DIR)/stub_repack.o $(BUILD_DIR)/binary_format.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o $(BUILD_DIR)/smol_segment.o $(BUILD_DIR)/smol_segment_reader.o
 
 # LIEF C++ sources (required for tests).
 TEST_SRCS += $(SRC_DIR)/macho_inject_lief.cpp $(SRC_DIR)/elf_inject_lief.cpp $(SRC_DIR)/pe_inject_lief.cpp

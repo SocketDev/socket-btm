@@ -1,0 +1,46 @@
+{
+  "$schema": "../../../build-infra/lib/external-tools-schema.json",
+  "description": "External tools required for the binary-compressed checkpoint phase (additional tools beyond build-infra)",
+  "tools": {
+    "lzfse": {
+      "description": "LZFSE compression library (used for all compressions)",
+      "packages": {
+        "darwin": {
+          "manual": "Built-in via Apple Compression framework"
+        },
+        "linux": {
+          "manual": "Built automatically from lzfse submodule"
+        },
+        "win32": {
+          "manual": "Built automatically from lzfse submodule"
+        }
+      },
+      "versions": {
+        "darwin": "System",
+        "linux": "From submodule",
+        "win32": "From submodule"
+      },
+      "notes": [
+        "LZFSE is used for compression across all platforms (macOS, Linux, Windows)",
+        "On macOS: Uses native Apple Compression framework",
+        "On Linux/Windows: Builds automatically from lzfse git submodule",
+        "No manual installation required - handled by build system"
+      ]
+    },
+    "libssl-dev": {
+      "description": "OpenSSL development files (required for SHA-512 hashing in compression tools)",
+      "packages": {
+        "linux": {
+          "apt": "libssl-dev",
+          "yum": "openssl-devel",
+          "dnf": "openssl-devel",
+          "apk": "openssl-dev"
+        }
+      },
+      "versions": {
+        "apt": "3.0.2"
+      },
+      "notes": "Ubuntu 22.04 uses OpenSSL 3.0.2. Required for static linking SHA-512 hash calculation in ELF decompressor."
+    }
+  }
+}

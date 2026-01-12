@@ -1,0 +1,70 @@
+# syntax=docker/dockerfile:1
+# Build Node.js smol for musl (Alpine) - RELEASED ONLY.
+# This Dockerfile builds only to the binary-released stage for Depot CI.
+# Uses --build-only to skip checkpoint creation (checkpoints created in GHA).
+# Post-processing (strip, compress, finalize) runs in GitHub Actions.
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+FROM alpine:3.19
+
+# Cache buster for forcing rebuilds when dependencies change
+ARG CACHE_BUSTER=default
+
+# Install build dependencies.
+# Uses system Python 3.11 (meets minimum 3.9+ requirement).
+RUN echo "Cache buster: ${CACHE_BUSTER}" && \
+    apk add --no-cache \
+    nodejs \
+    npm \
+    python3 \
+    make \
+    g++ \
+    linux-headers \
+    git \
+    curl \
+    patch \
+    ccache \
+    ninja \
+    openssl-dev \
+    openssl-libs-static \
+    xz-dev \
+    xz-static
+
+# Install pnpm globally.
+RUN npm install -g pnpm@10.26.1
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy repository files.
+COPY . .
+
+# Install workspace dependencies.
+ENV CI=true
+RUN pnpm install --frozen-lockfile
+
+# Build arguments for target platform.
+ARG BUILD_MODE=prod
+ARG MATRIX_PLATFORM=linux
+ARG MATRIX_ARCH=x64
+ARG MATRIX_LIBC=musl
+
+# Build Node.js smol (build only, no checkpoint).
+ENV BUILD_MODE=$BUILD_MODE
+ENV MATRIX_PLATFORM=$MATRIX_PLATFORM
+ENV MATRIX_ARCH=$MATRIX_ARCH
+ENV MATRIX_LIBC=$MATRIX_LIBC
+
+RUN if [ "$BUILD_MODE" = "prod" ]; then \
+    pnpm --filter node-smol-builder build --prod --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}" --libc="${MATRIX_LIBC}" --build-only=binary-released; \
+else \
+    pnpm --filter node-smol-builder build --dev --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}" --libc="${MATRIX_LIBC}" --build-only=binary-released; \
+fi
+
+# Export stage: Copy only the Release binary (no checkpoint - created in GHA).
+# Structure must match expected paths: ${BUILD_MODE}/out/Release
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=0 /workspace/packages/node-smol-builder/build/${BUILD_MODE}/out/Release /${BUILD_MODE}/out/Release

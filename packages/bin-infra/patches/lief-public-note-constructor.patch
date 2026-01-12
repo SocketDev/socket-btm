@@ -1,0 +1,16 @@
+diff --git a/include/LIEF/ELF/Note.hpp b/include/LIEF/ELF/Note.hpp
+index ae365a2..0e4435d 100644
+--- a/include/LIEF/ELF/Note.hpp
++++ b/include/LIEF/ELF/Note.hpp
+@@ -248,8 +248,10 @@ class LIEF_API Note : public Object {
+     return const_cast<T*>(static_cast<const Note*>(this)->cast<T>());
+   }
+
+-  protected:
++  /// Default constructor (public to match postject's LIEF usage)
+   Note() = default;
++
++  protected:
+   Note(std::string name, TYPE type, uint32_t original_type,
+        description_t description, std::string section) :
+     name_(std::move(name)),

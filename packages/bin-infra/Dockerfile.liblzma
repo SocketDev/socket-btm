@@ -1,0 +1,55 @@
+# Build static liblzma in container to offload compute from GitHub Actions.
+# This Dockerfile supports building for linux/amd64 and linux/arm64.
+# Uses Ubuntu 24.04 for modern toolchain.
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+FROM ubuntu:24.04 AS build
+
+# Install build dependencies.
+# autopoint is provided by autopoint package (not gettext) on Ubuntu 24.04.
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    autoconf \
+    automake \
+    libtool \
+    gettext \
+    autopoint \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy xz submodule.
+COPY packages/bin-infra/upstream/xz packages/bin-infra/upstream/xz
+
+# Build static liblzma.
+ARG CACHE_VERSION=unset
+RUN echo "Cache version: ${CACHE_VERSION}" && \
+    cd packages/bin-infra/upstream/xz && \
+    autoreconf -fi && \
+    ./configure \
+        --enable-static \
+        --disable-shared \
+        --disable-xz \
+        --disable-xzdec \
+        --disable-lzmadec \
+        --disable-lzmainfo \
+        --disable-scripts \
+        --disable-doc \
+        --prefix="$PWD/install" && \
+    make -j$(nproc) && \
+    make install
+
+# Create archive with library and headers.
+RUN cd packages/bin-infra/upstream/xz/install && \
+    tar -czf ../liblzma.tar.gz \
+        lib/liblzma.a \
+        include/lzma.h \
+        include/lzma/
+
+# Export stage: Copy only the archive.
+FROM scratch AS export
+COPY --from=build /workspace/packages/bin-infra/upstream/xz/liblzma.tar.gz /

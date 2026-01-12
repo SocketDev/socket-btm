@@ -1,0 +1,82 @@
+# Git
+.git
+.github
+.gitignore
+.gitattributes
+
+# Node.js
+node_modules
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# Build outputs
+dist
+build
+*.log
+*.tmp
+*.temp
+
+# Development files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation
+*.md
+!README.md
+docs
+
+# Test files
+test
+tests
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+__tests__
+coverage
+.nyc_output
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+circle.yml
+appveyor.yml
+
+# Package manager lock files (keep pnpm-lock.yaml for reproducible builds)
+package-lock.json
+yarn.lock
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+.env.test
+
+# Secrets and credentials
+*.key
+*.pem
+*.p12
+*.pfx
+secrets.json
+credentials.json
+
+# Cache directories
+.cache
+.parcel-cache
+.next
+.nuxt
+.eslintcache
+.stylelintcache
+
+# Temporary files
+tmp
+temp
+*.bak

@@ -1,0 +1,102 @@
+name: 'Restore Checkpoint'
+description: 'Restores build artifacts from checkpoint chain (reverse-topological order)'
+inputs:
+  package-name:
+    description: 'Package name (e.g., binject, node-smol-builder)'
+    required: true
+  build-mode:
+    description: 'Build mode (dev or prod)'
+    required: true
+  checkpoint-chain:
+    description: 'Comma-separated checkpoint chain in reverse-topological order (e.g., "finalized,lief-built")'
+    required: true
+  cache-hit:
+    description: 'Whether checkpoint cache was hit (from actions/cache)'
+    required: false
+    default: 'false'
+  cache-valid:
+    description: 'Whether checkpoint cache validation passed'
+    required: false
+    default: 'false'
+outputs:
+  needs-build:
+    description: 'Whether build is needed (true if any checkpoint missing)'
+    value: ${{ steps.restore.outputs.needs-build }}
+runs:
+  using: 'composite'
+  steps:
+    - name: Restore checkpoints from cache
+      id: restore
+      shell: bash
+      env:
+        PACKAGE_NAME: ${{ inputs.package-name }}
+        BUILD_MODE: ${{ inputs.build-mode }}
+        CHECKPOINT_CHAIN: ${{ inputs.checkpoint-chain }}
+        CACHE_HIT: ${{ inputs.cache-hit }}
+        CACHE_VALID: ${{ inputs.cache-valid }}
+      run: |
+
+        echo "Restoring checkpoints for $PACKAGE_NAME (mode: $BUILD_MODE)..."
+        echo "Checkpoint chain: $CHECKPOINT_CHAIN"
+        echo "Cache hit: $CACHE_HIT"
+        echo "Cache valid: $CACHE_VALID"
+
+        # If cache was not hit or invalid, build is needed
+        if [ "$CACHE_HIT" != "true" ] || [ "$CACHE_VALID" != "true" ]; then
+          echo "needs-build=true" >> $GITHUB_OUTPUT
+          if [ "$CACHE_HIT" != "true" ]; then
+            echo "⏭️  No checkpoint cache hit - full build needed"
+          else
+            echo "⏭️  Checkpoint cache invalid - full build needed"
+          fi
+          exit 0
+        fi
+
+        # Convert comma-separated chain to array
+        IFS=',' read -ra CHECKPOINTS <<< "$CHECKPOINT_CHAIN"
+
+        # Check if all checkpoints exist
+        PACKAGE_DIR="packages/$PACKAGE_NAME"
+        ALL_PRESENT=true
+        for CHECKPOINT in "${CHECKPOINTS[@]}"; do
+          # Check in both shared and mode-specific directories
+          FOUND=false
+          for DIR in "$PACKAGE_DIR/build/shared/checkpoints" "$PACKAGE_DIR/build/$BUILD_MODE/checkpoints"; do
+            TARBALL="$DIR/${CHECKPOINT}.tar.gz"
+            METADATA="$DIR/${CHECKPOINT}.json"
+            if [ -f "$TARBALL" ] && [ -f "$METADATA" ]; then
+              echo "✅ Found checkpoint: $CHECKPOINT in $DIR"
+              FOUND=true
+              break
+            fi
+          done
+
+          if [ "$FOUND" = false ]; then
+            echo "❌ Missing checkpoint: $CHECKPOINT"
+            ALL_PRESENT=false
+          fi
+        done
+
+        # If any checkpoint is missing, build is needed
+        if [ "$ALL_PRESENT" = false ]; then
+          echo "needs-build=true" >> $GITHUB_OUTPUT
+          echo "⏭️  Some checkpoints missing - build needed"
+          exit 0
+        fi
+
+        # All checkpoints present - extract them
+        echo "📦 Extracting checkpoints..."
+        for CHECKPOINT in "${CHECKPOINTS[@]}"; do
+          # Find checkpoint in either shared or mode-specific directory
+          for DIR in "$PACKAGE_DIR/build/shared/checkpoints" "$PACKAGE_DIR/build/$BUILD_MODE/checkpoints"; do
+            TARBALL="$DIR/${CHECKPOINT}.tar.gz"
+            if [ -f "$TARBALL" ]; then
+              echo "Extracting $CHECKPOINT from $DIR..."
+              tar -xzf "$TARBALL" -C "$PACKAGE_DIR" --strip-components=1
+              break
+            fi
+          done
+        done
+
+        echo "needs-build=false" >> $GITHUB_OUTPUT
+        echo "✅ All checkpoints restored successfully - build can be skipped"

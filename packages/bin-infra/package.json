@@ -1,0 +1,17 @@
+{
+  "name": "bin-infra",
+  "version": "0.0.0",
+  "description": "Shared binary infrastructure for binject and binpress",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build:lief": "node scripts/build-lief.mjs",
+    "test": "bash test/test-write-with-notes.sh"
+  },
+  "devDependencies": {
+    "@socketsecurity/lib": "catalog:",
+    "build-infra": "workspace:*",
+    "octokit": "catalog:"
+  }
+}

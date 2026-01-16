@@ -1,0 +1,21 @@
+# Makefile for smol_stub - minimal launcher that extracts and calls binflate (Linux).
+
+CC ?= gcc
+
+# LZFSE library paths
+LZFSE_SRC = ../../../../../../packages/bin-infra/upstream/lzfse/src
+
+# CFLAGS/LDFLAGS can be set via environment (e.g., for musl include/lib paths).
+# Use -O0 for LZFSE files to avoid gcc x64 miscompilation, -O1 for stub
+CFLAGS := -O1 -s -Wall -Wextra -std=c11 -I../../../../../../packages/build-infra/src -I../../../../../../packages/bin-infra/src -I$(LZFSE_SRC) $(CFLAGS)
+LZFSE_CFLAGS := -O0 -fno-builtin-memcpy -fno-builtin-memset -fno-builtin-memmove
+LDFLAGS := -static -Wl,--gc-sections $(LDFLAGS)
+
+SOURCE_STUB = src/elf_stub.c
+TARGET_STUB = smol_stub
+
+# LZFSE source files (minimal set for decoding only)
+LZFSE_SOURCES = $(LZFSE_SRC)/lzfse_decode.c $(LZFSE_SRC)/lzfse_decode_base.c $(LZFSE_SRC)/lzfse_fse.c $(LZFSE_SRC)/lzvn_decode_base.c
+
+# Include common stub build rules.
+include ../../../../../../packages/build-infra/make/stub-rules.mk

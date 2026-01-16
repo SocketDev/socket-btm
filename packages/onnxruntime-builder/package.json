@@ -1,0 +1,46 @@
+{
+  "name": "onnxruntime-builder",
+  "version": "0.0.0",
+  "description": "Custom ONNX Runtime WASM build optimized for Socket CLI",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./build/wasm/ort.mjs": "./build/wasm/ort.mjs",
+    "./build/wasm/ort.wasm": "./build/wasm/ort.wasm",
+    "./build/wasm/ort-sync.js": "./build/wasm/ort-sync.js"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:force": "node scripts/build.mjs --force",
+    "clean": "node scripts/clean.mjs",
+    "test": "vitest run",
+    "test:suite": "node scripts/test-onnx-suite.mjs",
+    "postinstall": "node scripts/setup-build-toolchain.mjs"
+  },
+  "dependencies": {
+    "@socketsecurity/lib": "catalog:",
+    "acorn": "catalog:",
+    "acorn-walk": "catalog:",
+    "build-infra": "workspace:*",
+    "magic-string": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
+  },
+  "sources": {
+    "onnxruntime": {
+      "version": "1.20.1",
+      "type": "git",
+      "url": "https://github.com/microsoft/onnxruntime.git",
+      "ref": "5c1b7ccbff7e5141c1da7a9d963d660e5741c319"
+    },
+    "eigen": {
+      "version": "3.4.0",
+      "type": "git",
+      "url": "https://gitlab.com/libeigen/eigen.git",
+      "ref": "e7248b26a1ed53fa030c5c459f7ea095dfd276ac",
+      "sha1": "32b145f525a8308d7ab1c09388b2e288312d8eba"
+    }
+  }
+}

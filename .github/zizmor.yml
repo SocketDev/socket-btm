@@ -1,0 +1,18 @@
+# Zizmor configuration
+# See: https://docs.zizmor.sh/configuration/
+
+rules:
+  cache-poisoning:
+    ignore:
+      # False positive: We explicitly disabled caching with cache: ''
+      # Line 38: checks job - Setup Node.js step
+      - ci.yml:38
+      # False positive: We explicitly disabled caching with cache: ''
+      # Line 92: test job - Setup Node.js step
+      - ci.yml:92
+
+  template-injection:
+    ignore:
+      # False positive: Template expansion is in a comment, not executable code
+      # Line 451: Comment explaining GitHub Actions syntax
+      - node-smol.yml:451

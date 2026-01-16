@@ -1,0 +1,82 @@
+# syntax=docker/dockerfile:1
+# Build Node.js smol for glibc - RELEASED ONLY.
+# Uses AlmaLinux 8 (glibc 2.28) for maximum compatibility with older Linux distributions.
+# This matches the Node.js project's official build environment (RHEL 8).
+# Post-processing (strip, compress, finalize) runs in GitHub Actions.
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+FROM almalinux:8
+
+# Cache buster for forcing rebuilds when dependencies change
+ARG CACHE_BUSTER=default
+
+# Install build dependencies.
+# AlmaLinux 8 has glibc 2.28, which is the minimum required by Node.js.
+# We use GCC Toolset 13 for C++20 support while maintaining glibc 2.28 compatibility.
+# Enable PowerTools for ninja-build, EPEL for ccache.
+RUN echo "Cache buster: ${CACHE_BUSTER}" && \
+    dnf -y update && \
+    dnf -y install epel-release dnf-plugins-core && \
+    dnf config-manager --set-enabled powertools && \
+    dnf -y install \
+        git \
+        curl \
+        ccache \
+        ninja-build \
+        ca-certificates \
+        xz-devel \
+        openssl-devel \
+        jq \
+        python3.11 \
+        python3.11-pip \
+        which \
+        procps-ng \
+        patch \
+        && \
+    # Enable GCC Toolset 13 (provides GCC 13 with C++20 support).
+    dnf -y install gcc-toolset-13 gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ gcc-toolset-13-libstdc++-devel && \
+    # Install Node.js from NodeSource.
+    curl -fsSL https://rpm.nodesource.com/setup_lts.x | bash - && \
+    dnf -y install nodejs && \
+    npm install -g pnpm@10.26.1 && \
+    # Set Python 3.11 as default python3.
+    alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
+    dnf clean all
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy repository files.
+COPY . .
+
+# Install workspace dependencies.
+ENV CI=true
+RUN pnpm install --frozen-lockfile
+
+# Build arguments for target platform.
+ARG BUILD_MODE=prod
+ARG MATRIX_PLATFORM=linux
+ARG MATRIX_ARCH=x64
+ARG MATRIX_LIBC=glibc
+
+# Build Node.js smol (build only, no checkpoint).
+# Source GCC Toolset 13 environment before building.
+ENV BUILD_MODE=$BUILD_MODE
+ENV MATRIX_PLATFORM=$MATRIX_PLATFORM
+ENV MATRIX_ARCH=$MATRIX_ARCH
+ENV MATRIX_LIBC=$MATRIX_LIBC
+
+RUN source /opt/rh/gcc-toolset-13/enable && \
+    if [ "$BUILD_MODE" = "prod" ]; then \
+    pnpm --filter node-smol-builder build --prod --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}" --libc="${MATRIX_LIBC}" --build-only=binary-released; \
+else \
+    pnpm --filter node-smol-builder build --dev --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}" --libc="${MATRIX_LIBC}" --build-only=binary-released; \
+fi
+
+# Export stage: Copy only the Release binary (no checkpoint - created in GHA).
+# Structure must match expected paths: ${BUILD_MODE}/out/Release
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=0 /workspace/packages/node-smol-builder/build/${BUILD_MODE}/out/Release /${BUILD_MODE}/out/Release

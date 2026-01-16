@@ -1,0 +1,5 @@
+{
+  "main": "vfs-read-app.js",
+  "output": "vfs-read.blob",
+  "disableExperimentalSEAWarning": true
+}

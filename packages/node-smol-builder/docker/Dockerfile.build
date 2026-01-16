@@ -1,0 +1,125 @@
+# Build Node.js smol in container to offload compute from GitHub Actions.
+# This Dockerfile supports building for linux/amd64 and linux/arm64.
+# Supports both glibc (AlmaLinux 8) and musl (Alpine) builds.
+# glibc builds use AlmaLinux 8 (glibc 2.28) for maximum compatibility.
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+ARG LIBC=glibc
+
+# Use AlmaLinux 8 for glibc builds (glibc 2.28, matches Node.js official builds).
+# Use Alpine 3.19 for musl builds.
+FROM almalinux:8 AS base-glibc
+FROM alpine:3.19 AS base-musl
+FROM base-${LIBC} AS build
+
+# Cache buster for forcing rebuilds when dependencies change
+ARG CACHE_BUSTER=default
+
+# Install build dependencies (glibc/AlmaLinux).
+# AlmaLinux 8 has glibc 2.28, which is the minimum required by Node.js.
+# We use GCC Toolset 13 for C++20 support while maintaining glibc 2.28 compatibility.
+# Enable PowerTools for ninja-build, EPEL for ccache.
+RUN echo "Cache buster: ${CACHE_BUSTER}" && \
+    if [ -f /etc/redhat-release ]; then \
+    dnf -y update && \
+    dnf -y install epel-release dnf-plugins-core && \
+    dnf config-manager --set-enabled powertools && \
+    dnf -y install \
+        git \
+        curl \
+        ccache \
+        ninja-build \
+        ca-certificates \
+        xz-devel \
+        openssl-devel \
+        jq \
+        python3.11 \
+        python3.11-pip \
+        which \
+        procps-ng \
+        patch \
+        && \
+    # Enable GCC Toolset 13 (provides GCC 13 with C++20 support).
+    dnf -y install gcc-toolset-13 gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ gcc-toolset-13-libstdc++-devel && \
+    # Install Node.js from NodeSource.
+    curl -fsSL https://rpm.nodesource.com/setup_lts.x | bash - && \
+    dnf -y install nodejs && \
+    npm install -g pnpm@10.26.1 && \
+    # Set Python 3.11 as default python3.
+    alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
+    dnf clean all; \
+fi
+
+# Install build dependencies (musl/Alpine).
+RUN if [ -f /etc/alpine-release ]; then \
+    apk add --no-cache \
+        nodejs \
+        npm \
+        python3 \
+        make \
+        g++ \
+        linux-headers \
+        git \
+        curl \
+        patch \
+        ccache \
+        ninja \
+        musl-dev \
+        xz-dev \
+        openssl-dev \
+        openssl-libs-static \
+        && \
+    npm install -g pnpm@10.26.1; \
+fi
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy repository files.
+COPY . .
+
+# Apply LIEF patch to make Note() constructor public (matches postject's LIEF)
+RUN cd packages/bin-infra/upstream/lief && \
+    patch -p1 < /workspace/packages/bin-infra/patches/lief-public-note-constructor.patch
+
+# Install workspace dependencies.
+ENV CI=true
+RUN pnpm install --frozen-lockfile
+
+# Build Node.js smol.
+ARG BUILD_MODE=prod
+ARG MATRIX_PLATFORM=linux
+ARG MATRIX_ARCH=x64
+# Cache version - managed centrally in .github/cache-versions.json
+ARG CACHE_VERSION=unset
+ENV BUILD_MODE=$BUILD_MODE
+ENV MATRIX_PLATFORM=$MATRIX_PLATFORM
+ENV MATRIX_ARCH=$MATRIX_ARCH
+
+# For glibc builds, source GCC Toolset 13 environment before building.
+# For musl builds, just run the build directly.
+RUN echo "Cache version: ${CACHE_VERSION}" && \
+    if [ -f /etc/redhat-release ]; then \
+        source /opt/rh/gcc-toolset-13/enable && \
+        if [ "$BUILD_MODE" = "prod" ]; then \
+            pnpm --filter node-smol-builder build --prod --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}"; \
+        else \
+            pnpm --filter node-smol-builder build --dev --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}"; \
+        fi; \
+    else \
+        if [ "$BUILD_MODE" = "prod" ]; then \
+            pnpm --filter node-smol-builder build --prod --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}"; \
+        else \
+            pnpm --filter node-smol-builder build --dev --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}"; \
+        fi; \
+    fi
+
+# Export stage: Copy build artifacts and checkpoints (not entire filesystem).
+# We export the entire build/ directory to preserve both:
+# - Build artifacts at build/${BUILD_MODE}/out/Final/
+# - Checkpoints at build/${BUILD_MODE}/checkpoints/ and build/shared/checkpoints/
+# Checkpoints enable GitHub Actions caching to skip expensive build steps on repeated runs.
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=build /workspace/packages/node-smol-builder/build /

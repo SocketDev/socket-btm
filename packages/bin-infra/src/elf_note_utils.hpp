@@ -431,14 +431,29 @@ inline int smol_reuse_multi_ptnote(
     printf("  Combined notes: offset=%lu, size=%zu (preserved + new)\n",
            (unsigned long)input_size, notes_total_size);
 
-    // Check if binary is dynamically linked (needs PT_LOAD for SEA/dl_iterate_phdr)
-    bool is_dynamic = false;
-    for (uint16_t i = 0; i < phnum; i++) {
-        uint8_t* phdr = &binary_data[phoff + i * phentsize];
-        uint32_t p_type = *reinterpret_cast<uint32_t*>(phdr);
-        if (p_type == 3 || p_type == 2) {  // PT_INTERP=3, PT_DYNAMIC=2
-            is_dynamic = true;
+    // Check if this is a SMOL compression operation (pressed_data note).
+    // SMOL stubs should NEVER extend PT_LOAD - they need unmapped vaddr.
+    // Even if the stub has PT_DYNAMIC (e.g., PIE musl stubs), extending PT_LOAD
+    // causes the loader to try mapping 26MB at a low address, causing SIGSEGV.
+    bool is_smol_compression = false;
+    for (const auto& note : notes) {
+        if (strcmp(note.name, "pressed_data") == 0) {
+            is_smol_compression = true;
             break;
+        }
+    }
+
+    // Check if binary is dynamically linked (needs PT_LOAD for SEA/dl_iterate_phdr)
+    // BUT: For SMOL compression, always treat as static regardless of PT_DYNAMIC
+    bool is_dynamic = false;
+    if (!is_smol_compression) {
+        for (uint16_t i = 0; i < phnum; i++) {
+            uint8_t* phdr = &binary_data[phoff + i * phentsize];
+            uint32_t p_type = *reinterpret_cast<uint32_t*>(phdr);
+            if (p_type == 3 || p_type == 2) {  // PT_INTERP=3, PT_DYNAMIC=2
+                is_dynamic = true;
+                break;
+            }
         }
     }
 
@@ -483,10 +498,17 @@ inline int smol_reuse_multi_ptnote(
                (unsigned long)last_load_filesz, (unsigned long)new_load_filesz,
                (unsigned long)last_load_memsz, (unsigned long)new_load_memsz);
     } else if (!is_dynamic) {
-        // For static binaries (SMOL stubs), use a high virtual address
-        // that's past all LOAD segments but doesn't need actual mapping
+        // For static binaries or SMOL stubs, use a high virtual address
+        // that's past all LOAD segments but doesn't need actual mapping.
+        // SMOL stubs (even with PT_DYNAMIC) must use this path because extending
+        // PT_LOAD would cause the loader to map 26MB+ at a low address -> SIGSEGV.
         note_vaddr = 0x10000000 + align_up(input_size, 0x1000);
-        printf("  Static binary - using unmapped vaddr: 0x%lx\n", (unsigned long)note_vaddr);
+        if (is_smol_compression) {
+            printf("  SMOL compression - using unmapped vaddr: 0x%lx (no PT_LOAD extension)\n",
+                   (unsigned long)note_vaddr);
+        } else {
+            printf("  Static binary - using unmapped vaddr: 0x%lx\n", (unsigned long)note_vaddr);
+        }
     }
 
     // Update PT_NOTE segment to point to our appended notes

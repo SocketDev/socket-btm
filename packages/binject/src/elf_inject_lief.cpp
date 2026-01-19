@@ -135,13 +135,10 @@ extern "C" int binject_elf_lief(const char* executable,
 
     printf("Writing modified binary...\n");
 
-    // Use raw write approach to bypass LIEF's ~1MB note size limit
-    int write_result = elf_note_utils::write_with_notes_raw(
-        binary.get(), executable, tmpfile);
-    if (write_result != 0) {
-      fprintf(stderr, "Error: Failed to write binary with raw notes\n");
-      return BINJECT_ERROR;
-    }
+    // Use LIEF approach with proper fixes for SEA/VFS injection
+    // This includes: PT_NOTE p_vaddr fixes, ALLOC flag removal,
+    // matching PT_LOAD segments, and triple-write pattern
+    elf_note_utils::write_with_notes(binary.get(), tmpfile);
 
     // Verify file was actually written
     result = binject::verify_file_written(tmpfile);
@@ -282,16 +279,12 @@ extern "C" int binject_elf_lief_batch(
 
     printf("Writing modified binary...\n");
 
-    // Use raw write approach to bypass LIEF's ~1MB note size limit
-    // This writes notes directly to the binary without LIEF's builder
-    int write_result = elf_note_utils::write_with_notes_raw(
-        binary.get(), executable, tmpfile);
-    if (write_result != 0) {
-      fprintf(stderr, "Error: Failed to write binary with raw notes\n");
-      return BINJECT_ERROR;
-    }
+    // Use LIEF approach with proper fixes for SEA/VFS injection
+    // This includes: PT_NOTE p_vaddr fixes, ALLOC flag removal,
+    // matching PT_LOAD segments, and triple-write pattern
+    elf_note_utils::write_with_notes(binary.get(), tmpfile);
 
-    printf("Wrote binary with PT_NOTE segments (raw)\n");
+    printf("Wrote binary with PT_NOTE segments (LIEF)\n");
 
     // Verify file was actually written
     int result = binject::verify_file_written(tmpfile);

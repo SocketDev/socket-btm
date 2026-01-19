@@ -1,6 +1,6 @@
 {
   "name": "bin-infra",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Shared binary infrastructure for binject and binpress",
   "private": true,
   "license": "MIT",

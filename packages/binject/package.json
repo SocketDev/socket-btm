@@ -1,6 +1,6 @@
 {
   "name": "binject",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Binary resource injection tool",
   "private": true,
   "license": "MIT",

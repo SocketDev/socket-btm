@@ -44,7 +44,7 @@ int binject_single(const char *executable, const char *output, const char *resou
                    const char *section_name);
 int binject_batch(const char *executable, const char *output,
                          const char *sea_resource, const char *vfs_resource,
-                         int vfs_in_memory);
+                         int vfs_in_memory, int skip_repack);
 int binject_list(const char *executable);
 int binject_extract(const char *executable, const char *section_name,
                     const char *output_file);

@@ -28,6 +28,8 @@ RUN echo "Cache buster: ${CACHE_BUSTER}" && \
         openssl-devel \
         cmake \
         patch \
+        wget \
+        perl \
         && \
     # Install GitHub CLI.
     dnf -y install 'dnf-command(config-manager)' && \
@@ -38,6 +40,17 @@ RUN echo "Cache buster: ${CACHE_BUSTER}" && \
     dnf -y install nodejs && \
     npm install -g pnpm@10.26.1 && \
     dnf clean all
+
+# Build OpenSSL 1.1.1w from source (required for SHA512 in dlx_cache_common.h)
+WORKDIR /tmp/openssl-build
+RUN wget https://www.openssl.org/source/openssl-1.1.1w.tar.gz && \
+    tar xzf openssl-1.1.1w.tar.gz && \
+    cd openssl-1.1.1w && \
+    ./config --prefix=/usr/local/ssl --openssldir=/usr/local/ssl no-shared && \
+    make -j$(nproc) && \
+    make install && \
+    cd / && \
+    rm -rf /tmp/openssl-build
 
 # Set working directory.
 WORKDIR /workspace
@@ -54,9 +67,10 @@ RUN LIBLZMA_ARCH=$([ "$TARGETARCH" = "amd64" ] && echo "x64" || echo "arm64") &&
     cp -r "${LIBLZMA_DIR}/include" /usr/local/
 
 # Add /usr/local/lib to library path for static liblzma.
+# Include OpenSSL paths and -lcrypto for SHA512 linking (fixes undefined reference to 'SHA512')
 ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH
-ENV LDFLAGS="-L/usr/local/lib"
-ENV CFLAGS="-I/usr/local/include"
+ENV LDFLAGS="-L/usr/local/lib -L/usr/local/ssl/lib -lcrypto"
+ENV CFLAGS="-I/usr/local/include -I/usr/local/ssl/include"
 ENV CXXFLAGS=""
 
 # Install workspace dependencies.

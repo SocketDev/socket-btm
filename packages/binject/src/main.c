@@ -424,7 +424,7 @@ static char* generate_sea_blob_from_config(const char *config_path) {
 static void print_usage(const char *program) {
     printf("binject - Pure C alternative to postject\n\n");
     printf("Usage:\n");
-    printf("  %s inject -e <executable> -o <output> [--sea <path>] [--vfs <path>|--vfs-on-disk <path>|--vfs-in-memory <path>|--vfs-compat]\n", program);
+    printf("  %s inject -e <executable> -o <output> [--sea <path>] [--vfs <path>|--vfs-on-disk <path>|--vfs-in-memory <path>|--vfs-compat] [--skip-repack]\n", program);
     printf("  %s list <executable>\n", program);
     printf("  %s extract -e <executable> [--vfs|--sea] -o <output>\n", program);
     printf("  %s verify -e <executable> [--vfs|--sea]\n", program);
@@ -443,6 +443,7 @@ static void print_usage(const char *program) {
     printf("  --vfs-in-memory <path>        Inject VFS blob and keep in memory at runtime (no extraction)\n");
     printf("  --vfs-compat                  Enable VFS support without bundling files (compatibility mode)\n");
     printf("  --sea <path>                  Inject SEA blob to NODE_SEA/__NODE_SEA_BLOB\n");
+    printf("  --skip-repack                 Skip repacking compressed stub (for testing extracted binary)\n");
     printf("                                If path ends in .json, runs: node --experimental-sea-config <path>\n");
     printf("  -h, --help                    Show this help message\n");
     printf("  -v, --version                 Show version information\n");
@@ -474,6 +475,7 @@ int main(int argc, char *argv[]) {
         const char *sea_resource = NULL;
         const char *vfs_resource = NULL;
         int vfs_in_memory = 0;  // Default: extract VFS to disk at runtime
+        int skip_repack = 0; // Default: repack compressed stubs
 
         for (int i = 2; i < argc; i++) {
             if (strcmp(argv[i], "-e") == 0 || strcmp(argv[i], "--executable") == 0) {
@@ -489,6 +491,8 @@ int main(int argc, char *argv[]) {
                 vfs_resource = "";  // Empty string marker for VFS compatibility mode
             } else if (strcmp(argv[i], "--sea") == 0) {
                 if (i + 1 < argc) sea_resource = argv[++i];
+            } else if (strcmp(argv[i], "--skip-repack") == 0) {
+                skip_repack = 1;
             }
         }
 
@@ -515,7 +519,7 @@ int main(int argc, char *argv[]) {
             sea_resource = generated_blob;  // Use generated blob instead
         }
 
-        int result = binject_batch(executable, output, sea_resource, vfs_resource, vfs_in_memory);
+        int result = binject_batch(executable, output, sea_resource, vfs_resource, vfs_in_memory, skip_repack);
 
         // Clean up generated blob if we created one
         if (generated_blob) {

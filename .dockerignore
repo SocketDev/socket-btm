@@ -1,85 +1,42 @@
-# Git
-.git
-.github
-.gitignore
-.gitattributes
+# Docker build context exclusions
+# This prevents platform-specific build artifacts from being copied into Docker builds
 
-# Node.js
-node_modules
-npm-debug.log
-yarn-error.log
-pnpm-debug.log
+# ==============================================================================
+# Build Artifacts (platform-specific object files, binaries, etc.)
+# ==============================================================================
 
-# Build outputs
-dist
-build
-# But keep downloaded dependencies for Docker builds
-!packages/build-infra/build/downloaded
-!packages/binject/build/downloaded
+# Platform-specific build artifacts (dev/prod builds with .o files, binaries)
+packages/binject/build/
+packages/binpress/build/
+packages/binflate/build/
+packages/bin-infra/build/
+packages/node-smol-builder/build/
+
+# Keep pre-built libraries needed for Docker builds
+!packages/build-infra/build/downloaded/
+
+# Compiled binaries
+packages/binpress/out/
+packages/binflate/out/
+packages/binject/out/
+
+# Distribution binaries (E2E test artifacts)
+**/dist/
+
+# ==============================================================================
+# Git and CI
+# ==============================================================================
+
+.git/
+.github/
+
+# ==============================================================================
+# Logs and Temporary Files
+# ==============================================================================
+
 *.log
-*.tmp
-*.temp
-
-# Development files
-.vscode
-.idea
+**/*.log
+.DS_Store
 *.swp
 *.swo
 *~
-.DS_Store
-
-# Documentation
-*.md
-!README.md
-docs
-
-# Test files
-test
-tests
-*.test.js
-*.test.ts
-*.spec.js
-*.spec.ts
-__tests__
-coverage
-.nyc_output
-
-# CI/CD
-.github
-.gitlab-ci.yml
-.travis.yml
-circle.yml
-appveyor.yml
-
-# Package manager lock files (keep pnpm-lock.yaml for reproducible builds)
-package-lock.json
-yarn.lock
-
-# Environment files
-.env
-.env.local
-.env.*.local
-.env.production
-.env.development
-.env.test
-
-# Secrets and credentials
-*.key
-*.pem
-*.p12
-*.pfx
-secrets.json
-credentials.json
-
-# Cache directories
-.cache
-.parcel-cache
-.next
-.nuxt
-.eslintcache
-.stylelintcache
-
-# Temporary files
-tmp
-temp
-*.bak

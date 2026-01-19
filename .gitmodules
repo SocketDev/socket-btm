@@ -1,7 +1,7 @@
 [submodule "packages/node-smol-builder/upstream/node"]
 	path = packages/node-smol-builder/upstream/node
 	url = https://github.com/nodejs/node.git
-	# v24.11.1
+	# v24.11.2
 	ref = 18aefb2d2b36938316d27b5cb53089e97632f0c3
 	shallow = true
 [submodule "packages/yoga-layout-builder/upstream/yoga"]
@@ -19,7 +19,7 @@
 [submodule "packages/bin-infra/upstream/lief"]
 	path = packages/bin-infra/upstream/lief
 	url = https://github.com/lief-project/LIEF.git
-	# v0.17.2
+	# v0.17.3
 	ref = aa2b617f47c2f75fca9ff00b146dabbaf1b9f422
 	shallow = true
 [submodule "packages/bin-infra/upstream/lzfse"]

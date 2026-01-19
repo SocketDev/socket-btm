@@ -626,7 +626,7 @@ int binject_single(const char *executable, const char *output, const char *resou
 /* CLI: batch inject command (SEA and/or VFS in one pass) */
 int binject_batch(const char *executable, const char *output,
                          const char *sea_resource, const char *vfs_resource,
-                         int vfs_in_memory) {
+                         int vfs_in_memory, int skip_repack) {
     (void)vfs_in_memory; // Reserved for future VFS extraction control at runtime
 
     /* Check if this is a compressed stub */
@@ -728,14 +728,21 @@ int binject_batch(const char *executable, const char *output,
 
     /* If this was a compressed stub, repack it with the modified binary */
     if (is_compressed) {
-        printf("\n");
-        printf("Repacking compressed stub...\n");
-        rc = binject_repack_workflow(executable, target_binary, output);
-        if (rc != BINJECT_OK) {
-            fprintf(stderr, "Error: Failed to repack compressed stub\n");
-            return rc;
+        if (skip_repack) {
+            printf("\n");
+            printf("⚠ Skipping stub repacking (--skip-repack flag)\n");
+            printf("✓ Modified extracted binary: %s\n", target_binary);
+            printf("  You can test this binary directly before repacking.\n");
+        } else {
+            printf("\n");
+            printf("Repacking compressed stub...\n");
+            rc = binject_repack_workflow(executable, target_binary, output);
+            if (rc != BINJECT_OK) {
+                fprintf(stderr, "Error: Failed to repack compressed stub\n");
+                return rc;
+            }
+            printf("✓ Stub repacking complete\n");
         }
-        printf("✓ Stub repacking complete\n");
     }
 
     return rc;

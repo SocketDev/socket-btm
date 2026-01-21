@@ -1,0 +1,83 @@
+# binject Makefile for Linux.
+# ELF binary injection tool.
+
+# Include common definitions.
+include ../build-infra/make/common.mk
+include ../build-infra/make/platform-linux.mk
+include ../build-infra/make/lief.mk
+include ../build-infra/make/lzfse.mk
+
+TARGET = binject
+SRC_DIR = src
+TEST_DIR = test
+
+# Source files.
+SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/binject.c $(SRC_DIR)/macho_inject_lief_wrapper.c $(SRC_DIR)/single_elf_inject.c $(SRC_DIR)/elf_pe_cross_platform.c $(SRC_DIR)/elf_inject.c $(SRC_DIR)/pe_inject.c $(SRC_DIR)/stub_repack.c $(BIN_INFRA_SRC)/binary_format.c $(BIN_INFRA_SRC)/compression_common.c $(BUILD_INFRA_SRC)/file_io_common.c $(BUILD_INFRA_SRC)/file_utils.c $(BIN_INFRA_SRC)/smol_segment.c $(BIN_INFRA_SRC)/smol_segment_reader.c
+OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/macho_inject_lief_wrapper.o $(BUILD_DIR)/single_elf_inject.o $(BUILD_DIR)/elf_pe_cross_platform.o $(BUILD_DIR)/elf_inject.o $(BUILD_DIR)/pe_inject.o $(BUILD_DIR)/stub_repack.o $(BUILD_DIR)/binary_format.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o $(BUILD_DIR)/file_utils.o $(BUILD_DIR)/smol_segment.o $(BUILD_DIR)/smol_segment_reader.o
+
+# LIEF C++ sources (required).
+SRCS += $(SRC_DIR)/macho_inject_lief.cpp $(SRC_DIR)/elf_inject_lief.cpp $(SRC_DIR)/pe_inject_lief.cpp $(BIN_INFRA_SRC)/stub_smol_repack_lief.cpp
+OBJS += $(BUILD_DIR)/macho_inject_lief.o $(BUILD_DIR)/elf_inject_lief.o $(BUILD_DIR)/pe_inject_lief.o $(BUILD_DIR)/stub_smol_repack_lief.o
+
+# Test files.
+TEST_SRCS = $(TEST_DIR)/binject_test.c $(SRC_DIR)/binject.c $(SRC_DIR)/macho_inject_lief_wrapper.c $(SRC_DIR)/single_elf_inject.c $(SRC_DIR)/single_pe_inject.c $(SRC_DIR)/elf_inject.c $(SRC_DIR)/pe_inject.c $(SRC_DIR)/stub_repack.c $(BIN_INFRA_SRC)/binary_format.c $(BIN_INFRA_SRC)/compression_common.c $(BUILD_INFRA_SRC)/file_io_common.c $(BUILD_INFRA_SRC)/file_utils.c $(BIN_INFRA_SRC)/smol_segment.c $(BIN_INFRA_SRC)/smol_segment_reader.c $(SRC_DIR)/macho_inject_lief.cpp $(SRC_DIR)/elf_inject_lief.cpp $(SRC_DIR)/pe_inject_lief.cpp $(BIN_INFRA_SRC)/stub_smol_repack_lief.cpp
+TEST_OBJS = $(BUILD_DIR)/binject_test.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/macho_inject_lief_wrapper.o $(BUILD_DIR)/single_elf_inject.o $(BUILD_DIR)/single_pe_inject.o $(BUILD_DIR)/elf_inject.o $(BUILD_DIR)/pe_inject.o $(BUILD_DIR)/stub_repack.o $(BUILD_DIR)/binary_format.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o $(BUILD_DIR)/file_utils.o $(BUILD_DIR)/smol_segment.o $(BUILD_DIR)/smol_segment_reader.o $(BUILD_DIR)/macho_inject_lief.o $(BUILD_DIR)/elf_inject_lief.o $(BUILD_DIR)/pe_inject_lief.o $(BUILD_DIR)/stub_smol_repack_lief.o
+TEST_TARGET = $(BUILD_DIR)/binject_test
+
+# CFLAGS/CXXFLAGS/LDFLAGS can be set via environment (e.g., for musl include/lib paths).
+CFLAGS := -Wall -Wextra $(OPT_FLAGS) -std=c11 $(COMMON_INCLUDES) $(LZFSE_CFLAGS) -DVERSION=\"$(VERSION)\" $(LIEF_CFLAGS) $(LIEF_DEFINES) $(CFLAGS)
+CXXFLAGS := -Wall -Wextra $(OPT_FLAGS) -std=c++17 $(COMMON_INCLUDES) $(LIEF_CFLAGS) $(LZFSE_CFLAGS) $(LIEF_DEFINES) $(CXXFLAGS)
+LDFLAGS := -static -static-libstdc++ -static-libgcc $(LDFLAGS_BASE) $(LZFSE_LDFLAGS) $(LIEF_LDFLAGS) $(LDFLAGS)
+
+.PHONY: all clean install uninstall test check-tools
+
+# Check that required build tools are available.
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }
+	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
+ifneq (,$(wildcard $(LIEF_LIB)))
+	@command -v $(CXX) >/dev/null 2>&1 || { echo "ERROR: $(CXX) not found for LIEF support."; exit 1; }
+endif
+
+# Default target.
+all: check-tools $(BIN_DIR)/$(TARGET)
+
+# Build binary (use CXX if LIEF is enabled, otherwise CC).
+$(BIN_DIR)/$(TARGET): $(OBJS) | $(BIN_DIR)
+ifneq (,$(wildcard $(LIEF_LIB)))
+	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LDFLAGS)
+else
+	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS)
+endif
+	$(call STRIP_BINARY,$@)
+	@echo "Built: $(BIN_DIR)/$(TARGET)"
+
+# Include common compilation rules.
+include ../build-infra/make/bin-infra-rules.mk
+
+clean:
+	$(call CLEAN_IMPL,binject)
+
+install: $(BIN_DIR)/$(TARGET)
+	install -m 755 $(BIN_DIR)/$(TARGET) /usr/local/bin/
+
+uninstall:
+	rm -f /usr/local/bin/$(TARGET)
+
+# Build test binary.
+$(TEST_TARGET): $(TEST_OBJS)
+ifneq (,$(wildcard $(LIEF_LIB)))
+	$(CXX) $(CXXFLAGS) -o $@ $(TEST_OBJS) $(LDFLAGS)
+else
+	$(CC) $(CFLAGS) -o $@ $(TEST_OBJS) $(LDFLAGS)
+endif
+	@echo "Built: $(TEST_TARGET)"
+
+# Compile test source.
+$(BUILD_DIR)/binject_test.o: $(TEST_DIR)/binject_test.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Run tests.
+test: $(TEST_TARGET)
+	@echo "\nRunning binject tests..."
+	@$(TEST_TARGET)

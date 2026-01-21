@@ -1,0 +1,36 @@
+[submodule "packages/node-smol-builder/upstream/node"]
+	path = packages/node-smol-builder/upstream/node
+	url = https://github.com/nodejs/node.git
+	# v24.12.0
+	ref = 70f6b58ac655234435a99d72b857dd7b316d34bf
+	shallow = true
+[submodule "packages/yoga-layout-builder/upstream/yoga"]
+	path = packages/yoga-layout-builder/upstream/yoga
+	url = https://github.com/facebook/yoga.git
+	# v3.1.0
+	ref = 69b8934429702bd3ab06e8d6f709112a761b474b
+	shallow = true
+[submodule "packages/onnxruntime-builder/upstream/onnxruntime"]
+	path = packages/onnxruntime-builder/upstream/onnxruntime
+	url = https://github.com/microsoft/onnxruntime.git
+	# v1.20.1
+	ref = 5c1b7ccbff7e5141c1da7a9d963d660e5741c319
+	shallow = true
+[submodule "packages/bin-infra/upstream/lief"]
+	path = packages/bin-infra/upstream/lief
+	url = https://github.com/lief-project/LIEF.git
+	# v0.17.3
+	ref = aa2b617f47c2f75fca9ff00b146dabbaf1b9f422
+	shallow = true
+[submodule "packages/bin-infra/upstream/lzfse"]
+	path = packages/bin-infra/upstream/lzfse
+	url = https://github.com/lzfse/lzfse.git
+	# Latest commit on master as of 2024-12-31
+	ref = e634ca58b4821d9f3d560cdc6df5dec02ffc93fd
+	shallow = true
+[submodule "packages/bin-infra/upstream/xz"]
+	path = packages/bin-infra/upstream/xz
+	url = https://github.com/tukaani-project/xz.git
+	# v5.8.2
+	ref = 3d078b52adbff566ccfc51067dfbf742ecf3ef86
+	shallow = true

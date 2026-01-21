@@ -1,0 +1,300 @@
+name: SMOL 2. Liblzma
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      debug:
+        description: 'Debug (0|1|namespace[,...])'
+        type: string
+        default: '0'
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+      force:
+        type: boolean
+        default: false
+      debug:
+        type: string
+        default: '0'
+
+permissions:
+  contents: read
+
+jobs:
+  build-liblzma:
+    permissions:
+      contents: read
+      id-token: write
+    name: liblzma / linux-${{ matrix.arch }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+          - arch: arm64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Enable debug logging
+        if: inputs.debug != '0'
+        shell: bash
+        run: |
+          if [ "${{ inputs.debug }}" = "1" ]; then
+            echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
+            echo "ACTIONS_RUNNER_DEBUG=true" >> $GITHUB_ENV
+            echo "Debug mode: full"
+          else
+            echo "DEBUG=${{ inputs.debug }}" >> $GITHUB_ENV
+            echo "Debug mode: ${{ inputs.debug }}"
+          fi
+
+      - name: Initialize xz submodule
+        shell: bash
+        run: |
+          git submodule update --init --depth 1 packages/bin-infra/upstream/xz
+
+      - name: Get xz version
+        id: version
+        shell: bash
+        run: |
+          # Extract version from .gitmodules comment
+          XZ_VERSION=$(grep -A 3 'packages/bin-infra/upstream/xz' .gitmodules | grep '# v' | sed 's/.*# v//')
+          if [ -z "$XZ_VERSION" ]; then
+            # Fallback to git describe
+            XZ_VERSION=$(cd packages/bin-infra/upstream/xz && git describe --tags --always 2>/dev/null || echo "unknown")
+          fi
+          echo "version=${XZ_VERSION}" >> $GITHUB_OUTPUT
+          echo "xz version: ${XZ_VERSION}"
+
+      - name: Load cache version from centralized config
+        id: cache-version
+        shell: bash
+        run: |
+          CACHE_VERSION=$(jq -r '.versions["liblzma"]' .github/cache-versions.json)
+          if [ -z "$CACHE_VERSION" ] || [ "$CACHE_VERSION" = "null" ]; then
+            echo "❌ Error: Cache version not found for liblzma in .github/cache-versions.json"
+            exit 1
+          fi
+          echo "version=$CACHE_VERSION" >> $GITHUB_OUTPUT
+          echo "Cache version: $CACHE_VERSION"
+
+      - name: Generate liblzma cache key
+        id: cache-key
+        env:
+          CACHE_VERSION: ${{ steps.cache-version.outputs.version }}
+          ARCH: ${{ matrix.arch }}
+        shell: bash
+        run: |
+          # Cross-platform hash function
+          if command -v shasum &> /dev/null; then
+            hash_cmd="shasum -a 256"
+          elif command -v sha256sum &> /dev/null; then
+            hash_cmd="sha256sum"
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+
+          # Hash critical inputs
+          XZ_SUBMODULE_SHA=$(cd packages/bin-infra/upstream/xz && git rev-parse HEAD)
+          DOCKERFILE_HASH=$($hash_cmd packages/bin-infra/Dockerfile.liblzma | cut -d' ' -f1)
+
+          # Final hash: cache-version + xz-sha + dockerfile + arch
+          FINAL_HASH=$(echo "${CACHE_VERSION}${XZ_SUBMODULE_SHA}${DOCKERFILE_HASH}${ARCH}" | $hash_cmd | cut -d' ' -f1)
+
+          echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
+          echo "final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
+          echo "Cache key hash: ${FINAL_HASH}"
+
+      - name: Restore liblzma cache
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        id: liblzma-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: packages/bin-infra/upstream/xz/liblzma-linux-${{ matrix.arch }}.tar.gz
+          key: liblzma-${{ steps.cache-key.outputs.cache_version }}-linux-${{ matrix.arch }}-${{ steps.cache-key.outputs.final_hash }}
+
+      - name: Setup Depot CLI
+        if: steps.liblzma-cache.outputs.cache-hit != 'true' || inputs.force
+        uses: depot/setup-action@b0b1ea4f69e92ebf5dea3f8713a1b0c37b2126a5 # v1.6.0
+        with:
+          oidc: true
+
+      - name: Build liblzma with Depot
+        if: steps.liblzma-cache.outputs.cache-hit != 'true' || inputs.force
+        uses: depot/build-push-action@9785b135c3c76c33db102e45be96a25ab55cd507 # v1.16.2
+        with:
+          project: 8fpj9495vw
+          platforms: linux/${{ matrix.arch == 'x64' && 'amd64' || matrix.arch }}
+          build-args: |
+            CACHE_VERSION=${{ steps.cache-version.outputs.version }}
+          file: packages/bin-infra/Dockerfile.liblzma
+          target: export
+          outputs: type=local,dest=.docker-export
+          context: .
+
+      - name: Move Docker export to correct location
+        if: steps.liblzma-cache.outputs.cache-hit != 'true' || inputs.force
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          if [ -f ".docker-export/liblzma.tar.gz" ]; then
+            mv .docker-export/liblzma.tar.gz "packages/bin-infra/upstream/xz/liblzma-linux-${ARCH}.tar.gz"
+            echo "✅ Archive moved to packages/bin-infra/upstream/xz/liblzma-linux-${ARCH}.tar.gz"
+          else
+            echo "❌ liblzma.tar.gz not found in .docker-export/"
+            ls -lah .docker-export/ || echo "Directory does not exist"
+            exit 1
+          fi
+
+      - name: Verify archive (from cache or build)
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          ARCHIVE_PATH="packages/bin-infra/upstream/xz/liblzma-linux-${ARCH}.tar.gz"
+          if [ ! -f "$ARCHIVE_PATH" ]; then
+            echo "❌ Archive not found at: $ARCHIVE_PATH"
+            exit 1
+          fi
+          echo "✅ Archive found: $ARCHIVE_PATH"
+          ls -lh "$ARCHIVE_PATH"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: liblzma-linux-${{ matrix.arch }}
+          path: packages/bin-infra/upstream/xz/liblzma-linux-${{ matrix.arch }}.tar.gz
+          retention-days: 7
+
+  release:
+    needs: build-liblzma
+    if: ${{ !inputs.dry_run }}
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Initialize xz submodule
+        shell: bash
+        run: |
+          git submodule update --init --depth 1 packages/bin-infra/upstream/xz
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          path: artifacts
+          pattern: liblzma-*
+          merge-multiple: true
+
+      - name: Verify downloaded artifacts
+        shell: bash
+        run: |
+          echo "Checking for downloaded artifacts..."
+          if [ -d "artifacts" ]; then
+            echo "✅ Artifacts directory exists"
+            echo "Contents:"
+            ls -lah artifacts/
+            if [ -n "$(ls -A artifacts/*.tar.gz 2>/dev/null)" ]; then
+              echo "✅ Found $(ls artifacts/*.tar.gz 2>/dev/null | wc -l) tar.gz files"
+            else
+              echo "❌ No tar.gz files found in artifacts directory"
+              exit 1
+            fi
+          else
+            echo "❌ Artifacts directory does not exist"
+            exit 1
+          fi
+
+      - name: Get xz version
+        id: version
+        shell: bash
+        run: |
+          XZ_VERSION=$(grep -A 3 'packages/bin-infra/upstream/xz' .gitmodules | grep '# v' | sed 's/.*# v//')
+          if [ -z "$XZ_VERSION" ]; then
+            XZ_VERSION=$(cd packages/bin-infra/upstream/xz && git describe --tags --always 2>/dev/null || echo "unknown")
+          fi
+          echo "version=${XZ_VERSION}" >> $GITHUB_OUTPUT
+          echo "xz version: ${XZ_VERSION}"
+
+      - name: Generate release tag
+        id: tag
+        shell: bash
+        run: |
+          DATE=$(date +%Y%m%d)
+          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          TAG="liblzma-${DATE}-${SHORT_SHA}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Release tag: ${TAG}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          XZ_VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          mkdir -p release
+          mv artifacts/*.tar.gz release/
+
+          echo "Found $(ls release/*.tar.gz | wc -l) archives to release"
+
+          # Generate checksums
+          cd release
+          if command -v shasum &> /dev/null; then
+            shasum -a 256 *.tar.gz > checksums.txt
+          elif command -v sha256sum &> /dev/null; then
+            sha256sum *.tar.gz > checksums.txt
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+          cat checksums.txt
+          cd ..
+
+          TITLE_SUFFIX="${RELEASE_TAG#liblzma-}"
+          gh release create "${RELEASE_TAG}" \
+            --title "liblzma ${TITLE_SUFFIX}" \
+            --notes "Static liblzma v${XZ_VERSION} for Linux builds.
+
+          ## Platforms
+          - linux-x64
+          - linux-arm64
+
+          ## Files
+          Each archive contains:
+          - Static library (\`lib/liblzma.a\`)
+          - Header files (\`include/lzma.h\` and \`include/lzma/\`)
+          - \`checksums.txt\` - SHA256 checksums
+
+          ## Usage
+          Download and extract:
+
+          \`\`\`sh
+          tar -xzf liblzma-linux-<arch>.tar.gz
+          # Link with: -L./lib -llzma -I./include
+          \`\`\`" \
+            release/*.tar.gz \
+            release/checksums.txt

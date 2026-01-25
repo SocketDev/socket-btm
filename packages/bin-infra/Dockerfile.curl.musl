@@ -1,0 +1,66 @@
+# Build curl+mbedTLS in container to offload compute from GitHub Actions.
+# This Dockerfile supports building for linux/amd64 and linux/arm64.
+# musl variant using Alpine 3.19.
+
+FROM alpine:3.19 AS build
+
+# Cache version - managed centrally in .github/cache-versions.json
+# Declared early to invalidate cached layers when version changes
+ARG CACHE_VERSION=unset
+RUN echo "Cache version: ${CACHE_VERSION}"
+
+# Install build dependencies.
+RUN apk add --no-cache \
+        gcc \
+        g++ \
+        git \
+        ccache \
+        make \
+        ninja \
+        curl \
+        ca-certificates \
+        python3 \
+        py3-pip \
+        nodejs \
+        npm \
+        binutils \
+        && \
+    pip3 install --no-cache-dir --break-system-packages cmake>=3.24 && \
+    npm install -g pnpm@10.26.1
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy workspace configuration files (needed for pnpm workspace).
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .gitmodules .node-version ./
+
+# Copy build-infra package (workspace dependency).
+COPY packages/build-infra ./packages/build-infra
+
+# Copy bin-infra package (contains curl build scripts and upstream dependencies).
+COPY packages/bin-infra ./packages/bin-infra
+
+# Copy node-smol-builder package (what we're building).
+COPY packages/node-smol-builder ./packages/node-smol-builder
+
+# Install workspace dependencies (bin-infra and node-smol-builder packages).
+ENV CI=true
+RUN pnpm install --frozen-lockfile --filter bin-infra --filter node-smol-builder
+
+# Build curl with mbedTLS.
+ARG BUILD_MODE=prod
+ARG TARGETARCH
+ENV BUILD_MODE=$BUILD_MODE
+
+# For amd64 builds, add -march=x86-64 -mtune=generic to ensure binary portability
+# across different CPU generations (e.g., GitHub Actions runners without AVX/AVX2).
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+        export CFLAGS="-march=x86-64 -mtune=generic" && \
+        export CXXFLAGS="-march=x86-64 -mtune=generic"; \
+    fi && \
+    cd packages/bin-infra && node lib/build-curl.mjs
+
+# Export stage: Copy build artifacts (not entire filesystem).
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=build /workspace/packages/bin-infra/build /

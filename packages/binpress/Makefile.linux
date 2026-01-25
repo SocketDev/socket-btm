@@ -1,0 +1,94 @@
+# binpress Makefile for Linux.
+# ELF binary compression tool.
+
+# Include common definitions.
+include ../build-infra/make/common.mk
+include ../build-infra/make/platform-linux.mk
+include ../bin-infra/make/lief.mk
+include ../bin-infra/make/lzfse.mk
+
+TARGET = binpress
+SRC_DIR = src
+
+# Source files.
+SRCS = $(SRC_DIR)/elf_compress.c $(SRC_DIR)/binpress_config.c $(SRC_DIR)/stub_selector.c $(BIN_INFRA_SRC)/compression_common.c $(BUILD_INFRA_SRC)/file_io_common.c $(BIN_INFRA_SRC)/smol_segment.c $(BIN_INFRA_SRC)/binary_format.c $(BUILD_INFRA_SRC)/file_utils.c
+OBJS = $(BUILD_DIR)/elf_compress.o $(BUILD_DIR)/binpress_config.o $(BUILD_DIR)/stub_selector.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o $(BUILD_DIR)/smol_segment.o $(BUILD_DIR)/binary_format.o $(BUILD_DIR)/file_utils.o
+
+# Embedded stubs.
+EMBEDDED_STUBS = $(BUILD_DIR)/embedded_stubs.c
+EMBEDDED_STUBS_OBJ = $(BUILD_DIR)/embedded_stubs.o
+
+# Add embedded stubs to build
+OBJS += $(EMBEDDED_STUBS_OBJ)
+
+# LIEF compression wrappers (native ELF + cross-platform Mach-O and PE).
+ifneq (,$(wildcard $(LIEF_LIB)))
+    SRCS += $(SRC_DIR)/compress_lief_common.cpp $(SRC_DIR)/stub_elf_compress_lief.cpp $(SRC_DIR)/macho_compress_lief.cpp $(SRC_DIR)/pe_compress_lief.cpp
+    OBJS += $(BUILD_DIR)/compress_lief_common.o $(BUILD_DIR)/stub_elf_compress_lief.o $(BUILD_DIR)/macho_compress_lief.o $(BUILD_DIR)/pe_compress_lief.o
+endif
+
+# CFLAGS/CXXFLAGS/LDFLAGS can be set via environment (e.g., for musl include/lib paths).
+CFLAGS := -Wall -Wextra $(OPT_FLAGS) -std=c11 $(COMMON_INCLUDES) $(LZFSE_CFLAGS) -DVERSION=\"$(VERSION)\" $(CFLAGS)
+CXXFLAGS := -Wall -Wextra $(OPT_FLAGS) -std=c++17 $(COMMON_INCLUDES) $(LIEF_CFLAGS) $(LZFSE_CFLAGS) $(LIEF_DEFINES) $(CXXFLAGS)
+LDFLAGS := $(LDFLAGS_BASE) $(LZFSE_LDFLAGS) $(LIEF_LDFLAGS) $(LDFLAGS)
+
+# Check that required build tools are available.
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }
+	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
+ifneq (,$(wildcard $(LIEF_LIB)))
+	@command -v $(CXX) >/dev/null 2>&1 || { echo "ERROR: $(CXX) not found for LIEF support."; exit 1; }
+endif
+
+# Default target.
+all: check-tools $(EMBEDDED_STUBS) $(OUT_DIR)/$(TARGET)
+
+# Generate embedded stubs from stub binaries.
+$(EMBEDDED_STUBS): | $(BUILD_DIR)
+	@echo "Generating embedded stubs..."
+	@node scripts/generate-embedded-stubs.mjs
+
+# Build embedded stubs object.
+$(EMBEDDED_STUBS_OBJ): $(EMBEDDED_STUBS)
+	$(CC) $(CFLAGS) -c $(EMBEDDED_STUBS) -o $@
+
+# Build binary (use CXX if LIEF is available, otherwise CC).
+$(OUT_DIR)/$(TARGET): $(OBJS) | $(BUILD_DIR) $(OUT_DIR)
+ifneq (,$(wildcard $(LIEF_LIB)))
+	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LDFLAGS)
+else
+	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS)
+endif
+	$(call STRIP_BINARY,$@)
+	@echo "Validating LZFSE was compiled with -O0..."
+	@for obj in $(LZFSE_OBJS); do \
+		if objdump -s -j .comment $$obj 2>/dev/null | grep -q "GCC:.*-O[123s]"; then \
+			echo "❌ ERROR: $$obj was NOT compiled with -O0"; \
+			echo "   LZFSE must be compiled with -O0 to avoid gcc x64 miscompilation"; \
+			exit 1; \
+		fi; \
+	done || true
+	@echo "✓ LZFSE validation passed"
+ifneq (,$(filter arm64 aarch64,$(TARGET_ARCH)))
+	@echo "Skipping LZFSE round-trip test (cross-compiling)"
+else
+	@echo "Running LZFSE round-trip test..."
+	@$(CC) $(CFLAGS) -o $(BUILD_DIR)/test_lzfse $(SRC_DIR)/test_lzfse.c $(LZFSE_LDFLAGS)
+	@$(BUILD_DIR)/test_lzfse
+	@rm -f $(BUILD_DIR)/test_lzfse
+	@echo "✓ LZFSE round-trip test passed"
+endif
+	@echo "Built: $(OUT_DIR)/$(TARGET)"
+
+# Include common compilation rules.
+include ../bin-infra/make/bin-infra-rules.mk
+
+clean:
+	$(call CLEAN_IMPL,binpress)
+
+install: all
+	@echo "Compression tool built successfully: $(OUT_DIR)/$(TARGET)"
+
+test: all
+	@echo "Running binpress tests..."
+	@cd $(PROJECT_ROOT) && pnpm exec vitest run

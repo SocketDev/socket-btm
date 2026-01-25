@@ -1,0 +1,466 @@
+name: SMOL 2. curl
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      build_mode:
+        description: 'Build mode'
+        type: choice
+        options:
+          - prod
+          - dev
+        default: prod
+      debug:
+        description: 'Debug (0|1|namespace[,...])'
+        type: string
+        default: '0'
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+      force:
+        type: boolean
+        default: false
+      build_mode:
+        type: string
+        default: prod
+      debug:
+        type: string
+        default: '0'
+
+permissions:
+  contents: read
+
+jobs:
+  build-curl:
+    permissions:
+      contents: read
+      id-token: write
+    name: curl / ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS builds.
+          - runner: depot-macos-15
+            platform: darwin
+            arch: arm64
+            os: macos
+          - runner: macos-15-intel
+            platform: darwin
+            arch: x64
+            os: macos
+          # Linux builds (glibc).
+          - runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            os: linux
+            libc: glibc
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            os: linux
+            libc: glibc
+          # Linux builds (musl).
+          - runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            os: linux
+            libc: musl
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            os: linux
+            libc: musl
+          # Windows builds.
+          - runner: windows-2022
+            platform: win32
+            arch: x64
+            os: windows
+          # Windows ARM64: Cross-compile on x64 runner (no ARM64 hosted runners available).
+          - runner: windows-2022
+            platform: win32
+            arch: arm64
+            os: windows
+            cross_compile: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Enable debug logging
+        if: inputs.debug != '0'
+        run: |
+          if [ "${{ inputs.debug }}" = "1" ]; then
+            echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
+            echo "ACTIONS_RUNNER_DEBUG=true" >> $GITHUB_ENV
+            echo "Debug mode: full"
+          else
+            echo "DEBUG=${{ inputs.debug }}" >> $GITHUB_ENV
+            echo "Debug mode: ${{ inputs.debug }}"
+          fi
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version-file: .node-version
+          cache: ''
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Initialize curl submodule
+        shell: bash
+        run: |
+          git submodule update --init --recursive packages/node-smol-builder/upstream/curl
+
+      - name: Initialize mbedtls submodule
+        shell: bash
+        run: |
+          git submodule update --init --recursive packages/node-smol-builder/upstream/mbedtls
+
+      - name: Set build mode
+        id: build-mode
+        env:
+          INPUT_BUILD_MODE: ${{ inputs.build_mode }}
+        shell: bash
+        run: |
+          if [ "$INPUT_BUILD_MODE" = "dev" ]; then
+            BUILD_MODE="dev"
+          else
+            BUILD_MODE="prod"
+          fi
+          echo "mode=$BUILD_MODE" >> $GITHUB_OUTPUT
+          echo "Build mode: $BUILD_MODE"
+
+      - name: Load cache version from centralized config
+        id: cache-version
+        shell: bash
+        run: |
+          CURL_VERSION=$(jq -r '.versions["curl"]' .github/cache-versions.json)
+          if [ -z "$CURL_VERSION" ] || [ "$CURL_VERSION" = "null" ]; then
+            echo "❌ Error: Cache version not found for curl in .github/cache-versions.json"
+            exit 1
+          fi
+
+          # Get curl and mbedtls submodule SHAs.
+          CURL_SHA=$(git -C packages/node-smol-builder/upstream/curl rev-parse HEAD 2>/dev/null || echo "none")
+          MBEDTLS_SHA=$(git -C packages/node-smol-builder/upstream/mbedtls rev-parse HEAD 2>/dev/null || echo "none")
+
+          # Combined version includes curl version and dependency SHAs.
+          COMBINED_VERSION="${CURL_VERSION}-${CURL_SHA:0:7}-${MBEDTLS_SHA:0:7}"
+          echo "version=$COMBINED_VERSION" >> $GITHUB_OUTPUT
+          echo "curl_version=$CURL_VERSION" >> $GITHUB_OUTPUT
+          echo "curl_sha=${CURL_SHA:0:7}" >> $GITHUB_OUTPUT
+          echo "mbedtls_sha=${MBEDTLS_SHA:0:7}" >> $GITHUB_OUTPUT
+          echo "Cache version: $COMBINED_VERSION"
+          echo "  curl: $CURL_VERSION (sha: ${CURL_SHA:0:7})"
+          echo "  mbedtls: ${MBEDTLS_SHA:0:7}"
+
+      - name: Setup Depot CLI
+        if: matrix.os == 'linux'
+        uses: depot/setup-action@b0b1ea4f69e92ebf5dea3f8713a1b0c37b2126a5 # v1.6.0
+        with:
+          oidc: true
+
+      - name: Build curl with Depot (Linux - offloads compute)
+        if: matrix.os == 'linux'
+        uses: depot/build-push-action@9785b135c3c76c33db102e45be96a25ab55cd507 # v1.16.2
+        with:
+          project: 8fpj9495vw
+          platforms: linux/${{ matrix.arch == 'x64' && 'amd64' || matrix.arch }}
+          build-args: |
+            BUILD_MODE=${{ steps.build-mode.outputs.mode }}
+            CACHE_VERSION=${{ steps.cache-version.outputs.version }}
+          file: packages/node-smol-builder/Dockerfile.curl.${{ matrix.libc || 'glibc' }}
+          target: export
+          outputs: type=local,dest=packages/node-smol-builder/build
+          context: .
+
+      - name: Verify Depot build output (Linux)
+        if: matrix.os == 'linux'
+        shell: bash
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "Verifying Depot build output structure..."
+          ls -lah packages/node-smol-builder/build/$BUILD_MODE/ || echo "Build directory not found"
+
+          # Check for library file.
+          if [ -f "packages/node-smol-builder/build/$BUILD_MODE/out/Final/curl/dist/libcurl.a" ]; then
+            echo "✅ libcurl.a found"
+          else
+            echo "❌ libcurl.a not found!"
+            echo "Contents of output directory:"
+            find packages/node-smol-builder/build/$BUILD_MODE/ -type f 2>/dev/null || echo "No files found"
+            exit 1
+          fi
+
+      - name: Setup build toolchain (macOS)
+        if: matrix.os == 'macos'
+        shell: bash
+        run: |
+          brew install cmake ccache
+
+      - name: Setup build toolchain (Windows x64)
+        if: matrix.os == 'windows' && !matrix.cross_compile
+        shell: bash
+        run: |
+          choco install cmake mingw ccache -y
+
+      - name: Setup build toolchain (Windows ARM64 cross-compile)
+        if: matrix.os == 'windows' && matrix.cross_compile
+        shell: bash
+        run: |
+          choco install cmake ccache -y
+          # Download and extract llvm-mingw for ARM64 cross-compilation.
+          curl -fsSL -o llvm-mingw.zip "https://github.com/mstorsjo/llvm-mingw/releases/download/20250528/llvm-mingw-20250528-ucrt-x86_64.zip"
+          7z x llvm-mingw.zip -o"C:/llvm-mingw"
+          echo "C:/llvm-mingw/llvm-mingw-20250528-ucrt-x86_64/bin" >> $GITHUB_PATH
+
+      - name: Build curl native (macOS/Windows)
+        if: matrix.os != 'linux'
+        shell: bash
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          TARGET_ARCH: ${{ matrix.arch }}
+          CROSS_COMPILE: ${{ matrix.cross_compile && '1' || '' }}
+        run: |
+          cd packages/node-smol-builder
+          node scripts/build-curl.mjs
+
+      - name: Create archive
+        shell: bash
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
+          LIBC: ${{ matrix.libc }}
+        run: |
+          CURL_DIR="packages/node-smol-builder/build/${BUILD_MODE}/out/Final/curl/dist"
+
+          if [ ! -d "$CURL_DIR" ]; then
+            echo "❌ Error: curl directory not found at: $CURL_DIR"
+            exit 1
+          fi
+
+          cd "$CURL_DIR"
+
+          # Verify expected files exist.
+          for lib in libcurl.a libmbedtls.a libmbedx509.a libmbedcrypto.a; do
+            if [ ! -f "$lib" ]; then
+              echo "❌ Error: $lib not found"
+              ls -lah .
+              exit 1
+            fi
+          done
+
+          if [ ! -d "include" ]; then
+            echo "❌ Error: include directory not found"
+            exit 1
+          fi
+
+          # Construct archive name.
+          ARCHIVE_NAME="curl-${PLATFORM}-${ARCH}"
+          if [ "${LIBC}" = "musl" ]; then
+            ARCHIVE_NAME="${ARCHIVE_NAME}-musl"
+          fi
+
+          # Create tar.gz with all libraries and headers.
+          # From dist/, go up to Final/ (../../) to match upload path.
+          OUTPUT_PATH="../../${ARCHIVE_NAME}.tar.gz"
+          echo "Creating archive: ${ARCHIVE_NAME}.tar.gz"
+          tar -czf "${OUTPUT_PATH}" \
+            libcurl.a \
+            libmbedtls.a \
+            libmbedx509.a \
+            libmbedcrypto.a \
+            include/
+
+          echo "✅ Archive created successfully"
+          ls -lh "${OUTPUT_PATH}"
+
+      - name: Set artifact name
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
+          LIBC: ${{ matrix.libc }}
+        run: |
+          ARTIFACT_NAME="curl-${PLATFORM}-${ARCH}"
+          if [ "${LIBC}" = "musl" ]; then
+            ARTIFACT_NAME="${ARTIFACT_NAME}-musl"
+          fi
+          echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: packages/node-smol-builder/build/${{ steps.build-mode.outputs.mode }}/out/Final/${{ env.ARTIFACT_NAME }}.tar.gz
+          retention-days: 7
+
+  release:
+    needs: build-curl
+    if: ${{ !inputs.dry_run }}
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          path: artifacts
+          pattern: curl-*
+          merge-multiple: true
+
+      - name: Verify downloaded artifacts
+        shell: bash
+        run: |
+          echo "Checking for downloaded artifacts..."
+          if [ -d "artifacts" ]; then
+            echo "✅ Artifacts directory exists"
+            ls -lah artifacts/
+            if [ -n "$(ls -A artifacts/*.tar.gz 2>/dev/null)" ]; then
+              echo "✅ Found $(ls artifacts/*.tar.gz 2>/dev/null | wc -l) tar.gz files"
+            else
+              echo "❌ No tar.gz files found"
+              exit 1
+            fi
+          else
+            echo "❌ Artifacts directory does not exist"
+            exit 1
+          fi
+
+      - name: Get curl version
+        id: version
+        shell: bash
+        run: |
+          # Extract version from .gitmodules comment.
+          CURL_VERSION=$(grep -A 3 'packages/node-smol-builder/upstream/curl' .gitmodules | grep '# curl-' | sed 's/.*# curl-//' | tr '_' '.')
+          if [ -z "$CURL_VERSION" ]; then
+            echo "Error: Failed to extract curl version from .gitmodules"
+            exit 1
+          fi
+          echo "version=${CURL_VERSION}" >> $GITHUB_OUTPUT
+          echo "curl version: ${CURL_VERSION}"
+
+      - name: Get mbedTLS version
+        id: mbedtls-version
+        shell: bash
+        run: |
+          MBEDTLS_VERSION=$(grep -A 3 'packages/node-smol-builder/upstream/mbedtls' .gitmodules | grep '# mbedtls-' | sed 's/.*# mbedtls-//')
+          if [ -z "$MBEDTLS_VERSION" ]; then
+            echo "Error: Failed to extract mbedTLS version from .gitmodules"
+            exit 1
+          fi
+          echo "version=${MBEDTLS_VERSION}" >> $GITHUB_OUTPUT
+          echo "mbedTLS version: ${MBEDTLS_VERSION}"
+
+      - name: Generate release tag
+        id: tag
+        shell: bash
+        run: |
+          DATE=$(date +%Y%m%d)
+          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          TAG="curl-${DATE}-${SHORT_SHA}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Release tag: ${TAG}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          CURL_VERSION: ${{ steps.version.outputs.version }}
+          MBEDTLS_VERSION: ${{ steps.mbedtls-version.outputs.version }}
+        shell: bash
+        run: |
+          # Move and rename artifacts.
+          mkdir -p release
+          for file in artifacts/*.tar.gz; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              renamed=$(echo "$filename" | sed 's/-win32-/-win-/g')
+              mv "$file" "release/$renamed"
+              echo "Renamed: $filename → $renamed"
+            fi
+          done
+
+          if [ -z "$(ls -A release/*.tar.gz 2>/dev/null)" ]; then
+            echo "Error: No .tar.gz files found"
+            exit 1
+          fi
+
+          echo "Found $(ls release/*.tar.gz | wc -l) archives to release"
+
+          # Generate checksums.
+          cd release
+          if command -v shasum &> /dev/null; then
+            shasum -a 256 *.tar.gz > checksums.txt
+          elif command -v sha256sum &> /dev/null; then
+            sha256sum *.tar.gz > checksums.txt
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+          cat checksums.txt
+          cd ..
+
+          # Create release.
+          TITLE_SUFFIX="${RELEASE_TAG#curl-}"
+          gh release create "${RELEASE_TAG}" \
+            --title "curl ${TITLE_SUFFIX}" \
+            --notes "curl ${CURL_VERSION} with mbedTLS ${MBEDTLS_VERSION} for HTTPS support in self-extracting stubs.
+
+          ## Platforms
+          - darwin-arm64
+          - darwin-x64
+          - linux-arm64
+          - linux-x64
+          - linux-arm64-musl
+          - linux-x64-musl
+          - win-arm64
+          - win-x64
+
+          ## Files
+          Each platform archive contains:
+          - \`libcurl.a\` - Static curl library
+          - \`libmbedtls.a\` - mbedTLS library
+          - \`libmbedx509.a\` - mbedTLS X.509 library
+          - \`libmbedcrypto.a\` - mbedTLS crypto library
+          - \`include/\` - curl headers
+          - \`checksums.txt\` - SHA256 checksums
+
+          ## Usage
+          Download the appropriate archive for your platform and extract:
+
+          \`\`\`sh
+          tar -xzf curl-<platform>-<arch>.tar.gz
+          # Or for musl:
+          tar -xzf curl-<platform>-<arch>-musl.tar.gz
+          \`\`\`" \
+            release/*.tar.gz \
+            release/checksums.txt

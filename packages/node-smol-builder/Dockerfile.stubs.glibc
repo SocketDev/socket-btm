@@ -1,0 +1,71 @@
+# Build SMOL stubs in container to offload compute from GitHub Actions.
+# This Dockerfile supports building for linux/amd64 and linux/arm64.
+# glibc variant using AlmaLinux 8 (glibc 2.28) for maximum compatibility.
+
+FROM almalinux:8 AS build
+
+# Install build dependencies.
+# AlmaLinux 8 has glibc 2.28, which provides maximum compatibility with older Linux distributions.
+# Enable PowerTools for glibc-static, devel for openssl-static, EPEL for ccache.
+RUN dnf -y update && \
+    dnf -y install epel-release dnf-plugins-core almalinux-release-devel && \
+    dnf config-manager --set-enabled powertools && \
+    dnf config-manager --set-enabled devel && \
+    dnf -y install \
+        gcc \
+        gcc-c++ \
+        git \
+        make \
+        curl \
+        ca-certificates \
+        openssl-devel \
+        openssl-static \
+        zlib-devel \
+        zlib-static \
+        glibc-static \
+        && \
+    # Install Node.js from NodeSource.
+    curl -fsSL https://rpm.nodesource.com/setup_lts.x | bash - && \
+    dnf -y install nodejs && \
+    npm install -g pnpm@10.26.1 && \
+    dnf clean all
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy workspace configuration files (needed for pnpm workspace).
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .gitmodules .node-version ./
+
+# Copy build-infra package (workspace dependency).
+COPY packages/build-infra ./packages/build-infra
+
+# Copy bin-infra package (has lzfse submodule).
+COPY packages/bin-infra ./packages/bin-infra
+
+# Copy node-smol-builder package (what we're building).
+COPY packages/node-smol-builder ./packages/node-smol-builder
+
+# Install workspace dependencies.
+ENV CI=true
+RUN pnpm install --frozen-lockfile --filter node-smol-builder
+
+# Build stubs.
+ARG BUILD_MODE=prod
+ARG TARGETARCH
+# Cache version - managed centrally in .github/cache-versions.json
+ARG CACHE_VERSION=unset
+ENV BUILD_MODE=$BUILD_MODE
+
+# Build stubs (build-stubs.mjs handles curl download and compilation).
+RUN echo "Cache version: ${CACHE_VERSION}" && \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        export TARGET_ARCH="x64"; \
+    else \
+        export TARGET_ARCH="arm64"; \
+    fi && \
+    cd packages/node-smol-builder && \
+    node scripts/build-stubs.mjs
+
+# Export stage: Copy build artifacts (not entire filesystem).
+FROM scratch AS export
+COPY --from=build /workspace/packages/node-smol-builder/scripts/binary-compressed/shared/stub/out /

@@ -1,0 +1,35 @@
+# Makefile for smol_stub - minimal launcher that extracts and calls binflate (Windows).
+
+# Note: CC can be overridden via environment variables (e.g., clang in CI).
+# For ARM64 cross-compilation, use llvm-mingw's aarch64 compiler.
+# Use := to force compiler selection (not ?= which won't override Make's default cc).
+# Accept both arm64 and aarch64 for TARGET_ARCH consistency with other workflows.
+ifneq (,$(filter arm64 aarch64,$(TARGET_ARCH)))
+    CC := aarch64-w64-mingw32-gcc
+else
+    CC ?= gcc
+endif
+
+# LZFSE library paths.
+LZFSE_SRC = ../../../../../../packages/bin-infra/upstream/lzfse/src
+
+# Base include paths.
+BASE_INCLUDES = -I../../../../../../packages/build-infra/src -I../../../../../../packages/bin-infra/src -I$(LZFSE_SRC)
+
+# curl support for HTTPS update checking.
+include ../../../../make/curl.mk
+
+# Use -O0 for LZFSE files to avoid gcc x64 miscompilation, -O1 for stub.
+# CURL_STATICLIB is required to link against static libcurl.a on Windows.
+CFLAGS = -O1 -Wall -Wextra -std=c11 $(BASE_INCLUDES) $(CURL_CFLAGS) -D_CRT_SECURE_NO_WARNINGS -DCURL_STATICLIB
+LZFSE_CFLAGS = -O0 -fno-builtin-memcpy -fno-builtin-memset -fno-builtin-memmove
+LDFLAGS = -ladvapi32 -lshell32 -Wl,--gc-sections $(CURL_LDFLAGS) -lws2_32 -lcrypt32 -lbcrypt
+
+SOURCE_STUB = src/pe_stub.c
+TARGET_STUB = smol_stub.exe
+
+# LZFSE source files (minimal set for decoding only).
+LZFSE_SOURCES = $(LZFSE_SRC)/lzfse_decode.c $(LZFSE_SRC)/lzfse_decode_base.c $(LZFSE_SRC)/lzfse_fse.c $(LZFSE_SRC)/lzvn_decode_base.c
+
+# Include common stub build rules.
+include ../../../../make/stub-rules.mk

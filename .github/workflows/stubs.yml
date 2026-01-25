@@ -1,0 +1,416 @@
+name: SMOL 3. Stubs
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      debug:
+        description: 'Debug (0|1|namespace[,...])'
+        required: false
+        default: '0'
+        type: string
+  push:
+    tags:
+      - 'stubs-v*'
+    paths:
+      - 'packages/node-smol-builder/scripts/binary-compressed/shared/stub/**'
+      - 'packages/bin-infra/src/**'
+      - 'packages/build-infra/make/**'
+
+permissions:
+  contents: read
+
+jobs:
+  build-stubs:
+    permissions:
+      contents: write
+      id-token: write
+    name: stub / ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS builds (native and cross-compile).
+          # Use Depot runner for darwin: 8 vCPU M2, 24GB RAM.
+          # Cross-compile x64 from ARM64 since Depot only offers ARM64 macOS.
+          - runner: depot-macos-15
+            platform: darwin
+            arch: arm64
+            os: macos
+            makefile: Makefile.macos
+          - runner: depot-macos-15
+            platform: darwin
+            arch: x64
+            os: macos
+            makefile: Makefile.macos
+            cross_compile: true
+
+          # Linux glibc builds.
+          - runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            os: linux
+            libc: glibc
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            os: linux
+            libc: glibc
+
+          # Linux musl builds.
+          - runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            os: linux
+            libc: musl
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            os: linux
+            libc: musl
+
+          # Windows builds.
+          - runner: windows-2022
+            platform: win
+            arch: x64
+            os: windows
+            makefile: Makefile.windows
+          - runner: windows-2022
+            platform: win
+            arch: arm64
+            os: windows
+            makefile: Makefile.windows
+            cross_compile: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Load cache version from centralized config
+        id: cache-version
+        shell: bash
+        run: |
+          STUBS_VERSION=$(jq -r '.versions["stubs"]' .github/cache-versions.json)
+          CURL_VERSION=$(jq -r '.versions["curl"]' .github/cache-versions.json)
+          if [ -z "$STUBS_VERSION" ] || [ "$STUBS_VERSION" = "null" ]; then
+            echo "❌ Error: Cache version not found for stubs in .github/cache-versions.json"
+            exit 1
+          fi
+          if [ -z "$CURL_VERSION" ] || [ "$CURL_VERSION" = "null" ]; then
+            echo "❌ Error: Cache version not found for curl in .github/cache-versions.json"
+            exit 1
+          fi
+
+          # Get curl and mbedtls submodule SHAs.
+          CURL_SHA=$(git -C packages/node-smol-builder/upstream/curl rev-parse HEAD 2>/dev/null || echo "none")
+          MBEDTLS_SHA=$(git -C packages/node-smol-builder/upstream/mbedtls rev-parse HEAD 2>/dev/null || echo "none")
+
+          # Compute curl cache key (same formula as curl.yml).
+          CURL_CACHE_KEY="${CURL_VERSION}-${CURL_SHA:0:7}-${MBEDTLS_SHA:0:7}"
+
+          # Stubs cache key = stubs version + curl cache key.
+          COMBINED_VERSION="${STUBS_VERSION}-curl-${CURL_CACHE_KEY}"
+          echo "version=$COMBINED_VERSION" >> $GITHUB_OUTPUT
+          echo "stubs_version=$STUBS_VERSION" >> $GITHUB_OUTPUT
+          echo "curl_cache_key=$CURL_CACHE_KEY" >> $GITHUB_OUTPUT
+          echo "Cache version: $COMBINED_VERSION"
+          echo "  stubs: $STUBS_VERSION"
+          echo "  curl cache key: $CURL_CACHE_KEY"
+
+      - name: Setup Depot CLI
+        if: matrix.os == 'linux'
+        uses: depot/setup-action@b0b1ea4f69e92ebf5dea3f8713a1b0c37b2126a5 # v1.6.0
+        with:
+          oidc: true
+
+      - name: Build stubs with Depot (Linux - offloads compute)
+        if: matrix.os == 'linux'
+        uses: depot/build-push-action@9785b135c3c76c33db102e45be96a25ab55cd507 # v1.16.2
+        with:
+          project: 8fpj9495vw
+          platforms: linux/${{ matrix.arch == 'x64' && 'amd64' || matrix.arch }}
+          build-args: |
+            BUILD_MODE=prod
+            CACHE_VERSION=${{ steps.cache-version.outputs.version }}
+          file: packages/node-smol-builder/Dockerfile.stubs.${{ matrix.libc || 'glibc' }}
+          target: export
+          outputs: type=local,dest=packages/node-smol-builder/scripts/binary-compressed/shared/stub/out
+          context: .
+
+      - name: Verify Depot build output (Linux)
+        if: matrix.os == 'linux'
+        shell: bash
+        run: |
+          echo "Verifying Depot build output structure..."
+          ls -lah packages/node-smol-builder/scripts/binary-compressed/shared/stub/out/ || echo "Output directory not found"
+
+          # Check for stub binary.
+          if [ -f "packages/node-smol-builder/scripts/binary-compressed/shared/stub/out/smol_stub" ]; then
+            echo "✅ smol_stub found"
+            file packages/node-smol-builder/scripts/binary-compressed/shared/stub/out/smol_stub || true
+          else
+            echo "❌ smol_stub not found!"
+            echo "Contents of output directory:"
+            find packages/node-smol-builder/scripts/binary-compressed/shared/stub/ -type f 2>/dev/null || echo "No files found"
+            exit 1
+          fi
+
+      - name: Setup pnpm
+        if: matrix.os != 'linux'
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+
+      - name: Setup Node.js
+        if: matrix.os != 'linux'
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        if: matrix.os != 'linux'
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup build environment (macOS)
+        if: matrix.os == 'macos'
+        run: |
+          # macOS already has Xcode command line tools.
+          echo "Build environment ready"
+
+      - name: Setup build environment (Windows x64)
+        if: matrix.os == 'windows' && matrix.arch == 'x64'
+        run: |
+          # Install MinGW for Windows x64 builds.
+          choco install mingw -y
+          # Add MinGW to PATH.
+          echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> $GITHUB_PATH
+
+      - name: Setup build environment (Windows ARM64 cross-compile)
+        if: matrix.os == 'windows' && matrix.arch == 'arm64'
+        shell: bash
+        run: |
+          # Download and extract llvm-mingw for ARM64 cross-compilation.
+          curl -fsSL -o llvm-mingw.zip "https://github.com/mstorsjo/llvm-mingw/releases/download/20250528/llvm-mingw-20250528-ucrt-x86_64.zip"
+          7z x llvm-mingw.zip -o"C:/llvm-mingw"
+          echo "C:/llvm-mingw/llvm-mingw-20250528-ucrt-x86_64/bin" >> $GITHUB_PATH
+
+      - name: Initialize LZFSE submodule (macOS/Windows)
+        if: matrix.os != 'linux'
+        run: |
+          git submodule update --init --recursive packages/bin-infra/upstream/lzfse
+
+      - name: Initialize curl submodule (macOS/Windows)
+        if: matrix.os != 'linux'
+        run: |
+          git submodule update --init packages/node-smol-builder/upstream/curl
+
+      - name: Build stub (macOS/Windows)
+        if: matrix.os != 'linux'
+        shell: bash
+        working-directory: packages/node-smol-builder
+        env:
+          TARGET_ARCH: ${{ matrix.arch }}
+          CROSS_COMPILE: ${{ matrix.cross_compile && '1' || '0' }}
+          DEBUG: ${{ inputs.debug && '1' || '' }}
+        run: |
+          # Build script handles curl dependency download and stub compilation
+          node scripts/build-stubs.mjs
+
+      - name: Verify stub binary
+        shell: bash
+        working-directory: packages/node-smol-builder/scripts/binary-compressed/shared/stub
+        run: |
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            STUB_FILE="out/smol_stub.exe"
+          else
+            STUB_FILE="out/smol_stub"
+          fi
+
+          if [ ! -f "$STUB_FILE" ]; then
+            echo "Error: Stub binary not found: $STUB_FILE"
+            exit 1
+          fi
+
+          # Show file info.
+          ls -lh "$STUB_FILE"
+          file "$STUB_FILE" || true
+
+          # Check size is reasonable (< 100KB).
+          SIZE=$(stat -c%s "$STUB_FILE" 2>/dev/null || stat -f%z "$STUB_FILE" 2>/dev/null || echo "0")
+          if [ "$SIZE" -gt 102400 ]; then
+            echo "Warning: Stub is larger than expected: ${SIZE} bytes"
+          fi
+          echo "Stub size: ${SIZE} bytes"
+
+      - name: Create release artifact
+        shell: bash
+        run: |
+          PLATFORM="${{ matrix.platform }}"
+          ARCH="${{ matrix.arch }}"
+          LIBC="${{ matrix.libc }}"
+
+          # Construct artifact name (all hyphens, following lief convention).
+          ARTIFACT_NAME="smol-stub-${PLATFORM}-${ARCH}"
+          if [ "${LIBC}" = "musl" ]; then
+            ARTIFACT_NAME="${ARTIFACT_NAME}-musl"
+          fi
+
+          # Determine stub file name.
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            STUB_FILE="smol_stub.exe"
+          else
+            STUB_FILE="smol_stub"
+          fi
+
+          # Create tarball (from out/ directory, preserving just the binary name).
+          cd packages/node-smol-builder/scripts/binary-compressed/shared/stub/out
+          tar -czf "../${ARTIFACT_NAME}.tar.gz" "$STUB_FILE"
+
+          echo "Created artifact: ${ARTIFACT_NAME}.tar.gz"
+          ls -lh "../${ARTIFACT_NAME}.tar.gz"
+
+      - name: Set artifact name
+        shell: bash
+        run: |
+          PLATFORM="${{ matrix.platform }}"
+          ARCH="${{ matrix.arch }}"
+          LIBC="${{ matrix.libc }}"
+
+          ARTIFACT_NAME="smol-stub-${PLATFORM}-${ARCH}"
+          if [ "${LIBC}" = "musl" ]; then
+            ARTIFACT_NAME="${ARTIFACT_NAME}-musl"
+          fi
+          echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: packages/node-smol-builder/scripts/binary-compressed/shared/stub/${{ env.ARTIFACT_NAME }}.tar.gz
+          retention-days: 7
+
+  release:
+    needs: build-stubs
+    if: ${{ !inputs.dry_run }}
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          path: artifacts
+          pattern: smol-stub-*
+          merge-multiple: true
+
+      - name: Verify downloaded artifacts
+        shell: bash
+        run: |
+          echo "Checking for downloaded artifacts..."
+          if [ -d "artifacts" ]; then
+            echo "✅ Artifacts directory exists"
+            echo "Contents:"
+            ls -lah artifacts/
+            if [ -n "$(ls -A artifacts/*.tar.gz 2>/dev/null)" ]; then
+              echo "✅ Found $(ls artifacts/*.tar.gz 2>/dev/null | wc -l) tar.gz files"
+            else
+              echo "❌ No tar.gz files found in artifacts directory"
+              exit 1
+            fi
+          else
+            echo "❌ Artifacts directory does not exist"
+            echo "This means no artifacts were uploaded by the build jobs."
+            exit 1
+          fi
+
+      - name: Generate release tag
+        id: tag
+        shell: bash
+        run: |
+          DATE=$(date +%Y%m%d)
+          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          TAG="stubs-${DATE}-${SHORT_SHA}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Release tag: ${TAG}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+        shell: bash
+        run: |
+          # Move artifacts to release directory.
+          mkdir -p release
+          for file in artifacts/*.tar.gz; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              mv "$file" "release/$filename"
+              echo "Added to release: $filename"
+            fi
+          done
+
+          # Verify we have artifacts to release.
+          if [ -z "$(ls -A release/*.tar.gz 2>/dev/null)" ]; then
+            echo "Error: No .tar.gz files found in release directory after moving from artifacts"
+            exit 1
+          fi
+
+          echo "Found $(ls release/*.tar.gz | wc -l) archives to release"
+
+          # Generate checksums.
+          cd release
+          if command -v shasum &> /dev/null; then
+            shasum -a 256 *.tar.gz > checksums.txt
+          elif command -v sha256sum &> /dev/null; then
+            sha256sum *.tar.gz > checksums.txt
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+          cat checksums.txt
+          cd ..
+
+          # Create release.
+          TITLE_SUFFIX="${RELEASE_TAG#stubs-}"
+          gh release create "${RELEASE_TAG}" \
+            --title "stubs ${TITLE_SUFFIX}" \
+            --notes "SMOL decompression stub binaries for all platforms.
+
+          ## Platforms
+          - darwin-arm64
+          - darwin-x64
+          - linux-arm64
+          - linux-x64
+          - linux-arm64-musl
+          - linux-x64-musl
+          - win-arm64
+          - win-x64
+
+          ## Files
+          Each platform archive contains a small stub binary used by \`binpress\` to create self-extracting executables.
+          - \`checksums.txt\` - SHA256 checksums
+
+          ## Usage
+          Download the appropriate stub for your platform and extract:
+          \`\`\`bash
+          tar -xzf smol-stub-<platform>-<arch>[-<libc>].tar.gz
+          \`\`\`" \
+            release/*.tar.gz \
+            release/checksums.txt

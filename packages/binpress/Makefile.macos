@@ -1,0 +1,74 @@
+# binpress Makefile for macOS.
+# Mach-O binary compression tool.
+
+# Include common definitions.
+include ../build-infra/make/common.mk
+include ../build-infra/make/platform-macos.mk
+include ../bin-infra/make/lief.mk
+
+TARGET = binpress
+SRC_DIR = src
+
+# Source files.
+SRCS = $(SRC_DIR)/macho_compress.c $(SRC_DIR)/binpress_config.c $(SRC_DIR)/stub_selector.c $(BIN_INFRA_SRC)/compression_common.c $(BUILD_INFRA_SRC)/file_io_common.c $(BIN_INFRA_SRC)/smol_segment.c $(BIN_INFRA_SRC)/binary_format.c $(BUILD_INFRA_SRC)/file_utils.c
+OBJS = $(BUILD_DIR)/macho_compress.o $(BUILD_DIR)/binpress_config.o $(BUILD_DIR)/stub_selector.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o $(BUILD_DIR)/smol_segment.o $(BUILD_DIR)/binary_format.o $(BUILD_DIR)/file_utils.o
+
+# Embedded stubs.
+EMBEDDED_STUBS = $(BUILD_DIR)/embedded_stubs.c
+EMBEDDED_STUBS_OBJ = $(BUILD_DIR)/embedded_stubs.o
+STUB_BASE_DIR = ../node-smol-builder/scripts/binary-compressed/shared/stub
+
+# Add embedded stubs to build
+OBJS += $(EMBEDDED_STUBS_OBJ)
+
+# LIEF C++ sources (always included on macOS).
+SRCS += $(SRC_DIR)/macho_compress_segment.cpp $(BIN_INFRA_SRC)/stub_smol_repack_lief.cpp
+OBJS += $(BUILD_DIR)/macho_compress_segment.o $(BUILD_DIR)/stub_smol_repack_lief.o
+
+# Cross-platform LIEF compression wrappers (for ELF, PE, and Mach-O).
+ifneq (,$(wildcard $(LIEF_LIB)))
+    SRCS += $(SRC_DIR)/compress_lief_common.cpp $(SRC_DIR)/stub_elf_compress_lief.cpp $(SRC_DIR)/pe_compress_lief.cpp $(SRC_DIR)/macho_compress_lief.cpp
+    OBJS += $(BUILD_DIR)/compress_lief_common.o $(BUILD_DIR)/stub_elf_compress_lief.o $(BUILD_DIR)/pe_compress_lief.o $(BUILD_DIR)/macho_compress_lief.o
+endif
+
+CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 $(COMMON_INCLUDES) $(POSIX_MACROS) -DVERSION=\"$(VERSION)\"
+CXXFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c++17 $(COMMON_INCLUDES) $(LIEF_CFLAGS) $(LIEF_DEFINES)
+LDFLAGS = $(LDFLAGS_BASE) $(LIEF_LDFLAGS)
+
+# Check that required build tools are available.
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }
+	@command -v $(CXX) >/dev/null 2>&1 || { echo "ERROR: $(CXX) not found. Install build tools first."; exit 1; }
+	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
+
+# Default target.
+all: check-tools $(EMBEDDED_STUBS) $(OUT_DIR)/$(TARGET)
+
+# Generate embedded stubs from stub binaries.
+# Note: The script builds both ARM64 and x64 stubs via cross-compilation.
+$(EMBEDDED_STUBS): | $(BUILD_DIR)
+	@echo "Generating embedded stubs (building ARM64 and x64 stubs)..."
+	@node scripts/generate-embedded-stubs.mjs
+
+# Build embedded stubs object.
+$(EMBEDDED_STUBS_OBJ): $(EMBEDDED_STUBS)
+	$(CC) $(CFLAGS) -c $(EMBEDDED_STUBS) -o $@
+
+# Build binary (always use CXX since LIEF C++ is required).
+$(OUT_DIR)/$(TARGET): $(OBJS) | $(BUILD_DIR) $(OUT_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LDFLAGS)
+	@echo "Built: $(OUT_DIR)/$(TARGET)"
+	$(call SIGN_BINARY,$@)
+
+# Include common compilation rules.
+include ../bin-infra/make/bin-infra-rules.mk
+
+clean:
+	$(call CLEAN_IMPL,binpress)
+
+install: all
+	@echo "Compression tool built successfully: $(OUT_DIR)/$(TARGET)"
+
+test: all
+	@echo "Running binpress tests..."
+	@cd $(PROJECT_ROOT) && pnpm exec vitest run

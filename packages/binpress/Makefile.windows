@@ -43,14 +43,11 @@ endif
 # Default target.
 all: check-tools $(EMBEDDED_STUBS) $(OUT_DIR)/$(TARGET)
 
-# Always regenerate embedded stubs (downloads latest from releases).
-.PHONY: generate-stubs
-generate-stubs:
+# Generate embedded stubs from stub binaries (always regenerate to get latest from releases).
+.PHONY: $(EMBEDDED_STUBS)
+$(EMBEDDED_STUBS): | $(BUILD_DIR)
 	@echo "Generating embedded stubs..."
 	@node scripts/generate-embedded-stubs.mjs
-
-# Generate embedded stubs from stub binaries.
-$(EMBEDDED_STUBS): generate-stubs | $(BUILD_DIR)
 
 # Build embedded stubs object.
 $(EMBEDDED_STUBS_OBJ): $(EMBEDDED_STUBS)

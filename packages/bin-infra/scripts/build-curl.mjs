@@ -51,8 +51,8 @@ const packageRoot = path.join(__dirname, '..')
 const BUILD_MODE = getBuildMode()
 const buildDir = path.join(packageRoot, 'build', BUILD_MODE)
 
-const curlUpstream = path.join(packageRoot, 'upstream/curl')
-const mbedtlsUpstream = path.join(packageRoot, 'upstream/mbedtls')
+const curlUpstream = path.join(packageRoot, 'upstream', 'curl')
+const mbedtlsUpstream = path.join(packageRoot, 'upstream', 'mbedtls')
 
 const curlBuildDir = path.join(
   packageRoot,
@@ -275,7 +275,7 @@ function getCurlVersion() {
   if (existsSync(gitmodulesPath)) {
     const content = readFileSync(gitmodulesPath, 'utf8')
     const curlSection = content.match(
-      /\[submodule "packages\/node-smol-builder\/upstream\/curl"\][^[]*/,
+      /\[submodule "packages\/bin-infra\/upstream\/curl"\][^[]*/,
     )
     if (curlSection) {
       // Match curl-8_18_0 format.
@@ -304,7 +304,7 @@ function getMbedTLSVersion() {
   if (existsSync(gitmodulesPath)) {
     const content = readFileSync(gitmodulesPath, 'utf8')
     const mbedtlsSection = content.match(
-      /\[submodule "packages\/node-smol-builder\/upstream\/mbedtls"\][^[]*/,
+      /\[submodule "packages\/bin-infra\/upstream\/mbedtls"\][^[]*/,
     )
     if (mbedtlsSection) {
       // Match mbedtls-3.6.5 format.
@@ -793,7 +793,7 @@ async function main() {
 
       // Prebuilt download failed - cannot continue.
       throw new Error(
-        'Failed to download prebuilt curl. Run: git submodule update --init --recursive packages/node-smol-builder/upstream/curl packages/node-smol-builder/upstream/mbedtls',
+        'Failed to download prebuilt curl. Run: git submodule update --init --recursive packages/bin-infra/upstream/curl packages/bin-infra/upstream/mbedtls',
       )
     }
 
@@ -801,7 +801,7 @@ async function main() {
     const mbedtlsCMakeLists = path.join(mbedtlsUpstream, 'CMakeLists.txt')
     if (!existsSync(mbedtlsCMakeLists)) {
       throw new Error(
-        `mbedTLS submodule not initialized at ${mbedtlsUpstream}. Run: git submodule update --init --recursive packages/node-smol-builder/upstream/mbedtls`,
+        `mbedTLS submodule not initialized at ${mbedtlsUpstream}. Run: git submodule update --init --recursive packages/bin-infra/upstream/mbedtls`,
       )
     }
 

@@ -114,8 +114,8 @@ jobs:
           fi
 
           # Get curl and mbedtls submodule SHAs.
-          CURL_SHA=$(git -C packages/node-smol-builder/upstream/curl rev-parse HEAD 2>/dev/null || echo "none")
-          MBEDTLS_SHA=$(git -C packages/node-smol-builder/upstream/mbedtls rev-parse HEAD 2>/dev/null || echo "none")
+          CURL_SHA=$(git -C packages/bin-infra/upstream/curl rev-parse HEAD 2>/dev/null || echo "none")
+          MBEDTLS_SHA=$(git -C packages/bin-infra/upstream/mbedtls rev-parse HEAD 2>/dev/null || echo "none")
 
           # Compute curl cache key (same formula as curl.yml).
           CURL_CACHE_KEY="${CURL_VERSION}-${CURL_SHA:0:7}-${MBEDTLS_SHA:0:7}"
@@ -213,7 +213,7 @@ jobs:
       - name: Initialize curl submodule (macOS/Windows)
         if: matrix.os != 'linux'
         run: |
-          git submodule update --init packages/node-smol-builder/upstream/curl
+          git submodule update --init packages/bin-infra/upstream/curl
 
       - name: Build stub (macOS/Windows)
         if: matrix.os != 'linux'

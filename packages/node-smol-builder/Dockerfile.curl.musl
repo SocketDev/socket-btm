@@ -32,12 +32,15 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .gitmodules .node-version .
 # Copy build-infra package (workspace dependency).
 COPY packages/build-infra ./packages/build-infra
 
+# Copy bin-infra package (contains curl build scripts and upstream dependencies).
+COPY packages/bin-infra ./packages/bin-infra
+
 # Copy node-smol-builder package (what we're building).
 COPY packages/node-smol-builder ./packages/node-smol-builder
 
-# Install workspace dependencies (only node-smol-builder package).
+# Install workspace dependencies (bin-infra and node-smol-builder packages).
 ENV CI=true
-RUN pnpm install --frozen-lockfile --filter node-smol-builder
+RUN pnpm install --frozen-lockfile --filter bin-infra --filter node-smol-builder
 
 # Build curl with mbedTLS.
 ARG BUILD_MODE=prod
@@ -53,9 +56,9 @@ RUN echo "Cache version: ${CACHE_VERSION}" && \
         export CFLAGS="-march=x86-64 -mtune=generic" && \
         export CXXFLAGS="-march=x86-64 -mtune=generic"; \
     fi && \
-    cd packages/node-smol-builder && node scripts/build-curl.mjs
+    cd packages/bin-infra && node scripts/build-curl.mjs
 
 # Export stage: Copy build artifacts (not entire filesystem).
 FROM scratch AS export
 ARG BUILD_MODE=prod
-COPY --from=build /workspace/packages/node-smol-builder/build /
+COPY --from=build /workspace/packages/bin-infra/build /

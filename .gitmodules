@@ -34,14 +34,14 @@
 	# v1.25
 	ref = c8c56a20f8f621e6a966b716b31f1dedab6a41e3
 	shallow = true
-[submodule "packages/node-smol-builder/upstream/curl"]
-	path = packages/node-smol-builder/upstream/curl
+[submodule "packages/bin-infra/upstream/curl"]
+	path = packages/bin-infra/upstream/curl
 	url = https://github.com/curl/curl.git
 	# curl-8_18_0
 	ref = 2eebc58c4b8d68c98c8344381a9f6df4cca838fd
 	shallow = true
-[submodule "packages/node-smol-builder/upstream/mbedtls"]
-	path = packages/node-smol-builder/upstream/mbedtls
+[submodule "packages/bin-infra/upstream/mbedtls"]
+	path = packages/bin-infra/upstream/mbedtls
 	url = https://github.com/Mbed-TLS/mbedtls.git
 	# mbedtls-3.6.5
 	ref = e185d7fd85499c8ce5ca2a54f5cf8fe7dbe3f8df

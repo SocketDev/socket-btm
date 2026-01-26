@@ -5,13 +5,13 @@
 #   packages/bin-infra/stubs/
 # Paths are relative from that location.
 
-# Base path to node-smol-builder package root from stub Makefile location.
+# Base path to bin-infra package root from stub Makefile location.
 # From: packages/bin-infra/stubs/
-# To:   packages/node-smol-builder/
-SMOL_BUILDER_ROOT = ../../node-smol-builder
+# To:   packages/bin-infra/
+BIN_INFRA_ROOT = ..
 
-CURL_UPSTREAM = $(SMOL_BUILDER_ROOT)/upstream/curl
-MBEDTLS_UPSTREAM = $(SMOL_BUILDER_ROOT)/upstream/mbedtls
+CURL_UPSTREAM = $(BIN_INFRA_ROOT)/upstream/curl
+MBEDTLS_UPSTREAM = $(BIN_INFRA_ROOT)/upstream/mbedtls
 
 # curl can come from two locations:
 # 1. Downloaded from releases: build/downloaded/curl/{platform-arch}/
@@ -73,8 +73,8 @@ else
 endif
 
 # Check local build first, then centralized downloaded location.
-CURL_DOWNLOADED_DIR = $(SMOL_BUILDER_ROOT)/build/downloaded/curl/$(CURL_PLATFORM_ARCH)
-CURL_BUILD_DIR = $(SMOL_BUILDER_ROOT)/build/$(BUILD_MODE)/out/Final/curl/dist
+CURL_DOWNLOADED_DIR = $(BIN_INFRA_ROOT)/build/downloaded/curl/$(CURL_PLATFORM_ARCH)
+CURL_BUILD_DIR = $(BIN_INFRA_ROOT)/build/$(BUILD_MODE)/out/Final/curl/dist
 
 # Prefer locally built curl over downloaded.
 ifneq (,$(wildcard $(CURL_BUILD_DIR)/libcurl.a))

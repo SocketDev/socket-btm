@@ -129,12 +129,12 @@ jobs:
       - name: Initialize curl submodule
         shell: bash
         run: |
-          git submodule update --init --recursive packages/node-smol-builder/upstream/curl
+          git submodule update --init --recursive packages/bin-infra/upstream/curl
 
       - name: Initialize mbedtls submodule
         shell: bash
         run: |
-          git submodule update --init --recursive packages/node-smol-builder/upstream/mbedtls
+          git submodule update --init --recursive packages/bin-infra/upstream/mbedtls
 
       - name: Set build mode
         id: build-mode
@@ -161,8 +161,8 @@ jobs:
           fi
 
           # Get curl and mbedtls submodule SHAs.
-          CURL_SHA=$(git -C packages/node-smol-builder/upstream/curl rev-parse HEAD 2>/dev/null || echo "none")
-          MBEDTLS_SHA=$(git -C packages/node-smol-builder/upstream/mbedtls rev-parse HEAD 2>/dev/null || echo "none")
+          CURL_SHA=$(git -C packages/bin-infra/upstream/curl rev-parse HEAD 2>/dev/null || echo "none")
+          MBEDTLS_SHA=$(git -C packages/bin-infra/upstream/mbedtls rev-parse HEAD 2>/dev/null || echo "none")
 
           # Combined version includes curl version and dependency SHAs.
           COMBINED_VERSION="${CURL_VERSION}-${CURL_SHA:0:7}-${MBEDTLS_SHA:0:7}"
@@ -191,7 +191,7 @@ jobs:
             CACHE_VERSION=${{ steps.cache-version.outputs.version }}
           file: packages/node-smol-builder/Dockerfile.curl.${{ matrix.libc || 'glibc' }}
           target: export
-          outputs: type=local,dest=packages/node-smol-builder/build
+          outputs: type=local,dest=packages/bin-infra/build
           context: .
 
       - name: Verify Depot build output (Linux)
@@ -201,15 +201,15 @@ jobs:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
         run: |
           echo "Verifying Depot build output structure..."
-          ls -lah packages/node-smol-builder/build/$BUILD_MODE/ || echo "Build directory not found"
+          ls -lah packages/bin-infra/build/$BUILD_MODE/ || echo "Build directory not found"
 
           # Check for library file.
-          if [ -f "packages/node-smol-builder/build/$BUILD_MODE/out/Final/curl/dist/libcurl.a" ]; then
+          if [ -f "packages/bin-infra/build/$BUILD_MODE/out/Final/curl/dist/libcurl.a" ]; then
             echo "✅ libcurl.a found"
           else
             echo "❌ libcurl.a not found!"
             echo "Contents of output directory:"
-            find packages/node-smol-builder/build/$BUILD_MODE/ -type f 2>/dev/null || echo "No files found"
+            find packages/bin-infra/build/$BUILD_MODE/ -type f 2>/dev/null || echo "No files found"
             exit 1
           fi
 
@@ -243,7 +243,7 @@ jobs:
           TARGET_ARCH: ${{ matrix.arch }}
           CROSS_COMPILE: ${{ matrix.cross_compile && '1' || '' }}
         run: |
-          cd packages/node-smol-builder
+          cd packages/bin-infra
           node scripts/build-curl.mjs
 
       - name: Create archive
@@ -254,7 +254,7 @@ jobs:
           ARCH: ${{ matrix.arch }}
           LIBC: ${{ matrix.libc }}
         run: |
-          CURL_DIR="packages/node-smol-builder/build/${BUILD_MODE}/out/Final/curl/dist"
+          CURL_DIR="packages/bin-infra/build/${BUILD_MODE}/out/Final/curl/dist"
 
           if [ ! -d "$CURL_DIR" ]; then
             echo "❌ Error: curl directory not found at: $CURL_DIR"
@@ -314,7 +314,7 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: packages/node-smol-builder/build/${{ steps.build-mode.outputs.mode }}/out/Final/${{ env.ARTIFACT_NAME }}.tar.gz
+          path: packages/bin-infra/build/${{ steps.build-mode.outputs.mode }}/out/Final/${{ env.ARTIFACT_NAME }}.tar.gz
           retention-days: 7
 
   release:
@@ -360,7 +360,7 @@ jobs:
         shell: bash
         run: |
           # Extract version from .gitmodules comment.
-          CURL_VERSION=$(grep -A 3 'packages/node-smol-builder/upstream/curl' .gitmodules | grep '# curl-' | sed 's/.*# curl-//' | tr '_' '.')
+          CURL_VERSION=$(grep -A 3 'packages/bin-infra/upstream/curl' .gitmodules | grep '# curl-' | sed 's/.*# curl-//' | tr '_' '.')
           if [ -z "$CURL_VERSION" ]; then
             echo "Error: Failed to extract curl version from .gitmodules"
             exit 1
@@ -372,7 +372,7 @@ jobs:
         id: mbedtls-version
         shell: bash
         run: |
-          MBEDTLS_VERSION=$(grep -A 3 'packages/node-smol-builder/upstream/mbedtls' .gitmodules | grep '# mbedtls-' | sed 's/.*# mbedtls-//')
+          MBEDTLS_VERSION=$(grep -A 3 'packages/bin-infra/upstream/mbedtls' .gitmodules | grep '# mbedtls-' | sed 's/.*# mbedtls-//')
           if [ -z "$MBEDTLS_VERSION" ]; then
             echo "Error: Failed to extract mbedTLS version from .gitmodules"
             exit 1

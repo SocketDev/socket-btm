@@ -676,10 +676,10 @@ async function main() {
     const isCurlBuild = existsSync(curlCMakeLists)
 
     if (!isCurlBuild) {
-      // Not building curl itself - download prebuilt.
-      logger.info('curl submodule not initialized, downloading prebuilt...')
-      const downloadedDir = await downloadCurl()
-      const curlLib = path.join(downloadedDir, 'libcurl.a')
+      // Not building curl itself - ensure prebuilt is available.
+      logger.info('curl submodule not initialized, using prebuilt...')
+      const curlDir = await ensureCurl()
+      const curlLib = path.join(curlDir, 'libcurl.a')
       const stats = await fs.stat(curlLib)
       const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
 
@@ -701,8 +701,8 @@ async function main() {
           libPath: path.relative(buildDir, curlLib),
           libSize: stats.size,
           libSizeMB: sizeMB,
-          buildDir: path.relative(packageRoot, downloadedDir),
-          artifactPath: downloadedDir,
+          buildDir: path.relative(packageRoot, curlDir),
+          artifactPath: curlDir,
           checkpointChain: CHECKPOINT_CHAINS.curl(),
         },
       )

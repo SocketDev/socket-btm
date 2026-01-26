@@ -3,8 +3,8 @@
   "description": "Centralized cache version management for CI workflows. Bump versions to force-invalidate all caches for a package.",
   "versions": {
     "binflate": "v43",
-    "binject": "v61",
-    "binpress": "v61",
+    "binject": "v62",
+    "binpress": "v62",
     "curl": "v5",
     "lief": "v26",
     "models": "v12",

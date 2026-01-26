@@ -191,9 +191,6 @@ export async function downloadCurl(options = {}) {
     )
   }
 
-  // Clean up any stale subdirectories before extraction.
-  await safeDelete(path.join(targetDir, 'curl'))
-
   // Extract using cross-platform tarball utility (handles Windows path conversion).
   // Strip top-level directory (dist/) so files end up directly in targetDir.
   try {
@@ -408,9 +405,6 @@ async function downloadPrebuiltCurl() {
         `Downloaded archive not found at expected path: ${downloadedArchive}`,
       )
     }
-
-    // Clean up any stale subdirectories before extraction.
-    await safeDelete(path.join(curlBuildDir, 'curl'))
 
     // Extract using cross-platform tarball utility (handles Windows path conversion).
     // Strip top-level directory (dist/) so files end up directly in curlBuildDir.

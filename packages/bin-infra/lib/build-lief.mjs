@@ -384,6 +384,7 @@ async function applyLiefPatches(sourceDir) {
 
   logger.info(`Applying ${patches.length} LIEF patch(es)...`)
 
+  /* eslint-disable no-await-in-loop */
   for (const patchFile of patches) {
     const patchPath = path.join(patchesDir, patchFile)
     logger.info(`  Applying ${patchFile}...`)
@@ -411,6 +412,7 @@ async function applyLiefPatches(sourceDir) {
       throw new Error(`Failed to apply patch ${patchFile}: ${error.message}`)
     }
   }
+  /* eslint-enable no-await-in-loop */
 
   logger.success('All LIEF patches applied')
 }
@@ -462,9 +464,6 @@ async function downloadPrebuiltLIEF(options = {}) {
         `Downloaded archive not found at expected path: ${downloadedArchive}`,
       )
     }
-
-    // Clean up any stale subdirectories before extraction.
-    await safeDelete(path.join(targetDir, 'lief'))
 
     // Extract using cross-platform tarball utility (handles Windows path conversion).
     // Release tarballs are already flat - no top-level directory to strip.
@@ -843,6 +842,7 @@ async function main() {
     const copyUpstreamHeaders = async (src, dest) => {
       const entries = await fs.readdir(src, { withFileTypes: true })
 
+      /* eslint-disable no-await-in-loop */
       for (const entry of entries) {
         const srcPath = path.join(src, entry.name)
         const destPath = path.join(dest, entry.name)
@@ -858,6 +858,7 @@ async function main() {
           await fs.copyFile(srcPath, destPath)
         }
       }
+      /* eslint-enable no-await-in-loop */
     }
 
     await copyUpstreamHeaders(upstreamIncludeDir, buildIncludeDir)
@@ -902,7 +903,7 @@ async function main() {
   } catch (e) {
     logger.info('')
     logger.fail(`LIEF build failed: ${e?.message || 'Unknown error'}`)
-    process.exit(1)
+    throw e
   }
 }
 

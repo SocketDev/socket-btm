@@ -7,7 +7,8 @@
 
 import { readFileSync } from 'node:fs'
 
-const UPDATE_CONFIG_MAGIC = 0x55_50_44_46 // "UPDF"
+// "UPDF"
+const UPDATE_CONFIG_MAGIC = 0x55_50_44_46
 const UPDATE_CONFIG_VERSION = 1
 const UPDATE_CONFIG_BINARY_SIZE = 1112
 

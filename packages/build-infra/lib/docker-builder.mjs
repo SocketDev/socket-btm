@@ -15,14 +15,14 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 import { printError, printInfo, printSuccess } from './build-output.mjs'
-
-const logger = getDefaultLogger()
 import {
   getBuilderImageTag,
   hasBuilderImage,
   LINUX_TARGETS,
   getBuildStrategy,
 } from './local-build-setup.mjs'
+
+const logger = getDefaultLogger()
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WORKSPACE_ROOT = path.resolve(__dirname, '..', '..', '..')

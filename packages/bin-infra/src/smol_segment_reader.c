@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <errno.h>
 #include "smol_segment_reader.h"
@@ -100,6 +101,22 @@ int smol_read_metadata(int fd, smol_metadata_t *metadata) {
     if (read(fd, metadata->platform_metadata, PLATFORM_METADATA_LEN) != PLATFORM_METADATA_LEN) {
         fprintf(stderr, "Error: Failed to read platform metadata\n");
         return -1;
+    }
+
+    /* Read has_update_config flag (UPDATE_CONFIG_FLAG_LEN byte). */
+    uint8_t has_update_config;
+    if (read(fd, &has_update_config, UPDATE_CONFIG_FLAG_LEN) != UPDATE_CONFIG_FLAG_LEN) {
+        fprintf(stderr, "Error: Failed to read has_update_config flag\n");
+        return -1;
+    }
+
+    /* Skip update config binary if present (UPDATE_CONFIG_BINARY_LEN bytes). */
+    if (has_update_config != 0) {
+        /* Update config binary is present, skip it. */
+        if (lseek(fd, UPDATE_CONFIG_BINARY_LEN, SEEK_CUR) == -1) {
+            fprintf(stderr, "Error: Failed to skip update config binary: %s\n", strerror(errno));
+            return -1;
+        }
     }
 
     /* Record offset to compressed data (current position). */

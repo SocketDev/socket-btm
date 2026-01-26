@@ -24,10 +24,10 @@ import { fileURLToPath } from 'node:url'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 import { printError, printInfo, printSuccess } from '../lib/build-output.mjs'
-
-const logger = getDefaultLogger()
 import { buildForTarget, getAllTargets } from '../lib/docker-builder.mjs'
 import { hasBuilderImage, LINUX_TARGETS } from '../lib/local-build-setup.mjs'
+
+const logger = getDefaultLogger()
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WORKSPACE_ROOT = path.resolve(__dirname, '..', '..', '..')

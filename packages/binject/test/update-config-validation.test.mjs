@@ -53,8 +53,8 @@ describe('Update Config Validation', () => {
       expect(buffer).toBeInstanceOf(Buffer)
       expect(buffer.length).toBe(1112)
 
-      // Verify magic number
-      expect(buffer.readUInt32LE(0)).toBe(0x55_50_44_46) // "UPDF"
+      // Verify magic number ("UPDF")
+      expect(buffer.readUInt32LE(0)).toBe(0x55_50_44_46)
       // Verify version
       expect(buffer.readUInt16LE(4)).toBe(1)
     })
@@ -80,8 +80,10 @@ describe('Update Config Validation', () => {
       expect(buffer.readUInt16LE(4)).toBe(1)
 
       // Verify prompt fields
-      expect(buffer.readUInt8(6)).toBe(1) // prompt = true
-      expect(buffer.readUInt8(7)).toBe(121) // 'y'
+      // prompt = true
+      expect(buffer.readUInt8(6)).toBe(1)
+      // 'y'
+      expect(buffer.readUInt8(7)).toBe(121)
 
       // Verify intervals
       expect(Number(buffer.readBigInt64LE(8))).toBe(3_600_000)
@@ -96,14 +98,19 @@ describe('Update Config Validation', () => {
       const buffer = serializeUpdateConfig(config)
 
       // Verify default values
-      expect(buffer.readUInt8(6)).toBe(0) // prompt = false
-      expect(buffer.readUInt8(7)).toBe(110) // 'n'
-      expect(Number(buffer.readBigInt64LE(8))).toBe(86_400_000) // 24h
-      expect(Number(buffer.readBigInt64LE(16))).toBe(86_400_000) // 24h
+      // prompt = false
+      expect(buffer.readUInt8(6)).toBe(0)
+      // 'n'
+      expect(buffer.readUInt8(7)).toBe(110)
+      // 24h
+      expect(Number(buffer.readBigInt64LE(8))).toBe(86_400_000)
+      // 24h
+      expect(Number(buffer.readBigInt64LE(16))).toBe(86_400_000)
 
       // Verify command default at offset 24+128=152
       const commandLen = buffer.readUInt16LE(152)
-      expect(commandLen).toBe(11) // "self-update"
+      // "self-update"
+      expect(commandLen).toBe(11)
       const command = buffer.toString('utf8', 154, 154 + commandLen)
       expect(command).toBe('self-update')
     })
@@ -185,8 +192,9 @@ describe('Update Config Validation', () => {
     })
 
     it('should reject url longer than 510 chars', () => {
+      // 511 total
       const config = {
-        url: `https://${'a'.repeat(504)}`, // 511 total
+        url: `https://${'a'.repeat(504)}`,
       }
 
       expect(() => serializeUpdateConfig(config)).toThrow(
@@ -448,7 +456,8 @@ describe('Update Config Validation', () => {
       const buffer = serializeUpdateConfig(config)
 
       const magic = buffer.readUInt32LE(0)
-      expect(magic).toBe(0x55_50_44_46) // "UPDF"
+      // "UPDF"
+      expect(magic).toBe(0x55_50_44_46)
     })
 
     it('should have correct version', () => {
@@ -469,7 +478,8 @@ describe('Update Config Validation', () => {
 
       // binname is at offset 24
       const binnameLen = buffer.readUInt8(24)
-      expect(binnameLen).toBe(5) // "myapp".length
+      // "myapp".length
+      expect(binnameLen).toBe(5)
 
       const binname = buffer.toString('utf8', 25, 25 + binnameLen)
       expect(binname).toBe('myapp')

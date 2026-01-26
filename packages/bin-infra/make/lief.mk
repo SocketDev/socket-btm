@@ -64,12 +64,9 @@ else
     LIEF_DIR = $(LIEF_BUILD_DIR)
 endif
 
-# Windows uses LIEF.lib, Unix uses libLIEF.a
-ifeq ($(OS),Windows_NT)
-    LIEF_LIB = $(LIEF_DIR)/LIEF.lib
-else
-    LIEF_LIB = $(LIEF_DIR)/libLIEF.a
-endif
+# MSVC uses LIEF.lib, MinGW/Unix uses libLIEF.a
+# We use MinGW on Windows, so always use libLIEF.a
+LIEF_LIB = $(LIEF_DIR)/libLIEF.a
 
 # LIEF include flags.
 # Use upstream includes if submodule exists (building from source).

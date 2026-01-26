@@ -2,7 +2,7 @@
 # This Dockerfile supports building for linux/amd64 and linux/arm64.
 # glibc variant using AlmaLinux 8 (glibc 2.28) for maximum compatibility.
 
-FROM almalinux:8 AS build
+FROM almalinux:8.9 AS build
 
 # Install build dependencies.
 # AlmaLinux 8 has glibc 2.28, which provides maximum compatibility with older Linux distributions.

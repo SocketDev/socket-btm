@@ -154,7 +154,7 @@ jobs:
           if [ "$TOOLS_INPUT" = "all" ]; then
             echo "build=true" >> $GITHUB_OUTPUT
             echo "✓ Building $TOOL (all tools selected)"
-          elif echo "$TOOLS_INPUT" | grep -q "$TOOL"; then
+          elif echo ",$TOOLS_INPUT," | grep -q ",$TOOL,"; then
             echo "build=true" >> $GITHUB_OUTPUT
             echo "✓ Building $TOOL (explicitly selected)"
           else
@@ -691,7 +691,7 @@ jobs:
           if [ "$TOOLS_INPUT" = "all" ]; then
             echo "build=true" >> $GITHUB_OUTPUT
             echo "✓ Building $TOOL (all tools selected)"
-          elif echo "$TOOLS_INPUT" | grep -q "$TOOL"; then
+          elif echo ",$TOOLS_INPUT," | grep -q ",$TOOL,"; then
             echo "build=true" >> $GITHUB_OUTPUT
             echo "✓ Building $TOOL (explicitly selected)"
           else
@@ -1168,7 +1168,7 @@ jobs:
           if [ "$TOOLS_INPUT" = "all" ]; then
             echo "build=true" >> $GITHUB_OUTPUT
             echo "✓ Building $TOOL (all tools selected)"
-          elif echo "$TOOLS_INPUT" | grep -q "$TOOL"; then
+          elif echo ",$TOOLS_INPUT," | grep -q ",$TOOL,"; then
             echo "build=true" >> $GITHUB_OUTPUT
             echo "✓ Building $TOOL (explicitly selected)"
           else
@@ -1704,6 +1704,12 @@ jobs:
             sha256sum ${TOOL}-* > checksums.txt
           else
             echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+
+          # Validate checksums.txt is not empty
+          if [ ! -s checksums.txt ]; then
+            echo "Error: checksums.txt is empty"
             exit 1
           fi
 

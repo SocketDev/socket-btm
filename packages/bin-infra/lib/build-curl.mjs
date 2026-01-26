@@ -146,7 +146,7 @@ export async function downloadCurl(options = {}) {
     buildCommand: 'node scripts/build-curl.mjs',
   })
 
-  // Download to: packages/node-smol-builder/build/downloaded/curl/{platform-arch}/
+  // Download to: packages/bin-infra/build/downloaded/curl/{platform-arch}/
   const downloadDir = path.join(packageRoot, 'build', 'downloaded', 'curl')
   const targetDir = path.join(downloadDir, resolvedPlatformArch)
   const versionFile = path.join(targetDir, '.version')
@@ -191,12 +191,12 @@ export async function downloadCurl(options = {}) {
   }
 
   // Extract using cross-platform tarball utility (handles Windows path conversion).
-  // Strip top-level directory (dist/) so files end up directly in targetDir.
+  // Files are at root level in tarball (no dist/ directory).
   try {
     await extractTarball(downloadedArchive, targetDir, {
       createDir: false,
       stdio: 'inherit',
-      stripComponents: 1,
+      stripComponents: 0,
       validate: true,
     })
   } catch (error) {
@@ -353,83 +353,6 @@ async function runCommand(command, args, cwd, env = {}) {
 
   if (result.code !== 0) {
     throw new Error(`Command failed with exit code ${result.code}`)
-  }
-}
-
-async function downloadPrebuiltCurl() {
-  // Check if download is blocked by BUILD_DEPS_FROM_SOURCE environment flag.
-  checkBuildSourceFlag('curl', 'DEPS', {
-    buildCommand: 'Build curl locally or run: node scripts/build-curl.mjs',
-  })
-
-  try {
-    logger.info('Checking for prebuilt curl releases...')
-
-    const libc = detectLibc()
-    // Respect TARGET_ARCH for cross-compilation
-    const arch = TARGET_ARCH || process.arch
-    const platformArch = getPlatformArch(process.platform, arch, libc)
-    const assetName = `curl-${platformArch}.tar.gz`
-
-    // Create build directory.
-    await safeMkdir(curlBuildDir)
-
-    // Download archive using socket-btm release helper.
-    logger.info(`Downloading ${assetName}...`)
-
-    await downloadSocketBtmRelease({
-      asset: assetName,
-      downloadDir: curlBuildDir,
-      output: assetName,
-      tool: 'curl',
-    })
-
-    // Extract archive.
-    logger.info('Extracting curl archive...')
-
-    // Ensure extract directory exists before extraction.
-    await safeMkdir(curlBuildDir)
-
-    // The download function creates curl/assets/ subdirectories
-    const downloadedArchive = path.join(
-      curlBuildDir,
-      'curl',
-      'assets',
-      assetName,
-    )
-
-    // Verify archive exists before extraction.
-    if (!existsSync(downloadedArchive)) {
-      throw new Error(
-        `Downloaded archive not found at expected path: ${downloadedArchive}`,
-      )
-    }
-
-    // Extract using cross-platform tarball utility (handles Windows path conversion).
-    // Strip top-level directory (dist/) so files end up directly in curlBuildDir.
-    try {
-      await extractTarball(downloadedArchive, curlBuildDir, {
-        createDir: false,
-        stdio: 'inherit',
-        stripComponents: 1,
-        validate: true,
-      })
-    } catch (error) {
-      throw new Error(
-        `Failed to extract curl archive from ${downloadedArchive}: ${error.message}`,
-      )
-    }
-
-    // Clean up archive subdirectory after extraction.
-    await safeDelete(path.join(curlBuildDir, 'curl'))
-
-    logger.success('Successfully downloaded and extracted prebuilt curl')
-    return true
-  } catch (e) {
-    logger.info(
-      `Failed to download prebuilt curl: ${e?.message || 'Unknown error'}`,
-    )
-    return false
   }
 }
 
@@ -755,45 +678,35 @@ async function main() {
     if (!isCurlBuild) {
       // Not building curl itself - download prebuilt.
       logger.info('curl submodule not initialized, downloading prebuilt...')
-      const downloaded = await downloadPrebuiltCurl()
-      if (downloaded) {
-        // Verify library exists after download.
-        const curlDistPathNew = path.join(curlBuildDir, 'dist', 'libcurl.a')
-        if (existsSync(curlDistPathNew)) {
-          const stats = await fs.stat(curlDistPathNew)
-          const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
+      const downloadedDir = await downloadCurl()
+      const curlLib = path.join(downloadedDir, 'libcurl.a')
+      const stats = await fs.stat(curlLib)
+      const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
 
-          await createCheckpoint(
-            buildDir,
-            CHECKPOINTS.FINALIZED,
-            async () => {
-              // Verify library exists and has reasonable size.
-              const libStats = await fs.stat(curlDistPathNew)
-              if (libStats.size < 100_000) {
-                throw new Error(
-                  `curl library too small: ${libStats.size} bytes (expected >100KB)`,
-                )
-              }
-            },
-            {
-              version: CURL_VERSION,
-              mbedtlsVersion: MBEDTLS_VERSION,
-              libPath: path.relative(buildDir, curlDistPathNew),
-              libSize: stats.size,
-              libSizeMB: sizeMB,
-              buildDir: path.relative(packageRoot, curlBuildDir),
-              artifactPath: curlBuildDir,
-              checkpointChain: CHECKPOINT_CHAINS.curl(),
-            },
-          )
-          return
-        }
-      }
-
-      // Prebuilt download failed - cannot continue.
-      throw new Error(
-        'Failed to download prebuilt curl. Run: git submodule update --init --recursive packages/bin-infra/upstream/curl packages/bin-infra/upstream/mbedtls',
+      await createCheckpoint(
+        buildDir,
+        CHECKPOINTS.FINALIZED,
+        async () => {
+          // Verify library exists and has reasonable size.
+          const libStats = await fs.stat(curlLib)
+          if (libStats.size < 100_000) {
+            throw new Error(
+              `curl library too small: ${libStats.size} bytes (expected >100KB)`,
+            )
+          }
+        },
+        {
+          version: CURL_VERSION,
+          mbedtlsVersion: MBEDTLS_VERSION,
+          libPath: path.relative(buildDir, curlLib),
+          libSize: stats.size,
+          libSizeMB: sizeMB,
+          buildDir: path.relative(packageRoot, downloadedDir),
+          artifactPath: downloadedDir,
+          checkpointChain: CHECKPOINT_CHAINS.curl(),
+        },
       )
+      return
     }
 
     // Check if mbedTLS submodule is initialized.

@@ -13,8 +13,8 @@ catalogs:
       specifier: 1.31.0
       version: 1.31.0
     '@socketsecurity/lib':
-      specifier: 5.4.0
-      version: 5.4.0
+      specifier: 5.5.1
+      version: 5.5.1
     acorn:
       specifier: 8.14.0
       version: 8.14.0
@@ -100,7 +100,7 @@ importers:
     devDependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.4.0(typescript@5.9.3)
+        version: 5.5.1(typescript@5.9.3)
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -115,7 +115,7 @@ importers:
         version: 1.31.0
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.4.0(typescript@5.9.3)
+        version: 5.5.1(typescript@5.9.3)
       bin-infra:
         specifier: workspace:*
         version: link:../bin-infra
@@ -133,7 +133,7 @@ importers:
         version: 1.31.0
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.4.0(typescript@5.9.3)
+        version: 5.5.1(typescript@5.9.3)
       adm-zip:
         specifier: 'catalog:'
         version: 0.5.16
@@ -157,7 +157,7 @@ importers:
         version: 1.31.0
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.4.0(typescript@5.9.3)
+        version: 5.5.1(typescript@5.9.3)
       bin-infra:
         specifier: workspace:*
         version: link:../bin-infra
@@ -172,7 +172,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.4.0(typescript@5.9.3)
+        version: 5.5.1(typescript@5.9.3)
       acorn:
         specifier: 'catalog:'
         version: 8.14.0
@@ -191,7 +191,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.4.0(typescript@5.9.3)
+        version: 5.5.1(typescript@5.9.3)
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -207,7 +207,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.4.0(typescript@5.9.3)
+        version: 5.5.1(typescript@5.9.3)
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -220,7 +220,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.4.0(typescript@5.9.3)
+        version: 5.5.1(typescript@5.9.3)
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -233,7 +233,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.4.0(typescript@5.9.3)
+        version: 5.5.1(typescript@5.9.3)
       bin-infra:
         specifier: workspace:*
         version: link:../bin-infra
@@ -255,7 +255,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.4.0(typescript@5.9.3)
+        version: 5.5.1(typescript@5.9.3)
       acorn:
         specifier: 'catalog:'
         version: 8.14.0
@@ -277,7 +277,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.4.0(typescript@5.9.3)
+        version: 5.5.1(typescript@5.9.3)
       acorn:
         specifier: 'catalog:'
         version: 8.14.0
@@ -899,8 +899,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@socketsecurity/lib@5.4.0':
-    resolution: {integrity: sha512-1G785H6adJlkj28tChU7Klm9Hr5tj1oZAuTXOxu03vyz3gwPjleSdfmddg/EZrqQEt3qD8jpJIZPwvrpb+FI9g==}
+  '@socketsecurity/lib@5.5.1':
+    resolution: {integrity: sha512-gFcb2I2w1YJGZLd6CfBG1fyJyDrVJXl7iO8B58OqpKOMimuos42b93UvIKSIFR4qFOyXz0ACVtc+xyAF2jpEow==}
     engines: {node: '>=22', pnpm: '>=10.25.0'}
     peerDependencies:
       typescript: '>=5.0.0'
@@ -2017,10 +2017,12 @@ packages:
   tar@7.4.3:
     resolution: {integrity: sha512-5S7Va8hKfV7W5U6g3aYxXmlPoZVAwUMy9AOKyF2fVuZa2UD3qZjg578OrLRt8PcNN1PleVaL/5/yYATNL0ICUw==}
     engines: {node: '>=18'}
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exhorbitant rates) by contacting i@izs.me
 
   tar@7.5.2:
     resolution: {integrity: sha512-7NyxrTE4Anh8km8iEy7o0QYPs+0JKBTj5ZaqHg6B39erLg0qYXN3BijtShwbsNSvQ+LN75+KV+C4QR/f6Gwnpg==}
     engines: {node: '>=18'}
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exhorbitant rates) by contacting i@izs.me
 
   taze@19.9.2:
     resolution: {integrity: sha512-If8bq7lSckIMPfXV+C9jjEfdsQnRryh/foKfpX/ah6zI0TrQfUGWSGCaaD32Bqy5/KGRmLZie3EwMSr3Au21XQ==}
@@ -2729,7 +2731,7 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.55.1':
     optional: true
 
-  '@socketsecurity/lib@5.4.0(typescript@5.9.3)':
+  '@socketsecurity/lib@5.5.1(typescript@5.9.3)':
     optionalDependencies:
       typescript: 5.9.3
 

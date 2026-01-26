@@ -1,4 +1,5 @@
 # Makefile for smol_stub - minimal launcher that extracts and calls binflate (Linux).
+# Requires LZFSE submodule to be initialized.
 
 CC ?= gcc
 

@@ -326,28 +326,7 @@ jobs:
         run: |
           echo "version=$(jq -r '.versions["binpress"]' .github/cache-versions.json)" >> $GITHUB_OUTPUT
           echo "lief_version=$(jq -r '.versions["lief"]' .github/cache-versions.json)" >> $GITHUB_OUTPUT
-
-      - name: Get latest stubs release (binpress)
-        id: stubs-version
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Fetch latest stubs release tag to invalidate cache when stubs are updated
-          STUBS_TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/SocketDev/socket-btm/releases?per_page=30" \
-            | jq -r '.[] | select(.tag_name | startswith("stubs-")) | .tag_name' | head -1)
-
-          if [ -z "$STUBS_TAG" ]; then
-            echo "⚠️  No stubs release found, using 'none'"
-            STUBS_TAG="none"
-          else
-            echo "✓ Found stubs release: $STUBS_TAG"
-          fi
-
-          echo "version=$STUBS_TAG" >> $GITHUB_OUTPUT
+          echo "stubs_version=$(jq -r '.versions["stubs"]' .github/cache-versions.json)" >> $GITHUB_OUTPUT
 
       - name: Initialize lzfse submodule before Docker build (Linux)
         if: |
@@ -405,7 +384,7 @@ jobs:
             CACHE_VERSION=${{ steps.cache-version.outputs.version }}
             LIEF_CACHE_VERSION=${{ steps.cache-version.outputs.lief_version }}
             LZFSE_CACHE_VERSION=${{ steps.lzfse-sha.outputs.sha }}
-            STUBS_CACHE_VERSION=${{ steps.stubs-version.outputs.version }}
+            STUBS_CACHE_VERSION=${{ steps.cache-version.outputs.stubs_version }}
           file: packages/binpress/Dockerfile.${{ matrix.libc == 'musl' && 'musl' || 'glibc' }}
           target: export
           outputs: type=local,dest=.docker-export
@@ -1351,28 +1330,7 @@ jobs:
         run: |
           echo "version=$(jq -r '.versions["binject"]' .github/cache-versions.json)" >> $GITHUB_OUTPUT
           echo "lief_version=$(jq -r '.versions["lief"]' .github/cache-versions.json)" >> $GITHUB_OUTPUT
-
-      - name: Get latest stubs release (binject)
-        id: stubs-version
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Fetch latest stubs release tag to invalidate cache when stubs are updated
-          STUBS_TAG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/SocketDev/socket-btm/releases?per_page=30" \
-            | jq -r '.[] | select(.tag_name | startswith("stubs-")) | .tag_name' | head -1)
-
-          if [ -z "$STUBS_TAG" ]; then
-            echo "⚠️  No stubs release found, using 'none'"
-            STUBS_TAG="none"
-          else
-            echo "✓ Found stubs release: $STUBS_TAG"
-          fi
-
-          echo "version=$STUBS_TAG" >> $GITHUB_OUTPUT
+          echo "stubs_version=$(jq -r '.versions["stubs"]' .github/cache-versions.json)" >> $GITHUB_OUTPUT
 
       - name: Initialize lzfse submodule before Docker build (Linux)
         if: |
@@ -1435,7 +1393,7 @@ jobs:
             LIEF_CACHE_VERSION=${{ steps.cache-version.outputs.lief_version }}
             LIBDEFLATE_CACHE_VERSION=${{ steps.submodule-sha.outputs.libdeflate }}
             LZFSE_CACHE_VERSION=${{ steps.submodule-sha.outputs.lzfse }}
-            STUBS_CACHE_VERSION=${{ steps.stubs-version.outputs.version }}
+            STUBS_CACHE_VERSION=${{ steps.cache-version.outputs.stubs_version }}
           file: packages/binject/Dockerfile.${{ matrix.libc == 'musl' && 'musl' || 'glibc' }}
           target: export
           outputs: type=local,dest=packages/binject/build

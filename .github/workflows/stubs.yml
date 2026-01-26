@@ -129,6 +129,16 @@ jobs:
           echo "  stubs: $STUBS_VERSION"
           echo "  curl cache key: $CURL_CACHE_KEY"
 
+      - name: Initialize LZFSE submodule (Linux)
+        if: matrix.os == 'linux'
+        run: |
+          git submodule update --init --recursive packages/bin-infra/upstream/lzfse
+
+      - name: Initialize curl submodule (Linux)
+        if: matrix.os == 'linux'
+        run: |
+          git submodule update --init packages/bin-infra/upstream/curl
+
       - name: Setup Depot CLI
         if: matrix.os == 'linux'
         uses: depot/setup-action@b0b1ea4f69e92ebf5dea3f8713a1b0c37b2126a5 # v1.6.0

@@ -7,10 +7,11 @@ FROM almalinux:8 AS build
 # Install build dependencies.
 # AlmaLinux 8 has glibc 2.28, which provides maximum compatibility with older Linux distributions.
 # Enable PowerTools for ninja-build, EPEL for ccache.
-RUN dnf -y update && \
+# Disable weak dependencies to avoid optional GUI packages (libxkbcommon, pinentry, etc.)
+RUN dnf -y --setopt=install_weak_deps=False update && \
     dnf -y install epel-release dnf-plugins-core && \
     dnf config-manager --set-enabled powertools && \
-    dnf -y install \
+    dnf -y install --setopt=install_weak_deps=False \
         gcc \
         gcc-c++ \
         git \
@@ -22,7 +23,7 @@ RUN dnf -y update && \
         && \
     # Install Node.js from NodeSource.
     curl -fsSL https://rpm.nodesource.com/setup_lts.x | bash - && \
-    dnf -y install nodejs && \
+    dnf -y install --setopt=install_weak_deps=False nodejs && \
     npm install -g pnpm@10.26.1 && \
     dnf clean all
 

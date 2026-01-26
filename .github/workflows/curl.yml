@@ -189,7 +189,7 @@ jobs:
           build-args: |
             BUILD_MODE=${{ steps.build-mode.outputs.mode }}
             CACHE_VERSION=${{ steps.cache-version.outputs.version }}
-          file: packages/node-smol-builder/Dockerfile.curl.${{ matrix.libc || 'glibc' }}
+          file: packages/bin-infra/Dockerfile.curl.${{ matrix.libc || 'glibc' }}
           target: export
           outputs: type=local,dest=packages/bin-infra/build
           context: .

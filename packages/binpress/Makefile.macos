@@ -44,11 +44,15 @@ check-tools:
 # Default target.
 all: check-tools $(EMBEDDED_STUBS) $(OUT_DIR)/$(TARGET)
 
-# Generate embedded stubs from stub binaries.
-# Note: The script builds both ARM64 and x64 stubs via cross-compilation.
-$(EMBEDDED_STUBS): | $(BUILD_DIR)
+# Always regenerate embedded stubs (downloads latest from releases).
+.PHONY: generate-stubs
+generate-stubs:
 	@echo "Generating embedded stubs (building ARM64 and x64 stubs)..."
 	@node scripts/generate-embedded-stubs.mjs
+
+# Generate embedded stubs from stub binaries.
+# Note: The script builds both ARM64 and x64 stubs via cross-compilation.
+$(EMBEDDED_STUBS): generate-stubs | $(BUILD_DIR)
 
 # Build embedded stubs object.
 $(EMBEDDED_STUBS_OBJ): $(EMBEDDED_STUBS)

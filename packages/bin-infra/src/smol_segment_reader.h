@@ -42,6 +42,8 @@ typedef struct {
  * - Uncompressed size (8 bytes)
  * - Cache key (16 bytes)
  * - Platform metadata (3 bytes)
+ * - has_update_config flag (1 byte)
+ * - [optional: update_config_binary (1112 bytes)]
  *
  * After successful return, file descriptor is positioned at start of compressed data.
  *
@@ -50,6 +52,19 @@ typedef struct {
  * @return 0 on success, -1 on error (with stderr message)
  */
 int smol_read_metadata(int fd, smol_metadata_t *metadata);
+
+/**
+ * Read SMOL metadata after marker position.
+ *
+ * Similar to smol_read_metadata() but assumes file descriptor is already
+ * positioned immediately after the magic marker (at compressed_size field).
+ * This is useful for platform-specific marker finding (e.g., PT_NOTE search).
+ *
+ * @param fd File descriptor positioned after marker
+ * @param metadata Output structure (caller-allocated)
+ * @return 0 on success, -1 on error (with stderr message)
+ */
+int smol_read_metadata_after_marker(int fd, smol_metadata_t *metadata);
 
 /**
  * Validate SMOL metadata.

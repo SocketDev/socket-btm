@@ -147,22 +147,17 @@ static int extract_and_execute(int self_fd, const char *exe_path, int argc, char
     }
     DEBUG_LOG("Found marker in PT_NOTE segment at offset %ld\n", marker_pos);
 
-    // Seek past the marker to the metadata
-    if (lseek(self_fd, marker_pos + 32, SEEK_SET) == -1) {
+    // Seek past the marker to the metadata (marker is MAGIC_MARKER_LEN bytes)
+    if (lseek(self_fd, marker_pos + MAGIC_MARKER_LEN, SEEK_SET) == -1) {
         fprintf(stderr, "Error: Failed to seek to metadata after PT_NOTE marker\n");
         return 1;
     }
 
-    // Read metadata manually
-    if (read(self_fd, &metadata.compressed_size, 8) != 8 ||
-        read(self_fd, &metadata.uncompressed_size, 8) != 8 ||
-        read(self_fd, metadata.cache_key, 16) != 16 ||
-        read(self_fd, metadata.platform_metadata, 3) != 3) {
+    // Use shared helper to read metadata (handles all fields including has_update_config)
+    if (smol_read_metadata_after_marker(self_fd, &metadata) != 0) {
         fprintf(stderr, "Error: Failed to read metadata after PT_NOTE marker\n");
         return 1;
     }
-    metadata.cache_key[16] = '\0';
-    metadata.data_offset = lseek(self_fd, 0, SEEK_CUR);
 #else
     // Non-Linux platforms use standard linear search
     if (smol_read_metadata(self_fd, &metadata) != 0) {

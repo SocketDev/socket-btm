@@ -48,30 +48,20 @@
 #endif
 
 /**
- * Read SMOL metadata from file descriptor.
+ * Read SMOL metadata after marker position.
+ *
+ * Assumes file descriptor is positioned immediately after the magic marker.
+ * This is extracted as a shared helper to avoid code duplication between
+ * platforms with different marker-finding strategies.
  */
-int smol_read_metadata(int fd, smol_metadata_t *metadata) {
+int smol_read_metadata_after_marker(int fd, smol_metadata_t *metadata) {
     if (fd < 0 || !metadata) {
-        fprintf(stderr, "Error: Invalid arguments to smol_read_metadata\n");
+        fprintf(stderr, "Error: Invalid arguments to smol_read_metadata_after_marker\n");
         return -1;
     }
 
     /* Initialize metadata structure. */
     memset(metadata, 0, sizeof(smol_metadata_t));
-
-    /* Find compressed data marker. */
-    long data_offset = find_marker(fd, MAGIC_MARKER_PART1, MAGIC_MARKER_PART2,
-                                   MAGIC_MARKER_PART3, MAGIC_MARKER_LEN);
-    if (data_offset == -1) {
-        fprintf(stderr, "Error: Could not find compressed data marker\n");
-        return -1;
-    }
-
-    /* Seek to size headers (right after marker). */
-    if (lseek(fd, data_offset, SEEK_SET) == -1) {
-        fprintf(stderr, "Error: Failed to seek to metadata: %s\n", strerror(errno));
-        return -1;
-    }
 
     /* Read compressed size (8 bytes). */
     if (read(fd, &metadata->compressed_size, sizeof(metadata->compressed_size))
@@ -127,6 +117,33 @@ int smol_read_metadata(int fd, smol_metadata_t *metadata) {
     }
 
     return 0;
+}
+
+/**
+ * Read SMOL metadata from file descriptor.
+ */
+int smol_read_metadata(int fd, smol_metadata_t *metadata) {
+    if (fd < 0 || !metadata) {
+        fprintf(stderr, "Error: Invalid arguments to smol_read_metadata\n");
+        return -1;
+    }
+
+    /* Find compressed data marker. */
+    long data_offset = find_marker(fd, MAGIC_MARKER_PART1, MAGIC_MARKER_PART2,
+                                   MAGIC_MARKER_PART3, MAGIC_MARKER_LEN);
+    if (data_offset == -1) {
+        fprintf(stderr, "Error: Could not find compressed data marker\n");
+        return -1;
+    }
+
+    /* Seek to metadata (right after marker). */
+    if (lseek(fd, data_offset, SEEK_SET) == -1) {
+        fprintf(stderr, "Error: Failed to seek to metadata: %s\n", strerror(errno));
+        return -1;
+    }
+
+    /* Use shared helper to read metadata. */
+    return smol_read_metadata_after_marker(fd, metadata);
 }
 
 /**

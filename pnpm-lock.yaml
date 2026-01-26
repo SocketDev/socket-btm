@@ -234,6 +234,9 @@ importers:
       '@socketsecurity/lib':
         specifier: 'catalog:'
         version: 5.4.0(typescript@5.9.3)
+      bin-infra:
+        specifier: workspace:*
+        version: link:../bin-infra
       build-infra:
         specifier: workspace:*
         version: link:../build-infra

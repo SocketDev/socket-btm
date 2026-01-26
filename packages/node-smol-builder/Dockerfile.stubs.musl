@@ -39,7 +39,7 @@ COPY packages/node-smol-builder ./packages/node-smol-builder
 
 # Install workspace dependencies.
 ENV CI=true
-RUN pnpm install --frozen-lockfile --filter node-smol-builder
+RUN pnpm install --frozen-lockfile --filter bin-infra --filter node-smol-builder
 
 # Build stubs.
 ARG BUILD_MODE=prod
@@ -55,8 +55,8 @@ RUN echo "Cache version: ${CACHE_VERSION}" && \
     else \
         export TARGET_ARCH="arm64"; \
     fi && \
-    cd packages/node-smol-builder && \
-    node scripts/build-stubs.mjs
+    cd packages/bin-infra && \
+    node lib/build-stubs.mjs
 
 # Export stage: Copy build artifacts (not entire filesystem).
 FROM scratch AS export

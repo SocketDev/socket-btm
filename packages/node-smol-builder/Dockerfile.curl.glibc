@@ -59,7 +59,7 @@ RUN echo "Cache version: ${CACHE_VERSION}" && \
         export CFLAGS="-march=x86-64 -mtune=generic" && \
         export CXXFLAGS="-march=x86-64 -mtune=generic"; \
     fi && \
-    cd packages/bin-infra && node scripts/build-curl.mjs
+    cd packages/bin-infra && node lib/build-curl.mjs
 
 # Export stage: Copy build artifacts (not entire filesystem).
 FROM scratch AS export

@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Get checkpoint chain for curl CI workflows.
  *

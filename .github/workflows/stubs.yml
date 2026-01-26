@@ -218,14 +218,14 @@ jobs:
       - name: Build stub (macOS/Windows)
         if: matrix.os != 'linux'
         shell: bash
-        working-directory: packages/node-smol-builder
+        working-directory: packages/bin-infra
         env:
           TARGET_ARCH: ${{ matrix.arch }}
           CROSS_COMPILE: ${{ matrix.cross_compile && '1' || '0' }}
           DEBUG: ${{ inputs.debug && '1' || '' }}
         run: |
           # Build script handles curl dependency download and stub compilation
-          node scripts/build-stubs.mjs
+          node lib/build-stubs.mjs
 
       - name: Verify stub binary
         shell: bash

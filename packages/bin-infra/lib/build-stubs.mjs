@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Build script for smol_stub self-extracting binaries.
  * Downloads prebuilt stubs from GitHub releases or builds from source.
@@ -41,8 +40,8 @@ const packageRoot = path.join(__dirname, '..')
 const BUILD_MODE = getBuildMode()
 const buildDir = path.join(packageRoot, 'build', BUILD_MODE)
 
-// Stub source directory (in bin-infra, shared across binsuite).
-const stubDir = path.join(packageRoot, '..', 'bin-infra', 'stubs')
+// Stub source directory (in bin-infra).
+const stubDir = path.join(packageRoot, 'stubs')
 
 // Output directory for locally built stubs.
 const stubOutDir = path.join(stubDir, 'out')

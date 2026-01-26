@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Build script for libcurl with mbedTLS.
  * Downloads prebuilt libcurl from GitHub releases or builds from source.

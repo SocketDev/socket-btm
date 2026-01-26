@@ -244,7 +244,7 @@ jobs:
           CROSS_COMPILE: ${{ matrix.cross_compile && '1' || '' }}
         run: |
           cd packages/bin-infra
-          node scripts/build-curl.mjs
+          node lib/build-curl.mjs
 
       - name: Create archive
         shell: bash

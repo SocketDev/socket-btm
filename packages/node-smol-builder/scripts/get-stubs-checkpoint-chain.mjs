@@ -9,7 +9,7 @@
  *   Comma-separated checkpoint chain (e.g., "finalized")
  */
 
-import { getCheckpointChain } from './build-stubs.mjs'
+import { getCheckpointChain } from 'bin-infra/lib/build-stubs.mjs'
 
 // Get checkpoint chain (same for dev and prod).
 const chain = getCheckpointChain()

@@ -7,10 +7,14 @@
   "type": "module",
   "exports": {
     "./lib/builder": "./lib/builder.mjs",
-    "./lib/build-lief": "./lib/build-lief.mjs"
+    "./lib/build-lief": "./lib/build-lief.mjs",
+    "./lib/build-curl": "./lib/build-curl.mjs",
+    "./lib/build-stubs": "./lib/build-stubs.mjs"
   },
   "scripts": {
     "build:lief": "node lib/build-lief.mjs",
+    "build:curl": "node lib/build-curl.mjs",
+    "build:stubs": "node lib/build-stubs.mjs",
     "test": "bash test/test-write-with-notes.sh"
   },
   "devDependencies": {

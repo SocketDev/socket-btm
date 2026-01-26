@@ -4,6 +4,11 @@
 
 FROM alpine:3.19 AS build
 
+# Cache version - managed centrally in .github/cache-versions.json
+# Declared early to invalidate cached layers when version changes
+ARG CACHE_VERSION=unset
+RUN echo "Cache version: ${CACHE_VERSION}"
+
 # Install build dependencies.
 RUN apk add --no-cache \
         gcc \
@@ -45,14 +50,11 @@ RUN pnpm install --frozen-lockfile --filter bin-infra --filter node-smol-builder
 # Build curl with mbedTLS.
 ARG BUILD_MODE=prod
 ARG TARGETARCH
-# Cache version - managed centrally in .github/cache-versions.json
-ARG CACHE_VERSION=unset
 ENV BUILD_MODE=$BUILD_MODE
 
 # For amd64 builds, add -march=x86-64 -mtune=generic to ensure binary portability
 # across different CPU generations (e.g., GitHub Actions runners without AVX/AVX2).
-RUN echo "Cache version: ${CACHE_VERSION}" && \
-    if [ "$TARGETARCH" = "amd64" ]; then \
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
         export CFLAGS="-march=x86-64 -mtune=generic" && \
         export CXXFLAGS="-march=x86-64 -mtune=generic"; \
     fi && \

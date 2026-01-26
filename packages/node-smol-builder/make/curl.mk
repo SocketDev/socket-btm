@@ -2,13 +2,13 @@
 # Provides HTTPS support via libcurl with mbedTLS.
 #
 # This file is included from stub Makefiles at:
-#   packages/node-smol-builder/scripts/binary-compressed/shared/stub/
+#   packages/bin-infra/stubs/
 # Paths are relative from that location.
 
 # Base path to node-smol-builder package root from stub Makefile location.
-# From: packages/node-smol-builder/scripts/binary-compressed/shared/stub/
+# From: packages/bin-infra/stubs/
 # To:   packages/node-smol-builder/
-SMOL_BUILDER_ROOT = ../../../..
+SMOL_BUILDER_ROOT = ../../node-smol-builder
 
 CURL_UPSTREAM = $(SMOL_BUILDER_ROOT)/upstream/curl
 MBEDTLS_UPSTREAM = $(SMOL_BUILDER_ROOT)/upstream/mbedtls

@@ -41,14 +41,8 @@ const packageRoot = path.join(__dirname, '..')
 const BUILD_MODE = getBuildMode()
 const buildDir = path.join(packageRoot, 'build', BUILD_MODE)
 
-// Stub source directory.
-const stubDir = path.join(
-  packageRoot,
-  'scripts',
-  'binary-compressed',
-  'shared',
-  'stub',
-)
+// Stub source directory (in bin-infra, shared across binsuite).
+const stubDir = path.join(packageRoot, '..', 'bin-infra', 'stubs')
 
 // Output directory for locally built stubs.
 const stubOutDir = path.join(stubDir, 'out')

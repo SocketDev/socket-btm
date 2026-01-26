@@ -6,10 +6,10 @@ CC ?= /usr/bin/clang
 ARCH_FLAG = $(if $(TARGET_ARCH),-arch $(subst x64,x86_64,$(TARGET_ARCH)),)
 
 # Base include paths.
-BASE_INCLUDES = -I../../../../../../packages/build-infra/src -I../../../../../../packages/bin-infra/src
+BASE_INCLUDES = -I../../build-infra/src -I../src
 
 # curl support for HTTPS update checking.
-include ../../../../make/curl.mk
+include ../../node-smol-builder/make/curl.mk
 
 CFLAGS = -Os -Wall -Wextra -std=c11 $(ARCH_FLAG) $(BASE_INCLUDES) $(CURL_CFLAGS)
 LDFLAGS = -lcompression -Wl,-dead_strip $(CURL_LDFLAGS)
@@ -18,4 +18,4 @@ SOURCE_STUB = src/macho_stub.c
 TARGET_STUB = smol_stub
 
 # Include common stub build rules.
-include ../../../../make/stub-rules.mk
+include ../../node-smol-builder/make/stub-rules.mk

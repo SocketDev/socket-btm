@@ -68,4 +68,4 @@ RUN echo "Cache version: ${CACHE_VERSION}" && \
 
 # Export stage: Copy build artifacts (not entire filesystem).
 FROM scratch AS export
-COPY --from=build /workspace/packages/node-smol-builder/scripts/binary-compressed/shared/stub/out /
+COPY --from=build /workspace/packages/bin-infra/stubs/out /

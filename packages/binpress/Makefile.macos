@@ -16,7 +16,7 @@ OBJS = $(BUILD_DIR)/macho_compress.o $(BUILD_DIR)/binpress_config.o $(BUILD_DIR)
 # Embedded stubs.
 EMBEDDED_STUBS = $(BUILD_DIR)/embedded_stubs.c
 EMBEDDED_STUBS_OBJ = $(BUILD_DIR)/embedded_stubs.o
-STUB_BASE_DIR = ../node-smol-builder/scripts/binary-compressed/shared/stub
+STUB_BASE_DIR = ../bin-infra/stubs
 
 # Add embedded stubs to build
 OBJS += $(EMBEDDED_STUBS_OBJ)

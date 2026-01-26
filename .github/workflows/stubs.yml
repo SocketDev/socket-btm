@@ -20,7 +20,7 @@ on:
     tags:
       - 'stubs-v*'
     paths:
-      - 'packages/node-smol-builder/scripts/binary-compressed/shared/stub/**'
+      - 'packages/bin-infra/stubs/**'
       - 'packages/bin-infra/src/**'
       - 'packages/build-infra/make/**'
 
@@ -146,7 +146,7 @@ jobs:
             CACHE_VERSION=${{ steps.cache-version.outputs.version }}
           file: packages/node-smol-builder/Dockerfile.stubs.${{ matrix.libc || 'glibc' }}
           target: export
-          outputs: type=local,dest=packages/node-smol-builder/scripts/binary-compressed/shared/stub/out
+          outputs: type=local,dest=packages/bin-infra/stubs/out
           context: .
 
       - name: Verify Depot build output (Linux)
@@ -154,16 +154,16 @@ jobs:
         shell: bash
         run: |
           echo "Verifying Depot build output structure..."
-          ls -lah packages/node-smol-builder/scripts/binary-compressed/shared/stub/out/ || echo "Output directory not found"
+          ls -lah packages/bin-infra/stubs/out/ || echo "Output directory not found"
 
           # Check for stub binary.
-          if [ -f "packages/node-smol-builder/scripts/binary-compressed/shared/stub/out/smol_stub" ]; then
+          if [ -f "packages/bin-infra/stubs/out/smol_stub" ]; then
             echo "✅ smol_stub found"
-            file packages/node-smol-builder/scripts/binary-compressed/shared/stub/out/smol_stub || true
+            file packages/bin-infra/stubs/out/smol_stub || true
           else
             echo "❌ smol_stub not found!"
             echo "Contents of output directory:"
-            find packages/node-smol-builder/scripts/binary-compressed/shared/stub/ -type f 2>/dev/null || echo "No files found"
+            find packages/bin-infra/stubs/ -type f 2>/dev/null || echo "No files found"
             exit 1
           fi
 
@@ -229,7 +229,7 @@ jobs:
 
       - name: Verify stub binary
         shell: bash
-        working-directory: packages/node-smol-builder/scripts/binary-compressed/shared/stub
+        working-directory: packages/bin-infra/stubs
         run: |
           if [ "${{ matrix.os }}" = "windows" ]; then
             STUB_FILE="out/smol_stub.exe"
@@ -274,7 +274,7 @@ jobs:
           fi
 
           # Create tarball (from out/ directory, preserving just the binary name).
-          cd packages/node-smol-builder/scripts/binary-compressed/shared/stub/out
+          cd packages/bin-infra/stubs/out
           tar -czf "../${ARTIFACT_NAME}.tar.gz" "$STUB_FILE"
 
           echo "Created artifact: ${ARTIFACT_NAME}.tar.gz"
@@ -297,7 +297,7 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: packages/node-smol-builder/scripts/binary-compressed/shared/stub/${{ env.ARTIFACT_NAME }}.tar.gz
+          path: packages/bin-infra/stubs/${{ env.ARTIFACT_NAME }}.tar.gz
           retention-days: 7
 
   release:

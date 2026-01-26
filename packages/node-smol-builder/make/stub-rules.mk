@@ -1,8 +1,8 @@
 # Common compilation rules for smol_stub self-extracting binaries.
-# Used by node-smol-builder stub Makefiles.
+# Used by stub Makefiles in packages/bin-infra/stubs/.
 
-# Shared source file paths (relative to stub Makefile location).
-BIN_INFRA_SRC = ../../../../../../packages/bin-infra/src
+# Shared source file paths (relative to stub Makefile location: packages/bin-infra/stubs/).
+BIN_INFRA_SRC = ../src
 SMOL_SEGMENT_READER_SRC = $(BIN_INFRA_SRC)/smol_segment_reader.c
 SMOL_SEGMENT_READER_OBJ = $(OUT_DIR)/smol_segment_reader.o
 

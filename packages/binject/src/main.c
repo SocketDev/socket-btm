@@ -194,7 +194,13 @@ static uint8_t* generate_update_config_binary(const char *config_path) {
     int status = pclose(fp);
 
     if (status != 0) {
+#ifdef _WIN32
+        // On Windows, pclose returns the exit code directly
+        fprintf(stderr, "Error: Update config validation failed (exit code: %d)\n", status);
+#else
+        // On POSIX, pclose returns a status that needs WEXITSTATUS
         fprintf(stderr, "Error: Update config validation failed (exit code: %d)\n", WEXITSTATUS(status));
+#endif
         free(buffer);
         return NULL;
     }

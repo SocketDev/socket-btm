@@ -111,7 +111,10 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           persist-credentials: false
-          submodules: recursive
+
+      - name: Initialize Node.js submodule
+        run: |
+          git submodule update --init --recursive packages/node-smol-builder/upstream/node
 
       - name: Validate Node.js submodule vendored files
         shell: bash

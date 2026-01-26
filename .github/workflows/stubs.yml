@@ -129,15 +129,9 @@ jobs:
           echo "  stubs: $STUBS_VERSION"
           echo "  curl cache key: $CURL_CACHE_KEY"
 
-      - name: Initialize LZFSE submodule (Linux)
-        if: matrix.os == 'linux'
+      - name: Initialize LZFSE submodule
         run: |
           git submodule update --init --recursive packages/bin-infra/upstream/lzfse
-
-      - name: Initialize curl submodule (Linux)
-        if: matrix.os == 'linux'
-        run: |
-          git submodule update --init packages/bin-infra/upstream/curl
 
       - name: Setup Depot CLI
         if: matrix.os == 'linux'
@@ -214,11 +208,6 @@ jobs:
           curl -fsSL -o llvm-mingw.zip "https://github.com/mstorsjo/llvm-mingw/releases/download/20250528/llvm-mingw-20250528-ucrt-x86_64.zip"
           7z x llvm-mingw.zip -o"C:/llvm-mingw"
           echo "C:/llvm-mingw/llvm-mingw-20250528-ucrt-x86_64/bin" >> $GITHUB_PATH
-
-      - name: Initialize LZFSE submodule (macOS/Windows)
-        if: matrix.os != 'linux'
-        run: |
-          git submodule update --init --recursive packages/bin-infra/upstream/lzfse
 
       - name: Initialize curl submodule (macOS/Windows)
         if: matrix.os != 'linux'

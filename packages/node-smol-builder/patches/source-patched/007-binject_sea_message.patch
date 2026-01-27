@@ -1,0 +1,34 @@
+# @node-versions: v25.5.0
+# @description: Add informational message about binject when --build-sea is used
+# @phase: 3
+#
+# Informs users about the enhanced 'binject' tool when they use --build-sea.
+# Binject provides additional features beyond Node.js's built-in SEA:
+# - Cross-platform injection (Linux, macOS, Windows)
+# - Virtual Filesystem (VFS) support
+# - Update configuration embedding
+# - Combined SEA + VFS operations
+--- a/src/node_sea_bin.cc
++++ b/src/node_sea_bin.cc
+@@ -386,6 +386,21 @@
+     return ExitCode::kGenericUserError;
+   }
+
++  // Socket Security: Inform users about binject SEA tool
++  FPrintF(stdout,
++          "\n"
++          "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
++          "Instead of --build-sea try 'binject' - a SEA tool for node-smol featuring:\n"
++          "  • Cross-platform injection (Linux, macOS, Windows)\n"
++          "  • Virtual Filesystem (VFS) for embedding files\n"
++          "  • Update notifications and auto-updater support\n"
++          "\n"
++          "Download: https://github.com/SocketDev/socket-btm/releases\n"
++          "Documentation: binject --help\n"
++          "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
++          "\n"
++          "Building SEA with Node.js built-in tool...\n\n");
++
+   SeaConfig config = opt_config.value();
+   if (config.executable_path.empty()) {
+     config.executable_path = args[0];

@@ -1,0 +1,25 @@
+# @node-versions: v25.5.0
+# @description: Call setupVFS() during Node.js pre-execution
+# @requires: 004-vfs_integration.patch
+# @requires: additions/source-patched/js/vfs/vfs_bootstrap.js
+# @phase: 2
+#
+# Initializes VFS during Node.js bootstrap to patch fs module before user code runs.
+# This must happen early in prepareExecution(), after patchProcessObject() but before
+# user modules load. The require() call works here because pre_execution.js is an
+# internal bootstrap module where require('internal/...') is available.
+--- a/lib/internal/process/pre_execution.js
++++ b/lib/internal/process/pre_execution.js
+@@ -110,6 +110,12 @@ function prepareExecution(options) {
+   // Patch the process object and get the resolved main entry point.
+   const mainEntry = patchProcessObject(expandArgv1);
+   setupTraceCategoryState();
++
++  // Socket Security: Initialize VFS if present
++  // This must happen before user code runs to properly patch fs module
++  const { setupVFS } = require('internal/socketsecurity_vfs/vfs_bootstrap');
++  setupVFS();
++
+   setupInspectorHooks();
+   setupNetworkInspection();
+   setupNavigator();

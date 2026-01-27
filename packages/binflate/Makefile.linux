@@ -1,0 +1,42 @@
+# binflate Makefile for Linux.
+# ELF binary decompression tool.
+
+# Include common definitions.
+include ../build-infra/make/common.mk
+include ../build-infra/make/platform-linux.mk
+include ../bin-infra/make/lzfse.mk
+
+TARGET_CLI = binflate
+SOURCE_CLI = src/extract_cli.c ../bin-infra/src/compression_common.c ../bin-infra/src/smol_segment_reader.c
+
+SRC_DIR = src
+
+# CFLAGS/LDFLAGS can be set via environment (e.g., for musl include/lib paths).
+CFLAGS := -Wall -Wextra $(OPT_FLAGS) -std=c11 $(COMMON_INCLUDES) $(LZFSE_CFLAGS) -DVERSION=\"$(VERSION)\" $(CFLAGS)
+LDFLAGS := $(LDFLAGS_BASE) $(LZFSE_LDFLAGS) $(LDFLAGS)
+
+# Check that required build tools are available.
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }
+	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
+
+# Build CLI extraction tool.
+all: check-tools $(OUT_DIR)/$(TARGET_CLI)
+
+$(OUT_DIR)/$(TARGET_CLI): $(SOURCE_CLI) $(LZFSE_LIB) | $(OUT_DIR)
+	$(CC) $(CFLAGS) -o $@ $(SOURCE_CLI) $(LDFLAGS)
+	$(call STRIP_BINARY,$@)
+	@echo "Built: $(OUT_DIR)/$(TARGET_CLI)"
+
+$(OUT_DIR):
+	mkdir -p $@
+
+clean:
+	$(call CLEAN_IMPL,binflate)
+
+install: all
+	@echo "Decompression CLI tool built successfully: $(OUT_DIR)/$(TARGET_CLI)"
+
+test: all
+	@echo "Running binflate tests..."
+	@cd $(PROJECT_ROOT) && pnpm exec vitest run

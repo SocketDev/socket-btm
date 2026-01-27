@@ -1,0 +1,50 @@
+# Docker build context exclusions
+# This prevents platform-specific build artifacts from being copied into Docker builds
+
+# ==============================================================================
+# Build Artifacts (platform-specific object files, binaries, etc.)
+# ==============================================================================
+
+# Platform-specific build artifacts (dev/prod builds with .o files, binaries)
+packages/binject/build/
+packages/binpress/build/
+packages/binflate/build/
+packages/bin-infra/build/
+packages/node-smol-builder/build/
+
+# Keep pre-built libraries needed for Docker builds
+!packages/build-infra/build/downloaded/
+
+# Compiled binaries
+packages/binpress/out/
+packages/binflate/out/
+packages/binject/out/
+
+# Distribution binaries (E2E test artifacts) - but keep upstream vendored dist/ files
+**/dist/
+!packages/*/upstream/**/dist/
+
+# ==============================================================================
+# Git and CI
+# ==============================================================================
+
+.git/
+.github/
+
+# ==============================================================================
+# Logs and Temporary Files
+# ==============================================================================
+
+*.log
+**/*.log
+.DS_Store
+*.swp
+*.swo
+*~
+
+# ==============================================================================
+# IMPORTANT: Ensure upstream submodule source is copied
+# ==============================================================================
+# The .gitignore excludes **/upstream/ but Docker builds NEED these files.
+# Explicitly ensure they are NOT excluded from the Docker build context.
+!packages/*/upstream/

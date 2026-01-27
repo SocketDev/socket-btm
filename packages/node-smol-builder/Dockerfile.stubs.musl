@@ -1,0 +1,63 @@
+# Build SMOL stubs in container to offload compute from GitHub Actions.
+# This Dockerfile supports building for linux/amd64 and linux/arm64.
+# musl variant using Alpine 3.19.
+
+FROM alpine:3.19 AS build
+
+# Install build dependencies.
+RUN apk add --no-cache \
+        gcc \
+        g++ \
+        git \
+        make \
+        curl \
+        ca-certificates \
+        musl-dev \
+        openssl-dev \
+        openssl-libs-static \
+        zlib-dev \
+        zlib-static \
+        nodejs \
+        npm \
+        && \
+    npm install -g pnpm@10.26.1
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy workspace configuration files (needed for pnpm workspace).
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .gitmodules .node-version ./
+
+# Copy build-infra package (workspace dependency).
+COPY packages/build-infra ./packages/build-infra
+
+# Copy bin-infra package (has lzfse submodule).
+COPY packages/bin-infra ./packages/bin-infra
+
+# Copy node-smol-builder package (what we're building).
+COPY packages/node-smol-builder ./packages/node-smol-builder
+
+# Install workspace dependencies.
+ENV CI=true
+RUN pnpm install --frozen-lockfile --filter bin-infra --filter node-smol-builder
+
+# Build stubs.
+ARG BUILD_MODE=prod
+ARG TARGETARCH
+# Cache version - managed centrally in .github/cache-versions.json
+ARG CACHE_VERSION=unset
+ENV BUILD_MODE=$BUILD_MODE
+
+# Build stubs (build-stubs.mjs handles curl download and compilation).
+RUN echo "Cache version: ${CACHE_VERSION}" && \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        export TARGET_ARCH="x64"; \
+    else \
+        export TARGET_ARCH="arm64"; \
+    fi && \
+    cd packages/bin-infra && \
+    node lib/build-stubs.mjs
+
+# Export stage: Copy build artifacts (not entire filesystem).
+FROM scratch AS export
+COPY --from=build /workspace/packages/bin-infra/stubs/out /

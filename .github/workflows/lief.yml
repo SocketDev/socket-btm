@@ -1,0 +1,580 @@
+name: SMOL 1. LIEF
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      build_mode:
+        description: 'Build mode'
+        type: choice
+        options:
+          - prod
+          - dev
+        default: prod
+      debug:
+        description: 'Debug (0|1|namespace[,...])'
+        type: string
+        default: '0'
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+      force:
+        type: boolean
+        default: false
+      build_mode:
+        type: string
+        default: prod
+      debug:
+        type: string
+        default: '0'
+
+permissions:
+  contents: read
+
+jobs:
+  build-lief:
+    permissions:
+      contents: read
+      id-token: write
+    name: lief / ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS builds
+          # Use Depot runner for darwin-arm64: 8 vCPU M2, 24GB RAM
+          - runner: depot-macos-15
+            platform: darwin
+            arch: arm64
+            os: macos
+          # Use Intel runner for darwin-x64 (macos-15 is ARM64)
+          - runner: macos-15-intel
+            platform: darwin
+            arch: x64
+            os: macos
+          # Linux builds (glibc)
+          - runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            os: linux
+            libc: glibc
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            os: linux
+            libc: glibc
+          # Linux builds (musl)
+          - runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            os: linux
+            libc: musl
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            os: linux
+            libc: musl
+          # Windows builds
+          - runner: windows-2022
+            platform: win32
+            arch: x64
+            os: windows
+          - runner: windows-2022
+            platform: win32
+            arch: arm64
+            os: windows
+            cross_compile: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Enable debug logging
+        if: inputs.debug != '0'
+        run: |
+          if [ "${{ inputs.debug }}" = "1" ]; then
+            echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
+            echo "ACTIONS_RUNNER_DEBUG=true" >> $GITHUB_ENV
+            echo "Debug mode: full"
+          else
+            echo "DEBUG=${{ inputs.debug }}" >> $GITHUB_ENV
+            echo "Debug mode: ${{ inputs.debug }}"
+          fi
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version-file: .node-version
+          cache: ''
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Initialize LIEF submodule
+        shell: bash
+        run: |
+          git submodule update --init --recursive packages/bin-infra/upstream/lief
+
+      - name: Initialize lzfse submodule
+        shell: bash
+        run: |
+          git submodule update --init --recursive packages/bin-infra/upstream/lzfse
+
+      - name: Load cache version from centralized config
+        id: cache-version
+        shell: bash
+        run: |
+          CACHE_VERSION=$(jq -r '.versions["lief"]' .github/cache-versions.json)
+          if [ -z "$CACHE_VERSION" ] || [ "$CACHE_VERSION" = "null" ]; then
+            echo "❌ Error: Cache version not found for lief in .github/cache-versions.json"
+            exit 1
+          fi
+          echo "version=$CACHE_VERSION" >> $GITHUB_OUTPUT
+          echo "Cache version: $CACHE_VERSION"
+
+      - name: Generate LIEF cache key
+        id: cache-key
+        env:
+          CACHE_VERSION: ${{ steps.cache-version.outputs.version }}
+          LIBC: ${{ matrix.libc || 'glibc' }}
+        shell: bash
+        run: |
+          # Cross-platform hash function.
+          if command -v shasum &> /dev/null; then
+            hash_cmd="shasum -a 256"
+          elif command -v sha256sum &> /dev/null; then
+            hash_cmd="sha256sum"
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+
+          # Hash function for directories.
+          hash_dir() {
+            local dir=$1
+            if [ -d "$dir" ]; then
+              find "$dir" -type f \( -name "*.mjs" -o -name "*.js" \) 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1 || echo ""
+            else
+              echo ""
+            fi
+          }
+
+          # Hash critical inputs.
+          # Use libc-specific Dockerfile (glibc or musl).
+          DOCKERFILE_NAME="Dockerfile.lief.${LIBC}"
+          DOCKERFILE_HASH=$($hash_cmd packages/bin-infra/${DOCKERFILE_NAME} | cut -d' ' -f1)
+          BUILD_SCRIPT_HASH=$($hash_cmd packages/bin-infra/lib/build-lief.mjs | cut -d' ' -f1)
+          LIEF_SUBMODULE_SHA=$(cd packages/bin-infra/upstream/lief && git rev-parse HEAD)
+          LZFSE_SUBMODULE_SHA=$(cd packages/bin-infra/upstream/lzfse && git rev-parse HEAD)
+
+          # Finalized checkpoint hash: cache-version + dockerfile + build-script + lief-sha + lzfse-sha + libc.
+          FINAL_HASH=$(echo "${CACHE_VERSION}${DOCKERFILE_HASH}${BUILD_SCRIPT_HASH}${LIEF_SUBMODULE_SHA}${LZFSE_SUBMODULE_SHA}${LIBC}" | $hash_cmd | cut -d' ' -f1)
+
+          echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
+          echo "final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
+          echo "Cache key hash: ${FINAL_HASH}"
+
+      - name: Set build mode
+        id: build-mode
+        env:
+          INPUT_BUILD_MODE: ${{ inputs.build_mode }}
+        shell: bash
+        run: |
+          # Sanitize input - only allow 'prod' or 'dev'.
+          if [ "$INPUT_BUILD_MODE" = "dev" ]; then
+            BUILD_MODE="dev"
+          else
+            BUILD_MODE="prod"
+          fi
+          echo "mode=$BUILD_MODE" >> $GITHUB_OUTPUT
+          echo "Build mode: $BUILD_MODE"
+
+      - name: Restore LIEF checkpoint cache
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        id: lief-checkpoint-cache
+        with:
+          path: |
+            packages/bin-infra/build/shared/checkpoints
+            packages/bin-infra/build/${{ steps.build-mode.outputs.mode }}/checkpoints
+          key: lief-checkpoints-${{ steps.cache-key.outputs.cache_version }}-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.libc && format('-{0}', matrix.libc) || '' }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.final_hash }}
+          # Fallback to partial matches if exact key not found (allows incremental builds)
+          restore-keys: |
+            lief-checkpoints-${{ steps.cache-key.outputs.cache_version }}-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.libc && format('-{0}', matrix.libc) || '' }}-${{ steps.build-mode.outputs.mode }}-
+
+      - name: Set checkpoint chain for build mode
+        id: checkpoint-chain
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        shell: bash
+        run: |
+          # Use get-checkpoint-chain.mjs for consistency.
+          CHAIN=$(node packages/bin-infra/scripts/get-checkpoint-chain.mjs --$BUILD_MODE)
+          echo "checkpoint_chain=$CHAIN" >> $GITHUB_OUTPUT
+          # Convert comma-separated to space-separated for validation.
+          CHECKPOINTS=$(echo "$CHAIN" | tr ',' ' ')
+          echo "checkpoints=$CHECKPOINTS" >> $GITHUB_OUTPUT
+          echo "Checkpoint chain for $BUILD_MODE mode: $CHAIN"
+
+      - name: Validate checkpoint cache integrity
+        id: validate-cache
+        if: steps.lief-checkpoint-cache.outputs.cache-hit == 'true'
+        uses: ./.github/actions/validate-checkpoints
+        with:
+          checkpoint-dirs: packages/bin-infra/build/shared/checkpoints:packages/bin-infra/build/${{ steps.build-mode.outputs.mode }}/checkpoints
+          checkpoints: ${{ steps.checkpoint-chain.outputs.checkpoints }}
+          package-name: bin-infra
+
+      - name: Restore build output from checkpoint chain
+        id: restore-checkpoint
+        uses: ./.github/actions/restore-checkpoint
+        with:
+          package-name: 'bin-infra'
+          build-mode: ${{ steps.build-mode.outputs.mode }}
+          checkpoint-chain: ${{ steps.checkpoint-chain.outputs.checkpoint_chain }}
+          cache-hit: ${{ steps.lief-checkpoint-cache.outputs.cache-hit }}
+          cache-valid: ${{ steps.validate-cache.outputs.valid }}
+
+      - name: Setup Depot CLI
+        if: matrix.os == 'linux'
+        uses: depot/setup-action@b0b1ea4f69e92ebf5dea3f8713a1b0c37b2126a5 # v1.6.0
+        with:
+          oidc: true
+
+      - name: Build LIEF with Depot (Linux - offloads compute)
+        if: |
+          matrix.os == 'linux' &&
+          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          steps.restore-checkpoint.outputs.build-required == 'true')
+        uses: depot/build-push-action@9785b135c3c76c33db102e45be96a25ab55cd507 # v1.16.2
+        with:
+          project: 8fpj9495vw
+          platforms: linux/${{ matrix.arch == 'x64' && 'amd64' || matrix.arch }}
+          build-args: |
+            BUILD_MODE=${{ steps.build-mode.outputs.mode }}
+            CACHE_VERSION=${{ steps.cache-version.outputs.version }}
+          file: packages/bin-infra/Dockerfile.lief.${{ matrix.libc || 'glibc' }}
+          target: export
+          outputs: type=local,dest=packages/bin-infra/build
+          context: .
+
+      - name: Verify Depot build output (Linux)
+        if: matrix.os == 'linux'
+        shell: bash
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "Verifying Depot build output structure..."
+          ls -lah packages/bin-infra/build/$BUILD_MODE/
+
+          # Check for library file.
+          if [ -f "packages/bin-infra/build/$BUILD_MODE/out/Final/lief/libLIEF.a" ]; then
+            echo "✅ libLIEF.a found"
+          elif [ -f "packages/bin-infra/build/$BUILD_MODE/out/Final/lief/LIEF.lib" ]; then
+            echo "✅ LIEF.lib found"
+          else
+            echo "❌ LIEF library not found!"
+            echo "Contents of output directory:"
+            find packages/bin-infra/build/$BUILD_MODE/ -type f
+            exit 1
+          fi
+
+      - name: Setup build toolchain (macOS)
+        if: matrix.os == 'macos'
+        shell: bash
+        run: |
+          brew install cmake ccache
+
+      - name: Setup build toolchain (Windows x64)
+        if: matrix.os == 'windows' && !matrix.cross_compile
+        shell: bash
+        run: |
+          choco install cmake mingw ccache -y
+
+      - name: Setup build toolchain (Windows ARM64 cross-compile)
+        if: matrix.os == 'windows' && matrix.cross_compile
+        shell: bash
+        run: |
+          choco install cmake ccache -y
+          # Download and extract llvm-mingw for ARM64 cross-compilation.
+          curl -fsSL -o llvm-mingw.zip "https://github.com/mstorsjo/llvm-mingw/releases/download/20250528/llvm-mingw-20250528-ucrt-x86_64.zip"
+          7z x llvm-mingw.zip -o"C:/llvm-mingw"
+          echo "C:/llvm-mingw/llvm-mingw-20250528-ucrt-x86_64/bin" >> $GITHUB_PATH
+
+      - name: Build LIEF native (macOS/Windows)
+        if: |
+          matrix.os != 'linux' &&
+          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          steps.restore-checkpoint.outputs.build-required == 'true')
+        shell: bash
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: |
+          cd packages/bin-infra
+          pnpm run build:lief
+
+      - name: Debug build output structure
+        shell: bash
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "Checking build output structure..."
+          echo "Contents of packages/bin-infra/build/${BUILD_MODE}/:"
+          ls -lah "packages/bin-infra/build/${BUILD_MODE}/" || echo "Build directory does not exist"
+          echo ""
+          echo "Searching for LIEF library files (libLIEF.a or LIEF.lib):"
+          find "packages/bin-infra/build/${BUILD_MODE}/" -name "libLIEF.a" -o -name "LIEF.lib" || echo "No LIEF library files found"
+          echo ""
+          echo "Complete directory tree:"
+          find "packages/bin-infra/build/${BUILD_MODE}/" -type f || echo "No files found"
+
+      - name: Create archive
+        shell: bash
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
+          LIBC: ${{ matrix.libc }}
+        run: |
+          LIEF_DIR="packages/bin-infra/build/${BUILD_MODE}/out/Final/lief"
+
+          if [ ! -d "$LIEF_DIR" ]; then
+            echo "❌ Error: LIEF directory not found at: $LIEF_DIR"
+            echo "Build may have failed or output to a different location"
+            exit 1
+          fi
+
+          cd "$LIEF_DIR"
+
+          # Determine library name (platform-specific).
+          if [ -f "libLIEF.a" ]; then
+            LIB_NAME="libLIEF.a"
+          elif [ -f "LIEF.lib" ]; then
+            LIB_NAME="LIEF.lib"
+          else
+            echo "❌ Error: LIEF library not found in $LIEF_DIR"
+            echo "Contents of directory:"
+            ls -lah .
+            exit 1
+          fi
+
+          if [ ! -d "include" ]; then
+            echo "❌ Error: LIEF include directory not found in $LIEF_DIR"
+            echo "Contents of directory:"
+            ls -lah .
+            exit 1
+          fi
+
+          # Construct archive name (musl suffix after arch).
+          ARCHIVE_NAME="lief-${PLATFORM}-${ARCH}"
+          if [ "${LIBC}" = "musl" ]; then
+            ARCHIVE_NAME="${ARCHIVE_NAME}-musl"
+          fi
+
+          # Create tar.gz with library and headers using relative path.
+          # Current dir: packages/bin-infra/build/${BUILD_MODE}/out/Final/lief
+          # Target dir: packages/bin-infra/build/${BUILD_MODE}
+          # Relative path: ../../../
+          OUTPUT_PATH="../../../${ARCHIVE_NAME}.tar.gz"
+          echo "Creating archive: ${ARCHIVE_NAME}.tar.gz"
+          tar -czf "${OUTPUT_PATH}" \
+            ${LIB_NAME} \
+            include/
+
+          echo "✅ Archive created successfully"
+
+      - name: Set artifact name
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
+          LIBC: ${{ matrix.libc }}
+        run: |
+          # Construct artifact name (musl suffix after arch).
+          ARTIFACT_NAME="lief-${PLATFORM}-${ARCH}"
+          if [ "${LIBC}" = "musl" ]; then
+            ARTIFACT_NAME="${ARTIFACT_NAME}-musl"
+          fi
+          echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> $GITHUB_ENV
+
+      - name: Verify archive exists
+        shell: bash
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          ARTIFACT_NAME: ${{ env.ARTIFACT_NAME }}
+        run: |
+          ARCHIVE_PATH="packages/bin-infra/build/${BUILD_MODE}/${ARTIFACT_NAME}.tar.gz"
+          if [ ! -f "$ARCHIVE_PATH" ]; then
+            echo "❌ Archive not found at: $ARCHIVE_PATH"
+            echo "Contents of build directory:"
+            ls -lah "packages/bin-infra/build/${BUILD_MODE}/" || echo "Build directory does not exist"
+            exit 1
+          fi
+          echo "✅ Archive found: $ARCHIVE_PATH"
+          ls -lh "$ARCHIVE_PATH"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: packages/bin-infra/build/${{ steps.build-mode.outputs.mode }}/${{ env.ARTIFACT_NAME }}.tar.gz
+          retention-days: 7
+
+  release:
+    needs: build-lief
+    if: ${{ !inputs.dry_run }}
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Initialize LIEF submodule
+        shell: bash
+        run: |
+          git submodule update --init --recursive packages/bin-infra/upstream/lief
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          path: artifacts
+          pattern: lief-*
+          merge-multiple: true
+
+      - name: Verify downloaded artifacts
+        shell: bash
+        run: |
+          echo "Checking for downloaded artifacts..."
+          if [ -d "artifacts" ]; then
+            echo "✅ Artifacts directory exists"
+            echo "Contents:"
+            ls -lah artifacts/
+            if [ -n "$(ls -A artifacts/*.tar.gz 2>/dev/null)" ]; then
+              echo "✅ Found $(ls artifacts/*.tar.gz 2>/dev/null | wc -l) tar.gz files"
+            else
+              echo "❌ No tar.gz files found in artifacts directory"
+              exit 1
+            fi
+          else
+            echo "❌ Artifacts directory does not exist"
+            echo "This means no artifacts were uploaded by the build jobs."
+            exit 1
+          fi
+
+      - name: Get LIEF version
+        id: version
+        shell: bash
+        run: |
+          # Extract version from .gitmodules comment (canonical source)
+          LIEF_VERSION=$(grep -A 3 'packages/bin-infra/upstream/lief' .gitmodules | grep '# v' | sed 's/.*# v//')
+          if [ -z "$LIEF_VERSION" ]; then
+            echo "Error: Failed to extract LIEF version from .gitmodules"
+            exit 1
+          fi
+          echo "version=${LIEF_VERSION}" >> $GITHUB_OUTPUT
+          echo "LIEF version: ${LIEF_VERSION}"
+
+      - name: Generate release tag
+        id: tag
+        shell: bash
+        run: |
+          DATE=$(date +%Y%m%d)
+          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          TAG="lief-${DATE}-${SHORT_SHA}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Release tag: ${TAG}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          LIEF_VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          # Move and rename artifacts to release directory.
+          # Transform win32 → win for consistency with other tools.
+          mkdir -p release
+          for file in artifacts/*.tar.gz; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              # Transform win32 → win in filename.
+              renamed=$(echo "$filename" | sed 's/-win32-/-win-/g')
+              mv "$file" "release/$renamed"
+              echo "Renamed: $filename → $renamed"
+            fi
+          done
+
+          # Verify we have artifacts to release.
+          if [ -z "$(ls -A release/*.tar.gz 2>/dev/null)" ]; then
+            echo "Error: No .tar.gz files found in release directory after moving from artifacts"
+            exit 1
+          fi
+
+          echo "Found $(ls release/*.tar.gz | wc -l) archives to release"
+
+          # Generate checksums
+          cd release
+          if command -v shasum &> /dev/null; then
+            shasum -a 256 *.tar.gz > checksums.txt
+          elif command -v sha256sum &> /dev/null; then
+            sha256sum *.tar.gz > checksums.txt
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+          cat checksums.txt
+          cd ..
+
+          # Create release (extract date-hash from tag for title).
+          TITLE_SUFFIX="${RELEASE_TAG#lief-}"
+          gh release create "${RELEASE_TAG}" \
+            --title "lief ${TITLE_SUFFIX}" \
+            --notes "LIEF v${LIEF_VERSION} library for binary parsing and manipulation.
+
+          ## Platforms
+          - darwin-arm64
+          - darwin-x64
+          - linux-arm64
+          - linux-x64
+          - linux-arm64-musl
+          - linux-x64-musl
+          - win-arm64
+          - win-x64
+
+          ## Files
+          Each platform archive contains:
+          - Static library (\`libLIEF.a\` or \`LIEF.lib\`)
+          - Header files (\`include/\` directory)
+          - \`checksums.txt\` - SHA256 checksums
+
+          ## Usage
+          Download the appropriate archive for your platform and extract:
+
+          \`\`\`sh
+          tar -xzf lief-<platform>-<arch>.tar.gz
+          # Or for musl:
+          tar -xzf lief-<platform>-<arch>-musl.tar.gz
+          \`\`\`" \
+            release/*.tar.gz \
+            release/checksums.txt

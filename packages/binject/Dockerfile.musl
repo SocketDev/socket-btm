@@ -1,0 +1,78 @@
+# Build binject in container to offload compute from GitHub Actions.
+# This Dockerfile supports building for linux/amd64 and linux/arm64.
+# musl variant using Alpine 3.19.
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+FROM alpine:3.19 AS build
+
+# Cache buster for forcing rebuilds when dependencies change
+ARG CACHE_BUSTER=default
+
+# Install build dependencies.
+RUN echo "Cache buster: ${CACHE_BUSTER}" && \
+    apk add --no-cache \
+        nodejs \
+        npm \
+        make \
+        cmake \
+        g++ \
+        git \
+        curl \
+        musl-dev \
+        xz-dev \
+        xz-static \
+        openssl-dev \
+        openssl-libs-static \
+        github-cli \
+        binutils \
+        && \
+    npm install -g pnpm@10.26.1
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy repository files.
+COPY . .
+
+# Install workspace dependencies.
+ENV CI=true
+RUN pnpm install --frozen-lockfile
+
+# Build binject.
+ARG BUILD_MODE=prod
+ARG GH_TOKEN
+ARG TARGETARCH
+# Cache version - managed centrally in .github/cache-versions.json
+ARG CACHE_VERSION=unset
+# LIEF cache version - invalidates Docker cache when LIEF is updated
+ARG LIEF_CACHE_VERSION=unset
+# Libdeflate cache version - invalidates Docker cache when libdeflate submodule is updated
+ARG LIBDEFLATE_CACHE_VERSION=unset
+# LZFSE cache version - invalidates Docker cache when lzfse submodule is updated
+ARG LZFSE_CACHE_VERSION=unset
+# Stubs cache version - invalidates Docker cache when stubs are updated
+ARG STUBS_CACHE_VERSION=unset
+ENV BUILD_MODE=$BUILD_MODE
+ENV GH_TOKEN=$GH_TOKEN
+
+# Build binject (LIEF will be downloaded automatically if available in releases).
+# Use --force to ensure fresh build even if Depot cached old artifacts.
+# For amd64 builds, add -march=x86-64 -mtune=generic to ensure binary portability
+# across different CPU generations (e.g., GitHub Actions runners without AVX/AVX2).
+RUN echo "Cache: ${CACHE_VERSION}, LIEF: ${LIEF_CACHE_VERSION}, libdeflate: ${LIBDEFLATE_CACHE_VERSION}, lzfse: ${LZFSE_CACHE_VERSION}, stubs: ${STUBS_CACHE_VERSION}" && \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        export CFLAGS="-march=x86-64 -mtune=generic" && \
+        export CXXFLAGS="-march=x86-64 -mtune=generic"; \
+    fi && \
+    cd packages/binject && pnpm run build -- --force
+
+# Export stage: Copy build artifacts and checkpoints (not entire filesystem).
+# We export the entire build/ directory to preserve both:
+# - Build artifacts at build/${BUILD_MODE}/out/Final/
+# - Checkpoints at build/${BUILD_MODE}/checkpoints/ and build/shared/checkpoints/
+# Checkpoints enable GitHub Actions caching to skip expensive build steps on repeated runs.
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=build /workspace/packages/binject/build /

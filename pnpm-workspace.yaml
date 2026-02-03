@@ -7,7 +7,7 @@ catalog:
   '@biomejs/biome': 2.2.4
   '@dotenvx/dotenvx': 1.31.0
   '@socketsecurity/lib': 5.4.0
-  '@types/node': 24.9.2
+  '@types/node': 25.0.10
   acorn: 8.14.0
   acorn-walk: 8.3.4
   adm-zip: 0.5.16

@@ -1,0 +1,102 @@
+#!/usr/bin/env node
+/**
+ * Build script for bin-stubs package.
+ * Wraps the Makefile build target for pnpm integration.
+ */
+
+import { existsSync, promises as fs } from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import { buildBinSuitePackage } from 'bin-infra/lib/builder'
+import { extract } from 'tar'
+
+import {
+  detectLibc,
+  downloadSocketBtmRelease,
+  getPlatformArch,
+} from '@socketsecurity/lib/releases/socket-btm'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const packageRoot = path.join(__dirname, '..')
+
+/**
+ * Ensures curl libraries are available for bin-stubs (downloads if needed).
+ * Returns the directory containing libcurl.a and related libraries.
+ */
+async function ensureCurlForStubs() {
+  const platform = os.platform()
+  // Respect TARGET_ARCH environment variable for cross-compilation.
+  const arch = process.env.TARGET_ARCH || os.arch()
+  const libc = detectLibc()
+  const platformArch = getPlatformArch(platform, arch, libc)
+
+  // Check if curl exists in built location first.
+  // Use BUILD_MODE env var (defaults to dev).
+  const buildMode = process.env.BUILD_MODE || 'dev'
+  const builtDir = path.join(
+    packageRoot,
+    'build',
+    buildMode,
+    'out',
+    'Final',
+    'curl',
+    'dist',
+  )
+  if (existsSync(path.join(builtDir, 'libcurl.a'))) {
+    console.log(`✓ Using built curl at ${builtDir}`)
+    return builtDir
+  }
+
+  // Check downloaded location.
+  const downloadedDir = path.join(
+    packageRoot,
+    'build',
+    'downloaded',
+    'curl',
+    platformArch,
+  )
+  if (existsSync(path.join(downloadedDir, 'libcurl.a'))) {
+    console.log(`✓ Using downloaded curl at ${downloadedDir}`)
+    return downloadedDir
+  }
+
+  // Download and extract curl.
+  const downloadBaseDir = path.join(packageRoot, 'build', 'downloaded')
+  const tarballPath = path.join(
+    downloadBaseDir,
+    'curl',
+    'assets',
+    `curl-${platformArch}.tar.gz`,
+  )
+
+  // Download curl using the standard helper.
+  await downloadSocketBtmRelease({
+    tool: 'curl',
+    asset: `curl-${platformArch}.tar.gz`,
+    downloadDir: downloadBaseDir,
+    quiet: false,
+  })
+
+  // Extract the tarball to the platform-specific directory.
+  await fs.mkdir(downloadedDir, { recursive: true })
+  await extract({
+    cwd: downloadedDir,
+    file: tarballPath,
+  })
+
+  console.log(`✓ Extracted curl to ${downloadedDir}`)
+  return downloadedDir
+}
+
+buildBinSuitePackage({
+  packageName: 'bin-stubs',
+  packageDir: packageRoot,
+  beforeBuild: async () => {
+    // Ensure curl libraries are available (download if needed).
+    const curlDir = await ensureCurlForStubs()
+    console.log(`✓ curl libraries ready at ${curlDir}`)
+  },
+})

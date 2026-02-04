@@ -1,0 +1,13 @@
+# Build outputs
+out/
+
+# Object files
+*.o
+*.obj
+
+# Build artifacts
+*.dSYM/
+*.pdb
+*.ilk
+*.exp
+*.lib

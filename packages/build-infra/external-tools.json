@@ -1,0 +1,452 @@
+{
+  "$schema": "./lib/external-tools-schema.json",
+  "description": "Foundational tools required across all build processes. These are installed first before any package-specific tools.",
+  "tools": {
+    "node": {
+      "description": "Node.js runtime for build scripts and CI workflows",
+      "packages": {
+        "darwin": {
+          "brew": "node"
+        },
+        "linux": {
+          "apt": "nodejs",
+          "yum": "nodejs",
+          "dnf": "nodejs",
+          "apk": "nodejs"
+        },
+        "win32": {
+          "choco": "nodejs",
+          "scoop": "nodejs"
+        }
+      },
+      "versions": {
+        "minimumVersion": "18.0.0"
+      },
+      "notes": "Version is defined in .node-version at monorepo root. All CI workflows use that version."
+    },
+    "pnpm": {
+      "description": "Fast, disk space efficient package manager",
+      "packages": {
+        "darwin": {
+          "brew": "pnpm"
+        },
+        "linux": {
+          "npm": "pnpm"
+        },
+        "win32": {
+          "choco": "pnpm",
+          "scoop": "pnpm",
+          "npm": "pnpm"
+        }
+      },
+      "versions": {
+        "npm": "9.15.3"
+      },
+      "notes": "Version is managed via packageManager field in package.json. This is the minimum compatible version."
+    },
+    "python": {
+      "description": "Python interpreter for build scripts and model tooling",
+      "packages": {
+        "darwin": {
+          "brew": "python"
+        },
+        "linux": {
+          "apt": "python3",
+          "yum": "python3",
+          "dnf": "python3",
+          "apk": "python3"
+        },
+        "win32": {
+          "choco": "python",
+          "scoop": "python"
+        }
+      },
+      "versions": {
+        "minimumVersion": "3.6",
+        "maximumVersion": "3.11"
+      },
+      "notes": "Use system Python (3.9+). Ubuntu 22.04 provides 3.10, Alpine 3.19 provides 3.11. Maximum 3.11 for consistent builds."
+    },
+    "git": {
+      "description": "Git version control system (fundamental for source cloning)",
+      "packages": {
+        "darwin": {
+          "brew": "git"
+        },
+        "linux": {
+          "apt": "git",
+          "yum": "git",
+          "dnf": "git",
+          "apk": "git"
+        },
+        "win32": {
+          "choco": "git",
+          "scoop": "git"
+        }
+      },
+      "versions": {},
+      "notes": "Usually pre-installed on most systems. Required for git clone operations."
+    },
+    "curl": {
+      "description": "Command-line tool for transferring data (fundamental for downloads)",
+      "packages": {
+        "darwin": {
+          "brew": "curl"
+        },
+        "linux": {
+          "apt": "curl",
+          "yum": "curl",
+          "dnf": "curl",
+          "apk": "curl"
+        },
+        "win32": {
+          "choco": "curl",
+          "scoop": "curl"
+        }
+      },
+      "versions": {},
+      "notes": "Usually pre-installed. Required for downloading archives and files."
+    },
+    "patch": {
+      "description": "GNU patch utility for applying diffs (fundamental for patching)",
+      "packages": {
+        "darwin": {
+          "brew": "gpatch"
+        },
+        "linux": {
+          "apt": "patch",
+          "yum": "patch",
+          "dnf": "patch",
+          "apk": "patch"
+        },
+        "win32": {
+          "choco": "patch",
+          "scoop": "patch"
+        }
+      },
+      "versions": {},
+      "notes": "Required for applying patch files to source code."
+    },
+    "clang": {
+      "description": "Clang C/C++ compiler (fundamental for macOS and modern C++ builds)",
+      "packages": {
+        "darwin": {
+          "xcode": "xcode-select --install"
+        },
+        "linux": {
+          "apt": "clang",
+          "yum": "clang",
+          "dnf": "clang",
+          "apk": "clang"
+        },
+        "win32": {
+          "choco": "llvm",
+          "scoop": "llvm"
+        }
+      },
+      "versions": {
+        "darwin": "15.0.0",
+        "apt": "14.0.0",
+        "brew": "18.1.8"
+      },
+      "notes": "On macOS, clang is installed via Xcode Command Line Tools. On Linux/Windows, can be installed via package managers. Provides both 'clang' (C) and 'clang++' (C++) compilers."
+    },
+    "mingw-w64": {
+      "description": "MinGW-w64 GCC compiler and binutils for Windows (includes gcc, g++, dlltool, ar, ld)",
+      "packages": {
+        "win32": {
+          "choco": "mingw",
+          "scoop": "mingw"
+        }
+      },
+      "versions": {
+        "choco": "14.2.0",
+        "github-runner-windows-2022": "14.2.0",
+        "github-runner-windows-2025": "15.2.0"
+      },
+      "notes": "MinGW-w64 includes GCC and binutils. Pre-installed on GitHub Actions Windows runners (windows-2022: GCC 14.2.0, windows-2025: GCC 15.2.0). Provides gcc, g++, and critical tools like dlltool for Windows import library generation. Used for building LIEF and binject with consistent GCC toolchain to avoid MSVC runtime conflicts."
+    },
+    "gcc": {
+      "description": "GNU Compiler Collection (C/C++ compiler for Unix-like systems)",
+      "packages": {
+        "darwin": {
+          "brew": "gcc"
+        },
+        "linux": {
+          "apt": "build-essential",
+          "yum": "gcc gcc-c++",
+          "dnf": "gcc gcc-c++",
+          "apk": "gcc g++"
+        }
+      },
+      "versions": {
+        "apt": "11.4.0",
+        "brew": "14.2.0"
+      },
+      "notes": "On Linux, 'build-essential' includes gcc, g++, and make. Provides both 'gcc' (C) and 'g++' (C++) compilers. On macOS, gcc from Homebrew is used when clang compatibility issues arise."
+    },
+    "make": {
+      "description": "GNU Make build tool (fundamental build orchestration)",
+      "packages": {
+        "darwin": {
+          "brew": "make"
+        },
+        "linux": {
+          "apt": "make",
+          "yum": "make",
+          "dnf": "make",
+          "apk": "make"
+        },
+        "win32": {
+          "choco": "make",
+          "scoop": "make"
+        }
+      },
+      "versions": {},
+      "notes": "Standard build tool. Usually pre-installed on Unix systems. On Linux, included in 'build-essential' package."
+    },
+    "binutils": {
+      "description": "GNU binary utilities (includes objcopy for ELF section manipulation)",
+      "packages": {
+        "darwin": {
+          "brew": "binutils"
+        },
+        "linux": {
+          "apt": "binutils",
+          "yum": "binutils",
+          "dnf": "binutils",
+          "apk": "binutils"
+        },
+        "win32": {}
+      },
+      "versions": {
+        "minimumVersion": "2.38",
+        "github-runner-ubuntu-22.04": "2.38"
+      },
+      "notes": "Provides objcopy for ELF binary manipulation. On Linux, included in 'build-essential' package but listed explicitly for version tracking. objcopy is used for ARM64 binary optimization (removing .note sections). On macOS, not pre-installed - requires 'brew install binutils'. Windows uses MinGW binutils from mingw-w64 package. Version 2.38 matches GitHub Actions ubuntu-22.04 runner (our primary CI platform)."
+    },
+    "cmake": {
+      "description": "CMake cross-platform build system generator",
+      "packages": {
+        "darwin": {
+          "brew": "cmake"
+        },
+        "linux": {
+          "apt": "cmake",
+          "yum": "cmake",
+          "dnf": "cmake",
+          "apk": "cmake"
+        },
+        "win32": {
+          "choco": "cmake",
+          "scoop": "cmake"
+        }
+      },
+      "versions": {
+        "apt": "3.22.1",
+        "brew": "3.31.3",
+        "choco": "3.31.3",
+        "github-runner-ubuntu-22.04": "3.22.1",
+        "github-runner-windows-2025": "3.31.3"
+      },
+      "notes": "Required for building LIEF library and other C++ projects. Pre-installed on GitHub Actions runners. Supports multiple generators (Unix Makefiles, Ninja, NMake, Visual Studio, etc.)."
+    },
+    "ninja": {
+      "description": "Ninja build system (faster than Make for C++ projects)",
+      "packages": {
+        "darwin": {
+          "brew": "ninja"
+        },
+        "linux": {
+          "apt": "ninja-build",
+          "yum": "ninja-build",
+          "dnf": "ninja-build",
+          "apk": "ninja"
+        },
+        "win32": {
+          "choco": "ninja",
+          "scoop": "ninja"
+        }
+      },
+      "versions": {
+        "apt": "1.10.1",
+        "brew": "1.12.1",
+        "choco": "1.12.1",
+        "github-runner-windows-2025": "1.12.1"
+      },
+      "notes": "Much faster than Make for large C++ projects. Recommended for ONNX Runtime and Yoga Layout builds. Pre-installed on GitHub Actions Windows runners. CMake can auto-detect and use Ninja as the build generator when available."
+    },
+    "ccache": {
+      "description": "Compiler cache for faster recompilation",
+      "packages": {
+        "darwin": {
+          "brew": "ccache"
+        },
+        "linux": {
+          "apt": "ccache",
+          "yum": "ccache",
+          "dnf": "ccache",
+          "apk": "ccache"
+        },
+        "win32": {
+          "choco": "ccache",
+          "scoop": "ccache"
+        }
+      },
+      "versions": {
+        "apt": "4.5.1",
+        "brew": "4.10.2",
+        "choco": "4.10.2"
+      },
+      "notes": "Significantly speeds up recompilation by caching previous compilations."
+    },
+    "bc": {
+      "description": "Basic calculator for shell arithmetic",
+      "packages": {
+        "darwin": {},
+        "linux": {
+          "apt": "bc",
+          "yum": "bc",
+          "dnf": "bc",
+          "apk": "bc"
+        },
+        "win32": {}
+      },
+      "versions": {
+        "apt": "1.07.1"
+      },
+      "notes": "Pre-installed on macOS. Used for floating-point arithmetic in build scripts."
+    },
+    "lcov": {
+      "description": "Graphical front-end for gcov coverage data (optional, for HTML reports)",
+      "packages": {
+        "darwin": {
+          "brew": "lcov"
+        },
+        "linux": {
+          "apt": "lcov",
+          "yum": "lcov",
+          "dnf": "lcov",
+          "apk": "lcov"
+        },
+        "win32": {
+          "choco": "lcov"
+        }
+      },
+      "versions": {
+        "apt": "1.14",
+        "brew": "2.1"
+      },
+      "notes": "Optional tool for generating HTML coverage reports from gcov data. Depends on gcov (bundled with compiler toolchain). Not required for basic coverage analysis - the Makefiles in binject/binpress/binflate use gcov directly for text-based reports."
+    },
+    "qemu-user": {
+      "description": "QEMU user-mode emulation for testing cross-compiled binaries (optional, enhances CI)",
+      "packages": {
+        "darwin": {
+          "brew": "qemu"
+        },
+        "linux": {
+          "apt": "qemu-user-static",
+          "yum": "qemu-user-static",
+          "dnf": "qemu-user-static",
+          "apk": "qemu-aarch64"
+        },
+        "win32": {}
+      },
+      "versions": {
+        "apt": "6.2.0",
+        "brew": "9.0.2"
+      },
+      "notes": "Optional tool for testing cross-compiled ARM64 binaries on x64 hosts. When available, smoke tests can execute ARM64 binaries via QEMU user-mode emulation (~100-250ms overhead). Falls back to static verification if not installed. Not available on Windows."
+    },
+    "docker": {
+      "description": "Docker container platform for testing musl binaries (optional, enhances CI)",
+      "packages": {
+        "darwin": {
+          "brew": "docker"
+        },
+        "linux": {
+          "apt": "docker.io",
+          "yum": "docker",
+          "dnf": "docker"
+        },
+        "win32": {
+          "choco": "docker-desktop"
+        }
+      },
+      "versions": {
+        "apt": "24.0.7",
+        "brew": "27.0.3"
+      },
+      "notes": "Optional tool for testing musl-linked binaries in Alpine containers. When available, smoke tests can execute musl binaries in Docker (~1-2s overhead). Falls back to static verification if not installed. Requires Docker daemon to be running."
+    },
+    "musl-tools": {
+      "description": "musl C library toolchain for building statically-linked musl binaries",
+      "packages": {
+        "linux": {
+          "apt": "musl-tools",
+          "apk": "musl-dev"
+        }
+      },
+      "versions": {
+        "apt": "1.2.4"
+      },
+      "notes": "Required for building Linux musl binaries. Provides musl-gcc wrapper and musl C library headers. Used for static linking on Alpine/musl-based systems. Version 1.2.4-2 on Ubuntu 24.04 Noble."
+    },
+    "gcc-aarch64-linux-gnu": {
+      "description": "GCC cross-compiler for ARM64 Linux targets",
+      "packages": {
+        "linux": {
+          "apt": "gcc-aarch64-linux-gnu"
+        }
+      },
+      "versions": {
+        "apt": "4:13.2.0"
+      },
+      "notes": "Required for cross-compiling musl ARM64 binaries on x64 Linux hosts. Only needed when building linux-musl-arm64 on non-ARM64 hardware. Version 4:13.2.0-7ubuntu1 on Ubuntu 24.04 Noble."
+    },
+    "lzfse": {
+      "description": "LZFSE compression library (used for all compressions)",
+      "packages": {
+        "darwin": {
+          "manual": "Built-in via Apple Compression framework"
+        },
+        "linux": {
+          "manual": "Built automatically from lzfse submodule"
+        },
+        "win32": {
+          "manual": "Built automatically from lzfse submodule"
+        }
+      },
+      "versions": {
+        "darwin": "System",
+        "linux": "From submodule",
+        "win32": "From submodule"
+      },
+      "notes": [
+        "LZFSE is used for compression across all platforms (macOS, Linux, Windows)",
+        "On macOS: Uses native Apple Compression framework",
+        "On Linux/Windows: Builds automatically from lzfse git submodule",
+        "No manual installation required - handled by build system"
+      ]
+    },
+    "libssl-dev": {
+      "description": "OpenSSL development files for cryptography",
+      "packages": {
+        "darwin": {},
+        "linux": {
+          "apt": "libssl-dev",
+          "yum": "openssl-devel",
+          "dnf": "openssl-devel",
+          "apk": "openssl-dev"
+        },
+        "win32": {}
+      },
+      "versions": {
+        "apt": "3.0.13"
+      },
+      "notes": "Required for building node-smol stub binaries on Linux (including musl). Provides SSL/TLS cryptographic functionality. On macOS, uses Homebrew OpenSSL. On Windows, bundled with OpenSSL package. Version 3.0.13-0ubuntu3.6 on Ubuntu 24.04 Noble."
+    }
+  },
+  "notes": "This file contains ONLY core fundamental tools. All package-specific and checkpoint-specific tools are declared in their respective external-tools.json files."
+}

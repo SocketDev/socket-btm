@@ -153,8 +153,9 @@ async function downloadPrebuiltStub(options = {}) {
   const assetName = `smol-stub-${resolvedPlatformArch}.tar.gz`
   const targetDir = getDownloadedStubDir(resolvedPlatformArch)
 
-  // Create output directory.
-  await safeMkdir(targetDir)
+  // downloadSocketBtmRelease creates ${downloadDir}/${tool}/assets/ path structure.
+  const downloadBaseDir = path.join(packageRoot, 'build', 'downloaded')
+  const tarballPath = path.join(downloadBaseDir, 'stubs', 'assets', assetName)
 
   // Download archive using socket-btm release helper.
   logger.info(`Downloading ${assetName}...`)
@@ -162,17 +163,18 @@ async function downloadPrebuiltStub(options = {}) {
   try {
     await downloadSocketBtmRelease({
       asset: assetName,
-      downloadDir: targetDir,
-      output: assetName,
+      downloadDir: downloadBaseDir,
       tool: 'stubs',
     })
+
+    // Create extraction directory.
+    await safeMkdir(targetDir)
 
     // Extract archive.
     logger.info('Extracting stubs archive...')
 
     // Path traversal protection: verify tarball contents before extraction.
-    const listResult = await spawn('tar', ['-tzf', assetName], {
-      cwd: targetDir,
+    const listResult = await spawn('tar', ['-tzf', tarballPath], {
       stdio: 'pipe',
     })
     const files = listResult.stdout
@@ -191,14 +193,14 @@ async function downloadPrebuiltStub(options = {}) {
     }
 
     // Extract.
-    const tarArgs = ['-xzf', assetName, '-C', '.']
+    const tarArgs = ['-xzf', tarballPath, '-C', targetDir]
     if (await tarSupportsNoAbsoluteNames()) {
       tarArgs.push('--no-absolute-names')
     }
-    await spawn('tar', tarArgs, { cwd: targetDir, stdio: 'inherit' })
+    await spawn('tar', tarArgs, { stdio: 'inherit' })
 
     // Clean up archive.
-    await safeDelete(path.join(targetDir, assetName))
+    await safeDelete(tarballPath)
 
     logger.success('Successfully downloaded and extracted prebuilt stub')
     return targetDir

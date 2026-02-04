@@ -170,7 +170,10 @@ describe.skipIf(!allBinariesExist)('Cross-package integration', () => {
       })
       await fs.chmod(compressedNode, 0o755)
 
-      // Inject VFS
+      // Inject SEA and VFS (binject requires --sea with --vfs)
+      const seaBlob = path.join(testDir, 'test_vfs.blob')
+      await fs.writeFile(seaBlob, Buffer.from('CROSS_PACKAGE_VFS_SEA_CONTENT'))
+
       const vfsArchive = path.join(testDir, 'test.vfs')
       await fs.writeFile(
         vfsArchive,
@@ -181,6 +184,8 @@ describe.skipIf(!allBinariesExist)('Cross-package integration', () => {
 
       await execCommand(BINJECT, [
         compressedNode,
+        '--sea',
+        seaBlob,
         '--vfs',
         vfsArchive,
         '--output',

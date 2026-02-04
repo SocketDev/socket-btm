@@ -34,7 +34,10 @@ COPY packages/build-infra ./packages/build-infra
 # Copy bin-infra package (has lzfse submodule).
 COPY packages/bin-infra ./packages/bin-infra
 
-# Copy node-smol-builder package (what we're building).
+# Copy bin-stubs package (what we're building).
+COPY packages/bin-stubs ./packages/bin-stubs
+
+# Copy node-smol-builder package (workspace dependency).
 COPY packages/node-smol-builder ./packages/node-smol-builder
 
 # Install workspace dependencies.
@@ -60,4 +63,4 @@ RUN echo "Cache version: ${CACHE_VERSION}" && \
 
 # Export stage: Copy build artifacts (not entire filesystem).
 FROM scratch AS export
-COPY --from=build /workspace/packages/bin-infra/stubs/out /
+COPY --from=build /workspace/packages/bin-stubs/build/${BUILD_MODE}/out/Final /

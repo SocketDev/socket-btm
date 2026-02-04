@@ -13,12 +13,32 @@ else
     OPT_FLAGS = -O0 -g
 endif
 
+# Cross-compilation support for macOS.
+# When TARGET_ARCH is set, add -arch flags for cross-compilation.
+ifdef TARGET_ARCH
+    ifeq ($(TARGET_ARCH),x64)
+        ARCH_FLAGS = -arch x86_64
+    else ifeq ($(TARGET_ARCH),x86_64)
+        ARCH_FLAGS = -arch x86_64
+    else ifeq ($(TARGET_ARCH),arm64)
+        ARCH_FLAGS = -arch arm64
+    else ifeq ($(TARGET_ARCH),aarch64)
+        ARCH_FLAGS = -arch arm64
+    endif
+    OPT_FLAGS += $(ARCH_FLAGS)
+endif
+
 # macOS-specific POSIX feature macros.
 POSIX_MACROS = -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700
 
 # macOS-specific linker flags base.
 # -lcompression links Apple's native compression framework (LZFSE, zlib, etc.)
 LDFLAGS_BASE = -lcompression -Wl,-dead_strip
+
+# Add architecture flags to linker for cross-compilation.
+ifdef ARCH_FLAGS
+    LDFLAGS_BASE += $(ARCH_FLAGS)
+endif
 
 # Binary signing command.
 define SIGN_BINARY

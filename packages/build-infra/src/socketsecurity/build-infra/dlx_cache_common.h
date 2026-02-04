@@ -541,6 +541,9 @@ static int dlx_write_metadata(const char *entry_dir, const char *cache_key,
     fprintf(f, "    \"path\": \"");
     json_escape_string(f, exe_path);
     fprintf(f, "\"\n");
+    fprintf(f, "  },\n");
+    fprintf(f, "  \"extra\": {\n");
+    fprintf(f, "    \"compression_algorithm\": \"lzfse\"\n");
 
     if (update_check && update_check->latest_known) {
         fprintf(f, "  },\n");
@@ -686,7 +689,7 @@ static int dlx_write_to_cache(const char *cache_key, const unsigned char *data,
     snprintf(cached_path, sizeof(cached_path), "%s\\node.exe", entry_dir);
 
     HANDLE hFile = CreateFileA(cached_path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
-                               FILE_ATTRIBUTE_NORMAL | FILE_FLAG_NO_INHERITANCE, NULL);
+                               FILE_ATTRIBUTE_NORMAL, NULL);
     if (hFile == INVALID_HANDLE_VALUE) {
         return -1;
     }

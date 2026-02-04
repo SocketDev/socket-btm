@@ -1,0 +1,107 @@
+# Build binject in container to offload compute from GitHub Actions.
+# This Dockerfile supports building for linux/amd64 and linux/arm64.
+# glibc variant using AlmaLinux 8 (glibc 2.28) for maximum compatibility.
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+FROM almalinux:8 AS build
+
+# Cache buster for forcing rebuilds when dependencies change
+ARG CACHE_BUSTER=default
+
+# Install build dependencies.
+# AlmaLinux 8 has glibc 2.28, which provides maximum compatibility with older Linux distributions.
+# Enable PowerTools for glibc-static needed for fully static binaries.
+RUN echo "Cache buster: ${CACHE_BUSTER}" && \
+    dnf -y update && \
+    dnf -y install dnf-plugins-core && \
+    dnf config-manager --set-enabled powertools && \
+    dnf -y install \
+        gcc-c++ \
+        make \
+        git \
+        curl \
+        ca-certificates \
+        glibc-static \
+        libstdc++-static \
+        openssl-devel \
+        cmake \
+        patch \
+        wget \
+        perl \
+        && \
+    # Install GitHub CLI.
+    dnf -y install 'dnf-command(config-manager)' && \
+    dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo && \
+    dnf -y install gh && \
+    # Install Node.js from NodeSource.
+    curl -fsSL https://rpm.nodesource.com/setup_lts.x | bash - && \
+    dnf -y install nodejs && \
+    npm install -g pnpm@10.26.1 && \
+    dnf clean all
+
+# Build OpenSSL 1.1.1w from source (required for SHA512 in dlx_cache_common.h)
+WORKDIR /tmp/openssl-build
+RUN wget https://www.openssl.org/source/openssl-1.1.1w.tar.gz && \
+    tar xzf openssl-1.1.1w.tar.gz && \
+    cd openssl-1.1.1w && \
+    ./config --prefix=/usr/local/ssl --openssldir=/usr/local/ssl no-shared && \
+    make -j$(nproc) && \
+    make install && \
+    cd / && \
+    rm -rf /tmp/openssl-build
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy repository files.
+COPY . .
+
+ARG TARGETARCH
+
+# OpenSSL paths for SHA512 linking (fixes undefined reference to 'SHA512').
+ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH
+ENV LDFLAGS="-L/usr/local/ssl/lib -lcrypto"
+ENV CFLAGS="-I/usr/local/ssl/include"
+ENV CXXFLAGS=""
+
+# Install workspace dependencies.
+ENV CI=true
+RUN pnpm install --frozen-lockfile
+
+# Build binject.
+ARG BUILD_MODE=prod
+ARG GH_TOKEN
+# Cache version - managed centrally in .github/cache-versions.json
+ARG CACHE_VERSION=unset
+# LIEF cache version - invalidates Docker cache when LIEF is updated
+ARG LIEF_CACHE_VERSION=unset
+# Libdeflate cache version - invalidates Docker cache when libdeflate submodule is updated
+ARG LIBDEFLATE_CACHE_VERSION=unset
+# LZFSE cache version - invalidates Docker cache when lzfse submodule is updated
+ARG LZFSE_CACHE_VERSION=unset
+# Stubs cache version - invalidates Docker cache when stubs are updated
+ARG STUBS_CACHE_VERSION=unset
+ENV BUILD_MODE=$BUILD_MODE
+ENV GH_TOKEN=$GH_TOKEN
+
+# Build binject (LIEF will be downloaded automatically if available in releases).
+# Use --force to ensure fresh build even if Depot cached old artifacts.
+# For amd64 builds, add -march=x86-64 -mtune=generic to ensure binary portability
+# across different CPU generations (e.g., GitHub Actions runners without AVX/AVX2).
+RUN echo "Cache: ${CACHE_VERSION}, LIEF: ${LIEF_CACHE_VERSION}, libdeflate: ${LIBDEFLATE_CACHE_VERSION}, lzfse: ${LZFSE_CACHE_VERSION}, stubs: ${STUBS_CACHE_VERSION}" && \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        export CFLAGS="$CFLAGS -march=x86-64 -mtune=generic" && \
+        export CXXFLAGS="$CXXFLAGS -march=x86-64 -mtune=generic"; \
+    fi && \
+    cd packages/binject && pnpm run build -- --force
+
+# Export stage: Copy build artifacts and checkpoints (not entire filesystem).
+# We export the entire build/ directory to preserve both:
+# - Build artifacts at build/${BUILD_MODE}/out/Final/
+# - Checkpoints at build/${BUILD_MODE}/checkpoints/ and build/shared/checkpoints/
+# Checkpoints enable GitHub Actions caching to skip expensive build steps on repeated runs.
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=build /workspace/packages/binject/build /

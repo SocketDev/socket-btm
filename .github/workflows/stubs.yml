@@ -233,8 +233,12 @@ jobs:
         env:
           BUILD_MODE: prod
         run: |
-          # Binary is output to build/${BUILD_MODE}/out/Final/
-          if [ "${{ matrix.os }}" = "windows" ]; then
+          # Binary location differs between Docker (Linux) and native (macOS/Windows).
+          if [ "${{ matrix.os }}" = "linux" ]; then
+            # Docker export puts binary in out/ directory.
+            STUB_FILE="out/smol_stub"
+          elif [ "${{ matrix.os }}" = "windows" ]; then
+            # Native build outputs to build/prod/out/Final/.
             STUB_FILE="build/${BUILD_MODE}/out/Final/smol_stub.exe"
           else
             STUB_FILE="build/${BUILD_MODE}/out/Final/smol_stub"

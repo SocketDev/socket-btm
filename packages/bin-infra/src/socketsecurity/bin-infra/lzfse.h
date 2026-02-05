@@ -10,7 +10,9 @@
 #define SOCKETSECURITY_BIN_INFRA_LZFSE_H
 
 // Forward to the actual lzfse.h from the upstream submodule.
-// The path is relative to bin-infra/src directory where this file lives.
-#include "../../upstream/lzfse/src/lzfse.h"
+// The path is relative to this file's location:
+//   packages/bin-infra/src/socketsecurity/bin-infra/lzfse.h
+// Submodule is at: packages/bin-infra/upstream/lzfse
+#include "../../../upstream/lzfse/src/lzfse.h"
 
 #endif // SOCKETSECURITY_BIN_INFRA_LZFSE_H

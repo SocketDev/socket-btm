@@ -230,11 +230,14 @@ jobs:
       - name: Verify stub binary
         shell: bash
         working-directory: packages/bin-stubs
+        env:
+          BUILD_MODE: prod
         run: |
+          # Binary is output to build/${BUILD_MODE}/out/Final/
           if [ "${{ matrix.os }}" = "windows" ]; then
-            STUB_FILE="out/smol_stub.exe"
+            STUB_FILE="build/${BUILD_MODE}/out/Final/smol_stub.exe"
           else
-            STUB_FILE="out/smol_stub"
+            STUB_FILE="build/${BUILD_MODE}/out/Final/smol_stub"
           fi
 
           if [ ! -f "$STUB_FILE" ]; then

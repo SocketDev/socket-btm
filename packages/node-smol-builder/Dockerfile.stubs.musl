@@ -63,4 +63,5 @@ RUN echo "Cache version: ${CACHE_VERSION}" && \
 
 # Export stage: Copy build artifacts (not entire filesystem).
 FROM scratch AS export
+ARG BUILD_MODE=prod
 COPY --from=build /workspace/packages/bin-stubs/build/${BUILD_MODE}/out/Final /

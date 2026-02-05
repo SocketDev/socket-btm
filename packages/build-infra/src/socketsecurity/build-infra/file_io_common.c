@@ -9,6 +9,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include <io.h>
+#include <windows.h>
+#else
+#include <fcntl.h>
+#include <unistd.h>
+#endif
+
 /**
  * Read entire file into memory buffer.
  */
@@ -137,4 +145,35 @@ int file_io_copy(const char *source, const char *dest) {
     }
 
     return result;
+}
+
+/**
+ * Set close-on-exec flag (cross-platform).
+ */
+int file_io_set_cloexec(int fd) {
+    if (fd < 0) {
+        return FILE_IO_ERROR;
+    }
+
+#ifdef _WIN32
+    /* Windows: Convert file descriptor to HANDLE and clear inherit flag */
+    HANDLE handle = (HANDLE)_get_osfhandle(fd);
+    if (handle == INVALID_HANDLE_VALUE) {
+        return FILE_IO_ERROR;
+    }
+    if (!SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0)) {
+        return FILE_IO_ERROR;
+    }
+#else
+    /* POSIX: Set FD_CLOEXEC flag */
+    int flags = fcntl(fd, F_GETFD);
+    if (flags == -1) {
+        return FILE_IO_ERROR;
+    }
+    if (fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
+        return FILE_IO_ERROR;
+    }
+#endif
+
+    return FILE_IO_OK;
 }

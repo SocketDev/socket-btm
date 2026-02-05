@@ -49,4 +49,13 @@ int file_io_write(const char *path, const uint8_t *data, size_t size);
  */
 int file_io_copy(const char *source, const char *dest);
 
+/**
+ * Set close-on-exec flag (FD_CLOEXEC on POSIX, non-inheritable on Windows).
+ * Prevents the file descriptor from being inherited by child processes.
+ *
+ * @param fd File descriptor to configure
+ * @return FILE_IO_OK on success, FILE_IO_ERROR on failure
+ */
+int file_io_set_cloexec(int fd);
+
 #endif /* FILE_IO_COMMON_H */

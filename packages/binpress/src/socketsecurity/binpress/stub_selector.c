@@ -462,14 +462,24 @@ const embedded_stub_t *select_stub_with_target(
   static char parsed_arch[16] = {0};
   static char parsed_libc[16] = {0};
 
+  DEBUG_LOG("select_stub_with_target: target=%s, target_platform=%s, target_arch=%s, target_libc=%s\n",
+            target ? target : "NULL",
+            target_platform ? target_platform : "NULL",
+            target_arch ? target_arch : "NULL",
+            target_libc ? target_libc : "NULL");
+
   // Priority 1: Parse combined target string if provided
   if (target) {
+    DEBUG_LOG("Parsing combined target string: %s\n", target);
     if (parse_target_string(target,
                             parsed_platform, sizeof(parsed_platform),
                             parsed_arch, sizeof(parsed_arch),
                             parsed_libc, sizeof(parsed_libc)) != 0) {
+      fprintf(stderr, "Error: Failed to parse target string: %s\n", target);
       return NULL;
     }
+    DEBUG_LOG("Parsed: platform=%s, arch=%s, libc=%s\n",
+              parsed_platform, parsed_arch, parsed_libc[0] ? parsed_libc : "NULL");
     target_platform = parsed_platform;
     target_arch = parsed_arch;
     target_libc = parsed_libc[0] ? parsed_libc : NULL;
@@ -555,15 +565,29 @@ const embedded_stub_t *select_stub_with_target(
   stub.arch = final_arch;
   stub.libc = final_libc;
 
+  // Validate final_platform and final_arch are not NULL
+  if (!final_platform || !final_arch) {
+    fprintf(stderr, "Error: Missing platform or architecture specification\n");
+    return NULL;
+  }
+
   if (strcmp(final_platform, "darwin") == 0) {
     if (strcmp(final_arch, "arm64") == 0) {
       stub.data = stub_darwin_arm64;
       stub.size = stub_darwin_arm64_len;
+      if (stub.size == 0) {
+        fprintf(stderr, "Error: darwin-arm64 stub not available (size=0). Please ensure stubs are downloaded correctly.\n");
+        return NULL;
+      }
       return &stub;
     }
     if (strcmp(final_arch, "x64") == 0) {
       stub.data = stub_darwin_x64;
       stub.size = stub_darwin_x64_len;
+      if (stub.size == 0) {
+        fprintf(stderr, "Error: darwin-x64 stub not available (size=0). Please ensure stubs are downloaded correctly.\n");
+        return NULL;
+      }
       return &stub;
     }
     fprintf(stderr, "Error: Unsupported macOS architecture: %s\n", final_arch);
@@ -577,12 +601,22 @@ const embedded_stub_t *select_stub_with_target(
       stub.data = use_musl ? stub_linux_arm64_musl : stub_linux_arm64;
       stub.size = use_musl ? stub_linux_arm64_musl_len : stub_linux_arm64_len;
       stub.libc = use_musl ? "musl" : "glibc";
+      if (stub.size == 0) {
+        fprintf(stderr, "Error: linux-arm64%s stub not available (size=0). Please ensure stubs are downloaded correctly.\n",
+                use_musl ? "-musl" : "");
+        return NULL;
+      }
       return &stub;
     }
     if (strcmp(final_arch, "x64") == 0) {
       stub.data = use_musl ? stub_linux_x64_musl : stub_linux_x64;
       stub.size = use_musl ? stub_linux_x64_musl_len : stub_linux_x64_len;
       stub.libc = use_musl ? "musl" : "glibc";
+      if (stub.size == 0) {
+        fprintf(stderr, "Error: linux-x64%s stub not available (size=0). Please ensure stubs are downloaded correctly.\n",
+                use_musl ? "-musl" : "");
+        return NULL;
+      }
       return &stub;
     }
     fprintf(stderr, "Error: Unsupported Linux architecture: %s\n", final_arch);
@@ -593,11 +627,19 @@ const embedded_stub_t *select_stub_with_target(
     if (strcmp(final_arch, "arm64") == 0) {
       stub.data = stub_win_arm64;
       stub.size = stub_win_arm64_len;
+      if (stub.size == 0) {
+        fprintf(stderr, "Error: win32-arm64 stub not available (size=0). Please ensure stubs are downloaded correctly.\n");
+        return NULL;
+      }
       return &stub;
     }
     if (strcmp(final_arch, "x64") == 0) {
       stub.data = stub_win_x64;
       stub.size = stub_win_x64_len;
+      if (stub.size == 0) {
+        fprintf(stderr, "Error: win32-x64 stub not available (size=0). Please ensure stubs are downloaded correctly.\n");
+        return NULL;
+      }
       return &stub;
     }
     fprintf(stderr, "Error: Unsupported Windows architecture: %s\n", final_arch);

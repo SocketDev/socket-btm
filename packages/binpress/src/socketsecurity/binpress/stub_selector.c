@@ -630,10 +630,13 @@ int write_temp_stub(const embedded_stub_t *stub, char *output_path,
   }
 
   // Set FD_CLOEXEC to prevent file descriptor leaks to child processes.
+  // Note: Not available on Windows, but leak prevention is non-critical.
+#ifndef _WIN32
   int flags = fcntl(fd, F_GETFD);
   if (flags != -1) {
     fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
   }
+#endif
 
   // Write stub data
   ssize_t total_written = 0;

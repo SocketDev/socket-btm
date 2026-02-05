@@ -349,6 +349,14 @@ export async function ensureStubs(options = {}) {
     return path.join(localDir, stubBinary)
   } catch (e) {
     logger.info(`Source build failed: ${e?.message || 'Unknown error'}`)
+
+    // In CI (stub build workflow), fail immediately without fallback.
+    if ('CI' in process.env) {
+      throw new Error(
+        `Stub build from source failed in CI - no fallback allowed: ${e?.message || 'Unknown error'}`,
+      )
+    }
+
     logger.info('Falling back to prebuilt download...')
 
     const downloadDir = await downloadPrebuiltStub({

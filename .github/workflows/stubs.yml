@@ -276,12 +276,14 @@ jobs:
             STUB_FILE="smol_stub"
           fi
 
-          # Create tarball (from out/ directory, preserving just the binary name).
-          cd packages/bin-stubs/out
-          tar -czf "../${ARTIFACT_NAME}.tar.gz" "$STUB_FILE"
+          # Create tarball (preserving just the binary name).
+          STUB_DIR="packages/bin-stubs/build/prod/out/Final"
+          OUTPUT_DIR="packages/bin-stubs"
+
+          tar -czf "${OUTPUT_DIR}/${ARTIFACT_NAME}.tar.gz" -C "${STUB_DIR}" "$STUB_FILE"
 
           echo "Created artifact: ${ARTIFACT_NAME}.tar.gz"
-          ls -lh "../${ARTIFACT_NAME}.tar.gz"
+          ls -lh "${OUTPUT_DIR}/${ARTIFACT_NAME}.tar.gz"
 
       - name: Set artifact name
         shell: bash

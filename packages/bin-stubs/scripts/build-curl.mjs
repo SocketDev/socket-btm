@@ -45,6 +45,8 @@ export function getCheckpointChain() {
   validateCheckpointChain(chain, 'build-curl')
   return chain
 }
+// curl and mbedTLS live in bin-stubs, not bin-infra.
+// The stub Makefiles expect curl at packages/bin-stubs/build/downloaded/curl/
 const packageRoot = path.join(__dirname, '..')
 
 const BUILD_MODE = getBuildMode()

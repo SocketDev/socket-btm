@@ -31,7 +31,7 @@ import {
 } from '@socketsecurity/lib/releases/socket-btm'
 import { spawn } from '@socketsecurity/lib/spawn'
 
-import { ensureCurl } from './build-curl.mjs'
+import { ensureCurl } from '../../bin-stubs/scripts/build-curl.mjs'
 
 const logger = getDefaultLogger()
 

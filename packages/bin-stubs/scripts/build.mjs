@@ -31,7 +31,11 @@ async function ensureCurlForStubs() {
   // Respect TARGET_ARCH environment variable for cross-compilation.
   const arch = process.env.TARGET_ARCH || os.arch()
   const libc = detectLibc()
-  const platformArch = getPlatformArch(platform, arch, libc)
+  let platformArch = getPlatformArch(platform, arch, libc)
+
+  // curl release assets use 'win' not 'win32' for Windows.
+  // Map win32-x64 -> win-x64, win32-arm64 -> win-arm64.
+  platformArch = platformArch.replace(/^win32-/, 'win-')
 
   // Check if curl exists in built location first.
   // Use BUILD_MODE env var (defaults to dev).

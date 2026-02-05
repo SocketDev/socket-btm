@@ -77,35 +77,48 @@ CURL_DOWNLOADED_DIR = $(BIN_INFRA_ROOT)/build/downloaded/curl/$(CURL_PLATFORM_AR
 CURL_BUILD_DIR = $(BIN_INFRA_ROOT)/build/$(BUILD_MODE)/out/Final/curl/dist
 
 # Prefer locally built curl over downloaded.
-ifneq (,$(wildcard $(CURL_BUILD_DIR)/libcurl.a))
-    CURL_DIR = $(CURL_BUILD_DIR)
-else ifneq (,$(wildcard $(CURL_DOWNLOADED_DIR)/libcurl.a))
-    CURL_DIR = $(CURL_DOWNLOADED_DIR)
+# Don't check during 'clean' target - only check when actually building.
+ifneq ($(MAKECMDGOALS),clean)
+    ifneq (,$(wildcard $(CURL_BUILD_DIR)/libcurl.a))
+        CURL_DIR = $(CURL_BUILD_DIR)
+    else ifneq (,$(wildcard $(CURL_DOWNLOADED_DIR)/libcurl.a))
+        CURL_DIR = $(CURL_DOWNLOADED_DIR)
+    else
+        $(error curl libraries not found. Expected at $(CURL_BUILD_DIR) or $(CURL_DOWNLOADED_DIR). Run build script to download curl dependencies first.)
+    endif
 else
-    $(error curl libraries not found. Expected at $(CURL_BUILD_DIR) or $(CURL_DOWNLOADED_DIR). Run build script to download curl dependencies first.)
+    # During clean, just set empty CURL_DIR to avoid errors.
+    CURL_DIR =
 endif
 
-CURL_LIB = $(CURL_DIR)/libcurl.a
-MBEDTLS_LIB = $(CURL_DIR)/libmbedtls.a
-MBEDX509_LIB = $(CURL_DIR)/libmbedx509.a
-MBEDCRYPTO_LIB = $(CURL_DIR)/libmbedcrypto.a
+# Only set curl variables if CURL_DIR is not empty.
+ifneq ($(CURL_DIR),)
+    CURL_LIB = $(CURL_DIR)/libcurl.a
+    MBEDTLS_LIB = $(CURL_DIR)/libmbedtls.a
+    MBEDX509_LIB = $(CURL_DIR)/libmbedx509.a
+    MBEDCRYPTO_LIB = $(CURL_DIR)/libmbedcrypto.a
 
-# curl include flags.
-# Use upstream includes if submodule exists (building from source).
-# Otherwise use downloaded includes from CURL_DIR.
-ifneq (,$(wildcard $(CURL_UPSTREAM)/include))
-    CURL_CFLAGS = -I$(CURL_UPSTREAM)/include -I$(CURL_DIR)/include
+    # curl include flags.
+    # Use upstream includes if submodule exists (building from source).
+    # Otherwise use downloaded includes from CURL_DIR.
+    ifneq (,$(wildcard $(CURL_UPSTREAM)/include))
+        CURL_CFLAGS = -I$(CURL_UPSTREAM)/include -I$(CURL_DIR)/include
+    else
+        CURL_CFLAGS = -I$(CURL_DIR)/include
+    endif
+
+    # All libraries needed for curl with mbedTLS.
+    # Order matters: curl -> mbedtls -> mbedx509 -> mbedcrypto.
+    CURL_LIBS = $(CURL_LIB) $(MBEDTLS_LIB) $(MBEDX509_LIB) $(MBEDCRYPTO_LIB)
+
+    # Windows requires additional system libraries for curl/mbedTLS.
+    ifeq ($(OS),Windows_NT)
+        CURL_LDFLAGS = $(CURL_LIBS) -lcrypt32 -ladvapi32
+    else
+        CURL_LDFLAGS = $(CURL_LIBS)
+    endif
 else
-    CURL_CFLAGS = -I$(CURL_DIR)/include
-endif
-
-# All libraries needed for curl with mbedTLS.
-# Order matters: curl -> mbedtls -> mbedx509 -> mbedcrypto.
-CURL_LIBS = $(CURL_LIB) $(MBEDTLS_LIB) $(MBEDX509_LIB) $(MBEDCRYPTO_LIB)
-
-# Windows requires additional system libraries for curl/mbedTLS.
-ifeq ($(OS),Windows_NT)
-    CURL_LDFLAGS = $(CURL_LIBS) -lcrypt32 -ladvapi32
-else
-    CURL_LDFLAGS = $(CURL_LIBS)
+    # No curl during clean or when not found.
+    CURL_CFLAGS =
+    CURL_LDFLAGS =
 endif

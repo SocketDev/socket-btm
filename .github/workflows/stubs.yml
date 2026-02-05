@@ -273,15 +273,21 @@ jobs:
             ARTIFACT_NAME="${ARTIFACT_NAME}-musl"
           fi
 
-          # Determine stub file name.
-          if [ "${{ matrix.os }}" = "windows" ]; then
+          # Determine stub file name and directory.
+          if [ "${{ matrix.os }}" = "linux" ]; then
+            # Docker export puts binary in out/ directory.
+            STUB_DIR="packages/bin-stubs/out"
+            STUB_FILE="smol_stub"
+          elif [ "${{ matrix.os }}" = "windows" ]; then
+            # Native build outputs to build/prod/out/Final/.
+            STUB_DIR="packages/bin-stubs/build/prod/out/Final"
             STUB_FILE="smol_stub.exe"
           else
+            STUB_DIR="packages/bin-stubs/build/prod/out/Final"
             STUB_FILE="smol_stub"
           fi
 
           # Create tarball (preserving just the binary name).
-          STUB_DIR="packages/bin-stubs/build/prod/out/Final"
           OUTPUT_DIR="packages/bin-stubs"
 
           tar -czf "${OUTPUT_DIR}/${ARTIFACT_NAME}.tar.gz" -C "${STUB_DIR}" "$STUB_FILE"

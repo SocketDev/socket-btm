@@ -27,8 +27,8 @@ ifneq (,$(wildcard $(LIEF_LIB)))
     OBJS += $(BUILD_DIR)/compress_lief_common.o $(BUILD_DIR)/pe_compress_lief.o $(BUILD_DIR)/macho_compress_lief.o $(BUILD_DIR)/stub_elf_compress_lief.o
 endif
 
-CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 $(COMMON_INCLUDES) $(LZFSE_CFLAGS) -DVERSION=\"$(VERSION)\"
-CXXFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c++17 $(COMMON_INCLUDES) $(LIEF_CFLAGS) $(LZFSE_CFLAGS) $(LIEF_DEFINES)
+CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 -Isrc $(COMMON_INCLUDES) $(LZFSE_CFLAGS) -DVERSION=\"$(VERSION)\"
+CXXFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c++17 -Isrc $(COMMON_INCLUDES) $(LIEF_CFLAGS) $(LZFSE_CFLAGS) $(LIEF_DEFINES)
 LDFLAGS = -static-libgcc -static-libstdc++ $(LDFLAGS_BASE) $(LZFSE_LDFLAGS) $(LIEF_LDFLAGS) $(LDFLAGS_POST)
 
 # Check that required build tools are available.

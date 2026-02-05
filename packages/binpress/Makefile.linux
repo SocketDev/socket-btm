@@ -28,8 +28,8 @@ ifneq (,$(wildcard $(LIEF_LIB)))
 endif
 
 # CFLAGS/CXXFLAGS/LDFLAGS can be set via environment (e.g., for musl include/lib paths).
-CFLAGS := -Wall -Wextra $(OPT_FLAGS) -std=c11 $(COMMON_INCLUDES) $(LZFSE_CFLAGS) -DVERSION=\"$(VERSION)\" $(CFLAGS)
-CXXFLAGS := -Wall -Wextra $(OPT_FLAGS) -std=c++17 $(COMMON_INCLUDES) $(LIEF_CFLAGS) $(LZFSE_CFLAGS) $(LIEF_DEFINES) $(CXXFLAGS)
+CFLAGS := -Wall -Wextra $(OPT_FLAGS) -std=c11 -Isrc $(COMMON_INCLUDES) $(LZFSE_CFLAGS) -DVERSION=\"$(VERSION)\" $(CFLAGS)
+CXXFLAGS := -Wall -Wextra $(OPT_FLAGS) -std=c++17 -Isrc $(COMMON_INCLUDES) $(LIEF_CFLAGS) $(LZFSE_CFLAGS) $(LIEF_DEFINES) $(CXXFLAGS)
 LDFLAGS := $(LDFLAGS_BASE) $(LZFSE_LDFLAGS) $(LIEF_LDFLAGS) $(LDFLAGS)
 
 # Check that required build tools are available.

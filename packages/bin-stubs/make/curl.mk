@@ -113,7 +113,7 @@ ifneq ($(CURL_DIR),)
 
     # Windows requires additional system libraries for curl/mbedTLS.
     ifeq ($(OS),Windows_NT)
-        CURL_LDFLAGS = $(CURL_LIBS) -lws2_32 -lcrypt32 -ladvapi32
+        CURL_LDFLAGS = $(CURL_LIBS) -lbcrypt -lws2_32 -lcrypt32 -ladvapi32
     else
         CURL_LDFLAGS = $(CURL_LIBS)
     endif

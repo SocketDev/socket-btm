@@ -208,6 +208,14 @@ static int extract_and_execute(int self_fd, const char *exe_path, int argc, char
         }
     }
 
+    // Seek to compressed data start.
+    // The smol config reading may have left the file descriptor at the wrong position
+    // (data_offset if config was present, data_offset - 1176 if not).
+    if (lseek(self_fd, metadata.data_offset, SEEK_SET) == -1) {
+        fprintf(stderr, "Error: Failed to seek to compressed data: %s\n", strerror(errno));
+        return 1;
+    }
+
     // Pass stub location and cache key to node-smol via environment variables.
     // These are read during bootstrap and immediately deleted.
     setenv("SMOL_STUB_PATH", exe_path, 1);

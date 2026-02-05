@@ -10,7 +10,7 @@
     "models": "v13",
     "node-smol": "v60",
     "onnxruntime": "v13",
-    "stubs": "v20",
+    "stubs": "v21",
     "yoga-layout": "v12"
   }
 }

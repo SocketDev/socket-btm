@@ -8,13 +8,19 @@ include ../build-infra/make/platform-windows.mk
 # curl support for HTTPS update checking.
 include make/curl.mk
 
+# LZFSE compression library (required for compression_common.c).
+include ../bin-infra/make/lzfse.mk
+
 TARGET_CLI = smol_stub.exe
-SOURCE_CLI = src/socketsecurity/bin-stubs/pe_stub.c
+SOURCE_CLI = src/socketsecurity/bin-stubs/pe_stub.c \
+             ../bin-infra/src/socketsecurity/bin-infra/smol_segment_reader.c \
+             ../bin-infra/src/socketsecurity/bin-infra/compression_common.c
 
 SRC_DIR = src
 
-CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 -Isrc $(COMMON_INCLUDES) $(CURL_CFLAGS) -DVERSION=\"$(VERSION)\"
-LDFLAGS = $(LDFLAGS_BASE) $(CURL_LDFLAGS)
+# -DCURL_STATICLIB tells curl headers we're linking statically (not DLL)
+CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 -Isrc $(COMMON_INCLUDES) $(CURL_CFLAGS) $(LZFSE_CFLAGS) -DCURL_STATICLIB -DVERSION=\"$(VERSION)\"
+LDFLAGS = $(LDFLAGS_BASE) $(CURL_LDFLAGS) $(LZFSE_LDFLAGS)
 
 # Check that required build tools are available.
 check-tools:
@@ -22,9 +28,9 @@ check-tools:
 	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
 
 # Build stub binary.
-all: check-tools $(OUT_DIR)/$(TARGET_CLI)
+all: check-tools $(LZFSE_LIB) $(OUT_DIR)/$(TARGET_CLI)
 
-$(OUT_DIR)/$(TARGET_CLI): $(SOURCE_CLI) | $(OUT_DIR)
+$(OUT_DIR)/$(TARGET_CLI): $(SOURCE_CLI) $(LZFSE_LIB) | $(OUT_DIR)
 	$(CC) $(CFLAGS) -o $@ $(SOURCE_CLI) $(LDFLAGS)
 	@echo "Built: $(OUT_DIR)/$(TARGET_CLI)"
 

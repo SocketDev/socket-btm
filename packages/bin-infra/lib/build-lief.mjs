@@ -22,7 +22,7 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import {
   detectLibc,
   downloadSocketBtmRelease,
-  getPlatformArch,
+  getAssetPlatformArch,
 } from '@socketsecurity/lib/releases/socket-btm'
 import { spawn } from '@socketsecurity/lib/spawn'
 
@@ -92,9 +92,8 @@ function getCurrentLiefPlatformArch() {
   const libc = detectLibc()
   // Respect TARGET_ARCH for cross-compilation (set by workflows/Makefiles)
   const arch = process.env.TARGET_ARCH || process.arch
-  // LIEF releases use 'win' not 'win32'
-  const platform = process.platform === 'win32' ? 'win' : process.platform
-  return getPlatformArch(platform, arch, libc).replace('win32', 'win')
+  // Use asset platform naming (win instead of win32).
+  return getAssetPlatformArch(process.platform, arch, libc)
 }
 
 /**

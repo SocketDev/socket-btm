@@ -25,7 +25,7 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import {
   detectLibc,
   downloadSocketBtmRelease,
-  getPlatformArch,
+  getAssetPlatformArch,
 } from '@socketsecurity/lib/releases/socket-btm'
 import { spawn } from '@socketsecurity/lib/spawn'
 
@@ -72,12 +72,11 @@ function getStubBinaryName() {
  */
 async function getCurrentStubPlatformArch() {
   const libc = detectLibc()
-  // Stub releases use 'win' not 'win32'.
-  const platform = process.platform === 'win32' ? 'win' : process.platform
   // Respect TARGET_ARCH for cross-compilation (from environment or process.arch)
   const targetArch = process.env.TARGET_ARCH || process.arch
   const arch = targetArch === 'x64' ? 'x64' : targetArch
-  return getPlatformArch(platform, arch, libc).replace('win32', 'win')
+  // Use asset platform naming (win instead of win32).
+  return getAssetPlatformArch(process.platform, arch, libc)
 }
 
 /**

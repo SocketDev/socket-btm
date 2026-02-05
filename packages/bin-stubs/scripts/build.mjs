@@ -15,7 +15,7 @@ import { extract } from 'tar'
 import {
   detectLibc,
   downloadSocketBtmRelease,
-  getPlatformArch,
+  getAssetPlatformArch,
 } from '@socketsecurity/lib/releases/socket-btm'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -31,11 +31,8 @@ async function ensureCurlForStubs() {
   // Respect TARGET_ARCH environment variable for cross-compilation.
   const arch = process.env.TARGET_ARCH || os.arch()
   const libc = detectLibc()
-  let platformArch = getPlatformArch(platform, arch, libc)
-
-  // curl release assets use 'win' not 'win32' for Windows.
-  // Map win32-x64 -> win-x64, win32-arm64 -> win-arm64.
-  platformArch = platformArch.replace(/^win32-/, 'win-')
+  // Use asset platform naming (win instead of win32).
+  const platformArch = getAssetPlatformArch(platform, arch, libc)
 
   // Check if curl exists in built location first.
   // Use BUILD_MODE env var (defaults to dev).

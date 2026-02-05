@@ -151,7 +151,8 @@ export async function downloadCurl(options = {}) {
   const targetDir = path.join(downloadDir, resolvedPlatformArch)
   const versionFile = path.join(targetDir, '.version')
   // Asset naming uses 'win' not 'win32' for Windows.
-  const assetPlatformArch = resolvedPlatformArch.replace('win32', 'win')
+  // Convert internal platform naming (win32) to asset naming (win).
+  const assetPlatformArch = resolvedPlatformArch.replace(/^win32-/, 'win-')
   const assetName = `curl-${assetPlatformArch}.tar.gz`
 
   // Check if already downloaded (unless force).

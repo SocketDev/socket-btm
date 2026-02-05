@@ -14,7 +14,7 @@ import {
   CHECKPOINTS,
   getBuildMode,
 } from 'build-infra/lib/constants'
-import { isMusl } from 'build-infra/lib/platform-mappings'
+import { getAssetPlatformArch, isMusl } from 'build-infra/lib/platform-mappings'
 import { extractTarball } from 'build-infra/lib/tarball-utils'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
@@ -22,7 +22,6 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import {
   detectLibc,
   downloadSocketBtmRelease,
-  getAssetPlatformArch,
 } from '@socketsecurity/lib/releases/socket-btm'
 import { spawn } from '@socketsecurity/lib/spawn'
 

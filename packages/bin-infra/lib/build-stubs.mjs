@@ -18,14 +18,16 @@ import {
   getBuildMode,
   validateCheckpointChain,
 } from 'build-infra/lib/constants'
-import { tarSupportsNoAbsoluteNames } from 'build-infra/lib/platform-mappings'
+import {
+  getAssetPlatformArch,
+  tarSupportsNoAbsoluteNames,
+} from 'build-infra/lib/platform-mappings'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import {
   detectLibc,
   downloadSocketBtmRelease,
-  getAssetPlatformArch,
 } from '@socketsecurity/lib/releases/socket-btm'
 import { spawn } from '@socketsecurity/lib/spawn'
 

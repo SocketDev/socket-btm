@@ -10,12 +10,12 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { buildBinSuitePackage } from 'bin-infra/lib/builder'
+import { getAssetPlatformArch } from 'build-infra/lib/platform-mappings'
 import { extract } from 'tar'
 
 import {
   detectLibc,
   downloadSocketBtmRelease,
-  getAssetPlatformArch,
 } from '@socketsecurity/lib/releases/socket-btm'
 
 const __filename = fileURLToPath(import.meta.url)

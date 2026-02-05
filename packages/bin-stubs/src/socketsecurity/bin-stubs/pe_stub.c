@@ -194,10 +194,29 @@ static int build_windows_cmdline(char *cmdline, size_t cmdline_size,
 }
 
 /**
+ * Windows setenv wrapper (Windows uses _putenv_s instead of setenv).
+ * Returns 0 on success, -1 on error.
+ */
+static int win_setenv(const char *name, const char *value, int overwrite) {
+    if (!name || !value) return -1;
+
+    /* Check if variable exists if overwrite is 0. */
+    if (!overwrite && getenv(name) != NULL) {
+        return 0;
+    }
+
+    /* Use _putenv_s to set the variable. */
+    if (_putenv_s(name, value) != 0) {
+        return -1;
+    }
+    return 0;
+}
+
+/**
  * Extract and execute compressed binary
  */
 static int extract_and_execute(int self_fd, const char *exe_path, int argc, char *argv[],
-                                const update_config_t *update_config) {
+                                update_config_t *update_config) {
     int exit_code = 1;
     unsigned char *compressed_data = NULL;
     unsigned char *decompressed_data = NULL;
@@ -241,16 +260,16 @@ static int extract_and_execute(int self_fd, const char *exe_path, int argc, char
             return 1;
         }
 
-        if (update_config_from_binary(&update_config, smol_config_binary, SMOL_CONFIG_BINARY_LEN) == 0) {
+        if (update_config_from_binary(update_config, smol_config_binary, SMOL_CONFIG_BINARY_LEN) == 0) {
             // Set the fake_argv_env variable if configured.
-            if (update_config.fake_argv_env[0] != '\0') {
+            if (update_config->fake_argv_env[0] != '\0') {
                 // Tell bootstrap which variable name to check.
-                setenv("SMOL_FAKE_ARGV_NAME", update_config.fake_argv_env, 1);
+                win_setenv("SMOL_FAKE_ARGV_NAME", update_config->fake_argv_env, 1);
 
                 // Check if already set by user (don't override).
-                if (getenv(update_config.fake_argv_env) == NULL) {
+                if (getenv(update_config->fake_argv_env) == NULL) {
                     // Not set, so we use auto-detection (set to empty to let bootstrap decide).
-                    setenv(update_config.fake_argv_env, "", 0);
+                    win_setenv(update_config->fake_argv_env, "", 0);
                 }
             }
         }
@@ -258,8 +277,8 @@ static int extract_and_execute(int self_fd, const char *exe_path, int argc, char
 
     // Pass stub location and cache key to node-smol via environment variables.
     // These are read during bootstrap and immediately deleted.
-    setenv("SMOL_STUB_PATH", exe_path, 1);
-    setenv("SMOL_CACHE_KEY", cache_key, 1);
+    win_setenv("SMOL_STUB_PATH", exe_path, 1);
+    win_setenv("SMOL_CACHE_KEY", cache_key, 1);
 
     // Extract sizes for local use.
     uint64_t compressed_size = metadata.compressed_size;

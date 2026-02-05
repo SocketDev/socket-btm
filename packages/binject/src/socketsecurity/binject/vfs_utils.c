@@ -1,6 +1,11 @@
 /**
  * VFS Utilities Implementation
+ *
+ * Note: VFS functionality uses Unix-specific APIs (fork, exec, tar, gzip).
+ * Windows stubs are provided at the end of this file.
  */
+
+#ifndef _WIN32
 
 #define _POSIX_C_SOURCE 200809L
 
@@ -350,3 +355,58 @@ long get_file_size(const char *path) {
 
     return (long)st.st_size;
 }
+
+#else /* _WIN32 */
+
+/**
+ * Windows stubs for VFS utilities.
+ * VFS functionality requires Unix APIs (fork, exec, tar, gzip) not available on Windows.
+ */
+
+#include "socketsecurity/binject/vfs_utils.h"
+#include <stdio.h>
+#include <sys/stat.h>
+
+vfs_source_type_t detect_vfs_source_type(const char *path) {
+    (void)path;
+    fprintf(stderr, "Error: VFS utilities are not supported on Windows\n");
+    return VFS_SOURCE_ERROR;
+}
+
+char* create_vfs_archive_from_dir(const char *dir_path) {
+    (void)dir_path;
+    fprintf(stderr, "Error: VFS archive creation is not supported on Windows\n");
+    return NULL;
+}
+
+char* compress_tar_archive(const char *tar_path) {
+    (void)tar_path;
+    fprintf(stderr, "Error: TAR compression is not supported on Windows\n");
+    return NULL;
+}
+
+char* resolve_relative_path(const char *base_path, const char *source_path) {
+    (void)base_path;
+    (void)source_path;
+    fprintf(stderr, "Error: Path resolution is not supported on Windows\n");
+    return NULL;
+}
+
+long get_file_size(const char *path) {
+    if (!path) {
+        return -1;
+    }
+
+    struct stat st;
+    if (stat(path, &st) != 0) {
+        return -1;
+    }
+
+    if (!(st.st_mode & _S_IFREG)) {
+        return -1;
+    }
+
+    return (long)st.st_size;
+}
+
+#endif /* _WIN32 */

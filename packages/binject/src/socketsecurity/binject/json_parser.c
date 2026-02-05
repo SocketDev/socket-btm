@@ -4,6 +4,8 @@
  * Uses cJSON to parse sea-config.json cleanly and safely.
  */
 
+#define _POSIX_C_SOURCE 200809L
+
 #include "socketsecurity/binject/json_parser.h"
 #include <stdio.h>
 #include <stdlib.h>

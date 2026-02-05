@@ -2,6 +2,8 @@
  * VFS Utilities Implementation
  */
 
+#define _POSIX_C_SOURCE 200809L
+
 #include "socketsecurity/binject/vfs_utils.h"
 #include "socketsecurity/build-infra/file_io_common.h"
 #include <errno.h>

@@ -3,7 +3,11 @@
  *
  * Extracted from remove_signature.c to provide just the function
  * without the main() entry point for use in other tools.
+ *
+ * Note: This is macOS-specific and only compiled on __APPLE__.
  */
+
+#ifdef __APPLE__
 
 #include <errno.h>
 #include <fcntl.h>
@@ -129,3 +133,19 @@ int remove_macho_signature(const char *path) {
 
     return found ? 0 : 1;
 }
+
+#else /* !__APPLE__ */
+
+#include <stdio.h>
+
+/**
+ * Stub for non-macOS platforms.
+ * Mach-O signatures only exist on macOS.
+ */
+int remove_macho_signature(const char *path) {
+    (void)path;  // Unused
+    fprintf(stderr, "Error: remove_macho_signature is only supported on macOS\n");
+    return -1;
+}
+
+#endif /* __APPLE__ */

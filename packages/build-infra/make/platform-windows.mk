@@ -37,8 +37,8 @@ LDFLAGS_POST = -lws2_32
 # Cabinet.dll import library generation.
 IMPORT_LIB = $(OUT_DIR)/libcabinet.a
 
-$(IMPORT_LIB): ../bin-infra/src/cabinet.def | $(OUT_DIR)
-	dlltool -d ../bin-infra/src/cabinet.def -l $@
+$(IMPORT_LIB): $(BIN_INFRA_SRC)/cabinet.def | $(OUT_DIR)
+	dlltool -d $(BIN_INFRA_SRC)/cabinet.def -l $@
 
 # Check-tools must include dlltool.
 define CHECK_TOOLS_EXTRA

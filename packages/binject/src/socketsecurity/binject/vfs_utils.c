@@ -3,6 +3,7 @@
  */
 
 #include "socketsecurity/binject/vfs_utils.h"
+#include "socketsecurity/build-infra/file_io_common.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
@@ -69,11 +70,8 @@ char* create_vfs_archive_from_dir(const char *dir_path) {
         fprintf(stderr, "Error: Failed to create temp file: %s\n", strerror(errno));
         return NULL;
     }
-    // Set FD_CLOEXEC to prevent file descriptor leaks to child processes.
-    int flags = fcntl(fd, F_GETFD);
-    if (flags != -1) {
-        fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
-    }
+    // Prevent file descriptor/handle leaks to child processes (cross-platform).
+    file_io_set_cloexec(fd);
     close(fd);
 
     // Rename to add .tar.gz suffix.
@@ -186,11 +184,8 @@ char* compress_tar_archive(const char *tar_path) {
         fprintf(stderr, "Error: Failed to create temp file: %s\n", strerror(errno));
         return NULL;
     }
-    // Set FD_CLOEXEC to prevent file descriptor leaks to child processes.
-    int flags = fcntl(fd, F_GETFD);
-    if (flags != -1) {
-        fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
-    }
+    // Prevent file descriptor/handle leaks to child processes (cross-platform).
+    file_io_set_cloexec(fd);
     close(fd);
 
     // Rename to add .tar.gz suffix.

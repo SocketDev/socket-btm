@@ -102,4 +102,10 @@ endif
 # All libraries needed for curl with mbedTLS.
 # Order matters: curl -> mbedtls -> mbedx509 -> mbedcrypto.
 CURL_LIBS = $(CURL_LIB) $(MBEDTLS_LIB) $(MBEDX509_LIB) $(MBEDCRYPTO_LIB)
-CURL_LDFLAGS = $(CURL_LIBS)
+
+# Windows requires additional system libraries for curl/mbedTLS.
+ifeq ($(OS),Windows_NT)
+    CURL_LDFLAGS = $(CURL_LIBS) -lcrypt32 -ladvapi32
+else
+    CURL_LDFLAGS = $(CURL_LIBS)
+endif

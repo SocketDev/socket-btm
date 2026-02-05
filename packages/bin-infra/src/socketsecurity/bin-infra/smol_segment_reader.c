@@ -136,9 +136,15 @@ int smol_read_metadata(int fd, smol_metadata_t *metadata) {
         return -1;
     }
 
-    /* Seek to metadata (right after marker). */
+    /* Seek to marker position. */
     if (lseek(fd, data_offset, SEEK_SET) == -1) {
-        fprintf(stderr, "Error: Failed to seek to metadata: %s\n", strerror(errno));
+        fprintf(stderr, "Error: Failed to seek to marker: %s\n", strerror(errno));
+        return -1;
+    }
+
+    /* Skip the marker to position at metadata. */
+    if (lseek(fd, MAGIC_MARKER_LEN, SEEK_CUR) == -1) {
+        fprintf(stderr, "Error: Failed to skip marker: %s\n", strerror(errno));
         return -1;
     }
 

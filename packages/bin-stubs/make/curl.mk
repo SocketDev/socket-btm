@@ -57,18 +57,18 @@ else ifeq ($(UNAME_S),Linux)
         CURL_PLATFORM_ARCH := linux-$(CURL_ARCH)
     endif
 else
-    # Windows - use win32 for directory paths.
+    # Windows - use win for directory paths to match release asset names.
     # Use TARGET_ARCH if specified for cross-compilation.
     ifdef TARGET_ARCH
         ifeq ($(TARGET_ARCH),aarch64)
-            CURL_PLATFORM_ARCH := win32-arm64
+            CURL_PLATFORM_ARCH := win-arm64
         else ifeq ($(TARGET_ARCH),arm64)
-            CURL_PLATFORM_ARCH := win32-arm64
+            CURL_PLATFORM_ARCH := win-arm64
         else
-            CURL_PLATFORM_ARCH := win32-x64
+            CURL_PLATFORM_ARCH := win-x64
         endif
     else
-        CURL_PLATFORM_ARCH := win32-x64
+        CURL_PLATFORM_ARCH := win-x64
     endif
 endif
 
@@ -79,43 +79,33 @@ CURL_BUILD_DIR = $(BIN_INFRA_ROOT)/build/$(BUILD_MODE)/out/Final/curl/dist
 # Prefer locally built curl over downloaded.
 ifneq (,$(wildcard $(CURL_BUILD_DIR)/libcurl.a))
     CURL_DIR = $(CURL_BUILD_DIR)
-    HAVE_CURL = 1
 else ifneq (,$(wildcard $(CURL_DOWNLOADED_DIR)/libcurl.a))
     CURL_DIR = $(CURL_DOWNLOADED_DIR)
-    HAVE_CURL = 1
 else
-    CURL_DIR =
-    HAVE_CURL = 0
+    $(error curl libraries not found. Expected at $(CURL_BUILD_DIR) or $(CURL_DOWNLOADED_DIR). Run build script to download curl dependencies first.)
 endif
 
-# Only configure curl if available.
-ifeq ($(HAVE_CURL),1)
-    CURL_LIB = $(CURL_DIR)/libcurl.a
-    MBEDTLS_LIB = $(CURL_DIR)/libmbedtls.a
-    MBEDX509_LIB = $(CURL_DIR)/libmbedx509.a
-    MBEDCRYPTO_LIB = $(CURL_DIR)/libmbedcrypto.a
+CURL_LIB = $(CURL_DIR)/libcurl.a
+MBEDTLS_LIB = $(CURL_DIR)/libmbedtls.a
+MBEDX509_LIB = $(CURL_DIR)/libmbedx509.a
+MBEDCRYPTO_LIB = $(CURL_DIR)/libmbedcrypto.a
 
-    # curl include flags.
-    # Use upstream includes if submodule exists (building from source).
-    # Otherwise use downloaded includes from CURL_DIR.
-    ifneq (,$(wildcard $(CURL_UPSTREAM)/include))
-        CURL_CFLAGS = -I$(CURL_UPSTREAM)/include -I$(CURL_DIR)/include -DHAVE_CURL
-    else
-        CURL_CFLAGS = -I$(CURL_DIR)/include -DHAVE_CURL
-    endif
-
-    # All libraries needed for curl with mbedTLS.
-    # Order matters: curl -> mbedtls -> mbedx509 -> mbedcrypto.
-    CURL_LIBS = $(CURL_LIB) $(MBEDTLS_LIB) $(MBEDX509_LIB) $(MBEDCRYPTO_LIB)
-
-    # Windows requires additional system libraries for curl/mbedTLS.
-    ifeq ($(OS),Windows_NT)
-        CURL_LDFLAGS = $(CURL_LIBS) -lcrypt32 -ladvapi32
-    else
-        CURL_LDFLAGS = $(CURL_LIBS)
-    endif
+# curl include flags.
+# Use upstream includes if submodule exists (building from source).
+# Otherwise use downloaded includes from CURL_DIR.
+ifneq (,$(wildcard $(CURL_UPSTREAM)/include))
+    CURL_CFLAGS = -I$(CURL_UPSTREAM)/include -I$(CURL_DIR)/include
 else
-    # curl not available - build without HTTPS support.
-    CURL_CFLAGS =
-    CURL_LDFLAGS =
+    CURL_CFLAGS = -I$(CURL_DIR)/include
+endif
+
+# All libraries needed for curl with mbedTLS.
+# Order matters: curl -> mbedtls -> mbedx509 -> mbedcrypto.
+CURL_LIBS = $(CURL_LIB) $(MBEDTLS_LIB) $(MBEDX509_LIB) $(MBEDCRYPTO_LIB)
+
+# Windows requires additional system libraries for curl/mbedTLS.
+ifeq ($(OS),Windows_NT)
+    CURL_LDFLAGS = $(CURL_LIBS) -lcrypt32 -ladvapi32
+else
+    CURL_LDFLAGS = $(CURL_LIBS)
 endif

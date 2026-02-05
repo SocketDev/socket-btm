@@ -16,6 +16,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#ifdef _WIN32
+#include <io.h>
+#include <windows.h>
+#endif
+
 // Forward declarations of embedded stubs (defined in embedded_stubs.c)
 extern const unsigned char stub_darwin_arm64[];
 extern const size_t stub_darwin_arm64_len;
@@ -629,9 +634,16 @@ int write_temp_stub(const embedded_stub_t *stub, char *output_path,
     return -1;
   }
 
-  // Set FD_CLOEXEC to prevent file descriptor leaks to child processes.
-  // Note: Not available on Windows, but leak prevention is non-critical.
-#ifndef _WIN32
+  // Set FD_CLOEXEC (POSIX) or clear HANDLE_FLAG_INHERIT (Windows) to prevent
+  // file descriptor/handle leaks to child processes.
+#ifdef _WIN32
+  // Windows: Convert file descriptor to HANDLE and clear inherit flag
+  HANDLE handle = (HANDLE)_get_osfhandle(fd);
+  if (handle != INVALID_HANDLE_VALUE) {
+    SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0);
+  }
+#else
+  // POSIX: Set FD_CLOEXEC flag
   int flags = fcntl(fd, F_GETFD);
   if (flags != -1) {
     fcntl(fd, F_SETFD, flags | FD_CLOEXEC);

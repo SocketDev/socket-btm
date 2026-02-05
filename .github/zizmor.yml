@@ -5,14 +5,17 @@ rules:
   cache-poisoning:
     ignore:
       # False positive: We explicitly disabled caching with cache: ''
-      # Line 38: checks job - Setup Node.js step
-      - ci.yml:38
+      # Line 43: checks job - Setup Node.js step
+      - ci.yml:43
       # False positive: We explicitly disabled caching with cache: ''
-      # Line 92: test job - Setup Node.js step
-      - ci.yml:92
+      # Line 97: test job - Setup Node.js step
+      - ci.yml:97
+      # False positive: Legitimate use of pnpm cache for build dependencies
+      # Line 181: stubs workflow - Setup Node.js step
+      - stubs.yml:181
 
   template-injection:
     ignore:
       # False positive: Template expansion is in a comment, not executable code
-      # Line 451: Comment explaining GitHub Actions syntax
-      - node-smol.yml:451
+      # Line 469: Comment explaining GitHub Actions syntax
+      - node-smol.yml:469

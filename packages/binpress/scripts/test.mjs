@@ -109,17 +109,28 @@ async function main() {
     try {
       await access(binaryPath)
       binaryExists = true
-      logger.info(
-        'Binary already exists (restored from checkpoint), skipping build\n',
-      )
+      if (!process.env.CI) {
+        logger.info(
+          'Binary already exists (restored from checkpoint), skipping build\n',
+        )
+      }
     } catch {
       // Binary doesn't exist, need to build
       binaryExists = false
     }
 
-    if (!binaryExists) {
+    // In CI, always rebuild to ensure embedded stubs are fresh (checkpoint may have stale stubs)
+    const shouldBuild = !binaryExists || process.env.CI
+
+    if (shouldBuild) {
       // Try to build (in case binary isn't built yet)
-      logger.info('Building binpress...\n')
+      if (process.env.CI && binaryExists) {
+        logger.info(
+          'Rebuilding binpress in CI to ensure fresh embedded stubs...\n',
+        )
+      } else {
+        logger.info('Building binpress...\n')
+      }
       try {
         const makefile = selectMakefile()
         await runCommand('make', ['-f', makefile, 'all'], packageRoot)

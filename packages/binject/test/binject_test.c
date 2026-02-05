@@ -7,8 +7,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../src/binject.h"
-#include "../../bin-infra/src/socketsecurity/bin-infra/test.h"
+#include "socketsecurity/binject/binject.h"
+#include "socketsecurity/bin-infra/test.h"
 #include "test_helpers.h"
 
 

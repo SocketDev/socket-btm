@@ -29,6 +29,11 @@
 #include <errno.h>
 #include <libgen.h>
 
+/* Windows doesn't have O_CLOEXEC, define to 0 (no-op) */
+#ifndef O_CLOEXEC
+#define O_CLOEXEC 0
+#endif
+
 #include "socketsecurity/bin-infra/compression_constants.h"
 #include "socketsecurity/bin-infra/compression_common.h"
 #include "socketsecurity/bin-infra/marker_finder.h"

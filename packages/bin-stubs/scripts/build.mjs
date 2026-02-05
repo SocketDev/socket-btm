@@ -93,7 +93,7 @@ async function ensureCurlForStubs() {
 }
 
 buildBinSuitePackage({
-  packageName: 'bin-stubs',
+  packageName: 'smol_stub',
   packageDir: packageRoot,
   beforeBuild: async () => {
     // Try to ensure curl libraries are available (optional for stub builds).
@@ -106,5 +106,14 @@ buildBinSuitePackage({
         `⚠ curl libraries not available (${error.message}), building stub without HTTPS update checking support`,
       )
     }
+  },
+  smokeTest: async binaryPath => {
+    // Custom smoke test for smol_stub (doesn't have --version flag).
+    // Just verify binary exists and has reasonable size.
+    const stats = await fs.stat(binaryPath)
+    if (stats.size < 1000) {
+      throw new Error(`Binary too small: ${stats.size} bytes (expected >1KB)`)
+    }
+    console.log(`✓ Stub binary validated: ${stats.size} bytes`)
   },
 })

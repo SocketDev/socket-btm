@@ -125,7 +125,7 @@ static int decompress_lzfse(const unsigned char *compressed_data, size_t compres
  * Extract and execute compressed binary
  */
 static int extract_and_execute(int self_fd, const char *exe_path, int argc, char *argv[], char *envp[],
-                                const update_config_t *update_config) {
+                                update_config_t *update_config) {
     int exit_code = 1;
     unsigned char *compressed_data = NULL;
     unsigned char *decompressed_data = NULL;
@@ -188,19 +188,19 @@ static int extract_and_execute(int self_fd, const char *exe_path, int argc, char
             return 1;
         }
 
-        if (update_config_from_binary(&update_config, smol_config_binary, SMOL_CONFIG_BINARY_LEN) == 0) {
+        if (update_config_from_binary(update_config, smol_config_binary, SMOL_CONFIG_BINARY_LEN) == 0) {
             DEBUG_LOG("Loaded embedded smol config\n");
 
             // Set the fake_argv_env variable if configured.
-            if (update_config.fake_argv_env[0] != '\0') {
+            if (update_config->fake_argv_env[0] != '\0') {
                 // Tell bootstrap which variable name to check.
-                setenv("SMOL_FAKE_ARGV_NAME", update_config.fake_argv_env, 1);
+                setenv("SMOL_FAKE_ARGV_NAME", update_config->fake_argv_env, 1);
 
                 // Check if already set by user (don't override).
-                if (getenv(update_config.fake_argv_env) == NULL) {
+                if (getenv(update_config->fake_argv_env) == NULL) {
                     // Not set, so we use auto-detection (set to empty to let bootstrap decide).
-                    setenv(update_config.fake_argv_env, "", 0);
-                    DEBUG_LOG("Set %s for fake argv control\n", update_config.fake_argv_env);
+                    setenv(update_config->fake_argv_env, "", 0);
+                    DEBUG_LOG("Set %s for fake argv control\n", update_config->fake_argv_env);
                 }
             }
         } else {

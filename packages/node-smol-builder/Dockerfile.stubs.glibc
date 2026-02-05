@@ -50,7 +50,7 @@ COPY packages/node-smol-builder ./packages/node-smol-builder
 
 # Install workspace dependencies.
 ENV CI=true
-RUN pnpm install --frozen-lockfile --filter bin-infra --filter node-smol-builder
+RUN pnpm install --frozen-lockfile --filter bin-infra --filter bin-stubs --filter node-smol-builder
 
 # Build stubs.
 ARG BUILD_MODE=prod

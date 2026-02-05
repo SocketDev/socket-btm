@@ -105,14 +105,16 @@ jobs:
 
       - name: Enable debug logging
         if: inputs.debug != '0'
+        env:
+          DEBUG_INPUT: ${{ inputs.debug }}
         run: |
-          if [ "${{ inputs.debug }}" = "1" ]; then
+          if [ "$DEBUG_INPUT" = "1" ]; then
             echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
             echo "ACTIONS_RUNNER_DEBUG=true" >> $GITHUB_ENV
             echo "Debug mode: full"
           else
-            echo "DEBUG=${{ inputs.debug }}" >> $GITHUB_ENV
-            echo "Debug mode: ${{ inputs.debug }}"
+            echo "DEBUG=$DEBUG_INPUT" >> $GITHUB_ENV
+            echo "Debug mode: $DEBUG_INPUT"
           fi
 
       - name: Setup pnpm

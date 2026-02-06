@@ -22,7 +22,13 @@
       },
       'defines': [
         'NDEBUG',
-        '_POSIX_C_SOURCE',
+      ],
+      'conditions': [
+        ['OS!="win"', {
+          'defines': [
+            '_POSIX_C_SOURCE',
+          ],
+        }],
       ],
       'cflags': [
         '-O2',

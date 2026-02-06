@@ -1,12 +1,12 @@
 ---
-name: syncing-node
-description: Synchronizes socket-btm with upstream Node.js by updating the submodule to latest tag, updating `.node-version`, regenerating patches, validating build and tests. Use when updating to new Node.js releases, applying security patches, or upgrading Node version across the codebase.
+name: syncing-upstream
+description: Synchronizes socket-btm with upstream Node.js by updating the submodule to latest tag, updating `.node-version`, regenerating patches, validating build and tests. Use when updating to new Node.js releases, applying security patches, or maintaining upstream synchronization.
 user-invocable: true
 disable-model-invocation: false
 allowed-tools: Task
 ---
 
-# syncing-node
+# syncing-upstream
 
 <task>
 Your task is to spawn an autonomous agent that synchronizes socket-btm with upstream Node.js by updating the submodule to the latest stable tag, updating `.node-version`, regenerating patches, validating build and tests pass, and committing changes with detailed metrics.

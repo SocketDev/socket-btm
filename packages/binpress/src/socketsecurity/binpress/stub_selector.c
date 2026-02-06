@@ -458,14 +458,10 @@ const embedded_stub_t *select_stub_with_target(
     const char *target_arch,
     const char *target_libc
 ) {
-  static char parsed_platform[16];
-  static char parsed_arch[16];
-  static char parsed_libc[16];
-
-  // Clear static buffers on each invocation (static = {0} only initializes once)
-  memset(parsed_platform, 0, sizeof(parsed_platform));
-  memset(parsed_arch, 0, sizeof(parsed_arch));
-  memset(parsed_libc, 0, sizeof(parsed_libc));
+  // Use separate static buffers for each call (thread-safe for single execution)
+  static char parsed_platform_buf[16];
+  static char parsed_arch_buf[16];
+  static char parsed_libc_buf[16];
 
   DEBUG_LOG("select_stub_with_target: target=%s, target_platform=%s, target_arch=%s, target_libc=%s\n",
             target ? target : "NULL",
@@ -475,19 +471,25 @@ const embedded_stub_t *select_stub_with_target(
 
   // Priority 1: Parse combined target string if provided
   if (target) {
+    // Clear buffers before parsing
+    parsed_platform_buf[0] = '\0';
+    parsed_arch_buf[0] = '\0';
+    parsed_libc_buf[0] = '\0';
+
     DEBUG_LOG("Parsing combined target string: %s\n", target);
     if (parse_target_string(target,
-                            parsed_platform, sizeof(parsed_platform),
-                            parsed_arch, sizeof(parsed_arch),
-                            parsed_libc, sizeof(parsed_libc)) != 0) {
+                            parsed_platform_buf, sizeof(parsed_platform_buf),
+                            parsed_arch_buf, sizeof(parsed_arch_buf),
+                            parsed_libc_buf, sizeof(parsed_libc_buf)) != 0) {
       fprintf(stderr, "Error: Failed to parse target string: %s\n", target);
+      fflush(stderr);
       return NULL;
     }
     DEBUG_LOG("Parsed: platform=%s, arch=%s, libc=%s\n",
-              parsed_platform, parsed_arch, parsed_libc[0] ? parsed_libc : "NULL");
-    target_platform = parsed_platform;
-    target_arch = parsed_arch;
-    target_libc = parsed_libc[0] ? parsed_libc : NULL;
+              parsed_platform_buf, parsed_arch_buf, parsed_libc_buf[0] ? parsed_libc_buf : "NULL");
+    target_platform = parsed_platform_buf;
+    target_arch = parsed_arch_buf;
+    target_libc = parsed_libc_buf[0] ? parsed_libc_buf : NULL;
   }
 
   // Priority 2: Use individual target parameters if no combined target
@@ -566,6 +568,9 @@ const embedded_stub_t *select_stub_with_target(
 
   // Select stub based on final platform/arch/libc
   static embedded_stub_t stub;
+  // Initialize all fields explicitly to avoid undefined behavior
+  stub.data = NULL;
+  stub.size = 0;
   stub.platform = final_platform;
   stub.arch = final_arch;
   stub.libc = final_libc;
@@ -573,8 +578,12 @@ const embedded_stub_t *select_stub_with_target(
   // Validate final_platform and final_arch are not NULL
   if (!final_platform || !final_arch) {
     fprintf(stderr, "Error: Missing platform or architecture specification\n");
+    fflush(stderr);
     return NULL;
   }
+
+  DEBUG_LOG("Final target: platform=%s, arch=%s, libc=%s\n",
+            final_platform, final_arch, final_libc ? final_libc : "NULL");
 
   if (strcmp(final_platform, "darwin") == 0) {
     if (strcmp(final_arch, "arm64") == 0) {
@@ -582,6 +591,7 @@ const embedded_stub_t *select_stub_with_target(
       stub.size = stub_darwin_arm64_len;
       if (stub.size == 0) {
         fprintf(stderr, "Error: darwin-arm64 stub not available (size=0). Please ensure stubs are downloaded correctly.\n");
+        fflush(stderr);
         return NULL;
       }
       return &stub;
@@ -591,6 +601,7 @@ const embedded_stub_t *select_stub_with_target(
       stub.size = stub_darwin_x64_len;
       if (stub.size == 0) {
         fprintf(stderr, "Error: darwin-x64 stub not available (size=0). Please ensure stubs are downloaded correctly.\n");
+        fflush(stderr);
         return NULL;
       }
       return &stub;
@@ -609,6 +620,7 @@ const embedded_stub_t *select_stub_with_target(
       if (stub.size == 0) {
         fprintf(stderr, "Error: linux-arm64%s stub not available (size=0). Please ensure stubs are downloaded correctly.\n",
                 use_musl ? "-musl" : "");
+        fflush(stderr);
         return NULL;
       }
       return &stub;
@@ -620,6 +632,7 @@ const embedded_stub_t *select_stub_with_target(
       if (stub.size == 0) {
         fprintf(stderr, "Error: linux-x64%s stub not available (size=0). Please ensure stubs are downloaded correctly.\n",
                 use_musl ? "-musl" : "");
+        fflush(stderr);
         return NULL;
       }
       return &stub;
@@ -634,6 +647,7 @@ const embedded_stub_t *select_stub_with_target(
       stub.size = stub_win_arm64_len;
       if (stub.size == 0) {
         fprintf(stderr, "Error: win32-arm64 stub not available (size=0). Please ensure stubs are downloaded correctly.\n");
+        fflush(stderr);
         return NULL;
       }
       return &stub;
@@ -643,6 +657,7 @@ const embedded_stub_t *select_stub_with_target(
       stub.size = stub_win_x64_len;
       if (stub.size == 0) {
         fprintf(stderr, "Error: win32-x64 stub not available (size=0). Please ensure stubs are downloaded correctly.\n");
+        fflush(stderr);
         return NULL;
       }
       return &stub;

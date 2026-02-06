@@ -339,13 +339,31 @@ static int execute_update_command(const update_config_t *config, const char *bin
         /* argv[0] = binary_path */
         argv[argc++] = (char*)binary_path;
 
-        /* Parse config->command by splitting on spaces. */
+        /* Parse config->command by splitting on spaces (manual parsing to avoid strtok issues). */
         char cmd_copy[1024];
         snprintf(cmd_copy, sizeof(cmd_copy), "%s", config->command);
-        char *token = strtok(cmd_copy, " ");
-        while (token && argc < 63) {
-            argv[argc++] = token;
-            token = strtok(NULL, " ");
+
+        /* Manual space-splitting parser (avoids strtok static state issues). */
+        char *p = cmd_copy;
+        while (*p && argc < 63) {
+            /* Skip leading spaces. */
+            while (*p == ' ') p++;
+            if (*p == '\0') break;
+
+            /* Start of token. */
+            char *token_start = p;
+
+            /* Find end of token (next space or end of string). */
+            while (*p && *p != ' ') p++;
+
+            /* Null-terminate token if we found a space. */
+            if (*p == ' ') {
+                *p = '\0';
+                p++;
+            }
+
+            /* Add token to argv. */
+            argv[argc++] = token_start;
         }
         argv[argc] = NULL;
 

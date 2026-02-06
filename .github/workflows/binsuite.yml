@@ -335,7 +335,7 @@ jobs:
           matrix.os == 'linux'
         shell: bash
         run: |
-          git submodule update --init --recursive packages/bin-infra/upstream/lzfse
+          git submodule update --init packages/bin-infra/upstream/lzfse
 
       - name: Initialize libdeflate submodule before Docker build (Linux)
         if: |
@@ -344,7 +344,7 @@ jobs:
           matrix.os == 'linux'
         shell: bash
         run: |
-          git submodule update --init --recursive packages/binject/upstream/libdeflate
+          git submodule update --init packages/binject/upstream/libdeflate
 
       - name: Get lzfse submodule SHA (binpress)
         if: |
@@ -849,7 +849,7 @@ jobs:
           matrix.os == 'linux'
         shell: bash
         run: |
-          git submodule update --init --recursive packages/bin-infra/upstream/lzfse
+          git submodule update --init packages/bin-infra/upstream/lzfse
 
       - name: Initialize libdeflate submodule before Docker build (Linux)
         if: |
@@ -858,7 +858,7 @@ jobs:
           matrix.os == 'linux'
         shell: bash
         run: |
-          git submodule update --init --recursive packages/binject/upstream/libdeflate
+          git submodule update --init packages/binject/upstream/libdeflate
 
       - name: Get lzfse submodule SHA (binflate)
         if: |
@@ -1339,7 +1339,7 @@ jobs:
           matrix.os == 'linux'
         shell: bash
         run: |
-          git submodule update --init --recursive packages/bin-infra/upstream/lzfse
+          git submodule update --init packages/bin-infra/upstream/lzfse
 
       - name: Initialize libdeflate submodule before Docker build (Linux)
         if: |
@@ -1348,7 +1348,7 @@ jobs:
           matrix.os == 'linux'
         shell: bash
         run: |
-          git submodule update --init --recursive packages/binject/upstream/libdeflate
+          git submodule update --init packages/binject/upstream/libdeflate
 
       - name: Initialize cJSON submodule before Docker build (Linux)
         if: |
@@ -1357,7 +1357,7 @@ jobs:
           matrix.os == 'linux'
         shell: bash
         run: |
-          git submodule update --init --recursive packages/binject/upstream/cJSON
+          git submodule update --init packages/binject/upstream/cJSON
 
       - name: Get submodule SHAs for cache (binject)
         if: |

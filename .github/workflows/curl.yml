@@ -99,7 +99,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          submodules: recursive
           persist-credentials: false
 
       - name: Enable debug logging
@@ -131,12 +130,12 @@ jobs:
       - name: Initialize curl submodule
         shell: bash
         run: |
-          git submodule update --init --recursive packages/bin-stubs/upstream/curl
+          git submodule update --init packages/bin-stubs/upstream/curl
 
       - name: Initialize mbedtls submodule
         shell: bash
         run: |
-          git submodule update --init --recursive packages/bin-stubs/upstream/mbedtls
+          git submodule update --init packages/bin-stubs/upstream/mbedtls
 
       - name: Set build mode
         id: build-mode

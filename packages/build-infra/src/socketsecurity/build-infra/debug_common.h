@@ -84,14 +84,18 @@ static inline int _debug_is_enabled(const char *ns) {
     }
 
     // Parse comma-separated patterns
-    // Copy to temp buffer since strtok_r modifies the string
+    // Copy to temp buffer since strtok_r/strtok_s modifies the string
     char patterns[1024];
     snprintf(patterns, sizeof(patterns), "%s", debug_env);
 
     int enabled = 0;
     char *saveptr = NULL;
 
+#ifdef _WIN32
+    char *pattern = strtok_s(patterns, ",", &saveptr);
+#else
     char *pattern = strtok_r(patterns, ",", &saveptr);
+#endif
     while (pattern) {
         // Trim leading spaces
         while (*pattern == ' ') pattern++;
@@ -109,7 +113,11 @@ static inline int _debug_is_enabled(const char *ns) {
             }
         }
 
+#ifdef _WIN32
+        pattern = strtok_s(NULL, ",", &saveptr);
+#else
         pattern = strtok_r(NULL, ",", &saveptr);
+#endif
     }
 
     return enabled;

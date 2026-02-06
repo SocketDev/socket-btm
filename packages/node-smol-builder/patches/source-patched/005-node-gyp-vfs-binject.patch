@@ -34,8 +34,8 @@
 # Files modified:
 # - node.gyp: Add binject and VFS source files, include directories, and libcompression
 #
---- a/node.gyp
-+++ b/node.gyp
+--- a/node.gyp	2026-02-06 07:33:56
++++ b/node.gyp	2026-02-06 07:35:29
 @@ -694,6 +694,12 @@
              'Ws2_32.lib',
            ],
@@ -49,7 +49,7 @@
          ['node_with_ltcg=="true"', {
            'msvs_settings': {
              'VCCLCompilerTool': {
-@@ -1003,6 +1009,47 @@
+@@ -1003,6 +1009,55 @@
          [ 'node_use_lief=="true"', {
            'defines': [ 'HAVE_LIEF=1' ],
            'dependencies': [ 'deps/LIEF/lief.gyp:liblief' ],
@@ -105,7 +105,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1352,6 +1400,12 @@
+@@ -1352,6 +1407,12 @@
              'Ws2_32.lib',
            ],
          }],
@@ -118,20 +118,20 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1416,6 +1470,12 @@
+@@ -1414,6 +1475,12 @@
+             'Dbghelp.lib',
+             'winmm.lib',
              'Ws2_32.lib',
-           ],
-         }],
++          ],
++        }],
 +        # macOS: Link libcompression for gzip_compress.c and compression_common.c
 +        ['OS=="mac"', {
 +          'libraries': [
 +            '-lcompression',
-+          ],
-+        }],
+           ],
+         }],
          # Avoid excessive LTO
-         ['enable_lto=="true"', {
-           'ldflags': [ '-fno-lto' ],
-@@ -1561,6 +1621,12 @@
+@@ -1561,6 +1628,12 @@
              'Ws2_32.lib',
            ],
          }],

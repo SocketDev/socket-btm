@@ -47,6 +47,10 @@ const EXTERNAL_SOURCES = [
       'build-infra',
     ),
   },
+  {
+    from: path.join(BIN_INFRA_DIR, 'upstream', 'lzfse', 'src'),
+    to: path.join(ADDITIONS_SOURCE_PATCHED_DIR, 'deps', 'lzfse', 'src'),
+  },
 ]
 
 /**

@@ -25,7 +25,7 @@
         '_POSIX_C_SOURCE',
       ],
       'cflags': [
-        '-O0',
+        '-O2',
         '-Wall',
         '-Wno-unknown-pragmas',
         '-Wno-unused-variable',
@@ -39,7 +39,7 @@
           '-Wno-unused-variable',
         ],
         'OTHER_CFLAGS': [
-          '-O0',
+          '-O2',
           '-fvisibility=hidden',
         ],
         'GCC_C_LANGUAGE_STANDARD': 'c99',
@@ -47,7 +47,7 @@
       'msvs_settings': {
         'VCCLCompilerTool': {
           'WarningLevel': '3',
-          'Optimization': '0',
+          'Optimization': '2',
         },
       },
     },

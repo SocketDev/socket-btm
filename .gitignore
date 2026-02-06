@@ -41,6 +41,7 @@ build-output/
 packages/node-smol-builder/additions/source-patched/src/socketsecurity/bin-infra/
 packages/node-smol-builder/additions/source-patched/src/socketsecurity/binject/
 packages/node-smol-builder/additions/source-patched/src/socketsecurity/build-infra/
+packages/node-smol-builder/additions/source-patched/deps/lzfse/src/
 
 # Firewall test/debug Dockerfiles and scripts
 Dockerfile.firewall-*-test

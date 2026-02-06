@@ -36,17 +36,11 @@ cp packages/node-smol-builder/patches/source-patched/$PATCH_NAME \
    packages/node-smol-builder/patches/source-patched/$PATCH_NAME.backup-$TIMESTAMP
 \`\`\`
 
-### Step 2: Reset/Get Pristine Node.js Upstream
+### Step 2: Reset Upstream Node.js Submodule to Pristine State
 \`\`\`bash
-# Clean workspace
-rm -rf /tmp/patch-rebuild
-mkdir -p /tmp/patch-rebuild
-cd /tmp/patch-rebuild
-
-# Clone pristine Node.js v25.5.0
-gh repo clone nodejs/node upstream-node
-cd upstream-node
-git checkout v25.5.0
+cd packages/node-smol-builder/upstream/node
+git reset --hard v25.5.0
+git clean -fd
 \`\`\`
 
 ### Step 3: Get Pristine Target File
@@ -54,7 +48,11 @@ git checkout v25.5.0
 # Identify which file this patch modifies (e.g., node.gyp)
 TARGET_FILE="node.gyp"
 
-# Copy pristine file out
+# Create workspace
+mkdir -p /tmp/patch-rebuild
+cd packages/node-smol-builder/upstream/node
+
+# Copy pristine file to workspace
 cp $TARGET_FILE /tmp/patch-rebuild/pristine-$TARGET_FILE
 \`\`\`
 
@@ -63,8 +61,8 @@ cp $TARGET_FILE /tmp/patch-rebuild/pristine-$TARGET_FILE
 # Copy pristine to modified
 cp /tmp/patch-rebuild/pristine-$TARGET_FILE /tmp/patch-rebuild/modified-$TARGET_FILE
 
-# Read the additions file to understand what changes to apply
-# Read: packages/node-smol-builder/additions/source-patched/$TARGET_FILE
+# Read the original patch header to understand what changes to apply
+# Read: packages/node-smol-builder/patches/source-patched/$PATCH_NAME
 
 # Apply the Socket Security modifications to modified-$TARGET_FILE
 # Use Edit tool to make the changes
@@ -87,12 +85,12 @@ EOF
 # Append the diff
 cat raw-patch.diff >> final-patch.patch
 
-# Normalize headers to standard format
+# Normalize headers to standard format (remove temp filenames)
 sed -i.bak "s|^--- pristine-|--- a/|; s|^+++ modified-|+++ b/|" final-patch.patch
 rm final-patch.patch.bak
 \`\`\`
 
-### Step 6: Validate Patch
+### Step 6: Validate Patch Against Pristine
 \`\`\`bash
 # Validate against pristine source
 cp pristine-$TARGET_FILE test-$TARGET_FILE
@@ -106,12 +104,15 @@ rm test-$TARGET_FILE
 
 ### Step 7: Save Patch
 \`\`\`bash
-cp final-patch.patch /Users/jdalton/projects/socket-btm/packages/node-smol-builder/patches/source-patched/$PATCH_NAME
+cp final-patch.patch packages/node-smol-builder/patches/source-patched/$PATCH_NAME
 \`\`\`
 
-### Step 8: Reset Upstream Node (Cleanup)
+### Step 8: Reset Upstream Node Submodule (Cleanup)
 \`\`\`bash
-cd /tmp
+cd packages/node-smol-builder/upstream/node
+git reset --hard v25.5.0
+git clean -fd
+cd -
 rm -rf /tmp/patch-rebuild
 \`\`\`
 

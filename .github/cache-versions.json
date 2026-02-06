@@ -8,7 +8,7 @@
     "curl": "v8",
     "lief": "v29",
     "models": "v13",
-    "node-smol": "v61",
+    "node-smol": "v62",
     "onnxruntime": "v13",
     "stubs": "v23",
     "yoga-layout": "v12"

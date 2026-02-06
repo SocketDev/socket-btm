@@ -458,9 +458,14 @@ const embedded_stub_t *select_stub_with_target(
     const char *target_arch,
     const char *target_libc
 ) {
-  static char parsed_platform[16] = {0};
-  static char parsed_arch[16] = {0};
-  static char parsed_libc[16] = {0};
+  static char parsed_platform[16];
+  static char parsed_arch[16];
+  static char parsed_libc[16];
+
+  // Clear static buffers on each invocation (static = {0} only initializes once)
+  memset(parsed_platform, 0, sizeof(parsed_platform));
+  memset(parsed_arch, 0, sizeof(parsed_arch));
+  memset(parsed_libc, 0, sizeof(parsed_libc));
 
   DEBUG_LOG("select_stub_with_target: target=%s, target_platform=%s, target_arch=%s, target_libc=%s\n",
             target ? target : "NULL",

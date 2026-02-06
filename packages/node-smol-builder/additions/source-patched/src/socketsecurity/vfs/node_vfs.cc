@@ -2,6 +2,7 @@
 
 #include "debug_utils-inl.h"
 #include "env-inl.h"
+#include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "util-inl.h"

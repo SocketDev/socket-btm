@@ -6,7 +6,7 @@ enabling VFS (Virtual File System) functionality for single executable applicati
 Files modified:
 - lib/internal/bootstrap/realm.js: Register smol_vfs binding
 
---- a/lib/internal/bootstrap/realm.js.orig
+--- a/lib/internal/bootstrap/realm.js
 +++ b/lib/internal/bootstrap/realm.js
 @@ -101,6 +101,7 @@
    'os',

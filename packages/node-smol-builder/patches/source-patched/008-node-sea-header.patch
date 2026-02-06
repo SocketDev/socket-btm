@@ -11,7 +11,7 @@ Files modified:
 @@ -37,6 +37,25 @@
    kCli = 2,
  };
- 
+
 +struct SmolUpdateConfig {
 +  std::string binname;
 +  std::string command;
@@ -43,5 +43,5 @@ Files modified:
 +  std::optional<SmolVfsConfig> smol_vfs;
 +  std::optional<SmolUpdateConfig> smol_update;
  };
- 
+
  struct SeaResource {

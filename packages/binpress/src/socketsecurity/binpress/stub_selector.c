@@ -421,29 +421,63 @@ static int parse_target_string(
     return -1;
   }
 
-  // Copy target to mutable buffer for parsing
-  char buffer[128];
-  if (strlen(target) >= sizeof(buffer)) {
-    fprintf(stderr, "Error: Target string too long: %s\n", target);
-    return -1;
-  }
-  snprintf(buffer, sizeof(buffer), "%s", target);
+  // Manual parsing to avoid strtok_r issues on some platforms
+  const char *p = target;
+  const char *platform_start = p;
 
-  // Parse platform-arch[-libc] format
-  char *saveptr = NULL;
-  char *platform = strtok_r(buffer, "-", &saveptr);
-  char *arch = strtok_r(NULL, "-", &saveptr);
-  char *libc = strtok_r(NULL, "-", &saveptr);
-
-  if (!platform || !arch) {
+  // Find first hyphen (end of platform)
+  while (*p && *p != '-') p++;
+  if (*p == '\0' || p == platform_start) {
     fprintf(stderr, "Error: Invalid target format: %s (expected platform-arch[-libc])\n", target);
+    fflush(stderr);
     return -1;
   }
 
-  snprintf(out_platform, platform_size, "%s", platform);
-  snprintf(out_arch, arch_size, "%s", arch);
-  if (libc) {
-    snprintf(out_libc, libc_size, "%s", libc);
+  size_t platform_len = p - platform_start;
+  if (platform_len >= platform_size) {
+    fprintf(stderr, "Error: Platform name too long in target: %s\n", target);
+    fflush(stderr);
+    return -1;
+  }
+
+  memcpy(out_platform, platform_start, platform_len);
+  out_platform[platform_len] = '\0';
+
+  // Skip hyphen, find arch
+  p++;
+  const char *arch_start = p;
+  while (*p && *p != '-') p++;
+  if (p == arch_start) {
+    fprintf(stderr, "Error: Missing architecture in target: %s\n", target);
+    fflush(stderr);
+    return -1;
+  }
+
+  size_t arch_len = (*p == '\0') ? strlen(arch_start) : (size_t)(p - arch_start);
+  if (arch_len >= arch_size) {
+    fprintf(stderr, "Error: Architecture name too long in target: %s\n", target);
+    fflush(stderr);
+    return -1;
+  }
+
+  memcpy(out_arch, arch_start, arch_len);
+  out_arch[arch_len] = '\0';
+
+  // Optional libc
+  if (*p == '-') {
+    p++;
+    const char *libc_start = p;
+    size_t libc_len = strlen(libc_start);
+    if (libc_len == 0) {
+      out_libc[0] = '\0';
+    } else if (libc_len >= libc_size) {
+      fprintf(stderr, "Error: Libc name too long in target: %s\n", target);
+      fflush(stderr);
+      return -1;
+    } else {
+      memcpy(out_libc, libc_start, libc_len);
+      out_libc[libc_len] = '\0';
+    }
   } else {
     out_libc[0] = '\0';
   }

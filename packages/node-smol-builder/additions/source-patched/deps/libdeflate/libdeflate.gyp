@@ -13,6 +13,9 @@
         'lib/utils.c',
         'lib/zlib_compress.c',
         'lib/zlib_decompress.c',
+        # Architecture-specific CPU feature detection (required for SIMD optimizations)
+        'lib/arm/cpu_features.c',
+        'lib/x86/cpu_features.c',
       ],
       'include_dirs': [
         '.',
@@ -32,6 +35,7 @@
         '-O2',
         '-Wall',
         '-Wno-unused-function',
+        '-std=c99',
         '-fvisibility=hidden',
       ],
       'xcode_settings': {
@@ -43,6 +47,7 @@
           '-O2',
           '-fvisibility=hidden',
         ],
+        'GCC_C_LANGUAGE_STANDARD': 'c99',
       },
       'msvs_settings': {
         'VCCLCompilerTool': {

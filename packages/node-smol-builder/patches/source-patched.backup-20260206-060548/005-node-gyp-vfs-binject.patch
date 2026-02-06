@@ -16,13 +16,12 @@
 # - binject platform implementations (elf_inject.c, pe_inject.c, macho_inject_lief_wrapper.c) - native implementations
 # - binject utilities (smol_config.c, vfs_config.c, vfs_utils.c, stub_repack.c, elf_pe_cross_platform.c, remove_signature_lib.c)
 # - build-infra dependencies (tar_create.c, gzip_compress.c, file_io_common.c, file_utils.c) - VFS archiving and I/O
-# - bin-infra dependencies (compression_common.c, binary_format.c, smol_segment.c, smol_segment_reader.c, stub_smol_repack_lief.cpp) - compression, binary format and repacking
+# - bin-infra dependencies (binary_format.c, smol_segment.c, smol_segment_reader.c, stub_smol_repack_lief.cpp) - binary format and repacking
 #
-# Compression Library Dependencies:
-# - macOS: libcompression (native Apple Compression framework) for gzip_compress.c and compression_common.c
-# - Linux/Windows: LZFSE static library (deps/lzfse/lzfse.gyp:liblzfse) for compression_common.c
-# - CRITICAL: libcompression must be added to ALL targets that link libnode.a on macOS.
-#   libnode.a contains gzip_compress.o and compression_common.o, so all executables linking libnode.a
+# macOS Library Dependencies:
+# - libcompression: Required for gzip_compress.c
+# - CRITICAL: libcompression must be added to ALL targets that link libnode.a.
+#   libnode.a contains gzip_compress.o, so all executables linking libnode.a
 #   need the library at link time to resolve compression symbols.
 #
 # Targets modified:
@@ -40,7 +39,7 @@
              'Ws2_32.lib',
            ],
          }],
-+        # macOS: Link libcompression for gzip_compress.c and compression_common.c
++        # macOS: Link libcompression for gzip_compress.c
 +        ['OS=="mac"', {
 +          'libraries': [
 +            '-lcompression',
@@ -79,20 +78,11 @@
 +            'src/socketsecurity/build-infra/gzip_compress.c',
 +            'src/socketsecurity/build-infra/file_io_common.c',
 +            'src/socketsecurity/build-infra/file_utils.c',
-+            # Socket Security: bin-infra dependencies (compression, binary format and repacking).
-+            'src/socketsecurity/bin-infra/compression_common.c',
++            # Socket Security: bin-infra dependencies (binary format and repacking).
 +            'src/socketsecurity/bin-infra/binary_format.c',
 +            'src/socketsecurity/bin-infra/smol_segment.c',
 +            'src/socketsecurity/bin-infra/smol_segment_reader.c',
 +            'src/socketsecurity/bin-infra/stub_smol_repack_lief.cpp',
-+          ],
-+          'conditions': [
-+            # Linux/Windows: Add LZFSE dependency for compression_common.c
-+            ['OS!="mac"', {
-+              'dependencies': [
-+                'deps/lzfse/lzfse.gyp:liblzfse',
-+              ],
-+            }],
 +          ],
 +          'include_dirs': [
 +            'src',
@@ -109,7 +99,7 @@
              'Ws2_32.lib',
            ],
          }],
-+        # macOS: Link libcompression for gzip_compress.c and compression_common.c
++        # macOS: Link libcompression for gzip_compress.c
 +        ['OS=="mac"', {
 +          'libraries': [
 +            '-lcompression',
@@ -122,7 +112,7 @@
              'Ws2_32.lib',
            ],
          }],
-+        # macOS: Link libcompression for gzip_compress.c and compression_common.c
++        # macOS: Link libcompression for gzip_compress.c
 +        ['OS=="mac"', {
 +          'libraries': [
 +            '-lcompression',
@@ -135,7 +125,7 @@
              'Ws2_32.lib',
            ],
          }],
-+        # macOS: Link libcompression for gzip_compress.c and compression_common.c
++        # macOS: Link libcompression for gzip_compress.c
 +        [ 'OS=="mac"', {
 +          'libraries': [
 +            '-lcompression',

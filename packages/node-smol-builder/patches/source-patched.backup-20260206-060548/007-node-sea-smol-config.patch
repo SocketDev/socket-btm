@@ -1,0 +1,34 @@
+Socket Security: Call ParseSmolConfig() for smol configuration parsing
+
+This patch modifies node_sea.cc to include the node_sea_smol.h header and
+call ParseSmolConfig() to parse Socket Security's smol configuration.
+
+Files modified:
+- src/node_sea.cc: Include header and call ParseSmolConfig()
+
+--- a/src/node_sea.cc
++++ b/src/node_sea.cc
+@@ -8,6 +8,7 @@
+ #include "node_external_reference.h"
+ #include "node_internals.h"
+ #include "node_options.h"
++#include "socketsecurity/sea-smol/node_sea_smol.h"
+ #include "node_snapshot_builder.h"
+ #include "node_union_bytes.h"
+ #include "node_v8_platform-inl.h"
+@@ -499,6 +500,15 @@
+                 "\"execArgvExtension\" field of %s must be one of "
+                 "\"none\", \"env\", or \"cli\"\n",
+                 config_path);
++        return std::nullopt;
++      }
++    } else if (key == "smol") {
++      simdjson::ondemand::object smol_object;
++      if (field.value().get_object().get(smol_object)) {
++        FPrintF(stderr, "\"smol\" field of %s is not an object\n", config_path);
++        return std::nullopt;
++      }
++      if (!ParseSmolConfig(smol_object, config_path, result)) {
+         return std::nullopt;
+       }
+     }

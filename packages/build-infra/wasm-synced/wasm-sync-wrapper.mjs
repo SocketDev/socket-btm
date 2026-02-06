@@ -66,9 +66,13 @@ export async function generateWasmSyncWrapper(options) {
 
   // Construct outputSyncMjs path from outputSyncCjs
   // Replace the basename's extension .cjs with .mjs
-  const dir = outputSyncCjs.substring(0, outputSyncCjs.lastIndexOf('/'))
-  const basename = outputSyncCjs.substring(outputSyncCjs.lastIndexOf('/') + 1)
-  const basenameWithoutExt = basename.substring(0, basename.lastIndexOf('.'))
+  const lastSlash = outputSyncCjs.lastIndexOf('/')
+  const dir = lastSlash === -1 ? '.' : outputSyncCjs.substring(0, lastSlash)
+  const basename =
+    lastSlash === -1 ? outputSyncCjs : outputSyncCjs.substring(lastSlash + 1)
+  const lastDot = basename.lastIndexOf('.')
+  const basenameWithoutExt =
+    lastDot === -1 ? basename : basename.substring(0, lastDot)
   const outputSyncMjs = `${dir}/${basenameWithoutExt}.mjs`
 
   // Generate CommonJS wrapper (.cjs)

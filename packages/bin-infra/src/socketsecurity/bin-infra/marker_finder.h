@@ -126,6 +126,12 @@ static inline LONGLONG find_marker_handle(HANDLE hFile, const char *part1, const
 
     while (ReadFile(hFile, buffer, sizeof(buffer), &bytes_read, NULL) && bytes_read > 0) {
         // Search for marker in current buffer
+        // Skip if buffer is too small to contain marker (prevents unsigned underflow)
+        if (bytes_read < (DWORD)marker_len) {
+            offset += bytes_read;
+            continue;
+        }
+
         for (DWORD i = 0; i <= bytes_read - (DWORD)marker_len; i++) {
             if (memcmp(buffer + i, magic_marker, marker_len) == 0) {
                 // Found marker - return offset just after it

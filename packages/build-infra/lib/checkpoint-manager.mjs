@@ -9,7 +9,15 @@
  * Also provides centralized cache key management for build source validation.
  */
 
-import { existsSync, promises as fs } from 'node:fs'
+import {
+  closeSync,
+  existsSync,
+  openSync,
+  promises as fs,
+  readSync,
+  renameSync,
+  rmSync,
+} from 'node:fs'
 import path from 'node:path'
 
 import { which } from '@socketsecurity/lib/bin'
@@ -257,7 +265,10 @@ export async function createCheckpoint(
       : tarBase
     logger.substep(`Archiving ${displayPath}${isDir ? ' (dir)' : ''}`)
 
-    const unixTarballPath = toTarPath(tarballPath)
+    // Use atomic writes: create temp file then rename
+    // This prevents race conditions in concurrent CI builds
+    const tempTarballPath = `${tarballPath}.tmp.${process.pid}`
+    const unixTempTarballPath = toTarPath(tempTarballPath)
     const unixTarDir = toTarPath(tarDir)
 
     try {
@@ -269,12 +280,19 @@ export async function createCheckpoint(
       // --exclude='._*': exclude macOS AppleDouble resource fork files
       // tarBase: the artifact basename to archive (file or directory)
       //
-      // Example: tar -czf checkpoint.tar.gz -C /build/dev/out Final
+      // Example: tar -czf checkpoint.tar.gz.tmp.12345 -C /build/dev/out Final
       //   → Creates tarball containing Final/ as top-level entry
-      //   → During extraction, use --strip-components=1 to remove this wrapper
+      //   → During extraction, preserves directory structure (Final/ is recreated in extractDir)
       await spawn(
         tarBin,
-        ['-czf', unixTarballPath, '--exclude=._*', '-C', unixTarDir, tarBase],
+        [
+          '-czf',
+          unixTempTarballPath,
+          '--exclude=._*',
+          '-C',
+          unixTarDir,
+          tarBase,
+        ],
         {
           // On macOS, COPYFILE_DISABLE=1 prevents tar from including
           // AppleDouble resource fork files (._* files) which cause
@@ -283,7 +301,14 @@ export async function createCheckpoint(
           stdio: 'inherit',
         },
       )
+
+      // Atomically rename temp file to final location (prevents concurrent write corruption)
+      renameSync(tempTarballPath, tarballPath)
     } catch (error) {
+      // Clean up temp file on failure
+      if (existsSync(tempTarballPath)) {
+        rmSync(tempTarballPath, { force: true })
+      }
       const workingDirExists = existsSync(tarDir)
       const sourceExists = existsSync(artifactPath)
 
@@ -303,7 +328,7 @@ export async function createCheckpoint(
         `  2. Tarball: ${tarballPath}`,
         `  3. Check disk space: df -h ${checkpointDir}`,
         `  4. Check permissions: ls -ld ${checkpointDir}`,
-        `  5. Tar command: ${tarBin} -czf ${unixTarballPath} --exclude=._* -C ${unixTarDir} ${tarBase}`,
+        `  5. Tar command: ${tarBin} -czf ${unixTempTarballPath} --exclude=._* -C ${unixTarDir} ${tarBase}`,
       ].join('\n')
 
       const err = new Error(errorMsg)
@@ -319,7 +344,11 @@ export async function createCheckpoint(
   // Compute cache hash if sourcePaths provided
   let cacheHash
   if (data.sourcePaths && Array.isArray(data.sourcePaths)) {
-    cacheHash = await computeSourceHash(data.sourcePaths)
+    const sourceHash = await computeSourceHash(data.sourcePaths)
+    // Include platform/arch/libc in cache hash to prevent cross-platform cache collisions
+    const targetSuffix =
+      platform && arch ? `${platform}-${arch}${libc ? `-${libc}` : ''}` : ''
+    cacheHash = targetSuffix ? `${sourceHash}-${targetSuffix}` : sourceHash
     logger.substep(`Cache key: ${cacheHash.substring(0, 12)}...`)
   }
 
@@ -428,7 +457,10 @@ export async function getCheckpointData(buildDir, packageName, checkpointName) {
  * @param {string} checkpointName - Checkpoint name
  * @param {object} [options] - Restoration options
  * @param {string} [options.destDir] - Override extraction directory (extracts to this dir instead of artifactPath's location)
- * @returns {Promise<boolean>} True if restored, false if checkpoint doesn't exist
+ * @param {string} [options.platform] - Expected platform (darwin, linux, win32) - skips restoration if mismatch
+ * @param {string} [options.arch] - Expected architecture (x64, arm64) - skips restoration if mismatch
+ * @param {string} [options.libc] - Expected libc (musl, glibc) - skips restoration if mismatch
+ * @returns {Promise<boolean>} True if restored, false if checkpoint doesn't exist or validation failed
  */
 export async function restoreCheckpoint(
   buildDir,
@@ -443,6 +475,43 @@ export async function restoreCheckpoint(
   )
 
   if (!checkpointData) {
+    return false
+  }
+
+  // Validate platform/arch/libc if specified in options
+  if (
+    options.platform &&
+    checkpointData.platform &&
+    options.platform !== checkpointData.platform
+  ) {
+    logger.warn(
+      `Checkpoint platform mismatch: expected ${options.platform}, got ${checkpointData.platform}. ` +
+        'Skipping checkpoint restoration.',
+    )
+    return false
+  }
+
+  if (
+    options.arch &&
+    checkpointData.arch &&
+    options.arch !== checkpointData.arch
+  ) {
+    logger.warn(
+      `Checkpoint arch mismatch: expected ${options.arch}, got ${checkpointData.arch}. ` +
+        'Skipping checkpoint restoration.',
+    )
+    return false
+  }
+
+  if (
+    options.libc &&
+    checkpointData.libc &&
+    options.libc !== checkpointData.libc
+  ) {
+    logger.warn(
+      `Checkpoint libc mismatch: expected ${options.libc}, got ${checkpointData.libc}. ` +
+        'Skipping checkpoint restoration.',
+    )
     return false
   }
 
@@ -464,6 +533,31 @@ export async function restoreCheckpoint(
     try {
       const stats = await fs.stat(tarballPath)
       const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
+
+      // Validate checkpoint integrity
+      if (stats.size === 0) {
+        logger.warn(`Checkpoint file is empty: ${tarballPath}`)
+        return false
+      }
+
+      // Quick validation: check gzip magic bytes (0x1f 0x8b)
+      try {
+        const fd = openSync(tarballPath, 'r')
+        const buffer = Buffer.alloc(2)
+        readSync(fd, buffer, 0, 2, 0)
+        closeSync(fd)
+
+        if (buffer[0] !== 0x1f || buffer[1] !== 0x8b) {
+          logger.warn(
+            `Checkpoint file is not a valid gzip archive: ${tarballPath}`,
+          )
+          return false
+        }
+      } catch (err) {
+        logger.warn(`Failed to validate checkpoint file: ${err.message}`)
+        return false
+      }
+
       logger.info(`Extracting checkpoint.tar.gz (${sizeMB} MB)...`)
 
       // Determine extraction directory

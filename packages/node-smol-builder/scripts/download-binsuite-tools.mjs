@@ -55,6 +55,13 @@ async function downloadTool(tool, options = {}) {
 
   // Parse platform and arch from platformArch string.
   const parts = resolvedPlatformArch.split('-')
+  if (parts.length < 2) {
+    throw new Error(
+      `Invalid platform-arch format: "${resolvedPlatformArch}". ` +
+        `Expected format: "platform-arch" or "platform-arch-libc" ` +
+        `(e.g., "linux-x64" or "linux-x64-musl")`,
+    )
+  }
   const platform = parts[0]
   const arch = parts[1]
   const libc = parts[2] === 'musl' ? 'musl' : undefined

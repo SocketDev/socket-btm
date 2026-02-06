@@ -55,9 +55,11 @@
 #include <vector>
 #include <cstdio>
 #include <cstring>
+#ifndef _WIN32
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#endif
 #include "socketsecurity/bin-infra/segment_names.h"
 
 // Fuse string constants (must match segment_names.h)

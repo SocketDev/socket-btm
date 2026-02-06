@@ -584,8 +584,21 @@ export async function checkPythonVersion(minVersion) {
         continue
       }
 
-      const [major, minor] = version.split('.').map(Number)
-      const [minMajor, minMinor] = effectiveMinVersion.split('.').map(Number)
+      const versionParts = version.split('.').map(Number)
+      const minParts = effectiveMinVersion.split('.').map(Number)
+
+      // Validate that we have at least major.minor and no NaN values
+      if (
+        versionParts.length < 2 ||
+        minParts.length < 2 ||
+        versionParts.some(n => Number.isNaN(n)) ||
+        minParts.some(n => Number.isNaN(n))
+      ) {
+        continue
+      }
+
+      const [major, minor] = versionParts
+      const [minMajor, minMinor] = minParts
 
       const sufficient =
         major > minMajor || (major === minMajor && minor >= minMinor)

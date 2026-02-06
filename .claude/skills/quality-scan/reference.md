@@ -10,18 +10,31 @@
 
 **Prompt Template:**
 ```
-Your task is to perform a critical bug scan on a multi-ecosystem SBOM generator codebase written in TypeScript (.mts files). Identify bugs that could cause crashes, data corruption, or security vulnerabilities.
+Your task is to perform a critical bug scan on socket-btm, a monorepo containing Node.js binary tooling written in TypeScript (.mts/.mjs), C/C++, and shell scripts. Identify bugs that could cause build failures, data corruption, or security vulnerabilities.
 
 <context>
-This is a production SBOM (Software Bill of Materials) generator supporting 19 package ecosystems (npm, Maven, Gradle, PyPI, Cargo, etc.). The codebase:
-- Uses TypeScript with .mts extension
-- Processes untrusted input (lockfiles, package manifests)
-- Runs in production environments
-- Must handle edge cases gracefully without crashes
+This is Socket Security's Binary Tooling Manager (BTM) monorepo with multiple packages:
+- **node-smol-builder**: Builds Node.js from source with Socket Security patches
+- **binject**: Binary injection library (C/C++ with LIEF integration)
+- **bin-infra**: Binary infrastructure utilities (compression, format handling)
+- **build-infra**: Build infrastructure utilities (tar, gzip, file I/O)
+- **binsuite**: Binary suite tools
+
+Key characteristics:
+- Uses TypeScript with .mts/.mjs extension for build scripts
+- C/C++ code for binary manipulation and injection
+- Manages Node.js version synchronization and patch application
+- Processes external source code and applies unified diff patches
+- Handles cross-platform compilation (macOS, Linux, Windows)
+- Manages build checkpoints and caching for performance
+- Must handle patch failures and build errors gracefully
 </context>
 
 <instructions>
-Scan all TypeScript files in src/**/*.mts for these critical bug patterns:
+Scan all code files across the monorepo for these critical bug patterns:
+- TypeScript/JavaScript: packages/*/scripts/**/*.{mjs,mts}, packages/*/src/**/*.{mjs,mts}
+- C/C++: packages/*/src/**/*.{c,cc,cpp,h}
+- Focus on:
 
 <pattern name="null_undefined_access">
 - Property access without optional chaining when value might be null/undefined
@@ -82,49 +95,66 @@ Fix: [Specific code change to fix it]
 Impact: [What happens if this bug is triggered]
 
 Example:
-File: src/parsers/npm/index.mts:145
-Issue: Unhandled promise rejection in dependency resolution
+File: packages/node-smol-builder/scripts/binary-released/shared/apply-patches.mjs:145
+Issue: Unhandled promise rejection in patch application
 Severity: Critical
-Pattern: `parseDependencies(pkg.dependencies)`
-Trigger: When pkg.dependencies contains malformed data
-Fix: `await parseDependencies(pkg.dependencies).catch(err => { log.error(err); return [] })`
-Impact: Uncaught exception crashes entire SBOM generation process
+Pattern: `applyPatch(patchFile, targetPath)`
+Trigger: When patch file contains malformed unified diff format
+Fix: `await applyPatch(patchFile, targetPath).catch(err => { log.error(err); throw new Error(\`Patch failed: \${err.message}\`) })`
+Impact: Uncaught exception crashes build process, leaving Node.js source in inconsistent state
+
+Example (C/C++):
+File: packages/binject/src/socketsecurity/binject/binject.c:234
+Issue: Potential null pointer dereference after malloc
+Severity: Critical
+Pattern: `uint8_t* buffer = malloc(size); memcpy(buffer, data, size);`
+Trigger: When malloc fails due to insufficient memory
+Fix: `uint8_t* buffer = malloc(size); if (!buffer) return BINJECT_ERROR_MEMORY; memcpy(buffer, data, size);`
+Impact: Segmentation fault crashes binary injection process
 </output_format>
 
 <quality_guidelines>
 - Only report actual bugs, not style issues or minor improvements
 - Verify bugs are not already handled by surrounding code
-- Prioritize bugs affecting production reliability
+- Prioritize bugs affecting build reliability and binary correctness
+- For C/C++: Focus on memory safety, null checks, buffer overflows
+- For TypeScript: Focus on promise handling, type guards, external input validation
 - Skip false positives (TypeScript type guards are sufficient in many cases)
-- Focus on code paths processing external input
+- Scan across all packages: node-smol-builder, binject, bin-infra, build-infra, binsuite
 </quality_guidelines>
 
-Scan systematically through src/ and report all critical bugs found. If no critical bugs are found, state that explicitly.
+Scan systematically through all packages/ directories and report all critical bugs found. If no critical bugs are found, state that explicitly.
 ```
 
 ---
 
 ### Logic Scan Agent
 
-**Mission**: Detect logical errors in parsers, algorithms, and control flow that could produce incorrect SBOM output.
+**Mission**: Detect logical errors in build scripts, patch algorithms, and binary manipulation that could produce incorrect builds or corrupted binaries.
 
-**Scan Targets**: `src/parsers/**/index.mts` and `src/utils/*.mts`
+**Scan Targets**: All packages in the monorepo
 
 **Prompt Template:**
 ```
-Your task is to detect logic errors in parser implementations that could produce incorrect or incomplete SBOM output. Focus on algorithm correctness, edge case handling, and data validation.
+Your task is to detect logic errors in socket-btm's build scripts, patch application logic, and binary manipulation code that could produce incorrect builds or corrupted binaries. Focus on algorithm correctness, edge case handling, and data validation.
 
 <context>
-This SBOM generator parses lockfiles and manifests from 19 package ecosystems:
-- Each parser in src/parsers/{ecosystem}/index.mts implements detect() and parse()
-- Parsers process external files with varying formats (JSON, YAML, TOML, custom)
-- Output must be accurate CycloneDX/SPDX with correct package URLs (PURLs)
-- Edge cases in external data are common (malformed files, missing fields, unexpected types)
-- Utils in src/utils/ handle PURL generation, version comparison, and data transformation
+socket-btm is a monorepo for Node.js binary tooling:
+- **node-smol-builder**: Build orchestration, patch application, checkpoint management
+- **binject**: Binary injection logic, ELF/Mach-O/PE format handling
+- **bin-infra**: Binary compression, format detection, segment management
+- **build-infra**: File I/O, tar creation, gzip compression
+
+Critical operations:
+- Patch parsing and application (unified diff format)
+- Binary format detection and manipulation (ELF/Mach-O/PE)
+- Checkpoint creation and restoration (tar.gz archives)
+- Cross-platform path handling and file operations
+- Version comparison and Node.js synchronization
 </context>
 
 <instructions>
-Analyze src/parsers/**/*.mts and src/utils/*.mts for these logic error patterns:
+Analyze all packages for these logic error patterns:
 
 <pattern name="off_by_one">
 Off-by-one errors in loops and slicing:
@@ -153,27 +183,29 @@ Unhandled edge cases in string/array operations:
 
 <pattern name="algorithm_correctness">
 Algorithm implementation issues:
-- Dependency graph resolution missing transitive dependencies
-- Version comparison failing on semver edge cases (prerelease, build metadata)
-- Cycle detection missing in graph traversal
-- Incorrect sorting/ordering logic
-- Missing deduplication when required
+- Patch parsing: Hunk header line counts not validated, @@ parsing errors
+- Version comparison: Failing on semver edge cases (prerelease, build metadata)
+- Path resolution: Symlink handling, relative vs absolute path logic
+- File ordering: Incorrect dependency ordering in build sequences
+- Deduplication: Missing deduplication of duplicate files/patches
 </pattern>
 
-<pattern name="purl_generation">
-Package URL (PURL) generation errors:
-- Namespace: empty strings, special characters not encoded, null handling
-- Version: missing URL encoding for special chars (+, @, /)
-- Qualifiers: not sorted alphabetically as per spec
-- Type: incorrect ecosystem mapping
+<pattern name="patch_handling">
+Patch application logic errors:
+- Unified diff parsing: Line offset calculation errors, context matching failures
+- Hunk application: Off-by-one in line number calculations
+- Patch validation: Missing validation of patch format (malformed hunks)
+- Backup/restore: Not properly handling patch failures mid-application
+- Independent patches: Assumptions about patch ordering or dependencies
 </pattern>
 
-<pattern name="parser_robustness">
-Insufficient input validation:
-- Empty files or empty JSON/YAML
-- Required fields missing from parsed objects
-- Unexpected data types (string instead of object, null instead of array)
-- Malformed lockfiles with partial data
+<pattern name="binary_format">
+Binary format handling errors:
+- Format detection: Misidentifying ELF/Mach-O/PE headers
+- Section/segment: Off-by-one in offset calculations, size validation missing
+- Endianness: Not handling big-endian vs little-endian correctly
+- Alignment: Missing alignment requirements for injected data
+- Cross-platform: Windows vs Unix path separators, line endings
 </pattern>
 
 Before reporting, think through:
@@ -194,93 +226,111 @@ Fix: [Corrected code]
 Impact: [What incorrect output is produced]
 
 Example:
-File: src/parsers/pypi/index.mts:89
-Issue: Off-by-one in dependency parsing loop
+File: packages/node-smol-builder/scripts/binary-released/shared/apply-patches.mjs:89
+Issue: Off-by-one in patch hunk line counting
 Severity: High
-Edge Case: When last dependency in list is processed
-Pattern: `for (let i = 0; i < deps.length - 1; i++)`
-Fix: `for (let i = 0; i < deps.length; i++)`
-Impact: Last dependency in requirements.txt is silently omitted from SBOM
+Edge Case: When patch hunk has trailing context lines
+Pattern: `for (let i = 0; i < hunkLines.length - 1; i++)`
+Fix: `for (let i = 0; i < hunkLines.length; i++)`
+Impact: Last line of patch hunk is silently omitted, causing patch application to fail or produce incorrect output
+
+Example (C code):
+File: packages/binject/src/socketsecurity/binject/elf_inject.c:234
+Issue: Incorrect section size calculation with alignment
+Severity: High
+Edge Case: When injecting data into sections requiring alignment
+Pattern: `new_size = existing_size + data_size;`
+Fix: `new_size = ALIGN_UP(existing_size + data_size, section_alignment);`
+Impact: Injected data misaligned, causing segfault when binary loads section
 </output_format>
 
 <quality_guidelines>
-- Prioritize parsers handling external data (lockfiles, package.json)
-- Focus on errors affecting output correctness, not performance
+- Prioritize code handling external data (patches, binary files, build configs)
+- Focus on errors affecting build correctness and binary integrity
 - Verify logic errors aren't false alarms due to type narrowing
-- Consider real-world input patterns for each ecosystem
+- Consider real-world edge cases: malformed patches, unusual binary formats, cross-platform paths
+- Pay special attention to C/C++ pointer arithmetic and buffer calculations
 </quality_guidelines>
 
-Analyze systematically and report all logic errors found. If no errors are found, state that explicitly.
+Analyze systematically across all packages and report all logic errors found. If no errors are found, state that explicitly.
 ```
 
 ---
 
 ### Cache Scan Agent
 
-**Mission**: Identify caching bugs that cause stale data, performance degradation, or incorrect behavior.
+**Mission**: Identify caching bugs that cause stale builds, checkpoint corruption, or incorrect behavior.
 
-**Scan Targets**: `src/utils/file-cache.mts` and any caching logic
+**Scan Targets**: Build checkpoint system and caching logic across all packages
 
 **Prompt Template:**
 ```
-Your task is to analyze file caching implementation for correctness, concurrency safety, and performance issues. Focus on stale data bugs, race conditions, and memory leaks.
+Your task is to analyze socket-btm's checkpoint and caching implementation for correctness, staleness bugs, and performance issues. Focus on checkpoint corruption, cache invalidation failures, and race conditions.
 
 <context>
-The SBOM generator uses file caching to avoid re-parsing lockfiles:
-- Primary implementation: src/utils/file-cache.mts
-- Cache keys are file paths
-- Invalidation based on mtime (modification time) comparison
-- Used in production where files can change during execution
-- Must work correctly on Windows, macOS, and Linux
-- Concurrent access possible in parallel parsing scenarios
+socket-btm uses a multi-stage checkpoint system to speed up builds:
+- **Checkpoint stages**: source-copied, source-patched, configured, compiled, stripped, compressed, final
+- **Storage**: tar.gz archives stored in build/checkpoints/{platform}-{arch}/
+- **Invalidation**: Based on cache keys (hashes of patches, config, source version)
+- **Progressive builds**: Can restore from any checkpoint and continue
+- **Cross-platform**: Must work on Windows, macOS, Linux (ARM64, x64)
+- **Critical**: Stale checkpoints cause incorrect builds that are hard to debug
+
+Caching locations:
+- packages/node-smol-builder/scripts/common/shared/checkpoints.mjs
+- packages/node-smol-builder/build/checkpoints/
+- Cache key generation and validation logic
 </context>
 
 <instructions>
 Analyze caching implementation for these issue categories:
 
 <pattern name="cache_invalidation">
-Stale data from incorrect invalidation:
-- mtime comparison: Are sub-second changes detected? File systems vary (1ms-2s granularity)
-- Content hash: Is hash validation performed when mtime insufficient?
-- Manual invalidation: Are all invalidation paths correct?
-- TTL expiration: Is expiry logic correct (off-by-one, timezone issues)?
-- Race: File modified between mtime check and read?
+Stale checkpoints from incorrect invalidation:
+- Patch changes: Are patch file hashes included in cache key?
+- Source version: Is Node.js version properly included in cache key?
+- Config changes: Are build flags (debug/release, ICU settings) in cache key?
+- Cross-platform: Are platform/arch properly isolated (darwin-arm64 vs linux-x64)?
+- Restoration: Is checkpoint validated before restoration (corrupted archives)?
+- Race: Checkpoint modified/deleted between validation and restoration?
 </pattern>
 
 <pattern name="cache_keys">
-Key generation correctness:
-- Hash collisions: Is hash function sufficient? CRC32 vs SHA256?
-- Path normalization: Are paths resolved to absolute canonical form?
-- Platform differences: Windows backslashes vs Unix forward slashes handled?
-- Symlinks: Are symbolic links resolved to real paths?
-- Case sensitivity: Windows case-insensitive vs Linux case-sensitive
+Checkpoint key generation correctness:
+- Hash collisions: Is hash function sufficient for patch content?
+- Patch ordering: Does key depend on patch application order?
+- Platform isolation: Are Windows/macOS/Linux checkpoints properly separated?
+- Arch isolation: Are ARM64/x64 checkpoints kept separate?
+- Additions: Are build-infra/binject changes invalidating checkpoints?
+- Environment: Are env vars (NODE_OPTIONS, etc.) affecting builds included?
 </pattern>
 
-<pattern name="memory_management">
-Memory leaks and limit enforcement:
-- Size limits: Is maxCacheSize enforced correctly?
-- LRU eviction: Does eviction logic work as designed?
-- Stale references: Are entries fully released on eviction?
-- Entry size validation: Is maxEntrySize checked before insertion?
-- Unbounded growth: Can cache grow indefinitely in any scenario?
+<pattern name="checkpoint_corruption">
+Checkpoint archive corruption:
+- Partial writes: tar.gz creation interrupted, incomplete archive
+- Disk full: Archive truncated due to disk space issues
+- Extraction failures: Corrupted archive extracted partially
+- Overwrite races: Concurrent builds overwriting same checkpoint
+- Cleanup races: Checkpoint deleted while being restored
 </pattern>
 
 <pattern name="concurrency">
-Race conditions in cache operations:
-- Map access: Concurrent reads/writes to cache Map without locks?
-- Check-then-act: `if (!cache.has(key))` then `cache.set(key)` - race window?
-- In-flight deduplication: Multiple simultaneous requests for same uncached file?
-- Invalidation during read: Entry removed while being accessed?
-- Promise caching: Cached promises rejected but not removed?
+Race conditions in checkpoint operations:
+- Creation races: Multiple builds creating same checkpoint simultaneously
+- Restoration races: Checkpoint deleted/modified during restoration
+- Validation races: Checkpoint validated then corrupted before use
+- Directory conflicts: Concurrent builds using same build directory
+- Lock files: Missing lock files allowing concurrent checkpoint access
 </pattern>
 
-<pattern name="stale_data">
-Scenarios producing stale cached data:
-- File modified but mtime unchanged (OS granularity, clock skew)
-- Rapid successive writes within mtime granularity
-- File replaced atomically (rename) with same mtime
-- Symlink target changed but symlink mtime unchanged
-- Network filesystem with delayed mtime propagation
+<pattern name="stale_checkpoints">
+Scenarios producing stale/incorrect checkpoints:
+- Patch modified but checkpoint not invalidated (hash not updated)
+- Platform mismatch: Restoring darwin checkpoint on linux
+- Arch mismatch: Restoring arm64 checkpoint for x64 build
+- Version mismatch: Node.js version changed but checkpoint reused
+- Additions changed: build-infra/binject updated but checkpoint not invalidated
+- Environment drift: Build flags changed but cache key unchanged
 </pattern>
 
 <pattern name="edge_cases">
@@ -301,7 +351,7 @@ Think through each issue:
 <output_format>
 For each finding, report:
 
-File: src/utils/file-cache.mts:lineNumber
+File: packages/node-smol-builder/scripts/common/shared/checkpoints.mjs:lineNumber
 Issue: [One-line description]
 Severity: High | Medium
 Scenario: [Step-by-step sequence showing how bug manifests]
@@ -310,45 +360,52 @@ Fix: [Specific code change]
 Impact: [Observable effect - wrong output, performance, crash]
 
 Example:
-File: src/utils/file-cache.mts:67
-Issue: Race condition in cache population
+File: packages/node-smol-builder/scripts/common/shared/checkpoints.mjs:145
+Issue: Cache key missing patch content hashes
 Severity: High
-Scenario: Two parallel requests for uncached file both populate cache simultaneously
-Pattern: `if (!cache.has(key)) { const data = await readFile(); cache.set(key, data); }`
-Fix: Use in-flight map: `const inFlight = new Map(); if (inFlight.has(key)) return inFlight.get(key);`
-Impact: Duplicate file reads, wasted resources, potential cache corruption
+Scenario: 1) Build with patch v1, creates checkpoint. 2) Patch file modified to v2 (same filename). 3) Build restores v1 checkpoint. 4) Produces binary with v1 patches but v2 expected
+Pattern: `const cacheKey = \`\${nodeVersion}-\${platform}-\${arch}\``
+Fix: `const patchHashes = await hashAllPatches(); const cacheKey = \`\${nodeVersion}-\${platform}-\${arch}-\${patchHashes}\``
+Impact: Stale checkpoints produce incorrect Node.js binaries with wrong patches applied
 </output_format>
 
 <quality_guidelines>
-- Focus on correctness issues that produce wrong output or crashes
-- Consider cross-platform filesystem differences (Windows, macOS, Linux)
-- Evaluate concurrency scenarios realistic for parallel parsing
-- Verify issues aren't prevented by existing safeguards
+- Focus on correctness issues that produce wrong builds or corrupted checkpoints
+- Consider cross-platform differences (Windows, macOS, Linux)
+- Evaluate checkpoint invalidation scenarios (patches changed, additions changed)
+- Prioritize issues causing silent build incorrectness over performance
+- Verify issues aren't prevented by existing cache key generation
 </quality_guidelines>
 
-Analyze the caching implementation thoroughly and report all issues found. If the implementation is sound, state that explicitly.
+Analyze the checkpoint implementation thoroughly across all checkpoint stages and report all issues found. If the implementation is sound, state that explicitly.
 ```
 
 ---
 
 ### Workflow Scan Agent
 
-**Mission**: Detect problems in build scripts, CI configuration, git hooks, and developer workflows.
+**Mission**: Detect problems in build scripts, CI configuration, git hooks, and developer workflows across the socket-btm monorepo.
 
-**Scan Targets**: `scripts/*.mjs`, `package.json`, `.git-hooks/*`, CI configs
+**Scan Targets**: All `scripts/`, `package.json`, `.git-hooks/*`, `.github/workflows/*` across packages
 
 **Prompt Template:**
 ```
-Your task is to identify issues in development workflows, build scripts, and CI configuration that could cause build failures, test flakiness, or poor developer experience.
+Your task is to identify issues in socket-btm's development workflows, build scripts, and CI configuration that could cause build failures, test flakiness, or poor developer experience.
 
 <context>
-This project uses:
-- Build scripts: scripts/*.mjs (ESM, cross-platform Node.js)
-- Package manager: pnpm with scripts in package.json
-- Git hooks: .git-hooks/* for pre-commit, pre-push validation
-- CI: GitHub Actions or similar (check for .github/workflows/)
-- Platforms: Must work on Windows, macOS, Linux
-- CLAUDE.md defines conventions (Conventional Commits, no process.exit(), etc.)
+socket-btm is a pnpm monorepo with:
+- **Build scripts**: packages/*/scripts/**/*.{mjs,mts} (ESM, cross-platform Node.js)
+- **Package manager**: pnpm workspaces with scripts in each package.json
+- **Git hooks**: .git-hooks/* for pre-commit, pre-push validation
+- **CI**: GitHub Actions (.github/workflows/)
+- **Platforms**: Must work on Windows, macOS, Linux (ARM64, x64)
+- **CLAUDE.md**: Defines conventions (no process.exit(), no backward compat, etc.)
+- **Critical**: Build scripts compile C/C++ code and apply patches - must handle errors gracefully
+
+Packages:
+- node-smol-builder: Main build orchestration
+- binject: C/C++ binary injection library
+- bin-infra, build-infra: Utilities used by node-smol-builder
 </context>
 
 <instructions>
@@ -392,10 +449,13 @@ Git hooks configuration:
 <pattern name="ci_configuration">
 CI pipeline issues:
 - Build order: Are steps in correct sequence (install → build → test)?
-- Test coverage: Is coverage collected and reported?
-- Artifact generation: Are build artifacts uploaded?
-- Failure notifications: Are failures clearly visible?
-- Caching: Are dependencies cached for speed?
+- Cross-platform: Are Windows/macOS/Linux builds all tested?
+- C/C++ compilation: Are compiler toolchains (clang, gcc, MSVC) properly configured?
+- Build artifacts: Are Node.js binaries uploaded for each platform?
+- Checkpoint caching: Are build checkpoints cached across CI runs?
+- Failure notifications: Are build failures clearly visible?
+- Node.js versions: Are upstream Node.js version updates tested?
+- Patch validation: Are patch files validated before application?
 </pattern>
 
 <pattern name="developer_experience">

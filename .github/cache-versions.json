@@ -4,13 +4,13 @@
   "versions": {
     "binflate": "v56",
     "binject": "v75",
-    "binpress": "v75",
+    "binpress": "v76",
     "curl": "v8",
     "lief": "v29",
     "models": "v13",
     "node-smol": "v61",
     "onnxruntime": "v13",
-    "stubs": "v22",
+    "stubs": "v23",
     "yoga-layout": "v12"
   }
 }

@@ -20,7 +20,8 @@
 #
 # Compression Library Dependencies:
 # - macOS: libcompression (native Apple Compression framework) for gzip_compress.c and compression_common.c
-# - Linux/Windows: LZFSE static library (deps/lzfse/lzfse.gyp:liblzfse) for compression_common.c
+# - Linux/Windows: LZFSE (deps/lzfse/lzfse.gyp:liblzfse) for compression_common.c
+# - Linux/Windows: libdeflate (deps/libdeflate/libdeflate.gyp:libdeflate) for gzip_compress.c
 # - CRITICAL: libcompression must be added to ALL targets that link libnode.a on macOS.
 #   libnode.a contains gzip_compress.o and compression_common.o, so all executables linking libnode.a
 #   need the library at link time to resolve compression symbols.
@@ -34,8 +35,8 @@
 # Files modified:
 # - node.gyp: Add binject and VFS source files, include directories, and libcompression
 #
---- a/node.gyp	2026-02-06 07:33:56
-+++ b/node.gyp	2026-02-06 07:35:29
+--- a/node.gyp	2026-02-06 08:59:59
++++ b/node.gyp	2026-02-06 09:00:34
 @@ -694,6 +694,12 @@
              'Ws2_32.lib',
            ],
@@ -49,7 +50,7 @@
          ['node_with_ltcg=="true"', {
            'msvs_settings': {
              'VCCLCompilerTool': {
-@@ -1003,6 +1009,55 @@
+@@ -1003,6 +1009,56 @@
          [ 'node_use_lief=="true"', {
            'defines': [ 'HAVE_LIEF=1' ],
            'dependencies': [ 'deps/LIEF/lief.gyp:liblief' ],
@@ -87,10 +88,11 @@
 +            'src/socketsecurity/bin-infra/stub_smol_repack_lief.cpp',
 +          ],
 +          'conditions': [
-+            # Linux/Windows: Add LZFSE dependency for compression_common.c
++            # Linux/Windows: Add LZFSE and libdeflate dependencies for compression
 +            ['OS!="mac"', {
 +              'dependencies': [
 +                'deps/lzfse/lzfse.gyp:liblzfse',
++                'deps/libdeflate/libdeflate.gyp:libdeflate',
 +              ],
 +            }],
 +          ],
@@ -105,7 +107,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1352,6 +1407,12 @@
+@@ -1352,6 +1408,12 @@
              'Ws2_32.lib',
            ],
          }],
@@ -118,7 +120,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1414,6 +1475,12 @@
+@@ -1414,6 +1476,12 @@
              'Dbghelp.lib',
              'winmm.lib',
              'Ws2_32.lib',
@@ -131,7 +133,7 @@
            ],
          }],
          # Avoid excessive LTO
-@@ -1561,6 +1628,12 @@
+@@ -1561,6 +1629,12 @@
              'Ws2_32.lib',
            ],
          }],

@@ -51,6 +51,10 @@ const EXTERNAL_SOURCES = [
     from: path.join(BIN_INFRA_DIR, 'upstream', 'lzfse', 'src'),
     to: path.join(ADDITIONS_SOURCE_PATCHED_DIR, 'deps', 'lzfse', 'src'),
   },
+  {
+    from: path.join(BINJECT_DIR, 'upstream', 'libdeflate'),
+    to: path.join(ADDITIONS_SOURCE_PATCHED_DIR, 'deps', 'libdeflate'),
+  },
 ]
 
 /**

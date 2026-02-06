@@ -10,7 +10,12 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <unistd.h>
+
+#ifdef _WIN32
+#include <io.h>  // _unlink
+#else
+#include <unistd.h>  // unlink
+#endif
 
 // Socket Security C APIs.
 extern "C" {

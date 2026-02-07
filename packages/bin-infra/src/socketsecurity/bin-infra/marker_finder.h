@@ -11,6 +11,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdint.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -44,9 +45,9 @@ typedef int ssize_t;
  * in the binary itself. This function reconstructs and searches for it.
  *
  * Example usage:
- *   long offset = find_marker(fd, "__SOCKETSEC_", "BINFLATE_", "MAGIC_MARKER", 33);
+ *   int64_t offset = find_marker(fd, "__SOCKETSEC_", "BINFLATE_", "MAGIC_MARKER", 33);
  */
-static inline long find_marker(int fd, const char *part1, const char *part2, const char *part3, size_t marker_len) {
+static inline int64_t find_marker(int fd, const char *part1, const char *part2, const char *part3, size_t marker_len) {
     // Build the magic marker at runtime to avoid it appearing in the binary
     char magic_marker[128];
     int len = snprintf(magic_marker, sizeof(magic_marker), "%s%s%s", part1, part2, part3);
@@ -55,7 +56,7 @@ static inline long find_marker(int fd, const char *part1, const char *part2, con
     }
 
     char buffer[4096];
-    long offset = 0;
+    int64_t offset = 0;
     ssize_t bytes_read;
 
     // Seek to beginning
@@ -74,7 +75,7 @@ static inline long find_marker(int fd, const char *part1, const char *part2, con
         for (ssize_t i = 0; i <= bytes_read - (ssize_t)marker_len; i++) {
             if (memcmp(buffer + i, magic_marker, marker_len) == 0) {
                 // Found marker - return offset just after it
-                return offset + i + (long)marker_len;
+                return offset + i + (int64_t)marker_len;
             }
         }
         offset += bytes_read;
@@ -82,10 +83,10 @@ static inline long find_marker(int fd, const char *part1, const char *part2, con
         // Rewind a bit to handle marker split across buffer boundary
         // Only rewind if we read a full buffer (otherwise we're at EOF)
         if (bytes_read == sizeof(buffer)) {
-            if (lseek(fd, offset - (long)marker_len, SEEK_SET) == -1) {
+            if (lseek(fd, offset - (int64_t)marker_len, SEEK_SET) == -1) {
                 return -1;
             }
-            offset -= (long)marker_len;
+            offset -= (int64_t)marker_len;
         }
     }
 

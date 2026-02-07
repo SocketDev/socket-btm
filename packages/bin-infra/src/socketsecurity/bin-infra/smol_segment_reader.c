@@ -129,8 +129,8 @@ int smol_read_metadata(int fd, smol_metadata_t *metadata) {
     }
 
     /* Find compressed data marker. */
-    long data_offset = find_marker(fd, MAGIC_MARKER_PART1, MAGIC_MARKER_PART2,
-                                   MAGIC_MARKER_PART3, MAGIC_MARKER_LEN);
+    int64_t data_offset = find_marker(fd, MAGIC_MARKER_PART1, MAGIC_MARKER_PART2,
+                                      MAGIC_MARKER_PART3, MAGIC_MARKER_LEN);
     if (data_offset == -1) {
         fprintf(stderr, "Error: Could not find compressed data marker\n");
         return -1;

@@ -10,6 +10,7 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <inttypes.h>
 #include "socketsecurity/binject/stub_repack.h"
 #include "socketsecurity/binject/binject.h"
 #include "socketsecurity/bin-infra/buffer_constants.h"
@@ -96,7 +97,7 @@ int binject_compress_binary(const char *input_path, const char *output_path, con
     }
 
     fseek(fp, 0, SEEK_END);
-    long file_size = ftell(fp);
+    off_t file_size = ftello(fp);  /* Use ftello for large file support (>2GB) */
     if (file_size <= 0) {
         fclose(fp);
         fprintf(stderr, "Error: Invalid input file size\n");
@@ -107,7 +108,7 @@ int binject_compress_binary(const char *input_path, const char *output_path, con
     uint8_t *input_data = malloc((size_t)file_size);
     if (!input_data) {
         fclose(fp);
-        fprintf(stderr, "Error: Out of memory allocating %ld bytes\n", file_size);
+        fprintf(stderr, "Error: Out of memory allocating %" PRId64 " bytes\n", (int64_t)file_size);
         return -1;
     }
 
@@ -119,7 +120,7 @@ int binject_compress_binary(const char *input_path, const char *output_path, con
     }
     fclose(fp);
 
-    printf("  Input size: %ld bytes\n", file_size);
+    printf("  Input size: %" PRId64 " bytes\n", (int64_t)file_size);
 
     /* Compress using built-in compression. */
     uint8_t *compressed_data = NULL;

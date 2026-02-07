@@ -31,7 +31,7 @@ typedef struct {
     uint64_t uncompressed_size;      /* Uncompressed data size in bytes. */
     char cache_key[17];              /* Cache key (16 hex chars + null). */
     uint8_t platform_metadata[PLATFORM_METADATA_LEN];  /* Platform metadata bytes. */
-    long data_offset;                /* Offset to compressed data start. */
+    int64_t data_offset;             /* Offset to compressed data start. */
 } smol_metadata_t;
 
 /**

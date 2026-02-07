@@ -139,7 +139,11 @@ static unsigned int tar_checksum(const uint8_t *header) {
 static void tar_write_octal(uint8_t *field, size_t len, unsigned long value) {
     /* Write octal with leading zeros, null-terminated */
     char format[16];
-    snprintf(format, sizeof(format), "%%0%zuo", len - 1);
+#ifdef _WIN32
+    snprintf(format, sizeof(format), "%%0%Iuo", len - 1);  /* Windows MSVC uses %I for size_t */
+#else
+    snprintf(format, sizeof(format), "%%0%zuo", len - 1);  /* C99 standard %z for size_t */
+#endif
     snprintf((char *)field, len, format, value);
 }
 
@@ -238,7 +242,7 @@ static int tar_add_file(tar_buffer_t *buf, const char *base_path,
 
     /* Create header */
     uint8_t header[TAR_BLOCK_SIZE];
-    int rc = tar_create_header(header, tar_path, 0, st.st_size, st.st_mtime);
+    int rc = tar_create_header(header, tar_path, 0, (size_t)st.st_size, st.st_mtime);
     if (rc != TAR_OK) return rc;
 
     /* Append header */
@@ -252,7 +256,7 @@ static int tar_add_file(tar_buffer_t *buf, const char *base_path,
         return TAR_ERROR_READ_FAILED;
     }
 
-    rc = tar_buffer_grow(buf, st.st_size);
+    rc = tar_buffer_grow(buf, (size_t)st.st_size);
     if (rc != TAR_OK) {
         fclose(fp);
         return rc;

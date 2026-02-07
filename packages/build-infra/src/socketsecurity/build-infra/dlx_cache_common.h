@@ -55,6 +55,11 @@
 #define O_CLOEXEC 0
 #endif
 
+// Windows doesn't have O_NOFOLLOW, define to 0 (no-op, symlink behavior different)
+#ifndef O_NOFOLLOW
+#define O_NOFOLLOW 0
+#endif
+
 // Platform-specific crypto includes for SHA-512.
 #if defined(__APPLE__)
     #include <CommonCrypto/CommonDigest.h>

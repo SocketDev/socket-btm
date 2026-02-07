@@ -36,6 +36,10 @@
 #ifndef PATH_MAX
 #define PATH_MAX MAX_PATH
 #endif
+// Windows doesn't have O_NOFOLLOW, define to 0 (no-op, symlink behavior different)
+#ifndef O_NOFOLLOW
+#define O_NOFOLLOW 0
+#endif
 #endif
 #include "socketsecurity/binject/binject.h"
 #include "socketsecurity/binject/stub_repack.h"

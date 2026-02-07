@@ -243,7 +243,16 @@ int smol_codesign(const char *binary_path) {
     }
 
     int status;
-    waitpid(pid, &status, 0);
+    pid_t result;
+    /* Retry waitpid on EINTR (interrupted by signal) */
+    do {
+        result = waitpid(pid, &status, 0);
+    } while (result == -1 && errno == EINTR);
+
+    if (result == -1) {
+        fprintf(stderr, "Error: waitpid failed: %s\n", strerror(errno));
+        return -1;
+    }
 
     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
         fprintf(stderr, "Error: codesign failed\n");
@@ -285,7 +294,15 @@ int smol_codesign_verify(const char *binary_path) {
     }
 
     int status;
-    waitpid(pid, &status, 0);
+    pid_t result;
+    /* Retry waitpid on EINTR (interrupted by signal) */
+    do {
+        result = waitpid(pid, &status, 0);
+    } while (result == -1 && errno == EINTR);
+
+    if (result == -1) {
+        return -1;
+    }
 
     if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
         return 0;

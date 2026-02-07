@@ -203,7 +203,8 @@ static int dlx_get_home_dir(char *buf, size_t size) {
 #else
     const char *home = getenv("HOME");
     if (!home) {
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
+        /* Unix systems: Fall back to getpwuid if HOME is unset */
         struct passwd *pw = getpwuid(getuid());
         if (!pw || !pw->pw_dir) {
             return -1;

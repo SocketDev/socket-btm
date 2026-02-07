@@ -57,7 +57,14 @@ int remove_macho_signature(const char *path) {
 
     // Verify it's a 64-bit Mach-O binary.
     if (header->magic != MH_MAGIC_64) {
-        fprintf(stderr, "Error: Not a 64-bit Mach-O binary (magic: 0x%x)\n", header->magic);
+        // Provide helpful error message for different binary types
+        if (header->magic == 0xfeedface) {
+            fprintf(stderr, "Error: 32-bit Mach-O binary detected (not supported)\n");
+        } else if (header->magic == 0xcafebabe || header->magic == 0xbebafeca) {
+            fprintf(stderr, "Error: Universal/fat binary detected (process individual architectures instead)\n");
+        } else {
+            fprintf(stderr, "Error: Not a valid Mach-O binary (magic: 0x%x)\n", header->magic);
+        }
         munmap(map, st.st_size);
         close(fd);
         return -1;

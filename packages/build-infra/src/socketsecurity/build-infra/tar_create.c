@@ -259,9 +259,19 @@ static int tar_add_file(tar_buffer_t *buf, const char *base_path,
     snprintf(tar_path, sizeof(tar_path), "%s", rel_path);
     normalize_path(tar_path);
 
+    /* Validate file size before casting to size_t */
+    if ((uint64_t)st.st_size > SIZE_MAX) {
+        fprintf(stderr, "Error: File too large for TAR archive: %s (%lld bytes)\n",
+                full_path, (long long)st.st_size);
+        fprintf(stderr, "  SIZE_MAX on this platform: %zu\n", SIZE_MAX);
+        return TAR_ERROR_READ_FAILED;
+    }
+
+    size_t file_size = (size_t)st.st_size;
+
     /* Create header */
     uint8_t header[TAR_BLOCK_SIZE];
-    int rc = tar_create_header(header, tar_path, 0, (size_t)st.st_size, st.st_mtime);
+    int rc = tar_create_header(header, tar_path, 0, file_size, st.st_mtime);
     if (rc != TAR_OK) return rc;
 
     /* Append header */
@@ -276,16 +286,16 @@ static int tar_add_file(tar_buffer_t *buf, const char *base_path,
         return TAR_ERROR_READ_FAILED;
     }
 
-    rc = tar_buffer_grow(buf, (size_t)st.st_size);
+    rc = tar_buffer_grow(buf, file_size);
     if (rc != TAR_OK) {
         fclose(fp);
         return rc;
     }
 
-    size_t bytes_read = fread(buf->data + buf->size, 1, st.st_size, fp);
+    size_t bytes_read = fread(buf->data + buf->size, 1, file_size, fp);
     fclose(fp);
 
-    if (bytes_read != (size_t)st.st_size) {
+    if (bytes_read != file_size) {
         fprintf(stderr, "Error: Failed to read file: %s\n", full_path);
         return TAR_ERROR_READ_FAILED;
     }

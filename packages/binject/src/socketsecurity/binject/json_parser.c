@@ -32,14 +32,18 @@ static char* read_file_contents(const char *path, size_t *out_size) {
 
     // Get file size.
     if (fseek(fp, 0, SEEK_END) != 0) {
-        fprintf(stderr, "Error: Cannot seek file\n");
+        int saved_errno = errno;
+        fprintf(stderr, "Error: Cannot seek to end of file: %s (errno: %d - %s)\n",
+                path, saved_errno, strerror(saved_errno));
         fclose(fp);
         return NULL;
     }
 
     off_t size = ftello(fp);  /* Use ftello for large file support */
     if (size < 0) {
-        fprintf(stderr, "Error: Cannot determine file size\n");
+        int saved_errno = errno;
+        fprintf(stderr, "Error: Cannot determine file size: %s (errno: %d - %s)\n",
+                path, saved_errno, strerror(saved_errno));
         fclose(fp);
         return NULL;
     }
@@ -51,7 +55,9 @@ static char* read_file_contents(const char *path, size_t *out_size) {
     }
 
     if (fseek(fp, 0, SEEK_SET) != 0) {
-        fprintf(stderr, "Error: Cannot seek to start\n");
+        int saved_errno = errno;
+        fprintf(stderr, "Error: Cannot seek to start of file: %s (errno: %d - %s)\n",
+                path, saved_errno, strerror(saved_errno));
         fclose(fp);
         return NULL;
     }

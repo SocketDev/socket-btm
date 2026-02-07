@@ -83,18 +83,22 @@ static inline int _debug_is_enabled(const char *ns) {
         return 0;
     }
 
-    // Parse comma-separated patterns
+    /**
+     * Parse comma-separated patterns
+     * Uses thread-safe strtok_r (POSIX) / strtok_s (Windows)
+     * WARNING: Not async-signal-safe - do not call from signal handlers
+     */
     // Copy to temp buffer since strtok_r/strtok_s modifies the string
     char patterns[1024];
     snprintf(patterns, sizeof(patterns), "%s", debug_env);
 
     int enabled = 0;
-    char *saveptr = NULL;
+    char *strtok_context = NULL;  // Context for thread-safe tokenization
 
 #ifdef _WIN32
-    char *pattern = strtok_s(patterns, ",", &saveptr);
+    char *pattern = strtok_s(patterns, ",", &strtok_context);
 #else
-    char *pattern = strtok_r(patterns, ",", &saveptr);
+    char *pattern = strtok_r(patterns, ",", &strtok_context);
 #endif
     while (pattern) {
         // Trim leading spaces
@@ -114,9 +118,9 @@ static inline int _debug_is_enabled(const char *ns) {
         }
 
 #ifdef _WIN32
-        pattern = strtok_s(NULL, ",", &saveptr);
+        pattern = strtok_s(NULL, ",", &strtok_context);
 #else
-        pattern = strtok_r(NULL, ",", &saveptr);
+        pattern = strtok_r(NULL, ",", &strtok_context);
 #endif
     }
 

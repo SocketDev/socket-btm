@@ -96,14 +96,30 @@ int binject_compress_binary(const char *input_path, const char *output_path, con
         return -1;
     }
 
-    fseek(fp, 0, SEEK_END);
-    off_t file_size = ftello(fp);  /* Use ftello for large file support (>2GB) */
-    if (file_size <= 0) {
+    if (fseek(fp, 0, SEEK_END) != 0) {
+        int saved_errno = errno;
+        fprintf(stderr, "Error: Cannot seek to end of file: %s (errno: %d - %s)\n",
+                input_path, saved_errno, strerror(saved_errno));
         fclose(fp);
-        fprintf(stderr, "Error: Invalid input file size\n");
         return -1;
     }
-    fseek(fp, 0, SEEK_SET);
+
+    off_t file_size = ftello(fp);  /* Use ftello for large file support (>2GB) */
+    if (file_size <= 0) {
+        int saved_errno = errno;
+        fclose(fp);
+        fprintf(stderr, "Error: Invalid input file size: %s (errno: %d - %s)\n",
+                input_path, saved_errno, strerror(saved_errno));
+        return -1;
+    }
+
+    if (fseek(fp, 0, SEEK_SET) != 0) {
+        int saved_errno = errno;
+        fprintf(stderr, "Error: Cannot seek to start of file: %s (errno: %d - %s)\n",
+                input_path, saved_errno, strerror(saved_errno));
+        fclose(fp);
+        return -1;
+    }
 
     uint8_t *input_data = malloc((size_t)file_size);
     if (!input_data) {

@@ -59,6 +59,15 @@ int file_io_read(const char *path, uint8_t **data, size_t *size) {
         return FILE_IO_ERROR_READ_FAILED;
     }
 
+    /* Check for overflow before casting off_t to size_t */
+    if ((uint64_t)file_size > SIZE_MAX) {
+        fprintf(stderr, "Error: File too large for memory allocation: %s (%lld bytes)\n",
+                path, (long long)file_size);
+        fprintf(stderr, "  SIZE_MAX on this platform: %zu\n", SIZE_MAX);
+        fclose(fp);
+        return FILE_IO_ERROR_READ_FAILED;
+    }
+
     /* Allocate buffer */
     *size = (size_t)file_size;
     *data = (uint8_t *)malloc(*size);

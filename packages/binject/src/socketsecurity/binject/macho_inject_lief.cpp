@@ -264,14 +264,14 @@ extern "C" int binject_macho_lief(const char* executable,
     // LIEF can successfully parse 32-bit Mach-O binaries (MH_MAGIC) which are no longer
     // supported on macOS 10.15+. Attempting to inject into these will create corrupted binaries.
     // The remove_signature_lib.c has this check (line 59) but the LIEF code path needs it too.
-    uint32_t magic = binary->header().magic();
-    if (magic != LIEF::MachO::MACHO_TYPES::MH_MAGIC_64 &&
-        magic != LIEF::MachO::MACHO_TYPES::MH_CIGAM_64) {
-      if (magic == LIEF::MachO::MACHO_TYPES::MH_MAGIC ||
-          magic == LIEF::MachO::MACHO_TYPES::MH_CIGAM) {
+    LIEF::MachO::MACHO_TYPES magic = binary->header().magic();
+    if (magic != LIEF::MachO::MACHO_TYPES::MAGIC_64 &&
+        magic != LIEF::MachO::MACHO_TYPES::CIGAM_64) {
+      if (magic == LIEF::MachO::MACHO_TYPES::MAGIC ||
+          magic == LIEF::MachO::MACHO_TYPES::CIGAM) {
         fprintf(stderr, "Error: 32-bit Mach-O binary detected (not supported)\n");
       } else {
-        fprintf(stderr, "Error: Not a valid 64-bit Mach-O binary (magic: 0x%x)\n", magic);
+        fprintf(stderr, "Error: Not a valid 64-bit Mach-O binary (magic: 0x%x)\n", static_cast<uint32_t>(magic));
       }
       return BINJECT_ERROR_INVALID_FORMAT;
     }
@@ -833,8 +833,8 @@ extern "C" int binject_macho_lief_batch(
 
     // Add the segment to the binary (LIEF handles section layout)
     printf("Adding NODE_SEA segment to binary...\n");
-    LIEF::MachO::SegmentCommand* added_seg = binary->add(node_sea_seg);
-    if (!added_seg) {
+    LIEF::MachO::LoadCommand* added_cmd = binary->add(node_sea_seg);
+    if (!added_cmd) {
         fprintf(stderr, "Error: Failed to add NODE_SEA segment to binary\n");
         return BINJECT_ERROR;
     }

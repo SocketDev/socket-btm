@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <dirent.h>
 #include <time.h>
 
 #ifdef _WIN32
@@ -18,6 +17,7 @@
 #define PATH_SEP '\\'
 #else
 #include <unistd.h>
+#include <dirent.h>
 #define PATH_SEP '/'
 #endif
 
@@ -294,6 +294,7 @@ static int tar_add_directory_entry(tar_buffer_t *buf, const char *rel_path, time
     return tar_buffer_append(buf, header, TAR_BLOCK_SIZE);
 }
 
+#ifndef _WIN32
 /* Recursively add directory contents to TAR buffer */
 static int tar_add_directory_recursive(tar_buffer_t *buf, const char *base_path,
                                        const char *rel_path) {
@@ -359,6 +360,17 @@ static int tar_add_directory_recursive(tar_buffer_t *buf, const char *base_path,
     closedir(dir);
     return rc;
 }
+#else
+/* Windows stub - directory traversal not yet implemented */
+static int tar_add_directory_recursive(tar_buffer_t *buf, const char *base_path,
+                                       const char *rel_path) {
+    (void)buf;
+    (void)base_path;
+    (void)rel_path;
+    fprintf(stderr, "Error: TAR directory traversal not implemented on Windows\n");
+    return TAR_ERROR_NOT_DIRECTORY;
+}
+#endif
 
 int tar_create_from_directory(const char *dir_path,
                               uint8_t **output, size_t *output_size) {

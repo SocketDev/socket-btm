@@ -29,6 +29,10 @@
 #ifndef S_ISREG
 #define S_ISREG(m) (((m) & _S_IFMT) == _S_IFREG)
 #endif
+// Windows uses MAX_PATH instead of PATH_MAX
+#ifndef PATH_MAX
+#define PATH_MAX MAX_PATH
+#endif
 #endif
 #include "socketsecurity/binject/binject.h"
 #include "socketsecurity/binject/stub_repack.h"

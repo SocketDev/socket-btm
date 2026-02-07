@@ -73,10 +73,12 @@ int elf_compress_lief(const char* input_path,
   }
 
   // Install signal handlers for crash debugging
+#ifndef _WIN32
   signal(SIGSEGV, signal_handler);
   signal(SIGABRT, signal_handler);
   signal(SIGILL, signal_handler);
   signal(SIGFPE, signal_handler);
+#endif
 
     print_compression_header("ELF");
     printf("%s\n", input_path);

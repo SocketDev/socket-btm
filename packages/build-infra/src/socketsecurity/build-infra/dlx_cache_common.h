@@ -50,6 +50,11 @@
     #include <shlobj.h>
 #endif
 
+// Windows doesn't have O_CLOEXEC, define to 0 (no-op, handled by SetHandleInformation)
+#ifndef O_CLOEXEC
+#define O_CLOEXEC 0
+#endif
+
 // Platform-specific crypto includes for SHA-512.
 #if defined(__APPLE__)
     #include <CommonCrypto/CommonDigest.h>

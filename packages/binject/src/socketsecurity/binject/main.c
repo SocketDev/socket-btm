@@ -25,6 +25,7 @@
 // Windows uses _unlink instead of unlink
 #define unlink _unlink
 #else
+#include <errno.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #endif
@@ -265,7 +266,17 @@ static char* generate_sea_blob_from_config(const char *config_path, const char *
 
     // Parent: wait for child
     int status;
-    waitpid(pid, &status, 0);
+    pid_t result;
+    /* Retry waitpid on EINTR (interrupted by signal) */
+    do {
+        result = waitpid(pid, &status, 0);
+    } while (result == -1 && errno == EINTR);
+
+    if (result == -1) {
+        fprintf(stderr, "Error: waitpid failed: %s\n", strerror(errno));
+        free(node_binary);
+        return NULL;
+    }
 
     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
         fprintf(stderr, "Error: node --experimental-sea-config failed\n");

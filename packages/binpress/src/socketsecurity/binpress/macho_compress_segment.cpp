@@ -285,7 +285,10 @@ int binpress_segment_embed(
     // CRITICAL: Use explicit config to ensure proper segment/section building
     // Without this, LIEF may write malformed segments that crash the dynamic linker
     LIEF::MachO::Builder::config_t config;
-    binary->write(output_path, config);
+    if (!binary->write(output_path, config)) {
+        fprintf(stderr, "Error: Failed to write modified binary to %s\n", output_path);
+        return -1;
+    }
     printf("  Binary written to: %s\n", output_path);
 
     // Set executable permissions (cross-platform).
@@ -343,6 +346,10 @@ int binpress_segment_extract(
     }
 
     LIEF::MachO::SegmentCommand* segment = binary->get_segment(MACHO_SEGMENT_SMOL);
+    if (!segment) {
+        fprintf(stderr, "Error: Failed to get SMOL segment (LIEF internal error)\n");
+        return -1;
+    }
     printf("  Found SMOL segment\n");
 
     // Find __PRESSED_DATA section (may be truncated to __PRESSED_DATA)

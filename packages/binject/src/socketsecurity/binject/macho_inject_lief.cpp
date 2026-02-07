@@ -71,6 +71,7 @@ int remove_macho_signature(const char *path);
 }
 
 #ifdef __APPLE__
+#include <errno.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -108,7 +109,16 @@ static bool sign_binary_adhoc(const char* binary_path) {
     }
 
     int status;
-    waitpid(pid, &status, 0);
+    pid_t result;
+    /* Retry waitpid on EINTR (interrupted by signal) */
+    do {
+        result = waitpid(pid, &status, 0);
+    } while (result == -1 && errno == EINTR);
+
+    if (result == -1) {
+        fprintf(stderr, "Error: waitpid failed: %s\n", strerror(errno));
+        return false;
+    }
 
     if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
         printf("  ✓ Binary signed successfully\n");
@@ -376,25 +386,29 @@ extern "C" int binject_macho_list_lief(const char* executable) {
     // Check for NODE_SEA segment and sections
     if (binary->has_segment(MACHO_SEGMENT_NODE_SEA)) {
       LIEF::MachO::SegmentCommand* segment = binary->get_segment(MACHO_SEGMENT_NODE_SEA);
-      printf("Segment: %s\n", MACHO_SEGMENT_NODE_SEA);
-      printf("  Sections:\n");
+      if (segment) {
+        printf("Segment: %s\n", MACHO_SEGMENT_NODE_SEA);
+        printf("  Sections:\n");
 
-      for (const LIEF::MachO::Section& section : segment->sections()) {
-        printf("    - %s (%llu bytes)\n", section.name().c_str(), (unsigned long long)section.size());
+        for (const LIEF::MachO::Section& section : segment->sections()) {
+          printf("    - %s (%llu bytes)\n", section.name().c_str(), (unsigned long long)section.size());
+        }
+        printf("\n");
       }
-      printf("\n");
     }
 
     // Check for SMOL segment and sections
     if (binary->has_segment(MACHO_SEGMENT_SMOL)) {
       LIEF::MachO::SegmentCommand* segment = binary->get_segment(MACHO_SEGMENT_SMOL);
-      printf("Segment: %s\n", MACHO_SEGMENT_SMOL);
-      printf("  Sections:\n");
+      if (segment) {
+        printf("Segment: %s\n", MACHO_SEGMENT_SMOL);
+        printf("  Sections:\n");
 
-      for (const LIEF::MachO::Section& section : segment->sections()) {
-        printf("    - %s (%llu bytes)\n", section.name().c_str(), (unsigned long long)section.size());
+        for (const LIEF::MachO::Section& section : segment->sections()) {
+          printf("    - %s (%llu bytes)\n", section.name().c_str(), (unsigned long long)section.size());
+        }
+        printf("\n");
       }
-      printf("\n");
     }
 
     return BINJECT_OK;
@@ -439,7 +453,7 @@ extern "C" int binject_macho_extract_lief(const char* executable,
     // Try to find in NODE_SEA segment first
     if (binary->has_segment(MACHO_SEGMENT_NODE_SEA)) {
       LIEF::MachO::SegmentCommand* segment = binary->get_segment(MACHO_SEGMENT_NODE_SEA);
-      if (segment->has_section(section_name)) {
+      if (segment && segment->has_section(section_name)) {
         section = segment->get_section(section_name);
       }
     }
@@ -447,7 +461,7 @@ extern "C" int binject_macho_extract_lief(const char* executable,
     // Try SMOL segment
     if (!section && binary->has_segment(MACHO_SEGMENT_SMOL)) {
       LIEF::MachO::SegmentCommand* segment = binary->get_segment(MACHO_SEGMENT_SMOL);
-      if (segment->has_section(section_name)) {
+      if (segment && segment->has_section(section_name)) {
         section = segment->get_section(section_name);
       }
     }
@@ -549,7 +563,7 @@ extern "C" int binject_macho_verify_lief(const char* executable,
     // Try to find in NODE_SEA segment first
     if (binary->has_segment(MACHO_SEGMENT_NODE_SEA)) {
       LIEF::MachO::SegmentCommand* segment = binary->get_segment(MACHO_SEGMENT_NODE_SEA);
-      if (segment->has_section(section_name)) {
+      if (segment && segment->has_section(section_name)) {
         section = segment->get_section(section_name);
         segment_name = MACHO_SEGMENT_NODE_SEA;
       }
@@ -558,7 +572,7 @@ extern "C" int binject_macho_verify_lief(const char* executable,
     // Try SMOL segment
     if (!section && binary->has_segment(MACHO_SEGMENT_SMOL)) {
       LIEF::MachO::SegmentCommand* segment = binary->get_segment(MACHO_SEGMENT_SMOL);
-      if (segment->has_section(section_name)) {
+      if (segment && segment->has_section(section_name)) {
         section = segment->get_section(section_name);
         segment_name = MACHO_SEGMENT_SMOL;
       }
@@ -720,7 +734,11 @@ extern "C" int binject_macho_lief_batch(
 
     // Add the segment to the binary (LIEF handles section layout)
     printf("Adding NODE_SEA segment to binary...\n");
-    binary->add(node_sea_seg);
+    LIEF::MachO::SegmentCommand* added_seg = binary->add(node_sea_seg);
+    if (!added_seg) {
+        fprintf(stderr, "Error: Failed to add NODE_SEA segment to binary\n");
+        return BINJECT_ERROR;
+    }
 
     // Remove old signature
     if (binary->has_code_signature()) {

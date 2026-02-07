@@ -379,11 +379,30 @@ bool InjectSeaAndVfs(const std::string& executable_path,
   snprintf(sea_tmp, sizeof(sea_tmp), "%s/sea_blob.bin", tmpdir);
   FILE* f = fopen(sea_tmp, "wb");
   if (!f) {
-    fprintf(stderr, "Error: Failed to create temporary SEA blob file\\n");
+    int saved_errno = errno;
+    fprintf(stderr, "Error: Failed to create temporary SEA blob file: %s (errno: %d)\\n",
+            sea_tmp, saved_errno);
     return false;
   }
-  fwrite(sea_blob.data(), 1, sea_blob.size(), f);
-  fclose(f);
+
+  size_t written = fwrite(sea_blob.data(), 1, sea_blob.size(), f);
+  if (written != sea_blob.size()) {
+    int saved_errno = errno;
+    fprintf(stderr, "Error: Failed to write SEA blob: wrote %zu of %zu bytes (errno: %d)\\n",
+            written, sea_blob.size(), saved_errno);
+    fclose(f);
+    unlink(sea_tmp);  // Remove incomplete file
+    return false;
+  }
+
+  // Check fclose() - critical for detecting APFS delayed allocation failures
+  if (fclose(f) != 0) {
+    int saved_errno = errno;
+    fprintf(stderr, "Error: Failed to close SEA blob file (data may not be flushed): %s (errno: %d)\\n",
+            strerror(saved_errno), saved_errno);
+    unlink(sea_tmp);  // Remove potentially incomplete file
+    return false;
+  }
 
   per_process::Debug(DebugCategory::SEA,
                      "  wrote SEA blob to %s\\n",

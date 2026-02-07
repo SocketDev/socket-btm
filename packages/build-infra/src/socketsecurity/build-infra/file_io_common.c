@@ -34,20 +34,27 @@ int file_io_read(const char *path, uint8_t **data, size_t *size) {
 
     /* Get file size */
     if (fseek(fp, 0, SEEK_END) != 0) {
-        fprintf(stderr, "Error: Cannot seek in file: %s\n", path);
+        int saved_errno = errno;
+        fprintf(stderr, "Error: Cannot seek to end of file: %s (errno: %d - %s)\n",
+                path, saved_errno, strerror(saved_errno));
         fclose(fp);
         return FILE_IO_ERROR_READ_FAILED;
     }
 
     off_t file_size = ftello(fp);
     if (file_size < 0) {
-        fprintf(stderr, "Error: Cannot get file size: %s\n", path);
+        int saved_errno = errno;
+        fprintf(stderr, "Error: Cannot get file size: %s (errno: %d - %s)\n",
+                path, saved_errno, strerror(saved_errno));
+        fprintf(stderr, "  File may be > 2GB and ftello() doesn't support large files\n");
         fclose(fp);
         return FILE_IO_ERROR_READ_FAILED;
     }
 
     if (fseek(fp, 0, SEEK_SET) != 0) {
-        fprintf(stderr, "Error: Cannot seek to start: %s\n", path);
+        int saved_errno = errno;
+        fprintf(stderr, "Error: Cannot seek to start: %s (errno: %d - %s)\n",
+                path, saved_errno, strerror(saved_errno));
         fclose(fp);
         return FILE_IO_ERROR_READ_FAILED;
     }
@@ -139,14 +146,27 @@ int file_io_copy(const char *source, const char *dest) {
 
     while ((bytes_read = fread(buffer, 1, sizeof(buffer), in_file)) > 0) {
         if (fwrite(buffer, 1, bytes_read, out_file) != bytes_read) {
-            fprintf(stderr, "Error: Failed to write output file\n");
+            fprintf(stderr, "Error: Failed to write output file: %s\n", strerror(errno));
             result = FILE_IO_ERROR_WRITE_FAILED;
             break;
         }
     }
 
-    fclose(in_file);
-    fclose(out_file);
+    /* Check for read errors (not just EOF) */
+    if (ferror(in_file)) {
+        fprintf(stderr, "Error: Failed to read input file: %s\n", source);
+        result = FILE_IO_ERROR_READ_FAILED;
+    }
+
+    /* Check fclose errors */
+    if (fclose(in_file) != 0 && result == FILE_IO_OK) {
+        fprintf(stderr, "Error: Failed to close input file: %s\n", strerror(errno));
+        result = FILE_IO_ERROR;
+    }
+    if (fclose(out_file) != 0 && result == FILE_IO_OK) {
+        fprintf(stderr, "Error: Failed to close output file: %s\n", strerror(errno));
+        result = FILE_IO_ERROR_WRITE_FAILED;
+    }
 
     /* Remove output file on failure */
     if (result != FILE_IO_OK) {

@@ -122,13 +122,23 @@ int binpress_segment_embed(
         return -1;
     }
 
-    fseek(fp, 0, SEEK_END);
+    if (fseek(fp, 0, SEEK_END) != 0) {
+        int saved_errno = errno;
+        fclose(fp);
+        fprintf(stderr, "Error: Cannot seek to end of compressed data file (errno: %d - %s)\n",
+                saved_errno, strerror(saved_errno));
+        return -1;
+    }
+
     off_t file_size = ftello(fp);
     if (file_size < 0) {
         int saved_errno = errno;
         fclose(fp);
-        fprintf(stderr, "Error: Cannot determine compressed data file size (errno: %d)\n",
-                saved_errno);
+        fprintf(stderr, "Error: Cannot determine compressed data file size (errno: %d - %s)\n",
+                saved_errno, strerror(saved_errno));
+        fprintf(stderr, "  Possible causes:\n");
+        fprintf(stderr, "    - File > 2GB (ftello may not support large files on this platform)\n");
+        fprintf(stderr, "    - File descriptor corrupted\n");
         return -1;
     }
 
@@ -141,8 +151,24 @@ int binpress_segment_embed(
         return -1;
     }
 
+    // Sanity check before casting (defense in depth)
+    if ((uint64_t)file_size > SIZE_MAX) {
+        fclose(fp);
+        fprintf(stderr, "Error: Compressed data too large for this platform: %lld bytes\n",
+                (long long)file_size);
+        fprintf(stderr, "  SIZE_MAX on this platform: %zu\n", SIZE_MAX);
+        return -1;
+    }
+
     size_t compressed_size = (size_t)file_size;
-    fseek(fp, 0, SEEK_SET);
+
+    if (fseek(fp, 0, SEEK_SET) != 0) {
+        int saved_errno = errno;
+        fclose(fp);
+        fprintf(stderr, "Error: Cannot seek to start of file (errno: %d - %s)\n",
+                saved_errno, strerror(saved_errno));
+        return -1;
+    }
 
     uint8_t *compressed_data = (uint8_t*)malloc(compressed_size);
     if (!compressed_data) {
@@ -529,17 +555,28 @@ int binpress_segment_extract(
             // Write to output
             FILE *fp = fopen(output_path, "wb");
             if (!fp) {
-                fprintf(stderr, "Error: Cannot create output file\n");
+                fprintf(stderr, "Error: Cannot create output file: %s\n", output_path);
                 return -1;
             }
 
             if (fwrite(compressed_data, 1, data_size, fp) != data_size) {
+                int saved_errno = errno;
                 fclose(fp);
-                fprintf(stderr, "Error: Failed to write data\n");
+                fprintf(stderr, "Error: Failed to write compressed data: %s (errno: %d)\n",
+                        strerror(saved_errno), saved_errno);
+                unlink(output_path);  // Remove incomplete file
                 return -1;
             }
 
-            fclose(fp);
+            // Check fclose() for buffered write errors
+            if (fclose(fp) != 0) {
+                int saved_errno = errno;
+                fprintf(stderr, "Error: Failed to close output file: %s (errno: %d)\n",
+                        strerror(saved_errno), saved_errno);
+                unlink(output_path);  // Remove potentially incomplete file
+                return -1;
+            }
+
             printf("  ✓ Extracted to: %s\n", output_path);
             return 0;
         }

@@ -66,14 +66,18 @@ static const char *detect_macho_architecture(const char *input_path) {
     // Fat binary - read first architecture
     uint32_t nfat_arch;
     if (fread(&nfat_arch, 1, sizeof(nfat_arch), f) != sizeof(nfat_arch)) {
+      int saved_errno = errno;  // Preserve errno before fclose
       fclose(f);
+      errno = saved_errno;  // Restore errno for caller
       return NULL;
     }
 
     // Read first fat_arch structure
     uint32_t cputype;
     if (fread(&cputype, 1, sizeof(cputype), f) != sizeof(cputype)) {
+      int saved_errno = errno;  // Preserve errno before fclose
       fclose(f);
+      errno = saved_errno;  // Restore errno for caller
       return NULL;
     }
 
@@ -95,7 +99,9 @@ static const char *detect_macho_architecture(const char *input_path) {
   if (magic == 0xfeedfacf || magic == 0xcffaedfe) {
     uint32_t cputype;
     if (fread(&cputype, 1, sizeof(cputype), f) != sizeof(cputype)) {
+      int saved_errno = errno;  // Preserve errno before fclose
       fclose(f);
+      errno = saved_errno;  // Restore errno for caller
       return NULL;
     }
     fclose(f);
@@ -110,7 +116,10 @@ static const char *detect_macho_architecture(const char *input_path) {
     }
   }
 
-  fclose(f);
+  if (fclose(f) != 0) {
+    fprintf(stderr, "Warning: Failed to close file (errno: %d - %s)\n",
+            errno, strerror(errno));
+  }
   return NULL;
 }
 
@@ -120,6 +129,8 @@ static const char *detect_macho_architecture(const char *input_path) {
 static const char *detect_elf_architecture(const char *input_path) {
   FILE *f = fopen(input_path, "rb");
   if (!f) {
+    fprintf(stderr, "Error: Cannot open file: %s (errno: %d - %s)\n",
+            input_path, errno, strerror(errno));
     return NULL;
   }
 
@@ -151,6 +162,8 @@ static const char *detect_elf_architecture(const char *input_path) {
 static int is_musl_elf(const char *input_path) {
   FILE *f = fopen(input_path, "rb");
   if (!f) {
+    fprintf(stderr, "Error: Cannot open file: %s (errno: %d - %s)\n",
+            input_path, errno, strerror(errno));
     return 0;
   }
 
@@ -236,6 +249,8 @@ static int is_musl_elf(const char *input_path) {
 static const char *detect_pe_architecture(const char *input_path) {
   FILE *f = fopen(input_path, "rb");
   if (!f) {
+    fprintf(stderr, "Error: Cannot open file: %s (errno: %d - %s)\n",
+            input_path, errno, strerror(errno));
     return NULL;
   }
 

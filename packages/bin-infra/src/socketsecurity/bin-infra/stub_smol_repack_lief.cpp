@@ -110,6 +110,25 @@ extern "C" int smol_repack_lief(
         LIEF::MachO::Builder::config_t config;
         binary->write(output_path, config);
 
+        // CRITICAL: Verify write succeeded immediately
+        struct stat st;
+        if (stat(output_path, &st) != 0) {
+            int saved_errno = errno;
+            fprintf(stderr, "Error: LIEF write() failed - file not created: %s\n", output_path);
+            fprintf(stderr, "  errno: %d (%s)\n", saved_errno, strerror(saved_errno));
+            fprintf(stderr, "  Common causes on macOS:\n");
+            fprintf(stderr, "    - Insufficient disk space\n");
+            fprintf(stderr, "    - Permission denied\n");
+            fprintf(stderr, "    - APFS snapshot interference\n");
+            fprintf(stderr, "    - SIP protected path\n");
+            return -1;
+        }
+        if (st.st_size == 0) {
+            fprintf(stderr, "Error: LIEF wrote empty file: %s\n", output_path);
+            return -1;
+        }
+        printf("  ✓ File created successfully (%lld bytes)\n", (long long)st.st_size);
+
         // Set executable permissions.
 #ifndef _WIN32
         if (chmod(output_path, 0755) != 0) {
@@ -272,6 +291,23 @@ extern "C" int smol_repack_lief_pe(
         config.dos_stub = true;       // Preserve DOS stub
         config.debug = false;         // Don't modify debug info
         binary->write(output_path, config);
+
+        // CRITICAL: Verify write succeeded immediately
+        struct stat st;
+        if (stat(output_path, &st) != 0) {
+            int saved_errno = errno;
+            fprintf(stderr, "Error: LIEF write() failed - file not created: %s\n", output_path);
+            fprintf(stderr, "  errno: %d (%s)\n", saved_errno, strerror(saved_errno));
+            fprintf(stderr, "  Common causes:\n");
+            fprintf(stderr, "    - Insufficient disk space\n");
+            fprintf(stderr, "    - Permission denied\n");
+            return -1;
+        }
+        if (st.st_size == 0) {
+            fprintf(stderr, "Error: LIEF wrote empty file: %s\n", output_path);
+            return -1;
+        }
+        printf("  ✓ File created successfully (%lld bytes)\n", (long long)st.st_size);
 
         printf("  ✓ SMOL section repacked successfully (PE)\n");
         return 0;

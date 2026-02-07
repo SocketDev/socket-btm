@@ -555,6 +555,8 @@ static int dlx_write_metadata(const char *entry_dir, const char *cache_key,
 
     FILE *f = fopen(metadata_path, "wb");
     if (!f) {
+        fprintf(stderr, "Error: Cannot create metadata file: %s (errno: %d - %s)\n",
+                metadata_path, errno, strerror(errno));
         return -1;
     }
 

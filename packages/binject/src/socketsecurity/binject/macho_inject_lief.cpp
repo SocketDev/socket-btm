@@ -386,19 +386,25 @@ extern "C" int binject_macho_lief(const char* executable,
     LIEF::MachO::Builder::config_t config;
     binary->write(tmpfile, config);
 
-    // Verify file was actually written (LIEF may silently fail on some platforms).
-    printf("Verifying file was created...\n");
+    // CRITICAL: Verify write succeeded immediately
     struct stat st;
     if (stat(tmpfile, &st) != 0) {
+        int saved_errno = errno;
         fprintf(stderr, "Error: LIEF write() failed - file not created: %s\n", tmpfile);
-        fprintf(stderr, "  errno: %d (%s)\n", errno, strerror(errno));
+        fprintf(stderr, "  errno: %d (%s)\n", saved_errno, strerror(saved_errno));
+        fprintf(stderr, "  Common causes on macOS:\n");
+        fprintf(stderr, "    - Insufficient disk space\n");
+        fprintf(stderr, "    - Permission denied (check parent directory)\n");
+        fprintf(stderr, "    - APFS snapshot interference\n");
+        fprintf(stderr, "    - SIP protected path\n");
         return BINJECT_ERROR_WRITE_FAILED;
     }
     if (st.st_size == 0) {
-        fprintf(stderr, "Error: LIEF write() created empty file\n");
+        fprintf(stderr, "Error: LIEF wrote empty file: %s\n", tmpfile);
         unlink(tmpfile);
         return BINJECT_ERROR_WRITE_FAILED;
     }
+    printf("✓ File created successfully: %s (%lld bytes)\n", tmpfile, (long long)st.st_size);
     printf("  File created successfully (%ld bytes)\n", (long)st.st_size);
 
     // Set executable permissions (Unix only).

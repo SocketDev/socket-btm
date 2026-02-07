@@ -271,7 +271,8 @@ static int tar_add_file(tar_buffer_t *buf, const char *base_path,
     /* Read and append file content */
     FILE *fp = fopen(full_path, "rb");
     if (!fp) {
-        fprintf(stderr, "Error: Cannot open file: %s\n", full_path);
+        fprintf(stderr, "Error: Cannot open file: %s (errno: %d - %s)\n",
+                full_path, errno, strerror(errno));
         return TAR_ERROR_READ_FAILED;
     }
 

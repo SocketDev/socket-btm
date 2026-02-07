@@ -109,7 +109,11 @@ static int update_read_metadata(const char *metadata_path, update_metadata_t *me
     memset(meta, 0, sizeof(*meta));
 
     FILE *f = fopen(metadata_path, "rb");
-    if (!f) return -1;
+    if (!f) {
+        fprintf(stderr, "Error: Cannot open metadata file: %s (errno: %d - %s)\n",
+                metadata_path, errno, strerror(errno));
+        return -1;
+    }
 
     /* Read entire file. */
     char *content = malloc(UPDATE_METADATA_MAX_SIZE);
@@ -168,7 +172,11 @@ static int update_write_metadata(const char *metadata_path, const update_metadat
 
     /* Read existing file. */
     FILE *f = fopen(metadata_path, "rb");
-    if (!f) return -1;
+    if (!f) {
+        fprintf(stderr, "Error: Cannot open metadata file: %s (errno: %d - %s)\n",
+                metadata_path, errno, strerror(errno));
+        return -1;
+    }
 
     char *content = malloc(UPDATE_METADATA_MAX_SIZE);
     if (!content) {
@@ -195,7 +203,12 @@ static int update_write_metadata(const char *metadata_path, const update_metadat
 
             /* Write everything except the closing brace. */
             *closing_brace = '\0';
-            fprintf(f, "%s", content);
+            if (fprintf(f, "%s", content) < 0) {
+                fprintf(stderr, "Error: Failed to write metadata prefix\n");
+                fclose(f);
+                free(content);
+                return -1;
+            }
 
             /* Check if we need a comma. */
             char *last_content = closing_brace - 1;
@@ -204,17 +217,32 @@ static int update_write_metadata(const char *metadata_path, const update_metadat
                 last_content--;
             }
             if (*last_content != ',' && *last_content != '{') {
-                fprintf(f, ",");
+                if (fprintf(f, ",") < 0) {
+                    fprintf(stderr, "Error: Failed to write comma separator\n");
+                    fclose(f);
+                    free(content);
+                    return -1;
+                }
             }
 
             /* Write update_check section. */
-            fprintf(f, "\n  \"update_check\": {\n");
-            fprintf(f, "    \"last_check\": %lld,\n", meta->last_check);
-            fprintf(f, "    \"last_notification\": %lld,\n", meta->last_notification);
-            fprintf(f, "    \"latest_known\": \"%s\"\n", meta->latest_known);
-            fprintf(f, "  }\n}\n");
+            if (fprintf(f, "\n  \"update_check\": {\n") < 0 ||
+                fprintf(f, "    \"last_check\": %lld,\n", meta->last_check) < 0 ||
+                fprintf(f, "    \"last_notification\": %lld,\n", meta->last_notification) < 0 ||
+                fprintf(f, "    \"latest_known\": \"%s\"\n", meta->latest_known) < 0 ||
+                fprintf(f, "  }\n}\n") < 0) {
+                fprintf(stderr, "Error: Failed to write update_check section\n");
+                fclose(f);
+                free(content);
+                return -1;
+            }
 
-            fclose(f);
+            if (fclose(f) != 0) {
+                fprintf(stderr, "Error: Failed to close metadata file: %s\n", strerror(errno));
+                free(content);
+                return -1;
+            }
+
             free(content);
             return 0;
         }
@@ -254,19 +282,41 @@ static int update_write_metadata(const char *metadata_path, const update_metadat
 
     /* Write prefix (before update_check object). */
     size_t prefix_len = (size_t)(obj_start - content);
-    fwrite(content, 1, prefix_len, f);
+    if (fwrite(content, 1, prefix_len, f) != prefix_len) {
+        fprintf(stderr, "Error: Failed to write metadata prefix\n");
+        fclose(f);
+        free(content);
+        return -1;
+    }
 
     /* Write new update_check object content. */
-    fprintf(f, "{\n");
-    fprintf(f, "    \"last_check\": %lld,\n", meta->last_check);
-    fprintf(f, "    \"last_notification\": %lld,\n", meta->last_notification);
-    fprintf(f, "    \"latest_known\": \"%s\"\n", meta->latest_known);
-    fprintf(f, "  }");
+    if (fprintf(f, "{\n") < 0 ||
+        fprintf(f, "    \"last_check\": %lld,\n", meta->last_check) < 0 ||
+        fprintf(f, "    \"last_notification\": %lld,\n", meta->last_notification) < 0 ||
+        fprintf(f, "    \"latest_known\": \"%s\"\n", meta->latest_known) < 0 ||
+        fprintf(f, "  }") < 0) {
+        fprintf(stderr, "Error: Failed to write metadata content\n");
+        fclose(f);
+        free(content);
+        return -1;
+    }
 
     /* Write suffix (after update_check object). */
-    fwrite(obj_end, 1, strlen(obj_end), f);
+    size_t suffix_len = strlen(obj_end);
+    if (fwrite(obj_end, 1, suffix_len, f) != suffix_len) {
+        fprintf(stderr, "Error: Failed to write metadata suffix\n");
+        fclose(f);
+        free(content);
+        return -1;
+    }
 
-    fclose(f);
+    /* Check fclose() for buffered write errors. */
+    if (fclose(f) != 0) {
+        fprintf(stderr, "Error: Failed to close metadata file: %s\n", strerror(errno));
+        free(content);
+        return -1;
+    }
+
     free(content);
     return 0;
 }

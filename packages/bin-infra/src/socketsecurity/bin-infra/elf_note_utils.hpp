@@ -259,9 +259,12 @@ inline int smol_reuse_multi_ptnote(
     }
 
     // Read ELF header fields (64-bit little-endian)
-    uint64_t phoff = *reinterpret_cast<uint64_t*>(&binary_data[32]);
-    uint16_t phentsize = *reinterpret_cast<uint16_t*>(&binary_data[54]);
-    uint16_t phnum = *reinterpret_cast<uint16_t*>(&binary_data[56]);
+    // Use memcpy for safe unaligned access (though ELF header fields are typically aligned)
+    uint64_t phoff;
+    uint16_t phentsize, phnum;
+    memcpy(&phoff, &binary_data[32], sizeof(phoff));
+    memcpy(&phentsize, &binary_data[54], sizeof(phentsize));
+    memcpy(&phnum, &binary_data[56], sizeof(phnum));
 
     // Validate PHT entry count (executable/library should have program headers)
     if (phnum == 0) {
@@ -285,12 +288,15 @@ inline int smol_reuse_multi_ptnote(
 
     for (uint16_t i = 0; i < phnum; i++) {
         uint8_t* phdr = &binary_data[phoff + i * phentsize];
-        uint32_t p_type = *reinterpret_cast<uint32_t*>(phdr);
+        // Use memcpy for safe unaligned access
+        uint32_t p_type;
+        memcpy(&p_type, phdr, sizeof(p_type));
         if (p_type == 1) {  // PT_LOAD
-            uint64_t p_offset = *reinterpret_cast<uint64_t*>(phdr + 8);
-            uint64_t p_vaddr = *reinterpret_cast<uint64_t*>(phdr + 16);
-            uint64_t p_filesz = *reinterpret_cast<uint64_t*>(phdr + 32);
-            uint64_t p_memsz = *reinterpret_cast<uint64_t*>(phdr + 40);
+            uint64_t p_offset, p_vaddr, p_filesz, p_memsz;
+            memcpy(&p_offset, phdr + 8, sizeof(p_offset));
+            memcpy(&p_vaddr, phdr + 16, sizeof(p_vaddr));
+            memcpy(&p_filesz, phdr + 32, sizeof(p_filesz));
+            memcpy(&p_memsz, phdr + 40, sizeof(p_memsz));
             uint64_t seg_end = p_vaddr + p_memsz;
             if (seg_end > max_load_end) {
                 max_load_end = seg_end;
@@ -354,7 +360,9 @@ inline int smol_reuse_multi_ptnote(
     int last_note_idx = -1;
     for (uint16_t i = 0; i < phnum; i++) {
         uint8_t* phdr = &binary_data[phoff + i * phentsize];
-        uint32_t p_type = *reinterpret_cast<uint32_t*>(phdr);
+        // Use memcpy for safe unaligned access
+        uint32_t p_type;
+        memcpy(&p_type, phdr, sizeof(p_type));
         if (p_type == 4) {  // PT_NOTE
             last_note_idx = i;
         }
@@ -369,9 +377,11 @@ inline int smol_reuse_multi_ptnote(
 
     // Get the existing PT_NOTE segment info
     uint8_t* target_phdr = &binary_data[phoff + last_note_idx * phentsize];
-    uint64_t orig_offset = *reinterpret_cast<uint64_t*>(target_phdr + 8);
-    uint64_t orig_vaddr = *reinterpret_cast<uint64_t*>(target_phdr + 16);
-    uint64_t orig_filesz = *reinterpret_cast<uint64_t*>(target_phdr + 32);
+    // Use memcpy for safe unaligned access
+    uint64_t orig_offset, orig_vaddr, orig_filesz;
+    memcpy(&orig_offset, target_phdr + 8, sizeof(orig_offset));
+    memcpy(&orig_vaddr, target_phdr + 16, sizeof(orig_vaddr));
+    memcpy(&orig_filesz, target_phdr + 32, sizeof(orig_filesz));
     printf("  Original PT_NOTE[%d]: offset=0x%lx, vaddr=0x%lx, filesz=0x%lx\n",
            last_note_idx, (unsigned long)orig_offset, (unsigned long)orig_vaddr,
            (unsigned long)orig_filesz);
@@ -391,9 +401,11 @@ inline int smol_reuse_multi_ptnote(
 
         printf("  Scanning existing notes for preservation...\n");
         while (pos + 12 <= orig_filesz) {
-            uint32_t namesz = *reinterpret_cast<const uint32_t*>(existing_data + pos);
-            uint32_t descsz = *reinterpret_cast<const uint32_t*>(existing_data + pos + 4);
-            // uint32_t type = *reinterpret_cast<const uint32_t*>(existing_data + pos + 8);
+            // Use memcpy for safe unaligned access (compiler optimizes to efficient code)
+            uint32_t namesz, descsz;
+            memcpy(&namesz, existing_data + pos, sizeof(namesz));
+            memcpy(&descsz, existing_data + pos + 4, sizeof(descsz));
+            // uint32_t type; memcpy(&type, existing_data + pos + 8, sizeof(type));
 
             size_t name_aligned = align_up(namesz, 4);
             size_t desc_aligned = align_up(descsz, 4);
@@ -463,7 +475,9 @@ inline int smol_reuse_multi_ptnote(
     if (!is_smol_compression) {
         for (uint16_t i = 0; i < phnum; i++) {
             uint8_t* phdr = &binary_data[phoff + i * phentsize];
-            uint32_t p_type = *reinterpret_cast<uint32_t*>(phdr);
+            // Use memcpy for safe unaligned access
+            uint32_t p_type;
+            memcpy(&p_type, phdr, sizeof(p_type));
             if (p_type == 3) {  // PT_INTERP only (not PT_DYNAMIC)
                 is_dynamic = true;
                 break;

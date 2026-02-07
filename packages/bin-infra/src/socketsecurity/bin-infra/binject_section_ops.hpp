@@ -156,9 +156,11 @@ inline int list_sections(const char* executable) {
                 // Parse notes from segment content
                 size_t pos = 0;
                 while (pos + 12 <= content.size()) {  // Minimum note header size
-                    uint32_t namesz = *reinterpret_cast<const uint32_t*>(&content[pos]);
-                    uint32_t descsz = *reinterpret_cast<const uint32_t*>(&content[pos + 4]);
-                    // uint32_t type = *reinterpret_cast<const uint32_t*>(&content[pos + 8]);
+                    // Use memcpy for safe unaligned access
+                    uint32_t namesz, descsz;
+                    memcpy(&namesz, &content[pos], sizeof(namesz));
+                    memcpy(&descsz, &content[pos + 4], sizeof(descsz));
+                    // uint32_t type; memcpy(&type, &content[pos + 8], sizeof(type));
 
                     // Sanity check
                     if (namesz > 1024 || descsz > 100 * 1024 * 1024) break;
@@ -341,8 +343,10 @@ inline int extract_section(const char* executable, const char* section_name,
                     // Parse notes from segment content
                     size_t pos = 0;
                     while (pos + 12 <= seg_content.size()) {
-                        uint32_t namesz = *reinterpret_cast<const uint32_t*>(&seg_content[pos]);
-                        uint32_t descsz = *reinterpret_cast<const uint32_t*>(&seg_content[pos + 4]);
+                        // Use memcpy for safe unaligned access
+                        uint32_t namesz, descsz;
+                        memcpy(&namesz, &seg_content[pos], sizeof(namesz));
+                        memcpy(&descsz, &seg_content[pos + 4], sizeof(descsz));
 
                         if (namesz > 1024 || descsz > 100 * 1024 * 1024) break;
 
@@ -508,8 +512,10 @@ inline int verify_section(const char* executable, const char* section_name) {
                     // Parse notes from segment content
                     size_t pos = 0;
                     while (pos + 12 <= seg_content.size()) {
-                        uint32_t namesz = *reinterpret_cast<const uint32_t*>(&seg_content[pos]);
-                        uint32_t descsz = *reinterpret_cast<const uint32_t*>(&seg_content[pos + 4]);
+                        // Use memcpy for safe unaligned access
+                        uint32_t namesz, descsz;
+                        memcpy(&namesz, &seg_content[pos], sizeof(namesz));
+                        memcpy(&descsz, &seg_content[pos + 4], sizeof(descsz));
 
                         if (namesz > 1024 || descsz > 100 * 1024 * 1024) break;
 

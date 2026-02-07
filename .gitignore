@@ -152,6 +152,7 @@ test-firewall-*.sh
 **/tmp/
 **/temp/
 **/*.tmp
+**/*.backup*
 
 # Claude Code directory (except skills and commands)
 .claude/*

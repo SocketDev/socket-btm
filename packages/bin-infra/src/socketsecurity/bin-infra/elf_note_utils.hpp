@@ -55,6 +55,7 @@
 #include <vector>
 #include <cstdio>
 #include <cstring>
+#include <inttypes.h>
 #ifndef _WIN32
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -208,7 +209,13 @@ inline int smol_reuse_multi_ptnote(
     }
 
     fseek(input_file, 0, SEEK_END);
-    size_t input_size = ftell(input_file);
+    off_t file_size = ftello(input_file);
+    if (file_size < 0) {
+        fclose(input_file);
+        fprintf(stderr, "Error: Cannot determine input file size\n");
+        return -1;
+    }
+    size_t input_size = (size_t)file_size;
     fseek(input_file, 0, SEEK_SET);
 
     std::vector<uint8_t> binary_data(input_size);

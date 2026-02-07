@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <inttypes.h>
 
 /* unistd.h and sys/wait.h no longer needed - using smol_codesign. */
 
@@ -79,7 +80,13 @@ int binpress_segment_embed(
     }
 
     fseek(fp, 0, SEEK_END);
-    size_t compressed_size = ftell(fp);
+    off_t file_size = ftello(fp);
+    if (file_size < 0) {
+        fclose(fp);
+        fprintf(stderr, "Error: Cannot determine compressed data file size\n");
+        return -1;
+    }
+    size_t compressed_size = (size_t)file_size;
     fseek(fp, 0, SEEK_SET);
 
     uint8_t *compressed_data = (uint8_t*)malloc(compressed_size);

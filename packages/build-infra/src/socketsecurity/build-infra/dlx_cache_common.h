@@ -345,19 +345,25 @@ static const char* dlx_get_libc(void) {
         if (fgets(buf, sizeof(buf), fp)) {
             // Convert to lowercase for case-insensitive matching.
             for (char *p = buf; *p; p++) {
-                *p = tolower(*p);
+                *p = tolower((unsigned char)*p);
             }
 
             if (strstr(buf, "musl")) {
-                pclose(fp);
+                if (pclose(fp) == -1) {
+                    // pclose failed, but we got valid data, so continue
+                }
                 return "musl";
             }
             if (strstr(buf, "glibc") || strstr(buf, "gnu")) {
-                pclose(fp);
+                if (pclose(fp) == -1) {
+                    // pclose failed, but we got valid data, so continue
+                }
                 return "glibc";
             }
         }
-        pclose(fp);
+        if (pclose(fp) == -1) {
+            // pclose failed - fall through to filesystem checks
+        }
     }
 
     // Fallback: Check for musl dynamic linker (common paths).

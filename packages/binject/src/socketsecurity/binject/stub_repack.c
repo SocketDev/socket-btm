@@ -19,6 +19,7 @@
 #include "socketsecurity/bin-infra/stub_smol_repack_lief.h"
 #include "socketsecurity/bin-infra/binary_format.h"
 #include "socketsecurity/build-infra/file_utils.h"
+#include "socketsecurity/build-infra/file_io_common.h"
 
 #if defined(__APPLE__) || defined(__linux__)
 #include <unistd.h>
@@ -28,9 +29,6 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <io.h>
-/* Windows doesn't have ftello/fseeko */
-#define ftello(fp) _ftelli64(fp)
-#define fseeko(fp, offset, whence) _fseeki64(fp, offset, whence)
 #endif
 
 /**

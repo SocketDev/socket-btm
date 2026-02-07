@@ -18,6 +18,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include "socketsecurity/build-infra/file_io_common.h"
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -32,9 +33,6 @@
 #ifndef S_ISREG
 #define S_ISREG(m) (((m) & _S_IFMT) == _S_IFREG)
 #endif
-/* Windows doesn't have ftello/fseeko */
-#define ftello(fp) _ftelli64(fp)
-#define fseeko(fp, offset, whence) _fseeki64(fp, offset, whence)
 #endif
 // Windows uses MAX_PATH instead of PATH_MAX
 #ifndef PATH_MAX

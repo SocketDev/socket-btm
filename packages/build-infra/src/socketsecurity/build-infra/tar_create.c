@@ -6,6 +6,7 @@
 
 #include "socketsecurity/build-infra/tar_create.h"
 #include "socketsecurity/build-infra/gzip_compress.h"
+#include "socketsecurity/build-infra/file_io_common.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,9 +23,6 @@
 #ifndef S_ISDIR
 #define S_ISDIR(mode) (((mode) & _S_IFMT) == _S_IFDIR)
 #endif
-/* Windows doesn't have ftello/fseeko */
-#define ftello(fp) _ftelli64(fp)
-#define fseeko(fp, offset, whence) _fseeki64(fp, offset, whence)
 #else
 #include <unistd.h>
 #include <dirent.h>

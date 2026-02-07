@@ -335,17 +335,34 @@ extern "C" int binject_pe_lief(const char* executable,
     printf("Writing modified binary to temp file...\n");
     FILE* fp = fopen(tmpfile, "wb");
     if (!fp) {
-      fprintf(stderr, "Error: Failed to open temp file for writing: %s\n", tmpfile);
+      fprintf(stderr, "Error: Failed to open temp file for writing: %s (errno: %d)\n", tmpfile, errno);
       return BINJECT_ERROR_WRITE_FAILED;
     }
 
     size_t written = fwrite(output.data(), 1, output.size(), fp);
 
+    // Check fwrite() return value immediately
+    if (written != output.size()) {
+      fprintf(stderr, "Error: fwrite() incomplete: %zu of %zu bytes (errno: %d)\n",
+              written, output.size(), errno);
+      fclose(fp);
+      unlink(tmpfile);
+      return BINJECT_ERROR_WRITE_FAILED;
+    }
+
+    // Check for stream errors before fsync
+    if (ferror(fp)) {
+      fprintf(stderr, "Error: Stream error detected before fsync (errno: %d)\n", errno);
+      fclose(fp);
+      unlink(tmpfile);
+      return BINJECT_ERROR_WRITE_FAILED;
+    }
+
     /* Ensure binary is fully written to disk before rename to prevent race condition */
 #ifndef _WIN32
     int fd = fileno(fp);
     if (fsync(fd) != 0) {
-        fprintf(stderr, "Error: fsync failed: %s\n", strerror(errno));
+        fprintf(stderr, "Error: fsync failed: %s (errno: %d)\n", strerror(errno), errno);
         fclose(fp);
         unlink(tmpfile);
         return BINJECT_ERROR_WRITE_FAILED;
@@ -360,11 +377,9 @@ extern "C" int binject_pe_lief(const char* executable,
     }
 #endif
 
-    fclose(fp);
-
-    if (written != output.size()) {
-      fprintf(stderr, "Error: Failed to write complete binary (%zu of %zu bytes)\n",
-              written, output.size());
+    // Check fclose() return value - can fail with ENOSPC
+    if (fclose(fp) != 0) {
+      fprintf(stderr, "Error: fclose() failed: %s (errno: %d)\n", strerror(errno), errno);
       unlink(tmpfile);
       return BINJECT_ERROR_WRITE_FAILED;
     }

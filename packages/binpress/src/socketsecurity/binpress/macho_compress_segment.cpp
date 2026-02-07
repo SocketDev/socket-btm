@@ -117,24 +117,37 @@ int binpress_segment_embed(
     // Read compressed data.
     FILE *fp = fopen(compressed_data_path, "rb");
     if (!fp) {
-        fprintf(stderr, "Error: Cannot open compressed data: %s\n", compressed_data_path);
+        fprintf(stderr, "Error: Cannot open compressed data: %s (errno: %d)\n",
+                compressed_data_path, errno);
         return -1;
     }
 
     fseek(fp, 0, SEEK_END);
     off_t file_size = ftello(fp);
     if (file_size < 0) {
+        int saved_errno = errno;
         fclose(fp);
-        fprintf(stderr, "Error: Cannot determine compressed data file size\n");
+        fprintf(stderr, "Error: Cannot determine compressed data file size (errno: %d)\n",
+                saved_errno);
         return -1;
     }
+
+    // Sanity check: reject files > 1GB (reasonable limit for compressed Node.js binaries)
+    #define MAX_COMPRESSED_SIZE (1024ULL * 1024 * 1024)
+    if ((uint64_t)file_size > MAX_COMPRESSED_SIZE) {
+        fclose(fp);
+        fprintf(stderr, "Error: Compressed data too large: %lld bytes (max: %llu)\n",
+                (long long)file_size, (unsigned long long)MAX_COMPRESSED_SIZE);
+        return -1;
+    }
+
     size_t compressed_size = (size_t)file_size;
     fseek(fp, 0, SEEK_SET);
 
     uint8_t *compressed_data = (uint8_t*)malloc(compressed_size);
     if (!compressed_data) {
         fclose(fp);
-        fprintf(stderr, "Error: Out of memory\n");
+        fprintf(stderr, "Error: Out of memory allocating %zu bytes\n", compressed_size);
         return -1;
     }
 
@@ -169,7 +182,8 @@ int binpress_segment_embed(
     // Get first binary (for fat binaries, we'd need to handle all)
     LIEF::MachO::Binary *binary = fat_binary->at(0);
     if (!binary) {
-        fprintf(stderr, "Error: No binary found in fat binary\n");
+        fprintf(stderr, "Error: No binary found at index 0 in fat binary (possibly corrupted)\n");
+        fprintf(stderr, "  Fat binary reports %zu architectures\n", fat_binary->size());
         free(compressed_data);
         return -1;
     }
@@ -280,6 +294,28 @@ int binpress_segment_embed(
         LIEF::MachO::Builder::config_t config;
         if (!binary->write(output_path, config)) {
             fprintf(stderr, "Error: LIEF write() failed for: %s\n", output_path);
+            fprintf(stderr, "  Common causes on macOS:\n");
+            fprintf(stderr, "    - Insufficient disk space\n");
+            fprintf(stderr, "    - Permission denied (check parent directory)\n");
+            fprintf(stderr, "    - APFS snapshots preventing writes\n");
+            fprintf(stderr, "    - SIP protecting system paths\n");
+
+            // Try to provide more context
+            struct stat dir_st;
+            char dir_path[PATH_MAX];
+            strncpy(dir_path, output_path, sizeof(dir_path) - 1);
+            dir_path[sizeof(dir_path) - 1] = '\0';
+            char *last_slash = strrchr(dir_path, '/');
+            if (last_slash) {
+                *last_slash = '\0';
+                if (stat(dir_path, &dir_st) != 0) {
+                    fprintf(stderr, "  Parent directory not accessible: %s (errno: %d)\n",
+                            dir_path, errno);
+                } else if (!(dir_st.st_mode & S_IWUSR)) {
+                    fprintf(stderr, "  Parent directory not writable: %s\n", dir_path);
+                }
+            }
+
             free(compressed_data);
             return -1;
         }
@@ -357,6 +393,28 @@ int binpress_segment_embed(
     LIEF::MachO::Builder::config_t config;
     if (!binary->write(output_path, config)) {
         fprintf(stderr, "Error: Failed to write modified binary to %s\n", output_path);
+        fprintf(stderr, "  Common causes on macOS:\n");
+        fprintf(stderr, "    - Insufficient disk space\n");
+        fprintf(stderr, "    - Permission denied (check parent directory)\n");
+        fprintf(stderr, "    - APFS snapshots preventing writes\n");
+        fprintf(stderr, "    - SIP protecting system paths\n");
+
+        // Try to provide more context
+        struct stat dir_st;
+        char dir_path[PATH_MAX];
+        strncpy(dir_path, output_path, sizeof(dir_path) - 1);
+        dir_path[sizeof(dir_path) - 1] = '\0';
+        char *last_slash = strrchr(dir_path, '/');
+        if (last_slash) {
+            *last_slash = '\0';
+            if (stat(dir_path, &dir_st) != 0) {
+                fprintf(stderr, "  Parent directory not accessible: %s (errno: %d)\n",
+                        dir_path, errno);
+            } else if (!(dir_st.st_mode & S_IWUSR)) {
+                fprintf(stderr, "  Parent directory not writable: %s\n", dir_path);
+            }
+        }
+
         return -1;
     }
     printf("  Binary written to: %s\n", output_path);
@@ -405,7 +463,8 @@ int binpress_segment_extract(
 
     LIEF::MachO::Binary *binary = fat_binary->at(0);
     if (!binary) {
-        fprintf(stderr, "Error: No binary found\n");
+        fprintf(stderr, "Error: No binary found at index 0 in fat binary (possibly corrupted)\n");
+        fprintf(stderr, "  Fat binary reports %zu architectures\n", fat_binary->size());
         return -1;
     }
 

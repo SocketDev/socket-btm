@@ -39,7 +39,12 @@ int smol_calculate_cache_key(const uint8_t *data, size_t size, char *cache_key) 
 
     /* Convert first 8 bytes to 16 hex chars. */
     for (int i = 0; i < SMOL_CACHE_KEY_LEN / 2; i++) {
-        snprintf(cache_key + (i * 2), 3, "%02x", hash[i]);
+        int written = snprintf(cache_key + (i * 2), 3, "%02x", hash[i]);
+        if (written < 0 || written >= 3) {
+            /* Defensive: should never happen, but handle gracefully */
+            fprintf(stderr, "Error: snprintf failed during cache key generation\n");
+            return -1;
+        }
     }
     cache_key[SMOL_CACHE_KEY_LEN] = '\0';
 #else
@@ -224,6 +229,11 @@ int smol_codesign(const char *binary_path) {
     /* Validate codesign is available before forking. */
     if (access("/usr/bin/codesign", X_OK) != 0) {
         fprintf(stderr, "Error: codesign not found at /usr/bin/codesign (required on macOS)\n");
+        fprintf(stderr, "  errno: %d (%s)\n", errno, strerror(errno));
+        fprintf(stderr, "  This may indicate:\n");
+        fprintf(stderr, "    - Running on non-macOS system (unexpected)\n");
+        fprintf(stderr, "    - Restricted environment without codesign access\n");
+        fprintf(stderr, "    - Corrupted system installation\n");
         return -1;
     }
 
@@ -280,24 +290,27 @@ int smol_codesign(const char *binary_path) {
 int smol_codesign_verify(const char *binary_path) {
 #ifdef __APPLE__
     if (!binary_path || strlen(binary_path) == 0) {
+        fprintf(stderr, "Error: Binary path is empty\n");
         return -1;
     }
 
     pid_t pid = fork();
     if (pid == -1) {
+        fprintf(stderr, "Error: Failed to fork for codesign verify: %s\n", strerror(errno));
         return -1;
     }
 
     if (pid == 0) {
-        /* Child: verify signature. */
+        /* Child: verify signature with absolute path for reliability. */
         char *argv[] = {
-            (char *)"codesign",
+            (char *)"/usr/bin/codesign",
             (char *)"--verify",
             (char *)binary_path,
             NULL
         };
-        execvp("codesign", argv);
-        _exit(1);
+        execv("/usr/bin/codesign", argv);
+        /* If execv returns, it failed - use exit code 127 to distinguish from codesign failure. */
+        _exit(127);
     }
 
     int status;
@@ -308,6 +321,7 @@ int smol_codesign_verify(const char *binary_path) {
     } while (result == -1 && errno == EINTR);
 
     if (result == -1) {
+        fprintf(stderr, "Error: waitpid failed for codesign verify: %s\n", strerror(errno));
         return -1;
     }
 

@@ -255,7 +255,8 @@ extern "C" int binject_macho_lief(const char* executable,
     // Get first binary from fat binary (or the only binary if not fat).
     LIEF::MachO::Binary* binary = fat_binary->at(0);
     if (!binary) {
-      fprintf(stderr, "Error: No binary found in file\n");
+      fprintf(stderr, "Error: No binary found at index 0 in fat binary (possibly corrupted)\n");
+      fprintf(stderr, "  Fat binary reports %zu architectures\n", fat_binary->size());
       return BINJECT_ERROR_INVALID_FORMAT;
     }
 
@@ -573,17 +574,32 @@ extern "C" int binject_macho_extract_lief(const char* executable,
     // Write to output file.
     FILE* fp = fopen(output_file, "wb");
     if (!fp) {
-      fprintf(stderr, "Error: Cannot create output file: %s\n", output_file);
+      fprintf(stderr, "Error: Cannot create output file: %s (errno: %d)\n", output_file, errno);
       return BINJECT_ERROR_FILE_NOT_FOUND;
     }
 
     size_t written = fwrite(content.data(), 1, content.size(), fp);
 
+    // Check fwrite() return value immediately
+    if (written != content.size()) {
+      fprintf(stderr, "Error: fwrite() incomplete: %zu of %zu bytes (errno: %d)\n",
+              written, content.size(), errno);
+      fclose(fp);
+      return BINJECT_ERROR_WRITE_FAILED;
+    }
+
+    // Check for stream errors before fsync
+    if (ferror(fp)) {
+      fprintf(stderr, "Error: Stream error detected before fsync (errno: %d)\n", errno);
+      fclose(fp);
+      return BINJECT_ERROR_WRITE_FAILED;
+    }
+
     /* Ensure data is fully written to disk before file is used */
 #ifndef _WIN32
     int fd = fileno(fp);
     if (fsync(fd) != 0) {
-        fprintf(stderr, "Error: fsync failed: %s\n", strerror(errno));
+        fprintf(stderr, "Error: fsync failed: %s (errno: %d)\n", strerror(errno), errno);
         fclose(fp);
         return BINJECT_ERROR_WRITE_FAILED;
     }
@@ -596,10 +612,9 @@ extern "C" int binject_macho_extract_lief(const char* executable,
     }
 #endif
 
-    fclose(fp);
-
-    if (written != content.size()) {
-      fprintf(stderr, "Error: Failed to write all data to output file\n");
+    // Check fclose() return value - can fail on macOS with ENOSPC
+    if (fclose(fp) != 0) {
+      fprintf(stderr, "Error: fclose() failed: %s (errno: %d)\n", strerror(errno), errno);
       return BINJECT_ERROR_WRITE_FAILED;
     }
 

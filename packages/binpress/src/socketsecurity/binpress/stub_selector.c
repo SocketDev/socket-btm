@@ -43,12 +43,21 @@ extern const size_t stub_win_x64_len;
 static const char *detect_macho_architecture(const char *input_path) {
   FILE *f = fopen(input_path, "rb");
   if (!f) {
+    fprintf(stderr, "Error: Cannot open %s for reading (errno: %d)\n", input_path, errno);
     return NULL;
   }
 
   uint32_t magic;
   if (fread(&magic, 1, sizeof(magic), f) != sizeof(magic)) {
+    int saved_errno = errno;  // Preserve errno before fclose
+    int eof = feof(f);
     fclose(f);
+    if (eof) {
+      fprintf(stderr, "Error: Unexpected EOF reading magic from %s\n", input_path);
+    } else {
+      errno = saved_errno;
+      fprintf(stderr, "Error: Read error on %s (errno: %d)\n", input_path, saved_errno);
+    }
     return NULL;
   }
 
@@ -283,8 +292,15 @@ const embedded_stub_t *select_stub_for_binary(const char *input_path) {
 
   uint8_t magic[4];
   if (fread(magic, 1, 4, f) != 4) {
+    int saved_errno = errno;  // Preserve errno before fclose
+    int eof = feof(f);
     fclose(f);
-    fprintf(stderr, "Error: Cannot read magic bytes from binary\n");
+    if (eof) {
+      fprintf(stderr, "Error: Unexpected EOF reading magic bytes from binary\n");
+    } else {
+      errno = saved_errno;
+      fprintf(stderr, "Error: Cannot read magic bytes from binary (errno: %d)\n", saved_errno);
+    }
     return NULL;
   }
   fclose(f);
@@ -555,8 +571,15 @@ const embedded_stub_t *select_stub_with_target(
 
     uint8_t magic[4];
     if (fread(magic, 1, 4, f) != 4) {
+      int saved_errno = errno;  // Preserve errno before fclose
+      int eof = feof(f);
       fclose(f);
-      fprintf(stderr, "Error: Cannot read magic bytes from binary\n");
+      if (eof) {
+        fprintf(stderr, "Error: Unexpected EOF reading magic bytes from binary\n");
+      } else {
+        errno = saved_errno;
+        fprintf(stderr, "Error: Cannot read magic bytes from binary (errno: %d)\n", saved_errno);
+      }
       return NULL;
     }
     fclose(f);

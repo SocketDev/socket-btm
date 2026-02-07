@@ -87,7 +87,8 @@ int macho_compress_lief(const char* input_path,
     // Get the first binary (or only binary if not a fat binary).
     LIEF::MachO::Binary* binary = fat_binary->at(0);
     if (!binary) {
-      fprintf(stderr, "Error: No binary found in Mach-O file\n");
+      fprintf(stderr, "Error: No binary found at index 0 in fat binary (possibly corrupted)\n");
+      fprintf(stderr, "  Fat binary reports %zu architectures\n", fat_binary->size());
       compress_lief_common_free(&context);
       return -1;
     }

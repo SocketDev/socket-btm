@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <inttypes.h>
 
 #define MAX_JSON_SIZE (1024 * 1024)  // 1MB max for config files.
 
@@ -36,7 +37,7 @@ static char* read_file_contents(const char *path, size_t *out_size) {
         return NULL;
     }
 
-    long size = ftell(fp);
+    off_t size = ftello(fp);  /* Use ftello for large file support */
     if (size < 0) {
         fprintf(stderr, "Error: Cannot determine file size\n");
         fclose(fp);
@@ -44,7 +45,7 @@ static char* read_file_contents(const char *path, size_t *out_size) {
     }
 
     if (size > MAX_JSON_SIZE) {
-        fprintf(stderr, "Error: JSON file too large (%ld bytes, max %d)\n", size, MAX_JSON_SIZE);
+        fprintf(stderr, "Error: JSON file too large (%" PRId64 " bytes, max %d)\n", (int64_t)size, MAX_JSON_SIZE);
         fclose(fp);
         return NULL;
     }

@@ -17,6 +17,7 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -102,7 +103,7 @@ int binject_read_resource(const char *resource_file, uint8_t **data, size_t *siz
         return BINJECT_ERROR;
     }
 
-    long file_size = ftell(fp);
+    off_t file_size = ftello(fp);
     if (file_size < 0) {
         fclose(fp);
         fprintf(stderr, "Error: Cannot determine resource file size\n");

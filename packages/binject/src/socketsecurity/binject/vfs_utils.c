@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 /**
  * Detect VFS source type.
@@ -148,7 +149,7 @@ char* create_vfs_archive_from_dir(const char *dir_path) {
         return NULL;
     }
 
-    long size = get_file_size(archive_path);
+    off_t size = get_file_size(archive_path);
     if (size < 0) {
         fprintf(stderr, "Error: Cannot determine archive size\n");
         unlink(archive_path);
@@ -156,17 +157,17 @@ char* create_vfs_archive_from_dir(const char *dir_path) {
         return NULL;
     }
 
-    printf("Created VFS archive (%ld bytes)\n", size);
+    printf("Created VFS archive (%" PRId64 " bytes)\n", (int64_t)size);
 
     // Warn if archive is large.
     if (size > 100 * 1024 * 1024) {  // 100MB.
-        fprintf(stderr, "Warning: VFS archive is large (%ld MB), may impact binary size and startup time\n",
-                size / (1024 * 1024));
+        fprintf(stderr, "Warning: VFS archive is large (%" PRId64 " MB), may impact binary size and startup time\n",
+                (int64_t)(size / (1024 * 1024)));
     }
 
     // Error if archive is too large.
     if (size > 1024 * 1024 * 1024) {  // 1GB.
-        fprintf(stderr, "Error: VFS archive too large (%ld MB, max 1GB)\n", size / (1024 * 1024));
+        fprintf(stderr, "Error: VFS archive too large (%" PRId64 " MB, max 1GB)\n", (int64_t)(size / (1024 * 1024)));
         unlink(archive_path);
         free(archive_path);
         return NULL;
@@ -270,7 +271,7 @@ char* compress_tar_archive(const char *tar_path) {
         return NULL;
     }
 
-    long size = get_file_size(compressed_path);
+    off_t size = get_file_size(compressed_path);
     if (size < 0) {
         fprintf(stderr, "Error: Cannot determine compressed archive size\n");
         unlink(compressed_path);
@@ -278,17 +279,17 @@ char* compress_tar_archive(const char *tar_path) {
         return NULL;
     }
 
-    printf("Compressed VFS archive (%ld bytes)\n", size);
+    printf("Compressed VFS archive (%" PRId64 " bytes)\n", (int64_t)size);
 
     // Warn if archive is large.
     if (size > 100 * 1024 * 1024) {  // 100MB.
-        fprintf(stderr, "Warning: VFS archive is large (%ld MB), may impact binary size and startup time\n",
-                size / (1024 * 1024));
+        fprintf(stderr, "Warning: VFS archive is large (%" PRId64 " MB), may impact binary size and startup time\n",
+                (int64_t)(size / (1024 * 1024)));
     }
 
     // Error if archive is too large.
     if (size > 1024 * 1024 * 1024) {  // 1GB.
-        fprintf(stderr, "Error: VFS archive too large (%ld MB, max 1GB)\n", size / (1024 * 1024));
+        fprintf(stderr, "Error: VFS archive too large (%" PRId64 " MB, max 1GB)\n", (int64_t)(size / (1024 * 1024)));
         unlink(compressed_path);
         free(compressed_path);
         return NULL;
@@ -339,7 +340,7 @@ char* resolve_relative_path(const char *base_path, const char *source_path) {
 /**
  * Get file size.
  */
-long get_file_size(const char *path) {
+off_t get_file_size(const char *path) {
     if (!path) {
         return -1;
     }
@@ -353,7 +354,7 @@ long get_file_size(const char *path) {
         return -1;
     }
 
-    return (long)st.st_size;
+    return st.st_size;
 }
 
 #else /* _WIN32 */
@@ -366,6 +367,7 @@ long get_file_size(const char *path) {
 #include "socketsecurity/binject/vfs_utils.h"
 #include <stdio.h>
 #include <sys/stat.h>
+#include <inttypes.h>
 
 vfs_source_type_t detect_vfs_source_type(const char *path) {
     (void)path;
@@ -392,7 +394,7 @@ char* resolve_relative_path(const char *base_path, const char *source_path) {
     return NULL;
 }
 
-long get_file_size(const char *path) {
+off_t get_file_size(const char *path) {
     if (!path) {
         return -1;
     }
@@ -406,7 +408,7 @@ long get_file_size(const char *path) {
         return -1;
     }
 
-    return (long)st.st_size;
+    return st.st_size;
 }
 
 #endif /* _WIN32 */

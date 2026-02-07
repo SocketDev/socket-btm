@@ -8,6 +8,7 @@
 #define VFS_UTILS_H
 
 #include <stdbool.h>
+#include <sys/types.h>
 
 /**
  * VFS source type enumeration.
@@ -62,6 +63,6 @@ char* resolve_relative_path(const char *base_path, const char *source_path);
  * @param path - Path to file.
  * @return File size in bytes, or -1 on error.
  */
-long get_file_size(const char *path);
+off_t get_file_size(const char *path);
 
 #endif // VFS_UTILS_H

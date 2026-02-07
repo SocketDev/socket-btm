@@ -177,23 +177,11 @@ int binject_compress_binary(const char *input_path, const char *output_path, con
     }
 
     /* Ensure data is fully written to disk before file is used */
-#ifndef _WIN32
-    int fd = fileno(fp);
-    if (fsync(fd) != 0) {
-        fprintf(stderr, "Error: fsync failed: %s\n", strerror(errno));
+    if (file_io_sync(fp) != FILE_IO_OK) {
         fclose(fp);
         free(compressed_data);
         return -1;
     }
-#else
-    /* Windows: Flush file buffers to disk */
-    if (!FlushFileBuffers((HANDLE)_get_osfhandle(_fileno(fp)))) {
-        fprintf(stderr, "Error: FlushFileBuffers failed\n");
-        fclose(fp);
-        free(compressed_data);
-        return -1;
-    }
-#endif
 
     fclose(fp);
     free(compressed_data);

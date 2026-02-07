@@ -42,9 +42,6 @@
 #include <windows.h>  // for FlushFileBuffers(), HANDLE
 #include <process.h>
 #include <io.h>
-#ifndef PATH_MAX
-#define PATH_MAX 260
-#endif
 #else
 #include <unistd.h>
 #endif
@@ -55,6 +52,7 @@ extern "C" {
 #include "socketsecurity/bin-infra/segment_names.h"
 #include "socketsecurity/binject/binject.h"
 #include "socketsecurity/binject/vfs_config.h"
+#include "socketsecurity/build-infra/file_io_common.h"
 #include "socketsecurity/build-infra/file_utils.h"
 }
 
@@ -359,23 +357,11 @@ extern "C" int binject_pe_lief(const char* executable,
     }
 
     /* Ensure binary is fully written to disk before rename to prevent race condition */
-#ifndef _WIN32
-    int fd = fileno(fp);
-    if (fsync(fd) != 0) {
-        fprintf(stderr, "Error: fsync failed: %s (errno: %d)\n", strerror(errno), errno);
+    if (file_io_sync(fp) != FILE_IO_OK) {
         fclose(fp);
         unlink(tmpfile);
         return BINJECT_ERROR_WRITE_FAILED;
     }
-#else
-    /* Windows: Flush file buffers to disk */
-    if (!FlushFileBuffers((HANDLE)_get_osfhandle(_fileno(fp)))) {
-        fprintf(stderr, "Error: FlushFileBuffers failed\n");
-        fclose(fp);
-        unlink(tmpfile);
-        return BINJECT_ERROR_WRITE_FAILED;
-    }
-#endif
 
     // Check fclose() return value - can fail with ENOSPC
     if (fclose(fp) != 0) {
@@ -391,7 +377,7 @@ extern "C" int binject_pe_lief(const char* executable,
     }
 
     // Set executable permissions (Unix only).
-    result = binject::set_executable_permissions(tmpfile);
+    result = set_executable_permissions(tmpfile);
     if (result != BINJECT_OK) {
         return result;
     }
@@ -537,23 +523,11 @@ extern "C" int binject_pe_lief_batch(
     size_t written = fwrite(rebuilt.data(), 1, rebuilt.size(), fp);
 
     /* Ensure binary is fully written to disk before rename to prevent race condition */
-#ifndef _WIN32
-    int fd = fileno(fp);
-    if (fsync(fd) != 0) {
-        fprintf(stderr, "Error: fsync failed: %s\n", strerror(errno));
+    if (file_io_sync(fp) != FILE_IO_OK) {
         fclose(fp);
         unlink(tmpfile);
         return BINJECT_ERROR_WRITE_FAILED;
     }
-#else
-    /* Windows: Flush file buffers to disk */
-    if (!FlushFileBuffers((HANDLE)_get_osfhandle(_fileno(fp)))) {
-        fprintf(stderr, "Error: FlushFileBuffers failed\n");
-        fclose(fp);
-        unlink(tmpfile);
-        return BINJECT_ERROR_WRITE_FAILED;
-    }
-#endif
 
     fclose(fp);
 
@@ -571,7 +545,7 @@ extern "C" int binject_pe_lief_batch(
     }
 
     // Set executable permissions (Unix only)
-    result = binject::set_executable_permissions(tmpfile);
+    result = set_executable_permissions(tmpfile);
     if (result != BINJECT_OK) {
       return result;
     }

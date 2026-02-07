@@ -130,12 +130,10 @@ extern "C" int smol_repack_lief(
         printf("  ✓ File created successfully (%lld bytes)\n", (long long)st.st_size);
 
         // Set executable permissions.
-#ifndef _WIN32
-        if (chmod(output_path, 0755) != 0) {
+        if (set_executable_permissions(output_path) != 0) {
             fprintf(stderr, "Error: Failed to set executable permissions\n");
             return -1;
         }
-#endif
 
         // Sign with ad-hoc signature using shared utility.
         printf("  Signing binary with ad-hoc signature...\n");

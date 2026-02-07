@@ -215,3 +215,30 @@ int file_io_set_cloexec(int fd) {
 
     return FILE_IO_OK;
 }
+
+/**
+ * Sync file data to disk (cross-platform fsync).
+ * Ensures data is fully written to disk before file is used.
+ */
+int file_io_sync(FILE *fp) {
+    if (!fp) {
+        fprintf(stderr, "Error: Invalid file pointer for sync\n");
+        return FILE_IO_ERROR;
+    }
+
+#ifndef _WIN32
+    int fd = fileno(fp);
+    if (fsync(fd) != 0) {
+        fprintf(stderr, "Error: fsync failed: %s\n", strerror(errno));
+        return FILE_IO_ERROR;
+    }
+#else
+    /* Windows: Flush file buffers to disk */
+    if (!FlushFileBuffers((HANDLE)_get_osfhandle(_fileno(fp)))) {
+        fprintf(stderr, "Error: FlushFileBuffers failed\n");
+        return FILE_IO_ERROR;
+    }
+#endif
+
+    return FILE_IO_OK;
+}

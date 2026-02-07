@@ -62,6 +62,7 @@
 #include <unistd.h>
 #endif
 #include "socketsecurity/build-infra/file_io_common.h"
+#include "socketsecurity/build-infra/file_utils.h"
 #include "socketsecurity/bin-infra/segment_names.h"
 
 // Fuse string constants (must match segment_names.h)
@@ -583,9 +584,7 @@ inline int smol_reuse_multi_ptnote(
         }
 
         fclose(out_file);
-#ifndef _WIN32
-        chmod(output_path.c_str(), 0755);
-#endif
+        set_executable_permissions(output_path.c_str());
 
         printf("  Successfully wrote binary with %zu notes (PHT unchanged at offset %lu)\n",
                notes.size(), (unsigned long)phoff);

@@ -19,10 +19,6 @@
 #include <windows.h>
 #include <io.h>
 #define PATH_SEP '\\'
-/* Windows doesn't have S_ISDIR macro */
-#ifndef S_ISDIR
-#define S_ISDIR(mode) (((mode) & _S_IFMT) == _S_IFDIR)
-#endif
 #else
 #include <unistd.h>
 #include <dirent.h>

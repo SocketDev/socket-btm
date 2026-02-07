@@ -21,9 +21,6 @@
 #ifdef _WIN32
 #include <process.h>
 #include <io.h>
-#ifndef PATH_MAX
-#define PATH_MAX 260
-#endif
 #else
 #include <unistd.h>
 #endif
@@ -34,6 +31,7 @@ extern "C" {
 #include "socketsecurity/bin-infra/segment_names.h"
 #include "socketsecurity/binject/binject.h"
 #include "socketsecurity/binject/vfs_config.h"
+#include "socketsecurity/build-infra/file_io_common.h"
 #include "socketsecurity/build-infra/file_utils.h"
 }
 
@@ -150,7 +148,7 @@ extern "C" int binject_elf_lief(const char* executable,
     }
 
     // Set executable permissions (Unix only).
-    result = binject::set_executable_permissions(tmpfile);
+    result = set_executable_permissions(tmpfile);
     if (result != BINJECT_OK) {
         return result;
     }
@@ -303,7 +301,7 @@ extern "C" int binject_elf_lief_batch(
     }
 
     // Set executable permissions (Unix only)
-    result = binject::set_executable_permissions(tmpfile);
+    result = set_executable_permissions(tmpfile);
     if (result != BINJECT_OK) {
       return result;
     }

@@ -12,16 +12,10 @@
 #include <string.h>
 #include <limits.h>
 #include <sys/stat.h>
+#include "socketsecurity/build-infra/file_io_common.h"
 #ifdef _WIN32
 #include <process.h>
 #include <io.h>  // For _unlink
-// Windows doesn't define S_ISREG/S_ISDIR macros, so we define them ourselves
-#ifndef S_ISREG
-#define S_ISREG(m) (((m) & _S_IFMT) == _S_IFREG)
-#endif
-#ifndef S_ISDIR
-#define S_ISDIR(m) (((m) & _S_IFMT) == _S_IFDIR)
-#endif
 // Windows uses _unlink instead of unlink
 #define unlink _unlink
 #else

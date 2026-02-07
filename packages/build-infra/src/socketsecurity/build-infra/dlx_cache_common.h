@@ -35,6 +35,7 @@
 #include <ctype.h>
 
 #include "socketsecurity/build-infra/tmpdir_common.h"
+#include "socketsecurity/build-infra/file_utils.h"
 
 // Platform-specific includes.
 #if defined(__APPLE__)
@@ -392,64 +393,6 @@ static const char* dlx_get_libc(void) {
 }
 
 /**
- * Create directory recursively (cross-platform).
- */
-static int dlx_create_directory_recursive(const char *path) {
-#if defined(_WIN32)
-    char tmp[1024];
-    char *p = NULL;
-    size_t len;
-
-    snprintf(tmp, sizeof(tmp), "%s", path);
-    len = strlen(tmp);
-    if (tmp[len - 1] == '\\' || tmp[len - 1] == '/') {
-        tmp[len - 1] = 0;
-    }
-
-    for (p = tmp + 1; *p; p++) {
-        if (*p == '\\' || *p == '/') {
-            char sep = *p;  // Remember original separator
-            *p = 0;
-            CreateDirectoryA(tmp, NULL);
-            *p = sep;  // Restore original separator
-        }
-    }
-
-    if (CreateDirectoryA(tmp, NULL) == 0 && GetLastError() != ERROR_ALREADY_EXISTS) {
-        return -1;
-    }
-
-    return 0;
-#else
-    char tmp[1024];
-    char *p = NULL;
-    size_t len;
-
-    snprintf(tmp, sizeof(tmp), "%s", path);
-    len = strlen(tmp);
-    if (tmp[len - 1] == '/') {
-        tmp[len - 1] = 0;
-    }
-
-    for (p = tmp + 1; *p; p++) {
-        if (*p == '/') {
-            *p = 0;
-            if (mkdir(tmp, 0755) == -1 && errno != EEXIST) {
-                return -1;
-            }
-            *p = '/';
-        }
-    }
-
-    if (mkdir(tmp, 0755) == -1 && errno != EEXIST) {
-        return -1;
-    }
-
-    return 0;
-#endif
-}
-
-/**
  * Create dlx cache directory structure: <base_dir>/<cache_key>
  * Matches dlxBinary directory structure exactly.
  * Respects SOCKET_DLX_DIR and SOCKET_HOME environment variables.
@@ -466,7 +409,7 @@ static int dlx_create_cache_entry_dir(const char *cache_key, char *entry_dir, si
     snprintf(entry_dir, size, "%s/%s", base_dir, cache_key);
 #endif
 
-    return dlx_create_directory_recursive(entry_dir);
+    return create_parent_directories(entry_dir);
 }
 
 /**

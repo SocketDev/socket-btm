@@ -26,18 +26,6 @@
 #include <windows.h>
 #include <io.h>
 #include <process.h>
-// Windows doesn't define S_ISDIR and S_ISREG macros, so we define them ourselves
-#ifndef S_ISDIR
-#define S_ISDIR(m) (((m) & _S_IFMT) == _S_IFDIR)
-#endif
-#ifndef S_ISREG
-#define S_ISREG(m) (((m) & _S_IFMT) == _S_IFREG)
-#endif
-#endif
-// Windows uses MAX_PATH instead of PATH_MAX
-#ifndef PATH_MAX
-#define PATH_MAX MAX_PATH
-#endif
 // Windows doesn't have O_NOFOLLOW, define to 0 (no-op, symlink behavior different)
 #ifndef O_NOFOLLOW
 #define O_NOFOLLOW 0
@@ -350,31 +338,18 @@ int binject_extract_stub_to_cache(const char *compressed_stub, const char *extra
     }
 
     /* Ensure binary is fully written to disk before execution to prevent race condition */
-#ifndef _WIN32
-    int fd = fileno(out_fp);
-    if (fsync(fd) != 0) {
-        fprintf(stderr, "Error: fsync failed: %s\n", strerror(errno));
+    if (file_io_sync(out_fp) != FILE_IO_OK) {
         fclose(out_fp);
         return BINJECT_ERROR;
     }
-#else
-    /* Windows: Flush file buffers to disk */
-    if (!FlushFileBuffers((HANDLE)_get_osfhandle(_fileno(out_fp)))) {
-        fprintf(stderr, "Error: FlushFileBuffers failed\n");
-        fclose(out_fp);
-        return BINJECT_ERROR;
-    }
-#endif
 
     fclose(out_fp);
 
     /* Make executable on Unix. */
-#ifndef _WIN32
-    if (chmod(extracted_path, 0755) != 0) {
+    if (set_executable_permissions(extracted_path) != 0) {
         fprintf(stderr, "Error: Failed to set executable permissions\n");
         goto cleanup;
     }
-#endif
 
     printf("✓ Extraction complete: %s\n", extracted_path);
     result = BINJECT_OK;

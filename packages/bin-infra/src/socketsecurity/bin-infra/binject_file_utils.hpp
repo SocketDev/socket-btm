@@ -14,12 +14,13 @@
 #include <sys/stat.h>
 #include <limits.h>
 
+extern "C" {
+#include "socketsecurity/build-infra/file_io_common.h"
+}
+
 #ifdef _WIN32
 #include <process.h>
 #include <io.h>
-#ifndef PATH_MAX
-#define PATH_MAX 260
-#endif
 #define unlink _unlink
 #define getpid _getpid
 #else
@@ -33,8 +34,9 @@
 #define BINJECT_ERROR_WRITE_FAILED -9
 #endif
 
-// Forward declare C function from binject/file_utils.h
+// Forward declare C functions from build-infra/file_utils.h
 extern "C" int create_parent_directories(const char* path);
+extern "C" int set_executable_permissions(const char* path);
 
 namespace binject {
 
@@ -88,26 +90,6 @@ inline int verify_file_written(const char* filepath, long* out_size = nullptr) {
         *out_size = st.st_size;
     }
 
-    return BINJECT_OK;
-}
-
-/**
- * Set executable permissions on Unix-like systems.
- * No-op on Windows (not applicable).
- *
- * @param filepath Path to file
- * @return BINJECT_OK on success, BINJECT_ERROR_WRITE_FAILED on failure
- */
-inline int set_executable_permissions(const char* filepath) {
-#ifndef _WIN32
-    if (chmod(filepath, 0755) != 0) {
-        fprintf(stderr, "Error: Failed to set executable permissions\n");
-        unlink(filepath);
-        return BINJECT_ERROR_WRITE_FAILED;
-    }
-#else
-    (void)filepath; // Unused on Windows
-#endif
     return BINJECT_OK;
 }
 

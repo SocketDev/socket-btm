@@ -49,9 +49,6 @@
 #include <windows.h>  // for FlushFileBuffers(), HANDLE
 #include <process.h>  // for getpid()
 #include <io.h>       // for unlink()
-#ifndef PATH_MAX
-#define PATH_MAX 260  // Windows MAX_PATH
-#endif
 #else
 #include <unistd.h>   // for getpid(), unlink(), fork()
 #endif
@@ -64,6 +61,7 @@ extern "C" {
 #include "socketsecurity/bin-infra/smol_segment.h"
 #include "socketsecurity/binject/binject.h"
 #include "socketsecurity/binject/vfs_config.h"
+#include "socketsecurity/build-infra/file_io_common.h"
 #include "socketsecurity/build-infra/file_utils.h"
 #include "socketsecurity/bin-infra/stub_smol_repack_lief.h"
 
@@ -408,13 +406,11 @@ extern "C" int binject_macho_lief(const char* executable,
     printf("  File created successfully (%ld bytes)\n", (long)st.st_size);
 
     // Set executable permissions (Unix only).
-#ifndef _WIN32
-    if (chmod(tmpfile, 0755) != 0) {
+    if (set_executable_permissions(tmpfile) != 0) {
         fprintf(stderr, "Error: Failed to set executable permissions\n");
         unlink(tmpfile);
         return BINJECT_ERROR_WRITE_FAILED;
     }
-#endif
 
     // Mach-O: Sign the TEMP file BEFORE renaming (critical for atomicity).
     // This ensures the file is never in an invalid state. If the process is killed
@@ -602,21 +598,10 @@ extern "C" int binject_macho_extract_lief(const char* executable,
     }
 
     /* Ensure data is fully written to disk before file is used */
-#ifndef _WIN32
-    int fd = fileno(fp);
-    if (fsync(fd) != 0) {
-        fprintf(stderr, "Error: fsync failed: %s (errno: %d)\n", strerror(errno), errno);
+    if (file_io_sync(fp) != FILE_IO_OK) {
         fclose(fp);
         return BINJECT_ERROR_WRITE_FAILED;
     }
-#else
-    /* Windows: Flush file buffers to disk */
-    if (!FlushFileBuffers((HANDLE)_get_osfhandle(_fileno(fp)))) {
-        fprintf(stderr, "Error: FlushFileBuffers failed\n");
-        fclose(fp);
-        return BINJECT_ERROR_WRITE_FAILED;
-    }
-#endif
 
     // Check fclose() return value - can fail on macOS with ENOSPC
     if (fclose(fp) != 0) {
@@ -884,13 +869,11 @@ extern "C" int binject_macho_lief_batch(
     //   per_process::Debug(DebugCategory::SEA, "LIEF wrote bytes to temp file\n");
 
     // Make executable
-#ifndef _WIN32
-    if (chmod(tmpfile, 0755) != 0) {
+    if (set_executable_permissions(tmpfile) != 0) {
         fprintf(stderr, "Error: Failed to make temp file executable (chmod failed)\n");
         unlink(tmpfile);
         return BINJECT_ERROR_WRITE_FAILED;
     }
-#endif
 
     // Sign the TEMP file BEFORE renaming (critical for atomicity).
     if (!sign_binary_adhoc(tmpfile)) {

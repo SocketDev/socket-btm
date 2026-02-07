@@ -18,16 +18,38 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <limits.h>
+#include <sys/stat.h>
 #endif
 
 /* Cross-platform file position functions */
 #ifdef _WIN32
 #include <sys/types.h>
+#include <sys/stat.h>
 /* Windows uses _ftelli64() for 64-bit file positions */
 #define ftello(fp) _ftelli64(fp)
 #define fseeko(fp, offset, whence) _fseeki64(fp, offset, whence)
 /* Windows doesn't have ssize_t, use SSIZE_T or define it */
 typedef intptr_t ssize_t;
+#endif
+
+/* Cross-platform path and file type macros */
+#ifndef PATH_MAX
+#ifdef _WIN32
+#define PATH_MAX 260  /* Windows MAX_PATH */
+#else
+#define PATH_MAX 4096  /* POSIX fallback */
+#endif
+#endif
+
+/* Windows doesn't have S_ISDIR/S_ISREG macros */
+#ifdef _WIN32
+#ifndef S_ISDIR
+#define S_ISDIR(mode) (((mode) & _S_IFMT) == _S_IFDIR)
+#endif
+#ifndef S_ISREG
+#define S_ISREG(mode) (((mode) & _S_IFMT) == _S_IFREG)
+#endif
 #endif
 
 /* Error codes */
@@ -67,6 +89,16 @@ int file_io_write(const char *path, const uint8_t *data, size_t size);
  * @return FILE_IO_OK on success, error code on failure
  */
 int file_io_copy(const char *source, const char *dest);
+
+/**
+ * Sync file data to disk (cross-platform fsync).
+ * On Unix: uses fsync()
+ * On Windows: uses FlushFileBuffers()
+ *
+ * @param fp FILE pointer to sync
+ * @return FILE_IO_OK on success, FILE_IO_ERROR on failure
+ */
+int file_io_sync(FILE *fp);
 
 /**
  * Set close-on-exec flag (FD_CLOEXEC on POSIX, non-inheritable on Windows).

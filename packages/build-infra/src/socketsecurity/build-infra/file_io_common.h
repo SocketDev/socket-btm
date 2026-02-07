@@ -58,4 +58,41 @@ int file_io_copy(const char *source, const char *dest);
  */
 int file_io_set_cloexec(int fd);
 
+/**
+ * Cross-platform mkstemp implementation.
+ * Creates a unique temporary file from a template.
+ *
+ * On Unix, uses mkstemp() directly.
+ * On Windows, uses _mktemp_s + _sopen_s for equivalent functionality.
+ *
+ * @param template Template path ending with "XXXXXX" (will be modified)
+ * @return File descriptor on success, -1 on failure
+ */
+#ifdef _WIN32
+#include <io.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <share.h>
+#include <errno.h>
+
+static inline int mkstemp_portable(char *template) {
+    errno_t err = _mktemp_s(template, strlen(template) + 1);
+    if (err != 0) {
+        errno = err;
+        return -1;
+    }
+
+    int fd;
+    err = _sopen_s(&fd, template, _O_RDWR | _O_CREAT | _O_EXCL | _O_BINARY,
+                   _SH_DENYNO, _S_IREAD | _S_IWRITE);
+    if (err != 0) {
+        errno = err;
+        return -1;
+    }
+    return fd;
+}
+
+#define mkstemp mkstemp_portable
+#endif
+
 #endif /* FILE_IO_COMMON_H */

@@ -108,7 +108,7 @@ static int update_read_metadata(const char *metadata_path, update_metadata_t *me
     /* Initialize with defaults. */
     memset(meta, 0, sizeof(*meta));
 
-    FILE *f = fopen(metadata_path, "r");
+    FILE *f = fopen(metadata_path, "rb");
     if (!f) return -1;
 
     /* Read entire file. */
@@ -167,7 +167,7 @@ static int update_write_metadata(const char *metadata_path, const update_metadat
     if (!metadata_path || !meta) return -1;
 
     /* Read existing file. */
-    FILE *f = fopen(metadata_path, "r");
+    FILE *f = fopen(metadata_path, "rb");
     if (!f) return -1;
 
     char *content = malloc(UPDATE_METADATA_MAX_SIZE);
@@ -187,7 +187,7 @@ static int update_write_metadata(const char *metadata_path, const update_metadat
         char *closing_brace = strrchr(content, '}');
         if (closing_brace) {
             /* Rewrite file with new update_check section. */
-            f = fopen(metadata_path, "w");
+            f = fopen(metadata_path, "wb");
             if (!f) {
                 free(content);
                 return -1;
@@ -246,7 +246,7 @@ static int update_write_metadata(const char *metadata_path, const update_metadat
     }
 
     /* Rewrite file with updated update_check section. */
-    f = fopen(metadata_path, "w");
+    f = fopen(metadata_path, "wb");
     if (!f) {
         free(content);
         return -1;

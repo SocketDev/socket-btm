@@ -533,7 +533,7 @@ static int dlx_write_metadata(const char *entry_dir, const char *cache_key,
     snprintf(metadata_path, sizeof(metadata_path), "%s/.dlx-metadata.json", entry_dir);
 #endif
 
-    FILE *f = fopen(metadata_path, "w");
+    FILE *f = fopen(metadata_path, "wb");
     if (!f) {
         return -1;
     }

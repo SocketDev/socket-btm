@@ -18,16 +18,24 @@
  *   [Compressed data]
  */
 
+#ifndef _WIN32
 #define _POSIX_C_SOURCE 200809L
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <sys/stat.h>
 #include <errno.h>
+
+#ifndef _WIN32
+#include <unistd.h>
+#include <fcntl.h>
 #include <libgen.h>
+#else
+#include <io.h>
+#include <fcntl.h>
+#endif
 
 /* Windows doesn't have O_CLOEXEC, define to 0 (no-op) */
 #ifndef O_CLOEXEC
@@ -201,6 +209,24 @@ cleanup:
 }
 
 /**
+ * Cross-platform basename extraction.
+ * Returns pointer to last component of path (handles both / and \ separators).
+ */
+static char* get_basename_portable(const char *path) {
+    if (!path) return ".";
+
+    /* Find last path separator (works for both / and \ on Windows). */
+    const char *p = path + strlen(path);
+    while (p > path) {
+        p--;
+        if (*p == '/' || *p == '\\') {
+            return (char*)(p + 1);
+        }
+    }
+    return (char*)path;
+}
+
+/**
  * Get default output path (input basename without compression extension).
  */
 static void get_default_output_path(const char *input_path, char *output_path, size_t size) {
@@ -211,8 +237,8 @@ static void get_default_output_path(const char *input_path, char *output_path, s
         return;
     }
 
-    /* Get basename. */
-    char *base = basename(temp);
+    /* Get basename (cross-platform). */
+    char *base = get_basename_portable(temp);
 
     /* Remove common compressed suffixes if present. */
     size_t len = strlen(base);

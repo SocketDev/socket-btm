@@ -300,6 +300,13 @@ char* compress_tar_archive(const char *tar_path) {
 
 /**
  * Resolve relative path.
+ *
+ * IMPORTANT: This function is UNIX-ONLY. Uses POSIX dirname() from <libgen.h>
+ * and assumes Unix path separators (/). The entire vfs_utils.c file is guarded
+ * with #ifndef _WIN32 (line 8) and has Windows stubs at the end.
+ *
+ * Do NOT use on Windows without complete rewrite to use platform-specific
+ * path handling (_splitpath_s, PathRemoveFileSpec, etc.).
  */
 char* resolve_relative_path(const char *base_path, const char *source_path) {
     if (!base_path || !source_path) {
@@ -312,7 +319,7 @@ char* resolve_relative_path(const char *base_path, const char *source_path) {
         return strdup(source_path);
     }
 
-    // Get directory of base_path.
+    // Get directory of base_path (POSIX dirname() - Unix only).
     char *base_copy = strdup(base_path);
     if (!base_copy) {
         fprintf(stderr, "Error: Cannot allocate memory\n");

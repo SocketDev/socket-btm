@@ -145,7 +145,9 @@ char* create_vfs_archive_from_dir(const char *dir_path) {
     // Rename temp file to add .tar.gz suffix.
     if (rename(template, archive_path) != 0) {
         fprintf(stderr, "Error: Failed to rename temp file: %s\n", strerror(errno));
-        unlink(template);
+        if (unlink(template) != 0) {
+            fprintf(stderr, "Warning: Failed to clean up temp file %s: %s\n", template, strerror(errno));
+        }
         free(archive_path);
         return NULL;
     }
@@ -260,7 +262,9 @@ char* compress_tar_archive(const char *tar_path) {
     // Rename temp file to add .tar.gz suffix.
     if (rename(template, compressed_path) != 0) {
         fprintf(stderr, "Error: Failed to rename temp file: %s\n", strerror(errno));
-        unlink(template);
+        if (unlink(template) != 0) {
+            fprintf(stderr, "Warning: Failed to clean up temp file %s: %s\n", template, strerror(errno));
+        }
         free(compressed_path);
         return NULL;
     }
@@ -287,7 +291,11 @@ char* resolve_relative_path(const char *base_path, const char *source_path) {
 
     // If source is absolute, return copy.
     if (source_path[0] == '/') {
-        return strdup(source_path);
+        char *result = strdup(source_path);
+        if (!result) {
+            fprintf(stderr, "Error: Cannot allocate memory\n");
+        }
+        return result;
     }
 
     // Get directory of base_path (POSIX dirname() - Unix only).

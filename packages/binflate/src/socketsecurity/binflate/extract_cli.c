@@ -154,8 +154,13 @@ static int extract_binary(const char *input_path, const char *output_path) {
     ssize_t total_read = 0;
     while (total_read < (ssize_t)compressed_size) {
         ssize_t n = read(source_fd, compressed_data + total_read, compressed_size - total_read);
-        if (n <= 0) {
-            fprintf(stderr, "Error: Failed to read compressed data\n");
+        if (n < 0) {
+            fprintf(stderr, "Error: Failed to read compressed data: %s\n", strerror(errno));
+            goto cleanup;
+        }
+        if (n == 0) {
+            fprintf(stderr, "Error: Unexpected end of file (expected %zu bytes, got %zd)\n",
+                    compressed_size, total_read);
             goto cleanup;
         }
         total_read += n;

@@ -378,9 +378,10 @@ static int dlx_create_directory_recursive(const char *path) {
 
     for (p = tmp + 1; *p; p++) {
         if (*p == '\\' || *p == '/') {
+            char sep = *p;  // Remember original separator
             *p = 0;
             CreateDirectoryA(tmp, NULL);
-            *p = '\\';
+            *p = sep;  // Restore original separator
         }
     }
 

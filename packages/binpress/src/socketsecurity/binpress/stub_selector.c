@@ -6,7 +6,7 @@
 #include "socketsecurity/bin-infra/binary_format.h"
 #include "socketsecurity/build-infra/file_utils.h"
 #include "socketsecurity/build-infra/file_io_common.h"
-#include "socketsecurity/bin-infra/tmpdir_common.h"
+#include "socketsecurity/build-infra/tmpdir_common.h"
 #include "socketsecurity/build-infra/debug_common.h"
 
 #include <errno.h>

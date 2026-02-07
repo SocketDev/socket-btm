@@ -23,6 +23,7 @@ extern "C" {
 #include "socketsecurity/binject/vfs_config.h"
 #include "socketsecurity/binject/vfs_utils.h"
 #include "socketsecurity/binject/binject.h"
+#include "socketsecurity/build-infra/tmpdir_common.h"
 }
 
 // Node.js internal APIs.
@@ -372,7 +373,10 @@ bool InjectSeaAndVfs(const std::string& executable_path,
                      sea_blob.size());
 
   // Write SEA blob to temporary file (binject_batch expects file paths).
-  const char* sea_tmp = "/tmp/sea_blob.bin";
+  // Use get_tmpdir() to respect TMPDIR/TMP/TEMP environment variables.
+  const char* tmpdir = get_tmpdir(NULL);
+  char sea_tmp[512];
+  snprintf(sea_tmp, sizeof(sea_tmp), "%s/sea_blob.bin", tmpdir);
   FILE* f = fopen(sea_tmp, "wb");
   if (!f) {
     fprintf(stderr, "Error: Failed to create temporary SEA blob file\\n");

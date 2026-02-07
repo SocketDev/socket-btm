@@ -34,7 +34,7 @@
 #include <time.h>
 #include <ctype.h>
 
-#include "socketsecurity/bin-infra/tmpdir_common.h"
+#include "socketsecurity/build-infra/tmpdir_common.h"
 
 // Platform-specific includes.
 #if defined(__APPLE__)

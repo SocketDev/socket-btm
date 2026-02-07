@@ -11,6 +11,7 @@
 
 #include "socketsecurity/binject/vfs_utils.h"
 #include "socketsecurity/build-infra/file_io_common.h"
+#include "socketsecurity/build-infra/tmpdir_common.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
@@ -72,7 +73,10 @@ char* create_vfs_archive_from_dir(const char *dir_path) {
     }
 
     // Create temp file for archive (without suffix, will rename).
-    char template[] = "/tmp/binject-vfs-XXXXXX";
+    // Use get_tmpdir() to respect TMPDIR/TMP/TEMP environment variables.
+    const char *tmpdir = get_tmpdir(NULL);
+    char template[512];
+    snprintf(template, sizeof(template), "%s/binject-vfs-XXXXXX", tmpdir);
     int fd = mkstemp(template);
     if (fd == -1) {
         fprintf(stderr, "Error: Failed to create temp file: %s\n", strerror(errno));
@@ -186,7 +190,10 @@ char* compress_tar_archive(const char *tar_path) {
     }
 
     // Create temp file for compressed archive (without suffix, will rename).
-    char template[] = "/tmp/binject-vfs-XXXXXX";
+    // Use get_tmpdir() to respect TMPDIR/TMP/TEMP environment variables.
+    const char *tmpdir = get_tmpdir(NULL);
+    char template[512];
+    snprintf(template, sizeof(template), "%s/binject-vfs-XXXXXX", tmpdir);
     int fd = mkstemp(template);
     if (fd == -1) {
         fprintf(stderr, "Error: Failed to create temp file: %s\n", strerror(errno));

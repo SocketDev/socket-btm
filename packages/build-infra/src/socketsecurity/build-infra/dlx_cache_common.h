@@ -75,6 +75,16 @@
 #define DLX_CACHE_DIR "_dlx"
 
 /**
+ * MAYBE_UNUSED - mark a function or variable as maybe unused.
+ * GCC/Clang support __attribute__((unused)), MSVC does not.
+ */
+#if defined(__GNUC__) || __has_attribute(unused)
+#  define MAYBE_UNUSED __attribute__((unused))
+#else
+#  define MAYBE_UNUSED
+#endif
+
+/**
  * Calculate SHA-512 hash (cross-platform).
  * This is the core hashing function used for cache key generation.
  */
@@ -125,7 +135,7 @@ static int dlx_sha512(const unsigned char *data, size_t len, unsigned char *hash
  *
  * Reference: https://github.com/SocketDev/socket-lib/blob/v4.4.0/src/dlx.ts#L55
  */
-__attribute__((unused))
+MAYBE_UNUSED
 static int dlx_calculate_cache_key(const unsigned char *data, size_t len, char *cache_key) {
     unsigned char hash[SHA512_DIGEST_LEN];
 
@@ -147,7 +157,7 @@ static int dlx_calculate_cache_key(const unsigned char *data, size_t len, char *
  * Returns "sha512-<base64>" format (88 chars + null terminator).
  * The base64 encoded SHA-512 hash is 86 chars, plus "sha512-" prefix (7 chars).
  */
-__attribute__((unused))
+MAYBE_UNUSED
 static int dlx_calculate_integrity(const unsigned char *data, size_t len, char *output_integrity) {
     unsigned char hash[SHA512_DIGEST_LEN];
 
@@ -578,7 +588,7 @@ static int dlx_write_metadata(const char *entry_dir, const char *cache_key,
  * Returns 0 and fills cached_path if found and valid, -1 otherwise.
  * Respects SOCKET_DLX_DIR and SOCKET_HOME environment variables.
  */
-__attribute__((unused))
+MAYBE_UNUSED
 static int dlx_get_cached_binary_path(const char *cache_key, uint64_t expected_size,
                                        char *cached_path, size_t path_size) {
     char base_dir[512];
@@ -648,7 +658,7 @@ static int dlx_get_cached_binary_path(const char *cache_key, uint64_t expected_s
  * Returns 0 on success, -1 on error.
  * Respects SOCKET_DLX_DIR and SOCKET_HOME environment variables.
  */
-__attribute__((unused))
+MAYBE_UNUSED
 static int dlx_get_extracted_binary_path(const char *cache_key,
                                           char *extracted_path, size_t path_size) {
     char base_dir[512];
@@ -682,7 +692,7 @@ static int dlx_get_extracted_binary_path(const char *cache_key,
  * @param integrity SRI integrity hash (sha512-<base64>).
  * @param update_check Optional update check metadata (NULL to omit).
  */
-__attribute__((unused))
+MAYBE_UNUSED
 static int dlx_write_to_cache(const char *cache_key, const unsigned char *data,
                                size_t size, const char *exe_path,
                                const char *integrity,

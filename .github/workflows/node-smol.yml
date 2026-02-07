@@ -488,10 +488,10 @@ jobs:
           elif [[ "${{ matrix.os }}" == "macos" && "${{ matrix.arch }}" == "arm64" ]]; then
             echo "jobs=4" >> $GITHUB_OUTPUT  # → steps.build-parallelism.outputs.jobs = "4"
 
-          # macOS x64 large: 6 jobs (30GB RAM, 12 vCPU) - fully utilize available resources
-          # 30GB / 4GB per job = 7.5 max, use 6 for safety margin
+          # macOS x64 large: 4 jobs (30GB RAM, 12 vCPU) - reduced to prevent clang segfaults
+          # V8 compilation with aggressive opts needs more memory per job
           elif [[ "${{ matrix.os }}" == "macos" && "${{ matrix.arch }}" == "x64" ]]; then
-            echo "jobs=6" >> $GITHUB_OUTPUT  # → steps.build-parallelism.outputs.jobs = "6"
+            echo "jobs=4" >> $GITHUB_OUTPUT  # → steps.build-parallelism.outputs.jobs = "4"
 
           # Linux x64: Auto-calculate based on RAM (typically 3-4 jobs)
           else

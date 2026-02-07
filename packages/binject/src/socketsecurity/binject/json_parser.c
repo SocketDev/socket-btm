@@ -14,6 +14,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <inttypes.h>
+#include <errno.h>
 
 #define MAX_JSON_SIZE (1024 * 1024)  // 1MB max for config files.
 

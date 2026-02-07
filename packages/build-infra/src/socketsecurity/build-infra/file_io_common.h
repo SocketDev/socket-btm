@@ -80,7 +80,7 @@ int file_io_set_cloexec(int fd);
  * On Unix, uses mkstemp() directly.
  * On Windows, uses _mktemp_s + _sopen_s for equivalent functionality.
  *
- * @param template Template path ending with "XXXXXX" (will be modified)
+ * @param tmpl Template path ending with "XXXXXX" (will be modified)
  * @return File descriptor on success, -1 on failure
  */
 #ifdef _WIN32
@@ -90,15 +90,15 @@ int file_io_set_cloexec(int fd);
 #include <share.h>
 #include <errno.h>
 
-static inline int mkstemp_portable(char *template) {
-    errno_t err = _mktemp_s(template, strlen(template) + 1);
+static inline int mkstemp_portable(char *tmpl) {
+    errno_t err = _mktemp_s(tmpl, strlen(tmpl) + 1);
     if (err != 0) {
         errno = err;
         return -1;
     }
 
     int fd;
-    err = _sopen_s(&fd, template, _O_RDWR | _O_CREAT | _O_EXCL | _O_BINARY,
+    err = _sopen_s(&fd, tmpl, _O_RDWR | _O_CREAT | _O_EXCL | _O_BINARY,
                    _SH_DENYNO, _S_IREAD | _S_IWRITE);
     if (err != 0) {
         errno = err;

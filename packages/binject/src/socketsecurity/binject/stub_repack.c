@@ -28,6 +28,9 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <io.h>
+/* Windows doesn't have ftello/fseeko */
+#define ftello(fp) _ftelli64(fp)
+#define fseeko(fp, offset, whence) _fseeki64(fp, offset, whence)
 #endif
 
 /**

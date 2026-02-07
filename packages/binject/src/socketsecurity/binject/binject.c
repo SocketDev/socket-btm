@@ -32,6 +32,10 @@
 #ifndef S_ISREG
 #define S_ISREG(m) (((m) & _S_IFMT) == _S_IFREG)
 #endif
+/* Windows doesn't have ftello/fseeko */
+#define ftello(fp) _ftelli64(fp)
+#define fseeko(fp, offset, whence) _fseeki64(fp, offset, whence)
+#endif
 // Windows uses MAX_PATH instead of PATH_MAX
 #ifndef PATH_MAX
 #define PATH_MAX MAX_PATH

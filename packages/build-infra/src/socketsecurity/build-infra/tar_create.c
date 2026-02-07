@@ -16,7 +16,15 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <io.h>
 #define PATH_SEP '\\'
+/* Windows doesn't have S_ISDIR macro */
+#ifndef S_ISDIR
+#define S_ISDIR(mode) (((mode) & _S_IFMT) == _S_IFDIR)
+#endif
+/* Windows doesn't have ftello/fseeko */
+#define ftello(fp) _ftelli64(fp)
+#define fseeko(fp, offset, whence) _fseeki64(fp, offset, whence)
 #else
 #include <unistd.h>
 #include <dirent.h>

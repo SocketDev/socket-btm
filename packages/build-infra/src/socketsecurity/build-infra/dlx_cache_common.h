@@ -336,6 +336,9 @@ static const char* dlx_get_libc(void) {
 #if defined(__linux__)
     // Try runtime detection using ldd --version.
     // Use absolute path to prevent PATH injection attacks.
+    // Note: In highly restricted containers or seccomp-filtered environments,
+    // popen() may be blocked or /usr/bin/ldd may not exist. The fallback
+    // mechanisms below (musl loader path checks, default to glibc) handle this.
     FILE *fp = popen("/usr/bin/ldd --version 2>&1", "r");
     if (fp) {
         char buf[256];

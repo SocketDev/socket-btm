@@ -22,6 +22,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <string.h>
 #endif
 
 using v8::ArrayBuffer;
@@ -343,6 +345,9 @@ static void CreateMemfd(const FunctionCallbackInfo<Value>& args) {
 
   if (fd == -1) {
     // memfd_create failed - return undefined to signal fallback to tmpfs
+    // Common causes: kernel < 3.17, seccomp filter, restricted container
+    DEBUG_LOG("[VFS] memfd_create failed for '%s': %s (errno=%d), falling back to tmpfs\n",
+              name, strerror(errno), errno);
     return;
   }
 

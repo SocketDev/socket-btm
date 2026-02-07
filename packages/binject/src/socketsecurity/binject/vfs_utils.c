@@ -1,8 +1,8 @@
 /**
  * VFS Utilities Implementation
  *
- * Note: VFS functionality uses Unix-specific APIs (fork, exec, tar, gzip).
- * Windows stubs are provided at the end of this file.
+ * Note: VFS functionality uses embedded tar/gzip implementations and Unix-specific
+ * path resolution. Windows stubs are provided at the end of this file.
  */
 
 #ifndef _WIN32
@@ -12,6 +12,8 @@
 #include "socketsecurity/binject/vfs_utils.h"
 #include "socketsecurity/build-infra/file_io_common.h"
 #include "socketsecurity/build-infra/tmpdir_common.h"
+#include "socketsecurity/build-infra/tar_create.h"
+#include "socketsecurity/build-infra/gzip_compress.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
@@ -19,7 +21,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/wait.h>
 #include <unistd.h>
 #include <inttypes.h>
 
@@ -64,7 +65,7 @@ vfs_source_type_t detect_vfs_source_type(const char *path) {
 }
 
 /**
- * Create TAR.GZ from directory.
+ * Create TAR.GZ from directory using embedded tar/gzip implementation.
  */
 char* create_vfs_archive_from_dir(const char *dir_path) {
     if (!dir_path) {
@@ -72,30 +73,76 @@ char* create_vfs_archive_from_dir(const char *dir_path) {
         return NULL;
     }
 
-    // Create temp file for archive (without suffix, will rename).
+    printf("Creating VFS archive from directory (gzip level 9)...\n");
+
+    // Create tar.gz in memory using embedded implementation.
+    uint8_t *tar_gz_data = NULL;
+    size_t tar_gz_size = 0;
+    int rc = tar_gz_create_from_directory(dir_path, &tar_gz_data, &tar_gz_size, 9);
+    if (rc != TAR_OK) {
+        fprintf(stderr, "Error: Failed to create tar.gz archive from directory\n");
+        return NULL;
+    }
+
+    // Check size limits before writing to disk.
+    if (tar_gz_size > 1024 * 1024 * 1024) {  // 1GB.
+        fprintf(stderr, "Error: VFS archive too large (%zu MB, max 1GB)\n", tar_gz_size / (1024 * 1024));
+        free(tar_gz_data);
+        return NULL;
+    }
+
+    // Warn if archive is large.
+    if (tar_gz_size > 100 * 1024 * 1024) {  // 100MB.
+        fprintf(stderr, "Warning: VFS archive is large (%zu MB), may impact binary size and startup time\n",
+                tar_gz_size / (1024 * 1024));
+    }
+
+    // Create temp file with .tar.gz suffix.
     // Use get_tmpdir() to respect TMPDIR/TMP/TEMP environment variables.
     const char *tmpdir = get_tmpdir(NULL);
     char template[512];
-    snprintf(template, sizeof(template), "%s/binject-vfs-XXXXXX", tmpdir);
+    snprintf(template, sizeof(template), "%s/binject-vfs-XXXXXX.tar.gz", tmpdir);
+
+    // mkstemp requires XXXXXX at the end, so we need to adjust our template.
+    char *suffix = strrchr(template, '.');
+    if (suffix) {
+        // Move suffix after XXXXXX: "prefix-XXXXXX.tar.gz" -> "prefix-XXXXXX"
+        memmove(suffix, ".tar.gz", 8);  // Include null terminator.
+        snprintf(template, sizeof(template), "%s/binject-vfs-XXXXXX", tmpdir);
+    }
+
     int fd = mkstemp(template);
     if (fd == -1) {
         fprintf(stderr, "Error: Failed to create temp file: %s\n", strerror(errno));
+        free(tar_gz_data);
         return NULL;
     }
-    // Prevent file descriptor/handle leaks to child processes (cross-platform).
-    file_io_set_cloexec(fd);
-    close(fd);
 
     // Rename to add .tar.gz suffix.
     size_t template_len = strlen(template);
     char *archive_path = malloc(template_len + 8);  // +8 for ".tar.gz\0".
     if (!archive_path) {
         fprintf(stderr, "Error: Cannot allocate memory\n");
+        close(fd);
         unlink(template);
+        free(tar_gz_data);
         return NULL;
     }
     snprintf(archive_path, template_len + 8, "%s.tar.gz", template);
 
+    // Write tar.gz data to temp file.
+    ssize_t written = write(fd, tar_gz_data, tar_gz_size);
+    close(fd);
+    free(tar_gz_data);
+
+    if (written != (ssize_t)tar_gz_size) {
+        fprintf(stderr, "Error: Failed to write tar.gz data to file\n");
+        unlink(template);
+        free(archive_path);
+        return NULL;
+    }
+
+    // Rename temp file to add .tar.gz suffix.
     if (rename(template, archive_path) != 0) {
         fprintf(stderr, "Error: Failed to rename temp file: %s\n", strerror(errno));
         unlink(template);
@@ -103,85 +150,12 @@ char* create_vfs_archive_from_dir(const char *dir_path) {
         return NULL;
     }
 
-    // Create tar.gz archive using fork/execve (secure, no shell injection).
-    printf("Creating VFS archive from directory (gzip level 9): %s\n", archive_path);
-
-    pid_t pid = fork();
-    if (pid == -1) {
-        fprintf(stderr, "Error: fork() failed: %s\n", strerror(errno));
-        unlink(archive_path);
-        free(archive_path);
-        return NULL;
-    }
-
-    if (pid == 0) {
-        // Child process: execute tar with proper argument array (no shell).
-        char *argv[] = {
-            "tar",
-            "-czf",
-            archive_path,
-            "-C",
-            (char*)dir_path,
-            ".",
-            NULL
-        };
-        char *envp[] = {
-            "GZIP=-9",
-            NULL
-        };
-        execve("/usr/bin/tar", argv, envp);
-        // If execve fails, try /bin/tar.
-        execve("/bin/tar", argv, envp);
-        fprintf(stderr, "Error: execve() failed: %s\n", strerror(errno));
-        _exit(1);
-    }
-
-    // Parent process: wait for child.
-    int status;
-    if (waitpid(pid, &status, 0) == -1) {
-        fprintf(stderr, "Error: waitpid() failed: %s\n", strerror(errno));
-        unlink(archive_path);
-        free(archive_path);
-        return NULL;
-    }
-
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        fprintf(stderr, "Error: Failed to create VFS archive (exit code %d)\n",
-                WIFEXITED(status) ? WEXITSTATUS(status) : -1);
-        unlink(archive_path);
-        free(archive_path);
-        return NULL;
-    }
-
-    off_t size = get_file_size(archive_path);
-    if (size < 0) {
-        fprintf(stderr, "Error: Cannot determine archive size\n");
-        unlink(archive_path);
-        free(archive_path);
-        return NULL;
-    }
-
-    printf("Created VFS archive (%" PRId64 " bytes)\n", (int64_t)size);
-
-    // Warn if archive is large.
-    if (size > 100 * 1024 * 1024) {  // 100MB.
-        fprintf(stderr, "Warning: VFS archive is large (%" PRId64 " MB), may impact binary size and startup time\n",
-                (int64_t)(size / (1024 * 1024)));
-    }
-
-    // Error if archive is too large.
-    if (size > 1024 * 1024 * 1024) {  // 1GB.
-        fprintf(stderr, "Error: VFS archive too large (%" PRId64 " MB, max 1GB)\n", (int64_t)(size / (1024 * 1024)));
-        unlink(archive_path);
-        free(archive_path);
-        return NULL;
-    }
-
+    printf("Created VFS archive (%zu bytes)\n", tar_gz_size);
     return archive_path;
 }
 
 /**
- * Compress .tar file to .tar.gz.
+ * Compress .tar file to .tar.gz using embedded gzip implementation.
  */
 char* compress_tar_archive(const char *tar_path) {
     if (!tar_path) {
@@ -189,7 +163,65 @@ char* compress_tar_archive(const char *tar_path) {
         return NULL;
     }
 
-    // Create temp file for compressed archive (without suffix, will rename).
+    printf("Compressing VFS archive (gzip level 9)...\n");
+
+    // Read input .tar file into memory.
+    FILE *f = fopen(tar_path, "rb");
+    if (!f) {
+        fprintf(stderr, "Error: Cannot open tar file: %s\n", strerror(errno));
+        return NULL;
+    }
+
+    fseek(f, 0, SEEK_END);
+    off_t file_size = ftello(f);
+    if (file_size < 0) {
+        fclose(f);
+        fprintf(stderr, "Error: Cannot determine tar file size\n");
+        return NULL;
+    }
+    size_t tar_size = (size_t)file_size;
+    fseek(f, 0, SEEK_SET);
+
+    uint8_t *tar_data = malloc(tar_size);
+    if (!tar_data) {
+        fclose(f);
+        fprintf(stderr, "Error: Cannot allocate memory for tar data\n");
+        return NULL;
+    }
+
+    if (fread(tar_data, 1, tar_size, f) != tar_size) {
+        fclose(f);
+        free(tar_data);
+        fprintf(stderr, "Error: Failed to read tar file\n");
+        return NULL;
+    }
+    fclose(f);
+
+    // Compress with gzip using embedded implementation.
+    uint8_t *gz_data = NULL;
+    size_t gz_size = 0;
+    int rc = gzip_compress(tar_data, tar_size, &gz_data, &gz_size, 9);
+    free(tar_data);
+
+    if (rc != GZIP_OK) {
+        fprintf(stderr, "Error: gzip compression failed\n");
+        return NULL;
+    }
+
+    // Check size limits before writing to disk.
+    if (gz_size > 1024 * 1024 * 1024) {  // 1GB.
+        fprintf(stderr, "Error: VFS archive too large (%zu MB, max 1GB)\n", gz_size / (1024 * 1024));
+        free(gz_data);
+        return NULL;
+    }
+
+    // Warn if archive is large.
+    if (gz_size > 100 * 1024 * 1024) {  // 100MB.
+        fprintf(stderr, "Warning: VFS archive is large (%zu MB), may impact binary size and startup time\n",
+                gz_size / (1024 * 1024));
+    }
+
+    // Create temp file for compressed archive.
     // Use get_tmpdir() to respect TMPDIR/TMP/TEMP environment variables.
     const char *tmpdir = get_tmpdir(NULL);
     char template[512];
@@ -197,22 +229,35 @@ char* compress_tar_archive(const char *tar_path) {
     int fd = mkstemp(template);
     if (fd == -1) {
         fprintf(stderr, "Error: Failed to create temp file: %s\n", strerror(errno));
+        free(gz_data);
         return NULL;
     }
-    // Prevent file descriptor/handle leaks to child processes (cross-platform).
-    file_io_set_cloexec(fd);
-    close(fd);
 
     // Rename to add .tar.gz suffix.
     size_t template_len = strlen(template);
     char *compressed_path = malloc(template_len + 8);  // +8 for ".tar.gz\0".
     if (!compressed_path) {
         fprintf(stderr, "Error: Cannot allocate memory\n");
+        close(fd);
         unlink(template);
+        free(gz_data);
         return NULL;
     }
     snprintf(compressed_path, template_len + 8, "%s.tar.gz", template);
 
+    // Write compressed data to temp file.
+    ssize_t written = write(fd, gz_data, gz_size);
+    close(fd);
+    free(gz_data);
+
+    if (written != (ssize_t)gz_size) {
+        fprintf(stderr, "Error: Failed to write compressed data to file\n");
+        unlink(template);
+        free(compressed_path);
+        return NULL;
+    }
+
+    // Rename temp file to add .tar.gz suffix.
     if (rename(template, compressed_path) != 0) {
         fprintf(stderr, "Error: Failed to rename temp file: %s\n", strerror(errno));
         unlink(template);
@@ -220,88 +265,7 @@ char* compress_tar_archive(const char *tar_path) {
         return NULL;
     }
 
-    // Compress with gzip using fork/execve (secure, no shell injection).
-    printf("Compressing VFS archive (gzip level 9): %s\n", compressed_path);
-
-    pid_t pid = fork();
-    if (pid == -1) {
-        fprintf(stderr, "Error: fork() failed: %s\n", strerror(errno));
-        unlink(compressed_path);
-        free(compressed_path);
-        return NULL;
-    }
-
-    if (pid == 0) {
-        // Child process: redirect stdout to compressed_path, then execute gzip.
-        int out_fd = open(compressed_path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
-        if (out_fd == -1) {
-            fprintf(stderr, "Error: Cannot open output file: %s\n", strerror(errno));
-            _exit(1);
-        }
-
-        if (dup2(out_fd, STDOUT_FILENO) == -1) {
-            fprintf(stderr, "Error: dup2() failed: %s\n", strerror(errno));
-            close(out_fd);
-            _exit(1);
-        }
-        close(out_fd);
-
-        // Execute gzip with proper argument array (no shell).
-        char *argv[] = {
-            "gzip",
-            "-9",
-            "-c",
-            (char*)tar_path,
-            NULL
-        };
-        execve("/usr/bin/gzip", argv, NULL);
-        // If execve fails, try /bin/gzip.
-        execve("/bin/gzip", argv, NULL);
-        fprintf(stderr, "Error: execve() failed: %s\n", strerror(errno));
-        _exit(1);
-    }
-
-    // Parent process: wait for child.
-    int status;
-    if (waitpid(pid, &status, 0) == -1) {
-        fprintf(stderr, "Error: waitpid() failed: %s\n", strerror(errno));
-        unlink(compressed_path);
-        free(compressed_path);
-        return NULL;
-    }
-
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        fprintf(stderr, "Error: Failed to compress VFS archive (exit code %d)\n",
-                WIFEXITED(status) ? WEXITSTATUS(status) : -1);
-        unlink(compressed_path);
-        free(compressed_path);
-        return NULL;
-    }
-
-    off_t size = get_file_size(compressed_path);
-    if (size < 0) {
-        fprintf(stderr, "Error: Cannot determine compressed archive size\n");
-        unlink(compressed_path);
-        free(compressed_path);
-        return NULL;
-    }
-
-    printf("Compressed VFS archive (%" PRId64 " bytes)\n", (int64_t)size);
-
-    // Warn if archive is large.
-    if (size > 100 * 1024 * 1024) {  // 100MB.
-        fprintf(stderr, "Warning: VFS archive is large (%" PRId64 " MB), may impact binary size and startup time\n",
-                (int64_t)(size / (1024 * 1024)));
-    }
-
-    // Error if archive is too large.
-    if (size > 1024 * 1024 * 1024) {  // 1GB.
-        fprintf(stderr, "Error: VFS archive too large (%" PRId64 " MB, max 1GB)\n", (int64_t)(size / (1024 * 1024)));
-        unlink(compressed_path);
-        free(compressed_path);
-        return NULL;
-    }
-
+    printf("Compressed VFS archive (%zu bytes)\n", gz_size);
     return compressed_path;
 }
 

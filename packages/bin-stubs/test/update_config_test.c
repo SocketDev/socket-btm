@@ -10,7 +10,27 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+
+#ifndef _WIN32
 #include <unistd.h>
+#endif
+
+/* Windows compatibility wrappers for setenv/unsetenv */
+#ifdef _WIN32
+static int setenv(const char *name, const char *value, int overwrite) {
+    if (!name || !value) return -1;
+    if (!overwrite && getenv(name) != NULL) {
+        return 0;
+    }
+    return _putenv_s(name, value);
+}
+
+static int unsetenv(const char *name) {
+    if (!name) return -1;
+    /* On Windows, set to empty string to unset */
+    return _putenv_s(name, "");
+}
+#endif
 
 /* Include the test framework. */
 #include "../../../../../../bin-infra/src/socketsecurity/bin-infra/test.h"

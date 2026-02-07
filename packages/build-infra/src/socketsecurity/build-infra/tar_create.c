@@ -11,6 +11,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <stdint.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -84,10 +85,28 @@ static void tar_buffer_free(tar_buffer_t *buf) {
 }
 
 static int tar_buffer_grow(tar_buffer_t *buf, size_t needed) {
-    if (buf->size + needed <= buf->capacity) return TAR_OK;
+    /* Check for overflow in buf->size + needed */
+    if (needed > SIZE_MAX - buf->size) {
+        return TAR_ERROR_ALLOC;
+    }
 
-    size_t new_capacity = buf->capacity * 2;
-    while (new_capacity < buf->size + needed) {
+    size_t required_size = buf->size + needed;
+    if (required_size <= buf->capacity) return TAR_OK;
+
+    size_t new_capacity = buf->capacity;
+
+    /* Double capacity until it's large enough, with overflow protection */
+    if (new_capacity == 0) {
+        new_capacity = TAR_BLOCK_SIZE;
+    }
+
+    while (new_capacity < required_size) {
+        /* Check if doubling would overflow */
+        if (new_capacity > SIZE_MAX / 2) {
+            /* Can't double anymore, try exact size */
+            new_capacity = required_size;
+            break;
+        }
         new_capacity *= 2;
     }
 

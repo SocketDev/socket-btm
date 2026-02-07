@@ -91,10 +91,19 @@ int file_io_write(const char *path, const uint8_t *data, size_t size) {
     }
 
     size_t written = fwrite(data, 1, size, fp);
-    fclose(fp);
+
+    // Check fclose() error - can report buffered write failures (e.g., disk full, I/O errors).
+    if (fclose(fp) != 0) {
+        fprintf(stderr, "Error: Failed to close file (data may not be flushed): %s\n", strerror(errno));
+        // Attempt to remove incomplete file on write failure.
+        remove(path);
+        return FILE_IO_ERROR_WRITE_FAILED;
+    }
 
     if (written != size) {
         fprintf(stderr, "Error: Wrote %zu bytes, expected %zu\n", written, size);
+        // File already closed, just remove it.
+        remove(path);
         return FILE_IO_ERROR_WRITE_FAILED;
     }
 

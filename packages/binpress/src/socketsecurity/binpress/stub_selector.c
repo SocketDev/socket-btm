@@ -759,6 +759,9 @@ int write_temp_stub(const embedded_stub_t *stub, char *output_path,
 
 void cleanup_temp_stub(const char *stub_path) {
   if (stub_path && stub_path[0] != '\0') {
-    unlink(stub_path);
+    if (unlink(stub_path) != 0 && errno != ENOENT) {
+      fprintf(stderr, "Warning: Failed to clean up temp stub %s: %s\n",
+              stub_path, strerror(errno));
+    }
   }
 }

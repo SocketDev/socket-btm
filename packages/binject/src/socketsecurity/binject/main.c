@@ -132,13 +132,21 @@ static char* find_system_node_binary(void) {
     for (int i = 0; candidates[i] != NULL; i++) {
         // Try to validate if it's a real node binary
         if (validate_node_binary(candidates[i])) {
-            return strdup(candidates[i]);
+            char *result = strdup(candidates[i]);
+            if (!result) {
+                fprintf(stderr, "Error: Cannot allocate memory for binary path\n");
+            }
+            return result;
         }
     }
 
     // Fall back to "node" in PATH - don't validate since it's not a file path
     // Let execvp search PATH for us
-    return strdup("node");
+    char *result = strdup("node");
+    if (!result) {
+        fprintf(stderr, "Error: Cannot allocate memory for binary path\n");
+    }
+    return result;
 }
 
 
@@ -501,7 +509,10 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Error: Failed to generate SEA blob from config\n");
                 if (smol_config_binary) free(smol_config_binary);
                 if (temp_vfs_archive) {
-                    unlink(temp_vfs_archive);
+                    if (unlink(temp_vfs_archive) != 0 && errno != ENOENT) {
+                        fprintf(stderr, "Warning: Failed to delete temporary file %s: %s\n",
+                                temp_vfs_archive, strerror(errno));
+                    }
                     free(temp_vfs_archive);
                 }
                 return BINJECT_ERROR;
@@ -519,7 +530,11 @@ int main(int argc, char *argv[]) {
             free(smol_config_binary);
         }
         if (temp_vfs_archive) {
-            unlink(temp_vfs_archive);  // Delete temporary archive file
+            // Delete temporary archive file
+            if (unlink(temp_vfs_archive) != 0 && errno != ENOENT) {
+                fprintf(stderr, "Warning: Failed to delete temporary file %s: %s\n",
+                        temp_vfs_archive, strerror(errno));
+            }
             free(temp_vfs_archive);
         }
 

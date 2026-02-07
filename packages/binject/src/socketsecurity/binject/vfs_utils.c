@@ -97,30 +97,25 @@ char* create_vfs_archive_from_dir(const char *dir_path) {
                 tar_gz_size / (1024 * 1024));
     }
 
-    // Create temp file with .tar.gz suffix.
+    // Create temp file with .tar.gz suffix using mkstemps().
     // Use get_tmpdir() to respect TMPDIR/TMP/TEMP environment variables.
     const char *tmpdir = get_tmpdir(NULL);
+    char *archive_path = NULL;
     char template[512];
     snprintf(template, sizeof(template), "%s/binject-vfs-XXXXXX.tar.gz", tmpdir);
 
-    // mkstemp requires XXXXXX at the end, so we need to adjust our template.
-    char *suffix = strrchr(template, '.');
-    if (suffix) {
-        // Move suffix after XXXXXX: "prefix-XXXXXX.tar.gz" -> "prefix-XXXXXX"
-        memmove(suffix, ".tar.gz", 8);  // Include null terminator.
-        snprintf(template, sizeof(template), "%s/binject-vfs-XXXXXX", tmpdir);
-    }
-
-    int fd = mkstemp(template);
+    // Use mkstemps() to create temp file with suffix (available on Linux, BSD, macOS).
+    // The '7' is the length of ".tar.gz" suffix.
+    int fd = mkstemps(template, 7);
     if (fd == -1) {
         fprintf(stderr, "Error: Failed to create temp file: %s\n", strerror(errno));
         free(tar_gz_data);
         return NULL;
     }
 
-    // Rename to add .tar.gz suffix.
-    size_t template_len = strlen(template);
-    char *archive_path = malloc(template_len + 8);  // +8 for ".tar.gz\0".
+    // Template is modified in-place by mkstemps() with the final filename.
+    // No need to rename - file already has the correct name atomically.
+    archive_path = strdup(template);
     if (!archive_path) {
         fprintf(stderr, "Error: Cannot allocate memory\n");
         close(fd);
@@ -128,29 +123,29 @@ char* create_vfs_archive_from_dir(const char *dir_path) {
         free(tar_gz_data);
         return NULL;
     }
-    snprintf(archive_path, template_len + 8, "%s.tar.gz", template);
 
     // Write tar.gz data to temp file.
     ssize_t written = write_eintr(fd, tar_gz_data, tar_gz_size);
-    close(fd);
+
+    // Check close() for errors (can report buffered write failures).
+    if (close(fd) != 0) {
+        fprintf(stderr, "Error: Failed to close temp file: %s\n", strerror(errno));
+        unlink(archive_path);
+        free(archive_path);
+        free(tar_gz_data);
+        return NULL;
+    }
+
     free(tar_gz_data);
 
     if (written != (ssize_t)tar_gz_size) {
         fprintf(stderr, "Error: Failed to write tar.gz data to file\n");
-        unlink(template);
+        unlink(archive_path);
         free(archive_path);
         return NULL;
     }
 
-    // Rename temp file to add .tar.gz suffix.
-    if (rename(template, archive_path) != 0) {
-        fprintf(stderr, "Error: Failed to rename temp file: %s\n", strerror(errno));
-        if (unlink(template) != 0) {
-            fprintf(stderr, "Warning: Failed to clean up temp file %s: %s\n", template, strerror(errno));
-        }
-        free(archive_path);
-        return NULL;
-    }
+    // No rename needed - mkstemps() created file with correct name atomically.
 
     printf("Created VFS archive (%zu bytes)\n", tar_gz_size);
     return archive_path;
@@ -223,21 +218,25 @@ char* compress_tar_archive(const char *tar_path) {
                 gz_size / (1024 * 1024));
     }
 
-    // Create temp file for compressed archive.
+    // Create temp file for compressed archive with .tar.gz suffix using mkstemps().
     // Use get_tmpdir() to respect TMPDIR/TMP/TEMP environment variables.
     const char *tmpdir = get_tmpdir(NULL);
+    char *compressed_path = NULL;
     char template[512];
-    snprintf(template, sizeof(template), "%s/binject-vfs-XXXXXX", tmpdir);
-    int fd = mkstemp(template);
+    snprintf(template, sizeof(template), "%s/binject-vfs-XXXXXX.tar.gz", tmpdir);
+
+    // Use mkstemps() to create temp file with suffix (available on Linux, BSD, macOS).
+    // The '7' is the length of ".tar.gz" suffix.
+    int fd = mkstemps(template, 7);
     if (fd == -1) {
         fprintf(stderr, "Error: Failed to create temp file: %s\n", strerror(errno));
         free(gz_data);
         return NULL;
     }
 
-    // Rename to add .tar.gz suffix.
-    size_t template_len = strlen(template);
-    char *compressed_path = malloc(template_len + 8);  // +8 for ".tar.gz\0".
+    // Template is modified in-place by mkstemps() with the final filename.
+    // No need to rename - file already has the correct name atomically.
+    compressed_path = strdup(template);
     if (!compressed_path) {
         fprintf(stderr, "Error: Cannot allocate memory\n");
         close(fd);
@@ -245,29 +244,29 @@ char* compress_tar_archive(const char *tar_path) {
         free(gz_data);
         return NULL;
     }
-    snprintf(compressed_path, template_len + 8, "%s.tar.gz", template);
 
     // Write compressed data to temp file.
     ssize_t written = write_eintr(fd, gz_data, gz_size);
-    close(fd);
+
+    // Check close() for errors (can report buffered write failures).
+    if (close(fd) != 0) {
+        fprintf(stderr, "Error: Failed to close temp file: %s\n", strerror(errno));
+        unlink(compressed_path);
+        free(compressed_path);
+        free(gz_data);
+        return NULL;
+    }
+
     free(gz_data);
 
     if (written != (ssize_t)gz_size) {
         fprintf(stderr, "Error: Failed to write compressed data to file\n");
-        unlink(template);
+        unlink(compressed_path);
         free(compressed_path);
         return NULL;
     }
 
-    // Rename temp file to add .tar.gz suffix.
-    if (rename(template, compressed_path) != 0) {
-        fprintf(stderr, "Error: Failed to rename temp file: %s\n", strerror(errno));
-        if (unlink(template) != 0) {
-            fprintf(stderr, "Warning: Failed to clean up temp file %s: %s\n", template, strerror(errno));
-        }
-        free(compressed_path);
-        return NULL;
-    }
+    // No rename needed - mkstemps() created file with correct name atomically.
 
     printf("Compressed VFS archive (%zu bytes)\n", gz_size);
     return compressed_path;

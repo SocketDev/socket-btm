@@ -3,7 +3,9 @@
  * Main CLI entry point
  */
 
+#ifndef _WIN32
 #define _POSIX_C_SOURCE 200809L  // For strdup
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -2,11 +2,13 @@
  * binject - Core implementation
  */
 
+#ifndef _WIN32
 #define _POSIX_C_SOURCE 200809L  // For O_CLOEXEC, lstat, fdopen
 #define _XOPEN_SOURCE 700        // For additional POSIX features
 #ifdef __APPLE__
 #define _DARWIN_C_SOURCE         // For O_NOFOLLOW on macOS
 #endif
+#endif  // !_WIN32
 
 #include <stdio.h>
 #include <stdlib.h>

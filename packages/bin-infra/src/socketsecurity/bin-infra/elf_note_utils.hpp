@@ -61,6 +61,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #endif
+#include "socketsecurity/build-infra/file_io_common.h"
 #include "socketsecurity/bin-infra/segment_names.h"
 
 // Fuse string constants (must match segment_names.h)

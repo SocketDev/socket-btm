@@ -11,6 +11,17 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/* Cross-platform file position functions */
+#ifdef _WIN32
+#include <stdio.h>
+/* Windows uses _ftelli64() for 64-bit file positions */
+#define ftello(fp) _ftelli64(fp)
+#define fseeko(fp, offset, whence) _fseeki64(fp, offset, whence)
+#else
+/* Unix has ftello/fseeko for large file support */
+#include <stdio.h>
+#endif
+
 /* Error codes */
 #define FILE_IO_OK 0
 #define FILE_IO_ERROR -1

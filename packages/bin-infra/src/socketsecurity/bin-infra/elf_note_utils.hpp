@@ -561,7 +561,9 @@ inline int smol_reuse_multi_ptnote(
         }
 
         fclose(out_file);
+#ifndef _WIN32
         chmod(output_path.c_str(), 0755);
+#endif
 
         printf("  Successfully wrote binary with %zu notes (PHT unchanged at offset %lu)\n",
                notes.size(), (unsigned long)phoff);

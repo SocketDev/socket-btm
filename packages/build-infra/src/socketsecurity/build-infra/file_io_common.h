@@ -11,6 +11,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 /* Unix-specific includes for EINTR wrappers and system calls */
 #ifndef _WIN32
@@ -21,9 +22,12 @@
 
 /* Cross-platform file position functions */
 #ifdef _WIN32
+#include <sys/types.h>
 /* Windows uses _ftelli64() for 64-bit file positions */
 #define ftello(fp) _ftelli64(fp)
 #define fseeko(fp, offset, whence) _fseeki64(fp, offset, whence)
+/* Windows doesn't have ssize_t, use SSIZE_T or define it */
+typedef intptr_t ssize_t;
 #endif
 
 /* Error codes */

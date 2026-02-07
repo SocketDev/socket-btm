@@ -8,6 +8,9 @@
 #ifndef _WIN32
 
 #define _POSIX_C_SOURCE 200809L
+#ifdef __APPLE__
+#define _DARWIN_C_SOURCE  /* Required for mkstemps() on macOS */
+#endif
 
 #include "socketsecurity/binject/vfs_utils.h"
 #include "socketsecurity/build-infra/file_io_common.h"

@@ -6,7 +6,7 @@
  * and managing build workflows.
  */
 
-import { promises as fs } from 'node:fs'
+import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -289,14 +289,12 @@ export async function buildWithDocker(options) {
     packageName,
   )
 
-  try {
-    await fs.access(artifactPath)
+  if (existsSync(artifactPath)) {
     return { ok: true, artifactPath }
-  } catch {
-    // Artifact not at expected path
-    printInfo(`Note: Artifact not found at expected path: ${artifactPath}`)
-    return { ok: true }
   }
+  // Artifact not at expected path
+  printInfo(`Note: Artifact not found at expected path: ${artifactPath}`)
+  return { ok: true }
 }
 
 /**

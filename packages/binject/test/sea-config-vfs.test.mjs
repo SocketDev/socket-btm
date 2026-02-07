@@ -11,7 +11,7 @@
  */
 
 import { spawn } from 'node:child_process'
-import { promises as fs } from 'node:fs'
+import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -113,11 +113,8 @@ async function execCommand(command, args = [], options = {}) {
 describe('SEA Config VFS Configuration', () => {
   beforeAll(async () => {
     // Check if binject binary exists.
-    try {
-      await fs.access(BINJECT)
-      binjectExists = true
-    } catch {
-      binjectExists = false
+    binjectExists = existsSync(BINJECT)
+    if (!binjectExists) {
       return
     }
 

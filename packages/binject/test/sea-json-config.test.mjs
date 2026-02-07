@@ -9,7 +9,7 @@
  */
 
 import { spawn } from 'node:child_process'
-import { promises as fs } from 'node:fs'
+import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -222,11 +222,8 @@ async function execCommand(command, args = [], options = {}) {
 describe('SEA JSON Config', () => {
   beforeAll(async () => {
     // Check if binject binary exists
-    try {
-      await fs.access(BINJECT)
-      binjectExists = true
-    } catch {
-      binjectExists = false
+    binjectExists = existsSync(BINJECT)
+    if (!binjectExists) {
       // Skip tests gracefully if binary not built yet
       return
     }
@@ -321,18 +318,10 @@ describe('SEA JSON Config', () => {
 
     // Should have created the blob file in the same directory
     const generatedBlob = path.join(testDir, 'sea-prep.blob')
-    const blobExists = await fs
-      .access(generatedBlob)
-      .then(() => true)
-      .catch(() => false)
-    expect(blobExists).toBe(true)
+    expect(existsSync(generatedBlob)).toBe(true)
 
     // Should have created output binary
-    const outputExists = await fs
-      .access(outputBinary)
-      .then(() => true)
-      .catch(() => false)
-    expect(outputExists).toBe(true)
+    expect(existsSync(outputBinary)).toBe(true)
   }, 60_000)
 
   it('should auto-generate blob from JSON config with absolute path', async () => {
@@ -390,18 +379,10 @@ describe('SEA JSON Config', () => {
     expect(result.output).toMatch(/Generating SEA blob/)
 
     // Should have created the blob at absolute path
-    const blobExists = await fs
-      .access(absoluteBlobPath)
-      .then(() => true)
-      .catch(() => false)
-    expect(blobExists).toBe(true)
+    expect(existsSync(absoluteBlobPath)).toBe(true)
 
     // Should have created output binary
-    const outputExists = await fs
-      .access(outputBinary)
-      .then(() => true)
-      .catch(() => false)
-    expect(outputExists).toBe(true)
+    expect(existsSync(outputBinary)).toBe(true)
   }, 60_000)
 
   it('should handle JSON config in subdirectory', async () => {
@@ -454,11 +435,7 @@ describe('SEA JSON Config', () => {
 
     // Should have created the blob file in subdirectory
     const generatedBlob = path.join(subdir, 'app.blob')
-    const blobExists = await fs
-      .access(generatedBlob)
-      .then(() => true)
-      .catch(() => false)
-    expect(blobExists).toBe(true)
+    expect(existsSync(generatedBlob)).toBe(true)
   }, 60_000)
 
   it('should error gracefully if JSON config is invalid', async () => {

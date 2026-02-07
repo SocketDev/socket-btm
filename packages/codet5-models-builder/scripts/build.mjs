@@ -13,7 +13,7 @@
  *   node scripts/build.mjs --force  # Force rebuild (ignore checkpoints)
  */
 
-import { promises as fs, readFileSync } from 'node:fs'
+import { existsSync, promises as fs, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -146,8 +146,12 @@ async function downloadModels() {
     CHECKPOINTS.DOWNLOADED,
     async () => {
       // Smoke test: Verify tokenizer.json and model config exist.
-      await fs.access(tokenizerFile)
-      await fs.access(configFile)
+      if (!existsSync(tokenizerFile)) {
+        throw new Error(`Tokenizer file not found: ${tokenizerFile}`)
+      }
+      if (!existsSync(configFile)) {
+        throw new Error(`Config file not found: ${configFile}`)
+      }
       logger.substep('Model files validated')
     },
     {},
@@ -515,12 +519,7 @@ async function exportModels() {
   await fs.copyFile(encoderFile, outputEncoderFile)
   await fs.copyFile(decoderFile, outputDecoderFile)
 
-  if (
-    await fs
-      .access(tokenizerFile)
-      .then(() => true)
-      .catch(() => false)
-  ) {
+  if (existsSync(tokenizerFile)) {
     await fs.copyFile(tokenizerFile, outputTokenizerFile)
   }
 

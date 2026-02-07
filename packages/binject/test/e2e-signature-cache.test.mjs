@@ -11,7 +11,7 @@
 
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { promises as fs } from 'node:fs'
+import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -63,11 +63,8 @@ function findTestStub() {
   ]
 
   for (const candidate of candidates) {
-    try {
-      fs.accessSync(candidate)
+    if (existsSync(candidate)) {
       return candidate
-    } catch {
-      // Not found, try next
     }
   }
 
@@ -362,14 +359,8 @@ describeOnMac('E2E Signature and Cache Tests', () => {
     const v1CachePath = await getCachedBinaryPath(cacheKeyV1)
     const v2CachePath = await getCachedBinaryPath(cacheKeyV2)
 
-    const v1Exists = await fs
-      .access(v1CachePath)
-      .then(() => true)
-      .catch(() => false)
-    const v2Exists = await fs
-      .access(v2CachePath)
-      .then(() => true)
-      .catch(() => false)
+    const v1Exists = existsSync(v1CachePath)
+    const v2Exists = existsSync(v2CachePath)
 
     expect(v2Exists).toBe(true)
 

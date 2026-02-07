@@ -134,7 +134,6 @@ async function main() {
     'packages/node-smol-builder/patches/source-patched',
   )
   try {
-    await fs.access(patchesDir)
     const files = await fs.readdir(patchesDir)
     const patchFiles = files
       .filter(f => f.endsWith('.patch'))

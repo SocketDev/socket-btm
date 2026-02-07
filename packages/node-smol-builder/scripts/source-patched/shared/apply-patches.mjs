@@ -4,7 +4,7 @@
  * Applies Socket Security patches to Node.js source code with validation.
  */
 
-import { existsSync, readdirSync, promises as fs } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 
 import { createCheckpoint } from 'build-infra/lib/build-helpers'
@@ -195,7 +195,9 @@ export async function applySocketPatches(options) {
       buildDir,
       CHECKPOINTS.SOURCE_PATCHED,
       async () => {
-        await fs.access(patchedFile)
+        if (!existsSync(patchedFile)) {
+          throw new Error(`Patched file not found: ${patchedFile}`)
+        }
         logger.substep('Patches verified')
       },
       {

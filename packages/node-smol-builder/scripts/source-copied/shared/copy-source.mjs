@@ -159,7 +159,9 @@ export async function cloneNodeSource(options) {
       CHECKPOINTS.SOURCE_COPIED,
       async () => {
         const configureScript = path.join(sharedSourceDir, 'configure')
-        await fs.access(configureScript)
+        if (!existsSync(configureScript)) {
+          throw new Error(`Configure script not found: ${configureScript}`)
+        }
         logger.substep('Source directory validated')
       },
       {

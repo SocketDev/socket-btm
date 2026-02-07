@@ -72,19 +72,14 @@ function getCheckpointFile(buildDir, packageName, checkpointName) {
  * @param {string} checkpointName - Checkpoint name
  * @returns {Promise<boolean>}
  */
-export async function hasCheckpoint(buildDir, packageName, checkpointName) {
+export function hasCheckpoint(buildDir, packageName, checkpointName) {
   const checkpointFile = getCheckpointFile(
     buildDir,
     packageName,
     checkpointName,
   )
 
-  try {
-    await fs.access(checkpointFile)
-    return true
-  } catch {
-    return false
-  }
+  return existsSync(checkpointFile)
 }
 
 /**

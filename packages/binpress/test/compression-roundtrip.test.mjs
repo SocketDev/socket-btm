@@ -372,8 +372,7 @@ describe.skipIf(!existsSync(BINPRESS))(
             process.platform === 'win32' ? `${compressed}.exe` : compressed
 
           // Verify file was created
-          // eslint-disable-next-line no-await-in-loop
-          await fs.access(finalPath)
+          expect(existsSync(finalPath)).toBe(true)
 
           // eslint-disable-next-line no-await-in-loop
           await fs.chmod(finalPath, 0o755)

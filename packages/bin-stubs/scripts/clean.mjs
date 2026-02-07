@@ -3,7 +3,6 @@
  * Clean script for bin-stubs package.
  */
 
-import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -19,11 +18,10 @@ async function clean() {
   for (const dir of dirsToClean) {
     const fullPath = path.join(packageRoot, dir)
     try {
-      await fs.access(fullPath)
       await safeDelete(fullPath)
       console.log(`✓ Deleted ${dir}/`)
     } catch {
-      // Directory doesn't exist, skip it.
+      // Directory doesn't exist or couldn't be deleted, skip it.
     }
   }
 }

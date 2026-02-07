@@ -956,7 +956,9 @@ export async function smokeTestBinary(binaryPath, options = {}) {
   logger.substep(`Smoke testing ${path.basename(binaryPath)}`)
 
   try {
-    await fs.access(binaryPath)
+    if (!existsSync(binaryPath)) {
+      throw new Error(`Binary not found: ${binaryPath}`)
+    }
 
     const hostPlatform = os.platform()
     const hostArch = getArch()

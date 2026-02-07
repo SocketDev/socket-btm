@@ -39,7 +39,7 @@ int file_io_read(const char *path, uint8_t **data, size_t *size) {
         return FILE_IO_ERROR_READ_FAILED;
     }
 
-    long file_size = ftell(fp);
+    off_t file_size = ftello(fp);
     if (file_size < 0) {
         fprintf(stderr, "Error: Cannot get file size: %s\n", path);
         fclose(fp);

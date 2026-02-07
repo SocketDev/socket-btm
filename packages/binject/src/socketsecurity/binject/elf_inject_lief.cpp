@@ -125,7 +125,10 @@ extern "C" int binject_elf_lief(const char* executable,
 
     // Write to temp file first, then atomic rename
     char tmpfile[PATH_MAX];
-    binject::create_temp_path(executable, tmpfile, sizeof(tmpfile));
+    if (binject::create_temp_path(executable, tmpfile, sizeof(tmpfile)) != 0) {
+      fprintf(stderr, "Error: Executable path too long for temporary file\n");
+      return BINJECT_ERROR_WRITE_FAILED;
+    }
 
     // Create parent directories if needed.
     if (create_parent_directories(tmpfile) != 0) {
@@ -279,7 +282,10 @@ extern "C" int binject_elf_lief_batch(
 
     // Write to temp file first, then atomic rename
     char tmpfile[PATH_MAX];
-    binject::create_temp_path(output, tmpfile, sizeof(tmpfile));
+    if (binject::create_temp_path(output, tmpfile, sizeof(tmpfile)) != 0) {
+      fprintf(stderr, "Error: Output path too long for temporary file\n");
+      return BINJECT_ERROR_WRITE_FAILED;
+    }
 
     printf("Writing modified binary...\n");
 

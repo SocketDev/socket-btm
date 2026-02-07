@@ -163,12 +163,18 @@ int binject_compress_binary(const char *input_path, const char *output_path, con
 #ifndef _WIN32
     int fd = fileno(fp);
     if (fsync(fd) != 0) {
-        fprintf(stderr, "Warning: fsync failed: %s\n", strerror(errno));
+        fprintf(stderr, "Error: fsync failed: %s\n", strerror(errno));
+        fclose(fp);
+        free(compressed_data);
+        return -1;
     }
 #else
     /* Windows: Flush file buffers to disk */
     if (!FlushFileBuffers((HANDLE)_get_osfhandle(_fileno(fp)))) {
-        fprintf(stderr, "Warning: FlushFileBuffers failed\n");
+        fprintf(stderr, "Error: FlushFileBuffers failed\n");
+        fclose(fp);
+        free(compressed_data);
+        return -1;
     }
 #endif
 
@@ -219,7 +225,7 @@ int binject_repack_stub(const char *stub_path, const char *compressed_data_path,
         return -1;
     }
 
-    long file_size = ftell(data_fp);
+    off_t file_size = ftello(data_fp);
     if (file_size < 0) {
         fclose(data_fp);
         fprintf(stderr, "Error: Cannot determine compressed data file size\n");

@@ -95,4 +95,48 @@ static inline int mkstemp_portable(char *template) {
 #define mkstemp mkstemp_portable
 #endif
 
+/**
+ * EINTR-safe read() wrapper for Unix.
+ * Automatically retries on EINTR (interrupted by signal).
+ * On Windows, read() doesn't return EINTR, so this is a simple passthrough.
+ *
+ * @param fd File descriptor
+ * @param buf Buffer to read into
+ * @param count Number of bytes to read
+ * @return Number of bytes read on success, -1 on error
+ */
+static inline ssize_t read_eintr(int fd, void *buf, size_t count) {
+#ifndef _WIN32
+    ssize_t ret;
+    do {
+        ret = read(fd, buf, count);
+    } while (ret == -1 && errno == EINTR);
+    return ret;
+#else
+    return _read(fd, buf, (unsigned int)count);
+#endif
+}
+
+/**
+ * EINTR-safe write() wrapper for Unix.
+ * Automatically retries on EINTR (interrupted by signal).
+ * On Windows, write() doesn't return EINTR, so this is a simple passthrough.
+ *
+ * @param fd File descriptor
+ * @param buf Buffer to write from
+ * @param count Number of bytes to write
+ * @return Number of bytes written on success, -1 on error
+ */
+static inline ssize_t write_eintr(int fd, const void *buf, size_t count) {
+#ifndef _WIN32
+    ssize_t ret;
+    do {
+        ret = write(fd, buf, count);
+    } while (ret == -1 && errno == EINTR);
+    return ret;
+#else
+    return _write(fd, buf, (unsigned int)count);
+#endif
+}
+
 #endif /* FILE_IO_COMMON_H */

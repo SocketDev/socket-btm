@@ -131,7 +131,7 @@ char* create_vfs_archive_from_dir(const char *dir_path) {
     snprintf(archive_path, template_len + 8, "%s.tar.gz", template);
 
     // Write tar.gz data to temp file.
-    ssize_t written = write(fd, tar_gz_data, tar_gz_size);
+    ssize_t written = write_eintr(fd, tar_gz_data, tar_gz_size);
     close(fd);
     free(tar_gz_data);
 
@@ -246,7 +246,7 @@ char* compress_tar_archive(const char *tar_path) {
     snprintf(compressed_path, template_len + 8, "%s.tar.gz", template);
 
     // Write compressed data to temp file.
-    ssize_t written = write(fd, gz_data, gz_size);
+    ssize_t written = write_eintr(fd, gz_data, gz_size);
     close(fd);
     free(gz_data);
 

@@ -320,7 +320,10 @@ extern "C" int binject_pe_lief(const char* executable,
 
     // Step 5: Write modified binary (atomic rename workflow).
     char tmpfile[PATH_MAX];
-    binject::create_temp_path(executable, tmpfile, sizeof(tmpfile));
+    if (binject::create_temp_path(executable, tmpfile, sizeof(tmpfile)) != 0) {
+      fprintf(stderr, "Error: Executable path too long for temporary file\n");
+      return BINJECT_ERROR_WRITE_FAILED;
+    }
 
     // Create parent directories if needed.
     if (create_parent_directories(tmpfile) != 0) {
@@ -342,12 +345,18 @@ extern "C" int binject_pe_lief(const char* executable,
 #ifndef _WIN32
     int fd = fileno(fp);
     if (fsync(fd) != 0) {
-        fprintf(stderr, "Warning: fsync failed: %s\n", strerror(errno));
+        fprintf(stderr, "Error: fsync failed: %s\n", strerror(errno));
+        fclose(fp);
+        unlink(tmpfile);
+        return BINJECT_ERROR_WRITE_FAILED;
     }
 #else
     /* Windows: Flush file buffers to disk */
     if (!FlushFileBuffers((HANDLE)_get_osfhandle(_fileno(fp)))) {
-        fprintf(stderr, "Warning: FlushFileBuffers failed\n");
+        fprintf(stderr, "Error: FlushFileBuffers failed\n");
+        fclose(fp);
+        unlink(tmpfile);
+        return BINJECT_ERROR_WRITE_FAILED;
     }
 #endif
 
@@ -497,7 +506,10 @@ extern "C" int binject_pe_lief_batch(
 
     // Write to temp file first, then atomic rename
     char tmpfile[PATH_MAX];
-    binject::create_temp_path(output, tmpfile, sizeof(tmpfile));
+    if (binject::create_temp_path(output, tmpfile, sizeof(tmpfile)) != 0) {
+      fprintf(stderr, "Error: Output path too long for temporary file\n");
+      return BINJECT_ERROR_WRITE_FAILED;
+    }
 
     // Write output to temp file
     printf("Writing modified PE binary to temp file...\n");
@@ -513,12 +525,18 @@ extern "C" int binject_pe_lief_batch(
 #ifndef _WIN32
     int fd = fileno(fp);
     if (fsync(fd) != 0) {
-        fprintf(stderr, "Warning: fsync failed: %s\n", strerror(errno));
+        fprintf(stderr, "Error: fsync failed: %s\n", strerror(errno));
+        fclose(fp);
+        unlink(tmpfile);
+        return BINJECT_ERROR_WRITE_FAILED;
     }
 #else
     /* Windows: Flush file buffers to disk */
     if (!FlushFileBuffers((HANDLE)_get_osfhandle(_fileno(fp)))) {
-        fprintf(stderr, "Warning: FlushFileBuffers failed\n");
+        fprintf(stderr, "Error: FlushFileBuffers failed\n");
+        fclose(fp);
+        unlink(tmpfile);
+        return BINJECT_ERROR_WRITE_FAILED;
     }
 #endif
 

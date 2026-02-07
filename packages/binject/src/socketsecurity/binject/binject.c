@@ -351,12 +351,16 @@ int binject_extract_stub_to_cache(const char *compressed_stub, const char *extra
 #ifndef _WIN32
     int fd = fileno(out_fp);
     if (fsync(fd) != 0) {
-        fprintf(stderr, "Warning: fsync failed: %s\n", strerror(errno));
+        fprintf(stderr, "Error: fsync failed: %s\n", strerror(errno));
+        fclose(out_fp);
+        return BINJECT_ERROR;
     }
 #else
     /* Windows: Flush file buffers to disk */
     if (!FlushFileBuffers((HANDLE)_get_osfhandle(_fileno(out_fp)))) {
-        fprintf(stderr, "Warning: FlushFileBuffers failed\n");
+        fprintf(stderr, "Error: FlushFileBuffers failed\n");
+        fclose(out_fp);
+        return BINJECT_ERROR;
     }
 #endif
 

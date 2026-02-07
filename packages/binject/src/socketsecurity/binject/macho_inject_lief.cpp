@@ -485,12 +485,16 @@ extern "C" int binject_macho_extract_lief(const char* executable,
 #ifndef _WIN32
     int fd = fileno(fp);
     if (fsync(fd) != 0) {
-        fprintf(stderr, "Warning: fsync failed: %s\n", strerror(errno));
+        fprintf(stderr, "Error: fsync failed: %s\n", strerror(errno));
+        fclose(fp);
+        return BINJECT_ERROR_WRITE_FAILED;
     }
 #else
     /* Windows: Flush file buffers to disk */
     if (!FlushFileBuffers((HANDLE)_get_osfhandle(_fileno(fp)))) {
-        fprintf(stderr, "Warning: FlushFileBuffers failed\n");
+        fprintf(stderr, "Error: FlushFileBuffers failed\n");
+        fclose(fp);
+        return BINJECT_ERROR_WRITE_FAILED;
     }
 #endif
 

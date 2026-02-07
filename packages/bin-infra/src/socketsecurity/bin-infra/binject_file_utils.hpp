@@ -45,12 +45,15 @@ namespace binject {
  * @param base_path Original output path
  * @param tmpfile Buffer to store temp path (must be at least PATH_MAX)
  * @param tmpfile_size Size of tmpfile buffer
+ * @return 0 on success, -1 on error (path truncation)
  */
-inline void create_temp_path(const char* base_path, char* tmpfile, size_t tmpfile_size) {
+inline int create_temp_path(const char* base_path, char* tmpfile, size_t tmpfile_size) {
     int written = snprintf(tmpfile, tmpfile_size, "%s.tmp.%d", base_path, getpid());
     if (written < 0 || (size_t)written >= tmpfile_size) {
-        fprintf(stderr, "Warning: Temporary path may be truncated\n");
+        fprintf(stderr, "Error: Temporary path too long (would be truncated)\n");
+        return -1;
     }
+    return 0;
 }
 
 /**
@@ -158,7 +161,10 @@ inline int atomic_write_workflow(
     void* user_data = nullptr
 ) {
     char tmpfile[PATH_MAX];
-    create_temp_path(output_path, tmpfile, sizeof(tmpfile));
+    if (create_temp_path(output_path, tmpfile, sizeof(tmpfile)) != 0) {
+        fprintf(stderr, "Error: Output path too long for temporary file\n");
+        return BINJECT_ERROR_WRITE_FAILED;
+    }
 
     // Create parent directories if needed
     if (create_parent_directories(tmpfile) != 0) {

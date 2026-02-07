@@ -7,6 +7,7 @@
 #include "node_internals.h"
 #include "util-inl.h"
 #include "socketsecurity/build-infra/debug_common.h"
+#include "socketsecurity/build-infra/file_io_common.h"
 #include "socketsecurity/binject/vfs_config.h"
 
 // Use the same sentinel fuse as SEA for compatibility
@@ -352,7 +353,7 @@ static void CreateMemfd(const FunctionCallbackInfo<Value>& args) {
   }
 
   // Write content to memfd
-  ssize_t written = write(fd, data, length);
+  ssize_t written = write_eintr(fd, data, length);
   if (written != static_cast<ssize_t>(length)) {
     close(fd);
     return;  // Write failed - return undefined

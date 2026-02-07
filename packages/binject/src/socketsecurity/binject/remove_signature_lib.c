@@ -109,7 +109,9 @@ int remove_macho_signature(const char *path) {
         }
 
         if (lc->cmd == LC_CODE_SIGNATURE) {
+#ifdef DEBUG
             printf("Found LC_CODE_SIGNATURE at offset %zu\n", (char *)lc - (char *)map);
+#endif
 
             // Zero out the load command to remove signature.
             // Keep the cmdsize but set cmd to 0 to invalidate it.
@@ -118,7 +120,16 @@ int remove_macho_signature(const char *path) {
             break;
         }
 
-        lc = (struct load_command *)((char *)lc + lc->cmdsize);
+        // Calculate next LC position and validate BEFORE incrementing.
+        // This prevents advancing the pointer past map_end if cmdsize is corrupted.
+        struct load_command *next_lc = (struct load_command *)((char *)lc + lc->cmdsize);
+        if (i + 1 < header->ncmds && (char *)next_lc >= map_end) {
+            fprintf(stderr, "Error: Next load command would exceed file bounds\n");
+            munmap(map, st.st_size);
+            close(fd);
+            return -1;
+        }
+        lc = next_lc;
     }
 
     if (!found) {
@@ -129,13 +140,26 @@ int remove_macho_signature(const char *path) {
 
     // Sync changes to disk.
     if (msync(map, st.st_size, MS_SYNC) < 0) {
-        fprintf(stderr, "Error: Failed to sync changes: %s\n", strerror(errno));
+        fprintf(stderr, "Error: Failed to sync memory map: %s\n", strerror(errno));
         munmap(map, st.st_size);
         close(fd);
         return -1;
     }
 
     munmap(map, st.st_size);
+
+    // Ensure file metadata is also synced (required on macOS).
+    // msync() syncs the memory-mapped region but doesn't guarantee the underlying
+    // file metadata is flushed. On macOS, the unified buffer cache (UBC) can delay
+    // writes even after msync(MS_SYNC). Without fsync(), a system crash or power
+    // failure could result in a partially written signature removal, creating a
+    // corrupted binary. This is critical because we zero out load commands in-place.
+    if (fsync(fd) < 0) {
+        fprintf(stderr, "Error: Failed to sync file: %s\n", strerror(errno));
+        close(fd);
+        return -1;
+    }
+
     close(fd);
 
     return found ? 0 : 1;

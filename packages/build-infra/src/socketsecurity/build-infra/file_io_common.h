@@ -20,6 +20,8 @@
 #else
 /* Unix has ftello/fseeko for large file support */
 #include <stdio.h>
+#include <errno.h>    /* For EINTR retry wrappers */
+#include <unistd.h>   /* For write/read */
 #endif
 
 /* Error codes */

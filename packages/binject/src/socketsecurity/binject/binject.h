@@ -30,6 +30,7 @@ extern "C" {
 #define BINJECT_ERROR_COMPRESSION_FAILED -7
 #define BINJECT_ERROR_DECOMPRESSION_FAILED -8
 #define BINJECT_ERROR_WRITE_FAILED -9
+#define BINJECT_ERROR_PERMISSION_DENIED -10
 
 /* Binary format detection */
 typedef enum {

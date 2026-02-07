@@ -221,6 +221,12 @@ int smol_codesign(const char *binary_path) {
         return -1;
     }
 
+    /* Validate codesign is available before forking. */
+    if (access("/usr/bin/codesign", X_OK) != 0) {
+        fprintf(stderr, "Error: codesign not found at /usr/bin/codesign (required on macOS)\n");
+        return -1;
+    }
+
     pid_t pid = fork();
     if (pid == -1) {
         fprintf(stderr, "Error: Failed to fork for codesign\n");
@@ -229,17 +235,18 @@ int smol_codesign(const char *binary_path) {
 
     if (pid == 0) {
         /* Child: sign binary with ad-hoc signature. */
+        /* Use absolute path for reliability in sandboxed environments. */
         char *argv[] = {
-            (char *)"codesign",
+            (char *)"/usr/bin/codesign",
             (char *)"--sign",
             (char *)"-",
             (char *)"--force",
             (char *)binary_path,
             NULL
         };
-        execvp("codesign", argv);
-        /* If execvp returns, it failed. */
-        _exit(1);
+        execv("/usr/bin/codesign", argv);
+        /* If execv returns, it failed - use exit code 127 to distinguish from codesign failure. */
+        _exit(127);
     }
 
     int status;

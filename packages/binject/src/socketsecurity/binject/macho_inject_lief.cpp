@@ -61,6 +61,7 @@
 
 extern "C" {
 #include "socketsecurity/bin-infra/segment_names.h"
+#include "socketsecurity/bin-infra/smol_segment.h"
 #include "socketsecurity/binject/binject.h"
 #include "socketsecurity/binject/vfs_config.h"
 #include "socketsecurity/build-infra/file_utils.h"
@@ -78,6 +79,43 @@ int remove_macho_signature(const char *path);
 #endif
 
 /**
+ * Check if path is SIP-protected (macOS only).
+ *
+ * On macOS with System Integrity Protection (SIP), certain paths cannot be modified:
+ * - /System/
+ * - /usr/ (except /usr/local/)
+ * - /bin/
+ * - /sbin/
+ *
+ * @param path Path to check.
+ * @return true if path is SIP-protected, false otherwise.
+ */
+static bool is_sip_protected_path(const char* path) {
+#ifdef __APPLE__
+    if (!path) return false;
+
+    const char* sip_prefixes[] = {
+        "/System/",
+        "/usr/bin/",
+        "/usr/sbin/",
+        "/usr/libexec/",
+        "/bin/",
+        "/sbin/",
+        NULL
+    };
+
+    for (const char** prefix = sip_prefixes; *prefix; prefix++) {
+        if (strncmp(path, *prefix, strlen(*prefix)) == 0) {
+            return true;
+        }
+    }
+#else
+    (void)path;  // Unused on non-macOS
+#endif
+    return false;
+}
+
+/**
  * Sign binary with adhoc signature using codesign (macOS only).
  *
  * @param binary_path Path to the binary to sign.
@@ -87,6 +125,12 @@ static bool sign_binary_adhoc(const char* binary_path) {
 #ifdef __APPLE__
     printf("Signing binary with ad-hoc signature...\n");
 
+    // Validate codesign is available before forking
+    if (access("/usr/bin/codesign", X_OK) != 0) {
+        fprintf(stderr, "Error: codesign not found at /usr/bin/codesign (required on macOS)\n");
+        return false;
+    }
+
     pid_t pid = fork();
     if (pid == -1) {
         fprintf(stderr, "Error: Failed to fork for codesign\n");
@@ -94,18 +138,18 @@ static bool sign_binary_adhoc(const char* binary_path) {
     }
 
     if (pid == 0) {
-        // Child: sign binary
+        // Child: sign binary with absolute path for reliability
         char *argv[] = {
-            (char*)"codesign",
+            (char*)"/usr/bin/codesign",
             (char*)"--sign",
             (char*)"-",
             (char*)"--force",
             (char*)binary_path,
             NULL
         };
-        execvp("codesign", argv);
-        // If execvp returns, it failed - use _exit to avoid buffer flushing
-        _exit(1);
+        execv("/usr/bin/codesign", argv);
+        // If execv returns, it failed - use exit code 127 to distinguish from codesign failure
+        _exit(127);
     }
 
     int status;
@@ -122,6 +166,18 @@ static bool sign_binary_adhoc(const char* binary_path) {
 
     if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
         printf("  ✓ Binary signed successfully\n");
+
+        // Verify signature is valid.
+        // Note: Signature verification can fail for valid reasons (e.g., binaries with
+        // embedded compressed segments), so we only warn but still return success.
+        if (smol_codesign_verify(binary_path) == 0) {
+            printf("  ✓ Signature verified\n");
+        } else {
+            fprintf(stderr, "  ⚠ Warning: Signature verification failed\n");
+            fprintf(stderr, "    Binary may not run correctly on macOS\n");
+            fprintf(stderr, "    This can occur with compressed or modified binaries\n");
+        }
+
         return true;
     }
 
@@ -176,6 +232,14 @@ extern "C" int binject_macho_lief(const char* executable,
     return BINJECT_ERROR_INVALID_ARGS;
   }
 
+  // Check for SIP-protected paths (macOS only).
+  if (is_sip_protected_path(executable)) {
+    fprintf(stderr, "Error: Cannot modify binary in SIP-protected location: %s\n", executable);
+    fprintf(stderr, "  System Integrity Protection prevents modifications to system binaries\n");
+    fprintf(stderr, "  Use a copy of the binary in a writable location (e.g., /usr/local/)\n");
+    return BINJECT_ERROR_PERMISSION_DENIED;
+  }
+
     printf("Using LIEF for Mach-O injection (cross-platform)...\n");
 
     // Step 2: Parse binary.
@@ -192,6 +256,22 @@ extern "C" int binject_macho_lief(const char* executable,
     LIEF::MachO::Binary* binary = fat_binary->at(0);
     if (!binary) {
       fprintf(stderr, "Error: No binary found in file\n");
+      return BINJECT_ERROR_INVALID_FORMAT;
+    }
+
+    // Verify binary is 64-bit (32-bit not supported on modern macOS).
+    // LIEF can successfully parse 32-bit Mach-O binaries (MH_MAGIC) which are no longer
+    // supported on macOS 10.15+. Attempting to inject into these will create corrupted binaries.
+    // The remove_signature_lib.c has this check (line 59) but the LIEF code path needs it too.
+    uint32_t magic = binary->header().magic();
+    if (magic != LIEF::MachO::MACHO_TYPES::MH_MAGIC_64 &&
+        magic != LIEF::MachO::MACHO_TYPES::MH_CIGAM_64) {
+      if (magic == LIEF::MachO::MACHO_TYPES::MH_MAGIC ||
+          magic == LIEF::MachO::MACHO_TYPES::MH_CIGAM) {
+        fprintf(stderr, "Error: 32-bit Mach-O binary detected (not supported)\n");
+      } else {
+        fprintf(stderr, "Error: Not a valid 64-bit Mach-O binary (magic: 0x%x)\n", magic);
+      }
       return BINJECT_ERROR_INVALID_FORMAT;
     }
 
@@ -329,6 +409,16 @@ extern "C" int binject_macho_lief(const char* executable,
     }
 #endif
 
+    // Mach-O: Sign the TEMP file BEFORE renaming (critical for atomicity).
+    // This ensures the file is never in an invalid state. If the process is killed
+    // after rename(), we have a complete, signed binary. If killed before rename(),
+    // the original file is untouched.
+    if (!sign_binary_adhoc(tmpfile)) {
+      fprintf(stderr, "Error: Failed to sign temporary binary\n");
+      unlink(tmpfile);
+      return BINJECT_ERROR_WRITE_FAILED;
+    }
+
     // Atomic rename (on POSIX systems, rename() is atomic and overwrites).
     // On Windows, must remove first as rename() doesn't overwrite.
 #ifdef _WIN32
@@ -338,12 +428,6 @@ extern "C" int binject_macho_lief(const char* executable,
         fprintf(stderr, "Error: Failed to rename temporary file to output\n");
         unlink(tmpfile);
         return BINJECT_ERROR_WRITE_FAILED;
-    }
-
-    // Mach-O: Re-sign with ad-hoc signature (macOS only).
-    if (!sign_binary_adhoc(executable)) {
-      fprintf(stderr, "Error: Failed to sign binary\n");
-      return BINJECT_ERROR_WRITE_FAILED;
     }
 
     printf("Successfully injected %zu bytes into %s:%s\n", size, segment_name,
@@ -787,6 +871,13 @@ extern "C" int binject_macho_lief_batch(
     }
 #endif
 
+    // Sign the TEMP file BEFORE renaming (critical for atomicity).
+    if (!sign_binary_adhoc(tmpfile)) {
+      fprintf(stderr, "Error: Failed to sign temporary binary\n");
+      unlink(tmpfile);
+      return BINJECT_ERROR_WRITE_FAILED;
+    }
+
     // Atomic rename to final destination
     // Remove existing output file first (required on Windows)
     remove(output_path);
@@ -794,12 +885,6 @@ extern "C" int binject_macho_lief_batch(
         fprintf(stderr, "Error: Failed to move temporary file to output: %s\n", output_path);
         unlink(tmpfile);
         return BINJECT_ERROR_WRITE_FAILED;
-    }
-
-    // Sign the binary with adhoc signature
-    if (!sign_binary_adhoc(output_path)) {
-      fprintf(stderr, "Error: Failed to sign binary\n");
-      return BINJECT_ERROR_WRITE_FAILED;
     }
 
     if (sea_data && vfs_data) {

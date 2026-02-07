@@ -46,6 +46,40 @@ extern "C" {
 #include "socketsecurity/build-infra/file_utils.h"
 
 /**
+ * Check if path is SIP-protected (macOS only).
+ *
+ * On macOS with System Integrity Protection (SIP), certain paths cannot be modified:
+ * - /System/
+ * - /usr/ (except /usr/local/)
+ * - /bin/
+ * - /sbin/
+ */
+static bool is_sip_protected_path(const char* path) {
+#ifdef __APPLE__
+    if (!path) return false;
+
+    const char* sip_prefixes[] = {
+        "/System/",
+        "/usr/bin/",
+        "/usr/sbin/",
+        "/usr/libexec/",
+        "/bin/",
+        "/sbin/",
+        nullptr
+    };
+
+    for (const char** prefix = sip_prefixes; *prefix; prefix++) {
+        if (strncmp(path, *prefix, strlen(*prefix)) == 0) {
+            return true;
+        }
+    }
+#else
+    (void)path;  // Unused on non-macOS
+#endif
+    return false;
+}
+
+/**
  * Embed compressed data as a segment in Mach-O binary.
  *
  * This creates a SMOL segment with __PRESSED_DATA section containing:
@@ -71,6 +105,14 @@ int binpress_segment_embed(
     printf("  Compressed data: %s\n", compressed_data_path);
     printf("  Output: %s\n", output_path);
     printf("  Uncompressed size: %zu bytes\n", uncompressed_size);
+
+    // Check for SIP-protected paths (macOS only).
+    if (is_sip_protected_path(stub_path)) {
+        fprintf(stderr, "Error: Cannot modify binary in SIP-protected location: %s\n", stub_path);
+        fprintf(stderr, "  System Integrity Protection prevents modifications to system binaries\n");
+        fprintf(stderr, "  Use a copy of the binary in a writable location (e.g., /usr/local/)\n");
+        return -1;
+    }
 
     // Read compressed data.
     FILE *fp = fopen(compressed_data_path, "rb");
@@ -128,6 +170,20 @@ int binpress_segment_embed(
     LIEF::MachO::Binary *binary = fat_binary->at(0);
     if (!binary) {
         fprintf(stderr, "Error: No binary found in fat binary\n");
+        free(compressed_data);
+        return -1;
+    }
+
+    // Verify binary is 64-bit (32-bit not supported on modern macOS).
+    uint32_t magic = binary->header().magic();
+    if (magic != LIEF::MachO::MACHO_TYPES::MH_MAGIC_64 &&
+        magic != LIEF::MachO::MACHO_TYPES::MH_CIGAM_64) {
+        if (magic == LIEF::MachO::MACHO_TYPES::MH_MAGIC ||
+            magic == LIEF::MachO::MACHO_TYPES::MH_CIGAM) {
+            fprintf(stderr, "Error: 32-bit Mach-O binary detected (not supported)\n");
+        } else {
+            fprintf(stderr, "Error: Not a valid 64-bit Mach-O binary (magic: 0x%x)\n", magic);
+        }
         free(compressed_data);
         return -1;
     }
@@ -222,7 +278,21 @@ int binpress_segment_embed(
         // CRITICAL: Use explicit config to ensure proper segment/section building
         // Without this, LIEF may write malformed segments that crash the dynamic linker
         LIEF::MachO::Builder::config_t config;
-        binary->write(output_path, config);
+        if (!binary->write(output_path, config)) {
+            fprintf(stderr, "Error: LIEF write() failed for: %s\n", output_path);
+            free(compressed_data);
+            return -1;
+        }
+
+        // Verify file was actually created (defense in depth).
+        // macOS APFS snapshots and Time Machine can cause LIEF write() to fail
+        // even when the path appears writable.
+        struct stat st;
+        if (stat(output_path, &st) != 0 || st.st_size == 0) {
+            fprintf(stderr, "Error: Output file not created or empty\n");
+            free(compressed_data);
+            return -1;
+        }
 
         // Set executable permissions
         set_executable_permissions(output_path);

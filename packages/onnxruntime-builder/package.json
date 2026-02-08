@@ -6,9 +6,10 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    "./build/wasm/ort.mjs": "./build/wasm/ort.mjs",
-    "./build/wasm/ort.wasm": "./build/wasm/ort.wasm",
-    "./build/wasm/ort-sync.js": "./build/wasm/ort-sync.js"
+    "./build/ort.mjs": "./build/dev/out/Final/ort.mjs",
+    "./build/ort.wasm": "./build/dev/out/Final/ort.wasm",
+    "./build/ort-sync.mjs": "./build/dev/out/Final/ort-sync.mjs",
+    "./build/ort-sync.cjs": "./build/dev/out/Final/ort-sync.cjs"
   },
   "scripts": {
     "build": "node scripts/build.mjs",

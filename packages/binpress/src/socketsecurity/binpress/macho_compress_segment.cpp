@@ -29,8 +29,6 @@
 #include <sys/stat.h>
 #include <inttypes.h>
 
-/* unistd.h and sys/wait.h no longer needed - using smol_codesign. */
-
 #include <LIEF/LIEF.hpp>
 #include "macho_compress_segment.h"
 #include "socketsecurity/bin-infra/compression_constants.h"
@@ -318,13 +316,20 @@ int binpress_segment_embed(
         // CRITICAL: Use explicit config to ensure proper segment/section building
         // Without this, LIEF may write malformed segments that crash the dynamic linker
         LIEF::MachO::Builder::config_t config;
-        if (!binary->write(output_path, config)) {
-            fprintf(stderr, "Error: LIEF write() failed for: %s\n", output_path);
+        binary->write(output_path, config);
+
+        // CRITICAL: Verify write succeeded immediately
+        // LIEF write() returns void, so we must check the file was created
+        struct stat st;
+        if (stat(output_path, &st) != 0) {
+            int saved_errno = errno;
+            fprintf(stderr, "Error: LIEF write() failed - file not created: %s\n", output_path);
+            fprintf(stderr, "  errno: %d (%s)\n", saved_errno, strerror(saved_errno));
             fprintf(stderr, "  Common causes on macOS:\n");
             fprintf(stderr, "    - Insufficient disk space\n");
             fprintf(stderr, "    - Permission denied (check parent directory)\n");
-            fprintf(stderr, "    - APFS snapshots preventing writes\n");
-            fprintf(stderr, "    - SIP protecting system paths\n");
+            fprintf(stderr, "    - APFS snapshot interference\n");
+            fprintf(stderr, "    - SIP protected path\n");
 
             // Try to provide more context
             struct stat dir_st;
@@ -346,12 +351,10 @@ int binpress_segment_embed(
             return -1;
         }
 
-        // Verify file was actually created (defense in depth).
-        // macOS APFS snapshots and Time Machine can cause LIEF write() to fail
-        // even when the path appears writable.
-        struct stat st;
-        if (stat(output_path, &st) != 0 || st.st_size == 0) {
-            fprintf(stderr, "Error: Output file not created or empty\n");
+        // Verify file has content (defense in depth).
+        // macOS APFS snapshots and Time Machine can cause issues
+        if (st.st_size == 0) {
+            fprintf(stderr, "Error: Output file is empty\n");
             free(compressed_data);
             return -1;
         }
@@ -417,13 +420,20 @@ int binpress_segment_embed(
     // CRITICAL: Use explicit config to ensure proper segment/section building
     // Without this, LIEF may write malformed segments that crash the dynamic linker
     LIEF::MachO::Builder::config_t config;
-    if (!binary->write(output_path, config)) {
-        fprintf(stderr, "Error: Failed to write modified binary to %s\n", output_path);
+    binary->write(output_path, config);
+
+    // CRITICAL: Verify write succeeded immediately
+    // LIEF write() returns void, so we must check the file was created
+    struct stat st;
+    if (stat(output_path, &st) != 0) {
+        int saved_errno = errno;
+        fprintf(stderr, "Error: LIEF write() failed - file not created: %s\n", output_path);
+        fprintf(stderr, "  errno: %d (%s)\n", saved_errno, strerror(saved_errno));
         fprintf(stderr, "  Common causes on macOS:\n");
         fprintf(stderr, "    - Insufficient disk space\n");
         fprintf(stderr, "    - Permission denied (check parent directory)\n");
-        fprintf(stderr, "    - APFS snapshots preventing writes\n");
-        fprintf(stderr, "    - SIP protecting system paths\n");
+        fprintf(stderr, "    - APFS snapshot interference\n");
+        fprintf(stderr, "    - SIP protected path\n");
 
         // Try to provide more context
         struct stat dir_st;
@@ -441,6 +451,10 @@ int binpress_segment_embed(
             }
         }
 
+        return -1;
+    }
+    if (st.st_size == 0) {
+        fprintf(stderr, "Error: Output file is empty: %s\n", output_path);
         return -1;
     }
     printf("  Binary written to: %s\n", output_path);
@@ -564,7 +578,7 @@ int binpress_segment_extract(
                 fclose(fp);
                 fprintf(stderr, "Error: Failed to write compressed data: %s (errno: %d)\n",
                         strerror(saved_errno), saved_errno);
-                unlink(output_path);  // Remove incomplete file
+                remove(output_path);
                 return -1;
             }
 
@@ -573,7 +587,7 @@ int binpress_segment_extract(
                 int saved_errno = errno;
                 fprintf(stderr, "Error: Failed to close output file: %s (errno: %d)\n",
                         strerror(saved_errno), saved_errno);
-                unlink(output_path);  // Remove potentially incomplete file
+                remove(output_path);
                 return -1;
             }
 

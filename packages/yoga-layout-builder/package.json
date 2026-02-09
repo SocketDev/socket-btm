@@ -1,0 +1,40 @@
+{
+  "name": "yoga-layout-builder",
+  "version": "0.0.0",
+  "description": "Custom Yoga Layout WASM build optimized for Socket CLI",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./build/yoga.mjs": "./build/dev/out/Final/yoga.mjs",
+    "./build/yoga.wasm": "./build/dev/out/Final/yoga.wasm",
+    "./build/yoga-sync.mjs": "./build/dev/out/Final/yoga-sync.mjs",
+    "./build/yoga-sync.cjs": "./build/dev/out/Final/yoga-sync.cjs"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:force": "node scripts/build.mjs --force",
+    "clean": "node scripts/clean.mjs",
+    "test": "vitest run",
+    "test:suite": "node scripts/test-yoga-suite.mjs",
+    "postinstall": "node scripts/setup-build-toolchain.mjs"
+  },
+  "dependencies": {
+    "@socketsecurity/lib": "catalog:",
+    "acorn": "catalog:",
+    "acorn-walk": "catalog:",
+    "build-infra": "workspace:*",
+    "magic-string": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
+  },
+  "sources": {
+    "yoga": {
+      "version": "3.1.0",
+      "type": "git",
+      "url": "https://github.com/facebook/yoga.git",
+      "ref": "69b8934429702bd3ab06e8d6f709112a761b474b"
+    }
+  }
+}

@@ -1,0 +1,164 @@
+Socket Security: Add VFS and binject sources to node.gyp with split core/LIEF dependency
+
+This patch integrates Socket Security's VFS and binject framework source files
+into the Node.js build system, splitting them into two categories:
+
+1. Core sources (always compiled, no LIEF dependency):
+   - VFS runtime binding: node_vfs.cc
+   - Runtime file I/O: file_io_common.c, compression_common.c, binary_format.c, smol_segment_reader.c
+   - Runtime cache utilities: file_utils.c (needed by dlx_cache_common.h for mkdir_recursive)
+
+2. LIEF-dependent sources (only compiled with node_use_lief=="true"):
+   - SEA config parsing: smol_config_parser.cc (depends on patch 008 SeaConfig modifications)
+   - binject utilities: smol_config.c, vfs_config.c, vfs_utils.c
+   - build-infra: tar_create.c, gzip_compress.c
+   - bin-infra: smol_segment.c
+   - binject core: binject.c, stub_repack.c, elf_pe_cross_platform.c, remove_signature_lib.c
+   - binject native implementations: elf_inject.c, pe_inject.c, macho_inject_lief_wrapper.c
+   - binject LIEF C++ implementations: elf_inject_lief.cpp, macho_inject_lief.cpp, pe_inject_lief.cpp
+   - bin-infra LIEF repacking: stub_smol_repack_lief.cpp
+
+Compression Library Dependencies:
+- macOS: libcompression (native Apple Compression framework) for gzip_compress.c and compression_common.c
+- Linux/Windows: LZFSE (deps/lzfse/lzfse.gyp:liblzfse) for compression_common.c
+- Linux/Windows: libdeflate (deps/libdeflate/libdeflate.gyp:libdeflate) for gzip_compress.c
+- CRITICAL: libcompression must be added to ALL targets that link libnode.a on macOS.
+  libnode.a contains gzip_compress.o and compression_common.o, so all executables linking libnode.a
+  need the library at link time to resolve compression symbols.
+
+Targets modified:
+- Main node target: Added core sources (unconditional) + LIEF sources (node_use_lief condition) + libcompression
+- cctest target: Added libcompression for libnode.a symbols
+- embedtest target: Added libcompression for libnode.a symbols
+- node_mksnapshot target: Added libcompression for libnode.a symbols
+
+Files modified:
+- node.gyp: Add binject and VFS source files, include directories, and libcompression
+
+
+--- a/node.gyp
++++ b/node.gyp
+@@ -692,6 +692,11 @@
+             'Dbghelp.lib',
+             'winmm.lib',
+             'Ws2_32.lib',
++          ],
++        }],
++        ['OS=="mac"', {
++          'libraries': [
++            '-lcompression',
+           ],
+         }],
+         ['node_with_ltcg=="true"', {
+@@ -1000,9 +1005,75 @@
+             'deps/ncrypto/ncrypto.gyp:ncrypto',
+           ],
+         }],
++        ['1==1', {
++          'sources': [
++            # Socket Security: Runtime VFS binding.
++            'src/socketsecurity/vfs/node_vfs.cc',
++            # Socket Security: Runtime file I/O and segment reading.
++            'src/socketsecurity/build-infra/file_io_common.c',
++            'src/socketsecurity/bin-infra/compression_common.c',
++            'src/socketsecurity/bin-infra/binary_format.c',
++            'src/socketsecurity/bin-infra/smol_segment_reader.c',
++            # Socket Security: Runtime cache utilities (needed by dlx_cache_common.h).
++            'src/socketsecurity/build-infra/file_utils.c',
++          ],
++          'conditions': [
++            ['OS!="mac"', {
++              'dependencies': [
++                'deps/lzfse/lzfse.gyp:liblzfse',
++                'deps/libdeflate/libdeflate.gyp:libdeflate',
++              ],
++            }],
++          ],
++          'include_dirs': [
++            'src',
++          ],
++          'direct_dependent_settings': {
++            'include_dirs': [
++              'src',
++            ],
++          },
++        }],
+         [ 'node_use_lief=="true"', {
+           'defines': [ 'HAVE_LIEF=1' ],
+           'dependencies': [ 'deps/LIEF/lief.gyp:liblief' ],
++          'sources': [
++            # Socket Security: SEA config parsing (depends on patch 008).
++            'src/socketsecurity/sea-smol/smol_config_parser.cc',
++            'src/socketsecurity/binject/smol_config.c',
++            'src/socketsecurity/binject/vfs_config.c',
++            'src/socketsecurity/binject/vfs_utils.c',
++            'src/socketsecurity/build-infra/tar_create.c',
++            'src/socketsecurity/build-infra/gzip_compress.c',
++            'src/socketsecurity/bin-infra/smol_segment.c',
++            'src/socketsecurity/binject/binject.c',
++            'src/socketsecurity/binject/stub_repack.c',
++            'src/socketsecurity/binject/elf_pe_cross_platform.c',
++            'src/socketsecurity/binject/remove_signature_lib.c',
++            'src/socketsecurity/binject/elf_inject.c',
++            'src/socketsecurity/binject/pe_inject.c',
++            'src/socketsecurity/binject/macho_inject_lief_wrapper.c',
++            'src/socketsecurity/binject/elf_inject_lief.cpp',
++            'src/socketsecurity/binject/macho_inject_lief.cpp',
++            'src/socketsecurity/binject/pe_inject_lief.cpp',
++            'src/socketsecurity/bin-infra/stub_smol_repack_lief.cpp',
++          ],
++          'conditions': [
++            ['OS!="mac"', {
++              'dependencies': [
++                'deps/lzfse/lzfse.gyp:liblzfse',
++                'deps/libdeflate/libdeflate.gyp:libdeflate',
++              ],
++            }],
++          ],
++          'include_dirs': [
++            'src',
++          ],
++          'direct_dependent_settings': {
++            'include_dirs': [
++              'src',
++            ],
++          },
+         }],
+         [ 'node_use_sqlite=="true"', {
+           'sources': [
+@@ -1350,6 +1421,11 @@
+             'Dbghelp.lib',
+             'winmm.lib',
+             'Ws2_32.lib',
++          ],
++        }],
++        ['OS=="mac"', {
++          'libraries': [
++            '-lcompression',
+           ],
+         }],
+         # Avoid excessive LTO
+@@ -1416,6 +1492,11 @@
+             'Ws2_32.lib',
+           ],
+         }],
++        ['OS=="mac"', {
++          'libraries': [
++            '-lcompression',
++          ],
++        }],
+         # Avoid excessive LTO
+         ['enable_lto=="true"', {
+           'ldflags': [ '-fno-lto' ],
+@@ -1561,6 +1642,11 @@
+             'Ws2_32.lib',
+           ],
+         }],
++        ['OS=="mac"', {
++          'libraries': [
++            '-lcompression',
++          ],
++        }],
+         # Avoid excessive LTO
+         ['enable_lto=="true"', {
+           'ldflags': [ '-fno-lto' ],

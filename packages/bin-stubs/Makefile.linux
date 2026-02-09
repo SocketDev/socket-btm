@@ -1,0 +1,44 @@
+# bin-stubs Makefile for Linux.
+# Stub binaries for compressed Node.js executables.
+
+# Include common definitions.
+include ../build-infra/make/common.mk
+include ../build-infra/make/platform-linux.mk
+
+# curl support for HTTPS update checking.
+include make/curl.mk
+
+# LZFSE compression library (required for compression_common.c).
+include ../bin-infra/make/lzfse.mk
+
+TARGET_CLI = smol_stub
+SOURCE_CLI = src/socketsecurity/bin-stubs/elf_stub.c \
+             ../bin-infra/src/socketsecurity/bin-infra/smol_segment_reader.c \
+             ../bin-infra/src/socketsecurity/bin-infra/compression_common.c \
+             ../build-infra/src/socketsecurity/build-infra/file_utils.c
+
+SRC_DIR = src
+
+CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 -Isrc $(COMMON_INCLUDES) $(CURL_CFLAGS) $(LZFSE_CFLAGS) -DVERSION=\"$(VERSION)\"
+LDFLAGS = $(LDFLAGS_BASE) $(CURL_LDFLAGS) $(LZFSE_LDFLAGS) -lcrypto -lz -lpthread -ldl
+
+# Check that required build tools are available.
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }
+	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
+
+# Build stub binary.
+all: check-tools $(LZFSE_LIB) $(OUT_DIR)/$(TARGET_CLI)
+
+$(OUT_DIR)/$(TARGET_CLI): $(SOURCE_CLI) $(LZFSE_LIB) | $(OUT_DIR)
+	$(CC) $(CFLAGS) -o $@ $(SOURCE_CLI) $(LDFLAGS)
+	@echo "Built: $(OUT_DIR)/$(TARGET_CLI)"
+
+$(OUT_DIR):
+	mkdir -p $@
+
+# Clean build artifacts.
+clean:
+	rm -rf $(OUT_DIR)
+
+.PHONY: all clean check-tools

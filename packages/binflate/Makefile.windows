@@ -1,0 +1,45 @@
+# binflate Makefile for Windows.
+# PE binary decompression tool.
+
+# Include common definitions.
+include ../build-infra/make/common.mk
+include ../build-infra/make/platform-windows.mk
+include ../bin-infra/make/lzfse.mk
+
+TARGET_CLI = binflate.exe
+SOURCE_CLI = src/socketsecurity/binflate/extract_cli.c ../bin-infra/src/socketsecurity/bin-infra/compression_common.c ../bin-infra/src/socketsecurity/bin-infra/smol_segment_reader.c
+
+SRC_DIR = src
+
+CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 $(COMMON_INCLUDES) $(LZFSE_CFLAGS) -DVERSION=\"$(VERSION)\"
+LDFLAGS = $(LDFLAGS_BASE) $(LZFSE_LDFLAGS)
+
+# Check that required build tools are available.
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }
+	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
+	$(CHECK_TOOLS_EXTRA)
+
+# Build CLI extraction tool.
+all: check-tools $(OUT_DIR)/$(TARGET_CLI)
+
+# Generate Cabinet.dll import library.
+$(IMPORT_LIB): ../bin-infra/src/socketsecurity/bin-infra/cabinet.def | $(OUT_DIR)
+	dlltool -d ../bin-infra/src/socketsecurity/bin-infra/cabinet.def -l $@
+
+$(OUT_DIR)/$(TARGET_CLI): $(SOURCE_CLI) $(LZFSE_LIB) $(IMPORT_LIB) | $(OUT_DIR)
+	$(CC) $(CFLAGS) -o $@ $(SOURCE_CLI) $(LDFLAGS)
+	@echo "Built: $(OUT_DIR)/$(TARGET_CLI)"
+
+$(OUT_DIR):
+	mkdir -p $@
+
+clean:
+	$(call CLEAN_IMPL,binflate)
+
+install: all
+	@echo "Decompression CLI tool built successfully: $(OUT_DIR)/$(TARGET_CLI)"
+
+test: all
+	@echo "Running binflate tests..."
+	@cd $(PROJECT_ROOT) && pnpm exec vitest run

@@ -1,0 +1,41 @@
+# bin-stubs Makefile for macOS.
+# Stub binaries for compressed Node.js executables.
+
+# Include common definitions.
+include ../build-infra/make/common.mk
+include ../build-infra/make/platform-macos.mk
+
+# curl support for HTTPS update checking.
+include make/curl.mk
+
+TARGET_CLI = smol_stub
+SOURCE_CLI = src/socketsecurity/bin-stubs/macho_stub.c \
+             ../bin-infra/src/socketsecurity/bin-infra/smol_segment_reader.c \
+             ../build-infra/src/socketsecurity/build-infra/file_utils.c \
+             ../build-infra/src/socketsecurity/build-infra/path_utils.c
+
+SRC_DIR = src
+
+CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 -Isrc $(COMMON_INCLUDES) $(CURL_CFLAGS) -DVERSION=\"$(VERSION)\"
+LDFLAGS = $(LDFLAGS_BASE) $(CURL_LDFLAGS)
+
+# Check that required build tools are available.
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }
+	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
+
+# Build stub binary.
+all: check-tools $(OUT_DIR)/$(TARGET_CLI)
+
+$(OUT_DIR)/$(TARGET_CLI): $(SOURCE_CLI) | $(OUT_DIR)
+	$(CC) $(CFLAGS) -o $@ $(SOURCE_CLI) $(LDFLAGS)
+	@echo "Built: $(OUT_DIR)/$(TARGET_CLI)"
+
+$(OUT_DIR):
+	mkdir -p $@
+
+# Clean build artifacts.
+clean:
+	rm -rf $(OUT_DIR)
+
+.PHONY: all clean check-tools

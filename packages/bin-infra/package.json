@@ -1,0 +1,24 @@
+{
+  "name": "bin-infra",
+  "version": "0.0.0",
+  "description": "Shared binary infrastructure for binject and binpress",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./lib/builder": "./lib/builder.mjs",
+    "./lib/build-lief": "./lib/build-lief.mjs",
+    "./lib/build-stubs": "./lib/build-stubs.mjs"
+  },
+  "scripts": {
+    "build:lief": "node lib/build-lief.mjs",
+    "build:stubs": "node lib/build-stubs.mjs",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@socketsecurity/lib": "catalog:",
+    "build-infra": "workspace:*",
+    "octokit": "catalog:",
+    "vitest": "catalog:"
+  }
+}

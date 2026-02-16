@@ -374,7 +374,7 @@ jobs:
           steps.build-enabled.outputs.build == 'true' &&
           steps.setup-checkpoints.outputs.build-required == 'true' &&
           matrix.os == 'linux'
-        uses: depot/build-push-action@9785b135c3c76c33db102e45be96a25ab55cd507 # v1.16.2
+        uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0
         with:
           project: 8fpj9495vw
           platforms: linux/${{ matrix.arch == 'x64' && 'amd64' || matrix.arch }}
@@ -881,7 +881,7 @@ jobs:
           steps.build-enabled.outputs.build == 'true' &&
           steps.setup-checkpoints.outputs.build-required == 'true' &&
           matrix.os == 'linux'
-        uses: depot/build-push-action@9785b135c3c76c33db102e45be96a25ab55cd507 # v1.16.2
+        uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0
         with:
           project: 8fpj9495vw
           platforms: linux/${{ matrix.arch == 'x64' && 'amd64' || matrix.arch }}
@@ -1399,7 +1399,7 @@ jobs:
           steps.build-enabled.outputs.build == 'true' &&
           steps.setup-checkpoints.outputs.build-required == 'true' &&
           matrix.os == 'linux'
-        uses: depot/build-push-action@9785b135c3c76c33db102e45be96a25ab55cd507 # v1.16.2
+        uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0
         with:
           project: 8fpj9495vw
           platforms: linux/${{ matrix.arch == 'x64' && 'amd64' || matrix.arch }}

@@ -48,7 +48,7 @@ function isCheckpointFile(filename: string): boolean {
 }
 
 /**
- * Validates a single tar archive using tar -tzf command.
+ * Validates a single tar archive using tar command.
  * Checks both integrity (readable) and that it contains files.
  */
 function validateTarArchive(tarPath: string): boolean {
@@ -56,8 +56,12 @@ function validateTarArchive(tarPath: string): boolean {
     // Check if file exists and is readable.
     accessSync(tarPath, constants.R_OK)
 
-    // Use tar -tzf to list contents (validates archive integrity).
-    const result = spawnSync('tar', ['-tzf', tarPath], {
+    // Use tar -tf for .tar files, tar -tzf for compressed files.
+    // The -z flag is for gzip compression (.tar.gz, .tgz).
+    const isCompressed = tarPath.endsWith('.tar.gz') || tarPath.endsWith('.tgz')
+    const flags = isCompressed ? '-tzf' : '-tf'
+
+    const result = spawnSync('tar', [flags, tarPath], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     })

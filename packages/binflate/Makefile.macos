@@ -1,0 +1,73 @@
+# binflate Makefile for macOS.
+# Mach-O binary decompression tool.
+
+# Include common definitions.
+include ../build-infra/make/common.mk
+include ../build-infra/make/platform-macos.mk
+
+TARGET_CLI = binflate
+SOURCE_CLI = src/socketsecurity/binflate/extract_cli.c $(BIN_INFRA_SRC)/compression_common.c $(BIN_INFRA_SRC)/smol_segment_reader.c $(BUILD_INFRA_SRC)/file_utils.c $(BUILD_INFRA_SRC)/path_utils.c
+
+SRC_DIR = src
+
+CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 $(COMMON_INCLUDES) -DVERSION=\"$(VERSION)\"
+LDFLAGS = $(LDFLAGS_BASE)
+
+# Check that required build tools are available.
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }
+	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
+
+# Build CLI extraction tool.
+all: check-tools $(OUT_DIR)/$(TARGET_CLI)
+
+$(OUT_DIR)/$(TARGET_CLI): $(SOURCE_CLI) | $(OUT_DIR)
+	$(CC) $(CFLAGS) -o $@ $(SOURCE_CLI) $(LDFLAGS)
+	@echo "Built: $(OUT_DIR)/$(TARGET_CLI)"
+
+$(OUT_DIR):
+	mkdir -p $@
+
+clean:
+	$(call CLEAN_IMPL,binflate)
+
+install: all
+	@echo "Decompression CLI tool built successfully: $(OUT_DIR)/$(TARGET_CLI)"
+
+test: all
+	@echo "Running binflate tests..."
+	@cd $(PROJECT_ROOT) && pnpm exec vitest run
+
+# Coverage target - build with coverage instrumentation.
+COVERAGE_DIR = coverage
+COVERAGE_CFLAGS = $(CFLAGS) -fprofile-arcs -ftest-coverage -O0 -g
+COVERAGE_LDFLAGS = $(LDFLAGS) -fprofile-arcs -ftest-coverage
+COVERAGE_TARGET = $(OUT_DIR)/$(TARGET_CLI)_coverage
+
+$(COVERAGE_TARGET): $(SOURCE_CLI) | $(OUT_DIR)
+	$(CC) $(COVERAGE_CFLAGS) -o $@ $< $(COVERAGE_LDFLAGS)
+
+cover: $(COVERAGE_TARGET) | $(COVERAGE_DIR)
+	@echo "Running decompression tests with coverage..."
+	@echo "Note: Coverage shows decompressor source paths exercised during binary execution"
+	@echo "Executing instrumented binary..."
+	@$(COVERAGE_TARGET) || true
+	@echo "\nGenerating coverage report..."
+	@gcov -o $(OUT_DIR) $(SOURCE_CLI)
+	@mkdir -p $(COVERAGE_DIR)
+	@mv *.gcov $(COVERAGE_DIR)/ 2>/dev/null || true
+	@echo "\nCoverage Summary:"
+	@echo "================="
+	@echo "This shows which code paths in the decompressor are executed."
+	@grep -A 3 "File" $(COVERAGE_DIR)/*.gcov | head -10 || echo "Coverage data not found"
+	@echo "\nLine Coverage:"
+	@grep "Lines executed" $(COVERAGE_DIR)/*.gcov || echo "No coverage metrics found"
+	@echo "\nDetailed reports in $(COVERAGE_DIR)/"
+
+$(COVERAGE_DIR):
+	@mkdir -p $@
+
+clean-coverage:
+	rm -rf $(COVERAGE_DIR)
+	rm -f $(OUT_DIR)/*.gcda $(OUT_DIR)/*.gcno
+	rm -f *.gcov

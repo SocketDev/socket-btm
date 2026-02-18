@@ -1,0 +1,70 @@
+# Build LIEF library in container to offload compute from GitHub Actions.
+# This Dockerfile supports building LIEF for linux/amd64 and linux/arm64.
+# glibc variant using AlmaLinux 8 (glibc 2.28) for maximum compatibility.
+
+FROM almalinux:8 AS build
+
+# Install build dependencies.
+# AlmaLinux 8 has glibc 2.28, which provides maximum compatibility with older Linux distributions.
+# Enable PowerTools for ninja-build, EPEL for ccache.
+RUN dnf -y update && \
+    dnf -y install epel-release dnf-plugins-core && \
+    dnf config-manager --set-enabled powertools && \
+    dnf -y install \
+        gcc-c++ \
+        git \
+        ccache \
+        ninja-build \
+        curl \
+        ca-certificates \
+        python3.11 \
+        python3.11-pip \
+        cmake \
+        patch \
+        && \
+    # Install Node.js from NodeSource.
+    curl -fsSL https://rpm.nodesource.com/setup_lts.x | bash - && \
+    dnf -y install nodejs && \
+    npm install -g pnpm@10.26.1 && \
+    dnf clean all
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy workspace configuration files (needed for pnpm workspace).
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .gitmodules .node-version ./
+
+# Copy build-infra package (workspace dependency).
+COPY packages/build-infra ./packages/build-infra
+
+# Copy bin-infra package (what we're building).
+COPY packages/bin-infra ./packages/bin-infra
+
+# Install workspace dependencies (only bin-infra package).
+ENV CI=true
+RUN pnpm install --frozen-lockfile --filter bin-infra
+
+# Build LIEF.
+ARG BUILD_MODE=prod
+ARG TARGETARCH
+# Cache version - managed centrally in .github/cache-versions.json
+ARG CACHE_VERSION=unset
+ENV BUILD_MODE=$BUILD_MODE
+
+# For amd64 builds, add -march=x86-64 -mtune=generic to ensure binary portability
+# across different CPU generations (e.g., GitHub Actions runners without AVX/AVX2).
+RUN echo "Cache version: ${CACHE_VERSION}" && \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        export CFLAGS="-march=x86-64 -mtune=generic" && \
+        export CXXFLAGS="-march=x86-64 -mtune=generic"; \
+    fi && \
+    cd packages/bin-infra && pnpm run build:lief
+
+# Export stage: Copy build artifacts (not entire filesystem).
+# We export the entire build/ directory to preserve both:
+# - Build artifacts at build/${BUILD_MODE}/out/Final/
+# - Checkpoints at build/${BUILD_MODE}/checkpoints/ and build/shared/checkpoints/
+# Checkpoints enable GitHub Actions caching to skip expensive build steps on repeated runs.
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=build /workspace/packages/bin-infra/build /

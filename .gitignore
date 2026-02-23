@@ -1,0 +1,183 @@
+# ==============================================================================
+# Build Artifacts
+# ==============================================================================
+
+# All build artifacts are gitignored but used differently:
+#
+# - build/dev/                : Dev build workspace (isolated for concurrent builds)
+#   - build/dev/node-source/  : Dev Node.js source code
+#   - build/dev/out/          : Dev build outputs (Release, Stripped, Compressed, Final)
+#   - build/dev/cache/        : Dev compiled binary cache + cache-validation.hash
+#   - build/dev/build-checkpoint : Dev build resume checkpoint
+#
+# - build/prod/               : Prod build workspace (isolated for concurrent builds)
+#   - build/prod/node-source/ : Prod Node.js source code
+#   - build/prod/out/         : Prod build outputs (Release, Stripped, Compressed, Final)
+#   - build/prod/cache/       : Prod compiled binary cache + cache-validation.hash
+#   - build/prod/build-checkpoint : Prod build resume checkpoint
+#
+# - build/.release-temp/      : Temporary release packaging directory
+#                               (gitignored, created during release)
+#
+# CI Workflow:
+#   1. Build jobs: Upload build/{dev,prod}/out/Final/node as GitHub Actions artifacts
+#   2. Release job: Download artifacts to build/{dev,prod}/cache/node-{platform}-{arch}
+#   3. Release job: Run scripts/release.mjs to package and publish
+#
+# Local Workflow:
+#   1. First build: Compile and cache to build/{dev,prod}/cache/node-{platform}-{arch}
+#   2. Subsequent builds: Restore from cache if source unchanged
+#   3. Concurrent builds: Dev and prod builds fully isolated in separate directories
+#
+**/build/
+
+# Distribution binaries (E2E test artifacts, regenerated on each build)
+**/dist/
+
+# Docker build output (from Dockerfile.local-dev)
+build-output/
+
+# External source copies (build-time generated from monorepo packages).
+packages/node-smol-builder/additions/source-patched/src/socketsecurity/bin-infra/
+packages/node-smol-builder/additions/source-patched/src/socketsecurity/binject/
+packages/node-smol-builder/additions/source-patched/src/socketsecurity/build-infra/
+
+# Vendored npm packages (sync-time generated from node_modules).
+packages/node-smol-builder/additions/source-patched/deps/fast-webstreams/
+
+# WPT streams tests (fetched on-demand for validation).
+packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/streams/
+packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/.wpt-version
+packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/.wpt-tmp/
+packages/node-smol-builder/additions/source-patched/deps/lzfse/src/
+packages/node-smol-builder/additions/source-patched/deps/libdeflate/*
+!packages/node-smol-builder/additions/source-patched/deps/libdeflate/libdeflate.gyp
+
+# Firewall test/debug Dockerfiles and scripts
+Dockerfile.firewall-*-test
+test-firewall-*.sh
+
+# ==============================================================================
+# Dependencies
+# ==============================================================================
+
+**/node_modules/
+
+# ==============================================================================
+# Logs
+# ==============================================================================
+
+**/*.log
+
+# ==============================================================================
+# Generated Files
+# ==============================================================================
+
+
+# ==============================================================================
+# Platform-Specific
+# ==============================================================================
+
+# macOS
+**/.DS_Store
+**/.AppleDouble
+**/.LSOverride
+
+# Windows
+**/Thumbs.db
+**/ehthumbs.db
+**/Desktop.ini
+
+# Linux
+**/.directory
+
+# ==============================================================================
+# Editor Files
+# ==============================================================================
+
+# Vim
+**/*.swp
+**/*.swo
+**/*~
+
+# VSCode
+**/.vscode/
+**/*.code-workspace
+
+# IntelliJ IDEA
+**/.idea/
+**/*.iml
+
+# Emacs
+**/*~
+**/\#*\#
+**/.\#*
+
+# ==============================================================================
+# Environment
+# ==============================================================================
+
+**/.env
+**/.env.local
+**/.env.*.local
+
+# ==============================================================================
+# Python
+# ==============================================================================
+
+# Byte-compiled / optimized / DLL files
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/*.so
+
+# Distribution / packaging
+**/*.egg-info/
+**/dist/
+**/build/
+
+# Virtual environments
+**/.venv/
+**/venv/
+**/ENV/
+**/env/
+
+# Testing and linting
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.coverage
+**/coverage/
+**/.tox/
+**/*.gcov
+**/*.gcda
+**/*.gcno
+
+# ==============================================================================
+# Temporary Files
+# ==============================================================================
+
+**/tmp/
+**/temp/
+**/*.tmp
+**/*.backup*
+
+# Patch backup directories (created by regenerating-node-patches skill)
+**/patches/source-patched.backup-*/
+
+# Claude Code directory (except skills and commands)
+.claude/*
+!.claude/skills/
+!.claude/commands/
+
+# Archive directories
+**/docs/archive/
+
+# ==============================================================================
+# Upstream Source Code
+# ==============================================================================
+
+# Git submodule checkouts for third-party library sources
+**/upstream/
+.ccache/
+ARCHITECTURE.md

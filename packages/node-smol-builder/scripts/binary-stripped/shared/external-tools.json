@@ -1,0 +1,52 @@
+{
+  "$schema": "../../../../build-infra/lib/external-tools-schema.json",
+  "description": "External tools required for the binary-stripped checkpoint phase",
+  "tools": {
+    "llvm-strip": {
+      "description": "LLVM binary stripper tool (removes debug symbols)",
+      "packages": {
+        "darwin": {
+          "brew": "llvm@16"
+        },
+        "linux": {
+          "apt": "llvm-16",
+          "yum": "llvm16",
+          "dnf": "llvm16",
+          "apk": "llvm16"
+        },
+        "win32": {
+          "choco": "llvm",
+          "scoop": "llvm"
+        }
+      },
+      "versions": {
+        "brew": "16.0.6",
+        "apt": "16.0.0",
+        "choco": "16.0.6"
+      }
+    },
+    "z3": {
+      "description": "Z3 Theorem Prover (required dependency of llvm-strip)",
+      "packages": {
+        "darwin": {
+          "brew": "z3"
+        },
+        "linux": {
+          "apt": "z3",
+          "yum": "z3",
+          "dnf": "z3",
+          "apk": "z3"
+        },
+        "win32": {
+          "choco": "z3",
+          "scoop": "z3"
+        }
+      },
+      "versions": {
+        "brew": "4.12.2",
+        "apt": "4.8.12",
+        "choco": "4.12.2"
+      }
+    }
+  }
+}

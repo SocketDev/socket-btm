@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../../build-infra/lib/external-tools-schema.json",
+  "description": "External tools required for the quantized checkpoint phase (model quantization)",
+  "tools": {
+    "onnxruntime": {
+      "description": "ONNX Runtime inference engine",
+      "type": "python",
+      "versions": {
+        "pip": "1.19.2"
+      }
+    },
+    "onnxscript": {
+      "description": "ONNX Script for ONNX model authoring",
+      "type": "python",
+      "versions": {
+        "pip": "0.1.0"
+      }
+    }
+  }
+}

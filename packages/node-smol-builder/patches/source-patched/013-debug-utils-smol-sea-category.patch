@@ -1,0 +1,18 @@
+Socket Security: Add SMOL_SEA debug category
+
+Add custom debug category for Socket Security SEA/smol extensions.
+Enables debug logging with NODE_DEBUG_NATIVE=smol_sea.
+
+Files modified:
+- src/debug_utils.h: Add SMOL_SEA to DEBUG_CATEGORY_NAMES
+
+--- a/src/debug_utils.h
++++ b/src/debug_utils.h
+@@ -53,6 +53,7 @@
+   V(INSPECTOR_PROFILER)                                                        \
+   V(CODE_CACHE)                                                                \
+   V(NGTCP2_DEBUG)                                                              \
++  V(SMOL_SEA)                                                                  \
+   V(SEA)                                                                       \
+   V(WASI)                                                                      \
+   V(MODULE)                                                                    \

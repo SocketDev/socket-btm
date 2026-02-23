@@ -1,0 +1,15 @@
+{
+  "$schema": "../build-infra/lib/external-tools-schema.json",
+  "description": "External tools for MiniLM model building (extends shared ML tools)",
+  "extends": "../build-infra/ml-tools-external-tools.json",
+  "tools": {
+    "optimum": {
+      "description": "Hugging Face Optimum - ONNX optimization toolkit",
+      "type": "python",
+      "versions": {
+        "pip": "1.23.3"
+      },
+      "extras": ["exporters"]
+    }
+  }
+}

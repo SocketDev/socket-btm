@@ -32,7 +32,7 @@ import {
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const PACKAGE_DIR = path.join(__dirname, '..')
-const BIN_STUBS_DIR = path.join(PACKAGE_DIR, '..', 'bin-stubs')
+const NODE_SMOL_DIR = path.join(PACKAGE_DIR, '..', 'node-smol-builder')
 
 const BUILD_MODE = getBuildMode()
 const BINPRESS_NAME = process.platform === 'win32' ? 'binpress.exe' : 'binpress'
@@ -45,14 +45,15 @@ const BINPRESS = path.join(
   BINPRESS_NAME,
 )
 
-// Use smol_stub as test input instead of binpress compressing itself
-const SMOL_STUB = path.join(
-  BIN_STUBS_DIR,
+const NODE_BINARY_NAME = process.platform === 'win32' ? 'node.exe' : 'node'
+const TEST_INPUT = path.join(
+  NODE_SMOL_DIR,
   'build',
   BUILD_MODE,
   'out',
   'Final',
-  'smol_stub',
+  NODE_BINARY_NAME,
+  NODE_BINARY_NAME,
 )
 
 let testDir: string
@@ -85,15 +86,15 @@ afterAll(async () => {
   }
 })
 
-// Only test binpress auto-repack when binpress exists
-describe.skipIf(!existsSync(BINPRESS))('binpress auto-repack detection', () => {
+// Only test binpress auto-repack when binpress and node binary exist
+describe.skipIf(!existsSync(BINPRESS) || !existsSync(TEST_INPUT))('binpress auto-repack detection', () => {
   describe('Basic auto-repack workflow', () => {
     it('should create initial stub then auto-detect and repack with new compressed data', async () => {
-      // Step 1: Create initial compressed binary using smol_stub
+      // Step 1: Create initial compressed binary
       const initialStub = getStubPath('initial-stub')
 
       const createResult = await execCommand(BINPRESS, [
-        SMOL_STUB,
+        TEST_INPUT,
         '-o',
         initialStub,
       ])
@@ -124,15 +125,14 @@ describe.skipIf(!existsSync(BINPRESS))('binpress auto-repack detection', () => {
       // Run the stub to verify it extracts and executes
       const execResult = await execCommand(updatedStub, ['--version'])
       expect(execResult.code).toBe(0)
-      // The stub decompresses and runs the embedded smol_stub, which prints version
       expect(execResult.stdout).toBeTruthy()
     })
 
     it('should preserve stub functionality when repacking', async () => {
-      // Create initial stub using smol_stub
+      // Create initial stub
       const initialStub = getStubPath('preserve-stub')
 
-      await execCommand(BINPRESS, [SMOL_STUB, '-o', initialStub])
+      await execCommand(BINPRESS, [TEST_INPUT, '-o', initialStub])
 
       // Initial stub should be executable
       await fs.chmod(initialStub, 0o755)
@@ -161,9 +161,9 @@ describe.skipIf(!existsSync(BINPRESS))('binpress auto-repack detection', () => {
 
   describe('Repack validation', () => {
     it('should handle repacking compressed stub', async () => {
-      // Create initial stub from smol_stub
+      // Create initial stub
       const initialStub = getStubPath('ratio-stub')
-      await execCommand(BINPRESS, [SMOL_STUB, '-o', initialStub])
+      await execCommand(BINPRESS, [TEST_INPUT, '-o', initialStub])
 
       const initialSize = (await fs.stat(initialStub)).size
       expect(initialSize).toBeGreaterThan(0)

@@ -1,0 +1,504 @@
+name: WASM 3. Yoga Layout
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      build_mode:
+        description: 'Build mode'
+        type: choice
+        options:
+          - prod
+          - dev
+        default: prod
+      debug:
+        description: 'Debug (0|1|namespace[,...])'
+        type: string
+        default: '0'
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+      force:
+        type: boolean
+        default: false
+      build_mode:
+        type: string
+        default: prod
+      debug:
+        type: string
+        default: '0'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Initialize Yoga submodule
+        run: |
+          git submodule update --init packages/yoga-layout-builder/upstream/yoga
+
+      - name: Enable debug logging
+        if: inputs.debug != '0'
+        env:
+          DEBUG_INPUT: ${{ inputs.debug }}
+        run: |
+          if [ "$DEBUG_INPUT" = "1" ]; then
+            echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
+            echo "ACTIONS_RUNNER_DEBUG=true" >> $GITHUB_ENV
+            echo "Debug mode: full"
+          else
+            # Use heredoc syntax to prevent env var injection via newlines
+            {
+              echo "DEBUG<<EOF"
+              echo "$DEBUG_INPUT"
+              echo "EOF"
+            } >> $GITHUB_ENV
+            echo "Debug mode: $DEBUG_INPUT"
+          fi
+
+      - name: Load tool versions
+        id: tool-versions
+        run: |
+          NODE_VERSION=$(cat .node-version | tr -d '\n')
+          YOGA_VERSION=$(jq -r '.sources.yoga.version' packages/yoga-layout-builder/package.json)
+          echo "node-version=$NODE_VERSION" >> $GITHUB_OUTPUT
+          echo "yoga-version=$YOGA_VERSION" >> $GITHUB_OUTPUT
+          echo "Loaded Node.js: $NODE_VERSION, Yoga Layout: $YOGA_VERSION"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: ${{ steps.tool-versions.outputs.node-version }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+        # Note: version is specified in package.json packageManager field, not here
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Depot CLI
+        uses: depot/setup-action@b0b1ea4f69e92ebf5dea3f8713a1b0c37b2126a5 # v1.6.0
+        with:
+          oidc: true
+
+      - name: Set build mode
+        id: build-mode
+        env:
+          INPUT_BUILD_MODE: ${{ inputs.build_mode }}
+        run: |
+          # Sanitize input - only allow 'prod' or 'dev'
+          if [ "$INPUT_BUILD_MODE" = "dev" ]; then
+            BUILD_MODE="dev"
+          else
+            BUILD_MODE="prod"
+          fi
+          echo "mode=$BUILD_MODE" >> $GITHUB_OUTPUT
+          echo "Build mode: $BUILD_MODE"
+
+      - name: Load cache version from centralized config
+        id: cache-version
+        shell: bash
+        run: |
+          CACHE_VERSION=$(jq -r '.versions["yoga-layout"]' .github/cache-versions.json)
+          if [ -z "$CACHE_VERSION" ] || [ "$CACHE_VERSION" = "null" ]; then
+            echo "❌ Error: Cache version not found for yoga-layout in .github/cache-versions.json"
+            exit 1
+          fi
+          echo "version=$CACHE_VERSION" >> $GITHUB_OUTPUT
+          echo "Cache version: $CACHE_VERSION"
+
+      - name: Generate Yoga cache key
+        id: cache-key
+        env:
+          CACHE_VERSION: ${{ steps.cache-version.outputs.version }}
+        run: |
+          # Cross-platform hash function.
+          if command -v shasum &> /dev/null; then
+            hash_cmd="shasum -a 256"
+          elif command -v sha256sum &> /dev/null; then
+            hash_cmd="sha256sum"
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+
+          # Per-checkpoint cumulative hashing (like node-smol)
+          # Each checkpoint includes its dependencies (cumulative)
+
+          # Helper to hash directory contents
+          hash_dir() {
+            local dir=$1
+            if [ -d "$dir" ]; then
+              find "$dir" -type f -name "*.mjs" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1 || echo ""
+            else
+              echo ""
+            fi
+          }
+
+          # Common scripts (used by all checkpoints)
+          COMMON=$(hash_dir packages/yoga-layout-builder/scripts/common)
+          PACKAGE_JSON=$($hash_cmd packages/yoga-layout-builder/package.json | cut -d' ' -f1)
+          BUILD_MJS=$($hash_cmd packages/yoga-layout-builder/scripts/build.mjs | cut -d' ' -f1)
+
+          # source-cloned: cache-version + common + source-cloned + build.mjs + package.json
+          SOURCE_CLONED_DIR=$(hash_dir packages/yoga-layout-builder/scripts/source-cloned)
+          SOURCE_CLONED_HASH=$(echo "${CACHE_VERSION}${COMMON}${SOURCE_CLONED_DIR}${BUILD_MJS}${PACKAGE_JSON}" | $hash_cmd | cut -d' ' -f1)
+
+          # source-configured: source-cloned + source-configured
+          SOURCE_CONFIGURED_DIR=$(hash_dir packages/yoga-layout-builder/scripts/source-configured)
+          SOURCE_CONFIGURED_HASH=$(echo "${SOURCE_CLONED_HASH}${SOURCE_CONFIGURED_DIR}" | $hash_cmd | cut -d' ' -f1)
+
+          # wasm-compiled: source-configured + wasm-compiled
+          WASM_COMPILED_DIR=$(hash_dir packages/yoga-layout-builder/scripts/wasm-compiled)
+          WASM_COMPILED_HASH=$(echo "${SOURCE_CONFIGURED_HASH}${WASM_COMPILED_DIR}" | $hash_cmd | cut -d' ' -f1)
+
+          # wasm-released: wasm-compiled + wasm-released
+          WASM_RELEASE_DIR=$(hash_dir packages/yoga-layout-builder/scripts/wasm-released)
+          WASM_RELEASE_HASH=$(echo "${WASM_COMPILED_HASH}${WASM_RELEASE_DIR}" | $hash_cmd | cut -d' ' -f1)
+
+          # wasm-optimized: wasm-released + wasm-optimized
+          WASM_OPTIMIZED_DIR=$(hash_dir packages/yoga-layout-builder/scripts/wasm-optimized)
+          WASM_OPTIMIZED_HASH=$(echo "${WASM_RELEASE_HASH}${WASM_OPTIMIZED_DIR}" | $hash_cmd | cut -d' ' -f1)
+
+          # wasm-synced: wasm-optimized + wasm-synced + wasm-sync-wrapper.mjs (shared infra)
+          WASM_SYNC_DIR=$(hash_dir packages/yoga-layout-builder/scripts/wasm-synced)
+          WASM_SYNC_WRAPPER=$($hash_cmd packages/build-infra/wasm-synced/wasm-sync-wrapper.mjs | cut -d' ' -f1)
+          WASM_SYNC_HASH=$(echo "${WASM_OPTIMIZED_HASH}${WASM_SYNC_DIR}${WASM_SYNC_WRAPPER}" | $hash_cmd | cut -d' ' -f1)
+
+          # finalized: wasm-synced + finalized (most complete hash)
+          FINAL_DIR=$(hash_dir packages/yoga-layout-builder/scripts/finalized)
+          FINAL_HASH=$(echo "${WASM_SYNC_HASH}${FINAL_DIR}" | $hash_cmd | cut -d' ' -f1)
+
+          echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
+          echo "source_cloned_hash=${SOURCE_CLONED_HASH}" >> $GITHUB_OUTPUT
+          echo "wasm_final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
+
+      - name: Restore Yoga checkpoint cache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        id: yoga-checkpoint-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: |
+            packages/yoga-layout-builder/build/shared/checkpoints
+            packages/yoga-layout-builder/build/${{ steps.build-mode.outputs.mode }}/checkpoints
+          key: yoga-checkpoints-${{ steps.cache-key.outputs.cache_version }}-v${{ steps.tool-versions.outputs.yoga-version }}-${{ runner.os }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.wasm_final_hash }}
+          # Fallback to partial matches if exact key not found (allows incremental builds)
+          restore-keys: |
+            yoga-checkpoints-${{ steps.cache-key.outputs.cache_version }}-v${{ steps.tool-versions.outputs.yoga-version }}-${{ runner.os }}-${{ steps.build-mode.outputs.mode }}-
+
+      - name: Set checkpoint chain for build mode
+        id: checkpoint-chain
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          # Use get-checkpoint-chain.mjs to ensure consistency with local builds
+          # Dev mode: skip wasm-optimized (optimization is disabled)
+          # Prod mode: include wasm-optimized
+          CHAIN=$(node packages/yoga-layout-builder/scripts/get-checkpoint-chain.mjs --$BUILD_MODE)
+          echo "checkpoint_chain=$CHAIN" >> $GITHUB_OUTPUT
+          # Convert comma-separated to space-separated for validation
+          CHECKPOINTS=$(echo "$CHAIN" | tr ',' ' ')
+          echo "checkpoints=$CHECKPOINTS" >> $GITHUB_OUTPUT
+          echo "Checkpoint chain for $BUILD_MODE mode: $CHAIN"
+
+      - name: Validate checkpoint cache integrity
+        id: validate-cache
+        if: steps.yoga-checkpoint-cache.outputs.cache-hit == 'true'
+        uses: ./.github/actions/validate-checkpoints
+        with:
+          checkpoint-dirs: packages/yoga-layout-builder/build/shared/checkpoints:packages/yoga-layout-builder/build/${{ steps.build-mode.outputs.mode }}/checkpoints
+          checkpoints: ${{ steps.checkpoint-chain.outputs.checkpoints }}
+          package-name: yoga-layout-builder
+
+      - name: Restore build output from checkpoint chain
+        id: restore-checkpoint
+        uses: ./.github/actions/restore-checkpoint
+        with:
+          package-name: 'yoga-layout-builder'
+          build-mode: ${{ steps.build-mode.outputs.mode }}
+          checkpoint-chain: ${{ steps.checkpoint-chain.outputs.checkpoint_chain }}
+          cache-hit: ${{ steps.yoga-checkpoint-cache.outputs.cache-hit }}
+          cache-valid: ${{ steps.validate-cache.outputs.valid }}
+
+      - name: Build Yoga Layout WASM with Depot (offloads compute)
+        id: build
+        if: |
+          (steps.yoga-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          steps.restore-checkpoint.outputs.build-required == 'true'
+        uses: depot/build-push-action@9785b135c3c76c33db102e45be96a25ab55cd507 # v1.16.2
+        with:
+          project: 8fpj9495vw
+          platforms: linux/amd64
+          build-args: |
+            BUILD_MODE=${{ steps.build-mode.outputs.mode }}
+            CACHE_VERSION=${{ steps.cache-version.outputs.version }}
+          file: packages/yoga-layout-builder/Dockerfile.linux
+          target: export
+          outputs: type=local,dest=packages/yoga-layout-builder/build
+          context: .
+
+      - name: Verify Depot build output
+        if: |
+          (steps.yoga-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          steps.restore-checkpoint.outputs.build-required == 'true'
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "Verifying Depot build output structure..."
+          ls -lah packages/yoga-layout-builder/build/
+
+          # Check if build artifacts exist.
+          if [ ! -d "packages/yoga-layout-builder/build/$BUILD_MODE" ]; then
+            echo "❌ Build directory not found!"
+            echo "Contents of output directory:"
+            find packages/yoga-layout-builder/build/ -type f
+            exit 1
+          fi
+          echo "✅ Build artifacts found"
+          ls -lh packages/yoga-layout-builder/build/$BUILD_MODE/
+
+      - name: Validate Depot checkpoints
+        if: |
+          (steps.yoga-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          steps.restore-checkpoint.outputs.build-required == 'true'
+        uses: ./.github/actions/validate-depot-checkpoints
+        with:
+          package-path: packages/yoga-layout-builder
+          build-mode: ${{ steps.build-mode.outputs.mode }}
+          package-name: yoga-layout-builder
+
+      - name: Debug build output structure
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "=== Debugging build output structure ==="
+          echo "Looking for files in: packages/yoga-layout-builder/build/${BUILD_MODE}/"
+          if [ -d "packages/yoga-layout-builder/build/${BUILD_MODE}" ]; then
+            echo "Build directory exists, showing full structure:"
+            find packages/yoga-layout-builder/build/${BUILD_MODE} -type f -o -type d | sort
+          else
+            echo "❌ Build directory not found!"
+            echo "Available directories in packages/yoga-layout-builder/build/:"
+            ls -la packages/yoga-layout-builder/build/ 2>/dev/null || echo "build/ directory doesn't exist"
+          fi
+          echo "=== End debug output ==="
+
+      - name: Validate build output
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "Validating Yoga Layout build output..."
+
+          if [ ! -f "packages/yoga-layout-builder/build/${BUILD_MODE}/out/Final/yoga.wasm" ]; then
+            echo "❌ Build failed: WASM file missing"
+            echo "Expected path: packages/yoga-layout-builder/build/${BUILD_MODE}/out/Final/yoga.wasm"
+            exit 1
+          fi
+
+          if [ ! -f "packages/yoga-layout-builder/build/${BUILD_MODE}/out/Final/yoga.mjs" ]; then
+            echo "❌ Build failed: ES module file missing"
+            exit 1
+          fi
+
+          if [ ! -f "packages/yoga-layout-builder/build/${BUILD_MODE}/out/Final/yoga-sync.cjs" ]; then
+            echo "❌ Build failed: Sync CJS file missing"
+            exit 1
+          fi
+
+          if [ ! -f "packages/yoga-layout-builder/build/${BUILD_MODE}/out/Final/yoga-sync.mjs" ]; then
+            echo "❌ Build failed: Sync ESM file missing"
+            exit 1
+          fi
+
+          WASM_SIZE=$(stat -c%s "packages/yoga-layout-builder/build/${BUILD_MODE}/out/Final/yoga.wasm" 2>/dev/null || stat -f%z "packages/yoga-layout-builder/build/${BUILD_MODE}/out/Final/yoga.wasm")
+          if [ "$WASM_SIZE" -lt 100000 ]; then
+            echo "❌ Build failed: WASM file too small ($WASM_SIZE bytes)"
+            exit 1
+          fi
+
+          echo "✅ Build validation passed"
+          ls -lh "packages/yoga-layout-builder/build/${BUILD_MODE}/out/Final/"
+
+      - name: Upload Yoga Layout artifacts
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: yoga-layout-wasm
+          path: packages/yoga-layout-builder/build/${{ steps.build-mode.outputs.mode }}/out/Final/
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Cleanup before cache save
+        if: always()
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "Cleaning up temporary files before cache save..."
+
+          # Remove temporary build files that shouldn't be cached
+          TEMP_DIRS=(
+            "packages/yoga-layout-builder/build/${BUILD_MODE}/temp"
+            "packages/yoga-layout-builder/build/${BUILD_MODE}/out"
+          )
+
+          for DIR in "${TEMP_DIRS[@]}"; do
+            if [ -d "$DIR" ]; then
+              echo "Removing: $DIR"
+              rm -rf "$DIR"
+            fi
+          done
+
+          echo "✅ Cleanup complete"
+
+  release:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Load Yoga version from package.json
+        id: tool-versions
+        run: |
+          YOGA_VERSION=$(jq -r '.sources.yoga.version' packages/yoga-layout-builder/package.json)
+          echo "yoga-version=$YOGA_VERSION" >> $GITHUB_OUTPUT
+          echo "Loaded Yoga Layout: $YOGA_VERSION"
+
+      - name: Download Yoga Layout artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: yoga-layout-wasm
+          path: packages/yoga-layout-builder/build/prod/out/Final/
+
+      - name: Generate version
+        id: version
+        run: |
+          source .github/scripts/generate-version.sh
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Rename assets with version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          cd packages/yoga-layout-builder/build/prod/out/Final
+          mv yoga.wasm yoga-${VERSION}.wasm
+          mv yoga.mjs yoga-${VERSION}.mjs
+          mv yoga-sync.cjs yoga-sync-${VERSION}.cjs
+          mv yoga-sync.mjs yoga-sync-${VERSION}.mjs
+
+      - name: Generate checksums
+        run: |
+          cd packages/yoga-layout-builder/build/prod/out/Final
+          $(command -v shasum &> /dev/null && echo "shasum -a 256" || echo "sha256sum") yoga-*.wasm yoga-*.mjs yoga-sync-*.cjs yoga-sync-*.mjs > checksums.txt
+          cat checksums.txt
+
+      - name: Import GPG key
+        if: ${{ env.GPG_PRIVATE_KEY != '' }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+            echo "GPG key imported successfully"
+          else
+            echo "⚠️  GPG_PRIVATE_KEY secret not set, skipping signature"
+          fi
+
+      - name: Sign checksums
+        if: ${{ env.GPG_PRIVATE_KEY != '' }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            cd packages/yoga-layout-builder/build/prod/out/Final
+            if [ -n "$GPG_PASSPHRASE" ]; then
+              echo "$GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --detach-sign --armor checksums.txt
+            else
+              gpg --batch --yes --detach-sign --armor checksums.txt
+            fi
+            echo "✓ Created checksums.txt.asc"
+            ls -lh checksums.txt.asc
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STEPS_VERSION_OUTPUTS_VERSION: ${{ steps.version.outputs.version }}
+          YOGA_VERSION: ${{ steps.tool-versions.outputs.yoga-version }}
+        run: |
+          VERSION="${STEPS_VERSION_OUTPUTS_VERSION}"
+          RELEASE_NAME="yoga-layout"
+          TAG="${RELEASE_NAME}-${VERSION}"
+
+          # Check if release already exists
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, uploading assets..."
+            UPLOAD_ARGS="packages/yoga-layout-builder/build/prod/out/Final/yoga-${VERSION}.wasm \
+              packages/yoga-layout-builder/build/prod/out/Final/yoga-${VERSION}.mjs \
+              packages/yoga-layout-builder/build/prod/out/Final/yoga-sync-${VERSION}.cjs \
+              packages/yoga-layout-builder/build/prod/out/Final/yoga-sync-${VERSION}.mjs \
+              packages/yoga-layout-builder/build/prod/out/Final/checksums.txt"
+
+            # Add signature if it exists
+            if [ -f packages/yoga-layout-builder/build/prod/out/Final/checksums.txt.asc ]; then
+              UPLOAD_ARGS="$UPLOAD_ARGS packages/yoga-layout-builder/build/prod/out/Final/checksums.txt.asc"
+            fi
+
+            gh release upload "$TAG" $UPLOAD_ARGS --clobber
+          else
+            echo "Creating new release $TAG..."
+            # Extract date-hash from tag for title
+            TITLE_SUFFIX="${TAG#yoga-layout-}"
+            gh release create "$TAG" \
+              --title "yoga-layout ${TITLE_SUFFIX}" \
+              --notes "Yoga Layout v${YOGA_VERSION} compiled to WebAssembly.
+
+          ## Files
+          - \`yoga-${VERSION}.wasm\` - WASM binary
+          - \`yoga-${VERSION}.mjs\` - ES module loader
+          - \`yoga-sync-${VERSION}.cjs\` - Synchronous CommonJS wrapper
+          - \`yoga-sync-${VERSION}.mjs\` - Synchronous ES module wrapper
+          - \`checksums.txt\` - SHA256 checksums
+
+          ## Usage
+          Import the module in your project:
+          \`\`\`javascript
+          import yoga from './yoga-${VERSION}.mjs';
+          \`\`\`" \
+              packages/yoga-layout-builder/build/prod/out/Final/yoga-${VERSION}.wasm \
+              packages/yoga-layout-builder/build/prod/out/Final/yoga-${VERSION}.mjs \
+              packages/yoga-layout-builder/build/prod/out/Final/yoga-sync-${VERSION}.cjs \
+              packages/yoga-layout-builder/build/prod/out/Final/yoga-sync-${VERSION}.mjs \
+              packages/yoga-layout-builder/build/prod/out/Final/checksums.txt \
+              $([ -f packages/yoga-layout-builder/build/prod/out/Final/checksums.txt.asc ] && echo "packages/yoga-layout-builder/build/prod/out/Final/checksums.txt.asc" || echo "")
+          fi

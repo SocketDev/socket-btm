@@ -1,0 +1,83 @@
+{
+  "$schema": "../../../build-infra/lib/external-tools-schema.json",
+  "description": "External tools required for the binary-released checkpoint phase (Node.js compilation)",
+  "tools": {
+    "python3": {
+      "description": "Python 3 interpreter (required for Node.js build system)",
+      "packages": {
+        "darwin": {
+          "brew": "python3"
+        },
+        "linux": {
+          "apt": "python3",
+          "yum": "python3",
+          "dnf": "python3",
+          "apk": "python3"
+        },
+        "win32": {
+          "choco": "python",
+          "scoop": "python"
+        }
+      },
+      "versions": {
+        "brew": "3.13.1",
+        "apt": "3.10.12",
+        "choco": "3.13.1"
+      }
+    },
+    "gcc-13": {
+      "description": "GCC 13 C compiler (required for Node.js v24+ on Ubuntu 22.04)",
+      "packages": {
+        "linux": {
+          "apt": "gcc-13"
+        }
+      },
+      "versions": {
+        "apt": "13.1.0"
+      },
+      "notes": "Node.js v24+ requires GCC 12+ for ada URL parser C++20 constexpr support. Ubuntu 22.04 ships with GCC 11."
+    },
+    "g++-13": {
+      "description": "GCC 13 C++ compiler (required for Node.js v24+ on Ubuntu 22.04)",
+      "packages": {
+        "linux": {
+          "apt": "g++-13"
+        }
+      },
+      "versions": {
+        "apt": "13.1.0"
+      },
+      "notes": "Node.js v24+ requires GCC 12+ for ada URL parser C++20 constexpr support. Ubuntu 22.04 ships with GCC 11."
+    },
+    "make": {
+      "description": "GNU Make build tool (required for Node.js build)",
+      "packages": {
+        "darwin": {
+          "brew": "make"
+        },
+        "linux": {
+          "apt": "make",
+          "yum": "make",
+          "dnf": "make",
+          "apk": "make"
+        },
+        "win32": {
+          "choco": "make",
+          "scoop": "make"
+        }
+      },
+      "versions": {}
+    },
+    "xcode": {
+      "description": "Apple Xcode development environment with Command Line Tools (macOS only)",
+      "packages": {
+        "darwin": {}
+      },
+      "versions": {
+        "macos-14": "16.1",
+        "macos-15-large": "16.4"
+      },
+      "notes": "Xcode must be installed manually. Version requirements: macOS 14 requires Xcode 16.1+, macOS 15 requires Xcode 16.4+"
+    }
+  }
+}

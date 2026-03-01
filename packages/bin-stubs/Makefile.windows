@@ -1,0 +1,68 @@
+# bin-stubs Makefile for Windows.
+# Stub binaries for compressed Node.js executables.
+#
+# PREREQUISITES:
+#   - MinGW-w64 toolchain (provides gcc/g++ and windres)
+#   - Install via: choco install mingw OR scoop install mingw
+#   - GitHub Actions Windows runners have MinGW pre-installed
+#
+# The windres tool is required to compile stub.rc into the binary,
+# creating the .rsrc section needed for LIEF PE resource injection.
+
+# Include common definitions.
+include ../build-infra/make/common.mk
+include ../build-infra/make/platform-windows.mk
+
+# curl support for HTTPS update checking.
+include make/curl.mk
+
+# LZFSE compression library (required for compression_common.c).
+include ../bin-infra/make/lzfse.mk
+
+TARGET_CLI = smol_stub.exe
+SOURCE_CLI = src/socketsecurity/bin-stubs/pe_stub.c \
+             ../bin-infra/src/socketsecurity/bin-infra/smol_segment_reader.c \
+             ../bin-infra/src/socketsecurity/bin-infra/compression_common.c \
+             ../build-infra/src/socketsecurity/build-infra/file_utils.c \
+             ../build-infra/src/socketsecurity/build-infra/path_utils.c
+
+# Windows resource file for .rsrc section (required for binject SEA injection).
+RESOURCE_RC = src/socketsecurity/bin-stubs/stub.rc
+RESOURCE_OBJ = $(OUT_DIR)/stub.res.o
+
+SRC_DIR = src
+
+# Windows resource compiler (windres from MinGW toolchain).
+WINDRES ?= windres
+
+# -DCURL_STATICLIB tells curl headers we're linking statically (not DLL)
+CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 -Isrc $(COMMON_INCLUDES) $(CURL_CFLAGS) $(LZFSE_CFLAGS) -DCURL_STATICLIB -DVERSION=\"$(VERSION)\"
+LDFLAGS = $(LDFLAGS_BASE) $(CURL_LDFLAGS) $(LZFSE_LDFLAGS)
+
+# Check that required build tools are available.
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }
+	@command -v $(WINDRES) >/dev/null 2>&1 || { echo "ERROR: $(WINDRES) not found. Install MinGW toolchain."; exit 1; }
+	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
+
+# Build stub binary with resources.
+all: check-tools $(LZFSE_LIB) $(OUT_DIR)/$(TARGET_CLI)
+
+# Compile Windows resource file to object file.
+$(RESOURCE_OBJ): $(RESOURCE_RC) | $(OUT_DIR)
+	$(WINDRES) -i $(RESOURCE_RC) -o $@
+	@echo "Compiled resource: $@"
+
+# Link stub binary with resource object.
+$(OUT_DIR)/$(TARGET_CLI): $(SOURCE_CLI) $(RESOURCE_OBJ) $(LZFSE_LIB) | $(OUT_DIR)
+	$(CC) $(CFLAGS) -o $@ $(SOURCE_CLI) $(RESOURCE_OBJ) $(LDFLAGS)
+	@echo "Built: $(OUT_DIR)/$(TARGET_CLI)"
+
+$(OUT_DIR):
+	mkdir -p $@
+
+# Clean build artifacts.
+clean:
+	rm -rf $(OUT_DIR)
+
+.PHONY: all clean check-tools

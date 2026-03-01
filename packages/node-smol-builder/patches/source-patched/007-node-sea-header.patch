@@ -1,0 +1,50 @@
+Socket Security: Add smol configuration structs to node_sea.h
+
+This patch adds SmolUpdateConfig and SmolVfsConfig struct definitions to the
+SEA header, enabling smol configuration support. The structs are always defined,
+but the SeaConfig members are conditional on LIEF for embedded binject support.
+
+Files modified:
+- src/node_sea.h: Add SmolUpdateConfig and SmolVfsConfig structs
+
+--- a/src/node_sea.h
++++ b/src/node_sea.h
+@@ -37,6 +37,25 @@
+   kCli = 2,
+ };
+
++struct SmolUpdateConfig {
++  std::string binname;
++  std::string command;
++  std::string url;
++  std::string tag;
++  std::string skip_env;
++  std::string fake_argv_env;
++  bool prompt = false;
++  char prompt_default = 'n';
++  int64_t interval = 86400000;
++  int64_t notify_interval = 86400000;
++};
++
++struct SmolVfsConfig {
++  std::string mode;
++  std::string source;
++  std::string prefix;
++};
++
+ struct SeaConfig {
+   std::string main_path;
+   std::string output_path;
+@@ -45,6 +64,12 @@
+   SeaExecArgvExtension exec_argv_extension = SeaExecArgvExtension::kEnv;
+   std::unordered_map<std::string, std::string> assets;
+   std::vector<std::string> exec_argv;
++#ifdef HAVE_LIEF
++  // Socket Security: smol extensions
++  std::optional<std::string> smol_stub_path;
++  std::optional<SmolVfsConfig> smol_vfs;
++  std::optional<SmolUpdateConfig> smol_update;
++#endif
+ };
+
+ struct SeaResource {

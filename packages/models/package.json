@@ -1,0 +1,62 @@
+{
+  "name": "models",
+  "version": "0.0.0",
+  "description": "Models for Socket CLI (MiniLM-L6, CodeT5)",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./build/dev/out/Final/minilm-l6/model.onnx": "./build/dev/out/Final/minilm-l6/model.onnx",
+    "./build/dev/out/Final/minilm-l6/tokenizer.json": "./build/dev/out/Final/minilm-l6/tokenizer.json",
+    "./build/dev/out/Final/codet5/model.onnx": "./build/dev/out/Final/codet5/model.onnx",
+    "./build/dev/out/Final/codet5/tokenizer.json": "./build/dev/out/Final/codet5/tokenizer.json",
+    "./build/prod/out/Final/minilm-l6/model.onnx": "./build/prod/out/Final/minilm-l6/model.onnx",
+    "./build/prod/out/Final/minilm-l6/tokenizer.json": "./build/prod/out/Final/minilm-l6/tokenizer.json",
+    "./build/prod/out/Final/codet5/model.onnx": "./build/prod/out/Final/codet5/model.onnx",
+    "./build/prod/out/Final/codet5/tokenizer.json": "./build/prod/out/Final/codet5/tokenizer.json"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:minilm": "node scripts/build.mjs --minilm",
+    "build:codet5": "node scripts/build.mjs --codet5",
+    "build:force": "node scripts/build.mjs --force",
+    "clean": "node scripts/clean.mjs",
+    "coverage": "vitest run --coverage",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@socketsecurity/lib": "catalog:",
+    "build-infra": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "catalog:",
+    "vitest": "catalog:"
+  },
+  "moduleSources": {
+    "minilm-l6": {
+      "primary": "sentence-transformers/all-MiniLM-L6-v2",
+      "revision": "7dbbc90392e2f80f3d3c277d6e90027e55de9125",
+      "fallbacks": [
+        "microsoft/all-MiniLM-L6-v2",
+        "optimum/all-MiniLM-L6-v2"
+      ],
+      "files": [
+        "model.onnx",
+        "tokenizer.json"
+      ],
+      "task": "feature-extraction"
+    },
+    "codet5": {
+      "primary": "Salesforce/codet5-base",
+      "revision": "main",
+      "fallbacks": [
+        "Salesforce/codet5-small"
+      ],
+      "files": [
+        "model.onnx",
+        "tokenizer.json"
+      ],
+      "task": "feature-extraction"
+    }
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "$schema": "../build-infra/lib/external-tools-schema.json",
+  "description": "External tools required for building bin-infra (LIEF library)",
+  "tools": {
+    "cmake": {
+      "description": "CMake build system generator",
+      "packages": {
+        "darwin": {
+          "brew": "cmake"
+        },
+        "linux": {
+          "apt": "cmake",
+          "dnf": "cmake"
+        },
+        "win32": {
+          "manual": "Pre-installed on GitHub Actions windows-2022 runners"
+        }
+      },
+      "versions": {
+        "darwin": "3.28+",
+        "linux": "3.28+",
+        "win32": "Pre-installed"
+      },
+      "notes": [
+        "Required for building LIEF from source",
+        "On GitHub Actions: Pre-installed on all runners",
+        "Local development: Install via brew (macOS) or package manager (Linux)"
+      ]
+    },
+    "ninja": {
+      "description": "Ninja build system",
+      "packages": {
+        "darwin": {
+          "brew": "ninja"
+        },
+        "linux": {
+          "apt": "ninja-build",
+          "dnf": "ninja-build"
+        },
+        "win32": {
+          "manual": "Pre-installed on GitHub Actions windows-2022 runners"
+        }
+      },
+      "versions": {
+        "darwin": "1.11+",
+        "linux": "1.11+",
+        "win32": "Pre-installed"
+      },
+      "notes": [
+        "Used by CMake as the build backend for LIEF",
+        "Provides faster parallel builds compared to Make"
+      ]
+    },
+    "python3": {
+      "description": "Python 3 interpreter",
+      "packages": {
+        "darwin": {
+          "brew": "python@3.11"
+        },
+        "linux": {
+          "apt": "python3",
+          "dnf": "python3.11"
+        },
+        "win32": {
+          "manual": "Pre-installed on GitHub Actions windows-2022 runners"
+        }
+      },
+      "versions": {
+        "darwin": "3.11+",
+        "linux": "3.11+",
+        "win32": "Pre-installed"
+      },
+      "notes": ["Required by LIEF's CMake build scripts"]
+    },
+    "lief": {
+      "description": "LIEF library for binary manipulation",
+      "packages": {
+        "darwin": {
+          "manual": "From submodule"
+        },
+        "linux": {
+          "manual": "From submodule"
+        },
+        "win32": {
+          "manual": "From submodule"
+        }
+      },
+      "versions": {
+        "darwin": "v0.17.0",
+        "linux": "v0.17.0",
+        "win32": "v0.17.0"
+      },
+      "notes": [
+        "LIEF tracked via git submodule at upstream/lief",
+        "Version pinned in .gitmodules",
+        "Built from source or downloaded as prebuilt binary from socket-btm releases"
+      ]
+    },
+    "lzfse": {
+      "description": "LZFSE compression library",
+      "packages": {
+        "darwin": {
+          "manual": "Built-in via Apple Compression framework"
+        },
+        "linux": {
+          "manual": "From submodule"
+        },
+        "win32": {
+          "manual": "From submodule"
+        }
+      },
+      "versions": {
+        "darwin": "System",
+        "linux": "From submodule",
+        "win32": "From submodule"
+      },
+      "notes": [
+        "LZFSE tracked via git submodule at upstream/lzfse",
+        "On macOS: Uses native Apple Compression framework",
+        "On Linux/Windows: Built automatically from submodule"
+      ]
+    }
+  }
+}

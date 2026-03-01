@@ -1,0 +1,89 @@
+# Build Node.js smol in container to offload compute from GitHub Actions.
+# This Dockerfile supports building for linux/amd64 and linux/arm64.
+# glibc variant using AlmaLinux 8 (glibc 2.28) for maximum compatibility.
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+FROM almalinux:8 AS build
+
+# Cache buster for forcing rebuilds when dependencies change
+ARG CACHE_BUSTER=default
+
+# Install build dependencies.
+# AlmaLinux 8 has glibc 2.28, which is the minimum required by Node.js.
+# We use GCC Toolset 13 for C++20 support while maintaining glibc 2.28 compatibility.
+# Enable PowerTools for ninja-build, EPEL for ccache.
+RUN echo "Cache buster: ${CACHE_BUSTER}" && \
+    dnf -y update && \
+    dnf -y install epel-release dnf-plugins-core && \
+    dnf config-manager --set-enabled powertools && \
+    dnf -y install \
+        git \
+        curl \
+        ccache \
+        ninja-build \
+        ca-certificates \
+        xz-devel \
+        openssl-devel \
+        jq \
+        python3.11 \
+        python3.11-pip \
+        which \
+        procps-ng \
+        patch \
+        && \
+    # Enable GCC Toolset 13 (provides GCC 13 with C++20 support).
+    dnf -y install gcc-toolset-13 gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ gcc-toolset-13-libstdc++-devel && \
+    # Install Node.js from NodeSource.
+    curl -fsSL https://rpm.nodesource.com/setup_lts.x | bash - && \
+    dnf -y install nodejs && \
+    npm install -g pnpm@10.26.1 && \
+    # Set Python 3.11 as default python3.
+    alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
+    dnf clean all
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy repository files.
+COPY . .
+
+# Install workspace dependencies.
+ENV CI=true
+RUN pnpm install --frozen-lockfile
+
+# Build Node.js smol.
+ARG BUILD_MODE=prod
+ARG TARGETARCH
+ARG MATRIX_PLATFORM=linux
+ARG MATRIX_ARCH=x64
+# Cache version - managed centrally in .github/cache-versions.json
+ARG CACHE_VERSION=unset
+ENV BUILD_MODE=$BUILD_MODE
+ENV MATRIX_PLATFORM=$MATRIX_PLATFORM
+ENV MATRIX_ARCH=$MATRIX_ARCH
+
+# Source GCC Toolset 13 environment before building.
+# For amd64/x64 builds, set CFLAGS/CXXFLAGS to target baseline x86-64 without AVX/AVX2
+# to ensure binary portability across different CPU generations (e.g., GitHub Actions runners).
+RUN echo "Cache version: ${CACHE_VERSION}" && \
+    source /opt/rh/gcc-toolset-13/enable && \
+    if [ "$MATRIX_ARCH" = "x64" ]; then \
+        export CFLAGS="-march=x86-64 -mtune=generic" && \
+        export CXXFLAGS="-march=x86-64 -mtune=generic"; \
+    fi && \
+    if [ "$BUILD_MODE" = "prod" ]; then \
+        pnpm --filter node-smol-builder build --prod --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}"; \
+    else \
+        pnpm --filter node-smol-builder build --dev --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}"; \
+    fi
+
+# Export stage: Copy build artifacts and checkpoints (not entire filesystem).
+# We export the entire build/ directory to preserve both:
+# - Build artifacts at build/${BUILD_MODE}/out/Final/
+# - Checkpoints at build/${BUILD_MODE}/checkpoints/ and build/shared/checkpoints/
+# Checkpoints enable GitHub Actions caching to skip expensive build steps on repeated runs.
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=build /workspace/packages/node-smol-builder/build /

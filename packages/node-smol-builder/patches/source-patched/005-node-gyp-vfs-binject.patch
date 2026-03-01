@@ -1,0 +1,185 @@
+Socket Security: Add VFS, binject sources, and fast-webstreams deps to node.gyp
+
+This patch integrates Socket Security's VFS and binject framework source files
+into the Node.js build system, plus fast-webstreams deps for js2c embedding.
+
+Source files are split into two categories:
+
+1. Core sources (always compiled, no LIEF dependency):
+   - VFS runtime binding: node_vfs.cc
+   - Runtime file I/O: file_io_common.c, compression_common.c, binary_format.c, smol_segment_reader.c
+   - Runtime cache utilities: file_utils.c, process_exec.c (needed by dlx_cache_common.h for mkdir_recursive and spawn_command)
+   - Path utilities: path_utils.c (cross-platform path resolution for binject and SMOL detection)
+
+2. LIEF-dependent sources (only compiled with node_use_lief=="true"):
+   - SEA config parsing: smol_config_parser.cc (depends on patch 008 SeaConfig modifications)
+   - binject utilities: smol_config.c, vfs_config.c, vfs_utils.c
+   - build-infra: tar_create.c, gzip_compress.c
+   - bin-infra: smol_segment.c
+   - binject core: binject.c, stub_repack.c, elf_pe_cross_platform.c, remove_signature_lib.c
+   - binject native implementations: elf_inject.c, pe_inject.c, macho_inject_lief_wrapper.c
+   - binject LIEF C++ implementations: elf_inject_lief.cpp, macho_inject_lief.cpp, pe_inject_lief.cpp, smol_extract_lief.cpp
+   - bin-infra LIEF utilities: smol_detect_lief.cpp (stub detection for all formats), stub_smol_repack_lief.cpp
+
+Compression Library Dependencies:
+- macOS: libcompression (native Apple Compression framework) for gzip_compress.c and compression_common.c
+- Linux/Windows: LZFSE (deps/lzfse/lzfse.gyp:liblzfse) for compression_common.c
+- Linux/Windows: libdeflate (deps/libdeflate/libdeflate.gyp:libdeflate) for gzip_compress.c
+- CRITICAL: libcompression must be added to ALL targets that link libnode.a on macOS.
+  libnode.a contains gzip_compress.o and compression_common.o, so all executables linking libnode.a
+  need the library at link time to resolve compression symbols.
+
+Targets modified:
+- Main node target: Added core sources (unconditional) + LIEF sources (node_use_lief condition) + libcompression
+- cctest target: Added libcompression for libnode.a symbols
+- embedtest target: Added libcompression for libnode.a symbols
+- node_mksnapshot target: Added libcompression for libnode.a symbols
+
+Files modified:
+- node.gyp: Add binject and VFS source files, include directories, libcompression, and fast-webstreams deps
+--- a/node.gyp
++++ b/node.gyp
+@@ -65,6 +65,20 @@
+       'deps/acorn/acorn/dist/acorn.js',
+       'deps/acorn/acorn-walk/dist/walk.js',
+       'deps/minimatch/index.js',
++      'deps/fast-webstreams/byob-reader.js',
++      'deps/fast-webstreams/controller.js',
++      'deps/fast-webstreams/edge.js',
++      'deps/fast-webstreams/index.js',
++      'deps/fast-webstreams/materialize.js',
++      'deps/fast-webstreams/natives.js',
++      'deps/fast-webstreams/patch.js',
++      'deps/fast-webstreams/pipe-to.js',
++      'deps/fast-webstreams/readable.js',
++      'deps/fast-webstreams/reader.js',
++      'deps/fast-webstreams/transform.js',
++      'deps/fast-webstreams/utils.js',
++      'deps/fast-webstreams/writable.js',
++      'deps/fast-webstreams/writer.js',
+       '<@(node_builtin_shareable_builtins)',
+     ],
+     'node_sources': [
+@@ -692,6 +706,11 @@
+             'Dbghelp.lib',
+             'winmm.lib',
+             'Ws2_32.lib',
++          ],
++        }],
++        ['OS=="mac"', {
++          'libraries': [
++            '-lcompression',
+           ],
+         }],
+         ['node_with_ltcg=="true"', {
+@@ -1000,9 +1019,86 @@
+             'deps/ncrypto/ncrypto.gyp:ncrypto',
+           ],
+         }],
++        ['1==1', {
++          'sources': [
++            # Socket Security: Runtime VFS binding.
++            'src/socketsecurity/vfs/node_vfs.cc',
++            # Socket Security: Runtime file I/O and segment reading.
++            'src/socketsecurity/build-infra/file_io_common.c',
++            'src/socketsecurity/bin-infra/compression_common.c',
++            'src/socketsecurity/bin-infra/binary_format.c',
++            'src/socketsecurity/bin-infra/smol_segment_reader.c',
++            # Socket Security: Runtime cache and path utilities.
++            'src/socketsecurity/build-infra/file_utils.c',
++            'src/socketsecurity/build-infra/process_exec.c',
++            'src/socketsecurity/build-infra/path_utils.c',
++          ],
++          'conditions': [
++            ['OS!="mac"', {
++              'dependencies': [
++                'deps/lzfse/lzfse.gyp:liblzfse',
++                'deps/libdeflate/libdeflate.gyp:libdeflate',
++              ],
++            }],
++          ],
++          'include_dirs': [
++            'src',
++          ],
++          'direct_dependent_settings': {
++            'include_dirs': [
++              'src',
++            ],
++          },
++        }],
+         [ 'node_use_lief=="true"', {
+           'defines': [ 'HAVE_LIEF=1' ],
+           'dependencies': [ 'deps/LIEF/lief.gyp:liblief' ],
++          'sources': [
++            # Socket Security: SEA config parsing (depends on patch 008).
++            'src/socketsecurity/sea-smol/smol_config_parser.cc',
++            # Socket Security: binject utilities.
++            'src/socketsecurity/binject/smol_config.c',
++            'src/socketsecurity/binject/vfs_config.c',
++            'src/socketsecurity/binject/vfs_utils.c',
++            # Socket Security: build-infra compression and archive creation.
++            'src/socketsecurity/build-infra/tar_create.c',
++            'src/socketsecurity/build-infra/gzip_compress.c',
++            # Socket Security: bin-infra segment management.
++            'src/socketsecurity/bin-infra/smol_segment.c',
++            # Socket Security: binject core.
++            'src/socketsecurity/binject/binject.c',
++            'src/socketsecurity/binject/stub_repack.c',
++            'src/socketsecurity/binject/elf_pe_cross_platform.c',
++            'src/socketsecurity/binject/remove_signature_lib.c',
++            # Socket Security: binject native implementations.
++            'src/socketsecurity/binject/elf_inject.c',
++            'src/socketsecurity/binject/pe_inject.c',
++            'src/socketsecurity/binject/macho_inject_lief_wrapper.c',
++            # Socket Security: binject LIEF C++ implementations.
++            'src/socketsecurity/binject/elf_inject_lief.cpp',
++            'src/socketsecurity/binject/macho_inject_lief.cpp',
++            'src/socketsecurity/binject/pe_inject_lief.cpp',
++            'src/socketsecurity/binject/smol_extract_lief.cpp',
++            # Socket Security: bin-infra LIEF utilities.
++            'src/socketsecurity/bin-infra/smol_detect_lief.cpp',
++            'src/socketsecurity/bin-infra/stub_smol_repack_lief.cpp',
++          ],
++          'conditions': [
++            ['OS!="mac"', {
++              'dependencies': [
++                'deps/lzfse/lzfse.gyp:liblzfse',
++                'deps/libdeflate/libdeflate.gyp:libdeflate',
++              ],
++            }],
++          ],
++          'include_dirs': [
++            'src',
++          ],
++          'direct_dependent_settings': {
++            'include_dirs': [
++              'src',
++            ],
++          },
+         }],
+         [ 'node_use_sqlite=="true"', {
+           'sources': [
+@@ -1350,6 +1446,11 @@
+             'Dbghelp.lib',
+             'winmm.lib',
+             'Ws2_32.lib',
++          ],
++        }],
++        ['OS=="mac"', {
++          'libraries': [
++            '-lcompression',
+           ],
+         }],
+         # Avoid excessive LTO
+@@ -1416,6 +1517,11 @@
+             'Ws2_32.lib',
+           ],
+         }],
++        ['OS=="mac"', {
++          'libraries': [
++            '-lcompression',
++          ],
++        }],
+         # Avoid excessive LTO
+         ['enable_lto=="true"', {
+           'ldflags': [ '-fno-lto' ],

@@ -1,0 +1,15 @@
+# @node-versions: v25.5.0
+# @description: Load locale polyfills for small-icu builds
+#
+--- a/lib/internal/bootstrap/node.js
++++ b/lib/internal/bootstrap/node.js
+@@ -71,6 +71,9 @@
+ const {
+   validateInteger,
+ } = require('internal/validators');
++
++// Socket Security: Load locale polyfills for small-icu builds.
++require('internal/socketsecurity/polyfills/locale-compare');
+ const {
+   constants: {
+     kExitCode,

@@ -1,0 +1,11 @@
+#!/bin/sh
+# Run pre-push security validation.
+
+# Check if .git-hooks/pre-push exists and is executable
+if [ -x .git-hooks/pre-push ]; then
+  .git-hooks/pre-push "$@"
+else
+  echo "Error: .git-hooks/pre-push not found or not executable" >&2
+  echo "Run: chmod +x .git-hooks/pre-push" >&2
+  exit 1
+fi

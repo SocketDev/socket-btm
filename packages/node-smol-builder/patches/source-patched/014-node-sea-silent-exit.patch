@@ -1,0 +1,34 @@
+Socket Security: Silent exit for --build-sea without LIEF
+
+When LIEF is not compiled and --build-sea flag is passed:
+1. Clear the flag instead of adding a validation error
+2. Log debug message only when NODE_DEBUG_NATIVE=smol_sea is set
+3. Let SEA app run normally to handle flag validation
+
+This allows SEA applications to control their own command-line validation
+instead of Node.js exiting with confusing error messages before the app runs.
+
+Files modified:
+- src/node_options.cc: Clear build_sea flag when LIEF disabled
+
+
+--- a/src/node_options.cc
++++ b/src/node_options.cc
+@@ -106,8 +106,15 @@
+ #if defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
+     errors->push_back("Single executable application is disabled.\n");
+ #elif !defined(HAVE_LIEF)
+-    errors->push_back(
+-        "Node.js must be built with LIEF to build support --build-sea.\n");
++    // Socket Security: Silent exit - let SEA app handle validation
++    // Only log when debug is enabled: NODE_DEBUG_NATIVE=smol_sea
++    per_process::Debug(DebugCategory::SMOL_SEA,
++        "Note: --build-sea flag encountered but LIEF support not compiled.\n"
++        "      Clearing flag to allow SEA app to run and handle validation.\n"
++        "      Config path: %s\n",
++        build_sea.c_str());
++    // Clear flag to prevent early exit in node.cc
++    build_sea.clear();
+ #endif  // !defined(HAVE_LIEF)
+   }
+ 

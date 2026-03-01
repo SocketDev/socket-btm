@@ -1,0 +1,16 @@
+# @node-versions: v25.5.0
+# @description: Patch global WebStreams with fast alternatives (10x faster)
+#
+# Loads Vercel's fast-webstreams polyfill that backs WHATWG streams with
+# Node.js streams internally for ~10x faster throughput.
+# See: https://vercel.com/blog/we-ralph-wiggumed-webstreams-to-make-them-10x-faster
+#
+--- a/lib/internal/bootstrap/web/exposed-wildcard.js
++++ b/lib/internal/bootstrap/web/exposed-wildcard.js
+@@ -102,3 +102,6 @@ exposeLazyInterfaces(
+   [
+     'CompressionStream', 'DecompressionStream',
+   ]);
++
++// Socket Security: Patch global WebStreams with fast alternatives.
++require('internal/socketsecurity/polyfills/fast-webstreams');

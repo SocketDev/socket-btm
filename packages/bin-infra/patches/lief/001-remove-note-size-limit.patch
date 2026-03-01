@@ -1,0 +1,35 @@
+# @lief-commit: aa2b617
+# @description: Remove 1MB note description size limit to support large SEA blobs
+#
+# LIEF 0.14.0+ introduced a 1MB limit on ELF note descriptions as a security
+# measure (CVE-related). This limit prevents binject from handling Node.js SEA
+# blobs which are typically 7-10MB. postject uses LIEF 0.12.1 which predates
+# this limit.
+#
+# This patch removes the limit entirely. For security, we validate note sizes
+# at a higher level in binject when appropriate.
+
+diff --git a/src/ELF/Note.cpp b/src/ELF/Note.cpp
+index 8632093..45e299f 100644
+--- a/src/ELF/Note.cpp
++++ b/src/ELF/Note.cpp
+@@ -389,7 +389,8 @@ std::unique_ptr<Note>
+ Note::create(BinaryStream& stream, std::string section_name,
+              Header::FILE_TYPE ftype, ARCH arch, Header::CLASS cls)
+ {
+-  static constexpr uint32_t MAX_NOTE_DESCRIPTION = 1_MB;
++  // Socket: Remove 1MB limit to support large SEA blobs (8MB+)
++  // Original: static constexpr uint32_t MAX_NOTE_DESCRIPTION = 1_MB;
+   const size_t pos = stream.pos();
+   auto res_namesz = stream.read<uint32_t>();
+   if (!res_namesz) {
+@@ -404,7 +405,8 @@ Note::create(BinaryStream& stream, std::string section_name,
+     return nullptr;
+   }
+
+-  uint32_t descsz = std::min(*res_descz, MAX_NOTE_DESCRIPTION);
++  // Socket: Use actual description size without 1MB cap
++  uint32_t descsz = *res_descz;
+   LIEF_DEBUG("Description size: 0x{:x}", descsz);
+
+   auto res_type = stream.read<uint32_t>();

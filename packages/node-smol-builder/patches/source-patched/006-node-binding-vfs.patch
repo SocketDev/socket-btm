@@ -1,0 +1,20 @@
+Socket Security: Replace wasi binding with smol_vfs
+
+This patch replaces the wasi binding with Socket Security's smol_vfs binding,
+which provides VFS support for single executable applications.
+
+Files modified:
+- src/node_binding.cc: Replace wasi with smol_vfs
+
+--- a/src/node_binding.cc
++++ b/src/node_binding.cc
+@@ -92,7 +92,8 @@
+   V(util)                                                                      \
+   V(uv)                                                                        \
+   V(v8)                                                                        \
+-  V(wasi)                                                                      \
++  /* V(wasi) */                                                                \
++  V(smol_vfs)                                                                  \
+   V(wasm_web_api)                                                              \
+   V(watchdog)                                                                  \
+   V(worker)                                                                    \

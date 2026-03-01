@@ -1,0 +1,48 @@
+# @node-versions: v25.5.0
+# @description: Integrate VFS with require.resolve()
+#
+--- a/lib/internal/main/embedding.js
++++ b/lib/internal/main/embedding.js
+@@ -17,6 +17,7 @@
+ const { emitWarningSync } = require('internal/process/warning');
+ const { BuiltinModule: { normalizeRequirableId } } = require('internal/bootstrap/realm');
+ const { Module } = require('internal/modules/cjs/loader');
++const smolBootstrap = require('internal/socketsecurity/smol/bootstrap');
+ const { compileFunctionForCJSLoader } = internalBinding('contextify');
+ const { maybeCacheSourceMap } = require('internal/source_map/source_map_cache');
+ 
+@@ -30,7 +31,8 @@
+ prepareMainThreadExecution(false, true);
+ 
+ const isLoadingSea = isSea();
+-const isBuiltinWarningNeeded = isLoadingSea && isExperimentalSeaWarningNeeded();
++const hasVFS = smolBootstrap.hasVFS();
++const isBuiltinWarningNeeded = hasVFS ? false : isLoadingSea && isExperimentalSeaWarningNeeded();
+ if (isExperimentalSeaWarningNeeded()) {
+   emitExperimentalWarning('Single executable application');
+ }
+@@ -110,9 +112,23 @@
+         'discussions in https://github.com/nodejs/single-executable');
+       warnedAboutBuiltins = true;
+     }
+-    throw new ERR_UNKNOWN_BUILTIN_MODULE(id);
++    // throw new ERR_UNKNOWN_BUILTIN_MODULE(id);
++    return require(id);
+   }
+   return require(normalizedId);
+ }
+ 
++// Socket Security: Setup process.smol and argv handling.
++smolBootstrap.setupProcessForSmol();
++
++// Enhance embedderRequire when using any VFS flag.
++// Only applies to --vfs-compat, --vfs-on-disk, and --vfs-in-memory modes.
++const hasVFSCompat = smolBootstrap.hasVFSCompat();
++if (hasVFSCompat) {
++  embedderRequire = smolBootstrap.enhanceRequire(embedderRequire);
++  if (hasVFS) {
++    embedderRequire = smolBootstrap.createVFSRequire();
++  }
++}
++
+ return [process, embedderRequire, embedderRunCjs];

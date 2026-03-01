@@ -1,0 +1,42 @@
+Socket Security: Call ParseSmolConfig() for smol configuration parsing
+
+This patch modifies node_sea.cc to conditionally include the smol_config_parser.h
+header and call ParseSmolConfig() to parse Socket Security's smol configuration
+when LIEF is enabled.
+
+The smol configuration parsing is wrapped in #ifdef HAVE_LIEF guards since
+ParseSmolConfig() is only compiled when LIEF is available (patch 005).
+
+Files modified:
+- src/node_sea.cc: Conditionally include header and call ParseSmolConfig()
+
+--- a/src/node_sea.cc
++++ b/src/node_sea.cc
+@@ -8,6 +8,9 @@
+ #include "node_external_reference.h"
+ #include "node_internals.h"
+ #include "node_options.h"
++#ifdef HAVE_LIEF
++#include "socketsecurity/sea-smol/smol_config_parser.h"
++#endif
+ #include "node_snapshot_builder.h"
+ #include "node_union_bytes.h"
+ #include "node_v8_platform-inl.h"
+@@ -502,6 +506,17 @@
+                 config_path);
+         return std::nullopt;
+       }
++#ifdef HAVE_LIEF
++    } else if (key == "smol") {
++      simdjson::ondemand::object smol_object;
++      if (field.value().get_object().get(smol_object)) {
++        FPrintF(stderr, "\"smol\" field of %s is not an object\n", config_path);
++        return std::nullopt;
++      }
++      if (!ParseSmolConfig(smol_object, config_path, result)) {
++        return std::nullopt;
++      }
++#endif
+     }
+   }
+

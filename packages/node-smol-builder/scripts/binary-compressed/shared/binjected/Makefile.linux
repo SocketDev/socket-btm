@@ -1,0 +1,18 @@
+# Makefile for Linux compression tools.
+# References pre-built binaries from package directories.
+
+# Built binaries from packages.
+COMPRESS_SOURCE = $(BINPRESS_DIR)/out/binpress
+DECOMPRESS_SOURCE = $(BINFLATE_DIR)/out/binflate
+
+# Final targets.
+COMPRESS = $(OUT_COMPRESS)/binpress
+DECOMPRESS = $(OUT_DECOMPRESS)/binflate
+
+# Common rules for press/deflate compression tools.
+include ../../../../make/pack-rules.mk
+
+clean:
+	rm -rf out/
+	$(MAKE) -C $(BINPRESS_DIR) clean
+	$(MAKE) -C $(BINFLATE_DIR) clean

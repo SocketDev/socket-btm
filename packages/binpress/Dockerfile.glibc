@@ -1,0 +1,83 @@
+# Build binpress in container to offload compute from GitHub Actions.
+# This Dockerfile supports building for linux/amd64 and linux/arm64.
+# glibc variant using AlmaLinux 8 (glibc 2.28) for maximum compatibility.
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+FROM almalinux:8 AS build
+
+# Cache buster for forcing rebuilds when dependencies change
+ARG CACHE_BUSTER=default
+
+# Install build dependencies.
+# AlmaLinux 8 has glibc 2.28, which provides maximum compatibility with older Linux distributions.
+# Enable PowerTools for glibc-static needed for fully static binaries.
+RUN echo "Cache buster: ${CACHE_BUSTER}" && \
+    dnf -y update && \
+    dnf -y install dnf-plugins-core && \
+    dnf config-manager --set-enabled powertools && \
+    dnf -y install \
+        gcc-c++ \
+        make \
+        git \
+        curl \
+        ca-certificates \
+        pkgconfig \
+        glibc-static \
+        libstdc++-static \
+        openssl-devel \
+        patch \
+        && \
+    # Install Node.js from NodeSource.
+    curl -fsSL https://rpm.nodesource.com/setup_lts.x | bash - && \
+    dnf -y install nodejs && \
+    npm install -g pnpm@10.26.1 && \
+    dnf clean all
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy repository files.
+COPY . .
+
+ARG TARGETARCH
+
+# Install workspace dependencies.
+ENV CI=true
+RUN pnpm install --frozen-lockfile
+
+# Build binpress.
+ARG BUILD_MODE=prod
+ARG GH_TOKEN
+ARG CACHE_VERSION=unset
+# LIEF cache version - invalidates Docker cache when LIEF is updated
+ARG LIEF_CACHE_VERSION=unset
+# LZFSE cache version - invalidates Docker cache when lzfse submodule is updated
+ARG LZFSE_CACHE_VERSION=unset
+# Stubs cache version - invalidates Docker cache when stubs are updated
+ARG STUBS_CACHE_VERSION=unset
+ENV BUILD_MODE=$BUILD_MODE
+# Set both GH_TOKEN and GITHUB_TOKEN for maximum compatibility
+ENV GH_TOKEN=$GH_TOKEN
+ENV GITHUB_TOKEN=$GH_TOKEN
+
+# For amd64 builds, add -march=x86-64 -mtune=generic to ensure binary portability
+# across different CPU generations (e.g., GitHub Actions runners without AVX/AVX2).
+RUN echo "Cache: ${CACHE_VERSION}, LIEF: ${LIEF_CACHE_VERSION}, lzfse: ${LZFSE_CACHE_VERSION}, stubs: ${STUBS_CACHE_VERSION}" && \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        export CFLAGS="$CFLAGS -march=x86-64 -mtune=generic" && \
+        export CXXFLAGS="-march=x86-64 -mtune=generic"; \
+    fi && \
+    cd packages/binpress && pnpm run build -- --force
+
+# Export stage: Copy build artifacts and checkpoints (not entire filesystem).
+# We export the entire build/ directory to preserve both:
+# - Build artifacts at build/${BUILD_MODE}/out/Final/
+# - Checkpoints at build/${BUILD_MODE}/checkpoints/ and build/shared/checkpoints/
+# Checkpoints enable GitHub Actions caching to skip expensive build steps on repeated runs.
+# Also export centralized LIEF library required for tests.
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=build /workspace/packages/binpress/build /binpress-build
+COPY --from=build /workspace/packages/build-infra/build/downloaded /build-infra-downloaded

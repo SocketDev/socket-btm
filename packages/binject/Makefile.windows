@@ -1,0 +1,111 @@
+# binject Makefile for Windows.
+# PE binary injection tool.
+
+# Include common definitions.
+include ../build-infra/make/common.mk
+include ../build-infra/make/platform-windows.mk
+include ../bin-infra/make/lief.mk
+include ../bin-infra/make/lzfse.mk
+include make/libdeflate.mk
+
+TARGET = binject.exe
+SRC_DIR = src/socketsecurity/binject
+TEST_DIR = test
+
+# Source files.
+SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/binject.c $(SRC_DIR)/macho_inject_lief_wrapper.c $(SRC_DIR)/elf_pe_cross_platform.c $(SRC_DIR)/elf_inject.c $(SRC_DIR)/pe_inject.c $(SRC_DIR)/stub_repack.c $(SRC_DIR)/json_parser.c $(SRC_DIR)/smol_config.c $(SRC_DIR)/vfs_config.c $(SRC_DIR)/vfs_utils.c $(SRC_DIR)/remove_signature_lib.c upstream/cJSON/cJSON.c $(BUILD_INFRA_SRC)/tar_create.c $(BUILD_INFRA_SRC)/gzip_compress.c $(BIN_INFRA_SRC)/binary_format.c $(BIN_INFRA_SRC)/compression_common.c $(BUILD_INFRA_SRC)/file_io_common.c $(BUILD_INFRA_SRC)/file_utils.c $(BUILD_INFRA_SRC)/process_exec.c $(BIN_INFRA_SRC)/smol_segment.c $(BIN_INFRA_SRC)/smol_segment_reader.c $(BUILD_INFRA_SRC)/path_utils.c
+OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/macho_inject_lief_wrapper.o $(BUILD_DIR)/elf_pe_cross_platform.o $(BUILD_DIR)/elf_inject.o $(BUILD_DIR)/pe_inject.o $(BUILD_DIR)/stub_repack.o $(BUILD_DIR)/json_parser.o $(BUILD_DIR)/smol_config.o $(BUILD_DIR)/vfs_config.o $(BUILD_DIR)/vfs_utils.o $(BUILD_DIR)/remove_signature_lib.o $(BUILD_DIR)/cJSON.o $(BUILD_DIR)/tar_create.o $(BUILD_DIR)/gzip_compress.o $(BUILD_DIR)/binary_format.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o $(BUILD_DIR)/file_utils.o $(BUILD_DIR)/process_exec.o $(BUILD_DIR)/smol_segment.o $(BUILD_DIR)/smol_segment_reader.o $(BUILD_DIR)/path_utils.o
+
+# LIEF C++ sources (required).
+SRCS += $(SRC_DIR)/macho_inject_lief.cpp $(SRC_DIR)/elf_inject_lief.cpp $(SRC_DIR)/pe_inject_lief.cpp $(SRC_DIR)/smol_extract_lief.cpp $(BIN_INFRA_SRC)/smol_detect_lief.cpp $(BIN_INFRA_SRC)/stub_smol_repack_lief.cpp
+OBJS += $(BUILD_DIR)/macho_inject_lief.o $(BUILD_DIR)/elf_inject_lief.o $(BUILD_DIR)/pe_inject_lief.o $(BUILD_DIR)/smol_extract_lief.o $(BUILD_DIR)/smol_detect_lief.o $(BUILD_DIR)/stub_smol_repack_lief.o
+
+# Test files.
+TEST_SRCS = $(TEST_DIR)/binject_test.c $(SRC_DIR)/binject.c $(SRC_DIR)/macho_inject_lief_wrapper.c $(SRC_DIR)/elf_pe_cross_platform.c $(SRC_DIR)/elf_inject.c $(SRC_DIR)/pe_inject.c $(SRC_DIR)/stub_repack.c $(SRC_DIR)/json_parser.c $(SRC_DIR)/smol_config.c $(SRC_DIR)/vfs_config.c $(SRC_DIR)/vfs_utils.c $(SRC_DIR)/remove_signature_lib.c upstream/cJSON/cJSON.c $(BUILD_INFRA_SRC)/tar_create.c $(BUILD_INFRA_SRC)/gzip_compress.c $(BIN_INFRA_SRC)/binary_format.c $(BIN_INFRA_SRC)/compression_common.c $(BUILD_INFRA_SRC)/file_io_common.c $(BUILD_INFRA_SRC)/file_utils.c $(BIN_INFRA_SRC)/smol_segment.c $(BIN_INFRA_SRC)/smol_segment_reader.c $(BUILD_INFRA_SRC)/path_utils.c
+TEST_OBJS = $(BUILD_DIR)/binject_test.o $(BUILD_DIR)/binject.o $(BUILD_DIR)/macho_inject_lief_wrapper.o $(BUILD_DIR)/elf_pe_cross_platform.o $(BUILD_DIR)/elf_inject.o $(BUILD_DIR)/pe_inject.o $(BUILD_DIR)/stub_repack.o $(BUILD_DIR)/json_parser.o $(BUILD_DIR)/smol_config.o $(BUILD_DIR)/vfs_config.o $(BUILD_DIR)/vfs_utils.o $(BUILD_DIR)/remove_signature_lib.o $(BUILD_DIR)/cJSON.o $(BUILD_DIR)/tar_create.o $(BUILD_DIR)/gzip_compress.o $(BUILD_DIR)/binary_format.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o $(BUILD_DIR)/file_utils.o $(BUILD_DIR)/smol_segment.o $(BUILD_DIR)/smol_segment_reader.o $(BUILD_DIR)/path_utils.o
+
+# LIEF C++ sources (required for tests).
+TEST_SRCS += $(SRC_DIR)/macho_inject_lief.cpp $(SRC_DIR)/elf_inject_lief.cpp $(SRC_DIR)/pe_inject_lief.cpp $(SRC_DIR)/smol_extract_lief.cpp $(BIN_INFRA_SRC)/smol_detect_lief.cpp $(BIN_INFRA_SRC)/stub_smol_repack_lief.cpp
+TEST_OBJS += $(BUILD_DIR)/macho_inject_lief.o $(BUILD_DIR)/elf_inject_lief.o $(BUILD_DIR)/pe_inject_lief.o $(BUILD_DIR)/smol_extract_lief.o $(BUILD_DIR)/smol_detect_lief.o $(BUILD_DIR)/stub_smol_repack_lief.o
+
+TEST_TARGET = $(BUILD_DIR)/binject_test.exe
+
+# Force gcc/g++ on Windows for ABI consistency with LIEF.
+# For ARM64 cross-compilation, use llvm-mingw's aarch64 compiler.
+ifdef TARGET_ARCH
+    ifeq ($(TARGET_ARCH),arm64)
+        CC := aarch64-w64-mingw32-gcc
+        CXX := aarch64-w64-mingw32-g++
+    else ifeq ($(TARGET_ARCH),aarch64)
+        CC := aarch64-w64-mingw32-gcc
+        CXX := aarch64-w64-mingw32-g++
+    else
+        CC ?= gcc
+        CXX ?= g++
+    endif
+else
+    CC ?= gcc
+    CXX ?= g++
+endif
+
+CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 -Isrc $(COMMON_INCLUDES) -Iupstream/cJSON $(LZFSE_CFLAGS) $(LIBDEFLATE_CFLAGS) -DVERSION=\"$(VERSION)\" -D_CRT_NONSTDC_NO_DEPRECATE -D_CRT_SECURE_NO_WARNINGS $(LIEF_CFLAGS) $(LIEF_DEFINES)
+CXXFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c++17 -Isrc $(COMMON_INCLUDES) $(LIEF_CFLAGS) $(LZFSE_CFLAGS) $(LIBDEFLATE_CFLAGS) $(LIEF_DEFINES) -D_CRT_NONSTDC_NO_DEPRECATE -D_CRT_SECURE_NO_WARNINGS
+LDFLAGS = -static-libgcc -static-libstdc++ $(LDFLAGS_BASE) $(LZFSE_LDFLAGS) $(LIBDEFLATE_LDFLAGS) $(LIEF_LDFLAGS) $(LDFLAGS_POST)
+
+.PHONY: all clean install uninstall test check-tools
+
+# Check that required build tools are available.
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }
+	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
+	$(CHECK_TOOLS_EXTRA)
+ifneq (,$(wildcard $(LIEF_LIB)))
+	@command -v $(CXX) >/dev/null 2>&1 || { echo "ERROR: $(CXX) not found for LIEF support."; exit 1; }
+endif
+
+# Default target.
+all: check-tools $(BIN_DIR)/$(TARGET)
+
+# Build binary (use CXX if LIEF is enabled, otherwise CC).
+$(BIN_DIR)/$(TARGET): $(OBJS) $(IMPORT_LIB) $(LIBDEFLATE_LIB) | $(BIN_DIR)
+ifneq (,$(wildcard $(LIEF_LIB)))
+	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LDFLAGS)
+else
+	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS)
+endif
+	@echo "Built: $(BIN_DIR)/$(TARGET)"
+
+# Include common compilation rules.
+include ../bin-infra/make/bin-infra-rules.mk
+
+# Upstream library compilation rules.
+# cJSON: Static linking, hide symbols to avoid export/import issues.
+$(BUILD_DIR)/cJSON.o: upstream/cJSON/cJSON.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -DCJSON_HIDE_SYMBOLS -c $< -o $@
+
+clean:
+	$(call CLEAN_IMPL,binject)
+
+install: $(BIN_DIR)/$(TARGET)
+	@echo "Binary built successfully: $(BIN_DIR)/$(TARGET)"
+
+uninstall:
+	@echo "Uninstall not implemented for Windows"
+
+# Build test binary.
+$(TEST_TARGET): $(TEST_OBJS) $(IMPORT_LIB) $(LIBDEFLATE_LIB)
+ifneq (,$(wildcard $(LIEF_LIB)))
+	$(CXX) $(CXXFLAGS) -o $@ $(TEST_OBJS) $(LDFLAGS)
+else
+	$(CC) $(CFLAGS) -o $@ $(TEST_OBJS) $(LDFLAGS)
+endif
+	@echo "Built: $(TEST_TARGET)"
+
+# Compile test source.
+$(BUILD_DIR)/binject_test.o: $(TEST_DIR)/binject_test.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Run tests.
+test: $(TEST_TARGET)
+	@echo "\nRunning binject tests..."
+	@$(TEST_TARGET)

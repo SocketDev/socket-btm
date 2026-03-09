@@ -1,0 +1,21 @@
+{
+  "name": "curl-builder",
+  "version": "0.0.0",
+  "description": "Builds libcurl with mbedTLS for HTTPS support in stub binaries",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./lib/ensure-curl": "./lib/ensure-curl.mjs"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "clean": "node scripts/clean.mjs",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@socketsecurity/lib": "catalog:",
+    "build-infra": "workspace:*",
+    "vitest": "catalog:"
+  }
+}

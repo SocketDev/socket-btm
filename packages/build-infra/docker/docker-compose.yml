@@ -1,0 +1,93 @@
+# Docker Compose for Socket BTM builder images
+#
+# This file defines the builder images for all Linux platform-arch combinations.
+# Use with `docker compose build` to build images, or the setup script for automated setup.
+#
+# Supported targets:
+#   - linux-x64-glibc   (builder-glibc:x64)
+#   - linux-arm64-glibc (builder-glibc:arm64)
+#   - linux-x64-musl    (builder-musl:x64)
+#   - linux-arm64-musl  (builder-musl:arm64)
+#
+# Usage:
+#   # Build all images
+#   docker compose build
+#
+#   # Build specific image
+#   docker compose build builder-glibc-x64
+#
+#   # Run a build in container
+#   docker compose run --rm builder-glibc-x64 pnpm --filter binpress run build
+
+# Shared build arguments (DRY)
+x-build-args: &build-args
+  CACHE_VERSION: v1
+  XZ_VERSION: "5.8.2"
+  XZ_SHA256: "ce09c50a5962786b83e5da389c90dd2c15ecd0980a258dd01f70f9e7ce58a8f1"
+
+# glibc-specific args (GCC Toolset for C++20 support)
+x-glibc-args: &glibc-args
+  <<: *build-args
+  GCC_TOOLSET: "13"
+  GCC_TOOLSET_PATH: "/opt/rh/gcc-toolset-13/root/usr/bin"
+
+# musl-specific args (Alpine has modern GCC by default)
+x-musl-args: &musl-args
+  <<: *build-args
+
+services:
+  # glibc x64 (linux-x64-glibc)
+  builder-glibc-x64:
+    build:
+      context: ../../..
+      dockerfile: packages/build-infra/docker/builder-glibc.Dockerfile
+      platforms:
+        - linux/amd64
+      args:
+        <<: *glibc-args
+    image: socket-btm/builder-glibc:x64
+    volumes:
+      - ../../../:/workspace
+    working_dir: /workspace
+
+  # glibc arm64 (linux-arm64-glibc)
+  builder-glibc-arm64:
+    build:
+      context: ../../..
+      dockerfile: packages/build-infra/docker/builder-glibc.Dockerfile
+      platforms:
+        - linux/arm64
+      args:
+        <<: *glibc-args
+    image: socket-btm/builder-glibc:arm64
+    volumes:
+      - ../../../:/workspace
+    working_dir: /workspace
+
+  # musl x64 (linux-x64-musl)
+  builder-musl-x64:
+    build:
+      context: ../../..
+      dockerfile: packages/build-infra/docker/builder-musl.Dockerfile
+      platforms:
+        - linux/amd64
+      args:
+        <<: *musl-args
+    image: socket-btm/builder-musl:x64
+    volumes:
+      - ../../../:/workspace
+    working_dir: /workspace
+
+  # musl arm64 (linux-arm64-musl)
+  builder-musl-arm64:
+    build:
+      context: ../../..
+      dockerfile: packages/build-infra/docker/builder-musl.Dockerfile
+      platforms:
+        - linux/arm64
+      args:
+        <<: *musl-args
+    image: socket-btm/builder-musl:arm64
+    volumes:
+      - ../../../:/workspace
+    working_dir: /workspace

@@ -1,0 +1,435 @@
+name: 🔄 Weekly Dependency Update
+
+on:
+  schedule:
+    # Run weekly on Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Check for updates without creating PR'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  # Opt-in to Node.js 24 for GitHub Actions to avoid deprecation warnings.
+  # See: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  check-updates:
+    name: Check for dependency updates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      has-updates: ${{ steps.check.outputs.has-updates }}
+      update-summary: ${{ steps.check.outputs.update-summary }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: recursive
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: .node-version
+          cache: ''
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check for upstream updates
+        id: check
+        run: |
+          echo "Checking for upstream dependency updates..."
+
+          HAS_UPDATES=false
+          SUMMARY=""
+
+          # Check each submodule for available updates
+          check_submodule() {
+            local path="$1"
+            local tag_pattern="$2"
+            local name="$3"
+
+            if [ ! -d "$path" ]; then
+              echo "Skipping $name: directory not found"
+              return
+            fi
+
+            cd "$path"
+            git fetch origin --tags 2>/dev/null || true
+
+            CURRENT=$(git describe --tags 2>/dev/null || echo "unknown")
+            LATEST=$(git tag -l "$tag_pattern" --sort=-version:refname | grep -v -E '(rc|alpha|beta|preview)' | head -1)
+
+            if [ -n "$LATEST" ] && [ "$CURRENT" != "$LATEST" ]; then
+              echo "$name: $CURRENT -> $LATEST"
+              SUMMARY="${SUMMARY}${name}: ${CURRENT} → ${LATEST}\n"
+              HAS_UPDATES=true
+            else
+              echo "$name: up to date ($CURRENT)"
+            fi
+
+            cd - > /dev/null
+          }
+
+          # Check Node.js
+          check_submodule "packages/node-smol-builder/upstream/node" "v*.*.*" "Node.js"
+
+          # Check LIEF
+          check_submodule "packages/lief-builder/upstream/lief" "*.*.*" "LIEF"
+
+          # Check curl
+          check_submodule "packages/curl-builder/upstream/curl" "curl-*" "curl"
+
+          # Check mbedtls
+          check_submodule "packages/curl-builder/upstream/mbedtls" "v*.*.*" "mbedTLS"
+
+          # Check cJSON
+          check_submodule "packages/binject/upstream/cJSON" "v*.*.*" "cJSON"
+
+          # Check libdeflate
+          check_submodule "packages/binject/upstream/libdeflate" "v*.*" "libdeflate"
+
+          # Check lzfse
+          check_submodule "packages/lief-builder/upstream/lzfse" "lzfse-*" "LZFSE"
+
+          # Check yoga
+          check_submodule "packages/yoga-layout-builder/upstream/yoga" "v*.*.*" "Yoga"
+
+          # Check onnxruntime
+          check_submodule "packages/onnxruntime-builder/upstream/onnxruntime" "v*.*.*" "ONNXRuntime"
+
+          # Check WPT streams (for fast-webstreams)
+          check_submodule "packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/streams" "epochs/*" "WPT-streams"
+
+          # Check for npm updates
+          echo ""
+          echo "Checking for npm package updates..."
+          NPM_UPDATES=$(pnpm outdated 2>/dev/null || true)
+          if [ -n "$NPM_UPDATES" ] && ! echo "$NPM_UPDATES" | grep -q "No outdated"; then
+            echo "npm packages have updates available"
+            HAS_UPDATES=true
+            SUMMARY="${SUMMARY}npm packages: updates available\n"
+          fi
+
+          echo "has-updates=$HAS_UPDATES" >> $GITHUB_OUTPUT
+          if [ -n "$SUMMARY" ]; then
+            # Base64 encode to preserve formatting
+            SUMMARY_B64=$(echo -e "$SUMMARY" | base64 | tr -d '\n')
+            echo "update-summary=$SUMMARY_B64" >> $GITHUB_OUTPUT
+          fi
+
+          if [ "$HAS_UPDATES" = "true" ]; then
+            echo ""
+            echo "✓ Updates available!"
+          else
+            echo ""
+            echo "✓ All dependencies are up to date"
+          fi
+
+      - name: Upload update check results
+        if: steps.check.outputs.has-updates == 'true'
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v6.0.0
+        with:
+          name: update-check-results
+          path: |
+            .gitmodules
+          retention-days: 7
+
+  apply-updates:
+    name: Apply updates with Claude Code
+    needs: check-updates
+    if: needs.check-updates.outputs.has-updates == 'true' && inputs.dry-run != true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: recursive
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: .node-version
+          cache: ''
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Create update branch
+        id: branch
+        run: |
+          BRANCH_NAME="weekly-update-$(date +%Y%m%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH_NAME"
+          echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+      - name: Run updating skill with Claude Code
+        id: claude
+        timeout-minutes: 90
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CI: 'true'
+          GITHUB_ACTIONS: 'true'
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "⚠️  ANTHROPIC_API_KEY not set - skipping automated update"
+            echo "Please add ANTHROPIC_API_KEY to repository secrets to enable automation"
+            echo "success=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Run Claude Code with the updating skill
+          # Using --print for non-interactive mode
+          # Using --dangerously-skip-permissions for CI environment
+          # CI=true is set to enable CI mode in skills (skip builds/tests)
+          claude --print --dangerously-skip-permissions \
+            --model sonnet \
+            "/updating - Run the updating skill to update all dependencies. Create atomic commits for each update. You are running in CI mode - skip builds and tests (CI will run them separately). Do not push or create a PR - just make the changes and commits locally." \
+            2>&1 | tee claude-output.log
+
+          if [ $? -eq 0 ]; then
+            echo "success=true" >> $GITHUB_OUTPUT
+            echo "✓ Claude Code successfully applied updates"
+          else
+            echo "success=false" >> $GITHUB_OUTPUT
+            echo "⚠️  Claude Code encountered errors"
+          fi
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if [ -n "$(git status --porcelain)" ] || [ "$(git rev-list --count HEAD ^origin/main)" -gt 0 ]; then
+            echo "has-changes=true" >> $GITHUB_OUTPUT
+            echo "✓ Changes detected"
+          else
+            echo "has-changes=false" >> $GITHUB_OUTPUT
+            echo "No changes to commit"
+          fi
+
+      - name: Push branch
+        if: steps.claude.outputs.success == 'true' && steps.changes.outputs.has-changes == 'true'
+        run: |
+          BRANCH_NAME="${{ steps.branch.outputs.branch }}"
+          git push origin "$BRANCH_NAME"
+
+      - name: Create Pull Request
+        if: steps.claude.outputs.success == 'true' && steps.changes.outputs.has-changes == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPDATE_SUMMARY_B64: ${{ needs.check-updates.outputs.update-summary }}
+        run: |
+          BRANCH_NAME="${{ steps.branch.outputs.branch }}"
+
+          # Decode update summary
+          SUMMARY=""
+          if [ -n "$UPDATE_SUMMARY_B64" ]; then
+            SUMMARY=$(echo "$UPDATE_SUMMARY_B64" | base64 -d)
+          fi
+
+          # Get commit info
+          COMMITS=$(git log --oneline origin/main..HEAD)
+          COMMIT_COUNT=$(git rev-list --count origin/main..HEAD)
+
+          # Build upstream updates table with links
+          build_update_row() {
+            local name="$1"
+            local old_ver="$2"
+            local new_ver="$3"
+
+            case "$name" in
+              "Node.js")
+                local ver_num="${new_ver#v}"
+                local major="${ver_num%%.*}"
+                echo "| [Node.js](https://github.com/nodejs/node) | \`$old_ver\` | \`$new_ver\` | [Changelog](https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V${major}.md) |"
+                ;;
+              "LIEF")
+                echo "| [LIEF](https://github.com/lief-project/LIEF) | \`$old_ver\` | \`$new_ver\` | [Release](https://github.com/lief-project/LIEF/releases/tag/$new_ver) |"
+                ;;
+              "curl")
+                echo "| [curl](https://github.com/curl/curl) | \`$old_ver\` | \`$new_ver\` | [Release](https://github.com/curl/curl/releases/tag/$new_ver) |"
+                ;;
+              "mbedTLS")
+                echo "| [mbedTLS](https://github.com/Mbed-TLS/mbedtls) | \`$old_ver\` | \`$new_ver\` | [Release](https://github.com/Mbed-TLS/mbedtls/releases/tag/$new_ver) |"
+                ;;
+              "cJSON")
+                echo "| [cJSON](https://github.com/DaveGamble/cJSON) | \`$old_ver\` | \`$new_ver\` | [Release](https://github.com/DaveGamble/cJSON/releases/tag/$new_ver) |"
+                ;;
+              "libdeflate")
+                echo "| [libdeflate](https://github.com/ebiggers/libdeflate) | \`$old_ver\` | \`$new_ver\` | [Release](https://github.com/ebiggers/libdeflate/releases/tag/$new_ver) |"
+                ;;
+              "LZFSE")
+                echo "| [LZFSE](https://github.com/lzfse/lzfse) | \`$old_ver\` | \`$new_ver\` | [Release](https://github.com/lzfse/lzfse/releases/tag/$new_ver) |"
+                ;;
+              "Yoga")
+                echo "| [Yoga](https://github.com/facebook/yoga) | \`$old_ver\` | \`$new_ver\` | [Release](https://github.com/facebook/yoga/releases/tag/$new_ver) |"
+                ;;
+              "ONNXRuntime")
+                echo "| [ONNX Runtime](https://github.com/microsoft/onnxruntime) | \`$old_ver\` | \`$new_ver\` | [Release](https://github.com/microsoft/onnxruntime/releases/tag/$new_ver) |"
+                ;;
+              *)
+                echo "| $name | \`$old_ver\` | \`$new_ver\` | - |"
+                ;;
+            esac
+          }
+
+          # Parse summary into table rows
+          UPSTREAM_ROWS=""
+          NPM_UPDATED=false
+          if [ -n "$SUMMARY" ]; then
+            while IFS= read -r line; do
+              if [[ "$line" =~ ^([^:]+):[[:space:]]*([^[:space:]]+)[[:space:]]*→[[:space:]]*(.+)$ ]]; then
+                name="${BASH_REMATCH[1]}"
+                old="${BASH_REMATCH[2]}"
+                new="${BASH_REMATCH[3]}"
+                UPSTREAM_ROWS="${UPSTREAM_ROWS}$(build_update_row "$name" "$old" "$new")"$'\n'
+              elif [[ "$line" == *"npm packages"* ]]; then
+                NPM_UPDATED=true
+              fi
+            done <<< "$SUMMARY"
+          fi
+
+          # Build the table header if we have rows
+          UPDATES_TABLE=""
+          if [ -n "$UPSTREAM_ROWS" ]; then
+            UPDATES_TABLE=$'| Dependency | Previous | Updated | Links |\n|------------|----------|---------|-------|\n'"${UPSTREAM_ROWS}"
+          fi
+
+          # Build npm section
+          NPM_SECTION=""
+          if [ "$NPM_UPDATED" = true ]; then
+            NPM_SECTION=$'\n### npm Packages\n\nnpm dependencies were updated via `pnpm run update`.\n\n<details>\n<summary>View lockfile changes</summary>\n\n```bash\ngit diff origin/main HEAD -- pnpm-lock.yaml\n```\n\n</details>\n'
+          fi
+
+          # Build PR body - avoid heredoc to prevent YAML parsing issues
+          PR_BODY="## Weekly Dependency Update"$'\n\n'
+          PR_BODY+="Automated weekly update of npm packages and upstream submodules."$'\n\n'
+          PR_BODY+="---"$'\n\n'
+          PR_BODY+="### Updates"$'\n\n'
+          PR_BODY+="${UPDATES_TABLE:-No upstream updates detected.}"$'\n'
+          PR_BODY+="${NPM_SECTION}"$'\n'
+          PR_BODY+="---"$'\n\n'
+          PR_BODY+="### Commits (${COMMIT_COUNT})"$'\n\n'
+          PR_BODY+="<details>"$'\n'
+          PR_BODY+="<summary>View commit history</summary>"$'\n\n'
+          PR_BODY+="\`\`\`"$'\n'
+          PR_BODY+="${COMMITS}"$'\n'
+          PR_BODY+="\`\`\`"$'\n\n'
+          PR_BODY+="</details>"$'\n\n'
+          PR_BODY+="---"$'\n\n'
+          PR_BODY+="### Review Checklist"$'\n\n'
+          PR_BODY+="**CI will verify:**"$'\n'
+          PR_BODY+="- [ ] All builds pass (macOS, Linux, Windows)"$'\n'
+          PR_BODY+="- [ ] Tests pass on all platforms"$'\n'
+          PR_BODY+="- [ ] Cache versions bumped appropriately"$'\n\n'
+          PR_BODY+="**Manual review:**"$'\n'
+          PR_BODY+="- [ ] No breaking changes in upstream updates"$'\n'
+          PR_BODY+="- [ ] Security advisories addressed (check release notes)"$'\n'
+          PR_BODY+="- [ ] Node.js patches still apply cleanly (if Node.js updated)"$'\n'
+          PR_BODY+="- [ ] LIEF API changes audited (if LIEF updated)"$'\n\n'
+          PR_BODY+="---"$'\n\n'
+          PR_BODY+="<details>"$'\n'
+          PR_BODY+="<summary>Testing locally</summary>"$'\n\n'
+          PR_BODY+="\`\`\`bash"$'\n'
+          PR_BODY+="# Checkout this PR"$'\n'
+          PR_BODY+="gh pr checkout ${BRANCH_NAME}"$'\n\n'
+          PR_BODY+="# Run full build"$'\n'
+          PR_BODY+="pnpm run build"$'\n\n'
+          PR_BODY+="# Run tests"$'\n'
+          PR_BODY+="pnpm test"$'\n\n'
+          PR_BODY+="# Test specific package"$'\n'
+          PR_BODY+="pnpm --filter node-smol-builder build"$'\n'
+          PR_BODY+="pnpm --filter node-smol-builder test"$'\n'
+          PR_BODY+="\`\`\`"$'\n\n'
+          PR_BODY+="</details>"$'\n\n'
+          PR_BODY+="<details>"$'\n'
+          PR_BODY+="<summary>Security resources</summary>"$'\n\n'
+          PR_BODY+="- [Node.js Security Advisories](https://github.com/nodejs/node/security/advisories)"$'\n'
+          PR_BODY+="- [curl Security](https://curl.se/docs/security.html)"$'\n'
+          PR_BODY+="- [mbedTLS Security](https://github.com/Mbed-TLS/mbedtls/security/advisories)"$'\n\n'
+          PR_BODY+="</details>"$'\n\n'
+          PR_BODY+="---"$'\n\n'
+          PR_BODY+="<sub>Generated by [weekly-update.yml](.github/workflows/weekly-update.yml)</sub>"
+
+          gh pr create \
+            --title "chore(deps): weekly dependency update ($(date +%Y-%m-%d))" \
+            --body "$PR_BODY" \
+            --draft \
+            --head "$BRANCH_NAME" \
+            --base main
+
+      - name: Add job summary
+        if: steps.claude.outputs.success == 'true' && steps.changes.outputs.has-changes == 'true'
+        env:
+          UPDATE_SUMMARY_B64: ${{ needs.check-updates.outputs.update-summary }}
+        run: |
+          SUMMARY=""
+          if [ -n "$UPDATE_SUMMARY_B64" ]; then
+            SUMMARY=$(echo "$UPDATE_SUMMARY_B64" | base64 -d)
+          fi
+          COMMIT_COUNT=$(git rev-list --count origin/main..HEAD)
+
+          echo "## Weekly Update Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ steps.branch.outputs.branch }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Commits:** ${COMMIT_COUNT}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Updates Applied" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Claude output
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v6.0.0
+        with:
+          name: claude-output-${{ github.run_id }}
+          path: claude-output.log
+          retention-days: 7
+
+  notify:
+    name: Notify results
+    needs: [check-updates, apply-updates]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Report status
+        run: |
+          if [ "${{ needs.check-updates.outputs.has-updates }}" = "true" ]; then
+            if [ "${{ inputs.dry-run }}" = "true" ]; then
+              echo "✓ Updates available (dry-run mode - no PR created)"
+            else
+              echo "✓ Weekly update workflow completed"
+              echo "Check the PRs tab for the automated update PR"
+            fi
+          else
+            echo "✓ All dependencies are up to date - no action needed!"
+          fi

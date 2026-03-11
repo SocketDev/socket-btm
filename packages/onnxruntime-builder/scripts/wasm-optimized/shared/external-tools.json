@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../../build-infra/lib/external-tools-schema.json",
+  "description": "External tools required for the wasm-optimized checkpoint phase",
+  "tools": {
+    "binaryen": {
+      "description": "Binaryen WebAssembly optimizer (wasm-opt)",
+      "packages": {
+        "darwin": {
+          "brew": "binaryen"
+        },
+        "linux": {
+          "apt": "binaryen",
+          "yum": "binaryen",
+          "dnf": "binaryen",
+          "apk": "binaryen"
+        },
+        "win32": {
+          "choco": "binaryen",
+          "scoop": "binaryen"
+        }
+      },
+      "versions": {
+        "brew": "120",
+        "apt": "105",
+        "choco": "120"
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+# @node-versions: v25.5.0
+# @description: Initialize VFS during Node.js startup
+#
+--- a/lib/internal/process/pre_execution.js.orig	2026-01-29 16:40:21
++++ b/lib/internal/process/pre_execution.js	2026-01-29 16:40:21
+@@ -110,6 +110,12 @@
+   // Patch the process object and get the resolved main entry point.
+   const mainEntry = patchProcessObject(expandArgv1);
+   setupTraceCategoryState();
++
++  // Socket Security: Initialize VFS if present.
++  // This must happen before user code runs to properly patch fs module.
++  const { setupVFS } = require('internal/socketsecurity/vfs/bootstrap');
++  setupVFS();
++
+   setupInspectorHooks();
+   setupNetworkInspection();
+   setupNavigator();

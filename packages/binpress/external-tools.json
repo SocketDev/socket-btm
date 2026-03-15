@@ -1,0 +1,47 @@
+{
+  "$schema": "../build-infra/lib/external-tools-schema.json",
+  "description": "External tools required for building and running binpress",
+  "tools": {
+    "msys2": {
+      "description": "MSYS2 provides Unix-like build environment for Windows",
+      "packages": {
+        "win32": {
+          "manual": "Pre-installed on GitHub Actions windows-2022 runners at C:/msys64"
+        }
+      },
+      "versions": {
+        "win32": "Pre-installed"
+      },
+      "notes": [
+        "Required for Windows builds to provide MinGW toolchain and Unix utilities",
+        "On GitHub Actions: Pre-installed at C:/msys64",
+        "Local development: Install from https://www.msys2.org/"
+      ]
+    },
+    "lzfse": {
+      "description": "LZFSE compression library (used for all platform compressions)",
+      "packages": {
+        "darwin": {
+          "manual": "Built-in via Apple Compression framework"
+        },
+        "linux": {
+          "manual": "Built automatically from lzfse submodule"
+        },
+        "win32": {
+          "manual": "Built automatically from lzfse submodule"
+        }
+      },
+      "versions": {
+        "darwin": "System",
+        "linux": "From submodule",
+        "win32": "From submodule"
+      },
+      "notes": [
+        "LZFSE is used for compression across all platforms (macOS, Linux, Windows)",
+        "On macOS: Uses native Apple Compression framework",
+        "On Linux/Windows: Builds automatically from lzfse git submodule",
+        "No manual installation required - handled by build system"
+      ]
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "name": "socket-btm-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Socket Build Tree Manager - Build infrastructure for Node.js binaries and ML models",
+  "license": "MIT",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:all": "pnpm --filter node-smol-builder build:all",
+    "build:local": "node scripts/rebuild-all-local.mjs",
+    "build:local:binsuite": "node scripts/rebuild-all-local.mjs --binsuite-only",
+    "build:local:lief": "node scripts/rebuild-all-local.mjs --lief-only",
+    "build:local:node": "node scripts/rebuild-all-local.mjs --node-only",
+    "check": "node scripts/check.mjs",
+    "clean": "pnpm -r clean",
+    "cover": "node packages/bin-infra/scripts/run-coverage.js all",
+    "docs:cli": "glow",
+    "docs:serve": "docsify serve packages --port 3000",
+    "docs:setup": "node scripts/setup-docs.mjs",
+    "fix": "node scripts/lint.mjs --fix",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt .",
+    "lint": "node scripts/lint.mjs",
+    "lint:fix": "node scripts/lint.mjs --fix",
+    "prepare": "husky",
+    "release": "pnpm --filter node-smol-builder release",
+    "release:publish": "pnpm --filter node-smol-builder release:publish",
+    "setup": "node scripts/setup.mjs",
+    "test": "node scripts/test.mjs",
+    "test:build-infra": "pnpm --filter build-infra test",
+    "test:node-smol": "pnpm --filter node-smol-builder test",
+    "update": "node scripts/update.mjs",
+    "validate:dockerfiles": "node scripts/validate-dockerfile-exports.mjs"
+  },
+  "devDependencies": {
+    "@socketsecurity/lib": "catalog:",
+    "docsify-cli": "4.4.4",
+    "husky": "9.1.7",
+    "oxfmt": "0.37.0",
+    "oxlint": "1.52.0",
+    "taze": "19.9.2",
+    "vitest": "catalog:",
+    "yoctocolors-cjs": "catalog:"
+  },
+  "engines": {
+    "node": ">=18",
+    "pnpm": ">=10.25.0"
+  },
+  "packageManager": "pnpm@10.32.1"
+}

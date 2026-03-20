@@ -1,0 +1,40 @@
+Socket Security: Add smol_postgres, smol_ilp, and smol_webstreams bindings
+
+This patch adds native binding registrations for:
+- smol_postgres: Conditionally compiled when node_use_postgres is true (for node:sql)
+- smol_ilp: Always compiled (for node:ilp time-series ingestion)
+- smol_webstreams: Always compiled (for fast-webstreams acceleration)
+
+Files modified:
+- src/node_binding.h: Add NODE_BUILTIN_POSTGRES_BINDINGS macro
+- src/node_binding.cc: Include postgres and ilp bindings in NODE_BUILTIN_BINDINGS
+
+--- a/src/node_binding.h
++++ b/src/node_binding.h
+@@ -44,6 +44,12 @@
+ #define NODE_BUILTIN_SQLITE_BINDINGS(V)
+ #endif
+
++#if HAVE_POSTGRES
++#define NODE_BUILTIN_POSTGRES_BINDINGS(V) V(smol_postgres)
++#else
++#define NODE_BUILTIN_POSTGRES_BINDINGS(V)
++#endif
++
+ #define NODE_BINDINGS_WITH_PER_ISOLATE_INIT(V)                                 \
+   V(async_wrap)                                                                \
+   V(blob)                                                                      \
+--- a/src/node_binding.cc
++++ b/src/node_binding.cc
+@@ -107,7 +107,10 @@
+   NODE_BUILTIN_PROFILER_BINDINGS(V)                                            \
+   NODE_BUILTIN_DEBUG_BINDINGS(V)                                               \
+   NODE_BUILTIN_QUIC_BINDINGS(V)                                                \
+-  NODE_BUILTIN_SQLITE_BINDINGS(V)
++  NODE_BUILTIN_SQLITE_BINDINGS(V)                                              \
++  NODE_BUILTIN_POSTGRES_BINDINGS(V)                                            \
++  V(smol_ilp)                                                                  \
++  V(smol_webstreams)
+
+ // This is used to load built-in bindings. Instead of using
+ // __attribute__((constructor)), we call the _register_<modname>

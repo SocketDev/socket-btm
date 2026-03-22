@@ -1,0 +1,171 @@
+name: Validate Checkpoint Cache
+description: Validates checkpoint cache integrity for build system packages
+
+inputs:
+  checkpoint-dirs:
+    description: 'Colon-separated list of directories containing checkpoint files'
+    required: true
+  checkpoints:
+    description: 'Space-separated list of checkpoint names to validate'
+    required: true
+  package-name:
+    description: 'Package name (for error messages)'
+    required: true
+
+outputs:
+  valid:
+    description: 'Whether checkpoint cache is valid (true/false)'
+    value: ${{ steps.validate.outputs.valid }}
+  message:
+    description: 'Validation result message'
+    value: ${{ steps.validate.outputs.message }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate checkpoint files
+      id: validate
+      shell: bash
+      env:
+        CHECKPOINT_DIRS: ${{ inputs.checkpoint-dirs }}
+        CHECKPOINTS: ${{ inputs.checkpoints }}
+        PACKAGE_NAME: ${{ inputs.package-name }}
+      run: |
+        echo "Validating checkpoint cache for ${PACKAGE_NAME}..."
+        echo "Checkpoint directories: ${CHECKPOINT_DIRS}"
+        echo "Expected checkpoints: ${CHECKPOINTS}"
+        echo ""
+
+        # Parse colon-separated directories (simple inline IFS restoration - no trap needed)
+        OLD_IFS="$IFS"
+        IFS=':'
+        read -ra DIRS <<< "$CHECKPOINT_DIRS"
+        IFS="$OLD_IFS"
+
+        # Check if at least one checkpoint directory exists
+        # (Some packages only have mode-specific checkpoints, not shared ones)
+        ANY_DIR_EXISTS=false
+        for DIR in "${DIRS[@]}"; do
+          if [ -d "$DIR" ]; then
+            ANY_DIR_EXISTS=true
+            break
+          fi
+        done
+
+        if [ "$ANY_DIR_EXISTS" = "false" ]; then
+          echo "[OK] No checkpoint directories exist (will build from scratch)"
+          echo "valid=false" >> "$GITHUB_OUTPUT"
+          echo "message=Checkpoint directories do not exist" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        # Walk checkpoint chain forward (newest to oldest) until we find a valid one
+        # Chain is specified in reverse order: finalized, then older checkpoints
+        # Stop as soon as we find the first valid checkpoint
+        FOUND_VALID=false
+        VALID_CHECKPOINT=""
+        CHECKPOINT_INDEX=0
+
+        for checkpoint in ${CHECKPOINTS}; do
+          echo "Checking checkpoint [$CHECKPOINT_INDEX]: ${checkpoint}"
+
+          # Search for checkpoint in all directories
+          FOUND=false
+          VALID=false
+
+          for DIR in "${DIRS[@]}"; do
+            JSON_FILE="${DIR}/${checkpoint}.json"
+            TARBALL_FILE="${DIR}/${checkpoint}.tar.gz"
+
+            # Check if both files exist in this directory
+            if [ -f "${JSON_FILE}" ] && [ -f "${TARBALL_FILE}" ]; then
+              FOUND=true
+              FOUND_DIR="${DIR}"
+
+              # Validate tarball integrity using tar -tzf (not just gzip -t)
+              # gzip -t only validates compression, tar -tzf validates tar structure too
+              if ! tar -tzf "${TARBALL_FILE}" > /dev/null 2>&1; then
+                echo "  [FAIL] Corrupted tarball: ${checkpoint}.tar.gz (in ${DIR})"
+                break
+              fi
+
+              # Validate JSON is parseable AND has required fields
+              if ! jq -e '.name and .created' "${JSON_FILE}" > /dev/null 2>&1; then
+                echo "  [FAIL] Malformed or incomplete JSON: ${checkpoint}.json (in ${DIR})"
+                break
+              fi
+
+              # CRITICAL: Validate checkpoint name in JSON matches filename.
+              # Prevents cache poisoning where attacker creates checkpoint for stage X
+              # but labels it as stage Y in metadata.
+              CHECKPOINT_NAME=$(jq -r '.name' "${JSON_FILE}")
+              if [ "${CHECKPOINT_NAME}" != "${checkpoint}" ]; then
+                echo "  [FAIL] Checkpoint name mismatch: JSON says '${CHECKPOINT_NAME}', filename is '${checkpoint}'"
+                break
+              fi
+
+              # Validate checkpoint name contains only safe characters.
+              # Prevents path traversal (../) and shell injection attacks.
+              if ! [[ "${CHECKPOINT_NAME}" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+                echo "  [FAIL] Checkpoint name contains unsafe characters: '${CHECKPOINT_NAME}'"
+                echo "  (Only alphanumeric, underscore, and hyphen allowed)"
+                break
+              fi
+
+              echo "  [OK] Valid checkpoint found in ${DIR}"
+              VALID=true
+              break
+            fi
+          done
+
+          if [ "$VALID" = "true" ]; then
+            FOUND_VALID=true
+            VALID_CHECKPOINT="${checkpoint}"
+            echo ""
+            echo "[OK] Found valid checkpoint: ${checkpoint} (index ${CHECKPOINT_INDEX})"
+
+            # If this is the first checkpoint (finalized), all checkpoints are valid
+            if [ ${CHECKPOINT_INDEX} -eq 0 ]; then
+              echo "[OK] Latest checkpoint is valid - cache is fully valid"
+              echo "valid=true" >> "$GITHUB_OUTPUT"
+              echo "message=All checkpoints valid" >> "$GITHUB_OUTPUT"
+            else
+              echo "⚠️  Older checkpoint found - will restore and resume build"
+              echo "valid=partial" >> "$GITHUB_OUTPUT"
+              echo "message=Partial checkpoint chain - will restore from ${checkpoint}" >> "$GITHUB_OUTPUT"
+            fi
+            exit 0
+          fi
+
+          if [ "$FOUND" = "true" ]; then
+            # Found but corrupted - clean up ONLY the corrupted checkpoint files, not entire directories
+            echo "  [FAIL] Checkpoint ${checkpoint} is corrupted"
+            echo ""
+            echo "Removing corrupted checkpoint files..."
+            CORRUPTED_JSON="${FOUND_DIR}/${checkpoint}.json"
+            CORRUPTED_TARBALL="${FOUND_DIR}/${checkpoint}.tar.gz"
+            if [ -f "${CORRUPTED_JSON}" ]; then
+              echo "  Removing: ${CORRUPTED_JSON}"
+              rm -f "${CORRUPTED_JSON}"
+            fi
+            if [ -f "${CORRUPTED_TARBALL}" ]; then
+              echo "  Removing: ${CORRUPTED_TARBALL}"
+              rm -f "${CORRUPTED_TARBALL}"
+            fi
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            echo "message=Checkpoint validation failed - corrupted checkpoint ${checkpoint} removed" >> "$GITHUB_OUTPUT"
+            # Exit 0 so workflow continues (corruption = cache miss, not failure)
+            # The caller handles valid=false by building from scratch
+            exit 0
+          fi
+
+          # Not found, try next checkpoint in chain
+          echo "  ⏭️  Not found, trying next checkpoint..."
+          CHECKPOINT_INDEX=$((CHECKPOINT_INDEX + 1))
+        done
+
+        # No valid checkpoints found in entire chain
+        echo ""
+        echo "× No valid checkpoints found in chain"
+        echo "valid=false" >> "$GITHUB_OUTPUT"
+        echo "message=No valid checkpoints found" >> "$GITHUB_OUTPUT"

@@ -1,0 +1,18 @@
+Socket Security: Register smol_vfs binding in realm
+
+This patch adds smol_vfs to the process binding allow list in the bootstrap realm,
+enabling VFS (Virtual File System) functionality for single executable applications.
+
+Files modified:
+- lib/internal/bootstrap/realm.js: Register smol_vfs binding
+
+--- a/lib/internal/bootstrap/realm.js
++++ b/lib/internal/bootstrap/realm.js
+@@ -101,6 +101,7 @@
+   'os',
+   'pipe_wrap',
+   'process_wrap',
++  'smol_vfs',
+   'spawn_sync',
+   'stream_wrap',
+   'tcp_wrap',

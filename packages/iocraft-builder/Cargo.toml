@@ -1,0 +1,83 @@
+[package]
+name = "iocraft-node"
+version = "0.1.0"
+edition = "2021"
+description = "Node.js bindings for iocraft TUI library"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# napi-rs for Node.js bindings
+napi = { version = "3", default-features = false, features = ["napi9", "tokio_rt", "serde-json"] }
+napi-derive = "3"
+
+# iocraft TUI framework
+iocraft = { path = "upstream/iocraft/packages/iocraft" }
+
+# Async runtime
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+
+# Serialization for component trees
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+thiserror = "2"
+
+# Perfect hash maps for zero-allocation parsing
+phf = { version = "0.11", features = ["macros"] }
+
+# Small vector optimization for children arrays
+smallvec = { version = "1", features = ["union", "const_generics"] }
+
+# Terminal handling
+crossterm = "0.28"
+
+# Fast synchronization primitives
+parking_lot = "0.12"
+
+# Custom allocator for improved malloc performance
+# mimalloc is faster than jemalloc on most platforms and easier to integrate
+mimalloc = "0.1"
+
+# Fast integer to string conversion (10x faster than format!)
+itoa = "1"
+
+[build-dependencies]
+napi-build = "2"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "parsing"
+harness = false
+
+[[bench]]
+name = "rendering"
+harness = false
+
+[profile.release]
+lto = "fat"              # Full LTO for maximum performance (enables cross-crate inlining)
+codegen-units = 1        # Single codegen unit for better optimization (enables more aggressive inlining)
+opt-level = 3            # Maximum optimization level
+panic = "abort"          # Smaller binary, slightly faster (no unwinding overhead)
+strip = true             # Strip symbols for smaller binary size
+overflow-checks = false  # Disable overflow checks in release (performance critical)
+
+# BARE-METAL OPTIMIZATIONS
+# These flags push the compiler to absolute maximum performance
+# Note: Some optimizations are CPU-specific and may not work on all platforms
+
+# Optimize dependencies even in dev builds for better interactive performance
+[profile.dev.package."*"]
+opt-level = 2
+
+# PERFORMANCE PROFILE: For maximum performance benchmarking
+[profile.bench]
+inherits = "release"
+lto = "fat"
+codegen-units = 1

@@ -1,0 +1,65 @@
+name: 'Validate Checkpoints'
+description: 'Validates checkpoint cache integrity by checking that all expected checkpoints exist'
+inputs:
+  checkpoint-dirs:
+    description: 'Colon-separated list of checkpoint directories to validate (e.g., "packages/binject/build/shared/checkpoints:packages/binject/build/prod/checkpoints")'
+    required: true
+  checkpoints:
+    description: 'Space-separated list of checkpoint names to validate (e.g., "finalized lief-built")'
+    required: true
+  package-name:
+    description: 'Package name for logging purposes'
+    required: true
+outputs:
+  valid:
+    description: 'Whether the checkpoint cache is valid (true/false)'
+    value: ${{ steps.validate.outputs.valid }}
+runs:
+  using: 'composite'
+  steps:
+    - name: Validate checkpoint integrity
+      id: validate
+      shell: bash
+      env:
+        CHECKPOINT_DIRS: ${{ inputs.checkpoint-dirs }}
+        CHECKPOINTS: ${{ inputs.checkpoints }}
+        PACKAGE_NAME: ${{ inputs.package-name }}
+      run: |
+
+        echo "Validating $PACKAGE_NAME checkpoint cache integrity..."
+        echo "Checkpoint directories: $CHECKPOINT_DIRS"
+        echo "Expected checkpoints: $CHECKPOINTS"
+
+        VALID=true
+
+        # Convert colon-separated dirs to array
+        IFS=':' read -ra DIRS <<< "$CHECKPOINT_DIRS"
+
+        # Check each checkpoint in each directory
+        for CHECKPOINT in $CHECKPOINTS; do
+          FOUND=false
+          for DIR in "${DIRS[@]}"; do
+            TARBALL="$DIR/${CHECKPOINT}.tar.gz"
+            METADATA="$DIR/${CHECKPOINT}.json"
+
+            # Check if checkpoint exists in this directory
+            if [ -f "$TARBALL" ] && [ -f "$METADATA" ]; then
+              echo "✅ Found checkpoint '$CHECKPOINT' in $DIR"
+              FOUND=true
+              break
+            fi
+          done
+
+          if [ "$FOUND" = false ]; then
+            echo "❌ Missing checkpoint: $CHECKPOINT"
+            VALID=false
+          fi
+        done
+
+        if [ "$VALID" = true ]; then
+          echo "✅ All checkpoints validated successfully"
+          echo "valid=true" >> $GITHUB_OUTPUT
+        else
+          echo "❌ Checkpoint validation failed - cache will be discarded"
+          echo "valid=false" >> $GITHUB_OUTPUT
+        fi

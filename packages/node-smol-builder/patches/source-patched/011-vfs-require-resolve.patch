@@ -1,0 +1,28 @@
+# @node-versions: v25.8.2
+# @description: Integrate VFS with require.resolve()
+#
+--- a/lib/internal/main/embedding.js
++++ b/lib/internal/main/embedding.js
+@@ -133,4 +133,22 @@
+ 
+ }
+ 
++// Socket Security: Setup process.smol and argv handling.
++// NOTE: smolBootstrap must be required AFTER prepareMainThreadExecution() because
++// safe-references.js captures process.argv at module load time, and process.argv
++// is only properly initialized after prepareMainThreadExecution() runs.
++const smolBootstrap = require('internal/socketsecurity/smol/bootstrap');
++smolBootstrap.setupProcessForSmol();
++
++// Enhance embedderRequire when using any VFS flag.
++// Only applies to --vfs-compat, --vfs-on-disk, and --vfs-in-memory modes.
++const hasVFS = smolBootstrap.hasVFS();
++const hasVFSCompat = smolBootstrap.hasVFSCompat();
++if (hasVFSCompat) {
++  embedderRequire = smolBootstrap.enhanceRequire(embedderRequire);
++  if (hasVFS) {
++    embedderRequire = smolBootstrap.createVFSRequire();
++  }
++}
++
+ return [process, embedderRequire, embedderRunEntryPoint];

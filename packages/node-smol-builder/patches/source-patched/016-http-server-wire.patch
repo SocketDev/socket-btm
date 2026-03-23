@@ -1,0 +1,30 @@
+# @node-versions: v25.8.2
+# @description: Wire Socket Security HTTP performance optimizations into HTTP server
+#
+# Loads HTTP performance optimizations that provide:
+# - Pre-formatted header caching (zero allocations for common headers)
+# - Socket cork/uncork for write batching (reduces syscalls)
+# - Fast path response writers for common patterns
+#
+# These optimizations are exported as utilities available to user code.
+#
+--- a/lib/_http_server.js
++++ b/lib/_http_server.js
+@@ -97,6 +97,9 @@ const {
+ } = require('internal/validators');
+ const Buffer = require('buffer').Buffer;
+ const { setInterval, clearInterval } = require('timers');
++
++// Socket Security: Load HTTP performance optimizations.
++const httpPerf = require('internal/socketsecurity/http');
+ let debug = require('internal/util/debuglog').debuglog('http', (fn) => {
+   debug = fn;
+ });
+@@ -1281,6 +1284,7 @@ function requestOnConnect(statusCode, statusMessage, upgrade, shouldKeepAlive) {
+ }
+
+ module.exports = {
++  httpPerf,
+   STATUS_CODES,
+   Server,
+   ServerResponse,

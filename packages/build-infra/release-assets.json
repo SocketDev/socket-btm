@@ -1,0 +1,93 @@
+{
+  "$schema": "Release assets configuration for Socket BTM builds",
+  "$comment": "SHA-256 checksums for GitHub release assets. Run 'pnpm --filter build-infra sync-checksums' or use /sync-checksums skill to update.",
+  "lief": {
+    "description": "LIEF binary manipulation library",
+    "githubRelease": "lief-20260315-9b1c032",
+    "checksums": {
+      "lief-darwin-arm64.tar.gz": "33d9386baa60f6c725e4176bd9eb9a970ad5668005cfc6d6620dec723f327354",
+      "lief-darwin-x64.tar.gz": "822afe45b2ce40125120dc4039406adeecd01883f909b47acd1ef67c030fb19a",
+      "lief-linux-arm64-musl.tar.gz": "0f379bdb5dfadc560ed29e81cc98d06b57fe17550a67bcac9c63adb23431d01e",
+      "lief-linux-arm64.tar.gz": "090489112b6a5033ca7811b02ec5aca85711acf0317f5dae0f4656d6f0cc43ce",
+      "lief-linux-x64-musl.tar.gz": "d6af2d70abc6612391269f1d6c7e7279cbc2c8d2125fa0680c59b2702b23fa15",
+      "lief-linux-x64.tar.gz": "2880d02af58f87086412aa055f516df4d12d06a8c0f0c24192ab3eb7444655f5",
+      "lief-win-arm64.tar.gz": "6d7640eb8dc2e4a12fa7edf7772b7e7b5cbb7f6eb599c9f1a7237a50bb6744ab",
+      "lief-win-x64.tar.gz": "24376328e2a1682cfaac5af8eec2a9925a200fa8dfc6179dccf464f8c833c53a"
+    }
+  },
+  "curl": {
+    "description": "curl with mbedTLS for HTTPS support",
+    "githubRelease": "curl-20260315-244f86e",
+    "checksums": {
+      "curl-darwin-arm64.tar.gz": "62e060586a5225a97cb429f0bef5c18a9a50612dc2389a687f47fa460ff62151",
+      "curl-darwin-x64.tar.gz": "35393ebf4e21c64eacfe01ab2492cbf68614f3db0f1402df6f053d2da301eea1",
+      "curl-linux-arm64-musl.tar.gz": "3b17bf2e43491ac566fa8a63ac54c29b846148b700bf7d17104d3e2c03a1f52f",
+      "curl-linux-arm64.tar.gz": "57bc9669141e2d925c6f234c1054584fec684f758a7d9b58eb7d90063e2f2bbd",
+      "curl-linux-x64-musl.tar.gz": "48f121273177a68c0f9176cbc0fcafc6679c0bbe3b7e17b04fabf8b8504438f5",
+      "curl-linux-x64.tar.gz": "116a6fec56a49e53f762e43437a9f09987920c7c66eb8d6acda4bb9854fa1ccc",
+      "curl-win-arm64.tar.gz": "7d7946541f830b01507f3a72f11ae21ab5ea22ae41013363f4f7583bce84c762",
+      "curl-win-x64.tar.gz": "0c82199d4943193546896851aec06bfad08051feb8f3480c95ee848cab3340fa"
+    }
+  },
+  "stubs": {
+    "description": "Self-extracting stub binaries",
+    "githubRelease": "stubs-20260315-244f86e",
+    "checksums": {
+      "smol-stub-darwin-arm64.tar.gz": "c92a8831d8fb61c9d3d16096ce7b4b0bf0d395c160fb8178d9fbba42b3f4e085",
+      "smol-stub-darwin-x64.tar.gz": "b88c344a3d56765704f135a74fda31afc22c83833685c2c8472c3a3326e49693",
+      "smol-stub-linux-arm64-musl.tar.gz": "b7fc016fa6a5c108170ced0c50043be07353ed42324e0098710ad5cc4041244e",
+      "smol-stub-linux-arm64.tar.gz": "09fdf37fc6413412bf547d739338acabb97c48d9bc179ff903689e7c4b14f73d",
+      "smol-stub-linux-x64-musl.tar.gz": "df3efa4306b474ed6480c27892cc0293ec6b15c8deca5f736b8cdeb2f78d1665",
+      "smol-stub-linux-x64.tar.gz": "ed1d2f28887b7e7c313cdc66b817dcc1ecb81ab08f914044fa0f3a2f2bad52f2",
+      "smol-stub-win-arm64.tar.gz": "de39c6da5e1f4ede21321e3e1ac3e2b3c73ee3d311773ca7f644f1c86f4c60cf",
+      "smol-stub-win-x64.tar.gz": "b87990c2c7fe7a73d94a5c3519f5ddb02a3255fa43644f55c0ccc1c4965f2e36"
+    }
+  },
+  "libpq": {
+    "description": "PostgreSQL client library",
+    "githubRelease": "libpq-20260315-244f86e",
+    "checksums": {}
+  },
+  "binpress": {
+    "description": "Binary compression tool using LZFSE",
+    "githubRelease": "binpress-20260320-4633b7d",
+    "checksums": {
+      "binpress-darwin-arm64": "2e1500ab29f006d88d91ff5d1ed974c8ffefd2eea8fc57c0f0870b9c0e3f2191",
+      "binpress-darwin-x64": "ca846582edb108fd203c7d7f5b9550f31686acc00e7d6e9bce3cfc84dbdeacf0",
+      "binpress-linux-arm64": "57aec3b6234157f5b367acddaa7ceba70d10e40e4229177ee62b0ad1a4493e88",
+      "binpress-linux-arm64-musl": "70d76df9942d42cab97044462ba9e35e8199c62389873ac46f957e818b9850af",
+      "binpress-linux-x64": "854b14c2e6597c7f5768a6c8a51a450ce979076929924d112cc966f920a18171",
+      "binpress-linux-x64-musl": "f2feabd3dd5d2ab369ef5643d0c801280f0d56851644237e0bc160c6884e9cdd",
+      "binpress-win-arm64.exe": "c7ff5ba4155607b1b907966389f5bea136b9b3be8dc8bfd24ee1457991531f9c",
+      "binpress-win-x64.exe": "7657118788c98c603de9e150dd23c1b21ab81562c78c32f8bfe31658d19f9eb1"
+    }
+  },
+  "binflate": {
+    "description": "Binary decompression tool",
+    "githubRelease": "binflate-20260320-4633b7d",
+    "checksums": {
+      "binflate-darwin-arm64": "50fe4286271595423efc7750a22d47cbd69de5fb7e2293bf9f96afd92de72468",
+      "binflate-darwin-x64": "0054b129bf4e590204f31ed7a7a7c863f0ebf6f2748326ced4e85a2d91109c23",
+      "binflate-linux-arm64": "2934136ed976a3ac0b98b770985ecb42d9e5267cab113794a3a17ef152de5552",
+      "binflate-linux-arm64-musl": "805672ba7a69c4c4736dbe37a72cde121f3b4edc187efc6819a6e6f4d0b0d6d1",
+      "binflate-linux-x64": "67be82f5228a53c7eecd5ab747451f64929f108aa244568caa8ccbf92bbabf01",
+      "binflate-linux-x64-musl": "07c41ec3047a7f208c080f05162e699ffcd8a0151ad27c315a216a7b26f5e9ea",
+      "binflate-win-arm64.exe": "8696e4be5ad3e8cce436c12c24c57eb0d2e81f227609b087b34f4e278c154277",
+      "binflate-win-x64.exe": "5424d676597e2b5e56446ac1ee592d44d08570e84d74f9183ffdd7a3325317dd"
+    }
+  },
+  "binject": {
+    "description": "Binary injection tool for SEA resources",
+    "githubRelease": "binject-20260320-4633b7d",
+    "checksums": {
+      "binject-darwin-arm64": "713ba5008ebc6c3b743d1a4e37b5c383276a68833f60deea8357d258e8351547",
+      "binject-darwin-x64": "f2908a970185c6aa1d17e82345850dae2f1c08e6fbfd8c87842b4d40d99c12c0",
+      "binject-linux-arm64": "25fef0c88f111686f60fd61407837b3847fbf20391fb4e7f17295e37fcf0a710",
+      "binject-linux-arm64-musl": "187aae1e5ab2c1c71144507d17bc92e32ab8720f045ea6e0efd3fc8438ea2d80",
+      "binject-linux-x64": "cad4940c498a19d51efd94380a7b8f7766ab5eee64136b2912134fca8cfdc878",
+      "binject-linux-x64-musl": "74daf7a130e01e6cfab51b58bc1440f835fa5e72a5e0c4993013bcfe3ea22f20",
+      "binject-win-arm64.exe": "1739563f4d6ff072dc34cf5e4e99ca65f71de10eb209e13f21d067e231f20e7c",
+      "binject-win-x64.exe": "4eeaa59b88e6a980fd13428d9e129906e0637bd8e1fe959b8d5377f14be72660"
+    }
+  }
+}

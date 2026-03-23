@@ -1,0 +1,134 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      node-versions:
+        description: 'Node.js versions to test (JSON array)'
+        required: false
+        type: string
+        # Default should match .node-version at monorepo root
+        default: '["24.12.0"]'
+      debug:
+        description: 'Debug (0|1|namespace[,...])'
+        required: false
+        default: '0'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Platform-agnostic checks run once on Ubuntu
+  checks:
+    name: Lint, Type, Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          # Submodules not needed for lint/typecheck - they're only for native builds.
+          submodules: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: .node-version
+          cache: ''
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b307475762933b98ed359c036b0e51f26b63b74b # v5.0.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint checks
+        run: pnpm run check
+
+      - name: Validate cache-versions.json
+        run: |
+          # Validate JSON is parseable
+          if ! jq empty .github/cache-versions.json 2>/dev/null; then
+            echo "::error::cache-versions.json is not valid JSON"
+            exit 1
+          fi
+
+          # Validate required schema structure exists
+          if ! jq -e '.versions | type == "object"' .github/cache-versions.json >/dev/null 2>&1; then
+            echo "::error::cache-versions.json missing required 'versions' object"
+            exit 1
+          fi
+
+          # Validate each version entry format
+          for pkg in $(jq -r '.versions | keys[]' .github/cache-versions.json); do
+            VERSION=$(jq -r ".versions[\"$pkg\"]" .github/cache-versions.json)
+            if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+              echo "::error::Missing or null version for package: $pkg"
+              exit 1
+            fi
+            if ! echo "$VERSION" | grep -qE '^v[0-9]+$'; then
+              echo "::error::Invalid version format for $pkg: $VERSION (expected: v<number>)"
+              exit 1
+            fi
+          done
+          echo "[OK] cache-versions.json valid"
+
+      - name: Validate checkpoint alignment
+        run: node scripts/validate-checkpoint-alignment.mjs
+
+      - name: Run build-infra tests
+        run: pnpm run test:build-infra
+
+  # Platform-specific tests run on all platforms
+  test:
+    name: Test (${{ matrix.os }})
+    needs: checks
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          # Submodules not needed for tests - they're only for native builds.
+          submodules: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: .node-version
+          cache: ''
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b307475762933b98ed359c036b0e51f26b63b74b # v5.0.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          DEBUG: ${{ inputs.debug && '1' || '' }}
+
+      # Platform-specific tests go here
+      # Package-specific build/test workflows:
+      # - binject/binflate/binpress: binsuite.yml
+      # - node-smol-builder: node-smol.yml
+      # - model builders: models.yml, onnxruntime.yml, yoga-layout.yml
+
+      - name: Verify pnpm install works
+        run: pnpm ls --depth=0

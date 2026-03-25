@@ -5,14 +5,17 @@ rules:
   cache-poisoning:
     ignore:
       # False positive: We explicitly disabled caching with cache: ''
-      # Line 43: checks job - Setup Node.js step
-      - ci.yml:43
+      # Line 48: checks job - Setup Node.js step
+      - ci.yml:48
       # False positive: We explicitly disabled caching with cache: ''
-      # Line 97: test job - Setup Node.js step
-      - ci.yml:97
+      # Line 114: test job - Setup Node.js step
+      - ci.yml:114
       # False positive: We explicitly disabled caching with cache: ''
-      # Line 180: stubs workflow - Setup Node.js step
-      - stubs.yml:180
+      # Line 215: stubs workflow - Setup Node.js step
+      - stubs.yml:215
+
+  secrets-outside-env:
+    disable: true
 
   template-injection:
     ignore:

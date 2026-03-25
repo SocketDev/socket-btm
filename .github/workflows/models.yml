@@ -67,7 +67,7 @@ jobs:
           node-version: ${{ steps.tool-versions.outputs.node-version }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@b307475762933b98ed359c036b0e51f26b63b74b # v5.0.0
+        uses: pnpm/action-setup@58e6119fe4f3092a76a7771efb55e04d25b6b26f # v5
         # Note: version is specified in package.json packageManager field, not here
 
       - name: Install dependencies

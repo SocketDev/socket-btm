@@ -265,9 +265,6 @@ static void Initialize(Local<Object> target,
                       Local<Value> unused,
                       Local<Context> context,
                       void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-  Isolate* isolate = env->isolate();
-
   // Existing HTTP perf methods.
   SetMethod(context, target, "getStatusLine", GetStatusLine);
   SetMethod(context, target, "getContentLengthHeader", GetContentLengthHeader);

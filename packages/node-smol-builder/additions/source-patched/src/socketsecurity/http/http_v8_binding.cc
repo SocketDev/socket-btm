@@ -628,41 +628,39 @@ void Initialize(Local<Object> exports,
                 Local<Value> module,
                 Local<Context> context,
                 void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-  Isolate* isolate = env->isolate();
-
   // URL parsing
-  env->SetMethod(exports, "parseUrl", ParseUrl);
-  env->SetMethod(exports, "parseQueryString", ParseQueryString);
-  env->SetMethod(exports, "decodeURIComponent", DecodeURIComponent);
+  SetMethod(context, exports, "parseUrl", ParseUrl);
+  SetMethod(context, exports, "parseQueryString", ParseQueryString);
+  SetMethod(context, exports, "decodeURIComponent", DecodeURIComponent);
 
   // Header operations
-  env->SetMethod(exports, "normalizeHeaderName", NormalizeHeaderName);
-  env->SetMethod(exports, "headerEquals", HeaderEquals);
+  SetMethod(context, exports, "normalizeHeaderName", NormalizeHeaderName);
+  SetMethod(context, exports, "headerEquals", HeaderEquals);
 
   // WebSocket operations
-  env->SetMethod(exports, "decodeWebSocketFrame", DecodeWebSocketFrame);
-  env->SetMethod(exports, "encodeWebSocketFrame", EncodeWebSocketFrame);
-  env->SetMethod(exports, "unmaskWebSocketPayload", UnmaskWebSocketPayload);
+  SetMethod(context, exports, "decodeWebSocketFrame", DecodeWebSocketFrame);
+  SetMethod(context, exports, "encodeWebSocketFrame", EncodeWebSocketFrame);
+  SetMethod(context, exports, "unmaskWebSocketPayload", UnmaskWebSocketPayload);
 
   // HTTP response building
-  env->SetMethod(exports, "writeJsonResponse", WriteJsonResponse);
-  env->SetMethod(exports, "writeTextResponse", WriteTextResponse);
-  env->SetMethod(exports, "writeBinaryResponse", WriteBinaryResponse);
+  SetMethod(context, exports, "writeJsonResponse", WriteJsonResponse);
+  SetMethod(context, exports, "writeTextResponse", WriteTextResponse);
+  SetMethod(context, exports, "writeBinaryResponse", WriteBinaryResponse);
 
   // Type checking
-  env->SetMethod(exports, "isHeaders", IsHeaders);
+  SetMethod(context, exports, "isHeaders", IsHeaders);
 
   // Router
-  env->SetMethod(exports, "createRouter", CreateRouter);
-  env->SetMethod(exports, "addRoute", AddRoute);
-  env->SetMethod(exports, "matchRoute", MatchRoute);
+  SetMethod(context, exports, "createRouter", CreateRouter);
+  SetMethod(context, exports, "addRoute", AddRoute);
+  SetMethod(context, exports, "matchRoute", MatchRoute);
 }
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
 }  // namespace smol_http
 }  // namespace node
 
-// External reference registration for snapshot support
 NODE_BINDING_EXTERNAL_REFERENCE(smol_http, node::smol_http::RegisterExternalReferences)
 
 void node::smol_http::RegisterExternalReferences(

@@ -12,8 +12,10 @@
  * Each entry in the VFS map is an object with:
  * - type: 'file' | 'directory' | 'symlink'
  * - mode: File permissions (octal, e.g., 0o755 for executables, 0o644 for regular files)
- * - content: Buffer (for files), undefined (for directories)
+ * - content: Buffer (for files), undefined (for directories or lazy entries)
  * - linkTarget: string (for symlinks only)
+ * - _sourceBuffer, _bufferOffset, _bufferLength: (lazy files only) zero-copy
+ *   references into the source tar buffer, materialized on first getContent() call
  *
  * Performance: Uses SIMD-accelerated native bindings for hot paths:
  * - Checksum calculation (512-byte sum)
@@ -59,6 +61,11 @@ const {
   TRAILING_NEWLINE_REGEX,
   normalizePath,
 } = require('internal/socketsecurity/safe-references')
+
+// Lazy content materialization threshold.
+// Files at or below this size are copied eagerly (cheap).
+// Files above this size store offset/length and slice on demand (zero-copy init).
+const LAZY_CONTENT_THRESHOLD = 256
 
 // VFS directory marker - string constant for directory identification
 const VFS_DIRECTORY_MARKER = 'smol:vfs_directory'
@@ -639,17 +646,38 @@ function parseTar(tarBuffer, options = {}) {
       header.typeflag === '0' ||
       header.typeflag === ''
     ) {
-      const content =
-        header.size > 0
-          ? BufferPrototypeSlice(tarBuffer, offset, offset + header.size)
-          : BufferAlloc(0)
+      // Zero-copy optimization: large files store offset/length into the
+      // source tarBuffer and materialize a Buffer view on first access via
+      // getContent(). Small files (<=LAZY_CONTENT_THRESHOLD) are copied
+      // eagerly since the copy cost is negligible and avoids indirection.
+      let entry
+      if (header.size === 0) {
+        entry = {
+          __proto__: null,
+          content: BufferAlloc(0),
+          mode: header.mode !== undefined ? header.mode : 0o644,
+          type: 'file',
+        }
+      } else if (header.size <= LAZY_CONTENT_THRESHOLD) {
+        entry = {
+          __proto__: null,
+          content: BufferPrototypeSlice(tarBuffer, offset, offset + header.size),
+          mode: header.mode !== undefined ? header.mode : 0o644,
+          type: 'file',
+        }
+      } else {
+        entry = {
+          __proto__: null,
+          _bufferOffset: offset,
+          _bufferLength: header.size,
+          _sourceBuffer: tarBuffer,
+          content: undefined,
+          mode: header.mode !== undefined ? header.mode : 0o644,
+          type: 'file',
+        }
+      }
 
-      MapPrototypeSet(files, header.name, {
-        __proto__: null,
-        content,
-        mode: header.mode !== undefined ? header.mode : 0o644,
-        type: 'file',
-      })
+      MapPrototypeSet(files, header.name, entry)
     } else if (header.typeflag === TYPE.DIRECTORY) {
       // Store directory entry with metadata
       MapPrototypeSet(files, header.name, {
@@ -669,10 +697,11 @@ function parseTar(tarBuffer, options = {}) {
       // Hard links should copy content from target (not symlink behavior)
       const targetEntry = MapPrototypeGet(files, header.linkname)
       if (targetEntry && targetEntry.type === 'file') {
-        // Copy content and mode from target
+        // Share content reference from target (uses getContent() for lazy entries)
+        const targetContent = getContent(targetEntry)
         MapPrototypeSet(files, header.name, {
           __proto__: null,
-          content: targetEntry.content,
+          content: targetContent,
           mode: targetEntry.mode,
           type: 'file',
         })
@@ -717,8 +746,10 @@ function verifyChecksum(buffer, offset, expectedChecksum) {
 }
 
 /**
- * Get content from VFS entry
- * Returns Buffer for files, VFS_DIRECTORY_MARKER for directories
+ * Get content from VFS entry.
+ * Returns Buffer for files, VFS_DIRECTORY_MARKER for directories.
+ * For zero-copy entries (large files), materializes a Buffer view on first
+ * access and caches it on the entry for subsequent reads.
  */
 function getContent(entry) {
   if (!entry) {
@@ -728,7 +759,50 @@ function getContent(entry) {
   if (entry.type === 'directory') {
     return VFS_DIRECTORY_MARKER
   }
-  return entry.content
+
+  // Fast path: content already materialized (small files or repeated access)
+  if (entry.content !== undefined) {
+    return entry.content
+  }
+
+  // Lazy materialization: create a view into the source tarBuffer
+  if (entry._sourceBuffer !== undefined) {
+    const content = BufferPrototypeSlice(
+      entry._sourceBuffer,
+      entry._bufferOffset,
+      entry._bufferOffset + entry._bufferLength,
+    )
+    // Cache on the entry so subsequent reads are free.
+    // Release the reference to the source buffer fields to allow GC
+    // if all entries from this tar have been materialized.
+    entry.content = content
+    entry._sourceBuffer = undefined
+    entry._bufferOffset = undefined
+    entry._bufferLength = undefined
+    return content
+  }
+
+  return undefined
+}
+
+/**
+ * Get file size from VFS entry without materializing content.
+ * For lazy entries, returns the stored buffer length directly,
+ * avoiding unnecessary buffer allocation just to check size.
+ */
+function getFileSize(entry) {
+  if (!entry || entry.type === 'directory') {
+    return 0
+  }
+  // Lazy entry: size available without materialization
+  if (entry._bufferLength !== undefined) {
+    return entry._bufferLength
+  }
+  // Eagerly materialized entry
+  if (entry.content !== undefined) {
+    return entry.content.length
+  }
+  return 0
 }
 
 /**
@@ -747,6 +821,7 @@ module.exports = ObjectFreeze({
   VFS_DIRECTORY_MARKER,
   getContent,
   getDirectoryListing,
+  getFileSize,
   getMode,
   isDirectory,
   parseTar,

@@ -10,15 +10,16 @@ const {
   ArrayPrototypePush,
   ArrayPrototypeSlice,
   ArrayPrototypeSort,
+  MapPrototypeDelete,
+  MapPrototypeGet,
+  MapPrototypeSet,
   NumberIsNaN,
-  NumberParseInt,
   ObjectFreeze,
   RegExpPrototypeExec,
   RegExpPrototypeTest,
+  SafeMap,
   StringPrototypeCharCodeAt,
   StringPrototypeIndexOf,
-  StringPrototypeMatch,
-  StringPrototypeReplace,
   StringPrototypeSlice,
   StringPrototypeSplit,
   StringPrototypeToLowerCase,
@@ -49,33 +50,47 @@ class VersionError extends Error {
   }
 }
 
-// Simple cache
+// LRU cache using SafeMap (insertion-ordered, O(1) eviction)
 const CACHE_SIZE = 50000;
-let cache = { __proto__: null };
-let cacheOrder = [];
+let cache = new SafeMap();
 let cacheHits = 0;
 let cacheMisses = 0;
+
+// Range cache: stores compiled comparator arrays keyed by `${ecosystem}:${range}`
+const RANGE_CACHE_SIZE = 10000;
+let rangeCache = new SafeMap();
 
 function cacheKey(version, eco) {
   return `${eco}:${version}`;
 }
 
 function cacheGet(key) {
-  if (cache[key]) {
+  const value = MapPrototypeGet(cache, key);
+  if (value !== undefined) {
     cacheHits++;
-    return cache[key];
+    return value;
   }
   cacheMisses++;
-  return null;
+  return undefined;
 }
 
 function cachePut(key, value) {
-  if (cacheOrder.length >= CACHE_SIZE) {
-    const oldest = cacheOrder.shift();
-    delete cache[oldest];
+  if (cache.size >= CACHE_SIZE) {
+    // Evict oldest entry (first key in insertion order) — O(1)
+    const oldest = cache.keys().next().value;
+    MapPrototypeDelete(cache, oldest);
   }
-  cache[key] = value;
-  ArrayPrototypePush(cacheOrder, key);
+  MapPrototypeSet(cache, key, value);
+}
+
+// Hand-rolled digit parsing — the regex guarantees pure digits,
+// so we avoid NumberParseInt overhead with a simple charCode loop.
+function parseDigits(str) {
+  let n = 0;
+  for (let i = 0, len = str.length; i < len; i++) {
+    n = n * 10 + (StringPrototypeCharCodeAt(str, i) - 48);
+  }
+  return n;
 }
 
 // SemVer regex (strict mode: requires major.minor.patch, no leading zeros)
@@ -93,13 +108,19 @@ function parsePrerelease(str) {
   return ArrayPrototypeMap(parts, (p) => {
     // Only convert to number if entire string is digits (per semver gold standard)
     if (RegExpPrototypeTest(NUMERIC_IDENTIFIER, p)) {
-      const num = NumberParseInt(p, 10);
+      const num = parseDigits(p);
       if (!NumberIsNaN(num)) {
         return num;
       }
     }
     return p;
   });
+}
+
+// Compute packed integer for fast comparison of versions without prerelease.
+// major * 2^20 + minor * 2^10 + patch — safe for values up to ~1000 each.
+function computePacked(major, minor, patch) {
+  return major * 1048576 + minor * 1024 + patch;
 }
 
 // Parse npm/SemVer version
@@ -109,14 +130,20 @@ function parseNpm(version) {
     throw new VersionError(`Invalid npm version: ${version}`, 'ERR_INVALID_VERSION');
   }
 
+  const major = parseDigits(match[1]);
+  const minor = parseDigits(match[2]);
+  const patch = parseDigits(match[3]);
+  const prerelease = parsePrerelease(match[4]);
+
   return ObjectFreeze({
     __proto__: null,
-    major: NumberParseInt(match[1], 10),
-    minor: NumberParseInt(match[2], 10),
-    patch: NumberParseInt(match[3], 10),
-    prerelease: parsePrerelease(match[4]),
-    buildMetadata: match[5] || null,
+    major,
+    minor,
+    patch,
+    prerelease,
+    buildMetadata: match[5] || undefined,
     raw: version,
+    _packed: computePacked(major, minor, patch),
   });
 }
 
@@ -125,10 +152,10 @@ function parseMaven(version) {
   // Maven versions are more complex - simplified for now
   const parts = StringPrototypeSplit(version, /[.\-]/);
   const nums = [];
-  let qualifier = null;
+  let qualifier;
 
   for (let i = 0; i < parts.length; i++) {
-    const num = NumberParseInt(parts[i], 10);
+    const num = parseDigits(parts[i]);
     if (NumberIsNaN(num)) {
       qualifier = StringPrototypeSlice(parts.join('.'), parts.slice(0, i).join('.').length + 1);
       break;
@@ -136,14 +163,19 @@ function parseMaven(version) {
     ArrayPrototypePush(nums, num);
   }
 
+  const major = nums[0] || 0;
+  const minor = nums[1] || 0;
+  const patch = nums[2] || 0;
+
   return ObjectFreeze({
     __proto__: null,
-    major: nums[0] || 0,
-    minor: nums[1] || 0,
-    patch: nums[2] || 0,
+    major,
+    minor,
+    patch,
     prerelease: qualifier ? [qualifier] : [],
-    buildMetadata: null,
+    buildMetadata: undefined,
     raw: version,
+    _packed: computePacked(major, minor, patch),
   });
 }
 
@@ -154,7 +186,7 @@ function parsePypi(version) {
   let rest = version;
   const bangIdx = StringPrototypeIndexOf(version, '!');
   if (bangIdx !== -1) {
-    epoch = NumberParseInt(StringPrototypeSlice(version, 0, bangIdx), 10) || 0;
+    epoch = parseDigits(StringPrototypeSlice(version, 0, bangIdx)) || 0;
     rest = StringPrototypeSlice(version, bangIdx + 1);
   }
 
@@ -172,19 +204,24 @@ function parsePypi(version) {
     const preMatch = RegExpPrototypeExec(/^[._-]?(a|alpha|b|beta|c|rc|pre|preview)\.?(\d+)?/i, suffix);
     if (preMatch) {
       ArrayPrototypePush(prerelease, StringPrototypeToLowerCase(preMatch[1]));
-      if (preMatch[2]) ArrayPrototypePush(prerelease, NumberParseInt(preMatch[2], 10));
+      if (preMatch[2]) ArrayPrototypePush(prerelease, parseDigits(preMatch[2]));
     }
   }
 
+  const major = parseDigits(match[1]) || 0;
+  const minor = match[2] ? parseDigits(match[2]) : 0;
+  const patch = match[3] ? parseDigits(match[3]) : 0;
+
   return ObjectFreeze({
     __proto__: null,
-    major: NumberParseInt(match[1], 10) || 0,
-    minor: NumberParseInt(match[2], 10) || 0,
-    patch: NumberParseInt(match[3], 10) || 0,
+    major,
+    minor,
+    patch,
     prerelease,
-    buildMetadata: null,
+    buildMetadata: undefined,
     epoch,
     raw: version,
+    _packed: computePacked(major, minor, patch),
   });
 }
 
@@ -223,7 +260,7 @@ function tryParse(version, ecosystem = 'npm') {
   try {
     return parse(version, ecosystem);
   } catch {
-    return null;
+    return undefined;
   }
 }
 
@@ -262,6 +299,12 @@ function compare(a, b, ecosystem = 'npm') {
   const va = typeof a === 'object' ? a : parse(a, ecosystem);
   const vb = typeof b === 'object' ? b : parse(b, ecosystem);
 
+  // Packed integer fast path: single compare when both have no prerelease
+  if (va.prerelease.length === 0 && vb.prerelease.length === 0) {
+    if (va._packed !== vb._packed) return va._packed < vb._packed ? -1 : 1;
+    return 0;
+  }
+
   // Compare major.minor.patch
   if (va.major !== vb.major) return va.major < vb.major ? -1 : 1;
   if (va.minor !== vb.minor) return va.minor < vb.minor ? -1 : 1;
@@ -279,9 +322,29 @@ function gte(a, b, eco) { return compare(a, b, eco) >= 0; }
 function eq(a, b, eco) { return compare(a, b, eco) === 0; }
 function neq(a, b, eco) { return compare(a, b, eco) !== 0; }
 
-// Sort versions
+// Sort versions — pre-parse all versions once (O(n)), then sort pre-parsed values
 function sort(versions, ecosystem = 'npm', descending = false) {
-  const sorted = ArrayPrototypeSort(ArrayFrom(versions), (a, b) => compare(a, b, ecosystem));
+  const arr = ArrayFrom(versions);
+  // Pre-parse all versions to avoid repeated parsing in comparator
+  const parsed = ArrayPrototypeMap(arr, (v) =>
+    typeof v === 'object' ? v : parse(v, ecosystem)
+  );
+  // Create index array to track original positions
+  const indices = ArrayFrom({ length: arr.length }, (_, i) => i);
+  ArrayPrototypeSort(indices, (ai, bi) => {
+    const va = parsed[ai];
+    const vb = parsed[bi];
+    // Packed integer fast path
+    if (va.prerelease.length === 0 && vb.prerelease.length === 0) {
+      if (va._packed !== vb._packed) return va._packed < vb._packed ? -1 : 1;
+      return 0;
+    }
+    if (va.major !== vb.major) return va.major < vb.major ? -1 : 1;
+    if (va.minor !== vb.minor) return va.minor < vb.minor ? -1 : 1;
+    if (va.patch !== vb.patch) return va.patch < vb.patch ? -1 : 1;
+    return comparePrerelease(va.prerelease, vb.prerelease);
+  });
+  const sorted = ArrayPrototypeMap(indices, (i) => arr[i]);
   return descending ? sorted.reverse() : sorted;
 }
 
@@ -289,66 +352,80 @@ function rsort(versions, ecosystem = 'npm') {
   return sort(versions, ecosystem, true);
 }
 
-// Find max/min
+// Find max version — O(n) linear scan instead of O(n log n) sort
 function max(versions, ecosystem = 'npm') {
-  if (!versions || versions.length === 0) return null;
-  return sort(versions, ecosystem, true)[0];
+  if (!versions || versions.length === 0) return undefined;
+  let best = versions[0];
+  for (let i = 1, len = versions.length; i < len; i++) {
+    if (compare(versions[i], best, ecosystem) > 0) {
+      best = versions[i];
+    }
+  }
+  return best;
 }
 
+// Find min version — O(n) linear scan instead of O(n log n) sort
 function min(versions, ecosystem = 'npm') {
-  if (!versions || versions.length === 0) return null;
-  return sort(versions, ecosystem)[0];
+  if (!versions || versions.length === 0) return undefined;
+  let best = versions[0];
+  for (let i = 1, len = versions.length; i < len; i++) {
+    if (compare(versions[i], best, ecosystem) < 0) {
+      best = versions[i];
+    }
+  }
+  return best;
 }
 
 // Parse a range comparator (e.g., ">=1.0.0", "^2.0.0")
 function parseComparator(comp, ecosystem) {
   comp = StringPrototypeTrim(comp);
-  if (!comp) return null;
+  if (!comp) return undefined;
 
   // Standalone wildcard * matches anything
   if (comp === '*' || comp === 'x' || comp === 'X') {
-    return { op: '*', major: null, minor: null, patch: null };
+    return { __proto__: null, op: '*', major: undefined, minor: undefined, patch: undefined };
   }
 
   // Exact match
   if (/^\d/.test(comp)) {
     const v = tryParse(comp, ecosystem);
-    if (v) return { op: '=', version: v };
+    if (v) return { __proto__: null, op: '=', version: v };
   }
 
   // Operators: >=, <=, >, <, =
   const opMatch = RegExpPrototypeExec(/^(>=|<=|>|<|=)\s*(.+)$/, comp);
   if (opMatch) {
     const v = tryParse(opMatch[2], ecosystem);
-    if (v) return { op: opMatch[1], version: v };
+    if (v) return { __proto__: null, op: opMatch[1], version: v };
   }
 
   // Caret ^
   const caretMatch = RegExpPrototypeExec(/^\^(.+)$/, comp);
   if (caretMatch) {
     const v = tryParse(caretMatch[1], ecosystem);
-    if (v) return { op: '^', version: v };
+    if (v) return { __proto__: null, op: '^', version: v };
   }
 
   // Tilde ~
   const tildeMatch = RegExpPrototypeExec(/^~(.+)$/, comp);
   if (tildeMatch) {
     const v = tryParse(tildeMatch[1], ecosystem);
-    if (v) return { op: '~', version: v };
+    if (v) return { __proto__: null, op: '~', version: v };
   }
 
   // Wildcard x, X, * with versions (e.g., 1.x, 1.2.*)
   const wildMatch = RegExpPrototypeExec(/^(\d+)(?:\.(\d+|x|X|\*))?(?:\.(\d+|x|X|\*))?$/, comp);
   if (wildMatch) {
     return {
+      __proto__: null,
       op: '*',
-      major: NumberParseInt(wildMatch[1], 10) || 0,
-      minor: wildMatch[2] && !/[xX*]/.test(wildMatch[2]) ? NumberParseInt(wildMatch[2], 10) : null,
-      patch: wildMatch[3] && !/[xX*]/.test(wildMatch[3]) ? NumberParseInt(wildMatch[3], 10) : null,
+      major: parseDigits(wildMatch[1]) || 0,
+      minor: wildMatch[2] && !/[xX*]/.test(wildMatch[2]) ? parseDigits(wildMatch[2]) : undefined,
+      patch: wildMatch[3] && !/[xX*]/.test(wildMatch[3]) ? parseDigits(wildMatch[3]) : undefined,
     };
   }
 
-  return null;
+  return undefined;
 }
 
 // Check if prerelease version is allowed for this comparator
@@ -418,9 +495,9 @@ function satisfiesComparator(version, comp, checkPrerelease = true) {
     }
     case '*': {
       // Wildcard matching
-      if (comp.major !== null && v.major !== comp.major) return false;
-      if (comp.minor !== null && v.minor !== comp.minor) return false;
-      if (comp.patch !== null && v.patch !== comp.patch) return false;
+      if (comp.major !== undefined && v.major !== comp.major) return false;
+      if (comp.minor !== undefined && v.minor !== comp.minor) return false;
+      if (comp.patch !== undefined && v.patch !== comp.patch) return false;
       return true;
     }
     default:
@@ -449,6 +526,54 @@ function rangeHasMatchingPrerelease(version, comparators) {
   return false;
 }
 
+// Compile a range string into an array of OR-groups, each containing
+// { comparators, andParts (for hyphen re-check) }
+function compileRange(range, ecosystem) {
+  const rangeKey = `${ecosystem}:${range}`;
+  const cached = MapPrototypeGet(rangeCache, rangeKey);
+  if (cached !== undefined) return cached;
+
+  const orParts = StringPrototypeSplit(range, /\s*\|\|\s*/);
+  const compiled = [];
+
+  for (let i = 0; i < orParts.length; i++) {
+    const andParts = StringPrototypeSplit(orParts[i], /\s+/);
+    const comparators = [];
+    // Track hyphen ranges separately for the satisfaction pass
+    const hyphenRanges = [];
+
+    for (let j = 0; j < andParts.length; j++) {
+      if (andParts[j + 1] === '-' && andParts[j + 2]) {
+        const lower = tryParse(andParts[j], ecosystem);
+        const upper = tryParse(andParts[j + 2], ecosystem);
+        if (lower) ArrayPrototypePush(comparators, { __proto__: null, op: '>=', version: lower });
+        if (upper) ArrayPrototypePush(comparators, { __proto__: null, op: '<=', version: upper });
+        ArrayPrototypePush(hyphenRanges, { __proto__: null, lower, upper });
+        j += 2;
+      } else {
+        const comp = parseComparator(andParts[j], ecosystem);
+        if (comp) ArrayPrototypePush(comparators, comp);
+        else ArrayPrototypePush(comparators, undefined);
+      }
+    }
+
+    ArrayPrototypePush(compiled, {
+      __proto__: null,
+      comparators,
+      andParts,
+      hyphenRanges,
+    });
+  }
+
+  // Evict oldest if range cache is full
+  if (rangeCache.size >= RANGE_CACHE_SIZE) {
+    const oldest = rangeCache.keys().next().value;
+    MapPrototypeDelete(rangeCache, oldest);
+  }
+  MapPrototypeSet(rangeCache, rangeKey, compiled);
+  return compiled;
+}
+
 // Check if version satisfies a range
 function satisfies(version, range, ecosystem = 'npm') {
   const v = typeof version === 'object' ? version : tryParse(version, ecosystem);
@@ -456,28 +581,11 @@ function satisfies(version, range, ecosystem = 'npm') {
 
   range = StringPrototypeTrim(range);
 
-  // Handle || (OR)
-  const orParts = StringPrototypeSplit(range, /\s*\|\|\s*/);
-  for (let i = 0; i < orParts.length; i++) {
-    // Handle space-separated (AND)
-    const andParts = StringPrototypeSplit(orParts[i], /\s+/);
-    let allMatch = true;
+  const compiled = compileRange(range, ecosystem);
 
-    // First pass: collect all comparators to check prerelease rules
-    const comparators = [];
-    for (let j = 0; j < andParts.length; j++) {
-      if (andParts[j + 1] === '-' && andParts[j + 2]) {
-        // Hyphen range - add lower and upper bounds
-        const lower = tryParse(andParts[j], ecosystem);
-        const upper = tryParse(andParts[j + 2], ecosystem);
-        if (lower) comparators.push({ op: '>=', version: lower });
-        if (upper) comparators.push({ op: '<=', version: upper });
-        j += 2;
-      } else {
-        const comp = parseComparator(andParts[j], ecosystem);
-        if (comp) comparators.push(comp);
-      }
-    }
+  for (let i = 0; i < compiled.length; i++) {
+    const group = compiled[i];
+    const { comparators, andParts, hyphenRanges } = group;
 
     // Check prerelease rule: version with prerelease only satisfies range
     // if range explicitly includes prerelease on same major.minor.patch
@@ -485,21 +593,25 @@ function satisfies(version, range, ecosystem = 'npm') {
       continue; // This OR branch doesn't match
     }
 
-    // Second pass: actually check satisfaction (skip prerelease check since we did it above)
+    // Check satisfaction
+    let allMatch = true;
+    let compIdx = 0;
+    let hyphenIdx = 0;
+
     for (let j = 0; j < andParts.length; j++) {
       // Handle hyphen ranges (1.0.0 - 2.0.0)
       if (andParts[j + 1] === '-' && andParts[j + 2]) {
-        const lower = tryParse(andParts[j], ecosystem);
-        const upper = tryParse(andParts[j + 2], ecosystem);
-        if (!lower || !upper || compare(v, lower) < 0 || compare(v, upper) > 0) {
+        const hr = hyphenRanges[hyphenIdx++];
+        if (!hr.lower || !hr.upper || compare(v, hr.lower) < 0 || compare(v, hr.upper) > 0) {
           allMatch = false;
           break;
         }
+        compIdx += 2; // Skip the two comparators we added for this hyphen range
         j += 2;
         continue;
       }
 
-      const comp = parseComparator(andParts[j], ecosystem);
+      const comp = comparators[compIdx++];
       // Pass false to skip prerelease check since we already did it
       if (!comp || !satisfiesComparator(v, comp, false)) {
         allMatch = false;
@@ -532,12 +644,12 @@ function filter(versions, range, ecosystem = 'npm') {
 // Validate version string
 function valid(version, ecosystem = 'npm') {
   const parsed = tryParse(version, ecosystem);
-  return parsed ? parsed.raw : null;
+  return parsed ? parsed.raw : undefined;
 }
 
 // Coerce to valid version
 function coerce(version, ecosystem = 'npm') {
-  if (typeof version !== 'string') return null;
+  if (typeof version !== 'string') return undefined;
 
   version = StringPrototypeTrim(version);
   // Remove leading v
@@ -547,7 +659,7 @@ function coerce(version, ecosystem = 'npm') {
 
   // Try to extract version-like pattern
   const match = RegExpPrototypeExec(/(\d+)(?:\.(\d+))?(?:\.(\d+))?/, version);
-  if (!match) return null;
+  if (!match) return undefined;
 
   const major = match[1] || '0';
   const minor = match[2] || '0';
@@ -588,19 +700,18 @@ function inc(version, release, ecosystem = 'npm', identifier) {
 }
 
 function cacheStats() {
-  const total = cacheHits + cacheMisses;
   return ObjectFreeze({
     __proto__: null,
-    size: cacheOrder.length,
+    size: cache.size,
     hits: cacheHits,
     misses: cacheMisses,
-    hitRate: total > 0 ? cacheHits / total : 0,
+    hitRate: (cacheHits + cacheMisses) > 0 ? cacheHits / (cacheHits + cacheMisses) : 0,
   });
 }
 
 function clearCache() {
-  cache = { __proto__: null };
-  cacheOrder = [];
+  cache = new SafeMap();
+  rangeCache = new SafeMap();
   cacheHits = 0;
   cacheMisses = 0;
 }

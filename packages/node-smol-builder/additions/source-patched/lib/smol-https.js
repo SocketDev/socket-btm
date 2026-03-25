@@ -31,6 +31,21 @@ const {
 
 const { serve: httpServe } = require('smol-http');
 
+// Performance-oriented TLS defaults (user options override via spread)
+const FAST_TLS_DEFAULTS = ObjectFreeze({
+  __proto__: null,
+  sessionTimeout: 86400,
+  honorCipherOrder: true,
+  ecdhCurve: 'X25519:P-256',
+  ciphers: [
+    'TLS_AES_128_GCM_SHA256',
+    'TLS_AES_256_GCM_SHA384',
+    'TLS_CHACHA20_POLY1305_SHA256',
+    'ECDHE-ECDSA-AES128-GCM-SHA256',
+    'ECDHE-RSA-AES128-GCM-SHA256',
+  ].join(':'),
+});
+
 /**
  * Create an HTTPS server.
  * Requires TLS options (key/cert or tls object).
@@ -65,7 +80,27 @@ function serve(options) {
     opts.port = 443;
   }
 
-  return httpServe(opts);
+  // Inject optimized TLS defaults (user options override)
+  const userTls = opts.tls || {};
+  opts.tls = { ...FAST_TLS_DEFAULTS, ...userTls };
+
+  // Copy top-level key/cert/ca/passphrase into tls if provided directly
+  if (opts.key) opts.tls.key = opts.key;
+  if (opts.cert) opts.tls.cert = opts.cert;
+  if (opts.ca) opts.tls.ca = opts.ca;
+  if (opts.passphrase) opts.tls.passphrase = opts.passphrase;
+
+  const server = httpServe(opts);
+
+  // Disable Nagle on pre-handshake TCP socket for faster TLS handshakes
+  const origNetServer = server._netServer;
+  if (origNetServer && typeof origNetServer.on === 'function') {
+    origNetServer.on('connection', (tcpSocket) => {
+      tcpSocket.setNoDelay(true);
+    });
+  }
+
+  return server;
 }
 
 module.exports = ObjectFreeze({

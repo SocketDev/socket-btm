@@ -160,7 +160,7 @@ class QueryAsyncWork : public ThreadPoolWork {
       argv[0] = error_obj;
       argv[1] = v8::Undefined(isolate);
     } else {
-      argv[0] = v8::Null(isolate);
+      argv[0] = v8::Undefined(isolate);
       argv[1] = ParseResultToJS(env, result_, use_bigint_);
     }
 
@@ -437,7 +437,7 @@ class ExecutePreparedAsyncWork : public ThreadPoolWork {
       argv[0] = error_obj;
       argv[1] = v8::Undefined(isolate);
     } else {
-      argv[0] = v8::Null(isolate);
+      argv[0] = v8::Undefined(isolate);
       // Reuse the parsing logic from QueryAsyncWork.
       argv[1] = ParseResultToJS(env, result_);
     }

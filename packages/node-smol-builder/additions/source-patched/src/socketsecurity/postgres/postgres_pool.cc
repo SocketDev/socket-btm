@@ -9,7 +9,10 @@ namespace postgres {
 // PooledConnection implementation.
 
 PooledConnection::PooledConnection(PGconn* conn)
-    : conn_(conn), state_(ConnectionState::kIdle) {}
+    : conn_(conn),
+      state_(ConnectionState::kIdle),
+      created_at_(std::chrono::steady_clock::now()),
+      last_used_at_(std::chrono::steady_clock::now()) {}
 
 PooledConnection::~PooledConnection() {
   if (conn_ != nullptr) {
@@ -21,7 +24,9 @@ PooledConnection::~PooledConnection() {
 PooledConnection::PooledConnection(PooledConnection&& other) noexcept
     : conn_(other.conn_),
       state_(other.state_),
-      prepared_statements_(std::move(other.prepared_statements_)) {
+      prepared_statements_(std::move(other.prepared_statements_)),
+      created_at_(other.created_at_),
+      last_used_at_(other.last_used_at_) {
   other.conn_ = nullptr;
   other.state_ = ConnectionState::kDead;
 }
@@ -34,6 +39,8 @@ PooledConnection& PooledConnection::operator=(PooledConnection&& other) noexcept
     conn_ = other.conn_;
     state_ = other.state_;
     prepared_statements_ = std::move(other.prepared_statements_);
+    created_at_ = other.created_at_;
+    last_used_at_ = other.last_used_at_;
     other.conn_ = nullptr;
     other.state_ = ConnectionState::kDead;
   }
@@ -196,6 +203,7 @@ void PostgresPool::Release(PooledConnection* conn) {
 
   // Reset and return to idle pool if healthy.
   if (conn->Reset()) {
+    conn->TouchLastUsed();
     idle_connections_.push_back(std::unique_ptr<PooledConnection>(conn));
   } else {
     DestroyConnection(conn);
@@ -248,6 +256,12 @@ bool PostgresPool::Prepare(
     const char* query,
     int nParams,
     const Oid* paramTypes) {
+  // Store the SQL text at pool level so any connection can re-prepare later.
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    statement_sql_[name] = query;
+  }
+
   auto* conn = Acquire();
   if (conn == nullptr) {
     return false;
@@ -281,6 +295,37 @@ PGresult* PostgresPool::ExecutePrepared(
   auto* conn = Acquire();
   if (conn == nullptr) {
     return nullptr;
+  }
+
+  // If this connection does not have the statement prepared, re-prepare it.
+  if (conn->GetPreparedStatement(name) == nullptr) {
+    std::string sql_text;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      auto it = statement_sql_.find(name);
+      if (it != statement_sql_.end()) {
+        sql_text = it->second;
+      }
+    }
+
+    if (!sql_text.empty()) {
+      PGresult* prep_result = PQprepare(
+          conn->Get(), name, sql_text.c_str(), 0, nullptr);
+      bool prep_ok = PQresultStatus(prep_result) == PGRES_COMMAND_OK;
+      PQclear(prep_result);
+
+      if (prep_ok) {
+        conn->CachePreparedStatement(name, sql_text);
+      } else {
+        // Re-prepare failed; release and return error.
+        Release(conn);
+        return nullptr;
+      }
+    } else {
+      // No SQL text found at pool level; cannot re-prepare.
+      Release(conn);
+      return nullptr;
+    }
   }
 
   PGresult* result = PQexecPrepared(
@@ -317,11 +362,24 @@ bool PostgresPool::IsHealthy() const {
 }
 
 void PostgresPool::EvictStaleConnections() {
-  // Keep at least min_connections.
-  while (idle_connections_.size() > config_.min_connections) {
-    // For simplicity, evict from front (oldest).
-    // Full implementation would track connection age.
-    idle_connections_.pop_front();
+  auto now = std::chrono::steady_clock::now();
+  auto idle_timeout = std::chrono::milliseconds(config_.idle_timeout_ms);
+  auto max_lifetime = std::chrono::milliseconds(config_.max_lifetime_ms);
+
+  // Remove connections that exceed idle timeout or max lifetime,
+  // but keep at least min_connections.
+  auto it = idle_connections_.begin();
+  while (it != idle_connections_.end() &&
+         idle_connections_.size() > config_.min_connections) {
+    auto& conn = *it;
+    auto idle_duration = now - conn->GetLastUsedAt();
+    auto lifetime = now - conn->GetCreatedAt();
+
+    if (idle_duration > idle_timeout || lifetime > max_lifetime) {
+      it = idle_connections_.erase(it);
+    } else {
+      ++it;
+    }
   }
 }
 

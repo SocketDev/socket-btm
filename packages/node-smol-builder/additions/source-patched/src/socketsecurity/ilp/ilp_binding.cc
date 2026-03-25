@@ -89,6 +89,7 @@ void IlpBinding::CreateSender(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = isolate->GetCurrentContext();
 
   TransportConfig config;
+  size_t encoder_max_size = 104857600;  // 100MB default
 
   if (args.Length() >= 1 && args[0]->IsObject()) {
     Local<Object> opts = args[0].As<Object>();
@@ -113,15 +114,36 @@ void IlpBinding::CreateSender(const FunctionCallbackInfo<Value>& args) {
         timeout_val->Int32Value(context).FromMaybe(10000));
     }
 
+    Local<Value> send_timeout_val;
+    if (opts->Get(context, String::NewFromUtf8(isolate, "sendTimeoutMs").ToLocalChecked())
+        .ToLocal(&send_timeout_val) && send_timeout_val->IsNumber()) {
+      config.send_timeout_ms = static_cast<int>(
+        send_timeout_val->Int32Value(context).FromMaybe(30000));
+    }
+
+    Local<Value> buf_size_val;
+    if (opts->Get(context, String::NewFromUtf8(isolate, "bufferSize").ToLocalChecked())
+        .ToLocal(&buf_size_val) && buf_size_val->IsNumber()) {
+      config.send_buffer_size = static_cast<size_t>(
+        buf_size_val->Uint32Value(context).FromMaybe(65536));
+    }
+
     Local<Value> use_uring_val;
     if (opts->Get(context, String::NewFromUtf8(isolate, "useIoUring").ToLocalChecked())
         .ToLocal(&use_uring_val) && use_uring_val->IsBoolean()) {
       config.use_io_uring = use_uring_val->BooleanValue(isolate);
     }
+
+    Local<Value> max_buf_val;
+    if (opts->Get(context, String::NewFromUtf8(isolate, "maxBufferSize").ToLocalChecked())
+        .ToLocal(&max_buf_val) && max_buf_val->IsNumber()) {
+      encoder_max_size = static_cast<size_t>(
+        max_buf_val->IntegerValue(context).FromMaybe(104857600));
+    }
   }
 
   auto state = std::make_unique<SenderState>();
-  state->encoder = std::make_unique<IlpEncoder>();
+  state->encoder = std::make_unique<IlpEncoder>(config.send_buffer_size, encoder_max_size);
   state->transport = std::make_unique<IlpTransport>(config);
 
   uint32_t id = next_sender_id_++;

@@ -144,6 +144,14 @@ class SQLiteAdapter {
       readOnly: config.readonly ?? false,
       enableForeignKeyConstraints: config.foreignKeys ?? true,
     });
+
+    // Performance pragmas.
+    if (!config.readonly) {
+      this[kDb].exec('PRAGMA journal_mode=WAL');
+      this[kDb].exec('PRAGMA synchronous=NORMAL');
+    }
+    this[kDb].exec('PRAGMA busy_timeout=5000');
+    this[kDb].exec('PRAGMA cache_size=-64000');
   }
 
   /**

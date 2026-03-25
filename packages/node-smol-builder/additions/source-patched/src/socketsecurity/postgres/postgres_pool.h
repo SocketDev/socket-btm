@@ -4,6 +4,7 @@
 #include "env.h"
 #include "v8.h"
 #include <libpq-fe.h>
+#include <chrono>
 #include <deque>
 #include <memory>
 #include <mutex>
@@ -50,10 +51,19 @@ class PooledConnection {
   const char* GetPreparedStatement(const std::string& name) const;
   void CachePreparedStatement(const std::string& name, const std::string& sql);
 
+  // Timestamp tracking.
+  std::chrono::steady_clock::time_point GetCreatedAt() const { return created_at_; }
+  std::chrono::steady_clock::time_point GetLastUsedAt() const { return last_used_at_; }
+  void TouchLastUsed() {
+    last_used_at_ = std::chrono::steady_clock::now();
+  }
+
  private:
   PGconn* conn_;
   ConnectionState state_;
   std::unordered_map<std::string, std::string> prepared_statements_;
+  std::chrono::steady_clock::time_point created_at_;
+  std::chrono::steady_clock::time_point last_used_at_;
 };
 
 // High-performance connection pool with prepared statement caching.
@@ -99,6 +109,7 @@ class PostgresPool {
     int resultFormat);
 
   // Prepare a statement for repeated execution.
+  // Stores SQL text at pool level so any connection can re-prepare.
   bool Prepare(
     const char* name,
     const char* query,
@@ -106,6 +117,8 @@ class PostgresPool {
     const Oid* paramTypes);
 
   // Execute a prepared statement.
+  // If the acquired connection does not have the statement prepared,
+  // it will be re-prepared transparently using the pool-level SQL map.
   PGresult* ExecutePrepared(
     const char* name,
     int nParams,
@@ -132,6 +145,9 @@ class PostgresPool {
   std::vector<PooledConnection*> active_connections_;
   mutable std::mutex mutex_;
   bool initialized_ = false;
+  // Pool-level map of statement_name -> sql_text so any connection can
+  // re-prepare a statement that was originally prepared on a different one.
+  std::unordered_map<std::string, std::string> statement_sql_;
 };
 
 }  // namespace postgres

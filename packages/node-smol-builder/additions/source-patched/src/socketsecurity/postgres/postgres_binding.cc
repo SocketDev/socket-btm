@@ -394,7 +394,7 @@ void PostgresBinding::AcquireConnection(const FunctionCallbackInfo<Value>& args)
 
   PooledConnection* conn = it->second->Acquire();
   if (conn == nullptr) {
-    args.GetReturnValue().SetNull();
+    args.GetReturnValue().SetUndefined();
     return;
   }
 

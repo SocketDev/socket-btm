@@ -5,12 +5,8 @@
 
 const {
   ArrayPrototypeFilter,
-  ArrayPrototypeFind,
-  ArrayPrototypeForEach,
-  ArrayPrototypeMap,
   ArrayPrototypePush,
   JSONParse,
-  ObjectEntries,
   ObjectFreeze,
   ObjectKeys,
   RegExp: RegExpCtor,
@@ -20,12 +16,25 @@ const {
   StringPrototypeEndsWith,
   StringPrototypeIndexOf,
   StringPrototypeLastIndexOf,
-  StringPrototypeMatch,
   StringPrototypeReplace,
   StringPrototypeSlice,
   StringPrototypeSplit,
   StringPrototypeTrim,
 } = primordials;
+
+// Interned common strings
+const PROD = 'prod';
+const DEV = 'dev';
+const OPTIONAL = 'optional';
+const PEER = 'peer';
+const NPM = 'npm';
+
+// Hoisted regex patterns
+const RE_QUOTE_START = /^"/;
+const RE_QUOTE_END = /"$/;
+const RE_LOCKFILE_VERSION = /lockfileVersion:\s*['"]?([0-9.]+)['"]?/;
+const RE_INTEGRITY = /integrity:\s*([a-zA-Z0-9+/=-]+)/;
+const RE_TARBALL = /tarball:\s*['"]?([^'"}\s]+)['"]?/;
 
 class ManifestError extends Error {
   constructor(message, code) {
@@ -59,16 +68,17 @@ const supportedFiles = ObjectFreeze({
 
 // Detect format from filename
 function detectFormat(filename) {
-  const basename = filename.split('/').pop();
+  const lastSlash = StringPrototypeLastIndexOf(filename, '/');
+  const basename = lastSlash === -1 ? filename : StringPrototypeSlice(filename, lastSlash + 1);
 
   if (MANIFEST_PATTERNS[basename]) {
-    return { ...MANIFEST_PATTERNS[basename] };
+    return { __proto__: null, ...MANIFEST_PATTERNS[basename] };
   }
   if (LOCKFILE_PATTERNS[basename]) {
-    return { ...LOCKFILE_PATTERNS[basename] };
+    return { __proto__: null, ...LOCKFILE_PATTERNS[basename] };
   }
 
-  return null;
+  return undefined;
 }
 
 // Parse package.json
@@ -85,55 +95,57 @@ function parsePackageJson(content) {
   // Helper to add deps
   const addDeps = (obj, type) => {
     if (!obj || typeof obj !== 'object') return;
-    for (const [name, range] of ObjectEntries(obj)) {
+    const keys = ObjectKeys(obj);
+    for (let i = 0, len = keys.length; i < len; i++) {
+      const name = keys[i];
       ArrayPrototypePush(dependencies, ObjectFreeze({
         __proto__: null,
         name,
-        versionRange: range,
+        versionRange: obj[name],
         type,
-        optional: type === 'optional',
+        optional: type === OPTIONAL,
       }));
     }
   };
 
-  addDeps(data.dependencies, 'prod');
-  addDeps(data.devDependencies, 'dev');
-  addDeps(data.peerDependencies, 'peer');
-  addDeps(data.optionalDependencies, 'optional');
+  addDeps(data.dependencies, PROD);
+  addDeps(data.devDependencies, DEV);
+  addDeps(data.peerDependencies, PEER);
+  addDeps(data.optionalDependencies, OPTIONAL);
 
   return ObjectFreeze({
     __proto__: null,
     type: 'manifest',
-    name: data.name || null,
-    version: data.version || null,
-    description: data.description || null,
-    license: data.license || null,
+    name: data.name || undefined,
+    version: data.version || undefined,
+    description: data.description || undefined,
+    license: data.license || undefined,
     repository: typeof data.repository === 'string' ? data.repository :
-      data.repository?.url || null,
+      data.repository?.url || undefined,
     dependencies: ObjectFreeze(dependencies),
-    ecosystem: 'npm',
+    ecosystem: NPM,
   });
 }
 
 // Parse git URL from resolved field (P0.3: Git dependency detection)
 function parseGitUrl(resolved) {
   // Check if this is a git URL
-  if (!StringPrototypeIndexOf(resolved, 'git+') === 0 &&
-      !StringPrototypeIndexOf(resolved, 'git://') === 0) {
-    return null;
+  if (StringPrototypeIndexOf(resolved, 'git+') !== 0 &&
+      StringPrototypeIndexOf(resolved, 'git://') !== 0) {
+    return undefined;
   }
 
   // Extract URL and commit
   const hashIndex = StringPrototypeIndexOf(resolved, '#');
   if (hashIndex === -1) {
     // No commit hash
-    return { url: resolved, commit: null };
+    return { __proto__: null, url: resolved, commit: undefined };
   }
 
   const url = StringPrototypeSlice(resolved, 0, hashIndex);
   const commit = StringPrototypeSlice(resolved, hashIndex + 1);
 
-  return { url, commit };
+  return { __proto__: null, url, commit };
 }
 
 // Extract package name from node_modules path
@@ -174,22 +186,39 @@ function parsePackageLock(content) {
     throw new ManifestError(`Invalid JSON: ${e.message}`, 'ERR_INVALID_JSON');
   }
 
-  const packages = [];
   const packageIndex = { __proto__: null };
+
+  // Helper to add index entry supporting multiple versions
+  const addToIndex = (name, idx) => {
+    if (packageIndex[name] === undefined) {
+      packageIndex[name] = idx;
+    } else if (typeof packageIndex[name] === 'number') {
+      packageIndex[name] = [packageIndex[name], idx];
+    } else {
+      packageIndex[name].push(idx);
+    }
+  };
 
   // v2/v3 format uses "packages"
   if (data.packages) {
-    for (const [path, pkg] of ObjectEntries(data.packages)) {
-      // Skip root package
-      if (path === '') continue;
+    const pkgKeys = ObjectKeys(data.packages);
+    // Pre-size: subtract 1 for the root '' entry if present
+    const packages = new Array(data.packages[''] !== undefined ? pkgKeys.length - 1 : pkgKeys.length);
+    let pkgCount = 0;
 
+    for (let ki = 0, klen = pkgKeys.length; ki < klen; ki++) {
+      const pkgPath = pkgKeys[ki];
+      // Skip root package
+      if (pkgPath === '') continue;
+
+      const pkg = data.packages[pkgPath];
       // Extract name from path using proper scoped package handling
-      const name = extractPackageNameFromPath(path);
+      const name = extractPackageNameFromPath(pkgPath);
       const version = pkg.version || '0.0.0';
 
       // P0.3: Git dependency detection
-      let vcsUrl = null;
-      let vcsCommit = null;
+      let vcsUrl;
+      let vcsCommit;
       if (pkg.resolved) {
         const gitMatch = parseGitUrl(pkg.resolved);
         if (gitMatch) {
@@ -202,29 +231,47 @@ function parsePackageLock(content) {
         __proto__: null,
         name,
         version,
-        resolved: pkg.resolved || null,
-        integrity: pkg.integrity || null,
-        ecosystem: 'npm',
-        depType: pkg.dev ? 'dev' : pkg.optional ? 'optional' : pkg.peer ? 'peer' : 'prod',
+        resolved: pkg.resolved || undefined,
+        integrity: pkg.integrity || undefined,
+        ecosystem: NPM,
+        depType: pkg.dev ? DEV : pkg.optional ? OPTIONAL : pkg.peer ? PEER : PROD,
         isDev: !!pkg.dev,
         isOptional: !!pkg.optional,
         isPeer: !!pkg.peer,
         isBundled: !!pkg.inBundle,
-        license: pkg.license || null,
+        license: pkg.license || undefined,
         vcsUrl,
         vcsCommit,
         dependencies: pkg.dependencies ? ObjectKeys(pkg.dependencies) : [],
       });
 
-      ArrayPrototypePush(packages, ref);
-      packageIndex[name] = packages.length - 1;
+      packages[pkgCount] = ref;
+      addToIndex(name, pkgCount);
+      pkgCount++;
     }
+    // Trim if needed
+    packages.length = pkgCount;
+
+    return ObjectFreeze({
+      __proto__: null,
+      type: 'lockfile',
+      lockVersion: StringCtor(data.lockfileVersion || 1),
+      ecosystem: NPM,
+      packages: ObjectFreeze(packages),
+      _index: packageIndex,
+    });
   }
+
+  const packages = [];
+
   // v1 format uses "dependencies"
-  else if (data.dependencies) {
+  if (data.dependencies) {
     const visited = new Set();
-    const flatten = (deps, path = '') => {
-      for (const [name, pkg] of ObjectEntries(deps)) {
+    const flatten = (deps, parentPath = '') => {
+      const depKeys = ObjectKeys(deps);
+      for (let di = 0, dlen = depKeys.length; di < dlen; di++) {
+        const name = depKeys[di];
+        const pkg = deps[name];
         const version = pkg.version || '0.0.0';
         const key = `${name}@${version}`;
 
@@ -236,8 +283,8 @@ function parsePackageLock(content) {
         // Only add if not already present (first occurrence wins)
         if (packageIndex[name] === undefined) {
           // P0.3: Git dependency detection
-          let vcsUrl = null;
-          let vcsCommit = null;
+          let vcsUrl;
+          let vcsCommit;
           if (pkg.resolved) {
             const gitMatch = parseGitUrl(pkg.resolved);
             if (gitMatch) {
@@ -250,10 +297,10 @@ function parsePackageLock(content) {
             __proto__: null,
             name,
             version,
-            resolved: pkg.resolved || null,
-            integrity: pkg.integrity || null,
-            ecosystem: 'npm',
-            depType: pkg.dev ? 'dev' : pkg.optional ? 'optional' : pkg.peer ? 'peer' : 'prod',
+            resolved: pkg.resolved || undefined,
+            integrity: pkg.integrity || undefined,
+            ecosystem: NPM,
+            depType: pkg.dev ? DEV : pkg.optional ? OPTIONAL : pkg.peer ? PEER : PROD,
             isDev: !!pkg.dev,
             isOptional: !!pkg.optional,
             isPeer: !!pkg.peer,
@@ -270,7 +317,7 @@ function parsePackageLock(content) {
         // Recursively flatten nested dependencies
         if (pkg.dependencies) {
           visited.add(key);
-          flatten(pkg.dependencies, `${path}/${name}`);
+          flatten(pkg.dependencies, `${parentPath}/${name}`);
           visited.delete(key);
         }
       }
@@ -282,7 +329,7 @@ function parsePackageLock(content) {
     __proto__: null,
     type: 'lockfile',
     lockVersion: StringCtor(data.lockfileVersion || 1),
-    ecosystem: 'npm',
+    ecosystem: NPM,
     packages: ObjectFreeze(packages),
     _index: packageIndex,
   });
@@ -338,28 +385,51 @@ function parseYarnLock(content) {
   const packages = [];
   const packageIndex = { __proto__: null };
 
+  // Helper to add index entry supporting multiple versions
+  const addToYarnIndex = (name, idx) => {
+    if (packageIndex[name] === undefined) {
+      packageIndex[name] = idx;
+    } else if (typeof packageIndex[name] === 'number') {
+      packageIndex[name] = [packageIndex[name], idx];
+    } else {
+      packageIndex[name].push(idx);
+    }
+  };
+
   // Detect Berry format by __metadata field
   const isBerry = StringPrototypeIndexOf(content, '__metadata:') !== -1;
 
-  // Remove comments
-  const lines = StringPrototypeSplit(content, '\n');
-  let i = 0;
+  // Helper to strip surrounding quotes from a value
+  const stripQuotes = (s) =>
+    StringPrototypeReplace(StringPrototypeReplace(s, RE_QUOTE_START, ''), RE_QUOTE_END, '');
 
-  while (i < lines.length) {
-    const line = lines[i];
+  // indexOf-based line scanning (no split)
+  let pos = 0;
+  // We need a lines-like interface but scanning by position.
+  // We'll use a helper to peek at indented sub-lines.
+  // Since the original code indexes lines[i] extensively, we collect lines on the fly
+  // into a local buffer only for the current block.
+
+  while (pos < content.length) {
+    const eol = StringPrototypeIndexOf(content, '\n', pos);
+    const end = eol === -1 ? content.length : eol;
+    const line = StringPrototypeSlice(content, pos, end);
+    pos = end + 1;
 
     // Skip empty lines and comments
     if (!line || StringPrototypeTrim(line) === '' || line[0] === '#') {
-      i++;
       continue;
     }
 
     // Skip __metadata in Berry
     if (StringPrototypeTrim(line) === '__metadata:') {
       // Skip until next top-level entry
-      i++;
-      while (i < lines.length && (lines[i][0] === ' ' || lines[i][0] === '\t')) {
-        i++;
+      while (pos < content.length) {
+        const neol = StringPrototypeIndexOf(content, '\n', pos);
+        const nend = neol === -1 ? content.length : neol;
+        const nline = StringPrototypeSlice(content, pos, nend);
+        if (nline.length === 0 || (nline[0] !== ' ' && nline[0] !== '\t')) break;
+        pos = nend + 1;
       }
       continue;
     }
@@ -369,13 +439,12 @@ function parseYarnLock(content) {
       const spec = StringPrototypeTrim(StringPrototypeSlice(line, 0, -1));
 
       // Skip workspace entries in Berry (linkType: soft)
-      let isWorkspace = false;
-      let linkType = null;
+      let linkType;
 
       // Extract package name
       let name = spec;
       // Remove quotes
-      name = StringPrototypeReplace(StringPrototypeReplace(name, /^"/, ''), /"$/, '');
+      name = stripQuotes(name);
 
       // Handle multiple specs: "name@^1.0.0, name@^1.1.0"
       const commaIdx = StringPrototypeIndexOf(name, ',');
@@ -385,9 +454,12 @@ function parseYarnLock(content) {
 
       // Skip workspace: protocol entries
       if (StringPrototypeIndexOf(name, '@workspace:') !== -1) {
-        i++;
-        while (i < lines.length && (lines[i][0] === ' ' || lines[i][0] === '\t')) {
-          i++;
+        while (pos < content.length) {
+          const neol = StringPrototypeIndexOf(content, '\n', pos);
+          const nend = neol === -1 ? content.length : neol;
+          const nline = StringPrototypeSlice(content, pos, nend);
+          if (nline.length === 0 || (nline[0] !== ' ' && nline[0] !== '\t')) break;
+          pos = nend + 1;
         }
         continue;
       }
@@ -396,61 +468,55 @@ function parseYarnLock(content) {
       const parsed = parseYarnDescriptor(name);
       name = parsed.name;
 
-      let version = null;
-      let resolved = null;
-      let integrity = null;
-      let checksum = null;
+      let version;
+      let resolved;
+      let integrity;
+      let checksum;
       let dependencies = [];
       let isOptional = false;
 
       // Parse indented properties
-      i++;
-      while (i < lines.length && (lines[i][0] === ' ' || lines[i][0] === '\t')) {
-        const propLine = StringPrototypeTrim(lines[i]);
+      while (pos < content.length) {
+        const peol = StringPrototypeIndexOf(content, '\n', pos);
+        const pend = peol === -1 ? content.length : peol;
+        const pline = StringPrototypeSlice(content, pos, pend);
+
+        if (pline.length === 0 || (pline[0] !== ' ' && pline[0] !== '\t')) break;
+
+        const propLine = StringPrototypeTrim(pline);
+        pos = pend + 1;
 
         // Check for "version" with space or colon after
         if (StringPrototypeIndexOf(propLine, 'version ') === 0 ||
             StringPrototypeIndexOf(propLine, 'version:') === 0) {
-          let colonIdx = StringPrototypeIndexOf(propLine, ':');
+          const colonIdx = StringPrototypeIndexOf(propLine, ':');
           if (colonIdx === -1) {
-            // Space-separated format: "version \"4.17.21\""
-            version = StringPrototypeReplace(StringPrototypeReplace(
-              StringPrototypeTrim(StringPrototypeSlice(propLine, 8)), /^"/, ''), /"$/, '');
+            version = stripQuotes(StringPrototypeTrim(StringPrototypeSlice(propLine, 8)));
           } else {
-            // Colon format: "version: \"4.17.21\""
-            version = StringPrototypeReplace(StringPrototypeReplace(
-              StringPrototypeTrim(StringPrototypeSlice(propLine, colonIdx + 1)), /^"/, ''), /"$/, '');
+            version = stripQuotes(StringPrototypeTrim(StringPrototypeSlice(propLine, colonIdx + 1)));
           }
         } else if (StringPrototypeIndexOf(propLine, 'resolved ') === 0 ||
                    StringPrototypeIndexOf(propLine, 'resolved:') === 0) {
-          let colonIdx = StringPrototypeIndexOf(propLine, ':');
+          const colonIdx = StringPrototypeIndexOf(propLine, ':');
           if (colonIdx === -1) {
-            // Space-separated format: "resolved \"https://...\""
-            resolved = StringPrototypeReplace(StringPrototypeReplace(
-              StringPrototypeTrim(StringPrototypeSlice(propLine, 9)), /^"/, ''), /"$/, '');
+            resolved = stripQuotes(StringPrototypeTrim(StringPrototypeSlice(propLine, 9)));
           } else {
-            // Colon format: "resolved: \"https://...\""
-            resolved = StringPrototypeReplace(StringPrototypeReplace(
-              StringPrototypeTrim(StringPrototypeSlice(propLine, colonIdx + 1)), /^"/, ''), /"$/, '');
+            resolved = stripQuotes(StringPrototypeTrim(StringPrototypeSlice(propLine, colonIdx + 1)));
           }
         } else if (StringPrototypeIndexOf(propLine, 'integrity ') === 0 ||
                    StringPrototypeIndexOf(propLine, 'integrity:') === 0) {
-          let colonIdx = StringPrototypeIndexOf(propLine, ':');
+          const colonIdx = StringPrototypeIndexOf(propLine, ':');
           if (colonIdx === -1) {
-            // Space-separated format: "integrity sha512-..."
             integrity = StringPrototypeTrim(StringPrototypeSlice(propLine, 10));
           } else {
-            // Colon format: "integrity: sha512-..."
             integrity = StringPrototypeTrim(StringPrototypeSlice(propLine, colonIdx + 1));
           }
         } else if (StringPrototypeIndexOf(propLine, 'checksum ') === 0 ||
                    StringPrototypeIndexOf(propLine, 'checksum:') === 0) {
-          let colonIdx = StringPrototypeIndexOf(propLine, ':');
+          const colonIdx = StringPrototypeIndexOf(propLine, ':');
           if (colonIdx === -1) {
-            // Space-separated
             checksum = StringPrototypeTrim(StringPrototypeSlice(propLine, 9));
           } else {
-            // Colon format
             checksum = StringPrototypeTrim(StringPrototypeSlice(propLine, colonIdx + 1));
           }
         } else if (StringPrototypeIndexOf(propLine, 'linkType') === 0) {
@@ -462,9 +528,8 @@ function parseYarnLock(content) {
           // Berry resolution field
           const colonIdx = StringPrototypeIndexOf(propLine, ':');
           if (colonIdx > 0) {
-            const resValue = StringPrototypeReplace(StringPrototypeReplace(
-              StringPrototypeTrim(StringPrototypeSlice(propLine, colonIdx + 1)), /^"/, ''), /"$/, '');
-            // Check if it's a URL
+            const resValue = stripQuotes(
+              StringPrototypeTrim(StringPrototypeSlice(propLine, colonIdx + 1)));
             if (StringPrototypeIndexOf(resValue, 'http://') === 0 ||
                 StringPrototypeIndexOf(resValue, 'https://') === 0) {
               resolved = resValue;
@@ -472,32 +537,35 @@ function parseYarnLock(content) {
           }
         } else if (StringPrototypeIndexOf(propLine, 'dependencies:') === 0) {
           // Parse dependencies section
-          i++;
-          while (i < lines.length && lines[i][0] === ' ' && lines[i][1] === ' ' && lines[i][2] === ' ' && lines[i][3] === ' ') {
-            const depLine = StringPrototypeTrim(lines[i]);
-            const colonIdx = StringPrototypeIndexOf(depLine, ':');
-            if (colonIdx > 0) {
-              const depName = StringPrototypeSlice(depLine, 0, colonIdx);
-              ArrayPrototypePush(dependencies, depName);
+          while (pos < content.length) {
+            const deol = StringPrototypeIndexOf(content, '\n', pos);
+            const dend = deol === -1 ? content.length : deol;
+            const dline = StringPrototypeSlice(content, pos, dend);
+            if (dline.length < 4 || dline[0] !== ' ' || dline[1] !== ' ' || dline[2] !== ' ' || dline[3] !== ' ') break;
+            const depLine = StringPrototypeTrim(dline);
+            const dcolonIdx = StringPrototypeIndexOf(depLine, ':');
+            if (dcolonIdx > 0) {
+              ArrayPrototypePush(dependencies, StringPrototypeSlice(depLine, 0, dcolonIdx));
             }
-            i++;
+            pos = dend + 1;
           }
           continue;
         } else if (StringPrototypeIndexOf(propLine, 'dependenciesMeta:') === 0) {
           // Check for optional dependencies in Berry
-          i++;
-          while (i < lines.length && lines[i][0] === ' ' && lines[i][1] === ' ' && lines[i][2] === ' ' && lines[i][3] === ' ') {
-            const metaLine = StringPrototypeTrim(lines[i]);
+          while (pos < content.length) {
+            const meol = StringPrototypeIndexOf(content, '\n', pos);
+            const mend = meol === -1 ? content.length : meol;
+            const mline = StringPrototypeSlice(content, pos, mend);
+            if (mline.length < 4 || mline[0] !== ' ' || mline[1] !== ' ' || mline[2] !== ' ' || mline[3] !== ' ') break;
+            const metaLine = StringPrototypeTrim(mline);
             if (StringPrototypeIndexOf(metaLine, 'optional:') !== -1 &&
                 StringPrototypeIndexOf(metaLine, 'true') !== -1) {
               isOptional = true;
             }
-            i++;
+            pos = mend + 1;
           }
           continue;
         }
-
-        i++;
       }
 
       // Skip workspace soft links in Berry
@@ -511,29 +579,27 @@ function parseYarnLock(content) {
           name,
           version,
           resolved,
-          integrity: integrity || checksum || null,
-          ecosystem: 'npm',
-          depType: 'prod',
+          integrity: integrity || checksum || undefined,
+          ecosystem: NPM,
+          depType: PROD,
           isDev: false,
           isOptional,
           dependencies,
         });
 
         ArrayPrototypePush(packages, ref);
-        packageIndex[name] = packages.length - 1;
+        addToYarnIndex(name, packages.length - 1);
       }
 
       continue;
     }
-
-    i++;
   }
 
   return ObjectFreeze({
     __proto__: null,
     type: 'lockfile',
     lockVersion: isBerry ? 'berry' : '1',
-    ecosystem: 'npm',
+    ecosystem: NPM,
     packages: ObjectFreeze(packages),
     _index: packageIndex,
   });
@@ -541,7 +607,7 @@ function parseYarnLock(content) {
 
 // Detect pnpm lockfile version from content
 function detectPnpmVersion(content) {
-  const match = RegExpPrototypeExec(/lockfileVersion:\s*['"]?([0-9.]+)['"]?/, content);
+  const match = RegExpPrototypeExec(RE_LOCKFILE_VERSION, content);
   if (match) {
     const version = match[1];
     if (version[0] === '5') return 5;
@@ -620,17 +686,33 @@ function parsePnpmLock(content) {
   const lockVersion = detectPnpmVersion(content);
   const isV5 = lockVersion === 5;
 
-  const lines = StringPrototypeSplit(content, '\n');
+  // Helper to add index entry supporting multiple versions
+  const addToPnpmIndex = (name, idx) => {
+    if (packageIndex[name] === undefined) {
+      packageIndex[name] = idx;
+    } else if (typeof packageIndex[name] === 'number') {
+      packageIndex[name] = [packageIndex[name], idx];
+    } else {
+      packageIndex[name].push(idx);
+    }
+  };
+
   let inPackages = false;
   let inSnapshots = false;
   let inImporters = false;
-  let currentPkg = null;
+  let currentPkg;
   let currentIndent = 0;
-  let currentImporter = null;
+  let currentImporter;
   let importerIndent = 0;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  // indexOf-based line scanning (no split)
+  let pos = 0;
+  while (pos < content.length) {
+    const eol = StringPrototypeIndexOf(content, '\n', pos);
+    const end = eol === -1 ? content.length : eol;
+    const line = StringPrototypeSlice(content, pos, end);
+    pos = end + 1;
+
     const trimmed = StringPrototypeTrim(line);
 
     // Detect packages section (v5, v6)
@@ -676,7 +758,12 @@ function parsePnpmLock(content) {
 
       // Importer entry (workspace path)
       if (indent === 2 && StringPrototypeEndsWith(trimmed, ':')) {
-        currentImporter = { dependencies: null, devDependencies: null, optionalDependencies: null };
+        currentImporter = {
+          __proto__: null,
+          dependencies: undefined,
+          devDependencies: undefined,
+          optionalDependencies: undefined,
+        };
         importerIndent = indent;
         continue;
       }
@@ -684,11 +771,11 @@ function parsePnpmLock(content) {
       // Importer properties
       if (currentImporter && indent > importerIndent) {
         if (StringPrototypeIndexOf(trimmed, 'dependencies:') === 0) {
-          currentImporter.dependencies = {};
+          currentImporter.dependencies = true;
         } else if (StringPrototypeIndexOf(trimmed, 'devDependencies:') === 0) {
-          currentImporter.devDependencies = {};
+          currentImporter.devDependencies = true;
         } else if (StringPrototypeIndexOf(trimmed, 'optionalDependencies:') === 0) {
-          currentImporter.optionalDependencies = {};
+          currentImporter.optionalDependencies = true;
         } else if (indent > importerIndent + 2) {
           // Dependency entry: "    name: version"
           const colonIdx = StringPrototypeIndexOf(trimmed, ':');
@@ -702,22 +789,22 @@ function parsePnpmLock(content) {
             }
 
             // Parse version (handle peer dep suffix)
-            const version = StringPrototypeSplit(depVersion, '_')[0] || depVersion;
-            const versionWithoutPeer = StringPrototypeSplit(version, '(')[0] || version;
-
-            const key = `${depName}@${versionWithoutPeer}`;
+            const underIdx = StringPrototypeIndexOf(depVersion, '_');
+            const versionNoPeer = underIdx !== -1 ? StringPrototypeSlice(depVersion, 0, underIdx) : depVersion;
+            const parenIdx = StringPrototypeIndexOf(versionNoPeer, '(');
+            const versionWithoutPeer = parenIdx !== -1 ? StringPrototypeSlice(versionNoPeer, 0, parenIdx) : versionNoPeer;
 
             // Add to packages if not already present
-            if (!packageIndex[depName]) {
+            if (packageIndex[depName] === undefined) {
               const ref = ObjectFreeze({
                 __proto__: null,
                 name: depName,
                 version: versionWithoutPeer,
-                resolved: null,
-                integrity: null,
-                ecosystem: 'npm',
-                depType: currentImporter.devDependencies ? 'dev' :
-                         currentImporter.optionalDependencies ? 'optional' : 'prod',
+                resolved: undefined,
+                integrity: undefined,
+                ecosystem: NPM,
+                depType: currentImporter.devDependencies ? DEV :
+                         currentImporter.optionalDependencies ? OPTIONAL : PROD,
                 isDev: !!currentImporter.devDependencies,
                 isOptional: !!currentImporter.optionalDependencies,
                 dependencies: [],
@@ -751,31 +838,27 @@ function parsePnpmLock(content) {
       if (currentPkg && currentPkg.name) {
         const ref = ObjectFreeze({ __proto__: null, ...currentPkg });
         ArrayPrototypePush(packages, ref);
-        if (!packageIndex[currentPkg.name]) {
-          packageIndex[currentPkg.name] = packages.length - 1;
-        }
+        addToPnpmIndex(currentPkg.name, packages.length - 1);
       }
 
       // Parse package key
       const key = StringPrototypeSlice(trimmed, 0, trimmed.length - 1); // Remove trailing :
 
       let parsed;
-      if (isV5 && key[0] === '/') {
-        parsed = parsePnpmPackageIdV5(key);
-      } else if (key[0] === '/') {
-        // V5-style entry even in non-v5 lockfile
+      if (key[0] === '/') {
         parsed = parsePnpmPackageIdV5(key);
       } else {
         parsed = parsePnpmPackageIdV6V9(key);
       }
 
       currentPkg = {
+        __proto__: null,
         name: parsed.name,
         version: parsed.version,
-        resolved: null,
-        integrity: null,
-        ecosystem: 'npm',
-        depType: 'prod',
+        resolved: undefined,
+        integrity: undefined,
+        ecosystem: NPM,
+        depType: PROD,
         isDev: false,
         isOptional: false,
         dependencies: [],
@@ -788,24 +871,24 @@ function parsePnpmLock(content) {
     if (currentPkg && indent > currentIndent) {
       if (StringPrototypeIndexOf(trimmed, 'dev:') === 0) {
         if (StringPrototypeIndexOf(trimmed, 'true') !== -1) {
-          currentPkg.depType = 'dev';
+          currentPkg.depType = DEV;
           currentPkg.isDev = true;
         }
       } else if (StringPrototypeIndexOf(trimmed, 'optional:') === 0) {
         if (StringPrototypeIndexOf(trimmed, 'true') !== -1) {
-          currentPkg.depType = 'optional';
+          currentPkg.depType = OPTIONAL;
           currentPkg.isOptional = true;
         }
       } else if (StringPrototypeIndexOf(trimmed, 'integrity:') === 0) {
         currentPkg.integrity = StringPrototypeTrim(StringPrototypeSlice(trimmed, 10));
       } else if (StringPrototypeIndexOf(trimmed, 'resolution:') === 0) {
         // resolution: {integrity: sha512-...}
-        const intMatch = RegExpPrototypeExec(/integrity:\s*([a-zA-Z0-9+/=-]+)/, trimmed);
+        const intMatch = RegExpPrototypeExec(RE_INTEGRITY, trimmed);
         if (intMatch) {
           currentPkg.integrity = intMatch[1];
         }
         // Also check for tarball URL
-        const tarballMatch = RegExpPrototypeExec(/tarball:\s*['"]?([^'"}\s]+)['"]?/, trimmed);
+        const tarballMatch = RegExpPrototypeExec(RE_TARBALL, trimmed);
         if (tarballMatch) {
           currentPkg.resolved = tarballMatch[1];
         }
@@ -826,16 +909,14 @@ function parsePnpmLock(content) {
   if (currentPkg && currentPkg.name) {
     const ref = ObjectFreeze({ __proto__: null, ...currentPkg });
     ArrayPrototypePush(packages, ref);
-    if (!packageIndex[currentPkg.name]) {
-      packageIndex[currentPkg.name] = packages.length - 1;
-    }
+    addToPnpmIndex(currentPkg.name, packages.length - 1);
   }
 
   return ObjectFreeze({
     __proto__: null,
     type: 'lockfile',
     lockVersion: StringCtor(lockVersion),
-    ecosystem: 'npm',
+    ecosystem: NPM,
     packages: ObjectFreeze(packages),
     _index: packageIndex,
   });
@@ -899,8 +980,9 @@ function parse(filename, content) {
 async function* createStreamingParser(content, ecosystem) {
   // For now, just parse and yield - true streaming would require incremental parsing
   const result = parseLockfile(content, ecosystem);
-  for (const pkg of result.packages) {
-    yield pkg;
+  const pkgs = result.packages;
+  for (let i = 0, len = pkgs.length; i < len; i++) {
+    yield pkgs[i];
   }
 }
 
@@ -910,15 +992,16 @@ function analyzeLockfile(lockfile) {
   let devDeps = 0;
   let optionalDeps = 0;
 
-  for (const pkg of lockfile.packages) {
-    switch (pkg.depType) {
-      case 'prod':
+  const pkgs = lockfile.packages;
+  for (let i = 0, len = pkgs.length; i < len; i++) {
+    switch (pkgs[i].depType) {
+      case PROD:
         prodDeps++;
         break;
-      case 'dev':
+      case DEV:
         devDeps++;
         break;
-      case 'optional':
+      case OPTIONAL:
         optionalDeps++;
         break;
     }
@@ -936,10 +1019,26 @@ function analyzeLockfile(lockfile) {
   });
 }
 
-// O(1) package lookup
+// O(1) package lookup (returns first match, or undefined)
 function getPackage(lockfile, name) {
   const idx = lockfile._index?.[name];
-  return idx !== undefined ? lockfile.packages[idx] : null;
+  if (idx === undefined) return undefined;
+  if (typeof idx === 'number') return lockfile.packages[idx];
+  // Array of indices - return first
+  return lockfile.packages[idx[0]];
+}
+
+// Get all versions of a package by name
+function getPackageVersions(lockfile, name) {
+  const idx = lockfile._index?.[name];
+  if (idx === undefined) return [];
+  if (typeof idx === 'number') return [lockfile.packages[idx]];
+  // Array of indices
+  const result = new Array(idx.length);
+  for (let i = 0, len = idx.length; i < len; i++) {
+    result[i] = lockfile.packages[idx[i]];
+  }
+  return result;
 }
 
 // Find packages matching pattern
@@ -955,6 +1054,7 @@ module.exports = {
   createStreamingParser,
   analyzeLockfile,
   getPackage,
+  getPackageVersions,
   findPackages,
   detectFormat,
   supportedFiles,

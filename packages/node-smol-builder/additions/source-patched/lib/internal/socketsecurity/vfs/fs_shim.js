@@ -1153,8 +1153,6 @@ function isUpstreamVfsEnabled() {
   try {
     // This will be available when Node.js PR #61478 lands
     const sea = require('internal/sea')
-import process from 'process'
-
     if (sea && typeof sea.isVfsEnabled === 'function') {
       return sea.isVfsEnabled()
     }

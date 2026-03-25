@@ -1,5 +1,3 @@
-import process from 'process'
-
 'use strict'
 
 /**

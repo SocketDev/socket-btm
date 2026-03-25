@@ -69,8 +69,6 @@ function enhanceRequire(baseRequire) {
 function createVFSRequire() {
   // eslint-disable-next-line n/prefer-node-protocol
   const { createRequire } = require('module')
-const process = require('process')
-
   const {
     handleNativeAddon,
     isNativeAddon,

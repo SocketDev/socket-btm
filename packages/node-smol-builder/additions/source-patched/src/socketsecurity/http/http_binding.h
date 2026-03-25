@@ -216,12 +216,7 @@ class BufferPool {
   size_t buffer_size_;
   size_t pool_size_;
   std::vector<uint8_t*> free_list_;
-  // Platform-specific mutex
-#if SMOL_PLATFORM_WINDOWS
-  void* mutex_;  // CRITICAL_SECTION
-#else
-  void* mutex_;  // pthread_mutex_t
-#endif
+  // No mutex needed - Node.js is single-threaded.
 };
 
 // ============================================================================

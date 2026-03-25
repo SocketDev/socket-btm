@@ -200,13 +200,19 @@ void IlpEncoder::WriteEscapedName(const char* name, size_t len) {
   }
 
   // Slow path: Table/column names need escaping (space, comma, equals)
+  // Pre-allocate worst case (every char escaped) to avoid per-byte capacity checks.
+  EnsureCapacity(len * 2);
+  if (overflow_) return;
+  char* dst = buffer_.data() + position_;
+  size_t written = 0;
   for (size_t i = 0; i < len; ++i) {
     char c = name[i];
     if (c == ' ' || c == ',' || c == '=') {
-      WriteChar('\\');
+      dst[written++] = '\\';
     }
-    WriteChar(c);
+    dst[written++] = c;
   }
+  position_ += written;
 }
 
 void IlpEncoder::WriteEscapedString(const char* str, size_t len) {
@@ -217,21 +223,27 @@ void IlpEncoder::WriteEscapedString(const char* str, size_t len) {
   }
 
   // Slow path: String values need escaping (backslash, double quote, newline)
+  // Pre-allocate worst case (every char escaped) to avoid per-byte capacity checks.
+  EnsureCapacity(len * 2);
+  if (overflow_) return;
+  char* dst = buffer_.data() + position_;
+  size_t written = 0;
   for (size_t i = 0; i < len; ++i) {
     char c = str[i];
     if (c == '\\' || c == '"') {
-      WriteChar('\\');
-      WriteChar(c);
+      dst[written++] = '\\';
+      dst[written++] = c;
     } else if (c == '\n') {
-      WriteChar('\\');
-      WriteChar('n');
+      dst[written++] = '\\';
+      dst[written++] = 'n';
     } else if (c == '\r') {
-      WriteChar('\\');
-      WriteChar('r');
+      dst[written++] = '\\';
+      dst[written++] = 'r';
     } else {
-      WriteChar(c);
+      dst[written++] = c;
     }
   }
+  position_ += written;
 }
 
 void IlpEncoder::WriteEscapedSymbol(const char* str, size_t len) {
@@ -242,21 +254,27 @@ void IlpEncoder::WriteEscapedSymbol(const char* str, size_t len) {
   }
 
   // Slow path: Symbol values need escaping (space, comma, equals, newline, cr)
+  // Pre-allocate worst case (every char escaped) to avoid per-byte capacity checks.
+  EnsureCapacity(len * 2);
+  if (overflow_) return;
+  char* dst = buffer_.data() + position_;
+  size_t written = 0;
   for (size_t i = 0; i < len; ++i) {
     char c = str[i];
     if (c == ' ' || c == ',' || c == '=' || c == '\n' || c == '\r') {
-      WriteChar('\\');
+      dst[written++] = '\\';
       if (c == '\n') {
-        WriteChar('n');
+        dst[written++] = 'n';
       } else if (c == '\r') {
-        WriteChar('r');
+        dst[written++] = 'r';
       } else {
-        WriteChar(c);
+        dst[written++] = c;
       }
     } else {
-      WriteChar(c);
+      dst[written++] = c;
     }
   }
+  position_ += written;
 }
 
 void IlpEncoder::WriteInt(int64_t value) {

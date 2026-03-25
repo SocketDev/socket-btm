@@ -63,6 +63,15 @@ const {
   statFromSea,
 } = require('internal/socketsecurity/vfs/sea_path')
 
+/**
+ * Fast combined check for whether a path belongs to SEA or VFS.
+ * Avoids two separate normalization + prefix check sequences for
+ * write operations that only need to know "is this read-only?".
+ */
+function isVirtualPath(path) {
+  return isSeaPath(path) || isVFSPath(path)
+}
+
 let shimmedFs
 
 /**
@@ -72,9 +81,9 @@ let shimmedFs
  */
 const smolVfsState = {
   __proto__: null,
-  handlers: null,
+  handlers: undefined,
   // Store original functions for handlers that need to merge results
-  originalReaddirSync: null,
+  originalReaddirSync: undefined,
 }
 
 /**
@@ -538,45 +547,45 @@ const smolHandlers = {
   // === Write Operations (all throw EROFS) ===
 
   writeFileSync(path, _data, _options) {
-    if (isSeaPath(path) || isVFSPath(path)) {
+    if (isVirtualPath(path)) {
       throw createEROFS('write', path)
     }
     return undefined
   },
 
   appendFileSync(path, _data, _options) {
-    if (isSeaPath(path) || isVFSPath(path)) {
+    if (isVirtualPath(path)) {
       throw createEROFS('appendfile', path)
     }
     return undefined
   },
 
   unlinkSync(path) {
-    if (isSeaPath(path) || isVFSPath(path)) {
+    if (isVirtualPath(path)) {
       throw createEROFS('unlink', path)
     }
     return undefined
   },
 
   rmdirSync(path, _options) {
-    if (isSeaPath(path) || isVFSPath(path)) {
+    if (isVirtualPath(path)) {
       throw createEROFS('rmdir', path)
     }
     return undefined
   },
 
   mkdirSync(path, _options) {
-    if (isSeaPath(path) || isVFSPath(path)) {
+    if (isVirtualPath(path)) {
       throw createEROFS('mkdir', path)
     }
     return undefined
   },
 
   renameSync(oldPath, newPath) {
-    if (isSeaPath(oldPath) || isVFSPath(oldPath)) {
+    if (isVirtualPath(oldPath)) {
       throw createEROFS('rename', oldPath)
     }
-    if (isSeaPath(newPath) || isVFSPath(newPath)) {
+    if (isVirtualPath(newPath)) {
       throw createEROFS('rename', newPath)
     }
     return undefined
@@ -584,7 +593,7 @@ const smolHandlers = {
 
   copyFileSync(src, dest, _mode) {
     // Allow copying FROM VFS/SEA, but not TO
-    if (isSeaPath(dest) || isVFSPath(dest)) {
+    if (isVirtualPath(dest)) {
       throw createEROFS('copyfile', dest)
     }
     return undefined
@@ -656,7 +665,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function readFileSync(path, options) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.readFileSync(path, options)
         if (result !== undefined) return result
       }
@@ -670,7 +679,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function existsSync(path) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.existsSync(path)
         if (result !== undefined) return result
       }
@@ -684,7 +693,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function statSync(path, options) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.statSync(path, options)
         if (result !== undefined) return result
       }
@@ -698,7 +707,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function lstatSync(path, options) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.lstatSync(path, options)
         if (result !== undefined) return result
       }
@@ -712,7 +721,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function readdirSync(path, options) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.readdirSync(path, options)
         if (result !== undefined) return result
       }
@@ -724,7 +733,7 @@ function installVFSShims(fs) {
   // Shim realpathSync with .native property
   const realpathSyncShim = function realpathSync(path, options) {
     const h = smolVfsState.handlers
-    if (h !== null) {
+    if (h !== undefined) {
       const result = h.realpathSync(path, options)
       if (result !== undefined) return result
     }
@@ -734,7 +743,7 @@ function installVFSShims(fs) {
   // Add .native that also checks VFS (item 4: missing intercept)
   realpathSyncShim.native = function realpathSyncNative(path, options) {
     const h = smolVfsState.handlers
-    if (h !== null) {
+    if (h !== undefined) {
       const result = h.realpathSyncNative(path, options)
       if (result !== undefined) return result
     }
@@ -757,7 +766,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function accessSync(path, mode) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.accessSync(path, mode)
         if (result !== undefined) return
       }
@@ -771,7 +780,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function readlinkSync(path, options) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.readlinkSync(path, options)
         if (result !== undefined) return result
       }
@@ -787,7 +796,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function writeFileSync(path, data, options) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.writeFileSync(path, data, options)
         if (result !== undefined) return result
       }
@@ -801,7 +810,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function appendFileSync(path, data, options) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.appendFileSync(path, data, options)
         if (result !== undefined) return result
       }
@@ -815,7 +824,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function unlinkSync(path) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.unlinkSync(path)
         if (result !== undefined) return result
       }
@@ -829,7 +838,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function rmdirSync(path, options) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.rmdirSync(path, options)
         if (result !== undefined) return result
       }
@@ -843,7 +852,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function mkdirSync(path, options) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.mkdirSync(path, options)
         if (result !== undefined) return result
       }
@@ -857,7 +866,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function renameSync(oldPath, newPath) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.renameSync(oldPath, newPath)
         if (result !== undefined) return result
       }
@@ -871,7 +880,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function copyFileSync(src, dest, mode) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.copyFileSync(src, dest, mode)
         if (result !== undefined) return result
       }
@@ -887,7 +896,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function readFile(path, options, callback) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.readFile(path, options, callback)
         if (result !== undefined) return
       }
@@ -901,7 +910,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function stat(path, options, callback) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.stat(path, options, callback)
         if (result !== undefined) return
       }
@@ -915,7 +924,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function lstat(path, options, callback) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.lstat(path, options, callback)
         if (result !== undefined) return
       }
@@ -929,7 +938,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function readlink(path, options, callback) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.readlink(path, options, callback)
         if (result !== undefined) return
       }
@@ -943,7 +952,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function readdir(path, options, callback) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.readdir(path, options, callback)
         if (result !== undefined) return
       }
@@ -955,7 +964,7 @@ function installVFSShims(fs) {
   // Shim realpath with .native property
   const realpathShim = function realpath(path, options, callback) {
     const h = smolVfsState.handlers
-    if (h !== null) {
+    if (h !== undefined) {
       const result = h.realpath(path, options, callback)
       if (result !== undefined) return
     }
@@ -964,7 +973,7 @@ function installVFSShims(fs) {
 
   realpathShim.native = function realpathNative(path, options, callback) {
     const h = smolVfsState.handlers
-    if (h !== null) {
+    if (h !== undefined) {
       const result = h.realpath(path, options, callback)
       if (result !== undefined) return
     }
@@ -986,7 +995,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function access(path, mode, callback) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.access(path, mode, callback)
         if (result !== undefined) return
       }
@@ -1000,7 +1009,7 @@ function installVFSShims(fs) {
     enumerable: true,
     value: function exists(path, callback) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.exists(path, callback)
         if (result !== undefined) return
       }
@@ -1038,7 +1047,7 @@ function installPromiseShims(fsPromises) {
     enumerable: true,
     value: function readFile(path, options) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.readFilePromise(path, options)
         if (result !== undefined) return result
       }
@@ -1052,7 +1061,7 @@ function installPromiseShims(fsPromises) {
     enumerable: true,
     value: function stat(path, options) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.statPromise(path, options)
         if (result !== undefined) return result
       }
@@ -1066,7 +1075,7 @@ function installPromiseShims(fsPromises) {
     enumerable: true,
     value: function lstat(path, options) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.lstatPromise(path, options)
         if (result !== undefined) return result
       }
@@ -1080,7 +1089,7 @@ function installPromiseShims(fsPromises) {
     enumerable: true,
     value: function readlink(path, options) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.readlinkPromise(path, options)
         if (result !== undefined) return result
       }
@@ -1094,7 +1103,7 @@ function installPromiseShims(fsPromises) {
     enumerable: true,
     value: function readdir(path, options) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.readdirPromise(path, options)
         if (result !== undefined) return result
       }
@@ -1108,7 +1117,7 @@ function installPromiseShims(fsPromises) {
     enumerable: true,
     value: function realpath(path, options) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.realpathPromise(path, options)
         if (result !== undefined) return result
       }
@@ -1122,7 +1131,7 @@ function installPromiseShims(fsPromises) {
     enumerable: true,
     value: function access(path, mode) {
       const h = smolVfsState.handlers
-      if (h !== null) {
+      if (h !== undefined) {
         const result = h.accessPromise(path, mode)
         if (result !== undefined) return result
       }

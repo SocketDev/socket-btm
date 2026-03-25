@@ -267,14 +267,14 @@ class Sender extends EventEmitter {
     }
 
     this[kConfig] = config;
-    this[kId] = binding.createSender(
-      config.host,
-      config.port,
-      config.connectTimeout,
-      config.sendTimeout,
-      config.bufferSize,
-      config.maxBufferSize,
-    );
+    this[kId] = binding.createSender({
+      host: config.host,
+      port: config.port,
+      connectTimeoutMs: config.connectTimeout,
+      sendTimeoutMs: config.sendTimeout,
+      bufferSize: config.bufferSize,
+      maxBufferSize: config.maxBufferSize,
+    });
   }
 
   /**
@@ -853,7 +853,7 @@ class Sender extends EventEmitter {
         if (spec === undefined) continue;
 
         // Support both { value, unit } objects and plain values.
-        if (spec !== null && typeof spec === 'object' && ObjectHasOwn(spec, 'value')) {
+        if (typeof spec === 'object' && spec !== undefined && ObjectHasOwn(spec, 'value')) {
           this.timestampColumn(key, spec.value, spec.unit ?? TimeUnit.Nanoseconds);
         } else {
           // Plain number/bigint value.

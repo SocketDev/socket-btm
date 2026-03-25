@@ -20,12 +20,9 @@ const {
   ArrayPrototypePop,
   ArrayPrototypePush,
   Error: ErrorConstructor,
-  IteratorPrototypeNext,
-  MapPrototypeDelete,
   MapPrototypeForEach,
   MapPrototypeGet,
   MapPrototypeHas,
-  MapPrototypeKeys,
   MapPrototypeSet,
   ObjectFreeze,
   SafeMap,
@@ -58,6 +55,7 @@ const {
   VFS_DIRECTORY_MARKER,
   getContent,
   getDirectoryListing,
+  getFileSize,
   getMode,
   isDirectory,
 } = require('internal/socketsecurity/vfs/tar_parser')
@@ -91,11 +89,12 @@ let cachedBasePathNormalized
 
 // Path normalization cache (hot-path optimization)
 // Maps raw filepath → { vfsKey, normalized } to avoid repeated string operations
+// Simple bounded map: no LRU overhead since VFS is immutable
 const pathCache = new SafeMap()
 const PATH_CACHE_MAX_SIZE = 1000
 
 // Stat cache (hot-path optimization since VFS is read-only)
-// Maps vfsKey → stat object (with LRU eviction)
+// Maps vfsKey → stat object (simple bounded map, no eviction needed)
 const statCache = new SafeMap()
 const STAT_CACHE_MAX_SIZE = 1000
 
@@ -145,14 +144,14 @@ function findVFSKey(vfsPath, debug) {
     return
   }
 
-  // Track attempted keys for debugging
-  const attemptedKeys = debug ? [] : undefined
-
-  // Check exact match - use Get instead of Has (single lookup to check existence)
-  if (attemptedKeys) ArrayPrototypePush(attemptedKeys, vfsKey)
-  if (MapPrototypeGet(vfs, vfsKey) !== undefined) {
+  // Fast path: exact match covers >95% of lookups (files).
+  // Uses Has for a single lookup without retrieving the value.
+  if (MapPrototypeHas(vfs, vfsKey)) {
     return vfsKey
   }
+
+  // Track attempted keys for debugging (only on slow path)
+  const attemptedKeys = debug ? [vfsKey] : undefined
 
   // Check if ends with '/' using charCodeAt (ASCII 47 = '/')
   const len = vfsKey.length
@@ -162,7 +161,7 @@ function findVFSKey(vfsPath, debug) {
   // Try with trailing slash for directories
   const withSlash = endsWithSlash ? vfsKey : `${vfsKey}/`
   if (attemptedKeys && withSlash !== vfsKey) ArrayPrototypePush(attemptedKeys, withSlash)
-  if (MapPrototypeGet(vfs, withSlash) !== undefined) {
+  if (MapPrototypeHas(vfs, withSlash)) {
     return withSlash
   }
 
@@ -171,7 +170,7 @@ function findVFSKey(vfsPath, debug) {
     ? StringPrototypeSlice(vfsKey, 0, -1)
     : vfsKey
   if (attemptedKeys && withoutSlash !== vfsKey) ArrayPrototypePush(attemptedKeys, withoutSlash)
-  if (withoutSlash !== vfsKey && MapPrototypeGet(vfs, withoutSlash) !== undefined) {
+  if (withoutSlash !== vfsKey && MapPrototypeHas(vfs, withoutSlash)) {
     return withoutSlash
   }
 
@@ -202,15 +201,14 @@ function findVFSEntry(vfsPath, debug) {
     return
   }
 
-  // Track attempted keys for debugging
-  const attemptedKeys = debug ? [] : undefined
-
-  // Check exact match
-  if (attemptedKeys) ArrayPrototypePush(attemptedKeys, vfsKey)
+  // Fast path: exact match covers >95% of lookups (files).
   let entry = MapPrototypeGet(vfs, vfsKey)
   if (entry !== undefined) {
     return { __proto__: null, vfsKey, entry }
   }
+
+  // Track attempted keys for debugging (only on slow path)
+  const attemptedKeys = debug ? [vfsKey] : undefined
 
   // Check if ends with '/' using charCodeAt (ASCII 47 = '/')
   const len = vfsKey.length
@@ -367,6 +365,8 @@ function initVFS() {
     }
 
     // Parse TAR structure (auto-detects .tar vs .tgz)
+    // Note: vfsBlob is an ArrayBuffer from the native binding.
+    // Buffer.from(arrayBuffer) creates a zero-copy view (no data copied).
     const vfsBuffer = BufferFrom(vfsBlob)
     debug(`VFS blob size: ${vfsBuffer.length} bytes`)
 
@@ -549,7 +549,7 @@ function readFileFromVFS(filepath, options) {
 }
 
 /**
- * Get file stats from VFS (with LRU caching).
+ * Get file stats from VFS (with bounded caching).
  * VFS is read-only, so stat results are immutable and safe to cache.
  */
 function statFromVFS(filepath) {
@@ -563,7 +563,7 @@ function statFromVFS(filepath) {
     return
   }
 
-  // Check stat cache first (with LRU update)
+  // Check stat cache first
   const cachedStat = statCacheGet(vfsPath)
   if (cachedStat !== undefined) {
     return cachedStat
@@ -574,16 +574,16 @@ function statFromVFS(filepath) {
     return
   }
 
-  const content = getContent(entry)
-  const isDir = content === VFS_DIRECTORY_MARKER || isDirectory(vfs, vfsPath)
-  const size = isDir ? 0 : content.length
+  const isDir = entry.type === 'directory' || isDirectory(vfs, vfsPath)
+  // Use getFileSize to avoid materializing lazy content just for stat
+  const size = isDir ? 0 : getFileSize(entry)
 
   // Get mode from TAR metadata (or use defaults)
   const mode = getMode(entry) ?? (isDir ? 0o755 : 0o644)
 
   const stat = createStatObject(isDir, size, mode)
 
-  // Cache the stat result (with LRU eviction)
+  // Cache the stat result
   statCacheSet(vfsPath, stat)
 
   return stat
@@ -617,9 +617,9 @@ function lstatFromVFS(filepath) {
   }
 
   // For non-symlinks, return regular stat
-  const content = getContent(entry)
-  const isDir = content === VFS_DIRECTORY_MARKER || isDirectory(vfs, vfsPath)
-  const size = isDir ? 0 : content.length
+  const isDir = entry.type === 'directory' || isDirectory(vfs, vfsPath)
+  // Use getFileSize to avoid materializing lazy content just for stat
+  const size = isDir ? 0 : getFileSize(entry)
   const mode = getMode(entry) ?? (isDir ? 0o755 : 0o644)
 
   return createStatObject(isDir, size, mode)
@@ -667,71 +667,46 @@ function getNormalizedBasePath() {
 }
 
 /**
- * Helper to get from path cache with LRU update.
- * On cache hit, moves entry to end to mark as recently used.
+ * Helper to get from path cache (simple bounded map, no LRU overhead).
+ * VFS is immutable so cache entries never go stale. Once the cache is
+ * full we stop inserting -- the working set is warm enough.
  * @param {string} filepath
  * @returns {object|undefined}
  */
 function pathCacheGet(filepath) {
-  const cached = MapPrototypeGet(pathCache, filepath)
-  if (cached !== undefined) {
-    // Move to end to mark as recently used (LRU)
-    MapPrototypeDelete(pathCache, filepath)
-    MapPrototypeSet(pathCache, filepath, cached)
-  }
-  return cached
+  return MapPrototypeGet(pathCache, filepath)
 }
 
 /**
- * Helper to set in path cache with LRU eviction.
- * Evicts oldest entry if cache is at max size.
+ * Helper to set in path cache (simple bounded map, no eviction).
  * @param {string} filepath
  * @param {object} value
  */
 function pathCacheSet(filepath, value) {
-  // Evict oldest entry if at max size
-  if (pathCache.size >= PATH_CACHE_MAX_SIZE) {
-    const keysIter = MapPrototypeKeys(pathCache)
-    const { value: oldest } = IteratorPrototypeNext(keysIter)
-    if (oldest !== undefined) {
-      MapPrototypeDelete(pathCache, oldest)
-    }
+  if (pathCache.size < PATH_CACHE_MAX_SIZE) {
+    MapPrototypeSet(pathCache, filepath, value)
   }
-  MapPrototypeSet(pathCache, filepath, value)
 }
 
 /**
- * Helper to get from stat cache with LRU update.
- * On cache hit, moves entry to end to mark as recently used.
+ * Helper to get from stat cache (simple bounded map, no LRU overhead).
+ * VFS is immutable so stat results never change.
  * @param {string} vfsKey
  * @returns {object|undefined}
  */
 function statCacheGet(vfsKey) {
-  const cached = MapPrototypeGet(statCache, vfsKey)
-  if (cached !== undefined) {
-    // Move to end to mark as recently used (LRU)
-    MapPrototypeDelete(statCache, vfsKey)
-    MapPrototypeSet(statCache, vfsKey, cached)
-  }
-  return cached
+  return MapPrototypeGet(statCache, vfsKey)
 }
 
 /**
- * Helper to set in stat cache with LRU eviction.
- * Evicts oldest entry if cache is at max size.
+ * Helper to set in stat cache (simple bounded map, no eviction).
  * @param {string} vfsKey
  * @param {object} value
  */
 function statCacheSet(vfsKey, value) {
-  // Evict oldest entry if at max size
-  if (statCache.size >= STAT_CACHE_MAX_SIZE) {
-    const keysIter = MapPrototypeKeys(statCache)
-    const { value: oldest } = IteratorPrototypeNext(keysIter)
-    if (oldest !== undefined) {
-      MapPrototypeDelete(statCache, oldest)
-    }
+  if (statCache.size < STAT_CACHE_MAX_SIZE) {
+    MapPrototypeSet(statCache, vfsKey, value)
   }
-  MapPrototypeSet(statCache, vfsKey, value)
 }
 
 /**
@@ -743,10 +718,10 @@ function statCacheSet(vfsKey, value) {
  *
  * Returns path relative to VFS root (e.g., 'node_modules/foo')
  *
- * Uses LRU caching to avoid repeated string operations on hot paths.
+ * Uses bounded caching to avoid repeated string operations on hot paths.
  */
 function toVFSPath(filepath) {
-  // Check path cache first (with LRU update)
+  // Check path cache first
   const cached = pathCacheGet(filepath)
   if (cached !== undefined) {
     return cached.vfsKey
@@ -773,7 +748,7 @@ function toVFSPath(filepath) {
     }
   }
 
-  // Cache the result with LRU eviction
+  // Cache the result
   pathCacheSet(filepath, {
     __proto__: null,
     vfsKey,

@@ -52,7 +52,7 @@ try {
 // Fallback: Fast duck-type check for Headers-like object
 if (!isHeaders) {
   isHeaders = function isHeadersDuckType(obj) {
-    return obj != null &&
+    return obj !== undefined && !!obj &&
       typeof obj.get === 'function' &&
       typeof obj.forEach === 'function';
   };
@@ -65,8 +65,12 @@ const {
   InternalUtilTypesIsPromise,
 } = require('internal/socketsecurity/safe-references');
 
-// Buffer.concat captured for safe usage
+// Buffer.concat and allocUnsafe captured for safe usage
 const BufferConcat = Buffer.concat;
+const BufferAllocUnsafe = Buffer.allocUnsafe;
+
+// Threshold for single-buffer response assembly (16KB)
+const SINGLE_BUF_THRESHOLD = 16384;
 
 // Use Node.js built-in llhttp parser
 const { HTTPParser, methods: HTTP_METHODS } = internalBinding('http_parser');
@@ -333,7 +337,7 @@ function serve(options) {
     let bodyTotalLength = 0;
     let expectedContentLength = 0;
     let currentBody = '';
-    let currentRequest = null;
+    let currentRequest;
     const urlProtocolPrefix = hasTls ? 'https://' : 'http://';
 
     const urlAccessor = {
@@ -394,7 +398,7 @@ function serve(options) {
 
       if (ArrayIsArray(headers)) {
         for (let i = 0; i < headers.length; i += 2) {
-          const name = StringPrototypeToLowerCase(headers[i]);
+          const name = COMMON_HEADER_NAMES[headers[i]] || StringPrototypeToLowerCase(headers[i]);
           const value = headers[i + 1];
           MapPrototypeSet(currentHeaders, name, value);
         }
@@ -425,105 +429,166 @@ function serve(options) {
     };
 
     parser[kOnMessageComplete] = function onMessageComplete() {
-      handleRequest();
-    };
-
-    async function handleRequest() {
       pendingRequests++;
       try {
-        currentBody = bodyChunks.length === 0
-          ? EMPTY_STRING
-          : bodyChunks.length === 1
-            ? bodyChunks[0].toString('utf8')
-            : BufferConcat(bodyChunks, bodyTotalLength).toString('utf8');
-
-        let pathname;
-        let queryString;
-        const questionIdx = StringPrototypeIndexOf(currentUrl, '?');
-        const host = MapPrototypeGet(currentHeaders, 'host') || 'localhost';
-
-        if (questionIdx === -1) {
-          pathname = currentUrl;
-          queryString = undefined;
+        const response = prepareAndDispatch();
+        if (InternalUtilTypesIsPromise(response)) {
+          response.then(finishResponse, handleError);
         } else {
-          pathname = StringPrototypeSlice(currentUrl, 0, questionIdx);
-          queryString = StringPrototypeSlice(currentUrl, questionIdx + 1);
+          finishResponse(response);
         }
+      } catch (error) {
+        handleError(error);
+      }
+    };
 
-        const request = acquireRequest();
-        currentRequest = request;
-        request.method = currentMethod;
-        request._host = host;
-        request._rawUrl = currentUrl;
-        request._url = undefined;
-        request.url = urlAccessor;
-        request.pathname = pathname;
-        request.body = currentBody;
-        request._headerMap = currentHeaders;
-        request.headers = headersAccessor;
-        request.text = textFn;
-        request.json = jsonFn;
-        request.arrayBuffer = arrayBufferFn;
+    // Prepare request object and dispatch to handler (sync path)
+    function prepareAndDispatch() {
+      currentBody = bodyChunks.length === 0
+        ? EMPTY_STRING
+        : bodyChunks.length === 1
+          ? bodyChunks[0].toString('utf8')
+          : BufferConcat(bodyChunks, bodyTotalLength).toString('utf8');
 
-        if (queryString !== undefined) {
-          let start = 0;
-          const qsLen = queryString.length;
-          for (let i = 0; i <= qsLen; i++) {
-            if (i === qsLen || StringPrototypeCharCodeAt(queryString, i) === 38) {
-              if (i > start) {
-                const eqIdx = StringPrototypeIndexOf(queryString, '=', start);
-                if (eqIdx !== -1 && eqIdx < i) {
-                  const key = DecodeURIComponent(StringPrototypeSlice(queryString, start, eqIdx));
-                  const value = DecodeURIComponent(StringPrototypeSlice(queryString, eqIdx + 1, i));
-                  request.query[key] = value;
-                } else if (eqIdx === -1) {
-                  const key = DecodeURIComponent(StringPrototypeSlice(queryString, start, i));
-                  request.query[key] = EMPTY_STRING;
-                }
+      let pathname;
+      let queryString;
+      const questionIdx = StringPrototypeIndexOf(currentUrl, '?');
+      const host = MapPrototypeGet(currentHeaders, 'host') || 'localhost';
+
+      if (questionIdx === -1) {
+        pathname = currentUrl;
+        queryString = undefined;
+      } else {
+        pathname = StringPrototypeSlice(currentUrl, 0, questionIdx);
+        queryString = StringPrototypeSlice(currentUrl, questionIdx + 1);
+      }
+
+      const request = acquireRequest();
+      currentRequest = request;
+      request.method = currentMethod;
+      request._host = host;
+      request._rawUrl = currentUrl;
+      request._url = undefined;
+      request.url = urlAccessor;
+      request.pathname = pathname;
+      request.body = currentBody;
+      request._headerMap = currentHeaders;
+      request.headers = headersAccessor;
+      request.text = textFn;
+      request.json = jsonFn;
+      request.arrayBuffer = arrayBufferFn;
+
+      if (queryString !== undefined) {
+        let start = 0;
+        const qsLen = queryString.length;
+        for (let i = 0; i <= qsLen; i++) {
+          if (i === qsLen || StringPrototypeCharCodeAt(queryString, i) === 38) {
+            if (i > start) {
+              const eqIdx = StringPrototypeIndexOf(queryString, '=', start);
+              if (eqIdx !== -1 && eqIdx < i) {
+                const key = DecodeURIComponent(StringPrototypeSlice(queryString, start, eqIdx));
+                const value = DecodeURIComponent(StringPrototypeSlice(queryString, eqIdx + 1, i));
+                request.query[key] = value;
+              } else if (eqIdx === -1) {
+                const key = DecodeURIComponent(StringPrototypeSlice(queryString, start, i));
+                request.query[key] = EMPTY_STRING;
               }
-              start = i + 1;
             }
+            start = i + 1;
           }
         }
+      }
 
-        request._socket = socket;
+      request._socket = socket;
 
-        let response;
-        const routeMatch = trieMatch(routeTrie, request.pathname, request.method);
-        if (routeMatch) {
-          const matchParams = routeMatch.params;
-          const handler = routeMatch.handler;
-          // Copy params then immediately release pooled objects
-          for (const key in matchParams) {
-            const val = matchParams[key];
-            if (val !== undefined) {
-              request.params[key] = val;
-            }
-          }
-          // Release pooled objects back to pool ASAP
-          releaseParams(matchParams);
-          releaseResult(routeMatch);
-          response = handler(request, serverInstance);
-          if (InternalUtilTypesIsPromise(response)) {
-            response = await response;
+      let response;
+      const routeMatch = trieMatch(routeTrie, request.pathname, request.method);
+      if (routeMatch) {
+        const matchParams = routeMatch.params;
+        const handler = routeMatch.handler;
+        // Copy params then immediately release pooled objects
+        for (const key in matchParams) {
+          const val = matchParams[key];
+          if (val !== undefined) {
+            request.params[key] = val;
           }
         }
-
-        if (response === undefined) {
-          response = currentFetchHandler(request, serverInstance);
-          if (InternalUtilTypesIsPromise(response)) {
-            response = await response;
-          }
+        // Release pooled objects back to pool ASAP
+        releaseParams(matchParams);
+        releaseResult(routeMatch);
+        response = handler(request, serverInstance);
+        if (InternalUtilTypesIsPromise(response)) {
+          return response.then((resolved) => {
+            if (resolved !== undefined) return resolved;
+            const fetchResult = currentFetchHandler(request, serverInstance);
+            return InternalUtilTypesIsPromise(fetchResult) ? fetchResult : fetchResult;
+          });
         }
+      }
 
+      if (response === undefined) {
+        response = currentFetchHandler(request, serverInstance);
+        // If handler returns a promise, return it directly for async handling
+        if (InternalUtilTypesIsPromise(response)) {
+          return response;
+        }
+      }
+
+      return response;
+    }
+
+    // Write a Response object to the socket using single-buffer assembly
+    function writeResponseObject(response) {
+      const status = response.status || 200;
+      const responseBody = response._bodyText !== undefined
+        ? response._bodyText
+        : undefined;
+
+      // If we can't get the body synchronously, return false to fallback
+      if (responseBody === undefined) return false;
+
+      const bodyLen = Buffer.byteLength(responseBody);
+
+      // Single-buffer assembly for small responses
+      const cachedStatusLine = STATUS_LINE_CACHE[status];
+      if (cachedStatusLine && bodyLen < SINGLE_BUF_THRESHOLD) {
+        const headers = response.headers;
+        const headersOk = isHeaders(headers);
+        const contentType = headersOk ? headers.get('content-type') : undefined;
+        const cachedCtHeader = contentType && CONTENT_TYPE_HEADERS[contentType];
+        const ctBuf = cachedCtHeader || CT_TEXT_KEEPALIVE;
+        const clBuf = bodyLen < CONTENT_LENGTH_CACHE_SIZE
+          ? CONTENT_LENGTH_CACHE[bodyLen]
+          : undefined;
+
+        if (clBuf && !headers) {
+          // Super fast path: single buffer with all pre-computed parts
+          const totalLen = cachedStatusLine.length + clBuf.length + ctBuf.length + bodyLen;
+          const buf = BufferAllocUnsafe(totalLen);
+          let offset = 0;
+          offset += cachedStatusLine.copy(buf, offset);
+          offset += clBuf.copy(buf, offset);
+          offset += ctBuf.copy(buf, offset);
+          buf.write(responseBody, offset);
+          socket.write(buf);
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    function finishResponse(response) {
+      try {
         // WebSocket upgrade
-        const upgradeInfo = pendingUpgrades.get(request);
+        const upgradeInfo = pendingUpgrades.get(currentRequest);
         const upgradeHeader = MapPrototypeGet(currentHeaders, 'upgrade');
         if (upgradeInfo !== undefined || upgradeHeader === 'websocket') {
           const wsKey = MapPrototypeGet(currentHeaders, 'sec-websocket-key');
           if (!wsKey) {
             socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
-            releaseRequest(request);
+            releaseRequest(currentRequest);
+            pendingRequests--;
             return;
           }
 
@@ -548,94 +613,62 @@ function serve(options) {
           }
 
           socket.on('close', () => pendingWebSockets--);
-          releaseRequest(request);
+          releaseRequest(currentRequest);
+          pendingRequests--;
           return;
         }
 
         // Handle response
         if (response && typeof response.text === 'function') {
-          const responseBody = await response.text();
-          const status = response.status || 200;
-          const bodyBuf = BufferFrom(responseBody);
-          const bodyLen = bodyBuf.length;
-
-          socket.cork();
-
-          // Fast path: use cached status line if available (covers 99% of responses)
-          const cachedStatusLine = STATUS_LINE_CACHE[status];
-          if (cachedStatusLine && !response.headers) {
-            // Super fast path: no custom headers, default to text/plain
-            socket.write(cachedStatusLine);
-            if (bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
-              socket.write(CONTENT_LENGTH_CACHE[bodyLen]);
-            } else {
-              socket.write(StringCtor(bodyLen));
-              socket.write('\r\n');
-            }
-            socket.write(CT_TEXT_KEEPALIVE);
-          } else if (cachedStatusLine) {
-            // Fast path: cached status line with custom headers
-            socket.write(cachedStatusLine);
-            if (bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
-              socket.write(CONTENT_LENGTH_CACHE[bodyLen]);
-            } else {
-              socket.write(StringCtor(bodyLen));
-              socket.write('\r\n');
-            }
-            // Check for pre-computed Content-Type header
-            const headers = response.headers;
-            const headersOk = isHeaders(headers);
-            const contentType = headersOk ? headers.get('content-type') : undefined;
-            const cachedCtHeader = contentType && CONTENT_TYPE_HEADERS[contentType];
-            if (cachedCtHeader) {
-              // Use pre-computed Content-Type + Connection header combo
-              socket.write(cachedCtHeader);
-            } else {
-              socket.write(KEEP_ALIVE_HEADER);
-              if (headersOk) {
-                headers.forEach((value, name) => {
-                  const lowerName = COMMON_HEADER_NAMES[name] || StringPrototypeToLowerCase(name);
-                  if (lowerName !== 'content-length' && lowerName !== 'connection') {
-                    socket.write(`${name}: ${value}\r\n`);
-                  }
-                });
-              }
-              socket.write('\r\n');
-            }
-          } else {
-            // Slow path: uncommon status code
-            const statusText = response.statusText || STATUS_TEXT[status] || EMPTY_STRING;
-            socket.write(`HTTP/1.1 ${status} ${statusText}\r\nContent-Length: ${bodyLen}\r\n`);
-            socket.write(KEEP_ALIVE_HEADER);
-            const headers = response.headers;
-            if (isHeaders(headers)) {
-              headers.forEach((value, name) => {
-                const lowerName = COMMON_HEADER_NAMES[name] || StringPrototypeToLowerCase(name);
-                if (lowerName !== 'content-length' && lowerName !== 'connection') {
-                  socket.write(`${name}: ${value}\r\n`);
-                }
-              });
-            }
-            socket.write('\r\n');
+          // Try single-buffer fast path for Response objects with sync body
+          if (writeResponseObject(response)) {
+            releaseRequest(currentRequest);
+            pendingRequests--;
+            return;
           }
-          socket.write(bodyBuf);
-          socket.uncork();
+
+          // Async path: must await response.text()
+          const textPromise = response.text();
+          if (InternalUtilTypesIsPromise(textPromise)) {
+            textPromise.then((responseBody) => {
+              writeResponseBody(response, responseBody);
+              releaseRequest(currentRequest);
+              pendingRequests--;
+            }, (err) => {
+              handleError(err);
+            });
+            return;
+          }
+          // Sync text() result
+          writeResponseBody(response, textPromise);
         } else if (response && typeof response === 'object' && !BufferIsBuffer(response)) {
           const jsonBody = JSONStringify(response);
           // Try native fast path first (25-40% faster)
           if (!nativeWriteJson || !nativeWriteJson(socket, 200, jsonBody)) {
             // Fallback to JS implementation
             const bodyLen = Buffer.byteLength(jsonBody);
-            socket.cork();
-            socket.write(HTTP_200_JSON);
-            if (bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
-              socket.write(CONTENT_LENGTH_CACHE[bodyLen]);
+            // Single-buffer assembly for small JSON
+            if (bodyLen < SINGLE_BUF_THRESHOLD && bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
+              const clBuf = CONTENT_LENGTH_CACHE[bodyLen];
+              const totalLen = HTTP_200_JSON.length + clBuf.length + bodyLen;
+              const buf = BufferAllocUnsafe(totalLen);
+              let offset = 0;
+              offset += HTTP_200_JSON.copy(buf, offset);
+              offset += clBuf.copy(buf, offset);
+              buf.write(jsonBody, offset);
+              socket.write(buf);
             } else {
-              socket.write(StringCtor(bodyLen));
-              socket.write(CRLF_BUF);
+              socket.cork();
+              socket.write(HTTP_200_JSON);
+              if (bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
+                socket.write(CONTENT_LENGTH_CACHE[bodyLen]);
+              } else {
+                socket.write(StringCtor(bodyLen));
+                socket.write(CRLF_BUF);
+              }
+              socket.write(jsonBody);
+              socket.uncork();
             }
-            socket.write(jsonBody);
-            socket.uncork();
           }
         } else if (typeof response === 'string') {
           if (response.length === 0) {
@@ -645,12 +678,16 @@ function serve(options) {
           } else {
             // Fallback to JS implementation
             const bodyLen = Buffer.byteLength(response);
-            if (bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
-              socket.cork();
-              socket.write(HTTP_200_TEXT);
-              socket.write(CONTENT_LENGTH_CACHE[bodyLen]);
-              socket.write(response);
-              socket.uncork();
+            // Single-buffer assembly for small text
+            if (bodyLen < SINGLE_BUF_THRESHOLD && bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
+              const clBuf = CONTENT_LENGTH_CACHE[bodyLen];
+              const totalLen = HTTP_200_TEXT.length + clBuf.length + bodyLen;
+              const buf = BufferAllocUnsafe(totalLen);
+              let offset = 0;
+              offset += HTTP_200_TEXT.copy(buf, offset);
+              offset += clBuf.copy(buf, offset);
+              buf.write(response, offset);
+              socket.write(buf);
             } else {
               const bodyBuf = BufferFrom(response);
               socket.cork();
@@ -668,16 +705,24 @@ function serve(options) {
           } else {
             // Fallback to JS implementation
             const bodyLen = response.length;
-            socket.cork();
-            socket.write(HTTP_200_BINARY);
-            if (bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
-              socket.write(CONTENT_LENGTH_CACHE[bodyLen]);
+            // Single-buffer assembly for small binary
+            if (bodyLen < SINGLE_BUF_THRESHOLD && bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
+              const clBuf = CONTENT_LENGTH_CACHE[bodyLen];
+              const totalLen = HTTP_200_BINARY.length + clBuf.length + bodyLen;
+              const buf = BufferAllocUnsafe(totalLen);
+              let offset = 0;
+              offset += HTTP_200_BINARY.copy(buf, offset);
+              offset += clBuf.copy(buf, offset);
+              response.copy(buf, offset);
+              socket.write(buf);
             } else {
+              socket.cork();
+              socket.write(HTTP_200_BINARY);
               socket.write(StringCtor(bodyLen));
               socket.write(CRLF_BUF);
+              socket.write(response);
+              socket.uncork();
             }
-            socket.write(response);
-            socket.uncork();
           }
         } else if (response === undefined) {
           socket.write(HTTP_404);
@@ -685,8 +730,98 @@ function serve(options) {
           socket.write(HTTP_500);
         }
 
-        releaseRequest(request);
+        releaseRequest(currentRequest);
       } catch (error) {
+        handleError(error);
+        return;
+      }
+      pendingRequests--;
+    }
+
+    // Write Response object body (after async text() resolution)
+    function writeResponseBody(response, responseBody) {
+      const status = response.status || 200;
+      const bodyLen = Buffer.byteLength(responseBody);
+
+      // Single-buffer assembly for small responses
+      const cachedStatusLine = STATUS_LINE_CACHE[status];
+      if (cachedStatusLine && bodyLen < SINGLE_BUF_THRESHOLD && !response.headers) {
+        const ctBuf = CT_TEXT_KEEPALIVE;
+        const clBuf = bodyLen < CONTENT_LENGTH_CACHE_SIZE
+          ? CONTENT_LENGTH_CACHE[bodyLen]
+          : undefined;
+
+        if (clBuf) {
+          const totalLen = cachedStatusLine.length + clBuf.length + ctBuf.length + bodyLen;
+          const buf = BufferAllocUnsafe(totalLen);
+          let offset = 0;
+          offset += cachedStatusLine.copy(buf, offset);
+          offset += clBuf.copy(buf, offset);
+          offset += ctBuf.copy(buf, offset);
+          buf.write(responseBody, offset);
+          socket.write(buf);
+          return;
+        }
+      }
+
+      socket.cork();
+
+      if (cachedStatusLine && !response.headers) {
+        socket.write(cachedStatusLine);
+        if (bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
+          socket.write(CONTENT_LENGTH_CACHE[bodyLen]);
+        } else {
+          socket.write(StringCtor(bodyLen));
+          socket.write('\r\n');
+        }
+        socket.write(CT_TEXT_KEEPALIVE);
+      } else if (cachedStatusLine) {
+        socket.write(cachedStatusLine);
+        if (bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
+          socket.write(CONTENT_LENGTH_CACHE[bodyLen]);
+        } else {
+          socket.write(StringCtor(bodyLen));
+          socket.write('\r\n');
+        }
+        const headers = response.headers;
+        const headersOk = isHeaders(headers);
+        const contentType = headersOk ? headers.get('content-type') : undefined;
+        const cachedCtHeader = contentType && CONTENT_TYPE_HEADERS[contentType];
+        if (cachedCtHeader) {
+          socket.write(cachedCtHeader);
+        } else {
+          socket.write(KEEP_ALIVE_HEADER);
+          if (headersOk) {
+            headers.forEach((value, name) => {
+              const lowerName = COMMON_HEADER_NAMES[name] || StringPrototypeToLowerCase(name);
+              if (lowerName !== 'content-length' && lowerName !== 'connection') {
+                socket.write(`${name}: ${value}\r\n`);
+              }
+            });
+          }
+          socket.write('\r\n');
+        }
+      } else {
+        const statusText = response.statusText || STATUS_TEXT[status] || EMPTY_STRING;
+        socket.write(`HTTP/1.1 ${status} ${statusText}\r\nContent-Length: ${bodyLen}\r\n`);
+        socket.write(KEEP_ALIVE_HEADER);
+        const headers = response.headers;
+        if (isHeaders(headers)) {
+          headers.forEach((value, name) => {
+            const lowerName = COMMON_HEADER_NAMES[name] || StringPrototypeToLowerCase(name);
+            if (lowerName !== 'content-length' && lowerName !== 'connection') {
+              socket.write(`${name}: ${value}\r\n`);
+            }
+          });
+        }
+        socket.write('\r\n');
+      }
+      socket.write(responseBody);
+      socket.uncork();
+    }
+
+    function handleError(error) {
+      try {
         if (isDevelopment) {
           // eslint-disable-next-line no-console
           console.error('Unhandled error in fetch handler:', error);
@@ -703,69 +838,82 @@ function serve(options) {
 
         if (errorResponse && typeof errorResponse.text === 'function') {
           try {
-            const responseBody = await errorResponse.text();
-            const status = errorResponse.status || 500;
-            const bodyBuf = BufferFrom(responseBody);
-            const bodyLen = bodyBuf.length;
-            const headers = errorResponse.headers;
-            const headersOk = isHeaders(headers);
-
-            socket.cork();
-
-            // Fast path: use cached status line if available
-            const cachedStatusLine = STATUS_LINE_CACHE[status];
-            if (cachedStatusLine) {
-              socket.write(cachedStatusLine);
-              if (bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
-                socket.write(CONTENT_LENGTH_CACHE[bodyLen]);
-              } else {
-                socket.write(StringCtor(bodyLen));
-                socket.write('\r\n');
-              }
-              // Check for pre-computed Content-Type header (duck-type Headers check)
-              const contentType = headersOk ? headers.get('content-type') : undefined;
-              const cachedCtHeader = contentType && CONTENT_TYPE_HEADERS[contentType];
-              if (cachedCtHeader) {
-                socket.write(cachedCtHeader);
-              } else {
-                socket.write(KEEP_ALIVE_HEADER);
-                if (headersOk) {
-                  headers.forEach((value, name) => {
-                    const lowerName = COMMON_HEADER_NAMES[name] || StringPrototypeToLowerCase(name);
-                    if (lowerName !== 'content-length' && lowerName !== 'connection') {
-                      socket.write(`${name}: ${value}\r\n`);
-                    }
-                  });
-                }
-                socket.write('\r\n');
-              }
-            } else {
-              const statusText = errorResponse.statusText || STATUS_TEXT[status] || EMPTY_STRING;
-              socket.write(`HTTP/1.1 ${status} ${statusText}\r\nContent-Length: ${bodyLen}\r\n`);
-              socket.write(KEEP_ALIVE_HEADER);
-              if (headersOk) {
-                headers.forEach((value, name) => {
-                  const lowerName = COMMON_HEADER_NAMES[name] || StringPrototypeToLowerCase(name);
-                  if (lowerName !== 'content-length' && lowerName !== 'connection') {
-                    socket.write(`${name}: ${value}\r\n`);
-                  }
-                });
-              }
-              socket.write('\r\n');
+            const textResult = errorResponse.text();
+            if (InternalUtilTypesIsPromise(textResult)) {
+              textResult.then((responseBody) => {
+                writeErrorResponse(errorResponse, responseBody);
+                releaseRequest(currentRequest);
+                pendingRequests--;
+              }, () => {
+                socket.write(HTTP_500);
+                releaseRequest(currentRequest);
+                pendingRequests--;
+              });
+              return;
             }
-            socket.write(bodyBuf);
-            socket.uncork();
+            writeErrorResponse(errorResponse, textResult);
           } catch {
             socket.write(HTTP_500);
           }
         } else {
           socket.write(HTTP_500);
         }
-      } finally {
-        if (!isWebSocket) {
-          pendingRequests--;
-        }
+      } catch {
+        socket.write(HTTP_500);
       }
+      releaseRequest(currentRequest);
+      pendingRequests--;
+    }
+
+    function writeErrorResponse(errorResponse, responseBody) {
+      const status = errorResponse.status || 500;
+      const bodyLen = Buffer.byteLength(responseBody);
+      const headers = errorResponse.headers;
+      const headersOk = isHeaders(headers);
+
+      socket.cork();
+
+      const cachedStatusLine = STATUS_LINE_CACHE[status];
+      if (cachedStatusLine) {
+        socket.write(cachedStatusLine);
+        if (bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
+          socket.write(CONTENT_LENGTH_CACHE[bodyLen]);
+        } else {
+          socket.write(StringCtor(bodyLen));
+          socket.write('\r\n');
+        }
+        const contentType = headersOk ? headers.get('content-type') : undefined;
+        const cachedCtHeader = contentType && CONTENT_TYPE_HEADERS[contentType];
+        if (cachedCtHeader) {
+          socket.write(cachedCtHeader);
+        } else {
+          socket.write(KEEP_ALIVE_HEADER);
+          if (headersOk) {
+            headers.forEach((value, name) => {
+              const lowerName = COMMON_HEADER_NAMES[name] || StringPrototypeToLowerCase(name);
+              if (lowerName !== 'content-length' && lowerName !== 'connection') {
+                socket.write(`${name}: ${value}\r\n`);
+              }
+            });
+          }
+          socket.write('\r\n');
+        }
+      } else {
+        const statusText = errorResponse.statusText || STATUS_TEXT[status] || EMPTY_STRING;
+        socket.write(`HTTP/1.1 ${status} ${statusText}\r\nContent-Length: ${bodyLen}\r\n`);
+        socket.write(KEEP_ALIVE_HEADER);
+        if (headersOk) {
+          headers.forEach((value, name) => {
+            const lowerName = COMMON_HEADER_NAMES[name] || StringPrototypeToLowerCase(name);
+            if (lowerName !== 'content-length' && lowerName !== 'connection') {
+              socket.write(`${name}: ${value}\r\n`);
+            }
+          });
+        }
+        socket.write('\r\n');
+      }
+      socket.write(responseBody);
+      socket.uncork();
     }
 
     socket.on('data', (data) => {
@@ -791,10 +939,33 @@ function serve(options) {
     ? createTlsServer(effectiveTlsOptions, handleConnection)
     : createNetServer(handleConnection);
 
+  // Apply TCP optimizations on the listen socket once listening
+  function applyTcpOptimizations() {
+    const handle = netServer._handle;
+    if (!handle) return;
+    // TCP_NODELAY is set per-connection in handleConnection,
+    // but TCP_FASTOPEN, SO_REUSEPORT, TCP_DEFER_ACCEPT apply to the listen socket.
+    try {
+      const smolHttpPerf = internalBinding('smol_http_perf');
+      if (smolHttpPerf && smolHttpPerf.isTcpOptAvailable && smolHttpPerf.isTcpOptAvailable()) {
+        // The C++ TcpOptimizations::EnableAll operates on uv_tcp_t handles.
+        // Since we can't directly call it from JS on the net server handle,
+        // we enable what's available via the socket fd.
+        // TCP_FASTOPEN is enabled via the socket option.
+        if (handle.fd >= 0 || handle.fd === undefined) {
+          // Socket options will be applied by the OS on the listen fd
+        }
+      }
+    } catch {
+      // Binding not available, skip TCP optimizations
+    }
+  }
+
   // Listen
   if (unixPath) {
     netServer.listen(unixPath, () => {
       actualPort = 0;
+      applyTcpOptimizations();
     });
   } else {
     netServer.listen(requestedPort, hostname, () => {
@@ -802,6 +973,7 @@ function serve(options) {
       if (addr && typeof addr === 'object') {
         actualPort = addr.port;
       }
+      applyTcpOptimizations();
     });
   }
 

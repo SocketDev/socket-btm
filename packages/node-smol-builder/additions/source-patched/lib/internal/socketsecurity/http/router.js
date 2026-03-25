@@ -137,13 +137,16 @@ function trieInsert(root, pattern, handler) {
   // Set handler at terminal node
   if (typeof handler === 'function') {
     node.handler = handler;
-  } else if (typeof handler === 'object' && handler !== null) {
+  } else if (handler && typeof handler === 'object') {
     node.methods = { __proto__: null, ...handler };
   }
 }
 
 // Reusable segment result (avoids object allocation per segment)
 const segmentResult = { __proto__: null, segment: '', start: 0, end: 0 };
+
+// Module-level backtracking stack (avoids allocation per trieMatch call)
+const matchStack = [];
 
 /**
  * Get next path segment (module-level to avoid per-call allocation).
@@ -203,9 +206,9 @@ function trieMatch(root, pathname, method) {
   const params = acquireParams();
   const pathLen = pathname.length;
 
-  // Stack for backtracking (reused array at module level would be even better,
-  // but keeping simple for now)
-  const stack = [];
+  // Reset module-level backtracking stack
+  const stack = matchStack;
+  stack.length = 0;
   let node = root;
   let pos = 0;
 

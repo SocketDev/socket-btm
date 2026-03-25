@@ -13,9 +13,14 @@ const {
   ArrayPrototypeSort,
   decodeURIComponent,
   encodeURIComponent,
+  MapPrototypeDelete,
+  MapPrototypeGet,
+  MapPrototypeHas,
+  MapPrototypeSet,
   ObjectEntries,
   ObjectFreeze,
   ObjectKeys,
+  SafeMap,
   String: StringCtor,
   StringPrototypeCharCodeAt,
   StringPrototypeIndexOf,
@@ -27,6 +32,16 @@ const {
   StringPrototypeReplaceAll,
   StringPrototypeTrim,
 } = primordials;
+
+// Character codes for fast comparisons
+const CHAR_HASH = 0x23;        // #
+const CHAR_QUESTION = 0x3F;    // ?
+const CHAR_SLASH = 0x2F;       // /
+const CHAR_AT = 0x40;          // @
+const CHAR_SPACE = 0x20;       // ' '
+const CHAR_TAB = 0x09;         // \t
+const CHAR_CR = 0x0D;          // \r
+const CHAR_LF = 0x0A;          // \n
 
 // PURL type constants
 const types = ObjectFreeze({
@@ -56,6 +71,22 @@ const types = ObjectFreeze({
   SWIFT: 'swift',
 });
 
+// Type string intern map - reuse common type strings instead of allocating fresh
+const typeInternMap = new SafeMap();
+{
+  const keys = ObjectKeys(types);
+  for (let i = 0, len = keys.length; i < len; i++) {
+    const value = types[keys[i]];
+    MapPrototypeSet(typeInternMap, value, value);
+  }
+}
+
+// Intern a type string - returns cached instance for known types
+function internType(type) {
+  const interned = MapPrototypeGet(typeInternMap, type);
+  return interned !== undefined ? interned : type;
+}
+
 // Max PURL length to prevent DoS
 const MAX_PURL_LENGTH = 4096;
 
@@ -67,33 +98,35 @@ class PurlError extends Error {
   }
 }
 
-// Simple LRU cache
+// SafeMap-based LRU cache - O(1) eviction via insertion order
 const CACHE_SIZE = 10000;
-let cache = { __proto__: null };
-let cacheOrder = [];
+let cache = new SafeMap();
 let cacheHits = 0;
 let cacheMisses = 0;
 
 function cacheGet(key) {
-  if (cache[key]) {
+  const value = MapPrototypeGet(cache, key);
+  if (value !== undefined) {
     cacheHits++;
-    return cache[key];
+    return value;
   }
   cacheMisses++;
-  return null;
+  return undefined;
 }
 
 function cachePut(key, value) {
-  if (cacheOrder.length >= CACHE_SIZE) {
-    const oldest = cacheOrder.shift();
-    delete cache[oldest];
+  if (cache.size >= CACHE_SIZE) {
+    // Evict oldest entry - SafeMap iterator gives insertion order, O(1)
+    const oldest = cache.keys().next().value;
+    MapPrototypeDelete(cache, oldest);
   }
-  cache[key] = value;
-  ArrayPrototypePush(cacheOrder, key);
+  MapPrototypeSet(cache, key, value);
 }
 
 // URL decode - per PURL spec
+// Fast path: skip decodeURIComponent when no % present
 function urlDecode(str) {
+  if (StringPrototypeIndexOf(str, '%') === -1) return str;
   try {
     return decodeURIComponent(str);
   } catch {
@@ -103,7 +136,9 @@ function urlDecode(str) {
 
 // Decode qualifier value - per PURL spec, + is preserved as literal (NOT space)
 // This differs from application/x-www-form-urlencoded
+// Fast path: skip decodeURIComponent when no % present
 function decodeQualifierValue(str) {
+  if (StringPrototypeIndexOf(str, '%') === -1) return str;
   try {
     // Per gold standard: just use decodeURIComponent, preserve + as literal
     return decodeURIComponent(str);
@@ -140,7 +175,7 @@ function encodeSubpath(str) {
   return StringPrototypeReplaceAll(encodeURIComponent(str), '%2F', '/');
 }
 
-// Encode qualifier value - per PURL spec (spaces → %20, + → %2B)
+// Encode qualifier value - per PURL spec (spaces -> %20, + -> %2B)
 function encodeQualifierValue(str) {
   // Replace spaces with %20 so they don't become +
   const prepared = StringPrototypeReplaceAll(str, ' ', '%20');
@@ -161,27 +196,103 @@ function trimLeadingSlashes(str) {
 
 // Collapse multiple consecutive slashes to single slash
 // Per PURL spec and gold standard: foo//bar -> foo/bar
+// Single-pass approach: build result character by character
 function collapseSlashes(str) {
   // Fast path: no double slashes
   if (StringPrototypeIndexOf(str, '//') === -1) return str;
-  // Replace all occurrences of multiple slashes with single slash
-  let result = str;
-  while (StringPrototypeIndexOf(result, '//') !== -1) {
-    result = StringPrototypeReplaceAll(result, '//', '/');
+  // Single-pass: scan and skip consecutive slashes
+  let result = '';
+  let prevSlash = false;
+  for (let i = 0, len = str.length; i < len; i++) {
+    const ch = StringPrototypeCharCodeAt(str, i);
+    if (ch === CHAR_SLASH) {
+      if (!prevSlash) {
+        result += '/';
+        prevSlash = true;
+      }
+    } else {
+      result += str[i];
+      prevSlash = false;
+    }
   }
   return result;
 }
 
+// Fast check if string needs trimming
+function needsTrim(str) {
+  const len = str.length;
+  if (len === 0) return false;
+  const first = StringPrototypeCharCodeAt(str, 0);
+  if (first === CHAR_SPACE || first === CHAR_TAB || first === CHAR_CR || first === CHAR_LF) return true;
+  const last = StringPrototypeCharCodeAt(str, len - 1);
+  if (last === CHAR_SPACE || last === CHAR_TAB || last === CHAR_CR || last === CHAR_LF) return true;
+  return false;
+}
+
+// Fast trim - skip call if unnecessary
+function fastTrim(str) {
+  return needsTrim(str) ? StringPrototypeTrim(str) : str;
+}
+
 // Filter subpath segments - remove . and .. per PURL spec
 function filterSubpathSegments(subpath) {
-  if (!subpath) return null;
+  if (!subpath) return undefined;
   const segments = StringPrototypeSplit(subpath, '/');
   const filtered = ArrayPrototypeFilter(segments, (seg) => {
     // Remove empty segments, '.', and '..'
     return seg && seg !== '.' && seg !== '..';
   });
-  if (filtered.length === 0) return null;
+  if (filtered.length === 0) return undefined;
   return ArrayPrototypeJoin(filtered, '/');
+}
+
+// Single-pass delimiter scanning
+// Finds positions of #, ?, first /, and @ in one traversal
+function scanDelimiters(str) {
+  let hashIdx = -1;
+  let queryIdx = -1;
+  let firstSlashIdx = -1;
+
+  for (let i = 0, len = str.length; i < len; i++) {
+    const ch = StringPrototypeCharCodeAt(str, i);
+    if (ch === CHAR_HASH && hashIdx === -1) {
+      hashIdx = i;
+      // Everything after # is subpath, stop scanning for ? and /
+      break;
+    }
+    if (ch === CHAR_QUESTION && queryIdx === -1) {
+      queryIdx = i;
+      // After ?, only # matters
+      continue;
+    }
+    if (ch === CHAR_SLASH && firstSlashIdx === -1 && queryIdx === -1) {
+      firstSlashIdx = i;
+    }
+  }
+
+  // If we found a hash, we still need to check for ? before it
+  if (hashIdx !== -1 && queryIdx === -1) {
+    for (let i = 0; i < hashIdx; i++) {
+      const ch = StringPrototypeCharCodeAt(str, i);
+      if (ch === CHAR_QUESTION) {
+        queryIdx = i;
+        break;
+      }
+    }
+  }
+
+  // Find first slash if we haven't yet (only in pre-query portion)
+  if (firstSlashIdx === -1) {
+    const end = queryIdx !== -1 ? queryIdx : (hashIdx !== -1 ? hashIdx : str.length);
+    for (let i = 0; i < end; i++) {
+      if (StringPrototypeCharCodeAt(str, i) === CHAR_SLASH) {
+        firstSlashIdx = i;
+        break;
+      }
+    }
+  }
+
+  return { __proto__: null, hashIdx, queryIdx, firstSlashIdx };
 }
 
 // Parse a PURL string
@@ -197,7 +308,7 @@ function parse(purl) {
 
   // Check cache
   const cached = cacheGet(purl);
-  if (cached) return cached;
+  if (cached !== undefined) return cached;
 
   // Handle pkg:// (ignore double slashes per spec)
   // Case-insensitive scheme check per gold standard (PkG: is valid)
@@ -209,19 +320,21 @@ function parse(purl) {
     throw new PurlError('PURL must start with "pkg:"', 'ERR_INVALID_PREFIX');
   }
 
+  // Single-pass delimiter scan
+  const delimiters = scanDelimiters(rest);
+
   // Extract subpath (#subpath)
-  let subpath = null;
-  const hashIdx = StringPrototypeIndexOf(rest, '#');
-  if (hashIdx !== -1) {
-    const rawSubpath = urlDecode(StringPrototypeSlice(rest, hashIdx + 1));
+  let subpath;
+  if (delimiters.hashIdx !== -1) {
+    const rawSubpath = urlDecode(StringPrototypeSlice(rest, delimiters.hashIdx + 1));
     // Filter subpath segments per PURL spec (remove . and ..)
     subpath = filterSubpathSegments(rawSubpath);
-    rest = StringPrototypeSlice(rest, 0, hashIdx);
+    rest = StringPrototypeSlice(rest, 0, delimiters.hashIdx);
   }
 
   // Extract qualifiers (?key=value&key2=value2)
-  let qualifiers = null;
-  const queryIdx = StringPrototypeIndexOf(rest, '?');
+  let qualifiers;
+  const queryIdx = delimiters.queryIdx;
   if (queryIdx !== -1) {
     const queryStr = StringPrototypeSlice(rest, queryIdx + 1);
     rest = StringPrototypeSlice(rest, 0, queryIdx);
@@ -234,21 +347,20 @@ function parse(purl) {
       if (eqIdx !== -1) {
         // Decode and trim key, then lowercase per spec
         const rawKey = urlDecode(StringPrototypeSlice(pair, 0, eqIdx));
-        const trimmedKey = StringPrototypeTrim(rawKey);
+        const trimmedKey = fastTrim(rawKey);
         const key = StringPrototypeToLowerCase(trimmedKey);
         if (!key) {
           throw new PurlError('qualifier key must not be empty', 'ERR_INVALID_QUALIFIER');
         }
         // Decode value, then trim (per gold standard order)
         const decodedValue = decodeQualifierValue(StringPrototypeSlice(pair, eqIdx + 1));
-        const value = StringPrototypeTrim(decodedValue);
+        const value = fastTrim(decodedValue);
         // Skip empty values after trimming (per gold standard)
         if (value) {
           qualifiers[key] = value;
         }
       }
     }
-    ObjectFreeze(qualifiers);
   }
 
   // Extract type (before first /)
@@ -257,12 +369,12 @@ function parse(purl) {
     throw new PurlError('PURL must have a type and name', 'ERR_INVALID_FORMAT');
   }
 
-  const type = StringPrototypeToLowerCase(urlDecode(StringPrototypeSlice(rest, 0, slashIdx)));
+  const type = internType(StringPrototypeToLowerCase(urlDecode(StringPrototypeSlice(rest, 0, slashIdx))));
   rest = StringPrototypeSlice(rest, slashIdx + 1);
 
   // For npm type, handle special version parsing for pnpm peer dep syntax
   // e.g., pkg:npm/next@14.2.10(react-dom@18.3.1(react@18.3.1))
-  let version = null;
+  let version;
   let atIdx;
   if (type === 'npm') {
     // For npm, find the first @ after any leading @scope/
@@ -280,7 +392,7 @@ function parse(purl) {
 
   if (atIdx !== -1 && atIdx > 0) {
     // Trim version whitespace per gold standard
-    version = StringPrototypeTrim(urlDecode(StringPrototypeSlice(rest, atIdx + 1)));
+    version = fastTrim(urlDecode(StringPrototypeSlice(rest, atIdx + 1)));
     rest = StringPrototypeSlice(rest, 0, atIdx);
   }
 
@@ -288,15 +400,15 @@ function parse(purl) {
   rest = collapseSlashes(rest);
 
   // Extract namespace and name
-  let namespace = null;
+  let namespace;
   let name;
   const lastSlashIdx = StringPrototypeLastIndexOf(rest, '/');
   if (lastSlashIdx !== -1) {
     // Trim namespace and name whitespace per gold standard
-    namespace = StringPrototypeTrim(urlDecode(StringPrototypeSlice(rest, 0, lastSlashIdx)));
-    name = StringPrototypeTrim(urlDecode(StringPrototypeSlice(rest, lastSlashIdx + 1)));
+    namespace = fastTrim(urlDecode(StringPrototypeSlice(rest, 0, lastSlashIdx)));
+    name = fastTrim(urlDecode(StringPrototypeSlice(rest, lastSlashIdx + 1)));
   } else {
-    name = StringPrototypeTrim(urlDecode(rest));
+    name = fastTrim(urlDecode(rest));
   }
 
   if (!name) {
@@ -335,7 +447,7 @@ function parse(purl) {
     normalizedName = fromIndex ? result + StringPrototypeSlice(normalizedName, fromIndex) : normalizedName;
   }
 
-  const result = ObjectFreeze({
+  const result = {
     __proto__: null,
     type,
     namespace: normalizedNamespace,
@@ -343,18 +455,18 @@ function parse(purl) {
     version,
     qualifiers,
     subpath,
-  });
+  };
 
   cachePut(purl, result);
   return result;
 }
 
-// Try to parse, returns null on failure
+// Try to parse, returns undefined on failure
 function tryParse(purl) {
   try {
     return parse(purl);
   } catch {
-    return null;
+    return undefined;
   }
 }
 
@@ -402,12 +514,12 @@ function build(options) {
     const sortedKeys = ArrayPrototypeSort(ArrayFrom(ObjectKeys(qualifiers)));
     const pairs = ArrayPrototypeMap(sortedKeys, (k) => {
       const value = qualifiers[k];
-      // Skip null/undefined values
-      if (value == null) return null;
+      // Skip undefined values
+      if (value === undefined) return undefined;
       return `${urlEncode(k)}=${encodeQualifierValue(StringCtor(value))}`;
     });
-    // Filter out nulls
-    const validPairs = ArrayPrototypeFilter(pairs, p => p !== null);
+    // Filter out undefined
+    const validPairs = ArrayPrototypeFilter(pairs, p => p !== undefined);
     if (validPairs.length > 0) {
       purl += `?${ArrayPrototypeJoin(validPairs, '&')}`;
     }
@@ -423,7 +535,7 @@ function build(options) {
 
 // Check if a string is a valid PURL
 function isValid(purl) {
-  return tryParse(purl) !== null;
+  return tryParse(purl) !== undefined;
 }
 
 // Normalize a PURL (lowercase type, sort qualifiers)
@@ -440,19 +552,18 @@ function equals(a, b) {
 // Cache statistics
 function cacheStats() {
   const total = cacheHits + cacheMisses;
-  return ObjectFreeze({
+  return {
     __proto__: null,
-    size: cacheOrder.length,
+    size: cache.size,
     hits: cacheHits,
     misses: cacheMisses,
     hitRate: total > 0 ? cacheHits / total : 0,
-  });
+  };
 }
 
 // Clear cache
 function clearCache() {
-  cache = { __proto__: null };
-  cacheOrder = [];
+  cache = new SafeMap();
   cacheHits = 0;
   cacheMisses = 0;
 }

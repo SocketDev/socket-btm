@@ -8,11 +8,7 @@
 #include <cstdlib>
 #include <new>
 
-#if SMOL_PLATFORM_WINDOWS
-  #include <windows.h>
-#else
-  #include <pthread.h>
-#endif
+// No mutex needed - Node.js is single-threaded.
 
 // Initialize shared SIMD detection at startup
 namespace {
@@ -719,14 +715,6 @@ TrieRouter::MatchResult TrieRouter::Match(const char* pathname, size_t len) cons
 
 BufferPool::BufferPool(size_t buffer_size, size_t pool_size)
     : buffer_size_(buffer_size), pool_size_(pool_size) {
-#if SMOL_PLATFORM_WINDOWS
-  mutex_ = new CRITICAL_SECTION;
-  InitializeCriticalSection(static_cast<CRITICAL_SECTION*>(mutex_));
-#else
-  mutex_ = new pthread_mutex_t;
-  pthread_mutex_init(static_cast<pthread_mutex_t*>(mutex_), nullptr);
-#endif
-
   // Pre-allocate some buffers
   for (size_t i = 0; i < pool_size / 2; ++i) {
     free_list_.push_back(static_cast<uint8_t*>(std::malloc(buffer_size)));
@@ -737,23 +725,10 @@ BufferPool::~BufferPool() {
   for (uint8_t* buf : free_list_) {
     std::free(buf);
   }
-
-#if SMOL_PLATFORM_WINDOWS
-  DeleteCriticalSection(static_cast<CRITICAL_SECTION*>(mutex_));
-  delete static_cast<CRITICAL_SECTION*>(mutex_);
-#else
-  pthread_mutex_destroy(static_cast<pthread_mutex_t*>(mutex_));
-  delete static_cast<pthread_mutex_t*>(mutex_);
-#endif
 }
 
 uint8_t* BufferPool::Acquire() {
-#if SMOL_PLATFORM_WINDOWS
-  EnterCriticalSection(static_cast<CRITICAL_SECTION*>(mutex_));
-#else
-  pthread_mutex_lock(static_cast<pthread_mutex_t*>(mutex_));
-#endif
-
+  // No mutex needed - Node.js is single-threaded.
   uint8_t* buf;
   if (!free_list_.empty()) {
     buf = free_list_.back();
@@ -761,36 +736,18 @@ uint8_t* BufferPool::Acquire() {
   } else {
     buf = static_cast<uint8_t*>(std::malloc(buffer_size_));
   }
-
-#if SMOL_PLATFORM_WINDOWS
-  LeaveCriticalSection(static_cast<CRITICAL_SECTION*>(mutex_));
-#else
-  pthread_mutex_unlock(static_cast<pthread_mutex_t*>(mutex_));
-#endif
-
   return buf;
 }
 
 void BufferPool::Release(uint8_t* buffer) {
   if (!buffer) return;
 
-#if SMOL_PLATFORM_WINDOWS
-  EnterCriticalSection(static_cast<CRITICAL_SECTION*>(mutex_));
-#else
-  pthread_mutex_lock(static_cast<pthread_mutex_t*>(mutex_));
-#endif
-
+  // No mutex needed - Node.js is single-threaded.
   if (free_list_.size() < pool_size_) {
     free_list_.push_back(buffer);
   } else {
     std::free(buffer);
   }
-
-#if SMOL_PLATFORM_WINDOWS
-  LeaveCriticalSection(static_cast<CRITICAL_SECTION*>(mutex_));
-#else
-  pthread_mutex_unlock(static_cast<pthread_mutex_t*>(mutex_));
-#endif
 }
 
 // ============================================================================

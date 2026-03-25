@@ -1,6 +1,5 @@
 #include "socketsecurity/http/response_template.h"
 #include <cstring>
-#include <sstream>
 
 namespace node {
 namespace socketsecurity {
@@ -43,31 +42,63 @@ ResponseTemplate* ResponseTemplate::Create(const char* format) {
 
 std::string ResponseTemplate::Fill(
     const std::vector<std::string>& values) const {
-  std::ostringstream result;
-
+  // Pre-compute total size to avoid reallocations.
+  size_t total_size = 0;
   size_t segment_index = 0;
   size_t placeholder_index = 0;
 
-  // Interleave segments and placeholder values.
   while (segment_index < segments_.size() ||
          placeholder_index < placeholder_indices_.size()) {
-    // Add segment.
     if (segment_index < segments_.size()) {
-      result << segments_[segment_index];
+      total_size += segments_[segment_index].size();
       segment_index++;
     }
-
-    // Add placeholder value.
     if (placeholder_index < placeholder_indices_.size()) {
       size_t value_index = placeholder_indices_[placeholder_index];
       if (value_index < values.size()) {
-        result << values[value_index];
+        total_size += values[value_index].size();
       }
       placeholder_index++;
     }
   }
 
-  return result.str();
+  // Single allocation with pre-computed size.
+  std::string result;
+  result.reserve(total_size);
+
+  // Build result using memcpy into pre-allocated buffer.
+  // resize() to total_size so we can memcpy directly.
+  result.resize(total_size);
+  char* dest = &result[0];
+  size_t offset = 0;
+
+  segment_index = 0;
+  placeholder_index = 0;
+
+  while (segment_index < segments_.size() ||
+         placeholder_index < placeholder_indices_.size()) {
+    if (segment_index < segments_.size()) {
+      size_t len = segments_[segment_index].size();
+      if (len > 0) {
+        std::memcpy(dest + offset, segments_[segment_index].data(), len);
+        offset += len;
+      }
+      segment_index++;
+    }
+    if (placeholder_index < placeholder_indices_.size()) {
+      size_t value_index = placeholder_indices_[placeholder_index];
+      if (value_index < values.size()) {
+        size_t len = values[value_index].size();
+        if (len > 0) {
+          std::memcpy(dest + offset, values[value_index].data(), len);
+          offset += len;
+        }
+      }
+      placeholder_index++;
+    }
+  }
+
+  return result;
 }
 
 // Pre-compiled templates for common responses.

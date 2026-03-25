@@ -44,7 +44,6 @@ const fsModule = require('fs')
 const osModule = require('os')
 // eslint-disable-next-line n/prefer-node-protocol
 const pathModule = require('path')
-const process = require('process')
 
 
 // Native type checks (direct V8 binding - faster than util.types)

@@ -86,7 +86,6 @@ const kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
 const { createServer: createNetServer } = require('net');
 // eslint-disable-next-line n/prefer-node-protocol
 const { createServer: createTlsServer } = require('tls');
-const process = require('process')
 
 
 // Import from internal modules

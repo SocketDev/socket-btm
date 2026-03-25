@@ -373,40 +373,6 @@ static void CreateMemfd(const FunctionCallbackInfo<Value>& args) {
 }
 #endif  // __linux__
 
-static void Initialize(Local<Object> target,
-                       Local<Value> unused,
-                       Local<Context> context,
-                       void* priv) {
-  DEBUG_INIT("smol:vfs");
-  SetMethod(context, target, "getVFSBlob", GetVFSBlob);
-  SetMethod(context, target, "hasVFSBlob", HasVFSBlobBinding);
-  SetMethod(context, target, "canBuildSea", CanBuildSeaBinding);
-  SetMethod(context, target, "getVFSConfig", GetVFSConfig);
-#ifdef __linux__
-  SetMethod(context, target, "createMemfd", CreateMemfd);
-#endif
-
-  // SIMD-accelerated TAR utilities
-  SetMethod(context, target, "tarCalculateChecksum", TarCalculateChecksum);
-  SetMethod(context, target, "tarIsZeroBlock", TarIsZeroBlock);
-  SetMethod(context, target, "tarParseOctal", TarParseOctal);
-}
-
-static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  registry->Register(GetVFSBlob);
-  registry->Register(HasVFSBlobBinding);
-  registry->Register(CanBuildSeaBinding);
-  registry->Register(GetVFSConfig);
-#ifdef __linux__
-  registry->Register(CreateMemfd);
-#endif
-
-  // SIMD-accelerated TAR utilities
-  registry->Register(TarCalculateChecksum);
-  registry->Register(TarIsZeroBlock);
-  registry->Register(TarParseOctal);
-}
-
 // ============================================================================
 // SIMD-accelerated TAR utilities
 // ============================================================================
@@ -702,6 +668,40 @@ static void TarParseOctal(const FunctionCallbackInfo<Value>& args) {
 
   int64_t result = tar::ParseOctal(data + offset, len);
   args.GetReturnValue().Set(static_cast<double>(result));
+}
+
+static void Initialize(Local<Object> target,
+                       Local<Value> unused,
+                       Local<Context> context,
+                       void* priv) {
+  DEBUG_INIT("smol:vfs");
+  SetMethod(context, target, "getVFSBlob", GetVFSBlob);
+  SetMethod(context, target, "hasVFSBlob", HasVFSBlobBinding);
+  SetMethod(context, target, "canBuildSea", CanBuildSeaBinding);
+  SetMethod(context, target, "getVFSConfig", GetVFSConfig);
+#ifdef __linux__
+  SetMethod(context, target, "createMemfd", CreateMemfd);
+#endif
+
+  // SIMD-accelerated TAR utilities
+  SetMethod(context, target, "tarCalculateChecksum", TarCalculateChecksum);
+  SetMethod(context, target, "tarIsZeroBlock", TarIsZeroBlock);
+  SetMethod(context, target, "tarParseOctal", TarParseOctal);
+}
+
+static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(GetVFSBlob);
+  registry->Register(HasVFSBlobBinding);
+  registry->Register(CanBuildSeaBinding);
+  registry->Register(GetVFSConfig);
+#ifdef __linux__
+  registry->Register(CreateMemfd);
+#endif
+
+  // SIMD-accelerated TAR utilities
+  registry->Register(TarCalculateChecksum);
+  registry->Register(TarIsZeroBlock);
+  registry->Register(TarParseOctal);
 }
 
 }  // namespace smol_vfs

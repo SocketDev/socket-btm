@@ -1,14 +1,15 @@
-Socket Security: Add smol_postgres, smol_ilp, smol_http_perf, and smol_webstreams bindings
+Socket Security: Add all smol_* native bindings to NODE_BUILTIN_BINDINGS
 
 This patch adds native binding registrations for:
 - smol_postgres: Conditionally compiled when node_use_postgres is true (for node:sql)
+- smol_http: Always compiled (unified HTTP binding — response writers, router, WebSocket,
+  object pools, TCP optimizations, feature detection)
 - smol_ilp: Always compiled (for node:smol-ilp time-series ingestion)
-- smol_http_perf: Always compiled (for high-performance HTTP response writing)
 - smol_webstreams: Always compiled (for fast-webstreams acceleration)
 
 Files modified:
 - src/node_binding.h: Add NODE_BUILTIN_POSTGRES_BINDINGS macro
-- src/node_binding.cc: Include postgres, ilp, http_perf bindings in NODE_BUILTIN_BINDINGS
+- src/node_binding.cc: Include all smol_* bindings in NODE_BUILTIN_BINDINGS
 
 --- a/src/node_binding.h
 +++ b/src/node_binding.h
@@ -34,8 +35,8 @@ Files modified:
 -  NODE_BUILTIN_SQLITE_BINDINGS(V)
 +  NODE_BUILTIN_SQLITE_BINDINGS(V)                                              \
 +  NODE_BUILTIN_POSTGRES_BINDINGS(V)                                            \
++  V(smol_http)                                                                 \
 +  V(smol_ilp)                                                                  \
-+  V(smol_http_perf)                                                            \
 +  V(smol_webstreams)
 
  // This is used to load built-in bindings. Instead of using

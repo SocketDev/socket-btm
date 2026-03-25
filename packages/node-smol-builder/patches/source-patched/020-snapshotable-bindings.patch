@@ -1,25 +1,43 @@
-Socket Security: Add smol_ilp, smol_http_perf, and smol_webstreams to external reference binding list
+Socket Security: Add all smol_* bindings to external reference binding list
 
-This patch adds the smol_ilp, smol_http_perf, and smol_webstreams bindings to the
+This patch adds all Socket Security native bindings to the
 EXTERNAL_REFERENCE_BINDING_LIST in node_external_reference.h.
 
 These bindings have external references that need to be registered
-during V8 snapshot building.
+during V8 snapshot building. smol_postgres is guarded behind
+HAVE_POSTGRES since it is conditionally compiled.
 
 Files modified:
 - src/node_external_reference.h: Add bindings to EXTERNAL_REFERENCE_BINDING_LIST
+- src/node_binding.h: Add EXTERNAL_REFERENCE_BINDING_LIST_POSTGRES macro
 
 --- a/src/node_external_reference.h
 +++ b/src/node_external_reference.h
-@@ -149,7 +149,10 @@
+@@ -149,7 +149,18 @@
    EXTERNAL_REFERENCE_BINDING_LIST_INSPECTOR(V)                                 \
    EXTERNAL_REFERENCE_BINDING_LIST_I18N(V)                                      \
    EXTERNAL_REFERENCE_BINDING_LIST_CRYPTO(V)                                    \
 -  EXTERNAL_REFERENCE_BINDING_LIST_QUIC(V)
 +  EXTERNAL_REFERENCE_BINDING_LIST_QUIC(V)                                      \
++  V(smol_http)                                                                 \
 +  V(smol_ilp)                                                                  \
-+  V(smol_http_perf)                                                            \
++  V(smol_vfs)                                                                  \
++  EXTERNAL_REFERENCE_BINDING_LIST_POSTGRES(V)                                  \
 +  V(smol_webstreams)
 
  }  // namespace node
+
+--- a/src/node_binding.h
++++ b/src/node_binding.h
+@@ -48,6 +48,12 @@
+ #define NODE_BUILTIN_POSTGRES_BINDINGS(V)
+ #endif
+
++#if HAVE_POSTGRES
++#define EXTERNAL_REFERENCE_BINDING_LIST_POSTGRES(V) V(smol_postgres)
++#else
++#define EXTERNAL_REFERENCE_BINDING_LIST_POSTGRES(V)
++#endif
++
+ #define NODE_BINDINGS_WITH_PER_ISOLATE_INIT(V)                                 \
 

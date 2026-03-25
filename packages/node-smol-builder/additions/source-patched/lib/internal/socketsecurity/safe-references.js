@@ -146,13 +146,9 @@ let _vfsBinding
  */
 function getVFSBinding() {
   if (_vfsBinding === undefined) {
-    try {
-      _vfsBinding = internalBinding('smol_vfs')
-    } catch {
-      _vfsBinding = false
-    }
+    _vfsBinding = internalBinding('smol_vfs')
   }
-  return _vfsBinding || undefined
+  return _vfsBinding
 }
 
 // ============================================================================

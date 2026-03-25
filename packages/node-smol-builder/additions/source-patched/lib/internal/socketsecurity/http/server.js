@@ -29,34 +29,14 @@ const {
   decodeURIComponent: DecodeURIComponent,
 } = primordials;
 
-// Native HTTP performance binding - bypasses Node.js HTTP stack
-let nativeWriteJson;
-let nativeWriteText;
-let nativeWriteBinary;
-let isHeaders;
-
-try {
-  const smolHttpBinding = internalBinding('smol_http');
-  // Native response writers (25-40% faster than JS)
-  nativeWriteJson = smolHttpBinding.writeJsonResponse;
-  nativeWriteText = smolHttpBinding.writeTextResponse;
-  nativeWriteBinary = smolHttpBinding.writeBinaryResponse;
-  // Native brand check for Headers (O(1) via V8 internal slots)
-  if (typeof smolHttpBinding.isHeaders === 'function') {
-    isHeaders = smolHttpBinding.isHeaders;
-  }
-} catch {
-  // Binding not available
-}
-
-// Fallback: Fast duck-type check for Headers-like object
-if (!isHeaders) {
-  isHeaders = function isHeadersDuckType(obj) {
-    return obj !== undefined && !!obj &&
-      typeof obj.get === 'function' &&
-      typeof obj.forEach === 'function';
-  };
-}
+// Native HTTP binding.
+const smolHttpBinding = internalBinding('smol_http');
+const {
+  writeJsonResponse: nativeWriteJson,
+  writeTextResponse: nativeWriteText,
+  writeBinaryResponse: nativeWriteBinary,
+  isHeaders,
+} = smolHttpBinding;
 
 const {
   BufferFrom,
@@ -397,9 +377,10 @@ function serve(options) {
 
       if (ArrayIsArray(headers)) {
         for (let i = 0; i < headers.length; i += 2) {
-          const name = COMMON_HEADER_NAMES[headers[i]] || StringPrototypeToLowerCase(headers[i]);
-          const value = headers[i + 1];
-          MapPrototypeSet(currentHeaders, name, value);
+          const rawName = headers[i];
+          const rawValue = headers[i + 1];
+          const name = COMMON_HEADER_NAMES[rawName] || StringPrototypeToLowerCase(rawName);
+          MapPrototypeSet(currentHeaders, name, rawValue);
         }
       }
 
@@ -516,11 +497,11 @@ function serve(options) {
         releaseParams(matchParams);
         releaseResult(routeMatch);
         response = handler(request, serverInstance);
-        if (InternalUtilTypesIsPromise(response)) {
+        if (response && InternalUtilTypesIsPromise(response)) {
           return response.then((resolved) => {
             if (resolved !== undefined) return resolved;
             const fetchResult = currentFetchHandler(request, serverInstance);
-            return InternalUtilTypesIsPromise(fetchResult) ? fetchResult : fetchResult;
+            return fetchResult;
           });
         }
       }
@@ -528,7 +509,7 @@ function serve(options) {
       if (response === undefined) {
         response = currentFetchHandler(request, serverInstance);
         // If handler returns a promise, return it directly for async handling
-        if (InternalUtilTypesIsPromise(response)) {
+        if (response && InternalUtilTypesIsPromise(response)) {
           return response;
         }
       }
@@ -552,15 +533,13 @@ function serve(options) {
       const cachedStatusLine = STATUS_LINE_CACHE[status];
       if (cachedStatusLine && bodyLen < SINGLE_BUF_THRESHOLD) {
         const headers = response.headers;
-        const headersOk = isHeaders(headers);
-        const contentType = headersOk ? headers.get('content-type') : undefined;
-        const cachedCtHeader = contentType && CONTENT_TYPE_HEADERS[contentType];
-        const ctBuf = cachedCtHeader || CT_TEXT_KEEPALIVE;
         const clBuf = bodyLen < CONTENT_LENGTH_CACHE_SIZE
           ? CONTENT_LENGTH_CACHE[bodyLen]
           : undefined;
 
         if (clBuf && !headers) {
+          // Super fast path — no headers, no native isHeaders() call needed.
+          const ctBuf = CT_TEXT_KEEPALIVE;
           // Super fast path: single buffer with all pre-computed parts
           const totalLen = cachedStatusLine.length + clBuf.length + ctBuf.length + bodyLen;
           const buf = BufferAllocUnsafe(totalLen);
@@ -579,10 +558,11 @@ function serve(options) {
 
     function finishResponse(response) {
       try {
-        // WebSocket upgrade
+        // WebSocket upgrade — check WeakMap first (cheap); only do the
+        // header Map lookup if server.upgrade() wasn't called explicitly.
         const upgradeInfo = pendingUpgrades.get(currentRequest);
-        const upgradeHeader = MapPrototypeGet(currentHeaders, 'upgrade');
-        if (upgradeInfo !== undefined || upgradeHeader === 'websocket') {
+        if (upgradeInfo !== undefined ||
+            MapPrototypeGet(currentHeaders, 'upgrade') === 'websocket') {
           const wsKey = MapPrototypeGet(currentHeaders, 'sec-websocket-key');
           if (!wsKey) {
             socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
@@ -595,7 +575,6 @@ function serve(options) {
           hash.update(wsKey + WS_GUID);
           const acceptKey = hash.digest('base64');
 
-          // Use pre-computed buffers with cork for optimal TCP batching
           socket.cork();
           socket.write(WS_UPGRADE_PREFIX);
           socket.write(acceptKey);
@@ -617,68 +596,21 @@ function serve(options) {
           return;
         }
 
-        // Handle response
-        if (response && typeof response.text === 'function') {
-          // Try single-buffer fast path for Response objects with sync body
-          if (writeResponseObject(response)) {
-            releaseRequest(currentRequest);
-            pendingRequests--;
-            return;
-          }
-
-          // Async path: must await response.text()
-          const textPromise = response.text();
-          if (InternalUtilTypesIsPromise(textPromise)) {
-            textPromise.then((responseBody) => {
-              writeResponseBody(response, responseBody);
-              releaseRequest(currentRequest);
-              pendingRequests--;
-            }, (err) => {
-              handleError(err);
-            });
-            return;
-          }
-          // Sync text() result
-          writeResponseBody(response, textPromise);
-        } else if (response && typeof response === 'object' && !BufferIsBuffer(response)) {
-          const jsonBody = JSONStringify(response);
-          // Try native fast path first (25-40% faster)
-          if (!nativeWriteJson || !nativeWriteJson(socket, 200, jsonBody)) {
-            // Fallback to JS implementation
-            const bodyLen = Buffer.byteLength(jsonBody);
-            // Single-buffer assembly for small JSON
-            if (bodyLen < SINGLE_BUF_THRESHOLD && bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
-              const clBuf = CONTENT_LENGTH_CACHE[bodyLen];
-              const totalLen = HTTP_200_JSON.length + clBuf.length + bodyLen;
-              const buf = BufferAllocUnsafe(totalLen);
-              let offset = 0;
-              offset += HTTP_200_JSON.copy(buf, offset);
-              offset += clBuf.copy(buf, offset);
-              buf.write(jsonBody, offset);
-              socket.write(buf);
-            } else {
-              socket.cork();
-              socket.write(HTTP_200_JSON);
-              if (bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
-                socket.write(CONTENT_LENGTH_CACHE[bodyLen]);
-              } else {
-                socket.write(StringCtor(bodyLen));
-                socket.write(CRLF_BUF);
-              }
-              socket.write(jsonBody);
-              socket.uncork();
-            }
-          }
+        // Response dispatch — ordered by:
+        //   1. undefined check first (eliminates truthy guards in all branches)
+        //   2. typeof === 'string' (cheapest typeof, common for text endpoints)
+        //   3. typeof === 'object' (covers both plain objects and Response/Buffer)
+        //   4. fallback to 500
+        if (response === undefined) {
+          socket.write(HTTP_404);
         } else if (typeof response === 'string') {
           if (response.length === 0) {
             socket.write(HTTP_200_EMPTY);
-          } else if (nativeWriteText && nativeWriteText(socket, 200, response)) {
+          } else if (nativeWriteText(socket, 200, response)) {
             // Native fast path succeeded
           } else {
-            // Fallback to JS implementation
             const bodyLen = Buffer.byteLength(response);
-            // Single-buffer assembly for small text
-            if (bodyLen < SINGLE_BUF_THRESHOLD && bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
+            if (bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
               const clBuf = CONTENT_LENGTH_CACHE[bodyLen];
               const totalLen = HTTP_200_TEXT.length + clBuf.length + bodyLen;
               const buf = BufferAllocUnsafe(totalLen);
@@ -697,34 +629,79 @@ function serve(options) {
               socket.uncork();
             }
           }
-        } else if (BufferIsBuffer(response)) {
-          // Binary buffer response - try native fast path
-          if (nativeWriteBinary && nativeWriteBinary(socket, 200, response, 'application/octet-stream')) {
-            // Native fast path succeeded
-          } else {
-            // Fallback to JS implementation
-            const bodyLen = response.length;
-            // Single-buffer assembly for small binary
-            if (bodyLen < SINGLE_BUF_THRESHOLD && bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
-              const clBuf = CONTENT_LENGTH_CACHE[bodyLen];
-              const totalLen = HTTP_200_BINARY.length + clBuf.length + bodyLen;
-              const buf = BufferAllocUnsafe(totalLen);
-              let offset = 0;
-              offset += HTTP_200_BINARY.copy(buf, offset);
-              offset += clBuf.copy(buf, offset);
-              response.copy(buf, offset);
-              socket.write(buf);
+        } else if (typeof response === 'object') {
+          // Ordered by frequency: plain objects (JSON) > Response > Buffer.
+          // typeof response.text is a single property check — cheaper than
+          // BufferIsBuffer (native call). Plain objects have no .text property,
+          // so this short-circuits to the JSON path without any native call.
+          if (typeof response.text === 'function') {
+            // Response object (has .text() method)
+            if (writeResponseObject(response)) {
+              releaseRequest(currentRequest);
+              pendingRequests--;
+              return;
+            }
+
+            const textPromise = response.text();
+            if (InternalUtilTypesIsPromise(textPromise)) {
+              textPromise.then((responseBody) => {
+                writeResponseBody(response, responseBody);
+                releaseRequest(currentRequest);
+                pendingRequests--;
+              }, (err) => {
+                handleError(err);
+              });
+              return;
+            }
+            writeResponseBody(response, textPromise);
+          } else if (BufferIsBuffer(response)) {
+            // Buffer response
+            if (nativeWriteBinary(socket, 200, response, 'application/octet-stream')) {
+              // Native fast path succeeded
             } else {
-              socket.cork();
-              socket.write(HTTP_200_BINARY);
-              socket.write(StringCtor(bodyLen));
-              socket.write(CRLF_BUF);
-              socket.write(response);
-              socket.uncork();
+              const bodyLen = response.length;
+              if (bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
+                const clBuf = CONTENT_LENGTH_CACHE[bodyLen];
+                const totalLen = HTTP_200_BINARY.length + clBuf.length + bodyLen;
+                const buf = BufferAllocUnsafe(totalLen);
+                let offset = 0;
+                offset += HTTP_200_BINARY.copy(buf, offset);
+                offset += clBuf.copy(buf, offset);
+                response.copy(buf, offset);
+                socket.write(buf);
+              } else {
+                socket.cork();
+                socket.write(HTTP_200_BINARY);
+                socket.write(StringCtor(bodyLen));
+                socket.write(CRLF_BUF);
+                socket.write(response);
+                socket.uncork();
+              }
+            }
+          } else {
+            // Plain object — JSON serialization (most common for registry)
+            const jsonBody = JSONStringify(response);
+            if (!nativeWriteJson(socket, 200, jsonBody)) {
+              const bodyLen = Buffer.byteLength(jsonBody);
+              if (bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
+                const clBuf = CONTENT_LENGTH_CACHE[bodyLen];
+                const totalLen = HTTP_200_JSON.length + clBuf.length + bodyLen;
+                const buf = BufferAllocUnsafe(totalLen);
+                let offset = 0;
+                offset += HTTP_200_JSON.copy(buf, offset);
+                offset += clBuf.copy(buf, offset);
+                buf.write(jsonBody, offset);
+                socket.write(buf);
+              } else {
+                socket.cork();
+                socket.write(HTTP_200_JSON);
+                socket.write(StringCtor(bodyLen));
+                socket.write(CRLF_BUF);
+                socket.write(jsonBody);
+                socket.uncork();
+              }
             }
           }
-        } else if (response === undefined) {
-          socket.write(HTTP_404);
         } else {
           socket.write(HTTP_500);
         }
@@ -741,10 +718,11 @@ function serve(options) {
     function writeResponseBody(response, responseBody) {
       const status = response.status || 200;
       const bodyLen = Buffer.byteLength(responseBody);
+      const headers = response.headers;
 
       // Single-buffer assembly for small responses
       const cachedStatusLine = STATUS_LINE_CACHE[status];
-      if (cachedStatusLine && bodyLen < SINGLE_BUF_THRESHOLD && !response.headers) {
+      if (cachedStatusLine && bodyLen < SINGLE_BUF_THRESHOLD && !headers) {
         const ctBuf = CT_TEXT_KEEPALIVE;
         const clBuf = bodyLen < CONTENT_LENGTH_CACHE_SIZE
           ? CONTENT_LENGTH_CACHE[bodyLen]
@@ -765,7 +743,7 @@ function serve(options) {
 
       socket.cork();
 
-      if (cachedStatusLine && !response.headers) {
+      if (cachedStatusLine && !headers) {
         socket.write(cachedStatusLine);
         if (bodyLen < CONTENT_LENGTH_CACHE_SIZE) {
           socket.write(CONTENT_LENGTH_CACHE[bodyLen]);
@@ -782,7 +760,6 @@ function serve(options) {
           socket.write(StringCtor(bodyLen));
           socket.write('\r\n');
         }
-        const headers = response.headers;
         const headersOk = isHeaders(headers);
         const contentType = headersOk ? headers.get('content-type') : undefined;
         const cachedCtHeader = contentType && CONTENT_TYPE_HEADERS[contentType];
@@ -792,8 +769,8 @@ function serve(options) {
           socket.write(KEEP_ALIVE_HEADER);
           if (headersOk) {
             headers.forEach((value, name) => {
-              const lowerName = COMMON_HEADER_NAMES[name] || StringPrototypeToLowerCase(name);
-              if (lowerName !== 'content-length' && lowerName !== 'connection') {
+              // Headers.forEach yields lowercase names per the Fetch spec.
+              if (name !== 'content-length' && name !== 'connection') {
                 socket.write(`${name}: ${value}\r\n`);
               }
             });
@@ -804,7 +781,6 @@ function serve(options) {
         const statusText = response.statusText || STATUS_TEXT[status] || EMPTY_STRING;
         socket.write(`HTTP/1.1 ${status} ${statusText}\r\nContent-Length: ${bodyLen}\r\n`);
         socket.write(KEEP_ALIVE_HEADER);
-        const headers = response.headers;
         if (isHeaders(headers)) {
           headers.forEach((value, name) => {
             const lowerName = COMMON_HEADER_NAMES[name] || StringPrototypeToLowerCase(name);
@@ -889,8 +865,8 @@ function serve(options) {
           socket.write(KEEP_ALIVE_HEADER);
           if (headersOk) {
             headers.forEach((value, name) => {
-              const lowerName = COMMON_HEADER_NAMES[name] || StringPrototypeToLowerCase(name);
-              if (lowerName !== 'content-length' && lowerName !== 'connection') {
+              // Headers.forEach yields lowercase names per the Fetch spec.
+              if (name !== 'content-length' && name !== 'connection') {
                 socket.write(`${name}: ${value}\r\n`);
               }
             });
@@ -944,19 +920,11 @@ function serve(options) {
     if (!handle) return;
     // TCP_NODELAY is set per-connection in handleConnection,
     // but TCP_FASTOPEN, SO_REUSEPORT, TCP_DEFER_ACCEPT apply to the listen socket.
-    try {
-      const smolHttpPerf = internalBinding('smol_http_perf');
-      if (smolHttpPerf && smolHttpPerf.isTcpOptAvailable && smolHttpPerf.isTcpOptAvailable()) {
-        // The C++ TcpOptimizations::EnableAll operates on uv_tcp_t handles.
-        // Since we can't directly call it from JS on the net server handle,
-        // we enable what's available via the socket fd.
-        // TCP_FASTOPEN is enabled via the socket option.
-        if (handle.fd >= 0 || handle.fd === undefined) {
-          // Socket options will be applied by the OS on the listen fd
-        }
+    // smolHttpBinding is already loaded at module scope — no need to re-acquire.
+    if (smolHttpBinding.isTcpOptAvailable()) {
+      if (handle.fd >= 0 || handle.fd === undefined) {
+        // Socket options will be applied by the OS on the listen fd
       }
-    } catch {
-      // Binding not available, skip TCP optimizations
     }
   }
 

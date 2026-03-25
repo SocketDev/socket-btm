@@ -8,8 +8,17 @@
       'type': 'static_library',
       'sources': [
         '../simd/simd.cc',
+        'fast_304_response.cc',
         'http_binding.cc',
-        'http_v8_binding.cc',
+        'http_fast_response.cc',
+        'http_header_pool.cc',
+        'http_object_pool.cc',
+        'iouring_network.cc',
+        'mimalloc_allocator.cc',
+        'response_template.cc',
+        'smol_http_binding.cc',
+        'tcp_optimizations.cc',
+        'zero_copy_buffer.cc',
       ],
       'include_dirs': [
         '../..',

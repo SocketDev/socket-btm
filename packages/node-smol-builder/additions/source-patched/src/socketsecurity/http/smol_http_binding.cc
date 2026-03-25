@@ -1,16 +1,33 @@
-// http_v8_binding.cc
-// V8 bindings for socketsecurity/http high-performance utilities
+// smol_http_binding.cc
+// Unified V8 binding for node:smol-http — all native HTTP utilities.
+//
+// Merges URL parsing, headers, WebSocket, response writers, object pools,
+// trie router, TCP optimizations, and feature detection into a single
+// `smol_http` internal binding.
 
 #include "http_binding.h"
+#include "socketsecurity/http/fast_304_response.h"
+#include "socketsecurity/http/http_fast_response.h"
+#include "socketsecurity/http/http_object_pool.h"
+#include "socketsecurity/http/iouring_network.h"
+#include "socketsecurity/http/mimalloc_allocator.h"
+#include "socketsecurity/http/tcp_optimizations.h"
 
 #include "env-inl.h"
+#include "node.h"
+#include "node_binding.h"
+#include "node_buffer.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
+#include "stream_base-inl.h"
 #include "util-inl.h"
 #include "v8.h"
 
+#include <cstdio>
 #include <cstring>
+#include <unordered_map>
+#include <vector>
 
 namespace node {
 namespace smol_http {
@@ -45,7 +62,6 @@ using v8::Value;
 // URL Parsing
 // ============================================================================
 
-// parseUrl(urlString) -> { pathname, query, hash } | null
 void ParseUrl(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
@@ -95,7 +111,6 @@ void ParseUrl(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
-// parseQueryString(queryString) -> { key: value, ... }
 void ParseQueryString(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
@@ -111,7 +126,6 @@ void ParseQueryString(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  // Parse into temporary arrays
   constexpr size_t kMaxPairs = 64;
   std::string_view keys[kMaxPairs];
   std::string_view values[kMaxPairs];
@@ -121,29 +135,27 @@ void ParseQueryString(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> result = Object::New(isolate);
 
-  // Decode buffer (reused for all decoding)
-  char decode_buf[2048];
-
   for (size_t i = 0; i < count; ++i) {
     Local<String> key;
     Local<String> value;
 
-    // Decode key if needed
     if (smol::http::NeedsDecoding(keys[i].data(), keys[i].length())) {
+      // Decoded output is always <= input length
+      std::vector<char> decode_buf(keys[i].length() + 1);
       size_t decoded_len = smol::http::DecodeURIComponent(
-          keys[i].data(), keys[i].length(), decode_buf);
-      key = String::NewFromUtf8(isolate, decode_buf,
+          keys[i].data(), keys[i].length(), decode_buf.data());
+      key = String::NewFromUtf8(isolate, decode_buf.data(),
           NewStringType::kNormal, decoded_len).ToLocalChecked();
     } else {
       key = String::NewFromUtf8(isolate, keys[i].data(),
           NewStringType::kNormal, keys[i].length()).ToLocalChecked();
     }
 
-    // Decode value if needed
     if (smol::http::NeedsDecoding(values[i].data(), values[i].length())) {
+      std::vector<char> decode_buf(values[i].length() + 1);
       size_t decoded_len = smol::http::DecodeURIComponent(
-          values[i].data(), values[i].length(), decode_buf);
-      value = String::NewFromUtf8(isolate, decode_buf,
+          values[i].data(), values[i].length(), decode_buf.data());
+      value = String::NewFromUtf8(isolate, decode_buf.data(),
           NewStringType::kNormal, decoded_len).ToLocalChecked();
     } else {
       value = String::NewFromUtf8(isolate, values[i].data(),
@@ -156,7 +168,6 @@ void ParseQueryString(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
-// decodeURIComponent(str) -> decodedStr
 void DecodeURIComponent(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
 
@@ -171,13 +182,11 @@ void DecodeURIComponent(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  // Quick check if decoding is needed
   if (!smol::http::NeedsDecoding(*str, str.length())) {
     args.GetReturnValue().Set(args[0]);
     return;
   }
 
-  // Decode
   std::vector<char> output(str.length() + 1);
   size_t decoded_len = smol::http::DecodeURIComponent(
       *str, str.length(), output.data());
@@ -191,7 +200,6 @@ void DecodeURIComponent(const FunctionCallbackInfo<Value>& args) {
 // Header Operations
 // ============================================================================
 
-// normalizeHeaderName(name) -> lowercaseName
 void NormalizeHeaderName(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
 
@@ -206,7 +214,6 @@ void NormalizeHeaderName(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  // Check for interned header first
   const char* interned = smol::http::GetInternedHeaderName(*name, name.length());
   if (interned) {
     args.GetReturnValue().Set(
@@ -214,7 +221,6 @@ void NormalizeHeaderName(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  // Normalize in-place (copy to mutable buffer)
   std::vector<char> buf(*name, *name + name.length());
   smol::http::NormalizeHeaderName(buf.data(), buf.size());
 
@@ -223,32 +229,33 @@ void NormalizeHeaderName(const FunctionCallbackInfo<Value>& args) {
           NewStringType::kNormal, buf.size()).ToLocalChecked());
 }
 
-// headerEquals(a, b) -> boolean (case-insensitive comparison)
 void HeaderEquals(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-
   if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsString()) {
     args.GetReturnValue().Set(false);
     return;
   }
 
+  Isolate* isolate = args.GetIsolate();
   String::Utf8Value a(isolate, args[0]);
-  String::Utf8Value b(isolate, args[1]);
-
-  if (*a == nullptr || *b == nullptr) {
+  if (*a == nullptr) {
     args.GetReturnValue().Set(false);
     return;
   }
 
-  bool equal = smol::http::HeaderEquals(*a, a.length(), *b, b.length());
-  args.GetReturnValue().Set(equal);
+  String::Utf8Value b(isolate, args[1]);
+  if (*b == nullptr) {
+    args.GetReturnValue().Set(false);
+    return;
+  }
+
+  args.GetReturnValue().Set(
+    smol::http::HeaderEquals(*a, a.length(), *b, b.length()));
 }
 
 // ============================================================================
 // WebSocket Operations
 // ============================================================================
 
-// decodeWebSocketFrame(buffer) -> { opcode, fin, masked, payload, totalLength } | null
 void DecodeWebSocketFrame(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
@@ -276,20 +283,16 @@ void DecodeWebSocketFrame(const FunctionCallbackInfo<Value>& args) {
   result->Set(context,
       String::NewFromUtf8Literal(isolate, "opcode"),
       Integer::New(isolate, frame.opcode)).Check();
-
   result->Set(context,
       String::NewFromUtf8Literal(isolate, "fin"),
       Boolean::New(isolate, frame.fin)).Check();
-
   result->Set(context,
       String::NewFromUtf8Literal(isolate, "masked"),
       Boolean::New(isolate, frame.masked)).Check();
-
   result->Set(context,
       String::NewFromUtf8Literal(isolate, "totalLength"),
       Integer::NewFromUnsigned(isolate, static_cast<uint32_t>(frame.total_len))).Check();
 
-  // Create payload buffer
   Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, frame.payload_len);
   if (frame.payload_len > 0) {
     std::memcpy(ab->Data(), frame.payload, frame.payload_len);
@@ -301,7 +304,6 @@ void DecodeWebSocketFrame(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
-// encodeWebSocketFrame(data, opcode, fin) -> Buffer
 void EncodeWebSocketFrame(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
 
@@ -310,13 +312,16 @@ void EncodeWebSocketFrame(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  // Get payload
   const uint8_t* payload = nullptr;
   size_t payload_len = 0;
   std::vector<uint8_t> str_buffer;
 
   if (args[0]->IsString()) {
     String::Utf8Value str(isolate, args[0]);
+    if (*str == nullptr) {
+      args.GetReturnValue().SetNull();
+      return;
+    }
     payload_len = str.length();
     str_buffer.assign(*str, *str + payload_len);
     payload = str_buffer.data();
@@ -331,20 +336,17 @@ void EncodeWebSocketFrame(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  // Get opcode (default: 0x01 = text)
   uint8_t opcode = 0x01;
   if (args.Length() > 1 && args[1]->IsInt32()) {
     opcode = static_cast<uint8_t>(args[1].As<Int32>()->Value());
   }
 
-  // Get fin flag (default: true)
   bool fin = true;
   if (args.Length() > 2 && args[2]->IsBoolean()) {
     fin = args[2].As<Boolean>()->Value();
   }
 
-  // Encode frame
-  size_t max_output_len = payload_len + 14;  // Max header size
+  size_t max_output_len = payload_len + 14;
   std::vector<uint8_t> output(max_output_len);
 
   size_t frame_len = smol::http::EncodeWebSocketFrame(
@@ -355,13 +357,11 @@ void EncodeWebSocketFrame(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  // Return as Buffer
   Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, frame_len);
   std::memcpy(ab->Data(), output.data(), frame_len);
   args.GetReturnValue().Set(Uint8Array::New(ab, 0, frame_len));
 }
 
-// unmaskWebSocketPayload(buffer, maskKey) -> void (modifies buffer in-place)
 void UnmaskWebSocketPayload(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 2 || !args[0]->IsArrayBufferView() || !args[1]->IsUint32()) {
     return;
@@ -370,7 +370,6 @@ void UnmaskWebSocketPayload(const FunctionCallbackInfo<Value>& args) {
   Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
   uint32_t mask_key = args[1].As<Uint32>()->Value();
 
-  // Get direct pointer to buffer data
   void* data = view->Buffer()->Data();
   size_t offset = view->ByteOffset();
   size_t len = view->ByteLength();
@@ -380,22 +379,14 @@ void UnmaskWebSocketPayload(const FunctionCallbackInfo<Value>& args) {
 }
 
 // ============================================================================
-// HTTP Response Building
+// Response Building (buffer-based — returns buffer for JS to write)
 // ============================================================================
 
-// writeJsonResponse(socket, statusCode, jsonString) -> boolean
-void WriteJsonResponse(const FunctionCallbackInfo<Value>& args) {
+void BuildJsonResponse(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
-  if (args.Length() < 3) {
-    args.GetReturnValue().Set(false);
-    return;
-  }
-
-  // Get socket's write handle
-  Local<Object> socket = args[0].As<Object>();
-  if (socket.IsEmpty()) {
+  if (args.Length() < 3 || !args[1]->IsInt32()) {
     args.GetReturnValue().Set(false);
     return;
   }
@@ -408,9 +399,8 @@ void WriteJsonResponse(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  // Build response
   size_t json_len = json.length();
-  size_t buffer_size = json_len + 256;  // Headers + body
+  size_t buffer_size = json_len + 256;
   std::vector<uint8_t> buffer(buffer_size);
 
   smol::http::ResponseBuilder builder(buffer.data(), buffer_size);
@@ -421,16 +411,12 @@ void WriteJsonResponse(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  // Write to socket using internal API
-  // This needs to interface with libuv/socket directly
-  // For now, return the buffer and let JS handle the write
   Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, builder.length);
   std::memcpy(ab->Data(), buffer.data(), builder.length);
   args.GetReturnValue().Set(Uint8Array::New(ab, 0, builder.length));
 }
 
-// writeTextResponse(socket, statusCode, text) -> Buffer
-void WriteTextResponse(const FunctionCallbackInfo<Value>& args) {
+void BuildTextResponse(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
@@ -464,8 +450,7 @@ void WriteTextResponse(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Uint8Array::New(ab, 0, builder.length));
 }
 
-// writeBinaryResponse(socket, statusCode, buffer, contentType) -> Buffer
-void WriteBinaryResponse(const FunctionCallbackInfo<Value>& args) {
+void BuildBinaryResponse(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
@@ -487,12 +472,19 @@ void WriteBinaryResponse(const FunctionCallbackInfo<Value>& args) {
   data_view->CopyContents(data.data(), data_len);
 
   const char* content_type = "application/octet-stream";
-  String::Utf8Value ct_str(isolate, args[3]);
-  if (*ct_str != nullptr) {
-    content_type = *ct_str;
+  size_t content_type_len = 24;  // strlen("application/octet-stream")
+  std::string content_type_storage;
+
+  if (args.Length() > 3 && args[3]->IsString()) {
+    String::Utf8Value ct_str(isolate, args[3]);
+    if (*ct_str != nullptr) {
+      content_type_storage.assign(*ct_str, ct_str.length());
+      content_type = content_type_storage.c_str();
+      content_type_len = content_type_storage.length();
+    }
   }
 
-  size_t buffer_size = data_len + 256;
+  size_t buffer_size = data_len + 256 + content_type_len;
   std::vector<uint8_t> buffer(buffer_size);
 
   smol::http::ResponseBuilder builder(buffer.data(), buffer_size);
@@ -512,8 +504,6 @@ void WriteBinaryResponse(const FunctionCallbackInfo<Value>& args) {
 // Type Checking
 // ============================================================================
 
-// isHeaders(obj) -> boolean
-// Check if object is a Headers instance using internal brand check
 void IsHeaders(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
 
@@ -523,9 +513,6 @@ void IsHeaders(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Object> obj = args[0].As<Object>();
-
-  // Check for Headers brand using internal class name
-  // This is faster than duck-typing
   Local<String> class_name = obj->GetConstructorName();
   String::Utf8Value name(isolate, class_name);
 
@@ -541,67 +528,80 @@ void IsHeaders(const FunctionCallbackInfo<Value>& args) {
 // Router (Native Trie)
 // ============================================================================
 
-// Persistent router storage per isolate
-static std::unordered_map<Isolate*, smol::http::TrieRouter*> routers;
+// Per-thread router storage.
+// Each thread (main or worker) gets its own router instance.
+// Cleanup hooks free the router when the Environment is destroyed,
+// and reset the thread_local to nullptr to prevent dangling access.
+static thread_local smol::http::TrieRouter* tl_router = nullptr;
 
-// createRouter() -> routerId
+static void RouterCleanup(void* data) {
+  auto* router = static_cast<smol::http::TrieRouter*>(data);
+  if (tl_router == router) {
+    tl_router = nullptr;
+  }
+  delete router;
+}
+
 void CreateRouter(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
 
-  auto* router = new smol::http::TrieRouter();
-  routers[isolate] = router;
+  // Remove old router and its cleanup hook to prevent double-free.
+  if (tl_router != nullptr) {
+    env->RemoveCleanupHook(RouterCleanup, tl_router);
+    delete tl_router;
+    tl_router = nullptr;
+  }
 
+  auto* router = new smol::http::TrieRouter();
+  tl_router = router;
+  env->AddCleanupHook(RouterCleanup, router);
   args.GetReturnValue().Set(Integer::New(isolate, 1));
 }
 
-// addRoute(pattern, handlerId) -> void
 void AddRoute(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-
-  auto it = routers.find(isolate);
-  if (it == routers.end() || args.Length() < 2) {
+  auto* router = tl_router;
+  if (router == nullptr || args.Length() < 2) {
     return;
   }
 
+  Isolate* isolate = args.GetIsolate();
   String::Utf8Value pattern(isolate, args[0]);
   uint32_t handler_id = args[1].As<Uint32>()->Value();
 
   if (*pattern != nullptr) {
-    it->second->Insert(*pattern, pattern.length(), handler_id);
+    router->Insert(*pattern, pattern.length(), handler_id);
   }
 }
 
-// matchRoute(pathname) -> { handlerId, params } | null
 void MatchRoute(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  Local<Context> context = isolate->GetCurrentContext();
-
-  auto it = routers.find(isolate);
-  if (it == routers.end() || args.Length() < 1 || !args[0]->IsString()) {
+  auto* router = tl_router;
+  if (router == nullptr || args.Length() < 1 || !args[0]->IsString()) {
     args.GetReturnValue().SetNull();
     return;
   }
 
+  Isolate* isolate = args.GetIsolate();
   String::Utf8Value pathname(isolate, args[0]);
   if (*pathname == nullptr) {
     args.GetReturnValue().SetNull();
     return;
   }
 
-  auto result = it->second->Match(*pathname, pathname.length());
+  auto result = router->Match(*pathname, pathname.length());
 
   if (!result.matched) {
     args.GetReturnValue().SetNull();
     return;
   }
 
+  Local<Context> context = isolate->GetCurrentContext();
   Local<Object> obj = Object::New(isolate);
 
   obj->Set(context,
       String::NewFromUtf8Literal(isolate, "handlerId"),
       Uint32::New(isolate, result.handler_id)).Check();
 
-  // Build params object
   Local<Object> params = Object::New(isolate);
   for (size_t i = 0; i < result.param_count; ++i) {
     const auto& p = result.params[i];
@@ -618,6 +618,247 @@ void MatchRoute(const FunctionCallbackInfo<Value>& args) {
       params).Check();
 
   args.GetReturnValue().Set(obj);
+}
+
+// ============================================================================
+// Fast Response Writers (UV stream — writes directly to socket)
+// ============================================================================
+
+using socketsecurity::http_perf::FastResponse;
+using socketsecurity::http_perf::Fast304Response;
+using socketsecurity::http_perf::HttpObjectPool;
+using socketsecurity::http_perf::IoUringNetwork;
+using socketsecurity::http_perf::MimallocArrayBufferAllocator;
+
+// writeJsonDirect(socket, statusCode, jsonString) -> boolean
+void WriteJsonDirect(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  if (args.Length() < 3 || !args[0]->IsObject() || !args[1]->IsInt32()) {
+    return;
+  }
+
+  Local<Object> socket = args[0].As<Object>();
+  int status_code = args[1].As<Int32>()->Value();
+
+  Local<String> json_str;
+  if (args[2]->IsString()) {
+    json_str = args[2].As<String>();
+  } else {
+    return;
+  }
+
+  v8::String::Utf8Value json_utf8(isolate, json_str);
+  if (*json_utf8 == nullptr) {
+    return;
+  }
+
+  bool success = FastResponse::WriteJson(
+    env, socket, status_code, *json_utf8, json_utf8.length());
+
+  args.GetReturnValue().Set(success);
+}
+
+// writeBinaryDirect(socket, statusCode, buffer, contentType) -> boolean
+void WriteBinaryDirect(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  if (args.Length() < 4 || !args[0]->IsObject() || !args[1]->IsInt32() ||
+      !args[2]->IsUint8Array() || !args[3]->IsString()) {
+    return;
+  }
+
+  Local<Object> socket = args[0].As<Object>();
+  int status_code = args[1].As<Int32>()->Value();
+
+  Local<Uint8Array> buffer = args[2].As<Uint8Array>();
+  const uint8_t* data = static_cast<const uint8_t*>(
+    buffer->Buffer()->GetBackingStore()->Data()) + buffer->ByteOffset();
+  size_t length = buffer->ByteLength();
+
+  v8::String::Utf8Value content_type(env->isolate(), args[3]);
+  if (*content_type == nullptr) {
+    return;
+  }
+
+  bool success = FastResponse::WriteBinary(
+    env, socket, status_code, data, length, *content_type);
+
+  args.GetReturnValue().Set(success);
+}
+
+// writeNotModified(socket) -> boolean
+void WriteNotModified(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return;
+  }
+
+  Local<Object> socket = args[0].As<Object>();
+  bool success = FastResponse::WriteNotModified(env, socket);
+  args.GetReturnValue().Set(success);
+}
+
+// writeTextDirect(socket, statusCode, text) -> boolean
+// Writes a text/plain response directly to the UV stream.
+void WriteTextDirect(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  if (args.Length() < 3 || !args[0]->IsObject() || !args[1]->IsInt32()) {
+    return;
+  }
+
+  Local<Object> socket = args[0].As<Object>();
+  int status_code = args[1].As<Int32>()->Value();
+
+  if (!args[2]->IsString()) {
+    return;
+  }
+
+  String::Utf8Value text(isolate, args[2]);
+  if (*text == nullptr) {
+    return;
+  }
+
+  // Reuse WriteBinary with text/plain content type — same UV stream write path.
+  bool success = FastResponse::WriteBinary(
+    env, socket, status_code,
+    reinterpret_cast<const uint8_t*>(*text), text.length(),
+    "text/plain");
+
+  args.GetReturnValue().Set(success);
+}
+
+// ============================================================================
+// Pre-formatted Headers
+// ============================================================================
+
+void GetStatusLine(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  if (!args[0]->IsInt32()) {
+    return;
+  }
+
+  int32_t status_code = args[0].As<Int32>()->Value();
+  const char* status_line = nullptr;
+
+  switch (status_code) {
+    case 200: status_line = "HTTP/1.1 200 OK\r\n"; break;
+    case 304: status_line = "HTTP/1.1 304 Not Modified\r\n"; break;
+    case 404: status_line = "HTTP/1.1 404 Not Found\r\n"; break;
+    case 500: status_line = "HTTP/1.1 500 Internal Server Error\r\n"; break;
+    default: return;
+  }
+
+  args.GetReturnValue().Set(
+    String::NewFromUtf8(isolate, status_line).ToLocalChecked());
+}
+
+void GetContentLengthHeader(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  if (!args[0]->IsInt32()) {
+    return;
+  }
+
+  int32_t length = args[0].As<Int32>()->Value();
+  char buf[64];
+  int len = snprintf(buf, sizeof(buf), "Content-Length: %d\r\n", length);
+  args.GetReturnValue().Set(
+    String::NewFromUtf8(isolate, buf, NewStringType::kNormal, len)
+      .ToLocalChecked());
+}
+
+// ============================================================================
+// Object Pool
+// ============================================================================
+
+static thread_local HttpObjectPool* tl_object_pool = nullptr;
+
+static void ObjectPoolCleanup(void* data) {
+  auto* pool = static_cast<HttpObjectPool*>(data);
+  if (tl_object_pool == pool) {
+    tl_object_pool = nullptr;
+  }
+  delete pool;
+}
+
+static HttpObjectPool* GetObjectPool(Environment* env) {
+  if (tl_object_pool == nullptr) {
+    tl_object_pool = new HttpObjectPool(env);
+    env->AddCleanupHook(ObjectPoolCleanup, tl_object_pool);
+  }
+  return tl_object_pool;
+}
+
+void AcquireRequest(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  HttpObjectPool* pool = GetObjectPool(env);
+  Local<Object> req = pool->AcquireRequest();
+  args.GetReturnValue().Set(req);
+}
+
+void ReleaseRequest(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (args.Length() < 1 || !args[0]->IsObject()) return;
+  HttpObjectPool* pool = GetObjectPool(env);
+  pool->ReleaseRequest(args[0].As<Object>());
+}
+
+void AcquireResponse(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  HttpObjectPool* pool = GetObjectPool(env);
+  Local<Object> res = pool->AcquireResponse();
+  args.GetReturnValue().Set(res);
+}
+
+void ReleaseResponse(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (args.Length() < 1 || !args[0]->IsObject()) return;
+  HttpObjectPool* pool = GetObjectPool(env);
+  pool->ReleaseResponse(args[0].As<Object>());
+}
+
+void GetObjectPoolStats(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  HttpObjectPool* pool = GetObjectPool(env);
+
+  Local<Object> stats = Object::New(isolate);
+  Local<Context> context = env->context();
+
+  stats->Set(context,
+    FIXED_ONE_BYTE_STRING(isolate, "requestPoolSize"),
+    v8::Integer::NewFromUnsigned(isolate, pool->GetRequestPoolSize())).Check();
+  stats->Set(context,
+    FIXED_ONE_BYTE_STRING(isolate, "responsePoolSize"),
+    v8::Integer::NewFromUnsigned(isolate, pool->GetResponsePoolSize())).Check();
+
+  args.GetReturnValue().Set(stats);
+}
+
+// ============================================================================
+// Feature Detection
+// ============================================================================
+
+void IsTcpOptAvailable(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(true);
+}
+
+void IsIoUringAvailable(const FunctionCallbackInfo<Value>& args) {
+  bool available = IoUringNetwork::IsAvailable();
+  args.GetReturnValue().Set(available);
+}
+
+void IsMimallocAvailable(const FunctionCallbackInfo<Value>& args) {
+  bool available = MimallocArrayBufferAllocator::IsMimallocAvailable();
+  args.GetReturnValue().Set(available);
 }
 
 // ============================================================================
@@ -642,10 +883,20 @@ void Initialize(Local<Object> exports,
   SetMethod(context, exports, "encodeWebSocketFrame", EncodeWebSocketFrame);
   SetMethod(context, exports, "unmaskWebSocketPayload", UnmaskWebSocketPayload);
 
-  // HTTP response building
-  SetMethod(context, exports, "writeJsonResponse", WriteJsonResponse);
-  SetMethod(context, exports, "writeTextResponse", WriteTextResponse);
-  SetMethod(context, exports, "writeBinaryResponse", WriteBinaryResponse);
+  // Response building (returns buffer for JS to write)
+  SetMethod(context, exports, "buildJsonResponse", BuildJsonResponse);
+  SetMethod(context, exports, "buildTextResponse", BuildTextResponse);
+  SetMethod(context, exports, "buildBinaryResponse", BuildBinaryResponse);
+
+  // Fast response writers (write directly to UV stream)
+  SetMethod(context, exports, "writeJsonResponse", WriteJsonDirect);
+  SetMethod(context, exports, "writeTextResponse", WriteTextDirect);
+  SetMethod(context, exports, "writeBinaryResponse", WriteBinaryDirect);
+  SetMethod(context, exports, "writeNotModifiedResponse", WriteNotModified);
+
+  // Pre-formatted headers
+  SetMethod(context, exports, "getStatusLine", GetStatusLine);
+  SetMethod(context, exports, "getContentLengthHeader", GetContentLengthHeader);
 
   // Type checking
   SetMethod(context, exports, "isHeaders", IsHeaders);
@@ -654,32 +905,73 @@ void Initialize(Local<Object> exports,
   SetMethod(context, exports, "createRouter", CreateRouter);
   SetMethod(context, exports, "addRoute", AddRoute);
   SetMethod(context, exports, "matchRoute", MatchRoute);
+
+  // Object pool
+  SetMethod(context, exports, "acquireRequest", AcquireRequest);
+  SetMethod(context, exports, "releaseRequest", ReleaseRequest);
+  SetMethod(context, exports, "acquireResponse", AcquireResponse);
+  SetMethod(context, exports, "releaseResponse", ReleaseResponse);
+  SetMethod(context, exports, "getObjectPoolStats", GetObjectPoolStats);
+
+  // Feature detection
+  SetMethod(context, exports, "isTcpOptAvailable", IsTcpOptAvailable);
+  SetMethod(context, exports, "isIoUringAvailable", IsIoUringAvailable);
+  SetMethod(context, exports, "isMimallocAvailable", IsMimallocAvailable);
 }
 
-void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  // URL parsing
+  registry->Register(ParseUrl);
+  registry->Register(ParseQueryString);
+  registry->Register(DecodeURIComponent);
+
+  // Header operations
+  registry->Register(NormalizeHeaderName);
+  registry->Register(HeaderEquals);
+
+  // WebSocket operations
+  registry->Register(DecodeWebSocketFrame);
+  registry->Register(EncodeWebSocketFrame);
+  registry->Register(UnmaskWebSocketPayload);
+
+  // Response building
+  registry->Register(BuildJsonResponse);
+  registry->Register(BuildTextResponse);
+  registry->Register(BuildBinaryResponse);
+
+  // Fast response writers
+  registry->Register(WriteJsonDirect);
+  registry->Register(WriteTextDirect);
+  registry->Register(WriteBinaryDirect);
+  registry->Register(WriteNotModified);
+
+  // Pre-formatted headers
+  registry->Register(GetStatusLine);
+  registry->Register(GetContentLengthHeader);
+
+  // Type checking
+  registry->Register(IsHeaders);
+
+  // Router
+  registry->Register(CreateRouter);
+  registry->Register(AddRoute);
+  registry->Register(MatchRoute);
+
+  // Object pool
+  registry->Register(AcquireRequest);
+  registry->Register(ReleaseRequest);
+  registry->Register(AcquireResponse);
+  registry->Register(ReleaseResponse);
+  registry->Register(GetObjectPoolStats);
+
+  // Feature detection
+  registry->Register(IsTcpOptAvailable);
+  registry->Register(IsIoUringAvailable);
+  registry->Register(IsMimallocAvailable);
+}
 
 }  // namespace smol_http
 }  // namespace node
 
-NODE_BINDING_EXTERNAL_REFERENCE(smol_http, node::smol_http::RegisterExternalReferences)
-
-void node::smol_http::RegisterExternalReferences(
-    ExternalReferenceRegistry* registry) {
-  registry->Register(ParseUrl);
-  registry->Register(ParseQueryString);
-  registry->Register(DecodeURIComponent);
-  registry->Register(NormalizeHeaderName);
-  registry->Register(HeaderEquals);
-  registry->Register(DecodeWebSocketFrame);
-  registry->Register(EncodeWebSocketFrame);
-  registry->Register(UnmaskWebSocketPayload);
-  registry->Register(WriteJsonResponse);
-  registry->Register(WriteTextResponse);
-  registry->Register(WriteBinaryResponse);
-  registry->Register(IsHeaders);
-  registry->Register(CreateRouter);
-  registry->Register(AddRoute);
-  registry->Register(MatchRoute);
-}
-
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(smol_http, node::smol_http::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(smol_http, node::smol_http::RegisterExternalReferences)

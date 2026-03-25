@@ -1,3 +1,8 @@
+// Suppress V8-internal deprecation warning for Object::GetIsolate()
+// called from v8-object.h static method (not our code).
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 #include "socketsecurity/http/http_object_pool.h"
 #include "env-inl.h"
 #include "node_internals.h"
@@ -181,3 +186,5 @@ void HttpObjectPool::ResetResponse(Environment* env, Local<Object> res) {
 }  // namespace http_perf
 }  // namespace socketsecurity
 }  // namespace node
+
+#pragma GCC diagnostic pop

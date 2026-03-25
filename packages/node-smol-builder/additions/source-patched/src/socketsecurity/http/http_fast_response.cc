@@ -1,3 +1,8 @@
+// Suppress V8-internal deprecation warning for Object::GetIsolate()
+// called from v8-object.h static method (not our code).
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 #include "socketsecurity/http/http_fast_response.h"
 #include "socketsecurity/http/response_template.h"
 #include "env-inl.h"
@@ -266,3 +271,5 @@ bool FastResponse::WriteNotModified(
 }  // namespace http_perf
 }  // namespace socketsecurity
 }  // namespace node
+
+#pragma GCC diagnostic pop

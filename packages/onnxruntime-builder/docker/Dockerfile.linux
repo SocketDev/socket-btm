@@ -1,0 +1,72 @@
+# Build ONNX Runtime WASM in container to offload compute from GitHub Actions.
+# This Dockerfile supports building for linux/amd64 and linux/arm64.
+
+FROM ubuntu:22.04 AS build
+
+# Cache buster for forcing rebuilds when dependencies change
+ARG CACHE_BUSTER=default
+
+# Install build dependencies.
+RUN echo "Cache buster: ${CACHE_BUSTER}" && \
+    export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update && \
+    apt-get install -y \
+        build-essential \
+        python3 \
+        python3-pip \
+        git \
+        git-lfs \
+        curl \
+        wget \
+        ninja-build \
+        ca-certificates \
+        jq \
+        && \
+    # Install CMake 3.26 from Kitware (ONNX Runtime requires 3.26+, but 3.30+ breaks google_nsync).
+    wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null && \
+    echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ jammy main' | tee /etc/apt/sources.list.d/kitware.list >/dev/null && \
+    apt-get update && \
+    apt-get install -y cmake=3.26.* cmake-data=3.26.* && \
+    # Install Node.js from NodeSource.
+    curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g pnpm@10.26.1 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy repository files.
+COPY . .
+
+# Install workspace dependencies.
+ENV CI=true
+RUN pnpm install --frozen-lockfile
+
+# Install Python dependencies required by ONNX Runtime build system.
+RUN pip install --upgrade pip setuptools wheel && \
+    cd packages/onnxruntime-builder && \
+    pip install numpy packaging coloredlogs flatbuffers protobuf sympy
+
+# Build ONNX Runtime WASM.
+# Note: ONNX Runtime has its own emsdk submodule that the build system uses.
+ARG BUILD_MODE=prod
+# Cache version - managed centrally in .github/cache-versions.json
+ARG CACHE_VERSION=unset
+ENV BUILD_MODE=$BUILD_MODE
+
+RUN echo "Cache version: ${CACHE_VERSION}" && \
+    if [ "$BUILD_MODE" = "prod" ]; then \
+    pnpm --filter onnxruntime-builder build --prod; \
+else \
+    pnpm --filter onnxruntime-builder build --dev; \
+fi
+
+# Export stage: Copy build artifacts and checkpoints (not entire filesystem).
+# We export the entire build/ directory to preserve both:
+# - Build artifacts at build/${BUILD_MODE}/out/Final/
+# - Checkpoints at build/${BUILD_MODE}/checkpoints/ and build/shared/checkpoints/
+# Checkpoints enable GitHub Actions caching to skip expensive build steps on repeated runs.
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=build /workspace/packages/onnxruntime-builder/build /

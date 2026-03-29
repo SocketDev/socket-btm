@@ -1,0 +1,29 @@
+{
+  "$schema": "../build-infra/lib/external-tools-schema.json",
+  "description": "Package-level external tools for opentui-builder (Zig native module with node-api)",
+  "tools": {
+    "zig": {
+      "description": "Zig toolchain (required for native module compilation)",
+      "category": "pinned",
+      "requiredVersion": "0.15.2",
+      "versionCommand": ["zig", "version"],
+      "packages": {
+        "darwin": {
+          "brew": "zig"
+        },
+        "linux": {
+          "snap": "zig",
+          "apt": "zig"
+        },
+        "win32": {
+          "choco": "zig",
+          "scoop": "zig"
+        }
+      },
+      "versions": {
+        "stable": "0.15.2"
+      },
+      "notes": "Zig 0.15.2 is strictly required. Auto-downloaded if not found at correct version."
+    }
+  }
+}

@@ -1,0 +1,19 @@
+# Makefile for Windows compression tools.
+# References pre-built binaries from package directories.
+
+# Built binaries from packages.
+COMPRESS_SOURCE = $(BINPRESS_DIR)/out/binpress.exe
+DECOMPRESS_SOURCE = $(BINFLATE_DIR)/out/binflate.exe
+
+# Final targets.
+COMPRESS = $(OUT_COMPRESS)/binpress.exe
+DECOMPRESS = $(OUT_DECOMPRESS)/binflate.exe
+
+# Common rules for press/deflate compression tools.
+include ../../../../make/pack-rules.mk
+
+clean:
+	del /Q /S out\\* 2>NUL || true
+	rmdir /Q /S out 2>NUL || true
+	$(MAKE) -C $(BINPRESS_DIR) clean
+	$(MAKE) -C $(BINFLATE_DIR) clean

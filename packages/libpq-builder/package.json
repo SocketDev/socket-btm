@@ -1,0 +1,23 @@
+{
+  "name": "libpq-builder",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Builds libpq PostgreSQL client library with OpenSSL support",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./lib/ensure-libpq": "./lib/ensure-libpq.mjs"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "clean": "node scripts/clean.mjs",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@socketsecurity/lib": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "build-infra": "workspace:*",
+    "vitest": "catalog:"
+  }
+}

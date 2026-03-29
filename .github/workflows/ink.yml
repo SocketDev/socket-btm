@@ -1,0 +1,429 @@
+name: JS 1. Ink
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      debug:
+        description: 'Debug (0|1|namespace[,...])'
+        type: string
+        default: '0'
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+      force:
+        type: boolean
+        default: false
+      debug:
+        type: string
+        default: '0'
+
+permissions:
+  contents: read # Read repository contents
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build ink
+    permissions:
+      contents: read # Read repository contents
+      id-token: write # OIDC authentication for Depot builds
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          submodules: false
+
+      - name: Enable debug logging
+        if: inputs.debug != '0'
+        env:
+          DEBUG_INPUT: ${{ inputs.debug }}
+        run: |
+          if [ "$DEBUG_INPUT" = "1" ]; then
+            echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
+            echo "ACTIONS_RUNNER_DEBUG=true" >> $GITHUB_ENV
+            echo "Debug mode: full"
+          else
+            # Use heredoc syntax to prevent env var injection via newlines
+            {
+              echo "DEBUG<<EOF"
+              echo "$DEBUG_INPUT"
+              echo "EOF"
+            } >> $GITHUB_ENV
+            echo "Debug mode: $DEBUG_INPUT"
+          fi
+
+      - name: Load tool versions
+        id: tool-versions
+        run: |
+          NODE_VERSION=$(cat .node-version | tr -d '\n')
+          INK_VERSION=$(jq -r '.sources.ink.version' packages/ink-builder/package.json)
+          INK_REF=$(jq -r '.sources.ink.ref' packages/ink-builder/package.json)
+          echo "node-version=$NODE_VERSION" >> $GITHUB_OUTPUT
+          echo "ink-version=$INK_VERSION" >> $GITHUB_OUTPUT
+          echo "ink-ref=$INK_REF" >> $GITHUB_OUTPUT
+          echo "Loaded Node.js: $NODE_VERSION, ink: $INK_VERSION (ref: ${INK_REF:0:8}...)"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: ${{ steps.tool-versions.outputs.node-version }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+        # Note: version is specified in package.json packageManager field, not here
+
+      - uses: SocketDev/socket-registry/.github/actions/install@6096b06b1790f411714c89c40f72aade2eeaab7c # main
+
+      - name: Setup Depot CLI
+        uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
+        with:
+          oidc: true
+
+      - name: Load cache version from centralized config
+        id: cache-version
+        shell: bash
+        run: |
+          INK_CACHE=$(jq -r '.versions["ink"]' .github/cache-versions.json)
+          YOGA_CACHE=$(jq -r '.versions["yoga-layout"]' .github/cache-versions.json)
+          if [ -z "$INK_CACHE" ] || [ "$INK_CACHE" = "null" ]; then
+            echo "× Error: Cache version not found for ink in .github/cache-versions.json"
+            exit 1
+          fi
+          if [ -z "$YOGA_CACHE" ] || [ "$YOGA_CACHE" = "null" ]; then
+            echo "× Error: Cache version not found for yoga-layout in .github/cache-versions.json"
+            exit 1
+          fi
+          echo "ink-version=$INK_CACHE" >> $GITHUB_OUTPUT
+          echo "yoga-version=$YOGA_CACHE" >> $GITHUB_OUTPUT
+          echo "Cache versions: ink=$INK_CACHE, yoga-layout=$YOGA_CACHE"
+
+      - name: Generate ink cache key
+        id: cache-key
+        env:
+          INK_CACHE_VERSION: ${{ steps.cache-version.outputs.ink-version }}
+          YOGA_CACHE_VERSION: ${{ steps.cache-version.outputs.yoga-version }}
+        run: |
+          # Cross-platform hash function.
+          if command -v shasum &> /dev/null; then
+            hash_cmd="shasum -a 256"
+          elif command -v sha256sum &> /dev/null; then
+            hash_cmd="sha256sum"
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+
+          # Hash key files
+          PACKAGE_JSON=$($hash_cmd packages/ink-builder/package.json | cut -d' ' -f1)
+          BUILD_MJS=$($hash_cmd packages/ink-builder/scripts/build.mjs | cut -d' ' -f1)
+
+          # Hash patches directory
+          PATCHES_HASH=""
+          if [ -d "packages/ink-builder/patches" ]; then
+            PATCHES_HASH=$(find packages/ink-builder/patches -type f -name "*.patch" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1 || echo "")
+          fi
+
+          # Combined hash (includes yoga cache version since ink depends on yoga-sync)
+          FINAL_HASH=$(echo "${INK_CACHE_VERSION}${YOGA_CACHE_VERSION}${PACKAGE_JSON}${BUILD_MJS}${PATCHES_HASH}" | $hash_cmd | cut -d' ' -f1)
+
+          echo "ink_cache_version=${INK_CACHE_VERSION}" >> $GITHUB_OUTPUT
+          echo "yoga_cache_version=${YOGA_CACHE_VERSION}" >> $GITHUB_OUTPUT
+          echo "final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
+
+      - name: Restore ink checkpoint cache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        id: ink-checkpoint-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: |
+            packages/ink-builder/build/checkpoints
+          key: ink-checkpoints-${{ steps.cache-key.outputs.ink_cache_version }}-v${{ steps.tool-versions.outputs.ink-version }}-${{ runner.os }}-${{ steps.cache-key.outputs.final_hash }}
+
+      - name: Build ink with Depot (offloads compute, ensures yoga-sync available)
+        id: build
+        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true'
+        uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0
+        with:
+          project: 8fpj9495vw
+          platforms: linux/amd64
+          build-args: |
+            INK_VERSION=${{ steps.tool-versions.outputs.ink-version }}
+            CACHE_VERSION=${{ steps.cache-key.outputs.ink_cache_version }}
+            CACHE_BUSTER=${{ github.sha }}
+          no-cache: ${{ inputs.force == true }}
+          file: packages/ink-builder/docker/Dockerfile
+          target: export
+          outputs: type=local,dest=packages/ink-builder/build
+          context: .
+
+      - name: Verify Depot build output
+        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true'
+        run: |
+          echo "Verifying Depot build output structure..."
+          ls -lah packages/ink-builder/build/
+
+          # Depot exports to build/dist (from Dockerfile's /dist)
+          if [ ! -d "packages/ink-builder/build/dist" ]; then
+            echo "× Build directory not found!"
+            echo "Contents of output directory:"
+            find packages/ink-builder/build/ -type f 2>/dev/null || echo "No files found"
+            exit 1
+          fi
+          echo "✅ Build artifacts found"
+          ls -lh packages/ink-builder/build/dist/
+
+      - name: Copy dist from Depot build output
+        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true'
+        run: |
+          # Depot outputs to build/dist, copy to packages/ink-builder/dist for consistency
+          if [ -d "packages/ink-builder/build/dist" ]; then
+            rm -rf packages/ink-builder/dist
+            cp -r packages/ink-builder/build/dist packages/ink-builder/dist
+            echo "✅ Copied dist from Depot build"
+          fi
+
+      - name: Restore from cache (if cache hit)
+        if: steps.ink-checkpoint-cache.outputs.cache-hit == 'true'
+        shell: bash
+        run: |
+          alias pnpm="$SFW_BIN pnpm"
+          echo "Cache hit - running local build to restore dist..."
+          cd packages/ink-builder
+          pnpm run build
+          cd ../..
+
+      - name: Validate build output
+        run: |
+          echo "Validating ink build output..."
+
+          if [ ! -d "packages/ink-builder/dist/build" ]; then
+            echo "× Build failed: dist/build directory missing"
+            exit 1
+          fi
+
+          if [ ! -f "packages/ink-builder/dist/build/yoga-sync.mjs" ]; then
+            echo "× Build failed: yoga-sync.mjs missing"
+            exit 1
+          fi
+
+          if [ ! -f "packages/ink-builder/dist/package.json" ]; then
+            echo "× Build failed: package.json missing"
+            exit 1
+          fi
+
+          # Verify yoga-sync is substantial (has embedded WASM)
+          YOGA_SIZE=$(stat -c%s "packages/ink-builder/dist/build/yoga-sync.mjs" 2>/dev/null || stat -f%z "packages/ink-builder/dist/build/yoga-sync.mjs")
+          if [ "$YOGA_SIZE" -lt 100000 ]; then
+            echo "× Build failed: yoga-sync.mjs too small ($YOGA_SIZE bytes)"
+            exit 1
+          fi
+
+          # Verify patches were applied
+          if ! grep -q "onExit as signalExit" packages/ink-builder/dist/build/ink.js; then
+            echo "× Build failed: signal-exit patch not applied"
+            exit 1
+          fi
+
+          echo "✅ Build validation passed"
+          ls -lh packages/ink-builder/dist/build/
+
+      - name: Run tests
+        shell: bash
+        run: |
+          alias pnpm="$SFW_BIN pnpm"
+          cd packages/ink-builder
+          pnpm test
+
+      - name: Create checkpoint
+        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true'
+        env:
+          INK_VERSION: ${{ steps.tool-versions.outputs.ink-version }}
+        run: |
+          mkdir -p packages/ink-builder/build/checkpoints
+          date > packages/ink-builder/build/checkpoints/ink-built
+          echo "INK_VERSION=${INK_VERSION}" >> packages/ink-builder/build/checkpoints/ink-built
+          echo "✅ Checkpoint created"
+
+      - name: Upload ink artifacts
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ink-prepatched
+          path: packages/ink-builder/dist/
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Cleanup before cache save
+        if: always()
+        run: |
+          echo "Cleaning up temporary files before cache save..."
+
+          # Remove build output directories that shouldn't be cached
+          TEMP_DIRS=(
+            "packages/ink-builder/build/dist"
+          )
+
+          for DIR in "${TEMP_DIRS[@]}"; do
+            if [ -d "$DIR" ]; then
+              echo "Removing: $DIR"
+              rm -rf "$DIR"
+            fi
+          done
+
+          echo "✅ Cleanup complete"
+
+  release:
+    name: Release ink
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    runs-on: ubuntu-24.04
+    environment: release # Dedicated environment for secret access with approval gates
+    permissions:
+      contents: write # Required to create GitHub releases
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            packages/ink-builder/package.json
+            .github/scripts/generate-version.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Load ink version from package.json
+        id: tool-versions
+        run: |
+          INK_VERSION=$(jq -r '.sources.ink.version' packages/ink-builder/package.json)
+          echo "ink-version=$INK_VERSION" >> $GITHUB_OUTPUT
+          echo "Loaded ink: $INK_VERSION"
+
+      - name: Download ink artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: ink-prepatched
+          path: packages/ink-builder/dist/
+
+      - name: Generate version
+        id: version
+        run: |
+          source .github/scripts/generate-version.sh
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Create release tarball
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          cd packages/ink-builder
+          tar -czf ink-${VERSION}.tgz -C dist .
+          mv ink-${VERSION}.tgz dist/
+          ls -lh dist/ink-${VERSION}.tgz
+
+      - name: Generate checksums
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          cd packages/ink-builder/dist
+          $(command -v shasum &> /dev/null && echo "shasum -a 256" || echo "sha256sum") ink-${VERSION}.tgz > checksums.txt
+          cat checksums.txt
+
+      - name: Import GPG key
+        if: ${{ env.GPG_PRIVATE_KEY != '' }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+            echo "GPG key imported successfully"
+          else
+            echo "⚠️  GPG_PRIVATE_KEY secret not set, skipping signature"
+          fi
+
+      - name: Sign checksums
+        if: ${{ env.GPG_PRIVATE_KEY != '' }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            cd packages/ink-builder/dist
+            if [ -n "$GPG_PASSPHRASE" ]; then
+              echo "$GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --detach-sign --armor checksums.txt
+            else
+              gpg --batch --yes --detach-sign --armor checksums.txt
+            fi
+            echo "[OK] Created checksums.txt.asc"
+            ls -lh checksums.txt.asc
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STEPS_VERSION_OUTPUTS_VERSION: ${{ steps.version.outputs.version }}
+          INK_VERSION: ${{ steps.tool-versions.outputs.ink-version }}
+        run: |
+          VERSION="${STEPS_VERSION_OUTPUTS_VERSION}"
+          RELEASE_NAME="ink"
+          TAG="${RELEASE_NAME}-${VERSION}"
+
+          # Check if release already exists
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, uploading assets..."
+            UPLOAD_ARGS="packages/ink-builder/dist/ink-${VERSION}.tgz packages/ink-builder/dist/checksums.txt"
+
+            # Add signature if it exists
+            if [ -f packages/ink-builder/dist/checksums.txt.asc ]; then
+              UPLOAD_ARGS="$UPLOAD_ARGS packages/ink-builder/dist/checksums.txt.asc"
+            fi
+
+            gh release upload "$TAG" $UPLOAD_ARGS --clobber
+          else
+            echo "Creating new release $TAG..."
+            # Extract date-hash from tag for title
+            TITLE_SUFFIX="${TAG#ink-}"
+            gh release create "$TAG" \
+              --title "ink ${TITLE_SUFFIX}" \
+              --notes "Prepatched ink v${INK_VERSION} with bundled yoga-sync.
+
+          ## What's Included
+          - ink TUI framework v${INK_VERSION}
+          - Bundled yoga-sync.mjs (synchronous Yoga WASM, no yoga-layout dependency)
+          - Patches applied:
+            - signal-exit: Named import fix
+            - devtools: Disabled for smaller bundle
+
+          ## Files
+          - \`ink-${VERSION}.tgz\` - Prepatched ink tarball
+          - \`checksums.txt\` - SHA256 checksums
+
+          ## Usage
+          Extract and use in your project:
+          \`\`\`bash
+          tar -xzf ink-${VERSION}.tgz
+          \`\`\`
+
+          \`\`\`javascript
+          import { render, Box, Text } from './ink/build/index.js';
+          \`\`\`" \
+              packages/ink-builder/dist/ink-${VERSION}.tgz \
+              packages/ink-builder/dist/checksums.txt \
+              $([ -f packages/ink-builder/dist/checksums.txt.asc ] && echo "packages/ink-builder/dist/checksums.txt.asc" || echo "")
+          fi

@@ -1,0 +1,21 @@
+# @node-versions: v25.8.2
+# @description: Add NODE_BUILTIN_POSTGRES_BINDINGS macro to node_binding.h
+#
+# Adds conditional postgres binding macro guarded by HAVE_POSTGRES.
+# Used by NODE_BUILTIN_BINDINGS in node_binding.cc.
+#
+--- a/src/node_binding.h
++++ b/src/node_binding.h
+@@ -44,6 +44,12 @@
+ #define NODE_BUILTIN_SQLITE_BINDINGS(V)
+ #endif
+
++#if HAVE_POSTGRES
++#define NODE_BUILTIN_POSTGRES_BINDINGS(V) V(smol_postgres)
++#else
++#define NODE_BUILTIN_POSTGRES_BINDINGS(V)
++#endif
++
+ #define NODE_BINDINGS_WITH_PER_ISOLATE_INIT(V)                                 \
+   V(async_wrap)                                                                \
+   V(blob)                                                                      \

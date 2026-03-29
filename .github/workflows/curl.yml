@@ -1,0 +1,522 @@
+name: SMOL 2. curl
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      build_mode:
+        description: 'Build mode'
+        type: choice
+        options:
+          - prod
+          - dev
+        default: prod
+      debug:
+        description: 'Debug (0|1|namespace[,...])'
+        type: string
+        default: '0'
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+      force:
+        type: boolean
+        default: false
+      build_mode:
+        type: string
+        default: prod
+      debug:
+        type: string
+        default: '0'
+
+permissions:
+  contents: read # Read repository contents
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-curl:
+    permissions:
+      contents: read # Read repository contents
+      id-token: write # OIDC authentication for Depot builds
+    name: curl / ${{ matrix.platform == 'win32' && 'win' || matrix.platform }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS builds.
+          # Use Depot runner for both darwin architectures: 8 vCPU M2, 24GB RAM
+          # Cross-compile x64 from ARM64 since Depot only offers ARM64 macOS
+          - runner: depot-macos-15
+            platform: darwin
+            arch: arm64
+            os: macos
+          - runner: depot-macos-15
+            platform: darwin
+            arch: x64
+            os: macos
+            cross_compile: true
+          # Linux builds (glibc).
+          - runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            os: linux
+            libc: glibc
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            os: linux
+            libc: glibc
+          # Linux builds (musl).
+          - runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            os: linux
+            libc: musl
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            os: linux
+            libc: musl
+          # Windows builds.
+          - runner: windows-2022
+            platform: win32
+            arch: x64
+            os: windows
+          # Windows ARM64: Cross-compile on x64 runner (no ARM64 hosted runners available).
+          - runner: windows-2022
+            platform: win32
+            arch: arm64
+            os: windows
+            cross_compile: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          # Don't clone all submodules - only curl and mbedtls are initialized below.
+          submodules: false
+
+      - name: Enable debug logging
+        if: inputs.debug != '0'
+        shell: bash
+        env:
+          DEBUG_INPUT: ${{ inputs.debug }}
+        run: |
+          if [ "$DEBUG_INPUT" = "1" ]; then
+            echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
+            echo "ACTIONS_RUNNER_DEBUG=true" >> $GITHUB_ENV
+            echo "Debug mode: full"
+          else
+            # Use heredoc syntax to prevent env var injection via newlines
+            {
+              echo "DEBUG<<EOF"
+              echo "$DEBUG_INPUT"
+              echo "EOF"
+            } >> $GITHUB_ENV
+            echo "Debug mode: $DEBUG_INPUT"
+          fi
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: .node-version
+          cache: ''
+
+      - uses: SocketDev/socket-registry/.github/actions/install@6096b06b1790f411714c89c40f72aade2eeaab7c # main
+
+      - name: Initialize curl submodule
+        shell: bash
+        run: |
+          git submodule update --init packages/curl-builder/upstream/curl
+
+      - name: Initialize mbedtls submodule
+        shell: bash
+        run: |
+          git submodule update --init --recursive packages/curl-builder/upstream/mbedtls
+
+      - name: Set build mode
+        id: build-mode
+        env:
+          INPUT_BUILD_MODE: ${{ inputs.build_mode }}
+        shell: bash
+        run: |
+          if [ "$INPUT_BUILD_MODE" = "dev" ]; then
+            BUILD_MODE="dev"
+          else
+            BUILD_MODE="prod"
+          fi
+          echo "mode=$BUILD_MODE" >> $GITHUB_OUTPUT
+          echo "Build mode: $BUILD_MODE"
+
+      - name: Set platform-arch
+        id: platform-arch
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
+          LIBC: ${{ matrix.libc }}
+        shell: bash
+        run: |
+          # Convert win32 -> win for file/folder names.
+          if [ "${PLATFORM}" = "win32" ]; then
+            RELEASE_PLATFORM="win"
+          else
+            RELEASE_PLATFORM="${PLATFORM}"
+          fi
+          PLATFORM_ARCH="${RELEASE_PLATFORM}-${ARCH}"
+          if [ "${LIBC}" = "musl" ]; then
+            PLATFORM_ARCH="${PLATFORM_ARCH}-musl"
+          fi
+          echo "platform_arch=${PLATFORM_ARCH}" >> $GITHUB_OUTPUT
+          echo "Platform-arch: ${PLATFORM_ARCH}"
+
+      - name: Load cache version from centralized config
+        id: cache-version
+        shell: bash
+        run: |
+          CURL_VERSION=$(jq -r '.versions["curl"]' .github/cache-versions.json)
+          if [ -z "$CURL_VERSION" ] || [ "$CURL_VERSION" = "null" ]; then
+            echo "× Error: Cache version not found for curl in .github/cache-versions.json"
+            exit 1
+          fi
+
+          # Get curl and mbedtls submodule SHAs.
+          CURL_SHA=$(git -C packages/curl-builder/upstream/curl rev-parse HEAD 2>/dev/null || echo "none")
+          MBEDTLS_SHA=$(git -C packages/curl-builder/upstream/mbedtls rev-parse HEAD 2>/dev/null || echo "none")
+
+          # Combined version includes curl version and dependency SHAs.
+          COMBINED_VERSION="${CURL_VERSION}-${CURL_SHA:0:7}-${MBEDTLS_SHA:0:7}"
+          echo "version=$COMBINED_VERSION" >> $GITHUB_OUTPUT
+          echo "curl_version=$CURL_VERSION" >> $GITHUB_OUTPUT
+          echo "curl_sha=${CURL_SHA:0:7}" >> $GITHUB_OUTPUT
+          echo "mbedtls_sha=${MBEDTLS_SHA:0:7}" >> $GITHUB_OUTPUT
+          echo "Cache version: $COMBINED_VERSION"
+          echo "  curl: $CURL_VERSION (sha: ${CURL_SHA:0:7})"
+          echo "  mbedtls: ${MBEDTLS_SHA:0:7}"
+
+      - name: Setup Depot CLI
+        if: matrix.os == 'linux'
+        uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
+        with:
+          oidc: true
+
+      - name: Restore curl checkpoint cache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        id: curl-checkpoint-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: packages/curl-builder/build/${{ steps.build-mode.outputs.mode }}/${{ steps.platform-arch.outputs.platform_arch }}/checkpoints
+          key: curl-checkpoints-${{ steps.cache-version.outputs.version }}-${{ steps.platform-arch.outputs.platform_arch }}-${{ steps.build-mode.outputs.mode }}
+          # NOTE: No restore-keys - we require exact match to prevent stale cache restoration.
+
+      - name: Build curl with Depot (Linux - offloads compute)
+        if: matrix.os == 'linux'
+        uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0
+        with:
+          project: 8fpj9495vw
+          platforms: linux/${{ matrix.arch == 'x64' && 'amd64' || matrix.arch }}
+          build-args: |
+            BUILD_MODE=${{ steps.build-mode.outputs.mode }}
+            CACHE_VERSION=${{ steps.cache-version.outputs.version }}
+            CACHE_BUSTER=${{ github.sha }}
+          no-cache: ${{ inputs.force == true }}
+          file: packages/curl-builder/docker/Dockerfile.${{ matrix.libc || 'glibc' }}
+          target: export
+          outputs: type=local,dest=packages/curl-builder/build
+          context: .
+
+      - name: Verify Depot build output (Linux)
+        if: matrix.os == 'linux'
+        shell: bash
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
+        run: |
+          echo "Verifying Depot build output structure..."
+          ls -lah packages/curl-builder/build/$BUILD_MODE/$PLATFORM_ARCH/ || echo "Build directory not found"
+
+          # Check for library file.
+          if [ -f "packages/curl-builder/build/$BUILD_MODE/$PLATFORM_ARCH/out/Final/curl/dist/libcurl.a" ]; then
+            echo "✅ libcurl.a found"
+          else
+            echo "× libcurl.a not found!"
+            echo "Contents of output directory:"
+            find packages/curl-builder/build/$BUILD_MODE/$PLATFORM_ARCH/ -type f 2>/dev/null || echo "No files found"
+            exit 1
+          fi
+
+      - name: Setup build toolchain (macOS)
+        if: matrix.os == 'macos'
+        shell: bash
+        run: |
+          brew install cmake ccache
+
+      - name: Setup build toolchain (Windows x64)
+        if: matrix.os == 'windows' && !matrix.cross_compile
+        shell: bash
+        run: |
+          # Retry up to 3 times to handle transient Chocolatey CDN failures
+          for i in 1 2 3; do
+            if choco install cmake mingw ccache -y; then
+              break
+            fi
+            echo "Attempt $i failed, retrying in 10 seconds..."
+            sleep 10
+          done
+
+      - name: Setup build toolchain (Windows ARM64 cross-compile)
+        if: matrix.os == 'windows' && matrix.cross_compile
+        shell: bash
+        run: |
+          # Retry up to 3 times to handle transient Chocolatey CDN failures
+          for i in 1 2 3; do
+            if choco install cmake ccache -y; then
+              break
+            fi
+            echo "Attempt $i failed, retrying in 10 seconds..."
+            sleep 10
+          done
+          # Download and extract llvm-mingw for ARM64 cross-compilation.
+          curl -fsSL -o llvm-mingw.zip "https://github.com/mstorsjo/llvm-mingw/releases/download/20250528/llvm-mingw-20250528-ucrt-x86_64.zip"
+          7z x llvm-mingw.zip -o"C:/llvm-mingw"
+          echo "C:/llvm-mingw/llvm-mingw-20250528-ucrt-x86_64/bin" >> $GITHUB_PATH
+
+      - name: Build curl native (macOS/Windows)
+        if: matrix.os != 'linux'
+        shell: bash
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          TARGET_ARCH: ${{ matrix.arch }}
+          CROSS_COMPILE: ${{ matrix.cross_compile && '1' || '' }}
+        run: |
+          alias pnpm="$SFW_BIN pnpm"
+          cd packages/curl-builder
+          node scripts/build.mjs
+
+      - name: Create archive
+        shell: bash
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
+        run: |
+          CURL_DIR="packages/curl-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/curl/dist"
+
+          if [ ! -d "$CURL_DIR" ]; then
+            echo "× Error: curl directory not found at: $CURL_DIR"
+            exit 1
+          fi
+
+          cd "$CURL_DIR"
+
+          # Verify expected files exist.
+          for lib in libcurl.a libmbedtls.a libmbedx509.a libmbedcrypto.a; do
+            if [ ! -f "$lib" ]; then
+              echo "× Error: $lib not found"
+              ls -lah .
+              exit 1
+            fi
+          done
+
+          if [ ! -d "include" ]; then
+            echo "× Error: include directory not found"
+            exit 1
+          fi
+
+          # Construct archive name using platform-arch (has win instead of win32, includes -musl).
+          ARCHIVE_NAME="curl-${PLATFORM_ARCH}"
+
+          # Create tar.gz with all libraries and headers.
+          # From dist/, go up to Final/ (../../) to match upload path.
+          OUTPUT_PATH="../../${ARCHIVE_NAME}.tar.gz"
+          echo "Creating archive: ${ARCHIVE_NAME}.tar.gz"
+          tar -czf "${OUTPUT_PATH}" \
+            libcurl.a \
+            libmbedtls.a \
+            libmbedx509.a \
+            libmbedcrypto.a \
+            include/
+
+          echo "✅ Archive created successfully"
+          ls -lh "${OUTPUT_PATH}"
+
+      - name: Set artifact name
+        shell: bash
+        env:
+          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
+        run: |
+          # Use platform-arch directly (already has win instead of win32, includes -musl if applicable).
+          ARTIFACT_NAME="curl-${PLATFORM_ARCH}"
+          echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: packages/curl-builder/build/${{ steps.build-mode.outputs.mode }}/${{ steps.platform-arch.outputs.platform_arch }}/out/Final/${{ env.ARTIFACT_NAME }}.tar.gz
+          retention-days: 30
+
+  release:
+    name: Release curl
+    needs: build-curl
+    if: ${{ !inputs.dry_run }}
+    environment: release
+    permissions:
+      contents: write # Required to create GitHub releases
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .gitmodules
+            .github/scripts/generate-version.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          path: artifacts
+          pattern: curl-*
+          merge-multiple: true
+
+      - name: Verify downloaded artifacts
+        shell: bash
+        run: |
+          echo "Checking for downloaded artifacts..."
+          if [ -d "artifacts" ]; then
+            echo "✅ Artifacts directory exists"
+            ls -lah artifacts/
+            if [ -n "$(ls -A artifacts/*.tar.gz 2>/dev/null)" ]; then
+              echo "✅ Found $(ls artifacts/*.tar.gz 2>/dev/null | wc -l) tar.gz files"
+            else
+              echo "× No tar.gz files found"
+              exit 1
+            fi
+          else
+            echo "× Artifacts directory does not exist"
+            exit 1
+          fi
+
+      - name: Get curl version
+        id: version
+        shell: bash
+        run: |
+          # Extract version from .gitmodules comment.
+          CURL_VERSION=$(grep -B 1 'packages/curl-builder/upstream/curl' .gitmodules | grep '# curl-' | sed 's/.*# curl-//')
+          if [ -z "$CURL_VERSION" ]; then
+            echo "Error: Failed to extract curl version from .gitmodules"
+            exit 1
+          fi
+          echo "version=${CURL_VERSION}" >> $GITHUB_OUTPUT
+          echo "curl version: ${CURL_VERSION}"
+
+      - name: Get mbedTLS version
+        id: mbedtls-version
+        shell: bash
+        run: |
+          MBEDTLS_VERSION=$(grep -B 1 'packages/curl-builder/upstream/mbedtls' .gitmodules | grep '# mbedtls-' | sed 's/.*# mbedtls-//')
+          if [ -z "$MBEDTLS_VERSION" ]; then
+            echo "Error: Failed to extract mbedTLS version from .gitmodules"
+            exit 1
+          fi
+          echo "version=${MBEDTLS_VERSION}" >> $GITHUB_OUTPUT
+          echo "mbedTLS version: ${MBEDTLS_VERSION}"
+
+      - name: Generate release tag
+        id: tag
+        shell: bash
+        run: |
+          source .github/scripts/generate-version.sh
+          TAG="curl-${VERSION}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Release tag: ${TAG}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          CURL_VERSION: ${{ steps.version.outputs.version }}
+          MBEDTLS_VERSION: ${{ steps.mbedtls-version.outputs.version }}
+        shell: bash
+        run: |
+          # Move artifacts to release directory.
+          mkdir -p release
+          for file in artifacts/*.tar.gz; do
+            if [ -f "$file" ]; then
+              mv "$file" release/
+            fi
+          done
+
+          if [ -z "$(ls -A release/*.tar.gz 2>/dev/null)" ]; then
+            echo "Error: No .tar.gz files found"
+            exit 1
+          fi
+
+          echo "Found $(ls release/*.tar.gz | wc -l) archives to release"
+
+          # Generate checksums.
+          cd release
+          if command -v shasum &> /dev/null; then
+            shasum -a 256 *.tar.gz > checksums.txt
+          elif command -v sha256sum &> /dev/null; then
+            sha256sum *.tar.gz > checksums.txt
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+          cat checksums.txt
+          cd ..
+
+          # Create release.
+          TITLE_SUFFIX="${RELEASE_TAG#curl-}"
+          gh release create "${RELEASE_TAG}" \
+            --title "curl ${TITLE_SUFFIX}" \
+            --notes "curl ${CURL_VERSION} with mbedTLS ${MBEDTLS_VERSION} for HTTPS support in self-extracting stubs.
+
+          ## Platforms
+          - darwin-arm64
+          - darwin-x64
+          - linux-arm64
+          - linux-x64
+          - linux-arm64-musl
+          - linux-x64-musl
+          - win-arm64
+          - win-x64
+
+          ## Files
+          Each platform archive contains:
+          - \`libcurl.a\` - Static curl library
+          - \`libmbedtls.a\` - mbedTLS library
+          - \`libmbedx509.a\` - mbedTLS X.509 library
+          - \`libmbedcrypto.a\` - mbedTLS crypto library
+          - \`include/\` - curl headers
+          - \`checksums.txt\` - SHA256 checksums
+
+          ## Usage
+          Download the appropriate archive for your platform and extract:
+
+          \`\`\`sh
+          tar -xzf curl-<platform>-<arch>.tar.gz
+          # Or for musl:
+          tar -xzf curl-<platform>-<arch>-musl.tar.gz
+          \`\`\`" \
+            release/*.tar.gz \
+            release/checksums.txt

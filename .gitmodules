@@ -1,0 +1,60 @@
+# node-25.8.2 sha256:10335f268f7ffacd4f2b4f48d91dc5b19b1577a2861248ca414614ea24ebee65
+[submodule "packages/node-smol-builder/upstream/node"]
+	path = packages/node-smol-builder/upstream/node
+	url = https://github.com/nodejs/node.git
+# yoga-3.2.1
+[submodule "packages/yoga-layout-builder/upstream/yoga"]
+	path = packages/yoga-layout-builder/upstream/yoga
+	url = https://github.com/facebook/yoga.git
+# onnxruntime-1.24.3
+[submodule "packages/onnxruntime-builder/upstream/onnxruntime"]
+	path = packages/onnxruntime-builder/upstream/onnxruntime
+	url = https://github.com/microsoft/onnxruntime.git
+# lief-0.17.0
+[submodule "packages/lief-builder/upstream/lief"]
+	path = packages/lief-builder/upstream/lief
+	url = https://github.com/lief-project/LIEF.git
+# lzfse-1.0
+[submodule "packages/lief-builder/upstream/lzfse"]
+	path = packages/lief-builder/upstream/lzfse
+	url = https://github.com/lzfse/lzfse.git
+# cJSON-1.7.15
+[submodule "packages/binject/upstream/cJSON"]
+	path = packages/binject/upstream/cJSON
+	url = https://github.com/DaveGamble/cJSON.git
+# libdeflate-1.25
+[submodule "packages/binject/upstream/libdeflate"]
+	path = packages/binject/upstream/libdeflate
+	url = https://github.com/ebiggers/libdeflate.git
+# curl-8.18.0
+[submodule "packages/curl-builder/upstream/curl"]
+	path = packages/curl-builder/upstream/curl
+	url = https://github.com/curl/curl.git
+# mbedtls-3.6.5
+[submodule "packages/curl-builder/upstream/mbedtls"]
+	path = packages/curl-builder/upstream/mbedtls
+	url = https://github.com/Mbed-TLS/mbedtls.git
+# wpt-epochs/three_hourly/2026-02-24_21H
+[submodule "packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/streams"]
+	path = packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/streams
+	url = https://github.com/web-platform-tests/wpt.git
+# iocraft-0.7.18
+[submodule "packages/iocraft-builder/upstream/iocraft"]
+	path = packages/iocraft-builder/upstream/iocraft
+	url = https://github.com/ccbrown/iocraft.git
+# liburing-2.10
+[submodule "packages/node-smol-builder/upstream/liburing"]
+	path = packages/node-smol-builder/upstream/liburing
+	url = https://github.com/axboe/liburing.git
+# postgres-17.4
+[submodule "packages/libpq-builder/upstream/postgres"]
+	path = packages/libpq-builder/upstream/postgres
+	url = https://github.com/postgres/postgres.git
+# uSockets-0.8.8
+[submodule "packages/node-smol-builder/upstream/uSockets"]
+	path = packages/node-smol-builder/upstream/uSockets
+	url = https://github.com/uNetworking/uSockets.git
+# uWebSockets-20.76.0
+[submodule "packages/node-smol-builder/upstream/uWebSockets"]
+	path = packages/node-smol-builder/upstream/uWebSockets
+	url = https://github.com/uNetworking/uWebSockets.git

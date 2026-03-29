@@ -1,0 +1,35 @@
+{
+  "name": "iocraft-builder",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Native Node.js bindings for iocraft TUI library via napi-rs",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./build/iocraft.node": "./build/dev/out/iocraft.node"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:force": "node scripts/build.mjs --force",
+    "clean": "node scripts/clean.mjs",
+    "coverage": "vitest run --coverage",
+    "test": "vitest run",
+    "postinstall": "node scripts/setup-build-toolchain.mjs"
+  },
+  "dependencies": {
+    "@socketsecurity/lib": "catalog:",
+    "build-infra": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "catalog:",
+    "vitest": "catalog:"
+  },
+  "sources": {
+    "iocraft": {
+      "version": "0.7.18",
+      "type": "git",
+      "url": "https://github.com/ccbrown/iocraft.git",
+      "ref": "5a3d4c6"
+    }
+  }
+}

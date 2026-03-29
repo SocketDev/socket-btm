@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../../build-infra/lib/external-tools-schema.json",
+  "description": "External tools required for the downloaded checkpoint phase (model downloading)",
+  "tools": {
+    "huggingface_hub": {
+      "description": "HuggingFace Hub client library",
+      "version": "0.30.2",
+      "packageManager": "pip"
+    }
+  }
+}

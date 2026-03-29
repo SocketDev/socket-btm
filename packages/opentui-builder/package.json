@@ -1,0 +1,43 @@
+{
+  "name": "opentui-builder",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Native Node.js bindings for OpenTUI library via Zig node-api",
+  "license": "MIT",
+  "type": "module",
+  "main": "./lib/index.mjs",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.mjs"
+    },
+    "./native": {
+      "types": "./lib/native.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:force": "node scripts/build.mjs --force",
+    "clean": "node scripts/clean.mjs",
+    "coverage": "vitest run --coverage",
+    "test": "vitest run",
+    "postinstall": "node scripts/setup-build-toolchain.mjs"
+  },
+  "dependencies": {
+    "@socketsecurity/lib": "catalog:",
+    "build-infra": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "catalog:",
+    "vitest": "catalog:"
+  },
+  "sources": {
+    "opentui": {
+      "version": "0.1.96",
+      "type": "git",
+      "url": "https://github.com/anomalyco/opentui.git",
+      "ref": "370bed6"
+    }
+  }
+}

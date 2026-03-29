@@ -1,0 +1,51 @@
+{
+  "$schema": "../build-infra/lib/external-tools-schema.json",
+  "description": "Package-level external tools for AI model building (shared Python environment)",
+  "tools": {
+    "python3": {
+      "description": "Python 3 interpreter (required for all ML tools)",
+      "version": "3.13.1"
+    },
+    "pip": {
+      "description": "Python package installer",
+      "version": "24.3.1",
+      "packageManager": "pip",
+      "notes": "Installed with Python. Ubuntu 22.04 ships with pip 22.0.2, but we upgrade to 24.3.1 for better dependency resolution and security fixes."
+    },
+    "huggingface_hub": {
+      "description": "HuggingFace Hub client library",
+      "version": "0.30.2",
+      "packageManager": "pip"
+    },
+    "torch": {
+      "description": "PyTorch machine learning framework",
+      "version": "2.10.0",
+      "packageManager": "pip"
+    },
+    "transformers": {
+      "description": "HuggingFace Transformers library for NLP models",
+      "version": "4.53.3",
+      "packageManager": "pip"
+    },
+    "onnx": {
+      "description": "ONNX (Open Neural Network Exchange) format library",
+      "version": "1.20.1",
+      "packageManager": "pip"
+    },
+    "sentence_transformers": {
+      "description": "Sentence Transformers for sentence embeddings",
+      "version": "3.3.1",
+      "packageManager": "pip"
+    },
+    "onnxruntime": {
+      "description": "ONNX Runtime inference engine",
+      "version": "1.23.2",
+      "packageManager": "pip"
+    },
+    "onnxscript": {
+      "description": "ONNX Script for ONNX model authoring",
+      "version": "0.6.2",
+      "packageManager": "pip"
+    }
+  }
+}

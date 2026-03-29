@@ -1,0 +1,18 @@
+.{
+    .name = .opentui_node,
+    .version = "0.0.1",
+    .fingerprint = 0xdb97a3d0a4f24fe9,
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .uucode = .{
+            .url = "https://github.com/jacobsandlund/uucode/archive/84ceda8561a17ba4a9b96ac5c583f779660bbd4e.tar.gz",
+            .hash = "uucode-0.1.0-ZZjBPtA_TQCWp5PIKmfm5tu1WOkKWFmBGFEMxircPfkA",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "vendor",
+    },
+}

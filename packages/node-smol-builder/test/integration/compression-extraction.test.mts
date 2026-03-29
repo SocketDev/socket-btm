@@ -1,0 +1,481 @@
+/**
+ * @fileoverview Integration tests for final binary extraction to ~/.socket/_dlx/
+ *
+ * Tests:
+ * - Final binary decompression on first run
+ * - Cache directory creation at ~/.socket/_dlx/<cache_key>/
+ * - Cache hit detection on subsequent runs
+ * - Metadata file generation and validation
+ * - Cross-platform cache key calculation (SHA-512)
+ *
+ * Validates dlxBinary caching pattern compatibility:
+ //github.com/SocketDev/socket-lib/blob/v5.0.0/src/dlx/cache.ts#L16
+ * - generateCacheKey: https:
+ //github.com/SocketDev/socket-lib/blob/v5.0.0/src/dlx/binary.ts#L49-L130
+ * - DlxMetadata schema: https:
+ *
+ * Note: These tests require the final production binary at build/out/Final/node/.
+ * Run with: pnpm build --dev or pnpm build --prod
+ */
+
+import { createHash } from 'node:crypto'
+import { existsSync, promises as fs, readFileSync } from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import { safeDelete } from '@socketsecurity/lib/fs'
+import { spawn } from '@socketsecurity/lib/spawn'
+
+import {
+  HEADER_SIZES,
+  MAGIC_MARKER,
+  METADATA_HEADER_SIZE,
+  TOTAL_HEADER_SIZE_WITHOUT_SMOL_CONFIG,
+  TOTAL_HEADER_SIZE_WITH_SMOL_CONFIG,
+} from '../../scripts/binary-compressed/shared/constants.mjs'
+import { getLatestFinalBinary } from '../paths.mjs'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const packageDir = path.resolve(__dirname, '..', '..')
+
+// Avoid importing from build-infra/lib/constants to prevent vitest worker thread issues
+// Read Node.js version inside test, not at module scope
+const NODE_VERSION_FILE = path.join(
+  packageDir,
+  'upstream',
+  'node',
+  'NODE_VERSION',
+)
+function getNodeVersionRaw() {
+  if (existsSync(NODE_VERSION_FILE)) {
+    return readFileSync(NODE_VERSION_FILE, 'utf8').trim()
+  }
+  // Read from the binary itself as fallback.
+  return process.version
+}
+
+// Get the latest Final binary from build/{dev,prod}/out/Final/node/
+const compressedBinaryPath = getLatestFinalBinary()
+
+// Skip all tests if no final binary is available
+const skipTests = !compressedBinaryPath || !existsSync(compressedBinaryPath)
+
+// Cache directory (matches dlx_cache_common.h)
+const DLX_DIR = path.join(os.homedir(), '.socket', '_dlx')
+
+// Test tmp directory
+const testTmpDir = path.join(os.tmpdir(), 'socket-btm-compression-tests')
+
+// Magic marker buffer for tests
+const magicMarker = Buffer.from(MAGIC_MARKER, 'utf8')
+
+/**
+ * Extract compressed data portion from self-extracting binary.
+ * The decompressor calculates cache keys from compressed data only,
+ * not from the entire binary (decompressor stub + data).
+ * @param {Buffer} binaryData - Full self-extracting binary buffer
+ * @returns {Buffer} Compressed data portion after magic marker and size headers
+ */
+function extractCompressedData(binaryData: Buffer) {
+  const markerIndex = binaryData.indexOf(magicMarker)
+
+  if (markerIndex === -1) {
+    throw new Error('Magic marker not found in compressed binary')
+  }
+
+  // Check config flag to determine actual header size.
+  const configFlagOffset =
+    markerIndex +
+    HEADER_SIZES.MAGIC_MARKER +
+    HEADER_SIZES.COMPRESSED_SIZE +
+    HEADER_SIZES.UNCOMPRESSED_SIZE +
+    HEADER_SIZES.CACHE_KEY +
+    HEADER_SIZES.PLATFORM_METADATA
+  const hasSmolConfig = binaryData[configFlagOffset] === 1
+
+  const headerSize = hasSmolConfig
+    ? TOTAL_HEADER_SIZE_WITH_SMOL_CONFIG
+    : TOTAL_HEADER_SIZE_WITHOUT_SMOL_CONFIG
+
+  return binaryData.subarray(markerIndex + headerSize)
+}
+
+describe.skipIf(skipTests)('final binary extraction to ~/.socket/_dlx/', () => {
+  let testCacheDir: string
+
+  beforeAll(async () => {
+    await fs.mkdir(testTmpDir, { recursive: true })
+  })
+
+  afterAll(async () => {
+    await safeDelete(testTmpDir)
+    // Cleanup test cache directory if created
+    if (testCacheDir && existsSync(testCacheDir)) {
+      await safeDelete(testCacheDir)
+    }
+  })
+
+  describe('cache directory structure', () => {
+    it('should extract to ~/.socket/_dlx/<cache_key>/ on first run', async () => {
+      // Read cache key from binary header (where the stub reads it at runtime).
+      const binaryData = await fs.readFile(compressedBinaryPath)
+      const markerIndex = binaryData.indexOf(magicMarker)
+      expect(markerIndex).toBeGreaterThan(-1)
+
+      const cacheKeyOffset =
+        markerIndex +
+        HEADER_SIZES.MAGIC_MARKER +
+        HEADER_SIZES.COMPRESSED_SIZE +
+        HEADER_SIZES.UNCOMPRESSED_SIZE
+      const cacheKey = binaryData
+        .subarray(cacheKeyOffset, cacheKeyOffset + HEADER_SIZES.CACHE_KEY)
+        .toString('utf8')
+
+      testCacheDir = path.join(DLX_DIR, cacheKey)
+
+      // Clean up any existing cache
+      if (existsSync(testCacheDir)) {
+        await safeDelete(testCacheDir)
+      }
+
+      // Execute compressed binary
+      // 30s for first decompression
+      const execResult = await spawn(compressedBinaryPath, ['--version'], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 10_000,
+      })
+
+      expect(execResult.code).toBe(0)
+      expect(execResult.stdout).toMatch(/^v\d+\.\d+\.\d+/)
+
+      // Verify cache directory was created
+      expect(existsSync(testCacheDir)).toBeTruthy()
+
+      // Verify cache contains extracted binary.
+      // Note: The decompressor extracts as "node" or "node.exe" on Windows.
+      const expectedBinaryName = os.platform() === 'win32' ? 'node.exe' : 'node'
+
+      const cachedBinaryPath = path.join(testCacheDir, expectedBinaryName)
+      expect(existsSync(cachedBinaryPath)).toBeTruthy()
+
+      // Verify binary is executable
+      const stats = await fs.stat(cachedBinaryPath)
+      expect(stats.mode & 0o100).not.toBe(0)
+    })
+
+    it('should create .dlx-metadata.json in cache directory', async () => {
+      const metadataPath = path.join(testCacheDir, '.dlx-metadata.json')
+      expect(existsSync(metadataPath)).toBeTruthy()
+
+      const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf8'))
+
+      // Verify core DlxMetadata fields.
+      expect(metadata.version).toBe('1.0.0')
+      expect(metadata.cache_key).toBeTruthy()
+      expect(metadata.cache_key).toMatch(/^[\da-f]{16}$/)
+      expectTypeOf(metadata.timestamp).toBeNumber()
+      expect(metadata.timestamp).toBeGreaterThan(0)
+      expect(metadata.integrity).toBeTruthy()
+      expect(metadata.integrity).toMatch(/^sha512-[A-Za-z0-9+/]+=*$/)
+      expect(metadata.size).toBeGreaterThan(0)
+      expect(metadata.source).toBeDefined()
+      expect(metadata.source.type).toBe('extract')
+      expect(metadata.source.path).toBeTruthy()
+
+      // Verify deprecated fields are not present.
+      expect(metadata.checksum).toBeUndefined()
+      expect(metadata.checksum_algorithm).toBeUndefined()
+      expect(metadata.platform).toBeUndefined()
+      expect(metadata.arch).toBeUndefined()
+      // extra is in active use for compression_algorithm
+    })
+
+    it('should use cached binary on subsequent runs', async () => {
+      if (!testCacheDir || !existsSync(testCacheDir)) {
+        // Skip if cache not created in previous test
+        return
+      }
+
+      // Get cache metadata before second run
+      const metadataPath = path.join(testCacheDir, '.dlx-metadata.json')
+      const metadataBefore = JSON.parse(await fs.readFile(metadataPath, 'utf8'))
+      const timestampBefore = metadataBefore.timestamp
+
+      // Second run (should use cache, not recreate)
+      const execResult = await spawn(compressedBinaryPath, ['--version'], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 5000,
+      })
+
+      expect(execResult.code).toBe(0)
+      expect(execResult.stdout).toMatch(/^v\d+\.\d+\.\d+/)
+
+      // Verify cache was reused (timestamp unchanged)
+      const metadataAfter = JSON.parse(await fs.readFile(metadataPath, 'utf8'))
+      expect(metadataAfter.timestamp).toBe(timestampBefore)
+    })
+
+    it('should use LZFSE compression (verified via successful decompression)', async () => {
+      // All platforms use LZFSE compression exclusively.
+      // This is implicitly verified by successful extraction - if compression
+      // algorithm doesn't match, decompression would fail.
+      if (!testCacheDir || !existsSync(testCacheDir)) {
+        return
+      }
+
+      const expectedBinaryName = os.platform() === 'win32' ? 'node.exe' : 'node'
+      const cachedBinaryPath = path.join(testCacheDir, expectedBinaryName)
+
+      // If we got here and the binary exists, LZFSE decompression worked.
+      expect(existsSync(cachedBinaryPath)).toBeTruthy()
+    })
+
+    it('should have correct byte offset for compressed data', async () => {
+      const binaryData = await fs.readFile(compressedBinaryPath)
+      const markerIndex = binaryData.indexOf(magicMarker)
+
+      expect(markerIndex).toBeGreaterThan(-1)
+
+      // Verify TOTAL_HEADER_SIZE_WITHOUT_SMOL_CONFIG is exactly 68 bytes
+      expect(TOTAL_HEADER_SIZE_WITHOUT_SMOL_CONFIG).toBe(68)
+
+      // Data should start at marker + 68 bytes (marker 32 + metadata 36)
+      const dataOffset = markerIndex + TOTAL_HEADER_SIZE_WITHOUT_SMOL_CONFIG
+      expect(dataOffset).toBe(markerIndex + 68)
+
+      // Verify data exists at this offset
+      expect(binaryData.length).toBeGreaterThan(dataOffset)
+    })
+
+    it('should validate metadata header size calculation', () => {
+      // Metadata header = compressed_size(8) + uncompressed_size(8) + cache_key(16) + platform_metadata(3) + config_flag(1)
+      const calculatedSize =
+        HEADER_SIZES.COMPRESSED_SIZE +
+        HEADER_SIZES.UNCOMPRESSED_SIZE +
+        HEADER_SIZES.CACHE_KEY +
+        HEADER_SIZES.PLATFORM_METADATA +
+        HEADER_SIZES.SMOL_CONFIG_FLAG
+
+      expect(calculatedSize).toBe(36)
+      expect(METADATA_HEADER_SIZE).toBe(36)
+    })
+
+    it('should validate total header size calculation', () => {
+      // Total header = marker(32) + metadata(36)
+      const calculatedTotal = HEADER_SIZES.MAGIC_MARKER + METADATA_HEADER_SIZE
+      // Not 69 from old format
+      expect(calculatedTotal).toBe(68)
+      expect(TOTAL_HEADER_SIZE_WITHOUT_SMOL_CONFIG).toBe(68)
+    })
+
+    it('should have compressed size smaller than uncompressed', async () => {
+      if (!testCacheDir || !existsSync(testCacheDir)) {
+        return
+      }
+
+      // Read the compressed binary and extract the header to get compressed size.
+      const binaryData = await fs.readFile(compressedBinaryPath)
+      const markerIndex = binaryData.indexOf(magicMarker)
+      expect(markerIndex).toBeGreaterThan(-1)
+
+      // Compressed size is 8 bytes after marker.
+      const compressedSizeOffset = markerIndex + HEADER_SIZES.MAGIC_MARKER
+      const compressedSize = binaryData.readBigUInt64LE(compressedSizeOffset)
+
+      // Uncompressed size is next 8 bytes.
+      const uncompressedSizeOffset =
+        compressedSizeOffset + HEADER_SIZES.COMPRESSED_SIZE
+      const uncompressedSize = binaryData.readBigUInt64LE(
+        uncompressedSizeOffset,
+      )
+
+      // Compressed should be smaller than uncompressed.
+      expect(compressedSize).toBeLessThan(uncompressedSize)
+    })
+
+    it('should have proper byte alignment for compressed data', async () => {
+      const binaryData = await fs.readFile(compressedBinaryPath)
+      const markerIndex = binaryData.indexOf(magicMarker)
+
+      expect(markerIndex).toBeGreaterThan(-1)
+
+      // Calculate all offsets
+      const compressedSizeOffset = markerIndex + HEADER_SIZES.MAGIC_MARKER
+      const uncompressedSizeOffset =
+        compressedSizeOffset + HEADER_SIZES.COMPRESSED_SIZE
+      const cacheKeyOffset =
+        uncompressedSizeOffset + HEADER_SIZES.UNCOMPRESSED_SIZE
+      const metadataOffset = cacheKeyOffset + HEADER_SIZES.CACHE_KEY
+      const updateConfigFlagOffset =
+        metadataOffset + HEADER_SIZES.PLATFORM_METADATA
+      const dataOffset = updateConfigFlagOffset + HEADER_SIZES.SMOL_CONFIG_FLAG
+
+      // Verify all offsets are valid
+      expect(compressedSizeOffset).toBe(markerIndex + 32)
+      expect(uncompressedSizeOffset).toBe(markerIndex + 40)
+      expect(cacheKeyOffset).toBe(markerIndex + 48)
+      expect(metadataOffset).toBe(markerIndex + 64)
+      expect(updateConfigFlagOffset).toBe(markerIndex + 67)
+      expect(dataOffset).toBe(markerIndex + 68)
+
+      // Verify total header size calculation
+      expect(dataOffset).toBe(
+        markerIndex + TOTAL_HEADER_SIZE_WITHOUT_SMOL_CONFIG,
+      )
+
+      // Verify each component has correct size
+      const actualMetadataHeaderSize =
+        HEADER_SIZES.COMPRESSED_SIZE +
+        HEADER_SIZES.UNCOMPRESSED_SIZE +
+        HEADER_SIZES.CACHE_KEY +
+        HEADER_SIZES.PLATFORM_METADATA +
+        HEADER_SIZES.SMOL_CONFIG_FLAG
+      expect(actualMetadataHeaderSize).toBe(METADATA_HEADER_SIZE)
+      expect(actualMetadataHeaderSize).toBe(36)
+
+      const actualTotalHeaderSize =
+        HEADER_SIZES.MAGIC_MARKER + actualMetadataHeaderSize
+      expect(actualTotalHeaderSize).toBe(TOTAL_HEADER_SIZE_WITHOUT_SMOL_CONFIG)
+      expect(actualTotalHeaderSize).toBe(68)
+    })
+
+    it('should have sequential byte layout without gaps', async () => {
+      const binaryData = await fs.readFile(compressedBinaryPath)
+      const markerIndex = binaryData.indexOf(magicMarker)
+
+      // Read all header components sequentially
+      let offset = markerIndex
+
+      // Magic marker (32 bytes)
+      const marker = binaryData.subarray(offset, offset + 32)
+      expect(marker.toString('utf8')).toBe(MAGIC_MARKER)
+      offset += 32
+
+      // Compressed size (8 bytes, uint64_t)
+      const compressedSize = binaryData.readBigUInt64LE(offset)
+      expect(compressedSize).toBeGreaterThan(0n)
+      offset += 8
+
+      // Uncompressed size (8 bytes, uint64_t)
+      const uncompressedSize = binaryData.readBigUInt64LE(offset)
+      expect(uncompressedSize).toBeGreaterThan(0n)
+      offset += 8
+
+      // Cache key (16 bytes, hex string)
+      const cacheKey = binaryData.subarray(offset, offset + 16).toString('utf8')
+      expect(cacheKey).toMatch(/^[\da-f]{16}$/)
+      offset += 16
+
+      // Platform metadata (3 bytes)
+      const platformByte = binaryData[offset]
+      const archByte = binaryData[offset + 1]
+      const libcByte = binaryData[offset + 2]
+      expect(platformByte).toBeDefined()
+      expect(archByte).toBeDefined()
+      expect(libcByte).toBeDefined()
+      offset += 3
+
+      // Smol config flag (1 byte)
+      const hasSmolConfig = binaryData[offset]
+      expect(hasSmolConfig === 0 || hasSmolConfig === 1).toBeTruthy()
+      offset += 1
+
+      // Verify we're at the compressed data offset (or config data if has_smol_config=1)
+      expect(offset).toBe(markerIndex + TOTAL_HEADER_SIZE_WITHOUT_SMOL_CONFIG)
+
+      // Verify compressed data exists at this offset
+      expect(binaryData.length).toBeGreaterThan(offset)
+      const compressedData = binaryData.subarray(offset)
+      expect(compressedData.length).toBeGreaterThan(0)
+    })
+  })
+
+  describe('stdout/Stdin pipe handling', () => {
+    it('should output to stdout on first run (cache miss with extraction)', async () => {
+      // Clear cache to force extraction
+      if (testCacheDir && existsSync(testCacheDir)) {
+        await safeDelete(testCacheDir)
+      }
+
+      // Run --version with piped output
+      const result = await spawn(compressedBinaryPath, ['--version'], {
+        stdio: 'pipe',
+      })
+
+      expect(result.code).toBe(0)
+      expect(result.stdout).toContain(getNodeVersionRaw())
+    })
+
+    it('should output to stdout on subsequent runs (cache hit)', async () => {
+      // Run --version again (cache should exist from previous test)
+      const result = await spawn(compressedBinaryPath, ['--version'], {
+        stdio: 'pipe',
+      })
+
+      expect(result.code).toBe(0)
+      expect(result.stdout).toContain(getNodeVersionRaw())
+    })
+  })
+
+  describe('cache key calculation', () => {
+    it('should match SHA-512 based cache key format (16 hex chars only)', async () => {
+      if (!testCacheDir || !existsSync(testCacheDir)) {
+        return
+      }
+
+      const metadataPath = path.join(testCacheDir, '.dlx-metadata.json')
+      const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf8'))
+
+      // Cache key format: <sha512-16chars> (NO platform/arch suffix)
+      // Matches dlxBinary generateCacheKey behavior
+      const cacheKeyPattern = /^[\da-f]{16}$/
+      expect(metadata.cache_key).toMatch(cacheKeyPattern)
+
+      // Verify cache directory name matches cache_key
+      const cacheDirName = path.basename(testCacheDir)
+      expect(cacheDirName).toBe(metadata.cache_key)
+    })
+
+    it('should be content-addressable (same binary = same cache key)', async () => {
+      if (!testCacheDir || !existsSync(testCacheDir)) {
+        return
+      }
+
+      // Read cache key from binary header (embedded by binpress at build time)
+      const binaryData = await fs.readFile(compressedBinaryPath)
+      const markerIndex = binaryData.indexOf(magicMarker)
+      const cacheKeyOffset =
+        markerIndex +
+        HEADER_SIZES.MAGIC_MARKER +
+        HEADER_SIZES.COMPRESSED_SIZE +
+        HEADER_SIZES.UNCOMPRESSED_SIZE
+      const expectedCacheKey = binaryData
+        .subarray(cacheKeyOffset, cacheKeyOffset + HEADER_SIZES.CACHE_KEY)
+        .toString('utf8')
+
+      const cacheDirName = path.basename(testCacheDir)
+      expect(cacheDirName).toBe(expectedCacheKey)
+    })
+  })
+
+  describe('cache cleanup and invalidation', () => {
+    it('should handle missing cache directory gracefully', async () => {
+      if (!testCacheDir || !existsSync(testCacheDir)) {
+        return
+      }
+
+      // Delete cache directory
+      await safeDelete(testCacheDir)
+
+      // Binary should recreate cache
+      const execResult = await spawn(compressedBinaryPath, ['--version'], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 10_000,
+      })
+
+      expect(execResult.code).toBe(0)
+      expect(existsSync(testCacheDir)).toBeTruthy()
+    })
+  })
+})

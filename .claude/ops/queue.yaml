@@ -1,0 +1,26 @@
+schema_version: 1
+
+phase_order:
+  quality-scan: [env-check, scans, report]
+  security-scan: [env-check, agentshield, zizmor, grade-report]
+  updating: [env-check, npm-update, validate, report]
+  updating-binsuite: [env-check, fetch-latest, migrate, validate, report]
+  updating-checksums: [env-check, fetch-latest, validate, report]
+  updating-cjson: [env-check, fetch-latest, migrate, validate, report]
+  updating-curl: [env-check, fetch-latest, migrate, validate, report]
+  updating-fast-webstreams: [env-check, fetch-latest, migrate, validate, report]
+  updating-ink: [env-check, fetch-latest, migrate, validate, report]
+  updating-iocraft: [env-check, fetch-latest, migrate, validate, report]
+  updating-libdeflate: [env-check, fetch-latest, migrate, validate, report]
+  updating-lief: [env-check, fetch-latest, migrate, validate, report]
+  updating-lzfse: [env-check, fetch-latest, migrate, validate, report]
+  updating-node: [env-check, fetch-latest, migrate, validate, report]
+  updating-onnxruntime: [env-check, fetch-latest, migrate, validate, report]
+  updating-stubs: [env-check, fetch-latest, migrate, validate, report]
+  updating-yoga: [env-check, fetch-latest, migrate, validate, report]
+  squashing-history: [env-check, backup, squash, verify, force-push]
+  regenerating-patches: [env-check, extract, diff, validate, report]
+
+# Completed runs are appended here by skills. Prune periodically —
+# keep the last 10 entries and delete older ones to avoid unbounded growth.
+runs: []

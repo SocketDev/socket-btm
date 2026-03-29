@@ -1,0 +1,577 @@
+/**
+ * Update Config Validation Tests
+ *
+ * Tests update-config.json validation and binary serialization.
+ * Verifies:
+ * 1. Valid configs serialize correctly
+ * 2. Invalid configs throw appropriate errors
+ * 3. String length limits are enforced
+ * 4. Type checking works correctly
+ * 5. URL validation works
+ * 6. Binary format is correct (magic, version, sizes)
+ */
+
+import { promises as fs } from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import { safeDelete } from '@socketsecurity/lib/fs'
+
+import {
+  SmolConfigValidationError,
+  parseAndSerialize,
+  parseConfigFile,
+  serializeUpdateConfig,
+} from '../scripts/update-config-binary.mjs'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+let testDir: string
+
+beforeEach(async () => {
+  testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'update-config-test-'))
+})
+
+afterEach(async () => {
+  if (testDir) {
+    await safeDelete(testDir)
+  }
+})
+
+describe('update Config Validation', () => {
+  describe('valid Configurations', () => {
+    it('should serialize minimal valid config', () => {
+      const config = {
+        url: 'https://api.github.com/repos/test/repo/releases',
+      }
+
+      const buffer = serializeUpdateConfig(config)
+      expect(buffer).toBeInstanceOf(Buffer)
+      expect(buffer).toHaveLength(1192)
+
+      // Verify magic number ("SMFG")
+      expect(buffer.readUInt32LE(0)).toBe(0x53_4d_46_47)
+      // Verify version (SMFG v2)
+      expect(buffer.readUInt16LE(4)).toBe(2)
+    })
+
+    it('should serialize full config with all fields', () => {
+      const config = {
+        binname: 'myapp',
+        command: 'myapp update',
+        interval: 3_600_000,
+        nodeVersion: '25.5.0',
+        notifyInterval: 7_200_000,
+        prompt: true,
+        promptDefault: 'y',
+        skipEnv: 'SKIP_UPDATES',
+        tag: 'v*',
+        url: 'https://api.github.com/repos/test/repo/releases',
+      }
+
+      const buffer = serializeUpdateConfig(config)
+      expect(buffer).toHaveLength(1192)
+
+      // Verify header
+      expect(buffer.readUInt32LE(0)).toBe(0x53_4d_46_47)
+      expect(buffer.readUInt16LE(4)).toBe(2)
+
+      // Verify prompt fields
+      // prompt = true
+      expect(buffer.readUInt8(6)).toBe(1)
+      // 'y'
+      expect(buffer.readUInt8(7)).toBe(121)
+
+      // Verify intervals
+      expect(Number(buffer.readBigInt64LE(8))).toBe(3_600_000)
+      expect(Number(buffer.readBigInt64LE(16))).toBe(7_200_000)
+
+      // Verify nodeVersion at offset 1176
+      const nodeVersionLen = buffer.readUInt8(1176)
+      expect(nodeVersionLen).toBe(6)
+      const nodeVersion = buffer.toString('utf8', 1177, 1177 + nodeVersionLen)
+      expect(nodeVersion).toBe('25.5.0')
+    })
+
+    it('should use defaults for missing optional fields', () => {
+      const config = {
+        url: 'https://example.com/releases',
+      }
+
+      const buffer = serializeUpdateConfig(config)
+
+      // Verify default values
+      // prompt = false
+      expect(buffer.readUInt8(6)).toBe(0)
+      // 'n'
+      expect(buffer.readUInt8(7)).toBe(110)
+      // 24h
+      expect(Number(buffer.readBigInt64LE(8))).toBe(86_400_000)
+      // 24h
+      expect(Number(buffer.readBigInt64LE(16))).toBe(86_400_000)
+
+      // Verify command default at offset 24+128=152
+      const commandLen = buffer.readUInt16LE(152)
+      // "self-update"
+      expect(commandLen).toBe(11)
+      const command = buffer.toString('utf8', 154, 154 + commandLen)
+      expect(command).toBe('self-update')
+    })
+
+    it('should accept http:// URLs', () => {
+      const config = {
+        url: 'http://localhost:3000/releases',
+      }
+
+      expect(() => serializeUpdateConfig(config)).not.toThrow()
+    })
+
+    it('should accept https:// URLs', () => {
+      const config = {
+        url: 'https://api.github.com/repos/test/repo/releases',
+      }
+
+      expect(() => serializeUpdateConfig(config)).not.toThrow()
+    })
+
+    it('should normalize promptDefault values', () => {
+      const testCases = [
+        { expected: 121, input: 'y' },
+        { expected: 121, input: 'Y' },
+        { expected: 121, input: 'yes' },
+        { expected: 121, input: 'Yes' },
+        { expected: 121, input: 'YES' },
+        { expected: 110, input: 'n' },
+        { expected: 110, input: 'N' },
+        { expected: 110, input: 'no' },
+        { expected: 110, input: 'No' },
+        { expected: 110, input: 'NO' },
+      ]
+
+      for (const { expected, input } of testCases) {
+        const config = {
+          promptDefault: input,
+          url: 'https://example.com',
+        }
+        const buffer = serializeUpdateConfig(config)
+        expect(buffer.readUInt8(7)).toBe(expected)
+      }
+    })
+  })
+
+  describe('string Length Validation', () => {
+    it('should reject binname longer than 127 chars', () => {
+      const config = {
+        binname: 'a'.repeat(128),
+        url: 'https://example.com',
+      }
+
+      expect(() => serializeUpdateConfig(config)).toThrow(
+        SmolConfigValidationError,
+      )
+      expect(() => serializeUpdateConfig(config)).toThrow(
+        /binname.*exceeds maximum length of 127/,
+      )
+    })
+
+    it('should accept binname exactly 127 chars', () => {
+      const config = {
+        binname: 'a'.repeat(127),
+        url: 'https://example.com',
+      }
+
+      expect(() => serializeUpdateConfig(config)).not.toThrow()
+    })
+
+    it('should reject command longer than 254 chars', () => {
+      const config = {
+        command: 'a'.repeat(255),
+        url: 'https://example.com',
+      }
+
+      expect(() => serializeUpdateConfig(config)).toThrow(
+        /command.*exceeds maximum length of 254/,
+      )
+    })
+
+    it('should reject url longer than 510 chars', () => {
+      // 511 total
+      const config = {
+        url: `https://${'a'.repeat(504)}`,
+      }
+
+      expect(() => serializeUpdateConfig(config)).toThrow(
+        /url.*exceeds maximum length of 510/,
+      )
+    })
+
+    it('should reject tag longer than 127 chars', () => {
+      const config = {
+        tag: 'a'.repeat(128),
+        url: 'https://example.com',
+      }
+
+      expect(() => serializeUpdateConfig(config)).toThrow(
+        /tag.*exceeds maximum length of 127/,
+      )
+    })
+
+    it('should reject skipEnv longer than 63 chars', () => {
+      const config = {
+        skipEnv: 'a'.repeat(64),
+        url: 'https://example.com',
+      }
+
+      expect(() => serializeUpdateConfig(config)).toThrow(
+        /skipEnv.*exceeds maximum length of 63/,
+      )
+    })
+  })
+
+  describe('type Validation', () => {
+    it('should reject non-object config', () => {
+      expect(() => serializeUpdateConfig(null)).toThrow(
+        /config.*must be an object/,
+      )
+
+      expect(() => serializeUpdateConfig('string')).toThrow(
+        /config.*must be an object/,
+      )
+
+      expect(() => serializeUpdateConfig(123)).toThrow(
+        /config.*must be an object/,
+      )
+    })
+
+    it('should reject non-string url', () => {
+      expect(() => serializeUpdateConfig({ url: 123 })).toThrow(
+        /url.*must be a string/,
+      )
+
+      expect(() => serializeUpdateConfig({ url: true })).toThrow(
+        /url.*must be a string/,
+      )
+
+      expect(() => serializeUpdateConfig({ url: {} })).toThrow(
+        /url.*must be a string/,
+      )
+    })
+
+    it('should reject non-boolean prompt', () => {
+      const config = {
+        prompt: 'true',
+        url: 'https://example.com',
+      }
+
+      expect(() => serializeUpdateConfig(config)).toThrow(
+        /prompt.*must be a boolean/,
+      )
+    })
+
+    it('should reject non-number interval', () => {
+      const config = {
+        interval: '3600000',
+        url: 'https://example.com',
+      }
+
+      expect(() => serializeUpdateConfig(config)).toThrow(
+        /interval.*must be a finite number/,
+      )
+    })
+
+    it('should reject infinite numbers', () => {
+      const config = {
+        interval: Number.POSITIVE_INFINITY,
+        url: 'https://example.com',
+      }
+
+      expect(() => serializeUpdateConfig(config)).toThrow(
+        /interval.*must be a finite number/,
+      )
+    })
+
+    it('should reject NaN', () => {
+      const config = {
+        interval: Number.NaN,
+        url: 'https://example.com',
+      }
+
+      expect(() => serializeUpdateConfig(config)).toThrow(
+        /interval.*must be a finite number/,
+      )
+    })
+
+    it('should reject negative intervals', () => {
+      const config = {
+        interval: -1,
+        url: 'https://example.com',
+      }
+
+      expect(() => serializeUpdateConfig(config)).toThrow(
+        /interval.*must be between 0 and/,
+      )
+    })
+  })
+
+  describe('uRL Validation', () => {
+    it('should reject URLs without http:// or https://', () => {
+      const invalidUrls = [
+        'ftp://example.com',
+        'example.com',
+        'www.example.com',
+        '//example.com',
+        'file:///path/to/file',
+      ]
+
+      for (const url of invalidUrls) {
+        expect(() => serializeUpdateConfig({ url })).toThrow(
+          /url.*must start with http:\/\/ or https:\/\//,
+        )
+      }
+    })
+
+    it('should accept valid http and https URLs', () => {
+      const validUrls = [
+        'http://example.com',
+        'https://example.com',
+        'http://localhost:3000',
+        'https://api.github.com/repos/test/repo/releases',
+      ]
+
+      for (const url of validUrls) {
+        expect(() => serializeUpdateConfig({ url })).not.toThrow()
+      }
+    })
+
+    it('should allow empty url (defaults to empty string)', () => {
+      const config = {
+        url: '',
+      }
+
+      expect(() => serializeUpdateConfig(config)).not.toThrow()
+    })
+  })
+
+  describe('promptDefault Validation', () => {
+    it('should reject invalid promptDefault values', () => {
+      const invalidValues = ['maybe', 'true', 'false', '1', '0', 'yep', 'nope']
+
+      for (const value of invalidValues) {
+        const config = {
+          promptDefault: value,
+          url: 'https://example.com',
+        }
+        expect(() => serializeUpdateConfig(config)).toThrow(
+          /promptDefault.*must be 'y', 'yes', 'n', or 'no'/,
+        )
+      }
+    })
+
+    it('should reject non-string promptDefault', () => {
+      const config = {
+        promptDefault: true,
+        url: 'https://example.com',
+      }
+
+      expect(() => serializeUpdateConfig(config)).toThrow(
+        /promptDefault.*must be a string/,
+      )
+    })
+  })
+
+  describe('file Parsing', () => {
+    it('should parse valid JSON file', async () => {
+      const configPath = path.join(testDir, 'update-config.json')
+      const config = {
+        binname: 'test-app',
+        tag: 'v*',
+        url: 'https://api.github.com/repos/test/repo/releases',
+      }
+
+      await fs.writeFile(configPath, JSON.stringify(config))
+
+      const buffer = parseConfigFile(configPath)
+      expect(buffer).toBeInstanceOf(Buffer)
+      expect(buffer).toHaveLength(1192)
+    })
+
+    it('should throw error for non-existent file', () => {
+      const configPath = path.join(testDir, 'nonexistent.json')
+
+      expect(() => parseConfigFile(configPath)).toThrow(
+        /Failed to read smol config file/,
+      )
+    })
+
+    it('should throw error for invalid JSON', async () => {
+      const configPath = path.join(testDir, 'invalid.json')
+      await fs.writeFile(configPath, '{invalid json}')
+
+      expect(() => parseConfigFile(configPath)).toThrow(
+        /Failed to parse smol config JSON/,
+      )
+    })
+
+    it('should throw validation error for invalid config in file', async () => {
+      const configPath = path.join(testDir, 'invalid-config.json')
+      const config = {
+        url: 'not-a-url',
+      }
+      await fs.writeFile(configPath, JSON.stringify(config))
+
+      expect(() => parseConfigFile(configPath)).toThrow(
+        /url.*must start with http/,
+      )
+    })
+  })
+
+  describe('jSON String Parsing', () => {
+    it('should parse valid JSON string', () => {
+      const jsonString = JSON.stringify({
+        url: 'https://example.com',
+      })
+
+      const buffer = parseAndSerialize(jsonString)
+      expect(buffer).toBeInstanceOf(Buffer)
+      expect(buffer).toHaveLength(1192)
+    })
+
+    it('should throw error for invalid JSON string', () => {
+      expect(() => parseAndSerialize('{invalid}')).toThrow(
+        /Failed to parse smol config JSON/,
+      )
+    })
+
+    it('should throw validation error for invalid config', () => {
+      const jsonString = JSON.stringify({
+        url: 123,
+      })
+
+      expect(() => parseAndSerialize(jsonString)).toThrow(
+        /url.*must be a string/,
+      )
+    })
+  })
+
+  describe('binary Format', () => {
+    it('should have correct magic number', () => {
+      const config = { url: 'https://example.com' }
+      const buffer = serializeUpdateConfig(config)
+
+      const magic = buffer.readUInt32LE(0)
+      // "SMFG"
+      expect(magic).toBe(0x53_4d_46_47)
+    })
+
+    it('should have correct version', () => {
+      const config = { url: 'https://example.com' }
+      const buffer = serializeUpdateConfig(config)
+
+      const version = buffer.readUInt16LE(4)
+      expect(version).toBe(2)
+    })
+
+    it('should store strings with length prefixes', () => {
+      const config = {
+        binname: 'myapp',
+        url: 'https://example.com',
+      }
+
+      const buffer = serializeUpdateConfig(config)
+
+      // binname is at offset 24
+      const binnameLen = buffer.readUInt8(24)
+      // "myapp".length
+      expect(binnameLen).toBe(5)
+
+      const binname = buffer.toString('utf8', 25, 25 + binnameLen)
+      expect(binname).toBe('myapp')
+    })
+
+    it('should zero-pad unused string space', () => {
+      const config = {
+        binname: 'app',
+        url: 'https://example.com',
+      }
+
+      const buffer = serializeUpdateConfig(config)
+
+      // Check that bytes after the string are zero
+      // binname is at offset 24, length is 3, so bytes 28-151 should be 0
+      for (let i = 28; i < 152; i++) {
+        expect(buffer.readUInt8(i)).toBe(0)
+      }
+    })
+
+    it('should store nodeVersion at offset 1176', () => {
+      const config = {
+        nodeVersion: '25.5.0',
+        url: 'https://example.com',
+      }
+
+      const buffer = serializeUpdateConfig(config)
+
+      // nodeVersion is at offset 1176 (after all other fields)
+      // 1 byte length + 15 bytes data = 16 bytes total
+      const nodeVersionLen = buffer.readUInt8(1176)
+      // '25.5.0'.length
+      expect(nodeVersionLen).toBe(6)
+
+      const nodeVersion = buffer.toString('utf8', 1177, 1177 + nodeVersionLen)
+      expect(nodeVersion).toBe('25.5.0')
+    })
+
+    it('should default nodeVersion to empty string', () => {
+      const config = {
+        url: 'https://example.com',
+      }
+
+      const buffer = serializeUpdateConfig(config)
+
+      // nodeVersion length should be 0 when not provided
+      const nodeVersionLen = buffer.readUInt8(1176)
+      expect(nodeVersionLen).toBe(0)
+    })
+  })
+
+  describe('nodeVersion Validation', () => {
+    it('should accept nodeVersion up to 15 chars', () => {
+      const config = {
+        url: 'https://example.com',
+        // 15 chars
+        nodeVersion: '25.5.0-nightly1',
+      }
+
+      expect(() => serializeUpdateConfig(config)).not.toThrow()
+
+      const buffer = serializeUpdateConfig(config)
+      const len = buffer.readUInt8(1176)
+      expect(len).toBe(15)
+    })
+
+    it('should reject nodeVersion longer than 15 chars', () => {
+      const config = {
+        url: 'https://example.com',
+        // 16 chars
+        nodeVersion: '25.5.0-nightly12',
+      }
+
+      expect(() => serializeUpdateConfig(config)).toThrow(
+        /nodeVersion.*exceeds maximum length of 15/,
+      )
+    })
+
+    it('should reject non-string nodeVersion', () => {
+      const config = {
+        nodeVersion: 25,
+        url: 'https://example.com',
+      }
+
+      expect(() => serializeUpdateConfig(config)).toThrow(
+        /nodeVersion.*must be a string/,
+      )
+    })
+  })
+})

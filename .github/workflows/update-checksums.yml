@@ -1,0 +1,60 @@
+name: 🔄 Update Release Checksums
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update-checksums:
+    name: Update release-assets.json checksums
+    # Only run for package releases with checksums.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.release.tag_name, 'lief-') ||
+      startsWith(github.event.release.tag_name, 'curl-') ||
+      startsWith(github.event.release.tag_name, 'stubs-') ||
+      startsWith(github.event.release.tag_name, 'binpress-') ||
+      startsWith(github.event.release.tag_name, 'binflate-') ||
+      startsWith(github.event.release.tag_name, 'binject-')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@4edf2e3c3beff7d536e79ce43dfb61abba7cb537 # main
+
+      - uses: SocketDev/socket-registry/.github/actions/setup-git-signing@4edf2e3c3beff7d536e79ce43dfb61abba7cb537 # main
+        with:
+          gpg-private-key: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
+
+      - name: Update checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: pnpm --filter build-infra sync-checksums
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet packages/build-infra/release-assets.json; then
+            echo "has-changes=false" >> $GITHUB_OUTPUT
+            echo "No checksum changes"
+          else
+            echo "has-changes=true" >> $GITHUB_OUTPUT
+            echo "Checksums updated"
+          fi
+
+      - name: Commit and push
+        if: steps.changes.outputs.has-changes == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git add packages/build-infra/release-assets.json
+          git commit -m "chore: update release checksums"
+          git push
+
+      - uses: SocketDev/socket-registry/.github/actions/cleanup-git-signing@4edf2e3c3beff7d536e79ce43dfb61abba7cb537 # main
+        if: always()

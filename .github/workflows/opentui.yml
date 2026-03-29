@@ -1,0 +1,443 @@
+name: NAPI 2. opentui
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      build_mode:
+        description: 'Build mode'
+        type: choice
+        options:
+          - prod
+          - dev
+        default: prod
+      debug:
+        description: 'Debug (0|1|namespace[,...])'
+        type: string
+        default: '0'
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+      force:
+        type: boolean
+        default: false
+      build_mode:
+        type: string
+        default: prod
+      debug:
+        type: string
+        default: '0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  ZIG_VERSION: '0.15.2'
+
+jobs:
+  build:
+    name: opentui / ${{ matrix.os == 'win32' && 'win' || matrix.os }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }}
+    permissions:
+      contents: read
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux builds (glibc)
+          - os: linux
+            arch: x64
+            runner: ubuntu-24.04
+            zig_target: x86_64-linux-gnu
+          - os: linux
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            zig_target: aarch64-linux-gnu
+          # Linux builds (musl)
+          - os: linux
+            arch: x64
+            runner: ubuntu-24.04
+            zig_target: x86_64-linux-musl
+            libc: musl
+          - os: linux
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            zig_target: aarch64-linux-musl
+            libc: musl
+          # macOS builds
+          - os: darwin
+            arch: x64
+            runner: depot-macos-15
+            zig_target: x86_64-macos
+            cross_compile: true
+          - os: darwin
+            arch: arm64
+            runner: depot-macos-15
+            zig_target: aarch64-macos
+          # Windows builds
+          - os: win32
+            arch: x64
+            runner: windows-2022
+            zig_target: x86_64-windows-gnu
+          - os: win32
+            arch: arm64
+            runner: windows-2022
+            zig_target: aarch64-windows-gnu
+            cross_compile: true
+
+    steps:
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@bab1dc8adc59a21c04fa73d3dd4a333c12e2ca9b # main
+
+      - name: Initialize opentui submodule
+        run: |
+          git submodule update --init packages/opentui-builder/upstream/opentui
+
+      - name: Enable debug logging
+        if: inputs.debug != '0'
+        env:
+          DEBUG_INPUT: ${{ inputs.debug }}
+        run: |
+          if [ "$DEBUG_INPUT" = "1" ]; then
+            echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
+            echo "ACTIONS_RUNNER_DEBUG=true" >> $GITHUB_ENV
+            echo "Debug mode: full"
+          else
+            {
+              echo "DEBUG<<EOF"
+              echo "$DEBUG_INPUT"
+              echo "EOF"
+            } >> $GITHUB_ENV
+            echo "Debug mode: $DEBUG_INPUT"
+          fi
+        shell: bash
+
+      - name: Load tool versions
+        id: tool-versions
+        run: |
+          NODE_VERSION=$(cat .node-version | tr -d '\n')
+          OPENTUI_VERSION=$(jq -r '.sources.opentui.version' packages/opentui-builder/package.json)
+          echo "node-version=$NODE_VERSION" >> $GITHUB_OUTPUT
+          echo "opentui-version=$OPENTUI_VERSION" >> $GITHUB_OUTPUT
+          echo "Loaded Node.js: $NODE_VERSION, opentui: $OPENTUI_VERSION"
+        shell: bash
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Verify Zig installation
+        shell: bash
+        run: |
+          echo "Zig location: $(which zig)"
+          zig version
+
+      - name: Cache Zig global cache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: |
+            ~/.cache/zig
+          key: zig-cache-${{ matrix.os }}-${{ matrix.arch }}-${{ env.ZIG_VERSION }}
+          restore-keys: |
+            zig-cache-${{ matrix.os }}-${{ matrix.arch }}-
+
+      - name: Set build mode
+        id: build-mode
+        env:
+          INPUT_BUILD_MODE: ${{ inputs.build_mode }}
+        run: |
+          if [ "$INPUT_BUILD_MODE" = "dev" ]; then
+            BUILD_MODE="dev"
+          else
+            BUILD_MODE="prod"
+          fi
+          echo "mode=$BUILD_MODE" >> $GITHUB_OUTPUT
+          echo "Build mode: $BUILD_MODE"
+        shell: bash
+
+      - name: Set platform-arch
+        id: platform-arch
+        env:
+          PLATFORM: ${{ matrix.os }}
+          ARCH: ${{ matrix.arch }}
+          LIBC: ${{ matrix.libc }}
+        shell: bash
+        run: |
+          if [ "${PLATFORM}" = "win32" ]; then
+            RELEASE_PLATFORM="win"
+          else
+            RELEASE_PLATFORM="${PLATFORM}"
+          fi
+          PLATFORM_ARCH="${RELEASE_PLATFORM}-${ARCH}"
+          if [ "${LIBC}" = "musl" ]; then
+            PLATFORM_ARCH="${PLATFORM_ARCH}-musl"
+          fi
+          echo "platform_arch=${PLATFORM_ARCH}" >> $GITHUB_OUTPUT
+          echo "Platform-arch: ${PLATFORM_ARCH}"
+
+      - name: Load cache version from centralized config
+        id: cache-version
+        shell: bash
+        run: |
+          CACHE_VERSION=$(jq -r '.versions["opentui"]' .github/cache-versions.json)
+          if [ -z "$CACHE_VERSION" ] || [ "$CACHE_VERSION" = "null" ]; then
+            echo "× Error: Cache version not found for opentui in .github/cache-versions.json"
+            exit 1
+          fi
+          echo "version=$CACHE_VERSION" >> $GITHUB_OUTPUT
+          echo "Cache version: $CACHE_VERSION"
+
+      - name: Generate opentui cache key
+        id: cache-key
+        env:
+          CACHE_VERSION: ${{ steps.cache-version.outputs.version }}
+        run: |
+          if command -v shasum &> /dev/null; then
+            hash_cmd="shasum -a 256"
+          elif command -v sha256sum &> /dev/null; then
+            hash_cmd="sha256sum"
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+
+          BUILD_ZIG=$($hash_cmd packages/opentui-builder/build.zig | cut -d' ' -f1)
+          PACKAGE_JSON=$($hash_cmd packages/opentui-builder/package.json | cut -d' ' -f1)
+          ENTRY_ZIG=$($hash_cmd packages/opentui-builder/src/node_api_entry.zig | cut -d' ' -f1)
+          BUILD_ZIG_ZON=$($hash_cmd packages/opentui-builder/build.zig.zon | cut -d' ' -f1)
+          EXPORTS_ZIG=$($hash_cmd packages/opentui-builder/src/exports.zig | cut -d' ' -f1)
+          NAPI_ZIG=$($hash_cmd packages/opentui-builder/src/napi.zig | cut -d' ' -f1)
+          NODE_API_H=$($hash_cmd packages/opentui-builder/vendor/node-api/node_api.h | cut -d' ' -f1)
+
+          FINAL_HASH=$(echo "${CACHE_VERSION}${BUILD_ZIG}${PACKAGE_JSON}${ENTRY_ZIG}${BUILD_ZIG_ZON}${EXPORTS_ZIG}${NAPI_ZIG}${NODE_API_H}" | $hash_cmd | cut -d' ' -f1)
+
+          echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
+          echo "final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Restore opentui checkpoint cache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        id: opentui-checkpoint-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: |
+            packages/opentui-builder/build/${{ steps.build-mode.outputs.mode }}/${{ steps.platform-arch.outputs.platform_arch }}/checkpoints
+          key: opentui-checkpoints-${{ steps.cache-key.outputs.cache_version }}-v${{ steps.tool-versions.outputs.opentui-version }}-${{ steps.platform-arch.outputs.platform_arch }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.final_hash }}
+
+      - name: Build opentui native module
+        id: build
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          ZIG_TARGET: ${{ matrix.zig_target }}
+          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
+          TARGET_ARCH: ${{ matrix.arch }}
+          LIBC: ${{ matrix.libc }}
+        run: |
+          echo "Zig location: $(which zig)"
+          zig version
+
+          # Run build directly (not through pnpm shim) to avoid SFW intercepting
+          # Zig's HTTPS dependency fetches with SSL errors.
+          if [ "$BUILD_MODE" = "prod" ]; then
+            node packages/opentui-builder/scripts/build.mjs --prod
+          else
+            node packages/opentui-builder/scripts/build.mjs --dev
+          fi
+
+          echo "Build complete"
+          ls -lh packages/opentui-builder/build/$BUILD_MODE/$PLATFORM_ARCH/out/ || true
+        shell: bash
+
+      - name: Validate build output
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
+        run: |
+          echo "Validating opentui build output..."
+
+          OUTPUT_PATH="packages/opentui-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/${PLATFORM_ARCH}/opentui.node"
+
+          if [ ! -f "$OUTPUT_PATH" ]; then
+            echo "× Build failed: Native module missing"
+            echo "Expected path: $OUTPUT_PATH"
+            find packages/opentui-builder/build -name "*.node" -o -name "*.so" -o -name "*.dll" -o -name "*.dylib" 2>/dev/null || true
+            exit 1
+          fi
+
+          NODE_SIZE=$(stat -c%s "$OUTPUT_PATH" 2>/dev/null || stat -f%z "$OUTPUT_PATH")
+          if [ "$NODE_SIZE" -lt 10000 ]; then
+            echo "× Build failed: Native module too small ($NODE_SIZE bytes)"
+            exit 1
+          fi
+
+          mkdir -p "packages/opentui-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final"
+          cp "$OUTPUT_PATH" "packages/opentui-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/opentui.node"
+
+          echo "Build validation passed"
+          ls -lh "packages/opentui-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/"
+        shell: bash
+
+      - name: Upload opentui artifacts
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: opentui-${{ steps.platform-arch.outputs.platform_arch }}
+          path: packages/opentui-builder/build/${{ steps.build-mode.outputs.mode }}/${{ steps.platform-arch.outputs.platform_arch }}/out/Final/
+          retention-days: 30
+          if-no-files-found: error
+
+  release:
+    name: Release opentui
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            packages/opentui-builder/package.json
+            .github/scripts/generate-version.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Load opentui version from package.json
+        id: tool-versions
+        run: |
+          OPENTUI_VERSION=$(jq -r '.sources.opentui.version' packages/opentui-builder/package.json)
+          echo "opentui-version=$OPENTUI_VERSION" >> $GITHUB_OUTPUT
+          echo "Loaded opentui: $OPENTUI_VERSION"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          path: artifacts/
+
+      - name: Generate version
+        id: version
+        run: |
+          source .github/scripts/generate-version.sh
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Prepare release assets
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p release
+
+          for dir in artifacts/opentui-*/; do
+            PLATFORM=$(basename "$dir" | sed 's/opentui-//')
+            cp "$dir/opentui.node" "release/opentui-${VERSION}-${PLATFORM}.node"
+          done
+
+          ls -lh release/
+
+      - name: Generate checksums
+        run: |
+          cd release
+          $(command -v shasum &> /dev/null && echo "shasum -a 256" || echo "sha256sum") opentui-*.node > checksums.txt
+          cat checksums.txt
+
+      - name: Import GPG key
+        if: ${{ env.GPG_PRIVATE_KEY != '' }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+            echo "GPG key imported successfully"
+          else
+            echo "GPG_PRIVATE_KEY secret not set, skipping signature"
+          fi
+
+      - name: Sign checksums
+        if: ${{ env.GPG_PRIVATE_KEY != '' }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            cd release
+            if [ -n "$GPG_PASSPHRASE" ]; then
+              echo "$GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --detach-sign --armor checksums.txt
+            else
+              gpg --batch --yes --detach-sign --armor checksums.txt
+            fi
+            echo "[OK] Created checksums.txt.asc"
+            ls -lh checksums.txt.asc
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STEPS_VERSION_OUTPUTS_VERSION: ${{ steps.version.outputs.version }}
+          OPENTUI_VERSION: ${{ steps.tool-versions.outputs.opentui-version }}
+        run: |
+          VERSION="${STEPS_VERSION_OUTPUTS_VERSION}"
+          RELEASE_NAME="opentui"
+          TAG="${RELEASE_NAME}-${VERSION}"
+
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, uploading assets..."
+            UPLOAD_ARGS="release/opentui-*.node release/checksums.txt"
+
+            if [ -f release/checksums.txt.asc ]; then
+              UPLOAD_ARGS="$UPLOAD_ARGS release/checksums.txt.asc"
+            fi
+
+            gh release upload "$TAG" $UPLOAD_ARGS --clobber
+          else
+            echo "Creating new release $TAG..."
+            TITLE_SUFFIX="${TAG#opentui-}"
+            gh release create "$TAG" \
+              --title "opentui ${TITLE_SUFFIX}" \
+              --notes "OpenTUI v${OPENTUI_VERSION} native Node.js bindings via Zig node-api.
+
+          ## Files
+          - \`opentui-${VERSION}-linux-x64.node\` - Linux x64 native module
+          - \`opentui-${VERSION}-linux-arm64.node\` - Linux ARM64 native module
+          - \`opentui-${VERSION}-linux-x64-musl.node\` - Linux x64 musl native module
+          - \`opentui-${VERSION}-linux-arm64-musl.node\` - Linux ARM64 musl native module
+          - \`opentui-${VERSION}-darwin-x64.node\` - macOS Intel native module
+          - \`opentui-${VERSION}-darwin-arm64.node\` - macOS Apple Silicon native module
+          - \`opentui-${VERSION}-win-x64.node\` - Windows x64 native module
+          - \`opentui-${VERSION}-win-arm64.node\` - Windows ARM64 native module
+          - \`checksums.txt\` - SHA256 checksums
+
+          ## Usage
+          Load the native module in your Node.js project:
+          \`\`\`javascript
+          const opentui = require('./opentui-${VERSION}-\${platform}-\${arch}.node');
+          \`\`\`" \
+              release/opentui-*.node \
+              release/checksums.txt \
+              $([ -f release/checksums.txt.asc ] && echo "release/checksums.txt.asc" || echo "")
+          fi
+
+  update-checksums:
+    needs: release
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    permissions:
+      contents: write
+    uses: ./.github/workflows/update-checksums.yml
+    secrets:
+      BOT_GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}

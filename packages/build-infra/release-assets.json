@@ -1,0 +1,165 @@
+{
+  "$schema": "Release assets configuration for Socket BTM builds",
+  "$comment": "SHA-256 checksums for GitHub release assets. Run 'pnpm --filter build-infra update-checksums' to update.",
+  "lief": {
+    "description": "LIEF binary manipulation library",
+    "tag": "lief-20260327-24aa623",
+    "checksums": {
+      "lief-darwin-arm64.tar.gz": "d91a66d2990ab5c069fce70c8b652aedacd2f0426068980f8caa7626d157c2e1",
+      "lief-darwin-x64.tar.gz": "0013fa445e68186f977ec6508670bba72601f8a184dd5ec59124436c128a40b3",
+      "lief-linux-arm64-musl.tar.gz": "f81e4c4249db4e906a17fe674858608e419ec5c4b9457213c84c7df314d1f41a",
+      "lief-linux-arm64.tar.gz": "2c11fe3393ec57a4e2c03221d7c1e7e83579471bbdcdc5cf67f8bff554ab40a9",
+      "lief-linux-x64-musl.tar.gz": "4f5fb870fb8752fbd84a188ed99a406386485d215083f3dd9cb64796b6391443",
+      "lief-linux-x64.tar.gz": "2ae04aed1df958515e795dd15bbe5200e35fc4420b812a38d108d24af1279e2d",
+      "lief-win-arm64.tar.gz": "c902822ed9d74385c0dd82786c0877d1f64f90e014f7a6d9e0ef4911b4e64e97",
+      "lief-win-x64.tar.gz": "a70e996b94570d8b79995f709a0f9472edf8ff1d522e37985eea26bef8cf5ae2"
+    }
+  },
+  "curl": {
+    "description": "curl with mbedTLS for HTTPS support",
+    "tag": "curl-20260408-c9f18be",
+    "checksums": {
+      "curl-darwin-arm64.tar.gz": "34199b4a96faef8c988a4fbe46d474b464d4684952351f15312764b24b25ae45",
+      "curl-darwin-x64.tar.gz": "36fa05374713cafff8a70a2ade5257a87d9c4ba7fd1ad77b2762c4aa18da2e34",
+      "curl-linux-arm64-musl.tar.gz": "99a02f1b5f60cb1fda5b303dcfdb9887dc5cd906e2219a0761deabec8c889c7f",
+      "curl-linux-arm64.tar.gz": "622bcd28cf2519e7c998d04e5b7962cf8a4597dc21b08f2216c01bc299f20483",
+      "curl-linux-x64-musl.tar.gz": "ab0506d4b15a0c78b306667685747f250085d7f87055254f263120e0869a6d52",
+      "curl-linux-x64.tar.gz": "7317cc6562b2322d619e0171468bcbd7be3239a50aac6b71086361e2105a1e42",
+      "curl-win-arm64.tar.gz": "6e0e97c455a687e20ca8385163a93435af701e02c264932b5ba6ca3b1bf30b2d",
+      "curl-win-x64.tar.gz": "0cbd70b3422b813094ab9507d0b7bd81e28788b161ff049e557e758a44f8d0ed"
+    }
+  },
+  "stubs": {
+    "description": "Self-extracting stub binaries",
+    "tag": "stubs-20260410-2780bf7",
+    "checksums": {
+      "smol-stub-darwin-arm64.tar.gz": "b19161a02116677c8ac13f1370ba6f3fffdba58bd64fe7852383a9ac11d04a45",
+      "smol-stub-darwin-x64.tar.gz": "2e7ba64a28865fcfa780526bc2c92d48ad19af1028b10a7029b6ae47dddc4704",
+      "smol-stub-linux-arm64-musl.tar.gz": "86a46c43a3f0724372c6696f469e83be04b369d463bb063330fa1d6777b134a4",
+      "smol-stub-linux-arm64.tar.gz": "63cc33fa02cf124b0754cfb0185072c0c0b1cb4e5fc6a56abee00a5a0ca00667",
+      "smol-stub-linux-x64-musl.tar.gz": "dda30cb8a87b84b83663e671e032ff979286583ade8507dfde53c60f08d9ad73",
+      "smol-stub-linux-x64.tar.gz": "1dd44fec5ec9911a1af3fd9f940a761289c4f07a9d416cbd9926539afd3b929b",
+      "smol-stub-win-arm64.tar.gz": "87012e68f35a532762df77a1657de10b3756ca007fdb435ebb4f8a2e532416c5",
+      "smol-stub-win-x64.tar.gz": "8586c030aad901e70abaa435d1c3dcc8a048c77ef53ab846efdab9930c9bd656"
+    }
+  },
+  "binpress": {
+    "description": "Binary compression tool using LZFSE",
+    "tag": "binpress-20260409-dc7f9e3",
+    "checksums": {
+      "binpress-darwin-arm64": "15e4a27295b9fa0a43df8f0d3fe23e95c34e913f5ec03103afe2d3452aba3ba5",
+      "binpress-darwin-x64": "e5168c1af3df99e13d8a3327432a7e926494426dbe54f57170145eeda04542ff",
+      "binpress-linux-arm64": "99035f6ac65384a60ecbc6c4c34c315f83d793d872c5160d31c6ca5ed52122da",
+      "binpress-linux-arm64-musl": "47a19c82603865fc9c512bd5301aed909245329858b54073736055f0ddcd4747",
+      "binpress-linux-x64": "5876d47a13dae17a742a9c2316b94cf3db38772e1ae7a67886a511f37923e795",
+      "binpress-linux-x64-musl": "554f7d03f493c57f228c3d209579c613f2efd54e14297e0e8e362afc1830b21f",
+      "binpress-win-arm64.exe": "75063f8f1df11caa6ceb740c59e1a1060fdb5637f90ca8f5db2dd7c38ce63819",
+      "binpress-win-x64.exe": "14a5193a33a93c777e9b8790e7707054848179ca4ffebc40d19fa5aa8129859c"
+    }
+  },
+  "binflate": {
+    "description": "Binary decompression tool",
+    "tag": "binflate-20260409-dc7f9e3",
+    "checksums": {
+      "binflate-darwin-arm64": "e286a4205884e4ae5dbac6096dbb874d523a25474f2d35049248999f721660e5",
+      "binflate-darwin-x64": "af52bb4e39504aa11ef7e72edf8a2af93c01421b4447fa2be0e8cc61f0928ac9",
+      "binflate-linux-arm64": "12cf760b02016510e15764d5284f5b73b4b64b4938631eb60bfea5c62e9ad7b5",
+      "binflate-linux-arm64-musl": "b387c499c521c035a51ca31ed90bc3843709c6e2cf0be0c1300bdf83f08d3973",
+      "binflate-linux-x64": "9d75cf3aa7bf2fe6f37a17ee3c30d8f9a5282c98811e6dd7113054939eb1fc6d",
+      "binflate-linux-x64-musl": "a13e6f35c5adb604fcc9e86c58e13e0c252f8ed112e3cd0873e810a200791e78",
+      "binflate-win-arm64.exe": "b80152380f1921f19358afb5b3f6957081a16a2dc20f76e895d45d19ba3378f4",
+      "binflate-win-x64.exe": "2359ea1d7b1002030080463290e80c4cdca40d57a694ad95e788efc05a51552d"
+    }
+  },
+  "binject": {
+    "description": "Binary injection tool for SEA resources",
+    "tag": "binject-20260409-dc7f9e3",
+    "checksums": {
+      "binject-darwin-arm64": "80c0d2a66a37bf398b3bf78b84519b9a129c8f911b6447c1f5834763624657d7",
+      "binject-darwin-x64": "fbeb7cf58685c1de52b695d3cfdfe0242c5fb3e0315bfb16b6c6093c3cdb07b8",
+      "binject-linux-arm64": "5e7ab622a95bfadc782626e88c95a6eab4adc11d1d2326aab6a227a5d3128614",
+      "binject-linux-arm64-musl": "e01aeb43d9146489eab878657c0ee472f271a249f1a49f7411e5fa2912c0dbea",
+      "binject-linux-x64": "96e5b0755c3f8181d1202add74d94a81ddec8b8f113ab0e4c891c3ca1753e9c2",
+      "binject-linux-x64-musl": "4443f6909a4bb6bb0f0b792f307269a96e82ceaf836a3a6de64653eb4637b64d",
+      "binject-win-arm64.exe": "cf65cd913e29cbc2037837a11d1a53878a4f8f1a97b54d48394b01340352618a",
+      "binject-win-x64.exe": "0b1180a90fc11121f2c29bf5550ecb966287b13ff0a4404cd73c9bbf25739409"
+    }
+  },
+  "node-smol": {
+    "description": "Custom Node.js binary with Socket patches",
+    "tag": "node-smol-20260409-dc7f9e3",
+    "checksums": {
+      "node-darwin-arm64": "3fbed6439b91e8ac7d0a822937a7e36cbbb22ee129693130429916f7e3e88681",
+      "node-darwin-x64": "223b7ad99ff60ae78315d6452cb8fc843fcbd432ae431719c38cdfb2d9ce160a",
+      "node-linux-arm64": "5f76ce03a49a16cc8480649be8bacb31b142f0fd380d6769b0e807138743252a",
+      "node-linux-arm64-musl": "e20ec104b4af9c967d16d0b128cb2cb3b26ce642d72bc869ed624a463eea89bc",
+      "node-linux-x64": "99dc843fe69c03cc8d55cf95db0d8ec0db12c94d58086e67d95a635e06638e18",
+      "node-linux-x64-musl": "25d2c6438d073677a6573f87c6b565bfc514116cc1d41ce085ff143949578d7d",
+      "node-win-arm64.exe": "98ad9c662eb3db11c344e5a25d7c2e15afac858bee933600c54bf8f49b0eac37",
+      "node-win-x64.exe": "7928262168c9dec7211784810b909d47b023867baedef1d88459fbd2bded8cf1"
+    }
+  },
+  "ink": {
+    "description": "Prepatched ink TUI framework",
+    "tag": "ink-20260327-24aa623",
+    "checksums": {
+      "ink-20260327-24aa623.tgz": "724a060cb21d931cb8566bf1ba88b18a3ad124304fdb849e40d75ecedb2c74ac"
+    }
+  },
+  "iocraft": {
+    "description": "iocraft native Node.js bindings",
+    "tag": "iocraft-20260327-e2979e3",
+    "checksums": {
+      "iocraft-20260327-e2979e3-darwin-arm64.node": "bea133c69669e4f7a62bc59f3673062784a05e2036b28d925b694614960586fa",
+      "iocraft-20260327-e2979e3-darwin-x64.node": "e75cd24c41f509a2252f293183ad7be385a9a141f24669e26aaab031dabf3153",
+      "iocraft-20260327-e2979e3-linux-arm64-musl.node": "5bc8829f43f2b32760ef03e9fb326e8e7b0a0469559a896d44b1fbb1a0a89ab9",
+      "iocraft-20260327-e2979e3-linux-arm64.node": "e3c34ac6ae22e2fd745164013a11be53d1af18ab8aa3167a03d093e24cc88824",
+      "iocraft-20260327-e2979e3-linux-x64-musl.node": "f71c05cc6e357635e79a251017fceca20851d5a0fb32c456d31dcfff45caf912",
+      "iocraft-20260327-e2979e3-linux-x64.node": "6f1176b58c0af40e780d6e460726c2a630d257d670c1eae213402bb6a663471e",
+      "iocraft-20260327-e2979e3-win-arm64.node": "2eaeafa200771e6cbce1fbe5cd1e277145066559d73ed00de3f823020ebc5e46",
+      "iocraft-20260327-e2979e3-win-x64.node": "76836673a326da9e82a10a1bba4ddda05e89c07c792f6eb2d866d1643e4d9253"
+    }
+  },
+  "onnxruntime": {
+    "description": "ONNX Runtime WASM build",
+    "tag": "onnxruntime-20260327-82a7c4b",
+    "checksums": {
+      "ort.wasm": "3f0a97b0c6d653ec27bfba79708c4d1f545117049a08494e82fa7522ee411a6b",
+      "ort-sync.mjs": "3c456072a2d80461c3dfbfdf8b99ac2f4ee7e09bf092bcd6c4dcab53d5a7c575",
+      "ort.mjs": "ddb76df4b5c1bb122d782c3da307146e61a996549611dda4b85a80a7556998fa",
+      "ort-sync.cjs": "409ecce0f47bfcea111e2b87311a3c59306033d63cfa01ff9c6ceb13843561f6"
+    }
+  },
+  "models": {
+    "description": "Quantized ONNX ML models",
+    "tag": "models-20260327-82a7c4b",
+    "checksums": {
+      "./codet5/model.onnx": "6ffdb38778b977f484a19534b164a274108d7d8df532b54df0496474b4b92305",
+      "./minilm-l6/model.onnx": "1e1a94af7030879af0896adc8d23e86eee9b81c790e5537ff62292974787825e"
+    }
+  },
+  "yoga-layout": {
+    "description": "Yoga Layout WASM build",
+    "tag": "yoga-layout-20260327-82a7c4b",
+    "checksums": {
+      "yoga-20260327-82a7c4b.wasm": "cd09b00ace86b149808d4e076f2100d5eb44aac8035dd366b4f41f5060b67ab4",
+      "yoga-20260327-82a7c4b.mjs": "8ddb2edf3f797217cb7e27c452ec01ea4f78f0146b3b1c10380e8006322c4587",
+      "yoga-sync-20260327-82a7c4b.mjs": "66463d1b07d36dc5c9439273f822b068a91e87735fa5acbc24022d0eaeb6f73a",
+      "yoga-sync-20260327-82a7c4b.cjs": "0197498b8e7d1ac048e222c0144e2d2777de1c5e65ecfe5d007aa042885e4e59"
+    }
+  },
+  "opentui": {
+    "description": "OpenTUI native Node.js bindings",
+    "tag": "opentui-20260412-60a262e",
+    "checksums": {
+      "opentui-20260412-60a262e-darwin-arm64.node": "a4accf7c741ef0324a3a9e26ffade56587a790ff407443dfc0c94a2e3da027bf",
+      "opentui-20260412-60a262e-darwin-x64.node": "cc229af8f29e09d7ff8ef3f2285a34210482ac6c5a5c317e13a63777fed1f273",
+      "opentui-20260412-60a262e-linux-arm64-musl.node": "5793d2f222a4838c3d80f71df729bddab447c591957ef0b1833593bc43bc85d8",
+      "opentui-20260412-60a262e-linux-arm64.node": "40ccef9f3e542c26411ef26682e051b578f836750d123a272d7a8015f771acf9",
+      "opentui-20260412-60a262e-linux-x64-musl.node": "a277e80cb07ab01dc4117081f763afe2481794f91d1995639040b83e50363f30",
+      "opentui-20260412-60a262e-linux-x64.node": "ac7fd20920eee1707b85751399a278a3e2b849ac5de305ead57ac1af3c832b33",
+      "opentui-20260412-60a262e-win-arm64.node": "8b22e7846ed44efc766eb6ca513308fe2ea563971c11d6315e76d97be17ccb34",
+      "opentui-20260412-60a262e-win-x64.node": "1efcce40c89bdd35c98babc04e82bf3af3e2058f205c847be906dba7404a08ce"
+    }
+  }
+}

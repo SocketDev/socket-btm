@@ -1,0 +1,458 @@
+name: NAPI 1. iocraft
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      build_mode:
+        description: 'Build mode'
+        type: choice
+        options:
+          - prod
+          - dev
+        default: prod
+      debug:
+        description: 'Debug (0|1|namespace[,...])'
+        type: string
+        default: '0'
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+      force:
+        type: boolean
+        default: false
+      build_mode:
+        type: string
+        default: prod
+      debug:
+        type: string
+        default: '0'
+
+permissions:
+  contents: read # Read repository contents
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: iocraft / ${{ matrix.os == 'win32' && 'win' || matrix.os }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }}
+    permissions:
+      contents: read # Read repository contents
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux builds (glibc)
+          - os: linux
+            arch: x64
+            runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - os: linux
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+          # Linux builds (musl)
+          - os: linux
+            arch: x64
+            runner: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+            libc: musl
+          - os: linux
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            libc: musl
+          # macOS builds
+          - os: darwin
+            arch: x64
+            runner: depot-macos-15
+            target: x86_64-apple-darwin
+            cross_compile: true
+          - os: darwin
+            arch: arm64
+            runner: depot-macos-15
+            target: aarch64-apple-darwin
+          # Windows builds
+          - os: win32
+            arch: x64
+            runner: windows-2022
+            target: x86_64-pc-windows-msvc
+          - os: win32
+            arch: arm64
+            runner: windows-2022
+            target: aarch64-pc-windows-msvc
+            cross_compile: true
+
+    steps:
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@4edf2e3c3beff7d536e79ce43dfb61abba7cb537 # main
+
+      - name: Initialize iocraft submodule
+        run: |
+          git submodule update --init packages/iocraft-builder/upstream/iocraft
+
+      - name: Enable debug logging
+        if: inputs.debug != '0'
+        env:
+          DEBUG_INPUT: ${{ inputs.debug }}
+        run: |
+          if [ "$DEBUG_INPUT" = "1" ]; then
+            echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
+            echo "ACTIONS_RUNNER_DEBUG=true" >> $GITHUB_ENV
+            echo "Debug mode: full"
+          else
+            # Use heredoc syntax to prevent env var injection via newlines
+            {
+              echo "DEBUG<<EOF"
+              echo "$DEBUG_INPUT"
+              echo "EOF"
+            } >> $GITHUB_ENV
+            echo "Debug mode: $DEBUG_INPUT"
+          fi
+        shell: bash
+
+      - name: Load tool versions
+        id: tool-versions
+        run: |
+          NODE_VERSION=$(cat .node-version | tr -d '\n')
+          IOCRAFT_VERSION=$(jq -r '.sources.iocraft.version' packages/iocraft-builder/package.json)
+          echo "node-version=$NODE_VERSION" >> $GITHUB_OUTPUT
+          echo "iocraft-version=$IOCRAFT_VERSION" >> $GITHUB_OUTPUT
+          echo "Loaded Node.js: $NODE_VERSION, iocraft: $IOCRAFT_VERSION"
+        shell: bash
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1 (stable)
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      - name: Verify Rust installation
+        shell: bash
+        run: |
+          # Ensure cargo is in PATH for Node.js processes
+          echo "Cargo location: $(which cargo)"
+          cargo --version
+          rustc --version
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: packages/iocraft-builder -> target
+          prefix-key: iocraft-${{ matrix.os }}-${{ matrix.arch }}
+
+      - name: Install musl cross-compilation tools
+        if: matrix.libc == 'musl'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+          # For ARM64 musl builds on glibc runners (libc cross-compilation)
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu
+          fi
+        shell: bash
+
+      - name: Set build mode
+        id: build-mode
+        env:
+          INPUT_BUILD_MODE: ${{ inputs.build_mode }}
+        run: |
+          # Sanitize input - only allow 'prod' or 'dev'
+          if [ "$INPUT_BUILD_MODE" = "dev" ]; then
+            BUILD_MODE="dev"
+          else
+            BUILD_MODE="prod"
+          fi
+          echo "mode=$BUILD_MODE" >> $GITHUB_OUTPUT
+          echo "Build mode: $BUILD_MODE"
+        shell: bash
+
+      - name: Set platform-arch
+        id: platform-arch
+        env:
+          PLATFORM: ${{ matrix.os }}
+          ARCH: ${{ matrix.arch }}
+          LIBC: ${{ matrix.libc }}
+        shell: bash
+        run: |
+          # Convert win32 -> win for file/folder names.
+          if [ "${PLATFORM}" = "win32" ]; then
+            RELEASE_PLATFORM="win"
+          else
+            RELEASE_PLATFORM="${PLATFORM}"
+          fi
+          PLATFORM_ARCH="${RELEASE_PLATFORM}-${ARCH}"
+          if [ "${LIBC}" = "musl" ]; then
+            PLATFORM_ARCH="${PLATFORM_ARCH}-musl"
+          fi
+          echo "platform_arch=${PLATFORM_ARCH}" >> $GITHUB_OUTPUT
+          echo "Platform-arch: ${PLATFORM_ARCH}"
+
+      - name: Load cache version from centralized config
+        id: cache-version
+        shell: bash
+        run: |
+          CACHE_VERSION=$(jq -r '.versions["iocraft"]' .github/cache-versions.json)
+          if [ -z "$CACHE_VERSION" ] || [ "$CACHE_VERSION" = "null" ]; then
+            echo "× Error: Cache version not found for iocraft in .github/cache-versions.json"
+            exit 1
+          fi
+          echo "version=$CACHE_VERSION" >> $GITHUB_OUTPUT
+          echo "Cache version: $CACHE_VERSION"
+
+      - name: Generate iocraft cache key
+        id: cache-key
+        env:
+          CACHE_VERSION: ${{ steps.cache-version.outputs.version }}
+        run: |
+          # Cross-platform hash function.
+          if command -v shasum &> /dev/null; then
+            hash_cmd="shasum -a 256"
+          elif command -v sha256sum &> /dev/null; then
+            hash_cmd="sha256sum"
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+
+          # Hash key files
+          CARGO_TOML=$($hash_cmd packages/iocraft-builder/Cargo.toml | cut -d' ' -f1)
+          PACKAGE_JSON=$($hash_cmd packages/iocraft-builder/package.json | cut -d' ' -f1)
+          BUILD_RS=$($hash_cmd packages/iocraft-builder/build.rs | cut -d' ' -f1)
+          LIB_RS=$($hash_cmd packages/iocraft-builder/src/lib.rs | cut -d' ' -f1)
+
+          # Combined hash
+          FINAL_HASH=$(echo "${CACHE_VERSION}${CARGO_TOML}${PACKAGE_JSON}${BUILD_RS}${LIB_RS}" | $hash_cmd | cut -d' ' -f1)
+
+          echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
+          echo "final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Restore iocraft checkpoint cache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        id: iocraft-checkpoint-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: |
+            packages/iocraft-builder/build/${{ steps.build-mode.outputs.mode }}/${{ steps.platform-arch.outputs.platform_arch }}/checkpoints
+          key: iocraft-checkpoints-${{ steps.cache-key.outputs.cache_version }}-v${{ steps.tool-versions.outputs.iocraft-version }}-${{ steps.platform-arch.outputs.platform_arch }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.final_hash }}
+
+      - name: Build iocraft native module
+        id: build
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          TARGET: ${{ matrix.target }}
+          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
+          TARGET_ARCH: ${{ matrix.arch }}
+          LIBC: ${{ matrix.libc }}
+          # Disable static CRT linking for musl to allow cdylib (dynamic library)
+          RUSTFLAGS: ${{ matrix.libc == 'musl' && '-C target-feature=-crt-static' || '' }}
+        run: |
+          # Debug: verify cargo is accessible
+          echo "Cargo location: $(which cargo)"
+          cargo --version
+
+          # Use the build script which applies patches and compiles
+          if [ "$BUILD_MODE" = "prod" ]; then
+            pnpm --filter iocraft-builder build --prod
+          else
+            pnpm --filter iocraft-builder build --dev
+          fi
+
+          echo "Build complete"
+          ls -lh packages/iocraft-builder/build/$BUILD_MODE/$PLATFORM_ARCH/out/ || true
+        shell: bash
+
+      - name: Validate build output
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
+        run: |
+          echo "Validating iocraft build output..."
+
+          # Build script outputs to out/$PLATFORM_ARCH/iocraft.node
+          OUTPUT_PATH="packages/iocraft-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/${PLATFORM_ARCH}/iocraft.node"
+
+          if [ ! -f "$OUTPUT_PATH" ]; then
+            echo "× Build failed: Native module missing"
+            echo "Expected path: $OUTPUT_PATH"
+            # Show what was actually created
+            find packages/iocraft-builder/build -name "*.node" -o -name "*.so" -o -name "*.dll" -o -name "*.dylib" 2>/dev/null || true
+            exit 1
+          fi
+
+          NODE_SIZE=$(stat -c%s "$OUTPUT_PATH" 2>/dev/null || stat -f%z "$OUTPUT_PATH")
+          if [ "$NODE_SIZE" -lt 10000 ]; then
+            echo "× Build failed: Native module too small ($NODE_SIZE bytes)"
+            exit 1
+          fi
+
+          # Copy to Final directory for artifact upload compatibility
+          mkdir -p "packages/iocraft-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final"
+          cp "$OUTPUT_PATH" "packages/iocraft-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/iocraft.node"
+
+          echo "✅ Build validation passed"
+          ls -lh "packages/iocraft-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/"
+        shell: bash
+
+      - name: Upload iocraft artifacts
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: iocraft-${{ steps.platform-arch.outputs.platform_arch }}
+          path: packages/iocraft-builder/build/${{ steps.build-mode.outputs.mode }}/${{ steps.platform-arch.outputs.platform_arch }}/out/Final/
+          retention-days: 30
+          if-no-files-found: error
+
+  release:
+    name: Release iocraft
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    runs-on: ubuntu-24.04
+    environment: release # Dedicated environment for secret access with approval gates
+    permissions:
+      contents: write # Required to create GitHub releases
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            packages/iocraft-builder/package.json
+            .github/scripts/generate-version.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Load iocraft version from package.json
+        id: tool-versions
+        run: |
+          IOCRAFT_VERSION=$(jq -r '.sources.iocraft.version' packages/iocraft-builder/package.json)
+          echo "iocraft-version=$IOCRAFT_VERSION" >> $GITHUB_OUTPUT
+          echo "Loaded iocraft: $IOCRAFT_VERSION"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          path: artifacts/
+
+      - name: Generate version
+        id: version
+        run: |
+          source .github/scripts/generate-version.sh
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Prepare release assets
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p release
+
+          # Rename artifacts with version and platform info
+          for dir in artifacts/iocraft-*/; do
+            PLATFORM=$(basename "$dir" | sed 's/iocraft-//')
+            cp "$dir/iocraft.node" "release/iocraft-${VERSION}-${PLATFORM}.node"
+          done
+
+          ls -lh release/
+
+      - name: Generate checksums
+        run: |
+          cd release
+          $(command -v shasum &> /dev/null && echo "shasum -a 256" || echo "sha256sum") iocraft-*.node > checksums.txt
+          cat checksums.txt
+
+      - name: Import GPG key
+        if: ${{ env.GPG_PRIVATE_KEY != '' }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+            echo "GPG key imported successfully"
+          else
+            echo "⚠️  GPG_PRIVATE_KEY secret not set, skipping signature"
+          fi
+
+      - name: Sign checksums
+        if: ${{ env.GPG_PRIVATE_KEY != '' }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            cd release
+            if [ -n "$GPG_PASSPHRASE" ]; then
+              echo "$GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --detach-sign --armor checksums.txt
+            else
+              gpg --batch --yes --detach-sign --armor checksums.txt
+            fi
+            echo "[OK] Created checksums.txt.asc"
+            ls -lh checksums.txt.asc
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STEPS_VERSION_OUTPUTS_VERSION: ${{ steps.version.outputs.version }}
+          IOCRAFT_VERSION: ${{ steps.tool-versions.outputs.iocraft-version }}
+        run: |
+          VERSION="${STEPS_VERSION_OUTPUTS_VERSION}"
+          RELEASE_NAME="iocraft"
+          TAG="${RELEASE_NAME}-${VERSION}"
+
+          # Check if release already exists
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, uploading assets..."
+            UPLOAD_ARGS="release/iocraft-*.node release/checksums.txt"
+
+            # Add signature if it exists
+            if [ -f release/checksums.txt.asc ]; then
+              UPLOAD_ARGS="$UPLOAD_ARGS release/checksums.txt.asc"
+            fi
+
+            gh release upload "$TAG" $UPLOAD_ARGS --clobber
+          else
+            echo "Creating new release $TAG..."
+            # Extract date-hash from tag for title
+            TITLE_SUFFIX="${TAG#iocraft-}"
+            gh release create "$TAG" \
+              --title "iocraft ${TITLE_SUFFIX}" \
+              --notes "iocraft v${IOCRAFT_VERSION} native Node.js bindings via napi-rs.
+
+          ## Files
+          - \`iocraft-${VERSION}-linux-x64.node\` - Linux x64 native module
+          - \`iocraft-${VERSION}-linux-arm64.node\` - Linux ARM64 native module
+          - \`iocraft-${VERSION}-darwin-x64.node\` - macOS Intel native module
+          - \`iocraft-${VERSION}-darwin-arm64.node\` - macOS Apple Silicon native module
+          - \`iocraft-${VERSION}-win-x64.node\` - Windows x64 native module
+          - \`checksums.txt\` - SHA256 checksums
+
+          ## Usage
+          Load the native module in your Node.js project:
+          \`\`\`javascript
+          const iocraft = require('./iocraft-${VERSION}-\${platform}-\${arch}.node');
+          \`\`\`" \
+              release/iocraft-*.node \
+              release/checksums.txt \
+              $([ -f release/checksums.txt.asc ] && echo "release/checksums.txt.asc" || echo "")
+          fi
+
+  update-checksums:
+    needs: release
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    uses: ./.github/workflows/update-checksums.yml
+    secrets: inherit

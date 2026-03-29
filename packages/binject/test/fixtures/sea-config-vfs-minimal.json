@@ -1,0 +1,7 @@
+{
+  "output": "sea-blob.bin",
+  "main": "index.js",
+  "smol": {
+    "vfs": true
+  }
+}

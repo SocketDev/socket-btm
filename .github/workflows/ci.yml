@@ -37,24 +37,7 @@ jobs:
     name: Lint, Type, Validation
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-          # Submodules not needed for lint/typecheck - they're only for native builds.
-          submodules: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
-        with:
-          node-version-file: .node-version
-          cache: ''
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@adb5697306eb2619b3255c2406e52e04cc99d555 # main
 
       - name: Lint checks
         run: pnpm run check
@@ -103,26 +86,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-          # Submodules not needed for tests - they're only for native builds.
-          submodules: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
-        with:
-          node-version-file: .node-version
-          cache: ''
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-        env:
-          DEBUG: ${{ inputs.debug && '1' || '' }}
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@adb5697306eb2619b3255c2406e52e04cc99d555 # main
 
       # Platform-specific tests go here
       # Package-specific build/test workflows:

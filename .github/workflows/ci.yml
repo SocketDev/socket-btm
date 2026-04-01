@@ -37,10 +37,13 @@ jobs:
     name: Lint, Type, Validation
     runs-on: ubuntu-latest
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@24323cbd9e61a7e3a600b8c7e99eb27a29642a54 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@6096b06b1790f411714c89c40f72aade2eeaab7c # main
 
       - name: Lint checks
-        run: pnpm run check
+        shell: bash
+        run: |
+          alias pnpm="$SFW_BIN pnpm"
+          pnpm run check
 
       - name: Validate cache-versions.json
         run: |
@@ -71,10 +74,16 @@ jobs:
           echo "[OK] cache-versions.json valid"
 
       - name: Validate checkpoint alignment
-        run: node scripts/validate-checkpoint-alignment.mjs
+        shell: bash
+        run: |
+          alias pnpm="$SFW_BIN pnpm"
+          node scripts/validate-checkpoint-alignment.mjs
 
       - name: Run build-infra tests
-        run: pnpm run test:build-infra
+        shell: bash
+        run: |
+          alias pnpm="$SFW_BIN pnpm"
+          pnpm run test:build-infra
 
   # Platform-specific tests run on all platforms
   test:
@@ -86,7 +95,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@24323cbd9e61a7e3a600b8c7e99eb27a29642a54 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@6096b06b1790f411714c89c40f72aade2eeaab7c # main
 
       # Platform-specific tests go here
       # Package-specific build/test workflows:
@@ -95,4 +104,7 @@ jobs:
       # - model builders: models.yml, onnxruntime.yml, yoga-layout.yml
 
       - name: Verify pnpm install works
-        run: pnpm ls --depth=0
+        shell: bash
+        run: |
+          alias pnpm="$SFW_BIN pnpm"
+          pnpm ls --depth=0

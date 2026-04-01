@@ -25,11 +25,13 @@ jobs:
       has-updates: ${{ steps.check.outputs.has-updates }}
       update-summary: ${{ steps.check.outputs.update-summary }}
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@24323cbd9e61a7e3a600b8c7e99eb27a29642a54 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@6096b06b1790f411714c89c40f72aade2eeaab7c # main
 
       - name: Check for upstream updates
         id: check
+        shell: bash
         run: |
+          alias pnpm="$SFW_BIN pnpm"
           echo "Checking for upstream dependency updates..."
 
           HAS_UPDATES=false
@@ -158,10 +160,13 @@ jobs:
           node-version-file: .node-version
           cache: 'pnpm'
 
-      - uses: SocketDev/socket-registry/.github/actions/install@24323cbd9e61a7e3a600b8c7e99eb27a29642a54 # main
+      - uses: SocketDev/socket-registry/.github/actions/install@6096b06b1790f411714c89c40f72aade2eeaab7c # main
 
       - name: Install Claude Code
-        run: npm install -g @anthropic-ai/claude-code
+        shell: bash
+        run: |
+          alias pnpm="$SFW_BIN pnpm"
+          pnpm add -g @anthropic-ai/claude-code@2.1.89
 
       - name: Create update branch
         id: branch

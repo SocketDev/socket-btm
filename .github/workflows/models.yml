@@ -70,7 +70,7 @@ jobs:
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         # Note: version is specified in package.json packageManager field, not here
 
-      - uses: SocketDev/socket-registry/.github/actions/install@24323cbd9e61a7e3a600b8c7e99eb27a29642a54 # main
+      - uses: SocketDev/socket-registry/.github/actions/install@6096b06b1790f411714c89c40f72aade2eeaab7c # main
 
       - name: Free up disk space
         run: |
@@ -205,6 +205,7 @@ jobs:
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
         run: |
+          alias pnpm="$SFW_BIN pnpm"
           # Use get-checkpoint-chain.mjs to ensure consistency with local builds
           CHAIN=$(node packages/models/scripts/get-checkpoint-chain.mjs --$BUILD_MODE)
           echo "checkpoint_chain=$CHAIN" >> $GITHUB_OUTPUT

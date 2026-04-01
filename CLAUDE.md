@@ -2,10 +2,6 @@
 
 **MANDATORY**: Act as principal-level engineer. Follow these guidelines exactly.
 
-## CANONICAL REFERENCE
-
-See `../socket-registry/CLAUDE.md` for shared Socket standards.
-
 ## Critical Rules
 
 ### Destructive Commands - ABSOLUTE PROHIBITION
@@ -27,6 +23,52 @@ See `../socket-registry/CLAUDE.md` for shared Socket standards.
 3. `git fetch origin` - Fetch remote branches
 4. `git checkout -b main origin/main` - Restore main branch
 5. All local-only branches are permanently lost
+
+### Pre-Work
+
+- Before ANY structural refactor on a file >300 LOC: remove dead code, unused exports, unused imports first — commit that cleanup separately before the real work
+- Multi-file changes: break into phases (≤5 files each), verify each phase before the next
+- When pointed to existing code as a reference: study it before building — working code is a better spec than any description
+- Work from raw error data, not theories — if a bug report has no error output, ask for it
+- On "yes", "do it", or "go": execute immediately, no plan recap
+
+### Verification Protocol
+
+Before claiming any task is complete:
+
+1. Run the actual command — execute the script, run the test, check the output
+2. State what you verified, not just "looks good"
+3. **FORBIDDEN**: Claiming "Done" when output shows failures, or characterizing incomplete/broken work as complete
+4. Re-read every file modified; confirm nothing references something that no longer exists
+
+### Context & Edit Safety
+
+- After 10+ messages: re-read any file before editing it — do not trust remembered contents
+- Read files >500 LOC in chunks using offset/limit; never assume one read captured the whole file
+- Before every edit: re-read the file. After every edit: re-read to confirm the change applied correctly
+- When renaming anything, search separately for: direct calls, type references, string literals, dynamic imports, re-exports, test files — one grep is not enough
+
+### Self-Evaluation
+
+- Before calling anything done: present two views — what a perfectionist would reject vs. what a pragmatist would ship
+- After fixing a bug: explain why it happened
+- If a fix doesn't work after two attempts: stop, re-read the relevant section top-down, state where the mental model was wrong, propose something fundamentally different
+- If asked to "step back" or "going in circles": drop everything, rethink from scratch
+
+### Judgment Protocol
+
+- If the user's request is based on a misconception, say so before executing
+- If you spot a bug adjacent to what was asked, flag it: "I also noticed X — want me to fix it?"
+
+### Scope Protocol
+
+- Do not add features, refactor, or make improvements beyond what was asked
+- Try the simplest approach first; flag architectural issues and wait for approval before restructuring
+- When asked to "make a plan," output only the plan — no code until given the go-ahead
+
+### Housekeeping
+
+- If a file is getting unwieldy (>400 LOC): flag it — "this is big enough to cause pain — want me to split it?"
 
 ### Fix ALL Issues
 
@@ -55,6 +97,10 @@ See `../socket-registry/CLAUDE.md` for shared Socket standards.
   - ✅ Just delete unused code completely
 
 ## Code Style
+
+### Comments
+
+Default to NO comments. Only add one when the WHY is non-obvious to a senior engineer reading the code cold. The code itself is the documentation.
 
 ### spawn() Usage
 

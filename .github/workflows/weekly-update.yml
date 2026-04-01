@@ -25,7 +25,7 @@ jobs:
       has-updates: ${{ steps.check.outputs.has-updates }}
       update-summary: ${{ steps.check.outputs.update-summary }}
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@adb5697306eb2619b3255c2406e52e04cc99d555 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@24323cbd9e61a7e3a600b8c7e99eb27a29642a54 # main
 
       - name: Check for upstream updates
         id: check
@@ -158,7 +158,7 @@ jobs:
           node-version-file: .node-version
           cache: 'pnpm'
 
-      - uses: SocketDev/socket-registry/.github/actions/install@ffc0c8deae3d37ad3241a54fb03cd1cab7e17738 # main
+      - uses: SocketDev/socket-registry/.github/actions/install@24323cbd9e61a7e3a600b8c7e99eb27a29642a54 # main
 
       - name: Install Claude Code
         run: npm install -g @anthropic-ai/claude-code

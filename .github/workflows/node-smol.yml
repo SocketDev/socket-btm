@@ -211,7 +211,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
 
-      - uses: SocketDev/socket-registry/.github/actions/install@ffc0c8deae3d37ad3241a54fb03cd1cab7e17738 # main
+      - uses: SocketDev/socket-registry/.github/actions/install@24323cbd9e61a7e3a600b8c7e99eb27a29642a54 # main
 
       - name: Load tool versions
         id: tool-versions

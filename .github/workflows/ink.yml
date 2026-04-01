@@ -89,7 +89,7 @@ jobs:
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         # Note: version is specified in package.json packageManager field, not here
 
-      - uses: SocketDev/socket-registry/.github/actions/install@ffc0c8deae3d37ad3241a54fb03cd1cab7e17738 # main
+      - uses: SocketDev/socket-registry/.github/actions/install@24323cbd9e61a7e3a600b8c7e99eb27a29642a54 # main
 
       - name: Setup Depot CLI
         uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1

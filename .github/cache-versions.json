@@ -12,6 +12,7 @@
     "models": "v21",
     "node-smol": "v195",
     "onnxruntime": "v21",
+    "opentui": "v1",
     "stubs": "v82",
     "yoga-layout": "v21"
   }

@@ -39,6 +39,7 @@
     "./lib/sign": "./lib/sign.mjs",
     "./lib/tarball-utils": "./lib/tarball-utils.mjs",
     "./lib/test/helpers": "./lib/test/helpers.mjs",
+    "./lib/tool-downloader": "./lib/tool-downloader.mjs",
     "./lib/tool-installer": "./lib/tool-installer.mjs",
     "./lib/version-helpers": "./lib/version-helpers.mjs",
     "./lib/vfs-tools-downloader": "./lib/vfs-tools-downloader.mjs",

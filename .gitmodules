@@ -58,3 +58,7 @@
 [submodule "packages/node-smol-builder/upstream/uWebSockets"]
 	path = packages/node-smol-builder/upstream/uWebSockets
 	url = https://github.com/uNetworking/uWebSockets.git
+# opentui-0.1.96
+[submodule "packages/opentui-builder/upstream/opentui"]
+	path = packages/opentui-builder/upstream/opentui
+	url = https://github.com/anomalyco/opentui.git

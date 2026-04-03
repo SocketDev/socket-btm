@@ -38,6 +38,9 @@
 **/target/
 **/Cargo.lock
 
+# Zig build artifacts
+**/.zig-cache/
+
 # Docker build output (from Dockerfile.local-dev)
 build-output/
 

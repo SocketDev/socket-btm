@@ -2,9 +2,15 @@
  * Tool Installation Utilities
  *
  * Provides utilities for automatically installing missing build tools
- * using platform-specific package managers (brew, apt, choco, etc.).
+ * using platform-specific package managers (brew, apt, choco, etc.)
+ * and direct downloads for version-pinned tools.
+ *
+ * Tool categories:
+ * - "pinned": Exact version required, auto-downloaded with checksum verification
+ * - All others: Any recent version, installed via package manager (default)
  */
 
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -16,6 +22,7 @@ import { spawn } from '@socketsecurity/lib/spawn'
 
 import { getPlatform } from './build-env.mjs'
 import { printError } from './build-output.mjs'
+import { downloadAndCache, getCachedToolBinary } from './tool-downloader.mjs'
 import { getToolConfig, getToolVersion } from './pinned-versions.mjs'
 
 const { whichSync } = binPkg
@@ -525,14 +532,105 @@ async function verifyToolWorks(tool, verifyArgs = ['--version']) {
 }
 
 /**
+ * Resolve a pinned tool's artifact info from tool-checksums/<tool>-<version>.json.
+ * No separate resolver module needed — the checksum JSON has everything.
+ *
+ * @param {string} tool - Tool name
+ * @param {string} version - Required version
+ * @returns {{ url: string, sha256: string, extractDir: string, binary: string, archiveFormat: string }|undefined}
+ */
+function resolvePinnedArtifact(tool, version) {
+  const archMap = { __proto__: null, arm64: 'aarch64', x64: 'x86_64' }
+  const osMap = { __proto__: null, darwin: 'macos', linux: 'linux', win32: 'windows' }
+  const target = `${archMap[process.arch] || process.arch}-${osMap[process.platform] || process.platform}`
+
+  const checksumFile = path.join(__dirname, '..', 'tool-checksums', `${tool}-${version}.json`)
+  try {
+    const data = JSON.parse(readFileSync(checksumFile, 'utf8'))
+    const artifact = data.artifacts[target]
+    if (!artifact) return undefined
+    return {
+      ...artifact,
+      binary: process.platform === 'win32' ? `${tool}.exe` : tool,
+      archiveFormat: artifact.url.endsWith('.zip') ? 'zip' : 'tar.xz',
+    }
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Ensure a pinned tool is at the exact required version.
+ * Checks system PATH first, then user-level cache, then downloads.
+ *
+ * @param {string} tool - Tool name
+ * @param {object} config - Tool config from external-tools.json
+ * @param {boolean} autoInstall - Whether to auto-download if missing
+ * @returns {Promise<{available: boolean, installed: boolean, path: string|undefined, error: string|undefined}>}
+ */
+async function ensurePinnedTool(tool, config, autoInstall) {
+  const requiredVersion = config.requiredVersion
+  if (!requiredVersion) {
+    return { available: false, installed: false, error: `Pinned tool ${tool} missing requiredVersion` }
+  }
+
+  // Check system binary version
+  const binPath = whichSync(tool, { nothrow: true })
+  if (binPath) {
+    try {
+      const versionArgs = config.versionCommand ? config.versionCommand.slice(1) : ['version']
+      const result = await spawn(binPath, versionArgs, { stdio: 'pipe' })
+      const version = (result.stdout?.toString() || '').trim()
+      if (version === requiredVersion) {
+        logger.substep(`${tool} ${version} found at ${binPath}`)
+        return { available: true, installed: false, path: binPath }
+      }
+      if (version) {
+        logger.warn(`System ${tool} is ${version}, need ${requiredVersion}`)
+      }
+    } catch {
+      // Can't determine version — fall through to download
+    }
+  }
+
+  if (!autoInstall) {
+    return { available: false, installed: false, error: `${tool} ${requiredVersion} not found` }
+  }
+
+  // Resolve artifact from checksum file
+  const artifact = resolvePinnedArtifact(tool, requiredVersion)
+  if (!artifact) {
+    return { available: false, installed: false, error: `No checksum data for ${tool} ${requiredVersion} on this platform` }
+  }
+
+  // Check cache, then download
+  try {
+    const cachedBin = getCachedToolBinary(tool, requiredVersion, process.platform, process.arch, artifact.binary, artifact.sha256)
+    if (cachedBin) {
+      logger.substep(`Using cached ${tool} ${requiredVersion}`)
+      return { available: true, installed: false, path: cachedBin }
+    }
+
+    logger.substep(`${tool} ${requiredVersion} not found, downloading...`)
+    const downloadedPath = await downloadAndCache(tool, artifact, requiredVersion, process.platform, process.arch)
+    return { available: true, installed: true, path: downloadedPath }
+  } catch (err) {
+    logger.error(`Failed to get ${tool} ${requiredVersion}: ${err.message}`)
+    return { available: false, installed: false, error: err.message }
+  }
+}
+
+/**
  * Ensure a tool is installed, attempting auto-installation if needed.
+ * Pinned tools (category: "pinned") are auto-downloaded with checksum verification.
+ * All other tools use package manager installation (existing behavior).
  *
  * @param {string} tool - Tool name to check/install.
  * @param {object} options - Options.
  * @param {boolean} options.autoInstall - Attempt auto-installation if missing (default: true).
  * @param {boolean} options.autoYes - Automatically answer yes to prompts (default: false).
  * @param {object} options.toolOptions - Hierarchical loading options for external-tools.json.
- * @returns {Promise<{available: boolean, installed: boolean, packageManager: string|undefined, error: string|undefined}>}
+ * @returns {Promise<{available: boolean, installed: boolean, path: string|undefined, packageManager: string|undefined, error: string|undefined}>}
  */
 export async function ensureToolInstalled(
   tool,
@@ -540,6 +638,12 @@ export async function ensureToolInstalled(
 ) {
   const config = getToolConfig(tool, toolOptions)
 
+  // Pinned tools: exact version match via direct download
+  if (config?.category === 'pinned') {
+    return ensurePinnedTool(tool, config, autoInstall)
+  }
+
+  // All other tools: existing package manager behavior
   // Check if binary exists in PATH.
   const binPath = whichSync(tool, { nothrow: true })
   if (binPath) {

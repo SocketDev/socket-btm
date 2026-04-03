@@ -721,6 +721,15 @@ curl -sL "https://unpkg.com/package-name@1.0.0/..."
 - **CMake**: Cross-platform build system generator
 - **Husky**: Git hooks manager
 
+## Codex Usage
+
+- **Codex is for advice and critical assessment ONLY — never for making code changes**
+- Ask Codex to: analyze, diagnose, review, estimate, suggest approaches
+- Do NOT ask Codex to: implement, write, modify, add code to files
+- Implement changes yourself after understanding Codex's advice
+- **Proactive consultation**: Before diving deep into a complex optimization (>30min estimated), consult Codex for critical analysis first — this catches fundamental design flaws early
+- **Bounce ideas**: Use Codex as a sounding board when stuck — describe the problem, what you've tried, and ask for honest assessment of whether the approach is worth continuing
+
 ## General Standards
 
 See `../socket-registry/CLAUDE.md` for testing, code style, and CI patterns.

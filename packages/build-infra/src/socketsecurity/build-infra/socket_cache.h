@@ -723,7 +723,7 @@ static int cacache_remove(const char *key) {
     long long now_ms = (long long)time(NULL) * 1000;
     char json_entry[2048];
     snprintf(json_entry, sizeof(json_entry),
-        "{\"key\":\"%s\",\"integrity\":null,\"time\":%lld}", key, now_ms);
+        "{\"key\":\"%s\",\"integrity\":null,\"time\":%lld,\"size\":0,\"metadata\":{}}", key, now_ms);
 
     /* SHA-1 of the JSON entry for the line hash */
     uint8_t sha1_hash[20];

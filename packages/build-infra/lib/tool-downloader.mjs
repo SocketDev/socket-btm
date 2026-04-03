@@ -5,10 +5,10 @@
  * in a user-level directory shared across repos.
  *
  * Cache location:
- *   - Linux: $XDG_CACHE_HOME/socket-tools/ or ~/.cache/socket-tools/
- *   - macOS: ~/.cache/socket-tools/
- *   - Windows: %LOCALAPPDATA%/socket-tools/
- *   - Override: $SOCKET_TOOLS_CACHE
+ *   - Linux: $XDG_CACHE_HOME/.external-tools-cache/ or ~/.cache/.external-tools-cache/
+ *   - macOS: ~/.cache/.external-tools-cache/
+ *   - Windows: %LOCALAPPDATA%/.external-tools-cache/
+ *   - Override: $EXTERNAL_TOOLS_CACHE
  */
 
 import { createHash } from 'node:crypto'
@@ -29,18 +29,18 @@ const logger = getDefaultLogger()
  */
 export function getCacheDir() {
   // Allow override via environment variable
-  if (process.env.SOCKET_TOOLS_CACHE) {
-    return process.env.SOCKET_TOOLS_CACHE
+  if (process.env.EXTERNAL_TOOLS_CACHE) {
+    return process.env.EXTERNAL_TOOLS_CACHE
   }
 
   if (process.platform === 'win32') {
     const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local')
-    return path.join(localAppData, 'socket-tools')
+    return path.join(localAppData, '.external-tools-cache')
   }
 
   // Unix: XDG_CACHE_HOME or ~/.cache
   const xdgCache = process.env.XDG_CACHE_HOME || path.join(os.homedir(), '.cache')
-  return path.join(xdgCache, 'socket-tools')
+  return path.join(xdgCache, '.external-tools-cache')
 }
 
 /**
@@ -124,7 +124,7 @@ async function extractArchive(archivePath, destDir, format) {
     const result = await spawn(
       process.platform === 'win32' ? 'powershell' : 'unzip',
       process.platform === 'win32'
-        ? ['-Command', `Expand-Archive -Path '${archivePath}' -DestinationPath '${destDir}' -Force`]
+        ? ['-Command', `Expand-Archive -Path "${archivePath.replace(/"/g, '""')}" -DestinationPath "${destDir.replace(/"/g, '""')}" -Force`]
         : ['-q', '-o', archivePath, '-d', destDir],
       { stdio: 'inherit', shell: process.platform === 'win32' },
     )

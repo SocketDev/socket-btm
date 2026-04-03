@@ -456,7 +456,7 @@ export async function installTool(
         command = 'choco'
         args = version
           ? ['install', packageName, '--version', version, autoYes ? '-y' : '']
-          : [' install', packageName, autoYes ? '-y' : '']
+          : ['install', packageName, autoYes ? '-y' : '']
         args = args.filter(Boolean)
         break
       }

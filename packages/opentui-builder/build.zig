@@ -94,12 +94,14 @@ fn buildNativeTarget(
             std.mem.eql(u8, target_os, native_os))
         {
             buildTarget(b, t.zig_target, t.output_name, t.description, optimize, build_options) catch |err| {
-                std.debug.print("Failed to build native target {s}: {}\n", .{ t.description, err });
+                std.debug.print("\x1b[31mFailed to build native target {s}: {}\x1b[0m\n", .{ t.description, err });
+                std.process.exit(1);
             };
             return;
         }
     }
-    std.debug.print("No matching supported target for native platform ({s}-{s})\n", .{ native_arch, native_os });
+    std.debug.print("\x1b[31mNo matching supported target for native platform ({s}-{s})\x1b[0m\n", .{ native_arch, native_os });
+    std.process.exit(1);
 }
 
 fn buildSingleTarget(

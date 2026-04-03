@@ -124,7 +124,7 @@ async function extractArchive(archivePath, destDir, format) {
     const result = await spawn(
       process.platform === 'win32' ? 'powershell' : 'unzip',
       process.platform === 'win32'
-        ? ['-Command', `Expand-Archive -Path "${archivePath.replace(/"/g, '""')}" -DestinationPath "${destDir.replace(/"/g, '""')}" -Force`]
+        ? ['-Command', `Expand-Archive -Path '${archivePath.replace(/'/g, "''")}' -DestinationPath '${destDir.replace(/'/g, "''")}' -Force`]
         : ['-q', '-o', archivePath, '-d', destDir],
       { stdio: 'inherit', shell: process.platform === 'win32' },
     )
@@ -269,7 +269,11 @@ export async function downloadAndCache(tool, resolverResult, version, platform, 
       await extractArchive(archivePath, tmpDir, resolverResult.archiveFormat)
 
       // Move extracted directory to cache (atomic rename)
-      const extractedDir = path.join(tmpDir, resolverResult.extractDir)
+      const normalizedExtractDir = path.normalize(resolverResult.extractDir)
+      if (normalizedExtractDir.startsWith('..') || path.isAbsolute(normalizedExtractDir)) {
+        throw new Error(`Invalid extractDir (path traversal): ${resolverResult.extractDir}`)
+      }
+      const extractedDir = path.join(tmpDir, normalizedExtractDir)
       if (!existsSync(extractedDir)) {
         throw new Error(`Expected extraction directory not found: ${extractedDir}`)
       }

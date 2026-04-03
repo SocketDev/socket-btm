@@ -700,11 +700,11 @@ static int cacache_put(const char *key, const uint8_t *data, size_t data_len,
 }
 
 /**
- * Remove a cache entry by key.
+ * Remove a cache entry by key (soft delete).
  *
- * Removes the index file. Content files are left for garbage collection
- * (matching cacache behavior -- content is content-addressed and may be
- * shared by multiple keys).
+ * Appends an entry with integrity=null to the index file, which shadows
+ * all previous entries for this key. This matches cacache's soft-delete
+ * behavior — content files are left for garbage collection.
  *
  * @param key Cache key string
  * @return 0 on success, -1 on error
@@ -719,13 +719,26 @@ static int cacache_remove(const char *key) {
     if (scache_index_path(cache_dir, key, index_path, sizeof(index_path)) != 0)
         return -1;
 
-#if defined(_WIN32)
-    if (!DeleteFileA(index_path) && GetLastError() != ERROR_FILE_NOT_FOUND)
+    /* Build JSON entry with integrity:null (soft delete) */
+    long long now_ms = (long long)time(NULL) * 1000;
+    char json_entry[2048];
+    snprintf(json_entry, sizeof(json_entry),
+        "{\"key\":\"%s\",\"integrity\":null,\"time\":%lld}", key, now_ms);
+
+    /* SHA-1 of the JSON entry for the line hash */
+    uint8_t sha1_hash[20];
+    scache_sha1((const uint8_t *)json_entry, strlen(json_entry), sha1_hash);
+    char sha1_hex[41];
+    scache_hex(sha1_hash, 20, sha1_hex);
+
+    /* Append to index file: {sha1}\t{json}\n */
+    if (create_parent_directories(index_path) != 0)
         return -1;
-#else
-    if (unlink(index_path) != 0 && errno != ENOENT)
-        return -1;
-#endif
+
+    FILE *f = fopen(index_path, "ab");
+    if (!f) return -1;
+    fprintf(f, "%s\t%s\n", sha1_hex, json_entry);
+    fclose(f);
 
     return 0;
 }

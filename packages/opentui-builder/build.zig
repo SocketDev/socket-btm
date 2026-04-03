@@ -63,11 +63,17 @@ fn buildAllTargets(
     optimize: std.builtin.OptimizeMode,
     build_options: *std.Build.Step.Options,
 ) void {
+    var failures: u32 = 0;
     for (SUPPORTED_TARGETS) |t| {
         buildTarget(b, t.zig_target, t.output_name, t.description, optimize, build_options) catch |err| {
             std.debug.print("Failed to build {s}: {}\n", .{ t.description, err });
+            failures += 1;
             continue;
         };
+    }
+    if (failures > 0) {
+        std.debug.print("\x1b[31m{d} of {d} targets failed\x1b[0m\n", .{ failures, SUPPORTED_TARGETS.len });
+        std.process.exit(1);
     }
 }
 
@@ -80,8 +86,12 @@ fn buildNativeTarget(
     const native_os = @tagName(builtin.os.tag);
 
     for (SUPPORTED_TARGETS) |t| {
-        if (std.mem.indexOf(u8, t.zig_target, native_arch) != null and
-            std.mem.indexOf(u8, t.zig_target, native_os) != null)
+        // Match arch and os components separately (zig_target format: "arch-os" or "arch-os-abi")
+        var iter = std.mem.splitScalar(u8, t.zig_target, '-');
+        const target_arch = iter.next() orelse continue;
+        const target_os = iter.next() orelse continue;
+        if (std.mem.eql(u8, target_arch, native_arch) and
+            std.mem.eql(u8, target_os, native_os))
         {
             buildTarget(b, t.zig_target, t.output_name, t.description, optimize, build_options) catch |err| {
                 std.debug.print("Failed to build native target {s}: {}\n", .{ t.description, err });

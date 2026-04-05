@@ -287,6 +287,17 @@ interface OpenTUIBindings {
   streamGetStats(stream: NativePointer): { totalBytesWritten: number; totalSpansEmitted: number; totalCommits: number; chunksAllocated: number; chunksInUse: number; currentChunkUsed: number; pendingSpanBytes: number; attached: boolean }
   streamDrainSpans(stream: NativePointer, outPtr: ArrayBuffer, maxSpans: number): number
   streamSetCallback(stream: NativePointer, callback: (() => void) | undefined): void
+
+  // ── Performance: batch/direct buffer access ──
+
+  bufferDrawTextEncoded(buffer: NativePointer, data: Uint8Array, x: number, y: number, fgR: number, fgG: number, fgB: number, fgA: number, bgR: number, bgG: number, bgB: number, bgA: number, attributes: number): void
+  bufferGetCharArrayBuffer(buffer: NativePointer): ArrayBuffer
+  bufferGetFgArrayBuffer(buffer: NativePointer): ArrayBuffer
+  bufferGetBgArrayBuffer(buffer: NativePointer): ArrayBuffer
+  bufferGetAttributesArrayBuffer(buffer: NativePointer): ArrayBuffer
+  editBufferGetCursorInto(editBuffer: NativePointer, out: Uint32Array): void
+  editorViewGetCursorInto(view: NativePointer, out: Uint32Array): void
+  getCursorStateInto(renderer: NativePointer, out: Int32Array): void
 }
 
 export type { NativePointer }

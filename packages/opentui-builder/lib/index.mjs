@@ -218,3 +218,104 @@ export const TargetChannel = {
   BG: 2,
   BOTH: 3,
 }
+
+// ── Performance helpers ──
+
+const textEncoder = new TextEncoder()
+
+export function encodeText(text) {
+  return textEncoder.encode(text)
+}
+
+export class BufferView {
+  constructor(bufferPtr) {
+    this._ptr = bufferPtr
+    this._chars = undefined
+    this._fg = undefined
+    this._bg = undefined
+    this._attrs = undefined
+    this._width = native.getBufferWidth(bufferPtr)
+    this._height = native.getBufferHeight(bufferPtr)
+  }
+
+  get width() { return this._width }
+  get height() { return this._height }
+
+  get chars() {
+    if (!this._chars) {
+      this._chars = new Uint32Array(native.bufferGetCharArrayBuffer(this._ptr))
+    }
+    return this._chars
+  }
+
+  get fg() {
+    if (!this._fg) {
+      this._fg = new Float32Array(native.bufferGetFgArrayBuffer(this._ptr))
+    }
+    return this._fg
+  }
+
+  get bg() {
+    if (!this._bg) {
+      this._bg = new Float32Array(native.bufferGetBgArrayBuffer(this._ptr))
+    }
+    return this._bg
+  }
+
+  get attributes() {
+    if (!this._attrs) {
+      this._attrs = new Uint32Array(native.bufferGetAttributesArrayBuffer(this._ptr))
+    }
+    return this._attrs
+  }
+
+  setCell(x, y, char, fgR, fgG, fgB, fgA, bgR, bgG, bgB, bgA, attrs) {
+    const idx = y * this._width + x
+    this.chars[idx] = char
+    const ci = idx * 4
+    this.fg[ci] = fgR
+    this.fg[ci + 1] = fgG
+    this.fg[ci + 2] = fgB
+    this.fg[ci + 3] = fgA
+    this.bg[ci] = bgR
+    this.bg[ci + 1] = bgG
+    this.bg[ci + 2] = bgB
+    this.bg[ci + 3] = bgA
+    this.attributes[idx] = attrs
+  }
+
+  invalidate() {
+    this._chars = undefined
+    this._fg = undefined
+    this._bg = undefined
+    this._attrs = undefined
+  }
+}
+
+export class CursorState {
+  constructor() {
+    this._buf = new Uint32Array(2)
+    this._i32buf = new Int32Array(3)
+  }
+
+  readEditBuffer(editBufferPtr) {
+    native.editBufferGetCursorInto(editBufferPtr, this._buf)
+    return this
+  }
+
+  readEditorView(editorViewPtr) {
+    native.editorViewGetCursorInto(editorViewPtr, this._buf)
+    return this
+  }
+
+  readRenderer(rendererPtr) {
+    native.getCursorStateInto(rendererPtr, this._i32buf)
+    return this
+  }
+
+  get row() { return this._buf[0] }
+  get col() { return this._buf[1] }
+  get x() { return this._i32buf[0] }
+  get y() { return this._i32buf[1] }
+  get visible() { return this._i32buf[2] !== 0 }
+}

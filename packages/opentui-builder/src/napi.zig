@@ -149,6 +149,60 @@ pub fn throwError(env: napi_env, msg: [*:0]const u8) void {
     _ = c.napi_throw_error(env, null, msg);
 }
 
+// ── Threadsafe Function ──
+
+pub const napi_threadsafe_function = c.napi_threadsafe_function;
+pub const napi_threadsafe_function_call_js = c.napi_threadsafe_function_call_js;
+
+pub fn createThreadsafeFunction(
+    env: napi_env,
+    js_func: napi_value,
+    name: [*:0]const u8,
+    max_queue_size: usize,
+    call_js: napi_threadsafe_function_call_js,
+    context: ?*anyopaque,
+) ?napi_threadsafe_function {
+    var result: napi_threadsafe_function = undefined;
+    var async_name: napi_value = null;
+    _ = c.napi_create_string_utf8(env, name, std.mem.len(name), &async_name);
+    const status = c.napi_create_threadsafe_function(
+        env,
+        js_func,
+        null,
+        async_name,
+        max_queue_size,
+        1,
+        null,
+        null,
+        context,
+        call_js,
+        &result,
+    );
+    if (status != c.napi_ok) return null;
+    return result;
+}
+
+pub fn callThreadsafeFunction(tsfn: napi_threadsafe_function, data: ?*anyopaque) bool {
+    return c.napi_call_threadsafe_function(tsfn, data, c.napi_tsfn_nonblocking) == c.napi_ok;
+}
+
+pub fn releaseThreadsafeFunction(tsfn: napi_threadsafe_function) void {
+    _ = c.napi_release_threadsafe_function(tsfn, c.napi_tsfn_release);
+}
+
+pub fn acquireThreadsafeFunction(tsfn: napi_threadsafe_function) bool {
+    return c.napi_acquire_threadsafe_function(tsfn) == c.napi_ok;
+}
+
+pub fn getTypedArrayInfo(env: napi_env, value: napi_value) ?struct { data: [*]u8, len: usize, typ: c.napi_typedarray_type } {
+    var typ: c.napi_typedarray_type = undefined;
+    var len: usize = 0;
+    var data: ?*anyopaque = null;
+    if (c.napi_get_typedarray_info(env, value, &typ, &len, &data, null, null) != c.napi_ok) return null;
+    if (data) |d| return .{ .data = @ptrCast(d), .len = len, .typ = typ };
+    return null;
+}
+
 /// Helper to define a method property descriptor.
 pub fn method(name: [*:0]const u8, func: c.napi_callback) napi_property_descriptor {
     return .{

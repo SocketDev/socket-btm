@@ -1,10 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import {
+  BufferView,
+  CursorState,
   RGBA,
   TextAttributes,
   WidthMethod,
   WrapMode,
+  encodeText,
   native,
 } from '../lib/index.mjs'
 
@@ -1145,5 +1148,149 @@ describe('buffer drawing integration', () => {
     native.destroyOptimizedBuffer(buffer)
     native.destroyEditorView(ev)
     native.destroyEditBuffer(eb)
+  })
+})
+
+// ── Performance Helpers ──
+
+describe('encodeText', () => {
+  it('encodes ASCII string to Uint8Array', () => {
+    const encoded = encodeText('Hello')
+    expect(encoded).toBeInstanceOf(Uint8Array)
+    expect(encoded.length).toBe(5)
+    expect(encoded[0]).toBe(72) // 'H'
+    expect(encoded[4]).toBe(111) // 'o'
+  })
+
+  it('encodes Unicode to multi-byte UTF-8', () => {
+    const encoded = encodeText('A\u00e9') // 'Aé'
+    expect(encoded.length).toBe(3) // A=1, é=2 bytes
+  })
+
+  it('returns empty array for empty string', () => {
+    const encoded = encodeText('')
+    expect(encoded.length).toBe(0)
+  })
+})
+
+const hasDirectBufferAPIs = typeof native.bufferGetCharArrayBuffer === 'function'
+
+describe.skipIf(!hasDirectBufferAPIs)('BufferView', () => {
+  let buffer
+
+  afterEach(() => {
+    if (buffer) {
+      native.destroyOptimizedBuffer(buffer)
+      buffer = undefined
+    }
+  })
+
+  it('creates view over native buffer', () => {
+    buffer = native.createOptimizedBuffer(10, 5, false, WidthMethod.WCWIDTH, 'bv-test')
+    const view = new BufferView(buffer)
+    expect(view.width).toBe(10)
+    expect(view.height).toBe(5)
+  })
+
+  it('provides typed array views over native memory', () => {
+    buffer = native.createOptimizedBuffer(10, 5, false, WidthMethod.WCWIDTH, 'bv-arrays')
+    const view = new BufferView(buffer)
+
+    expect(view.chars).toBeInstanceOf(Uint32Array)
+    expect(view.chars.length).toBe(50) // 10*5
+
+    expect(view.fg).toBeInstanceOf(Float32Array)
+    expect(view.fg.length).toBe(200) // 10*5*4 (RGBA)
+
+    expect(view.bg).toBeInstanceOf(Float32Array)
+    expect(view.bg.length).toBe(200)
+
+    expect(view.attributes).toBeInstanceOf(Uint32Array)
+    expect(view.attributes.length).toBe(50)
+  })
+
+  it('lazily initializes and caches typed arrays', () => {
+    buffer = native.createOptimizedBuffer(10, 5, false, WidthMethod.WCWIDTH, 'bv-lazy')
+    const view = new BufferView(buffer)
+    const chars1 = view.chars
+    const chars2 = view.chars
+    expect(chars1).toBe(chars2)
+  })
+
+  it('writes cells directly into native memory', () => {
+    buffer = native.createOptimizedBuffer(10, 5, false, WidthMethod.WCWIDTH, 'bv-write')
+    native.bufferClear(buffer, 0, 0, 0, 1)
+    const view = new BufferView(buffer)
+
+    view.setCell(3, 2, 65, 1, 1, 1, 1, 0, 0, 0, 1, TextAttributes.BOLD)
+
+    const idx = 2 * 10 + 3
+    expect(view.chars[idx]).toBe(65)
+    expect(view.attributes[idx]).toBe(TextAttributes.BOLD)
+    const ci = idx * 4
+    expect(view.fg[ci]).toBe(1)
+    expect(view.bg[ci + 3]).toBe(1)
+  })
+
+  it('invalidates cached views', () => {
+    buffer = native.createOptimizedBuffer(10, 5, false, WidthMethod.WCWIDTH, 'bv-inv')
+    const view = new BufferView(buffer)
+    const chars1 = view.chars
+    view.invalidate()
+    const chars2 = view.chars
+    expect(chars1).not.toBe(chars2)
+  })
+})
+
+const hasCursorIntoAPIs = typeof native.editBufferGetCursorInto === 'function'
+
+describe.skipIf(!hasCursorIntoAPIs)('CursorState', () => {
+  it('creates reusable cursor state object', () => {
+    const cursor = new CursorState()
+    expect(cursor).toBeDefined()
+  })
+
+  it('reads edit buffer cursor without allocation', () => {
+    const eb = native.createEditBuffer(WidthMethod.WCWIDTH)
+    native.editBufferSetText(eb, 'Hello')
+    native.editBufferSetCursor(eb, 0, 3)
+
+    const cursor = new CursorState()
+    cursor.readEditBuffer(eb)
+    expect(cursor.row).toBe(0)
+    expect(cursor.col).toBe(3)
+
+    native.editBufferMoveCursorRight(eb)
+    cursor.readEditBuffer(eb)
+    expect(cursor.col).toBe(4)
+
+    native.destroyEditBuffer(eb)
+  })
+
+  it('reads editor view cursor without allocation', () => {
+    const eb = native.createEditBuffer(WidthMethod.WCWIDTH)
+    native.editBufferSetText(eb, 'Test')
+    const view = native.createEditorView(eb, 40, 10)
+
+    const cursor = new CursorState()
+    cursor.readEditorView(view)
+    expect(typeof cursor.row).toBe('number')
+    expect(typeof cursor.col).toBe('number')
+
+    native.destroyEditorView(view)
+    native.destroyEditBuffer(eb)
+  })
+
+  it('reads renderer cursor state without allocation', () => {
+    const renderer = native.createRenderer(80, 24, true, false)
+    native.setCursorPosition(renderer, 10, 5, true)
+
+    const cursor = new CursorState()
+    cursor.readRenderer(renderer)
+    expect(typeof cursor.x).toBe('number')
+    expect(typeof cursor.y).toBe('number')
+    expect(typeof cursor.visible).toBe('boolean')
+
+    native.destroyRenderer(renderer)
   })
 })

@@ -294,6 +294,87 @@ extern fn streamGetStats(stream: ?*NativeSpanFeedStream, stats_ptr: *anyopaque) 
 extern fn streamDrainSpans(stream: ?*NativeSpanFeedStream, out_ptr: *anyopaque, max_spans: u32) u32;
 extern fn streamSetCallback(stream: ?*NativeSpanFeedStream, callback: ?*const anyopaque) void;
 
+// ── Threadsafe callback state ──────────────────────────────────────
+
+var g_log_tsfn: ?napi.napi_threadsafe_function = null;
+var g_event_tsfn: ?napi.napi_threadsafe_function = null;
+var g_stream_tsfn: ?napi.napi_threadsafe_function = null;
+
+const LogCallbackData = extern struct {
+    level: u32,
+    msg_ptr: [*]const u8,
+    msg_len: usize,
+};
+
+const EventCallbackData = extern struct {
+    event_type: u32,
+    data_ptr: ?[*]const u8,
+    data_len: usize,
+};
+
+fn logCallbackBridge(level: u32, msg_ptr: [*]const u8, msg_len: usize) callconv(.c) void {
+    const tsfn = g_log_tsfn orelse return;
+    var data = LogCallbackData{ .level = level, .msg_ptr = msg_ptr, .msg_len = msg_len };
+    _ = napi.callThreadsafeFunction(tsfn, @ptrCast(&data));
+}
+
+fn logCallbackCallJs(env: napi.napi_env, js_callback: napi.napi_value, _: ?*anyopaque, data_raw: ?*anyopaque) callconv(.c) void {
+    if (env == null or js_callback == null) return;
+    const data: *LogCallbackData = @ptrCast(@alignCast(data_raw orelse return));
+    const global = blk: {
+        var g: napi.napi_value = null;
+        _ = c.napi_get_global(env, &g);
+        break :blk g;
+    };
+    var args: [2]napi.napi_value = .{
+        napi.createU32(env, data.level),
+        napi.createString(env, data.msg_ptr[0..data.msg_len]),
+    };
+    _ = c.napi_call_function(env, global, js_callback, 2, &args, null);
+}
+
+fn eventCallbackBridge(event_type: u32, data_ptr: ?[*]const u8, data_len: usize) callconv(.c) void {
+    const tsfn = g_event_tsfn orelse return;
+    var data = EventCallbackData{ .event_type = event_type, .data_ptr = data_ptr, .data_len = data_len };
+    _ = napi.callThreadsafeFunction(tsfn, @ptrCast(&data));
+}
+
+fn eventCallbackCallJs(env: napi.napi_env, js_callback: napi.napi_value, _: ?*anyopaque, data_raw: ?*anyopaque) callconv(.c) void {
+    if (env == null or js_callback == null) return;
+    const data: *EventCallbackData = @ptrCast(@alignCast(data_raw orelse return));
+    const global = blk: {
+        var g: napi.napi_value = null;
+        _ = c.napi_get_global(env, &g);
+        break :blk g;
+    };
+    var ab: napi.napi_value = null;
+    if (data.data_ptr) |ptr| {
+        _ = c.napi_create_external_arraybuffer(env, @constCast(@ptrCast(ptr)), data.data_len, null, null, &ab);
+    } else {
+        _ = c.napi_get_undefined(env, &ab);
+    }
+    var args: [2]napi.napi_value = .{
+        napi.createU32(env, data.event_type),
+        ab,
+    };
+    _ = c.napi_call_function(env, global, js_callback, 2, &args, null);
+}
+
+fn streamCallbackBridge() callconv(.c) void {
+    const tsfn = g_stream_tsfn orelse return;
+    _ = napi.callThreadsafeFunction(tsfn, null);
+}
+
+fn streamCallbackCallJs(env: napi.napi_env, js_callback: napi.napi_value, _: ?*anyopaque, _: ?*anyopaque) callconv(.c) void {
+    if (env == null or js_callback == null) return;
+    const global = blk: {
+        var g: napi.napi_value = null;
+        _ = c.napi_get_global(env, &g);
+        break :blk g;
+    };
+    _ = c.napi_call_function(env, global, js_callback, 0, null, null);
+}
+
 // ── Argument validation helper ──────────────────────────────────────
 
 fn requireArgs(env: napi.napi_env, info: napi.napi_callback_info, args: []napi.napi_value, min: usize, name: [*:0]const u8) bool {
@@ -366,20 +447,46 @@ pub fn jsGetAllocatorStats(env: napi.napi_env, info: napi.napi_callback_info) ca
 pub fn jsSetLogCallback(env: napi.napi_env, info: napi.napi_callback_info) callconv(.c) napi.napi_value {
     var args: [1]napi.napi_value = .{null};
     if (!requireArgs(env, info, &args, 1, "setLogCallback(callback)")) return null;
-    // TODO: Implement napi_create_threadsafe_function for log callback
-    // For now, clear any existing callback
-    _ = args[0];
-    setLogCallback(null);
+
+    if (g_log_tsfn) |old| {
+        napi.releaseThreadsafeFunction(old);
+        g_log_tsfn = null;
+        setLogCallback(null);
+    }
+
+    var val_type: c.napi_valuetype = undefined;
+    _ = c.napi_typeof(env, args[0], &val_type);
+    if (val_type == c.napi_undefined or val_type == c.napi_null) {
+        return napi.getUndefined(env);
+    }
+
+    g_log_tsfn = napi.createThreadsafeFunction(env, args[0], "opentui_log", 256, logCallbackCallJs, null);
+    if (g_log_tsfn != null) {
+        setLogCallback(@ptrCast(&logCallbackBridge));
+    }
     return napi.getUndefined(env);
 }
 
 pub fn jsSetEventCallback(env: napi.napi_env, info: napi.napi_callback_info) callconv(.c) napi.napi_value {
     var args: [1]napi.napi_value = .{null};
     if (!requireArgs(env, info, &args, 1, "setEventCallback(callback)")) return null;
-    // TODO: Implement napi_create_threadsafe_function for event callback
-    // For now, clear any existing callback
-    _ = args[0];
-    setEventCallback(null);
+
+    if (g_event_tsfn) |old| {
+        napi.releaseThreadsafeFunction(old);
+        g_event_tsfn = null;
+        setEventCallback(null);
+    }
+
+    var val_type: c.napi_valuetype = undefined;
+    _ = c.napi_typeof(env, args[0], &val_type);
+    if (val_type == c.napi_undefined or val_type == c.napi_null) {
+        return napi.getUndefined(env);
+    }
+
+    g_event_tsfn = napi.createThreadsafeFunction(env, args[0], "opentui_event", 256, eventCallbackCallJs, null);
+    if (g_event_tsfn != null) {
+        setEventCallback(@ptrCast(&eventCallbackBridge));
+    }
     return napi.getUndefined(env);
 }
 
@@ -2876,9 +2983,134 @@ pub fn jsStreamSetCallback(env: napi.napi_env, info: napi.napi_callback_info) ca
     var args: [2]napi.napi_value = .{ null, null };
     if (!requireArgs(env, info, &args, 2, "streamSetCallback(stream, callback)")) return null;
     const ptr = napi.unwrapPointer(env, args[0], NativeSpanFeedStream);
-    // TODO: Implement napi_create_threadsafe_function for stream callback
-    _ = args[1];
-    streamSetCallback(ptr, null);
+
+    if (g_stream_tsfn) |old| {
+        napi.releaseThreadsafeFunction(old);
+        g_stream_tsfn = null;
+        streamSetCallback(ptr, null);
+    }
+
+    var val_type: c.napi_valuetype = undefined;
+    _ = c.napi_typeof(env, args[1], &val_type);
+    if (val_type == c.napi_undefined or val_type == c.napi_null) {
+        return napi.getUndefined(env);
+    }
+
+    g_stream_tsfn = napi.createThreadsafeFunction(env, args[1], "opentui_stream", 64, streamCallbackCallJs, null);
+    if (g_stream_tsfn != null) {
+        streamSetCallback(ptr, @ptrCast(&streamCallbackBridge));
+    }
+    return napi.getUndefined(env);
+}
+
+// ── Performance: batch and pre-encoded APIs ────────────────────────
+
+pub fn jsBufferDrawTextEncoded(env: napi.napi_env, info: napi.napi_callback_info) callconv(.c) napi.napi_value {
+    var args: [12]napi.napi_value = .{ null, null, null, null, null, null, null, null, null, null, null, null };
+    if (!requireArgs(env, info, &args, 12, "bufferDrawTextEncoded(buf, data, x, y, fg*4, bg*4, attrs)")) return null;
+    const buf_ptr = napi.unwrapPointer(env, args[0], OptimizedBuffer) orelse return null;
+    const ta = napi.getTypedArrayInfo(env, args[1]) orelse {
+        napi.throwError(env, "bufferDrawTextEncoded: arg 1 must be Uint8Array");
+        return null;
+    };
+    const x = napi.getU32(env, args[2]) orelse return null;
+    const y = napi.getU32(env, args[3]) orelse return null;
+    const fg = readColor(env, &args, 4) orelse return null;
+    const bg = readColor(env, &args, 8) orelse return null;
+    const attrs = napi.getU32(env, args[11]) orelse return null;
+    bufferDrawText(buf_ptr, ta.data, ta.len, x, y, &fg, &bg, attrs);
+    return napi.getUndefined(env);
+}
+
+pub fn jsBufferGetCharArrayBuffer(env: napi.napi_env, info: napi.napi_callback_info) callconv(.c) napi.napi_value {
+    var args: [1]napi.napi_value = .{null};
+    if (!requireArgs(env, info, &args, 1, "bufferGetCharArrayBuffer(buf)")) return null;
+    const buf_ptr = napi.unwrapPointer(env, args[0], OptimizedBuffer) orelse return null;
+    const w = getBufferWidth(buf_ptr);
+    const h = getBufferHeight(buf_ptr);
+    return napi.createArrayBufferExternal(env, bufferGetCharPtr(buf_ptr), @as(usize, w) * h * 4);
+}
+
+pub fn jsBufferGetFgArrayBuffer(env: napi.napi_env, info: napi.napi_callback_info) callconv(.c) napi.napi_value {
+    var args: [1]napi.napi_value = .{null};
+    if (!requireArgs(env, info, &args, 1, "bufferGetFgArrayBuffer(buf)")) return null;
+    const buf_ptr = napi.unwrapPointer(env, args[0], OptimizedBuffer) orelse return null;
+    const w = getBufferWidth(buf_ptr);
+    const h = getBufferHeight(buf_ptr);
+    return napi.createArrayBufferExternal(env, bufferGetFgPtr(buf_ptr), @as(usize, w) * h * 4 * 4);
+}
+
+pub fn jsBufferGetBgArrayBuffer(env: napi.napi_env, info: napi.napi_callback_info) callconv(.c) napi.napi_value {
+    var args: [1]napi.napi_value = .{null};
+    if (!requireArgs(env, info, &args, 1, "bufferGetBgArrayBuffer(buf)")) return null;
+    const buf_ptr = napi.unwrapPointer(env, args[0], OptimizedBuffer) orelse return null;
+    const w = getBufferWidth(buf_ptr);
+    const h = getBufferHeight(buf_ptr);
+    return napi.createArrayBufferExternal(env, bufferGetBgPtr(buf_ptr), @as(usize, w) * h * 4 * 4);
+}
+
+pub fn jsBufferGetAttributesArrayBuffer(env: napi.napi_env, info: napi.napi_callback_info) callconv(.c) napi.napi_value {
+    var args: [1]napi.napi_value = .{null};
+    if (!requireArgs(env, info, &args, 1, "bufferGetAttributesArrayBuffer(buf)")) return null;
+    const buf_ptr = napi.unwrapPointer(env, args[0], OptimizedBuffer) orelse return null;
+    const w = getBufferWidth(buf_ptr);
+    const h = getBufferHeight(buf_ptr);
+    return napi.createArrayBufferExternal(env, bufferGetAttributesPtr(buf_ptr), @as(usize, w) * h * 4);
+}
+
+pub fn jsEditBufferGetCursorInto(env: napi.napi_env, info: napi.napi_callback_info) callconv(.c) napi.napi_value {
+    var args: [2]napi.napi_value = .{ null, null };
+    if (!requireArgs(env, info, &args, 2, "editBufferGetCursorInto(eb, outU32Array)")) return null;
+    const eb = napi.unwrapPointer(env, args[0], EditBuffer) orelse return null;
+    const ta = napi.getTypedArrayInfo(env, args[1]) orelse {
+        napi.throwError(env, "editBufferGetCursorInto: arg 1 must be Uint32Array");
+        return null;
+    };
+    if (ta.len < 2) {
+        napi.throwError(env, "editBufferGetCursorInto: Uint32Array must have at least 2 elements");
+        return null;
+    }
+    const out: [*]u32 = @ptrCast(@alignCast(ta.data));
+    editBufferGetCursor(eb, &out[0], &out[1]);
+    return napi.getUndefined(env);
+}
+
+pub fn jsEditorViewGetCursorInto(env: napi.napi_env, info: napi.napi_callback_info) callconv(.c) napi.napi_value {
+    var args: [2]napi.napi_value = .{ null, null };
+    if (!requireArgs(env, info, &args, 2, "editorViewGetCursorInto(view, outU32Array)")) return null;
+    const view = napi.unwrapPointer(env, args[0], EditorView) orelse return null;
+    const ta = napi.getTypedArrayInfo(env, args[1]) orelse {
+        napi.throwError(env, "editorViewGetCursorInto: arg 1 must be Uint32Array");
+        return null;
+    };
+    if (ta.len < 2) {
+        napi.throwError(env, "editorViewGetCursorInto: Uint32Array must have at least 2 elements");
+        return null;
+    }
+    const out: [*]u32 = @ptrCast(@alignCast(ta.data));
+    editorViewGetCursor(view, &out[0], &out[1]);
+    return napi.getUndefined(env);
+}
+
+pub fn jsGetCursorStateInto(env: napi.napi_env, info: napi.napi_callback_info) callconv(.c) napi.napi_value {
+    var args: [2]napi.napi_value = .{ null, null };
+    if (!requireArgs(env, info, &args, 2, "getCursorStateInto(renderer, outI32Array)")) return null;
+    const renderer = napi.unwrapPointer(env, args[0], CliRenderer) orelse return null;
+    const ta = napi.getTypedArrayInfo(env, args[1]) orelse {
+        napi.throwError(env, "getCursorStateInto: arg 1 must be Int32Array");
+        return null;
+    };
+    if (ta.len < 3) {
+        napi.throwError(env, "getCursorStateInto: Int32Array must have at least 3 elements");
+        return null;
+    }
+    const CursorState = extern struct { x: i32, y: i32, visible: i32 };
+    var state: CursorState = undefined;
+    getCursorState(renderer, @ptrCast(&state));
+    const out: [*]i32 = @ptrCast(@alignCast(ta.data));
+    out[0] = state.x;
+    out[1] = state.y;
+    out[2] = if (state.visible != 0) 1 else 0;
     return napi.getUndefined(env);
 }
 
@@ -3130,6 +3362,15 @@ pub const properties = [_]napi.napi_property_descriptor{
     napi.method("syntaxStyleRegister", jsSyntaxStyleRegister),
     napi.method("syntaxStyleResolveByName", jsSyntaxStyleResolveByName),
     napi.method("syntaxStyleGetStyleCount", jsSyntaxStyleGetStyleCount),
+    // Performance: batch/direct buffer access
+    napi.method("bufferDrawTextEncoded", jsBufferDrawTextEncoded),
+    napi.method("bufferGetCharArrayBuffer", jsBufferGetCharArrayBuffer),
+    napi.method("bufferGetFgArrayBuffer", jsBufferGetFgArrayBuffer),
+    napi.method("bufferGetBgArrayBuffer", jsBufferGetBgArrayBuffer),
+    napi.method("bufferGetAttributesArrayBuffer", jsBufferGetAttributesArrayBuffer),
+    napi.method("editBufferGetCursorInto", jsEditBufferGetCursorInto),
+    napi.method("editorViewGetCursorInto", jsEditorViewGetCursorInto),
+    napi.method("getCursorStateInto", jsGetCursorStateInto),
     // Unicode
     napi.method("encodeUnicode", jsEncodeUnicode),
     napi.method("freeUnicode", jsFreeUnicode),

@@ -60,3 +60,31 @@ export declare const TargetChannel: {
   readonly BG: 2
   readonly BOTH: 3
 }
+
+export declare function encodeText(text: string): Uint8Array
+
+export type NativePointer = import('./native.js').NativePointer
+
+export declare class BufferView {
+  constructor(bufferPtr: NativePointer)
+  readonly width: number
+  readonly height: number
+  readonly chars: Uint32Array
+  readonly fg: Float32Array
+  readonly bg: Float32Array
+  readonly attributes: Uint32Array
+  setCell(x: number, y: number, char: number, fgR: number, fgG: number, fgB: number, fgA: number, bgR: number, bgG: number, bgB: number, bgA: number, attrs: number): void
+  invalidate(): void
+}
+
+export declare class CursorState {
+  constructor()
+  readEditBuffer(editBufferPtr: NativePointer): this
+  readEditorView(editorViewPtr: NativePointer): this
+  readRenderer(rendererPtr: NativePointer): this
+  readonly row: number
+  readonly col: number
+  readonly x: number
+  readonly y: number
+  readonly visible: boolean
+}

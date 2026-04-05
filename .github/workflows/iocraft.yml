@@ -147,7 +147,7 @@ jobs:
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         # Note: version is specified in package.json packageManager field, not here
 
-      - uses: SocketDev/socket-registry/.github/actions/install@da519693b701861bc0f9690a30f50af1a1dcd49c # main
+      - uses: SocketDev/socket-registry/.github/actions/install@6147a08ccc20fcb1f690dcc4650ec745776b3345 # main
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1 (stable)
@@ -277,7 +277,6 @@ jobs:
           # Disable static CRT linking for musl to allow cdylib (dynamic library)
           RUSTFLAGS: ${{ matrix.libc == 'musl' && '-C target-feature=-crt-static' || '' }}
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           # Debug: verify cargo is accessible
           echo "Cargo location: $(which cargo)"
           cargo --version

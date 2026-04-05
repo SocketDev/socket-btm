@@ -102,7 +102,7 @@ jobs:
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         # Note: version is specified in package.json packageManager field, not here
 
-      - uses: SocketDev/socket-registry/.github/actions/install@da519693b701861bc0f9690a30f50af1a1dcd49c # main
+      - uses: SocketDev/socket-registry/.github/actions/install@6147a08ccc20fcb1f690dcc4650ec745776b3345 # main
 
       - name: Load cache version from centralized config
         id: cache-version
@@ -212,7 +212,6 @@ jobs:
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           # Use get-checkpoint-chain.mjs to ensure consistency with local builds
           # Dev mode: skip wasm-optimized (optimization is disabled)
           # Prod mode: include wasm-optimized

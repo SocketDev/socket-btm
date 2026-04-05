@@ -211,13 +211,12 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
 
-      - uses: SocketDev/socket-registry/.github/actions/install@da519693b701861bc0f9690a30f50af1a1dcd49c # main
+      - uses: SocketDev/socket-registry/.github/actions/install@6147a08ccc20fcb1f690dcc4650ec745776b3345 # main
 
       - name: Load tool versions
         id: tool-versions
         shell: bash
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           # Load Python version constraints from external-tools.json (single source of truth)
           PYTHON_MIN_VERSION=$(node packages/build-infra/scripts/get-tool-version.mjs python minimumVersion)
           PYTHON_MAX_VERSION=$(node packages/build-infra/scripts/get-tool-version.mjs python maximumVersion)
@@ -518,7 +517,6 @@ jobs:
         env:
           BUILD_MODE: ${{ steps.smol-cache-key.outputs.build_mode }}
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           # Get checkpoint chain from build script (single source of truth)
           CHAIN=$(node packages/node-smol-builder/scripts/get-checkpoint-chain.mjs --$BUILD_MODE)
           echo "checkpoint_chain=$CHAIN" >> $GITHUB_OUTPUT
@@ -638,7 +636,6 @@ jobs:
           PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           # Cross-platform timestamp function (GNU date/BusyBox fallback)
           get_timestamp() {
             date +%s 2>/dev/null || python3 -c 'import time; print(int(time.time()))'
@@ -703,7 +700,6 @@ jobs:
           BUILD_JOBS: ${{ steps.build-parallelism.outputs.jobs }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           # Cross-platform timestamp function (GNU date/BusyBox fallback)
           get_timestamp() {
             date +%s 2>/dev/null || python3 -c 'import time; print(int(time.time()))'
@@ -790,7 +786,6 @@ jobs:
           BUILD_MODE: ${{ steps.smol-cache-key.outputs.build_mode }}
           PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           BUILD_MODE="${BUILD_MODE:-prod}"
           FINAL_DIR="packages/node-smol-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final"
 

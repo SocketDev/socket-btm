@@ -131,7 +131,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
 
-      - uses: SocketDev/socket-registry/.github/actions/install@da519693b701861bc0f9690a30f50af1a1dcd49c # main
+      - uses: SocketDev/socket-registry/.github/actions/install@6147a08ccc20fcb1f690dcc4650ec745776b3345 # main
 
       - name: Setup macOS code signing
         if: matrix.os == 'macos'
@@ -379,7 +379,6 @@ jobs:
           TARGET_ARCH: ${{ matrix.arch }}
           DEBUG: ${{ inputs.debug && '1' || '' }}
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           echo "🔨 Building binpress for ${PLATFORM}-${ARCH} (${BUILD_MODE} mode)"
 
           # Use build script with --force to bypass checkpoint check
@@ -451,7 +450,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           # Run full functional tests on native x64 platforms (non-Linux).
           # Linux glibc tests run inside Docker to avoid LTO bytecode incompatibility.
           echo "Running functional tests for binpress..."
@@ -468,7 +466,6 @@ jobs:
           ARCH: ${{ matrix.arch }}
           LIBC: ${{ matrix.libc }}
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           # Deterministic smoke test: native execution, Docker, QEMU, or static verification
           # All platforms now use PLATFORM_ARCH in build output path.
           if [ "${OS_TYPE}" = "windows" ]; then
@@ -599,7 +596,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
 
-      - uses: SocketDev/socket-registry/.github/actions/install@da519693b701861bc0f9690a30f50af1a1dcd49c # main
+      - uses: SocketDev/socket-registry/.github/actions/install@6147a08ccc20fcb1f690dcc4650ec745776b3345 # main
 
       - name: Setup macOS code signing
         if: matrix.os == 'macos'
@@ -823,7 +820,6 @@ jobs:
           TARGET_ARCH: ${{ matrix.arch }}
           DEBUG: ${{ inputs.debug && '1' || '' }}
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           echo "🔨 Building binflate for ${PLATFORM}-${ARCH} (${BUILD_MODE} mode)"
 
           # Use build script with --force to bypass checkpoint check
@@ -884,7 +880,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           # Run full functional tests on native x64 platforms (non-Linux).
           # Linux glibc tests run inside Docker to avoid LTO bytecode incompatibility.
           echo "Running functional tests for binflate..."
@@ -901,7 +896,6 @@ jobs:
           ARCH: ${{ matrix.arch }}
           LIBC: ${{ matrix.libc }}
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           # Deterministic smoke test: native execution, Docker, QEMU, or static verification
           # All platforms now use PLATFORM_ARCH in build output path.
           if [ "${OS_TYPE}" = "windows" ]; then
@@ -1032,7 +1026,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
 
-      - uses: SocketDev/socket-registry/.github/actions/install@da519693b701861bc0f9690a30f50af1a1dcd49c # main
+      - uses: SocketDev/socket-registry/.github/actions/install@6147a08ccc20fcb1f690dcc4650ec745776b3345 # main
 
       - name: Setup macOS code signing
         if: matrix.os == 'macos'
@@ -1301,7 +1295,6 @@ jobs:
           TARGET_ARCH: ${{ matrix.arch }}
           DEBUG: ${{ inputs.debug && '1' || '' }}
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           echo "🔨 Building binject for ${PLATFORM}-${ARCH} (${BUILD_MODE} mode)"
 
           # Use build script with --force to bypass checkpoint check.
@@ -1364,7 +1357,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           # Run full functional tests on native x64 platforms (non-Linux).
           # Linux glibc tests run inside Docker to avoid LTO bytecode incompatibility.
           echo "Running functional tests for binject..."
@@ -1381,7 +1373,6 @@ jobs:
           ARCH: ${{ matrix.arch }}
           LIBC: ${{ matrix.libc }}
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           # Deterministic smoke test: native execution, Docker, QEMU, or static verification
           # All platforms now use PLATFORM_ARCH in build output path.
           if [ "${OS_TYPE}" = "windows" ]; then

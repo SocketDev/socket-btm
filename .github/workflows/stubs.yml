@@ -217,7 +217,7 @@ jobs:
           node-version-file: .node-version
           cache: ''
 
-      - uses: SocketDev/socket-registry/.github/actions/install@da519693b701861bc0f9690a30f50af1a1dcd49c # main
+      - uses: SocketDev/socket-registry/.github/actions/install@6147a08ccc20fcb1f690dcc4650ec745776b3345 # main
         if: matrix.os != 'linux'
 
       - name: Setup build environment (macOS)
@@ -254,7 +254,6 @@ jobs:
           DEBUG: ${{ inputs.debug && '1' || '' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           # Build script handles curl dependency download and stub compilation.
           node scripts/build.mjs
 

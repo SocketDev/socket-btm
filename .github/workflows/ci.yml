@@ -37,12 +37,11 @@ jobs:
     name: Lint, Type, Validation
     runs-on: ubuntu-latest
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@da519693b701861bc0f9690a30f50af1a1dcd49c # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@6147a08ccc20fcb1f690dcc4650ec745776b3345 # main
 
       - name: Lint checks
         shell: bash
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           pnpm run check
 
       - name: Validate cache-versions.json
@@ -76,13 +75,11 @@ jobs:
       - name: Validate checkpoint alignment
         shell: bash
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           node scripts/validate-checkpoint-alignment.mjs
 
       - name: Run build-infra tests
         shell: bash
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           pnpm run test:build-infra
 
   # Platform-specific tests run on all platforms
@@ -95,7 +92,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@da519693b701861bc0f9690a30f50af1a1dcd49c # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@6147a08ccc20fcb1f690dcc4650ec745776b3345 # main
 
       # Platform-specific tests go here
       # Package-specific build/test workflows:
@@ -106,5 +103,4 @@ jobs:
       - name: Verify pnpm install works
         shell: bash
         run: |
-          alias pnpm="$SFW_BIN pnpm"
           pnpm ls --depth=0

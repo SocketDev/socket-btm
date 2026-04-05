@@ -5,8 +5,16 @@
   "description": "Native Node.js bindings for OpenTUI library via Zig node-api",
   "license": "MIT",
   "type": "module",
+  "main": "./lib/index.mjs",
+  "types": "./lib/index.d.ts",
   "exports": {
-    "./build/opentui.node": "./build/dev/out/opentui.node"
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.mjs"
+    },
+    "./native": {
+      "types": "./lib/native.d.ts"
+    }
   },
   "scripts": {
     "build": "node scripts/build.mjs",

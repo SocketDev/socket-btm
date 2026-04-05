@@ -2,19 +2,14 @@
  * Tool Download + Cache Engine
  *
  * Downloads pinned tool versions, verifies checksums, and caches them
- * in a user-level directory shared across repos.
+ * in the repo-local .cache/external-tools/ directory (gitignored via .cache/).
  *
- * Cache location:
- *   - Linux: $XDG_CACHE_HOME/.external-tools-cache/ or ~/.cache/.external-tools-cache/
- *   - macOS: ~/.cache/.external-tools-cache/
- *   - Windows: %LOCALAPPDATA%/.external-tools-cache/
- *   - Override: $EXTERNAL_TOOLS_CACHE
+ * Override: $EXTERNAL_TOOLS_CACHE
  */
 
 import { createHash } from 'node:crypto'
 import { createReadStream, existsSync, readFileSync } from 'node:fs'
 import { promises as fs } from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -24,23 +19,14 @@ import { spawn } from '@socketsecurity/lib/spawn'
 const logger = getDefaultLogger()
 
 /**
- * Get the user-level cache directory for downloaded tools.
+ * Get the repo-local cache directory for downloaded tools.
  * @returns {string}
  */
 export function getCacheDir() {
-  // Allow override via environment variable
   if (process.env.EXTERNAL_TOOLS_CACHE) {
     return process.env.EXTERNAL_TOOLS_CACHE
   }
-
-  if (process.platform === 'win32') {
-    const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local')
-    return path.join(localAppData, '.external-tools-cache')
-  }
-
-  // Unix: XDG_CACHE_HOME or ~/.cache
-  const xdgCache = process.env.XDG_CACHE_HOME || path.join(os.homedir(), '.cache')
-  return path.join(xdgCache, '.external-tools-cache')
+  return path.join(process.cwd(), '.cache', 'external-tools')
 }
 
 /**

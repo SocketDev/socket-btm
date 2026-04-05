@@ -41,9 +41,6 @@
 # Zig build artifacts
 **/.zig-cache/
 
-# External tools download cache
-**/.external-tools-cache/
-
 # Docker build output (from Dockerfile.local-dev)
 build-output/
 

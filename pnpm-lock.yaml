@@ -13,8 +13,8 @@ catalogs:
       specifier: 1.31.0
       version: 1.31.0
     '@socketsecurity/lib':
-      specifier: 5.13.0
-      version: 5.13.0
+      specifier: 5.14.0
+      version: 5.14.0
     '@types/adm-zip':
       specifier: 0.5.7
       version: 0.5.7
@@ -58,7 +58,7 @@ importers:
         version: 2.1.92
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.13.0(typescript@5.9.3)
+        version: 5.14.0(typescript@5.9.3)
       docsify-cli:
         specifier: 4.4.4
         version: 4.4.4
@@ -85,7 +85,7 @@ importers:
     devDependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.13.0(typescript@5.9.3)
+        version: 5.14.0(typescript@5.9.3)
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.0.3(vitest@4.0.3(@types/node@25.4.0)(jiti@2.6.1)(yaml@2.8.2))
@@ -115,7 +115,7 @@ importers:
         version: 1.31.0
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.13.0(typescript@5.9.3)
+        version: 5.14.0(typescript@5.9.3)
       bin-infra:
         specifier: workspace:*
         version: link:../bin-infra
@@ -133,7 +133,7 @@ importers:
         version: 1.31.0
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.13.0(typescript@5.9.3)
+        version: 5.14.0(typescript@5.9.3)
       '@types/adm-zip':
         specifier: 'catalog:'
         version: 0.5.7
@@ -163,7 +163,7 @@ importers:
         version: 1.31.0
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.13.0(typescript@5.9.3)
+        version: 5.14.0(typescript@5.9.3)
       bin-infra:
         specifier: workspace:*
         version: link:../bin-infra
@@ -181,7 +181,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.13.0(typescript@5.9.3)
+        version: 5.14.0(typescript@5.9.3)
       acorn:
         specifier: 'catalog:'
         version: 8.14.0
@@ -209,7 +209,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.13.0(typescript@5.9.3)
+        version: 5.14.0(typescript@5.9.3)
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -228,7 +228,7 @@ importers:
     devDependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.13.0(typescript@5.9.3)
+        version: 5.14.0(typescript@5.9.3)
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.0.3(vitest@4.0.3(@types/node@25.4.0)(jiti@2.6.1)(yaml@2.8.2))
@@ -243,7 +243,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.13.0(typescript@5.9.3)
+        version: 5.14.0(typescript@5.9.3)
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -259,7 +259,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.13.0(typescript@5.9.3)
+        version: 5.14.0(typescript@5.9.3)
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -275,7 +275,7 @@ importers:
     devDependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.13.0(typescript@5.9.3)
+        version: 5.14.0(typescript@5.9.3)
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.0.3(vitest@4.0.3(@types/node@25.4.0)(jiti@2.6.1)(yaml@2.8.2))
@@ -290,7 +290,7 @@ importers:
     devDependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.13.0(typescript@5.9.3)
+        version: 5.14.0(typescript@5.9.3)
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.0.3(vitest@4.0.3(@types/node@25.4.0)(jiti@2.6.1)(yaml@2.8.2))
@@ -305,7 +305,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.13.0(typescript@5.9.3)
+        version: 5.14.0(typescript@5.9.3)
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -321,7 +321,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.13.0(typescript@5.9.3)
+        version: 5.14.0(typescript@5.9.3)
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -337,7 +337,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.13.0(typescript@5.9.3)
+        version: 5.14.0(typescript@5.9.3)
       bin-infra:
         specifier: workspace:*
         version: link:../bin-infra
@@ -374,7 +374,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.13.0(typescript@5.9.3)
+        version: 5.14.0(typescript@5.9.3)
       acorn:
         specifier: 'catalog:'
         version: 8.14.0
@@ -399,7 +399,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.13.0(typescript@5.9.3)
+        version: 5.14.0(typescript@5.9.3)
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -415,7 +415,7 @@ importers:
     devDependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.13.0(typescript@5.9.3)
+        version: 5.14.0(typescript@5.9.3)
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.0.3(vitest@4.0.3(@types/node@25.4.0)(jiti@2.6.1)(yaml@2.8.2))
@@ -439,7 +439,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.13.0(typescript@5.9.3)
+        version: 5.14.0(typescript@5.9.3)
       acorn:
         specifier: 'catalog:'
         version: 8.14.0
@@ -1280,8 +1280,8 @@ packages:
     resolution: {integrity: sha512-9NET910DNaIPngYnLLPeg+Ogzqsi9uM4mSboU5y6p8S5DzMTVEsJZrawi+BoDNUVBa2DhJqQYUFvMDfgU062LQ==}
     engines: {node: '>=6'}
 
-  '@socketsecurity/lib@5.13.0':
-    resolution: {integrity: sha512-BtpsibIaqDEXaXwihTGqQW0uPRixpedyEfmG3i6Vx2h8IpZ4Xw+T1Hc3cNqBND/67XFUuiygpPYJhhjjao0UWA==}
+  '@socketsecurity/lib@5.14.0':
+    resolution: {integrity: sha512-Cer/fXl07n1YU5eYzdkaTAPrO3XlYKDAhvFiMRglcm4fy8ycpzXEYI9Tz6rJ+jUGZx2I1I4w7LIQzWHT+bvMbQ==}
     engines: {node: '>=22', pnpm: '>=10.25.0'}
     peerDependencies:
       typescript: '>=5.0.0'
@@ -3261,7 +3261,7 @@ snapshots:
 
   '@sindresorhus/is@0.14.0': {}
 
-  '@socketsecurity/lib@5.13.0(typescript@5.9.3)':
+  '@socketsecurity/lib@5.14.0(typescript@5.9.3)':
     optionalDependencies:
       typescript: 5.9.3
 

@@ -1,6 +1,7 @@
 # Wait 7 days (10080 minutes) before installing newly published packages.
 minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
+  - '@anthropic-ai/*'
   - '@socketaddon/*'
   - '@socketbin/*'
   - '@socketregistry/*'
@@ -10,7 +11,7 @@ packages:
   - packages/*
 
 catalog:
-  '@anthropic-ai/claude-code': 2.1.89
+  '@anthropic-ai/claude-code': 2.1.92
   '@babel/core': 7.28.4
   '@babel/types': 7.28.5
   '@biomejs/biome': 2.2.4

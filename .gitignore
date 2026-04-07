@@ -181,6 +181,7 @@ test-firewall-*.sh
 !/.claude/agents/
 !/.claude/commands/
 !/.claude/ops/
+!/.claude/rules/
 !/.claude/skills/
 
 # Archive directories

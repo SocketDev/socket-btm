@@ -177,9 +177,11 @@ test-firewall-*.sh
 **/patches/source-patched.backup-*/
 
 # Claude Code directory (except skills and commands)
-.claude/*
-!.claude/skills/
-!.claude/commands/
+/.claude/*
+!/.claude/agents/
+!/.claude/commands/
+!/.claude/ops/
+!/.claude/skills/
 
 # Archive directories
 **/docs/archive/

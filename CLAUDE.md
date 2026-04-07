@@ -122,6 +122,10 @@ The file system is working memory. Use it actively:
   - ❌ Environment variables for legacy behavior
   - ✅ Just delete unused code completely
 
+### Prohibited Tools
+
+- 🚨 **NEVER use `npx`, `pnpm dlx`, or `yarn dlx`** — use `pnpm exec <package>` for devDep binaries, or `pnpm run <script>` for package.json scripts. If a tool is needed, add it as a pinned devDependency first.
+
 ## Code Style
 
 ### Comments
@@ -552,6 +556,15 @@ Each patch affects exactly ONE file and does NOT depend on other patches.
 - ❌ Missing `a/` and `b/` prefixes in `---` and `+++` lines
 - ❌ Missing version header (`@node-versions` or `@iocraft-versions`)
 - ✅ Use `diff -u a/file b/file` format with proper headers
+
+## Agents & Skills
+
+- `/security-scan` — runs AgentShield + zizmor security audit
+- `/quality-scan` — comprehensive code quality analysis
+- `/quality-loop` — scan and fix iteratively
+- Agents: `code-reviewer`, `security-reviewer`, `refactor-cleaner` (in `.claude/agents/`)
+- Shared subskills in `.claude/skills/_shared/`
+- Pipeline state tracked in `.claude/ops/queue.yaml`
 
 ## Build System
 

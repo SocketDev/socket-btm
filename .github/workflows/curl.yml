@@ -139,7 +139,7 @@ jobs:
           node-version-file: .node-version
           cache: ''
 
-      - uses: SocketDev/socket-registry/.github/actions/install@6147a08ccc20fcb1f690dcc4650ec745776b3345 # main
+      - uses: SocketDev/socket-registry/.github/actions/install@8d54162f37b88ef2970a892b6c619b7c064f0c23 # main
 
       - name: Initialize curl submodule
         shell: bash

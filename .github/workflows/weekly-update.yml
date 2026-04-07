@@ -25,7 +25,7 @@ jobs:
       has-updates: ${{ steps.check.outputs.has-updates }}
       update-summary: ${{ steps.check.outputs.update-summary }}
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@6147a08ccc20fcb1f690dcc4650ec745776b3345 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@8d54162f37b88ef2970a892b6c619b7c064f0c23 # main
 
       - name: Check for upstream updates
         id: check
@@ -159,7 +159,7 @@ jobs:
           node-version-file: .node-version
           cache: 'pnpm'
 
-      - uses: SocketDev/socket-registry/.github/actions/install@6147a08ccc20fcb1f690dcc4650ec745776b3345 # main
+      - uses: SocketDev/socket-registry/.github/actions/install@8d54162f37b88ef2970a892b6c619b7c064f0c23 # main
 
       - name: Create update branch
         id: branch
@@ -171,7 +171,7 @@ jobs:
           git checkout -b "$BRANCH_NAME"
           echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
 
-      - uses: SocketDev/socket-registry/.github/actions/setup-git-signing@6147a08ccc20fcb1f690dcc4650ec745776b3345 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-git-signing@8d54162f37b88ef2970a892b6c619b7c064f0c23 # main
         with:
           gpg-private-key: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
 
@@ -390,21 +390,6 @@ jobs:
             --head "$BRANCH_NAME" \
             --base main
 
-      # Pushes made with GITHUB_TOKEN don't trigger other workflows.
-      # Close/reopen the PR to generate a pull_request.reopened event,
-      # which triggers required CI and enterprise audit workflows.
-      - name: Trigger CI checks
-        if: steps.final.outputs.success == 'true' && steps.validate.outputs.valid == 'true' && steps.changes.outputs.has-changes == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH_NAME: ${{ steps.branch.outputs.branch }}
-        run: |
-          pr_number=$(gh pr list --head "$BRANCH_NAME" --json number --jq '.[0].number')
-          if [ -n "$pr_number" ]; then
-            gh pr close "$pr_number"
-            gh pr reopen "$pr_number"
-          fi
-
       - name: Add job summary
         if: steps.final.outputs.success == 'true' && steps.validate.outputs.valid == 'true' && steps.changes.outputs.has-changes == 'true'
         env:
@@ -441,7 +426,7 @@ jobs:
             test-output.log
           retention-days: 7
 
-      - uses: SocketDev/socket-registry/.github/actions/cleanup-git-signing@6147a08ccc20fcb1f690dcc4650ec745776b3345 # main
+      - uses: SocketDev/socket-registry/.github/actions/cleanup-git-signing@8d54162f37b88ef2970a892b6c619b7c064f0c23 # main
         if: always()
 
   notify:

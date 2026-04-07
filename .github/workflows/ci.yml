@@ -37,7 +37,7 @@ jobs:
     name: Lint, Type, Validation
     runs-on: ubuntu-latest
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@6147a08ccc20fcb1f690dcc4650ec745776b3345 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@8d54162f37b88ef2970a892b6c619b7c064f0c23 # main
 
       - name: Lint checks
         shell: bash
@@ -92,7 +92,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@6147a08ccc20fcb1f690dcc4650ec745776b3345 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@8d54162f37b88ef2970a892b6c619b7c064f0c23 # main
 
       # Platform-specific tests go here
       # Package-specific build/test workflows:

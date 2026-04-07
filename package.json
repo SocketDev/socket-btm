@@ -22,6 +22,7 @@
     "format:check": "oxfmt --check .",
     "lint": "node scripts/lint.mjs",
     "lint:fix": "node scripts/lint.mjs --fix",
+    "security": "agentshield scan && { command -v zizmor >/dev/null && zizmor .github/ || echo 'zizmor not installed — run pnpm run setup to install'; }",
     "prepare": "husky",
     "release": "pnpm --filter node-smol-builder release",
     "release:publish": "pnpm --filter node-smol-builder release:publish",
@@ -35,6 +36,7 @@
   "devDependencies": {
     "@anthropic-ai/claude-code": "catalog:",
     "@socketsecurity/lib": "catalog:",
+    "ecc-agentshield": "catalog:",
     "docsify-cli": "4.4.4",
     "husky": "9.1.7",
     "oxfmt": "0.37.0",

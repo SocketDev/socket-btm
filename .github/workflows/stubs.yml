@@ -217,7 +217,7 @@ jobs:
           node-version-file: .node-version
           cache: ''
 
-      - uses: SocketDev/socket-registry/.github/actions/install@ec0af5ed4601f2bca8c042b290135c30854648d9 # main
+      - uses: SocketDev/socket-registry/.github/actions/install@1a5d8702bfbf8fe792a6888e5a31d33cf202ebb5 # main
         if: matrix.os != 'linux'
 
       - name: Setup build environment (macOS)

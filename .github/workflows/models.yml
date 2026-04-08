@@ -70,7 +70,7 @@ jobs:
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         # Note: version is specified in package.json packageManager field, not here
 
-      - uses: SocketDev/socket-registry/.github/actions/install@ec0af5ed4601f2bca8c042b290135c30854648d9 # main
+      - uses: SocketDev/socket-registry/.github/actions/install@1a5d8702bfbf8fe792a6888e5a31d33cf202ebb5 # main
 
       - name: Free up disk space
         run: |

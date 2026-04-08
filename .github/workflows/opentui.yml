@@ -147,7 +147,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
 
-      - uses: SocketDev/socket-registry/.github/actions/install@a2508ee16ecd49224d4367d262fd83a2ca8473c8 # main
+      - uses: SocketDev/socket-registry/.github/actions/install@d425cd0501e354096f35043e1badecc370a2fecf # main
 
       - name: Setup Zig
         uses: goto-bus-stop/setup-zig@abea47f85e598557f500fa1fd2ab7464f5f5e2d0 # v2

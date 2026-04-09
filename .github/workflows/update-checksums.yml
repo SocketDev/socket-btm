@@ -14,9 +14,9 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@4edf2e3c3beff7d536e79ce43dfb61abba7cb537 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@ed3119078118d558f095e9adf8800263166d65f9 # main
 
-      - uses: SocketDev/socket-registry/.github/actions/setup-git-signing@4edf2e3c3beff7d536e79ce43dfb61abba7cb537 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-git-signing@ed3119078118d558f095e9adf8800263166d65f9 # main
         with:
           gpg-private-key: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
 
@@ -46,5 +46,5 @@ jobs:
           git commit -m "chore: update release checksums"
           git push
 
-      - uses: SocketDev/socket-registry/.github/actions/cleanup-git-signing@4edf2e3c3beff7d536e79ce43dfb61abba7cb537 # main
+      - uses: SocketDev/socket-registry/.github/actions/cleanup-git-signing@ed3119078118d558f095e9adf8800263166d65f9 # main
         if: always()

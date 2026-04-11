@@ -1,14 +1,13 @@
-# Wait 7 days (10080 minutes) before installing newly published packages.
-minimumReleaseAge: 10080
-minimumReleaseAgeExclude:
-  - '@anthropic-ai/claude-code@2.1.92'
-  - '@socketaddon/*'
-  - '@socketbin/*'
-  - '@socketregistry/*'
-  - '@socketsecurity/*'
 
 packages:
   - packages/*
+
+# Packages allowed to run build scripts (pnpm v11 strictDepBuilds default).
+allowBuilds:
+  docsify: true
+  esbuild: true
+  onnxruntime-node: true
+  postject: true
 
 catalog:
   '@anthropic-ai/claude-code': 2.1.92
@@ -33,3 +32,15 @@ catalog:
   vitest: 4.0.3
   yoctocolors-cjs: 2.1.3
   zod: 4.3.6
+# Wait 7 days (10080 minutes) before installing newly published packages.
+minimumReleaseAge: 10080
+minimumReleaseAgeExclude:
+  - '@anthropic-ai/claude-code@2.1.92'
+  - '@socketaddon/*'
+  - '@socketbin/*'
+  - '@socketregistry/*'
+  - '@socketsecurity/*'
+
+# Dependency overrides (migrated from package.json pnpm.overrides).
+overrides:
+  vite: '7.3.2'

@@ -194,7 +194,7 @@ jobs:
             echo "Debug mode: $DEBUG_INPUT"
           fi
 
-      - uses: SocketDev/socket-registry/.github/actions/setup@96c2a403934488b2b1d6127e44f65fd2c36c1150 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup@bab1dc8adc59a21c04fa73d3dd4a333c12e2ca9b # main
 
       - name: Load Node.js version
         id: node-version
@@ -205,7 +205,7 @@ jobs:
           echo "node-version=$NODE_BUILD_VERSION" >> $GITHUB_OUTPUT
           echo "Loaded Node.js build version: $NODE_BUILD_VERSION"
 
-      - uses: SocketDev/socket-registry/.github/actions/install@96c2a403934488b2b1d6127e44f65fd2c36c1150 # main
+      - uses: SocketDev/socket-registry/.github/actions/install@bab1dc8adc59a21c04fa73d3dd4a333c12e2ca9b # main
 
       - name: Load tool versions
         id: tool-versions

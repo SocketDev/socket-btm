@@ -93,9 +93,9 @@ jobs:
           echo "onnx-version=$ONNX_VERSION" >> $GITHUB_OUTPUT
           echo "Loaded Node.js: $NODE_VERSION, ONNX Runtime: $ONNX_VERSION"
 
-      - uses: SocketDev/socket-registry/.github/actions/setup@96c2a403934488b2b1d6127e44f65fd2c36c1150 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup@bab1dc8adc59a21c04fa73d3dd4a333c12e2ca9b # main
 
-      - uses: SocketDev/socket-registry/.github/actions/install@96c2a403934488b2b1d6127e44f65fd2c36c1150 # main
+      - uses: SocketDev/socket-registry/.github/actions/install@bab1dc8adc59a21c04fa73d3dd4a333c12e2ca9b # main
 
       - name: Load cache version from centralized config
         id: cache-version

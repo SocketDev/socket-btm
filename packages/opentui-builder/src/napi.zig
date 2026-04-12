@@ -198,7 +198,7 @@ pub fn createThreadsafeFunction(
 ) ?napi_threadsafe_function {
     var result: napi_threadsafe_function = undefined;
     var async_name: napi_value = null;
-    _ = c.napi_create_string_utf8(env, name, std.mem.len(name), &async_name);
+    _ = c.napi_create_string_utf8(env, name, std.mem.span(name).len, &async_name);
     const status = c.napi_create_threadsafe_function(
         env,
         js_func,

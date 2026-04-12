@@ -137,7 +137,7 @@ fn buildTarget(
 
     // Create the upstream OpenTUI lib module
     const upstream_module = b.createModule(.{
-        .root_source_file = b.path("upstream/opentui/packages/core/src/zig/lib.zig"),
+        .root_source_file = b.path("lib.zig"),
         .target = target,
         .optimize = optimize,
     });

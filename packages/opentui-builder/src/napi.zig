@@ -172,7 +172,7 @@ pub fn unwrapPointer(env: napi_env, value: napi_value, comptime T: type) ?*T {
 }
 
 /// Create a JS ArrayBuffer backed by external data (no copy). Returns null on error.
-pub fn createArrayBufferExternal(env: napi_env, data: [*]anyopaque, len: usize) napi_value {
+pub fn createArrayBufferExternal(env: napi_env, data: *anyopaque, len: usize) napi_value {
     var result: napi_value = null;
     _ = check(env, c.napi_create_external_arraybuffer(env, data, len, null, null, &result));
     return result;

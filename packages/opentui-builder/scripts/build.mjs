@@ -126,7 +126,7 @@ async function ensureZig() {
     await fs.mkdir(BUILD_ROOT, { recursive: true })
     await fs.writeFile(
       testFile,
-      'export fn _zig_link_test() callconv(.C) void {}\n',
+      'export fn _zig_link_test() callconv(.c) void {}\n',
     )
     const testResult = await spawn(
       zigBin,
@@ -237,9 +237,16 @@ async function buildNativeAddon(zigBin) {
     `-Dtarget=${zigTarget}`,
   ]
 
+  // Strip proxy vars — SFW sets these but Zig's HTTP client doesn't work through SFW's HTTPS proxy.
+  const zigEnv = { ...process.env }
+  delete zigEnv['HTTP_PROXY']
+  delete zigEnv['HTTPS_PROXY']
+  delete zigEnv['http_proxy']
+  delete zigEnv['https_proxy']
+
   const result = await spawn(zigBin, zigArgs, {
     cwd: SOURCE_PATCHED_DIR,
-    env: process.env,
+    env: zigEnv,
     shell: WIN32,
     stdio: 'inherit',
   })

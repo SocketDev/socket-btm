@@ -36,10 +36,9 @@ catalog:
 
 # Packages allowed to run build scripts (pnpm v11 strictDepBuilds default).
 allowBuilds:
-  docsify: true
+  docsify: false
   esbuild: true
   onnxruntime-node: true
-  postject: true
 
 # Dependency overrides (migrated from package.json pnpm.overrides).
 overrides:

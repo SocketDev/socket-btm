@@ -36,7 +36,6 @@ catalog:
 
 # Packages allowed to run build scripts (pnpm v11 strictDepBuilds default).
 allowBuilds:
-  docsify: false
   esbuild: true
   onnxruntime-node: true
 

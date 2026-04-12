@@ -237,23 +237,31 @@ async function buildNativeAddon(zigBin) {
     `-Dtarget=${zigTarget}`,
   ]
 
-  // Strip proxy vars — SFW sets these but Zig's HTTP client doesn't work through SFW's HTTPS proxy.
-  const zigEnv = { ...process.env }
-  delete zigEnv['HTTP_PROXY']
-  delete zigEnv['HTTPS_PROXY']
-  delete zigEnv['http_proxy']
-  delete zigEnv['https_proxy']
+  // Retry build up to 3 times — Zig fetches dependencies from GitHub at build time
+  // and CI connections can be flaky (HttpConnectionClosing errors).
+  let lastError
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const result = await spawn(zigBin, zigArgs, {
+      cwd: SOURCE_PATCHED_DIR,
+      shell: WIN32,
+      stdio: 'inherit',
+    })
 
-  const result = await spawn(zigBin, zigArgs, {
-    cwd: SOURCE_PATCHED_DIR,
-    env: zigEnv,
-    shell: WIN32,
-    stdio: 'inherit',
-  })
-
-  const exitCode = result.code ?? result.exitCode ?? 0
-  if (exitCode !== 0) {
-    throw new Error(`Zig build failed with exit code ${exitCode}`)
+    const exitCode = result.code ?? result.exitCode ?? 0
+    if (exitCode === 0) {
+      lastError = undefined
+      break
+    }
+    lastError = new Error(
+      `Zig build failed with exit code ${exitCode}`,
+    )
+    if (attempt < 3) {
+      logger.warn(`Build attempt ${attempt}/3 failed, retrying in ${attempt * 2}s...`)
+      await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
+    }
+  }
+  if (lastError) {
+    throw lastError
   }
 
   // Find the built shared library

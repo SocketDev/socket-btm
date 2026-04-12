@@ -250,10 +250,12 @@ jobs:
           echo "Zig location: $(which zig)"
           zig version
 
+          # Run build directly (not through pnpm shim) to avoid SFW intercepting
+          # Zig's HTTPS dependency fetches with SSL errors.
           if [ "$BUILD_MODE" = "prod" ]; then
-            pnpm --filter opentui-builder build --prod
+            node packages/opentui-builder/scripts/build.mjs --prod
           else
-            pnpm --filter opentui-builder build --dev
+            node packages/opentui-builder/scripts/build.mjs --dev
           fi
 
           echo "Build complete"

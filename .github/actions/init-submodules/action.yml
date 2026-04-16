@@ -1,0 +1,20 @@
+name: Initialize submodules
+description: Initialize specific git submodules needed for the build
+
+inputs:
+  submodules:
+    description: 'Space-separated list of submodule paths to initialize'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Initialize submodules
+      shell: bash
+      env:
+        SUBMODULES: ${{ inputs.submodules }}
+      run: |
+        for sm in $SUBMODULES; do
+          echo "Initializing submodule: $sm"
+          git submodule update --init "$sm"
+        done

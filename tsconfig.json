@@ -1,0 +1,10 @@
+{
+  "extends": "./.config/tsconfig.base.json",
+  "compilerOptions": {
+    "declarationMap": false,
+    "sourceMap": false,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.mts", "scripts/**/*.mts"],
+  "exclude": ["node_modules", "dist", "build", "coverage"]
+}

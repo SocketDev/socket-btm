@@ -1,0 +1,11 @@
+{
+  "$schema": "../build-infra/lib/external-tools-schema.json",
+  "description": "Package-level external tools for opentui-builder (Zig native module with node-api)",
+  "tools": {
+    "zig": {
+      "description": "Zig toolchain (required for native module compilation)",
+      "version": "0.15.2",
+      "notes": "Zig >= 0.15.2 required. On macOS 26+ use Zig 0.16.0-dev or later (0.15.x linker incompatible with macOS 26 SDK)."
+    }
+  }
+}

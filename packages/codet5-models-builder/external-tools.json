@@ -1,0 +1,6 @@
+{
+  "$schema": "../build-infra/lib/external-tools-schema.json",
+  "description": "External tools for CodeT5 model building (extends shared ML tools)",
+  "extends": "../build-infra/ml-tools-external-tools.json",
+  "tools": {}
+}

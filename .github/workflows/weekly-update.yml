@@ -1,0 +1,466 @@
+name: 🔄 Weekly Dependency Update
+
+on:
+  schedule:
+    # Run weekly on Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Check for updates without creating PR'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  check-updates:
+    name: Check for dependency updates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      has-updates: ${{ steps.check.outputs.has-updates }}
+      update-summary: ${{ steps.check.outputs.update-summary }}
+    steps:
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@34fef52be917f89dbbeb464860f2aaf0f3812c40 # main
+
+      - name: Check for upstream updates
+        id: check
+        shell: bash
+        run: |
+          set +o pipefail
+          echo "Checking for upstream dependency updates..."
+
+          HAS_UPDATES=false
+          SUMMARY=""
+
+          # Check submodule updates using git ls-remote (no submodule init needed).
+          # Reads current version from .gitmodules comment and queries remote tags.
+          check_submodule() {
+            local sm_path="$1"
+            local tag_pattern="$2"
+            local name="$3"
+
+            # Get remote URL from .gitmodules
+            local url
+            url=$(git config -f .gitmodules --get "submodule.${sm_path}.url" 2>/dev/null || true)
+            if [ -z "$url" ]; then
+              echo "Skipping $name: not found in .gitmodules"
+              return
+            fi
+
+            # Read current version from .gitmodules comment (# package-X.Y.Z)
+            local current_comment
+            current_comment=$(grep -B1 "\\[submodule \"${sm_path}\"\\]" .gitmodules | head -1 | sed 's/^# //' || true)
+            if [ -z "$current_comment" ]; then
+              current_comment="unknown"
+            fi
+
+            # Query remote tags matching pattern, exclude pre-releases
+            local latest_tag
+            latest_tag=$(git ls-remote --tags --refs "$url" "refs/tags/${tag_pattern}" 2>/dev/null \
+              | sed 's|.*refs/tags/||' \
+              | grep -v -E '(rc|alpha|beta|preview)' \
+              | sort -V \
+              | tail -1 || true)
+
+            if [ -z "$latest_tag" ]; then
+              echo "$name: up to date ($current_comment) [no matching remote tags]"
+              return
+            fi
+
+            # Compare: check if the current comment already contains the latest tag version.
+            # .gitmodules comments use format "package-X.Y.Z", tags use various formats.
+            if echo "$current_comment" | grep -qF "$latest_tag" || echo "$current_comment" | grep -qF "${latest_tag#v}"; then
+              echo "$name: up to date ($current_comment)"
+            else
+              echo "$name: $current_comment -> $latest_tag"
+              SUMMARY="${SUMMARY}${name}: ${current_comment} -> ${latest_tag}\n"
+              HAS_UPDATES=true
+            fi
+          }
+
+          # Check Node.js
+          check_submodule "packages/node-smol-builder/upstream/node" "v*.*.*" "Node.js"
+
+          # Check LIEF
+          check_submodule "packages/lief-builder/upstream/lief" "*.*.*" "LIEF"
+
+          # Check curl
+          check_submodule "packages/curl-builder/upstream/curl" "curl-*" "curl"
+
+          # Check mbedtls
+          check_submodule "packages/curl-builder/upstream/mbedtls" "v*.*.*" "mbedTLS"
+
+          # Check cJSON
+          check_submodule "packages/binject/upstream/cJSON" "v*.*.*" "cJSON"
+
+          # Check libdeflate
+          check_submodule "packages/binject/upstream/libdeflate" "v*.*" "libdeflate"
+
+          # Check zstd
+          check_submodule "packages/bin-infra/upstream/zstd" "v*.*.*" "zstd"
+
+          # Check yoga
+          check_submodule "packages/yoga-layout-builder/upstream/yoga" "v*.*.*" "Yoga"
+
+          # Check onnxruntime
+          check_submodule "packages/onnxruntime-builder/upstream/onnxruntime" "v*.*.*" "ONNXRuntime"
+
+          # Check iocraft
+          check_submodule "packages/iocraft-builder/upstream/iocraft" "v*.*.*" "iocraft"
+
+          # Check ink (npm package, not submodule - check GitHub releases)
+          echo "Checking ink..."
+          INK_CURRENT=$(jq -r '.sources.ink.version' packages/ink-builder/package.json 2>/dev/null || echo "unknown")
+          INK_LATEST=$(curl -s https://api.github.com/repos/vadimdemedes/ink/releases/latest | jq -r '.tag_name' | sed 's/^v//')
+          if [ -n "$INK_LATEST" ] && [ "$INK_LATEST" != "null" ] && [ "$INK_CURRENT" != "$INK_LATEST" ]; then
+            echo "ink: $INK_CURRENT -> $INK_LATEST"
+            SUMMARY="${SUMMARY}ink: ${INK_CURRENT} -> ${INK_LATEST}\n"
+            HAS_UPDATES=true
+          else
+            echo "ink: up to date ($INK_CURRENT)"
+          fi
+
+          # Check WPT streams (for fast-webstreams)
+          check_submodule "packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/streams" "epochs/*" "WPT-streams"
+
+          # Check for npm updates
+          echo ""
+          echo "Checking for npm package updates..."
+          NPM_UPDATES=$(pnpm outdated 2>/dev/null || true)
+          if [ -n "$NPM_UPDATES" ] && ! echo "$NPM_UPDATES" | grep -q "No outdated"; then
+            echo "npm packages have updates available"
+            HAS_UPDATES=true
+            SUMMARY="${SUMMARY}npm packages: updates available\n"
+          fi
+
+          echo "has-updates=$HAS_UPDATES" >> $GITHUB_OUTPUT
+          if [ -n "$SUMMARY" ]; then
+            SUMMARY_B64=$(printf '%b' "$SUMMARY" | base64 | tr -d '\n')
+            echo "update-summary=$SUMMARY_B64" >> $GITHUB_OUTPUT
+          fi
+
+          if [ "$HAS_UPDATES" = "true" ]; then
+            echo ""
+            echo "Updates available!"
+          else
+            echo ""
+            echo "All dependencies are up to date"
+          fi
+
+  apply-updates:
+    name: Apply updates with Claude Code
+    needs: check-updates
+    if: needs.check-updates.outputs.has-updates == 'true' && inputs.dry-run != true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # Claude Code needs submodules for updates but not recursive depth.
+          submodules: true
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: SocketDev/socket-registry/.github/actions/setup@34fef52be917f89dbbeb464860f2aaf0f3812c40 # main
+
+      - uses: SocketDev/socket-registry/.github/actions/install@34fef52be917f89dbbeb464860f2aaf0f3812c40 # main
+
+      - name: Create update branch
+        id: branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BRANCH_NAME="weekly-update-$(date +%Y%m%d)"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git checkout -b "$BRANCH_NAME"
+          echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+      - uses: SocketDev/socket-registry/.github/actions/setup-git-signing@34fef52be917f89dbbeb464860f2aaf0f3812c40 # main
+        with:
+          gpg-private-key: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
+
+      - name: Update dependencies (haiku — fast, cheap)
+        id: update
+        timeout-minutes: 10
+        shell: bash
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_ACTIONS: 'true'
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "ANTHROPIC_API_KEY not set - skipping automated update"
+            echo "success=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          set +e
+          claude --print \
+            --model haiku \
+            --max-turns 15 \
+            --allowedTools \
+              "Bash(pnpm:*)" \
+              "Bash(git add:*)" "Bash(git commit:*)" "Bash(git status:*)" "Bash(git diff:*)" "Bash(git log:*)" "Bash(git rev-parse:*)" \
+              "Read" "Write" "Edit" "Glob" "Grep" \
+            "$(cat <<'PROMPT'
+          /updating
+
+          <context>
+          You are an automated CI agent in a weekly dependency update workflow.
+          Git is configured with GPG signing. A branch has been created for you.
+          This repo uses git submodules for upstream dependencies.
+          </context>
+
+          <instructions>
+          Update all dependencies to their latest versions, including npm packages and upstream submodule pins.
+          Create one atomic commit per dependency update with a conventional commit message.
+          Leave all changes local — the workflow handles pushing and PR creation.
+          Do not run builds or tests — the next step handles that.
+          </instructions>
+
+          <success_criteria>
+          Each updated dependency has its own commit.
+          The lockfile is consistent with package.json changes.
+          No uncommitted changes remain in the working tree.
+          </success_criteria>
+          PROMPT
+          )" \
+            2>&1 | tee claude-output.log
+          CLAUDE_EXIT=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$CLAUDE_EXIT" -eq 0 ]; then
+            echo "success=true" >> $GITHUB_OUTPUT
+          else
+            echo "success=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run tests
+        id: tests
+        if: steps.update.outputs.success == 'true'
+        shell: bash
+        run: |
+          BUILD_EXIT=0
+          pnpm run build 2>&1 | tee build-output.log || BUILD_EXIT=$?
+
+          TEST_EXIT=0
+          pnpm test 2>&1 | tee test-output.log || TEST_EXIT=$?
+
+          if [ "$BUILD_EXIT" -eq 0 ] && [ "$TEST_EXIT" -eq 0 ]; then
+            echo "tests-passed=true" >> $GITHUB_OUTPUT
+          else
+            echo "tests-passed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Fix test failures (sonnet — smarter, escalated)
+        id: claude
+        if: steps.update.outputs.success == 'true' && steps.tests.outputs.tests-passed == 'false'
+        timeout-minutes: 15
+        shell: bash
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_ACTIONS: 'true'
+        run: |
+          FAILURE_LOG=""
+          if [ -f build-output.log ]; then
+            FAILURE_LOG+="=== BUILD OUTPUT (last 50 lines) ==="$'\n'
+            FAILURE_LOG+="$(tail -50 build-output.log)"$'\n\n'
+          fi
+          if [ -f test-output.log ]; then
+            FAILURE_LOG+="=== TEST OUTPUT (last 100 lines) ==="$'\n'
+            FAILURE_LOG+="$(tail -100 test-output.log)"$'\n'
+          fi
+
+          set +e
+          claude --print \
+            --model sonnet \
+            --max-turns 25 \
+            --allowedTools \
+              "Bash(pnpm:*)" \
+              "Bash(git add:*)" "Bash(git commit:*)" "Bash(git status:*)" "Bash(git diff:*)" "Bash(git log:*)" "Bash(git rev-parse:*)" \
+              "Read" "Write" "Edit" "Glob" "Grep" \
+            "$(cat <<PROMPT
+          Build or tests failed after dependency updates. Fix them.
+
+          <failure_output>
+          $FAILURE_LOG
+          </failure_output>
+
+          <instructions>
+          Diagnose the failure from the logs above.
+          Fix the code — do not revert dependency updates.
+          Re-run the failing build or tests to confirm the fix.
+          Commit all fixes with conventional commit messages.
+          </instructions>
+          PROMPT
+          )" \
+            2>&1 | tee -a claude-output.log
+          CLAUDE_EXIT=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$CLAUDE_EXIT" -eq 0 ]; then
+            echo "success=true" >> $GITHUB_OUTPUT
+          else
+            echo "success=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set final status
+        id: final
+        if: always()
+        env:
+          UPDATE_SUCCESS: ${{ steps.update.outputs.success }}
+          TESTS_PASSED: ${{ steps.tests.outputs.tests-passed }}
+          FIX_SUCCESS: ${{ steps.claude.outputs.success }}
+        run: |
+          if [ "$UPDATE_SUCCESS" = "true" ] && \
+             ( [ "$TESTS_PASSED" = "true" ] || [ "$FIX_SUCCESS" = "true" ] ); then
+            echo "success=true" >> $GITHUB_OUTPUT
+          else
+            echo "success=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate changes
+        id: validate
+        if: steps.final.outputs.success == 'true'
+        run: |
+          UNEXPECTED=""
+          for file in $(git diff --name-only origin/main..HEAD); do
+            case "$file" in
+              package.json|*/package.json|pnpm-lock.yaml|*/pnpm-lock.yaml|.npmrc|pnpm-workspace.yaml) ;;
+              src/*|test/*|*.ts|*.mts|*.js|*.mts) ;;
+              *) UNEXPECTED="$UNEXPECTED $file" ;;
+            esac
+          done
+          if [ -n "$UNEXPECTED" ]; then
+            echo "::error::Unexpected files modified by Claude:$UNEXPECTED"
+            echo "valid=false" >> $GITHUB_OUTPUT
+          else
+            echo "valid=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if [ -n "$(git status --porcelain)" ] || [ "$(git rev-list --count HEAD ^origin/main)" -gt 0 ]; then
+            echo "has-changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has-changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push branch
+        if: steps.final.outputs.success == 'true' && steps.validate.outputs.valid == 'true' && steps.changes.outputs.has-changes == 'true'
+        env:
+          BRANCH_NAME: ${{ steps.branch.outputs.branch }}
+        run: git push origin "$BRANCH_NAME"
+
+      - name: Create Pull Request
+        if: steps.final.outputs.success == 'true' && steps.validate.outputs.valid == 'true' && steps.changes.outputs.has-changes == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPDATE_SUMMARY_B64: ${{ needs.check-updates.outputs.update-summary }}
+          BRANCH_NAME: ${{ steps.branch.outputs.branch }}
+        run: |
+          COMMITS=$(git log --oneline origin/main..HEAD)
+          COMMIT_COUNT=$(git rev-list --count origin/main..HEAD)
+
+          # Decode update summary
+          SUMMARY=""
+          if [ -n "$UPDATE_SUMMARY_B64" ]; then
+            SUMMARY=$(echo "$UPDATE_SUMMARY_B64" | base64 -d)
+          fi
+
+          PR_BODY="## Weekly Dependency Update"$'\n\n'
+          PR_BODY+="Automated weekly update of npm packages and upstream submodules."$'\n\n'
+          if [ -n "$SUMMARY" ]; then
+            PR_BODY+="### Updates"$'\n\n'
+            PR_BODY+="\`\`\`"$'\n'
+            PR_BODY+="${SUMMARY}"$'\n'
+            PR_BODY+="\`\`\`"$'\n\n'
+          fi
+          PR_BODY+="---"$'\n\n'
+          PR_BODY+="### Commits (${COMMIT_COUNT})"$'\n\n'
+          PR_BODY+="<details>"$'\n'
+          PR_BODY+="<summary>View commit history</summary>"$'\n\n'
+          PR_BODY+="\`\`\`"$'\n'
+          PR_BODY+="${COMMITS}"$'\n'
+          PR_BODY+="\`\`\`"$'\n\n'
+          PR_BODY+="</details>"$'\n\n'
+          PR_BODY+="---"$'\n\n'
+          PR_BODY+="<sub>Generated by [weekly-update.yml](.github/workflows/weekly-update.yml)</sub>"
+
+          gh pr create \
+            --title "chore(deps): weekly dependency update ($(date +%Y-%m-%d))" \
+            --body "$PR_BODY" \
+            --draft \
+            --head "$BRANCH_NAME" \
+            --base main
+
+      - name: Add job summary
+        if: steps.final.outputs.success == 'true' && steps.validate.outputs.valid == 'true' && steps.changes.outputs.has-changes == 'true'
+        env:
+          UPDATE_SUMMARY_B64: ${{ needs.check-updates.outputs.update-summary }}
+          BRANCH_NAME: ${{ steps.branch.outputs.branch }}
+        run: |
+          SUMMARY=""
+          if [ -n "$UPDATE_SUMMARY_B64" ]; then
+            SUMMARY=$(echo "$UPDATE_SUMMARY_B64" | base64 -d)
+          fi
+          COMMIT_COUNT=$(git rev-list --count origin/main..HEAD)
+
+          echo "## Weekly Update Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${BRANCH_NAME}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Commits:** ${COMMIT_COUNT}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -n "$SUMMARY" ]; then
+            echo "### Updates Applied" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload Claude output
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: claude-output-${{ github.run_id }}
+          path: |
+            claude-output.log
+            build-output.log
+            test-output.log
+          retention-days: 7
+
+      - uses: SocketDev/socket-registry/.github/actions/cleanup-git-signing@34fef52be917f89dbbeb464860f2aaf0f3812c40 # main
+        if: always()
+
+  notify:
+    name: Notify results
+    needs: [check-updates, apply-updates]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Report status
+        env:
+          HAS_UPDATES: ${{ needs.check-updates.outputs.has-updates }}
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          if [ "$HAS_UPDATES" = "true" ]; then
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "Updates available (dry-run mode - no PR created)"
+            else
+              echo "Weekly update workflow completed"
+              echo "Check the PRs tab for the automated update PR"
+            fi
+          else
+            echo "All dependencies are up to date - no action needed!"
+          fi

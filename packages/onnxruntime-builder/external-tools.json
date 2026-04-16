@@ -1,0 +1,19 @@
+{
+  "$schema": "../build-infra/lib/external-tools-schema.json",
+  "description": "Package-level external tools for onnxruntime-builder (shared across all checkpoints)",
+  "tools": {
+    "cmake": {
+      "description": "CMake build system (required for ONNX Runtime)",
+      "version": "3.31.4"
+    },
+    "emscripten": {
+      "description": "Emscripten WASM compiler toolchain",
+      "version": "4.0.20",
+      "notes": "Installed via emsdk. Version 4.0+ required for correct WASM module generation."
+    },
+    "python3": {
+      "description": "Python 3 interpreter (required for Emscripten and build scripts)",
+      "version": "3.13.1"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "lief-builder",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Builds LIEF library for binary format manipulation",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./lib/ensure-lief": "./lib/ensure-lief.mts"
+  },
+  "scripts": {
+    "build": "node scripts/build.mts",
+    "clean": "node scripts/clean.mts",
+    "cover": "vitest run --coverage",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@socketsecurity/lib": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "build-infra": "workspace:*",
+    "vitest": "catalog:"
+  }
+}

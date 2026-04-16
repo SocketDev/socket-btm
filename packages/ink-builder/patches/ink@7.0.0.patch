@@ -1,0 +1,71 @@
+--- a/build/ink.js	2026-04-16 00:41:07
++++ b/build/ink.js	2026-04-16 00:41:07
+@@ -4,7 +4,7 @@
+ import ansiEscapes from 'ansi-escapes';
+ import isInCi from 'is-in-ci';
+ import autoBind from 'auto-bind';
+-import signalExit from 'signal-exit';
++import { onExit as signalExit } from 'signal-exit';
+ import patchConsole from 'patch-console';
+ import { LegacyRoot, ConcurrentRoot } from 'react-reconciler/constants.js';
+ import Yoga from 'yoga-layout';
+--- a/build/reconciler.js	2026-04-16 00:41:07
++++ b/build/reconciler.js	2026-04-16 00:41:07
+@@ -10,18 +10,11 @@
+ // accidentally breaking other third-party code.
+ // See https://github.com/vadimdemedes/ink/issues/384
+ // See https://github.com/vadimdemedes/ink/issues/648
+-if (process.env['DEV'] === 'true') {
+-    // Intentionally no warning when the package is missing.
+-    // DEV may be set for other reasons; devtools is opt-in via installing the package.
+-    let isDevtoolsInstalled = false;
+-    try {
+-        import.meta.resolve('react-devtools-core');
+-        isDevtoolsInstalled = true;
+-    }
+-    catch { }
+-    if (isDevtoolsInstalled) {
+-        await import('./devtools.js');
+-    }
++// Devtools disabled - no-op function to avoid top-level await.
++// Original devtools connection removed to prevent bundling issues.
++// See https://github.com/vadimdemedes/ink/issues/384
++function loadDevtools() {
++    // No-op: devtools intentionally disabled for bundled builds.
+ }
+ const diff = (before, after) => {
+     if (before === after) {
+@@ -68,19 +61,11 @@
+     name: 'ink',
+     version: reactVersion,
+ };
+-if (process.env['DEV'] === 'true') {
+-    try {
+-        const loaded = await loadPackageJson();
+-        packageInfo = {
+-            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+-            name: loaded.name || packageInfo.name,
+-            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+-            version: loaded.version || packageInfo.version,
+-        };
+-    }
+-    catch (error) {
+-        console.warn('Failed to load package.json in development mode. Falling back to default renderer metadata.', error);
+-    }
++// Devtools disabled - no-op function to avoid top-level await.
++// Original devtools connection removed to prevent bundling issues.
++// See https://github.com/vadimdemedes/ink/issues/384
++function loadDevtools() {
++    // No-op: devtools intentionally disabled for bundled builds.
+ }
+ export default createReconciler({
+     getRootHostContext: () => ({
+@@ -90,6 +75,8 @@
+     preparePortalMount: () => null,
+     clearContainer: () => false,
+     resetAfterCommit(rootNode) {
++        // Attempt to load devtools on first render.
++        loadDevtools();
+         if (typeof rootNode.onComputeLayout === 'function') {
+             rootNode.onComputeLayout();
+         }

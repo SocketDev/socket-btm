@@ -1,0 +1,53 @@
+# stubs-builder Makefile for Linux.
+# Stub binaries for compressed Node.js executables.
+
+# Include common definitions.
+include ../build-infra/make/common.mk
+include ../build-infra/make/platform-linux.mk
+
+# curl support for HTTPS update checking.
+include make/curl.mk
+
+# zstd compression library (vendored, cross-platform).
+include ../bin-infra/make/zstd.mk
+
+# Disable LTO — stubs links pre-built curl archives that may use
+# a different GCC LTO version (e.g., curl built with GCC 13, Alpine 3.21
+# ships GCC 14). LTO bytecode is not cross-version compatible.
+# -fno-lto is required explicitly so GCC skips LTO sections in the archives.
+OPT_FLAGS := $(filter-out -flto,$(OPT_FLAGS)) -fno-lto
+LDFLAGS_BASE := $(filter-out -flto,$(LDFLAGS_BASE)) -fno-lto
+
+TARGET_CLI = smol_stub
+SOURCE_CLI = src/socketsecurity/stubs-builder/elf_stub.c \
+             ../bin-infra/src/socketsecurity/bin-infra/smol_segment.c \
+             ../bin-infra/src/socketsecurity/bin-infra/smol_segment_reader.c \
+             ../build-infra/src/socketsecurity/build-infra/file_utils.c \
+             ../build-infra/src/socketsecurity/build-infra/path_utils.c
+
+SRC_DIR = src
+
+CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 $(POSIX_MACROS) -Isrc $(COMMON_INCLUDES) $(ZSTD_CFLAGS) $(CURL_CFLAGS) -DVERSION=\"$(VERSION)\"
+CRYPTO_LDFLAGS := $(shell PCDIR=$$(pkg-config --variable=libdir libcrypto 2>/dev/null); if [ -n "$$PCDIR" ] && [ -f "$$PCDIR/libcrypto.a" ]; then pkg-config --static --libs libcrypto; else echo "-L/usr/local/ssl/lib -lcrypto -lpthread -ldl"; fi)
+LDFLAGS = $(LDFLAGS_BASE) $(ZSTD_LDFLAGS) $(CURL_LDFLAGS) $(CRYPTO_LDFLAGS) -lz $(LINUX_STD_LIBS)
+
+# Check that required build tools are available.
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }
+	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
+
+# Build stub binary.
+all: check-tools $(ZSTD_LIB) $(OUT_DIR)/$(TARGET_CLI)
+
+$(OUT_DIR)/$(TARGET_CLI): $(SOURCE_CLI) $(ZSTD_LIB) | $(OUT_DIR)
+	$(CC) $(CFLAGS) -o $@ $(SOURCE_CLI) $(LDFLAGS)
+	@echo "Built: $(OUT_DIR)/$(TARGET_CLI)"
+
+$(OUT_DIR):
+	mkdir -p $@
+
+# Clean build artifacts.
+clean:
+	rm -rf $(OUT_DIR)
+
+.PHONY: all clean check-tools

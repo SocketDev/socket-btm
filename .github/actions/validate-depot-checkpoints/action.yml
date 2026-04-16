@@ -1,0 +1,103 @@
+name: Validate Depot Build Checkpoints
+description: |
+  Validates checkpoint archives exported from Depot Docker builds.
+
+  Verifies checkpoint tar archives are readable via `tar -tzf`. Prevents cache
+  corruption by catching issues before caching.
+
+  Exit codes: 0 (success or no checkpoints), 1 (corrupted archives detected).
+
+inputs:
+  package-path:
+    description: 'Relative path to package directory (e.g., packages/models)'
+    required: true
+  build-mode:
+    description: 'Build mode (prod or dev)'
+    required: true
+  package-name:
+    description: 'Package name for error messages (e.g., models, binject)'
+    required: true
+
+outputs:
+  checkpoints-found:
+    description: 'Whether checkpoint directories were found (true/false)'
+    value: ${{ steps.validate.outputs.checkpoints-found }}
+  valid:
+    description: 'Whether all checkpoints are valid (true/false)'
+    value: ${{ steps.validate.outputs.valid }}
+  message:
+    description: 'Validation result message'
+    value: ${{ steps.validate.outputs.message }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate checkpoint archive integrity
+      id: validate
+      shell: bash
+      env:
+        PACKAGE_PATH: ${{ inputs.package-path }}
+        BUILD_MODE: ${{ inputs.build-mode }}
+        PACKAGE_NAME: ${{ inputs.package-name }}
+      run: |
+        # Checkpoint directories: mode-specific and shared
+        readonly MODE_CHECKPOINT_DIR="${PACKAGE_PATH}/build/${BUILD_MODE}/checkpoints"
+        readonly SHARED_CHECKPOINT_DIR="${PACKAGE_PATH}/build/shared/checkpoints"
+        readonly CHECKPOINT_DIRS=("$MODE_CHECKPOINT_DIR" "$SHARED_CHECKPOINT_DIR")
+        readonly CHECKPOINT_FORMATS=("*.tar" "*.tar.gz" "*.tgz")
+
+        # Check if checkpoint directories exist
+        if [ ! -d "$MODE_CHECKPOINT_DIR" ] && [ ! -d "$SHARED_CHECKPOINT_DIR" ]; then
+          echo "⚠️ No checkpoint dirs found"
+          echo "checkpoints-found=false" >> $GITHUB_OUTPUT
+          echo "valid=false" >> $GITHUB_OUTPUT
+          echo "message=No checkpoint directories found" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        # Validate checkpoint archive integrity
+        CORRUPTED=0
+        VALIDATED=0
+        VALID_LIST=""
+
+        for checkpoint_dir in "${CHECKPOINT_DIRS[@]}"; do
+          [ -d "$checkpoint_dir" ] || continue
+          for format in "${CHECKPOINT_FORMATS[@]}"; do
+            for tarfile in "$checkpoint_dir"/$format; do
+              [ -e "$tarfile" ] || continue
+              VALIDATED=$((VALIDATED + 1))
+              if [[ "$tarfile" =~ \.(tar\.gz|tgz)$ ]]; then
+                TAR_CONTENTS=$(tar -tzf "$tarfile" 2>&1)
+              else
+                TAR_CONTENTS=$(tar -tf "$tarfile" 2>&1)
+              fi
+              if [ $? -ne 0 ] || [ -z "$TAR_CONTENTS" ]; then
+                echo "× Invalid: $(basename "$tarfile")"
+                CORRUPTED=1
+              else
+                VALID_LIST="${VALID_LIST} $(basename "$tarfile")"
+              fi
+            done
+          done
+        done
+
+        if [ $VALIDATED -eq 0 ]; then
+          echo "⚠️ No checkpoint archives found"
+          echo "checkpoints-found=true" >> $GITHUB_OUTPUT
+          echo "valid=false" >> $GITHUB_OUTPUT
+          echo "message=No checkpoint archives found" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        if [ $CORRUPTED -eq 0 ]; then
+          echo "✅ Checkpoints valid:${VALID_LIST}"
+          echo "checkpoints-found=true" >> $GITHUB_OUTPUT
+          echo "valid=true" >> $GITHUB_OUTPUT
+          echo "message=All checkpoints valid" >> $GITHUB_OUTPUT
+        else
+          echo "× Corrupted checkpoints - build will fail"
+          echo "checkpoints-found=true" >> $GITHUB_OUTPUT
+          echo "valid=false" >> $GITHUB_OUTPUT
+          echo "message=Corrupted checkpoints detected" >> $GITHUB_OUTPUT
+          exit 1
+        fi

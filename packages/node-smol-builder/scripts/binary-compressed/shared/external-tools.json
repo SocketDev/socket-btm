@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../build-infra/lib/external-tools-schema.json",
+  "description": "External tools required for the binary-compressed checkpoint phase (additional tools beyond build-infra)",
+  "tools": {
+    "lzfse": {
+      "description": "LZFSE compression library (build dependency)",
+      "notes": [
+        "LZFSE library is a build dependency used by LIEF builds",
+        "Compression now uses zstd (Zstandard) across all platforms",
+        "On Linux/Windows: Builds automatically from lzfse git submodule",
+        "No manual installation required - handled by build system"
+      ]
+    },
+    "libssl-dev": {
+      "description": "OpenSSL development files (required for SHA-512 hashing in compression tools)",
+      "version": "3.0.13",
+      "notes": "Ubuntu 24.04 uses OpenSSL 3.0.13. Required for static linking SHA-512 hash calculation in ELF decompressor."
+    }
+  }
+}

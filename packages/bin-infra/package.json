@@ -1,0 +1,31 @@
+{
+  "name": "bin-infra",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared binary infrastructure for binject, binpress, and binflate",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./lib/builder": "./lib/builder.mts",
+    "./lib/build-stubs": "./lib/build-stubs.mts",
+    "./test/helpers/segment-names": "./test/helpers/segment-names.mts",
+    "./test/helpers/binary-format-constants": "./test/helpers/binary-format-constants.mts",
+    "./test/helpers/test-utils": "./test/helpers/test-utils.mts"
+  },
+  "scripts": {
+    "build:stubs": "node lib/build-stubs.mts",
+    "clean": "node scripts/clean.mts",
+    "coverage": "vitest run --coverage",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@socketsecurity/lib": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "build-infra": "workspace:*",
+    "curl-builder": "workspace:*",
+    "lief-builder": "workspace:*",
+    "octokit": "catalog:",
+    "stubs-builder": "workspace:*",
+    "vitest": "catalog:"
+  }
+}

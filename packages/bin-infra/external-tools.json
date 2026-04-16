@@ -1,0 +1,41 @@
+{
+  "$schema": "../build-infra/lib/external-tools-schema.json",
+  "description": "External tools required for building bin-infra (LIEF library)",
+  "tools": {
+    "cmake": {
+      "description": "CMake build system generator",
+      "version": "3.28+",
+      "notes": [
+        "Required for building LIEF from source",
+        "On GitHub Actions: Pre-installed on all runners",
+        "Local development: Install via brew (macOS) or package manager (Linux)"
+      ]
+    },
+    "ninja": {
+      "description": "Ninja build system",
+      "version": "1.11+",
+      "notes": [
+        "Used by CMake as the build backend for LIEF",
+        "Provides faster parallel builds compared to Make"
+      ]
+    },
+    "python3": {
+      "description": "Python 3 interpreter",
+      "version": "3.11+",
+      "notes": ["Required by LIEF's CMake build scripts"]
+    },
+    "lief": {
+      "description": "LIEF library for binary manipulation",
+      "version": "v0.17.0",
+      "notes": [
+        "LIEF tracked via git submodule at packages/lief-builder/upstream/lief",
+        "Version pinned in .gitmodules",
+        "Built from source or downloaded as prebuilt binary from socket-btm releases"
+      ]
+    },
+    "zstd": {
+      "description": "Zstandard compression library",
+      "notes": ["Used for all compression/decompression on all platforms"]
+    }
+  }
+}

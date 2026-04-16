@@ -1,0 +1,94 @@
+# Build SMOL stubs in container to offload compute from GitHub Actions.
+# This Dockerfile supports building for linux/amd64 and linux/arm64.
+# glibc variant using AlmaLinux 8 (glibc 2.28) for maximum compatibility.
+
+FROM almalinux:8 AS build
+
+# Install build dependencies.
+# AlmaLinux 8 has glibc 2.28, which provides maximum compatibility with older Linux distributions.
+# Enable PowerTools for glibc-static, devel for openssl-static, EPEL for ccache.
+ARG PNPM_VERSION=11.0.0-rc.0
+RUN dnf -y update && \
+    dnf -y install epel-release dnf-plugins-core almalinux-release-devel && \
+    dnf config-manager --set-enabled powertools && \
+    dnf config-manager --set-enabled devel && \
+    dnf -y install \
+        gcc-toolset-13 gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ gcc-toolset-13-libstdc++-devel \
+        git \
+        make \
+        curl \
+        ca-certificates \
+        openssl-devel \
+        openssl-static \
+        zlib-devel \
+        zlib-static \
+        glibc-static \
+        && \
+    # Install Node.js from NodeSource.
+    curl -fsSL https://rpm.nodesource.com/setup_current.x | bash - && \
+    dnf -y install nodejs && \
+    ARCH=$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/') && \
+    curl -fsSL -o /tmp/pnpm.tar.gz "https://github.com/pnpm/pnpm/releases/download/v${PNPM_VERSION}/pnpm-linux-${ARCH}.tar.gz" && \
+    ACTUAL_SHA256=$(sha256sum /tmp/pnpm.tar.gz | cut -d' ' -f1) && \
+    if [ "$ARCH" = "x64" ]; then EXPECTED="fe82b94125a6b743456b869e823611a8837b545f2535e4602578e4c9fdb5742a"; \
+    else EXPECTED="69ad2d528f4a2c00fd42541a80c13491c57e66b2765b2d9d89829aeb0f6482be"; fi && \
+    if [ "$ACTUAL_SHA256" != "$EXPECTED" ]; then echo "pnpm checksum mismatch!" >&2; exit 1; fi && \
+    tar -xzf /tmp/pnpm.tar.gz -C /usr/local/bin && rm /tmp/pnpm.tar.gz && \
+    dnf clean all
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy workspace configuration files (needed for pnpm workspace).
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .gitmodules .node-version ./
+
+# Copy build-infra package (workspace dependency).
+COPY packages/build-infra ./packages/build-infra
+
+# Copy bin-infra package (binary format handling).
+COPY packages/bin-infra ./packages/bin-infra
+
+# Copy curl-builder package (workspace dependency for stubs).
+COPY packages/curl-builder ./packages/curl-builder
+
+# Copy lief-builder package (has lzfse make rules and headers).
+COPY packages/lief-builder/make ./packages/lief-builder/make
+COPY packages/lief-builder/upstream ./packages/lief-builder/upstream
+
+# Copy stubs-builder package (what we're building).
+COPY packages/stubs-builder ./packages/stubs-builder
+
+# Copy node-smol-builder package (workspace dependency).
+COPY packages/node-smol-builder ./packages/node-smol-builder
+
+# Install workspace dependencies.
+ENV CI=true
+RUN pnpm install --frozen-lockfile --filter build-infra --filter bin-infra --filter curl-builder --filter stubs-builder --filter node-smol-builder
+
+# Build stubs.
+ARG BUILD_MODE=prod
+ARG TARGETARCH
+# Cache version - managed centrally in .github/cache-versions.json
+ARG CACHE_VERSION=unset
+ENV BUILD_MODE=$BUILD_MODE
+
+# Build stubs (build-stubs.mts handles curl download and compilation).
+# Create symlink with TARGETARCH name for Docker COPY compatibility.
+RUN echo "Cache version: ${CACHE_VERSION}" && \
+    source /opt/rh/gcc-toolset-13/enable && \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        export TARGET_ARCH="x64"; \
+        export PLATFORM_ARCH="linux-x64"; \
+    else \
+        export TARGET_ARCH="arm64"; \
+        export PLATFORM_ARCH="linux-arm64"; \
+    fi && \
+    cd packages/bin-infra && \
+    node lib/build-stubs.mts && \
+    ln -s "${PLATFORM_ARCH}" "/workspace/packages/stubs-builder/build/${BUILD_MODE}/linux-${TARGETARCH}"
+
+# Export stage: Copy build artifacts (not entire filesystem).
+FROM scratch AS export
+ARG BUILD_MODE=prod
+ARG TARGETARCH
+COPY --from=build /workspace/packages/stubs-builder/build/${BUILD_MODE}/linux-${TARGETARCH}/out/Final /

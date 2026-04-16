@@ -1,0 +1,59 @@
+# BARE-METAL PERFORMANCE OPTIMIZATIONS
+# WARP 10: Extreme LLVM flags for theoretical maximum performance
+
+[build]
+rustflags = [
+  # Enable native CPU features (AVX2, SSE4.2, NEON, etc.)
+  "-C",
+  "target-cpu=native",
+
+  # WARP 10: Aggressive LLVM optimizations
+  "-C",
+  "llvm-args=-inline-threshold=1000", # Aggressive inlining (default: 225)
+  "-C",
+  "llvm-args=-unroll-threshold=300", # Loop unrolling (default: 150)
+  "-C",
+  "llvm-args=-vectorize-loops", # Force loop vectorization
+  "-C",
+  "llvm-args=-vectorize-slp", # Superword-level parallelism
+  "-C",
+  "llvm-args=-enable-gvn-hoist", # Hoist common expressions
+  "-C",
+  "llvm-args=-enable-load-pre", # Load pre-optimization
+]
+
+[target.x86_64-apple-darwin]
+rustflags = [
+  "-C",
+  "target-cpu=native",
+  "-C",
+  "llvm-args=-inline-threshold=1000",
+  "-C",
+  "llvm-args=-unroll-threshold=300",
+  "-C",
+  "llvm-args=-vectorize-loops",
+  "-C",
+  "llvm-args=-vectorize-slp",
+  "-C",
+  "llvm-args=-enable-gvn-hoist",
+  "-C",
+  "llvm-args=-enable-load-pre",
+]
+
+[target.aarch64-apple-darwin]
+rustflags = [
+  "-C",
+  "target-cpu=native",
+  "-C",
+  "llvm-args=-inline-threshold=1000",
+  "-C",
+  "llvm-args=-unroll-threshold=300",
+  "-C",
+  "llvm-args=-vectorize-loops",
+  "-C",
+  "llvm-args=-vectorize-slp",
+  "-C",
+  "llvm-args=-enable-gvn-hoist",
+  "-C",
+  "llvm-args=-enable-load-pre",
+]

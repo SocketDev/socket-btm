@@ -7,10 +7,18 @@ import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const packageDir = path.join(__dirname, '..')
-const buildDevDir = path.join(packageDir, 'build/dev/out/Final')
-const buildProdDir = path.join(packageDir, 'build/prod/out/Final')
+const platformArch = await getCurrentPlatformArch()
+const buildDevDir = path.join(packageDir, 'build/dev', platformArch, 'out/Final')
+const buildProdDir = path.join(
+  packageDir,
+  'build/prod',
+  platformArch,
+  'out/Final',
+)
 
 // Skip tests if build artifacts don't exist (expected in CI)
 const hasBuiltArtifacts = existsSync(buildDevDir) || existsSync(buildProdDir)
@@ -164,37 +172,17 @@ describe.skipIf(!hasBuiltArtifacts)('models build output', () => {
 
       expect(pkgJson.private).toBeTruthy()
     })
-
-    it('should have expected exports', async () => {
-      const pkgJson = JSON.parse(
-        await fs.readFile(path.join(packageDir, 'package.json'), 'utf8'),
-      )
-
-      expect(pkgJson.exports).toBeDefined()
-      // Check that exports include build paths for both dev and prod modes
-      expect(
-        pkgJson.exports['./build/dev/out/Final/minilm-l6/model.onnx'],
-      ).toBeDefined()
-      expect(
-        pkgJson.exports['./build/prod/out/Final/minilm-l6/model.onnx'],
-      ).toBeDefined()
-    })
   })
 
   describe('build mode support', () => {
     it('should support both dev (int8) and prod (int4) builds', () => {
-      const devDir = path.join(packageDir, 'build/dev/out/Final')
-      const prodDir = path.join(packageDir, 'build/prod/out/Final')
-
-      // At least one build mode should exist
-      expect(existsSync(devDir) || existsSync(prodDir)).toBeTruthy()
+      // At least one build mode should exist (build dir paths already scoped
+      // to build/<mode>/<platform-arch>/out/Final above).
+      expect(existsSync(buildDevDir) || existsSync(buildProdDir)).toBeTruthy()
     })
 
     it('int4 (prod) should provide size reduction vs int8 (dev) if both exist', async () => {
-      const devDir = path.join(packageDir, 'build/dev/out/Final')
-      const prodDir = path.join(packageDir, 'build/prod/out/Final')
-
-      if (!existsSync(devDir) || !existsSync(prodDir)) {
+      if (!existsSync(buildDevDir) || !existsSync(buildProdDir)) {
         // Skip if both modes not built
         return
       }
@@ -202,8 +190,8 @@ describe.skipIf(!hasBuiltArtifacts)('models build output', () => {
       const models = ['minilm-l6', 'codet5']
 
       for (const model of models) {
-        const int8Path = path.join(devDir, `${model}/model.onnx`)
-        const int4Path = path.join(prodDir, `${model}/model.onnx`)
+        const int8Path = path.join(buildDevDir, `${model}/model.onnx`)
+        const int4Path = path.join(buildProdDir, `${model}/model.onnx`)
 
         if (!existsSync(int8Path) || !existsSync(int4Path)) {
           // Skip if model not built in both modes

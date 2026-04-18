@@ -5,16 +5,6 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "exports": {
-    "./build/dev/out/Final/minilm-l6/model.onnx": "./build/dev/out/Final/minilm-l6/model.onnx",
-    "./build/dev/out/Final/minilm-l6/tokenizer.json": "./build/dev/out/Final/minilm-l6/tokenizer.json",
-    "./build/dev/out/Final/codet5/model.onnx": "./build/dev/out/Final/codet5/model.onnx",
-    "./build/dev/out/Final/codet5/tokenizer.json": "./build/dev/out/Final/codet5/tokenizer.json",
-    "./build/prod/out/Final/minilm-l6/model.onnx": "./build/prod/out/Final/minilm-l6/model.onnx",
-    "./build/prod/out/Final/minilm-l6/tokenizer.json": "./build/prod/out/Final/minilm-l6/tokenizer.json",
-    "./build/prod/out/Final/codet5/model.onnx": "./build/prod/out/Final/codet5/model.onnx",
-    "./build/prod/out/Final/codet5/tokenizer.json": "./build/prod/out/Final/codet5/tokenizer.json"
-  },
   "scripts": {
     "build": "node scripts/build.mts",
     "build:codet5": "node scripts/build.mts --codet5",

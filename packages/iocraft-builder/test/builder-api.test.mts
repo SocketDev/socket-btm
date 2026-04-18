@@ -10,7 +10,7 @@ describe('Builder API', () => {
   it('should create ViewBuilder with fluent API', async () => {
     // Placeholder: Actual tests require built native module.
     // Example test structure:
-    // const { ViewBuilder } = await import('../build/dev/out/iocraft.node')
+    // const { ViewBuilder } = await import('../build/dev/<platform-arch>/out/<platform-arch>/iocraft.node')
     // const view = new ViewBuilder()
     //   .width(100)
     //   .height(50)
@@ -25,7 +25,7 @@ describe('Builder API', () => {
   it('should create TextBuilder with fluent API', async () => {
     // Placeholder: Actual tests require built native module.
     // Example test structure:
-    // const { TextBuilder } = await import('../build/dev/out/iocraft.node')
+    // const { TextBuilder } = await import('../build/dev/<platform-arch>/out/<platform-arch>/iocraft.node')
     // const text = new TextBuilder('Hello World')
     //   .color('red')
     //   .bold()

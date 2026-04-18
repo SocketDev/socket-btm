@@ -14,7 +14,7 @@ const require = createRequire(import.meta.url)
 
 const bindingPath = path.join(
   __dirname,
-  '../build/dev/out/darwin-arm64/iocraft.node',
+  '../build/dev/darwin-arm64/out/darwin-arm64/iocraft.node',
 )
 const bindingExists = existsSync(bindingPath)
 

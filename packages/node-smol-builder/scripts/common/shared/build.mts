@@ -244,20 +244,15 @@ const PACKAGE_NAME = ''
 const { buildDir: SHARED_BUILD_DIR, nodeSourceDir: SHARED_SOURCE_DIR } =
   getSharedBuildPaths()
 
-// Directory structure (fully isolated by build mode for concurrent builds).
+// Directory structure (fully isolated by mode + platform-arch for concurrent builds).
 // build/shared/ - Shared pristine artifacts (cloned source, extracted to dev/prod).
 //   build/shared/source/ - Pristine Node.js source (archived in checkpoint).
 //   build/shared/checkpoints/ - Source-cloned checkpoint (shared across dev/prod).
-// build/dev/ - Dev build workspace (all artifacts isolated).
-//   build/dev/source/ - Dev Node.js source code (extracted from shared checkpoint).
-//   build/dev/out/ - Dev build outputs (Release, Stripped, Compressed, Final, etc.).
-//   build/dev/.cache/ - Dev compiled binary cache + cache-validation.hash.
-//   build/dev/checkpoints/ - Dev build checkpoints (source-patched, binary-released, etc.).
-// build/prod/ - Prod build workspace (all artifacts isolated).
-//   build/prod/source/ - Prod Node.js source code (extracted from shared checkpoint).
-//   build/prod/out/ - Prod build outputs (Release, Stripped, Compressed, Final, etc.).
-//   build/prod/.cache/ - Prod compiled binary cache + cache-validation.hash.
-//   build/prod/checkpoints/ - Prod build checkpoints (source-patched, binary-released, etc.).
+// build/<mode>/<platform-arch>/ - Build workspace for one mode on one target.
+//   build/<mode>/<platform-arch>/source/ - Node.js source (extracted from shared checkpoint).
+//   build/<mode>/<platform-arch>/out/ - Build outputs (Release, Stripped, Compressed, Final, ...).
+//   build/<mode>/<platform-arch>/.cache/ - Compiled binary cache + cache-validation.hash.
+//   build/<mode>/<platform-arch>/checkpoints/ - Build checkpoints (source-patched, binary-released, ...).
 
 /**
  * Normalize and deduplicate an array of file paths.

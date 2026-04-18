@@ -19,7 +19,7 @@ import process from 'node:process'
 import {
   TuiRenderer,
   JsStateHandle,
-} from '../build/dev/out/darwin-arm64/iocraft.node'
+} from '../build/dev/darwin-arm64/out/darwin-arm64/iocraft.node'
 
 // ============================================================================
 // State Management

@@ -14,7 +14,7 @@ describe('Functional API', () => {
   it('should create text component with text() helper', async () => {
     // Placeholder: Actual tests require built native module.
     // Example test structure:
-    // const { text } = await import('../build/dev/out/iocraft.node')
+    // const { text } = await import('../build/dev/<platform-arch>/out/<platform-arch>/iocraft.node')
     // const textNode = text('Hello World')
     // expect(textNode.type).toBe('Text')
     // expect(textNode.content).toBe('Hello World')
@@ -24,7 +24,7 @@ describe('Functional API', () => {
   it('should create view component with view() helper', async () => {
     // Placeholder: Actual tests require built native module.
     // Example test structure:
-    // const { view, text } = await import('../build/dev/out/iocraft.node')
+    // const { view, text } = await import('../build/dev/<platform-arch>/out/<platform-arch>/iocraft.node')
     // const child1 = text('Child 1')
     // const child2 = text('Child 2')
     // const viewNode = view([child1, child2])

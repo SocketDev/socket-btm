@@ -15,6 +15,8 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
+
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
@@ -24,7 +26,13 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const PACKAGE_ROOT = path.resolve(__dirname, '../..')
-const DEFAULT_BINARY = path.join(PACKAGE_ROOT, 'build/dev/out/Final/node/node')
+const PLATFORM_ARCH = await getCurrentPlatformArch()
+const DEFAULT_BINARY = path.join(
+  PACKAGE_ROOT,
+  'build/dev',
+  PLATFORM_ARCH,
+  'out/Final/node/node',
+)
 
 // Test code to run in the built binary
 // Tests are based on experimental-fast-webstreams test suite

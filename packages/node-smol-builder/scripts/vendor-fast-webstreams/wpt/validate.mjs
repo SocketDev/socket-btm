@@ -28,6 +28,8 @@ import process from 'node:process'
 
 import { fileURLToPath } from 'node:url'
 
+import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
+
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
@@ -42,7 +44,13 @@ process.on('uncaughtException', () => {})
 
 const PACKAGE_ROOT = path.resolve(__dirname, '../../..')
 const MONOREPO_ROOT = path.resolve(PACKAGE_ROOT, '../..')
-const DEFAULT_BINARY = path.join(PACKAGE_ROOT, 'build/dev/out/Final/node/node')
+const PLATFORM_ARCH = await getCurrentPlatformArch()
+const DEFAULT_BINARY = path.join(
+  PACKAGE_ROOT,
+  'build/dev',
+  PLATFORM_ARCH,
+  'out/Final/node/node',
+)
 const GITMODULES = path.join(MONOREPO_ROOT, '.gitmodules')
 const WPT_DIR = path.join(__dirname, 'streams')
 

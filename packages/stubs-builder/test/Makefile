@@ -1,15 +1,20 @@
 # Makefile for stub unit tests.
 #
 # Usage:
-#   make           - Build and run tests
-#   make test      - Build and run tests
-#   make clean     - Clean build artifacts
+#   make                       - Build and run tests (defaults to BUILD_MODE=dev)
+#   make BUILD_MODE=prod test  - Run in prod mode
+#   make clean                 - Clean build artifacts
 
 CC = cc
 CFLAGS = -Wall -Wextra -std=c11 -g -I../src -I../../../../../../bin-infra/src
 
-# Output directory.
-OUT_DIR = out
+# Mirror the main package layout build/<mode>/<platform-arch>/out/ so CI
+# and local builds don't collide and the **/build/ gitignore rule covers it.
+BUILD_MODE ?= dev
+PLATFORM ?= $(shell uname -s | tr '[:upper:]' '[:lower:]' | sed 's/darwin/darwin/;s/linux/linux/')
+ARCH ?= $(shell uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/;s/arm64/arm64/')
+PLATFORM_ARCH ?= $(PLATFORM)-$(ARCH)
+OUT_DIR = build/$(BUILD_MODE)/$(PLATFORM_ARCH)/out
 
 # Test targets.
 TESTS = update_config_test

@@ -25,6 +25,7 @@ import process from 'node:process'
 
 import { which } from '@socketsecurity/lib/bin'
 import { DARWIN, WIN32 } from '@socketsecurity/lib/constants/platform'
+import { getCI } from '@socketsecurity/lib/env/ci'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { toUnixPath } from '@socketsecurity/lib/paths/normalize'
@@ -649,7 +650,7 @@ export async function createCheckpoint(
   // (e.g., source-copied), it will need to rebuild from scratch rather than restoring
   // from checkpoint. This is intentional to optimize CI storage usage.
   const isCI = Boolean(
-    process.env['CI'] ||
+    getCI() ||
     process.env['GITHUB_ACTIONS'] ||
     process.env['GITLAB_CI'] ||
     process.env['CIRCLECI'] ||

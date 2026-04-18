@@ -7,7 +7,7 @@
  */
 
 import { existsSync } from 'node:fs'
-import { unlink } from 'node:fs/promises'
+import { stat, unlink, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 
@@ -83,9 +83,7 @@ describeOrSkip('Cross-platform binary manipulation', () => {
       test('should inject SEA blob into binary', async () => {
         // Write test blob to temp file (use .blob extension to avoid SEA config processing)
         const blobPath = path.join(tmpdir(), `test-blob-${Date.now()}.blob`)
-        await import('node:fs/promises').then(fs =>
-          fs.writeFile(blobPath, testSeaBlob),
-        )
+        await writeFile(blobPath, testSeaBlob)
 
         try {
           // Inject using binject
@@ -109,9 +107,7 @@ describeOrSkip('Cross-platform binary manipulation', () => {
 
           // Note: Output may be smaller than input for Mach-O due to signature stripping
           // We just verify the output exists and has reasonable size
-          const outputStats = await import('node:fs/promises').then(fs =>
-            fs.stat(outputPath),
-          )
+          const outputStats = await stat(outputPath)
           expect(outputStats.size).toBeGreaterThan(0)
         } finally {
           // Cleanup
@@ -135,9 +131,7 @@ describeOrSkip('Cross-platform binary manipulation', () => {
           tmpdir(),
           `test-blob-reinject-${Date.now()}.blob`,
         )
-        await import('node:fs/promises').then(fs =>
-          fs.writeFile(blobPath, newBlob),
-        )
+        await writeFile(blobPath, newBlob)
 
         try {
           // Re-inject
@@ -160,9 +154,7 @@ describeOrSkip('Cross-platform binary manipulation', () => {
           expect(existsSync(outputPath)).toBeTruthy()
 
           // Verify output still has reasonable size after re-injection
-          const afterStats = await import('node:fs/promises').then(fs =>
-            fs.stat(outputPath),
-          )
+          const afterStats = await stat(outputPath)
 
           // Just verify it's still a valid binary (not empty or corrupted)
           expect(afterStats.size).toBeGreaterThan(0)

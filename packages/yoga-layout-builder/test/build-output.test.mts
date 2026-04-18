@@ -3,6 +3,7 @@
  * Validates that the build process generates correct file structure and formats.
  */
 
+import { promises as fs } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -75,7 +76,6 @@ describe('yoga-layout-builder WASM output', () => {
         return
       }
 
-      const { promises: fs } = await import('node:fs')
       const content = await fs.readFile(mjsPath, 'utf8')
       // Build script strips the export statement for inlining
       expect(content).not.toMatch(/export\s+default/)

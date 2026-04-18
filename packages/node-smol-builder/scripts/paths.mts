@@ -17,6 +17,8 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { BUILD_STAGES, CHECKPOINTS } from 'build-infra/lib/constants'
+import { getAssetPlatformArch } from 'build-infra/lib/platform-mappings'
+
 import { getSocketHomePath } from '@socketsecurity/lib/paths/socket'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -36,6 +38,10 @@ export const UPSTREAM_PATH = path.join(PACKAGE_ROOT, 'upstream/node')
 
 /**
  * Get the default platform-arch string for the current system.
+ * Thin wrapper over build-infra's getAssetPlatformArch so the rest of
+ * node-smol-builder can keep its existing callsites while the shared
+ * helper remains the source of truth.
+ *
  * @param {string} [platform] - Target platform (defaults to process.platform)
  * @param {string} [arch] - Target architecture (defaults to process.arch)
  * @param {string} [libc] - C library variant ('musl' for Alpine Linux)
@@ -46,19 +52,7 @@ export function getDefaultPlatformArch(
   arch = process.arch,
   libc,
 ) {
-  // Normalize platform names
-  const normalizedPlatform =
-    platform === 'win32' ? 'win' : platform === 'darwin' ? 'darwin' : 'linux'
-
-  // Normalize arch names
-  const normalizedArch = arch === 'arm64' ? 'arm64' : 'x64'
-
-  // Add libc suffix for Linux musl builds
-  if (normalizedPlatform === 'linux' && libc === 'musl') {
-    return `${normalizedPlatform}-${normalizedArch}-musl`
-  }
-
-  return `${normalizedPlatform}-${normalizedArch}`
+  return getAssetPlatformArch(platform, arch, libc)
 }
 
 /**

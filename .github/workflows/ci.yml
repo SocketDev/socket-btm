@@ -17,7 +17,7 @@ on:
         required: false
         type: string
         # Default should match .node-version at monorepo root
-        default: '["24.12.0"]'
+        default: '["25.9.0"]'
       debug:
         description: 'Debug (0|1|namespace[,...])'
         required: false

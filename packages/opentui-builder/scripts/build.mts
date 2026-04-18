@@ -35,7 +35,6 @@ import { spawn } from '@socketsecurity/lib/spawn'
 import { copySource } from './source-copied/copy-source.mts'
 import { applyPatches } from './source-patched/apply-patches.mts'
 import {
-  BUILD_ROOT,
   LIBRARY_EXTENSIONS,
   LIBRARY_PREFIXES,
   PACKAGE_ROOT,
@@ -125,8 +124,10 @@ async function ensureZig() {
   // symbols (abort, bzero, etc.) are undefined. Detect this early
   // with a trivial link test instead of failing deep in the build.
   try {
-    const testFile = path.join(BUILD_ROOT, '_zig_link_test.zig')
-    await safeMkdir(BUILD_ROOT)
+    // Zig linker probe — scope to BUILD_DIR (build/<mode>/<platform-arch>)
+    // so concurrent builds on different platforms don't collide on these names.
+    const testFile = path.join(BUILD_DIR, '_zig_link_test.zig')
+    await safeMkdir(BUILD_DIR)
     await fs.writeFile(
       testFile,
       'export fn _zig_link_test() callconv(.c) void {}\n',
@@ -134,13 +135,13 @@ async function ensureZig() {
     const testResult = await spawn(
       zigBin,
       ['build-lib', testFile, '-dynamic', '-ODebug'],
-      { cwd: BUILD_ROOT, stdio: 'pipe' },
+      { cwd: BUILD_DIR, stdio: 'pipe' },
     )
     const testExit = testResult.code ?? testResult.exitCode ?? 0
     // Clean up test artifacts.
     await safeDelete(testFile)
-    await safeDelete(path.join(BUILD_ROOT, '_zig_link_test.dylib'))
-    await safeDelete(path.join(BUILD_ROOT, '_zig_link_test.so'))
+    await safeDelete(path.join(BUILD_DIR, '_zig_link_test.dylib'))
+    await safeDelete(path.join(BUILD_DIR, '_zig_link_test.so'))
     if (testExit !== 0) {
       printError(
         `Zig ${result.version ?? 'unknown'} cannot link on this platform.`,

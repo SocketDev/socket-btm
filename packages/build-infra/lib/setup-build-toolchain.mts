@@ -1,5 +1,3 @@
-import process from 'node:process'
-
 /**
  * @fileoverview Consolidated build toolchain setup utilities
  *
@@ -17,6 +15,8 @@ import process from 'node:process'
  *
  *   await setup()
  */
+
+import { getCI } from '@socketsecurity/lib/env/ci'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
@@ -147,8 +147,10 @@ async function setupWindows(config, packageRoot, logger) {
 }
 
 /**
- * Check if running in CI environment
+ * Check if running in CI environment.
+ * Thin re-export of @socketsecurity/lib's getCI() so the 6 packages that
+ * already import isCI from here keep working without churn.
  */
 export function isCI() {
-  return Boolean(process.env.CI)
+  return getCI()
 }

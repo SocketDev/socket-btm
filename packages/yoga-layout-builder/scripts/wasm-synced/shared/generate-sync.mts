@@ -6,6 +6,7 @@
  */
 
 import { existsSync, promises as fs } from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
@@ -108,7 +109,6 @@ export async function generateSync(options) {
     CHECKPOINTS.WASM_SYNCED,
     async () => {
       // Smoke test: Verify sync wrapper loads and has expected exports.
-      const { createRequire } = await import('node:module')
       const _require = createRequire(import.meta.url)
 
       const syncStats = await fs.stat(syncCjsFile)

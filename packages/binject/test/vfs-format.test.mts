@@ -3,7 +3,7 @@
  * Tests VFS input format handling: directories, .tar, .tar.gz
  */
 
-import { promises as fs } from 'node:fs'
+import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -125,14 +125,9 @@ function createTar(files) {
 }
 
 describe('vFS Format Detection', () => {
-  beforeAll(async () => {
+  beforeAll(() => {
     // Check if binject exists
-    try {
-      await fs.access(BINJECT)
-      binjectExists = true
-    } catch {
-      binjectExists = false
-    }
+    binjectExists = existsSync(BINJECT)
   })
 
   beforeEach(async () => {

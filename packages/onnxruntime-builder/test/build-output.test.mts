@@ -3,6 +3,7 @@
  * Validates that the build process generates correct file structure and formats.
  */
 
+import { promises as fs } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -77,7 +78,6 @@ describe('onnxruntime-builder WASM output', () => {
         return
       }
 
-      const { promises: fs } = await import('node:fs')
       const content = await fs.readFile(mjsPath, 'utf8')
       // ONNX Runtime specific exports
       expect(content).toMatch(/ort|onnx/i)

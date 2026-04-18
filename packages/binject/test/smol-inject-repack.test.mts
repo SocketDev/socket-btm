@@ -77,11 +77,6 @@ async function execCommand(command, args = [], options = {}) {
     proc.on('close', code => {
       resolve({ code, stderr, stdout })
     })
-
-    // Handle spawn Promise rejection (non-zero exit codes)
-    spawnPromise.catch(() => {
-      // Already handled by 'close' event
-    })
   })
 }
 

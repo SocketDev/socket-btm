@@ -18,6 +18,7 @@ import { CHECKPOINTS } from 'build-infra/lib/constants'
 import { generateWasmSyncWrapper } from 'build-infra/wasm-synced/wasm-sync-wrapper'
 import MagicString from 'magic-string'
 
+import YGEnums from '../../../src/wrapper/YGEnums.mts'
 import { PACKAGE_ROOT } from '../../paths.mts'
 
 const logger = getDefaultLogger()
@@ -138,10 +139,8 @@ export async function generateSync(options) {
         )
       }
 
-      // Load YGEnums source for dynamic validation (not hardcoded values).
-      // This ensures smoke tests remain valid when upstream Yoga updates enum values.
-      const ygEnumsModule = await import(YG_ENUMS_FILE)
-      const YGEnums = ygEnumsModule.default
+      // YGEnums is statically imported at the top of the module so smoke-test
+      // validation stays in sync with the wrapper-source enum values.
 
       // Critical enum constants that must be present and match YGEnums source.
       // These are commonly used in yoga-layout API and catch YGEnums sync issues.

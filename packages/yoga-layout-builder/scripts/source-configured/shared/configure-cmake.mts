@@ -4,7 +4,7 @@
  * Configures CMake with Emscripten toolchain and optimization flags.
  */
 
-import { existsSync, promises as fs } from 'node:fs'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -160,7 +160,11 @@ export async function configureCMake(options) {
     CHECKPOINTS.SOURCE_CONFIGURED,
     async () => {
       // Smoke test: Verify CMake build directory exists
-      await fs.access(cmakeBuildDir)
+      if (!existsSync(cmakeBuildDir)) {
+        throw new Error(
+          `CMake build directory missing after configure: ${cmakeBuildDir}`,
+        )
+      }
       logger.substep('CMake build directory validated')
     },
     {

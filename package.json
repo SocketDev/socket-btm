@@ -17,7 +17,6 @@
     "cover": "node packages/bin-infra/scripts/run-coverage.js all",
     "docs:cli": "glow",
     "docs:serve": "docsify serve packages --port 3000",
-    "docs:setup": "node scripts/setup-docs.mts",
     "fix": "node scripts/fix.mts",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",

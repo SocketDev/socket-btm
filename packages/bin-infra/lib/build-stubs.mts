@@ -30,6 +30,7 @@ import { verifyReleaseChecksum } from 'build-infra/lib/release-checksums'
 import { ensureCurl } from 'curl-builder/lib/ensure-curl'
 
 import { envAsBoolean } from '@socketsecurity/lib/env'
+import { getCI } from '@socketsecurity/lib/env/ci'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import {
@@ -373,7 +374,7 @@ export async function ensureStubs(options = {}) {
     logger.info(`Source build failed: ${error?.message || 'Unknown error'}`)
 
     // In CI (stub build workflow), fail immediately without fallback.
-    if ('CI' in process.env) {
+    if (getCI()) {
       throw new Error(
         `Stub build from source failed in CI - no fallback allowed: ${error?.message || 'Unknown error'}`,
         { cause: error },

@@ -133,11 +133,16 @@ jobs:
           echo "Loaded Node.js: $NODE_VERSION, iocraft: $IOCRAFT_VERSION"
         shell: bash
 
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1 (stable)
-        with:
-          toolchain: stable
-          targets: ${{ matrix.target }}
+      - name: Add Rust target
+        # GitHub runners already ship rustup + stable toolchain, so we just
+        # install the matrix target here (mirrors dtolnay/rust-toolchain's
+        # 'targets:' input without pulling in a third-party action).
+        env:
+          TARGET: ${{ matrix.target }}
+        shell: bash
+        run: |
+          rustup show active-toolchain || rustup default stable
+          rustup target add "$TARGET"
 
       - name: Verify Rust installation
         shell: bash

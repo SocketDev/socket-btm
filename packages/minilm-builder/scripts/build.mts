@@ -33,7 +33,12 @@ import { safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
-import { PYTHON_DIR, getBuildPaths, getModelPaths } from './paths.mts'
+import {
+  PYTHON_DIR,
+  getBuildPaths,
+  getCurrentPlatform,
+  getModelPaths,
+} from './paths.mts'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -60,13 +65,16 @@ const args = new Set(process.argv.slice(2))
 const FORCE_BUILD = args.has('--force')
 // Quantization level: int8 (dev, default) vs int4 (prod, smaller).
 const QUANT_LEVEL = args.has('--int4') ? 'int4' : 'int8'
+// Build mode mirrors QUANT_LEVEL: int4 -> prod, int8 -> dev.
+const BUILD_MODE = QUANT_LEVEL === 'int4' ? 'prod' : 'dev'
 
 // Get paths from source of truth
+const PLATFORM_ARCH = await getCurrentPlatform()
 const {
   buildDir: BUILD_DIR,
   cacheDir: CACHE_DIR,
   modelsDir: MODELS_DIR,
-} = getBuildPaths(QUANT_LEVEL)
+} = getBuildPaths(BUILD_MODE, PLATFORM_ARCH, QUANT_LEVEL)
 
 // Model configuration - Read model source from package.json.
 const minilmSource = packageJson.sources?.minilm
@@ -154,7 +162,7 @@ async function downloadModels() {
     logger.substep(`Model: ${model.name}`)
 
     try {
-      const { cacheModelDir } = getModelPaths(QUANT_LEVEL, model.outputName)
+      const { cacheModelDir } = getModelPaths(BUILD_MODE, PLATFORM_ARCH, QUANT_LEVEL, model.outputName)
       await runPythonScript('download.py', [model.name, cacheModelDir])
       logger.success(`Downloaded: ${model.name}`)
     } catch (error) {
@@ -194,6 +202,8 @@ async function convertToOnnx() {
   for (const model of MODELS) {
     logger.substep(`Converting: ${model.name}`)
     const { cacheModelDir, onnxModelDir } = getModelPaths(
+      BUILD_MODE,
+      PLATFORM_ARCH,
       QUANT_LEVEL,
       model.outputName,
     )
@@ -206,7 +216,7 @@ async function convertToOnnx() {
   await createCheckpoint(BUILD_DIR, CHECKPOINTS.CONVERTED, async () => {
     // Smoke test: Verify ONNX models exist
     for (const model of MODELS) {
-      const { onnxModelFile } = getModelPaths(QUANT_LEVEL, model.outputName)
+      const { onnxModelFile } = getModelPaths(BUILD_MODE, PLATFORM_ARCH, QUANT_LEVEL, model.outputName)
       if (!existsSync(onnxModelFile)) {
         throw new Error(`Converted model not found: ${onnxModelFile}`)
       }
@@ -234,7 +244,7 @@ async function quantizeModels() {
       optimizedModelFile,
       quantizedModelDir,
       quantizedModelFile,
-    } = getModelPaths(QUANT_LEVEL, model.outputName)
+    } = getModelPaths(BUILD_MODE, PLATFORM_ARCH, QUANT_LEVEL, model.outputName)
 
     const sizeBefore = await getFileSize(optimizedModelFile)
     logger.substep(`  Size before: ${sizeBefore}`)
@@ -252,6 +262,8 @@ async function quantizeModels() {
     // Smoke test: Verify quantized models exist
     for (const model of MODELS) {
       const { quantizedModelFile } = getModelPaths(
+        BUILD_MODE,
+        PLATFORM_ARCH,
         QUANT_LEVEL,
         model.outputName,
       )
@@ -280,6 +292,8 @@ async function optimizeGraphs() {
 
     try {
       const { onnxModelFile, optimizedModelFile } = getModelPaths(
+        BUILD_MODE,
+        PLATFORM_ARCH,
         QUANT_LEVEL,
         model.outputName,
       )
@@ -313,6 +327,8 @@ async function optimizeGraphs() {
     // Smoke test: Verify optimized models exist
     for (const model of MODELS) {
       const { optimizedModelFile } = getModelPaths(
+        BUILD_MODE,
+        PLATFORM_ARCH,
         QUANT_LEVEL,
         model.outputName,
       )
@@ -341,6 +357,8 @@ async function verifyModels() {
 
     try {
       const { quantizedModelDir, quantizedModelFile } = getModelPaths(
+        BUILD_MODE,
+        PLATFORM_ARCH,
         QUANT_LEVEL,
         model.outputName,
       )
@@ -374,6 +392,8 @@ async function verifyModels() {
     // Smoke test: Verify quantized models exist
     for (const model of MODELS) {
       const { quantizedModelFile } = getModelPaths(
+        BUILD_MODE,
+        PLATFORM_ARCH,
         QUANT_LEVEL,
         model.outputName,
       )
@@ -399,7 +419,7 @@ async function exportModels() {
       quantizedModelDir,
       quantizedModelFile,
       tokenizerDir,
-    } = getModelPaths(QUANT_LEVEL, model.outputName)
+    } = getModelPaths(BUILD_MODE, PLATFORM_ARCH, QUANT_LEVEL, model.outputName)
 
     // Check if quantized model exists.
     if (!existsSync(quantizedModelFile)) {

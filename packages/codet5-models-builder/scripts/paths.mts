@@ -7,6 +7,8 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
+
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
@@ -20,14 +22,19 @@ export const BUILD_ROOT = path.join(PACKAGE_ROOT, 'build')
 export const MODELS_DIR = path.join(BUILD_ROOT, 'models')
 
 /**
- * Get build directories for a specific mode and quantization level.
+ * Get build directories for a specific mode, platform-arch, and quantization level.
  *
  * @param {string} buildMode - 'dev' or 'prod'
+ * @param {string} platformArch - Platform-arch (e.g., 'darwin-arm64') - REQUIRED
  * @param {string} quantLevel - 'int4' or 'int8'
  * @returns {object} Build paths
  */
-export function getBuildPaths(buildMode, quantLevel) {
-  const buildDir = path.join(BUILD_ROOT, buildMode, quantLevel)
+export function getBuildPaths(buildMode, platformArch, quantLevel) {
+  if (!platformArch) {
+    throw new Error('platformArch is required for getBuildPaths()')
+  }
+
+  const buildDir = path.join(BUILD_ROOT, buildMode, platformArch, quantLevel)
   const outputDir = path.join(buildDir, 'output')
 
   // Model file paths
@@ -52,4 +59,12 @@ export function getBuildPaths(buildMode, quantLevel) {
     outputTokenizerFile,
     tokenizerFile,
   }
+}
+
+/**
+ * Get the current platform identifier using shared utility.
+ * Handles musl detection and respects TARGET_ARCH environment variable.
+ */
+export async function getCurrentPlatform() {
+  return await getCurrentPlatformArch()
 }

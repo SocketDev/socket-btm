@@ -31,7 +31,11 @@ import { safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
-import { MODELS_DIR, getBuildPaths } from './paths.mts'
+import {
+  MODELS_DIR,
+  getBuildPaths,
+  getCurrentPlatform,
+} from './paths.mts'
 
 const logger = getDefaultLogger()
 
@@ -73,6 +77,7 @@ const BUILD_MODE = PROD_BUILD
 const QUANT_LEVEL = args.has('--int4') ? 'int4' : 'int8'
 
 // Get paths from source of truth
+const PLATFORM_ARCH = await getCurrentPlatform()
 const {
   buildDir: BUILD_DIR,
   configFile,
@@ -83,7 +88,7 @@ const {
   outputEncoderFile,
   outputTokenizerFile,
   tokenizerFile,
-} = getBuildPaths(BUILD_MODE, QUANT_LEVEL)
+} = getBuildPaths(BUILD_MODE, PLATFORM_ARCH, QUANT_LEVEL)
 
 // Configuration - Read model source from package.json.
 const codet5Source = packageJson.sources?.codet5

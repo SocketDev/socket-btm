@@ -7,6 +7,8 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
+
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
@@ -20,13 +22,19 @@ export const PYTHON_DIR = path.join(PACKAGE_ROOT, 'python')
 export const BUILD_ROOT = path.join(PACKAGE_ROOT, 'build')
 
 /**
- * Get build directories for a specific quantization level (int4/int8).
+ * Get build directories for a specific mode, platform-arch, and quantization level.
  *
+ * @param {string} mode - Build mode ('dev' or 'prod')
+ * @param {string} platformArch - Platform-arch (e.g., 'darwin-arm64') - REQUIRED
  * @param {string} quantLevel - 'int4' or 'int8'
  * @returns {object} Build paths
  */
-export function getBuildPaths(quantLevel) {
-  const buildDir = path.join(BUILD_ROOT, quantLevel)
+export function getBuildPaths(mode, platformArch, quantLevel) {
+  if (!platformArch) {
+    throw new Error('platformArch is required for getBuildPaths()')
+  }
+
+  const buildDir = path.join(BUILD_ROOT, mode, platformArch, quantLevel)
   const modelsDir = path.join(buildDir, 'models')
   const cacheDir = path.join(buildDir, 'cache')
 
@@ -38,14 +46,24 @@ export function getBuildPaths(quantLevel) {
 }
 
 /**
- * Get model-specific paths for a given model and quantization level.
+ * Get the current platform identifier using shared utility.
+ * Handles musl detection and respects TARGET_ARCH environment variable.
+ */
+export async function getCurrentPlatform() {
+  return await getCurrentPlatformArch()
+}
+
+/**
+ * Get model-specific paths for a given model, mode, platform-arch, and quantization level.
  *
+ * @param {string} mode - Build mode ('dev' or 'prod')
+ * @param {string} platformArch - Platform-arch (e.g., 'darwin-arm64') - REQUIRED
  * @param {string} quantLevel - 'int4' or 'int8'
  * @param {string} modelName - Model output name (e.g., 'minilm')
  * @returns {object} Model paths
  */
-export function getModelPaths(quantLevel, modelName) {
-  const { cacheDir, modelsDir } = getBuildPaths(quantLevel)
+export function getModelPaths(mode, platformArch, quantLevel, modelName) {
+  const { cacheDir, modelsDir } = getBuildPaths(mode, platformArch, quantLevel)
 
   const cacheModelDir = path.join(cacheDir, modelName)
   const onnxModelDir = path.join(modelsDir, `${modelName}-onnx`)

@@ -144,9 +144,13 @@ async function main(): Promise<void> {
         logger.info(`\nTesting ${pkgName}:`)
 
         try {
+          // --passWithNoTests: a scoped run where files don't resolve to
+          // any test should succeed rather than error with "No test files
+          // found". Keeps pre-commit hooks passing when a staged change
+          // doesn't touch testable code.
           const result = spawnSync(
             'pnpm',
-            ['exec', 'vitest', 'run', ...files],
+            ['exec', 'vitest', 'run', '--passWithNoTests', ...files],
             {
               cwd: pkgDir,
               stdio: 'inherit',

@@ -35,7 +35,7 @@ jobs:
   # Platform-agnostic checks run once on Ubuntu
   checks:
     name: Lint, Type, Validation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: SocketDev/socket-registry/.github/actions/setup-and-install@34fef52be917f89dbbeb464860f2aaf0f3812c40 # main
 

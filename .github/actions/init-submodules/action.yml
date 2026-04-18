@@ -1,4 +1,4 @@
-name: Initialize submodules
+name: Initialize Submodules
 description: Initialize specific git submodules needed for the build
 
 inputs:

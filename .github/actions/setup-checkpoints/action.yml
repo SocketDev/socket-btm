@@ -1,5 +1,5 @@
-name: 'Setup Checkpoint Caching'
-description: 'Sets up checkpoint caching for package builds (load, restore, validate)'
+name: Setup Checkpoint Caching
+description: Sets up checkpoint caching for package builds (load, restore, validate)
 inputs:
   package-name:
     description: 'Package name (e.g., binject, binpress, binflate)'

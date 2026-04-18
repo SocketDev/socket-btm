@@ -1,9 +1,5 @@
-name: Enable debug logging
-description: >-
-  Enables GitHub Actions debug logging (when debug=1) or sets a DEBUG env var
-  to a namespace string (e.g. "smol:*") so downstream build scripts can pick it
-  up. Input is validated to contain only alphanumerics, commas, underscores,
-  and hyphens to prevent injection via newlines.
+name: Enable Debug Logging
+description: Enables GitHub Actions debug logging or sets a DEBUG env var for downstream scripts
 
 inputs:
   debug:

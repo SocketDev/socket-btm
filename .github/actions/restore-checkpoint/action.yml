@@ -1,6 +1,5 @@
-name: 'Restore Checkpoint Chain'
-description: 'Restores build output from checkpoint tarballs, walking backward to find the latest valid checkpoint'
-author: 'Socket Security'
+name: Restore Checkpoint Chain
+description: Restores build output from checkpoint tarballs, walking backward to find the latest valid checkpoint
 
 inputs:
   package-name:

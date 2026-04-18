@@ -16,6 +16,8 @@
  *   await setup()
  */
 
+import process from 'node:process'
+
 import { getCI } from '@socketsecurity/lib/env/ci'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
@@ -153,4 +155,51 @@ async function setupWindows(config, packageRoot, logger) {
  */
 export function isCI() {
   return getCI()
+}
+
+/**
+ * Run a package's setup-build-toolchain entry-point end-to-end.
+ *
+ * Wraps the CI-skip check + logger.step("<pkg> - Setup Build Toolchain")
+ * + setup(packageRoot) + success/failure exit-code plumbing that every
+ * packages/<pkg>/scripts/setup-build-toolchain.mts was hand-rolling.
+ *
+ * Usage:
+ *   runSetupToolchain({
+ *     packageName: 'onnxruntime-builder',
+ *     packageRoot,
+ *     tools: {
+ *       darwin: ['clang', 'make', 'cmake', 'python3'],
+ *       linux: ['gcc', 'make', 'cmake', 'python3'],
+ *       win32: ['mingw-w64', 'make', 'cmake', 'python3'],
+ *     },
+ *   })
+ *
+ * Sets process.exitCode = 1 on failure. Never throws for the CI-skip path.
+ */
+export async function runSetupToolchain(options) {
+  const { packageName, packageRoot, tools } = options
+  const logger = getDefaultLogger()
+
+  if (isCI()) {
+    // Single-line CI output to reduce log noise.
+    logger.success(`${packageName} toolchain: CI mode (skipped)`)
+    return
+  }
+
+  try {
+    logger.step(`${packageName} - Setup Build Toolchain`)
+    const setup = createSetupToolchain(tools)
+    const success = await setup(packageRoot)
+    if (success) {
+      logger.success('Build toolchain setup complete')
+    } else {
+      logger.error('Build toolchain setup failed')
+      process.exitCode = 1
+    }
+  } catch (error) {
+    logger.error('Setup failed')
+    logger.error(error instanceof Error ? error.message : String(error))
+    process.exitCode = 1
+  }
 }

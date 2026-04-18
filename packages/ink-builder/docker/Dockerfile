@@ -13,7 +13,7 @@
 #   depot build --file packages/ink-builder/Dockerfile --target export --output type=local,dest=packages/ink-builder/build .
 
 # Build arguments
-ARG NODE_VERSION=25
+ARG NODE_VERSION=25.9.0
 ARG INK_VERSION=6.3.1
 ARG CACHE_VERSION=v1
 ARG CACHE_BUSTER=

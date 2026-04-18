@@ -15,7 +15,7 @@
 #   depot build --file packages/iocraft-builder/Dockerfile --target export --output type=local,dest=packages/iocraft-builder/build .
 
 # Build arguments
-ARG NODE_VERSION=25
+ARG NODE_VERSION=25.9.0
 ARG BUILD_MODE=prod
 ARG RUST_TARGET=x86_64-unknown-linux-gnu
 ARG CACHE_VERSION=v1

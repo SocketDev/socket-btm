@@ -36,6 +36,7 @@ jobs:
   checks:
     name: Lint, Type, Validation
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: SocketDev/socket-registry/.github/actions/setup-and-install@34fef52be917f89dbbeb464860f2aaf0f3812c40 # main
 
@@ -92,6 +93,7 @@ jobs:
     name: Test (${{ matrix.os }})
     needs: checks
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:

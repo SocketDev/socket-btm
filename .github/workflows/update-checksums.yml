@@ -18,6 +18,7 @@ jobs:
   update-checksums:
     name: release-assets.json
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:

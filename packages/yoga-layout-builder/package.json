@@ -6,9 +6,9 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    "./build/yoga.mts": "./build/dev/out/Final/yoga.mts",
+    "./build/yoga.mjs": "./build/dev/out/Final/yoga.mjs",
     "./build/yoga.wasm": "./build/dev/out/Final/yoga.wasm",
-    "./build/yoga-sync.mts": "./build/dev/out/Final/yoga-sync.mts",
+    "./build/yoga-sync.mjs": "./build/dev/out/Final/yoga-sync.mjs",
     "./build/yoga-sync.cjs": "./build/dev/out/Final/yoga-sync.cjs"
   },
   "scripts": {

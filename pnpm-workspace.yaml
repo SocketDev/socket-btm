@@ -20,12 +20,10 @@ catalog:
   acorn: 8.14.0
   acorn-walk: 8.3.4
   adm-zip: 0.5.16
-  del-cli: 6.0.0
   ecc-agentshield: 1.4.0
   esbuild: 0.25.11
   magic-string: 0.30.19
   octokit: 5.0.5
-  postject: 1.0.0-alpha.6
   tar: 7.4.3
   vitest: 4.0.3
   yoctocolors-cjs: 2.1.3

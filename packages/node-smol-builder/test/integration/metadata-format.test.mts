@@ -19,15 +19,15 @@ import {
 } from '../../scripts/binary-compressed/shared/constants.mts'
 import { getLatestFinalBinary } from '../paths.mts'
 
-describe('metadata Format Validation', () => {
+const finalBinaryPath = getLatestFinalBinary()
+const skipTests = !finalBinaryPath || !existsSync(finalBinaryPath)
+
+describe.skipIf(skipTests)('metadata Format Validation', () => {
   let binaryPath: string
   let binaryData: Buffer
 
   beforeAll(async () => {
-    binaryPath = getLatestFinalBinary()
-    if (!existsSync(binaryPath)) {
-      throw new Error(`Binary not found: ${binaryPath}`)
-    }
+    binaryPath = finalBinaryPath!
     binaryData = await fs.readFile(binaryPath)
   })
 

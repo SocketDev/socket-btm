@@ -15,16 +15,16 @@ import { spawn } from '@socketsecurity/lib/spawn'
 
 import { getLatestFinalBinary } from '../paths.mts'
 
-describe('cache Metadata Validation', () => {
+const finalBinaryPath = getLatestFinalBinary()
+const skipTests = !finalBinaryPath || !existsSync(finalBinaryPath)
+
+describe.skipIf(skipTests)('cache Metadata Validation', () => {
   let binaryPath: string
   let testCacheDir: string
   let originalSocketHome: string | undefined
 
   beforeAll(async () => {
-    binaryPath = getLatestFinalBinary()
-    if (!existsSync(binaryPath)) {
-      throw new Error(`Binary not found: ${binaryPath}`)
-    }
+    binaryPath = finalBinaryPath!
 
     // Create temporary cache directory
     testCacheDir = path.join(os.tmpdir(), `socket-test-cache-${Date.now()}`)

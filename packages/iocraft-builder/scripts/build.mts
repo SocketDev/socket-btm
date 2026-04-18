@@ -77,7 +77,6 @@ if (!iocraftSource) {
 }
 
 const IOCRAFT_VERSION = `v${iocraftSource.version}`
-const IOCRAFT_REF = iocraftSource.ref
 
 // getCurrentPlatform() now honors PLATFORM_ARCH env itself.
 const PLATFORM_ARCH = await getCurrentPlatform()

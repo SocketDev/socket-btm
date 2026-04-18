@@ -18,7 +18,7 @@ import { spawn } from '@socketsecurity/lib/spawn'
 import {
   RESOURCE_SMOL_VFS_BLOB,
   RESOURCE_SMOL_VFS_CONFIG,
-} from '../../../bin-infra/test/helpers/segment-names.mts'
+} from 'bin-infra/test/helpers/segment-names'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const _packageDir = path.resolve(__dirname, '..', '..')

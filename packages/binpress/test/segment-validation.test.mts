@@ -29,7 +29,7 @@ import { spawn } from '@socketsecurity/lib/spawn'
 import {
   MACHO_SECTION_PRESSED_DATA,
   MACHO_SEGMENT_SMOL,
-} from '../../bin-infra/test/helpers/segment-names.mts'
+} from 'bin-infra/test/helpers/segment-names'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

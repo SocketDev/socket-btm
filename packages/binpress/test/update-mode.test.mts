@@ -29,7 +29,7 @@ import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import {
   codeSignBinary,
   execCommand,
-} from '../../bin-infra/test/helpers/test-utils.mts'
+} from 'bin-infra/test/helpers/test-utils'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

@@ -26,7 +26,7 @@ import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 import { getBinjectPath } from './helpers/paths.mts'
-import { MACHO_SEGMENT_NODE_SEA } from '../../bin-infra/test/helpers/segment-names.mts'
+import { MACHO_SEGMENT_NODE_SEA } from 'bin-infra/test/helpers/segment-names'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

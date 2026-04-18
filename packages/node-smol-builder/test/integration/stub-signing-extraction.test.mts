@@ -36,7 +36,7 @@ import {
   MACHO_SECTION_PRESSED_DATA,
   MACHO_SEGMENT_NODE_SEA,
   MACHO_SEGMENT_SMOL,
-} from '../../../bin-infra/test/helpers/segment-names.mts'
+} from 'bin-infra/test/helpers/segment-names'
 import { createTestDir } from '../helpers/test-dir.mts'
 import { getLatestFinalBinary } from '../paths.mts'
 

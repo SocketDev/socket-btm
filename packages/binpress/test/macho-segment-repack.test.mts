@@ -33,11 +33,11 @@ import {
   MACHO_LC_SEGMENT_OFFSET,
   MACHO_LOAD_COMMAND,
   MACHO_MAGIC,
-} from '../../bin-infra/test/helpers/binary-format-constants.mts'
+} from 'bin-infra/test/helpers/binary-format-constants'
 import {
   codeSignBinary,
   execCommand,
-} from '../../bin-infra/test/helpers/test-utils.mts'
+} from 'bin-infra/test/helpers/test-utils'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

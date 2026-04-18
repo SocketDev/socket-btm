@@ -25,7 +25,7 @@ import {
   getBinpressPath,
   getBinflatePath,
 } from './helpers/paths.mts'
-import { MACHO_SEGMENT_SMOL } from '../../bin-infra/test/helpers/segment-names.mts'
+import { MACHO_SEGMENT_SMOL } from 'bin-infra/test/helpers/segment-names'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

@@ -23,7 +23,7 @@ import { makeExecutable } from 'build-infra/lib/build-helpers'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { spawn } from '@socketsecurity/lib/spawn'
 
-import { MACHO_SEGMENT_NODE_SEA } from '../../../bin-infra/test/helpers/segment-names.mts'
+import { MACHO_SEGMENT_NODE_SEA } from 'bin-infra/test/helpers/segment-names'
 import { SMOL_VFS_BLOB, runBinject } from '../helpers/binject.mts'
 import { getLatestFinalBinary } from '../paths.mts'
 

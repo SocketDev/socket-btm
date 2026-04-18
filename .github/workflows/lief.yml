@@ -128,9 +128,9 @@ jobs:
             echo "Debug mode: $DEBUG_INPUT"
           fi
 
-      - uses: SocketDev/socket-registry/.github/actions/setup@b86b2cb3fefa4ffa6c1a702476f9785f6c3bb887 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup@34fef52be917f89dbbeb464860f2aaf0f3812c40 # main
 
-      - uses: SocketDev/socket-registry/.github/actions/install@b86b2cb3fefa4ffa6c1a702476f9785f6c3bb887 # main
+      - uses: SocketDev/socket-registry/.github/actions/install@34fef52be917f89dbbeb464860f2aaf0f3812c40 # main
 
       - name: Initialize LIEF submodule
         shell: bash

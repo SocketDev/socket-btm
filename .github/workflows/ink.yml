@@ -44,7 +44,7 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@b86b2cb3fefa4ffa6c1a702476f9785f6c3bb887 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@34fef52be917f89dbbeb464860f2aaf0f3812c40 # main
 
       - name: Enable debug logging
         if: inputs.debug != '0'

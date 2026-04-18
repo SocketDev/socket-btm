@@ -148,7 +148,7 @@ async function quantizeModel(modelKey, quantLevel) {
 async function copyToDist(modelKey, quantizedPaths, quantLevel) {
   logger.step('Copying models to build output')
 
-  // Create nested directory structure: build/dev/out/Final/minilm-l6/ or build/prod/out/Final/minilm-l6/
+  // Create nested directory structure: build/<mode>/<platform-arch>/out/Final/minilm-l6/
   const outputDir = path.join(DIST_MODE, modelKey)
   await safeMkdir(outputDir)
 

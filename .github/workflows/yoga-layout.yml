@@ -377,6 +377,10 @@ jobs:
     environment: release # Dedicated environment for secret access with approval gates
     permissions:
       contents: write # Required to create GitHub releases
+    env:
+      # Release job downloads the Linux x64 build artifact into this layout
+      # to match the build job's output path.
+      PLATFORM_ARCH: linux-x64
 
     steps:
       - name: Checkout repository
@@ -399,7 +403,7 @@ jobs:
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: yoga-layout-wasm
-          path: packages/yoga-layout-builder/build/prod/out/Final/
+          path: packages/yoga-layout-builder/build/prod/${{ env.PLATFORM_ARCH }}/out/Final/
 
       - name: Generate version
         id: version
@@ -422,7 +426,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          cd packages/yoga-layout-builder/build/prod/out/Final
+          cd packages/yoga-layout-builder/build/prod/${PLATFORM_ARCH}/out/Final
           mv yoga.wasm yoga-${VERSION}.wasm
           mv yoga.mjs yoga-${VERSION}.mjs
           mv yoga-sync.cjs yoga-sync-${VERSION}.cjs
@@ -431,7 +435,7 @@ jobs:
       - name: Generate checksums
         if: steps.version.outputs.skip != 'true'
         run: |
-          cd packages/yoga-layout-builder/build/prod/out/Final
+          cd packages/yoga-layout-builder/build/prod/${PLATFORM_ARCH}/out/Final
           $(command -v shasum &> /dev/null && echo "shasum -a 256" || echo "sha256sum") yoga-*.wasm yoga-*.mjs yoga-sync-*.cjs yoga-sync-*.mjs > checksums.txt
           cat checksums.txt
 
@@ -455,7 +459,7 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           if [ -n "$GPG_PRIVATE_KEY" ]; then
-            cd packages/yoga-layout-builder/build/prod/out/Final
+            cd packages/yoga-layout-builder/build/prod/${PLATFORM_ARCH}/out/Final
             if [ -n "$GPG_PASSPHRASE" ]; then
               echo "$GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --detach-sign --armor checksums.txt
             else
@@ -495,12 +499,12 @@ jobs:
           \`\`\`javascript
           import yoga from './yoga-${VERSION}.mjs';
           \`\`\`" \
-            packages/yoga-layout-builder/build/prod/out/Final/yoga-${VERSION}.wasm \
-            packages/yoga-layout-builder/build/prod/out/Final/yoga-${VERSION}.mjs \
-            packages/yoga-layout-builder/build/prod/out/Final/yoga-sync-${VERSION}.cjs \
-            packages/yoga-layout-builder/build/prod/out/Final/yoga-sync-${VERSION}.mjs \
-            packages/yoga-layout-builder/build/prod/out/Final/checksums.txt \
-            $([ -f packages/yoga-layout-builder/build/prod/out/Final/checksums.txt.asc ] && echo "packages/yoga-layout-builder/build/prod/out/Final/checksums.txt.asc" || echo "")
+            packages/yoga-layout-builder/build/prod/${PLATFORM_ARCH}/out/Final/yoga-${VERSION}.wasm \
+            packages/yoga-layout-builder/build/prod/${PLATFORM_ARCH}/out/Final/yoga-${VERSION}.mjs \
+            packages/yoga-layout-builder/build/prod/${PLATFORM_ARCH}/out/Final/yoga-sync-${VERSION}.cjs \
+            packages/yoga-layout-builder/build/prod/${PLATFORM_ARCH}/out/Final/yoga-sync-${VERSION}.mjs \
+            packages/yoga-layout-builder/build/prod/${PLATFORM_ARCH}/out/Final/checksums.txt \
+            $([ -f packages/yoga-layout-builder/build/prod/${PLATFORM_ARCH}/out/Final/checksums.txt.asc ] && echo "packages/yoga-layout-builder/build/prod/${PLATFORM_ARCH}/out/Final/checksums.txt.asc" || echo "")
 
   update-checksums:
     needs: release

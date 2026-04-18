@@ -100,22 +100,14 @@ async function cleanCaches(): Promise<void> {
   logger.log('='.repeat(60))
   logger.log('')
 
+  // Remove each package's build/ dir wholesale; that covers every
+  // nested build/<mode>/<platform-arch>/ subtree and checkpoints under it.
   const cacheDirs = [
-    // Build directories.
     path.join(rootDir, 'packages/bin-infra/build'),
     path.join(rootDir, 'packages/binject/build'),
     path.join(rootDir, 'packages/binflate/build'),
     path.join(rootDir, 'packages/binpress/build'),
     path.join(rootDir, 'packages/node-smol-builder/build'),
-
-    // Checkpoint directories.
-    path.join(rootDir, 'packages/bin-infra/build/dev/checkpoints'),
-    path.join(rootDir, 'packages/bin-infra/build/int4/checkpoints'),
-    path.join(rootDir, 'packages/binject/build/dev/checkpoints'),
-    path.join(rootDir, 'packages/binflate/build/dev/checkpoints'),
-    path.join(rootDir, 'packages/binpress/build/dev/checkpoints'),
-    path.join(rootDir, 'packages/node-smol-builder/build/dev/checkpoints'),
-    path.join(rootDir, 'packages/node-smol-builder/build/release/checkpoints'),
   ]
 
   for (const dir of cacheDirs) {

@@ -386,6 +386,10 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write # Required to create GitHub releases
+    env:
+      # Release job downloads the Linux x64 build artifact into this layout
+      # to match the build job's output path.
+      PLATFORM_ARCH: linux-x64
 
     steps:
       - name: Checkout repository
@@ -408,7 +412,7 @@ jobs:
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: onnxruntime-wasm
-          path: packages/onnxruntime-builder/build/prod/out/Final/
+          path: packages/onnxruntime-builder/build/prod/${{ env.PLATFORM_ARCH }}/out/Final/
 
       - name: Generate version
         id: version
@@ -429,7 +433,7 @@ jobs:
       - name: Generate checksums
         if: steps.version.outputs.skip != 'true'
         run: |
-          cd packages/onnxruntime-builder/build/prod/out/Final
+          cd packages/onnxruntime-builder/build/prod/${PLATFORM_ARCH}/out/Final
           $(command -v shasum &> /dev/null && echo "shasum -a 256" || echo "sha256sum") *.wasm *.mjs *.cjs > checksums.txt
           cat checksums.txt
 
@@ -453,7 +457,7 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           if [ -n "$GPG_PRIVATE_KEY" ]; then
-            cd packages/onnxruntime-builder/build/prod/out/Final
+            cd packages/onnxruntime-builder/build/prod/${PLATFORM_ARCH}/out/Final
             if [ -n "$GPG_PASSPHRASE" ]; then
               echo "$GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --detach-sign --armor checksums.txt
             else
@@ -496,11 +500,11 @@ jobs:
           \`\`\`javascript
           import ort from './ort.mjs';
           \`\`\`" \
-            packages/onnxruntime-builder/build/prod/out/Final/*.wasm \
-            packages/onnxruntime-builder/build/prod/out/Final/*.mjs \
-            packages/onnxruntime-builder/build/prod/out/Final/*.cjs \
-            packages/onnxruntime-builder/build/prod/out/Final/checksums.txt \
-            $([ -f packages/onnxruntime-builder/build/prod/out/Final/checksums.txt.asc ] && echo "packages/onnxruntime-builder/build/prod/out/Final/checksums.txt.asc" || echo "")
+            packages/onnxruntime-builder/build/prod/${PLATFORM_ARCH}/out/Final/*.wasm \
+            packages/onnxruntime-builder/build/prod/${PLATFORM_ARCH}/out/Final/*.mjs \
+            packages/onnxruntime-builder/build/prod/${PLATFORM_ARCH}/out/Final/*.cjs \
+            packages/onnxruntime-builder/build/prod/${PLATFORM_ARCH}/out/Final/checksums.txt \
+            $([ -f packages/onnxruntime-builder/build/prod/${PLATFORM_ARCH}/out/Final/checksums.txt.asc ] && echo "packages/onnxruntime-builder/build/prod/${PLATFORM_ARCH}/out/Final/checksums.txt.asc" || echo "")
 
   update-checksums:
     needs: release

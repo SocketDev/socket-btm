@@ -1408,7 +1408,7 @@ export async function shouldRun(
  * Get cache validation hash file path.
  * Single source of truth for cache hash filename.
  *
- * @param {string} cacheDir - Cache directory path (e.g., 'build/dev/.cache')
+ * @param {string} cacheDir - Cache directory path (e.g., 'build/dev/<platform-arch>/.cache')
  * @returns {string} Cache hash file path
  */
 export function getCacheHashFile(cacheDir) {

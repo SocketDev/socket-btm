@@ -348,6 +348,10 @@ jobs:
     environment: release # Dedicated environment for secret access with approval gates
     permissions:
       contents: write # Required to create GitHub releases
+    env:
+      # Release job downloads the Linux x64 build artifact into this layout
+      # to match the build job's output path.
+      PLATFORM_ARCH: linux-x64
 
     steps:
       - name: Checkout repository
@@ -363,7 +367,7 @@ jobs:
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: models
-          path: packages/models/build/prod/out/Final/
+          path: packages/models/build/prod/${{ env.PLATFORM_ARCH }}/out/Final/
 
       - name: Generate version
         id: version
@@ -384,7 +388,7 @@ jobs:
       - name: Generate checksums
         if: steps.version.outputs.skip != 'true'
         run: |
-          cd packages/models/build/prod/out/Final
+          cd packages/models/build/prod/${PLATFORM_ARCH}/out/Final
           find . -name "*.onnx" -exec $(command -v shasum &> /dev/null && echo "shasum -a 256" || echo "sha256sum") {} \; > checksums.txt
           cat checksums.txt
 
@@ -408,7 +412,7 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           if [ -n "$GPG_PRIVATE_KEY" ]; then
-            cd packages/models/build/prod/out/Final
+            cd packages/models/build/prod/${PLATFORM_ARCH}/out/Final
             if [ -n "$GPG_PASSPHRASE" ]; then
               echo "$GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --detach-sign --armor checksums.txt
             else
@@ -445,7 +449,7 @@ jobs:
           echo "Creating new release $TAG..."
 
           # Create archive with versioned name
-          cd packages/models/build/prod/out/Final
+          cd packages/models/build/prod/${PLATFORM_ARCH}/out/Final
           tar -czf ../models-${VERSION}.tar.gz .
 
           # Extract date-hash from tag for title

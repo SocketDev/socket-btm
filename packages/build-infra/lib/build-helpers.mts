@@ -499,7 +499,7 @@ export async function checkNetworkConnectivity() {
   try {
     // In CI, assume network connectivity is available.
     // The build will fail later if it's actually not available.
-    if (process.env.CI) {
+    if (getCI()) {
       return { connected: true, statusCode: 'skipped-in-ci' }
     }
 

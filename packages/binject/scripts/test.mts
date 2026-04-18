@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url'
 
 import { runCommand, selectMakefile } from 'bin-infra/lib/builder'
 import { getBuildMode } from 'build-infra/lib/constants'
+import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 import { ensureLief } from 'lief-builder/lib/ensure-lief'
 
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
@@ -54,14 +55,15 @@ async function main() {
     const buildMode = getBuildMode()
     await ensureLief({ buildMode })
 
-    // Check if binary already exists (from checkpoint restoration)
-    // Use prod in CI, dev locally
-    const binaryBuildMode = process.env.CI ? 'prod' : 'dev'
+    // Check if binary already exists (from checkpoint restoration).
+    // Binary lives at build/<mode>/<platform-arch>/out/Final/.
+    const platformArch = await getCurrentPlatformArch()
     const binaryExt = WIN32 ? '.exe' : ''
     const binaryPath = path.join(
       packageRoot,
       'build',
-      binaryBuildMode,
+      buildMode,
+      platformArch,
       'out',
       'Final',
       `binject${binaryExt}`,

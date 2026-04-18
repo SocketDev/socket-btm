@@ -11,6 +11,8 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { runCommand, selectMakefile } from 'bin-infra/lib/builder'
+import { getBuildMode } from 'build-infra/lib/constants'
+import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
@@ -47,14 +49,16 @@ async function main() {
       throw checkError
     }
 
-    // Check if binary already exists (from checkpoint restoration)
-    // Use prod in CI, dev locally
-    const buildMode = process.env.CI ? 'prod' : 'dev'
+    // Check if binary already exists (from checkpoint restoration).
+    // Binary lives at build/<mode>/<platform-arch>/out/Final/.
+    const buildMode = getBuildMode()
+    const platformArch = await getCurrentPlatformArch()
     const binaryExt = WIN32 ? '.exe' : ''
     const binaryPath = path.join(
       packageRoot,
       'build',
       buildMode,
+      platformArch,
       'out',
       'Final',
       `binflate${binaryExt}`,

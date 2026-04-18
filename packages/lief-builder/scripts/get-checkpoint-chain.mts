@@ -1,28 +1,25 @@
 #!/usr/bin/env node
 /**
- * Get checkpoint chain for CI workflows.
- * Delegates to shared build-infra script.
+ * Get checkpoint chain for lief-builder CI workflows.
+ *
+ * LIEF has only one checkpoint (`lief-built`) — no separate finalized stage.
+ * This chain must stay in sync with the checkpoint name in build.mts.
  */
 
 import path from 'node:path'
 import process from 'node:process'
-
 import { fileURLToPath } from 'node:url'
 
-import { spawn } from '@socketsecurity/lib/spawn'
+import { CHECKPOINT_CHAINS } from 'build-infra/lib/constants'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const sharedScript = path.join(
-  __dirname,
-  '../../build-infra/scripts/get-checkpoint-chain.mts',
-)
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
-const result = await spawn(
-  process.execPath,
-  [sharedScript, ...process.argv.slice(2)],
-  {
-    stdio: 'inherit',
-  },
-)
+const logger = getDefaultLogger()
 
-process.exitCode = result.code ?? 0
+export function getCheckpointChain() {
+  return CHECKPOINT_CHAINS.lief()
+}
+
+if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  logger.log(getCheckpointChain().join(','))
+}

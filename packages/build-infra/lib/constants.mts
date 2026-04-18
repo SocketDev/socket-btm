@@ -93,6 +93,13 @@ export const CHECKPOINT_CHAINS = {
   curl: () => [CHECKPOINTS.FINALIZED, CHECKPOINTS.MBEDTLS_BUILT],
 
   /**
+   * LIEF build checkpoint chain.
+   * Used by lief-builder for its single LIEF_BUILT checkpoint (the build
+   * does not emit a separate FINALIZED stage — LIEF_BUILT IS the final output).
+   */
+  lief: () => [CHECKPOINTS.LIEF_BUILT],
+
+  /**
    * Model pipeline checkpoint chain (with optimization step).
    * Used by codet5-models-builder, minilm-builder.
    * Same for dev and prod.
@@ -141,8 +148,9 @@ export const CHECKPOINT_CHAINS = {
   ],
 
   /**
-   * Simple single-checkpoint chain.
-   * Used by binsuite packages (binpress, binflate, binject) and stubs.
+   * Simple single-checkpoint chain (FINALIZED only).
+   * Used by binsuite packages (binpress, binflate, binject), stubs-builder,
+   * and libpq-builder.
    */
   simple: () => [CHECKPOINTS.FINALIZED],
 

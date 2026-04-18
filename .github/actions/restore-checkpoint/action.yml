@@ -111,7 +111,7 @@ runs:
 
         # Whitelist of valid checkpoint types - must match the case statement below.
         # This catches unknown checkpoints EARLY before any file operations.
-        VALID_CHECKPOINTS="finalized|lief-built|binary-compressed|binary-stripped|binary-released|wasm-synced|wasm-released|wasm-optimized|wasm-compiled|source-configured|quantized|converted|downloaded|source-cloned|source-patched"
+        VALID_CHECKPOINTS="finalized|lief-built|mbedtls-built|binary-compressed|binary-stripped|binary-released|wasm-synced|wasm-released|wasm-optimized|wasm-compiled|source-configured|quantized|converted|downloaded|source-cloned|source-patched"
 
         for CHECKPOINT in "${CHECKPOINTS[@]}"; do
           # Validate checkpoint name is in whitelist (catches typos and unknown types early).
@@ -182,6 +182,7 @@ runs:
         case "${RESTORED_CHECKPOINT}" in
           finalized) EXTRACT_DIR="${OUTPUT_DIR}/Final" ;;
           lief-built) EXTRACT_DIR="packages/lief-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/lief" ;;
+          mbedtls-built) EXTRACT_DIR="packages/curl-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/mbedtls" ;;
           binary-compressed) EXTRACT_DIR="${OUTPUT_DIR}/Compressed" ;;
           binary-stripped) EXTRACT_DIR="${OUTPUT_DIR}/Stripped" ;;
           binary-released) EXTRACT_DIR="${OUTPUT_DIR}/Release" ;;

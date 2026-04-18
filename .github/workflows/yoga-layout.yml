@@ -208,7 +208,7 @@ jobs:
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
         run: |
-          # Use get-checkpoint-chain.mjs to ensure consistency with local builds
+          # Use get-checkpoint-chain.mts to ensure consistency with local builds
           # Dev mode: skip wasm-optimized (optimization is disabled)
           # Prod mode: include wasm-optimized
           CHAIN=$(node packages/yoga-layout-builder/scripts/get-checkpoint-chain.mts --$BUILD_MODE)

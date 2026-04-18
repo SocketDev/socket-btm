@@ -36,6 +36,7 @@ import {
   PACKAGE_ROOT,
   getBindingsPaths,
   getBuildPaths,
+  getCurrentPlatform,
   getSharedBuildPaths,
 } from './paths.mts'
 import { cloneYogaSource } from './source-cloned/shared/clone-source.mts'
@@ -93,6 +94,8 @@ const emscriptenVersion = await getEmscriptenVersion(PACKAGE_ROOT)
 const { buildDir: SHARED_BUILD_DIR, sourceDir: SHARED_SOURCE_DIR } =
   getSharedBuildPaths()
 
+const PLATFORM_ARCH = await getCurrentPlatform()
+
 const {
   buildDir: BUILD_DIR,
   cmakeDir: CMAKE_BUILD_DIR,
@@ -106,7 +109,7 @@ const {
   outputWasmFile,
   staticLibFile: STATIC_LIB_FILE,
   wasmFile: BUILD_WASM_FILE,
-} = getBuildPaths(BUILD_MODE)
+} = getBuildPaths(BUILD_MODE, PLATFORM_ARCH)
 
 /**
  * Clone Yoga source if not already present.

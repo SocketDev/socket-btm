@@ -23,7 +23,11 @@ import { parseArgs } from '@socketsecurity/lib/argv/parse'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
-import { UPSTREAM_PATH, getBuildPaths } from './paths.mts'
+import {
+  UPSTREAM_PATH,
+  getBuildPaths,
+  getCurrentPlatform,
+} from './paths.mts'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -33,10 +37,14 @@ const logger = getDefaultLogger()
 // Parse arguments.
 const { values } = parseArgs({
   options: {
+    dev: { type: 'boolean' },
+    prod: { type: 'boolean' },
     verbose: { short: 'v', type: 'boolean' },
   },
   strict: false,
 })
+
+const BUILD_MODE = values.prod ? 'prod' : 'dev'
 
 /**
  * Main test runner.
@@ -70,7 +78,8 @@ async function main() {
   }
 
   // Verify our WASM build exists.
-  const { outputFinalDir } = getBuildPaths()
+  const platformArch = await getCurrentPlatform()
+  const { outputFinalDir } = getBuildPaths(BUILD_MODE, platformArch)
   const wasmPath = path.join(outputFinalDir, 'yoga.wasm')
   const jsPath = path.join(outputFinalDir, 'yoga.js')
 

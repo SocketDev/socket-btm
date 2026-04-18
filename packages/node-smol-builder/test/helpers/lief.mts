@@ -27,6 +27,9 @@ export function expectLiefEnabled() {
  */
 export async function hasLiefSupport() {
   const nodePath = getLatestFinalBinary()
+  if (!nodePath) {
+    return false
+  }
 
   // Check process.smol.canBuildSea at runtime
   const result = await spawn(

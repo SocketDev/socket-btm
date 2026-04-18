@@ -19,11 +19,11 @@ const packageDir = path.resolve(__dirname, '..')
 
 /**
  * Find the latest binary from build/{dev,prod}/{platform-arch}/out/{stage}/node/node.
- * Returns the path to whichever exists and has the latest modification time.
+ * Returns the path to whichever exists and has the latest modification time,
+ * or undefined if none exists so callers can skipIf without a built binary.
  *
  * @param {string} stage - Build stage: 'Stripped', 'Compressed', or 'Final'
- * @returns {string} Path to the latest binary
- * @throws {Error} If no binary exists
+ * @returns {string | undefined} Path to the latest binary, or undefined if not built
  */
 function getLatestBinary(stage) {
   const candidates = []
@@ -37,9 +37,7 @@ function getLatestBinary(stage) {
   }
 
   if (candidates.length === 0) {
-    throw new Error(
-      `No ${stage} binary found. Build binaries first: pnpm --filter node-smol-builder build`,
-    )
+    return undefined
   }
 
   // Sort by modification time (newest first) and return the latest
@@ -81,39 +79,36 @@ function addCandidate(candidates, binaryPath) {
 }
 
 /**
- * Find the latest Stripped binary from build/{dev,prod}/out/Stripped/node/node.
+ * Find the latest Stripped binary from build/{dev,prod}/{platform-arch}/out/Stripped/node/node.
  *
  * The Stripped binary has debug symbols removed but retains pre-created Mach-O sections
  * (NODE_SEA_BLOB, SMOL_VFS_BLOB) required for binject injection.
  *
  * Returns the path to whichever exists and has the latest modification time.
  *
- * @returns {string} Path to the latest Stripped binary
- * @throws {Error} If neither dev nor prod Stripped binary exists
+ * @returns {string | undefined} Path to the latest Stripped binary, or undefined if not built
  */
 export function getLatestStrippedBinary() {
   return getLatestBinary('Stripped')
 }
 
 /**
- * Find the latest Final binary from build/{dev,prod}/out/Final/node/node.
+ * Find the latest Final binary from build/{dev,prod}/{platform-arch}/out/Final/node/node.
  * This is the compressed binary suitable for production use.
  * Returns the path to whichever exists and has the latest modification time.
  *
- * @returns {string} Path to the latest Final binary
- * @throws {Error} If neither dev nor prod Final binary exists
+ * @returns {string | undefined} Path to the latest Final binary, or undefined if not built
  */
 export function getLatestFinalBinary() {
   return getLatestBinary('Final')
 }
 
 /**
- * Find the latest Compressed binary from build/{dev,prod}/out/Compressed/node/node.
+ * Find the latest Compressed binary from build/{dev,prod}/{platform-arch}/out/Compressed/node/node.
  * This binary tests the compression extraction feature.
  * Returns the path to whichever exists and has the latest modification time.
  *
- * @returns {string} Path to the latest Compressed binary
- * @throws {Error} If neither dev nor prod Compressed binary exists
+ * @returns {string | undefined} Path to the latest Compressed binary, or undefined if not built
  */
 export function getLatestCompressedBinary() {
   return getLatestBinary('Compressed')

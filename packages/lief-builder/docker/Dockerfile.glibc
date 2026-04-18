@@ -71,8 +71,8 @@ RUN echo "Cache version: ${CACHE_VERSION}" && \
 
 # Export stage: Copy build artifacts (not entire filesystem).
 # We export the entire build/ directory to preserve both:
-# - Build artifacts at build/${BUILD_MODE}/out/Final/
-# - Checkpoints at build/${BUILD_MODE}/checkpoints/ and build/shared/checkpoints/
+# - Build artifacts at build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/
+# - Checkpoints at build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints/ and build/shared/checkpoints/
 # Checkpoints enable GitHub Actions caching to skip expensive build steps on repeated runs.
 FROM scratch AS export
 ARG BUILD_MODE=prod

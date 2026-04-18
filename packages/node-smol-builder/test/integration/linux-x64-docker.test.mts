@@ -10,7 +10,7 @@
  * These tests validate that binject, binpress, stubs, and node-smol work correctly
  * in the linux-x64 Docker build environment.
  *
- * Note: These tests require a built Final binary at build/{dev,prod}/out/Final/node/.
+ * Note: These tests require a built Final binary at build/{dev,prod}/{platform-arch}/out/Final/node/.
  * Run `pnpm build --dev --platform=linux --arch=x64` first to create the binary.
  */
 
@@ -29,7 +29,7 @@ import { MACHO_SEGMENT_NODE_SEA } from 'bin-infra/test/helpers/segment-names'
 import { runBinject } from '../helpers/binject.mts'
 import { getLatestFinalBinary } from '../paths.mts'
 
-// Get the latest Final binary from build/{dev,prod}/out/Final/node/
+// Get the latest Final binary from build/{dev,prod}/{platform-arch}/out/Final/node/
 const finalBinaryPath = getLatestFinalBinary()
 
 // Skip all tests if not on Linux (these tests validate ELF binaries and

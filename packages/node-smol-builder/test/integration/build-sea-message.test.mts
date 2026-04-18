@@ -4,7 +4,7 @@
  * The smol binary accepts --build-sea as a recognized flag (exits 0).
  * Actual SEA blob generation uses --experimental-sea-config (Node.js upstream).
  *
- * Note: Requires a built smol binary at build/{dev,prod}/out/Final/node/.
+ * Note: Requires a built smol binary at build/{dev,prod}/{platform-arch}/out/Final/node/.
  */
 
 import { existsSync, promises as fs } from 'node:fs'

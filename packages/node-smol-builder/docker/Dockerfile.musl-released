@@ -81,4 +81,4 @@ RUN if [ "$MATRIX_ARCH" = "x64" ]; then \
 FROM scratch AS export
 ARG BUILD_MODE=prod
 ARG PLATFORM_ARCH=linux-x64-musl
-COPY --from=0 /workspace/packages/node-smol-builder/build/${BUILD_MODE}/out/Release /${BUILD_MODE}/${PLATFORM_ARCH}/out/Release
+COPY --from=0 /workspace/packages/node-smol-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Release /${BUILD_MODE}/${PLATFORM_ARCH}/out/Release

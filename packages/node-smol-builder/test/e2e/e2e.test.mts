@@ -30,7 +30,7 @@ import { getLatestFinalBinary, getPackageDir } from '../paths.mts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-// Get the latest Final binary from build/{dev,prod}/out/Final/node/
+// Get the latest Final binary from build/{dev,prod}/{platform-arch}/out/Final/node/
 // This is the production binary suitable for injection and execution
 const finalBinaryPath = getLatestFinalBinary()
 const packageDir = getPackageDir()

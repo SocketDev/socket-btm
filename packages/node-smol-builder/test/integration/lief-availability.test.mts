@@ -8,7 +8,7 @@ import process from 'node:process'
  * 2. When LIEF is disabled, --build-sea flag is silently ignored
  * 3. Debug logging works with NODE_DEBUG_NATIVE=smol_sea
  *
- * Note: These tests require a built smol binary at build/{dev,prod}/out/Final/node/.
+ * Note: These tests require a built smol binary at build/{dev,prod}/{platform-arch}/out/Final/node/.
  * Run `pnpm build --dev` first to create the binary.
  */
 
@@ -19,7 +19,7 @@ import { spawn } from '@socketsecurity/lib/spawn'
 import { expectLiefEnabled, hasLiefSupport } from '../helpers/lief.mts'
 import { getLatestFinalBinary } from '../paths.mts'
 
-// Get the latest Final binary from build/{dev,prod}/out/Final/node/
+// Get the latest Final binary from build/{dev,prod}/{platform-arch}/out/Final/node/
 const finalBinaryPath = getLatestFinalBinary()
 
 // Skip all tests if no final binary is available

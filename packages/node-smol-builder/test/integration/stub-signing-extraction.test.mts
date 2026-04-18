@@ -11,7 +11,7 @@
  * 7. Extracted node can run SQLite (native addon)
  * 8. Extracted node uses small-icu for internationalization
  *
- * Note: These tests require the final production binary at build/out/Final/node/.
+ * Note: These tests require the final production binary at build/{dev,prod}/{platform-arch}/out/Final/node/.
  * Run with: pnpm build --dev or pnpm build --prod
  */
 

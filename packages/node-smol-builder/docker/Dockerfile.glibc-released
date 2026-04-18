@@ -96,4 +96,4 @@ RUN source /opt/rh/gcc-toolset-13/enable && \
 FROM scratch AS export
 ARG BUILD_MODE=prod
 ARG PLATFORM_ARCH=linux-x64
-COPY --from=0 /workspace/packages/node-smol-builder/build/${BUILD_MODE}/out/Release /${BUILD_MODE}/${PLATFORM_ARCH}/out/Release
+COPY --from=0 /workspace/packages/node-smol-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Release /${BUILD_MODE}/${PLATFORM_ARCH}/out/Release

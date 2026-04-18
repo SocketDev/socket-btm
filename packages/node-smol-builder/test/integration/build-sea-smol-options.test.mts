@@ -17,7 +17,7 @@ import { spawn } from '@socketsecurity/lib/spawn'
 
 import { getLatestFinalBinary } from '../paths.mts'
 
-// Get the latest Final binary from build/{dev,prod}/out/Final/node/
+// Get the latest Final binary from build/{dev,prod}/{platform-arch}/out/Final/node/
 const finalBinaryPath = getLatestFinalBinary()
 
 // Check if the binary was built with LIEF (required for --build-sea).

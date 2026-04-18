@@ -14,7 +14,7 @@
  //github.com/SocketDev/socket-lib/blob/v5.0.0/src/dlx/binary.ts#L49-L130
  * - DlxMetadata schema: https:
  *
- * Note: These tests require the final production binary at build/out/Final/node/.
+ * Note: These tests require the final production binary at build/{dev,prod}/{platform-arch}/out/Final/node/.
  * Run with: pnpm build --dev or pnpm build --prod
  */
 
@@ -56,7 +56,7 @@ function getNodeVersionRaw() {
   return process.version
 }
 
-// Get the latest Final binary from build/{dev,prod}/out/Final/node/
+// Get the latest Final binary from build/{dev,prod}/{platform-arch}/out/Final/node/
 const compressedBinaryPath = getLatestFinalBinary()
 
 // Skip all tests if no final binary is available

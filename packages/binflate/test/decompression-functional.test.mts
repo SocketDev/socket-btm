@@ -29,9 +29,10 @@ import { fileURLToPath } from 'node:url'
 
 import { makeExecutable } from 'build-infra/lib/build-helpers'
 import { getBuildMode } from 'build-infra/lib/constants'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -39,8 +40,9 @@ const PACKAGE_DIR = path.join(__dirname, '..')
 const PACKAGES_DIR = path.join(PACKAGE_DIR, '..')
 const BINPRESS_PACKAGE_DIR = path.join(PACKAGES_DIR, 'binpress')
 
-// Determine build mode
+// Determine build mode + per-platform-arch layout.
 const BUILD_MODE = getBuildMode()
+const PLATFORM_ARCH = await getCurrentPlatformArch()
 
 // Get binflate binary path
 const BINFLATE_NAME = process.platform === 'win32' ? 'binflate.exe' : 'binflate'
@@ -48,6 +50,7 @@ const BINFLATE = path.join(
   PACKAGE_DIR,
   'build',
   BUILD_MODE,
+  PLATFORM_ARCH,
   'out',
   'Final',
   BINFLATE_NAME,
@@ -59,6 +62,7 @@ const BINPRESS = path.join(
   BINPRESS_PACKAGE_DIR,
   'build',
   BUILD_MODE,
+  PLATFORM_ARCH,
   'out',
   'Final',
   BINPRESS_NAME,

@@ -6,7 +6,6 @@ import { defineConfig, mergeConfig } from 'vitest/config'
 
 import baseConfig from '../../vitest.config.mts'
 
-// @ts-check
 export default mergeConfig(
   baseConfig,
   defineConfig({

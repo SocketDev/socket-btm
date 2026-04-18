@@ -90,9 +90,9 @@ declare module 'node:smol-ilp' {
     host?: string
     /** Port to connect to (default: 9009) */
     port?: number
-    /** Connection timeout in ms (default: 10000) */
+    /** Connection timeout in ms (default: 10_000) */
     connectTimeout?: number
-    /** Send timeout in ms (default: 30000) */
+    /** Send timeout in ms (default: 30_000) */
     sendTimeout?: number
     /** Initial buffer size (default: 65536) */
     bufferSize?: number

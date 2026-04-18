@@ -386,7 +386,7 @@ describe('patch Metadata', () => {
 
     // Total should be reasonable for the patch set.
     expect(totalLines).toBeGreaterThan(500)
-    expect(totalLines).toBeLessThan(10000)
+    expect(totalLines).toBeLessThan(10_000)
   })
 
   it('should have correct patch count', () => {

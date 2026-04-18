@@ -434,8 +434,8 @@ describe('node:smol-vfs module API', () => {
 
 describe('node:smol-vfs vs Platformatic node:vfs comparison', () => {
   // smol-vfs uses real file descriptors via extraction
-  // Platformatic node:vfs uses virtual FDs (VFD_BASE = 10000)
-  const PLATFORMATIC_VFD_BASE = 10000
+  // Platformatic node:vfs uses virtual FDs (VFD_BASE = 10_000)
+  const PLATFORMATIC_VFD_BASE = 10_000
 
   it('should not use virtual FD base like Platformatic', () => {
     // Our implementation extracts files and uses real kernel FDs

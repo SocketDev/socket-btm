@@ -104,7 +104,7 @@ ObjectSetPrototypeOf(PurlError.prototype, ErrorCtor.prototype)
 ObjectSetPrototypeOf(PurlError, ErrorCtor)
 
 // SafeMap-based LRU cache - O(1) eviction via insertion order
-const CACHE_SIZE = 10000
+const CACHE_SIZE = 10_000
 let cache = new SafeMap()
 let cacheHits = 0
 let cacheMisses = 0

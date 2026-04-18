@@ -111,7 +111,7 @@ const CRLF_BUF = BufferFrom('\r\n\r\n')
 // Content-Length Cache (avoids string allocation for 99.9% of responses)
 // ============================================================================
 
-const CONTENT_LENGTH_CACHE_SIZE = 10000
+const CONTENT_LENGTH_CACHE_SIZE = 10_000
 let _contentLengthCache
 function getContentLengthCache() {
   if (!_contentLengthCache) {

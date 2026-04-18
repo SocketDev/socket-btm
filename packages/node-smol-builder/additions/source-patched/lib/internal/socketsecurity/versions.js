@@ -61,7 +61,7 @@ let cacheHits = 0
 let cacheMisses = 0
 
 // Range cache: stores compiled comparator arrays keyed by `${ecosystem}:${range}`
-const RANGE_CACHE_SIZE = 10000
+const RANGE_CACHE_SIZE = 10_000
 let rangeCache = new SafeMap()
 
 function cacheKey(version, eco) {

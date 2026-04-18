@@ -34,7 +34,7 @@ function getHttpAgent() {
       keepAlive: true,
       maxSockets: 64,
       maxFreeSockets: 16,
-      timeout: 30000,
+      timeout: 30_000,
     })
   }
   return _httpAgent
@@ -46,7 +46,7 @@ function getHttpsAgent() {
       keepAlive: true,
       maxSockets: 64,
       maxFreeSockets: 16,
-      timeout: 30000,
+      timeout: 30_000,
     })
   }
   return _httpsAgent
@@ -60,7 +60,7 @@ function getHttpsAgent() {
  * @param {string} [options.method='GET'] HTTP method
  * @param {object} [options.headers] Request headers
  * @param {string|Buffer} [options.body] Request body
- * @param {number} [options.timeout=30000] Request timeout in ms
+ * @param {number} [options.timeout=30_000] Request timeout in ms
  * @param {AbortSignal} [options.signal] AbortSignal for cancellation
  * @returns {Promise<{status: number, headers: object, body: string|Buffer, json: function}>}
  */
@@ -70,7 +70,7 @@ function request(url, options) {
     method = 'GET',
     headers,
     body: reqBody,
-    timeout = 30000,
+    timeout = 30_000,
     signal,
   } = opts
 
@@ -160,8 +160,8 @@ function setPipelining(depth, options) {
     new Agent({
       pipelining: depth,
       connections: options?.connections || null,
-      keepAliveTimeout: 10000,
-      keepAliveMaxTimeout: 600000,
+      keepAliveTimeout: 10_000,
+      keepAliveMaxTimeout: 600_000,
     }),
   )
 }

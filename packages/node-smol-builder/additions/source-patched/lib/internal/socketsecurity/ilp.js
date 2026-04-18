@@ -231,8 +231,8 @@ class Sender extends EventsEventEmitter {
    * @param {object} options - Configuration options.
    * @param {string} [options.host='localhost'] - Host to connect to.
    * @param {number} [options.port=9009] - Port to connect to.
-   * @param {number} [options.connectTimeout=10000] - Connection timeout in ms.
-   * @param {number} [options.sendTimeout=30000] - Send timeout in ms.
+   * @param {number} [options.connectTimeout=10_000] - Connection timeout in ms.
+   * @param {number} [options.sendTimeout=30_000] - Send timeout in ms.
    * @param {number} [options.bufferSize=65536] - Initial buffer size.
    * @param {number} [options.maxBufferSize=104857600] - Maximum buffer size (100MB).
    * @param {boolean} [options.autoFlush=false] - Enable auto-flush.
@@ -248,8 +248,8 @@ class Sender extends EventsEventEmitter {
       __proto__: null,
       host: opts.host ?? 'localhost',
       port: opts.port ?? 9009,
-      connectTimeout: opts.connectTimeout ?? 10000,
-      sendTimeout: opts.sendTimeout ?? 30000,
+      connectTimeout: opts.connectTimeout ?? 10_000,
+      sendTimeout: opts.sendTimeout ?? 30_000,
       bufferSize: opts.bufferSize ?? 65536,
       maxBufferSize: opts.maxBufferSize ?? 104857600,
       autoFlush: opts.autoFlush ?? false,

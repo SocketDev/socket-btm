@@ -9,7 +9,7 @@ const { serve: httpServe } = require('smol-http')
 // Performance-oriented TLS defaults (user options override via spread)
 const FAST_TLS_DEFAULTS = ObjectFreeze({
   __proto__: null,
-  sessionTimeout: 86400,
+  sessionTimeout: 86_400,
   honorCipherOrder: true,
   ecdhCurve: 'X25519:P-256',
   ciphers: [

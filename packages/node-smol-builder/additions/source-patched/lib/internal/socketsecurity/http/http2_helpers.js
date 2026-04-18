@@ -47,7 +47,7 @@ function createHttp2Server(options) {
     maxHeaderListSize: opts.maxHeaderListSize || 65536,
 
     // Enable session timeout.
-    sessionTimeout: opts.sessionTimeout || 120000, // 2 minutes
+    sessionTimeout: opts.sessionTimeout || 120_000, // 2 minutes
 
     ...opts,
   }

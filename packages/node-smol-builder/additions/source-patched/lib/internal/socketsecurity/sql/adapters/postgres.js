@@ -176,9 +176,9 @@ class PostgresAdapter {
       connectionString: connString,
       minConnections: config.min ?? 2,
       maxConnections: config.max ?? 10,
-      connectTimeoutMs: config.connectionTimeout ?? 10000,
-      idleTimeoutMs: config.idleTimeout ?? 30000,
-      maxLifetimeMs: config.maxLifetime ?? 3600000,
+      connectTimeoutMs: config.connectionTimeout ?? 10_000,
+      idleTimeoutMs: config.idleTimeout ?? 30_000,
+      maxLifetimeMs: config.maxLifetime ?? 3_600_000,
     }
 
     this[kPoolId] = getBinding().createPool(poolConfig)

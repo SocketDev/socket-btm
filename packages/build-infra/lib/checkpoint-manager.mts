@@ -259,7 +259,7 @@ export async function createCheckpoint(
       // --exclude='._*': exclude macOS AppleDouble resource fork files
       // tarBase: the artifact basename to archive (file or directory)
       //
-      // Example: tar -czf checkpoint.tar.gz.tmp.12345 -C /build/dev/out Final
+      // Example: tar -czf checkpoint.tar.gz.tmp.12345 -C /build/dev/linux-x64/out Final
       //   → Creates tarball containing Final/ as top-level entry
       //   → During extraction, preserves directory structure (Final/ is recreated in extractDir)
 

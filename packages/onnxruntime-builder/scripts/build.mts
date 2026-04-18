@@ -36,6 +36,7 @@ import {
   PACKAGE_ROOT,
   getBuildOutputPaths,
   getBuildPaths,
+  getCurrentPlatform,
   getSharedBuildPaths,
 } from './paths.mts'
 // Import extracted checkpoint modules
@@ -110,6 +111,8 @@ const {
   sourceDir: SHARED_SOURCE_DIR,
 } = getSharedBuildPaths()
 
+const PLATFORM_ARCH = await getCurrentPlatform()
+
 const {
   buildDir: BUILD_DIR,
   outputFinalDir: OUTPUT_FINAL_DIR,
@@ -119,7 +122,7 @@ const {
   outputSyncDir: OUTPUT_SYNC_DIR,
   outputSyncJsFile,
   outputWasmFile,
-} = getBuildPaths(BUILD_MODE)
+} = getBuildPaths(BUILD_MODE, PLATFORM_ARCH)
 
 /**
  * Clone ONNX Runtime source if not already present.

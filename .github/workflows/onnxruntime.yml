@@ -52,6 +52,10 @@ jobs:
       id-token: write # OIDC authentication for Depot builds
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    env:
+      # ONNX Runtime builds WASM on Linux only; derive platform-arch from the
+      # Node.js platform naming that the source code uses for layout paths.
+      PLATFORM_ARCH: linux-x64
 
     steps:
       - name: Checkout repository
@@ -194,7 +198,7 @@ jobs:
         with:
           path: |
             packages/onnxruntime-builder/build/shared/checkpoints
-            packages/onnxruntime-builder/build/${{ steps.build-mode.outputs.mode }}/checkpoints
+            packages/onnxruntime-builder/build/${{ steps.build-mode.outputs.mode }}/${{ env.PLATFORM_ARCH }}/checkpoints
           key: onnx-checkpoints-${{ steps.cache-key.outputs.cache_version }}-v${{ steps.tool-versions.outputs.onnx-version }}-${{ runner.os }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.wasm_final_hash }}
           # NOTE: No restore-keys - we require exact match to prevent stale cache restoration.
           # Partial matches with restore-keys cause builds to use outdated artifacts when
@@ -220,7 +224,7 @@ jobs:
         if: steps.onnx-checkpoint-cache.outputs.cache-hit == 'true'
         uses: ./.github/actions/validate-checkpoints
         with:
-          checkpoint-dirs: packages/onnxruntime-builder/build/shared/checkpoints:packages/onnxruntime-builder/build/${{ steps.build-mode.outputs.mode }}/checkpoints
+          checkpoint-dirs: packages/onnxruntime-builder/build/shared/checkpoints:packages/onnxruntime-builder/build/${{ steps.build-mode.outputs.mode }}/${{ env.PLATFORM_ARCH }}/checkpoints
           checkpoints: ${{ steps.checkpoint-chain.outputs.checkpoints }}
           package-name: onnxruntime-builder
 
@@ -233,6 +237,7 @@ jobs:
           checkpoint-chain: ${{ steps.checkpoint-chain.outputs.checkpoint_chain }}
           cache-hit: ${{ steps.onnx-checkpoint-cache.outputs.cache-hit }}
           cache-valid: ${{ steps.validate-cache.outputs.valid }}
+          platform-arch: ${{ env.PLATFORM_ARCH }}
 
       - name: Install build tools
         if: |
@@ -314,28 +319,28 @@ jobs:
         run: |
           echo "Validating ONNX Runtime build output..."
 
-          if [ ! -f "packages/onnxruntime-builder/build/${BUILD_MODE}/out/Final/ort.wasm" ]; then
+          if [ ! -f "packages/onnxruntime-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/ort.wasm" ]; then
             echo "× Build failed: WASM file missing"
-            echo "Expected path: packages/onnxruntime-builder/build/${BUILD_MODE}/out/Final/ort.wasm"
+            echo "Expected path: packages/onnxruntime-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/ort.wasm"
             exit 1
           fi
 
-          if [ ! -f "packages/onnxruntime-builder/build/${BUILD_MODE}/out/Final/ort.mjs" ]; then
+          if [ ! -f "packages/onnxruntime-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/ort.mjs" ]; then
             echo "× Build failed: ES module file missing"
             exit 1
           fi
 
-          if [ ! -f "packages/onnxruntime-builder/build/${BUILD_MODE}/out/Final/ort-sync.cjs" ]; then
+          if [ ! -f "packages/onnxruntime-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/ort-sync.cjs" ]; then
             echo "× Build failed: Sync CJS file missing"
             exit 1
           fi
 
-          if [ ! -f "packages/onnxruntime-builder/build/${BUILD_MODE}/out/Final/ort-sync.mjs" ]; then
+          if [ ! -f "packages/onnxruntime-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/ort-sync.mjs" ]; then
             echo "× Build failed: Sync ESM file missing"
             exit 1
           fi
 
-          WASM_SIZE=$(stat -c%s "packages/onnxruntime-builder/build/${BUILD_MODE}/out/Final/ort.wasm" 2>/dev/null || stat -f%z "packages/onnxruntime-builder/build/${BUILD_MODE}/out/Final/ort.wasm")
+          WASM_SIZE=$(stat -c%s "packages/onnxruntime-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/ort.wasm" 2>/dev/null || stat -f%z "packages/onnxruntime-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/ort.wasm")
           if [ "$WASM_SIZE" -lt 1000000 ]; then
             echo "× Build failed: WASM file too small ($WASM_SIZE bytes)"
             exit 1
@@ -347,7 +352,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: onnxruntime-wasm
-          path: packages/onnxruntime-builder/build/${{ steps.build-mode.outputs.mode }}/out/Final/
+          path: packages/onnxruntime-builder/build/${{ steps.build-mode.outputs.mode }}/${{ env.PLATFORM_ARCH }}/out/Final/
           retention-days: 30
           if-no-files-found: error
 
@@ -360,8 +365,8 @@ jobs:
 
           # Remove temporary build files that shouldn't be cached
           TEMP_DIRS=(
-            "packages/onnxruntime-builder/build/${BUILD_MODE}/temp"
-            "packages/onnxruntime-builder/build/${BUILD_MODE}/out"
+            "packages/onnxruntime-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/temp"
+            "packages/onnxruntime-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out"
           )
 
           for DIR in "${TEMP_DIRS[@]}"; do

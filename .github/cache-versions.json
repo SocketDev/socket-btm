@@ -11,7 +11,7 @@
     "lief": "v61",
     "models": "v22",
     "node-smol": "v206",
-    "onnxruntime": "v22",
+    "onnxruntime": "v23",
     "opentui": "v2",
     "stubs": "v93",
     "yoga-layout": "v24"

@@ -107,23 +107,9 @@ jobs:
           git submodule update --init packages/opentui-builder/upstream/opentui
 
       - name: Enable debug logging
-        if: inputs.debug != '0'
-        env:
-          DEBUG_INPUT: ${{ inputs.debug }}
-        run: |
-          if [ "$DEBUG_INPUT" = "1" ]; then
-            echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
-            echo "ACTIONS_RUNNER_DEBUG=true" >> $GITHUB_ENV
-            echo "Debug mode: full"
-          else
-            {
-              echo "DEBUG<<EOF"
-              echo "$DEBUG_INPUT"
-              echo "EOF"
-            } >> $GITHUB_ENV
-            echo "Debug mode: $DEBUG_INPUT"
-          fi
-        shell: bash
+        uses: ./.github/actions/enable-debug-logging
+        with:
+          debug: ${{ inputs.debug }}
 
       - name: Load tool versions
         id: tool-versions

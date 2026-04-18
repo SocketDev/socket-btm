@@ -111,24 +111,9 @@ jobs:
           submodules: false
 
       - name: Enable debug logging
-        if: inputs.debug != '0'
-        shell: bash
-        env:
-          DEBUG_INPUT: ${{ inputs.debug }}
-        run: |
-          if [ "$DEBUG_INPUT" = "1" ]; then
-            echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
-            echo "ACTIONS_RUNNER_DEBUG=true" >> $GITHUB_ENV
-            echo "Debug mode: full"
-          else
-            # Use heredoc syntax to prevent env var injection via newlines
-            {
-              echo "DEBUG<<EOF"
-              echo "$DEBUG_INPUT"
-              echo "EOF"
-            } >> $GITHUB_ENV
-            echo "Debug mode: $DEBUG_INPUT"
-          fi
+        uses: ./.github/actions/enable-debug-logging
+        with:
+          debug: ${{ inputs.debug }}
 
       - uses: SocketDev/socket-registry/.github/actions/setup@34fef52be917f89dbbeb464860f2aaf0f3812c40 # main
 

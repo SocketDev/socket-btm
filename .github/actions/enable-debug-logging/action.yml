@@ -1,0 +1,40 @@
+name: Enable debug logging
+description: >-
+  Enables GitHub Actions debug logging (when debug=1) or sets a DEBUG env var
+  to a namespace string (e.g. "smol:*") so downstream build scripts can pick it
+  up. Input is validated to contain only alphanumerics, commas, underscores,
+  and hyphens to prevent injection via newlines.
+
+inputs:
+  debug:
+    description: '0 to disable, 1 for full Actions debug, or a DEBUG namespace string'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Apply debug configuration
+      if: inputs.debug != '0'
+      shell: bash
+      env:
+        DEBUG_INPUT: ${{ inputs.debug }}
+      run: |
+        # Validate DEBUG_INPUT contains only safe characters.
+        if [ "$DEBUG_INPUT" != "1" ] && ! echo "$DEBUG_INPUT" | grep -qE '^[a-zA-Z0-9,_-]+$'; then
+          echo "Error: Invalid debug input format (allowed: alphanumeric, comma, underscore, hyphen)"
+          exit 1
+        fi
+
+        if [ "$DEBUG_INPUT" = "1" ]; then
+          echo "ACTIONS_STEP_DEBUG=true" >> "$GITHUB_ENV"
+          echo "ACTIONS_RUNNER_DEBUG=true" >> "$GITHUB_ENV"
+          echo "Debug mode: full"
+        else
+          # Use heredoc syntax to prevent env var injection via newlines.
+          {
+            echo "DEBUG<<EOF"
+            echo "$DEBUG_INPUT"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+          echo "Debug mode: $DEBUG_INPUT"
+        fi

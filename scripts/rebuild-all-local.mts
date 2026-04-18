@@ -292,7 +292,9 @@ async function main(): Promise<void> {
     logger.success('All builds completed successfully!')
     logger.log('')
     logger.log('Next steps:')
-    logger.log('  - Test the built binaries in packages/*/build/dev/out/Final/')
+    logger.log(
+      '  - Test the built binaries in packages/*/build/dev/<platform-arch>/out/Final/',
+    )
     logger.log('  - Run tests: pnpm test')
     logger.log('')
   } catch (e) {

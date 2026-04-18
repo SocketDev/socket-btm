@@ -12,6 +12,8 @@ import { existsSync, promises as fs, readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
+import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
+
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
@@ -139,12 +141,14 @@ async function main() {
   logger.step('Bundling yoga-sync')
   const yogaBuilderDir = path.join(PACKAGE_ROOT, '..', 'yoga-layout-builder')
   const yogaSyncDest = path.join(packageDir, 'build', 'yoga-sync.mjs')
+  const platformArch = await getCurrentPlatformArch()
 
   // Try prod build first, fall back to dev.
   let yogaSyncSource = path.join(
     yogaBuilderDir,
     'build',
     'prod',
+    platformArch,
     'out',
     'Final',
     'yoga-sync.mjs',
@@ -154,6 +158,7 @@ async function main() {
       yogaBuilderDir,
       'build',
       'dev',
+      platformArch,
       'out',
       'Final',
       'yoga-sync.mjs',

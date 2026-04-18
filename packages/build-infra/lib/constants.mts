@@ -11,6 +11,8 @@ import process from 'node:process'
 
 import { fileURLToPath } from 'node:url'
 
+import { getCI } from '@socketsecurity/lib/env/ci'
+
 // =============================================================================
 // Path Constants
 // =============================================================================
@@ -386,18 +388,7 @@ export function getBuildMode(args?: string[] | Set<string>): string {
   if (process.env['BUILD_MODE']) {
     return process.env['BUILD_MODE']
   }
-  return process.env['CI'] ? 'prod' : 'dev'
-}
-
-/**
- * Get binary output directory for a package.
- * Packages (binpress, binflate, binject) build to build/${BUILD_MODE}/out/Final/
- * @param {string} packageDir - The package directory path
- * @returns {string} The output directory path
- */
-export function getBinOutDir(packageDir: string): string {
-  const buildMode = getBuildMode()
-  return `${packageDir}/build/${buildMode}/out/${BUILD_STAGES.FINAL}`
+  return getCI() ? 'prod' : 'dev'
 }
 
 /**

@@ -12,12 +12,15 @@
 # 3. Exports the final .node file
 #
 # Usage:
-#   depot build --file packages/iocraft-builder/Dockerfile --target export --output type=local,dest=packages/iocraft-builder/build .
+#   depot build --file packages/iocraft-builder/Dockerfile --target export \
+#     --build-arg PLATFORM_ARCH=linux-x64 --build-arg RUST_TARGET=x86_64-unknown-linux-gnu \
+#     --output type=local,dest=packages/iocraft-builder/build .
 
 # Build arguments
 ARG NODE_VERSION=25.9.0
 ARG BUILD_MODE=prod
 ARG RUST_TARGET=x86_64-unknown-linux-gnu
+ARG PLATFORM_ARCH=linux-x64
 ARG CACHE_VERSION=v1
 ARG CACHE_BUSTER=
 
@@ -28,6 +31,7 @@ FROM node:${NODE_VERSION}-bookworm AS builder
 
 ARG BUILD_MODE
 ARG RUST_TARGET
+ARG PLATFORM_ARCH
 ARG CACHE_VERSION
 ARG CACHE_BUSTER
 
@@ -66,7 +70,9 @@ COPY packages/build-infra/ packages/build-infra/
 # Build iocraft native module
 WORKDIR /build/packages/iocraft-builder
 
-# Build with cargo
+# Build with cargo. Output layout matches iocraft-builder/scripts/paths.mts:
+#   build/<mode>/<platform-arch>/out/<platform-arch>/iocraft.node  (primary)
+#   build/<mode>/<platform-arch>/out/Final/iocraft.node            (copy for artifact upload)
 RUN if [ "$BUILD_MODE" = "prod" ]; then \
       cargo build --release --target ${RUST_TARGET}; \
       ARTIFACT_DIR="target/${RUST_TARGET}/release"; \
@@ -74,15 +80,19 @@ RUN if [ "$BUILD_MODE" = "prod" ]; then \
       cargo build --target ${RUST_TARGET}; \
       ARTIFACT_DIR="target/${RUST_TARGET}/debug"; \
     fi && \
-    mkdir -p build/${BUILD_MODE}/out/Final && \
-    cp ${ARTIFACT_DIR}/libiocraft_node.so build/${BUILD_MODE}/out/Final/iocraft.node
+    mkdir -p build/${BUILD_MODE}/${PLATFORM_ARCH}/out/${PLATFORM_ARCH} \
+             build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final && \
+    cp ${ARTIFACT_DIR}/libiocraft_node.so \
+       build/${BUILD_MODE}/${PLATFORM_ARCH}/out/${PLATFORM_ARCH}/iocraft.node && \
+    cp ${ARTIFACT_DIR}/libiocraft_node.so \
+       build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/iocraft.node
 
 # Create checkpoint
-RUN mkdir -p build/${BUILD_MODE}/checkpoints && \
-    echo "BUILD_MODE=${BUILD_MODE}" > build/${BUILD_MODE}/checkpoints/native-built && \
-    echo "RUST_TARGET=${RUST_TARGET}" >> build/${BUILD_MODE}/checkpoints/native-built && \
-    echo "CACHE_VERSION=${CACHE_VERSION}" >> build/${BUILD_MODE}/checkpoints/native-built && \
-    date >> build/${BUILD_MODE}/checkpoints/native-built
+RUN mkdir -p build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints && \
+    echo "BUILD_MODE=${BUILD_MODE}" > build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints/native-built && \
+    echo "RUST_TARGET=${RUST_TARGET}" >> build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints/native-built && \
+    echo "CACHE_VERSION=${CACHE_VERSION}" >> build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints/native-built && \
+    date >> build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints/native-built
 
 # =============================================================================
 # Stage 2: Export artifacts
@@ -90,9 +100,10 @@ RUN mkdir -p build/${BUILD_MODE}/checkpoints && \
 FROM scratch AS export
 
 ARG BUILD_MODE
+ARG PLATFORM_ARCH
 
 # Copy native module
-COPY --from=builder /build/packages/iocraft-builder/build/${BUILD_MODE}/out/Final/iocraft.node /out/Final/iocraft.node
+COPY --from=builder /build/packages/iocraft-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/iocraft.node /out/Final/iocraft.node
 
 # Copy checkpoints for cache validation
-COPY --from=builder /build/packages/iocraft-builder/build/${BUILD_MODE}/checkpoints /checkpoints
+COPY --from=builder /build/packages/iocraft-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints /checkpoints

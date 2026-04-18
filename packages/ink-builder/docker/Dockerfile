@@ -10,11 +10,15 @@
 # 5. Exports the final dist directory
 #
 # Usage:
-#   depot build --file packages/ink-builder/Dockerfile --target export --output type=local,dest=packages/ink-builder/build .
+#   depot build --file packages/ink-builder/Dockerfile --target export \
+#     --build-arg PLATFORM_ARCH=linux-x64 \
+#     --output type=local,dest=packages/ink-builder/build .
 
 # Build arguments
 ARG NODE_VERSION=25.9.0
 ARG INK_VERSION=6.3.1
+# The Dockerfile always runs Linux; platform-arch mirrors the runner (x64 or arm64).
+ARG PLATFORM_ARCH=linux-x64
 ARG CACHE_VERSION=v1
 ARG CACHE_BUSTER=
 
@@ -64,6 +68,7 @@ RUN pnpm run build --dev
 FROM node:${NODE_VERSION}-bookworm AS ink-builder
 
 ARG INK_VERSION
+ARG PLATFORM_ARCH
 ARG CACHE_VERSION
 ARG CACHE_BUSTER
 
@@ -89,15 +94,18 @@ RUN pnpm install --frozen-lockfile
 # Copy ink-builder source
 COPY packages/ink-builder/ packages/ink-builder/
 
-# Copy yoga-sync.mjs from yoga-builder stage
-COPY --from=yoga-builder /build/packages/yoga-layout-builder/build/dev/out/Final/yoga-sync.mjs /yoga-sync.mjs
+# Copy yoga-sync.mjs from yoga-builder stage (yoga writes under
+# build/<mode>/<platform-arch>/out/Final/; Docker always builds on Linux).
+COPY --from=yoga-builder /build/packages/yoga-layout-builder/build/dev/${PLATFORM_ARCH}/out/Final/yoga-sync.mjs /yoga-sync.mjs
 
 # Build ink
 WORKDIR /build/packages/ink-builder
 
-# Create build directory and copy yoga-sync before build
-RUN mkdir -p /build/packages/yoga-layout-builder/build/dev/out/Final && \
-    cp /yoga-sync.mjs /build/packages/yoga-layout-builder/build/dev/out/Final/yoga-sync.mjs
+# Create build directory and copy yoga-sync before build. ink-builder's build
+# script resolves yoga-sync via getCurrentPlatformArch() so we must place it
+# at the per-platform-arch path it expects.
+RUN mkdir -p /build/packages/yoga-layout-builder/build/dev/${PLATFORM_ARCH}/out/Final && \
+    cp /yoga-sync.mjs /build/packages/yoga-layout-builder/build/dev/${PLATFORM_ARCH}/out/Final/yoga-sync.mjs
 
 RUN pnpm run build
 

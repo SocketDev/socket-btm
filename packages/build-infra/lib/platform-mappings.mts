@@ -147,11 +147,21 @@ export async function isMusl() {
 
 /**
  * Get platform-arch string for the current platform using shared mapping.
- * Respects TARGET_ARCH and LIBC environment variables for cross-compilation.
+ *
+ * Resolution order:
+ *   1. `PLATFORM_ARCH` env — the explicit value the workflow/Dockerfile injected
+ *      (set by .github/workflows/*.yml build-args and every Dockerfile).
+ *   2. Cross-compile env (`TARGET_ARCH`, `LIBC`) applied on top of the host's
+ *      platform/arch.
+ *   3. Full auto-detect via `isMusl()` + `process.arch` + `process.platform`.
  *
  * @returns {Promise<string>} Platform-arch string (e.g., 'win-x64', 'linux-x64-musl').
  */
 export async function getCurrentPlatformArch() {
+  // If the workflow or Dockerfile set PLATFORM_ARCH explicitly, trust it.
+  if (process.env.PLATFORM_ARCH) {
+    return process.env.PLATFORM_ARCH
+  }
   // Respect LIBC environment variable for cross-compilation (set by workflows)
   // Falls back to isMusl() for host detection when not cross-compiling.
   const libc = process.env.LIBC || ((await isMusl()) ? 'musl' : undefined)

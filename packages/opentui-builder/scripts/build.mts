@@ -84,8 +84,8 @@ if (!opentuiSource) {
 
 const OPENTUI_VERSION = `v${opentuiSource.version}`
 
-// Use PLATFORM_ARCH env var if set by workflow, otherwise detect
-const PLATFORM_ARCH = process.env.PLATFORM_ARCH || (await getCurrentPlatform())
+// getCurrentPlatform() now honors PLATFORM_ARCH env itself.
+const PLATFORM_ARCH = await getCurrentPlatform()
 
 const {
   buildDir: BUILD_DIR,

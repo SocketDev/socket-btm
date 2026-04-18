@@ -4,11 +4,10 @@
  * Usage: node scripts/test-with-memory-limit.mts [vitest args...]
  */
 
-import { execSync } from 'node:child_process'
 import process from 'node:process'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { spawn, spawnSync } from '@socketsecurity/lib/spawn'
 
 const logger = getDefaultLogger()
 
@@ -40,19 +39,26 @@ function getMemoryUsageMB(pid) {
   try {
     if (process.platform === 'win32') {
       // Windows: Use PowerShell (wmic is deprecated/removed on Windows 11+)
-      const output = execSync(
-        `powershell.exe -NoProfile -Command "(Get-Process -Id ${pid}).WorkingSet64"`,
+      const result = spawnSync(
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-Command',
+          `(Get-Process -Id ${pid}).WorkingSet64`,
+        ],
         { encoding: 'utf8' },
       )
-      const bytes = parseInt(output.trim(), 10)
+      const bytes = parseInt(String(result.stdout).trim(), 10)
       if (Number.isNaN(bytes)) {
         return 0
       }
       return Math.floor(bytes / 1024 / 1024)
     }
     // macOS/Linux: Use ps
-    const output = execSync(`ps -o rss= -p ${pid}`, { encoding: 'utf8' })
-    const kb = parseInt(output.trim(), 10)
+    const result = spawnSync('ps', ['-o', 'rss=', '-p', String(pid)], {
+      encoding: 'utf8',
+    })
+    const kb = parseInt(String(result.stdout).trim(), 10)
     if (Number.isNaN(kb)) {
       return 0
     }
@@ -67,7 +73,9 @@ function getMemoryUsageMB(pid) {
 function killProcessTree(pid) {
   try {
     if (process.platform === 'win32') {
-      execSync(`taskkill /pid ${pid} /T /F`, { stdio: 'ignore' })
+      spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], {
+        stdio: 'ignore',
+      })
     } else {
       // macOS/Linux: Kill process group
       try {
@@ -77,11 +85,7 @@ function killProcessTree(pid) {
         process.kill(pid, 'SIGKILL')
       }
       // Also kill any child processes
-      try {
-        execSync(`pkill -9 -P ${pid}`, { stdio: 'ignore' })
-      } catch {
-        // Ignore errors
-      }
+      spawnSync('pkill', ['-9', '-P', String(pid)], { stdio: 'ignore' })
     }
   } catch (e) {
     logger.error(

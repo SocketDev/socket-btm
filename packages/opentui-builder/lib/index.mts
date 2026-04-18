@@ -1,9 +1,10 @@
-import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+
+import { spawnSync } from '@socketsecurity/lib/spawn'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const esmRequire = createRequire(import.meta.url)
@@ -51,17 +52,17 @@ function detectMusl() {
   } catch {}
   // Fallback: check if ldd is musl-based
   try {
-    const lddOutput = execFileSync('ldd', ['--version'], {
+    const result = spawnSync('ldd', ['--version'], {
       encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ['ignore', 'pipe', 'pipe'],
     })
-    if (/musl/i.test(lddOutput)) {
+    const stdout = String(result.stdout ?? '')
+    const stderr = String(result.stderr ?? '')
+    if (/musl/i.test(stdout) || /musl/i.test(stderr)) {
       return true
     }
-  } catch (e) {
-    if (e && typeof e.stderr === 'string' && /musl/i.test(e.stderr)) {
-      return true
-    }
+  } catch {
+    // Ignore errors — ldd may not be present on non-glibc/non-musl systems.
   }
   return false
 }

@@ -13,6 +13,7 @@ import { runCommand, selectMakefile } from 'bin-infra/lib/builder'
 import { getBuildMode } from 'build-infra/lib/constants'
 import { ensureLief } from 'lief-builder/lib/ensure-lief'
 
+import { getCI } from '@socketsecurity/lib/env/ci'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 const logger = getDefaultLogger()
@@ -33,7 +34,7 @@ async function main() {
       )
     } catch (checkError) {
       // If tool check fails in CI, skip tests gracefully
-      if (process.env.CI) {
+      if (getCI()) {
         logger.warn(
           'Tool check failed in CI environment (likely missing system dependencies)',
         )
@@ -60,7 +61,7 @@ async function main() {
       await runCommand('make', ['-f', makefile, 'all'], packageRoot)
     } catch (buildError) {
       // If build fails in CI due to missing system dependencies, skip tests gracefully
-      if (process.env['CI']) {
+      if (getCI()) {
         logger.warn(
           'Build failed in CI environment (likely missing system dependencies)',
         )

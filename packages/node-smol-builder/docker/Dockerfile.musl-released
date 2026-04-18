@@ -52,6 +52,7 @@ RUN pnpm install --frozen-lockfile
 
 # Build arguments for target platform.
 ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64-musl
 ARG MATRIX_PLATFORM=linux
 ARG MATRIX_ARCH=x64
 ARG MATRIX_LIBC=musl
@@ -60,6 +61,7 @@ ARG MATRIX_LIBC=musl
 # For x64 builds, set CFLAGS/CXXFLAGS to target baseline x86-64 without AVX/AVX2
 # to ensure binary portability across different CPU generations (e.g., GitHub Actions runners).
 ENV BUILD_MODE=$BUILD_MODE
+ENV PLATFORM_ARCH=$PLATFORM_ARCH
 ENV MATRIX_PLATFORM=$MATRIX_PLATFORM
 ENV MATRIX_ARCH=$MATRIX_ARCH
 ENV MATRIX_LIBC=$MATRIX_LIBC

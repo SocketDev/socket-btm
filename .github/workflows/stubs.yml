@@ -180,6 +180,7 @@ jobs:
           platforms: linux/${{ matrix.arch == 'x64' && 'amd64' || matrix.arch }}
           build-args: |
             BUILD_MODE=prod
+            PLATFORM_ARCH=${{ steps.platform-arch.outputs.platform_arch }}
             CACHE_VERSION=${{ steps.cache-version.outputs.version }}
             CURL_CACHE_VERSION=${{ steps.cache-version.outputs.curl_cache_key }}
             CACHE_BUSTER=${{ github.sha }}

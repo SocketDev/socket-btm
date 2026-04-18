@@ -76,10 +76,12 @@ RUN pnpm install --frozen-lockfile --filter build-infra --filter bin-infra --fil
 
 # Build stubs.
 ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64
 ARG TARGETARCH
 # Cache version - managed centrally in .github/cache-versions.json
 ARG CACHE_VERSION=unset
 ENV BUILD_MODE=$BUILD_MODE
+ENV PLATFORM_ARCH=$PLATFORM_ARCH
 
 # Build stubs (build-stubs.mts handles curl download and compilation).
 # Create symlink with TARGETARCH name for Docker COPY compatibility.

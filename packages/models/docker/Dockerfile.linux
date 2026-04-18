@@ -53,8 +53,10 @@ RUN pip install --upgrade pip && \
 
 # Build models.
 ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64
 ARG CACHE_VERSION=unset
 ENV BUILD_MODE=$BUILD_MODE
+ENV PLATFORM_ARCH=$PLATFORM_ARCH
 
 RUN echo "Cache: ${CACHE_VERSION}" && \
     if [ "$BUILD_MODE" = "prod" ]; then \

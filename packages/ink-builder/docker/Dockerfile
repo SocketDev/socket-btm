@@ -11,12 +11,17 @@
 #
 # Usage:
 #   depot build --file packages/ink-builder/Dockerfile --target export \
-#     --build-arg PLATFORM_ARCH=linux-x64 \
+#     --build-arg BUILD_MODE=prod --build-arg PLATFORM_ARCH=linux-x64 \
 #     --output type=local,dest=packages/ink-builder/build .
+#
+# BUILD_MODE defaults to 'dev'; CI should pass BUILD_MODE=prod.
 
 # Build arguments
 ARG NODE_VERSION=25.9.0
 ARG INK_VERSION=6.3.1
+# Default BUILD_MODE: 'dev' locally, 'prod' in CI — callers pass --build-arg
+# BUILD_MODE=prod in CI to pick up the optimized yoga-sync.
+ARG BUILD_MODE=dev
 # The Dockerfile always runs Linux; platform-arch mirrors the runner (x64 or arm64).
 ARG PLATFORM_ARCH=linux-x64
 ARG CACHE_VERSION=v1
@@ -26,6 +31,9 @@ ARG CACHE_BUSTER=
 # Stage 1: Build yoga-layout-builder (to get yoga-sync.mjs)
 # =============================================================================
 FROM node:${NODE_VERSION}-bookworm AS yoga-builder
+
+ARG BUILD_MODE
+ARG PLATFORM_ARCH
 
 # Install build dependencies for yoga (Emscripten, CMake, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -58,9 +66,9 @@ RUN pnpm install --frozen-lockfile
 COPY packages/yoga-layout-builder/ packages/yoga-layout-builder/
 COPY packages/build-infra/ packages/build-infra/
 
-# Build yoga-layout-builder (dev mode for faster builds in CI)
+# Build yoga-layout-builder in the caller-chosen mode (dev locally, prod in CI).
 WORKDIR /build/packages/yoga-layout-builder
-RUN pnpm run build --dev
+RUN pnpm run build --${BUILD_MODE}
 
 # =============================================================================
 # Stage 2: Build ink with bundled yoga-sync
@@ -68,6 +76,7 @@ RUN pnpm run build --dev
 FROM node:${NODE_VERSION}-bookworm AS ink-builder
 
 ARG INK_VERSION
+ARG BUILD_MODE
 ARG PLATFORM_ARCH
 ARG CACHE_VERSION
 ARG CACHE_BUSTER
@@ -96,7 +105,7 @@ COPY packages/ink-builder/ packages/ink-builder/
 
 # Copy yoga-sync.mjs from yoga-builder stage (yoga writes under
 # build/<mode>/<platform-arch>/out/Final/; Docker always builds on Linux).
-COPY --from=yoga-builder /build/packages/yoga-layout-builder/build/dev/${PLATFORM_ARCH}/out/Final/yoga-sync.mjs /yoga-sync.mjs
+COPY --from=yoga-builder /build/packages/yoga-layout-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/yoga-sync.mjs /yoga-sync.mjs
 
 # Build ink
 WORKDIR /build/packages/ink-builder
@@ -104,8 +113,8 @@ WORKDIR /build/packages/ink-builder
 # Create build directory and copy yoga-sync before build. ink-builder's build
 # script resolves yoga-sync via getCurrentPlatformArch() so we must place it
 # at the per-platform-arch path it expects.
-RUN mkdir -p /build/packages/yoga-layout-builder/build/dev/${PLATFORM_ARCH}/out/Final && \
-    cp /yoga-sync.mjs /build/packages/yoga-layout-builder/build/dev/${PLATFORM_ARCH}/out/Final/yoga-sync.mjs
+RUN mkdir -p /build/packages/yoga-layout-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final && \
+    cp /yoga-sync.mjs /build/packages/yoga-layout-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/yoga-sync.mjs
 
 RUN pnpm run build
 

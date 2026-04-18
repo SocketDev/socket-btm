@@ -57,9 +57,11 @@ RUN EMSCRIPTEN_VERSION=$(node packages/build-infra/scripts/get-tool-version.mts 
 
 # Build Yoga Layout WASM.
 ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64
 # Cache version - managed centrally in .github/cache-versions.json
 ARG CACHE_VERSION=unset
 ENV BUILD_MODE=$BUILD_MODE
+ENV PLATFORM_ARCH=$PLATFORM_ARCH
 ENV EMSDK=/emsdk
 ENV EM_CONFIG=/emsdk/.emscripten
 

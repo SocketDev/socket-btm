@@ -72,12 +72,14 @@ RUN pnpm install --frozen-lockfile
 
 # Build Node.js smol.
 ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64
 ARG TARGETARCH
 ARG MATRIX_PLATFORM=linux
 ARG MATRIX_ARCH=x64
 # Cache version - managed centrally in .github/cache-versions.json
 ARG CACHE_VERSION=unset
 ENV BUILD_MODE=$BUILD_MODE
+ENV PLATFORM_ARCH=$PLATFORM_ARCH
 ENV MATRIX_PLATFORM=$MATRIX_PLATFORM
 ENV MATRIX_ARCH=$MATRIX_ARCH
 

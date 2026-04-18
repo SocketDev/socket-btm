@@ -60,8 +60,10 @@ RUN pnpm install --frozen-lockfile --filter build-infra --filter curl-builder --
 
 # Build curl with mbedTLS.
 ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64
 ARG TARGETARCH
 ENV BUILD_MODE=$BUILD_MODE
+ENV PLATFORM_ARCH=$PLATFORM_ARCH
 
 # For amd64 builds, add -march=x86-64 -mtune=generic to ensure binary portability
 # across different CPU generations (e.g., GitHub Actions runners without AVX/AVX2).

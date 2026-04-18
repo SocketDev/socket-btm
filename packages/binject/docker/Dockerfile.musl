@@ -51,6 +51,7 @@ RUN pnpm install --frozen-lockfile
 
 # Build binject.
 ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64
 ARG GH_TOKEN
 ARG TARGETARCH
 # Cache version - managed centrally in .github/cache-versions.json
@@ -62,6 +63,7 @@ ARG LIBDEFLATE_CACHE_VERSION=unset
 # Stubs cache version - invalidates Docker cache when stubs are updated
 ARG STUBS_CACHE_VERSION=unset
 ENV BUILD_MODE=$BUILD_MODE
+ENV PLATFORM_ARCH=$PLATFORM_ARCH
 # Set both GH_TOKEN and GITHUB_TOKEN for maximum compatibility
 ENV GH_TOKEN=$GH_TOKEN
 ENV GITHUB_TOKEN=$GH_TOKEN

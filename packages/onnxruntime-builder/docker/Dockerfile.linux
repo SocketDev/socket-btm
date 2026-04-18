@@ -58,9 +58,11 @@ RUN pip install --upgrade pip setuptools wheel && \
 # Build ONNX Runtime WASM.
 # Note: ONNX Runtime has its own emsdk submodule that the build system uses.
 ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64
 # Cache version - managed centrally in .github/cache-versions.json
 ARG CACHE_VERSION=unset
 ENV BUILD_MODE=$BUILD_MODE
+ENV PLATFORM_ARCH=$PLATFORM_ARCH
 
 RUN echo "Cache version: ${CACHE_VERSION}" && \
     if [ "$BUILD_MODE" = "prod" ]; then \

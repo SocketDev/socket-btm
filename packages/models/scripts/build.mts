@@ -42,7 +42,11 @@ import { spawn } from '@socketsecurity/lib/spawn'
 import { convertToOnnx as convertToOnnxImpl } from './converted/shared/convert-to-onnx.mts'
 import { downloadModel as downloadModelImpl } from './downloaded/shared/download-model.mts'
 import { getCheckpointChain } from './get-checkpoint-chain.mts'
-import { PACKAGE_ROOT, getBuildPaths } from './paths.mts'
+import {
+  PACKAGE_ROOT,
+  getBuildPaths,
+  getCurrentPlatform,
+} from './paths.mts'
 import { quantizeModel as quantizeModelImpl } from './quantized/shared/quantize-model.mts'
 
 // Parse arguments.
@@ -67,11 +71,12 @@ const BUILD_MODE = QUANT_LEVEL === 'int4' ? 'prod' : 'dev'
 const CHECKPOINT_CHAIN = getCheckpointChain(BUILD_MODE)
 
 // Get paths from source of truth
+const PLATFORM_ARCH = await getCurrentPlatform()
 const {
   buildDir: BUILD,
   modelsDir: MODELS,
   outputFinalDir,
-} = getBuildPaths(BUILD_MODE)
+} = getBuildPaths(BUILD_MODE, PLATFORM_ARCH)
 const DIST_MODE = outputFinalDir
 
 const logger = getDefaultLogger()

@@ -45,6 +45,10 @@ jobs:
       id-token: write # OIDC authentication for Depot builds
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    env:
+      # Models are platform-independent .onnx but build/ is still scoped by
+      # platform-arch so concurrent matrix jobs cannot collide.
+      PLATFORM_ARCH: linux-x64
 
     steps:
       - uses: SocketDev/socket-registry/.github/actions/setup-and-install@34fef52be917f89dbbeb464860f2aaf0f3812c40 # main
@@ -178,7 +182,7 @@ jobs:
         id: model-checkpoint-cache
         if: ${{ !inputs.force }}
         with:
-          path: packages/models/build/${{ steps.build-mode.outputs.mode }}/checkpoints
+          path: packages/models/build/${{ steps.build-mode.outputs.mode }}/${{ env.PLATFORM_ARCH }}/checkpoints
           key: model-checkpoints-${{ steps.cache-key.outputs.cache_version }}-${{ steps.cache-key.outputs.model_versions }}-${{ runner.os }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.quantized_hash }}
           # NOTE: No restore-keys - we require exact match to prevent stale cache restoration.
           # Partial matches with restore-keys cause builds to use outdated artifacts when
@@ -202,7 +206,7 @@ jobs:
         if: steps.model-checkpoint-cache.outputs.cache-hit == 'true'
         uses: ./.github/actions/validate-checkpoints
         with:
-          checkpoint-dirs: packages/models/build/${{ steps.build-mode.outputs.mode }}/checkpoints
+          checkpoint-dirs: packages/models/build/${{ steps.build-mode.outputs.mode }}/${{ env.PLATFORM_ARCH }}/checkpoints
           checkpoints: ${{ steps.checkpoint-chain.outputs.checkpoints }}
           package-name: models
 
@@ -215,6 +219,7 @@ jobs:
           checkpoint-chain: ${{ steps.checkpoint-chain.outputs.checkpoint_chain }}
           cache-hit: ${{ steps.model-checkpoint-cache.outputs.cache-hit }}
           cache-valid: ${{ steps.validate-cache.outputs.valid }}
+          platform-arch: ${{ env.PLATFORM_ARCH }}
 
       - name: Build models with Depot (offloads compute)
         if: |
@@ -270,18 +275,18 @@ jobs:
         run: |
           echo "Validating models build output for ${BUILD_MODE}..."
 
-          if [ ! -f "packages/models/build/${BUILD_MODE}/out/Final/minilm-l6/model.onnx" ]; then
+          if [ ! -f "packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/minilm-l6/model.onnx" ]; then
             echo "× Build failed: MiniLM model missing"
             exit 1
           fi
 
-          if [ ! -f "packages/models/build/${BUILD_MODE}/out/Final/codet5/model.onnx" ]; then
+          if [ ! -f "packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/codet5/model.onnx" ]; then
             echo "× Build failed: CodeT5 model missing"
             exit 1
           fi
 
-          MINILM_SIZE=$(stat -c%s packages/models/build/${BUILD_MODE}/out/Final/minilm-l6/model.onnx)
-          CODET5_SIZE=$(stat -c%s packages/models/build/${BUILD_MODE}/out/Final/codet5/model.onnx)
+          MINILM_SIZE=$(stat -c%s packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/minilm-l6/model.onnx)
+          CODET5_SIZE=$(stat -c%s packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/codet5/model.onnx)
 
           # Different size thresholds for different build modes
           # dev (int8): ~20MB (expect >1MB after quantization)
@@ -308,7 +313,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: models
-          path: packages/models/build/${{ steps.build-mode.outputs.mode }}/out/Final/
+          path: packages/models/build/${{ steps.build-mode.outputs.mode }}/${{ env.PLATFORM_ARCH }}/out/Final/
           retention-days: 30
           if-no-files-found: error
 
@@ -321,9 +326,9 @@ jobs:
 
           # Remove temporary build files that shouldn't be cached
           TEMP_DIRS=(
-            "packages/models/build/${BUILD_MODE}/temp"
-            "packages/models/build/${BUILD_MODE}/downloads"
-            "packages/models/build/${BUILD_MODE}/out"
+            "packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/temp"
+            "packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/downloads"
+            "packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/out"
           )
 
           for DIR in "${TEMP_DIRS[@]}"; do

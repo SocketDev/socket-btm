@@ -8,6 +8,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { BUILD_STAGES } from 'build-infra/lib/constants'
+import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -42,10 +43,16 @@ export function getSharedBuildPaths() {
 }
 
 /**
- * Get build directories for a specific mode (dev/prod).
+ * Get build directories for a specific mode (dev/prod) with REQUIRED platformArch.
+ * @param {string} mode - Build mode ('dev' or 'prod')
+ * @param {string} platformArch - Platform-arch (e.g., 'darwin-arm64') - REQUIRED
  */
-export function getBuildPaths(mode) {
-  const buildDir = path.join(BUILD_ROOT, mode)
+export function getBuildPaths(mode, platformArch) {
+  if (!platformArch) {
+    throw new Error('platformArch is required for getBuildPaths()')
+  }
+
+  const buildDir = path.join(BUILD_ROOT, mode, platformArch)
   // Models are downloaded to centralized location: ../build-infra/build/downloaded/models/{modelKey}/
   const modelsDir = path.join(
     PACKAGE_ROOT,
@@ -70,4 +77,12 @@ export function getBuildPaths(mode) {
     outputFinalDir,
     outputReleaseDir,
   }
+}
+
+/**
+ * Get the current platform identifier using shared utility.
+ * Handles musl detection and respects TARGET_ARCH environment variable.
+ */
+export async function getCurrentPlatform() {
+  return await getCurrentPlatformArch()
 }

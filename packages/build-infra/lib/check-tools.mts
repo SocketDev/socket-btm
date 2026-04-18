@@ -3,8 +3,10 @@
  */
 
 import { existsSync } from 'node:fs'
+import process from 'node:process'
 
 import { whichSync } from '@socketsecurity/lib/bin'
+import { getCI } from '@socketsecurity/lib/env/ci'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
@@ -138,4 +140,31 @@ export async function checkTools(
 
   logger.success('All required tools are available\n')
   return true
+}
+
+/**
+ * Run a package's check-tools entry-point end-to-end.
+ *
+ * Wraps the --no-auto-install / --yes CLI parsing + CI auto-yes detection
+ * + error handling that every packages/<pkg>/scripts/check-tools.mts was
+ * hand-rolling.
+ *
+ * Sets process.exitCode = 1 on failure.
+ */
+export async function runCheckTools(config) {
+  try {
+    const autoInstall = !process.argv.includes('--no-auto-install')
+    const autoYes =
+      process.argv.includes('--yes') ||
+      getCI() ||
+      'CONTINUOUS_INTEGRATION' in process.env
+
+    const success = await checkTools(config, { autoInstall, autoYes })
+    process.exitCode = success ? 0 : 1
+  } catch (error) {
+    logger.fail(
+      `Error checking tools: ${error instanceof Error ? error.message : String(error)}`,
+    )
+    process.exitCode = 1
+  }
 }

@@ -4,11 +4,7 @@
  */
 import process from 'node:process'
 
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-
-import { checkTools } from 'build-infra/lib/check-tools'
-
-const logger = getDefaultLogger()
+import { runCheckTools } from 'build-infra/lib/check-tools'
 
 const IS_MACOS = process.platform === 'darwin'
 const IS_LINUX = process.platform === 'linux'
@@ -27,26 +23,8 @@ if (IS_MACOS) {
 // (zstd is compiled from bundled sources, no external deps needed)
 const manualTools = []
 
-async function main() {
-  const autoInstall = !process.argv.includes('--no-auto-install')
-  const autoYes =
-    process.argv.includes('--yes') ||
-    'CI' in process.env ||
-    'CONTINUOUS_INTEGRATION' in process.env
-
-  const success = await checkTools(
-    {
-      autoInstallableTools,
-      manualTools,
-      packageName: 'binflate',
-    },
-    { autoInstall, autoYes },
-  )
-
-  process.exitCode = success ? 0 : 1
-}
-
-main().catch(error => {
-  logger.fail(`Error checking tools: ${error}`)
-  process.exitCode = 1
+await runCheckTools({
+  autoInstallableTools,
+  manualTools,
+  packageName: 'binflate',
 })

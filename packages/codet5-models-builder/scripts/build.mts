@@ -22,6 +22,7 @@ import { printError } from 'build-infra/lib/build-output'
 import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import { CHECKPOINTS } from 'build-infra/lib/constants'
 import { checkModelBuildPrerequisites } from 'build-infra/lib/model-build-helpers'
+import { getBuildMode } from 'build-infra/lib/constants'
 import { validateOnnxFile } from 'build-infra/lib/onnx-helpers'
 import { getPythonCommand } from 'build-infra/lib/python-installer'
 import * as ort from 'onnxruntime-node'
@@ -61,17 +62,9 @@ try {
 const args = new Set(process.argv.slice(2))
 const FORCE_BUILD = args.has('--force')
 
-// Build mode: prod (default for CI) or dev (default for local).
-const IS_CI = Boolean(process.env.CI)
-const PROD_BUILD = args.has('--prod')
-const DEV_BUILD = args.has('--dev')
-const BUILD_MODE = PROD_BUILD
-  ? 'prod'
-  : DEV_BUILD
-    ? 'dev'
-    : IS_CI
-      ? 'prod'
-      : 'dev'
+// Build mode: --prod/--dev CLI flags win; otherwise env (BUILD_MODE, CI→prod,
+// default dev). Handled centrally by build-infra's getBuildMode().
+const BUILD_MODE = getBuildMode(args)
 
 // Quantization level: int8 (dev, default) vs int4 (prod, smaller).
 const QUANT_LEVEL = args.has('--int4') ? 'int4' : 'int8'

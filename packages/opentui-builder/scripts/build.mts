@@ -23,7 +23,7 @@ import {
 } from 'build-infra/lib/build-helpers'
 import { printError } from 'build-infra/lib/build-output'
 import { cleanCheckpoint } from 'build-infra/lib/checkpoint-manager'
-import { isCI } from 'build-infra/lib/setup-build-toolchain'
+import { getBuildMode } from 'build-infra/lib/constants'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
@@ -52,16 +52,9 @@ const args = new Set(process.argv.slice(2))
 const FORCE_BUILD = args.has('--force')
 const CLEAN_BUILD = args.has('--clean')
 
-// Build mode: prod (default for CI) or dev (default for local, faster builds).
-const PROD_BUILD = args.has('--prod')
-const DEV_BUILD = args.has('--dev')
-const BUILD_MODE = PROD_BUILD
-  ? 'prod'
-  : DEV_BUILD
-    ? 'dev'
-    : isCI()
-      ? 'prod'
-      : 'dev'
+// Build mode: --prod/--dev CLI flags win; otherwise env (BUILD_MODE, CI→prod,
+// default dev). Handled centrally by build-infra's getBuildMode().
+const BUILD_MODE = getBuildMode(args)
 
 // Configuration.
 let packageJson

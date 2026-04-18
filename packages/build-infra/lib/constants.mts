@@ -370,7 +370,19 @@ export const NODE_VERSION = `v${nodeVersionRaw}`
  * Defaults to 'prod' in CI, 'dev' otherwise.
  * @returns {string} The build mode ('dev' or 'prod')
  */
-export function getBuildMode(): string {
+export function getBuildMode(args?: string[] | Set<string>): string {
+  // Explicit --prod / --dev CLI flags win over env.
+  if (args) {
+    const has = Array.isArray(args)
+      ? (flag: string) => args.includes(flag)
+      : (flag: string) => args.has(flag)
+    if (has('--prod')) {
+      return 'prod'
+    }
+    if (has('--dev')) {
+      return 'dev'
+    }
+  }
   if (process.env['BUILD_MODE']) {
     return process.env['BUILD_MODE']
   }

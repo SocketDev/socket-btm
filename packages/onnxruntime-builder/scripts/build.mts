@@ -25,6 +25,7 @@ import {
 } from 'build-infra/lib/build-helpers'
 import { printError } from 'build-infra/lib/build-output'
 import { cleanCheckpoint } from 'build-infra/lib/checkpoint-manager'
+import { getBuildMode } from 'build-infra/lib/constants'
 import { ensureEmscripten } from 'build-infra/lib/emscripten-installer'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 import { getEmscriptenVersion } from 'build-infra/lib/version-helpers'
@@ -54,17 +55,9 @@ const args = new Set(process.argv.slice(2))
 const FORCE_BUILD = args.has('--force')
 const CLEAN_BUILD = args.has('--clean')
 
-// Build mode: prod (default for CI) or dev (default for local, faster builds).
-const IS_CI = Boolean(process.env.CI)
-const PROD_BUILD = args.has('--prod')
-const DEV_BUILD = args.has('--dev')
-const BUILD_MODE = PROD_BUILD
-  ? 'prod'
-  : DEV_BUILD
-    ? 'dev'
-    : IS_CI
-      ? 'prod'
-      : 'dev'
+// Build mode: --prod/--dev CLI flags win; otherwise env (BUILD_MODE, CI→prod,
+// default dev). Handled centrally by build-infra's getBuildMode().
+const BUILD_MODE = getBuildMode(args)
 
 // Configuration.
 // Read ONNX Runtime source metadata from package.json.

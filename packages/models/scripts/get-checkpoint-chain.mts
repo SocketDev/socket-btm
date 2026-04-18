@@ -2,8 +2,6 @@
 /**
  * Get checkpoint chain for model builds.
  *
- * Zero external dependencies — safe to run before pnpm install.
- *
  * Usage:
  *   node scripts/get-checkpoint-chain.mts
  *
@@ -11,20 +9,24 @@
  *   Comma-separated checkpoint chain in reverse dependency order.
  *   (finalized depends on quantized, quantized depends on converted, etc.)
  *
- * Note: Unlike WASM builds, model checkpoints are the same for dev and prod.
- *       The difference is only in quantization level (INT8 vs INT4).
+ * Model checkpoints are the same for dev and prod — the difference is only
+ * in quantization level (INT8 vs INT4). The chain itself lives in build-infra's
+ * CHECKPOINT_CHAINS registry.
  */
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
-// Simple model pipeline (without optimization step).
-const CHECKPOINT_CHAIN = ['finalized', 'quantized', 'converted', 'downloaded']
+import { CHECKPOINT_CHAINS } from 'build-infra/lib/constants'
+
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+
+const logger = getDefaultLogger()
 
 export function getCheckpointChain() {
-  return CHECKPOINT_CHAIN
+  return CHECKPOINT_CHAINS.modelSimple()
 }
 
 if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
-  console.log(CHECKPOINT_CHAIN.join(','))
+  logger.log(getCheckpointChain().join(','))
 }

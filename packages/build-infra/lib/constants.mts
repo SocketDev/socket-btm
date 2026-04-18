@@ -72,6 +72,7 @@ export const CHECKPOINTS = {
   BINARY_STRIPPED: 'binary-stripped',
   LIEF_BUILT: 'lief-built',
   MBEDTLS_BUILT: 'mbedtls-built',
+  NATIVE_BUILT: 'native-built',
   SOURCE_PATCHED: 'source-patched',
 }
 
@@ -125,6 +126,16 @@ export const CHECKPOINT_CHAINS = {
     CHECKPOINTS.BINARY_RELEASED,
     CHECKPOINTS.SOURCE_PATCHED,
     CHECKPOINTS.SOURCE_COPIED,
+  ],
+
+  /**
+   * iocraft native Rust addon checkpoint chain.
+   * Same for dev and prod.
+   */
+  iocraft: () => [
+    CHECKPOINTS.FINALIZED,
+    CHECKPOINTS.NATIVE_BUILT,
+    CHECKPOINTS.SOURCE_CONFIGURED,
   ],
 
   /**

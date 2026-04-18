@@ -6,37 +6,27 @@
  *   node scripts/get-checkpoint-chain.mts [--dev|--prod]
  *
  * Output:
- *   Comma-separated checkpoint chain in reverse dependency order
+ *   Comma-separated checkpoint chain in reverse dependency order.
  *
- * Example output:
- *   finalized,native-built,source-configured
+ * The chain itself lives in build-infra's CHECKPOINT_CHAINS registry.
  */
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
+import { CHECKPOINT_CHAINS } from 'build-infra/lib/constants'
+
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 const logger = getDefaultLogger()
 
-// Parse command line args.
-const args = process.argv.slice(2)
-const buildMode = args.includes('--prod') ? 'prod' : 'dev'
-
 /**
- * Get checkpoint chain for iocraft builds.
- * Simpler than yoga-layout since we're just compiling Rust.
+ * Get checkpoint chain for iocraft builds (same for dev and prod).
  */
-export function getCheckpointChain(mode) {
-  // For iocraft, the checkpoint chain is simpler:
-  // 1. source-configured - Upstream submodule checked out
-  // 2. native-built - Cargo build complete
-  // 3. finalized - Output copied to final location
-  return ['finalized', 'native-built', 'source-configured']
+export function getCheckpointChain() {
+  return CHECKPOINT_CHAINS.iocraft()
 }
 
-// When run as script, output chain for use in CI.
 if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
-  const chain = getCheckpointChain(buildMode)
-  logger.log(chain.join(','))
+  logger.log(getCheckpointChain().join(','))
 }

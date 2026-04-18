@@ -2,29 +2,24 @@
  * Clean ink-builder build artifacts.
  */
 
+import path from 'node:path'
 import process from 'node:process'
+import { fileURLToPath } from 'node:url'
 
-import { safeDelete } from '@socketsecurity/lib/fs'
+import { cleanBuilder } from 'build-infra/lib/clean-builder'
+
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
-import { BUILD_DIR, DIST_DIR } from './paths.mts'
-
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const packageDir = path.join(__dirname, '..')
 const logger = getDefaultLogger()
 
-async function main() {
-  logger.step('Cleaning ink-builder')
-  for (const dir of [BUILD_DIR, DIST_DIR]) {
-    try {
-      await safeDelete(dir)
-      logger.success(`Removed ${dir.split('/').pop()}/`)
-    } catch {
-      // Ignore if doesn't exist.
-    }
-  }
-  logger.success('Clean complete')
-}
-
-main().catch(error => {
-  logger.error('Clean failed:', error.message)
+cleanBuilder('ink-builder', {
+  // ink-builder has no checkpoint chain; just blow away build/ and dist/.
+  checkpointModes: [],
+  cleanDirs: ['build', 'dist'],
+  packageDir,
+}).catch(error => {
+  logger.fail(`Clean failed: ${error.message}`)
   process.exitCode = 1
 })

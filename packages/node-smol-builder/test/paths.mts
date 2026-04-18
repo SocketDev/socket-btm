@@ -2,11 +2,8 @@
  * @fileoverview Shared test paths for finding the latest Node.js binaries.
  *
  * This module provides path resolution for test files to find the latest
- * binaries from build/{dev,prod}/out/{Stripped,Compressed}/node and
- * build/{dev,prod}/out/Final/node/ (directory structure).
- *
- * Supports both local builds (build/{mode}/out/) and CI builds with
- * platform-arch organization (build/{mode}/{platform-arch}/out/).
+ * binaries from build/{dev,prod}/{platform-arch}/out/{Stripped,Compressed}/node
+ * and build/{dev,prod}/{platform-arch}/out/Final/node/ (directory structure).
  */
 
 import { statSync } from 'node:fs'
@@ -21,11 +18,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const packageDir = path.resolve(__dirname, '..')
 
 /**
- * Find the latest binary from build/{dev,prod}/out/{stage}/node/node.
+ * Find the latest binary from build/{dev,prod}/{platform-arch}/out/{stage}/node/node.
  * Returns the path to whichever exists and has the latest modification time.
- *
- * Checks both local paths (build/{mode}/out/) and CI paths with platform-arch
- * organization (build/{mode}/{platform-arch}/out/).
  *
  * @param {string} stage - Build stage: 'Stripped', 'Compressed', or 'Final'
  * @returns {string} Path to the latest binary
@@ -35,17 +29,11 @@ function getLatestBinary(stage) {
   const candidates = []
   const platformArch = getDefaultPlatformArch()
 
-  // Check both dev and prod, with and without platform-arch
+  // Check both dev and prod.
   for (const mode of ['dev', 'prod']) {
-    // Local build paths (no platform-arch)
-    const localPaths = getBuildPaths(mode)
-    const localBinary = getBinaryPath(localPaths, stage)
-    addCandidate(candidates, localBinary)
-
-    // CI build paths (with platform-arch)
-    const ciPaths = getBuildPaths(mode, process.platform, platformArch)
-    const ciBinary = getBinaryPath(ciPaths, stage)
-    addCandidate(candidates, ciBinary)
+    const buildPaths = getBuildPaths(mode, process.platform, platformArch)
+    const binary = getBinaryPath(buildPaths, stage)
+    addCandidate(candidates, binary)
   }
 
   if (candidates.length === 0) {

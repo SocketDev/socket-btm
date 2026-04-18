@@ -62,17 +62,17 @@ export function getDefaultPlatformArch(
 }
 
 /**
- * Get build directories for a specific mode (dev/prod).
+ * Get build directories for a specific mode (dev/prod) with REQUIRED platformArch.
  * @param {string} mode - Build mode ('dev' or 'prod')
  * @param {string} platform - Target platform ('darwin', 'linux', 'win32')
- * @param {string} [platformArch] - Platform-arch string (e.g., 'darwin-arm64', 'linux-x64-musl')
- *   When provided, output directories include platform-arch for CI compatibility.
+ * @param {string} platformArch - Platform-arch (e.g., 'darwin-arm64') - REQUIRED
  */
 export function getBuildPaths(mode, platform = process.platform, platformArch) {
-  // Base build directory includes platform-arch when provided (for CI builds)
-  const buildDir = platformArch
-    ? path.join(BUILD_ROOT, mode, platformArch)
-    : path.join(BUILD_ROOT, mode)
+  if (!platformArch) {
+    throw new Error('platformArch is required for getBuildPaths()')
+  }
+
+  const buildDir = path.join(BUILD_ROOT, mode, platformArch)
   const nodeSourceDir = path.join(buildDir, 'source')
   const outDir = path.join(nodeSourceDir, 'out')
   const releaseDir = path.join(outDir, BUILD_STAGES.RELEASE)

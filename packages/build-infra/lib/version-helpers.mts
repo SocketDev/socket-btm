@@ -391,7 +391,7 @@ export function getSubmoduleChecksum(submodulePath, packageName) {
  *
  * @param {string} version - Node.js version without 'v' prefix (e.g., '1.2.3')
  * @param {object} [options]
- * @param {number} [options.timeout=10000] - Fetch timeout in milliseconds
+ * @param {number} [options.timeout=10_000] - Fetch timeout in milliseconds
  * @returns {Promise<{ hash: string, version: string } | { error: string, version: string }>}
  * @example
  * const result = await fetchNodeChecksum('1.2.3')
@@ -437,7 +437,7 @@ export async function fetchNodeChecksum(version, options) {
  *
  * @param {object} [options]
  * @param {string} [options.version] - Node.js version to verify (default: from .node-version)
- * @param {number} [options.timeout=10000] - Fetch timeout in milliseconds
+ * @param {number} [options.timeout=10_000] - Fetch timeout in milliseconds
  * @returns {Promise<{ valid: boolean, expected?: string, actual?: string, version: string, error?: string }>}
  * @example
  * const result = await verifyNodeChecksum()

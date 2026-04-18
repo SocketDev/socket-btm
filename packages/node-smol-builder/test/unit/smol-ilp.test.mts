@@ -171,8 +171,8 @@ describe('node:smol-ilp API surface', () => {
     const defaults = {
       host: 'localhost',
       port: 9009, // QuestDB ILP default port
-      connectTimeout: 10000, // 10 seconds
-      sendTimeout: 30000, // 30 seconds
+      connectTimeout: 10_000, // 10 seconds
+      sendTimeout: 30_000, // 30 seconds
       bufferSize: 65536, // 64 KB
       maxBufferSize: 104857600, // 100 MB
       autoFlush: false,

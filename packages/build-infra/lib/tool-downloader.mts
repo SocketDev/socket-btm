@@ -142,10 +142,10 @@ async function extractArchive(archivePath, destDir, format) {
  * Acquire a simple file-based lock to prevent concurrent downloads.
  * Returns a release function.
  * @param {string} lockPath - Path to lock file
- * @param {number} [timeoutMs=120000] - Maximum wait time
+ * @param {number} [timeoutMs=120_000] - Maximum wait time
  * @returns {Promise<() => Promise<void>>} Release function
  */
-async function acquireLock(lockPath, timeoutMs = 120000) {
+async function acquireLock(lockPath, timeoutMs = 120_000) {
   await fs.mkdir(path.dirname(lockPath), { recursive: true })
 
   const start = Date.now()

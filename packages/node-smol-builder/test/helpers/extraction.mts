@@ -91,7 +91,7 @@ export async function getExtractedBinaryPath(compressedBinaryPath) {
  * This triggers the decompression and writes the binary to ~/.socket/_dlx/
  *
  * @param {string} compressedBinaryPath - Path to compressed binary
- * @param {number} [timeout=60000] - Timeout in milliseconds (default: 60s for initial extraction)
+ * @param {number} [timeout=60_000] - Timeout in milliseconds (default: 60s for initial extraction)
  * @returns {Promise<string>} Path to extracted binary
  */
 export async function extractToCache(compressedBinaryPath, timeout = 60_000) {

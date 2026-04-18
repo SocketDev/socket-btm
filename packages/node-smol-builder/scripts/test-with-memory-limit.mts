@@ -14,7 +14,7 @@ const logger = getDefaultLogger()
 
 const MAX_MEMORY_MB = 2048 // 2GB limit
 const CHECK_INTERVAL_MS = 1000 // Check every 1 second
-const TIMEOUT_MS = 120000 // 2 minute timeout (120 seconds)
+const TIMEOUT_MS = 120_000 // 2 minute timeout (120 seconds)
 
 const vitestArgs = process.argv.slice(2)
 

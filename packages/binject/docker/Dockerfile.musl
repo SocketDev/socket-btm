@@ -72,8 +72,8 @@ ENV GITHUB_TOKEN=$GH_TOKEN
 # across different CPU generations (e.g., GitHub Actions runners without AVX/AVX2).
 RUN echo "Cache: ${CACHE_VERSION}, LIEF: ${LIEF_CACHE_VERSION}, libdeflate: ${LIBDEFLATE_CACHE_VERSION}, stubs: ${STUBS_CACHE_VERSION}" && \
     if [ "$TARGETARCH" = "amd64" ]; then \
-        export CFLAGS="-march=x86-64 -mtune=generic" && \
-        export CXXFLAGS="-march=x86-64 -mtune=generic"; \
+        export CFLAGS="$CFLAGS -march=x86-64 -mtune=generic" && \
+        export CXXFLAGS="$CXXFLAGS -march=x86-64 -mtune=generic"; \
     fi && \
     cd packages/binject && pnpm run build -- --force
 

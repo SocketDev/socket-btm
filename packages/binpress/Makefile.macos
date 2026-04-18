@@ -38,6 +38,8 @@ CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 $(POSIX_MACROS) -Isrc $(COMMON_INCL
 CXXFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c++17 -fno-exceptions -Isrc $(COMMON_INCLUDES) $(ZSTD_CFLAGS) -I$(BINJECT_INCLUDE) $(LIEF_CFLAGS) $(LIEF_DEFINES)
 LDFLAGS = $(LDFLAGS_BASE) $(ZSTD_LDFLAGS) $(LIEF_LDFLAGS)
 
+.PHONY: all check-tools clean install test
+
 # Check that required build tools are available.
 check-tools:
 	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }

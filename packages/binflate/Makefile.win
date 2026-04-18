@@ -14,6 +14,8 @@ SRC_DIR = src
 CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 $(POSIX_MACROS) $(COMMON_INCLUDES) $(ZSTD_CFLAGS) -DVERSION=\"$(VERSION)\"
 LDFLAGS = $(LDFLAGS_BASE) $(ZSTD_LDFLAGS) -lbcrypt
 
+.PHONY: all check-tools clean install test
+
 # Check that required build tools are available.
 check-tools:
 	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }

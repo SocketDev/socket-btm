@@ -33,8 +33,8 @@ import {
   MAGIC_MARKER,
   METADATA_HEADER_SIZE,
   TOTAL_HEADER_SIZE_WITHOUT_SMOL_CONFIG,
-  TOTAL_HEADER_SIZE_WITH_SMOL_CONFIG,
 } from '../../scripts/binary-compressed/shared/constants.mts'
+import { extractCompressedData } from '../helpers/extraction.mts'
 import { getLatestFinalBinary } from '../paths.mts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -70,37 +70,6 @@ const testTmpDir = path.join(os.tmpdir(), 'socket-btm-compression-tests')
 
 // Magic marker buffer for tests
 const magicMarker = Buffer.from(MAGIC_MARKER, 'utf8')
-
-/**
- * Extract compressed data portion from self-extracting binary.
- * The decompressor calculates cache keys from compressed data only,
- * not from the entire binary (decompressor stub + data).
- * @param {Buffer} binaryData - Full self-extracting binary buffer
- * @returns {Buffer} Compressed data portion after magic marker and size headers
- */
-function extractCompressedData(binaryData: Buffer) {
-  const markerIndex = binaryData.indexOf(magicMarker)
-
-  if (markerIndex === -1) {
-    throw new Error('Magic marker not found in compressed binary')
-  }
-
-  // Check config flag to determine actual header size.
-  const configFlagOffset =
-    markerIndex +
-    HEADER_SIZES.MAGIC_MARKER +
-    HEADER_SIZES.COMPRESSED_SIZE +
-    HEADER_SIZES.UNCOMPRESSED_SIZE +
-    HEADER_SIZES.CACHE_KEY +
-    HEADER_SIZES.PLATFORM_METADATA
-  const hasSmolConfig = binaryData[configFlagOffset] === 1
-
-  const headerSize = hasSmolConfig
-    ? TOTAL_HEADER_SIZE_WITH_SMOL_CONFIG
-    : TOTAL_HEADER_SIZE_WITHOUT_SMOL_CONFIG
-
-  return binaryData.subarray(markerIndex + headerSize)
-}
 
 describe.skipIf(skipTests)('final binary extraction to ~/.socket/_dlx/', () => {
   let testCacheDir: string

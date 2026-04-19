@@ -10,8 +10,7 @@
  * - Smoke testing the generated wrappers
  */
 
-import { existsSync } from 'node:fs'
-import fs from 'node:fs/promises'
+import { existsSync, promises as fs } from 'node:fs'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 

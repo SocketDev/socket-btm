@@ -8,7 +8,7 @@
  * - module.exports for CommonJS compatibility
  */
 
-import fs from 'node:fs/promises'
+import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
 import { Parser } from 'acorn'

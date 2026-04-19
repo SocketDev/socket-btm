@@ -7,7 +7,7 @@
  * - export default for ESM compatibility
  */
 
-import fs from 'node:fs/promises'
+import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
 import { applyCommonTransforms } from './transform.mts'

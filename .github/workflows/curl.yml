@@ -120,14 +120,13 @@ jobs:
       - uses: SocketDev/socket-registry/.github/actions/install@34fef52be917f89dbbeb464860f2aaf0f3812c40 # main
 
       - name: Initialize curl submodule
-        shell: bash
-        run: |
-          git submodule update --init packages/curl-builder/upstream/curl
+        uses: ./.github/actions/init-submodules
+        with:
+          submodules: packages/curl-builder/upstream/curl
 
-      - name: Initialize mbedtls submodule
+      - name: Initialize mbedtls submodule (recursive)
         shell: bash
-        run: |
-          git submodule update --init --recursive packages/curl-builder/upstream/mbedtls
+        run: git submodule update --init --recursive packages/curl-builder/upstream/mbedtls
 
       - name: Set build mode
         id: build-mode

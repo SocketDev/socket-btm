@@ -66,8 +66,9 @@ jobs:
           submodules: false
 
       - name: Initialize ONNX Runtime submodule
-        run: |
-          git submodule update --init packages/onnxruntime-builder/upstream/onnxruntime
+        uses: ./.github/actions/init-submodules
+        with:
+          submodules: packages/onnxruntime-builder/upstream/onnxruntime
 
       - name: Enable debug logging
         uses: ./.github/actions/enable-debug-logging

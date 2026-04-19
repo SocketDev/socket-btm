@@ -42,8 +42,7 @@ jobs:
 
       - name: Lint checks
         shell: bash
-        run: |
-          pnpm run check
+        run: pnpm run check
 
       - name: Validate cache-versions.json
         run: |
@@ -75,18 +74,15 @@ jobs:
 
       - name: Validate cache version cascades
         shell: bash
-        run: |
-          node scripts/validate-cache-versions.mts
+        run: node scripts/validate-cache-versions.mts
 
       - name: Validate checkpoint alignment
         shell: bash
-        run: |
-          node scripts/validate-checkpoint-alignment.mts
+        run: node scripts/validate-checkpoint-alignment.mts
 
       - name: Run build-infra tests
         shell: bash
-        run: |
-          pnpm run test:build-infra
+        run: pnpm run test:build-infra
 
   # Platform-specific tests run on all platforms
   test:
@@ -109,5 +105,4 @@ jobs:
 
       - name: Verify pnpm install works
         shell: bash
-        run: |
-          pnpm ls --depth=0
+        run: pnpm ls --depth=0

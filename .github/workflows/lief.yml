@@ -118,9 +118,9 @@ jobs:
       - uses: SocketDev/socket-registry/.github/actions/install@34fef52be917f89dbbeb464860f2aaf0f3812c40 # main
 
       - name: Initialize LIEF submodule
-        shell: bash
-        run: |
-          git submodule update --init packages/lief-builder/upstream/lief
+        uses: ./.github/actions/init-submodules
+        with:
+          submodules: packages/lief-builder/upstream/lief
 
       - name: Load cache version from centralized config
         id: cache-version

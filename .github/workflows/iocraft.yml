@@ -100,8 +100,9 @@ jobs:
       - uses: SocketDev/socket-registry/.github/actions/setup-and-install@34fef52be917f89dbbeb464860f2aaf0f3812c40 # main
 
       - name: Initialize iocraft submodule
-        run: |
-          git submodule update --init packages/iocraft-builder/upstream/iocraft
+        uses: ./.github/actions/init-submodules
+        with:
+          submodules: packages/iocraft-builder/upstream/iocraft
 
       - name: Enable debug logging
         uses: ./.github/actions/enable-debug-logging

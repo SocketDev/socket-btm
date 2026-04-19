@@ -103,8 +103,9 @@ jobs:
       - uses: SocketDev/socket-registry/.github/actions/setup-and-install@34fef52be917f89dbbeb464860f2aaf0f3812c40 # main
 
       - name: Initialize opentui submodule
-        run: |
-          git submodule update --init packages/opentui-builder/upstream/opentui
+        uses: ./.github/actions/init-submodules
+        with:
+          submodules: packages/opentui-builder/upstream/opentui
 
       - name: Enable debug logging
         uses: ./.github/actions/enable-debug-logging

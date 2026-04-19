@@ -61,8 +61,9 @@ jobs:
       - uses: SocketDev/socket-registry/.github/actions/setup-and-install@34fef52be917f89dbbeb464860f2aaf0f3812c40 # main
 
       - name: Initialize Yoga submodule
-        run: |
-          git submodule update --init packages/yoga-layout-builder/upstream/yoga
+        uses: ./.github/actions/init-submodules
+        with:
+          submodules: packages/yoga-layout-builder/upstream/yoga
 
       - name: Enable debug logging
         uses: ./.github/actions/enable-debug-logging

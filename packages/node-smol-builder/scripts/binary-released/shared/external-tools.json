@@ -2,22 +2,22 @@
   "$schema": "../../../build-infra/lib/external-tools-schema.json",
   "description": "External tools required for the binary-released checkpoint phase (Node.js compilation)",
   "tools": {
-    "python3": {
-      "description": "Python 3 interpreter (required for Node.js build system)",
-      "version": "3.13.1"
+    "g++-13": {
+      "description": "GCC 13 C++ compiler (required for Node.js v24+ on Ubuntu 22.04)",
+      "version": "13.1.0",
+      "notes": "Node.js v24+ requires GCC 12+ for ada URL parser C++20 constexpr support. Ubuntu 22.04 ships with GCC 11."
     },
     "gcc-13": {
       "description": "GCC 13 C compiler (required for Node.js v24+ on Ubuntu 22.04)",
       "version": "13.1.0",
       "notes": "Node.js v24+ requires GCC 12+ for ada URL parser C++20 constexpr support. Ubuntu 22.04 ships with GCC 11."
     },
-    "g++-13": {
-      "description": "GCC 13 C++ compiler (required for Node.js v24+ on Ubuntu 22.04)",
-      "version": "13.1.0",
-      "notes": "Node.js v24+ requires GCC 12+ for ada URL parser C++20 constexpr support. Ubuntu 22.04 ships with GCC 11."
-    },
     "make": {
       "description": "GNU Make build tool (required for Node.js build)"
+    },
+    "python3": {
+      "description": "Python 3 interpreter (required for Node.js build system)",
+      "version": "3.13.1"
     },
     "xcode": {
       "description": "Apple Xcode development environment with Command Line Tools (macOS only)",

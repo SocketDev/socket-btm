@@ -99,15 +99,9 @@ jobs:
 
       - name: Load cache version from centralized config
         id: cache-version
-        shell: bash
-        run: |
-          CACHE_VERSION=$(jq -r '.versions["yoga-layout"]' .github/cache-versions.json)
-          if [ -z "$CACHE_VERSION" ] || [ "$CACHE_VERSION" = "null" ]; then
-            echo "× Error: Cache version not found for yoga-layout in .github/cache-versions.json"
-            exit 1
-          fi
-          echo "version=$CACHE_VERSION" >> $GITHUB_OUTPUT
-          echo "Cache version: $CACHE_VERSION"
+        uses: ./.github/actions/load-cache-version
+        with:
+          package-name: yoga-layout
 
 
       - name: Generate Yoga cache key

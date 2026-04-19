@@ -1,0 +1,246 @@
+{
+  "$schema": "./xport.schema.json",
+  "area": "socket-btm",
+  "description": "xport lock-step manifest for socket-btm — the Build Tree Manager. Every row is a `version-pin` since btm builds upstream source trees as-is (no forks). The harness surfaces new upstream releases so maintainers can decide whether to bump. criticality reflects production impact: 10 = Firewall-critical (node runtime, networking stack); 8 = user-facing TUI / ML inference; 6 = build tooling; 4 = aux/testing.",
+  "upstreams": {
+    "node": {
+      "submodule": "packages/node-smol-builder/upstream/node",
+      "repo": "https://github.com/nodejs/node"
+    },
+    "yoga": {
+      "submodule": "packages/yoga-layout-builder/upstream/yoga",
+      "repo": "https://github.com/facebook/yoga"
+    },
+    "onnxruntime": {
+      "submodule": "packages/onnxruntime-builder/upstream/onnxruntime",
+      "repo": "https://github.com/microsoft/onnxruntime"
+    },
+    "lief": {
+      "submodule": "packages/lief-builder/upstream/lief",
+      "repo": "https://github.com/lief-project/LIEF"
+    },
+    "cjson": {
+      "submodule": "packages/binject/upstream/cJSON",
+      "repo": "https://github.com/DaveGamble/cJSON"
+    },
+    "libdeflate": {
+      "submodule": "packages/binject/upstream/libdeflate",
+      "repo": "https://github.com/ebiggers/libdeflate"
+    },
+    "curl": {
+      "submodule": "packages/curl-builder/upstream/curl",
+      "repo": "https://github.com/curl/curl"
+    },
+    "mbedtls": {
+      "submodule": "packages/curl-builder/upstream/mbedtls",
+      "repo": "https://github.com/Mbed-TLS/mbedtls"
+    },
+    "wpt": {
+      "submodule": "packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/streams",
+      "repo": "https://github.com/web-platform-tests/wpt"
+    },
+    "iocraft": {
+      "submodule": "packages/iocraft-builder/upstream/iocraft",
+      "repo": "https://github.com/ccbrown/iocraft"
+    },
+    "liburing": {
+      "submodule": "packages/node-smol-builder/upstream/liburing",
+      "repo": "https://github.com/axboe/liburing"
+    },
+    "postgres": {
+      "submodule": "packages/libpq-builder/upstream/postgres",
+      "repo": "https://github.com/postgres/postgres"
+    },
+    "usockets": {
+      "submodule": "packages/node-smol-builder/upstream/uSockets",
+      "repo": "https://github.com/uNetworking/uSockets"
+    },
+    "uwebsockets": {
+      "submodule": "packages/node-smol-builder/upstream/uWebSockets",
+      "repo": "https://github.com/uNetworking/uWebSockets"
+    },
+    "opentui": {
+      "submodule": "packages/opentui-builder/upstream/opentui",
+      "repo": "https://github.com/anomalyco/opentui"
+    },
+    "ink": {
+      "submodule": "packages/ink-builder/upstream/ink",
+      "repo": "https://github.com/vadimdemedes/ink"
+    },
+    "zstd": {
+      "submodule": "packages/bin-infra/upstream/zstd",
+      "repo": "https://github.com/facebook/zstd"
+    }
+  },
+  "rows": [
+    {
+      "kind": "version-pin",
+      "id": "node",
+      "upstream": "node",
+      "pinned_sha": "9f5a2c929274d4ece400a5890582adc9ab779492",
+      "pinned_tag": "v25.9.0",
+      "upgrade_policy": "major-gate",
+      "criticality": 10,
+      "notes": "node-smol-builder produces the slim Node.js runtime for Socket Firewall. Major bumps require wide testing (V8 API churn, perf regressions); patch/minor auto-track."
+    },
+    {
+      "kind": "version-pin",
+      "id": "liburing",
+      "upstream": "liburing",
+      "pinned_sha": "e3d35ea59d3ba09075ed4d7751e4bb9049cce64a",
+      "pinned_tag": "liburing-2.14",
+      "upgrade_policy": "major-gate",
+      "criticality": 10,
+      "notes": "Linux io_uring bindings compiled into node-smol. Security-sensitive kernel interface."
+    },
+    {
+      "kind": "version-pin",
+      "id": "usockets",
+      "upstream": "usockets",
+      "pinned_sha": "833497e8e0988f7fd8d33cd4f6f36056c68d225d",
+      "pinned_tag": "v0.8.8",
+      "upgrade_policy": "major-gate",
+      "criticality": 10,
+      "notes": "Low-level networking primitive underlying uWebSockets in node-smol."
+    },
+    {
+      "kind": "version-pin",
+      "id": "uwebsockets",
+      "upstream": "uwebsockets",
+      "pinned_sha": "e42d69ff338269a5b74d014046e3699e2f27734e",
+      "pinned_tag": "v20.76.0",
+      "upgrade_policy": "major-gate",
+      "criticality": 10,
+      "notes": "HTTP/WebSocket server in node-smol. API compatibility across majors is brittle."
+    },
+    {
+      "kind": "version-pin",
+      "id": "curl",
+      "upstream": "curl",
+      "pinned_sha": "8c908d2d0a6d32abdedda2c52e90bd56ec76c24d",
+      "pinned_tag": "curl-8_19_0",
+      "upgrade_policy": "track-latest",
+      "criticality": 9,
+      "notes": "libcurl statically linked. Frequent CVEs — prefer latest stable."
+    },
+    {
+      "kind": "version-pin",
+      "id": "mbedtls",
+      "upstream": "mbedtls",
+      "pinned_sha": "0bebf8b8c7f07abe3571ded48a11aa907a1ffb20",
+      "pinned_tag": "mbedtls-3.6.6",
+      "upgrade_policy": "track-latest",
+      "criticality": 9,
+      "notes": "TLS library under curl. Crypto/security sensitive."
+    },
+    {
+      "kind": "version-pin",
+      "id": "onnxruntime",
+      "upstream": "onnxruntime",
+      "pinned_sha": "2d924974ef147392ced8409d36bd6d2e7fcc8a74",
+      "pinned_tag": "v1.24.4",
+      "upgrade_policy": "major-gate",
+      "criticality": 8,
+      "notes": "ML inference runtime for embedded models. Major bumps can break model compatibility."
+    },
+    {
+      "kind": "version-pin",
+      "id": "opentui",
+      "upstream": "opentui",
+      "pinned_sha": "cc94b5829ac0f6f45320562811acd8260ddc1922",
+      "pinned_tag": "v0.1.99",
+      "upgrade_policy": "track-latest",
+      "criticality": 7,
+      "notes": "Native opentui builder. Matches the pin in socket-tui's xport for consistency across the OpenTUI ecosystem."
+    },
+    {
+      "kind": "version-pin",
+      "id": "ink",
+      "upstream": "ink",
+      "pinned_sha": "fb14d811d513be19e5a57bb2faebbfd9ebd2f06a",
+      "pinned_tag": "v7.0.0",
+      "upgrade_policy": "major-gate",
+      "criticality": 7,
+      "notes": "React-for-terminal library builder."
+    },
+    {
+      "kind": "version-pin",
+      "id": "iocraft",
+      "upstream": "iocraft",
+      "pinned_sha": "3477adc7a67ff78f71b99662d6eff867e6269b53",
+      "pinned_tag": "v0.8.0",
+      "upgrade_policy": "major-gate",
+      "criticality": 7,
+      "notes": "Rust-based terminal UI framework builder."
+    },
+    {
+      "kind": "version-pin",
+      "id": "yoga",
+      "upstream": "yoga",
+      "pinned_sha": "042f5013152eb81c1552dec945b88f7b95ca350f",
+      "pinned_tag": "v3.2.1",
+      "upgrade_policy": "major-gate",
+      "criticality": 7,
+      "notes": "Yoga layout WASM builder. Matches stuie's pin for cross-repo yoga consistency."
+    },
+    {
+      "kind": "version-pin",
+      "id": "lief",
+      "upstream": "lief",
+      "pinned_sha": "038b60671f12dbd86bf84d9f8a38395bd2a8176e",
+      "pinned_tag": "0.17.0",
+      "upgrade_policy": "major-gate",
+      "criticality": 6,
+      "notes": "Binary inspection library used by binject/binflate."
+    },
+    {
+      "kind": "version-pin",
+      "id": "libdeflate",
+      "upstream": "libdeflate",
+      "pinned_sha": "c8c56a20f8f621e6a966b716b31f1dedab6a41e3",
+      "pinned_tag": "v1.25",
+      "upgrade_policy": "track-latest",
+      "criticality": 6,
+      "notes": "DEFLATE compression in binject. Track-latest for speed/size improvements."
+    },
+    {
+      "kind": "version-pin",
+      "id": "cjson",
+      "upstream": "cjson",
+      "pinned_sha": "c859b25da02955fef659d658b8f324b5cde87be3",
+      "upgrade_policy": "track-latest",
+      "criticality": 5,
+      "notes": "JSON parser in binject. Small surface, stable API."
+    },
+    {
+      "kind": "version-pin",
+      "id": "zstd",
+      "upstream": "zstd",
+      "pinned_sha": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+      "pinned_tag": "v1.5.7",
+      "upgrade_policy": "track-latest",
+      "criticality": 6,
+      "notes": "Zstandard compression in bin-infra."
+    },
+    {
+      "kind": "version-pin",
+      "id": "postgres",
+      "upstream": "postgres",
+      "pinned_sha": "6d396980fc5aed4f1a525e0bd75cb16b25ed40ca",
+      "pinned_tag": "REL_17_9",
+      "upgrade_policy": "major-gate",
+      "criticality": 4,
+      "notes": "Source tree for libpq-builder. Only libpq client lib is extracted."
+    },
+    {
+      "kind": "version-pin",
+      "id": "wpt-streams",
+      "upstream": "wpt",
+      "pinned_sha": "3641ed2c4cc4728308c498e88f766c0c19bf410d",
+      "pinned_tag": "epochs/three_hourly/2026-02-24_21H",
+      "upgrade_policy": "track-latest",
+      "criticality": 3,
+      "notes": "Web Platform Tests for node-smol's fast-webstreams vendor. Epoch-based (rolling)."
+    }
+  ]
+}

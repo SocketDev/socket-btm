@@ -33,7 +33,9 @@
     "test:node-smol": "pnpm --filter node-smol-builder test",
     "update": "node scripts/update.mts",
     "update:node": "node scripts/update-node-version.mts",
-    "validate:dockerfiles": "node scripts/validate-dockerfile-exports.mts"
+    "validate:dockerfiles": "node scripts/validate-dockerfile-exports.mts",
+    "xport": "node scripts/xport.mts",
+    "xport:emit-schema": "node scripts/xport-emit-schema.mts"
   },
   "devDependencies": {
     "@anthropic-ai/claude-code": "catalog:",
@@ -47,7 +49,8 @@
     "oxlint": "1.52.0",
     "taze": "19.9.2",
     "vitest": "catalog:",
-    "yoctocolors-cjs": "catalog:"
+    "yoctocolors-cjs": "catalog:",
+    "zod": "catalog:"
   },
   "engines": {
     "node": ">=18.20.8",

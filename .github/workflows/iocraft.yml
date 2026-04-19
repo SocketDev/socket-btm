@@ -162,18 +162,9 @@ jobs:
 
       - name: Set build mode
         id: build-mode
-        env:
-          INPUT_BUILD_MODE: ${{ inputs.build_mode }}
-        run: |
-          # Sanitize input - only allow 'prod' or 'dev'
-          if [ "$INPUT_BUILD_MODE" = "dev" ]; then
-            BUILD_MODE="dev"
-          else
-            BUILD_MODE="prod"
-          fi
-          echo "mode=$BUILD_MODE" >> $GITHUB_OUTPUT
-          echo "Build mode: $BUILD_MODE"
-        shell: bash
+        uses: ./.github/actions/set-build-mode
+        with:
+          build-mode: ${{ inputs.build_mode }}
 
       - name: Set platform-arch
         id: platform-arch

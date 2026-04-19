@@ -54,7 +54,35 @@ Commit if lockfile changed.
 
 Invoke each updating-* skill in the order above. Wait for each to complete before proceeding. If a skill reports "already up to date", move on.
 
-### Phase 6: Final Validation (skip in CI)
+### Phase 6: Validate xport Manifest
+
+socket-btm's xport manifest tracks 17 upstream submodule pins via
+`version-pin` rows (curl, mbedtls, cjson, libdeflate, yoga, ink,
+opentui, onnxruntime, lief, node, postgres, wpt-streams, zstd,
+iocraft, liburing, usockets, uwebsockets). Every sub-skill that
+bumped a submodule in Phase 5 should have moved its row's pinned
+SHA forward; validate the manifest before running the full test
+suite so any missed bump or drifted row surfaces here.
+
+```bash
+pnpm run xport
+XPORT_EXIT=$?
+
+case $XPORT_EXIT in
+  0) echo "✓ xport clean — all 17 version-pins match submodule HEADs" ;;
+  1) echo "✗ xport schema/structural error — stopping"; exit 1 ;;
+  2) echo "⚠ xport drift — advisory (upstream advanced since pin); proceeding" ;;
+esac
+```
+
+Exit-code semantics:
+- **0** — clean; proceed.
+- **1** — schema/structural error (missing file, unreachable baseline).
+  Stop and investigate; do not auto-retry.
+- **2** — drift. Expected after routine submodule bumps; the harness
+  reports how far upstream has moved since the pin. Not a blocker.
+
+### Phase 7: Final Validation (skip in CI)
 
 ```bash
 pnpm run fix --all
@@ -62,6 +90,6 @@ pnpm run check --all
 pnpm test
 ```
 
-### Phase 7: Report
+### Phase 8: Report
 
-Generate summary table of all updates (old version, new version, status) and list commits created.
+Generate summary table of all updates (old version, new version, status), include the xport summary line (`total=17 ok=N drift=M error=0`), and list commits created.

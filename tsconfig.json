@@ -5,6 +5,6 @@
     "sourceMap": false,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "src/**/*.mts", "scripts/**/*.mts"],
-  "exclude": ["node_modules", "dist", "build", "coverage"]
+  "include": ["scripts/**/*.mts", "src/**/*.mts", "src/**/*.ts"],
+  "exclude": ["build", "coverage", "dist", "node_modules"]
 }

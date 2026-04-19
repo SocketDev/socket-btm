@@ -9,24 +9,24 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    deps: {
-      interopDefault: false,
-    },
-    globals: true,
-    testTimeout: 120_000, // 2 minutes for large binary spawning
-    hookTimeout: 30_000,
     coverage: {
       exclude: [
-        '**/node_modules/**',
+        '**/*.config.{js,mjs,ts,mts}',
+        '**/*.test.{js,mjs,ts,mts}',
         '**/build/**',
         '**/dist/**',
-        '**/test/**',
-        '**/*.test.{js,mjs,ts,mts}',
-        '**/*.config.{js,mjs,ts,mts}',
+        '**/node_modules/**',
         '**/scripts/**',
+        '**/test/**',
       ],
       provider: 'v8',
       reporter: ['text', 'html', 'json-summary'],
     },
+    deps: {
+      interopDefault: false,
+    },
+    globals: true,
+    hookTimeout: 30_000,
+    testTimeout: 120_000, // 2 minutes for large binary spawning
   },
 })

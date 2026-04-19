@@ -213,11 +213,21 @@ export async function installTools(toolNames, options = {}) {
     const toolName = toolNames[i]
     logger.substep(`[${i + 1}/${toolNames.length}] Checking ${toolName}`)
 
-    // eslint-disable-next-line no-await-in-loop
-    const success = await installTool(toolName, options)
-    if (success) {
-      installed.push(toolName)
-    } else {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const success = await installTool(toolName, options)
+      if (success) {
+        installed.push(toolName)
+      } else {
+        failed.push(toolName)
+      }
+    } catch (error) {
+      // installTool throws on unsupported package manager or spawn failure.
+      // Record the failure and continue with the rest of the list so the
+      // caller sees the full picture instead of aborting on the first miss.
+      logger.error(
+        `Error installing ${toolName}: ${error instanceof Error ? error.message : String(error)}`,
+      )
       failed.push(toolName)
     }
   }

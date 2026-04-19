@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+set -eu
 # Build static OpenSSL 3.5.0 for glibc Docker builds (AlmaLinux 8 lacks libcrypto.a).
 OPENSSL_VERSION="3.5.0"
 PREFIX="/usr/local/ssl"

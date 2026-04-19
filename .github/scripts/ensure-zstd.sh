@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+set -eu
 
 # Ensure vendored zstd source is available (submodule may not be in Docker context).
 

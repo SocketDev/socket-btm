@@ -2,7 +2,7 @@
 # Test script for enhanced consistency checker
 # Demonstrates auto-fix and ML-powered suggestions
 
-set -e
+set -euo pipefail
 
 echo "==================================================================="
 echo "Testing Enhanced Consistency Checker"

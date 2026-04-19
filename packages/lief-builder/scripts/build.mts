@@ -880,7 +880,7 @@ async function main() {
                   }
                 } catch (e) {
                   logger.error(
-                    `Failed to list directory contents: ${e.message}`,
+                    `Failed to list directory contents: ${errorMessage(e)}`,
                   )
                 }
                 throw new Error(

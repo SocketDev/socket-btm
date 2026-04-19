@@ -11,6 +11,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { makeExecutable } from 'build-infra/lib/build-helpers'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { spawn } from '@socketsecurity/lib/spawn'
@@ -221,11 +222,12 @@ async function execCommand(command, args = []) {
     proc.on('error', err => {
       // Handle spawn errors (ENOENT, EACCES, etc.)
       // Command not found
+      const msg = errorMessage(err)
       resolve({
         code: 127,
         error: err,
-        output: `${stdout + stderr}\nSpawn error: ${err.message}`,
-        stderr: `${stderr}\nSpawn error: ${err.message}`,
+        output: `${stdout + stderr}\nSpawn error: ${msg}`,
+        stderr: `${stderr}\nSpawn error: ${msg}`,
         stdout,
       })
     })

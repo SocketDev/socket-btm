@@ -22,6 +22,7 @@ import { spawn } from '@socketsecurity/lib/spawn'
 
 import { getPlatform } from './build-env.mts'
 import { printError } from './build-output.mts'
+import { errorMessage } from './error-utils.mts'
 import { downloadAndCache, getCachedToolBinary } from './tool-downloader.mts'
 import { getToolConfig, getToolVersion } from './pinned-versions.mts'
 
@@ -642,8 +643,9 @@ async function ensurePinnedTool(tool, config, autoInstall) {
     )
     return { available: true, installed: true, path: downloadedPath }
   } catch (err) {
-    logger.error(`Failed to get ${tool} ${requiredVersion}: ${err.message}`)
-    return { available: false, installed: false, error: err.message }
+    const msg = errorMessage(err)
+    logger.error(`Failed to get ${tool} ${requiredVersion}: ${msg}`)
+    return { available: false, installed: false, error: msg }
   }
 }
 

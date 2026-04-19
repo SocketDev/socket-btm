@@ -142,7 +142,14 @@ function readManifest(manifestPath: string): Manifest {
     logger.error(`xport: manifest not found at ${manifestPath}`)
     process.exit(1)
   }
-  const raw = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  let raw: unknown
+  try {
+    raw = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  } catch (e) {
+    logger.error(`xport: could not parse ${manifestPath}`)
+    logger.fail(`  ${e instanceof Error ? e.message : String(e)}`)
+    process.exit(1)
+  }
   const result = XportManifestSchema.safeParse(raw)
   if (!result.success) {
     logger.error(`xport: schema validation failed for ${manifestPath}`)
@@ -234,8 +241,14 @@ function driftCommitsSince(
       return []
     }
     return trimmed.split('\n').map(line => {
-      const [commitSha, summary] = line.split('\t')
-      return { sha: commitSha ?? '', summary: summary ?? '' }
+      // Preserve any embedded tabs in the commit subject (rare but
+      // possible) — `.split` destructuring would truncate at the
+      // first tab inside the summary.
+      const [commitSha, ...summaryParts] = line.split('\t')
+      return {
+        sha: commitSha ?? '',
+        summary: summaryParts.join('\t') ?? '',
+      }
     })
   } catch {
     return []
@@ -295,7 +308,21 @@ function countPatternHits(files: string[], patterns: string[]): number {
   if (patterns.length === 0) {
     return 0
   }
-  const compiled = patterns.map(p => new RegExp(p))
+  // Manifest authors occasionally land a bad regex; surface the bad
+  // pattern and keep going rather than throwing a SyntaxError that
+  // kills the whole run.
+  const compiled: RegExp[] = []
+  for (const p of patterns) {
+    try {
+      compiled.push(new RegExp(p))
+    } catch (e) {
+      logger.warn(
+        `xport: skipping invalid regex ${JSON.stringify(p)}: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      )
+    }
+  }
   let hits = 0
   for (const pat of compiled) {
     for (const file of files) {

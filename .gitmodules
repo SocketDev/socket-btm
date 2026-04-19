@@ -18,7 +18,7 @@
 	path = packages/lief-builder/upstream/lief
 	url = https://github.com/lief-project/LIEF.git
 	ignore = dirty
-# cJSON-1.7.19
+# cjson-1.7.19
 [submodule "packages/binject/upstream/cJSON"]
 	path = packages/binject/upstream/cJSON
 	url = https://github.com/DaveGamble/cJSON.git
@@ -58,12 +58,12 @@
 	path = packages/libpq-builder/upstream/postgres
 	url = https://github.com/postgres/postgres.git
 	ignore = dirty
-# uSockets-0.8.8
+# usockets-0.8.8
 [submodule "packages/node-smol-builder/upstream/uSockets"]
 	path = packages/node-smol-builder/upstream/uSockets
 	url = https://github.com/uNetworking/uSockets.git
 	ignore = dirty
-# uWebSockets-20.76.0
+# uwebsockets-20.76.0
 [submodule "packages/node-smol-builder/upstream/uWebSockets"]
 	path = packages/node-smol-builder/upstream/uWebSockets
 	url = https://github.com/uNetworking/uWebSockets.git

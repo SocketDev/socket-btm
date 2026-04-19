@@ -6,7 +6,7 @@ on:
     - cron: '0 9 * * 1'
   workflow_dispatch:
     inputs:
-      dry-run:
+      dry_run:
         description: 'Check for updates without creating PR'
         required: false
         type: boolean
@@ -159,7 +159,7 @@ jobs:
   apply-updates:
     name: Apply updates with Claude Code
     needs: check-updates
-    if: needs.check-updates.outputs.has-updates == 'true' && inputs.dry-run != true
+    if: needs.check-updates.outputs.has-updates == 'true' && inputs.dry_run != true
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -456,7 +456,7 @@ jobs:
       - name: Report status
         env:
           HAS_UPDATES: ${{ needs.check-updates.outputs.has-updates }}
-          DRY_RUN: ${{ inputs.dry-run }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
           if [ "$HAS_UPDATES" = "true" ]; then
             if [ "$DRY_RUN" = "true" ]; then

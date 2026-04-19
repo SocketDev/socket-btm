@@ -244,7 +244,7 @@ jobs:
           xcodebuild -version
           clang --version
 
-      - name: Setup Depot.dev CLI
+      - name: Setup Depot CLI
         if: matrix.os == 'linux'
         uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
         with:

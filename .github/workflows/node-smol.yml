@@ -233,16 +233,9 @@ jobs:
             sudo apt-get install -y gcc-aarch64-linux-gnu
           fi
 
-      - name: Select Xcode version (macOS)
+      - name: Select Xcode (macOS)
         if: matrix.os == 'macos' && (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || inputs.force)
-        run: |
-          # Select appropriate Xcode version for each runner
-          # depot-macos-15 (Depot.dev ARM64 M2): Use Xcode 16.4 (default on macOS 15)
-          # macos-15-large (GitHub Intel x64): Use Xcode 16.4 (default on macOS 15)
-          # Both macOS 15 runners use Xcode 16.4 by default, but explicitly set for clarity
-          sudo xcode-select -s /Applications/Xcode_16.4.app
-          xcodebuild -version
-          clang --version
+        uses: ./.github/actions/select-xcode
 
       - name: Setup Depot CLI
         if: matrix.os == 'linux'

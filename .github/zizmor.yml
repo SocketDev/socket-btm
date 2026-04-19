@@ -27,3 +27,10 @@ rules:
       # False positive: Template expansion is in a comment, not executable code
       # Line 469: Comment explaining GitHub Actions syntax
       - node-smol.yml:469
+
+  github-env:
+    ignore:
+      # False positive: expansion is $LLVM_MINGW_VERSION from the step's own
+      # env: block (inputs.version default), not untrusted user input.
+      # Line 17: run block writing to $GITHUB_PATH
+      - action.yml:17

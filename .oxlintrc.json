@@ -24,10 +24,10 @@
       }
     ],
     "eslint/no-new": "error",
-    "eslint/no-unmodified-loop-condition": "off",
-    "eslint/no-useless-catch": "off",
     "eslint/no-proto": "error",
     "eslint/no-shadow": "off",
+    "eslint/no-unmodified-loop-condition": "off",
+    "eslint/no-useless-catch": "off",
     "eslint/no-unused-vars": "off",
     "eslint/no-var": "error",
     "eslint/prefer-const": "error",
@@ -44,13 +44,13 @@
         "default": "array-simple"
       }
     ],
-    "typescript/no-extraneous-class": "off",
     "typescript/consistent-type-assertions": [
       "error",
       {
         "assertionStyle": "as"
       }
     ],
+    "typescript/no-extraneous-class": "off",
     "typescript/no-misused-new": "error",
     "typescript/no-non-null-asserted-optional-chain": "off",
     "typescript/no-this-alias": [
@@ -61,16 +61,19 @@
     ],
     "unicorn/consistent-function-scoping": "off",
     "unicorn/no-array-for-each": "off",
-    "unicorn/no-array-sort": "off",
-    "unicorn/no-null": "off",
     "unicorn/no-array-reverse": "off",
+    "unicorn/no-array-sort": "off",
     "unicorn/no-empty-file": "off",
     "unicorn/no-new-array": "off",
+    "unicorn/no-null": "off",
     "unicorn/no-useless-fallback-in-spread": "off",
     "unicorn/prefer-node-protocol": "error",
     "unicorn/prefer-spread": "off"
   },
   "ignorePatterns": [
+    "**/*.d.ts",
+    "**/*.d.ts.map",
+    "**/*.tsbuildinfo",
     "**/.cache",
     "**/.claude",
     "**/additions",
@@ -81,9 +84,6 @@
     "**/node_modules",
     "**/patches",
     "**/test/fixtures",
-    "**/test/packages",
-    "**/*.d.ts",
-    "**/*.d.ts.map",
-    "**/*.tsbuildinfo"
+    "**/test/packages"
   ]
 }

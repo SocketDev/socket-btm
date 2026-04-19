@@ -10,14 +10,6 @@
         "On GitHub Actions: Pre-installed on all runners"
       ]
     },
-    "ninja": {
-      "description": "Ninja build system",
-      "version": "1.11+",
-      "notes": [
-        "Used by CMake as the build backend for curl and mbedTLS",
-        "Provides faster parallel builds"
-      ]
-    },
     "curl": {
       "description": "curl library for HTTP downloads",
       "notes": [
@@ -40,6 +32,14 @@
         "Required for Windows builds to provide MinGW toolchain",
         "On GitHub Actions: Pre-installed at C:/msys64",
         "Local development: Install from https://www.msys2.org/"
+      ]
+    },
+    "ninja": {
+      "description": "Ninja build system",
+      "version": "1.11+",
+      "notes": [
+        "Used by CMake as the build backend for curl and mbedTLS",
+        "Provides faster parallel builds"
       ]
     }
   }

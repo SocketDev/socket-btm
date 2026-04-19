@@ -11,6 +11,15 @@
         "Local development: Install via brew (macOS) or package manager (Linux)"
       ]
     },
+    "lief": {
+      "description": "LIEF library for binary manipulation",
+      "version": "v0.17.0",
+      "notes": [
+        "LIEF tracked via git submodule at packages/lief-builder/upstream/lief",
+        "Version pinned in .gitmodules",
+        "Built from source or downloaded as prebuilt binary from socket-btm releases"
+      ]
+    },
     "ninja": {
       "description": "Ninja build system",
       "version": "1.11+",
@@ -23,15 +32,6 @@
       "description": "Python 3 interpreter",
       "version": "3.11+",
       "notes": ["Required by LIEF's CMake build scripts"]
-    },
-    "lief": {
-      "description": "LIEF library for binary manipulation",
-      "version": "v0.17.0",
-      "notes": [
-        "LIEF tracked via git submodule at packages/lief-builder/upstream/lief",
-        "Version pinned in .gitmodules",
-        "Built from source or downloaded as prebuilt binary from socket-btm releases"
-      ]
     },
     "zstd": {
       "description": "Zstandard compression library",

@@ -560,18 +560,31 @@ export async function ensureAllPythonPackages(
       logger.substep(`[${i + 1}/${packages.length}] Checking ${packageName}`)
     }
 
-    // eslint-disable-next-line no-await-in-loop
-    const result = await ensurePythonPackage(packageName, {
-      autoInstall,
-      consumerPackageJsonPath,
-      importName,
-      quiet,
-    })
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const result = await ensurePythonPackage(packageName, {
+        autoInstall,
+        consumerPackageJsonPath,
+        importName,
+        quiet,
+      })
 
-    if (!result.available) {
+      if (!result.available) {
+        missing.push(packageName)
+      } else if (result.installed) {
+        installed.push(packageName)
+      }
+    } catch (error) {
+      // ensurePythonPackage can throw from initializeVenv or from the
+      // "No pinned version found" guard in installPythonPackage. Record
+      // the package as missing and continue so the caller gets the full
+      // picture instead of seeing the first exception abort the loop.
+      if (!quiet) {
+        logger.error(
+          `Error checking Python package ${packageName}: ${error instanceof Error ? error.message : String(error)}`,
+        )
+      }
       missing.push(packageName)
-    } else if (result.installed) {
-      installed.push(packageName)
     }
   }
 

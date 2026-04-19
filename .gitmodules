@@ -18,6 +18,7 @@
 	path = packages/lief-builder/upstream/lief
 	url = https://github.com/lief-project/LIEF.git
 	ignore = dirty
+# cJSON-1.7.19
 [submodule "packages/binject/upstream/cJSON"]
 	path = packages/binject/upstream/cJSON
 	url = https://github.com/DaveGamble/cJSON.git

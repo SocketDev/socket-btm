@@ -74,7 +74,8 @@ async function runCoverageForPackage(packageName) {
     logger.success(`Coverage completed for ${packageName}`)
     return true
   } catch (error) {
-    logger.error(`Coverage failed for ${packageName}: ${error.message}`)
+    const msg = error instanceof Error ? error.message : String(error)
+    logger.error(`Coverage failed for ${packageName}: ${msg}`)
     return false
   }
 }
@@ -148,6 +149,7 @@ async function main() {
 }
 
 main().catch(error => {
-  logger.error(`Fatal error: ${error.message}`)
+  const msg = error instanceof Error ? error.message : String(error)
+  logger.error(`Fatal error: ${msg}`)
   throw error
 })

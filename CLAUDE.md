@@ -103,6 +103,14 @@
 - ALWAYS use `eslint-disable-next-line` above the line, NEVER trailing `eslint-disable-line`
 - ALWAYS use Edit tool for code modifications, NEVER sed/awk
 
+### Promise.race in Loops
+
+**NEVER re-race the same pool of promises across loop iterations.** Each call to `Promise.race([A, B, ...])` attaches fresh `.then` handlers to every arm; a promise that survives N iterations accumulates N handler sets. The classic trap is the concurrency limiter that `await Promise.race(executing)` with `executing` shared across iterations. See [nodejs/node#17469](https://github.com/nodejs/node/issues/17469).
+
+- **Safe**: `Promise.race([fresh1, fresh2])` where both arms are created per call (e.g. timeout wrappers).
+- **Leaky**: `Promise.race(pool)` inside a loop where `pool` persists across iterations.
+- **Fix**: single-waiter signal — each task's own `.then` resolves a one-shot `promiseWithResolvers` that the loop awaits, then replaces. No persistent pool, nothing to stack.
+
 ### spawn() Usage
 
 **NEVER change `shell: WIN32` to `shell: true`** — `shell: WIN32` enables shell on Windows (needed) and disables on Unix (not needed). If spawn fails with ENOENT, separate command from arguments.

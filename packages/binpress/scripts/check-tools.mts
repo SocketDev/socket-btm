@@ -4,22 +4,26 @@
  */
 import process from 'node:process'
 
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
+
 import { runCheckTools } from 'build-infra/lib/check-tools'
 
 const IS_MACOS = process.platform === 'darwin'
 const IS_LINUX = process.platform === 'linux'
 
-// Tools that can be auto-installed via package managers
+// Tools that can be auto-installed via package managers.
 const autoInstallableTools = ['make']
 
-// Add platform-specific compilers
+// Add platform-specific compilers (both C and C++ for LIEF support).
 if (IS_MACOS) {
-  autoInstallableTools.push('clang')
+  autoInstallableTools.push('clang', 'clang++')
 } else if (IS_LINUX) {
-  autoInstallableTools.push('gcc')
+  autoInstallableTools.push('gcc', 'g++')
+} else if (WIN32) {
+  autoInstallableTools.push('gcc', 'g++')
 }
 
-// Tools that must exist but can't be auto-installed easily
+// Tools that must exist but can't be auto-installed easily.
 // (zstd is compiled from bundled sources, no external deps needed)
 const manualTools = []
 

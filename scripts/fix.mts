@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * @fileoverview Auto-fix script — runs linters with --fix, then security
  * tools (zizmor, agentshield) if available.

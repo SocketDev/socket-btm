@@ -42,6 +42,17 @@ packages/binject/out/
 !.github/scripts/**
 
 # ==============================================================================
+# Dependencies and Caches (re-installed inside container)
+# ==============================================================================
+
+# Dockerfiles run `pnpm install --frozen-lockfile` themselves, so the host
+# node_modules tree (hundreds of MB) is dead weight in the build context.
+**/node_modules/
+.cache/
+.ccache/
+**/coverage/
+
+# ==============================================================================
 # Logs and Temporary Files
 # ==============================================================================
 

@@ -163,26 +163,28 @@ jobs:
           echo "platform_arch=${PLATFORM_ARCH}" >> $GITHUB_OUTPUT
           echo "Platform-arch: ${PLATFORM_ARCH}"
 
-      - name: Load cache version from centralized config
+      - name: Load curl cache version from centralized config
+        id: curl-cache-version
+        uses: ./.github/actions/load-cache-version
+        with:
+          package-name: curl
+
+      - name: Compose combined cache version with submodule SHAs
         id: cache-version
         shell: bash
+        env:
+          CURL_VERSION: ${{ steps.curl-cache-version.outputs.version }}
         run: |
-          CURL_VERSION=$(jq -r '.versions["curl"]' .github/cache-versions.json)
-          if [ -z "$CURL_VERSION" ] || [ "$CURL_VERSION" = "null" ]; then
-            echo "× Error: Cache version not found for curl in .github/cache-versions.json"
-            exit 1
-          fi
-
           # Get curl and mbedtls submodule SHAs.
           CURL_SHA=$(git -C packages/curl-builder/upstream/curl rev-parse HEAD 2>/dev/null || echo "none")
           MBEDTLS_SHA=$(git -C packages/curl-builder/upstream/mbedtls rev-parse HEAD 2>/dev/null || echo "none")
 
           # Combined version includes curl version and dependency SHAs.
           COMBINED_VERSION="${CURL_VERSION}-${CURL_SHA:0:7}-${MBEDTLS_SHA:0:7}"
-          echo "version=$COMBINED_VERSION" >> $GITHUB_OUTPUT
-          echo "curl_version=$CURL_VERSION" >> $GITHUB_OUTPUT
-          echo "curl_sha=${CURL_SHA:0:7}" >> $GITHUB_OUTPUT
-          echo "mbedtls_sha=${MBEDTLS_SHA:0:7}" >> $GITHUB_OUTPUT
+          echo "version=$COMBINED_VERSION" >> "$GITHUB_OUTPUT"
+          echo "curl_version=$CURL_VERSION" >> "$GITHUB_OUTPUT"
+          echo "curl_sha=${CURL_SHA:0:7}" >> "$GITHUB_OUTPUT"
+          echo "mbedtls_sha=${MBEDTLS_SHA:0:7}" >> "$GITHUB_OUTPUT"
           echo "Cache version: $COMBINED_VERSION"
           echo "  curl: $CURL_VERSION (sha: ${CURL_SHA:0:7})"
           echo "  mbedtls: ${MBEDTLS_SHA:0:7}"

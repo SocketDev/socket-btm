@@ -102,21 +102,25 @@ jobs:
           # Don't clone all submodules - only needed ones are initialized below.
           submodules: false
 
-      - name: Load cache version from centralized config
+      - name: Load stubs cache version from centralized config
+        id: stubs-cache-version
+        uses: ./.github/actions/load-cache-version
+        with:
+          package-name: stubs
+
+      - name: Load curl cache version from centralized config
+        id: curl-cache-version
+        uses: ./.github/actions/load-cache-version
+        with:
+          package-name: curl
+
+      - name: Compose combined cache version with submodule SHAs + source hash
         id: cache-version
         shell: bash
+        env:
+          STUBS_VERSION: ${{ steps.stubs-cache-version.outputs.version }}
+          CURL_VERSION: ${{ steps.curl-cache-version.outputs.version }}
         run: |
-          STUBS_VERSION=$(jq -r '.versions["stubs"]' .github/cache-versions.json)
-          CURL_VERSION=$(jq -r '.versions["curl"]' .github/cache-versions.json)
-          if [ -z "$STUBS_VERSION" ] || [ "$STUBS_VERSION" = "null" ]; then
-            echo "× Error: Cache version not found for stubs in .github/cache-versions.json"
-            exit 1
-          fi
-          if [ -z "$CURL_VERSION" ] || [ "$CURL_VERSION" = "null" ]; then
-            echo "× Error: Cache version not found for curl in .github/cache-versions.json"
-            exit 1
-          fi
-
           # Get curl and mbedtls submodule SHAs from git tree (works without submodule init).
           CURL_SHA=$(git ls-tree HEAD packages/curl-builder/upstream/curl 2>/dev/null | awk '{print $3}' || echo "none")
           MBEDTLS_SHA=$(git ls-tree HEAD packages/curl-builder/upstream/mbedtls 2>/dev/null | awk '{print $3}' || echo "none")
@@ -152,10 +156,10 @@ jobs:
           # Stubs cache key = stubs version + curl cache key + source hashes.
           SOURCE_HASH=$(echo "${BUILD_INFRA_SRC}${BIN_INFRA_SRC}${STUBS_SRC}" | $hash_cmd | cut -d' ' -f1)
           COMBINED_VERSION="${STUBS_VERSION}-curl-${CURL_CACHE_KEY}-src-${SOURCE_HASH:0:7}"
-          echo "version=$COMBINED_VERSION" >> $GITHUB_OUTPUT
-          echo "stubs_version=$STUBS_VERSION" >> $GITHUB_OUTPUT
-          echo "curl_cache_key=$CURL_CACHE_KEY" >> $GITHUB_OUTPUT
-          echo "source_hash=${SOURCE_HASH:0:7}" >> $GITHUB_OUTPUT
+          echo "version=$COMBINED_VERSION" >> "$GITHUB_OUTPUT"
+          echo "stubs_version=$STUBS_VERSION" >> "$GITHUB_OUTPUT"
+          echo "curl_cache_key=$CURL_CACHE_KEY" >> "$GITHUB_OUTPUT"
+          echo "source_hash=${SOURCE_HASH:0:7}" >> "$GITHUB_OUTPUT"
           echo "Cache version: $COMBINED_VERSION"
           echo "  stubs: $STUBS_VERSION"
           echo "  curl cache key: $CURL_CACHE_KEY"

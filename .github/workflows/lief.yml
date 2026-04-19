@@ -38,7 +38,7 @@ on:
         default: '0'
 
 permissions:
-  contents: read # Read repository contents
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -47,7 +47,7 @@ concurrency:
 jobs:
   build-lief:
     permissions:
-      contents: read # Read repository contents
+      contents: read
       id-token: write # OIDC authentication for Depot builds
     name: lief / ${{ matrix.platform == 'win32' && 'win' || matrix.platform }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }}
     runs-on: ${{ matrix.runner }}

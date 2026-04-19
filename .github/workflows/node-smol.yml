@@ -47,7 +47,7 @@ concurrency:
 jobs:
   build:
     permissions:
-      contents: read # Read repository contents
+      contents: read
       id-token: write # OIDC authentication for Depot.dev builds
     name: Build (${{ matrix.platform == 'win32' && 'win' || matrix.platform }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }})
     runs-on: ${{ matrix.runner }}

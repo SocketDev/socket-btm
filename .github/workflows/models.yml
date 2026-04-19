@@ -31,7 +31,7 @@ on:
         default: prod
 
 permissions:
-  contents: read # Read repository contents
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -41,7 +41,7 @@ jobs:
   build:
     name: Build Models
     permissions:
-      contents: read # Read repository contents
+      contents: read
       id-token: write # OIDC authentication for Depot builds
     runs-on: ubuntu-24.04
     timeout-minutes: 90

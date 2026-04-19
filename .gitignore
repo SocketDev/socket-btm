@@ -194,6 +194,18 @@ test-firewall-*.sh
 
 # Git submodule checkouts for third-party library sources
 **/upstream/
-.ccache/
+
+# ==============================================================================
+# Build / Compiler Caches
+# ==============================================================================
+
 .cache/
+.ccache/
+
+# ==============================================================================
+# Guarded File Names (intentionally never committed)
+# ==============================================================================
+
+# Guard against accidentally committing a top-level ARCHITECTURE.md.
+# Project architecture docs live under docs/ (see feedback_docs_placement).
 ARCHITECTURE.md

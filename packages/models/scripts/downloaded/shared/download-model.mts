@@ -4,6 +4,7 @@ import path from 'node:path'
 import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import { CHECKPOINTS } from 'build-infra/lib/constants'
 import { getPythonCommand } from 'build-infra/lib/python-installer'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { which } from '@socketsecurity/lib/bin'
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
@@ -168,7 +169,7 @@ export async function downloadModel(options) {
         return
       }
     } catch (error) {
-      logger.error(`Failed: ${source} - ${error.message}`)
+      logger.error(`Failed: ${source} - ${errorMessage(error)}`)
       // Continue to next fallback.
     }
   }

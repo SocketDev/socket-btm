@@ -32,6 +32,7 @@ import {
 import { verifyReleaseChecksum } from 'build-infra/lib/release-checksums'
 import { extractTarball } from 'build-infra/lib/tarball-utils'
 import { getSubmoduleVersion } from 'build-infra/lib/version-helpers'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
@@ -264,7 +265,7 @@ export async function downloadCurl(options = {}) {
       await safeDelete(versionFile)
     }
     throw new Error(
-      `Failed to extract curl archive from ${downloadedArchive}: ${error.message}. ` +
+      `Failed to extract curl archive from ${downloadedArchive}: ${errorMessage(error)}. ` +
         'Deleted corrupted archive to allow re-download on next run.',
       { cause: error },
     )

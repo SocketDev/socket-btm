@@ -8,6 +8,7 @@ import process from 'node:process'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn, spawnSync } from '@socketsecurity/lib/spawn'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 const logger = getDefaultLogger()
 
@@ -152,7 +153,7 @@ vitestPromise
   .catch(error => {
     clearInterval(monitorInterval)
     if (!killed) {
-      logger.error(`\nTest failed: ${error.message}`)
+      logger.error(`\nTest failed: ${errorMessage(error)}`)
       process.exitCode = error.code || 1
     }
   })

@@ -11,6 +11,7 @@ import { createCheckpoint } from 'build-infra/lib/build-helpers'
 import { shouldRun } from 'build-infra/lib/checkpoint-manager'
 import { CHECKPOINTS } from 'build-infra/lib/constants'
 import { applyPatch, validatePatch } from 'build-infra/lib/patch-validator'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { glob } from '@socketsecurity/lib/globs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
@@ -186,7 +187,7 @@ export async function applySocketPatches(options) {
         throw new Error(
           'Socket patch application failed.\n\n' +
             `Failed to apply patch: ${name}\n` +
-            `Error: ${error.message}`,
+            `Error: ${errorMessage(error)}`,
         )
       }
     }

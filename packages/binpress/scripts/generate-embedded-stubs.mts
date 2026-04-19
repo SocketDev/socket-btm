@@ -31,6 +31,7 @@ import { spawn } from '@socketsecurity/lib/spawn'
 
 import { getBuildMode } from 'build-infra/lib/constants'
 import { logTransientErrorHelp } from 'build-infra/lib/github-error-utils'
+import { errorMessage } from 'build-infra/lib/error-utils'
 import {
   getCurrentPlatformArch,
   isMusl,
@@ -204,7 +205,7 @@ async function downloadStub(
     return stubOut
   } catch (error) {
     logger.group()
-    logger.error(`${platformName} stub: ${error.message}`)
+    logger.error(`${platformName} stub: ${errorMessage(error)}`)
 
     // Log helpful messages if this is a transient GitHub/network error.
     await logTransientErrorHelp(error)

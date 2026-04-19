@@ -30,6 +30,8 @@ import {
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { escapeRegExp } from '@socketsecurity/lib/regexps'
 
+import { errorMessage } from '../lib/error-utils.mts'
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const logger = getDefaultLogger()
 
@@ -363,7 +365,7 @@ async function main() {
         logger.info(`  Assets found: ${assets.size}`)
         updates[toolName] = { assets, version }
       } catch (error) {
-        logger.error(`  Error fetching ${toolName}: ${error.message}`)
+        logger.error(`  Error fetching ${toolName}: ${errorMessage(error)}`)
       }
       continue
     }
@@ -381,7 +383,7 @@ async function main() {
 
       updates[toolName] = { assets, version }
     } catch (error) {
-      logger.error(`  Error fetching ${toolName}: ${error.message}`)
+      logger.error(`  Error fetching ${toolName}: ${errorMessage(error)}`)
     }
   }
 

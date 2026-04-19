@@ -13,6 +13,7 @@ import path from 'node:path'
 import process from 'node:process'
 
 import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
@@ -42,7 +43,7 @@ async function main() {
     packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
   } catch (error) {
     throw new Error(
-      `Failed to parse package.json at ${packageJsonPath}: ${error.message}`,
+      `Failed to parse package.json at ${packageJsonPath}: ${errorMessage(error)}`,
       { cause: error },
     )
   }
@@ -187,7 +188,7 @@ async function main() {
     distPackageJson = JSON.parse(await fs.readFile(distPackageJsonPath, 'utf8'))
   } catch (error) {
     throw new Error(
-      `Failed to parse package.json at ${distPackageJsonPath}: ${error.message}`,
+      `Failed to parse package.json at ${distPackageJsonPath}: ${errorMessage(error)}`,
       { cause: error },
     )
   }

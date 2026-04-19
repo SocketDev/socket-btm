@@ -27,6 +27,7 @@ import { printError } from 'build-infra/lib/build-output'
 import { cleanCheckpoint } from 'build-infra/lib/checkpoint-manager'
 import { getBuildMode } from 'build-infra/lib/constants'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
@@ -65,7 +66,7 @@ try {
   )
 } catch (error) {
   throw new Error(
-    `Failed to parse package.json at ${path.join(PACKAGE_ROOT, 'package.json')}: ${error.message}`,
+    `Failed to parse package.json at ${path.join(PACKAGE_ROOT, 'package.json')}: ${errorMessage(error)}`,
     { cause: error },
   )
 }

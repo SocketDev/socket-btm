@@ -28,6 +28,7 @@ import {
   getLatestRelease,
 } from '@socketsecurity/lib/releases/github'
 
+import { errorMessage } from '../lib/error-utils.mts'
 import { parseChecksums } from '../lib/release-checksums.mts'
 
 const logger = getDefaultLogger()
@@ -97,7 +98,7 @@ async function fetchToolChecksums(tool) {
 
     return { checksums, tag }
   } catch (error) {
-    logger.warn(`Failed to fetch checksums for ${tool}: ${error.message}`)
+    logger.warn(`Failed to fetch checksums for ${tool}: ${errorMessage(error)}`)
     return undefined
   }
 }
@@ -128,7 +129,7 @@ async function main() {
     try {
       currentData = JSON.parse(readFileSync(CHECKSUMS_FILE, 'utf8'))
     } catch (error) {
-      logger.warn(`Failed to parse ${CHECKSUMS_FILE}: ${error.message}`)
+      logger.warn(`Failed to parse ${CHECKSUMS_FILE}: ${errorMessage(error)}`)
     }
   }
 
@@ -240,6 +241,6 @@ async function main() {
 }
 
 main().catch(error => {
-  logger.fail(`Sync failed: ${error.message}`)
+  logger.fail(`Sync failed: ${errorMessage(error)}`)
   process.exitCode = 1
 })

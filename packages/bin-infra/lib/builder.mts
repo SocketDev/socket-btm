@@ -19,6 +19,7 @@ import {
   getBuildMode,
   getPlatformBuildDir,
 } from 'build-infra/lib/constants'
+import { errorMessage } from 'build-infra/lib/error-utils'
 import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 import { runCommand } from 'build-infra/lib/script-runner'
 
@@ -264,7 +265,7 @@ export async function buildBinSuitePackage(config) {
     }
   } catch (error) {
     logger.info('')
-    logger.fail(`Build failed: ${error.message}`)
+    logger.fail(`Build failed: ${errorMessage(error)}`)
     throw error
   }
 }

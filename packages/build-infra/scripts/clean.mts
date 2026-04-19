@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 import { cleanBuilder } from '../lib/clean-builder.mts'
+import { errorMessage } from '../lib/error-utils.mts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const packageDir = path.join(__dirname, '..')
@@ -26,6 +27,6 @@ cleanBuilder('build-infra', {
   cleanDirs: ['build'],
   packageDir,
 }).catch(error => {
-  logger.fail(`Clean failed: ${error.message}`)
+  logger.fail(`Clean failed: ${errorMessage(error)}`)
   process.exitCode = 1
 })

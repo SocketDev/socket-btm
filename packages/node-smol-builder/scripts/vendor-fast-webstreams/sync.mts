@@ -26,6 +26,7 @@ import { safeDeleteSync } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { readPackageJson } from '@socketsecurity/lib/packages/operations'
 import process from 'node:process'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 const logger = getDefaultLogger()
 
@@ -466,7 +467,7 @@ async function processSourceFiles() {
     pkgJson = JSON.parse(readFileSync(pkgJsonPath, 'utf8'))
   } catch (error) {
     throw new Error(
-      `Failed to parse package.json at ${pkgJsonPath}: ${error.message}`,
+      `Failed to parse package.json at ${pkgJsonPath}: ${errorMessage(error)}`,
       { cause: error },
     )
   }
@@ -513,7 +514,7 @@ async function main() {
       pkgJson = JSON.parse(readFileSync(mainPkgJsonPath, 'utf8'))
     } catch (error) {
       throw new Error(
-        `Failed to parse package.json at ${mainPkgJsonPath}: ${error.message}`,
+        `Failed to parse package.json at ${mainPkgJsonPath}: ${errorMessage(error)}`,
         { cause: error },
       )
     }

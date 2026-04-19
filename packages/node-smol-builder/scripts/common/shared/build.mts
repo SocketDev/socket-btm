@@ -94,6 +94,7 @@ import {
 } from 'build-infra/lib/build-helpers'
 import { BYTES, CHECKPOINTS, NODE_VERSION } from 'build-infra/lib/constants'
 import { verifyNodeChecksum } from 'build-infra/lib/version-helpers'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { parseArgs } from '@socketsecurity/lib/argv/parse'
 import { glob } from '@socketsecurity/lib/globs'
@@ -746,6 +747,6 @@ async function main() {
 
 // Run main function.
 main().catch(error => {
-  logger.fail(`Build failed: ${error.message}`)
+  logger.fail(`Build failed: ${errorMessage(error)}`)
   throw error
 })

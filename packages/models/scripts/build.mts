@@ -34,6 +34,7 @@ import {
 import { CHECKPOINTS } from 'build-infra/lib/constants'
 import { checkModelBuildPrerequisites } from 'build-infra/lib/model-build-helpers'
 import { getPythonCommand } from 'build-infra/lib/python-installer'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { readJson, safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
@@ -406,7 +407,7 @@ async function main() {
     )
   } catch (error) {
     logger.info('')
-    logger.error(`Build failed: ${error.message}`)
+    logger.error(`Build failed: ${errorMessage(error)}`)
     throw error
   }
 }

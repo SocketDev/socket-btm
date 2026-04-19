@@ -13,6 +13,7 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 import { ADDITIONS_SOURCE_PATCHED_DIR } from './paths.mts'
+import { errorMessage } from 'build-infra/lib/error-utils'
 import {
   BINJECT_DIR,
   BIN_INFRA_DIR,
@@ -215,7 +216,7 @@ async function syncVendoredPackages() {
     })
     logger.success('Synced fast-webstreams from npm registry')
   } catch (error) {
-    throw new Error(`Failed to sync fast-webstreams: ${error.message}`, {
+    throw new Error(`Failed to sync fast-webstreams: ${errorMessage(error)}`, {
       cause: error,
     })
   }

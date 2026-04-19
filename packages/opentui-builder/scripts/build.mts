@@ -25,6 +25,7 @@ import { printError } from 'build-infra/lib/build-output'
 import { cleanCheckpoint } from 'build-infra/lib/checkpoint-manager'
 import { getBuildMode } from 'build-infra/lib/constants'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
@@ -64,7 +65,7 @@ try {
   )
 } catch (error) {
   throw new Error(
-    `Failed to parse package.json at ${path.join(PACKAGE_ROOT, 'package.json')}: ${error.message}`,
+    `Failed to parse package.json at ${path.join(PACKAGE_ROOT, 'package.json')}: ${errorMessage(error)}`,
     { cause: error },
   )
 }
@@ -148,7 +149,7 @@ async function ensureZig() {
       throw error
     }
     // If smoke test itself threw (spawn failed), warn but continue.
-    logger.warn(`Zig link smoke test failed: ${error.message}`)
+    logger.warn(`Zig link smoke test failed: ${errorMessage(error)}`)
   }
 
   logger.success(`Zig ready: ${zigBin}`)

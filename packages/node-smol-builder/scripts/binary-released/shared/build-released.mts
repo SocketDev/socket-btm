@@ -31,6 +31,7 @@ import {
   smokeTestBinary,
 } from 'build-infra/lib/build-helpers'
 import { printError } from 'build-infra/lib/build-output'
+import { errorMessage } from 'build-infra/lib/error-utils'
 import {
   hasCheckpoint,
   restoreCheckpoint,
@@ -294,7 +295,7 @@ export async function buildRelease(config, buildOptions = {}) {
         logger.warn('V8 include structure may have changed (cannot verify)')
       }
     } catch (error) {
-      logger.warn(`Cannot verify V8 includes: ${error.message}`)
+      logger.warn(`Cannot verify V8 includes: ${errorMessage(error)}`)
     }
 
     // Check 2: localeCompare polyfill.
@@ -314,7 +315,7 @@ export async function buildRelease(config, buildOptions = {}) {
         logger.warn('localeCompare polyfill not applied')
       }
     } catch (error) {
-      logger.warn(`Cannot verify bootstrap/node.js: ${error.message}`)
+      logger.warn(`Cannot verify bootstrap/node.js: ${errorMessage(error)}`)
     }
 
     logger.logNewline()

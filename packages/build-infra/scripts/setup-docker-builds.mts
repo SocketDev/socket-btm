@@ -30,6 +30,7 @@ import process from 'node:process'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 import { printError, printInfo, printSuccess } from '../lib/build-output.mts'
+import { errorMessage } from '../lib/error-utils.mts'
 import {
   ALL_TARGETS,
   LINUX_TARGETS,
@@ -182,7 +183,7 @@ async function main() {
 }
 
 main().catch(error => {
-  printError(`Setup failed: ${error.message}`)
+  printError(`Setup failed: ${errorMessage(error)}`)
   logger.fail(error)
   process.exitCode = 1
 })

@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url'
 import { runCommand, selectMakefile } from 'bin-infra/lib/builder'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const packageRoot = path.join(__dirname, '..')
@@ -24,7 +25,7 @@ async function main() {
     await runCommand('make', ['-f', makefile, 'clean'], packageRoot)
     logger.success('Clean complete')
   } catch (error) {
-    logger.fail(`Clean failed: ${error.message}`)
+    logger.fail(`Clean failed: ${errorMessage(error)}`)
     process.exitCode = 1
   }
 }

@@ -38,6 +38,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { getBuildMode } from 'build-infra/lib/constants'
+import { errorMessage } from 'build-infra/lib/error-utils'
 import { Octokit } from 'octokit'
 import colors from 'yoctocolors-cjs'
 import process from 'node:process'
@@ -575,7 +576,7 @@ async function main() {
 }
 
 main().catch(error => {
-  logger.error(`Release failed: ${error.message}`)
+  logger.error(`Release failed: ${errorMessage(error)}`)
   if (error.stack) {
     logger.error(error.stack)
   }

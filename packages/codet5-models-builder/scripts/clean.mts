@@ -8,6 +8,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { cleanBuilder } from 'build-infra/lib/clean-builder'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
@@ -20,6 +21,6 @@ cleanBuilder('codet5-models-builder', {
   cleanDirs: ['.models', 'build'],
   packageDir,
 }).catch(error => {
-  logger.fail(`Clean failed: ${error.message}`)
+  logger.fail(`Clean failed: ${errorMessage(error)}`)
   process.exitCode = 1
 })

@@ -17,6 +17,7 @@
     "./lib/compiler-installer": "./lib/compiler-installer.mts",
     "./lib/constants": "./lib/constants.mts",
     "./lib/emscripten-installer": "./lib/emscripten-installer.mts",
+    "./lib/error-utils": "./lib/error-utils.mts",
     "./lib/extraction-cache": "./lib/extraction-cache.mts",
     "./lib/github-error-utils": "./lib/github-error-utils.mts",
     "./lib/install-tools": "./lib/install-tools.mts",

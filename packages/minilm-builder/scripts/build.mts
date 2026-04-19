@@ -28,6 +28,7 @@ import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import { CHECKPOINTS } from 'build-infra/lib/constants'
 import { checkModelBuildPrerequisites } from 'build-infra/lib/model-build-helpers'
 import { getPythonCommand } from 'build-infra/lib/python-installer'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
@@ -55,7 +56,7 @@ try {
   packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
 } catch (error) {
   throw new Error(
-    `Failed to parse package.json at ${packageJsonPath}: ${error.message}`,
+    `Failed to parse package.json at ${packageJsonPath}: ${errorMessage(error)}`,
     { cause: error },
   )
 }

@@ -41,6 +41,7 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 import { LIBC_VALUES, MAGIC_MARKER } from './constants.mts'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 const logger = getDefaultLogger()
 
@@ -149,7 +150,7 @@ async function _detectLibc(binaryPath) {
     return LIBC_VALUES.glibc
   } catch (error) {
     logger.warn(
-      `Failed to detect libc variant for ${binaryPath}: ${error.message}, defaulting to glibc`,
+      `Failed to detect libc variant for ${binaryPath}: ${errorMessage(error)}, defaulting to glibc`,
     )
     return LIBC_VALUES.glibc
   }
@@ -346,7 +347,7 @@ async function main() {
       targetLibc,
     )
   } catch (error) {
-    logger.error(`Error: ${error.message}`)
+    logger.error(`Error: ${errorMessage(error)}`)
     process.exitCode = 1
   }
 }

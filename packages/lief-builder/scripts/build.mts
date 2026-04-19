@@ -23,6 +23,7 @@ import { getAssetPlatformArch, isMusl } from 'build-infra/lib/platform-mappings'
 import { verifyReleaseChecksum } from 'build-infra/lib/release-checksums'
 import { extractTarball } from 'build-infra/lib/tarball-utils'
 import { getSubmoduleVersion } from 'build-infra/lib/version-helpers'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { which } from '@socketsecurity/lib/bin'
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
@@ -321,7 +322,7 @@ async function verifyMuslCompatibility(libPath) {
   } catch (error) {
     // If we can't check, warn but don't fail.
     logger.info(
-      `Warning: Could not verify musl compatibility: ${error.message}`,
+      `Warning: Could not verify musl compatibility: ${errorMessage(error)}`,
     )
     return { compatible: true }
   }
@@ -483,7 +484,7 @@ async function applyLiefPatches(sourceDir) {
       await runCommand('patch', ['-p1', '-i', patchPath], sourceDir)
       logger.info('    Applied successfully')
     } catch (error) {
-      throw new Error(`Failed to apply patch ${patchFile}: ${error.message}`, {
+      throw new Error(`Failed to apply patch ${patchFile}: ${errorMessage(error)}`, {
         cause: error,
       })
     }
@@ -651,7 +652,7 @@ async function downloadPrebuiltLIEF(options = {}) {
         await safeDelete(versionFile)
       }
       throw new Error(
-        `Failed to extract LIEF archive from ${downloadedArchive}: ${error.message}. ` +
+        `Failed to extract LIEF archive from ${downloadedArchive}: ${errorMessage(error)}. ` +
           'Deleted corrupted archive to allow re-download on next run.',
         { cause: error },
       )

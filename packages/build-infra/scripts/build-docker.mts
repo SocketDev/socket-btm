@@ -27,6 +27,7 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 import { printError, printInfo, printSuccess } from '../lib/build-output.mts'
 import { buildForTarget, getAllTargets } from '../lib/docker-builder.mts'
+import { errorMessage } from '../lib/error-utils.mts'
 import { LINUX_TARGETS, hasBuilderImage } from '../lib/local-build-setup.mts'
 
 const logger = getDefaultLogger()
@@ -207,7 +208,7 @@ async function main() {
 }
 
 main().catch(error => {
-  printError(`Build failed: ${error.message}`)
+  printError(`Build failed: ${errorMessage(error)}`)
   logger.fail(error)
   process.exitCode = 1
 })

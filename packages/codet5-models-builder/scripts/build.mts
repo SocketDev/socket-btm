@@ -25,6 +25,7 @@ import { checkModelBuildPrerequisites } from 'build-infra/lib/model-build-helper
 import { getBuildMode } from 'build-infra/lib/constants'
 import { validateOnnxFile } from 'build-infra/lib/onnx-helpers'
 import { getPythonCommand } from 'build-infra/lib/python-installer'
+import { errorMessage } from 'build-infra/lib/error-utils'
 import * as ort from 'onnxruntime-node'
 import process from 'node:process'
 
@@ -53,7 +54,7 @@ try {
   packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
 } catch (error) {
   throw new Error(
-    `Failed to parse package.json at ${packageJsonPath}: ${error.message}`,
+    `Failed to parse package.json at ${packageJsonPath}: ${errorMessage(error)}`,
     { cause: error },
   )
 }

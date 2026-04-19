@@ -29,6 +29,7 @@ import { getBuildMode } from 'build-infra/lib/constants'
 import { ensureEmscripten } from 'build-infra/lib/emscripten-installer'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 import { getEmscriptenVersion } from 'build-infra/lib/version-helpers'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
@@ -67,7 +68,7 @@ try {
   packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'))
 } catch (error) {
   throw new Error(
-    `Failed to parse package.json at ${packageJsonPath}: ${error.message}`,
+    `Failed to parse package.json at ${packageJsonPath}: ${errorMessage(error)}`,
     { cause: error },
   )
 }

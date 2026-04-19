@@ -10,6 +10,7 @@ import { safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 import { ADDITIONS_SOURCE_PATCHED_DIR, PACKAGE_ROOT } from './paths.mts'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 const logger = getDefaultLogger()
 
@@ -93,7 +94,7 @@ export async function copyBuildAdditions(modeSourceDir) {
     pkgJson = JSON.parse(await fs.readFile(pkgJsonPath, 'utf8'))
   } catch (error) {
     throw new Error(
-      `Failed to parse package.json at ${pkgJsonPath}: ${error.message}`,
+      `Failed to parse package.json at ${pkgJsonPath}: ${errorMessage(error)}`,
       { cause: error },
     )
   }

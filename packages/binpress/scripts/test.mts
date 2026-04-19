@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url'
 
 import { runCommand, selectMakefile } from 'bin-infra/lib/builder'
 import { getBuildMode } from 'build-infra/lib/constants'
+import { errorMessage } from 'build-infra/lib/error-utils'
 import { ensureLief } from 'lief-builder/lib/ensure-lief'
 
 import { getCI } from '@socketsecurity/lib/env/ci'
@@ -83,7 +84,7 @@ async function main() {
     logger.success('Tests passed!')
   } catch (error) {
     logger.info('')
-    logger.fail(`Tests failed: ${error.message}`)
+    logger.fail(`Tests failed: ${errorMessage(error)}`)
     process.exitCode = 1
   }
 }

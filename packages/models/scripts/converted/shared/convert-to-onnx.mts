@@ -4,6 +4,7 @@ import path from 'node:path'
 import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import { CHECKPOINTS } from 'build-infra/lib/constants'
 import { getPythonCommand } from 'build-infra/lib/python-installer'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 import platformPkg from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
@@ -192,7 +193,7 @@ print(f"Successfully exported model to {output_path}")
       },
     )
   } catch (error) {
-    logger.error(`Conversion failed: ${error.message}`)
+    logger.error(`Conversion failed: ${errorMessage(error)}`)
     throw error
   }
 }

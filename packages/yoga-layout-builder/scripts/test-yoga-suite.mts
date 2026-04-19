@@ -18,6 +18,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { parseArgs } from '@socketsecurity/lib/argv/parse'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
@@ -205,6 +206,6 @@ async function main() {
 }
 
 main().catch(error => {
-  logger.fail(`Test runner failed: ${error.message}`)
+  logger.fail(`Test runner failed: ${errorMessage(error)}`)
   throw error
 })

@@ -8,6 +8,7 @@ import path from 'node:path'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 const logger = getDefaultLogger()
 
@@ -55,7 +56,7 @@ export async function ensureCjson({ packageDir }) {
     throw new Error(
       'cJSON submodule not initialized and git command failed. ' +
         'Ensure .git directory exists and run: git submodule update --init --recursive packages/binject/upstream/cJSON\n' +
-        `Error: ${error.message}`,
+        `Error: ${errorMessage(error)}`,
       { cause: error },
     )
   }

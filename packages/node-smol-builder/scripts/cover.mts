@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url'
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 const logger = getDefaultLogger()
 
@@ -80,7 +81,7 @@ async function runCCoverageForPackage(packageName) {
     return true
   } catch (error) {
     logger.error(
-      `C coverage failed for ${packageName}: ${error?.message || 'Unknown error'}`,
+      `C coverage failed for ${packageName}: ${errorMessage(error)}`,
     )
     return false
   }
@@ -95,7 +96,7 @@ async function runVitestCoverage() {
     return true
   } catch (error) {
     logger.error(
-      `vitest coverage failed: ${error?.message || 'Unknown error'}`,
+      `vitest coverage failed: ${errorMessage(error)}`,
     )
     return false
   }
@@ -179,6 +180,6 @@ async function main() {
 
 main().catch(error => {
   logger.log('')
-  logger.error(`Fatal error: ${error?.message || 'Unknown error'}`)
+  logger.error(`Fatal error: ${errorMessage(error)}`)
   throw error
 })

@@ -902,7 +902,7 @@ async function main() {
     )
   } catch (error) {
     logger.log('')
-    logger.fail(`curl build failed: ${error?.message || 'Unknown error'}`)
+    logger.fail(`curl build failed: ${errorMessage(error)}`)
     await logTransientErrorHelp(error)
     throw error
   }

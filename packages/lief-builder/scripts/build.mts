@@ -406,7 +406,7 @@ async function copyLiefSource(sourceDir) {
     } catch (error) {
       if (error?.code === 'EACCES' || error?.code === 'EPERM') {
         throw new Error(
-          `robocopy completed but cannot read source directory: ${error?.message || 'Unknown error'}`,
+          `robocopy completed but cannot read source directory: ${errorMessage(error)}`,
         )
       }
       throw error
@@ -701,7 +701,7 @@ async function downloadPrebuiltLIEF(options = {}) {
     return extractDir
   } catch (error) {
     logger.info(
-      `Failed to download prebuilt LIEF: ${error?.message || 'Unknown error'}`,
+      `Failed to download prebuilt LIEF: ${errorMessage(error)}`,
     )
     await logTransientErrorHelp(error)
     return undefined
@@ -1187,7 +1187,7 @@ async function main() {
     )
   } catch (error) {
     logger.info('')
-    logger.fail(`LIEF build failed: ${error?.message || 'Unknown error'}`)
+    logger.fail(`LIEF build failed: ${errorMessage(error)}`)
     await logTransientErrorHelp(error)
     throw error
   }

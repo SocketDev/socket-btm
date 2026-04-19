@@ -748,7 +748,7 @@ async function main() {
     )
   } catch (error) {
     logger.log('')
-    logger.fail(`libpq build failed: ${error?.message || 'Unknown error'}`)
+    logger.fail(`libpq build failed: ${errorMessage(error)}`)
     await logTransientErrorHelp(error)
     throw error
   }

@@ -6,6 +6,7 @@
  */
 
 import { readFileSync } from 'node:fs'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 // "SMFG" (Smol conFiG)
 const SMOL_CONFIG_MAGIC = 0x53_4d_46_47
@@ -277,7 +278,7 @@ export function parseConfigFile(filePath) {
     fileContent = readFileSync(filePath, 'utf8')
   } catch (error) {
     throw new Error(
-      `Failed to read smol config file '${filePath}': ${error?.message || 'Unknown error'}`,
+      `Failed to read smol config file '${filePath}': ${errorMessage(error)}`,
       { cause: error },
     )
   }
@@ -287,7 +288,7 @@ export function parseConfigFile(filePath) {
     config = JSON.parse(fileContent)
   } catch (error) {
     throw new Error(
-      `Failed to parse smol config JSON in '${filePath}': ${error?.message || 'Unknown error'}`,
+      `Failed to parse smol config JSON in '${filePath}': ${errorMessage(error)}`,
       { cause: error },
     )
   }
@@ -308,7 +309,7 @@ export function parseAndSerialize(jsonString) {
     config = JSON.parse(jsonString)
   } catch (error) {
     throw new Error(
-      `Failed to parse smol config JSON: ${error?.message || 'Unknown error'}`,
+      `Failed to parse smol config JSON: ${errorMessage(error)}`,
       { cause: error },
     )
   }

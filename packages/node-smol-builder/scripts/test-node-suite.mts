@@ -30,6 +30,7 @@ import { fileURLToPath } from 'node:url'
 import { parseArgs } from '@socketsecurity/lib/argv/parse'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 import {
   UPSTREAM_PATH,
@@ -637,6 +638,6 @@ async function main() {
 }
 
 main().catch(error => {
-  logger.fail(`Test runner failed: ${error?.message || 'Unknown error'}`)
+  logger.fail(`Test runner failed: ${errorMessage(error)}`)
   throw error
 })

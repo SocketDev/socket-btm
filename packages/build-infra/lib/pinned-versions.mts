@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
+import { errorMessage } from './error-utils.mts'
 import { validateExternalTools } from './external-tools-schema.mts'
 
 const logger = getDefaultLogger()
@@ -70,7 +71,7 @@ function loadExternalToolsJson(jsonPath, visited = new Set()) {
     return tools
   } catch (error) {
     logger.fail(
-      `Failed to load external-tools.json from ${jsonPath}: ${error?.message || 'Unknown error'}`,
+      `Failed to load external-tools.json from ${jsonPath}: ${errorMessage(error)}`,
     )
     return {}
   }

@@ -21,6 +21,7 @@ import {
   getPlatformBuildDir,
   validateCheckpointChain,
 } from 'build-infra/lib/constants'
+import { errorMessage } from 'build-infra/lib/error-utils'
 import { logTransientErrorHelp } from 'build-infra/lib/github-error-utils'
 import {
   getAssetPlatformArch,
@@ -214,11 +215,9 @@ async function downloadPrebuiltStub(options = {}) {
     logger.success('Successfully downloaded and extracted prebuilt stub')
     return targetDir
   } catch (error) {
-    logger.info(
-      `Failed to download prebuilt stub: ${error?.message || 'Unknown error'}`,
-    )
+    logger.info(`Failed to download prebuilt stub: ${errorMessage(error)}`)
     await logTransientErrorHelp(error)
-    return null
+    return undefined
   }
 }
 
@@ -371,12 +370,12 @@ export async function ensureStubs(options = {}) {
     await buildStubFromSource(resolvedPlatformArch)
     return path.join(localStubOutDir, stubBinary)
   } catch (error) {
-    logger.info(`Source build failed: ${error?.message || 'Unknown error'}`)
+    logger.info(`Source build failed: ${errorMessage(error)}`)
 
     // In CI (stub build workflow), fail immediately without fallback.
     if (getCI()) {
       throw new Error(
-        `Stub build from source failed in CI - no fallback allowed: ${error?.message || 'Unknown error'}`,
+        `Stub build from source failed in CI - no fallback allowed: ${errorMessage(error)}`,
         { cause: error },
       )
     }
@@ -473,7 +472,7 @@ async function main() {
     )
   } catch (error) {
     logger.info('')
-    logger.fail(`Stub build failed: ${error?.message || 'Unknown error'}`)
+    logger.fail(`Stub build failed: ${errorMessage(error)}`)
     await logTransientErrorHelp(error)
     throw error
   }

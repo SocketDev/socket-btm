@@ -11,6 +11,7 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 import { getPlatform } from './build-env.mts'
+import { errorMessage } from './error-utils.mts'
 
 const logger = getDefaultLogger()
 
@@ -102,7 +103,7 @@ export async function adHocSign(binaryPath, beforeSign) {
     await spawn('codesign', ['--sign', '-', '--force', binaryPath])
     logger.info('Binary signed successfully')
   } catch (error) {
-    logger.fail(`Code signing failed: ${error?.message ?? 'Unknown error'}`)
+    logger.fail(`Code signing failed: ${errorMessage(error)}`)
     throw error
   }
 }

@@ -39,10 +39,7 @@
             "format": "uri"
           }
         },
-        "required": [
-          "submodule",
-          "repo"
-        ],
+        "required": ["submodule", "repo"],
         "additionalProperties": false
       }
     },
@@ -64,9 +61,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "path"
-        ],
+        "required": ["path"],
         "additionalProperties": false
       }
     },
@@ -179,11 +174,7 @@
               },
               "upgrade_policy": {
                 "type": "string",
-                "enum": [
-                  "track-latest",
-                  "major-gate",
-                  "locked"
-                ],
+                "enum": ["track-latest", "major-gate", "locked"],
                 "description": "track-latest: any new release is actionable; major-gate: only major bumps require review; locked: explicit decision per upgrade."
               }
             },
@@ -260,27 +251,15 @@
                   },
                   "diff_tolerance": {
                     "type": "string",
-                    "enum": [
-                      "exact",
-                      "line-by-line",
-                      "semantic"
-                    ]
+                    "enum": ["exact", "line-by-line", "semantic"]
                   }
                 },
-                "required": [
-                  "fixture_path"
-                ],
+                "required": ["fixture_path"],
                 "additionalProperties": false,
                 "description": "Golden-input verification. Prefer snapshot-based diffs over hardcoded counts (brittleness lesson from sdxgen's lock-step-features)."
               }
             },
-            "required": [
-              "kind",
-              "id",
-              "upstream",
-              "criticality",
-              "local_area"
-            ],
+            "required": ["kind", "id", "upstream", "criticality", "local_area"],
             "additionalProperties": false,
             "description": "A behavioral feature reimplemented locally to match upstream behavior. Three-pillar validation: code patterns, test patterns, fixture snapshots."
           },
@@ -399,10 +378,7 @@
                   "properties": {
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "implemented",
-                        "opt-out"
-                      ]
+                      "enum": ["implemented", "opt-out"]
                     },
                     "reason": {
                       "description": "Required when status is `opt-out`. Explain why.",
@@ -417,9 +393,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "status"
-                  ],
+                  "required": ["status"],
                   "additionalProperties": false,
                   "description": "Per-port status for a lang-parity row. `implemented` = port meets assertions; `opt-out` = port consciously skips, requires non-empty `reason`."
                 },
@@ -441,9 +415,7 @@
       }
     }
   },
-  "required": [
-    "rows"
-  ],
+  "required": ["rows"],
   "additionalProperties": false,
   "description": "Unified lock-step manifest shared across Socket repos. One schema, all cases — `kind` discriminator on each row selects which flavor of lock-step applies."
 }

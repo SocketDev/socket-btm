@@ -120,13 +120,7 @@ jobs:
 
       - name: Setup macOS code signing
         if: matrix.os == 'macos'
-        run: |
-          # Create temporary keychain for code signing.
-          # Required for ad-hoc signing (codesign --sign -) in CI environment.
-          security create-keychain -p actions build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p actions build.keychain
-          security set-keychain-settings -t 3600 -u build.keychain
+        uses: ./.github/actions/setup-macos-keychain
 
       - name: Setup Depot CLI
         if: matrix.os == 'linux'
@@ -537,13 +531,7 @@ jobs:
 
       - name: Setup macOS code signing
         if: matrix.os == 'macos'
-        run: |
-          # Create temporary keychain for code signing.
-          # Required for ad-hoc signing (codesign --sign -) in CI environment.
-          security create-keychain -p actions build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p actions build.keychain
-          security set-keychain-settings -t 3600 -u build.keychain
+        uses: ./.github/actions/setup-macos-keychain
 
       - name: Setup Depot CLI
         if: matrix.os == 'linux'
@@ -918,13 +906,7 @@ jobs:
 
       - name: Setup macOS code signing
         if: matrix.os == 'macos'
-        run: |
-          # Create temporary keychain for code signing.
-          # Required for ad-hoc signing (codesign --sign -) in CI environment.
-          security create-keychain -p actions build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p actions build.keychain
-          security set-keychain-settings -t 3600 -u build.keychain
+        uses: ./.github/actions/setup-macos-keychain
 
       - name: Setup Depot CLI
         if: matrix.os == 'linux'

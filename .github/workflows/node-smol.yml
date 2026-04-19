@@ -211,24 +211,11 @@ jobs:
 
       - name: Set platform-arch
         id: platform-arch
-        env:
-          PLATFORM: ${{ matrix.platform }}
-          ARCH: ${{ matrix.arch }}
-          LIBC: ${{ matrix.libc }}
-        shell: bash
-        run: |
-          # Convert win32 -> win for file/folder names.
-          if [ "${PLATFORM}" = "win32" ]; then
-            RELEASE_PLATFORM="win"
-          else
-            RELEASE_PLATFORM="${PLATFORM}"
-          fi
-          PLATFORM_ARCH="${RELEASE_PLATFORM}-${ARCH}"
-          if [ "${LIBC}" = "musl" ]; then
-            PLATFORM_ARCH="${PLATFORM_ARCH}-musl"
-          fi
-          echo "platform_arch=${PLATFORM_ARCH}" >> $GITHUB_OUTPUT
-          echo "Platform-arch: ${PLATFORM_ARCH}"
+        uses: ./.github/actions/set-platform-arch
+        with:
+          platform: ${{ matrix.platform }}
+          arch: ${{ matrix.arch }}
+          libc: ${{ matrix.libc }}
 
       # NOTE: GCC 13 is NOT installed here on the Ubuntu runner because:
       # - Node.js compilation happens inside Docker (Depot.dev runner) with AlmaLinux 8 + GCC Toolset 13

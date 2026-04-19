@@ -212,10 +212,10 @@ jobs:
             exit 1
           fi
 
-      - uses: SocketDev/socket-registry/.github/actions/setup@34fef52be917f89dbbeb464860f2aaf0f3812c40 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup@d54c36d0bed05ffffbe8b14e7663927eaa19d5df # main
         if: matrix.os != 'linux'
 
-      - uses: SocketDev/socket-registry/.github/actions/install@34fef52be917f89dbbeb464860f2aaf0f3812c40 # main
+      - uses: SocketDev/socket-registry/.github/actions/install@d54c36d0bed05ffffbe8b14e7663927eaa19d5df # main
         if: matrix.os != 'linux'
 
       - name: Setup build environment (macOS)

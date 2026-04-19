@@ -144,7 +144,7 @@ async function main(): Promise<void> {
 
     process.exitCode = 1
   } catch (e) {
-    logger.fail(`\nValidation failed: ${(e as Error).message}`)
+    logger.fail(`\nValidation failed: ${e instanceof Error ? e.message : String(e)}`)
     if ((e as Error).stack) {
       logger.info((e as Error).stack as string)
     }

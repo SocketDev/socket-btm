@@ -523,7 +523,7 @@ async function checkExternalTools(packages: PackageInfo[]): Promise<void> {
       reportIssue(
         'error',
         'external-tools',
-        `Invalid JSON: ${(e as Error).message}`,
+        `Invalid JSON: ${e instanceof Error ? e.message : String(e)}`,
         `${pkg.name}/external-tools.json`,
       )
     }
@@ -1121,7 +1121,7 @@ async function executeFixes(): Promise<void> {
       }
     } catch (e) {
       log(`\n✗ Failed to fix: ${issue.file}`, colors.red)
-      log(`  Error: ${(e as Error).message}`, colors.red)
+      log(`  Error: ${e instanceof Error ? e.message : String(e)}`, colors.red)
     }
   }
 
@@ -1295,7 +1295,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((e: unknown) => {
-  log(`\nFatal error: ${(e as Error).message}`, colors.red)
+  log(`\nFatal error: ${e instanceof Error ? e.message : String(e)}`, colors.red)
   logger.error((e as Error).stack)
   process.exitCode = 1
 })

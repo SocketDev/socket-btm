@@ -301,7 +301,7 @@ async function main(): Promise<void> {
     logger.log('')
     logger.log('='.repeat(60))
     logger.fail('Build failed!')
-    logger.error((e as Error).message)
+    logger.error(e instanceof Error ? e.message : String(e))
     logger.log('')
     process.exitCode = 1
   }

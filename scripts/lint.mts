@@ -448,7 +448,7 @@ async function main(): Promise<void> {
       }
     }
   } catch (e) {
-    logger.error(`Lint runner failed: ${(e as Error).message}`)
+    logger.error(`Lint runner failed: ${e instanceof Error ? e.message : String(e)}`)
     process.exitCode = 1
   }
 }

@@ -164,7 +164,7 @@ async function main(): Promise<void> {
           }
         } catch (e) {
           logger.error(
-            `Unexpected error running tests: ${(e as Error).message}`,
+            `Unexpected error running tests: ${e instanceof Error ? e.message : String(e)}`,
           )
           exitCode = 1
         }

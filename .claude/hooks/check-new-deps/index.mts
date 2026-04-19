@@ -404,7 +404,7 @@ async function checkDepsBatch(
     // Network failure — log and allow all deps through.
     logger.warn(
       `Socket: network error`
-      + ` (${(e as Error).message}), allowing all`
+      + ` (${e instanceof Error ? e.message : String(e)}), allowing all`
     )
   }
 

@@ -212,7 +212,7 @@ async function main(): Promise<void> {
     logger.success('All required cache version bumps verified.')
     process.exitCode = 0
   } catch (e) {
-    logger.error(`Error validating cache versions: ${(e as Error).message}`)
+    logger.error(`Error validating cache versions: ${e instanceof Error ? e.message : String(e)}`)
     process.exitCode = 1
   }
 }

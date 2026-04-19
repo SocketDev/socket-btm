@@ -135,7 +135,7 @@ async function main(): Promise<void> {
       )
     }
   } catch (e) {
-    logger.warn(`Failed to update upstream: ${(e as Error).message}`)
+    logger.warn(`Failed to update upstream: ${e instanceof Error ? e.message : String(e)}`)
   }
   logger.log('')
 
@@ -204,7 +204,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((e: unknown) => {
-  logger.fail(`Error: ${(e as Error).message}`)
+  logger.fail(`Error: ${e instanceof Error ? e.message : String(e)}`)
 
   process.exitCode = 1
 })

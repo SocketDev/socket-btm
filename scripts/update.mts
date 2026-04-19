@@ -93,7 +93,7 @@ async function main(): Promise<void> {
     }
   } catch (e) {
     if (!quiet) {
-      logger.fail(`Update failed: ${(e as Error).message}`)
+      logger.fail(`Update failed: ${e instanceof Error ? e.message : String(e)}`)
     }
     if (verbose) {
       logger.error(e)

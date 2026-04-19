@@ -132,7 +132,7 @@ async function main(): Promise<void> {
       printFooter('Checks complete')
     }
   } catch (e) {
-    logger.error(`Check runner failed: ${(e as Error).message}`)
+    logger.error(`Check runner failed: ${e instanceof Error ? e.message : String(e)}`)
     process.exitCode = 1
   }
 }

@@ -44,7 +44,7 @@ async function run(
     return 0
   } catch (e) {
     if (!required) {
-      logger.warn(`${label || cmd}: ${(e as Error).message} (non-blocking)`)
+      logger.warn(`${label || cmd}: ${e instanceof Error ? e.message : String(e)} (non-blocking)`)
       return 0
     }
     throw e

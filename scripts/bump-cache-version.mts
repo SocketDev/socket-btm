@@ -123,7 +123,7 @@ if (!packageName) {
       await bumpCacheVersion(packageName)
     }
   } catch (e) {
-    logger.fail(`Error: ${(e as Error).message || 'Unknown error'}`)
+    logger.fail(`Error: ${e instanceof Error ? e.message : String(e)}`)
     process.exitCode = 1
   }
 }

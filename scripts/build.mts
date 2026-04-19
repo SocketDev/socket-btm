@@ -141,7 +141,7 @@ async function main(): Promise<void> {
 
     logger.success('All builds completed successfully!')
   } catch (e) {
-    logger.fail(`Build failed: ${(e as Error).message || 'Unknown error'}`)
+    logger.fail(`Build failed: ${e instanceof Error ? e.message : String(e)}`)
     logger.log('')
     logger.info('To rebuild a specific package: pnpm --filter <package> build')
     logger.info(

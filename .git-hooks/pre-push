@@ -187,7 +187,9 @@ while read local_ref local_sha remote_ref remote_sha; do
 
     # Check file contents for secrets and hardcoded paths.
     while IFS= read -r file; do
-      if [ -f "$file" ] && [ ! -d "$file" ]; then
+      # Only scan files that are tracked at HEAD (skip deleted/untracked files
+      # that still exist on disk — e.g. profdata after being removed from git).
+      if [ -f "$file" ] && [ ! -d "$file" ] && git ls-files --error-unmatch "$file" >/dev/null 2>&1; then
         # Skip test files, example files, and hook scripts themselves.
         if echo "$file" | grep -qE '\.(test|spec)\.(m?[jt]s|tsx?)$|\.example$|/test/|/tests/|fixtures/|\.git-hooks/|\.husky/'; then
           continue

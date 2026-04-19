@@ -10,16 +10,16 @@ export default mergeConfig(
   baseConfig,
   defineConfig({
     test: {
-      setupFiles: ['./test/helpers/primordials-shim.mts'],
+      exclude: [
+        '**/build/**',
+        '**/dist/**',
+        '**/node_modules/**',
+        '**/upstream/**',
+      ],
       // Integration tests share temp dirs and the ~/.socket/_dlx/ cache.
       // Run files sequentially to prevent race conditions.
       fileParallelism: false,
-      exclude: [
-        '**/build/**',
-        '**/node_modules/**',
-        '**/dist/**',
-        '**/upstream/**',
-      ],
+      setupFiles: ['./test/helpers/primordials-shim.mts'],
     },
   }),
 )

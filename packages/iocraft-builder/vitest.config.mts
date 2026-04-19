@@ -15,12 +15,12 @@ export default mergeConfig(
       },
     },
     test: {
-      testTimeout: 30_000,
       server: {
         deps: {
           external: ['*.node'],
         },
       },
+      testTimeout: 30_000,
     },
   }),
 )

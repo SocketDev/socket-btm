@@ -16,12 +16,12 @@ export default mergeConfig(
     },
     test: {
       include: ['test/**/*.test.{mjs,mts,js,ts}'],
-      testTimeout: 30_000,
       server: {
         deps: {
           external: ['*.node'],
         },
       },
+      testTimeout: 30_000,
     },
   }),
 )

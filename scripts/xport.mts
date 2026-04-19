@@ -680,17 +680,25 @@ function checkCrossRowConsistency(
   merged: Manifest,
 ): string[] {
   const errors: string[] = []
-  const seenIds = new Set<string>()
+  // Ids are unique per area, not globally. Same concept can legitimately
+  // appear in multiple areas (e.g. ultrathink has `transport-stdio` in both
+  // lsp and mcp). Scope the seen-set per area.
+  const seenIdsPerArea = new Map<string, Set<string>>()
   const upstreamAliases = new Set(Object.keys(merged.upstreams ?? {}))
   const siteKeys = new Set(Object.keys(merged.sites ?? {}))
 
   for (const { row, area } of rowsWithArea) {
     const loc = `[${area}/${row.id}]`
 
-    if (seenIds.has(row.id)) {
-      errors.push(`${loc} duplicate id`)
+    let areaIds = seenIdsPerArea.get(area)
+    if (!areaIds) {
+      areaIds = new Set()
+      seenIdsPerArea.set(area, areaIds)
     }
-    seenIds.add(row.id)
+    if (areaIds.has(row.id)) {
+      errors.push(`${loc} duplicate id within area`)
+    }
+    areaIds.add(row.id)
 
     if (
       row.kind === 'file-fork' ||

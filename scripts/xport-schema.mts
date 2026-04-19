@@ -19,8 +19,10 @@ import { z } from 'zod'
 
 const IdSchema = z
   .string()
-  .regex(/^[a-z0-9][a-z0-9-]*$/)
-  .describe('Stable kebab-case identifier, unique within the manifest.')
+  .regex(/^[a-z0-9][A-Za-z0-9-]*$/)
+  .describe(
+    'Stable identifier, unique within the manifest. Starts with lowercase letter or digit; remaining characters are letters/digits/hyphens. Kebab-case preferred, but camelCase segments are allowed (e.g. `export-findNodeAt` when the id mirrors an API name).',
+  )
 
 const CriticalitySchema = z
   .number()
@@ -226,9 +228,11 @@ const SpecConformanceRowSchema = z
     'A local reimplementation of an external specification. Drift = the spec was revised.',
   )
 
-const AssertionSchema = z.looseObject({
-  kind: z.string(),
-})
+// Assertions are deliberately untyped — each matrix area defines its own
+// assertion shapes. The harness ignores fields it doesn't recognize.
+// Historical precedent: ultrathink's xlang-harness.mts treats this as
+// `unknown[]`.
+const AssertionSchema = z.record(z.string(), z.unknown())
 
 const LangParityRowSchema = z
   .object({

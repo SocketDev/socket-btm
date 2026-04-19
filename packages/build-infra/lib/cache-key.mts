@@ -17,6 +17,8 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import process from 'node:process'
 
+import { errorMessage } from './error-utils.mts'
+
 /**
  * Critical dependencies that trigger cache invalidation.
  * When these packages are updated, caches must be rebuilt.
@@ -45,7 +47,7 @@ function getDependencyVersions(packageJsonPath, depNames) {
     content = readFileSync(packageJsonPath, 'utf8')
   } catch (error) {
     throw new Error(
-      `Failed to read package.json at ${packageJsonPath}: ${error.message}`,
+      `Failed to read package.json at ${packageJsonPath}: ${errorMessage(error)}`,
       { cause: error },
     )
   }
@@ -55,7 +57,7 @@ function getDependencyVersions(packageJsonPath, depNames) {
     packageJson = JSON.parse(content)
   } catch (error) {
     throw new Error(
-      `Failed to parse package.json at ${packageJsonPath}: ${error.message}`,
+      `Failed to parse package.json at ${packageJsonPath}: ${errorMessage(error)}`,
       { cause: error },
     )
   }
@@ -115,7 +117,7 @@ export function generateCacheKey({
       }
       // All other errors indicate a problem that should fail the build
       throw new Error(
-        `Failed to read cache key source file '${file}': ${error.message} (${error.code})`,
+        `Failed to read cache key source file '${file}': ${errorMessage(error)} (${error.code})`,
         { cause: error },
       )
     }

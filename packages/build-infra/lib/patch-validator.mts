@@ -16,6 +16,8 @@ import { printError } from './build-output.mts'
 
 const logger = getDefaultLogger()
 
+const PATCH_NOT_FOUND_MSG = 'patch not found in PATH'
+
 /**
  * Validate a patch file can be applied cleanly.
  *
@@ -27,7 +29,7 @@ export async function validatePatch(patchFile, targetDir) {
   try {
     const patchPath = await which('patch', { nothrow: true })
     if (!patchPath) {
-      printError('patch not found in PATH')
+      printError(PATCH_NOT_FOUND_MSG)
       return false
     }
 
@@ -80,7 +82,7 @@ export async function applyPatch(patchFile, targetDir) {
 
   const patchPath = await which('patch', { nothrow: true })
   if (!patchPath) {
-    throw new Error('patch not found in PATH')
+    throw new Error(PATCH_NOT_FOUND_MSG)
   }
 
   // Resolve to absolute path since we're changing cwd
@@ -256,7 +258,7 @@ export async function revertPatch(patchFile, targetDir) {
 
   const patchPath = await which('patch', { nothrow: true })
   if (!patchPath) {
-    throw new Error('patch not found in PATH')
+    throw new Error(PATCH_NOT_FOUND_MSG)
   }
 
   // Resolve to absolute path since we're changing cwd

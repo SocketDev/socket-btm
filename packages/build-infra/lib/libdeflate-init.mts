@@ -9,6 +9,8 @@ import path from 'node:path'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
+import { errorMessage } from './error-utils.mts'
+
 const logger = getDefaultLogger()
 
 /**
@@ -55,7 +57,7 @@ export async function ensureLibdeflate({ packageDir }) {
     throw new Error(
       'libdeflate submodule not initialized and git command failed. ' +
         'Ensure .git directory exists and run: git submodule update --init --recursive packages/binject/upstream/libdeflate\n' +
-        `Error: ${error.message}`,
+        `Error: ${errorMessage(error)}`,
       { cause: error },
     )
   }

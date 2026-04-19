@@ -16,6 +16,7 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 import { printError } from './build-output.mts'
+import { errorMessage } from './error-utils.mts'
 
 const logger = getDefaultLogger()
 
@@ -153,7 +154,7 @@ export async function installEmscripten({
     return true
   } catch (error) {
     if (!quiet) {
-      printError(`Error installing Emscripten: ${error.message}`)
+      printError(`Error installing Emscripten: ${errorMessage(error)}`)
     }
     return false
   }
@@ -259,7 +260,7 @@ export async function activateEmscripten({
     return { activated: true, env: envVars }
   } catch (error) {
     if (!quiet) {
-      printError(`Error activating Emscripten: ${error.message}`)
+      printError(`Error activating Emscripten: ${errorMessage(error)}`)
     }
     return { activated: false, env: {} }
   }

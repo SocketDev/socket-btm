@@ -16,6 +16,7 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 import { printError } from './build-output.mts'
+import { errorMessage } from './error-utils.mts'
 import {
   PYTHON_VERSIONS,
   getPinnedPackage,
@@ -165,7 +166,7 @@ export async function initializeVenv({ quiet = false, venvDir } = {}) {
     return false
   } catch (error) {
     if (!quiet) {
-      logger.warn(`Failed to create venv: ${error.message}`)
+      logger.warn(`Failed to create venv: ${errorMessage(error)}`)
     }
     return false
   }
@@ -425,7 +426,7 @@ export async function installPythonPackage(
     return true
   } catch (error) {
     if (!quiet) {
-      printError(`Error installing ${packageName}: ${error.message}`)
+      printError(`Error installing ${packageName}: ${errorMessage(error)}`)
     }
     return false
   }

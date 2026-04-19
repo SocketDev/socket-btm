@@ -12,6 +12,7 @@ import path from 'node:path'
 import { fetchChecksums } from '@socketsecurity/lib/http-request'
 
 import { NODE_VERSION_FILE, PACKAGE_ROOT } from './constants.mts'
+import { errorMessage } from './error-utils.mts'
 
 /**
  * Load and parse external-tools.json synchronously
@@ -37,7 +38,7 @@ function loadExternalToolsSync(packageRoot) {
     if (error instanceof SyntaxError) {
       throw new Error(
         `Malformed JSON in external-tools.json at: ${externalToolsPath}\n` +
-          `Parse error: ${error.message}`,
+          `Parse error: ${errorMessage(error)}`,
         { cause: error },
       )
     }
@@ -69,7 +70,7 @@ async function loadExternalTools(packageRoot) {
     if (error instanceof SyntaxError) {
       throw new Error(
         `Malformed JSON in external-tools.json at: ${externalToolsPath}\n` +
-          `Parse error: ${error.message}`,
+          `Parse error: ${errorMessage(error)}`,
         { cause: error },
       )
     }
@@ -412,7 +413,7 @@ export async function fetchNodeChecksum(version, options) {
     return {
       __proto__: null,
       version,
-      error: `Failed to fetch ${url}: ${error.message}`,
+      error: `Failed to fetch ${url}: ${errorMessage(error)}`,
     }
   }
 

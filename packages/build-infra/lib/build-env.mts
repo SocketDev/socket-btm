@@ -26,6 +26,7 @@ import {
   PODMAN_ENV_FILE,
   getEmsdkSearchPaths,
 } from './constants.mts'
+import { errorMessage } from './error-utils.mts'
 import { getMinPythonVersion } from './version-helpers.mts'
 
 const logger = getDefaultLogger()
@@ -96,6 +97,8 @@ export function isDocker() {
 
 /**
  * Get platform identifier.
+ *
+ * @returns {NodeJS.Platform}
  */
 export function getPlatform() {
   return os.platform()
@@ -103,6 +106,9 @@ export function getPlatform() {
 
 /**
  * Check if command exists.
+ *
+ * @param {string} cmd - Command name to look up in PATH.
+ * @returns {Promise<boolean>} True when the command resolves via `which`/`where`.
  */
 export async function commandExists(cmd) {
   try {
@@ -117,6 +123,10 @@ export async function commandExists(cmd) {
 
 /**
  * Get command output.
+ *
+ * @param {string} cmd - Command to run.
+ * @param {string[]} [args] - Command arguments.
+ * @returns {Promise<string>} Trimmed stdout, or empty string if the spawn failed.
  */
 export async function getCommandOutput(cmd, args = []) {
   try {
@@ -131,7 +141,9 @@ export async function getCommandOutput(cmd, args = []) {
  * Find Emscripten SDK installation.
  *
  * Searches common locations and returns path if found.
- * Returns object with { path, type } where type is 'emsdk' or 'homebrew'.
+ *
+ * @returns {Promise<{ path: string, type: 'emsdk' | 'homebrew' } | undefined>}
+ *   Resolved SDK info, or undefined when no installation is found.
  */
 export async function findEmscriptenSDK() {
   // Check if EMSDK environment variable is already set.
@@ -300,7 +312,7 @@ export async function activateEmscriptenSDK() {
     // Verify emcc is now available and EMSDK is set.
     return (await commandExists('emcc')) && Boolean(process.env.EMSDK)
   } catch (error) {
-    logger.fail(`Failed to activate Emscripten: ${error.message}`)
+    logger.fail(`Failed to activate Emscripten: ${errorMessage(error)}`)
     return false
   }
 }

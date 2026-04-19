@@ -18,6 +18,7 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 import { printError, printInfo, printSuccess } from './build-output.mts'
+import { errorMessage } from './error-utils.mts'
 
 const logger = getDefaultLogger()
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -191,7 +192,7 @@ export async function setupQemuEmulation() {
     }
     return false
   } catch (error) {
-    printError(`QEMU setup error: ${error.message}`)
+    printError(`QEMU setup error: ${errorMessage(error)}`)
     return false
   }
 }
@@ -256,7 +257,7 @@ export async function ensureBuildxBuilder() {
     printError('Failed to create buildx builder')
     return false
   } catch (error) {
-    printError(`Buildx builder creation error: ${error.message}`)
+    printError(`Buildx builder creation error: ${errorMessage(error)}`)
     return false
   }
 }
@@ -306,7 +307,7 @@ export async function buildBuilderImage(target, options = {}) {
     printError(`Failed to build ${imageTag}`)
     return false
   } catch (error) {
-    printError(`Build error: ${error.message}`)
+    printError(`Build error: ${errorMessage(error)}`)
     return false
   }
 }

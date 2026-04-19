@@ -20,6 +20,8 @@ import { httpDownload } from '@socketsecurity/lib/http-request'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
+import { errorMessage } from './error-utils.mts'
+
 const logger = getDefaultLogger()
 
 /**
@@ -438,7 +440,7 @@ export async function downloadAllVfsTools({
         failed.push(toolName)
       }
     } catch (error) {
-      logger.error(`Failed to download ${toolName}: ${error.message}`)
+      logger.error(`Failed to download ${toolName}: ${errorMessage(error)}`)
       failed.push(toolName)
     }
   }

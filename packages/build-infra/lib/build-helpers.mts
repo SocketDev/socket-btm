@@ -21,6 +21,7 @@ import process from 'node:process'
 import { printError } from './build-output.mts'
 import { getCleanupPaths } from './ci-cleanup-paths.mts'
 import { BYTES } from './constants.mts'
+import { errorMessage } from './error-utils.mts'
 import { adHocSign } from './sign.mts'
 import { getMinPythonVersion } from './version-helpers.mts'
 
@@ -739,7 +740,7 @@ export async function freeDiskSpace() {
           await spawn('sudo', ['rm', '-rf', targetPath], { stdio: 'inherit' })
           logger.success(`Removed ${desc}`)
         } catch (error) {
-          logger.warn(`Could not remove ${targetPath}: ${error.message}`)
+          logger.warn(`Could not remove ${targetPath}: ${errorMessage(error)}`)
         }
       }
 
@@ -748,7 +749,7 @@ export async function freeDiskSpace() {
         await spawn('sudo', ['apt-get', 'clean'], { stdio: 'inherit' })
         logger.success('Cleaned apt cache')
       } catch (error) {
-        logger.warn(`Could not clean apt cache: ${error.message}`)
+        logger.warn(`Could not clean apt cache: ${errorMessage(error)}`)
       }
     } else if (platform === 'darwin') {
       // macOS-specific cleanup (~20GB total)
@@ -758,7 +759,7 @@ export async function freeDiskSpace() {
           await spawn('sudo', ['rm', '-rf', targetPath], { stdio: 'inherit' })
           logger.success(`Removed ${desc}`)
         } catch (error) {
-          logger.warn(`Could not remove ${targetPath}: ${error.message}`)
+          logger.warn(`Could not remove ${targetPath}: ${errorMessage(error)}`)
         }
       }
 
@@ -767,7 +768,7 @@ export async function freeDiskSpace() {
         await spawn('brew', ['cleanup', '-s'], { stdio: 'inherit' })
         logger.success('Cleaned Homebrew cache')
       } catch (error) {
-        logger.warn(`Could not clean Homebrew cache: ${error.message}`)
+        logger.warn(`Could not clean Homebrew cache: ${errorMessage(error)}`)
       }
     } else if (WIN32) {
       // Windows-specific cleanup (~15GB total)
@@ -785,7 +786,7 @@ export async function freeDiskSpace() {
           )
           logger.success(`Removed ${desc}`)
         } catch (error) {
-          logger.warn(`Could not remove ${targetPath}: ${error.message}`)
+          logger.warn(`Could not remove ${targetPath}: ${errorMessage(error)}`)
         }
       }
     }
@@ -798,7 +799,7 @@ export async function freeDiskSpace() {
       logger.success('Cleaned Docker images')
     } catch (error) {
       // Docker might not be available on all platforms/configs
-      logger.warn(`Could not clean Docker images: ${error.message}`)
+      logger.warn(`Could not clean Docker images: ${errorMessage(error)}`)
     }
 
     // Check disk space after cleanup
@@ -818,7 +819,7 @@ export async function freeDiskSpace() {
       logger.info(dfAfter.stdout?.trim() || '')
     }
   } catch (error) {
-    logger.warn(`Disk space cleanup encountered errors: ${error.message}`)
+    logger.warn(`Disk space cleanup encountered errors: ${errorMessage(error)}`)
   }
 }
 

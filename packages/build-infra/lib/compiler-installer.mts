@@ -11,6 +11,7 @@ import { spawn } from '@socketsecurity/lib/spawn'
 
 import { getPlatform } from './build-env.mts'
 import { printError } from './build-output.mts'
+import { errorMessage } from './error-utils.mts'
 import { detectPackageManagers } from './tool-installer.mts'
 
 const logger = getDefaultLogger()
@@ -196,7 +197,7 @@ async function installGccApt(version) {
 
     return true
   } catch (error) {
-    printError(`Error installing GCC ${version}: ${error.message}`)
+    printError(`Error installing GCC ${version}: ${errorMessage(error)}`)
     return false
   }
 }

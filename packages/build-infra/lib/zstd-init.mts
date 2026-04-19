@@ -10,6 +10,8 @@ import path from 'node:path'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
+import { errorMessage } from './error-utils.mts'
+
 const logger = getDefaultLogger()
 
 /**
@@ -67,7 +69,7 @@ export async function ensureZstd({ packageDir }) {
     throw new Error(
       'zstd submodule not initialized and git command failed. ' +
         'Run: git submodule update --init packages/bin-infra/upstream/zstd\n' +
-        `Error: ${error.message}`,
+        `Error: ${errorMessage(error)}`,
       { cause: error },
     )
   }

@@ -10,6 +10,7 @@ import os from 'node:os'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
+import { errorMessage } from './error-utils.mts'
 import { getToolVersion } from './pinned-versions.mts'
 
 const logger = getDefaultLogger()
@@ -190,7 +191,7 @@ export async function installTool(toolName, options = {}) {
     return true
   } catch (error) {
     throw new Error(
-      `Failed to install ${toolName}: ${error.message}. ` +
+      `Failed to install ${toolName}: ${errorMessage(error)}. ` +
         `Command was: ${command} ${args.join(' ')}`,
       { cause: error },
     )
@@ -259,7 +260,7 @@ export async function updatePackageCache() {
       await spawn('sudo', ['apt-get', 'update'], { stdio: 'inherit' })
       logger.success('Package cache updated')
     } catch (error) {
-      logger.warn(`Failed to update package cache: ${error.message}`)
+      logger.warn(`Failed to update package cache: ${errorMessage(error)}`)
     }
   }
 }

@@ -10,6 +10,8 @@ import { spawn } from '@socketsecurity/lib/spawn'
 
 const logger = getDefaultLogger()
 
+const PNPM_NOT_FOUND_MSG = 'pnpm not found in PATH'
+
 /**
  * Run a pnpm script in a specific package.
  *
@@ -27,7 +29,7 @@ export async function runPnpmScript(
 ) {
   const pnpmPath = await which('pnpm', { nothrow: true })
   if (!pnpmPath) {
-    throw new Error('pnpm not found in PATH')
+    throw new Error(PNPM_NOT_FOUND_MSG)
   }
 
   const pnpmArgs = ['--filter', packageName, 'run', scriptName, ...args]
@@ -49,7 +51,7 @@ export async function runPnpmScript(
 export async function runPnpmScriptAll(scriptName, args = [], options = {}) {
   const pnpmPath = await which('pnpm', { nothrow: true })
   if (!pnpmPath) {
-    throw new Error('pnpm not found in PATH')
+    throw new Error(PNPM_NOT_FOUND_MSG)
   }
 
   const pnpmArgs = ['run', '-r', scriptName, ...args]
@@ -178,7 +180,7 @@ export const pnpm = {
     logger.step('Installing dependencies')
     const pnpmPath = await which('pnpm', { nothrow: true })
     if (!pnpmPath) {
-      throw new Error('pnpm not found in PATH')
+      throw new Error(PNPM_NOT_FOUND_MSG)
     }
     return spawn(pnpmPath, ['install', '--frozen-lockfile'], {
       stdio: 'inherit',
@@ -193,7 +195,7 @@ export const pnpm = {
     logger.step(packageName ? `Building ${packageName}` : 'Building packages')
     const pnpmPath = await which('pnpm', { nothrow: true })
     if (!pnpmPath) {
-      throw new Error('pnpm not found in PATH')
+      throw new Error(PNPM_NOT_FOUND_MSG)
     }
     const args = packageName
       ? ['--filter', packageName, 'run', 'build']
@@ -212,7 +214,7 @@ export const pnpm = {
     logger.step(packageName ? `Testing ${packageName}` : 'Running tests')
     const pnpmPath = await which('pnpm', { nothrow: true })
     if (!pnpmPath) {
-      throw new Error('pnpm not found in PATH')
+      throw new Error(PNPM_NOT_FOUND_MSG)
     }
     const args = packageName
       ? ['--filter', packageName, 'run', 'test']

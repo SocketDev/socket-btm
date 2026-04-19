@@ -7,6 +7,8 @@
 
 import { promises as fs } from 'node:fs'
 
+import { errorMessage } from './error-utils.mts'
+
 /**
  * Validate an ONNX model file.
  *
@@ -59,7 +61,7 @@ export async function validateOnnxFiles(models) {
     const errorDetails = failures
       .map(
         ({ error, model }) =>
-          `  - ${model.type} (${model.path}): ${error.message}`,
+          `  - ${model.type} (${model.path}): ${errorMessage(error)}`,
       )
       .join('\n')
     throw new Error(

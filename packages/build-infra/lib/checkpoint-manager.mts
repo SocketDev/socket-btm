@@ -31,6 +31,7 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { toUnixPath } from '@socketsecurity/lib/paths/normalize'
 import { spawn } from '@socketsecurity/lib/spawn'
 
+import { errorMessage } from './error-utils.mts'
 import {
   computeSourceHash,
   generateHashComment,
@@ -198,7 +199,7 @@ export async function createCheckpoint(
     await smokeTest()
   } catch (error) {
     throw new Error(
-      `Smoke test failed for checkpoint '${checkpointName}': ${error.message}`,
+      `Smoke test failed for checkpoint '${checkpointName}': ${errorMessage(error)}`,
       { cause: error },
     )
   }
@@ -748,7 +749,7 @@ export async function createCheckpoint(
     } catch (error) {
       // Non-critical: log warning but continue
       logger.info(
-        `Warning: Could not clean up previous checkpoint: ${error.message}`,
+        `Warning: Could not clean up previous checkpoint: ${errorMessage(error)}`,
       )
     }
   }
@@ -775,7 +776,7 @@ export async function getCheckpointData(buildDir, packageName, checkpointName) {
     } catch (error) {
       throw new Error(
         `Checkpoint file contains invalid JSON: ${checkpointFile}. ` +
-          `File may be corrupted. Run with --clean to rebuild. Parse error: ${error.message}`,
+          `File may be corrupted. Run with --clean to rebuild. Parse error: ${errorMessage(error)}`,
         { cause: error },
       )
     }
@@ -967,7 +968,7 @@ export async function restoreCheckpoint(
           closeSync(fd)
         }
       } catch (error) {
-        logger.warn(`Failed to validate checkpoint file: ${error.message}`)
+        logger.warn(`Failed to validate checkpoint file: ${errorMessage(error)}`)
         return false
       }
 
@@ -1158,7 +1159,7 @@ export async function restoreCheckpoint(
       }
     } catch (error) {
       throw new Error(
-        `Checkpoint restoration failed for ${path.basename(artifactPath)}: ${error.message}. ` +
+        `Checkpoint restoration failed for ${path.basename(artifactPath)}: ${errorMessage(error)}. ` +
           'Build artifacts may be corrupted. Try cleaning checkpoints and rebuilding.',
         { cause: error },
       )

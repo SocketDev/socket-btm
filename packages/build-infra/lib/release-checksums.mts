@@ -32,6 +32,8 @@ import {
   getLatestRelease,
 } from '@socketsecurity/lib/releases/github'
 
+import { errorMessage } from './error-utils.mts'
+
 const logger = getDefaultLogger()
 
 const __filename = fileURLToPath(import.meta.url)
@@ -264,7 +266,7 @@ export async function getSocketBtmReleaseChecksums(options) {
     ) {
       if (!quiet) {
         logger.warn(
-          `Network fetch failed, using embedded checksums for ${tool}: ${error.message}`,
+          `Network fetch failed, using embedded checksums for ${tool}: ${errorMessage(error)}`,
         )
       }
       const result = {
@@ -278,7 +280,7 @@ export async function getSocketBtmReleaseChecksums(options) {
 
     if (!quiet) {
       logger.warn(
-        `Failed to download checksums.txt for ${tool}: ${error.message}`,
+        `Failed to download checksums.txt for ${tool}: ${errorMessage(error)}`,
       )
     }
     return { checksums: {}, source: 'network', tag }

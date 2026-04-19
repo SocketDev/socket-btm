@@ -67,29 +67,23 @@ jobs:
         with:
           oidc: true
 
-      - name: Load cache version from centralized config
-        id: cache-version
-        shell: bash
-        run: |
-          INK_CACHE=$(jq -r '.versions["ink"]' .github/cache-versions.json)
-          YOGA_CACHE=$(jq -r '.versions["yoga-layout"]' .github/cache-versions.json)
-          if [ -z "$INK_CACHE" ] || [ "$INK_CACHE" = "null" ]; then
-            echo "× Error: Cache version not found for ink in .github/cache-versions.json"
-            exit 1
-          fi
-          if [ -z "$YOGA_CACHE" ] || [ "$YOGA_CACHE" = "null" ]; then
-            echo "× Error: Cache version not found for yoga-layout in .github/cache-versions.json"
-            exit 1
-          fi
-          echo "ink-version=$INK_CACHE" >> $GITHUB_OUTPUT
-          echo "yoga-version=$YOGA_CACHE" >> $GITHUB_OUTPUT
-          echo "Cache versions: ink=$INK_CACHE, yoga-layout=$YOGA_CACHE"
+      - name: Load ink cache version from centralized config
+        id: ink-cache-version
+        uses: ./.github/actions/load-cache-version
+        with:
+          package-name: ink
+
+      - name: Load yoga-layout cache version from centralized config
+        id: yoga-cache-version
+        uses: ./.github/actions/load-cache-version
+        with:
+          package-name: yoga-layout
 
       - name: Generate ink cache key
         id: cache-key
         env:
-          INK_CACHE_VERSION: ${{ steps.cache-version.outputs.ink-version }}
-          YOGA_CACHE_VERSION: ${{ steps.cache-version.outputs.yoga-version }}
+          INK_CACHE_VERSION: ${{ steps.ink-cache-version.outputs.version }}
+          YOGA_CACHE_VERSION: ${{ steps.yoga-cache-version.outputs.version }}
         run: |
           # Cross-platform hash function.
           if command -v shasum &> /dev/null; then

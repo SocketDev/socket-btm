@@ -575,9 +575,9 @@ Optimizations are tested through functional tests:
 
 **Test Coverage**: Test suites covering core functionality
 
-- `test/builder-api.test.mjs` - Builder API functionality
-- `test/functional-api.test.mjs` - Functional API compatibility
-- `test/state-only.test.mjs` - State management tests
+- `test/builder-api.test.mts` - Builder API functionality
+- `test/functional-api.test.mts` - Functional API compatibility
+- `test/state-only.test.mts` - State management tests
 
 **Run tests**: `pnpm test`
 

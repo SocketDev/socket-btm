@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document maps all built-in prototype methods found in `experimental-fast-webstreams` to their primordial equivalents. These transforms MUST be applied during the ES→CJS sync process by `scripts/vendor-fast-webstreams/sync.mjs`.
+This document maps all built-in prototype methods found in `experimental-fast-webstreams` to their primordial equivalents. These transforms MUST be applied during the ES→CJS sync process by `scripts/vendor-fast-webstreams/sync.mts`.
 
 ## Why Primordials?
 
@@ -429,7 +429,7 @@ Based on survey of fast-webstreams@0.5.0:
 
 ## Sync Script Integration
 
-The `scripts/vendor-fast-webstreams/sync.mjs` script MUST apply these transforms automatically during ES→CJS conversion.
+The `scripts/vendor-fast-webstreams/sync.mts` script MUST apply these transforms automatically during ES→CJS conversion.
 
 **Recommended approach:**
 
@@ -459,7 +459,7 @@ Export statement fixes
 After applying primordials transforms:
 
 1. **Build**: `pnpm --filter node-smol-builder clean && pnpm --filter node-smol-builder build`
-2. **Quick validation**: `node scripts/vendor-fast-webstreams/validate.mjs` (15 tests)
+2. **Quick validation**: `node scripts/vendor-fast-webstreams/validate.mts` (15 tests)
 3. **WPT validation**: `node scripts/vendor-fast-webstreams/wpt/validate.mjs` (1,116 tests)
 
 All tests must pass at same rate as before transforms (98.5% WPT pass rate).
@@ -472,7 +472,7 @@ When updating fast-webstreams to a new version:
 
 1. Survey new code for additional built-in method usage
 2. Update this reference with new patterns
-3. Update sync.mjs transformer logic
+3. Update sync.mts transformer logic
 4. Run full validation suite
 
 ---

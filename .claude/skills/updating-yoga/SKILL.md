@@ -18,7 +18,7 @@ Update the Yoga layout library to latest stable version.
 
 Produces the official yoga-layout npm API via WASM:
 - Uses official `embind.cpp`, `Node.cpp`, `Config.cpp` bindings from upstream
-- Wraps with `wrapAssembly.mjs` for `Yoga.Node.create()`, `node.free()`, etc.
+- Wraps with `wrapAssembly.mts` for `Yoga.Node.create()`, `node.free()`, etc.
 - Sync wrapper generation uses AST-based transforms (acorn + MagicString)
 
 ## Process
@@ -37,5 +37,5 @@ Produces the official yoga-layout npm API via WASM:
 
 When updating, check for upstream changes:
 
-- **YGEnums.mjs** (`src/wrapper/`): Compare with `yoga/javascript/src/generated/YGEnums.ts`. Look for new/removed enum values.
-- **wrapAssembly.mjs** (`src/wrapper/`): Compare with `yoga/javascript/src/wrapAssembly.ts`. Look for new patched methods or API changes.
+- **YGEnums.mts** (`src/wrapper/`): Compare with `yoga/javascript/src/generated/YGEnums.ts`. Look for new/removed enum values.
+- **wrapAssembly.mts** (`src/wrapper/`): Compare with `yoga/javascript/src/wrapAssembly.ts`. Look for new patched methods or API changes.

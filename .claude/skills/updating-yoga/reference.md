@@ -41,13 +41,13 @@ When updating Yoga, bump this cache version:
 
 | Local File | Upstream Source |
 |-----------|---------------|
-| `src/wrapper/YGEnums.mjs` | `yoga/javascript/src/generated/YGEnums.ts` |
-| `src/wrapper/wrapAssembly.mjs` | `yoga/javascript/src/wrapAssembly.ts` |
+| `src/wrapper/YGEnums.mts` | `yoga/javascript/src/generated/YGEnums.ts` |
+| `src/wrapper/wrapAssembly.mts` | `yoga/javascript/src/wrapAssembly.ts` |
 
 After cloning new source, compare:
 ```bash
-diff build/shared/source/javascript/src/generated/YGEnums.ts src/wrapper/YGEnums.mjs
-diff build/shared/source/javascript/src/wrapAssembly.ts src/wrapper/wrapAssembly.mjs
+diff build/shared/source/javascript/src/generated/YGEnums.ts src/wrapper/YGEnums.mts
+diff build/shared/source/javascript/src/wrapAssembly.ts src/wrapper/wrapAssembly.mts
 ```
 
 Look for: new enum values, new patched methods, API signature changes, new exports.
@@ -64,7 +64,7 @@ Check `packages/yoga-layout-builder/external-tools.json` after updating. New Yog
 
 ### AST Transformation Breakage
 
-The sync wrapper uses acorn + MagicString for AST-based code transformation. If upstream changes the structure of `wrapAssembly.ts` significantly, the transformation may fail. Check `generate-sync.mjs` if build produces malformed output.
+The sync wrapper uses acorn + MagicString for AST-based code transformation. If upstream changes the structure of `wrapAssembly.ts` significantly, the transformation may fail. Check `generate-sync.mts` if build produces malformed output.
 
 ### Bindings Files
 
@@ -91,7 +91,7 @@ git push origin main
 
 **Cause:** wrapAssembly not applied correctly during AST transformation.
 
-**Solution:** Check `generate-sync.mjs` for transformation errors. Verify wrapAssembly.mjs is up to date with upstream.
+**Solution:** Check `generate-sync.mts` for transformation errors. Verify wrapAssembly.mts is up to date with upstream.
 
 ### Sync Wrapper Missing DIRECTION_LTR
 
@@ -103,7 +103,7 @@ git push origin main
 
 **Cause:** Multiple `export default` statements after inlining.
 
-**Solution:** Verify AST transformation removes/converts exports properly in `generate-sync.mjs`.
+**Solution:** Verify AST transformation removes/converts exports properly in `generate-sync.mts`.
 
 ### ink Layout Broken After Update
 

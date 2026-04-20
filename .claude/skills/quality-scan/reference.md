@@ -484,7 +484,7 @@ socket-btm uses a multi-stage checkpoint system to speed up builds:
 
 Caching locations:
 
-- packages/node-smol-builder/scripts/common/shared/checkpoints.mjs
+- packages/build-infra/lib/checkpoint-manager.mts
 - packages/node-smol-builder/build/checkpoints/
 - Cache key generation and validation logic
   </context>
@@ -564,7 +564,7 @@ Think through each issue:
 <output_format>
 For each finding, report:
 
-File: packages/node-smol-builder/scripts/common/shared/checkpoints.mjs:lineNumber
+File: packages/build-infra/lib/checkpoint-manager.mts:lineNumber
 Issue: [One-line description]
 Severity: High | Medium
 Scenario: [Step-by-step sequence showing how bug manifests]
@@ -573,7 +573,7 @@ Fix: [Specific code change]
 Impact: [Observable effect - wrong output, performance, crash]
 
 Example:
-File: packages/node-smol-builder/scripts/common/shared/checkpoints.mjs:145
+File: packages/build-infra/lib/checkpoint-manager.mts:145
 Issue: Cache key missing patch content hashes
 Severity: High
 Scenario: 1) Build with patch v1, creates checkpoint. 2) Patch file modified to v2 (same filename). 3) Build restores v1 checkpoint. 4) Produces binary with v1 patches but v2 expected
@@ -727,8 +727,8 @@ Build script architecture and helper methods (CRITICAL for consistent builds):
 
 **Package Build Entry Points:**
 
-- Packages MUST use `scripts/build.mjs` as the build entry point, never direct Makefile invocation
-- build.mjs handles: dependency downloads, environment setup, then Make invocation
+- Packages MUST use `scripts/build.mts` as the build entry point, never direct Makefile invocation
+- build.mts handles: dependency downloads, environment setup, then Make invocation
 - Direct `make -f Makefile.<platform>` bypasses critical setup (curl/LIEF downloads)
 
 **Required build.mjs patterns:**
@@ -762,7 +762,7 @@ buildBinSuitePackage({
    - Fix: Use `pnpm run build` or `pnpm --filter <package> build`
 
 2. Missing beforeBuild hook:
-   - Bug: build.mjs doesn't download dependencies before Make
+   - Bug: build.mts doesn't download dependencies before Make
    - Fix: Add beforeBuild with appropriate ensure\* calls
 
 3. Wrong dependency helper:
@@ -775,8 +775,8 @@ buildBinSuitePackage({
 
 **Check these files:**
 
-- packages/\*/scripts/build.mjs - Must use buildBinSuitePackage
-- packages/_/Makefile._ - Should not be invoked directly (only via build.mjs)
+- packages/\*/scripts/build.mts - Must use buildBinSuitePackage
+- packages/_/Makefile._ - Should not be invoked directly (only via build.mts)
 - README.md files - Should document `pnpm run build`, not direct make
   </pattern>
 

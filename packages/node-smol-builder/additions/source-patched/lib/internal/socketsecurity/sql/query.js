@@ -11,7 +11,10 @@ const {
   MathImul,
   NumberPrototypeToString,
   ObjectKeys,
+  SafeSet,
   SafeWeakMap,
+  SetPrototypeAdd,
+  SetPrototypeHas,
   StringPrototypeCharCodeAt,
   StringPrototypeReplace,
   hardenRegExp,
@@ -112,8 +115,27 @@ function buildInsertQuery(rows, columns) {
     throw new ERR_INVALID_ARG_TYPE('rows', 'non-empty Array', rows)
   }
 
-  // Determine columns from first row or explicit list.
-  const cols = columns ?? ObjectKeys(rows[0])
+  // Determine columns from first row or explicit list. When no explicit
+  // columns are provided, take the UNION of all row keys — rows[0] alone
+  // would silently drop fields that appear only on later rows, producing
+  // a malformed INSERT.
+  let cols
+  if (columns) {
+    cols = columns
+  } else {
+    const seen = new SafeSet()
+    const unioned = []
+    for (let i = 0; i < rows.length; i++) {
+      const keys = ObjectKeys(rows[i])
+      for (let j = 0; j < keys.length; j++) {
+        if (!SetPrototypeHas(seen, keys[j])) {
+          SetPrototypeAdd(seen, keys[j])
+          ArrayPrototypePush(unioned, keys[j])
+        }
+      }
+    }
+    cols = unioned
+  }
   const colCount = cols.length
 
   // Build column list.

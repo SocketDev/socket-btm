@@ -23,7 +23,7 @@ Vercel's library replaces Node.js pure-JS WebStreams with native C++ stream-back
 ### Sync
 
 ```bash
-node packages/node-smol-builder/scripts/vendor-fast-webstreams/sync.mjs
+node packages/node-smol-builder/scripts/vendor-fast-webstreams/sync.mts
 ```
 
 ### Build (skip in CI)
@@ -34,7 +34,7 @@ pnpm --filter node-smol-builder clean && pnpm --filter node-smol-builder build
 
 ### Validate
 
-Quick (15 tests): `node scripts/vendor-fast-webstreams/validate.mjs`
+Quick (15 tests): `node scripts/vendor-fast-webstreams/validate.mts`
 
 Full WPT (1,116 tests): `node scripts/vendor-fast-webstreams/wpt/validate.mjs` (options: `--fetch`, `--filter=`, `--verbose`)
 
@@ -46,7 +46,7 @@ Full WPT (1,116 tests): `node scripts/vendor-fast-webstreams/wpt/validate.mjs` (
 
 ## Circular Dependencies
 
-Two cycles require special handling (managed by `sync.mjs`):
+Two cycles require special handling (managed by `sync.mts`):
 
 - **patch.js <-> index.js**: Import directly from source modules, not index.js
 - **writer.js <-> writable.js**: Use module reference pattern (access at runtime, not load time)
@@ -55,7 +55,7 @@ Two cycles require special handling (managed by `sync.mjs`):
 
 | File | Purpose |
 |------|---------|
-| `scripts/vendor-fast-webstreams/sync.mjs` | ES-to-CJS conversion |
-| `scripts/vendor-fast-webstreams/validate.mjs` | 15-test integration suite |
+| `scripts/vendor-fast-webstreams/sync.mts` | ES-to-CJS conversion |
+| `scripts/vendor-fast-webstreams/validate.mts` | 15-test integration suite |
 | `scripts/vendor-fast-webstreams/wpt/validate.mjs` | WPT spec compliance |
 | `additions/source-patched/deps/fast-webstreams/` | Converted CommonJS (14 files) |

@@ -1233,7 +1233,7 @@ echo "$NEW_VERSION" > .node-version
 
 **Fetch and store checksum in .gitmodules:**
 
-Use `fetchNodeChecksum()` from `build-infra/lib/version-helpers.mjs` to fetch the SHA-256
+Use `fetchNodeChecksum()` from `build-infra/lib/version-helpers.mts` to fetch the SHA-256
 checksum for the source tarball from nodejs.org, then update the `.gitmodules` version comment:
 
 ```javascript

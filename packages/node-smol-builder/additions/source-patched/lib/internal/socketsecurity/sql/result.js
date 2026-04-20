@@ -9,6 +9,9 @@ const {
   ObjectCreate,
   ObjectDefineProperty,
   ObjectFreeze,
+  SafeSet,
+  SetPrototypeAdd,
+  SetPrototypeHas,
   Symbol: SymbolCtor,
   SymbolIterator,
   SymbolToStringTag,
@@ -123,6 +126,20 @@ function rowsToObjects(rows, columns) {
   const len = rows.length
   const colLen = columns.length
   const result = new Array(len)
+
+  // Duplicate column names (e.g. `SELECT a.id, b.id FROM a JOIN b …`) would
+  // silently overwrite earlier values. Reject early so the caller gets a
+  // loud error instead of wrong-joined data.
+  const seen = new SafeSet()
+  for (let j = 0; j < colLen; j++) {
+    if (SetPrototypeHas(seen, columns[j])) {
+      throw new Error(
+        `Duplicate column name in result: "${columns[j]}". ` +
+          'Alias columns (e.g. `a.id AS a_id, b.id AS b_id`) to disambiguate.',
+      )
+    }
+    SetPrototypeAdd(seen, columns[j])
+  }
 
   for (let i = 0; i < len; i++) {
     const row = rows[i]

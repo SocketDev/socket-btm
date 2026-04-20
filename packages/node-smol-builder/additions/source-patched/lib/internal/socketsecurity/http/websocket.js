@@ -166,6 +166,11 @@ function createWebSocketHandler(socket, wsHandlers, serverInstance) {
       if (subs) {
         SetPrototypeDelete(subs, ws)
         MapPrototypeDelete(subscribers, topic)
+        // Prune empty topic sets so `_wsTopics` doesn't grow unbounded with
+        // short-lived topics (per-user, per-session, etc.).
+        if (subs.size === 0) {
+          MapPrototypeDelete(serverInstance._wsTopics, topic)
+        }
       }
     },
 

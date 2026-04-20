@@ -52,7 +52,7 @@ If stubs rebuild produces identical binaries:
 
 stubs-builder may download prebuilt curl from releases rather than building locally:
 - Ensures consistent cross-platform builds
-- `ensureCurl()` function handles this in build.mjs
+- `ensureCurl()` function handles this in build.mts
 
 ## Troubleshooting
 
@@ -68,7 +68,7 @@ Error: curl binary not found
 **Solution:**
 1. Check network connectivity
 2. Verify curl releases exist
-3. Check `ensureCurl()` function in build.mjs
+3. Check `ensureCurl()` function in build.mts
 
 ### Tests Fail
 

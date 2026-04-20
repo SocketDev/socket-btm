@@ -2,6 +2,7 @@
 
 const {
   DateNow,
+  IteratorPrototypeNext,
   MapPrototypeClear,
   MapPrototypeDelete,
   MapPrototypeForEach,
@@ -83,8 +84,15 @@ class CompressionCache {
 
     // Evict oldest if at capacity.
     if (this.cache.size > this.maxSize) {
-      const firstKey = MapPrototypeKeys(this.cache).next().value
-      MapPrototypeDelete(this.cache, firstKey)
+      // Use primordial iterator.next to match the rest of the codebase
+      // (versions.js and sql/cache.js) — guards against tampering with
+      // MapIteratorPrototype.next.
+      const { value: firstKey } = IteratorPrototypeNext(
+        MapPrototypeKeys(this.cache),
+      )
+      if (firstKey !== undefined) {
+        MapPrototypeDelete(this.cache, firstKey)
+      }
     }
 
     // Guard against zero-byte input (NaN serializes to null and breaks metrics).

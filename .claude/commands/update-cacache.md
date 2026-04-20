@@ -65,4 +65,4 @@ Run when the cacache format changes or cross-platform behavior needs updating.
 ## Reference Docs
 
 - Shared cache guide: `../ultrathink/packages/build-infra/docs/shared-cache.md`
-- Platform dirs: `../ultrathink/packages/build-infra/lib/platform-dirs.mjs`
+- Platform cache paths: `../ultrathink/packages/build-infra/lib/ci-cleanup-paths.mts`

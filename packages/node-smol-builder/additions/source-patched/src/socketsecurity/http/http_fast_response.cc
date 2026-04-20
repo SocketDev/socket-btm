@@ -175,6 +175,19 @@ uv_stream_t* FastResponse::GetUvStream(
 
   // LibuvStreamWrap is the concrete class for TCP/pipe sockets in Node.js.
   // It exposes stream() -> uv_stream_t* which StreamBase does not.
+  // Guard the cast: TLSWrap/JSStream/HTTP2/StdioStream all present as
+  // StreamBase but are NOT LibuvStreamWrap. A blind static_cast returns a
+  // garbage pointer, which would cause uv_try_write() to write plaintext
+  // over whatever uv_stream_t* the reinterpretation happens to land on.
+  AsyncWrap* async_wrap = stream_base->GetAsyncWrap();
+  if (async_wrap == nullptr) {
+    return nullptr;
+  }
+  AsyncWrap::ProviderType provider = async_wrap->provider_type();
+  if (provider != AsyncWrap::PROVIDER_TCPWRAP &&
+      provider != AsyncWrap::PROVIDER_PIPEWRAP) {
+    return nullptr;
+  }
   LibuvStreamWrap* wrap = static_cast<LibuvStreamWrap*>(stream_base);
   return wrap->stream();
 }

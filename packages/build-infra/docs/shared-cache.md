@@ -175,7 +175,8 @@ All implementations follow the same priority order
 
 For parser-specific fast caching, use the flat file cache at the platform-
 standard location (`~/Library/Caches/acorn-asb/` on macOS). See
-[platform-dirs.mjs](../lib/platform-dirs.mjs).
+[ci-cleanup-paths.mts](../lib/ci-cleanup-paths.mts) for how platform
+cache paths are derived.
 
 ## Implementation Files
 

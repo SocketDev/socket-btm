@@ -51,7 +51,7 @@ Never modify vendored files manually - re-run sync instead.
 
 ### Circular Dependencies
 
-Two known cycles require special handling in `sync.mjs`:
+Two known cycles require special handling in `sync.mts`:
 
 1. **patch.js <-> index.js**: Import from source modules directly, not index.js
 2. **writer.js <-> writable.js**: Use module reference pattern (access at runtime, not load time)
@@ -91,7 +91,7 @@ git push origin main
 
 **Cause:** writer.js <-> writable.js circular dependency not handled.
 
-**Solution:** Ensure `fixWriterWritableCycle()` is applied in sync.mjs.
+**Solution:** Ensure `fixWriterWritableCycle()` is applied in sync.mts.
 
 ### Exports Missing After Require
 

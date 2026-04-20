@@ -889,9 +889,11 @@ function parsePnpmLock(content) {
       if (indent === 2 && StringPrototypeEndsWith(trimmed, ':')) {
         currentImporter = {
           __proto__: null,
-          dependencies: undefined,
-          devDependencies: undefined,
-          optionalDependencies: undefined,
+          // Single cursor for the active section. Using separate booleans
+          // that were never cleared caused later `dependencies:` blocks to
+          // inherit a prior `devDependencies:` flag and mis-tag prod deps
+          // as dev in the SBOM output.
+          section: undefined,
         }
         importerIndent = indent
         continue
@@ -899,14 +901,14 @@ function parsePnpmLock(content) {
 
       // Importer properties
       if (currentImporter && indent > importerIndent) {
-        if (StringPrototypeIndexOf(trimmed, 'dependencies:') === 0) {
-          currentImporter.dependencies = true
-        } else if (StringPrototypeIndexOf(trimmed, 'devDependencies:') === 0) {
-          currentImporter.devDependencies = true
+        if (StringPrototypeIndexOf(trimmed, 'devDependencies:') === 0) {
+          currentImporter.section = 'dev'
         } else if (
           StringPrototypeIndexOf(trimmed, 'optionalDependencies:') === 0
         ) {
-          currentImporter.optionalDependencies = true
+          currentImporter.section = 'optional'
+        } else if (StringPrototypeIndexOf(trimmed, 'dependencies:') === 0) {
+          currentImporter.section = 'prod'
         } else if (indent > importerIndent + 2) {
           // Dependency entry: "    name: version"
           const colonIdx = StringPrototypeIndexOf(trimmed, ':')
@@ -942,13 +944,14 @@ function parsePnpmLock(content) {
                 resolved: undefined,
                 integrity: undefined,
                 ecosystem: NPM,
-                depType: currentImporter.devDependencies
-                  ? DEV
-                  : currentImporter.optionalDependencies
-                    ? OPTIONAL
-                    : PROD,
-                isDev: !!currentImporter.devDependencies,
-                isOptional: !!currentImporter.optionalDependencies,
+                depType:
+                  currentImporter.section === 'dev'
+                    ? DEV
+                    : currentImporter.section === 'optional'
+                      ? OPTIONAL
+                      : PROD,
+                isDev: currentImporter.section === 'dev',
+                isOptional: currentImporter.section === 'optional',
                 dependencies: [],
               })
 

@@ -313,9 +313,17 @@ class SQLiteAdapter {
    */
   async closeCursor(cursor) {
     // SQLite iterators close automatically when exhausted.
-    // If we need to close early, we can use return().
-    // Use safe primordial to avoid prototype pollution.
-    IteratorPrototypeReturn(cursor.iterator)
+    // If we need to close early, we can use return(). Not every iterator
+    // implements `.return` (node:sqlite's statement iterator in particular),
+    // so guard before invoking to avoid masking the caller's error with
+    // "IteratorPrototypeReturn is not a function" out of a finally block.
+    if (typeof cursor.iterator?.return === 'function') {
+      try {
+        IteratorPrototypeReturn(cursor.iterator)
+      } catch {
+        // Swallow cleanup errors; they'd otherwise hide the caller's exception.
+      }
+    }
   }
 
   /**

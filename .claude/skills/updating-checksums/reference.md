@@ -13,8 +13,8 @@ This document provides edge cases, troubleshooting, and additional context for t
 ## Architecture
 
 - Embedded checksums: `packages/build-infra/release-assets.json`
-- Verification logic: `packages/build-infra/lib/release-checksums.mjs`
-- Update script: `packages/build-infra/scripts/update-checksums.mjs`
+- Verification logic: `packages/build-infra/lib/release-checksums.mts`
+- Update script: `packages/build-infra/scripts/update-checksums.mts`
 
 Embedded checksums are the source of truth. Verification rejects if checksums exist for the tool but not the asset.
 

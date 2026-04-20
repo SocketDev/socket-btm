@@ -8,6 +8,15 @@ on:
 permissions:
   contents: read
 
+# Serialize every weekly-update invocation. Otherwise a scheduled cron
+# run and a manual workflow_dispatch could race: both compute dependency
+# bumps, both open PRs, both try to push branches, and the second push
+# fails or clobbers the first's generated tree. cancel-in-progress:
+# false lets an in-flight cron finish before a manual run starts.
+concurrency:
+  group: weekly-update-${{ github.repository }}
+  cancel-in-progress: false
+
 jobs:
   weekly-update:
     uses: SocketDev/socket-registry/.github/workflows/weekly-update.yml@3362af95fadd1e325cb48e9ad6daff21c112bd72 # main

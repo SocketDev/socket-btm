@@ -323,6 +323,7 @@ jobs:
           name: onnxruntime-wasm
           path: packages/onnxruntime-builder/build/${{ steps.build-mode.outputs.mode }}/${{ env.PLATFORM_ARCH }}/out/Final/
           retention-days: 30
+          compression-level: 0  # Already-compressed binary artifact
           if-no-files-found: error
 
       - name: Cleanup before cache save

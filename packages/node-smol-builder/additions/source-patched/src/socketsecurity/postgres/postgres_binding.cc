@@ -177,6 +177,12 @@ void PostgresBinding::CreatePool(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  // Pre-reserve on first insert to keep subsequent inserts rehash-free.
+  // std::unordered_map insertion can bad_alloc during rehash, which
+  // aborts under -fno-exceptions. A few pools per thread is typical.
+  if (pools_.bucket_count() < 16) {
+    pools_.reserve(16);
+  }
   uint32_t pool_id = next_pool_id_++;
   pools_[pool_id] = std::move(pool);
 

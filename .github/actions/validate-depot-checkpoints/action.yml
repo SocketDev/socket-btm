@@ -86,21 +86,27 @@ runs:
         VALIDATED=0
         VALID_LIST=""
 
+        # GHA composite actions with `shell: bash` run under
+        # `bash --noprofile --norc -eo pipefail`. The previous version of
+        # this loop used `TAR_CONTENTS=$(...); TAR_RC=$?` — but under
+        # `set -e` the script aborts on the FIRST corrupt tar (before
+        # TAR_RC is even captured), so we'd fail the whole action at the
+        # first bad file instead of enumerating every corrupt archive.
+        # `|| TAR_RC=$?` inside the command substitution is the idiom
+        # that survives `set -e`: the `|| ...` branch is evaluated by
+        # bash as a compound expression, suppressing the -e trigger while
+        # still preserving the real exit code.
         for checkpoint_dir in "${CHECKPOINT_DIRS[@]}"; do
           [ -d "$checkpoint_dir" ] || continue
           for format in "${CHECKPOINT_FORMATS[@]}"; do
             for tarfile in "$checkpoint_dir"/$format; do
               [ -e "$tarfile" ] || continue
               VALIDATED=$((VALIDATED + 1))
-              # Capture tar's exit code directly via the if-condition so we
-              # don't rely on a subsequent `$?` read that might be shadowed
-              # by any intervening command expansion.
+              TAR_RC=0
               if [[ "$tarfile" =~ \.(tar\.gz|tgz)$ ]]; then
-                TAR_CONTENTS=$(tar -tzf "$tarfile" 2>&1)
-                TAR_RC=$?
+                TAR_CONTENTS=$(tar -tzf "$tarfile" 2>&1) || TAR_RC=$?
               else
-                TAR_CONTENTS=$(tar -tf "$tarfile" 2>&1)
-                TAR_RC=$?
+                TAR_CONTENTS=$(tar -tf "$tarfile" 2>&1) || TAR_RC=$?
               fi
               if [ "$TAR_RC" -ne 0 ] || [ -z "$TAR_CONTENTS" ]; then
                 echo "× Invalid: $(basename "$tarfile")"

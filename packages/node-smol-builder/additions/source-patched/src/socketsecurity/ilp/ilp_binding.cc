@@ -273,6 +273,13 @@ void IlpBinding::CreateSender(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  // Pre-reserve on first insert to keep subsequent inserts rehash-free.
+  // std::unordered_map insertion can bad_alloc during rehash, which
+  // aborts under -fno-exceptions. A one-time reserve at first use
+  // covers realistic sender counts (few dozen per thread).
+  if (senders_.bucket_count() < 16) {
+    senders_.reserve(16);
+  }
   uint32_t id = next_sender_id_++;
   senders_[id] = std::move(state);
 

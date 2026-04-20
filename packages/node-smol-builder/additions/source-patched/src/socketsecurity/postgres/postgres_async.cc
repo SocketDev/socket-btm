@@ -128,6 +128,15 @@ class QueryAsyncWork : public ThreadPoolWork {
 
   // Run in thread pool.
   void DoThreadPoolWork() override {
+    // libpq's PQexecParams uses int16 for nParams — any input above 65535
+    // is a caller bug. Validate before allocating so a hostile/bad call
+    // can't OOM-abort this worker thread via `vector(huge_size)` under
+    // -fno-exceptions (which would kill the whole Node.js process, not
+    // just this query).
+    if (params_.size() > 65535) {
+      error_message_ = "Too many query parameters (limit: 65535)";
+      return;
+    }
     // Build param pointers.
     std::vector<const char*> param_values(params_.size());
     for (size_t i = 0; i < params_.size(); ++i) {
@@ -455,6 +464,12 @@ class ExecutePreparedAsyncWork : public ThreadPoolWork {
   }
 
   void DoThreadPoolWork() override {
+    // See comment in the Execute variant above — cap at libpq's int16
+    // nParams limit so a hostile caller can't OOM-abort this worker.
+    if (params_.size() > 65535) {
+      error_message_ = "Too many query parameters (limit: 65535)";
+      return;
+    }
     std::vector<const char*> param_values(params_.size());
     for (size_t i = 0; i < params_.size(); ++i) {
       param_values[i] = params_[i].c_str();

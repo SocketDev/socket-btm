@@ -176,13 +176,13 @@ jobs:
           PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
           OS_TYPE: ${{ matrix.os }}
         run: |
-          # Linux uses Depot Docker which exports without PLATFORM_ARCH.
-          # macOS/Windows native builds use PLATFORM_ARCH in path.
-          if [ "${OS_TYPE}" = "linux" ]; then
-            BINARY="build/${BUILD_MODE}/out/Final/binpress"
-          else
-            BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binpress"
-          fi
+          # All platforms (Linux Depot / macOS / Windows native) export to
+          # build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/. A prior version
+          # of this step had a separate Linux branch without PLATFORM_ARCH
+          # based on a misread of the Dockerfile — the binary would never
+          # be found on Linux cache-hit and force-rebuild kept firing,
+          # defeating the entire checkpoint cache for this matrix.
+          BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binpress"
           if [ "${OS_TYPE}" = "windows" ]; then
             BINARY="${BINARY}.exe"
           fi
@@ -587,13 +587,13 @@ jobs:
           PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
           OS_TYPE: ${{ matrix.os }}
         run: |
-          # Linux uses Depot Docker which exports without PLATFORM_ARCH.
-          # macOS/Windows native builds use PLATFORM_ARCH in path.
-          if [ "${OS_TYPE}" = "linux" ]; then
-            BINARY="build/${BUILD_MODE}/out/Final/binflate"
-          else
-            BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binflate"
-          fi
+          # All platforms (Linux Depot / macOS / Windows native) export to
+          # build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/. A prior version
+          # of this step had a separate Linux branch without PLATFORM_ARCH
+          # based on a misread of the Dockerfile — the binary would never
+          # be found on Linux cache-hit and force-rebuild kept firing,
+          # defeating the entire checkpoint cache for this matrix.
+          BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binflate"
           if [ "${OS_TYPE}" = "windows" ]; then
             BINARY="${BINARY}.exe"
           fi
@@ -962,13 +962,13 @@ jobs:
           PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
           OS_TYPE: ${{ matrix.os }}
         run: |
-          # Linux uses Depot Docker which exports without PLATFORM_ARCH.
-          # macOS/Windows native builds use PLATFORM_ARCH in path.
-          if [ "${OS_TYPE}" = "linux" ]; then
-            BINARY="build/${BUILD_MODE}/out/Final/binject"
-          else
-            BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binject"
-          fi
+          # All platforms (Linux Depot / macOS / Windows native) export to
+          # build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/. A prior version
+          # of this step had a separate Linux branch without PLATFORM_ARCH
+          # based on a misread of the Dockerfile — the binary would never
+          # be found on Linux cache-hit and force-rebuild kept firing,
+          # defeating the entire checkpoint cache for this matrix.
+          BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binject"
           if [ "${OS_TYPE}" = "windows" ]; then
             BINARY="${BINARY}.exe"
           fi
@@ -1281,6 +1281,7 @@ jobs:
       && !inputs.dry_run
     environment: release
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: write # Required to create GitHub releases
 

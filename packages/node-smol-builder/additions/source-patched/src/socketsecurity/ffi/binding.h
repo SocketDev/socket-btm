@@ -70,6 +70,20 @@ struct FFIState {
   uint32_t next_function_id = 1;
   uint32_t next_callback_id = 1;
 
+  // Pre-reserve hash buckets to sizes that cover any realistic FFI usage.
+  // std::unordered_map insertion can bad_alloc on rehash, which aborts
+  // under -fno-exceptions. Reserving once at construction means
+  // subsequent insertions from the JS layer never rehash for the
+  // bounded number of libraries / functions / callbacks a typical
+  // binding touches. Nothrow-friendly: the constructor is called from
+  // GetState() via `new (std::nothrow)`, so a reserve OOM aborts the
+  // state creation (already handled) rather than a later Load call.
+  FFIState() {
+    libraries.reserve(64);
+    functions.reserve(512);
+    callbacks.reserve(64);
+  }
+
   // Destructor: called automatically when this FFIState is deleted.
   // Closes all open libraries and frees all callback slots.
   ~FFIState();

@@ -21,10 +21,13 @@
  *   - node-smol-{YYYYMMDD}-{sha}-win-arm64.zip
  *   - node-smol-{YYYYMMDD}-{sha}-win-x64.zip
  *
- * Usage:
- *   pnpm release              # Create draft release from cached binaries
- *   pnpm release --publish    # Create and publish release
- *   pnpm release --force      # Overwrite existing release
+ * Usage (no root `pnpm release` script exists — invoke directly):
+ *   node packages/node-smol-builder/scripts/binary-released/shared/release.mts            # Draft release from cached binaries
+ *   node packages/node-smol-builder/scripts/binary-released/shared/release.mts --publish  # Create and publish release
+ *   node packages/node-smol-builder/scripts/binary-released/shared/release.mts --force    # Overwrite existing release
+ *
+ * In CI this is driven by .github/workflows/node-smol.yml; direct invocation
+ * above is for local debugging only.
  *
  * Prerequisites:
  *   - Built binaries in build/${BUILD_MODE}/out/Final/node/ (or build/${BUILD_MODE}/cache/node-*)
@@ -570,7 +573,7 @@ async function main() {
 
   if (!PUBLISH) {
     logger.log('Publish release from GitHub web interface or use:')
-    logger.log('  pnpm release --publish')
+    logger.log('  node packages/node-smol-builder/scripts/binary-released/shared/release.mts --publish')
     logger.log('')
   }
 }

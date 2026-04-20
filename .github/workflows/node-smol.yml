@@ -393,6 +393,18 @@ jobs:
           BIN_INFRA_SRC=$(hash_files packages/bin-infra/src/socketsecurity/bin-infra -type f)
           BINJECT_SRC=$(hash_files packages/binject/src/socketsecurity/binject -type f)
           BINPRESS_SRC=$(hash_files packages/binpress/src -type f)
+          # TypeScript helper libraries used by the build scripts. Edits
+          # to build-infra/lib/checkpoint-manager.mts or bin-infra/lib/*
+          # change how the final tarball is produced but were not hashed
+          # before R10 — bug fixes in checkpoint-manager would silently
+          # hit stale cache.
+          BUILD_INFRA_LIB=$(hash_files packages/build-infra/lib -type f)
+          BIN_INFRA_LIB=$(hash_files packages/bin-infra/lib -type f)
+          # pnpm-lock.yaml: Docker builds and host-side `node` commands
+          # run against installed workspace deps; a lock bump that pulls
+          # a new @socketsecurity/lib can change build behavior. Hash so
+          # the cache invalidates when deps change.
+          PNPM_LOCK_HASH=$($hash_cmd pnpm-lock.yaml 2>/dev/null | cut -d' ' -f1)
 
           # Linux builds are produced by Depot.dev consuming the Dockerfiles
           # under packages/node-smol-builder/docker/. A Dockerfile edit (e.g.
@@ -425,7 +437,7 @@ jobs:
           # final tarball even when no other source changed.
           BINFLATE_SRC=$(hash_files packages/binflate/src -type f)
 
-          FINAL_KEY=$(echo "${COMMON_SCRIPTS}${FINAL_PATCHES}${FINAL_ADDITIONS}${FINAL_SCRIPTS}${BUILD_INFRA_SRC}${BIN_INFRA_SRC}${BINJECT_SRC}${BINPRESS_SRC}${BINFLATE_SRC}${DOCKERFILES}${LIEF_VERSION}${STUBS_VERSION}${USOCKETS_SHA}${UWEBSOCKETS_SHA}${LIBURING_SHA}${CURL_SHA}${MBEDTLS_SHA}" | $hash_cmd | cut -d' ' -f1)
+          FINAL_KEY=$(echo "${COMMON_SCRIPTS}${FINAL_PATCHES}${FINAL_ADDITIONS}${FINAL_SCRIPTS}${BUILD_INFRA_SRC}${BIN_INFRA_SRC}${BUILD_INFRA_LIB}${BIN_INFRA_LIB}${BINJECT_SRC}${BINPRESS_SRC}${BINFLATE_SRC}${DOCKERFILES}${PNPM_LOCK_HASH}${LIEF_VERSION}${STUBS_VERSION}${USOCKETS_SHA}${UWEBSOCKETS_SHA}${LIBURING_SHA}${CURL_SHA}${MBEDTLS_SHA}" | $hash_cmd | cut -d' ' -f1)
 
           echo "final_hash=${FINAL_KEY}" >> $GITHUB_OUTPUT
           echo "build_mode=${BUILD_MODE}" >> $GITHUB_OUTPUT
@@ -905,6 +917,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
     environment: release
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: write # Required to create GitHub releases
 

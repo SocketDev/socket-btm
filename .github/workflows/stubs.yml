@@ -136,11 +136,13 @@ jobs:
             exit 1
           fi
 
-          # Helper function to hash files.
+          # Helper function to hash files. sort -u dedupes so overlapping
+          # paths (parent + child passed to the same call) don't double-
+          # hash shared files — matches node-smol.yml's helper exactly.
           hash_files() {
-            local files=$(find "$@" 2>/dev/null)
+            local files=$(find "$@" 2>/dev/null | sort -u)
             if [ -n "$files" ]; then
-              echo "$files" | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1
+              echo "$files" | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1
             else
               echo ""
             fi
@@ -149,6 +151,15 @@ jobs:
           # Hash canonical source packages (source of truth for stubs).
           BUILD_INFRA_SRC=$(hash_files packages/build-infra/src/socketsecurity/build-infra -type f)
           BIN_INFRA_SRC=$(hash_files packages/bin-infra/src/socketsecurity/bin-infra -type f)
+          # TypeScript helpers used by the build scripts. Previously
+          # missed — edits to e.g. build-infra/lib/checkpoint-manager.mts
+          # silently hit stale cache.
+          BUILD_INFRA_LIB=$(hash_files packages/build-infra/lib -type f)
+          BIN_INFRA_LIB=$(hash_files packages/bin-infra/lib -type f)
+          # pnpm-lock.yaml: Docker builds and host-side `node` commands
+          # resolve workspace deps at runtime; a lock bump can alter
+          # build behavior. Hash so the cache invalidates when deps change.
+          PNPM_LOCK_HASH=$($hash_cmd pnpm-lock.yaml 2>/dev/null | cut -d' ' -f1)
           STUBS_SRC=$(hash_files packages/stubs-builder/src -type f)
           # Scripts orchestrate the build (packaging layout, final layout,
           # checkpoint-chain). Edits MUST bust the cache.
@@ -167,7 +178,7 @@ jobs:
           ZSTD_SHA=$(git ls-tree HEAD packages/bin-infra/upstream/zstd 2>/dev/null | awk '{print $3}')
 
           # Stubs cache key = stubs version + curl cache key + source hashes.
-          SOURCE_HASH=$(echo "${BUILD_INFRA_SRC}${BIN_INFRA_SRC}${STUBS_SRC}${STUBS_SCRIPTS}${STUBS_MAKEFILES}${STUBS_DOCKERFILES}${ZSTD_SHA}" | $hash_cmd | cut -d' ' -f1)
+          SOURCE_HASH=$(echo "${BUILD_INFRA_SRC}${BIN_INFRA_SRC}${BUILD_INFRA_LIB}${BIN_INFRA_LIB}${STUBS_SRC}${STUBS_SCRIPTS}${STUBS_MAKEFILES}${STUBS_DOCKERFILES}${ZSTD_SHA}${PNPM_LOCK_HASH}" | $hash_cmd | cut -d' ' -f1)
           COMBINED_VERSION="${STUBS_VERSION}-curl-${CURL_CACHE_KEY}-src-${SOURCE_HASH:0:7}"
           echo "version=$COMBINED_VERSION" >> "$GITHUB_OUTPUT"
           echo "stubs_version=$STUBS_VERSION" >> "$GITHUB_OUTPUT"

@@ -100,11 +100,6 @@ jobs:
     steps:
       - uses: SocketDev/socket-registry/.github/actions/setup-and-install@3362af95fadd1e325cb48e9ad6daff21c112bd72 # main
 
-      - name: Initialize opentui submodule
-        uses: ./.github/actions/init-submodules
-        with:
-          submodules: packages/opentui-builder/upstream/opentui
-
       - name: Enable debug logging
         uses: ./.github/actions/enable-debug-logging
         with:
@@ -202,6 +197,14 @@ jobs:
             packages/opentui-builder/build/${{ steps.build-mode.outputs.mode }}/${{ steps.platform-arch.outputs.platform_arch }}/out/Final
           key: opentui-checkpoints-${{ steps.cache-key.outputs.cache_version }}-v${{ steps.tool-versions.outputs.opentui-version }}-${{ steps.platform-arch.outputs.platform_arch }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.final_hash }}
 
+      - name: Initialize opentui submodule
+        # Gated on cache-miss: cache key uses `git ls-tree HEAD` so no
+        # submodule checkout is required to compute it.
+        if: steps.opentui-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
+        uses: ./.github/actions/init-submodules
+        with:
+          submodules: packages/opentui-builder/upstream/opentui
+
       - name: Setup Zig
         if: steps.opentui-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
         uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
@@ -226,7 +229,11 @@ jobs:
         with:
           path: |
             ~/.cache/zig
-          key: zig-cache-${{ matrix.os }}-${{ matrix.arch }}-${{ env.ZIG_VERSION }}
+          # Include matrix.libc so linux-x64 glibc and linux-x64-musl
+          # don't share a cache — Zig compiles them against different
+          # target triples (x86_64-linux-gnu vs x86_64-linux-musl), and
+          # sharing would let one entry overwrite the other's artifacts.
+          key: zig-cache-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.libc && format('-{0}', matrix.libc) || '' }}-${{ env.ZIG_VERSION }}
 
       - name: Build opentui native module
         id: build
@@ -289,6 +296,7 @@ jobs:
           name: opentui-${{ steps.platform-arch.outputs.platform_arch }}
           path: packages/opentui-builder/build/${{ steps.build-mode.outputs.mode }}/${{ steps.platform-arch.outputs.platform_arch }}/out/Final/
           retention-days: 30
+          compression-level: 0  # Already-compressed binary artifact
           if-no-files-found: error
 
   release:

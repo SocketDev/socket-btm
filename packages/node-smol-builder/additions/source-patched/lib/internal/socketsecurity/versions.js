@@ -1344,10 +1344,15 @@ function satisfies(version, range, ecosystem = 'npm') {
   range = StringPrototypeTrim(range)
 
   // Per npm semver, an empty or all-whitespace range is equivalent to '*'
-  // and matches every version. Short-circuit so compileRange('') doesn't
-  // end up producing a `[undefined]` comparator that fails every match.
+  // and matches every version EXCEPT prereleases. npm's rule:
+  // "A pre-release version will only be satisfied by a range that
+  //  explicitly includes a pre-release in the same [major, minor, patch]
+  //  tuple." So `satisfies('1.0.0-alpha', '*')` is false.
+  // We short-circuit here rather than routing through compileRange so
+  // the regex machinery doesn't produce a `[undefined]` comparator, but
+  // we still need to honor the prerelease exclusion.
   if (range === '' || range === '*' || range === 'latest') {
-    return true
+    return !v.prerelease || v.prerelease.length === 0
   }
 
   const compiled = compileRange(range, ecosystem)

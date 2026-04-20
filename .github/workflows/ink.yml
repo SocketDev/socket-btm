@@ -144,6 +144,7 @@ jobs:
           project: 8fpj9495vw
           platforms: linux/amd64
           build-args: |
+            NODE_VERSION=${{ steps.tool-versions.outputs.node-version }}
             INK_VERSION=${{ steps.tool-versions.outputs.ink-version }}
             BUILD_MODE=prod
             PLATFORM_ARCH=linux-x64
@@ -226,6 +227,7 @@ jobs:
           name: ink-prepatched
           path: packages/ink-builder/dist/
           retention-days: 30
+          compression-level: 0  # Already-compressed binary artifact
           if-no-files-found: error
 
       - name: Cleanup before cache save

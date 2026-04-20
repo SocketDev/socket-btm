@@ -371,6 +371,9 @@ void FFIBinding::Open(const FunctionCallbackInfo<Value>& args) {
   lib->id = state->next_library_id++;
 
   uint32_t id = lib->id;
+  // FFIState reserves its hash buckets at construction (see binding.h)
+  // so this insert is rehash-free for typical workloads and won't
+  // bad_alloc under -fno-exceptions.
   state->libraries[id] = std::move(lib);
 
   args.GetReturnValue().Set(Uint32::New(isolate, id));

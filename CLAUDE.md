@@ -203,8 +203,9 @@ ALWAYS use `ObjectKeys()` + indexed for-loop (faster than `for...in` with `hasOw
     return;  // or roll back any partial state first
   }
   ```
-  For `std::make_unique`, use `std::unique_ptr<T>(new (std::nothrow) T(...))`. Helper classes like `FFIBinding::GetStateOrThrow` / `CheckObjectPoolOrThrow` consolidate this on hot call sites.
-  Async work that escapes the current stack (`uv_write`, `uv_queue_work`, `setTimeout`-style) MUST allocate its buffer/state on the heap alongside the libuv request — never on the stack — and `delete` in the callback. Stack buffers passed to async `uv_write` are a use-after-stack bug (libuv reads the buffer at send time, not at `uv_write()` call time).
+  For `std::make_unique`, use `std::unique_ptr<T>(new (std::nothrow) T(...))`. Helper classes like `FFIBinding::GetStateOrThrow` / `CheckObjectPoolOrThrow` / `CheckChunkPoolOrThrow` consolidate this on hot call sites.
+  For `std::unordered_map` / `std::vector`: insertion can still `bad_alloc` through the allocator even after the wrapped `new` is nothrow — mitigate by calling `.reserve(N)` once at state construction so typical-workload inserts never rehash, and cap user-controlled sizes before `.resize(n)` / `vector<T>(n)` with an explicit bound check.
+  Async work that escapes the current stack (`uv_write`, `uv_queue_work`, `setTimeout`-style) MUST allocate its buffer/state on the heap alongside the libuv request — never on the stack — and `delete` in the callback. Stack buffers passed to async `uv_write` are a use-after-stack bug (libuv reads the buffer at send time, not at `uv_write()` call time). If the uv call returns non-zero, the callback will NOT fire — the caller owns the state and must `delete` it on the error path.
 - **ALWAYS use full `socketsecurity/...` include paths** (e.g., `#include "socketsecurity/http/http_fast_response.h"`)
 - `env-inl.h` vs `env.h`: include `env-inl.h` if .cc file uses `Environment*` methods
 
@@ -321,11 +322,33 @@ When modifying source, bump `.github/cache-versions.json` for all dependents:
 
 ### Package Names
 
+**Core binary-injection suite:**
 - **binject**: Injects data into binaries (SEA resources, VFS archives)
 - **binpress**: Compresses binaries (zstd/UPX)
 - **binflate**: Decompresses binaries
 - **stubs-builder**: Builds self-extracting stub binaries
-- **node-smol-builder**: Builds custom Node.js binary with Socket patches
+
+**Infrastructure (canonical TypeScript helpers — additions/source-patched/ mirrors these):**
+- **build-infra**: Cross-package build helpers (checkpoint-manager, platform-mappings, release-checksums, docker-builder)
+- **bin-infra**: Binary-manipulation helpers (zstd bindings, compression utilities)
+
+**Custom Node.js:**
+- **node-smol-builder**: Builds custom Node.js binary with Socket patches — provides the `node:smol-*` built-in modules (`smol-ffi`, `smol-http`, `smol-https`, `smol-ilp`, `smol-manifest`, `smol-purl`, `smol-sql`, `smol-versions`, `smol-vfs`)
+
+**Native library builders (each produces a shared/static library consumed by node-smol or stubs):**
+- **curl-builder**: Builds libcurl + mbedTLS (used by stubs for HTTP)
+- **lief-builder**: Builds LIEF (used by binject for Mach-O/ELF/PE manipulation)
+- **libpq-builder**: Builds libpq (PostgreSQL client, used by node:smol-sql)
+
+**Native Node.js addons (each produces a `.node` binary):**
+- **iocraft-builder**: Rust → .node; TUI rendering primitives
+- **opentui-builder**: Zig → .node; terminal UI layer
+- **yoga-layout-builder**: Yoga Layout → WASM; flexbox for ink
+- **ink-builder**: React for terminals; consumes yoga-layout and iocraft
+
+**ML/models:**
+- **onnxruntime-builder**: Builds ONNX Runtime → WASM
+- **codet5-models-builder**, **minilm-builder**, **models**: Model pipeline (downloads → converts → quantizes → optimizes)
 
 ## Codex Usage
 

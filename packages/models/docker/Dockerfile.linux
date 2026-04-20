@@ -3,13 +3,10 @@
 
 FROM ubuntu:22.04 AS build
 
-# Cache buster for forcing rebuilds when dependencies change
-ARG CACHE_BUSTER=default
-
+# Explicit cache-version tag from cache-versions.json; bumping this invalidates layers below.
 # Install build dependencies.
 ARG PNPM_VERSION=11.0.0-rc.0
-RUN echo "Cache buster: ${CACHE_BUSTER}" && \
-    export DEBIAN_FRONTEND=noninteractive && \
+RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update && \
     apt-get install -y \
         build-essential \

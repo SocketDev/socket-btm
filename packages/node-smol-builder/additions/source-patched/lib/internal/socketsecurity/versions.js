@@ -1216,6 +1216,10 @@ function inc(version, release, ecosystem = 'npm', identifier) {
           ArrayPrototypePush(newPre, last + 1)
           return `${v.major}.${v.minor}.${v.patch}-${ArrayPrototypeJoin(newPre, '.')}`
         }
+        // Non-numeric tail (e.g. `1.0.0-alpha`) — append `.0` per npm semver.
+        const newPre = ArrayFrom(v.prerelease)
+        ArrayPrototypePush(newPre, 0)
+        return `${v.major}.${v.minor}.${v.patch}-${ArrayPrototypeJoin(newPre, '.')}`
       }
       // Per semver: default to numeric identifier 0 (not 'alpha')
       if (identifier) {

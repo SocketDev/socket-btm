@@ -7,8 +7,7 @@ ARG BUILDPLATFORM
 
 FROM almalinux:8 AS build
 
-# Cache buster for forcing rebuilds when dependencies change
-ARG CACHE_BUSTER=default
+# Explicit cache-version tag from cache-versions.json; bumping this invalidates layers below.
 ARG CACHE_VERSION=unset
 
 # Install build dependencies.
@@ -16,8 +15,7 @@ ARG CACHE_VERSION=unset
 # We use GCC Toolset 13 for C++20 support while maintaining glibc 2.28 compatibility.
 # Enable PowerTools for ninja-build, EPEL for ccache.
 ARG PNPM_VERSION=11.0.0-rc.0
-RUN echo "Cache buster: ${CACHE_BUSTER} ${CACHE_VERSION}" && \
-    dnf -y update && \
+RUN dnf -y update && \
     dnf -y install epel-release dnf-plugins-core && \
     dnf config-manager --set-enabled powertools && \
     dnf -y install \

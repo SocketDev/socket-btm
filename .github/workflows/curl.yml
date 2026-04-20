@@ -247,7 +247,18 @@ jobs:
         if: matrix.os == 'macos' && (steps.curl-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
         shell: bash
         run: |
-          brew install cmake ccache
+          # Retry to handle transient brew/Formulae registry failures.
+          for i in 1 2 3; do
+            if brew install cmake ccache; then
+              break
+            fi
+            if [ "$i" -eq 3 ]; then
+              echo "× brew install failed after 3 attempts"
+              exit 1
+            fi
+            echo "Attempt $i failed, retrying in 10 seconds..."
+            sleep 10
+          done
 
       - name: Setup build toolchain (Windows x64)
         if: matrix.os == 'windows' && !matrix.cross_compile && (steps.curl-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)

@@ -156,8 +156,11 @@ jobs:
           WASM_SYNC_HASH=$(echo "${WASM_OPTIMIZED_HASH}${WASM_SYNC_DIR}${WASM_SYNC_WRAPPER}" | $hash_cmd | cut -d' ' -f1)
 
           # finalized: wasm-synced + finalized (most complete hash)
+          # Also includes Dockerfile (build recipe) and yoga upstream submodule SHA.
           FINAL_DIR=$(hash_dir packages/yoga-layout-builder/scripts/finalized)
-          FINAL_HASH=$(echo "${WASM_SYNC_HASH}${FINAL_DIR}" | $hash_cmd | cut -d' ' -f1)
+          DOCKERFILE_HASH=$(if [ -f packages/yoga-layout-builder/docker/Dockerfile.linux ]; then $hash_cmd packages/yoga-layout-builder/docker/Dockerfile.linux | cut -d' ' -f1; else echo ""; fi)
+          YOGA_SHA=$(git ls-tree HEAD packages/yoga-layout-builder/upstream/yoga 2>/dev/null | awk '{print $3}' || echo "none")
+          FINAL_HASH=$(echo "${WASM_SYNC_HASH}${FINAL_DIR}${DOCKERFILE_HASH}${YOGA_SHA}" | $hash_cmd | cut -d' ' -f1)
 
           echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
           echo "source_cloned_hash=${SOURCE_CLONED_HASH}" >> $GITHUB_OUTPUT

@@ -25,8 +25,6 @@ ARG BUILD_MODE=dev
 # The Dockerfile always runs Linux; platform-arch mirrors the runner (x64 or arm64).
 ARG PLATFORM_ARCH=linux-x64
 ARG CACHE_VERSION=v1
-ARG CACHE_BUSTER=
-
 # =============================================================================
 # Stage 1: Build yoga-layout-builder (to get yoga-sync.mjs)
 # =============================================================================
@@ -79,8 +77,6 @@ ARG INK_VERSION
 ARG BUILD_MODE
 ARG PLATFORM_ARCH
 ARG CACHE_VERSION
-ARG CACHE_BUSTER
-
 WORKDIR /build
 
 # Copy package files for dependency installation

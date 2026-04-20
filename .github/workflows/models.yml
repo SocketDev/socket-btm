@@ -150,9 +150,11 @@ jobs:
           CONVERTED_HASH=$(echo "${DOWNLOADED_HASH}${CONVERTED_DIR}" | $hash_cmd | cut -d' ' -f1)
 
           # quantized phase (final - most complete hash)
-          # Note: finalized is a checkpoint marker, not a separate build phase with scripts
+          # Note: finalized is a checkpoint marker, not a separate build phase with scripts.
+          # Also includes Dockerfile (Depot build recipe).
           QUANTIZED_DIR=$(hash_dir packages/models/scripts/quantized)
-          QUANTIZED_HASH=$(echo "${CONVERTED_HASH}${QUANTIZED_DIR}" | $hash_cmd | cut -d' ' -f1)
+          DOCKERFILE_HASH=$(if [ -f packages/models/docker/Dockerfile.linux ]; then $hash_cmd packages/models/docker/Dockerfile.linux | cut -d' ' -f1; else echo ""; fi)
+          QUANTIZED_HASH=$(echo "${CONVERTED_HASH}${QUANTIZED_DIR}${DOCKERFILE_HASH}" | $hash_cmd | cut -d' ' -f1)
 
           echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
           echo "downloaded_hash=${DOWNLOADED_HASH}" >> $GITHUB_OUTPUT

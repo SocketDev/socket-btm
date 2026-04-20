@@ -772,9 +772,14 @@ TrieRouter::MatchResult TrieRouter::Match(const char* pathname, size_t len) cons
 
 BufferPool::BufferPool(size_t buffer_size, size_t pool_size)
     : buffer_size_(buffer_size), pool_size_(pool_size) {
-  // Pre-allocate some buffers
+  // Pre-allocate some buffers. Stop on OOM — pool remains usable at reduced
+  // capacity; Acquire() handles empty free_list_ via fallback allocation.
   for (size_t i = 0; i < pool_size / 2; ++i) {
-    free_list_.push_back(static_cast<uint8_t*>(std::malloc(buffer_size)));
+    uint8_t* buf = static_cast<uint8_t*>(std::malloc(buffer_size));
+    if (!buf) {
+      break;
+    }
+    free_list_.push_back(buf);
   }
 }
 

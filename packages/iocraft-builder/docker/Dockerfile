@@ -22,8 +22,6 @@ ARG BUILD_MODE=prod
 ARG RUST_TARGET=x86_64-unknown-linux-gnu
 ARG PLATFORM_ARCH=linux-x64
 ARG CACHE_VERSION=v1
-ARG CACHE_BUSTER=
-
 # =============================================================================
 # Stage 1: Build iocraft native module
 # =============================================================================
@@ -33,8 +31,6 @@ ARG BUILD_MODE
 ARG RUST_TARGET
 ARG PLATFORM_ARCH
 ARG CACHE_VERSION
-ARG CACHE_BUSTER
-
 WORKDIR /build
 
 # Install Rust toolchain

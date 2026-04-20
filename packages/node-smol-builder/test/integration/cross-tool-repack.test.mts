@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url'
 
 import { makeExecutable } from 'build-infra/lib/build-helpers'
 import { getBuildMode } from 'build-infra/lib/constants'
+import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { spawn } from '@socketsecurity/lib/spawn'
@@ -35,10 +36,10 @@ const PROJECT_ROOT = path.join(__dirname, '..', '..', '..', '..')
 // Package binaries
 const BUILD_MODE = getBuildMode()
 
-function getBinaryPath(packageName, binaryName) {
+async function getBinaryPath(packageName, binaryName) {
   const ext = process.platform === 'win32' ? '.exe' : ''
-  const platformArch = `${process.platform}-${process.arch}`
-  // Try platform-arch path first, then legacy path without it
+  const platformArch = await getCurrentPlatformArch()
+  // Try platform-arch path first (includes -musl suffix on Alpine), then legacy path without it.
   const withPlatform = path.join(
     PROJECT_ROOT,
     'packages',
@@ -65,8 +66,8 @@ function getBinaryPath(packageName, binaryName) {
   )
 }
 
-const BINPRESS = getBinaryPath('binpress', 'binpress')
-const BINJECT = getBinaryPath('binject', 'binject')
+const BINPRESS = await getBinaryPath('binpress', 'binpress')
+const BINJECT = await getBinaryPath('binject', 'binject')
 const NODE_BINARY = getLatestFinalBinary()
 
 let testDir: string

@@ -211,6 +211,39 @@ const COMMON_HEADER_NAMES = ObjectFreeze({
 const DEFAULT_MAX_BODY_SIZE = 10 * 1024 * 1024 // 10MB
 const DEFAULT_MAX_HEADER_SIZE = 16 * 1024 // 16KB
 
+// ============================================================================
+// HTTP/2 Server Defaults
+// ============================================================================
+
+// Maximum concurrent HTTP/2 streams per connection (default: 100 in Node, bumped).
+const DEFAULT_HTTP2_MAX_CONCURRENT_STREAMS = 1000
+// Initial HTTP/2 window size (1 MiB) — larger than RFC 7540 default for throughput.
+const DEFAULT_HTTP2_INITIAL_WINDOW_SIZE = 1_048_576
+// Maximum HTTP/2 frame size (RFC 7540 minimum).
+const DEFAULT_HTTP2_MAX_FRAME_SIZE = 16_384
+// Maximum HTTP/2 header list size (64 KiB).
+const DEFAULT_HTTP2_MAX_HEADER_LIST_SIZE = 65_536
+// Idle HTTP/2 session timeout (2 minutes).
+const DEFAULT_HTTP2_SESSION_TIMEOUT = 120_000
+
+// ============================================================================
+// HTTP Server Defaults
+// ============================================================================
+
+// Default listen port when none specified.
+const DEFAULT_SERVER_PORT = 3000
+// Default bind address — all interfaces.
+const DEFAULT_SERVER_HOSTNAME = '0.0.0.0'
+
+// ============================================================================
+// undici Client Defaults
+// ============================================================================
+
+// Keep-alive timeout before closing idle sockets (10s).
+const DEFAULT_KEEP_ALIVE_TIMEOUT = 10_000
+// Maximum keep-alive timeout a server response may request (10 min).
+const DEFAULT_KEEP_ALIVE_MAX_TIMEOUT = 600_000
+
 // Empty string constant to avoid allocations
 const EMPTY_STRING = ''
 
@@ -271,6 +304,18 @@ module.exports = {
   // Limits
   DEFAULT_MAX_BODY_SIZE,
   DEFAULT_MAX_HEADER_SIZE,
+  // HTTP/2 defaults
+  DEFAULT_HTTP2_MAX_CONCURRENT_STREAMS,
+  DEFAULT_HTTP2_INITIAL_WINDOW_SIZE,
+  DEFAULT_HTTP2_MAX_FRAME_SIZE,
+  DEFAULT_HTTP2_MAX_HEADER_LIST_SIZE,
+  DEFAULT_HTTP2_SESSION_TIMEOUT,
+  // Server defaults
+  DEFAULT_SERVER_PORT,
+  DEFAULT_SERVER_HOSTNAME,
+  // Client defaults
+  DEFAULT_KEEP_ALIVE_TIMEOUT,
+  DEFAULT_KEEP_ALIVE_MAX_TIMEOUT,
   // Constants
   EMPTY_STRING,
 }

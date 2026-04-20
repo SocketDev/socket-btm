@@ -95,7 +95,7 @@ function writeNotModified(response) {
 // Fast path: 404 Not Found with minimal JSON error.
 function writeNotFound(response, message) {
   const json = message
-    ? JSONStringify({ error: 'Not Found', message })
+    ? JSONStringify({ __proto__: null, error: 'Not Found', message })
     : '{"error":"Not Found"}'
   return writeJsonResponse(response, 404, json)
 }

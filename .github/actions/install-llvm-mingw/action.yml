@@ -1,5 +1,5 @@
 name: Install llvm-mingw
-description: Downloads llvm-mingw and prepends it to PATH — Windows ARM64 cross-compilation
+description: Downloads llvm-mingw and prepends it to PATH — Windows ARM64 cross-compilation. Cached per version.
 
 inputs:
   version:
@@ -10,7 +10,15 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Install llvm-mingw
+    - name: Restore llvm-mingw cache
+      id: llvm-mingw-cache
+      uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+      with:
+        path: C:/llvm-mingw
+        key: llvm-mingw-${{ inputs.version }}-ucrt-x86_64
+
+    - name: Download llvm-mingw (cache miss only)
+      if: steps.llvm-mingw-cache.outputs.cache-hit != 'true'
       shell: bash
       env:
         LLVM_MINGW_VERSION: ${{ inputs.version }}
@@ -21,4 +29,11 @@ runs:
         curl -fsSL -o llvm-mingw.zip \
           "https://github.com/mstorsjo/llvm-mingw/releases/download/${LLVM_MINGW_VERSION}/${ARCHIVE}"
         7z x llvm-mingw.zip -o"C:/llvm-mingw"
+        rm -f llvm-mingw.zip
+
+    - name: Prepend llvm-mingw to PATH
+      shell: bash
+      env:
+        LLVM_MINGW_VERSION: ${{ inputs.version }}
+      run: |
         echo "C:/llvm-mingw/llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-x86_64/bin" >> $GITHUB_PATH

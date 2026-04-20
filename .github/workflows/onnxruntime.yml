@@ -145,9 +145,11 @@ jobs:
           WASM_SYNC_WRAPPER=$($hash_cmd packages/build-infra/wasm-synced/wasm-sync-wrapper.mts | cut -d' ' -f1)
           WASM_SYNC_HASH=$(echo "${WASM_OPTIMIZED_HASH}${WASM_SYNC_DIR}${WASM_SYNC_WRAPPER}" | $hash_cmd | cut -d' ' -f1)
 
-          # finalized
+          # finalized — includes Dockerfile (build recipe) and onnxruntime upstream submodule SHA.
           FINAL_DIR=$(hash_dir packages/onnxruntime-builder/scripts/finalized)
-          FINAL_HASH=$(echo "${WASM_SYNC_HASH}${FINAL_DIR}" | $hash_cmd | cut -d' ' -f1)
+          DOCKERFILE_HASH=$(if [ -f packages/onnxruntime-builder/docker/Dockerfile.linux ]; then $hash_cmd packages/onnxruntime-builder/docker/Dockerfile.linux | cut -d' ' -f1; else echo ""; fi)
+          ONNX_SHA=$(git ls-tree HEAD packages/onnxruntime-builder/upstream/onnxruntime 2>/dev/null | awk '{print $3}' || echo "none")
+          FINAL_HASH=$(echo "${WASM_SYNC_HASH}${FINAL_DIR}${DOCKERFILE_HASH}${ONNX_SHA}" | $hash_cmd | cut -d' ' -f1)
 
           echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
           echo "source_cloned_hash=${SOURCE_CLONED_HASH}" >> $GITHUB_OUTPUT
@@ -211,15 +213,6 @@ jobs:
           cache-hit: ${{ steps.onnx-checkpoint-cache.outputs.cache-hit }}
           cache-valid: ${{ steps.validate-cache.outputs.valid }}
           platform-arch: ${{ env.PLATFORM_ARCH }}
-
-      - name: Install build tools
-        if: |
-          (steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
-          steps.restore-checkpoint.outputs.build-required == 'true'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build
-          echo "Installed ninja-build for faster builds"
 
       - name: Build ONNX Runtime WASM with Depot (offloads compute)
         id: build

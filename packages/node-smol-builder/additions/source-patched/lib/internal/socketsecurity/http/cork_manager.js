@@ -16,7 +16,7 @@ const kSocket = SymbolCtor('kSocket')
 class CorkManager {
   constructor(socket) {
     this[kSocket] = socket
-    this[kCorkTimeout] = null
+    this[kCorkTimeout] = undefined
   }
 
   // Cork the socket for batched writes.
@@ -33,7 +33,7 @@ class CorkManager {
 
     // Set timeout to auto-uncork if user forgets. unref() so the pending
     // 1ms timer doesn't keep the event loop alive during graceful shutdown.
-    if (this[kCorkTimeout] === null) {
+    if (this[kCorkTimeout] === undefined) {
       this[kCorkTimeout] = SetTimeout(() => {
         this.uncork()
       }, 1)
@@ -46,9 +46,9 @@ class CorkManager {
     const socket = this[kSocket]
 
     // Clear timeout.
-    if (this[kCorkTimeout] !== null) {
+    if (this[kCorkTimeout] !== undefined) {
       ClearTimeout(this[kCorkTimeout])
-      this[kCorkTimeout] = null
+      this[kCorkTimeout] = undefined
     }
 
     if (!socket || socket.destroyed) {
@@ -72,7 +72,7 @@ class CorkManager {
 
   destroy() {
     this.uncork()
-    this[kSocket] = null
+    this[kSocket] = undefined
   }
 }
 

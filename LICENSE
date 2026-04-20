@@ -19,3 +19,13 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+--------------------------------------------------------------------------------
+
+THIRD-PARTY ATTRIBUTIONS
+
+packages/node-smol-builder/additions/source-patched/src/socketsecurity/compat/glibc_compat.cc
+includes code adapted from libc++abi 19.1.0
+(https://github.com/llvm/llvm-project/blob/llvmorg-19.1.0/libcxxabi/src/cxa_thread_atexit.cpp),
+used under the terms of the Apache License 2.0 with the LLVM Exception.
+See: https://llvm.org/LICENSE.txt

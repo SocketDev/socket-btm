@@ -43,7 +43,10 @@ class AuthCache {
       return { __proto__: null, cached: false, ok: false }
     }
 
-    // Cache for future requests.
+    // Cache for future requests. Delete-then-set so refreshed entries move
+    // to the end of insertion order (true LRU); plain set on an existing key
+    // preserves position and risks premature eviction.
+    MapPrototypeDelete(this.cache, token)
     MapPrototypeSet(this.cache, token, {
       __proto__: null,
       expiry: DateNow() + this.ttl,

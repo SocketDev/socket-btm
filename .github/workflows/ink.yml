@@ -95,35 +95,46 @@ jobs:
             exit 1
           fi
 
-          # Hash key files
+          hash_tree() {
+            local dir="$1"
+            if [ -d "$dir" ]; then
+              find "$dir" -type f 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1
+            else
+              echo ""
+            fi
+          }
+
+          # Hash all inputs that affect the built dist/:
+          # - packages/ink-builder/package.json (sources.ink version)
+          # - packages/ink-builder/scripts/ (build logic)
+          # - packages/ink-builder/patches/ (applied to npm-downloaded ink)
+          # - packages/ink-builder/docker/ (Dockerfile)
+          # - yoga-layout-builder upstream submodule SHA (ink embeds yoga-sync.mjs)
           PACKAGE_JSON=$($hash_cmd packages/ink-builder/package.json | cut -d' ' -f1)
-          BUILD_MJS=$($hash_cmd packages/ink-builder/scripts/build.mts | cut -d' ' -f1)
+          SCRIPTS_HASH=$(hash_tree packages/ink-builder/scripts)
+          PATCHES_HASH=$(hash_tree packages/ink-builder/patches)
+          DOCKER_HASH=$(hash_tree packages/ink-builder/docker)
+          YOGA_SHA=$(git ls-tree HEAD packages/yoga-layout-builder/upstream/yoga 2>/dev/null | awk '{print $3}' || echo "none")
 
-          # Hash patches directory
-          PATCHES_HASH=""
-          if [ -d "packages/ink-builder/patches" ]; then
-            PATCHES_HASH=$(find packages/ink-builder/patches -type f -name "*.patch" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1 || echo "")
-          fi
-
-          # Combined hash (includes yoga cache version since ink depends on yoga-sync)
-          FINAL_HASH=$(echo "${INK_CACHE_VERSION}${YOGA_CACHE_VERSION}${PACKAGE_JSON}${BUILD_MJS}${PATCHES_HASH}" | $hash_cmd | cut -d' ' -f1)
+          FINAL_HASH=$(echo "${INK_CACHE_VERSION}${YOGA_CACHE_VERSION}${PACKAGE_JSON}${SCRIPTS_HASH}${PATCHES_HASH}${DOCKER_HASH}${YOGA_SHA}" | $hash_cmd | cut -d' ' -f1)
 
           echo "ink_cache_version=${INK_CACHE_VERSION}" >> $GITHUB_OUTPUT
           echo "yoga_cache_version=${YOGA_CACHE_VERSION}" >> $GITHUB_OUTPUT
           echo "final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
 
-      - name: Restore ink checkpoint cache
+      - name: Restore ink dist cache
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         id: ink-checkpoint-cache
         if: ${{ !inputs.force }}
         with:
+          # Cache the built dist/ directly so cache-hit runs skip build+verify+tests.
           path: |
-            packages/ink-builder/build/checkpoints
-          key: ink-checkpoints-${{ steps.cache-key.outputs.ink_cache_version }}-v${{ steps.tool-versions.outputs.ink-version }}-${{ runner.os }}-${{ steps.cache-key.outputs.final_hash }}
+            packages/ink-builder/dist
+          key: ink-dist-${{ steps.cache-key.outputs.ink_cache_version }}-v${{ steps.tool-versions.outputs.ink-version }}-${{ runner.os }}-${{ steps.cache-key.outputs.final_hash }}
 
       - name: Build ink with Depot (offloads compute, ensures yoga-sync available)
         id: build
-        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true'
+        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
         uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0
         with:
           project: 8fpj9495vw
@@ -140,7 +151,7 @@ jobs:
           context: .
 
       - name: Verify Depot build output
-        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true'
+        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
         run: |
           echo "Verifying Depot build output structure..."
           ls -lah packages/ink-builder/build/
@@ -156,23 +167,12 @@ jobs:
           ls -lh packages/ink-builder/build/dist/
 
       - name: Copy dist from Depot build output
-        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true'
+        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
         run: |
-          # Depot outputs to build/dist, copy to packages/ink-builder/dist for consistency
-          if [ -d "packages/ink-builder/build/dist" ]; then
-            rm -rf packages/ink-builder/dist
-            cp -r packages/ink-builder/build/dist packages/ink-builder/dist
-            echo "✅ Copied dist from Depot build"
-          fi
-
-      - name: Restore from cache (if cache hit)
-        if: steps.ink-checkpoint-cache.outputs.cache-hit == 'true'
-        shell: bash
-        run: |
-          echo "Cache hit - running local build to restore dist..."
-          cd packages/ink-builder
-          pnpm run build
-          cd ../..
+          # Depot outputs to build/dist, copy to packages/ink-builder/dist for consistency.
+          rm -rf packages/ink-builder/dist
+          cp -r packages/ink-builder/build/dist packages/ink-builder/dist
+          echo "✅ Copied dist from Depot build"
 
       - name: Validate build output
         run: |
@@ -210,20 +210,11 @@ jobs:
           ls -lh packages/ink-builder/dist/build/
 
       - name: Run tests
+        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
         shell: bash
         run: |
           cd packages/ink-builder
           pnpm test
-
-      - name: Create checkpoint
-        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true'
-        env:
-          INK_VERSION: ${{ steps.tool-versions.outputs.ink-version }}
-        run: |
-          mkdir -p packages/ink-builder/build/checkpoints
-          date > packages/ink-builder/build/checkpoints/ink-built
-          echo "INK_VERSION=${INK_VERSION}" >> packages/ink-builder/build/checkpoints/ink-built
-          echo "✅ Checkpoint created"
 
       - name: Upload ink artifacts
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -234,22 +225,10 @@ jobs:
           if-no-files-found: error
 
       - name: Cleanup before cache save
-        if: always()
+        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
         run: |
-          echo "Cleaning up temporary files before cache save..."
-
-          # Remove build output directories that shouldn't be cached
-          TEMP_DIRS=(
-            "packages/ink-builder/build/dist"
-          )
-
-          for DIR in "${TEMP_DIRS[@]}"; do
-            if [ -d "$DIR" ]; then
-              echo "Removing: $DIR"
-              rm -rf "$DIR"
-            fi
-          done
-
+          # Remove the intermediate build/ export so only dist/ gets cached.
+          rm -rf packages/ink-builder/build
           echo "✅ Cleanup complete"
 
   release:

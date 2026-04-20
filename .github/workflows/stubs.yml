@@ -245,14 +245,9 @@ jobs:
           # Add MinGW to PATH.
           echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> $GITHUB_PATH
 
-      - name: Setup build environment (Windows ARM64 cross-compile)
+      - name: Install llvm-mingw (Windows ARM64 cross-compile)
         if: matrix.os == 'windows' && matrix.arch == 'arm64' && (steps.stubs-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
-        shell: bash
-        run: |
-          # Download and extract llvm-mingw for ARM64 cross-compilation.
-          curl -fsSL -o llvm-mingw.zip "https://github.com/mstorsjo/llvm-mingw/releases/download/20250528/llvm-mingw-20250528-ucrt-x86_64.zip"
-          7z x llvm-mingw.zip -o"C:/llvm-mingw"
-          echo "C:/llvm-mingw/llvm-mingw-20250528-ucrt-x86_64/bin" >> $GITHUB_PATH
+        uses: ./.github/actions/install-llvm-mingw
 
       - name: Build stub (macOS/Windows)
         if: matrix.os != 'linux' && (steps.stubs-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
@@ -273,12 +268,13 @@ jobs:
         env:
           BUILD_MODE: prod
           PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
+          MATRIX_OS: ${{ matrix.os }}
         run: |
           # Binary location differs between Docker (Linux) and native (macOS/Windows).
-          if [ "${{ matrix.os }}" = "linux" ]; then
+          if [ "$MATRIX_OS" = "linux" ]; then
             # Docker export puts binary in out/ directory.
             STUB_FILE="out/smol_stub"
-          elif [ "${{ matrix.os }}" = "windows" ]; then
+          elif [ "$MATRIX_OS" = "windows" ]; then
             # Native build outputs to build/prod/${PLATFORM_ARCH}/out/Final/.
             STUB_FILE="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/smol_stub.exe"
           else
@@ -341,28 +337,12 @@ jobs:
 
           # Create tarball (preserving just the binary name).
           OUTPUT_DIR="packages/stubs-builder"
-
           tar -czf "${OUTPUT_DIR}/${ARTIFACT_NAME}.tar.gz" -C "${STUB_DIR}" "$STUB_FILE"
 
           echo "Created artifact: ${ARTIFACT_NAME}.tar.gz"
           ls -lh "${OUTPUT_DIR}/${ARTIFACT_NAME}.tar.gz"
 
-      - name: Set artifact name
-        shell: bash
-        run: |
-          PLATFORM="${{ matrix.platform }}"
-          ARCH="${{ matrix.arch }}"
-          LIBC="${{ matrix.libc }}"
-
-          # Transform win32 → win for consistency with other tools.
-          if [ "$PLATFORM" = "win32" ]; then
-            PLATFORM="win"
-          fi
-
-          ARTIFACT_NAME="smol-stub-${PLATFORM}-${ARCH}"
-          if [ "${LIBC}" = "musl" ]; then
-            ARTIFACT_NAME="${ARTIFACT_NAME}-musl"
-          fi
+          # Export the name for downstream upload-artifact step.
           echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> $GITHUB_ENV
 
       - name: Upload artifact

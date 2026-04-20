@@ -21,7 +21,7 @@ class ZeroCopyBuffer {
     const char* data,
     size_t length);
 
-  // Acquire buffer from pool.
+  // Acquire buffer from pool. Returns nullptr on malloc failure — callers MUST null-check.
   char* AcquireBuffer(size_t size);
 
   // Release buffer back to pool.

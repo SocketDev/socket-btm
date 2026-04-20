@@ -276,6 +276,7 @@ class BufferPool {
   explicit BufferPool(size_t buffer_size, size_t pool_size = 64);
   ~BufferPool();
 
+  // Returns nullptr on malloc failure — callers MUST null-check.
   uint8_t* Acquire();
   void Release(uint8_t* buffer);
 

@@ -15,6 +15,14 @@ const {
   Http2CreateSecureServer,
 } = require('internal/socketsecurity/safe-references')
 
+const {
+  DEFAULT_HTTP2_INITIAL_WINDOW_SIZE,
+  DEFAULT_HTTP2_MAX_CONCURRENT_STREAMS,
+  DEFAULT_HTTP2_MAX_FRAME_SIZE,
+  DEFAULT_HTTP2_MAX_HEADER_LIST_SIZE,
+  DEFAULT_HTTP2_SESSION_TIMEOUT,
+} = require('internal/socketsecurity/http/constants')
+
 // Lazy debug — createDebug reads process.env.DEBUG which may not be available
 // during early module loading (Node.js bootstrap order).
 let _debug
@@ -35,23 +43,25 @@ function createHttp2Server(options) {
     // overwrite them. Reversed order would let `{maxFrameSize: undefined}` from
     // the caller clobber our secure defaults via `...opts`.
     ...opts,
-    // Allow max concurrent streams (default is 100).
-    maxConcurrentStreams: opts.maxConcurrentStreams || 1000,
+    // Allow max concurrent streams (default is 100). `??` preserves explicit 0.
+    maxConcurrentStreams:
+      opts.maxConcurrentStreams ?? DEFAULT_HTTP2_MAX_CONCURRENT_STREAMS,
 
     // Increase initial window size for better throughput.
-    initialWindowSize: opts.initialWindowSize || 1048576, // 1MB
+    initialWindowSize: opts.initialWindowSize ?? DEFAULT_HTTP2_INITIAL_WINDOW_SIZE,
 
     // Enable server push (even though browsers removed support).
     enablePush: opts.enablePush !== false,
 
     // Set max frame size.
-    maxFrameSize: opts.maxFrameSize || 16384,
+    maxFrameSize: opts.maxFrameSize ?? DEFAULT_HTTP2_MAX_FRAME_SIZE,
 
     // Set max header list size.
-    maxHeaderListSize: opts.maxHeaderListSize || 65536,
+    maxHeaderListSize:
+      opts.maxHeaderListSize ?? DEFAULT_HTTP2_MAX_HEADER_LIST_SIZE,
 
-    // Enable session timeout.
-    sessionTimeout: opts.sessionTimeout || 120_000, // 2 minutes
+    // Enable session timeout (0 = no timeout).
+    sessionTimeout: opts.sessionTimeout ?? DEFAULT_HTTP2_SESSION_TIMEOUT,
   }
 
   return Http2CreateSecureServer(serverOptions)

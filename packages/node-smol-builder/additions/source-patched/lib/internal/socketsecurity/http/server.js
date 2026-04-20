@@ -17,6 +17,11 @@ const {
   TypeError: TypeErrorCtor,
 } = primordials
 
+const {
+  DEFAULT_SERVER_HOSTNAME,
+  DEFAULT_SERVER_PORT,
+} = require('internal/socketsecurity/http/constants')
+
 // Native HTTP binding (lazy).
 let _smolHttpBinding
 function smolHttp() {
@@ -30,8 +35,8 @@ function smolHttp() {
  */
 function createServer(opts) {
   const {
-    port: requestedPort = 3000,
-    hostname = '0.0.0.0',
+    port: requestedPort = DEFAULT_SERVER_PORT,
+    hostname = DEFAULT_SERVER_HOSTNAME,
     fetch: fetchHandler,
     routes: routeHandlers,
   } = opts
@@ -169,8 +174,9 @@ function serve(options) {
   }
 
   // Return a server-like object for the primary.
-  const port = opts.port || 3000
-  const hostname = opts.hostname || '0.0.0.0'
+  // `??` preserves explicit port=0 (OS-assigned) rather than collapsing to the default.
+  const port = opts.port ?? DEFAULT_SERVER_PORT
+  const hostname = opts.hostname ?? DEFAULT_SERVER_HOSTNAME
 
   return {
     __proto__: null,

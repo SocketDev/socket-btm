@@ -128,7 +128,7 @@ class CompressionCache {
       case 'gzip':
         return entry.gzip
       default:
-        return null
+        return undefined
     }
   }
 

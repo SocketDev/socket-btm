@@ -16,6 +16,11 @@ const {
   BufferPrototypeToString,
 } = require('internal/socketsecurity/safe-references')
 
+const {
+  DEFAULT_KEEP_ALIVE_MAX_TIMEOUT,
+  DEFAULT_KEEP_ALIVE_TIMEOUT,
+} = require('internal/socketsecurity/http/constants')
+
 // Lazy module loading.
 let _http, _https
 function getHttp() {
@@ -190,9 +195,9 @@ function setPipelining(depth, options) {
   setGlobalDispatcher(
     new Agent({
       pipelining: depth,
-      connections: options?.connections || null,
-      keepAliveTimeout: 10_000,
-      keepAliveMaxTimeout: 600_000,
+      connections: options?.connections ?? null,
+      keepAliveTimeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
+      keepAliveMaxTimeout: DEFAULT_KEEP_ALIVE_MAX_TIMEOUT,
     }),
   )
 }

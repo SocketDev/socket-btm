@@ -1,0 +1,40 @@
+# @node-versions: v25.9.0
+# @description: Add glibc compat layer source + linker wrap (groundwork for glibc 2.17 floor)
+#
+# Lays the foundation for lowering our Linux glibc floor without yet doing so.
+# Adds:
+# - src/socketsecurity/compat/glibc_compat.cc (Bun-style libc++abi-19.1 fallback)
+# - -Wl,--wrap=__cxa_thread_atexit_impl on Linux
+#
+# On current glibc 2.28 build hosts the wrap is inert: the __wrap_ function
+# dlsym's the real impl and forwards. On a future glibc 2.17 host the fallback
+# activates. No behavior change today.
+#
+# See: https://github.com/oven-sh/bun/pull/29461 for the pattern.
+# Attribution for libc++abi-19.1 port lives in repo LICENSE.
+#
+# NOTE: this patch depends on 004-node-gyp-smol-sources.patch being applied
+# first (filename-order ensures this).
+#
+--- a/node.gyp
++++ b/node.gyp
+@@ -1124,6 +1124,19 @@
+             ],
+           },
+         }],
++        # Socket Security: glibc compatibility layer groundwork.
++        # Inert on current glibc 2.28 build (dlsym forwards to real impl);
++        # activates libc++abi fallback when deployed on glibc 2.17 in the future.
++        # See packages/node-smol-builder/additions/source-patched/src/socketsecurity/compat/glibc_compat.cc.
++        ['OS=="linux"', {
++          'sources': [
++            'src/socketsecurity/compat/glibc_compat.cc',
++          ],
++          'ldflags': [
++            # Wrap __cxa_thread_atexit_impl@GLIBC_2.18. No-op on musl.
++            '-Wl,--wrap=__cxa_thread_atexit_impl',
++          ],
++        }],
+         # Socket Security: Optional io_uring acceleration (Linux only).
+         # Uses bundled liburing from deps/liburing.
+         ['node_use_iouring=="true" and OS=="linux"', {

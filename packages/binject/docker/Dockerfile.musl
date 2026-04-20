@@ -7,12 +7,9 @@ ARG BUILDPLATFORM
 
 FROM alpine:3.20 AS build
 
-# Cache buster for forcing rebuilds when dependencies change
-ARG CACHE_BUSTER=default
-
+# Explicit cache-version tag from cache-versions.json; bumping this invalidates layers below.
 # Install build dependencies.
-RUN echo "Cache buster: ${CACHE_BUSTER}" && \
-    apk add --no-cache \
+RUN apk add --no-cache \
         make \
         cmake \
         g++ \

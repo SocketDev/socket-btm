@@ -7,6 +7,8 @@
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
+import { errorMessage } from 'build-infra/lib/error-utils'
+
 const logger = getDefaultLogger()
 
 async function main() {
@@ -30,6 +32,6 @@ async function main() {
 }
 
 main().catch(error => {
-  logger.error('Setup failed:', error.message)
+  logger.error('Setup failed:', errorMessage(error))
   // Don't fail postinstall - Zig may not be needed for all operations.
 })

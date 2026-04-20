@@ -22,6 +22,7 @@
  *   --docker    Use docker buildx (slower but always available)
  */
 
+import { errorMessage } from 'build-infra/lib/error-utils'
 import { existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -170,12 +171,12 @@ async function main() {
 
     await runTests()
   } catch (error) {
-    logger.error('Error:', error.message)
+    logger.error('Error:', errorMessage(error))
     process.exitCode = 1
   }
 }
 
-main().catch(e => {
-  logger.error(e instanceof Error ? e.message : String(e))
+main().catch(error => {
+  logger.error(errorMessage(error))
   process.exitCode = 1
 })

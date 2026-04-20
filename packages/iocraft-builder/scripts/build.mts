@@ -331,6 +331,6 @@ async function main() {
 // Run build.
 main().catch(error => {
   printError('Build Failed')
-  logger.error(error.message)
+  logger.error(errorMessage(error))
   throw error
 })

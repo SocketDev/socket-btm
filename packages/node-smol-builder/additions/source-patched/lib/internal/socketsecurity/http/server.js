@@ -126,20 +126,35 @@ function serve(options) {
     return createServer(opts)
   }
 
+  // Set when stop() begins so monitor() doesn't respawn workers we're
+  // intentionally killing. Without this, child.kill() exits with
+  // code === null (signal kill), monitor sees `null !== 0` and forks a
+  // replacement, leaking workers past the stop() resolution.
+  let stopping = false
+
   // Monitor a worker for unexpected exit; on crash, fork a replacement
   // and re-arm monitoring on it so the slot keeps self-healing past the
   // first crash.
   function monitor(child) {
-    child.on('exit', code => {
-      if (code !== 0) {
-        const idx = ArrayPrototypeIndexOf(workerProcesses, child)
-        const newChild = fork(entryScript, [], {
-          env: { ...process.env, _SMOL_HTTP_WORKER: '1' },
-          stdio: 'inherit',
-        })
-        if (idx >= 0) workerProcesses[idx] = newChild
-        monitor(newChild)
+    child.on('exit', (code, signal) => {
+      // Don't respawn during shutdown.
+      if (stopping) {
+        return
       }
+      // Treat clean exit (code 0) and signal-terminated exit (code === null
+      // with a signal) as intended; only crashes get replacement workers.
+      if (code === 0 || signal) {
+        return
+      }
+      const idx = ArrayPrototypeIndexOf(workerProcesses, child)
+      const newChild = fork(entryScript, [], {
+        env: { ...process.env, _SMOL_HTTP_WORKER: '1' },
+        stdio: 'inherit',
+      })
+      if (idx >= 0) {
+        workerProcesses[idx] = newChild
+      }
+      monitor(newChild)
     })
   }
 
@@ -172,6 +187,8 @@ function serve(options) {
     },
 
     stop() {
+      // Flip the flag BEFORE killing so monitor() ignores the signaled exits.
+      stopping = true
       return new Promise(resolve => {
         if (workerProcesses.length === 0) {
           resolve()

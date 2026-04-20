@@ -83,12 +83,19 @@ function validateSymlinkTarget(
     )
   }
 
-  // Security: Validate linkTarget doesn't contain '..' as a path component
+  // Security: Validate linkTarget doesn't contain '..' as a path component.
+  // Check both `/` and `\` separators — Windows accepts `\` natively, so a
+  // crafted target like `..\..\foo` would slip past a forward-slash-only check.
   const hasTraversal =
     entry.linkTarget === '..' ||
     StringPrototypeStartsWith(entry.linkTarget, '../') ||
+    StringPrototypeStartsWith(entry.linkTarget, '..\\') ||
     StringPrototypeIncludes(entry.linkTarget, '/../') ||
-    StringPrototypeEndsWith(entry.linkTarget, '/..')
+    StringPrototypeIncludes(entry.linkTarget, '\\..\\') ||
+    StringPrototypeIncludes(entry.linkTarget, '/..\\') ||
+    StringPrototypeIncludes(entry.linkTarget, '\\../') ||
+    StringPrototypeEndsWith(entry.linkTarget, '/..') ||
+    StringPrototypeEndsWith(entry.linkTarget, '\\..')
   if (hasTraversal) {
     throw new ErrorConstructor(
       'VFS Security Error: Symlink contains path traversal (..)\n' +

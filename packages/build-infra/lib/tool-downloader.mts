@@ -13,6 +13,7 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
@@ -98,7 +99,7 @@ async function downloadFile(url, destPath) {
     ['-fSL', '--retry', '3', '-o', destPath, url],
     {
       stdio: 'inherit',
-      shell: process.platform === 'win32',
+      shell: WIN32,
     },
   )
 
@@ -123,14 +124,14 @@ async function extractArchive(archivePath, destDir, format) {
 
   if (format === 'zip') {
     const result = await spawn(
-      process.platform === 'win32' ? 'powershell' : 'unzip',
-      process.platform === 'win32'
+      WIN32 ? 'powershell' : 'unzip',
+      WIN32
         ? [
             '-Command',
             `Expand-Archive -Path '${archivePath.replace(/'/g, "''")}' -DestinationPath '${destDir.replace(/'/g, "''")}' -Force`,
           ]
         : ['-q', '-o', archivePath, '-d', destDir],
-      { stdio: 'inherit', shell: process.platform === 'win32' },
+      { stdio: 'inherit', shell: WIN32 },
     )
     if (result.signal) {
       throw new Error(
@@ -144,7 +145,7 @@ async function extractArchive(archivePath, destDir, format) {
     // tar.xz
     const result = await spawn('tar', ['xf', archivePath, '-C', destDir], {
       stdio: 'inherit',
-      shell: process.platform === 'win32',
+      shell: WIN32,
     })
     if (result.signal) {
       throw new Error(

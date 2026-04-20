@@ -338,6 +338,6 @@ async function main() {
 const logger = getDefaultLogger()
 main().catch(error => {
   printError('Build Failed')
-  logger.error(error.message)
+  logger.error(errorMessage(error))
   throw error
 })

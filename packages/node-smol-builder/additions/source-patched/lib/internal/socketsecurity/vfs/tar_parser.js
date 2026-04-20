@@ -589,6 +589,15 @@ function parseTar(tarBuffer, options = {}) {
       if (paxAttrs.size) {
         const parsedSize = NumberParseInt(paxAttrs.size, 10)
         if (!NumberIsNaN(parsedSize)) {
+          // Re-apply the 2GB DoS guard from parseHeader. A malicious tarball
+          // can present a small USTAR size and a huge PAX size override.
+          if (parsedSize < 0 || parsedSize > 0x7f_ff_ff_ff) {
+            throw new ErrorConstructor(
+              `TAR security error: Invalid PAX size ${parsedSize} bytes\n` +
+                '  Maximum allowed: 2GB (2147483647 bytes)\n' +
+                '  This may indicate a malicious or corrupted archive',
+            )
+          }
           header.size = parsedSize
         }
       }

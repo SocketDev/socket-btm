@@ -31,11 +31,13 @@ class CorkManager {
       socket.cork()
     }
 
-    // Set timeout to auto-uncork if user forgets.
+    // Set timeout to auto-uncork if user forgets. unref() so the pending
+    // 1ms timer doesn't keep the event loop alive during graceful shutdown.
     if (this[kCorkTimeout] === null) {
       this[kCorkTimeout] = SetTimeout(() => {
         this.uncork()
       }, 1)
+      this[kCorkTimeout].unref?.()
     }
   }
 

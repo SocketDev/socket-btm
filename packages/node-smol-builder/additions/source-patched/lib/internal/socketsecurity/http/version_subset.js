@@ -191,7 +191,9 @@ function subsetPackument(packument, versionRange) {
 function getSubsetStats(original, subset) {
   const originalSize = JSONStringify(original).length
   const subsetSize = JSONStringify(subset).length
-  const reduction = 1 - subsetSize / originalSize
+  // Guard against originalSize === 0 (empty packument or weird toJSON);
+  // 1 - x/0 yields NaN which JSON-serializes to null and breaks dashboards.
+  const reduction = originalSize > 0 ? 1 - subsetSize / originalSize : 0
 
   return {
     __proto__: null,

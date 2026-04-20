@@ -20,8 +20,9 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
-
 import { fileURLToPath } from 'node:url'
+
+import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
@@ -73,7 +74,7 @@ async function buildTools() {
     logger.log('')
   } catch (error) {
     logger.fail('Failed to build tools:')
-    logger.error(error.message)
+    logger.error(errorMessage(error))
     throw error
   }
 }
@@ -116,7 +117,7 @@ async function compressBinary(inputPath, outputPath, quality = 'zstd') {
     logger.success('Compression complete')
   } catch (error) {
     logger.fail('Compression failed:')
-    logger.error(error.message)
+    logger.error(errorMessage(error))
     throw error
   }
 }

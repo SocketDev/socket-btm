@@ -740,6 +740,13 @@ function compare(a, b, ecosystem = 'npm') {
 
   // PyPI-specific: dev < pre < release < post (PEP 440 ordering).
   if (va.epoch !== undefined || vb.epoch !== undefined) {
+    // Epoch dominates per PEP 440 — `2!1.0.0` > `1!9.9.9`. Compare epochs
+    // FIRST, before phase/prerelease checks, otherwise differing-epoch pairs
+    // fall through and return 0 incorrectly.
+    const aEpoch = va.epoch || 0
+    const bEpoch = vb.epoch || 0
+    if (aEpoch !== bEpoch) return aEpoch < bEpoch ? -1 : 1
+
     const aDev = va.hasDev || false
     const bDev = vb.hasDev || false
     const aPost = va.hasPost || false

@@ -209,6 +209,6 @@ async function main() {
 }
 
 main().catch(error => {
-  logger.error('Build failed:', error.message)
+  logger.error('Build failed:', errorMessage(error))
   process.exitCode = 1
 })

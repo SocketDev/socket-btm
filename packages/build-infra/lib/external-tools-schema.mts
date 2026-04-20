@@ -13,7 +13,7 @@
 
 import { Type } from '@sinclair/typebox'
 
-import { validateSchema } from '@socketsecurity/lib/validation/validate-schema'
+import { validateSchema } from '@socketsecurity/lib/schema/validate'
 
 const toolSchema = Type.Object(
   {

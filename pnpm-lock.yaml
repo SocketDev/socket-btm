@@ -197,8 +197,8 @@ catalogs:
       specifier: 0.34.49
       version: 0.34.49
     '@socketsecurity/lib':
-      specifier: 5.20.1
-      version: 5.20.1
+      specifier: 5.21.0
+      version: 5.21.0
     '@types/adm-zip':
       specifier: 0.5.7
       version: 0.5.7
@@ -251,7 +251,7 @@ importers:
         version: 0.34.49
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       '@types/node':
         specifier: 'catalog:'
         version: 24.9.2
@@ -293,7 +293,7 @@ importers:
         version: 1.4.2
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       '@socketsecurity/sdk':
         specifier: 4.0.1
         version: 4.0.1
@@ -306,7 +306,7 @@ importers:
     devDependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.0.3(vitest@4.0.3(@types/node@24.9.2)(jiti@2.6.1)(yaml@2.8.3))
@@ -336,7 +336,7 @@ importers:
         version: 1.31.0
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       bin-infra:
         specifier: workspace:*
         version: link:../bin-infra
@@ -354,7 +354,7 @@ importers:
         version: 1.31.0
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       '@types/adm-zip':
         specifier: 'catalog:'
         version: 0.5.7
@@ -384,7 +384,7 @@ importers:
         version: 1.31.0
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       bin-infra:
         specifier: workspace:*
         version: link:../bin-infra
@@ -405,7 +405,7 @@ importers:
         version: 0.34.49
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       acorn:
         specifier: 'catalog:'
         version: 8.14.0
@@ -433,7 +433,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -452,7 +452,7 @@ importers:
     devDependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.0.3(vitest@4.0.3(@types/node@24.9.2)(jiti@2.6.1)(yaml@2.8.3))
@@ -467,7 +467,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -486,7 +486,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -502,7 +502,7 @@ importers:
     devDependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.0.3(vitest@4.0.3(@types/node@24.9.2)(jiti@2.6.1)(yaml@2.8.3))
@@ -517,7 +517,7 @@ importers:
     devDependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.0.3(vitest@4.0.3(@types/node@24.9.2)(jiti@2.6.1)(yaml@2.8.3))
@@ -532,7 +532,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -548,7 +548,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -564,7 +564,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       bin-infra:
         specifier: workspace:*
         version: link:../bin-infra
@@ -601,7 +601,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       acorn:
         specifier: 'catalog:'
         version: 8.14.0
@@ -626,7 +626,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -642,7 +642,7 @@ importers:
     devDependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.0.3(vitest@4.0.3(@types/node@24.9.2)(jiti@2.6.1)(yaml@2.8.3))
@@ -666,7 +666,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       acorn:
         specifier: 'catalog:'
         version: 8.14.0
@@ -1650,8 +1650,8 @@ packages:
     resolution: {integrity: sha512-yt9UfUzD02wZ7kwb67oe4jxG2D9JtgPqjrK/ans2BovFyeie0w8hvRR0MuOWM4mUt2371oFPp7NB6O5ZjYJmlw==}
     engines: {node: '>=18.20.8', pnpm: '>=11.0.0-rc.0'}
 
-  '@socketsecurity/lib@5.20.1':
-    resolution: {integrity: sha512-3v0i+DJaFpGReZfOoY210JDJHwovcMOGODAtsCB6E8cOTa25NdkjUEPP5O7nmfG8hYIYNlcpAFbluiIpFXy8Vw==}
+  '@socketsecurity/lib@5.21.0':
+    resolution: {integrity: sha512-cSqdq2kOBSuH3u8rfDhViCrN7IJPqzAvzklUYrEFhohUgJkky0+YYQ/gbSwRehZDGY8mqv+6lKGrt4OKWnNsdQ==}
     engines: {node: '>=22', pnpm: '>=11.0.0-rc.0'}
     peerDependencies:
       typescript: '>=5.0.0'
@@ -3843,7 +3843,7 @@ snapshots:
 
   '@socketregistry/packageurl-js@1.4.2': {}
 
-  '@socketsecurity/lib@5.20.1': {}
+  '@socketsecurity/lib@5.21.0': {}
 
   '@socketsecurity/sdk@4.0.1': {}
 

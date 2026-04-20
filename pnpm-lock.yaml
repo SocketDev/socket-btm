@@ -468,6 +468,9 @@ importers:
       '@socketsecurity/lib':
         specifier: 'catalog:'
         version: 5.20.1
+      build-infra:
+        specifier: workspace:*
+        version: link:../build-infra
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

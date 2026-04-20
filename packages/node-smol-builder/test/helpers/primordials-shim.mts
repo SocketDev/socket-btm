@@ -79,6 +79,17 @@ globalThis.primordials = {
   JSONParse: JSON.parse,
   JSONStringify: JSON.stringify,
 
+  // Iterator (shared prototype of Array/Map/Set iterators)
+  IteratorPrototypeNext: uncurryThis(
+    Object.getPrototypeOf(Object.getPrototypeOf([].keys())).next,
+  ),
+  IteratorPrototypeReturn: uncurryThis(
+    Object.getPrototypeOf(Object.getPrototypeOf([].keys())).return ??
+      function () {
+        return { value: undefined, done: true }
+      },
+  ),
+
   // Map
   Map,
   MapPrototypeClear: uncurryThis(MapProto.clear),
@@ -95,6 +106,7 @@ globalThis.primordials = {
   MathAbs: Math.abs,
   MathCeil: Math.ceil,
   MathFloor: Math.floor,
+  MathImul: Math.imul,
   MathMax: Math.max,
   MathMin: Math.min,
   MathRound: Math.round,

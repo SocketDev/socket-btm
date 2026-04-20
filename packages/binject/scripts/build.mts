@@ -8,6 +8,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { buildBinSuitePackage } from 'bin-infra/lib/builder'
+import { errorMessage } from 'build-infra/lib/error-utils'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { ensureLibdeflate } from 'build-infra/lib/libdeflate-init'
 import { ensureZstd } from 'build-infra/lib/zstd-init'
@@ -51,6 +52,6 @@ buildBinSuitePackage({
   skipClean: true,
   validateCheckpointWithBinary: true,
 }).catch(e => {
-  getDefaultLogger().error(e instanceof Error ? e.message : String(e))
+  getDefaultLogger().error(errorMessage(e))
   process.exitCode = 1
 })

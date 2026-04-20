@@ -30,6 +30,7 @@ import {
 import { verifyReleaseChecksum } from 'build-infra/lib/release-checksums'
 import { ensureCurl } from 'curl-builder/lib/ensure-curl'
 
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { envAsBoolean } from '@socketsecurity/lib/env'
 import { getCI } from '@socketsecurity/lib/env/ci'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
@@ -64,7 +65,7 @@ export function getCheckpointChain() {
  * @returns {string} Stub binary name
  */
 function getStubBinaryName() {
-  return process.platform === 'win32' ? 'smol_stub.exe' : 'smol_stub'
+  return WIN32 ? 'smol_stub.exe' : 'smol_stub'
 }
 
 /**

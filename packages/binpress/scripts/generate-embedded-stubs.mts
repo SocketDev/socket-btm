@@ -20,6 +20,7 @@ import process from 'node:process'
 
 import { fileURLToPath } from 'node:url'
 
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import {
@@ -79,7 +80,7 @@ await safeMkdir(BUILD_DIR)
 await safeMkdir(path.dirname(OUTPUT_FILE))
 
 // Detect current platform for local stub usage
-const currentPlatform = process.platform === 'win32' ? 'win' : process.platform
+const currentPlatform = WIN32 ? 'win' : process.platform
 const currentArch = process.env.TARGET_ARCH || process.arch
 const currentLibc = (await isMusl()) ? 'musl' : undefined
 

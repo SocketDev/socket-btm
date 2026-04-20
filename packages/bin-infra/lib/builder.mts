@@ -89,7 +89,7 @@ export function selectMakefile() {
   if (process.platform === 'linux') {
     return 'Makefile.linux'
   }
-  if (process.platform === 'win32') {
+  if (WIN32) {
     return 'Makefile.win'
   }
   return 'Makefile.macos'
@@ -125,8 +125,7 @@ export async function buildBinSuitePackage(config) {
     const buildDir = getPlatformBuildDir(packageDir, platformArch)
 
     // Determine binary name and path
-    const binaryName =
-      process.platform === 'win32' ? `${packageName}.exe` : packageName
+    const binaryName = WIN32 ? `${packageName}.exe` : packageName
     const binaryPath = path.join(
       buildDir,
       'out',

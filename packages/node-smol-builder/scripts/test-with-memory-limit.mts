@@ -89,9 +89,7 @@ function killProcessTree(pid) {
       spawnSync('pkill', ['-9', '-P', String(pid)], { stdio: 'ignore' })
     }
   } catch (e) {
-    logger.error(
-      `Error killing process: ${e instanceof Error ? e.message : String(e)}`,
-    )
+    logger.error(`Error killing process: ${errorMessage(e)}`)
   }
 }
 

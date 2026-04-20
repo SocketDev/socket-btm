@@ -11,6 +11,7 @@ import process from 'node:process'
 
 import { fileURLToPath } from 'node:url'
 
+import { errorMessage } from 'build-infra/lib/error-utils'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 import { verifyLiefAt } from './build.mts'
@@ -48,6 +49,6 @@ function main() {
 try {
   main()
 } catch (e) {
-  logger.error(e instanceof Error ? e.message : String(e))
+  logger.error(errorMessage(e))
   process.exitCode = 1
 }

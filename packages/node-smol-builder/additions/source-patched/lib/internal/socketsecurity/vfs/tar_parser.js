@@ -7,7 +7,9 @@ const { ERR_INVALID_ARG_TYPE } = require('internal/errors').codes
 // Native binding for SIMD-accelerated TAR operations (lazy)
 let _vfsBinding
 function getVfsBinding() {
-  if (!_vfsBinding) _vfsBinding = internalBinding('smol_vfs')
+  if (!_vfsBinding) {
+    _vfsBinding = internalBinding('smol_vfs')
+  }
   return _vfsBinding
 }
 const {

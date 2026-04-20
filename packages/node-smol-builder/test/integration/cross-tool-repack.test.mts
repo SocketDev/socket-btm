@@ -160,14 +160,15 @@ describe.skipIf(!allBinariesExist)('cross-tool repacking', () => {
       expect(inject.code).toBe(0)
       await makeExecutable(withBatch)
 
-      // Step 3: Update compression with binpress -u (different payload)
+      // Step 3: Recompress the injected binary to exercise update-compression.
+      // binpress has no in-place "-u" flag; passing `<input> -o <output>`
+      // recompresses, which is the same end state.
       const compressed2 = path.join(testDir, 'batch_repack_3')
-      console.log('  Step 3: Updating compression...')
+      console.log('  Step 3: Recompressing with fresh pass...')
 
-      // Use BINPRESS binary as new payload (different from original)
       const update = await execCommand(
         BINPRESS,
-        [BINPRESS, '-u', withBatch, '-o', compressed2],
+        [withBatch, '-o', compressed2],
         { timeout: 120_000 },
       )
       expect(update.code).toBe(0)
@@ -247,16 +248,16 @@ describe.skipIf(!allBinariesExist)('cross-tool repacking', () => {
       ])
       await makeExecutable(step2)
 
-      // Update compression #1
+      // Recompression pass #1
       const step3 = path.join(testDir, 'multi_step3')
-      await execCommand(BINPRESS, [BINPRESS, '-u', step2, '-o', step3], {
+      await execCommand(BINPRESS, [step2, '-o', step3], {
         timeout: 120_000,
       })
       await makeExecutable(step3)
 
-      // Update compression #2
+      // Recompression pass #2
       const step4 = path.join(testDir, 'multi_step4')
-      await execCommand(BINPRESS, [NODE_BINARY, '-u', step3, '-o', step4], {
+      await execCommand(BINPRESS, [step3, '-o', step4], {
         timeout: 120_000,
       })
       await makeExecutable(step4)
@@ -347,7 +348,7 @@ describe.skipIf(!allBinariesExist)('cross-tool repacking', () => {
 
       // Update compression
       const updated = path.join(testDir, 'size_updated')
-      await execCommand(BINPRESS, [BINPRESS, '-u', withBatch, '-o', updated], {
+      await execCommand(BINPRESS, [withBatch, '-o', updated], {
         timeout: 120_000,
       })
       const updatedSize = (await fs.stat(updated)).size
@@ -389,7 +390,7 @@ describe.skipIf(!allBinariesExist)('cross-tool repacking', () => {
       const output = path.join(testDir, 'error_output')
       const result = await execCommand(
         BINPRESS,
-        [BINPRESS, '-u', withBatch, '-o', output],
+        [withBatch, '-o', output],
         { timeout: 120_000 },
       )
 
@@ -449,7 +450,7 @@ describe.skipIf(!allBinariesExist)('cross-tool repacking', () => {
 
       // Update compression
       const updated = path.join(testDir, 'func_updated')
-      await execCommand(BINPRESS, [BINPRESS, '-u', withBatch, '-o', updated], {
+      await execCommand(BINPRESS, [withBatch, '-o', updated], {
         timeout: 120_000,
       })
       await makeExecutable(updated)
@@ -462,13 +463,13 @@ describe.skipIf(!allBinariesExist)('cross-tool repacking', () => {
       expect(test3.code).toBe(0)
       expect(test3.stdout).toContain('test3')
 
-      // Verify all Node.js features still work
+      // Verify all Node.js features still work.
+      // `process` is a global in CJS eval — no import needed.
       const features = await execCommand(updated, [
         '--eval',
         `
         const fs = require('fs');
         const path = require('path');
-import process from 'node:process'
 
         console.log('fs:', typeof fs.readFileSync);
         console.log('path:', typeof path.join);

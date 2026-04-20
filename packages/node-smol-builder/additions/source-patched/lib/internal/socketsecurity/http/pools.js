@@ -7,7 +7,9 @@ const { ArrayPrototypePop, ArrayPrototypePush } = primordials
 // Native HTTP binding — object pool methods (lazy).
 let _smolHttpBinding
 function smolHttp() {
-  if (!_smolHttpBinding) _smolHttpBinding = internalBinding('smol_http')
+  if (!_smolHttpBinding) {
+    _smolHttpBinding = internalBinding('smol_http')
+  }
   return _smolHttpBinding
 }
 function nativeAcquireRequest() {

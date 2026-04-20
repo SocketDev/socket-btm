@@ -40,7 +40,9 @@ const zlibModule = require('zlib')
 // Native type checks (direct V8 binding - faster than util.types)
 let _typesBinding
 function getTypesBinding() {
-  if (!_typesBinding) _typesBinding = internalBinding('types')
+  if (!_typesBinding) {
+    _typesBinding = internalBinding('types')
+  }
   return _typesBinding
 }
 

@@ -12,7 +12,9 @@ let _mod
 module.exports = {
   __proto__: null,
   get createSecureServer() {
-    if (!_mod) _mod = require('http2')
+    if (!_mod) {
+      _mod = require('http2')
+    }
     return _mod.createSecureServer
   },
 }

@@ -36,7 +36,9 @@ class ETagCache {
   // Get cached ETag.
   get(key) {
     const entry = MapPrototypeGet(this.cache, key)
-    if (!entry) return undefined
+    if (!entry) {
+      return undefined
+    }
 
     // Move to end (LRU).
     MapPrototypeDelete(this.cache, key)
@@ -84,7 +86,9 @@ class ETagCache {
 // Lazy global ETag cache instance.
 let _globalETagCache
 function getETagCache() {
-  if (!_globalETagCache) _globalETagCache = new ETagCache()
+  if (!_globalETagCache) {
+    _globalETagCache = new ETagCache()
+  }
   return _globalETagCache
 }
 

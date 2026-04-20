@@ -25,7 +25,9 @@ const {
 // Native HTTP binding (lazy).
 let _smolHttpBinding
 function smolHttp() {
-  if (!_smolHttpBinding) _smolHttpBinding = internalBinding('smol_http')
+  if (!_smolHttpBinding) {
+    _smolHttpBinding = internalBinding('smol_http')
+  }
   return _smolHttpBinding
 }
 
@@ -202,7 +204,9 @@ function serve(options) {
         }
         let remaining = workerProcesses.length
         const done = () => {
-          if (--remaining === 0) resolve()
+          if (--remaining === 0) {
+            resolve()
+          }
         }
         for (let i = 0; i < workerProcesses.length; i++) {
           const child = workerProcesses[i]

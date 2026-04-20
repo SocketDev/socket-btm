@@ -119,35 +119,6 @@ jobs:
           echo "Loaded Node.js: $NODE_VERSION, iocraft: $IOCRAFT_VERSION"
         shell: bash
 
-      - name: Add Rust target
-        # GitHub runners already ship rustup + stable toolchain, so we just
-        # install the matrix target here (mirrors dtolnay/rust-toolchain's
-        # 'targets:' input without pulling in a third-party action).
-        env:
-          TARGET: ${{ matrix.target }}
-        shell: bash
-        run: |
-          rustup show active-toolchain || rustup default stable
-          rustup target add "$TARGET"
-
-      - name: Verify Rust installation
-        shell: bash
-        run: |
-          # Use CARGO_HOME to find the real cargo, bypassing SFW shim
-          REAL_CARGO="${CARGO_HOME:-$HOME/.cargo}/bin/cargo"
-          if [ -f "$REAL_CARGO" ]; then
-            echo "Cargo: $("$REAL_CARGO" --version)"
-          else
-            echo "Cargo: $(cargo --version)"
-          fi
-          rustc --version
-
-      - name: Setup Rust cache
-        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-        with:
-          workspaces: packages/iocraft-builder -> target
-          prefix-key: iocraft-${{ matrix.os }}-${{ matrix.arch }}
-
       - name: Set build mode
         id: build-mode
         uses: ./.github/actions/set-build-mode
@@ -221,6 +192,38 @@ jobs:
           path: |
             packages/iocraft-builder/build/${{ steps.build-mode.outputs.mode }}/${{ steps.platform-arch.outputs.platform_arch }}/out/Final
           key: iocraft-checkpoints-${{ steps.cache-key.outputs.cache_version }}-v${{ steps.tool-versions.outputs.iocraft-version }}-${{ steps.platform-arch.outputs.platform_arch }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.final_hash }}
+
+      - name: Add Rust target
+        # GitHub runners already ship rustup + stable toolchain, so we just
+        # install the matrix target here (mirrors dtolnay/rust-toolchain's
+        # 'targets:' input without pulling in a third-party action).
+        if: steps.iocraft-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
+        env:
+          TARGET: ${{ matrix.target }}
+        shell: bash
+        run: |
+          rustup show active-toolchain || rustup default stable
+          rustup target add "$TARGET"
+
+      - name: Verify Rust installation
+        if: steps.iocraft-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
+        shell: bash
+        run: |
+          # Use CARGO_HOME to find the real cargo, bypassing SFW shim
+          REAL_CARGO="${CARGO_HOME:-$HOME/.cargo}/bin/cargo"
+          if [ -f "$REAL_CARGO" ]; then
+            echo "Cargo: $("$REAL_CARGO" --version)"
+          else
+            echo "Cargo: $(cargo --version)"
+          fi
+          rustc --version
+
+      - name: Setup Rust cache
+        if: steps.iocraft-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: packages/iocraft-builder -> target
+          prefix-key: iocraft-${{ matrix.os }}-${{ matrix.arch }}
 
       - name: Install musl cross-compilation tools
         if: matrix.libc == 'musl' && (steps.iocraft-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)

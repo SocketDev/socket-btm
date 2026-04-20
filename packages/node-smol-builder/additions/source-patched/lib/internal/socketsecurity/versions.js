@@ -138,7 +138,9 @@ const COERCE_VERSION_REGEX = hardenRegExp(/(\d+)(?:\.(\d+))?(?:\.(\d+))?/)
 // Parse prerelease identifiers
 // Per semver spec: only convert to number if ENTIRE identifier is digits
 function parsePrerelease(str) {
-  if (!str) return EMPTY_PRERELEASE
+  if (!str) {
+    return EMPTY_PRERELEASE
+  }
   const parts = StringPrototypeSplit(str, '.')
   return ArrayPrototypeMap(parts, p => {
     // Only convert to number if entire string is digits (per semver gold standard)
@@ -157,7 +159,9 @@ function parsePrerelease(str) {
 // Returns -1 when any component >= 1024 to prevent overflow/collision.
 // The caller MUST fall through to field-by-field comparison when packed === -1.
 function computePacked(major, minor, patch) {
-  if (major >= 1024 || minor >= 1024 || patch >= 1024) return -1
+  if (major >= 1024 || minor >= 1024 || patch >= 1024) {
+    return -1
+  }
   return major * 1048576 + minor * 1024 + patch
 }
 
@@ -213,7 +217,9 @@ const MAVEN_QUALIFIER_RANK = ObjectFreeze({
 function isDigits(str) {
   for (let i = 0, len = str.length; i < len; i++) {
     const c = StringPrototypeCharCodeAt(str, i)
-    if (c < 48 || c > 57) return false
+    if (c < 48 || c > 57) {
+      return false
+    }
   }
   return str.length > 0
 }
@@ -299,7 +305,9 @@ const PYPI_PRE_RANK = ObjectFreeze({ __proto__: null, a: 0, b: 1, rc: 2 })
 function parsePypi(version) {
   // Strip environment markers ("; python_version >= '3.0'")
   const semiIdx = StringPrototypeIndexOf(version, ';')
-  if (semiIdx !== -1) version = StringPrototypeSlice(version, 0, semiIdx)
+  if (semiIdx !== -1) {
+    version = StringPrototypeSlice(version, 0, semiIdx)
+  }
   version = StringPrototypeTrim(version)
 
   // Handle epoch (N!)
@@ -451,7 +459,9 @@ function parseNuget(version) {
   if (prereleaseStr) {
     const labels = StringPrototypeSplit(prereleaseStr, '.')
     prerelease = ArrayPrototypeMap(labels, label => {
-      if (isDigits(label)) return parseDigits(label)
+      if (isDigits(label)) {
+        return parseDigits(label)
+      }
       return StringPrototypeToLowerCase(label)
     })
   }
@@ -495,7 +505,9 @@ function parseGem(version) {
     const subParts = StringPrototypeSplit(part, GEM_DIGIT_SPLIT_REGEX)
     for (let j = 0; j < subParts.length; j++) {
       const s = subParts[j]
-      if (s === '') continue
+      if (s === '') {
+        continue
+      }
       if (isDigits(s)) {
         ArrayPrototypePush(segments, parseDigits(s))
       } else {
@@ -511,7 +523,9 @@ function parseGem(version) {
   let numIdx = 0
   for (let i = 0; i < segments.length && numIdx < 3; i++) {
     if (typeof segments[i] === 'number') {
-      if (numIdx === 0) major = segments[i]
+      if (numIdx === 0) {
+        major = segments[i]
+      }
       else if (numIdx === 1) minor = segments[i]
       else if (numIdx === 2) patch = segments[i]
       numIdx++
@@ -543,7 +557,9 @@ function parse(version, ecosystem = 'npm') {
   version = StringPrototypeTrim(version)
   const key = cacheKey(version, ecosystem)
   const cached = cacheGet(key)
-  if (cached) return cached
+  if (cached) {
+    return cached
+  }
 
   let result
   switch (ecosystem) {
@@ -583,9 +599,15 @@ function tryParse(version, ecosystem = 'npm') {
 // Compare prerelease arrays
 function comparePrerelease(a, b) {
   // No prerelease > has prerelease
-  if (a.length === 0 && b.length > 0) return 1
-  if (a.length > 0 && b.length === 0) return -1
-  if (a.length === 0 && b.length === 0) return 0
+  if (a.length === 0 && b.length > 0) {
+    return 1
+  }
+  if (a.length > 0 && b.length === 0) {
+    return -1
+  }
+  if (a.length === 0 && b.length === 0) {
+    return 0
+  }
 
   const len = a.length > b.length ? a.length : b.length
   for (let i = 0; i < len; i++) {
@@ -593,18 +615,34 @@ function comparePrerelease(a, b) {
     const bVal = b[i]
 
     // Missing < existing
-    if (aVal === undefined) return -1
-    if (bVal === undefined) return 1
+    if (aVal === undefined) {
+      return -1
+    }
+    if (bVal === undefined) {
+      return 1
+    }
 
     // Number < string
     const aNum = typeof aVal === 'number'
     const bNum = typeof bVal === 'number'
 
-    if (aNum && !bNum) return -1
-    if (!aNum && bNum) return 1
+    if (aNum && !bNum) {
 
-    if (aVal < bVal) return -1
-    if (aVal > bVal) return 1
+      return -1
+
+    }
+    if (!aNum && bNum) {
+      return 1
+    }
+
+    if (aVal < bVal) {
+
+      return -1
+
+    }
+    if (aVal > bVal) {
+      return 1
+    }
   }
 
   return 0
@@ -614,10 +652,16 @@ function comparePrerelease(a, b) {
 // Key difference from SemVer: fewer labels = higher precedence.
 function compareNugetPrerelease(a, b) {
   // Both stable (no prerelease) -> equal.
-  if (a.length === 0 && b.length === 0) return 0
+  if (a.length === 0 && b.length === 0) {
+    return 0
+  }
   // Stable > prerelease.
-  if (a.length === 0 && b.length > 0) return 1
-  if (a.length > 0 && b.length === 0) return -1
+  if (a.length === 0 && b.length > 0) {
+    return 1
+  }
+  if (a.length > 0 && b.length === 0) {
+    return -1
+  }
 
   // Compare element-by-element up to shorter length.
   const minLen = a.length < b.length ? a.length : b.length
@@ -628,19 +672,29 @@ function compareNugetPrerelease(a, b) {
     const bNum = typeof bVal === 'number'
 
     // Numeric < alphabetic in NuGet.
-    if (aNum && !bNum) return -1
-    if (!aNum && bNum) return 1
+    if (aNum && !bNum) {
+      return -1
+    }
+    if (!aNum && bNum) {
+      return 1
+    }
 
     if (aNum && bNum) {
-      if (aVal !== bVal) return aVal < bVal ? -1 : 1
+      if (aVal !== bVal) {
+        return aVal < bVal ? -1 : 1
+      }
     } else {
       // Case-insensitive string comparison.
-      if (aVal !== bVal) return aVal < bVal ? -1 : 1
+      if (aVal !== bVal) {
+        return aVal < bVal ? -1 : 1
+      }
     }
   }
 
   // NuGet-specific: fewer labels = HIGHER precedence (opposite of SemVer).
-  if (a.length !== b.length) return a.length < b.length ? 1 : -1
+  if (a.length !== b.length) {
+    return a.length < b.length ? 1 : -1
+  }
   return 0
 }
 
@@ -678,9 +732,13 @@ function compareGem(va, vb) {
     const t2 = typeof p2
 
     if (t1 === 'number' && t2 === 'number') {
-      if (p1 !== p2) return p1 < p2 ? -1 : 1
+      if (p1 !== p2) {
+        return p1 < p2 ? -1 : 1
+      }
     } else if (t1 === 'string' && t2 === 'string') {
-      if (p1 !== p2) return p1 < p2 ? -1 : 1
+      if (p1 !== p2) {
+        return p1 < p2 ? -1 : 1
+      }
     } else if (t1 === 'string' && t2 === 'number') {
       // String < number in RubyGems (prerelease < release).
       return -1
@@ -708,12 +766,20 @@ function compare(a, b, ecosystem = 'npm') {
 
   // NuGet: 4-component + NuGet-specific prerelease ordering.
   if (va._nuget || vb._nuget) {
-    if (va.major !== vb.major) return va.major < vb.major ? -1 : 1
-    if (va.minor !== vb.minor) return va.minor < vb.minor ? -1 : 1
-    if (va.patch !== vb.patch) return va.patch < vb.patch ? -1 : 1
+    if (va.major !== vb.major) {
+      return va.major < vb.major ? -1 : 1
+    }
+    if (va.minor !== vb.minor) {
+      return va.minor < vb.minor ? -1 : 1
+    }
+    if (va.patch !== vb.patch) {
+      return va.patch < vb.patch ? -1 : 1
+    }
     const revA = va.revision || 0
     const revB = vb.revision || 0
-    if (revA !== revB) return revA < revB ? -1 : 1
+    if (revA !== revB) {
+      return revA < revB ? -1 : 1
+    }
     return compareNugetPrerelease(va.prerelease, vb.prerelease)
   }
 
@@ -733,14 +799,22 @@ function compare(a, b, ecosystem = 'npm') {
     !vb.hasPost &&
     (va.epoch || 0) === (vb.epoch || 0)
   ) {
-    if (va._packed !== vb._packed) return va._packed < vb._packed ? -1 : 1
+    if (va._packed !== vb._packed) {
+      return va._packed < vb._packed ? -1 : 1
+    }
     return 0
   }
 
   // Compare major.minor.patch field-by-field (fallback for large values).
-  if (va.major !== vb.major) return va.major < vb.major ? -1 : 1
-  if (va.minor !== vb.minor) return va.minor < vb.minor ? -1 : 1
-  if (va.patch !== vb.patch) return va.patch < vb.patch ? -1 : 1
+  if (va.major !== vb.major) {
+    return va.major < vb.major ? -1 : 1
+  }
+  if (va.minor !== vb.minor) {
+    return va.minor < vb.minor ? -1 : 1
+  }
+  if (va.patch !== vb.patch) {
+    return va.patch < vb.patch ? -1 : 1
+  }
 
   // PyPI-specific: dev < pre < release < post (PEP 440 ordering).
   if (va.epoch !== undefined || vb.epoch !== undefined) {
@@ -749,7 +823,9 @@ function compare(a, b, ecosystem = 'npm') {
     // fall through and return 0 incorrectly.
     const aEpoch = va.epoch || 0
     const bEpoch = vb.epoch || 0
-    if (aEpoch !== bEpoch) return aEpoch < bEpoch ? -1 : 1
+    if (aEpoch !== bEpoch) {
+      return aEpoch < bEpoch ? -1 : 1
+    }
 
     const aDev = va.hasDev || false
     const bDev = vb.hasDev || false
@@ -762,7 +838,11 @@ function compare(a, b, ecosystem = 'npm') {
     const aPhase = aDev ? 0 : aPre ? 1 : aPost ? 3 : 2
     const bPhase = bDev ? 0 : bPre ? 1 : bPost ? 3 : 2
 
-    if (aPhase !== bPhase) return aPhase < bPhase ? -1 : 1
+    if (aPhase !== bPhase) {
+
+      return aPhase < bPhase ? -1 : 1
+
+    }
 
     // Same phase — compare within phase.
     if (aPhase === 0) {
@@ -772,7 +852,9 @@ function compare(a, b, ecosystem = 'npm') {
     } else if (aPhase === 1) {
       // Both prerelease: compare prerelease arrays.
       const preResult = comparePrerelease(va.prerelease, vb.prerelease)
-      if (preResult !== 0) return preResult
+      if (preResult !== 0) {
+        return preResult
+      }
     } else if (aPhase === 3) {
       // Both post: compare post number.
       if ((va.postNum || 0) !== (vb.postNum || 0))
@@ -830,7 +912,9 @@ function rsort(versions, ecosystem = 'npm') {
 
 // Find max version — O(n) linear scan instead of O(n log n) sort
 function max(versions, ecosystem = 'npm') {
-  if (!versions || versions.length === 0) return undefined
+  if (!versions || versions.length === 0) {
+    return undefined
+  }
   let best = versions[0]
   for (let i = 1, len = versions.length; i < len; i++) {
     if (compare(versions[i], best, ecosystem) > 0) {
@@ -842,7 +926,9 @@ function max(versions, ecosystem = 'npm') {
 
 // Find min version — O(n) linear scan instead of O(n log n) sort
 function min(versions, ecosystem = 'npm') {
-  if (!versions || versions.length === 0) return undefined
+  if (!versions || versions.length === 0) {
+    return undefined
+  }
   let best = versions[0]
   for (let i = 1, len = versions.length; i < len; i++) {
     if (compare(versions[i], best, ecosystem) < 0) {
@@ -855,7 +941,9 @@ function min(versions, ecosystem = 'npm') {
 // Parse a range comparator (e.g., ">=1.0.0", "^2.0.0")
 function parseComparator(comp, ecosystem) {
   comp = StringPrototypeTrim(comp)
-  if (!comp) return undefined
+  if (!comp) {
+    return undefined
+  }
 
   // Standalone wildcard * matches anything
   if (comp === '*' || comp === 'x' || comp === 'X') {
@@ -871,28 +959,36 @@ function parseComparator(comp, ecosystem) {
   // Exact match
   if (RegExpPrototypeTest(RANGE_STARTS_WITH_DIGIT_REGEX, comp)) {
     const v = tryParse(comp, ecosystem)
-    if (v) return { __proto__: null, op: '=', version: v }
+    if (v) {
+      return { __proto__: null, op: '=', version: v }
+    }
   }
 
   // Operators: >=, <=, >, <, =
   const opMatch = RegExpPrototypeExec(RANGE_OPERATOR_REGEX, comp)
   if (opMatch) {
     const v = tryParse(opMatch[2], ecosystem)
-    if (v) return { __proto__: null, op: opMatch[1], version: v }
+    if (v) {
+      return { __proto__: null, op: opMatch[1], version: v }
+    }
   }
 
   // Caret ^
   const caretMatch = RegExpPrototypeExec(RANGE_CARET_REGEX, comp)
   if (caretMatch) {
     const v = tryParse(caretMatch[1], ecosystem)
-    if (v) return { __proto__: null, op: '^', version: v }
+    if (v) {
+      return { __proto__: null, op: '^', version: v }
+    }
   }
 
   // Tilde ~
   const tildeMatch = RegExpPrototypeExec(RANGE_TILDE_REGEX, comp)
   if (tildeMatch) {
     const v = tryParse(tildeMatch[1], ecosystem)
-    if (v) return { __proto__: null, op: '~', version: v }
+    if (v) {
+      return { __proto__: null, op: '~', version: v }
+    }
   }
 
   // Wildcard x, X, * with versions (e.g., 1.x, 1.2.*)
@@ -974,7 +1070,9 @@ function satisfiesComparator(version, comp, checkPrerelease = true) {
       // ^0.2.3 := >=0.2.3 <0.3.0 (for major = 0, minor > 0)
       // ^0.0.3 := >=0.0.3 <0.0.4 (for major = 0, minor = 0)
       const cv = comp.version
-      if (compare(v, cv) < 0) return false
+      if (compare(v, cv) < 0) {
+        return false
+      }
 
       if (cv.major > 0) {
         return v.major === cv.major
@@ -987,14 +1085,22 @@ function satisfiesComparator(version, comp, checkPrerelease = true) {
     case '~': {
       // ~1.2.3 := >=1.2.3 <1.3.0
       const cv = comp.version
-      if (compare(v, cv) < 0) return false
+      if (compare(v, cv) < 0) {
+        return false
+      }
       return v.major === cv.major && v.minor === cv.minor
     }
     case '*': {
       // Wildcard matching
-      if (comp.major !== undefined && v.major !== comp.major) return false
-      if (comp.minor !== undefined && v.minor !== comp.minor) return false
-      if (comp.patch !== undefined && v.patch !== comp.patch) return false
+      if (comp.major !== undefined && v.major !== comp.major) {
+        return false
+      }
+      if (comp.minor !== undefined && v.minor !== comp.minor) {
+        return false
+      }
+      if (comp.patch !== undefined && v.patch !== comp.patch) {
+        return false
+      }
       return true
     }
     default:
@@ -1036,7 +1142,9 @@ function rangeHasMatchingPrerelease(version, comparators) {
 function compileRange(range, ecosystem) {
   const rangeKey = `${ecosystem}:${range}`
   const cached = MapPrototypeGet(rangeCache, rangeKey)
-  if (cached !== undefined) return cached
+  if (cached !== undefined) {
+    return cached
+  }
 
   const orParts = StringPrototypeSplit(range, RANGE_OR_SPLIT_REGEX)
   const compiled = []
@@ -1067,7 +1175,9 @@ function compileRange(range, ecosystem) {
         j += 2
       } else {
         const comp = parseComparator(andParts[j], ecosystem)
-        if (comp) ArrayPrototypePush(comparators, comp)
+        if (comp) {
+          ArrayPrototypePush(comparators, comp)
+        }
         else ArrayPrototypePush(comparators, undefined)
       }
     }
@@ -1097,9 +1207,18 @@ function satisfies(version, range, ecosystem = 'npm') {
     typeof version === 'object' && version !== null
       ? version
       : tryParse(version, ecosystem)
-  if (!v) return false
+  if (!v) {
+    return false
+  }
 
   range = StringPrototypeTrim(range)
+
+  // Per npm semver, an empty or all-whitespace range is equivalent to '*'
+  // and matches every version. Short-circuit so compileRange('') doesn't
+  // end up producing a `[undefined]` comparator that fails every match.
+  if (range === '' || range === '*' || range === 'latest') {
+    return true
+  }
 
   const compiled = compileRange(range, ecosystem)
 
@@ -1144,7 +1263,11 @@ function satisfies(version, range, ecosystem = 'npm') {
       }
     }
 
-    if (allMatch) return true
+    if (allMatch) {
+
+      return true
+
+    }
   }
 
   return false
@@ -1178,7 +1301,9 @@ function valid(version, ecosystem = 'npm') {
 
 // Coerce to valid version
 function coerce(version, ecosystem = 'npm') {
-  if (typeof version !== 'string') return undefined
+  if (typeof version !== 'string') {
+    return undefined
+  }
 
   version = StringPrototypeTrim(version)
   // Remove leading v
@@ -1188,7 +1313,9 @@ function coerce(version, ecosystem = 'npm') {
 
   // Try to extract version-like pattern
   const match = RegExpPrototypeExec(COERCE_VERSION_REGEX, version)
-  if (!match) return undefined
+  if (!match) {
+    return undefined
+  }
 
   const major = match[1] || '0'
   const minor = match[2] || '0'

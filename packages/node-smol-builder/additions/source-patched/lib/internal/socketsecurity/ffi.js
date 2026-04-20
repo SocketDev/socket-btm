@@ -37,7 +37,9 @@ const {
 // for the community discussion about why access was intentionally restricted.
 let _ffiBinding
 function binding() {
-  if (!_ffiBinding) _ffiBinding = internalBinding('smol_ffi')
+  if (!_ffiBinding) {
+    _ffiBinding = internalBinding('smol_ffi')
+  }
   return _ffiBinding
 }
 
@@ -205,73 +207,99 @@ class Library {
       case 0:
         wrapper = hasFast
           ? () => {
-              if (closed()) throw new FFIError('Library has been closed')
+              if (closed()) {
+                throw new FFIError('Library has been closed')
+              }
               setTarget(fnId)
               return call(fnId)
             }
           : () => {
-              if (closed()) throw new FFIError('Library has been closed')
+              if (closed()) {
+                throw new FFIError('Library has been closed')
+              }
               return call(fnId)
             }
         break
       case 1:
         wrapper = hasFast
           ? a0 => {
-              if (closed()) throw new FFIError('Library has been closed')
+              if (closed()) {
+                throw new FFIError('Library has been closed')
+              }
               setTarget(fnId)
               return call(fnId, a0)
             }
           : a0 => {
-              if (closed()) throw new FFIError('Library has been closed')
+              if (closed()) {
+                throw new FFIError('Library has been closed')
+              }
               return call(fnId, a0)
             }
         break
       case 2:
         wrapper = hasFast
           ? (a0, a1) => {
-              if (closed()) throw new FFIError('Library has been closed')
+              if (closed()) {
+                throw new FFIError('Library has been closed')
+              }
               setTarget(fnId)
               return call(fnId, a0, a1)
             }
           : (a0, a1) => {
-              if (closed()) throw new FFIError('Library has been closed')
+              if (closed()) {
+                throw new FFIError('Library has been closed')
+              }
               return call(fnId, a0, a1)
             }
         break
       case 3:
         wrapper = hasFast
           ? (a0, a1, a2) => {
-              if (closed()) throw new FFIError('Library has been closed')
+              if (closed()) {
+                throw new FFIError('Library has been closed')
+              }
               setTarget(fnId)
               return call(fnId, a0, a1, a2)
             }
           : (a0, a1, a2) => {
-              if (closed()) throw new FFIError('Library has been closed')
+              if (closed()) {
+                throw new FFIError('Library has been closed')
+              }
               return call(fnId, a0, a1, a2)
             }
         break
       case 4:
         wrapper = (a0, a1, a2, a3) => {
-          if (closed()) throw new FFIError('Library has been closed')
-          if (setTarget) setTarget(fnId)
+          if (closed()) {
+            throw new FFIError('Library has been closed')
+          }
+          if (setTarget) {
+            setTarget(fnId)
+          }
           return call(fnId, a0, a1, a2, a3)
         }
         break
       case 5:
         wrapper = (a0, a1, a2, a3, a4) => {
-          if (closed()) throw new FFIError('Library has been closed')
+          if (closed()) {
+            throw new FFIError('Library has been closed')
+          }
           return call(fnId, a0, a1, a2, a3, a4)
         }
         break
       case 6:
         wrapper = (a0, a1, a2, a3, a4, a5) => {
-          if (closed()) throw new FFIError('Library has been closed')
+          if (closed()) {
+            throw new FFIError('Library has been closed')
+          }
           return call(fnId, a0, a1, a2, a3, a4, a5)
         }
         break
       default:
         wrapper = (...args) => {
-          if (closed()) throw new FFIError('Library has been closed')
+          if (closed()) {
+            throw new FFIError('Library has been closed')
+          }
           return call(fnId, ...args)
         }
         break
@@ -393,7 +421,9 @@ class Library {
     // Iterate to find the matching pointer.
     // SafeMap doesn't have a reverse lookup, so we iterate.
     MapPrototypeForEach(callbacks, (value, key) => {
-      if (value === ptr) foundId = key
+      if (value === ptr) {
+        foundId = key
+      }
     })
 
     if (foundId === undefined) {
@@ -405,7 +435,9 @@ class Library {
   }
 
   close() {
-    if (this.#closed) return
+    if (this.#closed) {
+      return
+    }
     this.#closed = true
     binding().close(this.#id)
     this.#functions = new SafeMap()

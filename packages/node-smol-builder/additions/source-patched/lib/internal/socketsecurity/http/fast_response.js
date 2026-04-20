@@ -5,7 +5,9 @@ const { BufferByteLength } = require('internal/socketsecurity/safe-references')
 // Native HTTP binding (lazy).
 let _smolHttpBinding
 function smolHttp() {
-  if (!_smolHttpBinding) _smolHttpBinding = internalBinding('smol_http')
+  if (!_smolHttpBinding) {
+    _smolHttpBinding = internalBinding('smol_http')
+  }
   return _smolHttpBinding
 }
 function nativeWriteJson(socket, statusCode, json) {

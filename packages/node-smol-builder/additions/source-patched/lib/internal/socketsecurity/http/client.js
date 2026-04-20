@@ -94,7 +94,9 @@ function request(url, options) {
   return new Promise((resolve, reject) => {
     let settled = false
     const settle = (fn, value) => {
-      if (settled) return
+      if (settled) {
+        return
+      }
       settled = true
       fn(value)
     }
@@ -127,7 +129,9 @@ function request(url, options) {
           ArrayPrototypePush(chunks, chunk)
         })
         res.on('end', () => {
-          if (settled) return
+          if (settled) {
+            return
+          }
           const bodyBuf = BufferConcat(chunks)
           const contentType = res.headers['content-type'] || ''
           const isText =

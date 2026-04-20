@@ -106,7 +106,7 @@ function getSeaAssetKey(filepath) {
 
   // Extract key: /sea/foo/bar.json → foo/bar.json
   if (!StringPrototypeStartsWith(cleanPath, `${SEA_PREFIX}/`)) {
-    return null
+    return undefined
   }
 
   const key = StringPrototypeSlice(cleanPath, SEA_PREFIX.length + 1)
@@ -114,7 +114,7 @@ function getSeaAssetKey(filepath) {
   // Security: reject path traversal
   if (StringPrototypeIncludes(key, '..')) {
     debug(`Rejected path traversal attempt: ${filepath}`)
-    return null
+    return undefined
   }
 
   // Normalize any ./ in the path
@@ -187,7 +187,7 @@ function readFileFromSea(filepath, options) {
   }
 
   const key = getSeaAssetKey(filepath)
-  if (key === null) {
+  if (key === undefined) {
     throw createSeaENOENT(filepath, 'open')
   }
 
@@ -232,7 +232,7 @@ function existsInSea(filepath) {
   }
 
   const key = getSeaAssetKey(filepath)
-  if (key === null) {
+  if (key === undefined) {
     return false
   }
 
@@ -270,7 +270,7 @@ function statFromSea(filepath) {
   }
 
   const key = getSeaAssetKey(filepath)
-  if (key === null) {
+  if (key === undefined) {
     throw createSeaENOENT(filepath, 'stat')
   }
 
@@ -309,7 +309,7 @@ function readdirFromSea(filepath, options) {
   }
 
   const key = getSeaAssetKey(filepath)
-  if (key === null) {
+  if (key === undefined) {
     throw createSeaENOENT(filepath, 'scandir')
   }
 

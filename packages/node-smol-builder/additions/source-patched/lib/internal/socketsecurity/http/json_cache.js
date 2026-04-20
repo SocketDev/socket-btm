@@ -93,7 +93,9 @@ class JSONCache {
 // Lazy global cache instance.
 let _jsonCache
 function getJSONCache() {
-  if (!_jsonCache) _jsonCache = new JSONCache()
+  if (!_jsonCache) {
+    _jsonCache = new JSONCache()
+  }
   return _jsonCache
 }
 

@@ -131,7 +131,9 @@ function parsePackageJson(content) {
 
   // Helper to add deps
   const addDeps = (obj, type) => {
-    if (!obj || typeof obj !== 'object') return
+    if (!obj || typeof obj !== 'object') {
+      return
+    }
     const keys = ObjectKeys(obj)
     for (let i = 0, len = keys.length; i < len; i++) {
       const name = keys[i]
@@ -258,7 +260,9 @@ function parsePackageLock(content) {
     for (let ki = 0, klen = pkgKeys.length; ki < klen; ki++) {
       const pkgPath = pkgKeys[ki]
       // Skip root package
-      if (pkgPath === '') continue
+      if (pkgPath === '') {
+        continue
+      }
 
       const pkg = data.packages[pkgPath]
       // Extract name from path using proper scoped package handling
@@ -496,7 +500,9 @@ function parseYarnLock(content) {
         const neol = StringPrototypeIndexOf(content, '\n', pos)
         const nend = neol === -1 ? content.length : neol
         const nline = StringPrototypeSlice(content, pos, nend)
-        if (nline.length === 0 || (nline[0] !== ' ' && nline[0] !== '\t')) break
+        if (nline.length === 0 || (nline[0] !== ' ' && nline[0] !== '\t')) {
+          break
+        }
         pos = nend + 1
       }
       continue
@@ -554,7 +560,11 @@ function parseYarnLock(content) {
         const pend = peol === -1 ? content.length : peol
         const pline = StringPrototypeSlice(content, pos, pend)
 
-        if (pline.length === 0 || (pline[0] !== ' ' && pline[0] !== '\t')) break
+        if (pline.length === 0 || (pline[0] !== ' ' && pline[0] !== '\t')) {
+
+          break
+
+        }
 
         const propLine = StringPrototypeTrim(pline)
         pos = pend + 1
@@ -729,9 +739,15 @@ function detectPnpmVersion(content) {
   const match = RegExpPrototypeExec(RE_LOCKFILE_VERSION, content)
   if (match) {
     const version = match[1]
-    if (version[0] === '5') return 5
-    if (version[0] === '6') return 6
-    if (version[0] === '9') return 9
+    if (version[0] === '5') {
+      return 5
+    }
+    if (version[0] === '6') {
+      return 6
+    }
+    if (version[0] === '9') {
+      return 9
+    }
   }
   // Default to v9 (latest)
   return 9
@@ -965,7 +981,11 @@ function parsePnpmLock(content) {
       continue
     }
 
-    if (!inPackages && !inSnapshots) continue
+    if (!inPackages && !inSnapshots) {
+
+      continue
+
+    }
 
     // Calculate indent level
     let indent = 0
@@ -1192,8 +1212,12 @@ function analyzeLockfile(lockfile) {
 // O(1) package lookup (returns first match, or undefined)
 function getPackage(lockfile, name) {
   const idx = lockfile._index?.[name]
-  if (idx === undefined) return undefined
-  if (typeof idx === 'number') return lockfile.packages[idx]
+  if (idx === undefined) {
+    return undefined
+  }
+  if (typeof idx === 'number') {
+    return lockfile.packages[idx]
+  }
   // Array of indices - return first
   return lockfile.packages[idx[0]]
 }
@@ -1201,8 +1225,12 @@ function getPackage(lockfile, name) {
 // Get all versions of a package by name
 function getPackageVersions(lockfile, name) {
   const idx = lockfile._index?.[name]
-  if (idx === undefined) return []
-  if (typeof idx === 'number') return [lockfile.packages[idx]]
+  if (idx === undefined) {
+    return []
+  }
+  if (typeof idx === 'number') {
+    return [lockfile.packages[idx]]
+  }
   // Array of indices
   const result = new Array(idx.length)
   for (let i = 0, len = idx.length; i < len; i++) {

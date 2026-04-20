@@ -122,26 +122,6 @@ jobs:
           echo "Loaded Node.js: $NODE_VERSION, opentui: $OPENTUI_VERSION"
         shell: bash
 
-      - name: Setup Zig
-        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
-        with:
-          version: ${{ env.ZIG_VERSION }}
-
-      - name: Verify Zig installation
-        shell: bash
-        run: |
-          echo "Zig location: $(which zig)"
-          zig version
-
-      - name: Cache Zig global cache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
-        with:
-          path: |
-            ~/.cache/zig
-          key: zig-cache-${{ matrix.os }}-${{ matrix.arch }}-${{ env.ZIG_VERSION }}
-          restore-keys: |
-            zig-cache-${{ matrix.os }}-${{ matrix.arch }}-
-
       - name: Set build mode
         id: build-mode
         uses: ./.github/actions/set-build-mode
@@ -216,6 +196,29 @@ jobs:
           path: |
             packages/opentui-builder/build/${{ steps.build-mode.outputs.mode }}/${{ steps.platform-arch.outputs.platform_arch }}/out/Final
           key: opentui-checkpoints-${{ steps.cache-key.outputs.cache_version }}-v${{ steps.tool-versions.outputs.opentui-version }}-${{ steps.platform-arch.outputs.platform_arch }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.final_hash }}
+
+      - name: Setup Zig
+        if: steps.opentui-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
+        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Verify Zig installation
+        if: steps.opentui-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
+        shell: bash
+        run: |
+          echo "Zig location: $(which zig)"
+          zig version
+
+      - name: Cache Zig global cache
+        if: steps.opentui-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: |
+            ~/.cache/zig
+          key: zig-cache-${{ matrix.os }}-${{ matrix.arch }}-${{ env.ZIG_VERSION }}
+          restore-keys: |
+            zig-cache-${{ matrix.os }}-${{ matrix.arch }}-
 
       - name: Build opentui native module
         id: build

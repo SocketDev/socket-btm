@@ -206,7 +206,9 @@ class DependencyGraph {
 // Lazy global dependency graph instance.
 let _globalDependencyGraph
 function getDependencyGraph() {
-  if (!_globalDependencyGraph) _globalDependencyGraph = new DependencyGraph()
+  if (!_globalDependencyGraph) {
+    _globalDependencyGraph = new DependencyGraph()
+  }
   return _globalDependencyGraph
 }
 

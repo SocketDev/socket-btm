@@ -24,13 +24,17 @@ const {
 
 let _brotliCompress
 function getBrotliCompress() {
-  if (!_brotliCompress) _brotliCompress = UtilPromisify(ZlibBrotliCompress)
+  if (!_brotliCompress) {
+    _brotliCompress = UtilPromisify(ZlibBrotliCompress)
+  }
   return _brotliCompress
 }
 
 let _gzipCompress
 function getGzipCompress() {
-  if (!_gzipCompress) _gzipCompress = UtilPromisify(ZlibGzip)
+  if (!_gzipCompress) {
+    _gzipCompress = UtilPromisify(ZlibGzip)
+  }
   return _gzipCompress
 }
 
@@ -181,7 +185,9 @@ class CompressionCache {
 // Lazy global compression cache instance.
 let _globalCompressionCache
 function getCompressionCache() {
-  if (!_globalCompressionCache) _globalCompressionCache = new CompressionCache()
+  if (!_globalCompressionCache) {
+    _globalCompressionCache = new CompressionCache()
+  }
   return _globalCompressionCache
 }
 

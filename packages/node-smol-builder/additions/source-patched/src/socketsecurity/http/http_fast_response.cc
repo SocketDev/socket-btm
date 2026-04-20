@@ -45,6 +45,7 @@
 #include "util-inl.h"
 #include <cstdio>
 #include <cstring>
+#include <new>
 
 namespace node {
 namespace socketsecurity {
@@ -212,9 +213,17 @@ bool FastResponse::TryWrite(
   // Partial write: some bytes are already on the wire. We must NOT let JS
   // replay from byte 0 or data will be duplicated. Copy the remainder to
   // the heap and finish via async uv_write.
+  // Node is compiled with -fno-exceptions — use std::nothrow and return
+  // false on OOM instead of aborting the process. The partial bytes on the
+  // wire make the response corrupt; caller MUST close the connection.
   size_t remaining = length - written;
-  AsyncWriteData* d = new AsyncWriteData();
-  d->buf = new char[remaining];
+  AsyncWriteData* d = new (std::nothrow) AsyncWriteData();
+  if (!d) return false;
+  d->buf = new (std::nothrow) char[remaining];
+  if (!d->buf) {
+    delete d;
+    return false;
+  }
   memcpy(d->buf, data + written, remaining);
 
   uv_buf_t remainder = uv_buf_init(d->buf, remaining);
@@ -254,9 +263,15 @@ bool FastResponse::TryWrite2(
 
   // Partial write: some bytes are already on the wire. Figure out what
   // remains across the two buffers and send it asynchronously.
+  // -fno-exceptions: std::nothrow + null-check so OOM doesn't abort process.
   size_t remaining = total - written;
-  AsyncWriteData* d = new AsyncWriteData();
-  d->buf = new char[remaining];
+  AsyncWriteData* d = new (std::nothrow) AsyncWriteData();
+  if (!d) return false;
+  d->buf = new (std::nothrow) char[remaining];
+  if (!d->buf) {
+    delete d;
+    return false;
+  }
 
   size_t w = static_cast<size_t>(written);
   if (w < len1) {

@@ -862,7 +862,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.readFileSync(path, options)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalReadFileSync, fs, [path, options])
     },
@@ -876,7 +878,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.existsSync(path)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalExistsSync, fs, [path])
     },
@@ -890,7 +894,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.statSync(path, options)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalStatSync, fs, [path, options])
     },
@@ -904,7 +910,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.lstatSync(path, options)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalLstatSync, fs, [path, options])
     },
@@ -918,7 +926,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.readdirSync(path, options)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalReaddirSync, fs, [path, options])
     },
@@ -930,7 +940,9 @@ function installVFSShims(fs, options) {
     const h = smolVfsState.handlers
     if (h !== undefined) {
       const result = h.realpathSync(path, options)
-      if (result !== undefined) return result
+      if (result !== undefined) {
+        return result
+      }
     }
     return ReflectApply(originalRealpathSync, fs, [path, options])
   }
@@ -940,7 +952,9 @@ function installVFSShims(fs, options) {
     const h = smolVfsState.handlers
     if (h !== undefined) {
       const result = h.realpathSyncNative(path, options)
-      if (result !== undefined) return result
+      if (result !== undefined) {
+        return result
+      }
     }
     // Fall through to original native if available
     if (originalRealpathSync.native) {
@@ -963,7 +977,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.accessSync(path, mode)
-        if (result !== undefined) return
+        if (result !== undefined) {
+          return
+        }
       }
       return ReflectApply(originalAccessSync, fs, [path, mode])
     },
@@ -977,7 +993,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.readlinkSync(path, options)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalReadlinkSync, fs, [path, options])
     },
@@ -993,7 +1011,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.writeFileSync(path, data, options)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalWriteFileSync, fs, [path, data, options])
     },
@@ -1007,7 +1027,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.appendFileSync(path, data, options)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalAppendFileSync, fs, [path, data, options])
     },
@@ -1021,7 +1043,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.unlinkSync(path)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalUnlinkSync, fs, [path])
     },
@@ -1035,7 +1059,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.rmdirSync(path, options)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalRmdirSync, fs, [path, options])
     },
@@ -1049,7 +1075,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.mkdirSync(path, options)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalMkdirSync, fs, [path, options])
     },
@@ -1063,7 +1091,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.renameSync(oldPath, newPath)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalRenameSync, fs, [oldPath, newPath])
     },
@@ -1077,7 +1107,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.copyFileSync(src, dest, mode)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalCopyFileSync, fs, [src, dest, mode])
     },
@@ -1093,7 +1125,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.readFile(path, options, callback)
-        if (result !== undefined) return
+        if (result !== undefined) {
+          return
+        }
       }
       return ReflectApply(originalReadFile, fs, [path, options, callback])
     },
@@ -1107,7 +1141,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.stat(path, options, callback)
-        if (result !== undefined) return
+        if (result !== undefined) {
+          return
+        }
       }
       return ReflectApply(originalStat, fs, [path, options, callback])
     },
@@ -1121,7 +1157,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.lstat(path, options, callback)
-        if (result !== undefined) return
+        if (result !== undefined) {
+          return
+        }
       }
       return ReflectApply(originalLstat, fs, [path, options, callback])
     },
@@ -1135,7 +1173,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.readlink(path, options, callback)
-        if (result !== undefined) return
+        if (result !== undefined) {
+          return
+        }
       }
       return ReflectApply(originalReadlink, fs, [path, options, callback])
     },
@@ -1149,7 +1189,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.readdir(path, options, callback)
-        if (result !== undefined) return
+        if (result !== undefined) {
+          return
+        }
       }
       return ReflectApply(originalReaddir, fs, [path, options, callback])
     },
@@ -1161,7 +1203,9 @@ function installVFSShims(fs, options) {
     const h = smolVfsState.handlers
     if (h !== undefined) {
       const result = h.realpath(path, options, callback)
-      if (result !== undefined) return
+      if (result !== undefined) {
+        return
+      }
     }
     return ReflectApply(originalRealpath, fs, [path, options, callback])
   }
@@ -1170,7 +1214,9 @@ function installVFSShims(fs, options) {
     const h = smolVfsState.handlers
     if (h !== undefined) {
       const result = h.realpath(path, options, callback)
-      if (result !== undefined) return
+      if (result !== undefined) {
+        return
+      }
     }
     if (originalRealpath.native) {
       return ReflectApply(originalRealpath.native, fs, [
@@ -1196,7 +1242,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.access(path, mode, callback)
-        if (result !== undefined) return
+        if (result !== undefined) {
+          return
+        }
       }
       return ReflectApply(originalAccess, fs, [path, mode, callback])
     },
@@ -1210,7 +1258,9 @@ function installVFSShims(fs, options) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.exists(path, callback)
-        if (result !== undefined) return
+        if (result !== undefined) {
+          return
+        }
       }
       return ReflectApply(originalExists, fs, [path, callback])
     },
@@ -1338,7 +1388,9 @@ function installPromiseShims(fsPromises) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.readFilePromise(path, options)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalReadFile, fsPromises, [path, options])
     },
@@ -1352,7 +1404,9 @@ function installPromiseShims(fsPromises) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.statPromise(path, options)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalStat, fsPromises, [path, options])
     },
@@ -1366,7 +1420,9 @@ function installPromiseShims(fsPromises) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.lstatPromise(path, options)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalLstat, fsPromises, [path, options])
     },
@@ -1380,7 +1436,9 @@ function installPromiseShims(fsPromises) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.readlinkPromise(path, options)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalReadlink, fsPromises, [path, options])
     },
@@ -1394,7 +1452,9 @@ function installPromiseShims(fsPromises) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.readdirPromise(path, options)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalReaddir, fsPromises, [path, options])
     },
@@ -1408,7 +1468,9 @@ function installPromiseShims(fsPromises) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.realpathPromise(path, options)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalRealpath, fsPromises, [path, options])
     },
@@ -1422,7 +1484,9 @@ function installPromiseShims(fsPromises) {
       const h = smolVfsState.handlers
       if (h !== undefined) {
         const result = h.accessPromise(path, mode)
-        if (result !== undefined) return result
+        if (result !== undefined) {
+          return result
+        }
       }
       return ReflectApply(originalAccess, fsPromises, [path, mode])
     },

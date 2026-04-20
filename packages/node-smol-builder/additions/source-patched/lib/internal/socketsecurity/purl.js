@@ -149,7 +149,9 @@ function sanitizeDecoded(str) {
 // Fast path: skip decodeURIComponent when no % present
 // Rejects null bytes and control characters after decoding.
 function urlDecode(str) {
-  if (StringPrototypeIndexOf(str, '%') === -1) return str
+  if (StringPrototypeIndexOf(str, '%') === -1) {
+    return str
+  }
   let decoded
   try {
     decoded = decodeURIComponent(str)
@@ -163,7 +165,9 @@ function urlDecode(str) {
 // This differs from application/x-www-form-urlencoded
 // Fast path: skip decodeURIComponent when no % present
 function decodeQualifierValue(str) {
-  if (StringPrototypeIndexOf(str, '%') === -1) return str
+  if (StringPrototypeIndexOf(str, '%') === -1) {
+    return str
+  }
   try {
     // Per gold standard: just use decodeURIComponent, preserve + as literal
     return decodeURIComponent(str)
@@ -224,7 +228,9 @@ function trimLeadingSlashes(str) {
 // Collect slice segments then join — avoids O(n) per-char string concat.
 function collapseSlashes(str) {
   // Fast path: no double slashes.
-  if (StringPrototypeIndexOf(str, '//') === -1) return str
+  if (StringPrototypeIndexOf(str, '//') === -1) {
+    return str
+  }
   const segments = []
   const len = str.length
   let segStart = 0
@@ -249,7 +255,9 @@ function collapseSlashes(str) {
 // Fast check if string needs trimming
 function needsTrim(str) {
   const len = str.length
-  if (len === 0) return false
+  if (len === 0) {
+    return false
+  }
   const first = StringPrototypeCharCodeAt(str, 0)
   if (
     first === CHAR_SPACE ||
@@ -276,13 +284,17 @@ function fastTrim(str) {
 
 // Filter subpath segments - remove . and .. per PURL spec
 function filterSubpathSegments(subpath) {
-  if (!subpath) return undefined
+  if (!subpath) {
+    return undefined
+  }
   const segments = StringPrototypeSplit(subpath, '/')
   const filtered = ArrayPrototypeFilter(segments, seg => {
     // Remove empty segments, '.', and '..'
     return seg && seg !== '.' && seg !== '..'
   })
-  if (filtered.length === 0) return undefined
+  if (filtered.length === 0) {
+    return undefined
+  }
   return ArrayPrototypeJoin(filtered, '/')
 }
 
@@ -352,7 +364,9 @@ function parse(purl) {
 
   // Check cache
   const cached = cacheGet(purl)
-  if (cached !== undefined) return cached
+  if (cached !== undefined) {
+    return cached
+  }
 
   // Handle pkg:// (ignore double slashes per spec)
   // Case-insensitive scheme check per gold standard (PkG: is valid)
@@ -388,7 +402,9 @@ function parse(purl) {
     const pairs = StringPrototypeSplit(queryStr, '&')
     for (let i = 0; i < pairs.length; i++) {
       const pair = pairs[i]
-      if (!pair) continue // Skip empty pairs
+      if (!pair) {
+        continue // Skip empty pairs
+      }
       const eqIdx = StringPrototypeIndexOf(pair, '=')
       if (eqIdx !== -1) {
         // Decode and trim key, then lowercase per spec
@@ -540,7 +556,9 @@ function parse(purl) {
 
   // Freeze result before caching to prevent cache poisoning (MEDIUM-3).
   ObjectFreeze(result)
-  if (qualifiers) ObjectFreeze(qualifiers)
+  if (qualifiers) {
+    ObjectFreeze(qualifiers)
+  }
   cachePut(purl, result)
   return result
 }
@@ -599,7 +617,9 @@ function build(options) {
     const pairs = ArrayPrototypeMap(sortedKeys, k => {
       const value = qualifiers[k]
       // Skip undefined values
-      if (value === undefined) return undefined
+      if (value === undefined) {
+        return undefined
+      }
       return `${urlEncode(k)}=${encodeQualifierValue(StringCtor(value))}`
     })
     // Filter out undefined

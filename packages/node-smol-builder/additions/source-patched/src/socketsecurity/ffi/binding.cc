@@ -81,6 +81,7 @@
 
 #include <uv.h>
 #include <cstring>
+#include <new>
 #include <climits>
 #include <cmath>
 #include <thread>
@@ -808,7 +809,16 @@ void FFIBinding::Call(const FunctionCallbackInfo<Value>& args) {
             break;
           }
           size_t len = str.length();
-          char* copy = new char[len + 1];
+          // -fno-exceptions: std::nothrow + null-check + ThrowException so
+          // OOM surfaces as a JS Error instead of aborting the process.
+          char* copy = new (std::nothrow) char[len + 1];
+          if (!copy) {
+            isolate->ThrowException(Exception::Error(
+              String::NewFromUtf8(isolate,
+                "Out of memory: failed to allocate FFI string argument")
+                .ToLocalChecked()));
+            goto cleanup;
+          }
           memcpy(copy, *str, len);
           copy[len] = '\0';
           string_storage[i] = copy;

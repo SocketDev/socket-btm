@@ -8,6 +8,7 @@
 #include "uv.h"
 #include <cstdio>
 #include <cstring>
+#include <new>
 
 namespace node {
 namespace socketsecurity {
@@ -49,9 +50,18 @@ bool Fast304Response::Write304(
   setsockopt(fd, SOL_TCP, TCP_CORK, &cork, sizeof(cork));
 #endif
 
-  // Write response.
+  // Write response. Node is compiled with -fno-exceptions so a plain `new`
+  // would abort() the whole process on OOM — use std::nothrow and fail the
+  // write instead. Uncorks below still execute.
   uv_buf_t buf = uv_buf_init(buffer, len);
-  uv_write_t* req = new uv_write_t();
+  uv_write_t* req = new (std::nothrow) uv_write_t();
+  if (!req) {
+#ifdef __linux__
+    int cork_off = 0;
+    setsockopt(fd, SOL_TCP, TCP_CORK, &cork_off, sizeof(cork_off));
+#endif
+    return false;
+  }
   req->data = nullptr;
 
   int result = uv_write(req, stream, &buf, 1, [](uv_write_t* req, int status) {

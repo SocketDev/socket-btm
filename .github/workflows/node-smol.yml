@@ -264,25 +264,29 @@ jobs:
           # Helper function to hash files, returns empty string if no files found
           # Callers must pass -type f and optionally -name "*.mts" to filter appropriately
           hash_files() {
-            local files=$(find "$@" 2>/dev/null)
+            # sort -u dedupes so overlapping hierarchical paths (base + base/shared + ...)
+            # don't double-hash files walked from multiple parents.
+            local files=$(find "$@" 2>/dev/null | sort -u)
             if [ -n "$files" ]; then
-              echo "$files" | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1
+              echo "$files" | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1
             else
               echo ""
             fi
           }
 
-          # Helper function to get hierarchical paths for a category/phase/platform/arch
-          # Returns: shared/, platform/shared/, platform/arch/
+          # Helper function to get hierarchical paths for a category/phase/platform/arch.
+          # Returns: base/, base/shared/, base/platform/shared/, base/platform/arch/
+          # `base/` itself is included so top-level files (e.g. patches/source-patched/*.patch
+          # live directly at the base, not in subdirs) are covered.
           get_hierarchical_paths() {
             local category=$1    # scripts, patches, additions
-            local phase=$2       # binary-released, binary-stripped, binary-compressed, finalized
+            local phase=$2       # source-copied, source-patched, binary-released, binary-stripped, binary-compressed, finalized
             local platform=$3    # darwin, linux, linux-musl, win32
             local arch=$4        # arm64, x64
 
             local base="packages/node-smol-builder/${category}/${phase}"
 
-            echo "${base}/shared ${base}/${platform}/shared ${base}/${platform}/${arch}"
+            echo "${base} ${base}/shared ${base}/${platform}/shared ${base}/${platform}/${arch}"
           }
 
           # Get platform and arch from matrix
@@ -416,13 +420,13 @@ jobs:
         uses: ./.github/actions/select-xcode
 
       - name: Setup Depot CLI
-        if: matrix.os == 'linux'
+        if: matrix.os == 'linux' && (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || inputs.force)
         uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
         with:
           oidc: true
 
       - name: Setup ccache (Unix)
-        if: matrix.os != 'windows'
+        if: matrix.os != 'windows' && (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || inputs.force)
         uses: hendrikmuhs/ccache-action@1bbbcda0748b3e340dee71a314fa68ffcbd6df79 # v1.2.21
         with:
           key: ${{ matrix.os }}-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.libc && format('-{0}', matrix.libc) || '' }}-${{ steps.build-mode.outputs.mode }}
@@ -432,7 +436,7 @@ jobs:
           save: ${{ steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || inputs.force }}
 
       - name: Setup ccache (Windows)
-        if: matrix.os == 'windows'
+        if: matrix.os == 'windows' && (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || inputs.force)
         uses: hendrikmuhs/ccache-action@1bbbcda0748b3e340dee71a314fa68ffcbd6df79 # v1.2.21
         with:
           key: windows-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.build-mode.outputs.mode }}

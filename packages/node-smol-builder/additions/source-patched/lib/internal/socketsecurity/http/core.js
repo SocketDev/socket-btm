@@ -45,7 +45,9 @@ function getCorkManager() {
 // Native binding (lazy — only loaded when a direct writer is called).
 let _smolHttpBinding
 function smolHttp() {
-  if (!_smolHttpBinding) _smolHttpBinding = internalBinding('smol_http')
+  if (!_smolHttpBinding) {
+    _smolHttpBinding = internalBinding('smol_http')
+  }
   return _smolHttpBinding
 }
 

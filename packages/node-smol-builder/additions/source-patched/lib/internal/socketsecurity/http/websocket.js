@@ -37,7 +37,9 @@ const {
 // Native WebSocket frame operations from C++ binding (lazy).
 let _smolHttpBinding
 function smolHttp() {
-  if (!_smolHttpBinding) _smolHttpBinding = internalBinding('smol_http')
+  if (!_smolHttpBinding) {
+    _smolHttpBinding = internalBinding('smol_http')
+  }
   return _smolHttpBinding
 }
 function nativeEncodeFrame(...args) {
@@ -62,7 +64,9 @@ function encodeWebSocketFrame(data, opcode = WS_OPCODE_TEXT) {
   const result = nativeEncodeFrame(data, opcode)
   // Fallback should never trigger — native handles both string and buffer.
   // C++ returns null on error via SetNull().
-  if (result == null) return BufferAlloc(0)
+  if (result == null) {
+    return BufferAlloc(0)
+  }
   return BufferFrom(result.buffer, result.byteOffset, result.byteLength)
 }
 
@@ -73,12 +77,16 @@ function encodeWebSocketFrame(data, opcode = WS_OPCODE_TEXT) {
  * @returns {{fin: boolean, opcode: number, payload: Buffer, totalLength: number}|undefined}
  */
 function decodeWebSocketFrame(buffer) {
-  if (buffer.length < 2) return undefined
+  if (buffer.length < 2) {
+    return undefined
+  }
 
   // Native decoder returns {fin, opcode, masked, totalLength, payload} or null.
   // C++ uses SetNull() for incomplete/invalid frames.
   const frame = nativeDecodeFrame(buffer)
-  if (frame == null) return undefined
+  if (frame == null) {
+    return undefined
+  }
 
   return {
     __proto__: null,
@@ -114,23 +122,31 @@ function createWebSocketHandler(socket, wsHandlers, serverInstance) {
     _socket: socket, // Internal socket reference for optimized broadcast
 
     send(data, compress = false) {
-      if (ws.readyState !== 1) return
+      if (ws.readyState !== 1) {
+        return
+      }
       const opcode = BufferIsBuffer(data) ? WS_OPCODE_BINARY : WS_OPCODE_TEXT
       socket.write(encodeWebSocketFrame(data, opcode))
     },
 
     sendText(text, compress = false) {
-      if (ws.readyState !== 1) return
+      if (ws.readyState !== 1) {
+        return
+      }
       socket.write(encodeWebSocketFrame(text, WS_OPCODE_TEXT))
     },
 
     sendBinary(data, compress = false) {
-      if (ws.readyState !== 1) return
+      if (ws.readyState !== 1) {
+        return
+      }
       socket.write(encodeWebSocketFrame(data, WS_OPCODE_BINARY))
     },
 
     close(code = 1000, reason = '') {
-      if (ws.readyState !== 1) return
+      if (ws.readyState !== 1) {
+        return
+      }
       ws.readyState = 2 // CLOSING
       const reasonBuf = BufferFrom(reason)
       const payload = BufferAlloc(2 + reasonBuf.length)
@@ -142,12 +158,16 @@ function createWebSocketHandler(socket, wsHandlers, serverInstance) {
     },
 
     ping(data = '') {
-      if (ws.readyState !== 1) return
+      if (ws.readyState !== 1) {
+        return
+      }
       socket.write(encodeWebSocketFrame(data, WS_OPCODE_PING))
     },
 
     pong(data = '') {
-      if (ws.readyState !== 1) return
+      if (ws.readyState !== 1) {
+        return
+      }
       socket.write(encodeWebSocketFrame(data, WS_OPCODE_PONG))
     },
 
@@ -186,7 +206,9 @@ function createWebSocketHandler(socket, wsHandlers, serverInstance) {
      */
     publish(topic, data, compress = false) {
       const subs = MapPrototypeGet(serverInstance._wsTopics, topic)
-      if (!subs || subs.size === 0) return 0
+      if (!subs || subs.size === 0) {
+        return 0
+      }
 
       // Encode frame ONCE for all subscribers (major perf win for broadcast)
       const opcode = BufferIsBuffer(data) ? WS_OPCODE_BINARY : WS_OPCODE_TEXT
@@ -204,7 +226,9 @@ function createWebSocketHandler(socket, wsHandlers, serverInstance) {
 
     publishText(topic, text, compress = false) {
       const subs = MapPrototypeGet(serverInstance._wsTopics, topic)
-      if (!subs || subs.size === 0) return 0
+      if (!subs || subs.size === 0) {
+        return 0
+      }
 
       // Encode frame ONCE for all subscribers
       const frame = encodeWebSocketFrame(text, WS_OPCODE_TEXT)
@@ -221,7 +245,9 @@ function createWebSocketHandler(socket, wsHandlers, serverInstance) {
 
     publishBinary(topic, data, compress = false) {
       const subs = MapPrototypeGet(serverInstance._wsTopics, topic)
-      if (!subs || subs.size === 0) return 0
+      if (!subs || subs.size === 0) {
+        return 0
+      }
 
       // Encode frame ONCE for all subscribers
       const frame = encodeWebSocketFrame(data, WS_OPCODE_BINARY)
@@ -245,7 +271,9 @@ function createWebSocketHandler(socket, wsHandlers, serverInstance) {
     },
 
     terminate() {
-      if (ws.readyState === 3) return
+      if (ws.readyState === 3) {
+        return
+      }
       ws.readyState = 3 // CLOSED
       socket.destroy()
     },
@@ -283,7 +311,9 @@ function createWebSocketHandler(socket, wsHandlers, serverInstance) {
 
     while (buffer.length > 0) {
       const frame = decodeWebSocketFrame(buffer)
-      if (!frame) break
+      if (!frame) {
+        break
+      }
 
       // Update buffer to remaining data after frame
       const remaining = BufferPrototypeSlice(buffer, frame.totalLength)

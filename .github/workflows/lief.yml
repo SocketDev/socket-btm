@@ -343,10 +343,13 @@ jobs:
             echo "Attempt $i failed, retrying in 10 seconds..."
             sleep 10
           done
-          # Download and extract llvm-mingw for ARM64 cross-compilation.
-          curl -fsSL -o llvm-mingw.zip "https://github.com/mstorsjo/llvm-mingw/releases/download/20250528/llvm-mingw-20250528-ucrt-x86_64.zip"
-          7z x llvm-mingw.zip -o"C:/llvm-mingw"
-          echo "C:/llvm-mingw/llvm-mingw-20250528-ucrt-x86_64/bin" >> $GITHUB_PATH
+
+      - name: Install llvm-mingw (Windows ARM64 cross-compile)
+        if: |
+          matrix.os == 'windows' && matrix.cross_compile &&
+          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          steps.restore-checkpoint.outputs.build-required == 'true')
+        uses: ./.github/actions/install-llvm-mingw
 
       - name: Build LIEF native (macOS/Windows)
         if: |

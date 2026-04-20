@@ -1,6 +1,7 @@
 'use strict'
 
 const {
+  ArrayPrototypeSome,
   hardenRegExp,
   JSONStringify,
   NumberParseInt,
@@ -8,6 +9,7 @@ const {
   ObjectKeys,
   RegExpPrototypeExec,
   StringPrototypeSlice,
+  StringPrototypeSplit,
   StringPrototypeStartsWith,
   StringPrototypeTrim,
 } = primordials
@@ -27,7 +29,9 @@ const semver = {
   // Parse version string.
   parse(version) {
     const match = RegExpPrototypeExec(SEMVER_REGEX, version)
-    if (!match) return null
+    if (!match) {
+      return undefined
+    }
 
     return {
       __proto__: null,
@@ -41,11 +45,25 @@ const semver = {
   // Check if version satisfies range.
   satisfies(version, range) {
     // Handle special cases.
-    if (range === '*' || range === 'latest') return true
+    if (range === '' || range === '*' || range === 'latest') {
+      return true
+    }
+
+    // npm `||` OR-ranges: any alternative satisfies.
+    // Split before parsing so `^1.0.0 || ^2.0.0` routes into two recursive
+    // `satisfies` calls, not into the permissive `^` regex below.
+    if (range.includes('||')) {
+      const alternatives = StringPrototypeSplit(range, '||')
+      return ArrayPrototypeSome(alternatives, alt =>
+        semver.satisfies(version, StringPrototypeTrim(alt)),
+      )
+    }
 
     // Parse version.
     const ver = semver.parse(version)
-    if (!ver) return false
+    if (!ver) {
+      return false
+    }
 
     // Handle caret range (^X.Y.Z) — npm semver semantics:
     //   ^X.Y.Z with X>0   → >= X.Y.Z  <(X+1).0.0
@@ -55,7 +73,9 @@ const semver = {
     // "pre-stable" and tightens the allowed range accordingly.
     if (StringPrototypeStartsWith(range, '^')) {
       const base = semver.parse(StringPrototypeSlice(range, 1))
-      if (!base) return false
+      if (!base) {
+        return false
+      }
 
       if (base.major > 0) {
         return (
@@ -80,7 +100,9 @@ const semver = {
     // Handle tilde range (~1.2.3).
     if (StringPrototypeStartsWith(range, '~')) {
       const base = semver.parse(StringPrototypeSlice(range, 1))
-      if (!base) return false
+      if (!base) {
+        return false
+      }
 
       return (
         ver.major === base.major &&
@@ -94,7 +116,9 @@ const semver = {
       const base = semver.parse(
         StringPrototypeTrim(StringPrototypeSlice(range, 2)),
       )
-      if (!base) return false
+      if (!base) {
+        return false
+      }
 
       return (
         ver.major > base.major ||
@@ -110,7 +134,9 @@ const semver = {
       const base = semver.parse(
         StringPrototypeTrim(StringPrototypeSlice(range, 1)),
       )
-      if (!base) return false
+      if (!base) {
+        return false
+      }
 
       return (
         ver.major > base.major ||
@@ -126,7 +152,9 @@ const semver = {
       const base = semver.parse(
         StringPrototypeTrim(StringPrototypeSlice(range, 2)),
       )
-      if (!base) return false
+      if (!base) {
+        return false
+      }
 
       return (
         ver.major < base.major ||
@@ -142,7 +170,9 @@ const semver = {
       const base = semver.parse(
         StringPrototypeTrim(StringPrototypeSlice(range, 1)),
       )
-      if (!base) return false
+      if (!base) {
+        return false
+      }
 
       return (
         ver.major < base.major ||

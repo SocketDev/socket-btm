@@ -111,10 +111,12 @@ jobs:
 
           # Per-checkpoint cumulative hashing (like node-smol)
 
+          # Hashes ALL files, not just *.mts — external-tools.json and other
+          # non-script configs affect the build too.
           hash_dir() {
             local dir=$1
             if [ -d "$dir" ]; then
-              find "$dir" -type f -name "*.mts" 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1 || echo ""
+              find "$dir" -type f 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1 || echo ""
             else
               echo ""
             fi

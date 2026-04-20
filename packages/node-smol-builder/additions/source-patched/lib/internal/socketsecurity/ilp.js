@@ -51,7 +51,9 @@ const {
 // Native binding for ILP operations (lazy).
 let _ilpBinding
 function binding() {
-  if (!_ilpBinding) _ilpBinding = internalBinding('smol_ilp')
+  if (!_ilpBinding) {
+    _ilpBinding = internalBinding('smol_ilp')
+  }
   return _ilpBinding
 }
 
@@ -845,7 +847,9 @@ class Sender extends EventsEventEmitter {
       for (let i = 0, len = keys.length; i < len; i++) {
         const key = keys[i]
         const value = fields[key]
-        if (value === undefined) continue
+        if (value === undefined) {
+          continue
+        }
 
         const type = typeof value
         if (type === 'string') {
@@ -878,7 +882,9 @@ class Sender extends EventsEventEmitter {
       for (let i = 0, len = keys.length; i < len; i++) {
         const key = keys[i]
         const spec = timestamps[key]
-        if (spec === undefined) continue
+        if (spec === undefined) {
+          continue
+        }
 
         // Support both { value, unit } objects and plain values.
         // typeof null === 'object', so guard against null before

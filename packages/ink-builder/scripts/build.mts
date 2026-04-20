@@ -12,6 +12,7 @@ import { existsSync, promises as fs, readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
+import { applyPatchDirectory } from 'build-infra/lib/patch-validator'
 import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
@@ -101,20 +102,13 @@ async function main() {
 
   const packageDir = path.join(extractDir, 'package')
 
-  // Apply patches.
+  // Apply patches (ordered numeric-prefix series, applied in filename order).
   logger.step('Applying patches')
-  const patchFile = path.join(PATCHES_DIR, `ink@${inkVersion}.patch`)
-  if (existsSync(patchFile)) {
-    const patchResult = await spawn('patch', ['-p1', '-i', patchFile], {
-      cwd: packageDir,
-      stdio: 'pipe',
-    })
-    if (patchResult.exitCode !== 0) {
-      throw new Error(`Failed to apply patch: ${patchResult.stderr}`)
-    }
+  if (existsSync(PATCHES_DIR)) {
+    await applyPatchDirectory(PATCHES_DIR, packageDir, { validate: true })
     logger.success('Applied patches')
   } else {
-    logger.warn(`No patch file found for ink@${inkVersion}`)
+    logger.warn(`No patches directory found for ink@${inkVersion}`)
   }
 
   // Rewire yoga-layout imports to use bundled yoga-sync.

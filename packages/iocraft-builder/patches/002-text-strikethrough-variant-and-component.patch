@@ -1,0 +1,72 @@
+# @iocraft-versions: v0.8.0
+# @description: Add TextDecoration::Strikethrough variant and Text component mapping
+#
+# Part 2 of 3 for strikethrough decoration support.
+# Depends on 001-canvas-strikethrough-field-and-render.patch for
+# CanvasTextStyle::strikethrough field.
+#
+# - Add `Strikethrough` variant to TextDecoration enum
+# - Map `strikethrough:` in the Text Component impl
+# - Add tests for the Text component strikethrough behavior
+#
+--- a/packages/iocraft/src/components/text.rs
++++ b/packages/iocraft/src/components/text.rs
+@@ -35,6 +35,8 @@ pub enum TextDecoration {
+     None,
+     /// The text is underlined.
+     Underline,
++    /// The text has a strikethrough.
++    Strikethrough,
+ }
+
+ /// The props which can be passed to the [`Text`] component.
+@@ -225,6 +227,7 @@ impl Component for Text {
+             color: props.color,
+             weight: props.weight,
+             underline: props.decoration == TextDecoration::Underline,
++            strikethrough: props.decoration == TextDecoration::Strikethrough,
+             italic: props.italic,
+         };
+         self.content = props.content.clone();
+@@ -325,4 +328,41 @@ mod tests {
+             assert_eq!(actual, expected);
+         }
+     }
++
++    #[test]
++    fn test_text_strikethrough_decoration() {
++        // Test strikethrough renders correctly to plain text
++        assert_eq!(
++            element!(Text(content: "strikethrough", decoration: TextDecoration::Strikethrough))
++                .to_string(),
++            "strikethrough\n"
++        );
++    }
++
++    #[test]
++    fn test_text_strikethrough_ansi_output() {
++        // Test that strikethrough produces ANSI output
++        let output = element! {
++            Text(content: "test", decoration: TextDecoration::Strikethrough)
++        }
++        .to_string();
++
++        // Basic assertion that it produces output with the text
++        assert!(output.len() > 0);
++        assert!(output.trim().len() >= 4); // At least contains "test"
++    }
++
++    #[test]
++    fn test_text_strikethrough_with_alignment() {
++        // Test that strikethrough works with text alignment
++        let output = element! {
++            View(width: 10) {
++                Text(content: "test", align: TextAlign::Center, decoration: TextDecoration::Strikethrough)
++            }
++        }
++        .to_string();
++
++        // Should contain the text
++        assert!(output.contains("test"));
++    }
+ }

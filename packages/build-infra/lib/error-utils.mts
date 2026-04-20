@@ -19,6 +19,6 @@
  * @param {unknown} error - Value caught by a `catch` block.
  * @returns {string} A displayable message — never `undefined`.
  */
-export function errorMessage(error) {
+export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }

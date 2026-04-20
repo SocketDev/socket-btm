@@ -222,7 +222,8 @@ Required headers:
 
 ### Patch Rules
 
-- Each patch affects ONE file and does NOT depend on other patches
+- Each patch affects ONE file. Prefer independent patches.
+- For multi-file features that cannot be split independently, use an ordered numeric-prefix series (`001-*.patch`, `002-*.patch`, `003-*.patch`) applied in filename order. Each still touches ONE file; dependencies flow in ascending order only.
 - Minimal touch, clean diffs, no style changes outside scope
 - To regenerate: use `/regenerating-patches` skill
 - Manual: `diff -u a/file b/file`, add headers, validate with `patch --dry-run`

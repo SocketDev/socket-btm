@@ -150,11 +150,30 @@ git branch | grep backup-
 git status
 ```
 
-If dirty:
+If dirty, handle the changes safely. Do NOT use `git add -A` (sweeps
+files belonging to parallel Claude sessions) or `git stash` (uses a
+shared stash store that other sessions can clobber on pop).
 
-- Commit changes: `git add -A && git commit -m "Your message"`
-- OR stash: `git stash push -m "Before squash"`
-- Then retry from Phase 1
+Pick one:
+
+- Commit on a WIP branch with surgical adds:
+
+  ```bash
+  git checkout -b wip/before-squash
+  git add <specific-files>
+  git commit -m "wip: before squash"
+  git checkout main
+  ```
+
+- OR run the squash in an isolated worktree, leaving this checkout
+  alone:
+
+  ```bash
+  git worktree add ../socket-btm-squash main
+  cd ../socket-btm-squash
+  ```
+
+Then retry from Phase 1.
 
 ### Not on Main Branch
 

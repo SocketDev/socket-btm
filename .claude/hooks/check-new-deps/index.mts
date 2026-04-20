@@ -35,6 +35,13 @@ import {
 import { SocketSdk } from '@socketsecurity/sdk'
 import type { MalwareCheckPackage } from '@socketsecurity/sdk'
 
+// Local mirror of build-infra/lib/error-utils#errorMessage. Hook runs
+// standalone (no workspace deps beyond @socketsecurity/*) so we can't import
+// the shared helper, but the contract is identical.
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 const logger = getDefaultLogger()
 
 // Per-request timeout (ms) to avoid blocking the hook on slow responses.
@@ -405,10 +412,7 @@ async function checkDepsBatch(
     }
   } catch (e) {
     // Network failure — log and allow all deps through.
-    logger.warn(
-      `Socket: network error`
-      + ` (${e instanceof Error ? e.message : String(e)}), allowing all`
-    )
+    logger.warn(`Socket: network error (${errorMessage(e)}), allowing all`)
   }
 
   return blocked

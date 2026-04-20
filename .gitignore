@@ -59,7 +59,6 @@ reports/
 packages/node-smol-builder/additions/source-patched/src/socketsecurity/bin-infra/
 packages/node-smol-builder/additions/source-patched/src/socketsecurity/binject/
 packages/node-smol-builder/additions/source-patched/src/socketsecurity/build-infra/
-packages/node-smol-builder/additions/source-patched/src/socketsecurity/lief-builder/
 
 # Vendored npm packages (sync-time generated from node_modules).
 packages/node-smol-builder/additions/source-patched/deps/fast-webstreams/

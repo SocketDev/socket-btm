@@ -57,10 +57,10 @@ Socket-btm follows a consistent directory structure across all 18 packages.
 - Examples: `build-infra`, `bin-infra`
 - Primarily `lib/` with reusable build helpers
 
-**C packages** (`binflate`, `binject`, `binpress`)
+**C/C++ packages** (`binflate`, `binject`, `binpress`)
 
-- Pure C implementations for binary manipulation
-- Have `src/` with C code
+- C/C++ implementations for binary manipulation (LIEF interop is C++)
+- Have `src/` with C/C++ code
 - Include platform-specific Dockerfiles
 
 **Model packages** (`models`, `*-models-builder`)

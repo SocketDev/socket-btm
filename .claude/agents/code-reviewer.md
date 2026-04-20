@@ -6,7 +6,7 @@ Apply the rules from CLAUDE.md sections listed below. Reference the full section
 
 **Code Style - Patterns**: UPPER_SNAKE_CASE constants, undefined over null (`__proto__`: null exception), `__proto__`: null first in literals, options pattern with null prototype, { 0: key, 1: val } for entries loops, !array.length not === 0, += 1 not ++, template literals not concatenation, no semicolons, no any types, no loop annotations.
 
-**Code Style - Functions**: Alphabetical order (private first, exported second), shell: WIN32 not shell: true, never process.chdir(), use @socketsecurity/registry/lib/spawn not child_process.
+**Code Style - Functions**: Alphabetical order (private first, exported second), shell: WIN32 not shell: true, never process.chdir(), use @socketsecurity/lib/spawn not child_process.
 
 **Code Style - Comments**: Default NO comments. Only when WHY is non-obvious. Multi-sentence comments end with periods; single phrases may not. Single-line only. JSDoc: description + @throws only.
 

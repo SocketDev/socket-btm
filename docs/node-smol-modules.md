@@ -613,8 +613,8 @@ mathLib.close()
 
 | Class      | Description                        |
 | ---------- | ---------------------------------- |
-| `Library`  | Represents a loaded native library |
 | `FFIError` | Error class for FFI operations     |
+| `Library`  | Represents a loaded native library |
 
 #### Functions
 
@@ -778,7 +778,12 @@ High-performance parser for package manifests and lockfiles. Supports package.js
 ### Quick Start
 
 ```javascript
-import { parse, parseLockfile, detectFormat } from 'node:smol-manifest'
+import {
+  detectFormat,
+  getPackage,
+  parse,
+  parseLockfile,
+} from 'node:smol-manifest'
 
 // Auto-detect format from filename.
 const result = parse('package.json', content)

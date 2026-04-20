@@ -20,6 +20,8 @@ import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn, spawnSync } from '@socketsecurity/lib/spawn'
 
+import { errorMessage } from 'build-infra/lib/error-utils'
+
 const logger = getDefaultLogger()
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -157,14 +159,14 @@ async function main(): Promise<void> {
             },
           )
           if (result.error) {
-            logger.error(`Failed to spawn vitest: ${result.error.message}`)
+            logger.error(`Failed to spawn vitest: ${errorMessage(result.error)}`)
             exitCode = 1
           } else if (result.status !== 0) {
             exitCode = result.status || 1
           }
         } catch (e) {
           logger.error(
-            `Unexpected error running tests: ${e instanceof Error ? e.message : String(e)}`,
+            `Unexpected error running tests: ${errorMessage(e)}`,
           )
           exitCode = 1
         }
@@ -200,6 +202,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((e: unknown) => {
-  logger.error(e instanceof Error ? e.message : String(e))
+  logger.error(errorMessage(e))
   process.exitCode = 1
 })

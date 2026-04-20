@@ -20,6 +20,7 @@ const {
   StringPrototypeIndexOf,
   StringPrototypeLastIndexOf,
   StringPrototypeReplace,
+  StringPrototypeReplaceAll,
   StringPrototypeSlice,
   StringPrototypeSplit,
   StringPrototypeTrim,

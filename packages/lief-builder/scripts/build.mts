@@ -233,7 +233,7 @@ async function runCommand(command, args, cwd, env = {}) {
   })
 
   if (result.error) {
-    throw new Error(`Command failed to spawn: ${result.error.message}`)
+    throw new Error(`Command failed to spawn: ${errorMessage(result.error)}`)
   }
 
   if (result.signal) {
@@ -383,7 +383,7 @@ async function copyLiefSource(sourceDir) {
     }
 
     if (result.error) {
-      throw new Error(`robocopy failed to spawn: ${result.error.message}`)
+      throw new Error(`robocopy failed to spawn: ${errorMessage(result.error)}`)
     }
 
     if (result.signal) {

@@ -49,7 +49,7 @@ const NODE_V24_WINDOWS_BUG_EXIT_CODE = 3_221_226_505
 function checkSpawnResult(result, testName, binaryPath) {
   if (result.error) {
     printError(
-      `Binary ${testName} error: ${result.error.message}`,
+      `Binary ${testName} error: ${errorMessage(result.error)}`,
       result.error,
     )
     return false
@@ -206,7 +206,7 @@ async function runBinaryTest(binaryPath, args, testName) {
     }
 
     logger.error(
-      `Binary ${testName} error: ${error.message || 'command failed'}`,
+      `Binary ${testName} error: ${errorMessage(error) || 'command failed'}`,
     )
     logger.error(`  Command: ${execPath} ${args.join(' ')}`)
     logger.error(`  Error code: ${error.code || 'unknown'}`)

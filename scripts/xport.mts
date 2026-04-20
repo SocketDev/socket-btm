@@ -44,6 +44,8 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawnSync } from '@socketsecurity/lib/spawn'
 import { validateSchema } from '@socketsecurity/lib/validation/validate-schema'
 
+import { errorMessage } from 'build-infra/lib/error-utils'
+
 import {
   XportManifestSchema,
   type FeatureParityRow,
@@ -148,7 +150,7 @@ function readManifest(manifestPath: string): Manifest {
     raw = JSON.parse(readFileSync(manifestPath, 'utf8'))
   } catch (e) {
     logger.error(`xport: could not parse ${manifestPath}`)
-    logger.fail(`  ${e instanceof Error ? e.message : String(e)}`)
+    logger.fail(`  ${errorMessage(e)}`)
     process.exit(1)
   }
   const result = validateSchema(XportManifestSchema, raw)
@@ -340,9 +342,7 @@ function countPatternHits(files: string[], patterns: string[]): number {
       compiled.push(new RegExp(p))
     } catch (e) {
       logger.warn(
-        `xport: skipping invalid regex ${JSON.stringify(p)}: ${
-          e instanceof Error ? e.message : String(e)
-        }`,
+        `xport: skipping invalid regex ${JSON.stringify(p)}: ${errorMessage(e)}`,
       )
     }
   }

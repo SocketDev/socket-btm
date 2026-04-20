@@ -13,6 +13,8 @@ import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
+import { errorMessage } from 'build-infra/lib/error-utils'
+
 import { fileURLToPath } from 'node:url'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
@@ -144,7 +146,7 @@ async function main(): Promise<void> {
 
     process.exitCode = 1
   } catch (e) {
-    logger.fail(`\nValidation failed: ${e instanceof Error ? e.message : String(e)}`)
+    logger.fail(`\nValidation failed: ${errorMessage(e)}`)
     if ((e as Error).stack) {
       logger.info((e as Error).stack as string)
     }

@@ -487,7 +487,7 @@ const isMainModule =
 
 if (isMainModule) {
   main().catch(e => {
-    logger.error(e instanceof Error ? e.message : String(e))
+    logger.error(errorMessage(e))
     process.exitCode = 1
   })
 }

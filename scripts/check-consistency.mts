@@ -24,6 +24,8 @@ import { fileURLToPath } from 'node:url'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
+import { errorMessage } from 'build-infra/lib/error-utils'
+
 const logger = getDefaultLogger()
 
 const __filename = fileURLToPath(import.meta.url)
@@ -523,7 +525,7 @@ async function checkExternalTools(packages: PackageInfo[]): Promise<void> {
       reportIssue(
         'error',
         'external-tools',
-        `Invalid JSON: ${e instanceof Error ? e.message : String(e)}`,
+        `Invalid JSON: ${errorMessage(e)}`,
         `${pkg.name}/external-tools.json`,
       )
     }
@@ -1121,7 +1123,7 @@ async function executeFixes(): Promise<void> {
       }
     } catch (e) {
       log(`\n✗ Failed to fix: ${issue.file}`, colors.red)
-      log(`  Error: ${e instanceof Error ? e.message : String(e)}`, colors.red)
+      log(`  Error: ${errorMessage(e)}`, colors.red)
     }
   }
 
@@ -1295,7 +1297,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((e: unknown) => {
-  log(`\nFatal error: ${e instanceof Error ? e.message : String(e)}`, colors.red)
+  log(`\nFatal error: ${errorMessage(e)}`, colors.red)
   logger.error((e as Error).stack)
   process.exitCode = 1
 })

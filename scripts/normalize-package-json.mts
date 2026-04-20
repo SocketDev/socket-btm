@@ -12,6 +12,8 @@ import { fileURLToPath } from 'node:url'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
+import { errorMessage } from 'build-infra/lib/error-utils'
+
 const logger = getDefaultLogger()
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -144,7 +146,7 @@ async function runNpmPkgFix(pkgPath: string): Promise<boolean> {
   } catch (e) {
     logger.error(
       `Error running npm pkg fix in ${pkgDir}:`,
-      e instanceof Error ? e.message : String(e),
+      errorMessage(e),
     )
     return false
   }
@@ -187,6 +189,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((e: unknown) => {
-  logger.error(e instanceof Error ? e.message : String(e))
+  logger.error(errorMessage(e))
   process.exitCode = 1
 })

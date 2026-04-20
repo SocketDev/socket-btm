@@ -13,6 +13,8 @@ import { existsSync } from 'node:fs'
 import process from 'node:process'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
+
+import { errorMessage } from 'build-infra/lib/error-utils'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 const WIN32 = process.platform === 'win32'
@@ -44,7 +46,7 @@ async function run(
     return 0
   } catch (e) {
     if (!required) {
-      logger.warn(`${label || cmd}: ${e instanceof Error ? e.message : String(e)} (non-blocking)`)
+      logger.warn(`${label || cmd}: ${errorMessage(e)} (non-blocking)`)
       return 0
     }
     throw e

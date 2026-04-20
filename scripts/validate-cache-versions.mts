@@ -13,6 +13,8 @@ import process from 'node:process'
 import { existsSync, readFileSync } from 'node:fs'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
+
+import { errorMessage } from 'build-infra/lib/error-utils'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 const logger = getDefaultLogger()
@@ -212,12 +214,12 @@ async function main(): Promise<void> {
     logger.success('All required cache version bumps verified.')
     process.exitCode = 0
   } catch (e) {
-    logger.error(`Error validating cache versions: ${e instanceof Error ? e.message : String(e)}`)
+    logger.error(`Error validating cache versions: ${errorMessage(e)}`)
     process.exitCode = 1
   }
 }
 
 main().catch(e => {
-  logger.error(e instanceof Error ? e.message : String(e))
+  logger.error(errorMessage(e))
   process.exitCode = 1
 })

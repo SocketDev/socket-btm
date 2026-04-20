@@ -29,6 +29,8 @@ import { safeDelete } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
+import { errorMessage } from 'build-infra/lib/error-utils'
+
 const logger = getDefaultLogger()
 
 const __filename = fileURLToPath(import.meta.url)
@@ -301,7 +303,7 @@ async function main(): Promise<void> {
     logger.log('')
     logger.log('='.repeat(60))
     logger.fail('Build failed!')
-    logger.error(e instanceof Error ? e.message : String(e))
+    logger.error(errorMessage(e))
     logger.log('')
     process.exitCode = 1
   }

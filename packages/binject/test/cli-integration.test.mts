@@ -293,7 +293,7 @@ describe('binject CLI', () => {
       )
       binjectExists = true
     } catch (error) {
-      console.error('BINJECT not accessible:', error.code, error.message)
+      console.error('BINJECT not accessible:', error.code, errorMessage(error))
       binjectExists = false
       // Skip tests gracefully if binary not built yet
       return

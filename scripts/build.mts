@@ -14,6 +14,8 @@ import process from 'node:process'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
+import { errorMessage } from 'build-infra/lib/error-utils'
+
 const logger = getDefaultLogger()
 
 type PnpmTask = {
@@ -141,7 +143,7 @@ async function main(): Promise<void> {
 
     logger.success('All builds completed successfully!')
   } catch (e) {
-    logger.fail(`Build failed: ${e instanceof Error ? e.message : String(e)}`)
+    logger.fail(`Build failed: ${errorMessage(e)}`)
     logger.log('')
     logger.info('To rebuild a specific package: pnpm --filter <package> build')
     logger.info(

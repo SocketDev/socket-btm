@@ -13,6 +13,8 @@ import { fileURLToPath } from 'node:url'
 
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
+
+import { errorMessage } from 'build-infra/lib/error-utils'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 const logger = getDefaultLogger()
@@ -135,7 +137,7 @@ async function main(): Promise<void> {
       )
     }
   } catch (e) {
-    logger.warn(`Failed to update upstream: ${e instanceof Error ? e.message : String(e)}`)
+    logger.warn(`Failed to update upstream: ${errorMessage(e)}`)
   }
   logger.log('')
 
@@ -204,7 +206,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((e: unknown) => {
-  logger.fail(`Error: ${e instanceof Error ? e.message : String(e)}`)
+  logger.fail(`Error: ${errorMessage(e)}`)
 
   process.exitCode = 1
 })

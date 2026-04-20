@@ -21,6 +21,8 @@ import { fileURLToPath } from 'node:url'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
+import { errorMessage } from 'build-infra/lib/error-utils'
+
 const logger = getDefaultLogger()
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -123,7 +125,7 @@ if (!packageName) {
       await bumpCacheVersion(packageName)
     }
   } catch (e) {
-    logger.fail(`Error: ${e instanceof Error ? e.message : String(e)}`)
+    logger.fail(`Error: ${errorMessage(e)}`)
     process.exitCode = 1
   }
 }

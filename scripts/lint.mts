@@ -12,6 +12,8 @@ import { parseArgs } from '@socketsecurity/lib/argv/parse'
 import { getChangedFiles, getStagedFiles } from '@socketsecurity/lib/git'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
+import { errorMessage } from 'build-infra/lib/error-utils'
+
 import { runCommandQuiet } from './utils/run-command.mts'
 
 // Initialize logger
@@ -448,7 +450,7 @@ async function main(): Promise<void> {
       }
     }
   } catch (e) {
-    logger.error(`Lint runner failed: ${e instanceof Error ? e.message : String(e)}`)
+    logger.error(`Lint runner failed: ${errorMessage(e)}`)
     process.exitCode = 1
   }
 }

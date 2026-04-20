@@ -9,6 +9,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { buildBinSuitePackage } from 'bin-infra/lib/builder'
+import { errorMessage } from 'build-infra/lib/error-utils'
 import { ensureZstd } from 'build-infra/lib/zstd-init'
 import { ensureCurl } from 'curl-builder/lib/ensure-curl'
 
@@ -42,6 +43,6 @@ buildBinSuitePackage({
     logger.success(`Stub binary validated: ${stats.size} bytes`)
   },
 }).catch(e => {
-  logger.error(e instanceof Error ? e.message : String(e))
+  logger.error(errorMessage(e))
   process.exitCode = 1
 })

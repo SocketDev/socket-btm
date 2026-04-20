@@ -6,6 +6,7 @@
 const {
   ArrayPrototypeMap,
   ArrayPrototypeSlice,
+  Error: ErrorCtor,
   ObjectCreate,
   ObjectDefineProperty,
   ObjectFreeze,
@@ -133,7 +134,7 @@ function rowsToObjects(rows, columns) {
   const seen = new SafeSet()
   for (let j = 0; j < colLen; j++) {
     if (SetPrototypeHas(seen, columns[j])) {
-      throw new Error(
+      throw new ErrorCtor(
         `Duplicate column name in result: "${columns[j]}". ` +
           'Alias columns (e.g. `a.id AS a_id, b.id AS b_id`) to disambiguate.',
       )

@@ -718,7 +718,10 @@ function compare(a, b, ecosystem = 'npm') {
   }
 
   // Packed integer fast path: single compare when both have no prerelease,
-  // no dev/post (PyPI), and both packed values are valid.
+  // no dev/post (PyPI), and both packed values are valid. Also require
+  // equal epochs (both undefined, or numerically equal) — a differing-epoch
+  // pair must fall through to the PyPI branch below which handles it,
+  // otherwise `1!1.0.0` and `2!1.0.0` both pack-equal and return 0.
   if (
     va.prerelease.length === 0 &&
     vb.prerelease.length === 0 &&
@@ -727,7 +730,8 @@ function compare(a, b, ecosystem = 'npm') {
     !va.hasDev &&
     !vb.hasDev &&
     !va.hasPost &&
-    !vb.hasPost
+    !vb.hasPost &&
+    (va.epoch || 0) === (vb.epoch || 0)
   ) {
     if (va._packed !== vb._packed) return va._packed < vb._packed ? -1 : 1
     return 0
@@ -1246,6 +1250,7 @@ function clearCache() {
 }
 
 module.exports = {
+  __proto__: null,
   parse,
   tryParse,
   compare,

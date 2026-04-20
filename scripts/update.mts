@@ -18,6 +18,8 @@ import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
+import { errorMessage } from 'build-infra/lib/error-utils'
+
 async function main(): Promise<void> {
   const quiet = isQuiet()
   const verbose = isVerbose()
@@ -93,7 +95,7 @@ async function main(): Promise<void> {
     }
   } catch (e) {
     if (!quiet) {
-      logger.fail(`Update failed: ${e instanceof Error ? e.message : String(e)}`)
+      logger.fail(`Update failed: ${errorMessage(e)}`)
     }
     if (verbose) {
       logger.error(e)

@@ -18,6 +18,8 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 import { printFooter } from '@socketsecurity/lib/stdio/footer'
 
+import { errorMessage } from 'build-infra/lib/error-utils'
+
 const logger = getDefaultLogger()
 
 async function runLint(
@@ -132,7 +134,7 @@ async function main(): Promise<void> {
       printFooter('Checks complete')
     }
   } catch (e) {
-    logger.error(`Check runner failed: ${e instanceof Error ? e.message : String(e)}`)
+    logger.error(`Check runner failed: ${errorMessage(e)}`)
     process.exitCode = 1
   }
 }

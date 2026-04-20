@@ -155,7 +155,7 @@ class SQLiteAdapter {
    * @param {string} format - Result format: 'objects', 'values', 'raw'
    * @returns {Promise<{result: any[], handle: any}>}
    */
-  async query(text, values, format = 'objects') {
+  async query(text, values = [], format = 'objects') {
     this.#ensureDb()
 
     try {

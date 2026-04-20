@@ -200,13 +200,16 @@ function serve(options) {
         }
         for (let i = 0; i < workerProcesses.length; i++) {
           const child = workerProcesses[i]
-          // If the worker is already gone, count it immediately. Attaching
-          // `exit` after `kill()` would never fire, hanging the Promise.
+          // Attach the listener FIRST so there's no window where the worker
+          // can exit between a null-check and the registration. After
+          // attaching, check if the worker already exited and dispatch
+          // synchronously if so — the event won't refire for a dead worker.
+          child.once('exit', done)
           if (child.exitCode !== null || child.signalCode !== null) {
+            child.removeListener('exit', done)
             done()
             continue
           }
-          child.once('exit', done)
           child.kill()
         }
       })

@@ -120,12 +120,23 @@ int FallbackAtQuickExit(AtQuickExitFn handler) {
 }
 
 __attribute__((noreturn)) void FallbackQuickExit(int code) {
-  // Drain the at_quick_exit list in LIFO order (C11 §7.22.4.3).
+  // Snapshot the whole handler array + count under the mutex, THEN release.
+  // A concurrent FallbackAtQuickExit() could otherwise write into a slot we
+  // just bounds-checked but haven't loaded yet — torn function-pointer reads
+  // on 32-bit and clobbered-slot reads on 64-bit. Fixed-size snapshot keeps
+  // this cheap.
+  AtQuickExitFn snapshot[kMaxAtQuickExitHandlers];
+  int count;
   pthread_mutex_lock(&g_at_quick_exit_mutex);
-  int count = g_at_quick_exit_count;
+  count = g_at_quick_exit_count;
+  for (int i = 0; i < count; ++i) {
+    snapshot[i] = g_at_quick_exit_handlers[i];
+  }
   pthread_mutex_unlock(&g_at_quick_exit_mutex);
+
+  // Drain in LIFO order (C11 §7.22.4.3).
   for (int i = count - 1; i >= 0; --i) {
-    AtQuickExitFn handler = g_at_quick_exit_handlers[i];
+    AtQuickExitFn handler = snapshot[i];
     if (handler) {
       handler();
     }

@@ -40,14 +40,23 @@ jobs:
           persist-credentials: false
           submodules: false
 
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@3362af95fadd1e325cb48e9ad6daff21c112bd72 # main
+      # Scoped install — the audit script only needs node-smol-builder's deps.
+      # Full monorepo setup-and-install would burn ~2-3 min for no reason.
+      - uses: SocketDev/socket-registry/.github/actions/setup@3362af95fadd1e325cb48e9ad6daff21c112bd72 # main
+
+      - name: Install node-smol-builder dependencies only
+        shell: bash
+        run: pnpm install --filter node-smol-builder --frozen-lockfile
 
       - name: Install objdump
+        shell: bash
         run: |
           sudo apt-get update
           sudo apt-get install -y binutils
 
       - name: Download latest node-smol linux-x64 release asset
+        id: download
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -69,19 +78,29 @@ jobs:
             echo "Extracting $f"
             tar -xzf "$f" -C audit-tmp
           done
-          # The binary ends up somewhere under audit-tmp/; find it.
-          BINARY=$(find audit-tmp -type f -name node -perm -u+x | head -1)
-          if [ -z "$BINARY" ]; then
-            echo "× No executable 'node' found in release tarball"
+          # The binary ends up somewhere under audit-tmp/; find it. Accept
+          # symlinks too — tarballs sometimes extract `node → node-x.y.z`.
+          BINARIES=$(find audit-tmp \( -type f -o -type l \) -name node 2>/dev/null)
+          COUNT=$(echo "$BINARIES" | grep -c . || true)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "× No 'node' binary found in release tarball"
             find audit-tmp -maxdepth 3 -type f | head -20
             exit 1
           fi
+          if [ "$COUNT" -gt 1 ]; then
+            echo "Warning: found $COUNT candidate 'node' entries; using the first."
+            echo "$BINARIES"
+          fi
+          BINARY=$(echo "$BINARIES" | head -1)
           echo "Found binary: $BINARY"
           echo "BINARY=$BINARY" >> "$GITHUB_ENV"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: Run glibc symbol audit
+        if: steps.download.outputs.skip != 'true'
+        shell: bash
         env:
           FLOOR: ${{ inputs.floor || '2.28' }}
         run: |
           pnpm --filter node-smol-builder run glibc:audit -- \
-            --binary="$BINARY" --floor="$FLOOR"
+            --binary="$BINARY" --floor="$FLOOR" --fallback-report

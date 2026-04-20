@@ -21,6 +21,8 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
+import { errorMessage } from 'build-infra/lib/error-utils'
+
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
@@ -278,7 +280,7 @@ async function main() {
 
 if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1]!)) {
   main().catch(err => {
-    logger.error(err instanceof Error ? err.message : String(err))
+    logger.error(errorMessage(err))
     process.exit(1)
   })
 }

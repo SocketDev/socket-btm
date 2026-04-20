@@ -5,37 +5,40 @@
 #   depot build --project 8fpj9495vw --file packages/node-smol-builder/docker/Dockerfile.glibc-2.17 --platform linux/arm64 .
 #
 # Base: pypa manylinux2014 — CentOS 7 vault + GCC 10 + glibc 2.17. Maintained
-# by pypa (EOL 2027-05-04). Same image serves x86_64 and aarch64 via multi-arch
-# manifest, so the single `FROM` line covers both architectures when Depot
-# builds for `linux/amd64` and `linux/arm64` simultaneously.
+# by pypa (EOL 2027-05-04). The image comes as two separate arch-specific
+# repositories (manylinux2014_x86_64, manylinux2014_aarch64) rather than a
+# single multi-arch manifest, so we map TARGETARCH → repository suffix below.
 #
-# GCC 10 is too old for Node.js C++20 requirements — we layer Red Hat SCL
-# `devtoolset-14` (GCC 14) on top. SCL packages use the HOST glibc at runtime,
-# so glibc stays at 2.17 while we get a modern compiler.
+# GCC 10 is too old for Node.js C++20 requirements. We layer Red Hat SCL
+# `devtoolset-11` (GCC 11). devtoolset-11 is the HIGHEST SCL toolset on
+# CentOS 7 vault — devtoolset-12/13/14 are only available on AlmaLinux 8
+# and newer via gcc-toolset-*. GCC 11 supports enough C++20 for Node.js
+# v25.x. SCL packages use the HOST glibc at runtime, so glibc stays 2.17
+# while we get a modern compiler.
 #
 # The compat layer in src/socketsecurity/compat/glibc_compat.{h,cc} (patched in
 # via 021-glibc-compat-layer.patch) wraps four symbols (__cxa_thread_atexit_impl,
 # getrandom, quick_exit, at_quick_exit) so the resulting binary runs on glibc
-# 2.17 even though the build environment is newer. See
+# 2.17 even though we can rely on newer kernels at build time. See
 # docs/plans/glibc-floor-lowering.md for the full plan.
 
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
+ARG TARGETARCH
 
-# Using `-latest` for now; pin to a specific date stamp once Phase 2 of the
-# floor-lowering plan lands. Quay.io supports tag-by-digest via manifest, so
-# multi-arch builds work without explicit per-arch FROM.
-FROM quay.io/pypa/manylinux2014_x86_64:latest AS build
+# manylinux2014_x86_64 and manylinux2014_aarch64 are DIFFERENT repositories,
+# not a single multi-arch manifest. We select via TARGETARCH inside the FROM.
+# Using `-latest` for now; pin to a specific date stamp (e.g. 2026.04.17-1)
+# as soon as the first real build succeeds — per Phase 2 of the plan.
+FROM quay.io/pypa/manylinux2014_${TARGETARCH/amd64/x86_64}:latest AS build
 
 # Explicit cache-version tag from cache-versions.json; bumping this invalidates layers below.
 ARG CACHE_VERSION=unset
+ARG PNPM_VERSION=11.0.0-rc.0
 
 # Install build dependencies.
-# manylinux2014 ships with GCC 10 and build essentials; layer devtoolset-14 for C++20.
-# EPEL is already available in the base image.
-ARG PNPM_VERSION=11.0.0-rc.0
-RUN yum -y install centos-release-scl || true && \
-    yum -y install \
+# NOTE: manylinux2014 ships WITH SCL preconfigured — no `centos-release-scl`
+# needed. If that package install ever appears necessary again, investigate
+# why; don't paper over it with `|| true`, which silently masks real errors.
+RUN yum -y install \
         git \
         curl \
         ccache \
@@ -51,9 +54,9 @@ RUN yum -y install centos-release-scl || true && \
         which \
         procps-ng \
         patch \
-        devtoolset-14-gcc \
-        devtoolset-14-gcc-c++ \
-        devtoolset-14-libstdc++-devel \
+        devtoolset-11-gcc \
+        devtoolset-11-gcc-c++ \
+        devtoolset-11-libstdc++-devel \
         && \
     # Install Node.js from NodeSource.
     curl -fsSL https://rpm.nodesource.com/setup_current.x | bash - && \
@@ -63,11 +66,14 @@ RUN yum -y install centos-release-scl || true && \
     ACTUAL_SHA256=$(sha256sum /tmp/pnpm.tar.gz | cut -d' ' -f1) && \
     if [ "$ARCH" = "x64" ]; then EXPECTED="fe82b94125a6b743456b869e823611a8837b545f2535e4602578e4c9fdb5742a"; \
     else EXPECTED="69ad2d528f4a2c00fd42541a80c13491c57e66b2765b2d9d89829aeb0f6482be"; fi && \
-    if [ "$ACTUAL_SHA256" != "$EXPECTED" ]; then echo "pnpm checksum mismatch!" >&2; exit 1; fi && \
+    if [ "$ACTUAL_SHA256" != "$EXPECTED" ]; then \
+        echo "× pnpm checksum mismatch for $PNPM_VERSION (if overridden, update the hardcoded sha256 or switch to manifest lookup)" >&2 && \
+        exit 1; \
+    fi && \
     tar -xzf /tmp/pnpm.tar.gz -C /usr/local/bin && rm /tmp/pnpm.tar.gz && \
-    # Confirm we're actually on glibc 2.17. This is a build-time tripwire:
-    # if the base image ever drops below 2.17 or the SCL toolset accidentally
-    # links against a newer glibc, we find out here, not in production.
+    # Confirm we're actually on glibc 2.17. Build-time tripwire: if the base
+    # image ever drifts or SCL accidentally links against a newer glibc, we
+    # find out here, not in production.
     echo "Verifying glibc floor..." && \
     ldd --version | head -1 && \
     GLIBC_VER=$(ldd --version | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1) && \
@@ -78,7 +84,7 @@ RUN yum -y install centos-release-scl || true && \
 # Build static OpenSSL (manylinux2014 ships openssl-devel, but we build static
 # for portability — same reasoning as the glibc 2.28 image).
 COPY .github/scripts/build-static-openssl.sh .github/scripts/
-RUN source /opt/rh/devtoolset-14/enable && .github/scripts/build-static-openssl.sh
+RUN source /opt/rh/devtoolset-11/enable && .github/scripts/build-static-openssl.sh
 
 # Set working directory.
 WORKDIR /workspace
@@ -93,7 +99,6 @@ RUN pnpm install --frozen-lockfile
 # Build Node.js smol.
 ARG BUILD_MODE=prod
 ARG PLATFORM_ARCH=linux-x64
-ARG TARGETARCH
 ARG MATRIX_PLATFORM=linux
 ARG MATRIX_ARCH=x64
 ENV BUILD_MODE=$BUILD_MODE
@@ -104,11 +109,11 @@ ENV MATRIX_ARCH=$MATRIX_ARCH
 # (Currently informational; the wraps are version-tolerant anyway.)
 ENV GLIBC_FLOOR=2.17
 
-# Source devtoolset-14 environment before building.
+# Source devtoolset-11 environment before building.
 # For amd64/x64 builds, set CFLAGS/CXXFLAGS to target baseline x86-64 without AVX/AVX2
 # to ensure binary portability across different CPU generations.
 RUN echo "Cache version: ${CACHE_VERSION}" && \
-    source /opt/rh/devtoolset-14/enable && \
+    source /opt/rh/devtoolset-11/enable && \
     if [ "$MATRIX_ARCH" = "x64" ]; then \
         export CFLAGS="-march=x86-64 -mtune=generic" && \
         export CXXFLAGS="-march=x86-64 -mtune=generic"; \

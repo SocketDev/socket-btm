@@ -472,7 +472,7 @@ jobs:
     needs: release
     if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
     permissions:
-      contents: write
+      contents: write # release-assets.json commit after publishing GitHub release
     uses: ./.github/workflows/update-checksums.yml
     secrets:
       BOT_GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}

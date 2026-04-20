@@ -1,6 +1,7 @@
 'use strict'
 
 const {
+  ArrayPrototypeEvery,
   ArrayPrototypeSome,
   hardenRegExp,
   JSONStringify,
@@ -8,6 +9,7 @@ const {
   NumberPrototypeToFixed,
   ObjectKeys,
   RegExpPrototypeExec,
+  RegExpPrototypeTest,
   StringPrototypeIncludes,
   StringPrototypeSlice,
   StringPrototypeSplit,
@@ -22,9 +24,17 @@ const {
 // or `+<build>` metadata. Whitespace, operators, or leftover fragments
 // (e.g. "1.0.0 <2.0.0") cause parse to return undefined so compound
 // ranges don't silently succeed.
+//
+// Prerelease/build patterns match versions.js exactly:
+//   prerelease = [0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*
+//   build      = same pattern after `+`
+// This rejects malformed inputs like "1.0.0-.foo" or "1.0.0-foo..bar".
 const SEMVER_REGEX = hardenRegExp(
-  /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/,
+  /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/,
 )
+
+// Whitespace detector for compound AND-ranges (e.g. ">=1.0.0 <2.0.0").
+const WHITESPACE_REGEX = hardenRegExp(/\s+/)
 
 // Packument version subsetting - send only matching versions.
 // 90-95% bandwidth reduction for popular packages.
@@ -64,6 +74,20 @@ const semver = {
       const alternatives = StringPrototypeSplit(range, '||')
       return ArrayPrototypeSome(alternatives, alt =>
         semver.satisfies(version, StringPrototypeTrim(alt)),
+      )
+    }
+
+    // npm compound AND-ranges: `>=1.0.0 <2.0.0` — all parts must satisfy.
+    // Split on whitespace AFTER `||` handling so OR takes precedence.
+    // The strict SEMVER_REGEX would otherwise reject the leftover fragment
+    // and return false for every version.
+    if (RegExpPrototypeTest(WHITESPACE_REGEX, StringPrototypeTrim(range))) {
+      const parts = StringPrototypeSplit(
+        StringPrototypeTrim(range),
+        WHITESPACE_REGEX,
+      )
+      return ArrayPrototypeEvery(parts, part =>
+        semver.satisfies(version, part),
       )
     }
 

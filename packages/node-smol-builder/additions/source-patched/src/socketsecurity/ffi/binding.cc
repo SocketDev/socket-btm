@@ -321,7 +321,18 @@ void FFIBinding::Open(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  auto* stored_lib = new uv_lib_t(uv_lib);
+  // -fno-exceptions: nothrow + null-check so OOM surfaces as a JS Error
+  // instead of aborting the process. Unload the native library on failure
+  // so we don't leak the OS-level handle.
+  auto* stored_lib = new (std::nothrow) uv_lib_t(uv_lib);
+  if (!stored_lib) {
+    uv_dlclose(&uv_lib);
+    isolate->ThrowException(Exception::Error(
+      String::NewFromUtf8(isolate,
+          "Out of memory: failed to allocate FFI library handle")
+        .ToLocalChecked()));
+    return;
+  }
   lib->handle = stored_lib;
   lib->id = state->next_library_id++;
 
@@ -2203,8 +2214,19 @@ void FFIBinding::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  // Store the JS function reference.
-  auto* persistent = new Global<Function>(isolate, args[3].As<Function>());
+  // Store the JS function reference. -fno-exceptions: nothrow + null-check.
+  // If OOM, release the pool slot we just claimed so another caller can reuse
+  // it, then surface as a JS Error instead of aborting the process.
+  auto* persistent = new (std::nothrow) Global<Function>(
+      isolate, args[3].As<Function>());
+  if (!persistent) {
+    CallbackPoolFree(static_cast<uint32_t>(slot));
+    isolate->ThrowException(Exception::Error(
+      String::NewFromUtf8(isolate,
+          "Out of memory: failed to persist callback function")
+        .ToLocalChecked()));
+    return;
+  }
 
   CallbackSlotData slot_data;
   slot_data.env = env;

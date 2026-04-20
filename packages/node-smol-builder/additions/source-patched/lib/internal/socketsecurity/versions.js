@@ -1194,8 +1194,12 @@ function compileRange(range, ecosystem) {
 
     for (let j = 0; j < andParts.length; j++) {
       if (andParts[j + 1] === '-' && andParts[j + 2]) {
-        const lower = tryParse(andParts[j], ecosystem)
-        const upper = tryParse(andParts[j + 2], ecosystem)
+        // Hyphen ranges accept partial versions per npm semver:
+        //   `1 - 2` === `>=1.0.0 <=2`, `1.2 - 2.3.4` === `>=1.2.0 <=2.3.4`.
+        // Coerce so bare integers / partial tuples don't silently drop out
+        // when the strict tryParse rejects them.
+        const lower = tryParseOrCoerce(andParts[j], ecosystem)
+        const upper = tryParseOrCoerce(andParts[j + 2], ecosystem)
         if (lower)
           ArrayPrototypePush(comparators, {
             __proto__: null,

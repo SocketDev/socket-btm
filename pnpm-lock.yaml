@@ -258,6 +258,9 @@ importers:
       '@typescript/native-preview':
         specifier: 7.0.0-dev.20260415.1
         version: 7.0.0-dev.20260415.1
+      build-infra:
+        specifier: workspace:*
+        version: link:packages/build-infra
       docsify-cli:
         specifier: 4.4.4
         version: 4.4.4

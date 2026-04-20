@@ -43,6 +43,7 @@
     "@socketsecurity/lib": "catalog:",
     "@types/node": "catalog:",
     "@typescript/native-preview": "7.0.0-dev.20260415.1",
+    "build-infra": "workspace:*",
     "docsify-cli": "4.4.4",
     "ecc-agentshield": "catalog:",
     "husky": "9.1.7",

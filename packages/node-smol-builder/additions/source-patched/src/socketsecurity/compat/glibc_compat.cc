@@ -14,22 +14,28 @@
 #include "socketsecurity/compat/glibc_compat.h"
 
 #include <dlfcn.h>
+#include <errno.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 namespace socketsecurity {
 namespace compat {
-namespace {
 
-// libc++abi-19.1 fallback — used only when glibc < 2.18 (no
-// __cxa_thread_atexit_impl). On glibc 2.18+ the dlsym path below is taken and
-// this fallback is never invoked.
+// ============================================================================
+// __cxa_thread_atexit_impl — libc++abi-19.1 fallback
+// ============================================================================
+// Used only when glibc < 2.18 (no __cxa_thread_atexit_impl). On glibc 2.18+
+// the dlsym path is taken and this fallback is never invoked.
 //
 // Limitations inherited from the libc++abi port:
 //   - dso_symbol is ignored (glibc's impl uses it for DSO-refcount handling).
 //   - Destructors registered on the main thread run at static-destruction time.
 // Both are acceptable on the target floor (glibc 2.17 / CentOS 7) where no
 // runtime library ships with the real impl.
+
+namespace {
 
 using DtorFn = void (*)(void*);
 
@@ -83,8 +89,60 @@ int FallbackThreadAtexit(DtorFn dtor, void* obj, void* /*dso_symbol*/) {
 }
 
 }  // namespace
+
+// ============================================================================
+// at_quick_exit / quick_exit — process-wide handler list
+// ============================================================================
+// quick_exit and at_quick_exit arrived together in glibc 2.24. On 2.17 we
+// keep our own LIFO list and drain it from our quick_exit fallback.
+// C11 §7.22.4.3 requires implementations support at least 32 handlers.
+
+namespace {
+
+constexpr int kMaxAtQuickExitHandlers = 32;
+using AtQuickExitFn = void (*)(void);
+AtQuickExitFn g_at_quick_exit_handlers[kMaxAtQuickExitHandlers] = {};
+int g_at_quick_exit_count = 0;
+pthread_mutex_t g_at_quick_exit_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+int FallbackAtQuickExit(AtQuickExitFn handler) {
+  if (!handler) {
+    return -1;
+  }
+  pthread_mutex_lock(&g_at_quick_exit_mutex);
+  if (g_at_quick_exit_count >= kMaxAtQuickExitHandlers) {
+    pthread_mutex_unlock(&g_at_quick_exit_mutex);
+    return -1;
+  }
+  g_at_quick_exit_handlers[g_at_quick_exit_count++] = handler;
+  pthread_mutex_unlock(&g_at_quick_exit_mutex);
+  return 0;
+}
+
+__attribute__((noreturn)) void FallbackQuickExit(int code) {
+  // Drain the at_quick_exit list in LIFO order (C11 §7.22.4.3).
+  pthread_mutex_lock(&g_at_quick_exit_mutex);
+  int count = g_at_quick_exit_count;
+  pthread_mutex_unlock(&g_at_quick_exit_mutex);
+  for (int i = count - 1; i >= 0; --i) {
+    AtQuickExitFn handler = g_at_quick_exit_handlers[i];
+    if (handler) {
+      handler();
+    }
+  }
+  // Bypass atexit handlers and buffered stream flushes — C11 quick_exit
+  // contract. _exit does exactly that.
+  _exit(code);
+}
+
+}  // namespace
+
 }  // namespace compat
 }  // namespace socketsecurity
+
+// ============================================================================
+// __wrap_* entry points
+// ============================================================================
 
 extern "C" int __wrap___cxa_thread_atexit_impl(void (*dtor)(void*), void* obj,
                                                void* dso_symbol) {
@@ -95,8 +153,50 @@ extern "C" int __wrap___cxa_thread_atexit_impl(void (*dtor)(void*), void* obj,
     // glibc 2.18+ path — preserve DSO refcount semantics.
     return real(dtor, obj, dso_symbol);
   }
-  // glibc < 2.18 fallback.
   return socketsecurity::compat::FallbackThreadAtexit(dtor, obj, dso_symbol);
+}
+
+extern "C" ssize_t __wrap_getrandom(void* buf, size_t buflen,
+                                    unsigned int flags) {
+  using GetrandomFn = ssize_t (*)(void*, size_t, unsigned int);
+  static GetrandomFn real =
+      reinterpret_cast<GetrandomFn>(dlsym(RTLD_NEXT, "getrandom"));
+  if (real) {
+    // glibc 2.25+ path — preserves the vDSO fast path on glibc 2.41+.
+    return real(buf, buflen, flags);
+  }
+#if defined(SYS_getrandom)
+  // Raw syscall fallback for glibc < 2.25. On kernels < 3.17 this returns
+  // -1/ENOSYS; all in-tree callers (OpenSSL, c-ares, V8 highway) handle
+  // that by falling back to /dev/urandom.
+  return syscall(SYS_getrandom, buf, buflen, flags);
+#else
+  errno = ENOSYS;
+  return -1;
+#endif
+}
+
+extern "C" void __wrap_quick_exit(int code) {
+  using QuickExitFn = void (*)(int);
+  static QuickExitFn real =
+      reinterpret_cast<QuickExitFn>(dlsym(RTLD_NEXT, "quick_exit"));
+  if (real) {
+    // glibc 2.24+ path — C11-correct (skips thread_local dtors per C11/C++11;
+    // the pre-2.24 @GLIBC_2.10 version erroneously ran them, see glibc#20198).
+    real(code);
+    __builtin_unreachable();
+  }
+  socketsecurity::compat::FallbackQuickExit(code);
+}
+
+extern "C" int __wrap_at_quick_exit(void (*handler)(void)) {
+  using AtQuickExitRealFn = int (*)(void (*)(void));
+  static AtQuickExitRealFn real =
+      reinterpret_cast<AtQuickExitRealFn>(dlsym(RTLD_NEXT, "at_quick_exit"));
+  if (real) {
+    return real(handler);
+  }
+  return socketsecurity::compat::FallbackAtQuickExit(handler);
 }
 
 #endif  // __GLIBC__ && __linux__

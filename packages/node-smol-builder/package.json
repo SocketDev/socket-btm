@@ -10,6 +10,7 @@
     "build:all": "node scripts/common/shared/build.mts --all-platforms",
     "clean": "node scripts/clean.mts",
     "cover": "node scripts/cover.mts",
+    "glibc:audit": "node scripts/audit-glibc-symbols.mts",
     "postinstall": "node scripts/setup-build-toolchain.mts",
     "test": "node scripts/test-with-memory-limit.mts",
     "test:linux-x64-docker": "node scripts/test-linux-x64-docker.mts",

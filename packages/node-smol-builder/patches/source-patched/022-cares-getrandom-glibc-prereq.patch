@@ -1,0 +1,46 @@
+# @node-versions: v25.9.0
+# @description: Gate cares HAVE_GETRANDOM / HAVE_SYS_RANDOM_H on __GLIBC_PREREQ(2,25)
+#
+# deps/cares/config/linux/ares_config.h is a static autoconf-generated file
+# that unconditionally sets HAVE_GETRANDOM=1 and HAVE_SYS_RANDOM_H=1. On a
+# glibc 2.17 host, <sys/random.h> does not exist (added in 2.25) and cares
+# fails to compile.
+#
+# This is the known CentOS 7 breakage tracked in nodejs/node#52223.
+#
+# Fix: wrap both defines in __GLIBC_PREREQ checks so they auto-disable on
+# glibc < 2.25. The link-time getrandom symbol is handled separately by our
+# glibc_compat.cc __wrap_getrandom; this patch only fixes the compile-time
+# header inclusion.
+#
+# Safe on 2.28 build hosts (preserves current behavior — defines still set).
+# Correct on 2.17 build hosts (defines absent — cares uses /dev/urandom).
+#
+--- a/deps/cares/config/linux/ares_config.h
++++ b/deps/cares/config/linux/ares_config.h
+@@ -116,7 +116,13 @@
+ #define HAVE_GETNAMEINFO 1
+
+ /* Define to 1 if you have `getrandom` */
++#include <features.h>
++#if !defined(__GLIBC_PREREQ) || __GLIBC_PREREQ(2, 25)
+ #define HAVE_GETRANDOM 1
++#else
++/* glibc < 2.25: getrandom is not declared in <unistd.h>. Our linker wrap
++ * in src/socketsecurity/compat/glibc_compat.cc provides a syscall fallback. */
++#endif
+
+ /* Define to 1 if you have `getservbyport_r` */
+ #define HAVE_GETSERVBYPORT_R 1
+@@ -329,7 +334,11 @@
+ #define HAVE_SYS_PARAM_H 1
+
+ /* Define to 1 if you have the <sys/random.h> header file. */
++#if !defined(__GLIBC_PREREQ) || __GLIBC_PREREQ(2, 25)
+ #define HAVE_SYS_RANDOM_H 1
++#else
++/* glibc < 2.25: <sys/random.h> does not exist. */
++#endif
+
+ /* Define to 1 if you have the <sys/select.h> header file. */
+ #define HAVE_SYS_SELECT_H 1

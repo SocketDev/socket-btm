@@ -171,6 +171,34 @@ export async function getCurrentPlatformArch() {
 }
 
 /**
+ * Read the requested glibc floor from the GLIBC_FLOOR env var.
+ *
+ * Returned value is a string like "2.17" or "2.28", or undefined when unset.
+ * No behavior change today — this is groundwork for threading a glibc floor
+ * dimension through cache keys and Docker image selection when we lower the
+ * floor. See packages/node-smol-builder/docs/plans/glibc-floor-lowering.md.
+ *
+ * Callers should treat `undefined` as "fall back to the repo's current default
+ * build image (glibc 2.28)" so behavior is unchanged until the env is set.
+ *
+ * @returns {string | undefined} Requested glibc floor, or undefined.
+ */
+export function getRequestedGlibcFloor(): string | undefined {
+  const raw = process.env.GLIBC_FLOOR
+  if (!raw) {
+    return undefined
+  }
+  const trimmed = raw.trim()
+  // Accept "2.17" or "2.28". Reject anything else so typos surface loudly.
+  if (trimmed === '2.17' || trimmed === '2.28') {
+    return trimmed
+  }
+  throw new Error(
+    `Unrecognized GLIBC_FLOOR="${raw}". Expected "2.17" or "2.28".`,
+  )
+}
+
+/**
  * Check if tar supports --no-absolute-names (GNU tar has it, busybox tar doesn't).
  *
  * @returns {Promise<boolean>} True if tar supports --no-absolute-names.

@@ -222,67 +222,10 @@ jobs:
       # - Post-processing steps (strip, compress, finalize) only need standard tools (strip, objcopy)
       # - The ubuntu-toolchain-r PPA has unreliable network connectivity (Launchpad API timeouts)
 
-      - name: Install musl toolchain (Linux musl)
-        if: matrix.os == 'linux' && matrix.libc == 'musl' && (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || inputs.force)
-        run: |
-          # Install musl cross-compilation toolchain
-          sudo apt-get install -y musl-tools
-
-          # For ARM64, we need the cross-compiler
-          if [ "${{ matrix.arch }}" = "arm64" ]; then
-            sudo apt-get install -y gcc-aarch64-linux-gnu
-          fi
-
-      - name: Select Xcode (macOS)
-        if: matrix.os == 'macos' && (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || inputs.force)
-        uses: ./.github/actions/select-xcode
-
-      - name: Setup Depot CLI
-        if: matrix.os == 'linux'
-        uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
-        with:
-          oidc: true
-
-      - name: Setup ccache (Unix)
-        if: matrix.os != 'windows'
-        uses: hendrikmuhs/ccache-action@1bbbcda0748b3e340dee71a314fa68ffcbd6df79 # v1.2.21
-        with:
-          key: ${{ matrix.os }}-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.libc && format('-{0}', matrix.libc) || '' }}-${{ steps.build-mode.outputs.mode }}
-          # macOS: Depot.dev has 24GB RAM - can afford larger ccache
-          # Linux has less RAM, keep at 2GB
-          max-size: ${{ matrix.os == 'macos' && '4G' || '2G' }}
-          save: ${{ steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || inputs.force }}
-
-      - name: Setup ccache (Windows)
-        if: matrix.os == 'windows'
-        uses: hendrikmuhs/ccache-action@1bbbcda0748b3e340dee71a314fa68ffcbd6df79 # v1.2.21
-        with:
-          key: windows-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.build-mode.outputs.mode }}
-          max-size: 2G
-          variant: sccache
-          save: ${{ steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || inputs.force }}
-
-      - name: Setup Windows build tools
-        if: matrix.os == 'windows' && (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || inputs.force)
-        shell: bash
-        run: |
-          # Install LLVM/Clang for MSVC-compatible builds
-          # Using clang avoids MinGW runtime DLL dependencies
-          choco install -y llvm
-          clang --version
-
-      # NOTE: Compression tools are now built automatically during the build process
-      # The build script (build-compressed.mts) calls ensureCompressionToolsBuilt()
-      # which checks if tools exist and builds them if needed. No manual step required.
-
-      - name: Install compression tool dependencies (Linux)
-        if: matrix.os == 'linux' && (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || inputs.force)
-        shell: bash
-        run: |
-          # Install OpenSSL development headers for Linux builds
-          sudo apt-get update
-          sudo apt-get install -y libssl-dev
-
+      # Cache restore runs BEFORE any toolchain-install steps so that
+      # `steps.checkpoint-cache.outputs.cache-hit` resolves for the install gates.
+      # Without this ordering GHA returns an empty string for the unresolved step
+      # output, gates evaluate `!= 'true'` as true, and every run reinstalls.
       - name: Load cache version from centralized config
         id: cache-version
         shell: bash
@@ -461,6 +404,67 @@ jobs:
           checkpoint-dirs: packages/node-smol-builder/build/shared/checkpoints:packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/${{ steps.platform-arch.outputs.platform_arch }}/checkpoints
           checkpoints: ${{ steps.checkpoint-chain.outputs.checkpoints }}
           package-name: node-smol-builder
+
+      - name: Install musl toolchain (Linux musl)
+        if: matrix.os == 'linux' && matrix.libc == 'musl' && (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || inputs.force)
+        run: |
+          # Install musl cross-compilation toolchain
+          sudo apt-get install -y musl-tools
+
+          # For ARM64, we need the cross-compiler
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu
+          fi
+
+      - name: Select Xcode (macOS)
+        if: matrix.os == 'macos' && (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || inputs.force)
+        uses: ./.github/actions/select-xcode
+
+      - name: Setup Depot CLI
+        if: matrix.os == 'linux'
+        uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
+        with:
+          oidc: true
+
+      - name: Setup ccache (Unix)
+        if: matrix.os != 'windows'
+        uses: hendrikmuhs/ccache-action@1bbbcda0748b3e340dee71a314fa68ffcbd6df79 # v1.2.21
+        with:
+          key: ${{ matrix.os }}-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.libc && format('-{0}', matrix.libc) || '' }}-${{ steps.build-mode.outputs.mode }}
+          # macOS: Depot.dev has 24GB RAM - can afford larger ccache
+          # Linux has less RAM, keep at 2GB
+          max-size: ${{ matrix.os == 'macos' && '4G' || '2G' }}
+          save: ${{ steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || inputs.force }}
+
+      - name: Setup ccache (Windows)
+        if: matrix.os == 'windows'
+        uses: hendrikmuhs/ccache-action@1bbbcda0748b3e340dee71a314fa68ffcbd6df79 # v1.2.21
+        with:
+          key: windows-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.build-mode.outputs.mode }}
+          max-size: 2G
+          variant: sccache
+          save: ${{ steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || inputs.force }}
+
+      - name: Setup Windows build tools
+        if: matrix.os == 'windows' && (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || inputs.force)
+        shell: bash
+        run: |
+          # Install LLVM/Clang for MSVC-compatible builds
+          # Using clang avoids MinGW runtime DLL dependencies
+          choco install -y llvm
+          clang --version
+
+      # NOTE: Compression tools are now built automatically during the build process
+      # The build script (build-compressed.mts) calls ensureCompressionToolsBuilt()
+      # which checks if tools exist and builds them if needed. No manual step required.
+
+      - name: Install compression tool dependencies (Linux)
+        if: matrix.os == 'linux' && (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || inputs.force)
+        shell: bash
+        run: |
+          # Install OpenSSL development headers for Linux builds
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev
 
       - name: Determine build parallelism
         id: build-parallelism

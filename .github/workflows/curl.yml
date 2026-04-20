@@ -221,13 +221,13 @@ jobs:
           fi
 
       - name: Setup build toolchain (macOS)
-        if: matrix.os == 'macos'
+        if: matrix.os == 'macos' && (steps.curl-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
         shell: bash
         run: |
           brew install cmake ccache
 
       - name: Setup build toolchain (Windows x64)
-        if: matrix.os == 'windows' && !matrix.cross_compile
+        if: matrix.os == 'windows' && !matrix.cross_compile && (steps.curl-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
         shell: bash
         run: |
           # Retry up to 3 times to handle transient Chocolatey CDN failures
@@ -240,7 +240,7 @@ jobs:
           done
 
       - name: Setup build toolchain (Windows ARM64 cross-compile)
-        if: matrix.os == 'windows' && matrix.cross_compile
+        if: matrix.os == 'windows' && matrix.cross_compile && (steps.curl-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
         shell: bash
         run: |
           # Retry up to 3 times to handle transient Chocolatey CDN failures
@@ -253,7 +253,7 @@ jobs:
           done
 
       - name: Install llvm-mingw (Windows ARM64 cross-compile)
-        if: matrix.os == 'windows' && matrix.cross_compile
+        if: matrix.os == 'windows' && matrix.cross_compile && (steps.curl-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
         uses: ./.github/actions/install-llvm-mingw
 
       - name: Build curl native (macOS/Windows)

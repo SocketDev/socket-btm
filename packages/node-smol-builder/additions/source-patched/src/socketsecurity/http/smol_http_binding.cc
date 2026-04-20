@@ -97,6 +97,7 @@
 #include "v8-fast-api-calls.h"
 
 #include <cstdio>
+#include <new>
 #include <cstring>
 #include <unordered_map>
 #include <vector>
@@ -1014,7 +1015,7 @@ static void ObjectPoolCleanup(void* data) {
 
 static HttpObjectPool* GetObjectPool(Environment* env) {
   if (tl_object_pool == nullptr) {
-    tl_object_pool = new HttpObjectPool(env);
+    tl_object_pool = new (std::nothrow) HttpObjectPool(env);
     env->AddCleanupHook(ObjectPoolCleanup, tl_object_pool);
   }
   return tl_object_pool;

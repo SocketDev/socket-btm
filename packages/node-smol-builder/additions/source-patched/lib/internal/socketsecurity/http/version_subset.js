@@ -8,6 +8,7 @@ const {
   NumberPrototypeToFixed,
   ObjectKeys,
   RegExpPrototypeExec,
+  StringPrototypeIncludes,
   StringPrototypeSlice,
   StringPrototypeSplit,
   StringPrototypeStartsWith,
@@ -16,7 +17,14 @@ const {
 
 // Hoist all regex literals to module scope so they are compiled once and
 // protected from prototype pollution.
-const SEMVER_REGEX = hardenRegExp(/^(\d+)\.(\d+)\.(\d+)(.*)$/)
+//
+// Strict semver: trailing content is ONLY allowed as a `-<prerelease>` tag
+// or `+<build>` metadata. Whitespace, operators, or leftover fragments
+// (e.g. "1.0.0 <2.0.0") cause parse to return undefined so compound
+// ranges don't silently succeed.
+const SEMVER_REGEX = hardenRegExp(
+  /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/,
+)
 
 // Packument version subsetting - send only matching versions.
 // 90-95% bandwidth reduction for popular packages.
@@ -52,7 +60,7 @@ const semver = {
     // npm `||` OR-ranges: any alternative satisfies.
     // Split before parsing so `^1.0.0 || ^2.0.0` routes into two recursive
     // `satisfies` calls, not into the permissive `^` regex below.
-    if (range.includes('||')) {
+    if (StringPrototypeIncludes(range, '||')) {
       const alternatives = StringPrototypeSplit(range, '||')
       return ArrayPrototypeSome(alternatives, alt =>
         semver.satisfies(version, StringPrototypeTrim(alt)),

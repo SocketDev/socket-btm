@@ -87,7 +87,7 @@ function isSeaPath(filepath) {
  * Extract asset key from SEA path
  *
  * @param {string} filepath - Full path (e.g., '/sea/config.json')
- * @returns {string|null} Asset key (e.g., 'config.json'), empty string for root, null if invalid
+ * @returns {string | undefined} Asset key (e.g., 'config.json'), empty string for root, undefined if invalid
  */
 function getSeaAssetKey(filepath) {
   const normalized = normalizePath(filepath)

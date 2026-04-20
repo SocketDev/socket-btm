@@ -240,6 +240,91 @@ docker run --rm almalinux:7 ldd --version | head -1
 
 ---
 
+## Testing the compat layer locally (without touching main CI)
+
+You don't need to run the full phase plan to exercise the `glibc_compat.cc` fallback paths — you can do it today on any host that has Docker.
+
+### Quick smoke test: build with the glibc-2.17 Dockerfile
+
+We ship `packages/node-smol-builder/docker/Dockerfile.glibc-2.17` as groundwork. It is **not wired into any workflow** but can be invoked directly via Depot or local BuildKit to prove the compat layer compiles and links.
+
+```bash
+# Using Depot (the same setup CI uses):
+pnpm exec depot build \
+  --project 8fpj9495vw \
+  --file packages/node-smol-builder/docker/Dockerfile.glibc-2.17 \
+  --platform linux/amd64 \
+  --output type=local,dest=./glibc-2.17-out \
+  .
+
+# Or with a local buildx (slower, no Depot cache):
+docker buildx build \
+  --file packages/node-smol-builder/docker/Dockerfile.glibc-2.17 \
+  --platform linux/amd64 \
+  --output type=local,dest=./glibc-2.17-out \
+  .
+```
+
+The Dockerfile contains a build-time tripwire (`ldd --version | grep 2.17`) that fails the build if the base image drifts to a newer glibc. Exit 0 = your environment is actually 2.17.
+
+### Audit a built binary
+
+```bash
+# Against any node binary you have locally (the script auto-detects the most
+# recent Final build when --binary is omitted):
+pnpm --filter node-smol-builder run glibc:audit -- --floor=2.17
+
+# Explicit path + "which symbols are already wrapped?" annotations:
+pnpm --filter node-smol-builder run glibc:audit -- \
+  --binary=./glibc-2.17-out/node-smol-builder/build/prod/linux-x64/out/Final/node/node \
+  --floor=2.17 \
+  --fallback-report
+```
+
+Expected output on a 2.28-built binary with `--floor=2.17`: a table of violations, each annotated `✓ yes` or `✗ NO` depending on whether `glibc_compat.h` already declares a `__wrap_<symbol>()`. Any `✗ NO` means Phase 1 needs extending.
+
+### Exercise the fallback path directly
+
+The C++ fallbacks are only reachable when `dlsym(RTLD_NEXT, "<symbol>")` returns `nullptr`. On any glibc ≥ 2.18 host the dlsym call finds the real impl and the fallback never runs. Three ways to hit it:
+
+1. **Actually run on glibc 2.17** (most realistic — CentOS 7 or Amazon Linux 1 container):
+   ```bash
+   docker run --rm -v "$PWD/glibc-2.17-out:/out" quay.io/centos/centos:7 \
+     /out/node-smol-builder/build/prod/linux-x64/out/Final/node/node -e 'console.log(process.version)'
+   ```
+   If the linked binary runs and prints the Node version, all four wraps survive.
+
+2. **Override `dlsym` at runtime with `LD_PRELOAD`** (for developers who want to unit-test the fallback without a 2.17 host). Write a small shim:
+   ```c
+   // force_null_dlsym.c — compile with: gcc -shared -fPIC -o force_null_dlsym.so force_null_dlsym.c
+   #include <dlfcn.h>
+   void* dlsym(void* handle, const char* symbol) {
+     if (symbol && (!strcmp(symbol, "getrandom") ||
+                    !strcmp(symbol, "quick_exit") ||
+                    !strcmp(symbol, "at_quick_exit") ||
+                    !strcmp(symbol, "__cxa_thread_atexit_impl"))) {
+       return NULL;
+     }
+     // Forward to real dlsym via its own lookup.
+     static void* (*real)(void*, const char*);
+     if (!real) real = __builtin_dlsym(RTLD_NEXT, "dlsym");
+     return real(handle, symbol);
+   }
+   ```
+   Then `LD_PRELOAD=./force_null_dlsym.so ./node`. Confirms the fallback code actually runs.
+
+3. **Audit-only dry run**: `pnpm run glibc:audit -- --floor=2.17 --fallback-report` against a built 2.28 binary — shows you exactly which fallbacks WOULD activate if you moved to 2.17 today.
+
+### When you're done
+
+If the compat layer ever activates on a real user system (crash reports mentioning `__wrap_getrandom` or similar), treat it as P0 — it means either:
+- the host glibc is below our intended floor (check deployment/base-image drift), or
+- the dlsym lookup failed for a non-version reason (sandboxing? SELinux?).
+
+Keep incident notes in `packages/node-smol-builder/docs/plans/glibc-floor-lowering.md` if either case hits.
+
+---
+
 ## Known limitations of the compat layer
 
 Inherited from the libc++abi 19.1 port of `__cxa_thread_atexit_impl`:

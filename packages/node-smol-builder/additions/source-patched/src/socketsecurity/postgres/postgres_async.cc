@@ -70,6 +70,7 @@
 #include "util-inl.h"
 #include <libpq-fe.h>
 #include <memory>
+#include <new>
 #include <string>
 #include <vector>
 
@@ -253,7 +254,12 @@ class QueryAsyncWork : public ThreadPoolWork {
     }
 
     size_t byte_len = hex_len / 2;
-    std::unique_ptr<uint8_t[]> bytes(new uint8_t[byte_len]);
+    // -fno-exceptions: nothrow + null-check so a ~100MB alloc failure
+    // returns the hex string unchanged instead of aborting the process.
+    std::unique_ptr<uint8_t[]> bytes(new (std::nothrow) uint8_t[byte_len]);
+    if (!bytes) {
+      return String::NewFromUtf8(isolate, value).ToLocalChecked();
+    }
 
     // Decode and validate hex characters
     auto is_hex = [](char c) {
@@ -640,13 +646,19 @@ void ExecutePreparedAsync(const FunctionCallbackInfo<Value>& args) {
 
   Local<Function> callback = args[4].As<Function>();
 
-  auto* work = new ExecutePreparedAsyncWork(
+  auto* work = new (std::nothrow) ExecutePreparedAsyncWork(
       env,
       it->second.get(),
       *stmt_name,
       std::move(params),
       use_bigint,
       callback);
+  if (!work) {
+    isolate->ThrowException(Exception::Error(
+        String::NewFromUtf8(isolate,
+            "Out of memory: failed to allocate async query work").ToLocalChecked()));
+    return;
+  }
 
   work->ScheduleWork();
 }

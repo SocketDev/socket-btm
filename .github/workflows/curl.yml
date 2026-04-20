@@ -364,6 +364,8 @@ jobs:
           path: packages/curl-builder/build/${{ steps.build-mode.outputs.mode }}/${{ steps.platform-arch.outputs.platform_arch }}/out/Final/${{ env.ARTIFACT_NAME }}.tar.gz
           retention-days: 30
           if-no-files-found: error
+          # tar.gz payload is already gzipped — skip re-gzip.
+          compression-level: 0
 
   release:
     name: Release curl

@@ -31,7 +31,7 @@ using v8::Value;
 StreamChunkPool* GetChunkPool(Environment* env) {
   static StreamChunkPool* pool = nullptr;
   if (pool == nullptr) {
-    pool = new StreamChunkPool(env);
+    pool = new (std::nothrow) StreamChunkPool(env);
   }
   return pool;
 }

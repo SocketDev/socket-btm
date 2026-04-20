@@ -938,6 +938,41 @@ function min(versions, ecosystem = 'npm') {
   return best
 }
 
+// Coerce a partial semver string ("1", "1.2", "1.x") into a strict "X.Y.Z"
+// that tryParse will accept. Missing components pad with 0. Returns undefined
+// when the input isn't a partial-numeric match. Used by parseComparator below
+// so `^1`, `^1.2`, `~1`, `>=1`, etc. resolve correctly.
+function coercePartialToFull(str) {
+  const trimmed = StringPrototypeTrim(str)
+  if (!trimmed) {
+    return undefined
+  }
+  const match = RegExpPrototypeExec(RANGE_WILDCARD_REGEX, trimmed)
+  if (!match) {
+    return undefined
+  }
+  const major = match[1]
+  const minor = match[2]
+  const patch = match[3]
+  // Anything wildcard-like (x / X / *) acts as 0 when coerced.
+  const coerce = s =>
+    !s || RegExpPrototypeTest(RANGE_XCH_REGEX, s) ? '0' : s
+  return `${major}.${coerce(minor)}.${coerce(patch)}`
+}
+
+// tryParse that falls back to coercing partial versions (e.g. "1" → "1.0.0").
+function tryParseOrCoerce(str, ecosystem) {
+  const v = tryParse(str, ecosystem)
+  if (v) {
+    return v
+  }
+  const coerced = coercePartialToFull(str)
+  if (!coerced) {
+    return undefined
+  }
+  return tryParse(coerced, ecosystem)
+}
+
 // Parse a range comparator (e.g., ">=1.0.0", "^2.0.0")
 function parseComparator(comp, ecosystem) {
   comp = StringPrototypeTrim(comp)
@@ -956,7 +991,8 @@ function parseComparator(comp, ecosystem) {
     }
   }
 
-  // Exact match
+  // Exact match — partial versions like "1" or "1.2" are handled by the
+  // wildcard branch below, not here.
   if (RegExpPrototypeTest(RANGE_STARTS_WITH_DIGIT_REGEX, comp)) {
     const v = tryParse(comp, ecosystem)
     if (v) {
@@ -964,28 +1000,29 @@ function parseComparator(comp, ecosystem) {
     }
   }
 
-  // Operators: >=, <=, >, <, =
+  // Operators: >=, <=, >, <, =.
+  // npm accepts partial versions ('>=1' means '>=1.0.0'), so coerce.
   const opMatch = RegExpPrototypeExec(RANGE_OPERATOR_REGEX, comp)
   if (opMatch) {
-    const v = tryParse(opMatch[2], ecosystem)
+    const v = tryParseOrCoerce(opMatch[2], ecosystem)
     if (v) {
       return { __proto__: null, op: opMatch[1], version: v }
     }
   }
 
-  // Caret ^
+  // Caret ^ — npm accepts '^1' (= >=1.0.0 <2.0.0), so coerce partial.
   const caretMatch = RegExpPrototypeExec(RANGE_CARET_REGEX, comp)
   if (caretMatch) {
-    const v = tryParse(caretMatch[1], ecosystem)
+    const v = tryParseOrCoerce(caretMatch[1], ecosystem)
     if (v) {
       return { __proto__: null, op: '^', version: v }
     }
   }
 
-  // Tilde ~
+  // Tilde ~ — npm accepts '~1' (= >=1.0.0 <2.0.0), so coerce partial.
   const tildeMatch = RegExpPrototypeExec(RANGE_TILDE_REGEX, comp)
   if (tildeMatch) {
-    const v = tryParse(tildeMatch[1], ecosystem)
+    const v = tryParseOrCoerce(tildeMatch[1], ecosystem)
     if (v) {
       return { __proto__: null, op: '~', version: v }
     }

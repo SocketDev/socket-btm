@@ -6,6 +6,7 @@
 #include "util-inl.h"
 
 #include <cstring>
+#include <new>
 
 namespace node {
 namespace smol_http {
@@ -40,7 +41,7 @@ static const size_t kParamKeyLens[] = {
 // ============================================================================
 
 UwsServer* UwsServer::Create(Environment* env) {
-  return new UwsServer(env);
+  return new (std::nothrow) UwsServer(env);
 }
 
 UwsServer::UwsServer(Environment* env) : env_(env) {

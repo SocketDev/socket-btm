@@ -641,10 +641,14 @@ struct TrieRouter::Node {
   }
 };
 
-TrieRouter::TrieRouter() : root_(new Node()) {}
+// -fno-exceptions: throwing `new (std::nothrow) Node()` would abort on OOM. Using std::nothrow
+// here means a ctor failure leaves root_=nullptr; Insert/Match null-check below.
+TrieRouter::TrieRouter() : root_(new (std::nothrow) Node()) {}
 TrieRouter::~TrieRouter() { delete root_; }
 
 void TrieRouter::Insert(const char* pattern, size_t pattern_len, uint32_t handler_id) {
+  // Bail if root allocation failed at ctor time; the router is unusable.
+  if (!root_) return;
   Node* node = root_;
   const char* p = pattern;
   const char* end = pattern + pattern_len;
@@ -664,7 +668,8 @@ void TrieRouter::Insert(const char* pattern, size_t pattern_len, uint32_t handle
     if (seg_start[0] == '*') {
       // Wildcard
       if (!node->wildcard_child) {
-        node->wildcard_child = new Node();
+        node->wildcard_child = new (std::nothrow) Node();
+        if (!node->wildcard_child) return;
         node->wildcard_child->type = Node::kWildcard;
         node->wildcard_child->segment = std::string(seg_start + 1, seg_len - 1);
       }
@@ -673,7 +678,8 @@ void TrieRouter::Insert(const char* pattern, size_t pattern_len, uint32_t handle
     } else if (seg_start[0] == ':') {
       // Param
       if (!node->param_child) {
-        node->param_child = new Node();
+        node->param_child = new (std::nothrow) Node();
+        if (!node->param_child) return;
         node->param_child->type = Node::kParam;
       }
       node->param_child->segment = std::string(seg_start + 1, seg_len - 1);
@@ -683,7 +689,8 @@ void TrieRouter::Insert(const char* pattern, size_t pattern_len, uint32_t handle
       std::string seg(seg_start, seg_len);
       auto it = node->children.find(seg);
       if (it == node->children.end()) {
-        Node* child = new Node();
+        Node* child = new (std::nothrow) Node();
+        if (!child) return;
         child->segment = seg;
         node->children[seg] = child;
         node = child;

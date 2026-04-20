@@ -56,6 +56,7 @@
 
 #include "socketsecurity/postgres/postgres_pool.h"
 #include <algorithm>
+#include <new>
 #include <chrono>
 
 namespace node {
@@ -202,7 +203,7 @@ PooledConnection* PostgresPool::CreateConnection() {
   // Enable binary protocol for efficiency.
   // Note: This is set per-query, not globally.
 
-  return new PooledConnection(pg_conn);
+  return new (std::nothrow) PooledConnection(pg_conn);
 }
 
 void PostgresPool::DestroyConnection(PooledConnection* conn) {

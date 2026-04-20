@@ -70,15 +70,50 @@ function parseCliArgs(argv: readonly string[]) {
     __proto__: null,
     binary: undefined as string | undefined,
     floor: '2.17',
+    fallbackReport: false,
   }
   for (const arg of argv.slice(2)) {
     if (arg.startsWith('--binary=')) {
       result.binary = arg.slice('--binary='.length)
     } else if (arg.startsWith('--floor=')) {
       result.floor = arg.slice('--floor='.length)
+    } else if (arg === '--fallback-report') {
+      result.fallbackReport = true
     }
   }
   return result
+}
+
+/**
+ * Parse `src/socketsecurity/compat/glibc_compat.h` to learn which symbols
+ * the compat layer currently wraps. Used by --fallback-report to annotate
+ * each violation with "wrapped?" yes/no, so an engineer extending the floor
+ * can see at a glance which symbols already have a fallback and which need
+ * new __wrap_ entries.
+ */
+async function readWrappedSymbols(): Promise<ReadonlySet<string>> {
+  const header = path.join(
+    __dirname,
+    '..',
+    'additions',
+    'source-patched',
+    'src',
+    'socketsecurity',
+    'compat',
+    'glibc_compat.h',
+  )
+  try {
+    const text = await fs.readFile(header, 'utf8')
+    const pattern = /__wrap_(\w+)\s*\(/g
+    const wrapped = new Set<string>()
+    let match: RegExpExecArray | null
+    while ((match = pattern.exec(text)) !== null) {
+      wrapped.add(match[1]!)
+    }
+    return wrapped
+  } catch {
+    return new Set()
+  }
 }
 
 async function runObjdump(binary: string): Promise<string> {
@@ -198,16 +233,41 @@ async function main() {
     logger.error(
       `${violations.length} symbol(s) exceed floor GLIBC_${args.floor}:`,
     )
-    for (const v of violations) {
-      logger.log(`  GLIBC_${v.version.padEnd(8)} ${v.symbol}`)
+
+    if (args.fallbackReport) {
+      const wrapped = await readWrappedSymbols()
+      logger.log('  wrapped? | symbol (GLIBC_ver)')
+      logger.log('  ---------|-------------------')
+      for (const v of violations) {
+        const has = wrapped.has(v.symbol) ? '✓ yes   ' : '✗ NO    '
+        logger.log(`  ${has} | GLIBC_${v.version.padEnd(6)} ${v.symbol}`)
+      }
+      logger.log('')
+      const missing = violations.filter(v => !wrapped.has(v.symbol)).length
+      if (missing > 0) {
+        logger.log(
+          `${missing} symbol(s) have no __wrap_ in glibc_compat.h — must be added.`,
+        )
+      } else {
+        logger.log(
+          'All violations are already wrapped; inert on current floor, will activate on target.',
+        )
+      }
+    } else {
+      for (const v of violations) {
+        logger.log(`  GLIBC_${v.version.padEnd(8)} ${v.symbol}`)
+      }
+      logger.log('')
+      logger.log(
+        'To lower the floor, add -Wl,--wrap=<symbol> in 021-glibc-compat-layer.patch',
+      )
+      logger.log(
+        'and implement __wrap_<symbol> in socketsecurity/compat/glibc_compat.cc.',
+      )
+      logger.log(
+        'Pass --fallback-report to see which symbols are already wrapped.',
+      )
     }
-    logger.log('')
-    logger.log(
-      'To lower the floor, add -Wl,--wrap=<symbol> in 021-glibc-compat-layer.patch',
-    )
-    logger.log(
-      'and implement __wrap_<symbol> in socketsecurity/compat/glibc_compat.cc.',
-    )
     process.exit(2)
   }
 

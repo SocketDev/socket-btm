@@ -8,7 +8,7 @@
 //
 // WHAT THIS FILE DOES
 //   Implements the FastReadableStreamAccelerator methods:
-//     New()      -- constructor, called when JS does `new Accelerator()`
+//     New()      -- constructor, called when JS does `new (std::nothrow) Accelerator()`
 //     Enqueue()  -- pushes a JS value into the C++ buffer
 //     ReadSync() -- pops a value from the buffer (fast path), or returns
 //                   undefined if the buffer is empty (signals JS to do an
@@ -93,7 +93,7 @@ void FastReadableStreamAccelerator::New(
     return;
   }
 
-  new FastReadableStreamAccelerator(env, args.This());
+  new (std::nothrow) FastReadableStreamAccelerator(env, args.This());
 }
 
 void FastReadableStreamAccelerator::ReadSync(

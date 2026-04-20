@@ -223,7 +223,7 @@ jobs:
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           workspaces: packages/iocraft-builder -> target
-          prefix-key: iocraft-${{ matrix.os }}-${{ matrix.arch }}
+          prefix-key: iocraft-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.libc && format('-{0}', matrix.libc) || '' }}
 
       - name: Install musl cross-compilation tools
         if: matrix.libc == 'musl' && (steps.iocraft-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
@@ -444,7 +444,7 @@ jobs:
     needs: release
     if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
     permissions:
-      contents: write
+      contents: write # release-assets.json commit after publishing GitHub release
     uses: ./.github/workflows/update-checksums.yml
     secrets:
       BOT_GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}

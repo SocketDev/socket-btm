@@ -290,7 +290,7 @@ jobs:
     runs-on: ubuntu-24.04
     environment: release
     permissions:
-      contents: write
+      contents: write # Required to create GitHub releases and upload binary assets
 
     steps:
       - name: Checkout repository
@@ -422,7 +422,7 @@ jobs:
     needs: release
     if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
     permissions:
-      contents: write
+      contents: write # release-assets.json commit after publishing GitHub release
     uses: ./.github/workflows/update-checksums.yml
     secrets:
       BOT_GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}

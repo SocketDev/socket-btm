@@ -1,5 +1,6 @@
 #include "socketsecurity/http/response_template.h"
 #include <cstring>
+#include <new>
 
 namespace node {
 namespace socketsecurity {
@@ -10,7 +11,7 @@ ResponseTemplate::ResponseTemplate() {}
 ResponseTemplate::~ResponseTemplate() {}
 
 ResponseTemplate* ResponseTemplate::Create(const char* format) {
-  ResponseTemplate* tmpl = new ResponseTemplate();
+  ResponseTemplate* tmpl = new (std::nothrow) ResponseTemplate();
 
   // Templates typically have 1-2 placeholders and 2-3 segments. Reserving
   // upfront avoids reallocations during the one-time construction at startup.

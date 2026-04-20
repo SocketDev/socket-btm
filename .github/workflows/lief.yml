@@ -263,7 +263,10 @@ jobs:
           context: .
 
       - name: Verify Depot build output (Linux)
-        if: matrix.os == 'linux'
+        if: |
+          matrix.os == 'linux' &&
+          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          steps.restore-checkpoint.outputs.build-required == 'true')
         shell: bash
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
@@ -479,6 +482,8 @@ jobs:
           path: packages/lief-builder/build/${{ steps.build-mode.outputs.mode }}/${{ env.ARTIFACT_NAME }}.tar.gz
           retention-days: 30
           if-no-files-found: error
+          # tar.gz payload is already gzipped — skip re-gzip.
+          compression-level: 0
 
   release:
     name: Release LIEF

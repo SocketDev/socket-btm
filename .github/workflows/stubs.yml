@@ -352,6 +352,8 @@ jobs:
           path: packages/stubs-builder/${{ env.ARTIFACT_NAME }}.tar.gz
           retention-days: 30
           if-no-files-found: error
+          # tar.gz payload is already gzipped — skip re-gzip.
+          compression-level: 0
 
   release:
     name: Release stubs

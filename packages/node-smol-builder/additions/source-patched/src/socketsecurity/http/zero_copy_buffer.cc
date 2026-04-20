@@ -7,6 +7,7 @@
 #include "node_internals.h"
 #include "util-inl.h"
 #include <cstdlib>
+#include <new>
 #include <cstring>
 
 namespace node {
@@ -36,7 +37,7 @@ Local<String> ZeroCopyBuffer::CreateExternalString(
 
   // Create external string resource.
   ExternalStringResource* resource =
-    new ExternalStringResource(data, length, this);
+    new (std::nothrow) ExternalStringResource(data, length, this);
 
   // Create external string (zero-copy, backed by resource).
   Local<String> str =

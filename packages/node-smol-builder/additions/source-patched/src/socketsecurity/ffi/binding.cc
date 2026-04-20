@@ -198,7 +198,7 @@ FFIState::~FFIState() {
 FFIState* FFIBinding::GetState(Environment* env) {
   CHECK_NOT_NULL(env);
   if (tl_ffi_state == nullptr || tl_ffi_env != env) {
-    tl_ffi_state = new FFIState();
+    tl_ffi_state = new (std::nothrow) FFIState();
     tl_ffi_env = env;
     // HISTORY: WHY CLEANUP HOOKS INSTEAD OF DESTRUCTORS
     // With Worker threads, a binding's resources must die when that Worker's

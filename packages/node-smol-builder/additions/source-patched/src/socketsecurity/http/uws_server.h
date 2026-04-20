@@ -68,6 +68,12 @@ class UwsServer {
  private:
   explicit UwsServer(Environment* env);
 
+  // Second-phase init. The constructor only does trivial field setup so it
+  // cannot fail; this method allocates the uWS::App with std::nothrow and
+  // returns false on OOM. Create() invokes Init() and destroys the instance
+  // if it returns false so callers never see a half-constructed server.
+  bool Init();
+
   static void HandleRequest(uWS::HttpResponse<false>* res,
                             uWS::HttpRequest* req,
                             UwsServer* server,

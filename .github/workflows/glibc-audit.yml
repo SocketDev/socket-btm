@@ -100,6 +100,10 @@ jobs:
         if: steps.download.outputs.skip != 'true'
         shell: bash
         env:
+          # BINARY is exported into GITHUB_ENV by the download step above so
+          # it flows into every subsequent step. Listing it here documents the
+          # dependency and keeps it symmetric with FLOOR.
+          BINARY: ${{ env.BINARY }}
           FLOOR: ${{ inputs.floor || '2.28' }}
         run: |
           pnpm --filter node-smol-builder run glibc:audit -- \

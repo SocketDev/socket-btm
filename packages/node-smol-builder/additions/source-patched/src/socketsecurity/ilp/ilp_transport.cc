@@ -289,7 +289,13 @@ ssize_t IlpTransport::SendWithSocket(const char* data, size_t len) {
 #ifdef HAVE_IOURING
 
 bool IlpTransport::InitIoUring() {
-  ring_ = new io_uring;
+  // Node.js compiles with -fno-exceptions, so a throwing `new` aborts the
+  // whole process on OOM. std::nothrow lets the caller degrade gracefully
+  // back to the non-iouring path instead.
+  ring_ = new (std::nothrow) io_uring;
+  if (ring_ == nullptr) {
+    return false;
+  }
 
   // Initialize io_uring with small queue depth for ILP writes.
   int ret = io_uring_queue_init(64, ring_, 0);

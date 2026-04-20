@@ -187,6 +187,7 @@ jobs:
 
       - name: Install QEMU and Docker (Linux - for cross-compiled binary testing)
         if: matrix.os == 'linux' && matrix.runner == 'ubuntu-24.04' && (matrix.arch == 'arm64' || matrix.libc == 'musl')
+        shell: bash
         run: |
           sudo apt-get update
 
@@ -366,7 +367,14 @@ jobs:
           BINJECT_SRC=$(hash_files packages/binject/src/socketsecurity/binject -type f)
           BINPRESS_SRC=$(hash_files packages/binpress/src -type f)
 
-          FINAL_KEY=$(echo "${COMMON_SCRIPTS}${FINAL_PATCHES}${FINAL_ADDITIONS}${FINAL_SCRIPTS}${BUILD_INFRA_SRC}${BIN_INFRA_SRC}${BINJECT_SRC}${BINPRESS_SRC}" | $hash_cmd | cut -d' ' -f1)
+          # Linux builds are produced by Depot.dev consuming the Dockerfiles
+          # under packages/node-smol-builder/docker/. A Dockerfile edit (e.g.
+          # toolchain bump, glibc floor change) MUST invalidate the cache —
+          # otherwise a stale cache hit serves a binary built against the old
+          # image.
+          DOCKERFILES=$(hash_files packages/node-smol-builder/docker -type f)
+
+          FINAL_KEY=$(echo "${COMMON_SCRIPTS}${FINAL_PATCHES}${FINAL_ADDITIONS}${FINAL_SCRIPTS}${BUILD_INFRA_SRC}${BIN_INFRA_SRC}${BINJECT_SRC}${BINPRESS_SRC}${DOCKERFILES}" | $hash_cmd | cut -d' ' -f1)
 
           echo "final_hash=${FINAL_KEY}" >> $GITHUB_OUTPUT
           echo "build_mode=${BUILD_MODE}" >> $GITHUB_OUTPUT
@@ -406,6 +414,7 @@ jobs:
 
       - name: Install musl toolchain (Linux musl)
         if: matrix.os == 'linux' && matrix.libc == 'musl' && (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || inputs.force)
+        shell: bash
         run: |
           # Install musl cross-compilation toolchain
           sudo apt-get install -y musl-tools
@@ -606,6 +615,10 @@ jobs:
       # Checkpoints are created after the build by GHA (strip, compress, finalize).
 
       - name: Build Node.js smol with GitHub runner (macOS/Windows)
+        # Skip entirely when a downstream checkpoint already restored (build-required=false).
+        # The inner Linux guard stays because Linux uses Depot.dev above; this `if` only
+        # prevents a pointless runner spin-up when the finalized tarball is already in cache.
+        if: matrix.os != 'linux' && steps.restore-checkpoint.outputs.build-required != 'false'
         shell: bash
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
@@ -616,7 +629,9 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           MATRIX_OS: ${{ matrix.os }}
         run: |
-          # Linux builds use Depot.dev Docker — skip this step.
+          # Defense-in-depth: the `if:` above already filters Linux out, but
+          # keep this so someone running locally with ACT (which doesn't eval
+          # the step `if:`) still does the right thing.
           if [ "$MATRIX_OS" = "linux" ]; then
             echo "Skipping: Linux builds use Depot.dev"
             exit 0

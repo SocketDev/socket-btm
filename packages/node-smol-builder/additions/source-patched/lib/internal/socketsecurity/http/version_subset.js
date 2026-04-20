@@ -11,6 +11,7 @@ const {
   RegExpPrototypeExec,
   RegExpPrototypeTest,
   StringPrototypeIncludes,
+  StringPrototypeReplace,
   StringPrototypeSlice,
   StringPrototypeSplit,
   StringPrototypeStartsWith,
@@ -35,6 +36,13 @@ const SEMVER_REGEX = hardenRegExp(
 
 // Whitespace detector for compound AND-ranges (e.g. ">=1.0.0 <2.0.0").
 const WHITESPACE_REGEX = hardenRegExp(/\s+/)
+
+// Strip the space between a comparison operator and its version, so that
+// `>= 1.0.0` normalizes to `>=1.0.0`. Without this the whitespace-split for
+// compound AND-ranges would treat the operator and version as two separate
+// parts (e.g. [">=", "1.0.0"]) and return false for every version.
+// Operators are the full npm set: >= > <= < = ^ ~ .
+const OPERATOR_SPACE_REGEX = hardenRegExp(/(>=?|<=?|\^|~|=)\s+/g)
 
 // Packument version subsetting - send only matching versions.
 // 90-95% bandwidth reduction for popular packages.
@@ -81,11 +89,18 @@ const semver = {
     // Split on whitespace AFTER `||` handling so OR takes precedence.
     // The strict SEMVER_REGEX would otherwise reject the leftover fragment
     // and return false for every version.
-    if (RegExpPrototypeTest(WHITESPACE_REGEX, StringPrototypeTrim(range))) {
-      const parts = StringPrototypeSplit(
-        StringPrototypeTrim(range),
-        WHITESPACE_REGEX,
-      )
+    //
+    // First normalize operator+space forms like `>= 1.0.0` into `>=1.0.0`
+    // so the whitespace-split only triggers on true AND-range boundaries.
+    // Without this, `>= 1.0.0` splits into [">=", "1.0.0"] and every
+    // version falls through to `false`.
+    const normalized = StringPrototypeReplace(
+      StringPrototypeTrim(range),
+      OPERATOR_SPACE_REGEX,
+      '$1',
+    )
+    if (RegExpPrototypeTest(WHITESPACE_REGEX, normalized)) {
+      const parts = StringPrototypeSplit(normalized, WHITESPACE_REGEX)
       return ArrayPrototypeEvery(parts, part =>
         semver.satisfies(version, part),
       )
@@ -97,14 +112,19 @@ const semver = {
       return false
     }
 
+    // All remaining branches operate on `normalized` so operator+space
+    // input (e.g. `>= 1.0.0`, `^ 1.0.0`) is treated identically to the
+    // no-space form. The WHITESPACE check above already peeled off true
+    // AND-ranges, so whatever remains here is a single comparator.
+
     // Handle caret range (^X.Y.Z) — npm semver semantics:
     //   ^X.Y.Z with X>0   → >= X.Y.Z  <(X+1).0.0
     //   ^0.Y.Z with Y>0   → >= 0.Y.Z  <0.(Y+1).0
     //   ^0.0.Z            → >= 0.0.Z  <0.0.(Z+1)   (exact patch only)
     // The three branches are distinct because semver treats 0.* as
     // "pre-stable" and tightens the allowed range accordingly.
-    if (StringPrototypeStartsWith(range, '^')) {
-      const base = semver.parse(StringPrototypeSlice(range, 1))
+    if (StringPrototypeStartsWith(normalized, '^')) {
+      const base = semver.parse(StringPrototypeSlice(normalized, 1))
       if (!base) {
         return false
       }
@@ -130,8 +150,8 @@ const semver = {
     }
 
     // Handle tilde range (~1.2.3).
-    if (StringPrototypeStartsWith(range, '~')) {
-      const base = semver.parse(StringPrototypeSlice(range, 1))
+    if (StringPrototypeStartsWith(normalized, '~')) {
+      const base = semver.parse(StringPrototypeSlice(normalized, 1))
       if (!base) {
         return false
       }
@@ -144,10 +164,8 @@ const semver = {
     }
 
     // Handle >= range.
-    if (StringPrototypeStartsWith(range, '>=')) {
-      const base = semver.parse(
-        StringPrototypeTrim(StringPrototypeSlice(range, 2)),
-      )
+    if (StringPrototypeStartsWith(normalized, '>=')) {
+      const base = semver.parse(StringPrototypeSlice(normalized, 2))
       if (!base) {
         return false
       }
@@ -162,10 +180,8 @@ const semver = {
     }
 
     // Handle > range.
-    if (StringPrototypeStartsWith(range, '>')) {
-      const base = semver.parse(
-        StringPrototypeTrim(StringPrototypeSlice(range, 1)),
-      )
+    if (StringPrototypeStartsWith(normalized, '>')) {
+      const base = semver.parse(StringPrototypeSlice(normalized, 1))
       if (!base) {
         return false
       }
@@ -180,10 +196,8 @@ const semver = {
     }
 
     // Handle <= range.
-    if (StringPrototypeStartsWith(range, '<=')) {
-      const base = semver.parse(
-        StringPrototypeTrim(StringPrototypeSlice(range, 2)),
-      )
+    if (StringPrototypeStartsWith(normalized, '<=')) {
+      const base = semver.parse(StringPrototypeSlice(normalized, 2))
       if (!base) {
         return false
       }
@@ -198,10 +212,8 @@ const semver = {
     }
 
     // Handle < range.
-    if (StringPrototypeStartsWith(range, '<')) {
-      const base = semver.parse(
-        StringPrototypeTrim(StringPrototypeSlice(range, 1)),
-      )
+    if (StringPrototypeStartsWith(normalized, '<')) {
+      const base = semver.parse(StringPrototypeSlice(normalized, 1))
       if (!base) {
         return false
       }
@@ -216,7 +228,7 @@ const semver = {
     }
 
     // Handle exact match.
-    return version === range
+    return version === normalized
   },
 }
 

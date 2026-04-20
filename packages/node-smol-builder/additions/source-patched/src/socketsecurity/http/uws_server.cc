@@ -41,13 +41,32 @@ static const size_t kParamKeyLens[] = {
 // ============================================================================
 
 UwsServer* UwsServer::Create(Environment* env) {
-  return new (std::nothrow) UwsServer(env);
+  // Split allocation into two phases so OOM on the uWS::App allocation does
+  // not crash the process. The constructor does only trivial field setup;
+  // Init() performs the throwing allocation with std::nothrow and returns
+  // false on failure, at which point we destroy the partial instance.
+  auto* server = new (std::nothrow) UwsServer(env);
+  if (server == nullptr) {
+    return nullptr;
+  }
+  if (!server->Init()) {
+    delete server;
+    return nullptr;
+  }
+  return server;
+}
+
+bool UwsServer::Init() {
+  // uWS::App is the heavy allocation — a throwing `new` here would abort
+  // because Node.js builds with -fno-exceptions. std::nothrow turns OOM into
+  // a nullptr the caller can surface as a JS error.
+  app_ = new (std::nothrow) uWS::App();
+  return app_ != nullptr;
 }
 
 UwsServer::UwsServer(Environment* env) : env_(env) {
   Isolate* isolate = env->isolate();
   uWS::Loop::get(env->event_loop());
-  app_ = new uWS::App();
 
   str_method_.Set(isolate, FIXED_ONE_BYTE_STRING(isolate, "method"));
   str_pathname_.Set(isolate, FIXED_ONE_BYTE_STRING(isolate, "pathname"));

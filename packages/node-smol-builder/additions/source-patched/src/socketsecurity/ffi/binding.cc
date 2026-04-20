@@ -306,7 +306,17 @@ void FFIBinding::Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   FFIState* state = GetState(env);
 
-  auto lib = std::make_unique<FFILibrary>();
+  // std::make_unique<T>() aborts on OOM because Node.js compiles with
+  // -fno-exceptions. Construct with nothrow so we can surface OOM as a JS
+  // TypeError and let the caller retry instead of killing the process.
+  auto lib = std::unique_ptr<FFILibrary>(new (std::nothrow) FFILibrary());
+  if (!lib) {
+    isolate->ThrowException(Exception::Error(
+      String::NewFromUtf8(isolate,
+          "Out of memory: failed to allocate FFI library")
+        .ToLocalChecked()));
+    return;
+  }
   lib->handle = nullptr;
   lib->closed = false;
 
@@ -551,7 +561,16 @@ void FFIBinding::Sym(const FunctionCallbackInfo<Value>& args) {
   // Check if a V8 fast-path trampoline is available for this signature.
   bool has_fast = FFITrampoline::GetTrampoline(sig) != nullptr;
 
-  auto func = std::make_unique<FFIFunction>();
+  // std::make_unique aborts on OOM under -fno-exceptions — use nothrow so
+  // OOM becomes a JS error instead of killing the isolate.
+  auto func = std::unique_ptr<FFIFunction>(new (std::nothrow) FFIFunction());
+  if (!func) {
+    isolate->ThrowException(Exception::Error(
+      String::NewFromUtf8(isolate,
+          "Out of memory: failed to allocate FFI function")
+        .ToLocalChecked()));
+    return;
+  }
   func->fn_ptr = fn_ptr;
   func->id = state->next_function_id++;
   func->library_id = lib_id;
@@ -2239,7 +2258,23 @@ void FFIBinding::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
   // Get the native function pointer for this slot.
   void* native_ptr = CallbackPoolGetPtr(static_cast<uint32_t>(slot), sig);
 
-  auto cb = std::make_unique<FFICallback>();
+  // std::make_unique aborts on OOM under -fno-exceptions. Nothrow so that
+  // OOM here tears down the partial state (pool slot + persistent handle)
+  // and surfaces a JS Error rather than killing the process.
+  auto cb = std::unique_ptr<FFICallback>(new (std::nothrow) FFICallback());
+  if (!cb) {
+    // Zero the slot data before freeing so stray references can't see a
+    // stale `js_fn` pointer after we delete it.
+    CallbackSlotData empty_slot{};
+    CallbackPoolSetData(static_cast<uint32_t>(slot), &empty_slot);
+    CallbackPoolFree(static_cast<uint32_t>(slot));
+    delete persistent;
+    isolate->ThrowException(Exception::Error(
+      String::NewFromUtf8(isolate,
+          "Out of memory: failed to allocate FFI callback")
+        .ToLocalChecked()));
+    return;
+  }
   cb->id = state->next_callback_id++;
   cb->library_id = lib_id;
   cb->slot_index = static_cast<uint32_t>(slot);

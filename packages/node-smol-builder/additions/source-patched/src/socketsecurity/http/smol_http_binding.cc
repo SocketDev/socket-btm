@@ -691,7 +691,16 @@ void CreateRouter(const FunctionCallbackInfo<Value>& args) {
     tl_router = nullptr;
   }
 
-  auto* router = new smol::http::TrieRouter();
+  // Node.js compiles with -fno-exceptions, so a throwing `new` aborts the
+  // whole process. Use std::nothrow and surface OOM as a JS-level TypeError
+  // instead — the isolate stays alive and the caller can retry.
+  auto* router = new (std::nothrow) smol::http::TrieRouter();
+  if (router == nullptr) {
+    Isolate* isolate = args.GetIsolate();
+    isolate->ThrowException(v8::Exception::Error(
+        FIXED_ONE_BYTE_STRING(isolate, "Out of memory allocating router")));
+    return;
+  }
   tl_router = router;
   env->AddCleanupHook(RouterCleanup, router);
 }

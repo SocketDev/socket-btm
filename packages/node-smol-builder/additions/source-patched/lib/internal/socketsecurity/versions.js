@@ -17,6 +17,7 @@ const {
   MapPrototypeKeys,
   MapPrototypeSet,
   NumberIsNaN,
+  NumberParseInt,
   ObjectFreeze,
   RegExpPrototypeExec,
   RegExpPrototypeTest,
@@ -973,6 +974,68 @@ function tryParseOrCoerce(str, ecosystem) {
   return tryParse(coerced, ecosystem)
 }
 
+// Coerce a hyphen-range UPPER bound. npm treats a partial upper as an
+// exclusive ceiling rather than the zero-padded lower-bound coercion:
+//   `1 - 2`     → `>=1.0.0 <3.0.0-0`   (bump major)
+//   `1 - 2.3`   → `>=1.0.0 <2.4.0-0`   (bump minor)
+//   `1 - 2.3.4` → `>=1.0.0 <=2.3.4`    (exact patch, inclusive)
+// Returns { op, version } so the caller can push it into the comparators
+// list with the right operator. A strict full version falls back to `<=`
+// so the hyphen range is inclusive on that end. A completely unparseable
+// input returns undefined so the caller can drop the bound.
+function coerceHyphenUpper(str, ecosystem) {
+  const trimmed = StringPrototypeTrim(str)
+  if (!trimmed) {
+    return undefined
+  }
+  // Fully-qualified upper: use it verbatim with inclusive <=.
+  const full = tryParse(trimmed, ecosystem)
+  if (full) {
+    return { __proto__: null, op: '<=', version: full }
+  }
+  // Partial upper: figure out which component is missing and bump the
+  // next-lowest-populated component. RANGE_WILDCARD_REGEX also catches the
+  // x / X / * wildcard variants, which we collapse to `0` below.
+  const match = RegExpPrototypeExec(RANGE_WILDCARD_REGEX, trimmed)
+  if (!match) {
+    return undefined
+  }
+  const majorStr = match[1]
+  const minorStr = match[2]
+  const patchStr = match[3]
+  const major = NumberParseInt(majorStr, 10)
+  const isWild = s => !s || RegExpPrototypeTest(RANGE_XCH_REGEX, s)
+  if (isWild(minorStr)) {
+    // `X` or `X.x` → ceiling is `<(X+1).0.0-0`.
+    const ceiling = tryParse(`${major + 1}.0.0-0`, ecosystem)
+    if (!ceiling) {
+      return undefined
+    }
+    return { __proto__: null, op: '<', version: ceiling }
+  }
+  if (isWild(patchStr)) {
+    // `X.Y` or `X.Y.x` → ceiling is `<X.(Y+1).0-0`.
+    const minor = NumberParseInt(minorStr, 10)
+    const ceiling = tryParse(`${major}.${minor + 1}.0-0`, ecosystem)
+    if (!ceiling) {
+      return undefined
+    }
+    return { __proto__: null, op: '<', version: ceiling }
+  }
+  // Reaches here only for weird inputs the strict tryParse rejected but
+  // RANGE_WILDCARD_REGEX accepted (e.g. trailing whitespace that the
+  // regex tolerates). Treat like the inclusive fully-qualified case.
+  const padded = coercePartialToFull(trimmed)
+  if (!padded) {
+    return undefined
+  }
+  const v = tryParse(padded, ecosystem)
+  if (!v) {
+    return undefined
+  }
+  return { __proto__: null, op: '<=', version: v }
+}
+
 // Parse a range comparator (e.g., ">=1.0.0", "^2.0.0")
 function parseComparator(comp, ecosystem) {
   comp = StringPrototypeTrim(comp)
@@ -1195,24 +1258,33 @@ function compileRange(range, ecosystem) {
     for (let j = 0; j < andParts.length; j++) {
       if (andParts[j + 1] === '-' && andParts[j + 2]) {
         // Hyphen ranges accept partial versions per npm semver:
-        //   `1 - 2` === `>=1.0.0 <=2`, `1.2 - 2.3.4` === `>=1.2.0 <=2.3.4`.
-        // Coerce so bare integers / partial tuples don't silently drop out
-        // when the strict tryParse rejects them.
+        //   `1 - 2`       → `>=1.0.0 <3.0.0-0`      (partial upper: exclusive ceiling)
+        //   `1.2 - 2.3`   → `>=1.2.0 <2.4.0-0`      (partial upper: bump minor)
+        //   `1.2 - 2.3.4` → `>=1.2.0 <=2.3.4`       (full upper: inclusive)
+        // The LOWER bound uses tryParseOrCoerce which pads partials with 0
+        // (the correct behavior for a floor). The UPPER bound needs
+        // coerceHyphenUpper because zero-padding would misrepresent a
+        // partial ceiling as an inclusive exact version.
         const lower = tryParseOrCoerce(andParts[j], ecosystem)
-        const upper = tryParseOrCoerce(andParts[j + 2], ecosystem)
+        const upperBound = coerceHyphenUpper(andParts[j + 2], ecosystem)
         if (lower)
           ArrayPrototypePush(comparators, {
             __proto__: null,
             op: '>=',
             version: lower,
           })
-        if (upper)
+        if (upperBound)
           ArrayPrototypePush(comparators, {
             __proto__: null,
-            op: '<=',
-            version: upper,
+            op: upperBound.op,
+            version: upperBound.version,
           })
-        ArrayPrototypePush(hyphenRanges, { __proto__: null, lower, upper })
+        ArrayPrototypePush(hyphenRanges, {
+          __proto__: null,
+          lower,
+          upper: upperBound ? upperBound.version : undefined,
+          upperOp: upperBound ? upperBound.op : '<=',
+        })
         j += 2
       } else {
         const comp = parseComparator(andParts[j], ecosystem)
@@ -1282,11 +1354,18 @@ function satisfies(version, range, ecosystem = 'npm') {
       // Handle hyphen ranges (1.0.0 - 2.0.0)
       if (andParts[j + 1] === '-' && andParts[j + 2]) {
         const hr = hyphenRanges[hyphenIdx++]
+        // upperOp is `<` when the upper bound was partial (exclusive
+        // ceiling) and `<=` when the upper was fully qualified (inclusive).
+        // Translate to the right comparison against v.
+        const upperExclusive = hr.upperOp === '<'
+        const upperFail = upperExclusive
+          ? compare(v, hr.upper) >= 0
+          : compare(v, hr.upper) > 0
         if (
           !hr.lower ||
           !hr.upper ||
           compare(v, hr.lower) < 0 ||
-          compare(v, hr.upper) > 0
+          upperFail
         ) {
           allMatch = false
           break

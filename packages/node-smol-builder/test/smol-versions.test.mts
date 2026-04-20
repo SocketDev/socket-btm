@@ -293,6 +293,28 @@ describe('node:smol-versions', () => {
         expect(satisfies('2.0.0', '1.0.0 - 2.0.0')).toBe(true)
         expect(satisfies('2.0.1', '1.0.0 - 2.0.0')).toBe(false)
       })
+
+      // R7 regression: a partial upper bound must become an EXCLUSIVE
+      // ceiling, not an inclusive zero-padded version. `1 - 2` must mean
+      // `>=1.0.0 <3.0.0-0`, matching the npm semver reference.
+      it('partial hyphen upper becomes exclusive ceiling: 1 - 2', () => {
+        expect(satisfies('1.0.0', '1 - 2')).toBe(true)
+        expect(satisfies('1.5.0', '1 - 2')).toBe(true)
+        expect(satisfies('2.0.0', '1 - 2')).toBe(true)
+        expect(satisfies('2.9.9', '1 - 2')).toBe(true)
+        // The whole point: 3.0.0 MUST be excluded.
+        expect(satisfies('3.0.0', '1 - 2')).toBe(false)
+      })
+
+      it('partial hyphen upper: 1.2 - 2.3 excludes 2.4.0', () => {
+        expect(satisfies('2.3.99', '1.2 - 2.3')).toBe(true)
+        expect(satisfies('2.4.0', '1.2 - 2.3')).toBe(false)
+      })
+
+      it('fully-qualified hyphen upper stays inclusive', () => {
+        expect(satisfies('2.3.4', '1.2.3 - 2.3.4')).toBe(true)
+        expect(satisfies('2.3.5', '1.2.3 - 2.3.4')).toBe(false)
+      })
     })
 
     describe('Prerelease restriction (semver spec compliance)', () => {

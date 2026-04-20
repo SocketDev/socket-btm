@@ -141,4 +141,62 @@ describe('version_subset semver.satisfies()', () => {
       expect(semver.satisfies('1.0.0', '^not-a-version')).toBe(false)
     })
   })
+
+  describe('compound AND-ranges', () => {
+    it('>=1.0.0 <2.0.0 admits 1.5.0', () => {
+      expect(semver.satisfies('1.5.0', '>=1.0.0 <2.0.0')).toBe(true)
+    })
+
+    it('>=1.0.0 <2.0.0 rejects 2.0.0', () => {
+      expect(semver.satisfies('2.0.0', '>=1.0.0 <2.0.0')).toBe(false)
+    })
+
+    it('>=1.0.0 <2.0.0 rejects 0.9.9', () => {
+      expect(semver.satisfies('0.9.9', '>=1.0.0 <2.0.0')).toBe(false)
+    })
+  })
+
+  describe('operator + space normalization (R7 regression)', () => {
+    it('>= 1.0.0 (space after operator) admits 1.5.0', () => {
+      // Regression: the AND-split once split ">= 1.0.0" into [">=", "1.0.0"]
+      // and returned false for every version. Normalization strips the space.
+      expect(semver.satisfies('1.5.0', '>= 1.0.0')).toBe(true)
+    })
+
+    it('>= 1.0.0 rejects 0.9.9', () => {
+      expect(semver.satisfies('0.9.9', '>= 1.0.0')).toBe(false)
+    })
+
+    it('<= 2.0.0 admits 1.5.0', () => {
+      expect(semver.satisfies('1.5.0', '<= 2.0.0')).toBe(true)
+    })
+
+    it('< 2.0.0 admits 1.5.0 but rejects 2.0.0', () => {
+      expect(semver.satisfies('1.5.0', '< 2.0.0')).toBe(true)
+      expect(semver.satisfies('2.0.0', '< 2.0.0')).toBe(false)
+    })
+
+    it('compound with spaces: >= 1.0.0 < 2.0.0', () => {
+      expect(semver.satisfies('1.5.0', '>= 1.0.0 < 2.0.0')).toBe(true)
+      expect(semver.satisfies('2.0.0', '>= 1.0.0 < 2.0.0')).toBe(false)
+    })
+  })
+
+  describe('OR-ranges', () => {
+    it('^1.0.0 || ^2.0.0 admits 1.5.0', () => {
+      expect(semver.satisfies('1.5.0', '^1.0.0 || ^2.0.0')).toBe(true)
+    })
+
+    it('^1.0.0 || ^2.0.0 admits 2.5.0', () => {
+      expect(semver.satisfies('2.5.0', '^1.0.0 || ^2.0.0')).toBe(true)
+    })
+
+    it('^1.0.0 || ^2.0.0 rejects 3.0.0', () => {
+      expect(semver.satisfies('3.0.0', '^1.0.0 || ^2.0.0')).toBe(false)
+    })
+
+    it('^1.0.0 || ^2.0.0 rejects 0.9.9', () => {
+      expect(semver.satisfies('0.9.9', '^1.0.0 || ^2.0.0')).toBe(false)
+    })
+  })
 })

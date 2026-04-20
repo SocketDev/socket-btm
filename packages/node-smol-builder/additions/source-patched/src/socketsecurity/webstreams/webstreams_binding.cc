@@ -26,14 +26,48 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-// Global chunk pool (one per environment).
-// Note: Non-static for external linkage (used by fast_readable_stream.cc).
-StreamChunkPool* GetChunkPool(Environment* env) {
-  static StreamChunkPool* pool = nullptr;
-  if (pool == nullptr) {
-    pool = new (std::nothrow) StreamChunkPool(env);
+// Per-thread chunk pool. A `static` local was previously shared across
+// every worker Environment and permanently bound to the first worker's
+// `env`, so later workers would acquire chunks wrapping a dead Environment
+// once the first worker tore down. `thread_local` keeps one pool per
+// worker thread; the cleanup hook zeros this thread's slot on teardown so
+// the next thread to call GetChunkPool lazily re-creates.
+// Non-static for external linkage (used by fast_readable_stream.cc).
+static thread_local StreamChunkPool* tl_chunk_pool = nullptr;
+
+static void ChunkPoolCleanup(void* data) {
+  auto* pool = static_cast<StreamChunkPool*>(data);
+  if (tl_chunk_pool == pool) {
+    tl_chunk_pool = nullptr;
   }
-  return pool;
+  delete pool;
+}
+
+StreamChunkPool* GetChunkPool(Environment* env) {
+  if (tl_chunk_pool == nullptr) {
+    // Nothrow + null-check + skip AddCleanupHook on failure so OOM can't
+    // silently register a nullptr cleanup callback.
+    StreamChunkPool* fresh = new (std::nothrow) StreamChunkPool(env);
+    if (fresh == nullptr) {
+      return nullptr;
+    }
+    tl_chunk_pool = fresh;
+    env->AddCleanupHook(ChunkPoolCleanup, tl_chunk_pool);
+  }
+  return tl_chunk_pool;
+}
+
+// Throws a JS Error when pool is null, returns true so callers can early
+// return. Same pattern as CheckObjectPoolOrThrow in smol_http_binding.cc.
+static bool CheckChunkPoolOrThrow(Isolate* isolate,
+                                  const StreamChunkPool* pool) {
+  if (pool == nullptr) {
+    isolate->ThrowException(v8::Exception::Error(
+        v8::String::NewFromUtf8Literal(isolate,
+            "Out of memory: failed to allocate StreamChunkPool")));
+    return true;
+  }
+  return false;
 }
 
 // Removed IsNativeAvailable - C++ always available in our build.
@@ -42,6 +76,7 @@ StreamChunkPool* GetChunkPool(Environment* env) {
 static void AcquireChunk(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   StreamChunkPool* pool = GetChunkPool(env);
+  if (CheckChunkPoolOrThrow(env->isolate(), pool)) return;
 
   Local<Object> chunk = pool->AcquireChunk();
   args.GetReturnValue().Set(chunk);
@@ -56,6 +91,7 @@ static void ReleaseChunk(const FunctionCallbackInfo<Value>& args) {
   }
 
   StreamChunkPool* pool = GetChunkPool(env);
+  if (CheckChunkPoolOrThrow(env->isolate(), pool)) return;
   pool->ReleaseChunk(args[0].As<Object>());
 }
 
@@ -79,6 +115,7 @@ static void GetChunkPoolStats(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   StreamChunkPool* pool = GetChunkPool(env);
+  if (CheckChunkPoolOrThrow(isolate, pool)) return;
 
   Local<Object> stats = Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
   Local<Context> context = env->context();

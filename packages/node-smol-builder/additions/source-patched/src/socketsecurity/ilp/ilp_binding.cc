@@ -246,9 +246,32 @@ void IlpBinding::CreateSender(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  auto state = std::make_unique<SenderState>();
-  state->encoder = std::make_unique<IlpEncoder>(config.send_buffer_size, encoder_max_size);
-  state->transport = std::make_unique<IlpTransport>(config);
+  // std::make_unique aborts on OOM because Node.js builds with
+  // -fno-exceptions. Nothrow + null-check so OOM surfaces as a JS Error
+  // and doesn't kill the isolate.
+  auto state = std::unique_ptr<SenderState>(new (std::nothrow) SenderState());
+  if (!state) {
+    isolate->ThrowException(v8::Exception::Error(
+        FIXED_ONE_BYTE_STRING(isolate,
+            "Out of memory: failed to allocate ILP sender state")));
+    return;
+  }
+  state->encoder = std::unique_ptr<IlpEncoder>(
+      new (std::nothrow) IlpEncoder(config.send_buffer_size, encoder_max_size));
+  if (!state->encoder) {
+    isolate->ThrowException(v8::Exception::Error(
+        FIXED_ONE_BYTE_STRING(isolate,
+            "Out of memory: failed to allocate ILP encoder")));
+    return;
+  }
+  state->transport = std::unique_ptr<IlpTransport>(
+      new (std::nothrow) IlpTransport(config));
+  if (!state->transport) {
+    isolate->ThrowException(v8::Exception::Error(
+        FIXED_ONE_BYTE_STRING(isolate,
+            "Out of memory: failed to allocate ILP transport")));
+    return;
+  }
 
   uint32_t id = next_sender_id_++;
   senders_[id] = std::move(state);

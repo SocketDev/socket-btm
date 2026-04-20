@@ -18,7 +18,7 @@
  });
 @@ -1281,6 +1284,7 @@
  }
-
+ 
  module.exports = {
 +  httpPerf,
    STATUS_CODES,

@@ -9,7 +9,7 @@
 @@ -44,6 +44,12 @@
  #define NODE_BUILTIN_SQLITE_BINDINGS(V)
  #endif
-
+ 
 +#if HAVE_POSTGRES
 +#define NODE_BUILTIN_POSTGRES_BINDINGS(V) V(smol_postgres)
 +#else

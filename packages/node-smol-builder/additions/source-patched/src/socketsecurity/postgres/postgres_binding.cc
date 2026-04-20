@@ -161,8 +161,16 @@ void PostgresBinding::CreatePool(const FunctionCallbackInfo<Value>& args) {
       timeout_val->Int32Value(context).FromMaybe(10000));
   }
 
-  // Create pool.
-  auto pool = std::make_unique<PostgresPool>(config);
+  // Create pool. std::make_unique aborts on OOM under -fno-exceptions;
+  // nothrow + null-check so OOM becomes a JS error instead of killing the
+  // isolate.
+  auto pool = std::unique_ptr<PostgresPool>(new (std::nothrow) PostgresPool(config));
+  if (!pool) {
+    isolate->ThrowException(Exception::Error(
+      String::NewFromUtf8(isolate,
+          "Out of memory: failed to allocate PostgresPool").ToLocalChecked()));
+    return;
+  }
   if (!pool->Initialize()) {
     isolate->ThrowException(Exception::Error(
       String::NewFromUtf8(isolate, "Failed to initialize pool").ToLocalChecked()));

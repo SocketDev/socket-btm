@@ -188,18 +188,26 @@ jobs:
       - name: Install QEMU and Docker (Linux - for cross-compiled binary testing)
         if: matrix.os == 'linux' && matrix.runner == 'ubuntu-24.04' && (matrix.arch == 'arm64' || matrix.libc == 'musl')
         shell: bash
+        env:
+          # Route matrix values through env so zizmor's template-injection
+          # audit passes — it flags ${{ matrix.* }} directly in shell
+          # bodies because those expansions happen before the shell ever
+          # sees the string. Going via env means the shell reads a plain
+          # variable that can be properly quoted.
+          MATRIX_ARCH: ${{ matrix.arch }}
+          MATRIX_LIBC: ${{ matrix.libc }}
         run: |
           sudo apt-get update
 
           # Install QEMU for ARM64 emulation (if ARM64 build)
-          if [ "${{ matrix.arch }}" = "arm64" ]; then
+          if [ "$MATRIX_ARCH" = "arm64" ]; then
             echo "Installing QEMU user-mode for ARM64 emulation..."
             sudo apt-get install -y qemu-user-static
             echo "[OK] QEMU installed"
           fi
 
           # Docker is pre-installed on GitHub Actions runners (for musl testing)
-          if [ "${{ matrix.libc }}" = "musl" ]; then
+          if [ "$MATRIX_LIBC" = "musl" ]; then
             echo "Verifying Docker is available for musl testing..."
             docker --version || echo "⚠ Docker not available"
           fi
@@ -236,8 +244,25 @@ jobs:
             echo "× Error: Cache version not found for node-smol in .github/cache-versions.json"
             exit 1
           fi
+          # Per CLAUDE.md cache cascade: lief and stubs source changes must
+          # invalidate node-smol checkpoints. node-smol embeds binpress which
+          # uses LIEF and the stubs binary — a LIEF or stubs cache-version
+          # bump (even without a source edit) MUST produce a new node-smol
+          # cache key, otherwise the stale tarball is served.
+          LIEF_VERSION=$(jq -r '.versions["lief"]' .github/cache-versions.json)
+          STUBS_VERSION=$(jq -r '.versions["stubs"]' .github/cache-versions.json)
+          if [ -z "$LIEF_VERSION" ] || [ "$LIEF_VERSION" = "null" ]; then
+            echo "× Error: Cache version not found for lief in .github/cache-versions.json"
+            exit 1
+          fi
+          if [ -z "$STUBS_VERSION" ] || [ "$STUBS_VERSION" = "null" ]; then
+            echo "× Error: Cache version not found for stubs in .github/cache-versions.json"
+            exit 1
+          fi
           echo "version=$CACHE_VERSION" >> $GITHUB_OUTPUT
-          echo "Cache version: $CACHE_VERSION"
+          echo "lief_version=$LIEF_VERSION" >> $GITHUB_OUTPUT
+          echo "stubs_version=$STUBS_VERSION" >> $GITHUB_OUTPUT
+          echo "Cache version: $CACHE_VERSION (lief=$LIEF_VERSION stubs=$STUBS_VERSION)"
 
       - name: Generate smol build cache key
         id: smol-cache-key
@@ -245,6 +270,8 @@ jobs:
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
           CACHE_VERSION: ${{ steps.cache-version.outputs.version }}
+          LIEF_VERSION: ${{ steps.cache-version.outputs.lief_version }}
+          STUBS_VERSION: ${{ steps.cache-version.outputs.stubs_version }}
           MATRIX_PLATFORM: ${{ matrix.platform }}
           MATRIX_ARCH: ${{ matrix.arch }}
         run: |
@@ -374,7 +401,21 @@ jobs:
           # image.
           DOCKERFILES=$(hash_files packages/node-smol-builder/docker -type f)
 
-          FINAL_KEY=$(echo "${COMMON_SCRIPTS}${FINAL_PATCHES}${FINAL_ADDITIONS}${FINAL_SCRIPTS}${BUILD_INFRA_SRC}${BIN_INFRA_SRC}${BINJECT_SRC}${BINPRESS_SRC}${DOCKERFILES}" | $hash_cmd | cut -d' ' -f1)
+          # Submodule SHAs: the final node binary links against uSockets /
+          # uWebSockets (compiled into smol-http) and liburing (used by
+          # iouring transport). A submodule bump that doesn't touch
+          # .gitmodules (e.g. `git submodule update --remote`) would
+          # otherwise leave the cache key unchanged and serve a stale
+          # binary built against the old code. `git ls-tree` reads the
+          # commit gitlink directly from HEAD, matching the SHA the build
+          # will actually check out. Empty string if the path isn't a
+          # gitlink (dev machine without the submodule initialized) —
+          # which still keys distinctly from "submodule at SHA X".
+          USOCKETS_SHA=$(git ls-tree HEAD packages/node-smol-builder/upstream/uSockets 2>/dev/null | awk '{print $3}')
+          UWEBSOCKETS_SHA=$(git ls-tree HEAD packages/node-smol-builder/upstream/uWebSockets 2>/dev/null | awk '{print $3}')
+          LIBURING_SHA=$(git ls-tree HEAD packages/node-smol-builder/upstream/liburing 2>/dev/null | awk '{print $3}')
+
+          FINAL_KEY=$(echo "${COMMON_SCRIPTS}${FINAL_PATCHES}${FINAL_ADDITIONS}${FINAL_SCRIPTS}${BUILD_INFRA_SRC}${BIN_INFRA_SRC}${BINJECT_SRC}${BINPRESS_SRC}${DOCKERFILES}${LIEF_VERSION}${STUBS_VERSION}${USOCKETS_SHA}${UWEBSOCKETS_SHA}${LIBURING_SHA}" | $hash_cmd | cut -d' ' -f1)
 
           echo "final_hash=${FINAL_KEY}" >> $GITHUB_OUTPUT
           echo "build_mode=${BUILD_MODE}" >> $GITHUB_OUTPUT
@@ -412,15 +453,23 @@ jobs:
           checkpoints: ${{ steps.checkpoint-chain.outputs.checkpoints }}
           package-name: node-smol-builder
 
-      - name: Install musl toolchain (Linux musl)
+      - name: Install musl toolchain (Linux musl - host-side tools)
+        # Linux musl compilation itself runs inside Depot's Docker image, so
+        # the musl cross-compiler isn't strictly required on the host. This
+        # step installs musl-tools / gcc-aarch64-linux-gnu for post-build
+        # host-side tasks: smoke-test-binary.mts may invoke ldd / file /
+        # strip through these binaries when inspecting the musl tarball
+        # that Depot uploaded. Keep this step gated on cache-miss so it
+        # doesn't waste time on cache hits (which also skip the smoke test).
         if: matrix.os == 'linux' && matrix.libc == 'musl' && (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || inputs.force)
         shell: bash
+        env:
+          MATRIX_ARCH: ${{ matrix.arch }}
         run: |
-          # Install musl cross-compilation toolchain
           sudo apt-get install -y musl-tools
 
-          # For ARM64, we need the cross-compiler
-          if [ "${{ matrix.arch }}" = "arm64" ]; then
+          # ARM64 build needs the aarch64 cross-linker for host-side post-processing.
+          if [ "$MATRIX_ARCH" = "arm64" ]; then
             sudo apt-get install -y gcc-aarch64-linux-gnu
           fi
 
@@ -477,6 +526,10 @@ jobs:
       - name: Determine build parallelism
         id: build-parallelism
         shell: bash
+        env:
+          MATRIX_OS: ${{ matrix.os }}
+          MATRIX_PLATFORM: ${{ matrix.platform }}
+          MATRIX_ARCH: ${{ matrix.arch }}
         run: |
           # Set step output using GitHub Actions file-based approach
           # Usage: echo "key=value" >> $GITHUB_OUTPUT
@@ -486,12 +539,12 @@ jobs:
           # V8 compilation with -O3 uses ~4-6GB RAM per job
 
           # Linux ARM64: 3 jobs (8GB RAM, 4 vCPU) - increased for timeout concerns
-          if [[ "${{ matrix.platform }}" == "linux" ]] && [[ "${{ matrix.arch }}" == "arm64" ]]; then
+          if [[ "$MATRIX_PLATFORM" == "linux" ]] && [[ "$MATRIX_ARCH" == "arm64" ]]; then
             echo "jobs=3" >> $GITHUB_OUTPUT  # → steps.build-parallelism.outputs.jobs = "3"
 
           # macOS Depot.dev: 4 jobs (24GB RAM, 8 vCPU M2)
           # 24GB / 4GB per job = 6 max, use 4 for safety margin
-          elif [[ "${{ matrix.os }}" == "macos" ]]; then
+          elif [[ "$MATRIX_OS" == "macos" ]]; then
             echo "jobs=4" >> $GITHUB_OUTPUT  # → steps.build-parallelism.outputs.jobs = "4"
 
           # Linux x64: Auto-calculate based on RAM (typically 3-4 jobs)
@@ -624,6 +677,7 @@ jobs:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
           MATRIX_PLATFORM: ${{ matrix.platform }}
           MATRIX_ARCH: ${{ matrix.arch }}
+          MATRIX_CROSS_COMPILE: ${{ matrix.cross_compile }}
           PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
           BUILD_JOBS: ${{ steps.build-parallelism.outputs.jobs }}
           GITHUB_TOKEN: ${{ github.token }}
@@ -646,12 +700,15 @@ jobs:
           echo "⏱️ Build started at $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
           BUILD_START=$(get_timestamp)
 
-          # Cross-compilation compiler flags
-          if [ "${{ matrix.platform }}" = "win32" ]; then
+          # Cross-compilation compiler flags. MATRIX_PLATFORM / MATRIX_ARCH
+          # come from the step's env: block above; MATRIX_CROSS_COMPILE is
+          # surfaced here too so all matrix reads are via shell variables
+          # rather than template interpolation.
+          if [ "$MATRIX_PLATFORM" = "win32" ]; then
             # Windows builds: use clang with MSVC target
             export CC="clang"
             export CXX="clang++"
-            if [ "${{ matrix.arch }}" = "arm64" ]; then
+            if [ "$MATRIX_ARCH" = "arm64" ]; then
               export CFLAGS="--target=aarch64-pc-windows-msvc"
               export CXXFLAGS="--target=aarch64-pc-windows-msvc"
               export LDFLAGS="--target=aarch64-pc-windows-msvc"
@@ -661,14 +718,14 @@ jobs:
               export CXXFLAGS="-m64"
               export LDFLAGS="-m64"
             fi
-          elif [ "${{ matrix.platform }}" = "darwin" ] && [ "${{ matrix.cross_compile }}" = "true" ]; then
+          elif [ "$MATRIX_PLATFORM" = "darwin" ] && [ "$MATRIX_CROSS_COMPILE" = "true" ]; then
             # macOS cross-compilation: ARM64 host building for x64
             export CC="clang -arch x86_64"
             export CXX="clang++ -arch x86_64"
           fi
 
           CROSS_FLAG=""
-          if [ "${{ matrix.cross_compile }}" = "true" ]; then
+          if [ "$MATRIX_CROSS_COMPILE" = "true" ]; then
             CROSS_FLAG="--allow-cross"
           fi
 
@@ -694,11 +751,12 @@ jobs:
         env:
           BUILD_MODE: ${{ steps.smol-cache-key.outputs.build_mode }}
           PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
+          MATRIX_OS: ${{ matrix.os }}
         run: |
           BUILD_MODE="${BUILD_MODE:-prod}"
           FINAL_DIR="packages/node-smol-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final"
 
-          if [ "${{ matrix.os }}" = "windows" ]; then
+          if [ "$MATRIX_OS" = "windows" ]; then
             BINARY="${FINAL_DIR}/node/node.exe"
           else
             BINARY="${FINAL_DIR}/node/node"
@@ -713,13 +771,13 @@ jobs:
           echo "✅ Binary exists: $BINARY"
 
           # Show binary info
-          if [ "${{ matrix.os }}" = "macos" ]; then
+          if [ "$MATRIX_OS" = "macos" ]; then
             file "$BINARY"
             otool -L "$BINARY" || true
-          elif [ "${{ matrix.os }}" = "linux" ]; then
+          elif [ "$MATRIX_OS" = "linux" ]; then
             file "$BINARY"
             ldd "$BINARY" || true
-          elif [ "${{ matrix.os }}" = "windows" ]; then
+          elif [ "$MATRIX_OS" = "windows" ]; then
             file "$BINARY" || true
           fi
 
@@ -729,11 +787,14 @@ jobs:
         env:
           BUILD_MODE: ${{ steps.smol-cache-key.outputs.build_mode }}
           PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
+          MATRIX_OS: ${{ matrix.os }}
+          MATRIX_ARCH: ${{ matrix.arch }}
+          MATRIX_LIBC: ${{ matrix.libc }}
         run: |
           BUILD_MODE="${BUILD_MODE:-prod}"
           FINAL_DIR="packages/node-smol-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final"
 
-          if [ "${{ matrix.os }}" = "windows" ]; then
+          if [ "$MATRIX_OS" = "windows" ]; then
             BINARY="${FINAL_DIR}/node/node.exe"
           else
             BINARY="${FINAL_DIR}/node/node"
@@ -741,10 +802,10 @@ jobs:
 
           # Prepare smoke test options.
           SMOKE_TEST_ARGS="$BINARY"
-          if [ "${{ matrix.arch }}" = "arm64" ]; then
+          if [ "$MATRIX_ARCH" = "arm64" ]; then
             SMOKE_TEST_ARGS="$SMOKE_TEST_ARGS --arch arm64"
           fi
-          if [ "${{ matrix.libc }}" = "musl" ]; then
+          if [ "$MATRIX_LIBC" = "musl" ]; then
             SMOKE_TEST_ARGS="$SMOKE_TEST_ARGS --musl"
           fi
 
@@ -754,18 +815,20 @@ jobs:
       - name: Collect build metrics
         if: always()
         shell: bash
+        env:
+          MATRIX_OS: ${{ matrix.os }}
         run: |
           BUILD_MODE="${BUILD_MODE:-prod}"
           FINAL_DIR="packages/node-smol-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final"
 
-          if [ "${{ matrix.os }}" = "windows" ]; then
+          if [ "$MATRIX_OS" = "windows" ]; then
             BINARY="${FINAL_DIR}/node/node.exe"
           else
             BINARY="${FINAL_DIR}/node/node"
           fi
 
           if [ -f "${BINARY}" ]; then
-            if [ "${{ matrix.os }}" = "windows" ]; then
+            if [ "$MATRIX_OS" = "windows" ]; then
               # Convert Unix path to Windows format for PowerShell
               BINARY_SIZE_MB=$(powershell -Command "\$winPath = '${BINARY}' -replace '/', '\\'; [math]::Round((Get-Item \$winPath).Length / 1MB, 2)")
             else
@@ -802,6 +865,11 @@ jobs:
           path: packages/node-smol-builder/build/${{ steps.smol-cache-key.outputs.build_mode }}/${{ steps.platform-arch.outputs.platform_arch }}/out/Final/node/node${{ matrix.os == 'windows' && '.exe' || '' }}
           retention-days: 30
           if-no-files-found: error
+          # The node binary is already compressed (UPX + zstd stub). Let
+          # upload-artifact skip its gzip pass — zero-to-negative savings
+          # on incompressible content, and gzip level 6 costs 10–20% extra
+          # upload CPU. Matches the curl/lief/stubs tarball uploads.
+          compression-level: 0
 
       - name: Cleanup before cache save
         if: always()
@@ -891,8 +959,13 @@ jobs:
           # Windows ARM64 (cross-compiled)
           mv artifacts/node-smol-win-arm64/node.exe packages/node-smol-builder/dist/node-win-arm64.exe
 
-          # Make Unix binaries executable
-          chmod +x packages/node-smol-builder/dist/node-*[!.exe]
+          # Make Unix binaries executable. The prior `node-*[!.exe]` glob
+          # used a single-character negated class which matches any char
+          # NOT in {.,e,x,e} — it worked by accident because `node-*.exe`
+          # happens to end in `e`, but a future filename ending in `e` or
+          # `x` (e.g. `node-darwin-arm64e`) would be silently skipped.
+          # Explicit exclusion via find is readable and correct.
+          find packages/node-smol-builder/dist -name 'node-*' -not -name '*.exe' -type f -exec chmod +x {} +
 
       - name: Validate all platform binaries exist
         shell: bash

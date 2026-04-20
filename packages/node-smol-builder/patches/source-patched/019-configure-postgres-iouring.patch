@@ -11,7 +11,7 @@
 @@ -1017,6 +1017,18 @@ parser.add_argument('--without-sqlite',
      default=None,
      help='build without SQLite (disables SQLite and Web Storage API)')
-
+ 
 +parser.add_argument('--with-postgres',
 +    action='store_true',
 +    dest='with_postgres',
@@ -28,9 +28,9 @@
      action='store_true',
      dest='experimental_quic',
 @@ -2119,6 +2131,14 @@ def configure_sqlite(o):
-
+ 
    configure_library('sqlite', o, pkgname='sqlite3')
-
+ 
 +def configure_postgres(o):
 +  # Socket Security: PostgreSQL is disabled by default (requires libpq).
 +  o['variables']['node_use_postgres'] = b(options.with_postgres)

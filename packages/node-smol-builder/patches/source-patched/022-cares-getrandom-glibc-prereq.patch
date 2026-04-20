@@ -20,7 +20,7 @@
 +++ b/deps/cares/config/linux/ares_config.h
 @@ -116,7 +116,13 @@
  #define HAVE_GETNAMEINFO 1
-
+ 
  /* Define to 1 if you have `getrandom` */
 +#include <features.h>
 +#if !defined(__GLIBC_PREREQ) || __GLIBC_PREREQ(2, 25)
@@ -29,18 +29,18 @@
 +/* glibc < 2.25: getrandom is not declared in <unistd.h>. Our linker wrap
 + * in src/socketsecurity/compat/glibc_compat.cc provides a syscall fallback. */
 +#endif
-
+ 
  /* Define to 1 if you have `getservbyport_r` */
  #define HAVE_GETSERVBYPORT_R 1
 @@ -329,7 +334,11 @@
  #define HAVE_SYS_PARAM_H 1
-
+ 
  /* Define to 1 if you have the <sys/random.h> header file. */
 +#if !defined(__GLIBC_PREREQ) || __GLIBC_PREREQ(2, 25)
  #define HAVE_SYS_RANDOM_H 1
 +#else
 +/* glibc < 2.25: <sys/random.h> does not exist. */
 +#endif
-
+ 
  /* Define to 1 if you have the <sys/select.h> header file. */
  #define HAVE_SYS_SELECT_H 1

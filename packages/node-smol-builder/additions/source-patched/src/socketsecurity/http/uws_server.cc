@@ -436,7 +436,19 @@ void UwsServer::WriteResponse(uWS::HttpResponse<false>* res,
 
 void CreateUwsServer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  // UwsServer::Create returns nullptr when the two-phase init OOMs on the
+  // uWS::App allocation. Surface as a JS Error rather than wrapping nullptr
+  // in an External — otherwise the next AddRoute/Listen/Stop call would
+  // dereference it and SIGSEGV, defeating the whole point of the nothrow
+  // rework.
   UwsServer* server = UwsServer::Create(env);
+  if (server == nullptr) {
+    Isolate* isolate = env->isolate();
+    isolate->ThrowException(v8::Exception::Error(
+        FIXED_ONE_BYTE_STRING(isolate,
+            "Out of memory: failed to create UwsServer")));
+    return;
+  }
   args.GetReturnValue().Set(External::New(env->isolate(), server));
 }
 

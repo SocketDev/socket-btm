@@ -88,7 +88,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Pin to explicit versioned runners so CI sees the same runner
+        # images as the release workflows (which use ubuntu-24.04,
+        # macos-15, windows-2022). Rolling `*-latest` labels can quietly
+        # diverge from release builds when GitHub rolls them forward.
+        os: [ubuntu-24.04, macos-15, windows-2022]
     steps:
       - uses: SocketDev/socket-registry/.github/actions/setup-and-install@3362af95fadd1e325cb48e9ad6daff21c112bd72 # main
 

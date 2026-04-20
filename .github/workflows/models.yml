@@ -383,7 +383,7 @@ jobs:
           cat checksums.txt
 
       - name: Import GPG key
-        if: steps.version.outputs.skip != 'true' && env.GPG_PRIVATE_KEY != ''
+        if: steps.version.outputs.skip != 'true' && secrets.GPG_PRIVATE_KEY != ''
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
@@ -396,7 +396,7 @@ jobs:
           fi
 
       - name: Sign checksums
-        if: steps.version.outputs.skip != 'true' && env.GPG_PRIVATE_KEY != ''
+        if: steps.version.outputs.skip != 'true' && secrets.GPG_PRIVATE_KEY != ''
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}

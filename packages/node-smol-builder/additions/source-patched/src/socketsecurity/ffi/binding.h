@@ -170,7 +170,13 @@ class FFIBinding {
                                  v8::Local<v8::Value> val);
 
   // Gets (or creates) the FFIState for the current thread/environment.
+  // Returns nullptr on OOM; callers must check. Prefer GetStateOrThrow
+  // when the caller is a binding entrypoint that can surface a JS Error.
   static FFIState* GetState(Environment* env);
+
+  // Same as GetState but throws a JS Error on OOM. Returns nullptr when
+  // a throw occurred — caller should early return.
+  static FFIState* GetStateOrThrow(Environment* env);
 
   // Security check: C strings can't contain null bytes mid-string.
   static bool ContainsNullByte(const char* str, size_t len);

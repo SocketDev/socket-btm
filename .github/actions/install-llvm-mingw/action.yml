@@ -35,5 +35,13 @@ runs:
       shell: bash
       env:
         LLVM_MINGW_VERSION: ${{ inputs.version }}
+      # zizmor flags GITHUB_PATH writes as potential code-execution vectors
+      # because the prepended directory's binaries are shadowed onto later
+      # steps. Here that's the intent: this action exists to install the
+      # cross-compiler and make it the first `aarch64-w64-mingw32-clang` on
+      # PATH. The path comes from a literal string plus a pinned action input,
+      # not from user-influenced context — no external attacker can change
+      # which directory gets prepended.
       run: |
+        # Suppression configured in .github/zizmor.yml (github-env: ignore).
         echo "C:/llvm-mingw/llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-x86_64/bin" >> $GITHUB_PATH

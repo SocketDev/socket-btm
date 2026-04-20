@@ -15,7 +15,7 @@
 +++ b/src/node_external_reference.h
 @@ -146,10 +146,22 @@
  #endif
-
+ 
 +#if HAVE_POSTGRES
 +#define EXTERNAL_REFERENCE_BINDING_LIST_POSTGRES(V) V(smol_postgres)
 +#else
@@ -35,5 +35,5 @@
 +  V(smol_vfs)                                                                  \
 +  EXTERNAL_REFERENCE_BINDING_LIST_POSTGRES(V)                                  \
 +  V(smol_webstreams)
-
+ 
  }  // namespace node

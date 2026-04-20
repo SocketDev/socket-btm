@@ -24,6 +24,7 @@ const {
   SafeMap,
   StringPrototypeCharCodeAt,
   StringPrototypeIndexOf,
+  StringPrototypeReplace,
   StringPrototypeSlice,
   StringPrototypeSplit,
   StringPrototypeToLowerCase,
@@ -134,6 +135,12 @@ const RANGE_WILDCARD_REGEX = hardenRegExp(
 const RANGE_XCH_REGEX = hardenRegExp(/[xX*]/)
 const RANGE_OR_SPLIT_REGEX = hardenRegExp(/\s*\|\|\s*/)
 const RANGE_AND_SPLIT_REGEX = hardenRegExp(/\s+/)
+// Strip the space between a comparison operator and its version, so that
+// `>= 1.0.0` normalizes to `>=1.0.0`. Without this, the AND-split below
+// tears `>= 1.0.0` into [">=", "1.0.0"], parseComparator("&gt;=") returns
+// undefined (empty operand), and satisfies returns false for every
+// version. npm semver accepts the space form; so must we.
+const RANGE_OPERATOR_SPACE_REGEX = hardenRegExp(/(>=?|<=?|\^|~|=)\s+/g)
 const COERCE_VERSION_REGEX = hardenRegExp(/(\d+)(?:\.(\d+))?(?:\.(\d+))?/)
 
 // Parse prerelease identifiers
@@ -1250,7 +1257,17 @@ function compileRange(range, ecosystem) {
   const compiled = []
 
   for (let i = 0; i < orParts.length; i++) {
-    const andParts = StringPrototypeSplit(orParts[i], RANGE_AND_SPLIT_REGEX)
+    // Normalize `>= 1.0.0` → `>=1.0.0` before splitting on whitespace. npm
+    // semver accepts the space form. Without this, the AND-split below
+    // would tear it into [">=", "1.0.0"] and every version would be
+    // rejected. Hyphen ranges `1.0.0 - 2.0.0` are preserved because `-`
+    // isn't in the operator class and isn't touched by the regex.
+    const normalized = StringPrototypeReplace(
+      orParts[i],
+      RANGE_OPERATOR_SPACE_REGEX,
+      '$1',
+    )
+    const andParts = StringPrototypeSplit(normalized, RANGE_AND_SPLIT_REGEX)
     const comparators = []
     // Track hyphen ranges separately for the satisfaction pass
     const hyphenRanges = []
@@ -1354,23 +1371,33 @@ function satisfies(version, range, ecosystem = 'npm') {
       // Handle hyphen ranges (1.0.0 - 2.0.0)
       if (andParts[j + 1] === '-' && andParts[j + 2]) {
         const hr = hyphenRanges[hyphenIdx++]
+        // Short-circuit on missing bounds FIRST so we never pass undefined
+        // into compare(). A malformed hyphen upper like `1 - garbage` leaves
+        // hr.upper === undefined, and compare(v, undefined) would throw
+        // VersionError out of satisfies() — the whole point of this function
+        // is to return a boolean, never to throw on user input.
+        if (!hr.lower || !hr.upper || compare(v, hr.lower) < 0) {
+          allMatch = false
+          break
+        }
         // upperOp is `<` when the upper bound was partial (exclusive
         // ceiling) and `<=` when the upper was fully qualified (inclusive).
-        // Translate to the right comparison against v.
+        // Now that hr.upper is known-defined, compare is safe.
         const upperExclusive = hr.upperOp === '<'
         const upperFail = upperExclusive
           ? compare(v, hr.upper) >= 0
           : compare(v, hr.upper) > 0
-        if (
-          !hr.lower ||
-          !hr.upper ||
-          compare(v, hr.lower) < 0 ||
-          upperFail
-        ) {
+        if (upperFail) {
           allMatch = false
           break
         }
-        compIdx += 2 // Skip the two comparators we added for this hyphen range
+        // compileRange only pushes a comparator for each bound that parsed
+        // successfully (lower / upper). `compIdx += 2` would desync the
+        // index if either bound was undefined. Today the guard above breaks
+        // before we get here in the one-undefined-bound case, but making
+        // the increment match the actual push count is defensive against a
+        // future caller that replaces `break` with `continue`.
+        compIdx += (hr.lower ? 1 : 0) + (hr.upper ? 1 : 0)
         j += 2
         continue
       }

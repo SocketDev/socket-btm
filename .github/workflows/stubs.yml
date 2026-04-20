@@ -27,7 +27,11 @@ concurrency:
 jobs:
   build-stubs:
     permissions:
-      contents: write # Required to upload build artifacts
+      # actions/upload-artifact does NOT need contents: write — it writes
+      # to the artifact store via the default token's artifact scope. Keep
+      # contents: read for least-privilege; the release job elevates to
+      # write when it actually creates a GitHub Release.
+      contents: read
       id-token: write # OIDC authentication for Depot builds
     name: stub / ${{ matrix.platform == 'win32' && 'win' || matrix.platform }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }}
     runs-on: ${{ matrix.runner }}
@@ -146,13 +150,24 @@ jobs:
           BUILD_INFRA_SRC=$(hash_files packages/build-infra/src/socketsecurity/build-infra -type f)
           BIN_INFRA_SRC=$(hash_files packages/bin-infra/src/socketsecurity/bin-infra -type f)
           STUBS_SRC=$(hash_files packages/stubs-builder/src -type f)
+          # Scripts orchestrate the build (packaging layout, final layout,
+          # checkpoint-chain). Edits MUST bust the cache.
+          STUBS_SCRIPTS=$(hash_files packages/stubs-builder/scripts -type f)
+          # Makefiles drive macOS / Windows compilation directly. Changes
+          # to CFLAGS / LDFLAGS / target names must invalidate artifacts.
+          STUBS_MAKEFILES=$(hash_files packages/stubs-builder/Makefile.linux packages/stubs-builder/Makefile.macos packages/stubs-builder/Makefile.win -type f)
           # Linux stub builds consume Dockerfile.glibc / Dockerfile.musl via
           # Depot.dev. An edit there (base image pin, toolchain) MUST bust
           # the cache — otherwise a stale tarball is served on cache hit.
           STUBS_DOCKERFILES=$(hash_files packages/stubs-builder/docker -type f)
+          # zstd submodule SHA: stubs link against zstd for decompression.
+          # `git submodule update --remote` that advances zstd without
+          # touching .gitmodules would otherwise leave the key unchanged
+          # and serve stale stubs linked against the old zstd.
+          ZSTD_SHA=$(git ls-tree HEAD packages/bin-infra/upstream/zstd 2>/dev/null | awk '{print $3}')
 
           # Stubs cache key = stubs version + curl cache key + source hashes.
-          SOURCE_HASH=$(echo "${BUILD_INFRA_SRC}${BIN_INFRA_SRC}${STUBS_SRC}${STUBS_DOCKERFILES}" | $hash_cmd | cut -d' ' -f1)
+          SOURCE_HASH=$(echo "${BUILD_INFRA_SRC}${BIN_INFRA_SRC}${STUBS_SRC}${STUBS_SCRIPTS}${STUBS_MAKEFILES}${STUBS_DOCKERFILES}${ZSTD_SHA}" | $hash_cmd | cut -d' ' -f1)
           COMBINED_VERSION="${STUBS_VERSION}-curl-${CURL_CACHE_KEY}-src-${SOURCE_HASH:0:7}"
           echo "version=$COMBINED_VERSION" >> "$GITHUB_OUTPUT"
           echo "stubs_version=$STUBS_VERSION" >> "$GITHUB_OUTPUT"

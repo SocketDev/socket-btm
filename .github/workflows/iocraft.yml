@@ -80,7 +80,6 @@ jobs:
             arch: x64
             runner: depot-macos-15
             target: x86_64-apple-darwin
-            cross_compile: true
           - os: darwin
             arch: arm64
             runner: depot-macos-15
@@ -94,7 +93,6 @@ jobs:
             arch: arm64
             runner: windows-2022
             target: aarch64-pc-windows-msvc
-            cross_compile: true
 
     steps:
       - uses: SocketDev/socket-registry/.github/actions/setup-and-install@3362af95fadd1e325cb48e9ad6daff21c112bd72 # main
@@ -376,7 +374,7 @@ jobs:
           cat checksums.txt
 
       - name: Import GPG key
-        if: steps.version.outputs.skip != 'true' && env.GPG_PRIVATE_KEY != ''
+        if: steps.version.outputs.skip != 'true' && secrets.GPG_PRIVATE_KEY != ''
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
@@ -389,7 +387,7 @@ jobs:
           fi
 
       - name: Sign checksums
-        if: steps.version.outputs.skip != 'true' && env.GPG_PRIVATE_KEY != ''
+        if: steps.version.outputs.skip != 'true' && secrets.GPG_PRIVATE_KEY != ''
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}

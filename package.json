@@ -24,8 +24,6 @@
     "lint:fix": "node scripts/fix.mts",
     "normalize:package-json": "node scripts/normalize-package-json.mts",
     "prepare": "husky",
-    "release": "pnpm --filter node-smol-builder release",
-    "release:publish": "pnpm --filter node-smol-builder release:publish",
     "security": "agentshield scan && { command -v zizmor >/dev/null && zizmor .github/ || echo 'zizmor not installed — run pnpm run setup to install'; }",
     "setup": "node scripts/setup.mts",
     "test": "node scripts/test.mts",

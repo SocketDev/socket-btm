@@ -8,14 +8,14 @@
 --- a/packages/iocraft/src/canvas.rs
 +++ b/packages/iocraft/src/canvas.rs
 @@ -69,6 +69,9 @@ pub struct CanvasTextStyle {
-
+ 
      /// Whether the text is italicized.
      pub italic: bool,
 +
 +    /// Whether the text has a strikethrough.
 +    pub strikethrough: bool,
  }
-
+ 
  #[derive(Clone, Default, PartialEq)]
 @@ -251,6 +254,10 @@ impl Canvas {
                          if c.style.underline && !text_style.underline {
@@ -25,6 +25,6 @@
 +                        if c.style.strikethrough && !text_style.strikethrough {
 +                            write!(w, csi!("{}m"), Attribute::CrossedOut.sgr())?;
 +                        }
-
+ 
                          if c.style.italic && !text_style.italic {
                              write!(w, csi!("{}m"), Attribute::Italic.sgr())?;

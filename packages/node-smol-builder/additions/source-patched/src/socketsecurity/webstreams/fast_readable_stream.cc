@@ -93,7 +93,19 @@ void FastReadableStreamAccelerator::New(
     return;
   }
 
-  new (std::nothrow) FastReadableStreamAccelerator(env, args.This());
+  // nothrow + null-check: on OOM, surface a JS Error instead of leaving
+  // the caller with a zombie JS object whose native wrapper was never
+  // attached (every later method would silently return via
+  // ASSIGN_OR_RETURN_UNWRAP).
+  auto* accel = new (std::nothrow)
+      FastReadableStreamAccelerator(env, args.This());
+  if (accel == nullptr) {
+    v8::Isolate* isolate = env->isolate();
+    isolate->ThrowException(v8::Exception::Error(
+        v8::String::NewFromUtf8Literal(isolate,
+            "Out of memory: failed to allocate FastReadableStreamAccelerator")));
+    return;
+  }
 }
 
 void FastReadableStreamAccelerator::ReadSync(

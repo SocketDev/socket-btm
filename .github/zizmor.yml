@@ -30,7 +30,10 @@ rules:
 
   github-env:
     ignore:
-      # False positive: expansion is $LLVM_MINGW_VERSION from the step's own
-      # env: block (inputs.version default), not untrusted user input.
-      # Line 17: run block writing to $GITHUB_PATH
-      - action.yml:17
+      # False positive: the path written to GITHUB_PATH is a literal
+      # string plus the pinned action input inputs.version (routed via
+      # the step's own env: block as LLVM_MINGW_VERSION). No external
+      # attacker can influence which directory gets prepended — the
+      # action exists to install the cross-compiler and put it first on
+      # PATH.
+      - action.yml:45

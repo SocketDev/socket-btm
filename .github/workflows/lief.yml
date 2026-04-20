@@ -166,11 +166,18 @@ jobs:
           else
             DOCKERFILE_HASH="no-docker"
           fi
-          BUILD_SCRIPT_HASH=$($hash_cmd packages/lief-builder/scripts/build.mts | cut -d' ' -f1)
+          # Hash the whole scripts/ tree — build.mts is not the only file
+          # that influences the output. `verify-release.mts` runs during
+          # build (line 393) and `get-checkpoint-chain.mts` is read to
+          # compute the chain (line 213). Missing them from the key means
+          # edits to verification or chain logic silently hit stale cache.
+          # Use find so a new script added under scripts/ is picked up
+          # without editing the key composition.
+          BUILD_SCRIPTS_HASH=$(find packages/lief-builder/scripts -type f 2>/dev/null | sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
           LIEF_SUBMODULE_SHA=$(cd packages/lief-builder/upstream/lief && git rev-parse HEAD)
 
-          # Finalized checkpoint hash: cache-version + dockerfile + build-script + lief-sha + libc.
-          FINAL_HASH=$(echo "${CACHE_VERSION}${DOCKERFILE_HASH}${BUILD_SCRIPT_HASH}${LIEF_SUBMODULE_SHA}${LIBC}" | $hash_cmd | cut -d' ' -f1)
+          # Finalized checkpoint hash: cache-version + dockerfile + build-scripts + lief-sha + libc.
+          FINAL_HASH=$(echo "${CACHE_VERSION}${DOCKERFILE_HASH}${BUILD_SCRIPTS_HASH}${LIEF_SUBMODULE_SHA}${LIBC}" | $hash_cmd | cut -d' ' -f1)
 
           echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
           echo "final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
@@ -238,7 +245,10 @@ jobs:
           platform-arch: ${{ steps.platform-arch-cache.outputs.platform_arch }}
 
       - name: Setup Depot CLI
-        if: matrix.os == 'linux'
+        # Skip the CLI download on cache-hit — if the finalized checkpoint
+        # is already in cache no Depot build runs. Saves ~5-10s per Linux
+        # matrix entry on fully-cached runs.
+        if: matrix.os == 'linux' && (steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || steps.restore-checkpoint.outputs.build-required != 'false' || inputs.force)
         uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
         with:
           oidc: true

@@ -1262,7 +1262,20 @@ jobs:
   release:
     name: Release ${{ matrix.tool }}
     needs: [binpress, binflate, binject]
-    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    # always() lets this job run when ANY of the three tool-build jobs
+    # completed — otherwise selecting `tools=binpress` would skip binflate
+    # and binject (their own job-level `if:` gates them off), and GitHub
+    # treats skipped dependencies as unsatisfied, silently canceling the
+    # entire release matrix. With always(), each release-matrix entry still
+    # evaluates its own `Check if tool should be released` step and skips
+    # the ones the user didn't ask for.
+    if: |
+      always()
+      && (needs.binpress.result == 'success'
+          || needs.binflate.result == 'success'
+          || needs.binject.result == 'success')
+      && github.event_name == 'workflow_dispatch'
+      && !inputs.dry_run
     environment: release
     runs-on: ubuntu-24.04
     permissions:

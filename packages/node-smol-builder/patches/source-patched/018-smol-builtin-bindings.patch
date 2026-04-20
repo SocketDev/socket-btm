@@ -28,6 +28,6 @@
 +  V(smol_http)                                                                 \
 +  V(smol_ilp)                                                                  \
 +  V(smol_webstreams)
-
+ 
  // This is used to load built-in bindings. Instead of using
  // __attribute__((constructor)), we call the _register_<modname>

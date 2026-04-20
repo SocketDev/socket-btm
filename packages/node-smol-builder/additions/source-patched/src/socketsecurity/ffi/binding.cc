@@ -198,7 +198,14 @@ FFIState::~FFIState() {
 FFIState* FFIBinding::GetState(Environment* env) {
   CHECK_NOT_NULL(env);
   if (tl_ffi_state == nullptr || tl_ffi_env != env) {
-    tl_ffi_state = new (std::nothrow) FFIState();
+    // Nothrow + skip AddCleanupHook on failure so OOM can't silently
+    // register a nullptr cleanup callback. Callers check the return value
+    // via GetStateOrThrow below.
+    FFIState* fresh = new (std::nothrow) FFIState();
+    if (fresh == nullptr) {
+      return nullptr;
+    }
+    tl_ffi_state = fresh;
     tl_ffi_env = env;
     // HISTORY: WHY CLEANUP HOOKS INSTEAD OF DESTRUCTORS
     // With Worker threads, a binding's resources must die when that Worker's
@@ -210,6 +217,20 @@ FFIState* FFIBinding::GetState(Environment* env) {
     env->AddCleanupHook(FFIStateCleanup, tl_ffi_state);
   }
   return tl_ffi_state;
+}
+
+// Wraps GetState with a JS-level OOM error. Returns nullptr and throws
+// when the per-thread state couldn't be allocated — callers should early
+// return on nullptr.
+FFIState* FFIBinding::GetStateOrThrow(Environment* env) {
+  FFIState* state = GetState(env);
+  if (state == nullptr) {
+    v8::Isolate* isolate = env->isolate();
+    isolate->ThrowException(v8::Exception::Error(
+        FIXED_ONE_BYTE_STRING(isolate,
+            "Out of memory: failed to allocate FFI state")));
+  }
+  return state;
 }
 
 // ============================================================================
@@ -304,7 +325,10 @@ void FFIBinding::Open(const FunctionCallbackInfo<Value>& args) {
   }
 
   Environment* env = Environment::GetCurrent(args);
-  FFIState* state = GetState(env);
+  FFIState* state = GetStateOrThrow(env);
+  if (state == nullptr) {
+    return;
+  }
 
   // std::make_unique<T>() aborts on OOM because Node.js compiles with
   // -fno-exceptions. Construct with nothrow so we can surface OOM as a JS
@@ -365,7 +389,10 @@ void FFIBinding::Close(const FunctionCallbackInfo<Value>& args) {
   }
 
   Environment* env = Environment::GetCurrent(args);
-  FFIState* state = GetState(env);
+  FFIState* state = GetStateOrThrow(env);
+  if (state == nullptr) {
+    return;
+  }
 
   Local<Context> context = isolate->GetCurrentContext();
   uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
@@ -438,7 +465,10 @@ void FFIBinding::Dlsym(const FunctionCallbackInfo<Value>& args) {
   }
 
   Environment* env = Environment::GetCurrent(args);
-  FFIState* state = GetState(env);
+  FFIState* state = GetStateOrThrow(env);
+  if (state == nullptr) {
+    return;
+  }
 
   uint32_t lib_id = args[0]->Uint32Value(context).FromMaybe(0);
   auto lib_it = state->libraries.find(lib_id);
@@ -496,7 +526,10 @@ void FFIBinding::Sym(const FunctionCallbackInfo<Value>& args) {
   }
 
   Environment* env = Environment::GetCurrent(args);
-  FFIState* state = GetState(env);
+  FFIState* state = GetStateOrThrow(env);
+  if (state == nullptr) {
+    return;
+  }
 
   uint32_t lib_id = args[0]->Uint32Value(context).FromMaybe(0);
   auto lib_it = state->libraries.find(lib_id);
@@ -626,7 +659,10 @@ void FFIBinding::SetTarget(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 1) return;
 
   Environment* env = Environment::GetCurrent(args);
-  FFIState* state = GetState(env);
+  FFIState* state = GetStateOrThrow(env);
+  if (state == nullptr) {
+    return;
+  }
 
   uint32_t fn_id = args[0]->Uint32Value(context).FromMaybe(0);
   auto fn_it = state->functions.find(fn_id);
@@ -652,7 +688,10 @@ void FFIBinding::Call(const FunctionCallbackInfo<Value>& args) {
   }
 
   Environment* env = Environment::GetCurrent(args);
-  FFIState* state = GetState(env);
+  FFIState* state = GetStateOrThrow(env);
+  if (state == nullptr) {
+    return;
+  }
 
   uint32_t fn_id = args[0]->Uint32Value(context).FromMaybe(0);
   auto fn_it = state->functions.find(fn_id);
@@ -702,7 +741,12 @@ void FFIBinding::Call(const FunctionCallbackInfo<Value>& args) {
   // string_storage: temporary copies of JS strings (must be freed after call)
   // arg_regs: register-sized copies for the integer/pointer dispatch path
   ArgValue arg_values[kMaxFFIParams] = {};
-  const char* string_storage[kMaxFFIParams];
+  // Value-initialize string_storage so the cleanup loop below sees nullptr
+  // (and skips delete[]) for slots the marshaling loop never reached. Any
+  // goto cleanup taken mid-loop previously left trailing slots holding
+  // stack garbage; the cleanup's null-check would pass by accident and
+  // delete[] corrupt memory.
+  const char* string_storage[kMaxFFIParams] = {};
   uintptr_t arg_regs[kMaxFFIParams] = {};
   void* fn = nullptr;
   Local<Value> result;
@@ -2159,7 +2203,10 @@ void FFIBinding::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
   }
 
   Environment* env = Environment::GetCurrent(args);
-  FFIState* state = GetState(env);
+  FFIState* state = GetStateOrThrow(env);
+  if (state == nullptr) {
+    return;
+  }
 
   uint32_t lib_id = args[0]->Uint32Value(context).FromMaybe(0);
   auto lib_it = state->libraries.find(lib_id);
@@ -2306,7 +2353,10 @@ void FFIBinding::UnregisterCallback(const FunctionCallbackInfo<Value>& args) {
   }
 
   Environment* env = Environment::GetCurrent(args);
-  FFIState* state = GetState(env);
+  FFIState* state = GetStateOrThrow(env);
+  if (state == nullptr) {
+    return;
+  }
 
   uint32_t cb_id = args[0]->Uint32Value(context).FromMaybe(0);
   auto cb_it = state->callbacks.find(cb_id);

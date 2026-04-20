@@ -1024,15 +1024,35 @@ static void ObjectPoolCleanup(void* data) {
 
 static HttpObjectPool* GetObjectPool(Environment* env) {
   if (tl_object_pool == nullptr) {
+    // Nothrow + null-check so OOM doesn't get silently registered as a
+    // nullptr cleanup hook. Callers are responsible for surfacing the
+    // nullptr to JS; here we just report the failure state.
     tl_object_pool = new (std::nothrow) HttpObjectPool(env);
-    env->AddCleanupHook(ObjectPoolCleanup, tl_object_pool);
+    if (tl_object_pool != nullptr) {
+      env->AddCleanupHook(ObjectPoolCleanup, tl_object_pool);
+    }
   }
   return tl_object_pool;
+}
+
+// Throws a JS Error and returns true when GetObjectPool's allocation
+// failed. Callers should early-return when this returns true. Keeps the
+// repeated Acquire/Release binding bodies terse.
+static bool CheckObjectPoolOrThrow(
+    v8::Isolate* isolate, const HttpObjectPool* pool) {
+  if (pool == nullptr) {
+    isolate->ThrowException(v8::Exception::Error(
+        FIXED_ONE_BYTE_STRING(isolate,
+            "Out of memory: failed to allocate HTTP object pool")));
+    return true;
+  }
+  return false;
 }
 
 void AcquireRequest(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   HttpObjectPool* pool = GetObjectPool(env);
+  if (CheckObjectPoolOrThrow(env->isolate(), pool)) return;
   Local<Object> req = pool->AcquireRequest();
   args.GetReturnValue().Set(req);
 }
@@ -1041,12 +1061,14 @@ void ReleaseRequest(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (args.Length() < 1 || !args[0]->IsObject()) return;
   HttpObjectPool* pool = GetObjectPool(env);
+  if (CheckObjectPoolOrThrow(env->isolate(), pool)) return;
   pool->ReleaseRequest(args[0].As<Object>());
 }
 
 void AcquireResponse(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   HttpObjectPool* pool = GetObjectPool(env);
+  if (CheckObjectPoolOrThrow(env->isolate(), pool)) return;
   Local<Object> res = pool->AcquireResponse();
   args.GetReturnValue().Set(res);
 }
@@ -1055,6 +1077,7 @@ void ReleaseResponse(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (args.Length() < 1 || !args[0]->IsObject()) return;
   HttpObjectPool* pool = GetObjectPool(env);
+  if (CheckObjectPoolOrThrow(env->isolate(), pool)) return;
   pool->ReleaseResponse(args[0].As<Object>());
 }
 
@@ -1062,6 +1085,7 @@ void GetObjectPoolStats(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   HttpObjectPool* pool = GetObjectPool(env);
+  if (CheckObjectPoolOrThrow(isolate, pool)) return;
 
   Local<Object> stats = Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
   Local<Context> context = env->context();

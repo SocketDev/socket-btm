@@ -17,6 +17,16 @@ inputs:
   package-name:
     description: 'Package name for error messages (e.g., models, binject)'
     required: true
+  platform-arch:
+    description: |
+      Optional platform-arch segment (e.g., linux-x64). When set, the action
+      also inspects `${package-path}/build/${build-mode}/${platform-arch}/checkpoints`
+      — the layout Depot Dockerfiles emit for native binary builders.
+      Without this input, model/wasm pipelines that don't have a platform
+      segment continue to work via the legacy `${build-mode}/checkpoints`
+      path.
+    required: false
+    default: ''
 
 outputs:
   checkpoints-found:
@@ -39,16 +49,32 @@ runs:
         PACKAGE_PATH: ${{ inputs.package-path }}
         BUILD_MODE: ${{ inputs.build-mode }}
         PACKAGE_NAME: ${{ inputs.package-name }}
+        PLATFORM_ARCH: ${{ inputs.platform-arch }}
       run: |
-        # Checkpoint directories: mode-specific and shared
+        # Checkpoint directories. The native-binary builders (node-smol,
+        # curl, lief, onnxruntime, yoga-layout) export to
+        # build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints; model/wasm
+        # pipelines that don't have a platform segment export to the
+        # legacy build/${BUILD_MODE}/checkpoints. Try both.
         readonly MODE_CHECKPOINT_DIR="${PACKAGE_PATH}/build/${BUILD_MODE}/checkpoints"
         readonly SHARED_CHECKPOINT_DIR="${PACKAGE_PATH}/build/shared/checkpoints"
-        readonly CHECKPOINT_DIRS=("$MODE_CHECKPOINT_DIR" "$SHARED_CHECKPOINT_DIR")
+        CHECKPOINT_DIRS=("$MODE_CHECKPOINT_DIR" "$SHARED_CHECKPOINT_DIR")
+        if [ -n "$PLATFORM_ARCH" ]; then
+          PLATFORM_CHECKPOINT_DIR="${PACKAGE_PATH}/build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints"
+          CHECKPOINT_DIRS+=("$PLATFORM_CHECKPOINT_DIR")
+        fi
         readonly CHECKPOINT_FORMATS=("*.tar" "*.tar.gz" "*.tgz")
 
-        # Check if checkpoint directories exist
-        if [ ! -d "$MODE_CHECKPOINT_DIR" ] && [ ! -d "$SHARED_CHECKPOINT_DIR" ]; then
-          echo "⚠️ No checkpoint dirs found"
+        # Check if ANY checkpoint directory exists
+        ANY_DIR_EXISTS=0
+        for d in "${CHECKPOINT_DIRS[@]}"; do
+          if [ -d "$d" ]; then
+            ANY_DIR_EXISTS=1
+            break
+          fi
+        done
+        if [ $ANY_DIR_EXISTS -eq 0 ]; then
+          echo "⚠️ No checkpoint dirs found (searched: ${CHECKPOINT_DIRS[*]})"
           echo "checkpoints-found=false" >> $GITHUB_OUTPUT
           echo "valid=false" >> $GITHUB_OUTPUT
           echo "message=No checkpoint directories found" >> $GITHUB_OUTPUT

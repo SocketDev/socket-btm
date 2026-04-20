@@ -315,6 +315,27 @@ describe('node:smol-versions', () => {
         expect(satisfies('2.3.4', '1.2.3 - 2.3.4')).toBe(true)
         expect(satisfies('2.3.5', '1.2.3 - 2.3.4')).toBe(false)
       })
+
+      // R8 regression: `compare(v, hr.upper)` ran before the `!hr.upper`
+      // short-circuit, so an unparseable upper threw VersionError. Must
+      // return false, not throw.
+      it('unparseable hyphen upper returns false, does not throw', () => {
+        expect(satisfies('1.0.0', '1 - garbage')).toBe(false)
+        expect(satisfies('3.0.0', '1 - ')).toBe(false)
+      })
+    })
+
+    describe('operator + space normalization (R8 port from version_subset)', () => {
+      it('>= 1.0.0 admits 1.5.0', () => {
+        expect(satisfies('1.5.0', '>= 1.0.0')).toBe(true)
+      })
+      it('>= 1.0.0 rejects 0.9.9', () => {
+        expect(satisfies('0.9.9', '>= 1.0.0')).toBe(false)
+      })
+      it('compound with spaces: >= 1.0.0 < 2.0.0', () => {
+        expect(satisfies('1.5.0', '>= 1.0.0 < 2.0.0')).toBe(true)
+        expect(satisfies('2.0.0', '>= 1.0.0 < 2.0.0')).toBe(false)
+      })
     })
 
     describe('Prerelease restriction (semver spec compliance)', () => {

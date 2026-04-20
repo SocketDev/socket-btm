@@ -83,7 +83,6 @@ jobs:
             arch: x64
             runner: depot-macos-15
             zig_target: x86_64-macos
-            cross_compile: true
           - os: darwin
             arch: arm64
             runner: depot-macos-15
@@ -97,7 +96,6 @@ jobs:
             arch: arm64
             runner: windows-2022
             zig_target: aarch64-windows-gnu
-            cross_compile: true
 
     steps:
       - uses: SocketDev/socket-registry/.github/actions/setup-and-install@3362af95fadd1e325cb48e9ad6daff21c112bd72 # main
@@ -211,14 +209,17 @@ jobs:
           zig version
 
       - name: Cache Zig global cache
+        # No restore-keys: we require exact ZIG_VERSION match. The restore-keys
+        # prefix would restore a cache built by a different Zig, polluting the
+        # global store with incompatible intermediate artifacts that the new
+        # Zig then has to discard anyway — at best wasted I/O, at worst a
+        # silent correctness issue if Zig reuses a stale artifact.
         if: steps.opentui-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: |
             ~/.cache/zig
           key: zig-cache-${{ matrix.os }}-${{ matrix.arch }}-${{ env.ZIG_VERSION }}
-          restore-keys: |
-            zig-cache-${{ matrix.os }}-${{ matrix.arch }}-
 
       - name: Build opentui native module
         id: build
@@ -352,7 +353,7 @@ jobs:
           cat checksums.txt
 
       - name: Import GPG key
-        if: steps.version.outputs.skip != 'true' && env.GPG_PRIVATE_KEY != ''
+        if: steps.version.outputs.skip != 'true' && secrets.GPG_PRIVATE_KEY != ''
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
@@ -365,7 +366,7 @@ jobs:
           fi
 
       - name: Sign checksums
-        if: steps.version.outputs.skip != 'true' && env.GPG_PRIVATE_KEY != ''
+        if: steps.version.outputs.skip != 'true' && secrets.GPG_PRIVATE_KEY != ''
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}

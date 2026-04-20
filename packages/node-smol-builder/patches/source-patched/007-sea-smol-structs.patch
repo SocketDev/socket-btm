@@ -10,7 +10,7 @@
 @@ -37,6 +37,25 @@
    kCli = 2,
  };
-
+ 
 +struct SmolUpdateConfig {
 +  std::string binname;
 +  std::string command;
@@ -44,5 +44,5 @@
 +  std::optional<SmolUpdateConfig> smol_update;
 +#endif
  };
-
+ 
  struct SeaResource {

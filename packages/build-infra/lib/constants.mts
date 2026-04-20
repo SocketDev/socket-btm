@@ -61,6 +61,7 @@ export const CHECKPOINTS = {
   OPTIMIZED: 'optimized',
 
   // WASM pipeline checkpoints.
+  SOURCE_CLONED: 'source-cloned',
   SOURCE_COPIED: 'source-copied',
   SOURCE_CONFIGURED: 'source-configured',
   WASM_COMPILED: 'wasm-compiled',
@@ -139,12 +140,16 @@ export const CHECKPOINT_CHAINS = {
 
   /**
    * iocraft native Rust addon checkpoint chain.
-   * Same for dev and prod.
+   *
+   * Walk order is finalized→earliest so restore picks the latest usable
+   * checkpoint. Must mirror what packages/iocraft-builder/scripts/
+   * actually creates via createCheckpoint(); currently that is
+   * SOURCE_PATCHED and SOURCE_COPIED. If a future build script adds
+   * FINALIZED or NATIVE_BUILT, add them here.
    */
   iocraft: () => [
-    CHECKPOINTS.FINALIZED,
-    CHECKPOINTS.NATIVE_BUILT,
-    CHECKPOINTS.SOURCE_CONFIGURED,
+    CHECKPOINTS.SOURCE_PATCHED,
+    CHECKPOINTS.SOURCE_COPIED,
   ],
 
   /**

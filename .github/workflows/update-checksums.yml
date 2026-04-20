@@ -11,7 +11,15 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # MUST be a static global group. When this workflow is invoked via
+  # workflow_call, github.workflow evaluates to the CALLER's workflow
+  # name, so parallel release publishes (curl + lief + node-smol finishing
+  # at the same time) would each land in a DIFFERENT concurrency group
+  # and all try to `git pull --rebase && git push origin main` against
+  # release-assets.json simultaneously — rebase is not atomic across
+  # concurrent runners and one push is guaranteed to lose its commit.
+  # A static group (repo-scoped) serializes every update-checksums run.
+  group: update-checksums-${{ github.repository }}-main
   cancel-in-progress: false
 
 jobs:

@@ -191,12 +191,8 @@ jobs:
           echo "  mbedtls: ${MBEDTLS_SHA:0:7}"
           echo "  local: ${LOCAL_HASH:0:7}"
 
-      - name: Setup Depot CLI
-        if: matrix.os == 'linux'
-        uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
-        with:
-          oidc: true
-
+      # Cache restore runs BEFORE Setup Depot CLI so the CLI download is
+      # skipped on cache-hit (~5-10s × 4 Linux matrix entries saved per run).
       - name: Restore curl checkpoint cache
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         id: curl-checkpoint-cache
@@ -206,6 +202,12 @@ jobs:
           path: packages/curl-builder/build/${{ steps.build-mode.outputs.mode }}/${{ steps.platform-arch.outputs.platform_arch }}/out/Final
           key: curl-checkpoints-${{ steps.cache-version.outputs.version }}-${{ steps.platform-arch.outputs.platform_arch }}-${{ steps.build-mode.outputs.mode }}
           # NOTE: No restore-keys - we require exact match to prevent stale cache restoration.
+
+      - name: Setup Depot CLI
+        if: matrix.os == 'linux' && (steps.curl-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
+        uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
+        with:
+          oidc: true
 
       - name: Build curl with Depot (Linux - offloads compute)
         if: matrix.os == 'linux' && (steps.curl-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)

@@ -126,9 +126,16 @@ jobs:
           PACKAGE_JSON=$($hash_cmd packages/onnxruntime-builder/package.json | cut -d' ' -f1)
           BUILD_MJS=$($hash_cmd packages/onnxruntime-builder/scripts/build.mts | cut -d' ' -f1)
 
-          # source-cloned: cache-version + common + source-cloned + build.mts + package.json
+          # Shared TS helpers used by all phases + pnpm-lock + .node-version.
+          BUILD_INFRA_LIB=$(hash_dir packages/build-infra/lib)
+          BIN_INFRA_LIB=$(hash_dir packages/bin-infra/lib)
+          PNPM_LOCK_HASH=$($hash_cmd pnpm-lock.yaml 2>/dev/null | cut -d' ' -f1)
+          NODE_VERSION_HASH=$($hash_cmd .node-version 2>/dev/null | cut -d' ' -f1)
+          SHARED_DEPS="${BUILD_INFRA_LIB}${BIN_INFRA_LIB}${PNPM_LOCK_HASH}${NODE_VERSION_HASH}"
+
+          # source-cloned: cache-version + common + source-cloned + build.mts + package.json + shared deps
           SOURCE_CLONED_DIR=$(hash_dir packages/onnxruntime-builder/scripts/source-cloned)
-          SOURCE_CLONED_HASH=$(echo "${CACHE_VERSION}${COMMON}${SOURCE_CLONED_DIR}${BUILD_MJS}${PACKAGE_JSON}" | $hash_cmd | cut -d' ' -f1)
+          SOURCE_CLONED_HASH=$(echo "${CACHE_VERSION}${COMMON}${SOURCE_CLONED_DIR}${BUILD_MJS}${PACKAGE_JSON}${SHARED_DEPS}" | $hash_cmd | cut -d' ' -f1)
 
           # wasm-compiled
           WASM_COMPILED_DIR=$(hash_dir packages/onnxruntime-builder/scripts/wasm-compiled)

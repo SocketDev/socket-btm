@@ -142,10 +142,17 @@ jobs:
           COMMON=$(hash_dir packages/models/scripts/common)
           PACKAGE_JSON=$($hash_cmd packages/models/package.json | cut -d' ' -f1)
           BUILD_MJS=$($hash_cmd packages/models/scripts/build.mts | cut -d' ' -f1)
+          # Shared TS helpers, workspace lock, and Node version — every
+          # phase depends on build-infra/lib at runtime.
+          BUILD_INFRA_LIB=$(hash_dir packages/build-infra/lib)
+          BIN_INFRA_LIB=$(hash_dir packages/bin-infra/lib)
+          PNPM_LOCK_HASH=$($hash_cmd pnpm-lock.yaml 2>/dev/null | cut -d' ' -f1)
+          NODE_VERSION_HASH=$($hash_cmd .node-version 2>/dev/null | cut -d' ' -f1)
+          SHARED_DEPS="${BUILD_INFRA_LIB}${BIN_INFRA_LIB}${PNPM_LOCK_HASH}${NODE_VERSION_HASH}"
 
-          # downloaded phase: cache-version + common + downloaded + build.mts + package.json
+          # downloaded phase: cache-version + common + downloaded + build.mts + package.json + shared deps
           DOWNLOADED_DIR=$(hash_dir packages/models/scripts/downloaded)
-          DOWNLOADED_HASH=$(echo "${CACHE_VERSION}${COMMON}${DOWNLOADED_DIR}${BUILD_MJS}${PACKAGE_JSON}" | $hash_cmd | cut -d' ' -f1)
+          DOWNLOADED_HASH=$(echo "${CACHE_VERSION}${COMMON}${DOWNLOADED_DIR}${BUILD_MJS}${PACKAGE_JSON}${SHARED_DEPS}" | $hash_cmd | cut -d' ' -f1)
 
           # converted phase
           CONVERTED_DIR=$(hash_dir packages/models/scripts/converted)

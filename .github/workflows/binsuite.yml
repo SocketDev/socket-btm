@@ -349,14 +349,12 @@ jobs:
           PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
           OS_TYPE: ${{ matrix.os }}
         run: |
-          # Linux uses Depot Docker which exports without PLATFORM_ARCH.
-          # macOS/Windows native builds use PLATFORM_ARCH in path.
-          if [ "${OS_TYPE}" = "linux" ]; then
-            BINARY="build/${BUILD_MODE}/out/Final/binpress"
-          elif [ "${OS_TYPE}" = "windows" ]; then
-            BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binpress.exe"
-          else
-            BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binpress"
+          # All platforms (Linux Depot / macOS / Windows native) export to
+          # build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/. Matches the
+          # validate-checkpoint step above.
+          BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binpress"
+          if [ "${OS_TYPE}" = "windows" ]; then
+            BINARY="${BINARY}.exe"
           fi
 
           if [ ! -f "$BINARY" ]; then
@@ -736,14 +734,12 @@ jobs:
           PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
           OS_TYPE: ${{ matrix.os }}
         run: |
-          # Linux uses Depot Docker which exports without PLATFORM_ARCH.
-          # macOS/Windows native builds use PLATFORM_ARCH in path.
-          if [ "${OS_TYPE}" = "linux" ]; then
-            BINARY="build/${BUILD_MODE}/out/Final/binflate"
-          elif [ "${OS_TYPE}" = "windows" ]; then
-            BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binflate.exe"
-          else
-            BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binflate"
+          # All platforms (Linux Depot / macOS / Windows native) export to
+          # build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/. Matches the
+          # validate-checkpoint step above.
+          BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binflate"
+          if [ "${OS_TYPE}" = "windows" ]; then
+            BINARY="${BINARY}.exe"
           fi
 
           if [ ! -f "$BINARY" ]; then
@@ -1159,14 +1155,12 @@ jobs:
           PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
           OS_TYPE: ${{ matrix.os }}
         run: |
-          # Linux uses Depot Docker which exports without PLATFORM_ARCH.
-          # macOS/Windows native builds use PLATFORM_ARCH in path.
-          if [ "${OS_TYPE}" = "linux" ]; then
-            BINARY="build/${BUILD_MODE}/out/Final/binject"
-          elif [ "${OS_TYPE}" = "windows" ]; then
-            BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binject.exe"
-          else
-            BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binject"
+          # All platforms (Linux Depot / macOS / Windows native) export to
+          # build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/. Matches the
+          # validate-checkpoint step above.
+          BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binject"
+          if [ "${OS_TYPE}" = "windows" ]; then
+            BINARY="${BINARY}.exe"
           fi
 
           if [ ! -f "$BINARY" ]; then

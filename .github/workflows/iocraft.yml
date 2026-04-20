@@ -173,8 +173,13 @@ jobs:
           # the built .node addon is loaded by the host Node.js and must
           # match its ABI.
           NODE_VERSION_HASH=$($hash_cmd .node-version | cut -d' ' -f1)
+          # Shared TS helpers consumed by iocraft-builder scripts +
+          # pnpm-lock so dep bumps invalidate the cache too.
+          BUILD_INFRA_LIB=$(hash_tree packages/build-infra/lib)
+          BIN_INFRA_LIB=$(hash_tree packages/bin-infra/lib)
+          PNPM_LOCK_HASH=$($hash_cmd pnpm-lock.yaml 2>/dev/null | cut -d' ' -f1)
 
-          FINAL_HASH=$(echo "${CACHE_VERSION}${SRC_HASH}${SCRIPTS_HASH}${PATCHES_HASH}${CARGO_TOML}${PACKAGE_JSON}${BUILD_RS}${IOCRAFT_SHA}${NODE_VERSION_HASH}" | $hash_cmd | cut -d' ' -f1)
+          FINAL_HASH=$(echo "${CACHE_VERSION}${SRC_HASH}${SCRIPTS_HASH}${PATCHES_HASH}${CARGO_TOML}${PACKAGE_JSON}${BUILD_RS}${IOCRAFT_SHA}${NODE_VERSION_HASH}${BUILD_INFRA_LIB}${BIN_INFRA_LIB}${PNPM_LOCK_HASH}" | $hash_cmd | cut -d' ' -f1)
 
           echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
           echo "final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
@@ -433,11 +438,14 @@ jobs:
             --notes "iocraft v${IOCRAFT_VERSION} native Node.js bindings via napi-rs.
 
           ## Files
-          - \`iocraft-${VERSION}-linux-x64.node\` - Linux x64 native module
-          - \`iocraft-${VERSION}-linux-arm64.node\` - Linux ARM64 native module
+          - \`iocraft-${VERSION}-linux-x64.node\` - Linux x64 glibc native module
+          - \`iocraft-${VERSION}-linux-arm64.node\` - Linux ARM64 glibc native module
+          - \`iocraft-${VERSION}-linux-x64-musl.node\` - Linux x64 musl native module
+          - \`iocraft-${VERSION}-linux-arm64-musl.node\` - Linux ARM64 musl native module
           - \`iocraft-${VERSION}-darwin-x64.node\` - macOS Intel native module
           - \`iocraft-${VERSION}-darwin-arm64.node\` - macOS Apple Silicon native module
           - \`iocraft-${VERSION}-win-x64.node\` - Windows x64 native module
+          - \`iocraft-${VERSION}-win-arm64.node\` - Windows ARM64 native module
           - \`checksums.txt\` - SHA256 checksums
 
           ## Usage

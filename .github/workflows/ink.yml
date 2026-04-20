@@ -119,8 +119,13 @@ jobs:
           # only surface at test time can depend on Node version, so a
           # node bump must invalidate the cache.
           NODE_VERSION_HASH=$($hash_cmd .node-version | cut -d' ' -f1)
+          # Shared TS helpers + workspace lock. ink-builder scripts
+          # import from build-infra/lib; Dockerfile copies pnpm-lock.yaml.
+          BUILD_INFRA_LIB=$(hash_tree packages/build-infra/lib)
+          BIN_INFRA_LIB=$(hash_tree packages/bin-infra/lib)
+          PNPM_LOCK_HASH=$($hash_cmd pnpm-lock.yaml 2>/dev/null | cut -d' ' -f1)
 
-          FINAL_HASH=$(echo "${INK_CACHE_VERSION}${YOGA_CACHE_VERSION}${PACKAGE_JSON}${SCRIPTS_HASH}${PATCHES_HASH}${DOCKER_HASH}${YOGA_SHA}${NODE_VERSION_HASH}" | $hash_cmd | cut -d' ' -f1)
+          FINAL_HASH=$(echo "${INK_CACHE_VERSION}${YOGA_CACHE_VERSION}${PACKAGE_JSON}${SCRIPTS_HASH}${PATCHES_HASH}${DOCKER_HASH}${YOGA_SHA}${NODE_VERSION_HASH}${BUILD_INFRA_LIB}${BIN_INFRA_LIB}${PNPM_LOCK_HASH}" | $hash_cmd | cut -d' ' -f1)
 
           echo "ink_cache_version=${INK_CACHE_VERSION}" >> $GITHUB_OUTPUT
           echo "yoga_cache_version=${YOGA_CACHE_VERSION}" >> $GITHUB_OUTPUT

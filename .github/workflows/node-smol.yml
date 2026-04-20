@@ -858,7 +858,7 @@ jobs:
           if [ -f "${BINARY}" ]; then
             if [ "$MATRIX_OS" = "windows" ]; then
               # Convert Unix path to Windows format for PowerShell
-              BINARY_SIZE_MB=$(powershell -Command "\$winPath = '${BINARY}' -replace '/', '\\'; [math]::Round((Get-Item \$winPath).Length / 1MB, 2)")
+              BINARY_SIZE_MB=$(powershell -NoProfile -Command "\$winPath = '${BINARY}' -replace '/', '\\'; [math]::Round((Get-Item \$winPath).Length / 1MB, 2)")
             else
               # Use platform-specific stat command (BSD/macOS vs GNU/Linux)
               if [ "$(uname)" = "Darwin" ]; then

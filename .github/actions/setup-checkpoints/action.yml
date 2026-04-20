@@ -175,7 +175,7 @@ runs:
               winpath="$datafile"
             fi
 
-            powershell -ExecutionPolicy Bypass -File "$scriptfile" "$winpath"
+            powershell -NoProfile -ExecutionPolicy Bypass -File "$scriptfile" "$winpath"
             local exit_code=$?
             rm -f "$datafile" "$scriptfile"
             return $exit_code
@@ -209,7 +209,7 @@ runs:
               winpath="$1"
             fi
 
-            powershell -ExecutionPolicy Bypass -File "$scriptfile" "$winpath"
+            powershell -NoProfile -ExecutionPolicy Bypass -File "$scriptfile" "$winpath"
             local exit_code=$?
             rm -f "$scriptfile"
             return $exit_code
@@ -218,7 +218,8 @@ runs:
 
         # Hash source files, build scripts, Makefiles, Dockerfiles, and .node-version.
         # Include .node-version to invalidate cache when Node.js version changes.
-        FIND_PATHS="packages/${PACKAGE_NAME}/src packages/${PACKAGE_NAME}/scripts .node-version"
+        # pnpm-lock.yaml so dep bumps (e.g. @socketsecurity/lib) invalidate.
+        FIND_PATHS="packages/${PACKAGE_NAME}/src packages/${PACKAGE_NAME}/scripts .node-version pnpm-lock.yaml"
         # Add Makefiles and Dockerfiles if they exist (avoid glob errors when missing).
         for pattern in packages/${PACKAGE_NAME}/Makefile* packages/${PACKAGE_NAME}/Dockerfile* packages/${PACKAGE_NAME}/docker/Dockerfile*; do
           for match in $pattern; do
@@ -227,16 +228,20 @@ runs:
         done
 
         # BinSuite tools (binpress, binflate, binject) depend on bin-infra and build-infra shared code.
-        # Include both for BinSuite tools.
+        # Include src AND lib (TS helpers) — prior version missed lib/
+        # which hosts checkpoint-manager, platform-mappings, builder.mts,
+        # etc. Edits there change the produced tarball but didn't bust
+        # the cache.
         if [[ "${PACKAGE_NAME}" == "binpress" ]] || [[ "${PACKAGE_NAME}" == "binflate" ]] || [[ "${PACKAGE_NAME}" == "binject" ]]; then
-          FIND_PATHS="${FIND_PATHS} packages/bin-infra/src packages/bin-infra/scripts packages/build-infra/src"
+          FIND_PATHS="${FIND_PATHS} packages/bin-infra/src packages/bin-infra/lib packages/bin-infra/scripts packages/build-infra/src packages/build-infra/lib"
         fi
 
         # node-smol depends on source packages that get copied to additions/ during build.
-        # Include build-infra, bin-infra, binject, binpress sources AND Node.js patches.
-        # CRITICAL: Patches fundamentally change the compiled binary - must invalidate cache.
+        # Include build-infra, bin-infra, binject, binpress sources + lib/
+        # AND Node.js patches. CRITICAL: Patches fundamentally change the
+        # compiled binary - must invalidate cache.
         if [[ "${PACKAGE_NAME}" == "node-smol" ]]; then
-          FIND_PATHS="${FIND_PATHS} packages/build-infra/src packages/bin-infra/src packages/binject/src packages/binpress/src"
+          FIND_PATHS="${FIND_PATHS} packages/build-infra/src packages/build-infra/lib packages/bin-infra/src packages/bin-infra/lib packages/binject/src packages/binpress/src packages/binflate/src"
           FIND_PATHS="${FIND_PATHS} packages/node-smol-builder/patches/source-patched"
         fi
 
@@ -378,12 +383,41 @@ runs:
         echo "stubs_version=${STUBS_CACHE_VERSION}" >> "$GITHUB_OUTPUT"
         echo "cache_key=${CACHE_KEY}" >> "$GITHUB_OUTPUT"
 
+    - name: Compute platform-arch segment
+      # Binsuite Dockerfiles (and macOS/Windows native builds) emit to
+      # build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/ and
+      # build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints/. The prior
+      # cache path omitted ${PLATFORM_ARCH} so cache/restore touched a
+      # non-existent directory and validate-checkpoints found no
+      # archives → cache never effectively hit. Derive the segment
+      # here from the platform/arch/libc inputs so the paths below
+      # match what the builders actually write.
+      id: platform-arch
+      shell: bash
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        ARCH: ${{ inputs.arch }}
+        LIBC: ${{ inputs.libc }}
+      run: |
+        # Normalize win32 → win to match Dockerfile and CLI convention.
+        case "$PLATFORM" in
+          win32) OS_SEG="win" ;;
+          *)     OS_SEG="$PLATFORM" ;;
+        esac
+        SUFFIX=""
+        if [ -n "$LIBC" ] && [ "$LIBC" != "glibc" ]; then
+          SUFFIX="-${LIBC}"
+        fi
+        PLATFORM_ARCH="${OS_SEG}-${ARCH}${SUFFIX}"
+        echo "platform_arch=${PLATFORM_ARCH}" >> "$GITHUB_OUTPUT"
+        echo "Platform-arch segment: ${PLATFORM_ARCH}"
+
     - name: Restore checkpoint cache
       uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
       id: checkpoint-cache
       with:
         path: |
-          packages/${{ inputs.package-name }}/build/${{ steps.cache-key.outputs.build_mode }}/checkpoints
+          packages/${{ inputs.package-name }}/build/${{ steps.cache-key.outputs.build_mode }}/${{ steps.platform-arch.outputs.platform_arch }}/checkpoints
           packages/${{ inputs.package-name }}/build/shared/checkpoints
         key: ${{ steps.cache-key.outputs.cache_key }}
 
@@ -404,7 +438,7 @@ runs:
       id: validate-cache
       uses: ./.github/actions/validate-checkpoints
       with:
-        checkpoint-dirs: packages/${{ inputs.package-name }}/build/${{ steps.cache-key.outputs.build_mode }}/checkpoints:packages/${{ inputs.package-name }}/build/shared/checkpoints
+        checkpoint-dirs: packages/${{ inputs.package-name }}/build/${{ steps.cache-key.outputs.build_mode }}/${{ steps.platform-arch.outputs.platform_arch }}/checkpoints:packages/${{ inputs.package-name }}/build/shared/checkpoints
         checkpoints: ${{ steps.checkpoint-chain.outputs.checkpoints }}
         package-name: ${{ inputs.package-name }}
 
@@ -417,3 +451,4 @@ runs:
         checkpoint-chain: ${{ steps.checkpoint-chain.outputs.checkpoint_chain }}
         cache-hit: ${{ steps.checkpoint-cache.outputs.cache-hit }}
         cache-valid: ${{ steps.validate-cache.outputs.valid }}
+        platform-arch: ${{ steps.platform-arch.outputs.platform_arch }}

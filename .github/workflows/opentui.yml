@@ -178,10 +178,14 @@ jobs:
           # ABI mismatch would load the wrong thing. Include in the key so
           # a node bump invalidates stale native modules.
           NODE_VERSION_HASH=$($hash_cmd .node-version | cut -d' ' -f1)
+          # Shared TS helpers + pnpm-lock.
+          BUILD_INFRA_LIB=$(hash_tree packages/build-infra/lib)
+          BIN_INFRA_LIB=$(hash_tree packages/bin-infra/lib)
+          PNPM_LOCK_HASH=$($hash_cmd pnpm-lock.yaml 2>/dev/null | cut -d' ' -f1)
 
           # ZIG_VERSION comes from the env: block above. A Zig bump changes
           # the compiled .node output — include it in the key.
-          FINAL_HASH=$(echo "${CACHE_VERSION}${SRC_HASH}${SCRIPTS_HASH}${PATCHES_HASH}${VENDOR_HASH}${BUILD_ZIG}${BUILD_ZIG_ZON}${PACKAGE_JSON}${OPENTUI_SHA}${NODE_VERSION_HASH}${ZIG_VERSION}" | $hash_cmd | cut -d' ' -f1)
+          FINAL_HASH=$(echo "${CACHE_VERSION}${SRC_HASH}${SCRIPTS_HASH}${PATCHES_HASH}${VENDOR_HASH}${BUILD_ZIG}${BUILD_ZIG_ZON}${PACKAGE_JSON}${OPENTUI_SHA}${NODE_VERSION_HASH}${ZIG_VERSION}${BUILD_INFRA_LIB}${BIN_INFRA_LIB}${PNPM_LOCK_HASH}" | $hash_cmd | cut -d' ' -f1)
 
           echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
           echo "final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT

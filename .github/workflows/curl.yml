@@ -182,7 +182,18 @@ jobs:
           SCRIPTS_HASH=$(hash_tree packages/curl-builder/scripts)
           PATCHES_HASH=$(hash_tree packages/curl-builder/patches)
           DOCKER_HASH=$(hash_tree packages/curl-builder/docker)
-          LOCAL_HASH=$(echo "${SCRIPTS_HASH}${PATCHES_HASH}${DOCKER_HASH}" | $hash_cmd | cut -d' ' -f1)
+          # Shared TS helpers consumed by curl-builder scripts. Edits to
+          # build-infra/lib/checkpoint-manager.mts etc. change build
+          # output; previously missed by the cache key.
+          BUILD_INFRA_LIB=$(hash_tree packages/build-infra/lib)
+          BIN_INFRA_LIB=$(hash_tree packages/bin-infra/lib)
+          # Docker builds install workspace deps via pnpm-lock.yaml;
+          # a dep bump (e.g. @socketsecurity/lib) can change runtime
+          # behavior of the build scripts. Hash the lock file.
+          PNPM_LOCK_HASH=$($hash_cmd pnpm-lock.yaml 2>/dev/null | cut -d' ' -f1)
+          # Docker also copies .node-version for the Node base image.
+          NODE_VERSION_HASH=$($hash_cmd .node-version 2>/dev/null | cut -d' ' -f1)
+          LOCAL_HASH=$(echo "${SCRIPTS_HASH}${PATCHES_HASH}${DOCKER_HASH}${BUILD_INFRA_LIB}${BIN_INFRA_LIB}${PNPM_LOCK_HASH}${NODE_VERSION_HASH}" | $hash_cmd | cut -d' ' -f1)
 
           # Combined version: curl version + dep SHAs + local build inputs.
           COMBINED_VERSION="${CURL_VERSION}-${CURL_SHA:0:7}-${MBEDTLS_SHA:0:7}-${LOCAL_HASH:0:7}"
@@ -376,7 +387,7 @@ jobs:
   release:
     name: Release curl
     needs: build-curl
-    if: ${{ !inputs.dry_run }}
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
     environment: release
     permissions:
       contents: write # Required to create GitHub releases
@@ -534,7 +545,7 @@ jobs:
 
   update-checksums:
     needs: release
-    if: ${{ !inputs.dry_run }}
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
     permissions:
       contents: write # release-assets.json commit after publishing GitHub release
     uses: ./.github/workflows/update-checksums.yml

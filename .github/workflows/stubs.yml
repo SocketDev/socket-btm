@@ -389,7 +389,7 @@ jobs:
   release:
     name: Release stubs
     needs: build-stubs
-    if: ${{ !inputs.dry_run }}
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
     environment: release
     permissions:
       contents: write # Required to create GitHub releases
@@ -516,7 +516,7 @@ jobs:
 
   update-checksums:
     needs: release
-    if: ${{ !inputs.dry_run }}
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
     permissions:
       contents: write # release-assets.json commit after publishing GitHub release
     uses: ./.github/workflows/update-checksums.yml

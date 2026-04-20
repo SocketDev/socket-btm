@@ -164,6 +164,14 @@ jobs:
           # Use find so a new script added under scripts/ is picked up
           # without editing the key composition.
           BUILD_SCRIPTS_HASH=$(find packages/lief-builder/scripts -type f 2>/dev/null | sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          # Shared TS helpers, workspace lock, and Node version — every
+          # builder's scripts import from build-infra/lib, Docker builds
+          # install from pnpm-lock.yaml, and the Dockerfile's base image
+          # uses .node-version. Previously missed by this cache key.
+          BUILD_INFRA_LIB=$(find packages/build-infra/lib -type f 2>/dev/null | sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          BIN_INFRA_LIB=$(find packages/bin-infra/lib -type f 2>/dev/null | sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          PNPM_LOCK_HASH=$($hash_cmd pnpm-lock.yaml 2>/dev/null | cut -d' ' -f1)
+          NODE_VERSION_HASH=$($hash_cmd .node-version 2>/dev/null | cut -d' ' -f1)
           # Use git ls-tree HEAD so the cache key can be computed WITHOUT
           # the submodule being initialized — the SHA is the gitlink
           # already recorded in HEAD. Mirrors node-smol/iocraft/yoga/
@@ -171,8 +179,8 @@ jobs:
           # step on cache-miss.
           LIEF_SUBMODULE_SHA=$(git ls-tree HEAD packages/lief-builder/upstream/lief 2>/dev/null | awk '{print $3}')
 
-          # Finalized checkpoint hash: cache-version + dockerfile + build-scripts + lief-sha + libc.
-          FINAL_HASH=$(echo "${CACHE_VERSION}${DOCKERFILE_HASH}${BUILD_SCRIPTS_HASH}${LIEF_SUBMODULE_SHA}${LIBC}" | $hash_cmd | cut -d' ' -f1)
+          # Finalized checkpoint hash: cache-version + dockerfile + build-scripts + shared-libs + lock + node-version + lief-sha + libc.
+          FINAL_HASH=$(echo "${CACHE_VERSION}${DOCKERFILE_HASH}${BUILD_SCRIPTS_HASH}${BUILD_INFRA_LIB}${BIN_INFRA_LIB}${PNPM_LOCK_HASH}${NODE_VERSION_HASH}${LIEF_SUBMODULE_SHA}${LIBC}" | $hash_cmd | cut -d' ' -f1)
 
           echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
           echo "final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
@@ -493,7 +501,7 @@ jobs:
   release:
     name: Release LIEF
     needs: build-lief
-    if: ${{ !inputs.dry_run }}
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
     environment: release
     permissions:
       contents: write # Required to create GitHub releases
@@ -638,7 +646,7 @@ jobs:
 
   update-checksums:
     needs: release
-    if: ${{ !inputs.dry_run }}
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
     permissions:
       contents: write # release-assets.json commit after publishing GitHub release
     uses: ./.github/workflows/update-checksums.yml

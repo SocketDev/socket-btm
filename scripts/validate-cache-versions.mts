@@ -32,8 +32,30 @@ type MissingBump = {
 }
 
 // Cache version cascade rules per CLAUDE.md
-// Key: Source path prefix, Value: Cache keys that must be bumped when that path changes
+// Key: Source path prefix, Value: Cache keys that must be bumped when that path changes.
+// `src/` mirrors the C++ canonical sources (copied into additions/ during
+// build). `lib/` holds the TypeScript helpers every builder imports from
+// (`checkpoint-manager`, `platform-mappings`, etc.). Both must cascade
+// downstream — a bug fix in checkpoint-manager.mts affects every package
+// that builds via it, not just the ones that embed the C++ source.
+const ALL_DOWNSTREAM = [
+  'binflate',
+  'binject',
+  'binpress',
+  'curl',
+  'ink',
+  'iocraft',
+  'lief',
+  'models',
+  'node-smol',
+  'onnxruntime',
+  'opentui',
+  'stubs',
+  'yoga-layout',
+]
+
 const CASCADE_RULES = {
+  'packages/bin-infra/lib/': ALL_DOWNSTREAM,
   'packages/bin-infra/src/socketsecurity/bin-infra/': [
     'stubs',
     'binflate',
@@ -41,9 +63,12 @@ const CASCADE_RULES = {
     'binpress',
     'node-smol',
   ],
-  'packages/binflate/src/': ['binflate'],
+  // binflate runtime is embedded in node-smol's compressed binary via the
+  // self-extracting stub — an edit to binflate/src must bump node-smol too.
+  'packages/binflate/src/': ['binflate', 'node-smol'],
   'packages/binject/src/socketsecurity/binject/': ['binject', 'node-smol'],
   'packages/binpress/src/': ['binpress', 'node-smol'],
+  'packages/build-infra/lib/': ALL_DOWNSTREAM,
   'packages/build-infra/src/socketsecurity/build-infra/': [
     'stubs',
     'binflate',

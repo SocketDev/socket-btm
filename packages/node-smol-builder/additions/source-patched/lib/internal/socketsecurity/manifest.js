@@ -194,13 +194,16 @@ function parseGitUrl(resolved) {
 // Extract package name from node_modules path
 function extractPackageNameFromPath(pkgPath) {
   // Find the last occurrence of node_modules to handle nested paths
-  // e.g., "node_modules/a/node_modules/b/node_modules/c" -> "c"
-  const lastNmIdx = StringPrototypeLastIndexOf(pkgPath, 'node_modules/')
+  // e.g., "node_modules/a/node_modules/b/node_modules/c" -> "c".
+  // npm lockfiles generated on Windows may use `\\` separators; normalize
+  // first so both forms are handled.
+  const normalized = StringPrototypeReplaceAll(pkgPath, '\\', '/')
+  const lastNmIdx = StringPrototypeLastIndexOf(normalized, 'node_modules/')
   if (lastNmIdx === -1) {
-    return pkgPath
+    return normalized
   }
 
-  const withoutPrefix = StringPrototypeSlice(pkgPath, lastNmIdx + 13) // 'node_modules/'.length
+  const withoutPrefix = StringPrototypeSlice(normalized, lastNmIdx + 13) // 'node_modules/'.length
 
   // Handle scoped packages (@scope/name)
   if (withoutPrefix[0] === '@') {

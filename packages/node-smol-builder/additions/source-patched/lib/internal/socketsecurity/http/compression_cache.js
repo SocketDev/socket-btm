@@ -87,13 +87,15 @@ class CompressionCache {
       MapPrototypeDelete(this.cache, firstKey)
     }
 
+    // Guard against zero-byte input (NaN serializes to null and breaks metrics).
+    const originalSize = dataBuffer.length
     return {
       __proto__: null,
-      brotli_ratio: brotli.length / dataBuffer.length,
+      brotli_ratio: originalSize > 0 ? brotli.length / originalSize : 0,
       brotli_size: brotli.length,
-      gzip_ratio: gzip.length / dataBuffer.length,
+      gzip_ratio: originalSize > 0 ? gzip.length / originalSize : 0,
       gzip_size: gzip.length,
-      original_size: dataBuffer.length,
+      original_size: originalSize,
     }
   }
 

@@ -7,6 +7,7 @@ const {
   IteratorPrototypeNext,
   MapPrototypeDelete,
   MapPrototypeGet,
+  MapPrototypeHas,
   MapPrototypeKeys,
   MapPrototypeSet,
 } = primordials
@@ -56,6 +57,14 @@ function lruGet(cache, key) {
  * @param {number} maxSize - Maximum cache size
  */
 function lruSet(cache, key, value, maxSize) {
+  // If the key already exists, update-in-place. Evicting first would drop
+  // an unrelated hot entry and shrink the cache by one when we're just
+  // overwriting.
+  if (MapPrototypeHas(cache, key)) {
+    MapPrototypeDelete(cache, key)
+    MapPrototypeSet(cache, key, value)
+    return
+  }
   lruEvictOldest(cache, maxSize)
   MapPrototypeSet(cache, key, value)
 }

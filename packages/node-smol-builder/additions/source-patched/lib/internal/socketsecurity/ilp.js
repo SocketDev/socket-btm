@@ -881,9 +881,11 @@ class Sender extends EventsEventEmitter {
         if (spec === undefined) continue
 
         // Support both { value, unit } objects and plain values.
+        // typeof null === 'object', so guard against null before
+        // ObjectHasOwn which rejects null with a TypeError.
         if (
           typeof spec === 'object' &&
-          spec !== undefined &&
+          spec !== null &&
           ObjectHasOwn(spec, 'value')
         ) {
           this.timestampColumn(

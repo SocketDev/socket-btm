@@ -10,6 +10,7 @@ import { getCI } from '@socketsecurity/lib/env/ci'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
+import { errorMessage } from './error-utils.mts'
 import { ensureAllToolsInstalled } from './tool-installer.mts'
 
 const logger = getDefaultLogger()
@@ -163,7 +164,7 @@ export async function runCheckTools(config) {
     process.exitCode = success ? 0 : 1
   } catch (error) {
     logger.fail(
-      `Error checking tools: ${error instanceof Error ? error.message : String(error)}`,
+      `Error checking tools: ${errorMessage(error)}`,
     )
     process.exitCode = 1
   }

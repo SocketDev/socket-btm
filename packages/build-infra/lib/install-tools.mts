@@ -227,7 +227,7 @@ export async function installTools(toolNames, options = {}) {
       // Record the failure and continue with the rest of the list so the
       // caller sees the full picture instead of aborting on the first miss.
       logger.error(
-        `Error installing ${toolName}: ${error instanceof Error ? error.message : String(error)}`,
+        `Error installing ${toolName}: ${errorMessage(error)}`,
       )
       failed.push(toolName)
     }

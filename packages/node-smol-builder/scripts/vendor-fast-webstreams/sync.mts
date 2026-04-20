@@ -529,7 +529,7 @@ async function main() {
     logger.info(`Files: ${fileCount}`)
     logger.info(`Output: ${VENDOR_DIR}`)
   } catch (error) {
-    logger.fail('Sync failed:', error.message)
+    logger.fail('Sync failed:', errorMessage(error))
     process.exitCode = 1
   }
 }

@@ -186,7 +186,9 @@ async function acquireLock(lockPath, timeoutMs = 120_000) {
         // Check if lock holder is still alive
         try {
           const pid = parseInt(readFileSync(lockPath, 'utf8').trim(), 10)
-          if (pid && !isProcessAlive(pid)) {
+          // NaN (corrupt/truncated lock file) is treated as stale — otherwise
+          // the `pid && ...` guard short-circuits and the lock never expires.
+          if (Number.isNaN(pid) || !isProcessAlive(pid)) {
             // Stale lock — remove and retry
             await fs.unlink(lockPath).catch(() => {})
             continue

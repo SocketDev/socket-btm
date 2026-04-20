@@ -582,7 +582,7 @@ export async function ensureAllPythonPackages(
       // picture instead of seeing the first exception abort the loop.
       if (!quiet) {
         logger.error(
-          `Error checking Python package ${packageName}: ${error instanceof Error ? error.message : String(error)}`,
+          `Error checking Python package ${packageName}: ${errorMessage(error)}`,
         )
       }
       missing.push(packageName)

@@ -21,6 +21,10 @@ const {
   ProcessPlatform,
 } = require('internal/socketsecurity/safe-references')
 
+const {
+  getContent,
+} = require('internal/socketsecurity/vfs/tar_parser')
+
 // Use primordials for protection against prototype pollution
 const {
   Error: ErrorConstructor,
@@ -178,8 +182,10 @@ function extractEntry(relativePath, entry, targetPath, rootDir, rootDirName) {
       }
     }
   } else {
-    // Regular file - extract from VFSEntry
-    const { content } = entry
+    // Regular file - extract from VFSEntry. Files > LAZY_CONTENT_THRESHOLD
+    // are stored with _sourceBuffer/_bufferOffset/_bufferLength and no
+    // materialized `content`; getContent() materializes on demand.
+    const content = getContent(entry)
     const { mode } = entry
 
     // Write file

@@ -31,6 +31,10 @@ function createHttp2Server(options) {
   const opts = { __proto__: null, ...options }
   const serverOptions = {
     __proto__: null,
+    // Pass unknown options through first, then let the explicit defaults below
+    // overwrite them. Reversed order would let `{maxFrameSize: undefined}` from
+    // the caller clobber our secure defaults via `...opts`.
+    ...opts,
     // Allow max concurrent streams (default is 100).
     maxConcurrentStreams: opts.maxConcurrentStreams || 1000,
 
@@ -48,8 +52,6 @@ function createHttp2Server(options) {
 
     // Enable session timeout.
     sessionTimeout: opts.sessionTimeout || 120_000, // 2 minutes
-
-    ...opts,
   }
 
   return Http2CreateSecureServer(serverOptions)

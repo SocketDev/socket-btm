@@ -135,7 +135,7 @@ async function runPythonScript(scriptName, args, options = {}) {
         logger.substep(`  ${parsedResult.code.replace(/_/g, ' ')}...`)
       }
     } catch (error) {
-      if (error.message.startsWith('{')) {
+      if (errorMessage(error).startsWith('{')) {
         continue
       }
       throw error
@@ -167,7 +167,7 @@ async function downloadModels() {
       await runPythonScript('download.py', [model.name, cacheModelDir])
       logger.success(`Downloaded: ${model.name}`)
     } catch (error) {
-      if (error.message.includes('transformers not installed')) {
+      if (errorMessage(error).includes('transformers not installed')) {
         logger.warn('Python transformers library not installed')
         logger.warn('Install with: pip install transformers')
         throw new Error('Missing Python dependencies')
@@ -314,7 +314,7 @@ async function optimizeGraphs() {
 
       logger.success(`Optimized: ${model.outputName}`)
     } catch (error) {
-      if (error.message.includes('onnxruntime not installed')) {
+      if (errorMessage(error).includes('onnxruntime not installed')) {
         logger.warn('Python onnxruntime library not installed')
         logger.warn('Install with: pip install onnxruntime')
         throw new Error('Missing Python dependencies')
@@ -379,7 +379,7 @@ async function verifyModels() {
 
       logger.success(`Verified: ${model.outputName}`)
     } catch (error) {
-      if (error.message.includes('not installed')) {
+      if (errorMessage(error).includes('not installed')) {
         logger.warn('Missing Python dependencies')
         logger.warn('Install with: pip install onnxruntime transformers')
         throw new Error('Missing Python dependencies')
@@ -502,6 +502,6 @@ async function main() {
 // Run build.
 main().catch(error => {
   printError('Build Failed')
-  logger.error(error.message)
+  logger.error(errorMessage(error))
   throw error
 })

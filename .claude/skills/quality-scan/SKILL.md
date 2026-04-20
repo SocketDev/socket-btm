@@ -65,7 +65,7 @@ Find and remove junk files (with user confirmation via AskUserQuestion):
 ### Phase 6: Structural Validation
 
 ```bash
-node scripts/check-consistency.mjs
+node scripts/check-consistency.mts
 ```
 
 Report errors as Critical findings. Warnings are Low findings.

@@ -18,6 +18,8 @@
 
 import process from 'node:process'
 
+import { errorMessage } from './error-utils.mts'
+
 import { getCI } from '@socketsecurity/lib/env/ci'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
@@ -199,7 +201,7 @@ export async function runSetupToolchain(options) {
     }
   } catch (error) {
     logger.error('Setup failed')
-    logger.error(error instanceof Error ? error.message : String(error))
+    logger.error(errorMessage(error))
     process.exitCode = 1
   }
 }

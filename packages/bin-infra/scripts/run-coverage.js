@@ -20,6 +20,8 @@ const { getDefaultLogger } = require('@socketsecurity/lib/logger')
 const { spawn } = require('@socketsecurity/lib/spawn')
 const process = require('node:process')
 
+const { errorMessage } = require('build-infra/lib/error-utils')
+
 const logger = getDefaultLogger()
 const PACKAGES_DIR = path.resolve(__dirname, '../..')
 const C_PACKAGES = ['binject', 'binpress', 'binflate']
@@ -74,7 +76,7 @@ async function runCoverageForPackage(packageName) {
     logger.success(`Coverage completed for ${packageName}`)
     return true
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
+    const msg = errorMessage(error)
     logger.error(`Coverage failed for ${packageName}: ${msg}`)
     return false
   }
@@ -149,7 +151,7 @@ async function main() {
 }
 
 main().catch(error => {
-  const msg = error instanceof Error ? error.message : String(error)
+  const msg = errorMessage(error)
   logger.error(`Fatal error: ${msg}`)
   throw error
 })

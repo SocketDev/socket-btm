@@ -200,7 +200,7 @@ async function convertToOnnx() {
           logger.substep(`Conversion: ${msg.status}`)
         }
       } catch (error) {
-        if (error.message.startsWith('Failed to convert')) {
+        if (errorMessage(error).startsWith('Failed to convert')) {
           throw error
         }
         // Non-JSON output, just log it
@@ -527,6 +527,6 @@ async function main() {
 // Run build.
 main().catch(error => {
   printError('Build Failed')
-  logger.error(error.message)
+  logger.error(errorMessage(error))
   throw error
 })

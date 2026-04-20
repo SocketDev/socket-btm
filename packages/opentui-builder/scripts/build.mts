@@ -145,7 +145,7 @@ async function ensureZig() {
       throw new Error('Zig linker incompatible with current platform')
     }
   } catch (error) {
-    if (error.message === 'Zig linker incompatible with current platform') {
+    if (errorMessage(error) === 'Zig linker incompatible with current platform') {
       throw error
     }
     // If smoke test itself threw (spawn failed), warn but continue.
@@ -368,6 +368,6 @@ async function main() {
 // Run build.
 main().catch(error => {
   printError('Build Failed')
-  logger.error(error.message)
+  logger.error(errorMessage(error))
   throw error
 })

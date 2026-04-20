@@ -309,8 +309,10 @@ function parseHeader(buffer, offset, options = {}) {
   const size = parseOctal(buffer, offset + HEADER_OFFSET.SIZE, 12)
 
   // Security: Validate size to prevent DoS via excessive memory allocation
-  // Max 2GB per file (0x7FFFFFFF = 2147483647 bytes)
-  if (size < 0 || size > 0x7f_ff_ff_ff) {
+  // Max 2GB per file (0x7FFFFFFF = 2147483647 bytes).
+  // parseOctal returns NaN for malformed fields; NaN slips both <0 and >max
+  // comparisons, so reject NaN explicitly.
+  if (NumberIsNaN(size) || size < 0 || size > 0x7f_ff_ff_ff) {
     throw new ErrorConstructor(
       `TAR security error: Invalid file size ${size} bytes\n` +
         '  Maximum allowed: 2GB (2147483647 bytes)\n' +

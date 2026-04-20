@@ -25,10 +25,20 @@
 ARG TARGETARCH
 
 # manylinux2014_x86_64 and manylinux2014_aarch64 are DIFFERENT repositories,
-# not a single multi-arch manifest. We select via TARGETARCH inside the FROM.
-# Using `-latest` for now; pin to a specific date stamp (e.g. 2026.04.17-1)
-# as soon as the first real build succeeds — per Phase 2 of the plan.
-FROM quay.io/pypa/manylinux2014_${TARGETARCH/amd64/x86_64}:latest AS build
+# not a single multi-arch manifest. We select via TARGETARCH inside the FROM
+# and pin both arches to the 2026-04-17 release. Bump both tags together so
+# x64 and arm64 don't drift.
+#
+# Per-arch digests at pin time (quay.io/api/v1/repository/pypa/manylinux2014_*/tag/):
+#   x86_64  2026.04.17-1 = sha256:96412a3110ba598851ba1cd9bfa66b74c2903bfec1af978f5e55def5f0f1912c
+#   aarch64 2026.04.17-1 = sha256:2cfb8a1feca0f640b26689e27aadff0a8ff367243d2672a31207d075318d26c7
+#
+# Tag pinning rather than `FROM ... @sha256:` because Docker doesn't accept
+# a digest suffix after a dynamic `${ARG}` substitution. pypa/manylinux
+# policy is additive (they never mutate a dated tag), so tag pinning is
+# effectively equivalent to digest pinning here. If a tag IS ever rewritten,
+# the glibc tripwire later in this file will flag it.
+FROM quay.io/pypa/manylinux2014_${TARGETARCH/amd64/x86_64}:2026.04.17-1 AS build
 
 # Explicit cache-version tag from cache-versions.json; bumping this invalidates layers below.
 ARG CACHE_VERSION=unset

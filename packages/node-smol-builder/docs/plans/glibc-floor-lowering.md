@@ -2,15 +2,47 @@
 
 **Status**: groundwork delivered. No behavior change on current builds.
 
-> **Audience note**: this document is written for an engineer who has **not** worked on node-gyp, Depot.dev, manylinux, or the socket-btm build pipeline before. Every step has exact commands, expected outputs, decision trees, and rollback steps. Skim-read the "Goal" and "Strategy" sections, then follow the phases in order.
+> **Audience note**: this document is written for an engineer who has **not** worked on node-gyp, Depot.dev, manylinux, or the socket-btm build pipeline before. Every step has exact commands, expected outputs, decision trees, and rollback steps. Skim-read the "Why" / "Goal" / "Strategy" sections, then follow the phases in order.
+
+---
+
+## Why — who this unblocks
+
+Our `node-smol` SEA binaries ship to users as a single self-contained executable. Today we link against **glibc 2.28** (AlmaLinux 8 / RHEL 8), which means the binary refuses to run on older enterprise Linux hosts — the user sees a hard `GLIBC_2.28 not found` loader error before their JS ever executes.
+
+Lowering to **glibc 2.17** directly unblocks these deployment targets:
+
+| Distribution | glibc | Status (April 2026) | Today | After 2.17 floor |
+|---|---|---|---|---|
+| **RHEL 7** / **CentOS 7** | 2.17 | CentOS 7 EOL 2024-06-30; RHEL 7 Extended Lifecycle through 2028-06-30 | ✗ fails to load | ✓ works |
+| **Amazon Linux 1** (AL1) | 2.17 | EOL 2023-12-31; AMIs still launchable | ✗ fails to load | ✓ works |
+| **Amazon Linux 2** (AL2) | 2.26 | EOL 2026-06-30; Lambda + EC2 + ECR still supported | ✗ fails to load | ✓ works |
+| **Amazon Linux 2023** (AL2023) | 2.34 | GA 2023-03-15; Lambda default | ✓ works | ✓ works |
+| **Ubuntu 20.04** | 2.31 | EOL April 2030 (LTS + Pro) | ✗ fails to load | ✓ works |
+| **Ubuntu 22.04** | 2.35 | EOL April 2032 | ✓ works | ✓ works |
+| **Debian 11** | 2.31 | EOL 2026-08-31 (freexian extended) | ✗ fails to load | ✓ works |
+| **Debian 12** | 2.36 | EOL mid-2028 | ✓ works | ✓ works |
+
+**The wins that matter most to our users**: RHEL 7 (Extended Lifecycle customers still running it in production), Amazon Linux 1 (pre-2023 Lambda deployments and long-lived EC2 AMIs), Amazon Linux 2 (the Lambda `nodejs18.x` default runtime through at least mid-2026), and Ubuntu 20.04 LTS (still the default in many enterprise CI systems).
+
+This mirrors exactly the motivation [Bun's PR 29461](https://github.com/oven-sh/bun/pull/29461) used when they made the same move — "unblocks companies running Red Hat Enterprise Linux 7 & Amazon Linux 1 from using Bun." For us it's node-smol SEA binaries instead of Bun, but the deployment constraint is identical.
+
+### Sources
+
+- [Amazon Linux 2 FAQs — EOL and glibc](https://aws.amazon.com/amazon-linux-2/faqs/)
+- [AL1 EOL announcement](https://aws.amazon.com/blogs/aws/update-on-amazon-linux-ami-end-of-life/)
+- [AL2023 release cadence](https://docs.aws.amazon.com/linux/al2023/ug/release-cadence.html)
+- [RHEL 7 Extended Lifecycle Support](https://access.redhat.com/support/policy/updates/errata)
+- [Ubuntu release + LTS schedule](https://ubuntu.com/about/release-cycle)
+- [Debian long-term support](https://wiki.debian.org/LTS)
 
 ---
 
 ## Goal
 
-Lower our Linux glibc floor from **2.28** (AlmaLinux 8 / RHEL 8, today's default) to **2.17** (CentOS 7 / Amazon Linux 1 / aarch64 baseline). Once done, our `node` binary will run on older enterprise systems that ship glibc 2.17 without requiring upgrades.
+Lower our Linux glibc floor from **2.28** (AlmaLinux 8 / RHEL 8, today's default) to **2.17** (CentOS 7 / Amazon Linux 1 / aarch64 baseline). Once done, our `node-smol` SEA binary will run on every distribution in the table above without requiring users to upgrade their OS.
 
-Why 2.17 and not lower? Because **2.17 is the ultimate aarch64 glibc floor**. Going lower on x64 alone has no value — users who want the same binary for arm64 are already stuck at 2.17.
+Why 2.17 and not lower? Because **2.17 is the ultimate aarch64 glibc floor**. Going lower on x64 alone has no value — users who want the same binary for arm64 are already stuck at 2.17. And going lower than 2.17 on x64 only unblocks CentOS 6 (EOL 2020-11-30, functionally dead) and older AL1 AMIs that will no longer boot on modern hypervisors. The 2.17 floor gets ~every commercially relevant host.
 
 ---
 
@@ -71,6 +103,37 @@ Vitest integration test. Skipped when `GLIBC_FLOOR` env is unset (today). When s
 
 `build-infra/lib/platform-mappings.mts` exports `getRequestedGlibcFloor()` which returns `undefined` | `"2.17"` | `"2.28"` from the `GLIBC_FLOOR` env var. No callers today — ready to thread through cache keys and Docker image selection when we actually lower.
 
+### Build image — `Dockerfile.glibc-2.17`
+
+**File**: `packages/node-smol-builder/docker/Dockerfile.glibc-2.17`
+
+Opt-in Dockerfile, **not wired into any workflow**. Multi-arch via `${TARGETARCH}`:
+
+- Docker sets `TARGETARCH=amd64` for `linux/amd64` and `arm64` for `linux/arm64`.
+- The `FROM` line rewrites `amd64 → x86_64` so `quay.io/pypa/manylinux2014_${TARGETARCH/amd64/x86_64}` selects the correct per-arch repository (`manylinux2014_x86_64` or `manylinux2014_aarch64`).
+- Both arches pinned to the `2026.04.17-1` tag. Per-arch digests are documented inline in the Dockerfile for audit.
+- C++20 via SCL `devtoolset-11` (GCC 11) — highest toolset available on CentOS 7 vault. `devtoolset-12/13/14` are AlmaLinux 8+ only.
+- Build-time tripwire: `ldd --version` check fails the build if the base image ever drifts off glibc 2.17.
+
+To invoke directly via Depot (same project as every other Linux build):
+
+```bash
+pnpm exec depot build \
+  --project 8fpj9495vw \
+  --file packages/node-smol-builder/docker/Dockerfile.glibc-2.17 \
+  --platform linux/amd64,linux/arm64 \
+  --output type=local,dest=./glibc-2.17-out \
+  .
+```
+
+Depot's BuildKit is FROM-agnostic — the same cloud cache hosts our 2.28 and 2.17 images without collision. No new Depot project needed.
+
+### Weekly audit workflow
+
+**File**: `.github/workflows/glibc-audit.yml`
+
+Runs `pnpm --filter node-smol-builder run glibc:audit --fallback-report` weekly (Mondays 08:00 UTC) against the latest published `node-smol-*` release asset. Floor defaults to today's baseline (`2.28`) and is a `workflow_dispatch` input so it can be flipped to `2.17` for a one-shot dry-run without editing the file. Skips cleanly if no release exists yet; surfaces any `✗ NO` (unwrapped) violations into the CI log.
+
 ---
 
 ## Remaining work
@@ -128,43 +191,51 @@ pnpm --filter node-smol-builder run glibc:audit --floor=2.17
 
 ### Phase 2 — build-image migration
 
-**What**: Swap the CI Docker base from AlmaLinux 8 (glibc 2.28) to a glibc 2.17 image.
+**What**: Swap the CI Docker base from AlmaLinux 8 (glibc 2.28) to the glibc 2.17 image we've already built.
 
 **Why blocking**: Phase 1's wraps are inert until the build environment itself uses the lower floor. Without swapping the image, `objdump` will keep finding `> 2.17` symbols because the compiler's glibc headers still reference them.
 
-**Candidate bases (pick one)**:
+**Decision locked**: `Dockerfile.glibc-2.17` uses `quay.io/pypa/manylinux2014_${TARGETARCH/amd64/x86_64}:2026.04.17-1` + SCL `devtoolset-11`.
 
-1. **`quay.io/pypa/manylinux2014_x86_64`** — CentOS 7 vault + GCC 10 (from pypa). Well-maintained, supports CentOS 7 via vault repos. Ships GCC 10, which is too old for our C++20 — we'd need to layer SCL `devtoolset-14`. EOL 2027-05-04.
-2. **`almalinux:7`** + SCL `devtoolset-14` — simpler base, same glibc 2.17. Red Hat SCL ships via Software Collections, still supported.
+Why manylinux2014 and not AlmaLinux 7: pypa maintains this image actively (EOL 2027-05-04), the CentOS 7 vault fallback is already configured, and the dual-arch split (`manylinux2014_x86_64` vs `manylinux2014_aarch64`) matches our matrix. AlmaLinux 7 + SCL was the first-pass recommendation, but manylinux2014 ships SCL preconfigured, which skips a brittle `yum install centos-release-scl` step.
 
-**Recommended: option 2** (`almalinux:7` + devtoolset-14). Simpler bootstrap.
+Why devtoolset-11 not 14: **CentOS 7 SCL vault caps at devtoolset-11**. Versions 12/13/14 exist only on AlmaLinux 8+ as `gcc-toolset-*`. GCC 11 has enough C++20 for Node.js v25.x; if a future Node version needs C++23 features not in GCC 11, move to `manylinux_2_28` (AlmaLinux 8, glibc 2.28) — but that defeats the glibc 2.17 floor.
 
-**How** (abbreviated — exact Dockerfile is Phase 2 work):
+**What's already done** (the Dockerfile exists; nothing to write):
 
-```dockerfile
-# packages/node-smol-builder/docker/Dockerfile.glibc-2.17
-FROM almalinux:7
-RUN yum install -y centos-release-scl
-RUN yum install -y devtoolset-14
-# Source the toolset and proceed with the same build steps as Dockerfile.glibc.
-ENV PATH=/opt/rh/devtoolset-14/root/usr/bin:$PATH
-...
-```
+- `packages/node-smol-builder/docker/Dockerfile.glibc-2.17` — multi-arch via `${TARGETARCH}`, pinned base tag, build-time `ldd` tripwire, uses `/opt/rh/devtoolset-11/enable`.
+- Depot project `8fpj9495vw` already supports the FROM swap with zero config change — confirmed via [Depot container-builds docs](https://depot.dev/docs/container-builds/overview). BuildKit is FROM-agnostic.
 
-**Verify before committing**:
+**Verify before flipping**:
 
 ```bash
-# 1. Does the SCL toolset install cleanly on AlmaLinux 7?
-docker run --rm almalinux:7 bash -c 'yum install -y centos-release-scl && yum install -y devtoolset-14 && /opt/rh/devtoolset-14/root/usr/bin/gcc --version'
-# Expected: "gcc (GCC) 14.x.x"
+# 1. Full-matrix build via Depot.
+pnpm exec depot build \
+  --project 8fpj9495vw \
+  --file packages/node-smol-builder/docker/Dockerfile.glibc-2.17 \
+  --platform linux/amd64,linux/arm64 \
+  --output type=local,dest=./glibc-2.17-out \
+  .
 
-# 2. Is glibc actually 2.17?
-docker run --rm almalinux:7 ldd --version | head -1
-# Expected: "ldd (GNU libc) 2.17"
+# 2. Audit both binaries.
+pnpm --filter node-smol-builder run glibc:audit -- \
+  --binary=./glibc-2.17-out/node-smol-builder/build/prod/linux-x64/out/Final/node/node \
+  --floor=2.17 --fallback-report
+pnpm --filter node-smol-builder run glibc:audit -- \
+  --binary=./glibc-2.17-out/node-smol-builder/build/prod/linux-arm64/out/Final/node/node \
+  --floor=2.17 --fallback-report
 
-# 3. Does node build compile under C++20 with this GCC?
-# The build script will tell us — just run it in a container.
+# 3. Smoke-test both binaries on a CentOS 7 container.
+for arch in x64 arm64; do
+  docker run --rm --platform "linux/${arch/x64/amd64}" \
+    -v ./glibc-2.17-out:/out quay.io/centos/centos:7 \
+    /out/node-smol-builder/build/prod/linux-${arch}/out/Final/node/node -e 'console.log(process.version)'
+done
 ```
+
+If step 2 shows `✗ NO` rows (unwrapped symbols), extend `glibc_compat.cc` following the Phase 1 decision tree and re-run from step 1.
+
+If step 3 prints the Node version on both arches without crashes, the binary works on glibc 2.17 — proceed to Phase 3.
 
 **Decision tree**:
 

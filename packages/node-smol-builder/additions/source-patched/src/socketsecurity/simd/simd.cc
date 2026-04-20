@@ -1,7 +1,7 @@
 // simd.cc
 // Global variables for SIMD runtime detection
 
-#include "simd.h"
+#include "socketsecurity/simd/simd.h"
 
 namespace smol {
 namespace simd {

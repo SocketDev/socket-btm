@@ -22,7 +22,7 @@
 // types, calls the function here, and converts the result back to JS.
 // ============================================================================
 
-#include "http_binding.h"
+#include "socketsecurity/http/http_binding.h"
 #include "socketsecurity/simd/simd.h"
 
 #include <algorithm>

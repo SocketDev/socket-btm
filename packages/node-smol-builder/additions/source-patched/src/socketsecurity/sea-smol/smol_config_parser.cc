@@ -10,7 +10,7 @@
 // lives in sea_inject.cc — this file only handles parsing and serialization.
 // ============================================================================
 
-#include "smol_config_parser.h"
+#include "socketsecurity/sea-smol/smol_config_parser.h"
 
 #include <cstdio>
 #include <cstdlib>

@@ -352,7 +352,7 @@ jobs:
           FINAL_SCRIPT_PATHS=$(get_hierarchical_paths scripts finalized "$PLATFORM" "$ARCH")
           FINAL_PATCHES=$(hash_files $BINARY_RELEASED_PATCH_PATHS $BINARY_STRIPPED_PATCH_PATHS $BINARY_COMPRESSED_PATCH_PATHS $FINAL_PATCH_PATHS -type f)
           FINAL_ADDITIONS=$(hash_files $BINARY_RELEASED_ADDITION_PATHS $BINARY_STRIPPED_ADDITION_PATHS $BINARY_COMPRESSED_ADDITION_PATHS $FINAL_ADDITION_PATHS -type f)
-          FINAL_SCRIPTS=$(hash_files $BINARY_RELEASED_SCRIPT_PATHS $BINARY_STRIPPED_SCRIPT_PATHS $BINARY_COMPRESSED_SCRIPT_PATHS $FINAL_SCRIPT_PATHS -type f -name "*.mts")
+          FINAL_SCRIPTS=$(hash_files $SOURCE_COPIED_SCRIPT_PATHS $SOURCE_PATCHED_SCRIPT_PATHS $BINARY_RELEASED_SCRIPT_PATHS $BINARY_STRIPPED_SCRIPT_PATHS $BINARY_COMPRESSED_SCRIPT_PATHS $FINAL_SCRIPT_PATHS -type f -name "*.mts")
 
           # Hash canonical source packages (source of truth - additions/ syncs FROM these).
           # Per CLAUDE.md cache cascade: bin-infra, build-infra, binject, AND binpress
@@ -364,11 +364,6 @@ jobs:
 
           FINAL_KEY=$(echo "${COMMON_SCRIPTS}${FINAL_PATCHES}${FINAL_ADDITIONS}${FINAL_SCRIPTS}${BUILD_INFRA_SRC}${BIN_INFRA_SRC}${BINJECT_SRC}${BINPRESS_SRC}" | $hash_cmd | cut -d' ' -f1)
 
-          echo "source_copied_hash=${SOURCE_COPIED_KEY}" >> $GITHUB_OUTPUT
-          echo "source_patched_hash=${SOURCE_PATCHED_KEY}" >> $GITHUB_OUTPUT
-          echo "binary_released_hash=${BINARY_RELEASED_KEY}" >> $GITHUB_OUTPUT
-          echo "binary_stripped_hash=${BINARY_STRIPPED_KEY}" >> $GITHUB_OUTPUT
-          echo "binary_compressed_hash=${BINARY_COMPRESSED_KEY}" >> $GITHUB_OUTPUT
           echo "final_hash=${FINAL_KEY}" >> $GITHUB_OUTPUT
           echo "build_mode=${BUILD_MODE}" >> $GITHUB_OUTPUT
 

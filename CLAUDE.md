@@ -235,6 +235,7 @@ Required headers:
 - `/quality-loop` — scan and fix iteratively
 - Agents: `code-reviewer`, `security-reviewer`, `refactor-cleaner` (in `.claude/agents/`)
 - Shared subskills in `.claude/skills/_shared/`
+- Rules: `.claude/rules/gitmodules-version-comments.md` — `.gitmodules` version-comment format
 
 ## Build System
 

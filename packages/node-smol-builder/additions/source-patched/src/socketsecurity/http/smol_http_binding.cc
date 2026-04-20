@@ -74,7 +74,7 @@
 //   cannot be used (e.g., when the function needs to create JS objects).
 // ============================================================================
 
-#include "http_binding.h"
+#include "socketsecurity/http/http_binding.h"
 #include "socketsecurity/http/fast_304_response.h"
 #include "socketsecurity/http/http_fast_response.h"
 #include "socketsecurity/http/http_object_pool.h"

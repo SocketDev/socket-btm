@@ -82,7 +82,7 @@ function loadNativeModule() {
   }
 
   const osPart = PLATFORM_ARCH_MAP[platform]
-  const platformArch = `${osPart}-${arch}`
+  const platformArch = `${osPart}-${arch}${isMusl ? '-musl' : ''}`
 
   const candidates = [
     path.join(

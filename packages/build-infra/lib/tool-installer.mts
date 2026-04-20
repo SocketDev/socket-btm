@@ -1,0 +1,879 @@
+/**
+ * Tool Installation Utilities
+ *
+ * Provides utilities for automatically installing missing build tools
+ * using platform-specific package managers (brew, apt, choco, etc.)
+ * and direct downloads for version-pinned tools.
+ *
+ * Tool categories:
+ * - "pinned": Exact version required, auto-downloaded with checksum verification
+ * - All others: Any recent version, installed via package manager (default)
+ */
+
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import process from 'node:process'
+
+import { fileURLToPath } from 'node:url'
+
+import binPkg, { which } from '@socketsecurity/lib/bin'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { spawn } from '@socketsecurity/lib/spawn'
+
+import { getPlatform } from './build-env.mts'
+import { printError } from './build-output.mts'
+import { errorMessage } from './error-utils.mts'
+import { downloadAndCache, getCachedToolBinary } from './tool-downloader.mts'
+import { getToolConfig, getToolVersion } from './pinned-versions.mts'
+
+const { whichSync } = binPkg
+const logger = getDefaultLogger()
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+/**
+ * Tool installation configurations.
+ * Sourced from external-tools.json files via pinned-versions.mts.
+ * Use getToolConfig(toolName, options) for hierarchical tool lookup.
+ */
+
+/**
+ * Package manager configuration per platform.
+ */
+const PACKAGE_MANAGER_CONFIGS = {
+  __proto__: null,
+  darwin: {
+    available: ['brew'],
+    brew: {
+      name: 'Homebrew',
+      binary: 'brew',
+      installScript:
+        '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
+      checkCommand: 'brew --version',
+      description: 'macOS package manager',
+    },
+    preferred: 'brew',
+  },
+  linux: {
+    apk: {
+      name: 'APK',
+      binary: 'apk',
+      // Pre-installed on Alpine Linux.
+      installScript: undefined,
+      checkCommand: 'apk --version',
+      description: 'Alpine Linux package manager',
+    },
+    apt: {
+      name: 'APT',
+      binary: 'apt-get',
+      // Pre-installed on Debian/Ubuntu.
+      installScript: undefined,
+      checkCommand: 'apt-get --version',
+      description: 'Debian/Ubuntu package manager',
+    },
+    available: ['apt', 'apk', 'dnf', 'yum'],
+    dnf: {
+      name: 'DNF',
+      binary: 'dnf',
+      // Pre-installed on Fedora 22+/RHEL 8+.
+      installScript: undefined,
+      checkCommand: 'dnf --version',
+      description: 'Fedora/RHEL 8+ package manager',
+    },
+    preferred: 'apt',
+    yum: {
+      name: 'YUM',
+      binary: 'yum',
+      // Pre-installed on older RHEL/CentOS.
+      installScript: undefined,
+      checkCommand: 'yum --version',
+      description: 'RHEL/CentOS package manager',
+    },
+  },
+  win32: {
+    available: ['choco', 'scoop'],
+    choco: {
+      name: 'Chocolatey',
+      binary: 'choco',
+      installScript:
+        'powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString(\'https://chocolatey.org/install.ps1\'))"',
+      checkCommand: 'choco --version',
+      description: 'Windows package manager',
+    },
+    preferred: 'choco',
+    scoop: {
+      name: 'Scoop',
+      binary: 'scoop',
+      installScript:
+        'powershell -Command "iex (new-object net.webclient).downloadstring(\'https://get.scoop.sh\')"',
+      checkCommand: 'scoop --version',
+      description: 'Windows command-line installer',
+    },
+  },
+}
+
+/**
+ * Detect available package managers on the system.
+ *
+ * @returns {string[]} Array of available package manager names.
+ */
+export function detectPackageManagers() {
+  const platform = getPlatform()
+  const config = PACKAGE_MANAGER_CONFIGS[platform]
+
+  if (!config) {
+    return []
+  }
+
+  const managers = []
+
+  for (const managerName of config.available) {
+    const managerConfig = config[managerName]
+    if (whichSync(managerConfig.binary, { nothrow: true })) {
+      managers.push(managerName)
+    }
+  }
+
+  return managers
+}
+
+/**
+ * Get preferred package manager for current platform.
+ *
+ * @returns {string|undefined} Preferred package manager name or undefined.
+ */
+export function getPreferredPackageManager() {
+  const platform = getPlatform()
+  const config = PACKAGE_MANAGER_CONFIGS[platform]
+
+  return config ? config.preferred : undefined
+}
+
+/**
+ * Install a package manager.
+ *
+ * @param {string} managerName - Package manager to install.
+ * @param {object} options - Installation options.
+ * @param {boolean} options.autoYes - Auto-yes to prompts (default: false).
+ * @returns {Promise<boolean>} True if installation succeeded.
+ */
+export async function installPackageManager(
+  managerName,
+  { autoYes = false } = {},
+) {
+  const platform = getPlatform()
+  const platformConfig = PACKAGE_MANAGER_CONFIGS[platform]
+
+  if (!platformConfig) {
+    printError(`Unsupported platform: ${platform}`)
+    return false
+  }
+
+  const managerConfig = platformConfig[managerName]
+  if (!managerConfig) {
+    printError(`Unknown package manager: ${managerName}`)
+    return false
+  }
+
+  // Check if already installed.
+  if (whichSync(managerConfig.binary, { nothrow: true })) {
+    logger.info(`${managerConfig.name} is already installed`)
+    return true
+  }
+
+  // Check if installation script is available.
+  if (!managerConfig.installScript) {
+    printError(`${managerConfig.name} must be pre-installed on this system`)
+    return false
+  }
+
+  logger.substep(`Installing ${managerConfig.name}...`)
+  logger.warn(
+    "This will execute an installation script from the package manager's official source",
+  )
+
+  // For non-auto-yes mode, prompt user.
+  if (!autoYes) {
+    logger.info(`Run: ${managerConfig.installScript}`)
+    logger.warn(
+      'Please run the above command manually with appropriate permissions',
+    )
+    return false
+  }
+
+  try {
+    const shPath = await which('sh', { nothrow: true })
+    if (!shPath || Array.isArray(shPath)) {
+      printError('sh not found in PATH')
+      return false
+    }
+
+    const result = await spawn(shPath, ['-c', managerConfig.installScript], {
+      env: process.env,
+      stdio: 'inherit',
+    })
+
+    const exitCode = result.code ?? 0
+    if (exitCode !== 0) {
+      printError(`Failed to install ${managerConfig.name}`)
+      return false
+    }
+
+    // Verify installation.
+    const installed = whichSync(managerConfig.binary, { nothrow: true })
+    if (installed) {
+      logger.success(`${managerConfig.name} installed successfully`)
+      return true
+    }
+
+    logger.warn(
+      `${managerConfig.name} installation completed but binary not found`,
+    )
+    return false
+  } catch (error) {
+    printError(`Error installing ${managerConfig.name}`, error)
+    return false
+  }
+}
+
+/**
+ * Ensure a package manager is available, installing if needed.
+ *
+ * @param {object} options - Options.
+ * @param {boolean} options.autoInstall - Attempt auto-installation (default: false).
+ * @param {boolean} options.autoYes - Auto-yes to prompts (default: false).
+ * @returns {Promise<{available: boolean, manager: string|undefined, installed: boolean}>}
+ */
+export async function ensurePackageManagerAvailable({
+  autoInstall = false,
+  autoYes = false,
+} = {}) {
+  // Check if any package manager is already available.
+  const managers = detectPackageManagers()
+  if (managers.length > 0) {
+    return {
+      available: true,
+      installed: false,
+      manager: managers[0],
+    }
+  }
+
+  if (!autoInstall) {
+    return {
+      available: false,
+      installed: false,
+      manager: undefined,
+    }
+  }
+
+  // Attempt to install preferred package manager.
+  const preferred = getPreferredPackageManager()
+  if (!preferred) {
+    return {
+      available: false,
+      installed: false,
+      manager: undefined,
+    }
+  }
+
+  logger.substep(
+    `No package manager detected, attempting to install ${preferred}`,
+  )
+  const installed = await installPackageManager(preferred, { autoYes })
+
+  return {
+    available: installed,
+    installed,
+    manager: installed ? preferred : undefined,
+  }
+}
+
+/**
+ * Get package manager installation instructions.
+ *
+ * @returns {string[]} Array of installation instruction strings.
+ */
+export function getPackageManagerInstructions() {
+  const platform = getPlatform()
+  const config = PACKAGE_MANAGER_CONFIGS[platform]
+
+  if (!config) {
+    return ['Unsupported platform for package manager auto-installation']
+  }
+
+  const instructions = []
+  const preferred = config[config.preferred]
+
+  instructions.push(`Install ${preferred.name} (${preferred.description}):`)
+  if (preferred.installScript) {
+    instructions.push(`  ${preferred.installScript}`)
+  } else {
+    instructions.push('  (Pre-installed on this system)')
+  }
+
+  return instructions
+}
+
+/**
+ * Check if running with elevated privileges (sudo/admin).
+ *
+ * @returns {Promise<boolean>}
+ */
+export async function checkElevatedPrivileges() {
+  const platform = getPlatform()
+
+  if (platform === 'win32') {
+    // On Windows, check if running as administrator.
+    try {
+      const netPath = await which('net', { nothrow: true })
+      if (!netPath || Array.isArray(netPath)) {
+        return false
+      }
+      const result = await spawn(netPath, ['session'], {})
+      return result.code === 0
+    } catch {
+      return false
+    }
+  }
+
+  // On Unix, check if root user or has sudo access.
+  if (process.getuid && process.getuid() === 0) {
+    return true
+  }
+
+  // Check if sudo is available.
+  try {
+    const sudoPath = await which('sudo', { nothrow: true })
+    if (!sudoPath || Array.isArray(sudoPath)) {
+      return false
+    }
+    const result = await spawn(sudoPath, ['-n', 'true'])
+    return result.code === 0
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Install a tool using the specified package manager.
+ *
+ * @param {string} tool - Tool name.
+ * @param {string} packageManager - Package manager to use.
+ * @param {object} options - Installation options.
+ * @param {boolean} options.autoYes - Automatically answer yes to prompts.
+ * @returns {Promise<boolean>} True if installation succeeded.
+ */
+export async function installTool(
+  tool,
+  packageManager,
+  { autoYes = false, version } = {},
+) {
+  const config = getToolConfig(tool)
+  if (!config) {
+    printError(`Unknown tool: ${tool}`)
+    return false
+  }
+
+  const platform = getPlatform()
+  const packageName = tool
+
+  // Get version from pinned-versions.mts if not provided
+  if (!version) {
+    version = getToolVersion(tool)
+  }
+
+  const versionInfo = version ? ` (version ${version})` : ''
+  logger.info(`Installing ${tool}${versionInfo} via ${packageManager}...`)
+
+  try {
+    let command
+    let args
+    const needsSudo =
+      platform !== 'win32' &&
+      ['apt', 'apk', 'yum', 'dnf'].includes(packageManager)
+
+    switch (packageManager) {
+      case 'brew': {
+        // Homebrew doesn't support version pinning for most formulas
+        command = 'brew'
+        args = ['install', packageName]
+        if (version) {
+          logger.warn('Homebrew may not support version pinning for this tool')
+        }
+        break
+      }
+
+      case 'apt': {
+        // APT version pinning: package=version
+        command = needsSudo ? 'sudo' : 'apt-get'
+        const aptPackage = version ? `${packageName}=${version}*` : packageName
+        args = needsSudo
+          ? ['apt-get', 'install', '-y', aptPackage]
+          : ['install', '-y', aptPackage]
+        break
+      }
+
+      case 'apk': {
+        // APK version pinning: package=version
+        command = needsSudo ? 'sudo' : 'apk'
+        const apkPackage = version ? `${packageName}=${version}` : packageName
+        args = needsSudo
+          ? ['apk', 'add', '--no-cache', apkPackage]
+          : ['add', '--no-cache', apkPackage]
+        break
+      }
+
+      case 'yum': {
+        // YUM version pinning: package-version
+        command = needsSudo ? 'sudo' : 'yum'
+        const yumPackage = version ? `${packageName}-${version}` : packageName
+        args = needsSudo
+          ? ['yum', 'install', '-y', yumPackage]
+          : ['install', '-y', yumPackage]
+        break
+      }
+
+      case 'dnf': {
+        // DNF version pinning: package-version
+        command = needsSudo ? 'sudo' : 'dnf'
+        const dnfPackage = version ? `${packageName}-${version}` : packageName
+        args = needsSudo
+          ? ['dnf', 'install', '-y', dnfPackage]
+          : ['install', '-y', dnfPackage]
+        break
+      }
+
+      case 'choco': {
+        // Chocolatey version pinning: --version flag
+        command = 'choco'
+        args = version
+          ? ['install', packageName, '--version', version, autoYes ? '-y' : '']
+          : ['install', packageName, autoYes ? '-y' : '']
+        args = args.filter(Boolean)
+        break
+      }
+
+      case 'scoop': {
+        // Scoop version pinning: package@version
+        command = 'scoop'
+        const scoopPackage = version ? `${packageName}@${version}` : packageName
+        args = ['install', scoopPackage]
+        break
+      }
+
+      default: {
+        printError(`Unsupported package manager: ${packageManager}`)
+        return false
+      }
+    }
+
+    // Resolve command path
+    const commandPath = await which(command, { nothrow: true })
+    if (!commandPath || Array.isArray(commandPath)) {
+      printError(`${command} not found in PATH`)
+      return false
+    }
+
+    const result = await spawn(commandPath, args, {
+      env: process.env,
+      stdio: 'inherit',
+    })
+
+    const exitCode = result.code ?? 0
+    if (exitCode !== 0) {
+      printError(`Failed to install ${tool} via ${packageManager}`)
+      return false
+    }
+
+    // Verify installation.
+    const installed = whichSync(tool, { nothrow: true })
+    if (installed) {
+      logger.success(`${tool} installed successfully`)
+      return true
+    }
+
+    logger.warn(`${tool} installation completed but binary not found in PATH`)
+    return false
+  } catch (error) {
+    printError(`Error installing ${tool}`, error)
+    return false
+  }
+}
+
+/**
+ * Verify a tool actually works by running verification args.
+ *
+ * This catches cases where the binary exists but has broken dependencies
+ * (e.g., llvm-strip with missing z3 library on macOS).
+ *
+ * @param {string} tool - Tool name
+ * @param {string[]} [verifyArgs] - Args to run for verification (default: ['--version'])
+ * @returns {Promise<boolean>} True if tool runs successfully
+ */
+async function verifyToolWorks(tool, verifyArgs = ['--version']) {
+  const binPath = whichSync(tool, { nothrow: true })
+  if (!binPath) {
+    return false
+  }
+  try {
+    const result = await spawn(binPath, verifyArgs, { stdio: 'pipe' })
+    return result.code === 0
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Resolve a pinned tool's artifact info from tool-checksums/<tool>-<version>.json.
+ * No separate resolver module needed — the checksum JSON has everything.
+ *
+ * @param {string} tool - Tool name
+ * @param {string} version - Required version
+ * @returns {{ url: string, sha256: string, extractDir: string, binary: string, archiveFormat: string }|undefined}
+ */
+function resolvePinnedArtifact(tool, version) {
+  const archMap = { __proto__: null, arm64: 'aarch64', x64: 'x86_64' }
+  const osMap = {
+    __proto__: null,
+    darwin: 'macos',
+    linux: 'linux',
+    win32: 'windows',
+  }
+  const target = `${archMap[process.arch] || process.arch}-${osMap[process.platform] || process.platform}`
+
+  const checksumFile = path.join(
+    __dirname,
+    '..',
+    'tool-checksums',
+    `${tool}-${version}.json`,
+  )
+  try {
+    const data = JSON.parse(readFileSync(checksumFile, 'utf8'))
+    const artifact = data.artifacts[target]
+    if (!artifact) {
+      return undefined
+    }
+    return {
+      ...artifact,
+      binary: process.platform === 'win32' ? `${tool}.exe` : tool,
+      archiveFormat: artifact.url.endsWith('.zip') ? 'zip' : 'tar.xz',
+    }
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Ensure a pinned tool is at the exact required version.
+ * Checks system PATH first, then user-level cache, then downloads.
+ *
+ * @param {string} tool - Tool name
+ * @param {object} config - Tool config from external-tools.json
+ * @param {boolean} autoInstall - Whether to auto-download if missing
+ * @returns {Promise<{available: boolean, installed: boolean, path: string|undefined, error: string|undefined}>}
+ */
+async function ensurePinnedTool(tool, config, autoInstall) {
+  const requiredVersion = config.version
+  if (!requiredVersion) {
+    return {
+      available: false,
+      installed: false,
+      error: `Pinned tool ${tool} missing version`,
+    }
+  }
+
+  // Check system binary version
+  const binPath = whichSync(tool, { nothrow: true })
+  if (binPath) {
+    try {
+      const versionArgs = ['version']
+      const result = await spawn(binPath, versionArgs, { stdio: 'pipe' })
+      const version = (result.stdout?.toString() || '').trim()
+      if (version === requiredVersion) {
+        logger.substep(`${tool} ${version} found at ${binPath}`)
+        return { available: true, installed: false, path: binPath }
+      }
+      if (version) {
+        logger.warn(`System ${tool} is ${version}, need ${requiredVersion}`)
+      }
+    } catch {
+      // Can't determine version — fall through to download
+    }
+  }
+
+  if (!autoInstall) {
+    return {
+      available: false,
+      installed: false,
+      error: `${tool} ${requiredVersion} not found`,
+    }
+  }
+
+  // Resolve artifact from checksum file
+  const artifact = resolvePinnedArtifact(tool, requiredVersion)
+  if (!artifact) {
+    return {
+      available: false,
+      installed: false,
+      error: `No checksum data for ${tool} ${requiredVersion} on this platform`,
+    }
+  }
+
+  // Check cache, then download
+  try {
+    const cachedBin = getCachedToolBinary(
+      tool,
+      requiredVersion,
+      process.platform,
+      process.arch,
+      artifact.binary,
+      artifact.sha256,
+    )
+    if (cachedBin) {
+      logger.substep(`Using cached ${tool} ${requiredVersion}`)
+      return { available: true, installed: false, path: cachedBin }
+    }
+
+    logger.substep(`${tool} ${requiredVersion} not found, downloading...`)
+    const downloadedPath = await downloadAndCache(
+      tool,
+      artifact,
+      requiredVersion,
+      process.platform,
+      process.arch,
+    )
+    return { available: true, installed: true, path: downloadedPath }
+  } catch (err) {
+    const msg = errorMessage(err)
+    logger.error(`Failed to get ${tool} ${requiredVersion}: ${msg}`)
+    return { available: false, installed: false, error: msg }
+  }
+}
+
+/**
+ * Ensure a tool is installed, attempting auto-installation if needed.
+ * Pinned tools (category: "pinned") are auto-downloaded with checksum verification.
+ * All other tools use package manager installation (existing behavior).
+ *
+ * @param {string} tool - Tool name to check/install.
+ * @param {object} options - Options.
+ * @param {boolean} options.autoInstall - Attempt auto-installation if missing (default: true).
+ * @param {boolean} options.autoYes - Automatically answer yes to prompts (default: false).
+ * @param {object} options.toolOptions - Hierarchical loading options for external-tools.json.
+ * @returns {Promise<{available: boolean, installed: boolean, path: string|undefined, packageManager: string|undefined, error: string|undefined}>}
+ */
+export async function ensureToolInstalled(
+  tool,
+  { autoInstall = true, autoYes = false, toolOptions } = {},
+) {
+  const config = getToolConfig(tool, toolOptions)
+
+  // Pinned tools: exact version match via direct download.
+  // Detected by existence of tool-checksums/<tool>-<version>.json.
+  if (config?.version && resolvePinnedArtifact(tool, config.version)) {
+    return ensurePinnedTool(tool, config, autoInstall)
+  }
+
+  // All other tools: existing package manager behavior
+  // Check if binary exists in PATH.
+  const binPath = whichSync(tool, { nothrow: true })
+  if (binPath) {
+    // Binary exists, but verify it actually works (catches broken dependencies).
+    const verifyArgs = config?.verify || ['--version']
+    const works = await verifyToolWorks(tool, verifyArgs)
+    if (works) {
+      return { available: true, installed: false, packageManager: undefined }
+    }
+
+    // Tool exists but doesn't work - likely missing dependency.
+    // Try to install dependencies first.
+    if (config?.dependencies?.length) {
+      logger.warn(`${tool} exists but failed to run - checking dependencies...`)
+      for (const dep of config.dependencies) {
+        // eslint-disable-next-line no-await-in-loop
+        const depResult = await ensureToolInstalled(dep, {
+          autoInstall,
+          autoYes,
+          toolOptions,
+        })
+        if (!depResult.available) {
+          const depConfig = getToolConfig(dep, toolOptions)
+          return {
+            available: false,
+            error: `Dependency ${dep} not available: ${depConfig?.note || 'install required'}`,
+            installed: false,
+            packageManager: undefined,
+          }
+        }
+      }
+      // Dependencies installed, try verifying again.
+      const worksAfterDeps = await verifyToolWorks(tool, verifyArgs)
+      if (worksAfterDeps) {
+        return { available: true, installed: false, packageManager: undefined }
+      }
+    }
+
+    // Still broken - suggest reinstall.
+    const platform = getPlatform()
+
+    logger.error(`${tool} exists but failed to run`)
+    if (config?.notes) {
+      logger.substep(config.notes)
+    }
+    if (platform === 'darwin') {
+      logger.substep(`Try: brew reinstall ${tool}`)
+    } else if (platform === 'linux') {
+      logger.substep(`Try: sudo apt-get install --reinstall ${tool}`)
+    }
+
+    return {
+      available: false,
+      error: `${tool} exists but failed to run (possible broken dependency)`,
+      installed: false,
+      packageManager: undefined,
+    }
+  }
+
+  if (!autoInstall) {
+    return { available: false, installed: false, packageManager: undefined }
+  }
+
+  // Install dependencies first.
+  if (config?.dependencies?.length) {
+    logger.substep(`Installing dependencies for ${tool}...`)
+    for (const dep of config.dependencies) {
+      // eslint-disable-next-line no-await-in-loop
+      const depResult = await ensureToolInstalled(dep, {
+        autoInstall,
+        autoYes,
+        toolOptions,
+      })
+      if (!depResult.available) {
+        return {
+          available: false,
+          error: `Failed to install dependency: ${dep}`,
+          installed: false,
+          packageManager: undefined,
+        }
+      }
+    }
+  }
+
+  // Detect available package managers.
+  const managers = detectPackageManagers()
+  if (!managers.length) {
+    logger.warn(`No package manager detected for auto-installing ${tool}`)
+    return { available: false, installed: false, packageManager: undefined }
+  }
+
+  // Try to install using the first available package manager.
+  const packageManager = managers[0]
+  if (!packageManager) {
+    // Defensive fallback for race conditions
+    logger.error('Package manager became unavailable')
+    return { available: false, installed: false, packageManager: undefined }
+  }
+  logger.substep(`Attempting to install ${tool} using ${packageManager}`)
+
+  const installed = await installTool(tool, packageManager, { autoYes })
+
+  // Verify installation works.
+  if (installed) {
+    const verifyArgs = config?.verify || ['--version']
+    const works = await verifyToolWorks(tool, verifyArgs)
+    if (!works) {
+      logger.error(`${tool} installed but failed verification`)
+      return {
+        available: false,
+        error: `${tool} installed but failed to run`,
+        installed: true,
+        packageManager,
+      }
+    }
+  }
+
+  return {
+    available: installed,
+    installed,
+    packageManager: installed ? packageManager : undefined,
+  }
+}
+
+/**
+ * Get installation instructions for a tool.
+ *
+ * @param {string} tool - Tool name.
+ * @returns {string[]} Array of installation instruction strings.
+ */
+export function getInstallInstructions(tool) {
+  const config = getToolConfig(tool)
+  if (!config) {
+    return [`Unknown tool: ${tool}`]
+  }
+
+  const platform = getPlatform()
+  const instructions = []
+
+  instructions.push(`Install ${tool} (${config.description}):`)
+
+  if (platform === 'darwin') {
+    instructions.push(`  brew install ${tool}`)
+  } else if (platform === 'linux') {
+    instructions.push(`  sudo apt-get install -y ${tool}`)
+  } else if (platform === 'win32') {
+    instructions.push(`  choco install ${tool}`)
+  } else {
+    instructions.push(`  Install ${tool} using your system package manager`)
+  }
+
+  return instructions
+}
+
+/**
+ * Ensure all required tools are installed.
+ *
+ * @param {string[]} tools - Array of tool names to check.
+ * @param {object} options - Options.
+ * @param {boolean} options.autoInstall - Attempt auto-installation (default: true).
+ * @param {boolean} options.autoYes - Auto-yes to prompts (default: false).
+ * @returns {Promise<{allAvailable: boolean, missing: string[], installed: string[]}>}
+ */
+export async function ensureAllToolsInstalled(
+  tools,
+  { autoInstall = true, autoYes = false } = {},
+) {
+  const missing = []
+  const installed = []
+
+  for (let i = 0; i < tools.length; i++) {
+    const tool = tools[i]
+    logger.substep(`[${i + 1}/${tools.length}] Checking ${tool}`)
+
+    // eslint-disable-next-line no-await-in-loop -- Tools must be installed sequentially
+    const result = await ensureToolInstalled(tool, { autoInstall, autoYes })
+
+    if (!result.available) {
+      missing.push(tool)
+    } else if (result.installed) {
+      installed.push(tool)
+    }
+  }
+
+  // Summary
+  if (tools.length > 1) {
+    if (missing.length === 0) {
+      logger.success(
+        `All tools available (${tools.length}/${tools.length}${installed.length > 0 ? `, ${installed.length} newly installed` : ''})`,
+      )
+    } else {
+      logger.warn(
+        `${tools.length - missing.length}/${tools.length} tools available (${missing.length} missing: ${missing.join(', ')})`,
+      )
+    }
+  }
+
+  return {
+    allAvailable: missing.length === 0,
+    installed,
+    missing,
+  }
+}

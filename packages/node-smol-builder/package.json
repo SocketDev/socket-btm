@@ -1,0 +1,37 @@
+{
+  "name": "node-smol-builder",
+  "version": "0.0.0",
+  "description": "Optimized Node.js binaries with SEA support and Socket security patches",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/common/shared/build.mts",
+    "build:all": "node scripts/common/shared/build.mts --all-platforms",
+    "clean": "node scripts/clean.mts",
+    "cover": "node scripts/cover.mts",
+    "postinstall": "node scripts/setup-build-toolchain.mts",
+    "test": "node scripts/test-with-memory-limit.mts",
+    "test:linux-x64-docker": "node scripts/test-linux-x64-docker.mts",
+    "test:linux-x64-docker:musl": "node scripts/test-linux-x64-docker.mts --musl",
+    "test:node-suite": "node scripts/test-node-suite.mts",
+    "test:node-suite:dev": "node scripts/test-node-suite.mts --dev",
+    "test:node-suite:prod": "node scripts/test-node-suite.mts --prod",
+    "test:unsafe": "vitest run"
+  },
+  "dependencies": {
+    "@socketsecurity/lib": "catalog:",
+    "bin-infra": "workspace:*",
+    "build-infra": "workspace:*",
+    "yoctocolors-cjs": "catalog:"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "catalog:",
+    "acorn": "catalog:",
+    "acorn-walk": "catalog:",
+    "experimental-fast-webstreams": "0.0.19",
+    "octokit": "catalog:",
+    "snappy": "7.3.3",
+    "vitest": "catalog:"
+  }
+}

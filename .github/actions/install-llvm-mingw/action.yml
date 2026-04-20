@@ -1,0 +1,24 @@
+name: Install llvm-mingw
+description: Downloads llvm-mingw and prepends it to PATH — Windows ARM64 cross-compilation
+
+inputs:
+  version:
+    description: 'llvm-mingw release date tag (e.g. "20250528")'
+    required: false
+    default: '20250528'
+
+runs:
+  using: composite
+  steps:
+    - name: Install llvm-mingw
+      shell: bash
+      env:
+        LLVM_MINGW_VERSION: ${{ inputs.version }}
+      run: |
+        # Download and extract llvm-mingw for ARM64 cross-compilation.
+        # Release tag is a date stamp; see https://github.com/mstorsjo/llvm-mingw/releases.
+        ARCHIVE="llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-x86_64.zip"
+        curl -fsSL -o llvm-mingw.zip \
+          "https://github.com/mstorsjo/llvm-mingw/releases/download/${LLVM_MINGW_VERSION}/${ARCHIVE}"
+        7z x llvm-mingw.zip -o"C:/llvm-mingw"
+        echo "C:/llvm-mingw/llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-x86_64/bin" >> $GITHUB_PATH

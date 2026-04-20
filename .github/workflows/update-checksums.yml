@@ -1,0 +1,59 @@
+name: 🔄 Update Release Checksums
+
+on:
+  workflow_call:
+    secrets:
+      BOT_GPG_PRIVATE_KEY:
+        required: false
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  update-checksums:
+    name: release-assets.json
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # Required to commit updated release-assets.json
+    steps:
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@3362af95fadd1e325cb48e9ad6daff21c112bd72 # main
+
+      - uses: SocketDev/socket-registry/.github/actions/setup-git-signing@3362af95fadd1e325cb48e9ad6daff21c112bd72 # main
+        with:
+          gpg-private-key: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
+
+      - name: Update checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: pnpm --filter build-infra update-checksums
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet packages/build-infra/release-assets.json; then
+            echo "has-changes=false" >> $GITHUB_OUTPUT
+            echo "No checksum changes"
+          else
+            echo "has-changes=true" >> $GITHUB_OUTPUT
+            echo "Checksums updated"
+          fi
+
+      - name: Commit and push
+        if: steps.changes.outputs.has-changes == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git add packages/build-infra/release-assets.json
+          git commit -m "chore: update release checksums"
+          git pull --rebase origin main
+          git push
+
+      - uses: SocketDev/socket-registry/.github/actions/cleanup-git-signing@3362af95fadd1e325cb48e9ad6daff21c112bd72 # main
+        if: always()

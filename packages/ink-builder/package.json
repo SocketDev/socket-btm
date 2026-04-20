@@ -1,0 +1,30 @@
+{
+  "name": "ink-builder",
+  "version": "0.0.0",
+  "description": "Prepatched Ink TUI framework with Socket-specific fixes",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mts",
+    "clean": "node scripts/clean.mts",
+    "cover": "vitest run --coverage",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@socketsecurity/lib": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "vitest": "catalog:"
+  },
+  "sources": {
+    "ink": {
+      "version": "7.0.0",
+      "type": "git",
+      "url": "https://github.com/vadimdemedes/ink.git",
+      "ref": "fb14d811d513be19e5a57bb2faebbfd9ebd2f06a"
+    }
+  }
+}

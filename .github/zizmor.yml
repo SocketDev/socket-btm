@@ -1,0 +1,36 @@
+# Zizmor configuration
+# See: https://docs.zizmor.sh/configuration/
+
+rules:
+  cache-poisoning:
+    ignore:
+      # False positive: We explicitly disabled caching with cache: ''
+      # Line 48: checks job - Setup Node.js step
+      - ci.yml:48
+      # False positive: We explicitly disabled caching with cache: ''
+      # Line 114: test job - Setup Node.js step
+      - ci.yml:114
+      # False positive: We explicitly disabled caching with cache: ''
+      # Line 215: stubs workflow - Setup Node.js step
+      - stubs.yml:215
+
+  secrets-outside-env:
+    disable: true
+
+  superfluous-actions:
+    ignore:
+      # False positive: needed for cross-compilation targets via `targets:` input
+      - iocraft.yml:154
+
+  template-injection:
+    ignore:
+      # False positive: Template expansion is in a comment, not executable code
+      # Line 469: Comment explaining GitHub Actions syntax
+      - node-smol.yml:469
+
+  github-env:
+    ignore:
+      # False positive: expansion is $LLVM_MINGW_VERSION from the step's own
+      # env: block (inputs.version default), not untrusted user input.
+      # Line 17: run block writing to $GITHUB_PATH
+      - action.yml:17

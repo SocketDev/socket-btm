@@ -1,0 +1,104 @@
+name: Setup Build Environment
+description: Setup compiler, toolchain, and dependencies for binsuite builds
+
+inputs:
+  os:
+    description: 'Operating system (linux, windows, macos)'
+    required: true
+  arch:
+    description: 'Architecture (x64, arm64)'
+    required: true
+  libc:
+    description: 'C library (glibc, musl) - Linux only'
+    required: false
+    default: ''
+  cross-compile:
+    description: 'Cross-compiling (true/false)'
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    # Linux: Install compiler and make
+    - name: Setup compiler (Linux)
+      if: inputs.os == 'linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc g++ make
+
+    # Linux glibc: Install OpenSSL
+    - name: Install dependencies (Linux glibc)
+      if: inputs.os == 'linux' && inputs.libc != 'musl'
+      shell: bash
+      run: |
+        # Install OpenSSL for Linux builds
+        sudo apt-get install -y libssl-dev
+
+    # Linux musl: Install musl toolchain
+    - name: Install musl toolchain (Linux musl)
+      if: inputs.os == 'linux' && inputs.libc == 'musl'
+      shell: bash
+      env:
+        ARCH: ${{ inputs.arch }}
+      run: |
+        # Install musl cross-compilation toolchain
+        sudo apt-get install -y musl-tools
+
+        # For ARM64, we need the cross-compiler
+        if [ "${ARCH}" = "arm64" ]; then
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+        fi
+
+    # Windows x64: Install MinGW with retry logic
+    - name: Setup Windows build tools (x64)
+      if: inputs.os == 'windows' && inputs.cross-compile != 'true'
+      shell: bash
+      run: |
+        # Install MinGW for gcc/g++ (consistent ABI with LIEF library)
+        # Use retry logic to handle transient GitHub download issues
+        RETRIES=5
+        DELAY=10
+        SUCCESS=false
+
+        for i in $(seq 1 $RETRIES); do
+          echo "Attempt $i/$RETRIES: Installing MinGW..."
+          if choco install -y mingw --no-progress; then
+            echo "[OK] MinGW installed successfully"
+            SUCCESS=true
+            break
+          fi
+
+          if [ $i -lt $RETRIES ]; then
+            echo "⚠ Attempt $i failed, retrying in ${DELAY}s..."
+            sleep $DELAY
+            DELAY=$((DELAY * 2))  # Exponential backoff
+          fi
+        done
+
+        if [ "$SUCCESS" = false ]; then
+          echo "[FAIL] Failed to install MinGW after $RETRIES attempts"
+          exit 1
+        fi
+
+        gcc --version
+        g++ --version
+
+        # Ensure make is available
+        where make || choco install -y make
+
+    # Windows ARM64: Install llvm-mingw for cross-compilation
+    - name: Install llvm-mingw (Windows ARM64 cross-compile)
+      if: inputs.os == 'windows' && inputs.cross-compile == 'true'
+      uses: ./.github/actions/install-llvm-mingw
+
+    - name: Ensure make available (Windows ARM64 cross-compile)
+      if: inputs.os == 'windows' && inputs.cross-compile == 'true'
+      shell: bash
+      run: where make || choco install -y make
+
+    # macOS: Select Xcode toolchain
+    - name: Select Xcode (macOS)
+      if: inputs.os == 'macos'
+      uses: ./.github/actions/select-xcode

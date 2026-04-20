@@ -1,0 +1,29 @@
+name: Load Cache Version
+description: Reads a package's cache version from .github/cache-versions.json and fails if it's missing or null
+
+inputs:
+  package-name:
+    description: 'Package key in .github/cache-versions.json (e.g. iocraft, lief, yoga-layout)'
+    required: true
+
+outputs:
+  version:
+    description: 'Resolved cache version string (e.g. v42)'
+    value: ${{ steps.read.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Read cache version
+      id: read
+      shell: bash
+      env:
+        PACKAGE_NAME: ${{ inputs.package-name }}
+      run: |
+        CACHE_VERSION=$(jq -r ".versions[\"${PACKAGE_NAME}\"]" .github/cache-versions.json)
+        if [ -z "$CACHE_VERSION" ] || [ "$CACHE_VERSION" = "null" ]; then
+          echo "× Error: Cache version not found for ${PACKAGE_NAME} in .github/cache-versions.json"
+          exit 1
+        fi
+        echo "version=$CACHE_VERSION" >> "$GITHUB_OUTPUT"
+        echo "Cache version: $CACHE_VERSION"

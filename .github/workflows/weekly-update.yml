@@ -1,0 +1,22 @@
+name: 🔄 Weekly Update
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  weekly-update:
+    uses: SocketDev/socket-registry/.github/workflows/weekly-update.yml@3362af95fadd1e325cb48e9ad6daff21c112bd72 # main
+    with:
+      checkout-submodules: 'true'
+      test-setup-script: 'pnpm run build'
+      test-script: 'pnpm test'
+      validate-file-patterns: 'package.json|*/package.json|pnpm-lock.yaml|*/pnpm-lock.yaml|.npmrc|pnpm-workspace.yaml|.gitmodules|xport.json'
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      BOT_GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
+      SOCKET_API_KEY: ${{ secrets.SOCKET_API_KEY }}

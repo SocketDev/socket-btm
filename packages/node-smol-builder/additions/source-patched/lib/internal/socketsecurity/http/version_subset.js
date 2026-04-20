@@ -47,20 +47,33 @@ const semver = {
     const ver = semver.parse(version)
     if (!ver) return false
 
-    // Handle caret range (^1.2.3).
+    // Handle caret range (^X.Y.Z) — npm semver semantics:
+    //   ^X.Y.Z with X>0   → >= X.Y.Z  <(X+1).0.0
+    //   ^0.Y.Z with Y>0   → >= 0.Y.Z  <0.(Y+1).0
+    //   ^0.0.Z            → >= 0.0.Z  <0.0.(Z+1)   (exact patch only)
+    // The three branches are distinct because semver treats 0.* as
+    // "pre-stable" and tightens the allowed range accordingly.
     if (StringPrototypeStartsWith(range, '^')) {
       const base = semver.parse(StringPrototypeSlice(range, 1))
       if (!base) return false
 
-      if (base.major === 0) {
+      if (base.major > 0) {
         return (
-          ver.major === 0 && ver.minor === base.minor && ver.patch >= base.patch
+          ver.major === base.major &&
+          (ver.minor > base.minor ||
+            (ver.minor === base.minor && ver.patch >= base.patch))
         )
       }
+      if (base.minor > 0) {
+        return (
+          ver.major === 0 &&
+          ver.minor === base.minor &&
+          ver.patch >= base.patch
+        )
+      }
+      // ^0.0.Z — only exact patch matches.
       return (
-        ver.major === base.major &&
-        (ver.minor > base.minor ||
-          (ver.minor === base.minor && ver.patch >= base.patch))
+        ver.major === 0 && ver.minor === 0 && ver.patch === base.patch
       )
     }
 

@@ -12,12 +12,12 @@
 import { existsSync } from 'node:fs'
 import process from 'node:process'
 
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
-
-import { errorMessage } from 'build-infra/lib/error-utils'
 import { spawn } from '@socketsecurity/lib/spawn'
 
-const WIN32 = process.platform === 'win32'
+import { errorMessage } from 'build-infra/lib/error-utils'
+
 const logger = getDefaultLogger()
 
 type RunOptions = {

@@ -837,8 +837,7 @@ async function main() {
 
           // Extract arch from platformArch for checkpoint (e.g., "darwin-arm64" -> "arm64")
           const targetArch = process.env.TARGET_ARCH || process.arch
-          const targetPlatform =
-            process.platform === 'win32' ? 'win' : process.platform
+          const targetPlatform = WIN32 ? 'win' : process.platform
 
           await createCheckpoint(
             buildDir,

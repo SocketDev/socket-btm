@@ -14,6 +14,8 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
+
 import { fileURLToPath } from 'node:url'
 
 import binPkg, { which } from '@socketsecurity/lib/bin'
@@ -554,7 +556,7 @@ function resolvePinnedArtifact(tool, version) {
     }
     return {
       ...artifact,
-      binary: process.platform === 'win32' ? `${tool}.exe` : tool,
+      binary: WIN32 ? `${tool}.exe` : tool,
       archiveFormat: artifact.url.endsWith('.zip') ? 'zip' : 'tar.xz',
     }
   } catch {

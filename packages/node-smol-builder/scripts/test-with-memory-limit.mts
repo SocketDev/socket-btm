@@ -6,6 +6,7 @@
 
 import process from 'node:process'
 
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn, spawnSync } from '@socketsecurity/lib/spawn'
 import { errorMessage } from 'build-infra/lib/error-utils'
@@ -38,7 +39,7 @@ let killed = false
 // Get memory usage cross-platform
 function getMemoryUsageMB(pid) {
   try {
-    if (process.platform === 'win32') {
+    if (WIN32) {
       // Windows: Use PowerShell (wmic is deprecated/removed on Windows 11+)
       const result = spawnSync(
         'powershell.exe',
@@ -73,7 +74,7 @@ function getMemoryUsageMB(pid) {
 // Kill process tree cross-platform
 function killProcessTree(pid) {
   try {
-    if (process.platform === 'win32') {
+    if (WIN32) {
       spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], {
         stdio: 'ignore',
       })

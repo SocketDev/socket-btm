@@ -335,6 +335,7 @@ function createDirentObject(name, isDir, isSymlink = false) {
 }
 
 module.exports = ObjectFreeze({
+  __proto__: null,
   // Buffer
   BufferPrototypeSlice,
   BufferPrototypeToString,

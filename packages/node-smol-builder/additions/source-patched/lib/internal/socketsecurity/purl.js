@@ -11,6 +11,7 @@ const {
   ArrayPrototypePush,
   ArrayPrototypeSort,
   Error: ErrorCtor,
+  IteratorPrototypeNext,
   ObjectSetPrototypeOf,
   decodeURIComponent,
   encodeURIComponent,
@@ -122,8 +123,10 @@ function cacheGet(key) {
 function cachePut(key, value) {
   if (cache.size >= CACHE_SIZE) {
     // Evict oldest entry - SafeMap iterator gives insertion order, O(1)
-    const oldest = MapPrototypeKeys(cache).next().value
-    MapPrototypeDelete(cache, oldest)
+    const { value: oldest } = IteratorPrototypeNext(MapPrototypeKeys(cache))
+    if (oldest !== undefined) {
+      MapPrototypeDelete(cache, oldest)
+    }
   }
   MapPrototypeSet(cache, key, value)
 }

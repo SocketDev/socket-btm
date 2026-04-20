@@ -63,13 +63,21 @@ for (let i = 0; i < commonSizes.length; i++) {
   contentLengthCache[size] = `Content-Length: ${size}\r\n`
 }
 
+// Cap dynamic entries so pathological callers can't grow the cache without bound.
+// `commonSizes` entries (22 pre-cached) are always retained because we never
+// evict keys whose numeric value is in the pre-cached set.
+const MAX_DYNAMIC_ENTRIES = 512
+
+let dynamicEntryCount = 0
+
 function getContentLength(length) {
   let cached = contentLengthCache[length]
   if (cached === undefined) {
     cached = `Content-Length: ${length}\r\n`
-    // Cache for next time if reasonable size.
-    if (length < 1_000_000) {
+    // Cache for next time if reasonable size and under the dynamic cap.
+    if (length < 1_000_000 && dynamicEntryCount < MAX_DYNAMIC_ENTRIES) {
       contentLengthCache[length] = cached
+      dynamicEntryCount++
     }
   }
   return cached

@@ -112,7 +112,7 @@ class CompressionCache {
     const entry = MapPrototypeGet(this.cache, key)
     if (!entry) {
       this.stats.cache_misses++
-      return null
+      return undefined
     }
 
     this.stats.cache_hits++

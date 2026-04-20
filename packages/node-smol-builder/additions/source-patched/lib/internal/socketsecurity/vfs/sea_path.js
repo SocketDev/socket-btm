@@ -401,6 +401,7 @@ function readdirFromSea(filepath, options) {
 }
 
 module.exports = ObjectFreeze({
+  __proto__: null,
   SEA_PREFIX,
   existsInSea,
   getSeaAssetKey,

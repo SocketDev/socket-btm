@@ -1,6 +1,7 @@
 'use strict'
 
 const {
+  IteratorPrototypeNext,
   JSONStringify,
   MapPrototypeClear,
   MapPrototypeDelete,
@@ -51,8 +52,12 @@ class JSONCache {
 
     // Delete oldest if at capacity.
     if (this.cache.size >= this.maxSize) {
-      const firstKey = MapPrototypeKeys(this.cache).next().value
-      MapPrototypeDelete(this.cache, firstKey)
+      const { value: firstKey } = IteratorPrototypeNext(
+        MapPrototypeKeys(this.cache),
+      )
+      if (firstKey !== undefined) {
+        MapPrototypeDelete(this.cache, firstKey)
+      }
     }
 
     MapPrototypeSet(this.cache, key, value)

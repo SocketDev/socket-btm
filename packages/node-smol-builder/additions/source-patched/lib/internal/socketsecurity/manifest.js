@@ -1220,6 +1220,7 @@ function findPackages(lockfile, pattern) {
 }
 
 module.exports = {
+  __proto__: null,
   parse,
   parseManifest,
   parseLockfile,

@@ -1,6 +1,7 @@
 'use strict'
 
 const {
+  IteratorPrototypeNext,
   MapPrototypeClear,
   MapPrototypeDelete,
   MapPrototypeGet,
@@ -35,7 +36,7 @@ class ETagCache {
   // Get cached ETag.
   get(key) {
     const entry = MapPrototypeGet(this.cache, key)
-    if (!entry) return null
+    if (!entry) return undefined
 
     // Move to end (LRU).
     MapPrototypeDelete(this.cache, key)
@@ -48,8 +49,12 @@ class ETagCache {
   set(key, etag) {
     // Evict oldest if at capacity.
     if (this.cache.size >= this.maxSize) {
-      const firstKey = MapPrototypeKeys(this.cache).next().value
-      MapPrototypeDelete(this.cache, firstKey)
+      const { value: firstKey } = IteratorPrototypeNext(
+        MapPrototypeKeys(this.cache),
+      )
+      if (firstKey !== undefined) {
+        MapPrototypeDelete(this.cache, firstKey)
+      }
     }
 
     MapPrototypeSet(this.cache, key, etag)

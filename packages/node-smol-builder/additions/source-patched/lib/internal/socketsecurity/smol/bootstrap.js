@@ -308,6 +308,7 @@ function setupProcessForSmol() {
 }
 
 module.exports = ObjectFreeze({
+  __proto__: null,
   createVFSRequire,
   enhanceRequire,
   hasVFS,

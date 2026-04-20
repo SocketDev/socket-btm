@@ -264,7 +264,6 @@ jobs:
             CACHE_VERSION=${{ steps.cache-version.outputs.version }}
             LIEF_CACHE_VERSION=${{ steps.cache-version.outputs.lief_version }}
             STUBS_CACHE_VERSION=${{ steps.cache-version.outputs.stubs_version }}
-            CACHE_BUSTER=${{ github.sha }}
           no-cache: ${{ inputs.force == true }}
           file: packages/binpress/docker/Dockerfile.${{ matrix.libc == 'musl' && 'musl' || 'glibc' }}
           target: export
@@ -539,10 +538,6 @@ jobs:
         with:
           oidc: true
 
-      - name: Install QEMU (Linux ARM64)
-        if: matrix.os == 'linux' && matrix.runner == 'ubuntu-24.04' && matrix.arch == 'arm64' && steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'true'
-        run: sudo apt-get update && sudo apt-get install -y qemu-user-static
-
       - name: Check if tool should be built
         id: build-enabled
         shell: bash
@@ -609,6 +604,10 @@ jobs:
             echo "force-rebuild=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Install QEMU (Linux ARM64)
+        if: matrix.os == 'linux' && matrix.runner == 'ubuntu-24.04' && matrix.arch == 'arm64' && steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'true'
+        run: sudo apt-get update && sudo apt-get install -y qemu-user-static
+
       - name: Setup build environment
         if: steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'true'
         uses: ./.github/actions/setup-build-env
@@ -663,7 +662,6 @@ jobs:
             CACHE_VERSION=${{ steps.cache-version.outputs.version }}
             LIEF_CACHE_VERSION=${{ steps.cache-version.outputs.lief_version }}
             STUBS_CACHE_VERSION=${{ steps.cache-version.outputs.stubs_version }}
-            CACHE_BUSTER=${{ github.sha }}
           no-cache: ${{ inputs.force == true }}
           file: packages/binflate/docker/Dockerfile.${{ matrix.libc == 'musl' && 'musl' || 'glibc' }}
           target: export
@@ -914,10 +912,6 @@ jobs:
         with:
           oidc: true
 
-      - name: Install QEMU (Linux ARM64)
-        if: matrix.os == 'linux' && matrix.runner == 'ubuntu-24.04' && matrix.arch == 'arm64' && steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'true'
-        run: sudo apt-get update && sudo apt-get install -y qemu-user-static
-
       - name: Check if tool should be built
         id: build-enabled
         shell: bash
@@ -983,6 +977,10 @@ jobs:
             echo "✅ Binary exists: $BINARY"
             echo "force-rebuild=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: Install QEMU (Linux ARM64)
+        if: matrix.os == 'linux' && matrix.runner == 'ubuntu-24.04' && matrix.arch == 'arm64' && steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'true'
+        run: sudo apt-get update && sudo apt-get install -y qemu-user-static
 
       - name: Setup build environment
         if: steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'true'
@@ -1084,7 +1082,6 @@ jobs:
             LIBDEFLATE_CACHE_VERSION=${{ steps.submodule-sha.outputs.libdeflate }}
             CJSON_CACHE_VERSION=${{ steps.submodule-sha.outputs.cjson }}
             STUBS_CACHE_VERSION=${{ steps.cache-version.outputs.stubs_version }}
-            CACHE_BUSTER=${{ github.sha }}
           no-cache: ${{ inputs.force == true }}
           file: packages/binject/docker/Dockerfile.${{ matrix.libc == 'musl' && 'musl' || 'glibc' }}
           target: export

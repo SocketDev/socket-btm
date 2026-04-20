@@ -234,7 +234,6 @@ jobs:
             BUILD_MODE=${{ steps.build-mode.outputs.mode }}
             PLATFORM_ARCH=${{ env.PLATFORM_ARCH }}
             CACHE_VERSION=${{ steps.cache-version.outputs.version }}
-            CACHE_BUSTER=${{ github.sha }}
           no-cache: ${{ inputs.force == true }}
           file: packages/onnxruntime-builder/docker/Dockerfile.linux
           target: export

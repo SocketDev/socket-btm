@@ -100,7 +100,7 @@ function createServer(opts) {
  */
 function serve(options) {
   const opts = { __proto__: null, ...options }
-  const workers = opts.workers || 1
+  const workers = opts.workers ?? 1
 
   if (workers <= 1) {
     // Single process — direct serve.

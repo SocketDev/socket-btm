@@ -133,7 +133,6 @@ jobs:
             BUILD_MODE=prod
             PLATFORM_ARCH=linux-x64
             CACHE_VERSION=${{ steps.cache-key.outputs.ink_cache_version }}
-            CACHE_BUSTER=${{ github.sha }}
           no-cache: ${{ inputs.force == true }}
           file: packages/ink-builder/docker/Dockerfile
           target: export

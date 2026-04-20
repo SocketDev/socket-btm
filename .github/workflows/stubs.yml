@@ -16,12 +16,6 @@ on:
         required: false
         default: '0'
         type: string
-  push:
-    tags:
-      - 'stubs-v*'
-    paths:
-      - 'packages/stubs-builder/**'
-      - 'packages/build-infra/make/**'
 
 permissions:
   contents: read
@@ -178,14 +172,25 @@ jobs:
           arch: ${{ matrix.arch }}
           libc: ${{ matrix.libc }}
 
+      - name: Restore stubs checkpoint cache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        id: stubs-checkpoint-cache
+        if: ${{ !inputs.force }}
+        with:
+          # Cache both Linux (Depot export to out/) and native (build/prod/<platform-arch>/out/Final) outputs.
+          path: |
+            packages/stubs-builder/out
+            packages/stubs-builder/build/prod/${{ steps.platform-arch.outputs.platform_arch }}/out/Final
+          key: stubs-${{ steps.cache-version.outputs.version }}-${{ steps.platform-arch.outputs.platform_arch }}
+
       - name: Setup Depot CLI
-        if: matrix.os == 'linux'
+        if: matrix.os == 'linux' && (steps.stubs-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
         uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
         with:
           oidc: true
 
       - name: Build stubs with Depot (Linux - offloads compute)
-        if: matrix.os == 'linux'
+        if: matrix.os == 'linux' && (steps.stubs-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
         uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0
         with:
           project: 8fpj9495vw
@@ -195,7 +200,6 @@ jobs:
             PLATFORM_ARCH=${{ steps.platform-arch.outputs.platform_arch }}
             CACHE_VERSION=${{ steps.cache-version.outputs.version }}
             CURL_CACHE_VERSION=${{ steps.cache-version.outputs.curl_cache_key }}
-            CACHE_BUSTER=${{ github.sha }}
           no-cache: ${{ inputs.force == true }}
           file: packages/stubs-builder/docker/Dockerfile.${{ matrix.libc || 'glibc' }}
           target: export
@@ -203,7 +207,7 @@ jobs:
           context: .
 
       - name: Verify Depot build output (Linux)
-        if: matrix.os == 'linux'
+        if: matrix.os == 'linux' && (steps.stubs-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
         shell: bash
         run: |
           echo "Verifying Depot build output structure..."
@@ -221,19 +225,19 @@ jobs:
           fi
 
       - uses: SocketDev/socket-registry/.github/actions/setup@3362af95fadd1e325cb48e9ad6daff21c112bd72 # main
-        if: matrix.os != 'linux'
+        if: matrix.os != 'linux' && (steps.stubs-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
 
       - uses: SocketDev/socket-registry/.github/actions/install@3362af95fadd1e325cb48e9ad6daff21c112bd72 # main
-        if: matrix.os != 'linux'
+        if: matrix.os != 'linux' && (steps.stubs-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
 
       - name: Setup build environment (macOS)
-        if: matrix.os == 'macos'
+        if: matrix.os == 'macos' && (steps.stubs-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
         run: |
           # macOS already has Xcode command line tools.
           echo "Build environment ready"
 
       - name: Setup build environment (Windows x64)
-        if: matrix.os == 'windows' && matrix.arch == 'x64'
+        if: matrix.os == 'windows' && matrix.arch == 'x64' && (steps.stubs-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
         shell: bash
         run: |
           # Install MinGW for Windows x64 builds.
@@ -242,7 +246,7 @@ jobs:
           echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> $GITHUB_PATH
 
       - name: Setup build environment (Windows ARM64 cross-compile)
-        if: matrix.os == 'windows' && matrix.arch == 'arm64'
+        if: matrix.os == 'windows' && matrix.arch == 'arm64' && (steps.stubs-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
         shell: bash
         run: |
           # Download and extract llvm-mingw for ARM64 cross-compilation.
@@ -251,7 +255,7 @@ jobs:
           echo "C:/llvm-mingw/llvm-mingw-20250528-ucrt-x86_64/bin" >> $GITHUB_PATH
 
       - name: Build stub (macOS/Windows)
-        if: matrix.os != 'linux'
+        if: matrix.os != 'linux' && (steps.stubs-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
         shell: bash
         working-directory: packages/stubs-builder
         env:
@@ -301,10 +305,14 @@ jobs:
         shell: bash
         env:
           PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
+          MATRIX_OS: ${{ matrix.os }}
+          MATRIX_PLATFORM: ${{ matrix.platform }}
+          MATRIX_ARCH: ${{ matrix.arch }}
+          MATRIX_LIBC: ${{ matrix.libc }}
         run: |
-          PLATFORM="${{ matrix.platform }}"
-          ARCH="${{ matrix.arch }}"
-          LIBC="${{ matrix.libc }}"
+          PLATFORM="$MATRIX_PLATFORM"
+          ARCH="$MATRIX_ARCH"
+          LIBC="$MATRIX_LIBC"
 
           # Transform win32 → win for consistency with other tools.
           if [ "$PLATFORM" = "win32" ]; then
@@ -318,11 +326,11 @@ jobs:
           fi
 
           # Determine stub file name and directory.
-          if [ "${{ matrix.os }}" = "linux" ]; then
+          if [ "$MATRIX_OS" = "linux" ]; then
             # Docker export puts binary in out/ directory.
             STUB_DIR="packages/stubs-builder/out"
             STUB_FILE="smol_stub"
-          elif [ "${{ matrix.os }}" = "windows" ]; then
+          elif [ "$MATRIX_OS" = "windows" ]; then
             # Native build outputs to build/prod/${PLATFORM_ARCH}/out/Final/.
             STUB_DIR="packages/stubs-builder/build/prod/${PLATFORM_ARCH}/out/Final"
             STUB_FILE="smol_stub.exe"
@@ -363,6 +371,7 @@ jobs:
           name: ${{ env.ARTIFACT_NAME }}
           path: packages/stubs-builder/${{ env.ARTIFACT_NAME }}.tar.gz
           retention-days: 30
+          if-no-files-found: error
 
   release:
     name: Release stubs

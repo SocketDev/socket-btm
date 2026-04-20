@@ -5,6 +5,7 @@ const {
   ArrayPrototypeJoin,
   ArrayPrototypeMap,
   ArrayPrototypePush,
+  IteratorPrototypeNext,
   MapPrototypeClear,
   MapPrototypeDelete,
   MapPrototypeGet,
@@ -98,8 +99,12 @@ class DependencyGraph {
 
     // Evict oldest if at capacity.
     if (this.cache.size > this.maxSize) {
-      const firstKey = MapPrototypeKeys(this.cache).next().value
-      MapPrototypeDelete(this.cache, firstKey)
+      const { value: firstKey } = IteratorPrototypeNext(
+        MapPrototypeKeys(this.cache),
+      )
+      if (firstKey !== undefined) {
+        MapPrototypeDelete(this.cache, firstKey)
+      }
     }
 
     return graph

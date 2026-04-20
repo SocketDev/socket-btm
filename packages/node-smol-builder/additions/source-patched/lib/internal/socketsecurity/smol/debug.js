@@ -192,6 +192,7 @@ function createDebug(ns) {
 }
 
 module.exports = ObjectFreeze({
+  __proto__: null,
   createDebug,
   isDebugEnabled,
 })

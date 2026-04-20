@@ -48,8 +48,9 @@ jobs:
         if: steps.changes.outputs.has-changes == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
-          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
           git add packages/build-infra/release-assets.json
           git commit -m "chore: update release checksums"
           git pull --rebase origin main

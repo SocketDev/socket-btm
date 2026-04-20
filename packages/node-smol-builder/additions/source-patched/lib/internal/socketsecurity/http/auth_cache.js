@@ -2,6 +2,7 @@
 
 const {
   DateNow,
+  IteratorPrototypeNext,
   MapPrototypeClear,
   MapPrototypeDelete,
   MapPrototypeForEach,
@@ -52,8 +53,12 @@ class AuthCache {
 
     // Evict oldest if at capacity.
     if (this.cache.size > this.maxSize) {
-      const firstKey = MapPrototypeKeys(this.cache).next().value
-      MapPrototypeDelete(this.cache, firstKey)
+      const { value: firstKey } = IteratorPrototypeNext(
+        MapPrototypeKeys(this.cache),
+      )
+      if (firstKey !== undefined) {
+        MapPrototypeDelete(this.cache, firstKey)
+      }
     }
 
     return {

@@ -509,7 +509,6 @@ jobs:
             MATRIX_ARCH=${{ matrix.arch }}
             MATRIX_LIBC=${{ matrix.libc }}
             PLATFORM_ARCH=${{ steps.platform-arch.outputs.platform_arch }}
-            CACHE_BUSTER=${{ github.sha }}
           secrets: |
             GITHUB_TOKEN=${{ github.token }}
           no-cache: ${{ inputs.force == true }}

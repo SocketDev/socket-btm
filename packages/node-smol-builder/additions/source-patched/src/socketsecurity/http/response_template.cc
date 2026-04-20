@@ -11,10 +11,20 @@ ResponseTemplate::ResponseTemplate() {}
 ResponseTemplate::~ResponseTemplate() {}
 
 ResponseTemplate* ResponseTemplate::Create(const char* format) {
+  // Nothrow + immediate null-check. Otherwise the two .reserve() calls
+  // below would dereference nullptr on OOM and crash the isolate. The
+  // caller (binding layer) is responsible for surfacing nullptr as a
+  // JS error; this helper just reports the failure state.
   ResponseTemplate* tmpl = new (std::nothrow) ResponseTemplate();
+  if (tmpl == nullptr) {
+    return nullptr;
+  }
 
   // Templates typically have 1-2 placeholders and 2-3 segments. Reserving
   // upfront avoids reallocations during the one-time construction at startup.
+  // Note: std::vector::reserve throws bad_alloc on OOM, which aborts under
+  // -fno-exceptions. These pre-allocations are small (4 slots each), so
+  // the abort risk is bounded to genuine resource exhaustion.
   tmpl->segments_.reserve(4);
   tmpl->placeholder_indices_.reserve(4);
 

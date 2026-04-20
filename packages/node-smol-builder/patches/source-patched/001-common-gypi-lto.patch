@@ -4,7 +4,7 @@
 --- a/common.gypi
 +++ b/common.gypi
 @@ -187,9 +187,9 @@
-             'MSVC_runtimeType': 2   # MultiThreadedDLL (/MD)
+               'MSVC_runtimeType': 2   # MultiThreadedDLL (/MD)
              }],
              ['clang==1', {
 -              'lto': ' -flto ', # Clang

@@ -144,6 +144,7 @@ jobs:
         id: cache-key
         env:
           CACHE_VERSION: ${{ steps.cache-version.outputs.version }}
+          ZIG_VERSION: ${{ env.ZIG_VERSION }}
         run: |
           if command -v shasum &> /dev/null; then
             hash_cmd="shasum -a 256"
@@ -178,8 +179,14 @@ jobs:
           BUILD_ZIG_ZON=$($hash_cmd packages/opentui-builder/build.zig.zon | cut -d' ' -f1)
           PACKAGE_JSON=$($hash_cmd packages/opentui-builder/package.json | cut -d' ' -f1)
           OPENTUI_SHA=$(git ls-tree HEAD packages/opentui-builder/upstream/opentui 2>/dev/null | awk '{print $3}' || echo "none")
+          # .node-version: the built .node addon is loaded by host Node.js —
+          # ABI mismatch would load the wrong thing. Include in the key so
+          # a node bump invalidates stale native modules.
+          NODE_VERSION_HASH=$($hash_cmd .node-version | cut -d' ' -f1)
 
-          FINAL_HASH=$(echo "${CACHE_VERSION}${SRC_HASH}${SCRIPTS_HASH}${PATCHES_HASH}${VENDOR_HASH}${BUILD_ZIG}${BUILD_ZIG_ZON}${PACKAGE_JSON}${OPENTUI_SHA}" | $hash_cmd | cut -d' ' -f1)
+          # ZIG_VERSION comes from the env: block above. A Zig bump changes
+          # the compiled .node output — include it in the key.
+          FINAL_HASH=$(echo "${CACHE_VERSION}${SRC_HASH}${SCRIPTS_HASH}${PATCHES_HASH}${VENDOR_HASH}${BUILD_ZIG}${BUILD_ZIG_ZON}${PACKAGE_JSON}${OPENTUI_SHA}${NODE_VERSION_HASH}${ZIG_VERSION}" | $hash_cmd | cut -d' ' -f1)
 
           echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
           echo "final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
@@ -289,6 +296,7 @@ jobs:
     needs: build
     if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     environment: release
     permissions:
       contents: write # Required to create GitHub releases and upload binary assets
@@ -353,9 +361,9 @@ jobs:
           cat checksums.txt
 
       - name: Import GPG key
-        if: steps.version.outputs.skip != 'true' && secrets.GPG_PRIVATE_KEY != ''
+        if: steps.version.outputs.skip != 'true' && secrets.BOT_GPG_PRIVATE_KEY != ''
         env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           if [ -n "$GPG_PRIVATE_KEY" ]; then
@@ -366,9 +374,9 @@ jobs:
           fi
 
       - name: Sign checksums
-        if: steps.version.outputs.skip != 'true' && secrets.GPG_PRIVATE_KEY != ''
+        if: steps.version.outputs.skip != 'true' && secrets.BOT_GPG_PRIVATE_KEY != ''
         env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           if [ -n "$GPG_PRIVATE_KEY" ]; then

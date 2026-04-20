@@ -92,12 +92,17 @@ runs:
             for tarfile in "$checkpoint_dir"/$format; do
               [ -e "$tarfile" ] || continue
               VALIDATED=$((VALIDATED + 1))
+              # Capture tar's exit code directly via the if-condition so we
+              # don't rely on a subsequent `$?` read that might be shadowed
+              # by any intervening command expansion.
               if [[ "$tarfile" =~ \.(tar\.gz|tgz)$ ]]; then
                 TAR_CONTENTS=$(tar -tzf "$tarfile" 2>&1)
+                TAR_RC=$?
               else
                 TAR_CONTENTS=$(tar -tf "$tarfile" 2>&1)
+                TAR_RC=$?
               fi
-              if [ $? -ne 0 ] || [ -z "$TAR_CONTENTS" ]; then
+              if [ "$TAR_RC" -ne 0 ] || [ -z "$TAR_CONTENTS" ]; then
                 echo "× Invalid: $(basename "$tarfile")"
                 CORRUPTED=1
               else

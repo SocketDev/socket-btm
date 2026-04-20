@@ -41,7 +41,7 @@
 +
  def configure_quic(o):
    o['variables']['node_use_quic'] = b(options.experimental_quic and
-                                       options.openssl_is_boringssl)
+                                       not options.without_ssl)
 @@ -2572,5 +2592,7 @@ configure_library('ngtcp2', output, pkgname='libngtcp2')
  configure_lief(output);
  configure_sqlite(output);

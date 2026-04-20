@@ -33,8 +33,9 @@
  struct SeaConfig {
    std::string main_path;
    std::string output_path;
-@@ -45,6 +64,12 @@
+@@ -45,7 +64,13 @@
    SeaExecArgvExtension exec_argv_extension = SeaExecArgvExtension::kEnv;
+   ModuleFormat main_format = ModuleFormat::kCommonJS;
    std::unordered_map<std::string, std::string> assets;
    std::vector<std::string> exec_argv;
 +#ifdef HAVE_LIEF

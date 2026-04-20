@@ -93,6 +93,21 @@ void FastReadableStreamAccelerator::New(
     return;
   }
 
+  v8::Isolate* isolate = env->isolate();
+
+  // Touch the chunk pool BEFORE allocating the accelerator so we fail fast
+  // and never construct an instance whose chunk_pool_ member is nullptr.
+  // GetChunkPool returns nullptr on OOM (thread_local + nothrow in
+  // webstreams_binding.cc); the constructor initializer list would
+  // otherwise store that nullptr unchecked and later ReadSync would
+  // dereference it.
+  if (GetChunkPool(env) == nullptr) {
+    isolate->ThrowException(v8::Exception::Error(
+        v8::String::NewFromUtf8Literal(isolate,
+            "Out of memory: failed to allocate StreamChunkPool")));
+    return;
+  }
+
   // nothrow + null-check: on OOM, surface a JS Error instead of leaving
   // the caller with a zombie JS object whose native wrapper was never
   // attached (every later method would silently return via
@@ -100,7 +115,6 @@ void FastReadableStreamAccelerator::New(
   auto* accel = new (std::nothrow)
       FastReadableStreamAccelerator(env, args.This());
   if (accel == nullptr) {
-    v8::Isolate* isolate = env->isolate();
     isolate->ThrowException(v8::Exception::Error(
         v8::String::NewFromUtf8Literal(isolate,
             "Out of memory: failed to allocate FastReadableStreamAccelerator")));
@@ -116,6 +130,17 @@ void FastReadableStreamAccelerator::ReadSync(
   Environment* env = self->env();
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
+
+  // Defensive: New() already rejects construction when the pool is null,
+  // so under normal lifecycle this is unreachable. The check guards
+  // against a theoretical thread_local teardown between construction and
+  // first use, which would otherwise SIGSEGV on AcquireChunk.
+  if (SMOL_UNLIKELY(self->chunk_pool_ == nullptr)) {
+    isolate->ThrowException(v8::Exception::Error(
+        v8::String::NewFromUtf8Literal(isolate,
+            "StreamChunkPool unavailable (environment shutting down)")));
+    return;
+  }
 
   // Fast path: return buffered data synchronously.
   if (SMOL_LIKELY(!self->buffer_.empty())) {

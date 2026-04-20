@@ -61,7 +61,16 @@ export const CHECKPOINTS = {
   OPTIMIZED: 'optimized',
 
   // WASM pipeline checkpoints.
-  SOURCE_CLONED: 'source-cloned',
+  //
+  // NOTE: `source-cloned/` directories exist as phase orchestration
+  // folders in yoga-layout-builder/ and onnxruntime-builder/scripts/ but
+  // no code calls createCheckpoint(SOURCE_CLONED) — those packages clone
+  // into a shared source dir that's already covered by the downstream
+  // SOURCE_CONFIGURED checkpoint. Adding SOURCE_CLONED as a constant
+  // without a producer would leave the whitelist, constants, and chain
+  // definitions inconsistent, so we omit it. If a package ever needs an
+  // actual source-cloned checkpoint, add both the constant AND the
+  // createCheckpoint call together.
   SOURCE_COPIED: 'source-copied',
   SOURCE_CONFIGURED: 'source-configured',
   WASM_COMPILED: 'wasm-compiled',

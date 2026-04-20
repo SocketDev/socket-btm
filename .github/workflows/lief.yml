@@ -145,16 +145,6 @@ jobs:
             exit 1
           fi
 
-          # Hash function for directories.
-          hash_dir() {
-            local dir=$1
-            if [ -d "$dir" ]; then
-              find "$dir" -type f \( -name "*.mts" -o -name "*.js" \) 2>/dev/null | sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1 || echo ""
-            else
-              echo ""
-            fi
-          }
-
           # Hash critical inputs.
           # Use libc-specific Dockerfile (glibc or musl) for Linux only.
           # macOS/Windows don't use Docker, so skip Dockerfile hashing to avoid
@@ -174,7 +164,12 @@ jobs:
           # Use find so a new script added under scripts/ is picked up
           # without editing the key composition.
           BUILD_SCRIPTS_HASH=$(find packages/lief-builder/scripts -type f 2>/dev/null | sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
-          LIEF_SUBMODULE_SHA=$(cd packages/lief-builder/upstream/lief && git rev-parse HEAD)
+          # Use git ls-tree HEAD so the cache key can be computed WITHOUT
+          # the submodule being initialized — the SHA is the gitlink
+          # already recorded in HEAD. Mirrors node-smol/iocraft/yoga/
+          # onnxruntime/opentui and unblocks gating the submodule init
+          # step on cache-miss.
+          LIEF_SUBMODULE_SHA=$(git ls-tree HEAD packages/lief-builder/upstream/lief 2>/dev/null | awk '{print $3}')
 
           # Finalized checkpoint hash: cache-version + dockerfile + build-scripts + lief-sha + libc.
           FINAL_HASH=$(echo "${CACHE_VERSION}${DOCKERFILE_HASH}${BUILD_SCRIPTS_HASH}${LIEF_SUBMODULE_SHA}${LIBC}" | $hash_cmd | cut -d' ' -f1)

@@ -264,6 +264,7 @@ jobs:
           package-path: packages/onnxruntime-builder
           build-mode: ${{ steps.build-mode.outputs.mode }}
           package-name: onnxruntime-builder
+          platform-arch: ${{ env.PLATFORM_ARCH }}
 
       - name: Debug build output structure
         env:
@@ -352,6 +353,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
     environment: release
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: write # Required to create GitHub releases
     env:
@@ -406,9 +408,9 @@ jobs:
           cat checksums.txt
 
       - name: Import GPG key
-        if: steps.version.outputs.skip != 'true' && secrets.GPG_PRIVATE_KEY != ''
+        if: steps.version.outputs.skip != 'true' && secrets.BOT_GPG_PRIVATE_KEY != ''
         env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           if [ -n "$GPG_PRIVATE_KEY" ]; then
@@ -419,9 +421,9 @@ jobs:
           fi
 
       - name: Sign checksums
-        if: steps.version.outputs.skip != 'true' && secrets.GPG_PRIVATE_KEY != ''
+        if: steps.version.outputs.skip != 'true' && secrets.BOT_GPG_PRIVATE_KEY != ''
         env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           if [ -n "$GPG_PRIVATE_KEY" ]; then

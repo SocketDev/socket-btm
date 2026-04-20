@@ -174,8 +174,12 @@ jobs:
           PACKAGE_JSON=$($hash_cmd packages/iocraft-builder/package.json | cut -d' ' -f1)
           BUILD_RS=$($hash_cmd packages/iocraft-builder/build.rs | cut -d' ' -f1)
           IOCRAFT_SHA=$(git ls-tree HEAD packages/iocraft-builder/upstream/iocraft 2>/dev/null | awk '{print $3}' || echo "none")
+          # Include .node-version so a Node bump invalidates the cache —
+          # the built .node addon is loaded by the host Node.js and must
+          # match its ABI.
+          NODE_VERSION_HASH=$($hash_cmd .node-version | cut -d' ' -f1)
 
-          FINAL_HASH=$(echo "${CACHE_VERSION}${SRC_HASH}${SCRIPTS_HASH}${PATCHES_HASH}${CARGO_TOML}${PACKAGE_JSON}${BUILD_RS}${IOCRAFT_SHA}" | $hash_cmd | cut -d' ' -f1)
+          FINAL_HASH=$(echo "${CACHE_VERSION}${SRC_HASH}${SCRIPTS_HASH}${PATCHES_HASH}${CARGO_TOML}${PACKAGE_JSON}${BUILD_RS}${IOCRAFT_SHA}${NODE_VERSION_HASH}" | $hash_cmd | cut -d' ' -f1)
 
           echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
           echo "final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
@@ -309,6 +313,7 @@ jobs:
     needs: build
     if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     environment: release # Dedicated environment for secret access with approval gates
     permissions:
       contents: write # Required to create GitHub releases
@@ -374,9 +379,9 @@ jobs:
           cat checksums.txt
 
       - name: Import GPG key
-        if: steps.version.outputs.skip != 'true' && secrets.GPG_PRIVATE_KEY != ''
+        if: steps.version.outputs.skip != 'true' && secrets.BOT_GPG_PRIVATE_KEY != ''
         env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           if [ -n "$GPG_PRIVATE_KEY" ]; then
@@ -387,9 +392,9 @@ jobs:
           fi
 
       - name: Sign checksums
-        if: steps.version.outputs.skip != 'true' && secrets.GPG_PRIVATE_KEY != ''
+        if: steps.version.outputs.skip != 'true' && secrets.BOT_GPG_PRIVATE_KEY != ''
         env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           if [ -n "$GPG_PRIVATE_KEY" ]; then

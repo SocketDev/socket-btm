@@ -104,7 +104,8 @@ The umbrella rule: never run a git command that mutates state belonging to a pat
 - All documentation must live in EITHER a `docs/` tree OR a `README.md`. Nothing else.
 - Markdown filenames use lowercase-kebab-case (`module-architecture.md`), NOT SCREAMING-CASE.
 - Conventional filenames are exempt: `README.md`, `CLAUDE.md`, `LICENSE`, `SECURITY.md`, `SKILL.md`.
-- For docs about code in `additions/`, place under `docs/additions/<mirror-path>/<name>.md`.
+- **Mirror-doc filename exemption**: files under `docs/additions/` that mirror a source file (e.g. `version_subset.js.md` mirrors `version_subset.js`) inherit the source filename verbatim, including underscores. This is intentional — the mirror relationship is easier to see when the filenames match.
+- **Mirror-doc scope**: place `docs/additions/<mirror-path>/<name>.md` only for (a) **public** `lib/smol-*.js` modules that end users import, and (b) **user-facing internal** modules whose behavior is non-obvious from the source (caches, bootstrap glue, VFS providers, range parsers). Internal one-off helpers and C++ bindings are exempt — the source IS the spec. For a subsystem with many small files, a single architecture overview (e.g. `http/module-architecture.md`) replaces per-file docs.
 
 ### Backward Compatibility
 
@@ -193,6 +194,17 @@ ALWAYS use `ObjectKeys()` + indexed for-loop (faster than `for...in` with `hasOw
 ### C++ Code
 
 - **NEVER use C++ exceptions** — Node.js compiled with `-fno-exceptions`. Use status flags.
+- **Allocations at JS entrypoints MUST use `std::nothrow` + null-check + `ThrowException`**. Because `-fno-exceptions` turns `std::bad_alloc` into an `abort()` that kills the whole isolate, every `new T(...)` / `std::make_unique<T>(...)` / `std::make_shared<T>(...)` touched at a binding entry point MUST be written as:
+  ```cpp
+  auto* obj = new (std::nothrow) T(...);
+  if (obj == nullptr) {
+    isolate->ThrowException(v8::Exception::Error(
+        FIXED_ONE_BYTE_STRING(isolate, "Out of memory: ...")));
+    return;  // or roll back any partial state first
+  }
+  ```
+  For `std::make_unique`, use `std::unique_ptr<T>(new (std::nothrow) T(...))`. Helper classes like `FFIBinding::GetStateOrThrow` / `CheckObjectPoolOrThrow` consolidate this on hot call sites.
+  Async work that escapes the current stack (`uv_write`, `uv_queue_work`, `setTimeout`-style) MUST allocate its buffer/state on the heap alongside the libuv request — never on the stack — and `delete` in the callback. Stack buffers passed to async `uv_write` are a use-after-stack bug (libuv reads the buffer at send time, not at `uv_write()` call time).
 - **ALWAYS use full `socketsecurity/...` include paths** (e.g., `#include "socketsecurity/http/http_fast_response.h"`)
 - `env-inl.h` vs `env.h`: include `env-inl.h` if .cc file uses `Environment*` methods
 

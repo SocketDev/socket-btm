@@ -115,8 +115,12 @@ jobs:
           PATCHES_HASH=$(hash_tree packages/ink-builder/patches)
           DOCKER_HASH=$(hash_tree packages/ink-builder/docker)
           YOGA_SHA=$(git ls-tree HEAD packages/yoga-layout-builder/upstream/yoga 2>/dev/null | awk '{print $3}' || echo "none")
+          # ink runs `pnpm test` on the built dist inside Depot — bugs that
+          # only surface at test time can depend on Node version, so a
+          # node bump must invalidate the cache.
+          NODE_VERSION_HASH=$($hash_cmd .node-version | cut -d' ' -f1)
 
-          FINAL_HASH=$(echo "${INK_CACHE_VERSION}${YOGA_CACHE_VERSION}${PACKAGE_JSON}${SCRIPTS_HASH}${PATCHES_HASH}${DOCKER_HASH}${YOGA_SHA}" | $hash_cmd | cut -d' ' -f1)
+          FINAL_HASH=$(echo "${INK_CACHE_VERSION}${YOGA_CACHE_VERSION}${PACKAGE_JSON}${SCRIPTS_HASH}${PATCHES_HASH}${DOCKER_HASH}${YOGA_SHA}${NODE_VERSION_HASH}" | $hash_cmd | cut -d' ' -f1)
 
           echo "ink_cache_version=${INK_CACHE_VERSION}" >> $GITHUB_OUTPUT
           echo "yoga_cache_version=${YOGA_CACHE_VERSION}" >> $GITHUB_OUTPUT
@@ -236,6 +240,7 @@ jobs:
     needs: build
     if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     environment: release # Dedicated environment for secret access with approval gates
     permissions:
       contents: write # Required to create GitHub releases
@@ -299,9 +304,9 @@ jobs:
           cat checksums.txt
 
       - name: Import GPG key
-        if: steps.version.outputs.skip != 'true' && secrets.GPG_PRIVATE_KEY != ''
+        if: steps.version.outputs.skip != 'true' && secrets.BOT_GPG_PRIVATE_KEY != ''
         env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           if [ -n "$GPG_PRIVATE_KEY" ]; then
@@ -312,9 +317,9 @@ jobs:
           fi
 
       - name: Sign checksums
-        if: steps.version.outputs.skip != 'true' && secrets.GPG_PRIVATE_KEY != ''
+        if: steps.version.outputs.skip != 'true' && secrets.BOT_GPG_PRIVATE_KEY != ''
         env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           if [ -n "$GPG_PRIVATE_KEY" ]; then

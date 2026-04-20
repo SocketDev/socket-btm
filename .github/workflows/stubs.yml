@@ -276,7 +276,7 @@ jobs:
         env:
           TARGET_ARCH: ${{ matrix.arch }}
           CROSS_COMPILE: ${{ matrix.cross_compile && '1' || '0' }}
-          DEBUG: ${{ inputs.debug && '1' || '' }}
+          DEBUG: ${{ inputs.debug != '0' && inputs.debug || '' }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           # Build script handles curl dependency download and stub compilation.

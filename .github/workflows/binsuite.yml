@@ -307,6 +307,7 @@ jobs:
           package-path: packages/binpress
           build-mode: ${{ steps.setup-checkpoints.outputs.build-mode }}
           package-name: binpress
+          platform-arch: ${{ steps.platform-arch.outputs.platform_arch }}
 
       - name: Build binpress native (macOS/Windows)
         if: |
@@ -321,7 +322,7 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
           ARCH: ${{ matrix.arch }}
           TARGET_ARCH: ${{ matrix.arch }}
-          DEBUG: ${{ inputs.debug && '1' || '' }}
+          DEBUG: ${{ inputs.debug != '0' && inputs.debug || '' }}
         run: |
           echo "🔨 Building binpress for ${PLATFORM}-${ARCH} (${BUILD_MODE} mode)"
 
@@ -693,6 +694,7 @@ jobs:
           package-path: packages/binflate
           build-mode: ${{ steps.setup-checkpoints.outputs.build-mode }}
           package-name: binflate
+          platform-arch: ${{ steps.platform-arch.outputs.platform_arch }}
 
       - name: Build binflate native (macOS/Windows)
         if: |
@@ -707,7 +709,7 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
           ARCH: ${{ matrix.arch }}
           TARGET_ARCH: ${{ matrix.arch }}
-          DEBUG: ${{ inputs.debug && '1' || '' }}
+          DEBUG: ${{ inputs.debug != '0' && inputs.debug || '' }}
         run: |
           echo "🔨 Building binflate for ${PLATFORM}-${ARCH} (${BUILD_MODE} mode)"
 
@@ -1113,6 +1115,7 @@ jobs:
           package-path: packages/binject
           build-mode: ${{ steps.setup-checkpoints.outputs.build-mode }}
           package-name: binject
+          platform-arch: ${{ steps.platform-arch.outputs.platform_arch }}
 
       - name: Build binject native (macOS/Windows)
         if: |
@@ -1127,7 +1130,7 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
           ARCH: ${{ matrix.arch }}
           TARGET_ARCH: ${{ matrix.arch }}
-          DEBUG: ${{ inputs.debug && '1' || '' }}
+          DEBUG: ${{ inputs.debug != '0' && inputs.debug || '' }}
         run: |
           echo "🔨 Building binject for ${PLATFORM}-${ARCH} (${BUILD_MODE} mode)"
 
@@ -1498,7 +1501,17 @@ jobs:
 
   update-checksums:
     needs: release
-    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    # always() + explicit success check: without always(), a skipped release
+    # matrix entry (e.g. when the user selected tools=binpress and binflate/
+    # binject were filtered out) makes GitHub treat `needs.release` as
+    # unsatisfied and silently cancels this job — so the checksum bump
+    # never lands even though the published tool needs one. Same pattern
+    # as the release job's R8 fix.
+    if: |
+      always()
+      && needs.release.result == 'success'
+      && github.event_name == 'workflow_dispatch'
+      && !inputs.dry_run
     permissions:
       contents: write # release-assets.json commit after publishing GitHub release
     uses: ./.github/workflows/update-checksums.yml

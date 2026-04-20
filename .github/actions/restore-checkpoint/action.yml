@@ -110,7 +110,7 @@ runs:
 
         # Whitelist of valid checkpoint types - must match the case statement below.
         # This catches unknown checkpoints EARLY before any file operations.
-        VALID_CHECKPOINTS="finalized|lief-built|mbedtls-built|binary-compressed|binary-stripped|binary-released|native-built|wasm-synced|wasm-released|wasm-optimized|wasm-compiled|source-configured|optimized|quantized|converted|downloaded|source-cloned|source-copied|source-patched"
+        VALID_CHECKPOINTS="finalized|lief-built|mbedtls-built|binary-compressed|binary-stripped|binary-released|native-built|wasm-synced|wasm-released|wasm-optimized|wasm-compiled|source-configured|optimized|quantized|converted|downloaded|source-copied|source-patched"
 
         for CHECKPOINT in "${CHECKPOINTS[@]}"; do
           # Validate checkpoint name is in whitelist (catches typos and unknown types early).
@@ -120,7 +120,7 @@ runs:
             exit 1
           fi
 
-          if [ "${CHECKPOINT}" = "source-cloned" ] || [ "${CHECKPOINT}" = "source-copied" ]; then
+          if [ "${CHECKPOINT}" = "source-copied" ]; then
             CHECKPOINT_FILE="${SHARED_CHECKPOINT_DIR}/${CHECKPOINT}.tar.gz"
           else
             CHECKPOINT_FILE="${MODE_CHECKPOINT_DIR}/${CHECKPOINT}.tar.gz"
@@ -170,7 +170,7 @@ runs:
         echo "✅ Restoring: ${RESTORED_CHECKPOINT} (index ${RESTORED_INDEX})"
 
         # Get checkpoint file path
-        if [ "${RESTORED_CHECKPOINT}" = "source-cloned" ] || [ "${RESTORED_CHECKPOINT}" = "source-copied" ]; then
+        if [ "${RESTORED_CHECKPOINT}" = "source-copied" ]; then
           CHECKPOINT_FILE="${SHARED_CHECKPOINT_DIR}/${RESTORED_CHECKPOINT}.tar.gz"
         else
           CHECKPOINT_FILE="${MODE_CHECKPOINT_DIR}/${RESTORED_CHECKPOINT}.tar.gz"
@@ -192,7 +192,6 @@ runs:
           wasm-compiled) EXTRACT_DIR="${OUTPUT_DIR}/Compiled" ;;
           source-configured) EXTRACT_DIR="${MODE_SOURCE_DIR}" ;;
           optimized|quantized|converted|downloaded) EXTRACT_DIR="packages/${PACKAGE_NAME}/build/${BUILD_MODE}/models" ;;
-          source-cloned) EXTRACT_DIR="${SHARED_SOURCE_DIR}" ;;
           source-copied) EXTRACT_DIR="${SHARED_SOURCE_DIR}" ;;
           source-patched) EXTRACT_DIR="${MODE_SOURCE_DIR}" ;;
           *)

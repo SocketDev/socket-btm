@@ -66,16 +66,16 @@
   },
   "iocraft": {
     "description": "iocraft native Node.js bindings",
-    "tag": "iocraft-20260423-168d476",
+    "tag": "iocraft-20260424-18f0f46",
     "checksums": {
-      "iocraft-20260423-168d476-darwin-arm64.node": "777db945cc439a64351ea6dae6dfa8d2f4e8765967eda0aabfd3117b83186eb8",
-      "iocraft-20260423-168d476-darwin-x64.node": "2eb4439904479efc2ab0e9e1b2e6bf7e4cae46964d941e4c5ce60812abd1ba8b",
-      "iocraft-20260423-168d476-linux-arm64-musl.node": "36542893ed2d91257224e34d034a7c21fdeb5bccd663a53b6695268ed2f24240",
-      "iocraft-20260423-168d476-linux-arm64.node": "b8a162128ec37024918c6f2b537d34a2d48fbc55f363579edae052679cc7b67a",
-      "iocraft-20260423-168d476-linux-x64-musl.node": "ad5e57b8fa1e312719737f897b524b247e3749611fb8ad905d4f877d4a3779e6",
-      "iocraft-20260423-168d476-linux-x64.node": "ad19098516e4486f29a926730f7503677de6d37ba6c0d250641b1b5aa71dc645",
-      "iocraft-20260423-168d476-win-arm64.node": "b365eb53e4ba7e54a45eb6adaefd96de38406d470d29c1c6d579c5981a5750ca",
-      "iocraft-20260423-168d476-win-x64.node": "d284641db2b79e2d23465c7f62518d53969f3ab5c5f0374162267f0631c3d903"
+      "iocraft-20260424-18f0f46-darwin-arm64.node": "c3eeea2ee77d7ddb4dd7f8d9c1feecc28001cbdf657cd88caa54f910f98c4027",
+      "iocraft-20260424-18f0f46-darwin-x64.node": "98f579a65d95da8bba05c12b4739dc426d244b3a7104a85528f7ff9c9b59348e",
+      "iocraft-20260424-18f0f46-linux-arm64-musl.node": "6674e7b2e0922c542bc29c7e350aa601a7c98a050239a1b3baf66d743f2565dc",
+      "iocraft-20260424-18f0f46-linux-arm64.node": "75222bc5475b4172c98e287e5c97a26c99c7e66a08c3382f8b15c117a9bfc801",
+      "iocraft-20260424-18f0f46-linux-x64-musl.node": "5a4cc4c7f6ce2c1e9ba7b44019bc97bbe99b737a3cefadd60b02f10d0a508f5c",
+      "iocraft-20260424-18f0f46-linux-x64.node": "d25c1e412ffa21aad33db06489ff4aac6fb7d4b7403f3b98484fdb5497498dcd",
+      "iocraft-20260424-18f0f46-win-arm64.node": "b70b3501f8fa25a38e93043a26587f4d8b2dc8da16950339a8b28b53e43620ac",
+      "iocraft-20260424-18f0f46-win-x64.node": "59177480a2afb6e301a78e0adbd87bae284667c839c9f5d586ff75655fe7fc8f"
     }
   },
   "lief": {
@@ -126,16 +126,16 @@
   },
   "opentui": {
     "description": "OpenTUI native Node.js bindings",
-    "tag": "opentui-20260424-b58daca",
+    "tag": "opentui-20260424-18f0f46",
     "checksums": {
-      "opentui-20260424-b58daca-darwin-arm64.node": "9f070fbaba45a6a949265944ab4202195b90a2db49ed7640686466dcbcc34dcb",
-      "opentui-20260424-b58daca-darwin-x64.node": "be12d2b2edcf3835747b07f103ccb93062842618bb9a1f8e839f222ddb091436",
-      "opentui-20260424-b58daca-linux-arm64-musl.node": "8961a00a0cf9f98d906a71a6d818b7cb32df4cc9995b389c32c2604e5874fb79",
-      "opentui-20260424-b58daca-linux-arm64.node": "ddf1da53a7de87d3a3572fb82a70db571e924bbce62108bc60898d8d26d06257",
-      "opentui-20260424-b58daca-linux-x64-musl.node": "8fc57a8e4b9f2ae8ac62d015cb3556228ffc0ff883822b1bd3100db2d746002d",
-      "opentui-20260424-b58daca-linux-x64.node": "10505b03445742de2bfd50a2a3fcb8f69eb8531a428b01ea783a639a2abdca55",
-      "opentui-20260424-b58daca-win-arm64.node": "6653d9a5ce8a1974bef5914143519226c30315925a0e9caca50783b2b87ef0d4",
-      "opentui-20260424-b58daca-win-x64.node": "429604631818b86353fb54cda01ca11ef6e183735d18fd9af98843c60c4ecac5"
+      "opentui-20260424-18f0f46-darwin-arm64.node": "9f070fbaba45a6a949265944ab4202195b90a2db49ed7640686466dcbcc34dcb",
+      "opentui-20260424-18f0f46-darwin-x64.node": "be12d2b2edcf3835747b07f103ccb93062842618bb9a1f8e839f222ddb091436",
+      "opentui-20260424-18f0f46-linux-arm64-musl.node": "8961a00a0cf9f98d906a71a6d818b7cb32df4cc9995b389c32c2604e5874fb79",
+      "opentui-20260424-18f0f46-linux-arm64.node": "ddf1da53a7de87d3a3572fb82a70db571e924bbce62108bc60898d8d26d06257",
+      "opentui-20260424-18f0f46-linux-x64-musl.node": "8fc57a8e4b9f2ae8ac62d015cb3556228ffc0ff883822b1bd3100db2d746002d",
+      "opentui-20260424-18f0f46-linux-x64.node": "10505b03445742de2bfd50a2a3fcb8f69eb8531a428b01ea783a639a2abdca55",
+      "opentui-20260424-18f0f46-win-arm64.node": "6653d9a5ce8a1974bef5914143519226c30315925a0e9caca50783b2b87ef0d4",
+      "opentui-20260424-18f0f46-win-x64.node": "429604631818b86353fb54cda01ca11ef6e183735d18fd9af98843c60c4ecac5"
     }
   },
   "stubs": {

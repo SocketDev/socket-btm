@@ -27,6 +27,10 @@ import { CHECKPOINTS } from '../lib/constants.mts'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(__dirname, '../../..')
 
+// Binary-stage checkpoints require explicit {platform, arch}; these tests
+// exercise the checkpoint machinery generically, so any concrete target works.
+const TARGET = { platform: 'linux', arch: 'x64' } as const
+
 describe('checkpoint-manager', () => {
   let testBuildDir: string
 
@@ -59,6 +63,7 @@ describe('checkpoint-manager', () => {
 
     it('should return true for existing checkpoint', async () => {
       await createCheckpoint(testBuildDir, 'exists', async () => {}, {
+        ...TARGET,
         packageName: 'test-pkg',
       })
       const exists = await hasCheckpoint(testBuildDir, 'test-pkg', 'exists')
@@ -69,6 +74,7 @@ describe('checkpoint-manager', () => {
   describe(createCheckpoint, () => {
     it('should create checkpoint file', async () => {
       await createCheckpoint(testBuildDir, 'test-checkpoint', async () => {}, {
+        ...TARGET,
         packageName: 'test-pkg',
       })
 
@@ -84,6 +90,7 @@ describe('checkpoint-manager', () => {
     it('should create checkpoint with metadata', async () => {
       const metadata = { foo: 'bar', num: 123 }
       await createCheckpoint(testBuildDir, 'test-checkpoint', async () => {}, {
+        ...TARGET,
         packageName: 'test-pkg',
         ...metadata,
       })
@@ -101,6 +108,7 @@ describe('checkpoint-manager', () => {
 
     it('should create nested checkpoint directories', async () => {
       await createCheckpoint(testBuildDir, 'checkpoint', async () => {}, {
+        ...TARGET,
         packageName: 'nested/pkg/name',
       })
 
@@ -127,6 +135,7 @@ describe('checkpoint-manager', () => {
     it('should return checkpoint data', async () => {
       const metadata = { hash: 'abc123', version: '1.0.0' }
       await createCheckpoint(testBuildDir, 'checkpoint', async () => {}, {
+        ...TARGET,
         packageName: 'test-pkg',
         ...metadata,
       })
@@ -150,12 +159,15 @@ describe('checkpoint-manager', () => {
 
     it('should list all checkpoints for package', async () => {
       await createCheckpoint(testBuildDir, 'checkpoint-1', async () => {}, {
+        ...TARGET,
         packageName: 'test-pkg',
       })
       await createCheckpoint(testBuildDir, 'checkpoint-2', async () => {}, {
+        ...TARGET,
         packageName: 'test-pkg',
       })
       await createCheckpoint(testBuildDir, 'checkpoint-3', async () => {}, {
+        ...TARGET,
         packageName: 'test-pkg',
       })
 
@@ -168,12 +180,15 @@ describe('checkpoint-manager', () => {
 
     it('should return sorted checkpoint names', async () => {
       await createCheckpoint(testBuildDir, 'zebra', async () => {}, {
+        ...TARGET,
         packageName: 'test-pkg',
       })
       await createCheckpoint(testBuildDir, 'alpha', async () => {}, {
+        ...TARGET,
         packageName: 'test-pkg',
       })
       await createCheckpoint(testBuildDir, 'beta', async () => {}, {
+        ...TARGET,
         packageName: 'test-pkg',
       })
 
@@ -185,9 +200,11 @@ describe('checkpoint-manager', () => {
   describe(removeCheckpoint, () => {
     it('should remove specific checkpoint', async () => {
       await createCheckpoint(testBuildDir, 'keep', async () => {}, {
+        ...TARGET,
         packageName: 'test-pkg',
       })
       await createCheckpoint(testBuildDir, 'remove', async () => {}, {
+        ...TARGET,
         packageName: 'test-pkg',
       })
 
@@ -209,12 +226,15 @@ describe('checkpoint-manager', () => {
   describe(cleanCheckpoint, () => {
     it('should remove all checkpoints for package', async () => {
       await createCheckpoint(testBuildDir, 'checkpoint-1', async () => {}, {
+        ...TARGET,
         packageName: 'test-pkg',
       })
       await createCheckpoint(testBuildDir, 'checkpoint-2', async () => {}, {
+        ...TARGET,
         packageName: 'test-pkg',
       })
       await createCheckpoint(testBuildDir, 'checkpoint-3', async () => {}, {
+        ...TARGET,
         packageName: 'test-pkg',
       })
 
@@ -226,9 +246,11 @@ describe('checkpoint-manager', () => {
 
     it('should not affect other packages', async () => {
       await createCheckpoint(testBuildDir, 'checkpoint', async () => {}, {
+        ...TARGET,
         packageName: 'pkg-1',
       })
       await createCheckpoint(testBuildDir, 'checkpoint', async () => {}, {
+        ...TARGET,
         packageName: 'pkg-2',
       })
 
@@ -254,6 +276,7 @@ describe('checkpoint-manager', () => {
 
     it('should return false when checkpoint exists', async () => {
       await createCheckpoint(testBuildDir, 'existing', async () => {}, {
+        ...TARGET,
         packageName: 'test-pkg',
       })
       const result = await shouldRun(
@@ -267,6 +290,7 @@ describe('checkpoint-manager', () => {
 
     it('should return true when force flag is set', async () => {
       await createCheckpoint(testBuildDir, 'existing', async () => {}, {
+        ...TARGET,
         packageName: 'test-pkg',
       })
       const result = await shouldRun(testBuildDir, 'test-pkg', 'existing', true)
@@ -294,9 +318,11 @@ describe('checkpoint-manager', () => {
 
       // Create checkpoints in different build directories
       await createCheckpoint(devBuildDir, 'checkpoint', async () => {}, {
+        ...TARGET,
         packageName: 'test-pkg',
       })
       await createCheckpoint(prodBuildDir, 'checkpoint', async () => {}, {
+        ...TARGET,
         packageName: 'test-pkg',
       })
 
@@ -344,6 +370,7 @@ describe('checkpoint-manager', () => {
           // Smoke test
         },
         {
+          ...TARGET,
           artifactPath: artifactDir,
           packageName: 'test-pkg',
         },
@@ -411,6 +438,7 @@ describe('checkpoint-manager', () => {
         CHECKPOINTS.WASM_COMPILED,
         async () => {},
         {
+          ...TARGET,
           artifactPath: artifactDir,
           packageName: 'test-pkg',
         },
@@ -465,6 +493,7 @@ describe('checkpoint-manager', () => {
         CHECKPOINTS.BINARY_COMPRESSED,
         async () => {},
         {
+          ...TARGET,
           artifactPath: artifactDir,
           packageName: 'test-pkg',
         },

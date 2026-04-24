@@ -1,64 +1,36 @@
 {
   "$schema": "./lib/external-tools-schema.json",
-  "description": "Shared external tools for ML model building (PyTorch, ONNX, Transformers)",
+  "description": "Shared external tools for ML model building (PyTorch, ONNX, Transformers). Canonical schema: each entry pins a single `version` and, for pip packages, declares `packageManager: \"pip\"` so loadPythonVersions picks them up.",
   "tools": {
     "python3": {
       "description": "Python 3 interpreter (required for all ML tools)",
-      "packages": {
-        "darwin": {
-          "brew": "python3"
-        },
-        "linux": {
-          "apt": "python3",
-          "yum": "python3",
-          "dnf": "python3",
-          "apk": "python3"
-        },
-        "win32": {
-          "choco": "python",
-          "scoop": "python"
-        }
-      },
-      "versions": {
-        "brew": "3.13.1",
-        "apt": "3.10.12",
-        "choco": "3.13.1"
-      }
+      "version": "3.13.1",
+      "notes": "Pin matches the canonical build-infra python (3.11 floor; 3.13.1 on macOS via brew). The host package manager may resolve a nearby version on Linux (apt: 3.10.12) and Windows (choco: 3.13.1) — these are informational only; the scripts probe with getPythonCommand() at runtime."
     },
     "transformers": {
       "description": "Hugging Face Transformers library",
-      "type": "python",
-      "versions": {
-        "pip": "4.53.3"
-      }
+      "version": "4.53.3",
+      "packageManager": "pip"
     },
     "torch": {
       "description": "PyTorch machine learning framework",
-      "type": "python",
-      "versions": {
-        "pip": "2.10.0"
-      }
+      "version": "2.10.0",
+      "packageManager": "pip"
     },
     "onnx": {
       "description": "ONNX - Open Neural Network Exchange",
-      "type": "python",
-      "versions": {
-        "pip": "1.20.1"
-      }
+      "version": "1.20.1",
+      "packageManager": "pip"
     },
     "onnxruntime": {
       "description": "ONNX Runtime inference engine",
-      "type": "python",
-      "versions": {
-        "pip": "1.24.4"
-      }
+      "version": "1.24.4",
+      "packageManager": "pip"
     },
     "onnxscript": {
       "description": "ONNX Script for model authoring and export",
-      "type": "python",
-      "versions": {
-        "pip": "0.6.2"
-      }
+      "version": "0.6.2",
+      "packageManager": "pip"
     }
   }
 }

@@ -116,7 +116,7 @@
   },
   "onnxruntime": {
     "description": "ONNX Runtime WASM build",
-    "tag": "onnxruntime-20260423-b609bcb",
+    "tag": "onnxruntime-20260424-18f0f46",
     "checksums": {
       "ort.wasm": "0744d0f013b2f7b99ad2a514282d4fa7041d19e171ebb71fc8b1613a8b157051",
       "ort-sync.mjs": "1fc74d57abf85a0145c97861ab3eeb5ecae0958964e5e54c8bc1663306bfe9a6",

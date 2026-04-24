@@ -1,0 +1,284 @@
+'use strict'
+
+// Documentation: docs/additions/lib/internal/socketsecurity/http/constants.js.md
+
+const { ObjectFreeze, hardenRegExp } = primordials
+
+const { BufferFrom } = require('internal/socketsecurity/safe-references')
+
+// ============================================================================
+// HTTP Status Text Lookup
+// ============================================================================
+
+const STATUS_TEXT = ObjectFreeze({
+  __proto__: null,
+  200: 'OK',
+  201: 'Created',
+  204: 'No Content',
+  301: 'Moved Permanently',
+  302: 'Found',
+  304: 'Not Modified',
+  400: 'Bad Request',
+  401: 'Unauthorized',
+  403: 'Forbidden',
+  404: 'Not Found',
+  405: 'Method Not Allowed',
+  500: 'Internal Server Error',
+  502: 'Bad Gateway',
+  503: 'Service Unavailable',
+})
+
+// ============================================================================
+// Hardened Regex Patterns (protected from prototype pollution)
+// ============================================================================
+
+const SLASH_REGEX = hardenRegExp(/\//)
+
+// ============================================================================
+// Pre-computed Response Buffers (zero allocation on hot path)
+// ============================================================================
+
+const HTTP_200_JSON = BufferFrom(
+  'HTTP/1.1 200 OK\r\n' +
+    'Content-Type: application/json\r\n' +
+    'Connection: keep-alive\r\n' +
+    'Content-Length: ',
+)
+
+const HTTP_200_TEXT = BufferFrom(
+  'HTTP/1.1 200 OK\r\n' +
+    'Content-Type: text/plain\r\n' +
+    'Connection: keep-alive\r\n' +
+    'Content-Length: ',
+)
+
+// Complete response for empty string - single write, zero allocation!
+const HTTP_200_EMPTY = BufferFrom(
+  'HTTP/1.1 200 OK\r\n' +
+    'Content-Type: text/plain\r\n' +
+    'Content-Length: 0\r\n' +
+    'Connection: keep-alive\r\n\r\n',
+)
+
+const HTTP_404 = BufferFrom(
+  'HTTP/1.1 404 Not Found\r\n' +
+    'Content-Length: 0\r\n' +
+    'Connection: keep-alive\r\n\r\n',
+)
+
+// Binary (octet-stream) response prefix
+const HTTP_200_BINARY = BufferFrom(
+  'HTTP/1.1 200 OK\r\n' +
+    'Content-Type: application/octet-stream\r\n' +
+    'Connection: keep-alive\r\n' +
+    'Content-Length: ',
+)
+
+// 413 response with JSON body
+const HTTP_413_BODY =
+  '{"error":"Payload Too Large","message":"Request body exceeds maxBodySize limit"}'
+const HTTP_413 = BufferFrom(
+  'HTTP/1.1 413 Payload Too Large\r\n' +
+    'Content-Type: application/json\r\n' +
+    `Content-Length: ${HTTP_413_BODY.length}\r\n` +
+    'Connection: close\r\n' +
+    '\r\n' +
+    HTTP_413_BODY,
+)
+
+const HTTP_500 = BufferFrom(
+  'HTTP/1.1 500 Internal Server Error\r\n' +
+    'Content-Length: 0\r\n' +
+    'Connection: keep-alive\r\n\r\n',
+)
+
+const CRLF_BUF = BufferFrom('\r\n\r\n')
+
+// ============================================================================
+// Content-Length Cache (avoids string allocation for 99.9% of responses)
+// ============================================================================
+
+const CONTENT_LENGTH_CACHE_SIZE = 10_000
+let _contentLengthCache
+function getContentLengthCache() {
+  if (!_contentLengthCache) {
+    _contentLengthCache = new Array(CONTENT_LENGTH_CACHE_SIZE)
+    for (let i = 0; i < CONTENT_LENGTH_CACHE_SIZE; i++) {
+      _contentLengthCache[i] = BufferFrom(i + '\r\n\r\n')
+    }
+  }
+  return _contentLengthCache
+}
+
+// ============================================================================
+// Status Line Cache (avoids string concatenation for common status codes)
+// Format: "HTTP/1.1 {status} {text}\r\nContent-Length: "
+// ============================================================================
+
+const STATUS_LINE_CACHE = ObjectFreeze({
+  __proto__: null,
+  200: BufferFrom('HTTP/1.1 200 OK\r\nContent-Length: '),
+  201: BufferFrom('HTTP/1.1 201 Created\r\nContent-Length: '),
+  204: BufferFrom('HTTP/1.1 204 No Content\r\nContent-Length: '),
+  301: BufferFrom('HTTP/1.1 301 Moved Permanently\r\nContent-Length: '),
+  302: BufferFrom('HTTP/1.1 302 Found\r\nContent-Length: '),
+  304: BufferFrom('HTTP/1.1 304 Not Modified\r\nContent-Length: '),
+  400: BufferFrom('HTTP/1.1 400 Bad Request\r\nContent-Length: '),
+  401: BufferFrom('HTTP/1.1 401 Unauthorized\r\nContent-Length: '),
+  403: BufferFrom('HTTP/1.1 403 Forbidden\r\nContent-Length: '),
+  404: BufferFrom('HTTP/1.1 404 Not Found\r\nContent-Length: '),
+  405: BufferFrom('HTTP/1.1 405 Method Not Allowed\r\nContent-Length: '),
+  500: BufferFrom('HTTP/1.1 500 Internal Server Error\r\nContent-Length: '),
+  502: BufferFrom('HTTP/1.1 502 Bad Gateway\r\nContent-Length: '),
+  503: BufferFrom('HTTP/1.1 503 Service Unavailable\r\nContent-Length: '),
+})
+
+// Pre-computed "Connection: keep-alive\r\n" header
+const KEEP_ALIVE_HEADER = BufferFrom('Connection: keep-alive\r\n')
+
+// ============================================================================
+// Pre-computed Content-Type Headers (for Response object fast paths)
+// ============================================================================
+
+// Common Content-Type + Connection combinations for Response objects
+const CT_JSON_KEEPALIVE = BufferFrom(
+  'Content-Type: application/json\r\nConnection: keep-alive\r\n\r\n',
+)
+const CT_TEXT_KEEPALIVE = BufferFrom(
+  'Content-Type: text/plain\r\nConnection: keep-alive\r\n\r\n',
+)
+const CT_HTML_KEEPALIVE = BufferFrom(
+  'Content-Type: text/html\r\nConnection: keep-alive\r\n\r\n',
+)
+
+// Content-Type lookup for fast header generation (lowercase keys)
+const CONTENT_TYPE_HEADERS = ObjectFreeze({
+  __proto__: null,
+  'application/json': CT_JSON_KEEPALIVE,
+  'text/plain': CT_TEXT_KEEPALIVE,
+  'text/html': CT_HTML_KEEPALIVE,
+})
+
+// ============================================================================
+// Common Header Names Cache (avoids toLowerCase allocations)
+// ============================================================================
+
+const COMMON_HEADER_NAMES = ObjectFreeze({
+  __proto__: null,
+  'Content-Type': 'content-type',
+  'content-type': 'content-type',
+  'Content-Length': 'content-length',
+  'content-length': 'content-length',
+  Host: 'host',
+  host: 'host',
+  'User-Agent': 'user-agent',
+  'user-agent': 'user-agent',
+  Accept: 'accept',
+  accept: 'accept',
+  Connection: 'connection',
+  connection: 'connection',
+  Upgrade: 'upgrade',
+  upgrade: 'upgrade',
+  'Sec-WebSocket-Key': 'sec-websocket-key',
+  'sec-websocket-key': 'sec-websocket-key',
+  'Sec-WebSocket-Version': 'sec-websocket-version',
+  'sec-websocket-version': 'sec-websocket-version',
+  Authorization: 'authorization',
+  authorization: 'authorization',
+  'Cache-Control': 'cache-control',
+  'cache-control': 'cache-control',
+  'Accept-Encoding': 'accept-encoding',
+  'accept-encoding': 'accept-encoding',
+})
+
+// ============================================================================
+// Default Limits for DoS Prevention
+// ============================================================================
+
+const DEFAULT_MAX_BODY_SIZE = 10 * 1024 * 1024 // 10MB
+const DEFAULT_MAX_HEADER_SIZE = 16 * 1024 // 16KB
+
+// ============================================================================
+// HTTP/2 Server Defaults
+// ============================================================================
+
+// Maximum concurrent HTTP/2 streams per connection (default: 100 in Node, bumped).
+const DEFAULT_HTTP2_MAX_CONCURRENT_STREAMS = 1000
+// Initial HTTP/2 window size (1 MiB) — larger than RFC 7540 default for throughput.
+const DEFAULT_HTTP2_INITIAL_WINDOW_SIZE = 1_048_576
+// Maximum HTTP/2 frame size (RFC 7540 minimum).
+const DEFAULT_HTTP2_MAX_FRAME_SIZE = 16_384
+// Maximum HTTP/2 header list size (64 KiB).
+const DEFAULT_HTTP2_MAX_HEADER_LIST_SIZE = 65_536
+// Idle HTTP/2 session timeout (2 minutes).
+const DEFAULT_HTTP2_SESSION_TIMEOUT = 120_000
+
+// ============================================================================
+// HTTP Server Defaults
+// ============================================================================
+
+// Default listen port when none specified.
+const DEFAULT_SERVER_PORT = 3000
+// Default bind address — all interfaces.
+const DEFAULT_SERVER_HOSTNAME = '0.0.0.0'
+
+// ============================================================================
+// undici Client Defaults
+// ============================================================================
+
+// Keep-alive timeout before closing idle sockets (10s).
+const DEFAULT_KEEP_ALIVE_TIMEOUT = 10_000
+// Maximum keep-alive timeout a server response may request (10 min).
+const DEFAULT_KEEP_ALIVE_MAX_TIMEOUT = 600_000
+
+// Empty string constant to avoid allocations
+const EMPTY_STRING = ''
+
+module.exports = {
+  __proto__: null,
+  // Status text
+  STATUS_TEXT,
+  // Regex
+  SLASH_REGEX,
+  // Pre-computed buffers
+  HTTP_200_JSON,
+  HTTP_200_TEXT,
+  HTTP_200_EMPTY,
+  HTTP_200_BINARY,
+  HTTP_404,
+  HTTP_413,
+  HTTP_500,
+  CRLF_BUF,
+  // Content-length cache
+  CONTENT_LENGTH_CACHE_SIZE,
+  get CONTENT_LENGTH_CACHE() {
+    return getContentLengthCache()
+  },
+  // Status line cache
+  STATUS_LINE_CACHE,
+  KEEP_ALIVE_HEADER,
+  // Header names cache
+  COMMON_HEADER_NAMES,
+  // Pre-computed Content-Type headers
+  CT_JSON_KEEPALIVE,
+  CT_TEXT_KEEPALIVE,
+  CT_HTML_KEEPALIVE,
+  CONTENT_TYPE_HEADERS,
+  // Limits
+  DEFAULT_MAX_BODY_SIZE,
+  DEFAULT_MAX_HEADER_SIZE,
+  // HTTP/2 defaults
+  DEFAULT_HTTP2_MAX_CONCURRENT_STREAMS,
+  DEFAULT_HTTP2_INITIAL_WINDOW_SIZE,
+  DEFAULT_HTTP2_MAX_FRAME_SIZE,
+  DEFAULT_HTTP2_MAX_HEADER_LIST_SIZE,
+  DEFAULT_HTTP2_SESSION_TIMEOUT,
+  // Server defaults
+  DEFAULT_SERVER_PORT,
+  DEFAULT_SERVER_HOSTNAME,
+  // Client defaults
+  DEFAULT_KEEP_ALIVE_TIMEOUT,
+  DEFAULT_KEEP_ALIVE_MAX_TIMEOUT,
+  // Constants
+  EMPTY_STRING,
+}

@@ -1,0 +1,16 @@
+# Patch format allowlist for check-patch-format.mts.
+#
+# Each entry opts a specific patch file out of a specific format rule.
+# Entries require a `reason` field so future readers can audit whether
+# the exception is still valid — when it's not, the entry (and the
+# underlying patch filename/content) should be updated, not the rule
+# loosened.
+#
+# Format:
+#   - file: <path relative to repo root>
+#     rule: <rule id from scripts/check-patch-format.mts>
+#     reason: <one-paragraph justification>
+
+- file: packages/node-smol-builder/patches/source-patched/016-http-server-wire.patch
+  rule: numbered-series-gap
+  reason: "Patch 015 was intentionally removed during R17 (see earlier quality-loop notes). Renumbering 016-022 down to 015-021 would rewrite every subsequent patch filename, break external references in skill/reference docs, and provide no functional benefit — the build applies patches in filename-sort order, which is insensitive to gaps. Keep the gap and document it here so check-patch-format.mts doesn't flag it every CI run."

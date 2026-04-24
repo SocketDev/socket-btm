@@ -1,0 +1,33 @@
+{
+  "name": "napi-go",
+  "version": "0.0.0",
+  "description": "Go → Node.js N-API framework. Source-distributed; consumed by downstream builders.",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./cli": {
+      "types": "./cli/src/index.d.ts",
+      "default": "./cli/src/index.mts"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "node scripts/build.mts",
+    "build:dev": "node scripts/build.mts --dev",
+    "build:force": "node scripts/build.mts --force",
+    "build:prod": "node scripts/build.mts --prod",
+    "clean": "node scripts/clean.mts",
+    "cover": "vitest run --coverage",
+    "postinstall": "node scripts/setup-build-toolchain.mts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@socketsecurity/lib": "catalog:",
+    "build-infra": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "catalog:",
+    "vitest": "catalog:"
+  }
+}

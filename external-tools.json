@@ -1,0 +1,5 @@
+{
+  "$schema": "./packages/build-infra/lib/external-tools-schema.json",
+  "description": "Socket-btm root manifest. Inherits the foundational tool set from packages/build-infra. Package-specific tools live in each packages/<name>/external-tools.json and are loaded alongside these via the hierarchical merging in packages/build-infra/lib/pinned-versions.mts.",
+  "extends": "./packages/build-infra/external-tools.json"
+}

@@ -1,0 +1,18 @@
+# @ink-versions: v7.0.0
+# @description: Fix signal-exit ESM named export import in build/ink.js
+#
+# Upstream signal-exit v4+ ships as ESM with a named export (`onExit`), not
+# a default export. ink's compiled build/ink.js still uses the pre-v4 default
+# import, which breaks when the package is resolved as pure ESM.
+#
+--- a/build/ink.js
++++ b/build/ink.js
+@@ -4,7 +4,7 @@
+ import ansiEscapes from 'ansi-escapes';
+ import isInCi from 'is-in-ci';
+ import autoBind from 'auto-bind';
+-import signalExit from 'signal-exit';
++import { onExit as signalExit } from 'signal-exit';
+ import patchConsole from 'patch-console';
+ import { LegacyRoot, ConcurrentRoot } from 'react-reconciler/constants.js';
+ import Yoga from 'yoga-layout';

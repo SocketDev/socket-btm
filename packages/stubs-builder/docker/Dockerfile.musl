@@ -1,0 +1,103 @@
+# Build SMOL stubs in container to offload compute from GitHub Actions.
+# This Dockerfile supports building for linux/amd64 and linux/arm64.
+# musl variant using Alpine 3.19.
+
+FROM alpine:3.20 AS build
+
+# Install build dependencies.
+RUN apk add --no-cache \
+        gcc \
+        g++ \
+        git \
+        make \
+        curl \
+        ca-certificates \
+        musl-dev \
+        openssl-dev \
+        openssl-libs-static \
+        zlib-dev \
+        zlib-static
+
+# Install Node.js from official musl binaries (Alpine packages lag behind).
+ARG NODE_VERSION=25.9.0
+RUN ARCH=$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/') && \
+    curl -fsSL "https://unofficial-builds.nodejs.org/download/release/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${ARCH}-musl.tar.xz" \
+      | tar -xJ -C /usr/local --strip-components=1
+
+# Socket-registry tool-checksums. Workflows `cp "$SOCKET_TOOL_CHECKSUMS_FILE"
+# .build-context/registry-tools.json` before `docker build`, so this
+# layer reads the same authoritative pnpm version socket-registry pins
+# — no hardcoded version in this Dockerfile. The file is gitignored;
+# it materializes fresh for every CI run from socket-registry's
+# pinned SHA.
+COPY .build-context/registry-tools.json /tmp/registry-tools.json
+
+# Install pnpm (native binary is glibc-only, use npm on musl).
+RUN apk add --no-cache jq && \
+    PNPM_VERSION=$(jq -r .pnpm.version /tmp/registry-tools.json) && \
+    npm install -g "pnpm@${PNPM_VERSION}" && \
+    rm /tmp/registry-tools.json
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy workspace configuration files (needed for pnpm workspace).
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .gitmodules .node-version ./
+
+# Copy build-infra package (workspace dependency).
+COPY packages/build-infra ./packages/build-infra
+
+# Copy bin-infra package (binary format handling).
+COPY packages/bin-infra ./packages/bin-infra
+
+# Copy curl-builder package (workspace dependency for stubs).
+COPY packages/curl-builder ./packages/curl-builder
+
+# Copy lief-builder package (workspace dependency).
+COPY packages/lief-builder/make ./packages/lief-builder/make
+COPY packages/lief-builder/upstream ./packages/lief-builder/upstream
+
+# Copy stubs-builder package (what we're building).
+COPY packages/stubs-builder ./packages/stubs-builder
+
+# Copy node-smol-builder package (workspace dependency).
+COPY packages/node-smol-builder ./packages/node-smol-builder
+
+# Copy the zstd ensure script before running it.
+COPY .github/scripts/ensure-zstd.sh .github/scripts/
+
+# Ensure vendored zstd source is available (submodule may not be in Docker context).
+RUN .github/scripts/ensure-zstd.sh
+
+# Install workspace dependencies.
+ENV CI=true
+RUN pnpm install --frozen-lockfile --filter build-infra --filter bin-infra --filter curl-builder --filter stubs-builder --filter node-smol-builder
+
+# Build stubs.
+ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64
+ARG TARGETARCH
+# Cache version - managed centrally in .github/cache-versions.json
+ARG CACHE_VERSION=unset
+ENV BUILD_MODE=$BUILD_MODE
+ENV PLATFORM_ARCH=$PLATFORM_ARCH
+
+# Build stubs (build-stubs.mts handles curl download and compilation).
+# Create symlink with TARGETARCH name for Docker COPY compatibility.
+RUN echo "Cache version: ${CACHE_VERSION}" && \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        export TARGET_ARCH="x64"; \
+        export PLATFORM_ARCH="linux-x64-musl"; \
+    else \
+        export TARGET_ARCH="arm64"; \
+        export PLATFORM_ARCH="linux-arm64-musl"; \
+    fi && \
+    cd packages/bin-infra && \
+    node lib/build-stubs.mts && \
+    ln -s "${PLATFORM_ARCH}" "/workspace/packages/stubs-builder/build/${BUILD_MODE}/linux-${TARGETARCH}"
+
+# Export stage: Copy build artifacts (not entire filesystem).
+FROM scratch AS export
+ARG BUILD_MODE=prod
+ARG TARGETARCH
+COPY --from=build /workspace/packages/stubs-builder/build/${BUILD_MODE}/linux-${TARGETARCH}/out/Final /

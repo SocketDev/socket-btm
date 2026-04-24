@@ -1,0 +1,13 @@
+{
+  "$schema": "../build-infra/lib/external-tools-schema.json",
+  "description": "Package-level external tools for opentui-builder (Zig native module with node-api)",
+  "tools": {
+    "zig": {
+      "description": "Zig toolchain (required for native module compilation)",
+      "version": "0.15.2",
+      "source": "https://codeberg.org/ziglang/zig",
+      "sourceTag": "0.15.2",
+      "notes": "Zig 0.15.2 matches what upstream opentui v0.1.99's build.zig.zon targets — using 0.16 surfaces ~40 sites of stdlib API churn (ArrayListUnmanaged .empty, std.Thread.Mutex → std.Io.Mutex with required Io plumbing, std.fs.cwd removal, std.meta.intToEnum removal) that would each need a source patch. Source of truth is Codeberg; prebuilt binary + SHA-256 list live in build-infra/tool-checksums/zig-0.15.2.json. macOS 26 SDK note: the 0.15.x linker may not accept macOS 26 SDK stubs, so local dev on macOS 26 may need a system zig 0.16; CI uses depot-macos-15 so is unaffected."
+    }
+  }
+}

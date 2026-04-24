@@ -1,0 +1,46 @@
+{
+  "name": "ultraviolet-builder",
+  "version": "0.0.0",
+  "description": "Native Node.js bindings for Charmbracelet Ultraviolet (terminal I/O + decoder foundation used by bubbletea v2) via napi-go.",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "main": "./lib/index.mts",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.mts"
+    },
+    "./native": {
+      "types": "./lib/native.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mts",
+    "build:dev": "node scripts/build.mts --dev",
+    "build:force": "node scripts/build.mts --force",
+    "build:prod": "node scripts/build.mts --prod",
+    "clean": "node scripts/clean.mts",
+    "cover": "vitest run --coverage",
+    "postinstall": "node scripts/setup-build-toolchain.mts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@socketsecurity/lib": "catalog:",
+    "build-infra": "workspace:*",
+    "napi-go": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "catalog:",
+    "vitest": "catalog:"
+  },
+  "sources": {
+    "ultraviolet": {
+      "version": "0.0.0-a0f1f21",
+      "type": "git",
+      "url": "https://github.com/charmbracelet/ultraviolet.git",
+      "ref": "a0f1f21775f7139100064d65b0e31f6808d68501"
+    }
+  }
+}

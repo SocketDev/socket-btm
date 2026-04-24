@@ -1,0 +1,6 @@
+# Debug symbol bundles — large, platform-specific, not useful in git.
+*.dSYM/
+
+# Intermediate c-archive artifacts (rebuilt every build).
+lib/**/lib*.a
+lib/**/lib*.h

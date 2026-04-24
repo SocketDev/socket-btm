@@ -1,0 +1,290 @@
+# @node-versions: v25.9.0
+# @description: Add VFS, binject, http, webstreams, ilp, and ffi sources to node.gyp
+#
+# Integrates Socket Security's source files into the Node.js build system,
+# plus fast-webstreams deps for js2c embedding.
+#
+# Source files are split into categories:
+# 1. Core sources (always compiled): VFS, file I/O, HTTP, SIMD, WebStreams, ILP, FFI
+# 2. Optional modules (build flags): PostgreSQL (node_use_postgres), io_uring (node_use_iouring)
+# 3. LIEF-dependent sources (node_use_lief): SEA config, binject, bin-infra
+#
+# Compression: macOS uses libcompression, Linux/Windows use zstd + libdeflate.
+# libcompression added to all targets linking libnode.a (cctest, embedtest, mksnapshot).
+# bcrypt.lib added on Windows for SHA-256 hashing in smol_segment.c (BCrypt* functions).
+#
+--- a/node.gyp
++++ b/node.gyp
+@@ -67,6 +67,20 @@
+       'deps/acorn/acorn/dist/acorn.js',
+       'deps/acorn/acorn-walk/dist/walk.js',
+       'deps/minimatch/index.js',
++      'deps/fast-webstreams/byob-reader.js',
++      'deps/fast-webstreams/controller.js',
++      'deps/fast-webstreams/edge.js',
++      'deps/fast-webstreams/index.js',
++      'deps/fast-webstreams/materialize.js',
++      'deps/fast-webstreams/natives.js',
++      'deps/fast-webstreams/patch.js',
++      'deps/fast-webstreams/pipe-to.js',
++      'deps/fast-webstreams/readable.js',
++      'deps/fast-webstreams/reader.js',
++      'deps/fast-webstreams/transform.js',
++      'deps/fast-webstreams/utils.js',
++      'deps/fast-webstreams/writable.js',
++      'deps/fast-webstreams/writer.js',
+       '<@(node_builtin_shareable_builtins)',
+     ],
+     'node_sources': [
+@@ -713,6 +727,16 @@
+             'Ws2_32.lib',
+           ],
+         }],
++        ['OS=="win"', {
++          'libraries': [
++            'bcrypt.lib',
++          ],
++        }],
++        ['OS=="mac"', {
++          'libraries': [
++            '-lcompression',
++          ],
++        }],
+         ['node_with_ltcg=="true"', {
+           'msvs_settings': {
+             'VCCLCompilerTool': {
+@@ -1019,12 +1043,182 @@
+             'deps/ncrypto/ncrypto.gyp:ncrypto',
+           ],
+         }],
++        ['1==1', {
++          'sources': [
++            # Socket Security: Runtime VFS binding.
++            'src/socketsecurity/vfs/node_vfs.cc',
++            # Socket Security: Runtime file I/O and segment reading.
++            'src/socketsecurity/build-infra/file_io_common.c',
++            'src/socketsecurity/build-infra/binary_format_finder.c',
++            'src/socketsecurity/bin-infra/smol_segment_reader.c',
++            # Socket Security: Runtime cache and path utilities.
++            'src/socketsecurity/build-infra/file_utils.c',
++            'src/socketsecurity/build-infra/process_exec.c',
++            'src/socketsecurity/build-infra/path_utils.c',
++            # Socket Security: Version embedding (SMOL_NODE_VER section).
++            'src/socketsecurity/bin-infra/smol_node_version.c',
++            # Socket Security: HTTP performance optimizations.
++            'src/socketsecurity/http/http_fast_response.cc',
++            'src/socketsecurity/http/http_object_pool.cc',
++            'src/socketsecurity/http/mimalloc_allocator.cc',
++            'src/socketsecurity/http/iouring_network.cc',
++            'src/socketsecurity/http/smol_http_binding.cc',
++            'src/socketsecurity/http/http_binding.cc',
++            'src/socketsecurity/http/uws_server.cc',
++            # uSockets: High-performance socket library (libuv backend).
++            'deps/uSockets/src/bsd.c',
++            'deps/uSockets/src/context.c',
++            'deps/uSockets/src/loop.c',
++            'deps/uSockets/src/socket.c',
++            'deps/uSockets/src/eventing/libuv.c',
++            # Socket Security: SIMD runtime detection.
++            'src/socketsecurity/simd/simd.cc',
++            # Socket Security: WebStreams C++ accelerators.
++            'src/socketsecurity/webstreams/stream_chunk_pool.cc',
++            'src/socketsecurity/webstreams/fast_readable_stream.cc',
++            'src/socketsecurity/webstreams/webstreams_binding.cc',
++            # Socket Security: ILP (InfluxDB Line Protocol) client.
++            # Uses standard sockets by default. Define HAVE_IOURING for io_uring
++            # acceleration (requires liburing-dev and node_use_iouring="true").
++            'src/socketsecurity/ilp/ilp_encoder.cc',
++            'src/socketsecurity/ilp/ilp_transport.cc',
++            'src/socketsecurity/ilp/ilp_binding.cc',
++            # Socket Security: FFI (Foreign Function Interface) binding.
++            # Cross-platform dlopen/dlsym via libuv + V8 fast call trampolines.
++            'src/socketsecurity/ffi/binding.cc',
++            'src/socketsecurity/ffi/trampoline.cc',
++          ],
++          'include_dirs': [
++            'src',
++            'deps/uSockets/src',
++            'deps/uWebSockets/src',
++          ],
++          'defines': [
++            'LIBUS_USE_LIBUV',
++            'LIBUS_NO_SSL',
++            'UWS_HTTPRESPONSE_NO_WRITEMARK',
++          ],
++          'direct_dependent_settings': {
++            'include_dirs': [
++              'src',
++              'deps/uSockets/src',
++              'deps/uWebSockets/src',
++            ],
++          },
++        }],
++        # Socket Security: Optional io_uring acceleration (Linux only).
++        # Uses bundled liburing from deps/liburing.
++        ['node_use_iouring=="true" and OS=="linux"', {
++          'defines': [ 'HAVE_IOURING=1' ],
++          'dependencies': [ 'deps/liburing/liburing.gyp:liburing' ],
++        }],
++        # Socket Security: Optional PostgreSQL connection pooling.
++        # Uses bundled libpq from deps/libpq (prebuilt via libpq-builder).
++        ['node_use_postgres=="true"', {
++          'defines': [ 'HAVE_POSTGRES=1' ],
++          'sources': [
++            'src/socketsecurity/postgres/postgres_pool.cc',
++            'src/socketsecurity/postgres/postgres_binding.cc',
++            'src/socketsecurity/postgres/postgres_async.cc',
++          ],
++          'dependencies': [ 'deps/libpq/libpq.gyp:libpq' ],
++        }],
+         [ 'node_use_lief=="true" and node_shared_lief=="false"', {
+           'defines': [ 'HAVE_LIEF=1' ],
+-          'dependencies': [ 'deps/LIEF/lief.gyp:liblief' ],
++          'dependencies': [
++            'deps/LIEF/lief.gyp:liblief',
++            'deps/zstd/zstd.gyp:zstd',
++            'deps/libdeflate/libdeflate.gyp:libdeflate',
++          ],
++          'sources': [
++            # Socket Security: SEA config parsing + injection.
++            'src/socketsecurity/sea-smol/smol_config_parser.cc',
++            'src/socketsecurity/sea-smol/sea_inject.cc',
++            # Socket Security: binject utilities.
++            'src/socketsecurity/binject/smol_config.c',
++            'src/socketsecurity/binject/vfs_config.c',
++            'src/socketsecurity/binject/vfs_utils.c',
++            # Socket Security: build-infra compression and archive creation.
++            'src/socketsecurity/build-infra/tar_create.c',
++            'src/socketsecurity/build-infra/gzip_compress.c',
++            # Socket Security: bin-infra segment management.
++            'src/socketsecurity/bin-infra/compression_common.c',
++            'src/socketsecurity/bin-infra/binary_format.c',
++            'src/socketsecurity/bin-infra/smol_segment.c',
++            # Socket Security: binject core.
++            'src/socketsecurity/binject/binject.c',
++            'src/socketsecurity/binject/stub_repack.c',
++            'src/socketsecurity/binject/elf_pe_cross_platform.c',
++            'src/socketsecurity/binject/remove_signature_lib.c',
++            # Socket Security: binject native implementations.
++            'src/socketsecurity/binject/elf_inject.c',
++            'src/socketsecurity/binject/pe_inject.c',
++            'src/socketsecurity/binject/macho_inject_lief_wrapper.c',
++            # Socket Security: binject LIEF C++ implementations.
++            'src/socketsecurity/binject/elf_inject_lief.cpp',
++            'src/socketsecurity/binject/macho_inject_lief.cpp',
++            'src/socketsecurity/binject/pe_inject_lief.cpp',
++            'src/socketsecurity/binject/smol_extract_lief.cpp',
++            # Socket Security: bin-infra LIEF utilities.
++            'src/socketsecurity/bin-infra/smol_detect_lief.cpp',
++            'src/socketsecurity/bin-infra/stub_smol_repack_lief.cpp',
++          ],
++          'include_dirs': [
++            'src',
++          ],
++          'direct_dependent_settings': {
++            'include_dirs': [
++              'src',
++            ],
++          },
+         }],
+         [ 'node_use_lief=="true" and node_shared_lief=="true"', {
+           'defines': [ 'HAVE_LIEF=1' ],
++          'dependencies': [
++            'deps/zstd/zstd.gyp:zstd',
++            'deps/libdeflate/libdeflate.gyp:libdeflate',
++          ],
++          'sources': [
++            # Socket Security: SEA config parsing + injection.
++            'src/socketsecurity/sea-smol/smol_config_parser.cc',
++            'src/socketsecurity/sea-smol/sea_inject.cc',
++            # Socket Security: binject utilities.
++            'src/socketsecurity/binject/smol_config.c',
++            'src/socketsecurity/binject/vfs_config.c',
++            'src/socketsecurity/binject/vfs_utils.c',
++            # Socket Security: build-infra compression and archive creation.
++            'src/socketsecurity/build-infra/tar_create.c',
++            'src/socketsecurity/build-infra/gzip_compress.c',
++            # Socket Security: bin-infra segment management.
++            'src/socketsecurity/bin-infra/compression_common.c',
++            'src/socketsecurity/bin-infra/binary_format.c',
++            'src/socketsecurity/bin-infra/smol_segment.c',
++            # Socket Security: binject core.
++            'src/socketsecurity/binject/binject.c',
++            'src/socketsecurity/binject/stub_repack.c',
++            'src/socketsecurity/binject/elf_pe_cross_platform.c',
++            'src/socketsecurity/binject/remove_signature_lib.c',
++            # Socket Security: binject native implementations.
++            'src/socketsecurity/binject/elf_inject.c',
++            'src/socketsecurity/binject/pe_inject.c',
++            'src/socketsecurity/binject/macho_inject_lief_wrapper.c',
++            # Socket Security: binject LIEF C++ implementations.
++            'src/socketsecurity/binject/elf_inject_lief.cpp',
++            'src/socketsecurity/binject/macho_inject_lief.cpp',
++            'src/socketsecurity/binject/pe_inject_lief.cpp',
++            'src/socketsecurity/binject/smol_extract_lief.cpp',
++            # Socket Security: bin-infra LIEF utilities.
++            'src/socketsecurity/bin-infra/smol_detect_lief.cpp',
++            'src/socketsecurity/bin-infra/stub_smol_repack_lief.cpp',
++          ],
++          'include_dirs': [
++            'src',
++          ],
++          'direct_dependent_settings': {
++            'include_dirs': [
++              'src',
++            ],
++          },
+         }],
+         [ 'node_use_sqlite=="true"', {
+           'sources': [
+@@ -1374,6 +1542,16 @@
+             'Ws2_32.lib',
+           ],
+         }],
++        ['OS=="win"', {
++          'libraries': [
++            'bcrypt.lib',
++          ],
++        }],
++        ['OS=="mac"', {
++          'libraries': [
++            '-lcompression',
++          ],
++        }],
+         # Avoid excessive LTO
+         ['enable_lto=="true"', {
+           'ldflags': [ '-fno-lto' ],
+@@ -1438,6 +1616,16 @@
+             'Ws2_32.lib',
+           ],
+         }],
++        ['OS=="win"', {
++          'libraries': [
++            'bcrypt.lib',
++          ],
++        }],
++        ['OS=="mac"', {
++          'libraries': [
++            '-lcompression',
++          ],
++        }],
+         # Avoid excessive LTO
+         ['enable_lto=="true"', {
+           'ldflags': [ '-fno-lto' ],
+@@ -1641,6 +1829,16 @@
+             'Ws2_32.lib',
+           ],
+         }],
++        ['OS=="win"', {
++          'libraries': [
++            'bcrypt.lib',
++          ],
++        }],
++        ['OS=="mac"', {
++          'libraries': [
++            '-lcompression',
++          ],
++        }],
+         # Avoid excessive LTO
+         ['enable_lto=="true"', {
+           'ldflags': [ '-fno-lto' ],

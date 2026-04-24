@@ -1,0 +1,367 @@
+name: Restore Checkpoint Chain
+description: Restores build output from checkpoint tarballs, walking backward to find the latest valid checkpoint
+
+inputs:
+  package-name:
+    description: 'Package name (e.g., onnxruntime-builder, yoga-layout-builder, models, node-smol-builder)'
+    required: true
+  package-dir:
+    description: 'Package directory relative to repo root (e.g., packages/node-smol-builder). Defaults to packages/${package-name} when unset. Set this when the directory name differs from the logical package name (e.g., package-name=node-smol → package-dir=packages/node-smol-builder).'
+    required: false
+    default: ''
+  build-mode:
+    description: 'Build mode (dev or prod)'
+    required: true
+  checkpoint-chain:
+    description: 'Ordered list of checkpoints to try (newest to oldest), comma-separated (e.g., "finalized,wasm-synced,wasm-released,wasm-compiled")'
+    required: true
+  cache-hit:
+    description: 'Whether checkpoint cache was hit (true/false)'
+    required: true
+  cache-valid:
+    description: 'Whether checkpoint cache validation passed (true/false)'
+    required: true
+  platform-arch:
+    description: 'Platform-arch string for platform-specific packages (e.g., darwin-arm64, linux-x64-musl)'
+    required: false
+    default: ''
+
+outputs:
+  restored:
+    description: 'Whether any checkpoint was restored (true/false)'
+    value: ${{ steps.restore.outputs.restored || steps.skip.outputs.restored }}
+  checkpoint-restored:
+    description: 'Name of the checkpoint that was restored (empty if none)'
+    value: ${{ steps.restore.outputs.checkpoint_restored || steps.skip.outputs.checkpoint_restored }}
+  checkpoint-index:
+    description: 'Index of restored checkpoint (0=newest, higher=older)'
+    value: ${{ steps.restore.outputs.checkpoint_index || steps.skip.outputs.checkpoint_index }}
+  build-required:
+    description: 'Whether build is required to complete remaining checkpoints (true/false)'
+    value: ${{ steps.restore.outputs.build_required || steps.skip.outputs.build_required }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Restore build output from checkpoint chain
+      id: restore
+      if: inputs.cache-hit == 'true' && (inputs.cache-valid == 'true' || inputs.cache-valid == 'partial')
+      shell: bash
+      env:
+        PACKAGE_NAME: ${{ inputs.package-name }}
+        PACKAGE_DIR_INPUT: ${{ inputs.package-dir }}
+        BUILD_MODE: ${{ inputs.build-mode }}
+        CHECKPOINT_CHAIN: ${{ inputs.checkpoint-chain }}
+        PLATFORM_ARCH: ${{ inputs.platform-arch }}
+      run: |
+        set -e
+
+        # Validate inputs
+        if ! [[ "${PACKAGE_NAME}" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+          echo "× Invalid package name: ${PACKAGE_NAME}"; exit 1
+        fi
+        if ! [[ "${BUILD_MODE}" =~ ^(prod|dev)$ ]]; then
+          echo "× Invalid build mode: ${BUILD_MODE}"; exit 1
+        fi
+        # Resolve package directory: explicit package-dir input wins;
+        # otherwise fall back to packages/${PACKAGE_NAME}. This lets
+        # setup-checkpoints pass its already-computed package_dir (which
+        # maps logical names like "node-smol" → "packages/node-smol-builder")
+        # so both composite actions agree on a single path.
+        if [ -n "${PACKAGE_DIR_INPUT}" ]; then
+          if ! [[ "${PACKAGE_DIR_INPUT}" =~ ^packages/[a-zA-Z0-9_-]+$ ]]; then
+            echo "× Invalid package-dir: ${PACKAGE_DIR_INPUT}"; exit 1
+          fi
+          PACKAGE_DIR="${PACKAGE_DIR_INPUT}"
+        else
+          PACKAGE_DIR="packages/${PACKAGE_NAME}"
+        fi
+        # Validate platform-arch if provided (allows alphanumeric, dashes only)
+        if [ -n "${PLATFORM_ARCH}" ] && ! [[ "${PLATFORM_ARCH}" =~ ^[a-zA-Z0-9-]+$ ]]; then
+          echo "× Invalid platform-arch: ${PLATFORM_ARCH}"; exit 1
+        fi
+        if [ -z "${CHECKPOINT_CHAIN}" ]; then
+          echo "× Empty checkpoint chain"; exit 1
+        fi
+        if [[ "${CHECKPOINT_CHAIN}" =~ (^,|,,|,$) ]]; then
+          echo "× Invalid checkpoint chain (malformed separators)"; exit 1
+        fi
+        # Validate no whitespace in chain (spaces/tabs could break parsing)
+        if [[ "${CHECKPOINT_CHAIN}" =~ [[:space:]] ]]; then
+          echo "× Checkpoint chain contains whitespace"; exit 1
+        fi
+        # Validate chain length to prevent DoS via memory exhaustion
+        if [ ${#CHECKPOINT_CHAIN} -gt 1000 ]; then
+          echo "× Checkpoint chain too long (max 1000 chars)"; exit 1
+        fi
+        # Validate checkpoint count to prevent resource exhaustion
+        CHECKPOINT_COUNT=$(echo "${CHECKPOINT_CHAIN}" | tr ',' '\n' | wc -l | tr -d ' ')
+        if [ "${CHECKPOINT_COUNT}" -gt 20 ]; then
+          echo "× Too many checkpoints in chain (max 20)"; exit 1
+        fi
+
+        # For packages with platform-specific builds (like lief-builder, node-smol-builder),
+        # checkpoints and outputs are stored in platform-specific directories.
+        # Otherwise, they're in the mode-level directory.
+        if [ -n "${PLATFORM_ARCH}" ]; then
+          MODE_CHECKPOINT_DIR="${PACKAGE_DIR}/build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints"
+          OUTPUT_DIR="${PACKAGE_DIR}/build/${BUILD_MODE}/${PLATFORM_ARCH}/out"
+          MODE_SOURCE_DIR="${PACKAGE_DIR}/build/${BUILD_MODE}/${PLATFORM_ARCH}/source"
+        else
+          MODE_CHECKPOINT_DIR="${PACKAGE_DIR}/build/${BUILD_MODE}/checkpoints"
+          OUTPUT_DIR="${PACKAGE_DIR}/build/${BUILD_MODE}/out"
+          MODE_SOURCE_DIR="${PACKAGE_DIR}/build/${BUILD_MODE}/source"
+        fi
+        SHARED_CHECKPOINT_DIR="${PACKAGE_DIR}/build/shared/checkpoints"
+        SHARED_SOURCE_DIR="${PACKAGE_DIR}/build/shared/source"
+
+        # Parse checkpoint chain (simple inline IFS restoration - no trap needed)
+        OLD_IFS="$IFS"
+        IFS=','
+        read -ra CHECKPOINTS <<< "$CHECKPOINT_CHAIN"
+        IFS="$OLD_IFS"
+
+        # Walk backward through checkpoint chain
+        RESTORED_CHECKPOINT=""
+        RESTORED_INDEX=-1
+        INDEX=0
+
+        # Whitelist of valid checkpoint types - must match the case statement below.
+        # This catches unknown checkpoints EARLY before any file operations.
+        # Keep aligned with CHECKPOINTS in packages/build-infra/lib/constants.mts.
+        VALID_CHECKPOINTS="finalized|lief-built|mbedtls-built|binary-compressed|binary-stripped|binary-released|native-built|wasm-synced|wasm-released|wasm-optimized|wasm-compiled|source-configured|optimized|quantized|converted|downloaded|source-cloned|source-copied|source-patched"
+
+        # Shared-source checkpoints live in SHARED_CHECKPOINT_DIR rather than the
+        # per-mode MODE_CHECKPOINT_DIR. Must stay in sync with
+        # SHARED_SOURCE_CHECKPOINTS in packages/build-infra/lib/constants.mts.
+        is_shared_source() {
+          case "$1" in
+            source-cloned|source-copied) return 0 ;;
+            *) return 1 ;;
+          esac
+        }
+
+        for CHECKPOINT in "${CHECKPOINTS[@]}"; do
+          # Validate checkpoint name is in whitelist (catches typos and unknown types early).
+          if ! [[ "${CHECKPOINT}" =~ ^(${VALID_CHECKPOINTS})$ ]]; then
+            echo "[FAIL] Unknown checkpoint type: '${CHECKPOINT}'"
+            echo "Valid checkpoints: ${VALID_CHECKPOINTS//|/, }"
+            exit 1
+          fi
+
+          if is_shared_source "${CHECKPOINT}"; then
+            CHECKPOINT_FILE="${SHARED_CHECKPOINT_DIR}/${CHECKPOINT}.tar.gz"
+          else
+            CHECKPOINT_FILE="${MODE_CHECKPOINT_DIR}/${CHECKPOINT}.tar.gz"
+          fi
+
+          if [ ! -f "${CHECKPOINT_FILE}" ]; then
+            INDEX=$((INDEX + 1)); continue
+          fi
+
+          # Validate using tar -tzf (validates both gzip and tar structure)
+          if ! tar -tzf "${CHECKPOINT_FILE}" > /dev/null 2>&1; then
+            echo "[WARN] ${CHECKPOINT}: corrupted tarball"
+            INDEX=$((INDEX + 1)); continue
+          fi
+
+          # Check for path traversal and absolute path attempts in tarball.
+          # Security: Block '..' sequences and absolute paths starting with '/'.
+          # Store listing to avoid running tar twice and to detect empty output.
+          TAR_LISTING=$(tar -tzf "${CHECKPOINT_FILE}" 2>/dev/null)
+          if [ -z "$TAR_LISTING" ]; then
+            echo "[WARN] ${CHECKPOINT}: empty or unreadable tarball"
+            INDEX=$((INDEX + 1)); continue
+          fi
+          if echo "$TAR_LISTING" | grep -qE '(^|/)\.\.(/|$)'; then
+            echo "[FAIL] ${CHECKPOINT}: tarball contains path traversal sequences (..)"
+            INDEX=$((INDEX + 1)); continue
+          fi
+          if echo "$TAR_LISTING" | grep -qE '^/'; then
+            echo "[FAIL] ${CHECKPOINT}: tarball contains absolute paths"
+            INDEX=$((INDEX + 1)); continue
+          fi
+
+          RESTORED_CHECKPOINT="${CHECKPOINT}"
+          RESTORED_INDEX=${INDEX}
+          break
+        done
+
+        if [ -z "${RESTORED_CHECKPOINT}" ]; then
+          echo "× No valid checkpoints found"
+          echo "restored=false" >> "$GITHUB_OUTPUT"
+          echo "checkpoint_restored=" >> "$GITHUB_OUTPUT"
+          echo "checkpoint_index=-1" >> "$GITHUB_OUTPUT"
+          echo "build_required=true" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+
+        echo "✅ Restoring: ${RESTORED_CHECKPOINT} (index ${RESTORED_INDEX})"
+
+        # Get checkpoint file path
+        if is_shared_source "${RESTORED_CHECKPOINT}"; then
+          CHECKPOINT_FILE="${SHARED_CHECKPOINT_DIR}/${RESTORED_CHECKPOINT}.tar.gz"
+        else
+          CHECKPOINT_FILE="${MODE_CHECKPOINT_DIR}/${RESTORED_CHECKPOINT}.tar.gz"
+        fi
+
+        # Map checkpoint to extract directory.
+        # IMPORTANT: All valid checkpoints MUST be listed here - unknown checkpoints fail hard.
+        case "${RESTORED_CHECKPOINT}" in
+          finalized) EXTRACT_DIR="${OUTPUT_DIR}/Final" ;;
+          lief-built) EXTRACT_DIR="packages/lief-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/lief" ;;
+          mbedtls-built) EXTRACT_DIR="packages/curl-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/mbedtls" ;;
+          binary-compressed) EXTRACT_DIR="${OUTPUT_DIR}/Compressed" ;;
+          binary-stripped) EXTRACT_DIR="${OUTPUT_DIR}/Stripped" ;;
+          binary-released) EXTRACT_DIR="${OUTPUT_DIR}/Release" ;;
+          native-built) EXTRACT_DIR="${OUTPUT_DIR}/Final" ;;
+          wasm-synced) EXTRACT_DIR="${OUTPUT_DIR}/Synced" ;;
+          wasm-released) EXTRACT_DIR="${OUTPUT_DIR}/Released" ;;
+          wasm-optimized) EXTRACT_DIR="${OUTPUT_DIR}/Optimized" ;;
+          wasm-compiled) EXTRACT_DIR="${OUTPUT_DIR}/Compiled" ;;
+          source-configured) EXTRACT_DIR="${MODE_SOURCE_DIR}" ;;
+          optimized|quantized|converted|downloaded) EXTRACT_DIR="${PACKAGE_DIR}/build/${BUILD_MODE}/models" ;;
+          source-cloned|source-copied) EXTRACT_DIR="${SHARED_SOURCE_DIR}" ;;
+          source-patched) EXTRACT_DIR="${MODE_SOURCE_DIR}" ;;
+          *)
+            echo "[FAIL] Unknown checkpoint type: '${RESTORED_CHECKPOINT}'"
+            echo "Add this checkpoint to the case statement in restore-checkpoint action."
+            echo "build_required=true" >> "$GITHUB_OUTPUT"
+            exit 1
+            ;;
+        esac
+
+        # Validate tarball size (10GB limit)
+        # stat -c%s: Linux, stat -f%z: macOS, wc -c: Windows/fallback
+        COMPRESSED_SIZE=$(stat -c%s "${CHECKPOINT_FILE}" 2>/dev/null || stat -f%z "${CHECKPOINT_FILE}" 2>/dev/null || wc -c < "${CHECKPOINT_FILE}" 2>/dev/null | tr -d ' ')
+        if [ -z "${COMPRESSED_SIZE}" ] || [ "${COMPRESSED_SIZE}" = "0" ]; then
+          echo "× Cannot determine tarball size or file is empty"
+          echo "build_required=true" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+        if [ "${COMPRESSED_SIZE}" -gt $((10 * 1024 * 1024 * 1024)) ]; then
+          echo "× Tarball too large: ${COMPRESSED_SIZE} bytes"
+          echo "build_required=true" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+
+        # Check for dangerous file types in tarball (security risk - could escape extraction dir).
+        # tar -tvzf verbose output format: <type><perms> <uid/gid> <size> <date> <name>
+        # File type indicators (first character):
+        #   - : regular file
+        #   d : directory
+        #   l : symbolic link (format: lrwxrwxrwx ... name -> target)
+        #   h : hard link
+        #   b : block device
+        #   c : character device
+        #   p : named pipe (FIFO)
+        # We ONLY allow regular files (-) and directories (d).
+        TAR_VERBOSE=$(tar -tvzf "${CHECKPOINT_FILE}" 2>/dev/null)
+        if [ -z "$TAR_VERBOSE" ]; then
+          echo "[FAIL] ${RESTORED_CHECKPOINT}: cannot read tarball contents"
+          echo "build_required=true" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+        # Check for symlinks (l), hard links (h), block devices (b), char devices (c), pipes (p)
+        if echo "$TAR_VERBOSE" | grep -qE '^[lhbcp]'; then
+          DANGEROUS_FILES=$(echo "$TAR_VERBOSE" | grep -E '^[lhbcp]' | head -5)
+          echo "[FAIL] ${RESTORED_CHECKPOINT}: tarball contains dangerous file types:"
+          echo "$DANGEROUS_FILES"
+          echo "(Only regular files and directories are allowed)"
+          echo "build_required=true" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+
+        # Validate checkpoint metadata BEFORE extraction (prevents corrupted state on failure)
+        CHECKPOINT_JSON="${CHECKPOINT_FILE%.tar.gz}.json"
+        if [ ! -f "${CHECKPOINT_JSON}" ]; then
+          echo "[FAIL] Missing checkpoint metadata: ${CHECKPOINT_JSON}"
+          echo "Checkpoint tarballs MUST have accompanying .json metadata files."
+          echo "This indicates the checkpoint was created incorrectly or is corrupted."
+          echo "build_required=true" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+
+        # Validate JSON is parseable and has required fields
+        if ! jq -e '.name and .created' "${CHECKPOINT_JSON}" > /dev/null 2>&1; then
+          echo "[FAIL] Malformed checkpoint metadata: ${CHECKPOINT_JSON}"
+          echo "JSON must contain 'name' and 'created' fields."
+          echo "build_required=true" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+
+        # Validate checkpoint name in metadata matches filename (prevents cache poisoning)
+        METADATA_NAME=$(jq -r '.name' "${CHECKPOINT_JSON}")
+        if [ "${METADATA_NAME}" != "${RESTORED_CHECKPOINT}" ]; then
+          echo "[FAIL] Checkpoint name mismatch: metadata says '${METADATA_NAME}', expected '${RESTORED_CHECKPOINT}'"
+          echo "This could indicate cache poisoning or corruption."
+          echo "build_required=true" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+
+        # ATOMIC EXTRACTION: Use mktemp for race-condition-safe temp directory creation.
+        # If extraction fails partway through, we don't leave corrupted state.
+        # mktemp -d is atomic and prevents TOCTOU race where attacker could create
+        # symlink at predictable temp path between rm and mkdir.
+        if ! rm -rf "${EXTRACT_DIR}"; then
+          echo "× Failed to clean existing extract directory"
+          echo "build_required=true" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+        # Validate cleanup succeeded
+        if [ -e "${EXTRACT_DIR}" ]; then
+          echo "× Extract directory still exists after cleanup"
+          echo "build_required=true" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+        EXTRACT_PARENT=$(dirname "${EXTRACT_DIR}")
+        mkdir -p "${EXTRACT_PARENT}"
+        TEMP_EXTRACT_DIR=$(mktemp -d "${EXTRACT_PARENT}/.tmp.XXXXXX")
+        if [ ! -d "${TEMP_EXTRACT_DIR}" ]; then
+          echo "× Failed to create temp directory"
+          echo "build_required=true" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+
+        # Extract to temp directory
+        if ! tar -xzf "${CHECKPOINT_FILE}" -C "${TEMP_EXTRACT_DIR}" --strip-components=1 --no-same-owner; then
+          rm -rf "${TEMP_EXTRACT_DIR}"
+          echo "× Failed to extract"
+          echo "build_required=true" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+
+        if [ -z "$(ls -A "${TEMP_EXTRACT_DIR}" 2>/dev/null)" ]; then
+          rm -rf "${TEMP_EXTRACT_DIR}"
+          echo "× No files extracted"
+          echo "build_required=true" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+
+        # Atomic rename - only succeeds if extraction was complete
+        mv "${TEMP_EXTRACT_DIR}" "${EXTRACT_DIR}"
+
+        # Determine build requirement
+        NEEDS_BUILD="false"
+        if [ ${RESTORED_INDEX} -gt 0 ]; then
+          NEEDS_BUILD="true"
+          echo "Build required for remaining checkpoints"
+        else
+          echo "✅ Latest checkpoint restored"
+        fi
+
+        echo "restored=true" >> "$GITHUB_OUTPUT"
+        echo "checkpoint_restored=${RESTORED_CHECKPOINT}" >> "$GITHUB_OUTPUT"
+        echo "checkpoint_index=${RESTORED_INDEX}" >> "$GITHUB_OUTPUT"
+        echo "build_required=${NEEDS_BUILD}" >> "$GITHUB_OUTPUT"
+
+    - name: Skip restoration (build will run from scratch)
+      id: skip
+      if: inputs.cache-hit != 'true' || (inputs.cache-valid != 'true' && inputs.cache-valid != 'partial')
+      shell: bash
+      run: |
+        echo "⏭️ No cache - building from scratch"
+        echo "restored=false" >> "$GITHUB_OUTPUT"
+        echo "checkpoint_restored=" >> "$GITHUB_OUTPUT"
+        echo "checkpoint_index=-1" >> "$GITHUB_OUTPUT"
+        echo "build_required=true" >> "$GITHUB_OUTPUT"

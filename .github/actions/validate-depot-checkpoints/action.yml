@@ -1,0 +1,140 @@
+name: Validate Depot Build Checkpoints
+description: |
+  Validates checkpoint archives exported from Depot Docker builds.
+
+  Verifies checkpoint tar archives are readable via `tar -tzf`. Prevents cache
+  corruption by catching issues before caching.
+
+  Exit codes: 0 (success or no checkpoints), 1 (corrupted archives detected).
+
+inputs:
+  package-path:
+    description: 'Relative path to package directory (e.g., packages/models)'
+    required: true
+  build-mode:
+    description: 'Build mode (prod or dev)'
+    required: true
+  package-name:
+    description: 'Package name for error messages (e.g., models, binject)'
+    required: true
+  platform-arch:
+    description: |
+      Optional platform-arch segment (e.g., linux-x64). When set, the action
+      also inspects `${package-path}/build/${build-mode}/${platform-arch}/checkpoints`
+      — the layout Depot Dockerfiles emit for native binary builders.
+      Without this input, model/wasm pipelines that don't have a platform
+      segment continue to work via the legacy `${build-mode}/checkpoints`
+      path.
+    required: false
+    default: ''
+
+outputs:
+  checkpoints-found:
+    description: 'Whether checkpoint directories were found (true/false)'
+    value: ${{ steps.validate.outputs.checkpoints-found }}
+  valid:
+    description: 'Whether all checkpoints are valid (true/false)'
+    value: ${{ steps.validate.outputs.valid }}
+  message:
+    description: 'Validation result message'
+    value: ${{ steps.validate.outputs.message }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate checkpoint archive integrity
+      id: validate
+      shell: bash
+      env:
+        PACKAGE_PATH: ${{ inputs.package-path }}
+        BUILD_MODE: ${{ inputs.build-mode }}
+        PACKAGE_NAME: ${{ inputs.package-name }}
+        PLATFORM_ARCH: ${{ inputs.platform-arch }}
+      run: |
+        # Checkpoint directories. The native-binary builders (node-smol,
+        # curl, lief, onnxruntime, yoga-layout) export to
+        # build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints; model/wasm
+        # pipelines that don't have a platform segment export to the
+        # legacy build/${BUILD_MODE}/checkpoints. Try both.
+        readonly MODE_CHECKPOINT_DIR="${PACKAGE_PATH}/build/${BUILD_MODE}/checkpoints"
+        readonly SHARED_CHECKPOINT_DIR="${PACKAGE_PATH}/build/shared/checkpoints"
+        CHECKPOINT_DIRS=("$MODE_CHECKPOINT_DIR" "$SHARED_CHECKPOINT_DIR")
+        if [ -n "$PLATFORM_ARCH" ]; then
+          PLATFORM_CHECKPOINT_DIR="${PACKAGE_PATH}/build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints"
+          CHECKPOINT_DIRS+=("$PLATFORM_CHECKPOINT_DIR")
+        fi
+        readonly CHECKPOINT_FORMATS=("*.tar" "*.tar.gz" "*.tgz")
+
+        # Check if ANY checkpoint directory exists
+        ANY_DIR_EXISTS=0
+        for d in "${CHECKPOINT_DIRS[@]}"; do
+          if [ -d "$d" ]; then
+            ANY_DIR_EXISTS=1
+            break
+          fi
+        done
+        if [ $ANY_DIR_EXISTS -eq 0 ]; then
+          echo "⚠️ No checkpoint dirs found (searched: ${CHECKPOINT_DIRS[*]})"
+          echo "checkpoints-found=false" >> $GITHUB_OUTPUT
+          echo "valid=false" >> $GITHUB_OUTPUT
+          echo "message=No checkpoint directories found" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        # Validate checkpoint archive integrity
+        CORRUPTED=0
+        VALIDATED=0
+        VALID_LIST=""
+
+        # GHA composite actions with `shell: bash` run under
+        # `bash --noprofile --norc -eo pipefail`. The previous version of
+        # this loop used `TAR_CONTENTS=$(...); TAR_RC=$?` — but under
+        # `set -e` the script aborts on the FIRST corrupt tar (before
+        # TAR_RC is even captured), so we'd fail the whole action at the
+        # first bad file instead of enumerating every corrupt archive.
+        # `|| TAR_RC=$?` inside the command substitution is the idiom
+        # that survives `set -e`: the `|| ...` branch is evaluated by
+        # bash as a compound expression, suppressing the -e trigger while
+        # still preserving the real exit code.
+        for checkpoint_dir in "${CHECKPOINT_DIRS[@]}"; do
+          [ -d "$checkpoint_dir" ] || continue
+          for format in "${CHECKPOINT_FORMATS[@]}"; do
+            for tarfile in "$checkpoint_dir"/$format; do
+              [ -e "$tarfile" ] || continue
+              VALIDATED=$((VALIDATED + 1))
+              TAR_RC=0
+              if [[ "$tarfile" =~ \.(tar\.gz|tgz)$ ]]; then
+                TAR_CONTENTS=$(tar -tzf "$tarfile" 2>&1) || TAR_RC=$?
+              else
+                TAR_CONTENTS=$(tar -tf "$tarfile" 2>&1) || TAR_RC=$?
+              fi
+              if [ "$TAR_RC" -ne 0 ] || [ -z "$TAR_CONTENTS" ]; then
+                echo "× Invalid: $(basename "$tarfile")"
+                CORRUPTED=1
+              else
+                VALID_LIST="${VALID_LIST} $(basename "$tarfile")"
+              fi
+            done
+          done
+        done
+
+        if [ $VALIDATED -eq 0 ]; then
+          echo "⚠️ No checkpoint archives found"
+          echo "checkpoints-found=true" >> $GITHUB_OUTPUT
+          echo "valid=false" >> $GITHUB_OUTPUT
+          echo "message=No checkpoint archives found" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        if [ $CORRUPTED -eq 0 ]; then
+          echo "✅ Checkpoints valid:${VALID_LIST}"
+          echo "checkpoints-found=true" >> $GITHUB_OUTPUT
+          echo "valid=true" >> $GITHUB_OUTPUT
+          echo "message=All checkpoints valid" >> $GITHUB_OUTPUT
+        else
+          echo "× Corrupted checkpoints - build will fail"
+          echo "checkpoints-found=true" >> $GITHUB_OUTPUT
+          echo "valid=false" >> $GITHUB_OUTPUT
+          echo "message=Corrupted checkpoints detected" >> $GITHUB_OUTPUT
+          exit 1
+        fi

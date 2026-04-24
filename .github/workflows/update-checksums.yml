@@ -1,0 +1,80 @@
+name: 🔄 Update Release Checksums
+
+on:
+  workflow_call:
+    secrets:
+      BOT_GPG_PRIVATE_KEY:
+        required: false
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # MUST be a static global group. When this workflow is invoked via
+  # workflow_call, github.workflow evaluates to the CALLER's workflow
+  # name, so parallel release publishes (curl + lief + node-smol finishing
+  # at the same time) would each land in a DIFFERENT concurrency group
+  # and all try to `git pull --rebase && git push origin main` against
+  # release-assets.json simultaneously — rebase is not atomic across
+  # concurrent runners and one push is guaranteed to lose its commit.
+  # A static group (repo-scoped) serializes every update-checksums run.
+  group: update-checksums-${{ github.repository }}-main
+  cancel-in-progress: false
+
+jobs:
+  update-checksums:
+    name: release-assets.json
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # Require an approval gate when invoked directly via workflow_dispatch.
+    # Without this an actor with workflow-dispatch permission could push
+    # to main — the job elevates `contents: write` and commits release-
+    # assets.json. Every caller that invokes this via workflow_call is
+    # already under `environment: release`; enforcing it here too makes
+    # the guarantee uniform.
+    environment: release
+    permissions:
+      contents: write # Required to commit updated release-assets.json
+    steps:
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@444b6415a78a44d50066a0eb7ef219a751224561 # main
+
+      - uses: SocketDev/socket-registry/.github/actions/setup-git-signing@444b6415a78a44d50066a0eb7ef219a751224561 # main
+        with:
+          gpg-private-key: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
+
+      - name: Update checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: pnpm --filter build-infra update-checksums
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet packages/build-infra/release-assets.json; then
+            echo "has-changes=false" >> $GITHUB_OUTPUT
+            echo "No checksum changes"
+          else
+            echo "has-changes=true" >> $GITHUB_OUTPUT
+            echo "Checksums updated"
+          fi
+
+      - name: Commit and push
+        if: steps.changes.outputs.has-changes == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Pass the authed URL directly to `git push` instead of writing
+          # it into .git/config via `remote set-url origin`. The old form
+          # left the x-access-token URL persisted in the workspace config
+          # for the rest of the job, so any subsequent step that logged
+          # `git remote -v` (or a tool that did) would leak the token to
+          # workflow logs. One-shot URLs never touch .git/config.
+          git add packages/build-infra/release-assets.json
+          git commit -m "chore: update release checksums"
+          git pull --rebase origin main
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" HEAD:main
+
+      - uses: SocketDev/socket-registry/.github/actions/cleanup-git-signing@444b6415a78a44d50066a0eb7ef219a751224561 # main
+        if: always()

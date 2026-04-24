@@ -1,0 +1,32 @@
+name: 🔄 Weekly Update
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+# Serialize every weekly-update invocation. Otherwise a scheduled cron
+# run and a manual workflow_dispatch could race: both compute dependency
+# bumps, both open PRs, both try to push branches, and the second push
+# fails or clobbers the first's generated tree. cancel-in-progress:
+# false lets an in-flight cron finish before a manual run starts.
+concurrency:
+  group: weekly-update-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  weekly-update:
+    uses: SocketDev/socket-registry/.github/workflows/weekly-update.yml@444b6415a78a44d50066a0eb7ef219a751224561 # main
+    with:
+      checkout-submodules: 'true'
+      test-setup-script: 'pnpm run build'
+      test-script: 'pnpm test'
+      validate-file-patterns: 'package.json|*/package.json|pnpm-lock.yaml|*/pnpm-lock.yaml|.npmrc|pnpm-workspace.yaml|.gitmodules|xport.json'
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      BOT_GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
+      SOCKET_API_KEY: ${{ secrets.SOCKET_API_TOKEN }}

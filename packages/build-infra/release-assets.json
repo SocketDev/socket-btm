@@ -45,16 +45,16 @@
   },
   "curl": {
     "description": "curl with mbedTLS for HTTPS support",
-    "tag": "curl-20260423-b609bcb",
+    "tag": "curl-20260424-18f0f46",
     "checksums": {
-      "curl-darwin-arm64.tar.gz": "6ff16cf70b1fc3e7471c2a35ad3b812d622a6538277a198a32a8f1bbdca6e4da",
-      "curl-darwin-x64.tar.gz": "d828ef656cc0d6d1613f5522169595c5be01a87d9773914820cf61bbe1467859",
-      "curl-linux-arm64-musl.tar.gz": "4e8f087a2914ed7fac7bcfd964f29bdcd30887bc701dca4274c2f55fb42b2ac1",
-      "curl-linux-arm64.tar.gz": "6c2133946c7606fc4c7210484570b747335bb4cab5521b5adefee1435eb9d493",
-      "curl-linux-x64-musl.tar.gz": "25a08502a69c81b1dd922913710cdcd8d1f3af6ceabf10addbde091fb9f8617a",
-      "curl-linux-x64.tar.gz": "3da18475094c918e60f685576844be57866289fb6b4d6e90d56ca75403ef3889",
-      "curl-win-arm64.tar.gz": "e75ca155fb64e86cf8e9392364c4b9f81d9c5bc5e7aecf833f4fe8117b38eb16",
-      "curl-win-x64.tar.gz": "1215f30d9b44dc9b7dcb0de2a1dfdbe03beeb10f1eeba23d19ff348299207210"
+      "curl-darwin-arm64.tar.gz": "8b2ff77754301fa786265ea499c984a746afdfbb4dd94aadf8a5b361efba0171",
+      "curl-darwin-x64.tar.gz": "0dc031b65ea4ab04643dd2df8bd26610db0cfab8c362162186558ba1624892d8",
+      "curl-linux-arm64-musl.tar.gz": "6ef246bb72cad7d2c1e052b8828052b2d514321d7b25f3840d611d33ff148717",
+      "curl-linux-arm64.tar.gz": "b58c45c94a5ab1eb4824b42eb4db8d0b7a17c0e68768eafff38fe0aa6ad5247c",
+      "curl-linux-x64-musl.tar.gz": "6cf714995c420e8a323ce4ff7cd4ec61b13217b2fe8618d474e0bdba67421ad9",
+      "curl-linux-x64.tar.gz": "f29080cf734dd7e6989c5aa8c0ea57c1a1cf36ec43c25774c48f9764371771a3",
+      "curl-win-arm64.tar.gz": "0eb158d10cdf00edb96d5a762b50b1b9996c551e9651d6592aff6833184d2b63",
+      "curl-win-x64.tar.gz": "b8b44cf71d39a32ee271c71282d6024d4c04855ca18fd842150d52f78cf6a345"
     }
   },
   "ink": {

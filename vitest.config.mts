@@ -8,6 +8,9 @@
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  // Keep vitest's cache under node_modules so `pnpm install`
+  // clears it automatically — no dedicated clean step.
+  cacheDir: './node_modules/.cache/vitest',
   test: {
     coverage: {
       exclude: [

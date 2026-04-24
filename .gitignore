@@ -206,7 +206,6 @@ test-firewall-*.sh
 # Build / Compiler Caches
 # ==============================================================================
 
-.cache/
 .ccache/
 
 # Ephemeral Docker build context staging. Workflows `cp` the

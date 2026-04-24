@@ -56,11 +56,20 @@ function loadExternalToolsJson(jsonPath, visited = new Set()) {
 
     let tools = {}
 
-    // Handle extends field
-    if (data.extends) {
-      const extendsPath = path.resolve(path.dirname(jsonPath), data.extends)
+    // Handle extends field. Accepts ESLint-style shape: single string or an
+    // array of strings. Later entries in an array override earlier ones;
+    // the current file's `tools` overrides all.
+    const extendsField = data.extends
+    const extendsList =
+      typeof extendsField === 'string'
+        ? [extendsField]
+        : Array.isArray(extendsField)
+          ? extendsField
+          : []
+    for (const relativeBase of extendsList) {
+      const extendsPath = path.resolve(path.dirname(jsonPath), relativeBase)
       const extendedTools = loadExternalToolsJson(extendsPath, visited)
-      tools = { ...extendedTools }
+      tools = { ...tools, ...extendedTools }
     }
 
     // Merge with current file's tools

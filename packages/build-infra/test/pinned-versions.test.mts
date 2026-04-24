@@ -3,7 +3,8 @@
  * Validates version pinning and package specifier generation.
  */
 
-import { existsSync } from 'node:fs'
+import { existsSync, promises as fs } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -16,6 +17,7 @@ import {
   getToolConfig,
   getToolPackageSpec,
   getToolVersion,
+  loadAllTools,
   loadPythonVersions,
 } from '../lib/pinned-versions.mts'
 
@@ -300,6 +302,170 @@ describe('pinned-versions', () => {
           }
         }
       }
+    })
+  })
+
+  describe('extends resolution', () => {
+    let tmpDir: string
+
+    beforeAll(async () => {
+      tmpDir = await fs.mkdtemp(
+        path.join(os.tmpdir(), 'pinned-versions-extends-'),
+      )
+    })
+
+    afterAll(async () => {
+      if (tmpDir) {
+        await fs.rm(tmpDir, { recursive: true, force: true })
+      }
+    })
+
+    async function writeConfig(dirName: string, body: object): Promise<string> {
+      const dir = path.join(tmpDir, dirName)
+      await fs.mkdir(dir, { recursive: true })
+      // loadAllTools({packageRoot}) reads `<packageRoot>/external-tools.json`.
+      await fs.writeFile(
+        path.join(dir, 'external-tools.json'),
+        JSON.stringify(body, null, 2),
+      )
+      return dir
+    }
+
+    it('array-form extends merges left-to-right; later entries override earlier', async () => {
+      const baseA = await writeConfig('base-a', {
+        description: 'base-a',
+        tools: {
+          aaa: { description: 'from-a', version: '1.0.0' },
+          shared: { description: 'shared-from-a', version: '1.0.0' },
+        },
+      })
+      const baseB = await writeConfig('base-b', {
+        description: 'base-b',
+        tools: {
+          bbb: { description: 'from-b', version: '2.0.0' },
+          shared: { description: 'shared-from-b', version: '2.0.0' },
+        },
+      })
+      const consumer = await writeConfig('consumer-array', {
+        description: 'array extends',
+        extends: [
+          path.join(baseA, 'external-tools.json'),
+          path.join(baseB, 'external-tools.json'),
+        ],
+        tools: {
+          ccc: { description: 'from-consumer', version: '3.0.0' },
+        },
+      })
+
+      const tools = loadAllTools({ packageRoot: consumer })
+
+      expect(tools['aaa']?.version).toBe('1.0.0')
+      expect(tools['bbb']?.version).toBe('2.0.0')
+      expect(tools['ccc']?.version).toBe('3.0.0')
+      // Later entry (baseB) wins for the conflicting `shared` key.
+      expect(tools['shared']?.version).toBe('2.0.0')
+      expect(tools['shared']?.description).toBe('shared-from-b')
+    })
+
+    it('current file overrides every entry in the extends chain', async () => {
+      const base = await writeConfig('base-override', {
+        description: 'base',
+        tools: {
+          overridden: { description: 'from-base', version: '1.0.0' },
+        },
+      })
+      const consumer = await writeConfig('consumer-override', {
+        description: 'current overrides all',
+        extends: [path.join(base, 'external-tools.json')],
+        tools: {
+          overridden: { description: 'from-current', version: '9.9.9' },
+        },
+      })
+
+      const tools = loadAllTools({ packageRoot: consumer })
+
+      expect(tools['overridden']?.version).toBe('9.9.9')
+      expect(tools['overridden']?.description).toBe('from-current')
+    })
+
+    it('single-string extends still works (backward compat)', async () => {
+      const base = await writeConfig('base-single', {
+        description: 'base',
+        tools: {
+          single: { description: 'from-single', version: '4.2.0' },
+        },
+      })
+      const consumer = await writeConfig('consumer-single', {
+        description: 'single string extends',
+        extends: path.join(base, 'external-tools.json'),
+        tools: {},
+      })
+
+      const tools = loadAllTools({ packageRoot: consumer })
+
+      expect(tools['single']?.version).toBe('4.2.0')
+      expect(tools['single']?.description).toBe('from-single')
+    })
+
+    it('empty extends array behaves like no extends', async () => {
+      const consumer = await writeConfig('consumer-empty', {
+        description: 'empty extends',
+        extends: [],
+        tools: {
+          local: { description: 'from-local', version: '0.1.0' },
+        },
+      })
+
+      const tools = loadAllTools({ packageRoot: consumer })
+
+      expect(tools['local']?.version).toBe('0.1.0')
+    })
+
+    it('nested extends chains resolve transitively', async () => {
+      const grandparent = await writeConfig('grand', {
+        description: 'grandparent',
+        tools: {
+          grand: { description: 'from-grand', version: '1.0.0' },
+        },
+      })
+      const parent = await writeConfig('parent', {
+        description: 'parent',
+        extends: path.join(grandparent, 'external-tools.json'),
+        tools: {
+          parent: { description: 'from-parent', version: '2.0.0' },
+        },
+      })
+      const consumer = await writeConfig('consumer-nested', {
+        description: 'consumer',
+        extends: [path.join(parent, 'external-tools.json')],
+        tools: {
+          child: { description: 'from-child', version: '3.0.0' },
+        },
+      })
+
+      const tools = loadAllTools({ packageRoot: consumer })
+
+      expect(tools['grand']?.version).toBe('1.0.0')
+      expect(tools['parent']?.version).toBe('2.0.0')
+      expect(tools['child']?.version).toBe('3.0.0')
+    })
+
+    it('core build-infra tools are still merged alongside fixture tools', async () => {
+      const consumer = await writeConfig('consumer-core-coexist', {
+        description: 'core + custom',
+        tools: {
+          custom: { description: 'from-custom', version: '7.7.7' },
+        },
+      })
+
+      const tools = loadAllTools({ packageRoot: consumer })
+
+      // Fixture tool is present.
+      expect(tools['custom']?.version).toBe('7.7.7')
+      // Foundational tools from packages/build-infra/external-tools.json are
+      // always prepended by loadAllTools and must not be lost.
+      expect(tools['git']).toBeDefined()
+      expect(tools['curl']).toBeDefined()
     })
   })
 })

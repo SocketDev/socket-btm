@@ -27,13 +27,12 @@ const toolSchema = Type.Object(
       }),
     ),
     packageManager: Type.Optional(
-      Type.Union([
-        Type.Literal('npm'),
-        Type.Literal('pip'),
-        Type.Literal('pnpm'),
-      ], {
-        description: 'Package manager for installation. Absent = system tool',
-      }),
+      Type.Union(
+        [Type.Literal('npm'), Type.Literal('pip'), Type.Literal('pnpm')],
+        {
+          description: 'Package manager for installation. Absent = system tool',
+        },
+      ),
     ),
     notes: Type.Optional(
       Type.Union([Type.String(), Type.Array(Type.String())], {
@@ -100,8 +99,9 @@ export const externalToolsSchema = Type.Object(
       }),
     ),
     extends: Type.Optional(
-      Type.String({
-        description: 'Path to a base external-tools.json to inherit tools from',
+      Type.Union([Type.String(), Type.Array(Type.String())], {
+        description:
+          'Path(s) to a base external-tools.json to inherit tools from. Mirrors ESLint: accepts a single string or an array of strings. Later entries in an array override earlier ones; the current file overrides all.',
       }),
     ),
     tools: Type.Optional(

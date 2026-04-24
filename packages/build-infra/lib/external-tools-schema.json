@@ -6,8 +6,11 @@
     "$schema": { "type": "string" },
     "description": { "type": "string" },
     "extends": {
-      "type": "string",
-      "description": "Path to a base external-tools.json to inherit from"
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ],
+      "description": "Path(s) to a base external-tools.json to inherit from. Mirrors ESLint: accepts a single string or an array of strings. Later entries in an array override earlier ones; the current file overrides all."
     },
     "tools": {
       "type": "object",

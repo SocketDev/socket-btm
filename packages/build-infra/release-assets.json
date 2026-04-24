@@ -154,12 +154,12 @@
   },
   "yoga-layout": {
     "description": "Yoga Layout WASM build",
-    "tag": "yoga-layout-20260423-b609bcb",
+    "tag": "yoga-layout-20260424-18f0f46",
     "checksums": {
-      "yoga-20260423-b609bcb.wasm": "cd09b00ace86b149808d4e076f2100d5eb44aac8035dd366b4f41f5060b67ab4",
-      "yoga-20260423-b609bcb.mjs": "8ddb2edf3f797217cb7e27c452ec01ea4f78f0146b3b1c10380e8006322c4587",
-      "yoga-sync-20260423-b609bcb.mjs": "3fdab1db563b3af110758f57fd626fb91daf6d8859daddda3628c3286d5865ac",
-      "yoga-sync-20260423-b609bcb.cjs": "922f6a7f13e5dbd147ae1a5eb065f902537f124c29c4ba31eafc48d3ef2fdbc2"
+      "yoga-20260424-18f0f46.wasm": "cd09b00ace86b149808d4e076f2100d5eb44aac8035dd366b4f41f5060b67ab4",
+      "yoga-20260424-18f0f46.mjs": "8ddb2edf3f797217cb7e27c452ec01ea4f78f0146b3b1c10380e8006322c4587",
+      "yoga-sync-20260424-18f0f46.mjs": "3fdab1db563b3af110758f57fd626fb91daf6d8859daddda3628c3286d5865ac",
+      "yoga-sync-20260424-18f0f46.cjs": "922f6a7f13e5dbd147ae1a5eb065f902537f124c29c4ba31eafc48d3ef2fdbc2"
     }
   }
 }

@@ -140,26 +140,26 @@
   },
   "stubs": {
     "description": "Self-extracting stub binaries",
-    "tag": "stubs-20260418-44665cd",
+    "tag": "stubs-20260425-6aae187",
     "checksums": {
-      "smol-stub-darwin-arm64.tar.gz": "eb290aeb5a2e5f43ce6f18fbacd9b23d45e7a65f4d56c5d6fc5035f424f0dc3a",
-      "smol-stub-darwin-x64.tar.gz": "88e8d37aa30093beb5577be1dab8106686c04ad103d42d0757211cff449c7c22",
-      "smol-stub-linux-arm64-musl.tar.gz": "94f38075028a490f0452718fea6fe70c2c3b8b81e28c5492191feccb0251e48f",
-      "smol-stub-linux-arm64.tar.gz": "3b6fd2ed1f2cf439b71d7539357f0e227533ce09b3582fc9e8772a5c216999f6",
-      "smol-stub-linux-x64-musl.tar.gz": "f7d2ced37488c59b6f69f4a8359030fe233736d9d0a6e87839ff00579b8df095",
-      "smol-stub-linux-x64.tar.gz": "b41b576e29623e8471406f411d0f4219e307acaeca5bca907a635ddc98d2be8f",
-      "smol-stub-win-arm64.tar.gz": "7606bb51a63a0a32cef91a6a33b42a74c1555e9b562db4bb17f3876bb82aeedf",
-      "smol-stub-win-x64.tar.gz": "3663290e1c1a374d585452683c0cccdc822bd5dedc7afdf249c5b20eb0c23831"
+      "smol-stub-darwin-arm64.tar.gz": "dc2f1e0d4ef5df1491d1b99baa77f95cb0ad1b00ed9add39033e62397fd483aa",
+      "smol-stub-darwin-x64.tar.gz": "896c3f275c3ddc35510b25e5832f7aa09a59cc4af4fc257a913414a8022865b1",
+      "smol-stub-linux-arm64-musl.tar.gz": "3d4e5c792d6a7e96210bcee5f21eb17c6062d61ed5d47168325a3423a2cd1080",
+      "smol-stub-linux-arm64.tar.gz": "642015a5b0e8183f2f7228f738b872e1b5c15edc392463f0126e99dab7ab76bd",
+      "smol-stub-linux-x64-musl.tar.gz": "d1002c082434df617f9a38d6f76fe99a080b31a260e0a255a6da8fcfb90d3213",
+      "smol-stub-linux-x64.tar.gz": "ebbbbc432ef63f533a9eefa82a8b2fad7c1e0b199a0aab4a092ec3ac153be449",
+      "smol-stub-win-arm64.tar.gz": "44b8f565bd360b5eeeaaccb35d0551221894a351b6c1aee0c860fd118287623f",
+      "smol-stub-win-x64.tar.gz": "272577a39567a65e71eb2cd0b677dadbf82f36017412d40dcfd4261b3521365c"
     }
   },
   "yoga-layout": {
     "description": "Yoga Layout WASM build",
-    "tag": "yoga-layout-20260424-18f0f46",
+    "tag": "yoga-layout-20260425-6aae187",
     "checksums": {
-      "yoga-20260424-18f0f46.wasm": "cd09b00ace86b149808d4e076f2100d5eb44aac8035dd366b4f41f5060b67ab4",
-      "yoga-20260424-18f0f46.mjs": "8ddb2edf3f797217cb7e27c452ec01ea4f78f0146b3b1c10380e8006322c4587",
-      "yoga-sync-20260424-18f0f46.mjs": "3fdab1db563b3af110758f57fd626fb91daf6d8859daddda3628c3286d5865ac",
-      "yoga-sync-20260424-18f0f46.cjs": "922f6a7f13e5dbd147ae1a5eb065f902537f124c29c4ba31eafc48d3ef2fdbc2"
+      "yoga-20260425-6aae187.wasm": "cd09b00ace86b149808d4e076f2100d5eb44aac8035dd366b4f41f5060b67ab4",
+      "yoga-20260425-6aae187.mjs": "8ddb2edf3f797217cb7e27c452ec01ea4f78f0146b3b1c10380e8006322c4587",
+      "yoga-sync-20260425-6aae187.mjs": "3fdab1db563b3af110758f57fd626fb91daf6d8859daddda3628c3286d5865ac",
+      "yoga-sync-20260425-6aae187.cjs": "922f6a7f13e5dbd147ae1a5eb065f902537f124c29c4ba31eafc48d3ef2fdbc2"
     }
   }
 }

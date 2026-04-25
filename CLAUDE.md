@@ -122,6 +122,8 @@ The umbrella rule: never run a git command that mutates state belonging to a pat
 
 [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/): `<type>(<scope>): <description>`. NO AI attribution (commit-msg hook auto-strips it).
 
+- **Open PRs:** when adding commits to an OPEN PR, ALWAYS update the PR title and description to match the new scope. A title like `chore: foo` after you've added security-fix and docs commits to it is now a lie. Use `gh pr edit <num> --title "..." --body "..."` (or `--body-file`) and rewrite the body so it reflects every commit on the branch, grouped by theme. The reviewer should be able to read the PR description and know what's in it without scrolling commits.
+
 ## Code Style
 
 - Default to NO comments. Only when the WHY is non-obvious to a senior engineer
@@ -131,6 +133,18 @@ The umbrella rule: never run a git command that mutates state belonging to a pat
 - Prefer `Promise.allSettled` over `Promise.all` for independent operations
 - ALWAYS use `eslint-disable-next-line` above the line, NEVER trailing `eslint-disable-line`
 - ALWAYS use Edit tool for code modifications, NEVER sed/awk
+
+### Sorting
+
+Sort lists alphanumerically (literal byte order, ASCII before letters). Apply this to:
+
+- **Config lists** — `permissions.allow` / `permissions.deny` in `.claude/settings.json`, `external-tools.json` checksum keys, allowlists in workflow YAML.
+- **Object key entries** — sort keys in plain JSON config + return-shape literals + internal-state objects. (Exception: `__proto__: null` always comes first, ahead of any data keys.)
+- **Import specifiers** — sort named imports inside a single statement: `import { encrypt, randomDataKey, wrapKey } from './crypto.mts'`. Imports that say `import type` follow the same rule. Statement *order* is the project's existing convention (`node:` → external → local → types) — that's separate from specifier order *within* a statement.
+- **Method / function source placement** — within a module, sort top-level functions alphabetically. Convention: private functions (lowercase / un-exported) sort first, exported functions second. The first-line `export` keyword is the divider.
+- **Array literals** — when the array is a config list, allowlist, or set-like collection. Position-bearing arrays (e.g. argv, anything where index matters semantically) keep their meaningful order.
+
+When in doubt, sort. The cost of a sorted list that didn't need to be is approximately zero; the cost of an unsorted list that did need to be is a merge conflict.
 
 ### Promise.race in Loops
 

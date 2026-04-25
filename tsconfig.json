@@ -6,5 +6,5 @@
     "types": ["node"]
   },
   "include": ["scripts/**/*.mts", "src/**/*.mts", "src/**/*.ts"],
-  "exclude": ["build", "coverage", "dist", "node_modules"]
+  "exclude": [".cache", "build", "coverage", "dist", "node_modules"]
 }

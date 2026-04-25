@@ -2,7 +2,7 @@
  * Tool Download + Cache Engine
  *
  * Downloads pinned tool versions, verifies checksums, and caches them
- * in the repo-local .cache/external-tools/ directory (gitignored via .cache/).
+ * in node_modules/.cache/external-tools/ (gitignored via node_modules/).
  *
  * Override: $EXTERNAL_TOOLS_CACHE
  */
@@ -33,7 +33,7 @@ export function getCacheDir() {
   if (process.env.EXTERNAL_TOOLS_CACHE) {
     return process.env.EXTERNAL_TOOLS_CACHE
   }
-  return path.join(process.cwd(), '.cache', 'external-tools')
+  return path.join(process.cwd(), 'node_modules', '.cache', 'external-tools')
 }
 
 /**

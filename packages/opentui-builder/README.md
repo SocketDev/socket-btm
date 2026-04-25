@@ -17,7 +17,7 @@ First-time init:
 git submodule update --init --recursive packages/opentui-builder/upstream/opentui
 ```
 
-The Zig version is pinned in `external-tools.json` and auto-downloaded on first use (cached under `.cache/external-tools/zig/`). Do not install Zig system-wide — the build will use whatever the pin says.
+The Zig version is pinned in `external-tools.json` and auto-downloaded on first use (cached under `node_modules/.cache/external-tools/zig/`). Do not install Zig system-wide — the build will use whatever the pin says.
 
 **Host-OS note**: macOS 26+ requires Zig ≥ 0.16 because 0.15.x's linker is incompatible with the macOS 26 SDK. Linux/Windows hosts are unaffected. The `ensureZig` preflight runs a link smoke test and fails fast with a clear message if the host can't link.
 

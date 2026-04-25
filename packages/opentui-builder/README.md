@@ -21,4 +21,4 @@ The Zig version is pinned in `external-tools.json` and auto-downloaded on first 
 
 **Host-OS note**: macOS 26+ requires Zig ≥ 0.16 because 0.15.x's linker is incompatible with the macOS 26 SDK. Linux/Windows hosts are unaffected. The `ensureZig` preflight runs a link smoke test and fails fast with a clear message if the host can't link.
 
-Output: `build/<mode>/<platform-arch>/out/Final/opentui.<platform-arch>.node`.
+Output: `build/<mode>/<platform-arch>/out/<platform-arch>/opentui.node`.

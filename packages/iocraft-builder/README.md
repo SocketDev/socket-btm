@@ -21,4 +21,4 @@ pnpm --filter iocraft-builder run build:force  # force rebuild from scratch
 
 First time only: install the Rust toolchain (`cargo` + `rustup`) — the postinstall probes for it and will fail early if missing.
 
-Output: `build/<mode>/<platform-arch>/out/Final/iocraft.<platform-arch>.node` (native Node-API addon, consumed by socket-cli).
+Output: `build/<mode>/<platform-arch>/out/<platform-arch>/iocraft.node` (native Node-API addon, consumed by socket-cli). CI builds also place a copy at `build/<mode>/<platform-arch>/out/Final/iocraft.node` for artifact upload.

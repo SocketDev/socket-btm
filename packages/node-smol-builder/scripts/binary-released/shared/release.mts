@@ -2,7 +2,7 @@
 /**
  * @fileoverview Deploy built smol binaries to GitHub Releases
  *
- * This script packages the final binaries from build/${BUILD_MODE}/out/Final/ and creates
+ * This script packages the final binaries from build/${BUILD_MODE}/<platform-arch>/out/Final/ and creates
  * a GitHub release with platform-specific archives for download by socket-cli.
  *
  * Release Strategy:
@@ -30,7 +30,7 @@
  * above is for local debugging only.
  *
  * Prerequisites:
- *   - Built binaries in build/${BUILD_MODE}/out/Final/node/ (or build/${BUILD_MODE}/cache/node-*)
+ *   - Built binaries in build/${BUILD_MODE}/<platform-arch>/out/Final/node/ (or build/${BUILD_MODE}/<platform-arch>/cache/node-*)
  *   - GITHUB_TOKEN environment variable with repo access
  */
 
@@ -172,8 +172,8 @@ async function calculateChecksum(filePath) {
  * Find binary for a given platform/arch/libc combination.
  *
  * Looks in:
- * 1. build/${BUILD_MODE}/out/Final/node/ (if building for current platform)
- * 2. build/${BUILD_MODE}/cache/node-{platform}-{arch} (from cached builds)
+ * 1. build/${BUILD_MODE}/<platform-arch>/out/Final/node/ (if building for current platform)
+ * 2. build/${BUILD_MODE}/<platform-arch>/cache/node-{platform}-{arch} (from cached builds)
  */
 async function findBinary(platform, arch, libc) {
   // Check Final build (if current platform).

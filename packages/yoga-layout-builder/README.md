@@ -11,6 +11,6 @@ pnpm --filter yoga-layout-builder run build        # dev build
 pnpm --filter yoga-layout-builder run build --prod # production build
 ```
 
-Output: `build/<mode>/<platform-arch>/out/Final/` with `yoga.wasm`, `yoga.mjs`, and `yoga-sync.cjs`.
+Output: `build/<mode>/<platform-arch>/wasm/out/Final/` with `yoga.wasm`, `yoga.mjs`, `yoga-sync.cjs`, and `yoga-sync.mjs`.
 
 The postinstall probes for cmake / ninja / python3 / clang (macOS) or gcc (Linux/Windows) and will fail early if they're missing — install those first.

@@ -141,11 +141,14 @@ async function main() {
   const platformArch = await getCurrentPlatformArch()
 
   // Try prod build first, fall back to dev.
+  // Path mirrors yoga-layout-builder's getBuildPaths():
+  //   build/<mode>/<platformArch>/wasm/out/Final/yoga-sync.mjs
   let yogaSyncSource = path.join(
     yogaBuilderDir,
     'build',
     'prod',
     platformArch,
+    'wasm',
     'out',
     'Final',
     'yoga-sync.mjs',
@@ -156,6 +159,7 @@ async function main() {
       'build',
       'dev',
       platformArch,
+      'wasm',
       'out',
       'Final',
       'yoga-sync.mjs',

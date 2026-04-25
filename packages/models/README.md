@@ -14,4 +14,4 @@ pnpm --filter models run build:codet5   # codet5 only
 
 `models` delegates to the individual builder packages; their prereqs apply (Python venv with the pinned pip packages — see their READMEs).
 
-Output: `build/<mode>/<platform-arch>/out/Final/` containing `minilm.onnx` + `codet5.onnx` + tokenizers.
+Output: `build/<mode>/<platform-arch>/out/Final/{minilm-l6,codet5}/model.onnx` (each model directory also contains tokenizer files).

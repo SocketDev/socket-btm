@@ -150,7 +150,7 @@ async function quantizeModel(modelKey, quantLevel) {
 
 /**
  * Copy quantized models and tokenizers to build output directory.
- * Output structure: build/{mode}/out/Final/{modelKey}/model.onnx
+ * Output structure: build/{mode}/{platform-arch}/out/Final/{modelKey}/model.onnx
  */
 async function copyToDist(modelKey, quantizedPaths, quantLevel) {
   logger.step('Copying models to build output')

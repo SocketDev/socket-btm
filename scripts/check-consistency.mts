@@ -555,11 +555,13 @@ async function checkBuildOutputStructure(
       continue
     }
 
-    // Two valid layouts:
-    //   1. node-smol style:  build/{mode}/out/Final/               (single-platform per build)
-    //   2. binsuite style:   build/{mode}/{platform-arch}/out/Final/ (per-platform subdir)
+    // Four valid layouts:
+    //   1. node-smol style:  build/{mode}/out/Final/                       (single-platform per build)
+    //   2. binsuite style:   build/{mode}/{platform-arch}/out/Final/       (per-platform subdir)
+    //   3. wasm style:       build/{mode}/{platform-arch}/wasm/out/Final/  (yoga-layout-builder, onnxruntime-builder)
+    //   4. native-addon style: build/{mode}/{platform-arch}/out/{platform-arch}/<name>.node (iocraft-builder, opentui-builder)
     //
-    // A "Final" directory under build/{mode}/** counts as built.
+    // A "Final" directory or per-arch addon directory under build/{mode}/** counts as built.
 
     // Special case: model builders use different structure
     const MODEL_BUILDERS: string[] = ['codet5-models-builder', 'minilm-builder']
@@ -573,13 +575,25 @@ async function checkBuildOutputStructure(
       if (existsSync(path.join(modeDir, 'out', 'Final'))) {
         return true
       }
-      // Fall back to per-platform subdirs (binsuite style).
+      // Fall back to per-platform subdirs (binsuite, wasm, and native-addon styles).
       const entries = await fs.readdir(modeDir, { withFileTypes: true })
       for (const entry of entries) {
         if (!entry.isDirectory()) {
           continue
         }
-        if (existsSync(path.join(modeDir, entry.name, 'out', 'Final'))) {
+        const archDir = path.join(modeDir, entry.name)
+        // binsuite style: build/{mode}/{platform-arch}/out/Final/
+        if (existsSync(path.join(archDir, 'out', 'Final'))) {
+          return true
+        }
+        // wasm style: build/{mode}/{platform-arch}/wasm/out/Final/
+        if (existsSync(path.join(archDir, 'wasm', 'out', 'Final'))) {
+          return true
+        }
+        // native-addon style: build/{mode}/{platform-arch}/out/{platform-arch}/
+        // (iocraft-builder, opentui-builder write the .node binary into a
+        // platform-arch subdir of out/, no Final/ segment).
+        if (existsSync(path.join(archDir, 'out', entry.name))) {
           return true
         }
       }
@@ -596,7 +610,7 @@ async function checkBuildOutputStructure(
         reportIssue(
           'warning',
           'build-output',
-          `${mode} build exists but missing out/Final/ (expected build/${mode}/out/Final or build/${mode}/<platform-arch>/out/Final)`,
+          `${mode} build exists but missing recognized output dir (expected build/${mode}/out/Final, build/${mode}/<platform-arch>/out/Final, build/${mode}/<platform-arch>/wasm/out/Final, or build/${mode}/<platform-arch>/out/<platform-arch>/)`,
           `${pkg.name}/build/${mode}`,
         )
       }

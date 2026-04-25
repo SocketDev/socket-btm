@@ -134,6 +134,18 @@ The umbrella rule: never run a git command that mutates state belonging to a pat
 - ALWAYS use `eslint-disable-next-line` above the line, NEVER trailing `eslint-disable-line`
 - ALWAYS use Edit tool for code modifications, NEVER sed/awk
 
+### Paths: One Path, One Reference
+
+**If a path appears in two places, that's a bug.** Every build artifact lives at exactly one canonical location, and that location is defined in exactly one place: a `paths.mts` module (or equivalent path helper). Everything else — other scripts, READMEs, Dockerfiles, workflows, tests — derives from that source. No hand-assembled `path.join('build', mode, platformArch, 'out', 'Final', ...)` strings outside the path module that owns them.
+
+- **Within a package**: every script imports its own `scripts/paths.mts`. No script should compute build paths from raw segments.
+- **Across packages**: when builder B consumes builder A's artifact (e.g. ink-builder consuming yoga-layout-builder's `yoga-sync.mjs`), B imports A's `paths.mts` (or a typed helper exported from it) — never reconstructs the path from string segments. The bug from R28 (`yoga-sync.mjs not found` because ink-builder hand-built a path missing the `wasm/` segment that yoga-layout-builder had added) is exactly the failure mode this rule prevents.
+- **Doc strings**: README "Output:" lines and `@fileoverview` comments describe the path; they don't *encode* it for tools to parse. If a tool needs the path, it imports it. The doc is for humans only — and even there, it must match what `paths.mts` actually produces, verified by running the function.
+- **Workflows / Dockerfiles**: GitHub Actions YAML and Dockerfiles can't `import` TS, so they're allowed to reference the path string directly — but they MUST add a comment pointing at the canonical `paths.mts` so the next person editing knows where the source of truth lives, and any path string must match `paths.mts` byte-for-byte. If you find yourself writing the same path twice in the same workflow, hoist it to a step output (`steps.paths.outputs.final_dir`) or a job-level env var; reference that everywhere downstream.
+- **Comments that re-state the path**: forbidden. `// Path mirrors yoga-layout-builder's getBuildPaths(): build/<mode>/<platformArch>/wasm/out/Final/yoga-sync.mjs` is duplication wearing a comment costume. The import statement is the comment.
+
+When you spot duplication, the answer is never "update both" — the answer is "delete one and import the other." Fix the architecture, not the symptom.
+
 ### Sorting
 
 Sort lists alphanumerically (literal byte order, ASCII before letters). Apply this to:

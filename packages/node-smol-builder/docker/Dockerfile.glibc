@@ -1,0 +1,115 @@
+# Build Node.js smol in container to offload compute from GitHub Actions.
+# This Dockerfile supports building for linux/amd64 and linux/arm64.
+# glibc variant using AlmaLinux 8 (glibc 2.28) for maximum compatibility.
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+FROM almalinux:8 AS build
+
+# Explicit cache-version tag from cache-versions.json; bumping this invalidates layers below.
+ARG CACHE_VERSION=unset
+
+# Socket-registry tool-checksums. Workflows `cp "$SOCKET_TOOL_CHECKSUMS_FILE"
+# .build-context/registry-tools.json` before `docker build`, so this
+# layer reads the same authoritative pnpm version + per-platform sha256
+# that the setup action verified on the runner — no hardcoded SHA
+# blocks in this Dockerfile. The file is gitignored; it materializes
+# fresh for every CI run from socket-registry's pinned SHA.
+COPY .build-context/registry-tools.json /tmp/registry-tools.json
+
+# Install build dependencies.
+# AlmaLinux 8 has glibc 2.28, which is the minimum required by Node.js.
+# We use GCC Toolset 13 for C++20 support while maintaining glibc 2.28 compatibility.
+# Enable PowerTools for ninja-build, EPEL for ccache.
+RUN dnf -y update && \
+    dnf -y install epel-release dnf-plugins-core && \
+    dnf config-manager --set-enabled powertools && \
+    dnf -y install \
+        git \
+        curl \
+        ccache \
+        ninja-build \
+        ca-certificates \
+        xz-devel \
+        openssl-devel \
+        zlib-static \
+        perl \
+        zlib-devel \
+        liburing-devel \
+        jq \
+        python3.11 \
+        python3.11-pip \
+        which \
+        procps-ng \
+        patch \
+        && \
+    # Enable GCC Toolset 13 (provides GCC 13 with C++20 support).
+    dnf -y install gcc-toolset-13 gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ gcc-toolset-13-libstdc++-devel && \
+    # Install Node.js from NodeSource.
+    curl -fsSL https://rpm.nodesource.com/setup_current.x | bash - && \
+    dnf -y install nodejs && \
+    ARCH=$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/') && \
+    PLATFORM="linux-${ARCH}" && \
+    PNPM_VERSION=$(jq -r .pnpm.version /tmp/registry-tools.json) && \
+    PNPM_ASSET=$(jq -r ".pnpm.checksums[\"${PLATFORM}\"].asset" /tmp/registry-tools.json) && \
+    PNPM_SHA256=$(jq -r ".pnpm.checksums[\"${PLATFORM}\"].sha256" /tmp/registry-tools.json) && \
+    curl -fsSL -o /tmp/pnpm.tar.gz "https://github.com/pnpm/pnpm/releases/download/v${PNPM_VERSION}/${PNPM_ASSET}" && \
+    echo "${PNPM_SHA256}  /tmp/pnpm.tar.gz" | sha256sum -c - && \
+    tar -xzf /tmp/pnpm.tar.gz -C /usr/local/bin && \
+    rm /tmp/pnpm.tar.gz /tmp/registry-tools.json && \
+    # Set Python 3.11 as default python3 (high priority overrides system 3.6).
+    alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 100 && \
+    alternatives --set python3 /usr/bin/python3.11 && \
+    dnf clean all
+
+# Build static OpenSSL (AlmaLinux 8 doesn't ship libcrypto.a).
+COPY .github/scripts/build-static-openssl.sh .github/scripts/
+RUN source /opt/rh/gcc-toolset-13/enable && .github/scripts/build-static-openssl.sh
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy repository files.
+COPY . .
+
+# Install workspace dependencies.
+ENV CI=true
+RUN pnpm install --frozen-lockfile
+
+# Build Node.js smol.
+ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64
+ARG TARGETARCH
+ARG MATRIX_PLATFORM=linux
+ARG MATRIX_ARCH=x64
+# Cache version - managed centrally in .github/cache-versions.json
+ARG CACHE_VERSION=unset
+ENV BUILD_MODE=$BUILD_MODE
+ENV PLATFORM_ARCH=$PLATFORM_ARCH
+ENV MATRIX_PLATFORM=$MATRIX_PLATFORM
+ENV MATRIX_ARCH=$MATRIX_ARCH
+
+# Source GCC Toolset 13 environment before building.
+# For amd64/x64 builds, set CFLAGS/CXXFLAGS to target baseline x86-64 without AVX/AVX2
+# to ensure binary portability across different CPU generations (e.g., GitHub Actions runners).
+RUN echo "Cache version: ${CACHE_VERSION}" && \
+    source /opt/rh/gcc-toolset-13/enable && \
+    if [ "$MATRIX_ARCH" = "x64" ]; then \
+        export CFLAGS="$CFLAGS -march=x86-64 -mtune=generic" && \
+        export CXXFLAGS="$CXXFLAGS -march=x86-64 -mtune=generic"; \
+    fi && \
+    if [ "$BUILD_MODE" = "prod" ]; then \
+        pnpm --filter node-smol-builder build --prod --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}"; \
+    else \
+        pnpm --filter node-smol-builder build --dev --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}"; \
+    fi
+
+# Export stage: Copy build artifacts and checkpoints (not entire filesystem).
+# We export the entire build/ directory to preserve both:
+# - Build artifacts at build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/
+# - Checkpoints at build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints/ and build/shared/checkpoints/
+# Checkpoints enable GitHub Actions caching to skip expensive build steps on repeated runs.
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=build /workspace/packages/node-smol-builder/build /

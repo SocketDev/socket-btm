@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Centralized cache version management for CI workflows. Bump versions to force-invalidate all caches for a package.",
+  "versions": {
+    "binflate": "v128",
+    "binject": "v182",
+    "binpress": "v165",
+    "curl": "v35",
+    "ink": "v11",
+    "iocraft": "v31",
+    "lief": "v69",
+    "models": "v32",
+    "node-smol": "v214",
+    "onnxruntime": "v30",
+    "opentui": "v13",
+    "stubs": "v101",
+    "yoga-layout": "v31"
+  }
+}

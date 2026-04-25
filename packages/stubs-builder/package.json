@@ -1,0 +1,25 @@
+{
+  "name": "stubs-builder",
+  "version": "0.0.0",
+  "description": "Platform-specific stub binaries for compressed Node.js executables",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mts",
+    "clean": "node scripts/clean.mts",
+    "cover": "vitest run --coverage",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@socketsecurity/lib": "catalog:",
+    "bin-infra": "workspace:*",
+    "build-infra": "workspace:*",
+    "curl-builder": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "catalog:",
+    "lief-builder": "workspace:*",
+    "vitest": "catalog:"
+  }
+}

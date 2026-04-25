@@ -1,0 +1,110 @@
+name: SMOL 9. Glibc audit
+
+# Weekly cron job that runs `pnpm --filter node-smol-builder run glibc:audit`
+# against the latest built linux-x64 binary. Intended as a tripwire — if any
+# symbol version > the floor appears (today: 2.28; target: 2.17 when the
+# floor-lowering plan lands), the job fails and surfaces the list of offenders.
+#
+# This is groundwork only. Does not block any release flow. Today's floor is
+# the baseline (2.28); once Phase 2 of docs/plans/glibc-floor-lowering.md
+# lands, flip the floor env to 2.17.
+
+on:
+  workflow_dispatch:
+    inputs:
+      floor:
+        description: 'glibc floor version (e.g. 2.17, 2.28)'
+        type: string
+        default: '2.28'
+  schedule:
+    # Every Monday 08:00 UTC — one run per week.
+    - cron: '0 8 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Audit glibc symbols in latest linux-x64 release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          submodules: false
+
+      # Scoped install — the audit script only needs node-smol-builder's deps.
+      # Full monorepo setup-and-install would burn ~2-3 min for no reason.
+      - uses: SocketDev/socket-registry/.github/actions/setup@b9918c72da5f4197c1af5cba60583efbeb64daf5 # main
+
+      - name: Install node-smol-builder dependencies only
+        shell: bash
+        run: pnpm install --filter node-smol-builder --frozen-lockfile
+
+      - name: Install objdump
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binutils
+
+      - name: Download latest node-smol linux-x64 release asset
+        id: download
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Fetch the most recent node-smol-* release; pick the linux-x64 asset
+          # (prod variant if published, else dev). Download into a scratch dir.
+          mkdir -p audit-tmp
+          RELEASE=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 20 \
+            --json tagName --jq '.[] | select(.tagName | startswith("node-smol-")) | .tagName' \
+            | head -1)
+          if [ -z "$RELEASE" ]; then
+            echo "No node-smol-* release found; skipping audit."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Auditing release: $RELEASE"
+          gh release download "$RELEASE" --repo "$GITHUB_REPOSITORY" \
+            --pattern '*linux-x64*.tar.gz' --dir audit-tmp
+          for f in audit-tmp/*.tar.gz; do
+            echo "Extracting $f"
+            tar -xzf "$f" -C audit-tmp
+          done
+          # The binary ends up somewhere under audit-tmp/; find it. Accept
+          # symlinks too — tarballs sometimes extract `node → node-x.y.z`.
+          BINARIES=$(find audit-tmp \( -type f -o -type l \) -name node 2>/dev/null)
+          COUNT=$(echo "$BINARIES" | grep -c . || true)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "× No 'node' binary found in release tarball"
+            find audit-tmp -maxdepth 3 -type f | head -20
+            exit 1
+          fi
+          if [ "$COUNT" -gt 1 ]; then
+            echo "Warning: found $COUNT candidate 'node' entries; using the first."
+            echo "$BINARIES"
+          fi
+          BINARY=$(echo "$BINARIES" | head -1)
+          echo "Found binary: $BINARY"
+          echo "BINARY=$BINARY" >> "$GITHUB_ENV"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Run glibc symbol audit
+        if: steps.download.outputs.skip != 'true'
+        shell: bash
+        env:
+          # BINARY is exported into GITHUB_ENV by the download step above so
+          # it flows into every subsequent step. Listing it here documents the
+          # dependency and keeps it symmetric with FLOOR.
+          BINARY: ${{ env.BINARY }}
+          FLOOR: ${{ inputs.floor || '2.28' }}
+        run: |
+          pnpm --filter node-smol-builder run glibc:audit -- \
+            --binary="$BINARY" --floor="$FLOOR" --fallback-report

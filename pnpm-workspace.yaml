@@ -1,0 +1,65 @@
+packages:
+  - packages/*
+  - .claude/hooks/*
+
+# Packages allowed to run build scripts (pnpm v11 strictDepBuilds default).
+allowBuilds:
+  docsify: false
+  esbuild: true
+  onnxruntime-node: true
+
+# Refuse to run if the pnpm version on PATH differs from the packageManager
+# field in package.json. Our setup action pins pnpm via external-tools.json;
+# any drift should fail fast, not silently auto-download via @pnpm/exe
+# (which in rc.5 leaves a placeholder launcher that errors at runtime).
+pmOnFail: error
+
+catalog:
+  '@anthropic-ai/claude-code': 2.1.92
+  '@babel/core': 7.28.4
+  '@babel/types': 7.28.5
+  '@biomejs/biome': 2.2.4
+  '@dotenvx/dotenvx': 1.31.0
+  '@sinclair/typebox': 0.34.49
+  '@socketsecurity/lib': 5.24.0
+  '@types/adm-zip': 0.5.7
+  '@types/node': 24.9.2
+  '@vitest/coverage-v8': 4.0.3
+  acorn: 8.14.0
+  acorn-walk: 8.3.4
+  adm-zip: 0.5.16
+  ecc-agentshield: 1.4.0
+  esbuild: 0.25.11
+  magic-string: 0.30.19
+  octokit: 5.0.5
+  tar: 7.4.3
+  vitest: 4.0.3
+  yoctocolors-cjs: 2.1.3
+# Wait 7 days (10080 minutes) before installing newly published packages.
+minimumReleaseAge: 10080
+minimumReleaseAgeExclude:
+  - '@anthropic-ai/claude-code@2.1.92'
+  - '@socketaddon/*'
+  - '@socketbin/*'
+  - '@socketregistry/*'
+  - '@socketsecurity/*'
+
+# Dependency overrides (migrated from package.json pnpm.overrides).
+overrides:
+  vite: '7.3.2'
+trustPolicy: no-downgrade
+trustPolicyExclude:
+  - semver@6.3.1
+
+# Auto-install missing peer deps (pnpm default). Declared explicitly
+# so a future default flip can't silently change install behavior.
+autoInstallPeers: true
+
+# Run pre/post lifecycle scripts on the workspace root (e.g.
+# prepare -> husky). This is the pnpm default; declared explicitly
+# so a future default flip can't silently disable husky setup.
+enablePrePostScripts: true
+
+# Pin exact versions on `pnpm add`. Catalog and overrides should
+# also be exact pins (5.24.0, not ^5.24.0).
+saveExact: true

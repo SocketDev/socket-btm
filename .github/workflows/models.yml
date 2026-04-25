@@ -1,0 +1,561 @@
+name: ONNX 1. Models
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      build_mode:
+        description: 'Build mode'
+        type: choice
+        options:
+          - prod
+          - dev
+        default: prod
+      debug:
+        description: 'Debug (0|1|namespace[,...])'
+        type: string
+        default: '0'
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+      force:
+        type: boolean
+        default: false
+      build_mode:
+        type: string
+        default: prod
+      debug:
+        type: string
+        default: '0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build Models
+    permissions:
+      contents: read
+      id-token: write # OIDC authentication for Depot builds
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      # Models are platform-independent .onnx but build/ is still scoped by
+      # platform-arch so concurrent matrix jobs cannot collide.
+      PLATFORM_ARCH: linux-x64
+
+    steps:
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@b9918c72da5f4197c1af5cba60583efbeb64daf5 # main
+
+      - name: Load tool versions
+        id: tool-versions
+        run: |
+          NODE_VERSION=$(cat .node-version | tr -d '\n')
+          echo "node-version=$NODE_VERSION" >> $GITHUB_OUTPUT
+          echo "Loaded Node.js: $NODE_VERSION"
+
+      - name: Set build mode
+        id: build-mode
+        uses: ./.github/actions/set-build-mode
+        with:
+          build-mode: ${{ inputs.build_mode }}
+
+      - name: Load cache version from centralized config
+        id: cache-version
+        uses: ./.github/actions/load-cache-version
+        with:
+          package-name: models
+
+      - name: Generate model cache key
+        id: cache-key
+        env:
+          CACHE_VERSION: ${{ steps.cache-version.outputs.version }}
+        run: |
+          # Cross-platform hash function.
+          if command -v shasum &> /dev/null; then
+            hash_cmd="shasum -a 256"
+          elif command -v sha256sum &> /dev/null; then
+            hash_cmd="sha256sum"
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+
+          # Extract model revisions from package.json for explicit
+          # cache key versioning. Earlier this read from build.mts via
+          # grep, but build.mts has no `revision:` keys — they live in
+          # package.json under `models.<name>.revision`. The grep was
+          # silently returning empty strings, making the cache label
+          # `minilm-_codet5-` regardless of actual revisions. Cache
+          # correctness was preserved via the separate PACKAGE_JSON
+          # hash, but the label was meaningless for log forensics.
+          MINILM_REVISION=$(jq -r '.models."minilm-l6".revision // ""' packages/models/package.json | head -c 7)
+          CODET5_REVISION=$(jq -r '.models.codet5.revision // ""' packages/models/package.json)
+
+          # Handle 'main' branch for codet5 (not a commit hash)
+          if [ "$CODET5_REVISION" = "main" ]; then
+            CODET5_SHORT="main"
+          else
+            CODET5_SHORT=$(echo "$CODET5_REVISION" | head -c 7)
+          fi
+
+          # Create composite version string (short revisions for readability)
+          MODEL_VERSIONS="minilm-${MINILM_REVISION}_codet5-${CODET5_SHORT}"
+          echo "model_versions=${MODEL_VERSIONS}" >> $GITHUB_OUTPUT
+          echo "Model versions: ${MODEL_VERSIONS}"
+
+          # Per-phase cumulative hashing (like node-smol)
+
+          # Hashes ALL files, not just *.mts — external-tools.json and other
+          # non-script configs affect the build too.
+          hash_dir() {
+            local dir=$1
+            if [ -d "$dir" ]; then
+              # LC_COLLATE=C: keep file ordering locale-independent so
+              # cache keys are consistent across runner locales.
+              find "$dir" -type f 2>/dev/null | LC_COLLATE=C sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1 || echo ""
+            else
+              echo ""
+            fi
+          }
+
+          COMMON=$(hash_dir packages/models/scripts/common)
+          PACKAGE_JSON=$($hash_cmd packages/models/package.json | cut -d' ' -f1)
+          BUILD_MJS=$($hash_cmd packages/models/scripts/build.mts | cut -d' ' -f1)
+          # Shared TS helpers, workspace lock, and Node version — every
+          # phase depends on build-infra/lib at runtime.
+          BUILD_INFRA_LIB=$(hash_dir packages/build-infra/lib)
+          BIN_INFRA_LIB=$(hash_dir packages/bin-infra/lib)
+          PNPM_LOCK_HASH=$($hash_cmd pnpm-lock.yaml 2>/dev/null | cut -d' ' -f1)
+          NODE_VERSION_HASH=$($hash_cmd .node-version 2>/dev/null | cut -d' ' -f1)
+          # external-tools.json pins python / pip toolchain versions read by
+          # pinned-versions.mts for the ML pipeline (download → convert →
+          # quantize). Top-level scripts/paths.mts is re-exported by every
+          # per-phase shared/paths.mts. scripts/lib/ (if present) holds
+          # shared helpers. None were previously hashed.
+          EXTERNAL_TOOLS_ROOT=$($hash_cmd packages/models/external-tools.json 2>/dev/null | cut -d' ' -f1)
+          SCRIPTS_TOP=$($hash_cmd packages/models/scripts/paths.mts 2>/dev/null | cut -d' ' -f1)
+          # get-checkpoint-chain.mts drives the "Set checkpoint chain"
+          # step further down. Without hashing it here, editing that
+          # script survives cache restore with stale chain output.
+          GET_CHECKPOINT_CHAIN=$($hash_cmd packages/models/scripts/get-checkpoint-chain.mts 2>/dev/null | cut -d' ' -f1)
+          SCRIPTS_LIB_DIR=$(if [ -d packages/models/scripts/lib ]; then hash_dir packages/models/scripts/lib; else echo ""; fi)
+          # Shared build-infra metadata (foundational toolchain pins +
+          # cross-builder script helpers) — see node-smol.yml for context.
+          BUILD_INFRA_EXTERNAL_TOOLS=$($hash_cmd packages/build-infra/external-tools.json 2>/dev/null | cut -d' ' -f1)
+          BUILD_INFRA_SCRIPTS=$(hash_dir packages/build-infra/scripts)
+          # Root package.json + pnpm-workspace.yaml hold catalog versions,
+          # overrides, trustPolicy, minimumReleaseAge. Unhashed before R24.
+          ROOT_PACKAGE_JSON_HASH=$($hash_cmd package.json 2>/dev/null | cut -d' ' -f1)
+          PNPM_WORKSPACE_HASH=$($hash_cmd pnpm-workspace.yaml 2>/dev/null | cut -d' ' -f1)
+          # Socket-registry propagation SHA — extracted from THIS
+          # workflow's own YAML at runtime, not via a catalog lookup.
+          # A registry cascade bump (which edits the @<sha> pin in
+          # this file) flows through to a cache-key change here, so
+          # the checkpoint cache invalidates whenever the registry
+          # provisions a new pnpm version / zizmor build / etc. That
+          # makes .build-context/registry-tools.json — whose contents
+          # are materialized per-run from SOCKET_TOOL_CHECKSUMS_FILE
+          # — implicitly part of the cache key.
+          WORKFLOW_FILE="${GITHUB_WORKFLOW_REF%@*}"
+          WORKFLOW_FILE="${WORKFLOW_FILE#${GITHUB_REPOSITORY}/}"
+          SOCKET_REGISTRY_SHA=$(grep -ohE 'SocketDev/socket-registry/[^@]+@[0-9a-f]{40}' "$WORKFLOW_FILE" 2>/dev/null | head -1 | grep -oE '[0-9a-f]{40}$' || echo "")
+          SHARED_DEPS="${BUILD_INFRA_LIB}${BIN_INFRA_LIB}${PNPM_LOCK_HASH}${NODE_VERSION_HASH}${EXTERNAL_TOOLS_ROOT}${SCRIPTS_TOP}${GET_CHECKPOINT_CHAIN}${SCRIPTS_LIB_DIR}${BUILD_INFRA_EXTERNAL_TOOLS}${BUILD_INFRA_SCRIPTS}${ROOT_PACKAGE_JSON_HASH}${PNPM_WORKSPACE_HASH}${SOCKET_REGISTRY_SHA}"
+
+          # downloaded phase: cache-version + common + downloaded + build.mts + package.json + shared deps
+          DOWNLOADED_DIR=$(hash_dir packages/models/scripts/downloaded)
+          DOWNLOADED_HASH=$(echo "${CACHE_VERSION}${COMMON}${DOWNLOADED_DIR}${BUILD_MJS}${PACKAGE_JSON}${SHARED_DEPS}" | $hash_cmd | cut -d' ' -f1)
+
+          # converted phase
+          CONVERTED_DIR=$(hash_dir packages/models/scripts/converted)
+          CONVERTED_HASH=$(echo "${DOWNLOADED_HASH}${CONVERTED_DIR}" | $hash_cmd | cut -d' ' -f1)
+
+          # quantized phase (final - most complete hash)
+          # Note: finalized is a checkpoint marker, not a separate build phase with scripts.
+          # Also includes Dockerfile (Depot build recipe).
+          QUANTIZED_DIR=$(hash_dir packages/models/scripts/quantized)
+          DOCKERFILE_HASH=$(if [ -f packages/models/docker/Dockerfile.linux ]; then $hash_cmd packages/models/docker/Dockerfile.linux | cut -d' ' -f1; else echo ""; fi)
+          FINAL_HASH=$(echo "${CONVERTED_HASH}${QUANTIZED_DIR}${DOCKERFILE_HASH}" | $hash_cmd | cut -d' ' -f1)
+
+          echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
+          echo "downloaded_hash=${DOWNLOADED_HASH}" >> $GITHUB_OUTPUT
+          echo "final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
+
+      - name: Restore model checkpoint cache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        id: model-checkpoint-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: packages/models/build/${{ steps.build-mode.outputs.mode }}/${{ env.PLATFORM_ARCH }}/checkpoints
+          key: model-checkpoints-${{ steps.cache-key.outputs.cache_version }}-${{ steps.cache-key.outputs.model_versions }}-${{ runner.os }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.final_hash }}
+          # NOTE: No restore-keys - we require exact match to prevent stale cache restoration.
+          # Partial matches with restore-keys cause builds to use outdated artifacts when
+          # source changes bump the final_hash but the prefix still matches.
+
+      - name: Set checkpoint chain
+        id: checkpoint-chain
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          # Use get-checkpoint-chain.mts to ensure consistency with local builds
+          CHAIN=$(node packages/models/scripts/get-checkpoint-chain.mts --$BUILD_MODE)
+          echo "checkpoint_chain=$CHAIN" >> $GITHUB_OUTPUT
+          # Convert comma-separated to space-separated for validation
+          CHECKPOINTS=$(echo "$CHAIN" | tr ',' ' ')
+          echo "checkpoints=$CHECKPOINTS" >> $GITHUB_OUTPUT
+          echo "Checkpoint chain: $CHAIN"
+
+      - name: Validate checkpoint cache integrity
+        id: validate-cache
+        if: steps.model-checkpoint-cache.outputs.cache-hit == 'true'
+        uses: ./.github/actions/validate-checkpoints
+        with:
+          checkpoint-dirs: packages/models/build/${{ steps.build-mode.outputs.mode }}/${{ env.PLATFORM_ARCH }}/checkpoints
+          checkpoints: ${{ steps.checkpoint-chain.outputs.checkpoints }}
+          package-name: models
+
+      - name: Restore build output from checkpoint chain
+        id: restore-checkpoint
+        uses: ./.github/actions/restore-checkpoint
+        with:
+          package-name: 'models'
+          build-mode: ${{ steps.build-mode.outputs.mode }}
+          checkpoint-chain: ${{ steps.checkpoint-chain.outputs.checkpoint_chain }}
+          cache-hit: ${{ steps.model-checkpoint-cache.outputs.cache-hit }}
+          cache-valid: ${{ steps.validate-cache.outputs.valid }}
+          platform-arch: ${{ env.PLATFORM_ARCH }}
+
+      - name: Free up disk space
+        # Cache-miss only: ~10GB cleanup is only needed when Depot runs
+        # the build. On cache-hit the finalized tarball is already
+        # restored and no Docker activity happens on the runner.
+        # MUST run before Setup Depot CLI — setup-action installs the
+        # `depot` binary under $AGENT_TOOLSDIRECTORY (hostedtoolcache),
+        # so wiping that after setup would delete the CLI.
+        if: (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') || steps.restore-checkpoint.outputs.build-required == 'true'
+        shell: bash
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+
+          # Remove unnecessary packages to free up ~10GB
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+
+          # Clean apt cache
+          sudo apt-get clean
+
+          # Remove docker images
+          docker rmi $(docker images -q) || true
+
+          echo "Disk space after cleanup:"
+          df -h
+
+      - name: Setup Depot CLI
+        if: (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') || steps.restore-checkpoint.outputs.build-required == 'true'
+        uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
+        with:
+          oidc: true
+
+      - name: Stage registry tool-checksums for Docker build context
+        if: |
+          (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          steps.restore-checkpoint.outputs.build-required == 'true'
+        shell: bash
+        run: |
+          # Socket-registry's setup action exports SOCKET_TOOL_CHECKSUMS_FILE
+          # pointing at a stable on-runner copy of external-tools.json.
+          # Dockerfiles `COPY .build-context/registry-tools.json …` to
+          # resolve pnpm version + per-platform asset + sha256 at build
+          # time without duplicating per-Dockerfile constants.
+          mkdir -p .build-context
+          cp "$SOCKET_TOOL_CHECKSUMS_FILE" .build-context/registry-tools.json
+
+      - name: Build models with Depot (offloads compute)
+        if: |
+          (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          steps.restore-checkpoint.outputs.build-required == 'true'
+        uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0
+        with:
+          project: 8fpj9495vw
+          platforms: linux/amd64
+          build-args: |
+            BUILD_MODE=${{ steps.build-mode.outputs.mode }}
+            PLATFORM_ARCH=${{ env.PLATFORM_ARCH }}
+            CACHE_VERSION=${{ steps.cache-version.outputs.version }}
+          no-cache: ${{ inputs.force == true }}
+          file: packages/models/docker/Dockerfile.linux
+          target: export
+          outputs: type=local,dest=packages/models/build
+          context: .
+
+      - name: Verify Depot build output
+        if: |
+          (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          steps.restore-checkpoint.outputs.build-required == 'true'
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "Verifying Depot build output structure..."
+          ls -lah packages/models/build/
+
+          # Check if build artifacts exist.
+          if [ ! -d "packages/models/build/$BUILD_MODE" ]; then
+            echo "× Build directory not found!"
+            echo "Contents of output directory:"
+            find packages/models/build/ -type f
+            exit 1
+          fi
+          echo "✅ Build artifacts found"
+          ls -lh packages/models/build/$BUILD_MODE/
+
+      - name: Validate Depot checkpoints
+        if: |
+          (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          steps.restore-checkpoint.outputs.build-required == 'true'
+        uses: ./.github/actions/validate-depot-checkpoints
+        with:
+          package-path: packages/models
+          build-mode: ${{ steps.build-mode.outputs.mode }}
+          package-name: models
+          platform-arch: ${{ env.PLATFORM_ARCH }}
+
+      # Skip on full cache-hit — files came from the restored checkpoint
+      # tarball and were already integrity-checked by validate-cache.
+      - name: Validate build output
+        if: (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') || steps.restore-checkpoint.outputs.build-required == 'true'
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "Validating models build output for ${BUILD_MODE}..."
+
+          if [ ! -f "packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/minilm-l6/model.onnx" ]; then
+            echo "× Build failed: MiniLM model missing"
+            exit 1
+          fi
+
+          if [ ! -f "packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/codet5/model.onnx" ]; then
+            echo "× Build failed: CodeT5 model missing"
+            exit 1
+          fi
+
+          MINILM_SIZE=$(stat -c%s packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/minilm-l6/model.onnx)
+          CODET5_SIZE=$(stat -c%s packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/codet5/model.onnx)
+
+          # Different size thresholds for different build modes
+          # dev (int8): ~20MB (expect >1MB after quantization)
+          # prod (int4): ~600KB (expect >100KB after aggressive quantization)
+          if [ "${BUILD_MODE}" = "prod" ]; then
+            MIN_SIZE=100000  # 100KB minimum for prod (int4)
+          else
+            MIN_SIZE=1000000  # 1MB minimum for dev (int8)
+          fi
+
+          if [ "$MINILM_SIZE" -lt "$MIN_SIZE" ]; then
+            echo "× Build failed: MiniLM model too small ($MINILM_SIZE bytes, expected >$MIN_SIZE)"
+            exit 1
+          fi
+
+          if [ "$CODET5_SIZE" -lt "$MIN_SIZE" ]; then
+            echo "× Build failed: CodeT5 model too small ($CODET5_SIZE bytes, expected >$MIN_SIZE)"
+            exit 1
+          fi
+
+          echo "✅ Build validation passed"
+
+      - name: Upload model artifacts
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: models
+          path: packages/models/build/${{ steps.build-mode.outputs.mode }}/${{ env.PLATFORM_ARCH }}/out/Final/
+          retention-days: 30
+          compression-level: 0  # Already-compressed binary artifact
+          if-no-files-found: error
+
+      - name: Cleanup before cache save
+        if: always()
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "Cleaning up temporary files before cache save..."
+
+          # Remove temporary build files that shouldn't be cached
+          TEMP_DIRS=(
+            "packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/temp"
+            "packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/downloads"
+            "packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/out"
+          )
+
+          for DIR in "${TEMP_DIRS[@]}"; do
+            if [ -d "$DIR" ]; then
+              echo "Removing: $DIR"
+              rm -rf "$DIR"
+            fi
+          done
+
+          echo "✅ Cleanup complete"
+
+  release:
+    name: Release Models
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: release # Dedicated environment for secret access with approval gates
+    permissions:
+      contents: write # Required to create GitHub releases
+    env:
+      # Release job downloads the Linux x64 build artifact into this layout
+      # to match the build job's output path.
+      PLATFORM_ARCH: linux-x64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/scripts/generate-version.sh
+            packages/models/package.json
+          sparse-checkout-cone-mode: false
+
+      - name: Download model artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: models
+          path: packages/models/build/prod/${{ env.PLATFORM_ARCH }}/out/Final/
+
+      - name: Generate version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source .github/scripts/generate-version.sh
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+          TAG="models-${VERSION}"
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, skipping."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate checksums
+        if: steps.version.outputs.skip != 'true'
+        run: |
+          cd packages/models/build/prod/${PLATFORM_ARCH}/out/Final
+          find . -name "*.onnx" -exec $(command -v shasum &> /dev/null && echo "shasum -a 256" || echo "sha256sum") {} \; > checksums.txt
+          cat checksums.txt
+
+      - name: Import GPG key
+        if: steps.version.outputs.skip != 'true'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+            echo "GPG key imported successfully"
+          else
+            echo "GPG_PRIVATE_KEY secret not set, skipping signature"
+          fi
+
+      - name: Sign checksums
+        if: steps.version.outputs.skip != 'true'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            cd packages/models/build/prod/${PLATFORM_ARCH}/out/Final
+            if [ -n "$GPG_PASSPHRASE" ]; then
+              echo "$GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --detach-sign --armor checksums.txt
+            else
+              gpg --batch --yes --detach-sign --armor checksums.txt
+            fi
+            echo "[OK] Created checksums.txt.asc"
+            ls -lh checksums.txt.asc
+          fi
+
+      - name: Get model versions
+        if: steps.version.outputs.skip != 'true'
+        id: model-versions
+        run: |
+          # Extract model names from package.json moduleSources
+          MINILM_MODEL=$(jq -r '.moduleSources["minilm-l6"].primary' packages/models/package.json | sed 's/.*\///')
+          CODET5_MODEL=$(jq -r '.moduleSources.codet5.primary' packages/models/package.json | sed 's/.*\///')
+          echo "minilm=${MINILM_MODEL}" >> $GITHUB_OUTPUT
+          echo "codet5=${CODET5_MODEL}" >> $GITHUB_OUTPUT
+          echo "MiniLM model: ${MINILM_MODEL}"
+          echo "CodeT5 model: ${CODET5_MODEL}"
+
+      - name: Create GitHub Release
+        if: steps.version.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STEPS_VERSION_OUTPUTS_VERSION: ${{ steps.version.outputs.version }}
+          CODET5_MODEL: ${{ steps.model-versions.outputs.codet5 }}
+          MINILM_MODEL: ${{ steps.model-versions.outputs.minilm }}
+        run: |
+          VERSION="${STEPS_VERSION_OUTPUTS_VERSION}"
+          RELEASE_NAME="models"
+          TAG="${RELEASE_NAME}-${VERSION}"
+
+          echo "Creating new release $TAG..."
+
+          # Create archive with versioned name
+          cd packages/models/build/prod/${PLATFORM_ARCH}/out/Final
+          tar -czf ../models-${VERSION}.tar.gz .
+
+          # Extract date-hash from tag for title
+          TITLE_SUFFIX="${TAG#models-}"
+          gh release create "$TAG" \
+            --title "models ${TITLE_SUFFIX}" \
+            --notes "INT4 quantized ONNX models: ${CODET5_MODEL} and ${MINILM_MODEL}.
+
+          ## Platforms
+          - Platform-independent ONNX models (universal)
+
+          ## Files
+          - \`models-${VERSION}.tar.gz\` - All production models (INT4 quantized)
+          - \`checksums.txt\` - SHA256 checksums
+
+          ## Included Models
+          - \`minilm-l6/model.onnx\` - Sentence embeddings model
+          - \`codet5/model.onnx\` - Code understanding model
+
+          ## Usage
+          Extract the archive and load models with ONNX Runtime:
+          \`\`\`bash
+          tar -xzf models-${VERSION}.tar.gz
+          \`\`\`" \
+            ../models-${VERSION}.tar.gz \
+            checksums.txt \
+            $([ -f checksums.txt.asc ] && echo "checksums.txt.asc" || echo "")
+
+  update-checksums:
+    needs: release
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    permissions:
+      contents: write # release-assets.json commit after publishing GitHub release
+    uses: ./.github/workflows/update-checksums.yml
+    secrets:
+      BOT_GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}

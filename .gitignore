@@ -82,6 +82,15 @@ test-firewall-*.sh
 **/node_modules/
 
 # ==============================================================================
+# Caches
+# ==============================================================================
+
+# Defensive — Node compile-cache, corepack, and other tools occasionally
+# drop scratch dirs into a project-local .cache/. Nothing in this repo
+# writes there intentionally; node_modules/.cache/ is the canonical home.
+**/.cache/
+
+# ==============================================================================
 # Logs
 # ==============================================================================
 

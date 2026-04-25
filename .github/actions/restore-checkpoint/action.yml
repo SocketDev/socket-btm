@@ -142,7 +142,7 @@ runs:
         }
 
         for CHECKPOINT in "${CHECKPOINTS[@]}"; do
-          # Validate checkpoint name is in whitelist (catches typos and unknown types early).
+          # Validate checkpoint name is in allowlist (catches typos and unknown types early).
           if ! [[ "${CHECKPOINT}" =~ ^(${VALID_CHECKPOINTS})$ ]]; then
             echo "[FAIL] Unknown checkpoint type: '${CHECKPOINT}'"
             echo "Valid checkpoints: ${VALID_CHECKPOINTS//|/, }"

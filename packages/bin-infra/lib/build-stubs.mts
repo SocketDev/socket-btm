@@ -25,6 +25,7 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 import { logTransientErrorHelp } from 'build-infra/lib/github-error-utils'
 import {
   getAssetPlatformArch,
+  parsePlatformArch,
   tarSupportsNoAbsoluteNames,
 } from 'build-infra/lib/platform-mappings'
 import { verifyReleaseChecksum } from 'build-infra/lib/release-checksums'
@@ -450,7 +451,10 @@ async function main() {
     // Create build directory if needed.
     await safeMkdir(buildDir)
 
-    // Create finalized checkpoint.
+    // Create finalized checkpoint. createCheckpoint() rejects undefined
+    // platform/arch for binary stages, so split the asset platform-arch
+    // string back into Node-canonical {platform, arch, libc}.
+    const { arch, libc, platform } = parsePlatformArch(platformArch)
     await createCheckpoint(
       buildDir,
       CHECKPOINTS.FINALIZED,
@@ -464,7 +468,10 @@ async function main() {
         }
       },
       {
+        arch,
         checkpointChain: CHECKPOINT_CHAINS.simple(),
+        ...(libc ? { libc } : {}),
+        platform,
         platformArch,
         stubPath: path.relative(packageRoot, stubBinaryPath),
         stubSize: stats.size,

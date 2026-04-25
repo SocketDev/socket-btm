@@ -126,8 +126,8 @@ COPY packages/ink-builder/ packages/ink-builder/
 COPY packages/build-infra/ packages/build-infra/
 
 # Copy yoga-sync.mjs from yoga-builder stage (yoga writes under
-# build/<mode>/<platform-arch>/out/Final/; Docker always builds on Linux).
-COPY --from=yoga-builder /build/packages/yoga-layout-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/yoga-sync.mjs /yoga-sync.mjs
+# build/<mode>/<platform-arch>/wasm/out/Final/; Docker always builds on Linux).
+COPY --from=yoga-builder /build/packages/yoga-layout-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/wasm/out/Final/yoga-sync.mjs /yoga-sync.mjs
 
 # Build ink
 WORKDIR /build/packages/ink-builder
@@ -135,8 +135,8 @@ WORKDIR /build/packages/ink-builder
 # Create build directory and copy yoga-sync before build. ink-builder's build
 # script resolves yoga-sync via getCurrentPlatformArch() so we must place it
 # at the per-platform-arch path it expects.
-RUN mkdir -p /build/packages/yoga-layout-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final && \
-    cp /yoga-sync.mjs /build/packages/yoga-layout-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/yoga-sync.mjs
+RUN mkdir -p /build/packages/yoga-layout-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/wasm/out/Final && \
+    cp /yoga-sync.mjs /build/packages/yoga-layout-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/wasm/out/Final/yoga-sync.mjs
 
 RUN pnpm run build
 

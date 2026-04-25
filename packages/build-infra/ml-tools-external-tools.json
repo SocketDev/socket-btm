@@ -1,0 +1,36 @@
+{
+  "$schema": "./lib/external-tools-schema.json",
+  "description": "Shared external tools for ML model building (PyTorch, ONNX, Transformers). Canonical schema: each entry pins a single `version` and, for pip packages, declares `packageManager: \"pip\"` so loadPythonVersions picks them up.",
+  "tools": {
+    "python3": {
+      "description": "Python 3 interpreter (required for all ML tools)",
+      "version": "3.13.1",
+      "notes": "Pin matches the canonical build-infra python (3.11 floor; 3.13.1 on macOS via brew). The host package manager may resolve a nearby version on Linux (apt: 3.10.12) and Windows (choco: 3.13.1) — these are informational only; the scripts probe with getPythonCommand() at runtime."
+    },
+    "transformers": {
+      "description": "Hugging Face Transformers library",
+      "version": "4.53.3",
+      "packageManager": "pip"
+    },
+    "torch": {
+      "description": "PyTorch machine learning framework",
+      "version": "2.10.0",
+      "packageManager": "pip"
+    },
+    "onnx": {
+      "description": "ONNX - Open Neural Network Exchange",
+      "version": "1.20.1",
+      "packageManager": "pip"
+    },
+    "onnxruntime": {
+      "description": "ONNX Runtime inference engine",
+      "version": "1.24.4",
+      "packageManager": "pip"
+    },
+    "onnxscript": {
+      "description": "ONNX Script for model authoring and export",
+      "version": "0.6.2",
+      "packageManager": "pip"
+    }
+  }
+}

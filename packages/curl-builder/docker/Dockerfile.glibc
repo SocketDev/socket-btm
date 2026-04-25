@@ -1,0 +1,89 @@
+# Build curl+mbedTLS in container to offload compute from GitHub Actions.
+# This Dockerfile supports building for linux/amd64 and linux/arm64.
+# glibc variant using AlmaLinux 8 (glibc 2.28) for maximum compatibility.
+
+FROM almalinux:8 AS build
+
+# Cache version - managed centrally in .github/cache-versions.json
+# Declared early to invalidate cached layers when version changes
+ARG CACHE_VERSION=unset
+RUN echo "Cache version: ${CACHE_VERSION}"
+
+# Socket-registry tool-checksums. Workflows `cp "$SOCKET_TOOL_CHECKSUMS_FILE"
+# .build-context/registry-tools.json` before `docker build`, so this
+# layer reads the same authoritative pnpm version + per-platform sha256
+# that the setup action verified on the runner — no hardcoded SHA
+# blocks in this Dockerfile. The file is gitignored; it materializes
+# fresh for every CI run from socket-registry's pinned SHA.
+COPY .build-context/registry-tools.json /tmp/registry-tools.json
+
+# Install build dependencies.
+# AlmaLinux 8 has glibc 2.28, which provides maximum compatibility with older Linux distributions.
+# Enable PowerTools for ninja-build, EPEL for ccache.
+# Disable weak dependencies to avoid optional GUI packages (libxkbcommon, pinentry, etc.)
+RUN dnf -y --setopt=install_weak_deps=False update && \
+    dnf -y install epel-release dnf-plugins-core && \
+    dnf config-manager --set-enabled powertools && \
+    dnf -y install --setopt=install_weak_deps=False \
+        gcc \
+        gcc-c++ \
+        git \
+        ccache \
+        ninja-build \
+        curl \
+        ca-certificates \
+        jq \
+        cmake \
+        && \
+    # Install Node.js from NodeSource.
+    curl -fsSL https://rpm.nodesource.com/setup_current.x | bash - && \
+    dnf -y install --setopt=install_weak_deps=False nodejs && \
+    ARCH=$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/') && \
+    PLATFORM="linux-${ARCH}" && \
+    PNPM_VERSION=$(jq -r .pnpm.version /tmp/registry-tools.json) && \
+    PNPM_ASSET=$(jq -r ".pnpm.checksums[\"${PLATFORM}\"].asset" /tmp/registry-tools.json) && \
+    PNPM_SHA256=$(jq -r ".pnpm.checksums[\"${PLATFORM}\"].sha256" /tmp/registry-tools.json) && \
+    curl -fsSL -o /tmp/pnpm.tar.gz "https://github.com/pnpm/pnpm/releases/download/v${PNPM_VERSION}/${PNPM_ASSET}" && \
+    echo "${PNPM_SHA256}  /tmp/pnpm.tar.gz" | sha256sum -c - && \
+    tar -xzf /tmp/pnpm.tar.gz -C /usr/local/bin && \
+    rm /tmp/pnpm.tar.gz /tmp/registry-tools.json && \
+    dnf clean all
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy workspace configuration files (needed for pnpm workspace).
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .gitmodules .node-version ./
+
+# Copy build-infra package (workspace dependency).
+COPY packages/build-infra ./packages/build-infra
+
+# Copy curl-builder package (contains curl build scripts and upstream dependencies).
+COPY packages/curl-builder ./packages/curl-builder
+
+# Copy node-smol-builder package (what we're building).
+COPY packages/node-smol-builder ./packages/node-smol-builder
+
+# Install workspace dependencies (curl-builder and node-smol-builder packages).
+ENV CI=true
+RUN pnpm install --frozen-lockfile --filter build-infra --filter curl-builder --filter node-smol-builder
+
+# Build curl with mbedTLS.
+ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64
+ARG TARGETARCH
+ENV BUILD_MODE=$BUILD_MODE
+ENV PLATFORM_ARCH=$PLATFORM_ARCH
+
+# For amd64 builds, add -march=x86-64 -mtune=generic to ensure binary portability
+# across different CPU generations (e.g., GitHub Actions runners without AVX/AVX2).
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+        export CFLAGS="$CFLAGS -march=x86-64 -mtune=generic" && \
+        export CXXFLAGS="$CXXFLAGS -march=x86-64 -mtune=generic"; \
+    fi && \
+    cd packages/curl-builder && node scripts/build.mts
+
+# Export stage: Copy build artifacts (not entire filesystem).
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=build /workspace/packages/curl-builder/build /

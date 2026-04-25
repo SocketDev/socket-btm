@@ -1,0 +1,156 @@
+{
+  "$schema": "./lib/external-tools-schema.json",
+  "description": "Foundational tools required across all build processes. These are installed first before any package-specific tools.",
+  "tools": {
+    "node": {
+      "description": "Node.js runtime for build scripts and CI workflows",
+      "version": "18.0.0",
+      "notes": "Version is defined in .node-version at monorepo root. All CI workflows use that version."
+    },
+    "pnpm": {
+      "description": "Fast, disk space efficient package manager",
+      "version": "9.15.3",
+      "packageManager": "pnpm",
+      "notes": "Version is managed via packageManager field in package.json. This is the minimum compatible version."
+    },
+    "python": {
+      "description": "Python interpreter for build scripts and model tooling",
+      "version": "3.11",
+      "notes": "Node.js configure supports up to 3.13. Pin to 3.11 for consistent cross-platform builds."
+    },
+    "git": {
+      "description": "Git version control system (fundamental for source cloning)",
+      "notes": "Usually pre-installed on most systems. Required for git clone operations."
+    },
+    "curl": {
+      "description": "Command-line tool for transferring data (fundamental for downloads)",
+      "notes": "Usually pre-installed. Required for downloading archives and files."
+    },
+    "patch": {
+      "description": "GNU patch utility for applying diffs (fundamental for patching)",
+      "notes": "Required for applying patch files to source code."
+    },
+    "clang": {
+      "description": "Clang C/C++ compiler (fundamental for macOS and modern C++ builds)",
+      "version": "18.1.8",
+      "notes": "On macOS, clang is installed via Xcode Command Line Tools. On Linux/Windows, can be installed via package managers. Provides both 'clang' (C) and 'clang++' (C++) compilers."
+    },
+    "mingw-w64": {
+      "description": "MinGW-w64 GCC compiler and binutils for Windows (includes gcc, g++, dlltool, ar, ld)",
+      "version": "14.2.0",
+      "notes": "MinGW-w64 includes GCC and binutils. Pre-installed on GitHub Actions Windows runners (windows-2022: GCC 14.2.0, windows-2025: GCC 15.2.0). Provides gcc, g++, and critical tools like dlltool for Windows import library generation. Used for building LIEF and binject with consistent GCC toolchain to avoid MSVC runtime conflicts."
+    },
+    "gcc": {
+      "description": "GNU Compiler Collection (C/C++ compiler for Unix-like systems)",
+      "version": "14.2.0",
+      "notes": "On Linux, 'build-essential' includes gcc, g++, and make. Provides both 'gcc' (C) and 'g++' (C++) compilers. On macOS, gcc from Homebrew is used when clang compatibility issues arise."
+    },
+    "make": {
+      "description": "GNU Make build tool (fundamental build orchestration)",
+      "notes": "Standard build tool. Usually pre-installed on Unix systems. On Linux, included in 'build-essential' package."
+    },
+    "binutils": {
+      "description": "GNU binary utilities (includes objcopy for ELF section manipulation)",
+      "version": "2.38",
+      "notes": "Provides objcopy for ELF binary manipulation. On Linux, included in 'build-essential' package but listed explicitly for version tracking. objcopy is used for ARM64 binary optimization (removing .note sections). On macOS, not pre-installed - requires 'brew install binutils'. Windows uses MinGW binutils from mingw-w64 package. Version 2.38 matches GitHub Actions ubuntu-22.04 runner (our primary CI platform)."
+    },
+    "cmake": {
+      "description": "CMake cross-platform build system generator",
+      "version": "3.31.3",
+      "notes": "Required for building LIEF library and other C++ projects. Pre-installed on GitHub Actions runners. Supports multiple generators (Unix Makefiles, Ninja, NMake, Visual Studio, etc.)."
+    },
+    "ninja": {
+      "description": "Ninja build system (faster than Make for C++ projects)",
+      "version": "1.12.1",
+      "notes": "Much faster than Make for large C++ projects. Recommended for ONNX Runtime and Yoga Layout builds. Pre-installed on GitHub Actions Windows runners. CMake can auto-detect and use Ninja as the build generator when available."
+    },
+    "ripgrep": {
+      "description": "Fast recursive search tool (required by bug-class regression gate)",
+      "version": "14.1.0",
+      "notes": "Required by scripts/check-bug-classes.mts which spawns `rg` with --pcre2 to scan for known bug patterns. Invoked on every `pnpm run check`. Pre-installed on GitHub Actions ubuntu-24.04 and macOS runners. Ubuntu: 'apt install ripgrep'. macOS: 'brew install ripgrep'. Windows: 'choco install ripgrep' or scoop."
+    },
+    "cargo": {
+      "description": "Rust package manager and build tool (part of the Rust toolchain)",
+      "version": "1.83.0",
+      "notes": "Required for iocraft-builder (Rust → Node-API .node) and any other Rust components. Install via rustup (https://rustup.rs). Cargo ships with the Rust toolchain; pinning cargo version effectively pins rustc. On GitHub Actions runners, install with: `rustup toolchain install stable`."
+    },
+    "ccache": {
+      "description": "Compiler cache for faster recompilation",
+      "version": "4.10.2",
+      "notes": "Significantly speeds up recompilation by caching previous compilations."
+    },
+    "bc": {
+      "description": "Basic calculator for shell arithmetic",
+      "version": "1.07.1",
+      "notes": "Pre-installed on macOS. Used for floating-point arithmetic in build scripts."
+    },
+    "lcov": {
+      "description": "Graphical front-end for gcov coverage data (optional, for HTML reports)",
+      "version": "2.1",
+      "notes": "Optional tool for generating HTML coverage reports from gcov data. Depends on gcov (bundled with compiler toolchain). Not required for basic coverage analysis - the Makefiles in binject/binpress/binflate use gcov directly for text-based reports."
+    },
+    "qemu-user": {
+      "description": "QEMU user-mode emulation for testing cross-compiled binaries (optional, enhances CI)",
+      "version": "9.0.2",
+      "notes": "Optional tool for testing cross-compiled ARM64 binaries on x64 hosts. When available, smoke tests can execute ARM64 binaries via QEMU user-mode emulation (~100-250ms overhead). Falls back to static verification if not installed. Not available on Windows."
+    },
+    "docker": {
+      "description": "Docker container platform for testing musl binaries (optional, enhances CI)",
+      "version": "27.0.3",
+      "notes": "Optional tool for testing musl-linked binaries in Alpine containers. When available, smoke tests can execute musl binaries in Docker (~1-2s overhead). Falls back to static verification if not installed. Requires Docker daemon to be running."
+    },
+    "musl-tools": {
+      "description": "musl C library toolchain for building statically-linked musl binaries",
+      "version": "1.2.4",
+      "notes": "Required for building Linux musl binaries. Provides musl-gcc wrapper and musl C library headers. Used for static linking on Alpine/musl-based systems. Version 1.2.4-2 on Ubuntu 24.04 Noble."
+    },
+    "gcc-aarch64-linux-gnu": {
+      "description": "GCC cross-compiler for ARM64 Linux targets",
+      "version": "4:13.2.0",
+      "notes": "Required for cross-compiling musl ARM64 binaries on x64 Linux hosts. Only needed when building linux-musl-arm64 on non-ARM64 hardware. Version 4:13.2.0-7ubuntu1 on Ubuntu 24.04 Noble."
+    },
+    "lzfse": {
+      "description": "LZFSE compression library (build dependency for LIEF)",
+      "notes": [
+        "LZFSE library is a build dependency used by LIEF builds",
+        "Compression now uses zstd (Zstandard) across all platforms",
+        "On Linux/Windows: Builds automatically from lzfse git submodule",
+        "No manual installation required - handled by build system"
+      ]
+    },
+    "glow": {
+      "description": "Terminal markdown renderer for CLI documentation browsing",
+      "version": "2.0.0",
+      "notes": "CLI tool for rendering markdown files in terminal. Used for browsing project documentation. From Charm (charmbracelet/glow). Optional developer tool."
+    },
+    "libssl-dev": {
+      "description": "OpenSSL development files for cryptography",
+      "version": "3.0.13",
+      "notes": "Required for building node-smol stub binaries on Linux (including musl). Provides SSL/TLS cryptographic functionality. On macOS, uses Homebrew OpenSSL. On Windows, bundled with OpenSSL package. Version 3.0.13-0ubuntu3.6 on Ubuntu 24.04 Noble."
+    },
+    "libpq-dev": {
+      "description": "PostgreSQL client library development files (optional, for node-smol PostgreSQL bindings)",
+      "version": "17.2",
+      "notes": [
+        "Optional dependency for node-smol PostgreSQL connection pooling module.",
+        "Enable with: node_use_postgres=\"true\" during Node.js build.",
+        "On macOS: brew install libpq (may need to add to PATH/PKG_CONFIG_PATH)",
+        "On Linux: apt install libpq-dev (or equivalent)",
+        "On Windows: Install PostgreSQL or use vcpkg for libpq headers/libs",
+        "Provides libpq-fe.h header and -lpq library for linking."
+      ]
+    },
+    "liburing-dev": {
+      "description": "io_uring library development files (optional, Linux-only, for ILP io_uring acceleration)",
+      "version": "2.5",
+      "notes": [
+        "Optional Linux-only dependency for ILP (InfluxDB Line Protocol) io_uring acceleration.",
+        "Enable with: node_use_iouring=\"true\" during Node.js build (Linux only).",
+        "io_uring is a Linux kernel feature (5.1+) - not available on macOS or Windows.",
+        "Without this, ILP uses standard POSIX sockets (works on all platforms).",
+        "Provides liburing.h header and -luring library for linking.",
+        "Typical speedup: 20-40% lower latency for high-throughput ILP writes."
+      ]
+    }
+  }
+}

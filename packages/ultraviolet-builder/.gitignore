@@ -1,0 +1,4 @@
+*.dSYM/
+
+lib/**/lib*.a
+lib/**/lib*.h

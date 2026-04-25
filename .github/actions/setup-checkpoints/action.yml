@@ -1,0 +1,536 @@
+name: Setup Checkpoint Caching
+description: Sets up checkpoint caching for package builds (load, restore, validate)
+inputs:
+  package-name:
+    description: 'Package name (e.g., binject, binpress, binflate)'
+    required: true
+  build-mode:
+    description: 'Build mode (dev or prod)'
+    required: true
+  platform:
+    description: 'Platform (e.g., darwin, linux, win32)'
+    required: true
+  arch:
+    description: 'Architecture (x64, arm64)'
+    required: true
+  libc:
+    description: 'C library type (glibc, musl, or empty for non-Linux)'
+    required: false
+    default: ''
+outputs:
+  cache-hit:
+    description: 'Whether checkpoint cache was hit'
+    value: ${{ steps.checkpoint-cache.outputs.cache-hit }}
+  cache-valid:
+    description: 'Whether checkpoint cache validation passed'
+    value: ${{ steps.validate-cache.outputs.valid }}
+  build-required:
+    description: 'Whether build is required (checkpoint not restored)'
+    value: ${{ steps.restore-checkpoint.outputs.build-required }}
+  checkpoint-chain:
+    description: 'Comma-separated checkpoint chain'
+    value: ${{ steps.checkpoint-chain.outputs.checkpoint_chain }}
+  cache-version:
+    description: 'Cache version from cache-versions.json'
+    value: ${{ steps.cache-version.outputs.version }}
+  build-mode:
+    description: 'Resolved build mode'
+    value: ${{ steps.cache-key.outputs.build_mode }}
+  lief-version:
+    description: 'LIEF cache version used in cache key (for binsuite tools only)'
+    value: ${{ steps.cache-key.outputs.lief_version }}
+  stubs-version:
+    description: 'Stubs cache version used in cache key (for binsuite tools only)'
+    value: ${{ steps.cache-key.outputs.stubs_version }}
+  cache-key:
+    description: 'Full cache key for reuse'
+    value: ${{ steps.cache-key.outputs.cache_key }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Load cache version
+      id: cache-version
+      shell: bash
+      env:
+        PACKAGE_NAME: ${{ inputs.package-name }}
+      run: |
+        # Validate required tools exist
+        if ! command -v jq &> /dev/null; then
+          echo "[FAIL] jq command not found - required for cache version lookup"
+          exit 1
+        fi
+
+        # Validate cache-versions.json exists and is valid JSON
+        if [ ! -f ".github/cache-versions.json" ]; then
+          echo "[FAIL] .github/cache-versions.json not found"
+          exit 1
+        fi
+        if ! jq empty .github/cache-versions.json 2>/dev/null; then
+          echo "[FAIL] .github/cache-versions.json is not valid JSON"
+          exit 1
+        fi
+
+        # Extract version with explicit error handling
+        CACHE_VERSION=$(jq -r ".versions[\"${PACKAGE_NAME}\"]" .github/cache-versions.json 2>&1)
+        JQ_EXIT_CODE=$?
+        if [ $JQ_EXIT_CODE -ne 0 ]; then
+          echo "[FAIL] jq command failed: $CACHE_VERSION"
+          exit 1
+        fi
+        if [ -z "$CACHE_VERSION" ] || [ "$CACHE_VERSION" = "null" ]; then
+          echo "[FAIL] Cache version not found for ${PACKAGE_NAME} in .github/cache-versions.json"
+          echo "Available packages: $(jq -r '.versions | keys | join(", ")' .github/cache-versions.json)"
+          exit 1
+        fi
+        echo "version=$CACHE_VERSION" >> "$GITHUB_OUTPUT"
+        echo "Cache version: $CACHE_VERSION"
+
+    - name: Generate cache key
+      id: cache-key
+      shell: bash
+      env:
+        CACHE_VERSION: ${{ steps.cache-version.outputs.version }}
+        PACKAGE_NAME: ${{ inputs.package-name }}
+        BUILD_MODE: ${{ inputs.build-mode }}
+        PLATFORM: ${{ inputs.platform }}
+        ARCH: ${{ inputs.arch }}
+        LIBC: ${{ inputs.libc }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        # Cross-platform hash function that produces consistent lowercase hex output.
+        # CRITICAL: Must produce identical hashes on Windows/macOS/Linux for same input.
+        #
+        # Windows PowerShell fallback approach:
+        # - Write data to temp file (avoids all bash/PowerShell escaping issues)
+        # - Write PowerShell script to temp .ps1 file (avoids stdin/heredoc issues)
+        # - Execute script with file path as argument (documented to work reliably)
+        # - Clean up both temp files
+        #
+        # Why not use stdin/heredoc? Per Microsoft docs, "powershell -File -" reads
+        # script from stdin but cannot accept positional arguments. The param()
+        # block in stdin scripts doesn't receive command-line args.
+        # See: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_powershell_exe
+        # Get temp directory portably across all platforms.
+        # Windows: TEMP or TMP are always set.
+        # Linux/macOS: TMPDIR may be set, otherwise /tmp.
+        get_temp_dir() {
+          local dir
+          for dir in "${TEMP:-}" "${TMP:-}" "${TMPDIR:-}" "/tmp"; do
+            if [[ -n "$dir" ]] && [[ -d "$dir" ]]; then
+              echo "$dir"
+              return 0
+            fi
+          done
+          # Last resort: current directory
+          echo "."
+        }
+
+        # Generate unique suffix for temp files to avoid collisions.
+        # Uses PID + timestamp + random component for maximum uniqueness.
+        # - $$: Process ID (unique per process)
+        # - date +%s: Unix timestamp in seconds
+        # - date +%s%N: Nanoseconds (Linux/FreeBSD 14.1+, NOT macOS 15)
+        # - $RANDOM: Bash built-in (0-32767), works in GitHub Actions bash
+        # macOS 15 runners don't support %N, so we combine seconds + $RANDOM.
+        get_unique_suffix() {
+          local timestamp
+          timestamp=$(date +%s%N 2>/dev/null || date +%s)
+          # Add $RANDOM for extra uniqueness (bash-specific but GitHub Actions uses bash)
+          echo "$$_${timestamp}_${RANDOM:-0}"
+        }
+
+        hash_string() {
+          # CRITICAL: Use printf '%s' consistently (not echo -n) for cross-platform consistency.
+          # echo -n may behave differently on BSD vs GNU systems regarding escape sequences.
+          if command -v shasum &> /dev/null; then
+            printf '%s' "$1" | shasum -a 256 | cut -d' ' -f1
+          elif command -v sha256sum &> /dev/null; then
+            printf '%s' "$1" | sha256sum | cut -d' ' -f1
+          else
+            # Windows PowerShell fallback using temp files for reliability.
+            # Use mktemp for race-condition-safe temp file creation.
+            local datafile scriptfile winpath tmpdir
+            tmpdir=$(get_temp_dir)
+            datafile=$(mktemp "${tmpdir}/hash_data.XXXXXX") || { echo "ERROR: Failed to create temp data file" >&2; return 1; }
+            scriptfile=$(mktemp "${tmpdir}/hash_script.XXXXXX.ps1") || { rm -f "$datafile"; echo "ERROR: Failed to create temp script file" >&2; return 1; }
+
+            # Write data to temp file
+            printf '%s' "$1" > "$datafile" || { rm -f "$datafile" "$scriptfile"; echo "ERROR: Failed to write data file" >&2; return 1; }
+
+            # Write PowerShell script to file using printf (heredocs break YAML parsing)
+            printf '%s\n%s\n%s\n%s\n' \
+              'param([string]$filePath)' \
+              '$bytes = [System.IO.File]::ReadAllBytes($filePath)' \
+              '$hash = [System.Security.Cryptography.SHA256]::Create().ComputeHash($bytes)' \
+              '[System.BitConverter]::ToString($hash).Replace('\''-'\'','\'\'').ToLower()' \
+              > "$scriptfile" || { rm -f "$datafile"; echo "ERROR: Failed to write script file" >&2; return 1; }
+
+            # Convert to Windows path for PowerShell.
+            # cygpath is available in Git Bash on Windows.
+            # If not available, the path is already in a format PowerShell can handle.
+            if command -v cygpath &> /dev/null; then
+              winpath=$(cygpath -w "$datafile")
+            else
+              winpath="$datafile"
+            fi
+
+            powershell -NoProfile -ExecutionPolicy Bypass -File "$scriptfile" "$winpath"
+            local exit_code=$?
+            rm -f "$datafile" "$scriptfile"
+            return $exit_code
+          fi
+        }
+
+        hash_file() {
+          if command -v shasum &> /dev/null; then
+            shasum -a 256 "$1" | cut -d' ' -f1
+          elif command -v sha256sum &> /dev/null; then
+            sha256sum "$1" | cut -d' ' -f1
+          else
+            # Windows PowerShell fallback using temp script file for reliability.
+            # Use mktemp for race-condition-safe temp file creation.
+            local scriptfile winpath tmpdir
+            tmpdir=$(get_temp_dir)
+            scriptfile=$(mktemp "${tmpdir}/hash_script.XXXXXX.ps1") || { echo "ERROR: Failed to create temp script file" >&2; return 1; }
+
+            # Write PowerShell script to file using printf (heredocs break YAML parsing)
+            printf '%s\n%s\n%s\n%s\n' \
+              'param([string]$filePath)' \
+              '$bytes = [System.IO.File]::ReadAllBytes($filePath)' \
+              '$hash = [System.Security.Cryptography.SHA256]::Create().ComputeHash($bytes)' \
+              '[System.BitConverter]::ToString($hash).Replace('\''-'\'','\'\'').ToLower()' \
+              > "$scriptfile" || { rm -f "$scriptfile"; echo "ERROR: Failed to write script file" >&2; return 1; }
+
+            # Convert to Windows path for PowerShell.
+            if command -v cygpath &> /dev/null; then
+              winpath=$(cygpath -w "$1")
+            else
+              winpath="$1"
+            fi
+
+            powershell -NoProfile -ExecutionPolicy Bypass -File "$scriptfile" "$winpath"
+            local exit_code=$?
+            rm -f "$scriptfile"
+            return $exit_code
+          fi
+        }
+
+        # Map logical PACKAGE_NAME (used in cache-versions.json) to the
+        # actual directory under packages/. Most names match their
+        # directory, but `node-smol` lives at `packages/node-smol-builder`.
+        # Other builder-suffixed entries (lief, curl, ink, iocraft, etc.)
+        # don't use setup-checkpoints today — add them here if a future
+        # workflow wires them through.
+        case "${PACKAGE_NAME}" in
+          node-smol) PACKAGE_DIR="packages/node-smol-builder" ;;
+          *)         PACKAGE_DIR="packages/${PACKAGE_NAME}" ;;
+        esac
+
+        # Hash source files, build scripts, Makefiles, Dockerfiles, and .node-version.
+        # Include .node-version to invalidate cache when Node.js version changes.
+        # pnpm-lock.yaml so dep bumps (e.g. @socketsecurity/lib) invalidate.
+        # pnpm-workspace.yaml + root package.json hold catalog versions,
+        # overrides, trustPolicy, minimumReleaseAge — `pnpm install`
+        # consults all of them, so a catalog bump must invalidate caches
+        # that were populated under the old resolution. Unhashed before R24.
+        FIND_PATHS="${PACKAGE_DIR}/src ${PACKAGE_DIR}/scripts .node-version pnpm-lock.yaml pnpm-workspace.yaml package.json"
+        # Package-root metadata files that feed the build but don't live
+        # under src/ or scripts/:
+        #   external-tools.json — tool version pins read by pinned-versions.mts
+        #   package.json        — sources.<upstream>.version + devDependencies
+        # Both change build output and must invalidate the cache; neither
+        # was hashed before.
+        for f in "${PACKAGE_DIR}/external-tools.json" "${PACKAGE_DIR}/package.json"; do
+          [ -e "$f" ] && FIND_PATHS="${FIND_PATHS} ${f}"
+        done
+        # Add Makefiles and Dockerfiles if they exist (avoid glob errors when missing).
+        for pattern in ${PACKAGE_DIR}/Makefile* ${PACKAGE_DIR}/Dockerfile* ${PACKAGE_DIR}/docker/Dockerfile*; do
+          for match in $pattern; do
+            [ -e "$match" ] && FIND_PATHS="${FIND_PATHS} ${match}"
+          done
+        done
+        # Per-package make/ directory (e.g. packages/binject/make/libdeflate.mk)
+        # is `include`d by the Makefiles and controls CFLAGS / link rules;
+        # an edit there changes the compiled binary. Prior versions
+        # hashed only Makefile*, missing these nested .mk files.
+        if [ -d "${PACKAGE_DIR}/make" ]; then
+          FIND_PATHS="${FIND_PATHS} ${PACKAGE_DIR}/make"
+        fi
+
+        # BinSuite tools (binpress, binflate, binject) depend on bin-infra
+        # and build-infra shared code. Include src + lib (TS helpers) +
+        # make/ (.mk files that drive CFLAGS and link rules — Makefiles
+        # `include` them and an edit there changes the compiled binary
+        # without touching any .c/.cc source) + scripts/ (get-checkpoint-
+        # chain, smoke-test-binary, get-tool-version delegated to by
+        # binsuite's own scripts) + external-tools.json (foundational
+        # toolchain pins consumed by pinned-versions.mts).
+        if [[ "${PACKAGE_NAME}" == "binpress" ]] || [[ "${PACKAGE_NAME}" == "binflate" ]] || [[ "${PACKAGE_NAME}" == "binject" ]]; then
+          # .github/scripts/ holds Docker bootstrappers (build-static-
+          # openssl.sh, ensure-zstd.sh) RUN'd from every binsuite
+          # Dockerfile. Bumps there change the linked OpenSSL/zstd in
+          # the produced binary; must invalidate cache.
+          FIND_PATHS="${FIND_PATHS} packages/bin-infra/src packages/bin-infra/lib packages/bin-infra/make packages/bin-infra/scripts packages/build-infra/src packages/build-infra/lib packages/build-infra/make packages/build-infra/scripts packages/build-infra/external-tools.json .github/scripts"
+          # binpress and binject Makefiles `include ../lief-builder/make/lief.mk`
+          # which controls LIEF_CFLAGS / LIEF_DEFINES. Edits there change
+          # the compiled binary. Only add for packages that actually use it.
+          # lief-builder/lib/ensure-lief.mts is also imported directly by
+          # binject/binpress build.mts + test.mts — changes to download /
+          # verify logic ship altered LIEF discovery. docker/ added in R21
+          # — Dockerfiles produce the LIEF binary downstream consumes.
+          if [[ "${PACKAGE_NAME}" == "binpress" ]] || [[ "${PACKAGE_NAME}" == "binject" ]]; then
+            FIND_PATHS="${FIND_PATHS} packages/lief-builder/make packages/lief-builder/lib packages/lief-builder/scripts packages/lief-builder/docker"
+          fi
+        fi
+
+        # binpress additionally compiles binject/socketsecurity/binject/smol_config.c
+        # directly via its Makefiles, so a binject/src edit changes the
+        # compiled binpress binary.
+        if [[ "${PACKAGE_NAME}" == "binpress" ]]; then
+          FIND_PATHS="${FIND_PATHS} packages/binject/src"
+        fi
+
+        # node-smol depends on source packages that get copied to additions/ during build.
+        # Include build-infra, bin-infra, binject, binpress, binflate
+        # sources + lib/ + make/ AND Node.js patches. CRITICAL: patches
+        # fundamentally change the compiled binary.
+        # NOTE: no workflow currently uses setup-checkpoints with
+        # package-name: node-smol. node-smol.yml has inline cache-key
+        # composition. This branch exists in case a future workflow
+        # wires it through.
+        if [[ "${PACKAGE_NAME}" == "node-smol" ]]; then
+          FIND_PATHS="${FIND_PATHS} packages/build-infra/src packages/build-infra/lib packages/build-infra/make packages/build-infra/scripts packages/build-infra/external-tools.json packages/bin-infra/src packages/bin-infra/lib packages/bin-infra/make packages/binject/src packages/binpress/src packages/binflate/src packages/lief-builder/make packages/lief-builder/lib packages/lief-builder/scripts packages/lief-builder/docker .github/scripts"
+          FIND_PATHS="${FIND_PATHS} packages/node-smol-builder/patches/source-patched"
+        fi
+
+        # Check for files before hashing - FAIL if expected source directories are missing.
+        # CRITICAL: Use LC_COLLATE=C for deterministic sorting across locales.
+        # Without this, sort order varies by locale (e.g., en_US vs POSIX vs de_DE),
+        # which would cause different cache keys on different runners for same content.
+        FIND_OUTPUT=$(find ${FIND_PATHS} -type f 2>/dev/null | LC_COLLATE=C sort)
+        if [ -z "$FIND_OUTPUT" ]; then
+          echo "Error: No source files found in: ${FIND_PATHS}"
+          echo "This indicates a checkout or path configuration issue."
+          exit 1
+        fi
+
+        # Hash each file and combine into single hash.
+        # CRITICAL: Exit immediately on first hash failure to prevent partial cache keys.
+        # Continuing after failure would hash subset of files → incorrect cache key.
+        FILE_HASHES=""
+        FILE_COUNT=0
+        while IFS= read -r file; do
+          if [ -f "$file" ]; then
+            FILE_HASH=$(hash_file "$file")
+            if [ -z "$FILE_HASH" ]; then
+              echo "[FAIL] Failed to hash file: $file"
+              echo "Cannot generate reliable cache key - aborting immediately"
+              exit 1
+            fi
+            FILE_HASHES="${FILE_HASHES}${FILE_HASH}"
+            FILE_COUNT=$((FILE_COUNT + 1))
+          fi
+        done <<< "$FIND_OUTPUT"
+
+        if [ "$FILE_COUNT" -eq 0 ]; then
+          echo "[FAIL] No files were hashed - source paths may be incorrect"
+          exit 1
+        fi
+
+        SOURCE_HASH=$(hash_string "$FILE_HASHES")
+        if [ -z "$SOURCE_HASH" ]; then
+          echo "[FAIL] Failed to compute source hash - hash function not working"
+          exit 1
+        fi
+        echo "Source hash: ${SOURCE_HASH:0:16}... (from ${FILE_COUNT} files)"
+
+        # Get submodule SHAs for packages that depend on them.
+        # These MUST be included in cache key to invalidate when submodules are updated.
+        # NOTE: We only validate the SHA exists in git index - disk state is validated later
+        # when submodules are actually needed (after setup-checkpoints runs).
+        # This allows setup-checkpoints to run BEFORE submodule initialization in workflows.
+        get_submodule_sha() {
+          local name="$1" path="$2"
+          local sha
+          sha=$(git ls-tree HEAD "$path" 2>/dev/null | awk '{print $3}' || echo "")
+          if [ -z "$sha" ]; then
+            echo "[FAIL] Submodule $name: not found in git index at $path" >&2
+            return 1
+          fi
+          echo "$sha"
+        }
+
+        SUBMODULE_HASH=""
+        SUBMODULE_ERRORS=0
+        if [[ "${PACKAGE_NAME}" == "binject" ]]; then
+          LIBDEFLATE_SHA=$(get_submodule_sha "libdeflate" "packages/binject/upstream/libdeflate") || SUBMODULE_ERRORS=$((SUBMODULE_ERRORS + 1))
+          CJSON_SHA=$(get_submodule_sha "cJSON" "packages/binject/upstream/cJSON") || SUBMODULE_ERRORS=$((SUBMODULE_ERRORS + 1))
+          ZSTD_SHA=$(get_submodule_sha "zstd" "packages/bin-infra/upstream/zstd") || SUBMODULE_ERRORS=$((SUBMODULE_ERRORS + 1))
+          if [ "$SUBMODULE_ERRORS" -gt 0 ]; then
+            echo "Ensure submodules are registered in .gitmodules"
+            exit 1
+          fi
+          SUBMODULE_HASH=$(hash_string "${LIBDEFLATE_SHA}${CJSON_SHA}${ZSTD_SHA}")
+          echo "Submodule hash: ${SUBMODULE_HASH:0:16}... (libdeflate: ${LIBDEFLATE_SHA:0:7}, cJSON: ${CJSON_SHA:0:7}, zstd: ${ZSTD_SHA:0:7})"
+        elif [[ "${PACKAGE_NAME}" == "binpress" ]] || [[ "${PACKAGE_NAME}" == "binflate" ]]; then
+          ZSTD_SHA=$(get_submodule_sha "zstd" "packages/bin-infra/upstream/zstd") || SUBMODULE_ERRORS=$((SUBMODULE_ERRORS + 1))
+          if [ "$SUBMODULE_ERRORS" -gt 0 ]; then
+            echo "Ensure submodules are registered in .gitmodules"
+            exit 1
+          fi
+          SUBMODULE_HASH=$(hash_string "$ZSTD_SHA")
+          echo "Submodule hash: ${SUBMODULE_HASH:0:16}... (zstd: ${ZSTD_SHA:0:7})"
+        elif [[ "${PACKAGE_NAME}" == "node-smol" ]]; then
+          NODE_SHA=$(get_submodule_sha "node" "packages/node-smol-builder/upstream/node") || SUBMODULE_ERRORS=$((SUBMODULE_ERRORS + 1))
+          ZSTD_SHA=$(get_submodule_sha "zstd" "packages/bin-infra/upstream/zstd") || SUBMODULE_ERRORS=$((SUBMODULE_ERRORS + 1))
+          LIBDEFLATE_SHA=$(get_submodule_sha "libdeflate" "packages/binject/upstream/libdeflate") || SUBMODULE_ERRORS=$((SUBMODULE_ERRORS + 1))
+          if [ "$SUBMODULE_ERRORS" -gt 0 ]; then
+            echo "Ensure submodules are registered in .gitmodules"
+            exit 1
+          fi
+          SUBMODULE_HASH=$(hash_string "${NODE_SHA}${ZSTD_SHA}${LIBDEFLATE_SHA}")
+          echo "Submodule hash: ${SUBMODULE_HASH:0:16}... (node: ${NODE_SHA:0:7}, zstd: ${ZSTD_SHA:0:7}, libdeflate: ${LIBDEFLATE_SHA:0:7})"
+        fi
+
+        # BinSuite tools and node-smol download/use LIEF from releases.
+        # Include LIEF cache version in cache key so cache is invalidated when LIEF is updated.
+        # NOTE: We use LIEF_CACHE_VERSION only (not dynamic release tag) for deterministic keys.
+        # node-smol also depends on binpress (which embeds stubs), so include stubs version too.
+        LIEF_CACHE_VERSION=""
+        STUBS_CACHE_VERSION=""
+        if [[ "${PACKAGE_NAME}" == "binpress" ]] || [[ "${PACKAGE_NAME}" == "binflate" ]] || [[ "${PACKAGE_NAME}" == "binject" ]] || [[ "${PACKAGE_NAME}" == "node-smol" ]]; then
+          # Get LIEF cache version from centralized config.
+          LIEF_CACHE_VERSION=$(jq -r '.versions["lief"]' .github/cache-versions.json)
+          if [ -z "$LIEF_CACHE_VERSION" ] || [ "$LIEF_CACHE_VERSION" = "null" ]; then
+            echo "Error: LIEF cache version not found in .github/cache-versions.json"
+            exit 1
+          fi
+          echo "Using LIEF cache version: $LIEF_CACHE_VERSION"
+
+          # Get stubs cache version for tools that embed stubs.
+          STUBS_CACHE_VERSION=$(jq -r '.versions["stubs"]' .github/cache-versions.json)
+          if [ -z "$STUBS_CACHE_VERSION" ] || [ "$STUBS_CACHE_VERSION" = "null" ]; then
+            echo "Error: Stubs cache version not found in .github/cache-versions.json"
+            exit 1
+          fi
+          echo "Using stubs cache version: $STUBS_CACHE_VERSION"
+        fi
+
+        # Include build-affecting environment variables in cache key.
+        # This ensures cache invalidation when compiler flags or build configuration changes.
+        # Must match the env vars list in packages/build-infra/lib/checkpoint-manager.mts.
+        # Use `${VAR-unset}` (no colon) so ONLY unset vars default to
+        # 'unset'; empty strings pass through as '' — matches
+        # checkpoint-manager's `process.env.VAR ?? 'unset'` exactly.
+        # Previous `${VAR:-}` form substituted '' for both unset-and-empty,
+        # so CI hashed `||||||` where checkpoint-manager hashed
+        # `unset|unset|unset|unset|unset|unset|unset`.
+        ENV_VARS="${NODE_OPTIONS-unset}|${UV_THREADPOOL_SIZE-unset}|${V8_OPTIONS-unset}|${MAKEFLAGS-unset}|${CFLAGS-unset}|${CXXFLAGS-unset}|${LDFLAGS-unset}"
+        if [ -n "$ENV_VARS" ]; then
+          ENV_HASH=$(hash_string "$ENV_VARS" | head -c 16)
+          echo "Using env hash: $ENV_HASH (from NODE_OPTIONS/UV_THREADPOOL_SIZE/V8_OPTIONS/MAKEFLAGS/CFLAGS/CXXFLAGS/LDFLAGS)"
+        else
+          ENV_HASH=""
+        fi
+
+        # Combine all components into final hash.
+        # Order matters: version, source, submodules, dependencies, env
+        FINAL_KEY=$(hash_string "${CACHE_VERSION}${SOURCE_HASH}${SUBMODULE_HASH}${LIEF_CACHE_VERSION}${STUBS_CACHE_VERSION}${ENV_HASH}")
+
+        # Build full cache key.
+        LIBC_SUFFIX="${LIBC:+-${LIBC}}"
+        CACHE_KEY="${PACKAGE_NAME}-checkpoints-${CACHE_VERSION}-${PLATFORM}-${ARCH}${LIBC_SUFFIX}-${BUILD_MODE}-${FINAL_KEY}"
+
+        echo "final_hash=${FINAL_KEY}" >> "$GITHUB_OUTPUT"
+        echo "build_mode=${BUILD_MODE}" >> "$GITHUB_OUTPUT"
+        echo "lief_version=${LIEF_CACHE_VERSION}" >> "$GITHUB_OUTPUT"
+        echo "stubs_version=${STUBS_CACHE_VERSION}" >> "$GITHUB_OUTPUT"
+        echo "cache_key=${CACHE_KEY}" >> "$GITHUB_OUTPUT"
+        # Expose PACKAGE_DIR so downstream steps (cache restore path,
+        # validate-checkpoints, restore-checkpoint, get-checkpoint-chain)
+        # use the same name→dir mapping. Without this, only the FIND_PATHS
+        # source-hash step honors `node-smol → node-smol-builder`; the
+        # cache restore would silently miss on every run.
+        echo "package_dir=${PACKAGE_DIR}" >> "$GITHUB_OUTPUT"
+
+    - name: Compute platform-arch segment
+      # Binsuite Dockerfiles (and macOS/Windows native builds) emit to
+      # build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/ and
+      # build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints/. The prior
+      # cache path omitted ${PLATFORM_ARCH} so cache/restore touched a
+      # non-existent directory and validate-checkpoints found no
+      # archives → cache never effectively hit. Derive the segment
+      # here from the platform/arch/libc inputs so the paths below
+      # match what the builders actually write.
+      id: platform-arch
+      shell: bash
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        ARCH: ${{ inputs.arch }}
+        LIBC: ${{ inputs.libc }}
+      run: |
+        if [ -z "$PLATFORM" ] || [ -z "$ARCH" ]; then
+          echo "[FAIL] platform and arch inputs are required"
+          exit 1
+        fi
+        # Normalize win32 → win to match Dockerfile and CLI convention.
+        case "$PLATFORM" in
+          win32) OS_SEG="win" ;;
+          *)     OS_SEG="$PLATFORM" ;;
+        esac
+        SUFFIX=""
+        if [ -n "$LIBC" ] && [ "$LIBC" != "glibc" ]; then
+          SUFFIX="-${LIBC}"
+        fi
+        PLATFORM_ARCH="${OS_SEG}-${ARCH}${SUFFIX}"
+        echo "platform_arch=${PLATFORM_ARCH}" >> "$GITHUB_OUTPUT"
+        echo "Platform-arch segment: ${PLATFORM_ARCH}"
+
+    - name: Restore checkpoint cache
+      uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+      id: checkpoint-cache
+      with:
+        path: |
+          ${{ steps.cache-key.outputs.package_dir }}/build/${{ steps.cache-key.outputs.build_mode }}/${{ steps.platform-arch.outputs.platform_arch }}/checkpoints
+          ${{ steps.cache-key.outputs.package_dir }}/build/shared/checkpoints
+        key: ${{ steps.cache-key.outputs.cache_key }}
+
+    - name: Get checkpoint chain
+      id: checkpoint-chain
+      shell: bash
+      env:
+        PACKAGE_DIR: ${{ steps.cache-key.outputs.package_dir }}
+        BUILD_MODE: ${{ steps.cache-key.outputs.build_mode }}
+      run: |
+        # Pass --$BUILD_MODE so packages with mode-specific chains (dev vs
+        # prod) return the right shape. Binsuite packages currently ignore
+        # the flag (simple one-checkpoint chain) but every other workflow
+        # that calls get-checkpoint-chain.mts already passes the flag, so
+        # keep behaviour uniform and future-proof.
+        CHAIN=$(node "${PACKAGE_DIR}/scripts/get-checkpoint-chain.mts" "--${BUILD_MODE}")
+        echo "checkpoint_chain=$CHAIN" >> "$GITHUB_OUTPUT"
+        CHECKPOINTS=$(echo "$CHAIN" | tr ',' ' ')
+        echo "checkpoints=$CHECKPOINTS" >> "$GITHUB_OUTPUT"
+        echo "Checkpoint chain: $CHAIN"
+
+    - name: Validate checkpoint cache
+      if: steps.checkpoint-cache.outputs.cache-hit == 'true'
+      id: validate-cache
+      uses: ./.github/actions/validate-checkpoints
+      with:
+        checkpoint-dirs: ${{ steps.cache-key.outputs.package_dir }}/build/${{ steps.cache-key.outputs.build_mode }}/${{ steps.platform-arch.outputs.platform_arch }}/checkpoints:${{ steps.cache-key.outputs.package_dir }}/build/shared/checkpoints
+        checkpoints: ${{ steps.checkpoint-chain.outputs.checkpoints }}
+        package-name: ${{ inputs.package-name }}
+
+    - name: Restore build output from checkpoint
+      id: restore-checkpoint
+      uses: ./.github/actions/restore-checkpoint
+      with:
+        package-name: ${{ inputs.package-name }}
+        package-dir: ${{ steps.cache-key.outputs.package_dir }}
+        build-mode: ${{ steps.cache-key.outputs.build_mode }}
+        checkpoint-chain: ${{ steps.checkpoint-chain.outputs.checkpoint_chain }}
+        cache-hit: ${{ steps.checkpoint-cache.outputs.cache-hit }}
+        cache-valid: ${{ steps.validate-cache.outputs.valid }}
+        platform-arch: ${{ steps.platform-arch.outputs.platform_arch }}

@@ -1,0 +1,91 @@
+# syntax=docker/dockerfile:1
+# Build Node.js smol for musl (Alpine) - RELEASED ONLY.
+# This Dockerfile builds only to the binary-released stage for Depot CI.
+# Uses --build-only to skip checkpoint creation (checkpoints created in GHA).
+# Post-processing (strip, compress, finalize) runs in GitHub Actions.
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+FROM alpine:3.20
+
+# Explicit cache-version tag from cache-versions.json; bumping this invalidates layers below.
+# Install build dependencies.
+# Uses system Python 3.11 (meets minimum 3.9+ requirement).
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    linux-headers \
+    git \
+    curl \
+    patch \
+    ccache \
+    ninja \
+    openssl-dev \
+    openssl-libs-static \
+    xz-dev \
+    xz-static
+
+# Install Node.js from official musl binaries (Alpine packages lag behind).
+ARG NODE_VERSION=25.9.0
+RUN ARCH=$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/') && \
+    curl -fsSL "https://unofficial-builds.nodejs.org/download/release/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${ARCH}-musl.tar.xz" \
+      | tar -xJ -C /usr/local --strip-components=1
+
+# Socket-registry tool-checksums. Workflows `cp "$SOCKET_TOOL_CHECKSUMS_FILE"
+# .build-context/registry-tools.json` before `docker build`, so this
+# layer reads the same authoritative pnpm version socket-registry pins
+# — no hardcoded version in this Dockerfile. The file is gitignored;
+# it materializes fresh for every CI run from socket-registry's
+# pinned SHA.
+COPY .build-context/registry-tools.json /tmp/registry-tools.json
+
+# Install pnpm (native binary is glibc-only, use npm on musl).
+RUN apk add --no-cache jq && \
+    PNPM_VERSION=$(jq -r .pnpm.version /tmp/registry-tools.json) && \
+    npm install -g "pnpm@${PNPM_VERSION}" && \
+    rm /tmp/registry-tools.json
+
+# Set working directory.
+WORKDIR /workspace
+
+# Copy repository files.
+COPY . .
+
+# Install workspace dependencies.
+ENV CI=true
+RUN pnpm install --frozen-lockfile
+
+# Build arguments for target platform.
+ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64-musl
+ARG MATRIX_PLATFORM=linux
+ARG MATRIX_ARCH=x64
+ARG MATRIX_LIBC=musl
+
+# Build Node.js smol (build only, no checkpoint).
+# For x64 builds, set CFLAGS/CXXFLAGS to target baseline x86-64 without AVX/AVX2
+# to ensure binary portability across different CPU generations (e.g., GitHub Actions runners).
+ENV BUILD_MODE=$BUILD_MODE
+ENV PLATFORM_ARCH=$PLATFORM_ARCH
+ENV MATRIX_PLATFORM=$MATRIX_PLATFORM
+ENV MATRIX_ARCH=$MATRIX_ARCH
+ENV MATRIX_LIBC=$MATRIX_LIBC
+
+RUN if [ "$MATRIX_ARCH" = "x64" ]; then \
+        export CFLAGS="$CFLAGS -march=x86-64 -mtune=generic" && \
+        export CXXFLAGS="$CXXFLAGS -march=x86-64 -mtune=generic"; \
+    fi && \
+    if [ "$BUILD_MODE" = "prod" ]; then \
+        pnpm --filter node-smol-builder build --prod --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}" --libc="${MATRIX_LIBC}" --build-only=binary-released; \
+    else \
+        pnpm --filter node-smol-builder build --dev --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}" --libc="${MATRIX_LIBC}" --build-only=binary-released; \
+    fi
+
+# Export stage: Copy only the Release binary (no checkpoint - created in GHA).
+# Structure must match expected paths: ${BUILD_MODE}/${PLATFORM_ARCH}/out/Release
+FROM scratch AS export
+ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64-musl
+COPY --from=0 /workspace/packages/node-smol-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Release /${BUILD_MODE}/${PLATFORM_ARCH}/out/Release

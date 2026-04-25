@@ -1,0 +1,484 @@
+name: JS 1. Ink
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      debug:
+        description: 'Debug (0|1|namespace[,...])'
+        type: string
+        default: '0'
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+      force:
+        type: boolean
+        default: false
+      debug:
+        type: string
+        default: '0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build ink
+    permissions:
+      contents: read
+      id-token: write # OIDC authentication for Depot builds
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@ea1986b8019fedee5fb38b485690b13ad8e0217f # main
+
+      - name: Enable debug logging
+        uses: ./.github/actions/enable-debug-logging
+        with:
+          debug: ${{ inputs.debug }}
+
+      - name: Load tool versions
+        id: tool-versions
+        run: |
+          # Fail fast on missing keys — jq -r emits literal "null" for
+          # absent keys with exit 0, which would poison every matrix arm
+          # with a shared "vnull" cache entry. See R35 for the analogous
+          # fix in binsuite.yml.
+          load_pkg() {
+            local query="$1"
+            local file="$2"
+            local val
+            val=$(jq -r "$query" "$file")
+            if [ -z "$val" ] || [ "$val" = "null" ]; then
+              echo "error: $file missing $query" >&2
+              exit 1
+            fi
+            echo "$val"
+          }
+          NODE_VERSION=$(cat .node-version | tr -d '\n')
+          INK_VERSION=$(load_pkg '.sources.ink.version' packages/ink-builder/package.json)
+          INK_REF=$(load_pkg '.sources.ink.ref' packages/ink-builder/package.json)
+          echo "node-version=$NODE_VERSION" >> $GITHUB_OUTPUT
+          echo "ink-version=$INK_VERSION" >> $GITHUB_OUTPUT
+          echo "ink-ref=$INK_REF" >> $GITHUB_OUTPUT
+          echo "Loaded Node.js: $NODE_VERSION, ink: $INK_VERSION (ref: ${INK_REF:0:8}...)"
+
+      - name: Load ink cache version from centralized config
+        id: ink-cache-version
+        uses: ./.github/actions/load-cache-version
+        with:
+          package-name: ink
+
+      - name: Load yoga-layout cache version from centralized config
+        id: yoga-cache-version
+        uses: ./.github/actions/load-cache-version
+        with:
+          package-name: yoga-layout
+
+      - name: Generate ink cache key
+        id: cache-key
+        env:
+          INK_CACHE_VERSION: ${{ steps.ink-cache-version.outputs.version }}
+          YOGA_CACHE_VERSION: ${{ steps.yoga-cache-version.outputs.version }}
+        run: |
+          # Cross-platform hash function.
+          if command -v shasum &> /dev/null; then
+            hash_cmd="shasum -a 256"
+          elif command -v sha256sum &> /dev/null; then
+            hash_cmd="sha256sum"
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+
+          hash_tree() {
+            local dir="$1"
+            if [ -d "$dir" ]; then
+              # LC_COLLATE=C pins sort to byte-order so cache keys stay
+              # locale-independent across runner images.
+              find "$dir" -type f 2>/dev/null | LC_COLLATE=C sort | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1
+            else
+              echo ""
+            fi
+          }
+
+          # Hash all inputs that affect the built dist/:
+          # - packages/ink-builder/package.json (sources.ink version)
+          # - packages/ink-builder/scripts/ (build logic)
+          # - packages/ink-builder/patches/ (applied to npm-downloaded ink)
+          # - packages/ink-builder/docker/ (Dockerfile)
+          # - yoga-layout-builder upstream submodule SHA (ink embeds yoga-sync.mjs)
+          PACKAGE_JSON=$($hash_cmd packages/ink-builder/package.json | cut -d' ' -f1)
+          SCRIPTS_HASH=$(hash_tree packages/ink-builder/scripts)
+          PATCHES_HASH=$(hash_tree packages/ink-builder/patches)
+          DOCKER_HASH=$(hash_tree packages/ink-builder/docker)
+          YOGA_SHA=$(git ls-tree HEAD packages/yoga-layout-builder/upstream/yoga 2>/dev/null | awk '{print $3}' || echo "none")
+          # ink runs `pnpm test` on the built dist inside Depot — bugs that
+          # only surface at test time can depend on Node version, so a
+          # node bump must invalidate the cache.
+          NODE_VERSION_HASH=$($hash_cmd .node-version | cut -d' ' -f1)
+          # Shared TS helpers + workspace lock. ink-builder scripts
+          # import from build-infra/lib; Dockerfile copies pnpm-lock.yaml.
+          BUILD_INFRA_LIB=$(hash_tree packages/build-infra/lib)
+          BIN_INFRA_LIB=$(hash_tree packages/bin-infra/lib)
+          # build-infra/external-tools.json + build-infra/scripts/ — per
+          # CASCADE_RULES these are ALL_DOWNSTREAM, a bump must invalidate
+          # every builder's cache. Ink inherits yoga's WASM build inside
+          # the Docker image, so a build-infra toolchain pin change
+          # silently served stale ink caches before this hash was added.
+          BUILD_INFRA_EXTERNAL_TOOLS=$($hash_cmd packages/build-infra/external-tools.json 2>/dev/null | cut -d' ' -f1)
+          BUILD_INFRA_SCRIPTS=$(hash_tree packages/build-infra/scripts)
+          PNPM_LOCK_HASH=$($hash_cmd pnpm-lock.yaml 2>/dev/null | cut -d' ' -f1)
+          # ink Docker stage 1 COPYs yoga-layout-builder/ and runs
+          # `pnpm run build` to produce the yoga-sync.mjs that gets
+          # bundled. Source edits in yoga-layout-builder must therefore
+          # invalidate ink's cache; YOGA_CACHE_VERSION + YOGA_SHA only
+          # catch bumps to the upstream version / submodule SHA.
+          YOGA_SCRIPTS_HASH=$(hash_tree packages/yoga-layout-builder/scripts)
+          YOGA_SRC_HASH=$(hash_tree packages/yoga-layout-builder/src)
+          YOGA_PACKAGE_JSON=$($hash_cmd packages/yoga-layout-builder/package.json 2>/dev/null | cut -d' ' -f1)
+          # yoga-layout-builder/external-tools.json pins emscripten /
+          # cmake / python3 versions read by pinned-versions.mts inside
+          # the ink Dockerfile's yoga build stage. Bumps there change
+          # the produced WASM and bundled yoga-sync.mjs. Unhashed
+          # before R21.
+          YOGA_EXTERNAL_TOOLS=$($hash_cmd packages/yoga-layout-builder/external-tools.json 2>/dev/null | cut -d' ' -f1)
+          # build-infra/wasm-synced/ holds the shared WASM sync wrapper
+          # generator + transform helpers that yoga-layout-builder's
+          # generate-sync.mts consumes to produce yoga-sync.mjs — which
+          # ink then bundles. CASCADE_RULES already marks this as
+          # cascading to ink, but hash directly here too as
+          # belt-and-suspenders: a helper edit without a matching
+          # `ink` cache-version bump would otherwise serve stale.
+          BUILD_INFRA_WASM_SYNCED=$(hash_tree packages/build-infra/wasm-synced)
+          # .npmrc gates pnpm install behavior (ignore-scripts,
+          # minimumReleaseAge) inside the ink Dockerfile via `COPY .npmrc`.
+          # Toggles there change which postinstalls fire / which versions
+          # resolve. Unhashed before R21.
+          NPMRC_HASH=$($hash_cmd .npmrc 2>/dev/null | cut -d' ' -f1)
+          # The Dockerfile also COPYs root package.json + pnpm-workspace.yaml
+          # (catalog versions, overrides, trustPolicy, minimumReleaseAge).
+          # Edits there change what pnpm resolves during `pnpm install`
+          # inside the image, so a catalog bump silently served stale
+          # ink caches before R24.
+          ROOT_PACKAGE_JSON=$($hash_cmd package.json 2>/dev/null | cut -d' ' -f1)
+          PNPM_WORKSPACE=$($hash_cmd pnpm-workspace.yaml 2>/dev/null | cut -d' ' -f1)
+          # Socket-registry propagation SHA — extracted from THIS
+          # workflow's own YAML at runtime, not via a catalog lookup.
+          # A registry cascade bump (which edits the @<sha> pin in
+          # this file) flows through to a cache-key change here, so
+          # the checkpoint cache invalidates whenever the registry
+          # provisions a new pnpm version / zizmor build / etc. That
+          # makes .build-context/registry-tools.json — whose contents
+          # are materialized per-run from SOCKET_TOOL_CHECKSUMS_FILE
+          # — implicitly part of the cache key.
+          WORKFLOW_FILE="${GITHUB_WORKFLOW_REF%@*}"
+          WORKFLOW_FILE="${WORKFLOW_FILE#${GITHUB_REPOSITORY}/}"
+          SOCKET_REGISTRY_SHA=$(grep -ohE 'SocketDev/socket-registry/[^@]+@[0-9a-f]{40}' "$WORKFLOW_FILE" 2>/dev/null | head -1 | grep -oE '[0-9a-f]{40}$' || echo "")
+
+          FINAL_HASH=$(echo "${INK_CACHE_VERSION}${YOGA_CACHE_VERSION}${PACKAGE_JSON}${SCRIPTS_HASH}${PATCHES_HASH}${DOCKER_HASH}${YOGA_SHA}${NODE_VERSION_HASH}${BUILD_INFRA_LIB}${BIN_INFRA_LIB}${BUILD_INFRA_EXTERNAL_TOOLS}${BUILD_INFRA_SCRIPTS}${PNPM_LOCK_HASH}${YOGA_SCRIPTS_HASH}${YOGA_SRC_HASH}${YOGA_PACKAGE_JSON}${YOGA_EXTERNAL_TOOLS}${BUILD_INFRA_WASM_SYNCED}${NPMRC_HASH}${ROOT_PACKAGE_JSON}${PNPM_WORKSPACE}${SOCKET_REGISTRY_SHA}" | $hash_cmd | cut -d' ' -f1)
+
+          echo "ink_cache_version=${INK_CACHE_VERSION}" >> $GITHUB_OUTPUT
+          echo "yoga_cache_version=${YOGA_CACHE_VERSION}" >> $GITHUB_OUTPUT
+          echo "final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
+
+      - name: Restore ink dist cache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        id: ink-checkpoint-cache
+        if: ${{ !inputs.force }}
+        with:
+          # Cache the built dist/ directly so cache-hit runs skip build+verify+tests.
+          path: |
+            packages/ink-builder/dist
+          key: ink-dist-${{ steps.cache-key.outputs.ink_cache_version }}-v${{ steps.tool-versions.outputs.ink-version }}-${{ runner.os }}-${{ steps.cache-key.outputs.final_hash }}
+
+      - name: Setup Depot CLI
+        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
+        uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
+        with:
+          oidc: true
+
+      - name: Stage registry tool-checksums for Docker build context
+        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
+        shell: bash
+        run: |
+          # Socket-registry's setup action exports SOCKET_TOOL_CHECKSUMS_FILE
+          # pointing at a stable on-runner copy of external-tools.json.
+          # Dockerfiles `COPY .build-context/registry-tools.json …` to
+          # resolve pnpm version + per-platform asset + sha256 at build
+          # time without duplicating per-Dockerfile constants.
+          mkdir -p .build-context
+          cp "$SOCKET_TOOL_CHECKSUMS_FILE" .build-context/registry-tools.json
+
+      - name: Build ink with Depot (offloads compute, ensures yoga-sync available)
+        id: build
+        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
+        uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0
+        with:
+          project: 8fpj9495vw
+          platforms: linux/amd64
+          build-args: |
+            NODE_VERSION=${{ steps.tool-versions.outputs.node-version }}
+            INK_VERSION=${{ steps.tool-versions.outputs.ink-version }}
+            BUILD_MODE=prod
+            PLATFORM_ARCH=linux-x64
+            CACHE_VERSION=${{ steps.cache-key.outputs.ink_cache_version }}
+          no-cache: ${{ inputs.force == true }}
+          file: packages/ink-builder/docker/Dockerfile
+          target: export
+          outputs: type=local,dest=packages/ink-builder/build
+          context: .
+
+      - name: Verify Depot build output
+        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
+        run: |
+          echo "Verifying Depot build output structure..."
+          ls -lah packages/ink-builder/build/
+
+          # Depot exports to build/dist (from Dockerfile's /dist)
+          if [ ! -d "packages/ink-builder/build/dist" ]; then
+            echo "× Build directory not found!"
+            echo "Contents of output directory:"
+            find packages/ink-builder/build/ -type f 2>/dev/null || echo "No files found"
+            exit 1
+          fi
+          echo "✅ Build artifacts found"
+          ls -lh packages/ink-builder/build/dist/
+
+      - name: Copy dist from Depot build output
+        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
+        run: |
+          # Depot outputs to build/dist, copy to packages/ink-builder/dist for consistency.
+          rm -rf packages/ink-builder/dist
+          cp -r packages/ink-builder/build/dist packages/ink-builder/dist
+          echo "✅ Copied dist from Depot build"
+
+      # Skip validation on full cache-hit — the dist/ tarball was just
+      # restored from cache and integrity-checked by validate-checkpoints
+      # (or, here, the actions/cache restore step itself). Re-stat'ing
+      # the same files just adds wall time across every fully-cached run.
+      - name: Validate build output
+        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
+        run: |
+          echo "Validating ink build output..."
+
+          if [ ! -d "packages/ink-builder/dist/build" ]; then
+            echo "× Build failed: dist/build directory missing"
+            exit 1
+          fi
+
+          if [ ! -f "packages/ink-builder/dist/build/yoga-sync.mjs" ]; then
+            echo "× Build failed: yoga-sync.mjs missing"
+            exit 1
+          fi
+
+          if [ ! -f "packages/ink-builder/dist/package.json" ]; then
+            echo "× Build failed: package.json missing"
+            exit 1
+          fi
+
+          # Verify yoga-sync is substantial (has embedded WASM)
+          YOGA_SIZE=$(stat -c%s "packages/ink-builder/dist/build/yoga-sync.mjs" 2>/dev/null || stat -f%z "packages/ink-builder/dist/build/yoga-sync.mjs")
+          if [ "$YOGA_SIZE" -lt 100000 ]; then
+            echo "× Build failed: yoga-sync.mjs too small ($YOGA_SIZE bytes)"
+            exit 1
+          fi
+
+          # Verify patches were applied
+          if ! grep -q "onExit as signalExit" packages/ink-builder/dist/build/ink.js; then
+            echo "× Build failed: signal-exit patch not applied"
+            exit 1
+          fi
+
+          echo "✅ Build validation passed"
+          ls -lh packages/ink-builder/dist/build/
+
+      - name: Run tests
+        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
+        shell: bash
+        run: |
+          cd packages/ink-builder
+          pnpm test
+
+      - name: Upload ink artifacts
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ink-prepatched
+          path: packages/ink-builder/dist/
+          retention-days: 30
+          compression-level: 0  # Already-compressed binary artifact
+          if-no-files-found: error
+
+      - name: Cleanup before cache save
+        if: steps.ink-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
+        run: |
+          # Remove the intermediate build/ export so only dist/ gets cached.
+          rm -rf packages/ink-builder/build
+          echo "✅ Cleanup complete"
+
+  release:
+    name: Release ink
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: release # Dedicated environment for secret access with approval gates
+    permissions:
+      contents: write # Required to create GitHub releases
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            packages/ink-builder/package.json
+            .github/scripts/generate-version.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Load ink version from package.json
+        id: tool-versions
+        run: |
+          INK_VERSION=$(jq -r '.sources.ink.version' packages/ink-builder/package.json)
+          if [ -z "$INK_VERSION" ] || [ "$INK_VERSION" = "null" ]; then
+            echo "error: packages/ink-builder/package.json missing .sources.ink.version" >&2
+            exit 1
+          fi
+          echo "ink-version=$INK_VERSION" >> $GITHUB_OUTPUT
+          echo "Loaded ink: $INK_VERSION"
+
+      - name: Download ink artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: ink-prepatched
+          path: packages/ink-builder/dist/
+
+      - name: Generate version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source .github/scripts/generate-version.sh
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+          TAG="ink-${VERSION}"
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, skipping."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create release tarball
+        if: steps.version.outputs.skip != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          cd packages/ink-builder
+          tar -czf ink-${VERSION}.tgz -C dist .
+          mv ink-${VERSION}.tgz dist/
+          ls -lh dist/ink-${VERSION}.tgz
+
+      - name: Generate checksums
+        if: steps.version.outputs.skip != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          cd packages/ink-builder/dist
+          $(command -v shasum &> /dev/null && echo "shasum -a 256" || echo "sha256sum") ink-${VERSION}.tgz > checksums.txt
+          cat checksums.txt
+
+      - name: Import GPG key
+        if: steps.version.outputs.skip != 'true'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+            echo "GPG key imported successfully"
+          else
+            echo "⚠️  GPG_PRIVATE_KEY secret not set, skipping signature"
+          fi
+
+      - name: Sign checksums
+        if: steps.version.outputs.skip != 'true'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            cd packages/ink-builder/dist
+            if [ -n "$GPG_PASSPHRASE" ]; then
+              echo "$GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --detach-sign --armor checksums.txt
+            else
+              gpg --batch --yes --detach-sign --armor checksums.txt
+            fi
+            echo "[OK] Created checksums.txt.asc"
+            ls -lh checksums.txt.asc
+          fi
+
+      - name: Create GitHub Release
+        if: steps.version.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STEPS_VERSION_OUTPUTS_VERSION: ${{ steps.version.outputs.version }}
+          INK_VERSION: ${{ steps.tool-versions.outputs.ink-version }}
+        run: |
+          VERSION="${STEPS_VERSION_OUTPUTS_VERSION}"
+          RELEASE_NAME="ink"
+          TAG="${RELEASE_NAME}-${VERSION}"
+
+          echo "Creating new release $TAG..."
+          # Extract date-hash from tag for title
+          TITLE_SUFFIX="${TAG#ink-}"
+          gh release create "$TAG" \
+            --title "ink ${TITLE_SUFFIX}" \
+            --notes "Prepatched ink v${INK_VERSION} with bundled yoga-sync.
+
+          ## What's Included
+          - ink TUI framework v${INK_VERSION}
+          - Bundled yoga-sync.mjs (synchronous Yoga WASM, no yoga-layout dependency)
+          - Patches applied:
+            - signal-exit: Named import fix
+            - devtools: Disabled for smaller bundle
+
+          ## Files
+          - \`ink-${VERSION}.tgz\` - Prepatched ink tarball
+          - \`checksums.txt\` - SHA256 checksums
+
+          ## Usage
+          Extract and use in your project:
+          \`\`\`bash
+          tar -xzf ink-${VERSION}.tgz
+          \`\`\`
+
+          \`\`\`javascript
+          import { render, Box, Text } from './ink/build/index.js';
+          \`\`\`" \
+            packages/ink-builder/dist/ink-${VERSION}.tgz \
+            packages/ink-builder/dist/checksums.txt \
+            $([ -f packages/ink-builder/dist/checksums.txt.asc ] && echo "packages/ink-builder/dist/checksums.txt.asc" || echo "")
+
+  update-checksums:
+    needs: release
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    permissions:
+      contents: write # release-assets.json commit after publishing GitHub release
+    uses: ./.github/workflows/update-checksums.yml
+    secrets:
+      BOT_GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}

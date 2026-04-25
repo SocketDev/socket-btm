@@ -1,0 +1,38 @@
+name: Load Cache Version
+description: Reads a package's cache version from .github/cache-versions.json and fails if it's missing or null
+
+inputs:
+  package-name:
+    description: 'Package key in .github/cache-versions.json (e.g. iocraft, lief, yoga-layout)'
+    required: true
+
+outputs:
+  version:
+    description: 'Resolved cache version string (e.g. v42)'
+    value: ${{ steps.read.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Read cache version
+      id: read
+      shell: bash
+      env:
+        PACKAGE_NAME: ${{ inputs.package-name }}
+      run: |
+        # Defense-in-depth: validate input shape before interpolating
+        # into the jq query. setup-checkpoints/action.yml validates the
+        # same logical input with the same regex — keep sibling actions
+        # consistent so an input from a future workflow composed from
+        # untrusted data can't inject through the jq path selector.
+        if ! [[ "$PACKAGE_NAME" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+          echo "× Invalid package name: $PACKAGE_NAME"
+          exit 1
+        fi
+        CACHE_VERSION=$(jq -r ".versions[\"${PACKAGE_NAME}\"]" .github/cache-versions.json)
+        if [ -z "$CACHE_VERSION" ] || [ "$CACHE_VERSION" = "null" ]; then
+          echo "× Error: Cache version not found for ${PACKAGE_NAME} in .github/cache-versions.json"
+          exit 1
+        fi
+        echo "version=$CACHE_VERSION" >> "$GITHUB_OUTPUT"
+        echo "Cache version: $CACHE_VERSION"

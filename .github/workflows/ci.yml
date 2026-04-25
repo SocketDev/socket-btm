@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: 'Debug (0|1|namespace[,...])'
+        required: false
+        default: '0'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Platform-agnostic checks run once on Ubuntu
+  checks:
+    name: Lint, Type, Validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@ea1986b8019fedee5fb38b485690b13ad8e0217f # main
+
+      - name: Enable debug logging
+        uses: ./.github/actions/enable-debug-logging
+        with:
+          debug: ${{ inputs.debug || '0' }}
+
+      - name: Install ripgrep
+        shell: bash
+        run: |
+          if ! command -v rg >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y ripgrep
+          fi
+
+      - name: Lint checks
+        shell: bash
+        run: pnpm run check
+
+      - name: Validate cache-versions.json
+        run: |
+          # Validate JSON is parseable
+          if ! jq empty .github/cache-versions.json 2>/dev/null; then
+            echo "::error::cache-versions.json is not valid JSON"
+            exit 1
+          fi
+
+          # Validate required schema structure exists
+          if ! jq -e '.versions | type == "object"' .github/cache-versions.json >/dev/null 2>&1; then
+            echo "::error::cache-versions.json missing required 'versions' object"
+            exit 1
+          fi
+
+          # Validate each version entry format
+          for pkg in $(jq -r '.versions | keys[]' .github/cache-versions.json); do
+            VERSION=$(jq -r ".versions[\"$pkg\"]" .github/cache-versions.json)
+            if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+              echo "::error::Missing or null version for package: $pkg"
+              exit 1
+            fi
+            if ! echo "$VERSION" | grep -qE '^v[0-9]+$'; then
+              echo "::error::Invalid version format for $pkg: $VERSION (expected: v<number>)"
+              exit 1
+            fi
+          done
+          echo "[OK] cache-versions.json valid"
+
+      - name: Validate cache version cascades
+        shell: bash
+        run: node scripts/validate-cache-versions.mts
+
+      - name: Validate checkpoint alignment
+        shell: bash
+        run: node scripts/validate-checkpoint-alignment.mts
+
+      - name: Run build-infra tests
+        shell: bash
+        run: pnpm run test:build-infra
+
+  # Platform-specific tests run on all platforms
+  test:
+    name: Test (${{ matrix.os }})
+    needs: checks
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # Pin to explicit versioned runners so CI sees the same runner
+        # images as the release workflows (which use ubuntu-24.04,
+        # macos-15, windows-2022). Rolling `*-latest` labels can quietly
+        # diverge from release builds when GitHub rolls them forward.
+        os: [ubuntu-24.04, macos-15, windows-2022]
+    steps:
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@ea1986b8019fedee5fb38b485690b13ad8e0217f # main
+
+      - name: Enable debug logging
+        uses: ./.github/actions/enable-debug-logging
+        with:
+          debug: ${{ inputs.debug || '0' }}
+
+      # Platform-specific tests go here
+      # Package-specific build/test workflows:
+      # - binject/binflate/binpress: binsuite.yml
+      # - node-smol-builder: node-smol.yml
+      # - model builders: models.yml, onnxruntime.yml, yoga-layout.yml
+
+      - name: Verify pnpm install works
+        shell: bash
+        run: pnpm ls --depth=0

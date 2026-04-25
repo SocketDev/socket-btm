@@ -1,0 +1,27 @@
+.{
+    .name = .opentui_node,
+    .version = "0.0.1",
+    .fingerprint = 0xdb97a3d0a4f24fe9,
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .uucode = .{
+            // Vendored from https://github.com/jacobsandlund/uucode at
+            // commit 84ceda8561a17ba4a9b96ac5c583f779660bbd4e — what
+            // upstream opentui v0.1.99's build.zig.zon pins (0.2.0 tag).
+            // Submodule is initialized by the opentui.yml
+            // init-submodules step and copied into the patched source
+            // tree as dependencies/uucode/ by apply-patches.mts, so
+            // `.path = "dependencies/uucode"` is always a sibling of
+            // this build.zig.zon at build time. Hermetic path; no
+            // network fetch.
+            .path = "dependencies/uucode",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "vendor",
+        "dependencies",
+    },
+}

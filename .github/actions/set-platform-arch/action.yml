@@ -1,0 +1,43 @@
+name: Set Platform-Arch
+description: Composes the platform-arch string (converting win32→win, appending -musl when applicable) from matrix inputs
+
+inputs:
+  platform:
+    description: 'Node-style platform identifier (darwin|linux|win32)'
+    required: true
+  arch:
+    description: 'CPU arch (x64|arm64|etc)'
+    required: true
+  libc:
+    description: 'C library — only `musl` triggers the -musl suffix'
+    required: false
+    default: ''
+
+outputs:
+  platform_arch:
+    description: 'Release-ready platform-arch string (e.g. darwin-arm64, linux-x64-musl, win-x64)'
+    value: ${{ steps.resolve.outputs.platform_arch }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve platform-arch
+      id: resolve
+      shell: bash
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        ARCH: ${{ inputs.arch }}
+        LIBC: ${{ inputs.libc }}
+      run: |
+        # Convert win32 -> win for file/folder names.
+        if [ "${PLATFORM}" = "win32" ]; then
+          RELEASE_PLATFORM="win"
+        else
+          RELEASE_PLATFORM="${PLATFORM}"
+        fi
+        PLATFORM_ARCH="${RELEASE_PLATFORM}-${ARCH}"
+        if [ "${LIBC}" = "musl" ]; then
+          PLATFORM_ARCH="${PLATFORM_ARCH}-musl"
+        fi
+        echo "platform_arch=${PLATFORM_ARCH}" >> "$GITHUB_OUTPUT"
+        echo "Platform-arch: ${PLATFORM_ARCH}"

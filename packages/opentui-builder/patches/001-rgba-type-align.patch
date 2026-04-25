@@ -1,0 +1,17 @@
+# @opentui-versions: v0.1.99
+# @description: Align utils.zig RGBA type with ansi.zig so callers across lib.zig don't hit `?[4]f32` vs `?@Vector(4, f32)` mismatches when passing colors to buffer/text-buffer APIs.
+#
+--- a/utils.zig
++++ b/utils.zig
+@@ -1,7 +1,10 @@
+ const std = @import("std");
+ 
+ /// RGBA color type (4 f32 values)
+-pub const RGBA = @Vector(4, f32);
++/// NOTE: Kept as `[4]f32` to match `ansi.zig` and the type signatures in
++/// `buffer.zig` / `text-buffer.zig`. Having two competing RGBA aliases
++/// caused 15 `expected ?[4]f32, found ?@Vector(4, f32)` errors.
++pub const RGBA = [4]f32;
+ 
+ /// Convert a pointer to 4 f32 values into an RGBA color
+ pub fn f32PtrToRGBA(ptr: [*]const f32) RGBA {

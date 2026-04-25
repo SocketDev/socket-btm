@@ -1,0 +1,52 @@
+{
+  "$schema": "../build-infra/lib/external-tools-schema.json",
+  "description": "Package-level external tools for AI model building (shared Python environment)",
+  "tools": {
+    "python3": {
+      "description": "Python 3 interpreter (required for all ML tools)",
+      "version": "3.13.1"
+    },
+    "pip": {
+      "description": "Python package installer",
+      "version": "24.3.1",
+      "packageManager": "pip",
+      "notes": "Installed with Python. Ubuntu 24.04 ships pip 24.0, but we upgrade to 24.3.1 for better dependency resolution and security fixes."
+    },
+    "huggingface_hub": {
+      "description": "HuggingFace Hub client library",
+      "version": "0.30.2",
+      "packageManager": "pip"
+    },
+    "torch": {
+      "description": "PyTorch machine learning framework",
+      "version": "2.10.0",
+      "packageManager": "pip"
+    },
+    "transformers": {
+      "description": "HuggingFace Transformers library for NLP models",
+      "version": "4.53.3",
+      "packageManager": "pip"
+    },
+    "onnx": {
+      "description": "ONNX (Open Neural Network Exchange) format library",
+      "version": "1.20.1",
+      "packageManager": "pip"
+    },
+    "sentence_transformers": {
+      "description": "Sentence Transformers for sentence embeddings",
+      "version": "3.3.1",
+      "packageManager": "pip"
+    },
+    "onnxruntime": {
+      "description": "ONNX Runtime inference engine",
+      "version": "1.24.4",
+      "packageManager": "pip",
+      "notes": "Python 3.14 wheels start at 1.24.1. Kept on 1.24.x (not 1.25+) to avoid unreleased-API churn; MatMulNBitsQuantizer behavior is stable across 1.23.2→1.24.4."
+    },
+    "onnxscript": {
+      "description": "ONNX Script for ONNX model authoring",
+      "version": "0.6.2",
+      "packageManager": "pip"
+    }
+  }
+}

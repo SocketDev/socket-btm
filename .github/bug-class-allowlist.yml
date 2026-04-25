@@ -1,0 +1,77 @@
+# Bug-class allowlist for check-bug-classes.mts.
+#
+# Each entry opts a specific file+line out of a bug-class regex match.
+# Entries require a `reason` field so future readers can audit whether
+# the exception is still valid — when it's not, the entry (and the
+# underlying code) should be updated, not the regex loosened.
+#
+# Format:
+#   - file: <path relative to repo root>
+#     line: <optional line number; omit to exempt the whole file>
+#     class: <bug-class id from scripts/check-bug-classes.mts>
+#     reason: <one-paragraph justification>
+#
+# The parser is intentionally tiny (see loadAllowlist in
+# check-bug-classes.mts); keep entries flat and one-key-per-line.
+
+- file: packages/node-smol-builder/additions/source-patched/src/socketsecurity/http/smol_http_binding.cc
+  line: 269
+  class: cpp-tolocalchecked-on-bytes
+  reason: "The `status_line` argument comes from a fixed switch over int32 status codes, producing one of four hardcoded ASCII string literals (HTTP/1.1 200/304/404/500 lines). No user bytes. Verified R22-R42."
+
+- file: packages/node-smol-builder/additions/source-patched/src/socketsecurity/sea-smol/sea_inject.cc
+  class: cpp-hardcoded-tmp-path
+  reason: "Contains a R22 fix-comment quoting the old '/tmp/sea_blob.bin' that was replaced by mkstemp_portable. The literal only appears inside a /* ... */ block documenting why the fix exists, never in live code."
+
+- file: packages/node-smol-builder/additions/source-patched/src/socketsecurity/build-infra/socket_cacache.h
+  line: 481
+  class: cpp-hardcoded-tmp-path
+  reason: "Last-resort fallback path used when $SOCKET_CACACHE_DIR, $SOCKET_HOME, $HOME, and $USERPROFILE are all unset (extremely unusual). The caller wraps every public entry point (cacache_get/put/remove) with scache_verify_no_symlinks() which uses lstat to reject any symlink component, so even this fallback can't be symlink-attacked. Reviewed R25."
+
+- file: .claude/skills/quality-scan/reference.md
+  class: docs-pnpm-run-nonexistent
+  reason: "Documentation example explaining the pnpm run convention ('pnpm run foo --flag' — `foo` is an intentional placeholder, not a real script)."
+
+- file: .claude/skills/updating-ink/SKILL.md
+  class: docs-pnpm-run-nonexistent
+  reason: "Skill-internal references to patch operations (build:patches-style names) were cleaned up R22; anything remaining in this file represents canonical guidance that intentionally uses example script names."
+
+- file: packages/node-smol-builder/additions/source-patched/src/socketsecurity/http/http_fast_response.cc
+  line: 332
+  class: cpp-size-overflow-bounds-check
+  reason: "`offset + status_len > buffer_size` where all three operands come from server's own code and `buffer_size` is a fixed 512-byte stack buffer (see char header_buf[512] further down). Overflow would require status_len near SIZE_MAX which is impossible from a function-local computation. Verified R22, line shifted R31 after TryWrite size_t-truncation fix."
+
+- file: packages/node-smol-builder/additions/source-patched/src/socketsecurity/http/http_fast_response.cc
+  line: 340
+  class: cpp-size-overflow-bounds-check
+  reason: "Same 512-byte fixed buffer context. kJsonHeadersLen is a compile-time constant. Verified R22, line shifted R31."
+
+- file: packages/node-smol-builder/additions/source-patched/src/socketsecurity/http/http_fast_response.cc
+  line: 345
+  class: cpp-size-overflow-bounds-check
+  reason: "Same 512-byte fixed buffer context. kTextHeadersLen is a compile-time constant. Verified R22, line shifted R31."
+
+- file: packages/node-smol-builder/additions/source-patched/src/socketsecurity/http/http_fast_response.cc
+  line: 363
+  class: cpp-size-overflow-bounds-check
+  reason: "Same 512-byte fixed buffer context. `needed` is the sum of 2-3 compile-time constants. Verified R22, line shifted R31 + R39 (CRLF-injection filter added above)."
+
+- file: packages/node-smol-builder/additions/source-patched/src/socketsecurity/http/http_fast_response.cc
+  line: 395
+  class: cpp-size-overflow-bounds-check
+  reason: "Same 512-byte fixed buffer context. `cl_len + kHeaderEndLen` are both small compile-time values. Verified R22, line shifted R31 + R39."
+
+- file: packages/build-infra/src/socketsecurity/build-infra/socket_cacache.h
+  line: 152
+  class: cpp-tmpfile-predictable
+  reason: "Windows branch of R25 fix. On Windows CI runners are dedicated VMs with no shared-user threat and mkstemp is non-standard. POSIX branch uses mkstemp; this Windows fallback keeps the original pid+time pattern which is acceptable per the R25 threat model."
+
+- file: packages/node-smol-builder/additions/source-patched/src/socketsecurity/build-infra/socket_cacache.h
+  line: 128
+  class: cpp-tmpfile-predictable
+  reason: "Gitignored additions/ mirror of packages/build-infra/src/socketsecurity/build-infra/socket_cacache.h which has the R25 mkstemp fix on POSIX. This mirror is regenerated at build time from the canonical source; the stale copy only exists in working trees that haven't rebuilt."
+
+- file: packages/node-smol-builder/additions/source-patched/src/socketsecurity/build-infra/socket_cacache.h
+  line: 137
+  class: cpp-tmpfile-predictable
+  reason: "Same additions/ mirror as line 128 — regenerated at build time from the R25-fixed canonical source."

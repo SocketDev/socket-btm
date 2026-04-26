@@ -75,9 +75,16 @@ import { fileURLToPath } from 'node:url'
 
 import { parseArgs } from 'node:util'
 
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-
-const logger = getDefaultLogger()
+// Plain stderr/stdout output — no @socketsecurity/lib dependency so
+// the gate is self-contained and works in socket-lib itself (which
+// would otherwise import itself).
+const logger = {
+  log: (msg: string) => process.stdout.write(msg + '\n'),
+  error: (msg: string) => process.stderr.write(msg + '\n'),
+  step: (msg: string) => process.stdout.write(`→ ${msg}\n`),
+  success: (msg: string) => process.stdout.write(`✔ ${msg}\n`),
+  substep: (msg: string) => process.stdout.write(`  ${msg}\n`),
+}
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

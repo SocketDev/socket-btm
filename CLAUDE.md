@@ -134,17 +134,26 @@ The umbrella rule: never run a git command that mutates state belonging to a pat
 - ALWAYS use `eslint-disable-next-line` above the line, NEVER trailing `eslint-disable-line`
 - ALWAYS use Edit tool for code modifications, NEVER sed/awk
 
-### Paths: One Path, One Reference
+### 1 path, 1 reference
 
-**If a path appears in two places, that's a bug.** Every build artifact lives at exactly one canonical location, and that location is defined in exactly one place: a `paths.mts` module (or equivalent path helper). Everything else — other scripts, READMEs, Dockerfiles, workflows, tests — derives from that source. No hand-assembled `path.join('build', mode, platformArch, 'out', 'Final', ...)` strings outside the path module that owns them.
+**A path is *constructed* exactly once. Everywhere else *references* the constructed value.**
 
-- **Within a package**: every script imports its own `scripts/paths.mts`. No script should compute build paths from raw segments.
-- **Across packages**: when builder B consumes builder A's artifact (e.g. ink-builder consuming yoga-layout-builder's `yoga-sync.mjs`), B imports A's `paths.mts` (or a typed helper exported from it) — never reconstructs the path from string segments. The bug from R28 (`yoga-sync.mjs not found` because ink-builder hand-built a path missing the `wasm/` segment that yoga-layout-builder had added) is exactly the failure mode this rule prevents.
-- **Doc strings**: README "Output:" lines and `@fileoverview` comments describe the path; they don't *encode* it for tools to parse. If a tool needs the path, it imports it. The doc is for humans only — and even there, it must match what `paths.mts` actually produces, verified by running the function.
-- **Workflows / Dockerfiles**: GitHub Actions YAML and Dockerfiles can't `import` TS, so they're allowed to reference the path string directly — but they MUST add a comment pointing at the canonical `paths.mts` so the next person editing knows where the source of truth lives, and any path string must match `paths.mts` byte-for-byte. If you find yourself writing the same path twice in the same workflow, hoist it to a step output (`steps.paths.outputs.final_dir`) or a job-level env var; reference that everywhere downstream.
-- **Comments that re-state the path**: forbidden. `// Path mirrors yoga-layout-builder's getBuildPaths(): build/<mode>/<platformArch>/wasm/out/Final/yoga-sync.mjs` is duplication wearing a comment costume. The import statement is the comment.
+Referencing a single computed path many times is fine — that's the whole point of computing it once. What's banned is *re-constructing* the same path in multiple places, because that's where drift is born.
 
-When you spot duplication, the answer is never "update both" — the answer is "delete one and import the other." Fix the architecture, not the symptom.
+- **Within a package**: every script imports its own `scripts/paths.mts` (or `lib/paths.mts`). No `path.join('build', mode, ...)` outside that module.
+- **Across packages**: when package B consumes package A's output, B imports A's `paths.mts` via the workspace `exports` field. Never `path.join(PKG, '..', '<sibling>', 'build', ...)`. The R28 yoga/ink bug — ink hand-building yoga's wasm path and missing the `wasm/` segment — is the canonical failure mode this rule prevents.
+- **Workflows, Dockerfiles, shell scripts**: they can't `import` TS, so they construct the string once and reference it everywhere downstream. Workflows: a "Compute paths" step exposes `steps.paths.outputs.final_dir`; later steps read `${{ steps.paths.outputs.final_dir }}`. Dockerfiles/shell: assign once to a variable / `ENV`, reference by name thereafter. Each canonical construction carries a comment naming the source-of-truth `paths.mts`. **Re-building** the same path in a second step is the violation, not referring to the constructed value many times.
+- **Comments**: may describe path *structure* with placeholders ("`<mode>/<arch>`") but should not encode a complete literal path string. The import statement IS the comment.
+
+Code execution takes priority over docs: violations in `.mts`/`.cts`, Makefiles, Dockerfiles, workflow YAML, and shell scripts are blocking. README and doc-comment violations are advisory unless they contain a fully-qualified path with no parametric placeholders.
+
+**Three-level enforcement:**
+
+- **Hook** — `.claude/hooks/path-guard/` blocks `Edit`/`Write` calls that would introduce a violation in a `.mts`/`.cts` file at edit time.
+- **Gate** — `scripts/check-paths.mts` runs in `pnpm check`. Fails the build on any violation that isn't allowlisted in `.github/paths-allowlist.yml`.
+- **Skill** — `/path-guard` audits the repo and fixes findings; `/path-guard check` reports only; `/path-guard install` drops the gate + hook + rule into a fresh repo.
+
+The mantra is intentionally short so it sticks: **1 path, 1 reference**. When in doubt, find the canonical owner and import from it.
 
 ### Inclusive Language
 

@@ -7,6 +7,10 @@
           {
             "type": "command",
             "command": "node .claude/hooks/check-new-deps/index.mts"
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/path-guard/index.mts"
           }
         ]
       }

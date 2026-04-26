@@ -73,6 +73,32 @@ jobs:
         with:
           build-mode: ${{ inputs.build_mode }}
 
+      # Hoist canonical models paths into step outputs. Mirrors the
+      # models package layout (ONNX model build outputs). 1 path, 1 reference.
+      - name: Compute models paths
+        id: paths
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          PACKAGE_DIR="packages/models"
+          PLATFORM_BUILD_DIR="${PACKAGE_DIR}/build/${BUILD_MODE}/${PLATFORM_ARCH}"
+          OUT_DIR="${PLATFORM_BUILD_DIR}/out"
+          FINAL_DIR="${OUT_DIR}/Final"
+          CHECKPOINTS_DIR="${PLATFORM_BUILD_DIR}/checkpoints"
+          TEMP_DIR="${PLATFORM_BUILD_DIR}/temp"
+          DOWNLOADS_DIR="${PLATFORM_BUILD_DIR}/downloads"
+          {
+            echo "package_dir=${PACKAGE_DIR}"
+            echo "platform_build_dir=${PLATFORM_BUILD_DIR}"
+            echo "out_dir=${OUT_DIR}"
+            echo "final_dir=${FINAL_DIR}"
+            echo "checkpoints_dir=${CHECKPOINTS_DIR}"
+            echo "temp_dir=${TEMP_DIR}"
+            echo "downloads_dir=${DOWNLOADS_DIR}"
+            echo "minilm_model=${FINAL_DIR}/minilm-l6/model.onnx"
+            echo "codet5_model=${FINAL_DIR}/codet5/model.onnx"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Load cache version from centralized config
         id: cache-version
         uses: ./.github/actions/load-cache-version
@@ -199,7 +225,7 @@ jobs:
         id: model-checkpoint-cache
         if: ${{ !inputs.force }}
         with:
-          path: packages/models/build/${{ steps.build-mode.outputs.mode }}/${{ env.PLATFORM_ARCH }}/checkpoints
+          path: ${{ steps.paths.outputs.checkpoints_dir }}
           key: model-checkpoints-${{ steps.cache-key.outputs.cache_version }}-${{ steps.cache-key.outputs.model_versions }}-${{ runner.os }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.final_hash }}
           # NOTE: No restore-keys - we require exact match to prevent stale cache restoration.
           # Partial matches with restore-keys cause builds to use outdated artifacts when
@@ -223,7 +249,7 @@ jobs:
         if: steps.model-checkpoint-cache.outputs.cache-hit == 'true'
         uses: ./.github/actions/validate-checkpoints
         with:
-          checkpoint-dirs: packages/models/build/${{ steps.build-mode.outputs.mode }}/${{ env.PLATFORM_ARCH }}/checkpoints
+          checkpoint-dirs: ${{ steps.paths.outputs.checkpoints_dir }}
           checkpoints: ${{ steps.checkpoint-chain.outputs.checkpoints }}
           package-name: models
 
@@ -343,21 +369,23 @@ jobs:
         if: (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') || steps.restore-checkpoint.outputs.build-required == 'true'
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          MINILM_MODEL: ${{ steps.paths.outputs.minilm_model }}
+          CODET5_MODEL: ${{ steps.paths.outputs.codet5_model }}
         run: |
           echo "Validating models build output for ${BUILD_MODE}..."
 
-          if [ ! -f "packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/minilm-l6/model.onnx" ]; then
+          if [ ! -f "$MINILM_MODEL" ]; then
             echo "× Build failed: MiniLM model missing"
             exit 1
           fi
 
-          if [ ! -f "packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/codet5/model.onnx" ]; then
+          if [ ! -f "$CODET5_MODEL" ]; then
             echo "× Build failed: CodeT5 model missing"
             exit 1
           fi
 
-          MINILM_SIZE=$(stat -c%s packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/minilm-l6/model.onnx)
-          CODET5_SIZE=$(stat -c%s packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/codet5/model.onnx)
+          MINILM_SIZE=$(stat -c%s "$MINILM_MODEL")
+          CODET5_SIZE=$(stat -c%s "$CODET5_MODEL")
 
           # Different size thresholds for different build modes
           # dev (int8): ~20MB (expect >1MB after quantization)
@@ -384,7 +412,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: models
-          path: packages/models/build/${{ steps.build-mode.outputs.mode }}/${{ env.PLATFORM_ARCH }}/out/Final/
+          path: ${{ steps.paths.outputs.final_dir }}/
           retention-days: 30
           compression-level: 0  # Already-compressed binary artifact
           if-no-files-found: error
@@ -392,15 +420,17 @@ jobs:
       - name: Cleanup before cache save
         if: always()
         env:
-          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          TEMP_DIR: ${{ steps.paths.outputs.temp_dir }}
+          DOWNLOADS_DIR: ${{ steps.paths.outputs.downloads_dir }}
+          OUT_DIR: ${{ steps.paths.outputs.out_dir }}
         run: |
           echo "Cleaning up temporary files before cache save..."
 
           # Remove temporary build files that shouldn't be cached
           TEMP_DIRS=(
-            "packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/temp"
-            "packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/downloads"
-            "packages/models/build/${BUILD_MODE}/${PLATFORM_ARCH}/out"
+            "$TEMP_DIR"
+            "$DOWNLOADS_DIR"
+            "$OUT_DIR"
           )
 
           for DIR in "${TEMP_DIRS[@]}"; do

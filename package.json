@@ -16,6 +16,7 @@
     "check:bug-classes": "node scripts/check-bug-classes.mts",
     "check:cascade-completeness": "node scripts/check-cascade-completeness.mts",
     "check:mirror-docs": "node scripts/check-mirror-docs.mts",
+    "check:paths": "node scripts/check-paths.mts",
     "check:patch-format": "node scripts/check-patch-format.mts",
     "check:version-consistency": "node scripts/check-version-consistency.mts",
     "clean": "pnpm -r run clean",

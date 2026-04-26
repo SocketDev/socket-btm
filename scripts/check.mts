@@ -202,6 +202,30 @@ async function runMirrorDocsCheck(): Promise<number> {
   return 0
 }
 
+async function runPathHygieneCheck(): Promise<number> {
+  logger.step('Running path-hygiene check (1 path, 1 reference)')
+
+  const result = await spawn(
+    'node',
+    ['scripts/check-paths.mts', '--quiet'],
+    {
+      shell: WIN32,
+      stdio: 'inherit',
+    },
+  )
+
+  if (result.code !== 0) {
+    logger.error(
+      'Path-hygiene check failed — rerun with --explain for details',
+    )
+    logger.log('  node scripts/check-paths.mts --explain')
+    return result.code ?? 1
+  }
+
+  logger.success('Path-hygiene check passed')
+  return 0
+}
+
 async function main(): Promise<void> {
   const argv: string[] = process.argv
   const quiet = argv.includes('--quiet')
@@ -304,6 +328,17 @@ async function main(): Promise<void> {
     const mirrorDocsCode = await runMirrorDocsCheck()
     if (mirrorDocsCode !== 0) {
       process.exitCode = mirrorDocsCode
+      return
+    }
+
+    // Run path-hygiene check. Enforces "1 path, 1 reference" — a
+    // build/test/runtime path is constructed exactly once; everywhere
+    // else references the constructed value. Three-level enforcement:
+    // CLAUDE.md rule (advisory), .claude/hooks/path-guard (per-edit
+    // block), this gate (whole-repo, fails CI).
+    const pathHygieneCode = await runPathHygieneCheck()
+    if (pathHygieneCode !== 0) {
+      process.exitCode = pathHygieneCode
       return
     }
 

@@ -302,6 +302,15 @@ importers:
         specifier: 24.9.2
         version: 24.9.2
 
+  .claude/hooks/path-guard:
+    devDependencies:
+      '@socketsecurity/lib':
+        specifier: 'catalog:'
+        version: 5.24.0
+      '@types/node':
+        specifier: 24.9.2
+        version: 24.9.2
+
   packages/bin-infra:
     dependencies:
       '@socketsecurity/lib':

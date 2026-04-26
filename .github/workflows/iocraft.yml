@@ -130,6 +130,29 @@ jobs:
           arch: ${{ matrix.arch }}
           libc: ${{ matrix.libc }}
 
+      # Hoist canonical iocraft paths into step outputs. Mirrors the
+      # iocraft-builder layout (Rust → .node bundle). 1 path, 1 reference.
+      - name: Compute iocraft paths
+        id: paths
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
+        run: |
+          PACKAGE_DIR="packages/iocraft-builder"
+          PLATFORM_BUILD_DIR="${PACKAGE_DIR}/build/${BUILD_MODE}/${PLATFORM_ARCH}"
+          OUT_DIR="${PLATFORM_BUILD_DIR}/out"
+          FINAL_DIR="${OUT_DIR}/Final"
+          NATIVE_OUTPUT="${OUT_DIR}/${PLATFORM_ARCH}/iocraft.node"
+          FINAL_OUTPUT="${FINAL_DIR}/iocraft.node"
+          {
+            echo "package_dir=${PACKAGE_DIR}"
+            echo "platform_build_dir=${PLATFORM_BUILD_DIR}"
+            echo "out_dir=${OUT_DIR}"
+            echo "final_dir=${FINAL_DIR}"
+            echo "native_output=${NATIVE_OUTPUT}"
+            echo "final_output=${FINAL_OUTPUT}"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Load cache version from centralized config
         id: cache-version
         uses: ./.github/actions/load-cache-version
@@ -318,13 +341,11 @@ jobs:
       - name: Validate build output
         if: steps.iocraft-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
         env:
-          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
-          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
+          OUTPUT_PATH: ${{ steps.paths.outputs.native_output }}
+          FINAL_DIR: ${{ steps.paths.outputs.final_dir }}
+          FINAL_OUTPUT: ${{ steps.paths.outputs.final_output }}
         run: |
           echo "Validating iocraft build output..."
-
-          # Build script outputs to out/$PLATFORM_ARCH/iocraft.node
-          OUTPUT_PATH="packages/iocraft-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/${PLATFORM_ARCH}/iocraft.node"
 
           if [ ! -f "$OUTPUT_PATH" ]; then
             echo "× Build failed: Native module missing"
@@ -341,11 +362,11 @@ jobs:
           fi
 
           # Copy to Final directory for artifact upload compatibility
-          mkdir -p "packages/iocraft-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final"
-          cp "$OUTPUT_PATH" "packages/iocraft-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/iocraft.node"
+          mkdir -p "$FINAL_DIR"
+          cp "$OUTPUT_PATH" "$FINAL_OUTPUT"
 
           echo "✅ Build validation passed"
-          ls -lh "packages/iocraft-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/"
+          ls -lh "$FINAL_DIR/"
         shell: bash
 
       - name: Upload iocraft artifacts

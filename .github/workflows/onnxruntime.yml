@@ -208,6 +208,36 @@ jobs:
         with:
           build-mode: ${{ inputs.build_mode }}
 
+      # Hoist canonical onnxruntime paths into step outputs. Mirrors
+      # packages/onnxruntime-builder/scripts/paths.mts:getBuildPaths()
+      # — keep the path string byte-aligned with that function's output.
+      # 1 path, 1 reference.
+      - name: Compute onnxruntime paths
+        id: paths
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          PACKAGE_DIR="packages/onnxruntime-builder"
+          PLATFORM_BUILD_DIR="${PACKAGE_DIR}/build/${BUILD_MODE}/${PLATFORM_ARCH}"
+          OUT_DIR="${PLATFORM_BUILD_DIR}/wasm/out"
+          FINAL_DIR="${OUT_DIR}/Final"
+          CHECKPOINTS_DIR="${PLATFORM_BUILD_DIR}/checkpoints"
+          TEMP_DIR="${PLATFORM_BUILD_DIR}/temp"
+          BUILD_OUT_DIR="${PLATFORM_BUILD_DIR}/out"
+          {
+            echo "package_dir=${PACKAGE_DIR}"
+            echo "platform_build_dir=${PLATFORM_BUILD_DIR}"
+            echo "out_dir=${OUT_DIR}"
+            echo "final_dir=${FINAL_DIR}"
+            echo "checkpoints_dir=${CHECKPOINTS_DIR}"
+            echo "temp_dir=${TEMP_DIR}"
+            echo "build_out_dir=${BUILD_OUT_DIR}"
+            echo "wasm_file=${FINAL_DIR}/ort.wasm"
+            echo "mjs_file=${FINAL_DIR}/ort.mjs"
+            echo "sync_cjs_file=${FINAL_DIR}/ort-sync.cjs"
+            echo "sync_mjs_file=${FINAL_DIR}/ort-sync.mjs"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Restore ONNX Runtime checkpoint cache
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         id: onnx-checkpoint-cache
@@ -215,7 +245,7 @@ jobs:
         with:
           path: |
             packages/onnxruntime-builder/build/shared/checkpoints
-            packages/onnxruntime-builder/build/${{ steps.build-mode.outputs.mode }}/${{ env.PLATFORM_ARCH }}/checkpoints
+            ${{ steps.paths.outputs.checkpoints_dir }}
           key: onnx-checkpoints-${{ steps.cache-key.outputs.cache_version }}-v${{ steps.tool-versions.outputs.onnx-version }}-${{ runner.os }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.final_hash }}
           # NOTE: No restore-keys - we require exact match to prevent stale cache restoration.
           # Partial matches with restore-keys cause builds to use outdated artifacts when
@@ -241,7 +271,7 @@ jobs:
         if: steps.onnx-checkpoint-cache.outputs.cache-hit == 'true'
         uses: ./.github/actions/validate-checkpoints
         with:
-          checkpoint-dirs: packages/onnxruntime-builder/build/shared/checkpoints:packages/onnxruntime-builder/build/${{ steps.build-mode.outputs.mode }}/${{ env.PLATFORM_ARCH }}/checkpoints
+          checkpoint-dirs: packages/onnxruntime-builder/build/shared/checkpoints:${{ steps.paths.outputs.checkpoints_dir }}
           checkpoints: ${{ steps.checkpoint-chain.outputs.checkpoints }}
           package-name: onnxruntime-builder
 
@@ -361,32 +391,35 @@ jobs:
       - name: Validate build output
         if: (steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') || steps.restore-checkpoint.outputs.build-required == 'true'
         env:
-          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          WASM_FILE: ${{ steps.paths.outputs.wasm_file }}
+          MJS_FILE: ${{ steps.paths.outputs.mjs_file }}
+          SYNC_CJS_FILE: ${{ steps.paths.outputs.sync_cjs_file }}
+          SYNC_MJS_FILE: ${{ steps.paths.outputs.sync_mjs_file }}
         run: |
           echo "Validating ONNX Runtime build output..."
 
-          if [ ! -f "packages/onnxruntime-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/wasm/out/Final/ort.wasm" ]; then
+          if [ ! -f "$WASM_FILE" ]; then
             echo "× Build failed: WASM file missing"
-            echo "Expected path: packages/onnxruntime-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/wasm/out/Final/ort.wasm"
+            echo "Expected path: $WASM_FILE"
             exit 1
           fi
 
-          if [ ! -f "packages/onnxruntime-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/wasm/out/Final/ort.mjs" ]; then
+          if [ ! -f "$MJS_FILE" ]; then
             echo "× Build failed: ES module file missing"
             exit 1
           fi
 
-          if [ ! -f "packages/onnxruntime-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/wasm/out/Final/ort-sync.cjs" ]; then
+          if [ ! -f "$SYNC_CJS_FILE" ]; then
             echo "× Build failed: Sync CJS file missing"
             exit 1
           fi
 
-          if [ ! -f "packages/onnxruntime-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/wasm/out/Final/ort-sync.mjs" ]; then
+          if [ ! -f "$SYNC_MJS_FILE" ]; then
             echo "× Build failed: Sync ESM file missing"
             exit 1
           fi
 
-          WASM_SIZE=$(stat -c%s "packages/onnxruntime-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/wasm/out/Final/ort.wasm" 2>/dev/null || stat -f%z "packages/onnxruntime-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/wasm/out/Final/ort.wasm")
+          WASM_SIZE=$(stat -c%s "$WASM_FILE" 2>/dev/null || stat -f%z "$WASM_FILE")
           if [ "$WASM_SIZE" -lt 1000000 ]; then
             echo "× Build failed: WASM file too small ($WASM_SIZE bytes)"
             exit 1
@@ -398,7 +431,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: onnxruntime-wasm
-          path: packages/onnxruntime-builder/build/${{ steps.build-mode.outputs.mode }}/${{ env.PLATFORM_ARCH }}/wasm/out/Final/
+          path: ${{ steps.paths.outputs.final_dir }}/
           retention-days: 30
           compression-level: 0  # Already-compressed binary artifact
           if-no-files-found: error
@@ -406,14 +439,15 @@ jobs:
       - name: Cleanup before cache save
         if: always()
         env:
-          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          TEMP_DIR: ${{ steps.paths.outputs.temp_dir }}
+          BUILD_OUT_DIR: ${{ steps.paths.outputs.build_out_dir }}
         run: |
           echo "Cleaning up temporary files before cache save..."
 
           # Remove temporary build files that shouldn't be cached
           TEMP_DIRS=(
-            "packages/onnxruntime-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/temp"
-            "packages/onnxruntime-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out"
+            "$TEMP_DIR"
+            "$BUILD_OUT_DIR"
           )
 
           for DIR in "${TEMP_DIRS[@]}"; do
@@ -434,10 +468,11 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write # Required to create GitHub releases
+    # Path mirrors onnxruntime-builder/scripts/paths.mts:getBuildPaths()
+    # for the prod build mode that this job consumes. Keep byte-aligned.
     env:
-      # Release job downloads the Linux x64 build artifact into this layout
-      # to match the build job's output path.
       PLATFORM_ARCH: linux-x64
+      ONNX_FINAL_DIR: packages/onnxruntime-builder/build/prod/linux-x64/wasm/out/Final
 
     steps:
       - name: Checkout repository
@@ -464,7 +499,7 @@ jobs:
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: onnxruntime-wasm
-          path: packages/onnxruntime-builder/build/prod/${{ env.PLATFORM_ARCH }}/wasm/out/Final/
+          path: ${{ env.ONNX_FINAL_DIR }}/
 
       - name: Generate version
         id: version
@@ -485,7 +520,7 @@ jobs:
       - name: Generate checksums
         if: steps.version.outputs.skip != 'true'
         run: |
-          cd packages/onnxruntime-builder/build/prod/${PLATFORM_ARCH}/wasm/out/Final
+          cd "${ONNX_FINAL_DIR}"
           $(command -v shasum &> /dev/null && echo "shasum -a 256" || echo "sha256sum") *.wasm *.mjs *.cjs > checksums.txt
           cat checksums.txt
 
@@ -509,7 +544,7 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           if [ -n "$GPG_PRIVATE_KEY" ]; then
-            cd packages/onnxruntime-builder/build/prod/${PLATFORM_ARCH}/wasm/out/Final
+            cd "${ONNX_FINAL_DIR}"
             if [ -n "$GPG_PASSPHRASE" ]; then
               echo "$GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --detach-sign --armor checksums.txt
             else
@@ -552,11 +587,11 @@ jobs:
           \`\`\`javascript
           import ort from './ort.mjs';
           \`\`\`" \
-            packages/onnxruntime-builder/build/prod/${PLATFORM_ARCH}/wasm/out/Final/*.wasm \
-            packages/onnxruntime-builder/build/prod/${PLATFORM_ARCH}/wasm/out/Final/*.mjs \
-            packages/onnxruntime-builder/build/prod/${PLATFORM_ARCH}/wasm/out/Final/*.cjs \
-            packages/onnxruntime-builder/build/prod/${PLATFORM_ARCH}/wasm/out/Final/checksums.txt \
-            $([ -f packages/onnxruntime-builder/build/prod/${PLATFORM_ARCH}/wasm/out/Final/checksums.txt.asc ] && echo "packages/onnxruntime-builder/build/prod/${PLATFORM_ARCH}/wasm/out/Final/checksums.txt.asc" || echo "")
+            "${ONNX_FINAL_DIR}"/*.wasm \
+            "${ONNX_FINAL_DIR}"/*.mjs \
+            "${ONNX_FINAL_DIR}"/*.cjs \
+            "${ONNX_FINAL_DIR}/checksums.txt" \
+            $([ -f "${ONNX_FINAL_DIR}/checksums.txt.asc" ] && echo "${ONNX_FINAL_DIR}/checksums.txt.asc" || echo "")
 
   update-checksums:
     needs: release

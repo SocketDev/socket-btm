@@ -79,9 +79,15 @@ COPY packages/build-infra/ packages/build-infra/
 # Build iocraft native module
 WORKDIR /build/packages/iocraft-builder
 
-# Build with cargo. Output layout matches iocraft-builder/scripts/paths.mts:
-#   build/<mode>/<platform-arch>/out/<platform-arch>/iocraft.node  (primary)
-#   build/<mode>/<platform-arch>/out/Final/iocraft.node            (copy for artifact upload)
+# Output layout owned by iocraft-builder/scripts/paths.mts. Each path
+# below is constructed once via ENV; subsequent RUN steps reference the
+# variables. 1 path, 1 reference.
+ENV PLATFORM_BUILD_DIR=build/${BUILD_MODE}/${PLATFORM_ARCH} \
+    OUT_DIR=build/${BUILD_MODE}/${PLATFORM_ARCH}/out \
+    NATIVE_DIR=build/${BUILD_MODE}/${PLATFORM_ARCH}/out/${PLATFORM_ARCH} \
+    FINAL_DIR=build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final \
+    CHECKPOINTS_DIR=build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints
+
 RUN if [ "$BUILD_MODE" = "prod" ]; then \
       cargo build --release --target ${RUST_TARGET}; \
       ARTIFACT_DIR="target/${RUST_TARGET}/release"; \
@@ -89,19 +95,16 @@ RUN if [ "$BUILD_MODE" = "prod" ]; then \
       cargo build --target ${RUST_TARGET}; \
       ARTIFACT_DIR="target/${RUST_TARGET}/debug"; \
     fi && \
-    mkdir -p build/${BUILD_MODE}/${PLATFORM_ARCH}/out/${PLATFORM_ARCH} \
-             build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final && \
-    cp ${ARTIFACT_DIR}/libiocraft_node.so \
-       build/${BUILD_MODE}/${PLATFORM_ARCH}/out/${PLATFORM_ARCH}/iocraft.node && \
-    cp ${ARTIFACT_DIR}/libiocraft_node.so \
-       build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/iocraft.node
+    mkdir -p "$NATIVE_DIR" "$FINAL_DIR" && \
+    cp ${ARTIFACT_DIR}/libiocraft_node.so "$NATIVE_DIR/iocraft.node" && \
+    cp ${ARTIFACT_DIR}/libiocraft_node.so "$FINAL_DIR/iocraft.node"
 
 # Create checkpoint
-RUN mkdir -p build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints && \
-    echo "BUILD_MODE=${BUILD_MODE}" > build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints/native-built && \
-    echo "RUST_TARGET=${RUST_TARGET}" >> build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints/native-built && \
-    echo "CACHE_VERSION=${CACHE_VERSION}" >> build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints/native-built && \
-    date >> build/${BUILD_MODE}/${PLATFORM_ARCH}/checkpoints/native-built
+RUN mkdir -p "$CHECKPOINTS_DIR" && \
+    echo "BUILD_MODE=${BUILD_MODE}" > "$CHECKPOINTS_DIR/native-built" && \
+    echo "RUST_TARGET=${RUST_TARGET}" >> "$CHECKPOINTS_DIR/native-built" && \
+    echo "CACHE_VERSION=${CACHE_VERSION}" >> "$CHECKPOINTS_DIR/native-built" && \
+    date >> "$CHECKPOINTS_DIR/native-built"
 
 # =============================================================================
 # Stage 2: Export artifacts

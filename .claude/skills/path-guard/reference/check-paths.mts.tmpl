@@ -99,9 +99,14 @@ const STAGE_SEGMENTS = new Set([
 const BUILD_ROOT_SEGMENTS = new Set(['build', 'out'])
 const MODE_SEGMENTS = new Set(['dev', 'prod', 'shared'])
 
-// Sibling fleet packages (Rule B). Updated whenever a new package
-// enters packages/.
+// Sibling fleet packages (Rule B). Union of all packages across the
+// Socket fleet — the gate is byte-identical via sync-scaffolding, so
+// listing every fleet package keeps Rule B firing in any repo. When
+// a new package joins the workspace, add it here and propagate via
+// `node scripts/sync-scaffolding.mjs --all --fix` from
+// socket-repo-template.
 const KNOWN_SIBLING_PACKAGES = new Set([
+  // socket-btm
   'binflate',
   'binject',
   'binpress',
@@ -122,6 +127,18 @@ const KNOWN_SIBLING_PACKAGES = new Set([
   'stubs-builder',
   'ultraviolet-builder',
   'yoga-layout-builder',
+  // socket-cli
+  'cli',
+  'package-builder',
+  // socket-tui
+  'core',
+  'react',
+  'renderer',
+  'ultraviolet',
+  'yoga',
+  // socket-registry / ultrathink
+  'acorn',
+  'npm',
 ])
 
 // File-path patterns that legitimately enumerate path segments.
@@ -528,7 +545,7 @@ const scanWorkflowFile = (relPath: string): void => {
 // ──────────────────────────────────────────────────────────────────
 
 const SCRIPT_HAND_BUILT_RE =
-  /build\/\$?\{?(?:BUILD_MODE|MODE|prod|dev)\}?\/[\w$\{\}.-]*\/out\/(?:Final|Release|Stripped|Compressed|Optimized|Synced)/g
+  /build\/\$?\{?(?:BUILD_MODE|MODE|prod|dev)\}?\/[\w${}.-]*\/out\/(?:Final|Release|Stripped|Compressed|Optimized|Synced)/g
 
 const scanScriptFile = (relPath: string): void => {
   const full = path.join(REPO_ROOT, relPath)

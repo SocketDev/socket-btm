@@ -545,7 +545,7 @@ const scanWorkflowFile = (relPath: string): void => {
 // ──────────────────────────────────────────────────────────────────
 
 const SCRIPT_HAND_BUILT_RE =
-  /build\/\$?\{?(?:BUILD_MODE|MODE|prod|dev)\}?\/[\w$\{\}.-]*\/out\/(?:Final|Release|Stripped|Compressed|Optimized|Synced)/g
+  /build\/\$?\{?(?:BUILD_MODE|MODE|prod|dev)\}?\/[\w${}.-]*\/out\/(?:Final|Release|Stripped|Compressed|Optimized|Synced)/g
 
 const scanScriptFile = (relPath: string): void => {
   const full = path.join(REPO_ROOT, relPath)

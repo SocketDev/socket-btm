@@ -4,14 +4,16 @@ CC = /usr/bin/clang
 CXX = /usr/bin/clang++
 
 # Build mode flags.
+# PATH_REMAP_FLAGS (from common.mk) anonymize host filesystem paths in DWARF
+# and __FILE__ macros so shipped binaries don't leak the dev's home dir...
 ifeq ($(BUILD_MODE),prod)
     # Production: optimize for size and speed, strip symbols.
     # Note: macOS uses -Wl,-dead_strip instead of -s (which is obsolete on macOS).
     # -flto=thin enables Link-Time Optimization for cross-module inlining and dead code elimination.
-    OPT_FLAGS = -Os -flto=thin -DNDEBUG
+    OPT_FLAGS = -Os -flto=thin -DNDEBUG $(PATH_REMAP_FLAGS)
 else
     # Development: optimize for build speed, keep debug symbols.
-    OPT_FLAGS = -O0 -g
+    OPT_FLAGS = -O0 -g $(PATH_REMAP_FLAGS)
 endif
 
 # Cross-compilation support for macOS.

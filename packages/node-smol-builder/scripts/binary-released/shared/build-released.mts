@@ -43,6 +43,7 @@ import {
   nodeVersionRaw,
   validateCheckpointChain,
 } from 'build-infra/lib/constants'
+import { appendCCRemapFlags } from 'build-infra/lib/path-remap-flags'
 import colors from 'yoctocolors-cjs'
 import process from 'node:process'
 
@@ -709,8 +710,19 @@ export async function buildRelease(config, buildOptions = {}) {
 
     logger.log(`::group::Running ${WIN32 ? 'vcbuild.bat' : './configure'}`)
 
+    // Anonymize absolute build-host paths in DWARF and __FILE__ macros so the
+    // shipped node-smol binary doesn't carry the dev's home dir... or
+    // the dev's home dir... strings. Node.js's ./configure passes CFLAGS/CXXFLAGS
+    // through to GYP-generated build files, which propagates to ninja.
+    const buildEnv = {
+      ...process.env,
+      CFLAGS: appendCCRemapFlags(process.env.CFLAGS),
+      CXXFLAGS: appendCCRemapFlags(process.env.CXXFLAGS),
+    }
+
     await exec(configureCommand, configureArgs, {
       cwd: modeSourceDir,
+      env: buildEnv,
       shell: WIN32,
     })
     logger.log('::endgroup::')

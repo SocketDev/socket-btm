@@ -1,59 +1,11 @@
-# BARE-METAL PERFORMANCE OPTIMIZATIONS
-# WARP 10: Extreme LLVM flags for theoretical maximum performance
-
-[build]
-rustflags = [
-  # Enable native CPU features (AVX2, SSE4.2, NEON, etc.)
-  "-C",
-  "target-cpu=native",
-
-  # WARP 10: Aggressive LLVM optimizations
-  "-C",
-  "llvm-args=-inline-threshold=1000", # Aggressive inlining (default: 225)
-  "-C",
-  "llvm-args=-unroll-threshold=300", # Loop unrolling (default: 150)
-  "-C",
-  "llvm-args=-vectorize-loops", # Force loop vectorization
-  "-C",
-  "llvm-args=-vectorize-slp", # Superword-level parallelism
-  "-C",
-  "llvm-args=-enable-gvn-hoist", # Hoist common expressions
-  "-C",
-  "llvm-args=-enable-load-pre", # Load pre-optimization
-]
-
-[target.x86_64-apple-darwin]
-rustflags = [
-  "-C",
-  "target-cpu=native",
-  "-C",
-  "llvm-args=-inline-threshold=1000",
-  "-C",
-  "llvm-args=-unroll-threshold=300",
-  "-C",
-  "llvm-args=-vectorize-loops",
-  "-C",
-  "llvm-args=-vectorize-slp",
-  "-C",
-  "llvm-args=-enable-gvn-hoist",
-  "-C",
-  "llvm-args=-enable-load-pre",
-]
-
-[target.aarch64-apple-darwin]
-rustflags = [
-  "-C",
-  "target-cpu=native",
-  "-C",
-  "llvm-args=-inline-threshold=1000",
-  "-C",
-  "llvm-args=-unroll-threshold=300",
-  "-C",
-  "llvm-args=-vectorize-loops",
-  "-C",
-  "llvm-args=-vectorize-slp",
-  "-C",
-  "llvm-args=-enable-gvn-hoist",
-  "-C",
-  "llvm-args=-enable-load-pre",
-]
+# This file is intentionally minimal.
+#
+# The real source of truth for rustflags lives in scripts/build.mts
+# (IOCRAFT_PERF_RUSTFLAGS + path-remap flags from build-infra). Cargo's
+# precedence rules pick exactly ONE rustflags source — RUSTFLAGS /
+# CARGO_ENCODED_RUSTFLAGS overrides every config.toml entry without merging —
+# so duplicating perf flags here would silently drop them whenever build.mts
+# sets the env var (which it always does, to anonymize build-host paths in
+# DWARF + __FILE__ macros for the shipped .node addon).
+#
+# If you need to add a flag, add it to IOCRAFT_PERF_RUSTFLAGS in build.mts.

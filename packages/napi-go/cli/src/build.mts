@@ -28,6 +28,8 @@ import { safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
+import { getCCRemapFlags } from 'build-infra/lib/path-remap-flags'
+
 import { getGoTarget, resolveNodeIncludeDir } from './resolve.mts'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -90,11 +92,21 @@ export async function buildNapiGoAddon(opts) {
   // plus any `#cgo CFLAGS:` directives in .go files. We pass both the
   // Node include dir and napi-go's own include dir so consumer Go
   // packages can include <node_api.h> and <napi_go.h> without further
-  // configuration.
+  // configuration. Path-remap flags ensure the cgo-compiled C glue
+  // doesn't carry the dev's home dir or the dev's home dir strings via
+  // __FILE__ macros into the shipped .node — Go's own -trimpath
+  // doesn't touch C side.
   const cgoCflags = [
     `-I${nodeInclude}`,
     `-I${NAPI_GO_INCLUDE}`,
+    ...getCCRemapFlags(),
     process.env['CGO_CFLAGS'] || '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+  const cgoCxxflags = [
+    ...getCCRemapFlags(),
+    process.env['CGO_CXXFLAGS'] || '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -104,6 +116,7 @@ export async function buildNapiGoAddon(opts) {
     ...process.env,
     CGO_ENABLED: '1',
     CGO_CFLAGS: cgoCflags,
+    CGO_CXXFLAGS: cgoCxxflags,
     GOOS: goos,
     GOARCH: goarch,
   }
@@ -358,6 +371,10 @@ function buildLinkArgs({
 
   args.push(
     ...optimize,
+    // Path-remap so the C shim and consumer shim don't embed host paths via
+    // __FILE__ in error messages or DWARF in any debug builds that survive
+    // into the .node.
+    ...getCCRemapFlags(),
     `-I${nodeInclude}`,
     `-I${napiGoInclude}`,
     '-o',

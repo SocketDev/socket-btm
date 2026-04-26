@@ -21,14 +21,16 @@ else
 endif
 
 # Build mode flags.
+# PATH_REMAP_FLAGS (from common.mk) anonymize host filesystem paths in DWARF
+# and __FILE__ macros so shipped binaries don't leak the dev's home dir... etc.
 ifeq ($(BUILD_MODE),prod)
     # Production: optimize for size and speed, strip symbols.
     # Note: LTO (-flto) is disabled on Windows due to MinGW GCC internal compiler errors
     # when processing LIEF C++ templates (ICE in binds_to_current_def_p at symtab.cc:2589).
-    OPT_FLAGS = -Os -s -DNDEBUG
+    OPT_FLAGS = -Os -s -DNDEBUG $(PATH_REMAP_FLAGS)
 else
     # Development: optimize for build speed, keep debug symbols.
-    OPT_FLAGS = -O0 -g
+    OPT_FLAGS = -O0 -g $(PATH_REMAP_FLAGS)
 endif
 
 # Windows-specific linker flags base.

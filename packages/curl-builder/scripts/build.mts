@@ -24,6 +24,7 @@ import {
   validateCheckpointChain,
 } from 'build-infra/lib/constants'
 import { logTransientErrorHelp } from 'build-infra/lib/github-error-utils'
+import { appendCCRemapFlags } from 'build-infra/lib/path-remap-flags'
 import {
   getAssetPlatformArch,
   getCurrentPlatformArch,
@@ -468,6 +469,11 @@ async function buildMbedTLS(mbedtlsBuildDir) {
     cleanEnv.CPPFLAGS = '-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0'
     logger.info('Disabling fortify source for musl libc compatibility')
   }
+  // Anonymize absolute build-host paths (DWARF + __FILE__) so the static
+  // mbedTLS archive linked into stubs/binsuite doesn't leak the dev's home dir
+  // or the dev's home dir strings into shipped binaries.
+  cleanEnv.CFLAGS = appendCCRemapFlags(cleanEnv.CFLAGS)
+  cleanEnv.CXXFLAGS = appendCCRemapFlags(cleanEnv.CXXFLAGS)
 
   await runCommand('cmake', cmakeArgs, mbedtlsBuildDir, cleanEnv)
 
@@ -629,6 +635,12 @@ async function buildCurl(mbedtlsDir, curlBuildDir) {
     cleanEnv.CPPFLAGS = '-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0'
     logger.info('Disabling fortify source for musl libc compatibility')
   }
+  // Anonymize absolute build-host paths (DWARF + __FILE__) so libcurl.a
+  // doesn't leak the dev's home dir or the dev's home dir strings via __FILE__ macros
+  // (curl uses __FILE__ in error/log paths) into the stub binaries that
+  // statically link it.
+  cleanEnv.CFLAGS = appendCCRemapFlags(cleanEnv.CFLAGS)
+  cleanEnv.CXXFLAGS = appendCCRemapFlags(cleanEnv.CXXFLAGS)
 
   await runCommand('cmake', cmakeArgs, curlBuildDir, cleanEnv)
 

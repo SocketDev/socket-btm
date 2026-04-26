@@ -3,44 +3,39 @@
   "$comment": "SHA-256 checksums for GitHub release assets. Run 'pnpm --filter build-infra update-checksums' to update.",
   "binflate": {
     "description": "Binary decompression tool",
-    "tag": "binflate-20260418-92ef656",
+    "tag": "binflate-20260426-286c927",
     "checksums": {
-      "binflate-darwin-arm64": "353beadb24a51d06241be722a6ab4b705721e95de9aef7b8f5c85004f51ea633",
-      "binflate-darwin-x64": "8f8697cf5c72372fb5ffe224d017a51a8cbc1bd3a8bea44301f42049c41ac175",
-      "binflate-linux-arm64": "822119a03d89e4c06b4dd53ac60ec0d4d4a8e33714d3006f2c0e9f018c45c2f7",
-      "binflate-linux-arm64-musl": "b9f24105f7a3d17e7141746258d4075ccdf519afbf4445ffcbede48892732844",
-      "binflate-linux-x64": "9f5ba4cbc6b1865d5ce96ceec590fed78be5e5e7e1115c7a5f17c2d883fbedfc",
-      "binflate-linux-x64-musl": "b37403d48f62b0ffc870e60a72e5f694480fcb5175ca662b44a9e931cc04fbf8",
-      "binflate-win-arm64.exe": "5fc8a073bcaff32534d0fcfe1ec345d8e689dbf099030e24d2e18d9f6a779e31",
-      "binflate-win-x64.exe": "7b44bfb7e8f8db1dd3f75556b2f042d1f9b02881ed06f5c0bbf03615e777d950"
+      "binflate-darwin-arm64": "9c1c39e141fa17be9e36c6108b620c01b1696382adbe54a662b7c6c1e513ea2f",
+      "binflate-darwin-x64": "ee8942ed6bee4a4a1ad5a478f177bb2cff27bd2ac105a01bdf882bbfe30802d0",
+      "binflate-linux-arm64": "c95314a3bfdcf8fbfd59749894f209d9d156c9e506c5ea7420d4ee6e54cd232e",
+      "binflate-linux-arm64-musl": "6e32444b0e3fe6c616f98badf7cab956c4dd789a157eef036ff19005eb5c5416",
+      "binflate-linux-x64": "8a1b1245eee28684fbf00fbad563b64b94d55121e82c3bc66bd54f82d2ae367e",
+      "binflate-linux-x64-musl": "5cb24ce7d08a0320bb7510a9c3ec909985916c133707436660d50330036430c7",
+      "binflate-win-arm64.exe": "874d221c11537aeb9ce2d6b72a0c0a87f7888fcaa9ffd1da8606b37c143e8d3c",
+      "binflate-win-x64.exe": "9db6ff1b9f958acec2cbb9adf7d31521107a7ed1310908354e5c42ec2ecd5ffa"
     }
   },
   "binject": {
     "description": "Binary injection tool for SEA resources",
-    "tag": "binject-20260418-92ef656",
+    "tag": "binject-20260426-286c927",
     "checksums": {
-      "binject-darwin-arm64": "0664098bd207d313fc033f11a446777de8d2ca4716a9caaca6a5fb63bf450dfa",
-      "binject-darwin-x64": "7b4056b7ee6e8c0c8a9f422d68cddb9666d4f870b71e496cf1222a13f5012ca8",
-      "binject-linux-arm64": "0688f035f3951199a04de10f71c34448617b0fcc9d036f6c333157361dd51b3b",
-      "binject-linux-arm64-musl": "d300cd82b246176bee8d9edbe691032fdace6f6f2bda3d7ee5d58dacd9608ec0",
-      "binject-linux-x64": "09adcb6b13d0269d342c32a7d98a45c328352a4597688b0e45790bb87f38a59d",
-      "binject-linux-x64-musl": "882b961b101f7b872bc50dda19d728ebf22a1c84e5ade7945710a7ac657da6c1",
-      "binject-win-arm64.exe": "5e69f45c83b43c8cdcd917fb76080d9cb4def3360c5a0df06d878cc5d64f22c7",
-      "binject-win-x64.exe": "c746d92ec1f32d02ac119ddaafda40541155314993de4e31a41cb207e89c6159"
+      "binject-darwin-arm64": "657da22e51ec8eeab15a62e5891d065e3b96bc23741fb0932da77e295bb60205",
+      "binject-linux-arm64": "32127fa7c5d4a3305177cdcab0e05f8441477003a11e78114f0ca052a9f8d40a",
+      "binject-linux-arm64-musl": "53e65b2ef0b1d3de00d21d8292f777b94edd4711bf358ac9a432a138c3982295",
+      "binject-linux-x64": "888747c33f75236f6cdb4ed4cc5c6b77fef8df023e211988660c2949efc0fb9b",
+      "binject-linux-x64-musl": "2386d7c3b38304d83a86487d2689b3ddf39c63b4f1d6dd3ff326d5fe26a68d30"
     }
   },
   "binpress": {
     "description": "Binary compression tool using zstd",
-    "tag": "binpress-20260418-92ef656",
+    "tag": "binpress-20260426-286c927",
     "checksums": {
-      "binpress-darwin-arm64": "46e4c235e57d461072c81e1ee197a460ce90ddc434918e3fdc1b03518b517092",
-      "binpress-darwin-x64": "264772489c69837c3b8b5b936353df9d733448dc4781c5405e1e6a65bd580667",
-      "binpress-linux-arm64": "00dd2bd19cf215e8486b2b7b2e21fa8496cb14c02d7278685ccfaad9d46c6020",
-      "binpress-linux-arm64-musl": "ecb68fb8561b0930d8d665447110a035f1d8789fcd8008e9ea7fb1b27feaa8a1",
-      "binpress-linux-x64": "1790cd40b51add081d33dc3571e6f8cb26264af709ded442d4730d9c294af982",
-      "binpress-linux-x64-musl": "11234c9ad4143cd047b3bf8df5d01a6c7ebcd288556fff334cd015d0ae8fa41d",
-      "binpress-win-arm64.exe": "6f254dd71cc0cf347127de4e3230cd1b6e30d7642d3e3efd7a3fac25cbef21f9",
-      "binpress-win-x64.exe": "8b578b936e8078ad0012052e9acb3d430af15f5164dabca751a1de7f606814f5"
+      "binpress-darwin-arm64": "3ad608066b59e4af97c0253b7609cdbdfe2fe8a7cb37f2447152917c57c6755d",
+      "binpress-linux-arm64": "baf7ff998c80fbe93f6f1f3549c8d346774d34f297edc1cf8a020a5ab4737553",
+      "binpress-linux-arm64-musl": "58eb9ab54bb24a4b00d425b1ae95ab9b96beacf54bb76c8fc4e576fe39054631",
+      "binpress-linux-x64": "a764f9041a6de64c4f4cbb8ceaee06330a7e217a6a933f700b13333115490ab6",
+      "binpress-linux-x64-musl": "5f09f6618b14df96b04e61c164b76d979bf61013d38e250e5810220c0aeeea2f",
+      "binpress-win-x64.exe": "bda99bbff2c5f7e10545796d6a04701ae66ea55e2865c4d788b4e566313d9646"
     }
   },
   "curl": {
@@ -59,9 +54,9 @@
   },
   "ink": {
     "description": "Prepatched ink TUI framework",
-    "tag": "ink-20260327-24aa623",
+    "tag": "ink-20260425-824bdd9",
     "checksums": {
-      "ink-20260327-24aa623.tgz": "724a060cb21d931cb8566bf1ba88b18a3ad124304fdb849e40d75ecedb2c74ac"
+      "ink-20260425-824bdd9.tgz": "ddca8f9ab37449d6a57cbfb66039ed7a0b957d24a1d303edf539e4fecad77645"
     }
   },
   "iocraft": {

@@ -2,7 +2,7 @@
 
 // Documentation: docs/additions/lib/internal/socketsecurity/http/constants.js.md
 
-const { ObjectFreeze, hardenRegExp } = primordials
+const { Array: ArrayCtor, ObjectFreeze, hardenRegExp } = primordials
 
 const { BufferFrom } = require('internal/socketsecurity/safe-references')
 
@@ -102,7 +102,7 @@ const CONTENT_LENGTH_CACHE_SIZE = 10_000
 let _contentLengthCache
 function getContentLengthCache() {
   if (!_contentLengthCache) {
-    _contentLengthCache = new Array(CONTENT_LENGTH_CACHE_SIZE)
+    _contentLengthCache = new ArrayCtor(CONTENT_LENGTH_CACHE_SIZE)
     for (let i = 0; i < CONTENT_LENGTH_CACHE_SIZE; i++) {
       _contentLengthCache[i] = BufferFrom(i + '\r\n\r\n')
     }

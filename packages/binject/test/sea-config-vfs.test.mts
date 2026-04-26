@@ -15,18 +15,17 @@ import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 
-import { fileURLToPath } from 'node:url'
-
 import { makeExecutable } from 'build-infra/lib/build-helpers'
+import { getPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { safeDelete } from '@socketsecurity/lib/fs'
 import { spawn } from '@socketsecurity/lib/spawn'
+import { getBuildPaths as getNodeSmolBuildPaths } from 'node-smol-builder/scripts/paths'
 
 import { MAX_NODE_BINARY_SIZE } from './helpers/constants.mts'
 import { getBinjectPath } from './helpers/paths.mts'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+const PLATFORM_ARCH = getPlatformArch(process.platform, process.arch, undefined)
 const BINJECT = getBinjectPath()
 
 let testDir: string
@@ -37,32 +36,12 @@ let nodeBinary = null
  * Find a suitable Node.js binary for testing.
  */
 async function findNodeBinary() {
-  const nodeSmolBuilderDir = path.join(
-    __dirname,
-    '..',
-    '..',
-    'node-smol-builder',
-  )
+  // Local node-smol builds — paths come from node-smol-builder's paths.mts
+  // so the on-disk layout stays in one place. outputFinalBinary already
+  // encodes the platform-specific binary name (node vs node.exe).
   const possiblePaths = [
-    path.join(
-      nodeSmolBuilderDir,
-      'build',
-      'dev',
-      'out',
-      'Final',
-      'node',
-      'node',
-    ),
-    path.join(
-      nodeSmolBuilderDir,
-      'build',
-      'prod',
-      'out',
-      'Final',
-      'node',
-      'node',
-    ),
-    path.join(nodeSmolBuilderDir, 'out', 'Final', 'node', 'node'),
+    getNodeSmolBuildPaths('dev', process.platform, PLATFORM_ARCH).outputFinalBinary,
+    getNodeSmolBuildPaths('prod', process.platform, PLATFORM_ARCH).outputFinalBinary,
   ]
 
   for (const binaryPath of possiblePaths) {

@@ -174,6 +174,9 @@ jobs:
       # downstream step reads from one place. Mirrors the binsuite layout
       # owned by build-infra/lib/paths.mts:getFinalBinaryPath() — the path
       # MUST stay byte-for-byte identical to that helper's output.
+      # Each path is exposed both workspace-rooted (final_binary,
+      # platform_build_dir) and package-relative (final_binary_rel,
+      # platform_build_dir_rel) so both `working-directory:` styles work.
       - name: Compute binpress paths
         id: paths
         env:
@@ -182,8 +185,10 @@ jobs:
           OS_TYPE: ${{ matrix.os }}
         run: |
           PACKAGE_DIR="packages/binpress"
-          PLATFORM_BUILD_DIR="${PACKAGE_DIR}/build/${BUILD_MODE}/${PLATFORM_ARCH}"
-          FINAL_DIR="${PLATFORM_BUILD_DIR}/out/Final"
+          PLATFORM_BUILD_DIR_REL="build/${BUILD_MODE}/${PLATFORM_ARCH}"
+          PLATFORM_BUILD_DIR="${PACKAGE_DIR}/${PLATFORM_BUILD_DIR_REL}"
+          FINAL_DIR_REL="${PLATFORM_BUILD_DIR_REL}/out/Final"
+          FINAL_DIR="${PACKAGE_DIR}/${FINAL_DIR_REL}"
           if [ "${OS_TYPE}" = "windows" ]; then
             BINARY_NAME="binpress.exe"
           else
@@ -192,10 +197,12 @@ jobs:
           {
             echo "package_dir=${PACKAGE_DIR}"
             echo "platform_build_dir=${PLATFORM_BUILD_DIR}"
+            echo "platform_build_dir_rel=${PLATFORM_BUILD_DIR_REL}"
             echo "final_dir=${FINAL_DIR}"
+            echo "final_dir_rel=${FINAL_DIR_REL}"
             echo "binary_name=${BINARY_NAME}"
             echo "final_binary=${FINAL_DIR}/${BINARY_NAME}"
-            echo "final_binary_rel=build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/${BINARY_NAME}"
+            echo "final_binary_rel=${FINAL_DIR_REL}/${BINARY_NAME}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Validate checkpoint binary exists
@@ -271,6 +278,10 @@ jobs:
           # both, wasting ~10-30s of CI time per Linux matrix entry.
           submodules: packages/bin-infra/upstream/zstd
 
+      # The LIEF subdir is lief-builder's own output, mirroring
+      # packages/lief-builder/scripts/build.mts:getLiefBuildDirs() —
+      # `<package>/build/<mode>/<arch>/out/Final/lief`. Cleaning it from
+      # this job keeps cross-package layout coupled to ONE source.
       - name: Clean LIEF before Docker build (Linux)
         if: |
           steps.build-enabled.outputs.build == 'true' &&
@@ -280,7 +291,7 @@ jobs:
         env:
           BUILD_MODE: ${{ steps.setup-checkpoints.outputs.build-mode }}
           PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
-        run: rm -rf packages/lief-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/lief/
+        run: rm -rf "packages/lief-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/lief/"
 
       - name: Stage registry tool-checksums for Docker build context
         if: |
@@ -344,10 +355,8 @@ jobs:
         shell: bash
         working-directory: packages/binpress
         env:
-          BUILD_MODE: ${{ steps.setup-checkpoints.outputs.build-mode }}
-          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
+          BINARY: ${{ steps.paths.outputs.final_binary_rel }}
         run: |
-          BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binpress"
           [ -f "$BINARY" ] || { echo "× Binary not found: $BINARY"; exit 1; }
           echo "✅ $(file "$BINARY")"
 
@@ -377,6 +386,7 @@ jobs:
           ARCH: ${{ matrix.arch }}
           TARGET_ARCH: ${{ matrix.arch }}
           DEBUG: ${{ inputs.debug != '0' && inputs.debug || '' }}
+          PLATFORM_BUILD_DIR_REL: ${{ steps.paths.outputs.platform_build_dir_rel }}
         run: |
           echo "🔨 Building binpress for ${PLATFORM}-${ARCH} (${BUILD_MODE} mode)"
 
@@ -385,32 +395,16 @@ jobs:
           pnpm run build -- --force
 
           echo "✅ Build complete"
-          # Construct PLATFORM_ARCH for build output path.
-          if [ "${PLATFORM}" = "win32" ]; then
-            RELEASE_PLATFORM="win"
-          else
-            RELEASE_PLATFORM="${PLATFORM}"
-          fi
-          PLATFORM_ARCH="${RELEASE_PLATFORM}-${ARCH}"
-          ls -lh build/${BUILD_MODE}/${PLATFORM_ARCH}/out/
+          ls -lh "${PLATFORM_BUILD_DIR_REL}/out/"
 
       - name: Verify binary
         if: steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'false'
         shell: bash
         working-directory: packages/binpress
         env:
-          BUILD_MODE: ${{ steps.setup-checkpoints.outputs.build-mode }}
-          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
+          BINARY: ${{ steps.paths.outputs.final_binary_rel }}
           OS_TYPE: ${{ matrix.os }}
         run: |
-          # All platforms (Linux Depot / macOS / Windows native) export to
-          # build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/. Matches the
-          # validate-checkpoint step above.
-          BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binpress"
-          if [ "${OS_TYPE}" = "windows" ]; then
-            BINARY="${BINARY}.exe"
-          fi
-
           if [ ! -f "$BINARY" ]; then
             echo "× Binary not found: $BINARY"
             exit 1
@@ -458,20 +452,10 @@ jobs:
         shell: bash
         working-directory: packages/binpress
         env:
-          BUILD_MODE: ${{ steps.setup-checkpoints.outputs.build-mode }}
-          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
-          OS_TYPE: ${{ matrix.os }}
+          BINARY: ${{ steps.paths.outputs.final_binary_rel }}
           ARCH: ${{ matrix.arch }}
           LIBC: ${{ matrix.libc }}
         run: |
-          # Deterministic smoke test: native execution, Docker, QEMU, or static verification
-          # All platforms now use PLATFORM_ARCH in build output path.
-          if [ "${OS_TYPE}" = "windows" ]; then
-            BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binpress.exe"
-          else
-            BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binpress"
-          fi
-
           # Prepare smoke test options
           SMOKE_TEST_ARGS="$BINARY"
           if [ "${ARCH}" = "arm64" ]; then
@@ -623,6 +607,8 @@ jobs:
       # downstream step reads from one place. Mirrors the binsuite layout
       # owned by build-infra/lib/paths.mts:getFinalBinaryPath() — the path
       # MUST stay byte-for-byte identical to that helper's output.
+      # Each path is exposed both workspace-rooted and package-relative
+      # (suffix `_rel`) so both `working-directory:` styles work.
       - name: Compute binflate paths
         id: paths
         env:
@@ -631,8 +617,10 @@ jobs:
           OS_TYPE: ${{ matrix.os }}
         run: |
           PACKAGE_DIR="packages/binflate"
-          PLATFORM_BUILD_DIR="${PACKAGE_DIR}/build/${BUILD_MODE}/${PLATFORM_ARCH}"
-          FINAL_DIR="${PLATFORM_BUILD_DIR}/out/Final"
+          PLATFORM_BUILD_DIR_REL="build/${BUILD_MODE}/${PLATFORM_ARCH}"
+          PLATFORM_BUILD_DIR="${PACKAGE_DIR}/${PLATFORM_BUILD_DIR_REL}"
+          FINAL_DIR_REL="${PLATFORM_BUILD_DIR_REL}/out/Final"
+          FINAL_DIR="${PACKAGE_DIR}/${FINAL_DIR_REL}"
           if [ "${OS_TYPE}" = "windows" ]; then
             BINARY_NAME="binflate.exe"
           else
@@ -641,10 +629,12 @@ jobs:
           {
             echo "package_dir=${PACKAGE_DIR}"
             echo "platform_build_dir=${PLATFORM_BUILD_DIR}"
+            echo "platform_build_dir_rel=${PLATFORM_BUILD_DIR_REL}"
             echo "final_dir=${FINAL_DIR}"
+            echo "final_dir_rel=${FINAL_DIR_REL}"
             echo "binary_name=${BINARY_NAME}"
             echo "final_binary=${FINAL_DIR}/${BINARY_NAME}"
-            echo "final_binary_rel=build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/${BINARY_NAME}"
+            echo "final_binary_rel=${FINAL_DIR_REL}/${BINARY_NAME}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Validate checkpoint binary exists
@@ -759,10 +749,8 @@ jobs:
         shell: bash
         working-directory: packages/binflate
         env:
-          BUILD_MODE: ${{ steps.setup-checkpoints.outputs.build-mode }}
-          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
+          BINARY: ${{ steps.paths.outputs.final_binary_rel }}
         run: |
-          BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binflate"
           [ -f "$BINARY" ] || { echo "× Binary not found: $BINARY"; exit 1; }
           echo "✅ $(file "$BINARY")"
 
@@ -792,6 +780,7 @@ jobs:
           ARCH: ${{ matrix.arch }}
           TARGET_ARCH: ${{ matrix.arch }}
           DEBUG: ${{ inputs.debug != '0' && inputs.debug || '' }}
+          PLATFORM_BUILD_DIR_REL: ${{ steps.paths.outputs.platform_build_dir_rel }}
         run: |
           echo "🔨 Building binflate for ${PLATFORM}-${ARCH} (${BUILD_MODE} mode)"
 
@@ -800,32 +789,16 @@ jobs:
           pnpm run build -- --force
 
           echo "✅ Build complete"
-          # Construct PLATFORM_ARCH for build output path.
-          if [ "${PLATFORM}" = "win32" ]; then
-            RELEASE_PLATFORM="win"
-          else
-            RELEASE_PLATFORM="${PLATFORM}"
-          fi
-          PLATFORM_ARCH="${RELEASE_PLATFORM}-${ARCH}"
-          ls -lh build/${BUILD_MODE}/${PLATFORM_ARCH}/out/
+          ls -lh "${PLATFORM_BUILD_DIR_REL}/out/"
 
       - name: Verify binary
         if: steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'false'
         shell: bash
         working-directory: packages/binflate
         env:
-          BUILD_MODE: ${{ steps.setup-checkpoints.outputs.build-mode }}
-          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
+          BINARY: ${{ steps.paths.outputs.final_binary_rel }}
           OS_TYPE: ${{ matrix.os }}
         run: |
-          # All platforms (Linux Depot / macOS / Windows native) export to
-          # build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/. Matches the
-          # validate-checkpoint step above.
-          BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binflate"
-          if [ "${OS_TYPE}" = "windows" ]; then
-            BINARY="${BINARY}.exe"
-          fi
-
           if [ ! -f "$BINARY" ]; then
             echo "× Binary not found: $BINARY"
             exit 1
@@ -861,20 +834,10 @@ jobs:
         shell: bash
         working-directory: packages/binflate
         env:
-          BUILD_MODE: ${{ steps.setup-checkpoints.outputs.build-mode }}
-          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
-          OS_TYPE: ${{ matrix.os }}
+          BINARY: ${{ steps.paths.outputs.final_binary_rel }}
           ARCH: ${{ matrix.arch }}
           LIBC: ${{ matrix.libc }}
         run: |
-          # Deterministic smoke test: native execution, Docker, QEMU, or static verification
-          # All platforms now use PLATFORM_ARCH in build output path.
-          if [ "${OS_TYPE}" = "windows" ]; then
-            BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binflate.exe"
-          else
-            BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binflate"
-          fi
-
           # Prepare smoke test options
           SMOKE_TEST_ARGS="$BINARY"
           if [ "${ARCH}" = "arm64" ]; then
@@ -1026,6 +989,8 @@ jobs:
       # downstream step reads from one place. Mirrors the binsuite layout
       # owned by build-infra/lib/paths.mts:getFinalBinaryPath() — the path
       # MUST stay byte-for-byte identical to that helper's output.
+      # Each path is exposed both workspace-rooted and package-relative
+      # (suffix `_rel`) so both `working-directory:` styles work.
       - name: Compute binject paths
         id: paths
         env:
@@ -1034,8 +999,10 @@ jobs:
           OS_TYPE: ${{ matrix.os }}
         run: |
           PACKAGE_DIR="packages/binject"
-          PLATFORM_BUILD_DIR="${PACKAGE_DIR}/build/${BUILD_MODE}/${PLATFORM_ARCH}"
-          FINAL_DIR="${PLATFORM_BUILD_DIR}/out/Final"
+          PLATFORM_BUILD_DIR_REL="build/${BUILD_MODE}/${PLATFORM_ARCH}"
+          PLATFORM_BUILD_DIR="${PACKAGE_DIR}/${PLATFORM_BUILD_DIR_REL}"
+          FINAL_DIR_REL="${PLATFORM_BUILD_DIR_REL}/out/Final"
+          FINAL_DIR="${PACKAGE_DIR}/${FINAL_DIR_REL}"
           if [ "${OS_TYPE}" = "windows" ]; then
             BINARY_NAME="binject.exe"
           else
@@ -1044,10 +1011,12 @@ jobs:
           {
             echo "package_dir=${PACKAGE_DIR}"
             echo "platform_build_dir=${PLATFORM_BUILD_DIR}"
+            echo "platform_build_dir_rel=${PLATFORM_BUILD_DIR_REL}"
             echo "final_dir=${FINAL_DIR}"
+            echo "final_dir_rel=${FINAL_DIR_REL}"
             echo "binary_name=${BINARY_NAME}"
             echo "final_binary=${FINAL_DIR}/${BINARY_NAME}"
-            echo "final_binary_rel=build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/${BINARY_NAME}"
+            echo "final_binary_rel=${FINAL_DIR_REL}/${BINARY_NAME}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Validate checkpoint binary exists
@@ -1147,6 +1116,10 @@ jobs:
           echo "cjson=${CJSON_SHA}" >> $GITHUB_OUTPUT
           echo "Submodule SHAs: libdeflate=${LIBDEFLATE_SHA}, cJSON=${CJSON_SHA}"
 
+      # The LIEF subdir is lief-builder's own output, mirroring
+      # packages/lief-builder/scripts/build.mts:getLiefBuildDirs() —
+      # `<package>/build/<mode>/<arch>/out/Final/lief`. Cleaning it from
+      # this job keeps cross-package layout coupled to ONE source.
       - name: Clean LIEF before Docker build (Linux)
         if: |
           steps.build-enabled.outputs.build == 'true' &&
@@ -1156,7 +1129,7 @@ jobs:
         env:
           BUILD_MODE: ${{ steps.setup-checkpoints.outputs.build-mode }}
           PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
-        run: rm -rf packages/lief-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/lief/
+        run: rm -rf "packages/lief-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/lief/"
 
       - name: Stage registry tool-checksums for Docker build context
         if: |
@@ -1207,10 +1180,8 @@ jobs:
         shell: bash
         working-directory: packages/binject
         env:
-          BUILD_MODE: ${{ steps.setup-checkpoints.outputs.build-mode }}
-          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
+          BINARY: ${{ steps.paths.outputs.final_binary_rel }}
         run: |
-          BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binject"
           [ -f "$BINARY" ] || { echo "× Binary not found: $BINARY"; exit 1; }
           echo "✅ $(file "$BINARY")"
 
@@ -1240,6 +1211,7 @@ jobs:
           ARCH: ${{ matrix.arch }}
           TARGET_ARCH: ${{ matrix.arch }}
           DEBUG: ${{ inputs.debug != '0' && inputs.debug || '' }}
+          PLATFORM_BUILD_DIR_REL: ${{ steps.paths.outputs.platform_build_dir_rel }}
         run: |
           echo "🔨 Building binject for ${PLATFORM}-${ARCH} (${BUILD_MODE} mode)"
 
@@ -1250,32 +1222,16 @@ jobs:
           pnpm run build -- --force
 
           echo "✅ Build complete"
-          # Construct PLATFORM_ARCH for build output path.
-          if [ "${PLATFORM}" = "win32" ]; then
-            RELEASE_PLATFORM="win"
-          else
-            RELEASE_PLATFORM="${PLATFORM}"
-          fi
-          PLATFORM_ARCH="${RELEASE_PLATFORM}-${ARCH}"
-          ls -lh build/${BUILD_MODE}/${PLATFORM_ARCH}/out/
+          ls -lh "${PLATFORM_BUILD_DIR_REL}/out/"
 
       - name: Verify binary
         if: steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'false'
         shell: bash
         working-directory: packages/binject
         env:
-          BUILD_MODE: ${{ steps.setup-checkpoints.outputs.build-mode }}
-          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
+          BINARY: ${{ steps.paths.outputs.final_binary_rel }}
           OS_TYPE: ${{ matrix.os }}
         run: |
-          # All platforms (Linux Depot / macOS / Windows native) export to
-          # build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/. Matches the
-          # validate-checkpoint step above.
-          BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binject"
-          if [ "${OS_TYPE}" = "windows" ]; then
-            BINARY="${BINARY}.exe"
-          fi
-
           if [ ! -f "$BINARY" ]; then
             echo "× Binary not found: $BINARY"
             exit 1
@@ -1311,20 +1267,10 @@ jobs:
         shell: bash
         working-directory: packages/binject
         env:
-          BUILD_MODE: ${{ steps.setup-checkpoints.outputs.build-mode }}
-          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
-          OS_TYPE: ${{ matrix.os }}
+          BINARY: ${{ steps.paths.outputs.final_binary_rel }}
           ARCH: ${{ matrix.arch }}
           LIBC: ${{ matrix.libc }}
         run: |
-          # Deterministic smoke test: native execution, Docker, QEMU, or static verification
-          # All platforms now use PLATFORM_ARCH in build output path.
-          if [ "${OS_TYPE}" = "windows" ]; then
-            BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binject.exe"
-          else
-            BINARY="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/binject"
-          fi
-
           # Prepare smoke test options
           SMOKE_TEST_ARGS="$BINARY"
           if [ "${ARCH}" = "arm64" ]; then

@@ -19,6 +19,7 @@ import {
   getPlatformBuildDir,
 } from 'build-infra/lib/constants'
 import { logTransientErrorHelp } from 'build-infra/lib/github-error-utils'
+import { getDownloadedDir } from 'build-infra/lib/paths'
 import { getAssetPlatformArch, isMusl } from 'build-infra/lib/platform-mappings'
 import { verifyReleaseChecksum } from 'build-infra/lib/release-checksums'
 import { extractTarball } from 'build-infra/lib/tarball-utils'
@@ -86,7 +87,7 @@ function getCurrentLiefPlatformArch() {
  * @returns {string} Path to downloaded LIEF directory.
  */
 function getDownloadedLiefDir(platformArch) {
-  return path.join(packageRoot, 'build', 'downloaded', 'lief', platformArch)
+  return path.join(getDownloadedDir(packageRoot), 'lief', platformArch)
 }
 
 /**

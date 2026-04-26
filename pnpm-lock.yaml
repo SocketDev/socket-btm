@@ -373,6 +373,9 @@ importers:
       adm-zip:
         specifier: 'catalog:'
         version: 0.5.16
+      node-smol-builder:
+        specifier: workspace:*
+        version: link:../node-smol-builder
       tar:
         specifier: 'catalog:'
         version: 7.4.3

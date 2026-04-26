@@ -13,19 +13,16 @@ import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 
-import { fileURLToPath } from 'node:url'
-
 import { makeExecutable } from 'build-infra/lib/build-helpers'
 
 import { safeDelete } from '@socketsecurity/lib/fs'
 import { spawn } from '@socketsecurity/lib/spawn'
 import { getPlatformArch } from 'build-infra/lib/platform-mappings'
+import { getBuildPaths as getNodeSmolBuildPaths } from 'node-smol-builder/scripts/paths'
 
 import { MAX_NODE_BINARY_SIZE } from './helpers/constants.mts'
 import { getBinjectPath } from './helpers/paths.mts'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
 const BINJECT = getBinjectPath()
 const PLATFORM_ARCH = getPlatformArch(process.platform, process.arch, undefined)
 
@@ -131,54 +128,12 @@ async function downloadNodeSmolRelease() {
  * Priority: local node-smol build > released node-smol > system Node.js
  */
 async function findNodeBinary() {
-  // Check for node-smol-builder output in the monorepo
-  const nodeSmolBuilderDir = path.join(
-    __dirname,
-    '..',
-    '..',
-    'node-smol-builder',
-  )
+  // Local node-smol builds — paths come from node-smol-builder's paths.mts
+  // so the on-disk layout stays in one place. outputFinalBinary already
+  // encodes the platform-specific binary name (node vs node.exe).
   const possiblePaths = [
-    // Relative to binject package - check build directories first (CI pattern)
-    path.join(
-      nodeSmolBuilderDir,
-      'build',
-      'dev',
-      PLATFORM_ARCH,
-      'out',
-      'Final',
-      'node',
-    ),
-    path.join(
-      nodeSmolBuilderDir,
-      'build',
-      'prod',
-      PLATFORM_ARCH,
-      'out',
-      'Final',
-      'node',
-    ),
-    path.join(
-      nodeSmolBuilderDir,
-      'build',
-      'dev',
-      PLATFORM_ARCH,
-      'out',
-      'Final',
-      'node.exe',
-    ),
-    path.join(
-      nodeSmolBuilderDir,
-      'build',
-      'prod',
-      PLATFORM_ARCH,
-      'out',
-      'Final',
-      'node.exe',
-    ),
-    // Fallback to simple out/ directory (local builds)
-    path.join(nodeSmolBuilderDir, 'out', 'Final', 'node'),
-    path.join(nodeSmolBuilderDir, 'out', 'Final', 'node.exe'),
+    getNodeSmolBuildPaths('dev', process.platform, PLATFORM_ARCH).outputFinalBinary,
+    getNodeSmolBuildPaths('prod', process.platform, PLATFORM_ARCH).outputFinalBinary,
     // Common installation paths
     path.join(os.homedir(), '.btm', 'node'),
     path.join(os.homedir(), '.btm', 'node.exe'),

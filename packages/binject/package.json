@@ -23,6 +23,7 @@
     "@dotenvx/dotenvx": "catalog:",
     "@types/adm-zip": "catalog:",
     "adm-zip": "catalog:",
+    "node-smol-builder": "workspace:*",
     "tar": "catalog:",
     "vitest": "catalog:"
   }

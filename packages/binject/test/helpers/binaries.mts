@@ -11,6 +11,8 @@ import path from 'node:path'
 import AdmZip from 'adm-zip'
 import { extract } from 'tar'
 
+import { getDownloadedDir } from 'build-infra/lib/paths'
+
 import { httpRequest } from '@socketsecurity/lib/http-request'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
@@ -18,7 +20,7 @@ import { PROJECT_ROOT } from './paths.mts'
 
 const logger = getDefaultLogger()
 
-const CACHE_DIR = path.join(PROJECT_ROOT, 'build', 'downloaded')
+const CACHE_DIR = getDownloadedDir(PROJECT_ROOT)
 
 /**
  * Read Node.js version from .node-version file

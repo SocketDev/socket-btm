@@ -25,6 +25,7 @@
     "./lib/zstd-init": "./lib/zstd-init.mts",
     "./lib/onnx-helpers": "./lib/onnx-helpers.mts",
     "./lib/patch-validator": "./lib/patch-validator.mts",
+    "./lib/paths": "./lib/paths.mts",
     "./lib/platform-mappings": "./lib/platform-mappings.mts",
     "./lib/pinned-versions": "./lib/pinned-versions.mts",
     "./lib/preflight-checks": "./lib/preflight-checks.mts",

@@ -14,6 +14,7 @@ import path from 'node:path'
 import process from 'node:process'
 
 import { logTransientErrorHelp } from 'build-infra/lib/github-error-utils'
+import { getDownloadedDir, getFinalBinaryPath } from 'build-infra/lib/paths'
 import { getPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { envAsBoolean } from '@socketsecurity/lib/env'
@@ -23,7 +24,7 @@ import {
   downloadSocketBtmRelease,
 } from '@socketsecurity/lib/releases/socket-btm'
 
-import { PACKAGE_ROOT } from '../../paths.mts'
+import { BINPRESS_DIR, BUILD_INFRA_DIR } from '../../paths.mts'
 
 const logger = getDefaultLogger()
 
@@ -44,49 +45,39 @@ const logger = getDefaultLogger()
  * @returns {Promise<string>} Path to downloaded tool
  */
 async function downloadToolIfMissing(tool, platform, arch, libc) {
-  const ext = platform === 'win32' ? '.exe' : ''
+  const binaryName = platform === 'win32' ? `${tool}.exe` : tool
   const platformArch = getPlatformArch(platform, arch, libc)
   const buildAllFromSource = envAsBoolean(process.env.BUILD_ALL_FROM_SOURCE)
   const buildToolsFromSource =
     buildAllFromSource || envAsBoolean(process.env.BUILD_TOOLS_FROM_SOURCE)
 
   // Check if the requested platform matches the current runtime platform.
-  // Local builds (packages/{tool}/build/*/out/Final/) are built for the host platform,
-  // so they can only be used when the runtime platform matches.
-  // This prevents using macOS-built binaries when running inside Linux Docker.
+  // Local builds (packages/binpress/build/*/<platformArch>/out/Final/) are built
+  // for the host platform, so they can only be used when the runtime platform
+  // matches. Prevents using macOS-built binaries when running inside Linux Docker.
   const isMatchingPlatform = process.platform === platform
 
-  // Local build paths (both dev and prod modes)
-  const localToolPathDev = path.join(
-    PACKAGE_ROOT,
-    '..',
-    tool,
-    'build',
-    'dev',
-    'out',
-    'Final',
-    `${tool}${ext}`,
-  )
-
-  const localToolPathProd = path.join(
-    PACKAGE_ROOT,
-    '..',
-    tool,
-    'build',
-    'prod',
-    'out',
-    'Final',
-    `${tool}${ext}`,
-  )
-
   // Always prefer local builds when available and platform matches.
-  // This allows developers to test local changes without setting BUILD_TOOLS_FROM_SOURCE.
-  // Local builds are built for the host platform, so only use them when platform matches.
+  // Local-build paths come from build-infra/lib/paths so the binsuite layout
+  // stays in one place; if bin-infra's builder ever changes the on-disk shape,
+  // this caller updates automatically.
   if (isMatchingPlatform) {
+    const localToolPathDev = getFinalBinaryPath(
+      BINPRESS_DIR,
+      'dev',
+      platformArch,
+      binaryName,
+    )
     if (existsSync(localToolPathDev)) {
       return localToolPathDev
     }
 
+    const localToolPathProd = getFinalBinaryPath(
+      BINPRESS_DIR,
+      'prod',
+      platformArch,
+      binaryName,
+    )
     if (existsSync(localToolPathProd)) {
       return localToolPathProd
     }
@@ -105,15 +96,9 @@ async function downloadToolIfMissing(tool, platform, arch, libc) {
     )
   }
 
-  // Check downloaded location (platform-specific, safe for cross-platform)
-  const buildInfraDir = path.join(PACKAGE_ROOT, '..', 'build-infra')
-  const downloadDir = path.join(buildInfraDir, 'build', 'downloaded')
-  const downloadedPath = path.join(
-    downloadDir,
-    tool,
-    platformArch,
-    `${tool}${ext}`,
-  )
+  // Check downloaded location (platform-specific, safe for cross-platform).
+  const downloadDir = getDownloadedDir(BUILD_INFRA_DIR)
+  const downloadedPath = path.join(downloadDir, tool, platformArch, binaryName)
 
   if (existsSync(downloadedPath)) {
     return downloadedPath
@@ -125,7 +110,7 @@ async function downloadToolIfMissing(tool, platform, arch, libc) {
   try {
     const binaryPath = await downloadSocketBtmRelease(tool, {
       bin: tool,
-      cwd: buildInfraDir,
+      cwd: BUILD_INFRA_DIR,
       downloadDir,
       libc: platform === 'linux' ? libc : undefined,
       removeMacOSQuarantine: true,

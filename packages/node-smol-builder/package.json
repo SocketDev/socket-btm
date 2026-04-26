@@ -5,6 +5,9 @@
   "private": true,
   "license": "MIT",
   "type": "module",
+  "exports": {
+    "./scripts/paths": "./scripts/paths.mts"
+  },
   "scripts": {
     "build": "node scripts/common/shared/build.mts",
     "build:all": "node scripts/common/shared/build.mts --all-platforms",

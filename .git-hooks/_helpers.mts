@@ -1,10 +1,31 @@
 // Shared helpers for git hooks — API-key allowlist + ANSI colors +
 // content scanners. Imported by .git-hooks/{commit-msg,pre-commit,
-// pre-push}.mts. No third-party deps; uses only Node built-ins so
-// hooks run with whatever Node version husky picks up.
+// pre-push}.mts. No third-party deps; uses only Node built-ins.
+//
+// Requires Node 25+ for stable .mts type-stripping (no flag needed).
+// Earlier Node versions either lacked --experimental-strip-types or
+// shipped it under a flag, both unacceptable for hook ergonomics.
 
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, statSync } from 'node:fs'
+
+// Hard-fail if Node is below 25. This runs at module load — every
+// hook invocation imports _helpers.mts before doing anything, so the
+// version check is the first thing that happens.
+const NODE_MIN_MAJOR = 25
+const nodeMajor = Number.parseInt(
+  process.versions.node.split('.')[0] || '0',
+  10,
+)
+if (nodeMajor < NODE_MIN_MAJOR) {
+  process.stderr.write(
+    `\x1b[0;31m✗ Hook requires Node >= ${NODE_MIN_MAJOR}.0.0 (have v${process.versions.node})\x1b[0m\n`,
+  )
+  process.stderr.write(
+    'Install Node 25+ — these hooks rely on stable .mts type stripping.\n',
+  )
+  process.exit(1)
+}
 
 // ── Allowlist constants ────────────────────────────────────────────
 // These exempt known-safe matches from the API-key scanner. Each

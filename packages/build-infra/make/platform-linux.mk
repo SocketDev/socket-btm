@@ -12,16 +12,18 @@ POSIX_MACROS = -D_GNU_SOURCE
 IS_MUSL := $(shell ldd --version 2>&1 | grep -q musl && echo 1 || echo 0)
 
 # Build mode flags.
+# PATH_REMAP_FLAGS (from common.mk) anonymize host filesystem paths in DWARF
+# and __FILE__ macros so shipped binaries don't leak the dev's home dir...
 ifeq ($(BUILD_MODE),prod)
     # Production: optimize for size and speed.
     # -Os: Optimize for size
     # -flto: Link-Time Optimization for 5-15% smaller binaries
     # -ffunction-sections -fdata-sections: Enable dead code elimination with --gc-sections
     # Note: Linux stripping is done post-build with plain strip (no -s flag) to preserve pthread symbols.
-    OPT_FLAGS = -Os -DNDEBUG -flto -ffunction-sections -fdata-sections
+    OPT_FLAGS = -Os -DNDEBUG -flto -ffunction-sections -fdata-sections $(PATH_REMAP_FLAGS)
 else
     # Development: optimize for build speed, keep debug symbols.
-    OPT_FLAGS = -O0 -g
+    OPT_FLAGS = -O0 -g $(PATH_REMAP_FLAGS)
 endif
 
 # Linux-specific linker flags base.

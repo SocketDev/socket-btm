@@ -26,6 +26,7 @@ import {
 import { printError } from 'build-infra/lib/build-output'
 import { cleanCheckpoint } from 'build-infra/lib/checkpoint-manager'
 import { getBuildMode } from 'build-infra/lib/constants'
+import { getRustcRemapFlags } from 'build-infra/lib/path-remap-flags'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
@@ -150,18 +151,65 @@ function findRealCargo() {
   return `cargo${ext}`
 }
 
+// Perf rustflags previously duplicated in .cargo/config.toml across 3 sections.
+// Kept as the single source of truth so RUSTFLAGS can carry both perf and
+// path-remap flags — Cargo's RUSTFLAGS env wins over every config.toml
+// rustflags entry, so config.toml flags are silently dropped if we don't
+// re-add them here.
+const IOCRAFT_PERF_RUSTFLAGS = [
+  // Enable native CPU features (AVX2, SSE4.2, NEON, etc.).
+  '-C',
+  'target-cpu=native',
+  // Aggressive LLVM optimizations.
+  '-C',
+  'llvm-args=-inline-threshold=1000',
+  '-C',
+  'llvm-args=-unroll-threshold=300',
+  '-C',
+  'llvm-args=-vectorize-loops',
+  '-C',
+  'llvm-args=-vectorize-slp',
+  '-C',
+  'llvm-args=-enable-gvn-hoist',
+  '-C',
+  'llvm-args=-enable-load-pre',
+]
+
+/**
+ * Build the rustflags array passed via RUSTFLAGS / CARGO_ENCODED_RUSTFLAGS.
+ *
+ * Order: remap flags first (so any path-bearing diagnostics are anonymized),
+ * then perf flags. Both go through the SAME env var — setting RUSTFLAGS
+ * suppresses every rustflags entry in .cargo/config.toml (Cargo picks ONE
+ * source by precedence, no merging), so this list MUST contain everything we
+ * want rustc to receive.
+ */
+function buildRustflags() {
+  return [...getRustcRemapFlags(), ...IOCRAFT_PERF_RUSTFLAGS]
+}
+
 /**
  * Run cargo with cross-platform handling.
  *
  * IMPORTANT: Must pass explicit env with PATH to work around Node.js 25 spawn issues.
  * Uses findRealCargo() to bypass SFW shims that break cargo's TLS.
+ *
+ * Sets CARGO_ENCODED_RUSTFLAGS so we can pass the remap and perf flags as
+ * structured tokens (0x1f-separated) rather than relying on shell-style space
+ * splitting in RUSTFLAGS.
  */
 async function runCargo(args, options = {}) {
   const cargoPath = findRealCargo()
   logger.substep(`Using cargo: ${cargoPath}`)
 
+  const rustflags = buildRustflags()
+  const env = {
+    ...process.env,
+    CARGO_ENCODED_RUSTFLAGS: rustflags.join('\x1f'),
+  }
+
   const result = await spawn(cargoPath, args, {
-    env: process.env,
+    env,
     shell: WIN32,
     stdio: options.stdio || 'inherit',
   })

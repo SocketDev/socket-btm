@@ -12,6 +12,10 @@ import process from 'node:process'
 import { formatDuration, getFileSize } from 'build-infra/lib/build-helpers'
 import { printError } from 'build-infra/lib/build-output'
 import { ensureEmscripten } from 'build-infra/lib/emscripten-installer'
+import {
+  appendCCRemapFlags,
+  getCCRemapFlagsString,
+} from 'build-infra/lib/path-remap-flags'
 
 import { whichSync } from '@socketsecurity/lib/bin'
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
@@ -185,6 +189,17 @@ export async function compileWasm(options) {
   // Set up ccache for faster C++ compilation if available
   // NOTE: DO NOT set CC/CXX when using Emscripten - the toolchain file manages this
   const buildEnv = { ...process.env }
+  // Anonymize absolute build-host paths in DWARF / __FILE__ macros so the
+  // shipped .wasm doesn't carry the dev's home dir... or the dev's home dir... strings.
+  // Emscripten's emcc/em++ accept -ffile-prefix-map; ONNX Runtime's build.py
+  // forwards EMCC_CFLAGS / EMCC_CXXFLAGS into the underlying compile commands,
+  // and CMake reads CFLAGS/CXXFLAGS for any non-emscripten host build steps.
+  const remapFlags = getCCRemapFlagsString()
+  buildEnv.EMCC_CFLAGS = appendCCRemapFlags(buildEnv.EMCC_CFLAGS)
+  buildEnv.EMCC_CXXFLAGS = appendCCRemapFlags(buildEnv.EMCC_CXXFLAGS)
+  buildEnv.CFLAGS = appendCCRemapFlags(buildEnv.CFLAGS)
+  buildEnv.CXXFLAGS = appendCCRemapFlags(buildEnv.CXXFLAGS)
+  logger.substep(`Path-remap flags: ${remapFlags}`)
   if (ccacheAvailable) {
     logger.substep('Using ccache for faster C++ compilation')
     // Increase ccache size for large builds

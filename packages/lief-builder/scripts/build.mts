@@ -19,6 +19,7 @@ import {
   getPlatformBuildDir,
 } from 'build-infra/lib/constants'
 import { logTransientErrorHelp } from 'build-infra/lib/github-error-utils'
+import { appendCCRemapFlags } from 'build-infra/lib/path-remap-flags'
 import { getDownloadedDir } from 'build-infra/lib/paths'
 import { getAssetPlatformArch, isMusl } from 'build-infra/lib/platform-mappings'
 import { verifyReleaseChecksum } from 'build-infra/lib/release-checksums'
@@ -1015,12 +1016,17 @@ async function main() {
     const muslFortifyFlags = muslLibc
       ? '-Wp,-U_FORTIFY_SOURCE -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0'
       : undefined
+    // Anonymize absolute build-host paths (DWARF + __FILE__) so libLIEF.a
+    // doesn't leak the dev's home dir or the dev's home dir strings into binsuite/
+    // node-smol binaries that statically link it. LIEF has lots of __FILE__
+    // logging sites — without this, every Mach-O/ELF/PE log site embeds an
+    // absolute build-host path.
     const cleanEnv = {
       // Set LIEF version explicitly for CMake (LIEF's CMakeLists.txt reads this).
       // Required because shallow git clones can't determine version from git tags.
       LIEF_VERSION_ENV: LIEF_VERSION,
-      CFLAGS: muslFortifyFlags,
-      CXXFLAGS: muslFortifyFlags,
+      CFLAGS: appendCCRemapFlags(muslFortifyFlags),
+      CXXFLAGS: appendCCRemapFlags(muslFortifyFlags),
       // CPPFLAGS is specifically for the C PreProcessor - belt and suspenders approach.
       CPPFLAGS: muslLibc ? '-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0' : undefined,
       LDFLAGS: undefined,

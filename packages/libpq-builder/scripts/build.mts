@@ -28,6 +28,7 @@ import {
   validateCheckpointChain,
 } from 'build-infra/lib/constants'
 import { logTransientErrorHelp } from 'build-infra/lib/github-error-utils'
+import { appendCCRemapFlags } from 'build-infra/lib/path-remap-flags'
 import {
   getCurrentPlatformArch,
   isMusl,
@@ -504,6 +505,12 @@ async function buildLibpq(libpqBuildDir) {
     cleanEnv.CPPFLAGS = '-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0'
     logger.info('Disabling fortify source for musl libc compatibility')
   }
+  // Anonymize absolute build-host paths (DWARF + __FILE__) so libpq.a doesn't
+  // leak the dev's home dir or the dev's home dir strings into node-smol's
+  // node:smol-sql linkage. PostgreSQL is __FILE__-heavy in its assertion and
+  // ereport machinery.
+  cleanEnv.CFLAGS = appendCCRemapFlags(cleanEnv.CFLAGS)
+  cleanEnv.CXXFLAGS = appendCCRemapFlags(cleanEnv.CXXFLAGS)
 
   // Run configure from the upstream directory
   await runCommand(

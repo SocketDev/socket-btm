@@ -40,5 +40,18 @@ BIN_INFRA_INCLUDE = ../bin-infra/src
 LIEF_BUILDER_INCLUDE = ../lief-builder/src
 COMMON_INCLUDES = -I$(BUILD_INFRA_INCLUDE) -I$(BIN_INFRA_INCLUDE) -I$(LIEF_BUILDER_INCLUDE)
 
+# Path-remap flags: anonymize absolute build-host paths in DWARF debug info
+# and __FILE__ macros so shipped binaries don't leak the dev/CI machine's
+# the dev's home dir, the dev's home dir, or project-root paths. Equivalent to the
+# build-infra/lib/path-remap-flags.mts helper used by .mts build scripts.
+# These are appended to OPT_FLAGS in each platform-*.mk so they reach every
+# $(CC)/$(CXX) compile rule via $(CFLAGS)/$(CXXFLAGS).
+PATH_REMAP_HOME := $(if $(HOME),$(HOME),$(shell echo $$HOME))
+PATH_REMAP_CARGO_HOME := $(if $(CARGO_HOME),$(CARGO_HOME),$(PATH_REMAP_HOME)/.cargo)
+PATH_REMAP_FLAGS := \
+	-ffile-prefix-map=$(PATH_REMAP_CARGO_HOME)=/cargo \
+	-ffile-prefix-map=$(PROJECT_ROOT)=/build \
+	-ffile-prefix-map=$(PATH_REMAP_HOME)=/home
+
 # Common phony targets.
 .PHONY: all clean test check-tools install

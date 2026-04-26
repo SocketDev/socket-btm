@@ -4,6 +4,8 @@
  * Provides CXX and linker flags for production and development builds.
  */
 
+import { getCCRemapFlags } from 'build-infra/lib/path-remap-flags'
+
 /**
  * Get optimization flags for a build mode.
  *
@@ -11,9 +13,15 @@
  * @returns {{cxxFlags: string[], linkerFlags: string[]}}
  */
 export function getOptimizationFlags(buildMode) {
+  // Anonymize absolute build-host paths in DWARF and __FILE__ macros so
+  // the shipped .wasm doesn't carry the dev's home dir... or the dev's home dir...
+  // strings. Applied to dev too — test artifacts can leak via CI logs.
+  const remapFlags = getCCRemapFlags()
+
   const cxxFlags =
     buildMode === 'prod'
       ? [
+          ...remapFlags,
           // Production: Maximum size + performance optimizations.
           // Optimize aggressively for size.
           '-Oz',
@@ -33,6 +41,7 @@ export function getOptimizationFlags(buildMode) {
           '-fno-finite-math-only',
         ]
       : [
+          ...remapFlags,
           // Development: Faster compilation, larger output.
           // Basic optimization (fast compile).
           '-O1',

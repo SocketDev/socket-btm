@@ -6,14 +6,14 @@
     "binject": "v183",
     "binpress": "v166",
     "curl": "v36",
-    "ink": "v12",
+    "ink": "v13",
     "iocraft": "v32",
     "lief": "v70",
     "models": "v33",
     "node-smol": "v215",
-    "onnxruntime": "v31",
+    "onnxruntime": "v32",
     "opentui": "v14",
     "stubs": "v102",
-    "yoga-layout": "v33"
+    "yoga-layout": "v34"
   }
 }

@@ -18,7 +18,7 @@ This package provides a prepatched version of [Ink](https://github.com/vadimdeme
 The build rewires all `yoga-layout` imports to use socket-btm's synchronous yoga-sync:
 
 - `import Yoga from 'yoga-layout'` → `import Yoga from './yoga-sync.mjs'`
-- Bundles `yoga-sync.mjs` from `yoga-layout-builder/build/dev/<platform-arch>/wasm/out/Final/`
+- Bundles `yoga-sync.mjs` from yoga-layout-builder's prod (or dev) Final dir; the exact path comes from `yoga-layout-builder/scripts/paths.mts` `getBuildPaths().outputSyncMjsFile`
 - Removes `yoga-layout` from dependencies (no external yoga dependency needed)
 
 This provides:

@@ -92,7 +92,8 @@ export function getBuildPaths(mode, platformArch) {
   // WASM output file paths (final distribution)
   const outputWasmFile = path.join(outputFinalDir, 'yoga.wasm')
   const outputMjsFile = path.join(outputFinalDir, 'yoga.mjs')
-  const outputSyncJsFile = path.join(outputFinalDir, 'yoga-sync.cjs')
+  const outputSyncCjsFile = path.join(outputFinalDir, 'yoga-sync.cjs')
+  const outputSyncMjsFile = path.join(outputFinalDir, 'yoga-sync.mjs')
 
   return {
     buildDir,
@@ -105,8 +106,9 @@ export function getBuildPaths(mode, platformArch) {
     outputMjsFile,
     outputOptimizedDir,
     outputReleaseDir,
+    outputSyncCjsFile,
     outputSyncDir,
-    outputSyncJsFile,
+    outputSyncMjsFile,
     outputWasmFile,
     sourceDir,
     staticLibFile,

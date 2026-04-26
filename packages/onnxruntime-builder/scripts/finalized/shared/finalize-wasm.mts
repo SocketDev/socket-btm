@@ -22,32 +22,32 @@ const logger = getDefaultLogger()
  *
  * @param {object} options
  * @param {string} options.buildDir
- * @param {string} options.outputSyncDir
  * @param {string} options.outputFinalDir
- * @param {string} options.outputWasmFile
  * @param {string} options.outputMjsFile
- * @param {string} options.outputSyncJsFile
+ * @param {string} options.outputSyncCjsFile
+ * @param {string} options.outputSyncDir
+ * @param {string} options.outputSyncMjsFile
+ * @param {string} options.outputWasmFile
  */
 export async function finalizeWasm(options) {
   const {
     buildDir,
     outputFinalDir,
     outputMjsFile,
+    outputSyncCjsFile,
     outputSyncDir,
-    outputSyncJsFile,
+    outputSyncMjsFile,
     outputWasmFile,
   } = options
 
   logger.log('Copying final artifacts to out/Final...')
   logger.logNewline()
 
-  // Copy from Sync directory to Final
   const syncWasmFile = path.join(outputSyncDir, 'ort.wasm')
   const syncMjsFile = path.join(outputSyncDir, 'ort.mjs')
-  const syncJsFile = path.join(outputSyncDir, 'ort-sync.cjs')
+  const syncCjsFile = path.join(outputSyncDir, 'ort-sync.cjs')
   const syncEsmFile = path.join(outputSyncDir, 'ort-sync.mjs')
 
-  // If Sync directory doesn't exist, restore from wasm-synced checkpoint
   if (!existsSync(syncWasmFile)) {
     logger.log('Sync files not found, restoring from wasm-synced checkpoint...')
     const restored = await restoreCheckpoint(
@@ -67,7 +67,6 @@ export async function finalizeWasm(options) {
     logger.logNewline()
   }
 
-  // Clean Final directory before copying to ensure only intended files are archived
   await safeDelete(outputFinalDir)
   await safeMkdir(outputFinalDir)
 
@@ -75,20 +74,18 @@ export async function finalizeWasm(options) {
   if (existsSync(syncMjsFile)) {
     await fs.copyFile(syncMjsFile, outputMjsFile)
   }
-  await fs.copyFile(syncJsFile, outputSyncJsFile)
+  await fs.copyFile(syncCjsFile, outputSyncCjsFile)
 
-  // Copy ESM sync wrapper (.mjs)
-  const outputSyncEsmFile = path.join(outputFinalDir, 'ort-sync.mjs')
   if (existsSync(syncEsmFile)) {
-    await fs.copyFile(syncEsmFile, outputSyncEsmFile)
+    await fs.copyFile(syncEsmFile, outputSyncMjsFile)
   }
 
   const wasmSize = await getFileSize(outputWasmFile)
-  const syncSize = await getFileSize(outputSyncJsFile)
+  const syncSize = await getFileSize(outputSyncCjsFile)
 
   logger.substep(`WASM: ${outputWasmFile} (${wasmSize})`)
   logger.substep(`MJS: ${outputMjsFile}`)
-  logger.substep(`Sync wrapper: ${outputSyncJsFile} (${syncSize})`)
+  logger.substep(`Sync wrapper: ${outputSyncCjsFile} (${syncSize})`)
   logger.logNewline()
 
   return {
@@ -108,7 +105,7 @@ export async function finalizeWasm(options) {
         )
       }
       const _require = createRequire(import.meta.url)
-      const syncModule = _require(outputSyncJsFile)
+      const syncModule = _require(outputSyncCjsFile)
       if (!syncModule) {
         throw new Error('Sync module failed to load')
       }

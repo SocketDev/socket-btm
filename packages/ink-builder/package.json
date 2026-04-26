@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@socketsecurity/lib": "catalog:",
-    "build-infra": "workspace:*"
+    "build-infra": "workspace:*",
+    "yoga-layout-builder": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

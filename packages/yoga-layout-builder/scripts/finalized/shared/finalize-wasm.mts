@@ -23,19 +23,21 @@ const logger = getDefaultLogger()
  *
  * @param {object} options
  * @param {string} options.buildDir
- * @param {string} options.outputSyncDir
  * @param {string} options.outputFinalDir
- * @param {string} options.outputWasmFile
  * @param {string} options.outputMjsFile
- * @param {string} options.outputSyncJsFile
+ * @param {string} options.outputSyncCjsFile
+ * @param {string} options.outputSyncDir
+ * @param {string} options.outputSyncMjsFile
+ * @param {string} options.outputWasmFile
  */
 export async function finalizeWasm(options) {
   const {
     buildDir,
     outputFinalDir,
     outputMjsFile,
+    outputSyncCjsFile,
     outputSyncDir,
-    outputSyncJsFile,
+    outputSyncMjsFile,
     outputWasmFile,
   } = options
 
@@ -44,7 +46,7 @@ export async function finalizeWasm(options) {
 
   const syncWasmFile = path.join(outputSyncDir, 'yoga.wasm')
   const syncMjsFile = path.join(outputSyncDir, 'yoga.mjs')
-  const syncJsFile = path.join(outputSyncDir, 'yoga-sync.cjs')
+  const syncCjsFile = path.join(outputSyncDir, 'yoga-sync.cjs')
   const syncEsmFile = path.join(outputSyncDir, 'yoga-sync.mjs')
 
   if (!existsSync(syncWasmFile)) {
@@ -71,19 +73,18 @@ export async function finalizeWasm(options) {
   if (existsSync(syncMjsFile)) {
     await fs.copyFile(syncMjsFile, outputMjsFile)
   }
-  await fs.copyFile(syncJsFile, outputSyncJsFile)
+  await fs.copyFile(syncCjsFile, outputSyncCjsFile)
 
-  const outputSyncEsmFile = path.join(outputFinalDir, 'yoga-sync.mjs')
   if (existsSync(syncEsmFile)) {
-    await fs.copyFile(syncEsmFile, outputSyncEsmFile)
+    await fs.copyFile(syncEsmFile, outputSyncMjsFile)
   }
 
   const wasmSize = await getFileSize(outputWasmFile)
-  const syncSize = await getFileSize(outputSyncJsFile)
+  const syncSize = await getFileSize(outputSyncCjsFile)
 
   logger.substep(`WASM: ${outputWasmFile} (${wasmSize})`)
   logger.substep(`MJS: ${outputMjsFile}`)
-  logger.substep(`Sync wrapper: ${outputSyncJsFile} (${syncSize})`)
+  logger.substep(`Sync wrapper: ${outputSyncCjsFile} (${syncSize})`)
   logger.logNewline()
 
   return {
@@ -102,7 +103,7 @@ export async function finalizeWasm(options) {
           `WASM file too small: ${wasmStats.size} bytes (expected >100KB)`,
         )
       }
-      const syncStats = await fs.stat(outputSyncJsFile)
+      const syncStats = await fs.stat(outputSyncCjsFile)
       if (syncStats.size === 0) {
         throw new Error('Sync wrapper file is empty')
       }

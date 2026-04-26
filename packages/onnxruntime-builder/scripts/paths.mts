@@ -104,7 +104,8 @@ export function getBuildPaths(mode, platformArch) {
   // WASM output file paths (final distribution)
   const outputWasmFile = path.join(outputFinalDir, 'ort.wasm')
   const outputMjsFile = path.join(outputFinalDir, 'ort.mjs')
-  const outputSyncJsFile = path.join(outputFinalDir, 'ort-sync.cjs')
+  const outputSyncCjsFile = path.join(outputFinalDir, 'ort-sync.cjs')
+  const outputSyncMjsFile = path.join(outputFinalDir, 'ort-sync.mjs')
 
   return {
     buildDir,
@@ -117,8 +118,9 @@ export function getBuildPaths(mode, platformArch) {
     outputMjsFile,
     outputOptimizedDir,
     outputReleaseDir,
+    outputSyncCjsFile,
     outputSyncDir,
-    outputSyncJsFile,
+    outputSyncMjsFile,
     outputWasmFile,
     sourceDir,
     wasmDir,

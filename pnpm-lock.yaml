@@ -476,6 +476,9 @@ importers:
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
+      yoga-layout-builder:
+        specifier: workspace:*
+        version: link:../yoga-layout-builder
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

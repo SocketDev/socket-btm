@@ -16,6 +16,8 @@ import { applyPatchDirectory } from 'build-infra/lib/patch-validator'
 import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
+import { getBuildPaths as getYogaBuildPaths } from 'yoga-layout-builder/scripts/paths'
+
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
@@ -136,34 +138,14 @@ async function main() {
 
   // Copy yoga-sync from yoga-layout-builder.
   logger.step('Bundling yoga-sync')
-  const yogaBuilderDir = path.join(PACKAGE_ROOT, '..', 'yoga-layout-builder')
   const yogaSyncDest = path.join(packageDir, 'build', 'yoga-sync.mjs')
   const platformArch = await getCurrentPlatformArch()
 
-  // Try prod build first, fall back to dev.
-  // Path mirrors yoga-layout-builder's getBuildPaths():
-  //   build/<mode>/<platformArch>/wasm/out/Final/yoga-sync.mjs
-  let yogaSyncSource = path.join(
-    yogaBuilderDir,
-    'build',
-    'prod',
-    platformArch,
-    'wasm',
-    'out',
-    'Final',
-    'yoga-sync.mjs',
-  )
+  // Try prod build first, fall back to dev. Both paths come from yoga's
+  // getBuildPaths() so the on-disk layout is yoga's source of truth.
+  let yogaSyncSource = getYogaBuildPaths('prod', platformArch).outputSyncMjsFile
   if (!existsSync(yogaSyncSource)) {
-    yogaSyncSource = path.join(
-      yogaBuilderDir,
-      'build',
-      'dev',
-      platformArch,
-      'wasm',
-      'out',
-      'Final',
-      'yoga-sync.mjs',
-    )
+    yogaSyncSource = getYogaBuildPaths('dev', platformArch).outputSyncMjsFile
   }
 
   if (!existsSync(yogaSyncSource)) {

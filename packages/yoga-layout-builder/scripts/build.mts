@@ -57,7 +57,8 @@ await runPipelineCli({
   getOutputFiles: paths => [
     paths.outputWasmFile,
     paths.outputMjsFile,
-    paths.outputSyncJsFile,
+    paths.outputSyncCjsFile,
+    paths.outputSyncMjsFile,
   ],
   preflight: async () => {
     await freeDiskSpace()
@@ -162,8 +163,9 @@ await runPipelineCli({
           buildDir: ctx.paths.buildDir,
           outputFinalDir: ctx.paths.outputFinalDir,
           outputMjsFile: ctx.paths.outputMjsFile,
+          outputSyncCjsFile: ctx.paths.outputSyncCjsFile,
           outputSyncDir: ctx.paths.outputSyncDir,
-          outputSyncJsFile: ctx.paths.outputSyncJsFile,
+          outputSyncMjsFile: ctx.paths.outputSyncMjsFile,
           outputWasmFile: ctx.paths.outputWasmFile,
         }),
     },

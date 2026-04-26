@@ -125,16 +125,19 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY packages/ink-builder/ packages/ink-builder/
 COPY packages/build-infra/ packages/build-infra/
 
-# Copy yoga-sync.mjs from yoga-builder stage (yoga writes under
-# build/<mode>/<platform-arch>/wasm/out/Final/; Docker always builds on Linux).
+# Copy yoga-sync.mjs from yoga-builder stage. Path mirrors yoga-layout-builder's
+# getBuildPaths() outputSyncMjsFile (see packages/yoga-layout-builder/scripts/paths.mts):
+#   build/<mode>/<platform-arch>/wasm/out/Final/yoga-sync.mjs
+# Dockerfiles can't import TS, so this string is allowed to duplicate paths.mts —
+# it MUST stay byte-for-byte identical.
 COPY --from=yoga-builder /build/packages/yoga-layout-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/wasm/out/Final/yoga-sync.mjs /yoga-sync.mjs
 
 # Build ink
 WORKDIR /build/packages/ink-builder
 
-# Create build directory and copy yoga-sync before build. ink-builder's build
-# script resolves yoga-sync via getCurrentPlatformArch() so we must place it
-# at the per-platform-arch path it expects.
+# Place yoga-sync.mjs at the per-platform-arch path that ink-builder's build
+# script expects (it imports yoga-layout-builder's getBuildPaths()). The path
+# below MUST stay in sync with packages/yoga-layout-builder/scripts/paths.mts.
 RUN mkdir -p /build/packages/yoga-layout-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/wasm/out/Final && \
     cp /yoga-sync.mjs /build/packages/yoga-layout-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/wasm/out/Final/yoga-sync.mjs
 

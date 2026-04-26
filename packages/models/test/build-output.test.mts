@@ -5,20 +5,14 @@
 
 import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const packageDir = path.join(__dirname, '..')
+import { PACKAGE_ROOT, getBuildPaths } from '../scripts/paths.mts'
+
 const platformArch = await getCurrentPlatformArch()
-const buildDevDir = path.join(packageDir, 'build/dev', platformArch, 'out/Final')
-const buildProdDir = path.join(
-  packageDir,
-  'build/prod',
-  platformArch,
-  'out/Final',
-)
+const buildDevDir = getBuildPaths('dev', platformArch).outputFinalDir
+const buildProdDir = getBuildPaths('prod', platformArch).outputFinalDir
 
 // Skip tests if build artifacts don't exist (expected in CI)
 const hasBuiltArtifacts = existsSync(buildDevDir) || existsSync(buildProdDir)
@@ -158,7 +152,7 @@ describe.skipIf(!hasBuiltArtifacts)('models build output', () => {
   describe('package.json configuration', () => {
     it('should have test script configured', async () => {
       const pkgJson = JSON.parse(
-        await fs.readFile(path.join(packageDir, 'package.json'), 'utf8'),
+        await fs.readFile(path.join(PACKAGE_ROOT, 'package.json'), 'utf8'),
       )
 
       expect(pkgJson.scripts).toBeDefined()
@@ -167,7 +161,7 @@ describe.skipIf(!hasBuiltArtifacts)('models build output', () => {
 
     it('should be marked as private', async () => {
       const pkgJson = JSON.parse(
-        await fs.readFile(path.join(packageDir, 'package.json'), 'utf8'),
+        await fs.readFile(path.join(PACKAGE_ROOT, 'package.json'), 'utf8'),
       )
 
       expect(pkgJson.private).toBeTruthy()

@@ -397,25 +397,42 @@ jobs:
           # Build script handles curl dependency download and stub compilation.
           node scripts/build.mts
 
-      - name: Verify stub binary
+      # Hoist canonical stub paths into step outputs so the verify and
+      # artifact steps share one source of truth. Binary location differs
+      # between Docker (Linux export → out/) and native (macOS/Windows →
+      # build/prod/<platformArch>/out/Final). The native path mirrors
+      # build-infra/lib/paths.mts:getFinalBinaryPath() for stubs-builder
+      # — keep both byte-aligned.
+      - name: Compute stub paths
+        id: stub-paths
         shell: bash
-        working-directory: packages/stubs-builder
         env:
           BUILD_MODE: prod
           PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
           MATRIX_OS: ${{ matrix.os }}
         run: |
-          # Binary location differs between Docker (Linux) and native (macOS/Windows).
           if [ "$MATRIX_OS" = "linux" ]; then
-            # Docker export puts binary in out/ directory.
-            STUB_FILE="out/smol_stub"
-          elif [ "$MATRIX_OS" = "windows" ]; then
-            # Native build outputs to build/prod/${PLATFORM_ARCH}/out/Final/.
-            STUB_FILE="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/smol_stub.exe"
+            FINAL_DIR_REL="out"
           else
-            STUB_FILE="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/smol_stub"
+            FINAL_DIR_REL="build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final"
           fi
+          if [ "$MATRIX_OS" = "windows" ]; then
+            STUB_FILE_NAME="smol_stub.exe"
+          else
+            STUB_FILE_NAME="smol_stub"
+          fi
+          {
+            echo "final_dir_rel=${FINAL_DIR_REL}"
+            echo "final_dir=packages/stubs-builder/${FINAL_DIR_REL}"
+            echo "stub_file_name=${STUB_FILE_NAME}"
+          } >> "$GITHUB_OUTPUT"
 
+      - name: Verify stub binary
+        shell: bash
+        working-directory: packages/stubs-builder
+        env:
+          STUB_FILE: ${{ steps.stub-paths.outputs.final_dir_rel }}/${{ steps.stub-paths.outputs.stub_file_name }}
+        run: |
           if [ ! -f "$STUB_FILE" ]; then
             echo "Error: Stub binary not found: $STUB_FILE"
             exit 1
@@ -435,8 +452,8 @@ jobs:
       - name: Create release artifact
         shell: bash
         env:
-          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
-          MATRIX_OS: ${{ matrix.os }}
+          STUB_DIR: ${{ steps.stub-paths.outputs.final_dir }}
+          STUB_FILE: ${{ steps.stub-paths.outputs.stub_file_name }}
           MATRIX_PLATFORM: ${{ matrix.platform }}
           MATRIX_ARCH: ${{ matrix.arch }}
           MATRIX_LIBC: ${{ matrix.libc }}
@@ -454,20 +471,6 @@ jobs:
           ARTIFACT_NAME="smol-stub-${PLATFORM}-${ARCH}"
           if [ "${LIBC}" = "musl" ]; then
             ARTIFACT_NAME="${ARTIFACT_NAME}-musl"
-          fi
-
-          # Determine stub file name and directory.
-          if [ "$MATRIX_OS" = "linux" ]; then
-            # Docker export puts binary in out/ directory.
-            STUB_DIR="packages/stubs-builder/out"
-            STUB_FILE="smol_stub"
-          elif [ "$MATRIX_OS" = "windows" ]; then
-            # Native build outputs to build/prod/${PLATFORM_ARCH}/out/Final/.
-            STUB_DIR="packages/stubs-builder/build/prod/${PLATFORM_ARCH}/out/Final"
-            STUB_FILE="smol_stub.exe"
-          else
-            STUB_DIR="packages/stubs-builder/build/prod/${PLATFORM_ARCH}/out/Final"
-            STUB_FILE="smol_stub"
           fi
 
           # Create tarball (preserving just the binary name).

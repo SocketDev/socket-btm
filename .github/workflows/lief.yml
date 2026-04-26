@@ -237,6 +237,31 @@ jobs:
           arch: ${{ matrix.arch }}
           libc: ${{ matrix.libc }}
 
+      # Hoist canonical lief paths into step outputs so subsequent steps
+      # (verify, archive, debug listings) read from one place. Mirrors the
+      # binsuite layout that bin-infra/lib/builder.mts produces — the path
+      # MUST stay byte-for-byte identical to that builder's output.
+      - name: Compute lief paths
+        id: paths
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          PLATFORM_ARCH: ${{ steps.platform-arch-cache.outputs.platform_arch }}
+        run: |
+          PACKAGE_DIR="packages/lief-builder"
+          MODE_BUILD_DIR="${PACKAGE_DIR}/build/${BUILD_MODE}"
+          PLATFORM_BUILD_DIR="${MODE_BUILD_DIR}/${PLATFORM_ARCH}"
+          FINAL_DIR="${PLATFORM_BUILD_DIR}/out/Final"
+          LIEF_DIR="${FINAL_DIR}/lief"
+          CHECKPOINTS_DIR="${PLATFORM_BUILD_DIR}/checkpoints"
+          {
+            echo "package_dir=${PACKAGE_DIR}"
+            echo "mode_build_dir=${MODE_BUILD_DIR}"
+            echo "platform_build_dir=${PLATFORM_BUILD_DIR}"
+            echo "final_dir=${FINAL_DIR}"
+            echo "lief_dir=${LIEF_DIR}"
+            echo "checkpoints_dir=${CHECKPOINTS_DIR}"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Restore LIEF checkpoint cache
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         id: lief-checkpoint-cache
@@ -244,7 +269,7 @@ jobs:
         with:
           path: |
             packages/lief-builder/build/shared/checkpoints
-            packages/lief-builder/build/${{ steps.build-mode.outputs.mode }}/${{ steps.platform-arch-cache.outputs.platform_arch }}/checkpoints
+            ${{ steps.paths.outputs.checkpoints_dir }}
           key: lief-checkpoints-${{ steps.cache-key.outputs.cache_version }}-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.libc && format('-{0}', matrix.libc) || '' }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.final_hash }}
           # NOTE: No restore-keys - we require exact match to prevent stale cache restoration.
           # Partial matches with restore-keys cause builds to use outdated artifacts when
@@ -269,7 +294,7 @@ jobs:
         if: steps.lief-checkpoint-cache.outputs.cache-hit == 'true'
         uses: ./.github/actions/validate-checkpoints
         with:
-          checkpoint-dirs: packages/lief-builder/build/shared/checkpoints:packages/lief-builder/build/${{ steps.build-mode.outputs.mode }}/${{ steps.platform-arch-cache.outputs.platform_arch }}/checkpoints
+          checkpoint-dirs: packages/lief-builder/build/shared/checkpoints:${{ steps.paths.outputs.checkpoints_dir }}
           checkpoints: ${{ steps.checkpoint-chain.outputs.checkpoints }}
           package-name: lief-builder
 
@@ -343,29 +368,23 @@ jobs:
           steps.restore-checkpoint.outputs.build-required == 'true')
         shell: bash
         env:
+          PLATFORM_BUILD_DIR: ${{ steps.paths.outputs.platform_build_dir }}
+          LIEF_DIR: ${{ steps.paths.outputs.lief_dir }}
+          PACKAGE_DIR: ${{ steps.paths.outputs.package_dir }}
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
-          PLATFORM: ${{ matrix.platform }}
-          ARCH: ${{ matrix.arch }}
-          LIBC: ${{ matrix.libc }}
         run: |
-          # Construct platform-arch string.
-          PLATFORM_ARCH="${PLATFORM}-${ARCH}"
-          if [ "${LIBC}" = "musl" ]; then
-            PLATFORM_ARCH="${PLATFORM_ARCH}-musl"
-          fi
-
           echo "Verifying Depot build output structure..."
-          ls -lah packages/lief-builder/build/$BUILD_MODE/$PLATFORM_ARCH/ || ls -lah packages/lief-builder/build/$BUILD_MODE/
+          ls -lah "${PLATFORM_BUILD_DIR}/" || ls -lah "${PACKAGE_DIR}/build/${BUILD_MODE}/"
 
           # Check for library file.
-          if [ -f "packages/lief-builder/build/$BUILD_MODE/$PLATFORM_ARCH/out/Final/lief/libLIEF.a" ]; then
+          if [ -f "${LIEF_DIR}/libLIEF.a" ]; then
             echo "✅ libLIEF.a found"
-          elif [ -f "packages/lief-builder/build/$BUILD_MODE/$PLATFORM_ARCH/out/Final/lief/LIEF.lib" ]; then
+          elif [ -f "${LIEF_DIR}/LIEF.lib" ]; then
             echo "✅ LIEF.lib found"
           else
             echo "× LIEF library not found!"
             echo "Contents of output directory:"
-            find packages/lief-builder/build/$BUILD_MODE/ -type f 2>/dev/null || echo "No files found"
+            find "${PACKAGE_DIR}/build/${BUILD_MODE}/" -type f 2>/dev/null || echo "No files found"
             exit 1
           fi
 
@@ -451,38 +470,35 @@ jobs:
           steps.restore-checkpoint.outputs.build-required == 'true'
         shell: bash
         env:
+          PLATFORM_BUILD_DIR: ${{ steps.paths.outputs.platform_build_dir }}
+          PACKAGE_DIR: ${{ steps.paths.outputs.package_dir }}
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
-          PLATFORM_ARCH: ${{ steps.platform-arch-cache.outputs.platform_arch }}
         run: |
           echo "Checking build output structure..."
-          echo "Contents of packages/lief-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/:"
-          ls -lah "packages/lief-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/" || echo "Build directory does not exist"
+          echo "Contents of ${PLATFORM_BUILD_DIR}/:"
+          ls -lah "${PLATFORM_BUILD_DIR}/" || echo "Build directory does not exist"
           echo ""
           echo "Searching for LIEF library files (libLIEF.a or LIEF.lib):"
-          find "packages/lief-builder/build/${BUILD_MODE}/" -name "libLIEF.a" -o -name "LIEF.lib" 2>/dev/null || echo "No LIEF library files found"
+          find "${PACKAGE_DIR}/build/${BUILD_MODE}/" -name "libLIEF.a" -o -name "LIEF.lib" 2>/dev/null || echo "No LIEF library files found"
           echo ""
           echo "Complete directory tree:"
-          find "packages/lief-builder/build/${BUILD_MODE}/" -type f 2>/dev/null || echo "No files found"
+          find "${PACKAGE_DIR}/build/${BUILD_MODE}/" -type f 2>/dev/null || echo "No files found"
 
       - name: Verify release artifacts
         shell: bash
         env:
-          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
-          PLATFORM_ARCH: ${{ steps.platform-arch-cache.outputs.platform_arch }}
+          LIEF_DIR: ${{ steps.paths.outputs.lief_dir }}
         run: |
-          LIEF_DIR="packages/lief-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/lief"
           node packages/lief-builder/scripts/verify-release.mts "$LIEF_DIR"
 
       - name: Create archive
         shell: bash
         env:
-          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          LIEF_DIR: ${{ steps.paths.outputs.lief_dir }}
           PLATFORM: ${{ matrix.platform }}
           ARCH: ${{ matrix.arch }}
           LIBC: ${{ matrix.libc }}
-          PLATFORM_ARCH: ${{ steps.platform-arch-cache.outputs.platform_arch }}
         run: |
-          LIEF_DIR="packages/lief-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/lief"
           cd "$LIEF_DIR"
 
           # Determine library name (platform-specific).
@@ -508,10 +524,9 @@ jobs:
             ARCHIVE_NAME="${ARCHIVE_NAME}-musl"
           fi
 
-          # Create tar.gz with library and headers using relative path.
-          # Current dir: packages/lief-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Final/lief
-          # Target dir: packages/lief-builder/build/${BUILD_MODE}
-          # Relative path: ../../../../
+          # Write the tar.gz up to the mode build dir (4 levels up from the
+          # lief subdir of the Final output). Both source and destination
+          # are owned by paths step outputs above.
           OUTPUT_PATH="../../../../${ARCHIVE_NAME}.tar.gz"
           echo "Creating archive: ${ARCHIVE_NAME}.tar.gz"
           tar -czf "${OUTPUT_PATH}" \
@@ -543,14 +558,14 @@ jobs:
       - name: Verify archive exists
         shell: bash
         env:
-          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          MODE_BUILD_DIR: ${{ steps.paths.outputs.mode_build_dir }}
           ARTIFACT_NAME: ${{ env.ARTIFACT_NAME }}
         run: |
-          ARCHIVE_PATH="packages/lief-builder/build/${BUILD_MODE}/${ARTIFACT_NAME}.tar.gz"
+          ARCHIVE_PATH="${MODE_BUILD_DIR}/${ARTIFACT_NAME}.tar.gz"
           if [ ! -f "$ARCHIVE_PATH" ]; then
             echo "× Archive not found at: $ARCHIVE_PATH"
             echo "Contents of build directory:"
-            ls -lah "packages/lief-builder/build/${BUILD_MODE}/" || echo "Build directory does not exist"
+            ls -lah "${MODE_BUILD_DIR}/" || echo "Build directory does not exist"
             exit 1
           fi
           echo "✅ Archive found: $ARCHIVE_PATH"
@@ -560,7 +575,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: packages/lief-builder/build/${{ steps.build-mode.outputs.mode }}/${{ env.ARTIFACT_NAME }}.tar.gz
+          path: ${{ steps.paths.outputs.mode_build_dir }}/${{ env.ARTIFACT_NAME }}.tar.gz
           retention-days: 30
           if-no-files-found: error
           # tar.gz payload is already gzipped — skip re-gzip.

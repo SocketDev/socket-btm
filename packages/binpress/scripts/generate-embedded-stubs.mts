@@ -30,9 +30,10 @@ import {
 import { SOCKET_BTM_REPO } from '@socketsecurity/lib/releases/socket-btm'
 import { spawn } from '@socketsecurity/lib/spawn'
 
-import { getBuildMode } from 'build-infra/lib/constants'
+import { getBuildMode, getPlatformBuildDir } from 'build-infra/lib/constants'
 import { logTransientErrorHelp } from 'build-infra/lib/github-error-utils'
 import { errorMessage } from 'build-infra/lib/error-utils'
+import { getDownloadedDir, getFinalBinaryPath } from 'build-infra/lib/paths'
 import {
   getCurrentPlatformArch,
   isMusl,
@@ -43,32 +44,25 @@ const logger = getDefaultLogger()
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const BINPRESS_DIR = path.dirname(__dirname)
+const BUILD_INFRA_DIR = path.join(BINPRESS_DIR, '..', 'build-infra')
+const STUBS_BUILDER_DIR = path.join(BINPRESS_DIR, '..', 'stubs-builder')
 const BUILD_MODE = getBuildMode()
 const PLATFORM_ARCH = await getCurrentPlatformArch()
-const BUILD_DIR = path.join(BINPRESS_DIR, 'build', BUILD_MODE, PLATFORM_ARCH)
-// Stubs download to centralized location
-const DOWNLOAD_DIR = path.join(
-  BINPRESS_DIR,
-  '..',
-  'build-infra',
-  'build',
-  'downloaded',
-  'stubs',
-)
+const BUILD_DIR = getPlatformBuildDir(BINPRESS_DIR, PLATFORM_ARCH)
+// Stubs download cache lives under build-infra so multiple consumers
+// (binpress, lief-builder, etc.) share one cache; helper from
+// build-infra/lib/paths owns the 'build/downloaded' segment.
+const DOWNLOAD_DIR = path.join(getDownloadedDir(BUILD_INFRA_DIR), 'stubs')
 // Use EMBEDDED_STUBS_OUTPUT from Makefile if provided, otherwise default
 const OUTPUT_FILE = process.env.EMBEDDED_STUBS_OUTPUT
   ? path.resolve(process.env.EMBEDDED_STUBS_OUTPUT)
   : path.join(BUILD_DIR, 'embedded_stubs.c')
-// Local stub path (built by stubs-builder package)
-const LOCAL_STUB_PATH = path.join(
-  BINPRESS_DIR,
-  '..',
-  'stubs-builder',
-  'build',
+// Local stub path (built by stubs-builder package). Final-binary layout
+// owned by build-infra/lib/paths.getFinalBinaryPath.
+const LOCAL_STUB_PATH = getFinalBinaryPath(
+  STUBS_BUILDER_DIR,
   BUILD_MODE,
   PLATFORM_ARCH,
-  'out',
-  'Final',
   'smol_stub',
 )
 

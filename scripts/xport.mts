@@ -40,11 +40,10 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
+import { errorMessage } from '@socketsecurity/lib/errors'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawnSync } from '@socketsecurity/lib/spawn'
 import { validateSchema } from '@socketsecurity/lib/schema/validate'
-
-import { errorMessage } from 'build-infra/lib/error-utils'
 
 import {
   XportManifestSchema,
@@ -142,30 +141,27 @@ type Report =
 
 function readManifest(manifestPath: string): Manifest {
   if (!existsSync(manifestPath)) {
-    throw new Error(`xport: manifest not found at ${manifestPath}`)
+    logger.error(`xport: manifest not found at ${manifestPath}`)
+    process.exit(1)
   }
   let raw: unknown
   try {
     raw = JSON.parse(readFileSync(manifestPath, 'utf8'))
   } catch (e) {
-    throw new Error(
-      `xport: could not parse ${manifestPath}: ${errorMessage(e)}`,
-      { cause: e },
-    )
+    logger.error(`xport: could not parse ${manifestPath}`)
+    logger.fail(`  ${errorMessage(e)}`)
+    process.exit(1)
   }
   const result = validateSchema(XportManifestSchema, raw)
   if (result.ok) {
     return result.value
   }
-  const details = result.errors
-    .map(issue => {
-      const loc = issue.path.length ? issue.path.join('.') : '<root>'
-      return `  ${loc}: ${issue.message}`
-    })
-    .join('\n')
-  throw new Error(
-    `xport: schema validation failed for ${manifestPath}\n${details}`,
-  )
+  logger.error(`xport: schema validation failed for ${manifestPath}`)
+  for (const issue of result.errors) {
+    const loc = issue.path.length ? issue.path.join('.') : '<root>'
+    logger.fail(`  ${loc}: ${issue.message}`)
+  }
+  process.exit(1)
 }
 
 /**
@@ -944,7 +940,7 @@ function emitHuman(reports: Report[], summaries: AreaSummary[]): number {
   return 0
 }
 
-async function main(): Promise<void> {
+function main(): void {
   const rootManifestPath = path.join(rootDir, 'xport.json')
   const { areas, merged } = loadManifestTree(rootManifestPath)
 
@@ -960,9 +956,10 @@ async function main(): Promise<void> {
     for (const err of crossRowErrors) {
       logger.fail(err)
     }
-    throw new Error(
+    logger.error(
       `xport: ${crossRowErrors.length} cross-row error(s) — fix before running drift checks`,
     )
+    process.exit(1)
   }
 
   const reports = evaluate(rowsWithArea, merged)
@@ -989,7 +986,4 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((e: unknown) => {
-  logger.error(errorMessage(e))
-  process.exitCode = 1
-})
+main()

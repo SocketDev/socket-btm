@@ -86,11 +86,14 @@ const BUILD_ROOT_SEGMENTS = new Set(['build', 'out'])
 const MODE_SEGMENTS = new Set(['dev', 'prod', 'shared'])
 
 // Sibling Socket-fleet packages whose build output is reached via
-// `path.join(*, '..', '<name>', 'build', ...)`. A new package added
-// to the workspace should be added here too. The hook fires Rule B
-// regardless of which sibling is named — but explicit list avoids
-// matching unrelated `'..', 'foo', ...` traversals.
+// `path.join(*, '..', '<name>', 'build', ...)`. Union of all packages
+// across the Socket fleet — the hook is byte-identical via
+// sync-scaffolding, so listing every fleet package keeps Rule B firing
+// in any repo. When a new package joins the workspace, add it here
+// and propagate via `node scripts/sync-scaffolding.mjs --all --fix`
+// from socket-repo-template.
 const KNOWN_SIBLING_PACKAGES = new Set([
+  // socket-btm
   'binflate',
   'binject',
   'binpress',
@@ -111,6 +114,18 @@ const KNOWN_SIBLING_PACKAGES = new Set([
   'stubs-builder',
   'ultraviolet-builder',
   'yoga-layout-builder',
+  // socket-cli
+  'cli',
+  'package-builder',
+  // socket-tui
+  'core',
+  'react',
+  'renderer',
+  'ultraviolet',
+  'yoga',
+  // socket-registry / ultrathink
+  'acorn',
+  'npm',
 ])
 
 // File-path patterns that are exempt from the hook entirely. Edits to

@@ -13,6 +13,19 @@
             "command": "node .claude/hooks/path-guard/index.mts"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/token-guard/index.mts"
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/public-surface-reminder/index.mts"
+          }
+        ]
       }
     ]
   }

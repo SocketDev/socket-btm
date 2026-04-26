@@ -1,6 +1,9 @@
 #!/bin/sh
 # Optional checks - can be bypassed with --no-verify for fast local commits.
-# Mandatory security checks run in pre-push hook.
+# Mandatory security checks ALSO run in pre-push hook.
+#
+# Architecture (parallels commit-msg and pre-push):
+#   .husky/pre-commit (this file) → .git-hooks/pre-commit.mts (security) + pnpm lint/test
 #
 # Use --no-verify for:
 # - History operations (squash, rebase, amend)
@@ -10,12 +13,9 @@
 # Use environment variables to selectively disable:
 # - DISABLE_PRECOMMIT_LINT=1 to skip linting
 # - DISABLE_PRECOMMIT_TEST=1 to skip testing
-#
-# Portability Notes:
-# - Uses POSIX shell syntax (sh) for cross-platform compatibility
-# - Relies on pnpm for cross-platform command execution
-# - Avoids bash-specific features (arrays, [[, etc.)
-# - Tests with [ ] instead of [[ ]] for POSIX compliance
+
+# Run Socket security pre-commit checks (API keys, .DS_Store, etc.).
+node .git-hooks/pre-commit.mts
 
 # Check if pnpm is available
 if ! command -v pnpm >/dev/null 2>&1; then

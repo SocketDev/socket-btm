@@ -38,6 +38,7 @@
 
 - **REQUIRED for staging**: surgical `git add <specific-file> [<file>…]` with explicit paths. Never `-A` / `.`.
 - **If you need a quick WIP save**: commit on a new branch from inside a worktree, not a stash.
+- **NEVER revert files you didn't touch.** If `git status` shows files you didn't modify, those belong to another session, an upstream pull, or a hook side-effect — leave them alone. Specifically: do not run `git checkout -- <unrelated-path>` to "clean up" the diff before committing, and do not include unrelated paths in `git add`. Stage only the explicit files you edited.
 
 The umbrella rule: never run a git command that mutates state belonging to a path other than the file you just edited.
 

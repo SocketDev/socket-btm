@@ -308,7 +308,7 @@ jobs:
         with:
           oidc: true
 
-      - uses: SocketDev/socket-registry/.github/actions/setup@3f2f2c00e9b9dbd78872619e47cb600586b88105 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup@85a2fc0d33af6304246620365de3e7f053035a8d # main
         if: matrix.os == 'linux' && (steps.stubs-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
 
       - name: Stage registry tool-checksums for Docker build context
@@ -358,10 +358,10 @@ jobs:
             exit 1
           fi
 
-      - uses: SocketDev/socket-registry/.github/actions/setup@3f2f2c00e9b9dbd78872619e47cb600586b88105 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup@85a2fc0d33af6304246620365de3e7f053035a8d # main
         if: matrix.os != 'linux' && (steps.stubs-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
 
-      - uses: SocketDev/socket-registry/.github/actions/install@3f2f2c00e9b9dbd78872619e47cb600586b88105 # main
+      - uses: SocketDev/socket-registry/.github/actions/install@85a2fc0d33af6304246620365de3e7f053035a8d # main
         if: matrix.os != 'linux' && (steps.stubs-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
 
       - name: Setup build environment (macOS)

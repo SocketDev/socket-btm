@@ -2,8 +2,7 @@
 name: updating-iocraft
 description: Updates iocraft TUI library submodule to latest stable version, bumps iocraft cache. Use for terminal rendering fixes, new TUI features, or periodic maintenance.
 user-invocable: true
-allowed-tools: Bash, Read, Edit, Glob, Grep
----
+allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Glob, Grep---
 
 # updating-iocraft
 

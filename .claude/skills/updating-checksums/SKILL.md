@@ -2,8 +2,7 @@
 name: updating-checksums
 description: Syncs SHA-256 checksums from GitHub releases to release-assets.json for offline build integrity verification. Use after publishing new releases or when offline builds fail checksum verification.
 user-invocable: true
-allowed-tools: Bash, Read, Edit
----
+allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit---
 
 # updating-checksums
 

@@ -2,8 +2,7 @@
 name: updating-yoga
 description: Updates Yoga layout library source, checks wrapper files for upstream changes, rebuilds WASM module, bumps yoga-layout cache. Use for layout bug fixes, Flexbox improvements, or periodic maintenance. Run before updating-ink.
 user-invocable: true
-allowed-tools: Bash, Read, Edit, Glob, Grep
----
+allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Glob, Grep---
 
 # updating-yoga
 

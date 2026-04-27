@@ -2,8 +2,7 @@
 name: updating-node
 description: Updates Node.js submodule to latest stable tag, syncs .node-version, regenerates patches via autonomous agent, bumps node-smol cache. Use for new Node.js releases, security patches, or API updates.
 user-invocable: true
-allowed-tools: Task, Bash, Read, Edit, Skill
----
+allowed-tools: Task, Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Skill---
 
 # updating-node
 

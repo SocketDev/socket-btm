@@ -2,8 +2,7 @@
 name: updating-lief
 description: Updates LIEF submodule to match Node.js deps version, performs API compatibility audit across 20+ source files. Use after Node.js updates or when LIEF version drifts from Node.js deps.
 user-invocable: true
-allowed-tools: Task, Bash, Read, Edit, Grep, Glob
----
+allowed-tools: Task, Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Grep, Glob---
 
 # updating-lief
 

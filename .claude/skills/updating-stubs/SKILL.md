@@ -2,8 +2,7 @@
 name: updating-stubs
 description: Rebuilds self-extracting stub binaries after triggering curl update. Bumps stubs/binpress/node-smol caches. Use when stub binaries need refresh or after curl security patches.
 user-invocable: true
-allowed-tools: Skill, Bash, Read, Edit, Glob, Grep
----
+allowed-tools: Skill, Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Glob, Grep---
 
 # updating-stubs
 

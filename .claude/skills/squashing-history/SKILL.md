@@ -2,8 +2,7 @@
 name: squashing-history
 description: Squashes all commits on main to a single "Initial commit" with backup branch, integrity verification, and user confirmation before force push. Use when cleaning history or preparing for fresh start.
 user-invocable: true
-allowed-tools: Bash, AskUserQuestion
----
+allowed-tools: AskUserQuestion, Bash(git:*), Bash(diff:*), Bash(rm:*), Bash(ls:*)---
 
 # squashing-history
 

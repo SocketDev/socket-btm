@@ -2,8 +2,7 @@
 name: updating-ink
 description: Updates ink TUI framework from npm, regenerates patches for signal-exit and devtools fixes, bumps ink cache. Use for rendering fixes, React updates, or periodic maintenance. Run after updating-yoga.
 user-invocable: true
-allowed-tools: Bash, Read, Edit, Glob, Grep
----
+allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Glob, Grep---
 
 # updating-ink
 

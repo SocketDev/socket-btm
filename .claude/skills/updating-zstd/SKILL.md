@@ -2,8 +2,7 @@
 name: updating-zstd
 description: Updates zstd submodule to match Node.js deps version. Use after Node.js updates or when zstd version drifts from Node.js deps.
 user-invocable: true
-allowed-tools: Bash, Read, Edit, Grep
----
+allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Grep---
 
 # updating-zstd
 

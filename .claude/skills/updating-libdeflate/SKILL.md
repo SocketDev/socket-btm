@@ -2,8 +2,7 @@
 name: updating-libdeflate
 description: Updates libdeflate compression library submodule to latest stable version, bumps binject and node-smol caches. Use for compression performance improvements, bug fixes, or periodic maintenance.
 user-invocable: true
-allowed-tools: Bash, Read, Edit, Glob, Grep
----
+allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Glob, Grep---
 
 # updating-libdeflate
 

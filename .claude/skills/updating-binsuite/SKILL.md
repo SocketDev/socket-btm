@@ -2,8 +2,7 @@
 name: updating-binsuite
 description: Orchestrates LIEF and stubs updates in correct dependency order (LIEF first, then stubs). Use after Node.js updates, before releases, or when binary tools need refresh.
 user-invocable: true
-allowed-tools: Skill, Bash, Read
----
+allowed-tools: Skill, Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read---
 
 # updating-binsuite
 

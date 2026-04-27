@@ -2,8 +2,7 @@
 name: quality-scan
 description: Scans the codebase for bugs, logic errors, caching issues, and workflow problems using specialized agents. Use when preparing for release, investigating quality issues, or running pre-merge checks.
 user-invocable: true
-allowed-tools: Task, Bash, Read, Grep, Glob, AskUserQuestion
----
+allowed-tools: Task, Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Grep, Glob, AskUserQuestion---
 
 # quality-scan
 

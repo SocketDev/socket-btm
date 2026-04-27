@@ -2,8 +2,7 @@
 name: updating-fast-webstreams
 description: Vendors fast-webstreams from npm to additions/, converting ESM to CommonJS with primordials for Node.js bootstrap. Use when the WebStreams version needs update or builds fail with streams errors.
 user-invocable: true
-allowed-tools: Bash, Read
----
+allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read---
 
 # updating-fast-webstreams
 

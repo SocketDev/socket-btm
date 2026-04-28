@@ -119,6 +119,7 @@ The umbrella rule: never run a git command that mutates state belonging to a pat
 - **minimumReleaseAge**: NEVER add packages to `minimumReleaseAgeExclude` in CI. Locally, ASK before adding — the age threshold is a security control.
 - 🚨 **NEVER mention private repos or internal project names** in commits, PR titles/descriptions/comments, issues, release notes, or any public-surface text. Internal codenames, unreleased product names, internal tooling repo names not on the public org page, customer names, partner names — none belong in public surfaces. **Omit the reference entirely.** Don't substitute a placeholder ("an internal tool", "a downstream consumer", etc.) — the placeholder itself is a tell that something is being elided. Rewrite the sentence to not need the reference at all.
 - 🚨 **NEVER trigger Publish / Release / Provenance / Build-Release workflows** — no `gh workflow run`, `gh workflow dispatch`, or `gh api .../dispatches`. Workflow dispatches are irrevocable: Publish workflows push npm versions (unpublishable after 24h), Build/Release workflows pin GitHub releases by SHA, container workflows push immutable tags. Even build workflows with a `dry_run` input still treat the dispatch itself as the prod trigger. The user runs workflow_dispatch jobs manually after CI passes on the release commit + tag — Claude **never** dispatches them. If the user asks for a publish, tell them to run the command in their own terminal (or the GitHub Actions UI).
+- 🚨 **Programmatic Claude calls** (workflows, skills, scripts that invoke `claude` CLI or `@anthropic-ai/claude-agent-sdk`) MUST set all four lockdown flags: `--tools`/`tools`, `--allowedTools`/`allowedTools`, `--disallowedTools`/`disallowedTools`, and `--permission-mode dontAsk`/`permissionMode: 'dontAsk'`. NEVER `default` mode in headless contexts (falls through to a missing `canUseTool` → undefined behavior). NEVER `bypassPermissions`. See `.claude/skills/programmatic-claude-lockdown/SKILL.md` for the recipe + reference impl (`socket-lib/tools/prim/src/disambiguate.mts`).
 - HTTP Requests: NEVER use `fetch()` — use `httpJson`/`httpText`/`httpRequest` from `@socketsecurity/lib/http-request`
 
 ### Commit Messages
@@ -436,30 +437,7 @@ Source packages (`binject`, `bin-infra`, `build-infra`) are canonical. ALL work 
 
 ### Cache Version Cascade
 
-When modifying source, bump `.github/cache-versions.json` for all dependents:
-
-| Changed                                     | Bump                                                           |
-| ------------------------------------------- | -------------------------------------------------------------- |
-| build-infra/lib/                            | all 13 downstream (every builder's scripts import from it)     |
-| build-infra/make/                           | stubs, binflate, binject, binpress, node-smol (.mk includes)   |
-| build-infra/src/socketsecurity/build-infra/ | stubs, binflate, binject, binpress, node-smol                  |
-| build-infra/wasm-synced/                    | yoga-layout, onnxruntime, ink (shared WASM sync helpers)       |
-| build-infra/release-assets.json             | all 13 downstream (SHA-256 checksums for offline builds)       |
-| build-infra/external-tools.json             | all 13 downstream (foundational toolchain pins)                |
-| build-infra/scripts/                        | all 13 downstream (get-checkpoint-chain, smoke-test-binary)    |
-| .github/scripts/                            | stubs, binflate, binject, binpress, node-smol (Docker boots)   |
-| bin-infra/lib/                              | all 13 downstream                                              |
-| bin-infra/make/                             | stubs, binflate, binject, binpress, node-smol (.mk includes)   |
-| bin-infra/src/socketsecurity/bin-infra/     | stubs, binflate, binject, binpress, node-smol                  |
-| binject/src/socketsecurity/binject/         | binject, binpress, node-smol (binpress compiles smol_config.c) |
-| stubs-builder/{docker,make,scripts,src}/    | stubs, binpress, node-smol                                     |
-| curl-builder/{docker,lib,scripts}/          | curl, stubs, node-smol (stubs links libcurl; node-smol embeds) |
-| binpress/src/                               | binpress, node-smol                                            |
-| binflate/src/                               | binflate, node-smol (embedded in self-extracting stub)         |
-| lief-builder/{docker,lib,make,patches,scripts}/ | lief, binject, binpress, node-smol                         |
-| yoga-layout-builder/{scripts,src}/          | yoga-layout, ink (ink bundles yoga-sync.mjs)                   |
-
-`validate-cache-versions.mts` CASCADE_RULES enforces this mechanically.
+When modifying source, bump `.github/cache-versions.json` for all dependents. The full path → consumer mapping lives in `scripts/validate-cache-versions.mts` (`CASCADE_RULES`); the gate runs in `pnpm check` and CI, so missed bumps fail the build instead of leaking into a release.
 
 ### Test Style
 

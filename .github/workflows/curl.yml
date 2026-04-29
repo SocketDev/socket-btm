@@ -115,9 +115,9 @@ jobs:
         with:
           debug: ${{ inputs.debug }}
 
-      - uses: SocketDev/socket-registry/.github/actions/setup@024156f835eb8627c9ca5bcc44ef84cb2b1c6c41 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup@024156f860be6d0e0e060360fa90747b8b6fbcf3 # main
 
-      - uses: SocketDev/socket-registry/.github/actions/install@024156f835eb8627c9ca5bcc44ef84cb2b1c6c41 # main
+      - uses: SocketDev/socket-registry/.github/actions/install@024156f860be6d0e0e060360fa90747b8b6fbcf3 # main
 
       - name: Set build mode
         id: build-mode

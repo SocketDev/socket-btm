@@ -95,7 +95,7 @@ jobs:
             target: aarch64-pc-windows-msvc
 
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@eeb81520395947c6c4ab701b4f7f690a2296b816 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@024156f835eb8627c9ca5bcc44ef84cb2b1c6c41 # main
 
       - name: Enable debug logging
         uses: ./.github/actions/enable-debug-logging

@@ -98,7 +98,7 @@ jobs:
             zig_target: aarch64-windows-gnu
 
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@85a2fc0d33af6304246620365de3e7f053035a8d # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@eeb81520395947c6c4ab701b4f7f690a2296b816 # main
 
       - name: Enable debug logging
         uses: ./.github/actions/enable-debug-logging

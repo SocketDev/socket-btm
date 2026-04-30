@@ -286,6 +286,16 @@ importers:
         specifier: 'catalog:'
         version: 2.1.3
 
+  .claude/hooks/auth-rotation-reminder:
+    dependencies:
+      '@socketsecurity/lib':
+        specifier: 'catalog:'
+        version: 5.25.1
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
   .claude/hooks/check-new-deps:
     dependencies:
       '@socketregistry/packageurl-js':
@@ -300,6 +310,12 @@ importers:
     devDependencies:
       '@types/node':
         specifier: 24.9.2
+        version: 24.9.2
+
+  .claude/hooks/logger-guard:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
         version: 24.9.2
 
   .claude/hooks/path-guard: {}

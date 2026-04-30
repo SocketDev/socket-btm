@@ -28,6 +28,11 @@
   class: cpp-hardcoded-tmp-path
   reason: "Last-resort fallback path used when $SOCKET_CACACHE_DIR, $SOCKET_HOME, $HOME, and $USERPROFILE are all unset (extremely unusual). The caller wraps every public entry point (cacache_get/put/remove) with scache_verify_no_symlinks() which uses lstat to reject any symlink component, so even this fallback can't be symlink-attacked. Reviewed R25."
 
+- file: .claude/skills/path-guard/SKILL.md
+  line: 5
+  class: docs-pnpm-run-nonexistent
+  reason: "The `Bash(pnpm run check:*)` allowed-tool spec is a Claude permission glob, not a literal `pnpm run check:*` invocation. The trailing `:*` is the Claude permission-glob wildcard meaning 'any args'; `pnpm run check` is the real script (matches socket-btm's package.json). Pre-existing template-canonical text — checked across socket-* repos + ultrathink."
+
 - file: .claude/skills/quality-scan/reference.md
   class: docs-pnpm-run-nonexistent
   reason: "Documentation example explaining the pnpm run convention ('pnpm run foo --flag' — `foo` is an intentional placeholder, not a real script)."

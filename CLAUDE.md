@@ -58,7 +58,7 @@ The umbrella rule: never run a git command that mutates state belonging to a pat
 ### Tooling
 
 - **Package manager**: `pnpm`. Run scripts via `pnpm run foo --flag`, never `foo:bar`. After `package.json` edits, `pnpm install`.
-- 🚨 NEVER use `npx`, `pnpm dlx`, or `yarn dlx` — use `pnpm exec <package>` or `pnpm run <script>` # zizmor: documentation-prohibition
+- 🚨 NEVER use `npx`, `pnpm dlx`, or `yarn dlx` — use `pnpm exec <package>` or `pnpm run <script>` # socket-hook: allow npx
 - **`minimumReleaseAge`** — never add packages to `minimumReleaseAgeExclude` in CI. Locally, ASK before adding (security control).
 - **Backward compatibility** — FORBIDDEN to maintain. Actively remove when encountered.
 
@@ -115,7 +115,7 @@ Use `isError` / `isErrnoException` / `errorMessage` / `errorStack` from `@socket
 
 🚨 Never emit the raw value of any secret to tool output, commits, comments, or replies. The `.claude/hooks/token-guard/` `PreToolUse` hook blocks the deterministic patterns (literal token shapes, env dumps, `.env*` reads, unfiltered `curl -H "Authorization:"`, sensitive-name commands without redaction). When the hook blocks a command, rewrite — don't bypass.
 
-Behavior the hook can't catch: redact `token` / `jwt` / `access_token` / `refresh_token` / `api_key` / `secret` / `password` / `authorization` fields when citing API responses. Show key *names* only when displaying `.env.local`. If a user pastes a secret, treat it as compromised and ask them to rotate.
+Behavior the hook can't catch: redact `token` / `jwt` / `access_token` / `refresh_token` / `api_key` / `secret` / `password` / `authorization` fields when citing API responses. Show key _names_ only when displaying `.env.local`. If a user pastes a secret, treat it as compromised and ask them to rotate.
 
 Full hook spec in [`.claude/hooks/token-guard/README.md`](.claude/hooks/token-guard/README.md).
 
@@ -196,14 +196,16 @@ ALWAYS use standard unified diff (`--- a/`, `+++ b/`). NEVER use `git format-pat
 Required headers — one `@<project>-versions` token per patch matching the target:
 
 ```diff
-## @node-versions: vX.Y.Z     (or @iocraft-versions / @ink-versions / @lief-versions)
-## @description: One-line summary
+
+### @node-versions: vX.Y.Z     (or @iocraft-versions / @ink-versions / @lief-versions)
+
+### @description: One-line summary
 #
 --- a/file
 +++ b/file
 ```
 
-#### Patch Rules
+##### Patch Rules
 
 - Each patch affects ONE file. Prefer independent patches.
 - For multi-file features that cannot be split independently, use an ordered numeric-prefix series (`001-*.patch`, `002-*.patch`, `003-*.patch`) applied in filename order. Each still touches ONE file; dependencies flow in ascending order only.
@@ -211,7 +213,7 @@ Required headers — one `@<project>-versions` token per patch matching the targ
 - To regenerate: use `/regenerating-patches` skill
 - Manual: `diff -u a/file b/file`, add headers, validate with `patch --dry-run`
 
-### Version consistency gate
+#### Version consistency gate
 
 `scripts/check-version-consistency.mts` cross-references `.gitmodules` version comments against each upstream's `package.json` `sources.<upstream>.version` + `.ref` and the actual gitlink SHA. Catches the shape R22-R25 hand-fixed during upstream version audits — a submodule bump that forgot to touch the version table, or a version table that points at a commit the submodule isn't actually on. Runs on every `pnpm run check`.
 
@@ -220,7 +222,7 @@ Required headers — one `@<project>-versions` token per patch matching the targ
 - **Machine-readable output**: `--json`
 - **Allowlist transitional drift**: `.github/version-consistency-allowlist.yml`
 
-### Mirror-docs sync gate
+#### Mirror-docs sync gate
 
 `scripts/check-mirror-docs.mts` enforces the doc-mirror invariant from "Documentation Policy": every public `lib/smol-*.js` module has a matching `docs/additions/lib/<name>.js.md`, and every mirror doc still has a live source. Catches orphaned docs from deleted sources and new public modules that shipped without a doc. Runs on every `pnpm run check`.
 
@@ -229,7 +231,7 @@ Required headers — one `@<project>-versions` token per patch matching the targ
 - **Machine-readable output**: `--json`
 - **Allowlist orphan/missing exceptions**: `.github/mirror-docs-allowlist.yml`
 
-### Bug-class regression gate
+#### Bug-class regression gate
 
 `scripts/check-bug-classes.mts` encodes the bug classes caught across R14+ quality-scan rounds. It runs on every `pnpm run check` invocation (so it runs in CI via `.github/workflows/ci.yml`) and fails if any code matches a known-bad shape that isn't in the allowlist.
 
@@ -241,7 +243,7 @@ Required headers — one `@<project>-versions` token per patch matching the targ
 
 The gate is regression-prevention only. It cannot find NEW bug classes the codebase hasn't seen yet — `/quality-scan` still runs periodically for that.
 
-### Cascade-completeness gate
+#### Cascade-completeness gate
 
 `scripts/check-cascade-completeness.mts` walks every Makefile `include`, every cross-package TypeScript `import`, and every Dockerfile `COPY` and verifies each discovered dependency is covered by a CASCADE_RULE in `scripts/validate-cache-versions.mts` OR by a hash in the consuming workflow's cache-key composition. Runs on every `pnpm run check` invocation.
 
@@ -252,7 +254,7 @@ The gate is regression-prevention only. It cannot find NEW bug classes the codeb
 
 Catches the shape that powered R18-R27 scope creep — R18 missed `build-infra/wasm-synced/`, R19 missed `curl-builder/{docker,lib,scripts}/`, R20 missed `lief-builder/{lib,scripts}/`, R24 missed root `package.json` + `pnpm-workspace.yaml` across 11 workflows, R27 missed LIEF in stubs.yml. All same shape: dependency exists, builder uses it, cache key doesn't know. One PR's Dockerfile edit or `import { x } from 'foo-builder/bar'` that's missing cascade coverage now fails CI instead of leaking into a later scan round.
 
-### Patch format gate
+#### Patch format gate
 
 `scripts/check-patch-format.mts` validates every `.patch` under `packages/*/patches/` against the canonical format documented in "Source Patches" above and the lessons from R14-R21 quality scans. Runs on every `pnpm run check`.
 
@@ -271,13 +273,13 @@ Rules enforced:
 
 - Rules: `.claude/rules/gitmodules-version-comments.md` — `.gitmodules` version-comment format
 
-### Build System
+#### Build System
 
 - **ALWAYS use `pnpm run build`**, NEVER invoke Makefiles directly (build scripts handle dependency downloads)
 - **ALWAYS run clean before rebuilding**: `pnpm --filter <pkg> clean && pnpm --filter <pkg> build`
 - NEVER manually delete checkpoint files — the clean script knows all locations
 
-#### Toolchain alignment with language upstreams
+##### Toolchain alignment with language upstreams
 
 Keep our pins, source-of-truth URLs, and checksum metadata aligned with where each language project **currently lives and publishes**, not where it used to. When a language or compiler migrates its canonical home, mirror the move in our tooling the same release cycle:
 
@@ -288,61 +290,61 @@ Keep our pins, source-of-truth URLs, and checksum metadata aligned with where ea
 
 When in doubt, check the language's own `README`/`index.json`/release metadata for where they're pushing tagged releases now — that's the canonical answer.
 
-#### Source of Truth Architecture
+##### Source of Truth Architecture
 
 Source packages (`binject`, `bin-infra`, `build-infra`) are canonical. ALL work in source packages, then sync to `additions/`. NEVER make changes only in `additions/` — they will be overwritten.
 
 **The mirrored subdirectories under `additions/source-patched/src/socketsecurity/{bin-infra,binject,build-infra}/` are GITIGNORED** (see `.gitignore` lines 59-61). The `prepare-external-sources.mts` step of the node-smol build populates them by copying from the canonical source packages and then validates the hash matches. If the build fails with "Additions directory out of sync!", the working-tree copy is stale — rerun `pnpm --filter node-smol-builder build` (which will re-sync), or do it manually with `rsync -a --delete packages/<pkg>/src/socketsecurity/<pkg>/ packages/node-smol-builder/additions/source-patched/src/socketsecurity/<pkg>/`. Never "commit" a fix — those paths are untracked on purpose.
 
-#### Cache Version Cascade
+##### Cache Version Cascade
 
 When modifying source, bump `.github/cache-versions.json` for all dependents. The full path → consumer mapping lives in `scripts/validate-cache-versions.mts` (`CASCADE_RULES`); the gate runs in `pnpm check` and CI, so missed bumps fail the build instead of leaking into a release.
 
-#### Test Style
+##### Test Style
 
 **NEVER write source-code-scanning tests.** Write functional tests that verify behavior. For modules requiring the built binary: use integration tests with final binary (`getLatestFinalBinary`), NEVER intermediate stages.
 
 **Test fixtures run by the built binary** (smoke tests, integration tests) MUST use `.mjs`/`.js` extensions, NOT `.mts`. The node-smol binary is built `--without-amaro` so it has no TypeScript stripping support. This only applies to files executed by the built binary — build scripts run by the host Node.js can use `.mts` normally.
 
-#### Fetching npm Packages
+##### Fetching npm Packages
 
 **ALWAYS use npm registry directly** (`npm pack` or `https://registry.npmjs.org/`), NEVER CDNs like unpkg.
 
-### Glossary
+#### Glossary
 
-#### Binary Formats
+##### Binary Formats
 
 - **Mach-O**: macOS/iOS, **ELF**: Linux, **PE**: Windows
 
-#### Build Concepts
+##### Build Concepts
 
 - **Checkpoint**: Cached snapshot of build progress for incremental builds
 - **Cache Version**: Version in `.github/cache-versions.json` that invalidates CI caches
 - **Upstream**: Original Node.js source before patches
 
-#### Node.js Customization
+##### Node.js Customization
 
 - **SEA**: Single Executable Application (standalone with runtime + app code)
 - **VFS**: Virtual File System embedded inside a binary
 - **Additions Directory**: Code embedded into Node.js during build
 
-#### Binary Manipulation
+##### Binary Manipulation
 
 - **Binary Injection**: Inserting data into compiled binary without recompilation
 - **Section/Segment**: Named regions in executables
 - **LIEF**: Library for reading/modifying executable formats
 
-#### Compression
+##### Compression
 
 - **zstd**: Zstandard compression (fast decompression ~1.5 GB/s, good ratio)
 - **Stub Binary**: Small executable that decompresses and runs main binary
 
-#### Cross-Platform
+##### Cross-Platform
 
 - **musl**: Lightweight C library for Alpine Linux (vs glibc on most distros)
 - **Universal Binary**: macOS binary with ARM64 + x64 code
 
-#### Package Names
+##### Package Names
 
 **Core binary-injection suite:**
 - **binject**: Injects data into binaries (SEA resources, VFS archives)
@@ -374,33 +376,33 @@ When modifying source, bump `.github/cache-versions.json` for all dependents. Th
 - **onnxruntime-builder**: Builds ONNX Runtime → WASM
 - **codet5-models-builder**, **minilm-builder**, **models**: Model pipeline (downloads → converts → quantizes → optimizes)
 
-### Codex Usage
+#### Codex Usage
 
 **Codex is for advice and critical assessment ONLY — never for making code changes.** Proactively consult before complex optimizations (>30min estimated) to catch design flaws early.
 
-### spawn() Usage
+#### spawn() Usage
 
 **NEVER change `shell: WIN32` to `shell: true`** — `shell: WIN32` enables shell on Windows (needed) and disables on Unix (not needed). If spawn fails with ENOENT, separate command from arguments.
 
-### Built-in Module Import Style
+#### Built-in Module Import Style
 
 - Cherry-pick `fs` (`import { existsSync, promises as fs } from 'node:fs'`), default import `path`/`os`/`url`/`crypto`
 - File existence: ALWAYS `existsSync`. NEVER `fs.access`, `fs.stat`-for-existence, or an async `fileExists` wrapper.
 - Use `@socketsecurity/lib/spawn` instead of `node:child_process` (except in `additions/`)
 - Exception: cherry-pick `fileURLToPath` from `node:url`
 
-### isMainModule Detection
+#### isMainModule Detection
 
 **ALWAYS use `fileURLToPath(import.meta.url) === path.resolve(process.argv[1])`** — works cross-platform. NEVER use `endsWith()` or raw URL comparison.
 
-### Platform-Arch and libc
+#### Platform-Arch and libc
 
 **ALWAYS pass libc parameter for Linux platform operations.** Prefer `getCurrentPlatformArch()` which auto-detects libc. Missing libc causes builds to output to wrong directories.
 
-### Working Directory
+#### Working Directory
 
 🚨 **NEVER use `process.chdir()`** — pass `{ cwd }` options and absolute paths instead. Breaks tests, worker threads, causes race conditions.
 
-### Logging
+#### Logging
 
 **ALWAYS use `@socketsecurity/lib/logger`** instead of `console.*`. NEVER add emoji/symbols manually (logger provides them). Exception: `additions/` directory.

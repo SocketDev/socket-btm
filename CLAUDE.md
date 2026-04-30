@@ -202,6 +202,10 @@ When in doubt, sort. The cost of a sorted list that didn't need to be is approxi
 - **Leaky**: `Promise.race(pool)` inside a loop where `pool` persists across iterations.
 - **Fix**: single-waiter signal — each task's own `.then` resolves a one-shot `promiseWithResolvers` that the loop awaits, then replaces. No persistent pool, nothing to stack.
 
+### Background Bash
+
+Never use `Bash(run_in_background: true)` for test/build commands (`vitest`, `pnpm test`, `pnpm build`, `tsgo`). Backgrounded runs you don't poll get abandoned and leak Node workers. Background mode is for dev servers and long migrations whose results you'll consume. If a run hangs, kill it: `pkill -f "vitest/dist/workers"`.
+
 ### spawn() Usage
 
 **NEVER change `shell: WIN32` to `shell: true`** — `shell: WIN32` enables shell on Windows (needed) and disables on Unix (not needed). If spawn fails with ENOENT, separate command from arguments.

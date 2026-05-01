@@ -1,5 +1,5 @@
 name: Set Platform-Arch
-description: Composes the platform-arch string (converting win32→win, appending -musl when applicable) from matrix inputs
+description: Composes the platform-arch string from matrix inputs, matching pnpm pack-app's target convention (win32, darwin, linux + arch + optional -musl)
 
 inputs:
   platform:
@@ -15,7 +15,7 @@ inputs:
 
 outputs:
   platform_arch:
-    description: 'Release-ready platform-arch string (e.g. darwin-arm64, linux-x64-musl, win-x64)'
+    description: 'Release-ready platform-arch string (e.g. darwin-arm64, linux-x64-musl, win32-x64) — matches pack-app target naming'
     value: ${{ steps.resolve.outputs.platform_arch }}
 
 runs:
@@ -29,13 +29,12 @@ runs:
         ARCH: ${{ inputs.arch }}
         LIBC: ${{ inputs.libc }}
       run: |
-        # Convert win32 -> win for file/folder names.
-        if [ "${PLATFORM}" = "win32" ]; then
-          RELEASE_PLATFORM="win"
-        else
-          RELEASE_PLATFORM="${PLATFORM}"
-        fi
-        PLATFORM_ARCH="${RELEASE_PLATFORM}-${ARCH}"
+        # Use Node.js platform string verbatim (win32, not win) so
+        # asset filenames, build dirs, and consumer-side
+        # process.platform comparisons all share one vocabulary.
+        # Aligns with pnpm pack-app's target convention used fleet-
+        # wide (ultrathink, future stuie/cli, etc.).
+        PLATFORM_ARCH="${PLATFORM}-${ARCH}"
         if [ "${LIBC}" = "musl" ]; then
           PLATFORM_ARCH="${PLATFORM_ARCH}-musl"
         fi

@@ -19,13 +19,18 @@ const logger = getDefaultLogger()
 /**
  * Maps Node.js platform names to GitHub release platform names.
  *
+ * Aligned with pnpm pack-app's target convention so asset filenames,
+ * internal build directories, and consumer-side process.platform
+ * comparisons all share one vocabulary. Historical naming used the
+ * shortened `win` form; that translation layer is removed.
+ *
  * @type {Readonly<Record<string, string>>}
  */
 export const RELEASE_PLATFORM_MAP = Object.freeze({
   __proto__: null,
   darwin: 'darwin',
   linux: 'linux',
-  win32: 'win',
+  win32: 'win32',
 })
 
 /**

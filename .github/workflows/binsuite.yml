@@ -1430,19 +1430,19 @@ jobs:
           fi
 
           # Windows x64
-          if [ -d "artifacts/${TOOL}-win-x64" ]; then
-            mv artifacts/${TOOL}-win-x64/${TOOL}.exe \
-               dist/${TOOL}/${TOOL}-win-x64.exe 2>/dev/null || \
-            mv artifacts/${TOOL}-win-x64/${TOOL} \
-               dist/${TOOL}/${TOOL}-win-x64 2>/dev/null || true
+          if [ -d "artifacts/${TOOL}-win32-x64" ]; then
+            mv artifacts/${TOOL}-win32-x64/${TOOL}.exe \
+               dist/${TOOL}/${TOOL}-win32-x64.exe 2>/dev/null || \
+            mv artifacts/${TOOL}-win32-x64/${TOOL} \
+               dist/${TOOL}/${TOOL}-win32-x64 2>/dev/null || true
           fi
 
           # Windows ARM64
-          if [ -d "artifacts/${TOOL}-win-arm64" ]; then
-            mv artifacts/${TOOL}-win-arm64/${TOOL}.exe \
-               dist/${TOOL}/${TOOL}-win-arm64.exe 2>/dev/null || \
-            mv artifacts/${TOOL}-win-arm64/${TOOL} \
-               dist/${TOOL}/${TOOL}-win-arm64 2>/dev/null || true
+          if [ -d "artifacts/${TOOL}-win32-arm64" ]; then
+            mv artifacts/${TOOL}-win32-arm64/${TOOL}.exe \
+               dist/${TOOL}/${TOOL}-win32-arm64.exe 2>/dev/null || \
+            mv artifacts/${TOOL}-win32-arm64/${TOOL} \
+               dist/${TOOL}/${TOOL}-win32-arm64 2>/dev/null || true
           fi
 
           # Make Unix binaries executable
@@ -1528,8 +1528,8 @@ jobs:
           - linux-x64
           - linux-arm64-musl
           - linux-x64-musl
-          - win-arm64
-          - win-x64
+          - win32-arm64
+          - win32-x64
 
           ## Files
           - \`${TOOL}-darwin-arm64\` - macOS Apple Silicon
@@ -1538,8 +1538,8 @@ jobs:
           - \`${TOOL}-linux-x64\` - Linux x64 (glibc)
           - \`${TOOL}-linux-arm64-musl\` - Linux ARM64 (musl/Alpine)
           - \`${TOOL}-linux-x64-musl\` - Linux x64 (musl/Alpine)
-          - \`${TOOL}-win-arm64.exe\` - Windows ARM64
-          - \`${TOOL}-win-x64.exe\` - Windows x64
+          - \`${TOOL}-win32-arm64.exe\` - Windows ARM64
+          - \`${TOOL}-win32-x64.exe\` - Windows x64
           - \`checksums.txt\` - SHA256 checksums
 
           ## Usage

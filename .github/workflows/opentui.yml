@@ -496,8 +496,8 @@ jobs:
           - \`opentui-${VERSION}-linux-arm64-musl.node\` - Linux ARM64 musl native module
           - \`opentui-${VERSION}-darwin-x64.node\` - macOS Intel native module
           - \`opentui-${VERSION}-darwin-arm64.node\` - macOS Apple Silicon native module
-          - \`opentui-${VERSION}-win-x64.node\` - Windows x64 native module
-          - \`opentui-${VERSION}-win-arm64.node\` - Windows ARM64 native module
+          - \`opentui-${VERSION}-win32-x64.node\` - Windows x64 native module
+          - \`opentui-${VERSION}-win32-arm64.node\` - Windows ARM64 native module
           - \`checksums.txt\` - SHA256 checksums
 
           ## Usage

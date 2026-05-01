@@ -508,8 +508,8 @@ jobs:
           - \`iocraft-${VERSION}-linux-arm64-musl.node\` - Linux ARM64 musl native module
           - \`iocraft-${VERSION}-darwin-x64.node\` - macOS Intel native module
           - \`iocraft-${VERSION}-darwin-arm64.node\` - macOS Apple Silicon native module
-          - \`iocraft-${VERSION}-win-x64.node\` - Windows x64 native module
-          - \`iocraft-${VERSION}-win-arm64.node\` - Windows ARM64 native module
+          - \`iocraft-${VERSION}-win32-x64.node\` - Windows x64 native module
+          - \`iocraft-${VERSION}-win32-arm64.node\` - Windows ARM64 native module
           - \`checksums.txt\` - SHA256 checksums
 
           ## Usage

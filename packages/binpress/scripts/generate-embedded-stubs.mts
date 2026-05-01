@@ -74,7 +74,7 @@ await safeMkdir(BUILD_DIR)
 await safeMkdir(path.dirname(OUTPUT_FILE))
 
 // Detect current platform for local stub usage
-const currentPlatform = WIN32 ? 'win' : process.platform
+const currentPlatform = process.platform
 const currentArch = process.env.TARGET_ARCH || process.arch
 const currentLibc = (await isMusl()) ? 'musl' : undefined
 
@@ -179,7 +179,7 @@ async function downloadStub(
     }
 
     // Determine extracted file name
-    const extractedName = platform === 'win' ? 'smol_stub.exe' : 'smol_stub'
+    const extractedName = platform === 'win32' ? 'smol_stub.exe' : 'smol_stub'
     const extractedPath = path.join(platformDir, extractedName)
 
     // Move to build directory with platform-specific name for embedding
@@ -260,8 +260,8 @@ const stubConfigs = [
   { arch: 'x64', libc: undefined, name: 'linux-x64', platform: 'linux' },
   { arch: 'arm64', libc: 'musl', name: 'linux-arm64-musl', platform: 'linux' },
   { arch: 'x64', libc: 'musl', name: 'linux-x64-musl', platform: 'linux' },
-  { arch: 'arm64', libc: undefined, name: 'win-arm64', platform: 'win' },
-  { arch: 'x64', libc: undefined, name: 'win-x64', platform: 'win' },
+  { arch: 'arm64', libc: undefined, name: 'win32-arm64', platform: 'win32' },
+  { arch: 'x64', libc: undefined, name: 'win32-x64', platform: 'win32' },
 ]
 const stubResults = await Promise.allSettled(
   stubConfigs.map(config =>

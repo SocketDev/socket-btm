@@ -33,7 +33,7 @@ const PLATFORM_ARCH_MAP = {
   __proto__: null,
   darwin: 'darwin',
   linux: 'linux',
-  win32: 'win',
+  win32: 'win32',
 }
 
 function detectMusl() {

@@ -1115,7 +1115,7 @@ jobs:
 
       - name: Validate artifact count
         run: |
-          # Expected artifacts: 8 (darwin-arm64, darwin-x64, linux-x64, linux-arm64, linux-x64-musl, linux-arm64-musl, win-x64, win-arm64)
+          # Expected artifacts: 8 (darwin-arm64, darwin-x64, linux-x64, linux-arm64, linux-x64-musl, linux-arm64-musl, win32-x64, win32-arm64)
           EXPECTED_COUNT=8
           ACTUAL_COUNT=$(find artifacts -mindepth 1 -maxdepth 1 -type d | wc -l)
           if [ "$ACTUAL_COUNT" -ne "$EXPECTED_COUNT" ]; then
@@ -1149,10 +1149,10 @@ jobs:
           mv artifacts/node-smol-linux-arm64-musl/node packages/node-smol-builder/dist/node-linux-arm64-musl
 
           # Windows x64
-          mv artifacts/node-smol-win-x64/node.exe packages/node-smol-builder/dist/node-win-x64.exe
+          mv artifacts/node-smol-win32-x64/node.exe packages/node-smol-builder/dist/node-win32-x64.exe
 
           # Windows ARM64 (cross-compiled)
-          mv artifacts/node-smol-win-arm64/node.exe packages/node-smol-builder/dist/node-win-arm64.exe
+          mv artifacts/node-smol-win32-arm64/node.exe packages/node-smol-builder/dist/node-win32-arm64.exe
 
           # Make Unix binaries executable. The prior `node-*[!.exe]` glob
           # used a single-character negated class which matches any char
@@ -1172,8 +1172,8 @@ jobs:
             "node-linux-arm64"
             "node-linux-x64-musl"
             "node-linux-arm64-musl"
-            "node-win-x64.exe"
-            "node-win-arm64.exe"
+            "node-win32-x64.exe"
+            "node-win32-arm64.exe"
           )
 
           MISSING=()
@@ -1264,8 +1264,8 @@ jobs:
           - linux-x64
           - linux-arm64-musl
           - linux-x64-musl
-          - win-arm64
-          - win-x64
+          - win32-arm64
+          - win32-x64
 
           ## Files
           - \`node-darwin-arm64\` - macOS Apple Silicon
@@ -1274,8 +1274,8 @@ jobs:
           - \`node-linux-x64\` - Linux x64 (glibc)
           - \`node-linux-arm64-musl\` - Linux ARM64 (musl/Alpine)
           - \`node-linux-x64-musl\` - Linux x64 (musl/Alpine)
-          - \`node-win-arm64.exe\` - Windows ARM64
-          - \`node-win-x64.exe\` - Windows x64
+          - \`node-win32-arm64.exe\` - Windows ARM64
+          - \`node-win32-x64.exe\` - Windows x64
           - \`checksums.txt\` - SHA256 checksums
 
           ## Usage

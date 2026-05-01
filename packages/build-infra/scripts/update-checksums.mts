@@ -22,10 +22,8 @@ import { fileURLToPath } from 'node:url'
 
 import { safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import {
-  downloadReleaseAsset,
-  getLatestRelease,
-} from '@socketsecurity/lib/releases/github'
+import { getLatestRelease } from '@socketsecurity/lib/releases/github-api'
+import { downloadReleaseAsset } from '@socketsecurity/lib/releases/github-downloads'
 import { SOCKET_BTM_REPO } from '@socketsecurity/lib/releases/socket-btm'
 
 import { errorMessage } from '../lib/error-utils.mts'

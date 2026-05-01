@@ -197,8 +197,8 @@ catalogs:
       specifier: 0.34.49
       version: 0.34.49
     '@socketsecurity/lib':
-      specifier: 5.25.1
-      version: 5.25.1
+      specifier: 5.26.1
+      version: 5.26.1
     '@types/adm-zip':
       specifier: 0.5.7
       version: 0.5.7
@@ -251,7 +251,7 @@ importers:
         version: 0.34.49
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       '@types/node':
         specifier: 'catalog:'
         version: 24.9.2
@@ -290,7 +290,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -303,7 +303,7 @@ importers:
         version: 1.4.2
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       '@socketsecurity/sdk':
         specifier: 4.0.1
         version: 4.0.1
@@ -346,7 +346,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -374,7 +374,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       bin-infra:
         specifier: workspace:*
         version: link:../bin-infra
@@ -393,7 +393,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       bin-infra:
         specifier: workspace:*
         version: link:../bin-infra
@@ -427,7 +427,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       bin-infra:
         specifier: workspace:*
         version: link:../bin-infra
@@ -452,7 +452,7 @@ importers:
         version: 0.34.49
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       acorn:
         specifier: 'catalog:'
         version: 8.14.0
@@ -480,7 +480,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -499,7 +499,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -515,7 +515,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -537,7 +537,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -553,7 +553,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -569,7 +569,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -585,7 +585,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -601,7 +601,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -617,7 +617,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -633,7 +633,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       bin-infra:
         specifier: workspace:*
         version: link:../bin-infra
@@ -670,7 +670,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       acorn:
         specifier: 'catalog:'
         version: 8.14.0
@@ -695,7 +695,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -711,7 +711,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       bin-infra:
         specifier: workspace:*
         version: link:../bin-infra
@@ -736,7 +736,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -755,7 +755,7 @@ importers:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
-        version: 5.25.1
+        version: 5.26.1
       acorn:
         specifier: 'catalog:'
         version: 8.14.0
@@ -1739,8 +1739,8 @@ packages:
     resolution: {integrity: sha512-yt9UfUzD02wZ7kwb67oe4jxG2D9JtgPqjrK/ans2BovFyeie0w8hvRR0MuOWM4mUt2371oFPp7NB6O5ZjYJmlw==}
     engines: {node: '>=18.20.8', pnpm: '>=11.0.0-rc.0'}
 
-  '@socketsecurity/lib@5.25.1':
-    resolution: {integrity: sha512-I/sXk5FDOF7FVstzYn8tKtCvRe97KU/hl4p0e3OI1O9gma2uYypDiJT/n3axvtkqOyNFxWICWuXfy8Hnzeaw6Q==}
+  '@socketsecurity/lib@5.26.1':
+    resolution: {integrity: sha512-ppyhOC/vPBY0gZVRtzNpmf/8nodILERmNV8J62pzVo7GvAB9S1q0/k/vSF2tor2NJEDtim+m6N+J5qtQ0mR99A==}
     engines: {node: '>=22', pnpm: '>=11.0.0-rc.0'}
     peerDependencies:
       typescript: '>=5.0.0'
@@ -3932,7 +3932,7 @@ snapshots:
 
   '@socketregistry/packageurl-js@1.4.2': {}
 
-  '@socketsecurity/lib@5.25.1': {}
+  '@socketsecurity/lib@5.26.1': {}
 
   '@socketsecurity/sdk@4.0.1': {}
 

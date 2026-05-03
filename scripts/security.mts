@@ -10,10 +10,13 @@
  *      (unpinned actions, secret exposure, template injection,
  *      permission issues).
  *
- * If zizmor isn't installed, prints a "run pnpm run setup" hint
- * (which downloads + verifies the pinned binary via the
- * setup-security-tools hook) and skips the zizmor scan rather than
- * failing the entire run.
+ * Either tool missing prints a "run pnpm run setup" hint (which
+ * downloads + verifies the pinned binary via the setup-security-tools
+ * hook) and skips that scan rather than failing the entire run.
+ *
+ * Cross-platform: uses `which` from npm for binary discovery (handles
+ * Windows .exe/.cmd resolution) and `spawn` from
+ * `@socketsecurity/lib/spawn` for proper async lifecycle.
  *
  * Wired in via `package.json`:
  *
@@ -23,47 +26,64 @@
  * drift.
  */
 
-import { execFileSync, spawnSync } from 'node:child_process'
 import process from 'node:process'
 
+import which from 'which'
+
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 const logger = getDefaultLogger()
 
-function isInstalled(cmd: string): boolean {
-  // `command -v` returns 0 if the binary is on PATH, non-zero otherwise.
-  const result = spawnSync('command', ['-v', cmd], {
-    shell: true,
-    stdio: ['ignore', 'ignore', 'ignore'],
-  })
-  return result.status === 0
-}
-
-function run(cmd: string, args: string[]): boolean {
+async function hasExecutable(name: string): Promise<boolean> {
   try {
-    execFileSync(cmd, args, { stdio: 'inherit' })
+    await which(name)
     return true
   } catch {
     return false
   }
 }
 
-let exitCode = 0
-
-logger.info('AgentShield: scanning .claude/ ...')
-if (!run('agentshield', ['scan'])) {
-  exitCode = 1
-}
-
-if (isInstalled('zizmor')) {
-  logger.info('zizmor: scanning .github/ ...')
-  if (!run('zizmor', ['.github/'])) {
-    exitCode = 1
+async function runTool(command: string, args: string[]): Promise<number> {
+  try {
+    const result = await spawn(command, args, {
+      stdio: 'inherit',
+      shell: WIN32,
+    })
+    return result.code ?? 1
+  } catch (e) {
+    if (e && typeof e === 'object' && 'code' in e) {
+      const code = (e as { code: unknown }).code
+      return typeof code === 'number' ? code : 1
+    }
+    throw e
   }
-} else {
-  logger.warn(
-    'zizmor not installed — run `pnpm run setup` to install. Skipping zizmor scan.',
-  )
 }
 
-process.exit(exitCode)
+async function main(): Promise<void> {
+  if (!(await hasExecutable('agentshield'))) {
+    logger.info('agentshield not installed; run "pnpm run setup" to install')
+  } else {
+    const agentshieldCode = await runTool('agentshield', ['scan'])
+    if (agentshieldCode !== 0) {
+      process.exitCode = agentshieldCode
+      return
+    }
+  }
+
+  if (!(await hasExecutable('zizmor'))) {
+    logger.info('zizmor not installed; run "pnpm run setup" to install')
+    return
+  }
+
+  const zizmorCode = await runTool('zizmor', ['.github/'])
+  if (zizmorCode !== 0) {
+    process.exitCode = zizmorCode
+  }
+}
+
+main().catch((e: unknown) => {
+  logger.error(e)
+  process.exitCode = 1
+})

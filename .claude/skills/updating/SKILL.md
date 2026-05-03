@@ -1,95 +1,223 @@
 ---
 name: updating
-description: Coordinates all dependency updates (npm packages and upstream submodules) in correct dependency order. Use when preparing for release, running periodic maintenance, or syncing all upstreams.
+description: Umbrella update skill for a Socket fleet repo. Runs `pnpm run update` (npm), validates `xport.json` via `pnpm run xport` (if present), optionally bumps submodules, and checks workflow SHA pins. Use when asked to update dependencies, sync upstreams, or prepare for a release.
 user-invocable: true
-allowed-tools: Task, Skill, Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Grep, Glob, Edit---
+allowed-tools: Task, Skill, Read, Edit, Grep, Glob, Bash(pnpm run:*), Bash(pnpm test:*), Bash(pnpm install:*), Bash(git:*), Bash(claude --version)
+---
 
 # updating
 
-Update all dependencies in socket-btm: npm packages via `pnpm run update`, then upstream submodules to latest stable versions using existing updating-* skills.
+<task>
+Update all dependencies for this repo: npm packages first, then the
+xport-managed version pins (if `xport.json` exists), then any other
+submodules tracked via `.gitmodules`, and finally verify workflow
+SHA pins are current. Validate with the full check/test suite before
+committing. The sub-skill delegation mirrors the canonical
+socket-registry `updating` skill; uncomment the phases that apply to
+this repo and delete those that don't.
+</task>
 
-## Dependency Order
+<context>
+**What is this?**
+The umbrella update skill. Runs `pnpm run update` for npm deps, then
+adapts to what the repo has:
 
-Updates run in this order (some have dependencies):
+**Update Targets:**
+- **npm packages** — via `pnpm run update` (every Socket repo has this script)
+- **xport-managed upstreams** — via `pnpm run xport` when `xport.json` exists
+  (manifest-managed submodule pins + advisory drift on file-fork /
+  feature-parity / spec-conformance / lang-parity rows)
+- **Other submodules** — via repo-specific `updating-*` sub-skills
+  when `.gitmodules` has entries not claimed by xport version-pin rows
+- **Workflow SHA pins** — check `_local-not-for-reuse-*.yml` against
+  `origin/main`; run the `updating-workflows` skill when stale
 
-1. `pnpm run update` - npm packages
-2. `updating-curl` - curl + mbedtls
-3. `updating-cjson` - cJSON
-4. `updating-libdeflate` - libdeflate
-5. `updating-yoga` - Yoga layout
-6. `updating-ink` - ink TUI (after yoga)
-7. `updating-iocraft` - iocraft TUI
-8. `updating-onnxruntime` - ONNX Runtime
-9. `updating-node` - Node.js (before LIEF and zstd)
-10. `updating-zstd` - zstd (reads version from Node.js deps, run after node)
-11. `updating-lief` - LIEF (reads version from Node.js deps, run after node)
-12. `updating-fast-webstreams` - fast-webstreams vendor
-13. `updating-checksums` - sync checksums (always last)
+**Key files this skill consults:**
+- `xport.json` — if present, drives version-pin bumps and surfaces drift
+- `.gitmodules` — listed submodules; xport's `version-pin` rows take precedence
+- `.github/workflows/_local-not-for-reuse-*.yml` — SHA pin sources
+- `package.json` — `pnpm run update` script
 
-LIEF and zstd versions are both determined from the Node.js deps tree — update Node.js first, then run both in either order.
+Sub-skills are invoked only when applicable — this umbrella reads repo
+state first to discover what to run.
+</context>
+
+<constraints>
+**Requirements:**
+- Start with clean working directory (no uncommitted changes)
+
+**CI Mode** (detected via `CI=true` or `GITHUB_ACTIONS`):
+- Create atomic commits, skip build validation (CI validates separately)
+- Workflow handles push and PR creation
+
+**Interactive Mode** (default):
+- Validate updates with build/tests before proceeding
+- Report validation results to user
+
+**Actions:**
+- Update npm packages
+- Apply xport-driven bumps (if `xport.json` present)
+- Bump remaining submodules (if any)
+- Create atomic commits per category
+- Report summary of changes
+</constraints>
+
+<instructions>
 
 ## Process
 
-### Phase 1: Validate
+### Phase 1: Validate Environment
 
-Check clean working directory, detect CI mode (`CI=true` or `GITHUB_ACTIONS`), verify submodules initialized.
+Check clean working directory, detect CI mode (`CI=true` or
+`GITHUB_ACTIONS`), verify submodules initialized (if any).
 
-### Phase 2: Gather Versions
+---
 
-Read current versions from `.gitmodules` comments or submodule tags.
-
-### Phase 3: Fetch Latest
-
-For each submodule, fetch tags and identify latest stable (exclude -rc/-alpha/-beta).
-
-### Phase 4: Update npm
+### Phase 2: Update npm Packages
 
 ```bash
 pnpm run update
+
+if [ -n "$(git status --porcelain)" ]; then
+  git add pnpm-lock.yaml package.json */package.json
+  git commit -m "chore: update npm dependencies
+
+Updated npm packages via pnpm run update."
+  echo "npm packages updated"
+else
+  echo "npm packages already up to date"
+fi
 ```
 
-Commit if lockfile changed.
+---
 
-### Phase 5: Update Upstreams
+### Phase 3: Validate xport manifest (if applicable)
 
-Invoke each updating-* skill in the order above. Wait for each to complete before proceeding. If a skill reports "already up to date", move on.
-
-### Phase 6: Validate xport Manifest
-
-socket-btm's xport manifest tracks 17 upstream submodule pins via
-`version-pin` rows (curl, mbedtls, cjson, libdeflate, yoga, ink,
-opentui, onnxruntime, lief, node, postgres, wpt-streams, zstd,
-iocraft, liburing, usockets, uwebsockets). Every sub-skill that
-bumped a submodule in Phase 5 should have moved its row's pinned
-SHA forward; validate the manifest before running the full test
-suite so any missed bump or drifted row surfaces here.
+If `xport.json` exists at repo root, run the harness:
 
 ```bash
-pnpm run xport
-XPORT_EXIT=$?
+if [ -f xport.json ]; then
+  pnpm run xport
+  XPORT_EXIT=$?
 
-case $XPORT_EXIT in
-  0) echo "✓ xport clean — all 17 version-pins match submodule HEADs" ;;
-  1) echo "✗ xport schema/structural error — stopping"; exit 1 ;;
-  2) echo "⚠ xport drift — advisory (upstream advanced since pin); proceeding" ;;
-esac
+  case $XPORT_EXIT in
+    0) echo "✓ xport clean — manifest valid, no drift" ;;
+    1) echo "✗ xport schema/structural error — stopping"; exit 1 ;;
+    2) echo "⚠ xport drift — review advisories; not a blocker" ;;
+  esac
+fi
 ```
 
-Exit-code semantics:
-- **0** — clean; proceed.
-- **1** — schema/structural error (missing file, unreachable baseline).
-  Stop and investigate; do not auto-retry.
-- **2** — drift. Expected after routine submodule bumps; the harness
-  reports how far upstream has moved since the pin. Not a blocker.
+Exit code semantics:
+- **0** — manifest valid, no drift; proceed.
+- **1** — schema violation, missing file, or unreachable baseline. Stop
+  and investigate via `scripts/xport-schema.mts` and the failing row's
+  `local_*`/`upstream` fields. Do not auto-retry.
+- **2** — drift detected. This is an **advisory signal** (upstream
+  advanced, feature-parity score below floor, rejected anti-pattern
+  reintroduced). Review the harness output, file follow-up tasks, and
+  proceed with the update.
 
-### Phase 7: Final Validation (skip in CI)
+If `xport.json` does NOT exist, skip this phase.
+
+---
+
+### Phase 4: Update Upstream Submodules (if applicable)
+
+Invoke each `updating-*` sub-skill that this repo defines. Sub-skills
+handle their own submodule bumps, version detection, and commits.
+
+xport-managed submodules (`version-pin` rows) are auto-bumped in
+Phase 3 via the harness; do NOT also run a dedicated sub-skill for
+them. Only run sub-skills for submodules NOT claimed by xport.
+
+If no `.gitmodules` exists (or all submodules are xport-managed),
+skip this phase.
+
+---
+
+### Phase 5: Check Workflow SHA Pins
+
+Inspect `_local-not-for-reuse-*.yml` files for their pinned SHA and
+compare against `origin/main`:
 
 ```bash
-pnpm run fix --all
-pnpm run check --all
-pnpm test
+PINNED_SHA=$(grep -ohP '(?<=@)[0-9a-f]{40}' .github/workflows/_local-not-for-reuse-ci.yml 2>/dev/null | head -1)
+MAIN_SHA=$(git rev-parse origin/main 2>/dev/null || echo "")
+
+if [ -n "$PINNED_SHA" ] && [ -n "$MAIN_SHA" ] && [ "$PINNED_SHA" != "$MAIN_SHA" ]; then
+  echo "Workflow SHA pins are stale: $PINNED_SHA → $MAIN_SHA"
+  echo "Run the updating-workflows skill to cascade."
+else
+  echo "Workflow SHA pins are up to date (or no _local-not-for-reuse-*.yml pins in this repo)"
+fi
 ```
 
-### Phase 8: Report
+---
 
-Generate summary table of all updates (old version, new version, status), include the xport summary line (`total=17 ok=N drift=M error=0`), and list commits created.
+### Phase 6: Final Validation (skip in CI)
+
+```bash
+if [ "$CI" = "true" ] || [ -n "$GITHUB_ACTIONS" ]; then
+  echo "CI mode: skipping validation"
+else
+  pnpm run check --all
+  pnpm test
+  pnpm run build  # if this repo has a build step
+fi
+```
+
+---
+
+### Phase 7: Report Summary
+
+```
+## Update Complete
+
+### Updates Applied:
+
+| Category           | Status                               |
+|--------------------|--------------------------------------|
+| npm packages       | Updated / Up to date                 |
+| xport manifest     | <ok>/<total> ok, <drift> drift, <error> error (exit <code>) — or n/a |
+| Other submodules   | K bumped — or n/a                    |
+| Workflow SHA pins  | Up to date / Stale                   |
+
+### Commits Created:
+- [list commits, if any]
+
+### Validation:
+- Build: SUCCESS / SKIPPED (CI mode)
+- Tests: PASS / SKIPPED (CI mode)
+
+### Next Steps:
+**Interactive mode:**
+1. Review changes: `git log --oneline -N`
+2. Push to remote: `git push origin main`
+
+**CI mode:**
+1. Workflow will push branch and create PR
+2. CI will run full build/test validation
+3. Review PR when CI passes
+```
+
+</instructions>
+
+## Success Criteria
+
+- All npm packages checked for updates
+- xport manifest validated (when present); schema/structural errors block
+- Full build and tests pass (interactive mode)
+- Summary report generated
+
+## Context
+
+This skill is useful for:
+
+- Weekly maintenance (automated via `weekly-update.yml`)
+- Security patch rollout
+- Pre-release preparation
+
+**Safety:** Updates are validated before committing. Schema errors
+(xport exit 1) stop the process; drift (xport exit 2) is advisory
+and does not block.

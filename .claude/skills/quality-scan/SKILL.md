@@ -2,7 +2,8 @@
 name: quality-scan
 description: Scans the codebase for bugs, logic errors, caching issues, and workflow problems using specialized agents. Use when preparing for release, investigating quality issues, or running pre-merge checks.
 user-invocable: true
-allowed-tools: Task, Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Grep, Glob, AskUserQuestion---
+allowed-tools: Task, Read, Grep, Glob, AskUserQuestion, Bash(pnpm run check:*), Bash(pnpm run test:*), Bash(pnpm test:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*)
+---
 
 # quality-scan
 
@@ -41,19 +42,9 @@ Only update the current repository. Continue even if update fails.
 
 ### Phase 3: Install zizmor
 
-Install zizmor for GitHub Actions security scanning, respecting the `minimumReleaseAge` from `pnpm-workspace.yaml` (default 10080 minutes = 7 days). Query GitHub releases, find the latest stable release older than the threshold, and install via pipx/uvx. Skip the security scan if no release meets the age requirement.
+Install zizmor for GitHub Actions security scanning, respecting the soak window — pnpm-workspace.yaml `minimumReleaseAge` in minutes, default 10080 (= 7 days). Query GitHub releases, find the latest stable release older than the threshold, and install via pipx/uvx. Skip the security scan if no release meets the soak requirement.
 
-### Phase 4: Submodule Pristine Check
-
-If `.gitmodules` exists, run `git submodule status` and verify all submodules are pristine:
-- Prefix ` ` (space) = clean — OK
-- Prefix `+` = wrong commit — fix automatically
-- Prefix `-` = not initialized — fix automatically
-- Prefix `U` = merge conflict — report as Critical finding
-
-For any `+` or `-` submodules, run `git submodule update --init` to restore them to the expected commits.
-
-### Phase 5: Repository Cleanup
+### Phase 4: Repository Cleanup
 
 Find and remove junk files (with user confirmation via AskUserQuestion):
 - SCREAMING_TEXT.md files outside `.claude/` and `docs/`
@@ -61,19 +52,19 @@ Find and remove junk files (with user confirmation via AskUserQuestion):
 - Temp files (`.tmp`, `.DS_Store`, `*~`, `*.swp`, `*.bak`)
 - Log files in root/package directories
 
-### Phase 6: Structural Validation
+### Phase 5: Structural Validation
 
 ```bash
-node scripts/check-consistency.mts
+node scripts/check-consistency.mjs
 ```
 
 Report errors as Critical findings. Warnings are Low findings.
 
-### Phase 7: Determine Scan Scope
+### Phase 6: Determine Scan Scope
 
 Ask user which scans to run using AskUserQuestion (multiSelect). Default: all scans.
 
-### Phase 8: Execute Scans
+### Phase 7: Execute Scans
 
 For each enabled scan type, spawn a Task agent with the corresponding prompt from `reference.md`. Run sequentially in priority order: critical, logic, cache, workflow, then others.
 
@@ -81,13 +72,13 @@ Each agent reports findings as:
 - File: path:line
 - Issue, Severity, Pattern, Trigger, Fix, Impact
 
-### Phase 9: Aggregate and Report
+### Phase 8: Aggregate and Report
 
 - Deduplicate findings across scan types
 - Sort by severity: Critical > High > Medium > Low
 - Generate markdown report with file:line references, suggested fixes, and coverage metrics
 - Offer to save to `reports/quality-scan-YYYY-MM-DD.md`
 
-### Phase 10: Summary
+### Phase 9: Summary
 
 Report final metrics: dependency updates, structural validation results, cleanup stats, scan counts, and total findings by severity.

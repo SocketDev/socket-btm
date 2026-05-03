@@ -30,7 +30,7 @@
     "lint:fix": "node scripts/fix.mts",
     "normalize:package-json": "node scripts/normalize-package-json.mts",
     "prepare": "husky",
-    "security": "agentshield scan && { command -v zizmor >/dev/null && zizmor .github/ || echo 'zizmor not installed — run pnpm run setup to install'; }",
+    "security": "node scripts/security.mts",
     "setup": "node scripts/setup.mts",
     "test": "node scripts/test.mts",
     "test:build-infra": "pnpm --filter build-infra test",

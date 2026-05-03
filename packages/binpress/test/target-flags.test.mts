@@ -489,9 +489,13 @@ describe('platform mapping functions', () => {
   })
 
   describe('getAssetPlatformArch() - Asset naming', () => {
-    it('should normalize win32 → win for Windows assets', () => {
+    // The historical `win32 → win` translation layer was removed in
+    // refactor `align win → win32 with pnpm pack-app convention` so
+    // asset filenames, internal build directories, and consumer-side
+    // process.platform checks share one vocabulary.
+    it('should use win32 for Windows assets (pack-app convention)', () => {
       const result = getAssetPlatformArch('win32', 'x64')
-      expect(result).toBe('win-x64')
+      expect(result).toBe('win32-x64')
     })
 
     it('should use darwin for macOS assets', () => {
@@ -509,14 +513,14 @@ describe('platform mapping functions', () => {
       expect(result).toBe('linux-x64-musl')
     })
 
-    it('should normalize win32 → win with arm64', () => {
+    it('should use win32 with arm64', () => {
       const result = getAssetPlatformArch('win32', 'arm64')
-      expect(result).toBe('win-arm64')
+      expect(result).toBe('win32-arm64')
     })
 
     it('should handle ia32 architecture in assets', () => {
       const result = getAssetPlatformArch('win32', 'ia32')
-      expect(result).toBe('win-x86')
+      expect(result).toBe('win32-x86')
     })
 
     it('should throw error for unsupported platform', () => {
@@ -533,19 +537,17 @@ describe('platform mapping functions', () => {
   })
 
   describe('platform naming consistency', () => {
-    it('should demonstrate win32 internal vs win asset naming', () => {
-      // Internal naming uses win32
+    it('should use the same name for internal + asset (pack-app convention)', () => {
+      // Post-refactor, internal and asset names are identical for all
+      // platforms (`win32`, `darwin`, `linux`). The previous
+      // `win32 → win` asset-naming translation was removed.
       const internal = getPlatformArch('win32', 'x64')
       expect(internal).toBe('win32-x64')
 
-      // Asset naming uses win
       const asset = getAssetPlatformArch('win32', 'x64')
-      expect(asset).toBe('win-x64')
+      expect(asset).toBe('win32-x64')
 
-      // Both work with same input platform
-      expect(internal).not.toBe(asset)
-      expect(internal).toContain('win32')
-      expect(asset).toContain('win')
+      expect(internal).toBe(asset)
     })
 
     it('should demonstrate consistent naming for non-Windows platforms', () => {

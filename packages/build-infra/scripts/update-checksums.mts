@@ -27,7 +27,7 @@ import { downloadReleaseAsset } from '@socketsecurity/lib/releases/github-downlo
 import { SOCKET_BTM_REPO } from '@socketsecurity/lib/releases/socket-btm'
 
 import { errorMessage } from '../lib/error-utils.mts'
-import { parseChecksums } from '../lib/release-checksums.mts'
+import { parseChecksums } from '../lib/release-checksums/core.mts'
 
 const logger = getDefaultLogger()
 
@@ -205,7 +205,7 @@ async function main() {
     // Symbol ones — so the canonical text was effectively dead code.
     const { $schema: _s, $comment: _c, ...rest } = currentData
     const output = {
-      $schema: 'Release checksums for Socket BTM build dependencies',
+      $schema: './release-assets.schema.json',
       $comment:
         "SHA-256 checksums for GitHub release assets. Run 'pnpm --filter build-infra update-checksums' to update.",
       ...rest,

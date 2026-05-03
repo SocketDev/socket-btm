@@ -33,7 +33,7 @@ import {
   getCurrentPlatformArch,
   isMusl,
 } from 'build-infra/lib/platform-mappings'
-import { verifyReleaseChecksum } from 'build-infra/lib/release-checksums'
+import { verifyReleaseChecksum } from 'build-infra/lib/release-checksums/core'
 import { extractTarball } from 'build-infra/lib/tarball-utils'
 import { getSubmoduleVersion } from 'build-infra/lib/version-helpers'
 import { errorMessage } from 'build-infra/lib/error-utils'

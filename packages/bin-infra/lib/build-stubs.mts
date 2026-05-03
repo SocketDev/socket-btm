@@ -28,7 +28,7 @@ import {
   parsePlatformArch,
   tarSupportsNoAbsoluteNames,
 } from 'build-infra/lib/platform-mappings'
-import { verifyReleaseChecksum } from 'build-infra/lib/release-checksums'
+import { verifyReleaseChecksum } from 'build-infra/lib/release-checksums/core'
 import { ensureCurl } from 'curl-builder/lib/ensure-curl'
 
 import { WIN32 } from '@socketsecurity/lib/constants/platform'

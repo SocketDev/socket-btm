@@ -93,7 +93,7 @@
 // Specializing the 4-8 hottest prototype methods this way would push
 // the throughput floor higher than what V8's TurboFan can do on its
 // own JIT'd code. Not done in this binding — would be a separate
-// `node:smol-fast-prototypes` module sitting on top of this one.
+// `node:smol-primordials` module sitting on top of this one.
 
 #include "node.h"
 #include "node_binding.h"

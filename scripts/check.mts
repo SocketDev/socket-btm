@@ -226,6 +226,30 @@ async function runPathHygieneCheck(): Promise<number> {
   return 0
 }
 
+async function runPrimordialsCoverageCheck(): Promise<number> {
+  logger.step('Running primordials coverage check')
+
+  const result = await spawn(
+    'node',
+    ['scripts/check-primordials-coverage.mts', '--quiet'],
+    {
+      shell: WIN32,
+      stdio: 'inherit',
+    },
+  )
+
+  if (result.code !== 0) {
+    logger.error(
+      'Primordials coverage check failed — rerun with --explain for details',
+    )
+    logger.log('  node scripts/check-primordials-coverage.mts --explain')
+    return result.code ?? 1
+  }
+
+  logger.success('Primordials coverage check passed')
+  return 0
+}
+
 async function main(): Promise<void> {
   const argv: string[] = process.argv
   const quiet = argv.includes('--quiet')
@@ -339,6 +363,18 @@ async function main(): Promise<void> {
     const pathHygieneCode = await runPathHygieneCheck()
     if (pathHygieneCode !== 0) {
       process.exitCode = pathHygieneCode
+      return
+    }
+
+    // Run primordials-coverage check. Diffs every name destructured
+    // from `primordials` in additions/source-patched/**/*.js against
+    // socket-lib/src/primordials.ts. Catches the case where a new
+    // addition introduces a name socket-lib doesn't expose (or vice
+    // versa, an alias map gap), so the two stay shape-aligned without
+    // anyone having to remember.
+    const primordialsCoverageCode = await runPrimordialsCoverageCheck()
+    if (primordialsCoverageCode !== 0) {
+      process.exitCode = primordialsCoverageCode
       return
     }
 

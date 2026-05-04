@@ -11,15 +11,29 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn, spawnSync } from '@socketsecurity/lib/spawn'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
+import { isOnAcPower } from '../../../scripts/power-state.mts'
+
 const logger = getDefaultLogger()
 
 const MAX_MEMORY_MB = 2048 // 2GB limit
 const CHECK_INTERVAL_MS = 1000 // Check every 1 second
-const TIMEOUT_MS = 120_000 // 2 minute timeout (120 seconds)
+
+const ON_AC = await isOnAcPower()
+
+// Test suite builds full SEA binaries (~5s each, ~30 of them) plus
+// VFS extraction tests. On battery, macOS especially throttles CPU
+// hard — local laptop runs are ~2x slower, sometimes ~3x. Use a
+// shorter timeout when plugged in to fail-fast on real regressions
+// and a longer one on battery so a transient power state doesn't
+// kill an otherwise-healthy run.
+const TIMEOUT_MS = ON_AC ? 480_000 : 900_000 // 8 min (AC) | 15 min (battery)
 
 const vitestArgs = process.argv.slice(2)
 
-logger.log(`Memory limit: ${MAX_MEMORY_MB}MB | Timeout: ${TIMEOUT_MS / 1000}s`)
+logger.log(
+  `Memory limit: ${MAX_MEMORY_MB}MB | Timeout: ${TIMEOUT_MS / 1000}s ` +
+    `(${ON_AC ? 'AC power' : 'battery — extended'})`,
+)
 logger.log(`Running: vitest ${vitestArgs.join(' ')}\n`)
 
 // Spawn vitest process using @socketsecurity/lib spawn
@@ -130,12 +144,15 @@ const monitorInterval = setInterval(() => {
     return
   }
 
-  // Show progress (only if memory is being used)
+  // Show progress (only if memory is being used). Direct stdout
+  // write is intentional here: this is a TTY progress bar that
+  // overwrites itself with `\r`; piping through a logger would
+  // newline-terminate each frame and flood the output.
   if (memoryMB > 0) {
     const memPercent = Math.floor((memoryMB / MAX_MEMORY_MB) * 100)
     const bar = '\u2588'.repeat(Math.floor(memPercent / 5))
     const empty = '\u2591'.repeat(20 - Math.floor(memPercent / 5))
-    process.stdout.write(
+    process.stdout.write( // # socket-hook: allow logger \u2014 TTY progress bar
       `\r Memory: ${memoryMB}MB / ${MAX_MEMORY_MB}MB [${bar}${empty}] ${memPercent}% | ${elapsed}s`,
     )
   }

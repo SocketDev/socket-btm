@@ -1,0 +1,23 @@
+# @node-versions: v25.9.0
+# @description: Register smol_power native binding in NODE_BUILTIN_BINDINGS
+#
+# Adds V(smol_power) alongside the other smol_* bindings registered by
+# patch 018-smol-builtin-bindings.patch. The implementation lives in
+# src/socketsecurity/power/{power_binding,power_mac,power_win,power_linux,
+# power_stub}.cc — see node.gyp for the per-OS source selection.
+#
+# Files modified:
+# - src/node_binding.cc: register smol_power in NODE_BUILTIN_BINDINGS
+#
+--- a/src/node_binding.cc
++++ b/src/node_binding.cc
+@@ -110,6 +110,7 @@
+   NODE_BUILTIN_SQLITE_BINDINGS(V)                                              \
+   NODE_BUILTIN_POSTGRES_BINDINGS(V)                                            \
+   V(smol_ffi)                                                                  \
+   V(smol_http)                                                                 \
+   V(smol_ilp)                                                                  \
++  V(smol_power)                                                                \
+   V(smol_webstreams)
+
+ // This is used to load built-in bindings. Instead of using

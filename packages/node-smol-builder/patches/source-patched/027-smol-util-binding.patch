@@ -1,0 +1,27 @@
+# @node-versions: v25.9.0
+# @description: Register smol_util native binding in NODE_BUILTIN_BINDINGS
+#
+# Adds V(smol_util) alongside the other smol_* bindings registered by
+# patch 018 + 023. The binding implements native uncurryThis + applyBind
+# (replacements for `Function.prototype.bind.bind(call|apply)(fn)`)
+# that bypass V8's BoundFunction adapter — single-dispatch on the
+# call path instead of the JS form's two dispatches.
+#
+# Sequencing: 027 anchors after 023 (smol_power), inserts smol_util
+# in alphabetic order (power < util < vfs).
+#
+# The implementation lives in
+# src/socketsecurity/util/{util,util_binding}.{h,cc}.
+#
+# Files modified:
+# - src/node_binding.cc: register smol_util in NODE_BUILTIN_BINDINGS
+#
+--- a/src/node_binding.cc
++++ b/src/node_binding.cc
+@@ -110,5 +110,6 @@
+   V(smol_ffi)                                                                  \
+   V(smol_http)                                                                 \
+   V(smol_ilp)                                                                  \
+   V(smol_power)                                                                \
++  V(smol_util)                                                                 \
+   V(smol_webstreams)

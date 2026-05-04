@@ -1,0 +1,21 @@
+# @node-versions: v25.9.0
+# @description: Add smol_util binding to external reference list
+#
+# Adds V(smol_util) to EXTERNAL_REFERENCE_BINDING_LIST so the
+# binding's externally-referenced functions are registered during
+# V8 snapshot building. Required for any binding that calls
+# NODE_BINDING_EXTERNAL_REFERENCE() — the smol_util binding does.
+#
+# Sequencing: 029 anchors after 025 (smol-power external-refs).
+# Insert keeps alphabetic order: power < util < vfs.
+#
+# Files modified:
+# - src/node_external_reference.h: register smol_util
+#
+--- a/src/node_external_reference.h
++++ b/src/node_external_reference.h
+@@ -158,3 +158,4 @@
+   V(smol_ilp)                                                                  \
+   V(smol_power)                                                                \
++  V(smol_util)                                                                 \
+   V(smol_vfs)                                                                  \

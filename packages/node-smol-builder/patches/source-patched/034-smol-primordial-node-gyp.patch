@@ -1,7 +1,7 @@
 # @node-versions: v25.9.0
-# @description: Wire smol-primordials native source into node.gyp
+# @description: Wire smol-primordial native source into node.gyp
 #
-# Adds src/socketsecurity/primordials/primordials_binding.cc to the
+# Adds src/socketsecurity/primordial/primordial_binding.cc to the
 # main node target. Pure platform-agnostic V8 binding glue — no per-OS
 # variants needed.
 #
@@ -9,7 +9,7 @@
 # inserts the primordials block immediately after the util block.
 #
 # Files modified:
-# - node.gyp: add smol-primordials binding source
+# - node.gyp: add smol-primordial binding source
 #
 --- a/node.gyp
 +++ b/node.gyp
@@ -19,10 +19,10 @@
              'src/socketsecurity/util/util_binding.cc',
            ],
          }],
-+        # Socket Security: smol-primordials binding. Pure V8 glue,
++        # Socket Security: smol-primordial binding. Pure V8 glue,
 +        # platform-agnostic.
 +        ['1==1', {
 +          'sources': [
-+            'src/socketsecurity/primordials/primordials_binding.cc',
++            'src/socketsecurity/primordial/primordial_binding.cc',
 +          ],
 +        }],

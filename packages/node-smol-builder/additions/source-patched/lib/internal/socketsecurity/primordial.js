@@ -1,13 +1,13 @@
 'use strict'
 
-// Documentation: docs/additions/lib/internal/socketsecurity/primordials.js.md
+// Documentation: docs/additions/lib/internal/socketsecurity/primordial.js.md
 
 const { ObjectFreeze } = primordials
 
-// Backed by node:smol-primordials — V8 Fast API typed implementations
+// Backed by node:smol-primordial — V8 Fast API typed implementations
 // of Math.* + Number.is*. TurboFan inlines these directly into JIT-
 // compiled JS, no callback trampoline.
-const binding = internalBinding('smol_primordials')
+const binding = internalBinding('smol_primordial')
 
 module.exports = ObjectFreeze({
   __proto__: null,

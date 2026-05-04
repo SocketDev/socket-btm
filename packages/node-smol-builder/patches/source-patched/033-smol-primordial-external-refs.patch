@@ -1,21 +1,21 @@
 # @node-versions: v25.9.0
-# @description: Add smol_primordials to external reference list
+# @description: Add smol_primordial to external reference list
 #
-# Adds V(smol_primordials) to EXTERNAL_REFERENCE_BINDING_LIST so
+# Adds V(smol_primordial) to EXTERNAL_REFERENCE_BINDING_LIST so
 # the binding's externally-referenced functions are registered during
 # V8 snapshot building. Required for any binding that calls
-# NODE_BINDING_EXTERNAL_REFERENCE() — smol_primordials does.
+# NODE_BINDING_EXTERNAL_REFERENCE() — smol_primordial does.
 #
 # Sequencing: 033 anchors after 029 (smol_util external-refs).
-# Insert keeps alphabetic order: smol_power < smol_primordials < smol_util.
+# Insert keeps alphabetic order: smol_power < smol_primordial < smol_util.
 #
 # Files modified:
-# - src/node_external_reference.h: register smol_primordials
+# - src/node_external_reference.h: register smol_primordial
 #
 --- a/src/node_external_reference.h
 +++ b/src/node_external_reference.h
 @@ -159,3 +159,4 @@
    V(smol_power)                                                                \
-+  V(smol_primordials)                                                          \
++  V(smol_primordial)                                                           \
    V(smol_util)                                                                 \
    V(smol_vfs)                                                                  \

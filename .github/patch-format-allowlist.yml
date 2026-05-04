@@ -21,7 +21,7 @@
 # entire patch series. The `multiple-patches-per-file` rule enforces this
 # at CI time. The entries below grandfather pre-existing violations while
 # we plan a cleanup: smol-power (023-026), smol-util (027-030), and
-# smol-primordials (031-034) each have 4 sibling patches that touch the
+# smol-primordial (031-034) each have 4 sibling patches that touch the
 # same 4 source files (src/node_binding.cc, lib/internal/bootstrap/realm.js,
 # src/node_external_reference.h, node.gyp).
 #
@@ -38,7 +38,7 @@
 
 - file: packages/node-smol-builder/patches/source-patched/023-smol-power-binding.patch
   rule: multiple-patches-per-file
-  reason: "Pre-existing: smol-power's per-binding-patch series (023-026) follows the same per-binding-patch shape as smol-util (027-030) and smol-primordials (031-034). Cleanup is to fold all of these into 018/003/020/004."
+  reason: "Pre-existing: smol-power's per-binding-patch series (023-026) follows the same per-binding-patch shape as smol-util (027-030) and smol-primordial (031-034). Cleanup is to fold all of these into 018/003/020/004."
 
 - file: packages/node-smol-builder/patches/source-patched/024-smol-power-realm.patch
   rule: multiple-patches-per-file
@@ -68,18 +68,18 @@
   rule: multiple-patches-per-file
   reason: "Pre-existing: smol-util per-binding-patch series. See 027's reason."
 
-- file: packages/node-smol-builder/patches/source-patched/031-smol-primordials-binding.patch
+- file: packages/node-smol-builder/patches/source-patched/031-smol-primordial-binding.patch
   rule: multiple-patches-per-file
-  reason: "Pre-existing: smol-primordials per-binding-patch series matches smol-util/smol-power's shape. Cleanup deferred to the broader fold-in."
+  reason: "Pre-existing: smol-primordial per-binding-patch series matches smol-util/smol-power's shape. Cleanup deferred to the broader fold-in."
 
-- file: packages/node-smol-builder/patches/source-patched/032-smol-primordials-realm.patch
+- file: packages/node-smol-builder/patches/source-patched/032-smol-primordial-realm.patch
   rule: multiple-patches-per-file
-  reason: "Pre-existing: smol-primordials per-binding-patch series. See 031's reason."
+  reason: "Pre-existing: smol-primordial per-binding-patch series. See 031's reason."
 
-- file: packages/node-smol-builder/patches/source-patched/033-smol-primordials-external-refs.patch
+- file: packages/node-smol-builder/patches/source-patched/033-smol-primordial-external-refs.patch
   rule: multiple-patches-per-file
-  reason: "Pre-existing: smol-primordials per-binding-patch series. See 031's reason."
+  reason: "Pre-existing: smol-primordial per-binding-patch series. See 031's reason."
 
-- file: packages/node-smol-builder/patches/source-patched/034-smol-primordials-node-gyp.patch
+- file: packages/node-smol-builder/patches/source-patched/034-smol-primordial-node-gyp.patch
   rule: multiple-patches-per-file
-  reason: "Pre-existing: smol-primordials per-binding-patch series. See 031's reason."
+  reason: "Pre-existing: smol-primordial per-binding-patch series. See 031's reason."

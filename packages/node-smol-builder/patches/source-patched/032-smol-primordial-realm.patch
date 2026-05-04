@@ -1,12 +1,12 @@
 # @node-versions: v25.9.0
-# @description: Reserve `smol-primordials` for the node: scheme
+# @description: Reserve `smol-primordial` for the node: scheme
 #
-# Adds `smol-primordials` to schemelessBlockList so consumers must
-# `require('node:smol-primordials')` (matching every other smol-*
+# Adds `smol-primordial` to schemelessBlockList so consumers must
+# `require('node:smol-primordial')` (matching every other smol-*
 # module).
 #
 # Sequencing: 032 anchors after 028 (smol-util realm). Insert keeps
-# alphabetic order: smol-power < smol-primordials < smol-purl.
+# alphabetic order: smol-power < smol-primordial < smol-purl.
 #
 # Files modified:
 # - lib/internal/bootstrap/realm.js: schemelessBlockList entry
@@ -15,6 +15,6 @@
 +++ b/lib/internal/bootstrap/realm.js
 @@ -135,3 +135,4 @@
    'smol-power',
-+  'smol-primordials',
++  'smol-primordial',
    'smol-purl',
    'smol-sql',

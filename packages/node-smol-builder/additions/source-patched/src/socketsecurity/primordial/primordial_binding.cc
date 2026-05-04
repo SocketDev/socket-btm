@@ -1,8 +1,8 @@
-// node:smol-primordials V8 binding — TurboFan-inlinable fast paths.
+// node:smol-primordial V8 binding — TurboFan-inlinable fast paths.
 //
 // ─── What is this module? ──────────────────────────────────────────────
 //
-// `node:smol-primordials` exposes typed C++ implementations of common
+// `node:smol-primordial` exposes typed C++ implementations of common
 // primordial helpers (Math.abs, Number.isFinite, etc.) registered with
 // V8's "Fast API Calls" mechanism (see https://v8.dev/blog/v8-release-99).
 //
@@ -82,7 +82,7 @@
 
 namespace node {
 namespace socketsecurity {
-namespace primordials {
+namespace primordial {
 
 using v8::CFunction;
 using v8::Context;
@@ -487,13 +487,13 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   EXTREF_FAST(NumberIsSafeInteger);
 }
 
-}  // namespace primordials
+}  // namespace primordial
 }  // namespace socketsecurity
 }  // namespace node
 
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(
-    smol_primordials,
-    node::socketsecurity::primordials::Initialize)
+    smol_primordial,
+    node::socketsecurity::primordial::Initialize)
 NODE_BINDING_EXTERNAL_REFERENCE(
-    smol_primordials,
-    node::socketsecurity::primordials::RegisterExternalReferences)
+    smol_primordial,
+    node::socketsecurity::primordial::RegisterExternalReferences)

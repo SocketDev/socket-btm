@@ -1,6 +1,6 @@
 'use strict'
 
-// node:smol-primordials — V8 Fast API typed implementations of hot
+// node:smol-primordial — V8 Fast API typed implementations of hot
 // primordial helpers (Math.*, Number.is*).
 //
 // The functions here are registered with V8's `CFunction` mechanism
@@ -28,14 +28,14 @@
 // defined wrap. Math.clz32 returns 32 for input 0 (C's __builtin_clz
 // is UB at 0). Math.fround rounds to the nearest float32 representation.
 //
-// Backed by a native binding (smol_primordials) implemented in
+// Backed by a native binding (smol_primordial) implemented in
 // src/socketsecurity/primordials/. See that source file for the
 // architecture rationale + a forward-pointer to extending the
 // surface (string predicates, array predicates).
 
 const { ObjectFreeze } = primordials
 
-const fp = require('internal/socketsecurity/primordials')
+const fp = require('internal/socketsecurity/primordial')
 
 module.exports = ObjectFreeze({
   __proto__: null,

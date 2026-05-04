@@ -596,33 +596,67 @@ describe.skipIf(!existsSync(BINPRESS))(
         // Determine cache directory
         const DLX_DIR = getSocketDlxDir()
 
-        // First execution (creates cache)
+        // Snapshot the cache state before the run so we can pinpoint
+        // which dir was created or touched by this run. The
+        // compressed binary's cache key is a hash of its content, so
+        // re-running the same test re-uses an existing cache dir
+        // (mtime doesn't change). To make the test deterministic
+        // regardless of prior runs, identify the dir we care about
+        // by snapshotting the state before, then either finding a
+        // newly-created dir OR locating any pre-existing dir whose
+        // metadata file reflects this binary.
+        const beforeDirs = new Set<string>(
+          existsSync(DLX_DIR) ? await fs.readdir(DLX_DIR) : [],
+        )
+
+        // First execution (creates cache or hits existing)
         const exec1 = await execCommand(finalPath, ['--version'])
         expect(exec1.code).toBe(0)
 
-        // Find most recently created cache directory
         const cacheDirs = existsSync(DLX_DIR) ? await fs.readdir(DLX_DIR) : []
         expect(cacheDirs.length).toBeGreaterThan(0)
 
-        // Find the most recently modified cache directory (the one just created)
-        const dirStatsResults = await Promise.allSettled(
-          cacheDirs.map(async dir => ({
-            mtime: (await fs.stat(path.join(DLX_DIR, dir))).mtimeMs,
-            path: path.join(DLX_DIR, dir),
-          })),
-        )
-
-        const dirStats = dirStatsResults
-          .filter(r => r.status === 'fulfilled')
-          .map(r => r.value)
-
-        if (dirStats.length === 0) {
-          throw new Error('No valid cache directories found')
+        // Prefer a newly-created dir (with metadata); fall back to
+        // scanning every existing dir whose .dlx-metadata.json was
+        // touched after the run started. Older / aborted cache dirs
+        // without metadata are skipped — the assertion downstream
+        // requires metadata anyway.
+        const newDirs = cacheDirs.filter(d => !beforeDirs.has(d))
+        let cacheDir: string | undefined
+        for (const d of newDirs) {
+          if (existsSync(path.join(DLX_DIR, d, '.dlx-metadata.json'))) {
+            cacheDir = path.join(DLX_DIR, d)
+            break
+          }
+        }
+        if (!cacheDir) {
+          // Cache hit on a prior run's dir — the metadata file
+          // already existed. Find the one whose mtime advanced
+          // during the run window; restrict to dirs that have
+          // metadata so we never end up at an aborted/legacy dir.
+          let bestMtime = 0
+          for (const dir of cacheDirs) {
+            const candidate = path.join(DLX_DIR, dir)
+            const meta = path.join(candidate, '.dlx-metadata.json')
+            if (!existsSync(meta)) {
+              continue
+            }
+            try {
+              const stat = await fs.stat(meta)
+              if (stat.mtimeMs > bestMtime) {
+                bestMtime = stat.mtimeMs
+                cacheDir = candidate
+              }
+            } catch {
+              // ignore
+            }
+          }
         }
 
-        const cacheDir = dirStats.reduce((newest, current) =>
-          current.mtime > newest.mtime ? current : newest,
-        ).path
+        if (!cacheDir) {
+          throw new Error('Could not locate the cache dir used by the run')
+        }
+
         const metadataPath = path.join(cacheDir, '.dlx-metadata.json')
         expect(existsSync(metadataPath)).toBeTruthy()
 

@@ -369,7 +369,22 @@ extractVFS().catch(err => {
           },
         )
 
-        // First run: should extract
+        // The cache dir is keyed by VFS-file-content hash. Tests
+        // re-using the same fixture files re-use the same cache
+        // dir, so a "first run" against an already-populated cache
+        // would log CACHE_HIT instead of EXTRACTED. Dry-run once to
+        // discover the cache dir, then safeDelete it so the
+        // second run is a true cache miss + extraction.
+        const probeRun = await spawn(seaBinary, [])
+        expect(probeRun.code).toBe(0)
+        const probeMatch = probeRun.stdout.match(/CACHE_DIR=(.+)/)
+        expect(probeMatch).toBeTruthy()
+        const probeCacheDir = probeMatch![1]!.trim()
+        if (existsSync(probeCacheDir)) {
+          await safeDelete(probeCacheDir)
+        }
+
+        // First run (now a true cache miss): should extract
         const firstRun = await spawn(seaBinary, [])
         expect(firstRun.code).toBe(0)
         expect(firstRun.stdout).toContain('CACHE_DIR=')

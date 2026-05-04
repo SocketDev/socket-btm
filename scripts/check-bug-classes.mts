@@ -602,8 +602,19 @@ async function findNonExistentPnpmScripts(
   // These are explicit examples in skill docs explaining the convention.
   const placeholders = new Set(['foo', 'bar', 'baz', 'script'])
   for (const m of rawMatches) {
-    // Extract the script name from the captured line text.
-    const runMatch = m.text.match(/pnpm run ([a-zA-Z][a-zA-Z0-9:_-]*)/)
+    // Skip Claude Code tool-allowlist patterns like
+    //   Bash(pnpm run check:*)
+    // Those describe a class of allowed Bash invocations, not a
+    // literal `pnpm run` reference; the trailing `:*` is a wildcard
+    // suffix in Claude Code's permission grammar.
+    if (/Bash\([^)]*pnpm run [a-zA-Z][a-zA-Z0-9_-]*:\*/.test(m.text)) {
+      continue
+    }
+    // Extract the script name from the captured line text. Use a
+    // strict character class WITHOUT `:` — a colon ends the script
+    // name (the part after `:` is a sub-script suffix like `:all`,
+    // `:ci`, `:watch`).
+    const runMatch = m.text.match(/pnpm run ([a-zA-Z][a-zA-Z0-9_-]*)/)
     if (!runMatch) {
       continue
     }

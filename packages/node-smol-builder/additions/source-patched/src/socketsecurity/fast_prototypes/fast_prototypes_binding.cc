@@ -187,6 +187,32 @@ using v8::Value;
   }                                                                      \
   static CFunction fast_##NAME(CFunction::Make(Fast##NAME))
 
+// Signature: (double, double) -> double — for Math.atan2, pow, hypot.
+//
+// Note: NOT used for Math.max / Math.min — those are variadic in JS,
+// and the fast path can only specialize the 2-arg case. They get
+// their own slow + fast pair below for clarity.
+#define DEFINE_FAST_DOUBLE_DOUBLE_DOUBLE(NAME, OP)                       \
+  static void Slow##NAME(const FunctionCallbackInfo<Value>& args) {      \
+    Isolate* isolate = args.GetIsolate();                                \
+    Local<Context> context = isolate->GetCurrentContext();               \
+    if (args.Length() < 2) {                                             \
+      args.GetReturnValue().Set(                                         \
+          std::numeric_limits<double>::quiet_NaN());                     \
+      return;                                                            \
+    }                                                                    \
+    double a, b;                                                         \
+    if (!args[0]->NumberValue(context).To(&a)) return;                   \
+    if (!args[1]->NumberValue(context).To(&b)) return;                   \
+    args.GetReturnValue().Set(OP(a, b));                                 \
+  }                                                                      \
+  static double Fast##NAME(Local<Value> recv, double a, double b,        \
+                           /* NOLINTNEXTLINE(runtime/references) */      \
+                           FastApiCallbackOptions& opts) {               \
+    return OP(a, b);                                                     \
+  }                                                                      \
+  static CFunction fast_##NAME(CFunction::Make(Fast##NAME))
+
 // ═══════════════════════════════════════════════════════════════════════
 // Pure-C implementations.
 // ═══════════════════════════════════════════════════════════════════════
@@ -251,25 +277,96 @@ inline bool JsIsSafeInteger(double v) {
 // can take a single op-name; the std:: versions don't have the right
 // linkage to be passed through as macro arguments directly on all
 // compilers.
+//
+// Each `Std*` is a one-liner that calls the corresponding C++
+// standard library math function. Inline so the compiler erases the
+// trampoline at the call site (zero overhead).
+//
+// Spec roots: https://tc39.es/ecma262/#sec-math-object — each Math.X
+// method is defined to invoke an "implementation-approximated"
+// version of the IEEE-754 / glibc-defined math operation. The std::
+// C++ math functions are spec-compliant for our purposes.
 inline double StdAbs(double v) { return std::fabs(v); }
+inline double StdAcos(double v) { return std::acos(v); }
+inline double StdAcosh(double v) { return std::acosh(v); }
+inline double StdAsin(double v) { return std::asin(v); }
+inline double StdAsinh(double v) { return std::asinh(v); }
+inline double StdAtan(double v) { return std::atan(v); }
+inline double StdAtan2(double a, double b) { return std::atan2(a, b); }
+inline double StdAtanh(double v) { return std::atanh(v); }
+inline double StdCbrt(double v) { return std::cbrt(v); }
 inline double StdCeil(double v) { return std::ceil(v); }
+inline double StdCos(double v) { return std::cos(v); }
+inline double StdCosh(double v) { return std::cosh(v); }
+inline double StdExp(double v) { return std::exp(v); }
+inline double StdExpm1(double v) { return std::expm1(v); }
 inline double StdFloor(double v) { return std::floor(v); }
-inline double StdTrunc(double v) { return std::trunc(v); }
+inline double StdFround(double v) {
+  // ECMAScript Math.fround rounds to the nearest float32 representation
+  // and returns it as a double. C++ has no `fround` — we cast through
+  // float and back. Compilers (clang/gcc/msvc) recognize this as the
+  // canonical fround idiom and emit the equivalent of VCVT.F32 + VCVT.F64.
+  return static_cast<double>(static_cast<float>(v));
+}
+inline double StdHypot(double a, double b) { return std::hypot(a, b); }
+inline double StdLog(double v) { return std::log(v); }
+inline double StdLog1p(double v) { return std::log1p(v); }
+inline double StdLog2(double v) { return std::log2(v); }
+inline double StdLog10(double v) { return std::log10(v); }
+inline double StdPow(double a, double b) { return std::pow(a, b); }
+inline double StdSin(double v) { return std::sin(v); }
+inline double StdSinh(double v) { return std::sinh(v); }
 inline double StdSqrt(double v) { return std::sqrt(v); }
+inline double StdTan(double v) { return std::tan(v); }
+inline double StdTanh(double v) { return std::tanh(v); }
+inline double StdTrunc(double v) { return std::trunc(v); }
 
 // ═══════════════════════════════════════════════════════════════════════
 // Entry definitions — one line per primordial.
 // ═══════════════════════════════════════════════════════════════════════
 
-// Math (double → double)
+// Math (double → double) — full coverage of the unary math methods.
 // Spec roots: https://tc39.es/ecma262/#sec-math-object
 DEFINE_FAST_DOUBLE_DOUBLE(MathAbs, StdAbs);
+DEFINE_FAST_DOUBLE_DOUBLE(MathAcos, StdAcos);
+DEFINE_FAST_DOUBLE_DOUBLE(MathAcosh, StdAcosh);
+DEFINE_FAST_DOUBLE_DOUBLE(MathAsin, StdAsin);
+DEFINE_FAST_DOUBLE_DOUBLE(MathAsinh, StdAsinh);
+DEFINE_FAST_DOUBLE_DOUBLE(MathAtan, StdAtan);
+DEFINE_FAST_DOUBLE_DOUBLE(MathAtanh, StdAtanh);
+DEFINE_FAST_DOUBLE_DOUBLE(MathCbrt, StdCbrt);
 DEFINE_FAST_DOUBLE_DOUBLE(MathCeil, StdCeil);
+DEFINE_FAST_DOUBLE_DOUBLE(MathCos, StdCos);
+DEFINE_FAST_DOUBLE_DOUBLE(MathCosh, StdCosh);
+DEFINE_FAST_DOUBLE_DOUBLE(MathExp, StdExp);
+DEFINE_FAST_DOUBLE_DOUBLE(MathExpm1, StdExpm1);
 DEFINE_FAST_DOUBLE_DOUBLE(MathFloor, StdFloor);
+DEFINE_FAST_DOUBLE_DOUBLE(MathFround, StdFround);
+DEFINE_FAST_DOUBLE_DOUBLE(MathLog, StdLog);
+DEFINE_FAST_DOUBLE_DOUBLE(MathLog1p, StdLog1p);
+DEFINE_FAST_DOUBLE_DOUBLE(MathLog2, StdLog2);
+DEFINE_FAST_DOUBLE_DOUBLE(MathLog10, StdLog10);
 DEFINE_FAST_DOUBLE_DOUBLE(MathRound, JsMathRound);
-DEFINE_FAST_DOUBLE_DOUBLE(MathTrunc, StdTrunc);
 DEFINE_FAST_DOUBLE_DOUBLE(MathSign, JsMathSign);
+DEFINE_FAST_DOUBLE_DOUBLE(MathSin, StdSin);
+DEFINE_FAST_DOUBLE_DOUBLE(MathSinh, StdSinh);
 DEFINE_FAST_DOUBLE_DOUBLE(MathSqrt, StdSqrt);
+DEFINE_FAST_DOUBLE_DOUBLE(MathTan, StdTan);
+DEFINE_FAST_DOUBLE_DOUBLE(MathTanh, StdTanh);
+DEFINE_FAST_DOUBLE_DOUBLE(MathTrunc, StdTrunc);
+
+// Math (double, double → double) — binary math methods.
+// Math.atan2: https://tc39.es/ecma262/#sec-math.atan2
+// Math.hypot (binary form): https://tc39.es/ecma262/#sec-math.hypot
+// Math.pow:   https://tc39.es/ecma262/#sec-math.pow
+//
+// Math.hypot is variadic in JS (`Math.hypot(...values)`); the fast
+// path only specializes the 2-arg form. Variadic callers fall back
+// to the slow path, which still benefits from the uncurryThis-style
+// single-dispatch via node:smol-util.
+DEFINE_FAST_DOUBLE_DOUBLE_DOUBLE(MathAtan2, StdAtan2);
+DEFINE_FAST_DOUBLE_DOUBLE_DOUBLE(MathHypot, StdHypot);
+DEFINE_FAST_DOUBLE_DOUBLE_DOUBLE(MathPow, StdPow);
 
 // Math (int32 × int32 → int32)
 DEFINE_FAST_INT32_INT32_INT32(MathImul, JsMathImul);
@@ -309,14 +406,39 @@ static void Initialize(Local<Object> target,
                        Local<Value> /* unused */,
                        Local<Context> context,
                        void* /* priv */) {
-  // Math
+  // Math (unary, double → double)
   REGISTER_FAST(target, "mathAbs", MathAbs);
+  REGISTER_FAST(target, "mathAcos", MathAcos);
+  REGISTER_FAST(target, "mathAcosh", MathAcosh);
+  REGISTER_FAST(target, "mathAsin", MathAsin);
+  REGISTER_FAST(target, "mathAsinh", MathAsinh);
+  REGISTER_FAST(target, "mathAtan", MathAtan);
+  REGISTER_FAST(target, "mathAtanh", MathAtanh);
+  REGISTER_FAST(target, "mathCbrt", MathCbrt);
   REGISTER_FAST(target, "mathCeil", MathCeil);
+  REGISTER_FAST(target, "mathCos", MathCos);
+  REGISTER_FAST(target, "mathCosh", MathCosh);
+  REGISTER_FAST(target, "mathExp", MathExp);
+  REGISTER_FAST(target, "mathExpm1", MathExpm1);
   REGISTER_FAST(target, "mathFloor", MathFloor);
+  REGISTER_FAST(target, "mathFround", MathFround);
+  REGISTER_FAST(target, "mathLog", MathLog);
+  REGISTER_FAST(target, "mathLog1p", MathLog1p);
+  REGISTER_FAST(target, "mathLog2", MathLog2);
+  REGISTER_FAST(target, "mathLog10", MathLog10);
   REGISTER_FAST(target, "mathRound", MathRound);
-  REGISTER_FAST(target, "mathTrunc", MathTrunc);
   REGISTER_FAST(target, "mathSign", MathSign);
+  REGISTER_FAST(target, "mathSin", MathSin);
+  REGISTER_FAST(target, "mathSinh", MathSinh);
   REGISTER_FAST(target, "mathSqrt", MathSqrt);
+  REGISTER_FAST(target, "mathTan", MathTan);
+  REGISTER_FAST(target, "mathTanh", MathTanh);
+  REGISTER_FAST(target, "mathTrunc", MathTrunc);
+  // Math (binary, double × double → double)
+  REGISTER_FAST(target, "mathAtan2", MathAtan2);
+  REGISTER_FAST(target, "mathHypot", MathHypot);
+  REGISTER_FAST(target, "mathPow", MathPow);
+  // Math (other signatures)
   REGISTER_FAST(target, "mathImul", MathImul);
   REGISTER_FAST(target, "mathClz32", MathClz32);
   // Number predicates
@@ -328,14 +450,37 @@ static void Initialize(Local<Object> target,
 
 static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   EXTREF_FAST(MathAbs);
+  EXTREF_FAST(MathAcos);
+  EXTREF_FAST(MathAcosh);
+  EXTREF_FAST(MathAsin);
+  EXTREF_FAST(MathAsinh);
+  EXTREF_FAST(MathAtan);
+  EXTREF_FAST(MathAtan2);
+  EXTREF_FAST(MathAtanh);
+  EXTREF_FAST(MathCbrt);
   EXTREF_FAST(MathCeil);
-  EXTREF_FAST(MathFloor);
-  EXTREF_FAST(MathRound);
-  EXTREF_FAST(MathTrunc);
-  EXTREF_FAST(MathSign);
-  EXTREF_FAST(MathSqrt);
-  EXTREF_FAST(MathImul);
   EXTREF_FAST(MathClz32);
+  EXTREF_FAST(MathCos);
+  EXTREF_FAST(MathCosh);
+  EXTREF_FAST(MathExp);
+  EXTREF_FAST(MathExpm1);
+  EXTREF_FAST(MathFloor);
+  EXTREF_FAST(MathFround);
+  EXTREF_FAST(MathHypot);
+  EXTREF_FAST(MathImul);
+  EXTREF_FAST(MathLog);
+  EXTREF_FAST(MathLog1p);
+  EXTREF_FAST(MathLog2);
+  EXTREF_FAST(MathLog10);
+  EXTREF_FAST(MathPow);
+  EXTREF_FAST(MathRound);
+  EXTREF_FAST(MathSign);
+  EXTREF_FAST(MathSin);
+  EXTREF_FAST(MathSinh);
+  EXTREF_FAST(MathSqrt);
+  EXTREF_FAST(MathTan);
+  EXTREF_FAST(MathTanh);
+  EXTREF_FAST(MathTrunc);
   EXTREF_FAST(NumberIsFinite);
   EXTREF_FAST(NumberIsInteger);
   EXTREF_FAST(NumberIsNaN);

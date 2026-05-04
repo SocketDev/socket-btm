@@ -1,130 +1,112 @@
 /**
  * @fileoverview Verify-build tests for node:smol-power.
  *
- * Runs the built smol binary with inline JS that:
- *   1. checks `node:module`'s `builtinModules` array contains
- *      `smol-power` (tests that `realm.js`'s schemelessBlockList
- *      registration via patch 024 took effect)
- *   2. confirms `isBuiltin('node:smol-power')` returns true
- *   3. requires `node:smol-power` and exercises the public API:
- *        - `isOnAcPower()` returns a boolean
- *        - `isOnBatteryPower()` returns a boolean
- *        - they are inverses of each other
+ * Asserts the public API documented in additions/source-patched/lib/smol-power.js:
+ *   - `isOnAcPower(): boolean`
+ *   - `isOnBatteryPower(): boolean`
+ *   - module is frozen with a null prototype
+ *   - bare `smol-power` (no node: prefix) is rejected (patch 024
+ *     schemelessBlockList — bare require throws MODULE_NOT_FOUND)
+ *   - `builtinModules` advertises the prefixed form `node:smol-power`
  *
- * Skips entirely if the Final/ binary hasn't been built — run
- * `pnpm build --dev` first to materialize one.
- *
- * Note: Requires a built smol binary at
- * build/{dev,prod}/{platform-arch}/out/Final/node/.
+ * Skips entirely if the Final/ binary hasn't been built or the
+ * smol-power binding hasn't been wired in — run `pnpm build --dev` to
+ * materialize one.
  */
 
-import { existsSync } from 'node:fs'
+import {
+  parseExportShape,
+  printExportShapeScript,
+  runOnSmolBinary,
+  smolBuiltinIsAvailable,
+} from '../helpers/smol-builtin.mts'
 
-import { spawn, spawnSync } from '@socketsecurity/lib/spawn'
+const skipTests = !smolBuiltinIsAvailable('smol-power')
 
-import { getLatestFinalBinary } from '../paths.mts'
-
-const finalBinaryPath = getLatestFinalBinary()
-
-// Probe whether the Final binary actually has the smol-power
-// binding wired in. The binary may have been built before patches
-// 023–026 landed (or with smol-power deliberately stripped). Skip
-// the suite when the binding isn't present rather than fail —
-// the build itself is the contract under test, and a rebuild will
-// re-enable these tests automatically.
-function smolPowerIsBuilt(): boolean {
-  if (!finalBinaryPath || !existsSync(finalBinaryPath)) {
-    return false
-  }
-  try {
-    const result = spawnSync(
-      finalBinaryPath,
-      ['-e', 'process.stdout.write(String(require("node:module").isBuiltin("node:smol-power")))'],
-      { stdio: ['ignore', 'pipe', 'ignore'], timeout: 10_000 },
-    )
-    return String(result.stdout || '').trim() === 'true'
-  } catch {
-    return false
-  }
-}
-
-const skipTests = !smolPowerIsBuilt()
+const EXPECTED_EXPORTS: ReadonlyArray<readonly [string, string]> = [
+  ['isOnAcPower', 'function'],
+  ['isOnBatteryPower', 'function'],
+]
 
 describe.skipIf(skipTests)('node:smol-power integration', () => {
-  it("isBuiltin('node:smol-power') returns true on smol binary", async () => {
+  it("isBuiltin('node:smol-power') returns true; bare 'smol-power' returns false (schemelessBlockList)", async () => {
     const script = `
       const { isBuiltin } = require('node:module')
       console.log('isBuiltin(node:smol-power)=' + isBuiltin('node:smol-power'))
       console.log('isBuiltin(smol-power)=' + isBuiltin('smol-power'))
     `
-    const result = await spawn(finalBinaryPath, ['-e', script], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 10_000,
-    })
-    expect(result.code).toBe(0)
-    const stdout = String(result.stdout || '')
+    const { code, stdout } = await runOnSmolBinary(script)
+    expect(code).toBe(0)
     expect(stdout).toContain('isBuiltin(node:smol-power)=true')
-    expect(stdout).toContain('isBuiltin(smol-power)=true')
+    expect(stdout).toContain('isBuiltin(smol-power)=false')
   })
 
-  it('builtinModules contains smol-power on smol binary', async () => {
+  it("builtinModules contains 'node:smol-power' (prefixed form)", async () => {
     const script = `
       const { builtinModules } = require('node:module')
-      console.log('contains-smol-power=' + builtinModules.includes('smol-power'))
+      console.log('contains-prefixed=' + builtinModules.includes('node:smol-power'))
+      console.log('contains-bare=' + builtinModules.includes('smol-power'))
     `
-    const result = await spawn(finalBinaryPath, ['-e', script], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 10_000,
-    })
-    expect(result.code).toBe(0)
-    expect(String(result.stdout || '')).toContain('contains-smol-power=true')
+    const { code, stdout } = await runOnSmolBinary(script)
+    expect(code).toBe(0)
+    expect(stdout).toContain('contains-prefixed=true')
+    expect(stdout).toContain('contains-bare=false')
   })
 
-  it("require('node:smol-power') exposes the documented API", async () => {
-    // Probe each public export's existence + type. Avoids asserting
-    // a specific power-state value (depends on the host running the
-    // test) — just that the API shape is right.
+  it('exports exactly the documented API surface (no drift)', async () => {
+    const { code, stdout } = await runOnSmolBinary(
+      printExportShapeScript('smol-power'),
+    )
+    expect(code).toBe(0)
+    const shape = parseExportShape(stdout)
+    for (const [name, type] of EXPECTED_EXPORTS) {
+      expect(shape.get(name), `export ${name}`).toBe(type)
+    }
+    const expectedNames = new Set(EXPECTED_EXPORTS.map(([n]) => n))
+    const unexpected = [...shape.keys()].filter(n => !expectedNames.has(n))
+    expect(unexpected).toEqual([])
+  })
+
+  it('module exports are frozen and null-prototype', async () => {
+    const script = `
+      const mod = require('node:smol-power')
+      console.log('frozen=' + Object.isFrozen(mod))
+      console.log('proto=' + Object.getPrototypeOf(mod))
+    `
+    const { code, stdout } = await runOnSmolBinary(script)
+    expect(code).toBe(0)
+    expect(stdout).toContain('frozen=true')
+    expect(stdout).toContain('proto=null')
+  })
+
+  it('isOnAcPower() and isOnBatteryPower() return inverse booleans', async () => {
     const script = `
       const power = require('node:smol-power')
       const ac = power.isOnAcPower()
       const battery = power.isOnBatteryPower()
-      console.log('typeof-isOnAcPower=' + typeof power.isOnAcPower)
-      console.log('typeof-isOnBatteryPower=' + typeof power.isOnBatteryPower)
-      console.log('ac-result=' + typeof ac)
-      console.log('battery-result=' + typeof battery)
-      console.log('inverse-relation=' + (ac === !battery))
+      console.log('ac-type=' + typeof ac)
+      console.log('battery-type=' + typeof battery)
+      console.log('inverse=' + (ac === !battery))
     `
-    const result = await spawn(finalBinaryPath, ['-e', script], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 10_000,
-    })
-    expect(result.code).toBe(0)
-    const stdout = String(result.stdout || '')
-    expect(stdout).toContain('typeof-isOnAcPower=function')
-    expect(stdout).toContain('typeof-isOnBatteryPower=function')
-    expect(stdout).toContain('ac-result=boolean')
-    expect(stdout).toContain('battery-result=boolean')
-    expect(stdout).toContain('inverse-relation=true')
+    const { code, stdout } = await runOnSmolBinary(script)
+    expect(code).toBe(0)
+    expect(stdout).toContain('ac-type=boolean')
+    expect(stdout).toContain('battery-type=boolean')
+    expect(stdout).toContain('inverse=true')
   })
 
-  it('rejects bare `smol-power` (must use node: prefix)', async () => {
-    // Patch 024 puts `smol-power` in schemelessBlockList so consumers
-    // must use the `node:` scheme. Bare require() should error.
+  it('rejects bare `smol-power` with MODULE_NOT_FOUND (must use node: prefix)', async () => {
     const script = `
       try {
         require('smol-power')
         console.log('UNEXPECTED-LOAD')
       } catch (e) {
-        console.log('blocked-error-code=' + (e.code || 'no-code'))
+        console.log('blocked-code=' + (e.code || 'no-code'))
       }
     `
-    const result = await spawn(finalBinaryPath, ['-e', script], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 10_000,
-    })
-    expect(result.code).toBe(0)
-    const stdout = String(result.stdout || '')
+    const { code, stdout } = await runOnSmolBinary(script)
+    expect(code).toBe(0)
     expect(stdout).not.toContain('UNEXPECTED-LOAD')
-    expect(stdout).toMatch(/blocked-error-code=/)
+    expect(stdout).toContain('blocked-code=MODULE_NOT_FOUND')
   })
 })

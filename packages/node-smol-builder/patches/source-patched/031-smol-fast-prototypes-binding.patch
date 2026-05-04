@@ -1,0 +1,24 @@
+# @node-versions: v25.9.0
+# @description: Register smol_fast_prototypes native binding in NODE_BUILTIN_BINDINGS
+#
+# Adds V(smol_fast_prototypes) alongside the other smol_* bindings.
+# The binding implements V8 Fast API specializations of Math.* and
+# Number.is* — TurboFan inlines them directly into JIT-compiled JS
+# callers (~30-50% faster than the uncurryThis-wrapped form on hot
+# benchmark loops).
+#
+# Sequencing: 031 anchors after 027 (smol_util). Insert keeps
+# alphabetic order: smol_fast_prototypes < smol_ffi < smol_http <
+# smol_ilp < smol_power < smol_util < smol_webstreams.
+#
+# Files modified:
+# - src/node_binding.cc: register smol_fast_prototypes in NODE_BUILTIN_BINDINGS
+#
+--- a/src/node_binding.cc
++++ b/src/node_binding.cc
+@@ -109,4 +109,5 @@
+   NODE_BUILTIN_POSTGRES_BINDINGS(V)                                            \
++  V(smol_fast_prototypes)                                                      \
+   V(smol_ffi)                                                                  \
+   V(smol_http)                                                                 \
+   V(smol_ilp)                                                                  \

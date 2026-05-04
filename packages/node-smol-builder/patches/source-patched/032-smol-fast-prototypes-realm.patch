@@ -1,0 +1,20 @@
+# @node-versions: v25.9.0
+# @description: Reserve `smol-fast-prototypes` for the node: scheme
+#
+# Adds `smol-fast-prototypes` to schemelessBlockList so consumers
+# must `require('node:smol-fast-prototypes')` (matching every other
+# smol-* module).
+#
+# Sequencing: 032 anchors after 028 (smol-util realm). Insert keeps
+# alphabetic order: ffi < fast-prototypes < http < ilp.
+#
+# Files modified:
+# - lib/internal/bootstrap/realm.js: schemelessBlockList entry
+#
+--- a/lib/internal/bootstrap/realm.js
++++ b/lib/internal/bootstrap/realm.js
+@@ -129,3 +129,4 @@
++  'smol-fast-prototypes',
+   'smol-ffi',
+   'smol-http',
+   'smol-https',

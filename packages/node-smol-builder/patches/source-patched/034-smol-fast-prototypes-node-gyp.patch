@@ -1,0 +1,28 @@
+# @node-versions: v25.9.0
+# @description: Wire smol-fast-prototypes native source into node.gyp
+#
+# Adds src/socketsecurity/fast_prototypes/fast_prototypes_binding.cc
+# to the main node target. Pure platform-agnostic V8 binding glue —
+# no per-OS variants needed.
+#
+# Sequencing: 034 anchors after 030 (smol-util node-gyp). The hunk
+# inserts the fast-prototypes block immediately after the util block.
+#
+# Files modified:
+# - node.gyp: add smol-fast-prototypes binding source
+#
+--- a/node.gyp
++++ b/node.gyp
+@@ -1,5 +1,12 @@
+         ['1==1', {
+           'sources': [
+             'src/socketsecurity/util/util_binding.cc',
+           ],
+         }],
++        # Socket Security: smol-fast-prototypes binding. Pure V8 glue,
++        # platform-agnostic.
++        ['1==1', {
++          'sources': [
++            'src/socketsecurity/fast_prototypes/fast_prototypes_binding.cc',
++          ],
++        }],

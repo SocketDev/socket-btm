@@ -1,0 +1,21 @@
+# @node-versions: v25.9.0
+# @description: Add smol_fast_prototypes to external reference list
+#
+# Adds V(smol_fast_prototypes) to EXTERNAL_REFERENCE_BINDING_LIST so
+# the binding's externally-referenced functions are registered during
+# V8 snapshot building. Required for any binding that calls
+# NODE_BINDING_EXTERNAL_REFERENCE() — smol_fast_prototypes does.
+#
+# Sequencing: 033 anchors after 029 (smol_util external-refs).
+# Insert keeps alphabetic order: smol_fast_prototypes < smol_ffi.
+#
+# Files modified:
+# - src/node_external_reference.h: register smol_fast_prototypes
+#
+--- a/src/node_external_reference.h
++++ b/src/node_external_reference.h
+@@ -156,3 +156,4 @@
++  V(smol_fast_prototypes)                                                      \
+   V(smol_ffi)                                                                  \
+   V(smol_http)                                                                 \
+   V(smol_ilp)                                                                  \

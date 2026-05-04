@@ -21,6 +21,11 @@
  *   6. Numbered patches in a series have no gaps (e.g. 001, 002, 004
  *      without 003). Gaps are allowed if documented — add to the
  *      allowlist with a `gap-ok` entry.
+ *   7. Each source file is touched by AT MOST ONE patch in the series
+ *      (per CLAUDE.md "Patch Rules": 1 patch, 1 file). Two patches
+ *      modifying the same file is a convention violation — fold them
+ *      into a single patch. Allowlist with rule `multiple-patches-per-file`
+ *      if the split is intentional and documented.
  *
  * Wired into `pnpm run check` so CI fails on any regression.
  *
@@ -41,6 +46,7 @@ import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { naturalCompare } from '@socketsecurity/lib/sorts'
 
 import { errorMessage } from 'build-infra/lib/error-utils'
 
@@ -499,6 +505,74 @@ function collectNumberGapViolations(dir: string): Violation[] {
   return violations
 }
 
+// Check that no source file is modified by more than one patch in the
+// same directory. CLAUDE.md "Patch Rules" requires "1 patch, 1 file" —
+// not just within a patch, but across the whole series. Two patches
+// touching `src/node_binding.cc` is a convention violation; fold them
+// into one patch instead.
+function collectMultiplePatchesPerFileViolations(dir: string): Violation[] {
+  if (!existsSync(dir)) {
+    return []
+  }
+  const files = readdirSync(dir)
+    .filter(f => f.endsWith('.patch'))
+    .sort(naturalCompare)
+  // Map from touched-source-file path → list of patch filenames that
+  // modify it. We read each patch, parse its `--- a/<file>` markers,
+  // and accumulate.
+  const fileToPatches = new Map<string, string[]>()
+  for (const patchName of files) {
+    const abs = path.join(dir, patchName)
+    let content
+    try {
+      content = readFileSync(abs, 'utf8')
+    } catch {
+      continue
+    }
+    // Parse the patch's `--- a/<path>` markers. Mirror the parsing
+    // shape from validatePatch's own use to stay consistent.
+    const minusFiles = new Set<string>()
+    for (const line of content.split('\n')) {
+      const match = /^---\s+a\/(.+?)\s*$/.exec(line)
+      if (match) {
+        minusFiles.add(match[1]!)
+      }
+    }
+    for (const f of minusFiles) {
+      const list = fileToPatches.get(f) ?? []
+      list.push(patchName)
+      fileToPatches.set(f, list)
+    }
+  }
+  const violations: Violation[] = []
+  for (const [sourceFile, patches] of fileToPatches) {
+    if (patches.length <= 1) {
+      continue
+    }
+    // Report the violation against the second + later patches (the
+    // first one to touch a file is the canonical owner; subsequent
+    // ones are the violators). This makes the fix path clear: fold
+    // the violator's hunks into the canonical patch.
+    const canonical = patches[0]!
+    for (const violator of patches.slice(1)) {
+      violations.push({
+        detail:
+          `Patch ${violator} modifies ${sourceFile}, which is already ` +
+          `owned by ${canonical}. CLAUDE.md "Patch Rules" requires ` +
+          `1 patch per source file across the entire series.`,
+        file: path.relative(MONOREPO_ROOT, path.join(dir, violator)),
+        fix:
+          `Fold this patch's hunks into ${canonical} and delete this ` +
+          `file. If the split is intentional and documented, allowlist ` +
+          `with \`rule: multiple-patches-per-file\`.`,
+        line: 1,
+        rule: 'multiple-patches-per-file',
+      })
+    }
+  }
+  return violations
+}
+
 type Options = {
   explain: boolean
   json: boolean
@@ -552,7 +626,7 @@ async function main(): Promise<void> {
     try {
       files = readdirSync(absRoot)
         .filter(f => f.endsWith('.patch'))
-        .sort()
+        .sort(naturalCompare)
     } catch {
       continue
     }
@@ -570,6 +644,7 @@ async function main(): Promise<void> {
       allViolations.push(...validatePatch(abs, root.project))
     }
     allViolations.push(...collectNumberGapViolations(absRoot))
+    allViolations.push(...collectMultiplePatchesPerFileViolations(absRoot))
   }
 
   const surviving = allViolations.filter(

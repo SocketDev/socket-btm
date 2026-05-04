@@ -19,5 +19,3 @@
    V(smol_ilp)                                                                  \
 +  V(smol_power)                                                                \
    V(smol_webstreams)
-
- // This is used to load built-in bindings. Instead of using

@@ -11,26 +11,32 @@ const binding = internalBinding('smol_primordial')
 
 module.exports = ObjectFreeze({
   __proto__: null,
-  // Math (unary, double → double)
+  arrayIsArray: binding.arrayIsArray,
+  dateNow: binding.dateNow,
   mathAbs: binding.mathAbs,
   mathAcos: binding.mathAcos,
   mathAcosh: binding.mathAcosh,
   mathAsin: binding.mathAsin,
   mathAsinh: binding.mathAsinh,
   mathAtan: binding.mathAtan,
+  mathAtan2: binding.mathAtan2,
   mathAtanh: binding.mathAtanh,
   mathCbrt: binding.mathCbrt,
   mathCeil: binding.mathCeil,
+  mathClz32: binding.mathClz32,
   mathCos: binding.mathCos,
   mathCosh: binding.mathCosh,
   mathExp: binding.mathExp,
   mathExpm1: binding.mathExpm1,
   mathFloor: binding.mathFloor,
   mathFround: binding.mathFround,
+  mathHypot: binding.mathHypot,
+  mathImul: binding.mathImul,
   mathLog: binding.mathLog,
   mathLog1p: binding.mathLog1p,
   mathLog2: binding.mathLog2,
   mathLog10: binding.mathLog10,
+  mathPow: binding.mathPow,
   mathRound: binding.mathRound,
   mathSign: binding.mathSign,
   mathSin: binding.mathSin,
@@ -39,26 +45,12 @@ module.exports = ObjectFreeze({
   mathTan: binding.mathTan,
   mathTanh: binding.mathTanh,
   mathTrunc: binding.mathTrunc,
-  // Math (binary)
-  mathAtan2: binding.mathAtan2,
-  mathHypot: binding.mathHypot,
-  mathPow: binding.mathPow,
-  // Math (other signatures)
-  mathClz32: binding.mathClz32,
-  mathImul: binding.mathImul,
-  // Number predicates
   numberIsFinite: binding.numberIsFinite,
   numberIsInteger: binding.numberIsInteger,
   numberIsNaN: binding.numberIsNaN,
   numberIsSafeInteger: binding.numberIsSafeInteger,
-  // Number static parsers (FastOneByteString fast path)
   numberParseFloat: binding.numberParseFloat,
   numberParseInt10: binding.numberParseInt10,
-  // Array.isArray (Local<Value> -> bool, single map check)
-  arrayIsArray: binding.arrayIsArray,
-  // Date.now (() -> double)
-  dateNow: binding.dateNow,
-  // String.prototype.charCodeAt (FastOneByteString fast path).
   // Returns -1 sentinel for OOB; consumers (e.g. socket-lib's
   // primordials.ts) wrap this and convert -1 back to NaN to match
   // String.prototype.charCodeAt spec.

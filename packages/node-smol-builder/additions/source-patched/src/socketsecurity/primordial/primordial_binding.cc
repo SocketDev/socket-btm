@@ -701,26 +701,32 @@ static void Initialize(Local<Object> target,
                        Local<Value> /* unused */,
                        Local<Context> context,
                        void* /* priv */) {
-  // Math (unary, double → double)
+  REGISTER_FAST(target, "arrayIsArray", ArrayIsArray);
+  REGISTER_FAST(target, "dateNow", DateNow);
   REGISTER_FAST(target, "mathAbs", MathAbs);
   REGISTER_FAST(target, "mathAcos", MathAcos);
   REGISTER_FAST(target, "mathAcosh", MathAcosh);
   REGISTER_FAST(target, "mathAsin", MathAsin);
   REGISTER_FAST(target, "mathAsinh", MathAsinh);
   REGISTER_FAST(target, "mathAtan", MathAtan);
+  REGISTER_FAST(target, "mathAtan2", MathAtan2);
   REGISTER_FAST(target, "mathAtanh", MathAtanh);
   REGISTER_FAST(target, "mathCbrt", MathCbrt);
   REGISTER_FAST(target, "mathCeil", MathCeil);
+  REGISTER_FAST(target, "mathClz32", MathClz32);
   REGISTER_FAST(target, "mathCos", MathCos);
   REGISTER_FAST(target, "mathCosh", MathCosh);
   REGISTER_FAST(target, "mathExp", MathExp);
   REGISTER_FAST(target, "mathExpm1", MathExpm1);
   REGISTER_FAST(target, "mathFloor", MathFloor);
   REGISTER_FAST(target, "mathFround", MathFround);
+  REGISTER_FAST(target, "mathHypot", MathHypot);
+  REGISTER_FAST(target, "mathImul", MathImul);
   REGISTER_FAST(target, "mathLog", MathLog);
   REGISTER_FAST(target, "mathLog1p", MathLog1p);
   REGISTER_FAST(target, "mathLog2", MathLog2);
   REGISTER_FAST(target, "mathLog10", MathLog10);
+  REGISTER_FAST(target, "mathPow", MathPow);
   REGISTER_FAST(target, "mathRound", MathRound);
   REGISTER_FAST(target, "mathSign", MathSign);
   REGISTER_FAST(target, "mathSin", MathSin);
@@ -729,30 +735,18 @@ static void Initialize(Local<Object> target,
   REGISTER_FAST(target, "mathTan", MathTan);
   REGISTER_FAST(target, "mathTanh", MathTanh);
   REGISTER_FAST(target, "mathTrunc", MathTrunc);
-  // Math (binary, double × double → double)
-  REGISTER_FAST(target, "mathAtan2", MathAtan2);
-  REGISTER_FAST(target, "mathHypot", MathHypot);
-  REGISTER_FAST(target, "mathPow", MathPow);
-  // Math (other signatures)
-  REGISTER_FAST(target, "mathImul", MathImul);
-  REGISTER_FAST(target, "mathClz32", MathClz32);
-  // Number predicates
   REGISTER_FAST(target, "numberIsFinite", NumberIsFinite);
   REGISTER_FAST(target, "numberIsInteger", NumberIsInteger);
   REGISTER_FAST(target, "numberIsNaN", NumberIsNaN);
   REGISTER_FAST(target, "numberIsSafeInteger", NumberIsSafeInteger);
-  // Number static parsers (FastOneByteString fast path)
   REGISTER_FAST(target, "numberParseFloat", NumberParseFloat);
   REGISTER_FAST(target, "numberParseInt10", NumberParseInt10);
-  // Array.isArray
-  REGISTER_FAST(target, "arrayIsArray", ArrayIsArray);
-  // Date.now
-  REGISTER_FAST(target, "dateNow", DateNow);
-  // String.prototype.charCodeAt (FastOneByteString fast path)
   REGISTER_FAST(target, "stringCharCodeAt", StringCharCodeAt);
 }
 
 static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  EXTREF_FAST(ArrayIsArray);
+  EXTREF_FAST(DateNow);
   EXTREF_FAST(MathAbs);
   EXTREF_FAST(MathAcos);
   EXTREF_FAST(MathAcosh);
@@ -785,8 +779,6 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   EXTREF_FAST(MathTan);
   EXTREF_FAST(MathTanh);
   EXTREF_FAST(MathTrunc);
-  EXTREF_FAST(ArrayIsArray);
-  EXTREF_FAST(DateNow);
   EXTREF_FAST(NumberIsFinite);
   EXTREF_FAST(NumberIsInteger);
   EXTREF_FAST(NumberIsNaN);

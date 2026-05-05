@@ -71,6 +71,10 @@
       "submodule": "packages/ink-builder/upstream/ink",
       "repo": "https://github.com/vadimdemedes/ink"
     },
+    "semver": {
+      "submodule": "packages/node-smol-builder/upstream/semver",
+      "repo": "https://github.com/npm/node-semver"
+    },
     "zstd": {
       "submodule": "packages/bin-infra/upstream/zstd",
       "repo": "https://github.com/facebook/zstd"
@@ -254,6 +258,54 @@
       "upgrade_policy": "track-latest",
       "criticality": 3,
       "notes": "Web Platform Tests for node-smol's fast-webstreams vendor. Epoch-based (rolling)."
+    },
+    {
+      "kind": "version-pin",
+      "id": "semver",
+      "upstream": "semver",
+      "pinned_sha": "c368af612e521767e960419e6388c5129c857984",
+      "pinned_tag": "v7.7.4",
+      "upgrade_policy": "track-latest",
+      "criticality": 6,
+      "notes": "Reference JS semver. We port the parser + comparators + range expander to C++ in src/socketsecurity/versions/ and expose the result as node:smol-versions. When semver bumps, re-run the cross-checked test corpus to confirm the C++ port still matches. See docs/ports/semver.md for the port mapping."
+    },
+    {
+      "kind": "file-fork",
+      "id": "semver-parser",
+      "upstream": "semver",
+      "local": "packages/node-smol-builder/additions/source-patched/src/socketsecurity/versions/versions.cc",
+      "upstream_path": "internal/parse.js",
+      "forked_at_sha": "c368af612e521767e960419e6388c5129c857984",
+      "deviations": [
+        "Single-pass byte scanner (upstream is regex-driven).",
+        "C++ struct stores prerelease/build as offsets into the source buffer; upstream stores arrays of strings.",
+        "Loose-mode whitespace is more conservative — leading 'v'/'=' and surrounding whitespace only; upstream's loose mode is broader."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "semver-compare",
+      "upstream": "semver",
+      "local": "packages/node-smol-builder/additions/source-patched/src/socketsecurity/versions/versions.cc",
+      "upstream_path": "internal/identifiers.js",
+      "forked_at_sha": "c368af612e521767e960419e6388c5129c857984",
+      "deviations": [
+        "Identifier comparison uses memcmp with explicit length-then-bytes tiebreak.",
+        "Numeric/alphanumeric distinction uses a single-pass digit predicate; upstream uses a regex test."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "semver-range",
+      "upstream": "semver",
+      "local": "packages/node-smol-builder/additions/source-patched/src/socketsecurity/versions/versions.cc",
+      "upstream_path": "classes/range.js",
+      "forked_at_sha": "c368af612e521767e960419e6388c5129c857984",
+      "deviations": [
+        "Caret/tilde/hyphen expansions emit comparators directly into a Range struct rather than going through string assembly + re-parse.",
+        "Comparator op is a uint8_t enum (0..6) instead of an operator string.",
+        "X-range / wildcard handling collapses 'x', 'X', and '*' into a single kXAny sentinel."
+      ]
     }
   ]
 }

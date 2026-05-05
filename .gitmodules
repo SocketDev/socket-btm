@@ -93,3 +93,8 @@
 	path = packages/opentui-builder/upstream/uucode
 	url = https://github.com/jacobsandlund/uucode.git
 	ignore = dirty
+# semver-7.7.4
+[submodule "packages/node-smol-builder/upstream/semver"]
+	path = packages/node-smol-builder/upstream/semver
+	url = https://github.com/npm/node-semver.git
+	ignore = dirty

@@ -16,7 +16,7 @@
 #
 --- a/src/node_external_reference.h
 +++ b/src/node_external_reference.h
-@@ -161,3 +161,4 @@
+@@ -161,2 +161,3 @@
    V(smol_util)                                                                 \
 +  V(smol_versions_native)                                                      \
    V(smol_vfs)                                                                  \

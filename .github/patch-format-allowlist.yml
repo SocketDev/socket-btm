@@ -83,3 +83,15 @@
 - file: packages/node-smol-builder/patches/source-patched/034-smol-primordial-node-gyp.patch
   rule: multiple-patches-per-file
   reason: "Pre-existing: smol-primordial per-binding-patch series. See 031's reason."
+
+- file: packages/node-smol-builder/patches/source-patched/035-smol-versions-native-binding.patch
+  rule: multiple-patches-per-file
+  reason: "Pre-existing: smol-versions-native follows the same per-binding-patch shape as smol-power (023-026), smol-util (027-030), and smol-primordial (031-034). The series is internal-only (no realm.js patch — no public node:smol-versions-native shim). Cleanup deferred with the rest of the per-binding-patch series."
+
+- file: packages/node-smol-builder/patches/source-patched/036-smol-versions-native-external-refs.patch
+  rule: multiple-patches-per-file
+  reason: "Pre-existing: smol-versions-native per-binding-patch series. See 035's reason."
+
+- file: packages/node-smol-builder/patches/source-patched/037-smol-versions-native-node-gyp.patch
+  rule: multiple-patches-per-file
+  reason: "Pre-existing: smol-versions-native per-binding-patch series. See 035's reason."

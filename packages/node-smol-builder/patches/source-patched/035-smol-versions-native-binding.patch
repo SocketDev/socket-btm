@@ -23,7 +23,7 @@
 #
 --- a/src/node_binding.cc
 +++ b/src/node_binding.cc
-@@ -116,4 +116,5 @@
+@@ -116,3 +116,4 @@
    V(smol_primordial)                                                           \
    V(smol_util)                                                                 \
 +  V(smol_versions_native)                                                      \

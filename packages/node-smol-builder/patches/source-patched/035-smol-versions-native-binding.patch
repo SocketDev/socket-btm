@@ -1,0 +1,30 @@
+# @node-versions: v25.9.0
+# @description: Register smol_versions_native native binding in NODE_BUILTIN_BINDINGS
+#
+# Adds V(smol_versions_native) alongside the other smol_* bindings.
+# The binding implements native semver parser + comparator + range
+# matcher (replacements for npm semver's regex-driven parsing). Used
+# *internally* by lib/internal/socketsecurity/versions.js as a fast
+# path for the npm ecosystem; the public node:smol-versions module
+# stays a JS-multi-ecosystem implementation that gates on this
+# binding's availability via internalBinding().
+#
+# Internal-only — no realm.js patch — there's no public
+# `node:smol-versions-native` shim. The companion JS module
+# (node:smol-versions) provides the public surface and routes to
+# this binding for the npm fast path.
+#
+# Sequencing: 035 anchors after 031 (smol_primordial). Insert keeps
+# alphabetic order in the smol_* group: smol_primordial < smol_util
+# < smol_versions_native < smol_webstreams.
+#
+# Files modified:
+# - src/node_binding.cc: register smol_versions_native in NODE_BUILTIN_BINDINGS
+#
+--- a/src/node_binding.cc
++++ b/src/node_binding.cc
+@@ -116,4 +116,5 @@
+   V(smol_primordial)                                                           \
+   V(smol_util)                                                                 \
++  V(smol_versions_native)                                                      \
+   V(smol_webstreams)

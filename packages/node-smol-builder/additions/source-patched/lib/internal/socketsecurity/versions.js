@@ -1,6 +1,24 @@
 'use strict'
 
 // Documentation: docs/additions/lib/internal/socketsecurity/versions.js.md
+//
+// Native fast path: when the smol_versions_native C++ binding is
+// available, the npm-ecosystem hot operations (parse, compare,
+// satisfies) route through it instead of the regex+JS-loop fallback.
+// The native path is npm-only — Maven/PyPI/NuGet/Gem keep their JS
+// implementations because the spec edges (PEP 440, RubyGems segments,
+// Maven qualifier ranking) are easier to express in JS and aren't on
+// the same hot path as npm version comparison.
+//
+// The binding may be unavailable in unusual configurations (snapshot
+// replay before bindings load, broken builds). Every call is wrapped
+// so the JS fallback handles the missing-binding case transparently.
+let _native
+try {
+  _native = internalBinding('smol_versions_native')
+} catch {
+  _native = undefined
+}
 
 const {
   ArrayFrom,
@@ -173,7 +191,12 @@ function computePacked(major, minor, patch) {
   return major * 1048576 + minor * 1024 + patch
 }
 
-// Parse npm/SemVer version
+// Parse npm/SemVer version. Field extraction stays in JS because
+// downstream code (cache, comparator, satisfies) reads the frozen
+// object shape directly. The native path is used for *string-in,
+// boolean/integer-out* operations (compare, valid, satisfies) where
+// the JS object isn't needed at all — see compareNpmFast() and
+// satisfies() below.
 function parseNpm(version) {
   const match = RegExpPrototypeExec(SEMVER_REGEX, version)
   if (!match) {
@@ -766,8 +789,27 @@ function compareGem(va, vb) {
   return 0
 }
 
-// Compare two versions.
+// Compare two versions. Native fast path: when both inputs are
+// npm-ecosystem strings (no parsed object reuse), the C++ comparator
+// does parse-and-compare in a single internalBinding call. This is
+// the hot case in `sort(versions, 'npm')` — a 1000-element npm sort
+// previously triggered ~2000 regex matches; with the fast path it's
+// 2000 single-pass byte scanners + integer comparisons.
 function compare(a, b, ecosystem = 'npm') {
+  if (
+    _native !== undefined &&
+    ecosystem === 'npm' &&
+    typeof a === 'string' &&
+    typeof b === 'string'
+  ) {
+    const result = _native.compare(a, b)
+    // The native compare returns null when either side fails to parse;
+    // in that case fall through to the JS path so the consumer gets
+    // the same VersionError it always has.
+    if (result !== null) {
+      return result
+    }
+  }
   const va =
     typeof a === 'object' && a !== null ? a : parse(a, ecosystem)
   const vb =
@@ -1389,8 +1431,23 @@ function compileRange(range, ecosystem) {
   return compiled
 }
 
-// Check if version satisfies a range
+// Check if version satisfies a range. Native fast path: npm-ecosystem
+// string-vs-string satisfies routes through the C++ range parser
+// (single-pass byte scanner with no JS regex chain). Falls through to
+// the JS implementation when:
+//   - the binding is unavailable
+//   - either side isn't a plain string (callers sometimes pass
+//     pre-parsed version objects to skip re-parse cost)
+//   - the ecosystem isn't npm (Maven/PyPI/NuGet/Gem keep their JS impl)
 function satisfies(version, range, ecosystem = 'npm') {
+  if (
+    _native !== undefined &&
+    ecosystem === 'npm' &&
+    typeof version === 'string' &&
+    typeof range === 'string'
+  ) {
+    return _native.satisfies(version, range, false)
+  }
   const v =
     typeof version === 'object' && version !== null
       ? version
@@ -1503,8 +1560,19 @@ function filter(versions, range, ecosystem = 'npm') {
   return ArrayPrototypeFilter(versions, v => satisfies(v, range, ecosystem))
 }
 
-// Validate version string
+// Validate version string. Native fast path for npm strings — the
+// C++ binding's `valid` is a parse-and-discard predicate, no JS
+// object construction. We still need the original string back when
+// valid (the JS contract is `valid(s) === s` on success), so we
+// hand-return `version` rather than a normalized form.
 function valid(version, ecosystem = 'npm') {
+  if (
+    _native !== undefined &&
+    ecosystem === 'npm' &&
+    typeof version === 'string'
+  ) {
+    return _native.valid(version) ? version : undefined
+  }
   const parsed = tryParse(version, ecosystem)
   return parsed ? parsed.raw : undefined
 }

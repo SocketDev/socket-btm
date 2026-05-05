@@ -1,0 +1,31 @@
+# @node-versions: v25.9.0
+# @description: Wire smol-versions-native source into node.gyp
+#
+# Adds src/socketsecurity/versions/versions.cc and versions_binding.cc
+# to the main node target. Pure platform-agnostic C++ semver
+# implementation — no per-OS variants needed.
+#
+# Sequencing: 037 anchors after 034 (smol-primordial node-gyp). The
+# hunk inserts the versions block immediately after the primordial
+# block.
+#
+# Files modified:
+# - node.gyp: add smol-versions-native binding sources
+#
+--- a/node.gyp
++++ b/node.gyp
+@@ -1,5 +1,13 @@
+         ['1==1', {
+           'sources': [
+             'src/socketsecurity/primordial/primordial_binding.cc',
+           ],
+         }],
++        # Socket Security: smol-versions-native binding. Pure C++
++        # semver — used internally as the npm fast path for
++        # node:smol-versions.
++        ['1==1', {
++          'sources': [
++            'src/socketsecurity/versions/versions.cc',
++            'src/socketsecurity/versions/versions_binding.cc',
++          ],
++        }],

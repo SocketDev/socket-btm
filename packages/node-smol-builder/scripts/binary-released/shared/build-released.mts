@@ -597,6 +597,13 @@ export async function buildRelease(config, buildOptions = {}) {
     '--without-amaro',
     '--without-node-options',
     '--experimental-enable-pointer-compression',
+    // Node 26 ships Temporal via temporal_rs (Rust crate) linked
+    // statically. Requires rustc/cargo >= 1.82 with LLVM >= 19 on
+    // PATH at configure time. See BUILDING.md "Building Node.js
+    // with Temporal support" + the rust pin in
+    // socket-registry/external-tools.json. Cargo handles the
+    // temporal_rs fetch internally — no additional submodule needed.
+    '--v8-enable-temporal-support',
   ]
 
   // LIEF/binject support: disabled by default, enable with --with-lief flag

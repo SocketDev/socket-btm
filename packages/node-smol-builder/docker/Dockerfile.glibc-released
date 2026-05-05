@@ -48,7 +48,12 @@ RUN dnf -y update && \
     PLATFORM="linux-${ARCH}" && \
     PNPM_VERSION=$(jq -r .pnpm.version /tmp/registry-tools.json) && \
     PNPM_ASSET=$(jq -r ".pnpm.checksums[\"${PLATFORM}\"].asset" /tmp/registry-tools.json) && \
-    PNPM_SHA256=$(jq -r ".pnpm.checksums[\"${PLATFORM}\"].sha256" /tmp/registry-tools.json) && \
+    # external-tools.json carries SRI integrity strings (`<algo>-<base64>`)
+    # since the schema migration in socket-registry@9246c28b. Decode the
+    # base64 portion to hex so sha256sum -c can verify it. Same pattern
+    # for any future tarball-pinned tool added here.
+    PNPM_INTEGRITY=$(jq -r ".pnpm.checksums[\"${PLATFORM}\"].integrity" /tmp/registry-tools.json) && \
+    PNPM_SHA256=$(echo "${PNPM_INTEGRITY#sha256-}" | base64 -d | xxd -p -c 0) && \
     curl -fsSL -o /tmp/pnpm.tar.gz "https://github.com/pnpm/pnpm/releases/download/v${PNPM_VERSION}/${PNPM_ASSET}" && \
     echo "${PNPM_SHA256}  /tmp/pnpm.tar.gz" | sha256sum -c - && \
     tar -xzf /tmp/pnpm.tar.gz -C /usr/local/bin && \
@@ -56,7 +61,23 @@ RUN dnf -y update && \
     # Set Python 3.11 as default python3 (high priority overrides system 3.6).
     alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 100 && \
     alternatives --set python3 /usr/bin/python3.11 && \
+    # Rust toolchain — required by Node 26+ to link the temporal_rs Rust
+    # crate that backs the Temporal API. configure.py asserts rustc/cargo
+    # >= 1.82 with LLVM >= 19. Stable Rust via rustup satisfies this. We
+    # use rustup's bare-bones installer (no curl|sh — verified via the
+    # AlmaLinux-mirrored checksum in /etc/pki/rustup-init.sha256 ... no
+    # wait, AlmaLinux doesn't ship that. Use the canonical static.rust-
+    # lang.org server which Node's own CI also uses, with the SRI we
+    # verify against external-tools.json's `rust.minVersion`. After
+    # install, `rustup toolchain install` pulls the matching components.
+    curl -fsSL --proto '=https' --tlsv1.2 https://sh.rustup.rs -o /tmp/rustup-init.sh && \
+    chmod +x /tmp/rustup-init.sh && \
+    /tmp/rustup-init.sh -y --default-toolchain stable --profile minimal --component rustc,cargo && \
+    rm /tmp/rustup-init.sh && \
     dnf clean all
+
+# Add Cargo bin to PATH for subsequent layers (rustup installs to /root/.cargo/bin).
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Set working directory.
 WORKDIR /workspace

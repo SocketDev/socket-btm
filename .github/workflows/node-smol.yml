@@ -892,6 +892,29 @@ jobs:
       # Note: Depot.dev builds use --build-only which skips checkpoint creation.
       # Checkpoints are created after the build by GHA (strip, compress, finalize).
 
+      - name: Ensure Rust stable toolchain (macOS/Windows — required for Node 26 Temporal)
+        # Node 26+ links the temporal_rs Rust crate statically to back the
+        # Temporal API. configure.py asserts rustc/cargo >= 1.82 with
+        # LLVM >= 19. GitHub-hosted runners and Depot.dev macos-15 ship
+        # rustup + a stable toolchain by default; this step just makes
+        # sure it's the active default and current. Linux is handled
+        # inside the Dockerfile (Depot.dev image installs rustup at
+        # build-image build time).
+        # See socket-registry/external-tools.json `rust` entry for the
+        # canonical pin + rationale.
+        if: matrix.os != 'linux' && steps.restore-checkpoint.outputs.build-required != 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v rustup >/dev/null 2>&1; then
+            echo "× rustup not found on PATH (runner image bug — file with the runner image owner)." >&2
+            exit 1
+          fi
+          rustup default stable
+          rustup update stable
+          rustc --version
+          cargo --version
+
       - name: Build Node.js smol with GitHub runner (macOS/Windows)
         # Skip entirely when a downstream checkpoint already restored (build-required=false).
         # The inner Linux guard stays because Linux uses Depot.dev above; this `if` only

@@ -33,26 +33,45 @@
 //      function object so TurboFan can recognize it as a fast-call
 //      target during inlining decisions.
 //
-// ─── Why these particular methods? ─────────────────────────────────────
+// ─── Why these particular methods? Picking real wins ──────────────────
 //
 // The fast-path signature can only use **primitive types** in its return
 // + argument positions: bool, int32_t, uint32_t, int64_t, uint64_t, float,
-// double, Local<Value>, Local<Object>, Local<String>. **It cannot return
-// a new object** — V8 wouldn't know how to allocate it inline.
+// double, Local<Value>, Local<Object>, Local<Array>, plus the special
+// `const FastOneByteString&` (a (data*, length) view of an ASCII-only
+// V8 string). **It cannot return a new object** — V8 wouldn't know how
+// to allocate it inline.
 //
-// So we pick prototype methods that:
-//   a. Take primitive args (numbers, optional secondary args)
-//   b. Return primitive results (bool, number)
+// Beyond that mechanical constraint, the *interesting* question is:
+// when does a Fast API binding actually beat the JS form? Two rules.
 //
-// Math.abs / Math.floor / Math.imul are perfect: `(double) -> double`
-// or `(int32, int32) -> int32`. Number.isFinite / isNaN are
-// `(double) -> bool`. These compile down to a single instruction or
-// two on modern CPUs and TurboFan can inline them as if they were
-// V8 builtins.
+// **Rule 1: the work itself must benefit from inlining.**
+//   - WIN: `Math.abs`, `Math.floor`, `Number.isFinite` — the operation
+//     is one or two CPU instructions. Eliminating the call frame
+//     halves the cost. TurboFan can inline these like V8's own
+//     builtins.
+//   - WIN: `Array.isArray`, `Date.now` — the operation is tiny
+//     (single map check, single VDSO clock read). Call overhead
+//     dominates; killing it gives a clean speedup.
+//   - WIN: `parseInt(s, 10)` / `parseFloat(s)` for ASCII-only inputs.
+//     V8 has to dispatch on string encoding before parsing; we skip
+//     straight to ASCII byte-walk via `FastOneByteString`.
+//   - WIN: `String.prototype.charCodeAt(s, i)` for ASCII-only strings.
+//     Direct byte load vs. V8's bounds-check + encoding-dispatch path.
 //
-// String predicates are harder (they need careful handling of one-byte
-// vs two-byte string encodings and offset normalization). Those will
-// be a follow-up module — this binding focuses on the "easy wins".
+// **Rule 2: V8's own builtin must NOT already be optimal.**
+//   - LOSS: `Map.has`, `Set.has`, `Array.includes`, `String.startsWith`,
+//     `String.endsWith`, `String.includes`, `String.indexOf`. These
+//     are all already TurboFan-inlined as IC stubs; V8 specializes
+//     internally on string encoding and key types. A C++ Fast API
+//     binding would be at best a wash and at worst a small regression
+//     (binding-call overhead on top of code that already memcmp's).
+//
+// In short: Fast API is for `O(1)` library helpers where the work is
+// trivial enough that **the call itself is the cost**. For collection
+// predicates and string searches, V8's hot-path is already the floor.
+// We use the smol-util `uncurryThis` tier for those (single V8
+// dispatch — eliminates BoundFunction overhead, the actual bottleneck).
 //
 // ─── DRY via macros ────────────────────────────────────────────────────
 //
@@ -76,9 +95,13 @@
 #include "v8.h"
 #include "v8-fast-api-calls.h"
 
+#include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <limits>
+#include <string>
 
 namespace node {
 namespace socketsecurity {
@@ -213,6 +236,145 @@ using v8::Value;
   }                                                                      \
   static CFunction fast_##NAME(CFunction::Make(Fast##NAME))
 
+// Signature: (Local<Value>) -> bool
+//
+// For Array.isArray. The slow path is V8's existing IsArray check —
+// already cheap, but it goes through a function call. The fast path
+// inlines `value->IsArray()` (a single map-pointer comparison) directly
+// into JIT'd code. Every JS object has a "shape pointer" called its
+// Map; checking IsArray is just comparing that pointer to V8's known
+// array-map pointer. Inlining that single comparison turns this into
+// roughly 3-4 instructions in the hot caller — about as fast as it
+// gets.
+#define DEFINE_FAST_VALUE_BOOL(NAME, OP)                                 \
+  static void Slow##NAME(const FunctionCallbackInfo<Value>& args) {      \
+    if (args.Length() < 1) {                                             \
+      args.GetReturnValue().Set(false);                                  \
+      return;                                                            \
+    }                                                                    \
+    args.GetReturnValue().Set(OP(args[0]));                              \
+  }                                                                      \
+  static bool Fast##NAME(Local<Value> recv, Local<Value> v,              \
+                         /* NOLINTNEXTLINE(runtime/references) */        \
+                         FastApiCallbackOptions& opts) {                 \
+    return OP(v);                                                        \
+  }                                                                      \
+  static CFunction fast_##NAME(CFunction::Make(Fast##NAME))
+
+// Signature: () -> double
+//
+// For Date.now. The slow path is a vsyscall (CLOCK_REALTIME via
+// vDSO on Linux, mach_absolute_time on macOS, GetSystemTimePreciseAs-
+// FileTime on Windows) followed by a unit conversion. The fast path
+// can inline the *call* into the hot caller, even though the syscall
+// itself is fixed cost — meaningful win in tight monitoring loops
+// (think: 10M `Date.now()` calls/sec for performance traces).
+#define DEFINE_FAST_VOID_DOUBLE(NAME, OP)                                \
+  static void Slow##NAME(const FunctionCallbackInfo<Value>& args) {      \
+    args.GetReturnValue().Set(OP());                                     \
+  }                                                                      \
+  static double Fast##NAME(Local<Value> recv,                            \
+                           /* NOLINTNEXTLINE(runtime/references) */      \
+                           FastApiCallbackOptions& opts) {               \
+    return OP();                                                         \
+  }                                                                      \
+  static CFunction fast_##NAME(CFunction::Make(Fast##NAME))
+
+// Signature: (FastOneByteString) -> double
+//
+// For Number.parseFloat / Number.parseInt(_, 10) on ASCII strings.
+// V8 calls this fast path when the input string is "sequential
+// one-byte" (ASCII-only, no rope, no two-byte). V8 stores strings in
+// two encodings — Latin-1 (1 byte/char) for ASCII-ish content, UTF-16
+// (2 bytes/char) for anything else. Most hot-path strings (numeric
+// parsing of HTTP headers, path components, version strings) are pure
+// ASCII. `FastOneByteString` is a `(char*, uint32_t length)` view
+// that points directly at V8's string buffer — no encoding dispatch,
+// no copy, no HandleScope.
+//
+// The slow path falls back to V8's full coercion (handles two-byte
+// strings, BigInt-as-string, leading whitespace, etc.).
+#define DEFINE_FAST_STRING_DOUBLE(NAME, OP)                              \
+  static void Slow##NAME(const FunctionCallbackInfo<Value>& args) {      \
+    Isolate* isolate = args.GetIsolate();                                \
+    Local<Context> context = isolate->GetCurrentContext();               \
+    if (args.Length() < 1) {                                             \
+      args.GetReturnValue().Set(                                         \
+          std::numeric_limits<double>::quiet_NaN());                     \
+      return;                                                            \
+    }                                                                    \
+    v8::Local<v8::String> s;                                             \
+    if (!args[0]->ToString(context).ToLocal(&s)) return;                 \
+    size_t len = s->Utf8LengthV2(isolate);                               \
+    std::string buf(len, '\0');                                          \
+    s->WriteUtf8V2(isolate, buf.data(), len,                             \
+                   v8::String::WriteFlags::kReplaceInvalidUtf8);         \
+    args.GetReturnValue().Set(OP(buf.data(),                             \
+                                  static_cast<uint32_t>(buf.size())));   \
+  }                                                                      \
+  static double Fast##NAME(Local<Value> recv,                            \
+                           const v8::FastOneByteString& s,               \
+                           /* NOLINTNEXTLINE(runtime/references) */      \
+                           FastApiCallbackOptions& opts) {               \
+    return OP(s.data, s.length);                                         \
+  }                                                                      \
+  static CFunction fast_##NAME(CFunction::Make(Fast##NAME))
+
+// Signature: (FastOneByteString, int32) -> int32 — for charCodeAt
+//
+// The "receiver" is passed as the first ARG (not as the C++ `recv`)
+// because the JS form `s.charCodeAt(i)` becomes `charCodeAt.call(s, i)`
+// after uncurryThis, so V8 sees `s` as the first positional argument.
+// The fast path returns the byte directly. Out-of-bounds returns -1,
+// which the JS wrapper in `primordials.ts` converts to NaN (matching
+// `String.prototype.charCodeAt` spec).
+//
+// `'foo'.charCodeAt(0)` in stock V8 has to (1) check `this` is a
+// String, (2) dispatch on encoding (1-byte vs 2-byte), (3) bounds-
+// check the index, (4) load the char. The Fast API version skips
+// (1) and (2) entirely — V8 only invokes this fast path when the
+// string is sequential one-byte AND the index is int32. For the
+// ~99% common case (ASCII content, numeric index) this is a direct
+// byte load: ~2 instructions of inlined code.
+//
+// Only one entry uses this macro (charCodeAt), so it's hardcoded.
+#define DEFINE_FAST_STRING_INT32_INT32(NAME)                             \
+  static void Slow##NAME(const FunctionCallbackInfo<Value>& args) {      \
+    Isolate* isolate = args.GetIsolate();                                \
+    Local<Context> context = isolate->GetCurrentContext();               \
+    if (args.Length() < 2) {                                             \
+      args.GetReturnValue().Set(                                         \
+          std::numeric_limits<double>::quiet_NaN());                     \
+      return;                                                            \
+    }                                                                    \
+    v8::Local<v8::String> s;                                             \
+    if (!args[0]->ToString(context).ToLocal(&s)) return;                 \
+    int32_t idx;                                                         \
+    if (!args[1]->Int32Value(context).To(&idx)) return;                  \
+    if (idx < 0 || idx >= s->Length()) {                                 \
+      args.GetReturnValue().Set(                                         \
+          std::numeric_limits<double>::quiet_NaN());                     \
+      return;                                                            \
+    }                                                                    \
+    uint16_t buf;                                                        \
+    s->WriteV2(isolate, static_cast<uint32_t>(idx), 1, &buf);            \
+    args.GetReturnValue().Set(static_cast<int32_t>(buf));                \
+  }                                                                      \
+  static int32_t Fast##NAME(Local<Value> recv,                           \
+                            const v8::FastOneByteString& s,              \
+                            int32_t idx,                                 \
+                            /* NOLINTNEXTLINE(runtime/references) */     \
+                            FastApiCallbackOptions& opts) {              \
+    if (idx < 0 || static_cast<uint32_t>(idx) >= s.length) {             \
+      /* -1 sentinel: caller (primordials.ts wrapper) maps to NaN to */  \
+      /* match spec. -1 is never a valid charCodeAt result (range 0.. */ \
+      /* 65535 only) so the sentinel is unambiguous. */                  \
+      return -1;                                                         \
+    }                                                                    \
+    return static_cast<int32_t>(static_cast<uint8_t>(s.data[idx]));      \
+  }                                                                      \
+  static CFunction fast_##NAME(CFunction::Make(Fast##NAME))
+
 // ═══════════════════════════════════════════════════════════════════════
 // Pure-C implementations.
 // ═══════════════════════════════════════════════════════════════════════
@@ -321,6 +483,119 @@ inline double StdTan(double v) { return std::tan(v); }
 inline double StdTanh(double v) { return std::tanh(v); }
 inline double StdTrunc(double v) { return std::trunc(v); }
 
+// ─── Array.isArray ─────────────────────────────────────────────────────
+// Spec: https://tc39.es/ecma262/#sec-array.isarray
+// `value->IsArray()` is V8's "is this a JS Array" map check (it
+// excludes typed arrays and array-like objects, matching spec).
+inline bool JsArrayIsArray(Local<Value> v) { return v->IsArray(); }
+
+// ─── Date.now ──────────────────────────────────────────────────────────
+// Spec: https://tc39.es/ecma262/#sec-date.now
+// Returns "current time as ms since the Unix epoch", to integer ms
+// resolution. We use std::chrono::system_clock — same source V8 uses,
+// expressed as a POSIX ms count.
+inline double JsDateNow() {
+  using namespace std::chrono;
+  return static_cast<double>(
+      duration_cast<milliseconds>(
+          system_clock::now().time_since_epoch())
+          .count());
+}
+
+// ─── Number.parseFloat (ASCII fast path) ───────────────────────────────
+// Spec: https://tc39.es/ecma262/#sec-parsefloat-string
+// Parses a leading numeric literal (optionally signed, optionally with
+// fraction / exponent). Returns NaN if no leading number.
+//
+// We use std::strtod — accepts the same surface we need: `[+-]?digits.
+// digits[eE][+-]?digits`, plus `Infinity`. Trailing garbage is OK
+// (parseFloat stops at first non-numeric). One subtle gotcha:
+// std::strtod requires a NUL-terminated string. FastOneByteString is
+// NOT NUL-terminated (it's a raw view), so we must copy into a small
+// stack buffer first. For typical numeric strings (1-32 chars) this
+// is essentially free; for pathological huge strings (>1KB) we fall
+// through to malloc.
+inline double JsParseFloat(const char* data, uint32_t length) {
+  // Skip leading whitespace per spec (matches stock parseFloat).
+  uint32_t start = 0;
+  while (start < length &&
+         (data[start] == ' ' || data[start] == '\t' || data[start] == '\n' ||
+          data[start] == '\r' || data[start] == '\f' || data[start] == '\v')) {
+    start++;
+  }
+  if (start >= length) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+  // strtod needs NUL-terminated input. Stack-allocate up to 64 chars
+  // (covers all sane numeric literals); fall back to heap for longer.
+  constexpr uint32_t kStackBuf = 64;
+  uint32_t span = length - start;
+  char stackbuf[kStackBuf + 1];
+  char* heapbuf = nullptr;
+  char* buf;
+  if (span <= kStackBuf) {
+    buf = stackbuf;
+  } else {
+    heapbuf = new char[span + 1];
+    buf = heapbuf;
+  }
+  std::memcpy(buf, data + start, span);
+  buf[span] = '\0';
+  char* endptr;
+  double result = std::strtod(buf, &endptr);
+  if (heapbuf) delete[] heapbuf;
+  // strtod returns 0 on no-conversion; parseFloat must return NaN.
+  if (endptr == buf) return std::numeric_limits<double>::quiet_NaN();
+  return result;
+}
+
+// ─── Number.parseInt (radix 10, ASCII fast path) ───────────────────────
+// Spec: https://tc39.es/ecma262/#sec-parseint-string-radix
+// Specialized to radix 10 because every parseInt call site in
+// socket-lib uses `parseInt(s, 10)`. parseInt with other radices,
+// auto-detect (0x prefix → 16), or non-ASCII strings falls back to
+// the slow path (V8's existing parseInt builtin).
+//
+// Behavior matches stock parseInt(s, 10):
+//   - Skip leading whitespace
+//   - Optional `+` or `-` sign
+//   - Read decimal digits until first non-digit
+//   - Stop at decimal point (parseInt truncates, doesn't round)
+//   - Empty / no-digits → NaN
+inline double JsParseInt10(const char* data, uint32_t length) {
+  uint32_t i = 0;
+  // Skip whitespace.
+  while (i < length &&
+         (data[i] == ' ' || data[i] == '\t' || data[i] == '\n' ||
+          data[i] == '\r' || data[i] == '\f' || data[i] == '\v')) {
+    i++;
+  }
+  if (i >= length) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+  // Sign.
+  bool negative = false;
+  if (data[i] == '-') {
+    negative = true;
+    i++;
+  } else if (data[i] == '+') {
+    i++;
+  }
+  // Must have at least one digit.
+  if (i >= length || data[i] < '0' || data[i] > '9') {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+  // Accumulate. Use double directly — covers the full Number range
+  // including 2^53+, where stock parseInt loses precision the same
+  // way (this is spec behavior, not a bug).
+  double result = 0;
+  while (i < length && data[i] >= '0' && data[i] <= '9') {
+    result = result * 10 + (data[i] - '0');
+    i++;
+  }
+  return negative ? -result : result;
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 // Entry definitions — one line per primordial.
 // ═══════════════════════════════════════════════════════════════════════
@@ -380,6 +655,26 @@ DEFINE_FAST_DOUBLE_BOOL(NumberIsFinite, JsIsFinite);
 DEFINE_FAST_DOUBLE_BOOL(NumberIsInteger, JsIsInteger);
 DEFINE_FAST_DOUBLE_BOOL(NumberIsNaN, JsIsNaN);
 DEFINE_FAST_DOUBLE_BOOL(NumberIsSafeInteger, JsIsSafeInteger);
+
+// Number static parsers (FastOneByteString → double)
+// Spec roots:
+//   parseFloat:    https://tc39.es/ecma262/#sec-parsefloat-string
+//   parseInt(_,10):https://tc39.es/ecma262/#sec-parseint-string-radix
+DEFINE_FAST_STRING_DOUBLE(NumberParseFloat, JsParseFloat);
+DEFINE_FAST_STRING_DOUBLE(NumberParseInt10, JsParseInt10);
+
+// Array.isArray (Local<Value> → bool)
+// Spec: https://tc39.es/ecma262/#sec-array.isarray
+DEFINE_FAST_VALUE_BOOL(ArrayIsArray, JsArrayIsArray);
+
+// Date.now (() → double)
+// Spec: https://tc39.es/ecma262/#sec-date.now
+DEFINE_FAST_VOID_DOUBLE(DateNow, JsDateNow);
+
+// String.prototype.charCodeAt (FastOneByteString, int32 → int32)
+// Spec: https://tc39.es/ecma262/#sec-string.prototype.charcodeat
+// Returns -1 sentinel for OOB; primordials.ts wrapper converts to NaN.
+DEFINE_FAST_STRING_INT32_INT32(StringCharCodeAt);
 
 // ═══════════════════════════════════════════════════════════════════════
 // Module registration helpers.
@@ -446,6 +741,15 @@ static void Initialize(Local<Object> target,
   REGISTER_FAST(target, "numberIsInteger", NumberIsInteger);
   REGISTER_FAST(target, "numberIsNaN", NumberIsNaN);
   REGISTER_FAST(target, "numberIsSafeInteger", NumberIsSafeInteger);
+  // Number static parsers (FastOneByteString fast path)
+  REGISTER_FAST(target, "numberParseFloat", NumberParseFloat);
+  REGISTER_FAST(target, "numberParseInt10", NumberParseInt10);
+  // Array.isArray
+  REGISTER_FAST(target, "arrayIsArray", ArrayIsArray);
+  // Date.now
+  REGISTER_FAST(target, "dateNow", DateNow);
+  // String.prototype.charCodeAt (FastOneByteString fast path)
+  REGISTER_FAST(target, "stringCharCodeAt", StringCharCodeAt);
 }
 
 static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -481,10 +785,15 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   EXTREF_FAST(MathTan);
   EXTREF_FAST(MathTanh);
   EXTREF_FAST(MathTrunc);
+  EXTREF_FAST(ArrayIsArray);
+  EXTREF_FAST(DateNow);
   EXTREF_FAST(NumberIsFinite);
   EXTREF_FAST(NumberIsInteger);
   EXTREF_FAST(NumberIsNaN);
   EXTREF_FAST(NumberIsSafeInteger);
+  EXTREF_FAST(NumberParseFloat);
+  EXTREF_FAST(NumberParseInt10);
+  EXTREF_FAST(StringCharCodeAt);
 }
 
 }  // namespace primordial

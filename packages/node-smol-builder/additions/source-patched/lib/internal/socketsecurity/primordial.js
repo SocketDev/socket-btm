@@ -51,4 +51,16 @@ module.exports = ObjectFreeze({
   numberIsInteger: binding.numberIsInteger,
   numberIsNaN: binding.numberIsNaN,
   numberIsSafeInteger: binding.numberIsSafeInteger,
+  // Number static parsers (FastOneByteString fast path)
+  numberParseFloat: binding.numberParseFloat,
+  numberParseInt10: binding.numberParseInt10,
+  // Array.isArray (Local<Value> -> bool, single map check)
+  arrayIsArray: binding.arrayIsArray,
+  // Date.now (() -> double)
+  dateNow: binding.dateNow,
+  // String.prototype.charCodeAt (FastOneByteString fast path).
+  // Returns -1 sentinel for OOB; consumers (e.g. socket-lib's
+  // primordials.ts) wrap this and convert -1 back to NaN to match
+  // String.prototype.charCodeAt spec.
+  stringCharCodeAt: binding.stringCharCodeAt,
 })

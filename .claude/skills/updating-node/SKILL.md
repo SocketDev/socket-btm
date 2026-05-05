@@ -10,8 +10,27 @@ Spawn an autonomous agent that updates Node.js submodule to latest stable, syncs
 
 - **Submodule**: `packages/node-smol-builder/upstream/node` (nodejs/node)
 - **Tag format**: `vX.Y.Z` (stable only, exclude rc/alpha/beta)
-- **Cache bumps**: `node-smol`
+- **Cache bumps**: `node-smol` — see "When to bump node-smol cache" below
 - **Creates**: Two commits (version update + patch regeneration)
+
+## When to bump node-smol cache
+
+The `node-smol` entry in `.github/cache-versions.json` keys Docker layer
+caches and the GHA build cache. Bump it whenever a build input changes,
+not only when Node itself bumps. Triggers:
+
+- Node.js submodule SHA changes (new tag).
+- `packages/node-smol-builder/docker/Dockerfile.*` changes (apt/apk
+  packages, rustup install, base image bumps).
+- `additions/source-patched/**/*` changes (new source-patched files).
+- `patches/source-patched/**/*` changes (patch series adds/removes/edits).
+- `scripts/binary-released/**/*.mts` changes that alter `configureFlags`,
+  build env vars, or output paths (e.g. adding `--v8-enable-temporal-support`).
+- `external-tools.json` changes that flow into the Dockerfile via
+  `.build-context/registry-tools.json` (pnpm pin, rust pin, sfw pin).
+
+If unsure: bumping is cheap (~30 min cold build), not bumping when you
+should produces silent stale-cache hits that are very expensive to debug.
 
 ## Process
 

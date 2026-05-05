@@ -1509,12 +1509,23 @@ Verify:
 Bump the node-smol cache version in .github/cache-versions.json ONLY if Node.js was actually updated:
 </action>
 
-**IMPORTANT:** Only bump cache version if actual changes were made. If Node.js submodule SHA did not change (already at latest version), skip cache version bump.
+**IMPORTANT:** Bump the cache version whenever any node-smol build input
+changes. The trigger list lives in SKILL.md ("When to bump node-smol
+cache") — at minimum:
+
+- Node.js submodule SHA changed (this skill's primary trigger).
+- Dockerfile.glibc-released / Dockerfile.musl-released changed.
+- additions/source-patched/** or patches/source-patched/** changed.
+- configureFlags / build env in scripts/binary-released/** changed.
+- external-tools.json pins (pnpm/rust/sfw) changed.
+
+If Node.js submodule SHA did NOT change AND none of the above changed
+(rare for this skill since the primary trigger is a Node bump), skip.
+Otherwise bump.
 
 \`\`\`bash
 echo "Bumping node-smol cache version..."
 
-# ONLY if Node.js submodule SHA changed:
 # Read current cache versions and bump: node-smol
 # Use Edit tool to increment version number:
 # - node-smol: vN → v(N+1)

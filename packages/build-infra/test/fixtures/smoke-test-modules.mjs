@@ -27,4 +27,21 @@ if (semverValid('1.2.3') !== '1.2.3') {
   throw new Error(`smol-versions valid failed: ${semverValid('1.2.3')}`)
 }
 
+// Temporal API — Node 26+ links the temporal_rs Rust crate via
+// --v8-enable-temporal-support. If rustup/cargo wasn't present at
+// configure time the build silently drops the API; this assertion
+// turns that into a hard build failure instead of a runtime surprise
+// for SEA consumers.
+if (typeof Temporal !== 'object' || Temporal === null) {
+  throw new Error('Temporal global missing — temporal_rs not linked')
+}
+const instant = Temporal.Now.instant()
+if (typeof instant?.epochMilliseconds !== 'number') {
+  throw new Error(`Temporal.Now.instant() failed: ${instant}`)
+}
+const plainDate = Temporal.PlainDate.from('2026-01-01')
+if (plainDate.toString() !== '2026-01-01') {
+  throw new Error(`Temporal.PlainDate.from() failed: ${plainDate}`)
+}
+
 console.log('Built-in modules loaded')

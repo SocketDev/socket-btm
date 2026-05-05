@@ -98,3 +98,8 @@
 	path = packages/node-smol-builder/upstream/semver
 	url = https://github.com/npm/node-semver.git
 	ignore = dirty
+# temporal-v0.1.0
+[submodule "packages/node-smol-builder/upstream/temporal"]
+	path = packages/node-smol-builder/upstream/temporal
+	url = https://github.com/boa-dev/temporal.git
+	ignore = dirty

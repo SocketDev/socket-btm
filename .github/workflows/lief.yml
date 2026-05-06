@@ -3,7 +3,7 @@ name: SMOL 1. LIEF
 on:
   workflow_dispatch:
     inputs:
-      dry_run:
+      dry-run:
         description: 'Dry run (build only, no release)'
         type: boolean
         default: true
@@ -24,7 +24,7 @@ on:
         default: '0'
   workflow_call:
     inputs:
-      dry_run:
+      dry-run:
         type: boolean
         default: true
       force:
@@ -587,7 +587,7 @@ jobs:
   release:
     name: Release LIEF
     needs: build-lief
-    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry-run
     environment: release
     permissions:
       contents: write # Required to create GitHub releases
@@ -732,7 +732,7 @@ jobs:
 
   update-checksums:
     needs: release
-    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry-run
     permissions:
       contents: write # release-assets.json commit after publishing GitHub release
     uses: ./.github/workflows/update-checksums.yml

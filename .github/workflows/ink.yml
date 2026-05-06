@@ -3,7 +3,7 @@ name: JS 1. Ink
 on:
   workflow_dispatch:
     inputs:
-      dry_run:
+      dry-run:
         description: 'Dry run (build only, no release)'
         type: boolean
         default: true
@@ -17,7 +17,7 @@ on:
         default: '0'
   workflow_call:
     inputs:
-      dry_run:
+      dry-run:
         type: boolean
         default: true
       force:
@@ -333,7 +333,7 @@ jobs:
   release:
     name: Release ink
     needs: build
-    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry-run
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment: release # Dedicated environment for secret access with approval gates
@@ -476,7 +476,7 @@ jobs:
 
   update-checksums:
     needs: release
-    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry-run
     permissions:
       contents: write # release-assets.json commit after publishing GitHub release
     uses: ./.github/workflows/update-checksums.yml

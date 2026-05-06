@@ -332,7 +332,7 @@ async function checkVitestConfig(packages: PackageInfo[]): Promise<void> {
 
     // Check if extending base config
     const needsMergeConfig = !config.includes('mergeConfig')
-    const needsBaseImport = !config.includes('../../vitest.config.mts')
+    const needsBaseImport = !config.includes('../../.config/vitest.config.mts')
 
     if (needsMergeConfig || needsBaseImport) {
       reportIssue(
@@ -343,7 +343,7 @@ async function checkVitestConfig(packages: PackageInfo[]): Promise<void> {
         async () => {
           // Generate standard vitest config that extends base
           const standardConfig = `import { mergeConfig } from 'vitest/config'
-import baseConfig from '../../vitest.config.mts'
+import baseConfig from '../../.config/vitest.config.mts'
 
 export default mergeConfig(baseConfig, {
   test: {
@@ -361,7 +361,7 @@ export default mergeConfig(baseConfig, {
       reportIssue(
         'error',
         'vitest-config',
-        'Vitest config must import base config from ../../vitest.config.mts',
+        'Vitest config must import base config from ../../.config/vitest.config.mts',
         `${pkg.name}/vitest.config.mts`,
       )
     }

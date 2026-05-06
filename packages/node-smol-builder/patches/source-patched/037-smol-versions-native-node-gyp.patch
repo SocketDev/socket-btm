@@ -14,9 +14,7 @@
 #
 --- a/node.gyp
 +++ b/node.gyp
-@@ -771,6 +771,14 @@
-         ['1==1', {
-           'sources': [
+@@ -773,6 +773,15 @@
              'src/socketsecurity/primordial/primordial_binding.cc',
            ],
          }],
@@ -30,3 +28,5 @@
 +          ],
 +        }],
          ['node_with_ltcg=="true"', {
+           'msvs_settings': {
+             'VCCLCompilerTool': {

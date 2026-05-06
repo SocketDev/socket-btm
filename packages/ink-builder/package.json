@@ -1,15 +1,33 @@
 {
   "name": "ink-builder",
   "version": "0.0.0",
-  "description": "Prepatched Ink TUI framework with Socket-specific fixes",
+  "description": "Prepatched Ink TUI framework with Socket-specific fixes — zero-dep ESM bundle (externals: react family only)",
   "private": true,
   "license": "MIT",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/build/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "node scripts/build.mts",
     "clean": "node scripts/clean.mts",
     "cover": "vitest run --coverage",
     "test": "vitest run"
+  },
+  "peerDependencies": {
+    "react": ">=19.2.0"
+  },
+  "peerDependenciesMeta": {
+    "react-devtools-core": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@socketsecurity/lib": "catalog:",
@@ -17,8 +35,12 @@
     "yoga-layout-builder": "workspace:*"
   },
   "devDependencies": {
+    "@babel/parser": "7.26.3",
+    "@babel/types": "catalog:",
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
+    "esbuild": "catalog:",
+    "magic-string": "catalog:",
     "vitest": "catalog:"
   },
   "sources": {

@@ -1,92 +1,211 @@
 ---
 name: updating-temporal-infra
-description: Audits parity between packages/temporal-infra/ (the C++ port) and the upstream boa-dev/temporal submodule (the Rust temporal_rs crate). Surfaces drift; never auto-bumps because the port is a semantic re-implementation, not a fork. Use when a temporal_rs upstream bump is contemplated.
+description: Tracks the boa-dev/temporal submodule (temporal_rs Rust crate) at the latest tag, surfaces parity gaps in the local C++ port, and bumps the submodule SHA forward. Temporal is a Stage 3 emerging proposal — the upstream moves fast, and we want to ride that. Use when boa-dev/temporal cuts a new tag, or proactively on a regular cadence.
 user-invocable: true
-allowed-tools: Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(diff:*), Read, Edit, Glob, Grep
+allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(diff:*), Read, Edit, Glob, Grep
 ---
 
 # updating-temporal-infra
 
-Audit drift between `packages/temporal-infra/` (the C++ port) and the
-upstream `boa-dev/temporal` submodule (the `temporal_rs` Rust crate).
+Track [`boa-dev/temporal`](https://github.com/boa-dev/temporal) (the
+`temporal_rs` Rust crate that backs the ECMAScript Temporal proposal)
+at its latest tag, audit our C++ port for parity gaps, bump the
+submodule + xport row when upstream cuts a new release.
 
-- **Submodule**: `packages/temporal-infra/upstream/temporal` (boa-dev/temporal)
-- **Pinned tag**: `v0.1.0` — locked by upstream Node's
-  `deps/crates/Cargo.toml`. Bumping requires a matching upstream Node
-  bump first (handled by `updating-node`), so this skill is mostly
-  read-only / advisory.
-- **Cache bumps**: none directly. The C++ port lives inside
-  `node-smol-builder` via additions/source-patched/ copy step at
-  build time, so node-smol's own cache bump (driven by
-  `updating-node`) covers any port edits that flow through.
+- **Submodule**: `packages/temporal-infra/upstream/temporal`
+  (boa-dev/temporal)
+- **Tag format**: `vX.Y.Z`, semver-ish; sometimes `temporal_capi-v…`
+  on the C ABI side
+- **Cache bumps**: `node-smol` (the consuming binary). The C++ port
+  is embedded inline via additions/source-patched/, so node-smol's
+  cache key MUST invalidate when the port changes.
 - **Kind**: `feature-parity` (xport.json) — the port re-implements
   the Rust crate's externally observable behavior, not the source.
-  Tracking is **manual**, not auto-cascaded.
 
-## Why this is read-only
+## Why this tracks-latest (not locked) — emerging language feature
 
-Unlike `updating-libdeflate` / `updating-cjson` / etc. which bump a
-single submodule SHA and rebuild, temporal-infra is a **port, not a
-fork**:
+[`Temporal`](https://tc39.es/proposal-temporal/) is the
+**Stage 4** ECMAScript proposal (recently promoted from Stage 3)
+for first-class date/time/timezone/calendar handling. Spec:
+<https://tc39.es/proposal-temporal/>. Implementations are still
+shipping (V8 14.x has it behind a flag), boa-dev/temporal lands
+fixes regularly, and divergence between our port and the
+canonical Rust implementation is a real risk.
 
-- The Rust source moves on its own cadence; the C++ port catches up
-  manually with each bump.
-- Bumps are gated on upstream Node (which vendors temporal_rs in
-  `deps/crates/vendor/temporal_rs/`). Bumping temporal-infra ahead
-  of upstream Node would diverge the API surface from what V8
-  actually links against.
-- A blind submodule bump here would put the port out of sync with
-  what node-smol actually compiles. That's a parity defect, not an
-  update.
+### UNLIKE lief / curl / cjson / libdeflate / etc.
 
-So this skill **reports drift** and **flags audit-needed**; it does
-NOT auto-bump.
+For most upstreams socket-btm vendors, we sync the submodule SHA
+to **whatever version upstream Node ships** (via `deps/<name>/`).
+That's the right policy for stable C/C++ libraries with frozen
+APIs — the goal is reproducible Node builds, not tracking the
+library's own cadence.
+
+**Temporal is different.** It's an emerging language feature, not
+a stable utility library:
+
+- The TC39 proposal is still settling edge cases (calendar
+  ambiguity, ISO week math, leap-second semantics).
+- boa-dev/temporal cuts releases on its own cadence, often
+  faster than upstream Node bumps.
+- V8's Temporal implementation lives in
+  `deps/v8/src/objects/js-temporal-objects.cc` and depends on
+  the Rust crate via FFI through `temporal_capi`. V8 may pin
+  an older boa-dev/temporal than what's current.
+- Locking us to V8's pin would mean the C++ port can never
+  exercise newer Temporal API shapes than what V8 happens to
+  ship — defeats the point of an independent port.
+
+**Two submodules, two policies:**
+
+| Submodule | Policy | Driven by |
+|---|---|---|
+| `packages/node-smol-builder/upstream/temporal` | **locked** to upstream Node's `deps/crates/Cargo.toml` pin (currently v0.1.0) | `updating-node` cascade |
+| `packages/temporal-infra/upstream/temporal` | **track-latest** boa-dev/temporal release | this skill |
+
+**They DO NOT need to agree.** node-smol's submodule is what V8
+links against (the Rust crate compiled into the binary).
+temporal-infra's submodule is the **parity reference** for the
+hand-written C++ port — source of truth for "what should the API
+surface look like." A newer parity reference than what V8 ships
+against is fine; the C++ port matches the upstream API even when
+V8 doesn't expose every new symbol yet.
+
+The annotations in `.gitmodules` make this explicit:
+
+```
+# temporal-v0.1.0 (locked: pinned by upstream Node ...)
+[submodule "packages/node-smol-builder/upstream/temporal"]
+  ...
+# temporal-vX.Y.Z (track-latest: bump independently via updating-temporal-infra)
+[submodule "packages/temporal-infra/upstream/temporal"]
+  ...
+```
+
+The same logic applies to any **future emerging-feature ports**
+(decorators, pattern matching, etc.) — the *-infra package
+tracks the proposal cadence, the node-smol vendor copy stays
+locked to whatever Node ships.
 
 ## Process
 
-1. **Verify pinned SHA matches** the canonical `temporal-rs` row in
-   `xport.json` (currently `1d1b123` / `v0.1.0`). The two
-   submodules — this one + `node-smol-builder/upstream/temporal` —
-   must always agree.
-2. **Read upstream** at the pinned tag, list the public API surface
-   exposed by `temporal_capi` (the C ABI surface, easier to map to
-   our C++ port than the Rust API).
-3. **Read local port** at `packages/temporal-infra/src/socketsecurity/temporal/`
-   and list which `temporal_capi` symbols are implemented vs missing.
-4. **Report**:
-   - upstream tag/SHA
-   - mirroring SHA in node-smol-builder/upstream/temporal (must equal)
-   - implemented symbols (count)
-   - missing symbols (list)
-   - any C++ types whose layout doesn't match the FFI contract
-5. **No commits.** Report only. Audit decisions are human.
+### Phase 1 — Validate
+
+Clean working directory; `git status --porcelain` empty.
+
+### Phase 2 — Identify latest
+
+```bash
+cd packages/temporal-infra/upstream/temporal
+git fetch origin --tags
+LATEST=$(git tag -l 'v*' --sort=-version:refname | head -1)
+CURRENT=$(git describe --tags 2>/dev/null || echo "unknown")
+```
+
+If `LATEST == CURRENT`, exit 0 with "already at latest."
+
+### Phase 3 — Bump only temporal-infra's submodule
+
+```bash
+# Bump temporal-infra to the latest upstream tag.
+git -C packages/temporal-infra/upstream/temporal checkout "$LATEST"
+```
+
+**Do NOT bump `packages/node-smol-builder/upstream/temporal`** —
+that submodule is locked to upstream Node's `deps/crates/Cargo.toml`
+pin. Bumping it independently would diverge what V8 links against
+from what upstream expects, and is the `updating-node` skill's
+job, not this one.
+
+Update `.gitmodules` annotation for THIS submodule only:
+`# temporal-vX.Y.Z (track-latest: ...)` → new tag.
+
+### Phase 4 — Update xport.json
+
+Edit the `temporal-rs` upstream pin AND the `temporal-infra`
+feature-parity row's `notes` to reflect the new tag. Same SHA in
+both spots.
+
+### Phase 5 — Parity audit
+
+For each new symbol in `temporal_capi/` upstream, check whether the
+local port at `packages/temporal-infra/src/socketsecurity/temporal/`
+implements it. List missing ones. **Do not block the bump on
+missing symbols** — the bump is mechanical (submodule SHA only);
+the port catches up via task #217 follow-on commits. Just log the
+delta.
+
+### Phase 6 — Cache bump
+
+Bump `.github/cache-versions.json` `node-smol` entry. The C++ port
+flows into node-smol via additions/source-patched/, so a port
+edit (or even a submodule bump that the port hasn't caught up to
+yet, since the parity audit info ends up in the build) requires
+node-smol cache invalidation.
+
+### Phase 7 — Build/test (skip in CI)
+
+```bash
+cd packages/node-smol-builder
+pnpm run clean && pnpm run build && pnpm test
+```
+
+The Temporal smoke test in
+`packages/build-infra/test/fixtures/smoke-test-modules.mjs`
+exercises the canonical Temporal API surface — same one
+boa-dev/temporal tests against. A new tag that breaks that smoke
+test = blocker; revert the bump, file an issue.
+
+### Phase 8 — Commit
+
+Two commits per the `updating-node` shape:
+
+1. `chore(temporal): bump boa-dev/temporal v0.1.0 → vX.Y.Z`
+2. `chore(temporal-infra): port new symbols + cache bump`
+
+(Commit 2 may be empty for a no-API-change point release.)
+
+## Coordination with ultrathink/acorn
+
+Temporal's runtime API surface (`Temporal.Now.plainDateISO()`,
+`Temporal.Duration.from(...)`, etc.) is **regular ECMAScript** —
+no new syntax. ultrathink's parsers (rust/go/cpp/typescript)
+don't need parser changes; member-expression parsing is already
+covered.
+
+What they DO need: **a Temporal-using fixture in the lock-step
+test corpus** so all 4 lang impls exercise typical Temporal API
+shapes as part of their parity suite. After bumping here, sanity-
+check that ultrathink's parser tests still pass on a sample
+Temporal-using snippet (`Temporal.Now.zonedDateTimeISO('UTC')`,
+`Temporal.PlainDateTime.from('2026-05-06T12:00:00')`,
+duration arithmetic, etc.). If a future Temporal proposal change
+*does* introduce new syntax (none on the table), that becomes
+a parser update across all 4 ultrathink lang impls.
 
 ## When to invoke
 
-- Before bumping the `temporal-rs` xport row (which only happens via
-  `updating-node` cascading an upstream Node bump).
-- During code review of the port's implementation work (task #217),
-  to verify a new symbol implementation matches upstream's signature.
-- Quarterly drift checks: even with the lock, occasionally re-audit
-  to make sure no drift slipped in via a node-smol patch.
-
-## What this skill does NOT do
-
-- Does NOT run `git checkout <new-tag>` on the submodule. Bumps go
-  through `updating-node`'s cascade.
-- Does NOT regenerate code from the FFI bindings. The C++ port is
-  hand-written.
-- Does NOT bump `cache-versions.json`. node-smol's cache covers
-  edits via the additions copy step.
+- A new tag drops in boa-dev/temporal.
+- Quarterly cadence checks even when no tag has dropped — Temporal
+  is moving fast; a periodic `git fetch --tags` may surface
+  in-progress changes worth tracking.
+- Before a Node 26 patch release that bumps `temporal_rs` in its
+  `deps/crates/Cargo.toml`.
+- If `updating-node` is about to cascade a Node bump that ships a
+  newer temporal_rs.
 
 ## Failure modes
 
-- **SHA drift** between `packages/temporal-infra/upstream/temporal`
-  and `packages/node-smol-builder/upstream/temporal`: report as
-  CRITICAL — the two MUST agree, otherwise the port targets one
-  upstream while V8 links against another.
-- **`v0.1.0` no longer pinned by upstream Node**: indicates a
-  stealth bump in `deps/crates/Cargo.toml` that `updating-node` did
-  not catch. Surface for audit.
-- **Public API surface widened in upstream**: list new symbols,
-  flag for porting (task #217 follow-on).
+- **Smoke test regression after bump**: revert the submodule SHA,
+  file an issue at boa-dev/temporal, leave the port at the prior
+  tag until the upstream bug is fixed.
+- **Public API surface widened**: list new symbols, log them as
+  follow-ups for task #217 (the implementation work). Don't block
+  the SHA bump on having every symbol ported; the port catches
+  up incrementally.
+- **node-smol's submodule SHA drifts ahead of temporal-infra's**:
+  fine — node-smol's vendored copy is the V8 link target;
+  temporal-infra's is the parity reference and may legitimately
+  be ahead. Concerning only in the reverse direction (V8 has a
+  newer Temporal API than the parity reference), in which case
+  consult upstream Node's `deps/crates/Cargo.toml` and decide
+  whether to bump temporal-infra forward.

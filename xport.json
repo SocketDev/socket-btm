@@ -447,13 +447,27 @@
       ]
     },
     {
+      "kind": "file-fork",
+      "id": "temporal-infra-primitive",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/primitive.cc",
+      "upstream_path": "src/primitive.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 6,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "FiniteF64 + DoubleDouble live entirely inline / templated in primitive.h. The .cc is a stub translation unit anchoring the gyp source list and reserving a home for any future out-of-line definitions.",
+        "Numeric-conversion machinery (Rust's num_traits FromPrimitive / AsPrimitive / PrimInt traits) collapsed into C++ template member functions on FiniteF64 (AsIntegerIfIntegral<T>, AsIntegerWithTruncation<T>, AsPositiveIntegerWithTruncation<T>) — same surface, no trait machinery."
+      ]
+    },
+    {
       "kind": "feature-parity",
       "id": "temporal-infra-pending",
       "upstream": "temporal-rs-parity",
       "criticality": 9,
       "local_area": "packages/temporal-infra/src/socketsecurity/temporal",
       "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
-      "notes": "Tracking row for the temporal_rs files NOT YET ported. Phase 7 added: relative_to + duration_normalized scaffolds. Lock-step remaining (each becomes a file-fork row when its .cc lands):\n- src/builtins/compiled/* → compiled.cc helpers (compile-time data baking)\n- src/primitive.rs DoubleDouble → primitive.cc (currently header-only stub in primitive.h)\n\nALSO PENDING (integration phases, distinct from 1:1 port):\n- ICU C-API dispatch layer for non-ISO calendars\n- V8 zoneinfo64 dispatch layer for IANA time zones\n- Full TimeDuration arithmetic pipeline (round / balance / total / normalize) — currently scaffolded\n\nTotal upstream Rust LOC: ~23k. Currently ported: ~8k (Phase 1+2+3+4+5+6+7). Bumping the temporal-rs-parity submodule re-runs this audit; any missing row vs upstream's actual file list is a port-completeness gap."
+      "notes": "Tracking row for the temporal_rs files NOT YET ported.\n\nPhase 8: closes out the file-by-file 1:1 port. The remaining work is in three integration phases that activate the scaffolded surfaces:\n\n1. **ICU C-API dispatch layer** for non-ISO calendars (calendar.cc activates this). Today calendar.cc returns Unsupported for Buddhist/Chinese/Coptic/etc.; once V8's deps/icu-small bindings are wired through, those paths become real.\n\n2. **V8 zoneinfo64 dispatch layer** for IANA time zones (time_zone.cc + zoned_date_time.cc activate this). Today time_zone.cc round-trips IANA identifier strings but returns Unsupported on offset/transition lookup. Once V8's existing js-temporal-zoneinfo64.cc is plumbed through, GetIsoDateTimeFor goes live.\n\n3. **Full TimeDuration arithmetic pipeline** (round / balance / total / normalize) — duration_normalized.cc currently has the type surface; the ~1.5k LOC of arithmetic depends on a fully-instantiated rounding.h + Int128 division.\n\nUpstream's `src/builtins/compiled/*` files are intentionally NOT ported — they are thin TZ_PROVIDER convenience wrappers (e.g. `Instant::to_ixdtf_string` calls `to_ixdtf_string_with_provider(&*TZ_PROVIDER)`). V8 plumbs the provider through Isolate; the convenience layer is unnecessary in the C++ embed.\n\nTotal upstream Rust LOC ported file-by-file: ~8k of ~14k non-test. Bumping the temporal-rs-parity submodule re-runs this audit; any missing row vs upstream's actual file list is a port-completeness gap."
     },
     {
       "kind": "version-pin",

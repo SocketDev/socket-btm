@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0
+# @node-versions: v25.9.0, v26.0.0
 # @description: Register smol_power native binding in NODE_BUILTIN_BINDINGS
 #
 # Adds V(smol_power) alongside the other smol_* bindings registered by
@@ -11,11 +11,11 @@
 #
 --- a/src/node_binding.cc
 +++ b/src/node_binding.cc
-@@ -110,6 +110,7 @@
-   NODE_BUILTIN_SQLITE_BINDINGS(V)                                              \
-   NODE_BUILTIN_POSTGRES_BINDINGS(V)                                            \
+@@ -113,6 +113,7 @@
    V(smol_ffi)                                                                  \
    V(smol_http)                                                                 \
    V(smol_ilp)                                                                  \
 +  V(smol_power)                                                                \
    V(smol_webstreams)
+ 
+ // This is used to load built-in bindings. Instead of using

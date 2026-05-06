@@ -169,9 +169,16 @@ Pick one:
   alone:
 
   ```bash
-  git worktree add ../socket-btm-squash main
-  cd ../socket-btm-squash
+  git worktree add ../<repo>-squash main
+  cd ../<repo>-squash
+  # ... run the squash from Phase 1 …
+  # When the squash is fully pushed, retire the worktree:
+  cd <primary-checkout>
+  git worktree remove ../<repo>-squash
   ```
+
+  Worktrees that don't get retired pile up under `~/projects/`.
+  Always close the loop.
 
 Then retry from Phase 1.
 

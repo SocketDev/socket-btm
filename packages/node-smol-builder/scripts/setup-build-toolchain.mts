@@ -21,16 +21,14 @@
  * `brew install rust` / `apt install rustc cargo` / `choco install rust`.
  */
 
-import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import {
-  isCI,
-  runSetupToolchain,
-} from 'build-infra/lib/setup-build-toolchain'
+import { spawn } from '@socketsecurity/lib/spawn'
+import { runSetupToolchain } from 'build-infra/lib/setup-build-toolchain'
 
 const logger = getDefaultLogger()
 
@@ -47,44 +45,49 @@ await runSetupToolchain({
   },
 })
 
-// Post-install: verify rustc/cargo meet Node 26's >= 1.82 minimum. The
-// `tools` array above only ensures *some* Rust is installed; the
-// version check below ensures it's recent enough for Temporal.
-function checkRustVersion(bin: string, minMajor: number, minMinor: number): void {
-  const r = spawnSync(bin, ['--version'], { encoding: 'utf8' })
-  if (r.status !== 0) {
-    logger.error(
-      `× ${bin} not found on PATH. Install via https://rustup.rs or your platform's package manager.`,
-    )
-    process.exit(1)
+// Detect rustc/cargo and report version. Soft warning — never aborts.
+// Mirrors the napi-go-infra pattern: postinstall is informational, not
+// gating. Workflows install rustup before invoking the actual node-smol
+// build; sibling-builder Docker bases (curl, lief, stubs, …) install
+// node-smol-builder as a workspace dep without needing Rust at install
+// time, so a missing toolchain here is expected and benign.
+async function reportToolVersion(
+  bin: string,
+  minMajor: number,
+  minMinor: number,
+): Promise<void> {
+  try {
+    const result = await spawn(bin, ['--version'], {
+      shell: WIN32,
+      stdio: 'pipe',
+    })
+    const exit = result.code ?? 0
+    if (exit !== 0) {
+      logger.warn(`${bin} not found. Install via https://rustup.rs`)
+      return
+    }
+    const out = result.stdout?.toString() ?? ''
+    // `rustc 1.82.0 (1234abcd5 2025-10-14)` → ['1', '82', '0']
+    const m = /^[a-z]+\s+(\d+)\.(\d+)\.(\d+)/.exec(out)
+    if (!m) {
+      logger.warn(`${bin} version unparseable: ${out.trim()}`)
+      return
+    }
+    const [, majStr, minStr] = m
+    const maj = Number(majStr)
+    const min = Number(minStr)
+    if (maj < minMajor || (maj === minMajor && min < minMinor)) {
+      logger.warn(
+        `${bin} ${maj}.${min} is below the Node 26 Temporal minimum ` +
+          `(${minMajor}.${minMinor}). Run \`rustup update stable\`.`,
+      )
+      return
+    }
+    logger.log(`✓ ${bin} ${maj}.${min} (>= ${minMajor}.${minMinor})`)
+  } catch {
+    logger.warn(`${bin} not found. Install via https://rustup.rs`)
   }
-  // `rustc 1.82.0 (1234abcd5 2025-10-14)` → ['1', '82', '0']
-  const m = /^[a-z]+\s+(\d+)\.(\d+)\.(\d+)/.exec(r.stdout)
-  if (!m) {
-    logger.error(`× could not parse ${bin} version: ${r.stdout.trim()}`)
-    process.exit(1)
-  }
-  const [, majStr, minStr] = m
-  const maj = Number(majStr)
-  const min = Number(minStr)
-  if (maj < minMajor || (maj === minMajor && min < minMinor)) {
-    logger.error(
-      `× ${bin} version ${maj}.${min} is below the Node 26 Temporal minimum ` +
-        `(${minMajor}.${minMinor}). Run \`rustup update stable\` (rustup) or ` +
-        `upgrade via your platform's package manager.`,
-    )
-    process.exit(1)
-  }
-  logger.log(`✓ ${bin} ${maj}.${min} (>= ${minMajor}.${minMinor})`)
 }
 
-// Skip the rustc/cargo version check in CI: workflows install Rust
-// via dtolnay/rust-toolchain BEFORE the build step, but Docker base
-// images for sibling builders (curl, lief, stubs, etc.) install
-// node-smol-builder as a workspace dep without needing Rust at
-// install time. The version check is for local-dev sanity and would
-// otherwise abort the install of every CI Docker layer.
-if (!isCI()) {
-  checkRustVersion('rustc', 1, 82)
-  checkRustVersion('cargo', 1, 82)
-}
+await reportToolVersion('rustc', 1, 82)
+await reportToolVersion('cargo', 1, 82)

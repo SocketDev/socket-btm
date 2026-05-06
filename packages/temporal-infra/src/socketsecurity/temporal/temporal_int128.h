@@ -52,6 +52,9 @@ struct Int128 {
   constexpr Int128 operator-(Int128 o) const noexcept {
     return Int128(value - o.value);
   }
+  constexpr Int128 operator*(Int128 o) const noexcept {
+    return Int128(value * o.value);
+  }
   constexpr bool operator==(Int128 o) const noexcept {
     return value == o.value;
   }

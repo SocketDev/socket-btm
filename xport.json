@@ -417,13 +417,43 @@
       ]
     },
     {
+      "kind": "file-fork",
+      "id": "temporal-infra-relative-to",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/relative_to.cc",
+      "upstream_path": "src/options/relative_to.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 7,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "Tagged-union RelativeTo (PlainDate | ZonedDateTime). Mirrors upstream's `enum RelativeTo` 1:1.",
+        "TryFromUtf8 tries ZonedDateTime first then falls back to PlainDate. Today the ZonedDateTime path matches only UTC-Z input (parse.cc Phase 2 work); IANA-annotated paths surface 'Unsupported' for now."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-duration-normalized",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/duration_normalized.cc",
+      "upstream_path": "src/builtins/core/duration/normalized.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 9,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "SCAFFOLD: defines DateDuration / TimeDuration / InternalDurationRecord types + sign/abs/negate/from-components helpers. The full arithmetic pipeline (round / balance / total / normalize, ~1.5k LOC) is the hardest part of the port and lands in a separate phase — it depends on Int128 multiplication/division (added to temporal_int128.h here) and the rounding.h template instantiations being plumbed through.",
+        "DateDuration uses int64_t fields matching upstream exactly. TimeDuration wraps Int128 (via temporal_int128.h's wrapper).",
+        "Folds upstream's two files (duration/date.rs + duration/normalized.rs) into a single .cc — both define duration-record types and there's no benefit to splitting them in C++.",
+        "MAX_TIME_DURATION constant is computed at runtime via Int128 arithmetic (no constexpr i128 literals in standard C++)."
+      ]
+    },
+    {
       "kind": "feature-parity",
       "id": "temporal-infra-pending",
       "upstream": "temporal-rs-parity",
       "criticality": 9,
       "local_area": "packages/temporal-infra/src/socketsecurity/temporal",
       "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
-      "notes": "Tracking row for the temporal_rs files NOT YET ported. Phase 6 added: calendar / time_zone / zoned_date_time (scaffold layer). Lock-step remaining (each becomes a file-fork row when its .cc lands):\n- src/options/relative_to.rs → relative_to.cc (depends on TimeZone class)\n- src/builtins/compiled/* → compiled.cc helpers\n- src/builtins/duration/normalized/* → duration_normalized.cc (HARD: TimeDuration, InternalDurationRecord, balance/round)\n- src/primitive.rs DoubleDouble → primitive.cc (currently header-only stub in primitive.h)\n\nALSO PENDING: ICU C-API dispatch layer for non-ISO calendars (calendar.cc activates this), and V8 zoneinfo64 dispatch layer for IANA time zones (time_zone.cc + zoned_date_time.cc activate this). Both are integration phases distinct from the file-by-file 1:1 port.\n\nTotal upstream Rust LOC: ~23k. Currently ported: ~7k (Phase 1+2+3+4+5+6). Bumping the temporal-rs-parity submodule re-runs this audit; any missing row vs upstream's actual file list is a port-completeness gap."
+      "notes": "Tracking row for the temporal_rs files NOT YET ported. Phase 7 added: relative_to + duration_normalized scaffolds. Lock-step remaining (each becomes a file-fork row when its .cc lands):\n- src/builtins/compiled/* → compiled.cc helpers (compile-time data baking)\n- src/primitive.rs DoubleDouble → primitive.cc (currently header-only stub in primitive.h)\n\nALSO PENDING (integration phases, distinct from 1:1 port):\n- ICU C-API dispatch layer for non-ISO calendars\n- V8 zoneinfo64 dispatch layer for IANA time zones\n- Full TimeDuration arithmetic pipeline (round / balance / total / normalize) — currently scaffolded\n\nTotal upstream Rust LOC: ~23k. Currently ported: ~8k (Phase 1+2+3+4+5+6+7). Bumping the temporal-rs-parity submodule re-runs this audit; any missing row vs upstream's actual file list is a port-completeness gap."
     },
     {
       "kind": "version-pin",

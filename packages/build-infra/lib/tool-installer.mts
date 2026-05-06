@@ -39,6 +39,24 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
  */
 
 /**
+ * Homebrew "keg-only" formulas — brew installs them without symlinking
+ * into /opt/homebrew/lib because they conflict with macOS-shipped
+ * versions. That breaks tools that try to dlopen them at runtime
+ * (e.g. cargo expecting libssl.3.dylib from openssl@3). After
+ * `brew install <name>`, force-link with `brew link --overwrite --force`
+ * so dependent binaries can find the dylibs.
+ *
+ * Add a formula here only when:
+ *   1. Brew lists it as keg-only (`brew info <name>` shows the warning),
+ *   2. A tool we install (rust/cargo, postgres clients, etc.) needs to
+ *      dlopen its dylib at runtime — without the link, the dependent
+ *      binary errors out with "Library not loaded: libfoo.dylib".
+ */
+const KEG_ONLY_FORMULAS: ReadonlySet<string> = new Set([
+  'openssl@3',
+])
+
+/**
  * Package manager configuration per platform.
  */
 const PACKAGE_MANAGER_CONFIGS = {
@@ -484,6 +502,31 @@ export async function installTool(
     if (exitCode !== 0) {
       printError(`Failed to install ${tool} via ${packageManager}`)
       return false
+    }
+
+    // Brew "keg-only" formulas (openssl@3, libpq, libffi, etc.) install
+    // without symlinking into /opt/homebrew/lib so they don't conflict
+    // with the system equivalent. That leaves consumers like rustc /
+    // cargo unable to load `libssl.3.dylib` at runtime even though the
+    // file exists in the cellar. `brew install` is silent on this state
+    // — it just prints "already installed, it's just not linked" and
+    // exits 0. Force-link after install so dependent tools can dlopen
+    // the homebrew copy. Only on macOS, only for brew, only for the
+    // formulas where it's load-bearing.
+    if (packageManager === 'brew' && KEG_ONLY_FORMULAS.has(packageName)) {
+      const linkResult = await spawn(
+        commandPath,
+        ['link', '--overwrite', '--force', packageName],
+        {
+          env: { ...process.env, HOMEBREW_NO_ANALYTICS: '1' },
+          stdio: 'inherit',
+        },
+      )
+      if ((linkResult.code ?? 0) !== 0) {
+        logger.warn(
+          `${packageName} installed but \`brew link --overwrite --force\` failed; dependent tools may fail to load it`,
+        )
+      }
     }
 
     // Verify installation.

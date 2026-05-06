@@ -1106,7 +1106,7 @@ jobs:
   release:
     name: Release Node.js smol
     needs: build
-    if: github.event_name == 'workflow_dispatch' && !inputs.dry-run
+    if: github.event_name == 'workflow_dispatch' && !inputs['dry-run']
     environment: release
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -1311,7 +1311,7 @@ jobs:
 
   update-checksums:
     needs: release
-    if: github.event_name == 'workflow_dispatch' && !inputs.dry-run
+    if: github.event_name == 'workflow_dispatch' && !inputs['dry-run']
     permissions:
       contents: write # release-assets.json commit after publishing GitHub release
     uses: ./.github/workflows/update-checksums.yml

@@ -1328,7 +1328,7 @@ jobs:
           || needs.binflate.result == 'success'
           || needs.binject.result == 'success')
       && github.event_name == 'workflow_dispatch'
-      && !inputs.dry-run
+      && !inputs['dry-run']
     environment: release
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -1562,7 +1562,7 @@ jobs:
       always()
       && needs.release.result == 'success'
       && github.event_name == 'workflow_dispatch'
-      && !inputs.dry-run
+      && !inputs['dry-run']
     permissions:
       contents: write # release-assets.json commit after publishing GitHub release
     uses: ./.github/workflows/update-checksums.yml

@@ -73,8 +73,9 @@ uint8_t ISOWeekOfYear(int32_t year, uint8_t month, uint8_t day) noexcept;
 // Spec: BalanceISODate(year, month, day)
 // Normalizes a possibly-out-of-range date by carrying day → month →
 // year. Used internally by date arithmetic when components overflow
-// (e.g. Feb 30 → Mar 2 on a non-leap year).
-PlainDate BalanceISODate(int32_t year, int32_t month, int32_t day) noexcept;
+// (e.g. Feb 30 → Mar 2 on a non-leap year). Returns a bare IsoDate
+// (no calendar attached); caller wraps in PlainDate if needed.
+IsoDate BalanceISODate(int32_t year, int32_t month, int32_t day) noexcept;
 
 // Spec: RegulateISODate(year, month, day, overflow)
 // `overflow` is the spec's overflow option: "constrain" (clamps to the
@@ -82,16 +83,15 @@ PlainDate BalanceISODate(int32_t year, int32_t month, int32_t day) noexcept;
 // out-of-range input). For now we expose just the "constrain" path,
 // which is the default for most call sites; "reject" is forthcoming
 // when options.h lands.
-PlainDate RegulateISODateConstrain(int32_t year, int32_t month,
-                                   int32_t day) noexcept;
+IsoDate RegulateISODateConstrain(int32_t year, int32_t month,
+                                 int32_t day) noexcept;
 
 // Spec: AddISODate(year, month, day, years, months, weeks, days, overflow)
 // Calendar-aware date addition. Years and months are added first
 // (preserving day-of-month, then constraining), then weeks*7 + days.
-// Returns the resulting PlainDate. Overflow on out-of-range output is
-// signalled via PlainDate::IsValid()==false.
-PlainDate AddISODate(const PlainDate& base, int32_t years, int32_t months,
-                     int32_t weeks, int32_t days) noexcept;
+// Overflow on out-of-range output is signalled via IsoDate::IsValid().
+IsoDate AddISODate(const IsoDate& base, int32_t years, int32_t months,
+                   int32_t weeks, int32_t days) noexcept;
 
 // Spec: DifferenceISODate(y1, m1, d1, y2, m2, d2, largestUnit)
 // Returns the calendar difference as (years, months, weeks, days)
@@ -99,8 +99,8 @@ PlainDate AddISODate(const PlainDate& base, int32_t years, int32_t months,
 // `largestUnit` parameter controls whether to express the result in
 // days, weeks, months, or years — full implementation lands with the
 // options/units module (forthcoming).
-Duration DifferenceISODate(const PlainDate& earlier,
-                           const PlainDate& later) noexcept;
+Duration DifferenceISODate(const IsoDate& earlier,
+                           const IsoDate& later) noexcept;
 
 }  // namespace temporal
 }  // namespace socketsecurity

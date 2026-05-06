@@ -1,8 +1,8 @@
 // Public API surface for socketsecurity::temporal.
 //
-// Hand-written C++ port of the Stage 4 Temporal proposal
+// 1:1 hand-written C++ port of the Stage 4 Temporal proposal
 // (https://tc39.es/proposal-temporal/), modeled after boa-dev/temporal's
-// `temporal_rs` Rust crate.
+// `temporal_rs` Rust crate at v0.2.3.
 //
 // Architecture (see packages/temporal-infra/README.md):
 //   - Calendars delegate to system ICU (icu::Calendar), not a port of
@@ -13,9 +13,11 @@
 //     primitives, ISO arithmetic, parsing, normalization, options,
 //     ambiguity resolution.
 //
-// All types in this header are POD-style values where possible. Methods
-// returning fallible results use absl::StatusOr (V8 already vendors
-// abseil under deps/v8/third_party/abseil-cpp/).
+// Naming follows upstream 1:1 to keep the port verifiable. Where Rust
+// uses snake_case, C++ uses snake_case for fields (matches upstream)
+// and PascalCase for methods (Google C++ style). Spec-level types
+// (IsoDate, IsoTime, IsoDateTime) are bare structs without a Calendar;
+// `PlainDate` etc. wrap them with a calendar identifier.
 
 #ifndef SRC_SOCKETSECURITY_TEMPORAL_TEMPORAL_H_
 #define SRC_SOCKETSECURITY_TEMPORAL_TEMPORAL_H_
@@ -30,7 +32,85 @@ namespace node {
 namespace socketsecurity {
 namespace temporal {
 
-// ── Primitives ─────────────────────────────────────────────────────
+// ── Spec-level ISO records ────────────────────────────────────────────
+//
+// These mirror upstream's `IsoDate` / `IsoTime` / `IsoDateTime` (in
+// `src/iso.rs`). They have no calendar attached — the spec uses them as
+// the Gregorian-only representation that calendar algorithms normalize
+// to before doing arithmetic.
+
+// Mirror of upstream's `IsoDate { year, month, day }`.
+struct IsoDate {
+  int32_t year;   // -271821..275760 (ISO 8601 expanded)
+  uint8_t month;  // 1..12
+  uint8_t day;    // 1..31
+
+  // Spec: IsValidISODate
+  bool IsValid() const noexcept;
+
+  // The Unix epoch sentinel — used by callers like
+  // `PlainTime::epoch_ns_for_utc()` (upstream's UNIX_EPOCH constant).
+  static constexpr IsoDate UnixEpoch() noexcept {
+    return IsoDate{1970, 1, 1};
+  }
+};
+
+// Mirror of upstream's `IsoTime { hour, minute, second, millisecond,
+// microsecond, nanosecond }`.
+struct IsoTime {
+  uint8_t hour;          // 0..23
+  uint8_t minute;        // 0..59
+  uint8_t second;        // 0..59 (no leap seconds in Temporal)
+  uint16_t millisecond;  // 0..999
+  uint16_t microsecond;  // 0..999
+  uint16_t nanosecond;   // 0..999
+
+  // Spec: IsValidISOTime
+  bool IsValid() const noexcept;
+};
+
+// Mirror of upstream's `IsoDateTime { date, time }`.
+struct IsoDateTime {
+  IsoDate date;
+  IsoTime time;
+
+  bool IsValid() const noexcept { return date.IsValid() && time.IsValid(); }
+};
+
+// ── Calendar-aware wrappers ───────────────────────────────────────────
+//
+// These mirror upstream's `PlainDate { iso, calendar }` etc. The
+// `Calendar` class isn't ported yet (calendar.cc, forthcoming); for
+// now, callers can construct PlainDate/PlainTime/PlainDateTime with the
+// implicit ISO calendar by using the `iso`-only constructors.
+
+class Calendar;  // Forward decl — calendar.h forthcoming.
+
+// Temporal.PlainDate — a calendar date with no time-of-day or timezone.
+struct PlainDate {
+  IsoDate iso;
+  // calendar field placeholder; see calendar.h once it lands. ISO is
+  // implied when this is null.
+  // const Calendar* calendar = nullptr;
+
+  bool IsValid() const noexcept { return iso.IsValid(); }
+};
+
+// Temporal.PlainTime — wall-clock time of day, no date or timezone.
+struct PlainTime {
+  IsoTime iso;
+
+  bool IsValid() const noexcept { return iso.IsValid(); }
+};
+
+// Temporal.PlainDateTime — calendar date + wall-clock time, no timezone.
+struct PlainDateTime {
+  IsoDateTime iso;
+
+  bool IsValid() const noexcept { return iso.IsValid(); }
+};
+
+// ── Instant ───────────────────────────────────────────────────────────
 
 // Temporal.Instant — exact moment in time as nanoseconds since the Unix
 // epoch (1970-01-01T00:00:00Z). Calendar-agnostic, timezone-agnostic.
@@ -44,37 +124,6 @@ struct Instant {
 
   // Spec: IsValidEpochNanoseconds — within ±10^8 days from epoch.
   bool IsValid() const noexcept;
-};
-
-// Temporal.PlainDate — a calendar date with no time-of-day or timezone.
-// ISO calendar fields; non-ISO calendars are exposed via the calendar
-// binding (see calendar.h, future).
-struct PlainDate {
-  int32_t iso_year;   // -271821..275760 (ISO 8601 expanded)
-  uint8_t iso_month;  // 1..12
-  uint8_t iso_day;    // 1..31
-
-  bool IsValid() const noexcept;
-};
-
-// Temporal.PlainTime — wall-clock time of day, no date or timezone.
-struct PlainTime {
-  uint8_t iso_hour;          // 0..23
-  uint8_t iso_minute;        // 0..59
-  uint8_t iso_second;        // 0..59 (no leap seconds in Temporal)
-  uint16_t iso_millisecond;  // 0..999
-  uint16_t iso_microsecond;  // 0..999
-  uint16_t iso_nanosecond;   // 0..999
-
-  bool IsValid() const noexcept;
-};
-
-// Temporal.PlainDateTime — calendar date + wall-clock time, no timezone.
-struct PlainDateTime {
-  PlainDate date;
-  PlainTime time;
-
-  bool IsValid() const noexcept { return date.IsValid() && time.IsValid(); }
 };
 
 // ── Duration ──────────────────────────────────────────────────────

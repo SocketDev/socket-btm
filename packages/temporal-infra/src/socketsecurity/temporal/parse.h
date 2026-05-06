@@ -43,7 +43,11 @@ enum class ParseStatus : uint8_t {
                  // annotation [u-ca=hebrew]). See TODOs in parse.cc.
 };
 
-struct ParsedDateTime {
+// Parser-level output. Distinct from upstream's spec-level
+// `ParsedDateTime` (in parsed_intermediates.h) which represents the
+// pre-validate intermediate after full IXDTF parsing including calendar
+// + time-zone annotations.
+struct ParseDateTimeRecord {
   PlainDateTime datetime;
   // UTC offset in nanoseconds. Set by Z (=0) or ±HH:MM (=offset). When
   // input has no offset annotation, has_offset == false.
@@ -53,7 +57,8 @@ struct ParsedDateTime {
 
 // Parse an ISO 8601 / RFC 9557 string into PlainDateTime + optional
 // offset. Whitespace-trimming is the caller's responsibility.
-ParseStatus ParseDateTime(std::string_view input, ParsedDateTime* out) noexcept;
+ParseStatus ParseDateTime(std::string_view input,
+                          ParseDateTimeRecord* out) noexcept;
 
 // Parse an Instant (point-in-time) string into nanoseconds since epoch.
 // Requires a UTC offset (Z or ±HH:MM); rejects offsetless input per

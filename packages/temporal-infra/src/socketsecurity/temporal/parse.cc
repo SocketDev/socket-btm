@@ -121,9 +121,9 @@ ParseStatus ParseDateInto(Cursor& c, PlainDate* out) noexcept {
     return ParseStatus::kInvalid;
   }
 
-  out->iso_year = year;
-  out->iso_month = static_cast<uint8_t>(month);
-  out->iso_day = static_cast<uint8_t>(day);
+  out->iso.year = year;
+  out->iso.month = static_cast<uint8_t>(month);
+  out->iso.day = static_cast<uint8_t>(day);
   if (!out->IsValid()) {
     return ParseStatus::kInvalid;
   }
@@ -162,12 +162,12 @@ ParseStatus ParseTimeInto(Cursor& c, PlainTime* out) noexcept {
     }
   }
 
-  out->iso_hour = static_cast<uint8_t>(hour);
-  out->iso_minute = static_cast<uint8_t>(minute);
-  out->iso_second = static_cast<uint8_t>(second);
-  out->iso_millisecond = static_cast<uint16_t>(sub / 1000000);
-  out->iso_microsecond = static_cast<uint16_t>((sub / 1000) % 1000);
-  out->iso_nanosecond = static_cast<uint16_t>(sub % 1000);
+  out->iso.hour = static_cast<uint8_t>(hour);
+  out->iso.minute = static_cast<uint8_t>(minute);
+  out->iso.second = static_cast<uint8_t>(second);
+  out->iso.millisecond = static_cast<uint16_t>(sub / 1000000);
+  out->iso.microsecond = static_cast<uint16_t>((sub / 1000) % 1000);
+  out->iso.nanosecond = static_cast<uint16_t>(sub % 1000);
   if (!out->IsValid()) {
     return ParseStatus::kInvalid;
   }
@@ -251,28 +251,31 @@ ParseStatus ParseDate(std::string_view input, PlainDate* out) noexcept {
 }
 
 ParseStatus ParseDateTime(std::string_view input,
-                          ParsedDateTime* out) noexcept {
+                          ParseDateTimeRecord* out) noexcept {
   Cursor c{input.data(), input.size()};
-  ParseStatus s = ParseDateInto(c, &out->datetime.date);
+  // ParseDateInto/ParseTimeInto take PlainDate*/PlainTime* (which
+  // wrap an IsoDate/IsoTime). Build temporary wrappers, then copy the
+  // inner records into out->datetime.iso.{date,time}.
+  PlainDate pd{};
+  ParseStatus s = ParseDateInto(c, &pd);
   if (s != ParseStatus::kOk) {
     return s;
   }
+  out->datetime.iso.date = pd.iso;
   // 'T' or ' ' (space, per RFC 3339 §5.6) separator — the spec
   // canonicalizes on T but accepts both.
+  PlainTime pt{};
   if (!c.Eof()) {
     if (c.Peek() == 'T' || c.Peek() == 't' || c.Peek() == ' ') {
       c.Get();
-      s = ParseTimeInto(c, &out->datetime.time);
+      s = ParseTimeInto(c, &pt);
       if (s != ParseStatus::kOk) {
         return s;
       }
-    } else {
-      // No time component: zero-fill.
-      out->datetime.time = PlainTime{};
     }
-  } else {
-    out->datetime.time = PlainTime{};
+    // else: zero IsoTime (default-constructed pt).
   }
+  out->datetime.iso.time = pt.iso;
   // Optional UTC offset.
   s = ParseOffsetInto(c, &out->offset_nanoseconds, &out->has_offset);
   if (s != ParseStatus::kOk) {
@@ -292,7 +295,7 @@ ParseStatus ParseDateTime(std::string_view input,
 
 ParseStatus ParseInstantString(std::string_view input,
                                Instant* out) noexcept {
-  ParsedDateTime parsed{};
+  ParseDateTimeRecord parsed{};
   ParseStatus s = ParseDateTime(input, &parsed);
   if (s != ParseStatus::kOk) {
     return s;
@@ -307,23 +310,23 @@ ParseStatus ParseInstantString(std::string_view input,
   //
   // KISS: do it directly here without re-exposing ToJDN, since this
   // is the only call site outside iso.cc.
-  const PlainDate& d = parsed.datetime.date;
-  int32_t a = (14 - d.iso_month) / 12;
-  int32_t y = d.iso_year + 4800 - a;
-  int32_t m = d.iso_month + 12 * a - 3;
-  int64_t jdn = static_cast<int64_t>(d.iso_day) + (153 * m + 2) / 5 +
+  const IsoDate& d = parsed.datetime.iso.date;
+  int32_t a = (14 - d.month) / 12;
+  int32_t y = d.year + 4800 - a;
+  int32_t m = d.month + 12 * a - 3;
+  int64_t jdn = static_cast<int64_t>(d.day) + (153 * m + 2) / 5 +
                 365LL * y + y / 4 - y / 100 + y / 400 - 32045;
   // JDN of 1970-01-01 = 2440588.
   int64_t days_since_epoch = jdn - 2440588;
   // Time-of-day in nanoseconds.
-  const PlainTime& t = parsed.datetime.time;
-  int64_t tod_ns = (static_cast<int64_t>(t.iso_hour) * 3600 +
-                    static_cast<int64_t>(t.iso_minute) * 60 +
-                    t.iso_second) *
+  const IsoTime& t = parsed.datetime.iso.time;
+  int64_t tod_ns = (static_cast<int64_t>(t.hour) * 3600 +
+                    static_cast<int64_t>(t.minute) * 60 +
+                    t.second) *
                        1'000'000'000LL +
-                   static_cast<int64_t>(t.iso_millisecond) * 1'000'000 +
-                   static_cast<int64_t>(t.iso_microsecond) * 1'000 +
-                   t.iso_nanosecond;
+                   static_cast<int64_t>(t.millisecond) * 1'000'000 +
+                   static_cast<int64_t>(t.microsecond) * 1'000 +
+                   t.nanosecond;
   // Days × 86_400 × 1e9 needs int128 to avoid overflow at the extremes.
   NativeInt128 day_ns = static_cast<NativeInt128>(days_since_epoch) *
                         NativeInt128{86'400'000'000'000LL};

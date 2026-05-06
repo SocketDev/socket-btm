@@ -117,7 +117,7 @@ uint8_t ISOWeekOfYear(int32_t year, uint8_t month, uint8_t day) noexcept {
 // Note: spec actually does this via a single algorithm; this loop is
 // equivalent and easier to reason about. Worst-case loop count is
 // bounded by the input magnitude / 28 = small for realistic inputs.
-PlainDate BalanceISODate(int32_t year, int32_t month, int32_t day) noexcept {
+IsoDate BalanceISODate(int32_t year, int32_t month, int32_t day) noexcept {
   // Step 1: month carry.
   if (month < 1 || month > 12) {
     // Convert month to 0-indexed for cleaner mod math, then back.
@@ -153,10 +153,10 @@ PlainDate BalanceISODate(int32_t year, int32_t month, int32_t day) noexcept {
     }
   }
 
-  PlainDate result;
-  result.iso_year = year;
-  result.iso_month = static_cast<uint8_t>(month);
-  result.iso_day = static_cast<uint8_t>(day);
+  IsoDate result;
+  result.year = year;
+  result.month = static_cast<uint8_t>(month);
+  result.day = static_cast<uint8_t>(day);
   return result;
 }
 
@@ -164,17 +164,17 @@ PlainDate BalanceISODate(int32_t year, int32_t month, int32_t day) noexcept {
 // Constrains by clamping each field to its valid range, in order.
 // (Unlike BalanceISODate which carries.) This is the spec's behavior
 // for the `overflow: 'constrain'` option in PlainDate constructors.
-PlainDate RegulateISODateConstrain(int32_t year, int32_t month,
-                                   int32_t day) noexcept {
-  PlainDate out;
+IsoDate RegulateISODateConstrain(int32_t year, int32_t month,
+                                 int32_t day) noexcept {
+  IsoDate out;
   // Year is unconstrained at this stage — IsValid() will catch the
   // ±271821..275760 limit downstream.
-  out.iso_year = year;
+  out.year = year;
   // Month: clamp to 1..12.
-  out.iso_month = static_cast<uint8_t>(std::clamp(month, 1, 12));
+  out.month = static_cast<uint8_t>(std::clamp(month, 1, 12));
   // Day: clamp to 1..ISODaysInMonth(year, month).
-  uint8_t max_day = ISODaysInMonth(year, out.iso_month);
-  out.iso_day = static_cast<uint8_t>(std::clamp(day, 1, static_cast<int32_t>(max_day)));
+  uint8_t max_day = ISODaysInMonth(year, out.month);
+  out.day = static_cast<uint8_t>(std::clamp(day, 1, static_cast<int32_t>(max_day)));
   return out;
 }
 
@@ -184,12 +184,12 @@ PlainDate RegulateISODateConstrain(int32_t year, int32_t month,
 //   1. Add years + months together to (year + years, month + months,
 //      day), then balance month and constrain day.
 //   2. Add (weeks*7 + days) to that result, then balance.
-PlainDate AddISODate(const PlainDate& base, int32_t years, int32_t months,
-                     int32_t weeks, int32_t days) noexcept {
+IsoDate AddISODate(const IsoDate& base, int32_t years, int32_t months,
+                   int32_t weeks, int32_t days) noexcept {
   // Step 1: years + months. Balance month into year first, then
   // constrain day to that year/month's range.
-  int32_t y = base.iso_year + years;
-  int32_t m = static_cast<int32_t>(base.iso_month) + months;
+  int32_t y = base.year + years;
+  int32_t m = static_cast<int32_t>(base.month) + months;
   // Carry m → y.
   int32_t zero_month = m - 1;
   int32_t year_carry = zero_month / 12;
@@ -203,7 +203,7 @@ PlainDate AddISODate(const PlainDate& base, int32_t years, int32_t months,
   // Now constrain day to ISODaysInMonth(y, m). Spec's "constrain"
   // means clamp, not overflow — Jan 31 + 1 month = Feb 28 (or 29 in
   // leap), not Mar 3.
-  int32_t d = std::min(static_cast<int32_t>(base.iso_day),
+  int32_t d = std::min(static_cast<int32_t>(base.day),
                        static_cast<int32_t>(ISODaysInMonth(y, static_cast<uint8_t>(m))));
 
   // Step 2: weeks + days, then balance.
@@ -235,11 +235,11 @@ static int64_t ToJDN(int32_t year, uint8_t month, uint8_t day) noexcept {
 // TODO(temporal-port): handle largestUnit ∈ {year, month, week} per
 // https://tc39.es/proposal-temporal/#sec-temporal-differenceisodate.
 // Current behavior: always returns the difference as days.
-Duration DifferenceISODate(const PlainDate& earlier,
-                           const PlainDate& later) noexcept {
+Duration DifferenceISODate(const IsoDate& earlier,
+                           const IsoDate& later) noexcept {
   Duration d = {};
-  int64_t earlier_jdn = ToJDN(earlier.iso_year, earlier.iso_month, earlier.iso_day);
-  int64_t later_jdn = ToJDN(later.iso_year, later.iso_month, later.iso_day);
+  int64_t earlier_jdn = ToJDN(earlier.year, earlier.month, earlier.day);
+  int64_t later_jdn = ToJDN(later.year, later.month, later.day);
   d.days = static_cast<double>(later_jdn - earlier_jdn);
   return d;
 }

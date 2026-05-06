@@ -58,23 +58,22 @@ bool Instant::IsValid() const noexcept {
   return epoch_nanoseconds >= min && epoch_nanoseconds <= max;
 }
 
-// ── PlainDate / PlainTime / PlainDateTime ──────────────────────────
+// ── IsoDate / IsoTime ──────────────────────────────────────────────
 //
-// Stub implementations — the IsValid() checks are mechanical range
-// validations. Calendar arithmetic comes in a later commit (the file
-// for that is calendar.cc; future).
+// Spec validation for the bare ISO records. PlainDate/PlainTime/
+// PlainDateTime delegate to these via their `iso` field.
 
-bool PlainDate::IsValid() const noexcept {
+bool IsoDate::IsValid() const noexcept {
   // Spec: IsValidISODate(year, month, day)
   // Year range: -271821..275760 (per spec: math allows ±10^8 days from
   // epoch ≈ ±273_972 years, narrowed to spec's ±271821/+275760).
-  if (iso_year < -271821 || iso_year > 275760) {
+  if (year < -271821 || year > 275760) {
     return false;
   }
-  if (iso_month < 1 || iso_month > 12) {
+  if (month < 1 || month > 12) {
     return false;
   }
-  if (iso_day < 1 || iso_day > 31) {
+  if (day < 1 || day > 31) {
     return false;
   }
   // Per-month day count + leap year checks land with the calendar
@@ -84,25 +83,25 @@ bool PlainDate::IsValid() const noexcept {
   return true;
 }
 
-bool PlainTime::IsValid() const noexcept {
+bool IsoTime::IsValid() const noexcept {
   // Spec: IsValidTime(hour, minute, second, ms, us, ns)
   // Note: Temporal explicitly omits leap seconds, so second is 0..59.
-  if (iso_hour > 23) {
+  if (hour > 23) {
     return false;
   }
-  if (iso_minute > 59) {
+  if (minute > 59) {
     return false;
   }
-  if (iso_second > 59) {
+  if (second > 59) {
     return false;
   }
-  if (iso_millisecond > 999) {
+  if (millisecond > 999) {
     return false;
   }
-  if (iso_microsecond > 999) {
+  if (microsecond > 999) {
     return false;
   }
-  if (iso_nanosecond > 999) {
+  if (nanosecond > 999) {
     return false;
   }
   return true;

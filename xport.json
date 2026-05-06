@@ -176,13 +176,142 @@
       "notes": "ixdtf upstream itself is a separate boa-dev crate (https://github.com/boa-dev/ixdtf). If the C++ port grows to need full RFC 9557 coverage, consider a separate xport row tracking that upstream rather than vendoring ixdtf alongside temporal_rs."
     },
     {
+      "kind": "file-fork",
+      "id": "temporal-infra-error",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/error.cc",
+      "upstream_path": "src/error.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 7,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "ErrorKind / TemporalError / TemporalResult<T> mirror upstream 1:1. Static factories (Generic/Type/Range/Syntax/Assert) replace upstream's free constructors.",
+        "TemporalResult<T> uses a hand-rolled discriminated-union template (mirroring absl::StatusOr's surface) instead of std::variant or std::expected (C++23, not yet usable in V8's libnode build).",
+        "From<ParseError> / From<icu_calendar::Error> conversions are deferred — V8's existing js-temporal-objects.cc raises its own RangeError/TypeError, so we pass `kind` through and let the V8 layer translate."
+      ],
+      "notes": "Pairs with all other temporal-infra-* rows. Same forked_at_sha. Tracks the same upstream submodule."
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-utils",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/utils.cc",
+      "upstream_path": "src/utils.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 6,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "Time-unit constants (kMsPerSecond/Hour/Day, kNsPerMicrosecond/Millisecond/Second/...) and the JDN ↔ Gregorian helpers (EpochDaysFromGregorianDate / YmdFromEpochDays) are inlined here — upstream re-exports a few from `timezone_provider::utils`, which we don't port.",
+        "Implementation uses Fliegel-Van Flandern formula identically to upstream."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-host",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/host.cc",
+      "upstream_path": "src/host.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 6,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "Three-trait shape (HostClock + HostTimeZone + HostHooks) collapsed into a single `HostHooks` abstract class with two virtuals — C++ has no trait composition.",
+        "EmptyHostSystem → DefaultEmptyHostSystem: returns 0 epoch ns + a placeholder TimeZone error pending time_zone.cc."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-sys",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/sys.cc",
+      "upstream_path": "src/sys.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 6,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "Backed by V8's `v8::base::Time::Now()` (already linked into libnode) instead of std::SystemTime + iana_time_zone crate.",
+        "LocalHostSystem's IANA detection delegates to V8's `Intl::DefaultTimeZone()` once time_zone.cc lands — pending."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-now",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/now.cc",
+      "upstream_path": "src/builtins/core/now.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 7,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "`Now<H: HostHooks>` template parameter replaced with a non-owning `HostHooks*` pointer (same flexibility, ABI-stable).",
+        "PARTIAL: methods that depend on PlainDate/PlainDateTime/ZonedDateTime/TimeZone return TemporalError until those classes land. InstantNow() is also pending Instant's ns-accepting constructor."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-parsed-intermediates",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/parsed_intermediates.cc",
+      "upstream_path": "src/parsed_intermediates.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 7,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "ParsedDate / ParsedDateTime mirror upstream 1:1. ParsedZonedDateTime is pending (depends on TimeZone class).",
+        "PARTIAL: YearMonthFromUtf8 / MonthDayFromUtf8 return TemporalError until parse.cc Phase 2 (RFC 9557 calendar annotations) lands."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-plain-time",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/plain_time.cc",
+      "upstream_path": "src/builtins/core/plain_time.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 8,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "PartialTime uses std::optional<T> instead of Rust's Option<T>.",
+        "Methods exposed as free functions (PlainTimeNew/PlainTimeTryNew/PlainTimeFromUtf8/PlainTimeWith) instead of member methods — keeps PlainTime POD-style (matches the rest of the temporal.h surface).",
+        "PARTIAL: Add/Subtract/Until/Since return TemporalError until duration normalization (TimeDuration) ports."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-plain-year-month",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/plain_year_month.cc",
+      "upstream_path": "src/builtins/core/plain_year_month.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 7,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "PARTIAL: ISO-only path. Calendar-aware methods (with, add, subtract, until, since, days_in_year, months_in_year) pending calendar.cc.",
+        "FromUtf8 falls back to '-01' day-pad until parse.cc Phase 2 supports the bare YYYY-MM grammar."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-plain-month-day",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/plain_month_day.cc",
+      "upstream_path": "src/builtins/core/plain_month_day.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 7,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "Reference year is 1972 (matches spec; leap year so Feb 29 is representable).",
+        "PARTIAL: ISO-only path. FromUtf8 falls back to '1972-' year-pad until parse.cc Phase 2 supports the bare MM-DD grammar."
+      ]
+    },
+    {
       "kind": "feature-parity",
       "id": "temporal-infra-pending",
       "upstream": "temporal-rs-parity",
       "criticality": 9,
       "local_area": "packages/temporal-infra/src/socketsecurity/temporal",
       "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
-      "notes": "Tracking row for the temporal_rs files NOT YET ported. Lock-step plan (each becomes a file-fork row when its .cc lands):\n- src/builtins/core/plain_date.rs → plain_date.cc\n- src/builtins/core/plain_time.rs → plain_time.cc\n- src/builtins/core/plain_date_time.rs → plain_date_time.cc\n- src/builtins/core/plain_year_month.rs → plain_year_month.cc\n- src/builtins/core/plain_month_day.rs → plain_month_day.cc\n- src/builtins/core/zoned_date_time.rs → zoned_date_time.cc\n- src/builtins/core/calendar.rs → calendar.cc (delegates to ICU)\n- src/builtins/core/time_zone.rs → time_zone.cc (delegates to V8 js-temporal-zoneinfo64.cc)\n- src/builtins/core/now.rs → now.cc\n- src/builtins/compiled/* → compiled.cc helpers (compile-time data baking)\n- src/options.rs → options.cc\n- src/rounding.rs → rounding.cc\n- src/error.rs → error.cc (or absl::Status)\n- src/host.rs → host.cc\n- src/parsed_intermediates.rs → parsed_intermediates.cc\n- src/primitive.rs → primitive.cc\n- src/utils.rs → utils.cc\n- src/sys.rs → sys.cc (mostly already covered by V8's facilities)\n- src/tzdb.rs → tzdb.cc (delegates to ICU + V8 zoneinfo64)\n\nTotal upstream Rust LOC: ~23k. Currently ported: ~600 (Phase 1+2+3). Bumping the temporal-rs-parity submodule re-runs this audit; any missing row vs upstream's actual file list is a port-completeness gap."
+      "notes": "Tracking row for the temporal_rs files NOT YET ported. Phase 4 added: error / utils / host / sys / now / parsed_intermediates / plain_time / plain_year_month / plain_month_day. Lock-step remaining (each becomes a file-fork row when its .cc lands):\n- src/builtins/core/plain_date.rs → plain_date.cc\n- src/builtins/core/plain_date_time.rs → plain_date_time.cc\n- src/builtins/core/zoned_date_time.rs → zoned_date_time.cc (HARD: DST + offset disambiguation)\n- src/builtins/core/calendar.rs → calendar.cc (HARD: delegates to ICU)\n- src/builtins/core/time_zone.rs → time_zone.cc (HARD: delegates to V8 js-temporal-zoneinfo64.cc)\n- src/options.rs → options.cc\n- src/rounding.rs → rounding.cc\n- src/builtins/compiled/* → compiled.cc helpers\n- src/primitive.rs → primitive.cc (PARTIAL: header-only port done in primitive.h; .cc TBD when DoubleDouble usage lands)\n- src/builtins/duration/normalized/* → duration_normalized.cc (HARD: TimeDuration, InternalDurationRecord, balance/round)\n\nTotal upstream Rust LOC: ~23k. Currently ported: ~3.6k (Phase 1+2+3+4). Bumping the temporal-rs-parity submodule re-runs this audit; any missing row vs upstream's actual file list is a port-completeness gap."
     },
     {
       "kind": "version-pin",

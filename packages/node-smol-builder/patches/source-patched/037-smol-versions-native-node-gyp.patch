@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0
+# @node-versions: v25.9.0, v26.0.0
 # @description: Wire smol-versions-native source into node.gyp
 #
 # Adds src/socketsecurity/versions/versions.cc and versions_binding.cc
@@ -14,7 +14,7 @@
 #
 --- a/node.gyp
 +++ b/node.gyp
-@@ -1,5 +1,14 @@
+@@ -771,6 +771,14 @@
          ['1==1', {
            'sources': [
              'src/socketsecurity/primordial/primordial_binding.cc',
@@ -29,3 +29,4 @@
 +            'src/socketsecurity/versions/versions_binding.cc',
 +          ],
 +        }],
+         ['node_with_ltcg=="true"', {

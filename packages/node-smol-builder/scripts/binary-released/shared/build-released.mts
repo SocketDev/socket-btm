@@ -931,6 +931,7 @@ export async function buildRelease(config, buildOptions = {}) {
         buildMode: isProdBuild ? 'prod' : 'dev',
         configureFlags: configureFlags.toSorted().join(','),
         libc,
+        nodeVersion: nodeVersionRaw,
         packageName,
         packageRoot,
         platform,

@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0
+# @node-versions: v25.9.0, v26.0.0
 # @description: Wire smol-primordial native source into node.gyp
 #
 # Adds src/socketsecurity/primordial/primordial_binding.cc to the
@@ -13,9 +13,7 @@
 #
 --- a/node.gyp
 +++ b/node.gyp
-@@ -1,5 +1,12 @@
-         ['1==1', {
-           'sources': [
+@@ -766,6 +766,13 @@
              'src/socketsecurity/util/util_binding.cc',
            ],
          }],
@@ -26,3 +24,6 @@
 +            'src/socketsecurity/primordial/primordial_binding.cc',
 +          ],
 +        }],
+         ['node_with_ltcg=="true"', {
+           'msvs_settings': {
+             'VCCLCompilerTool': {

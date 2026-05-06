@@ -83,15 +83,48 @@ Version change, commits created, patch status, post-update results.
 ### Phase 5: Validate via CI dispatch (`gh workflow run`)
 
 Once the prerequisite skills above land their commits, validate the
-full chain by dispatching `node-smol.yml` as a verifiable dry-run.
+full chain by dispatching `node-smol.yml`.
 
 **🚨 Dispatch policy**
 
-- **Always pass `-f dry-run=true`.** Never dispatch a non-dry-run
-  build from this skill — production builds are user-driven.
-- **Dispatch only after Phase 3 completes.** Skipping Phase 3 means
-  node-smol builds against stale stubs/curl/LIEF and the failures
-  surface in the wrong layer.
+The `release-workflow-guard` hook risk-tiers each dispatch:
+- **Verifiable dry-run** (`-f dry-run=true` + workflow declares the
+  input) — always allowed.
+- **GitHub-release-only workflow** (no `npm/pnpm/yarn publish` in
+  the YAML; only `gh release create` / release action) — allowed
+  live. node-smol, stubs, curl, LIEF, binsuite, etc. all qualify.
+  Recovery for a bad release: `gh release delete <tag>
+  --cleanup-tag --yes`.
+- **npm-publishing workflow** — always blocked. The user runs
+  these themselves.
+- **Force-prod override** (`-f publish=true` etc.) — always blocked
+  even on a GH-only workflow, since the override may flip in an
+  npm-publish branch.
+
+**Pre-dispatch checklist (live releases only)**
+
+🚨 Before dispatching a non-dry-run release build:
+
+1. **Bump the cache version** in `.github/cache-versions.json`
+   for the artifact you're releasing. Skipping this re-publishes
+   from a stale cache — the new release is byte-identical to the
+   old one.
+2. **Check live release count.** Cap is **2 per artifact**: keep
+   the current release plus one prior as a safety net. If a 3rd
+   would land, delete the oldest first:
+   ```bash
+   gh release list --json tagName,createdAt --limit 50 \
+     | jq -r '.[] | select(.tagName | startswith("stubs-")) | .tagName' \
+     | tail -n +3 \
+     | xargs -I {} gh release delete {} --cleanup-tag --yes
+   ```
+3. **Dispatch only after Phase 3 completes.** Skipping Phase 3
+   means node-smol builds against stale stubs/curl/LIEF and the
+   failures surface in the wrong layer.
+
+**Dry-run policy** still applies for *validation* dispatches —
+when you just want to see whether the source tree compiles. Pass
+`-f dry-run=true` and the hook lets it through.
 
 **🚨 Monitor policy: stop on first failure**
 

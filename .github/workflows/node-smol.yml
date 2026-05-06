@@ -925,6 +925,9 @@ jobs:
         # canonical pin + rationale.
         if: matrix.os != 'linux' && steps.restore-checkpoint.outputs.build-required != 'false'
         shell: bash
+        env:
+          MATRIX_OS: ${{ matrix.os }}
+          MATRIX_ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
           if ! command -v rustup >/dev/null 2>&1; then
@@ -933,6 +936,18 @@ jobs:
           fi
           rustup default stable
           rustup update stable
+          # Cross-compile targets: matrix runners are arm64-host but
+          # MATRIX_ARCH=x64 means we're building for Intel macOS / x64
+          # Windows. Node 26's temporal_rs Rust crate compiles via
+          # `cargo --target <triple> --frozen` and needs the std library
+          # for that triple installed locally — without `rustup target
+          # add`, the compile errors with E0463 ("can't find crate for
+          # core, the <target> may not be installed").
+          if [ "$MATRIX_OS" = "macos" ] && [ "$MATRIX_ARCH" = "x64" ]; then
+            rustup target add x86_64-apple-darwin
+          elif [ "$MATRIX_OS" = "windows" ] && [ "$MATRIX_ARCH" = "arm64" ]; then
+            rustup target add aarch64-pc-windows-msvc
+          fi
           rustc --version
           cargo --version
 

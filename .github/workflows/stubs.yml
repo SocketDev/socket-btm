@@ -81,12 +81,12 @@ jobs:
 
           # Windows builds.
           - runner: windows-2022
-            platform: win
+            platform: win32
             arch: x64
             os: windows
             makefile: Makefile.win
           - runner: windows-2022
-            platform: win
+            platform: win32
             arch: arm64
             os: windows
             makefile: Makefile.win

@@ -175,14 +175,15 @@ export async function getCurrentPlatformArch() {
   return getAssetPlatformArch(process.platform, arch, libc)
 }
 
-// Reverse maps for parsePlatformArch — the asset form uses shortened names
-// (`win` instead of `win32`, `x86` instead of `ia32`), so we need to round-trip
-// back to Node.js-canonical shapes that createCheckpoint/shouldRun consume.
+// Reverse maps for parsePlatformArch — asset form is now Node-aligned
+// (`win32`/`x64`) per pnpm pack-app convention, so the round-trip is
+// mostly identity. `x86` remains a legacy alias for `ia32` since some
+// older release assets still ship under that name.
 const ASSET_PLATFORM_TO_NODE = Object.freeze({
   __proto__: null,
   darwin: 'darwin',
   linux: 'linux',
-  win: 'win32',
+  win32: 'win32',
 })
 
 const ASSET_ARCH_TO_NODE = Object.freeze({

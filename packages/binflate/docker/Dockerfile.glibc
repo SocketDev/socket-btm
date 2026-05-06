@@ -46,7 +46,8 @@ RUN dnf -y update && \
     PLATFORM="linux-${ARCH}" && \
     PNPM_VERSION=$(jq -r .pnpm.version /tmp/registry-tools.json) && \
     PNPM_ASSET=$(jq -r ".pnpm.checksums[\"${PLATFORM}\"].asset" /tmp/registry-tools.json) && \
-    PNPM_SHA256=$(jq -r ".pnpm.checksums[\"${PLATFORM}\"].sha256" /tmp/registry-tools.json) && \
+    PNPM_INTEGRITY=$(jq -r ".pnpm.checksums[\"${PLATFORM}\"].integrity" /tmp/registry-tools.json) && \
+    PNPM_SHA256=$(echo "${PNPM_INTEGRITY#sha256-}" | base64 -d | od -An -tx1 | tr -d ' \n') && \
     curl -fsSL -o /tmp/pnpm.tar.gz "https://github.com/pnpm/pnpm/releases/download/v${PNPM_VERSION}/${PNPM_ASSET}" && \
     echo "${PNPM_SHA256}  /tmp/pnpm.tar.gz" | sha256sum -c - && \
     tar -xzf /tmp/pnpm.tar.gz -C /usr/local/bin && \

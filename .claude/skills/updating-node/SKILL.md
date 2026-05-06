@@ -55,21 +55,21 @@ See `reference.md` for the complete agent prompt template.
 
 ### Phase 3: Post-Update Skills (skip in CI)
 
-In interactive mode, trigger in this order — each layer depends on
-the binaries the layer above produces:
+In interactive mode, dispatch in this dependency order — curl and
+LIEF have no prereqs, so they parallelize; everything else is
+sequential:
 
-1. `updating-stubs` — rebuilds platform stubs (foundation; `binsuite`,
-   `lief`, `node-smol` all SEA-inject these)
-2. `updating-curl` — links against the new stubs; produces `curl`
-   binary used by downstream LIEF/binsuite/node-smol bootstraps
-3. `updating-binsuite` — rebuilds binsuite tools (depend on stubs +
-   curl)
-4. `updating-fast-webstreams` — syncs vendor (independent)
-5. `updating-lief` — syncs LIEF to match Node.js deps version (depends
-   on stubs)
-6. `updating-zstd` — syncs zstd to match Node.js deps version
-7. `updating-node` validate — only after the above land, dispatch a
-   `node-smol` dry-run build (see Phase 5)
+1. **curl + lief (parallel)** — both link only against the toolchain
+   (Rust + Emscripten/native), no socket-btm artifacts upstream.
+   Dispatch both, wait for both releases to land.
+2. **stubs** — consumes curl + lief; produces platform stubs that
+   binsuite + node-smol SEA-inject.
+3. **binsuite** — consumes stubs (+ curl, lief).
+4. **node-smol** — consumes stubs + binsuite + curl + lief; the
+   final layer.
+
+Adjacent vendor syncs (independent of the chain): `updating-fast-webstreams`,
+`updating-zstd` — can run any time.
 
 **Why the order matters:** node-smol embeds the stub-injected `curl`
 binary plus the LIEF library; dispatching node-smol before its

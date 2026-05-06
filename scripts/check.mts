@@ -229,9 +229,15 @@ async function runPathHygieneCheck(): Promise<number> {
 async function runPrimordialsCoverageCheck(): Promise<number> {
   logger.step('Running primordials coverage check')
 
+  const pnpm = await which('pnpm')
+  if (!pnpm || Array.isArray(pnpm)) {
+    logger.error('pnpm not found')
+    return 1
+  }
+
   const result = await spawn(
-    'node',
-    ['scripts/check-primordials-coverage.mts', '--quiet'],
+    pnpm,
+    ['exec', 'socket-lib', 'check', 'prim', '--silent'],
     {
       shell: WIN32,
       stdio: 'inherit',
@@ -242,7 +248,7 @@ async function runPrimordialsCoverageCheck(): Promise<number> {
     logger.error(
       'Primordials coverage check failed — rerun with --explain for details',
     )
-    logger.log('  node scripts/check-primordials-coverage.mts --explain')
+    logger.log('  pnpm exec socket-lib check prim --explain')
     return result.code ?? 1
   }
 

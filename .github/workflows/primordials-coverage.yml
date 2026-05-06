@@ -14,14 +14,14 @@ on:
   pull_request:
     paths:
       - 'packages/node-smol-builder/additions/source-patched/**/*.js'
-      - 'scripts/check-primordials-coverage.mts'
+      - '.socket-lib.json'
       - 'pnpm-workspace.yaml'
   push:
     branches:
       - main
     paths:
       - 'packages/node-smol-builder/additions/source-patched/**/*.js'
-      - 'scripts/check-primordials-coverage.mts'
+      - '.socket-lib.json'
       - 'pnpm-workspace.yaml'
   schedule:
     # Every Monday 09:00 UTC — one cadence-checked run per week.
@@ -61,4 +61,4 @@ jobs:
 
       - name: Run primordials coverage check
         shell: bash
-        run: node scripts/check-primordials-coverage.mts --explain
+        run: pnpm exec socket-lib check prim --explain

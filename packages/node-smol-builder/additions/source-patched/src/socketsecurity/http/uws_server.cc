@@ -139,8 +139,8 @@ void UwsServer::TryMakeStatic(uint32_t handler_id) {
     // no writeHeader, no end(). The absolute fastest path possible.
     std::string body_bytes;
     body_bytes.resize(body_len);
-    str->WriteOneByte(isolate, reinterpret_cast<uint8_t*>(&body_bytes[0]),
-                      0, body_len);
+    str->WriteOneByteV2(isolate, 0, body_len,
+                        reinterpret_cast<uint8_t*>(&body_bytes[0]));
 
     // Detect content type: JSON if starts with { or [, else text/plain.
     if (body_bytes[0] == '{' || body_bytes[0] == '[') {
@@ -400,7 +400,7 @@ void UwsServer::WriteResponse(uWS::HttpResponse<false>* res,
       if (str->IsOneByte()) {
         if (len <= 256) {
           uint8_t buf[256];
-          str->WriteOneByte(isolate, buf, 0, len);
+          str->WriteOneByteV2(isolate, 0, len, buf);
           res->writeStatus("200 OK\r\nContent-Type: text/plain")
              ->end(std::string_view(reinterpret_cast<char*>(buf), len));
         } else {
@@ -470,7 +470,7 @@ void UwsServer::WriteResponse(uWS::HttpResponse<false>* res,
           int blen = bstr->Length();
           if (bstr->IsOneByte() && blen <= 256) {
             uint8_t buf[256];
-            bstr->WriteOneByte(isolate, buf, 0, blen);
+            bstr->WriteOneByteV2(isolate, 0, blen, buf);
             res->end(std::string_view(reinterpret_cast<char*>(buf), blen));
           } else {
             // Utf8Value allocation can fail under pressure — null-check
@@ -497,7 +497,7 @@ void UwsServer::WriteResponse(uWS::HttpResponse<false>* res,
         int jlen = jstr->Length();
         if (jstr->IsOneByte() && jlen <= 256) {
           uint8_t buf[256];
-          jstr->WriteOneByte(isolate, buf, 0, jlen);
+          jstr->WriteOneByteV2(isolate, 0, jlen, buf);
           res->writeStatus("200 OK\r\nContent-Type: application/json")
              ->end(std::string_view(reinterpret_cast<char*>(buf), jlen));
         } else {

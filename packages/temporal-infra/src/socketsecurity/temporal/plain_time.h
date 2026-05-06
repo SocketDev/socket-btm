@@ -14,19 +14,15 @@
 #include <string>
 
 #include "socketsecurity/temporal/error.h"
+#include "socketsecurity/temporal/options.h"
 #include "socketsecurity/temporal/temporal.h"
 
 namespace node {
 namespace socketsecurity {
 namespace temporal {
 
-// Mirror of upstream's `Overflow` enum. Full version with all options
-// lands with options.h; for now we expose just Constrain/Reject which
-// are the only modes consumed by PlainTime.
-enum class Overflow : uint8_t {
-  kConstrain,  // default
-  kReject,
-};
+// `Overflow` lives in options.h; included above so callers don't need
+// a separate include.
 
 // Mirror of upstream's `PartialTime`. `std::optional` represents the
 // "field unset" state (Rust's Option<T>).

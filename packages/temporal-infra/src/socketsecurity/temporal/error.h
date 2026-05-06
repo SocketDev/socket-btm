@@ -107,6 +107,34 @@ class TemporalResult {
   }
 };
 
+// Void specialization — for fallible operations that don't return a
+// payload on success. Mirrors upstream's `TemporalResult<()>` shape.
+template <>
+class TemporalResult<void> {
+ public:
+  // Default = success.
+  TemporalResult() noexcept : has_error_(false) {}
+  // Construct from an error.
+  TemporalResult(TemporalError err) noexcept
+      : has_error_(true), error_(std::move(err)) {}
+
+  bool ok() const noexcept { return !has_error_; }
+  const TemporalError& error() const noexcept { return error_; }
+
+  TemporalResult(const TemporalResult&) = delete;
+  TemporalResult& operator=(const TemporalResult&) = delete;
+  TemporalResult(TemporalResult&& other) noexcept
+      : has_error_(other.has_error_) {
+    if (has_error_) {
+      error_ = std::move(other.error_);
+    }
+  }
+
+ private:
+  bool has_error_;
+  TemporalError error_;
+};
+
 }  // namespace temporal
 }  // namespace socketsecurity
 }  // namespace node

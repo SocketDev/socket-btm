@@ -305,13 +305,79 @@
       ]
     },
     {
+      "kind": "file-fork",
+      "id": "temporal-infra-options",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/options.cc",
+      "upstream_path": "src/options.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 8,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "Combines src/options.rs and src/options/increment.rs into one .cc — both define options-layer types and there's no benefit to splitting them in C++.",
+        "Enums use C++ scoped enums (enum class) with explicit numeric values matching upstream's discriminants (Auto=0, Nanosecond=1, …, Year=10) so that LargerOf operations can rely on direct comparison, same as upstream's Ord derive.",
+        "FromStr/Display impls become free FromString/ToString functions — no Rust trait machinery in C++.",
+        "RoundingIncrement uses an internal uint32_t (1..=10^9) with the invariant enforced at construction (matches upstream's NonZeroU32 newtype with the same range).",
+        "RelativeTo (src/options/relative_to.rs) NOT yet ported — depends on TimeZone class. Lands with zoned_date_time.cc.",
+        "Upstream's `Display` impl for `Unit::Millisecond` returns the typo \"millsecond\" — preserved here for byte-level parity. The Display impl is internal-only; user-visible error messages use \"millisecond\"."
+      ],
+      "notes": "Foundational — required by every file that consumes options (PlainDate, PlainTime, PlainDateTime, Duration, Instant, ZonedDateTime, etc.)."
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-rounding",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/rounding.h",
+      "upstream_path": "src/rounding.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 8,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "Header-only port — IncrementRounder<T> is a class template; no .cc.",
+        "Roundable Rust trait collapsed into free helpers in `rounding_internal::` namespace — one set for integral T, one for f64 (constexpr where possible).",
+        "Operates on int64_t instead of upstream's i128. Caller domain (nanosecond diffs ≤ 8.64e21) genuinely needs i128 only for the unusual extreme case; deferred until duration_normalized.cc forces the issue.",
+        "Negative dividend handling: emulates Rust's div_euclid (floor toward -inf) by adjusting the C++ truncating quotient when remainder is non-zero and signs disagree."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-plain-date",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/plain_date.cc",
+      "upstream_path": "src/builtins/core/plain_date.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 8,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "ISO-only path. PartialDate omits month_code / era / era_year (calendar-extension fields) — they are pending calendar.cc.",
+        "PlainDateAdd uses AddISODate (ISO calendar arithmetic). For non-ISO calendars upstream routes through Calendar::date_add; that path lands when calendar.cc lands.",
+        "PlainDateUntil/PlainDateSince emit days-only Durations (matching upstream's largestUnit=day default). Calendar-aware year/month/week breakdown is calendar.cc.",
+        "Subtract negates the input duration and routes to Add — same as upstream."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-plain-date-time",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/plain_date_time.cc",
+      "upstream_path": "src/builtins/core/plain_date_time.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 8,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "PartialDateTime decomposed into {date: PartialDate, time: PartialTime} — upstream uses a single DateTimeFields struct combining CalendarFields + PartialTime. Same shape, simpler C++ representation.",
+        "PlainDateTimeAdd / Subtract / Until / Since stub to TemporalError until duration_normalized.cc lands (depends on TimeDuration arithmetic).",
+        "FromUtf8 accepts strings with or without a UTC offset (the offset is permitted and ignored — the TZ-bearing variant is ZonedDateTime). Matches upstream."
+      ]
+    },
+    {
       "kind": "feature-parity",
       "id": "temporal-infra-pending",
       "upstream": "temporal-rs-parity",
       "criticality": 9,
       "local_area": "packages/temporal-infra/src/socketsecurity/temporal",
       "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
-      "notes": "Tracking row for the temporal_rs files NOT YET ported. Phase 4 added: error / utils / host / sys / now / parsed_intermediates / plain_time / plain_year_month / plain_month_day. Lock-step remaining (each becomes a file-fork row when its .cc lands):\n- src/builtins/core/plain_date.rs → plain_date.cc\n- src/builtins/core/plain_date_time.rs → plain_date_time.cc\n- src/builtins/core/zoned_date_time.rs → zoned_date_time.cc (HARD: DST + offset disambiguation)\n- src/builtins/core/calendar.rs → calendar.cc (HARD: delegates to ICU)\n- src/builtins/core/time_zone.rs → time_zone.cc (HARD: delegates to V8 js-temporal-zoneinfo64.cc)\n- src/options.rs → options.cc\n- src/rounding.rs → rounding.cc\n- src/builtins/compiled/* → compiled.cc helpers\n- src/primitive.rs → primitive.cc (PARTIAL: header-only port done in primitive.h; .cc TBD when DoubleDouble usage lands)\n- src/builtins/duration/normalized/* → duration_normalized.cc (HARD: TimeDuration, InternalDurationRecord, balance/round)\n\nTotal upstream Rust LOC: ~23k. Currently ported: ~3.6k (Phase 1+2+3+4). Bumping the temporal-rs-parity submodule re-runs this audit; any missing row vs upstream's actual file list is a port-completeness gap."
+      "notes": "Tracking row for the temporal_rs files NOT YET ported. Phase 5 added: options / rounding / plain_date / plain_date_time. Lock-step remaining (each becomes a file-fork row when its .cc lands):\n- src/builtins/core/zoned_date_time.rs → zoned_date_time.cc (HARD: DST + offset disambiguation)\n- src/builtins/core/calendar.rs → calendar.cc (HARD: delegates to ICU)\n- src/builtins/core/time_zone.rs → time_zone.cc (HARD: delegates to V8 js-temporal-zoneinfo64.cc)\n- src/options/relative_to.rs → relative_to.cc (depends on TimeZone class)\n- src/builtins/compiled/* → compiled.cc helpers\n- src/builtins/duration/normalized/* → duration_normalized.cc (HARD: TimeDuration, InternalDurationRecord, balance/round)\n- src/primitive.rs DoubleDouble → primitive.cc (currently header-only stub in primitive.h)\n\nTotal upstream Rust LOC: ~23k. Currently ported: ~6k (Phase 1+2+3+4+5). Bumping the temporal-rs-parity submodule re-runs this audit; any missing row vs upstream's actual file list is a port-completeness gap."
     },
     {
       "kind": "version-pin",

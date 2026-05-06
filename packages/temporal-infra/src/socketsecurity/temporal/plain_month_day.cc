@@ -41,19 +41,8 @@ TemporalResult<PlainMonthDay> PlainMonthDayTryNewIso(
 TemporalResult<PlainMonthDay> PlainMonthDayFromUtf8(
     const uint8_t* data, size_t length) noexcept {
   std::string_view view(reinterpret_cast<const char*>(data), length);
-  // Upstream: ParsedDate::month_day_from_utf8. Like year_month, our
-  // parser doesn't yet handle the bare "MM-DD" form; for now require
-  // a full date string and ignore the year.
-  // TODO(temporal-port): real month-day grammar in parse.cc Phase 2.
   ParseDateTimeRecord rec;
-  ParseStatus status = ParseDateTime(view, &rec);
-  if (status == ParseStatus::kInvalid) {
-    // Try with reference year prefix ("--MM-DD" → "1972-MM-DD").
-    std::string padded("1972-");
-    padded.append(view);
-    status = ParseDateTime(padded, &rec);
-  }
-  if (status != ParseStatus::kOk) {
+  if (ParseMonthDay(view, &rec) != ParseStatus::kOk) {
     return TemporalError::Range("Invalid PlainMonthDay string");
   }
   PlainMonthDay out{};

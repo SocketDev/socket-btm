@@ -55,6 +55,15 @@ struct Int128 {
   constexpr Int128 operator*(Int128 o) const noexcept {
     return Int128(value * o.value);
   }
+  // Truncated (toward-zero) division. Caller ensures o != 0.
+  constexpr Int128 operator/(Int128 o) const noexcept {
+    return Int128(value / o.value);
+  }
+  // Truncated remainder. Sign follows the dividend (C++ semantics).
+  constexpr Int128 operator%(Int128 o) const noexcept {
+    return Int128(value % o.value);
+  }
+  constexpr Int128 operator-() const noexcept { return Int128(-value); }
   constexpr bool operator==(Int128 o) const noexcept {
     return value == o.value;
   }

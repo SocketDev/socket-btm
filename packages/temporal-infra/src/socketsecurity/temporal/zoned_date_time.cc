@@ -31,23 +31,71 @@ TemporalResult<ZonedDateTime> ZonedDateTimeTryNew(Instant instant,
 TemporalResult<ZonedDateTime> ZonedDateTimeFromUtf8(
     const uint8_t* data, size_t length) noexcept {
   std::string_view view(reinterpret_cast<const char*>(data), length);
-  // Upstream: parse via ParsedZonedDateTime which requires a
-  // [TimeZoneAnnotation]. Today our parser doesn't surface annotations
-  // (parse.cc Phase 2 work). Fall back to ParseInstantString if input
-  // ends with offset; the resulting ZonedDateTime carries an
-  // offset-only TimeZone.
-  Instant inst{};
-  if (ParseInstantString(view, &inst) != ParseStatus::kOk) {
-    return TemporalError::Range(
-        "ZonedDateTime IXDTF parsing not yet implemented "
-        "(needs RFC 9557 [TimeZone] annotation support)");
+  ParseDateTimeRecord rec;
+  if (ParseDateTime(view, &rec) != ParseStatus::kOk) {
+    return TemporalError::Range("Invalid ZonedDateTime string");
   }
+  // Spec: TemporalZonedDateTimeString requires a [TimeZone] annotation.
+  if (rec.time_zone_len == 0) {
+    return TemporalError::Range(
+        "ZonedDateTime string requires a [TimeZone] annotation");
+  }
+  // Resolve the time zone identifier.
+  const std::string_view tz_id(rec.time_zone, rec.time_zone_len);
+  auto tz_result = TimeZone::TryFromIdentifierStr(tz_id);
+  if (!tz_result.ok()) {
+    return tz_result.error();
+  }
+  // Resolve the calendar identifier (default ISO when absent).
+  Calendar calendar = Calendar::Iso();
+  if (rec.calendar_len > 0) {
+    auto cal_result = Calendar::TryFromUtf8(
+        reinterpret_cast<const uint8_t*>(rec.calendar), rec.calendar_len);
+    if (!cal_result.ok()) {
+      return cal_result.error();
+    }
+    calendar = cal_result.value();
+  }
+  // Compute Instant from the parsed local datetime + offset (or UTC
+  // when 'Z'). Mirror upstream's `interpret_isodatetime_offset` for
+  // the "exact offset" path: if the input has an explicit offset, the
+  // local datetime is anchored against that offset; if 'Z', it's UTC.
+  // Without an offset (just [TimeZone]), the spec defers to
+  // disambiguation via the time zone — that path requires
+  // GetIsoDateTimeFor's IANA dispatch and lands in a follow-on phase.
+  if (!rec.has_offset) {
+    return TemporalError::Range(
+        "ZonedDateTime string without an offset requires IANA disambiguation; "
+        "supply an explicit offset or 'Z'");
+  }
+  // Convert local IsoDateTime → epoch nanoseconds via JDN.
+  const IsoDate& d = rec.datetime.iso.date;
+  int32_t a = (14 - d.month) / 12;
+  int32_t y = d.year + 4800 - a;
+  int32_t m = d.month + 12 * a - 3;
+  int64_t jdn = static_cast<int64_t>(d.day) + (153 * m + 2) / 5 +
+                365LL * y + y / 4 - y / 100 + y / 400 - 32045;
+  int64_t days_since_epoch = jdn - 2440588;
+  const IsoTime& t = rec.datetime.iso.time;
+  int64_t tod_ns = (static_cast<int64_t>(t.hour) * 3600 +
+                    static_cast<int64_t>(t.minute) * 60 +
+                    t.second) *
+                       1'000'000'000LL +
+                   static_cast<int64_t>(t.millisecond) * 1'000'000 +
+                   static_cast<int64_t>(t.microsecond) * 1'000 +
+                   t.nanosecond;
+  Int128 day_ns = Int128(days_since_epoch) *
+                   Int128(static_cast<int64_t>(86'400'000'000'000LL));
+  Int128 epoch_ns = day_ns + Int128(tod_ns) - Int128(rec.offset_nanoseconds);
+
   ZonedDateTime out{};
-  out.instant = inst;
-  // Default to UTC zone + ISO calendar. Matches the spec's resolution
-  // when the input has only Z (no [TimeZone]).
-  out.time_zone = TimeZone::Utc();
-  out.calendar = Calendar::Iso();
+  out.instant.epoch_nanoseconds = epoch_ns;
+  if (!out.instant.IsValid()) {
+    return TemporalError::Range(
+        "ZonedDateTime epoch nanoseconds out of range");
+  }
+  out.time_zone = tz_result.value();
+  out.calendar = calendar;
   return out;
 }
 

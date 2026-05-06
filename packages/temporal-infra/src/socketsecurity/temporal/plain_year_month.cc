@@ -38,20 +38,8 @@ TemporalResult<PlainYearMonth> PlainYearMonthTryNewIso(
 TemporalResult<PlainYearMonth> PlainYearMonthFromUtf8(
     const uint8_t* data, size_t length) noexcept {
   std::string_view view(reinterpret_cast<const char*>(data), length);
-  // Upstream: ParsedDate::year_month_from_utf8. Today our parser only
-  // handles full DateTime; this still works for "YYYY-MM" because the
-  // current impl rejects RFC 9557 calendar annotations (TODO Phase 2).
-  // For now, accept "YYYY-MM" by appending "-01" before parsing.
-  // TODO(temporal-port): wire real year-month grammar through parse.cc.
   ParseDateTimeRecord rec;
-  ParseStatus status = ParseDateTime(view, &rec);
-  if (status == ParseStatus::kInvalid) {
-    // Try with "-01" appended (year-month-only inputs like "2024-03").
-    std::string padded(view);
-    padded += "-01";
-    status = ParseDateTime(padded, &rec);
-  }
-  if (status != ParseStatus::kOk) {
+  if (ParseYearMonth(view, &rec) != ParseStatus::kOk) {
     return TemporalError::Range("Invalid PlainYearMonth string");
   }
   PlainYearMonth out{};

@@ -1,11 +1,13 @@
 // 1:1 port of upstream `src/builtins/core/time_zone.rs`.
 //
-// SCAFFOLD — covers offset-only zones (which don't need tzdata).
-// IANA-named zones stub to TemporalError until V8's zoneinfo64
-// dispatch is wired up.
+// IANA-zone resolution is mediated by the TimeZoneBackend interface.
+// The default backend rejects every IANA identifier; V8's js-temporal
+// binding installs an `IANATimeZoneBackend` at boot that delegates
+// to `icu::TimeZone` and the zoneinfo64 transition table.
 
 #include "socketsecurity/temporal/time_zone.h"
 
+#include <atomic>
 #include <cstdio>
 
 #include "socketsecurity/temporal/parse.h"
@@ -110,13 +112,14 @@ TemporalResult<TimeZone> TimeZone::TryFromIdentifierStr(
     }
     return TimeZone::FromOffset(offset.value());
   }
-  // IANA path: canonicalization needs ICU's `ucal_getCanonicalTimeZoneID`.
-  // Until that's wired up, pass-through with the raw identifier so
-  // round-tripping works for tests that don't actually need the zone
-  // data.
+  // IANA path: canonicalize via the active backend.
+  auto canonical = GetTimeZoneBackend().CanonicalizeIdentifier(identifier);
+  if (!canonical.ok()) {
+    return canonical.error();
+  }
   TimeZone tz;
   tz.kind_ = Kind::kIanaIdentifier;
-  tz.iana_id_ = std::string(identifier);
+  tz.iana_id_ = std::move(canonical.value());
   return tz;
 }
 
@@ -130,19 +133,89 @@ std::string TimeZone::Identifier() const {
 TemporalResult<IsoDateTime> TimeZone::GetIsoDateTimeFor(
     const Instant& instant) const noexcept {
   if (kind_ != Kind::kOffsetOnly) {
-    // IANA path needs V8's zoneinfo64 dispatch; pending.
-    return TemporalError::Range(
-        "IANA time-zone arithmetic not yet implemented");
+    // IANA path: delegate to the active backend.
+    return GetTimeZoneBackend().GetIsoDateTimeFor(iana_id_, instant);
   }
-  // Offset-only: compute local IsoDateTime by adding the offset to the
-  // instant. Math is in nanoseconds; we then split into days + tod.
-  // epoch_nanoseconds is Int128; offset is i64; result is Int128.
-  // Keep it simple: convert via i64 path (good for any in-range Instant).
-  // TODO(temporal-port): use Int128 path for the i64-overflow corner.
-  // Caller's invariant: |epoch_nanoseconds| ≤ 8.64e21 fits in i128 only,
-  // not i64 — so this stub is approximate.
+  // Offset-only path. Add the offset to the instant; convert resulting
+  // local nanoseconds into (days-since-epoch, time-of-day-ns) via
+  // Int128 division. Days fit in int64 (< 10^8 per the spec range);
+  // time-of-day fits in int64 (< 10^14). After splitting we use the
+  // Fliegel-Van Flandern helper to get (year, month, day).
+  const Int128 ns_per_day(static_cast<int64_t>(kNsPerDay));
+  Int128 local_ns = instant.epoch_nanoseconds + Int128(offset_.Nanoseconds());
+
+  // Floor-divide local_ns by ns_per_day so negative epochs (pre-1970)
+  // map to the calendar-correct day boundary. C++ '/' truncates
+  // toward zero; adjust when the remainder is non-zero AND signs of
+  // dividend/divisor disagree.
+  Int128 days = local_ns / ns_per_day;
+  Int128 rem = local_ns % ns_per_day;
+  if (rem != Int128(0) && rem < Int128(0)) {
+    days = days - Int128(1);
+    rem = rem + ns_per_day;
+  }
+
+  const int64_t epoch_days = days.ToInt64();
+  const int64_t tod_ns = rem.ToInt64();
+
+  IsoDateTime out{};
+  YmdFromEpochDays(epoch_days, &out.date.year, &out.date.month,
+                   &out.date.day);
+  // Split tod_ns into HH:MM:SS.fff_uuu_nnn.
+  out.time.hour = static_cast<uint8_t>(tod_ns / kNsPerHour);
+  int64_t r = tod_ns % kNsPerHour;
+  out.time.minute = static_cast<uint8_t>(r / kNsPerMinute);
+  r %= kNsPerMinute;
+  out.time.second = static_cast<uint8_t>(r / kNsPerSecond);
+  r %= kNsPerSecond;
+  out.time.millisecond = static_cast<uint16_t>(r / kNsPerMillisecond);
+  r %= kNsPerMillisecond;
+  out.time.microsecond = static_cast<uint16_t>(r / kNsPerMicrosecond);
+  out.time.nanosecond = static_cast<uint16_t>(r % kNsPerMicrosecond);
+  if (!out.IsValid()) {
+    return TemporalError::Range("Resulting IsoDateTime out of range");
+  }
+  return out;
+}
+
+// ── TimeZoneBackend ───────────────────────────────────────────────────
+
+TemporalResult<std::string> TimeZoneBackend::CanonicalizeIdentifier(
+    std::string_view /*identifier*/) noexcept {
   return TemporalError::Range(
-      "TimeZone::GetIsoDateTimeFor offset path not yet wired into Int128");
+      "IANA time-zone canonicalization requires a registered backend "
+      "(V8's js-temporal layer installs one at boot)");
+}
+
+TemporalResult<IsoDateTime> TimeZoneBackend::GetIsoDateTimeFor(
+    std::string_view /*iana_id*/, const Instant& /*instant*/) noexcept {
+  return TemporalError::Range(
+      "IANA time-zone arithmetic requires a registered backend "
+      "(V8's js-temporal layer installs one at boot)");
+}
+
+namespace {
+// Process-static default backend + active-backend pointer. The pointer
+// is read on every IANA lookup; we use atomic for thread-safety
+// (reads are relaxed because installation is a one-time startup
+// action, but the atomic forbids tearing on weakly-ordered platforms).
+TimeZoneBackend& DefaultBackend() noexcept {
+  static TimeZoneBackend instance;
+  return instance;
+}
+std::atomic<TimeZoneBackend*>& ActiveBackendSlot() noexcept {
+  static std::atomic<TimeZoneBackend*> slot{&DefaultBackend()};
+  return slot;
+}
+}  // namespace
+
+TimeZoneBackend& GetTimeZoneBackend() noexcept {
+  return *ActiveBackendSlot().load(std::memory_order_acquire);
+}
+
+void SetTimeZoneBackend(TimeZoneBackend* backend) noexcept {
+  ActiveBackendSlot().store(backend ? backend : &DefaultBackend(),
+                              std::memory_order_release);
 }
 
 }  // namespace temporal

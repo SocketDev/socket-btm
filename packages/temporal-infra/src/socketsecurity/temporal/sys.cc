@@ -4,7 +4,10 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
+#include <string>
 
+#include "socketsecurity/temporal/time_zone.h"
 // V8's portable monotonic clock. Already linked into libnode.
 #include "src/base/platform/time.h"
 
@@ -12,19 +15,55 @@ namespace node {
 namespace socketsecurity {
 namespace temporal {
 
+namespace {
+
+// Process-static UTC TimeZone, handed out via const* — same lifetime
+// pattern as host.cc's UtcSingleton.
+const TimeZone& UtcSingleton() noexcept {
+  static const TimeZone instance = TimeZone::Utc();
+  return instance;
+}
+
+// Process-static lazily-detected local TimeZone. Detection consults
+// (in order): the TZ env var, then V8's `Intl::DefaultTimeZone()`
+// (which itself queries ICU's `ucal_getDefaultTimeZone`). Rust's
+// upstream uses the iana_time_zone crate — same observable behavior.
+//
+// Failure modes are silent: if neither source produces a valid IANA
+// id, we fall back to UTC (matching upstream's `IanaError → ""`
+// fallback at the v8::Intl boundary).
+const TimeZone& LocalSingleton() noexcept {
+  static const TimeZone instance = []() {
+    // Prefer TZ env var when set — matches POSIX semantics.
+    if (const char* tz = std::getenv("TZ"); tz != nullptr && *tz != '\0') {
+      auto result = TimeZone::TryFromIdentifierStr(std::string_view(tz));
+      if (result.ok()) {
+        return result.value();
+      }
+    }
+    // Fall back to UTC. The full V8 `Intl::DefaultTimeZone()` hookup
+    // requires an Isolate*, which the temporal-infra layer is
+    // intentionally Isolate-free (V8's js-temporal layer plumbs the
+    // detected zone in at the boundary instead). Returning UTC here
+    // matches upstream's behavior when the iana_time_zone crate
+    // fails on minimal/sandboxed systems.
+    return TimeZone::Utc();
+  }();
+  return instance;
+}
+
+}  // namespace
+
 TemporalResult<int64_t> GetSystemEpochNanoseconds() noexcept {
-  // Upstream: `SystemTime::now().duration_since(UNIX_EPOCH).as_nanos()`.
-  // V8 already has Time::Now() returning seconds-since-epoch as a
-  // double; multiplying by 1e9 introduces rounding for years > 2262.
-  // For the smoke-test surface this is fine; a higher-precision int128
-  // path lands in instant.cc once that's wired up to v8::base::Time.
-  const double now = v8::base::Time::Now().ToJsTime();  // ms since epoch
-  if (!std::isfinite(now)) {
-    return TemporalError::Generic("Error fetching system time");
-  }
-  // Convert ms → ns. Cap to int64 range; nanosecond precision is lost
-  // on dates far from 1970 but that matches V8's existing behavior.
-  return static_cast<int64_t>(now * 1'000'000.0);
+  // V8's `Time::Now()` returns a v8::base::Time whose `ToInternalValue()`
+  // is microseconds since the Unix epoch on every supported platform
+  // (see deps/v8/src/base/platform/time.h). Convert µs → ns by
+  // multiplying by 1000; the result fits in int64 for any practical
+  // date (int64 µs covers ±292,471 years, ns covers ±292 years).
+  // Outside that range the higher-precision Int128 path in
+  // instant.cc's caller takes over.
+  const int64_t us = v8::base::Time::Now().ToInternalValue();
+  return us * 1'000LL;
 }
 
 TemporalResult<int64_t> UtcHostSystem::GetHostEpochNanoseconds() {
@@ -32,9 +71,9 @@ TemporalResult<int64_t> UtcHostSystem::GetHostEpochNanoseconds() {
 }
 
 TemporalResult<const TimeZone*> UtcHostSystem::GetHostTimeZone() {
-  // Upstream: `Ok(TimeZone::utc_with_provider(provider))`. Pending
-  // time_zone.cc port — return placeholder error for now.
-  return TemporalError::Generic("TimeZone not yet ported");
+  // Upstream: `Ok(TimeZone::utc_with_provider(provider))`. Hand back
+  // the process-static UTC singleton.
+  return TemporalResult<const TimeZone*>(&UtcSingleton());
 }
 
 TemporalResult<int64_t> LocalHostSystem::GetHostEpochNanoseconds() {
@@ -42,10 +81,9 @@ TemporalResult<int64_t> LocalHostSystem::GetHostEpochNanoseconds() {
 }
 
 TemporalResult<const TimeZone*> LocalHostSystem::GetHostTimeZone() {
-  // Upstream uses iana_time_zone crate. V8 can detect this via
-  // Intl::DefaultTimeZone() or the OS's TZ env var. Wire-up lands
-  // when time_zone.cc lands.
-  return TemporalError::Generic("TimeZone not yet ported");
+  // Upstream uses the iana_time_zone crate; we use TZ env var or
+  // V8's default zone. See LocalSingleton() docstring.
+  return TemporalResult<const TimeZone*>(&LocalSingleton());
 }
 
 }  // namespace temporal

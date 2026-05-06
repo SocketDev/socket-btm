@@ -2,9 +2,21 @@
 
 #include "socketsecurity/temporal/host.h"
 
+#include "socketsecurity/temporal/time_zone.h"
+
 namespace node {
 namespace socketsecurity {
 namespace temporal {
+
+namespace {
+// Singleton UTC TimeZone — pointer returned by GetHostTimeZone matches
+// upstream's `Ok(TimeZone::from(UtcOffset::default()))`. Lifetime is
+// process-static; safe to hand out a non-owning pointer.
+const TimeZone& UtcSingleton() noexcept {
+  static const TimeZone instance = TimeZone::Utc();
+  return instance;
+}
+}  // namespace
 
 TemporalResult<int64_t> DefaultEmptyHostSystem::GetHostEpochNanoseconds() {
   // Upstream: `Ok(EpochNanoseconds::from_seconds(0))`. We model
@@ -13,11 +25,9 @@ TemporalResult<int64_t> DefaultEmptyHostSystem::GetHostEpochNanoseconds() {
 }
 
 TemporalResult<const TimeZone*> DefaultEmptyHostSystem::GetHostTimeZone() {
-  // Upstream returns `TimeZone::from(UtcOffset::default())`, which is
-  // the +00:00 zone. The TimeZone class isn't ported yet; for now we
-  // surface a placeholder error so callers can detect the unported
-  // dependency. Once time_zone.cc lands, return `&TimeZone::UTC()`.
-  return TemporalError::Generic("TimeZone not yet ported");
+  // Upstream: `Ok(TimeZone::from(UtcOffset::default()))` — the +00:00
+  // zone. We hand back a pointer to the process-static singleton.
+  return TemporalResult<const TimeZone*>(&UtcSingleton());
 }
 
 }  // namespace temporal

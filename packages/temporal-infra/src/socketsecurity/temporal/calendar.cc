@@ -1,12 +1,13 @@
 // 1:1 port of upstream `src/builtins/core/calendar.rs`.
 //
-// SCAFFOLD — only the ISO calendar path is implemented today. Non-ISO
-// calendars route through ICU's C API once that binding layer lands.
-// Until then, non-ISO calendars surface an "Unsupported" error so
-// callers can detect the gap.
+// ISO is handled inline; non-ISO calendar arithmetic delegates to
+// the registered CalendarBackend. The default backend rejects every
+// non-ISO input; V8's js-temporal layer installs an ICU-backed
+// override at boot.
 
 #include "socketsecurity/temporal/calendar.h"
 
+#include <atomic>
 #include <cctype>
 #include <string_view>
 
@@ -140,9 +141,14 @@ TemporalResult<PlainDate> CalendarDateAdd(const Calendar& cal,
                                             const Duration& duration,
                                             Overflow overflow) noexcept {
   if (!cal.IsIso()) {
-    // Non-ISO calendars route through ICU; pending icu_calendar.cc.
-    return TemporalError::Range(
-        "Non-ISO calendar arithmetic not yet implemented");
+    auto result = GetCalendarBackend().DateAdd(cal.Kind(), base, duration,
+                                                 overflow);
+    if (!result.ok()) {
+      return result.error();
+    }
+    PlainDate out{};
+    out.iso = result.value();
+    return out;
   }
   // ISO path: AddISODate.
   const int32_t years = SaturatingToI32(duration.years);
@@ -151,11 +157,9 @@ TemporalResult<PlainDate> CalendarDateAdd(const Calendar& cal,
   const int32_t days = SaturatingToI32(duration.days);
   IsoDate result = AddISODate(base, years, months, weeks, days);
   if (!result.IsValid()) {
-    if (overflow == Overflow::kReject) {
-      return TemporalError::Range("Resulting date is out of range");
-    }
     return TemporalError::Range("Resulting date is out of range");
   }
+  (void)overflow;  // ISO regulator already applies the overflow rule.
   PlainDate out{};
   out.iso = result;
   return out;
@@ -166,16 +170,56 @@ TemporalResult<Duration> CalendarDateUntil(const Calendar& cal,
                                              const IsoDate& later,
                                              Unit largest_unit) noexcept {
   if (!cal.IsIso()) {
-    return TemporalError::Range(
-        "Non-ISO calendar arithmetic not yet implemented");
+    return GetCalendarBackend().DateUntil(cal.Kind(), earlier, later,
+                                            largest_unit);
   }
-  // ISO path. Today we only support `largest_unit == Day`; year/month/
-  // week breakdown lands when calendar arithmetic is wired up
-  // (the spec's calendar-aware DifferenceISODate).
-  if (largest_unit != Unit::kDay && largest_unit != Unit::kAuto) {
-    // Fall back to days for now; upstream caller can post-process.
+  // ISO path. `largest_unit == Day` (or Auto) emits days only; year/
+  // month/week breakdowns require the calendar's day-of-month rules
+  // and route through the same backend.
+  if (largest_unit == Unit::kDay || largest_unit == Unit::kAuto) {
+    return DifferenceISODate(earlier, later);
   }
-  return DifferenceISODate(earlier, later);
+  return GetCalendarBackend().DateUntil(CalendarKind::kIso, earlier, later,
+                                          largest_unit);
+}
+
+// ── CalendarBackend ───────────────────────────────────────────────────
+
+TemporalResult<IsoDate> CalendarBackend::DateAdd(
+    CalendarKind /*kind*/, const IsoDate& /*base*/,
+    const Duration& /*duration*/, Overflow /*overflow*/) noexcept {
+  return TemporalError::Range(
+      "Non-ISO calendar arithmetic requires a registered backend "
+      "(V8's js-temporal layer installs one at boot)");
+}
+
+TemporalResult<Duration> CalendarBackend::DateUntil(
+    CalendarKind /*kind*/, const IsoDate& /*earlier*/,
+    const IsoDate& /*later*/, Unit /*largest_unit*/) noexcept {
+  return TemporalError::Range(
+      "Non-ISO calendar diff requires a registered backend "
+      "(V8's js-temporal layer installs one at boot)");
+}
+
+namespace {
+CalendarBackend& DefaultCalendarBackend() noexcept {
+  static CalendarBackend instance;
+  return instance;
+}
+std::atomic<CalendarBackend*>& ActiveCalendarBackendSlot() noexcept {
+  static std::atomic<CalendarBackend*> slot{&DefaultCalendarBackend()};
+  return slot;
+}
+}  // namespace
+
+CalendarBackend& GetCalendarBackend() noexcept {
+  return *ActiveCalendarBackendSlot().load(std::memory_order_acquire);
+}
+
+void SetCalendarBackend(CalendarBackend* backend) noexcept {
+  ActiveCalendarBackendSlot().store(
+      backend ? backend : &DefaultCalendarBackend(),
+      std::memory_order_release);
 }
 
 }  // namespace temporal

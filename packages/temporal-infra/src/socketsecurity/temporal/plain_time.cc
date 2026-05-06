@@ -4,6 +4,8 @@
 
 #include <string_view>
 
+#include "socketsecurity/temporal/duration_normalized.h"
+#include "socketsecurity/temporal/iso.h"
 #include "socketsecurity/temporal/parse.h"
 
 namespace node {
@@ -121,27 +123,140 @@ TemporalResult<PlainTime> PlainTimeWith(const PlainTime& base,
       partial.nanosecond.value_or(base.iso.nanosecond), ov);
 }
 
-TemporalResult<PlainTime> PlainTimeAdd(const PlainTime& /*base*/,
-                                        const Duration& /*duration*/) noexcept {
-  // Upstream's add_to_time uses IsoTime::balance which depends on the
-  // full duration normalization stack (TimeDuration). Stub for now;
-  // full impl lands when duration normalization ports.
-  return TemporalError::Generic("PlainTime::Add not yet ported");
+namespace {
+
+// Upstream's `PlainTime::add_to_time(duration)`: delegates to
+// IsoTime::balance with each duration component summed into the
+// corresponding time component. Returns the balanced time (and discards
+// the day overflow — IsoTime::balance is total).
+TemporalResult<PlainTime> AddToTime(const PlainTime& base,
+                                      const Duration& duration) noexcept {
+  // Saturate-add each integer component (matches Rust's saturating_add).
+  // Doubles get truncated toward zero — the spec validates duration as
+  // integer-valued before reaching here, so any fractional part is a
+  // caller bug.
+  auto sat = [](double v) -> int64_t {
+    if (v >= static_cast<double>(INT64_MAX)) return INT64_MAX;
+    if (v <= static_cast<double>(INT64_MIN)) return INT64_MIN;
+    return static_cast<int64_t>(v);
+  };
+  const int64_t hour = static_cast<int64_t>(base.iso.hour) + sat(duration.hours);
+  const int64_t minute = static_cast<int64_t>(base.iso.minute) +
+                          sat(duration.minutes);
+  const int64_t second = static_cast<int64_t>(base.iso.second) +
+                          sat(duration.seconds);
+  const int64_t milli = static_cast<int64_t>(base.iso.millisecond) +
+                         sat(duration.milliseconds);
+  const int64_t micro = static_cast<int64_t>(base.iso.microsecond) +
+                         sat(duration.microseconds);
+  const int64_t nano = static_cast<int64_t>(base.iso.nanosecond) +
+                        sat(duration.nanoseconds);
+  auto balanced = BalanceIsoTime(hour, minute, second, milli, micro, nano);
+  PlainTime out{};
+  out.iso = balanced.time;
+  return out;
 }
 
-TemporalResult<PlainTime> PlainTimeSubtract(const PlainTime& /*base*/,
-                                              const Duration& /*duration*/) noexcept {
-  return TemporalError::Generic("PlainTime::Subtract not yet ported");
+// Negate each Duration component. Mirror upstream's `Duration::negated`.
+Duration NegateDuration(const Duration& d) noexcept {
+  Duration out = d;
+  out.years = -out.years;
+  out.months = -out.months;
+  out.weeks = -out.weeks;
+  out.days = -out.days;
+  out.hours = -out.hours;
+  out.minutes = -out.minutes;
+  out.seconds = -out.seconds;
+  out.milliseconds = -out.milliseconds;
+  out.microseconds = -out.microseconds;
+  out.nanoseconds = -out.nanoseconds;
+  return out;
 }
 
-TemporalResult<Duration> PlainTimeUntil(const PlainTime& /*self*/,
-                                          const PlainTime& /*other*/) noexcept {
-  return TemporalError::Generic("PlainTime::Until not yet ported");
+// DiffTime: emit a time-only Duration from two PlainTimes via the
+// TimeDuration pipeline. Upstream: `PlainTime::diff_time(op, other,
+// settings)` — we expose Until / Since as the public surface.
+TemporalResult<Duration> DiffTime(const PlainTime& self,
+                                    const PlainTime& other,
+                                    bool since) noexcept {
+  // Build the raw (other - self) as a TimeDuration, then split back
+  // into hours/minutes/.../nanoseconds components using floor division.
+  TimeDuration delta = DiffIsoTime(self.iso, other.iso);
+  Int128 ns = delta.Nanoseconds();
+  if (since) {
+    ns = -ns;
+  }
+  // Upstream's Duration::from_internal balances at the largest unit.
+  // For PlainTime::until/since the largestUnit defaults to `hour`,
+  // smallestUnit to `nanosecond`, with no rounding. Decompose ns into
+  // (h, m, s, ms, us, ns_remainder).
+  bool negative = ns < Int128(0);
+  Int128 abs_ns = negative ? -ns : ns;
+
+  const Int128 ns_per_hour(static_cast<int64_t>(kNsPerHour));
+  const Int128 ns_per_min(static_cast<int64_t>(kNsPerMinute));
+  const Int128 ns_per_sec(static_cast<int64_t>(kNsPerSecond));
+  const Int128 ns_per_milli(static_cast<int64_t>(kNsPerMillisecond));
+  const Int128 ns_per_micro(static_cast<int64_t>(kNsPerMicrosecond));
+
+  Int128 hours = abs_ns / ns_per_hour;
+  Int128 r = abs_ns % ns_per_hour;
+  Int128 minutes = r / ns_per_min;
+  r = r % ns_per_min;
+  Int128 secs = r / ns_per_sec;
+  r = r % ns_per_sec;
+  Int128 millis = r / ns_per_milli;
+  r = r % ns_per_milli;
+  Int128 micros = r / ns_per_micro;
+  r = r % ns_per_micro;
+  Int128 nanos = r;
+
+  Duration out{};
+  const double sign = negative ? -1.0 : 1.0;
+  out.hours = sign * static_cast<double>(hours.ToInt64());
+  out.minutes = sign * static_cast<double>(minutes.ToInt64());
+  out.seconds = sign * static_cast<double>(secs.ToInt64());
+  out.milliseconds = sign * static_cast<double>(millis.ToInt64());
+  out.microseconds = sign * static_cast<double>(micros.ToInt64());
+  out.nanoseconds = sign * static_cast<double>(nanos.ToInt64());
+  return out;
 }
 
-TemporalResult<Duration> PlainTimeSince(const PlainTime& /*self*/,
-                                          const PlainTime& /*other*/) noexcept {
-  return TemporalError::Generic("PlainTime::Since not yet ported");
+}  // namespace
+
+TemporalResult<PlainTime> PlainTimeAdd(const PlainTime& base,
+                                        const Duration& duration) noexcept {
+  return AddToTime(base, duration);
+}
+
+TemporalResult<PlainTime> PlainTimeSubtract(const PlainTime& base,
+                                              const Duration& duration) noexcept {
+  return AddToTime(base, NegateDuration(duration));
+}
+
+TemporalResult<Duration> PlainTimeUntil(const PlainTime& self,
+                                          const PlainTime& other) noexcept {
+  return DiffTime(self, other, /*since=*/false);
+}
+
+TemporalResult<Duration> PlainTimeSince(const PlainTime& self,
+                                          const PlainTime& other) noexcept {
+  return DiffTime(self, other, /*since=*/true);
+}
+
+TemporalResult<PlainTime> PlainTimeRound(
+    const PlainTime& self, const RoundingOptions& options) noexcept {
+  auto resolved = ResolvedRoundingOptionsFromTime(options);
+  if (!resolved.ok()) {
+    return resolved.error();
+  }
+  auto r = RoundIsoTime(self.iso, resolved.value());
+  if (!r.ok()) {
+    return r.error();
+  }
+  PlainTime out{};
+  out.iso = r.value().time;
+  return out;
 }
 
 }  // namespace temporal

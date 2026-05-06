@@ -8,10 +8,10 @@
 // per-method delegation) matches upstream 1:1; the implementation just
 // dispatches into ICU C API instead of icu_calendar's Rust wrapper.
 //
-// SCAFFOLD: this header defines the type surface. The non-ISO method
-// implementations stub to TemporalError until the ICU dispatch layer
-// lands (a separate phase). ISO calendar (which doesn't need ICU)
-// works through this same surface today.
+// Non-ISO calendar arithmetic is mediated by the `CalendarBackend`
+// interface declared at the bottom of this header. The default
+// backend handles ISO inline and rejects every other calendar; V8's
+// js-temporal binding installs an ICU-backed override at boot.
 
 #ifndef SRC_SOCKETSECURITY_TEMPORAL_CALENDAR_H_
 #define SRC_SOCKETSECURITY_TEMPORAL_CALENDAR_H_
@@ -149,8 +149,8 @@ struct YearMonthCalendarFields {
   }
 };
 
-// Calendar arithmetic — currently ISO-only path; non-ISO paths route
-// through ICU once those bindings land.
+// Calendar arithmetic. ISO is handled inline; non-ISO calendars
+// route through the active CalendarBackend (see below).
 
 // Mirror of upstream's `Calendar::date_add`.
 TemporalResult<PlainDate> CalendarDateAdd(const Calendar& cal,
@@ -164,6 +164,34 @@ TemporalResult<Duration> CalendarDateUntil(const Calendar& cal,
                                              const IsoDate& earlier,
                                              const IsoDate& later,
                                              Unit largest_unit) noexcept;
+
+// ── CalendarBackend ───────────────────────────────────────────────────
+//
+// Plug-in interface for non-ISO calendar resolution. The default
+// backend rejects every non-ISO calendar; V8's js-temporal layer
+// registers an ICU-backed override at boot.
+
+class CalendarBackend {
+ public:
+  virtual ~CalendarBackend() = default;
+
+  // Add a Duration to a calendar-aware date. Default impl rejects
+  // every input.
+  virtual TemporalResult<IsoDate> DateAdd(CalendarKind kind,
+                                            const IsoDate& base,
+                                            const Duration& duration,
+                                            Overflow overflow) noexcept;
+
+  // Compute the calendar difference between two ISO dates. Default
+  // impl rejects every input.
+  virtual TemporalResult<Duration> DateUntil(CalendarKind kind,
+                                               const IsoDate& earlier,
+                                               const IsoDate& later,
+                                               Unit largest_unit) noexcept;
+};
+
+CalendarBackend& GetCalendarBackend() noexcept;
+void SetCalendarBackend(CalendarBackend* backend) noexcept;
 
 }  // namespace temporal
 }  // namespace socketsecurity

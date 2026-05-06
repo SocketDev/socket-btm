@@ -102,6 +102,46 @@ IsoDate AddISODate(const IsoDate& base, int32_t years, int32_t months,
 Duration DifferenceISODate(const IsoDate& earlier,
                            const IsoDate& later) noexcept;
 
+// ── IsoTime helpers ───────────────────────────────────────────────────
+// Forward-decl to avoid pulling in duration_normalized.h here.
+class TimeDuration;
+
+// Spec: BalanceTime(hour, minute, second, ms, us, ns)
+// Returns (days, balanced_time). Carries over each field into the next
+// magnitude. Uses Euclid semantics (negative inputs get borrowed) so
+// arithmetic with negative TimeDuration deltas balances correctly.
+struct BalanceTimeResult {
+  int64_t days;
+  IsoTime time;
+};
+BalanceTimeResult BalanceIsoTime(int64_t hour, int64_t minute, int64_t second,
+                                  int64_t millisecond, int64_t microsecond,
+                                  int64_t nanosecond) noexcept;
+
+// Spec-equivalent of upstream's `IsoTime::diff(other)`. Returns a
+// TimeDuration representing `other - self`.
+TimeDuration DiffIsoTime(const IsoTime& self, const IsoTime& other) noexcept;
+
+// Spec-equivalent of upstream's `IsoTime::add(norm)`. Adds a normalized
+// TimeDuration to a time-of-day; carries day overflow.
+BalanceTimeResult AddIsoTime(const IsoTime& self,
+                              const TimeDuration& norm) noexcept;
+
+// Forward decl — pulled in via duration_normalized.h or options.h at
+// call sites; keeping the iso.h surface small.
+struct ResolvedRoundingOptions;
+
+// Spec-equivalent of upstream's `IsoTime::round(options)`. Rounds the
+// time-of-day per the resolved options; returns (days, balanced_time)
+// — `days` non-zero only when smallestUnit is Day or Hour and the
+// rounded value crosses midnight.
+struct RoundedTime {
+  int64_t days;
+  IsoTime time;
+};
+TemporalResult<RoundedTime> RoundIsoTime(
+    const IsoTime& self, const ResolvedRoundingOptions& options) noexcept;
+
 }  // namespace temporal
 }  // namespace socketsecurity
 }  // namespace node

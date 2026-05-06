@@ -8,10 +8,10 @@ namespace temporal {
 
 TemporalResult<RelativeTo> RelativeTo::TryFromUtf8(const uint8_t* data,
                                                      size_t length) noexcept {
-  // Try ZonedDateTime first (the spec preference: if the input has a
-  // [TimeZone] annotation, use it as ZonedDateTime). Today our parser
-  // doesn't surface annotations (parse.cc Phase 2), so the
-  // ZonedDateTime path matches only UTC-Z input. Fall back to PlainDate.
+  // Spec preference: input with a [TimeZone] annotation must resolve as
+  // ZonedDateTime; otherwise PlainDate. ZonedDateTimeFromUtf8 enforces
+  // the [TimeZone] requirement and the offset/disambiguation rules,
+  // which is what we want — try it first, then fall back.
   auto zdt = ZonedDateTimeFromUtf8(data, length);
   if (zdt.ok()) {
     return RelativeTo::FromZonedDateTime(zdt.value());

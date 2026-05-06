@@ -49,18 +49,34 @@ TemporalResult<ParsedDate> ParsedDate::FromUtf8(const uint8_t* data,
 }
 
 TemporalResult<ParsedDate> ParsedDate::YearMonthFromUtf8(
-    const uint8_t* /*data*/, size_t /*length*/) noexcept {
-  // YearMonth-specific parser lands with parse.cc Phase 2 (RFC 9557
-  // calendar annotations). Until then, return Unsupported.
-  return TemporalError::Range(
-      "ParsedDate::YearMonthFromUtf8 not yet implemented");
+    const uint8_t* data, size_t length) noexcept {
+  ParseDateTimeRecord rec;
+  const ParseStatus status = ParseYearMonth(AsView(data, length), &rec);
+  if (status != ParseStatus::kOk) {
+    return ErrorFromStatus(status);
+  }
+  ParsedDate out{};
+  out.record.year = rec.datetime.iso.date.year;
+  out.record.month = rec.datetime.iso.date.month;
+  // Day defaults to 0 (the spec uses a reference value here; callers
+  // ignore it). Calendar handling lands with calendar.cc; ISO (0)
+  // is the default.
+  out.calendar_kind = 0;
+  return out;
 }
 
 TemporalResult<ParsedDate> ParsedDate::MonthDayFromUtf8(
-    const uint8_t* /*data*/, size_t /*length*/) noexcept {
-  // Same: MonthDay-specific parser is parse.cc Phase 2.
-  return TemporalError::Range(
-      "ParsedDate::MonthDayFromUtf8 not yet implemented");
+    const uint8_t* data, size_t length) noexcept {
+  ParseDateTimeRecord rec;
+  const ParseStatus status = ParseMonthDay(AsView(data, length), &rec);
+  if (status != ParseStatus::kOk) {
+    return ErrorFromStatus(status);
+  }
+  ParsedDate out{};
+  out.record.month = rec.datetime.iso.date.month;
+  out.record.day = rec.datetime.iso.date.day;
+  out.calendar_kind = 0;
+  return out;
 }
 
 TemporalResult<ParsedDateTime> ParsedDateTime::FromUtf8(

@@ -6,10 +6,12 @@
 // existing js-temporal-zoneinfo64.cc + the system ICU `icu::TimeZone`
 // — both already linked into libnode.
 //
-// SCAFFOLD: this header defines the public surface (UtcOffset,
-// TimeZone wrapper). The implementations below cover offset-only
-// time zones (which don't need tzdata); IANA-named zones stub to
-// TemporalError until the V8/ICU dispatch lands.
+// IANA-zone lookup is mediated by the `TimeZoneBackend` interface
+// declared below. The default backend covers offset-only zones;
+// embedders (V8's js-temporal layer) register an `IANATimeZoneBackend`
+// at boot that delegates to `icu::TimeZone` / zoneinfo64 for IANA
+// zones. This keeps temporal-infra Isolate-free while giving full
+// IANA semantics at the binding boundary.
 
 #ifndef SRC_SOCKETSECURITY_TEMPORAL_TIME_ZONE_H_
 #define SRC_SOCKETSECURITY_TEMPORAL_TIME_ZONE_H_
@@ -88,9 +90,10 @@ class TimeZone {
     return FromOffset(UtcOffset(0));
   }
 
-  // Mirror of upstream's `try_from_identifier_str`. IANA path stubs to
-  // TemporalError until V8 zoneinfo64 dispatch lands. Offset-only path
-  // ("+05:00") works today.
+  // Mirror of upstream's `try_from_identifier_str`. Recognizes
+  // offset-only ("+05:00") inline; IANA identifiers are handed to the
+  // registered TimeZoneBackend (see below) for canonicalization and
+  // validity-check.
   static TemporalResult<TimeZone> TryFromIdentifierStr(
       std::string_view identifier) noexcept;
 
@@ -111,12 +114,44 @@ class TimeZone {
       const Instant& instant) const noexcept;
 
  private:
+  friend class TimeZoneBackend;
   TimeZone() = default;
   Kind kind_ = Kind::kOffsetOnly;
   UtcOffset offset_;
   // For IANA zones, an identifier string. Empty when offset-only.
   std::string iana_id_;
 };
+
+// ── TimeZoneBackend ───────────────────────────────────────────────────
+//
+// Plug-in interface for IANA time-zone resolution. The default backend
+// rejects every IANA identifier (only offset-only zones work); V8's
+// js-temporal layer registers a zoneinfo64-backed override at boot.
+
+class TimeZoneBackend {
+ public:
+  virtual ~TimeZoneBackend() = default;
+
+  // Canonicalize an IANA identifier (e.g. "EuROpe/DUBLIn" →
+  // "Europe/Dublin"). Returns Range if the identifier doesn't name a
+  // known zone. Default impl rejects every input.
+  virtual TemporalResult<std::string> CanonicalizeIdentifier(
+      std::string_view identifier) noexcept;
+
+  // Compute the local IsoDateTime equivalent of the given Instant in
+  // the named IANA zone. Default impl rejects every input.
+  virtual TemporalResult<IsoDateTime> GetIsoDateTimeFor(
+      std::string_view iana_id, const Instant& instant) noexcept;
+};
+
+// Returns the active backend. When V8 has registered an
+// IANATimeZoneBackend, that's what's returned; otherwise the default
+// reject-everything backend.
+TimeZoneBackend& GetTimeZoneBackend() noexcept;
+
+// Install a backend. Caller retains ownership; pass `nullptr` to
+// restore the default. Thread-safe to call once at startup.
+void SetTimeZoneBackend(TimeZoneBackend* backend) noexcept;
 
 }  // namespace temporal
 }  // namespace socketsecurity

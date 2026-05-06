@@ -4,6 +4,7 @@
 
 #include <string_view>
 
+#include "socketsecurity/temporal/duration_normalized.h"
 #include "socketsecurity/temporal/iso.h"
 #include "socketsecurity/temporal/parse.h"
 
@@ -145,28 +146,143 @@ PlainTime PlainDateTimeToPlainTime(const PlainDateTime& self) noexcept {
   return t;
 }
 
+namespace {
+
+// Saturating cast f64 → i32 for date components.
+int32_t SaturatingI32(double d) noexcept {
+  if (d > 2147483647.0) return 2147483647;
+  if (d < -2147483648.0) return -2147483648;
+  return static_cast<int32_t>(d);
+}
+
+// Mirror upstream's `PlainDateTime::add_or_subtract_duration` (the ISO
+// path). Two-phase: time arithmetic (carries day overflow) then
+// date arithmetic via AddISODate.
+TemporalResult<PlainDateTime> AddOrSubtractToDateTime(
+    const PlainDateTime& base, const Duration& duration,
+    Overflow overflow) noexcept {
+  // 1. TimeDuration component (24-hour days included).
+  TimeDuration nt = TimeDuration::FromDuration(duration);
+  auto with_days = nt.AddDays(static_cast<int64_t>(duration.days));
+  if (!with_days.ok()) {
+    return with_days.error();
+  }
+
+  // 2. Apply to the base time, capturing any day overflow.
+  PlainTime base_pt{};
+  base_pt.iso = base.iso.time;
+  auto balanced = AddIsoTime(base_pt.iso, with_days.value());
+  // 3. AdjustDateDurationRecord: feed days into the date side.
+  IsoDate result_date = AddISODate(
+      base.iso.date, SaturatingI32(duration.years),
+      SaturatingI32(duration.months), SaturatingI32(duration.weeks),
+      static_cast<int32_t>(balanced.days));
+  if (!result_date.IsValid()) {
+    if (overflow == Overflow::kReject) {
+      return TemporalError::Range("Resulting date is out of range");
+    }
+    return TemporalError::Range("Resulting date is out of range");
+  }
+  PlainDateTime out{};
+  out.iso.date = result_date;
+  out.iso.time = balanced.time;
+  if (!out.IsValid()) {
+    return TemporalError::Range("Resulting PlainDateTime is out of range");
+  }
+  return out;
+}
+
+Duration NegateDuration(const Duration& d) noexcept {
+  Duration out = d;
+  out.years = -out.years;
+  out.months = -out.months;
+  out.weeks = -out.weeks;
+  out.days = -out.days;
+  out.hours = -out.hours;
+  out.minutes = -out.minutes;
+  out.seconds = -out.seconds;
+  out.milliseconds = -out.milliseconds;
+  out.microseconds = -out.microseconds;
+  out.nanoseconds = -out.nanoseconds;
+  return out;
+}
+
+// DiffDateTime: emit a (date + time) Duration via the time pipeline
+// then the date pipeline. Largest-unit defaults to `nanosecond` for
+// the time part and `day` for the date part — matches upstream's
+// `diff_dt_with_rounding` for the no-rounding case.
+TemporalResult<Duration> DiffDateTime(const PlainDateTime& self,
+                                        const PlainDateTime& other,
+                                        bool since) noexcept {
+  TimeDuration time_delta = DiffIsoTime(self.iso.time, other.iso.time);
+  Int128 ns = time_delta.Nanoseconds();
+  Duration date_part = DifferenceISODate(self.iso.date, other.iso.date);
+  if (since) {
+    ns = -ns;
+    date_part.days = -date_part.days;
+    date_part.years = -date_part.years;
+    date_part.months = -date_part.months;
+    date_part.weeks = -date_part.weeks;
+  }
+  // Decompose ns into time components (hours .. nanoseconds).
+  bool negative = ns < Int128(0);
+  Int128 abs_ns = negative ? -ns : ns;
+  const Int128 ns_per_hour(static_cast<int64_t>(kNsPerHour));
+  const Int128 ns_per_min(static_cast<int64_t>(kNsPerMinute));
+  const Int128 ns_per_sec(static_cast<int64_t>(kNsPerSecond));
+  const Int128 ns_per_milli(static_cast<int64_t>(kNsPerMillisecond));
+  const Int128 ns_per_micro(static_cast<int64_t>(kNsPerMicrosecond));
+  Int128 hours = abs_ns / ns_per_hour;
+  Int128 r = abs_ns % ns_per_hour;
+  Int128 minutes = r / ns_per_min;
+  r = r % ns_per_min;
+  Int128 secs = r / ns_per_sec;
+  r = r % ns_per_sec;
+  Int128 millis = r / ns_per_milli;
+  r = r % ns_per_milli;
+  Int128 micros = r / ns_per_micro;
+  r = r % ns_per_micro;
+  Int128 nanos = r;
+  const double tsign = negative ? -1.0 : 1.0;
+
+  Duration out{};
+  out.years = date_part.years;
+  out.months = date_part.months;
+  out.weeks = date_part.weeks;
+  out.days = date_part.days;
+  out.hours = tsign * static_cast<double>(hours.ToInt64());
+  out.minutes = tsign * static_cast<double>(minutes.ToInt64());
+  out.seconds = tsign * static_cast<double>(secs.ToInt64());
+  out.milliseconds = tsign * static_cast<double>(millis.ToInt64());
+  out.microseconds = tsign * static_cast<double>(micros.ToInt64());
+  out.nanoseconds = tsign * static_cast<double>(nanos.ToInt64());
+  return out;
+}
+
+}  // namespace
+
 TemporalResult<PlainDateTime> PlainDateTimeAdd(
-    const PlainDateTime& /*base*/, const Duration& /*duration*/,
-    std::optional<Overflow> /*overflow*/) noexcept {
-  // Full impl depends on TimeDuration normalization (duration.cc Phase
-  // 2). Stub for now — returns Generic to mark "not yet ported."
-  return TemporalError::Generic("PlainDateTime::Add not yet ported");
+    const PlainDateTime& base, const Duration& duration,
+    std::optional<Overflow> overflow) noexcept {
+  return AddOrSubtractToDateTime(base, duration,
+                                  overflow.value_or(Overflow::kConstrain));
 }
 
 TemporalResult<PlainDateTime> PlainDateTimeSubtract(
-    const PlainDateTime& /*base*/, const Duration& /*duration*/,
-    std::optional<Overflow> /*overflow*/) noexcept {
-  return TemporalError::Generic("PlainDateTime::Subtract not yet ported");
+    const PlainDateTime& base, const Duration& duration,
+    std::optional<Overflow> overflow) noexcept {
+  return AddOrSubtractToDateTime(base, NegateDuration(duration),
+                                  overflow.value_or(Overflow::kConstrain));
 }
 
 TemporalResult<Duration> PlainDateTimeUntil(
-    const PlainDateTime& /*self*/, const PlainDateTime& /*other*/) noexcept {
-  return TemporalError::Generic("PlainDateTime::Until not yet ported");
+    const PlainDateTime& self, const PlainDateTime& other) noexcept {
+  return DiffDateTime(self, other, /*since=*/false);
 }
 
 TemporalResult<Duration> PlainDateTimeSince(
-    const PlainDateTime& /*self*/, const PlainDateTime& /*other*/) noexcept {
-  return TemporalError::Generic("PlainDateTime::Since not yet ported");
+    const PlainDateTime& self, const PlainDateTime& other) noexcept {
+  return DiffDateTime(self, other, /*since=*/true);
 }
 
 }  // namespace temporal

@@ -90,6 +90,13 @@ TemporalResult<Duration> PlainTimeUntil(const PlainTime& self,
 TemporalResult<Duration> PlainTimeSince(const PlainTime& self,
                                           const PlainTime& other) noexcept;
 
+// Mirror of upstream's `PlainTime::round(options)`. Rounds the time
+// according to the provided options. RoundingOptions for time
+// require `smallest_unit` to be set; routes through
+// ResolvedRoundingOptionsFromTime.
+TemporalResult<PlainTime> PlainTimeRound(
+    const PlainTime& self, const RoundingOptions& options) noexcept;
+
 }  // namespace temporal
 }  // namespace socketsecurity
 }  // namespace node

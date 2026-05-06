@@ -15,6 +15,8 @@
 #include <cstdint>
 
 #include "socketsecurity/temporal/error.h"
+#include "socketsecurity/temporal/options.h"
+#include "socketsecurity/temporal/primitive.h"
 #include "socketsecurity/temporal/temporal.h"
 #include "socketsecurity/temporal/temporal_int128.h"
 
@@ -72,6 +74,54 @@ class TimeDuration {
   // Mirror of upstream's `from_duration`.
   static TimeDuration FromDuration(const Duration& duration) noexcept;
 
+  // Mirror of upstream's `from_nanosecond_difference`. Bounds-checks
+  // the difference against MAX_TIME_DURATION.
+  static TemporalResult<TimeDuration> FromNanosecondDifference(
+      Int128 one, Int128 two) noexcept;
+
+  // Mirror of upstream's `add_days`. Adds `days * NS_PER_DAY` to the
+  // current value with overflow checking.
+  TemporalResult<TimeDuration> AddDays(int64_t days) const noexcept;
+
+  // Mirror of upstream's `truncated_divide`. Truncates toward zero.
+  Int128 TruncatedDivide(uint64_t divisor) const noexcept;
+
+  // Mirror of upstream's `divide(f64)`.
+  double Divide(double divisor) const noexcept;
+
+  // Mirror of upstream's `seconds()` / `subseconds()`. C++ `/` and `%`
+  // truncate toward zero — same as upstream's non-Euclid path
+  // (upstream comment: "non-euclid is required here for negative rounding").
+  int64_t Seconds() const noexcept;
+  int32_t Subseconds() const noexcept;
+
+  // Mirror of upstream's `negate`.
+  TimeDuration Negate() const noexcept { return TimeDuration(-nanoseconds_); }
+
+  // Mirror of upstream's `checked_sub` / `checked_add(i128)` / Add op.
+  // All bounds-check against MAX_TIME_DURATION.
+  TemporalResult<TimeDuration> CheckedAdd(const TimeDuration& other) const noexcept;
+  TemporalResult<TimeDuration> CheckedSub(const TimeDuration& other) const noexcept;
+  TemporalResult<TimeDuration> CheckedAddNs(Int128 other) const noexcept;
+
+  // Mirror of upstream's `round`. Routes through IncrementRounder.
+  TemporalResult<TimeDuration> Round(
+      const ResolvedRoundingOptions& options) const noexcept;
+
+  // Mirror of upstream's `round_inner(NonZeroU128, RoundingMode)`.
+  // Caller-prepared increment (already multiplied with the divisor).
+  TemporalResult<TimeDuration> RoundInner(uint64_t increment,
+                                            RoundingMode mode) const noexcept;
+
+  // Mirror of upstream's `round_to_fractional_days`.
+  TemporalResult<int64_t> RoundToFractionalDays(RoundingIncrement increment,
+                                                  RoundingMode mode) const noexcept;
+
+  // Mirror of upstream's `total(unit)`. Returns the duration expressed
+  // in `unit`s as a FiniteF64. Lossy at extremes (denominator > 1
+  // and numerator > 2^53); uses DoubleDouble for the slow path.
+  TemporalResult<FiniteF64> Total(Unit unit) const noexcept;
+
   Int128 Nanoseconds() const noexcept { return nanoseconds_; }
   Sign GetSign() const noexcept;
 
@@ -89,12 +139,40 @@ struct InternalDurationRecord {
     return InternalDurationRecord{};
   }
 
-  // Mirror of upstream's `combine(date, time)`.
+  // Mirror of upstream's `combine(date, time)`. Asserts agreement of
+  // signs; the assertion is documented but not enforced in the spec
+  // (combine is the unchecked variant).
   static InternalDurationRecord Combine(const DateDuration& date,
                                           const TimeDuration& time) noexcept {
     return InternalDurationRecord{date, time};
   }
+
+  // Mirror of upstream's `new(date, norm)`. Validates that signs
+  // agree if both are non-zero.
+  static TemporalResult<InternalDurationRecord> New(
+      const DateDuration& date, const TimeDuration& time) noexcept;
+
+  // Mirror of upstream's `from_duration_with_24_hour_days(duration)`.
+  static TemporalResult<InternalDurationRecord> FromDurationWith24HourDays(
+      const Duration& duration) noexcept;
+
+  // Mirror of upstream's `from_date_duration(date)`.
+  static TemporalResult<InternalDurationRecord> FromDateDuration(
+      const DateDuration& date) noexcept;
+
+  // Mirror of upstream's `to_date_duration_record_without_time`.
+  TemporalResult<DateDuration> ToDateDurationRecordWithoutTime() const noexcept;
+
+  // Mirror of upstream's `sign`.
+  Sign GetSign() const noexcept;
 };
+
+// Mirror of upstream's `Duration::is_valid_duration` (free function).
+// Used by Duration::IsValid and DateDuration::New.
+bool IsValidDuration(int64_t years, int64_t months, int64_t weeks,
+                     int64_t days, int64_t hours, int64_t minutes,
+                     int64_t seconds, int64_t milliseconds,
+                     Int128 microseconds, Int128 nanoseconds) noexcept;
 
 }  // namespace temporal
 }  // namespace socketsecurity

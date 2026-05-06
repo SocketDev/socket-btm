@@ -2,10 +2,11 @@
 // temporal v0.2.3 (c003cc92325e19b26f8ee2f85e4a47d98cbcc781).
 //
 // `ZonedDateTime` combines an Instant with a TimeZone and a Calendar.
-// The full DST + offset disambiguation logic depends on V8's
-// zoneinfo64 (for IANA zones) and the calendar.cc dispatcher (for
-// non-ISO calendars). This header defines the structural surface;
-// most methods stub to TemporalError until those land.
+// IANA-zone DST resolution routes through TimeZone::GetIsoDateTimeFor
+// → the active TimeZoneBackend (V8's js-temporal layer registers the
+// zoneinfo64-backed backend at boot). Non-ISO calendar arithmetic
+// routes through the active CalendarBackend (V8 registers an
+// ICU-backed backend at boot).
 
 #ifndef SRC_SOCKETSECURITY_TEMPORAL_ZONED_DATE_TIME_H_
 #define SRC_SOCKETSECURITY_TEMPORAL_ZONED_DATE_TIME_H_

@@ -5,6 +5,10 @@
 
 #include "socketsecurity/temporal/iso.h"
 
+#include "socketsecurity/temporal/duration_normalized.h"
+#include "socketsecurity/temporal/options.h"
+#include "socketsecurity/temporal/utils.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -242,6 +246,269 @@ Duration DifferenceISODate(const IsoDate& earlier,
   int64_t later_jdn = ToJDN(later.year, later.month, later.day);
   d.days = static_cast<double>(later_jdn - earlier_jdn);
   return d;
+}
+
+// ── IsoTime helpers ───────────────────────────────────────────────────
+
+namespace {
+
+// Mirror Rust's `i64::div_euclid(divisor)` and `rem_euclid(divisor)`.
+// In particular, the remainder is always non-negative when divisor > 0.
+struct DivMod {
+  int64_t quotient;
+  int64_t remainder;
+};
+DivMod EuclidDivMod(int64_t numerator, int64_t divisor) noexcept {
+  // C++ '%' truncates toward zero; for negative numerator with
+  // positive divisor, the remainder is non-positive. Adjust to match
+  // Euclid (always non-negative) semantics.
+  int64_t q = numerator / divisor;
+  int64_t r = numerator % divisor;
+  if (r < 0) {
+    if (divisor > 0) {
+      q -= 1;
+      r += divisor;
+    } else {
+      q += 1;
+      r -= divisor;
+    }
+  }
+  return {q, r};
+}
+
+}  // namespace
+
+BalanceTimeResult BalanceIsoTime(int64_t hour, int64_t minute, int64_t second,
+                                  int64_t millisecond, int64_t microsecond,
+                                  int64_t nanosecond) noexcept {
+  // Carry chain: ns → us → ms → s → m → h → days. Each step uses
+  // Euclid div/mod so negative values borrow correctly.
+  auto step = [](int64_t into_smaller, int64_t* carry,
+                  int64_t modulus) -> int64_t {
+    DivMod dm = EuclidDivMod(into_smaller, modulus);
+    *carry += dm.quotient;
+    return dm.remainder;
+  };
+
+  int64_t us_carry = microsecond;
+  int64_t ns_part = step(nanosecond, &us_carry, 1000);
+
+  int64_t ms_carry = millisecond;
+  int64_t us_part = step(us_carry, &ms_carry, 1000);
+
+  int64_t s_carry = second;
+  int64_t ms_part = step(ms_carry, &s_carry, 1000);
+
+  int64_t min_carry = minute;
+  int64_t s_part = step(s_carry, &min_carry, 60);
+
+  int64_t hr_carry = hour;
+  int64_t min_part = step(min_carry, &hr_carry, 60);
+
+  int64_t day_carry = 0;
+  int64_t hr_part = step(hr_carry, &day_carry, 24);
+
+  IsoTime t;
+  t.hour = static_cast<uint8_t>(hr_part);
+  t.minute = static_cast<uint8_t>(min_part);
+  t.second = static_cast<uint8_t>(s_part);
+  t.millisecond = static_cast<uint16_t>(ms_part);
+  t.microsecond = static_cast<uint16_t>(us_part);
+  t.nanosecond = static_cast<uint16_t>(ns_part);
+  return {day_carry, t};
+}
+
+TimeDuration DiffIsoTime(const IsoTime& self, const IsoTime& other) noexcept {
+  // Mirror upstream: TimeDuration::from_components on the per-field
+  // deltas. Fields are u8/u16; deltas live in i64 / i128 ranges easily.
+  const int64_t h = static_cast<int64_t>(other.hour) -
+                    static_cast<int64_t>(self.hour);
+  const int64_t m = static_cast<int64_t>(other.minute) -
+                    static_cast<int64_t>(self.minute);
+  const int64_t s = static_cast<int64_t>(other.second) -
+                    static_cast<int64_t>(self.second);
+  const int64_t ms = static_cast<int64_t>(other.millisecond) -
+                     static_cast<int64_t>(self.millisecond);
+  const Int128 us(static_cast<int64_t>(other.microsecond) -
+                  static_cast<int64_t>(self.microsecond));
+  const Int128 ns(static_cast<int64_t>(other.nanosecond) -
+                  static_cast<int64_t>(self.nanosecond));
+  return TimeDuration::FromComponents(h, m, s, ms, us, ns);
+}
+
+BalanceTimeResult AddIsoTime(const IsoTime& self,
+                              const TimeDuration& norm) noexcept {
+  // Mirror upstream's IsoTime::add: shift second + nanosecond fields by
+  // the duration's seconds + sub-seconds, then balance.
+  const int64_t seconds = static_cast<int64_t>(self.second) + norm.Seconds();
+  const int64_t nanos = static_cast<int64_t>(self.nanosecond) +
+                        static_cast<int64_t>(norm.Subseconds());
+  return BalanceIsoTime(static_cast<int64_t>(self.hour),
+                        static_cast<int64_t>(self.minute), seconds,
+                        static_cast<int64_t>(self.millisecond),
+                        static_cast<int64_t>(self.microsecond), nanos);
+}
+
+TemporalResult<RoundedTime> RoundIsoTime(
+    const IsoTime& self, const ResolvedRoundingOptions& options) noexcept {
+  // Mirror upstream's IsoTime::round. Convert the time-of-day to a
+  // single magnitude (in nanoseconds, except for `minute` etc. where
+  // we strip outer fields), then round, then balance back.
+  const Unit unit = options.smallest_unit;
+  Int128 quantity;
+  switch (unit) {
+    case Unit::kDay:
+    case Unit::kHour: {
+      Int128 minutes = Int128(static_cast<int64_t>(self.hour)) * Int128(60) +
+                        Int128(static_cast<int64_t>(self.minute));
+      Int128 seconds =
+          minutes * Int128(60) + Int128(static_cast<int64_t>(self.second));
+      Int128 millis = seconds * Int128(1000) +
+                       Int128(static_cast<int64_t>(self.millisecond));
+      Int128 micros =
+          millis * Int128(1000) + Int128(static_cast<int64_t>(self.microsecond));
+      quantity = micros * Int128(1000) +
+                  Int128(static_cast<int64_t>(self.nanosecond));
+      break;
+    }
+    case Unit::kMinute: {
+      Int128 seconds = Int128(static_cast<int64_t>(self.minute)) * Int128(60) +
+                        Int128(static_cast<int64_t>(self.second));
+      Int128 millis = seconds * Int128(1000) +
+                       Int128(static_cast<int64_t>(self.millisecond));
+      Int128 micros =
+          millis * Int128(1000) + Int128(static_cast<int64_t>(self.microsecond));
+      quantity = micros * Int128(1000) +
+                  Int128(static_cast<int64_t>(self.nanosecond));
+      break;
+    }
+    case Unit::kSecond: {
+      Int128 millis =
+          Int128(static_cast<int64_t>(self.second)) * Int128(1000) +
+          Int128(static_cast<int64_t>(self.millisecond));
+      Int128 micros = millis * Int128(1000) +
+                       Int128(static_cast<int64_t>(self.microsecond));
+      quantity = micros * Int128(1000) +
+                  Int128(static_cast<int64_t>(self.nanosecond));
+      break;
+    }
+    case Unit::kMillisecond: {
+      Int128 micros = Int128(static_cast<int64_t>(self.millisecond)) *
+                          Int128(1000) +
+                      Int128(static_cast<int64_t>(self.microsecond));
+      quantity = micros * Int128(1000) +
+                  Int128(static_cast<int64_t>(self.nanosecond));
+      break;
+    }
+    case Unit::kMicrosecond:
+      quantity = Int128(static_cast<int64_t>(self.microsecond)) *
+                      Int128(1000) +
+                  Int128(static_cast<int64_t>(self.nanosecond));
+      break;
+    case Unit::kNanosecond:
+      quantity = Int128(static_cast<int64_t>(self.nanosecond));
+      break;
+    default:
+      return TemporalError::Range(
+          "Invalid smallestUnit value for time rounding.");
+  }
+  // Length in nanoseconds.
+  auto unit_ns_opt = UnitAsNanoseconds(unit);
+  if (!unit_ns_opt.has_value()) {
+    return TemporalError::Range("Round: invalid unit");
+  }
+  const uint64_t unit_ns = *unit_ns_opt;
+  const uint64_t increment_ns =
+      static_cast<uint64_t>(options.increment.Get()) * unit_ns;
+
+  // Round `quantity` to nearest multiple of `increment_ns` per the
+  // mode, then divide back by `unit_ns` to produce the rounded count
+  // of `unit`s.
+  const bool sign = quantity >= Int128(0);
+  const UnsignedRoundingMode unsigned_mode =
+      RoundingModeGetUnsigned(options.rounding_mode, sign);
+  Int128 abs_q = sign ? quantity : -quantity;
+  Int128 inc(static_cast<int64_t>(increment_ns));
+  Int128 r1 = abs_q / inc;
+  Int128 rem = abs_q % inc;
+  Int128 rounded;
+  if (rem == Int128(0) || unsigned_mode == UnsignedRoundingMode::kZero) {
+    rounded = r1;
+  } else if (unsigned_mode == UnsignedRoundingMode::kInfinity) {
+    rounded = r1 + Int128(1);
+  } else {
+    Int128 twice_rem = rem + rem;
+    if (twice_rem < inc) {
+      rounded = r1;
+    } else if (twice_rem > inc) {
+      rounded = r1 + Int128(1);
+    } else {
+      switch (unsigned_mode) {
+        case UnsignedRoundingMode::kHalfZero:
+          rounded = r1;
+          break;
+        case UnsignedRoundingMode::kHalfInfinity:
+          rounded = r1 + Int128(1);
+          break;
+        case UnsignedRoundingMode::kHalfEven: {
+          Int128 mod = r1 % Int128(2);
+          rounded = (mod == Int128(0)) ? r1 : r1 + Int128(1);
+          break;
+        }
+        default:
+          rounded = r1;
+          break;
+      }
+    }
+  }
+  if (!sign) rounded = -rounded;
+  // Multiply back by `inc`, then divide by `unit_ns` (unit_ns =
+  // length-in-ns for the unit). The rounded result, expressed in
+  // `unit` magnitudes.
+  Int128 rounded_total_ns = rounded * inc;
+  Int128 result_units = rounded_total_ns / Int128(static_cast<int64_t>(unit_ns));
+  const int64_t r = result_units.ToInt64();
+
+  switch (unit) {
+    case Unit::kDay:
+      return RoundedTime{r, IsoTime{}};
+    case Unit::kHour: {
+      auto b = BalanceIsoTime(r, 0, 0, 0, 0, 0);
+      return RoundedTime{b.days, b.time};
+    }
+    case Unit::kMinute: {
+      auto b = BalanceIsoTime(static_cast<int64_t>(self.hour), r, 0, 0, 0, 0);
+      return RoundedTime{b.days, b.time};
+    }
+    case Unit::kSecond: {
+      auto b = BalanceIsoTime(static_cast<int64_t>(self.hour),
+                              static_cast<int64_t>(self.minute), r, 0, 0, 0);
+      return RoundedTime{b.days, b.time};
+    }
+    case Unit::kMillisecond: {
+      auto b = BalanceIsoTime(static_cast<int64_t>(self.hour),
+                              static_cast<int64_t>(self.minute),
+                              static_cast<int64_t>(self.second), r, 0, 0);
+      return RoundedTime{b.days, b.time};
+    }
+    case Unit::kMicrosecond: {
+      auto b = BalanceIsoTime(static_cast<int64_t>(self.hour),
+                              static_cast<int64_t>(self.minute),
+                              static_cast<int64_t>(self.second),
+                              static_cast<int64_t>(self.millisecond), r, 0);
+      return RoundedTime{b.days, b.time};
+    }
+    case Unit::kNanosecond: {
+      auto b = BalanceIsoTime(static_cast<int64_t>(self.hour),
+                              static_cast<int64_t>(self.minute),
+                              static_cast<int64_t>(self.second),
+                              static_cast<int64_t>(self.millisecond),
+                              static_cast<int64_t>(self.microsecond), r);
+      return RoundedTime{b.days, b.time};
+    }
+    default:
+      return TemporalError::Assert("Unreachable: invalid unit in RoundIsoTime");
+  }
 }
 
 }  // namespace temporal

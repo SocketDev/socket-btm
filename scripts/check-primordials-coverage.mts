@@ -187,16 +187,19 @@ function extractPrimordialsNames(src: string): string[] {
 }
 
 /** Pull every `export const Foo` / `export function Foo` /
- * `export { Foo }` from a TS file. */
+ * `export { Foo }` from a TS file. Also matches `.d.ts` declaration
+ * forms (`export declare const Foo`, `export declare function Foo`)
+ * since the fallback path reads `primordials.d.ts` from node_modules
+ * when the sibling clone is absent. */
 function extractTsExports(src: string): string[] {
   const out = new Set<string>()
   for (const m of src.matchAll(
-    /^export\s+const\s+([A-Za-z_$][A-Za-z0-9_$]*)/gm,
+    /^export\s+(?:declare\s+)?const\s+([A-Za-z_$][A-Za-z0-9_$]*)/gm,
   )) {
     out.add(m[1]!)
   }
   for (const m of src.matchAll(
-    /^export\s+function\s+([A-Za-z_$][A-Za-z0-9_$]*)/gm,
+    /^export\s+(?:declare\s+)?function\s+([A-Za-z_$][A-Za-z0-9_$]*)/gm,
   )) {
     out.add(m[1]!)
   }

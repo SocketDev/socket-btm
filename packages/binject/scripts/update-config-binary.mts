@@ -35,6 +35,11 @@ export class SmolConfigValidationError extends Error {
 
 /**
  * Validate and normalize a string field.
+ *
+ * The downstream C deserializer (smol_config.c) uses strlen() and writes raw
+ * UTF-8 bytes into fixed-size slots, so the budget is UTF-8 byte length, not
+ * UTF-16 code units. `'café'` is 4 JS code units but 5 UTF-8 bytes; using
+ * `value.length` would silently truncate mid-codepoint at the boundary.
  */
 function validateString(name, value, maxLength, defaultValue = '') {
   if (value === undefined) {
@@ -48,10 +53,11 @@ function validateString(name, value, maxLength, defaultValue = '') {
     )
   }
 
-  if (value.length > maxLength) {
+  const byteLength = Buffer.byteLength(value, 'utf8')
+  if (byteLength > maxLength) {
     throw new SmolConfigValidationError(
       name,
-      `exceeds maximum length of ${maxLength} bytes (got ${value.length})`,
+      `exceeds maximum length of ${maxLength} bytes (got ${byteLength})`,
     )
   }
 
@@ -226,39 +232,41 @@ export function serializeSmolConfig(config) {
   buffer.writeBigInt64LE(BigInt(notifyInterval), offset)
   offset += 8
 
-  // Strings with inline length prefixes (1168 bytes)
+  // Strings with inline length prefixes (1168 bytes).
+  // Length prefixes count UTF-8 bytes (matches `buffer.write(..., 'utf8')`
+  // and the C-side strlen() in smol_config.c).
   // binname: 1 byte length + 127 bytes data
-  buffer.writeUInt8(binname.length, offset)
+  buffer.writeUInt8(Buffer.byteLength(binname, 'utf8'), offset)
   buffer.write(binname, offset + 1, 127, 'utf8')
   offset += 128
 
   // command: 2 bytes length + 254 bytes data
-  buffer.writeUInt16LE(command.length, offset)
+  buffer.writeUInt16LE(Buffer.byteLength(command, 'utf8'), offset)
   buffer.write(command, offset + 2, 254, 'utf8')
   offset += 256
 
   // url: 2 bytes length + 510 bytes data
-  buffer.writeUInt16LE(url.length, offset)
+  buffer.writeUInt16LE(Buffer.byteLength(url, 'utf8'), offset)
   buffer.write(url, offset + 2, 510, 'utf8')
   offset += 512
 
   // tag: 1 byte length + 127 bytes data
-  buffer.writeUInt8(tag.length, offset)
+  buffer.writeUInt8(Buffer.byteLength(tag, 'utf8'), offset)
   buffer.write(tag, offset + 1, 127, 'utf8')
   offset += 128
 
   // skipEnv: 1 byte length + 63 bytes data
-  buffer.writeUInt8(skipEnv.length, offset)
+  buffer.writeUInt8(Buffer.byteLength(skipEnv, 'utf8'), offset)
   buffer.write(skipEnv, offset + 1, 63, 'utf8')
   offset += 64
 
   // fakeArgvEnv: 1 byte length + 63 bytes data
-  buffer.writeUInt8(fakeArgvEnv.length, offset)
+  buffer.writeUInt8(Buffer.byteLength(fakeArgvEnv, 'utf8'), offset)
   buffer.write(fakeArgvEnv, offset + 1, 63, 'utf8')
   offset += 64
 
   // nodeVersion: 1 byte length + 15 bytes data
-  buffer.writeUInt8(nodeVersion.length, offset)
+  buffer.writeUInt8(Buffer.byteLength(nodeVersion, 'utf8'), offset)
   buffer.write(nodeVersion, offset + 1, 15, 'utf8')
   offset += 16
 

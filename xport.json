@@ -82,6 +82,10 @@
     "temporal-rs": {
       "submodule": "packages/node-smol-builder/upstream/temporal",
       "repo": "https://github.com/boa-dev/temporal"
+    },
+    "temporal-rs-parity": {
+      "submodule": "packages/temporal-infra/upstream/temporal",
+      "repo": "https://github.com/boa-dev/temporal"
     }
   },
   "rows": [
@@ -106,13 +110,79 @@
       "notes": "temporal_rs / temporal_capi crates back the Temporal global in Node 26+. Pinned to =0.1.0 by upstream Node's deps/crates/Cargo.toml — bumping requires a matching upstream Node bump, which is why this row is locked rather than track-latest. Vendored under the node submodule at deps/crates/vendor/temporal_rs/; configure.py asserts rustc/cargo >= 1.82 with LLVM >= 19. Smoke-tested by packages/build-infra/test/fixtures/smoke-test-modules.mjs."
     },
     {
+      "kind": "file-fork",
+      "id": "temporal-infra-instant",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/instant.cc",
+      "upstream_path": "src/builtins/core/instant.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 9,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "C++ instead of Rust — port of `temporal_rs::Instant` to `node::socketsecurity::temporal::Instant`.",
+        "Uses V8's `v8::base::Time::Now()` for system clock instead of `std::time::SystemTime`. V8's facility is already linked into every Node binary; no syscall plumbing.",
+        "128-bit nanosecond storage via `Int128` shim (native `__int128` on GCC/Clang, `absl::int128` on MSVC) instead of Rust's `i128`. The MSVC fallback uses V8-vendored abseil at deps/v8/third_party/abseil-cpp/.",
+        "PARTIAL: only `Instant::Now()` and `Instant::IsValid()` are ported. `add`, `subtract`, `since`, `until`, `round`, `equals`, `toString`, `toJSON`, `compare`, `fromEpochMilliseconds`, `fromEpochNanoseconds`, `from`, `toZonedDateTimeISO` not yet ported."
+      ],
+      "notes": "First file in the temporal_rs → C++ port lock-step (1:1 module-by-module mapping, idiomatic C++ where C++ idioms are clearer; same shape as ultrathink/acorn's Rust→C++ port). Implementation work tracked in task #217; this row records the contract for drift audit on bumps to the upstream parity submodule."
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-duration",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/duration.cc",
+      "upstream_path": "src/builtins/core/duration.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 9,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "C++ instead of Rust.",
+        "Plain C++ check (no Isolate) for `Duration::IsValid()`, mirroring spec's `IsValidDuration` directly. V8 also exposes `IsValidDuration(Isolate*, DurationRecord)` in `js-temporal-helpers.h`, but it requires an Isolate. Our path is callable from any context.",
+        "PARTIAL: only `IsValid()` is ported. `Duration::from`, `with`, `negated`, `abs`, `add`, `subtract`, `round`, `total`, `toString`, `toJSON`, `compare`, `valueOf`, `blank`, `sign` not yet ported."
+      ],
+      "notes": "Pairs with temporal-infra-instant. Same forked_at_sha. Tracks the same upstream submodule."
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-iso",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/iso.cc",
+      "upstream_path": "src/iso.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 9,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "C++ instead of Rust.",
+        "Sakamoto's day-of-week algorithm and Fliegel-Van Flandern JDN formula (well-known math), not a literal translation of upstream's date helpers — matches the same outputs but is shorter and more readable in C++.",
+        "PARTIAL: `IsLeapYear`, `ISODaysInMonth`, `ISODayOfWeek`, `ISODayOfYear`, `ISOWeekOfYear`, `BalanceISODate`, `RegulateISODateConstrain`, `AddISODate`, `DifferenceISODate(\"day\")` are ported. Spec helpers `BalanceISOYearMonth`, `IsoDateSurpasses`, `MoveRelativeDate`, `RoundRelativeDuration`, full `DifferenceISODate` with non-day largestUnit, and the comparison helpers are not yet ported."
+      ],
+      "notes": "Calendar-agnostic ISO 8601 math. Calendar-aware operations (non-Gregorian) defer to ICU via icu_calendar.cc (forthcoming, task #217)."
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-parse",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/parse.cc",
+      "upstream_path": "src/parsers.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 8,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "C++ recursive-descent parser instead of upstream's `ixdtf`-backed parser (a separate Rust crate at https://github.com/boa-dev/ixdtf).",
+        "Hand-rolled cursor-based reader rather than any parser-combinator library. KISS over reuse here — the grammar is small enough (~80 productions, ~30 of which are common shapes) that a 1k-LOC C++ parser is cleaner than ~5k LOC of generated FFI bindings to the Rust ixdtf crate.",
+        "PARTIAL: covers the common shapes (DateSpec, TimeSpec, DateTime, UTC offsets, sub-second precision). Missing: RFC 9557 calendar/timezone annotations (`[u-ca=…]`, `[Etc/UTC]`, `[!America/New_York]`), signed expanded years (`±YYYYYY`), fractional second in offset.",
+        "Returns `ParseStatus::kUnsupported` for valid-but-unimplemented productions so callers can surface to the user instead of failing silently."
+      ],
+      "notes": "ixdtf upstream itself is a separate boa-dev crate (https://github.com/boa-dev/ixdtf). If the C++ port grows to need full RFC 9557 coverage, consider a separate xport row tracking that upstream rather than vendoring ixdtf alongside temporal_rs."
+    },
+    {
       "kind": "feature-parity",
-      "id": "temporal-infra",
-      "upstream": "temporal-rs",
+      "id": "temporal-infra-pending",
+      "upstream": "temporal-rs-parity",
       "criticality": 9,
       "local_area": "packages/temporal-infra/src/socketsecurity/temporal",
       "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
-      "notes": "Source-only C++ port of boa-dev/temporal (the temporal_rs crate that backs Node 26 Temporal). Drops the Rust toolchain dependency from socket-btm's Node 26 builds — node-smol-builder embeds the .cc/.h files via additions/source-patched/ at build time. Parity is semantic re-implementation, not a fork: tracking is manual, not auto-cascaded. Pinned upstream submodule at packages/temporal-infra/upstream/temporal (locked to v0.1.0 same as the original temporal-rs row). End-to-end Temporal behavior is verified by the existing Node 26 Temporal smoke test (task #194) in node-smol's verification job. Implementation lands in follow-up commits (task #217); this row marks the parity contract."
+      "notes": "Tracking row for the temporal_rs files NOT YET ported. Lock-step plan (each becomes a file-fork row when its .cc lands):\n- src/builtins/core/plain_date.rs → plain_date.cc\n- src/builtins/core/plain_time.rs → plain_time.cc\n- src/builtins/core/plain_date_time.rs → plain_date_time.cc\n- src/builtins/core/plain_year_month.rs → plain_year_month.cc\n- src/builtins/core/plain_month_day.rs → plain_month_day.cc\n- src/builtins/core/zoned_date_time.rs → zoned_date_time.cc\n- src/builtins/core/calendar.rs → calendar.cc (delegates to ICU)\n- src/builtins/core/time_zone.rs → time_zone.cc (delegates to V8 js-temporal-zoneinfo64.cc)\n- src/builtins/core/now.rs → now.cc\n- src/builtins/compiled/* → compiled.cc helpers (compile-time data baking)\n- src/options.rs → options.cc\n- src/rounding.rs → rounding.cc\n- src/error.rs → error.cc (or absl::Status)\n- src/host.rs → host.cc\n- src/parsed_intermediates.rs → parsed_intermediates.cc\n- src/primitive.rs → primitive.cc\n- src/utils.rs → utils.cc\n- src/sys.rs → sys.cc (mostly already covered by V8's facilities)\n- src/tzdb.rs → tzdb.cc (delegates to ICU + V8 zoneinfo64)\n\nTotal upstream Rust LOC: ~23k. Currently ported: ~600 (Phase 1+2+3). Bumping the temporal-rs-parity submodule re-runs this audit; any missing row vs upstream's actual file list is a port-completeness gap."
     },
     {
       "kind": "version-pin",

@@ -377,14 +377,30 @@ jobs:
           # run against installed workspace deps; a lock bump that pulls
           # a new @socketsecurity/lib can change build behavior. Hash so
           # the cache invalidates when deps change.
-          PNPM_LOCK_HASH=$($hash_cmd pnpm-lock.yaml 2>/dev/null | cut -d' ' -f1)
+          # Single-file hashers wrap shasum + cut. Empty-string fallback
+          # when the file is missing — shasum exits 1 on absent files,
+          # which under `set -e -o pipefail` would silently kill the
+          # script (the assignment captures the failed exit, set -e
+          # fires, no output reaches stderr because everything's in a
+          # subshell). `[ -f file ]` guards explicitly so a missing
+          # file produces "" instead of an exit. This matches the
+          # tolerant semantics of `hash_files_optional` for multi-file
+          # hashers.
+          hash_file_optional() {
+            if [ -f "$1" ]; then
+              $hash_cmd "$1" 2>/dev/null | cut -d' ' -f1
+            else
+              echo ""
+            fi
+          }
+          PNPM_LOCK_HASH=$(hash_file_optional pnpm-lock.yaml)
           # Root package.json + pnpm-workspace.yaml hold catalog versions,
           # overrides, trustPolicy, minimumReleaseAge. `pnpm install`
           # consults all of them — a catalog bump changes what the build
           # sees. pnpm-lock.yaml covers most but not all of this.
           # Unhashed before R24.
-          ROOT_PACKAGE_JSON_HASH=$($hash_cmd package.json 2>/dev/null | cut -d' ' -f1)
-          PNPM_WORKSPACE_HASH=$($hash_cmd pnpm-workspace.yaml 2>/dev/null | cut -d' ' -f1)
+          ROOT_PACKAGE_JSON_HASH=$(hash_file_optional package.json)
+          PNPM_WORKSPACE_HASH=$(hash_file_optional pnpm-workspace.yaml)
 
           # Linux builds are produced by Depot.dev consuming the Dockerfiles
           # under packages/node-smol-builder/docker/. A Dockerfile edit (e.g.
@@ -462,8 +478,8 @@ jobs:
           # versions consumed by pinned-versions.mts; package.json carries
           # sources.<upstream>.version and devDependencies that feed the
           # build. Both affect output but were not previously hashed.
-          EXTERNAL_TOOLS_ROOT=$($hash_cmd packages/node-smol-builder/external-tools.json 2>/dev/null | cut -d' ' -f1)
-          PACKAGE_JSON_ROOT=$($hash_cmd packages/node-smol-builder/package.json 2>/dev/null | cut -d' ' -f1)
+          EXTERNAL_TOOLS_ROOT=$(hash_file_optional packages/node-smol-builder/external-tools.json)
+          PACKAGE_JSON_ROOT=$(hash_file_optional packages/node-smol-builder/package.json)
 
           # build-infra/external-tools.json pins the foundational
           # toolchain (cmake, ninja, clang, gcc, mingw-w64, python,
@@ -472,7 +488,7 @@ jobs:
           # behavior across every consumer. lief-builder/{lib,scripts}/
           # holds ensure-lief which binject/binpress import directly.
           # All three were unhashed before R20.
-          BUILD_INFRA_EXTERNAL_TOOLS=$($hash_cmd packages/build-infra/external-tools.json 2>/dev/null | cut -d' ' -f1)
+          BUILD_INFRA_EXTERNAL_TOOLS=$(hash_file_optional packages/build-infra/external-tools.json)
           BUILD_INFRA_SCRIPTS=$(hash_files packages/build-infra/scripts -type f)
           LIEF_LIB_SCRIPTS=$(hash_files packages/lief-builder/lib packages/lief-builder/scripts packages/lief-builder/docker -type f)
           # .github/scripts/ holds Docker bootstrappers (build-static-

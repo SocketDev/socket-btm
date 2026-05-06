@@ -40,6 +40,9 @@ on:
 permissions:
   contents: read
 
+env:
+  HOMEBREW_NO_ANALYTICS: '1'
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}

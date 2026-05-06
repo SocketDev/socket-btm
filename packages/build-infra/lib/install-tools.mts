@@ -6,6 +6,7 @@
  */
 
 import os from 'node:os'
+import process from 'node:process'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
@@ -186,7 +187,10 @@ export async function installTool(toolName, options = {}) {
   logger.log(`Command: ${command} ${args.join(' ')}`)
 
   try {
-    await spawn(command, args, { stdio: 'inherit' })
+    await spawn(command, args, {
+      env: { ...process.env, HOMEBREW_NO_ANALYTICS: '1' },
+      stdio: 'inherit',
+    })
     logger.success(`${toolName} installed successfully`)
     return true
   } catch (e) {

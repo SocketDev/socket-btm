@@ -476,7 +476,7 @@ export async function installTool(
     }
 
     const result = await spawn(commandPath, args, {
-      env: process.env,
+      env: { ...process.env, HOMEBREW_NO_ANALYTICS: '1' },
       stdio: 'inherit',
     })
 

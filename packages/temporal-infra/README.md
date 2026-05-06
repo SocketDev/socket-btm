@@ -26,11 +26,27 @@ embed = lowest overhead.
 - `lib/paths.mts` — TS path helpers exported via the workspace
   `exports` field; node-smol-builder imports these to find the source
   tree without hardcoding paths.
-- `test/` — vitest parity tests against the upstream Rust behavior.
 - `scripts/` — helpers (parity-check vs upstream, clean, etc.).
 - `upstream/temporal/` — git submodule pointing at boa-dev/temporal,
   pinned in `.gitmodules` for parity reference. **Read-only.** The
   port lives in `src/`, not here.
+
+## Testing
+
+vitest doesn't compile C++, so this package has no `test/` dir.
+Parity verification happens at two layers:
+
+- **C++ unit / integration**: when the port lands, add gtest cases
+  alongside the source under `src/socketsecurity/temporal/test/`,
+  driven by node-smol's existing build pipeline.
+- **End-to-end Temporal behavior**: the Node 26 Temporal smoke test
+  in node-smol's verification job (task #194) covers Date/PlainDate/
+  Duration arithmetic against the published Temporal proposal —
+  same surface that boa-dev/temporal is tested against.
+
+If a JS-side test is needed (e.g. checking that node-smol exposes
+the Temporal global with the right API surface), add it under
+`packages/node-smol-builder/test/` — keep this package source-only.
 
 ## Naming
 

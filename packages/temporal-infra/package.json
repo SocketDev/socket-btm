@@ -9,16 +9,13 @@
     "./lib/paths": "./lib/paths.mts"
   },
   "scripts": {
-    "clean": "node scripts/clean.mts",
-    "test": "vitest run"
+    "clean": "node scripts/clean.mts"
   },
   "dependencies": {
     "@socketsecurity/lib": "catalog:",
     "build-infra": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "catalog:",
-    "@vitest/coverage-v8": "catalog:",
-    "vitest": "catalog:"
+    "@types/node": "catalog:"
   }
 }

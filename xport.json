@@ -111,8 +111,8 @@
       "upstream": "temporal-rs",
       "criticality": 9,
       "local_area": "packages/temporal-infra/src/socketsecurity/temporal",
-      "test_area": "packages/temporal-infra/test",
-      "notes": "Source-only C++ port of boa-dev/temporal (the temporal_rs crate that backs Node 26 Temporal). Drops the Rust toolchain dependency from socket-btm's Node 26 builds — node-smol-builder embeds the .cc/.h files via additions/source-patched/ at build time. Parity is semantic re-implementation, not a fork: tracking is manual, not auto-cascaded. Pinned upstream submodule at packages/temporal-infra/upstream/temporal (locked to v0.1.0 same as the original temporal-rs row). Implementation lands in follow-up commits (task #217); this row marks the parity contract."
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "notes": "Source-only C++ port of boa-dev/temporal (the temporal_rs crate that backs Node 26 Temporal). Drops the Rust toolchain dependency from socket-btm's Node 26 builds — node-smol-builder embeds the .cc/.h files via additions/source-patched/ at build time. Parity is semantic re-implementation, not a fork: tracking is manual, not auto-cascaded. Pinned upstream submodule at packages/temporal-infra/upstream/temporal (locked to v0.1.0 same as the original temporal-rs row). End-to-end Temporal behavior is verified by the existing Node 26 Temporal smoke test (task #194) in node-smol's verification job. Implementation lands in follow-up commits (task #217); this row marks the parity contract."
     },
     {
       "kind": "version-pin",

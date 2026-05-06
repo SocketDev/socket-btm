@@ -21,6 +21,7 @@ import {
   BUILD_INFRA_DIR,
   LIEF_BUILDER_DIR,
   PACKAGE_ROOT,
+  TEMPORAL_INFRA_DIR,
 } from '../../paths.mts'
 
 // Upstream liburing is in node-smol-builder/upstream/liburing (sibling to upstream/node).
@@ -70,6 +71,15 @@ const EXTERNAL_SOURCES = [
       'src',
       'socketsecurity',
       'build-infra',
+    ),
+  },
+  {
+    from: path.join(TEMPORAL_INFRA_DIR, 'src', 'socketsecurity', 'temporal'),
+    to: path.join(
+      ADDITIONS_SOURCE_PATCHED_DIR,
+      'src',
+      'socketsecurity',
+      'temporal',
     ),
   },
   {

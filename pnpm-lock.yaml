@@ -616,7 +616,7 @@ importers:
         specifier: 'catalog:'
         version: 4.0.3(@types/node@24.9.2)(jiti@2.6.1)(yaml@2.8.3)
 
-  packages/napi-go:
+  packages/napi-go-infra:
     dependencies:
       '@socketsecurity/lib':
         specifier: 'catalog:'
@@ -743,9 +743,9 @@ importers:
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
-      napi-go:
+      napi-go-infra:
         specifier: workspace:*
-        version: link:../napi-go
+        version: link:../napi-go-infra
     devDependencies:
       '@vitest/coverage-v8':
         specifier: 'catalog:'

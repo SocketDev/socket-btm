@@ -20,7 +20,7 @@ import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
-import { buildNapiGoAddon } from 'napi-go/cli'
+import { buildNapiGoAddon } from 'napi-go-infra/cli'
 
 import { GO_SHIM, LIB_DIR, PACKAGE_ROOT, SRC_DIR } from './paths.mts'
 

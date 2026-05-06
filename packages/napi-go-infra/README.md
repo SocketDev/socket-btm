@@ -1,13 +1,13 @@
-# napi-go
+# napi-go-infra
 
 Go → Node.js N-API framework. The Go-ecosystem counterpart to
 [napi-rs](https://napi.rs/) and [Zig node-api](https://ziglang.org/).
 
-napi-go is **source-distributed**. It does not ship prebuilt `.node`
-binaries for downstream consumption. Downstream builders (e.g.
-`ultraviolet-builder`) add `napi-go` as a workspace dependency, import
-the Go package and the C shim, and produce their own per-platform-arch
-`.node` artifacts.
+napi-go-infra is **source-distributed**. It does not ship prebuilt
+`.node` binaries for downstream consumption. Downstream builders (e.g.
+`ultraviolet-builder`) add `napi-go-infra` as a workspace dependency,
+import the Go package and the C shim, and produce their own
+per-platform-arch `.node` artifacts.
 
 The one binary this package does build is `examples/hello/`, a reference
 binding used as a smoke test. It is not published.
@@ -20,9 +20,9 @@ are deferred. See `src/` and `include/napi_go.h` for the actual surface.
 
 ## Downstream integration
 
-A downstream builder wires in napi-go by:
+A downstream builder wires in napi-go-infra by:
 
-1. Adding `"napi-go": "workspace:*"` to `dependencies`.
+1. Adding `"napi-go-infra": "workspace:*"` to `dependencies`.
 2. Declaring a Go entry file (`//export`s for each N-API function) plus
    a C shim that calls `napi_go_register` to bind them.
 3. Calling `buildNapiGoAddon({ ... })` from `scripts/build.mts` — the

@@ -6,7 +6,7 @@
  * shim to produce a `.node` addon for the current platform-arch.
  *
  * Intended entry point for downstream builder packages:
- *   import { buildNapiGoAddon } from 'napi-go/cli'
+ *   import { buildNapiGoAddon } from 'napi-go-infra/cli'
  *   await buildNapiGoAddon({
  *     packageRoot,      // absolute path to the consuming builder
  *     bindingName,      // output filename without .node suffix

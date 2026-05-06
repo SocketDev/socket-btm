@@ -153,11 +153,11 @@ Git hooks use bash scripts and require [Git Bash](https://gitforwindows.org/) or
 - [ink-builder](packages/ink-builder/) - Prepatched Ink with yoga-sync
 - [iocraft-builder](packages/iocraft-builder/) - Native Node.js bindings for iocraft TUI library via napi-rs
 - [opentui-builder](packages/opentui-builder/) - Native Node.js bindings for OpenTUI library via Zig node-api
-- [ultraviolet-builder](packages/ultraviolet-builder/) - Charmbracelet Ultraviolet terminal decoder (kitty/fixterms/SGR) compiled from Go via napi-go
+- [ultraviolet-builder](packages/ultraviolet-builder/) - Charmbracelet Ultraviolet terminal decoder (kitty/fixterms/SGR) compiled from Go via napi-go-infra
 
 ### N-API Frameworks
 
-- [napi-go](packages/napi-go/) - Go → N-API framework (the napi-rs analog for Go), source-distributed from this repo
+- [napi-go-infra](packages/napi-go-infra/) - Go → N-API framework (the napi-rs analog for Go), source-distributed from this repo
 
 ### ML Models
 

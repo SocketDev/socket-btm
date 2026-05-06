@@ -1,7 +1,7 @@
 {
   "name": "ultraviolet-builder",
   "version": "0.0.0",
-  "description": "Native Node.js bindings for Charmbracelet Ultraviolet (terminal I/O + decoder foundation used by bubbletea v2) via napi-go.",
+  "description": "Native Node.js bindings for Charmbracelet Ultraviolet (terminal I/O + decoder foundation used by bubbletea v2) via napi-go-infra.",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -29,7 +29,7 @@
   "dependencies": {
     "@socketsecurity/lib": "catalog:",
     "build-infra": "workspace:*",
-    "napi-go": "workspace:*"
+    "napi-go-infra": "workspace:*"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "catalog:",

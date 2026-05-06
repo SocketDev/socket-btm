@@ -92,6 +92,7 @@
 #include "node.h"
 #include "node_binding.h"
 #include "node_external_reference.h"
+#include "util.h"
 #include "v8.h"
 #include "v8-fast-api-calls.h"
 
@@ -694,7 +695,7 @@ DEFINE_FAST_STRING_INT32_INT32(StringCharCodeAt);
 #define EXTREF_FAST(NAME)                                                \
   do {                                                                   \
     registry->Register(Slow##NAME);                                      \
-    registry->Register(fast_##NAME.GetTypeInfo());                       \
+    registry->Register(fast_##NAME);                                     \
   } while (0)
 
 static void Initialize(Local<Object> target,

@@ -117,6 +117,7 @@
 #include "node.h"
 #include "node_binding.h"
 #include "node_external_reference.h"
+#include "util.h"
 #include "v8.h"
 
 #include "socketsecurity/util/util.h"

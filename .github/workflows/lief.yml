@@ -121,9 +121,9 @@ jobs:
         with:
           debug: ${{ inputs.debug }}
 
-      - uses: SocketDev/socket-registry/.github/actions/setup@648c91484e3e3e58fa9cb2d663c65aac449bab16 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup@5b672d3b8459e61bdd423c058a2e155f92f79389 # main
 
-      - uses: SocketDev/socket-registry/.github/actions/install@648c91484e3e3e58fa9cb2d663c65aac449bab16 # main
+      - uses: SocketDev/socket-registry/.github/actions/install@5b672d3b8459e61bdd423c058a2e155f92f79389 # main
 
       - name: Load cache version from centralized config
         id: cache-version

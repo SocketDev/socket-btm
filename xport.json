@@ -371,13 +371,59 @@
       ]
     },
     {
+      "kind": "file-fork",
+      "id": "temporal-infra-calendar",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/calendar.cc",
+      "upstream_path": "src/builtins/core/calendar.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 9,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "ARCHITECTURAL: upstream wraps ICU4X's `AnyCalendar` (a Rust calendar library); this port delegates to system ICU (`icu::Calendar` from deps/icu-small) which V8 already links. Public surface (Calendar, CalendarKind, MonthCode, CalendarFields, YearMonthCalendarFields) matches upstream 1:1.",
+        "SCAFFOLD: only the ISO calendar path is implemented today. Non-ISO calendars (Buddhist, Chinese, Coptic, Dangi, Ethiopian, Gregorian, Hebrew, Indian, Hijri family, Japanese, Persian, ROC) surface 'Unsupported' until the ICU C-API dispatch lands.",
+        "TryFromUtf8 accepts the Temporal-allowed identifiers including aliases (gregory→Gregorian, islamic-civil→HijriTabularFriday, ethioaa→EthiopianAmeteAlem, etc.).",
+        "Identifier() returns the canonical lowercase IANA name."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-time-zone",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/time_zone.cc",
+      "upstream_path": "src/builtins/core/time_zone.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 9,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "ARCHITECTURAL: upstream consults the `timezone_provider` crate (bundled tzdata); this port delegates to V8's existing js-temporal-zoneinfo64.cc + system ICU (`icu::TimeZone`) — both already linked into libnode.",
+        "SCAFFOLD: offset-only zones work today (UtcOffset round-trip, ±HH:MM[:SS[.fff]] parsing, ToString rendering). IANA-named zones (`America/New_York`, etc.) compile and round-trip the identifier but the actual offset/transition lookup is pending the V8 zoneinfo64 dispatch layer.",
+        "GetIsoDateTimeFor on offset zones is currently stubbed — the Int128 arithmetic for adding the offset to an Instant lands once the broader Int128 helpers settle (see temporal_int128.h)."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-zoned-date-time",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/zoned_date_time.cc",
+      "upstream_path": "src/builtins/core/zoned_date_time.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 9,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "SCAFFOLD: structural surface (ZonedDateTime { instant, time_zone, calendar }) plus thin field accessors and to_plain_*  conversions. Most operations route through TimeZone::GetIsoDateTimeFor which is itself scaffolded — full IANA path lands when V8 zoneinfo64 dispatch is wired up.",
+        "FromUtf8 currently handles only UTC-Z input (no [TimeZone]/[!TimeZone] annotation), defaulting to UTC zone + ISO calendar. Full RFC 9557 [TimeZone] annotation support is parse.cc Phase 2.",
+        "DST + offset disambiguation (the bulk of upstream's zoned_date_time.rs — ~2.5k LOC) is pending. Operations that need it (since/until/round/with) stub to TemporalError."
+      ]
+    },
+    {
       "kind": "feature-parity",
       "id": "temporal-infra-pending",
       "upstream": "temporal-rs-parity",
       "criticality": 9,
       "local_area": "packages/temporal-infra/src/socketsecurity/temporal",
       "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
-      "notes": "Tracking row for the temporal_rs files NOT YET ported. Phase 5 added: options / rounding / plain_date / plain_date_time. Lock-step remaining (each becomes a file-fork row when its .cc lands):\n- src/builtins/core/zoned_date_time.rs → zoned_date_time.cc (HARD: DST + offset disambiguation)\n- src/builtins/core/calendar.rs → calendar.cc (HARD: delegates to ICU)\n- src/builtins/core/time_zone.rs → time_zone.cc (HARD: delegates to V8 js-temporal-zoneinfo64.cc)\n- src/options/relative_to.rs → relative_to.cc (depends on TimeZone class)\n- src/builtins/compiled/* → compiled.cc helpers\n- src/builtins/duration/normalized/* → duration_normalized.cc (HARD: TimeDuration, InternalDurationRecord, balance/round)\n- src/primitive.rs DoubleDouble → primitive.cc (currently header-only stub in primitive.h)\n\nTotal upstream Rust LOC: ~23k. Currently ported: ~6k (Phase 1+2+3+4+5). Bumping the temporal-rs-parity submodule re-runs this audit; any missing row vs upstream's actual file list is a port-completeness gap."
+      "notes": "Tracking row for the temporal_rs files NOT YET ported. Phase 6 added: calendar / time_zone / zoned_date_time (scaffold layer). Lock-step remaining (each becomes a file-fork row when its .cc lands):\n- src/options/relative_to.rs → relative_to.cc (depends on TimeZone class)\n- src/builtins/compiled/* → compiled.cc helpers\n- src/builtins/duration/normalized/* → duration_normalized.cc (HARD: TimeDuration, InternalDurationRecord, balance/round)\n- src/primitive.rs DoubleDouble → primitive.cc (currently header-only stub in primitive.h)\n\nALSO PENDING: ICU C-API dispatch layer for non-ISO calendars (calendar.cc activates this), and V8 zoneinfo64 dispatch layer for IANA time zones (time_zone.cc + zoned_date_time.cc activate this). Both are integration phases distinct from the file-by-file 1:1 port.\n\nTotal upstream Rust LOC: ~23k. Currently ported: ~7k (Phase 1+2+3+4+5+6). Bumping the temporal-rs-parity submodule re-runs this audit; any missing row vs upstream's actual file list is a port-completeness gap."
     },
     {
       "kind": "version-pin",

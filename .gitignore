@@ -52,8 +52,14 @@ build-output/
 # Profiling artifacts (performance testing)
 profiling/
 
-# Quality scan and similar local report outputs
-reports/
+# Quality scan and similar local report outputs.
+# Use `reports/*` (not `reports/`) so a `!` negation below can
+# re-include specific filenames — git won't reconsider files inside
+# an excluded *directory*, only inside an excluded *path*.
+reports/*
+# Exception: scanning-quality skill commits a snapshot per run so the
+# trend line is auditable across the fleet (skill cadence rule).
+!reports/scanning-quality-*.md
 
 # External source copies (build-time generated from monorepo packages).
 packages/node-smol-builder/additions/source-patched/src/socketsecurity/bin-infra/

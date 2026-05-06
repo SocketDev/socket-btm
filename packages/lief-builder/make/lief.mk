@@ -49,18 +49,21 @@ else ifeq ($(UNAME_S),Linux)
         PLATFORM_ARCH := linux-$(ARCH)
     endif
 else
-    # Windows - LIEF releases use 'win' not 'win32' for directory paths.
+    # Windows — use win32 (Node's process.platform value) to match the
+    # canonical naming used everywhere else in the build system. See
+    # commit b935cb72 for the parsePlatformArch fix that aligned the
+    # rest of the fleet on win32 (asset-style "win" was the holdout).
     # Support cross-compilation via TARGET_ARCH environment variable.
     ifdef TARGET_ARCH
         ifeq ($(TARGET_ARCH),arm64)
-            PLATFORM_ARCH := win-arm64
+            PLATFORM_ARCH := win32-arm64
         else ifeq ($(TARGET_ARCH),aarch64)
-            PLATFORM_ARCH := win-arm64
+            PLATFORM_ARCH := win32-arm64
         else
-            PLATFORM_ARCH := win-x64
+            PLATFORM_ARCH := win32-x64
         endif
     else
-        PLATFORM_ARCH := win-x64
+        PLATFORM_ARCH := win32-x64
     endif
 endif
 

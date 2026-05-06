@@ -55,18 +55,25 @@ else ifeq ($(UNAME_S),Linux)
         CURL_PLATFORM_ARCH := linux-$(CURL_ARCH)
     endif
 else
-    # Windows - use win for directory paths to match release asset names.
-    # Use TARGET_ARCH if specified for cross-compilation.
+    # Windows — use win32 (Node's process.platform value) to match the
+    # canonical naming used everywhere else in the build system. The
+    # set-platform-arch GitHub Action emits win32-x64 / win32-arm64 verbatim,
+    # the curl-builder's ensure-curl downloader writes to that path, and
+    # build-infra/lib/platform-mappings.mts validates against win32. Older
+    # versions of this Makefile used the shortened "win" form, which
+    # produced "Invalid platform-arch 'win-x64'" downstream — see
+    # commit b935cb72 for the parsePlatformArch fix that aligned every
+    # other consumer on win32.
     ifdef TARGET_ARCH
         ifeq ($(TARGET_ARCH),aarch64)
-            CURL_PLATFORM_ARCH := win-arm64
+            CURL_PLATFORM_ARCH := win32-arm64
         else ifeq ($(TARGET_ARCH),arm64)
-            CURL_PLATFORM_ARCH := win-arm64
+            CURL_PLATFORM_ARCH := win32-arm64
         else
-            CURL_PLATFORM_ARCH := win-x64
+            CURL_PLATFORM_ARCH := win32-x64
         endif
     else
-        CURL_PLATFORM_ARCH := win-x64
+        CURL_PLATFORM_ARCH := win32-x64
     endif
 endif
 

@@ -11,7 +11,7 @@ on:
         description: 'Force rebuild (ignore cache)'
         type: boolean
         default: false
-      build_mode:
+      build-mode:
         description: 'Build mode'
         type: choice
         options:
@@ -35,7 +35,7 @@ on:
       force:
         type: boolean
         default: false
-      build_mode:
+      build-mode:
         type: string
         default: prod
       tools:
@@ -143,7 +143,7 @@ jobs:
         uses: ./.github/actions/setup-checkpoints
         with:
           package-name: binpress
-          build-mode: ${{ inputs.build_mode || 'prod' }}
+          build-mode: ${{ inputs['build-mode'] || 'prod' }}
           platform: ${{ matrix.platform }}
           arch: ${{ matrix.arch }}
           libc: ${{ matrix.libc || '' }}
@@ -579,7 +579,7 @@ jobs:
         uses: ./.github/actions/setup-checkpoints
         with:
           package-name: binflate
-          build-mode: ${{ inputs.build_mode || 'prod' }}
+          build-mode: ${{ inputs['build-mode'] || 'prod' }}
           platform: ${{ matrix.platform }}
           arch: ${{ matrix.arch }}
           libc: ${{ matrix.libc || '' }}
@@ -966,7 +966,7 @@ jobs:
         uses: ./.github/actions/setup-checkpoints
         with:
           package-name: binject
-          build-mode: ${{ inputs.build_mode || 'prod' }}
+          build-mode: ${{ inputs['build-mode'] || 'prod' }}
           platform: ${{ matrix.platform }}
           arch: ${{ matrix.arch }}
           libc: ${{ matrix.libc || '' }}

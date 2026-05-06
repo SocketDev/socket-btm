@@ -11,7 +11,7 @@ on:
         description: 'Force rebuild (ignore cache)'
         type: boolean
         default: false
-      build_mode:
+      build-mode:
         description: 'Build mode'
         type: choice
         options:
@@ -30,7 +30,7 @@ on:
       force:
         type: boolean
         default: false
-      build_mode:
+      build-mode:
         type: string
         default: prod
       debug:
@@ -206,7 +206,7 @@ jobs:
         id: build-mode
         uses: ./.github/actions/set-build-mode
         with:
-          build-mode: ${{ inputs.build_mode }}
+          build-mode: ${{ inputs['build-mode'] }}
 
       # Hoist canonical onnxruntime paths into step outputs. Mirrors
       # packages/onnxruntime-builder/scripts/paths.mts:getBuildPaths()

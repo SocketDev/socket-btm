@@ -27,7 +27,10 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { runSetupToolchain } from 'build-infra/lib/setup-build-toolchain'
+import {
+  isCI,
+  runSetupToolchain,
+} from 'build-infra/lib/setup-build-toolchain'
 
 const logger = getDefaultLogger()
 
@@ -75,5 +78,13 @@ function checkRustVersion(bin: string, minMajor: number, minMinor: number): void
   logger.log(`✓ ${bin} ${maj}.${min} (>= ${minMajor}.${minMinor})`)
 }
 
-checkRustVersion('rustc', 1, 82)
-checkRustVersion('cargo', 1, 82)
+// Skip the rustc/cargo version check in CI: workflows install Rust
+// via dtolnay/rust-toolchain BEFORE the build step, but Docker base
+// images for sibling builders (curl, lief, stubs, etc.) install
+// node-smol-builder as a workspace dep without needing Rust at
+// install time. The version check is for local-dev sanity and would
+// otherwise abort the install of every CI Docker layer.
+if (!isCI()) {
+  checkRustVersion('rustc', 1, 82)
+  checkRustVersion('cargo', 1, 82)
+}

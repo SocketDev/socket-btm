@@ -106,6 +106,15 @@
       "notes": "temporal_rs / temporal_capi crates back the Temporal global in Node 26+. Pinned to =0.1.0 by upstream Node's deps/crates/Cargo.toml — bumping requires a matching upstream Node bump, which is why this row is locked rather than track-latest. Vendored under the node submodule at deps/crates/vendor/temporal_rs/; configure.py asserts rustc/cargo >= 1.82 with LLVM >= 19. Smoke-tested by packages/build-infra/test/fixtures/smoke-test-modules.mjs."
     },
     {
+      "kind": "feature-parity",
+      "id": "temporal-infra",
+      "upstream": "temporal-rs",
+      "criticality": 9,
+      "local_area": "packages/temporal-infra/src/socketsecurity/temporal",
+      "test_area": "packages/temporal-infra/test",
+      "notes": "Source-only C++ port of boa-dev/temporal (the temporal_rs crate that backs Node 26 Temporal). Drops the Rust toolchain dependency from socket-btm's Node 26 builds — node-smol-builder embeds the .cc/.h files via additions/source-patched/ at build time. Parity is semantic re-implementation, not a fork: tracking is manual, not auto-cascaded. Pinned upstream submodule at packages/temporal-infra/upstream/temporal (locked to v0.1.0 same as the original temporal-rs row). Implementation lands in follow-up commits (task #217); this row marks the parity contract."
+    },
+    {
       "kind": "version-pin",
       "id": "liburing",
       "upstream": "liburing",

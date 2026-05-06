@@ -103,3 +103,7 @@
 	path = packages/node-smol-builder/upstream/temporal
 	url = https://github.com/boa-dev/temporal.git
 	ignore = dirty
+[submodule "packages/temporal-infra/upstream/temporal"]
+	path = packages/temporal-infra/upstream/temporal
+	url = https://github.com/boa-dev/temporal.git
+	ignore = dirty

@@ -214,6 +214,7 @@ jobs:
       # 1 path, 1 reference.
       - name: Compute onnxruntime paths
         id: paths
+        shell: bash
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
         run: |

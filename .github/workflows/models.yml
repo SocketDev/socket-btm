@@ -77,6 +77,7 @@ jobs:
       # models package layout (ONNX model build outputs). 1 path, 1 reference.
       - name: Compute models paths
         id: paths
+        shell: bash
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
         run: |

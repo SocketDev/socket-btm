@@ -141,6 +141,7 @@ jobs:
       # plus curl-builder's own getCurlBuildDirs() — keep byte-aligned.
       - name: Compute curl paths
         id: paths
+        shell: bash
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
           PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
@@ -403,6 +404,7 @@ jobs:
         shell: bash
         env:
           CURL_DIR: ${{ steps.paths.outputs.curl_dir }}
+          PLATFORM_ARCH: ${{ steps.platform-arch.outputs.platform_arch }}
         run: |
           if [ ! -d "$CURL_DIR" ]; then
             echo "× Error: curl directory not found at: $CURL_DIR"

@@ -90,6 +90,7 @@ jobs:
       # any change to that file's output layout MUST be reflected here.
       - name: Compute yoga paths
         id: paths
+        shell: bash
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
         run: |

@@ -5,15 +5,15 @@
     "binflate": "v130",
     "binject": "v184",
     "binpress": "v167",
-    "curl": "v37",
+    "curl": "v38",
     "ink": "v14",
     "iocraft": "v33",
-    "lief": "v71",
+    "lief": "v72",
     "models": "v34",
-    "node-smol": "v217",
+    "node-smol": "v218",
     "onnxruntime": "v33",
     "opentui": "v15",
-    "stubs": "v103",
+    "stubs": "v104",
     "yoga-layout": "v35"
   }
 }

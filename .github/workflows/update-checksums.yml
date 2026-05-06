@@ -37,9 +37,9 @@ jobs:
     permissions:
       contents: write # Required to commit updated release-assets.json
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@4c4b12cc32121314f56e2bc04e92eafa98e01104 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@780f6b678a99be879cfa066afc066a4104fe9d6e # main
 
-      - uses: SocketDev/socket-registry/.github/actions/setup-git-signing@4c4b12cc32121314f56e2bc04e92eafa98e01104 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-git-signing@780f6b678a99be879cfa066afc066a4104fe9d6e # main
         with:
           gpg-private-key: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
 
@@ -76,5 +76,5 @@ jobs:
           git pull --rebase origin main
           git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" HEAD:main
 
-      - uses: SocketDev/socket-registry/.github/actions/cleanup-git-signing@4c4b12cc32121314f56e2bc04e92eafa98e01104 # main
+      - uses: SocketDev/socket-registry/.github/actions/cleanup-git-signing@780f6b678a99be879cfa066afc066a4104fe9d6e # main
         if: always()

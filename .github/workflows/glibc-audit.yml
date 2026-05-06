@@ -42,7 +42,7 @@ jobs:
 
       # Scoped install — the audit script only needs node-smol-builder's deps.
       # Full monorepo setup-and-install would burn ~2-3 min for no reason.
-      - uses: SocketDev/socket-registry/.github/actions/setup@4c4b12cc32121314f56e2bc04e92eafa98e01104 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup@780f6b678a99be879cfa066afc066a4104fe9d6e # main
 
       - name: Install node-smol-builder dependencies only
         shell: bash

@@ -116,7 +116,7 @@ jobs:
             cross_compile: true
 
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@4c4b12cc32121314f56e2bc04e92eafa98e01104 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@780f6b678a99be879cfa066afc066a4104fe9d6e # main
 
       - name: Check if tool should be built
         id: build-enabled
@@ -552,7 +552,7 @@ jobs:
             cross_compile: true
 
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@4c4b12cc32121314f56e2bc04e92eafa98e01104 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@780f6b678a99be879cfa066afc066a4104fe9d6e # main
 
       - name: Check if tool should be built
         id: build-enabled
@@ -939,7 +939,7 @@ jobs:
             cross_compile: true
 
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@4c4b12cc32121314f56e2bc04e92eafa98e01104 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@780f6b678a99be879cfa066afc066a4104fe9d6e # main
 
       - name: Check if tool should be built
         id: build-enabled

@@ -1,20 +1,23 @@
 # node-smol Built-in Modules Guide
 
-This guide covers the nine built-in `node:smol-*` modules available in node-smol. These modules are designed for high performance and are not available in standard Node.js.
+This guide covers the twelve built-in `node:smol-*` modules available in node-smol. These modules are designed for high performance and are not available in standard Node.js.
 
 ## Quick Overview
 
-| Module               | Purpose            | When to Use                                |
-| -------------------- | ------------------ | ------------------------------------------ |
-| `node:smol-ffi`      | Foreign functions  | Calling native C libraries without addons  |
-| `node:smol-http`     | HTTP servers       | Building web APIs and servers              |
-| `node:smol-https`    | HTTPS servers      | Building TLS-enabled web servers           |
-| `node:smol-ilp`      | Time-series data   | Sending metrics to QuestDB/InfluxDB        |
-| `node:smol-manifest` | Manifest parsing   | Parsing package.json, lockfiles, etc.      |
-| `node:smol-purl`     | Package URLs       | Parsing and building PURL strings          |
-| `node:smol-sql`      | Database queries   | PostgreSQL and SQLite access               |
-| `node:smol-versions` | Version management | Parsing, comparing, and matching versions  |
-| `node:smol-vfs`      | Embedded files     | Accessing files bundled in your SEA binary |
+| Module                  | Purpose             | When to Use                                            |
+| ----------------------- | ------------------- | ------------------------------------------------------ |
+| `node:smol-ffi`         | Foreign functions   | Calling native C libraries without addons              |
+| `node:smol-http`        | HTTP servers        | Building web APIs and servers                          |
+| `node:smol-https`       | HTTPS servers       | Building TLS-enabled web servers                       |
+| `node:smol-ilp`         | Time-series data    | Sending metrics to QuestDB/InfluxDB                    |
+| `node:smol-manifest`    | Manifest parsing    | Parsing package.json, lockfiles, etc.                  |
+| `node:smol-power`       | Power-state         | Detecting AC vs battery power for adaptive timeouts    |
+| `node:smol-primordial`  | V8 Fast API methods | Hot Math/Number/String paths inlined into JIT'd JS     |
+| `node:smol-purl`        | Package URLs        | Parsing and building PURL strings                      |
+| `node:smol-sql`         | Database queries    | PostgreSQL and SQLite access                           |
+| `node:smol-util`        | Primordial helpers  | Single-dispatch uncurryThis/applyBind/safe wrappers    |
+| `node:smol-versions`    | Version management  | Parsing, comparing, and matching versions              |
+| `node:smol-vfs`         | Embedded files      | Accessing files bundled in your SEA binary             |
 
 ---
 
@@ -838,6 +841,156 @@ satisfies('2.0.0', '^1.0.0', 'npm') // false
 
 ---
 
+## node:smol-power
+
+Synchronous power-state detection (AC vs battery). Useful for sizing
+build/test kill-timeouts adaptively — macOS especially throttles CPU
+hard on battery, and a static timeout tuned for AC will kill an
+otherwise-healthy run when the laptop's unplugged.
+
+### Quick Start
+
+```javascript
+import { isOnAcPower, isOnBatteryPower } from 'node:smol-power'
+
+if (isOnBatteryPower()) {
+  // Use a longer kill-timeout — battery throttling slows everything.
+}
+```
+
+### Module Exports (Alphabetical)
+
+| Function             | Description                              |
+| -------------------- | ---------------------------------------- |
+| `isOnAcPower()`      | `true` on AC, `false` on battery         |
+| `isOnBatteryPower()` | `true` on battery, `false` on AC         |
+
+### Design Notes
+
+The two-method boolean form mirrors Electron's `powerMonitor`, not the
+W3C `BatteryManager` spec — the level/charging-time fields aren't
+reliable enough across hardware to be useful in practice.
+
+Detection failure or platforms without a power tree (containers,
+headless servers, desktops without batteries) returns `true` from
+`isOnAcPower()` so CI environments don't get false-positive
+battery-mode behavior.
+
+Per-platform syscall path:
+
+| Platform | Source                                                   |
+| -------- | -------------------------------------------------------- |
+| macOS    | IOKit `IOPSCopyPowerSourcesInfo`                         |
+| Linux    | `/sys/class/power_supply/<entry>/online` direct reads    |
+| Windows  | kernel32 `GetSystemPowerStatus`                          |
+
+---
+
+## node:smol-primordial
+
+V8 Fast API typed primordials — C++-backed `v8::CFunction` entries
+that TurboFan can inline directly into JIT-compiled JS callers. ~30-50%
+faster than equivalent `uncurryThis`-wrapped JS forms on hot benchmark
+loops because there's no callback trampoline, no
+`FunctionCallbackInfo` allocation, no `HandleScope`.
+
+### Quick Start
+
+```javascript
+import { mathSqrt, numberParseInt10, stringCharCodeAt } from 'node:smol-primordial'
+
+mathSqrt(16)              // 4
+numberParseInt10('42')    // 42
+stringCharCodeAt('A', 0)  // 65
+```
+
+### Module Exports (Alphabetical)
+
+| Group               | Methods                                                                                                                                              |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Array               | `arrayIsArray`                                                                                                                                       |
+| Date                | `dateNow`                                                                                                                                            |
+| Math (unary)        | `mathAbs`, `mathAcos`, `mathAcosh`, `mathAsin`, `mathAsinh`, `mathAtan`, `mathAtanh`, `mathCbrt`, `mathCeil`, `mathCos`, `mathCosh`, `mathExp`, `mathExpm1`, `mathFloor`, `mathFround`, `mathLog`, `mathLog1p`, `mathLog2`, `mathLog10`, `mathRound`, `mathSign`, `mathSin`, `mathSinh`, `mathSqrt`, `mathTan`, `mathTanh`, `mathTrunc` |
+| Math (binary)       | `mathAtan2`, `mathHypot`, `mathPow`                                                                                                                  |
+| Math (other)        | `mathClz32`, `mathImul`                                                                                                                              |
+| Number predicates   | `numberIsFinite`, `numberIsInteger`, `numberIsNaN`, `numberIsSafeInteger`                                                                            |
+| Number parsers      | `numberParseFloat`, `numberParseInt10` (radix 10 only)                                                                                               |
+| String prototype    | `stringCharCodeAt` (returns `-1` sentinel on OOB; wrapper converts to `NaN` to match spec)                                                           |
+
+### Design Notes
+
+V8's Fast API caps argument and return types to primitives,
+`Local<Value/Object/Array>`, or `FastOneByteString` (a `(char*, length)`
+view of an ASCII-only V8 string). Methods land here only when:
+
+1. The work itself benefits from inlining (e.g. `Math.abs` is one
+   instruction; eliminating the call frame halves the cost).
+2. V8's own builtin is **not** already TurboFan-inlined as an IC stub
+   (so adding a Fast API binding wouldn't be a wash). `Map.has` /
+   `Set.has` / `Array.includes` / `String.startsWith|endsWith|includes|indexOf`
+   stay on the `node:smol-util` `uncurryThis` tier instead.
+
+Spec-conformance gotchas: `Math.round` uses JS half-toward-+inf (not
+C's away-from-zero); `Math.sign` preserves +0/-0/NaN; `Math.imul` casts
+through unsigned for defined wrap; `Math.clz32` returns 32 for input 0
+(C's `__builtin_clz` is UB at 0); `Math.fround` rounds to nearest
+float32; `Number.parseInt` is radix 10 only — other radices fall
+through to stock `Number.parseInt`.
+
+---
+
+## node:smol-util
+
+Five C++-backed primordial helpers that replace the classic
+`Function.prototype.bind.bind(Function.prototype.call)` pattern, the
+`fn.apply(self, args)` trampoline, and the try/catch around
+`new WeakRef(target)` with single V8 dispatches that bypass the
+trampolines entirely.
+
+### Quick Start
+
+```javascript
+import {
+  applyBind,
+  applySafe,
+  bindCall,
+  uncurryThis,
+  weakRefSafe,
+} from 'node:smol-util'
+
+const slice = uncurryThis(String.prototype.slice)
+slice('hello', 0, 3) // 'hel'
+
+const concat = applyBind(Array.prototype.concat)
+concat([1, 2], [[3, 4]]) // [1, 2, 3, 4]
+
+weakRefSafe({ x: 1 })   // WeakRef instance
+weakRefSafe(42)         // undefined (instead of throwing)
+```
+
+### Module Exports (Alphabetical)
+
+| Function              | Description                                                                  |
+| --------------------- | ---------------------------------------------------------------------------- |
+| `applyBind(fn)`       | Single-dispatch `fn.apply(self, args)`                                       |
+| `applySafe(fn)`       | Like `applyBind` but swallows synchronous throws (returns `undefined`)       |
+| `bindCall(fn, this, ...preset)` | Partial-apply with bound `this`                                    |
+| `uncurryThis(fn)`     | Single-dispatch `fn.call(self, ...args)`                                     |
+| `weakRefSafe(target)` | Like `new WeakRef(target)` but returns `undefined` on non-wrappable inputs   |
+
+### Design Notes
+
+The classic JS `uncurryThis` walks through a `BoundFunction` wrapper
+and `Function.prototype.call` — two dispatches per call. The native
+form captures the target at register time via `args.Data()` and calls
+through it once. One dispatch.
+
+`applySafe` and `weakRefSafe` follow the project-wide `Safe` suffix
+convention for non-throwing wrappers (see template `CLAUDE.md`
+"Code style").
+
+---
+
 ## Common Patterns
 
 ### Environment-Based Configuration
@@ -898,17 +1051,20 @@ const server = serve({
 
 ## Differences from Standard Node.js
 
-| Feature          | Standard Node.js                       | node-smol                             |
-| ---------------- | -------------------------------------- | ------------------------------------- |
-| HTTP server      | `http.createServer()`                  | `serve()` with Bun-compatible API     |
-| HTTPS server     | `https.createServer()`                 | `serve()` with optimized TLS defaults |
-| Database         | External packages (pg, better-sqlite3) | Built-in `node:smol-sql`              |
-| Time-series      | External packages                      | Built-in `node:smol-ilp`              |
-| FFI              | External packages (ffi-napi, koffi)    | Built-in `node:smol-ffi`              |
-| Embedded files   | Custom solutions                       | Built-in `node:smol-vfs`              |
-| Package URLs     | External packages (packageurl-js)      | Built-in `node:smol-purl`             |
-| Manifest parsing | External packages per format           | Built-in `node:smol-manifest`         |
-| Version matching | External packages (semver)             | Built-in `node:smol-versions`         |
+| Feature           | Standard Node.js                       | node-smol                                       |
+| ----------------- | -------------------------------------- | ----------------------------------------------- |
+| HTTP server       | `http.createServer()`                  | `serve()` with Bun-compatible API               |
+| HTTPS server      | `https.createServer()`                 | `serve()` with optimized TLS defaults           |
+| Database          | External packages (pg, better-sqlite3) | Built-in `node:smol-sql`                        |
+| Time-series       | External packages                      | Built-in `node:smol-ilp`                        |
+| FFI               | External packages (ffi-napi, koffi)    | Built-in `node:smol-ffi`                        |
+| Embedded files    | Custom solutions                       | Built-in `node:smol-vfs`                        |
+| Package URLs      | External packages (packageurl-js)      | Built-in `node:smol-purl`                       |
+| Manifest parsing  | External packages per format           | Built-in `node:smol-manifest`                   |
+| Version matching  | External packages (semver)             | Built-in `node:smol-versions`                   |
+| Power state       | External packages (battery, electron)  | Built-in `node:smol-power`                      |
+| Fast Math/Number  | JS-level Math/Number primordials       | Built-in `node:smol-primordial` (V8 Fast API)   |
+| Primordial helpers| Userspace `uncurryThis` / `applyBind`  | Built-in `node:smol-util` (single-dispatch C++) |
 
 ## Further Reading
 

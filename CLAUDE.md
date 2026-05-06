@@ -210,7 +210,7 @@ Code embedded into Node.js during early bootstrap. Special constraints:
 
 All `node:smol-*` modules REQUIRE the `node:` prefix (enforced via `schemelessBlockList` in `lib/internal/bootstrap/realm.js`).
 
-Available: `node:smol-ffi`, `node:smol-http`, `node:smol-https`, `node:smol-ilp`, `node:smol-manifest`, `node:smol-purl`, `node:smol-sql`, `node:smol-versions`, `node:smol-vfs`
+Available: `node:smol-ffi`, `node:smol-http`, `node:smol-https`, `node:smol-ilp`, `node:smol-manifest`, `node:smol-power`, `node:smol-primordial`, `node:smol-purl`, `node:smol-sql`, `node:smol-util`, `node:smol-versions`, `node:smol-vfs`
 
 #### Primordials
 

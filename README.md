@@ -28,7 +28,7 @@ Socket BTM (Binary Tooling Manager) is Socket Security's build infrastructure fo
 Monorepo containing:
 
 - **Binary Tools** - binject, binpress, binflate (C/C++ binary manipulation)
-- **Node.js** - Custom Node.js v25 with Socket security patches
+- **Node.js** - Custom Node.js v26 with Socket security patches
 - **WASM** - ONNX Runtime and Yoga Layout
 - **ML Models** - Quantized AI models (CodeT5, MiniLM)
 
@@ -141,7 +141,7 @@ Git hooks use bash scripts and require [Git Bash](https://gitforwindows.org/) or
 
 ### Node.js
 
-- [node-smol-builder](packages/node-smol-builder/) - Custom Node.js v25 with Socket security patches
+- [node-smol-builder](packages/node-smol-builder/) - Custom Node.js v26 with Socket security patches
 
 ### WASM Builders
 

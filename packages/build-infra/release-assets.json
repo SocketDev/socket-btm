@@ -135,16 +135,16 @@
   },
   "stubs": {
     "description": "Self-extracting stub binaries",
-    "tag": "stubs-20260507-df0c2bc",
+    "tag": "stubs-20260507-556ecb0",
     "checksums": {
-      "smol-stub-darwin-arm64.tar.gz": "94e6efa99d3dc95858a2837bd4cb6455d9abc6a92d140d510657d7efbee6ba76",
-      "smol-stub-darwin-x64.tar.gz": "21bdcefb2dcd12cd1ddc7e19471323c5919224a7be1480f0b88c09671d1c83a8",
+      "smol-stub-darwin-arm64.tar.gz": "d22390377f8e1c372ace7e283daa3c7640d1c84fa869697549757c58a70f14ad",
+      "smol-stub-darwin-x64.tar.gz": "ac2481b6ea3701e0faee5c7877ba6758de09eea97b700bd3e6369f5d3ab5687e",
       "smol-stub-linux-arm64-musl.tar.gz": "399bee6ac1eafd47041e6c8339292195f0f2a6a6c1f53ca1ccf115ed228022a6",
       "smol-stub-linux-arm64.tar.gz": "19dd7be155956dce93cbc26b3f0937a215a106cc96652c6d494583624de67a79",
       "smol-stub-linux-x64-musl.tar.gz": "232fab0ddd758806d735df61c666ab6054ed2e47d6c757fc74c7866b97b2aa3c",
       "smol-stub-linux-x64.tar.gz": "cfe29f7ed258977d0b792f76275c7472a492f105af721b85edd7da17dfe6af7f",
-      "smol-stub-win-arm64.tar.gz": "6b26c069a696f382f3825a4c9f4b69cbdfbceda21d767ed25113ca5cca81ca32",
-      "smol-stub-win-x64.tar.gz": "22852f46a38e42cf506d13f716a8bec861854657e7a84b256f9f735485ffe374"
+      "smol-stub-win-arm64.tar.gz": "b2973f8c9da98eb97dc7b0cb8780e3c3ae7d92c910455f39d46e83d8b38b7e0c",
+      "smol-stub-win-x64.tar.gz": "273324ef7721b2ffc6f9828109e3b40d0579ecdd0d59d71dab2ab1aba89fd64a"
     }
   },
   "yoga-layout": {

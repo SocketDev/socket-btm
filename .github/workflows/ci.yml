@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@d9f45d2f74e7eefd4e72bdfcaf57a77ab569eea9 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@068a9c3a771e6947093b517182dfb39722be9386 # main
 
       - name: Enable debug logging
         uses: ./.github/actions/enable-debug-logging
@@ -101,7 +101,7 @@ jobs:
         # diverge from release builds when GitHub rolls them forward.
         os: [ubuntu-24.04, macos-15, windows-2022]
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@d9f45d2f74e7eefd4e72bdfcaf57a77ab569eea9 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@068a9c3a771e6947093b517182dfb39722be9386 # main
 
       - name: Enable debug logging
         uses: ./.github/actions/enable-debug-logging

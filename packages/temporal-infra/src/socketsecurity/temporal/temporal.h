@@ -94,17 +94,33 @@ struct IsoDateTime {
 
 class Calendar;  // Defined in calendar.h.
 
-// PlainDate / PlainTime / PlainDateTime moved to their own headers
-// (plain_date.h / plain_time.h / plain_date_time.h). Forward decls
-// here so signatures in temporal.h still compile when callers haven't
-// pulled in the canonical headers.
-struct PlainDate;
-struct PlainTime;
-struct PlainDateTime;
-// Originals kept commented for legibility:
-// struct PlainDate { IsoDate iso; bool IsValid() const noexcept { return iso.IsValid(); } };
-// struct PlainTime { IsoTime iso; bool IsValid() const noexcept { return iso.IsValid(); } };
-// struct PlainDateTime { IsoDateTime iso; bool IsValid() const noexcept { return iso.IsValid(); } };
+// Temporal.PlainDate — a calendar date with no time-of-day or timezone.
+// The calendar slot is intentionally omitted from this POD struct;
+// callers wanting calendar-aware semantics carry a `Calendar` value
+// alongside the IsoDate (matches V8's `JSTemporalPlainDate` layout
+// where calendar is a separate Object slot). Canonical home: this
+// header; plain_date.h adds methods/helpers but does NOT redefine.
+struct PlainDate {
+  IsoDate iso;
+
+  bool IsValid() const noexcept { return iso.IsValid(); }
+};
+
+// Temporal.PlainTime — wall-clock time of day, no date or timezone.
+// Canonical home: this header; plain_time.h adds methods/helpers.
+struct PlainTime {
+  IsoTime iso;
+
+  bool IsValid() const noexcept { return iso.IsValid(); }
+};
+
+// Temporal.PlainDateTime — calendar date + wall-clock time, no timezone.
+// Canonical home: this header; plain_date_time.h adds methods/helpers.
+struct PlainDateTime {
+  IsoDateTime iso;
+
+  bool IsValid() const noexcept { return iso.IsValid(); }
+};
 
 // ── Instant ───────────────────────────────────────────────────────────
 

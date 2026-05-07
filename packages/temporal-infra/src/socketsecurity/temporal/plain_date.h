@@ -38,13 +38,15 @@ struct PartialDate {
   bool IsEmpty() const noexcept { return !year && !month && !day; }
 };
 
-// Mirror of upstream's `PlainDate { iso, calendar }`.
-struct PlainDate {
-  IsoDate iso;
-  // Calendar omitted (ISO implied); see calendar.h.
-
-  bool IsValid() const noexcept { return iso.IsValid(); }
-};
+// `struct PlainDate` is defined in temporal.h (canonical home — plain_date.h
+// would create a redefinition since both headers get pulled into V8's
+// translation units). Original duplicate kept commented for legibility:
+//
+// struct PlainDate {
+//   IsoDate iso;
+//   // Calendar omitted (ISO implied); see calendar.h.
+//   bool IsValid() const noexcept { return iso.IsValid(); }
+// };
 
 // Mirror of upstream's `PlainDate::try_new_iso`.
 TemporalResult<PlainDate> PlainDateTryNewIso(int32_t year, uint8_t month,

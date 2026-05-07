@@ -75,16 +75,16 @@
   },
   "lief": {
     "description": "LIEF binary manipulation library",
-    "tag": "lief-20260506-e0e8267",
+    "tag": "lief-20260507-df0c2bc",
     "checksums": {
-      "lief-darwin-arm64.tar.gz": "a55ae8edb0b44165c5bbfc64a633231b7bf1e1603677ccf83746819e04d29e61",
-      "lief-darwin-x64.tar.gz": "41b11301e3e194183d77dedccec8990fb4efb56f2a8a8875fe7dba550361b7d1",
-      "lief-linux-arm64-musl.tar.gz": "ea3e3dfe65db69c2d7238229d3306a5213304eb31181da8d45541d804f3b8104",
-      "lief-linux-arm64.tar.gz": "7d2d23425af688e2fb3c4902751c040a9d24bdec62d7a2441859880a17cf0e0a",
-      "lief-linux-x64-musl.tar.gz": "0ec9a78bc3a81c36d58eeb12dab5444b20583ab677b0187883168fc5c80283ad",
-      "lief-linux-x64.tar.gz": "4da8064a873a9b001027ee50f56fe0361e33d8cb8db663c2a39f1eb6bf0e6279",
-      "lief-win-arm64.tar.gz": "7a3a8b1a9f860e10cf414c7af70148f5ed9912857dc59843ace0f03d19149cbb",
-      "lief-win-x64.tar.gz": "0d6af95b8949c2311b60e2833d95624ae013ae60f71da019478fcff3f8e8992d"
+      "lief-darwin-arm64.tar.gz": "7255622f97073faf855025121e2deab5edafc4ea899f57f105848c4bc40b91ca",
+      "lief-darwin-x64.tar.gz": "f25a4d16335abc6cd1179dd57f8fbfd9acd2a29683c6afa3d0c02843c3c84489",
+      "lief-linux-arm64-musl.tar.gz": "a058766687fcb314d7adf200e11a284982687a19e3c2f636039f2988fbf2ba63",
+      "lief-linux-arm64.tar.gz": "6cb4c840bbf8faa93d7b4e6179d784feab8bd622db4f575b8acac41ce8d7b213",
+      "lief-linux-x64-musl.tar.gz": "52d978a4bbce324a242b4e37f7b30506155060a3dc17fa78c6dd6b4cf26be3ea",
+      "lief-linux-x64.tar.gz": "49a8b8264707483df194e68442ed303fce2b43c957a420c2f4fb9abc7860a966",
+      "lief-win-arm64.tar.gz": "2e7c386917c59a1f021820da426826c3a4aaa27a2c85abccef5ac6198ce2ce34",
+      "lief-win-x64.tar.gz": "baef958304e770fca325ac7ae0ff0b87d7fbc4f3e8add507794229f9c524e597"
     }
   },
   "models": {

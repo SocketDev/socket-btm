@@ -79,19 +79,21 @@ struct IsoDateTime {
 
 // ── Calendar-aware wrappers ───────────────────────────────────────────
 //
-// These mirror upstream's `PlainDate { iso, calendar }` etc. The
-// `Calendar` class isn't ported yet (calendar.cc, forthcoming); for
-// now, callers can construct PlainDate/PlainTime/PlainDateTime with the
-// implicit ISO calendar by using the `iso`-only constructors.
+// These mirror upstream's `PlainDate { iso, calendar }` etc. The C++
+// PODs intentionally hold only the `iso` slot; the `Calendar` value
+// (when non-ISO) is carried alongside by the V8 binding (which puts
+// it in a separate Object slot in JSTemporalPlainDate / etc.). This
+// keeps the temporal-infra structs trivially copyable and ABI-stable.
 
-class Calendar;  // Forward decl — calendar.h forthcoming.
+class Calendar;  // Defined in calendar.h.
 
 // Temporal.PlainDate — a calendar date with no time-of-day or timezone.
+// The calendar slot is intentionally omitted from this POD struct;
+// callers wanting calendar-aware semantics carry a `Calendar` value
+// alongside the IsoDate (matches V8's `JSTemporalPlainDate` layout
+// where calendar is a separate Object slot).
 struct PlainDate {
   IsoDate iso;
-  // calendar field placeholder; see calendar.h once it lands. ISO is
-  // implied when this is null.
-  // const Calendar* calendar = nullptr;
 
   bool IsValid() const noexcept { return iso.IsValid(); }
 };

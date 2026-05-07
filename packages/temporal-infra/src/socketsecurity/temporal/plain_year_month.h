@@ -2,13 +2,12 @@
 // temporal v0.2.3 (c003cc92325e19b26f8ee2f85e4a47d98cbcc781).
 //
 // `PlainYearMonth` is a calendar-aware month within a year (e.g.
-// "January 2024"). Internally stored as an IsoDate (with `day` set to a
-// reference value) plus a Calendar identifier. The day is part of the
-// internal representation per spec but not part of the observable API.
-//
-// Calendar field is forward-declared (calendar.h forthcoming); for now
-// the port handles the ISO calendar path, which is what most callers
-// take.
+// "January 2024"). Internally stored as an IsoDate (with `day` set to
+// a reference value, typically 1) plus a Calendar identifier. The
+// day is part of the internal representation per spec but not part
+// of the observable API. The Calendar slot is carried alongside by
+// the V8 binding; non-ISO calendar arithmetic routes through the
+// registered CalendarBackend (see calendar.h).
 
 #ifndef SRC_SOCKETSECURITY_TEMPORAL_PLAIN_YEAR_MONTH_H_
 #define SRC_SOCKETSECURITY_TEMPORAL_PLAIN_YEAR_MONTH_H_
@@ -24,11 +23,11 @@ namespace node {
 namespace socketsecurity {
 namespace temporal {
 
-// Mirror of upstream's `PlainYearMonth { iso, calendar }`.
+// Mirror of upstream's `PlainYearMonth { iso, calendar }`. Calendar
+// slot is carried alongside by the V8 binding (separate Object slot
+// in JSTemporalPlainYearMonth); the C++ POD here is iso-only.
 struct PlainYearMonth {
   IsoDate iso;
-  // calendar field placeholder (calendar.h forthcoming).
-  // const Calendar* calendar = nullptr;
 
   bool IsValid() const noexcept { return iso.IsValid(); }
 };

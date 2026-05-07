@@ -45,8 +45,8 @@ struct ParsedTime {
 };
 
 // Mirror of upstream's `ParsedDate`. The calendar field is a kind enum
-// representing the IANA Calendar identifier; the full Calendar class is
-// in calendar.cc (forthcoming).
+// (CalendarKind from calendar.h); 0 = ISO. Non-ISO callers attach a
+// full Calendar value alongside via the V8 binding.
 struct ParsedDate {
   ParsedDateRecord record;
   uint8_t calendar_kind = 0;  // 0 = ISO (default)

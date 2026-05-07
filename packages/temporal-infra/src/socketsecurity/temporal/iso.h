@@ -77,12 +77,11 @@ uint8_t ISOWeekOfYear(int32_t year, uint8_t month, uint8_t day) noexcept;
 // (no calendar attached); caller wraps in PlainDate if needed.
 IsoDate BalanceISODate(int32_t year, int32_t month, int32_t day) noexcept;
 
-// Spec: RegulateISODate(year, month, day, overflow)
-// `overflow` is the spec's overflow option: "constrain" (clamps to the
-// nearest valid date) or "reject" (returns IsValid()==false on
-// out-of-range input). For now we expose just the "constrain" path,
-// which is the default for most call sites; "reject" is forthcoming
-// when options.h lands.
+// Spec: RegulateISODate(year, month, day, "constrain")
+// Constrains by clamping each field to its valid range (the spec's
+// `overflow: 'constrain'` mode). The "reject" mode is implemented by
+// each PlainXxxNewWithOverflow caller, which checks IsValid() after
+// raw construction — this helper only handles the constrain path.
 IsoDate RegulateISODateConstrain(int32_t year, int32_t month,
                                  int32_t day) noexcept;
 
@@ -93,12 +92,10 @@ IsoDate RegulateISODateConstrain(int32_t year, int32_t month,
 IsoDate AddISODate(const IsoDate& base, int32_t years, int32_t months,
                    int32_t weeks, int32_t days) noexcept;
 
-// Spec: DifferenceISODate(y1, m1, d1, y2, m2, d2, largestUnit)
-// Returns the calendar difference as (years, months, weeks, days)
-// stored in a Duration with all time-component fields zero. The
-// `largestUnit` parameter controls whether to express the result in
-// days, weeks, months, or years — full implementation lands with the
-// options/units module (forthcoming).
+// Spec: DifferenceISODate(y1, m1, d1, y2, m2, d2, "day")
+// Returns the day-difference as a Duration (only `days` non-zero).
+// year/month/week breakdowns are calendar-aware and route through
+// CalendarDateUntil → the registered CalendarBackend (calendar.h).
 Duration DifferenceISODate(const IsoDate& earlier,
                            const IsoDate& later) noexcept;
 

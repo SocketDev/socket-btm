@@ -20,11 +20,11 @@ namespace node {
 namespace socketsecurity {
 namespace temporal {
 
-// Mirror of upstream's `PlainMonthDay { iso, calendar }`.
+// Mirror of upstream's `PlainMonthDay { iso, calendar }`. Calendar
+// slot is carried alongside by the V8 binding; the C++ POD here is
+// iso-only.
 struct PlainMonthDay {
   IsoDate iso;
-  // calendar field placeholder (calendar.h forthcoming).
-  // const Calendar* calendar = nullptr;
 
   bool IsValid() const noexcept { return iso.IsValid(); }
 };

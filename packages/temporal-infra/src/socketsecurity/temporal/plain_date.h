@@ -3,9 +3,10 @@
 //
 // `PlainDate` is the calendar-aware date wrapper. Internal layout
 // matches upstream 1:1: `PlainDate { iso: IsoDate, calendar: Calendar }`.
-// The Calendar class is forward-declared (calendar.h forthcoming);
-// for now the port handles the ISO calendar path, which is what most
-// callers take.
+// The C++ POD here holds only `iso`; non-ISO calendar values are
+// carried alongside by the V8 binding (separate Object slot).
+// Non-ISO calendar arithmetic routes through the registered
+// CalendarBackend (see calendar.h).
 //
 // `PartialDate` mirrors upstream's `PartialDate` companion struct —
 // optional fields used by `with()` to override individual components.
@@ -25,17 +26,14 @@ namespace node {
 namespace socketsecurity {
 namespace temporal {
 
-// Mirror of upstream's `PartialDate`. Calendar omitted for now (ISO
-// implied); month_code/era/era_year are calendar-extension fields that
-// only apply to non-ISO calendars and remain unbound until calendar.h.
+// Mirror of upstream's `PartialDate`. ISO surface only — non-ISO
+// calendar fields (month_code, era, era_year) are carried by the V8
+// binding alongside this struct, since they only apply to non-ISO
+// calendars and the binding owns the Calendar slot.
 struct PartialDate {
   std::optional<int32_t> year;
   std::optional<uint8_t> month;
   std::optional<uint8_t> day;
-  // Pending calendar.cc:
-  // std::optional<MonthCode> month_code;
-  // std::optional<TinyAsciiStr<19>> era;
-  // std::optional<int32_t> era_year;
 
   bool IsEmpty() const noexcept { return !year && !month && !day; }
 };

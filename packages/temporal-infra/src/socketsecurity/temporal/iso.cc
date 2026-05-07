@@ -231,14 +231,9 @@ static int64_t ToJDN(int32_t year, uint8_t month, uint8_t day) noexcept {
 
 // Spec: DifferenceISODate(y1, m1, d1, y2, m2, d2, "day")
 // Returns the difference as a Duration with only the `days` field set.
-// `largestUnit` ≠ "day" (years/months/weeks) requires calendar-aware
-// handling — that lands with the calendar binding (icu_calendar.cc,
-// forthcoming); the "day" path is enough for the time-difference
-// fallback that most arithmetic routes through.
-//
-// TODO(temporal-port): handle largestUnit ∈ {year, month, week} per
-// https://tc39.es/proposal-temporal/#sec-temporal-differenceisodate.
-// Current behavior: always returns the difference as days.
+// `largestUnit` ∈ {year, month, week} requires calendar-aware
+// handling and routes through CalendarDateUntil (which delegates to
+// the registered CalendarBackend).
 Duration DifferenceISODate(const IsoDate& earlier,
                            const IsoDate& later) noexcept {
   Duration d = {};

@@ -56,11 +56,32 @@ TemporalResult<UtcOffset> UtcOffset::FromUtf8(const uint8_t* data,
   if (hh > 23 || mm > 59 || ss > 59) {
     return TemporalError::Range("UTC offset out of range");
   }
-  // TODO(temporal-port): fractional-second support per RFC 9557 — small
-  // number of zones use it; defer until a real-world need surfaces.
+  // Optional fractional-second part per RFC 9557 (1..9 digits, padded
+  // to 9 to yield nanoseconds).
+  int64_t frac_ns = 0;
+  if (i < length && (data[i] == '.' || data[i] == ',')) {
+    ++i;
+    int read = 0;
+    while (read < 9 && i < length && data[i] >= '0' && data[i] <= '9') {
+      frac_ns = frac_ns * 10 + (data[i] - '0');
+      ++read;
+      ++i;
+    }
+    if (read == 0) {
+      return TemporalError::Range("UTC offset fraction has no digits");
+    }
+    // Pad to 9 digits.
+    for (int p = read; p < 9; ++p) {
+      frac_ns *= 10;
+    }
+  }
+  if (i != length) {
+    return TemporalError::Range("Trailing garbage after UTC offset");
+  }
   const int64_t total_seconds = static_cast<int64_t>(hh) * 3600 +
                                  static_cast<int64_t>(mm) * 60 + ss;
-  return UtcOffset(sign * total_seconds * 1'000'000'000LL);
+  return UtcOffset(sign *
+                   (total_seconds * 1'000'000'000LL + frac_ns));
 }
 
 std::string UtcOffset::ToString() const {

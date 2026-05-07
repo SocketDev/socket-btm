@@ -20,8 +20,9 @@ TemporalError ErrorFromStatus(ParseStatus status) noexcept {
     case ParseStatus::kInvalid:
       return TemporalError::Range("Invalid IXDTF string");
     case ParseStatus::kUnsupported:
-      return TemporalError::Range(
-          "IXDTF feature not yet supported by this parser");
+      // Reserved status; the parser doesn't currently produce it, but
+      // the switch arm is exhaustive for future-proofing.
+      return TemporalError::Range("IXDTF feature not supported");
   }
   return TemporalError::Generic("Unknown parse error");
 }

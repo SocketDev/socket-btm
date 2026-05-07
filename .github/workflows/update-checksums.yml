@@ -73,8 +73,40 @@ jobs:
           # workflow logs. One-shot URLs never touch .git/config.
           git add packages/build-infra/release-assets.json
           git commit -m "chore: update release checksums"
-          git pull --rebase origin main
-          git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" HEAD:main
+
+          # Retry-on-race: even with the workflow-level concurrency
+          # group serializing update-checksums, a parallel push from a
+          # human (or another workflow that bumps unrelated files,
+          # e.g. cascade-tooling) can land between our `pull --rebase`
+          # and `push`, causing a non-fast-forward rejection. Retry
+          # the rebase+push up to N times with a brief backoff before
+          # giving up. The change is idempotent (we only commit the
+          # new release-assets.json), so re-rebasing is safe.
+          PUSH_URL="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          MAX_ATTEMPTS=5
+          for attempt in $(seq 1 $MAX_ATTEMPTS); do
+            git pull --rebase origin main
+            if git push "$PUSH_URL" HEAD:main 2>&1 | tee /tmp/push-output.log; then
+              echo "Push succeeded on attempt $attempt"
+              exit 0
+            fi
+            # Only retry on non-fast-forward (the race we care about).
+            # Other errors (auth, network) won't recover via retry.
+            if ! grep -q "rejected.*fetch first\|non-fast-forward" /tmp/push-output.log; then
+              echo "Push failed for non-race reason; not retrying"
+              exit 1
+            fi
+            if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+              # Linear backoff: 2s, 4s, 6s, 8s. Total worst-case
+              # window of 20s before giving up — still well under
+              # the 10-minute job timeout, leaves plenty of headroom
+              # for the actual rebase work each iteration.
+              sleep $((attempt * 2))
+              echo "Race detected; rebasing and retrying ($((attempt + 1))/$MAX_ATTEMPTS)"
+            fi
+          done
+          echo "Push failed after $MAX_ATTEMPTS attempts; main is still moving"
+          exit 1
 
       - uses: SocketDev/socket-registry/.github/actions/cleanup-git-signing@ba3d42dec13db8da746d695aac12f0d7d47f8719 # main
         if: always()

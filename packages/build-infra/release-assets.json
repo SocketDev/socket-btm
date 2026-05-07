@@ -3,27 +3,27 @@
   "$comment": "SHA-256 checksums for GitHub release assets. Run 'pnpm --filter build-infra update-checksums' to update.",
   "binflate": {
     "description": "Binary decompression tool",
-    "tag": "binflate-20260426-286c927",
+    "tag": "binflate-20260507-f5d79e6",
     "checksums": {
-      "binflate-darwin-arm64": "9c1c39e141fa17be9e36c6108b620c01b1696382adbe54a662b7c6c1e513ea2f",
-      "binflate-darwin-x64": "ee8942ed6bee4a4a1ad5a478f177bb2cff27bd2ac105a01bdf882bbfe30802d0",
-      "binflate-linux-arm64": "c95314a3bfdcf8fbfd59749894f209d9d156c9e506c5ea7420d4ee6e54cd232e",
-      "binflate-linux-arm64-musl": "6e32444b0e3fe6c616f98badf7cab956c4dd789a157eef036ff19005eb5c5416",
-      "binflate-linux-x64": "8a1b1245eee28684fbf00fbad563b64b94d55121e82c3bc66bd54f82d2ae367e",
-      "binflate-linux-x64-musl": "5cb24ce7d08a0320bb7510a9c3ec909985916c133707436660d50330036430c7",
-      "binflate-win-arm64.exe": "874d221c11537aeb9ce2d6b72a0c0a87f7888fcaa9ffd1da8606b37c143e8d3c",
-      "binflate-win-x64.exe": "9db6ff1b9f958acec2cbb9adf7d31521107a7ed1310908354e5c42ec2ecd5ffa"
+      "binflate-darwin-arm64": "5c1728c8d0727db69c165cc1ae2cb7b078ce0100a480805b2c0dbd5fd7782a5b",
+      "binflate-darwin-x64": "c2c11553cb420bac56f696e86d798e360910d41482822c3a36b9ece6275bb2b8",
+      "binflate-linux-arm64": "184bf4b56e649e643600d4bfa48d4c494de3c25b6b48b5040d9092a9375884c2",
+      "binflate-linux-arm64-musl": "21268943888c2e5eb1c5596f42d67735fadf2a1b658b4dfba1ff5cb5b3fbe1fe",
+      "binflate-linux-x64": "8fd36bd99bfbd578ab260901469040b05e199f792c9ed244bba6e25ccd834ff3",
+      "binflate-linux-x64-musl": "b4043341e38a426c8253d5008fce1b647f5c4247347e78277ffe70785441bf5c",
+      "binflate-win32-arm64.exe": "dd7a1838a7fb787cd7af04f57201236247c3a27f7068b1106ed2c95265c2f136",
+      "binflate-win32-x64.exe": "a30ad3645768cd27492723356bfc00e6f82fb9f34f62688aaad0313377b416a2"
     }
   },
   "binject": {
     "description": "Binary injection tool for SEA resources",
-    "tag": "binject-20260426-286c927",
+    "tag": "binject-20260507-f5d79e6",
     "checksums": {
-      "binject-darwin-arm64": "657da22e51ec8eeab15a62e5891d065e3b96bc23741fb0932da77e295bb60205",
-      "binject-linux-arm64": "32127fa7c5d4a3305177cdcab0e05f8441477003a11e78114f0ca052a9f8d40a",
-      "binject-linux-arm64-musl": "53e65b2ef0b1d3de00d21d8292f777b94edd4711bf358ac9a432a138c3982295",
-      "binject-linux-x64": "888747c33f75236f6cdb4ed4cc5c6b77fef8df023e211988660c2949efc0fb9b",
-      "binject-linux-x64-musl": "2386d7c3b38304d83a86487d2689b3ddf39c63b4f1d6dd3ff326d5fe26a68d30"
+      "binject-darwin-arm64": "f3320c0b3e5081df546e84d1aaadd16cf3d85b5cfc4cd07e815ee09962756f1d",
+      "binject-darwin-x64": "a54180352193095c07ba49eae9773a92c942e5548b8b07b53f1bdbcd758316ee",
+      "binject-linux-arm64-musl": "3d838b8ad44ef9132b75494089b930c6fe0c72a1ab104b1b10482ee2d08355a6",
+      "binject-linux-x64": "0dc6d3bf1c1f75a9ac1fbe4afda9df6a541fe667a9348f8c191c3215fa1c6579",
+      "binject-linux-x64-musl": "fa392d9486cb641189c213ed0d2ce7aa12daff7b729e8425fce5c591e2be3d87"
     }
   },
   "binpress": {
@@ -75,16 +75,16 @@
   },
   "lief": {
     "description": "LIEF binary manipulation library",
-    "tag": "lief-20260507-9e0b281",
+    "tag": "lief-20260507-216e4ca",
     "checksums": {
-      "lief-darwin-arm64.tar.gz": "f738d7b239951a2821776e0d8e3fadb7e30dd3df96fd32e02f632c1b384b563b",
-      "lief-darwin-x64.tar.gz": "446bd38e90e26b10a490b5ca17d2e476fa659ccbab6ccd1e48722ecbaf2f2163",
-      "lief-linux-arm64-musl.tar.gz": "7d1d9ea750f07047be6881a10fdf516fa2365f1d4e06cf19105e6d1a6a90ae38",
-      "lief-linux-arm64.tar.gz": "a7ee5cba8e840eb68be3d0c9df60ed39cbeb267f9c2fbaf59ab27922e8a72a20",
-      "lief-linux-x64-musl.tar.gz": "e1ad36bb38f69d5abf3e7ab1f84a2d95eab4221a5e5297988859c06d71157fff",
-      "lief-linux-x64.tar.gz": "1cabf6170975b097564c176ac3c29ed2885bd828d8414319168db46aae68220d",
-      "lief-win-arm64.tar.gz": "6b5550434cc9f7882d83f9909520ce4ed52e305fafd49565abc1a66099f33bc2",
-      "lief-win-x64.tar.gz": "8818be5471e88735a0578c84cc18a2125fbdd1f05c38bee002d5d9548a25ff69"
+      "lief-darwin-arm64.tar.gz": "7e7963e97190213f1835f4967cd513e9dc2ad759e50d466c8838464010d9ad2e",
+      "lief-darwin-x64.tar.gz": "418507ea8e312f2a3375ef9924bfb78bb6e5fb8aa08029de469b6f2eba06beff",
+      "lief-linux-arm64-musl.tar.gz": "74c551233aab9a35261fd9054b4e99e1701e091261cc1c310827f8eeebfdd219",
+      "lief-linux-arm64.tar.gz": "b52e2fa2489ac43387ddfadc412e83bc366c20cbdd5b73c8425e2d6c673d0612",
+      "lief-linux-x64-musl.tar.gz": "d0ab656ded77909e01bbc8d65f1abb457ae20038d15a983949ea1b36fec83f5c",
+      "lief-linux-x64.tar.gz": "3fa95b48d5c8f0aadf52c2e8507e276cdac9fd0a0f5131e2da53cb4dd14ef366",
+      "lief-win32-arm64.tar.gz": "70db74ce9e2fd05a860fa1402d090a7b889758ac06d5846ad7fd2e3b808d1e7e",
+      "lief-win32-x64.tar.gz": "40672aeafe54f457be75bcb29dbdfdf7dd4916fe7d5fbe3c398b4b64e3e3d455"
     }
   },
   "models": {

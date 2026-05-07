@@ -2,6 +2,10 @@
 // node::socketsecurity::temporal::Duration. Diplomat-shaped: factories
 // return result<unique_ptr<Duration>, TemporalError>; the class itself
 // is non-copyable / non-movable.
+//
+// `temporal_rs::` is preserved as the V8-facing namespace name even
+// though there's no Rust in this layer — see README.md for the
+// rationale.
 
 #ifndef TEMPORAL_RS_COMPAT_DURATION_HPP_
 #define TEMPORAL_RS_COMPAT_DURATION_HPP_

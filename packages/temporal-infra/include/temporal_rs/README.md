@@ -7,6 +7,26 @@ bindings shipped with the `temporal_rs` Rust crate at
 headers; pointing the gyp `include_dirs` here instead lets V8 compile against
 our temporal-infra C++ port and drop the rustc/cargo build dependency.
 
+## Why the `temporal_rs` name (no Rust here)
+
+There's no Rust in this layer — the headers are 100% hand-written C++ that
+delegate to `node::socketsecurity::temporal::` (our idiomatic C++ port at
+`packages/temporal-infra/src/socketsecurity/temporal/`). No FFI, no diplomat
+runtime, no `cargo` invocation anywhere in the build chain.
+
+The `temporal_rs::` namespace is preserved as the **ABI surface V8 expects** —
+upstream V8's `js-temporal-objects.cc` hard-codes `temporal_rs::Instant`,
+`temporal_rs::PlainDate`, etc. across ~459 call sites. Renaming would mean
+forking that file or carrying a ~459-line patch on every V8 rebase. Keeping
+the name keeps the patch surface minimal: one gyp include-path flip + a few
+configure.py / Dockerfile cleanups (patches 037, 038).
+
+So read `temporal_rs::` here as "the V8-facing adapter shape, named after
+the diplomat layout V8 was generated against" — not "the Rust crate." The
+two-namespace separation is structural: `socketsecurity::temporal::PlainDate`
+is a POD value type used by the algorithm port; `temporal_rs::PlainDate` is
+the heap-owned diplomat-shaped class V8 calls. Different shapes by design.
+
 ## Status
 
 **Phase 10a — foundation:**

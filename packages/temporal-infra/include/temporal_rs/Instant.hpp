@@ -4,6 +4,11 @@
 // so this class is non-copyable/non-movable; callers receive
 // `unique_ptr` from the static factories.
 //
+// `temporal_rs::` is preserved as the V8-facing namespace name even
+// though there's no Rust in this layer — see README.md for the
+// rationale (it's the ABI shape V8's js-temporal-objects.cc was
+// generated against; renaming would mean a ~459-line V8 patch).
+//
 // Phase 10a covers: try_new, from_epoch_milliseconds, from_utf8,
 // from_utf16, epoch_milliseconds, epoch_nanoseconds, equals,
 // compare, clone. Methods that depend on the unported V8/ICU

@@ -1,0 +1,272 @@
+# @node-versions: v26.1.0
+# @description: Add --with-postgres/--with-iouring/--with-dawn/--with-{node,smol}-quic/--with-smol-http3/--without-smol-tui configure options + drop cargo gate + gate trimmed smol JS wrappers out of the builtins snapshot
+#
+# Adds configure options for building Node.js with PostgreSQL support
+# and optional io_uring acceleration (both disabled by default).
+# PostgreSQL requires libpq bundled in deps/libpq; io_uring is Linux-only
+# and requires liburing.
+#
+# Adds three QUIC/HTTP3 toggles replacing the single --experimental-quic
+# switch:
+#
+#   --with-node-quic     (default false): upstream's ngtcp2 stack +
+#                                         node:quic builtin.
+#   --with-smol-quic     (default true):  socket-btm's lsquic stack +
+#                                         node:smol-quic builtin.
+#   --with-smol-http3    (default true):  http3 binding glue +
+#                                         node:smol-http3 builtin
+#                                         (depends on smol-quic).
+#
+# Implication rules: --without-smol-quic with --with-smol-http3 errors;
+# --without-ssl forces all three off; --experimental-quic stays as a
+# back-compat alias for --with-node-quic.
+#
+# Adds --without-smol-tui (default enabled) gating the tui-infra C++ port
+# + Yoga 3.2.1 layout engine + node:smol-tui builtin. When disabled the
+# tui sources and Yoga sources are excluded from the build graph and the
+# binding is not registered.
+#
+# Also disables the upstream cargo/rustc gate — Temporal is provided via
+# the C++ shim in temporal-infra, so the build does not need a Rust
+# toolchain.
+#
+--- a/configure.py
++++ b/configure.py
+@@ -1059,11 +1059,99 @@ parser.add_argument('--without-ffi',
+     default=None,
+     help='build without FFI (Foreign Function Interface) support')
+ 
++parser.add_argument('--with-postgres',
++    action='store_true',
++    dest='with_postgres',
++    default=None,
++    help='build with PostgreSQL (enables PostgreSQL in node:sql API, requires libpq)')
++
++parser.add_argument('--with-iouring',
++    action='store_true',
++    dest='with_iouring',
++    default=None,
++    help='build with io_uring support (Linux only, requires liburing)')
++
++parser.add_argument('--with-dawn',
++    action='store_true',
++    dest='with_dawn',
++    default=None,
++    help='build with Dawn WebGPU (enables WebGPU API, requires libwebgpu_dawn from dawn-builder)')
++
+ parser.add_argument('--experimental-quic',
+     action='store_true',
+     dest='experimental_quic',
+     default=None,
+-    help='build with experimental QUIC support')
++    help='alias for --with-node-quic (upstream ngtcp2 QUIC)')
++
++parser.add_argument('--with-node-quic',
++    action='store_true',
++    dest='with_node_quic',
++    default=None,
++    help='build upstream Node QUIC (ngtcp2 + node:quic, default off)')
++
++parser.add_argument('--without-smol-quic',
++    action='store_true',
++    dest='without_smol_quic',
++    default=None,
++    help='disable socket-btm lsquic + node:smol-quic (default enabled)')
++
++parser.add_argument('--without-smol-http3',
++    action='store_true',
++    dest='without_smol_http3',
++    default=None,
++    help='disable socket-btm http3 + node:smol-http3 (default enabled)')
++
++parser.add_argument('--without-smol-tui',
++    action='store_true',
++    dest='without_smol_tui',
++    default=None,
++    help='disable tui-infra + Yoga + node:smol-tui (default enabled)')
++
++# Socket Security: per-subsystem smol toggles (all default enabled). The bundle
++# feature detector (node-smol-builder/scripts/detect-bundle-features.mts) emits
++# the matching flag to drop whatever a given SEA bundle does not reference. Each
++# gates the like-named node_use_smol_* gyp var in node.gyp.
++parser.add_argument('--without-smol-http',
++    action='store_true',
++    dest='without_smol_http',
++    default=None,
++    help='disable uWebSockets server + node:smol-http (default enabled)')
++
++parser.add_argument('--without-smol-ffi',
++    action='store_true',
++    dest='without_smol_ffi',
++    default=None,
++    help='disable node:smol-ffi (default enabled)')
++
++parser.add_argument('--without-smol-ilp',
++    action='store_true',
++    dest='without_smol_ilp',
++    default=None,
++    help='disable node:smol-ilp (default enabled)')
++
++parser.add_argument('--without-smol-keymap',
++    action='store_true',
++    dest='without_smol_keymap',
++    default=None,
++    help='disable node:smol-keymap (default enabled)')
++
++parser.add_argument('--without-smol-qrcode',
++    action='store_true',
++    dest='without_smol_qrcode',
++    default=None,
++    help='disable node:smol-qrcode + libqrencode (default enabled)')
++
++parser.add_argument('--without-smol-markdown',
++    action='store_true',
++    dest='without_smol_markdown',
++    default=None,
++    help='disable node:smol-markdown + md4c (default enabled)')
++
++parser.add_argument('--without-smol-treesitter',
++    action='store_true',
++    dest='without_smol_treesitter',
++    default=None,
++    help='disable node:smol-tree-sitter (default enabled)')
+ 
+ parser.add_argument('--ninja',
+     action='store_true',
+@@ -1576,8 +1664,8 @@ def check_compiler(o):
+ 
+   o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else '0.0'
+ 
+-  # cargo and rustc are needed for Temporal.
+-  if not options.v8_disable_temporal_support and not options.shared_temporal_capi:
++  # cargo/rustc gate disabled — Temporal backed by temporal-infra C++ shim (patches 004 + 021).
++  if False:
+     # Minimum cargo and rustc versions should match values in BUILDING.md.
+     min_cargo_ver_tuple = (1, 82)
+     min_rustc_ver_tuple = (1, 82)
+@@ -1801,7 +1889,46 @@ def gcc_version_ge(version_checked):
+   return True
+ 
+ def configure_node_lib_files(o):
+-  o['variables']['node_library_files'] = SearchFiles('lib', 'js')
++  files = SearchFiles('lib', 'js')
++
++  # Socket Security: when a smol subsystem is trimmed out (its native binding
++  # gated off the build), also drop its JS wrapper(s) from the builtins snapshot.
++  # Otherwise the wrapper stays a builtin — isBuiltin('node:smol-X') reports
++  # true and require() loads a wrapper whose native binding is gone. Gating the
++  # wrapper here keeps the trim honest: a dropped feature is simply not a builtin.
++  #
++  # Declarative map: (disabled?, [lib/ path stems to remove]). A stem matches the
++  # wrapper file `lib/<stem>.js` AND any subpath module under `lib/<stem>/`
++  # (e.g. smol-ffi → smol-ffi.js + smol-ffi/{node,bun}.js). Only gated subsystems
++  # appear here; always-on wrappers (smol-util/power/primordial/vfs/versions/
++  # manifest/purl/sql/webgpu/https) are never dropped. Keep in lockstep with the
++  # node_use_smol_* gyp gates in node.gyp (patches 004/018).
++  use_smol_quic = not bool(options.without_smol_quic) and not bool(options.without_ssl)
++  smol_wrapper_gates = [
++    (not use_smol_quic,                      ['smol-quic']),
++    (bool(options.without_smol_http),        ['smol-http']),
++    (bool(options.without_smol_tui),         ['smol-tui']),
++    (bool(options.without_smol_keymap),      ['smol-keymap']),
++    (bool(options.without_smol_ffi),         ['smol-ffi']),
++    (bool(options.without_smol_ilp),         ['smol-ilp']),
++    (bool(options.without_smol_treesitter),  ['smol-tree-sitter']),
++    (bool(options.without_smol_qrcode),      ['smol-qrcode']),
++    (bool(options.without_smol_markdown),    ['smol-markdown']),
++  ]
++  drop_stems = []
++  for disabled, stems in smol_wrapper_gates:
++    if disabled:
++      drop_stems += stems
++  if drop_stems:
++    def keep(path):
++      # path is POSIX 'lib/...'; drop 'lib/<stem>.js' and 'lib/<stem>/...'.
++      for stem in drop_stems:
++        if path == 'lib/' + stem + '.js' or path.startswith('lib/' + stem + '/'):
++          return False
++      return True
++    files = [f for f in files if keep(f)]
++
++  o['variables']['node_library_files'] = files
+ 
+ def configure_node_cctest_sources(o):
+   o['variables']['node_cctest_sources'] = [ 'src/node_snapshot_stub.cc' ] + \
+@@ -2349,9 +2476,63 @@ def configure_ffi(o):
+ 
+   configure_library('ffi', o, pkgname='libffi')
+ 
++def configure_postgres(o):
++  # Socket Security: PostgreSQL is disabled by default (requires libpq).
++  o['variables']['node_use_postgres'] = b(options.with_postgres)
++
++def configure_iouring(o):
++  # Socket Security: io_uring is disabled by default (Linux only, requires liburing).
++  o['variables']['node_use_iouring'] = b(options.with_iouring)
++
++def configure_dawn(o):
++  # Socket Security: Dawn WebGPU is disabled by default (requires
++  # libwebgpu_dawn from dawn-builder).
++  o['variables']['node_use_dawn'] = b(options.with_dawn)
++
++def configure_smol_tui(o):
++  # Socket Security: tui-infra + Yoga + node:smol-tui (default enabled).
++  o['variables']['node_use_smol_tui'] = b(not options.without_smol_tui)
++
++def configure_smol_extras(o):
++  # Socket Security: per-subsystem smol toggles (all default enabled). Each gates
++  # the like-named node_use_smol_* condition in node.gyp, which references these
++  # unconditionally, so they MUST always be set here.
++  o['variables']['node_use_smol_http'] = b(not options.without_smol_http)
++  o['variables']['node_use_smol_ffi'] = b(not options.without_smol_ffi)
++  o['variables']['node_use_smol_ilp'] = b(not options.without_smol_ilp)
++  o['variables']['node_use_smol_keymap'] = b(not options.without_smol_keymap)
++  o['variables']['node_use_smol_qrcode'] = b(not options.without_smol_qrcode)
++  o['variables']['node_use_smol_markdown'] = b(not options.without_smol_markdown)
++  o['variables']['node_use_smol_treesitter'] = b(not options.without_smol_treesitter)
++
+ def configure_quic(o):
+-  o['variables']['node_use_quic'] = b(options.experimental_quic and
+-                                      not options.without_ssl)
++  # Socket Security: three independent QUIC stacks.
++  #
++  #   use_node_quic   gates upstream's src/quic/*.cc + deps/ngtcp2 + deps/nghttp3
++  #                   + node:quic builtin. Default off — files stay on disk but
++  #                   are excluded from the build graph.
++  #
++  #   use_smol_quic   gates packages/lsquic-infra (lsquic + ls-qpack) +
++  #                   node:smol-quic builtin. Default on.
++  #
++  #   use_smol_http3  gates the http3 binding glue + node:smol-http3 builtin.
++  #                   Default on. Requires use_smol_quic.
++  use_node_quic   = bool(options.with_node_quic or options.experimental_quic)
++  use_smol_quic   = not bool(options.without_smol_quic)
++  use_smol_http3  = not bool(options.without_smol_http3)
++  if use_smol_http3 and not use_smol_quic:
++    raise Exception(
++      '--without-smol-quic conflicts with --with-smol-http3 '
++      '(HTTP/3 requires QUIC). Pass --without-smol-http3 too.')
++  if options.without_ssl:
++    use_node_quic = use_smol_quic = use_smol_http3 = False
++  # Legacy node_use_quic stays in sync with node_use_node_quic so
++  # third-party gyp files keep working; node.gyp itself now gates on
++  # node_use_node_quic (paired wiring in the node.gyp source-list patch).
++  o['variables']['node_use_quic']       = b(use_node_quic)
++  o['variables']['node_use_node_quic']  = b(use_node_quic)
++  o['variables']['node_use_smol_quic']  = b(use_smol_quic)
++  o['variables']['node_use_smol_http3'] = b(use_smol_http3)
+ 
+ def configure_static(o):
+   if options.fully_static or options.partly_static:
+@@ -2805,6 +2986,11 @@ configure_library('ngtcp2', output, pkgname='libngtcp2')
+ configure_lief(output);
+ configure_sqlite(output);
+ configure_ffi(output);
++configure_postgres(output);
++configure_iouring(output);
++configure_dawn(output);
++configure_smol_tui(output);
++configure_smol_extras(output);
+ configure_library('temporal_capi', output)
+ configure_library('uvwasi', output)
+ configure_library('zstd', output, pkgname='libzstd')

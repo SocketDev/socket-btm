@@ -1,0 +1,10 @@
+{
+  "$schema": "./socket-wheelhouse-schema.json",
+  "schemaVersion": 1,
+  "repoName": "socket-btm",
+  "layout": "monorepo",
+  "native": "producer",
+  "capabilities": {
+    "cargo": ["packages/*-builder"]
+  }
+}

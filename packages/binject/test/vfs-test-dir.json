@@ -1,0 +1,10 @@
+{
+  "output": "test-blob.bin",
+  "main": "index.js",
+  "smol": {
+    "vfs": {
+      "mode": "on-disk",
+      "source": "vfs-test/node_modules"
+    }
+  }
+}

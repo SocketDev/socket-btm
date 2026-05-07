@@ -1,0 +1,550 @@
+name: SMOL 1. ultraviolet
+
+# ultraviolet publish workflow. Builds Charmbracelet Ultraviolet Go
+# bindings into a Node-API .node addon per platform-arch via the
+# napi-go-infra build driver.
+#
+# Templated from .github/workflows/libpq.yml with these adaptations:
+#   - Go toolchain (actions/setup-go) replaces CMake-native toolchain
+#   - Output artifact is a per-platform .node addon (not .a + headers)
+#   - Output path is lib/<platformArch>/ultraviolet.node (not
+#     build/<mode>/<platformArch>/out/Final/<name>/)
+#   - Submodule path is packages/ultraviolet-builder/upstream/ultraviolet
+#   - Archive contains just ultraviolet.node (no headers to ship)
+#
+# Consumed by: anything that loads ultraviolet.node — bubbletea v2
+# decoder bindings exposed via lib/ensure-ultraviolet.mts.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      build-mode:
+        description: 'Build mode'
+        type: choice
+        options:
+          - prod
+          - dev
+        default: prod
+      debug:
+        description: 'Debug (0|1|namespace[,...])'
+        type: string
+        default: '0'
+  workflow_call:
+    inputs:
+      dry-run:
+        type: boolean
+        default: true
+      force:
+        type: boolean
+        default: false
+      build-mode:
+        type: string
+        default: prod
+      debug:
+        type: string
+        default: '0'
+
+permissions:
+  contents: read
+
+env:
+  HOMEBREW_NO_ANALYTICS: '1'
+  # Pinned in packages/ultraviolet-builder/external-tools.json and
+  # packages/napi-go-infra/external-tools.json. Keep this string in
+  # sync with both manifests; check-publish-prereq.mts gates drift.
+  GO_VERSION: '1.25.3'
+  # Socket Firewall terminates TLS for proxy.golang.org / sum.golang.org
+  # and `golang.org/x/<module>?go-get=1` discovery endpoints. Two layers
+  # of mitigation are needed:
+  #
+  #   1. GOPROXY=direct — skip the proxy.golang.org TLS hop that fails
+  #      with "SSL alert 42 bad certificate" on both darwin and linux
+  #      runners. Direct fetches go straight to github.com/* clones,
+  #      which SFW handles cleanly via its github.com bypass.
+  #
+  #   2. GOINSECURE=* — even with GOPROXY=direct, Go still resolves the
+  #      `golang.org/x/<mod>?go-get=1` redirect to discover the source
+  #      repo, and that discovery URL hits SFW's TLS-MITM. Skip cert
+  #      verification on these hosts; integrity stays guaranteed by the
+  #      in-tree go.sum file. SFW still inspects the body for the
+  #      supply-chain malware scan.
+  #
+  #   3. GOSUMDB=off — sum.golang.org is similarly intercepted; go.sum
+  #      is the authoritative integrity record for this build.
+  GOPROXY: direct
+  GOINSECURE: '*'
+  GOSUMDB: 'off'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-ultraviolet:
+    permissions:
+      contents: read
+    name: ultraviolet / ${{ matrix.platform }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS builds — depot-macos-15 = 8 vCPU M2, 24GB RAM.
+          - runner: depot-macos-15
+            platform: darwin
+            arch: arm64
+            os: macos
+          - runner: depot-macos-15
+            platform: darwin
+            arch: x64
+            os: macos
+          # Linux (glibc).
+          - runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            os: linux
+            libc: glibc
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            os: linux
+            libc: glibc
+          # No Windows matrix — napi-go-infra's reference build driver
+          # currently only supports POSIX C compilers (clang/gcc).
+          # Windows builds error with:
+          #   napi-go: Windows builds are not yet supported by the
+          #   reference build driver. Set NAPI_GO_CC to a working C
+          #   compiler, or contribute MSVC support.
+          # Add Windows here once napi-go-infra grows MSVC support OR
+          # we wire up clang-cl via NAPI_GO_CC.
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (2026-05-15)
+        with:
+          persist-credentials: false
+          submodules: false
+
+      - name: Enable debug logging
+        uses: ./.github/actions/enable-debug-logging
+        with:
+          debug: ${{ inputs.debug }}
+
+      - uses: SocketDev/socket-registry/.github/actions/setup@f58e7ae37e486876c326366668e1b2a90ce193c3 # main (2026-06-01)
+      - uses: SocketDev/socket-registry/.github/actions/install@f58e7ae37e486876c326366668e1b2a90ce193c3 # main (2026-06-01)
+
+      - name: Load cache version from centralized config
+        id: cache-version
+        uses: ./.github/actions/load-cache-version
+        with:
+          package-name: ultraviolet
+
+      - name: Generate ultraviolet cache key
+        id: cache-key
+        env:
+          CACHE_VERSION: ${{ steps.cache-version.outputs.version }}
+        shell: bash
+        run: |
+          if command -v shasum &> /dev/null; then
+            hash_cmd="shasum -a 256"
+          elif command -v sha256sum &> /dev/null; then
+            hash_cmd="sha256sum"
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+
+          # Hash critical inputs. ultraviolet-builder consumes
+          # napi-go-infra, so its scripts/ + lib/ + external-tools.json
+          # all participate in the cache key.
+          BUILD_SCRIPTS_HASH=$(find packages/ultraviolet-builder/scripts -type f 2>/dev/null | LC_COLLATE=C sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          BUILD_SRC_HASH=$(find packages/ultraviolet-builder/src -type f 2>/dev/null | LC_COLLATE=C sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          NAPI_GO_HASH=$(find packages/napi-go-infra/cli -type f 2>/dev/null | LC_COLLATE=C sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          BUILD_INFRA_LIB=$(find packages/build-infra/lib -type f 2>/dev/null | LC_COLLATE=C sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          BIN_INFRA_LIB=$(find packages/bin-infra/lib -type f 2>/dev/null | LC_COLLATE=C sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          BUILD_INFRA_EXTERNAL_TOOLS=$($hash_cmd packages/build-infra/external-tools.json 2>/dev/null | cut -d' ' -f1)
+          ULTRAVIOLET_EXTERNAL_TOOLS=$($hash_cmd packages/ultraviolet-builder/external-tools.json 2>/dev/null | cut -d' ' -f1)
+          NAPI_GO_EXTERNAL_TOOLS=$($hash_cmd packages/napi-go-infra/external-tools.json 2>/dev/null | cut -d' ' -f1)
+          PNPM_LOCK_HASH=$($hash_cmd pnpm-lock.yaml 2>/dev/null | cut -d' ' -f1)
+          NODE_VERSION_HASH=$($hash_cmd .node-version 2>/dev/null | cut -d' ' -f1)
+          # Submodule SHA — read via git ls-tree HEAD so cache-key
+          # computes WITHOUT requiring the submodule to be initialized.
+          ULTRAVIOLET_SUBMODULE_SHA=$(git ls-tree HEAD packages/ultraviolet-builder/upstream/ultraviolet 2>/dev/null | awk '{print $3}')
+          ROOT_PACKAGE_JSON=$($hash_cmd package.json 2>/dev/null | cut -d' ' -f1)
+          PNPM_WORKSPACE=$($hash_cmd pnpm-workspace.yaml 2>/dev/null | cut -d' ' -f1)
+          ULTRAVIOLET_PACKAGE_JSON=$($hash_cmd packages/ultraviolet-builder/package.json 2>/dev/null | cut -d' ' -f1)
+          NAPI_GO_PACKAGE_JSON=$($hash_cmd packages/napi-go-infra/package.json 2>/dev/null | cut -d' ' -f1)
+          # Socket-registry propagation SHA.
+          WORKFLOW_FILE="${GITHUB_WORKFLOW_REF%@*}"
+          WORKFLOW_FILE="${WORKFLOW_FILE#${GITHUB_REPOSITORY}/}"
+          SOCKET_REGISTRY_SHA=$(grep -ohE 'SocketDev/socket-registry/[^@]+@[0-9a-f]{40}' "$WORKFLOW_FILE" 2>/dev/null | head -1 | grep -oE '[0-9a-f]{40}$' || echo "")
+
+          FINAL_HASH=$(echo "${CACHE_VERSION}${BUILD_SCRIPTS_HASH}${BUILD_SRC_HASH}${NAPI_GO_HASH}${BUILD_INFRA_LIB}${BIN_INFRA_LIB}${BUILD_INFRA_EXTERNAL_TOOLS}${ULTRAVIOLET_EXTERNAL_TOOLS}${NAPI_GO_EXTERNAL_TOOLS}${PNPM_LOCK_HASH}${NODE_VERSION_HASH}${ULTRAVIOLET_SUBMODULE_SHA}${ROOT_PACKAGE_JSON}${PNPM_WORKSPACE}${ULTRAVIOLET_PACKAGE_JSON}${NAPI_GO_PACKAGE_JSON}${SOCKET_REGISTRY_SHA}" | $hash_cmd | cut -d' ' -f1)
+
+          echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
+          echo "final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
+          echo "Cache key hash: ${FINAL_HASH}"
+
+      - name: Set build mode
+        id: build-mode
+        uses: ./.github/actions/set-build-mode
+        with:
+          build-mode: ${{ inputs['build-mode'] }}
+
+      - name: Set platform-arch for cache
+        id: platform-arch-cache
+        uses: ./.github/actions/set-platform-arch
+        with:
+          platform: ${{ matrix.platform }}
+          arch: ${{ matrix.arch }}
+          libc: ${{ matrix.libc }}
+
+      # Hoist canonical ultraviolet paths into step outputs.
+      #
+      # ultraviolet-builder's output layout differs from CMake builders
+      # like libpq/lief — buildNapiGoAddon writes the .node directly to
+      # outDir (lib/<platformArch>/), not under build/<mode>/.../Final/.
+      # The build/<mode>/<platformArch>/ tree is still used for the
+      # checkpoints cache by convention.
+      - name: Compute ultraviolet paths
+        id: paths
+        shell: bash
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          PLATFORM_ARCH: ${{ steps.platform-arch-cache.outputs.platform_arch }}
+        run: |
+          PACKAGE_DIR="packages/ultraviolet-builder"
+          MODE_BUILD_DIR="${PACKAGE_DIR}/build/${BUILD_MODE}"
+          PLATFORM_BUILD_DIR="${MODE_BUILD_DIR}/${PLATFORM_ARCH}"
+          OUT_DIR="${PACKAGE_DIR}/lib/${PLATFORM_ARCH}"
+          CHECKPOINTS_DIR="${PLATFORM_BUILD_DIR}/checkpoints"
+          {
+            echo "package_dir=${PACKAGE_DIR}"
+            echo "mode_build_dir=${MODE_BUILD_DIR}"
+            echo "platform_build_dir=${PLATFORM_BUILD_DIR}"
+            echo "out_dir=${OUT_DIR}"
+            echo "checkpoints_dir=${CHECKPOINTS_DIR}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Restore ultraviolet checkpoint cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5 (2026-05-15)
+        id: ultraviolet-checkpoint-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: |
+            packages/ultraviolet-builder/build/shared/checkpoints
+            ${{ steps.paths.outputs.checkpoints_dir }}
+            ${{ steps.paths.outputs.out_dir }}
+          key: ultraviolet-checkpoints-${{ steps.cache-key.outputs.cache_version }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.final_hash }}
+
+      - name: Set checkpoint chain for build mode
+        id: checkpoint-chain
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        shell: bash
+        run: |
+          CHAIN=$(node packages/ultraviolet-builder/scripts/get-checkpoint-chain.mts --$BUILD_MODE)
+          echo "checkpoint_chain=$CHAIN" >> $GITHUB_OUTPUT
+          CHECKPOINTS=$(echo "$CHAIN" | tr ',' ' ')
+          echo "checkpoints=$CHECKPOINTS" >> $GITHUB_OUTPUT
+          echo "Checkpoint chain for $BUILD_MODE mode: $CHAIN"
+
+      - name: Validate checkpoint cache integrity
+        id: validate-cache
+        if: steps.ultraviolet-checkpoint-cache.outputs.cache-hit == 'true'
+        uses: ./.github/actions/validate-checkpoints
+        with:
+          checkpoint-dirs: packages/ultraviolet-builder/build/shared/checkpoints:${{ steps.paths.outputs.checkpoints_dir }}
+          checkpoints: ${{ steps.checkpoint-chain.outputs.checkpoints }}
+          package-name: ultraviolet-builder
+
+      - name: Restore build output from checkpoint chain
+        id: restore-checkpoint
+        uses: ./.github/actions/restore-checkpoint
+        with:
+          package-name: 'ultraviolet-builder'
+          build-mode: ${{ steps.build-mode.outputs.mode }}
+          checkpoint-chain: ${{ steps.checkpoint-chain.outputs.checkpoint_chain }}
+          cache-hit: ${{ steps.ultraviolet-checkpoint-cache.outputs.cache-hit }}
+          cache-valid: ${{ steps.validate-cache.outputs.valid }}
+          platform-arch: ${{ steps.platform-arch-cache.outputs.platform_arch }}
+
+      - name: Initialize ultraviolet submodule
+        if: (steps.ultraviolet-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') || steps.restore-checkpoint.outputs.build-required == 'true' || inputs.force
+        uses: ./.github/actions/init-submodules
+        with:
+          submodules: packages/ultraviolet-builder/upstream/ultraviolet
+
+      - name: Setup Go toolchain
+        if: |
+          (steps.ultraviolet-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true'
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0 (2026-05-15)
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - name: Verify Go installation
+        if: |
+          (steps.ultraviolet-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true'
+        shell: bash
+        run: |
+          go version
+          # Confirm the pin in external-tools.json matches the active
+          # toolchain. The leading "go" + literal version match is the
+          # smallest verification that detects accidental drift.
+          ACTIVE=$(go version | awk '{print $3}' | sed 's/^go//')
+          EXPECTED="${GO_VERSION}"
+          if [ "$ACTIVE" != "$EXPECTED" ]; then
+            echo "× Go version mismatch: expected ${EXPECTED}, got ${ACTIVE}"
+            exit 1
+          fi
+          echo "✅ Go ${ACTIVE}"
+
+      - name: Setup C toolchain (Linux)
+        if: |
+          matrix.os == 'linux' &&
+          ((steps.ultraviolet-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true')
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang
+
+      - name: Build ultraviolet native
+        if: |
+          (steps.ultraviolet-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true'
+        shell: bash
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: |
+          cd packages/ultraviolet-builder
+          if [ "$BUILD_MODE" = "prod" ]; then
+            pnpm run build:prod
+          else
+            pnpm run build:dev
+          fi
+
+      - name: Debug build output structure
+        if: |
+          (steps.ultraviolet-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true'
+        shell: bash
+        env:
+          OUT_DIR: ${{ steps.paths.outputs.out_dir }}
+          PACKAGE_DIR: ${{ steps.paths.outputs.package_dir }}
+        run: |
+          echo "Checking build output structure..."
+          ls -lah "${OUT_DIR}/" || echo "Out directory does not exist"
+          echo "Searching for ultraviolet.node:"
+          find "${PACKAGE_DIR}/lib" -name "ultraviolet.node" 2>/dev/null || echo "No ultraviolet.node found"
+
+      - name: Verify build output
+        shell: bash
+        env:
+          OUT_DIR: ${{ steps.paths.outputs.out_dir }}
+        run: |
+          if [ ! -f "${OUT_DIR}/ultraviolet.node" ]; then
+            echo "× ultraviolet.node not found at ${OUT_DIR}/ultraviolet.node"
+            exit 1
+          fi
+          echo "✅ ultraviolet.node found"
+
+      - name: Create archive
+        shell: bash
+        env:
+          OUT_DIR: ${{ steps.paths.outputs.out_dir }}
+          MODE_BUILD_DIR: ${{ steps.paths.outputs.mode_build_dir }}
+          PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          ARCHIVE_NAME="ultraviolet-${PLATFORM}-${ARCH}"
+          OUTPUT_PATH="${MODE_BUILD_DIR}/${ARCHIVE_NAME}.tar.gz"
+          mkdir -p "${MODE_BUILD_DIR}"
+          # cwd into OUT_DIR so the archive contains ultraviolet.node
+          # at the root (no nested platform-arch dir).
+          cd "$OUT_DIR"
+          tar -czf "${GITHUB_WORKSPACE}/${OUTPUT_PATH}" ultraviolet.node
+          echo "✅ Archive created at: ${OUTPUT_PATH}"
+
+      - name: Set artifact name
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          ARTIFACT_NAME="ultraviolet-${PLATFORM}-${ARCH}"
+          echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> $GITHUB_ENV
+
+      - name: Verify archive exists
+        shell: bash
+        env:
+          MODE_BUILD_DIR: ${{ steps.paths.outputs.mode_build_dir }}
+          ARTIFACT_NAME: ${{ env.ARTIFACT_NAME }}
+        run: |
+          ARCHIVE_PATH="${MODE_BUILD_DIR}/${ARTIFACT_NAME}.tar.gz"
+          if [ ! -f "$ARCHIVE_PATH" ]; then
+            echo "× Archive not found at: $ARCHIVE_PATH"
+            ls -lah "${MODE_BUILD_DIR}/" || echo "Build directory does not exist"
+            exit 1
+          fi
+          echo "✅ Archive found: $ARCHIVE_PATH"
+          ls -lh "$ARCHIVE_PATH"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (2026-05-15)
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ steps.paths.outputs.mode_build_dir }}/${{ env.ARTIFACT_NAME }}.tar.gz
+          retention-days: 30
+          if-no-files-found: error
+          compression-level: 0
+
+  release:
+    name: Release ultraviolet
+    needs: build-ultraviolet
+    if: github.event_name == 'workflow_dispatch' && !inputs['dry-run']
+    environment: release
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (2026-05-15)
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .gitmodules
+            .github/scripts/generate-version.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 (2026-05-15)
+        with:
+          path: artifacts
+          pattern: ultraviolet-*
+          merge-multiple: true
+
+      - name: Verify downloaded artifacts
+        shell: bash
+        run: |
+          if [ -d "artifacts" ] && [ -n "$(ls -A artifacts/*.tar.gz 2>/dev/null)" ]; then
+            echo "✅ Found $(ls artifacts/*.tar.gz 2>/dev/null | wc -l) tar.gz files"
+            ls -lah artifacts/
+          else
+            echo "× No artifacts found"
+            exit 1
+          fi
+
+      - name: Get ultraviolet version
+        id: version
+        shell: bash
+        run: |
+          # ultraviolet uses an epoch-pseudo-version
+          # # ultraviolet-0.0.0-<sha> form per .gitmodules. The
+          # parser splits on whitespace after "ultraviolet-".
+          UV_VERSION=$(grep -B 1 'packages/ultraviolet-builder/upstream/ultraviolet' .gitmodules | grep '# ultraviolet-' | sed 's/.*# ultraviolet-//' | awk '{print $1}')
+          if [ -z "$UV_VERSION" ]; then
+            echo "Error: Failed to extract ultraviolet version from .gitmodules"
+            exit 1
+          fi
+          echo "version=${UV_VERSION}" >> $GITHUB_OUTPUT
+          echo "ultraviolet version: ${UV_VERSION}"
+
+      - name: Generate release tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          source .github/scripts/generate-version.sh
+          TAG="ultraviolet-${VERSION}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Release tag: ${TAG}"
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, skipping."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        if: steps.tag.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          UV_VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          mkdir -p release
+          for file in artifacts/*.tar.gz; do
+            if [ -f "$file" ]; then
+              mv "$file" release/
+            fi
+          done
+
+          if [ -z "$(ls -A release/*.tar.gz 2>/dev/null)" ]; then
+            echo "Error: No .tar.gz files in release/ after move"
+            exit 1
+          fi
+
+          cd release
+          if command -v shasum &> /dev/null; then
+            shasum -a 256 *.tar.gz > checksums.txt
+          elif command -v sha256sum &> /dev/null; then
+            sha256sum *.tar.gz > checksums.txt
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+          cat checksums.txt
+          cd ..
+
+          TITLE_SUFFIX="${RELEASE_TAG#ultraviolet-}"
+          # Immutable-releases 3-step: draft → upload → publish.
+          # Single-call form races the Sigstore attestation hash.
+          # See docs/claude.md/fleet/immutable-releases.md.
+          gh release create "${RELEASE_TAG}" \
+            --draft \
+            --title "ultraviolet ${TITLE_SUFFIX}" \
+            --notes "Charmbracelet Ultraviolet v${UV_VERSION} N-API addon for SMOL.
+
+          Built with Go ${{ env.GO_VERSION }} via napi-go-infra (c-archive + cgo).
+
+          ## Platforms
+          - darwin-arm64
+          - darwin-x64
+          - linux-arm64
+          - linux-x64
+
+          ## Files
+          Each platform archive contains:
+          - Native addon (\`ultraviolet.node\`)
+
+          Use \`checksums.txt\` to verify archive integrity."
+          gh release upload "${RELEASE_TAG}" \
+            release/*.tar.gz \
+            release/checksums.txt
+          gh release edit "${RELEASE_TAG}" --draft=false
+
+  update-release-assets:
+    needs: release
+    if: github.event_name == 'workflow_dispatch' && !inputs['dry-run']
+    permissions:
+      contents: write
+    uses: ./.github/workflows/update-release-assets.yml
+    secrets:
+      BOT_GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}

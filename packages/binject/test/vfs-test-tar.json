@@ -1,0 +1,10 @@
+{
+  "output": "test-blob.bin",
+  "main": "index.js",
+  "smol": {
+    "vfs": {
+      "mode": "in-memory",
+      "source": "vfs-test.tar"
+    }
+  }
+}

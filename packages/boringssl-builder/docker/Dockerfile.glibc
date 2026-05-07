@@ -1,0 +1,53 @@
+# Build BoringSSL (prefixed: smol_*) on the fleet-shared btm-builder-glibc
+# prebake (almalinux:8 + gcc-toolset-13 + cmake + go + perl).
+#
+# Bash-only build path: docker/build.sh is emitted from
+# scripts/build-step-defs.mts; vitest enforces drift via
+# test/build-defs-drift.test.mts. The prebake includes Node + pnpm
+# (consumed by other builders) but we don't use them here — only the
+# C/C++ toolchain + go + cmake + perl.
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+ARG BTM_BUILDER_TAG
+
+FROM ghcr.io/socketdev/btm-builder-glibc:${BTM_BUILDER_TAG} AS build
+
+# Upstream BoringSSL source. Submodule is shallow-cloned at host time.
+COPY packages/boringssl-builder/upstream/boringssl /workspace/upstream
+
+# Generated build script — emitted from scripts/build-step-defs.mts.
+# Drift check in test/build-defs-drift.test.mts ensures this is current.
+COPY packages/boringssl-builder/docker/build.sh /workspace/build.sh
+
+WORKDIR /workspace
+
+ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64
+ARG TARGETARCH
+ARG CACHE_VERSION=unset
+ENV UPSTREAM_DIR=/workspace/upstream
+ENV CMAKE_BUILD_DIR=/workspace/build/$BUILD_MODE/$PLATFORM_ARCH/cmake
+ENV OUT_LIB_DIR=/workspace/build/$BUILD_MODE/$PLATFORM_ARCH/out/Final/lib
+ENV OUT_INCLUDE_DIR=/workspace/build/$BUILD_MODE/$PLATFORM_ARCH/out/Final/include
+
+# For amd64 builds, add -march=x86-64 -mtune=generic so the binary stays
+# portable across CPU generations.
+#
+# `--mount=type=cache,target=/root/.ccache` persists ccache across builds.
+# build-step-defs.mts passes -DCMAKE_C_COMPILER_LAUNCHER=ccache + the
+# CXX equivalent so every compile unit hits ccache. Re-runs after a
+# BoringSSL submodule bump skip unchanged TUs (~5-10x on incremental).
+ENV CCACHE_DIR=/root/.ccache
+RUN --mount=type=cache,target=/root/.ccache \
+    echo "Cache version: ${CACHE_VERSION}" && \
+    source /opt/rh/gcc-toolset-13/enable && \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        export CFLAGS="${CFLAGS:-} -march=x86-64 -mtune=generic" && \
+        export CXXFLAGS="${CXXFLAGS:-} -march=x86-64 -mtune=generic"; \
+    fi && \
+    bash /workspace/build.sh
+
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=build /workspace/build /

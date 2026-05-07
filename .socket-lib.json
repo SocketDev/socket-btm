@@ -1,0 +1,48 @@
+{
+  "primordials": {
+    "scanDirs": ["packages/node-smol-builder/additions/source-patched"],
+    "aliasMap": {
+      "Array": "ArrayCtor",
+      "ArrayBuffer": "ArrayBufferCtor",
+      "BigInt": "BigIntCtor",
+      "Boolean": "BooleanCtor",
+      "DataView": "DataViewCtor",
+      "Date": "DateCtor",
+      "Error": "ErrorCtor",
+      "EvalError": "EvalErrorCtor",
+      "Map": "MapCtor",
+      "Number": "NumberCtor",
+      "Object": "ObjectCtor",
+      "Promise": "PromiseCtor",
+      "Proxy": "ProxyCtor",
+      "RangeError": "RangeErrorCtor",
+      "ReferenceError": "ReferenceErrorCtor",
+      "RegExp": "RegExpCtor",
+      "Set": "SetCtor",
+      "SharedArrayBuffer": "SharedArrayBufferCtor",
+      "String": "StringCtor",
+      "Symbol": "SymbolCtor",
+      "SyntaxError": "SyntaxErrorCtor",
+      "TypeError": "TypeErrorCtor",
+      "URIError": "URIErrorCtor",
+      "URL": "URLCtor",
+      "decodeURIComponent": "decodeComponent",
+      "encodeURIComponent": "encodeComponent"
+    },
+    "nodeInternalOnly": [
+      "DataViewPrototypeGetInt32",
+      "DataViewPrototypeGetUint32",
+      "SafeMap",
+      "SafePromise",
+      "SafePromiseAllReturnVoid",
+      "SafePromiseAllSettled",
+      "SafeSet",
+      "SafeWeakMap",
+      "SafeWeakSet",
+      "Uint8Array",
+      "Uint8ArrayPrototypeSubarray",
+      "globalThis",
+      "hardenRegExp"
+    ]
+  }
+}

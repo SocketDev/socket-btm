@@ -1,0 +1,12 @@
+{
+  "lockfileVersion": 3,
+  "packages": {
+    "packages/ui": {
+      "name": "@my-org/ui",
+      "version": "0.0.0"
+    },
+    "node_modules/regular-dep": {
+      "version": "1.0.0"
+    }
+  }
+}

@@ -1,0 +1,157 @@
+packages:
+  - packages/*
+  - .claude/hooks/fleet/*
+  - .claude/hooks/repo/*
+
+# Packages allowed to run build scripts (pnpm v11 strictDepBuilds default).
+allowBuilds:
+  cpu-features: false
+  docsify: false
+  esbuild: true
+  onnxruntime-node: true
+  protobufjs: false
+  ssh2: false
+
+# Refuse to run if the pnpm version on PATH differs from the packageManager
+# field in package.json. Our setup action pins pnpm via external-tools.json;
+# any drift should fail fast, not silently auto-download via @pnpm/exe
+# (which in rc.5 leaves a placeholder launcher that errors at runtime).
+pmOnFail: error
+
+catalog:
+  '@anthropic-ai/claude-code': 2.1.92
+  '@babel/core': 7.28.4
+  '@babel/types': 7.28.5
+  '@biomejs/biome': 2.2.4
+  '@dotenvx/dotenvx': 1.31.0
+  '@redwoodjs/agent-ci': 0.16.2
+  '@sinclair/typebox': 0.34.49
+  '@socketregistry/packageurl-js': 1.4.2
+  '@socketregistry/packageurl-js-stable': npm:@socketregistry/packageurl-js@1.4.2
+  '@socketsecurity/lib': 6.0.7
+  '@socketsecurity/lib-stable': npm:@socketsecurity/lib@6.0.7
+  '@socketsecurity/registry': 2.0.2
+  '@socketsecurity/registry-stable': npm:@socketsecurity/registry@2.0.2
+  '@socketsecurity/sdk': 4.0.1
+  '@socketsecurity/sdk-stable': npm:@socketsecurity/sdk@4.0.1
+  '@types/adm-zip': 0.5.7
+  '@types/mdast': 4.0.4
+  '@types/node': 24.9.2
+  '@types/shell-quote': 1.7.5
+  '@typescript/native-preview': 7.0.0-dev.20260510.1
+  '@vitest/coverage-v8': 4.1.6
+  '@vitest/ui': 4.1.6
+  acorn: 8.14.0
+  acorn-walk: 8.3.4
+  adm-zip: 0.5.16
+  'dtu-github-actions': 0.16.2
+  ecc-agentshield: 1.4.0
+  esbuild: 0.25.11
+  magic-string: 0.30.19
+  'mdast-util-from-markdown': 2.0.3
+  'micromark': 4.0.2
+  'npm-run-all2': 9.0.0
+  octokit: 5.0.5
+  'oxfmt': 0.48.0
+  'oxlint': 1.63.0
+  'playwright-core': 1.55.1
+  'shell-quote': 1.8.4
+  tar: 7.4.3
+  'taze': 19.11.0
+  untracked: 1.6.1
+  'vite': 8.0.14
+  vitest: 4.1.6
+  yoctocolors-cjs: 2.1.3
+# Resolve to the highest version that satisfies the range, fleet-wide.
+resolutionMode: highest
+
+# Wait 7 days (10080 minutes) before installing newly published packages.
+minimumReleaseAge: 10080
+minimumReleaseAgeExclude:
+  - '@socketaddon/*'
+  - '@socketbin/*'
+  - '@socketregistry/*'
+  - '@socketsecurity/*'
+  # pnpm@11.5.0 — bumped via `Allow minimumReleaseAge bypass`. Fixes
+  # the runner-side setup-and-install version mismatch (socket-registry's
+  # pinned action ships 11.3.0, fleet packageManager was 11.4.0; aligning
+  # everyone at 11.5.0). Out of soak 2026-06-05.
+  # `pnpm` is the JS-only entry; `@pnpm/exe` is the SEA binary that
+  # `packageManager: pnpm@X` resolves through corepack. Both gate the
+  # shell-quote AST parser used by .claude/hooks/_shared/shell-command.mts
+  # — fleet hook needs it now; soak entry expires 2026-05-29.
+  - 'shell-quote'
+  # compromise@14.15.1 is the attested re-publish that clears the
+  # trust-downgrade flag on 14.15.0. Soak-bypass scoped to the exact
+  # tag; future 14.15.2 still goes through normal 7-day soak.
+  - '@redwoodjs/agent-ci'
+  - 'dtu-github-actions'
+  - '@socketdev/*'
+  - 'ecc-agentshield'
+  - 'sfw'
+  - 'socket-*'
+  # untracked@1.6.1 — Kikobeats/untracked, dev-only tool for autogenerating
+  # `.dockerignore` from package.json + the curated blacklist. Used to keep
+  # the Docker build context lean across vendored upstream trees (LIEF, zstd,
+  # etc.) that ship 100+ MB of markup files compile never reads.
+  # published: 2026-06-03 | removable: 2026-06-10
+  - 'untracked@1.6.1'
+  - '@stuie/*'
+  - '@ultrathink/*'
+  - '@yuku-parser/*'
+  - '@socketoverride/*'
+
+# Refuse transitive dependencies declared via git/tarball/local-tarball
+# specs — an npm package shouldn't be allowed to drag in a git URL we
+# don't control (bypasses npm registry validation, no provenance, no
+# soak window). Direct git deps are still allowed (the test suite at
+# pnpm/pkg-manager/core/test/install/blockExoticSubdeps.ts confirms
+# this). pnpm's current default is `false`; declared explicitly so a
+# future flip can't silently change install behavior.
+blockExoticSubdeps: true
+
+# Dependency overrides (migrated from package.json pnpm.overrides).
+# Force every consumer of Socket's own packages to resolve through the
+# catalog-pinned published versions. The `catalog:` form rewrites
+# `workspace:*`, `^x.y.z`, and bare-version specs alike to the version
+# in the default `catalog:` block above. This defeats accidental
+# local-checkout resolution when a sibling repo is on disk.
+overrides:
+  # Fleet-canonical overrides (managed by socket-wheelhouse sync; do not edit).
+  '@socketregistry/packageurl-js': 'catalog:'
+  '@socketsecurity/lib': 'catalog:'
+  '@socketsecurity/registry': 'catalog:'
+  '@socketsecurity/sdk': 'catalog:'
+  'semver@>=5.0.0 <7.6.0': '7.8.1'
+  'update-notifier@>=4.0.0': '7.3.1'
+  'uuid': '11.1.1'
+
+  # Repo-specific overrides below.
+  # advisory #23 (medium) — got 11.8.5 fix; bump to latest 11.x patch
+  'got': '11.8.6'
+  'postcss': '8.5.10'
+  'tar': '7.5.11'
+  'vite': '7.3.2'
+trustPolicy: no-downgrade
+trustPolicyExclude:
+  # Transitive dep of @vitest/coverage-v8@4.1.6. Same maintainer
+  # (ariperkkio) + same repo + provenance attestation as earlier
+  # versions; the downgrade flag reflects a trusted-publisher ->
+  # provenance evidence-class change, not a takeover.
+  # published: 2026-05-25 | removable: 2026-06-01
+  - 'ast-v8-to-istanbul@1.0.2'
+  - semver@6.3.1
+  - 'compromise@14.15.0'
+
+# Auto-install missing peer deps (pnpm default). Declared explicitly
+# so a future default flip can't silently change install behavior.
+autoInstallPeers: true
+
+# Run pre/post lifecycle scripts on the workspace root (e.g.
+# prepare -> husky). This is the pnpm default; declared explicitly
+# so a future default flip can't silently disable husky setup.
+enablePrePostScripts: true
+
+# Pin exact versions on `pnpm add`. Catalog and overrides should
+# also be exact pins (5.24.0, not ^5.24.0).
+saveExact: true

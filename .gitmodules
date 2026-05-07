@@ -1,0 +1,176 @@
+# node-26.2.0 sha256:37032a75a677f063dbe22f0cc72249a3a2faff2ce71056b63771d6967bd63384
+[submodule "packages/node-smol-builder/upstream/node"]
+	path = packages/node-smol-builder/upstream/node
+	url = https://github.com/nodejs/node.git
+	ignore = dirty
+	shallow = true
+# yoga-3.2.1
+[submodule "packages/yoga-layout-builder/upstream/yoga"]
+	path = packages/yoga-layout-builder/upstream/yoga
+	url = https://github.com/facebook/yoga.git
+	ignore = dirty
+	shallow = true
+# onnxruntime-1.24.4
+[submodule "packages/onnxruntime-builder/upstream/onnxruntime"]
+	path = packages/onnxruntime-builder/upstream/onnxruntime
+	url = https://github.com/microsoft/onnxruntime.git
+	ignore = dirty
+	shallow = true
+# lief-0.17.0
+[submodule "packages/lief-builder/upstream/lief"]
+	path = packages/lief-builder/upstream/lief
+	url = https://github.com/lief-project/LIEF.git
+	ignore = dirty
+	shallow = true
+# boringssl-2026-04-15 via bun-v1.3.14
+[submodule "packages/boringssl-builder/upstream/boringssl"]
+	path = packages/boringssl-builder/upstream/boringssl
+	url = https://github.com/oven-sh/boringssl.git
+	ignore = dirty
+	shallow = true
+# cjson-1.7.19
+[submodule "packages/binject/upstream/cJSON"]
+	path = packages/binject/upstream/cJSON
+	url = https://github.com/DaveGamble/cJSON.git
+	ignore = dirty
+	shallow = true
+# libdeflate-1.25
+[submodule "packages/binject/upstream/libdeflate"]
+	path = packages/binject/upstream/libdeflate
+	url = https://github.com/ebiggers/libdeflate.git
+	ignore = dirty
+	shallow = true
+# curl-8.19.0
+[submodule "packages/curl-builder/upstream/curl"]
+	path = packages/curl-builder/upstream/curl
+	url = https://github.com/curl/curl.git
+	ignore = dirty
+	shallow = true
+# mbedtls-3.6.6
+[submodule "packages/curl-builder/upstream/mbedtls"]
+	path = packages/curl-builder/upstream/mbedtls
+	url = https://github.com/Mbed-TLS/mbedtls.git
+	ignore = dirty
+	shallow = true
+# wpt-epochs/three_hourly/2026-02-24_21H
+[submodule "packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/streams"]
+	path = packages/node-smol-builder/test/fixtures/wpt/streams
+	url = https://github.com/web-platform-tests/wpt.git
+	ignore = dirty
+	shallow = true
+	# Honored by scripts/git-partial-submodule.mts (vanilla git ignores
+	# this field). WPT is a ~5 GB tree; we only need the streams/ subtree
+	# for WHATWG streams conformance tests.
+	sparse-checkout = streams/
+# liburing-2.14
+[submodule "packages/node-smol-builder/upstream/liburing"]
+	path = packages/node-smol-builder/upstream/liburing
+	url = https://github.com/axboe/liburing.git
+	ignore = dirty
+	shallow = true
+# postgres-17.9
+[submodule "packages/libpq-builder/upstream/postgres"]
+	path = packages/libpq-builder/upstream/postgres
+	url = https://github.com/postgres/postgres.git
+	ignore = dirty
+	shallow = true
+# usockets-0.8.8
+[submodule "packages/node-smol-builder/upstream/uSockets"]
+	path = packages/node-smol-builder/upstream/uSockets
+	url = https://github.com/uNetworking/uSockets.git
+	ignore = dirty
+	shallow = true
+# uwebsockets-20.76.0
+[submodule "packages/node-smol-builder/upstream/uWebSockets"]
+	path = packages/node-smol-builder/upstream/uWebSockets
+	url = https://github.com/uNetworking/uWebSockets.git
+	ignore = dirty
+	shallow = true
+# opentui-0.2.15
+[submodule "packages/opentui-builder/upstream/opentui"]
+	path = packages/opentui-builder/upstream/opentui
+	url = https://github.com/anomalyco/opentui.git
+	ignore = dirty
+	shallow = true
+# zstd-1.5.7
+[submodule "packages/bin-infra/upstream/zstd"]
+	path = packages/bin-infra/upstream/zstd
+	url = https://github.com/facebook/zstd.git
+	ignore = dirty
+	shallow = true
+# ultraviolet-0.0.0-a0f1f21
+[submodule "packages/ultraviolet-builder/upstream/ultraviolet"]
+	path = packages/ultraviolet-builder/upstream/ultraviolet
+	url = https://github.com/charmbracelet/ultraviolet.git
+	ignore = dirty
+	shallow = true
+# uucode-0.1.0
+[submodule "packages/opentui-builder/upstream/uucode"]
+	path = packages/opentui-builder/upstream/uucode
+	url = https://github.com/jacobsandlund/uucode.git
+	ignore = dirty
+	shallow = true
+# semver-7.7.4
+[submodule "packages/node-smol-builder/upstream/semver"]
+	path = packages/node-smol-builder/upstream/semver
+	url = https://github.com/npm/node-semver.git
+	ignore = dirty
+	shallow = true
+# temporal-v0.2.3 (canonical temporal submodule; track-latest, bumped via /updating-temporal-infra and the /updating-node cascade)
+[submodule "packages/temporal-infra/upstream/temporal"]
+	path = packages/temporal-infra/upstream/temporal
+	url = https://github.com/boa-dev/temporal.git
+	ignore = dirty
+	shallow = true
+# icu4x-zoneinfo64-v0.3.0 (track-latest: hosts the zoneinfo64 + resb crates that temporal_rs uses for IANA TZ resolution; bump via updating-temporal-infra)
+[submodule "packages/temporal-infra/upstream/icu4x"]
+	path = packages/temporal-infra/upstream/icu4x
+	url = https://github.com/unicode-org/icu4x.git
+	ignore = dirty
+	shallow = true
+# test262-2026.05.21 (track-latest: tc39/test262 corpus for Temporal subset; bump independently via updating-temporal-infra)
+[submodule "packages/temporal-infra/upstream/test262"]
+	path = packages/temporal-infra/test/fixtures/test262
+	url = https://github.com/tc39/test262.git
+	ignore = dirty
+	shallow = true
+	# Honored by scripts/git-partial-submodule.mts (vanilla git ignores
+	# this field). test262 is a ~270 MB corpus; runner only walks the
+	# Temporal subsets + the shared harness/.
+	sparse-checkout = test/built-ins/Temporal/ test/intl402/Temporal/ harness/
+# lsquic-4.6.2
+[submodule "packages/lsquic-infra/upstream/lsquic"]
+	path = packages/lsquic-infra/upstream/lsquic
+	url = https://github.com/litespeedtech/lsquic.git
+	ignore = dirty
+	shallow = true
+# ls-qpack-2.6.2
+[submodule "packages/lsquic-infra/upstream/ls-qpack"]
+	path = packages/lsquic-infra/upstream/ls-qpack
+	url = https://github.com/litespeedtech/ls-qpack.git
+	ignore = dirty
+	shallow = true
+# md4c-0.5.3
+[submodule "packages/node-smol-builder/upstream/md4c"]
+	path = packages/node-smol-builder/upstream/md4c
+	url = https://github.com/mity/md4c
+	ignore = dirty
+	shallow = true
+# tree-sitter-0.26.9
+[submodule "packages/node-smol-builder/upstream/tree-sitter"]
+	path = packages/node-smol-builder/upstream/tree-sitter
+	url = https://github.com/tree-sitter/tree-sitter
+	ignore = dirty
+	shallow = true
+# libqrencode-4.1.1
+[submodule "packages/node-smol-builder/upstream/libqrencode"]
+	path = packages/node-smol-builder/upstream/libqrencode
+	url = https://github.com/fukuchi/libqrencode
+	ignore = dirty
+	shallow = true
+# dawn-chromium/7852
+[submodule "packages/dawn-builder/upstream/dawn"]
+	path = packages/dawn-builder/upstream/dawn
+	url = https://dawn.googlesource.com/dawn
+	ignore = dirty
+	shallow = true

@@ -1,0 +1,135 @@
+#!/usr/bin/env node
+// Claude Code PreToolUse hook — no-non-fleet-push-guard.
+//
+// Blocks `git push` to a repository that is NOT a fleet member. The
+// fleet's git-side pre-push hook can't catch this: a non-fleet repo
+// never has the fleet hook chain installed (that's exactly how a stray
+// push to e.g. `depot` slips through). So the guard lives agent-side,
+// inspecting the Bash command before it runs, and resolves the target
+// repo's origin remote against the canonical fleet roster.
+//
+// Detection model:
+//   - Fires only on Bash commands containing `git push` at an
+//     executable position (not inside quotes / heredoc bodies — a
+//     commit message that says "git push" is not a push).
+//   - Resolves the TARGET directory, in priority order:
+//       1. `git -C <dir> push …`        (explicit -C)
+//       2. a leading `cd <dir> && …`     (the `cd /…/depot && git push`
+//          shape that bypasses the session cwd)
+//       3. the hook's process cwd
+//   - Reads `git -C <dir> remote get-url origin`, extracts the repo
+//     slug, and blocks when the slug is not in FLEET_REPO_NAMES.
+//
+// Bypass: `Allow non-fleet-push bypass` typed verbatim in a recent user
+// turn — for the rare legitimate push to a personal / non-fleet repo.
+//
+// Fails OPEN on any resolution ambiguity (can't find the command, the
+// dir, or the remote): better to under-block than to wedge a valid
+// push when the shape is unfamiliar. The cost of a missed block is one
+// `Allow … bypass`-free push the operator can revert; the cost of a
+// false block is a bricked workflow.
+
+import process from 'node:process'
+
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
+
+import { isFleetRepo, slugFromRemoteUrl } from '../_shared/fleet-repos.mts'
+import { extractGitCwd } from '../_shared/git-cwd.mts'
+import { withBashGuard } from '../_shared/payload.mts'
+import { findInvocation } from '../_shared/shell-command.mts'
+import { bypassPhrasePresent } from '../_shared/transcript.mts'
+
+const logger = getDefaultLogger()
+
+// Bare, session-wide form (kept as a fallback). The scoped form below
+// is preferred — it names the exact repo so the authorization can't
+// leak to an unrelated non-fleet push later in the session.
+const BYPASS_PHRASE = 'Allow non-fleet-push bypass'
+const BYPASS_PHRASE_PREFIX = 'Allow non-fleet-push bypass:'
+
+// Build the phrases that authorize a push to `slug`. Accept the full
+// `owner/repo` slug and its bare repo basename, so the user can write
+// whichever feels natural (e.g. `SocketDev/socket-bin` or `socket-bin`).
+// The bare session-wide phrase stays accepted for back-compat.
+export function acceptedBypassPhrases(slug: string): string[] {
+  const basename = slug.includes('/') ? slug.slice(slug.indexOf('/') + 1) : slug
+  const targets = basename === slug ? [slug] : [slug, basename]
+  return [BYPASS_PHRASE, ...targets.map(t => `${BYPASS_PHRASE_PREFIX} ${t}`)]
+}
+
+export function originSlug(dir: string): string | undefined {
+  let out: string
+  try {
+    const r = spawnSync('git', ['-C', dir, 'remote', 'get-url', 'origin'], {
+      encoding: 'utf8',
+    })
+    if (r.status !== 0) {
+      return undefined
+    }
+    out = String(r.stdout ?? '').trim()
+  } catch {
+    return undefined
+  }
+  return slugFromRemoteUrl(out)
+}
+
+// withBashGuard handles the stdin drain, tool_name gate, command narrow,
+// and fail-open on any throw.
+await withBashGuard((command, payload) => {
+  // Detect `git push` via the shell parser (not regex): it splits the
+  // command line into segments, sees through `&&`/`|`/`;` chains and
+  // `$(…)` substitution, and ignores `push` inside a quoted commit
+  // message — so `git commit -m "git push later"` is correctly NOT a
+  // push, while `cd /x && git push` and `git -C /x push` are.
+  if (!findInvocation(command, { binary: 'git', subcommand: 'push' })) {
+    return
+  }
+
+  const dir = extractGitCwd(command)
+  const slug = originSlug(dir)
+
+  // Fail open: no resolvable origin slug → can't classify, allow.
+  if (!slug) {
+    return
+  }
+  if (isFleetRepo(slug)) {
+    return
+  }
+
+  if (
+    payload.transcript_path &&
+    bypassPhrasePresent(payload.transcript_path, acceptedBypassPhrases(slug))
+  ) {
+    return
+  }
+
+  logger.error(
+    [
+      '[no-non-fleet-push-guard] Blocked: push to a non-fleet repository',
+      '',
+      `  Target dir:  ${dir}`,
+      `  origin repo: ${slug}`,
+      '',
+      `  \`${slug}\` is not in the fleet roster, and fleet tooling must`,
+      '  not push to repos outside the fleet. A non-fleet repo has no',
+      '  fleet hook chain, so this agent-side guard is the only check',
+      '  standing between you and a stray push to someone else’s repo.',
+      '',
+      '  If this push is wrong: you probably `cd`-ed into the wrong repo',
+      '  or have the wrong `origin`. Verify with:',
+      `    git -C ${dir} remote get-url origin`,
+      '',
+      `  If the push is genuinely intended (a personal / non-fleet repo`,
+      `  you own), type the scoped phrase for THIS repo in a new message,`,
+      '  then retry:',
+      `    ${BYPASS_PHRASE_PREFIX} ${slug}`,
+      '',
+      `  The scoped form authorizes ${slug} only — it can’t leak to an`,
+      '  unrelated non-fleet push later. (The bare, session-wide',
+      `  "${BYPASS_PHRASE}" is still accepted as a fallback.)`,
+      '',
+    ].join('\n'),
+  )
+  process.exitCode = 2
+})

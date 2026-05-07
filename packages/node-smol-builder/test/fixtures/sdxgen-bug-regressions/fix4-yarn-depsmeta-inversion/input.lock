@@ -1,0 +1,10 @@
+__metadata:
+  version: 6
+
+"react@npm:^18.0.0":
+  version: 18.0.0
+  resolution: "react@npm:18.0.0"
+  dependenciesMeta:
+    fsevents:
+      optional: true
+  linkType: hard

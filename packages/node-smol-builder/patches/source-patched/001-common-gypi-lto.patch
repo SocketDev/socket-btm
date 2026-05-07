@@ -1,0 +1,69 @@
+# @node-versions: v26.1.0
+# @description: Fix GCC LTO linker, use ThinLTO for Clang/macOS, enable ARM64 branch protection, gold --icf=safe on Linux release, /OPT:REF+/OPT:ICF on Windows release
+#
+--- a/common.gypi
++++ b/common.gypi
+@@ -189,7 +189,7 @@
+               'MSVC_runtimeType': 2   # MultiThreadedDLL (/MD)
+             }],
+             ['clang==1', {
+-              'lto': ' -flto ', # Clang
++              'lto': ' -flto=thin ', # Clang - ThinLTO for faster linking
+             }, {
+               'lto': ' -flto=4 -ffat-lto-objects ', # GCC
+             }],
+@@ -201,7 +201,7 @@
+             'cflags': ['<(lto)'],
+             'ldflags': ['<(lto)'],
+             'xcode_settings': {
+-              'LLVM_LTO': 'YES',
++              'LLVM_LTO': 'YES_THIN',
+             },
+           }],
+           ['OS=="linux" or OS=="openharmony"', {
+@@ -216,6 +216,22 @@
+                   '-Wl,--section-ordering-file=<(node_section_ordering_info)',
+                 ],
+               }],
++              ['node_section_ordering_info==""', {
++                # Identical Code Folding: link with gold and fold byte-identical
++                # functions. --icf=safe keeps function-pointer identity intact
++                # (V8 compares code pointers), so only address-insensitive
++                # functions are merged. -ffunction-sections gives the linker
++                # per-function granularity to fold. Skipped when section
++                # ordering is active, which already pulls in gold itself.
++                'cflags': [
++                  '-fuse-ld=gold',
++                  '-ffunction-sections',
++                ],
++                'ldflags': [
++                  '-fuse-ld=gold',
++                  '-Wl,--icf=safe',
++                ],
++              }],
+             ],
+           }],
+           ['OS=="solaris"', {
+@@ -231,6 +247,9 @@
+             # flag to work correctly. perf(1) gets confused about JS stack
+             # frames otherwise, even with --call-graph dwarf.
+             'cflags': [ '-fno-omit-frame-pointer' ],
++          }],
++          ['target_arch=="arm64" and OS!="win"', {
++            'cflags': [ '-mbranch-protection=standard' ],
+           }],
+           ['OS=="linux" or OS=="openharmony"', {
+             'conditions': [
+@@ -326,7 +345,11 @@
+             'Optimization': 3,              # /Ox, full optimization
+             'RuntimeLibrary': '<(MSVC_runtimeType)',
+             'RuntimeTypeInfo': 'false',
+-          }
++          },
++          'VCLinkerTool': {
++            'OptimizeReferences': 2,        # /OPT:REF, drop unreferenced code/data
++            'EnableCOMDATFolding': 2,       # /OPT:ICF, fold identical functions
++          },
+         },
+         'xcode_settings': {
+           'GCC_OPTIMIZATION_LEVEL': '3', # stop gyp from defaulting to -Os

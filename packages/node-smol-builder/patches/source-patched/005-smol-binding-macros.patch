@@ -16,6 +16,6 @@
 +#define NODE_BUILTIN_POSTGRES_BINDINGS(V)
 +#endif
 +
- #define NODE_BINDINGS_WITH_PER_ISOLATE_INIT(V)                                 \
-   V(async_wrap)                                                                \
-   V(blob)                                                                      \
+ #if HAVE_FFI
+ #define NODE_BUILTIN_FFI_BINDINGS(V) V(ffi)
+ #else

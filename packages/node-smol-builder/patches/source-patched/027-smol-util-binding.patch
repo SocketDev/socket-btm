@@ -10,7 +10,7 @@
 #
 --- a/src/node_binding.cc
 +++ b/src/node_binding.cc
-@@ -114,6 +114,7 @@
+@@ -115,6 +115,7 @@
    V(smol_http)                                                                 \
    V(smol_ilp)                                                                  \
    V(smol_power)                                                                \

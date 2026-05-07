@@ -19,13 +19,13 @@
 #
 --- a/configure.py
 +++ b/configure.py
-@@ -1535,7 +1535,7 @@ def check_compiler(o):
-
+@@ -1588,8 +1588,8 @@
+ 
    o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else '0.0'
-
+ 
 -  # cargo and rustc are needed for Temporal.
+-  if not options.v8_disable_temporal_support and not options.shared_temporal_capi:
 +  # cargo/rustc gate disabled — Temporal backed by temporal-infra C++ shim (patch 037).
--  if not options.v8_disable_temporal_support or not options.shared_temporal_capi:
 +  if False:
      # Minimum cargo and rustc versions should match values in BUILDING.md.
      min_cargo_ver_tuple = (1, 82)

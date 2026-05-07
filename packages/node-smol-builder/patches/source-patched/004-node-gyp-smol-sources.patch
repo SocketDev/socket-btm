@@ -15,7 +15,7 @@
 #
 --- a/node.gyp
 +++ b/node.gyp
-@@ -67,6 +67,20 @@
+@@ -69,6 +69,20 @@
        'deps/acorn/acorn/dist/acorn.js',
        'deps/acorn/acorn-walk/dist/walk.js',
        'deps/minimatch/index.js',
@@ -36,7 +36,7 @@
        '<@(node_builtin_shareable_builtins)',
      ],
      'node_sources': [
-@@ -713,6 +727,16 @@
+@@ -732,6 +746,16 @@
              'Ws2_32.lib',
            ],
          }],
@@ -50,10 +50,10 @@
 +            '-lcompression',
 +          ],
 +        }],
+         # Thin LTO for node_main.cc and linker (scoped to node_exe)
          ['node_with_ltcg=="true"', {
            'msvs_settings': {
-             'VCCLCompilerTool': {
-@@ -1019,12 +1043,231 @@
+@@ -1057,12 +1081,231 @@
              'deps/ncrypto/ncrypto.gyp:ncrypto',
            ],
          }],
@@ -286,7 +286,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1374,6 +1591,16 @@
+@@ -1447,6 +1690,16 @@
              'Ws2_32.lib',
            ],
          }],
@@ -303,7 +303,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1438,6 +1665,16 @@
+@@ -1521,6 +1774,16 @@
              'Ws2_32.lib',
            ],
          }],
@@ -320,10 +320,12 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1641,6 +1878,16 @@
+@@ -1742,6 +2005,16 @@
+             'Dbghelp.lib',
+             'winmm.lib',
              'Ws2_32.lib',
-           ],
-         }],
++          ],
++        }],
 +        ['OS=="win"', {
 +          'libraries': [
 +            'bcrypt.lib',
@@ -332,8 +334,6 @@
 +        ['OS=="mac"', {
 +          'libraries': [
 +            '-lcompression',
-+          ],
-+        }],
+           ],
+         }],
          # Avoid excessive LTO
-         ['enable_lto=="true"', {
-           'ldflags': [ '-fno-lto' ],

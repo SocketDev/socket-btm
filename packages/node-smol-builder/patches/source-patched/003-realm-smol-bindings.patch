@@ -20,8 +20,8 @@
    'spawn_sync',
    'stream_wrap',
    'tcp_wrap',
-@@ -126,6 +127,15 @@
- const schemelessBlockList = new SafeSet([
+@@ -127,6 +128,15 @@
+   'ffi',
    'sea',
    'sqlite',
 +  'smol-ffi',

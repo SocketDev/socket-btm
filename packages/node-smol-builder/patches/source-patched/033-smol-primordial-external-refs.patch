@@ -14,8 +14,11 @@
 #
 --- a/src/node_external_reference.h
 +++ b/src/node_external_reference.h
-@@ -159,3 +159,4 @@
+@@ -160,6 +160,7 @@
+   V(smol_http)                                                                 \
+   V(smol_ilp)                                                                  \
    V(smol_power)                                                                \
 +  V(smol_primordial)                                                           \
    V(smol_util)                                                                 \
    V(smol_vfs)                                                                  \
+   EXTERNAL_REFERENCE_BINDING_LIST_POSTGRES(V)                                  \

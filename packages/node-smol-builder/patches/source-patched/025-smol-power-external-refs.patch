@@ -15,7 +15,7 @@
 #
 --- a/src/node_external_reference.h
 +++ b/src/node_external_reference.h
-@@ -157,6 +157,7 @@
+@@ -159,6 +159,7 @@
    V(smol_ffi)                                                                  \
    V(smol_http)                                                                 \
    V(smol_ilp)                                                                  \

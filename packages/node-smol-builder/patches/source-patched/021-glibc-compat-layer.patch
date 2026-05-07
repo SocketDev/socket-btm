@@ -21,9 +21,9 @@
 #
 --- a/node.gyp
 +++ b/node.gyp
-@@ -1124,6 +1124,23 @@
-             ],
-           },
+@@ -1193,6 +1193,23 @@
+         ['OS=="win"', {
+           'sources': [ 'src/socketsecurity/power/power_win.cc' ],
          }],
 +        # Socket Security: glibc compatibility layer groundwork.
 +        # Inert on current glibc 2.28 build (dlsym forwards to real impl);

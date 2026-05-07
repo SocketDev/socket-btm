@@ -15,7 +15,8 @@
 #
 --- a/lib/internal/bootstrap/realm.js
 +++ b/lib/internal/bootstrap/realm.js
-@@ -134,5 +134,6 @@
+@@ -133,6 +133,7 @@
+   'smol-https',
    'smol-ilp',
    'smol-manifest',
 +  'smol-power',

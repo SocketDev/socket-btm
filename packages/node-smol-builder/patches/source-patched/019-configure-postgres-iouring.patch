@@ -8,9 +8,9 @@
 #
 --- a/configure.py
 +++ b/configure.py
-@@ -1017,6 +1017,18 @@ parser.add_argument('--without-sqlite',
+@@ -1059,6 +1059,18 @@
      default=None,
-     help='build without SQLite (disables SQLite and Web Storage API)')
+     help='build without FFI (Foreign Function Interface) support')
  
 +parser.add_argument('--with-postgres',
 +    action='store_true',
@@ -27,9 +27,9 @@
  parser.add_argument('--experimental-quic',
      action='store_true',
      dest='experimental_quic',
-@@ -2119,6 +2131,14 @@ def configure_sqlite(o):
+@@ -2346,6 +2358,14 @@
  
-   configure_library('sqlite', o, pkgname='sqlite3')
+   configure_library('ffi', o, pkgname='libffi')
  
 +def configure_postgres(o):
 +  # Socket Security: PostgreSQL is disabled by default (requires libpq).
@@ -42,9 +42,10 @@
  def configure_quic(o):
    o['variables']['node_use_quic'] = b(options.experimental_quic and
                                        not options.without_ssl)
-@@ -2572,5 +2592,7 @@ configure_library('ngtcp2', output, pkgname='libngtcp2')
+@@ -2802,6 +2822,8 @@
  configure_lief(output);
  configure_sqlite(output);
+ configure_ffi(output);
 +configure_postgres(output);
 +configure_iouring(output);
  configure_library('temporal_capi', output)

@@ -7,7 +7,7 @@
 #
 --- a/src/node_binding.cc
 +++ b/src/node_binding.cc
-@@ -92,7 +92,8 @@
+@@ -94,7 +94,8 @@
    V(util)                                                                      \
    V(uv)                                                                        \
    V(v8)                                                                        \
@@ -17,13 +17,13 @@
    V(wasm_web_api)                                                              \
    V(watchdog)                                                                  \
    V(worker)                                                                    \
-@@ -107,7 +108,12 @@
-   NODE_BUILTIN_PROFILER_BINDINGS(V)                                            \
+@@ -108,7 +109,12 @@
    NODE_BUILTIN_DEBUG_BINDINGS(V)                                               \
    NODE_BUILTIN_QUIC_BINDINGS(V)                                                \
--  NODE_BUILTIN_SQLITE_BINDINGS(V)
-+  NODE_BUILTIN_SQLITE_BINDINGS(V)                                              \
+   NODE_BUILTIN_SQLITE_BINDINGS(V)                                              \
+-  NODE_BUILTIN_FFI_BINDINGS(V)
 +  NODE_BUILTIN_POSTGRES_BINDINGS(V)                                            \
++  NODE_BUILTIN_FFI_BINDINGS(V)                                                 \
 +  V(smol_ffi)                                                                  \
 +  V(smol_http)                                                                 \
 +  V(smol_ilp)                                                                  \

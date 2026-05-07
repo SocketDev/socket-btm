@@ -16,7 +16,11 @@
 #
 --- a/src/node_external_reference.h
 +++ b/src/node_external_reference.h
-@@ -161,2 +161,3 @@
+@@ -162,6 +162,7 @@
+   V(smol_power)                                                                \
+   V(smol_primordial)                                                           \
    V(smol_util)                                                                 \
 +  V(smol_versions_native)                                                      \
    V(smol_vfs)                                                                  \
+   EXTERNAL_REFERENCE_BINDING_LIST_POSTGRES(V)                                  \
+   V(smol_webstreams)

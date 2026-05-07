@@ -11,7 +11,7 @@
  * Stubs are needed for:
  * - darwin-arm64, darwin-x64
  * - linux-arm64, linux-x64, linux-arm64-musl, linux-x64-musl
- * - win-arm64, win-x64
+ * - win32-arm64, win32-x64
  */
 
 import { existsSync, promises as fs } from 'node:fs'
@@ -351,8 +351,8 @@ const stubSummary = [
   ['linux-x64', stubLinuxX64],
   ['linux-arm64-musl', stubLinuxArm64Musl],
   ['linux-x64-musl', stubLinuxX64Musl],
-  ['win-arm64', stubWinArm64],
-  ['win-x64', stubWinX64],
+  ['win32-arm64', stubWinArm64],
+  ['win32-x64', stubWinX64],
 ].filter(([, stubPath]) => stubPath !== undefined && stubPath !== '')
 
 for (const [name, stubPath] of stubSummary) {

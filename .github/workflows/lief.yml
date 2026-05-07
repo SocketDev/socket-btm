@@ -515,15 +515,9 @@ jobs:
             exit 1
           fi
 
-          # Convert win32 → win for file/folder names.
-          if [ "${PLATFORM}" = "win32" ]; then
-            RELEASE_PLATFORM="win"
-          else
-            RELEASE_PLATFORM="${PLATFORM}"
-          fi
-
-          # Construct archive name (musl suffix after arch).
-          ARCHIVE_NAME="lief-${RELEASE_PLATFORM}-${ARCH}"
+          # Use the canonical pnpm-style platform string (`win32`, not
+          # `win`) — matches every downstream consumer (binject + ensure-lief).
+          ARCHIVE_NAME="lief-${PLATFORM}-${ARCH}"
           if [ "${LIBC}" = "musl" ]; then
             ARCHIVE_NAME="${ARCHIVE_NAME}-musl"
           fi
@@ -546,14 +540,9 @@ jobs:
           ARCH: ${{ matrix.arch }}
           LIBC: ${{ matrix.libc }}
         run: |
-          # Convert win32 → win for file/folder names.
-          if [ "${PLATFORM}" = "win32" ]; then
-            RELEASE_PLATFORM="win"
-          else
-            RELEASE_PLATFORM="${PLATFORM}"
-          fi
-          # Construct artifact name (musl suffix after arch).
-          ARTIFACT_NAME="lief-${RELEASE_PLATFORM}-${ARCH}"
+          # Use the canonical pnpm-style platform string (`win32`, not
+          # `win`) to match every downstream consumer (binject, ensure-lief).
+          ARTIFACT_NAME="lief-${PLATFORM}-${ARCH}"
           if [ "${LIBC}" = "musl" ]; then
             ARTIFACT_NAME="${ARTIFACT_NAME}-musl"
           fi

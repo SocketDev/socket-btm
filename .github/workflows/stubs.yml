@@ -481,12 +481,9 @@ jobs:
           ARCH="$MATRIX_ARCH"
           LIBC="$MATRIX_LIBC"
 
-          # Transform win32 → win for consistency with other tools.
-          if [ "$PLATFORM" = "win32" ]; then
-            PLATFORM="win"
-          fi
-
-          # Construct artifact name (all hyphens, following lief convention).
+          # Construct artifact name. Use the canonical pnpm-style platform
+          # string (`win32`, not `win`) to match every other downstream
+          # consumer (binpress, node-smol, ensure-* helpers).
           ARTIFACT_NAME="smol-stub-${PLATFORM}-${ARCH}"
           if [ "${LIBC}" = "musl" ]; then
             ARTIFACT_NAME="${ARTIFACT_NAME}-musl"

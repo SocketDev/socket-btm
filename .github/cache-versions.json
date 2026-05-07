@@ -8,12 +8,12 @@
     "curl": "v38",
     "ink": "v14",
     "iocraft": "v33",
-    "lief": "v73",
+    "lief": "v74",
     "models": "v34",
     "node-smol": "v236",
     "onnxruntime": "v33",
     "opentui": "v15",
-    "stubs": "v105",
+    "stubs": "v106",
     "yoga-layout": "v35"
   }
 }

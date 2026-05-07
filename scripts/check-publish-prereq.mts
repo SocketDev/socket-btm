@@ -50,6 +50,13 @@ const STUBS_DEPS: UpstreamEntry[] = [
   { pkg: 'curl', dispatchWorkflow: 'curl.yml' },
   { pkg: 'lief', dispatchWorkflow: 'lief.yml' },
 ]
+// binsuite (binflate / binject / binpress) all consume lief and stubs at
+// build time. binject directly links LIEF; binpress packs the stubs
+// binary. So the binsuite workflow itself needs lief+stubs fresh too.
+const BINSUITE_DEPS: UpstreamEntry[] = [
+  { pkg: 'lief', dispatchWorkflow: 'lief.yml' },
+  { pkg: 'stubs', dispatchWorkflow: 'stubs.yml' },
+]
 const NODE_SMOL_DEPS: UpstreamEntry[] = [
   { pkg: 'binflate', dispatchWorkflow: 'binsuite.yml' },
   { pkg: 'binject', dispatchWorkflow: 'binsuite.yml' },
@@ -59,7 +66,7 @@ const CHAIN: ChainEntry[] = [
   { pkg: 'curl', deps: [] },
   { pkg: 'lief', deps: [] },
   { pkg: 'stubs', deps: STUBS_DEPS },
-  { pkg: 'binsuite', deps: [{ pkg: 'stubs', dispatchWorkflow: 'stubs.yml' }] },
+  { pkg: 'binsuite', deps: BINSUITE_DEPS },
   { pkg: 'node-smol', deps: NODE_SMOL_DEPS },
 ]
 

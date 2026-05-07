@@ -63,6 +63,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
           submodules: false
+      - uses: SocketDev/socket-registry/.github/actions/setup@b89a5904e20e3a9ae8bf6df80ac5332d2818d268 # main
       - name: Check publish chain freshness
         env:
           GH_TOKEN: ${{ github.token }}

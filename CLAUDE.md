@@ -203,6 +203,19 @@ pnpm run fleet-skill --list-skills                  # classify skills fleet/part
 
 ## 🏗️ BTM-Specific
 
+### Builder publish dispatch order
+
+🚨 When re-publishing builder workflows after a registry/source SHA cascade, the order MUST be:
+
+1. **curl + lief** — in PARALLEL (independent of each other)
+2. **stubs** — AFTER curl AND lief are green at the new SHA (stubs links libcurl + uses lief)
+3. **binsuite** — AFTER stubs is green
+4. **node-smol** — AFTER binsuite is green
+
+Never parallel-dispatch across tiers. Within a tier, parallel is fine. Bump `cache-versions.json` BEFORE re-dispatching so the cache key actually changes — otherwise the workflow finds a stale cached tarball and the rebuild is a no-op.
+
+Out-of-order dispatch is gated by `scripts/check-publish-prereq.mts` (runs as a `verify-prereqs` job at the top of stubs.yml / binsuite.yml / node-smol.yml). The gate compares each upstream's cache-version bump commit against the SHA on the latest published release tag — if the bump is newer than the latest release, the workflow hard-fails with a clear "re-publish ${upstream} first" message before any build runs.
+
 ### Node.js Additions (`additions/` directory)
 
 Code embedded into Node.js during early bootstrap. Special constraints:

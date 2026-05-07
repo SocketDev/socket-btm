@@ -25,7 +25,23 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  verify-prereqs:
+    name: verify upstream publishes are fresh
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0  # full history for `git log -G` + merge-base
+          submodules: false
+      - name: Check publish chain freshness
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/check-publish-prereq.mts stubs
+
   build-stubs:
+    needs: verify-prereqs
     permissions:
       # actions/upload-artifact does NOT need contents: write — it writes
       # to the artifact store via the default token's artifact scope. Keep

@@ -45,7 +45,23 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  verify-prereqs:
+    name: verify upstream publishes are fresh
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          submodules: false
+      - name: Check publish chain freshness
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/check-publish-prereq.mts node-smol
+
   build:
+    needs: verify-prereqs
     permissions:
       contents: read
       id-token: write # OIDC authentication for Depot.dev builds

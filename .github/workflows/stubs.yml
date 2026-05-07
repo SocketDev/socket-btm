@@ -52,7 +52,7 @@ jobs:
       # write when it actually creates a GitHub Release.
       contents: read
       id-token: write # OIDC authentication for Depot builds
-    name: stub / ${{ matrix.platform == 'win32' && 'win' || matrix.platform }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }}
+    name: stub / ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     strategy:

@@ -52,7 +52,7 @@ jobs:
     permissions:
       contents: read
       id-token: write # OIDC authentication for Depot builds
-    name: curl / ${{ matrix.platform == 'win32' && 'win' || matrix.platform }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }}
+    name: curl / ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     strategy:

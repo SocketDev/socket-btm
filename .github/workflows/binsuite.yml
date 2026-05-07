@@ -75,7 +75,7 @@ jobs:
     permissions:
       contents: read
       id-token: write # OIDC authentication for Depot builds
-    name: binpress / ${{ matrix.platform == 'win32' && 'win' || matrix.platform }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }}
+    name: binpress / ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     if: inputs.tools == 'all' || contains(inputs.tools, 'binpress')
@@ -512,7 +512,7 @@ jobs:
     permissions:
       contents: read
       id-token: write # OIDC authentication for Depot builds
-    name: binflate / ${{ matrix.platform == 'win32' && 'win' || matrix.platform }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }}
+    name: binflate / ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     if: inputs.tools == 'all' || contains(inputs.tools, 'binflate')
@@ -900,7 +900,7 @@ jobs:
     permissions:
       contents: read
       id-token: write # OIDC authentication for Depot builds
-    name: binject / ${{ matrix.platform == 'win32' && 'win' || matrix.platform }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }}
+    name: binject / ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     if: inputs.tools == 'all' || contains(inputs.tools, 'binject')

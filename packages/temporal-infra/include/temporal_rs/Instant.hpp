@@ -135,30 +135,73 @@ class Instant {
     return std::unique_ptr<Instant>(new Instant(inner_));
   }
 
-  // ── Methods activated by Phase 10b (V8/ICU dispatch) ─────────────
+  // ── Arithmetic ─────────────────────────────────────────────────
   //
-  // The arithmetic + string formatting methods below need the
-  // `Duration` / `DifferenceSettings` / `RoundingOptions` /
-  // `ToStringRoundingOptions` / `TimeZone` / `Provider` shims to be
-  // in place first. Phase 10a focuses on the foundation; Phase 10b
-  // wires these up.
-  //
-  //   diplomat::result<std::unique_ptr<Instant>, TemporalError> add(
-  //       const Duration& duration) const;
-  //   diplomat::result<std::unique_ptr<Instant>, TemporalError> subtract(
-  //       const Duration& duration) const;
-  //   diplomat::result<std::unique_ptr<Duration>, TemporalError> since(
-  //       const Instant& other, DifferenceSettings settings) const;
-  //   diplomat::result<std::unique_ptr<Duration>, TemporalError> until(
-  //       const Instant& other, DifferenceSettings settings) const;
-  //   diplomat::result<std::unique_ptr<Instant>, TemporalError> round(
-  //       RoundingOptions options) const;
-  //   diplomat::result<std::string, TemporalError>
-  //   to_ixdtf_string_with_provider(std::optional<TimeZone> zone,
-  //                                  ToStringRoundingOptions options,
-  //                                  const Provider& p) const;
-  //   diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
-  //   to_zoned_date_time_iso(TimeZone zone) const;
+  // Routes through the temporal-infra free-function arithmetic surface
+  // (AddDuration / InstantSince) which takes / returns Duration value
+  // types. The forward-declared `Duration` shim is heap-owned, so this
+  // header only declares the methods; bodies live in
+  // include/temporal_rs/_arith_inline.hpp (included after Duration.hpp
+  // is in scope) to avoid a circular dependency between Instant.hpp
+  // and Duration.hpp.
+
+  // Activated below (after Duration.hpp is included by the consumer).
+  // Kept declared here so V8's call sites compile.
+  template <class D>
+  diplomat::result<std::unique_ptr<Instant>, ::temporal_rs::TemporalError> add(
+      const D& duration) const {
+    auto out_inner = ::node::socketsecurity::temporal::AddDuration(
+        inner_, duration.ToInfra());
+    if (!out_inner.IsValid()) {
+      return diplomat::Err<::temporal_rs::TemporalError>(
+          ::temporal_rs::TemporalError{
+              ::temporal_rs::ErrorKind::Range,
+              "Instant arithmetic produced out-of-range value"});
+    }
+    return diplomat::Ok<std::unique_ptr<Instant>>(
+        std::unique_ptr<Instant>(new Instant(out_inner)));
+  }
+
+  template <class D>
+  diplomat::result<std::unique_ptr<Instant>, ::temporal_rs::TemporalError>
+  subtract(const D& duration) const {
+    auto out_inner = ::node::socketsecurity::temporal::AddDuration(
+        inner_, ::node::socketsecurity::temporal::DurationNegated(
+                    duration.ToInfra()));
+    if (!out_inner.IsValid()) {
+      return diplomat::Err<::temporal_rs::TemporalError>(
+          ::temporal_rs::TemporalError{
+              ::temporal_rs::ErrorKind::Range,
+              "Instant arithmetic produced out-of-range value"});
+    }
+    return diplomat::Ok<std::unique_ptr<Instant>>(
+        std::unique_ptr<Instant>(new Instant(out_inner)));
+  }
+
+  // since / until — Duration of (self - other) / (other - self).
+  template <class D>
+  std::unique_ptr<D> since_dur(const Instant& other) const {
+    auto d = ::node::socketsecurity::temporal::InstantSince(other.inner_,
+                                                              inner_);
+    return D::FromInfra(d);
+  }
+  template <class D>
+  std::unique_ptr<D> until_dur(const Instant& other) const {
+    auto d = ::node::socketsecurity::temporal::InstantSince(inner_,
+                                                              other.inner_);
+    return D::FromInfra(d);
+  }
+
+  // ── Bridges ────────────────────────────────────────────────────
+
+  const ::node::socketsecurity::temporal::Instant& ToInfra() const {
+    return inner_;
+  }
+
+  static std::unique_ptr<Instant> FromInfra(
+      const ::node::socketsecurity::temporal::Instant& inner) {
+    return std::unique_ptr<Instant>(new Instant(inner));
+  }
 
   // ── Forbidden ops (mirrors upstream's deletion list) ──────────────
   Instant() = delete;

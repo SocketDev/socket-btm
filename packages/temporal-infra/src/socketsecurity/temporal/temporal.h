@@ -32,6 +32,13 @@ namespace node {
 namespace socketsecurity {
 namespace temporal {
 
+// Forward declarations for free functions defined in duration.cc that
+// take or return TemporalError / Sign / TemporalResult<Duration>.
+enum class Sign : int8_t;            // duration_normalized.h
+struct TemporalError;                // error.h
+template <typename T>
+class TemporalResult;                // error.h
+
 // ── Spec-level ISO records ────────────────────────────────────────────
 //
 // These mirror upstream's `IsoDate` / `IsoTime` / `IsoDateTime` (in
@@ -152,6 +159,59 @@ struct Duration {
   // `Number.MAX_SAFE_INTEGER` for the time-only subset.
   bool IsValid() const noexcept;
 };
+
+// Mirror of upstream's `Duration::new` / `Duration::try_new` / display
+// surface. These are the public spec methods exposed by V8's
+// js-temporal-objects.cc when constructing or inspecting a Duration.
+
+// Spec: CreateTemporalDuration — bypasses IsValidDuration, intended for
+// callers that have already verified the components.
+Duration DurationCreate(int64_t years, int64_t months, int64_t weeks,
+                         int64_t days, int64_t hours, int64_t minutes,
+                         int64_t seconds, int64_t milliseconds,
+                         double microseconds, double nanoseconds) noexcept;
+
+// Spec: Duration::TryNew — validates via IsValidDuration before
+// constructing.
+TemporalResult<Duration> DurationTryNew(int64_t years, int64_t months,
+                                         int64_t weeks, int64_t days,
+                                         int64_t hours, int64_t minutes,
+                                         int64_t seconds, int64_t milliseconds,
+                                         double microseconds,
+                                         double nanoseconds) noexcept;
+
+// Spec: DurationSign — discriminates the duration's overall sign.
+Sign DurationGetSign(const Duration& d) noexcept;
+bool DurationIsZero(const Duration& d) noexcept;
+
+// Spec: Duration.prototype.abs / negated.
+Duration DurationAbs(const Duration& d) noexcept;
+Duration DurationNegated(const Duration& d) noexcept;
+
+// Spec: IsTimeWithinRange — accessor used by the time-component balance
+// algorithm.
+bool DurationIsTimeWithinRange(const Duration& d) noexcept;
+
+// Spec: Duration.prototype.add / subtract — without relativeTo, only
+// the time-portion path is supported.
+TemporalResult<Duration> DurationAdd(const Duration& self,
+                                      const Duration& other) noexcept;
+TemporalResult<Duration> DurationSubtract(const Duration& self,
+                                           const Duration& other) noexcept;
+
+// Spec: ParseTemporalDurationString.
+TemporalResult<Duration> DurationFromUtf8(std::string_view input) noexcept;
+
+// Spec: TemporalDurationToString — canonical IXDTF without rounding.
+std::string DurationToString(const Duration& d) noexcept;
+
+// Spec: TotalDurationNanoseconds — time-portion sum as a double.
+double DurationTotalNanoseconds(const Duration& d) noexcept;
+
+// Spec: CompareDurations (time-only path; rejects calendar components
+// without a relativeTo anchor).
+TemporalResult<int8_t> DurationCompare(const Duration& a,
+                                         const Duration& b) noexcept;
 
 // ── Arithmetic ─────────────────────────────────────────────────────
 

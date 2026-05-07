@@ -12,6 +12,7 @@
 #include "socketsecurity/temporal/plain_time.h"
 #include "temporal_rs/ArithmeticOverflow.hpp"
 #include "temporal_rs/PartialTime.hpp"
+#include "temporal_rs/RoundingOptions.hpp"
 #include "temporal_rs/TemporalError.hpp"
 #include "temporal_rs/diplomat_runtime.hpp"
 
@@ -167,9 +168,80 @@ class PlainTime {
     return std::unique_ptr<PlainTime>(new PlainTime(inner_));
   }
 
-  // Phase 10c TODO: add / subtract / since / until / round /
-  // to_ixdtf_string. All require Duration / DifferenceSettings /
-  // RoundingOptions / ToStringRoundingOptions shims first.
+  // ── Arithmetic ─────────────────────────────────────────────────
+
+  template <class D>
+  diplomat::result<std::unique_ptr<PlainTime>, TemporalError> add(
+      const D& duration) const {
+    auto r = ::node::socketsecurity::temporal::PlainTimeAdd(
+        inner_, duration.ToInfra());
+    if (!r.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(r.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PlainTime>>(
+        std::unique_ptr<PlainTime>(new PlainTime(r.value())));
+  }
+
+  template <class D>
+  diplomat::result<std::unique_ptr<PlainTime>, TemporalError> subtract(
+      const D& duration) const {
+    auto r = ::node::socketsecurity::temporal::PlainTimeSubtract(
+        inner_, duration.ToInfra());
+    if (!r.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(r.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PlainTime>>(
+        std::unique_ptr<PlainTime>(new PlainTime(r.value())));
+  }
+
+  template <class D, class S>
+  diplomat::result<std::unique_ptr<D>, TemporalError> since(
+      const PlainTime& other, S /*settings*/) const {
+    auto r = ::node::socketsecurity::temporal::PlainTimeSince(
+        inner_, other.inner_);
+    if (!r.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(r.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<D>>(D::FromInfra(r.value()));
+  }
+
+  template <class D, class S>
+  diplomat::result<std::unique_ptr<D>, TemporalError> until(
+      const PlainTime& other, S /*settings*/) const {
+    auto r = ::node::socketsecurity::temporal::PlainTimeUntil(
+        inner_, other.inner_);
+    if (!r.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(r.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<D>>(D::FromInfra(r.value()));
+  }
+
+  diplomat::result<std::unique_ptr<PlainTime>, TemporalError> round(
+      const ::temporal_rs::RoundingOptions& options) const {
+    auto r = ::node::socketsecurity::temporal::PlainTimeRound(
+        inner_, options.ToInfra());
+    if (!r.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(r.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PlainTime>>(
+        std::unique_ptr<PlainTime>(new PlainTime(r.value())));
+  }
+
+  // ── Bridges ────────────────────────────────────────────────────
+
+  const ::node::socketsecurity::temporal::PlainTime& ToInfra() const {
+    return inner_;
+  }
+
+  static std::unique_ptr<PlainTime> FromInfra(
+      const ::node::socketsecurity::temporal::PlainTime& d) {
+    return std::unique_ptr<PlainTime>(new PlainTime(d));
+  }
 
   PlainTime() = delete;
   PlainTime(const PlainTime&) = delete;

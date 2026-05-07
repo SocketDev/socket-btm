@@ -196,25 +196,85 @@ class PlainDate {
     return std::unique_ptr<PlainDate>(new PlainDate(inner_));
   }
 
-  // ── Methods needing more shim plumbing (Phase 10c) ────────────────
+  // ── Arithmetic ────────────────────────────────────────────────────
   //
-  //   add(Duration, optional<Overflow>)
-  //   subtract(Duration, optional<Overflow>)
-  //   since(PlainDate&, DifferenceSettings)
-  //   until(PlainDate&, DifferenceSettings)
-  //   with_calendar(AnyCalendarKind) → unique_ptr<PlainDate> (no error)
-  //   from_parsed(ParsedDate&)
-  //   from_epoch_milliseconds[_with_provider](int64_t, TimeZone[, Provider])
-  //   from_epoch_nanoseconds[_with_provider](I128Nanoseconds, TimeZone[, Provider])
-  //   to_plain_year_month()
-  //   to_plain_month_day()
-  //   to_plain_date_time(optional<PlainTime>)
-  //   to_zoned_date_time(TimeZone, optional<PlainTime>)
-  //   to_ixdtf_string(DisplayCalendar)
-  //   calendar() → const Calendar&
-  //
-  // These all need their respective heavyweight shim types (Duration,
-  // PlainDateTime, ZonedDateTime, etc.) wired up first.
+  // Templated on the Duration shim type to break the
+  // Duration.hpp ↔ PlainDate.hpp include cycle.
+
+  template <class D>
+  diplomat::result<std::unique_ptr<PlainDate>, TemporalError> add(
+      const D& duration,
+      std::optional<ArithmeticOverflow> overflow) const {
+    std::optional<::node::socketsecurity::temporal::Overflow> infra_overflow;
+    if (overflow.has_value()) {
+      infra_overflow = overflow->ToInfra();
+    }
+    auto result = ::node::socketsecurity::temporal::PlainDateAdd(
+        inner_, duration.ToInfra(), infra_overflow);
+    if (!result.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(result.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PlainDate>>(
+        std::unique_ptr<PlainDate>(new PlainDate(result.value())));
+  }
+
+  template <class D>
+  diplomat::result<std::unique_ptr<PlainDate>, TemporalError> subtract(
+      const D& duration,
+      std::optional<ArithmeticOverflow> overflow) const {
+    std::optional<::node::socketsecurity::temporal::Overflow> infra_overflow;
+    if (overflow.has_value()) {
+      infra_overflow = overflow->ToInfra();
+    }
+    auto result = ::node::socketsecurity::temporal::PlainDateSubtract(
+        inner_, duration.ToInfra(), infra_overflow);
+    if (!result.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(result.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PlainDate>>(
+        std::unique_ptr<PlainDate>(new PlainDate(result.value())));
+  }
+
+  template <class D, class S>
+  diplomat::result<std::unique_ptr<D>, TemporalError> since(
+      const PlainDate& other, S /*settings*/) const {
+    // settings (rounding / largest-unit / smallest-unit) layer onto a
+    // post-difference round; the underlying infra returns the
+    // ISO-day-difference Duration. The shim's Duration::round handles
+    // the settings application separately.
+    auto result = ::node::socketsecurity::temporal::PlainDateSince(
+        inner_, other.inner_);
+    if (!result.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(result.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<D>>(D::FromInfra(result.value()));
+  }
+
+  template <class D, class S>
+  diplomat::result<std::unique_ptr<D>, TemporalError> until(
+      const PlainDate& other, S /*settings*/) const {
+    auto result = ::node::socketsecurity::temporal::PlainDateUntil(
+        inner_, other.inner_);
+    if (!result.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(result.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<D>>(D::FromInfra(result.value()));
+  }
+
+  // ── Bridges ─────────────────────────────────────────────────────
+
+  const ::node::socketsecurity::temporal::PlainDate& ToInfra() const {
+    return inner_;
+  }
+
+  static std::unique_ptr<PlainDate> FromInfra(
+      const ::node::socketsecurity::temporal::PlainDate& d) {
+    return std::unique_ptr<PlainDate>(new PlainDate(d));
+  }
 
   // ── Forbidden ops ─────────────────────────────────────────────────
   PlainDate() = delete;

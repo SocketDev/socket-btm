@@ -132,9 +132,94 @@ class PlainDateTime {
     return std::unique_ptr<PlainDateTime>(new PlainDateTime(inner_));
   }
 
-  // Phase 10c TODO: add / subtract / since / until / round / with /
-  // to_plain_date / to_plain_time / to_zoned_date_time /
-  // to_ixdtf_string / with_calendar / from_parsed / equals / compare.
+  // ── Arithmetic ─────────────────────────────────────────────────
+
+  template <class D>
+  diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError> add(
+      const D& duration,
+      std::optional<ArithmeticOverflow> overflow) const {
+    std::optional<::node::socketsecurity::temporal::Overflow> infra_overflow;
+    if (overflow.has_value()) {
+      infra_overflow = overflow->ToInfra();
+    }
+    auto r = ::node::socketsecurity::temporal::PlainDateTimeAdd(
+        inner_, duration.ToInfra(), infra_overflow);
+    if (!r.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(r.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
+        std::unique_ptr<PlainDateTime>(new PlainDateTime(r.value())));
+  }
+
+  template <class D>
+  diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError> subtract(
+      const D& duration,
+      std::optional<ArithmeticOverflow> overflow) const {
+    std::optional<::node::socketsecurity::temporal::Overflow> infra_overflow;
+    if (overflow.has_value()) {
+      infra_overflow = overflow->ToInfra();
+    }
+    auto r = ::node::socketsecurity::temporal::PlainDateTimeSubtract(
+        inner_, duration.ToInfra(), infra_overflow);
+    if (!r.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(r.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
+        std::unique_ptr<PlainDateTime>(new PlainDateTime(r.value())));
+  }
+
+  template <class D, class S>
+  diplomat::result<std::unique_ptr<D>, TemporalError> since(
+      const PlainDateTime& other, S /*settings*/) const {
+    auto r = ::node::socketsecurity::temporal::PlainDateTimeSince(
+        inner_, other.inner_);
+    if (!r.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(r.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<D>>(D::FromInfra(r.value()));
+  }
+
+  template <class D, class S>
+  diplomat::result<std::unique_ptr<D>, TemporalError> until(
+      const PlainDateTime& other, S /*settings*/) const {
+    auto r = ::node::socketsecurity::temporal::PlainDateTimeUntil(
+        inner_, other.inner_);
+    if (!r.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(r.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<D>>(D::FromInfra(r.value()));
+  }
+
+  // ── Conversions ────────────────────────────────────────────────
+
+  template <class PD>
+  std::unique_ptr<PD> to_plain_date() const {
+    auto d =
+        ::node::socketsecurity::temporal::PlainDateTimeToPlainDate(inner_);
+    return PD::FromInfra(d);
+  }
+
+  template <class PT>
+  std::unique_ptr<PT> to_plain_time() const {
+    auto d =
+        ::node::socketsecurity::temporal::PlainDateTimeToPlainTime(inner_);
+    return PT::FromInfra(d);
+  }
+
+  // ── Bridges ────────────────────────────────────────────────────
+
+  const ::node::socketsecurity::temporal::PlainDateTime& ToInfra() const {
+    return inner_;
+  }
+
+  static std::unique_ptr<PlainDateTime> FromInfra(
+      const ::node::socketsecurity::temporal::PlainDateTime& d) {
+    return std::unique_ptr<PlainDateTime>(new PlainDateTime(d));
+  }
 
   PlainDateTime() = delete;
   PlainDateTime(const PlainDateTime&) = delete;

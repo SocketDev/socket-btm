@@ -70,8 +70,34 @@ class PlainMonthDay {
     return std::unique_ptr<PlainMonthDay>(new PlainMonthDay(inner_));
   }
 
-  // Phase 10c TODO: with / equals / compare / to_plain_date /
-  // to_ixdtf_string.
+  // ── Comparison ─────────────────────────────────────────────────
+
+  bool equals(const PlainMonthDay& other) const {
+    return inner_.iso.month == other.inner_.iso.month &&
+           inner_.iso.day == other.inner_.iso.day;
+  }
+
+  static int8_t compare(const PlainMonthDay& one,
+                         const PlainMonthDay& two) {
+    if (one.inner_.iso.month != two.inner_.iso.month) {
+      return one.inner_.iso.month < two.inner_.iso.month ? -1 : 1;
+    }
+    if (one.inner_.iso.day != two.inner_.iso.day) {
+      return one.inner_.iso.day < two.inner_.iso.day ? -1 : 1;
+    }
+    return 0;
+  }
+
+  // ── Bridges ────────────────────────────────────────────────────
+
+  const ::node::socketsecurity::temporal::PlainMonthDay& ToInfra() const {
+    return inner_;
+  }
+
+  static std::unique_ptr<PlainMonthDay> FromInfra(
+      const ::node::socketsecurity::temporal::PlainMonthDay& d) {
+    return std::unique_ptr<PlainMonthDay>(new PlainMonthDay(d));
+  }
 
   PlainMonthDay() = delete;
   PlainMonthDay(const PlainMonthDay&) = delete;

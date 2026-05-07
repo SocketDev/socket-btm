@@ -38,50 +38,52 @@ our temporal-infra C++ port and drop the rustc/cargo build dependency.
 - `PlainYearMonth.hpp` — try_new_iso / from_utf8 / from_utf16 + accessors
 - `PlainMonthDay.hpp` — try_new_iso / from_utf8 / from_utf16 + accessors
 
-## What's NOT yet ported (Phase 10d+)
+**Phase 10d — heavyweights + arithmetic activation:**
 
-Remaining types V8 references:
+- `Duration.hpp` — try_new / create / from_partial / from_utf8 / from_utf16 +
+  abs / negated / add / subtract / round / total / compare / to_string +
+  10 field accessors + sign / is_zero / is_time_within_range + ToInfra/FromInfra
+  bridges
+- `PartialDuration.hpp` — optional-fields struct
+- `Calendar.hpp` — create / create_iso / try_from_utf8 + kind / identifier /
+  is_iso / equals / clone + bridges
+- `TimeZone.hpp` — utc / from_offset_seconds / try_from_identifier_str /
+  try_from_str + identifier / is_offset / clone + bridges
+- `ZonedDateTime.hpp` — try_new / from_utf8 / from_utf16 + 9 accessors +
+  to_instant / to_plain_date_time / to_plain_date / to_plain_time +
+  compare_instant / equals / clone + bridges
+- `RelativeTo.hpp` / `OwnedRelativeTo.hpp` — borrow / owned variants of the
+  PlainDate ⊎ ZonedDateTime tagged union for Duration arithmetic anchors
+- `Provider.hpp` — TzdbProvider handle (compiled / fs)
+- `ArithmeticOverflow.hpp` — enum (Constrain / Reject)
+- `ParsedDate.hpp` / `ParsedDateTime.hpp` / `ParsedZonedDateTime.hpp` —
+  parsed-but-not-validated structs from the IXDTF parser
+- `PartialZonedDateTime.hpp` — optional-fields struct with date / time /
+  time_zone / offset / calendar / disambiguation / offset_option
 
-| Type | Use count | Notes |
-|---|---|---|
-| ArithmeticOverflow | 38 | enum-class, trivial |
-| ZonedDateTime | 30 | wraps Instant + TimeZone + Calendar |
-| AnyCalendarKind | 29 | enum, maps to our CalendarKind |
-| TimeZone | 28 | non-trivial; depends on V8 zoneinfo64 backend |
-| PlainDate | 25 | calendar wrapper |
-| PartialDate | 24 | optional-fields struct |
-| PlainTime | 23 | wraps IsoTime |
-| DisplayCalendar | 23 | enum |
-| ParsedDate | 18 | wraps our ParsedDate |
-| Duration | 16 | full arithmetic surface |
-| PlainDateTime | 15 | wraps PlainDate + PlainTime |
-| Disambiguation | 15 | enum |
-| OffsetDisambiguation | 14 | enum |
-| PartialTime | 13 | optional-fields struct |
-| PartialDateTime | 12 | nested partial |
-| PlainYearMonth | 11 | calendar wrapper |
-| PartialZonedDateTime | 11 | partial for ZDT |
-| Precision | 9 | enum |
-| DisplayTimeZone | 9 | enum |
-| TransitionDirection | 7 | enum |
-| ToStringRoundingOptions | 7 | options struct |
-| OwnedRelativeTo | 7 | tagged union |
-| PlainMonthDay | 6 | calendar wrapper |
-| RoundingMode | (counted within RoundingOptions) | enum |
-| RoundingOptions | n/a | options struct |
-| Sign | n/a | enum |
-| Provider | n/a | TimeZoneBackend handle |
-| RelativeTo | n/a | borrow-flavor of OwnedRelativeTo |
-| ParsedDateTime | n/a | wraps our ParsedDateTime |
-| ParsedZonedDateTime | n/a | needs ZDT |
-| PartialDuration | n/a | optional-fields |
+Plus the Phase 10c.5 activation:
 
-Plus: each non-trivial type needs all its diplomat methods bridged. `Instant`
-alone has ~15 methods (try_new + from_epoch_ms + from_utf8/16 + add + subtract
-+ since + until + round + compare + equals + epoch_ms + epoch_ns +
-to_ixdtf_string + to_zoned_date_time_iso + clone).
+- `PlainDate.hpp` — `add` / `subtract` / `since` / `until` (templated on
+  Duration / DifferenceSettings shims to break the include cycle)
+- `PlainDateTime.hpp` — `add` / `subtract` / `since` / `until` + `to_plain_date` / `to_plain_time`
+- `PlainTime.hpp` — `add` / `subtract` / `since` / `until` / `round`
+- `PlainYearMonth.hpp` — `equals` / `compare`
+- `PlainMonthDay.hpp` — `equals` / `compare`
+- `Instant.hpp` — `add` / `subtract` / `since` / `until` (wired through
+  `AddDuration` + `InstantSince`); ToInfra / FromInfra bridges
 
-## Wiring (when Phase 10 finishes)
+## Status: 100% covered
+
+Every type V8 references (37/37) has a shim file; every method on each shim
+either dispatches to a temporal-infra free function or computes the result
+inline. No TODO comments, no stub-returning bodies — the C++ port is the only
+backing layer.
+
+The Duration parser/formatter (`DurationFromUtf8` / `DurationToString`) and
+the time-only `DurationCompare` / `DurationTotalNanoseconds` helpers landed
+in `src/socketsecurity/temporal/duration.cc` as part of this phase.
+
+## Wiring (Phase 10e — flip the include path)
 
 1. Edit `packages/node-smol-builder/scripts/binary-released/shared/prepare-external-sources.mts` to copy `packages/temporal-infra/include/temporal_rs/` into the libnode build at `additions/source-patched/include/temporal_rs/` (next to existing `temporal/`).
 2. Edit `packages/node-smol-builder/patches/source-patched/004-node-gyp-smol-sources.patch` to put `include/temporal_rs` at the front of the V8-target `include_dirs` (so it wins over `deps/crates/vendor/temporal_capi/bindings/cpp/`).

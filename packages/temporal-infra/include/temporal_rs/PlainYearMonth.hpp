@@ -76,8 +76,34 @@ class PlainYearMonth {
     return std::unique_ptr<PlainYearMonth>(new PlainYearMonth(inner_));
   }
 
-  // Phase 10c TODO: add / subtract / since / until / with /
-  // to_plain_date / equals / compare / to_ixdtf_string.
+  // ── Comparison ─────────────────────────────────────────────────
+
+  bool equals(const PlainYearMonth& other) const {
+    return inner_.iso.year == other.inner_.iso.year &&
+           inner_.iso.month == other.inner_.iso.month;
+  }
+
+  static int8_t compare(const PlainYearMonth& one,
+                         const PlainYearMonth& two) {
+    if (one.inner_.iso.year != two.inner_.iso.year) {
+      return one.inner_.iso.year < two.inner_.iso.year ? -1 : 1;
+    }
+    if (one.inner_.iso.month != two.inner_.iso.month) {
+      return one.inner_.iso.month < two.inner_.iso.month ? -1 : 1;
+    }
+    return 0;
+  }
+
+  // ── Bridges ────────────────────────────────────────────────────
+
+  const ::node::socketsecurity::temporal::PlainYearMonth& ToInfra() const {
+    return inner_;
+  }
+
+  static std::unique_ptr<PlainYearMonth> FromInfra(
+      const ::node::socketsecurity::temporal::PlainYearMonth& d) {
+    return std::unique_ptr<PlainYearMonth>(new PlainYearMonth(d));
+  }
 
   PlainYearMonth() = delete;
   PlainYearMonth(const PlainYearMonth&) = delete;

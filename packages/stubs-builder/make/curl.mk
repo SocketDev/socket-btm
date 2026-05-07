@@ -4,6 +4,18 @@
 # This file is included from stub Makefiles at:
 #   packages/stubs-builder/
 # Paths are relative from that location.
+#
+# Path-of-truth (CLAUDE.md "1 path, 1 reference"):
+#   - PLATFORM_ARCH env var (e.g. "win32-arm64") is the single source.
+#     The set-platform-arch GitHub Action emits it; the JavaScript build
+#     scripts pass it through; common.mk reads it for stubs' own
+#     `build/<mode>/<PLATFORM_ARCH>/` layout.
+#   - We re-use the same PLATFORM_ARCH value verbatim for the
+#     curl-builder sibling, since curl-builder's CI also keys its
+#     output on the same canonical strings (win32-x64 / win32-arm64 /
+#     darwin-arm64 / linux-x64 / linux-x64-musl / etc.).
+#   - When PLATFORM_ARCH is unset (local dev outside CI), fall back
+#     to a shell-side detector that produces the same string shape.
 
 # curl and mbedTLS upstreams are in the curl-builder sibling package.
 CURL_BUILDER_ROOT = ../curl-builder
@@ -13,67 +25,56 @@ MBEDTLS_UPSTREAM = $(CURL_BUILDER_ROOT)/upstream/mbedtls
 
 # curl can come from two locations:
 # 1. Downloaded from releases: build/downloaded/curl/{platform-arch}/
-# 2. Built from source: build/$(BUILD_MODE)/out/Final/curl/dist/
+# 2. Built from source: build/$(BUILD_MODE)/<platform-arch>/out/Final/curl/dist/
 
-# Detect platform-arch for downloaded location.
-UNAME_S := $(shell uname -s)
-UNAME_M := $(shell uname -m)
-
-# Normalize architecture name to match Node.js arch naming.
-# Use TARGET_ARCH if specified (for cross-compilation), otherwise detect from uname.
-# TARGET_ARCH values: x86_64, aarch64, arm64
-# Node.js arch values: x64, arm64
-ifdef TARGET_ARCH
-    ifeq ($(TARGET_ARCH),x86_64)
-        CURL_ARCH := x64
-    else ifeq ($(TARGET_ARCH),aarch64)
-        CURL_ARCH := arm64
-    else ifeq ($(TARGET_ARCH),arm64)
-        CURL_ARCH := arm64
-    else
-        CURL_ARCH := $(TARGET_ARCH)
-    endif
+ifdef PLATFORM_ARCH
+    # Single source: the env var the workflow already exports for
+    # common.mk's BUILD_DIR. No second derivation, no chance of drift.
+    CURL_PLATFORM_ARCH := $(PLATFORM_ARCH)
 else
-    # Detect from host when not cross-compiling.
-    ifeq ($(UNAME_M),x86_64)
-        CURL_ARCH := x64
-    else ifeq ($(UNAME_M),aarch64)
-        CURL_ARCH := arm64
-    else
-        CURL_ARCH := $(UNAME_M)
-    endif
-endif
+    # Local-dev fallback. Detect from `uname` plus optional TARGET_ARCH
+    # override for cross-compile. This branch only fires when running
+    # `make` directly without the workflow harness; CI always sets
+    # PLATFORM_ARCH explicitly.
+    UNAME_S := $(shell uname -s)
+    UNAME_M := $(shell uname -m)
 
-ifeq ($(UNAME_S),Darwin)
-    CURL_PLATFORM_ARCH := darwin-$(CURL_ARCH)
-else ifeq ($(UNAME_S),Linux)
-    # Check for musl.
-    CURL_IS_MUSL := $(shell ldd --version 2>&1 | grep -q musl && echo 1 || echo 0)
-    ifeq ($(CURL_IS_MUSL),1)
-        CURL_PLATFORM_ARCH := linux-$(CURL_ARCH)-musl
-    else
-        CURL_PLATFORM_ARCH := linux-$(CURL_ARCH)
-    endif
-else
-    # Windows — use win32 (Node's process.platform value) to match the
-    # canonical naming used everywhere else in the build system. The
-    # set-platform-arch GitHub Action emits win32-x64 / win32-arm64 verbatim,
-    # the curl-builder's ensure-curl downloader writes to that path, and
-    # build-infra/lib/platform-mappings.mts validates against win32. Older
-    # versions of this Makefile used the shortened "win" form, which
-    # produced "Invalid platform-arch 'win-x64'" downstream — see
-    # commit b935cb72 for the parsePlatformArch fix that aligned every
-    # other consumer on win32.
     ifdef TARGET_ARCH
-        ifeq ($(TARGET_ARCH),aarch64)
-            CURL_PLATFORM_ARCH := win32-arm64
+        ifeq ($(TARGET_ARCH),x86_64)
+            CURL_ARCH := x64
+        else ifeq ($(TARGET_ARCH),aarch64)
+            CURL_ARCH := arm64
         else ifeq ($(TARGET_ARCH),arm64)
-            CURL_PLATFORM_ARCH := win32-arm64
+            CURL_ARCH := arm64
         else
-            CURL_PLATFORM_ARCH := win32-x64
+            CURL_ARCH := $(TARGET_ARCH)
         endif
     else
-        CURL_PLATFORM_ARCH := win32-x64
+        ifeq ($(UNAME_M),x86_64)
+            CURL_ARCH := x64
+        else ifeq ($(UNAME_M),aarch64)
+            CURL_ARCH := arm64
+        else
+            CURL_ARCH := $(UNAME_M)
+        endif
+    endif
+
+    ifeq ($(UNAME_S),Darwin)
+        CURL_PLATFORM_ARCH := darwin-$(CURL_ARCH)
+    else ifeq ($(UNAME_S),Linux)
+        CURL_IS_MUSL := $(shell ldd --version 2>&1 | grep -q musl && echo 1 || echo 0)
+        ifeq ($(CURL_IS_MUSL),1)
+            CURL_PLATFORM_ARCH := linux-$(CURL_ARCH)-musl
+        else
+            CURL_PLATFORM_ARCH := linux-$(CURL_ARCH)
+        endif
+    else
+        # Windows: emit the canonical win32-prefixed form that
+        # parsePlatformArch (build-infra/lib/platform-mappings.mts)
+        # validates against. The shortened "win" form was rejected by
+        # parsePlatformArch and would produce a curl path mismatch
+        # against curl-builder's win32-prefixed output.
+        CURL_PLATFORM_ARCH := win32-$(CURL_ARCH)
     endif
 endif
 

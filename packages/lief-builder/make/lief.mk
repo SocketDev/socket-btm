@@ -1,5 +1,18 @@
 # LIEF library paths and configuration.
 # LIEF is built by this package (lief-builder).
+#
+# Path-of-truth (CLAUDE.md "1 path, 1 reference"):
+#   - PLATFORM_ARCH env var (e.g. "win32-arm64") is the single source.
+#     The set-platform-arch GitHub Action emits it; the JavaScript
+#     build scripts pass it through; common.mk reads it for the
+#     `build/<mode>/<PLATFORM_ARCH>/` layout that ALL packages share.
+#   - lief-builder ITSELF and every consumer that `include`s this
+#     file see the same value via the same env var.
+#   - When PLATFORM_ARCH is unset (local dev outside CI), fall back
+#     to a shell-side detector that produces the same string shape
+#     (canonical fleet form, validated by parsePlatformArch in
+#     build-infra/lib/platform-mappings.mts: darwin-{x64,arm64} /
+#     linux-{x64,arm64}[-musl] / win32-{x64,arm64}).
 
 # Path to lief-builder package root (relative to package Makefiles that include this file).
 # Don't use $(lastword $(MAKEFILE_LIST)) - it may not be this file if other .mk files are included after.
@@ -10,60 +23,58 @@ LIEF_UPSTREAM = $(LIEF_BUILDER_ROOT)/upstream/lief
 
 # LIEF can come from two locations:
 # 1. Downloaded from releases: lief-builder/build/downloaded/lief/{platform-arch}/
-# 2. Built from source: lief-builder/build/$(BUILD_MODE)/out/Final/lief/
+# 2. Built from source: lief-builder/build/$(BUILD_MODE)/<platform-arch>/out/Final/lief/
 
-# Detect platform-arch for downloaded location
-UNAME_S := $(shell uname -s)
-UNAME_M := $(shell uname -m)
+ifndef PLATFORM_ARCH
+    # Local-dev fallback. Detect from `uname` plus optional TARGET_ARCH
+    # override for cross-compile. CI always sets PLATFORM_ARCH explicitly
+    # (set-platform-arch GitHub Action), so this branch only fires
+    # outside the workflow harness.
+    UNAME_S := $(shell uname -s)
+    UNAME_M := $(shell uname -m)
+    ifeq ($(UNAME_M),x86_64)
+        ARCH := x64
+    else ifeq ($(UNAME_M),aarch64)
+        ARCH := arm64
+    else
+        ARCH := $(UNAME_M)
+    endif
 
-# Normalize architecture name to match Node.js arch naming
-# uname -m returns: x86_64, aarch64, etc.
-# Node.js uses: x64, arm64, etc.
-ifeq ($(UNAME_M),x86_64)
-    ARCH := x64
-else ifeq ($(UNAME_M),aarch64)
-    ARCH := arm64
-else
-    ARCH := $(UNAME_M)
-endif
-
-ifeq ($(UNAME_S),Darwin)
-    # Support cross-compilation via TARGET_ARCH environment variable.
-    ifdef TARGET_ARCH
-        ifeq ($(TARGET_ARCH),arm64)
-            PLATFORM_ARCH := darwin-arm64
-        else ifeq ($(TARGET_ARCH),aarch64)
-            PLATFORM_ARCH := darwin-arm64
+    ifeq ($(UNAME_S),Darwin)
+        ifdef TARGET_ARCH
+            ifeq ($(TARGET_ARCH),arm64)
+                PLATFORM_ARCH := darwin-arm64
+            else ifeq ($(TARGET_ARCH),aarch64)
+                PLATFORM_ARCH := darwin-arm64
+            else
+                PLATFORM_ARCH := darwin-x64
+            endif
         else
-            PLATFORM_ARCH := darwin-x64
+            PLATFORM_ARCH := darwin-$(ARCH)
+        endif
+    else ifeq ($(UNAME_S),Linux)
+        IS_MUSL := $(shell ldd --version 2>&1 | grep -q musl && echo 1 || echo 0)
+        ifeq ($(IS_MUSL),1)
+            PLATFORM_ARCH := linux-$(ARCH)-musl
+        else
+            PLATFORM_ARCH := linux-$(ARCH)
         endif
     else
-        PLATFORM_ARCH := darwin-$(ARCH)
-    endif
-else ifeq ($(UNAME_S),Linux)
-    # Check for musl
-    IS_MUSL := $(shell ldd --version 2>&1 | grep -q musl && echo 1 || echo 0)
-    ifeq ($(IS_MUSL),1)
-        PLATFORM_ARCH := linux-$(ARCH)-musl
-    else
-        PLATFORM_ARCH := linux-$(ARCH)
-    endif
-else
-    # Windows — use win32 (Node's process.platform value) to match the
-    # canonical naming used everywhere else in the build system. See
-    # commit b935cb72 for the parsePlatformArch fix that aligned the
-    # rest of the fleet on win32 (asset-style "win" was the holdout).
-    # Support cross-compilation via TARGET_ARCH environment variable.
-    ifdef TARGET_ARCH
-        ifeq ($(TARGET_ARCH),arm64)
-            PLATFORM_ARCH := win32-arm64
-        else ifeq ($(TARGET_ARCH),aarch64)
-            PLATFORM_ARCH := win32-arm64
+        # Windows — emit the canonical win32-prefixed form that
+        # parsePlatformArch validates against. The shortened "win"
+        # form was rejected and would mismatch curl-builder's
+        # win32-prefixed output.
+        ifdef TARGET_ARCH
+            ifeq ($(TARGET_ARCH),arm64)
+                PLATFORM_ARCH := win32-arm64
+            else ifeq ($(TARGET_ARCH),aarch64)
+                PLATFORM_ARCH := win32-arm64
+            else
+                PLATFORM_ARCH := win32-x64
+            endif
         else
             PLATFORM_ARCH := win32-x64
         endif
-    else
-        PLATFORM_ARCH := win32-x64
     endif
 endif
 

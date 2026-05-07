@@ -25,8 +25,11 @@ runs:
             exit 1
           fi
           echo "Initializing submodule: $sm (shallow, depth=1, single-branch)"
-          # Shallow + single-branch keeps the clone minimal: we only need
-          # the gitlink commit, not the upstream's full history. Saves
-          # hundreds of MB on lief/upstream clones in particular.
-          git submodule update --init --depth=1 --single-branch --recommend-shallow "$sm"
+          # Canonical fleet pattern (.gitmodules also has shallow=true as
+          # defense-in-depth for any caller that does plain
+          # `git submodule update`). `--depth=1` shallow-clones to the
+          # gitlink SHA. `--single-branch` skips fetching every branch
+          # tip. `--recommend-shallow` would be redundant — only honored
+          # when --depth is unset.
+          git submodule update --init --depth=1 --single-branch "$sm"
         done

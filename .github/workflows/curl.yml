@@ -285,7 +285,7 @@ jobs:
         # Same gate as curl submodule init.
         if: steps.curl-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
         shell: bash
-        run: git submodule update --init --recursive packages/curl-builder/upstream/mbedtls
+        run: git submodule update --init --depth=1 --single-branch packages/curl-builder/upstream/mbedtls
 
       - name: Setup Depot CLI
         if: matrix.os == 'linux' && (steps.curl-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)

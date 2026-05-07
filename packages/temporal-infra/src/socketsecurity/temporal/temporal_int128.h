@@ -44,7 +44,13 @@ struct Int128 {
 
   constexpr Int128() noexcept : value(0) {}
   constexpr Int128(NativeInt128 v) noexcept : value(v) {}
-  constexpr Int128(int64_t v) noexcept : value(v) {}
+  // Note: separate `Int128(int64_t)` ctor was here, but on platforms
+  // where NativeInt128 = absl::int128 (musl x86-64 fallback path),
+  // absl::int128 has its own implicit conversion from int64_t —
+  // creating an ambiguous-overload error. Drop the explicit int64_t
+  // ctor; callers passing int64_t flow through NativeInt128's own
+  // implicit conversion. Original kept commented for legibility:
+  // constexpr Int128(int64_t v) noexcept : value(v) {}
 
   constexpr Int128 operator+(Int128 o) const noexcept {
     return Int128(value + o.value);

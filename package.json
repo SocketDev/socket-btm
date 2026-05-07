@@ -58,8 +58,8 @@
     "yoctocolors-cjs": "catalog:"
   },
   "engines": {
-    "node": ">=26.0.0",
-    "pnpm": ">=11.0.7"
+    "node": ">=26.1.0",
+    "pnpm": ">=11.0.8"
   },
-  "packageManager": "pnpm@11.0.7"
+  "packageManager": "pnpm@11.0.8"
 }

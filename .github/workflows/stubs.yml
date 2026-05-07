@@ -37,7 +37,7 @@ jobs:
           submodules: false
       # Need node 22+ for native .mts loader. Registry setup-and-install
       # provisions exactly that; pure setup is fine since we don't pnpm install.
-      - uses: SocketDev/socket-registry/.github/actions/setup@b89a5904e20e3a9ae8bf6df80ac5332d2818d268 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup@91544bee74cc405a9aa6a287831ba25da1a464e3 # main
       - name: Check publish chain freshness
         env:
           GH_TOKEN: ${{ github.token }}
@@ -327,7 +327,7 @@ jobs:
         with:
           oidc: true
 
-      - uses: SocketDev/socket-registry/.github/actions/setup@b89a5904e20e3a9ae8bf6df80ac5332d2818d268 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup@91544bee74cc405a9aa6a287831ba25da1a464e3 # main
         if: matrix.os == 'linux' && (steps.stubs-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
 
       - name: Stage registry tool-checksums for Docker build context
@@ -377,10 +377,10 @@ jobs:
             exit 1
           fi
 
-      - uses: SocketDev/socket-registry/.github/actions/setup@b89a5904e20e3a9ae8bf6df80ac5332d2818d268 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup@91544bee74cc405a9aa6a287831ba25da1a464e3 # main
         if: matrix.os != 'linux' && (steps.stubs-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
 
-      - uses: SocketDev/socket-registry/.github/actions/install@b89a5904e20e3a9ae8bf6df80ac5332d2818d268 # main
+      - uses: SocketDev/socket-registry/.github/actions/install@91544bee74cc405a9aa6a287831ba25da1a464e3 # main
         if: matrix.os != 'linux' && (steps.stubs-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)
 
       - name: Setup build environment (macOS)

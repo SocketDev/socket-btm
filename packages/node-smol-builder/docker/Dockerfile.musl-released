@@ -41,23 +41,15 @@ RUN ARCH=$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/') && \
 # pinned SHA.
 COPY .build-context/registry-tools.json /tmp/registry-tools.json
 
-# Install pnpm (native binary is glibc-only, use npm on musl) + Rust
-# toolchain (required by Node 26+ to link the temporal_rs Rust crate
-# that backs the Temporal API). configure.py asserts rustc/cargo
-# >= 1.82 with LLVM >= 19; rustup's stable channel satisfies this.
-# Alpine's apk also has rust + cargo packages; using rustup keeps the
-# toolchain version controllable from one place. See socket-registry/
-# external-tools.json `rust` entry for the pin rationale.
+# Install pnpm (native binary is glibc-only, use npm on musl).
+# No Rust toolchain — Node 26+ Temporal support is provided by the
+# temporal-infra C++ port (packages/temporal-infra/), with patch 037
+# routing V8's #include "temporal_rs/X.hpp" to the source-only shim.
+# See packages/temporal-infra/include/temporal_rs/README.md.
 RUN apk add --no-cache jq curl gcc musl-dev && \
     PNPM_VERSION=$(jq -r .pnpm.version /tmp/registry-tools.json) && \
     npm install -g "pnpm@${PNPM_VERSION}" && \
-    curl -fsSL --proto '=https' --tlsv1.2 https://sh.rustup.rs -o /tmp/rustup-init.sh && \
-    chmod +x /tmp/rustup-init.sh && \
-    /tmp/rustup-init.sh -y --default-toolchain stable --profile minimal --component rustc,cargo && \
-    rm /tmp/rustup-init.sh /tmp/registry-tools.json
-
-# Add Cargo bin to PATH for subsequent layers (rustup installs to /root/.cargo/bin).
-ENV PATH="/root/.cargo/bin:${PATH}"
+    rm /tmp/registry-tools.json
 
 # Set working directory.
 WORKDIR /workspace

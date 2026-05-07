@@ -38,7 +38,7 @@
 #
 --- a/deps/crates/crates.gyp
 +++ b/deps/crates/crates.gyp
-@@ -114,12 +114,9 @@
+@@ -114,12 +114,10 @@
        'target_name': 'temporal_capi',
        'type': 'none',
        'toolsets': ['host', 'target'],
@@ -50,6 +50,7 @@
          'include_dirs': [
 -          '<(cargo_vendor_dir)/temporal_capi/bindings/cpp',
 +          '../../include',
++          '../../src',
          ],
        },
      },

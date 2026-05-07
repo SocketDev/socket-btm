@@ -80,16 +80,16 @@
   },
   "lief": {
     "description": "LIEF binary manipulation library",
-    "tag": "lief-20260507-7e07797",
+    "tag": "lief-20260507-76c1796",
     "checksums": {
-      "lief-darwin-arm64.tar.gz": "f73edd050aadc8d07d982204f936fe1732f414f450baca47e51dd58fb1c0b842",
-      "lief-darwin-x64.tar.gz": "2c3e4a0a9a5bf0ef5f05264af8a6c2cff0beb8f7181c307de107cb9cec86cc46",
+      "lief-darwin-arm64.tar.gz": "fc507ec92e13adca73e7be58a8b4285e8ec98619e5ae709f25d52a8de0788560",
+      "lief-darwin-x64.tar.gz": "2879b65c933dc6ac9e8b07ab01b3a40b319a0f50dbdda1ec6a392a445a9d40db",
       "lief-linux-arm64-musl.tar.gz": "95148b7096a30caf67951d6345fa09f386e3c937c97a03866bf9673e1a2cfd19",
       "lief-linux-arm64.tar.gz": "bd62f043b1fd1fa9aad6b7280bbb781f941f3a3b8c1d48ce9c5d9f3c2815ea4c",
       "lief-linux-x64-musl.tar.gz": "684d80fae129ea26c4ca585ce34d801636aa28580e130cb461a594303e341e4a",
       "lief-linux-x64.tar.gz": "49c4e6490b606fdd9e0db084161621041459521a4aeee9c6d6ce7ed3396e4ddf",
-      "lief-win32-arm64.tar.gz": "fb07c57512460df7a572186a322f8518f1b1bc3f51d4830bd24ff3acc4af8dc2",
-      "lief-win32-x64.tar.gz": "f67da89c85e79e3347950e64c12fb94f7b037891b9eee424ee0f0a8e411691e3"
+      "lief-win32-arm64.tar.gz": "9d46eb79b05d65e808e422c6208ddb01a0ba3ca6edcbaa475ff09bc7f309f561",
+      "lief-win32-x64.tar.gz": "7a0c7c9b9476fdd7b42fc8aa362bc482bc1fd2ff2b9d7e307cb2b20823944264"
     }
   },
   "models": {
@@ -140,16 +140,16 @@
   },
   "stubs": {
     "description": "Self-extracting stub binaries",
-    "tag": "stubs-20260507-d62c956",
+    "tag": "stubs-20260507-ad03c4b",
     "checksums": {
-      "smol-stub-darwin-arm64.tar.gz": "a019070c637825c82d839ca4a85eccae8d299ca8f6444002278e2c8dafb171a2",
-      "smol-stub-darwin-x64.tar.gz": "17bc237cb794efaf2cdd823f65f8e403d3c3312f4e101b96b5de4bf7b419cd2c",
+      "smol-stub-darwin-arm64.tar.gz": "80be10595ec73021fb73d8d30ef17c9bb15b8628d1aad3b268f0ae70914aa9d2",
+      "smol-stub-darwin-x64.tar.gz": "67bd81291a4b07075161fd1131acfddb00386790ed92bc3dc5710ef650fc0e2d",
       "smol-stub-linux-arm64-musl.tar.gz": "399bee6ac1eafd47041e6c8339292195f0f2a6a6c1f53ca1ccf115ed228022a6",
       "smol-stub-linux-arm64.tar.gz": "19dd7be155956dce93cbc26b3f0937a215a106cc96652c6d494583624de67a79",
       "smol-stub-linux-x64-musl.tar.gz": "232fab0ddd758806d735df61c666ab6054ed2e47d6c757fc74c7866b97b2aa3c",
       "smol-stub-linux-x64.tar.gz": "cfe29f7ed258977d0b792f76275c7472a492f105af721b85edd7da17dfe6af7f",
-      "smol-stub-win32-arm64.tar.gz": "dcb5342b031ef79cb8ad6356c037e56d1a08ae4e8d58106612fb6082cd36a20e",
-      "smol-stub-win32-x64.tar.gz": "d2cf6437aa784660e05c5953b08b67370ca14d7425ea66685e5b4ac522e3fe72"
+      "smol-stub-win32-arm64.tar.gz": "3e5cb9dbd6a65dfc2b97a8d9d60556a4d94b9ec4aebf432039be39256ec22cee",
+      "smol-stub-win32-x64.tar.gz": "4f92a643affcd0545b627774ada852a05aaba8d4f8f33273250adac76db4262e"
     }
   },
   "yoga-layout": {

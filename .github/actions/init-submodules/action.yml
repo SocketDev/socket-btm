@@ -24,6 +24,9 @@ runs:
             echo "× Invalid submodule path: $sm"
             exit 1
           fi
-          echo "Initializing submodule: $sm"
-          git submodule update --init "$sm"
+          echo "Initializing submodule: $sm (shallow, depth=1, single-branch)"
+          # Shallow + single-branch keeps the clone minimal: we only need
+          # the gitlink commit, not the upstream's full history. Saves
+          # hundreds of MB on lief/upstream clones in particular.
+          git submodule update --init --depth=1 --single-branch --recommend-shallow "$sm"
         done

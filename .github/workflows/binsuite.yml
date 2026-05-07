@@ -289,16 +289,17 @@ jobs:
           echo "lief_version=$(load_version lief)" >> $GITHUB_OUTPUT
           echo "stubs_version=$(load_version stubs)" >> $GITHUB_OUTPUT
 
-      - name: Initialize submodules before Docker build (Linux)
+      - name: Initialize submodules
         if: |
           steps.build-enabled.outputs.build == 'true' &&
-          steps.setup-checkpoints.outputs.build-required == 'true' &&
-          matrix.os == 'linux'
+          steps.setup-checkpoints.outputs.build-required == 'true'
         uses: ./.github/actions/init-submodules
         with:
           # binpress links zstd (via bin-infra/make/zstd.mk) but does
           # NOT use libdeflate — that's binject-only. Previously inited
           # both, wasting ~10-30s of CI time per Linux matrix entry.
+          # Runs on every platform so the macOS/Windows native build
+          # has its submodules in place before `pnpm run build`.
           submodules: packages/bin-infra/upstream/zstd
 
       # The LIEF Final dir is computed once in the "Compute paths" step
@@ -720,16 +721,15 @@ jobs:
           echo "lief_version=$(load_version lief)" >> $GITHUB_OUTPUT
           echo "stubs_version=$(load_version stubs)" >> $GITHUB_OUTPUT
 
-      - name: Initialize submodules before Docker build (Linux)
+      - name: Initialize submodules
         if: |
           steps.build-enabled.outputs.build == 'true' &&
-          steps.setup-checkpoints.outputs.build-required == 'true' &&
-          matrix.os == 'linux'
+          steps.setup-checkpoints.outputs.build-required == 'true'
         uses: ./.github/actions/init-submodules
         with:
           # binflate links zstd only — libdeflate is binject-only.
-          # Previously inited both, wasting ~10-30s per Linux matrix
-          # entry on an unused clone.
+          # Runs on every platform so the macOS/Windows native build
+          # has its submodules in place before `pnpm run build`.
           submodules: packages/bin-infra/upstream/zstd
 
       - name: Stage registry tool-checksums for Docker build context
@@ -1126,13 +1126,17 @@ jobs:
           echo "lief_version=$(load_version lief)" >> $GITHUB_OUTPUT
           echo "stubs_version=$(load_version stubs)" >> $GITHUB_OUTPUT
 
-      - name: Initialize submodules before Docker build (Linux)
+      - name: Initialize submodules
         if: |
           steps.build-enabled.outputs.build == 'true' &&
-          steps.setup-checkpoints.outputs.build-required == 'true' &&
-          matrix.os == 'linux'
+          steps.setup-checkpoints.outputs.build-required == 'true'
         uses: ./.github/actions/init-submodules
         with:
+          # Runs on every platform so the macOS/Windows native build
+          # has cJSON + libdeflate in place before `pnpm run build`
+          # invokes binject's build script (which previously called
+          # `git submodule update --init` itself and failed on Windows
+          # due to MinGW git environment quirks).
           submodules: packages/bin-infra/upstream/zstd packages/binject/upstream/libdeflate packages/binject/upstream/cJSON
 
       - name: Get submodule SHAs for cache (binject)

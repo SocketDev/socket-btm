@@ -82,6 +82,21 @@ const EXTERNAL_SOURCES = [
       'temporal',
     ),
   },
+  // temporal_rs compat shim: drop-in replacement for the diplomat
+  // bindings that V8's js-temporal-objects.cc #includes. By landing
+  // these headers ahead of `deps/crates/vendor/temporal_capi/bindings/cpp/`
+  // on the V8 target's include search path (see patch 004), V8 compiles
+  // against our temporal-infra C++ port instead of the rustc/cargo-built
+  // temporal_capi static lib. End result: rustc + cargo drop out of the
+  // libnode build chain entirely.
+  {
+    from: path.join(TEMPORAL_INFRA_DIR, 'include', 'temporal_rs'),
+    to: path.join(
+      ADDITIONS_SOURCE_PATCHED_DIR,
+      'include',
+      'temporal_rs',
+    ),
+  },
   {
     from: path.join(BINJECT_DIR, 'upstream', 'libdeflate'),
     to: path.join(ADDITIONS_SOURCE_PATCHED_DIR, 'deps', 'libdeflate'),

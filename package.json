@@ -38,8 +38,8 @@
     "update": "node scripts/update.mts",
     "update:node": "node scripts/update-node-version.mts",
     "validate:dockerfiles": "node scripts/validate-dockerfile-exports.mts",
-    "xport": "node scripts/xport.mts",
-    "xport:emit-schema": "node scripts/xport-emit-schema.mts"
+    "lockstep": "node scripts/lockstep.mts",
+    "lockstep:emit-schema": "node scripts/lockstep-emit-schema.mts"
   },
   "devDependencies": {
     "@anthropic-ai/claude-code": "catalog:",

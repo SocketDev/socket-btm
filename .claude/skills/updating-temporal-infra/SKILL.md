@@ -10,7 +10,7 @@ allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*),
 Track [`boa-dev/temporal`](https://github.com/boa-dev/temporal) (the
 `temporal_rs` Rust crate that backs the ECMAScript Temporal proposal)
 at its latest tag, audit our C++ port for parity gaps, bump the
-submodule + xport row when upstream cuts a new release.
+submodule + lockstep row when upstream cuts a new release.
 
 - **Submodule**: `packages/temporal-infra/upstream/temporal`
   (boa-dev/temporal)
@@ -19,7 +19,7 @@ submodule + xport row when upstream cuts a new release.
 - **Cache bumps**: `node-smol` (the consuming binary). The C++ port
   is embedded inline via additions/source-patched/, so node-smol's
   cache key MUST invalidate when the port changes.
-- **Kind**: `feature-parity` (xport.json) — the port re-implements
+- **Kind**: `feature-parity` (lockstep.json) — the port re-implements
   the Rust crate's externally observable behavior, not the source.
 
 ## Why this tracks-latest (not locked) — emerging language feature
@@ -119,7 +119,7 @@ job, not this one.
 Update `.gitmodules` annotation for THIS submodule only:
 `# temporal-vX.Y.Z (track-latest: ...)` → new tag.
 
-### Phase 4 — Update xport.json
+### Phase 4 — Update lockstep.json
 
 Edit the `temporal-rs` upstream pin AND the `temporal-infra`
 feature-parity row's `notes` to reflect the new tag. Same SHA in

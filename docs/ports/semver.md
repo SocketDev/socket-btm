@@ -89,7 +89,7 @@ assert byte-equal output. New tests get added when:
 1. A user reports a parity divergence (file an issue, capture the
    input as a regression test).
 2. Upstream adds new range syntax (rare; tracked via the
-   `semver` xport row).
+   `semver` lockstep row).
 
 The corpus is large enough that random-fuzz divergence is unlikely;
 a deterministic corpus is more debuggable.
@@ -98,7 +98,7 @@ a deterministic corpus is more debuggable.
 
 When the `semver` upstream pin bumps:
 
-1. `pnpm run xport` — surfaces the bump as a row to confirm.
+1. `pnpm run lockstep` — surfaces the bump as a row to confirm.
 2. Re-read the **CHANGELOG** between pinned-tag and the new tag.
    Look for grammar changes, new range syntax, or comparison
    changes. Most patch / minor bumps are perf / docs / typings only.

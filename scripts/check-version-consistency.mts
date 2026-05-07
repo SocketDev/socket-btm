@@ -9,11 +9,11 @@
  *      the line immediately before [submodule "..."]
  *   2. packages/<pkg-builder>/package.json sources.<upstream>.version
  *      (+ .ref, which should match the submodule gitlink commit SHA)
- *   3. (optional) xport.json `packages.<name>.version`
+ *   3. (optional) lockstep.json `packages.<name>.version`
  *   4. (optional) workflow env: pins (e.g. ZIG_VERSION in opentui.yml)
  *
  * When these get out of sync — R31 found onnxruntime-builder pinned at
- * 1.20.1 in package.json but 1.24.4 in .gitmodules + xport.json — CI
+ * 1.20.1 in package.json but 1.24.4 in .gitmodules + lockstep.json — CI
  * tags caches and releases with the wrong version. The workflows read
  * one source of truth (package.json), the submodule checks out another
  * (gitmodules gitlink), and the release label says a third.

@@ -29,9 +29,18 @@ our temporal-infra C++ port and drop the rustc/cargo build dependency.
 - `TransitionDirection.hpp` — Next / Previous (DST transition lookup)
 - `Precision.hpp` — Auto / Minute / Digit(n) tri-state struct
 
-## What's NOT yet ported (Phase 10c+)
+**Phase 10c — Plain* heap-owned wrappers:**
 
-The remaining ~25 types V8 references. Per `grep "temporal_rs::" js-temporal-objects.cc`:
+- `PartialDate.hpp` / `PartialTime.hpp` / `PartialDateTime.hpp` — optional-fields structs
+- `PlainDate.hpp` — try_new / from_partial / from_utf8 / from_utf16 / with / equals / compare / clone + 9 field accessors (year/month/day/dayOfWeek/dayOfYear/weekOfYear/daysInMonth/daysInYear/inLeapYear)
+- `PlainTime.hpp` — same factories pattern + 6 time accessors
+- `PlainDateTime.hpp` — same + 9 accessors
+- `PlainYearMonth.hpp` — try_new_iso / from_utf8 / from_utf16 + accessors
+- `PlainMonthDay.hpp` — try_new_iso / from_utf8 / from_utf16 + accessors
+
+## What's NOT yet ported (Phase 10d+)
+
+Remaining types V8 references:
 
 | Type | Use count | Notes |
 |---|---|---|

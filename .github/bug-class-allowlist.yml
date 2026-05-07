@@ -33,6 +33,11 @@
   class: docs-pnpm-run-nonexistent
   reason: "The `Bash(pnpm run check:*)` allowed-tool spec is a Claude permission glob, not a literal `pnpm run check:*` invocation. The trailing `:*` is the Claude permission-glob wildcard meaning 'any args'; `pnpm run check` is the real script (matches socket-btm's package.json). Pre-existing template-canonical text — checked across socket-* repos + ultrathink."
 
+- file: .claude/skills/scanning-quality/SKILL.md
+  line: 15
+  class: docs-pnpm-run-nonexistent
+  reason: "`pnpm run fleet-skill` is the canonical script in socket-repo-template (scripts/run-skill-fleet.mts), used to dispatch a skill across every fleet repo headlessly. socket-btm doesn't define this script locally because it's not the fleet driver — the SKILL.md text accurately documents how the skill is invoked from socket-repo-template. Pre-existing template-canonical text — every fleet repo's copy hits this same false positive."
+
 - file: .claude/skills/quality-scan/reference.md
   class: docs-pnpm-run-nonexistent
   reason: "Documentation example explaining the pnpm run convention ('pnpm run foo --flag' — `foo` is an intentional placeholder, not a real script)."

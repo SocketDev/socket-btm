@@ -1,0 +1,32 @@
+# @node-versions: v25.9.0,v26.x
+# @description: Disable configure.py cargo/rustc gate (Temporal via C++ shim)
+#
+# Companion to patch 037. Patch 037 routes V8's #include "temporal_rs/X.hpp"
+# to the temporal-infra C++ port and breaks the gyp dep on :node_crates,
+# so cargo never runs during the libnode build. But configure.py still
+# checks for cargo/rustc when --v8-enable-temporal-support is set and
+# errors out with "No acceptable cargo found!" at configure time —
+# before gyp even runs.
+#
+# Short-circuit the gate by flipping the entry condition to `False`. The
+# gating block stays in place (commented `if False:`) so the patch
+# minimizes line churn and the original logic is still legible for
+# future upstream rebases. The C++ shim provides the full temporal_rs::
+# ABI surface V8 needs; rust toolchain is dead code in our build chain.
+#
+# Files modified:
+# - configure.py: short-circuit cargo/rustc detection block
+#
+--- a/configure.py
++++ b/configure.py
+@@ -1535,7 +1535,7 @@ def check_compiler(o):
+
+   o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else '0.0'
+
+-  # cargo and rustc are needed for Temporal.
++  # cargo/rustc gate disabled — Temporal backed by temporal-infra C++ shim (patch 037).
+-  if not options.v8_disable_temporal_support or not options.shared_temporal_capi:
++  if False:
+     # Minimum cargo and rustc versions should match values in BUILDING.md.
+     min_cargo_ver_tuple = (1, 82)
+     min_rustc_ver_tuple = (1, 82)

@@ -598,11 +598,10 @@ export async function buildRelease(config, buildOptions = {}) {
     '--without-node-options',
     '--experimental-enable-pointer-compression',
     // Node 26 ships Temporal via temporal_rs (Rust crate) linked
-    // statically. Requires rustc/cargo >= 1.82 with LLVM >= 19 on
-    // PATH at configure time. See BUILDING.md "Building Node.js
-    // with Temporal support" + the rust pin in
-    // socket-registry/external-tools.json. Cargo handles the
-    // temporal_rs fetch internally — no additional submodule needed.
+    // statically. socket-btm replaces this with the temporal-infra
+    // C++ port: patch 037 repoints V8's temporal_rs include path
+    // to our shim; patch 038 disables configure.py's cargo gate.
+    // No rustc/cargo on PATH needed.
     '--v8-enable-temporal-support',
   ]
 

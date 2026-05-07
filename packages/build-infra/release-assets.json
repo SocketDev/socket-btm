@@ -45,16 +45,16 @@
   },
   "curl": {
     "description": "curl with mbedTLS for HTTPS support",
-    "tag": "curl-20260507-df0c2bc",
+    "tag": "curl-20260507-76c1796",
     "checksums": {
-      "curl-darwin-arm64.tar.gz": "e70cfffa0bac2eb583103333e555aa6406203532eadc641881dc7f0c8f268bda",
-      "curl-darwin-x64.tar.gz": "a01964e30a562c36f5c159299741bdfd391efecf6b481cf09f4d8fa666040f35",
-      "curl-linux-arm64-musl.tar.gz": "8ae1747012be70bebc5a56bb14edcb25cfec28f95615611295ea53b4efb8aba5",
-      "curl-linux-arm64.tar.gz": "929adb2275241051bccd80118521c4cc52d8f85649dcf31b44156b374718c8e7",
-      "curl-linux-x64-musl.tar.gz": "913509230c6ed716a85446f06dceb7b30ceecf646871fb304def40291f723bc9",
-      "curl-linux-x64.tar.gz": "d17f60b86bf8e6a97f641600bc1f64c47fbe20601234cff5a50b56924f431379",
-      "curl-win32-arm64.tar.gz": "4659c079f6251fa866f81fc977663947aa2e09f827e000a2fe46bf4d08cc5606",
-      "curl-win32-x64.tar.gz": "c8a2c78ecd1bac29d279137f92233c14d21ad4f1953e8d2e05568a0d54c4b11e"
+      "curl-darwin-arm64.tar.gz": "c60304ba4e7076bc6dc12e03e98982f3fbc5253d54f38b9d47286c04a38f56c3",
+      "curl-darwin-x64.tar.gz": "f7edd8dca9796454fb9a159044d9469e8c69bec3f1996d57d56be3773a52a8a1",
+      "curl-linux-arm64-musl.tar.gz": "c8b0b66ecef2114d254e1f8d808edd39171db1406da49531dfeb36166a341ea4",
+      "curl-linux-arm64.tar.gz": "e331cedf204c86a1d0414c75630fc1db7b91cb4980df7cd30f606d7d62c975c9",
+      "curl-linux-x64-musl.tar.gz": "4d1dc7afc7b324f2a193ebd98aa279291df2956f512abac9bcdf66362a865b10",
+      "curl-linux-x64.tar.gz": "8e49f548cdc9fdb5f79b73bce7c2357fbf8703a8cabe31a3ccef53a0b4c1f1a8",
+      "curl-win32-arm64.tar.gz": "0daae3b8dc138edaa61f7ebd76b4dc2be52d9bca45801fe668c4c7800bb94a8b",
+      "curl-win32-x64.tar.gz": "5abd21b56ad66231626b7fc37847affd3bd2b5f20bf57b5eb2ccea655c670dfa"
     }
   },
   "ink": {
@@ -80,16 +80,16 @@
   },
   "lief": {
     "description": "LIEF binary manipulation library",
-    "tag": "lief-20260507-216e4ca",
+    "tag": "lief-20260507-7e07797",
     "checksums": {
-      "lief-darwin-arm64.tar.gz": "7e7963e97190213f1835f4967cd513e9dc2ad759e50d466c8838464010d9ad2e",
-      "lief-darwin-x64.tar.gz": "418507ea8e312f2a3375ef9924bfb78bb6e5fb8aa08029de469b6f2eba06beff",
-      "lief-linux-arm64-musl.tar.gz": "74c551233aab9a35261fd9054b4e99e1701e091261cc1c310827f8eeebfdd219",
-      "lief-linux-arm64.tar.gz": "b52e2fa2489ac43387ddfadc412e83bc366c20cbdd5b73c8425e2d6c673d0612",
-      "lief-linux-x64-musl.tar.gz": "d0ab656ded77909e01bbc8d65f1abb457ae20038d15a983949ea1b36fec83f5c",
-      "lief-linux-x64.tar.gz": "3fa95b48d5c8f0aadf52c2e8507e276cdac9fd0a0f5131e2da53cb4dd14ef366",
-      "lief-win32-arm64.tar.gz": "70db74ce9e2fd05a860fa1402d090a7b889758ac06d5846ad7fd2e3b808d1e7e",
-      "lief-win32-x64.tar.gz": "40672aeafe54f457be75bcb29dbdfdf7dd4916fe7d5fbe3c398b4b64e3e3d455"
+      "lief-darwin-arm64.tar.gz": "f73edd050aadc8d07d982204f936fe1732f414f450baca47e51dd58fb1c0b842",
+      "lief-darwin-x64.tar.gz": "2c3e4a0a9a5bf0ef5f05264af8a6c2cff0beb8f7181c307de107cb9cec86cc46",
+      "lief-linux-arm64-musl.tar.gz": "95148b7096a30caf67951d6345fa09f386e3c937c97a03866bf9673e1a2cfd19",
+      "lief-linux-arm64.tar.gz": "bd62f043b1fd1fa9aad6b7280bbb781f941f3a3b8c1d48ce9c5d9f3c2815ea4c",
+      "lief-linux-x64-musl.tar.gz": "684d80fae129ea26c4ca585ce34d801636aa28580e130cb461a594303e341e4a",
+      "lief-linux-x64.tar.gz": "49c4e6490b606fdd9e0db084161621041459521a4aeee9c6d6ce7ed3396e4ddf",
+      "lief-win32-arm64.tar.gz": "fb07c57512460df7a572186a322f8518f1b1bc3f51d4830bd24ff3acc4af8dc2",
+      "lief-win32-x64.tar.gz": "f67da89c85e79e3347950e64c12fb94f7b037891b9eee424ee0f0a8e411691e3"
     }
   },
   "models": {

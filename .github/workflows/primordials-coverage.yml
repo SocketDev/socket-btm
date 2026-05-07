@@ -1,0 +1,64 @@
+name: Primordials coverage drift
+
+# Detects when socket-btm's `additions/source-patched/**/*.js` files
+# destructure a name from `primordials` that has no corresponding
+# export in socket-lib's `src/primordials.ts` (or alias map / Node-
+# internal allowlist). Catches the case where someone adds a new
+# primordials use without updating socket-lib in lockstep.
+#
+# Runs on every PR that touches additions OR socket-lib catalog
+# version, plus a weekly cron tripwire so drift surfaces even if
+# nobody's editing additions.
+
+on:
+  pull_request:
+    paths:
+      - 'packages/node-smol-builder/additions/source-patched/**/*.js'
+      - '.socket-lib.json'
+      - 'pnpm-workspace.yaml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/node-smol-builder/additions/source-patched/**/*.js'
+      - '.socket-lib.json'
+      - 'pnpm-workspace.yaml'
+  schedule:
+    # Every Monday 09:00 UTC — one cadence-checked run per week.
+    # Catches drift introduced by socket-lib publishing a rename
+    # without a matching socket-btm bump.
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check additions vs socket-lib primordials
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          submodules: false
+
+      - uses: SocketDev/socket-registry/.github/actions/setup@ba3d42dec13db8da746d695aac12f0d7d47f8719 # main
+
+      # Frozen lockfile guarantees socket-lib resolves to the catalog
+      # pin, so the diff reflects the version we ship — not whatever
+      # got hoisted yesterday.
+      - name: Install dependencies (workspace, frozen)
+        shell: bash
+        run: pnpm install --frozen-lockfile
+
+      - name: Run primordials coverage check
+        shell: bash
+        run: pnpm exec socket-lib check prim --explain

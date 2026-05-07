@@ -1,0 +1,47 @@
+# @node-versions: v25.9.0
+# @description: Add glibc compat layer source + linker wraps (groundwork for glibc 2.17 floor)
+#
+# Lays the foundation for lowering our Linux glibc floor without yet doing so.
+# Adds:
+# - src/socketsecurity/compat/glibc_compat.cc (Bun-style compat layer)
+# - -Wl,--wrap=__cxa_thread_atexit_impl  (glibc 2.18)
+# - -Wl,--wrap=getrandom                  (glibc 2.25)
+# - -Wl,--wrap=quick_exit                 (glibc 2.24)
+# - -Wl,--wrap=at_quick_exit              (glibc 2.24)
+#
+# On current glibc 2.28 build hosts every wrap is inert: the __wrap_ function
+# dlsym's the real impl and forwards. On a future glibc 2.17 host the fallback
+# activates for each unavailable symbol. No behavior change today.
+#
+# See: https://github.com/oven-sh/bun/pull/29461 for the pattern.
+# Attribution for libc++abi-19.1 port lives in repo LICENSE.
+#
+# NOTE: this patch depends on 004-node-gyp-smol-sources.patch being applied
+# first (filename-order ensures this).
+#
+--- a/node.gyp
++++ b/node.gyp
+@@ -1124,6 +1124,23 @@
+             ],
+           },
+         }],
++        # Socket Security: glibc compatibility layer groundwork.
++        # Inert on current glibc 2.28 build (dlsym forwards to real impl);
++        # activates fallbacks when deployed on glibc 2.17 in the future.
++        # See packages/node-smol-builder/additions/source-patched/src/socketsecurity/compat/glibc_compat.cc.
++        ['OS=="linux"', {
++          'sources': [
++            'src/socketsecurity/compat/glibc_compat.cc',
++          ],
++          'ldflags': [
++            # All wraps are no-ops on musl (symbols unreferenced in musl ABI)
++            # and inert on glibc >= each symbol's introduction version.
++            '-Wl,--wrap=__cxa_thread_atexit_impl',
++            '-Wl,--wrap=getrandom',
++            '-Wl,--wrap=quick_exit',
++            '-Wl,--wrap=at_quick_exit',
++          ],
++        }],
+         # Socket Security: Optional io_uring acceleration (Linux only).
+         # Uses bundled liburing from deps/liburing.
+         ['node_use_iouring=="true" and OS=="linux"', {

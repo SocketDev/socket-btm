@@ -1,0 +1,25 @@
+# @node-versions: v25.9.0
+# @description: Add smol_power binding to external reference list
+#
+# Adds V(smol_power) to EXTERNAL_REFERENCE_BINDING_LIST so the
+# binding's externally-referenced functions are registered during
+# V8 snapshot building. Required for any binding that calls
+# NODE_BINDING_EXTERNAL_REFERENCE() — the smol_power binding does.
+#
+# Patch 020-smol-external-refs.patch already added the other smol_*
+# entries; this patch slots smol_power in alphabetic order between
+# smol_ilp and smol_vfs.
+#
+# Files modified:
+# - src/node_external_reference.h: register smol_power
+#
+--- a/src/node_external_reference.h
++++ b/src/node_external_reference.h
+@@ -157,6 +157,7 @@
+   V(smol_ffi)                                                                  \
+   V(smol_http)                                                                 \
+   V(smol_ilp)                                                                  \
++  V(smol_power)                                                                \
+   V(smol_vfs)                                                                  \
+   EXTERNAL_REFERENCE_BINDING_LIST_POSTGRES(V)                                  \
+   V(smol_webstreams)

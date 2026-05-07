@@ -1,0 +1,52 @@
+# @node-versions: v25.9.0
+# @description: Add --with-postgres and --with-iouring configure options
+#
+# Adds configure options for building Node.js with PostgreSQL support
+# and optional io_uring acceleration. Both disabled by default.
+# PostgreSQL requires libpq bundled in deps/libpq.
+# io_uring is Linux only, requires liburing.
+#
+--- a/configure.py
++++ b/configure.py
+@@ -1017,6 +1017,18 @@ parser.add_argument('--without-sqlite',
+     default=None,
+     help='build without SQLite (disables SQLite and Web Storage API)')
+ 
++parser.add_argument('--with-postgres',
++    action='store_true',
++    dest='with_postgres',
++    default=None,
++    help='build with PostgreSQL (enables PostgreSQL in node:sql API, requires libpq)')
++
++parser.add_argument('--with-iouring',
++    action='store_true',
++    dest='with_iouring',
++    default=None,
++    help='build with io_uring support (Linux only, requires liburing)')
++
+ parser.add_argument('--experimental-quic',
+     action='store_true',
+     dest='experimental_quic',
+@@ -2119,6 +2131,14 @@ def configure_sqlite(o):
+ 
+   configure_library('sqlite', o, pkgname='sqlite3')
+ 
++def configure_postgres(o):
++  # Socket Security: PostgreSQL is disabled by default (requires libpq).
++  o['variables']['node_use_postgres'] = b(options.with_postgres)
++
++def configure_iouring(o):
++  # Socket Security: io_uring is disabled by default (Linux only, requires liburing).
++  o['variables']['node_use_iouring'] = b(options.with_iouring)
++
+ def configure_quic(o):
+   o['variables']['node_use_quic'] = b(options.experimental_quic and
+                                       not options.without_ssl)
+@@ -2572,5 +2592,7 @@ configure_library('ngtcp2', output, pkgname='libngtcp2')
+ configure_lief(output);
+ configure_sqlite(output);
++configure_postgres(output);
++configure_iouring(output);
+ configure_library('temporal_capi', output)
+ configure_library('uvwasi', output)
+ configure_library('zstd', output, pkgname='libzstd')

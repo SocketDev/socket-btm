@@ -1,0 +1,27 @@
+# Zizmor configuration
+# See: https://docs.zizmor.sh/configuration/
+
+rules:
+  secrets-outside-env:
+    disable: true
+
+  superfluous-actions:
+    ignore:
+      # False positive: needed for cross-compilation targets via `targets:` input
+      - iocraft.yml:154
+
+  template-injection:
+    ignore:
+      # False positive: Template expansion is in a comment, not executable code
+      # Line 469: Comment explaining GitHub Actions syntax
+      - node-smol.yml:469
+
+  github-env:
+    ignore:
+      # False positive: the path written to GITHUB_PATH is a literal
+      # string plus the pinned action input inputs.version (routed via
+      # the step's own env: block as LLVM_MINGW_VERSION). No external
+      # attacker can influence which directory gets prepended — the
+      # action exists to install the cross-compiler and put it first on
+      # PATH.
+      - action.yml:45

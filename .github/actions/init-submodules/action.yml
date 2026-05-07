@@ -1,0 +1,29 @@
+name: Initialize Submodules
+description: Initialize specific git submodules needed for the build
+
+inputs:
+  submodules:
+    description: 'Space-separated list of submodule paths to initialize'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Initialize submodules
+      shell: bash
+      env:
+        SUBMODULES: ${{ inputs.submodules }}
+      run: |
+        for sm in $SUBMODULES; do
+          # Defense-in-depth: validate path shape before passing to git.
+          # Sibling composite actions (setup-checkpoints, restore-
+          # checkpoint) validate their path inputs the same way; an
+          # input from a future workflow composed from untrusted data
+          # shouldn't reach `git submodule` without a shape check.
+          if ! [[ "$sm" =~ ^packages/[a-zA-Z0-9_/-]+$ ]]; then
+            echo "× Invalid submodule path: $sm"
+            exit 1
+          fi
+          echo "Initializing submodule: $sm"
+          git submodule update --init "$sm"
+        done

@@ -1,0 +1,159 @@
+/**
+ * Shared tarball extraction utilities.
+ *
+ * Provides secure tarball extraction with path traversal protection
+ * and cross-platform Windows/Unix compatibility.
+ */
+
+import path from 'node:path'
+
+import { which } from '@socketsecurity/lib/bin'
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
+import { safeMkdir } from '@socketsecurity/lib/fs'
+import { toUnixPath } from '@socketsecurity/lib/paths/normalize'
+import { spawn } from '@socketsecurity/lib/spawn'
+
+import {
+  tarSupportsNoAbsoluteNames,
+  tarSupportsOverwrite,
+} from './platform-mappings.mts'
+
+/**
+ * Validate tarball contents for path traversal attacks.
+ * Throws if any file in the tarball has an unsafe path.
+ *
+ * @param {string} tarballPath - Path to the tarball file.
+ * @returns {Promise<string[]>} Array of file paths in the tarball.
+ * @throws {Error} If tarball contains unsafe paths.
+ */
+export async function validateTarballPaths(tarballPath) {
+  const tarBin = await which('tar')
+  const unixTarballPath = WIN32 ? toUnixPath(tarballPath) : tarballPath
+
+  // List tarball contents.
+  const listResult = await spawn(tarBin, ['-tzf', unixTarballPath], {
+    stdio: 'pipe',
+  })
+
+  const files = (listResult.stdout?.toString() || '')
+    .split('\n')
+    .filter(Boolean)
+    .map(f => f.trim())
+
+  // Check for path traversal attempts.
+  for (const file of files) {
+    // Check for null bytes (can bypass filesystem checks)
+    if (file.includes('\0')) {
+      throw new Error(
+        `Tarball contains unsafe path: ${file} (null byte detected)`,
+      )
+    }
+
+    // Reject leading / or \ before platform-specific absolute-path check.
+    // On Windows, path.isAbsolute('/etc/passwd') returns false (a drive
+    // letter or UNC prefix is required) — so a tarball entry starting with
+    // `/` would slip past the host-flavor isAbsolute check even though some
+    // tar implementations (Git Bash, WSL) happily strip the leading slash
+    // and write to the root of extractDir. Platform-independent rejection
+    // closes that gap.
+    if (file.startsWith('/') || file.startsWith('\\')) {
+      throw new Error(
+        `Tarball contains unsafe path: ${file} (absolute path detected)`,
+      )
+    }
+
+    // Check for absolute paths BEFORE normalization
+    // (catches Windows drive letters like C:\ and Unix absolute paths like /)
+    if (path.isAbsolute(file)) {
+      throw new Error(
+        `Tarball contains unsafe path: ${file} (absolute path detected)`,
+      )
+    }
+
+    // Normalize and check for parent directory traversal
+    const normalized = path.normalize(file)
+    if (normalized.startsWith('..')) {
+      throw new Error(
+        `Tarball contains unsafe path: ${file} (path traversal attempt detected)`,
+      )
+    }
+
+    // Defense-in-depth: Check normalized path doesn't become absolute
+    // (catches edge cases where normalization might produce absolute paths)
+    if (path.isAbsolute(normalized)) {
+      throw new Error(
+        `Tarball contains unsafe path: ${file} (normalizes to absolute path)`,
+      )
+    }
+  }
+
+  return files
+}
+
+/**
+ * Securely extract a tarball to a directory.
+ * Validates paths before extraction and uses --no-absolute-names when supported.
+ *
+ * @param {string} tarballPath - Path to the tarball file.
+ * @param {string} extractDir - Directory to extract to.
+ * @param {object} options - Extraction options.
+ * @param {boolean} [options.validate=true] - Validate paths before extraction.
+ * @param {boolean} [options.createDir=true] - Create extraction directory if missing.
+ * @param {'pipe' | 'inherit' | 'ignore'} [options.stdio='ignore'] - Stdio option for tar.
+ * @param {number} [options.stripComponents=0] - Number of leading path components to strip.
+ * @param {boolean} [options.overwrite=true] - Overwrite existing files/directories.
+ * @returns {Promise<string[]>} Array of extracted file paths.
+ * @throws {Error} If extraction fails or paths are unsafe.
+ */
+export async function extractTarball(tarballPath, extractDir, options = {}) {
+  const {
+    createDir = true,
+    overwrite = true,
+    stdio = 'ignore',
+    stripComponents = 0,
+    validate = true,
+  } = options
+
+  // Create extraction directory if needed.
+  if (createDir) {
+    await safeMkdir(extractDir)
+  }
+
+  // Validate tarball paths before extraction.
+  let files = []
+  if (validate) {
+    files = await validateTarballPaths(tarballPath)
+  }
+
+  const tarBin = await which('tar')
+  const unixTarballPath = WIN32 ? toUnixPath(tarballPath) : tarballPath
+  const unixExtractDir = WIN32 ? toUnixPath(extractDir) : extractDir
+
+  // Build extraction arguments.
+  const tarArgs = ['-xzf', unixTarballPath, '-C', unixExtractDir]
+
+  // Strip leading path components if requested.
+  if (stripComponents > 0) {
+    tarArgs.push(`--strip-components=${stripComponents}`)
+  }
+
+  // Add --no-absolute-names on platforms that support it (defense in depth).
+  if (await tarSupportsNoAbsoluteNames()) {
+    tarArgs.push('--no-absolute-names')
+  }
+
+  // Add --overwrite to handle extraction over existing directories.
+  // This prevents ENOTEMPTY errors when re-extracting to the same location.
+  // Note: macOS BSD tar doesn't support --overwrite, only GNU tar does.
+  if (overwrite && (await tarSupportsOverwrite())) {
+    tarArgs.push('--overwrite')
+  }
+
+  // Extract.
+  const result = await spawn(tarBin, tarArgs, { stdio })
+  if (result.code !== 0) {
+    throw new Error(`tar extraction failed with exit code ${result.code}`)
+  }
+
+  return files
+}

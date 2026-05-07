@@ -1,0 +1,30 @@
+name: Set Build Mode
+description: Sanitizes the build_mode input — only 'dev' passes through as 'dev'; anything else becomes 'prod'
+
+inputs:
+  build-mode:
+    description: 'Raw build_mode input (dev|prod); anything other than "dev" defaults to "prod"'
+    required: true
+
+outputs:
+  mode:
+    description: 'Sanitized build mode: dev or prod'
+    value: ${{ steps.resolve.outputs.mode }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve build mode
+      id: resolve
+      shell: bash
+      env:
+        INPUT_BUILD_MODE: ${{ inputs.build-mode }}
+      run: |
+        # Sanitize input — only allow 'prod' or 'dev'.
+        if [ "$INPUT_BUILD_MODE" = "dev" ]; then
+          BUILD_MODE="dev"
+        else
+          BUILD_MODE="prod"
+        fi
+        echo "mode=$BUILD_MODE" >> "$GITHUB_OUTPUT"
+        echo "Build mode: $BUILD_MODE"

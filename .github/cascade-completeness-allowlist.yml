@@ -1,0 +1,97 @@
+# Cascade-completeness allowlist for check-cascade-completeness.mts.
+#
+# Each entry opts a specific cross-package dependency out of the
+# cascade-completeness gate. Entries require a `reason` so future
+# readers can audit whether the exception is still valid.
+#
+# Format:
+#   - missingPath: <the path reported as missing>
+#     consumer: <package or workflow name that triggered the finding>
+#     gap: cascade-rule | workflow-hash
+#     reason: <one-paragraph justification>
+#
+# The parser is intentionally tiny (see loadAllowlist in
+# check-cascade-completeness.mts); keep entries flat and
+# one-key-per-line.
+
+# R40 exposed two real gaps after fixing the depth=1 bypass. Both are
+# workspace-installation copies — pnpm needs the full node-smol-
+# builder package tree (package.json etc.) to resolve workspace deps
+# during `pnpm install --frozen-lockfile`, but curl/stubs don't
+# consume any of node-smol-builder's BUILD output. The node-smol-
+# builder package.json IS hashed via its own cache key; its source
+# tree content is not build-affecting for these two builders.
+- missingPath: packages/node-smol-builder
+  consumer: curl.yml
+  gap: workflow-hash
+  reason: >-
+    curl-builder Dockerfile.glibc line 55 COPYs packages/node-smol-builder
+    for pnpm workspace resolution during `pnpm install --filter
+    build-infra --filter curl-builder --filter node-smol-builder`.
+    curl-builder consumes build-infra, NOT node-smol-builder's build
+    output. The workspace install is a prerequisite for the pnpm
+    resolver — a node-smol-builder source edit does not affect curl's
+    produced libcurl.
+
+- missingPath: packages/node-smol-builder
+  consumer: stubs.yml
+  gap: workflow-hash
+  reason: >-
+    stubs-builder Dockerfile.glibc line 65 COPYs packages/node-smol-
+    builder for pnpm workspace resolution. Stubs consumes curl-builder
+    output and build-infra, not node-smol-builder. Same rationale as
+    curl entry above.
+
+# Ephemeral build-context file materialized per CI run by the
+# "Stage registry tool-checksums for Docker build context" step,
+# which `cp`'s $SOCKET_TOOL_CHECKSUMS_FILE from socket-registry's
+# setup action. The file is not in git — workflows create it on
+# the runner before docker build — so hashing the path directly is
+# impossible. Cache-key invalidation flows through the
+# SOCKET_REGISTRY_SHA component mixed into each workflow's final
+# hash: a registry cascade bump edits the @<sha> pin in the
+# workflow YAML, the new SHA hashes into FINAL_HASH (or
+# SHARED_DEPS for the phased WASM/models workflows), and the
+# checkpoint cache misses. Every Docker-building workflow mirrors
+# this pattern; see the `SOCKET_REGISTRY_SHA=...` block in each
+# workflow's cache-key step.
+- missingPath: .build-context/registry-tools.json
+  consumer: binsuite.yml
+  gap: workflow-hash
+  reason: Ephemeral staged at run time. See block comment above.
+- missingPath: .build-context/registry-tools.json
+  consumer: curl.yml
+  gap: workflow-hash
+  reason: Ephemeral staged at run time. See block comment above.
+- missingPath: .build-context/registry-tools.json
+  consumer: ink.yml
+  gap: workflow-hash
+  reason: Ephemeral staged at run time. See block comment above.
+- missingPath: .build-context/registry-tools.json
+  consumer: iocraft.yml
+  gap: workflow-hash
+  reason: Ephemeral staged at run time. See block comment above.
+- missingPath: .build-context/registry-tools.json
+  consumer: lief.yml
+  gap: workflow-hash
+  reason: Ephemeral staged at run time. See block comment above.
+- missingPath: .build-context/registry-tools.json
+  consumer: models.yml
+  gap: workflow-hash
+  reason: Ephemeral staged at run time. See block comment above.
+- missingPath: .build-context/registry-tools.json
+  consumer: node-smol.yml
+  gap: workflow-hash
+  reason: Ephemeral staged at run time. See block comment above.
+- missingPath: .build-context/registry-tools.json
+  consumer: onnxruntime.yml
+  gap: workflow-hash
+  reason: Ephemeral staged at run time. See block comment above.
+- missingPath: .build-context/registry-tools.json
+  consumer: stubs.yml
+  gap: workflow-hash
+  reason: Ephemeral staged at run time. See block comment above.
+- missingPath: .build-context/registry-tools.json
+  consumer: yoga-layout.yml
+  gap: workflow-hash
+  reason: Ephemeral staged at run time. See block comment above.

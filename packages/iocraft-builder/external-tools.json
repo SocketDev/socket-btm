@@ -1,0 +1,22 @@
+{
+  "$schema": "../build-infra/lib/external-tools-schema.json",
+  "description": "Package-level external tools for iocraft-builder (Rust/napi-rs native module)",
+  "tools": {
+    "cargo": {
+      "description": "Rust package manager and build tool",
+      "version": "1.83.0",
+      "notes": "Bundled with Rust toolchain via rustup."
+    },
+    "napi-cli": {
+      "description": "napi-rs CLI for Node.js native addon building",
+      "version": "3.0.0-alpha.70",
+      "packageManager": "pnpm",
+      "notes": "Optional - cargo build works directly with napi-rs crate."
+    },
+    "rust": {
+      "description": "Rust toolchain (required for napi-rs native module compilation)",
+      "version": "1.83.0",
+      "notes": "Installed via rustup for consistent version management. Requires stable channel."
+    }
+  }
+}

@@ -1,0 +1,26 @@
+# @node-versions: v25.9.0
+# @description: Wire Socket Security HTTP performance optimizations into HTTP server
+#
+# Loads core HTTP module (bootstrap-safe — no caches, no http2, no debug).
+# The full barrel (internal/socketsecurity/http) is loaded later by node:smol-http.
+#
+--- a/lib/_http_server.js
++++ b/lib/_http_server.js
+@@ -97,6 +97,9 @@
+ } = require('internal/validators');
+ const Buffer = require('buffer').Buffer;
+ const { setInterval, clearInterval } = require('timers');
++
++// Socket Security: Core HTTP optimizations (bootstrap-safe, no heavy deps).
++const httpPerf = require('internal/socketsecurity/http/core');
+ let debug = require('internal/util/debuglog').debuglog('http', (fn) => {
+   debug = fn;
+ });
+@@ -1281,6 +1284,7 @@
+ }
+ 
+ module.exports = {
++  httpPerf,
+   STATUS_CODES,
+   Server,
+   ServerResponse,

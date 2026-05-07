@@ -1,0 +1,22 @@
+# @node-versions: v25.9.0
+# @description: Reserve `smol-util` for the node: scheme
+#
+# Adds `smol-util` to schemelessBlockList so consumers must
+# `require('node:smol-util')` (matching every other smol-* module).
+#
+# `smol_util` does NOT need processBindingAllowList since smol-util.js
+# uses `internalBinding('smol_util')`, not `process.binding(...)`.
+#
+# Sequencing: 028 anchors after 024 (smol-power realm). Insert keeps
+# alphabetic order in schemelessBlockList: power < purl < sql < util < vfs.
+#
+# Files modified:
+# - lib/internal/bootstrap/realm.js: schemelessBlockList entry for smol-util
+#
+--- a/lib/internal/bootstrap/realm.js
++++ b/lib/internal/bootstrap/realm.js
+@@ -136,3 +136,4 @@
+   'smol-purl',
+   'smol-sql',
++  'smol-util',
+   'smol-vfs',

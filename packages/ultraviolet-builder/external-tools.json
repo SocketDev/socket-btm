@@ -1,0 +1,11 @@
+{
+  "$schema": "../build-infra/lib/external-tools-schema.json",
+  "description": "Package-level external tools for ultraviolet-builder (Go → N-API bindings via napi-go).",
+  "tools": {
+    "go": {
+      "description": "Go toolchain — ultraviolet requires Go >= 1.25 per its go.mod.",
+      "version": "1.25.3",
+      "notes": "System Go on PATH. Same pin as napi-go; no tool-checksum pinning yet."
+    }
+  }
+}

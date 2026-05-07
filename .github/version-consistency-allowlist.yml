@@ -1,0 +1,19 @@
+# Version consistency allowlist for check-version-consistency.mts.
+#
+# Each entry exempts a specific upstream dependency from the cross-source
+# consistency check. Entries require a `reason` so future readers can
+# audit whether the exception is still valid.
+#
+# Format:
+#   - upstream: <name, matching .gitmodules comment prefix>
+#     reason: <one-paragraph justification>
+#
+# Use sparingly — the whole point of this gate is forcing .gitmodules,
+# package.json sources.<name>.version, and workflow consumers to agree.
+# If you need to pin different versions for different purposes, factor
+# that apart cleanly (e.g. separate builder packages for old/new) rather
+# than allowlisting drift.
+
+# No entries currently — R31 fixed the two real drifts (onnxruntime 1.20.1→1.24.4
+# and opentui 0.1.96→0.1.99). This allowlist is here as the escape hatch
+# if a deliberate API-compat pin becomes necessary later.

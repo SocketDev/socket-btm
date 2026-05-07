@@ -1,0 +1,25 @@
+# @node-versions: v25.9.0
+# @description: Register smol_primordial native binding in NODE_BUILTIN_BINDINGS
+#
+# Adds V(smol_primordial) alongside the other smol_* bindings.
+# The binding implements V8 Fast API specializations of Math.* and
+# Number.is* — TurboFan inlines them directly into JIT-compiled JS
+# callers (~30-50% faster than the uncurryThis-wrapped form on hot
+# benchmark loops).
+#
+# Sequencing: 031 anchors after 027 (smol_util). Insert keeps
+# alphabetic order in the smol_* group: smol_power < smol_primordial
+# < smol_util < smol_webstreams. (smol_ffi/http/ilp/vfs all come
+# before in their respective alphabetic positions.)
+#
+# Files modified:
+# - src/node_binding.cc: register smol_primordial in NODE_BUILTIN_BINDINGS
+#
+--- a/src/node_binding.cc
++++ b/src/node_binding.cc
+@@ -113,4 +113,5 @@
+   V(smol_ilp)                                                                  \
+   V(smol_power)                                                                \
++  V(smol_primordial)                                                           \
+   V(smol_util)                                                                 \
+   V(smol_webstreams)

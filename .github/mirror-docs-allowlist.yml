@@ -1,0 +1,18 @@
+# Mirror-docs allowlist for check-mirror-docs.mts.
+#
+# Two entry kinds:
+#   - orphan-doc: the doc exists but no source file mirrors it — use
+#     when the doc documents a subsystem-level concern that doesn't
+#     attach to a single source file (but note: README.md and
+#     module-architecture.md are already auto-exempt in the checker).
+#   - missing-doc: the source file exists but no mirror doc does — use
+#     for public-looking lib/smol-*.js modules that are deliberately
+#     undocumented for a reason (e.g. pre-release surface, internal
+#     plumbing not intended for direct import).
+#
+# Format:
+#   - kind: orphan-doc | missing-doc
+#     path: <docs/additions/... or packages/node-smol-builder/... relative path>
+#     reason: <one-paragraph justification>
+
+# No entries currently — docs/additions and lib/smol-*.js are aligned.

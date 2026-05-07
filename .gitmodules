@@ -1,0 +1,110 @@
+# node-26.0.0 sha256:db0b0db9238d93e41a110d6f14bd43984e56475cb7d8e218d1f73b6ad39b71c7
+[submodule "packages/node-smol-builder/upstream/node"]
+	path = packages/node-smol-builder/upstream/node
+	url = https://github.com/nodejs/node.git
+	ignore = dirty
+# yoga-3.2.1
+[submodule "packages/yoga-layout-builder/upstream/yoga"]
+	path = packages/yoga-layout-builder/upstream/yoga
+	url = https://github.com/facebook/yoga.git
+	ignore = dirty
+# onnxruntime-1.24.4
+[submodule "packages/onnxruntime-builder/upstream/onnxruntime"]
+	path = packages/onnxruntime-builder/upstream/onnxruntime
+	url = https://github.com/microsoft/onnxruntime.git
+	ignore = dirty
+# lief-0.17.0
+[submodule "packages/lief-builder/upstream/lief"]
+	path = packages/lief-builder/upstream/lief
+	url = https://github.com/lief-project/LIEF.git
+	ignore = dirty
+# cjson-1.7.19
+[submodule "packages/binject/upstream/cJSON"]
+	path = packages/binject/upstream/cJSON
+	url = https://github.com/DaveGamble/cJSON.git
+	ignore = dirty
+# libdeflate-1.25
+[submodule "packages/binject/upstream/libdeflate"]
+	path = packages/binject/upstream/libdeflate
+	url = https://github.com/ebiggers/libdeflate.git
+	ignore = dirty
+# curl-8.19.0
+[submodule "packages/curl-builder/upstream/curl"]
+	path = packages/curl-builder/upstream/curl
+	url = https://github.com/curl/curl.git
+	ignore = dirty
+# mbedtls-3.6.6
+[submodule "packages/curl-builder/upstream/mbedtls"]
+	path = packages/curl-builder/upstream/mbedtls
+	url = https://github.com/Mbed-TLS/mbedtls.git
+	ignore = dirty
+# wpt-epochs/three_hourly/2026-02-24_21H
+[submodule "packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/streams"]
+	path = packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/streams
+	url = https://github.com/web-platform-tests/wpt.git
+	ignore = dirty
+# iocraft-0.8.0
+[submodule "packages/iocraft-builder/upstream/iocraft"]
+	path = packages/iocraft-builder/upstream/iocraft
+	url = https://github.com/ccbrown/iocraft.git
+	ignore = dirty
+# liburing-2.14
+[submodule "packages/node-smol-builder/upstream/liburing"]
+	path = packages/node-smol-builder/upstream/liburing
+	url = https://github.com/axboe/liburing.git
+	ignore = dirty
+# postgres-17.9
+[submodule "packages/libpq-builder/upstream/postgres"]
+	path = packages/libpq-builder/upstream/postgres
+	url = https://github.com/postgres/postgres.git
+	ignore = dirty
+# usockets-0.8.8
+[submodule "packages/node-smol-builder/upstream/uSockets"]
+	path = packages/node-smol-builder/upstream/uSockets
+	url = https://github.com/uNetworking/uSockets.git
+	ignore = dirty
+# uwebsockets-20.76.0
+[submodule "packages/node-smol-builder/upstream/uWebSockets"]
+	path = packages/node-smol-builder/upstream/uWebSockets
+	url = https://github.com/uNetworking/uWebSockets.git
+	ignore = dirty
+# opentui-0.1.99
+[submodule "packages/opentui-builder/upstream/opentui"]
+	path = packages/opentui-builder/upstream/opentui
+	url = https://github.com/anomalyco/opentui.git
+	ignore = dirty
+# ink-7.0.0
+[submodule "packages/ink-builder/upstream/ink"]
+	path = packages/ink-builder/upstream/ink
+	url = https://github.com/vadimdemedes/ink.git
+	ignore = dirty
+# zstd-1.5.7
+[submodule "packages/bin-infra/upstream/zstd"]
+	path = packages/bin-infra/upstream/zstd
+	url = https://github.com/facebook/zstd.git
+	ignore = dirty
+# ultraviolet-0.0.0-a0f1f21
+[submodule "packages/ultraviolet-builder/upstream/ultraviolet"]
+	path = packages/ultraviolet-builder/upstream/ultraviolet
+	url = https://github.com/charmbracelet/ultraviolet.git
+	ignore = dirty
+# uucode-0.1.0
+[submodule "packages/opentui-builder/upstream/uucode"]
+	path = packages/opentui-builder/upstream/uucode
+	url = https://github.com/jacobsandlund/uucode.git
+	ignore = dirty
+# semver-7.7.4
+[submodule "packages/node-smol-builder/upstream/semver"]
+	path = packages/node-smol-builder/upstream/semver
+	url = https://github.com/npm/node-semver.git
+	ignore = dirty
+# temporal-v0.1.0 (locked: pinned by upstream Node's deps/crates/Cargo.toml; bump only via updating-node)
+[submodule "packages/node-smol-builder/upstream/temporal"]
+	path = packages/node-smol-builder/upstream/temporal
+	url = https://github.com/boa-dev/temporal.git
+	ignore = dirty
+# temporal-v0.2.3 (track-latest: bump independently via updating-temporal-infra)
+[submodule "packages/temporal-infra/upstream/temporal"]
+	path = packages/temporal-infra/upstream/temporal
+	url = https://github.com/boa-dev/temporal.git
+	ignore = dirty

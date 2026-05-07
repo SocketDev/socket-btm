@@ -1,0 +1,24 @@
+# @node-versions: v25.9.0
+# @description: Reserve `smol-power` for the node: scheme
+#
+# Adds `smol-power` to schemelessBlockList so consumers must
+# `require('node:smol-power')` (matching the pattern set by patch
+# 003-realm-smol-bindings.patch for other smol-* modules).
+#
+# `smol_power` does NOT need to be added to processBindingAllowList:
+# only smol_vfs needed that, because old code paths used
+# `process.binding('smol_vfs')`. Our smol-power.js uses
+# `internalBinding('smol_power')` which is unrestricted by that list.
+#
+# Files modified:
+# - lib/internal/bootstrap/realm.js: schemelessBlockList entry for smol-power
+#
+--- a/lib/internal/bootstrap/realm.js
++++ b/lib/internal/bootstrap/realm.js
+@@ -134,5 +134,6 @@
+   'smol-ilp',
+   'smol-manifest',
++  'smol-power',
+   'smol-purl',
+   'smol-sql',
+   'smol-vfs',

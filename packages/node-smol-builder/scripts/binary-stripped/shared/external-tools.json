@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../../build-infra/lib/external-tools-schema.json",
+  "description": "External tools required for the binary-stripped checkpoint phase",
+  "tools": {
+    "llvm-strip": {
+      "description": "LLVM binary stripper tool (removes debug symbols)",
+      "version": "16.0.6"
+    },
+    "z3": {
+      "description": "Z3 Theorem Prover (required dependency of llvm-strip on macOS)",
+      "version": "4.13.0",
+      "notes": "On macOS, llvm@16 links against z3. If z3 is upgraded, llvm@16 may need to be reinstalled: brew reinstall llvm@16"
+    }
+  }
+}

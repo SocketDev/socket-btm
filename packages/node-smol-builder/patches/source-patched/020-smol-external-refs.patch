@@ -1,0 +1,39 @@
+# @node-versions: v25.9.0
+# @description: Add all smol_* bindings to external reference binding list
+#
+# Adds all Socket Security native bindings to the
+# EXTERNAL_REFERENCE_BINDING_LIST in node_external_reference.h.
+#
+# These bindings have external references that need to be registered
+# during V8 snapshot building. smol_postgres is guarded behind
+# HAVE_POSTGRES since it is conditionally compiled.
+#
+# Files modified:
+# - src/node_external_reference.h: Add POSTGRES macro and bindings to EXTERNAL_REFERENCE_BINDING_LIST
+#
+--- a/src/node_external_reference.h
++++ b/src/node_external_reference.h
+@@ -146,10 +146,22 @@
+ #endif
+ 
++#if HAVE_POSTGRES
++#define EXTERNAL_REFERENCE_BINDING_LIST_POSTGRES(V) V(smol_postgres)
++#else
++#define EXTERNAL_REFERENCE_BINDING_LIST_POSTGRES(V)
++#endif
++
+ #define EXTERNAL_REFERENCE_BINDING_LIST(V)                                     \
+   EXTERNAL_REFERENCE_BINDING_LIST_BASE(V)                                      \
+   EXTERNAL_REFERENCE_BINDING_LIST_INSPECTOR(V)                                 \
+   EXTERNAL_REFERENCE_BINDING_LIST_I18N(V)                                      \
+   EXTERNAL_REFERENCE_BINDING_LIST_CRYPTO(V)                                    \
+-  EXTERNAL_REFERENCE_BINDING_LIST_QUIC(V)
++  EXTERNAL_REFERENCE_BINDING_LIST_QUIC(V)                                      \
++  V(smol_ffi)                                                                  \
++  V(smol_http)                                                                 \
++  V(smol_ilp)                                                                  \
++  V(smol_vfs)                                                                  \
++  EXTERNAL_REFERENCE_BINDING_LIST_POSTGRES(V)                                  \
++  V(smol_webstreams)
+ 
+ }  // namespace node

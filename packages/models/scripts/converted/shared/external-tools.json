@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../../build-infra/lib/external-tools-schema.json",
+  "description": "External tools required for the converted checkpoint phase (model conversion to ONNX)",
+  "tools": {
+    "torch": {
+      "description": "PyTorch machine learning framework",
+      "version": "2.10.0",
+      "packageManager": "pip"
+    },
+    "transformers": {
+      "description": "HuggingFace Transformers library for NLP models",
+      "version": "4.53.3",
+      "packageManager": "pip"
+    },
+    "onnx": {
+      "description": "ONNX (Open Neural Network Exchange) format library",
+      "version": "1.20.1",
+      "packageManager": "pip"
+    },
+    "sentence_transformers": {
+      "description": "Sentence Transformers for sentence embeddings",
+      "version": "3.3.1",
+      "packageManager": "pip"
+    }
+  }
+}

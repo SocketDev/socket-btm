@@ -7,9 +7,9 @@ bindings shipped with the `temporal_rs` Rust crate at
 headers; pointing the gyp `include_dirs` here instead lets V8 compile against
 our temporal-infra C++ port and drop the rustc/cargo build dependency.
 
-## Status (Phase 10a)
+## Status
 
-Foundation is in place:
+**Phase 10a — foundation:**
 
 - `diplomat_runtime.hpp` — `Ok` / `Err` / `result<T, E>` template, `span<T>`
 - `ErrorKind.hpp` — enum-class shim mapping to `node::socketsecurity::temporal::ErrorKind`
@@ -17,9 +17,21 @@ Foundation is in place:
 - `I128Nanoseconds.hpp` — `{high, low}` shim with `ToInfra()` / `FromInfra()` bridges
 - `Instant.hpp` — heap-owned wrapper class, factories + accessors + clone
 
-## What's NOT yet ported (Phase 10b+)
+**Phase 10b — enums + small structs:**
 
-The remaining 36 types V8 references. Per `grep "temporal_rs::" js-temporal-objects.cc`:
+- `AnyCalendarKind.hpp` — calendar enum + `get_for_str` / `parse_temporal_calendar_string` static methods, full bridge to `CalendarKind`
+- `Disambiguation.hpp` — Compatible / Earlier / Later / Reject
+- `OffsetDisambiguation.hpp` — Use / Prefer / Ignore / Reject
+- `RoundingMode.hpp` — 9 modes (Ceil through HalfEven)
+- `Sign.hpp` — Negative=-1 / Zero=0 / Positive=1
+- `Unit.hpp` — Auto=0 through Year=10 (numeric values match upstream)
+- `DisplayCalendar.hpp` / `DisplayOffset.hpp` / `DisplayTimeZone.hpp` — toString display options
+- `TransitionDirection.hpp` — Next / Previous (DST transition lookup)
+- `Precision.hpp` — Auto / Minute / Digit(n) tri-state struct
+
+## What's NOT yet ported (Phase 10c+)
+
+The remaining ~25 types V8 references. Per `grep "temporal_rs::" js-temporal-objects.cc`:
 
 | Type | Use count | Notes |
 |---|---|---|

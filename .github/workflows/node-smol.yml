@@ -130,7 +130,7 @@ jobs:
         with:
           debug: ${{ inputs.debug }}
 
-      - uses: SocketDev/socket-registry/.github/actions/setup@437c22d2db79a9a94f4bff64ebbbbe1e5170473a # main
+      - uses: SocketDev/socket-registry/.github/actions/setup@b89a5904e20e3a9ae8bf6df80ac5332d2818d268 # main
 
       - name: Load Node.js version
         id: node-version
@@ -141,7 +141,7 @@ jobs:
           echo "node-version=$NODE_BUILD_VERSION" >> $GITHUB_OUTPUT
           echo "Loaded Node.js build version: $NODE_BUILD_VERSION"
 
-      - uses: SocketDev/socket-registry/.github/actions/install@437c22d2db79a9a94f4bff64ebbbbe1e5170473a # main
+      - uses: SocketDev/socket-registry/.github/actions/install@b89a5904e20e3a9ae8bf6df80ac5332d2818d268 # main
 
       - name: Set build mode
         id: build-mode

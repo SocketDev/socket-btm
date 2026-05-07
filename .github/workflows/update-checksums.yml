@@ -37,9 +37,9 @@ jobs:
     permissions:
       contents: write # Required to commit updated release-assets.json
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@437c22d2db79a9a94f4bff64ebbbbe1e5170473a # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@b89a5904e20e3a9ae8bf6df80ac5332d2818d268 # main
 
-      - uses: SocketDev/socket-registry/.github/actions/setup-git-signing@437c22d2db79a9a94f4bff64ebbbbe1e5170473a # main
+      - uses: SocketDev/socket-registry/.github/actions/setup-git-signing@b89a5904e20e3a9ae8bf6df80ac5332d2818d268 # main
         with:
           gpg-private-key: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
 
@@ -108,5 +108,5 @@ jobs:
           echo "Push failed after $MAX_ATTEMPTS attempts; main is still moving"
           exit 1
 
-      - uses: SocketDev/socket-registry/.github/actions/cleanup-git-signing@437c22d2db79a9a94f4bff64ebbbbe1e5170473a # main
+      - uses: SocketDev/socket-registry/.github/actions/cleanup-git-signing@b89a5904e20e3a9ae8bf6df80ac5332d2818d268 # main
         if: always()

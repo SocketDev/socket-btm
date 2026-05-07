@@ -18,6 +18,7 @@
 #include "socketsecurity/temporal/options.h"
 #include "socketsecurity/temporal/temporal.h"
 #include "temporal_rs/DifferenceSettings.hpp"
+#include "temporal_rs/PartialDuration.hpp"
 #include "temporal_rs/RoundingOptions.hpp"
 #include "temporal_rs/Sign.hpp"
 #include "temporal_rs/TemporalError.hpp"
@@ -30,7 +31,6 @@ namespace temporal_rs {
 // Forward declarations for types referenced by signatures.
 class PlainDate;
 class ZonedDateTime;
-struct PartialDuration;
 struct RelativeTo;
 
 class Duration {

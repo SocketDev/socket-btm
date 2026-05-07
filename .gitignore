@@ -185,6 +185,9 @@ test-firewall-*.sh
 **/*.tmp
 **/*.backup*
 
+# Quality-scan / audit output (timestamped reports written by skills).
+/reports/
+
 # Patch backup directories (created by regenerating-node-patches skill)
 **/patches/source-patched.backup-*/
 

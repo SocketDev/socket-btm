@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0
+# @node-versions: v26.1.0
 # @description: Add glibc compat layer source + linker wraps (groundwork for glibc 2.17 floor)
 #
 # Lays the foundation for lowering our Linux glibc floor without yet doing so.

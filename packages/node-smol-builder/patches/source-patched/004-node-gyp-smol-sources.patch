@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0
+# @node-versions: v26.1.0
 # @description: Add VFS, binject, http, webstreams, ilp, and ffi sources to node.gyp
 #
 # Integrates Socket Security's source files into the Node.js build system,

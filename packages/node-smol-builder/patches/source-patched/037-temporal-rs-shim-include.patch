@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0,v26.x
+# @node-versions: v26.1.0
 # @description: Flip V8's temporal_rs include path to socket-btm shim
 #
 # V8's js-temporal-objects.cc #includes `temporal_rs/*.hpp`, which

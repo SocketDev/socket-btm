@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0
+# @node-versions: v26.1.0
 # @description: Add smol_power binding to external reference list
 #
 # Adds V(smol_power) to EXTERNAL_REFERENCE_BINDING_LIST so the

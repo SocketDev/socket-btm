@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0
+# @node-versions: v26.1.0
 # @description: Patch global WebStreams with fast alternatives (10x faster)
 #
 # Loads Vercel's fast-webstreams polyfill that backs WHATWG streams with

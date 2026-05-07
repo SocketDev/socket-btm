@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0
+# @node-versions: v26.1.0
 # @description: Add SMOL_SEA debug category to debug_utils.h
 #
 # Adds custom debug category for Socket Security SEA/smol extensions.

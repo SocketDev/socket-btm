@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0, v26.0.0
+# @node-versions: v26.1.0
 # @description: Gate cares HAVE_GETRANDOM / HAVE_SYS_RANDOM_H on __GLIBC_PREREQ(2,25)
 #
 # deps/cares/config/linux/ares_config.h is a static autoconf-generated

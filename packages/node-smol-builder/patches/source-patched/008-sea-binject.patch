@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0
+# @node-versions: v26.1.0
 # @description: Replace LIEF injection with binject-core in node_sea_bin.cc
 #
 # Replaces Node.js's ~300 lines of LIEF-based injection code with

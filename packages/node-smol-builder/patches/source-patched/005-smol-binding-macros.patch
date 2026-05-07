@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0
+# @node-versions: v26.1.0
 # @description: Add NODE_BUILTIN_POSTGRES_BINDINGS macro to node_binding.h
 #
 # Adds conditional postgres binding macro guarded by HAVE_POSTGRES.

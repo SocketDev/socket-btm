@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0, v26.0.0
+# @node-versions: v26.1.0
 # @description: Register smol_power native binding in NODE_BUILTIN_BINDINGS
 #
 # Adds V(smol_power) alongside the other smol_* bindings registered by

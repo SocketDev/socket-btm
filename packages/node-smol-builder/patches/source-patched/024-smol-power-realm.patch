@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0
+# @node-versions: v26.1.0
 # @description: Reserve `smol-power` for the node: scheme
 #
 # Adds `smol-power` to schemelessBlockList so consumers must

@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0
+# @node-versions: v26.1.0
 # @description: Add SmolUpdateConfig and SmolVfsConfig structs to node_sea.h
 #
 # Adds smol configuration struct definitions to the SEA header.

@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0
+# @node-versions: v26.1.0
 # @description: Register smol_primordial native binding in NODE_BUILTIN_BINDINGS
 #
 # Adds V(smol_primordial) alongside the other smol_* bindings.

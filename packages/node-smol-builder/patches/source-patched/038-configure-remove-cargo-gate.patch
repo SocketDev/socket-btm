@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0,v26.x
+# @node-versions: v26.1.0
 # @description: Disable configure.py cargo/rustc gate (Temporal via C++ shim)
 #
 # Companion to patch 037. Patch 037 routes V8's #include "temporal_rs/X.hpp"

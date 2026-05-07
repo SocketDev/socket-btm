@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0
+# @node-versions: v26.1.0
 # @description: Add all smol_* bindings to external reference binding list
 #
 # Adds all Socket Security native bindings to the

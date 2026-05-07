@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0
+# @node-versions: v26.1.0
 # @description: Add --with-postgres and --with-iouring configure options
 #
 # Adds configure options for building Node.js with PostgreSQL support

@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0
+# @node-versions: v26.1.0
 # @description: Register smol_vfs binding and smol modules in realm
 #
 # This patch:

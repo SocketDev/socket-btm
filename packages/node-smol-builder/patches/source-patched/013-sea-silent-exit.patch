@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0
+# @node-versions: v26.1.0
 # @description: Silent exit for --build-sea without LIEF in node_options.cc
 #
 # When LIEF is not compiled and --build-sea flag is passed:

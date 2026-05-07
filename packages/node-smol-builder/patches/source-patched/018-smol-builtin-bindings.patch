@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0
+# @node-versions: v26.1.0
 # @description: Disable wasi and register smol_* native bindings in NODE_BUILTIN_BINDINGS
 #
 # Replaces wasi with smol_vfs in standard bindings and adds smol_postgres

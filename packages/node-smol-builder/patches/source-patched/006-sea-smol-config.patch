@@ -1,4 +1,4 @@
-# @node-versions: v25.9.0
+# @node-versions: v26.1.0
 # @description: Call ParseSmolConfig() for smol configuration parsing in node_sea.cc
 #
 # Conditionally includes smol_config_parser.h and calls ParseSmolConfig()

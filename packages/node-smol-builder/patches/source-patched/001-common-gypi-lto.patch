@@ -10,8 +10,7 @@
 -              'lto': ' -flto ', # Clang
 +              'lto': ' -flto=thin ', # Clang - ThinLTO for faster linking
              }, {
--              'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ', # GCC
-+              'lto': ' -flto=4 -ffat-lto-objects ', # GCC
+               'lto': ' -flto=4 -ffat-lto-objects ', # GCC
              }],
            ],
          },

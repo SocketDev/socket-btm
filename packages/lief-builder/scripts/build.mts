@@ -944,6 +944,19 @@ async function main() {
       logger.info('Enabling LTO for Linux glibc compatibility')
     }
 
+    // On macOS, honor TARGET_ARCH for cross-compilation. Without
+    // CMAKE_OSX_ARCHITECTURES, cmake defaults to the host arch and silently
+    // produces a wrong-arch libLIEF.a — depot-macos-15 runners are arm64,
+    // so darwin-x64 builds produced arm64 archives until we caught the
+    // miscompile via downstream link-time errors ("ignoring file ...
+    // found architecture 'arm64', required architecture 'x86_64'").
+    if (process.platform === 'darwin') {
+      const targetArch = process.env.TARGET_ARCH || process.arch
+      const osxArch = targetArch === 'x64' ? 'x86_64' : 'arm64'
+      cmakeArgs.push(`-DCMAKE_OSX_ARCHITECTURES=${osxArch}`)
+      logger.info(`Building LIEF for darwin-${targetArch} (CMAKE_OSX_ARCHITECTURES=${osxArch})`)
+    }
+
     // On Windows, use gcc/MinGW for consistent ABI (CI and binsuite)
     // LIEF must use the same compiler/ABI as binject to avoid linker errors
     if (WIN32) {

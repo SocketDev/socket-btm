@@ -283,9 +283,13 @@ jobs:
 
       - name: Initialize mbedtls submodule (recursive)
         # Same gate as curl submodule init.
+        # mbedtls has nested submodules (framework, tf-psa-crypto) that
+        # CMakeLists.txt at line 320 requires; --recursive walks into
+        # them, --depth=1 keeps each clone shallow, --single-branch skips
+        # all-branches fetch on the inner gitlinks too.
         if: steps.curl-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
         shell: bash
-        run: git submodule update --init --depth=1 --single-branch packages/curl-builder/upstream/mbedtls
+        run: git submodule update --init --recursive --depth=1 --single-branch packages/curl-builder/upstream/mbedtls
 
       - name: Setup Depot CLI
         if: matrix.os == 'linux' && (steps.curl-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force)

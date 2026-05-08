@@ -79,6 +79,13 @@ class TimeZone {
     kIanaIdentifier,
   };
 
+  // Default-constructed TimeZone is a UTC offset-only zone with offset 0
+  // — same as Utc(). Public so ZonedDateTime{} (which has TimeZone as an
+  // aggregate member) can value-initialize. The factory methods below
+  // are still the documented construction path; the default constructor
+  // exists for default-init contexts only.
+  TimeZone() = default;
+
   static TimeZone FromOffset(UtcOffset offset) noexcept {
     TimeZone tz;
     tz.kind_ = Kind::kOffsetOnly;
@@ -115,7 +122,6 @@ class TimeZone {
 
  private:
   friend class TimeZoneBackend;
-  TimeZone() = default;
   Kind kind_ = Kind::kOffsetOnly;
   UtcOffset offset_;
   // For IANA zones, an identifier string. Empty when offset-only.

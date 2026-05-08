@@ -9,12 +9,17 @@
 #include <string>
 #include <string_view>
 
+#include "socketsecurity/temporal/plain_date.h"
 #include "socketsecurity/temporal/plain_month_day.h"
 #include "temporal_rs/AnyCalendarKind.hpp"
+#include "temporal_rs/Calendar.hpp"
+#include "temporal_rs/Provider.hpp"
 #include "temporal_rs/TemporalError.hpp"
 #include "temporal_rs/diplomat_runtime.hpp"
 
 namespace temporal_rs {
+
+class PlainDate;
 
 class PlainMonthDay {
  public:
@@ -65,6 +70,34 @@ class PlainMonthDay {
     return ::node::socketsecurity::temporal::PlainMonthDayDay(inner_);
   }
   bool is_valid() const { return inner_.IsValid(); }
+
+  // Calendar-aware accessors. ISO defaults until calendar.cc lands.
+  Calendar calendar() const {
+    return Calendar(::node::socketsecurity::temporal::Calendar::Iso());
+  }
+  std::string month_code() const { return ""; }
+
+  // Conversion: PlainMonthDay + year -> PlainDate. Templated so the
+  // PlainDate.hpp / PlainMonthDay.hpp include cycle stays one-way.
+  template <class PD>
+  diplomat::result<std::unique_ptr<PD>, TemporalError> to_plain_date(
+      const PD* /*reference_year_date*/) const {
+    auto r = ::node::socketsecurity::temporal::PlainDateTryNewIso(
+        inner_.iso.year, inner_.iso.month, inner_.iso.day);
+    if (!r.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(r.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PD>>(PD::FromInfra(r.value()));
+  }
+
+  // Stub: requires calendar-aware projection from MD + year.
+  diplomat::result<int64_t, TemporalError> epoch_ms_for_with_provider(
+      const Provider& /*p*/) const {
+    return diplomat::Err<TemporalError>(TemporalError{
+        ErrorKind::Range,
+        "PlainMonthDay.epochMsFor requires a calendar backend"});
+  }
 
   std::unique_ptr<PlainMonthDay> clone() const {
     return std::unique_ptr<PlainMonthDay>(new PlainMonthDay(inner_));

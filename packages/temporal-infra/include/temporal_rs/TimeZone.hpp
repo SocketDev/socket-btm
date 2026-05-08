@@ -1,5 +1,12 @@
-// Compat shim: temporal_rs::TimeZone — heap-owned wrapper. Diplomat
-// conventions: non-copyable / non-movable.
+// Compat shim: temporal_rs::TimeZone. Upstream models this as a
+// value-type struct with FFI-friendly fields (offset_minutes,
+// resolved_id, ...); V8 declares `temporal_rs::TimeZone tz;` by
+// value, copies it freely, and stores it in std::optional.
+//
+// We keep the same value semantics by holding a copyable instance
+// of node::socketsecurity::temporal::TimeZone (which is itself
+// default-constructible / copyable). Factories return `TimeZone`
+// by value (not unique_ptr) to match upstream's surface.
 
 #ifndef TEMPORAL_RS_COMPAT_TIMEZONE_HPP_
 #define TEMPORAL_RS_COMPAT_TIMEZONE_HPP_
@@ -16,64 +23,101 @@
 
 namespace temporal_rs {
 
-class TimeZone {
- public:
-  static std::unique_ptr<TimeZone> utc() {
-    return std::unique_ptr<TimeZone>(new TimeZone(
-        ::node::socketsecurity::temporal::TimeZone::Utc()));
+class Provider;
+
+struct TimeZone {
+  ::node::socketsecurity::temporal::TimeZone inner;
+
+  TimeZone() = default;
+  TimeZone(const TimeZone&) = default;
+  TimeZone(TimeZone&&) noexcept = default;
+  TimeZone& operator=(const TimeZone&) = default;
+  TimeZone& operator=(TimeZone&&) noexcept = default;
+
+  static TimeZone utc() {
+    TimeZone t;
+    t.inner = ::node::socketsecurity::temporal::TimeZone::Utc();
+    return t;
   }
 
-  static std::unique_ptr<TimeZone> from_offset_seconds(int64_t seconds) {
-    return std::unique_ptr<TimeZone>(new TimeZone(
-        ::node::socketsecurity::temporal::TimeZone::FromOffset(
-            ::node::socketsecurity::temporal::UtcOffset::FromSeconds(seconds))));
+  static TimeZone zero() { return utc(); }
+
+  static diplomat::result<TimeZone, TemporalError> utc_with_provider(
+      const Provider& /*p*/) {
+    return diplomat::Ok<TimeZone>(utc());
   }
 
-  static diplomat::result<std::unique_ptr<TimeZone>, TemporalError>
-  try_from_identifier_str(std::string_view s) {
+  static TimeZone from_offset_seconds(int64_t seconds) {
+    TimeZone t;
+    t.inner = ::node::socketsecurity::temporal::TimeZone::FromOffset(
+        ::node::socketsecurity::temporal::UtcOffset::FromSeconds(seconds));
+    return t;
+  }
+
+  static diplomat::result<TimeZone, TemporalError> try_from_identifier_str(
+      std::string_view s) {
     auto r =
         ::node::socketsecurity::temporal::TimeZone::TryFromIdentifierStr(s);
     if (!r.ok()) {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(r.error()));
     }
-    return diplomat::Ok<std::unique_ptr<TimeZone>>(
-        std::unique_ptr<TimeZone>(new TimeZone(r.value())));
+    TimeZone t;
+    t.inner = r.value();
+    return diplomat::Ok<TimeZone>(std::move(t));
   }
 
-  static diplomat::result<std::unique_ptr<TimeZone>, TemporalError>
-  try_from_str(std::string_view s) {
+  static diplomat::result<TimeZone, TemporalError>
+  try_from_identifier_str_with_provider(std::string_view s,
+                                         const Provider& /*p*/) {
     return try_from_identifier_str(s);
   }
 
-  std::string identifier() const { return inner_.Identifier(); }
-
-  bool is_offset() const { return inner_.IsOffsetOnly(); }
-
-  std::unique_ptr<TimeZone> clone() const {
-    return std::unique_ptr<TimeZone>(new TimeZone(inner_));
+  static diplomat::result<TimeZone, TemporalError> try_from_offset_str(
+      std::string_view s) {
+    return try_from_identifier_str(s);
   }
+
+  static diplomat::result<TimeZone, TemporalError> try_from_str(
+      std::string_view s) {
+    return try_from_identifier_str(s);
+  }
+
+  static diplomat::result<TimeZone, TemporalError> try_from_str_with_provider(
+      std::string_view s, const Provider& /*p*/) {
+    return try_from_identifier_str(s);
+  }
+
+  std::string identifier() const { return inner.Identifier(); }
+
+  diplomat::result<std::string, TemporalError> identifier_with_provider(
+      const Provider& /*p*/) const {
+    return diplomat::Ok<std::string>(inner.Identifier());
+  }
+
+  bool is_offset() const { return inner.IsOffsetOnly(); }
+
+  diplomat::result<TimeZone, TemporalError> primary_identifier() const {
+    return diplomat::Ok<TimeZone>(*this);
+  }
+
+  diplomat::result<TimeZone, TemporalError> primary_identifier_with_provider(
+      const Provider& /*p*/) const {
+    return diplomat::Ok<TimeZone>(*this);
+  }
+
+  // ── Bridges ────────────────────────────────────────────────────
 
   const ::node::socketsecurity::temporal::TimeZone& ToInfra() const {
-    return inner_;
+    return inner;
   }
 
-  static std::unique_ptr<TimeZone> FromInfra(
+  static TimeZone FromInfra(
       const ::node::socketsecurity::temporal::TimeZone& tz) {
-    return std::unique_ptr<TimeZone>(new TimeZone(tz));
+    TimeZone t;
+    t.inner = tz;
+    return t;
   }
-
-  TimeZone() = delete;
-  TimeZone(const TimeZone&) = delete;
-  TimeZone(TimeZone&&) noexcept = delete;
-  TimeZone& operator=(const TimeZone&) = delete;
-  TimeZone& operator=(TimeZone&&) noexcept = delete;
-
- private:
-  explicit TimeZone(::node::socketsecurity::temporal::TimeZone inner)
-      : inner_(inner) {}
-
-  ::node::socketsecurity::temporal::TimeZone inner_;
 };
 
 }  // namespace temporal_rs

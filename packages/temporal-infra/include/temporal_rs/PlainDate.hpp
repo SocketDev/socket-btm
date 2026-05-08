@@ -13,15 +13,18 @@
 
 #include "socketsecurity/temporal/parse.h"
 #include "socketsecurity/temporal/plain_date.h"
+#include "socketsecurity/temporal/plain_date_time.h"
 #include "temporal_rs/AnyCalendarKind.hpp"
 #include "temporal_rs/ArithmeticOverflow.hpp"
+#include "temporal_rs/Calendar.hpp"
 #include "temporal_rs/PartialDate.hpp"
+#include "temporal_rs/Provider.hpp"
 #include "temporal_rs/TemporalError.hpp"
 #include "temporal_rs/diplomat_runtime.hpp"
 
 namespace temporal_rs {
 
-// Forward decls — full surface in their own headers (Phase 10c+).
+// Forward decls - full surface in their own headers (Phase 10c+).
 class Duration;
 class PlainDateTime;
 class PlainMonthDay;
@@ -149,6 +152,54 @@ class PlainDate {
   }
 
   bool is_valid() const { return inner_.IsValid(); }
+
+  // Calendar-aware accessors. Calendar-backend integration is
+  // pending; these stub to ISO-equivalent or empty defaults so V8
+  // links. Real values land when calendar.cc activates the non-ISO
+  // paths.
+  Calendar calendar() const {
+    return Calendar(::node::socketsecurity::temporal::Calendar::Iso());
+  }
+  uint8_t days_in_week() const { return 7; }
+  uint8_t months_in_year() const { return 12; }
+  std::string month_code() const { return ""; }
+  std::string era() const { return ""; }
+  std::optional<int32_t> era_year() const { return std::nullopt; }
+  std::optional<int32_t> year_of_week() const { return std::nullopt; }
+
+  // Conversions: PlainDate -> PlainDateTime / ZonedDateTime.
+  // Templated on the consumer types to keep includes one-way
+  // (PlainDateTime / ZonedDateTime aren't visible here).
+  template <class PT, class PDT>
+  diplomat::result<std::unique_ptr<PDT>, TemporalError> to_plain_date_time(
+      std::optional<const PT*> /*time*/) const {
+    auto r = ::node::socketsecurity::temporal::PlainDateTimeTryNew(
+        inner_.iso.year, inner_.iso.month, inner_.iso.day, 0, 0, 0, 0, 0, 0);
+    if (!r.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(r.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PDT>>(PDT::FromInfra(r.value()));
+  }
+
+  // Stub: requires calendar-aware projection plus DST-anchored
+  // conversion. Returns an error until the path activates.
+  template <class ZDT, class TZ>
+  diplomat::result<std::unique_ptr<ZDT>, TemporalError>
+  to_zoned_date_time_with_provider(const TZ& /*tz*/,
+                                     const Provider& /*p*/) const {
+    return diplomat::Err<TemporalError>(TemporalError{
+        ErrorKind::Range,
+        "PlainDate.toZonedDateTime requires temporal-infra calendar backend"});
+  }
+
+  diplomat::result<std::unique_ptr<PlainDate>, TemporalError> with_calendar(
+      AnyCalendarKind /*kind*/) const {
+    // Calendar-aware projection lands with calendar.cc; for now,
+    // return a clone (ISO-only path).
+    return diplomat::Ok<std::unique_ptr<PlainDate>>(
+        std::unique_ptr<PlainDate>(new PlainDate(inner_)));
+  }
 
   // ── Mutation (returns new heap-owned PlainDate) ───────────────────
 

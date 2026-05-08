@@ -9,12 +9,17 @@
 #include <string>
 #include <string_view>
 
+#include "socketsecurity/temporal/plain_date.h"
 #include "socketsecurity/temporal/plain_year_month.h"
 #include "temporal_rs/AnyCalendarKind.hpp"
+#include "temporal_rs/Calendar.hpp"
+#include "temporal_rs/Provider.hpp"
 #include "temporal_rs/TemporalError.hpp"
 #include "temporal_rs/diplomat_runtime.hpp"
 
 namespace temporal_rs {
+
+class PlainDate;
 
 class PlainYearMonth {
  public:
@@ -71,6 +76,40 @@ class PlainYearMonth {
     return ::node::socketsecurity::temporal::PlainYearMonthInLeapYear(inner_);
   }
   bool is_valid() const { return inner_.IsValid(); }
+
+  // Calendar-aware accessors. ISO defaults until calendar.cc lands.
+  Calendar calendar() const {
+    return Calendar(::node::socketsecurity::temporal::Calendar::Iso());
+  }
+  uint16_t days_in_year() const {
+    return ::node::socketsecurity::temporal::PlainDateDaysInYear(
+        ::node::socketsecurity::temporal::PlainDate{inner_.iso});
+  }
+  uint8_t months_in_year() const { return 12; }
+  std::string month_code() const { return ""; }
+  std::string era() const { return ""; }
+  std::optional<int32_t> era_year() const { return std::nullopt; }
+
+  // Conversion: PlainYearMonth + day -> PlainDate.
+  template <class PD>
+  diplomat::result<std::unique_ptr<PD>, TemporalError> to_plain_date(
+      const PD* /*reference_day_date*/) const {
+    auto r = ::node::socketsecurity::temporal::PlainDateTryNewIso(
+        inner_.iso.year, inner_.iso.month, inner_.iso.day);
+    if (!r.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(r.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PD>>(PD::FromInfra(r.value()));
+  }
+
+  // Stub: requires calendar-aware day projection.
+  diplomat::result<int64_t, TemporalError> epoch_ms_for_with_provider(
+      const Provider& /*p*/) const {
+    return diplomat::Err<TemporalError>(TemporalError{
+        ErrorKind::Range,
+        "PlainYearMonth.epochMsFor requires a calendar backend"});
+  }
 
   std::unique_ptr<PlainYearMonth> clone() const {
     return std::unique_ptr<PlainYearMonth>(new PlainYearMonth(inner_));

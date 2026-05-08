@@ -9,14 +9,19 @@
 #include <string>
 #include <string_view>
 
+#include "socketsecurity/temporal/plain_date.h"
 #include "socketsecurity/temporal/plain_date_time.h"
 #include "temporal_rs/AnyCalendarKind.hpp"
 #include "temporal_rs/ArithmeticOverflow.hpp"
+#include "temporal_rs/Calendar.hpp"
 #include "temporal_rs/PartialDateTime.hpp"
+#include "temporal_rs/Provider.hpp"
 #include "temporal_rs/TemporalError.hpp"
 #include "temporal_rs/diplomat_runtime.hpp"
 
 namespace temporal_rs {
+
+struct RoundingOptions;
 
 class PlainDateTime {
  public:
@@ -127,6 +132,82 @@ class PlainDateTime {
     return ::node::socketsecurity::temporal::PlainDateTimeNanosecond(inner_);
   }
   bool is_valid() const { return inner_.IsValid(); }
+
+  // Calendar-aware accessors. Stub: ISO defaults until calendar.cc
+  // activates the non-ISO paths.
+  Calendar calendar() const {
+    return Calendar(::node::socketsecurity::temporal::Calendar::Iso());
+  }
+  uint8_t day_of_week() const {
+    return ::node::socketsecurity::temporal::PlainDateDayOfWeek(
+        ::node::socketsecurity::temporal::PlainDate{inner_.iso.date});
+  }
+  uint16_t day_of_year() const {
+    return ::node::socketsecurity::temporal::PlainDateDayOfYear(
+        ::node::socketsecurity::temporal::PlainDate{inner_.iso.date});
+  }
+  uint8_t days_in_week() const { return 7; }
+  uint8_t days_in_month() const {
+    return ::node::socketsecurity::temporal::PlainDateDaysInMonth(
+        ::node::socketsecurity::temporal::PlainDate{inner_.iso.date});
+  }
+  uint16_t days_in_year() const {
+    return ::node::socketsecurity::temporal::PlainDateDaysInYear(
+        ::node::socketsecurity::temporal::PlainDate{inner_.iso.date});
+  }
+  uint8_t months_in_year() const { return 12; }
+  bool in_leap_year() const {
+    return ::node::socketsecurity::temporal::PlainDateInLeapYear(
+        ::node::socketsecurity::temporal::PlainDate{inner_.iso.date});
+  }
+  std::optional<uint8_t> week_of_year() const { return std::nullopt; }
+  std::optional<int32_t> year_of_week() const { return std::nullopt; }
+  std::string month_code() const { return ""; }
+  std::string era() const { return ""; }
+  std::optional<int32_t> era_year() const { return std::nullopt; }
+
+  bool equals(const PlainDateTime& other) const {
+    return inner_.iso.date.year == other.inner_.iso.date.year &&
+           inner_.iso.date.month == other.inner_.iso.date.month &&
+           inner_.iso.date.day == other.inner_.iso.date.day &&
+           inner_.iso.time.hour == other.inner_.iso.time.hour &&
+           inner_.iso.time.minute == other.inner_.iso.time.minute &&
+           inner_.iso.time.second == other.inner_.iso.time.second &&
+           inner_.iso.time.millisecond == other.inner_.iso.time.millisecond &&
+           inner_.iso.time.microsecond == other.inner_.iso.time.microsecond &&
+           inner_.iso.time.nanosecond == other.inner_.iso.time.nanosecond;
+  }
+
+  // Stubs - rounding tail and time-overlay both require deeper
+  // infra integration. Surface preserved so V8 compiles.
+  diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError> round(
+      const RoundingOptions& /*options*/) const {
+    return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
+        std::unique_ptr<PlainDateTime>(new PlainDateTime(inner_)));
+  }
+
+  template <class PT>
+  diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError> with_time(
+      std::optional<const PT*> /*time*/) const {
+    return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
+        std::unique_ptr<PlainDateTime>(new PlainDateTime(inner_)));
+  }
+
+  diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError>
+  with_calendar(AnyCalendarKind /*kind*/) const {
+    return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
+        std::unique_ptr<PlainDateTime>(new PlainDateTime(inner_)));
+  }
+
+  template <class ZDT, class TZ>
+  diplomat::result<std::unique_ptr<ZDT>, TemporalError>
+  to_zoned_date_time_with_provider(const TZ& /*tz*/,
+                                     const Provider& /*p*/) const {
+    return diplomat::Err<TemporalError>(TemporalError{
+        ErrorKind::Range,
+        "PlainDateTime.toZonedDateTime requires temporal-infra "
+        "calendar backend"});
+  }
 
   std::unique_ptr<PlainDateTime> clone() const {
     return std::unique_ptr<PlainDateTime>(new PlainDateTime(inner_));

@@ -9,6 +9,7 @@
 
 #include <cstdint>
 
+#include "socketsecurity/temporal/temporal.h"
 #include "socketsecurity/temporal/temporal_int128.h"
 
 namespace temporal_rs {
@@ -46,6 +47,15 @@ struct I128Nanoseconds {
                               static_cast<NativeUInt128>(low);
     return ::node::socketsecurity::temporal::Int128(
         static_cast<NativeInt128>(combined));
+  }
+
+  // Spec: IsValidEpochNanoseconds - the value is a valid epoch
+  // nanosecond count for an Instant if it lies within ±86400e17.
+  // Defer to temporal-infra's Instant validity check.
+  bool is_valid() const {
+    ::node::socketsecurity::temporal::Instant i{};
+    i.epoch_nanoseconds = ToInfra();
+    return i.IsValid();
   }
 };
 

@@ -23,6 +23,7 @@
 #include "socketsecurity/temporal/temporal.h"
 #include "temporal_rs/DifferenceSettings.hpp"
 #include "temporal_rs/PartialDuration.hpp"
+#include "temporal_rs/Provider.hpp"
 #include "temporal_rs/RoundingOptions.hpp"
 #include "temporal_rs/Sign.hpp"
 #include "temporal_rs/TemporalError.hpp"
@@ -235,6 +236,34 @@ class Duration {
           TemporalError::FromInfra(r.error()));
     }
     return diplomat::Ok<int8_t>(r.value());
+  }
+
+  // ── _with_provider variants ────────────────────────────────────
+  //
+  // These run when V8's call site needs DST-aware comparison/rounding/
+  // total. The Provider is a marker - the underlying TimeZoneBackend
+  // resolves IANA queries inside temporal-infra. Stubbed bodies route
+  // back to the non-provider methods until the calendar / DST tail
+  // activates.
+
+  diplomat::result<int8_t, TemporalError> compare_with_provider(
+      const Duration& other,
+      const std::optional<RelativeTo>& relative_to,
+      const Provider& /*p*/) const {
+    return compare(other, relative_to);
+  }
+
+  diplomat::result<std::unique_ptr<Duration>, TemporalError>
+  round_with_provider(const RoundingOptions& options,
+                      const std::optional<RelativeTo>& relative_to,
+                      const Provider& /*p*/) const {
+    return round(options, relative_to);
+  }
+
+  diplomat::result<double, TemporalError> total_with_provider(
+      Unit unit, const std::optional<RelativeTo>& relative_to,
+      const Provider& /*p*/) const {
+    return total(unit, relative_to);
   }
 
   // ── Stringification ─────────────────────────────────────────────

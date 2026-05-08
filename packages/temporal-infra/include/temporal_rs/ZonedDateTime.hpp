@@ -1,6 +1,12 @@
-// Compat shim: temporal_rs::ZonedDateTime — heap-owned wrapper around
+// Compat shim: temporal_rs::ZonedDateTime - heap-owned wrapper around
 // node::socketsecurity::temporal::ZonedDateTime. Diplomat conventions:
 // non-copyable / non-movable, factories return result<unique_ptr,...>.
+//
+// Methods marked "stub" return reasonable defaults until temporal-infra
+// activates the corresponding paths (calendar-aware diff, IANA DST
+// resolution, rounding tail). The goal at this stage is to make V8's
+// js-temporal-objects.cc compile and link; full Temporal correctness
+// is a follow-up.
 
 #ifndef TEMPORAL_RS_COMPAT_ZONEDDATETIME_HPP_
 #define TEMPORAL_RS_COMPAT_ZONEDDATETIME_HPP_
@@ -14,13 +20,20 @@
 #include "socketsecurity/temporal/error.h"
 #include "socketsecurity/temporal/temporal.h"
 #include "socketsecurity/temporal/zoned_date_time.h"
+#include "temporal_rs/AnyCalendarKind.hpp"
+#include "temporal_rs/ArithmeticOverflow.hpp"
 #include "temporal_rs/Calendar.hpp"
+#include "temporal_rs/Disambiguation.hpp"
+#include "temporal_rs/I128Nanoseconds.hpp"
 #include "temporal_rs/Instant.hpp"
+#include "temporal_rs/OffsetDisambiguation.hpp"
 #include "temporal_rs/PlainDate.hpp"
 #include "temporal_rs/PlainDateTime.hpp"
 #include "temporal_rs/PlainTime.hpp"
+#include "temporal_rs/Provider.hpp"
 #include "temporal_rs/TemporalError.hpp"
 #include "temporal_rs/TimeZone.hpp"
+#include "temporal_rs/TransitionDirection.hpp"
 #include "temporal_rs/diplomat_runtime.hpp"
 
 namespace temporal_rs {
@@ -34,10 +47,11 @@ struct PartialZonedDateTime;
 class ZonedDateTime {
  public:
   static diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
-  try_new(const Instant& instant, const TimeZone& tz, const Calendar& cal) {
+  try_new(I128Nanoseconds ns, const TimeZone& tz, const Calendar& cal) {
+    ::node::socketsecurity::temporal::Instant instant{};
+    instant.epoch_nanoseconds = ns.ToInfra();
     auto r = ::node::socketsecurity::temporal::ZonedDateTimeTryNew(
-        ::node::socketsecurity::temporal::Instant{instant.ToInfra()},
-        tz.ToInfra(), cal.ToInfra());
+        instant, tz.ToInfra(), cal.ToInfra());
     if (!r.ok()) {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(r.error()));
@@ -102,12 +116,77 @@ class ZonedDateTime {
     return ::node::socketsecurity::temporal::ZonedDateTimeNanosecond(inner_);
   }
 
-  std::unique_ptr<Calendar> get_calendar() const {
-    return Calendar::FromInfra(inner_.calendar);
+  // Calendar-aware accessors. Calendar-backend integration is pending;
+  // these return ISO-equivalent values until the non-ISO paths
+  // activate. The shim's Calendar is value-copyable so it can be
+  // returned by value.
+  Calendar calendar() const { return Calendar(inner_.calendar); }
+
+  uint8_t day_of_week() const {
+    auto pd = AsPlainDate();
+    return pd.has_value()
+               ? ::node::socketsecurity::temporal::PlainDateDayOfWeek(*pd)
+               : 0;
+  }
+  uint16_t day_of_year() const {
+    auto pd = AsPlainDate();
+    return pd.has_value()
+               ? ::node::socketsecurity::temporal::PlainDateDayOfYear(*pd)
+               : 0;
+  }
+  uint8_t days_in_week() const { return 7; }
+  uint8_t days_in_month() const {
+    auto pd = AsPlainDate();
+    return pd.has_value()
+               ? ::node::socketsecurity::temporal::PlainDateDaysInMonth(*pd)
+               : 0;
+  }
+  uint16_t days_in_year() const {
+    auto pd = AsPlainDate();
+    return pd.has_value()
+               ? ::node::socketsecurity::temporal::PlainDateDaysInYear(*pd)
+               : 0;
+  }
+  uint8_t months_in_year() const { return 12; }
+  bool in_leap_year() const {
+    auto pd = AsPlainDate();
+    return pd.has_value()
+               ? ::node::socketsecurity::temporal::PlainDateInLeapYear(*pd)
+               : false;
+  }
+  // Calendar-extension fields (non-ISO only). Stub: empty for now.
+  std::string month_code() const { return ""; }
+  std::string era() const { return ""; }
+  std::optional<int32_t> era_year() const { return std::nullopt; }
+  std::optional<uint8_t> week_of_year() const { return std::nullopt; }
+  std::optional<int32_t> year_of_week() const { return std::nullopt; }
+
+  // V8 uses both `timezone()` and the older `get_time_zone()`.
+  TimeZone timezone() const { return TimeZone::FromInfra(inner_.time_zone); }
+  TimeZone get_time_zone() const { return timezone(); }
+
+  // Spec: instant.epoch_nanoseconds / 1_000_000.
+  int64_t epoch_milliseconds() const {
+    using ::node::socketsecurity::temporal::Int128;
+    Int128 ms = inner_.instant.epoch_nanoseconds / Int128(int64_t{1'000'000});
+    return ms.ToInt64();
+  }
+  I128Nanoseconds epoch_nanoseconds() const {
+    return I128Nanoseconds::FromInfra(inner_.instant.epoch_nanoseconds);
   }
 
-  std::unique_ptr<TimeZone> get_time_zone() const {
-    return TimeZone::FromInfra(inner_.time_zone);
+  // Offset accessors. Stubbed for non-offset zones; returns "+00:00"
+  // until the full IANA-DST path lands. For offset-only zones, the
+  // value is correct.
+  std::string offset() const {
+    return inner_.time_zone.IsOffsetOnly()
+               ? inner_.time_zone.OffsetOrNull().ToString()
+               : "+00:00";
+  }
+  int64_t offset_nanoseconds() const {
+    return inner_.time_zone.IsOffsetOnly()
+               ? inner_.time_zone.OffsetOrNull().Nanoseconds()
+               : 0;
   }
 
   // ── Conversions ─────────────────────────────────────────────────
@@ -118,7 +197,7 @@ class ZonedDateTime {
   }
 
   diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError>
-  to_plain_date_time() const {
+  to_plain_datetime() const {
     auto r = ::node::socketsecurity::temporal::ZonedDateTimeToPlainDateTime(
         inner_);
     if (!r.ok()) {
@@ -127,6 +206,11 @@ class ZonedDateTime {
     }
     return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
         PlainDateTime::FromInfra(r.value()));
+  }
+
+  diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError>
+  to_plain_date_time() const {
+    return to_plain_datetime();
   }
 
   diplomat::result<std::unique_ptr<PlainDate>, TemporalError>
@@ -151,6 +235,68 @@ class ZonedDateTime {
     }
     return diplomat::Ok<std::unique_ptr<PlainTime>>(
         PlainTime::FromInfra(r.value()));
+  }
+
+  // ── Stubs for "with_provider" methods ──────────────────────────
+  //
+  // The "_with_provider" suffix routes through the registered
+  // TimeZoneBackend. Stubbed bodies preserve the surface so V8 links;
+  // semantic correctness arrives when the IANA-aware path lands.
+
+  diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  round_with_provider(const RoundingOptions& /*options*/,
+                      const Provider& /*p*/) const {
+    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+        std::unique_ptr<ZonedDateTime>(new ZonedDateTime(inner_)));
+  }
+
+  diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  start_of_day_with_provider(const Provider& /*p*/) const {
+    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+        std::unique_ptr<ZonedDateTime>(new ZonedDateTime(inner_)));
+  }
+
+  diplomat::result<std::optional<std::unique_ptr<ZonedDateTime>>, TemporalError>
+  get_time_zone_transition_with_provider(TransitionDirection /*dir*/,
+                                          const Provider& /*p*/) const {
+    return diplomat::Ok<std::optional<std::unique_ptr<ZonedDateTime>>>(
+        std::nullopt);
+  }
+
+  diplomat::result<double, TemporalError> hours_in_day_with_provider(
+      const Provider& /*p*/) const {
+    return diplomat::Ok<double>(24.0);
+  }
+
+  diplomat::result<bool, TemporalError> equals_with_provider(
+      const ZonedDateTime& other, const Provider& /*p*/) const {
+    return diplomat::Ok<bool>(equals(other));
+  }
+
+  diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  with_calendar(AnyCalendarKind kind) const {
+    auto out_inner = inner_;
+    out_inner.calendar =
+        ::node::socketsecurity::temporal::Calendar(kind.ToInfra());
+    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+        std::unique_ptr<ZonedDateTime>(new ZonedDateTime(out_inner)));
+  }
+
+  diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  with_timezone_with_provider(const TimeZone& tz,
+                               const Provider& /*p*/) const {
+    auto out_inner = inner_;
+    out_inner.time_zone = tz.ToInfra();
+    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+        std::unique_ptr<ZonedDateTime>(new ZonedDateTime(out_inner)));
+  }
+
+  diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  with_plain_time_and_provider(
+      std::optional<const PlainTime*> /*time*/,
+      const Provider& /*p*/) const {
+    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+        std::unique_ptr<ZonedDateTime>(new ZonedDateTime(inner_)));
   }
 
   // ── Comparison ─────────────────────────────────────────────────
@@ -200,8 +346,33 @@ class ZonedDateTime {
   explicit ZonedDateTime(::node::socketsecurity::temporal::ZonedDateTime inner)
       : inner_(inner) {}
 
+  // Project to a temporal-infra PlainDate so we can reuse the
+  // calendar-component accessors. Returns nullopt for non-offset zones
+  // when the TimeZoneBackend's GetIsoDateTimeFor fails — same fallback
+  // as ZonedDateTimeYear/Month/...
+  std::optional<::node::socketsecurity::temporal::PlainDate> AsPlainDate()
+      const {
+    auto idt = inner_.time_zone.GetIsoDateTimeFor(inner_.instant);
+    if (!idt.ok()) {
+      return std::nullopt;
+    }
+    return ::node::socketsecurity::temporal::PlainDate{idt.value().date};
+  }
+
   ::node::socketsecurity::temporal::ZonedDateTime inner_;
 };
+
+// ── Out-of-line Instant methods that need ZonedDateTime visible ──
+//
+// Instant.hpp declares to_zoned_date_time_iso_with_provider but can't
+// define it inline (circular include). Define it here.
+inline diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+Instant::to_zoned_date_time_iso_with_provider(const TimeZone& tz,
+                                               const Provider& /*p*/) const {
+  return ZonedDateTime::try_new(
+      I128Nanoseconds::FromInfra(inner_.epoch_nanoseconds), tz,
+      Calendar(::node::socketsecurity::temporal::Calendar::Iso()));
+}
 
 }  // namespace temporal_rs
 

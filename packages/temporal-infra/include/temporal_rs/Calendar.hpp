@@ -1,6 +1,11 @@
-// Compat shim: temporal_rs::Calendar — heap-owned wrapper around
-// node::socketsecurity::temporal::Calendar. Diplomat conventions:
-// non-copyable / non-movable, factories return result<unique_ptr,...>.
+// Compat shim: temporal_rs::Calendar. Upstream models this as a
+// non-copyable class accessed via Calendar* — diplomat-style heap
+// ownership. V8 calls `obj->calendar().kind()` and similar, so we
+// need an object with `kind()`. The shim makes Calendar copyable
+// (deviating from upstream's deletion list) so per-type accessors
+// can return Calendar by value or const-ref. The underlying C++
+// port's Calendar is a thin value type (one enum); copying it is
+// cheap.
 
 #ifndef TEMPORAL_RS_COMPAT_CALENDAR_HPP_
 #define TEMPORAL_RS_COMPAT_CALENDAR_HPP_
@@ -21,9 +26,21 @@ namespace temporal_rs {
 
 class Calendar {
  public:
+  Calendar() = default;
+  explicit Calendar(::node::socketsecurity::temporal::Calendar inner)
+      : inner_(inner) {}
+  Calendar(const Calendar&) = default;
+  Calendar(Calendar&&) noexcept = default;
+  Calendar& operator=(const Calendar&) = default;
+  Calendar& operator=(Calendar&&) noexcept = default;
+
   static std::unique_ptr<Calendar> create(AnyCalendarKind kind) {
     return std::unique_ptr<Calendar>(new Calendar(
         ::node::socketsecurity::temporal::Calendar(kind.ToInfra())));
+  }
+
+  static std::unique_ptr<Calendar> try_new_constrain(AnyCalendarKind kind) {
+    return create(kind);
   }
 
   static std::unique_ptr<Calendar> create_iso() {
@@ -43,12 +60,17 @@ class Calendar {
         std::unique_ptr<Calendar>(new Calendar(r.value())));
   }
 
+  static diplomat::result<std::unique_ptr<Calendar>, TemporalError>
+  from_utf8(std::string_view s) {
+    return try_from_utf8(s);
+  }
+
   AnyCalendarKind kind() const {
     return AnyCalendarKind::FromInfra(inner_.Kind());
   }
 
-  std::string identifier() const {
-    return std::string(inner_.Identifier());
+  std::string_view identifier() const {
+    return inner_.Identifier();
   }
 
   bool is_iso() const { return inner_.IsIso(); }
@@ -61,6 +83,8 @@ class Calendar {
     return std::unique_ptr<Calendar>(new Calendar(inner_));
   }
 
+  // ── Bridges ────────────────────────────────────────────────────
+
   const ::node::socketsecurity::temporal::Calendar& ToInfra() const {
     return inner_;
   }
@@ -70,16 +94,7 @@ class Calendar {
     return std::unique_ptr<Calendar>(new Calendar(c));
   }
 
-  Calendar() = delete;
-  Calendar(const Calendar&) = delete;
-  Calendar(Calendar&&) noexcept = delete;
-  Calendar& operator=(const Calendar&) = delete;
-  Calendar& operator=(Calendar&&) noexcept = delete;
-
  private:
-  explicit Calendar(::node::socketsecurity::temporal::Calendar inner)
-      : inner_(inner) {}
-
   ::node::socketsecurity::temporal::Calendar inner_;
 };
 

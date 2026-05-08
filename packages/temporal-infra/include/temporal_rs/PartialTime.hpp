@@ -18,6 +18,12 @@ struct PartialTime {
   std::optional<uint16_t> microsecond;
   std::optional<uint16_t> nanosecond;
 
+  bool is_empty() const {
+    return !hour.has_value() && !minute.has_value() && !second.has_value() &&
+           !millisecond.has_value() && !microsecond.has_value() &&
+           !nanosecond.has_value();
+  }
+
   ::node::socketsecurity::temporal::PartialTime ToInfra() const {
     ::node::socketsecurity::temporal::PartialTime out;
     out.hour = hour;

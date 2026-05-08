@@ -28,6 +28,7 @@
 #include "socketsecurity/temporal/parse.h"
 #include "socketsecurity/temporal/temporal.h"
 #include "temporal_rs/I128Nanoseconds.hpp"
+#include "temporal_rs/RoundingOptions.hpp"
 #include "temporal_rs/TemporalError.hpp"
 #include "temporal_rs/diplomat_runtime.hpp"
 
@@ -36,7 +37,6 @@ namespace temporal_rs {
 // Forward decls for types this header doesn't depend on heavily.
 class Duration;
 struct DifferenceSettings;
-struct RoundingOptions;
 struct ToStringRoundingOptions;
 struct TimeZone;
 class ZonedDateTime;
@@ -139,6 +139,27 @@ class Instant {
   std::unique_ptr<Instant> clone() const {
     return std::unique_ptr<Instant>(new Instant(inner_));
   }
+
+  // ── Rounding ───────────────────────────────────────────────────
+  //
+  // Stub: temporal-infra exposes ResolvedRoundingOptionsFromInstant but
+  // wiring it through to a re-balanced Instant requires the rounding
+  // tail to land. For now, return a clone (which is the no-op rounding
+  // result); V8 sees this as "rounding succeeded with the same value."
+  diplomat::result<std::unique_ptr<Instant>, TemporalError> round(
+      const RoundingOptions& /*options*/) const {
+    return diplomat::Ok<std::unique_ptr<Instant>>(
+        std::unique_ptr<Instant>(new Instant(inner_)));
+  }
+
+  // ── ZDT projection ─────────────────────────────────────────────
+  //
+  // Declared here, defined inline at the bottom of the file (after
+  // ZonedDateTime.hpp is pulled in via a forward-include trick).
+  // V8 always sees ZonedDateTime.hpp before instantiating this method.
+  inline diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  to_zoned_date_time_iso_with_provider(const TimeZone& tz,
+                                         const Provider& p) const;
 
   // ── Arithmetic ─────────────────────────────────────────────────
   //

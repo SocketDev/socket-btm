@@ -1,24 +1,11 @@
 // Temporal.Instant — exact moment in time as nanoseconds since the Unix
 // epoch. Calendar/timezone-agnostic.
-//
-// V8 already exposes a 100-nanosecond-precision system clock via
-// v8::base::Time::Now(); we widen to nanoseconds (the spec's precision)
-// by reading microseconds and extending. For higher precision on
-// platforms that have it (Linux clock_gettime CLOCK_REALTIME, macOS
-// mach_absolute_time, Windows GetSystemTimePreciseAsFileTime), V8's
-// internal time facilities already do the right thing — we use what V8
-// gives us rather than calling the syscalls ourselves.
 
 #include "socketsecurity/temporal/temporal.h"
 
-#include "socketsecurity/temporal/temporal_int128.h"
+#include <chrono>
 
-// V8 base time facilities — already linked into every Node binary.
-// Reach into V8's headers via the same path patterns node-smol's other
-// additions use (src/socketsecurity/* sources include "v8.h",
-// "node.h", and V8 internal headers via the deps/v8/include/ path
-// the gyp build sets up).
-#include "src/base/platform/time.h"
+#include "socketsecurity/temporal/temporal_int128.h"
 
 namespace node {
 namespace socketsecurity {
@@ -27,16 +14,15 @@ namespace temporal {
 // ── Construction ───────────────────────────────────────────────────
 
 Instant Instant::Now() noexcept {
-  // v8::base::Time::Now() returns microseconds since the Unix epoch as
-  // a v8::base::Time. We extract the raw int64 microseconds and widen
-  // to nanoseconds. The factor-of-1000 multiplication can't overflow
-  // int128 within any plausible date range.
-  const int64_t us = v8::base::Time::Now().ToInternalValue();
-  // V8's "internal value" is microseconds-since-epoch on POSIX and
-  // Windows alike (see deps/v8/src/base/platform/time.h). Convert by
-  // multiplying by 1000 to get nanoseconds.
-  const NativeInt128 ns = static_cast<NativeInt128>(us) * NativeInt128{1000};
-  return Instant{Int128(ns)};
+  // std::chrono::system_clock::now() returns a system-wall-clock
+  // time_point. Converting to ns since the Unix epoch is portable on
+  // every supported platform and avoids reaching into V8 internals.
+  const auto now = std::chrono::system_clock::now();
+  const int64_t ns_since_epoch =
+      std::chrono::duration_cast<std::chrono::nanoseconds>(
+          now.time_since_epoch())
+          .count();
+  return Instant{Int128(static_cast<NativeInt128>(ns_since_epoch))};
 }
 
 // ── Validation ─────────────────────────────────────────────────────

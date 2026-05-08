@@ -130,8 +130,8 @@ struct PlainDateTime {
 struct Instant {
   Int128 epoch_nanoseconds;
 
-  // Construct from a system clock reading. Wraps V8's system time
-  // facilities (v8::base::Time::Now() under the hood).
+  // Construct from a system clock reading. Wraps the C++ standard
+  // wall clock (std::chrono::system_clock::now() under the hood).
   static Instant Now() noexcept;
 
   // Spec: IsValidEpochNanoseconds — within ±10^8 days from epoch.

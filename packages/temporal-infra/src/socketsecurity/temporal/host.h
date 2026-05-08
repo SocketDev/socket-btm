@@ -29,7 +29,7 @@ class TimeZone;
 //
 // V8 callers hook this via the higher-level wrapper
 // `js-temporal-objects.cc`; the default flow uses
-// `v8::base::Time::Now()` (see DefaultEmptyHostSystem below).
+// `std::chrono::system_clock::now()` (see DefaultEmptyHostSystem below).
 class HostHooks {
  public:
   virtual ~HostHooks() = default;

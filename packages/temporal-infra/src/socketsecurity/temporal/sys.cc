@@ -2,14 +2,13 @@
 
 #include "socketsecurity/temporal/sys.h"
 
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <string>
 
 #include "socketsecurity/temporal/time_zone.h"
-// V8's portable monotonic clock. Already linked into libnode.
-#include "src/base/platform/time.h"
 
 namespace node {
 namespace socketsecurity {
@@ -55,15 +54,13 @@ const TimeZone& LocalSingleton() noexcept {
 }  // namespace
 
 TemporalResult<int64_t> GetSystemEpochNanoseconds() noexcept {
-  // V8's `Time::Now()` returns a v8::base::Time whose `ToInternalValue()`
-  // is microseconds since the Unix epoch on every supported platform
-  // (see deps/v8/src/base/platform/time.h). Convert µs → ns by
-  // multiplying by 1000; the result fits in int64 for any practical
-  // date (int64 µs covers ±292,471 years, ns covers ±292 years).
-  // Outside that range the higher-precision Int128 path in
-  // instant.cc's caller takes over.
-  const int64_t us = v8::base::Time::Now().ToInternalValue();
-  return us * 1'000LL;
+  // std::chrono::system_clock::now() is the C++ standard wall-clock.
+  // int64 ns covers ±292 years from 1970 — outside that range the
+  // higher-precision Int128 path in instant.cc's caller takes over.
+  const auto now = std::chrono::system_clock::now();
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(
+             now.time_since_epoch())
+      .count();
 }
 
 TemporalResult<int64_t> UtcHostSystem::GetHostEpochNanoseconds() {

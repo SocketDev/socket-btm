@@ -19,6 +19,7 @@
 #include "temporal_rs/RoundingOptions.hpp"
 #include "temporal_rs/TemporalError.hpp"
 #include "temporal_rs/TimeZone.hpp"
+#include "temporal_rs/ToStringRoundingOptions.hpp"
 #include "temporal_rs/diplomat_runtime.hpp"
 
 namespace temporal_rs {

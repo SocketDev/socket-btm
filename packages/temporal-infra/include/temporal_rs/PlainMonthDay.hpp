@@ -54,6 +54,15 @@ class PlainMonthDay {
   }
 
   static diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
+  from_partial(PartialDate /*partial*/,
+               std::optional<ArithmeticOverflow> /*overflow*/) {
+    // Stub — full PartialDate → PlainMonthDay resolution lands when
+    // the calendar-aware path activates.
+    return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
+        std::unique_ptr<PlainMonthDay>(nullptr));
+  }
+
+  static diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
   from_utf16(std::u16string_view s) {
     std::string narrow;
     narrow.reserve(s.size());

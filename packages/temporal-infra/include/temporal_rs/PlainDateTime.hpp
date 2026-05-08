@@ -224,14 +224,22 @@ class PlainDateTime {
     return std::unique_ptr<PlainDateTime>(new PlainDateTime(inner_));
   }
 
-  template <class ZDT, class TZ>
-  diplomat::result<std::unique_ptr<ZDT>, TemporalError>
-  to_zoned_date_time_with_provider(const TZ& /*tz*/,
-                                     const Provider& /*p*/) const {
-    return diplomat::Err<TemporalError>(TemporalError{
-        ErrorKind::Range,
-        "PlainDateTime.toZonedDateTime requires temporal-infra "
-        "calendar backend"});
+  // PlainDateTime -> ZonedDateTime. Upstream signature:
+  //   to_zoned_date_time(TimeZone, Disambiguation)
+  //   to_zoned_date_time_with_provider(TimeZone, Disambiguation,
+  //                                     const Provider&)
+  // Stub returns nullptr until the calendar/DST path activates.
+  diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  to_zoned_date_time(TimeZone /*tz*/, Disambiguation /*disamb*/) const {
+    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+        std::unique_ptr<ZonedDateTime>(nullptr));
+  }
+
+  diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  to_zoned_date_time_with_provider(TimeZone tz,
+                                    Disambiguation disamb,
+                                    const Provider& /*p*/) const {
+    return to_zoned_date_time(tz, disamb);
   }
 
   std::unique_ptr<PlainDateTime> clone() const {

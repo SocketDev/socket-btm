@@ -4,19 +4,23 @@
 #ifndef TEMPORAL_RS_COMPAT_PARTIALDURATION_HPP_
 #define TEMPORAL_RS_COMPAT_PARTIALDURATION_HPP_
 
+#include <cstdint>
 #include <optional>
 
 namespace temporal_rs {
 
 struct PartialDuration {
-  std::optional<double> years;
-  std::optional<double> months;
-  std::optional<double> weeks;
-  std::optional<double> days;
-  std::optional<double> hours;
-  std::optional<double> minutes;
-  std::optional<double> seconds;
-  std::optional<double> milliseconds;
+  // Match upstream's diplomat surface: integer fields for time units
+  // that fit exactly in int64, double only for sub-millisecond
+  // precision where IEEE-754 fractional bits matter.
+  std::optional<int64_t> years;
+  std::optional<int64_t> months;
+  std::optional<int64_t> weeks;
+  std::optional<int64_t> days;
+  std::optional<int64_t> hours;
+  std::optional<int64_t> minutes;
+  std::optional<int64_t> seconds;
+  std::optional<int64_t> milliseconds;
   std::optional<double> microseconds;
   std::optional<double> nanoseconds;
 

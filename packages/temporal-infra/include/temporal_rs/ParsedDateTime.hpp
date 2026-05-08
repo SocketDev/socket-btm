@@ -29,6 +29,21 @@ class ParsedDateTime {
         std::unique_ptr<ParsedDateTime>(new ParsedDateTime(r.value())));
   }
 
+  static diplomat::result<std::unique_ptr<ParsedDateTime>, TemporalError>
+  from_utf16(std::u16string_view s) {
+    std::string narrow;
+    narrow.reserve(s.size());
+    for (char16_t c : s) {
+      if (c > 0x7F) {
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range,
+            "Non-ASCII character in ParsedDateTime string"});
+      }
+      narrow.push_back(static_cast<char>(c));
+    }
+    return from_utf8(narrow);
+  }
+
   int32_t year() const { return inner_.date.record.year; }
   uint8_t month() const { return inner_.date.record.month; }
   uint8_t day() const { return inner_.date.record.day; }

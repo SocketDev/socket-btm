@@ -110,6 +110,20 @@ class ZonedDateTime {
                              OffsetDisambiguation offset_option,
                              const Provider& p);
 
+  // Build a ZonedDateTime from a PartialZonedDateTime.
+  static diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  from_partial_with_provider(
+      PartialZonedDateTime /*partial*/,
+      std::optional<ArithmeticOverflow> /*overflow*/,
+      std::optional<Disambiguation> /*disambiguation*/,
+      std::optional<OffsetDisambiguation> /*offset_option*/,
+      const Provider& /*p*/) {
+    // Stub — full PartialZonedDateTime → ZonedDateTime resolution lands
+    // when the calendar/DST integration activates.
+    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+        std::unique_ptr<ZonedDateTime>(nullptr));
+  }
+
   // ── Field accessors ─────────────────────────────────────────────
 
   int32_t year() const {

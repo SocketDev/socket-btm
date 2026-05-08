@@ -34,7 +34,9 @@ namespace temporal_rs {
 class Duration;
 class PlainDateTime;
 class PlainMonthDay;
+class PlainTime;
 class PlainYearMonth;
+class ZonedDateTime;
 struct DifferenceSettings;
 struct TimeZone;
 
@@ -205,15 +207,23 @@ class PlainDate {
     return diplomat::Ok<std::unique_ptr<PDT>>(PDT::FromInfra(r.value()));
   }
 
-  // Stub: requires calendar-aware projection plus DST-anchored
-  // conversion. Returns an error until the path activates.
-  template <class ZDT, class TZ>
-  diplomat::result<std::unique_ptr<ZDT>, TemporalError>
-  to_zoned_date_time_with_provider(const TZ& /*tz*/,
-                                     const Provider& /*p*/) const {
-    return diplomat::Err<TemporalError>(TemporalError{
-        ErrorKind::Range,
-        "PlainDate.toZonedDateTime requires temporal-infra calendar backend"});
+  // PlainDate -> ZonedDateTime. Upstream signature:
+  //   to_zoned_date_time(TimeZone, const PlainTime* time)
+  //   to_zoned_date_time_with_provider(TimeZone, const PlainTime* time,
+  //                                     const Provider&)
+  // Stub returns nullptr until the calendar/DST path activates.
+  diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  to_zoned_date_time(TimeZone /*tz*/,
+                     const PlainTime* /*time*/) const {
+    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+        std::unique_ptr<ZonedDateTime>(nullptr));
+  }
+
+  diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  to_zoned_date_time_with_provider(TimeZone tz,
+                                    const PlainTime* time,
+                                    const Provider& /*p*/) const {
+    return to_zoned_date_time(tz, time);
   }
 
   // Upstream: returns plain unique_ptr (no result wrap, no error case).
@@ -221,6 +231,20 @@ class PlainDate {
     // Calendar-aware projection lands with calendar.cc; for now,
     // return a clone (ISO-only path).
     return std::unique_ptr<PlainDate>(new PlainDate(inner_));
+  }
+
+  // Calendar projections — stub returns nullptr so V8's call sites
+  // compile/link. Full surface lands when calendar.cc activates.
+  diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
+  to_plain_month_day() const {
+    return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
+        std::unique_ptr<PlainMonthDay>(nullptr));
+  }
+
+  diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
+  to_plain_year_month() const {
+    return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
+        std::unique_ptr<PlainYearMonth>(nullptr));
   }
 
   // ── Mutation (returns new heap-owned PlainDate) ───────────────────

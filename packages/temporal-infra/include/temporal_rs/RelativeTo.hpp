@@ -13,40 +13,33 @@
 
 namespace temporal_rs {
 
-// Borrow-flavored: holds non-owning pointers to PlainDate / ZonedDateTime
-// shim instances (which themselves wrap heap-owned infra structs).
+// Field names match upstream's diplomat-generated surface — V8 uses
+// designated initializer syntax `{.date = ..., .zoned = ...}`. Borrow-
+// flavored: non-owning pointers to PlainDate / ZonedDateTime shim
+// instances (which themselves wrap heap-owned infra structs).
 struct RelativeTo {
-  enum class Kind : uint8_t { kPlainDate, kZonedDateTime };
+  const PlainDate* date = nullptr;
+  const ZonedDateTime* zoned = nullptr;
 
-  Kind kind = Kind::kPlainDate;
-  const PlainDate* plain_date = nullptr;
-  const ZonedDateTime* zoned_date_time = nullptr;
-
-  bool is_plain_date() const { return kind == Kind::kPlainDate; }
-  bool is_zoned_date_time() const { return kind == Kind::kZonedDateTime; }
+  bool is_plain_date() const { return date != nullptr; }
+  bool is_zoned_date_time() const { return zoned != nullptr; }
 
   static RelativeTo FromPlainDate(const PlainDate& d) {
-    RelativeTo r;
-    r.kind = Kind::kPlainDate;
-    r.plain_date = &d;
-    return r;
+    return RelativeTo{&d, nullptr};
   }
 
   static RelativeTo FromZonedDateTime(const ZonedDateTime& z) {
-    RelativeTo r;
-    r.kind = Kind::kZonedDateTime;
-    r.zoned_date_time = &z;
-    return r;
+    return RelativeTo{nullptr, &z};
   }
 
   ::node::socketsecurity::temporal::RelativeTo ToInfra() const {
-    if (kind == Kind::kPlainDate && plain_date != nullptr) {
+    if (date != nullptr) {
       return ::node::socketsecurity::temporal::RelativeTo::FromPlainDate(
-          plain_date->ToInfra());
+          date->ToInfra());
     }
-    if (kind == Kind::kZonedDateTime && zoned_date_time != nullptr) {
+    if (zoned != nullptr) {
       return ::node::socketsecurity::temporal::RelativeTo::FromZonedDateTime(
-          zoned_date_time->ToInfra());
+          zoned->ToInfra());
     }
     return ::node::socketsecurity::temporal::RelativeTo::FromPlainDate({});
   }

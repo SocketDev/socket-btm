@@ -120,7 +120,7 @@
       "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
       "deviations": [
         "C++ instead of Rust \u2014 port of `temporal_rs::Instant` to `node::socketsecurity::temporal::Instant`.",
-        "Uses V8's `v8::base::Time::Now()` for system clock instead of `std::time::SystemTime`. V8's facility is already linked into every Node binary; no syscall plumbing.",
+        "Uses C++ standard `std::chrono::system_clock::now()` (cast to nanoseconds) for the system clock instead of `std::time::SystemTime`. V8's `v8::base::Time::Now()` was the original choice but its declaration lives in V8 internal headers (`deps/v8/src/base/platform/time.h`) which gyp does not expose to `additions/source-patched/*` translation units, so chrono is portable and already-linked.",
         "128-bit nanosecond storage via `Int128` shim (native `__int128` on GCC/Clang, `absl::int128` on MSVC) instead of Rust's `i128`. The MSVC fallback uses V8-vendored abseil at deps/v8/third_party/abseil-cpp/.",
         "PARTIAL: only `Instant::Now()` and `Instant::IsValid()` are ported. `add`, `subtract`, `since`, `until`, `round`, `equals`, `toString`, `toJSON`, `compare`, `fromEpochMilliseconds`, `fromEpochNanoseconds`, `from`, `toZonedDateTimeISO` not yet ported."
       ],

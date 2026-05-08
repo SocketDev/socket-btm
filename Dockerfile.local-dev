@@ -118,9 +118,11 @@ ENV LDFLAGS="-L/usr/local/ssl/lib -lcrypto"
 ENV CFLAGS="-I/usr/local/ssl/include"
 ENV CXXFLAGS=""
 
-# Install dependencies
+# Install dependencies — local-dev image only builds lief (see WORKDIR below).
+# Skipping sibling builders' deps avoids onnxruntime-node and similar
+# native-postinstall fetches that aren't needed for this image.
 ENV CI=true
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --filter build-infra --filter lief-builder
 
 # Build LIEF from source (this ensures ABI compatibility)
 WORKDIR /workspace/packages/lief-builder

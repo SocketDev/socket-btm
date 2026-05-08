@@ -47,9 +47,12 @@ WORKDIR /workspace
 # Copy repository files.
 COPY . .
 
-# Install workspace dependencies.
+# Install only what models needs (transitive workspace deps via explicit filters).
+# Skips sibling builders' deps (e.g. codet5-models-builder →
+# onnxruntime-node, which fetches a 100MB+ binary from github.com on
+# every build).
 ENV CI=true
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --filter build-infra --filter models
 
 # Install Python dependencies.
 # Use CPU-only torch to avoid CUDA dependencies in container.

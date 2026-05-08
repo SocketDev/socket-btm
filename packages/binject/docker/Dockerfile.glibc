@@ -90,9 +90,12 @@ ENV LDFLAGS="-L/usr/local/ssl/lib -lcrypto"
 ENV CFLAGS="-I/usr/local/ssl/include"
 ENV CXXFLAGS=""
 
-# Install workspace dependencies.
+# Install only what binject needs (transitive workspace deps via explicit filters).
+# Skips sibling builders' deps (e.g. codet5-models-builder →
+# onnxruntime-node, which fetches a 100MB+ binary from github.com on
+# every build). binject has zero relationship to onnxruntime.
 ENV CI=true
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --filter build-infra --filter bin-infra --filter lief-builder --filter node-smol-builder --filter binject
 
 # Build binject.
 ARG BUILD_MODE=prod

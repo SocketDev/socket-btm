@@ -55,9 +55,13 @@ WORKDIR /workspace
 # Copy repository files.
 COPY . .
 
-# Install workspace dependencies.
+# Install only what onnxruntime-builder needs (transitive workspace deps via explicit filters).
+# A full-workspace install would pull every other builder's deps too;
+# here we want just build-infra + this builder. Note: onnxruntime-builder
+# produces an ONNX runtime artifact, but it doesn't itself depend on the
+# npm-published onnxruntime-node package — that's codet5-models-builder.
 ENV CI=true
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --filter build-infra --filter onnxruntime-builder
 
 # Install Python dependencies required by ONNX Runtime build system.
 RUN pip install --upgrade pip setuptools wheel && \

@@ -71,9 +71,15 @@ RUN .github/scripts/ensure-zstd.sh
 
 ARG TARGETARCH
 
-# Install workspace dependencies.
+# Install only what binpress needs (transitive workspace deps via explicit filters).
+# A full-workspace install would pull sibling builders' deps too —
+# notably codet5-models-builder → onnxruntime-node, whose postinstall
+# fetches a 100MB+ ONNX runtime binary from github.com on every build.
+# binpress has zero relationship to onnxruntime; filtering avoids the
+# network round-trip + bandwidth waste + transient github.com:443
+# connect-timeout flakes that come with it.
 ENV CI=true
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --filter build-infra --filter bin-infra --filter lief-builder --filter binpress
 
 # Build binpress.
 ARG BUILD_MODE=prod

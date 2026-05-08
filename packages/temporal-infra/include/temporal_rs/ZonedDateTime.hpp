@@ -48,6 +48,7 @@
 namespace temporal_rs {
 
 class Duration;
+class Instant;
 class ParsedZonedDateTime;
 struct DifferenceSettings;
 struct RoundingOptions;
@@ -214,10 +215,11 @@ class ZonedDateTime {
 
   // ── Conversions ─────────────────────────────────────────────────
 
-  std::unique_ptr<Instant> to_instant() const {
-    return Instant::FromInfra(
-        ::node::socketsecurity::temporal::ZonedDateTimeToInstant(inner_));
-  }
+  // Defined out-of-line at the bottom of this header. Inline-here body
+  // would need the full Instant class, but Instant.hpp may not yet be
+  // fully parsed when ZonedDateTime.hpp is reached (circular include
+  // through transitive Duration.hpp / RelativeTo.hpp chain).
+  inline std::unique_ptr<Instant> to_instant() const;
 
   // Upstream: returns plain unique_ptr (no result wrap). The underlying
   // C++ port may return an error, but the diplomat surface here is
@@ -416,6 +418,12 @@ Instant::to_zoned_date_time_iso_with_provider(const TimeZone& tz,
   return ZonedDateTime::try_new(
       I128Nanoseconds::FromInfra(inner_.epoch_nanoseconds), tz,
       Calendar(::node::socketsecurity::temporal::Calendar::Iso()));
+}
+
+// ── Out-of-line ZonedDateTime methods that need Instant visible ──
+inline std::unique_ptr<Instant> ZonedDateTime::to_instant() const {
+  return Instant::FromInfra(
+      ::node::socketsecurity::temporal::ZonedDateTimeToInstant(inner_));
 }
 
 // ── ZonedDateTime::from_parsed{,_with_provider} definitions ───────

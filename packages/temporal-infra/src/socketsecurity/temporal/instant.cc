@@ -93,6 +93,37 @@ bool IsoTime::IsValid() const noexcept {
   return true;
 }
 
+// ── Arithmetic ─────────────────────────────────────────────────────
+
+// Spec 8.5.10: AddDurationToInstant(operation, instant, duration).
+// Caller validates that the duration has no calendar components
+// (years/months/weeks); we sum the time components into total ns and
+// add to the instant's epoch_nanoseconds in 128-bit space. The
+// resulting Instant is checked via IsValid() at the call site.
+Instant AddDuration(const Instant& instant, const Duration& duration) noexcept {
+  // Sum time components in nanoseconds (int128 to handle the full
+  // range of representable Durations without precision loss). Days are
+  // included per spec for time-only path; calendar components must
+  // already be zero (caller's responsibility).
+  constexpr NativeInt128 kNsPerUs = 1000;
+  constexpr NativeInt128 kNsPerMs = 1000 * kNsPerUs;
+  constexpr NativeInt128 kNsPerSec = 1000 * kNsPerMs;
+  constexpr NativeInt128 kNsPerMin = 60 * kNsPerSec;
+  constexpr NativeInt128 kNsPerHour = 60 * kNsPerMin;
+  constexpr NativeInt128 kNsPerDay = 24 * kNsPerHour;
+
+  NativeInt128 total = 0;
+  total += static_cast<NativeInt128>(duration.days) * kNsPerDay;
+  total += static_cast<NativeInt128>(duration.hours) * kNsPerHour;
+  total += static_cast<NativeInt128>(duration.minutes) * kNsPerMin;
+  total += static_cast<NativeInt128>(duration.seconds) * kNsPerSec;
+  total += static_cast<NativeInt128>(duration.milliseconds) * kNsPerMs;
+  total += static_cast<NativeInt128>(duration.microseconds) * kNsPerUs;
+  total += static_cast<NativeInt128>(duration.nanoseconds);
+
+  return Instant{Int128(instant.epoch_nanoseconds.value + total)};
+}
+
 }  // namespace temporal
 }  // namespace socketsecurity
 }  // namespace node

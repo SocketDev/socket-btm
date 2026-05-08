@@ -270,7 +270,7 @@ UnsignedRoundingMode RoundingModeGetUnsigned(RoundingMode m,
     case RoundingMode::kHalfEven:
       return UnsignedRoundingMode::kHalfEven;
   }
-  return UnsignedRoundingMode::kHalfExpand;
+  return UnsignedRoundingMode::kHalfEven;
 }
 
 int64_t UnsignedRoundingModeApply(UnsignedRoundingMode m, uint64_t dividend,
@@ -558,9 +558,10 @@ ResolvedRoundingOptionsFromDiffSettings(const DifferenceSettings& options,
   const Unit smallest_unit =
       options.smallest_unit.value_or(fallback_smallest);
   // 8. Validate smallestUnit.
-  v = UnitGroupValidateUnit(unit_group, options.smallest_unit, std::nullopt);
-  if (!v.ok()) {
-    return v.error();
+  auto v_smallest =
+      UnitGroupValidateUnit(unit_group, options.smallest_unit, std::nullopt);
+  if (!v_smallest.ok()) {
+    return v_smallest.error();
   }
   // 9. defaultLargestUnit = max(fallback_largest, smallestUnit).
   Unit default_largest_unit = fallback_largest;

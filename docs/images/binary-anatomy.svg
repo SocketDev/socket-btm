@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 520" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 540" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" role="img" aria-labelledby="title desc">
   <title id="title">Anatomy of a Socket-built binary</title>
-  <desc id="desc">A small compressed binary on disk decompresses into a fully-loaded custom Node.js binary in memory, containing the runtime, an SEA blob, and a VFS section.</desc>
+  <desc id="desc">A Single Executable Application (the SEA) is the whole shipped binary: a Node.js runtime with two injected sections, the SEA blob and a VFS section. binpress optionally wraps it in a stub for smaller distribution.</desc>
 
   <defs>
     <linearGradient id="brand-h" x1="0" y1="0" x2="880" y2="0" gradientUnits="userSpaceOnUse">
@@ -20,59 +20,61 @@
     </marker>
   </defs>
 
-  <rect width="880" height="520" fill="#ffffff"/>
+  <rect width="880" height="540" fill="#ffffff"/>
 
   <text x="440" y="40" text-anchor="middle" font-size="22" font-weight="700" fill="#1f1235">Anatomy of a Socket-built binary</text>
-  <text x="440" y="64" text-anchor="middle" font-size="13" fill="#6b6480">A small stub on disk decompresses into a fully-loaded Node.js runtime in memory.</text>
+  <text x="440" y="64" text-anchor="middle" font-size="13" fill="#6b6480">The whole shipped binary IS the SEA. binpress optionally wraps it in a stub for smaller distribution.</text>
 
-  <!-- LEFT: Compressed binary -->
+  <!-- LEFT: optional compressed launcher -->
   <g>
-    <rect x="60" y="105" width="290" height="335" rx="14" fill="url(#purple-fade)" stroke="#8B5CF6" stroke-width="2"/>
-    <text x="205" y="135" text-anchor="middle" font-size="15" font-weight="700" fill="#1f1235">Compressed binary</text>
-    <text x="205" y="155" text-anchor="middle" font-size="12" fill="#6b6480">~23 MB · ships to users</text>
+    <rect x="60" y="120" width="290" height="315" rx="14" fill="url(#purple-fade)" stroke="#8B5CF6" stroke-width="2" stroke-dasharray="6 4"/>
+    <text x="205" y="148" text-anchor="middle" font-size="15" font-weight="700" fill="#1f1235">Compressed launcher</text>
+    <text x="205" y="168" text-anchor="middle" font-size="12" fill="#6b6480">optional · ~23 MB · produced by binpress</text>
 
     <!-- Stub layer -->
-    <rect x="90" y="180" width="230" height="84" rx="8" fill="#ffffff" stroke="#8B5CF6" stroke-width="1.5"/>
-    <text x="205" y="208" text-anchor="middle" font-size="14" font-weight="600" fill="#1f1235">Stub</text>
-    <text x="205" y="228" text-anchor="middle" font-size="12" fill="#6b6480">self-extractor</text>
-    <text x="205" y="248" text-anchor="middle" font-size="11" fill="#8B5CF6">links libcurl + mbedTLS</text>
+    <rect x="90" y="190" width="230" height="86" rx="8" fill="#ffffff" stroke="#8B5CF6" stroke-width="1.5"/>
+    <text x="205" y="216" text-anchor="middle" font-size="14" font-weight="600" fill="#1f1235">Stub</text>
+    <text x="205" y="236" text-anchor="middle" font-size="12" fill="#6b6480">tiny zstd decompressor</text>
+    <text x="205" y="256" text-anchor="middle" font-size="11" fill="#8B5CF6">libcurl + mbedTLS for update checks</text>
 
     <!-- Compressed payload -->
-    <rect x="90" y="280" width="230" height="140" rx="8" fill="#ffffff" stroke="#8B5CF6" stroke-width="1.5" stroke-dasharray="4 3"/>
-    <text x="205" y="312" text-anchor="middle" font-size="14" font-weight="600" fill="#1f1235">zstd-compressed payload</text>
-    <text x="205" y="334" text-anchor="middle" font-size="12" fill="#6b6480">opaque blob on disk</text>
-    <text x="205" y="378" text-anchor="middle" font-size="11" fill="#6b6480" font-style="italic">contains the binary on the right</text>
+    <rect x="90" y="292" width="230" height="128" rx="8" fill="#ffffff" stroke="#8B5CF6" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <text x="205" y="322" text-anchor="middle" font-size="14" font-weight="600" fill="#1f1235">zstd-compressed payload</text>
+    <text x="205" y="344" text-anchor="middle" font-size="12" fill="#6b6480">opaque blob on disk</text>
+    <text x="205" y="386" text-anchor="middle" font-size="11" fill="#6b6480" font-style="italic">= the binary on the right</text>
   </g>
 
   <!-- Decompresses arrow -->
   <path d="M 365 270 C 430 270, 450 270, 510 270" fill="none" stroke="url(#brand-h)" stroke-width="3" marker-end="url(#bigarrow)"/>
-  <text x="438" y="258" text-anchor="middle" font-size="12" font-weight="600" fill="#C2509E">decompresses to</text>
+  <text x="438" y="258" text-anchor="middle" font-size="12" font-weight="600" fill="#C2509E">decompresses + execs</text>
 
-  <!-- RIGHT: Custom Node.js binary -->
+  <!-- RIGHT: Single Executable Application (the SEA) -->
   <g>
-    <rect x="525" y="80" width="295" height="385" rx="14" fill="url(#pink-fade)" stroke="#EC4899" stroke-width="2"/>
-    <text x="672" y="110" text-anchor="middle" font-size="15" font-weight="700" fill="#1f1235">Custom Node.js binary</text>
-    <text x="672" y="130" text-anchor="middle" font-size="12" fill="#6b6480">~60 MB · runs in memory</text>
+    <rect x="525" y="85" width="295" height="395" rx="14" fill="url(#pink-fade)" stroke="#EC4899" stroke-width="2"/>
+    <text x="672" y="115" text-anchor="middle" font-size="15" font-weight="700" fill="#1f1235">Single Executable Application</text>
+    <text x="672" y="135" text-anchor="middle" font-size="12" fill="#6b6480">the SEA · ~60 MB · what your users run</text>
 
-    <!-- Node runtime -->
-    <rect x="555" y="155" width="235" height="84" rx="8" fill="#ffffff" stroke="#EC4899" stroke-width="1.5"/>
-    <text x="672" y="183" text-anchor="middle" font-size="14" font-weight="600" fill="#1f1235">Node.js runtime</text>
-    <text x="672" y="203" text-anchor="middle" font-size="12" fill="#6b6480">v26 + Socket patches</text>
-    <text x="672" y="223" text-anchor="middle" font-size="11" fill="#EC4899">node:smol-* built-ins</text>
+    <!-- Node.js runtime -->
+    <rect x="555" y="158" width="235" height="85" rx="8" fill="#ffffff" stroke="#EC4899" stroke-width="1.5"/>
+    <text x="672" y="185" text-anchor="middle" font-size="14" font-weight="600" fill="#1f1235">Node.js runtime</text>
+    <text x="672" y="205" text-anchor="middle" font-size="12" fill="#6b6480">v26 + Socket patches</text>
+    <text x="672" y="225" text-anchor="middle" font-size="11" fill="#EC4899">node:smol-* built-ins</text>
 
     <!-- SEA blob -->
-    <rect x="555" y="255" width="235" height="84" rx="8" fill="#ffffff" stroke="#EC4899" stroke-width="1.5"/>
-    <text x="672" y="283" text-anchor="middle" font-size="14" font-weight="600" fill="#1f1235">SEA blob</text>
-    <text x="672" y="303" text-anchor="middle" font-size="12" fill="#6b6480">your application's entry</text>
-    <text x="672" y="323" text-anchor="middle" font-size="11" fill="#EC4899">Single Executable Application</text>
+    <rect x="555" y="255" width="235" height="85" rx="8" fill="#ffffff" stroke="#EC4899" stroke-width="1.5"/>
+    <text x="672" y="282" text-anchor="middle" font-size="14" font-weight="600" fill="#1f1235">SEA blob</text>
+    <text x="672" y="302" text-anchor="middle" font-size="12" fill="#6b6480">JS app entry + sea-config.json</text>
+    <text x="672" y="322" text-anchor="middle" font-size="11" fill="#EC4899">executed on startup</text>
 
     <!-- VFS section -->
-    <rect x="555" y="355" width="235" height="84" rx="8" fill="#ffffff" stroke="#EC4899" stroke-width="1.5"/>
-    <text x="672" y="383" text-anchor="middle" font-size="14" font-weight="600" fill="#1f1235">VFS section</text>
-    <text x="672" y="403" text-anchor="middle" font-size="12" fill="#6b6480">embedded files</text>
-    <text x="672" y="423" text-anchor="middle" font-size="11" fill="#EC4899">read via fs.readFile()</text>
+    <rect x="555" y="352" width="235" height="85" rx="8" fill="#ffffff" stroke="#EC4899" stroke-width="1.5"/>
+    <text x="672" y="379" text-anchor="middle" font-size="14" font-weight="600" fill="#1f1235">VFS section</text>
+    <text x="672" y="399" text-anchor="middle" font-size="12" fill="#6b6480">embedded files (tar.gz)</text>
+    <text x="672" y="419" text-anchor="middle" font-size="11" fill="#EC4899">read via fs.readFile()</text>
+
+    <text x="672" y="463" text-anchor="middle" font-size="11" fill="#6b6480" font-style="italic">SEA blob + VFS injected side-by-side by binject</text>
   </g>
 
   <!-- footer caption -->
-  <text x="440" y="488" text-anchor="middle" font-size="11" fill="#6b6480">binject inserts the SEA blob and VFS section · binpress wraps the result · binflate / the stub unwrap it at runtime</text>
+  <text x="440" y="514" text-anchor="middle" font-size="11" fill="#6b6480">node-smol-builder produces the raw runtime. binject injects the SEA blob and VFS. binpress (optional) compresses for distribution.</text>
 </svg>

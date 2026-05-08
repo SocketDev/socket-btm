@@ -19,6 +19,7 @@
 
 #include "socketsecurity/temporal/duration_normalized.h"
 #include "socketsecurity/temporal/error.h"
+#include "socketsecurity/temporal/utils.h"
 
 namespace node {
 namespace socketsecurity {

@@ -7,6 +7,7 @@
 #include "socketsecurity/temporal/duration_normalized.h"
 #include "socketsecurity/temporal/iso.h"
 #include "socketsecurity/temporal/parse.h"
+#include "socketsecurity/temporal/utils.h"
 
 namespace node {
 namespace socketsecurity {

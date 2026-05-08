@@ -643,11 +643,11 @@ static void Initialize(Local<Object> target,
                        Local<Value> /* unused */,
                        Local<Context> context,
                        void* /* priv */) {
-  SetMethod(context, target, "applyBind", ApplyBind);
-  SetMethod(context, target, "applySafe", ApplySafe);
-  SetMethod(context, target, "bindCall", BindCall);
-  SetMethod(context, target, "uncurryThis", UncurryThis);
-  SetMethod(context, target, "weakRefSafe", WeakRefSafe);
+  node::SetMethod(context, target, "applyBind", ApplyBind);
+  node::SetMethod(context, target, "applySafe", ApplySafe);
+  node::SetMethod(context, target, "bindCall", BindCall);
+  node::SetMethod(context, target, "uncurryThis", UncurryThis);
+  node::SetMethod(context, target, "weakRefSafe", WeakRefSafe);
 }
 
 static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {

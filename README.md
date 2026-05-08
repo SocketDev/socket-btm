@@ -32,9 +32,15 @@ Monorepo containing:
 - **WASM** - ONNX Runtime and Yoga Layout
 - **ML Models** - Quantized AI models (CodeT5, MiniLM)
 
+The packages stack into four tiers — native libraries at the bottom, the custom Node.js binary at the top:
+
+![Build order: native libraries flow up into the final Node.js binary](docs/images/build-tiers.svg)
+
 ## Core Concepts
 
-If you're new to binary manipulation or Node.js customization, here are the key concepts you'll encounter:
+If you're new to binary manipulation or Node.js customization, here are the key concepts you'll encounter. The diagram below shows how they compose into a final shipped artifact:
+
+![Anatomy of a Socket-built binary: a compressed stub on disk decompresses into a Node.js runtime that contains an SEA blob and a VFS section](docs/images/binary-anatomy.svg)
 
 ### Single Executable Application (SEA)
 

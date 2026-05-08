@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 600" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" role="img" aria-labelledby="title desc">
+  <title id="title">Socket BTM build order</title>
+  <desc id="desc">Native libraries (curl, LIEF) build first, then stubs, then the binary suite (binject, binpress, binflate), then the custom Node.js binary.</desc>
+
+  <defs>
+    <linearGradient id="brand" x1="0" y1="0" x2="880" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#EC4899"/>
+    </linearGradient>
+    <linearGradient id="brand-v" x1="0" y1="0" x2="0" y2="600" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#EC4899"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#C2509E"/>
+    </marker>
+  </defs>
+
+  <rect width="880" height="600" fill="#ffffff"/>
+
+  <text x="440" y="42" text-anchor="middle" font-size="22" font-weight="700" fill="#1f1235">Build Order</text>
+  <text x="440" y="66" text-anchor="middle" font-size="13" fill="#6b6480">Each tier depends on the tier above. Within a tier, packages build in parallel.</text>
+
+  <!-- Tier 1 label + boxes -->
+  <text x="40" y="138" font-size="11" font-weight="700" fill="#8B5CF6" letter-spacing="1.5">TIER 1 · NATIVE LIBRARIES</text>
+  <g>
+    <rect x="220" y="100" width="200" height="64" rx="10" fill="#ffffff" stroke="url(#brand)" stroke-width="2"/>
+    <text x="320" y="128" text-anchor="middle" font-size="15" font-weight="600" fill="#1f1235">curl-builder</text>
+    <text x="320" y="148" text-anchor="middle" font-size="12" fill="#6b6480">libcurl + mbedTLS</text>
+
+    <rect x="460" y="100" width="200" height="64" rx="10" fill="#ffffff" stroke="url(#brand)" stroke-width="2"/>
+    <text x="560" y="128" text-anchor="middle" font-size="15" font-weight="600" fill="#1f1235">lief-builder</text>
+    <text x="560" y="148" text-anchor="middle" font-size="12" fill="#6b6480">LIEF · Mach-O / ELF / PE</text>
+  </g>
+
+  <!-- T1 -> T2 arrows -->
+  <path d="M 320 168 L 420 215" fill="none" stroke="url(#brand-v)" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M 560 168 L 460 215" fill="none" stroke="url(#brand-v)" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Tier 2 -->
+  <text x="40" y="258" font-size="11" font-weight="700" fill="#A24EBE" letter-spacing="1.5">TIER 2 · STUBS</text>
+  <g>
+    <rect x="340" y="222" width="200" height="64" rx="10" fill="#ffffff" stroke="url(#brand)" stroke-width="2"/>
+    <text x="440" y="250" text-anchor="middle" font-size="15" font-weight="600" fill="#1f1235">stubs-builder</text>
+    <text x="440" y="270" text-anchor="middle" font-size="12" fill="#6b6480">self-extracting stub binary</text>
+  </g>
+
+  <!-- T2 -> T3 arrow -->
+  <path d="M 440 290 L 440 335" fill="none" stroke="url(#brand-v)" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Tier 3 -->
+  <text x="40" y="378" font-size="11" font-weight="700" fill="#BA478B" letter-spacing="1.5">TIER 3 · BINARY SUITE</text>
+  <g>
+    <rect x="160" y="342" width="170" height="64" rx="10" fill="#ffffff" stroke="url(#brand)" stroke-width="2"/>
+    <text x="245" y="370" text-anchor="middle" font-size="15" font-weight="600" fill="#1f1235">binject</text>
+    <text x="245" y="390" text-anchor="middle" font-size="12" fill="#6b6480">inject data into binaries</text>
+
+    <rect x="355" y="342" width="170" height="64" rx="10" fill="#ffffff" stroke="url(#brand)" stroke-width="2"/>
+    <text x="440" y="370" text-anchor="middle" font-size="15" font-weight="600" fill="#1f1235">binpress</text>
+    <text x="440" y="390" text-anchor="middle" font-size="12" fill="#6b6480">zstd compress</text>
+
+    <rect x="550" y="342" width="170" height="64" rx="10" fill="#ffffff" stroke="url(#brand)" stroke-width="2"/>
+    <text x="635" y="370" text-anchor="middle" font-size="15" font-weight="600" fill="#1f1235">binflate</text>
+    <text x="635" y="390" text-anchor="middle" font-size="12" fill="#6b6480">decompress at runtime</text>
+  </g>
+
+  <!-- T3 -> T4 arrows -->
+  <path d="M 245 410 L 380 462" fill="none" stroke="url(#brand-v)" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M 440 410 L 440 462" fill="none" stroke="url(#brand-v)" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M 635 410 L 500 462" fill="none" stroke="url(#brand-v)" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Tier 4 -->
+  <text x="40" y="508" font-size="11" font-weight="700" fill="#E83E8C" letter-spacing="1.5">TIER 4 · CUSTOM NODE.JS</text>
+  <g>
+    <rect x="290" y="468" width="300" height="84" rx="12" fill="url(#brand)"/>
+    <text x="440" y="498" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">node-smol-builder</text>
+    <text x="440" y="520" text-anchor="middle" font-size="13" fill="#ffffff" opacity="0.92">Node.js v26 + Socket security patches</text>
+    <text x="440" y="538" text-anchor="middle" font-size="11" fill="#ffffff" opacity="0.78">node:smol-* built-ins · VFS · SEA</text>
+  </g>
+
+  <text x="440" y="585" text-anchor="middle" font-size="11" fill="#6b6480">Skipping a tier or dispatching out of order is gated by scripts/check-publish-prereq.mts</text>
+</svg>

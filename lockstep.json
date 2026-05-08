@@ -229,7 +229,7 @@
       "criticality": 6,
       "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
       "deviations": [
-        "Backed by V8's `v8::base::Time::Now()` (already linked into libnode) instead of std::SystemTime + iana_time_zone crate.",
+        "Backed by `std::chrono::system_clock::now()` (cast to nanoseconds via `duration_cast<nanoseconds>`) instead of std::SystemTime + iana_time_zone crate. Originally used V8's `v8::base::Time::Now()`, but its declaration lives in V8 internal headers (`deps/v8/src/base/platform/time.h`) which gyp does not expose to `additions/source-patched/*` translation units, so chrono is portable and standard-library-resident.",
         "LocalHostSystem's IANA detection delegates to V8's `Intl::DefaultTimeZone()` once time_zone.cc lands \u2014 pending."
       ]
     },

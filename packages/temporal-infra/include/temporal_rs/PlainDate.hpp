@@ -192,19 +192,17 @@ class PlainDate {
   std::optional<int32_t> era_year() const { return std::nullopt; }
   std::optional<int32_t> year_of_week() const { return std::nullopt; }
 
-  // Conversions: PlainDate -> PlainDateTime / ZonedDateTime.
-  // Templated on the consumer types to keep includes one-way
-  // (PlainDateTime / ZonedDateTime aren't visible here).
-  template <class PT, class PDT>
-  diplomat::result<std::unique_ptr<PDT>, TemporalError> to_plain_date_time(
-      std::optional<const PT*> /*time*/) const {
-    auto r = ::node::socketsecurity::temporal::PlainDateTimeTryNew(
-        inner_.iso.year, inner_.iso.month, inner_.iso.day, 0, 0, 0, 0, 0, 0);
-    if (!r.ok()) {
-      return diplomat::Err<TemporalError>(
-          TemporalError::FromInfra(r.error()));
-    }
-    return diplomat::Ok<std::unique_ptr<PDT>>(PDT::FromInfra(r.value()));
+  // Conversion: PlainDate -> PlainDateTime. Upstream signature takes
+  // `const PlainTime* time` (raw pointer, can be null = midnight).
+  // Stub returns nullptr; full impl lands when calendar.cc activates.
+  diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError>
+  to_plain_date_time(const PlainTime* /*time*/) const {
+    return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
+        std::unique_ptr<PlainDateTime>(nullptr));
+  }
+
+  std::string to_ixdtf_string(DisplayCalendar /*display_calendar*/) const {
+    return std::string{};
   }
 
   // PlainDate -> ZonedDateTime. Upstream signature:

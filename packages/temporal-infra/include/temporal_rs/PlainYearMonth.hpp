@@ -66,6 +66,64 @@ class PlainYearMonth {
   }
 
   static diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
+  try_new_with_overflow(int32_t /*year*/, uint8_t /*month*/,
+                        std::optional<uint8_t> /*reference_day*/,
+                        AnyCalendarKind /*calendar*/,
+                        ArithmeticOverflow /*overflow*/) {
+    return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
+        std::unique_ptr<PlainYearMonth>(nullptr));
+  }
+
+  diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
+  with(PartialDate /*partial*/,
+       std::optional<ArithmeticOverflow> /*overflow*/) const {
+    return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
+        std::unique_ptr<PlainYearMonth>(new PlainYearMonth(inner_)));
+  }
+
+  diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
+  add(const Duration& /*duration*/, ArithmeticOverflow /*overflow*/) const {
+    return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
+        std::unique_ptr<PlainYearMonth>(new PlainYearMonth(inner_)));
+  }
+
+  diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
+  subtract(const Duration& /*duration*/,
+           ArithmeticOverflow /*overflow*/) const {
+    return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
+        std::unique_ptr<PlainYearMonth>(new PlainYearMonth(inner_)));
+  }
+
+  diplomat::result<std::unique_ptr<Duration>, TemporalError>
+  until(const PlainYearMonth& /*other*/,
+        DifferenceSettings /*settings*/) const {
+    return diplomat::Ok<std::unique_ptr<Duration>>(
+        std::unique_ptr<Duration>(nullptr));
+  }
+
+  diplomat::result<std::unique_ptr<Duration>, TemporalError>
+  since(const PlainYearMonth& /*other*/,
+        DifferenceSettings /*settings*/) const {
+    return diplomat::Ok<std::unique_ptr<Duration>>(
+        std::unique_ptr<Duration>(nullptr));
+  }
+
+  diplomat::result<std::unique_ptr<PlainDate>, TemporalError>
+  to_plain_date(std::optional<PartialDate> /*day*/) const {
+    return diplomat::Ok<std::unique_ptr<PlainDate>>(
+        std::unique_ptr<PlainDate>(nullptr));
+  }
+
+  diplomat::result<int64_t, TemporalError>
+  epoch_ms_for_with_provider(TimeZone /*tz*/, const Provider& /*p*/) const {
+    return diplomat::Ok<int64_t>(0);
+  }
+
+  std::string to_ixdtf_string(DisplayCalendar /*display_calendar*/) const {
+    return std::string{};
+  }
+
+  static diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
   from_utf16(std::u16string_view s) {
     std::string narrow;
     narrow.reserve(s.size());

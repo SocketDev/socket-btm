@@ -254,6 +254,11 @@ class PlainTime {
   PlainTime& operator=(const PlainTime&) = delete;
   PlainTime& operator=(PlainTime&&) noexcept = delete;
 
+  diplomat::result<std::string, TemporalError>
+  to_ixdtf_string(ToStringRoundingOptions /*options*/) const {
+    return diplomat::Ok<std::string>(std::string{});
+  }
+
  private:
   explicit PlainTime(::node::socketsecurity::temporal::PlainTime inner)
       : inner_(inner) {}

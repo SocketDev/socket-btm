@@ -211,11 +211,22 @@ class PlainDateTime {
         std::unique_ptr<PlainDateTime>(new PlainDateTime(inner_)));
   }
 
-  template <class PT>
+  // Upstream: with_time(const PlainTime*) — V8 passes the raw pointer
+  // straight from `temporal_time->time()->raw()`, possibly nullptr.
   diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError> with_time(
-      std::optional<const PT*> /*time*/) const {
+      const PlainTime* /*time*/) const {
     return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
         std::unique_ptr<PlainDateTime>(new PlainDateTime(inner_)));
+  }
+
+  // Upstream is a static method: PlainDateTime::compare(a, b).
+  static int8_t compare(const PlainDateTime& /*one*/,
+                        const PlainDateTime& /*two*/) {
+    return 0;
+  }
+
+  std::string to_ixdtf_string(DisplayCalendar /*display_calendar*/) const {
+    return std::string{};
   }
 
   // Upstream: returns plain unique_ptr (no result wrap, no error case).

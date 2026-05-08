@@ -124,6 +124,15 @@ class ZonedDateTime {
         std::unique_ptr<ZonedDateTime>(nullptr));
   }
 
+  static diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  try_new_with_provider(I128Nanoseconds /*nanosecond*/,
+                        AnyCalendarKind /*calendar*/,
+                        TimeZone /*time_zone*/,
+                        const Provider& /*p*/) {
+    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+        std::unique_ptr<ZonedDateTime>(nullptr));
+  }
+
   // ── Field accessors ─────────────────────────────────────────────
 
   int32_t year() const {
@@ -301,6 +310,51 @@ class ZonedDateTime {
   diplomat::result<bool, TemporalError> equals_with_provider(
       const ZonedDateTime& other, const Provider& /*p*/) const {
     return diplomat::Ok<bool>(equals(other));
+  }
+
+  // Stringification (with-provider variant — full DST/calendar
+  // formatting lands when integration activates).
+  diplomat::result<std::string, TemporalError>
+  to_ixdtf_string_with_provider(DisplayOffset /*display_offset*/,
+                                 DisplayTimeZone /*display_timezone*/,
+                                 DisplayCalendar /*display_calendar*/,
+                                 ToStringRoundingOptions /*options*/,
+                                 const Provider& /*p*/) const {
+    return diplomat::Ok<std::string>(std::string{});
+  }
+
+  // Arithmetic (with-provider variants — DST-aware add/subtract land
+  // with the calendar integration).
+  diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  add_with_provider(const Duration& /*duration*/,
+                    std::optional<ArithmeticOverflow> /*overflow*/,
+                    const Provider& /*p*/) const {
+    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+        std::unique_ptr<ZonedDateTime>(new ZonedDateTime(inner_)));
+  }
+
+  diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  subtract_with_provider(const Duration& /*duration*/,
+                         std::optional<ArithmeticOverflow> /*overflow*/,
+                         const Provider& /*p*/) const {
+    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+        std::unique_ptr<ZonedDateTime>(new ZonedDateTime(inner_)));
+  }
+
+  diplomat::result<std::unique_ptr<Duration>, TemporalError>
+  until_with_provider(const ZonedDateTime& /*other*/,
+                       DifferenceSettings /*settings*/,
+                       const Provider& /*p*/) const {
+    return diplomat::Ok<std::unique_ptr<Duration>>(
+        std::unique_ptr<Duration>(nullptr));
+  }
+
+  diplomat::result<std::unique_ptr<Duration>, TemporalError>
+  since_with_provider(const ZonedDateTime& /*other*/,
+                       DifferenceSettings /*settings*/,
+                       const Provider& /*p*/) const {
+    return diplomat::Ok<std::unique_ptr<Duration>>(
+        std::unique_ptr<Duration>(nullptr));
   }
 
   // Upstream: returns plain unique_ptr (no result wrap, no error case).

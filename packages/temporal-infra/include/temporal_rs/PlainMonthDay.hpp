@@ -63,6 +63,37 @@ class PlainMonthDay {
   }
 
   static diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
+  try_new_with_overflow(uint8_t /*month*/, uint8_t /*day*/,
+                        AnyCalendarKind /*calendar*/,
+                        ArithmeticOverflow /*overflow*/,
+                        std::optional<int32_t> /*ref_year*/) {
+    return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
+        std::unique_ptr<PlainMonthDay>(nullptr));
+  }
+
+  diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
+  with(PartialDate /*partial*/,
+       std::optional<ArithmeticOverflow> /*overflow*/) const {
+    return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
+        std::unique_ptr<PlainMonthDay>(new PlainMonthDay(inner_)));
+  }
+
+  diplomat::result<std::unique_ptr<PlainDate>, TemporalError>
+  to_plain_date(std::optional<PartialDate> /*year*/) const {
+    return diplomat::Ok<std::unique_ptr<PlainDate>>(
+        std::unique_ptr<PlainDate>(nullptr));
+  }
+
+  diplomat::result<int64_t, TemporalError>
+  epoch_ms_for_with_provider(TimeZone /*tz*/, const Provider& /*p*/) const {
+    return diplomat::Ok<int64_t>(0);
+  }
+
+  std::string to_ixdtf_string(DisplayCalendar /*display_calendar*/) const {
+    return std::string{};
+  }
+
+  static diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
   from_utf16(std::u16string_view s) {
     std::string narrow;
     narrow.reserve(s.size());

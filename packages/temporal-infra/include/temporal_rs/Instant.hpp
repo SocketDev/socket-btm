@@ -228,6 +228,26 @@ class Instant {
     return D::FromInfra(d);
   }
 
+  // V8-facing non-templated since/until. Stub.
+  diplomat::result<std::unique_ptr<Duration>, TemporalError>
+  since(const Instant& /*other*/, DifferenceSettings /*settings*/) const {
+    return diplomat::Ok<std::unique_ptr<Duration>>(
+        std::unique_ptr<Duration>(nullptr));
+  }
+
+  diplomat::result<std::unique_ptr<Duration>, TemporalError>
+  until(const Instant& /*other*/, DifferenceSettings /*settings*/) const {
+    return diplomat::Ok<std::unique_ptr<Duration>>(
+        std::unique_ptr<Duration>(nullptr));
+  }
+
+  diplomat::result<std::string, TemporalError>
+  to_ixdtf_string_with_provider(std::optional<TimeZone> /*zone*/,
+                                 ToStringRoundingOptions /*options*/,
+                                 const Provider& /*p*/) const {
+    return diplomat::Ok<std::string>(std::string{});
+  }
+
   // ── Bridges ────────────────────────────────────────────────────
 
   const ::node::socketsecurity::temporal::Instant& ToInfra() const {

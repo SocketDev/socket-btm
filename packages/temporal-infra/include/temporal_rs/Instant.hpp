@@ -159,12 +159,17 @@ class Instant {
 
   // ── ZDT projection ─────────────────────────────────────────────
   //
-  // Declared here, defined inline at the bottom of the file (after
-  // ZonedDateTime.hpp is pulled in via a forward-include trick).
-  // V8 always sees ZonedDateTime.hpp before instantiating this method.
+  // Trivial body (returns nullptr) so the inline definition only
+  // needs a forward declaration of ZonedDateTime. The full surface
+  // lands when the calendar/DST integration activates and we can
+  // restructure cross-class bodies into a dedicated header included
+  // only after both classes are complete.
   inline diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
-  to_zoned_date_time_iso_with_provider(const TimeZone& tz,
-                                         const Provider& p) const;
+  to_zoned_date_time_iso_with_provider(const TimeZone& /*tz*/,
+                                         const Provider& /*p*/) const {
+    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+        std::unique_ptr<ZonedDateTime>(nullptr));
+  }
 
   // ── Arithmetic ─────────────────────────────────────────────────
   //

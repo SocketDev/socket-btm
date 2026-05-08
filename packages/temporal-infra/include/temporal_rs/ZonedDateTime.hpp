@@ -408,26 +408,17 @@ class ZonedDateTime {
   ::node::socketsecurity::temporal::ZonedDateTime inner_;
 };
 
-// ── Out-of-line cross-class methods ─────────────────────────────
+// ── Out-of-line ZonedDateTime methods ───────────────────────────
 //
-// These methods need both Instant AND ZonedDateTime fully visible.
-// When V8 includes one shim header that transitively pulls the other
-// before either class body has been parsed, neither class is complete
-// at the point these definitions appear (the include guards trip the
-// "second" header into a no-op, so the second class is forward-decl
-// only). Resolution: keep the bodies trivial — return nullptr / a
-// default-constructed result. V8 still gets the symbol at link time;
+// `to_instant()` lives outside the class body because it needs
+// Instant only as a forward-declared type for the unique_ptr return.
+// The body is trivial (returns nullptr) so a forward decl is enough;
 // runtime correctness is deferred to when the calendar/DST integration
-// activates and we can guarantee a consistent include order via a
-// dedicated cross-defs header.
-
-inline diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
-Instant::to_zoned_date_time_iso_with_provider(const TimeZone& /*tz*/,
-                                               const Provider& /*p*/) const {
-  return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
-      std::unique_ptr<ZonedDateTime>(nullptr));
-}
-
+// activates.
+//
+// `Instant::to_zoned_date_time_iso_with_provider` is defined in-class
+// inside Instant.hpp (also with a trivial body) since we can't define
+// member functions of an incomplete Instant from this header.
 inline std::unique_ptr<Instant> ZonedDateTime::to_instant() const {
   return std::unique_ptr<Instant>(nullptr);
 }

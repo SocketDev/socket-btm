@@ -15,7 +15,6 @@
 #include "temporal_rs/OffsetDisambiguation.hpp"
 #include "temporal_rs/Provider.hpp"
 #include "temporal_rs/TemporalError.hpp"
-#include "temporal_rs/ZonedDateTime.hpp"
 #include "temporal_rs/diplomat_runtime.hpp"
 
 namespace temporal_rs {
@@ -35,9 +34,10 @@ class ParsedZonedDateTime {
             new ParsedZonedDateTime(r.value())));
   }
 
-  std::unique_ptr<ZonedDateTime> to_zoned_date_time() const {
-    return ZonedDateTime::FromInfra(inner_);
-  }
+  // Note: to_zoned_date_time was removed (V8 doesn't call it; defining
+  // it inline here would require a complete ZonedDateTime declaration,
+  // which causes a circular header dependency since ZonedDateTime.hpp
+  // includes ParsedZonedDateTime.hpp).
 
   // _with_provider variant - V8 calls this from within IXDTF parse
   // helpers. Routes to from_utf8 (the Provider arg is a marker since
@@ -93,29 +93,15 @@ class ParsedZonedDateTime {
       : inner_(inner) {}
 
   ::node::socketsecurity::temporal::ZonedDateTime inner_;
+
+  // ZonedDateTime::from_parsed needs access to inner_. Defined at the
+  // bottom of ZonedDateTime.hpp once both classes are complete.
+  friend class ZonedDateTime;
 };
 
-// ── ZonedDateTime::from_parsed{,_with_provider} definitions ──────
-//
-// Declared in ZonedDateTime.hpp; defined here where ParsedZonedDateTime
-// is fully visible. V8's call sites pull both headers transitively
-// before instantiating these.
-
-inline diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
-ZonedDateTime::from_parsed(const ParsedZonedDateTime& parsed,
-                            Disambiguation /*disambiguation*/,
-                            OffsetDisambiguation /*offset_option*/) {
-  return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
-      parsed.to_zoned_date_time());
-}
-
-inline diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
-ZonedDateTime::from_parsed_with_provider(const ParsedZonedDateTime& parsed,
-                                          Disambiguation disambiguation,
-                                          OffsetDisambiguation offset_option,
-                                          const Provider& /*p*/) {
-  return from_parsed(parsed, disambiguation, offset_option);
-}
+// ZonedDateTime::from_parsed{,_with_provider} are defined at the
+// bottom of ZonedDateTime.hpp (which includes this header) so the
+// ZonedDateTime class is complete at definition time.
 
 }  // namespace temporal_rs
 

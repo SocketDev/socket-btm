@@ -11,9 +11,14 @@
 
 #include "socketsecurity/temporal/plain_time.h"
 #include "temporal_rs/ArithmeticOverflow.hpp"
+#include "temporal_rs/DifferenceSettings.hpp"
+#include "temporal_rs/Duration.hpp"
+#include "temporal_rs/I128Nanoseconds.hpp"
 #include "temporal_rs/PartialTime.hpp"
+#include "temporal_rs/Provider.hpp"
 #include "temporal_rs/RoundingOptions.hpp"
 #include "temporal_rs/TemporalError.hpp"
+#include "temporal_rs/TimeZone.hpp"
 #include "temporal_rs/diplomat_runtime.hpp"
 
 namespace temporal_rs {

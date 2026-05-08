@@ -23,17 +23,25 @@
 #include "temporal_rs/AnyCalendarKind.hpp"
 #include "temporal_rs/ArithmeticOverflow.hpp"
 #include "temporal_rs/Calendar.hpp"
+#include "temporal_rs/DifferenceSettings.hpp"
 #include "temporal_rs/Disambiguation.hpp"
+#include "temporal_rs/DisplayCalendar.hpp"
+#include "temporal_rs/DisplayOffset.hpp"
+#include "temporal_rs/DisplayTimeZone.hpp"
+#include "temporal_rs/Duration.hpp"
 #include "temporal_rs/I128Nanoseconds.hpp"
 #include "temporal_rs/Instant.hpp"
 #include "temporal_rs/OffsetDisambiguation.hpp"
+#include "temporal_rs/ParsedZonedDateTime.hpp"
 #include "temporal_rs/PartialZonedDateTime.hpp"
 #include "temporal_rs/PlainDate.hpp"
 #include "temporal_rs/PlainDateTime.hpp"
 #include "temporal_rs/PlainTime.hpp"
 #include "temporal_rs/Provider.hpp"
+#include "temporal_rs/RoundingOptions.hpp"
 #include "temporal_rs/TemporalError.hpp"
 #include "temporal_rs/TimeZone.hpp"
+#include "temporal_rs/ToStringRoundingOptions.hpp"
 #include "temporal_rs/TransitionDirection.hpp"
 #include "temporal_rs/diplomat_runtime.hpp"
 
@@ -410,13 +418,29 @@ Instant::to_zoned_date_time_iso_with_provider(const TimeZone& tz,
       Calendar(::node::socketsecurity::temporal::Calendar::Iso()));
 }
 
-}  // namespace temporal_rs
-
 // ── ZonedDateTime::from_parsed{,_with_provider} definitions ───────
 //
-// Defined in ParsedZonedDateTime.hpp (which knows about both classes
-// at the right point in its inclusion order). ZonedDateTime.hpp only
-// declares the methods to satisfy V8's call sites at the
-// instantiation point.
+// Defined here, at the bottom of ZonedDateTime.hpp, so the
+// ZonedDateTime class body is fully visible to the inline bodies.
+// ParsedZonedDateTime.hpp is included at the top of this file and
+// also has its full class body before this point.
+
+inline diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+ZonedDateTime::from_parsed(const ParsedZonedDateTime& parsed,
+                            Disambiguation /*disambiguation*/,
+                            OffsetDisambiguation /*offset_option*/) {
+  return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+      ZonedDateTime::FromInfra(parsed.inner_));
+}
+
+inline diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+ZonedDateTime::from_parsed_with_provider(const ParsedZonedDateTime& parsed,
+                                          Disambiguation disambiguation,
+                                          OffsetDisambiguation offset_option,
+                                          const Provider& /*p*/) {
+  return from_parsed(parsed, disambiguation, offset_option);
+}
+
+}  // namespace temporal_rs
 
 #endif  // TEMPORAL_RS_COMPAT_ZONEDDATETIME_HPP_

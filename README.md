@@ -38,9 +38,9 @@ The packages stack into four tiers — native libraries at the bottom, the custo
 
 ## Core Concepts
 
-If you're new to binary manipulation or Node.js customization, here are the key concepts you'll encounter. The diagram below shows how they compose into a final shipped artifact:
+If you're new to binary manipulation or Node.js customization, here are the key concepts you'll encounter. The diagram below shows how `binject` merges your app with the Node.js runtime to produce a Single Executable Application — solid borders are real files on disk, dashed borders are virtual files embedded inside the binary:
 
-![Anatomy of a Socket-built binary: a compressed stub on disk decompresses into a Node.js runtime that contains an SEA blob and a VFS section](docs/images/binary-anatomy.svg)
+![How a Socket binary is built: binject merges the Node.js runtime with your app's source files into a SEA containing a runtime, an SEA blob, and a VFS section](docs/images/binary-anatomy.svg)
 
 ### Single Executable Application (SEA)
 
@@ -75,6 +75,12 @@ Incremental build caching system. Each build stage (copy sources → apply patch
 Reducing binary size for distribution. Compressed binaries self-extract at runtime.
 
 **Example:** 60MB Node.js binary → 23MB compressed binary (saves bandwidth, faster downloads).
+
+### Putting it together: what happens when a user runs the binary
+
+The stub decompresses the zstd payload, the Node.js runtime boots and reads the SEA blob to find the entry point, and the running app reads VFS files via `fs.readFile()` like they were on disk:
+
+![Runtime lifecycle: stub decompresses, runtime executes the SEA blob and reads VFS, your app produces output](docs/images/lifecycle.svg)
 
 ## Quick Start
 

@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" role="img" aria-labelledby="title desc">
+  <title id="title">What happens when you run a Socket binary</title>
+  <desc id="desc">Three stages: the stub unpacks the compressed binary, the Node.js runtime boots and reads the SEA blob and VFS, and your app produces output.</desc>
+
+  <defs>
+    <linearGradient id="brand" x1="0" y1="0" x2="900" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#EC4899"/>
+    </linearGradient>
+    <linearGradient id="purple-fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8B5CF6" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#8B5CF6" stop-opacity="0.03"/>
+    </linearGradient>
+    <linearGradient id="pink-fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EC4899" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#EC4899" stop-opacity="0.04"/>
+    </linearGradient>
+    <linearGradient id="mid-fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#BA478B" stop-opacity="0.11"/>
+      <stop offset="1" stop-color="#BA478B" stop-opacity="0.04"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#C2509E"/>
+    </marker>
+  </defs>
+
+  <rect width="900" height="620" fill="#ffffff"/>
+
+  <text x="450" y="40" text-anchor="middle" font-size="22" font-weight="700" fill="#1f1235">What happens when you run a Socket binary</text>
+  <text x="450" y="64" text-anchor="middle" font-size="13" fill="#6b6480">Three stages: the stub unpacks, the runtime boots, your app produces output.</text>
+
+  <!-- Stage 1: ON DISK -->
+  <text x="40" y="118" font-size="11" font-weight="700" fill="#8B5CF6" letter-spacing="1.5">1 · ON DISK</text>
+  <rect x="290" y="92" width="320" height="105" rx="10" fill="url(#purple-fade)" stroke="#8B5CF6" stroke-width="1.5"/>
+  <text x="450" y="118" text-anchor="middle" font-size="14" font-weight="600" fill="#1f1235">compressed binary</text>
+  <text x="450" y="135" text-anchor="middle" font-size="11" fill="#6b6480">~23 MB · what the user downloads</text>
+
+  <rect x="305" y="148" width="140" height="36" rx="4" fill="#ffffff" stroke="#8B5CF6" stroke-width="1"/>
+  <text x="375" y="171" text-anchor="middle" font-size="11" fill="#1f1235">stub</text>
+
+  <rect x="455" y="148" width="140" height="36" rx="4" fill="#ffffff" stroke="#8B5CF6" stroke-width="1" stroke-dasharray="3 2"/>
+  <text x="525" y="171" text-anchor="middle" font-size="11" fill="#1f1235">zstd payload</text>
+
+  <!-- Arrow 1 -->
+  <path d="M 450 203 L 450 252" fill="none" stroke="url(#brand)" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="450" y="226" text-anchor="middle" font-size="12" font-weight="600" fill="#A24EBE">stub: zstd-decompress + exec inner binary</text>
+
+  <!-- Stage 2: IN MEMORY -->
+  <text x="40" y="296" font-size="11" font-weight="700" fill="#A24EBE" letter-spacing="1.5">2 · IN MEMORY · THE SEA</text>
+  <rect x="170" y="270" width="560" height="180" rx="12" fill="url(#mid-fade)" stroke="#A24EBE" stroke-width="2"/>
+  <text x="450" y="296" text-anchor="middle" font-size="14" font-weight="700" fill="#1f1235">Single Executable Application</text>
+
+  <rect x="190" y="312" width="520" height="42" rx="6" fill="#ffffff" stroke="#A24EBE" stroke-width="1.5"/>
+  <text x="450" y="338" text-anchor="middle" font-size="12" font-weight="600" fill="#1f1235">Node.js runtime · v26 + Socket patches</text>
+
+  <rect x="190" y="362" width="250" height="36" rx="4" fill="#ffffff" stroke="#A24EBE" stroke-width="1.5" stroke-dasharray="3 2"/>
+  <text x="315" y="385" text-anchor="middle" font-size="11" fill="#1f1235">SEA blob (entry bytecode + config)</text>
+
+  <rect x="450" y="362" width="260" height="36" rx="4" fill="#ffffff" stroke="#A24EBE" stroke-width="1.5" stroke-dasharray="3 2"/>
+  <text x="580" y="385" text-anchor="middle" font-size="11" fill="#1f1235">VFS section (embedded files)</text>
+
+  <text x="450" y="425" text-anchor="middle" font-size="11" font-style="italic" fill="#6b6480">runtime boots · reads SEA blob to find the entry · serves VFS to fs.readFile()</text>
+
+  <!-- Arrow 2 -->
+  <path d="M 450 458 L 450 510" fill="none" stroke="url(#brand)" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="450" y="484" text-anchor="middle" font-size="12" font-weight="600" fill="#C2509E">runtime executes the entry · your app code runs</text>
+
+  <!-- Stage 3: OUTPUT -->
+  <text x="40" y="552" font-size="11" font-weight="700" fill="#EC4899" letter-spacing="1.5">3 · ✨ OUTPUT</text>
+  <rect x="290" y="526" width="320" height="80" rx="10" fill="url(#pink-fade)" stroke="#EC4899" stroke-width="2"/>
+  <text x="450" y="554" text-anchor="middle" font-size="14" font-weight="600" fill="#1f1235">your app's output</text>
+  <text x="450" y="574" text-anchor="middle" font-size="11" font-family="ui-monospace, SFMono-Regular, monospace" fill="#6b6480">scan complete · 0 critical · 2 medium</text>
+  <text x="450" y="592" text-anchor="middle" font-size="10" font-style="italic" fill="#6b6480">whatever your CLI prints</text>
+
+  <text x="450" y="620" text-anchor="middle" font-size="11" fill="#6b6480"></text>
+</svg>

@@ -288,30 +288,60 @@ class ZonedDateTime {
     return diplomat::Ok<bool>(equals(other));
   }
 
-  diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
-  with_calendar(AnyCalendarKind kind) const {
+  // Upstream: returns plain unique_ptr (no result wrap, no error case).
+  std::unique_ptr<ZonedDateTime> with_calendar(AnyCalendarKind kind) const {
     auto out_inner = inner_;
     out_inner.calendar =
         ::node::socketsecurity::temporal::Calendar(kind.ToInfra());
+    return std::unique_ptr<ZonedDateTime>(new ZonedDateTime(out_inner));
+  }
+
+  // Upstream: with(partial, disambiguation, offset_option, overflow)
+  // The full DST-aware path lives in the temporal-infra layer; this
+  // shim returns Ok for now.
+  diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError> with(
+      PartialZonedDateTime /*partial*/,
+      std::optional<Disambiguation> /*disambiguation*/,
+      std::optional<OffsetDisambiguation> /*offset_option*/,
+      std::optional<ArithmeticOverflow> /*overflow*/) const {
+    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+        std::unique_ptr<ZonedDateTime>(new ZonedDateTime(inner_)));
+  }
+
+  diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  with_with_provider(PartialZonedDateTime partial,
+                     std::optional<Disambiguation> disambiguation,
+                     std::optional<OffsetDisambiguation> offset_option,
+                     std::optional<ArithmeticOverflow> overflow,
+                     const Provider& /*p*/) const {
+    return with(partial, disambiguation, offset_option, overflow);
+  }
+
+  diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  with_timezone(TimeZone zone) const {
+    auto out_inner = inner_;
+    out_inner.time_zone = zone.ToInfra();
     return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
         std::unique_ptr<ZonedDateTime>(new ZonedDateTime(out_inner)));
   }
 
   diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
-  with_timezone_with_provider(const TimeZone& tz,
+  with_timezone_with_provider(TimeZone zone,
                                const Provider& /*p*/) const {
-    auto out_inner = inner_;
-    out_inner.time_zone = tz.ToInfra();
+    return with_timezone(zone);
+  }
+
+  diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  with_plain_time(const PlainTime* /*time*/) const {
     return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
-        std::unique_ptr<ZonedDateTime>(new ZonedDateTime(out_inner)));
+        std::unique_ptr<ZonedDateTime>(new ZonedDateTime(inner_)));
   }
 
   diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
   with_plain_time_and_provider(
-      std::optional<const PlainTime*> /*time*/,
+      const PlainTime* time,
       const Provider& /*p*/) const {
-    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
-        std::unique_ptr<ZonedDateTime>(new ZonedDateTime(inner_)));
+    return with_plain_time(time);
   }
 
   // ── Comparison ─────────────────────────────────────────────────

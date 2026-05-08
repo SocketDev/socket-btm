@@ -207,12 +207,11 @@ class PlainDate {
         "PlainDate.toZonedDateTime requires temporal-infra calendar backend"});
   }
 
-  diplomat::result<std::unique_ptr<PlainDate>, TemporalError> with_calendar(
-      AnyCalendarKind /*kind*/) const {
+  // Upstream: returns plain unique_ptr (no result wrap, no error case).
+  std::unique_ptr<PlainDate> with_calendar(AnyCalendarKind /*kind*/) const {
     // Calendar-aware projection lands with calendar.cc; for now,
     // return a clone (ISO-only path).
-    return diplomat::Ok<std::unique_ptr<PlainDate>>(
-        std::unique_ptr<PlainDate>(new PlainDate(inner_)));
+    return std::unique_ptr<PlainDate>(new PlainDate(inner_));
   }
 
   // ── Mutation (returns new heap-owned PlainDate) ───────────────────

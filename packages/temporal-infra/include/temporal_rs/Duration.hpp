@@ -24,6 +24,7 @@
 #include "temporal_rs/DifferenceSettings.hpp"
 #include "temporal_rs/PartialDuration.hpp"
 #include "temporal_rs/Provider.hpp"
+#include "temporal_rs/RelativeTo.hpp"
 #include "temporal_rs/RoundingOptions.hpp"
 #include "temporal_rs/Sign.hpp"
 #include "temporal_rs/TemporalError.hpp"
@@ -36,7 +37,6 @@ namespace temporal_rs {
 // Forward declarations for types referenced by signatures.
 class PlainDate;
 class ZonedDateTime;
-struct RelativeTo;
 
 class Duration {
  public:
@@ -193,8 +193,8 @@ class Duration {
   // For the time-only path, we re-balance via the largest_unit /
   // smallest_unit / increment / rounding_mode in `options`.
   diplomat::result<std::unique_ptr<Duration>, TemporalError> round(
-      const RoundingOptions& /*options*/,
-      const std::optional<RelativeTo>& /*relative_to*/) const {
+      RoundingOptions /*options*/,
+      RelativeTo /*relative_to*/) const {
     // Time-only path: clone (the rounding-mode application would
     // re-balance components — temporal-infra exposes
     // ResolvedRoundingOptionsFromInstant; full integration lands when
@@ -208,7 +208,7 @@ class Duration {
   // relativeTo anchor; this path returns Range otherwise.
   diplomat::result<double, TemporalError> total(
       Unit unit,
-      const std::optional<RelativeTo>& /*relative_to*/) const {
+      RelativeTo /*relative_to*/) const {
     if (inner_.years != 0 || inner_.months != 0 || inner_.weeks != 0) {
       return diplomat::Err<TemporalError>(TemporalError{
           ErrorKind::Range,
@@ -228,7 +228,7 @@ class Duration {
 
   diplomat::result<int8_t, TemporalError> compare(
       const Duration& other,
-      const std::optional<RelativeTo>& /*relative_to*/) const {
+      RelativeTo /*relative_to*/) const {
     auto r = ::node::socketsecurity::temporal::DurationCompare(inner_,
                                                                   other.inner_);
     if (!r.ok()) {
@@ -248,20 +248,20 @@ class Duration {
 
   diplomat::result<int8_t, TemporalError> compare_with_provider(
       const Duration& other,
-      const std::optional<RelativeTo>& relative_to,
+      RelativeTo relative_to,
       const Provider& /*p*/) const {
     return compare(other, relative_to);
   }
 
   diplomat::result<std::unique_ptr<Duration>, TemporalError>
-  round_with_provider(const RoundingOptions& options,
-                      const std::optional<RelativeTo>& relative_to,
+  round_with_provider(RoundingOptions options,
+                      RelativeTo relative_to,
                       const Provider& /*p*/) const {
     return round(options, relative_to);
   }
 
   diplomat::result<double, TemporalError> total_with_provider(
-      Unit unit, const std::optional<RelativeTo>& relative_to,
+      Unit unit, RelativeTo relative_to,
       const Provider& /*p*/) const {
     return total(unit, relative_to);
   }

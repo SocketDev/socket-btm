@@ -209,10 +209,10 @@ class PlainDateTime {
         std::unique_ptr<PlainDateTime>(new PlainDateTime(inner_)));
   }
 
-  diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError>
-  with_calendar(AnyCalendarKind /*kind*/) const {
-    return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
-        std::unique_ptr<PlainDateTime>(new PlainDateTime(inner_)));
+  // Upstream: returns plain unique_ptr (no result wrap, no error case).
+  std::unique_ptr<PlainDateTime> with_calendar(
+      AnyCalendarKind /*kind*/) const {
+    return std::unique_ptr<PlainDateTime>(new PlainDateTime(inner_));
   }
 
   template <class ZDT, class TZ>

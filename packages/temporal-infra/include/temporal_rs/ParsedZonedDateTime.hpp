@@ -11,6 +11,9 @@
 #include <string_view>
 
 #include "socketsecurity/temporal/zoned_date_time.h"
+#include "temporal_rs/Disambiguation.hpp"
+#include "temporal_rs/OffsetDisambiguation.hpp"
+#include "temporal_rs/Provider.hpp"
 #include "temporal_rs/TemporalError.hpp"
 #include "temporal_rs/ZonedDateTime.hpp"
 #include "temporal_rs/diplomat_runtime.hpp"
@@ -34,6 +37,29 @@ class ParsedZonedDateTime {
 
   std::unique_ptr<ZonedDateTime> to_zoned_date_time() const {
     return ZonedDateTime::FromInfra(inner_);
+  }
+
+  // _with_provider variant - V8 calls this from within IXDTF parse
+  // helpers. Routes to from_utf8 (the Provider arg is a marker since
+  // the C++ port resolves IANA via TimeZoneBackend internally).
+  static diplomat::result<std::unique_ptr<ParsedZonedDateTime>, TemporalError>
+  from_utf8_with_provider(std::string_view s, const Provider& /*p*/) {
+    return from_utf8(s);
+  }
+
+  static diplomat::result<std::unique_ptr<ParsedZonedDateTime>, TemporalError>
+  from_utf16_with_provider(std::u16string_view s, const Provider& /*p*/) {
+    std::string narrow;
+    narrow.reserve(s.size());
+    for (char16_t c : s) {
+      if (c > 0x7F) {
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range,
+            "Non-ASCII character in ParsedZonedDateTime string"});
+      }
+      narrow.push_back(static_cast<char>(c));
+    }
+    return from_utf8(narrow);
   }
 
   int32_t year() const {
@@ -68,6 +94,28 @@ class ParsedZonedDateTime {
 
   ::node::socketsecurity::temporal::ZonedDateTime inner_;
 };
+
+// ── ZonedDateTime::from_parsed{,_with_provider} definitions ──────
+//
+// Declared in ZonedDateTime.hpp; defined here where ParsedZonedDateTime
+// is fully visible. V8's call sites pull both headers transitively
+// before instantiating these.
+
+inline diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+ZonedDateTime::from_parsed(const ParsedZonedDateTime& parsed,
+                            Disambiguation /*disambiguation*/,
+                            OffsetDisambiguation /*offset_option*/) {
+  return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+      parsed.to_zoned_date_time());
+}
+
+inline diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+ZonedDateTime::from_parsed_with_provider(const ParsedZonedDateTime& parsed,
+                                          Disambiguation disambiguation,
+                                          OffsetDisambiguation offset_option,
+                                          const Provider& /*p*/) {
+  return from_parsed(parsed, disambiguation, offset_option);
+}
 
 }  // namespace temporal_rs
 

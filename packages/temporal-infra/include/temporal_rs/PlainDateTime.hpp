@@ -14,6 +14,7 @@
 #include "temporal_rs/AnyCalendarKind.hpp"
 #include "temporal_rs/ArithmeticOverflow.hpp"
 #include "temporal_rs/Calendar.hpp"
+#include "temporal_rs/ParsedDateTime.hpp"
 #include "temporal_rs/PartialDateTime.hpp"
 #include "temporal_rs/Provider.hpp"
 #include "temporal_rs/TemporalError.hpp"
@@ -101,6 +102,21 @@ class PlainDateTime {
       narrow.push_back(static_cast<char>(c));
     }
     return from_utf8(narrow);
+  }
+
+  // Build a PlainDateTime from an already-parsed ParsedDateTime.
+  static diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError>
+  from_parsed(const ParsedDateTime& parsed) {
+    auto r = ::node::socketsecurity::temporal::PlainDateTimeTryNew(
+        parsed.year(), parsed.month(), parsed.day(), parsed.hour(),
+        parsed.minute(), parsed.second(), parsed.millisecond(),
+        parsed.microsecond(), parsed.nanosecond());
+    if (!r.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(r.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
+        std::unique_ptr<PlainDateTime>(new PlainDateTime(r.value())));
   }
 
   // Field accessors.

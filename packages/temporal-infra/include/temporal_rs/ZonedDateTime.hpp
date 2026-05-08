@@ -40,6 +40,7 @@
 namespace temporal_rs {
 
 class Duration;
+class ParsedZonedDateTime;
 struct DifferenceSettings;
 struct RoundingOptions;
 struct ToStringRoundingOptions;
@@ -85,6 +86,20 @@ class ZonedDateTime {
     }
     return from_utf8(narrow);
   }
+
+  // Build a ZonedDateTime from an already-parsed ParsedZonedDateTime.
+  // Defined out-of-line below (ParsedZonedDateTime.hpp lives below to
+  // break the include cycle).
+  static diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  from_parsed(const ParsedZonedDateTime& parsed,
+              Disambiguation disambiguation,
+              OffsetDisambiguation offset_option);
+
+  static diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  from_parsed_with_provider(const ParsedZonedDateTime& parsed,
+                             Disambiguation disambiguation,
+                             OffsetDisambiguation offset_option,
+                             const Provider& p);
 
   // ── Field accessors ─────────────────────────────────────────────
 
@@ -375,5 +390,12 @@ Instant::to_zoned_date_time_iso_with_provider(const TimeZone& tz,
 }
 
 }  // namespace temporal_rs
+
+// ── ZonedDateTime::from_parsed{,_with_provider} definitions ───────
+//
+// Defined in ParsedZonedDateTime.hpp (which knows about both classes
+// at the right point in its inclusion order). ZonedDateTime.hpp only
+// declares the methods to satisfy V8's call sites at the
+// instantiation point.
 
 #endif  // TEMPORAL_RS_COMPAT_ZONEDDATETIME_HPP_

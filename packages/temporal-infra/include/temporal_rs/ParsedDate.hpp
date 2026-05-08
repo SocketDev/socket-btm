@@ -53,6 +53,53 @@ class ParsedDate {
         std::unique_ptr<ParsedDate>(new ParsedDate(r.value())));
   }
 
+ private:
+  // Helper: transcode UTF-16 to ASCII (Temporal IXDTF strings are
+  // always ASCII; non-ASCII triggers a parse error). Used by the
+  // utf16 variants below.
+  static std::optional<std::string> AsciiNarrow(std::u16string_view s) {
+    std::string narrow;
+    narrow.reserve(s.size());
+    for (char16_t c : s) {
+      if (c > 0x7F) {
+        return std::nullopt;
+      }
+      narrow.push_back(static_cast<char>(c));
+    }
+    return narrow;
+  }
+
+ public:
+  static diplomat::result<std::unique_ptr<ParsedDate>, TemporalError>
+  from_utf16(std::u16string_view s) {
+    auto narrow = AsciiNarrow(s);
+    if (!narrow.has_value()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range, "Non-ASCII character in ParsedDate string"});
+    }
+    return from_utf8(*narrow);
+  }
+
+  static diplomat::result<std::unique_ptr<ParsedDate>, TemporalError>
+  year_month_from_utf16(std::u16string_view s) {
+    auto narrow = AsciiNarrow(s);
+    if (!narrow.has_value()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range, "Non-ASCII character in ParsedDate string"});
+    }
+    return year_month_from_utf8(*narrow);
+  }
+
+  static diplomat::result<std::unique_ptr<ParsedDate>, TemporalError>
+  month_day_from_utf16(std::u16string_view s) {
+    auto narrow = AsciiNarrow(s);
+    if (!narrow.has_value()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range, "Non-ASCII character in ParsedDate string"});
+    }
+    return month_day_from_utf8(*narrow);
+  }
+
   int32_t year() const { return inner_.record.year; }
   uint8_t month() const { return inner_.record.month; }
   uint8_t day() const { return inner_.record.day; }

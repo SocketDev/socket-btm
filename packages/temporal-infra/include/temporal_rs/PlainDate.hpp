@@ -17,6 +17,7 @@
 #include "temporal_rs/AnyCalendarKind.hpp"
 #include "temporal_rs/ArithmeticOverflow.hpp"
 #include "temporal_rs/Calendar.hpp"
+#include "temporal_rs/ParsedDate.hpp"
 #include "temporal_rs/PartialDate.hpp"
 #include "temporal_rs/Provider.hpp"
 #include "temporal_rs/TemporalError.hpp"
@@ -29,7 +30,6 @@ class Duration;
 class PlainDateTime;
 class PlainMonthDay;
 class PlainYearMonth;
-class ParsedDate;
 struct DifferenceSettings;
 struct TimeZone;
 
@@ -119,6 +119,20 @@ class PlainDate {
       narrow.push_back(static_cast<char>(c));
     }
     return from_utf8(narrow);
+  }
+
+  // Spec: build a PlainDate from an already-parsed ParsedDate. Routes
+  // through the temporal-infra Try-iso path on the ISO components.
+  static diplomat::result<std::unique_ptr<PlainDate>, TemporalError>
+  from_parsed(const ParsedDate& parsed) {
+    auto r = ::node::socketsecurity::temporal::PlainDateTryNewIso(
+        parsed.year(), parsed.month(), parsed.day());
+    if (!r.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(r.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PlainDate>>(
+        std::unique_ptr<PlainDate>(new PlainDate(r.value())));
   }
 
   // ── Field accessors ───────────────────────────────────────────────

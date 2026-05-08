@@ -13,6 +13,7 @@
 #include "socketsecurity/temporal/plain_year_month.h"
 #include "temporal_rs/AnyCalendarKind.hpp"
 #include "temporal_rs/Calendar.hpp"
+#include "temporal_rs/ParsedDate.hpp"
 #include "temporal_rs/Provider.hpp"
 #include "temporal_rs/TemporalError.hpp"
 #include "temporal_rs/diplomat_runtime.hpp"
@@ -61,6 +62,19 @@ class PlainYearMonth {
       narrow.push_back(static_cast<char>(c));
     }
     return from_utf8(narrow);
+  }
+
+  // Build a PlainYearMonth from a parsed-and-validated record.
+  static diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
+  from_parsed(const ParsedDate& parsed) {
+    auto r = ::node::socketsecurity::temporal::PlainYearMonthTryNewIso(
+        parsed.year(), parsed.month(), std::optional<uint8_t>{});
+    if (!r.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(r.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
+        std::unique_ptr<PlainYearMonth>(new PlainYearMonth(r.value())));
   }
 
   int32_t year() const {

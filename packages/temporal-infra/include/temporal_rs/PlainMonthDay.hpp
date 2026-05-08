@@ -13,6 +13,7 @@
 #include "socketsecurity/temporal/plain_month_day.h"
 #include "temporal_rs/AnyCalendarKind.hpp"
 #include "temporal_rs/Calendar.hpp"
+#include "temporal_rs/ParsedDate.hpp"
 #include "temporal_rs/Provider.hpp"
 #include "temporal_rs/TemporalError.hpp"
 #include "temporal_rs/diplomat_runtime.hpp"
@@ -61,6 +62,19 @@ class PlainMonthDay {
       narrow.push_back(static_cast<char>(c));
     }
     return from_utf8(narrow);
+  }
+
+  // Build a PlainMonthDay from a parsed record.
+  static diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
+  from_parsed(const ParsedDate& parsed) {
+    auto r = ::node::socketsecurity::temporal::PlainMonthDayTryNewIso(
+        parsed.month(), parsed.day(), std::optional<int32_t>{});
+    if (!r.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(r.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
+        std::unique_ptr<PlainMonthDay>(new PlainMonthDay(r.value())));
   }
 
   uint8_t month() const {

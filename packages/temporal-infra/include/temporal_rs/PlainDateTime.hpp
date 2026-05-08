@@ -219,14 +219,26 @@ class PlainDateTime {
         std::unique_ptr<PlainDateTime>(new PlainDateTime(inner_)));
   }
 
+  // Upstream: with(PartialDateTime, optional<ArithmeticOverflow>).
+  diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError> with(
+      PartialDateTime /*partial*/,
+      std::optional<ArithmeticOverflow> /*overflow*/) const {
+    return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
+        std::unique_ptr<PlainDateTime>(new PlainDateTime(inner_)));
+  }
+
   // Upstream is a static method: PlainDateTime::compare(a, b).
   static int8_t compare(const PlainDateTime& /*one*/,
                         const PlainDateTime& /*two*/) {
     return 0;
   }
 
-  std::string to_ixdtf_string(DisplayCalendar /*display_calendar*/) const {
-    return std::string{};
+  // Upstream takes (DisplayCalendar) but V8 in Node 26.1.0 calls
+  // with (ToStringRoundingOptions, DisplayCalendar). Match V8.
+  diplomat::result<std::string, TemporalError> to_ixdtf_string(
+      ToStringRoundingOptions /*options*/,
+      DisplayCalendar /*display_calendar*/) const {
+    return diplomat::Ok<std::string>(std::string{});
   }
 
   // Upstream: returns plain unique_ptr (no result wrap, no error case).

@@ -224,11 +224,12 @@ class ZonedDateTime {
 
   // Offset accessors. Stubbed for non-offset zones; returns "+00:00"
   // until the full IANA-DST path lands. For offset-only zones, the
-  // value is correct.
-  std::string offset() const {
-    return inner_.time_zone.IsOffsetOnly()
-               ? inner_.time_zone.OffsetOrNull().ToString()
-               : "+00:00";
+  // value is correct. Upstream returns `result<string, TemporalError>`.
+  diplomat::result<std::string, TemporalError> offset() const {
+    return diplomat::Ok<std::string>(
+        inner_.time_zone.IsOffsetOnly()
+            ? inner_.time_zone.OffsetOrNull().ToString()
+            : std::string("+00:00"));
   }
   int64_t offset_nanoseconds() const {
     return inner_.time_zone.IsOffsetOnly()
@@ -295,11 +296,14 @@ class ZonedDateTime {
         std::unique_ptr<ZonedDateTime>(new ZonedDateTime(inner_)));
   }
 
-  diplomat::result<std::optional<std::unique_ptr<ZonedDateTime>>, TemporalError>
+  // Upstream returns `result<unique_ptr<ZDT>, TemporalError>` — V8
+  // expects to MoveTo(&zdt) into a `unique_ptr<ZDT>`. Stub returns
+  // an Ok with nullptr until the DST-aware path activates.
+  diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
   get_time_zone_transition_with_provider(TransitionDirection /*dir*/,
                                           const Provider& /*p*/) const {
-    return diplomat::Ok<std::optional<std::unique_ptr<ZonedDateTime>>>(
-        std::nullopt);
+    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+        std::unique_ptr<ZonedDateTime>(nullptr));
   }
 
   diplomat::result<double, TemporalError> hours_in_day_with_provider(

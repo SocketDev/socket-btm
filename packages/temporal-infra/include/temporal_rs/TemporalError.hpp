@@ -17,24 +17,31 @@ namespace temporal_rs {
 
 struct TemporalError {
   ErrorKind kind;
-  // Upstream uses `optional<string_view>` here, holding a borrow into
-  // the underlying Rust string. We own the string ourselves (no FFI
-  // boundary) so a `std::string` is the natural fit; a
-  // `std::optional<std::string_view>` accessor is provided for
-  // V8 call-site source compat.
+  // Upstream uses `optional<string_view>` here as a public field
+  // (V8 reads `err.msg.has_value()` and `err.msg.value()`). Our
+  // ownership story is different (no FFI boundary, we own the
+  // string), but for V8 source-compat we must expose `msg` as a
+  // public optional<string_view> field. The backing storage lives
+  // in `msg_storage`; FromInfra() constructs the view-into-storage.
   std::string msg_storage;
+  std::optional<std::string_view> msg;
 
-  std::optional<std::string_view> msg() const {
-    if (msg_storage.empty()) {
-      return std::nullopt;
+  // Default ctor.
+  TemporalError() = default;
+
+  // Construct with kind + storage. msg is set to a view of storage
+  // (or nullopt when storage is empty).
+  TemporalError(ErrorKind k, std::string storage)
+      : kind(k), msg_storage(std::move(storage)) {
+    if (!msg_storage.empty()) {
+      msg = std::string_view(msg_storage);
     }
-    return std::string_view(msg_storage);
   }
 
   // Bridge from temporal-infra's TemporalError.
   static TemporalError FromInfra(
       const ::node::socketsecurity::temporal::TemporalError& err) {
-    return TemporalError{ErrorKind::FromInfra(err.kind), err.message};
+    return TemporalError(ErrorKind::FromInfra(err.kind), err.message);
   }
 };
 

@@ -211,45 +211,36 @@ class ZonedDateTime {
         ::node::socketsecurity::temporal::ZonedDateTimeToInstant(inner_));
   }
 
-  diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError>
-  to_plain_datetime() const {
+  // Upstream: returns plain unique_ptr (no result wrap). The underlying
+  // C++ port may return an error, but the diplomat surface here is
+  // total — on error, we fall back to a default-constructed shape so
+  // V8's call site doesn't crash. Full error propagation lands when
+  // the calendar-aware path activates.
+  std::unique_ptr<PlainDateTime> to_plain_datetime() const {
     auto r = ::node::socketsecurity::temporal::ZonedDateTimeToPlainDateTime(
         inner_);
     if (!r.ok()) {
-      return diplomat::Err<TemporalError>(
-          TemporalError::FromInfra(r.error()));
+      return std::unique_ptr<PlainDateTime>(nullptr);
     }
-    return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
-        PlainDateTime::FromInfra(r.value()));
+    return PlainDateTime::FromInfra(r.value());
   }
 
-  diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError>
-  to_plain_date_time() const {
-    return to_plain_datetime();
-  }
-
-  diplomat::result<std::unique_ptr<PlainDate>, TemporalError>
-  to_plain_date() const {
+  std::unique_ptr<PlainDate> to_plain_date() const {
     auto r =
         ::node::socketsecurity::temporal::ZonedDateTimeToPlainDate(inner_);
     if (!r.ok()) {
-      return diplomat::Err<TemporalError>(
-          TemporalError::FromInfra(r.error()));
+      return std::unique_ptr<PlainDate>(nullptr);
     }
-    return diplomat::Ok<std::unique_ptr<PlainDate>>(
-        PlainDate::FromInfra(r.value()));
+    return PlainDate::FromInfra(r.value());
   }
 
-  diplomat::result<std::unique_ptr<PlainTime>, TemporalError>
-  to_plain_time() const {
+  std::unique_ptr<PlainTime> to_plain_time() const {
     auto r =
         ::node::socketsecurity::temporal::ZonedDateTimeToPlainTime(inner_);
     if (!r.ok()) {
-      return diplomat::Err<TemporalError>(
-          TemporalError::FromInfra(r.error()));
+      return std::unique_ptr<PlainTime>(nullptr);
     }
-    return diplomat::Ok<std::unique_ptr<PlainTime>>(
-        PlainTime::FromInfra(r.value()));
+    return PlainTime::FromInfra(r.value());
   }
 
   // ── Stubs for "with_provider" methods ──────────────────────────

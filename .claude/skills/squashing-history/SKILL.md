@@ -1,23 +1,32 @@
 ---
 name: squashing-history
-description: Squashes all commits on main to a single "Initial commit" with backup branch, integrity verification, and user confirmation before force push. Use when cleaning history or preparing for fresh start.
+description: Squashes all commits on the repo's default branch (main, falling back to master) to a single "Initial commit" with backup branch, integrity verification, and user confirmation before force push. Use when cleaning history or preparing for fresh start.
 user-invocable: true
 allowed-tools: AskUserQuestion, Bash(git:*), Bash(diff:*), Bash(rm:*), Bash(ls:*)
 ---
 
 # squashing-history
 
-Squash all commits on main branch to a single "Initial commit" while preserving code integrity.
+Squash all commits on the default branch to a single "Initial commit" while preserving code integrity.
 
 ## Process
 
 ### Phase 1: Pre-flight
 
-Verify working directory is clean and on main branch. Do not proceed otherwise.
+Resolve the default branch (per the fleet's _Default branch fallback_ rule — prefer `main`, fall back to `master`), then verify the working directory is clean and the current branch matches. Do not proceed otherwise.
 
 ```bash
+BASE=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+if [ -z "$BASE" ] && git show-ref --verify --quiet refs/remotes/origin/main;   then BASE=main;   fi
+if [ -z "$BASE" ] && git show-ref --verify --quiet refs/remotes/origin/master; then BASE=master; fi
+BASE="${BASE:-main}"
+
 git status
-git branch --show-current
+CURRENT=$(git branch --show-current)
+if [ "$CURRENT" != "$BASE" ]; then
+  echo "Refusing to squash: current branch '$CURRENT' is not the default branch '$BASE'"
+  exit 1
+fi
 ```
 
 ### Phase 2: Create Backup
@@ -58,7 +67,7 @@ Show summary (original count, backup branch name, integrity status) and ask for 
 ### Phase 7: Force Push
 
 ```bash
-git push --force origin main
+git push --force origin "$BASE"
 ```
 
 Verify local and remote SHAs match after push.

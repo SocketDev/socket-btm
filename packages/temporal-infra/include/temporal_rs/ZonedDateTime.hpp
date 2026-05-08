@@ -27,6 +27,7 @@
 #include "temporal_rs/I128Nanoseconds.hpp"
 #include "temporal_rs/Instant.hpp"
 #include "temporal_rs/OffsetDisambiguation.hpp"
+#include "temporal_rs/PartialZonedDateTime.hpp"
 #include "temporal_rs/PlainDate.hpp"
 #include "temporal_rs/PlainDateTime.hpp"
 #include "temporal_rs/PlainTime.hpp"
@@ -42,7 +43,6 @@ class Duration;
 struct DifferenceSettings;
 struct RoundingOptions;
 struct ToStringRoundingOptions;
-struct PartialZonedDateTime;
 
 class ZonedDateTime {
  public:

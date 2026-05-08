@@ -157,8 +157,12 @@ class PlainDate {
   uint16_t day_of_year() const {
     return ::node::socketsecurity::temporal::PlainDateDayOfYear(inner_);
   }
-  uint8_t week_of_year() const {
-    return ::node::socketsecurity::temporal::PlainDateWeekOfYear(inner_);
+  // Upstream: optional<uint8_t> — ISO weeks for non-Gregorian / partial
+  // calendars may be undefined. We return the value unconditionally for
+  // ISO-only callers; the optional is just the V8-expected wrap.
+  std::optional<uint8_t> week_of_year() const {
+    return std::optional<uint8_t>(
+        ::node::socketsecurity::temporal::PlainDateWeekOfYear(inner_));
   }
   uint8_t days_in_month() const {
     return ::node::socketsecurity::temporal::PlainDateDaysInMonth(inner_);

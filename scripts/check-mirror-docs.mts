@@ -106,10 +106,7 @@ function loadAllowlist(): AllowlistEntry[] {
 }
 
 /** Walk a tree returning relative file paths. */
-function walk(
-  root: string,
-  filterFn: (relPath: string) => boolean,
-): string[] {
+function walk(root: string, filterFn: (relPath: string) => boolean): string[] {
   const out: string[] = []
   if (!existsSync(root)) {
     return out
@@ -260,13 +257,8 @@ async function main(): Promise<void> {
     logger.info('Checking mirror-doc sync...')
   }
 
-  const all: Finding[] = [
-    ...collectOrphanDocs(),
-    ...collectMissingDocs(),
-  ]
-  const surviving = all.filter(
-    f => !allowSet.has(`${f.kind}|${f.path}`),
-  )
+  const all: Finding[] = [...collectOrphanDocs(), ...collectMissingDocs()]
+  const surviving = all.filter(f => !allowSet.has(`${f.kind}|${f.path}`))
 
   if (surviving.length === 0) {
     if (!opts.quiet && !opts.json) {
@@ -301,9 +293,7 @@ async function main(): Promise<void> {
     logger.log(
       '  3. If the source is deliberately undocumented (internal helper or',
     )
-    logger.log(
-      '     C++ binding where the source IS the spec), add to',
-    )
+    logger.log('     C++ binding where the source IS the spec), add to')
     logger.log('     .github/mirror-docs-allowlist.yml with a reason.')
   }
   process.exitCode = 1

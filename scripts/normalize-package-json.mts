@@ -149,10 +149,7 @@ async function runNpmPkgFix(pkgPath: string): Promise<boolean> {
     })
     return true
   } catch (e) {
-    logger.error(
-      `Error running npm pkg fix in ${pkgDir}:`,
-      errorMessage(e),
-    )
+    logger.error(`Error running npm pkg fix in ${pkgDir}:`, errorMessage(e))
     return false
   }
 }

@@ -31,7 +31,10 @@ import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
+
+const logger = getDefaultLogger()
 
 // Publish dependency chain (see CLAUDE.md "Builder publish dispatch order"):
 //
@@ -44,8 +47,14 @@ import { spawn } from '@socketsecurity/lib/spawn'
 // they coalesce into one "Run binsuite.yml" hint instead of three
 // separate "binflate.yml / binject.yml / binpress.yml" suggestions for a
 // non-existent set of workflows.
-interface UpstreamEntry { pkg: string; dispatchWorkflow: string }
-interface ChainEntry { pkg: string; deps: UpstreamEntry[] }
+interface UpstreamEntry {
+  pkg: string
+  dispatchWorkflow: string
+}
+interface ChainEntry {
+  pkg: string
+  deps: UpstreamEntry[]
+}
 const STUBS_DEPS: UpstreamEntry[] = [
   { pkg: 'curl', dispatchWorkflow: 'curl.yml' },
   { pkg: 'lief', dispatchWorkflow: 'lief.yml' },
@@ -94,7 +103,10 @@ async function gh(...args: string[]): Promise<string> {
 
 // Find the commit SHA where `<package>: "<version>"` was last set in
 // cache-versions.json. Uses `git log -L` to follow the line.
-async function findCacheVersionBumpSha(pkg: string, version: string): Promise<string | undefined> {
+async function findCacheVersionBumpSha(
+  pkg: string,
+  version: string,
+): Promise<string | undefined> {
   // `-G` takes an extended regex; `git log` runs it against ADDED+REMOVED
   // lines for the path, so we search for the value-side appearance to find
   // the commit that introduced the current value.
@@ -113,7 +125,9 @@ async function findCacheVersionBumpSha(pkg: string, version: string): Promise<st
 // Find the most recent published release for `<pkg>`. Tag format:
 // `<pkg>-<YYYYMMDD>-<short-sha>`. Returns both the date and short SHA so
 // the gate can do a cheap date check first then escalate to SHA-ancestry.
-async function findLatestRelease(pkg: string): Promise<{ date: string; sha: string } | undefined> {
+async function findLatestRelease(
+  pkg: string,
+): Promise<{ date: string; sha: string } | undefined> {
   const out = await gh('release', 'list', '--limit', '20', '--json', 'tagName')
   const releases = JSON.parse(out) as Array<{ tagName: string }>
   const tag = releases.find(r => r.tagName.startsWith(`${pkg}-`))?.tagName
@@ -151,7 +165,10 @@ async function resolveSha(short: string): Promise<string | undefined> {
 
 // Check whether commit `descendant` is an ancestor-or-equal of `ancestor` in
 // main's history (i.e. `descendant` was made AFTER `ancestor`).
-async function isDescendantOrEqual(descendant: string, ancestor: string): Promise<boolean> {
+async function isDescendantOrEqual(
+  descendant: string,
+  ancestor: string,
+): Promise<boolean> {
   if (descendant === ancestor) {
     return true
   }
@@ -166,7 +183,10 @@ async function isDescendantOrEqual(descendant: string, ancestor: string): Promis
   }
 }
 
-async function checkUpstream(downstream: string, upstream: UpstreamEntry): Promise<void> {
+async function checkUpstream(
+  downstream: string,
+  upstream: UpstreamEntry,
+): Promise<void> {
   const { pkg, dispatchWorkflow } = upstream
   const version = cacheVersions.versions[pkg]
   if (!version) {
@@ -174,14 +194,16 @@ async function checkUpstream(downstream: string, upstream: UpstreamEntry): Promi
   }
   const bumpSha = await findCacheVersionBumpSha(pkg, version)
   if (!bumpSha) {
-    console.warn(`⚠  could not locate cache-version bump commit for ${pkg}@${version} — skipping freshness gate`)
+    console.warn(
+      `⚠  could not locate cache-version bump commit for ${pkg}@${version} — skipping freshness gate`,
+    )
     return
   }
   const release = await findLatestRelease(pkg)
   if (!release) {
     throw new Error(
       `× ${downstream} requires a published ${pkg} release, but none was found via \`gh release list\`.\n` +
-      `  Dispatch ${dispatchWorkflow} first: gh workflow run ${dispatchWorkflow} -f dry-run=false`,
+        `  Dispatch ${dispatchWorkflow} first: gh workflow run ${dispatchWorkflow} -f dry-run=false`,
     )
   }
 
@@ -191,9 +213,9 @@ async function checkUpstream(downstream: string, upstream: UpstreamEntry): Promi
   if (bumpDate && release.date < bumpDate) {
     throw new Error(
       `× ${downstream} cannot dispatch: ${pkg} cache-version bumped on ${bumpDate} ` +
-      `but the latest ${pkg} release is dated ${release.date} (BEFORE the bump). ` +
-      `Re-publish ${pkg}.\n` +
-      `  Run: gh workflow run ${dispatchWorkflow} -f dry-run=false`,
+        `but the latest ${pkg} release is dated ${release.date} (BEFORE the bump). ` +
+        `Re-publish ${pkg}.\n` +
+        `  Run: gh workflow run ${dispatchWorkflow} -f dry-run=false`,
     )
   }
 
@@ -203,20 +225,22 @@ async function checkUpstream(downstream: string, upstream: UpstreamEntry): Promi
   if (!releaseSha) {
     throw new Error(
       `× ${pkg} release tag points at SHA ${release.sha} which is not in this clone's history.\n` +
-      `  Did you forget \`git fetch\`? If the SHA was rewritten on main, re-publish ${pkg}.`,
+        `  Did you forget \`git fetch\`? If the SHA was rewritten on main, re-publish ${pkg}.`,
     )
   }
   const releaseHasBump = await isDescendantOrEqual(releaseSha, bumpSha)
   if (!releaseHasBump) {
     throw new Error(
       `× ${downstream} cannot dispatch: ${pkg} cache-version bumped at ${bumpSha.slice(0, 8)} ` +
-      `but the latest ${pkg} release was published from ${release.sha} ` +
-      `(date matches but SHA predates the bump). Re-publish ${pkg}.\n` +
-      `  Run: gh workflow run ${dispatchWorkflow} -f dry-run=false`,
+        `but the latest ${pkg} release was published from ${release.sha} ` +
+        `(date matches but SHA predates the bump). Re-publish ${pkg}.\n` +
+        `  Run: gh workflow run ${dispatchWorkflow} -f dry-run=false`,
     )
   }
 
-  console.log(`✓ ${pkg} released ${release.date} @ ${release.sha} (>= bump ${bumpDate ?? '?'} @ ${bumpSha.slice(0, 8)})`)
+  console.log(
+    `✓ ${pkg} released ${release.date} @ ${release.sha} (>= bump ${bumpDate ?? '?'} @ ${bumpSha.slice(0, 8)})`,
+  )
 }
 
 async function main(): Promise<void> {

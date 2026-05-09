@@ -118,8 +118,7 @@ const CLASSES: BugClass[] = [
   },
   {
     id: 'cpp-tolocalchecked-on-v8-call',
-    title:
-      'ToLocalChecked() on V8 API call that can return empty MaybeLocal',
+    title: 'ToLocalChecked() on V8 API call that can return empty MaybeLocal',
     severity: 'high',
     paths: [
       'packages/node-smol-builder/additions/source-patched/src/socketsecurity',
@@ -147,8 +146,7 @@ const CLASSES: BugClass[] = [
     //       .ToLocalChecked()
     // match. Negative lookbehind-esque gating: exclude NewFromUtf8
     // (its own rule handles that one) so we don't double-report.
-    pattern:
-      String.raw`\b(?:NewInstance|Get|Call|CallAsFunction|CallAsConstructor|JSON::Stringify|JSON::Parse)\(\s*context\s*[,)][\s\S]{0,200}?\.ToLocalChecked\(`,
+    pattern: String.raw`\b(?:NewInstance|Get|Call|CallAsFunction|CallAsConstructor|JSON::Stringify|JSON::Parse)\(\s*context\s*[,)][\s\S]{0,200}?\.ToLocalChecked\(`,
     multiline: true,
     why:
       'V8 aborts the whole isolate when ToLocalChecked() is called on an ' +
@@ -197,8 +195,7 @@ const CLASSES: BugClass[] = [
     // set process.exitCode directly without a rejection channel, so
     // there is nothing to leak. The match reports the main() call
     // line via the final capture group.
-    pattern:
-      String.raw`(?s)async\s+function\s+main\b.*?^(main\(\)(?!\.catch))$`,
+    pattern: String.raw`(?s)async\s+function\s+main\b.*?^(main\(\)(?!\.catch))$`,
     multiline: true,
     why:
       'An async main() without .catch() leaks unhandled rejections as ' +
@@ -236,7 +233,7 @@ const CLASSES: BugClass[] = [
       'through the project-wide timeout, retry, and mock-registry ' +
       'machinery.',
     fix:
-      "Use httpJson / httpText / httpRequest from " +
+      'Use httpJson / httpText / httpRequest from ' +
       "'@socketsecurity/lib/http-request' instead.",
     precedents: [],
   },
@@ -323,7 +320,8 @@ const CLASSES: BugClass[] = [
   },
   {
     id: 'cpp-v8-fast-api-fallback',
-    title: '`options.fallback` on v8::FastApiCallbackOptions (removed in V8 ≥ 12.x)',
+    title:
+      '`options.fallback` on v8::FastApiCallbackOptions (removed in V8 ≥ 12.x)',
     severity: 'high',
     paths: [
       'packages/node-smol-builder/additions/source-patched/src/socketsecurity',
@@ -451,11 +449,7 @@ async function runRipgrep(bugClass: BugClass): Promise<Match[]> {
     if (!existsSync(absPath)) {
       continue
     }
-    const args = [
-      '--vimgrep',
-      '--no-config',
-      '--pcre2',
-    ]
+    const args = ['--vimgrep', '--no-config', '--pcre2']
     if (bugClass.multiline) {
       // ripgrep needs --multiline AND --multiline-dotall for [\s\S]
       // to match newlines reliably across patterns. Without dotall
@@ -537,10 +531,7 @@ async function runRipgrep(bugClass: BugClass): Promise<Match[]> {
       // aren't instances of it. Handles C/C++ (`//`, `*`), markdown
       // (`>`), and TS JSDoc (`*`) line comments. Block comments
       // beginning with `/*` on the match line are also skipped.
-      if (
-        /^(?:\/\/|\*|\/\*|>)/.test(text) ||
-        /^\s*\*\s/.test(text)
-      ) {
+      if (/^(?:\/\/|\*|\/\*|>)/.test(text) || /^\s*\*\s/.test(text)) {
         continue
       }
       matches.push({
@@ -600,7 +591,7 @@ async function findNonExistentPnpmScripts(
   const rawMatches = await runRipgrep(bugClass)
   // Allowlist of documentation placeholders that are not real scripts.
   // These are explicit examples in skill docs explaining the convention.
-  const placeholders = new Set(['foo', 'bar', 'baz', 'script'])
+  const placeholders = new Set(['bar', 'baz', 'foo', 'script'])
   for (const m of rawMatches) {
     // Skip Claude Code tool-allowlist patterns like
     //   Bash(pnpm run check:*)
@@ -623,7 +614,10 @@ async function findNonExistentPnpmScripts(
       continue
     }
     if (!knownScripts.has(scriptName)) {
-      matches.push({ ...m, text: `pnpm run ${scriptName} (not in any package.json)` })
+      matches.push({
+        ...m,
+        text: `pnpm run ${scriptName} (not in any package.json)`,
+      })
     }
   }
   return matches
@@ -718,7 +712,9 @@ async function main(): Promise<void> {
   const allowlist = loadAllowlist()
   const allowSet = new Set(
     allowlist.map(e =>
-      e.line !== undefined ? `${e.file}:${e.line}:${e.class}` : `${e.file}:${e.class}`,
+      e.line !== undefined
+        ? `${e.file}:${e.line}:${e.class}`
+        : `${e.file}:${e.class}`,
     ),
   )
 
@@ -776,9 +772,15 @@ async function main(): Promise<void> {
     }
     logger.log('')
     logger.log('What to do:')
-    logger.log('  1. If it is a real bug: fix it (see --explain for the pattern).')
-    logger.log('  2. If the match is safe: add to .github/bug-class-allowlist.yml')
-    logger.log('     with file, line, class, and a reason. Each entry is audit-')
+    logger.log(
+      '  1. If it is a real bug: fix it (see --explain for the pattern).',
+    )
+    logger.log(
+      '  2. If the match is safe: add to .github/bug-class-allowlist.yml',
+    )
+    logger.log(
+      '     with file, line, class, and a reason. Each entry is audit-',
+    )
     logger.log('     able so future readers know why the check was bypassed.')
     logger.log('  3. Run with --explain for the full why + fix writeup.')
   }

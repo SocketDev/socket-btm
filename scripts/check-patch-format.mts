@@ -235,13 +235,10 @@ function parsePatch(content: string): ParsedPatch {
 /** Extract the filename-numeric-prefix (e.g. "001" from "001-foo.patch"). */
 function numericPrefix(file: string): number | null {
   const match = path.basename(file).match(/^(\d+)-/)
-  return match ? Number.parseInt(match[1]!, 10) : null
+  return match ? Number.parseInt(match[1]!, 10) : undefined
 }
 
-function validatePatch(
-  absPath: string,
-  project: string,
-): Violation[] {
+function validatePatch(absPath: string, project: string): Violation[] {
   const relPath = path.relative(MONOREPO_ROOT, absPath)
   const violations: Violation[] = []
   let content: string
@@ -316,8 +313,10 @@ function validatePatch(
       rule: 'description-header',
     })
   } else {
-    const descText =
-      parsed.headerLines[descLine]!.replace(/^#\s*@description:\s*/, '').trim()
+    const descText = parsed.headerLines[descLine]!.replace(
+      /^#\s*@description:\s*/,
+      '',
+    ).trim()
     if (descText === '') {
       violations.push({
         detail: '`# @description:` header is present but empty.',
@@ -675,8 +674,12 @@ async function main(): Promise<void> {
     logger.log(
       '  1. Fix the format issue. Run with --explain for per-violation fix hints.',
     )
-    logger.log('  2. If the violation is intentional (e.g. numbered-series gap from')
-    logger.log('     a removed patch): add to .github/patch-format-allowlist.yml with')
+    logger.log(
+      '  2. If the violation is intentional (e.g. numbered-series gap from',
+    )
+    logger.log(
+      '     a removed patch): add to .github/patch-format-allowlist.yml with',
+    )
     logger.log('     file, rule, and a reason.')
     logger.log('  3. See CLAUDE.md "Source Patches" for the canonical format.')
   }

@@ -145,12 +145,7 @@ const CASCADE_RULES = {
   'packages/curl-builder/scripts/': ['curl', 'stubs', 'node-smol'],
   // lief-builder/make/lief.mk exports LIEF_CFLAGS / LIEF_DEFINES that
   // binpress + binject Makefiles include; node-smol embeds binpress.
-  'packages/lief-builder/make/': [
-    'lief',
-    'binject',
-    'binpress',
-    'node-smol',
-  ],
+  'packages/lief-builder/make/': ['lief', 'binject', 'binpress', 'node-smol'],
   // lief-builder patches change the LIEF library that binject/binpress/
   // node-smol link against.
   'packages/lief-builder/patches/': [
@@ -166,18 +161,8 @@ const CASCADE_RULES = {
   // rules above. Parallels the curl-builder/{docker,lib,scripts}/
   // cascade added in R19. docker/ added in R21 — Dockerfiles produce
   // the LIEF binary that downstream consumers download via ensure-lief.
-  'packages/lief-builder/docker/': [
-    'lief',
-    'binject',
-    'binpress',
-    'node-smol',
-  ],
-  'packages/lief-builder/lib/': [
-    'lief',
-    'binject',
-    'binpress',
-    'node-smol',
-  ],
+  'packages/lief-builder/docker/': ['lief', 'binject', 'binpress', 'node-smol'],
+  'packages/lief-builder/lib/': ['lief', 'binject', 'binpress', 'node-smol'],
   'packages/lief-builder/scripts/': [
     'lief',
     'binject',
@@ -327,7 +312,8 @@ async function main(): Promise<void> {
         ['show', `${baseBranch}:.github/cache-versions.json`],
         { cwd: MONOREPO_ROOT },
       )
-      previousVersions = (JSON.parse(String(stdout)) as CacheVersionsFile).versions
+      previousVersions = (JSON.parse(String(stdout)) as CacheVersionsFile)
+        .versions
     } catch {
       logger.warn('Could not get previous cache versions from base branch.')
       logger.warn(

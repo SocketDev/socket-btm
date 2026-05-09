@@ -161,15 +161,15 @@ async function main(): Promise<void> {
             },
           )
           if (result.error) {
-            logger.error(`Failed to spawn vitest: ${errorMessage(result.error)}`)
+            logger.error(
+              `Failed to spawn vitest: ${errorMessage(result.error)}`,
+            )
             exitCode = 1
           } else if (result.status !== 0) {
             exitCode = result.status || 1
           }
         } catch (e) {
-          logger.error(
-            `Unexpected error running tests: ${errorMessage(e)}`,
-          )
+          logger.error(`Unexpected error running tests: ${errorMessage(e)}`)
           exitCode = 1
         }
       }

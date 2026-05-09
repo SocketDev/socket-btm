@@ -153,11 +153,10 @@ function loadSubmodules(): Submodule[] {
 /** Get the short gitlink commit SHA for a submodule path. */
 async function getSubmoduleSha(subPath: string): Promise<string | undefined> {
   try {
-    const result = await spawn(
-      'git',
-      ['ls-tree', 'HEAD', subPath],
-      { cwd: MONOREPO_ROOT, stdio: 'pipe' },
-    )
+    const result = await spawn('git', ['ls-tree', 'HEAD', subPath], {
+      cwd: MONOREPO_ROOT,
+      stdio: 'pipe',
+    })
     const stdout = String(result.stdout || '')
     // Only consider the first line — ls-tree on a path that matches a tree
     // (rather than a single entry) can return multiple lines, and silently
@@ -335,9 +334,7 @@ function printMismatch(m: Mismatch, opts: Options): void {
       logger.log(
         `       Usually .gitmodules is canonical; workflows read package.json`,
       )
-      logger.log(
-        `       for cache keys + release labels, so both must agree.`,
-      )
+      logger.log(`       for cache keys + release labels, so both must agree.`)
     } else {
       logger.log(
         `  Fix: update sources.${m.upstream}.ref in packages/<pkg>/package.json`,

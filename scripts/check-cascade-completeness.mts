@@ -64,14 +64,14 @@ const ALLOWLIST_PATH = path.join(
 // Used when we need to check if a Dockerfile-COPY path is hashed in
 // the workflow's cache key.
 const PACKAGE_TO_WORKFLOW: Record<string, string> = {
-  'binflate': '.github/workflows/binsuite.yml',
-  'binject': '.github/workflows/binsuite.yml',
-  'binpress': '.github/workflows/binsuite.yml',
+  binflate: '.github/workflows/binsuite.yml',
+  binject: '.github/workflows/binsuite.yml',
+  binpress: '.github/workflows/binsuite.yml',
   'curl-builder': '.github/workflows/curl.yml',
   'ink-builder': '.github/workflows/ink.yml',
   'iocraft-builder': '.github/workflows/iocraft.yml',
   'lief-builder': '.github/workflows/lief.yml',
-  'models': '.github/workflows/models.yml',
+  models: '.github/workflows/models.yml',
   'node-smol-builder': '.github/workflows/node-smol.yml',
   'onnxruntime-builder': '.github/workflows/onnxruntime.yml',
   'opentui-builder': '.github/workflows/opentui.yml',
@@ -350,9 +350,7 @@ function collectDockerfileCopies(): Finding[] {
     let dockerFiles: string[]
     try {
       dockerFiles = readdirSync(dockerDir).filter(
-        f =>
-          f === 'Dockerfile' ||
-          f.startsWith('Dockerfile.'),
+        f => f === 'Dockerfile' || f.startsWith('Dockerfile.'),
       )
     } catch {
       continue
@@ -548,18 +546,12 @@ async function main(): Promise<void> {
   if (!opts.json) {
     logger.log('')
     logger.log('What to do:')
-    logger.log(
-      '  1. If the gap is real: add to CASCADE_RULES or the workflow',
-    )
+    logger.log('  1. If the gap is real: add to CASCADE_RULES or the workflow')
     logger.log(
       '     cache-key composition (see --explain for placement hints).',
     )
-    logger.log(
-      '  2. If the dep is genuinely not build-affecting: add to',
-    )
-    logger.log(
-      '     .github/cascade-completeness-allowlist.yml with a reason.',
-    )
+    logger.log('  2. If the dep is genuinely not build-affecting: add to')
+    logger.log('     .github/cascade-completeness-allowlist.yml with a reason.')
     logger.log('  3. Run with --explain for fix guidance per finding.')
   }
   process.exitCode = 1

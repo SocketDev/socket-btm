@@ -60,7 +60,7 @@ async function runLint(
 async function runTypeCheck(): Promise<number> {
   logger.step('Running type checks')
 
-  const tsgoResult = await which('tsgo').catch(() => null)
+  const tsgoResult = await which('tsgo').catch(() => undefined)
   if (!tsgoResult || Array.isArray(tsgoResult)) {
     logger.warn('tsgo not found — skipping type checks')
     return 0
@@ -96,9 +96,7 @@ async function runBugClassCheck(): Promise<number> {
     logger.error(
       'Bug-class regression check failed — rerun with --explain for details',
     )
-    logger.log(
-      '  node scripts/check-bug-classes.mts --explain',
-    )
+    logger.log('  node scripts/check-bug-classes.mts --explain')
     return result.code ?? 1
   }
 
@@ -143,9 +141,7 @@ async function runPatchFormatCheck(): Promise<number> {
   )
 
   if (result.code !== 0) {
-    logger.error(
-      'Patch format check failed — rerun with --explain for details',
-    )
+    logger.error('Patch format check failed — rerun with --explain for details')
     logger.log('  node scripts/check-patch-format.mts --explain')
     return result.code ?? 1
   }
@@ -205,19 +201,13 @@ async function runMirrorDocsCheck(): Promise<number> {
 async function runPathHygieneCheck(): Promise<number> {
   logger.step('Running path-hygiene check (1 path, 1 reference)')
 
-  const result = await spawn(
-    'node',
-    ['scripts/check-paths.mts', '--quiet'],
-    {
-      shell: WIN32,
-      stdio: 'inherit',
-    },
-  )
+  const result = await spawn('node', ['scripts/check-paths.mts', '--quiet'], {
+    shell: WIN32,
+    stdio: 'inherit',
+  })
 
   if (result.code !== 0) {
-    logger.error(
-      'Path-hygiene check failed — rerun with --explain for details',
-    )
+    logger.error('Path-hygiene check failed — rerun with --explain for details')
     logger.log('  node scripts/check-paths.mts --explain')
     return result.code ?? 1
   }

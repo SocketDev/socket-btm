@@ -419,7 +419,7 @@ async function checkTestScripts(packages: PackageInfo[]): Promise<void> {
 async function checkCoverageScripts(packages: PackageInfo[]): Promise<void> {
   log('[4/8] Checking coverage scripts...', colors.blue)
 
-  const C_PACKAGES = new Set(['binflate', 'binpress', 'binject'])
+  const C_PACKAGES = new Set(['binflate', 'binject', 'binpress'])
   const jsPackages = packages.filter(pkg => !C_PACKAGES.has(pkg.name))
 
   for (const pkg of jsPackages) {
@@ -450,8 +450,9 @@ async function checkCoverageScripts(packages: PackageInfo[]): Promise<void> {
     // or by calling the C-package gcov helper in bin-infra).
     const coverCmd = scripts['cover']
     const isVitest = coverCmd.includes('--coverage')
-    const isGcovHelper = coverCmd.includes('run-coverage.js') ||
-                         coverCmd.includes('scripts/cover.mts')
+    const isGcovHelper =
+      coverCmd.includes('run-coverage.js') ||
+      coverCmd.includes('scripts/cover.mts')
     if (!isVitest && !isGcovHelper) {
       reportIssue(
         'error',

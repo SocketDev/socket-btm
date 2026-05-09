@@ -17,38 +17,3 @@
 #
 # The parser is intentionally tiny (see loadAllowlist in
 # check-regression-patterns.mts); keep entries flat and one-key-per-line.
-
-- file: .claude/skills/scanning-quality/SKILL.md
-  line: 15
-  pattern: docs-pnpm-run-nonexistent
-  reason: "`pnpm run fleet-skill` is the canonical script in socket-repo-template (scripts/run-skill-fleet.mts), used to dispatch a skill across every fleet repo headlessly. socket-btm doesn't define this script locally because it's not the fleet driver — the SKILL.md text accurately documents how the skill is invoked from socket-repo-template. Pre-existing template-canonical text — every fleet repo's copy hits this same false positive."
-
-- file: packages/node-smol-builder/additions/source-patched/src/socketsecurity/http/http_fast_response.cc
-  line: 332
-  pattern: cpp-size-overflow-bounds-check
-  reason: "`offset + status_len > buffer_size` where all three operands come from server's own code and `buffer_size` is a fixed 512-byte stack buffer (see char header_buf[512] further down). Overflow would require status_len near SIZE_MAX which is impossible from a function-local computation."
-
-- file: packages/node-smol-builder/additions/source-patched/src/socketsecurity/http/http_fast_response.cc
-  line: 340
-  pattern: cpp-size-overflow-bounds-check
-  reason: "Same 512-byte fixed buffer context. kJsonHeadersLen is a compile-time constant."
-
-- file: packages/node-smol-builder/additions/source-patched/src/socketsecurity/http/http_fast_response.cc
-  line: 345
-  pattern: cpp-size-overflow-bounds-check
-  reason: "Same 512-byte fixed buffer context. kTextHeadersLen is a compile-time constant."
-
-- file: packages/node-smol-builder/additions/source-patched/src/socketsecurity/http/http_fast_response.cc
-  line: 363
-  pattern: cpp-size-overflow-bounds-check
-  reason: "Same 512-byte fixed buffer context. `needed` is the sum of 2-3 compile-time constants."
-
-- file: packages/node-smol-builder/additions/source-patched/src/socketsecurity/http/http_fast_response.cc
-  line: 395
-  pattern: cpp-size-overflow-bounds-check
-  reason: "Same 512-byte fixed buffer context. `cl_len + kHeaderEndLen` are both small compile-time values."
-
-- file: packages/build-infra/src/socketsecurity/build-infra/socket_cacache.h
-  line: 152
-  pattern: cpp-tmpfile-predictable
-  reason: "Windows branch of the cacache write path. On Windows, CI runners are dedicated VMs with no shared-user threat and mkstemp is non-standard. POSIX branch uses mkstemp; this Windows fallback keeps a pid+time pattern which is acceptable under that threat model."

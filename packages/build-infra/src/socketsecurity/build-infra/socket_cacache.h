@@ -57,6 +57,11 @@
 
 #if !defined(_WIN32)
     #include <unistd.h>
+#else
+    #include <fcntl.h>
+    #include <io.h>
+    #include <share.h>
+    #include <sys/types.h>
 #endif
 
 /* Self-contained file I/O helpers (no external deps). */
@@ -122,9 +127,14 @@ static int write_file_atomically(const char *path, const uint8_t *data, size_t l
      * predictable `tmp-<pid>-<time>` path as a symlink. Same fix class
      * as R22 sea_inject.cc.
      *
-     * On Windows the shared-runner threat model is weaker (dedicated VMs
-     * per job, no other local user) and mkstemp isn't standard. Keep
-     * the pid+time fallback there; the `fopen("wb")` is a plain create.
+     * On Windows we mirror the same defense via `_mktemp_s` (fills the
+     * `XXXXXX` template with random characters) plus `_open` with the
+     * `_O_CREAT | _O_EXCL` combination — `_O_EXCL` makes the create
+     * fail if the path already exists, including when it points at a
+     * symlink, junction, or another process's file. The legacy
+     * `fopen("wb")` path was symlink-followable; this matches POSIX
+     * `mkstemp` semantics on Windows so the cross-platform invariant
+     * holds even on shared/multi-tenant Windows runners.
      */
     char staging[512];
     char tmp_path[1024];
@@ -145,12 +155,38 @@ static int write_file_atomically(const char *path, const uint8_t *data, size_t l
     if (scache_staging_dir(staging, sizeof(staging)) == 0) {
         create_parent_directories(staging);
         mkdir(staging, 0755);
-        snprintf(tmp_path, sizeof(tmp_path), "%s/tmp-%d-%lld", staging, (int)getpid(), (long long)time(NULL));
+        snprintf(tmp_path, sizeof(tmp_path), "%s/tmp-XXXXXX", staging);
     } else {
-        snprintf(tmp_path, sizeof(tmp_path), "%s.tmp.%d", path, (int)getpid());
+        snprintf(tmp_path, sizeof(tmp_path), "%s.tmp.XXXXXX", path);
     }
-    f = fopen(tmp_path, "wb");
-    if (!f) return -1;
+    /* Atomically allocate a unique name + create the file with EXCL so
+     * a pre-existing symlink/file cannot be followed. _mktemp_s uses
+     * the CRT's PRNG seeded from the process state, then _open(...,
+     * _O_CREAT | _O_EXCL | _O_BINARY) refuses to open anything that
+     * already exists. The retry loop covers the rare _mktemp_s collision
+     * window — `errno == EEXIST` means another caller raced us to the
+     * same template; pick a fresh one. */
+    int fd = -1;
+    for (int attempt = 0; attempt < 16; ++attempt) {
+        char retry_path[1024];
+        memcpy(retry_path, tmp_path, sizeof(retry_path));
+        if (_mktemp_s(retry_path, sizeof(retry_path)) != 0) {
+            return -1;
+        }
+        fd = _open(retry_path,
+                   _O_CREAT | _O_EXCL | _O_WRONLY | _O_BINARY,
+                   _S_IREAD | _S_IWRITE);
+        if (fd >= 0) {
+            memcpy(tmp_path, retry_path, sizeof(tmp_path));
+            break;
+        }
+        if (errno != EEXIST) {
+            return -1;
+        }
+    }
+    if (fd < 0) return -1;
+    f = _fdopen(fd, "wb");
+    if (!f) { _close(fd); _unlink(tmp_path); return -1; }
 #endif
     size_t written = fwrite(data, 1, len, f);
     fclose(f);

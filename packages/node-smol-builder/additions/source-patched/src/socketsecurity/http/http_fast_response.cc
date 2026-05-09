@@ -316,6 +316,15 @@ bool FastResponse::TryWrite2(
 // Build HTTP response headers into a buffer (zero heap allocation)
 // ============================================================================
 
+// Mirror of `has_room` in http_binding.cc. The additive form
+// `length + needed > capacity` wraps when `needed` is near SIZE_MAX,
+// silently passing the bounds check. Subtraction with two guards is
+// overflow-proof for any `size_t` operands. Inlining is fine — the
+// helper is one expression and gets devirtualized everywhere it's used.
+static inline bool has_room(size_t length, size_t capacity, size_t needed) {
+  return needed <= capacity && length <= capacity - needed;
+}
+
 size_t FastResponse::BuildHeaders(
     char* buffer,
     size_t buffer_size,
@@ -329,7 +338,7 @@ size_t FastResponse::BuildHeaders(
   size_t status_len;
   const char* status_line = GetStatusLine(status_code, &status_len);
   if (status_line == nullptr) return 0;
-  if (offset + status_len > buffer_size) return 0;
+  if (!has_room(offset, buffer_size, status_len)) return 0;
   memcpy(buffer + offset, status_line, status_len);
   offset += status_len;
 
@@ -337,12 +346,12 @@ size_t FastResponse::BuildHeaders(
   // Use pre-computed headers for common types
   if (content_type_len == 16 &&
       memcmp(content_type, "application/json", 16) == 0) {
-    if (offset + kJsonHeadersLen > buffer_size) return 0;
+    if (!has_room(offset, buffer_size, kJsonHeadersLen)) return 0;
     memcpy(buffer + offset, kJsonHeaders, kJsonHeadersLen);
     offset += kJsonHeadersLen;
   } else if (content_type_len == 10 &&
              memcmp(content_type, "text/plain", 10) == 0) {
-    if (offset + kTextHeadersLen > buffer_size) return 0;
+    if (!has_room(offset, buffer_size, kTextHeadersLen)) return 0;
     memcpy(buffer + offset, kTextHeaders, kTextHeadersLen);
     offset += kTextHeadersLen;
   } else {
@@ -360,7 +369,7 @@ size_t FastResponse::BuildHeaders(
     }
     size_t needed = kBinaryHeaderPrefixLen + content_type_len +
                     kBinaryHeaderSuffixLen;
-    if (offset + needed > buffer_size) return 0;
+    if (!has_room(offset, buffer_size, needed)) return 0;
     memcpy(buffer + offset, kBinaryHeaderPrefix, kBinaryHeaderPrefixLen);
     offset += kBinaryHeaderPrefixLen;
     memcpy(buffer + offset, content_type, content_type_len);
@@ -392,7 +401,8 @@ size_t FastResponse::BuildHeaders(
       }
     }
   }
-  if (offset + cl_len + kHeaderEndLen > buffer_size) return 0;
+  size_t cl_total = static_cast<size_t>(cl_len) + kHeaderEndLen;
+  if (!has_room(offset, buffer_size, cl_total)) return 0;
   memcpy(buffer + offset, cl_digits, cl_len);
   offset += cl_len;
   memcpy(buffer + offset, kHeaderEnd, kHeaderEndLen);

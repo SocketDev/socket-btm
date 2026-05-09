@@ -71,10 +71,15 @@ function createYogaResolverPlugin() {
     name: 'yoga-resolver',
     async setup(build: import('esbuild').PluginBuild) {
       const platformArch = await getCurrentPlatformArch()
-      let yogaSyncSource =
-        getYogaBuildPaths('prod', platformArch).outputSyncMjsFile
+      let yogaSyncSource = getYogaBuildPaths(
+        'prod',
+        platformArch,
+      ).outputSyncMjsFile
       if (!existsSync(yogaSyncSource)) {
-        yogaSyncSource = getYogaBuildPaths('dev', platformArch).outputSyncMjsFile
+        yogaSyncSource = getYogaBuildPaths(
+          'dev',
+          platformArch,
+        ).outputSyncMjsFile
       }
       if (!existsSync(yogaSyncSource)) {
         throw new Error(
@@ -170,9 +175,10 @@ async function main() {
     ],
   })
 
-  const outBytes = result.metafile?.outputs[
-    path.relative(PACKAGE_ROOT, path.join(DIST_DIR, 'index.js'))
-  ]?.bytes
+  const outBytes =
+    result.metafile?.outputs[
+      path.relative(PACKAGE_ROOT, path.join(DIST_DIR, 'index.js'))
+    ]?.bytes
   if (outBytes) {
     logger.success(`Bundled (${(outBytes / 1024).toFixed(1)} KB)`)
   } else {

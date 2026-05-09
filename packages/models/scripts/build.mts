@@ -43,11 +43,7 @@ import { spawn } from '@socketsecurity/lib/spawn'
 import { convertToOnnx as convertToOnnxImpl } from './converted/shared/convert-to-onnx.mts'
 import { downloadModel as downloadModelImpl } from './downloaded/shared/download-model.mts'
 import { getCheckpointChain } from './get-checkpoint-chain.mts'
-import {
-  PACKAGE_ROOT,
-  getBuildPaths,
-  getCurrentPlatform,
-} from './paths.mts'
+import { PACKAGE_ROOT, getBuildPaths, getCurrentPlatform } from './paths.mts'
 import { quantizeModel as quantizeModelImpl } from './quantized/shared/quantize-model.mts'
 
 // Parse arguments.

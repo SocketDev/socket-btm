@@ -24,11 +24,7 @@ import { parseArgs } from '@socketsecurity/lib/argv/parse'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
-import {
-  UPSTREAM_PATH,
-  getBuildPaths,
-  getCurrentPlatform,
-} from './paths.mts'
+import { UPSTREAM_PATH, getBuildPaths, getCurrentPlatform } from './paths.mts'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

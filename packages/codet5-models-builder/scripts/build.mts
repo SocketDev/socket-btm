@@ -33,11 +33,7 @@ import { safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
-import {
-  MODELS_DIR,
-  getBuildPaths,
-  getCurrentPlatform,
-} from './paths.mts'
+import { MODELS_DIR, getBuildPaths, getCurrentPlatform } from './paths.mts'
 
 const logger = getDefaultLogger()
 

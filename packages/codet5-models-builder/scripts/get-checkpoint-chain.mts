@@ -21,18 +21,12 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
-const CHAIN = [
-  'finalized',
-  'optimized',
-  'quantized',
-  'converted',
-  'downloaded',
-]
+const CHAIN = ['finalized', 'optimized', 'quantized', 'converted', 'downloaded']
 
 export function getCheckpointChain() {
   return CHAIN
 }
 
 if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
-  process.stdout.write(`${CHAIN.join(',')}\n`)
+  process.stdout.write(`${CHAIN.join(',')}\n`) // socket-hook: allow logger -- shell capture of checkpoint chain
 }

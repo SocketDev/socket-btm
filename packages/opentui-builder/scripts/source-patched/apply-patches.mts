@@ -114,7 +114,10 @@ export async function applyPatches(platformArch, buildMode) {
           } else if (entry.isFile() && entry.name.endsWith('.txt')) {
             const buf = await fs.readFile(full)
             if (buf.includes(13)) {
-              await fs.writeFile(full, buf.toString('utf8').replace(/\r\n/g, '\n'))
+              await fs.writeFile(
+                full,
+                buf.toString('utf8').replace(/\r\n/g, '\n'),
+              )
             }
           }
         }),

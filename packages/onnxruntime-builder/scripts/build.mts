@@ -11,10 +11,7 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
-import {
-  checkDiskSpace,
-  freeDiskSpace,
-} from 'build-infra/lib/build-helpers'
+import { checkDiskSpace, freeDiskSpace } from 'build-infra/lib/build-helpers'
 import { printError } from 'build-infra/lib/build-output'
 import { CHECKPOINTS } from 'build-infra/lib/constants'
 import { ensureEmscripten } from 'build-infra/lib/emscripten-installer'

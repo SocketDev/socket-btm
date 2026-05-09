@@ -104,10 +104,7 @@ export async function buildNapiGoAddon(opts) {
   ]
     .filter(Boolean)
     .join(' ')
-  const cgoCxxflags = [
-    ...getCCRemapFlags(),
-    process.env['CGO_CXXFLAGS'] || '',
-  ]
+  const cgoCxxflags = [...getCCRemapFlags(), process.env['CGO_CXXFLAGS'] || '']
     .filter(Boolean)
     .join(' ')
 

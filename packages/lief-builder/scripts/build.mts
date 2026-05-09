@@ -272,9 +272,7 @@ async function verifyMuslCompatibility(libPath) {
       const result = await spawn('nm', [libPath], { stdio: 'pipe' })
       nmOutput = result?.stdout
     } catch (nmError) {
-      logger.info(
-        `Warning: nm failed on ${libPath}: ${errorMessage(nmError)}`,
-      )
+      logger.info(`Warning: nm failed on ${libPath}: ${errorMessage(nmError)}`)
       return { compatible: true }
     }
 
@@ -476,9 +474,12 @@ async function applyLiefPatches(sourceDir) {
       await runCommand('patch', ['-p1', '-i', patchPath], sourceDir)
       logger.info('    Applied successfully')
     } catch (e) {
-      throw new Error(`Failed to apply patch ${patchFile}: ${errorMessage(e)}`, {
-        cause: e,
-      })
+      throw new Error(
+        `Failed to apply patch ${patchFile}: ${errorMessage(e)}`,
+        {
+          cause: e,
+        },
+      )
     }
   }
 
@@ -691,9 +692,7 @@ async function downloadPrebuiltLIEF(options = {}) {
     logger.success('Successfully downloaded and extracted prebuilt LIEF')
     return extractDir
   } catch (e) {
-    logger.info(
-      `Failed to download prebuilt LIEF: ${errorMessage(e)}`,
-    )
+    logger.info(`Failed to download prebuilt LIEF: ${errorMessage(e)}`)
     await logTransientErrorHelp(e)
     return undefined
   }
@@ -954,7 +953,9 @@ async function main() {
       const targetArch = process.env.TARGET_ARCH || process.arch
       const osxArch = targetArch === 'x64' ? 'x86_64' : 'arm64'
       cmakeArgs.push(`-DCMAKE_OSX_ARCHITECTURES=${osxArch}`)
-      logger.info(`Building LIEF for darwin-${targetArch} (CMAKE_OSX_ARCHITECTURES=${osxArch})`)
+      logger.info(
+        `Building LIEF for darwin-${targetArch} (CMAKE_OSX_ARCHITECTURES=${osxArch})`,
+      )
     }
 
     // On Windows, use gcc/MinGW for consistent ABI (CI and binsuite)

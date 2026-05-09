@@ -6,28 +6,31 @@
  */
 
 import { ViewBuilder, TextBuilder, render_to_string } from '../index.mts'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
-console.log('🎨 iocraft-builder Builder API Showcase\n')
+const logger = getDefaultLogger()
+
+logger.info('🎨 iocraft-builder Builder API Showcase\n')
 
 // ============================================================================
 // Example 1: Simple Text with Styling
 // ============================================================================
 
-console.log('📝 Example 1: Styled Text')
+logger.info('📝 Example 1: Styled Text')
 const styledText = TextBuilder.new('Hello, World!')
   .color('Blue')
   .bold()
   .underline()
   .build()
 
-console.log(render_to_string(styledText))
-console.log()
+logger.info(render_to_string(styledText))
+logger.log()
 
 // ============================================================================
 // Example 2: View with Border and Padding
 // ============================================================================
 
-console.log('📦 Example 2: Bordered View')
+logger.info('📦 Example 2: Bordered View')
 const borderedView = ViewBuilder.new()
   .border_style('single')
   .border_color('Cyan')
@@ -35,14 +38,14 @@ const borderedView = ViewBuilder.new()
   .child(TextBuilder.new('Bordered Content').color('Green').build())
   .build()
 
-console.log(render_to_string(borderedView))
-console.log()
+logger.info(render_to_string(borderedView))
+logger.log()
 
 // ============================================================================
 // Example 3: Flexbox Layout
 // ============================================================================
 
-console.log('📐 Example 3: Flexbox Row Layout')
+logger.info('📐 Example 3: Flexbox Row Layout')
 const flexRow = ViewBuilder.new()
   .flex_direction('row')
   .justify_content('space-between')
@@ -54,14 +57,14 @@ const flexRow = ViewBuilder.new()
   .child(TextBuilder.new('Right').color('Green').build())
   .build()
 
-console.log(render_to_string(flexRow))
-console.log()
+logger.info(render_to_string(flexRow))
+logger.log()
 
 // ============================================================================
 // Example 4: Nested Components (Dashboard)
 // ============================================================================
 
-console.log('📊 Example 4: Dashboard Layout')
+logger.info('📊 Example 4: Dashboard Layout')
 const dashboard = ViewBuilder.new()
   .flex_direction('column')
   .gap(1)
@@ -119,14 +122,14 @@ const dashboard = ViewBuilder.new()
   )
   .build()
 
-console.log(render_to_string(dashboard))
-console.log()
+logger.info(render_to_string(dashboard))
+logger.log()
 
 // ============================================================================
 // Example 5: Complex Grid Layout
 // ============================================================================
 
-console.log('🎯 Example 5: Complex Grid')
+logger.info('🎯 Example 5: Complex Grid')
 const grid = ViewBuilder.new()
   .flex_direction('column')
   .gap(1)
@@ -200,14 +203,14 @@ const grid = ViewBuilder.new()
   )
   .build()
 
-console.log(render_to_string(grid))
-console.log()
+logger.info(render_to_string(grid))
+logger.log()
 
 // ============================================================================
 // Example 6: All Text Styles
 // ============================================================================
 
-console.log('✨ Example 6: All Text Styles')
+logger.info('✨ Example 6: All Text Styles')
 const textStyles = ViewBuilder.new()
   .flex_direction('column')
   .gap(1)
@@ -229,14 +232,14 @@ const textStyles = ViewBuilder.new()
   )
   .build()
 
-console.log(render_to_string(textStyles))
-console.log()
+logger.info(render_to_string(textStyles))
+logger.log()
 
 // ============================================================================
 // Example 7: All Border Styles
 // ============================================================================
 
-console.log('🎨 Example 7: All Border Styles')
+logger.info('🎨 Example 7: All Border Styles')
 const borderStyles = ViewBuilder.new()
   .flex_direction('row')
   .gap(2)
@@ -271,14 +274,14 @@ const borderStyles = ViewBuilder.new()
   )
   .build()
 
-console.log(render_to_string(borderStyles))
-console.log()
+logger.info(render_to_string(borderStyles))
+logger.log()
 
 // ============================================================================
 // Example 8: Spacing Showcase
 // ============================================================================
 
-console.log('📏 Example 8: Padding & Margin')
+logger.info('📏 Example 8: Padding & Margin')
 const spacing = ViewBuilder.new()
   .flex_direction('column')
   .gap(1)
@@ -304,14 +307,14 @@ const spacing = ViewBuilder.new()
   )
   .build()
 
-console.log(render_to_string(spacing))
-console.log()
+logger.info(render_to_string(spacing))
+logger.log()
 
-console.log('✅ All examples rendered successfully!')
-console.log()
-console.log('💡 Key Takeaways:')
-console.log('   • Builder API provides fluent, chainable methods')
-console.log('   • Zero-clone performance via std::mem::replace')
-console.log('   • Supports all iocraft features (flex, borders, colors, etc.)')
-console.log('   • Clean, readable code with method chaining')
-console.log()
+logger.info('✅ All examples rendered successfully!')
+logger.log()
+logger.info('💡 Key Takeaways:')
+logger.info('   • Builder API provides fluent, chainable methods')
+logger.info('   • Zero-clone performance via std::mem::replace')
+logger.info('   • Supports all iocraft features (flex, borders, colors, etc.)')
+logger.info('   • Clean, readable code with method chaining')
+logger.log()

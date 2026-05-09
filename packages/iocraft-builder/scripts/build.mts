@@ -30,7 +30,6 @@ import { getRustcRemapFlags } from 'build-infra/lib/path-remap-flags'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
-
 import { WIN32 } from '@socketsecurity/lib/constants/platform'
 import { safeMkdir } from '@socketsecurity/lib/fs'
 import { glob } from '@socketsecurity/lib/globs'
@@ -139,14 +138,22 @@ async function checkUpstream() {
  * TLS stack (not Node.js), so the SFW CA cert isn't trusted.
  */
 function findRealCargo() {
-  const cargoHome = process.env['CARGO_HOME'] || path.join(os.homedir(), '.cargo')
+  const cargoHome =
+    process.env['CARGO_HOME'] || path.join(os.homedir(), '.cargo')
   const ext = WIN32 ? '.exe' : ''
   const realCargo = path.join(cargoHome, 'bin', `cargo${ext}`)
   if (existsSync(realCargo)) {
     return realCargo
   }
   // Fallback: try rustup default location
-  const rustupCargo = path.join(os.homedir(), '.rustup', 'toolchains', 'stable-*', 'bin', `cargo${ext}`)
+  const rustupCargo = path.join(
+    os.homedir(),
+    '.rustup',
+    'toolchains',
+    'stable-*',
+    'bin',
+    `cargo${ext}`,
+  )
   // Just use PATH as last resort
   return `cargo${ext}`
 }

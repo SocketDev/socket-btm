@@ -178,7 +178,8 @@ export async function cloneOnnxSource(options) {
   )
 
   const usesGitLabEigen =
-    eigenLineMatch !== null && /gitlab\.com\/libeigen\/eigen/.test(eigenLineMatch[0])
+    eigenLineMatch !== null &&
+    /gitlab\.com\/libeigen\/eigen/.test(eigenLineMatch[0])
 
   if (usesGitLabEigen) {
     logger.substep(

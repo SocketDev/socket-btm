@@ -20,6 +20,9 @@ import {
   TuiRenderer,
   JsStateHandle,
 } from '../build/dev/darwin-arm64/out/darwin-arm64/iocraft.node'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+
+const logger = getDefaultLogger()
 
 // ============================================================================
 // State Management
@@ -218,7 +221,7 @@ function handleEvent(event, renderer) {
 
 async function main() {
   console.clear()
-  console.log('Starting interactive counter demo...\n')
+  logger.info('Starting interactive counter demo...\n')
 
   // Create renderer
   const renderer = new TuiRenderer()
@@ -235,21 +238,21 @@ async function main() {
     true, // mouse_capture
   )
 
-  console.log('Interactive mode started! Use arrow keys to change the counter.')
+  logger.info('Interactive mode started! Use arrow keys to change the counter.')
 }
 
 // Error handling
 process.on('uncaughtException', err => {
-  console.error('\nFatal error:', err)
+  logger.error('\nFatal error:', err)
   process.exit(1)
 })
 
 process.on('unhandledRejection', err => {
-  console.error('\nUnhandled rejection:', err)
+  logger.error('\nUnhandled rejection:', err)
   process.exit(1)
 })
 
 main().catch(err => {
-  console.error('Failed to start:', err)
+  logger.error('Failed to start:', err)
   process.exit(1)
 })

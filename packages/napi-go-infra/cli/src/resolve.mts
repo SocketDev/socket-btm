@@ -35,7 +35,9 @@ export function getGoTarget(platformArch) {
   if (!entry) {
     throw new Error(
       `napi-go: unsupported platform-arch '${platformArch}'. ` +
-        `Expected one of: ${Object.keys(GO_TARGETS).filter(k => k !== '__proto__').join(', ')}`,
+        `Expected one of: ${Object.keys(GO_TARGETS)
+          .filter(k => k !== '__proto__')
+          .join(', ')}`,
     )
   }
   return entry

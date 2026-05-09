@@ -169,7 +169,12 @@ async function downloadModels() {
     logger.substep(`Model: ${model.name}`)
 
     try {
-      const { cacheModelDir } = getModelPaths(BUILD_MODE, PLATFORM_ARCH, QUANT_LEVEL, model.outputName)
+      const { cacheModelDir } = getModelPaths(
+        BUILD_MODE,
+        PLATFORM_ARCH,
+        QUANT_LEVEL,
+        model.outputName,
+      )
       await runPythonScript('download.py', [model.name, cacheModelDir])
       logger.success(`Downloaded: ${model.name}`)
     } catch (e) {
@@ -231,7 +236,12 @@ async function convertToOnnx() {
     async () => {
       // Smoke test: Verify ONNX models exist
       for (const model of MODELS) {
-        const { onnxModelFile } = getModelPaths(BUILD_MODE, PLATFORM_ARCH, QUANT_LEVEL, model.outputName)
+        const { onnxModelFile } = getModelPaths(
+          BUILD_MODE,
+          PLATFORM_ARCH,
+          QUANT_LEVEL,
+          model.outputName,
+        )
         if (!existsSync(onnxModelFile)) {
           throw new Error(`Converted model not found: ${onnxModelFile}`)
         }

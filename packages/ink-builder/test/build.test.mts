@@ -39,9 +39,9 @@ const HAS_DIST = existsSync(BUNDLE_PATH)
 // the consumer's process and break hooks.
 const EXPECTED_EXTERNALS = new Set([
   'react',
+  'react-devtools-core',
   'react-reconciler',
   'react-reconciler/constants.js',
-  'react-devtools-core',
   'scheduler',
 ])
 

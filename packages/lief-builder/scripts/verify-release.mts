@@ -24,17 +24,20 @@ import process from 'node:process'
 // file has zero imports of its own, so pulling it in does not drag
 // in the workspace-resolution graph that build.mts requires.
 import { LIEF_REQUIRED_FILES } from '../lib/required-files.mts'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+
+const logger = getDefaultLogger()
 
 function main() {
   const dir = process.argv[2]
   if (!dir) {
-    console.error('Usage: node scripts/verify-release.mts <directory>')
+    logger.error('Usage: node scripts/verify-release.mts <directory>')
     process.exitCode = 1
     return
   }
 
   const absoluteDir = path.isAbsolute(dir) ? dir : path.join(process.cwd(), dir)
-  console.log(`Verifying LIEF release at: ${absoluteDir}`)
+  logger.info(`Verifying LIEF release at: ${absoluteDir}`)
 
   const missing = []
   for (const requirement of LIEF_REQUIRED_FILES) {
@@ -51,15 +54,15 @@ function main() {
   }
 
   if (missing.length === 0) {
-    console.log('All required LIEF files verified')
+    logger.info('All required LIEF files verified')
     return
   }
 
-  console.error('Missing required files:')
+  logger.error('Missing required files:')
   for (const file of missing) {
-    console.error(`  - ${file}`)
+    logger.error(`  - ${file}`)
   }
-  console.error('LIEF release verification failed')
+  logger.error('LIEF release verification failed')
   process.exitCode = 1
 }
 

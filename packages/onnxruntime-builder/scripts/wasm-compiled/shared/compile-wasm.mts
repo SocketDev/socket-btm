@@ -145,16 +145,11 @@ export async function compileWasm(options) {
   // probe build.py (the actual argparse target — build.sh is just a
   // shell wrapper) and only add the flag if argparse knows about it.
   if (process.getuid && process.getuid() === 0) {
-    const buildPy = path.join(
-      modeSourceDir,
-      'tools',
-      'ci_build',
-      'build.py',
-    )
+    const buildPy = path.join(modeSourceDir, 'tools', 'ci_build', 'build.py')
     const buildPyArgsResult = await spawn('python3', [buildPy, '--help'], {
       cwd: modeSourceDir,
       stdio: 'pipe',
-    }).catch(() => null)
+    }).catch(() => undefined)
     const helpText =
       String(buildPyArgsResult?.stdout || '') +
       String(buildPyArgsResult?.stderr || '')

@@ -15,6 +15,18 @@
   rule: numbered-series-gap
   reason: "Patch 015 was intentionally removed during R17 (see earlier quality-loop notes). Renumbering 016-022 down to 015-021 would rewrite every subsequent patch filename, break external references in skill/reference docs, and provide no functional benefit — the build applies patches in filename-sort order, which is insensitive to gaps. Keep the gap and document it here so check-patch-format.mts doesn't flag it every CI run."
 
+- file: packages/node-smol-builder/patches/source-patched/027-smol-util-binding.patch
+  rule: numbered-series-gap
+  reason: "Patch 026 (smol-power-node-gyp) was folded into 004-node-gyp-smol-sources.patch as part of the per-binding-patch cleanup. Same renumber-vs-keep-gap tradeoff as patch 016 — keep the gap to avoid rewriting downstream filenames."
+
+- file: packages/node-smol-builder/patches/source-patched/031-smol-primordial-binding.patch
+  rule: numbered-series-gap
+  reason: "Patch 030 (smol-util-node-gyp) was folded into 004-node-gyp-smol-sources.patch as part of the per-binding-patch cleanup. Same rationale as patch 027's gap entry."
+
+- file: packages/node-smol-builder/patches/source-patched/035-smol-versions-native-binding.patch
+  rule: numbered-series-gap
+  reason: "Patch 034 (smol-primordial-node-gyp) was folded into 004-node-gyp-smol-sources.patch as part of the per-binding-patch cleanup. Same rationale as patch 027's gap entry."
+
 # ─── multiple-patches-per-file: pre-existing convention violations ─────
 #
 # CLAUDE.md "Patch Rules" requires one patch per source file across the
@@ -48,10 +60,6 @@
   rule: multiple-patches-per-file
   reason: "Pre-existing: smol-power per-binding-patch series. See 023's reason."
 
-- file: packages/node-smol-builder/patches/source-patched/026-smol-power-node-gyp.patch
-  rule: multiple-patches-per-file
-  reason: "Pre-existing: smol-power per-binding-patch series. See 023's reason."
-
 - file: packages/node-smol-builder/patches/source-patched/027-smol-util-binding.patch
   rule: multiple-patches-per-file
   reason: "Pre-existing: smol-util per-binding-patch series matches smol-power's shape (the established but unenforced pattern). Cleanup deferred."
@@ -61,10 +69,6 @@
   reason: "Pre-existing: smol-util per-binding-patch series. See 027's reason."
 
 - file: packages/node-smol-builder/patches/source-patched/029-smol-util-external-refs.patch
-  rule: multiple-patches-per-file
-  reason: "Pre-existing: smol-util per-binding-patch series. See 027's reason."
-
-- file: packages/node-smol-builder/patches/source-patched/030-smol-util-node-gyp.patch
   rule: multiple-patches-per-file
   reason: "Pre-existing: smol-util per-binding-patch series. See 027's reason."
 
@@ -80,18 +84,18 @@
   rule: multiple-patches-per-file
   reason: "Pre-existing: smol-primordial per-binding-patch series. See 031's reason."
 
-- file: packages/node-smol-builder/patches/source-patched/034-smol-primordial-node-gyp.patch
-  rule: multiple-patches-per-file
-  reason: "Pre-existing: smol-primordial per-binding-patch series. See 031's reason."
-
 - file: packages/node-smol-builder/patches/source-patched/035-smol-versions-native-binding.patch
   rule: multiple-patches-per-file
-  reason: "Pre-existing: smol-versions-native follows the same per-binding-patch shape as smol-power (023-026), smol-util (027-030), and smol-primordial (031-034). The series is internal-only (no realm.js patch — no public node:smol-versions-native shim). Cleanup deferred with the rest of the per-binding-patch series."
+  reason: "Pre-existing: smol-versions-native follows the same per-binding-patch shape as smol-power (023-025), smol-util (027-029), and smol-primordial (031-033). The series is internal-only (no realm.js patch — no public node:smol-versions-native shim). Cleanup deferred with the rest of the per-binding-patch series."
 
 - file: packages/node-smol-builder/patches/source-patched/036-smol-versions-native-external-refs.patch
   rule: multiple-patches-per-file
   reason: "Pre-existing: smol-versions-native per-binding-patch series. See 035's reason."
 
-- file: packages/node-smol-builder/patches/source-patched/037-smol-versions-native-node-gyp.patch
+- file: packages/node-smol-builder/patches/source-patched/038-configure-remove-cargo-gate.patch
   rule: multiple-patches-per-file
-  reason: "Pre-existing: smol-versions-native per-binding-patch series. See 035's reason."
+  reason: "Modifies configure.py, which 019-configure-postgres-iouring.patch also touches. The two patches address orthogonal concerns (postgres/iouring detection vs cargo gate removal) and were intentionally split. Folding them would mix unrelated logic into one patch; allowlist instead."
+
+- file: packages/node-smol-builder/patches/source-patched/039-iokit-link-node-mksnapshot.patch
+  rule: multiple-patches-per-file
+  reason: "Modifies node.gyp, which 004-node-gyp-smol-sources.patch (the canonical owner) also touches. The IOKit link wiring is a small macOS-only addition and cleanly separable from the smol-source registration in 004; folding would inflate 004's surface unnecessarily."

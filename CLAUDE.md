@@ -408,7 +408,7 @@ Required headers — one `@<project>-versions` token per patch matching the targ
 - **Across the series**: each source file is touched by EXACTLY ONE patch. If you need to make several edits to `src/node_binding.cc`, fold them into the single canonical patch for that file. Two patches modifying the same file is forbidden — fold them.
 - **Numbered series is contiguous.** When a patch is folded into another and deleted, renumber the remainder to close the gap. Numbered-series gaps are forbidden — no historic-reference allowlist for "patch N was removed in cleanup R<x>."
 - For multi-file features that cannot be split independently, use an ordered numeric-prefix series (`001-*.patch`, `002-*.patch`, `003-*.patch`) applied in filename order. Each patch still owns exactly ONE file; dependencies flow in ascending order only.
-- Both rules are enforced by `scripts/check-patch-format.mts` (`one-file-per-patch`, `multiple-patches-per-file`, `numbered-series-gap`). The allowlist at `.github/patch-format-allowlist.yml` MUST NOT carry entries for `multiple-patches-per-file` or `numbered-series-gap` — fix the patches instead.
+- Both rules are enforced by `scripts/check-patch-format.mts` (`one-file-per-patch`, `multiple-patches-per-file`, `numbered-series-gap`). No allowlist — fix the patches.
 - Minimal touch, clean diffs, no style changes outside scope.
 - To regenerate / refold: use `/regenerating-patches` skill.
 - Manual: `diff -u a/file b/file`, add headers, validate with `patch --dry-run`.
@@ -420,7 +420,6 @@ Required headers — one `@<project>-versions` token per patch matching the targ
 - **Run locally**: `pnpm run check:version-consistency`
 - **See why a match is flagged**: `node scripts/check-version-consistency.mts --explain`
 - **Machine-readable output**: `--json`
-- **Allowlist transitional drift**: `.github/version-consistency-allowlist.yml`
 
 #### Mirror-docs sync gate
 
@@ -429,7 +428,6 @@ Required headers — one `@<project>-versions` token per patch matching the targ
 - **Run locally**: `pnpm run check:mirror-docs`
 - **See why a match is flagged**: `node scripts/check-mirror-docs.mts --explain`
 - **Machine-readable output**: `--json`
-- **Allowlist orphan/missing exceptions**: `.github/mirror-docs-allowlist.yml`
 
 #### Bug-class regression gate
 
@@ -461,7 +459,6 @@ Catches the shape that powered R18-R27 scope creep — R18 missed `build-infra/w
 - **Run locally**: `pnpm run check:patch-format`
 - **See why a patch is flagged**: `node scripts/check-patch-format.mts --explain`
 - **Machine-readable output**: `--json`
-- **Allowlist intentional exceptions**: `.github/patch-format-allowlist.yml`
 
 Rules enforced:
 

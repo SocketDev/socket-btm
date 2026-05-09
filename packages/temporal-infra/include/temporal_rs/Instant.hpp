@@ -25,8 +25,10 @@
 #include <string>
 #include <string_view>
 
+#include "socketsecurity/temporal/ixdtf_writer.h"
 #include "socketsecurity/temporal/parse.h"
 #include "socketsecurity/temporal/temporal.h"
+#include "socketsecurity/temporal/time_zone.h"
 #include "temporal_rs/DifferenceSettings.hpp"
 #include "temporal_rs/Duration.hpp"
 #include "temporal_rs/I128Nanoseconds.hpp"
@@ -241,11 +243,37 @@ class Instant {
         std::unique_ptr<Duration>(nullptr));
   }
 
+  // 1:1 from upstream instant.rs:420 / :431.
   diplomat::result<std::string, TemporalError>
   to_ixdtf_string_with_provider(std::optional<TimeZone> /*zone*/,
-                                 ToStringRoundingOptions /*options*/,
+                                 ToStringRoundingOptions options,
                                  const Provider& /*p*/) const {
-    return diplomat::Ok<std::string>(std::string{});
+    auto resolved =
+        ::node::socketsecurity::temporal::ToStringRoundingOptionsResolve(
+            options.ToInfra());
+    if (!resolved.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(resolved.error()));
+    }
+    // Upstream's path:
+    //   if Some(timezone): get_iso_datetime_for + offset minutes →
+    //                       with_minute_offset(..., DisplayOffset::Auto)
+    //   else: with_z(DisplayOffset::Auto) + UTC.get_iso_datetime_for
+    // Until the shim TimeZone surface gets a full ToInfra bridge for
+    // non-UTC zones in this code path, route the no-zone case 1:1 with
+    // upstream's else-branch.
+    auto utc = ::node::socketsecurity::temporal::TimeZone::Utc();
+    auto datetime = utc.GetIsoDateTimeFor(inner_);
+    if (!datetime.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(datetime.error()));
+    }
+    return diplomat::Ok<std::string>(
+        ::node::socketsecurity::temporal::IxdtfStringBuilder()
+            .WithDate(datetime.value().date)
+            .WithTime(datetime.value().time, resolved.value().precision)
+            .WithZ(::node::socketsecurity::temporal::DisplayOffset::kAuto)
+            .Build());
   }
 
   // ── Bridges ────────────────────────────────────────────────────

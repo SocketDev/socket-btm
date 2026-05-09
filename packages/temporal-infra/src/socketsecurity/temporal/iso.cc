@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace node {
 namespace socketsecurity {
@@ -504,6 +505,35 @@ TemporalResult<RoundedTime> RoundIsoTime(
     default:
       return TemporalError::Assert("Unreachable: invalid unit in RoundIsoTime");
   }
+}
+
+// 1:1 from upstream iso.rs:158 `IsoDateTime::round`.
+TemporalResult<IsoDateTime> RoundIsoDateTime(
+    const IsoDateTime& self,
+    const ResolvedRoundingOptions& options) noexcept {
+  // let (rounded_days, rounded_time) = self.time.round(resolved_options)?
+  auto round_result = RoundIsoTime(self.time, options);
+  if (!round_result.ok()) {
+    return TemporalResult<IsoDateTime>(round_result.error());
+  }
+  // let balance_result = IsoDate::try_balance(year, month.into(),
+  //   i64::from(day) + rounded_days)?;
+  const int64_t balanced_day =
+      static_cast<int64_t>(self.date.day) + round_result.value().days;
+  // BalanceISODate accepts (year, month, day) as int32_t. Day overflow
+  // beyond int32_t range is far outside spec limits; we still pass via
+  // int64_t until the cast at the seam.
+  if (balanced_day > std::numeric_limits<int32_t>::max() ||
+      balanced_day < std::numeric_limits<int32_t>::min()) {
+    return TemporalError::Range("PlainDateTime out of representable range");
+  }
+  IsoDate balanced = BalanceISODate(self.date.year, self.date.month,
+                                     static_cast<int32_t>(balanced_day));
+  IsoDateTime out{balanced, round_result.value().time};
+  if (!out.IsValid()) {
+    return TemporalError::Range("PlainDateTime is not within valid limits");
+  }
+  return out;
 }
 
 }  // namespace temporal

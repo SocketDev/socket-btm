@@ -139,6 +139,13 @@ struct RoundedTime {
 TemporalResult<RoundedTime> RoundIsoTime(
     const IsoTime& self, const ResolvedRoundingOptions& options) noexcept;
 
+// 1:1 from upstream iso.rs:158 `IsoDateTime::round`. Rounds the time
+// component then balances the date forward by any whole-day overflow
+// emitted by the time round.
+TemporalResult<IsoDateTime> RoundIsoDateTime(
+    const IsoDateTime& self,
+    const ResolvedRoundingOptions& options) noexcept;
+
 }  // namespace temporal
 }  // namespace socketsecurity
 }  // namespace node

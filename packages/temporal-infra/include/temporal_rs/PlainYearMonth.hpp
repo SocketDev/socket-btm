@@ -10,6 +10,7 @@
 #include <string_view>
 
 #include "socketsecurity/temporal/plain_date.h"
+#include "socketsecurity/temporal/ixdtf_writer.h"
 #include "socketsecurity/temporal/plain_year_month.h"
 #include "temporal_rs/AnyCalendarKind.hpp"
 #include "temporal_rs/ArithmeticOverflow.hpp"
@@ -119,8 +120,14 @@ class PlainYearMonth {
     return diplomat::Ok<int64_t>(0);
   }
 
-  std::string to_ixdtf_string(DisplayCalendar /*display_calendar*/) const {
-    return std::string{};
+  // 1:1 from upstream plain_year_month.rs:630 / :638.
+  std::string to_ixdtf_string(DisplayCalendar display_calendar) const {
+    ::node::socketsecurity::temporal::FormattableYearMonth fym{
+        ::node::socketsecurity::temporal::FormattableDate{
+            inner_.iso.year, inner_.iso.month, inner_.iso.day},
+        ::node::socketsecurity::temporal::FormattableCalendar{
+            display_calendar.ToInfra(), "iso8601"}};
+    return fym.ToString();
   }
 
   static diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>

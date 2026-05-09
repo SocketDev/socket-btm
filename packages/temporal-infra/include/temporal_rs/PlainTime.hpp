@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 
+#include "socketsecurity/temporal/ixdtf_writer.h"
 #include "socketsecurity/temporal/plain_time.h"
 #include "temporal_rs/ArithmeticOverflow.hpp"
 #include "temporal_rs/DifferenceSettings.hpp"
@@ -255,9 +256,31 @@ class PlainTime {
   PlainTime& operator=(const PlainTime&) = delete;
   PlainTime& operator=(PlainTime&&) noexcept = delete;
 
+  // 1:1 from upstream plain_time.rs:529 / :535.
+  // Spec: resolve ToStringRoundingOptions, RoundIsoTime via
+  // ResolvedRoundingOptions::from_to_string_options, then IxdtfStringBuilder.
   diplomat::result<std::string, TemporalError>
-  to_ixdtf_string(ToStringRoundingOptions /*options*/) const {
-    return diplomat::Ok<std::string>(std::string{});
+  to_ixdtf_string(ToStringRoundingOptions options) const {
+    auto resolved =
+        ::node::socketsecurity::temporal::ToStringRoundingOptionsResolve(
+            options.ToInfra());
+    if (!resolved.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(resolved.error()));
+    }
+    auto rounding_options =
+        ::node::socketsecurity::temporal::ResolvedRoundingOptionsFromToString(
+            resolved.value());
+    auto rounded = ::node::socketsecurity::temporal::RoundIsoTime(
+        inner_.iso, rounding_options);
+    if (!rounded.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(rounded.error()));
+    }
+    return diplomat::Ok<std::string>(
+        ::node::socketsecurity::temporal::IxdtfStringBuilder()
+            .WithTime(rounded.value().time, resolved.value().precision)
+            .Build());
   }
 
  private:

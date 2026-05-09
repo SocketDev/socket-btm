@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 
+#include "socketsecurity/temporal/ixdtf_writer.h"
 #include "socketsecurity/temporal/parse.h"
 #include "socketsecurity/temporal/plain_date.h"
 #include "socketsecurity/temporal/plain_date_time.h"
@@ -201,8 +202,12 @@ class PlainDate {
         std::unique_ptr<PlainDateTime>(nullptr));
   }
 
-  std::string to_ixdtf_string(DisplayCalendar /*display_calendar*/) const {
-    return std::string{};
+  // 1:1 from upstream plain_date.rs:644.
+  std::string to_ixdtf_string(DisplayCalendar display_calendar) const {
+    return ::node::socketsecurity::temporal::IxdtfStringBuilder()
+        .WithDate(inner_.iso)
+        .WithCalendar("iso8601", display_calendar.ToInfra())
+        .Build();
   }
 
   // PlainDate -> ZonedDateTime. Upstream signature:

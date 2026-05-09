@@ -10,6 +10,7 @@
 #include <string_view>
 
 #include "socketsecurity/temporal/plain_date.h"
+#include "socketsecurity/temporal/ixdtf_writer.h"
 #include "socketsecurity/temporal/plain_date_time.h"
 #include "temporal_rs/AnyCalendarKind.hpp"
 #include "temporal_rs/ArithmeticOverflow.hpp"
@@ -233,12 +234,32 @@ class PlainDateTime {
     return 0;
   }
 
-  // Upstream takes (DisplayCalendar) but V8 in Node 26.1.0 calls
-  // with (ToStringRoundingOptions, DisplayCalendar). Match V8.
+  // 1:1 from upstream plain_date_time.rs:937 / :961.
   diplomat::result<std::string, TemporalError> to_ixdtf_string(
-      ToStringRoundingOptions /*options*/,
-      DisplayCalendar /*display_calendar*/) const {
-    return diplomat::Ok<std::string>(std::string{});
+      ToStringRoundingOptions options,
+      DisplayCalendar display_calendar) const {
+    auto resolved =
+        ::node::socketsecurity::temporal::ToStringRoundingOptionsResolve(
+            options.ToInfra());
+    if (!resolved.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(resolved.error()));
+    }
+    auto rounding_options =
+        ::node::socketsecurity::temporal::ResolvedRoundingOptionsFromToString(
+            resolved.value());
+    auto rounded = ::node::socketsecurity::temporal::RoundIsoDateTime(
+        inner_.iso, rounding_options);
+    if (!rounded.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(rounded.error()));
+    }
+    return diplomat::Ok<std::string>(
+        ::node::socketsecurity::temporal::IxdtfStringBuilder()
+            .WithDate(rounded.value().date)
+            .WithTime(rounded.value().time, resolved.value().precision)
+            .WithCalendar("iso8601", display_calendar.ToInfra())
+            .Build());
   }
 
   // Upstream: returns plain unique_ptr (no result wrap, no error case).

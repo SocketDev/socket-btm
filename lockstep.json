@@ -177,6 +177,23 @@
     },
     {
       "kind": "file-fork",
+      "id": "temporal-infra-ixdtf-writer",
+      "upstream": "temporal-rs-parity",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/ixdtf_writer.cc",
+      "upstream_path": "src/parsers.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 8,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-temporal.mjs",
+      "deviations": [
+        "C++ port of upstream's IXDTF *writer* half of `parsers.rs` — specifically `IxdtfStringBuilder`, `FormattableDate`, `FormattableTime`, `FormattableUtcOffset`, `FormattableTimeZone`, `FormattableCalendar`, `FormattableIxdtf`, `FormattableMonthDay`, `FormattableYearMonth`, plus the `WriteYear`/`WriteNanosecond`/`U32ToDigits` helpers. Pairs with `parse.cc` which holds the parser half.",
+        "Single-pass `WriteTo(std::string&)` instead of upstream's two-pass `Writeable::write_to` + `writeable_length_hint`. C++ std::string handles its own growth; length-hint exists in upstream only for no_std targets and hint-aware writers, neither relevant here.",
+        "`with_minute_offset` mirrors upstream's `second: 9` literal (Precision::Minute truncates before reaching seconds, so the value is harmless — keeping it 1:1 makes drift detection trivial).",
+        "Calendar identifier is passed as `string_view` rather than `&'static str`; the shim's Calendar accessor returns a static-storage string today, so behavior matches."
+      ],
+      "notes": "Used by all 7 temporal_rs::*::to_ixdtf_string and to_ixdtf_string_with_provider entry points (PlainDate, PlainTime, PlainDateTime, PlainYearMonth, PlainMonthDay, Instant, ZonedDateTime). Duration uses DurationToString in duration.cc instead (upstream pattern matches; `FormattableDuration` not ported because Duration's writer doesn't go through IxdtfStringBuilder)."
+    },
+    {
+      "kind": "file-fork",
       "id": "temporal-infra-error",
       "upstream": "temporal-rs-parity",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/error.cc",

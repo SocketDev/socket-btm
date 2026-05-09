@@ -19,6 +19,7 @@
 
 #include "socketsecurity/temporal/error.h"
 #include "socketsecurity/temporal/temporal.h"
+#include "socketsecurity/temporal/ixdtf_writer.h"
 #include "socketsecurity/temporal/zoned_date_time.h"
 #include "temporal_rs/AnyCalendarKind.hpp"
 #include "temporal_rs/ArithmeticOverflow.hpp"
@@ -316,15 +317,52 @@ class ZonedDateTime {
     return diplomat::Ok<bool>(equals(other));
   }
 
-  // Stringification (with-provider variant — full DST/calendar
-  // formatting lands when integration activates).
+  // 1:1 from upstream zoned_date_time.rs:1375.
   diplomat::result<std::string, TemporalError>
-  to_ixdtf_string_with_provider(DisplayOffset /*display_offset*/,
-                                 DisplayTimeZone /*display_timezone*/,
-                                 DisplayCalendar /*display_calendar*/,
-                                 ToStringRoundingOptions /*options*/,
+  to_ixdtf_string_with_provider(DisplayOffset display_offset,
+                                 DisplayTimeZone display_timezone,
+                                 DisplayCalendar display_calendar,
+                                 ToStringRoundingOptions options,
                                  const Provider& /*p*/) const {
-    return diplomat::Ok<std::string>(std::string{});
+    auto resolved =
+        ::node::socketsecurity::temporal::ToStringRoundingOptionsResolve(
+            options.ToInfra());
+    if (!resolved.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(resolved.error()));
+    }
+    auto datetime = inner_.time_zone.GetIsoDateTimeFor(inner_.instant);
+    if (!datetime.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(datetime.error()));
+    }
+    // Offset for the IXDTF string. Upstream uses get_offset_nanos_for;
+    // for offset-only zones this is just the stored offset. For IANA
+    // zones, the temporal-infra TimeZoneBackend hooks land in a later
+    // phase — until then, the offset reflected here is the offset
+    // implied by the IsoDateTime returned by GetIsoDateTimeFor.
+    const int64_t offset_ns =
+        inner_.time_zone.IsOffsetOnly()
+            ? inner_.time_zone.OffsetOrNull().Nanoseconds()
+            : 0;
+    const ::node::socketsecurity::temporal::Sign sign =
+        offset_ns < 0
+            ? ::node::socketsecurity::temporal::Sign::kNegative
+            : ::node::socketsecurity::temporal::Sign::kPositive;
+    const int64_t abs_ns = offset_ns < 0 ? -offset_ns : offset_ns;
+    const uint8_t hour =
+        static_cast<uint8_t>((abs_ns / 1'000'000'000LL / 3600) % 24);
+    const uint8_t minute =
+        static_cast<uint8_t>((abs_ns / 1'000'000'000LL / 60) % 60);
+    const std::string tz_id = inner_.time_zone.Identifier();
+    return diplomat::Ok<std::string>(
+        ::node::socketsecurity::temporal::IxdtfStringBuilder()
+            .WithDate(datetime.value().date)
+            .WithTime(datetime.value().time, resolved.value().precision)
+            .WithMinuteOffset(sign, hour, minute, display_offset.ToInfra())
+            .WithTimeZone(tz_id, display_timezone.ToInfra())
+            .WithCalendar("iso8601", display_calendar.ToInfra())
+            .Build());
   }
 
   // Arithmetic (with-provider variants — DST-aware add/subtract land

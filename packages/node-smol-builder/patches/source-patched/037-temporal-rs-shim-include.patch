@@ -64,6 +64,7 @@
 +        '../../src/socketsecurity/temporal/host.cc',
 +        '../../src/socketsecurity/temporal/instant.cc',
 +        '../../src/socketsecurity/temporal/iso.cc',
++        '../../src/socketsecurity/temporal/ixdtf_writer.cc',
 +        '../../src/socketsecurity/temporal/now.cc',
 +        '../../src/socketsecurity/temporal/options.cc',
 +        '../../src/socketsecurity/temporal/parse.cc',

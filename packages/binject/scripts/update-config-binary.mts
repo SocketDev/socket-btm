@@ -316,10 +316,9 @@ export function parseAndSerialize(jsonString) {
   try {
     config = JSON.parse(jsonString)
   } catch (e) {
-    throw new Error(
-      `Failed to parse smol config JSON: ${errorMessage(e)}`,
-      { cause: e },
-    )
+    throw new Error(`Failed to parse smol config JSON: ${errorMessage(e)}`, {
+      cause: e,
+    })
   }
 
   return serializeUpdateConfig(config)

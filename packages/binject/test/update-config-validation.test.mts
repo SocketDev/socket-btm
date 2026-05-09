@@ -232,7 +232,7 @@ describe('update Config Validation', () => {
 
   describe('type Validation', () => {
     it('should reject non-object config', () => {
-      expect(() => serializeUpdateConfig(null)).toThrow(
+      expect(() => serializeUpdateConfig(undefined)).toThrow(
         /config.*must be an object/,
       )
 

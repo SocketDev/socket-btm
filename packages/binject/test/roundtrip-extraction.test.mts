@@ -21,9 +21,12 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 import { getBinjectPath } from './helpers/paths.mts'
+
+const logger = getDefaultLogger()
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

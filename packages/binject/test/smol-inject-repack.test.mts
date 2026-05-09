@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url'
 import { makeExecutable } from 'build-infra/lib/build-helpers'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 import {
@@ -31,6 +32,8 @@ import {
   getBinpressPath,
 } from './helpers/paths.mts'
 import { MACHO_SEGMENT_SMOL } from 'bin-infra/test/helpers/segment-names'
+
+const logger = getDefaultLogger()
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

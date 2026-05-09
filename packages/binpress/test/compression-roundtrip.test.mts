@@ -27,8 +27,11 @@ import { makeExecutable } from 'build-infra/lib/build-helpers'
 import { getBuildMode } from 'build-infra/lib/constants'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { getSocketDlxDir } from '@socketsecurity/lib/paths/socket'
 import { spawn } from '@socketsecurity/lib/spawn'
+
+const logger = getDefaultLogger()
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -58,7 +61,9 @@ const NODE_BINARY = process.execPath
 const TARGET_ARCH = process.env['TARGET_ARCH']
 const HOST_ARCH = process.arch === 'arm64' ? 'arm64' : 'x64'
 const isCrossCompile = TARGET_ARCH !== undefined && TARGET_ARCH !== HOST_ARCH
-const isDockerBuild = !existsSync(path.join(__dirname, '..', '..', '..', '.git'))
+const isDockerBuild = !existsSync(
+  path.join(__dirname, '..', '..', '..', '.git'),
+)
 const skipExec = isCrossCompile || isDockerBuild
 
 let testDir: string
@@ -130,53 +135,57 @@ describe.skipIf(!existsSync(BINPRESS))(
   'binpress compression round-trip',
   () => {
     describe('basic compression and execution', () => {
-      it.skipIf(skipExec)('should compress node binary and run --version', async () => {
-        const inputBinary = path.join(testDir, 'self_compress_input')
-        await fs.copyFile(testBinary, inputBinary)
+      it.skipIf(skipExec)(
+        'should compress node binary and run --version',
+        async () => {
+          const inputBinary = path.join(testDir, 'self_compress_input')
+          await fs.copyFile(testBinary, inputBinary)
 
-        const compressedBinary = path.join(testDir, 'self_compressed')
+          const compressedBinary = path.join(testDir, 'self_compressed')
 
-        // Compress
-        const compressResult = await execCommand(BINPRESS, [
-          inputBinary,
-          '--output',
-          compressedBinary,
-        ])
+          // Compress
+          const compressResult = await execCommand(BINPRESS, [
+            inputBinary,
+            '--output',
+            compressedBinary,
+          ])
 
-        if (compressResult.code !== 0) {
-          console.error('❌ Compression failed!')
-          console.error('Exit code:', compressResult.code)
-          console.error('Stdout:', compressResult.stdout)
-          console.error('Stderr:', compressResult.stderr)
-        }
+          if (compressResult.code !== 0) {
+            console.error('❌ Compression failed!')
+            console.error('Exit code:', compressResult.code)
+            console.error('Stdout:', compressResult.stdout)
+            console.error('Stderr:', compressResult.stderr)
+          }
 
-        expect(compressResult.code).toBe(0)
+          expect(compressResult.code).toBe(0)
 
-        // On Windows, binpress adds .exe extension automatically
-        const finalPath =
-          process.platform === 'win32'
-            ? `${compressedBinary}.exe`
-            : compressedBinary
-        expect(existsSync(finalPath)).toBeTruthy()
+          // On Windows, binpress adds .exe extension automatically
+          const finalPath =
+            process.platform === 'win32'
+              ? `${compressedBinary}.exe`
+              : compressedBinary
+          expect(existsSync(finalPath)).toBeTruthy()
 
-        await makeExecutable(finalPath)
+          await makeExecutable(finalPath)
 
-        // Execute compressed binary with debug output
-        const execResult = await execCommand(finalPath, ['--version'], {
-          env: { ...process.env, SOCKET_SMOL_DEBUG: '1' },
-        })
+          // Execute compressed binary with debug output
+          const execResult = await execCommand(finalPath, ['--version'], {
+            env: { ...process.env, SOCKET_SMOL_DEBUG: '1' },
+          })
 
-        // Always log stderr to diagnose failures
-        if (execResult.stderr || execResult.code !== 0) {
-          console.error('=== EXECUTION RESULT ===')
-          console.error('Exit code:', execResult.code)
-          console.error('Stderr:', execResult.stderr)
-          console.error('Stdout:', execResult.stdout)
-          console.error('=== END RESULT ===')
-        }
+          // Always log stderr to diagnose failures
+          if (execResult.stderr || execResult.code !== 0) {
+            console.error('=== EXECUTION RESULT ===')
+            console.error('Exit code:', execResult.code)
+            console.error('Stderr:', execResult.stderr)
+            console.error('Stdout:', execResult.stdout)
+            console.error('=== END RESULT ===')
+          }
 
-        expect(execResult.code).toBe(0)
-      }, 60_000)
+          expect(execResult.code).toBe(0)
+        },
+        60_000,
+      )
 
       it('should produce smaller output than input', async () => {
         const inputBinary = path.join(testDir, 'size_test_input')
@@ -330,36 +339,40 @@ describe.skipIf(!existsSync(BINPRESS))(
     })
 
     describe('multiple compression cycles', () => {
-      it.skipIf(skipExec)('should handle compress → execute → compress → execute', async () => {
-        const currentBinary = path.join(testDir, 'cycle_start')
-        await fs.copyFile(testBinary, currentBinary)
+      it.skipIf(skipExec)(
+        'should handle compress → execute → compress → execute',
+        async () => {
+          const currentBinary = path.join(testDir, 'cycle_start')
+          await fs.copyFile(testBinary, currentBinary)
 
-        // Cycle 1: Compress and execute
-        const compressed1 = path.join(testDir, 'cycle_compressed_1')
-        await execCommand(BINPRESS, [currentBinary, '--output', compressed1])
+          // Cycle 1: Compress and execute
+          const compressed1 = path.join(testDir, 'cycle_compressed_1')
+          await execCommand(BINPRESS, [currentBinary, '--output', compressed1])
 
-        // On Windows, binpress adds .exe extension automatically
-        const finalPath1 =
-          process.platform === 'win32' ? `${compressed1}.exe` : compressed1
-        await makeExecutable(finalPath1)
+          // On Windows, binpress adds .exe extension automatically
+          const finalPath1 =
+            process.platform === 'win32' ? `${compressed1}.exe` : compressed1
+          await makeExecutable(finalPath1)
 
-        const exec1 = await execCommand(finalPath1, ['--version'])
-        expect(exec1.code).toBe(0)
+          const exec1 = await execCommand(finalPath1, ['--version'])
+          expect(exec1.code).toBe(0)
 
-        // Cycle 2: Compress the compressed binary and execute
-        const compressed2 = path.join(testDir, 'cycle_compressed_2')
-        await execCommand(BINPRESS, [finalPath1, '--output', compressed2])
+          // Cycle 2: Compress the compressed binary and execute
+          const compressed2 = path.join(testDir, 'cycle_compressed_2')
+          await execCommand(BINPRESS, [finalPath1, '--output', compressed2])
 
-        const finalPath2 =
-          process.platform === 'win32' ? `${compressed2}.exe` : compressed2
-        await makeExecutable(finalPath2)
+          const finalPath2 =
+            process.platform === 'win32' ? `${compressed2}.exe` : compressed2
+          await makeExecutable(finalPath2)
 
-        const exec2 = await execCommand(finalPath2, ['--version'])
-        expect(exec2.code).toBe(0)
+          const exec2 = await execCommand(finalPath2, ['--version'])
+          expect(exec2.code).toBe(0)
 
-        // Both should produce same output
-        expect(exec1.stdout.trim()).toBe(exec2.stdout.trim())
-      }, 300_000)
+          // Both should produce same output
+          expect(exec1.stdout.trim()).toBe(exec2.stdout.trim())
+        },
+        300_000,
+      )
 
       it('should maintain functionality through multiple compressions', async () => {
         // On Windows, ensure input has .exe extension
@@ -577,104 +590,112 @@ describe.skipIf(!existsSync(BINPRESS))(
     })
 
     describe('cache behavior', () => {
-      it.skipIf(skipExec)('should create cache on first execution of compressed binary', async () => {
-        const inputBinary = path.join(testDir, 'cache_input')
-        await fs.copyFile(testBinary, inputBinary)
+      it.skipIf(skipExec)(
+        'should create cache on first execution of compressed binary',
+        async () => {
+          const inputBinary = path.join(testDir, 'cache_input')
+          await fs.copyFile(testBinary, inputBinary)
 
-        const compressedBinary = path.join(testDir, 'cache_compressed')
+          const compressedBinary = path.join(testDir, 'cache_compressed')
 
-        // Compress
-        await execCommand(BINPRESS, [inputBinary, '--output', compressedBinary])
+          // Compress
+          await execCommand(BINPRESS, [
+            inputBinary,
+            '--output',
+            compressedBinary,
+          ])
 
-        // On Windows, binpress adds .exe extension automatically
-        const finalPath =
-          process.platform === 'win32'
-            ? `${compressedBinary}.exe`
-            : compressedBinary
-        await makeExecutable(finalPath)
+          // On Windows, binpress adds .exe extension automatically
+          const finalPath =
+            process.platform === 'win32'
+              ? `${compressedBinary}.exe`
+              : compressedBinary
+          await makeExecutable(finalPath)
 
-        // Determine cache directory
-        const DLX_DIR = getSocketDlxDir()
+          // Determine cache directory
+          const DLX_DIR = getSocketDlxDir()
 
-        // Snapshot the cache state before the run so we can pinpoint
-        // which dir was created or touched by this run. The
-        // compressed binary's cache key is a hash of its content, so
-        // re-running the same test re-uses an existing cache dir
-        // (mtime doesn't change). To make the test deterministic
-        // regardless of prior runs, identify the dir we care about
-        // by snapshotting the state before, then either finding a
-        // newly-created dir OR locating any pre-existing dir whose
-        // metadata file reflects this binary.
-        const beforeDirs = new Set<string>(
-          existsSync(DLX_DIR) ? await fs.readdir(DLX_DIR) : [],
-        )
+          // Snapshot the cache state before the run so we can pinpoint
+          // which dir was created or touched by this run. The
+          // compressed binary's cache key is a hash of its content, so
+          // re-running the same test re-uses an existing cache dir
+          // (mtime doesn't change). To make the test deterministic
+          // regardless of prior runs, identify the dir we care about
+          // by snapshotting the state before, then either finding a
+          // newly-created dir OR locating any pre-existing dir whose
+          // metadata file reflects this binary.
+          const beforeDirs = new Set<string>(
+            existsSync(DLX_DIR) ? await fs.readdir(DLX_DIR) : [],
+          )
 
-        // First execution (creates cache or hits existing)
-        const exec1 = await execCommand(finalPath, ['--version'])
-        expect(exec1.code).toBe(0)
+          // First execution (creates cache or hits existing)
+          const exec1 = await execCommand(finalPath, ['--version'])
+          expect(exec1.code).toBe(0)
 
-        const cacheDirs = existsSync(DLX_DIR) ? await fs.readdir(DLX_DIR) : []
-        expect(cacheDirs.length).toBeGreaterThan(0)
+          const cacheDirs = existsSync(DLX_DIR) ? await fs.readdir(DLX_DIR) : []
+          expect(cacheDirs.length).toBeGreaterThan(0)
 
-        // Prefer a newly-created dir (with metadata); fall back to
-        // scanning every existing dir whose .dlx-metadata.json was
-        // touched after the run started. Older / aborted cache dirs
-        // without metadata are skipped — the assertion downstream
-        // requires metadata anyway.
-        const newDirs = cacheDirs.filter(d => !beforeDirs.has(d))
-        let cacheDir: string | undefined
-        for (const d of newDirs) {
-          if (existsSync(path.join(DLX_DIR, d, '.dlx-metadata.json'))) {
-            cacheDir = path.join(DLX_DIR, d)
-            break
-          }
-        }
-        if (!cacheDir) {
-          // Cache hit on a prior run's dir — the metadata file
-          // already existed. Find the one whose mtime advanced
-          // during the run window; restrict to dirs that have
-          // metadata so we never end up at an aborted/legacy dir.
-          let bestMtime = 0
-          for (const dir of cacheDirs) {
-            const candidate = path.join(DLX_DIR, dir)
-            const meta = path.join(candidate, '.dlx-metadata.json')
-            if (!existsSync(meta)) {
-              continue
+          // Prefer a newly-created dir (with metadata); fall back to
+          // scanning every existing dir whose .dlx-metadata.json was
+          // touched after the run started. Older / aborted cache dirs
+          // without metadata are skipped — the assertion downstream
+          // requires metadata anyway.
+          const newDirs = cacheDirs.filter(d => !beforeDirs.has(d))
+          let cacheDir: string | undefined
+          for (const d of newDirs) {
+            if (existsSync(path.join(DLX_DIR, d, '.dlx-metadata.json'))) {
+              cacheDir = path.join(DLX_DIR, d)
+              break
             }
-            try {
-              const stat = await fs.stat(meta)
-              if (stat.mtimeMs > bestMtime) {
-                bestMtime = stat.mtimeMs
-                cacheDir = candidate
+          }
+          if (!cacheDir) {
+            // Cache hit on a prior run's dir — the metadata file
+            // already existed. Find the one whose mtime advanced
+            // during the run window; restrict to dirs that have
+            // metadata so we never end up at an aborted/legacy dir.
+            let bestMtime = 0
+            for (const dir of cacheDirs) {
+              const candidate = path.join(DLX_DIR, dir)
+              const meta = path.join(candidate, '.dlx-metadata.json')
+              if (!existsSync(meta)) {
+                continue
               }
-            } catch {
-              // ignore
+              try {
+                const stat = await fs.stat(meta)
+                if (stat.mtimeMs > bestMtime) {
+                  bestMtime = stat.mtimeMs
+                  cacheDir = candidate
+                }
+              } catch {
+                // ignore
+              }
             }
           }
-        }
 
-        if (!cacheDir) {
-          throw new Error('Could not locate the cache dir used by the run')
-        }
+          if (!cacheDir) {
+            throw new Error('Could not locate the cache dir used by the run')
+          }
 
-        const metadataPath = path.join(cacheDir, '.dlx-metadata.json')
-        expect(existsSync(metadataPath)).toBeTruthy()
+          const metadataPath = path.join(cacheDir, '.dlx-metadata.json')
+          expect(existsSync(metadataPath)).toBeTruthy()
 
-        const metadataBefore = JSON.parse(
-          await fs.readFile(metadataPath, 'utf8'),
-        )
-        const timestampBefore = metadataBefore.timestamp
+          const metadataBefore = JSON.parse(
+            await fs.readFile(metadataPath, 'utf8'),
+          )
+          const timestampBefore = metadataBefore.timestamp
 
-        // Second execution (uses cache)
-        const exec2 = await execCommand(finalPath, ['--version'])
-        expect(exec2.code).toBe(0)
+          // Second execution (uses cache)
+          const exec2 = await execCommand(finalPath, ['--version'])
+          expect(exec2.code).toBe(0)
 
-        // Verify cache was reused (timestamp unchanged)
-        const metadataAfter = JSON.parse(
-          await fs.readFile(metadataPath, 'utf8'),
-        )
-        expect(metadataAfter.timestamp).toBe(timestampBefore)
-      }, 60_000)
+          // Verify cache was reused (timestamp unchanged)
+          const metadataAfter = JSON.parse(
+            await fs.readFile(metadataPath, 'utf8'),
+          )
+          expect(metadataAfter.timestamp).toBe(timestampBefore)
+        },
+        60_000,
+      )
     })
   },
 )

@@ -16,12 +16,15 @@ import process from 'node:process'
 import { makeExecutable } from 'build-infra/lib/build-helpers'
 
 import { safeDelete } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 import { getPlatformArch } from 'build-infra/lib/platform-mappings'
 import { getBuildPaths as getNodeSmolBuildPaths } from 'node-smol-builder/scripts/paths'
 
 import { MAX_NODE_BINARY_SIZE } from './helpers/constants.mts'
 import { getBinjectPath } from './helpers/paths.mts'
+
+const logger = getDefaultLogger()
 
 const BINJECT = getBinjectPath()
 const PLATFORM_ARCH = getPlatformArch(process.platform, process.arch, undefined)
@@ -132,8 +135,10 @@ async function findNodeBinary() {
   // so the on-disk layout stays in one place. outputFinalBinary already
   // encodes the platform-specific binary name (node vs node.exe).
   const possiblePaths = [
-    getNodeSmolBuildPaths('dev', process.platform, PLATFORM_ARCH).outputFinalBinary,
-    getNodeSmolBuildPaths('prod', process.platform, PLATFORM_ARCH).outputFinalBinary,
+    getNodeSmolBuildPaths('dev', process.platform, PLATFORM_ARCH)
+      .outputFinalBinary,
+    getNodeSmolBuildPaths('prod', process.platform, PLATFORM_ARCH)
+      .outputFinalBinary,
     // Common installation paths
     path.join(os.homedir(), '.btm', 'node'),
     path.join(os.homedir(), '.btm', 'node.exe'),

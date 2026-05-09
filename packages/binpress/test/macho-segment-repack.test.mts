@@ -34,10 +34,7 @@ import {
   MACHO_LOAD_COMMAND,
   MACHO_MAGIC,
 } from 'bin-infra/test/helpers/binary-format-constants'
-import {
-  codeSignBinary,
-  execCommand,
-} from 'bin-infra/test/helpers/test-utils'
+import { codeSignBinary, execCommand } from 'bin-infra/test/helpers/test-utils'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

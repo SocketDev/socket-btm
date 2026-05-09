@@ -38,7 +38,12 @@ export function getBinjectPath(platform = process.platform) {
  */
 export function getBinpressPath(platform = process.platform) {
   const binaryName = platform === 'win32' ? 'binpress.exe' : 'binpress'
-  return getFinalBinaryPath(BINPRESS_ROOT, BUILD_MODE, PLATFORM_ARCH, binaryName)
+  return getFinalBinaryPath(
+    BINPRESS_ROOT,
+    BUILD_MODE,
+    PLATFORM_ARCH,
+    binaryName,
+  )
 }
 
 /**
@@ -48,7 +53,12 @@ export function getBinpressPath(platform = process.platform) {
  */
 export function getBinflatePath(platform = process.platform) {
   const binaryName = platform === 'win32' ? 'binflate.exe' : 'binflate'
-  return getFinalBinaryPath(BINFLATE_ROOT, BUILD_MODE, PLATFORM_ARCH, binaryName)
+  return getFinalBinaryPath(
+    BINFLATE_ROOT,
+    BUILD_MODE,
+    PLATFORM_ARCH,
+    binaryName,
+  )
 }
 
 export { PROJECT_ROOT, BUILD_MODE }

@@ -99,7 +99,7 @@ function parseMachoSegments(binaryData) {
 
   if (!isLittleEndian && magic !== MH_CIGAM_64) {
     // Not Mach-O
-    return null
+    return undefined
   }
 
   const ncmds = isLittleEndian

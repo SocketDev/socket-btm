@@ -431,13 +431,12 @@ Required headers — one `@<project>-versions` token per patch matching the targ
 
 #### Regression-pattern gate
 
-`scripts/check-regression-patterns.mts` encodes recurring bug *shapes* (regex patterns) caught across R14+ quality-scan rounds — "pattern" here means a regex pattern / code shape, nothing to do with JS/TS class definitions. It runs on every `pnpm run check` invocation (so it runs in CI via `.github/workflows/ci.yml`) and fails if any code matches a known-bad shape that isn't in the allowlist.
+`scripts/check-regression-patterns.mts` encodes recurring bug *shapes* (regex patterns) caught across R14+ quality-scan rounds — "pattern" here means a regex pattern / code shape, nothing to do with JS/TS class definitions. It runs on every `pnpm run check` invocation (so it runs in CI via `.github/workflows/ci.yml`) and fails on any match. Strict — no allowlist; fix the code (apply the canonical remediation in the rule's `fix:` field) so the regex no longer fires.
 
 - **Run locally**: `pnpm run check:regression-patterns` (or just `pnpm check`)
 - **See why a match is flagged**: `node scripts/check-regression-patterns.mts --explain`
 - **Machine-readable output**: `--json`
-- **Allowlist safe exceptions**: add to `.github/regression-patterns-allowlist.yml` with a `reason` field; entries without a `line` exempt the whole file
-- **Add a new pattern**: edit `scripts/check-regression-patterns.mts` REGRESSIONS, seed the allowlist with any pre-existing safe sites, and document in a commit message
+- **Add a new pattern**: edit `scripts/check-regression-patterns.mts` REGRESSIONS, fix any pre-existing matches the new rule surfaces in the same commit, and document the lesson in the commit message.
 
 The gate is regression-prevention only. It cannot find NEW patterns the codebase hasn't seen yet — `/quality-scan` still runs periodically for that.
 

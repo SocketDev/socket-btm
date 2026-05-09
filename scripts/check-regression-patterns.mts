@@ -5,22 +5,18 @@
  * Runs fast grep-based checks for the recurring bug *shapes* caught
  * during R14-R25 quality-scan rounds. Each pattern encodes a lesson
  * learned: the regex matches the shape of a real bug we've shipped
- * before, and the allowlist records the specific sites that were
- * manually verified safe. Note: "pattern" here means "regex pattern" /
- * "code shape" — nothing to do with JS/TS class definitions.
+ * before. Note: "pattern" here means "regex pattern" / "code shape" —
+ * nothing to do with JS/TS class definitions.
  *
- * A PR that introduces a new instance of any pattern will fail this
- * check unless the author adds an allowlist entry with a justification.
+ * Strict — no allowlist. A PR that introduces a new instance of any
+ * pattern will fail this check; fix the code (apply the canonical
+ * remediation in the rule's `fix:` field) rather than opting out.
  *
  * Usage:
- *   node scripts/check-regression-patterns.mts             # Fail on any unknown match
+ *   node scripts/check-regression-patterns.mts             # Fail on any match
  *   node scripts/check-regression-patterns.mts --quiet     # No output if clean
  *   node scripts/check-regression-patterns.mts --json      # Machine-readable
  *   node scripts/check-regression-patterns.mts --explain   # Long-form output
- *
- * Allowlist lives at `.github/regression-patterns-allowlist.yml`. Each
- * entry requires a `reason` so the list stays audit-able and entries
- * can be removed when the underlying code changes.
  *
  * Why a pattern-based check instead of "just more tests":
  *   - Tests check behavior. These checks catch *shapes* that have
@@ -34,9 +30,11 @@
  * What it does NOT do:
  *   - Find NEW regression patterns. R27+ quality scans still need to
  *     run periodically to discover shapes we haven't seen yet.
- *   - Understand semantics. A match that's obviously safe still
- *     requires an allowlist entry — this is the tradeoff for a
- *     dumb-but-fast regex gate.
+ *   - Understand semantics. A match that's *obviously* safe still
+ *     fails the check — fix the shape so the regex doesn't fire,
+ *     usually by switching to the canonical safer form (e.g. the
+ *     `has_room(length, capacity, needed)` helper for size_t bounds
+ *     checks).
  */
 
 import { existsSync, promises as fsPromises, readFileSync } from 'node:fs'
@@ -57,11 +55,6 @@ const logger = getDefaultLogger()
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const MONOREPO_ROOT = path.join(__dirname, '..')
-const ALLOWLIST_PATH = path.join(
-  MONOREPO_ROOT,
-  '.github',
-  'regression-patterns-allowlist.yml',
-)
 
 type Regression = {
   id: string
@@ -379,13 +372,6 @@ const REGRESSIONS: Regression[] = [
   },
 ]
 
-type AllowlistEntry = {
-  file: string
-  line?: number
-  pattern: string
-  reason: string
-}
-
 type Match = {
   file: string
   line: number
@@ -441,11 +427,12 @@ export async function findNonExistentPnpmScripts(
 
   // Grep markdown files for `pnpm run <script>`.
   const rawMatches = await runRipgrep(regression)
-  // Allowlist of documentation placeholders that are not real scripts.
-  // These are explicit examples in skill docs explaining the convention.
+  // Documentation placeholders that intentionally aren't real scripts —
+  // explicit examples in skill docs explaining the `pnpm run <name>`
+  // convention.
   const placeholders = new Set(['bar', 'baz', 'foo', 'script'])
   for (const m of rawMatches) {
-    // Skip Claude Code tool-allowlist patterns like
+    // Skip Claude Code permission-glob patterns like
     //   Bash(pnpm run check:*)
     // Those describe a class of allowed Bash invocations, not a
     // literal `pnpm run` reference; the trailing `:*` is a wildcard
@@ -473,55 +460,6 @@ export async function findNonExistentPnpmScripts(
     }
   }
   return matches
-}
-
-/**
- * Parse the allowlist YAML. Intentionally tiny parser — the file is
- * strictly shaped and we don't want to pull in a YAML dep just for this.
- */
-export function loadAllowlist(): AllowlistEntry[] {
-  if (!existsSync(ALLOWLIST_PATH)) {
-    return []
-  }
-  const content = readFileSync(ALLOWLIST_PATH, 'utf8')
-  const entries: AllowlistEntry[] = []
-  let current: Partial<AllowlistEntry> = {}
-  let i = 0
-  const lines = content.split(/\r?\n/)
-  while (i < lines.length) {
-    const line = lines[i]!
-    const trimmed = line.trim()
-    if (trimmed.startsWith('#') || trimmed === '' || trimmed === '---') {
-      i += 1
-      continue
-    }
-    if (line.startsWith('- ')) {
-      if (current.file && current.pattern && current.reason) {
-        entries.push(current as AllowlistEntry)
-      }
-      current = { __proto__: null } as Partial<AllowlistEntry>
-      const firstKv = line.slice(2).match(/^(\w+):\s*(.+)$/)
-      if (firstKv) {
-        const [, key, rawValue] = firstKv
-        const value = rawValue!.replace(/^['"]|['"]$/g, '')
-        ;(current as Record<string, unknown>)[key!] =
-          key === 'line' ? Number.parseInt(value, 10) : value
-      }
-    } else {
-      const kv = trimmed.match(/^(\w+):\s*(.+)$/)
-      if (kv) {
-        const [, key, rawValue] = kv
-        const value = rawValue!.replace(/^['"]|['"]$/g, '')
-        ;(current as Record<string, unknown>)[key!] =
-          key === 'line' ? Number.parseInt(value, 10) : value
-      }
-    }
-    i += 1
-  }
-  if (current.file && current.pattern && current.reason) {
-    entries.push(current as AllowlistEntry)
-  }
-  return entries
 }
 
 export function printMatch(m: Match, opts: Options): void {
@@ -565,7 +503,6 @@ export function printMatch(m: Match, opts: Options): void {
     }
   } else {
     logger.log(`  → rerun with --explain for why + fix`)
-    logger.log(`  → or allowlist in .github/regression-patterns-allowlist.yml`)
   }
 }
 
@@ -708,48 +645,30 @@ async function main(): Promise<void> {
     quiet: Boolean(values.quiet),
   }
 
-  const allowlist = loadAllowlist()
-  const allowSet = new Set(
-    allowlist.map(e =>
-      e.line !== undefined
-        ? `${e.file}:${e.line}:${e.pattern}`
-        : `${e.file}:${e.pattern}`,
-    ),
-  )
-
   if (!opts.quiet && !opts.json) {
     logger.info('Scanning for known regression patterns...')
   }
 
   const allMatches: Match[] = []
   for (const regression of REGRESSIONS) {
-    let matches: Match[]
-    if (regression.id === 'docs-pnpm-run-nonexistent') {
-      matches = await findNonExistentPnpmScripts(regression)
-    } else {
-      matches = await runRipgrep(regression)
-    }
-    for (const m of matches) {
-      const lineKey = `${m.file}:${m.line}:${regression.id}`
-      const fileKey = `${m.file}:${regression.id}`
-      if (allowSet.has(lineKey) || allowSet.has(fileKey)) {
-        continue
-      }
-      allMatches.push(m)
-    }
+    const matches =
+      regression.id === 'docs-pnpm-run-nonexistent'
+        ? await findNonExistentPnpmScripts(regression)
+        : await runRipgrep(regression)
+    allMatches.push(...matches)
   }
 
   if (allMatches.length === 0) {
     if (!opts.quiet && !opts.json) {
       logger.success(
-        `No regression-pattern matches found (${REGRESSIONS.length} patterns × ${allowlist.length} allowlisted)`,
+        `No regression-pattern matches found (${REGRESSIONS.length} patterns)`,
       )
     }
     process.exitCode = 0
     return
   }
 
-  // Group by class for a readable summary first.
+  // Group by pattern for a readable summary first.
   const byPattern = new Map<string, Match[]>()
   for (const m of allMatches) {
     const key = m.regression.id
@@ -772,15 +691,17 @@ async function main(): Promise<void> {
     logger.log('')
     logger.log('What to do:')
     logger.log(
-      '  1. If it is a real bug: fix it (see --explain for the pattern).',
+      '  1. If it is a real bug: fix it (see --explain for the canonical fix).',
     )
     logger.log(
-      '  2. If the match is safe: add to .github/regression-patterns-allowlist.yml',
+      '  2. If the match is provably safe: rewrite the code so the regex',
     )
     logger.log(
-      '     with file, line, pattern, and a reason. Each entry is audit-',
+      '     no longer fires — usually by switching to the canonical safer',
     )
-    logger.log('     able so future readers know why the check was bypassed.')
+    logger.log(
+      '     form (e.g. has_room helper for size_t bounds, fix-not-allow).',
+    )
     logger.log('  3. Run with --explain for the full why + fix writeup.')
   }
 

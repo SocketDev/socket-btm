@@ -24,7 +24,9 @@ const {
 // Npm package name grammar — same shape as http2_helpers.js. Dependency
 // names originate from untrusted upstream packument data; without this
 // filter a crafted key could inject CR/LF/`;`/`,` into the Link header.
-const NPM_PACKAGE_NAME_REGEX = hardenRegExp(/^(?:@[a-zA-Z0-9][a-zA-Z0-9._-]*\/)?[a-zA-Z0-9][a-zA-Z0-9._-]*$/)
+const NPM_PACKAGE_NAME_REGEX = hardenRegExp(
+  /^(?:@[a-zA-Z0-9][a-zA-Z0-9._-]*\/)?[a-zA-Z0-9][a-zA-Z0-9._-]*$/,
+)
 
 // Dependency graph precomputation for package installations.
 // Preload/hint dependencies when client requests a package.
@@ -183,15 +185,14 @@ class DependencyGraph {
   // so hostile packument keys (CR/LF/`;`/`,`/`>`) can't split the Link
   // header and inject fake headers into the HTTP/2 response.
   generateLinkHeaders(dependencies) {
-    const safe = ArrayPrototypeFilter(dependencies, dep =>
-      typeof dep === 'string' &&
-      RegExpPrototypeTest(NPM_PACKAGE_NAME_REGEX, dep),
+    const safe = ArrayPrototypeFilter(
+      dependencies,
+      dep =>
+        typeof dep === 'string' &&
+        RegExpPrototypeTest(NPM_PACKAGE_NAME_REGEX, dep),
     )
     return ArrayPrototypeJoin(
-      ArrayPrototypeMap(
-        safe,
-        dep => `</${dep}>; rel=preload; as=fetch`,
-      ),
+      ArrayPrototypeMap(safe, dep => `</${dep}>; rel=preload; as=fetch`),
       ', ',
     )
   }

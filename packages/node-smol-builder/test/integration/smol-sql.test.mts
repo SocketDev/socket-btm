@@ -81,7 +81,7 @@ describe.skipIf(skipTests)('node:smol-sql integration', () => {
     expect(unexpected).toEqual([])
   })
 
-  it("`default` aliases `sql` (Bun-compat)", async () => {
+  it('`default` aliases `sql` (Bun-compat)', async () => {
     const script = `
       const m = require('node:smol-sql')
       console.log('default-is-sql=' + (m.default === m.sql))
@@ -105,8 +105,12 @@ describe.skipIf(skipTests)('node:smol-sql integration', () => {
     expect(stdout).toContain('PostgresError-extends-SQLError=true')
     expect(stdout).toContain('SQLiteError-extends-SQLError=true')
     expect(stdout).toContain('SQLConnectionClosedError-extends-SQLError=true')
-    expect(stdout).toContain('SQLTransactionCommittedError-extends-SQLError=true')
-    expect(stdout).toContain('SQLTransactionRolledBackError-extends-SQLError=true')
+    expect(stdout).toContain(
+      'SQLTransactionCommittedError-extends-SQLError=true',
+    )
+    expect(stdout).toContain(
+      'SQLTransactionRolledBackError-extends-SQLError=true',
+    )
   })
 
   it('module exports are frozen and null-prototype', async () => {

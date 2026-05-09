@@ -91,11 +91,7 @@ const EXTERNAL_SOURCES = [
   // libnode build chain entirely.
   {
     from: path.join(TEMPORAL_INFRA_DIR, 'include', 'temporal_rs'),
-    to: path.join(
-      ADDITIONS_SOURCE_PATCHED_DIR,
-      'include',
-      'temporal_rs',
-    ),
+    to: path.join(ADDITIONS_SOURCE_PATCHED_DIR, 'include', 'temporal_rs'),
   },
   {
     from: path.join(BINJECT_DIR, 'upstream', 'libdeflate'),

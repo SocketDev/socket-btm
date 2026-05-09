@@ -106,9 +106,7 @@ const semver = {
     )
     if (RegExpPrototypeTest(WHITESPACE_REGEX, normalized)) {
       const parts = StringPrototypeSplit(normalized, WHITESPACE_REGEX)
-      return ArrayPrototypeEvery(parts, part =>
-        semver.satisfies(version, part),
-      )
+      return ArrayPrototypeEvery(parts, part => semver.satisfies(version, part))
     }
 
     // Parse version.
@@ -167,15 +165,11 @@ const semver = {
       }
       if (base.minor > 0) {
         return (
-          ver.major === 0 &&
-          ver.minor === base.minor &&
-          ver.patch >= base.patch
+          ver.major === 0 && ver.minor === base.minor && ver.patch >= base.patch
         )
       }
       // ^0.0.Z — only exact patch matches.
-      return (
-        ver.major === 0 && ver.minor === 0 && ver.patch === base.patch
-      )
+      return ver.major === 0 && ver.minor === 0 && ver.patch === base.patch
     }
 
     // Handle tilde range (~1.2.3).

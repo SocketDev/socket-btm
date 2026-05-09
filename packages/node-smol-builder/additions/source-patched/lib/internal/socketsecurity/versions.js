@@ -562,8 +562,7 @@ function parseGem(version) {
     if (typeof segments[i] === 'number') {
       if (numIdx === 0) {
         major = segments[i]
-      }
-      else if (numIdx === 1) minor = segments[i]
+      } else if (numIdx === 1) minor = segments[i]
       else if (numIdx === 2) patch = segments[i]
       numIdx++
     } else {
@@ -664,18 +663,14 @@ function comparePrerelease(a, b) {
     const bNum = typeof bVal === 'number'
 
     if (aNum && !bNum) {
-
       return -1
-
     }
     if (!aNum && bNum) {
       return 1
     }
 
     if (aVal < bVal) {
-
       return -1
-
     }
     if (aVal > bVal) {
       return 1
@@ -810,10 +805,8 @@ function compare(a, b, ecosystem = 'npm') {
       return result
     }
   }
-  const va =
-    typeof a === 'object' && a !== null ? a : parse(a, ecosystem)
-  const vb =
-    typeof b === 'object' && b !== null ? b : parse(b, ecosystem)
+  const va = typeof a === 'object' && a !== null ? a : parse(a, ecosystem)
+  const vb = typeof b === 'object' && b !== null ? b : parse(b, ecosystem)
 
   // RubyGems: use segments-based comparison.
   if (va._gem || vb._gem) {
@@ -895,9 +888,7 @@ function compare(a, b, ecosystem = 'npm') {
     const bPhase = bDev ? 0 : bPre ? 1 : bPost ? 3 : 2
 
     if (aPhase !== bPhase) {
-
       return aPhase < bPhase ? -1 : 1
-
     }
 
     // Same phase — compare within phase.
@@ -1011,8 +1002,7 @@ function coercePartialToFull(str) {
   const minor = match[2]
   const patch = match[3]
   // Anything wildcard-like (x / X / *) acts as 0 when coerced.
-  const coerce = s =>
-    !s || RegExpPrototypeTest(RANGE_XCH_REGEX, s) ? '0' : s
+  const coerce = s => (!s || RegExpPrototypeTest(RANGE_XCH_REGEX, s) ? '0' : s)
   return `${major}.${coerce(minor)}.${coerce(patch)}`
 }
 
@@ -1243,9 +1233,7 @@ function prereleaseAllowed(version, comp) {
 // Check if version satisfies a comparator
 function satisfiesComparator(version, comp, checkPrerelease = true) {
   const v =
-    typeof version === 'object' && version !== null
-      ? version
-      : parse(version)
+    typeof version === 'object' && version !== null ? version : parse(version)
 
   // Per semver spec: prerelease versions only match ranges that explicitly
   // include prerelease tags on the same [major, minor, patch] tuple
@@ -1407,8 +1395,7 @@ function compileRange(range, ecosystem) {
         const comp = parseComparator(andParts[j], ecosystem)
         if (comp) {
           ArrayPrototypePush(comparators, comp)
-        }
-        else ArrayPrototypePush(comparators, undefined)
+        } else ArrayPrototypePush(comparators, undefined)
       }
     }
 
@@ -1531,9 +1518,7 @@ function satisfies(version, range, ecosystem = 'npm') {
     }
 
     if (allMatch) {
-
       return true
-
     }
   }
 

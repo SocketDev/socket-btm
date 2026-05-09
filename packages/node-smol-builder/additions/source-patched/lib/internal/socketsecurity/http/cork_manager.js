@@ -3,10 +3,7 @@
 // Cork/uncork manager for batching socket writes.
 // Reduces syscalls by buffering header + body writes together.
 
-const {
-  PromisePrototypeFinally,
-  Symbol: SymbolCtor,
-} = primordials
+const { PromisePrototypeFinally, Symbol: SymbolCtor } = primordials
 
 const {
   ClearTimeout,
@@ -112,7 +109,11 @@ function withCork(response, callback) {
     manager.uncork()
     throw err
   }
-  if (result !== null && typeof result === 'object' && typeof result.then === 'function') {
+  if (
+    result !== null &&
+    typeof result === 'object' &&
+    typeof result.then === 'function'
+  ) {
     return PromisePrototypeFinally(result, () => {
       manager.uncork()
     })

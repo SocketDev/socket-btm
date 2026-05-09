@@ -29,9 +29,7 @@ const {
 // process and across processes.
 let tmpCounter = 0
 
-const {
-  getContent,
-} = require('internal/socketsecurity/vfs/tar_parser')
+const { getContent } = require('internal/socketsecurity/vfs/tar_parser')
 
 // Use primordials for protection against prototype pollution
 const {

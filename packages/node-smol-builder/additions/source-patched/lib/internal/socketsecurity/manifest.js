@@ -115,9 +115,7 @@ function detectFormat(filename) {
   const lastSlash = StringPrototypeLastIndexOf(filename, '/')
   const basename =
     lastSlash === -1 ? filename : StringPrototypeSlice(filename, lastSlash + 1)
-  return (
-    MANIFEST_PATTERNS[basename] || LOCKFILE_PATTERNS[basename] || undefined
-  )
+  return MANIFEST_PATTERNS[basename] || LOCKFILE_PATTERNS[basename] || undefined
 }
 
 // Parse package.json
@@ -575,9 +573,7 @@ function parseYarnLock(content) {
         const pline = StringPrototypeSlice(content, pos, pend)
 
         if (pline.length === 0 || (pline[0] !== ' ' && pline[0] !== '\t')) {
-
           break
-
         }
 
         const propLine = StringPrototypeTrim(pline)
@@ -1011,9 +1007,7 @@ function parsePnpmLock(content) {
     }
 
     if (!inPackages && !inSnapshots) {
-
       continue
-
     }
 
     // Calculate indent level
@@ -1110,14 +1104,12 @@ function parsePnpmLock(content) {
         // `os:` block at the same depth would have its own entries pushed
         // as fake "deps" of currentPkg.
         currentPkg._inDeps &&
-        (
-          StringPrototypeIndexOf(trimmed, 'peerDependencies:') === 0 ||
+        (StringPrototypeIndexOf(trimmed, 'peerDependencies:') === 0 ||
           StringPrototypeIndexOf(trimmed, 'optionalDependencies:') === 0 ||
           StringPrototypeIndexOf(trimmed, 'engines:') === 0 ||
           StringPrototypeIndexOf(trimmed, 'os:') === 0 ||
           StringPrototypeIndexOf(trimmed, 'cpu:') === 0 ||
-          StringPrototypeIndexOf(trimmed, 'bin:') === 0
-        )
+          StringPrototypeIndexOf(trimmed, 'bin:') === 0)
       ) {
         currentPkg._inDeps = false
       } else if (currentPkg._inDeps && indent > currentIndent + 2) {

@@ -80,9 +80,7 @@ async function runCCoverageForPackage(packageName) {
     logger.success(`C coverage completed for ${packageName}`)
     return true
   } catch (e) {
-    logger.error(
-      `C coverage failed for ${packageName}: ${errorMessage(e)}`,
-    )
+    logger.error(`C coverage failed for ${packageName}: ${errorMessage(e)}`)
     return false
   }
 }
@@ -91,13 +89,15 @@ async function runVitestCoverage() {
   logger.log('')
   logger.step('Running vitest coverage for node-smol-builder')
   try {
-    await runCommand('pnpm', ['exec', 'vitest', 'run', '--coverage'], PACKAGE_DIR)
+    await runCommand(
+      'pnpm',
+      ['exec', 'vitest', 'run', '--coverage'],
+      PACKAGE_DIR,
+    )
     logger.success('vitest coverage completed')
     return true
   } catch (e) {
-    logger.error(
-      `vitest coverage failed: ${errorMessage(e)}`,
-    )
+    logger.error(`vitest coverage failed: ${errorMessage(e)}`)
     return false
   }
 }
@@ -111,7 +111,8 @@ async function main() {
   logger.substep(`Platform: ${os.platform()}`)
   logger.log('')
 
-  const runC = target === undefined || target === 'c' || C_PACKAGES.includes(target)
+  const runC =
+    target === undefined || target === 'c' || C_PACKAGES.includes(target)
   const runVitest = target === undefined || target === 'vitest'
 
   if (!runC && !runVitest) {

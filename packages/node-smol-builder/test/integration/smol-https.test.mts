@@ -64,7 +64,7 @@ describe.skipIf(skipTests)('node:smol-https integration', () => {
     expect(unexpected).toEqual([])
   })
 
-  it("`default.serve` exists and matches type signature", async () => {
+  it('`default.serve` exists and matches type signature', async () => {
     const script = `
       const https = require('node:smol-https')
       console.log('default-type=' + typeof https.default)

@@ -52,10 +52,7 @@ function parseVersionTuple(raw: string): readonly number[] {
 /**
  * Lexicographic tuple comparison: [2,17] > [2,17,0] is false.
  */
-function compareTuples(
-  a: readonly number[],
-  b: readonly number[],
-): number {
+function compareTuples(a: readonly number[], b: readonly number[]): number {
   const len = Math.max(a.length, b.length)
   for (let i = 0; i < len; i++) {
     const av = a[i] ?? 0

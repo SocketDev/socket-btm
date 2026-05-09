@@ -86,7 +86,7 @@ describe('Comparison with semver gold standard', () => {
         const ourValid = valid(v)
         // semver returns null, our implementation returns undefined.
         // Both mean "invalid" — normalize for comparison.
-        expect(ourValid ?? null).toBe(semverValid ?? null)
+        expect(ourValid ?? undefined).toBe(semverValid ?? undefined)
       })
     })
   })
@@ -405,9 +405,9 @@ describe('Comparison with semver gold standard', () => {
     })
 
     it('should handle null/undefined inputs gracefully', () => {
-      expect(tryParse(null)).toBeUndefined()
-      expect(valid(null)).toBeUndefined()
-      expect(coerce(null)).toBeUndefined()
+      expect(tryParse(undefined)).toBeUndefined()
+      expect(valid(undefined)).toBeUndefined()
+      expect(coerce(undefined)).toBeUndefined()
     })
 
     it('should handle empty arrays in max/min', () => {

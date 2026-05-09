@@ -573,7 +573,9 @@ async function main() {
 
   if (!PUBLISH) {
     logger.log('Publish release from GitHub web interface or use:')
-    logger.log('  node packages/node-smol-builder/scripts/binary-released/shared/release.mts --publish')
+    logger.log(
+      '  node packages/node-smol-builder/scripts/binary-released/shared/release.mts --publish',
+    )
     logger.log('')
   }
 }

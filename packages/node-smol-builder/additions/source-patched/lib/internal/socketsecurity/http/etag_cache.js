@@ -54,10 +54,7 @@ class ETagCache {
     // Updating an existing key doesn't grow the map, so evicting
     // another entry in that case silently shrinks the cache by one
     // per update.
-    if (
-      !MapPrototypeHas(this.cache, key) &&
-      this.cache.size >= this.maxSize
-    ) {
+    if (!MapPrototypeHas(this.cache, key) && this.cache.size >= this.maxSize) {
       const { value: firstKey } = IteratorPrototypeNext(
         MapPrototypeKeys(this.cache),
       )

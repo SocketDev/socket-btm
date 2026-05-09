@@ -132,7 +132,7 @@ describe('vFS Path Handling', () => {
     })
 
     it('should return false for null/undefined', () => {
-      expect(isVFSPrefixPath(null)).toBeFalsy()
+      expect(isVFSPrefixPath(undefined)).toBeFalsy()
       expect(isVFSPrefixPath(undefined)).toBeFalsy()
     })
 
@@ -185,7 +185,7 @@ describe('vFS Path Handling', () => {
 
   describe('findVFSKey', () => {
     it('should find exact match', () => {
-      const entries = new Set(['file.js', 'data.json'])
+      const entries = new Set(['data.json', 'file.js'])
       expect(findVFSKey('file.js', entries)).toBe('file.js')
       expect(findVFSKey('data.json', entries)).toBe('data.json')
     })

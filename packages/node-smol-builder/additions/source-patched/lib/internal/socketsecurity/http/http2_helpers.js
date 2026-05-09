@@ -19,7 +19,9 @@ const {
 // break the Link header framing. Rejecting anything outside this set
 // prevents response splitting via a malicious upstream packument that
 // encodes dependency keys containing header terminators.
-const NPM_PACKAGE_NAME_REGEX = hardenRegExp(/^(?:@[a-zA-Z0-9][a-zA-Z0-9._-]*\/)?[a-zA-Z0-9][a-zA-Z0-9._-]*$/)
+const NPM_PACKAGE_NAME_REGEX = hardenRegExp(
+  /^(?:@[a-zA-Z0-9][a-zA-Z0-9._-]*\/)?[a-zA-Z0-9][a-zA-Z0-9._-]*$/,
+)
 
 const {
   Http2CreateSecureServer,
@@ -58,7 +60,8 @@ function createHttp2Server(options) {
       opts.maxConcurrentStreams ?? DEFAULT_HTTP2_MAX_CONCURRENT_STREAMS,
 
     // Increase initial window size for better throughput.
-    initialWindowSize: opts.initialWindowSize ?? DEFAULT_HTTP2_INITIAL_WINDOW_SIZE,
+    initialWindowSize:
+      opts.initialWindowSize ?? DEFAULT_HTTP2_INITIAL_WINDOW_SIZE,
 
     // Enable server push (even though browsers removed support).
     enablePush: opts.enablePush !== false,
@@ -83,15 +86,15 @@ function sendWithPreloads(stream, headers, data, dependencies = []) {
   // from untrusted upstream packument data — filter to strict npm name
   // grammar so CR/LF/`;`/`,`/`>` can't terminate the Link header early
   // (response splitting / fake-header injection).
-  const safeDeps = ArrayPrototypeFilter(dependencies, dep =>
-    typeof dep === 'string' && RegExpPrototypeTest(NPM_PACKAGE_NAME_REGEX, dep),
+  const safeDeps = ArrayPrototypeFilter(
+    dependencies,
+    dep =>
+      typeof dep === 'string' &&
+      RegExpPrototypeTest(NPM_PACKAGE_NAME_REGEX, dep),
   )
   if (safeDeps.length > 0) {
     const linkHeader = ArrayPrototypeJoin(
-      ArrayPrototypeMap(
-        safeDeps,
-        dep => `</${dep}>; rel=preload; as=fetch`,
-      ),
+      ArrayPrototypeMap(safeDeps, dep => `</${dep}>; rel=preload; as=fetch`),
       ', ',
     )
 

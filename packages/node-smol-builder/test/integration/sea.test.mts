@@ -9,10 +9,13 @@ import path from 'node:path'
 
 import { makeExecutable } from 'build-infra/lib/build-helpers'
 
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 import { runBinject } from '../helpers/binject.mts'
 import { getLatestFinalBinary } from '../paths.mts'
+
+const logger = getDefaultLogger()
 
 const finalBinaryPath = getLatestFinalBinary()
 const skipTests = !finalBinaryPath || !existsSync(finalBinaryPath)

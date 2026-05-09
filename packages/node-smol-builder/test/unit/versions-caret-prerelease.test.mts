@@ -20,9 +20,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import {
-  satisfies,
-} from '../../additions/source-patched/lib/internal/socketsecurity/versions.js'
+import { satisfies } from '../../additions/source-patched/lib/internal/socketsecurity/versions.js'
 
 describe('versions.js satisfies() — caret + prerelease', () => {
   describe('caret with prerelease on same tuple', () => {

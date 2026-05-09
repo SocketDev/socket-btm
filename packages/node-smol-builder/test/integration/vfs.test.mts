@@ -2854,7 +2854,7 @@ console.log('VFS_AVAILABLE=' + smolVfs.hasVFS())
         const result = await runBinject(
           seaBinary,
           'BOTH',
-          { sea: 'app.blob', vfs: null },
+          { sea: 'app.blob', vfs: undefined },
           {
             machoSegmentName: MACHO_SEGMENT_NODE_SEA,
             sentinelFuse: 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2',

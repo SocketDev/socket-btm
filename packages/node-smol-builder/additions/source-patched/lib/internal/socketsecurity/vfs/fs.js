@@ -336,7 +336,8 @@ function realpathSync(filepath, options, _depth = 0) {
  */
 function resolveRelativeVFSPath(symlinkVfsKey, linkTarget) {
   const lastSlash = StringPrototypeLastIndexOf(symlinkVfsKey, '/')
-  const dir = lastSlash === -1 ? '' : StringPrototypeSlice(symlinkVfsKey, 0, lastSlash)
+  const dir =
+    lastSlash === -1 ? '' : StringPrototypeSlice(symlinkVfsKey, 0, lastSlash)
   const combined = dir === '' ? linkTarget : `${dir}/${linkTarget}`
   const parts = StringPrototypeSplit(combined, '/')
   const out = []
@@ -609,9 +610,10 @@ function readFileAsJSON(filepath) {
     // Coerce err through ?? + String so primitive / null throws don't
     // produce `${undefined}` in the wrapped message. Matches the
     // errorMessage() contract used elsewhere in the codebase.
-    const msg = err && typeof err === 'object' && err.message
-      ? err.message
-      : StringCtor(err)
+    const msg =
+      err && typeof err === 'object' && err.message
+        ? err.message
+        : StringCtor(err)
     const parseErr = new VFSError(
       `Failed to parse JSON: ${filepath} - ${msg}`,
       { code: 'ERR_VFS_JSON_PARSE', path: filepath },

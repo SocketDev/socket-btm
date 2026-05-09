@@ -177,17 +177,17 @@ const EXPECTED_FAILURES = new Map([
 // Files to skip (IDL tests, GC tests, platform-specific)
 const SKIP_FILES = new Set([
   'idlharness.any.js',
-  'transferable/transform-stream-members.any.js',
-  'readable-streams/owning-type-video-frame.any.js',
-  'readable-streams/owning-type-message-port.any.js',
-  'readable-byte-streams/patched-global.any.js',
-  'readable-streams/patched-global.any.js',
-  'transform-streams/patched-global.any.js',
-  'readable-streams/garbage-collection.any.js',
-  'readable-streams/crashtests/garbage-collection.any.js',
-  'writable-streams/garbage-collection.any.js',
-  'writable-streams/crashtests/garbage-collection.any.js',
   'readable-byte-streams/construct-byob-request.any.js',
+  'readable-byte-streams/patched-global.any.js',
+  'readable-streams/crashtests/garbage-collection.any.js',
+  'readable-streams/garbage-collection.any.js',
+  'readable-streams/owning-type-message-port.any.js',
+  'readable-streams/owning-type-video-frame.any.js',
+  'readable-streams/patched-global.any.js',
+  'transferable/transform-stream-members.any.js',
+  'transform-streams/patched-global.any.js',
+  'writable-streams/crashtests/garbage-collection.any.js',
+  'writable-streams/garbage-collection.any.js',
 ])
 
 function parseArgs(): CliOptions {
@@ -371,10 +371,7 @@ async function runTestFile(
   // Fixtures live outside scripts/ because they're executed by the
   // built node-smol binary (`--without-amaro`, .mjs required), not by
   // the host Node that runs this orchestrator.
-  const runnerScript = path.join(
-    PACKAGE_ROOT,
-    'test/fixtures/wpt/run-file.mjs',
-  )
+  const runnerScript = path.join(PACKAGE_ROOT, 'test/fixtures/wpt/run-file.mjs')
 
   try {
     const result = await spawn(binaryPath, [runnerScript, testFile], {

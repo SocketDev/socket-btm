@@ -100,7 +100,7 @@ describe.skipIf(skipTests)('node:smol-ilp integration', () => {
     expect(stdout).toContain('has-BUFFER_OVERFLOW=true')
   })
 
-  it("`default` aliases `Sender`", async () => {
+  it('`default` aliases `Sender`', async () => {
     const script = `
       const ilp = require('node:smol-ilp')
       console.log('default-is-Sender=' + (ilp.default === ilp.Sender))

@@ -29,6 +29,7 @@ import {
 } from 'build-infra/lib/constants'
 
 import { safeDelete } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { getSocketDlxDir } from '@socketsecurity/lib/paths/socket'
 import { spawn } from '@socketsecurity/lib/spawn'
 
@@ -564,6 +565,8 @@ describe.skipIf(skipTests)('stub signing and extraction flow', () => {
         testScript,
         `
 import { compressSync, uncompressSync } from 'snappy';
+
+const logger = getDefaultLogger()
 
 const input = Buffer.from('hello from native addon test');
 const compressed = compressSync(input);

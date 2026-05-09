@@ -58,11 +58,7 @@ function getMemoryUsageMB(pid) {
       // Windows: Use PowerShell (wmic is deprecated/removed on Windows 11+)
       const result = spawnSync(
         'powershell.exe',
-        [
-          '-NoProfile',
-          '-Command',
-          `(Get-Process -Id ${pid}).WorkingSet64`,
-        ],
+        ['-NoProfile', '-Command', `(Get-Process -Id ${pid}).WorkingSet64`],
         { encoding: 'utf8' },
       )
       const bytes = parseInt(String(result.stdout).trim(), 10)
@@ -152,9 +148,8 @@ const monitorInterval = setInterval(() => {
     const memPercent = Math.floor((memoryMB / MAX_MEMORY_MB) * 100)
     const bar = '\u2588'.repeat(Math.floor(memPercent / 5))
     const empty = '\u2591'.repeat(20 - Math.floor(memPercent / 5))
-    process.stdout.write( // # socket-hook: allow logger \u2014 TTY progress bar
-      `\r Memory: ${memoryMB}MB / ${MAX_MEMORY_MB}MB [${bar}${empty}] ${memPercent}% | ${elapsed}s`,
-    )
+    const status = `\r Memory: ${memoryMB}MB / ${MAX_MEMORY_MB}MB [${bar}${empty}] ${memPercent}% | ${elapsed}s`
+    process.stdout.write(status) // socket-hook: allow console -- TTY progress bar with \r overwrite
   }
 }, CHECK_INTERVAL_MS)
 

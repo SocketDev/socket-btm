@@ -21,12 +21,15 @@ import { fileURLToPath } from 'node:url'
 import { makeExecutable } from 'build-infra/lib/build-helpers'
 
 import { safeDelete } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { getSocketDlxDir } from '@socketsecurity/lib/paths/socket'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 import { MACHO_SEGMENT_NODE_SEA } from 'bin-infra/test/helpers/segment-names'
 import { SMOL_VFS_BLOB, runBinject } from '../helpers/binject.mts'
 import { getLatestFinalBinary, getPackageDir } from '../paths.mts'
+
+const logger = getDefaultLogger()
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 

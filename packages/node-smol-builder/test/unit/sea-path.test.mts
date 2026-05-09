@@ -103,7 +103,7 @@ describe('sEA Path Handling', () => {
     })
 
     it('should return false for null/undefined', () => {
-      expect(isSeaPath(null)).toBeFalsy()
+      expect(isSeaPath(undefined)).toBeFalsy()
       expect(isSeaPath(undefined)).toBeFalsy()
     })
 

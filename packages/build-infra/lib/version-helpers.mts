@@ -88,7 +88,9 @@ async function loadExternalTools(packageRoot: string) {
  * const version = await getEmscriptenVersion(PACKAGE_ROOT)
  * // Returns: '4.0.20'
  */
-export async function getEmscriptenVersion(packageRoot: string): Promise<string> {
+export async function getEmscriptenVersion(
+  packageRoot: string,
+): Promise<string> {
   const data = await loadExternalTools(packageRoot)
 
   const emscriptenConfig = data.tools?.emscripten
@@ -225,7 +227,10 @@ export async function getCMakeVersion(packageRoot: string): Promise<string> {
  * const version = await getToolVersion(PACKAGE_ROOT, 'emscripten')
  * // Returns: '4.0.20'
  */
-export async function getToolVersion(packageRoot: string, toolName: string): Promise<string> {
+export async function getToolVersion(
+  packageRoot: string,
+  toolName: string,
+): Promise<string> {
   const data = await loadExternalTools(packageRoot)
 
   const toolConfig = data.tools?.[toolName]
@@ -262,7 +267,10 @@ export async function getToolVersion(packageRoot: string, toolName: string): Pro
  * const version = getSubmoduleVersion('packages/lief-builder/upstream/lief', 'lief')
  * // Returns: '0.17.0'
  */
-export function getSubmoduleVersion(submodulePath: string, packageName: string): string {
+export function getSubmoduleVersion(
+  submodulePath: string,
+  packageName: string,
+): string {
   // Validate inputs
   if (!packageName || packageName.trim() === '') {
     throw new Error('Package name cannot be empty')
@@ -407,8 +415,7 @@ export async function fetchNodeChecksum(
   version: string,
   options?: { timeout?: number },
 ): Promise<
-  | { hash: string; version: string }
-  | { error: string; version: string }
+  { hash: string; version: string } | { error: string; version: string }
 > {
   const versionTag = `v${version}`
   const timeout = options?.timeout ?? 10_000
@@ -456,9 +463,10 @@ export async function fetchNodeChecksum(
  * const result = await verifyNodeChecksum()
  * if (!result.valid) throw new Error(`Checksum mismatch: ${result.expected} !== ${result.actual}`)
  */
-export async function verifyNodeChecksum(
-  options?: { version?: string; timeout?: number },
-): Promise<{
+export async function verifyNodeChecksum(options?: {
+  version?: string
+  timeout?: number
+}): Promise<{
   valid: boolean
   expected?: string
   actual?: string

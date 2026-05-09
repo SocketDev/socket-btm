@@ -32,7 +32,7 @@ const toolName = args[0]
 const versionKey = args[1] || 'version'
 
 if (!toolName) {
-  console.error(
+  logger.fail(
     'Usage: get-tool-version.mts <tool-name> [version-key] [--package-root <path>]',
   )
   process.exitCode = 1
@@ -41,20 +41,20 @@ if (!toolName) {
     const data = JSON.parse(readFileSync(EXTERNAL_TOOLS_PATH, 'utf8'))
     const tool = data.tools?.[toolName]
     if (!tool) {
-      console.error(`Tool '${toolName}' not found in external-tools.json`)
-      console.error(`Available: ${Object.keys(data.tools || {}).join(', ')}`)
+      logger.fail(`Tool '${toolName}' not found in external-tools.json`)
+      logger.fail(`Available: ${Object.keys(data.tools || {}).join(', ')}`)
       process.exitCode = 1
     } else {
       const value = tool[versionKey] ?? tool.version
       if (!value) {
-        console.error(`No '${versionKey}' found for tool '${toolName}'`)
+        logger.fail(`No '${versionKey}' found for tool '${toolName}'`)
         process.exitCode = 1
       } else {
-        console.log(value)
+        logger.log(value)
       }
     }
   } catch (e) {
-    console.error(e.message)
+    logger.fail(e.message)
     process.exitCode = 1
   }
 }

@@ -76,7 +76,9 @@ export function getCCRemapFlags() {
  * the binary.
  */
 export function getRustcRemapFlags() {
-  return getRemapPairs().map(([from, to]) => `--remap-path-prefix=${from}=${to}`)
+  return getRemapPairs().map(
+    ([from, to]) => `--remap-path-prefix=${from}=${to}`,
+  )
 }
 
 /**

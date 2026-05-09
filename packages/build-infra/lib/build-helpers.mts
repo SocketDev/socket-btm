@@ -923,7 +923,7 @@ export async function smokeTestBinary(binaryPath, options = {}) {
         // escaping issues with windowsVerbatimArguments. The
         // console.log runs *inside* the spawned binary under test,
         // not in this build helper.
-        const jsCode = "console.log('Hello from node-smol')" // socket-hook: allow logger
+        const jsCode = "console.log('Hello from node-smol')" // socket-hook: allow console
         if (
           !(await runBinaryTest(
             binaryPath,
@@ -1147,7 +1147,7 @@ export async function testBinaryWithDocker(binaryPath, options = {}) {
         // Argument string passed to the node-smol binary under test;
         // the console.log runs *inside* that smoke-test child
         // process, not in this build helper.
-        "console.log('Hello from node-smol')", // socket-hook: allow logger
+        "console.log('Hello from node-smol')", // socket-hook: allow console
       ],
       {
         shell: WIN32,

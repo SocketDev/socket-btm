@@ -35,7 +35,7 @@ describe('errorMessage', () => {
   })
 
   it('returns UNKNOWN_ERROR for null', () => {
-    expect(errorMessage(null)).toBe(UNKNOWN_ERROR)
+    expect(errorMessage(undefined)).toBe(UNKNOWN_ERROR)
   })
 
   it('returns UNKNOWN_ERROR for plain objects that stringify to [object Object]', () => {

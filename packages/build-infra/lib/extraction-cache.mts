@@ -209,7 +209,10 @@ export function computeSourceHash(sourcePaths, platformMetadata, options) {
   // Sort on the hash-input string (post-normalization) so order is stable
   // regardless of whether `relativeTo` is provided.
   const entries = expandedPaths
-    .map(absolutePath => ({ absolutePath, hashPath: pathForHash(absolutePath) }))
+    .map(absolutePath => ({
+      absolutePath,
+      hashPath: pathForHash(absolutePath),
+    }))
     .toSorted((a, b) =>
       a.hashPath < b.hashPath ? -1 : a.hashPath > b.hashPath ? 1 : 0,
     )
@@ -243,7 +246,8 @@ export function computeSourceHash(sourcePaths, platformMetadata, options) {
         // Use a sentinel value that will differ from any valid hash
         // Use hash-path (absolute or relative per mode) to avoid collisions
         // when different files with the same basename are missing.
-        const sentinelHash = crypto.createHash('sha256')
+        const sentinelHash = crypto
+          .createHash('sha256')
           .update(`MISSING:${hashPath}`)
           .digest('hex')
         fileHashes.push(sentinelHash)
@@ -256,7 +260,8 @@ export function computeSourceHash(sourcePaths, platformMetadata, options) {
 
   // Include platform metadata if provided (for binary checkpoints)
   if (platformMetadata) {
-    const metadataHash = crypto.createHash('sha256')
+    const metadataHash = crypto
+      .createHash('sha256')
       .update(platformMetadata)
       .digest('hex')
     fileHashes.push(metadataHash)

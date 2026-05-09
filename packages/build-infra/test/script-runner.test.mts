@@ -88,7 +88,7 @@ describe('script-runner', () => {
     })
 
     it('should throw error if pnpm not found', async () => {
-      mockWhich.mockResolvedValue(null)
+      mockWhich.mockResolvedValue(undefined)
 
       await expect(runPnpmScript('my-package', 'build')).rejects.toThrow(
         'pnpm not found in PATH',
@@ -154,7 +154,7 @@ describe('script-runner', () => {
     })
 
     it('should throw error if pnpm not found', async () => {
-      mockWhich.mockResolvedValue(null)
+      mockWhich.mockResolvedValue(undefined)
 
       await expect(runPnpmScriptAll('test')).rejects.toThrow(
         'pnpm not found in PATH',
@@ -368,7 +368,7 @@ describe('script-runner', () => {
     })
 
     it('should throw error if pnpm not found', async () => {
-      mockWhich.mockResolvedValue(null)
+      mockWhich.mockResolvedValue(undefined)
 
       await expect(pnpm.install()).rejects.toThrow('pnpm not found in PATH')
     })
@@ -404,7 +404,7 @@ describe('script-runner', () => {
     })
 
     it('should throw error if pnpm not found', async () => {
-      mockWhich.mockResolvedValue(null)
+      mockWhich.mockResolvedValue(undefined)
 
       await expect(pnpm.build()).rejects.toThrow('pnpm not found in PATH')
     })
@@ -440,7 +440,7 @@ describe('script-runner', () => {
     })
 
     it('should throw error if pnpm not found', async () => {
-      mockWhich.mockResolvedValue(null)
+      mockWhich.mockResolvedValue(undefined)
 
       await expect(pnpm.test()).rejects.toThrow('pnpm not found in PATH')
     })

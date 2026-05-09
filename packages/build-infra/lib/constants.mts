@@ -176,10 +176,7 @@ export const CHECKPOINT_CHAINS = {
    * SOURCE_PATCHED and SOURCE_COPIED. If a future build script adds
    * FINALIZED or NATIVE_BUILT, add them here.
    */
-  iocraft: () => [
-    CHECKPOINTS.SOURCE_PATCHED,
-    CHECKPOINTS.SOURCE_COPIED,
-  ],
+  iocraft: () => [CHECKPOINTS.SOURCE_PATCHED, CHECKPOINTS.SOURCE_COPIED],
 
   /**
    * Simple single-checkpoint chain (FINALIZED only).
@@ -447,7 +444,10 @@ export function getBuildMode(args?: string[] | Set<string>): string {
  * @param {string} platformArch - Platform-arch string (e.g., 'linux-x64', 'darwin-arm64')
  * @returns {string} Platform-specific build directory path
  */
-export function getPlatformBuildDir(packageDir: string, platformArch: string): string {
+export function getPlatformBuildDir(
+  packageDir: string,
+  platformArch: string,
+): string {
   const buildMode = getBuildMode()
   return `${packageDir}/build/${buildMode}/${platformArch}`
 }
@@ -457,8 +457,13 @@ export function getPlatformBuildDir(packageDir: string, platformArch: string): s
  * @param {string} [platform] - Platform override (darwin, linux, win32)
  * @returns {string[]} Array of paths to search for EMSDK
  */
-export function getEmsdkSearchPaths(platform: string = process.platform): string[] {
-  return (EMSDK_SEARCH_PATHS as Record<string, string[]>)[platform] || EMSDK_SEARCH_PATHS.linux
+export function getEmsdkSearchPaths(
+  platform: string = process.platform,
+): string[] {
+  return (
+    (EMSDK_SEARCH_PATHS as Record<string, string[]>)[platform] ||
+    EMSDK_SEARCH_PATHS.linux
+  )
 }
 
 /**

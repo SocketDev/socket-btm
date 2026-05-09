@@ -52,9 +52,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
  *      dlopen its dylib at runtime — without the link, the dependent
  *      binary errors out with "Library not loaded: libfoo.dylib".
  */
-const KEG_ONLY_FORMULAS: ReadonlySet<string> = new Set([
-  'openssl@3',
-])
+const KEG_ONLY_FORMULAS: ReadonlySet<string> = new Set(['openssl@3'])
 
 /**
  * Package manager configuration per platform.

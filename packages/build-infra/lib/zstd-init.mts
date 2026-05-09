@@ -54,12 +54,7 @@ export async function ensureZstd({ packageDir }) {
   try {
     result = await spawn(
       'git',
-      [
-        'submodule',
-        'update',
-        '--init',
-        'packages/bin-infra/upstream/zstd',
-      ],
+      ['submodule', 'update', '--init', 'packages/bin-infra/upstream/zstd'],
       {
         cwd: monorepoRoot,
         stdio: 'inherit',

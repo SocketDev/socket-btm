@@ -46,7 +46,9 @@ export async function applyCommonTransforms(options) {
   // hardcoding 'D' (which in newer builds is the HEAP8 typed-array
   // alias, causing the sync wrapper to export a 16MB Int8Array).
   const detectedModuleVar =
-    mjsContent.match(/\bvar\s+([A-Za-z_$][\w$]*)\s*=\s*Object\.assign\(\s*\{\s*\}\s*,\s*moduleArg\s*\)/)?.[1] ||
+    mjsContent.match(
+      /\bvar\s+([A-Za-z_$][\w$]*)\s*=\s*Object\.assign\(\s*\{\s*\}\s*,\s*moduleArg\s*\)/,
+    )?.[1] ||
     mjsContent.match(/\bvar\s+([A-Za-z_$][\w$]*)\s*=\s*moduleArg\b/)?.[1]
 
   // === PASS 2: Main transformations ===
@@ -234,7 +236,8 @@ export async function applyCommonTransforms(options) {
           // code sometimes writes `async()=>` with no space, and the
           // old `pos + 6` stripped the opening paren along with
           // "async" — producing `=>{...})` parse errors downstream.
-          const end = pos + 5 + (mjsContent.charCodeAt(pos + 5) === 0x20 ? 1 : 0)
+          const end =
+            pos + 5 + (mjsContent.charCodeAt(pos + 5) === 0x20 ? 1 : 0)
           safeRemove(pos, end)
         }
       }
@@ -249,7 +252,8 @@ export async function applyCommonTransforms(options) {
           // code sometimes writes `async()=>` with no space, and the
           // old `pos + 6` stripped the opening paren along with
           // "async" — producing `=>{...})` parse errors downstream.
-          const end = pos + 5 + (mjsContent.charCodeAt(pos + 5) === 0x20 ? 1 : 0)
+          const end =
+            pos + 5 + (mjsContent.charCodeAt(pos + 5) === 0x20 ? 1 : 0)
           safeRemove(pos, end)
         }
       }

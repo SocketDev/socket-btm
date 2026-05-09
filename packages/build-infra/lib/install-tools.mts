@@ -230,9 +230,7 @@ export async function installTools(toolNames, options = {}) {
       // installTool throws on unsupported package manager or spawn failure.
       // Record the failure and continue with the rest of the list so the
       // caller sees the full picture instead of aborting on the first miss.
-      logger.error(
-        `Error installing ${toolName}: ${errorMessage(e)}`,
-      )
+      logger.error(`Error installing ${toolName}: ${errorMessage(e)}`)
       failed.push(toolName)
     }
   }

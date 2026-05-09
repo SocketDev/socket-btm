@@ -42,7 +42,12 @@ export function getDownloadedDir(packageRoot) {
  * @param {string} binaryName - Binary file name (e.g. `'binpress'`, `'binpress.exe'`).
  * @returns {string} Absolute path to the final binary.
  */
-export function getFinalBinaryPath(packageRoot, mode, platformArch, binaryName) {
+export function getFinalBinaryPath(
+  packageRoot,
+  mode,
+  platformArch,
+  binaryName,
+) {
   return path.join(
     packageRoot,
     'build',

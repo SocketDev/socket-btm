@@ -147,7 +147,8 @@ async function loadExternalTools(packageRoot) {
   for (const [tool, meta] of Object.entries(data.tools ?? {})) {
     versions[tool] = meta?.version ?? ''
   }
-  const rawHash = crypto.createHash('sha256')
+  const rawHash = crypto
+    .createHash('sha256')
     .update(JSON.stringify(data))
     .digest('hex')
     .slice(0, 16)
@@ -197,7 +198,9 @@ function buildCacheKey({
   }
   for (const key of Object.keys(sources).toSorted()) {
     const src = sources[key] ?? {}
-    hash.update(`src:${key}=${src.version ?? ''}:${src.ref ?? ''}:${src.url ?? ''}`)
+    hash.update(
+      `src:${key}=${src.version ?? ''}:${src.ref ?? ''}:${src.url ?? ''}`,
+    )
   }
   if (extraHash) {
     hash.update(`extra=${extraHash}`)
@@ -349,7 +352,7 @@ export async function runPipeline(options, cliOverrides) {
   })
 
   if (flags.printCacheKey) {
-    process.stdout.write(`${cacheKey}\n`)
+    process.stdout.write(`${cacheKey}\n`) // socket-hook: allow logger -- shell capture of cache key
     return /** @type {any} */ (undefined)
   }
 

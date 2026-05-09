@@ -163,9 +163,7 @@ export async function runCheckTools(config) {
     const success = await checkTools(config, { autoInstall, autoYes })
     process.exitCode = success ? 0 : 1
   } catch (e) {
-    logger.fail(
-      `Error checking tools: ${errorMessage(e)}`,
-    )
+    logger.fail(`Error checking tools: ${errorMessage(e)}`)
     process.exitCode = 1
   }
 }

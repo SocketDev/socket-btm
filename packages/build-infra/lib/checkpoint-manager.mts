@@ -566,7 +566,9 @@ export async function createCheckpoint(
 
     const envMetadata = envVars.some(v => v !== 'unset')
       ? `env-${envVars
-          .map(v => crypto.createHash('sha256').update(v).digest('hex').slice(0, 8))
+          .map(v =>
+            crypto.createHash('sha256').update(v).digest('hex').slice(0, 8),
+          )
           .join('-')}`
       : undefined
 
@@ -1374,7 +1376,9 @@ export async function shouldRun(
 
       const envMetadata = envVars.some(v => v !== 'unset')
         ? `env-${envVars
-            .map(v => crypto.createHash('sha256').update(v).digest('hex').slice(0, 8))
+            .map(v =>
+              crypto.createHash('sha256').update(v).digest('hex').slice(0, 8),
+            )
             .join('-')}`
         : undefined
 

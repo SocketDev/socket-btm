@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 
 import { which } from '@socketsecurity/lib/bin'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { toUnixPath } from '@socketsecurity/lib/paths/normalize'
 import { spawn } from '@socketsecurity/lib/spawn'
 
@@ -26,6 +27,7 @@ import { CHECKPOINTS } from '../lib/constants.mts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(__dirname, '../../..')
+const logger = getDefaultLogger()
 
 // Binary-stage checkpoints require explicit {platform, arch}; these tests
 // exercise the checkpoint machinery generically, so any concrete target works.
@@ -678,7 +680,7 @@ describe('createCheckpoint signature validation', () => {
     const packagesDir = path.join(REPO_ROOT, 'packages')
 
     if (!existsSync(packagesDir)) {
-      console.log('Skipping: packages directory not found')
+      logger.log('Skipping: packages directory not found')
       return
     }
 
@@ -693,7 +695,7 @@ describe('createCheckpoint signature validation', () => {
         !f.includes('node_modules'),
     )
 
-    console.log(`Validating ${scriptFiles.length} script files...`)
+    logger.log(`Validating ${scriptFiles.length} script files...`)
 
     // Validate each file
     const allErrors = []
@@ -707,16 +709,16 @@ describe('createCheckpoint signature validation', () => {
 
     // Report errors
     if (allErrors.length > 0) {
-      console.error('\n❌ Found createCheckpoint signature errors:\n')
+      logger.fail('\n❌ Found createCheckpoint signature errors:\n')
       for (const error of allErrors) {
-        console.error(`\n${error.file}:${error.line}`)
-        console.error(`  Error: ${error.error}`)
-        console.error(`  Context:\n${error.context}\n`)
+        logger.fail(`\n${error.file}:${error.line}`)
+        logger.fail(`  Error: ${error.error}`)
+        logger.fail(`  Context:\n${error.context}\n`)
       }
 
       expect(allErrors).toHaveLength(0)
     } else {
-      console.log(`✓ All ${scriptFiles.length} files validated successfully`)
+      logger.log(`✓ All ${scriptFiles.length} files validated successfully`)
     }
   })
 

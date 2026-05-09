@@ -42,7 +42,7 @@
 #
 --- a/deps/crates/crates.gyp
 +++ b/deps/crates/crates.gyp
-@@ -112,15 +112,44 @@
+@@ -112,15 +112,45 @@
      },
      {
        'target_name': 'temporal_capi',

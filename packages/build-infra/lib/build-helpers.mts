@@ -39,397 +39,6 @@ const TEST_FIXTURES_DIR = path.join(__dirname, '..', 'test', 'fixtures')
 const NODE_V24_WINDOWS_BUG_EXIT_CODE = 3_221_226_505
 
 /**
- * Helper to check spawn result for errors.
- *
- * @param {object} result - Spawn result
- * @param {string} testName - Name of test (for error messages)
- * @param {string} binaryPath - Path to binary
- * @returns {boolean} True if passed, false if failed
- */
-function checkSpawnResult(result, testName, binaryPath) {
-  if (result.error) {
-    printError(
-      `Binary ${testName} error: ${errorMessage(result.error)}`,
-      result.error,
-    )
-    return false
-  }
-
-  const exitCode = result.code ?? 0
-  if (exitCode !== 0) {
-    if (isNodeV24WindowsStackBufferOverrunBug(exitCode, result.stdout)) {
-      logger.warn(
-        `Binary ${testName} exited with code ${exitCode} (Node.js v24 Windows bug) but produced output - treating as success`,
-      )
-      return true
-    }
-
-    printError(`Binary failed smoke test (${testName}): ${binaryPath}`)
-    return false
-  }
-
-  return true
-}
-
-/**
- * Checks if we're testing a cross-compiled binary.
- *
- * @param {object} options - Options object
- * @param {string} hostArch - Host architecture
- * @returns {boolean} True if cross-compiled
- */
-function isCrossCompiled(options, hostArch) {
-  const { arch = getArch() } = { __proto__: null, ...options }
-  return arch !== hostArch
-}
-
-/**
- * Check if Docker is available for musl testing.
- *
- * @returns {Promise<boolean>}
- */
-async function isDockerAvailable() {
-  try {
-    const result = await spawn('docker', ['--version'], {
-      shell: WIN32,
-      stdio: 'pipe',
-    })
-    return result.code === 0
-  } catch {
-    return false
-  }
-}
-
-/**
- * Check if a binary is a self-extracting compressed binary.
- *
- * The Final binary is a copy of the Compressed binary, so we check for both.
- *
- * @param {string} binaryPath - Path to binary
- * @returns {boolean}
- */
-function isSelfExtractingBinary(binaryPath) {
-  // Check if path contains 'Compressed' or 'Final' directory (Final is a copy of Compressed)
-  return /[/\\](?:Compressed|Final)[/\\]/i.test(binaryPath)
-}
-
-/**
- * Check if exit code matches the known Node.js v24 Windows stack buffer overrun bug.
- * This bug causes node.exe to exit with STATUS_STACK_BUFFER_OVERRUN even when
- * the binary executes successfully. If stdout has valid output, treat as success.
- *
- * @param {number} exitCode - Process exit code
- * @param {Buffer|string} stdout - Process stdout
- * @returns {boolean} True if this matches the Node.js v24 Windows bug pattern
- */
-function isNodeV24WindowsStackBufferOverrunBug(exitCode, stdout) {
-  return (
-    WIN32 &&
-    exitCode === NODE_V24_WINDOWS_BUG_EXIT_CODE &&
-    stdout?.toString().trim()
-  )
-}
-
-/**
- * Check if QEMU user-mode emulation is available for cross-arch testing.
- *
- * @param {string} arch - Target architecture (arm64/x64)
- * @returns {Promise<boolean>}
- */
-async function isQemuAvailable(arch) {
-  try {
-    const qemuBinary =
-      arch === 'arm64' ? 'qemu-aarch64-static' : 'qemu-x86_64-static'
-    const result = await spawn('which', [qemuBinary], {
-      shell: WIN32,
-      stdio: 'pipe',
-    })
-    return result.code === 0
-  } catch {
-    return false
-  }
-}
-
-// Default timeout for smoke tests (30 seconds)
-const SMOKE_TEST_TIMEOUT_MS = 30_000
-
-/**
- * Run a single binary test with args.
- *
- * @param {string} binaryPath - Path to binary
- * @param {string[]} args - Arguments to pass
- * @param {string} testName - Name of test (for error messages)
- * @returns {Promise<boolean>} True if passed
- */
-async function runBinaryTest(binaryPath, args, testName) {
-  try {
-    // Normalize path on Windows
-    const execPath = WIN32 ? path.win32.normalize(binaryPath) : binaryPath
-    logger.log(`  Executing: ${execPath} ${args.join(' ')}`)
-
-    // Enable debug output for self-extracting binaries to help diagnose hangs
-    const env = { ...process.env }
-    if (isSelfExtractingBinary(binaryPath)) {
-      env.SOCKET_SMOL_DEBUG = '1'
-    }
-
-    const result = await spawn(execPath, args, {
-      // Use 'ignore' for stdin to prevent binary from waiting for input
-      // Use 'pipe' for stdout/stderr to capture output
-      env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: SMOKE_TEST_TIMEOUT_MS,
-    })
-    return checkSpawnResult(result, testName, binaryPath)
-  } catch (e) {
-    const execPath = WIN32 ? path.win32.normalize(binaryPath) : binaryPath
-
-    // Check for timeout (SIGTERM from timeout option)
-    if (e.signal === 'SIGTERM') {
-      logger.error(
-        `Binary ${testName} timed out after ${SMOKE_TEST_TIMEOUT_MS / 1000}s`,
-      )
-      logger.error(`  Command: ${execPath} ${args.join(' ')}`)
-      logger.error(
-        '  The binary may be hanging during startup or self-extraction',
-      )
-      return false
-    }
-
-    // Check for Windows Node.js v24 stack buffer overrun bug
-    // The spawn throws an error, but if stdout has output, it actually worked
-    if (isNodeV24WindowsStackBufferOverrunBug(e.code, e.stdout)) {
-      logger.warn(
-        `Binary ${testName} exited with code ${e.code} (Node.js v24 Windows bug) but produced output - treating as success`,
-      )
-      return true
-    }
-
-    logger.error(
-      `Binary ${testName} error: ${errorMessage(e) || 'command failed'}`,
-    )
-    logger.error(`  Command: ${execPath} ${args.join(' ')}`)
-    logger.error(`  Error code: ${e.code || 'unknown'}`)
-    logger.error(`  Signal: ${e.signal || 'none'}`)
-    if (e.stdout) {
-      logger.error(`  stdout: ${e.stdout.toString()}`)
-    }
-    if (e.stderr) {
-      logger.error(`  stderr: ${e.stderr.toString()}`)
-    }
-    return false
-  }
-}
-
-/**
- * Perform static verification on a binary (for cross-compiled builds).
- *
- * Verifies:
- * 1. Binary is not empty
- * 2. Correct architecture (if cross-compiled)
- * 3. Valid binary format (Mach-O/ELF/PE)
- * 4. Static linking (for musl builds)
- *
- * @param {string} binaryPath - Path to binary
- * @param {object} options - Verification options
- * @param {string} [options.arch] - Expected architecture (arm64/x64)
- * @param {string} [options.platform] - Target platform (darwin/linux/win32)
- * @param {boolean} [options.static] - Expect static linking
- * @returns {Promise<boolean>}
- */
-async function staticVerifyBinary(binaryPath, options = {}) {
-  const opts = { __proto__: null, ...options }
-  const { arch } = opts
-  const targetPlatform = opts.platform || os.platform()
-  const expectStatic = opts.static
-
-  logger.substep('Performing static verification (cross-compiled binary)')
-
-  try {
-    // Verify file is not empty
-    const stats = await fs.stat(binaryPath)
-    if (stats.size === 0) {
-      printError('Binary is empty')
-      return false
-    }
-    logger.success(`Binary size: ${stats.size} bytes`)
-
-    // Get file info using `file` command (may not be available on all platforms)
-    let fileInfo = ''
-    try {
-      const fileResult = await spawn('file', [binaryPath], {
-        shell: WIN32,
-        stdio: 'pipe',
-      })
-
-      if (fileResult.code !== 0) {
-        logger.warn('Could not run file command, skipping format checks')
-        return true
-      }
-
-      fileInfo = fileResult.stdout?.toString() || ''
-      logger.log(`  Binary info: ${fileInfo.trim()}`)
-    } catch {
-      // file command not available (e.g., Windows without Git Bash tools)
-      logger.warn('file command not available, skipping format checks')
-      logger.success('Static verification passed (basic checks only)')
-      return true
-    }
-
-    // Verify architecture if specified
-    if (arch) {
-      const archPatterns = {
-        arm64: /arm64|aarch64/i,
-        x64: /x86[-_]64|x64|amd64/i,
-      }
-
-      const pattern = archPatterns[arch]
-      if (pattern && !pattern.test(fileInfo)) {
-        printError(`Expected ${arch} architecture but got: ${fileInfo}`)
-        return false
-      }
-      logger.success(`Confirmed ${arch} architecture`)
-    }
-
-    // Verify binary format by target platform (not host — supports cross-compilation).
-    const formatChecks = {
-      darwin: { format: 'Mach-O', name: 'Mach-O' },
-      linux: { format: 'ELF', name: 'ELF' },
-      win32: { format: ['PE32', 'MS Windows'], name: 'PE' },
-    }
-
-    const check = formatChecks[targetPlatform]
-    if (check) {
-      const formats = Array.isArray(check.format)
-        ? check.format
-        : [check.format]
-      const hasValidFormat = formats.some(fmt => fileInfo.includes(fmt))
-
-      if (!hasValidFormat) {
-        printError(`Expected ${check.name} binary but got: ${fileInfo}`)
-        return false
-      }
-      logger.success(`Valid ${check.name} binary`)
-
-      // Check static linking for musl (Linux only)
-      if (targetPlatform === 'linux' && expectStatic) {
-        if (fileInfo.includes('statically linked')) {
-          logger.success('Binary is statically linked (musl)')
-        } else {
-          logger.warn('Binary may not be statically linked')
-        }
-      }
-    }
-
-    logger.success('Static verification passed')
-    return true
-  } catch (e) {
-    printError('Static verification failed', e)
-    return false
-  }
-}
-
-/**
- * Test binary using Docker (for musl builds).
- *
- * @param {string} binaryPath - Path to binary
- * @param {object} options - Test options
- * @param {string} options.expectedArch - Expected architecture
- * @returns {Promise<boolean>}
- */
-async function testBinaryWithDocker(binaryPath, options = {}) {
-  const { expectedArch = 'x64' } = options
-  const dockerArch = expectedArch === 'arm64' ? 'linux/arm64' : 'linux/amd64'
-
-  logger.substep('Testing musl binary in Alpine container (Docker)')
-
-  try {
-    // Test 1: Version check
-    let result = await spawn(
-      'docker',
-      [
-        'run',
-        '--rm',
-        '--platform',
-        dockerArch,
-        '-v',
-        `${path.dirname(binaryPath)}:/test`,
-        'alpine:latest',
-        `/test/${path.basename(binaryPath)}`,
-        '--version',
-      ],
-      {
-        shell: WIN32,
-        stdio: 'pipe',
-      },
-    )
-
-    if (result.code !== 0) {
-      printError('Docker test failed (version check)')
-      return false
-    }
-
-    // Test 2: JavaScript execution
-    result = await spawn(
-      'docker',
-      [
-        'run',
-        '--rm',
-        '--platform',
-        dockerArch,
-        '-v',
-        `${path.dirname(binaryPath)}:/test`,
-        'alpine:latest',
-        `/test/${path.basename(binaryPath)}`,
-        '-e',
-        "console.log('Hello from node-smol')",
-      ],
-      {
-        shell: WIN32,
-        stdio: 'pipe',
-      },
-    )
-
-    if (result.code !== 0) {
-      printError('Docker test failed (JavaScript execution)')
-      return false
-    }
-
-    // Test 3: Built-in modules
-    result = await spawn(
-      'docker',
-      [
-        'run',
-        '--rm',
-        '--platform',
-        dockerArch,
-        '-v',
-        `${path.dirname(binaryPath)}:/test`,
-        'alpine:latest',
-        `/test/${path.basename(binaryPath)}`,
-        '-e',
-        "require('fs'); require('path'); require('os')",
-      ],
-      {
-        shell: WIN32,
-        stdio: 'pipe',
-      },
-    )
-
-    if (result.code !== 0) {
-      printError('Docker test failed (built-in modules)')
-      return false
-    }
-
-    logger.success('All Docker tests passed (Alpine/musl)')
-    return true
-  } catch (e) {
-    printError('Docker test failed', e)
-    return false
-  }
-}
-
-/**
  * Check if compiler is available.
  * Tries multiple compilers if none specified.
  *
@@ -621,6 +230,55 @@ export async function checkPythonVersion(minVersion) {
     available: false,
     sufficient: false,
     version: undefined,
+  }
+}
+
+/**
+ * Helper to check spawn result for errors.
+ *
+ * @param {object} result - Spawn result
+ * @param {string} testName - Name of test (for error messages)
+ * @param {string} binaryPath - Path to binary
+ * @returns {boolean} True if passed, false if failed
+ */
+export function checkSpawnResult(result, testName, binaryPath) {
+  if (result.error) {
+    printError(
+      `Binary ${testName} error: ${errorMessage(result.error)}`,
+      result.error,
+    )
+    return false
+  }
+
+  const exitCode = result.code ?? 0
+  if (exitCode !== 0) {
+    if (isNodeV24WindowsStackBufferOverrunBug(exitCode, result.stdout)) {
+      logger.warn(
+        `Binary ${testName} exited with code ${exitCode} (Node.js v24 Windows bug) but produced output - treating as success`,
+      )
+      return true
+    }
+
+    printError(`Binary failed smoke test (${testName}): ${binaryPath}`)
+    return false
+  }
+
+  return true
+}
+
+/**
+ * Clear the build log file (truncate to empty).
+ * Call this at the start of each build to prevent log accumulation.
+ *
+ * @param {string} buildDir - Build directory
+ * @returns {Promise<void>}
+ */
+export async function clearBuildLog(buildDir) {
+  const logPath = getBuildLogPath(buildDir)
+  try {
+    await fs.writeFile(logPath, '')
+  } catch {
+    // Don't fail build if logging fails.
   }
 }
 
@@ -826,27 +484,6 @@ export async function freeDiskSpace() {
 }
 
 /**
- * Make a file executable and sync to disk.
- * Prevents ETXTBSY ("Text file busy") errors in Docker/QEMU where the kernel
- * may not have fully flushed writes before execve(). Always use this instead
- * of raw fs.chmod(path, 0o755) when the file will be executed immediately after.
- *
- * @param {string} filePath - Path to binary file
- */
-export async function makeExecutable(filePath) {
-  await fs.chmod(filePath, 0o755)
-  let fd
-  try {
-    fd = await fs.open(filePath, 'r')
-    await fd.sync()
-  } catch {
-    // fsync may fail on Windows (EPERM) — only needed on Linux/Docker.
-  } finally {
-    await fd?.close()
-  }
-}
-
-/**
  * Get build log path.
  *
  * @param {string} buildDir - Build directory
@@ -863,6 +500,9 @@ export function getBuildLogPath(buildDir) {
  * @returns {Promise<string>} Size string (e.g., '1.2 MB')
  */
 export async function getFileSize(filePath) {
+  // Need stat for the size metadata (caller wants byte count for the
+  // human-readable formatter below).
+  // oxlint-disable-next-line socket/prefer-exists-sync
   const stats = await fs.stat(filePath)
   const bytes = stats.size
 
@@ -900,6 +540,109 @@ export async function getLastLogLines(buildDir, lines = 50) {
 }
 
 /**
+ * Checks if we're testing a cross-compiled binary.
+ *
+ * @param {object} options - Options object
+ * @param {string} hostArch - Host architecture
+ * @returns {boolean} True if cross-compiled
+ */
+export function isCrossCompiled(options, hostArch) {
+  const { arch = getArch() } = { __proto__: null, ...options }
+  return arch !== hostArch
+}
+
+/**
+ * Check if Docker is available for musl testing.
+ *
+ * @returns {Promise<boolean>}
+ */
+export async function isDockerAvailable() {
+  try {
+    const result = await spawn('docker', ['--version'], {
+      shell: WIN32,
+      stdio: 'pipe',
+    })
+    return result.code === 0
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Check if exit code matches the known Node.js v24 Windows stack buffer overrun bug.
+ * This bug causes node.exe to exit with STATUS_STACK_BUFFER_OVERRUN even when
+ * the binary executes successfully. If stdout has valid output, treat as success.
+ *
+ * @param {number} exitCode - Process exit code
+ * @param {Buffer|string} stdout - Process stdout
+ * @returns {boolean} True if this matches the Node.js v24 Windows bug pattern
+ */
+export function isNodeV24WindowsStackBufferOverrunBug(exitCode, stdout) {
+  return (
+    WIN32 &&
+    exitCode === NODE_V24_WINDOWS_BUG_EXIT_CODE &&
+    stdout?.toString().trim()
+  )
+}
+
+/**
+ * Check if QEMU user-mode emulation is available for cross-arch testing.
+ *
+ * @param {string} arch - Target architecture (arm64/x64)
+ * @returns {Promise<boolean>}
+ */
+export async function isQemuAvailable(arch) {
+  try {
+    const qemuBinary =
+      arch === 'arm64' ? 'qemu-aarch64-static' : 'qemu-x86_64-static'
+    const result = await spawn('which', [qemuBinary], {
+      shell: WIN32,
+      stdio: 'pipe',
+    })
+    return result.code === 0
+  } catch {
+    return false
+  }
+}
+
+// Default timeout for smoke tests (30 seconds)
+const SMOKE_TEST_TIMEOUT_MS = 30_000
+
+/**
+ * Check if a binary is a self-extracting compressed binary.
+ *
+ * The Final binary is a copy of the Compressed binary, so we check for both.
+ *
+ * @param {string} binaryPath - Path to binary
+ * @returns {boolean}
+ */
+export function isSelfExtractingBinary(binaryPath) {
+  // Check if path contains 'Compressed' or 'Final' directory (Final is a copy of Compressed)
+  return /[/\\](?:Compressed|Final)[/\\]/i.test(binaryPath)
+}
+
+/**
+ * Make a file executable and sync to disk.
+ * Prevents ETXTBSY ("Text file busy") errors in Docker/QEMU where the kernel
+ * may not have fully flushed writes before execve(). Always use this instead
+ * of raw fs.chmod(path, 0o755) when the file will be executed immediately after.
+ *
+ * @param {string} filePath - Path to binary file
+ */
+export async function makeExecutable(filePath) {
+  await fs.chmod(filePath, 0o755)
+  let fd
+  try {
+    fd = await fs.open(filePath, 'r')
+    await fd.sync()
+  } catch {
+    // fsync may fail on Windows (EPERM) — only needed on Linux/Docker.
+  } finally {
+    await fd?.close()
+  }
+}
+
+/**
  * Read checkpoint.
  *
  * @param {string} buildDir - Build directory
@@ -916,18 +659,70 @@ export async function readCheckpoint(buildDir) {
 }
 
 /**
- * Clear the build log file (truncate to empty).
- * Call this at the start of each build to prevent log accumulation.
+ * Run a single binary test with args.
  *
- * @param {string} buildDir - Build directory
- * @returns {Promise<void>}
+ * @param {string} binaryPath - Path to binary
+ * @param {string[]} args - Arguments to pass
+ * @param {string} testName - Name of test (for error messages)
+ * @returns {Promise<boolean>} True if passed
  */
-export async function clearBuildLog(buildDir) {
-  const logPath = getBuildLogPath(buildDir)
+export async function runBinaryTest(binaryPath, args, testName) {
   try {
-    await fs.writeFile(logPath, '')
-  } catch {
-    // Don't fail build if logging fails.
+    // Normalize path on Windows
+    const execPath = WIN32 ? path.win32.normalize(binaryPath) : binaryPath
+    logger.log(`  Executing: ${execPath} ${args.join(' ')}`)
+
+    // Enable debug output for self-extracting binaries to help diagnose hangs
+    const env = { ...process.env }
+    if (isSelfExtractingBinary(binaryPath)) {
+      env.SOCKET_SMOL_DEBUG = '1'
+    }
+
+    const result = await spawn(execPath, args, {
+      // Use 'ignore' for stdin to prevent binary from waiting for input
+      // Use 'pipe' for stdout/stderr to capture output
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: SMOKE_TEST_TIMEOUT_MS,
+    })
+    return checkSpawnResult(result, testName, binaryPath)
+  } catch (e) {
+    const execPath = WIN32 ? path.win32.normalize(binaryPath) : binaryPath
+
+    // Check for timeout (SIGTERM from timeout option)
+    if (e.signal === 'SIGTERM') {
+      logger.error(
+        `Binary ${testName} timed out after ${SMOKE_TEST_TIMEOUT_MS / 1000}s`,
+      )
+      logger.error(`  Command: ${execPath} ${args.join(' ')}`)
+      logger.error(
+        '  The binary may be hanging during startup or self-extraction',
+      )
+      return false
+    }
+
+    // Check for Windows Node.js v24 stack buffer overrun bug
+    // The spawn throws an error, but if stdout has output, it actually worked
+    if (isNodeV24WindowsStackBufferOverrunBug(e.code, e.stdout)) {
+      logger.warn(
+        `Binary ${testName} exited with code ${e.code} (Node.js v24 Windows bug) but produced output - treating as success`,
+      )
+      return true
+    }
+
+    logger.error(
+      `Binary ${testName} error: ${errorMessage(e) || 'command failed'}`,
+    )
+    logger.error(`  Command: ${execPath} ${args.join(' ')}`)
+    logger.error(`  Error code: ${e.code || 'unknown'}`)
+    logger.error(`  Signal: ${e.signal || 'none'}`)
+    if (e.stdout) {
+      logger.error(`  stdout: ${e.stdout.toString()}`)
+    }
+    if (e.stderr) {
+      logger.error(`  stderr: ${e.stderr.toString()}`)
+    }
+    return false
   }
 }
 
@@ -1053,6 +848,23 @@ export async function smokeTestBinary(binaryPath, options = {}) {
         return false
       }
 
+      // Comprehensive Temporal API smoke test. Lives in its own fixture
+      // so a Temporal regression doesn't cascade-mask other module
+      // failures. Exercises every type / method / toString round-trip.
+      const temporalTestFile = path.join(
+        TEST_FIXTURES_DIR,
+        'smoke-test-temporal.mjs',
+      )
+      if (
+        !(await runBinaryTest(
+          binaryPath,
+          [temporalTestFile],
+          'Temporal API',
+        ))
+      ) {
+        return false
+      }
+
       logger.success('All functional tests passed')
       return true
     }
@@ -1107,9 +919,11 @@ export async function smokeTestBinary(binaryPath, options = {}) {
           return false
         }
 
-        // Test JavaScript execution
-        // Use single quotes to avoid escaping issues with windowsVerbatimArguments
-        const jsCode = "console.log('Hello from node-smol')"
+        // Test JavaScript execution. Use single quotes to avoid
+        // escaping issues with windowsVerbatimArguments. The
+        // console.log runs *inside* the spawned binary under test,
+        // not in this build helper.
+        const jsCode = "console.log('Hello from node-smol')" // socket-hook: allow logger
         if (
           !(await runBinaryTest(
             binaryPath,
@@ -1166,3 +980,217 @@ export {
   writeCacheHash,
   getCacheHash,
 } from './checkpoint-manager.mts'
+/**
+ * Perform static verification on a binary (for cross-compiled builds).
+ *
+ * Verifies:
+ * 1. Binary is not empty
+ * 2. Correct architecture (if cross-compiled)
+ * 3. Valid binary format (Mach-O/ELF/PE)
+ * 4. Static linking (for musl builds)
+ *
+ * @param {string} binaryPath - Path to binary
+ * @param {object} options - Verification options
+ * @param {string} [options.arch] - Expected architecture (arm64/x64)
+ * @param {string} [options.platform] - Target platform (darwin/linux/win32)
+ * @param {boolean} [options.static] - Expect static linking
+ * @returns {Promise<boolean>}
+ */
+export async function staticVerifyBinary(binaryPath, options = {}) {
+  const opts = { __proto__: null, ...options }
+  const { arch } = opts
+  const targetPlatform = opts.platform || os.platform()
+  const expectStatic = opts.static
+
+  logger.substep('Performing static verification (cross-compiled binary)')
+
+  try {
+    // Need stat for the size metadata (not just existence) — reject
+    // 0-byte cross-compiled artifacts that the linker may have
+    // silently created when the build skipped a step.
+    // oxlint-disable-next-line socket/prefer-exists-sync
+    const stats = await fs.stat(binaryPath)
+    if (stats.size === 0) {
+      printError('Binary is empty')
+      return false
+    }
+    logger.success(`Binary size: ${stats.size} bytes`)
+
+    // Get file info using `file` command (may not be available on all platforms)
+    let fileInfo = ''
+    try {
+      const fileResult = await spawn('file', [binaryPath], {
+        shell: WIN32,
+        stdio: 'pipe',
+      })
+
+      if (fileResult.code !== 0) {
+        logger.warn('Could not run file command, skipping format checks')
+        return true
+      }
+
+      fileInfo = fileResult.stdout?.toString() || ''
+      logger.log(`  Binary info: ${fileInfo.trim()}`)
+    } catch {
+      // file command not available (e.g., Windows without Git Bash tools)
+      logger.warn('file command not available, skipping format checks')
+      logger.success('Static verification passed (basic checks only)')
+      return true
+    }
+
+    // Verify architecture if specified
+    if (arch) {
+      const archPatterns = {
+        arm64: /arm64|aarch64/i,
+        x64: /x86[-_]64|x64|amd64/i,
+      }
+
+      const pattern = archPatterns[arch]
+      if (pattern && !pattern.test(fileInfo)) {
+        printError(`Expected ${arch} architecture but got: ${fileInfo}`)
+        return false
+      }
+      logger.success(`Confirmed ${arch} architecture`)
+    }
+
+    // Verify binary format by target platform (not host — supports cross-compilation).
+    const formatChecks = {
+      darwin: { format: 'Mach-O', name: 'Mach-O' },
+      linux: { format: 'ELF', name: 'ELF' },
+      win32: { format: ['PE32', 'MS Windows'], name: 'PE' },
+    }
+
+    const check = formatChecks[targetPlatform]
+    if (check) {
+      const formats = Array.isArray(check.format)
+        ? check.format
+        : [check.format]
+      const hasValidFormat = formats.some(fmt => fileInfo.includes(fmt))
+
+      if (!hasValidFormat) {
+        printError(`Expected ${check.name} binary but got: ${fileInfo}`)
+        return false
+      }
+      logger.success(`Valid ${check.name} binary`)
+
+      // Check static linking for musl (Linux only)
+      if (targetPlatform === 'linux' && expectStatic) {
+        if (fileInfo.includes('statically linked')) {
+          logger.success('Binary is statically linked (musl)')
+        } else {
+          logger.warn('Binary may not be statically linked')
+        }
+      }
+    }
+
+    logger.success('Static verification passed')
+    return true
+  } catch (e) {
+    printError('Static verification failed', e)
+    return false
+  }
+}
+
+/**
+ * Test binary using Docker (for musl builds).
+ *
+ * @param {string} binaryPath - Path to binary
+ * @param {object} options - Test options
+ * @param {string} options.expectedArch - Expected architecture
+ * @returns {Promise<boolean>}
+ */
+export async function testBinaryWithDocker(binaryPath, options = {}) {
+  const { expectedArch = 'x64' } = options
+  const dockerArch = expectedArch === 'arm64' ? 'linux/arm64' : 'linux/amd64'
+
+  logger.substep('Testing musl binary in Alpine container (Docker)')
+
+  try {
+    // Test 1: Version check
+    let result = await spawn(
+      'docker',
+      [
+        'run',
+        '--rm',
+        '--platform',
+        dockerArch,
+        '-v',
+        `${path.dirname(binaryPath)}:/test`,
+        'alpine:latest',
+        `/test/${path.basename(binaryPath)}`,
+        '--version',
+      ],
+      {
+        shell: WIN32,
+        stdio: 'pipe',
+      },
+    )
+
+    if (result.code !== 0) {
+      printError('Docker test failed (version check)')
+      return false
+    }
+
+    // Test 2: JavaScript execution
+    result = await spawn(
+      'docker',
+      [
+        'run',
+        '--rm',
+        '--platform',
+        dockerArch,
+        '-v',
+        `${path.dirname(binaryPath)}:/test`,
+        'alpine:latest',
+        `/test/${path.basename(binaryPath)}`,
+        '-e',
+        // Argument string passed to the node-smol binary under test;
+        // the console.log runs *inside* that smoke-test child
+        // process, not in this build helper.
+        "console.log('Hello from node-smol')", // socket-hook: allow logger
+      ],
+      {
+        shell: WIN32,
+        stdio: 'pipe',
+      },
+    )
+
+    if (result.code !== 0) {
+      printError('Docker test failed (JavaScript execution)')
+      return false
+    }
+
+    // Test 3: Built-in modules
+    result = await spawn(
+      'docker',
+      [
+        'run',
+        '--rm',
+        '--platform',
+        dockerArch,
+        '-v',
+        `${path.dirname(binaryPath)}:/test`,
+        'alpine:latest',
+        `/test/${path.basename(binaryPath)}`,
+        '-e',
+        "require('fs'); require('path'); require('os')",
+      ],
+      {
+        shell: WIN32,
+        stdio: 'pipe',
+      },
+    )
+
+    if (result.code !== 0) {
+      printError('Docker test failed (built-in modules)')
+      return false
+    }
+
+    logger.success('All Docker tests passed (Alpine/musl)')
+    return true
+  } catch (e) {
+    printError('Docker test failed', e)
+    return false
+  }
+}
+

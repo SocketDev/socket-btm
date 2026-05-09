@@ -90,7 +90,121 @@ type AllowlistEntry = {
   reason: string
 }
 
-function loadAllowlist(): AllowlistEntry[] {
+type Options = {
+  explain: boolean
+  json: boolean
+  quiet: boolean
+}
+
+// Check that no source file is modified by more than one patch in the
+// same directory. CLAUDE.md "Patch Rules" requires "1 patch, 1 file" —
+// not just within a patch, but across the whole series. Two patches
+// touching `src/node_binding.cc` is a convention violation; fold them
+// into one patch instead.
+export function collectMultiplePatchesPerFileViolations(
+  dir: string,
+): Violation[] {
+  if (!existsSync(dir)) {
+    return []
+  }
+  const files = readdirSync(dir)
+    .filter(f => f.endsWith('.patch'))
+    .sort(naturalCompare)
+  // Map from touched-source-file path → list of patch filenames that
+  // modify it. We read each patch, parse its `--- a/<file>` markers,
+  // and accumulate.
+  const fileToPatches = new Map<string, string[]>()
+  for (const patchName of files) {
+    const abs = path.join(dir, patchName)
+    let content
+    try {
+      content = readFileSync(abs, 'utf8')
+    } catch {
+      continue
+    }
+    // Parse the patch's `--- a/<path>` markers. Mirror the parsing
+    // shape from validatePatch's own use to stay consistent.
+    const minusFiles = new Set<string>()
+    for (const line of content.split('\n')) {
+      const match = /^---\s+a\/(.+?)\s*$/.exec(line)
+      if (match) {
+        minusFiles.add(match[1]!)
+      }
+    }
+    for (const f of minusFiles) {
+      const list = fileToPatches.get(f) ?? []
+      list.push(patchName)
+      fileToPatches.set(f, list)
+    }
+  }
+  const violations: Violation[] = []
+  for (const [sourceFile, patches] of fileToPatches) {
+    if (patches.length <= 1) {
+      continue
+    }
+    // Report the violation against the second + later patches (the
+    // first one to touch a file is the canonical owner; subsequent
+    // ones are the violators). This makes the fix path clear: fold
+    // the violator's hunks into the canonical patch.
+    const canonical = patches[0]!
+    for (const violator of patches.slice(1)) {
+      violations.push({
+        detail:
+          `Patch ${violator} modifies ${sourceFile}, which is already ` +
+          `owned by ${canonical}. CLAUDE.md "Patch Rules" requires ` +
+          `1 patch per source file across the entire series.`,
+        file: path.relative(MONOREPO_ROOT, path.join(dir, violator)),
+        fix:
+          `Fold this patch's hunks into ${canonical} and delete this ` +
+          `file. If the split is intentional and documented, allowlist ` +
+          `with \`rule: multiple-patches-per-file\`.`,
+        line: 1,
+        rule: 'multiple-patches-per-file',
+      })
+    }
+  }
+  return violations
+}
+
+export function collectNumberGapViolations(dir: string): Violation[] {
+  if (!existsSync(dir)) {
+    return []
+  }
+  const files = readdirSync(dir).filter(f => f.endsWith('.patch'))
+  const numbered: Array<{ name: string; num: number }> = []
+  for (const name of files) {
+    const num = numericPrefix(name)
+    if (num !== undefined) {
+      numbered.push({ name, num })
+    }
+  }
+  if (numbered.length === 0) {
+    return []
+  }
+  numbered.sort((a, b) => a.num - b.num)
+  const violations: Violation[] = []
+  for (let i = 1; i < numbered.length; i += 1) {
+    const prev = numbered[i - 1]!
+    const curr = numbered[i]!
+    if (curr.num !== prev.num + 1) {
+      const gap = curr.num - prev.num - 1
+      violations.push({
+        detail:
+          `Gap of ${gap} in numbered series: ${prev.name} -> ${curr.name}. ` +
+          `Either renumber the series to close the gap, or add an ` +
+          `allowlist entry with \`rule: numbered-series-gap\` if the ` +
+          `gap is intentional.`,
+        file: path.relative(MONOREPO_ROOT, path.join(dir, curr.name)),
+        fix: `Rename ${curr.name} and following files down by ${gap}, or allowlist as intentional.`,
+        line: 1,
+        rule: 'numbered-series-gap',
+      })
+    }
+  }
+  return violations
+}
+
+export function loadAllowlist(): AllowlistEntry[] {
   if (!existsSync(ALLOWLIST_PATH)) {
     return []
   }
@@ -148,13 +262,19 @@ type ParsedPatch = {
   hunks: Hunk[]
 }
 
+/** Extract the filename-numeric-prefix (e.g. "001" from "001-foo.patch"). */
+export function numericPrefix(file: string): number | undefined {
+  const match = path.basename(file).match(/^(\d+)-/)
+  return match ? Number.parseInt(match[1]!, 10) : undefined
+}
+
 /**
  * Parse a unified-diff patch into structured form. This intentionally
  * doesn't invoke `git apply --check` or `patch --dry-run` — we want to
  * validate format integrity independently of whether the patched tree
  * is currently checked out.
  */
-function parsePatch(content: string): ParsedPatch {
+export function parsePatch(content: string): ParsedPatch {
   const lines = content.split(/\r?\n/)
   const headerLines: string[] = []
   const minusFiles: string[] = []
@@ -232,13 +352,20 @@ function parsePatch(content: string): ParsedPatch {
   return { headerLines, hunks, minusFiles, plusFiles }
 }
 
-/** Extract the filename-numeric-prefix (e.g. "001" from "001-foo.patch"). */
-function numericPrefix(file: string): number | null {
-  const match = path.basename(file).match(/^(\d+)-/)
-  return match ? Number.parseInt(match[1]!, 10) : undefined
+export function printViolation(v: Violation, opts: Options): void {
+  if (opts.json) {
+    logger.log(JSON.stringify(v))
+    return
+  }
+  logger.log('')
+  logger.log(`[${v.rule}] ${v.file}:${v.line}`)
+  logger.log(`  ${v.detail}`)
+  if (opts.explain && v.fix) {
+    logger.log(`  Fix: ${v.fix}`)
+  }
 }
 
-function validatePatch(absPath: string, project: string): Violation[] {
+export function validatePatch(absPath: string, project: string): Violation[] {
   const relPath = path.relative(MONOREPO_ROOT, absPath)
   const violations: Violation[] = []
   let content: string
@@ -464,131 +591,6 @@ function validatePatch(absPath: string, project: string): Violation[] {
     }
   }
   return violations
-}
-
-function collectNumberGapViolations(dir: string): Violation[] {
-  if (!existsSync(dir)) {
-    return []
-  }
-  const files = readdirSync(dir).filter(f => f.endsWith('.patch'))
-  const numbered: Array<{ name: string; num: number }> = []
-  for (const name of files) {
-    const num = numericPrefix(name)
-    if (num !== null) {
-      numbered.push({ name, num })
-    }
-  }
-  if (numbered.length === 0) {
-    return []
-  }
-  numbered.sort((a, b) => a.num - b.num)
-  const violations: Violation[] = []
-  for (let i = 1; i < numbered.length; i += 1) {
-    const prev = numbered[i - 1]!
-    const curr = numbered[i]!
-    if (curr.num !== prev.num + 1) {
-      const gap = curr.num - prev.num - 1
-      violations.push({
-        detail:
-          `Gap of ${gap} in numbered series: ${prev.name} -> ${curr.name}. ` +
-          `Either renumber the series to close the gap, or add an ` +
-          `allowlist entry with \`rule: numbered-series-gap\` if the ` +
-          `gap is intentional.`,
-        file: path.relative(MONOREPO_ROOT, path.join(dir, curr.name)),
-        fix: `Rename ${curr.name} and following files down by ${gap}, or allowlist as intentional.`,
-        line: 1,
-        rule: 'numbered-series-gap',
-      })
-    }
-  }
-  return violations
-}
-
-// Check that no source file is modified by more than one patch in the
-// same directory. CLAUDE.md "Patch Rules" requires "1 patch, 1 file" —
-// not just within a patch, but across the whole series. Two patches
-// touching `src/node_binding.cc` is a convention violation; fold them
-// into one patch instead.
-function collectMultiplePatchesPerFileViolations(dir: string): Violation[] {
-  if (!existsSync(dir)) {
-    return []
-  }
-  const files = readdirSync(dir)
-    .filter(f => f.endsWith('.patch'))
-    .sort(naturalCompare)
-  // Map from touched-source-file path → list of patch filenames that
-  // modify it. We read each patch, parse its `--- a/<file>` markers,
-  // and accumulate.
-  const fileToPatches = new Map<string, string[]>()
-  for (const patchName of files) {
-    const abs = path.join(dir, patchName)
-    let content
-    try {
-      content = readFileSync(abs, 'utf8')
-    } catch {
-      continue
-    }
-    // Parse the patch's `--- a/<path>` markers. Mirror the parsing
-    // shape from validatePatch's own use to stay consistent.
-    const minusFiles = new Set<string>()
-    for (const line of content.split('\n')) {
-      const match = /^---\s+a\/(.+?)\s*$/.exec(line)
-      if (match) {
-        minusFiles.add(match[1]!)
-      }
-    }
-    for (const f of minusFiles) {
-      const list = fileToPatches.get(f) ?? []
-      list.push(patchName)
-      fileToPatches.set(f, list)
-    }
-  }
-  const violations: Violation[] = []
-  for (const [sourceFile, patches] of fileToPatches) {
-    if (patches.length <= 1) {
-      continue
-    }
-    // Report the violation against the second + later patches (the
-    // first one to touch a file is the canonical owner; subsequent
-    // ones are the violators). This makes the fix path clear: fold
-    // the violator's hunks into the canonical patch.
-    const canonical = patches[0]!
-    for (const violator of patches.slice(1)) {
-      violations.push({
-        detail:
-          `Patch ${violator} modifies ${sourceFile}, which is already ` +
-          `owned by ${canonical}. CLAUDE.md "Patch Rules" requires ` +
-          `1 patch per source file across the entire series.`,
-        file: path.relative(MONOREPO_ROOT, path.join(dir, violator)),
-        fix:
-          `Fold this patch's hunks into ${canonical} and delete this ` +
-          `file. If the split is intentional and documented, allowlist ` +
-          `with \`rule: multiple-patches-per-file\`.`,
-        line: 1,
-        rule: 'multiple-patches-per-file',
-      })
-    }
-  }
-  return violations
-}
-
-type Options = {
-  explain: boolean
-  json: boolean
-  quiet: boolean
-}
-
-function printViolation(v: Violation, opts: Options): void {
-  if (opts.json) {
-    logger.log(JSON.stringify(v))
-    return
-  }
-  logger.log('')
-  logger.log(`[${v.rule}] ${v.file}:${v.line}`)
-  logger.log(`  ${v.detail}`)
-  if (opts.explain && v.fix) {
-    logger.log(`  Fix: ${v.fix}`)
-  }
 }
 
 async function main(): Promise<void> {

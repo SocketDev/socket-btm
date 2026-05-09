@@ -83,7 +83,7 @@ const repoRoot = process.cwd()
 const cacheVersionsPath = path.join(repoRoot, '.github', 'cache-versions.json')
 
 if (!existsSync(cacheVersionsPath)) {
-  console.error(`× cache-versions.json not found at ${cacheVersionsPath}`)
+  logger.fail(`cache-versions.json not found at ${cacheVersionsPath}`)
   process.exit(1)
 }
 
@@ -91,19 +91,80 @@ const cacheVersions = JSON.parse(readFileSync(cacheVersionsPath, 'utf8')) as {
   versions: Record<string, string>
 }
 
-async function git(...args: string[]): Promise<string> {
-  const r = await spawn('git', args, { stdio: 'pipe' })
-  return (r.stdout?.toString() ?? '').trim()
+export async function checkUpstream(
+  downstream: string,
+  upstream: UpstreamEntry,
+): Promise<void> {
+  const { pkg, dispatchWorkflow } = upstream
+  const version = cacheVersions.versions[pkg]
+  if (!version) {
+    throw new Error(`upstream ${pkg} not found in cache-versions.json`)
+  }
+  const bumpSha = await findCacheVersionBumpSha(pkg, version)
+  if (!bumpSha) {
+    logger.warn(
+      `could not locate cache-version bump commit for ${pkg}@${version} — skipping freshness gate`,
+    )
+    return
+  }
+  const release = await findLatestRelease(pkg)
+  if (!release) {
+    throw new Error(
+      `${downstream} requires a published ${pkg} release, but none was found via \`gh release list\`.\n` +
+        `  Dispatch ${dispatchWorkflow} first: gh workflow run ${dispatchWorkflow} -f dry-run=false`,
+    )
+  }
+
+  // Stage 1: date check (cheap, fails fast on the common case where the
+  // bump landed on a later day than the latest release).
+  const bumpDate = await commitDate(bumpSha)
+  if (bumpDate && release.date < bumpDate) {
+    throw new Error(
+      `${downstream} cannot dispatch: ${pkg} cache-version bumped on ${bumpDate} ` +
+        `but the latest ${pkg} release is dated ${release.date} (BEFORE the bump). ` +
+        `Re-publish ${pkg}.\n` +
+        `  Run: gh workflow run ${dispatchWorkflow} -f dry-run=false`,
+    )
+  }
+
+  // Stage 2: SHA-ancestry check (catches the edge case where bump and
+  // release happened on the same day — date-only would falsely pass).
+  const releaseSha = await resolveSha(release.sha)
+  if (!releaseSha) {
+    throw new Error(
+      `${pkg} release tag points at SHA ${release.sha} which is not in this clone's history.\n` +
+        `  Did you forget \`git fetch\`? If the SHA was rewritten on main, re-publish ${pkg}.`,
+    )
+  }
+  const releaseHasBump = await isDescendantOrEqual(releaseSha, bumpSha)
+  if (!releaseHasBump) {
+    throw new Error(
+      `${downstream} cannot dispatch: ${pkg} cache-version bumped at ${bumpSha.slice(0, 8)} ` +
+        `but the latest ${pkg} release was published from ${release.sha} ` +
+        `(date matches but SHA predates the bump). Re-publish ${pkg}.\n` +
+        `  Run: gh workflow run ${dispatchWorkflow} -f dry-run=false`,
+    )
+  }
+
+  logger.success(
+    `${pkg} released ${release.date} @ ${release.sha} (>= bump ${bumpDate ?? '?'} @ ${bumpSha.slice(0, 8)})`,
+  )
 }
 
-async function gh(...args: string[]): Promise<string> {
-  const r = await spawn('gh', args, { stdio: 'pipe' })
-  return (r.stdout?.toString() ?? '').trim()
+// Get the YYYYMMDD date of a commit. Used for the cheap date-first gate.
+export async function commitDate(sha: string): Promise<string | undefined> {
+  try {
+    const iso = await git('show', '-s', '--format=%cs', sha)
+    // %cs is YYYY-MM-DD; strip dashes for direct lex compare.
+    return iso.replaceAll('-', '')
+  } catch {
+    return undefined
+  }
 }
 
 // Find the commit SHA where `<package>: "<version>"` was last set in
 // cache-versions.json. Uses `git log -L` to follow the line.
-async function findCacheVersionBumpSha(
+export async function findCacheVersionBumpSha(
   pkg: string,
   version: string,
 ): Promise<string | undefined> {
@@ -125,7 +186,7 @@ async function findCacheVersionBumpSha(
 // Find the most recent published release for `<pkg>`. Tag format:
 // `<pkg>-<YYYYMMDD>-<short-sha>`. Returns both the date and short SHA so
 // the gate can do a cheap date check first then escalate to SHA-ancestry.
-async function findLatestRelease(
+export async function findLatestRelease(
   pkg: string,
 ): Promise<{ date: string; sha: string } | undefined> {
   const out = await gh('release', 'list', '--limit', '20', '--json', 'tagName')
@@ -143,29 +204,19 @@ async function findLatestRelease(
   return { date: m[1]!, sha: m[2]! }
 }
 
-// Get the YYYYMMDD date of a commit. Used for the cheap date-first gate.
-async function commitDate(sha: string): Promise<string | undefined> {
-  try {
-    const iso = await git('show', '-s', '--format=%cs', sha)
-    // %cs is YYYY-MM-DD; strip dashes for direct lex compare.
-    return iso.replaceAll('-', '')
-  } catch {
-    return undefined
-  }
+export async function gh(...args: string[]): Promise<string> {
+  const r = await spawn('gh', args, { stdio: 'pipe' })
+  return (r.stdout?.toString() ?? '').trim()
 }
 
-// Resolve a short SHA to a full commit SHA in the local clone.
-async function resolveSha(short: string): Promise<string | undefined> {
-  try {
-    return await git('rev-parse', short)
-  } catch {
-    return undefined
-  }
+export async function git(...args: string[]): Promise<string> {
+  const r = await spawn('git', args, { stdio: 'pipe' })
+  return (r.stdout?.toString() ?? '').trim()
 }
 
 // Check whether commit `descendant` is an ancestor-or-equal of `ancestor` in
 // main's history (i.e. `descendant` was made AFTER `ancestor`).
-async function isDescendantOrEqual(
+export async function isDescendantOrEqual(
   descendant: string,
   ancestor: string,
 ): Promise<boolean> {
@@ -183,91 +234,40 @@ async function isDescendantOrEqual(
   }
 }
 
-async function checkUpstream(
-  downstream: string,
-  upstream: UpstreamEntry,
-): Promise<void> {
-  const { pkg, dispatchWorkflow } = upstream
-  const version = cacheVersions.versions[pkg]
-  if (!version) {
-    throw new Error(`upstream ${pkg} not found in cache-versions.json`)
+// Resolve a short SHA to a full commit SHA in the local clone.
+export async function resolveSha(short: string): Promise<string | undefined> {
+  try {
+    return await git('rev-parse', short)
+  } catch {
+    return undefined
   }
-  const bumpSha = await findCacheVersionBumpSha(pkg, version)
-  if (!bumpSha) {
-    console.warn(
-      `⚠  could not locate cache-version bump commit for ${pkg}@${version} — skipping freshness gate`,
-    )
-    return
-  }
-  const release = await findLatestRelease(pkg)
-  if (!release) {
-    throw new Error(
-      `× ${downstream} requires a published ${pkg} release, but none was found via \`gh release list\`.\n` +
-        `  Dispatch ${dispatchWorkflow} first: gh workflow run ${dispatchWorkflow} -f dry-run=false`,
-    )
-  }
-
-  // Stage 1: date check (cheap, fails fast on the common case where the
-  // bump landed on a later day than the latest release).
-  const bumpDate = await commitDate(bumpSha)
-  if (bumpDate && release.date < bumpDate) {
-    throw new Error(
-      `× ${downstream} cannot dispatch: ${pkg} cache-version bumped on ${bumpDate} ` +
-        `but the latest ${pkg} release is dated ${release.date} (BEFORE the bump). ` +
-        `Re-publish ${pkg}.\n` +
-        `  Run: gh workflow run ${dispatchWorkflow} -f dry-run=false`,
-    )
-  }
-
-  // Stage 2: SHA-ancestry check (catches the edge case where bump and
-  // release happened on the same day — date-only would falsely pass).
-  const releaseSha = await resolveSha(release.sha)
-  if (!releaseSha) {
-    throw new Error(
-      `× ${pkg} release tag points at SHA ${release.sha} which is not in this clone's history.\n` +
-        `  Did you forget \`git fetch\`? If the SHA was rewritten on main, re-publish ${pkg}.`,
-    )
-  }
-  const releaseHasBump = await isDescendantOrEqual(releaseSha, bumpSha)
-  if (!releaseHasBump) {
-    throw new Error(
-      `× ${downstream} cannot dispatch: ${pkg} cache-version bumped at ${bumpSha.slice(0, 8)} ` +
-        `but the latest ${pkg} release was published from ${release.sha} ` +
-        `(date matches but SHA predates the bump). Re-publish ${pkg}.\n` +
-        `  Run: gh workflow run ${dispatchWorkflow} -f dry-run=false`,
-    )
-  }
-
-  console.log(
-    `✓ ${pkg} released ${release.date} @ ${release.sha} (>= bump ${bumpDate ?? '?'} @ ${bumpSha.slice(0, 8)})`,
-  )
 }
 
 async function main(): Promise<void> {
   const target = process.argv[2]
   if (!target) {
-    console.error('Usage: node scripts/check-publish-prereq.mts <package>')
-    console.error('       packages: ' + CHAIN.map(c => c.pkg).join(', '))
+    logger.fail('Usage: node scripts/check-publish-prereq.mts <package>')
+    logger.fail('       packages: ' + CHAIN.map(c => c.pkg).join(', '))
     process.exit(1)
   }
   const entry = CHAIN.find(c => c.pkg === target)
   if (!entry) {
-    console.error(`× unknown package: ${target}`)
-    console.error('  must be one of: ' + CHAIN.map(c => c.pkg).join(', '))
+    logger.fail(`unknown package: ${target}`)
+    logger.fail('  must be one of: ' + CHAIN.map(c => c.pkg).join(', '))
     process.exit(1)
   }
   if (entry.deps.length === 0) {
-    console.log(`✓ ${target} has no upstream dependencies — nothing to verify.`)
+    logger.success(`${target} has no upstream dependencies — nothing to verify.`)
     return
   }
-  console.log(`Checking publish-chain freshness for ${target}...`)
+  logger.log(`Checking publish-chain freshness for ${target}...`)
   for (const dep of entry.deps) {
     await checkUpstream(target, dep)
   }
-  console.log(`✓ all ${target} prerequisites are fresh.`)
+  logger.success(`all ${target} prerequisites are fresh.`)
 }
 
 main().catch(e => {
-  console.error(e instanceof Error ? e.message : String(e))
+  logger.fail(e instanceof Error ? e.message : String(e))
   process.exit(1)
 })

@@ -93,7 +93,7 @@ describe.skipIf(skipTests)('node:smol-ffi integration', () => {
     expect(unexpected).toEqual([])
   })
 
-  it("`default` aliases `open`", async () => {
+  it('`default` aliases `open`', async () => {
     const script = `
       const ffi = require('node:smol-ffi')
       console.log('default-is-open=' + (ffi.default === ffi.open))

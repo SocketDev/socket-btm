@@ -135,6 +135,10 @@ Rules:
 
 The principle: the working tree at end-of-turn should match the user's mental model of where the work is. "Done" means committed; anything else is paused, and pause states need to be announced.
 
+### Hook bypasses require the canonical phrase
+
+🚨 Reverting tracked changes or bypassing a hook (--no-verify, DISABLE*PRECOMMIT*\*, --no-gpg-sign, force-push) requires the user to type **`Allow <X> bypass`** verbatim in a recent user turn (e.g. `Allow revert bypass`, `Allow no-verify bypass`). Paraphrases don't count. Enforced by `.claude/hooks/no-revert-guard/`. Full phrase table: [`docs/references/bypass-phrases.md`](docs/references/bypass-phrases.md).
+
 ### Variant analysis on every High/Critical finding
 
 🚨 When a finding lands at severity High or Critical, **search the rest of the repo for the same shape** before closing it. Bugs cluster — same mental model, same antipattern. Three searches: same file (read the whole thing, not just the hunk), sibling files (`rg` the shape, not the names), cross-package (parallel implementations love to drift).
@@ -458,6 +462,7 @@ Catches the shape that powered R18-R27 scope creep — R18 missed `build-infra/w
 - **Allowlist intentional exceptions**: `.github/patch-format-allowlist.yml`
 
 Rules enforced:
+
 - `# @<project>-versions: vX.Y.Z` header on first non-blank line; project tag must match the patch tree (node/ink/iocraft/lief)
 - `# @description:` header present and non-empty
 - Standard unified diff (`--- a/`, `+++ b/`), NOT `git format-patch` preamble
@@ -541,24 +546,29 @@ When modifying source, bump `.github/cache-versions.json` for all dependents. Th
 ##### Package Names
 
 **Core binary-injection suite:**
+
 - **binject**: Injects data into binaries (SEA resources, VFS archives)
 - **binpress**: Compresses binaries (zstd)
 - **binflate**: Decompresses binaries
 - **stubs-builder**: Builds self-extracting stub binaries
 
 **Infrastructure (canonical TypeScript helpers — additions/source-patched/ mirrors these):**
+
 - **build-infra**: Cross-package build helpers (checkpoint-manager, platform-mappings, release-checksums, docker-builder)
 - **bin-infra**: Binary-manipulation helpers (zstd bindings, compression utilities)
 
 **Custom Node.js:**
+
 - **node-smol-builder**: Builds custom Node.js binary with Socket patches — provides the `node:smol-*` built-in modules (`smol-ffi`, `smol-http`, `smol-https`, `smol-ilp`, `smol-manifest`, `smol-purl`, `smol-sql`, `smol-versions`, `smol-vfs`)
 
 **Native library builders (each produces a shared/static library consumed by node-smol or stubs):**
+
 - **curl-builder**: Builds libcurl + mbedTLS (used by stubs for HTTP)
 - **lief-builder**: Builds LIEF (used by binject for Mach-O/ELF/PE manipulation)
 - **libpq-builder**: Builds libpq (PostgreSQL client, used by node:smol-sql)
 
 **Native Node.js addons (each produces a `.node` binary):**
+
 - **iocraft-builder**: Rust → .node; TUI rendering primitives
 - **opentui-builder**: Zig → .node; terminal UI layer
 - **yoga-layout-builder**: Yoga Layout → WASM; flexbox for ink
@@ -567,6 +577,7 @@ When modifying source, bump `.github/cache-versions.json` for all dependents. Th
 - **ultraviolet-builder**: Go → .node via napi-go; Charmbracelet Ultraviolet — kitty/fixterms/SGR terminal decoder (Bubble Tea v2 foundation)
 
 **ML/models:**
+
 - **onnxruntime-builder**: Builds ONNX Runtime → WASM
 - **codet5-models-builder**, **minilm-builder**, **models**: Model pipeline (downloads → converts → quantizes → optimizes)
 

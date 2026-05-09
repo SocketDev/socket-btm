@@ -3,12 +3,13 @@
 #
 # This patch:
 # 1. Adds smol_vfs to the process binding allow list in the bootstrap realm,
-#    enabling VFS (Virtual File System) functionality for single executable applications.
-# 2. Adds smol-* modules to schemelessBlockList to require the node: prefix.
-#    This ensures consistent usage patterns (e.g., node:smol-http instead of smol-http).
+#    enabling VFS (Virtual File System) functionality for single executable
+#    applications.
+# 2. Adds every smol-* module to schemelessBlockList so each requires the
+#    node: prefix (e.g. node:smol-http instead of smol-http).
 #
 # Files modified:
-# - lib/internal/bootstrap/realm.js: Register smol_vfs binding and smol modules
+# - lib/internal/bootstrap/realm.js: smol_vfs binding + smol-* schemelessBlockList
 #
 --- a/lib/internal/bootstrap/realm.js
 +++ b/lib/internal/bootstrap/realm.js
@@ -20,7 +21,7 @@
    'spawn_sync',
    'stream_wrap',
    'tcp_wrap',
-@@ -127,6 +128,15 @@
+@@ -127,6 +128,18 @@
    'ffi',
    'sea',
    'sqlite',
@@ -29,8 +30,11 @@
 +  'smol-https',
 +  'smol-ilp',
 +  'smol-manifest',
++  'smol-power',
++  'smol-primordial',
 +  'smol-purl',
 +  'smol-sql',
++  'smol-util',
 +  'smol-vfs',
 +  'smol-versions',
    'quic',

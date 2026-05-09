@@ -1,8 +1,8 @@
 # @node-versions: v26.1.0
-# @description: Add VFS, binject, http, webstreams, ilp, and ffi sources to node.gyp
+# @description: Wire smol sources, libcompression/IOKit links, and glibc compat into node.gyp
 #
-# Integrates Socket Security's source files into the Node.js build system,
-# plus fast-webstreams deps for js2c embedding.
+# Integrates Socket Security's source files into the Node.js build system
+# along with the platform-specific link wiring needed by those sources.
 #
 # Source files are split into categories:
 # 1. Core sources (always compiled): VFS, file I/O, HTTP, SIMD, WebStreams, ILP, FFI
@@ -10,8 +10,17 @@
 # 3. LIEF-dependent sources (node_use_lief): SEA config, binject, bin-infra
 #
 # Compression: macOS uses libcompression, Linux/Windows use zstd + libdeflate.
-# libcompression added to all targets linking libnode.a (cctest, embedtest, mksnapshot).
-# bcrypt.lib added on Windows for SHA-256 hashing in smol_segment.c (BCrypt* functions).
+# libcompression added to every target linking libnode.a (cctest, embedtest,
+# mksnapshot). bcrypt.lib added on Windows for SHA-256 hashing in
+# smol_segment.c (BCrypt* functions).
+#
+# IOKit framework: power_mac.cc calls IOPSGetPowerSourceDescription, so the
+# IOKit framework is linked on every macOS target consuming libnode.a (gyp
+# does not forward `libraries` from a static_library to its consumers, so
+# each consumer mirrors the framework link).
+#
+# glibc compat: defines a minimal compat layer for the cares/getrandom path
+# so the resulting binary tolerates older glibc.
 #
 --- a/node.gyp
 +++ b/node.gyp
@@ -36,10 +45,12 @@
        '<@(node_builtin_shareable_builtins)',
      ],
      'node_sources': [
-@@ -732,6 +746,16 @@
+@@ -730,6 +744,16 @@
+             'Dbghelp.lib',
+             'winmm.lib',
              'Ws2_32.lib',
-           ],
-         }],
++          ],
++        }],
 +        ['OS=="win"', {
 +          'libraries': [
 +            'bcrypt.lib',
@@ -48,15 +59,15 @@
 +        ['OS=="mac"', {
 +          'libraries': [
 +            '-lcompression',
-+          ],
-+        }],
-         # Thin LTO for node_main.cc and linker (scoped to node_exe)
-         ['node_with_ltcg=="true"', {
-           'msvs_settings': {
-@@ -1057,12 +1081,231 @@
-             'deps/ncrypto/ncrypto.gyp:ncrypto',
            ],
          }],
+         # Thin LTO for node_main.cc and linker (scoped to node_exe)
+@@ -1055,14 +1079,250 @@
+           ],
+           'dependencies': [
+             'deps/ncrypto/ncrypto.gyp:ncrypto',
++          ],
++        }],
 +        ['1==1', {
 +          'sources': [
 +            # Socket Security: Runtime VFS binding.
@@ -137,7 +148,7 @@
 +            'src/socketsecurity/temporal/relative_to.cc',
 +            'src/socketsecurity/temporal/duration_normalized.cc',
 +            'src/socketsecurity/temporal/primitive.cc',
-+          ],
+           ],
 +          'include_dirs': [
 +            'src',
 +            'deps/uSockets/src',
@@ -155,7 +166,7 @@
 +              'deps/uWebSockets/src',
 +            ],
 +          },
-+        }],
+         }],
 +        # Socket Security: per-OS smol-power implementations. The
 +        # binding glue above is platform-agnostic; each impl compiles
 +        # only on its target so platform headers stay isolated.
@@ -168,6 +179,23 @@
 +        }],
 +        ['OS=="win"', {
 +          'sources': [ 'src/socketsecurity/power/power_win.cc' ],
++        }],
++        # Socket Security: glibc compatibility layer groundwork.
++        # Inert on current glibc 2.28 build (dlsym forwards to real impl);
++        # activates fallbacks when deployed on glibc 2.17 in the future.
++        # See packages/node-smol-builder/additions/source-patched/src/socketsecurity/compat/glibc_compat.cc.
++        ['OS=="linux"', {
++          'sources': [
++            'src/socketsecurity/compat/glibc_compat.cc',
++          ],
++          'ldflags': [
++            # All wraps are no-ops on musl (symbols unreferenced in musl ABI)
++            # and inert on glibc >= each symbol's introduction version.
++            '-Wl,--wrap=__cxa_thread_atexit_impl',
++            '-Wl,--wrap=getrandom',
++            '-Wl,--wrap=quick_exit',
++            '-Wl,--wrap=at_quick_exit',
++          ],
 +        }],
 +        # Socket Security: Optional io_uring acceleration (Linux only).
 +        # Uses bundled liburing from deps/liburing.
@@ -286,7 +314,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1447,6 +1690,16 @@
+@@ -1447,6 +1707,16 @@
              'Ws2_32.lib',
            ],
          }],
@@ -303,7 +331,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1521,6 +1774,16 @@
+@@ -1521,6 +1791,16 @@
              'Ws2_32.lib',
            ],
          }],
@@ -320,12 +348,10 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1742,6 +2005,16 @@
-             'Dbghelp.lib',
-             'winmm.lib',
+@@ -1744,6 +2024,17 @@
              'Ws2_32.lib',
-+          ],
-+        }],
+           ],
+         }],
 +        ['OS=="win"', {
 +          'libraries': [
 +            'bcrypt.lib',
@@ -334,6 +360,9 @@
 +        ['OS=="mac"', {
 +          'libraries': [
 +            '-lcompression',
-           ],
-         }],
++            '-framework IOKit',
++          ],
++        }],
          # Avoid excessive LTO
+         ['enable_lto=="true"', {
+           'ldflags': [ '-fno-lto' ],

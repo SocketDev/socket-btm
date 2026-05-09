@@ -402,13 +402,15 @@ Required headers — one `@<project>-versions` token per patch matching the targ
 
 ##### Patch Rules
 
-- **1 patch, 1 file** — both axes:
-  - **Within a patch**: only ONE source file is modified. No multi-file diffs.
-  - **Across the series**: each source file is touched by AT MOST ONE patch. If you need to make several edits to `src/node_binding.cc`, fold them into the single canonical patch for that file. Two patches modifying the same file is a convention violation.
+🚨 **1 patch, 1 file. 1 file, 1 patch.** Bidirectional. Every source file in the patch series is owned by exactly one patch, and every patch modifies exactly one source file. No exceptions, no allowlist entries, no "intentional splits."
+
+- **Within a patch**: only ONE source file is modified. No multi-file diffs.
+- **Across the series**: each source file is touched by EXACTLY ONE patch. If you need to make several edits to `src/node_binding.cc`, fold them into the single canonical patch for that file. Two patches modifying the same file is forbidden — fold them.
+- **Numbered series is contiguous.** When a patch is folded into another and deleted, renumber the remainder to close the gap. Numbered-series gaps are forbidden — no historic-reference allowlist for "patch N was removed in cleanup R<x>."
 - For multi-file features that cannot be split independently, use an ordered numeric-prefix series (`001-*.patch`, `002-*.patch`, `003-*.patch`) applied in filename order. Each patch still owns exactly ONE file; dependencies flow in ascending order only.
-- Both axes are enforced by `scripts/check-patch-format.mts`: rule `one-file-per-patch` (intra-patch) and rule `multiple-patches-per-file` (cross-patch). Allowlist intentional exceptions in `.github/patch-format-allowlist.yml` with a justification.
+- Both rules are enforced by `scripts/check-patch-format.mts` (`one-file-per-patch`, `multiple-patches-per-file`, `numbered-series-gap`). The allowlist at `.github/patch-format-allowlist.yml` MUST NOT carry entries for `multiple-patches-per-file` or `numbered-series-gap` — fix the patches instead.
 - Minimal touch, clean diffs, no style changes outside scope.
-- To regenerate: use `/regenerating-patches` skill.
+- To regenerate / refold: use `/regenerating-patches` skill.
 - Manual: `diff -u a/file b/file`, add headers, validate with `patch --dry-run`.
 
 #### Version consistency gate

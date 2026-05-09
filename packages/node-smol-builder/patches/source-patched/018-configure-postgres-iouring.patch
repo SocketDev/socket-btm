@@ -1,23 +1,28 @@
 # @node-versions: v26.1.0
-# @description: Add --with-postgres and --with-iouring configure options
+# @description: Add --with-postgres and --with-iouring configure options + drop cargo gate
 #
 # Adds configure options for building Node.js with PostgreSQL support
-# and optional io_uring acceleration. Both disabled by default.
-# PostgreSQL requires libpq bundled in deps/libpq.
-# io_uring is Linux only, requires liburing.
+# and optional io_uring acceleration (both disabled by default).
+# PostgreSQL requires libpq bundled in deps/libpq; io_uring is Linux-only
+# and requires liburing.
+#
+# Also disables the upstream cargo/rustc gate — Temporal is provided via
+# the C++ shim in temporal-infra, so the build does not need a Rust
+# toolchain.
 #
 --- a/configure.py
 +++ b/configure.py
-@@ -1059,6 +1059,18 @@
+@@ -1058,7 +1058,19 @@
+     dest='without_ffi',
      default=None,
      help='build without FFI (Foreign Function Interface) support')
- 
++
 +parser.add_argument('--with-postgres',
 +    action='store_true',
 +    dest='with_postgres',
 +    default=None,
 +    help='build with PostgreSQL (enables PostgreSQL in node:sql API, requires libpq)')
-+
+ 
 +parser.add_argument('--with-iouring',
 +    action='store_true',
 +    dest='with_iouring',
@@ -27,10 +32,22 @@
  parser.add_argument('--experimental-quic',
      action='store_true',
      dest='experimental_quic',
-@@ -2346,6 +2358,14 @@
+@@ -1576,8 +1588,8 @@
+ 
+   o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else '0.0'
+ 
+-  # cargo and rustc are needed for Temporal.
+-  if not options.v8_disable_temporal_support and not options.shared_temporal_capi:
++  # cargo/rustc gate disabled — Temporal backed by temporal-infra C++ shim (patch 037).
++  if False:
+     # Minimum cargo and rustc versions should match values in BUILDING.md.
+     min_cargo_ver_tuple = (1, 82)
+     min_rustc_ver_tuple = (1, 82)
+@@ -2345,6 +2357,14 @@
+     return
  
    configure_library('ffi', o, pkgname='libffi')
- 
++
 +def configure_postgres(o):
 +  # Socket Security: PostgreSQL is disabled by default (requires libpq).
 +  o['variables']['node_use_postgres'] = b(options.with_postgres)
@@ -38,10 +55,9 @@
 +def configure_iouring(o):
 +  # Socket Security: io_uring is disabled by default (Linux only, requires liburing).
 +  o['variables']['node_use_iouring'] = b(options.with_iouring)
-+
+ 
  def configure_quic(o):
    o['variables']['node_use_quic'] = b(options.experimental_quic and
-                                       not options.without_ssl)
 @@ -2802,6 +2822,8 @@
  configure_lief(output);
  configure_sqlite(output);

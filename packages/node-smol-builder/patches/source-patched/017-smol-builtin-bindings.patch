@@ -1,9 +1,10 @@
 # @node-versions: v26.1.0
-# @description: Disable wasi and register smol_* native bindings in NODE_BUILTIN_BINDINGS
+# @description: Register every smol_* native binding in NODE_BUILTIN_BINDINGS
 #
-# Replaces wasi with smol_vfs in standard bindings and adds smol_postgres
-# (conditional), smol_http, smol_ilp, smol_webstreams, and smol_ffi to the
-# builtin bindings macro in node_binding.cc.
+# Replaces wasi with smol_vfs in the standard binding macro and adds the
+# full smol native binding set: smol_ffi, smol_http, smol_ilp,
+# smol_postgres (conditional on HAVE_POSTGRES), smol_power, smol_primordial,
+# smol_util, smol_versions_native, and smol_webstreams.
 #
 --- a/src/node_binding.cc
 +++ b/src/node_binding.cc
@@ -17,7 +18,7 @@
    V(wasm_web_api)                                                              \
    V(watchdog)                                                                  \
    V(worker)                                                                    \
-@@ -108,7 +109,12 @@
+@@ -108,7 +109,16 @@
    NODE_BUILTIN_DEBUG_BINDINGS(V)                                               \
    NODE_BUILTIN_QUIC_BINDINGS(V)                                                \
    NODE_BUILTIN_SQLITE_BINDINGS(V)                                              \
@@ -27,6 +28,10 @@
 +  V(smol_ffi)                                                                  \
 +  V(smol_http)                                                                 \
 +  V(smol_ilp)                                                                  \
++  V(smol_power)                                                                \
++  V(smol_primordial)                                                           \
++  V(smol_util)                                                                 \
++  V(smol_versions_native)                                                      \
 +  V(smol_webstreams)
  
  // This is used to load built-in bindings. Instead of using

@@ -2,6 +2,7 @@
 
 #include "socketsecurity/temporal/ixdtf_writer.h"
 
+#include <cassert>
 #include <cstdint>
 #include <cstdlib>
 #include <string>
@@ -10,14 +11,24 @@ namespace node {
 namespace socketsecurity {
 namespace temporal {
 
-// 1:1 from parsers.rs:196 `write_padded_u8`.
+// 1:1 from parsers.rs:196 `write_padded_u8`. Upstream emits a leading
+// '0' for single-digit values then writes the integer in full — for
+// num in [0, 9] that's "0X", for num in [10, 99] that's "XX", and for
+// num in [100, 255] that's "XXX". The two-digit-padded contract only
+// applies to single-digit inputs; larger values are written as-is.
 void WritePaddedU8(uint8_t num, std::string& sink) {
   if (num < 10) {
     sink.push_back('0');
+    sink.push_back(static_cast<char>('0' + num));
+    return;
   }
-  if (num >= 10) {
+  if (num < 100) {
     sink.push_back(static_cast<char>('0' + (num / 10)));
+    sink.push_back(static_cast<char>('0' + (num % 10)));
+    return;
   }
+  sink.push_back(static_cast<char>('0' + (num / 100)));
+  sink.push_back(static_cast<char>('0' + ((num / 10) % 10)));
   sink.push_back(static_cast<char>('0' + (num % 10)));
 }
 
@@ -58,6 +69,17 @@ void WriteNanosecond(uint32_t nanoseconds, Precision precision,
 
 // 1:1 from parsers.rs:302 `write_four_digit_year` + parsers.rs:315
 // `write_extended_year`. Combined under WriteYear (parsers.rs:294).
+//
+// Extended-year IXDTF format reserves exactly 6 digits, so the input
+// range is `|year| <= 999999`. Temporal's spec-valid year range is
+// already tighter (`[-271821, 275760]`) and upstream callers gate on
+// IsoDate::IsValid() before reaching the writer. Rust's
+// `u32::unsigned_abs()` would silently drop the leading digit on an
+// out-of-range value; we trap loudly in debug builds and clamp to
+// the 6-digit boundary in release so a late-arriving bad value
+// produces a visibly-wrong all-9s year rather than a silently-shifted
+// one. If this fires in production, the bug is the missing
+// IsoDate::IsValid() check at the caller — fix that, not this clamp.
 void WriteYear(int32_t year, std::string& sink) {
   if (year >= 0 && year <= 9999) {
     int32_t y = year;
@@ -73,6 +95,11 @@ void WriteYear(int32_t year, std::string& sink) {
   // Extended year: ±NNNNNN (6 digits).
   sink.push_back(year < 0 ? '-' : '+');
   uint32_t abs_y = static_cast<uint32_t>(std::abs(static_cast<int64_t>(year)));
+  assert(abs_y <= 999999u && "WriteYear: |year| exceeds 6-digit IXDTF range; "
+                              "caller missed an IsoDate::IsValid() gate");
+  if (abs_y > 999999u) {
+    abs_y = 999999u;
+  }
   DigitArray9 d = U32ToDigits(abs_y);
   // Upstream takes digits[3..9] (skip leading 3 digits since the array is
   // right-padded to 9 places and we need exactly 6). 1:1 with parsers.rs:320.

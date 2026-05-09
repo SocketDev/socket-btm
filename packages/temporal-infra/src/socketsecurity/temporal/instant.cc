@@ -100,7 +100,20 @@ bool IsoTime::IsValid() const noexcept {
 // (years/months/weeks); we sum the time components into total ns and
 // add to the instant's epoch_nanoseconds in 128-bit space. The
 // resulting Instant is checked via IsValid() at the call site.
+//
+// Gate on Duration::IsValid() before any cast — the duration's time
+// fields are double per spec, and a NaN / Inf / out-of-range value
+// would invoke UB on `static_cast<NativeInt128>` per [conv.fpint].
+// Constructed Durations validate at creation, but this function is
+// `noexcept` and externally callable, so we belt-and-suspenders.
+// On invalid input, return an Instant just past the max range so the
+// caller's `out_inner.IsValid()` post-check fires and surfaces a
+// RangeError — matching the documented contract in temporal.h.
 Instant AddDuration(const Instant& instant, const Duration& duration) noexcept {
+  if (!duration.IsValid()) {
+    return Instant{kMaxInstantNanoseconds() + Int128(NativeInt128(1))};
+  }
+
   // Sum time components in nanoseconds (int128 to handle the full
   // range of representable Durations without precision loss). Days are
   // included per spec for time-only path; calendar components must

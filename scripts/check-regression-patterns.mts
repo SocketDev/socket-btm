@@ -1,44 +1,45 @@
 #!/usr/bin/env node
 /**
- * @fileoverview Bug-class regression gate.
+ * @fileoverview Regression-pattern gate.
  *
- * Runs fast grep-based checks for the 9 bug classes caught during the
- * R14-R25 quality-scan rounds. Each class encodes a lesson learned:
- * the regex catches the shape of a real bug we've shipped before, and
- * the allowlist records the specific sites that were manually verified
- * safe.
+ * Runs fast grep-based checks for the recurring bug *shapes* caught
+ * during R14-R25 quality-scan rounds. Each pattern encodes a lesson
+ * learned: the regex matches the shape of a real bug we've shipped
+ * before, and the allowlist records the specific sites that were
+ * manually verified safe. Note: "pattern" here means "regex pattern" /
+ * "code shape" — nothing to do with JS/TS class definitions.
  *
- * A PR that introduces a new instance of any class will fail this check
- * unless the author adds an allowlist entry with a justification.
+ * A PR that introduces a new instance of any pattern will fail this
+ * check unless the author adds an allowlist entry with a justification.
  *
  * Usage:
- *   node scripts/check-bug-classes.mts             # Fail on any unknown match
- *   node scripts/check-bug-classes.mts --quiet     # No output if clean
- *   node scripts/check-bug-classes.mts --json      # Machine-readable
- *   node scripts/check-bug-classes.mts --explain   # Long-form output
+ *   node scripts/check-regression-patterns.mts             # Fail on any unknown match
+ *   node scripts/check-regression-patterns.mts --quiet     # No output if clean
+ *   node scripts/check-regression-patterns.mts --json      # Machine-readable
+ *   node scripts/check-regression-patterns.mts --explain   # Long-form output
  *
- * Allowlist lives at `.github/bug-class-allowlist.yml`. Each entry
- * requires a `reason` so the list stays audit-able and entries can be
- * removed when the underlying code changes.
+ * Allowlist lives at `.github/regression-patterns-allowlist.yml`. Each
+ * entry requires a `reason` so the list stays audit-able and entries
+ * can be removed when the underlying code changes.
  *
- * Why a class-based check instead of "just more tests":
+ * Why a pattern-based check instead of "just more tests":
  *   - Tests check behavior. These checks catch *shapes* that have
  *     historically caused behavior bugs. They're strictly cheaper than
  *     writing a test for every abort-the-isolate path.
- *   - LLM-based scans found these classes across 25 rounds. Codifying
+ *   - LLM-based scans found these patterns across 25 rounds. Codifying
  *     them turns one-time scan effort into permanent CI coverage.
  *   - Catches doc drift (skill docs referencing non-existent pnpm
  *     scripts) that escapes every other check.
  *
  * What it does NOT do:
- *   - Find NEW bug classes. R27+ quality scans still need to run
- *     periodically to discover shapes we haven't seen yet.
+ *   - Find NEW regression patterns. R27+ quality scans still need to
+ *     run periodically to discover shapes we haven't seen yet.
  *   - Understand semantics. A match that's obviously safe still
  *     requires an allowlist entry — this is the tradeoff for a
  *     dumb-but-fast regex gate.
  */
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, promises as fsPromises, readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -59,10 +60,10 @@ const MONOREPO_ROOT = path.join(__dirname, '..')
 const ALLOWLIST_PATH = path.join(
   MONOREPO_ROOT,
   '.github',
-  'bug-class-allowlist.yml',
+  'regression-patterns-allowlist.yml',
 )
 
-type BugClass = {
+type Regression = {
   id: string
   title: string
   severity: 'critical' | 'high' | 'medium' | 'low'
@@ -79,12 +80,12 @@ type BugClass = {
   why: string
   // How to fix.
   fix: string
-  // Rounds where this class caused a real bug — for context when the
+  // Rounds where this shape caused a real bug — for context when the
   // check fails.
   precedents: string[]
 }
 
-const CLASSES: BugClass[] = [
+const REGRESSIONS: Regression[] = [
   {
     id: 'cpp-tolocalchecked-on-bytes',
     title: 'ToLocalChecked() on non-literal UTF-8 input',
@@ -381,15 +382,104 @@ const CLASSES: BugClass[] = [
 type AllowlistEntry = {
   file: string
   line?: number
-  class: string
+  pattern: string
   reason: string
+}
+
+type Match = {
+  file: string
+  line: number
+  column: number
+  text: string
+  regression: Regression
+}
+
+type Options = {
+  explain: boolean
+  json: boolean
+  quiet: boolean
+}
+
+/**
+ * Resolve every `pnpm run <script>` reference in skill/docs markdown
+ * against the actual package.json script registry. Returns markdown
+ * references whose target script does NOT exist in any package.json
+ * within this monorepo.
+ */
+export async function findNonExistentPnpmScripts(
+  regression: Regression,
+): Promise<Match[]> {
+  const matches: Match[] = []
+  // Gather all known pnpm scripts across the monorepo.
+  const knownScripts = new Set<string>()
+  const collectPackageScripts = async (pkgJsonPath: string) => {
+    if (!existsSync(pkgJsonPath)) {
+      return
+    }
+    try {
+      const pkg = JSON.parse(readFileSync(pkgJsonPath, 'utf8'))
+      const scripts = pkg.scripts || {}
+      for (const name of Object.keys(scripts)) {
+        knownScripts.add(name)
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }
+  await collectPackageScripts(path.join(MONOREPO_ROOT, 'package.json'))
+  const pkgsDir = path.join(MONOREPO_ROOT, 'packages')
+  if (existsSync(pkgsDir)) {
+    const entries = await fsPromises.readdir(pkgsDir, { withFileTypes: true })
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        await collectPackageScripts(
+          path.join(pkgsDir, entry.name, 'package.json'),
+        )
+      }
+    }
+  }
+
+  // Grep markdown files for `pnpm run <script>`.
+  const rawMatches = await runRipgrep(regression)
+  // Allowlist of documentation placeholders that are not real scripts.
+  // These are explicit examples in skill docs explaining the convention.
+  const placeholders = new Set(['bar', 'baz', 'foo', 'script'])
+  for (const m of rawMatches) {
+    // Skip Claude Code tool-allowlist patterns like
+    //   Bash(pnpm run check:*)
+    // Those describe a class of allowed Bash invocations, not a
+    // literal `pnpm run` reference; the trailing `:*` is a wildcard
+    // suffix in Claude Code's permission grammar.
+    if (/Bash\([^)]*pnpm run [a-zA-Z][a-zA-Z0-9_-]*:\*/.test(m.text)) {
+      continue
+    }
+    // Extract the script name from the captured line text. Use a
+    // strict character class WITHOUT `:` — a colon ends the script
+    // name (the part after `:` is a sub-script suffix like `:all`,
+    // `:ci`, `:watch`).
+    const runMatch = m.text.match(/pnpm run ([a-zA-Z][a-zA-Z0-9_-]*)/)
+    if (!runMatch) {
+      continue
+    }
+    const scriptName = runMatch[1]!
+    if (placeholders.has(scriptName)) {
+      continue
+    }
+    if (!knownScripts.has(scriptName)) {
+      matches.push({
+        ...m,
+        text: `pnpm run ${scriptName} (not in any package.json)`,
+      })
+    }
+  }
+  return matches
 }
 
 /**
  * Parse the allowlist YAML. Intentionally tiny parser — the file is
  * strictly shaped and we don't want to pull in a YAML dep just for this.
  */
-function loadAllowlist(): AllowlistEntry[] {
+export function loadAllowlist(): AllowlistEntry[] {
   if (!existsSync(ALLOWLIST_PATH)) {
     return []
   }
@@ -406,7 +496,7 @@ function loadAllowlist(): AllowlistEntry[] {
       continue
     }
     if (line.startsWith('- ')) {
-      if (current.file && current.class && current.reason) {
+      if (current.file && current.pattern && current.reason) {
         entries.push(current as AllowlistEntry)
       }
       current = { __proto__: null } as Partial<AllowlistEntry>
@@ -428,37 +518,74 @@ function loadAllowlist(): AllowlistEntry[] {
     }
     i += 1
   }
-  if (current.file && current.class && current.reason) {
+  if (current.file && current.pattern && current.reason) {
     entries.push(current as AllowlistEntry)
   }
   return entries
 }
 
-type Match = {
-  file: string
-  line: number
-  column: number
-  text: string
-  bugClass: BugClass
+export function printMatch(m: Match, opts: Options): void {
+  const { regression } = m
+  if (opts.json) {
+    logger.log(
+      JSON.stringify({
+        column: m.column,
+        file: m.file,
+        line: m.line,
+        pattern: regression.id,
+        severity: regression.severity,
+        text: m.text,
+        title: regression.title,
+      }),
+    )
+    return
+  }
+  const locator = `${m.file}:${m.line}:${m.column}`
+  const sev = regression.severity.toUpperCase()
+  logger.log('')
+  logger.log(`[${sev}] ${regression.title}`)
+  logger.log(`  ${locator}`)
+  logger.log(`    ${m.text}`)
+  if (opts.explain) {
+    logger.log('')
+    logger.log(`  Why it matters:`)
+    for (const chunk of wrapText(regression.why, 74, 4)) {
+      logger.log(chunk)
+    }
+    logger.log('')
+    logger.log(`  Fix:`)
+    for (const chunk of wrapText(regression.fix, 74, 4)) {
+      logger.log(chunk)
+    }
+    if (regression.precedents.length > 0) {
+      logger.log('')
+      logger.log(
+        `  This shape was shipped as a real bug in: ${regression.precedents.join(', ')}`,
+      )
+    }
+  } else {
+    logger.log(`  → rerun with --explain for why + fix`)
+    logger.log(`  → or allowlist in .github/regression-patterns-allowlist.yml`)
+  }
 }
 
-async function runRipgrep(bugClass: BugClass): Promise<Match[]> {
+export async function runRipgrep(regression: Regression): Promise<Match[]> {
   const matches: Match[] = []
-  for (const scanPath of bugClass.paths) {
+  for (const scanPath of regression.paths) {
     const absPath = path.join(MONOREPO_ROOT, scanPath)
     if (!existsSync(absPath)) {
       continue
     }
     const args = ['--vimgrep', '--no-config', '--pcre2']
-    if (bugClass.multiline) {
+    if (regression.multiline) {
       // ripgrep needs --multiline AND --multiline-dotall for [\s\S]
       // to match newlines reliably across patterns. Without dotall
       // `.` still stops at \n even in multiline mode.
       args.push('--multiline', '--multiline-dotall')
     }
-    args.push('-e', bugClass.pattern)
-    if (bugClass.glob) {
-      args.push('-g', bugClass.glob)
+    args.push('-e', regression.pattern)
+    if (regression.glob) {
+      args.push('-g', regression.glob)
     }
     // Exclude upstream / build / node_modules / source-patched
     // mirrors, and this script itself (its description strings contain
@@ -477,7 +604,7 @@ async function runRipgrep(bugClass: BugClass): Promise<Match[]> {
       '-g',
       '!**/source-patched/src/socketsecurity/{bin-infra,binject,build-infra}/**',
       '-g',
-      '!scripts/check-bug-classes.mts',
+      '!scripts/check-regression-patterns.mts',
     )
     args.push(absPath)
     // ripgrep exits 1 when there are no matches (not an error for us),
@@ -527,7 +654,7 @@ async function runRipgrep(bugClass: BugClass): Promise<Match[]> {
       const line = Number.parseInt(match[2]!, 10)
       const column = Number.parseInt(match[3]!, 10)
       const text = match[4]!.trim()
-      // Skip pure comment lines — these describe the bug class, they
+      // Skip pure comment lines — these describe the pattern, they
       // aren't instances of it. Handles C/C++ (`//`, `*`), markdown
       // (`>`), and TS JSDoc (`*`) line comments. Block comments
       // beginning with `/*` on the match line are also skipped.
@@ -539,142 +666,14 @@ async function runRipgrep(bugClass: BugClass): Promise<Match[]> {
         line,
         column,
         text,
-        bugClass,
+        regression,
       })
     }
   }
   return matches
 }
 
-/**
- * Resolve every `pnpm run <script>` reference in skill/docs markdown
- * against the actual package.json script registry. Returns markdown
- * references whose target script does NOT exist in any package.json
- * within this monorepo.
- */
-async function findNonExistentPnpmScripts(
-  bugClass: BugClass,
-): Promise<Match[]> {
-  const matches: Match[] = []
-  // Gather all known pnpm scripts across the monorepo.
-  const knownScripts = new Set<string>()
-  const collectPackageScripts = async (pkgJsonPath: string) => {
-    if (!existsSync(pkgJsonPath)) {
-      return
-    }
-    try {
-      const pkg = JSON.parse(readFileSync(pkgJsonPath, 'utf8'))
-      const scripts = pkg.scripts || {}
-      for (const name of Object.keys(scripts)) {
-        knownScripts.add(name)
-      }
-    } catch {
-      // ignore parse errors
-    }
-  }
-  await collectPackageScripts(path.join(MONOREPO_ROOT, 'package.json'))
-  const pkgsDir = path.join(MONOREPO_ROOT, 'packages')
-  if (existsSync(pkgsDir)) {
-    const entries = await (
-      await import('node:fs')
-    ).promises.readdir(pkgsDir, { withFileTypes: true })
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        await collectPackageScripts(
-          path.join(pkgsDir, entry.name, 'package.json'),
-        )
-      }
-    }
-  }
-
-  // Grep markdown files for `pnpm run <script>`.
-  const rawMatches = await runRipgrep(bugClass)
-  // Allowlist of documentation placeholders that are not real scripts.
-  // These are explicit examples in skill docs explaining the convention.
-  const placeholders = new Set(['bar', 'baz', 'foo', 'script'])
-  for (const m of rawMatches) {
-    // Skip Claude Code tool-allowlist patterns like
-    //   Bash(pnpm run check:*)
-    // Those describe a class of allowed Bash invocations, not a
-    // literal `pnpm run` reference; the trailing `:*` is a wildcard
-    // suffix in Claude Code's permission grammar.
-    if (/Bash\([^)]*pnpm run [a-zA-Z][a-zA-Z0-9_-]*:\*/.test(m.text)) {
-      continue
-    }
-    // Extract the script name from the captured line text. Use a
-    // strict character class WITHOUT `:` — a colon ends the script
-    // name (the part after `:` is a sub-script suffix like `:all`,
-    // `:ci`, `:watch`).
-    const runMatch = m.text.match(/pnpm run ([a-zA-Z][a-zA-Z0-9_-]*)/)
-    if (!runMatch) {
-      continue
-    }
-    const scriptName = runMatch[1]!
-    if (placeholders.has(scriptName)) {
-      continue
-    }
-    if (!knownScripts.has(scriptName)) {
-      matches.push({
-        ...m,
-        text: `pnpm run ${scriptName} (not in any package.json)`,
-      })
-    }
-  }
-  return matches
-}
-
-type Options = {
-  explain: boolean
-  json: boolean
-  quiet: boolean
-}
-
-function printMatch(m: Match, opts: Options): void {
-  const { bugClass } = m
-  if (opts.json) {
-    logger.log(
-      JSON.stringify({
-        class: bugClass.id,
-        column: m.column,
-        file: m.file,
-        line: m.line,
-        severity: bugClass.severity,
-        text: m.text,
-        title: bugClass.title,
-      }),
-    )
-    return
-  }
-  const locator = `${m.file}:${m.line}:${m.column}`
-  const sev = bugClass.severity.toUpperCase()
-  logger.log('')
-  logger.log(`[${sev}] ${bugClass.title}`)
-  logger.log(`  ${locator}`)
-  logger.log(`    ${m.text}`)
-  if (opts.explain) {
-    logger.log('')
-    logger.log(`  Why it matters:`)
-    for (const chunk of wrapText(bugClass.why, 74, 4)) {
-      logger.log(chunk)
-    }
-    logger.log('')
-    logger.log(`  Fix:`)
-    for (const chunk of wrapText(bugClass.fix, 74, 4)) {
-      logger.log(chunk)
-    }
-    if (bugClass.precedents.length > 0) {
-      logger.log('')
-      logger.log(
-        `  This shape was shipped as a real bug in: ${bugClass.precedents.join(', ')}`,
-      )
-    }
-  } else {
-    logger.log(`  → rerun with --explain for why + fix`)
-    logger.log(`  → or allowlist in .github/bug-class-allowlist.yml`)
-  }
-}
-
-function wrapText(text: string, width: number, indent: number): string[] {
+export function wrapText(text: string, width: number, indent: number): string[] {
   const out: string[] = []
   const pad = ' '.repeat(indent)
   const words = text.split(/\s+/)
@@ -713,26 +712,26 @@ async function main(): Promise<void> {
   const allowSet = new Set(
     allowlist.map(e =>
       e.line !== undefined
-        ? `${e.file}:${e.line}:${e.class}`
-        : `${e.file}:${e.class}`,
+        ? `${e.file}:${e.line}:${e.pattern}`
+        : `${e.file}:${e.pattern}`,
     ),
   )
 
   if (!opts.quiet && !opts.json) {
-    logger.info('Scanning for known bug-class regressions...')
+    logger.info('Scanning for known regression patterns...')
   }
 
   const allMatches: Match[] = []
-  for (const bugClass of CLASSES) {
+  for (const regression of REGRESSIONS) {
     let matches: Match[]
-    if (bugClass.id === 'docs-pnpm-run-nonexistent') {
-      matches = await findNonExistentPnpmScripts(bugClass)
+    if (regression.id === 'docs-pnpm-run-nonexistent') {
+      matches = await findNonExistentPnpmScripts(regression)
     } else {
-      matches = await runRipgrep(bugClass)
+      matches = await runRipgrep(regression)
     }
     for (const m of matches) {
-      const lineKey = `${m.file}:${m.line}:${bugClass.id}`
-      const fileKey = `${m.file}:${bugClass.id}`
+      const lineKey = `${m.file}:${m.line}:${regression.id}`
+      const fileKey = `${m.file}:${regression.id}`
       if (allowSet.has(lineKey) || allowSet.has(fileKey)) {
         continue
       }
@@ -743,7 +742,7 @@ async function main(): Promise<void> {
   if (allMatches.length === 0) {
     if (!opts.quiet && !opts.json) {
       logger.success(
-        `No bug-class regressions found (${CLASSES.length} classes × ${allowlist.length} allowlisted)`,
+        `No regression-pattern matches found (${REGRESSIONS.length} patterns × ${allowlist.length} allowlisted)`,
       )
     }
     process.exitCode = 0
@@ -751,12 +750,12 @@ async function main(): Promise<void> {
   }
 
   // Group by class for a readable summary first.
-  const byClass = new Map<string, Match[]>()
+  const byPattern = new Map<string, Match[]>()
   for (const m of allMatches) {
-    const key = m.bugClass.id
-    const arr = byClass.get(key) || []
+    const key = m.regression.id
+    const arr = byPattern.get(key) || []
     arr.push(m)
-    byClass.set(key, arr)
+    byPattern.set(key, arr)
   }
 
   if (opts.json) {
@@ -765,7 +764,7 @@ async function main(): Promise<void> {
     }
   } else {
     logger.error(
-      `Found ${allMatches.length} bug-class regression${allMatches.length === 1 ? '' : 's'} across ${byClass.size} class${byClass.size === 1 ? '' : 'es'}:`,
+      `Found ${allMatches.length} regression-pattern match${allMatches.length === 1 ? '' : 'es'} across ${byPattern.size} pattern${byPattern.size === 1 ? '' : 's'}:`,
     )
     for (const m of allMatches) {
       printMatch(m, opts)
@@ -776,10 +775,10 @@ async function main(): Promise<void> {
       '  1. If it is a real bug: fix it (see --explain for the pattern).',
     )
     logger.log(
-      '  2. If the match is safe: add to .github/bug-class-allowlist.yml',
+      '  2. If the match is safe: add to .github/regression-patterns-allowlist.yml',
     )
     logger.log(
-      '     with file, line, class, and a reason. Each entry is audit-',
+      '     with file, line, pattern, and a reason. Each entry is audit-',
     )
     logger.log('     able so future readers know why the check was bypassed.')
     logger.log('  3. Run with --explain for the full why + fix writeup.')

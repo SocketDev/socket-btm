@@ -22,7 +22,31 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 
 const logger = getDefaultLogger()
 
-async function runLint(
+export async function runCascadeCompletenessCheck(): Promise<number> {
+  logger.step('Running cascade-completeness check')
+
+  const result = await spawn(
+    'node',
+    ['scripts/check-cascade-completeness.mts', '--quiet'],
+    {
+      shell: WIN32,
+      stdio: 'inherit',
+    },
+  )
+
+  if (result.code !== 0) {
+    logger.error(
+      'Cascade-completeness check failed — rerun with --explain for details',
+    )
+    logger.log('  node scripts/check-cascade-completeness.mts --explain')
+    return result.code ?? 1
+  }
+
+  logger.success('Cascade-completeness check passed')
+  return 0
+}
+
+export async function runLint(
   fix = false,
   all = false,
   staged = false,
@@ -57,124 +81,7 @@ async function runLint(
   return 0
 }
 
-async function runTypeCheck(): Promise<number> {
-  logger.step('Running type checks')
-
-  const tsgoResult = await which('tsgo').catch(() => undefined)
-  if (!tsgoResult || Array.isArray(tsgoResult)) {
-    logger.warn('tsgo not found — skipping type checks')
-    return 0
-  }
-
-  const result = await spawn(tsgoResult, ['--noEmit'], {
-    shell: WIN32,
-    stdio: 'inherit',
-  })
-
-  if (result.code !== 0) {
-    logger.error('Type checks failed')
-    return result.code
-  }
-
-  logger.success('Type checks passed')
-  return 0
-}
-
-async function runBugClassCheck(): Promise<number> {
-  logger.step('Running bug-class regression checks')
-
-  const result = await spawn(
-    'node',
-    ['scripts/check-bug-classes.mts', '--quiet'],
-    {
-      shell: WIN32,
-      stdio: 'inherit',
-    },
-  )
-
-  if (result.code !== 0) {
-    logger.error(
-      'Bug-class regression check failed — rerun with --explain for details',
-    )
-    logger.log('  node scripts/check-bug-classes.mts --explain')
-    return result.code ?? 1
-  }
-
-  logger.success('Bug-class regression check passed')
-  return 0
-}
-
-async function runCascadeCompletenessCheck(): Promise<number> {
-  logger.step('Running cascade-completeness check')
-
-  const result = await spawn(
-    'node',
-    ['scripts/check-cascade-completeness.mts', '--quiet'],
-    {
-      shell: WIN32,
-      stdio: 'inherit',
-    },
-  )
-
-  if (result.code !== 0) {
-    logger.error(
-      'Cascade-completeness check failed — rerun with --explain for details',
-    )
-    logger.log('  node scripts/check-cascade-completeness.mts --explain')
-    return result.code ?? 1
-  }
-
-  logger.success('Cascade-completeness check passed')
-  return 0
-}
-
-async function runPatchFormatCheck(): Promise<number> {
-  logger.step('Running patch format check')
-
-  const result = await spawn(
-    'node',
-    ['scripts/check-patch-format.mts', '--quiet'],
-    {
-      shell: WIN32,
-      stdio: 'inherit',
-    },
-  )
-
-  if (result.code !== 0) {
-    logger.error('Patch format check failed — rerun with --explain for details')
-    logger.log('  node scripts/check-patch-format.mts --explain')
-    return result.code ?? 1
-  }
-
-  logger.success('Patch format check passed')
-  return 0
-}
-
-async function runVersionConsistencyCheck(): Promise<number> {
-  logger.step('Running version consistency check')
-
-  const result = await spawn(
-    'node',
-    ['scripts/check-version-consistency.mts', '--quiet'],
-    {
-      shell: WIN32,
-      stdio: 'inherit',
-    },
-  )
-
-  if (result.code !== 0) {
-    logger.error(
-      'Version consistency check failed — rerun with --explain for details',
-    )
-    logger.log('  node scripts/check-version-consistency.mts --explain')
-    return result.code ?? 1
-  }
-
-  logger.success('Version consistency check passed')
-  return 0
-}
-
-async function runMirrorDocsCheck(): Promise<number> {
+export async function runMirrorDocsCheck(): Promise<number> {
   logger.step('Running mirror-docs sync check')
 
   const result = await spawn(
@@ -198,7 +105,29 @@ async function runMirrorDocsCheck(): Promise<number> {
   return 0
 }
 
-async function runPathHygieneCheck(): Promise<number> {
+export async function runPatchFormatCheck(): Promise<number> {
+  logger.step('Running patch format check')
+
+  const result = await spawn(
+    'node',
+    ['scripts/check-patch-format.mts', '--quiet'],
+    {
+      shell: WIN32,
+      stdio: 'inherit',
+    },
+  )
+
+  if (result.code !== 0) {
+    logger.error('Patch format check failed — rerun with --explain for details')
+    logger.log('  node scripts/check-patch-format.mts --explain')
+    return result.code ?? 1
+  }
+
+  logger.success('Patch format check passed')
+  return 0
+}
+
+export async function runPathHygieneCheck(): Promise<number> {
   logger.step('Running path-hygiene check (1 path, 1 reference)')
 
   const result = await spawn('node', ['scripts/check-paths.mts', '--quiet'], {
@@ -216,7 +145,7 @@ async function runPathHygieneCheck(): Promise<number> {
   return 0
 }
 
-async function runPrimordialsCoverageCheck(): Promise<number> {
+export async function runPrimordialsCoverageCheck(): Promise<number> {
   logger.step('Running primordials coverage check')
 
   const pnpm = await which('pnpm')
@@ -243,6 +172,77 @@ async function runPrimordialsCoverageCheck(): Promise<number> {
   }
 
   logger.success('Primordials coverage check passed')
+  return 0
+}
+
+export async function runRegressionPatternsCheck(): Promise<number> {
+  logger.step('Running regression-pattern checks')
+
+  const result = await spawn(
+    'node',
+    ['scripts/check-regression-patterns.mts', '--quiet'],
+    {
+      shell: WIN32,
+      stdio: 'inherit',
+    },
+  )
+
+  if (result.code !== 0) {
+    logger.error(
+      'Regression-pattern check failed — rerun with --explain for details',
+    )
+    logger.log('  node scripts/check-regression-patterns.mts --explain')
+    return result.code ?? 1
+  }
+
+  logger.success('Regression-pattern check passed')
+  return 0
+}
+
+export async function runTypeCheck(): Promise<number> {
+  logger.step('Running type checks')
+
+  const tsgoResult = await which('tsgo').catch(() => undefined)
+  if (!tsgoResult || Array.isArray(tsgoResult)) {
+    logger.warn('tsgo not found — skipping type checks')
+    return 0
+  }
+
+  const result = await spawn(tsgoResult, ['--noEmit'], {
+    shell: WIN32,
+    stdio: 'inherit',
+  })
+
+  if (result.code !== 0) {
+    logger.error('Type checks failed')
+    return result.code
+  }
+
+  logger.success('Type checks passed')
+  return 0
+}
+
+export async function runVersionConsistencyCheck(): Promise<number> {
+  logger.step('Running version consistency check')
+
+  const result = await spawn(
+    'node',
+    ['scripts/check-version-consistency.mts', '--quiet'],
+    {
+      shell: WIN32,
+      stdio: 'inherit',
+    },
+  )
+
+  if (result.code !== 0) {
+    logger.error(
+      'Version consistency check failed — rerun with --explain for details',
+    )
+    logger.log('  node scripts/check-version-consistency.mts --explain')
+    return result.code ?? 1
+  }
+
+  logger.success('Version consistency check passed')
   return 0
 }
 
@@ -294,15 +294,14 @@ async function main(): Promise<void> {
       return
     }
 
-    // Run bug-class regression checks. Cheap grep-based gate that
-    // catches regressions of shapes we fixed during R14-R25 quality
-    // scans (e.g. ToLocalChecked on user bytes → isolate abort,
-    // hardcoded /tmp/ paths → symlink-follow, bare `main()` →
-    // unhandled rejection). See .github/bug-class-allowlist.yml for
-    // audited exceptions.
-    const bugClassCode = await runBugClassCheck()
-    if (bugClassCode !== 0) {
-      process.exitCode = bugClassCode
+    // Run regression-pattern checks. Cheap grep-based gate that
+    // catches recurring bug shapes (e.g. ToLocalChecked on user bytes →
+    // isolate abort, hardcoded /tmp/ paths → symlink-follow, bare
+    // `main()` → unhandled rejection). See
+    // .github/regression-patterns-allowlist.yml for audited exceptions.
+    const regressionCode = await runRegressionPatternsCheck()
+    if (regressionCode !== 0) {
+      process.exitCode = regressionCode
       return
     }
 

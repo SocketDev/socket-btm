@@ -21,7 +21,7 @@
  * workflows, R27 missed LIEF in stubs.yml. All same shape: dependency
  * exists, builder uses it, cache doesn't know.
  *
- * Output mirrors check-bug-classes.mts — file:line + why + fix +
+ * Output mirrors check-regression-patterns.mts — file:line + why + fix +
  * what to do, plus a clean JSON mode for tooling.
  *
  * Usage:
@@ -109,209 +109,10 @@ type AllowlistEntry = {
   reason: string
 }
 
-function loadAllowlist(): AllowlistEntry[] {
-  if (!existsSync(ALLOWLIST_PATH)) {
-    return []
-  }
-  const content = readFileSync(ALLOWLIST_PATH, 'utf8')
-  const entries: AllowlistEntry[] = []
-  let current: Partial<AllowlistEntry> = {}
-  for (const line of content.split(/\r?\n/)) {
-    const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith('#') || trimmed === '---') {
-      continue
-    }
-    if (line.startsWith('- ')) {
-      if (
-        current.missingPath &&
-        current.consumer &&
-        current.gap &&
-        current.reason
-      ) {
-        entries.push(current as AllowlistEntry)
-      }
-      current = {}
-      const firstKv = line.slice(2).match(/^(\w+):\s*(.+)$/)
-      if (firstKv) {
-        const key = firstKv[1]!
-        const value = firstKv[2]!.replace(/^['"]|['"]$/g, '')
-        ;(current as Record<string, unknown>)[key] = value
-      }
-      continue
-    }
-    const kv = trimmed.match(/^(\w+):\s*(.+)$/)
-    if (kv) {
-      const key = kv[1]!
-      const value = kv[2]!.replace(/^['"]|['"]$/g, '')
-      ;(current as Record<string, unknown>)[key] = value
-    }
-  }
-  if (
-    current.missingPath &&
-    current.consumer &&
-    current.gap &&
-    current.reason
-  ) {
-    entries.push(current as AllowlistEntry)
-  }
-  return entries
-}
-
-/**
- * Parse CASCADE_RULES out of validate-cache-versions.mts. The file is
- * hand-maintained and follows a strict shape — match
- *   'packages/some/path/': [...]
- * and
- *   'anything.json': [...]
- * patterns.
- */
-function loadCascadeRuleKeys(): Set<string> {
-  const content = readFileSync(CASCADE_RULES_PATH, 'utf8')
-  const keys = new Set<string>()
-  // Capture the single-quoted string immediately before a colon +
-  // square-bracket array. Multiline / whitespace tolerant.
-  const re = /'((?:packages\/|\.github\/)[^']+)'\s*:\s*(?:\[|ALL_DOWNSTREAM)/g
-  let match: RegExpExecArray | null
-  while ((match = re.exec(content)) !== null) {
-    keys.add(match[1]!)
-  }
-  return keys
-}
-
-/** Walk every Makefile and collect `include ../<pkg>/make/<file>.mk` paths. */
-function collectMakefileIncludes(): Finding[] {
-  const findings: Finding[] = []
-  const cascadeKeys = loadCascadeRuleKeys()
-  const packages = readdirSync(path.join(MONOREPO_ROOT, 'packages'), {
-    withFileTypes: true,
-  })
-  for (const pkgEntry of packages) {
-    if (!pkgEntry.isDirectory()) {
-      continue
-    }
-    const pkgDir = path.join(MONOREPO_ROOT, 'packages', pkgEntry.name)
-    let files: string[]
-    try {
-      files = readdirSync(pkgDir).filter(f => /^Makefile(\.|$)/.test(f))
-    } catch {
-      continue
-    }
-    for (const file of files) {
-      const mkPath = path.join(pkgDir, file)
-      let contents: string
-      try {
-        contents = readFileSync(mkPath, 'utf8')
-      } catch {
-        continue
-      }
-      const lines = contents.split(/\r?\n/)
-      for (let i = 0; i < lines.length; i += 1) {
-        const line = lines[i]!
-        const match = line.match(/^\s*include\s+\.\.\/([^/]+)\/make\//)
-        if (!match) {
-          continue
-        }
-        const dep = match[1]!
-        const key = `packages/${dep}/make/`
-        if (!cascadeKeys.has(key)) {
-          findings.push({
-            consumer: pkgEntry.name,
-            discoveredAt: `packages/${pkgEntry.name}/${file}:${i + 1}`,
-            gap: 'cascade-rule',
-            missingPath: key,
-            source: 'makefile',
-          })
-        }
-      }
-    }
-  }
-  return findings
-}
-
-/** Walk every .mts/.ts for cross-package imports and check cascade coverage. */
-function collectTypeScriptImports(): Finding[] {
-  const findings: Finding[] = []
-  const cascadeKeys = loadCascadeRuleKeys()
-  const importRe =
-    /from\s+'(build-infra|bin-infra|curl-builder|lief-builder|stubs-builder|binject|binpress|binflate|yoga-layout-builder|node-smol-builder)\/([^']+)'/g
-  const walk = (dir: string): string[] => {
-    const out: string[] = []
-    let entries: Dirent[]
-    try {
-      entries = readdirSync(dir, { withFileTypes: true }) as Dirent[]
-    } catch {
-      return out
-    }
-    for (const entry of entries) {
-      if (
-        entry.name === 'node_modules' ||
-        entry.name === 'build' ||
-        entry.name === 'dist' ||
-        entry.name === 'upstream' ||
-        entry.name === 'out' ||
-        entry.name === '.git' ||
-        // Test directories import test-helpers (e.g. bin-infra/test)
-        // which don't feed the produced binary. Flagging them would
-        // force test-helper changes to bump every downstream cache,
-        // which isn't a meaningful build-output dependency.
-        entry.name === 'test' ||
-        entry.name === 'tests' ||
-        entry.name === '__tests__'
-      ) {
-        continue
-      }
-      const full = path.join(dir, entry.name)
-      if (entry.isDirectory()) {
-        out.push(...walk(full))
-      } else if (
-        entry.isFile() &&
-        (/\.m?ts$/.test(entry.name) || /\.m?js$/.test(entry.name))
-      ) {
-        out.push(full)
-      }
-    }
-    return out
-  }
-  const files = walk(path.join(MONOREPO_ROOT, 'packages'))
-  for (const file of files) {
-    let contents: string
-    try {
-      contents = readFileSync(file, 'utf8')
-    } catch {
-      continue
-    }
-    const lines = contents.split(/\r?\n/)
-    for (let i = 0; i < lines.length; i += 1) {
-      // Use matchAll so multiple cross-package imports on the same line
-      // are all checked. A single exec() with the /g flag returns only
-      // ONE match even when the regex is global — and some lines carry
-      // two or more imports (re-export barrels, minified builds, one-
-      // liner `export { a } from 'pkg/a'; export { b } from 'pkg/b'`).
-      // Before the fix, every import past the first on a shared line
-      // slipped past the gate.
-      for (const match of lines[i]!.matchAll(importRe)) {
-        const pkg = match[1]!
-        const rest = match[2]!
-        // Take the top-level dir under the package (lib, scripts, etc.)
-        const top = rest.split('/')[0]!
-        const key = `packages/${pkg}/${top}/`
-        // Some imports like `build-infra/wasm-synced/wasm-sync-wrapper`
-        // point at a dir of interest; others like `build-infra/lib/...`
-        // are already covered via `packages/<pkg>/lib/`.
-        if (!cascadeKeys.has(key)) {
-          const relFile = path.relative(MONOREPO_ROOT, file)
-          findings.push({
-            consumer: relFile.split('/')[1] || pkg,
-            discoveredAt: `${relFile}:${i + 1}`,
-            gap: 'cascade-rule',
-            missingPath: key,
-            source: 'import',
-          })
-        }
-      }
-    }
-  }
-  return findings
+type Options = {
+  explain: boolean
+  json: boolean
+  quiet: boolean
 }
 
 /**
@@ -320,7 +121,7 @@ function collectTypeScriptImports(): Finding[] {
  * in the consuming workflow's YAML. This is the audit that caught
  * R24's root-package.json gap and R27's stubs/LIEF gap.
  */
-function collectDockerfileCopies(): Finding[] {
+export function collectDockerfileCopies(): Finding[] {
   const findings: Finding[] = []
   const packages = readdirSync(path.join(MONOREPO_ROOT, 'packages'), {
     withFileTypes: true,
@@ -435,13 +236,212 @@ function collectDockerfileCopies(): Finding[] {
   return findings
 }
 
-type Options = {
-  explain: boolean
-  json: boolean
-  quiet: boolean
+/** Walk every Makefile and collect `include ../<pkg>/make/<file>.mk` paths. */
+export function collectMakefileIncludes(): Finding[] {
+  const findings: Finding[] = []
+  const cascadeKeys = loadCascadeRuleKeys()
+  const packages = readdirSync(path.join(MONOREPO_ROOT, 'packages'), {
+    withFileTypes: true,
+  })
+  for (const pkgEntry of packages) {
+    if (!pkgEntry.isDirectory()) {
+      continue
+    }
+    const pkgDir = path.join(MONOREPO_ROOT, 'packages', pkgEntry.name)
+    let files: string[]
+    try {
+      files = readdirSync(pkgDir).filter(f => /^Makefile(\.|$)/.test(f))
+    } catch {
+      continue
+    }
+    for (const file of files) {
+      const mkPath = path.join(pkgDir, file)
+      let contents: string
+      try {
+        contents = readFileSync(mkPath, 'utf8')
+      } catch {
+        continue
+      }
+      const lines = contents.split(/\r?\n/)
+      for (let i = 0; i < lines.length; i += 1) {
+        const line = lines[i]!
+        const match = line.match(/^\s*include\s+\.\.\/([^/]+)\/make\//)
+        if (!match) {
+          continue
+        }
+        const dep = match[1]!
+        const key = `packages/${dep}/make/`
+        if (!cascadeKeys.has(key)) {
+          findings.push({
+            consumer: pkgEntry.name,
+            discoveredAt: `packages/${pkgEntry.name}/${file}:${i + 1}`,
+            gap: 'cascade-rule',
+            missingPath: key,
+            source: 'makefile',
+          })
+        }
+      }
+    }
+  }
+  return findings
 }
 
-function printFinding(f: Finding, opts: Options): void {
+/** Walk every .mts/.ts for cross-package imports and check cascade coverage. */
+export function collectTypeScriptImports(): Finding[] {
+  const findings: Finding[] = []
+  const cascadeKeys = loadCascadeRuleKeys()
+  const importRe =
+    /from\s+'(build-infra|bin-infra|curl-builder|lief-builder|stubs-builder|binject|binpress|binflate|yoga-layout-builder|node-smol-builder)\/([^']+)'/g
+  const walk = (dir: string): string[] => {
+    const out: string[] = []
+    let entries: Dirent[]
+    try {
+      entries = readdirSync(dir, { withFileTypes: true }) as Dirent[]
+    } catch {
+      return out
+    }
+    for (const entry of entries) {
+      if (
+        entry.name === 'node_modules' ||
+        entry.name === 'build' ||
+        entry.name === 'dist' ||
+        entry.name === 'upstream' ||
+        entry.name === 'out' ||
+        entry.name === '.git' ||
+        // Test directories import test-helpers (e.g. bin-infra/test)
+        // which don't feed the produced binary. Flagging them would
+        // force test-helper changes to bump every downstream cache,
+        // which isn't a meaningful build-output dependency.
+        entry.name === 'test' ||
+        entry.name === 'tests' ||
+        entry.name === '__tests__'
+      ) {
+        continue
+      }
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        out.push(...walk(full))
+      } else if (
+        entry.isFile() &&
+        (/\.m?ts$/.test(entry.name) || /\.m?js$/.test(entry.name))
+      ) {
+        out.push(full)
+      }
+    }
+    return out
+  }
+  const files = walk(path.join(MONOREPO_ROOT, 'packages'))
+  for (const file of files) {
+    let contents: string
+    try {
+      contents = readFileSync(file, 'utf8')
+    } catch {
+      continue
+    }
+    const lines = contents.split(/\r?\n/)
+    for (let i = 0; i < lines.length; i += 1) {
+      // Use matchAll so multiple cross-package imports on the same line
+      // are all checked. A single exec() with the /g flag returns only
+      // ONE match even when the regex is global — and some lines carry
+      // two or more imports (re-export barrels, minified builds, one-
+      // liner `export { a } from 'pkg/a'; export { b } from 'pkg/b'`).
+      // Before the fix, every import past the first on a shared line
+      // slipped past the gate.
+      for (const match of lines[i]!.matchAll(importRe)) {
+        const pkg = match[1]!
+        const rest = match[2]!
+        // Take the top-level dir under the package (lib, scripts, etc.)
+        const top = rest.split('/')[0]!
+        const key = `packages/${pkg}/${top}/`
+        // Some imports like `build-infra/wasm-synced/wasm-sync-wrapper`
+        // point at a dir of interest; others like `build-infra/lib/...`
+        // are already covered via `packages/<pkg>/lib/`.
+        if (!cascadeKeys.has(key)) {
+          const relFile = path.relative(MONOREPO_ROOT, file)
+          findings.push({
+            consumer: relFile.split('/')[1] || pkg,
+            discoveredAt: `${relFile}:${i + 1}`,
+            gap: 'cascade-rule',
+            missingPath: key,
+            source: 'import',
+          })
+        }
+      }
+    }
+  }
+  return findings
+}
+
+export function loadAllowlist(): AllowlistEntry[] {
+  if (!existsSync(ALLOWLIST_PATH)) {
+    return []
+  }
+  const content = readFileSync(ALLOWLIST_PATH, 'utf8')
+  const entries: AllowlistEntry[] = []
+  let current: Partial<AllowlistEntry> = {}
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#') || trimmed === '---') {
+      continue
+    }
+    if (line.startsWith('- ')) {
+      if (
+        current.missingPath &&
+        current.consumer &&
+        current.gap &&
+        current.reason
+      ) {
+        entries.push(current as AllowlistEntry)
+      }
+      current = {}
+      const firstKv = line.slice(2).match(/^(\w+):\s*(.+)$/)
+      if (firstKv) {
+        const key = firstKv[1]!
+        const value = firstKv[2]!.replace(/^['"]|['"]$/g, '')
+        ;(current as Record<string, unknown>)[key] = value
+      }
+      continue
+    }
+    const kv = trimmed.match(/^(\w+):\s*(.+)$/)
+    if (kv) {
+      const key = kv[1]!
+      const value = kv[2]!.replace(/^['"]|['"]$/g, '')
+      ;(current as Record<string, unknown>)[key] = value
+    }
+  }
+  if (
+    current.missingPath &&
+    current.consumer &&
+    current.gap &&
+    current.reason
+  ) {
+    entries.push(current as AllowlistEntry)
+  }
+  return entries
+}
+
+/**
+ * Parse CASCADE_RULES out of validate-cache-versions.mts. The file is
+ * hand-maintained and follows a strict shape — match
+ *   'packages/some/path/': [...]
+ * and
+ *   'anything.json': [...]
+ * patterns.
+ */
+export function loadCascadeRuleKeys(): Set<string> {
+  const content = readFileSync(CASCADE_RULES_PATH, 'utf8')
+  const keys = new Set<string>()
+  // Capture the single-quoted string immediately before a colon +
+  // square-bracket array. Multiline / whitespace tolerant.
+  const re = /'((?:packages\/|\.github\/)[^']+)'\s*:\s*(?:\[|ALL_DOWNSTREAM)/g
+  let match: RegExpExecArray | null
+  while ((match = re.exec(content)) !== null) {
+    keys.add(match[1]!)
+  }
+  return keys
+}
+
+export function printFinding(f: Finding, opts: Options): void {
   if (opts.json) {
     logger.log(JSON.stringify(f))
     return

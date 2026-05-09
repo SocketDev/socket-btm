@@ -408,7 +408,7 @@ Required headers — one `@<project>-versions` token per patch matching the targ
 - **Across the series**: each source file is touched by EXACTLY ONE patch. If you need to make several edits to `src/node_binding.cc`, fold them into the single canonical patch for that file. Two patches modifying the same file is forbidden — fold them.
 - **Numbered series is contiguous.** When a patch is folded into another and deleted, renumber the remainder to close the gap. Numbered-series gaps are forbidden — no historic-reference allowlist for "patch N was removed in cleanup R<x>."
 - For multi-file features that cannot be split independently, use an ordered numeric-prefix series (`001-*.patch`, `002-*.patch`, `003-*.patch`) applied in filename order. Each patch still owns exactly ONE file; dependencies flow in ascending order only.
-- Both rules are enforced by `scripts/check-patch-format.mts` (`one-file-per-patch`, `multiple-patches-per-file`, `numbered-series-gap`). No allowlist — fix the patches.
+- Both rules are enforced by `scripts/check-patch-format.mts` (`one-file-per-patch`, `multiple-patches-per-file`, `numbered-series-gap`). Fix the patches when these fire.
 - Minimal touch, clean diffs, no style changes outside scope.
 - To regenerate / refold: use `/regenerating-patches` skill.
 - Manual: `diff -u a/file b/file`, add headers, validate with `patch --dry-run`.
@@ -429,17 +429,17 @@ Required headers — one `@<project>-versions` token per patch matching the targ
 - **See why a match is flagged**: `node scripts/check-mirror-docs.mts --explain`
 - **Machine-readable output**: `--json`
 
-#### Bug-class regression gate
+#### Regression-pattern gate
 
-`scripts/check-bug-classes.mts` encodes the bug classes caught across R14+ quality-scan rounds. It runs on every `pnpm run check` invocation (so it runs in CI via `.github/workflows/ci.yml`) and fails if any code matches a known-bad shape that isn't in the allowlist.
+`scripts/check-regression-patterns.mts` encodes recurring bug *shapes* (regex patterns) caught across R14+ quality-scan rounds — "pattern" here means a regex pattern / code shape, nothing to do with JS/TS class definitions. It runs on every `pnpm run check` invocation (so it runs in CI via `.github/workflows/ci.yml`) and fails if any code matches a known-bad shape that isn't in the allowlist.
 
-- **Run locally**: `pnpm run check:bug-classes` (or just `pnpm check`)
-- **See why a match is flagged**: `node scripts/check-bug-classes.mts --explain`
+- **Run locally**: `pnpm run check:regression-patterns` (or just `pnpm check`)
+- **See why a match is flagged**: `node scripts/check-regression-patterns.mts --explain`
 - **Machine-readable output**: `--json`
-- **Allowlist safe exceptions**: add to `.github/bug-class-allowlist.yml` with a `reason` field; entries without a `line` exempt the whole file
-- **Add a new class**: edit `scripts/check-bug-classes.mts` CLASSES, seed the allowlist with any pre-existing safe sites, and document in a commit message
+- **Allowlist safe exceptions**: add to `.github/regression-patterns-allowlist.yml` with a `reason` field; entries without a `line` exempt the whole file
+- **Add a new pattern**: edit `scripts/check-regression-patterns.mts` REGRESSIONS, seed the allowlist with any pre-existing safe sites, and document in a commit message
 
-The gate is regression-prevention only. It cannot find NEW bug classes the codebase hasn't seen yet — `/quality-scan` still runs periodically for that.
+The gate is regression-prevention only. It cannot find NEW patterns the codebase hasn't seen yet — `/quality-scan` still runs periodically for that.
 
 #### Cascade-completeness gate
 

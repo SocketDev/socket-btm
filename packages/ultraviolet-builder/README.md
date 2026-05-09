@@ -22,7 +22,7 @@ port) require them.
 ```ts
 import { load } from 'ultraviolet-builder'
 
-const uv = await load()                // loads lib/<platform-arch>/ultraviolet.node
+const uv = await load() // loads lib/<platform-arch>/ultraviolet.node
 const decoder = uv.newDecoder()
 for (const ev of uv.decode(decoder, Buffer.from('\x1b[A'))) {
   // { type: 'KeyPress', code: ..., mod: ..., text: '' }

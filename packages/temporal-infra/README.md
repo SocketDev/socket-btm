@@ -12,14 +12,15 @@ infrastructure that V8 already links.
 Three-layer split, where layers (1) and (2) are **shared with V8 / system**
 and only layer (3) is hand-written C++:
 
-| Layer | Source | LOC | Notes |
-|---|---|---|---|
-| **(1) Calendars** | system **ICU** | (linked) | V8 already depends on ICU. Delegate non-ISO calendars (Gregorian, Hebrew, Islamic, Persian, Buddhist, Japanese, Indian, Coptic, Ethiopian, Chinese, Korean, Roc, Hijri-Umm-al-Qura) to `icu::Calendar` rather than porting `icu_calendar`'s ~50k LOC of Rust. |
-| **(2) Timezone DB** | V8's existing `js-temporal-zoneinfo64.cc` | (linked) | V8 already ships zoneinfo64 with system tzdata access. Reuse that path; don't re-implement `timezone_provider` / `zoneinfo_rs` / `iana-time-zone`. |
-| **(3) Temporal algorithms** | this package | ~6-10k C++ | The actual port: spec arithmetic, normalization, ambiguity resolution, options handling, ISO 8601 / RFC 9557 parsing, formatting. |
+| Layer                       | Source                                    | LOC        | Notes                                                                                                                                                                                                                                                         |
+| --------------------------- | ----------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **(1) Calendars**           | system **ICU**                            | (linked)   | V8 already depends on ICU. Delegate non-ISO calendars (Gregorian, Hebrew, Islamic, Persian, Buddhist, Japanese, Indian, Coptic, Ethiopian, Chinese, Korean, Roc, Hijri-Umm-al-Qura) to `icu::Calendar` rather than porting `icu_calendar`'s ~50k LOC of Rust. |
+| **(2) Timezone DB**         | V8's existing `js-temporal-zoneinfo64.cc` | (linked)   | V8 already ships zoneinfo64 with system tzdata access. Reuse that path; don't re-implement `timezone_provider` / `zoneinfo_rs` / `iana-time-zone`.                                                                                                            |
+| **(3) Temporal algorithms** | this package                              | ~6-10k C++ | The actual port: spec arithmetic, normalization, ambiguity resolution, options handling, ISO 8601 / RFC 9557 parsing, formatting.                                                                                                                             |
 
 **Net scope**: ~6-10k LOC of hand-written C++, vs the ~35k LOC of Rust
-+ ~50k LOC of icu_calendar transitive deps in upstream `temporal_rs`.
+
+- ~50k LOC of icu_calendar transitive deps in upstream `temporal_rs`.
 
 ## Why source-only
 

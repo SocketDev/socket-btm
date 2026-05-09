@@ -26,18 +26,18 @@ entirely.
 
 The hot subset of the 19 entry points in `src/versions.ts`:
 
-| Native           | JS equivalent          | Why hot                       |
-| ---------------- | ---------------------- | ----------------------------- |
-| `compare(a, b)`  | `semver.compare`       | dependency-graph diffing      |
-| `eq(a, b)`       | `semver.eq`            | exact-match checks            |
-| `gt(a, b)`       | `semver.gt`            | upgrade decisions             |
-| `gte(a, b)`      | `semver.gte`           | range bounds                  |
-| `lt(a, b)`       | `semver.lt`            | downgrade detection           |
-| `lte(a, b)`      | `semver.lte`           | range bounds                  |
-| `parse(v)`       | `semver.parse`         | structural inspection         |
-| `valid(v)`       | `semver.valid`         | input gates                   |
-| `satisfies(v,r)` | `semver.satisfies`     | range-match (heaviest)        |
-| `sort(arr)`      | `semver.sort`          | listing pipelines             |
+| Native           | JS equivalent      | Why hot                  |
+| ---------------- | ------------------ | ------------------------ |
+| `compare(a, b)`  | `semver.compare`   | dependency-graph diffing |
+| `eq(a, b)`       | `semver.eq`        | exact-match checks       |
+| `gt(a, b)`       | `semver.gt`        | upgrade decisions        |
+| `gte(a, b)`      | `semver.gte`       | range bounds             |
+| `lt(a, b)`       | `semver.lt`        | downgrade detection      |
+| `lte(a, b)`      | `semver.lte`       | range bounds             |
+| `parse(v)`       | `semver.parse`     | structural inspection    |
+| `valid(v)`       | `semver.valid`     | input gates              |
+| `satisfies(v,r)` | `semver.satisfies` | range-match (heaviest)   |
+| `sort(arr)`      | `semver.sort`      | listing pipelines        |
 
 ## Surface — Phase 2 (deferred)
 
@@ -87,6 +87,7 @@ struct SemVer {
 ```
 
 Comparison follows spec § 11:
+
 1. Compare major / minor / patch numerically.
 2. If equal and exactly one has a prerelease, the one without
    prerelease is greater.

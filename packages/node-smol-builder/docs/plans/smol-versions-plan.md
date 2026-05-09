@@ -9,6 +9,7 @@
 ## Performance Strategy for 50-100x
 
 ### Key Optimizations
+
 1. **Packed version representation** - Version fits in 32 bytes (cache line friendly)
 2. **SIMD digit parsing** - Parse all numeric components in parallel
 3. **Zero-copy string views** - No string allocation during parsing
@@ -20,21 +21,22 @@
 ## Reference Implementations
 
 Based on analysis of:
+
 - `coana-package-manager/src/compare/` - Multi-ecosystem version comparison
 - `socket-sbom-generator` - Version parsing for SBOMs
 - Individual ecosystem libraries (semver, maven-artifact, etc.)
 
 ## Ecosystem-Specific Semantics
 
-| Ecosystem | Version Format | Special Rules |
-|-----------|---------------|---------------|
-| npm | SemVer 2.0 | Prerelease < release |
-| Maven | Complex | Qualifiers: alpha < beta < milestone < rc < snapshot < release |
-| PyPI | PEP 440 | dev < alpha < beta < rc < post |
-| NuGet | SemVer 1.0 | 4th component allowed |
-| RubyGems | Relaxed SemVer | Prerelease segments |
-| Cargo | Strict SemVer | Pre-release required format |
-| Go | SemVer + pseudo | v prefix, +incompatible |
+| Ecosystem | Version Format  | Special Rules                                                  |
+| --------- | --------------- | -------------------------------------------------------------- |
+| npm       | SemVer 2.0      | Prerelease < release                                           |
+| Maven     | Complex         | Qualifiers: alpha < beta < milestone < rc < snapshot < release |
+| PyPI      | PEP 440         | dev < alpha < beta < rc < post                                 |
+| NuGet     | SemVer 1.0      | 4th component allowed                                          |
+| RubyGems  | Relaxed SemVer  | Prerelease segments                                            |
+| Cargo     | Strict SemVer   | Pre-release required format                                    |
+| Go        | SemVer + pseudo | v prefix, +incompatible                                        |
 
 ## C++ Architecture
 
@@ -448,24 +450,33 @@ NODE_MODULE_CONTEXT_AWARE_INTERNAL(smol_versions, Initialize)
 ```typescript
 declare module 'node:smol-versions' {
   export type Ecosystem =
-    | 'npm' | 'maven' | 'pypi' | 'nuget' | 'gem'
-    | 'cargo' | 'golang' | 'composer' | 'hex' | 'pub' | 'swift';
+    | 'npm'
+    | 'maven'
+    | 'pypi'
+    | 'nuget'
+    | 'gem'
+    | 'cargo'
+    | 'golang'
+    | 'composer'
+    | 'hex'
+    | 'pub'
+    | 'swift'
 
   export interface ParsedVersion {
     /** Major version number */
-    readonly major: bigint;
+    readonly major: bigint
     /** Minor version number */
-    readonly minor: bigint;
+    readonly minor: bigint
     /** Patch version number */
-    readonly patch: bigint;
+    readonly patch: bigint
     /** Build number (4th component, mainly for NuGet) */
-    readonly build?: bigint;
+    readonly build?: bigint
     /** Prerelease identifiers */
-    readonly prerelease: ReadonlyArray<string | bigint>;
+    readonly prerelease: ReadonlyArray<string | bigint>
     /** Build metadata */
-    readonly buildMetadata?: string;
+    readonly buildMetadata?: string
     /** Original version string */
-    readonly raw: string;
+    readonly raw: string
   }
 
   /**
@@ -473,43 +484,50 @@ declare module 'node:smol-versions' {
    * @param version Version string to parse
    * @param ecosystem Target ecosystem for parsing rules
    */
-  export function parse(version: string, ecosystem?: Ecosystem): ParsedVersion;
+  export function parse(version: string, ecosystem?: Ecosystem): ParsedVersion
 
   /**
    * Try to parse a version, returns null on failure
    */
-  export function tryParse(version: string, ecosystem?: Ecosystem): ParsedVersion | null;
+  export function tryParse(
+    version: string,
+    ecosystem?: Ecosystem,
+  ): ParsedVersion | null
 
   /**
    * Compare two versions
    * @returns -1 if a < b, 0 if a === b, 1 if a > b
    */
-  export function compare(a: string, b: string, ecosystem?: Ecosystem): -1 | 0 | 1;
+  export function compare(
+    a: string,
+    b: string,
+    ecosystem?: Ecosystem,
+  ): -1 | 0 | 1
 
   /**
    * Check if version a is less than b
    */
-  export function lt(a: string, b: string, ecosystem?: Ecosystem): boolean;
+  export function lt(a: string, b: string, ecosystem?: Ecosystem): boolean
 
   /**
    * Check if version a is less than or equal to b
    */
-  export function lte(a: string, b: string, ecosystem?: Ecosystem): boolean;
+  export function lte(a: string, b: string, ecosystem?: Ecosystem): boolean
 
   /**
    * Check if version a is greater than b
    */
-  export function gt(a: string, b: string, ecosystem?: Ecosystem): boolean;
+  export function gt(a: string, b: string, ecosystem?: Ecosystem): boolean
 
   /**
    * Check if version a is greater than or equal to b
    */
-  export function gte(a: string, b: string, ecosystem?: Ecosystem): boolean;
+  export function gte(a: string, b: string, ecosystem?: Ecosystem): boolean
 
   /**
    * Check if two versions are equal
    */
-  export function eq(a: string, b: string, ecosystem?: Ecosystem): boolean;
+  export function eq(a: string, b: string, ecosystem?: Ecosystem): boolean
 
   /**
    * Sort versions (ascending by default)
@@ -517,18 +535,18 @@ declare module 'node:smol-versions' {
   export function sort(
     versions: string[],
     ecosystem?: Ecosystem,
-    descending?: boolean
-  ): string[];
+    descending?: boolean,
+  ): string[]
 
   /**
    * Find the maximum version
    */
-  export function max(versions: string[], ecosystem?: Ecosystem): string | null;
+  export function max(versions: string[], ecosystem?: Ecosystem): string | null
 
   /**
    * Find the minimum version
    */
-  export function min(versions: string[], ecosystem?: Ecosystem): string | null;
+  export function min(versions: string[], ecosystem?: Ecosystem): string | null
 
   /**
    * Check if a version satisfies a range (npm semver range syntax)
@@ -536,8 +554,8 @@ declare module 'node:smol-versions' {
   export function satisfies(
     version: string,
     range: string,
-    ecosystem?: Ecosystem
-  ): boolean;
+    ecosystem?: Ecosystem,
+  ): boolean
 
   /**
    * Find the maximum version that satisfies a range
@@ -545,8 +563,8 @@ declare module 'node:smol-versions' {
   export function maxSatisfying(
     versions: string[],
     range: string,
-    ecosystem?: Ecosystem
-  ): string | null;
+    ecosystem?: Ecosystem,
+  ): string | null
 
   /**
    * Find the minimum version that satisfies a range
@@ -554,8 +572,8 @@ declare module 'node:smol-versions' {
   export function minSatisfying(
     versions: string[],
     range: string,
-    ecosystem?: Ecosystem
-  ): string | null;
+    ecosystem?: Ecosystem,
+  ): string | null
 
   /**
    * Get all versions that satisfy a range
@@ -563,18 +581,18 @@ declare module 'node:smol-versions' {
   export function filter(
     versions: string[],
     range: string,
-    ecosystem?: Ecosystem
-  ): string[];
+    ecosystem?: Ecosystem,
+  ): string[]
 
   /**
    * Check if a string is a valid version
    */
-  export function valid(version: string, ecosystem?: Ecosystem): string | null;
+  export function valid(version: string, ecosystem?: Ecosystem): string | null
 
   /**
    * Coerce a string to a valid version
    */
-  export function coerce(version: string, ecosystem?: Ecosystem): string | null;
+  export function coerce(version: string, ecosystem?: Ecosystem): string | null
 
   /**
    * Increment version
@@ -583,40 +601,40 @@ declare module 'node:smol-versions' {
     version: string,
     release: 'major' | 'minor' | 'patch' | 'prerelease',
     ecosystem?: Ecosystem,
-    identifier?: string
-  ): string;
+    identifier?: string,
+  ): string
 
   /**
    * Cache statistics
    */
   export function cacheStats(): {
-    size: number;
-    hits: number;
-    misses: number;
-    hitRate: number;
-  };
+    size: number
+    hits: number
+    misses: number
+    hitRate: number
+  }
 
   /**
    * Clear the version cache
    */
-  export function clearCache(): void;
+  export function clearCache(): void
 
   /**
    * Ecosystem constants
    */
   export const ecosystems: {
-    readonly NPM: 'npm';
-    readonly MAVEN: 'maven';
-    readonly PYPI: 'pypi';
-    readonly NUGET: 'nuget';
-    readonly GEM: 'gem';
-    readonly CARGO: 'cargo';
-    readonly GOLANG: 'golang';
-    readonly COMPOSER: 'composer';
-    readonly HEX: 'hex';
-    readonly PUB: 'pub';
-    readonly SWIFT: 'swift';
-  };
+    readonly NPM: 'npm'
+    readonly MAVEN: 'maven'
+    readonly PYPI: 'pypi'
+    readonly NUGET: 'nuget'
+    readonly GEM: 'gem'
+    readonly CARGO: 'cargo'
+    readonly GOLANG: 'golang'
+    readonly COMPOSER: 'composer'
+    readonly HEX: 'hex'
+    readonly PUB: 'pub'
+    readonly SWIFT: 'swift'
+  }
 }
 ```
 
@@ -722,145 +740,148 @@ std::pair<uint64_t, std::string_view> pypi::ParseEpoch(std::string_view input) {
 ### `test/parallel/test-smol-versions.js`
 
 ```javascript
-'use strict';
-const common = require('../common');
-const assert = require('assert');
-const versions = require('node:smol-versions');
+'use strict'
+const common = require('../common')
+const assert = require('assert')
+const versions = require('node:smol-versions')
 
 // Basic npm/semver parsing
 {
-  const v = versions.parse('1.2.3', 'npm');
-  assert.strictEqual(v.major, 1n);
-  assert.strictEqual(v.minor, 2n);
-  assert.strictEqual(v.patch, 3n);
+  const v = versions.parse('1.2.3', 'npm')
+  assert.strictEqual(v.major, 1n)
+  assert.strictEqual(v.minor, 2n)
+  assert.strictEqual(v.patch, 3n)
 }
 
 // Prerelease parsing
 {
-  const v = versions.parse('1.0.0-alpha.1', 'npm');
-  assert.deepStrictEqual(v.prerelease, ['alpha', 1n]);
+  const v = versions.parse('1.0.0-alpha.1', 'npm')
+  assert.deepStrictEqual(v.prerelease, ['alpha', 1n])
 }
 
 // Build metadata
 {
-  const v = versions.parse('1.0.0+build.123', 'npm');
-  assert.strictEqual(v.buildMetadata, 'build.123');
+  const v = versions.parse('1.0.0+build.123', 'npm')
+  assert.strictEqual(v.buildMetadata, 'build.123')
 }
 
 // npm comparison
 {
-  assert.strictEqual(versions.compare('1.0.0', '2.0.0', 'npm'), -1);
-  assert.strictEqual(versions.compare('2.0.0', '1.0.0', 'npm'), 1);
-  assert.strictEqual(versions.compare('1.0.0', '1.0.0', 'npm'), 0);
+  assert.strictEqual(versions.compare('1.0.0', '2.0.0', 'npm'), -1)
+  assert.strictEqual(versions.compare('2.0.0', '1.0.0', 'npm'), 1)
+  assert.strictEqual(versions.compare('1.0.0', '1.0.0', 'npm'), 0)
 
   // Prerelease < release
-  assert.strictEqual(versions.compare('1.0.0-alpha', '1.0.0', 'npm'), -1);
+  assert.strictEqual(versions.compare('1.0.0-alpha', '1.0.0', 'npm'), -1)
 
   // Numeric vs string prerelease
-  assert.strictEqual(versions.compare('1.0.0-1', '1.0.0-alpha', 'npm'), -1);
+  assert.strictEqual(versions.compare('1.0.0-1', '1.0.0-alpha', 'npm'), -1)
 }
 
 // Maven comparison
 {
   // Basic
-  assert.strictEqual(versions.compare('1.0', '1.0.0', 'maven'), 0);
+  assert.strictEqual(versions.compare('1.0', '1.0.0', 'maven'), 0)
 
   // Qualifiers
-  assert.strictEqual(versions.compare('1.0-alpha', '1.0-beta', 'maven'), -1);
-  assert.strictEqual(versions.compare('1.0-beta', '1.0-rc', 'maven'), -1);
-  assert.strictEqual(versions.compare('1.0-rc', '1.0', 'maven'), -1);
-  assert.strictEqual(versions.compare('1.0-SNAPSHOT', '1.0', 'maven'), -1);
-  assert.strictEqual(versions.compare('1.0', '1.0-sp', 'maven'), -1);
+  assert.strictEqual(versions.compare('1.0-alpha', '1.0-beta', 'maven'), -1)
+  assert.strictEqual(versions.compare('1.0-beta', '1.0-rc', 'maven'), -1)
+  assert.strictEqual(versions.compare('1.0-rc', '1.0', 'maven'), -1)
+  assert.strictEqual(versions.compare('1.0-SNAPSHOT', '1.0', 'maven'), -1)
+  assert.strictEqual(versions.compare('1.0', '1.0-sp', 'maven'), -1)
 }
 
 // PyPI PEP 440
 {
   // Epoch
-  const v = versions.parse('1!2.0.0', 'pypi');
-  assert.strictEqual(v.major, 2n);
+  const v = versions.parse('1!2.0.0', 'pypi')
+  assert.strictEqual(v.major, 2n)
 
   // Epoch comparison
-  assert.strictEqual(versions.compare('1!1.0.0', '2.0.0', 'pypi'), 1);
+  assert.strictEqual(versions.compare('1!1.0.0', '2.0.0', 'pypi'), 1)
 
   // Prerelease ordering
-  assert.strictEqual(versions.compare('1.0.0.dev1', '1.0.0a1', 'pypi'), -1);
-  assert.strictEqual(versions.compare('1.0.0a1', '1.0.0b1', 'pypi'), -1);
-  assert.strictEqual(versions.compare('1.0.0b1', '1.0.0rc1', 'pypi'), -1);
-  assert.strictEqual(versions.compare('1.0.0rc1', '1.0.0', 'pypi'), -1);
-  assert.strictEqual(versions.compare('1.0.0', '1.0.0.post1', 'pypi'), -1);
+  assert.strictEqual(versions.compare('1.0.0.dev1', '1.0.0a1', 'pypi'), -1)
+  assert.strictEqual(versions.compare('1.0.0a1', '1.0.0b1', 'pypi'), -1)
+  assert.strictEqual(versions.compare('1.0.0b1', '1.0.0rc1', 'pypi'), -1)
+  assert.strictEqual(versions.compare('1.0.0rc1', '1.0.0', 'pypi'), -1)
+  assert.strictEqual(versions.compare('1.0.0', '1.0.0.post1', 'pypi'), -1)
 }
 
 // NuGet 4-component
 {
-  const v = versions.parse('1.2.3.4', 'nuget');
-  assert.strictEqual(v.build, 4n);
+  const v = versions.parse('1.2.3.4', 'nuget')
+  assert.strictEqual(v.build, 4n)
 
-  assert.strictEqual(versions.compare('1.2.3.4', '1.2.3.5', 'nuget'), -1);
+  assert.strictEqual(versions.compare('1.2.3.4', '1.2.3.5', 'nuget'), -1)
 }
 
 // Range matching (npm style)
 {
-  assert(versions.satisfies('1.2.3', '^1.0.0'));
-  assert(versions.satisfies('1.2.3', '~1.2.0'));
-  assert(!versions.satisfies('2.0.0', '^1.0.0'));
-  assert(versions.satisfies('1.0.0', '>=1.0.0 <2.0.0'));
-  assert(versions.satisfies('1.5.0', '1.0.0 - 2.0.0'));
-  assert(versions.satisfies('1.2.3', '1.x'));
-  assert(versions.satisfies('1.2.3', '1.2.x'));
+  assert(versions.satisfies('1.2.3', '^1.0.0'))
+  assert(versions.satisfies('1.2.3', '~1.2.0'))
+  assert(!versions.satisfies('2.0.0', '^1.0.0'))
+  assert(versions.satisfies('1.0.0', '>=1.0.0 <2.0.0'))
+  assert(versions.satisfies('1.5.0', '1.0.0 - 2.0.0'))
+  assert(versions.satisfies('1.2.3', '1.x'))
+  assert(versions.satisfies('1.2.3', '1.2.x'))
 }
 
 // Sorting
 {
-  const unsorted = ['1.0.0', '2.0.0', '1.5.0', '0.9.0'];
-  const sorted = versions.sort(unsorted, 'npm');
-  assert.deepStrictEqual(sorted, ['0.9.0', '1.0.0', '1.5.0', '2.0.0']);
+  const unsorted = ['1.0.0', '2.0.0', '1.5.0', '0.9.0']
+  const sorted = versions.sort(unsorted, 'npm')
+  assert.deepStrictEqual(sorted, ['0.9.0', '1.0.0', '1.5.0', '2.0.0'])
 
-  const desc = versions.sort(unsorted, 'npm', true);
-  assert.deepStrictEqual(desc, ['2.0.0', '1.5.0', '1.0.0', '0.9.0']);
+  const desc = versions.sort(unsorted, 'npm', true)
+  assert.deepStrictEqual(desc, ['2.0.0', '1.5.0', '1.0.0', '0.9.0'])
 }
 
 // Max/min
 {
-  const vs = ['1.0.0', '2.0.0', '1.5.0'];
-  assert.strictEqual(versions.max(vs, 'npm'), '2.0.0');
-  assert.strictEqual(versions.min(vs, 'npm'), '1.0.0');
+  const vs = ['1.0.0', '2.0.0', '1.5.0']
+  assert.strictEqual(versions.max(vs, 'npm'), '2.0.0')
+  assert.strictEqual(versions.min(vs, 'npm'), '1.0.0')
 }
 
 // maxSatisfying
 {
-  const vs = ['1.0.0', '1.5.0', '2.0.0', '2.5.0'];
-  assert.strictEqual(versions.maxSatisfying(vs, '^1.0.0'), '1.5.0');
-  assert.strictEqual(versions.maxSatisfying(vs, '>=2.0.0'), '2.5.0');
+  const vs = ['1.0.0', '1.5.0', '2.0.0', '2.5.0']
+  assert.strictEqual(versions.maxSatisfying(vs, '^1.0.0'), '1.5.0')
+  assert.strictEqual(versions.maxSatisfying(vs, '>=2.0.0'), '2.5.0')
 }
 
 // Coercion
 {
-  assert.strictEqual(versions.coerce('v1.2.3'), '1.2.3');
-  assert.strictEqual(versions.coerce('1.2'), '1.2.0');
-  assert.strictEqual(versions.coerce('1'), '1.0.0');
+  assert.strictEqual(versions.coerce('v1.2.3'), '1.2.3')
+  assert.strictEqual(versions.coerce('1.2'), '1.2.0')
+  assert.strictEqual(versions.coerce('1'), '1.0.0')
 }
 
 // Increment
 {
-  assert.strictEqual(versions.inc('1.2.3', 'major'), '2.0.0');
-  assert.strictEqual(versions.inc('1.2.3', 'minor'), '1.3.0');
-  assert.strictEqual(versions.inc('1.2.3', 'patch'), '1.2.4');
-  assert.strictEqual(versions.inc('1.2.3', 'prerelease', 'npm', 'alpha'), '1.2.4-alpha.0');
+  assert.strictEqual(versions.inc('1.2.3', 'major'), '2.0.0')
+  assert.strictEqual(versions.inc('1.2.3', 'minor'), '1.3.0')
+  assert.strictEqual(versions.inc('1.2.3', 'patch'), '1.2.4')
+  assert.strictEqual(
+    versions.inc('1.2.3', 'prerelease', 'npm', 'alpha'),
+    '1.2.4-alpha.0',
+  )
 }
 
-console.log('All smol-versions tests passed');
+console.log('All smol-versions tests passed')
 ```
 
 ## Performance Targets (50-100x)
 
-| Operation | Target | JS Baseline | Speedup |
-|-----------|--------|-------------|---------|
-| Parse | < 15ns | ~1.5µs | **100x** |
-| Compare | < 8ns | ~500ns | **60x** |
-| Sort (1000) | < 20µs | ~2ms | **100x** |
-| Satisfies | < 25ns | ~2µs | **80x** |
-| maxSatisfying (100) | < 2µs | ~200µs | **100x** |
-| Batch parse (1000) | < 10µs | ~1.5ms | **150x** |
+| Operation           | Target | JS Baseline | Speedup  |
+| ------------------- | ------ | ----------- | -------- |
+| Parse               | < 15ns | ~1.5µs      | **100x** |
+| Compare             | < 8ns  | ~500ns      | **60x**  |
+| Sort (1000)         | < 20µs | ~2ms        | **100x** |
+| Satisfies           | < 25ns | ~2µs        | **80x**  |
+| maxSatisfying (100) | < 2µs  | ~200µs      | **100x** |
+| Batch parse (1000)  | < 10µs | ~1.5ms      | **150x** |
 
 ### How We Achieve 100x
 
@@ -1209,23 +1230,27 @@ class VersionCache {
 ## Implementation Phases
 
 ### Phase 1: Core npm/SemVer
+
 - Parse SemVer 2.0 versions
 - Basic comparison
 - Range matching (^, ~, =, >, <, etc.)
 - V8 bindings
 
 ### Phase 2: Multi-Ecosystem
+
 - Maven version parsing and comparison
 - PyPI PEP 440 support
 - NuGet 4-component support
 - Cargo strict semver
 
 ### Phase 3: Performance
+
 - LRU caching
 - Batch operations
 - SIMD where applicable
 
 ### Phase 4: Advanced Features
+
 - Complex range expressions
 - Coercion
 - Version incrementing
@@ -1250,10 +1275,10 @@ const sorted = versions.sort(vers, 'npm');
 
 ```javascript
 // Before (internal compare functions)
-import { compareNpmVersions } from './compare/npm';
-const result = compareNpmVersions(a, b);
+import { compareNpmVersions } from './compare/npm'
+const result = compareNpmVersions(a, b)
 
 // After
-import versions from 'node:smol-versions';
-const result = versions.compare(a, b, 'npm');
+import versions from 'node:smol-versions'
+const result = versions.compare(a, b, 'npm')
 ```

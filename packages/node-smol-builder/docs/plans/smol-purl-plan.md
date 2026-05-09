@@ -9,6 +9,7 @@
 ## Performance Strategy for 50-100x
 
 ### Key Optimizations
+
 1. **Zero allocation hot path** - Pre-allocated arena, string_view only
 2. **SIMD character scanning** - Find delimiters in 32/16 bytes at once
 3. **Perfect hashing** - O(1) ecosystem type lookup with compile-time hash
@@ -20,6 +21,7 @@
 ## Reference Implementation
 
 Based on `socket-packageurl-js`:
+
 - Standard PURL spec compliance (pkg:type/namespace/name@version?qualifiers#subpath)
 - 30+ ecosystem support
 - URL encoding/decoding
@@ -682,104 +684,123 @@ SMOL_FORCE_INLINE int DecodeHexPair(char hi, char lo) {
 ```typescript
 declare module 'node:smol-purl' {
   export type PurlType =
-    | 'npm' | 'maven' | 'pypi' | 'nuget' | 'gem' | 'cargo'
-    | 'golang' | 'composer' | 'conan' | 'conda' | 'cran'
-    | 'deb' | 'docker' | 'generic' | 'github' | 'hackage'
-    | 'hex' | 'mlflow' | 'oci' | 'pub' | 'rpm' | 'swid' | 'swift'
-    | string;
+    | 'npm'
+    | 'maven'
+    | 'pypi'
+    | 'nuget'
+    | 'gem'
+    | 'cargo'
+    | 'golang'
+    | 'composer'
+    | 'conan'
+    | 'conda'
+    | 'cran'
+    | 'deb'
+    | 'docker'
+    | 'generic'
+    | 'github'
+    | 'hackage'
+    | 'hex'
+    | 'mlflow'
+    | 'oci'
+    | 'pub'
+    | 'rpm'
+    | 'swid'
+    | 'swift'
+    | string
 
   export interface ParsedPurl {
     /** Package type/ecosystem */
-    readonly type: PurlType;
+    readonly type: PurlType
     /** Optional namespace (org, group, scope) */
-    readonly namespace: string | null;
+    readonly namespace: string | null
     /** Package name */
-    readonly name: string;
+    readonly name: string
     /** Optional version */
-    readonly version: string | null;
+    readonly version: string | null
     /** Optional qualifiers */
-    readonly qualifiers: Readonly<Record<string, string>> | null;
+    readonly qualifiers: Readonly<Record<string, string>> | null
     /** Optional subpath */
-    readonly subpath: string | null;
+    readonly subpath: string | null
   }
 
   /**
    * Parse a Package URL string
    * @throws Error if PURL is invalid
    */
-  export function parse(purl: string): ParsedPurl;
+  export function parse(purl: string): ParsedPurl
 
   /**
    * Parse multiple PURLs (SIMD-accelerated batch)
    * Returns array with null for invalid entries
    */
-  export function parseBatch(purls: string[]): (ParsedPurl | null)[];
+  export function parseBatch(purls: string[]): (ParsedPurl | null)[]
 
   /**
    * Try to parse, returns null on failure instead of throwing
    */
-  export function tryParse(purl: string): ParsedPurl | null;
+  export function tryParse(purl: string): ParsedPurl | null
 
   /**
    * Build a PURL string from components
    */
   export function build(options: {
-    type: PurlType;
-    namespace?: string | null;
-    name: string;
-    version?: string | null;
-    qualifiers?: Record<string, string> | null;
-    subpath?: string | null;
-  }): string;
+    type: PurlType
+    namespace?: string | null
+    name: string
+    version?: string | null
+    qualifiers?: Record<string, string> | null
+    subpath?: string | null
+  }): string
 
   /**
    * Validate a PURL string
    */
-  export function isValid(purl: string): boolean;
+  export function isValid(purl: string): boolean
 
   /**
    * Normalize a PURL (lowercase type, sort qualifiers)
    */
-  export function normalize(purl: string): string;
+  export function normalize(purl: string): string
 
   /**
    * Compare two PURLs for equality (ignoring qualifier order)
    */
-  export function equals(a: string, b: string): boolean;
+  export function equals(a: string, b: string): boolean
 
   /**
    * Cache statistics
    */
   export interface CacheStats {
-    size: number;
-    hits: number;
-    misses: number;
-    hitRate: number;
+    size: number
+    hits: number
+    misses: number
+    hitRate: number
   }
 
   /**
    * Get cache statistics
    */
-  export function cacheStats(): CacheStats;
+  export function cacheStats(): CacheStats
 
   /**
    * Clear the PURL cache
    */
-  export function clearCache(): void;
+  export function clearCache(): void
 
   /**
    * PURL type constants
    */
   export const types: {
-    readonly NPM: 'npm';
-    readonly MAVEN: 'maven';
-    readonly PYPI: 'pypi';
-    readonly NUGET: 'nuget';
-    readonly GEM: 'gem';
-    readonly CARGO: 'cargo';
-    readonly GOLANG: 'golang';
+    readonly NPM: 'npm'
+    readonly MAVEN: 'maven'
+    readonly PYPI: 'pypi'
+    readonly NUGET: 'nuget'
+    readonly GEM: 'gem'
+    readonly CARGO: 'cargo'
+    readonly GOLANG: 'golang'
     // ... etc
-  };
+  }
 }
 ```
 
@@ -788,52 +809,61 @@ declare module 'node:smol-purl' {
 ### `lib/internal/smol_purl.js`
 
 ```javascript
-'use strict';
+'use strict'
 
-const binding = internalBinding('smol_purl');
+const binding = internalBinding('smol_purl')
 
 // Re-export native functions
-const { parse: nativeParse, parseBatch, build, cacheStats, clearCache } = binding;
+const {
+  parse: nativeParse,
+  parseBatch,
+  build,
+  cacheStats,
+  clearCache,
+} = binding
 
 // Wrap parse to add convenience methods
 function parse(purl) {
-  const result = nativeParse(purl);
+  const result = nativeParse(purl)
   // Freeze for immutability
   if (result.qualifiers) {
-    Object.freeze(result.qualifiers);
+    Object.freeze(result.qualifiers)
   }
-  return Object.freeze(result);
+  return Object.freeze(result)
 }
 
 function tryParse(purl) {
   try {
-    return parse(purl);
+    return parse(purl)
   } catch {
-    return null;
+    return null
   }
 }
 
 function isValid(purl) {
-  return tryParse(purl) !== null;
+  return tryParse(purl) !== null
 }
 
 function normalize(purl) {
-  const parsed = parse(purl);
+  const parsed = parse(purl)
   return build({
     type: parsed.type.toLowerCase(),
     namespace: parsed.namespace,
     name: parsed.name,
     version: parsed.version,
-    qualifiers: parsed.qualifiers ?
-      Object.fromEntries(
-        Object.entries(parsed.qualifiers).sort(([a], [b]) => a.localeCompare(b))
-      ) : null,
+    qualifiers: parsed.qualifiers
+      ? Object.fromEntries(
+          Object.entries(parsed.qualifiers).sort(([a], [b]) =>
+            a.localeCompare(b),
+          ),
+        )
+      : null,
     subpath: parsed.subpath,
-  });
+  })
 }
 
 function equals(a, b) {
-  return normalize(a) === normalize(b);
+  return normalize(a) === normalize(b)
 }
 
 const types = Object.freeze({
@@ -860,7 +890,7 @@ const types = Object.freeze({
   RPM: 'rpm',
   SWID: 'swid',
   SWIFT: 'swift',
-});
+})
 
 module.exports = {
   parse,
@@ -873,7 +903,7 @@ module.exports = {
   cacheStats,
   clearCache,
   types,
-};
+}
 ```
 
 ## Test Cases
@@ -881,51 +911,55 @@ module.exports = {
 ### `test/parallel/test-smol-purl.js`
 
 ```javascript
-'use strict';
-const common = require('../common');
-const assert = require('assert');
-const purl = require('node:smol-purl');
+'use strict'
+const common = require('../common')
+const assert = require('assert')
+const purl = require('node:smol-purl')
 
 // Basic parsing
 {
-  const result = purl.parse('pkg:npm/%40scope/name@1.0.0');
-  assert.strictEqual(result.type, 'npm');
-  assert.strictEqual(result.namespace, '@scope');
-  assert.strictEqual(result.name, 'name');
-  assert.strictEqual(result.version, '1.0.0');
+  const result = purl.parse('pkg:npm/%40scope/name@1.0.0')
+  assert.strictEqual(result.type, 'npm')
+  assert.strictEqual(result.namespace, '@scope')
+  assert.strictEqual(result.name, 'name')
+  assert.strictEqual(result.version, '1.0.0')
 }
 
 // Maven with qualifiers
 {
-  const result = purl.parse('pkg:maven/org.apache/commons@1.0?type=jar&classifier=sources');
-  assert.strictEqual(result.type, 'maven');
-  assert.strictEqual(result.namespace, 'org.apache');
-  assert.strictEqual(result.name, 'commons');
-  assert.strictEqual(result.qualifiers.type, 'jar');
-  assert.strictEqual(result.qualifiers.classifier, 'sources');
+  const result = purl.parse(
+    'pkg:maven/org.apache/commons@1.0?type=jar&classifier=sources',
+  )
+  assert.strictEqual(result.type, 'maven')
+  assert.strictEqual(result.namespace, 'org.apache')
+  assert.strictEqual(result.name, 'commons')
+  assert.strictEqual(result.qualifiers.type, 'jar')
+  assert.strictEqual(result.qualifiers.classifier, 'sources')
 }
 
 // PyPI normalization
 {
-  const result = purl.parse('pkg:pypi/Django_REST_Framework@3.14.0');
-  assert.strictEqual(result.type, 'pypi');
-  assert.strictEqual(result.name, 'Django_REST_Framework');
+  const result = purl.parse('pkg:pypi/Django_REST_Framework@3.14.0')
+  assert.strictEqual(result.type, 'pypi')
+  assert.strictEqual(result.name, 'Django_REST_Framework')
 }
 
 // GitHub with subpath
 {
-  const result = purl.parse('pkg:github/socketdev/socket-cli@1.0.0#packages/cli');
-  assert.strictEqual(result.type, 'github');
-  assert.strictEqual(result.namespace, 'socketdev');
-  assert.strictEqual(result.name, 'socket-cli');
-  assert.strictEqual(result.subpath, 'packages/cli');
+  const result = purl.parse(
+    'pkg:github/socketdev/socket-cli@1.0.0#packages/cli',
+  )
+  assert.strictEqual(result.type, 'github')
+  assert.strictEqual(result.namespace, 'socketdev')
+  assert.strictEqual(result.name, 'socket-cli')
+  assert.strictEqual(result.subpath, 'packages/cli')
 }
 
 // Invalid PURL
 {
-  assert.throws(() => purl.parse('not-a-purl'), /Invalid PURL/);
-  assert.strictEqual(purl.tryParse('not-a-purl'), null);
-  assert.strictEqual(purl.isValid('not-a-purl'), false);
+  assert.throws(() => purl.parse('not-a-purl'), /Invalid PURL/)
+  assert.strictEqual(purl.tryParse('not-a-purl'), null)
+  assert.strictEqual(purl.isValid('not-a-purl'), false)
 }
 
 // Build PURL
@@ -935,8 +969,8 @@ const purl = require('node:smol-purl');
     namespace: '@socket',
     name: 'cli',
     version: '1.0.0',
-  });
-  assert.strictEqual(built, 'pkg:npm/%40socket/cli@1.0.0');
+  })
+  assert.strictEqual(built, 'pkg:npm/%40socket/cli@1.0.0')
 }
 
 // Batch parsing
@@ -946,45 +980,42 @@ const purl = require('node:smol-purl');
     'pkg:pypi/requests@2.28.0',
     'invalid',
     'pkg:cargo/serde@1.0.0',
-  ];
-  const results = purl.parseBatch(purls);
-  assert.strictEqual(results.length, 4);
-  assert.strictEqual(results[0].name, 'lodash');
-  assert.strictEqual(results[1].name, 'requests');
-  assert.strictEqual(results[2], null);
-  assert.strictEqual(results[3].name, 'serde');
+  ]
+  const results = purl.parseBatch(purls)
+  assert.strictEqual(results.length, 4)
+  assert.strictEqual(results[0].name, 'lodash')
+  assert.strictEqual(results[1].name, 'requests')
+  assert.strictEqual(results[2], null)
+  assert.strictEqual(results[3].name, 'serde')
 }
 
 // Equality check
 {
-  assert(purl.equals(
-    'pkg:npm/lodash@4.17.21',
-    'pkg:NPM/lodash@4.17.21'
-  ));
+  assert(purl.equals('pkg:npm/lodash@4.17.21', 'pkg:NPM/lodash@4.17.21'))
 }
 
 // Cache functionality
 {
-  purl.clearCache();
-  purl.parse('pkg:npm/test@1.0.0');
-  purl.parse('pkg:npm/test@1.0.0'); // Cache hit
-  const stats = purl.cacheStats();
-  assert(stats.hits >= 1);
+  purl.clearCache()
+  purl.parse('pkg:npm/test@1.0.0')
+  purl.parse('pkg:npm/test@1.0.0') // Cache hit
+  const stats = purl.cacheStats()
+  assert(stats.hits >= 1)
 }
 
-console.log('All smol-purl tests passed');
+console.log('All smol-purl tests passed')
 ```
 
 ## Performance Targets (50-100x)
 
-| Operation | Target | JS Baseline | Speedup |
-|-----------|--------|-------------|---------|
-| Simple parse | < 20ns | ~2µs | **100x** |
-| Parse with qualifiers | < 50ns | ~3µs | **60x** |
-| Batch parse (1000) | < 15µs | ~2ms | **130x** |
-| Build PURL | < 15ns | ~1µs | **65x** |
-| Validate | < 10ns | ~500ns | **50x** |
-| Cache lookup | < 5ns | N/A | ∞ |
+| Operation             | Target | JS Baseline | Speedup  |
+| --------------------- | ------ | ----------- | -------- |
+| Simple parse          | < 20ns | ~2µs        | **100x** |
+| Parse with qualifiers | < 50ns | ~3µs        | **60x**  |
+| Batch parse (1000)    | < 15µs | ~2ms        | **130x** |
+| Build PURL            | < 15ns | ~1µs        | **65x**  |
+| Validate              | < 10ns | ~500ns      | **50x**  |
+| Cache lookup          | < 5ns  | N/A         | ∞        |
 
 ### How We Achieve 100x
 
@@ -1002,14 +1033,14 @@ console.log('All smol-purl tests passed');
 
 ```javascript
 // Before
-const PackageURL = require('@purl/packageurl-js');
-const purl = PackageURL.fromString('pkg:npm/lodash@4.17.21');
-console.log(purl.name); // 'lodash'
+const PackageURL = require('@purl/packageurl-js')
+const purl = PackageURL.fromString('pkg:npm/lodash@4.17.21')
+console.log(purl.name) // 'lodash'
 
 // After
-const purl = require('node:smol-purl');
-const parsed = purl.parse('pkg:npm/lodash@4.17.21');
-console.log(parsed.name); // 'lodash'
+const purl = require('node:smol-purl')
+const parsed = purl.parse('pkg:npm/lodash@4.17.21')
+console.log(parsed.name) // 'lodash'
 ```
 
 ## Build Configuration
@@ -1108,22 +1139,26 @@ console.log(parsed.name); // 'lodash'
 ## Implementation Phases
 
 ### Phase 1: Core Parser
+
 - Basic PURL parsing with string_view
 - Type detection with perfect hash
 - URL encoding/decoding
 - V8 bindings
 
 ### Phase 2: SIMD Acceleration
+
 - AVX2 delimiter search
 - NEON implementation
 - Batch processing
 
 ### Phase 3: Caching & Optimization
+
 - LRU cache implementation
 - Memory pooling
 - Performance benchmarks
 
 ### Phase 4: Integration
+
 - socket-cli integration
 - coana-package-manager integration
 - patch-cli integration

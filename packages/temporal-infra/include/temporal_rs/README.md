@@ -49,7 +49,7 @@ the heap-owned diplomat-shaped class V8 calls. Different shapes by design.
 - `TransitionDirection.hpp` — Next / Previous (DST transition lookup)
 - `Precision.hpp` — Auto / Minute / Digit(n) tri-state struct
 
-**Phase 10c — Plain* heap-owned wrappers:**
+**Phase 10c — Plain\* heap-owned wrappers:**
 
 - `PartialDate.hpp` / `PartialTime.hpp` / `PartialDateTime.hpp` — optional-fields structs
 - `PlainDate.hpp` — try_new / from_partial / from_utf8 / from_utf16 / with / equals / compare / clone + 9 field accessors (year/month/day/dayOfWeek/dayOfYear/weekOfYear/daysInMonth/daysInYear/inLeapYear)

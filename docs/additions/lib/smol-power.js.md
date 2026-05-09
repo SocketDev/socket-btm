@@ -25,8 +25,8 @@ require('node:smol-power') -> this file (smol-power.js)
 ```ts
 import { isOnAcPower, isOnBatteryPower } from 'node:smol-power'
 
-const ac = isOnAcPower()         // true on AC, false on battery
-const bat = isOnBatteryPower()   // inverse of isOnAcPower()
+const ac = isOnAcPower() // true on AC, false on battery
+const bat = isOnBatteryPower() // inverse of isOnAcPower()
 ```
 
 ## Design Choices

@@ -9,6 +9,7 @@
 ## Performance Strategy for 50-100x
 
 ### Key Optimizations
+
 1. **simdjson SIMD parsing** - 2.5GB/s JSON parsing with AVX2/NEON
 2. **Memory-mapped files** - Zero-copy for large lockfiles (100MB+)
 3. **On-demand parsing** - Only parse fields that are accessed
@@ -20,6 +21,7 @@
 ## Reference Implementations
 
 Based on analysis of:
+
 - `socket-sbom-generator/src/parsers/` - Lockfile parsing
 - `coana-package-manager/src/parse/` - Manifest parsing
 - `patch-cli` - Package manifest handling
@@ -27,30 +29,32 @@ Based on analysis of:
 ## Supported Formats
 
 ### Manifests
-| Format | File | Ecosystem |
-|--------|------|-----------|
-| package.json | package.json | npm |
-| pom.xml | pom.xml | Maven |
-| pyproject.toml | pyproject.toml | PyPI |
-| setup.py | setup.py | PyPI (legacy) |
-| Cargo.toml | Cargo.toml | Cargo |
-| Gemfile | Gemfile | RubyGems |
-| go.mod | go.mod | Go |
-| composer.json | composer.json | Composer |
-| *.csproj | *.csproj | NuGet |
+
+| Format         | File           | Ecosystem     |
+| -------------- | -------------- | ------------- |
+| package.json   | package.json   | npm           |
+| pom.xml        | pom.xml        | Maven         |
+| pyproject.toml | pyproject.toml | PyPI          |
+| setup.py       | setup.py       | PyPI (legacy) |
+| Cargo.toml     | Cargo.toml     | Cargo         |
+| Gemfile        | Gemfile        | RubyGems      |
+| go.mod         | go.mod         | Go            |
+| composer.json  | composer.json  | Composer      |
+| \*.csproj      | \*.csproj      | NuGet         |
 
 ### Lockfiles
-| Format | File | Ecosystem |
-|--------|------|-----------|
-| package-lock.json | package-lock.json | npm v2/v3 |
-| npm-shrinkwrap.json | npm-shrinkwrap.json | npm |
-| yarn.lock | yarn.lock | Yarn v1/v2/v3 |
-| pnpm-lock.yaml | pnpm-lock.yaml | pnpm |
-| Cargo.lock | Cargo.lock | Cargo |
-| Gemfile.lock | Gemfile.lock | RubyGems |
-| poetry.lock | poetry.lock | Poetry |
-| go.sum | go.sum | Go |
-| composer.lock | composer.lock | Composer |
+
+| Format              | File                | Ecosystem     |
+| ------------------- | ------------------- | ------------- |
+| package-lock.json   | package-lock.json   | npm v2/v3     |
+| npm-shrinkwrap.json | npm-shrinkwrap.json | npm           |
+| yarn.lock           | yarn.lock           | Yarn v1/v2/v3 |
+| pnpm-lock.yaml      | pnpm-lock.yaml      | pnpm          |
+| Cargo.lock          | Cargo.lock          | Cargo         |
+| Gemfile.lock        | Gemfile.lock        | RubyGems      |
+| poetry.lock         | poetry.lock         | Poetry        |
+| go.sum              | go.sum              | Go            |
+| composer.lock       | composer.lock       | Composer      |
 
 ## C++ Architecture
 
@@ -711,66 +715,71 @@ NODE_MODULE_CONTEXT_AWARE_INTERNAL(smol_manifest, Initialize)
 ```typescript
 declare module 'node:smol-manifest' {
   export type Ecosystem =
-    | 'npm' | 'maven' | 'pypi' | 'cargo' | 'gem'
-    | 'golang' | 'composer' | 'nuget';
+    | 'npm'
+    | 'maven'
+    | 'pypi'
+    | 'cargo'
+    | 'gem'
+    | 'golang'
+    | 'composer'
+    | 'nuget'
 
-  export type DepType =
-    | 'prod' | 'dev' | 'optional' | 'peer' | 'build' | 'test';
+  export type DepType = 'prod' | 'dev' | 'optional' | 'peer' | 'build' | 'test'
 
   export interface Dependency {
-    readonly name: string;
-    readonly versionRange: string;
-    readonly type: DepType;
-    readonly optional: boolean;
+    readonly name: string
+    readonly versionRange: string
+    readonly type: DepType
+    readonly optional: boolean
   }
 
   export interface Manifest {
-    readonly type: 'manifest';
-    readonly name: string;
-    readonly version: string;
-    readonly description?: string;
-    readonly license?: string;
-    readonly repository?: string;
-    readonly dependencies: ReadonlyArray<Dependency>;
-    readonly ecosystem: Ecosystem;
+    readonly type: 'manifest'
+    readonly name: string
+    readonly version: string
+    readonly description?: string
+    readonly license?: string
+    readonly repository?: string
+    readonly dependencies: ReadonlyArray<Dependency>
+    readonly ecosystem: Ecosystem
   }
 
   export interface PackageRef {
-    readonly name: string;
-    readonly version: string;
-    readonly resolved?: string;
-    readonly integrity?: string;
-    readonly ecosystem: Ecosystem;
-    readonly depType: DepType;
-    readonly dependencies?: ReadonlyArray<{ name: string; range: string }>;
+    readonly name: string
+    readonly version: string
+    readonly resolved?: string
+    readonly integrity?: string
+    readonly ecosystem: Ecosystem
+    readonly depType: DepType
+    readonly dependencies?: ReadonlyArray<{ name: string; range: string }>
   }
 
   export interface Lockfile {
-    readonly type: 'lockfile';
-    readonly lockVersion: string;
-    readonly ecosystem: Ecosystem;
-    readonly packages: ReadonlyArray<PackageRef>;
+    readonly type: 'lockfile'
+    readonly lockVersion: string
+    readonly ecosystem: Ecosystem
+    readonly packages: ReadonlyArray<PackageRef>
   }
 
   export interface LockfileStats {
-    readonly totalPackages: number;
-    readonly prodDeps: number;
-    readonly devDeps: number;
-    readonly optionalDeps: number;
-    readonly byEcosystem: Readonly<Record<string, number>>;
-    readonly maxDepth: number;
-    readonly avgDepth: number;
+    readonly totalPackages: number
+    readonly prodDeps: number
+    readonly devDeps: number
+    readonly optionalDeps: number
+    readonly byEcosystem: Readonly<Record<string, number>>
+    readonly maxDepth: number
+    readonly avgDepth: number
   }
 
   /**
    * Parse a manifest or lockfile (auto-detect from filename)
    */
-  export function parse(filename: string, content: string): Manifest | Lockfile;
+  export function parse(filename: string, content: string): Manifest | Lockfile
 
   /**
    * Parse a package manifest
    */
-  export function parseManifest(content: string, ecosystem: Ecosystem): Manifest;
+  export function parseManifest(content: string, ecosystem: Ecosystem): Manifest
 
   /**
    * Parse a lockfile
@@ -779,51 +788,54 @@ declare module 'node:smol-manifest' {
   export function parseLockfile(
     content: string,
     ecosystem: Ecosystem,
-    format?: string
-  ): Lockfile;
+    format?: string,
+  ): Lockfile
 
   /**
    * Create a streaming parser for large lockfiles
    */
   export function createStreamingParser(
     content: string,
-    ecosystem: Ecosystem
-  ): AsyncIterable<PackageRef>;
+    ecosystem: Ecosystem,
+  ): AsyncIterable<PackageRef>
 
   /**
    * Analyze lockfile statistics
    */
-  export function analyzeLockfile(lockfile: Lockfile): LockfileStats;
+  export function analyzeLockfile(lockfile: Lockfile): LockfileStats
 
   /**
    * Get package by name from lockfile (O(1) lookup)
    */
-  export function getPackage(lockfile: Lockfile, name: string): PackageRef | null;
+  export function getPackage(
+    lockfile: Lockfile,
+    name: string,
+  ): PackageRef | null
 
   /**
    * Get all packages matching a pattern
    */
   export function findPackages(
     lockfile: Lockfile,
-    pattern: string | RegExp
-  ): PackageRef[];
+    pattern: string | RegExp,
+  ): PackageRef[]
 
   /**
    * Detect file format from filename
    */
   export function detectFormat(filename: string): {
-    type: 'manifest' | 'lockfile';
-    ecosystem: Ecosystem;
-    format?: string;
-  } | null;
+    type: 'manifest' | 'lockfile'
+    ecosystem: Ecosystem
+    format?: string
+  } | null
 
   /**
    * Supported file patterns
    */
   export const supportedFiles: {
-    readonly manifests: ReadonlyArray<string>;
-    readonly lockfiles: ReadonlyArray<string>;
-  };
+    readonly manifests: ReadonlyArray<string>
+    readonly lockfiles: ReadonlyArray<string>
+  }
 }
 ```
 
@@ -832,9 +844,9 @@ declare module 'node:smol-manifest' {
 ### `lib/internal/smol_manifest.js`
 
 ```javascript
-'use strict';
+'use strict'
 
-const binding = internalBinding('smol_manifest');
+const binding = internalBinding('smol_manifest')
 
 // File detection patterns
 const MANIFEST_PATTERNS = {
@@ -843,10 +855,10 @@ const MANIFEST_PATTERNS = {
   'pyproject.toml': { ecosystem: 'pypi' },
   'setup.py': { ecosystem: 'pypi' },
   'Cargo.toml': { ecosystem: 'cargo' },
-  'Gemfile': { ecosystem: 'gem' },
+  Gemfile: { ecosystem: 'gem' },
   'go.mod': { ecosystem: 'golang' },
   'composer.json': { ecosystem: 'composer' },
-};
+}
 
 const LOCKFILE_PATTERNS = {
   'package-lock.json': { ecosystem: 'npm', format: 'npm-v2' },
@@ -858,71 +870,71 @@ const LOCKFILE_PATTERNS = {
   'poetry.lock': { ecosystem: 'pypi', format: 'poetry' },
   'go.sum': { ecosystem: 'golang', format: 'go' },
   'composer.lock': { ecosystem: 'composer', format: 'composer' },
-};
+}
 
 function detectFormat(filename) {
-  const basename = filename.split('/').pop();
+  const basename = filename.split('/').pop()
 
   if (MANIFEST_PATTERNS[basename]) {
-    return { type: 'manifest', ...MANIFEST_PATTERNS[basename] };
+    return { type: 'manifest', ...MANIFEST_PATTERNS[basename] }
   }
   if (LOCKFILE_PATTERNS[basename]) {
-    return { type: 'lockfile', ...LOCKFILE_PATTERNS[basename] };
+    return { type: 'lockfile', ...LOCKFILE_PATTERNS[basename] }
   }
 
   // Check patterns (*.csproj, etc.)
   if (basename.endsWith('.csproj')) {
-    return { type: 'manifest', ecosystem: 'nuget' };
+    return { type: 'manifest', ecosystem: 'nuget' }
   }
 
-  return null;
+  return null
 }
 
 function parse(filename, content) {
-  const format = detectFormat(filename);
+  const format = detectFormat(filename)
   if (!format) {
-    throw new Error(`Unknown file format: ${filename}`);
+    throw new Error(`Unknown file format: ${filename}`)
   }
 
-  const result = binding.parse(filename, content);
-  return Object.freeze(result);
+  const result = binding.parse(filename, content)
+  return Object.freeze(result)
 }
 
 function parseManifest(content, ecosystem) {
-  return Object.freeze(binding.parseManifest(content, ecosystem));
+  return Object.freeze(binding.parseManifest(content, ecosystem))
 }
 
 function parseLockfile(content, ecosystem, format) {
-  return Object.freeze(binding.parseLockfile(content, ecosystem, format));
+  return Object.freeze(binding.parseLockfile(content, ecosystem, format))
 }
 
 async function* createStreamingParser(content, ecosystem) {
-  const parser = binding.createStreamingParser(content, ecosystem);
+  const parser = binding.createStreamingParser(content, ecosystem)
   while (parser.hasNext()) {
-    yield parser.next();
+    yield parser.next()
   }
 }
 
 function analyzeLockfile(lockfile) {
-  return binding.analyzeLockfile(lockfile);
+  return binding.analyzeLockfile(lockfile)
 }
 
 function getPackage(lockfile, name) {
   // Use the pre-built index for O(1) lookup
-  const index = lockfile._index || buildIndex(lockfile);
-  const idx = index[name];
-  return idx !== undefined ? lockfile.packages[idx] : null;
+  const index = lockfile._index || buildIndex(lockfile)
+  const idx = index[name]
+  return idx !== undefined ? lockfile.packages[idx] : null
 }
 
 function findPackages(lockfile, pattern) {
-  const regex = pattern instanceof RegExp ? pattern : new RegExp(pattern);
-  return lockfile.packages.filter(pkg => regex.test(pkg.name));
+  const regex = pattern instanceof RegExp ? pattern : new RegExp(pattern)
+  return lockfile.packages.filter(pkg => regex.test(pkg.name))
 }
 
 const supportedFiles = Object.freeze({
   manifests: Object.freeze(Object.keys(MANIFEST_PATTERNS)),
   lockfiles: Object.freeze(Object.keys(LOCKFILE_PATTERNS)),
-});
+})
 
 module.exports = {
   parse,
@@ -934,7 +946,7 @@ module.exports = {
   findPackages,
   detectFormat,
   supportedFiles,
-};
+}
 ```
 
 ## Test Cases
@@ -942,10 +954,10 @@ module.exports = {
 ### `test/parallel/test-smol-manifest.js`
 
 ```javascript
-'use strict';
-const common = require('../common');
-const assert = require('assert');
-const manifest = require('node:smol-manifest');
+'use strict'
+const common = require('../common')
+const assert = require('assert')
+const manifest = require('node:smol-manifest')
 
 // package.json parsing
 {
@@ -954,17 +966,17 @@ const manifest = require('node:smol-manifest');
     version: '1.0.0',
     dependencies: { lodash: '^4.0.0' },
     devDependencies: { jest: '^29.0.0' },
-  });
+  })
 
-  const result = manifest.parse('package.json', content);
-  assert.strictEqual(result.type, 'manifest');
-  assert.strictEqual(result.name, 'test-pkg');
-  assert.strictEqual(result.version, '1.0.0');
-  assert.strictEqual(result.dependencies.length, 2);
+  const result = manifest.parse('package.json', content)
+  assert.strictEqual(result.type, 'manifest')
+  assert.strictEqual(result.name, 'test-pkg')
+  assert.strictEqual(result.version, '1.0.0')
+  assert.strictEqual(result.dependencies.length, 2)
 
-  const lodash = result.dependencies.find(d => d.name === 'lodash');
-  assert.strictEqual(lodash.type, 'prod');
-  assert.strictEqual(lodash.versionRange, '^4.0.0');
+  const lodash = result.dependencies.find(d => d.name === 'lodash')
+  assert.strictEqual(lodash.type, 'prod')
+  assert.strictEqual(lodash.versionRange, '^4.0.0')
 }
 
 // package-lock.json parsing
@@ -979,15 +991,15 @@ const manifest = require('node:smol-manifest');
         integrity: 'sha512-v2kDE...',
       },
     },
-  });
+  })
 
-  const result = manifest.parse('package-lock.json', content);
-  assert.strictEqual(result.type, 'lockfile');
-  assert.strictEqual(result.lockVersion, '3');
-  assert.strictEqual(result.packages.length, 1); // Excludes root
+  const result = manifest.parse('package-lock.json', content)
+  assert.strictEqual(result.type, 'lockfile')
+  assert.strictEqual(result.lockVersion, '3')
+  assert.strictEqual(result.packages.length, 1) // Excludes root
 
-  const pkg = manifest.getPackage(result, 'lodash');
-  assert.strictEqual(pkg.version, '4.17.21');
+  const pkg = manifest.getPackage(result, 'lodash')
+  assert.strictEqual(pkg.version, '4.17.21')
 }
 
 // yarn.lock parsing
@@ -999,14 +1011,14 @@ lodash@^4.0.0:
   version "4.17.21"
   resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.21.tgz"
   integrity sha512-v2kDE...
-`;
+`
 
-  const result = manifest.parse('yarn.lock', content);
-  assert.strictEqual(result.type, 'lockfile');
-  assert.strictEqual(result.lockVersion, '1');
+  const result = manifest.parse('yarn.lock', content)
+  assert.strictEqual(result.type, 'lockfile')
+  assert.strictEqual(result.lockVersion, '1')
 
-  const pkg = manifest.getPackage(result, 'lodash');
-  assert.strictEqual(pkg.version, '4.17.21');
+  const pkg = manifest.getPackage(result, 'lodash')
+  assert.strictEqual(pkg.version, '4.17.21')
 }
 
 // pnpm-lock.yaml parsing
@@ -1018,14 +1030,14 @@ packages:
   /lodash@4.17.21:
     resolution: {integrity: sha512-v2kDE...}
     dev: false
-`;
+`
 
-  const result = manifest.parse('pnpm-lock.yaml', content);
-  assert.strictEqual(result.type, 'lockfile');
+  const result = manifest.parse('pnpm-lock.yaml', content)
+  assert.strictEqual(result.type, 'lockfile')
 
-  const pkg = manifest.getPackage(result, 'lodash');
-  assert.strictEqual(pkg.version, '4.17.21');
-  assert.strictEqual(pkg.depType, 'prod');
+  const pkg = manifest.getPackage(result, 'lodash')
+  assert.strictEqual(pkg.version, '4.17.21')
+  assert.strictEqual(pkg.depType, 'prod')
 }
 
 // Cargo.toml parsing
@@ -1041,25 +1053,25 @@ tokio = { version = "1.0", features = ["full"] }
 
 [dev-dependencies]
 criterion = "0.4"
-`;
+`
 
-  const result = manifest.parse('Cargo.toml', content);
-  assert.strictEqual(result.type, 'manifest');
-  assert.strictEqual(result.name, 'my-crate');
-  assert.strictEqual(result.ecosystem, 'cargo');
+  const result = manifest.parse('Cargo.toml', content)
+  assert.strictEqual(result.type, 'manifest')
+  assert.strictEqual(result.name, 'my-crate')
+  assert.strictEqual(result.ecosystem, 'cargo')
 
-  const serde = result.dependencies.find(d => d.name === 'serde');
-  assert.strictEqual(serde.versionRange, '1.0');
+  const serde = result.dependencies.find(d => d.name === 'serde')
+  assert.strictEqual(serde.versionRange, '1.0')
 }
 
 // Lockfile analysis
 {
-  const lockfile = manifest.parseLockfile(largePackageLock, 'npm');
-  const stats = manifest.analyzeLockfile(lockfile);
+  const lockfile = manifest.parseLockfile(largePackageLock, 'npm')
+  const stats = manifest.analyzeLockfile(lockfile)
 
-  assert(stats.totalPackages > 0);
-  assert(stats.maxDepth >= 0);
-  assert(stats.avgDepth >= 0);
+  assert(stats.totalPackages > 0)
+  assert(stats.maxDepth >= 0)
+  assert(stats.avgDepth >= 0)
 }
 
 // Format detection
@@ -1067,30 +1079,30 @@ criterion = "0.4"
   assert.deepStrictEqual(manifest.detectFormat('package.json'), {
     type: 'manifest',
     ecosystem: 'npm',
-  });
+  })
 
   assert.deepStrictEqual(manifest.detectFormat('yarn.lock'), {
     type: 'lockfile',
     ecosystem: 'npm',
     format: 'yarn',
-  });
+  })
 
-  assert.strictEqual(manifest.detectFormat('unknown.txt'), null);
+  assert.strictEqual(manifest.detectFormat('unknown.txt'), null)
 }
 
-console.log('All smol-manifest tests passed');
+console.log('All smol-manifest tests passed')
 ```
 
 ## Performance Targets (50-100x)
 
-| Operation | Target | JS Baseline | Speedup |
-|-----------|--------|-------------|---------|
-| package.json (1KB) | < 2µs | ~200µs | **100x** |
-| package-lock.json (1MB) | < 2ms | ~200ms | **100x** |
-| package-lock.json (100MB) | < 100ms | ~10s | **100x** |
-| yarn.lock (1MB) | < 5ms | ~300ms | **60x** |
-| pnpm-lock.yaml (1MB) | < 8ms | ~400ms | **50x** |
-| Lookup by name | < 20ns | ~5µs | **250x** |
+| Operation                 | Target  | JS Baseline | Speedup  |
+| ------------------------- | ------- | ----------- | -------- |
+| package.json (1KB)        | < 2µs   | ~200µs      | **100x** |
+| package-lock.json (1MB)   | < 2ms   | ~200ms      | **100x** |
+| package-lock.json (100MB) | < 100ms | ~10s        | **100x** |
+| yarn.lock (1MB)           | < 5ms   | ~300ms      | **60x**  |
+| pnpm-lock.yaml (1MB)      | < 8ms   | ~400ms      | **50x**  |
+| Lookup by name            | < 20ns  | ~5µs        | **250x** |
 
 ### How We Achieve 100x
 
@@ -1627,17 +1639,20 @@ class RobinHoodMap {
 ## Dependencies
 
 ### simdjson
+
 - Already used in Node.js for JSON.parse optimization
 - ~2.5GB/s parsing speed
 - SIMD-accelerated (AVX2, NEON)
 
 ### rapidyaml
+
 - Header-only YAML parser
 - ~40x faster than libyaml
 - ~100x faster than yaml-cpp
 - Supports YAML 1.1
 
 ### toml++ (optional)
+
 - Header-only TOML parser
 - Modern C++17
 - Fast and standards-compliant
@@ -1645,27 +1660,32 @@ class RobinHoodMap {
 ## Implementation Phases
 
 ### Phase 1: JSON Formats
+
 - package.json parsing
 - package-lock.json (v2/v3)
 - composer.json/lock
 - V8 bindings
 
 ### Phase 2: YAML Formats
+
 - rapidyaml integration
 - pnpm-lock.yaml
 - pubspec.yaml
 
 ### Phase 3: Custom Formats
+
 - yarn.lock parser
 - Gemfile.lock parser
 - go.sum/go.mod parser
 
 ### Phase 4: TOML & XML
+
 - Cargo.toml/lock
 - pyproject.toml
 - pom.xml
 
 ### Phase 5: Optimization
+
 - Streaming parser for large files
 - Memory pooling
 - Parallel parsing
@@ -1676,22 +1696,22 @@ class RobinHoodMap {
 
 ```javascript
 // Before
-const { parseLockfile } = require('./parsers/npm');
-const lock = parseLockfile(content);
+const { parseLockfile } = require('./parsers/npm')
+const lock = parseLockfile(content)
 
 // After
-const manifest = require('node:smol-manifest');
-const lock = manifest.parseLockfile(content, 'npm');
+const manifest = require('node:smol-manifest')
+const lock = manifest.parseLockfile(content, 'npm')
 ```
 
 ### From lockfile-parser
 
 ```javascript
 // Before
-const { parseYarnLock } = require('@yarnpkg/lockfile');
-const result = parseYarnLock(content);
+const { parseYarnLock } = require('@yarnpkg/lockfile')
+const result = parseYarnLock(content)
 
 // After
-const manifest = require('node:smol-manifest');
-const result = manifest.parse('yarn.lock', content);
+const manifest = require('node:smol-manifest')
+const result = manifest.parse('yarn.lock', content)
 ```

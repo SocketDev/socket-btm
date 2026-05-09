@@ -4,20 +4,20 @@ This guide covers the twelve built-in `node:smol-*` modules available in node-sm
 
 ## Quick Overview
 
-| Module                  | Purpose             | When to Use                                            |
-| ----------------------- | ------------------- | ------------------------------------------------------ |
-| `node:smol-ffi`         | Foreign functions   | Calling native C libraries without addons              |
-| `node:smol-http`        | HTTP servers        | Building web APIs and servers                          |
-| `node:smol-https`       | HTTPS servers       | Building TLS-enabled web servers                       |
-| `node:smol-ilp`         | Time-series data    | Sending metrics to QuestDB/InfluxDB                    |
-| `node:smol-manifest`    | Manifest parsing    | Parsing package.json, lockfiles, etc.                  |
-| `node:smol-power`       | Power-state         | Detecting AC vs battery power for adaptive timeouts    |
-| `node:smol-primordial`  | V8 Fast API methods | Hot Math/Number/String paths inlined into JIT'd JS     |
-| `node:smol-purl`        | Package URLs        | Parsing and building PURL strings                      |
-| `node:smol-sql`         | Database queries    | PostgreSQL and SQLite access                           |
-| `node:smol-util`        | Primordial helpers  | Single-dispatch uncurryThis/applyBind/safe wrappers    |
-| `node:smol-versions`    | Version management  | Parsing, comparing, and matching versions              |
-| `node:smol-vfs`         | Embedded files      | Accessing files bundled in your SEA binary             |
+| Module                 | Purpose             | When to Use                                         |
+| ---------------------- | ------------------- | --------------------------------------------------- |
+| `node:smol-ffi`        | Foreign functions   | Calling native C libraries without addons           |
+| `node:smol-http`       | HTTP servers        | Building web APIs and servers                       |
+| `node:smol-https`      | HTTPS servers       | Building TLS-enabled web servers                    |
+| `node:smol-ilp`        | Time-series data    | Sending metrics to QuestDB/InfluxDB                 |
+| `node:smol-manifest`   | Manifest parsing    | Parsing package.json, lockfiles, etc.               |
+| `node:smol-power`      | Power-state         | Detecting AC vs battery power for adaptive timeouts |
+| `node:smol-primordial` | V8 Fast API methods | Hot Math/Number/String paths inlined into JIT'd JS  |
+| `node:smol-purl`       | Package URLs        | Parsing and building PURL strings                   |
+| `node:smol-sql`        | Database queries    | PostgreSQL and SQLite access                        |
+| `node:smol-util`       | Primordial helpers  | Single-dispatch uncurryThis/applyBind/safe wrappers |
+| `node:smol-versions`   | Version management  | Parsing, comparing, and matching versions           |
+| `node:smol-vfs`        | Embedded files      | Accessing files bundled in your SEA binary          |
 
 ---
 
@@ -52,38 +52,38 @@ const server = serve({
 
 #### Functions
 
-| Function                                              | Description                                |
-| ----------------------------------------------------- | ------------------------------------------ |
-| `clearCache()`                                         | Clear the JSON stringify cache             |
-| `createCacheKey(method, url)`                          | Create a cache key for JSON data           |
-| `createHttp2Server(options?)`                          | Create an HTTP/2 server with optimizations |
-| `fastBinaryResponse(response, statusCode, buffer, contentType)` | Fast binary response using native bindings |
-| `fastErrorResponse(response, statusCode, message)`     | Fast error response                        |
-| `fastJsonResponse(response, statusCode, data, cacheKey?)` | Fast JSON response using native bindings   |
-| `fastNotModified(res)`                                 | Fast 304 Not Modified response             |
-| `fastPackumentResponse(response, packument, request)`  | Fast npm packument response                |
-| `fastTarballResponse(res, data)`                       | Fast tarball response                      |
-| `getCachedJson(obj, key)`                              | Get cached JSON string by key              |
-| `getCacheStats()`                                      | Get cache hit/miss statistics              |
-| `getContentLength(length)`                             | Get cached Content-Length header           |
-| `getHeader(name, value)`                               | Get cached header string                   |
-| `getHttp2Stats(session)`                               | Get HTTP/2 stream statistics               |
-| `getStatusLine(code)`                                  | Get cached HTTP status line                |
-| `getSubsetStats(original, subset)`                     | Get version subset size-reduction stats    |
-| `invalidate(key)`                                      | Invalidate a cache entry                   |
-| `optimizeHttp2Session(session)`                        | Apply optimizations to HTTP/2 session      |
-| `request(url, options?)`                               | HTTP/1.1 client; returns `{status, headers, body, json()}` |
-| `sendPackumentWithDeps(stream, packument, dependencies)` | Send packument with HTTP/2 push            |
-| `sendWithPreloads(stream, headers, data, dependencies?)` | Send response with HTTP/2 push preloads    |
-| `serve(options)`                                       | Create an HTTP server (main entry point)   |
-| `setPipelining(depth, options?)`                       | Configure HTTP/1.1 pipelining depth on the built-in Agent |
-| `stringifyWithCache(obj, cacheKey)`                    | Stringify JSON and cache the result        |
-| `subsetPackument(packument, range)`                    | Create version subset of npm packument     |
-| `withCork(response, callback)`                         | Execute function with corked socket        |
-| `writeJsonResponse(response, statusCode, data)`        | Write JSON response to socket              |
-| `writeNotFound(response, message?)`                    | Write 404 Not Found response               |
-| `writeNotModified(res)`                                | Write 304 Not Modified response            |
-| `writeTarballResponse(response, statusCode, buffer)`   | Write tarball response with headers        |
+| Function                                                        | Description                                                |
+| --------------------------------------------------------------- | ---------------------------------------------------------- |
+| `clearCache()`                                                  | Clear the JSON stringify cache                             |
+| `createCacheKey(method, url)`                                   | Create a cache key for JSON data                           |
+| `createHttp2Server(options?)`                                   | Create an HTTP/2 server with optimizations                 |
+| `fastBinaryResponse(response, statusCode, buffer, contentType)` | Fast binary response using native bindings                 |
+| `fastErrorResponse(response, statusCode, message)`              | Fast error response                                        |
+| `fastJsonResponse(response, statusCode, data, cacheKey?)`       | Fast JSON response using native bindings                   |
+| `fastNotModified(res)`                                          | Fast 304 Not Modified response                             |
+| `fastPackumentResponse(response, packument, request)`           | Fast npm packument response                                |
+| `fastTarballResponse(res, data)`                                | Fast tarball response                                      |
+| `getCachedJson(obj, key)`                                       | Get cached JSON string by key                              |
+| `getCacheStats()`                                               | Get cache hit/miss statistics                              |
+| `getContentLength(length)`                                      | Get cached Content-Length header                           |
+| `getHeader(name, value)`                                        | Get cached header string                                   |
+| `getHttp2Stats(session)`                                        | Get HTTP/2 stream statistics                               |
+| `getStatusLine(code)`                                           | Get cached HTTP status line                                |
+| `getSubsetStats(original, subset)`                              | Get version subset size-reduction stats                    |
+| `invalidate(key)`                                               | Invalidate a cache entry                                   |
+| `optimizeHttp2Session(session)`                                 | Apply optimizations to HTTP/2 session                      |
+| `request(url, options?)`                                        | HTTP/1.1 client; returns `{status, headers, body, json()}` |
+| `sendPackumentWithDeps(stream, packument, dependencies)`        | Send packument with HTTP/2 push                            |
+| `sendWithPreloads(stream, headers, data, dependencies?)`        | Send response with HTTP/2 push preloads                    |
+| `serve(options)`                                                | Create an HTTP server (main entry point)                   |
+| `setPipelining(depth, options?)`                                | Configure HTTP/1.1 pipelining depth on the built-in Agent  |
+| `stringifyWithCache(obj, cacheKey)`                             | Stringify JSON and cache the result                        |
+| `subsetPackument(packument, range)`                             | Create version subset of npm packument                     |
+| `withCork(response, callback)`                                  | Execute function with corked socket                        |
+| `writeJsonResponse(response, statusCode, data)`                 | Write JSON response to socket                              |
+| `writeNotFound(response, message?)`                             | Write 404 Not Found response                               |
+| `writeNotModified(res)`                                         | Write 304 Not Modified response                            |
+| `writeTarballResponse(response, statusCode, buffer)`            | Write tarball response with headers                        |
 
 #### Global Instances
 
@@ -99,10 +99,10 @@ const server = serve({
 
 ```javascript
 serve({
-  port: 3000,           // Port to listen on (default: 3000; 0 = OS-assigned)
-  hostname: '0.0.0.0',  // Hostname to bind to
-  workers: 1,           // Number of worker processes (SO_REUSEPORT fan-out)
-  fetch(request) { },   // Request handler (required)
+  port: 3000, // Port to listen on (default: 3000; 0 = OS-assigned)
+  hostname: '0.0.0.0', // Hostname to bind to
+  workers: 1, // Number of worker processes (SO_REUSEPORT fan-out)
+  fetch(request) {}, // Request handler (required)
 })
 ```
 
@@ -411,11 +411,11 @@ if (vfs.hasVFS()) {
 
 #### Classes
 
-| Class                | Description                                            |
-| -------------------- | ------------------------------------------------------ |
-| `SmolPgProvider`     | Lazy-loaded PostgreSQL-backed VFS storage provider     |
-| `SmolSqliteProvider` | Lazy-loaded SQLite-backed VFS storage provider         |
-| `VFSError`           | Error class for VFS operations                         |
+| Class                | Description                                        |
+| -------------------- | -------------------------------------------------- |
+| `SmolPgProvider`     | Lazy-loaded PostgreSQL-backed VFS storage provider |
+| `SmolSqliteProvider` | Lazy-loaded SQLite-backed VFS storage provider     |
+| `VFSError`           | Error class for VFS operations                     |
 
 #### Constants
 
@@ -708,16 +708,16 @@ const pkg = getPackage(lock, 'lodash')
 
 #### Functions
 
-| Function                          | Description                               |
-| --------------------------------- | ----------------------------------------- |
-| `analyzeLockfile(lockfile)`                        | Analyze lockfile for statistics/issues       |
-| `createStreamingParser(content, ecosystem)`        | Async iterator over packages in large files  |
-| `detectFormat(filename)`                           | Auto-detect manifest/lockfile format         |
-| `findPackages(lockfile, pattern)`                  | Search packages matching a pattern           |
-| `getPackage(lockfile, name)`                       | O(1) package lookup by name                  |
-| `parse(filename, content)`                         | Auto-detect format and parse                 |
-| `parseLockfile(content, ecosystem, format?)`       | Parse a lockfile (format auto-detected)      |
-| `parseManifest(content, ecosystem)`                | Parse a manifest by ecosystem                |
+| Function                                     | Description                                 |
+| -------------------------------------------- | ------------------------------------------- |
+| `analyzeLockfile(lockfile)`                  | Analyze lockfile for statistics/issues      |
+| `createStreamingParser(content, ecosystem)`  | Async iterator over packages in large files |
+| `detectFormat(filename)`                     | Auto-detect manifest/lockfile format        |
+| `findPackages(lockfile, pattern)`            | Search packages matching a pattern          |
+| `getPackage(lockfile, name)`                 | O(1) package lookup by name                 |
+| `parse(filename, content)`                   | Auto-detect format and parse                |
+| `parseLockfile(content, ecosystem, format?)` | Parse a lockfile (format auto-detected)     |
+| `parseManifest(content, ecosystem)`          | Parse a manifest by ecosystem               |
 
 #### Constants
 
@@ -860,10 +860,10 @@ if (isOnBatteryPower()) {
 
 ### Module Exports (Alphabetical)
 
-| Function             | Description                              |
-| -------------------- | ---------------------------------------- |
-| `isOnAcPower()`      | `true` on AC, `false` on battery         |
-| `isOnBatteryPower()` | `true` on battery, `false` on AC         |
+| Function             | Description                      |
+| -------------------- | -------------------------------- |
+| `isOnAcPower()`      | `true` on AC, `false` on battery |
+| `isOnBatteryPower()` | `true` on battery, `false` on AC |
 
 ### Design Notes
 
@@ -878,11 +878,11 @@ battery-mode behavior.
 
 Per-platform syscall path:
 
-| Platform | Source                                                   |
-| -------- | -------------------------------------------------------- |
-| macOS    | IOKit `IOPSCopyPowerSourcesInfo`                         |
-| Linux    | `/sys/class/power_supply/<entry>/online` direct reads    |
-| Windows  | kernel32 `GetSystemPowerStatus`                          |
+| Platform | Source                                                |
+| -------- | ----------------------------------------------------- |
+| macOS    | IOKit `IOPSCopyPowerSourcesInfo`                      |
+| Linux    | `/sys/class/power_supply/<entry>/online` direct reads |
+| Windows  | kernel32 `GetSystemPowerStatus`                       |
 
 ---
 
@@ -897,25 +897,29 @@ loops because there's no callback trampoline, no
 ### Quick Start
 
 ```javascript
-import { mathSqrt, numberParseInt10, stringCharCodeAt } from 'node:smol-primordial'
+import {
+  mathSqrt,
+  numberParseInt10,
+  stringCharCodeAt,
+} from 'node:smol-primordial'
 
-mathSqrt(16)              // 4
-numberParseInt10('42')    // 42
-stringCharCodeAt('A', 0)  // 65
+mathSqrt(16) // 4
+numberParseInt10('42') // 42
+stringCharCodeAt('A', 0) // 65
 ```
 
 ### Module Exports (Alphabetical)
 
-| Group               | Methods                                                                                                                                              |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Array               | `arrayIsArray`                                                                                                                                       |
-| Date                | `dateNow`                                                                                                                                            |
-| Math (unary)        | `mathAbs`, `mathAcos`, `mathAcosh`, `mathAsin`, `mathAsinh`, `mathAtan`, `mathAtanh`, `mathCbrt`, `mathCeil`, `mathCos`, `mathCosh`, `mathExp`, `mathExpm1`, `mathFloor`, `mathFround`, `mathLog`, `mathLog1p`, `mathLog2`, `mathLog10`, `mathRound`, `mathSign`, `mathSin`, `mathSinh`, `mathSqrt`, `mathTan`, `mathTanh`, `mathTrunc` |
-| Math (binary)       | `mathAtan2`, `mathHypot`, `mathPow`                                                                                                                  |
-| Math (other)        | `mathClz32`, `mathImul`                                                                                                                              |
-| Number predicates   | `numberIsFinite`, `numberIsInteger`, `numberIsNaN`, `numberIsSafeInteger`                                                                            |
-| Number parsers      | `numberParseFloat`, `numberParseInt10` (radix 10 only)                                                                                               |
-| String prototype    | `stringCharCodeAt` (returns `-1` sentinel on OOB; wrapper converts to `NaN` to match spec)                                                           |
+| Group             | Methods                                                                                                                                                                                                                                                                                                                                 |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Array             | `arrayIsArray`                                                                                                                                                                                                                                                                                                                          |
+| Date              | `dateNow`                                                                                                                                                                                                                                                                                                                               |
+| Math (unary)      | `mathAbs`, `mathAcos`, `mathAcosh`, `mathAsin`, `mathAsinh`, `mathAtan`, `mathAtanh`, `mathCbrt`, `mathCeil`, `mathCos`, `mathCosh`, `mathExp`, `mathExpm1`, `mathFloor`, `mathFround`, `mathLog`, `mathLog1p`, `mathLog2`, `mathLog10`, `mathRound`, `mathSign`, `mathSin`, `mathSinh`, `mathSqrt`, `mathTan`, `mathTanh`, `mathTrunc` |
+| Math (binary)     | `mathAtan2`, `mathHypot`, `mathPow`                                                                                                                                                                                                                                                                                                     |
+| Math (other)      | `mathClz32`, `mathImul`                                                                                                                                                                                                                                                                                                                 |
+| Number predicates | `numberIsFinite`, `numberIsInteger`, `numberIsNaN`, `numberIsSafeInteger`                                                                                                                                                                                                                                                               |
+| Number parsers    | `numberParseFloat`, `numberParseInt10` (radix 10 only)                                                                                                                                                                                                                                                                                  |
+| String prototype  | `stringCharCodeAt` (returns `-1` sentinel on OOB; wrapper converts to `NaN` to match spec)                                                                                                                                                                                                                                              |
 
 ### Design Notes
 
@@ -964,19 +968,19 @@ slice('hello', 0, 3) // 'hel'
 const concat = applyBind(Array.prototype.concat)
 concat([1, 2], [[3, 4]]) // [1, 2, 3, 4]
 
-weakRefSafe({ x: 1 })   // WeakRef instance
-weakRefSafe(42)         // undefined (instead of throwing)
+weakRefSafe({ x: 1 }) // WeakRef instance
+weakRefSafe(42) // undefined (instead of throwing)
 ```
 
 ### Module Exports (Alphabetical)
 
-| Function              | Description                                                                  |
-| --------------------- | ---------------------------------------------------------------------------- |
-| `applyBind(fn)`       | Single-dispatch `fn.apply(self, args)`                                       |
-| `applySafe(fn)`       | Like `applyBind` but swallows synchronous throws (returns `undefined`)       |
-| `bindCall(fn, this, ...preset)` | Partial-apply with bound `this`                                    |
-| `uncurryThis(fn)`     | Single-dispatch `fn.call(self, ...args)`                                     |
-| `weakRefSafe(target)` | Like `new WeakRef(target)` but returns `undefined` on non-wrappable inputs   |
+| Function                        | Description                                                                |
+| ------------------------------- | -------------------------------------------------------------------------- |
+| `applyBind(fn)`                 | Single-dispatch `fn.apply(self, args)`                                     |
+| `applySafe(fn)`                 | Like `applyBind` but swallows synchronous throws (returns `undefined`)     |
+| `bindCall(fn, this, ...preset)` | Partial-apply with bound `this`                                            |
+| `uncurryThis(fn)`               | Single-dispatch `fn.call(self, ...args)`                                   |
+| `weakRefSafe(target)`           | Like `new WeakRef(target)` but returns `undefined` on non-wrappable inputs |
 
 ### Design Notes
 
@@ -1051,20 +1055,20 @@ const server = serve({
 
 ## Differences from Standard Node.js
 
-| Feature           | Standard Node.js                       | node-smol                                       |
-| ----------------- | -------------------------------------- | ----------------------------------------------- |
-| HTTP server       | `http.createServer()`                  | `serve()` with Bun-compatible API               |
-| HTTPS server      | `https.createServer()`                 | `serve()` with optimized TLS defaults           |
-| Database          | External packages (pg, better-sqlite3) | Built-in `node:smol-sql`                        |
-| Time-series       | External packages                      | Built-in `node:smol-ilp`                        |
-| FFI               | External packages (ffi-napi, koffi)    | Built-in `node:smol-ffi`                        |
-| Embedded files    | Custom solutions                       | Built-in `node:smol-vfs`                        |
-| Package URLs      | External packages (packageurl-js)      | Built-in `node:smol-purl`                       |
-| Manifest parsing  | External packages per format           | Built-in `node:smol-manifest`                   |
-| Version matching  | External packages (semver)             | Built-in `node:smol-versions`                   |
-| Power state       | External packages (battery, electron)  | Built-in `node:smol-power`                      |
-| Fast Math/Number  | JS-level Math/Number primordials       | Built-in `node:smol-primordial` (V8 Fast API)   |
-| Primordial helpers| Userspace `uncurryThis` / `applyBind`  | Built-in `node:smol-util` (single-dispatch C++) |
+| Feature            | Standard Node.js                       | node-smol                                       |
+| ------------------ | -------------------------------------- | ----------------------------------------------- |
+| HTTP server        | `http.createServer()`                  | `serve()` with Bun-compatible API               |
+| HTTPS server       | `https.createServer()`                 | `serve()` with optimized TLS defaults           |
+| Database           | External packages (pg, better-sqlite3) | Built-in `node:smol-sql`                        |
+| Time-series        | External packages                      | Built-in `node:smol-ilp`                        |
+| FFI                | External packages (ffi-napi, koffi)    | Built-in `node:smol-ffi`                        |
+| Embedded files     | Custom solutions                       | Built-in `node:smol-vfs`                        |
+| Package URLs       | External packages (packageurl-js)      | Built-in `node:smol-purl`                       |
+| Manifest parsing   | External packages per format           | Built-in `node:smol-manifest`                   |
+| Version matching   | External packages (semver)             | Built-in `node:smol-versions`                   |
+| Power state        | External packages (battery, electron)  | Built-in `node:smol-power`                      |
+| Fast Math/Number   | JS-level Math/Number primordials       | Built-in `node:smol-primordial` (V8 Fast API)   |
+| Primordial helpers | Userspace `uncurryThis` / `applyBind`  | Built-in `node:smol-util` (single-dispatch C++) |
 
 ## Further Reading
 

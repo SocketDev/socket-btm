@@ -11,8 +11,8 @@ fs.readdirSync('/sea') -> lists all asset keys
 
 ## How It Fits in the VFS System
 
-fs_shim.js -> THIS FILE (sea_path.js) -- for /sea/_ paths
-fs_shim.js -> loader.js -- for /snapshot/_ paths
+fs*shim.js -> THIS FILE (sea_path.js) -- for /sea/* paths
+fs*shim.js -> loader.js -- for /snapshot/* paths
 
 When fs_shim.js intercepts an fs call, it first checks if the path starts
 with '/sea/'. If yes, it delegates to this file. If not, it checks for

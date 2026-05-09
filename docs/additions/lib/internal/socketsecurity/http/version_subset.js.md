@@ -26,10 +26,10 @@ trim the response before wiring it downstream.
 There are two semver implementations in this repo and it is easy to get
 confused. The split is intentional:
 
-| File                | Used by                           | Notes                                  |
-| ------------------- | --------------------------------- | -------------------------------------- |
-| `versions.js`       | General comparison logic everywhere | Full range cache, multi-ecosystem.    |
-| `version_subset.js` | The registry proxy hot path       | Smaller, focused on subsetting only.   |
+| File                | Used by                             | Notes                                |
+| ------------------- | ----------------------------------- | ------------------------------------ |
+| `versions.js`       | General comparison logic everywhere | Full range cache, multi-ecosystem.   |
+| `version_subset.js` | The registry proxy hot path         | Smaller, focused on subsetting only. |
 
 When you change range semantics, update **both**. The test suites for
 each live under `packages/node-smol-builder/test/`.
@@ -37,8 +37,11 @@ each live under `packages/node-smol-builder/test/`.
 ## Public API
 
 ```js
-const { subsetPackument, getSubsetStats, semver } =
-  require('internal/socketsecurity/http/version_subset')
+const {
+  subsetPackument,
+  getSubsetStats,
+  semver,
+} = require('internal/socketsecurity/http/version_subset')
 
 // Filter a packument to matching versions.
 const subset = subsetPackument(packument, '^1.2.0')

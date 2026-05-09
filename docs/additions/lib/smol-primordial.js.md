@@ -77,7 +77,7 @@ to primitives, `Local<Value/Object/Array>`, or the special
 `FastOneByteString` (a `(char*, length)` view of an ASCII-only V8
 string). It cannot return a new object.
 
-Beyond that, the *interesting* design question is **which signatures
+Beyond that, the _interesting_ design question is **which signatures
 actually beat the JS form**:
 
 - **WIN**: The work itself benefits from inlining (Math.abs is one
@@ -97,7 +97,7 @@ actually beat the JS form**:
 - `Math.round` uses JS half-toward-+inf (NOT C's away-from-zero)
 - `Math.sign` preserves +0/-0/NaN
 - `Math.imul` casts through unsigned for defined wrap
-- `Math.clz32` returns 32 for input 0 (C's __builtin_clz is UB at 0)
+- `Math.clz32` returns 32 for input 0 (C's \_\_builtin_clz is UB at 0)
 - `Math.fround` rounds to nearest float32 representation
 - `Number.parseInt` is radix 10 only -- other radices fall through to
   stock Number.parseInt

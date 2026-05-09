@@ -21,15 +21,15 @@ ASCII input, tight branch-dense loops, no I/O — is exactly what a
 
 ## Surface
 
-| Native                | JS equivalent       | Why hot                  |
-| --------------------- | ------------------- | ------------------------ |
-| `normalize(p)`        | `path.normalize`    | every file path          |
-| `isAbsolute(p)`       | `path.isAbsolute`   | branch in normalize      |
-| `dirname(p)`          | `path.dirname`      | parent-dir walks         |
-| `basename(p)`         | `path.basename`     | display + cmp            |
-| `extname(p)`          | `path.extname`      | extension routing        |
-| `join(...parts)`      | `path.join`         | path composition         |
-| `relative(from, to)`  | `path.relative`     | display in errors        |
+| Native               | JS equivalent     | Why hot             |
+| -------------------- | ----------------- | ------------------- |
+| `normalize(p)`       | `path.normalize`  | every file path     |
+| `isAbsolute(p)`      | `path.isAbsolute` | branch in normalize |
+| `dirname(p)`         | `path.dirname`    | parent-dir walks    |
+| `basename(p)`        | `path.basename`   | display + cmp       |
+| `extname(p)`         | `path.extname`    | extension routing   |
+| `join(...parts)`     | `path.join`       | path composition    |
+| `relative(from, to)` | `path.relative`   | display in errors   |
 
 Each entry has POSIX and Windows variants — registered as
 `posix.normalize` / `win32.normalize` / etc., mirroring Node's own

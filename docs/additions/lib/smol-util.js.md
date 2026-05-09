@@ -44,20 +44,24 @@ concat([1, 2], [[3, 4]]) // [1, 2, 3, 4]
 
 // bindCall(fn, this, ...preset): partial-apply with bound this.
 const greet = bindCall(
-  function (greeting, name) { return `${greeting}, ${name}` },
+  function (greeting, name) {
+    return `${greeting}, ${name}`
+  },
   null,
   'Hello',
 )
 greet('world') // 'Hello, world'
 
 // applySafe(fn): like applyBind but swallows synchronous throws.
-const swallow = applySafe(() => { throw new Error('boom') })
+const swallow = applySafe(() => {
+  throw new Error('boom')
+})
 swallow(null, []) // undefined (no propagation)
 
 // weakRefSafe(target): like new WeakRef(target) but undefined on
 // non-wrappable inputs instead of throwing.
 weakRefSafe({ x: 1 }) // WeakRef instance
-weakRefSafe(42)       // undefined
+weakRefSafe(42) // undefined
 weakRefSafe(Symbol.for('registered')) // undefined
 ```
 

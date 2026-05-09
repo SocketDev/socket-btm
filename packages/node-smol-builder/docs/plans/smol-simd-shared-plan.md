@@ -4,7 +4,7 @@
 
 ## Overview
 
-Extract SIMD utilities from `smol_http_binding.cc` into a shared header that all smol-* C++ modules can use. Then add C++ bindings to smol-ilp and smol-vfs for hot path acceleration.
+Extract SIMD utilities from `smol_http_binding.cc` into a shared header that all smol-\* C++ modules can use. Then add C++ bindings to smol-ilp and smol-vfs for hot path acceleration.
 
 ## Phase 1: Create Shared SIMD Header
 
@@ -1206,24 +1206,26 @@ TarEntry ParseTarHeader(const uint8_t* header) {
 
 ## Performance Targets
 
-| Module | Operation | Before | After | Speedup |
-|--------|-----------|--------|-------|---------|
+| Module       | Operation         | Before | After | Speedup |
+| ------------ | ----------------- | ------ | ----- | ------- |
 | **smol-ilp** | NeedsEscape check | ~200ns | ~15ns | **13x** |
-| **smol-ilp** | EscapeString | ~500ns | ~50ns | **10x** |
-| **smol-ilp** | FormatDouble | ~300ns | ~40ns | **7x** |
-| **smol-vfs** | TAR checksum | ~400ns | ~30ns | **13x** |
-| **smol-vfs** | ParseOctal | ~100ns | ~20ns | **5x** |
-| **smol-vfs** | VerifyHeader | ~600ns | ~60ns | **10x** |
+| **smol-ilp** | EscapeString      | ~500ns | ~50ns | **10x** |
+| **smol-ilp** | FormatDouble      | ~300ns | ~40ns | **7x**  |
+| **smol-vfs** | TAR checksum      | ~400ns | ~30ns | **13x** |
+| **smol-vfs** | ParseOctal        | ~100ns | ~20ns | **5x**  |
+| **smol-vfs** | VerifyHeader      | ~600ns | ~60ns | **10x** |
 
 ## Implementation Phases
 
 ### Phase 1: Extract smol_simd.h
+
 1. Create `smol_simd.h` with all utilities
 2. Create `smol_simd.cc` with global variable
 3. Update `smol_http_binding.cc` to use shared header
 4. Add `smol_simd.gypi` to build
 
 ### Phase 2: smol-ilp Bindings
+
 1. Create `smol_ilp_binding.h/cc`
 2. Create `smol_ilp_v8_binding.cc`
 3. Add `smol_ilp.gypi` to build
@@ -1231,6 +1233,7 @@ TarEntry ParseTarHeader(const uint8_t* header) {
 5. Add tests
 
 ### Phase 3: smol-vfs Bindings
+
 1. Create `smol_vfs_binding.h/cc`
 2. Create `smol_vfs_v8_binding.cc`
 3. Add `smol_vfs.gypi` to build
@@ -1238,6 +1241,7 @@ TarEntry ParseTarHeader(const uint8_t* header) {
 5. Add tests
 
 ### Phase 4: Integration
+
 1. Benchmark all modules
 2. Profile and optimize hot paths
 3. Documentation updates

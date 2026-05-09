@@ -12,16 +12,16 @@ Our `node-smol` SEA binaries ship to users as a single self-contained executable
 
 Lowering to **glibc 2.17** directly unblocks these deployment targets:
 
-| Distribution | glibc | Status (April 2026) | Today | After 2.17 floor |
-|---|---|---|---|---|
-| **RHEL 7** / **CentOS 7** | 2.17 | CentOS 7 EOL 2024-06-30; RHEL 7 Extended Lifecycle through 2028-06-30 | ✗ fails to load | ✓ works |
-| **Amazon Linux 1** (AL1) | 2.17 | EOL 2023-12-31; AMIs still launchable | ✗ fails to load | ✓ works |
-| **Amazon Linux 2** (AL2) | 2.26 | EOL 2026-06-30; Lambda + EC2 + ECR still supported | ✗ fails to load | ✓ works |
-| **Amazon Linux 2023** (AL2023) | 2.34 | GA 2023-03-15; Lambda default | ✓ works | ✓ works |
-| **Ubuntu 20.04** | 2.31 | EOL April 2030 (LTS + Pro) | ✗ fails to load | ✓ works |
-| **Ubuntu 22.04** | 2.35 | EOL April 2032 | ✓ works | ✓ works |
-| **Debian 11** | 2.31 | EOL 2026-08-31 (freexian extended) | ✗ fails to load | ✓ works |
-| **Debian 12** | 2.36 | EOL mid-2028 | ✓ works | ✓ works |
+| Distribution                   | glibc | Status (April 2026)                                                   | Today           | After 2.17 floor |
+| ------------------------------ | ----- | --------------------------------------------------------------------- | --------------- | ---------------- |
+| **RHEL 7** / **CentOS 7**      | 2.17  | CentOS 7 EOL 2024-06-30; RHEL 7 Extended Lifecycle through 2028-06-30 | ✗ fails to load | ✓ works          |
+| **Amazon Linux 1** (AL1)       | 2.17  | EOL 2023-12-31; AMIs still launchable                                 | ✗ fails to load | ✓ works          |
+| **Amazon Linux 2** (AL2)       | 2.26  | EOL 2026-06-30; Lambda + EC2 + ECR still supported                    | ✗ fails to load | ✓ works          |
+| **Amazon Linux 2023** (AL2023) | 2.34  | GA 2023-03-15; Lambda default                                         | ✓ works         | ✓ works          |
+| **Ubuntu 20.04**               | 2.31  | EOL April 2030 (LTS + Pro)                                            | ✗ fails to load | ✓ works          |
+| **Ubuntu 22.04**               | 2.35  | EOL April 2032                                                        | ✓ works         | ✓ works          |
+| **Debian 11**                  | 2.31  | EOL 2026-08-31 (freexian extended)                                    | ✗ fails to load | ✓ works          |
+| **Debian 12**                  | 2.36  | EOL mid-2028                                                          | ✓ works         | ✓ works          |
 
 **The wins that matter most to our users**: RHEL 7 (Extended Lifecycle customers still running it in production), Amazon Linux 1 (pre-2023 Lambda deployments and long-lived EC2 AMIs), Amazon Linux 2 (the Lambda `nodejs18.x` default runtime through at least mid-2026), and Ubuntu 20.04 LTS (still the default in many enterprise CI systems).
 
@@ -71,12 +71,12 @@ These are done and live in `main`. You do not need to redo them.
 **File**: `additions/source-patched/src/socketsecurity/compat/glibc_compat.{h,cc}`
 **Patch**: `patches/source-patched/021-glibc-compat-layer.patch`
 
-| Symbol | glibc intro | Fallback |
-| --- | --- | --- |
-| `__cxa_thread_atexit_impl` | 2.18 | libc++abi-19.1 port |
-| `getrandom` | 2.25 | `syscall(SYS_getrandom, ...)` |
-| `quick_exit` | 2.24 | drain our own at_quick_exit list, then `_exit()` |
-| `at_quick_exit` | 2.24 | process-local LIFO list (32-slot C11 minimum) |
+| Symbol                     | glibc intro | Fallback                                         |
+| -------------------------- | ----------- | ------------------------------------------------ |
+| `__cxa_thread_atexit_impl` | 2.18        | libc++abi-19.1 port                              |
+| `getrandom`                | 2.25        | `syscall(SYS_getrandom, ...)`                    |
+| `quick_exit`               | 2.24        | drain our own at_quick_exit list, then `_exit()` |
+| `at_quick_exit`            | 2.24        | process-local LIFO list (32-slot C11 minimum)    |
 
 The compat layer compiles to an empty TU on musl (`#ifdef __GLIBC__` guard). Every `-Wl,--wrap` is a no-op on musl (symbols unreferenced in musl ABI).
 
@@ -359,13 +359,16 @@ Expected output on a 2.28-built binary with `--floor=2.17`: a table of violation
 The C++ fallbacks are only reachable when `dlsym(RTLD_NEXT, "<symbol>")` returns `nullptr`. On any glibc ≥ 2.18 host the dlsym call finds the real impl and the fallback never runs. Three ways to hit it:
 
 1. **Actually run on glibc 2.17** (most realistic — CentOS 7 or Amazon Linux 1 container):
+
    ```bash
    docker run --rm -v "$PWD/glibc-2.17-out:/out" quay.io/centos/centos:7 \
      /out/node-smol-builder/build/prod/linux-x64/out/Final/node/node -e 'console.log(process.version)'
    ```
+
    If the linked binary runs and prints the Node version, all four wraps survive.
 
 2. **Override `dlsym` at runtime with `LD_PRELOAD`** (for developers who want to unit-test the fallback without a 2.17 host). Write a small shim:
+
    ```c
    // force_null_dlsym.c — compile with: gcc -shared -fPIC -o force_null_dlsym.so force_null_dlsym.c
    #include <dlfcn.h>
@@ -382,6 +385,7 @@ The C++ fallbacks are only reachable when `dlsym(RTLD_NEXT, "<symbol>")` returns
      return real(handle, symbol);
    }
    ```
+
    Then `LD_PRELOAD=./force_null_dlsym.so ./node`. Confirms the fallback code actually runs.
 
 3. **Audit-only dry run**: `pnpm run glibc:audit -- --floor=2.17 --fallback-report` against a built 2.28 binary — shows you exactly which fallbacks WOULD activate if you moved to 2.17 today.
@@ -389,6 +393,7 @@ The C++ fallbacks are only reachable when `dlsym(RTLD_NEXT, "<symbol>")` returns
 ### When you're done
 
 If the compat layer ever activates on a real user system (crash reports mentioning `__wrap_getrandom` or similar), treat it as P0 — it means either:
+
 - the host glibc is below our intended floor (check deployment/base-image drift), or
 - the dlsym lookup failed for a non-version reason (sandboxing? SELinux?).
 

@@ -8,21 +8,21 @@ divergence between `node:smol-versions` and the JS form.
 
 ## Where things live
 
-| Concept | Upstream (JS) | Port (C++) |
-| --- | --- | --- |
-| Parser | `internal/parse.js`, `classes/semver.js` constructor | `ParseSemVer` in `versions.cc` |
-| Comparison | `internal/identifiers.js`, `classes/semver.js#compare` | `CompareSemVer` + `ComparePrerelease` + `CompareIdentifier` |
-| Range parser | `classes/range.js` | `ParseRange` + `ExpandCaret/Tilde/Partial/Hyphen` |
-| Range matching | `functions/satisfies.js`, `classes/range.js#test` | `RangeSatisfies` |
-| Sort | `functions/sort.js` | `Sort` (in the binding's JS-callable surface) |
-| `parse(s)` | `functions/parse.js` | `ParseSemVer` (with `loose=false`) |
-| `valid(s)` | `functions/valid.js` | `ParseSemVer` returns false for invalid |
-| `compare(a, b)` | `functions/compare.js` | `CompareSemVer` |
-| `eq/gt/gte/lt/lte/neq` | `functions/eq.js` etc. | sign comparisons on `CompareSemVer` |
-| `coerce(s)` | `functions/coerce.js` | TODO Phase 2 — currently delegates to JS |
-| `inc(v, release)` | `functions/inc.js` | TODO Phase 2 |
-| `diff(a, b)` | `functions/diff.js` | TODO Phase 2 |
-| `maxSatisfying / minSatisfying` | `ranges/max-satisfying.js` / `min-satisfying.js` | TODO Phase 2 |
+| Concept                         | Upstream (JS)                                          | Port (C++)                                                  |
+| ------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------- |
+| Parser                          | `internal/parse.js`, `classes/semver.js` constructor   | `ParseSemVer` in `versions.cc`                              |
+| Comparison                      | `internal/identifiers.js`, `classes/semver.js#compare` | `CompareSemVer` + `ComparePrerelease` + `CompareIdentifier` |
+| Range parser                    | `classes/range.js`                                     | `ParseRange` + `ExpandCaret/Tilde/Partial/Hyphen`           |
+| Range matching                  | `functions/satisfies.js`, `classes/range.js#test`      | `RangeSatisfies`                                            |
+| Sort                            | `functions/sort.js`                                    | `Sort` (in the binding's JS-callable surface)               |
+| `parse(s)`                      | `functions/parse.js`                                   | `ParseSemVer` (with `loose=false`)                          |
+| `valid(s)`                      | `functions/valid.js`                                   | `ParseSemVer` returns false for invalid                     |
+| `compare(a, b)`                 | `functions/compare.js`                                 | `CompareSemVer`                                             |
+| `eq/gt/gte/lt/lte/neq`          | `functions/eq.js` etc.                                 | sign comparisons on `CompareSemVer`                         |
+| `coerce(s)`                     | `functions/coerce.js`                                  | TODO Phase 2 — currently delegates to JS                    |
+| `inc(v, release)`               | `functions/inc.js`                                     | TODO Phase 2                                                |
+| `diff(a, b)`                    | `functions/diff.js`                                    | TODO Phase 2                                                |
+| `maxSatisfying / minSatisfying` | `ranges/max-satisfying.js` / `min-satisfying.js`       | TODO Phase 2                                                |
 
 ## Parser deviations
 
@@ -32,7 +32,7 @@ large regexes (the `re[t]` array in `internal/re.js`). Our deviations:
 1. **No regex** — every parse decision is a direct byte test. Faster
    on cold starts; tighter inner loop the JIT can't approximate.
 2. **Borrowed prerelease/build spans** — we store `(const char*,
-   size_t)` offsets into the source buffer. The caller keeps the
+size_t)` offsets into the source buffer. The caller keeps the
    buffer alive for the lifetime of the `SemVer`. Upstream allocates
    arrays of identifier strings; we re-scan dot-separated identifiers
    on demand, which is cheap because spans are short.
@@ -103,7 +103,7 @@ When the `semver` upstream pin bumps:
    Look for grammar changes, new range syntax, or comparison
    changes. Most patch / minor bumps are perf / docs / typings only.
 3. Run `pnpm test --filter @socketsecurity/btm-node-smol-builder
-   smol-versions-parity` — full corpus parity. Any divergence is
+smol-versions-parity` — full corpus parity. Any divergence is
    either a port bug or an intentional spec change.
 4. If the bump introduced a real spec change, port it to C++ and
    add a regression test capturing the new case.

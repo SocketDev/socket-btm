@@ -31,22 +31,22 @@ strict-but-small subset Socket cares about.
 These map 1:1 to npm semver unless noted. All parsing is **strict** —
 malformed inputs return `undefined` rather than silently succeeding.
 
-| Range                    | Meaning                                                           |
-| ------------------------ | ----------------------------------------------------------------- |
-| `1.2.3`                  | Exact match.                                                      |
-| `*`, `x`, `X`, `latest`  | Matches any version.                                              |
-| `^1.2.3`                 | `>=1.2.3 <2.0.0` (caret).                                         |
-| `^0.2.3`                 | `>=0.2.3 <0.3.0` (caret tightens for pre-stable).                 |
-| `^0.0.3`                 | Exact patch only.                                                 |
-| `~1.2.3`                 | `>=1.2.3 <1.3.0` (tilde pins minor).                              |
-| `>=1.2.3`, `>1.2.3`      | Open-ended lower bound.                                           |
-| `<=1.2.3`, `<1.2.3`      | Open-ended upper bound.                                           |
-| `=1.2.3`                 | Exact (same as bare `1.2.3`).                                     |
-| `>=1.0.0 <2.0.0`         | Compound AND-range — both must hold.                              |
-| `^1.0.0 \|\| ^2.0.0`     | OR-range — any alternative satisfies.                             |
-| `1.2.3 - 2.3.4`          | Hyphen range (inclusive both ends).                               |
-| `1.2 - 2.3.4`            | Partial lower pads with 0 → `>=1.2.0 <=2.3.4`.                    |
-| `1.2.3 - 2`              | Partial upper becomes exclusive ceiling → `>=1.2.3 <3.0.0-0`.     |
+| Range                   | Meaning                                                       |
+| ----------------------- | ------------------------------------------------------------- |
+| `1.2.3`                 | Exact match.                                                  |
+| `*`, `x`, `X`, `latest` | Matches any version.                                          |
+| `^1.2.3`                | `>=1.2.3 <2.0.0` (caret).                                     |
+| `^0.2.3`                | `>=0.2.3 <0.3.0` (caret tightens for pre-stable).             |
+| `^0.0.3`                | Exact patch only.                                             |
+| `~1.2.3`                | `>=1.2.3 <1.3.0` (tilde pins minor).                          |
+| `>=1.2.3`, `>1.2.3`     | Open-ended lower bound.                                       |
+| `<=1.2.3`, `<1.2.3`     | Open-ended upper bound.                                       |
+| `=1.2.3`                | Exact (same as bare `1.2.3`).                                 |
+| `>=1.0.0 <2.0.0`        | Compound AND-range — both must hold.                          |
+| `^1.0.0 \|\| ^2.0.0`    | OR-range — any alternative satisfies.                         |
+| `1.2.3 - 2.3.4`         | Hyphen range (inclusive both ends).                           |
+| `1.2 - 2.3.4`           | Partial lower pads with 0 → `>=1.2.0 <=2.3.4`.                |
+| `1.2.3 - 2`             | Partial upper becomes exclusive ceiling → `>=1.2.3 <3.0.0-0`. |
 
 ### Partial version coercion
 
@@ -67,9 +67,9 @@ If you add new syntax, update both the parser and the tests in
 ```js
 const versions = require('internal/socketsecurity/versions')
 
-versions.parse('1.2.3', 'npm')          // → { major, minor, patch, prerelease }
+versions.parse('1.2.3', 'npm') // → { major, minor, patch, prerelease }
 versions.satisfies('1.5.0', '^1.0.0', 'npm') // → true
-versions.compare('1.2.3', '1.2.4', 'npm')    // → -1 | 0 | 1
+versions.compare('1.2.3', '1.2.4', 'npm') // → -1 | 0 | 1
 versions.maxSatisfying(['1.0.0', '1.2.0'], '^1.0.0', 'npm') // → '1.2.0'
 ```
 

@@ -39,13 +39,13 @@ Decompress gzip, then parse as TAR. `options` is forwarded to
 All errors surface as `Error` (not `TypeError`) so callers can
 distinguish a malformed buffer from an unexpected input shape:
 
-| Condition                           | Thrown message                                   |
-| ----------------------------------- | ------------------------------------------------ |
-| `gzipBuffer` is not a `Buffer`      | `TypeError: gzipBuffer must be a Buffer`         |
-| Gzip magic number missing           | `Invalid gzip format: magic number mismatch`    |
-| zlib returns `Z_DATA_ERROR`         | `Gzip decompression failed: corrupted data`      |
-| zlib returns `Z_BUF_ERROR`          | `Gzip decompression failed: buffer error`        |
-| Any other zlib error                | `Gzip decompression failed: <error.message>`     |
+| Condition                      | Thrown message                               |
+| ------------------------------ | -------------------------------------------- |
+| `gzipBuffer` is not a `Buffer` | `TypeError: gzipBuffer must be a Buffer`     |
+| Gzip magic number missing      | `Invalid gzip format: magic number mismatch` |
+| zlib returns `Z_DATA_ERROR`    | `Gzip decompression failed: corrupted data`  |
+| zlib returns `Z_BUF_ERROR`     | `Gzip decompression failed: buffer error`    |
+| Any other zlib error           | `Gzip decompression failed: <error.message>` |
 
 TAR parse errors bubble up from `parseTar` unchanged.
 

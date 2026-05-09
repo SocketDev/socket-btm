@@ -36,7 +36,14 @@ A **chain** is the ordered list of checkpoint names a package can restore from, 
 
 ```js
 // node-smol
-['finalized', 'binary-compressed', 'binary-stripped', 'binary-released', 'source-patched', 'source-copied']
+;[
+  'finalized',
+  'binary-compressed',
+  'binary-stripped',
+  'binary-released',
+  'source-patched',
+  'source-copied',
+]
 ```
 
 Index 0 is the end of the pipeline. Each later entry is a stage that came before. `finalized` is built on top of `binary-compressed`, which is built on top of `binary-stripped`, and so on.
@@ -110,15 +117,16 @@ import { createCheckpoint } from 'build-infra/lib/checkpoint-manager'
 import { CHECKPOINTS } from 'build-infra/lib/constants'
 
 await createCheckpoint(
-  buildDir,                 // absolute path to build/<mode>/<platform-arch>
-  CHECKPOINTS.FINALIZED,    // name from the enum — never a hand-typed string
-  async () => {             // smoke test — enforced, can't checkpoint a broken build
+  buildDir, // absolute path to build/<mode>/<platform-arch>
+  CHECKPOINTS.FINALIZED, // name from the enum — never a hand-typed string
+  async () => {
+    // smoke test — enforced, can't checkpoint a broken build
     await spawn(binaryPath, ['--version'])
   },
   {
     artifactPath: './out/Final/binary',
     sourcePaths: ['build.mts', 'patches/*.patch'],
-    packageName: '<pkg>',   // optional — adds the <pkg>/ suffix under checkpoints/
+    packageName: '<pkg>', // optional — adds the <pkg>/ suffix under checkpoints/
     packageRoot: PACKAGE_ROOT,
   },
 )

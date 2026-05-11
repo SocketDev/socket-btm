@@ -45,7 +45,7 @@
        '<@(node_builtin_shareable_builtins)',
      ],
      'node_sources': [
-@@ -730,6 +744,16 @@
+@@ -730,6 +744,17 @@
              'Dbghelp.lib',
              'winmm.lib',
              'Ws2_32.lib',
@@ -59,6 +59,7 @@
 +        ['OS=="mac"', {
 +          'libraries': [
 +            '-lcompression',
++            '-framework IOKit',
            ],
          }],
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
@@ -314,7 +315,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1447,6 +1707,16 @@
+@@ -1447,6 +1707,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -326,12 +327,13 @@
 +        ['OS=="mac"', {
 +          'libraries': [
 +            '-lcompression',
++            '-framework IOKit',
 +          ],
 +        }],
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1521,6 +1791,16 @@
+@@ -1521,6 +1791,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -343,6 +345,7 @@
 +        ['OS=="mac"', {
 +          'libraries': [
 +            '-lcompression',
++            '-framework IOKit',
 +          ],
 +        }],
          # Avoid excessive LTO

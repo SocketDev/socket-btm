@@ -15,7 +15,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const require = createRequire(import.meta.url)
 
-async function loadHello() {
+export async function loadHello() {
   const platformArch = await getCurrentPlatformArch()
   const addonPath = path.resolve(
     __dirname,

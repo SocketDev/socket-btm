@@ -16,6 +16,8 @@ import { ensureLief } from 'lief-builder/lib/ensure-lief'
 
 import { ensureCjson } from './ensure-cjson.mts'
 
+const logger = getDefaultLogger()
+
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const packageRoot = path.join(__dirname, '..')
@@ -26,7 +28,7 @@ const packageRoot = path.join(__dirname, '..')
 // - cJSON: JSON parsing for smol config extraction (submodule in binject).
 // Note: Git submodule inits must run sequentially (they lock .git/config).
 // LIEF downloads from releases (no git), so it runs in parallel with git operations.
-async function ensureDependencies({ buildMode, packageDir }) {
+export async function ensureDependencies({ buildMode, packageDir }) {
   const results = await Promise.allSettled([
     // LIEF downloads from GitHub releases, no git required.
     ensureLief({ buildMode }),
@@ -52,6 +54,6 @@ buildBinSuitePackage({
   skipClean: true,
   validateCheckpointWithBinary: true,
 }).catch(e => {
-  getDefaultLogger().error(errorMessage(e))
+  logger.error(errorMessage(e))
   process.exitCode = 1
 })

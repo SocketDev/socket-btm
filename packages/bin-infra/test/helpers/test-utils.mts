@@ -9,6 +9,32 @@ import process from 'node:process'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 /**
+ * Ad-hoc code sign a binary for macOS execution.
+ * Required for binaries modified after build to execute on macOS.
+ *
+ * @param {string} binaryPath - Path to binary to sign
+ * @returns {Promise<void>}
+ * @throws {Error} If code signing fails
+ */
+export async function codeSignBinary(binaryPath) {
+  if (process.platform !== 'darwin') {
+    // No-op on non-macOS platforms
+    return
+  }
+
+  const result = await execCommand('codesign', [
+    '--sign',
+    '-',
+    '--force',
+    binaryPath,
+  ])
+
+  if (result.code !== 0) {
+    throw new Error(`Code signing failed: ${result.stderr}`)
+  }
+}
+
+/**
  * Execute a command and capture output
  * @param {string} command - Command to execute
  * @param {string[]} args - Command arguments
@@ -47,30 +73,4 @@ export function execCommand(command, args = [], options = {}) {
       resolve({ code: undefined, stderr: error.message, stdout })
     })
   })
-}
-
-/**
- * Ad-hoc code sign a binary for macOS execution.
- * Required for binaries modified after build to execute on macOS.
- *
- * @param {string} binaryPath - Path to binary to sign
- * @returns {Promise<void>}
- * @throws {Error} If code signing fails
- */
-export async function codeSignBinary(binaryPath) {
-  if (process.platform !== 'darwin') {
-    // No-op on non-macOS platforms
-    return
-  }
-
-  const result = await execCommand('codesign', [
-    '--sign',
-    '-',
-    '--force',
-    binaryPath,
-  ])
-
-  if (result.code !== 0) {
-    throw new Error(`Code signing failed: ${result.stderr}`)
-  }
 }

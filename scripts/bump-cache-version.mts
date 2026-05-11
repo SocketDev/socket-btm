@@ -38,11 +38,24 @@ type BumpResult = {
   to: string
 }
 
-function parseCacheVersionsFile(content: string): CacheVersionsFile {
-  return JSON.parse(content) as CacheVersionsFile
+export async function bumpAll(): Promise<BumpResult[]> {
+  const configText = await fs.readFile(CONFIG_PATH, 'utf8')
+  const config = parseCacheVersionsFile(configText)
+  const packages = Object.keys(config.versions)
+
+  logger.info(`Bumping cache versions for ${packages.length} packages...\n`)
+
+  const results: BumpResult[] = []
+  for (const pkg of packages) {
+    const result = await bumpCacheVersion(pkg)
+    results.push(result)
+  }
+
+  logger.success(`Bumped ${results.length} package(s)`)
+  return results
 }
 
-async function bumpCacheVersion(packageName: string): Promise<BumpResult> {
+export async function bumpCacheVersion(packageName: string): Promise<BumpResult> {
   // Read config
   const configText = await fs.readFile(CONFIG_PATH, 'utf8')
   const config = parseCacheVersionsFile(configText)
@@ -83,21 +96,8 @@ async function bumpCacheVersion(packageName: string): Promise<BumpResult> {
   return { from: current, packageName, to: next }
 }
 
-async function bumpAll(): Promise<BumpResult[]> {
-  const configText = await fs.readFile(CONFIG_PATH, 'utf8')
-  const config = parseCacheVersionsFile(configText)
-  const packages = Object.keys(config.versions)
-
-  logger.info(`Bumping cache versions for ${packages.length} packages...\n`)
-
-  const results: BumpResult[] = []
-  for (const pkg of packages) {
-    const result = await bumpCacheVersion(pkg)
-    results.push(result)
-  }
-
-  logger.success(`Bumped ${results.length} package(s)`)
-  return results
+export function parseCacheVersionsFile(content: string): CacheVersionsFile {
+  return JSON.parse(content) as CacheVersionsFile
 }
 
 // Main.

@@ -42,34 +42,7 @@ import {
 
 const logger = getDefaultLogger()
 
-function printHelp() {
-  logger.log(`
-Setup Docker builder images for local builds.
-
-Usage:
-  node scripts/setup-docker-builds.mts [options]
-
-Options:
-  --force          Force rebuild of all images (even if they exist)
-  --targets=...    Comma-separated list of targets to build
-                   Available: ${LINUX_TARGETS.join(', ')}
-  --skip-qemu      Skip QEMU emulation setup (disables cross-arch builds)
-  --status         Show current status of builder images
-  --help           Show this help message
-
-Examples:
-  # Setup all Linux builder images
-  node scripts/setup-docker-builds.mts
-
-  # Rebuild specific targets
-  node scripts/setup-docker-builds.mts --force --targets=linux-x64-glibc
-
-  # Setup without cross-arch support
-  node scripts/setup-docker-builds.mts --skip-qemu
-`)
-}
-
-function parseArgs(args) {
+export function parseArgs(args) {
   const options = {
     force: false,
     help: false,
@@ -106,7 +79,34 @@ function parseArgs(args) {
   return options
 }
 
-async function showStatus() {
+export function printHelp() {
+  logger.log(`
+Setup Docker builder images for local builds.
+
+Usage:
+  node scripts/setup-docker-builds.mts [options]
+
+Options:
+  --force          Force rebuild of all images (even if they exist)
+  --targets=...    Comma-separated list of targets to build
+                   Available: ${LINUX_TARGETS.join(', ')}
+  --skip-qemu      Skip QEMU emulation setup (disables cross-arch builds)
+  --status         Show current status of builder images
+  --help           Show this help message
+
+Examples:
+  # Setup all Linux builder images
+  node scripts/setup-docker-builds.mts
+
+  # Rebuild specific targets
+  node scripts/setup-docker-builds.mts --force --targets=linux-x64-glibc
+
+  # Setup without cross-arch support
+  node scripts/setup-docker-builds.mts --skip-qemu
+`)
+}
+
+export async function showStatus() {
   const { arch, platform, target: hostTarget } = getHostInfo()
 
   logger.log('\n=== Docker Build Status ===\n')

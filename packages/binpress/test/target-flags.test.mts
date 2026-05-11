@@ -62,7 +62,7 @@ let testBinary: string
 /**
  * Execute command and return result
  */
-async function execCommand(command, args = [], options = {}) {
+export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {
     const spawnPromise = spawn(command, args, {
       ...options,
@@ -200,7 +200,7 @@ describe.skipIf(!existsSync(BINPRESS))('binpress target flags', () => {
         result.code !== 0 &&
         result.stderr.includes('stub not available (size=0)')
       ) {
-        console.log('Skipping: win32-x64 stub not available')
+        logger.log('Skipping: win32-x64 stub not available')
         return
       }
 

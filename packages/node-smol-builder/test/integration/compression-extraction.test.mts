@@ -48,7 +48,7 @@ const NODE_VERSION_FILE = path.join(
   'node',
   'NODE_VERSION',
 )
-function getNodeVersionRaw() {
+export function getNodeVersionRaw() {
   if (existsSync(NODE_VERSION_FILE)) {
     return readFileSync(NODE_VERSION_FILE, 'utf8').trim()
   }

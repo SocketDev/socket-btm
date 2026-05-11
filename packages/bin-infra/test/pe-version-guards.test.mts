@@ -15,6 +15,7 @@
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { safeDelete } from '@socketsecurity/lib/fs'
 
 const TEST_TMP_DIR = path.join(os.tmpdir(), 'pe-version-guards-test')
 
@@ -22,7 +23,7 @@ const TEST_TMP_DIR = path.join(os.tmpdir(), 'pe-version-guards-test')
  * Create a minimal valid PE header structure.
  * Returns a Buffer that looks like a PE file but has no actual content.
  */
-function createMinimalPE(
+export function createMinimalPE(
   options: {
     numSections?: number
     numResourceEntries?: number
@@ -149,7 +150,7 @@ let tempFiles: string[] = []
 afterEach(async () => {
   for (const file of tempFiles) {
     try {
-      await fs.unlink(file)
+      await safeDelete(file)
     } catch {
       // Ignore cleanup errors
     }
@@ -157,7 +158,7 @@ afterEach(async () => {
   tempFiles = []
 })
 
-async function writeTempPE(name: string, buffer: Buffer): Promise<string> {
+export async function writeTempPE(name: string, buffer: Buffer): Promise<string> {
   await fs.mkdir(TEST_TMP_DIR, { recursive: true })
   const filePath = path.join(TEST_TMP_DIR, `${name}-${Date.now()}.exe`)
   await fs.writeFile(filePath, buffer)

@@ -51,9 +51,30 @@ const binpressExists = existsSync(BINPRESS)
 const binflateExists = existsSync(BINFLATE)
 
 /**
+ * Calculate SHA-256 hash of file
+ */
+export async function _hashFile(filePath) {
+  const data = await fs.readFile(filePath)
+  return createHash('sha256').update(data).digest('hex')
+}
+
+/**
+ * Create a minimal SEA blob for testing
+ */
+export async function createTestSEABlob(outputPath) {
+  // Create a simple JSON file as SEA blob
+  const seaData = JSON.stringify({
+    main: 'index.js',
+    output: 'sea-prep.blob',
+  })
+  await fs.writeFile(outputPath, seaData, 'utf8')
+  return outputPath
+}
+
+/**
  * Execute command and return result
  */
-async function execCommand(command, args = [], options = {}) {
+export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {
     const spawnPromise = spawn(command, args, {
       ...options,
@@ -84,30 +105,9 @@ async function execCommand(command, args = [], options = {}) {
 }
 
 /**
- * Calculate SHA-256 hash of file
- */
-async function _hashFile(filePath) {
-  const data = await fs.readFile(filePath)
-  return createHash('sha256').update(data).digest('hex')
-}
-
-/**
- * Create a minimal SEA blob for testing
- */
-async function createTestSEABlob(outputPath) {
-  // Create a simple JSON file as SEA blob
-  const seaData = JSON.stringify({
-    main: 'index.js',
-    output: 'sea-prep.blob',
-  })
-  await fs.writeFile(outputPath, seaData, 'utf8')
-  return outputPath
-}
-
-/**
  * Check if binary has PRESSED_DATA section (SMOL stub detection)
  */
-async function isSMOLStub(binaryPath) {
+export async function isSMOLStub(binaryPath) {
   const listResult = await execCommand(BINJECT, ['list', binaryPath])
   if (listResult.code !== 0) {
     return false
@@ -122,16 +122,16 @@ async function isSMOLStub(binaryPath) {
 
 // Warn if binaries are missing (tests will be skipped)
 if (!binjectExists) {
-  console.warn(`⚠️  binject not found at ${BINJECT}`)
-  console.warn('   Run: pnpm build in packages/binject')
+  logger.warn(`⚠️  binject not found at ${BINJECT}`)
+  logger.warn('   Run: pnpm build in packages/binject')
 }
 if (!binpressExists) {
-  console.warn(`⚠️  binpress not found at ${BINPRESS}`)
-  console.warn('   Run: pnpm build in packages/binpress')
+  logger.warn(`⚠️  binpress not found at ${BINPRESS}`)
+  logger.warn('   Run: pnpm build in packages/binpress')
 }
 if (!binflateExists) {
-  console.warn(`⚠️  binflate not found at ${BINFLATE}`)
-  console.warn('   Run: pnpm build in packages/binflate')
+  logger.warn(`⚠️  binflate not found at ${BINFLATE}`)
+  logger.warn('   Run: pnpm build in packages/binflate')
 }
 
 beforeAll(async () => {

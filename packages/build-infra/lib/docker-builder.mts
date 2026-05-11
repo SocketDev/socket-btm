@@ -30,150 +30,72 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WORKSPACE_ROOT = path.resolve(__dirname, '..', '..', '..')
 
 /**
- * Clean macOS AppleDouble resource fork files (._*) from a directory.
- * These files are created by macOS when copying to non-HFS+ filesystems
- * and cause compilation errors when mounted in Docker containers.
+ * Build a package using the appropriate strategy (native, docker, or download).
  *
- * @param {string} dir - Directory to clean
- * @returns {Promise<number>} Number of files removed
+ * @param {object} options - Build options
+ * @param {string} options.packageName - Package to build
+ * @param {string} options.target - Build target
+ * @param {string} options.outputDir - Output directory
+ * @param {string} options.buildMode - Build mode
+ * @param {boolean} options.force - Force rebuild
+ * @param {Function} options.nativeBuild - Function to run native build
+ * @param {Function} options.download - Function to download pre-built binary
+ * @returns {Promise<{ok: boolean, strategy: string, artifactPath?: string}>}
  */
-async function cleanAppleDoubleFiles(dir) {
-  if (!DARWIN) {
-    return 0
-  }
-
-  // Always use find -delete for reliability
-  // dot_clean -m only merges files back to parents, it doesn't remove orphan ._* files
-  // that exist when copying to non-HFS+ filesystems (like Docker volumes)
-  try {
-    const result = await spawn(
-      'find',
-      [dir, '-name', '._*', '-type', 'f', '-delete', '-print'],
-      {
-        shell: false,
-        stdio: 'pipe',
-      },
-    )
-    const files = (result.stdout?.toString() || '').split('\n').filter(Boolean)
-    return files.length
-  } catch {
-    return 0
-  }
-}
-
-/**
- * Get Docker platform string for a target.
- *
- * @param {string} target - Build target
- * @returns {string} Docker platform string
- */
-function getDockerPlatform(target) {
-  if (target.includes('arm64')) {
-    return 'linux/arm64'
-  }
-  return 'linux/amd64'
-}
-
-/**
- * Run a command inside a Docker container.
- *
- * @param {object} options - Run options
- * @param {string} options.image - Docker image to use
- * @param {string[]} options.command - Command to run
- * @param {string} options.workdir - Working directory inside container
- * @param {Record<string, string>} options.env - Environment variables
- * @param {string[]} options.volumes - Volume mounts
- * @param {string} options.platform - Docker platform (e.g., 'linux/amd64')
- * @param {boolean} options.interactive - Run interactively
- * @returns {Promise<{code: number, stdout: string, stderr: string}>}
- */
-export async function runInDocker(options) {
+export async function buildForTarget(options) {
   const {
-    command,
-    env = {},
-    image,
-    interactive = false,
-    platform,
-    volumes = [],
-    workdir = '/workspace',
+    buildMode = 'prod',
+    download,
+    force = false,
+    nativeBuild,
+    outputDir,
+    packageName,
+    target,
   } = options
 
-  const args = ['run', '--rm']
+  const strategy = getBuildStrategy(target)
 
-  // Add platform if specified
-  if (platform) {
-    args.push('--platform', platform)
-  }
+  printInfo(`Building ${packageName} for ${target} (strategy: ${strategy})`)
 
-  // Add working directory
-  args.push('-w', workdir)
-
-  // Add environment variables
-  for (const [key, value] of Object.entries(env)) {
-    args.push('-e', `${key}=${value}`)
-  }
-
-  // Add volume mounts
-  for (const volume of volumes) {
-    args.push('-v', volume)
-  }
-
-  // Interactive mode
-  if (interactive) {
-    args.push('-it')
-  }
-
-  // Add image and command
-  args.push(image)
-  args.push(...command)
-
-  // For interactive mode, use inherit directly
-  if (interactive) {
-    try {
-      const result = await spawn('docker', args, {
-        shell: WIN32,
-        stdio: 'inherit',
+  switch (strategy) {
+    case 'native': {
+      if (!nativeBuild) {
+        printError('Native build function not provided')
+        return { ok: false, strategy }
+      }
+      const result = await nativeBuild({
+        buildMode,
+        force,
+        outputDir,
+        packageName,
+        target,
       })
-      return {
-        code: result.code ?? 0,
-        stderr: '',
-        stdout: '',
-      }
-    } catch (e) {
-      return {
-        code: e.code ?? 1,
-        stderr: '',
-        stdout: '',
-      }
+      return { ...result, strategy }
     }
-  }
 
-  // For non-interactive mode, stream output while capturing it
-  const result = spawn('docker', args, {
-    shell: WIN32,
-    stdio: 'pipe',
-  })
-
-  // Stream output to console in real-time
-  result.process.stdout?.on('data', data => {
-    process.stdout.write(data)
-  })
-  result.process.stderr?.on('data', data => {
-    process.stderr.write(data)
-  })
-
-  try {
-    const { code, stderr, stdout } = await result
-    return {
-      code: code ?? 0,
-      stderr: stderr?.toString() ?? '',
-      stdout: stdout?.toString() ?? '',
+    case 'docker': {
+      const result = await buildWithDocker({
+        buildMode,
+        force,
+        outputDir,
+        packageName,
+        target,
+      })
+      return { ...result, strategy }
     }
-  } catch (e) {
-    return {
-      code: e.code ?? 1,
-      stderr: e.stderr?.toString() ?? '',
-      stdout: e.stdout?.toString() ?? '',
+
+    case 'download': {
+      if (!download) {
+        printError('Download function not provided')
+        return { ok: false, strategy }
+      }
+      const result = await download({ outputDir, packageName, target })
+      return { ...result, strategy }
+    }
+
+    default: {
+      printError(`Unknown build strategy: ${strategy}`)
+      return { ok: false, strategy }
     }
   }
 }
@@ -300,72 +222,180 @@ export async function buildWithDocker(options) {
 }
 
 /**
- * Build a package using the appropriate strategy (native, docker, or download).
+ * Clean macOS AppleDouble resource fork files (._*) from a directory.
+ * These files are created by macOS when copying to non-HFS+ filesystems
+ * and cause compilation errors when mounted in Docker containers.
  *
- * @param {object} options - Build options
- * @param {string} options.packageName - Package to build
- * @param {string} options.target - Build target
- * @param {string} options.outputDir - Output directory
- * @param {string} options.buildMode - Build mode
- * @param {boolean} options.force - Force rebuild
- * @param {Function} options.nativeBuild - Function to run native build
- * @param {Function} options.download - Function to download pre-built binary
- * @returns {Promise<{ok: boolean, strategy: string, artifactPath?: string}>}
+ * @param {string} dir - Directory to clean
+ * @returns {Promise<number>} Number of files removed
  */
-export async function buildForTarget(options) {
+export async function cleanAppleDoubleFiles(dir) {
+  if (!DARWIN) {
+    return 0
+  }
+
+  // Always use find -delete for reliability
+  // dot_clean -m only merges files back to parents, it doesn't remove orphan ._* files
+  // that exist when copying to non-HFS+ filesystems (like Docker volumes)
+  try {
+    const result = await spawn(
+      'find',
+      [dir, '-name', '._*', '-type', 'f', '-delete', '-print'],
+      {
+        shell: false,
+        stdio: 'pipe',
+      },
+    )
+    const files = (result.stdout?.toString() || '').split('\n').filter(Boolean)
+    return files.length
+  } catch {
+    return 0
+  }
+}
+
+/**
+ * Get all available targets for a package.
+ *
+ * @returns {string[]} Array of target names
+ */
+export function getAllTargets() {
+  return [
+    'linux-x64-glibc',
+    'linux-arm64-glibc',
+    'linux-x64-musl',
+    'linux-arm64-musl',
+    'darwin-arm64',
+    'darwin-x64',
+    'win32-x64',
+    'win32-arm64',
+  ]
+}
+
+/**
+ * Get targets that can be built on the current host.
+ *
+ * @returns {string[]} Array of buildable target names
+ */
+export function getBuildableTargets() {
+  return getAllTargets().filter(target => {
+    const strategy = getBuildStrategy(target)
+    return strategy === 'native' || strategy === 'docker'
+  })
+}
+
+/**
+ * Get Docker platform string for a target.
+ *
+ * @param {string} target - Build target
+ * @returns {string} Docker platform string
+ */
+export function getDockerPlatform(target) {
+  if (target.includes('arm64')) {
+    return 'linux/arm64'
+  }
+  return 'linux/amd64'
+}
+
+/**
+ * Run a command inside a Docker container.
+ *
+ * @param {object} options - Run options
+ * @param {string} options.image - Docker image to use
+ * @param {string[]} options.command - Command to run
+ * @param {string} options.workdir - Working directory inside container
+ * @param {Record<string, string>} options.env - Environment variables
+ * @param {string[]} options.volumes - Volume mounts
+ * @param {string} options.platform - Docker platform (e.g., 'linux/amd64')
+ * @param {boolean} options.interactive - Run interactively
+ * @returns {Promise<{code: number, stdout: string, stderr: string}>}
+ */
+export async function runInDocker(options) {
   const {
-    buildMode = 'prod',
-    download,
-    force = false,
-    nativeBuild,
-    outputDir,
-    packageName,
-    target,
+    command,
+    env = {},
+    image,
+    interactive = false,
+    platform,
+    volumes = [],
+    workdir = '/workspace',
   } = options
 
-  const strategy = getBuildStrategy(target)
+  const args = ['run', '--rm']
 
-  printInfo(`Building ${packageName} for ${target} (strategy: ${strategy})`)
+  // Add platform if specified
+  if (platform) {
+    args.push('--platform', platform)
+  }
 
-  switch (strategy) {
-    case 'native': {
-      if (!nativeBuild) {
-        printError('Native build function not provided')
-        return { ok: false, strategy }
-      }
-      const result = await nativeBuild({
-        buildMode,
-        force,
-        outputDir,
-        packageName,
-        target,
+  // Add working directory
+  args.push('-w', workdir)
+
+  // Add environment variables
+  for (const [key, value] of Object.entries(env)) {
+    args.push('-e', `${key}=${value}`)
+  }
+
+  // Add volume mounts
+  for (const volume of volumes) {
+    args.push('-v', volume)
+  }
+
+  // Interactive mode
+  if (interactive) {
+    args.push('-it')
+  }
+
+  // Add image and command
+  args.push(image)
+  args.push(...command)
+
+  // For interactive mode, use inherit directly
+  if (interactive) {
+    try {
+      const result = await spawn('docker', args, {
+        shell: WIN32,
+        stdio: 'inherit',
       })
-      return { ...result, strategy }
-    }
-
-    case 'docker': {
-      const result = await buildWithDocker({
-        buildMode,
-        force,
-        outputDir,
-        packageName,
-        target,
-      })
-      return { ...result, strategy }
-    }
-
-    case 'download': {
-      if (!download) {
-        printError('Download function not provided')
-        return { ok: false, strategy }
+      return {
+        code: result.code ?? 0,
+        stderr: '',
+        stdout: '',
       }
-      const result = await download({ outputDir, packageName, target })
-      return { ...result, strategy }
+    } catch (e) {
+      return {
+        code: e.code ?? 1,
+        stderr: '',
+        stdout: '',
+      }
     }
+  }
 
-    default: {
-      printError(`Unknown build strategy: ${strategy}`)
-      return { ok: false, strategy }
+  // For non-interactive mode, stream output while capturing it
+  const result = spawn('docker', args, {
+    shell: WIN32,
+    stdio: 'pipe',
+  })
+
+  // Stream output to console in real-time
+  result.process.stdout?.on('data', data => {
+    process.stdout.write(data)
+  })
+  result.process.stderr?.on('data', data => {
+    process.stderr.write(data)
+  })
+
+  try {
+    const { code, stderr, stdout } = await result
+    return {
+      code: code ?? 0,
+      stderr: stderr?.toString() ?? '',
+      stdout: stdout?.toString() ?? '',
+    }
+  } catch (e) {
+    return {
+      code: e.code ?? 1,
+      stderr: e.stderr?.toString() ?? '',
+      stdout: e.stdout?.toString() ?? '',
     }
   }
 }
@@ -416,34 +446,4 @@ export async function testBinaryForTarget(binaryPath, target) {
   // For download strategy, we can't easily test
   // Return true and rely on checksum verification
   return true
-}
-
-/**
- * Get all available targets for a package.
- *
- * @returns {string[]} Array of target names
- */
-export function getAllTargets() {
-  return [
-    'linux-x64-glibc',
-    'linux-arm64-glibc',
-    'linux-x64-musl',
-    'linux-arm64-musl',
-    'darwin-arm64',
-    'darwin-x64',
-    'win32-x64',
-    'win32-arm64',
-  ]
-}
-
-/**
- * Get targets that can be built on the current host.
- *
- * @returns {string[]} Array of buildable target names
- */
-export function getBuildableTargets() {
-  return getAllTargets().filter(target => {
-    const strategy = getBuildStrategy(target)
-    return strategy === 'native' || strategy === 'docker'
-  })
 }

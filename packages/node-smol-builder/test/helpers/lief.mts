@@ -19,6 +19,16 @@ export function expectLiefEnabled() {
 }
 
 /**
+ * Get LIEF availability status for test descriptions.
+ *
+ * @returns {Promise<string>} Human-readable LIEF status
+ */
+export async function getLiefStatus() {
+  const hasSupport = await hasLiefSupport()
+  return hasSupport ? 'LIEF enabled' : 'LIEF disabled'
+}
+
+/**
  * Detect if LIEF support is compiled into the Node.js binary.
  * Checks the runtime process.smol.canBuildSea property which reflects
  * the HAVE_LIEF compile-time define.
@@ -45,14 +55,4 @@ export async function hasLiefSupport() {
   }
 
   return result.stdout.trim() === 'true'
-}
-
-/**
- * Get LIEF availability status for test descriptions.
- *
- * @returns {Promise<string>} Human-readable LIEF status
- */
-export async function getLiefStatus() {
-  const hasSupport = await hasLiefSupport()
-  return hasSupport ? 'LIEF enabled' : 'LIEF disabled'
 }

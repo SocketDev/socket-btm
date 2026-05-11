@@ -101,60 +101,59 @@ const MODELS = [
 ]
 
 /**
- * Run Python script and parse JSON output.
+ * Convert models to ONNX format.
  */
-async function runPythonScript(scriptName, args, options = {}) {
-  const scriptPath = path.join(PYTHON_DIR, scriptName)
-
-  const python3Path = await getPythonCommand()
-  if (!python3Path) {
-    throw new Error('Python not found (checked pip shebang and PATH)')
+export async function convertToOnnx() {
+  if (
+    !(await shouldRun(BUILD_DIR, 'minilm', CHECKPOINTS.CONVERTED, FORCE_BUILD))
+  ) {
+    return
   }
 
-  const result = await spawn(python3Path, [scriptPath, ...args], {
-    ...options,
-  })
+  logger.step('Converting Models to ONNX')
 
-  if (result.code !== 0) {
-    throw new Error(`Python script failed: ${result.stderr}`)
-  }
+  await safeMkdir(MODELS_DIR)
 
-  // Parse JSON output from Python script.
-  if (!result.stdout || !result.stdout.trim()) {
-    throw new Error(
-      'Python script produced no output. Expected JSON lines on stdout.',
+  for (const model of MODELS) {
+    logger.substep(`Converting: ${model.name}`)
+    const { cacheModelDir, onnxModelDir } = getModelPaths(
+      BUILD_MODE,
+      PLATFORM_ARCH,
+      QUANT_LEVEL,
+      model.outputName,
     )
-  }
-  const lines = result.stdout.split('\n').filter(Boolean)
-  const results = []
 
-  for (const line of lines) {
-    try {
-      const parsedResult = JSON.parse(line)
-      results.push(parsedResult)
-
-      if (parsedResult.error) {
-        throw new Error(parsedResult.error)
-      }
-
-      if (parsedResult.code && parsedResult.code !== 'complete') {
-        logger.substep(`  ${parsedResult.code.replace(/_/g, ' ')}...`)
-      }
-    } catch (e) {
-      if (errorMessage(e).startsWith('{')) {
-        continue
-      }
-      throw e
-    }
+    await runPythonScript('convert.py', [cacheModelDir, onnxModelDir])
+    logger.success(`Converted: ${model.name}`)
   }
 
-  return results.length > 0 ? results[results.length - 1] : {}
+  logger.success('ONNX conversion complete')
+  await createCheckpoint(
+    BUILD_DIR,
+    CHECKPOINTS.CONVERTED,
+    async () => {
+      // Smoke test: Verify ONNX models exist
+      for (const model of MODELS) {
+        const { onnxModelFile } = getModelPaths(
+          BUILD_MODE,
+          PLATFORM_ARCH,
+          QUANT_LEVEL,
+          model.outputName,
+        )
+        if (!existsSync(onnxModelFile)) {
+          throw new Error(`Converted model not found: ${onnxModelFile}`)
+        }
+      }
+      logger.substep('Converted ONNX models validated')
+    },
+    { arch: TARGET_ARCH, platform: TARGET_PLATFORM },
+  )
 }
 
 /**
  * Download models from Hugging Face.
  */
-async function downloadModels() {
+export async function downloadModels() {
   if (
     !(await shouldRun(BUILD_DIR, 'minilm', CHECKPOINTS.DOWNLOADED, FORCE_BUILD))
   ) {
@@ -203,114 +202,61 @@ async function downloadModels() {
 }
 
 /**
- * Convert models to ONNX format.
+ * Export models to distribution location.
  */
-async function convertToOnnx() {
-  if (
-    !(await shouldRun(BUILD_DIR, 'minilm', CHECKPOINTS.CONVERTED, FORCE_BUILD))
-  ) {
-    return
-  }
-
-  logger.step('Converting Models to ONNX')
-
-  await safeMkdir(MODELS_DIR)
+export async function exportModels() {
+  logger.step('Exporting Models')
 
   for (const model of MODELS) {
-    logger.substep(`Converting: ${model.name}`)
-    const { cacheModelDir, onnxModelDir } = getModelPaths(
-      BUILD_MODE,
-      PLATFORM_ARCH,
-      QUANT_LEVEL,
-      model.outputName,
-    )
+    logger.substep(`Exporting: ${model.outputName}`)
 
-    await runPythonScript('convert.py', [cacheModelDir, onnxModelDir])
-    logger.success(`Converted: ${model.name}`)
-  }
-
-  logger.success('ONNX conversion complete')
-  await createCheckpoint(
-    BUILD_DIR,
-    CHECKPOINTS.CONVERTED,
-    async () => {
-      // Smoke test: Verify ONNX models exist
-      for (const model of MODELS) {
-        const { onnxModelFile } = getModelPaths(
-          BUILD_MODE,
-          PLATFORM_ARCH,
-          QUANT_LEVEL,
-          model.outputName,
-        )
-        if (!existsSync(onnxModelFile)) {
-          throw new Error(`Converted model not found: ${onnxModelFile}`)
-        }
-      }
-      logger.substep('Converted ONNX models validated')
-    },
-    { arch: TARGET_ARCH, platform: TARGET_PLATFORM },
-  )
-}
-
-/**
- * Apply mixed-precision quantization.
- */
-async function quantizeModels() {
-  if (
-    !(await shouldRun(BUILD_DIR, 'minilm', CHECKPOINTS.QUANTIZED, FORCE_BUILD))
-  ) {
-    return
-  }
-
-  logger.step('Applying INT8 Quantization')
-
-  for (const model of MODELS) {
-    logger.substep(`Quantizing: ${model.outputName}`)
     const {
-      optimizedModelDir,
-      optimizedModelFile,
+      finalModelFile,
       quantizedModelDir,
       quantizedModelFile,
+      tokenizerDir,
     } = getModelPaths(BUILD_MODE, PLATFORM_ARCH, QUANT_LEVEL, model.outputName)
 
-    const sizeBefore = await getFileSize(optimizedModelFile)
-    logger.substep(`  Size before: ${sizeBefore}`)
+    // Check if quantized model exists.
+    if (!existsSync(quantizedModelFile)) {
+      logger.warn(`Model not found: ${quantizedModelFile}`)
+      logger.warn('Run build to generate models')
+      continue
+    }
 
-    await runPythonScript('quantize.py', [optimizedModelDir, quantizedModelDir])
+    // Copy quantized model to final location.
+    await fs.copyFile(quantizedModelFile, finalModelFile)
 
-    const sizeAfter = await getFileSize(quantizedModelFile)
-    logger.substep(`  Size after: ${sizeAfter}`)
+    // Copy tokenizer files.
+    await safeMkdir(tokenizerDir)
 
-    logger.success(`Quantized: ${model.outputName}`)
+    const tokenizerFiles = [
+      'tokenizer.json',
+      'tokenizer_config.json',
+      'special_tokens_map.json',
+      'vocab.txt',
+    ]
+    for (const file of tokenizerFiles) {
+      const src = path.join(quantizedModelDir, file)
+      const dst = path.join(tokenizerDir, file)
+
+      if (existsSync(src)) {
+        await fs.copyFile(src, dst)
+      }
+    }
+
+    const modelSize = await getFileSize(finalModelFile)
+    logger.substep(`  Model: ${modelSize}`)
+    logger.substep(`  Location: ${finalModelFile}`)
   }
 
-  logger.success('Quantization complete')
-  await createCheckpoint(
-    BUILD_DIR,
-    CHECKPOINTS.QUANTIZED,
-    async () => {
-      // Smoke test: Verify quantized models exist
-      for (const model of MODELS) {
-        const { quantizedModelFile } = getModelPaths(
-          BUILD_MODE,
-          PLATFORM_ARCH,
-          QUANT_LEVEL,
-          model.outputName,
-        )
-        if (!existsSync(quantizedModelFile)) {
-          throw new Error(`Quantized model not found: ${quantizedModelFile}`)
-        }
-      }
-      logger.substep('Quantized models validated')
-    },
-    { arch: TARGET_ARCH, platform: TARGET_PLATFORM },
-  )
+  logger.success('Export complete')
 }
 
 /**
  * Optimize ONNX graphs.
  */
-async function optimizeGraphs() {
+export async function optimizeGraphs() {
   if (
     !(await shouldRun(BUILD_DIR, 'minilm', CHECKPOINTS.OPTIMIZED, FORCE_BUILD))
   ) {
@@ -378,9 +324,115 @@ async function optimizeGraphs() {
 }
 
 /**
+ * Apply mixed-precision quantization.
+ */
+export async function quantizeModels() {
+  if (
+    !(await shouldRun(BUILD_DIR, 'minilm', CHECKPOINTS.QUANTIZED, FORCE_BUILD))
+  ) {
+    return
+  }
+
+  logger.step('Applying INT8 Quantization')
+
+  for (const model of MODELS) {
+    logger.substep(`Quantizing: ${model.outputName}`)
+    const {
+      optimizedModelDir,
+      optimizedModelFile,
+      quantizedModelDir,
+      quantizedModelFile,
+    } = getModelPaths(BUILD_MODE, PLATFORM_ARCH, QUANT_LEVEL, model.outputName)
+
+    const sizeBefore = await getFileSize(optimizedModelFile)
+    logger.substep(`  Size before: ${sizeBefore}`)
+
+    await runPythonScript('quantize.py', [optimizedModelDir, quantizedModelDir])
+
+    const sizeAfter = await getFileSize(quantizedModelFile)
+    logger.substep(`  Size after: ${sizeAfter}`)
+
+    logger.success(`Quantized: ${model.outputName}`)
+  }
+
+  logger.success('Quantization complete')
+  await createCheckpoint(
+    BUILD_DIR,
+    CHECKPOINTS.QUANTIZED,
+    async () => {
+      // Smoke test: Verify quantized models exist
+      for (const model of MODELS) {
+        const { quantizedModelFile } = getModelPaths(
+          BUILD_MODE,
+          PLATFORM_ARCH,
+          QUANT_LEVEL,
+          model.outputName,
+        )
+        if (!existsSync(quantizedModelFile)) {
+          throw new Error(`Quantized model not found: ${quantizedModelFile}`)
+        }
+      }
+      logger.substep('Quantized models validated')
+    },
+    { arch: TARGET_ARCH, platform: TARGET_PLATFORM },
+  )
+}
+
+/**
+ * Run Python script and parse JSON output.
+ */
+export async function runPythonScript(scriptName, args, options = {}) {
+  const scriptPath = path.join(PYTHON_DIR, scriptName)
+
+  const python3Path = await getPythonCommand()
+  if (!python3Path) {
+    throw new Error('Python not found (checked pip shebang and PATH)')
+  }
+
+  const result = await spawn(python3Path, [scriptPath, ...args], {
+    ...options,
+  })
+
+  if (result.code !== 0) {
+    throw new Error(`Python script failed: ${result.stderr}`)
+  }
+
+  // Parse JSON output from Python script.
+  if (!result.stdout || !result.stdout.trim()) {
+    throw new Error(
+      'Python script produced no output. Expected JSON lines on stdout.',
+    )
+  }
+  const lines = result.stdout.split('\n').filter(Boolean)
+  const results = []
+
+  for (const line of lines) {
+    try {
+      const parsedResult = JSON.parse(line)
+      results.push(parsedResult)
+
+      if (parsedResult.error) {
+        throw new Error(parsedResult.error)
+      }
+
+      if (parsedResult.code && parsedResult.code !== 'complete') {
+        logger.substep(`  ${parsedResult.code.replace(/_/g, ' ')}...`)
+      }
+    } catch (e) {
+      if (errorMessage(e).startsWith('{')) {
+        continue
+      }
+      throw e
+    }
+  }
+
+  return results.length > 0 ? results[results.length - 1] : {}
+}
+
+/**
  * Verify models work correctly.
  */
-async function verifyModels() {
+export async function verifyModels() {
   if (
     !(await shouldRun(BUILD_DIR, 'minilm', CHECKPOINTS.FINALIZED, FORCE_BUILD))
   ) {
@@ -445,58 +497,6 @@ async function verifyModels() {
     },
     { arch: TARGET_ARCH, platform: TARGET_PLATFORM },
   )
-}
-
-/**
- * Export models to distribution location.
- */
-async function exportModels() {
-  logger.step('Exporting Models')
-
-  for (const model of MODELS) {
-    logger.substep(`Exporting: ${model.outputName}`)
-
-    const {
-      finalModelFile,
-      quantizedModelDir,
-      quantizedModelFile,
-      tokenizerDir,
-    } = getModelPaths(BUILD_MODE, PLATFORM_ARCH, QUANT_LEVEL, model.outputName)
-
-    // Check if quantized model exists.
-    if (!existsSync(quantizedModelFile)) {
-      logger.warn(`Model not found: ${quantizedModelFile}`)
-      logger.warn('Run build to generate models')
-      continue
-    }
-
-    // Copy quantized model to final location.
-    await fs.copyFile(quantizedModelFile, finalModelFile)
-
-    // Copy tokenizer files.
-    await safeMkdir(tokenizerDir)
-
-    const tokenizerFiles = [
-      'tokenizer.json',
-      'tokenizer_config.json',
-      'special_tokens_map.json',
-      'vocab.txt',
-    ]
-    for (const file of tokenizerFiles) {
-      const src = path.join(quantizedModelDir, file)
-      const dst = path.join(tokenizerDir, file)
-
-      if (existsSync(src)) {
-        await fs.copyFile(src, dst)
-      }
-    }
-
-    const modelSize = await getFileSize(finalModelFile)
-    logger.substep(`  Model: ${modelSize}`)
-    logger.substep(`  Location: ${finalModelFile}`)
-  }
-
-  logger.success('Export complete')
 }
 
 /**

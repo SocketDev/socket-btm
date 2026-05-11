@@ -25,7 +25,7 @@ let binjectExists = false
 /**
  * Helper to run binject commands
  */
-async function _runBinject(args, options = {}) {
+export async function _runBinject(args, options = {}) {
   return new Promise(resolve => {
     const spawnPromise = spawn(BINJECT, args, {
       cwd: options.cwd || testDir,
@@ -63,7 +63,7 @@ void _runBinject
  * @param {Map<string, Buffer>} files - Map of filename to content
  * @returns {Buffer} TAR archive
  */
-function createTar(files) {
+export function createTar(files) {
   const blocks = []
 
   for (const [name, content] of files) {

@@ -21,7 +21,7 @@ import { errorMessage } from './error-utils.mts'
  * @returns {object} Parsed external-tools.json
  * @throws {Error} If file doesn't exist or is malformed
  */
-function loadExternalToolsSync(packageRoot: string) {
+export function loadExternalToolsSync(packageRoot: string) {
   const externalToolsPath = path.join(packageRoot, 'external-tools.json')
 
   try {
@@ -53,7 +53,7 @@ function loadExternalToolsSync(packageRoot: string) {
  * @returns {Promise<object>} Parsed external-tools.json
  * @throws {Error} If file doesn't exist or is malformed
  */
-async function loadExternalTools(packageRoot: string) {
+export async function loadExternalTools(packageRoot: string) {
   const externalToolsPath = path.join(packageRoot, 'external-tools.json')
 
   try {

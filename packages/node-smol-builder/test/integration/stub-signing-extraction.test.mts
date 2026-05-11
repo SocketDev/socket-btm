@@ -41,6 +41,8 @@ import {
 import { createTestDir } from '../helpers/test-dir.mts'
 import { getLatestFinalBinary } from '../paths.mts'
 
+const logger = getDefaultLogger()
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const IS_MACOS = os.platform() === 'darwin'
 
@@ -57,7 +59,7 @@ const testTmpDir = path.join(os.tmpdir(), 'socket-btm-stub-tests')
 /**
  * Extract compressed data portion from stub binary
  */
-function extractCompressedData(binaryData: Buffer) {
+export function extractCompressedData(binaryData: Buffer) {
   const magicMarker = Buffer.from(SMOL_PRESSED_DATA_MAGIC_MARKER, 'utf8')
   const markerIndex = binaryData.indexOf(magicMarker)
 
@@ -86,10 +88,39 @@ function extractCompressedData(binaryData: Buffer) {
 }
 
 /**
+ * Check if a binary is code-signed (macOS only)
+ */
+export async function isCodeSigned(binaryPath) {
+  if (!IS_MACOS) {
+    // Skip on non-macOS
+    return { signed: true, valid: true }
+  }
+
+  try {
+    const result = await spawn('codesign', ['-v', '-v', binaryPath], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 5000,
+    })
+    // codesign returns 0 for valid signatures
+    return {
+      output: result.stderr || result.stdout,
+      signed: true,
+      valid: result.code === 0,
+    }
+  } catch (e) {
+    return {
+      error: e.message,
+      signed: false,
+      valid: false,
+    }
+  }
+}
+
+/**
  * Parse Mach-O segments and sections (macOS only)
  * Returns array of {segmentName, sections: [{sectionName, segmentName}]}
  */
-function parseMachoSegments(binaryData) {
+export function parseMachoSegments(binaryData) {
   if (os.platform() !== 'darwin') {
     return []
   }
@@ -171,35 +202,6 @@ function parseMachoSegments(binaryData) {
   }
 
   return segments
-}
-
-/**
- * Check if a binary is code-signed (macOS only)
- */
-async function isCodeSigned(binaryPath) {
-  if (!IS_MACOS) {
-    // Skip on non-macOS
-    return { signed: true, valid: true }
-  }
-
-  try {
-    const result = await spawn('codesign', ['-v', '-v', binaryPath], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 5000,
-    })
-    // codesign returns 0 for valid signatures
-    return {
-      output: result.stderr || result.stdout,
-      signed: true,
-      valid: result.code === 0,
-    }
-  } catch (e) {
-    return {
-      error: e.message,
-      signed: false,
-      valid: false,
-    }
-  }
 }
 
 describe.skipIf(skipTests)('stub signing and extraction flow', () => {
@@ -302,7 +304,7 @@ describe.skipIf(skipTests)('stub signing and extraction flow', () => {
         expect(smolMarkerIndex).toBeGreaterThan(0)
 
         // Log segment info for debugging
-        console.log(
+        logger.log(
           'Mach-O segments:',
           segments.map(s => ({
             name: s.segmentName,
@@ -319,7 +321,7 @@ describe.skipIf(skipTests)('stub signing and extraction flow', () => {
 
       expect(sigInfo.signed).toBeTruthy()
       if (!sigInfo.valid) {
-        console.warn(
+        logger.warn(
           'Stub signature validation:',
           sigInfo.output || sigInfo.error,
         )
@@ -467,7 +469,7 @@ describe.skipIf(skipTests)('stub signing and extraction flow', () => {
         expect(segmentNames).toContain('__DATA')
         expect(segmentNames).toContain('__LINKEDIT')
 
-        console.log(
+        logger.log(
           'Extracted node Mach-O segments:',
           segments.map(s => ({
             name: s.segmentName,
@@ -490,7 +492,7 @@ describe.skipIf(skipTests)('stub signing and extraction flow', () => {
 
         expect(sigInfo.signed).toBeTruthy()
         if (!sigInfo.valid) {
-          console.warn(
+          logger.warn(
             'Extracted node signature validation:',
             sigInfo.output || sigInfo.error,
           )

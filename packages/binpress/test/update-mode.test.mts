@@ -54,7 +54,7 @@ let testDir: string
 /**
  * Helper to create stub path with correct extension
  */
-function getStubPath(name) {
+export function getStubPath(name) {
   const filename = process.platform === 'win32' ? `${name}.exe` : name
   return path.join(testDir, filename)
 }
@@ -62,7 +62,7 @@ function getStubPath(name) {
 /**
  * Calculate SHA-256 hash of file
  */
-async function hashFile(filePath) {
+export async function hashFile(filePath) {
   const data = await fs.readFile(filePath)
   return createHash('sha256').update(data).digest('hex')
 }
@@ -125,7 +125,7 @@ describe.skipIf(
       // Run the stub to verify it extracts and executes
       const execResult = await execCommand(updatedStub, ['--version'])
       if (execResult.code !== 0) {
-        console.error(
+        logger.fail(
           'Stub execution failed:',
           execResult.stderr || execResult.stdout,
         )

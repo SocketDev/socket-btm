@@ -7,12 +7,13 @@ import { promises as fs } from 'node:fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 import { LIB_DIR } from './paths.mts'
+import { safeDelete } from '@socketsecurity/lib/fs'
 
 const logger = getDefaultLogger()
 
 async function main() {
   logger.step('Cleaning napi-go build outputs')
-  await fs.rm(LIB_DIR, { recursive: true, force: true })
+  await safeDelete(LIB_DIR)
   logger.success(`Removed ${LIB_DIR}`)
 }
 

@@ -19,54 +19,16 @@ const logger = getDefaultLogger()
 const PATCH_NOT_FOUND_MSG = 'patch not found in PATH'
 
 /**
- * Validate a patch file can be applied cleanly.
+ * Analyze patch file content for specific modifications.
  *
- * @param {string} patchFile - Path to patch file
- * @param {string} targetDir - Directory to apply patch to
- * @returns {Promise<boolean>}
+ * @param {string} content - Patch file content
+ * @returns {object} Analysis result
  */
-export async function validatePatch(patchFile, targetDir) {
-  try {
-    const patchPath = await which('patch', { nothrow: true })
-    if (!patchPath) {
-      printError(PATCH_NOT_FOUND_MSG)
-      return false
-    }
-
-    // Resolve to absolute path
-    const absolutePatchFile = path.resolve(patchFile)
-
-    let result
-    try {
-      result = await spawn(
-        patchPath,
-        ['-p1', '--batch', '--dry-run', '-i', absolutePatchFile],
-        {
-          cwd: targetDir,
-          env: process.env,
-        },
-      )
-    } catch (spawnError) {
-      // spawn() throws when command exits with non-zero code
-      result = spawnError
-    }
-
-    const exitCode = result.code ?? 0
-    if (exitCode !== 0) {
-      printError(`Patch validation failed: ${patchFile}`)
-      if (result.stderr) {
-        printError(`stderr: ${result.stderr}`)
-      }
-      if (result.stdout) {
-        printError(`stdout: ${result.stdout}`)
-      }
-      return false
-    }
-
-    return true
-  } catch (e) {
-    printError(`Patch validation error: ${patchFile}`, e)
-    return false
+export function analyzePatchContent(content) {
+  return {
+    modifiesBrotli: content.includes('brotli') || content.includes('Brotli'),
+    modifiesSEA: content.includes('SEA') || content.includes('sea_'),
+    modifiesV8Includes: content.includes('v8.h') || content.includes('v8-'),
   }
 }
 
@@ -168,202 +130,6 @@ export async function applyPatchDirectory(
 }
 
 /**
- * Test if a patch has already been applied.
- *
- * @param {string} patchFile - Path to patch file
- * @param {string} targetDir - Directory to check
- * @returns {Promise<boolean>}
- */
-export async function testPatchApplication(patchFile, targetDir) {
-  try {
-    const patchPath = await which('patch', { nothrow: true })
-    if (!patchPath) {
-      return false
-    }
-
-    // Resolve to absolute path
-    const absolutePatchFile = path.resolve(patchFile)
-
-    let result
-    try {
-      result = await spawn(
-        patchPath,
-        ['-p1', '--batch', '--dry-run', '--reverse', '-i', absolutePatchFile],
-        {
-          cwd: targetDir,
-          env: process.env,
-        },
-      )
-    } catch (spawnError) {
-      // spawn() throws when command exits with non-zero code
-      result = spawnError
-    }
-
-    // If reverse patch succeeds, the patch has been applied.
-    return (result.code ?? 0) === 0
-  } catch {
-    return false
-  }
-}
-
-/**
- * Create a patch file from git diff.
- *
- * @param {string} repoDir - Git repository directory
- * @param {string} outputFile - Output patch file path
- * @param {object} options - Options
- * @param {boolean} options.staged - Only include staged changes (default: false)
- * @returns {Promise<void>}
- */
-export async function createPatchFromGit(
-  repoDir,
-  outputFile,
-  { staged = false } = {},
-) {
-  logger.substep('Creating patch from git diff')
-
-  const gitPath = await which('git', { nothrow: true })
-  if (!gitPath) {
-    throw new Error('git not found in PATH')
-  }
-
-  const args = ['diff']
-  if (staged) {
-    args.push('--cached')
-  }
-
-  const result = await spawn(gitPath, args, {
-    cwd: repoDir,
-  })
-
-  const stdout = result.stdout ?? ''
-  if (!stdout.trim()) {
-    throw new Error('No changes to create patch from')
-  }
-
-  await fs.writeFile(outputFile, stdout, 'utf8')
-
-  logger.info(`Created patch: ${path.basename(outputFile)}`)
-}
-
-/**
- * Revert a patch that has been applied.
- *
- * @param {string} patchFile - Path to patch file
- * @param {string} targetDir - Directory to revert patch from
- * @returns {Promise<void>}
- */
-export async function revertPatch(patchFile, targetDir) {
-  logger.info(`Reverting ${path.basename(patchFile)}`)
-
-  const patchPath = await which('patch', { nothrow: true })
-  if (!patchPath) {
-    throw new Error(PATCH_NOT_FOUND_MSG)
-  }
-
-  // Resolve to absolute path since we're changing cwd
-  const absolutePatchFile = path.resolve(patchFile)
-
-  let result
-  try {
-    result = await spawn(
-      patchPath,
-      ['-p1', '--batch', '--reverse', '-i', absolutePatchFile],
-      {
-        cwd: targetDir,
-        env: process.env,
-      },
-    )
-  } catch (spawnError) {
-    // spawn() throws when command exits with non-zero code
-    result = spawnError
-  }
-
-  const exitCode = result.code ?? 0
-  if (exitCode !== 0) {
-    throw new Error(`Failed to revert patch: ${patchFile}`)
-  }
-}
-
-/**
- * Analyze patch file content for specific modifications.
- *
- * @param {string} content - Patch file content
- * @returns {object} Analysis result
- */
-export function analyzePatchContent(content) {
-  return {
-    modifiesBrotli: content.includes('brotli') || content.includes('Brotli'),
-    modifiesSEA: content.includes('SEA') || content.includes('sea_'),
-    modifiesV8Includes: content.includes('v8.h') || content.includes('v8-'),
-  }
-}
-
-/**
- * Parse a patch file to extract file modifications and line ranges.
- *
- * @param {string} content - Patch file content
- * @returns {Map<string, Array<{start: number, end: number}>>} Map of file paths to modified line ranges
- */
-function parsePatchFileModifications(content) {
-  const fileModifications = new Map()
-  const lines = content.split('\n')
-
-  let currentFile
-  let i = 0
-
-  while (i < lines.length) {
-    const line = lines[i]
-
-    // Parse unified diff file header: "--- a/path/to/file.js"
-    if (line.startsWith('--- a/')) {
-      currentFile = line.slice(6).trim()
-      i++
-      continue
-    }
-
-    // Parse hunk header: "@@ -10,5 +10,6 @@" (old start, old count, new start, new count)
-    if (line.startsWith('@@') && currentFile) {
-      const match = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(line)
-      if (match) {
-        const newStart = Number.parseInt(match[3], 10)
-        const newCount = match[4] ? Number.parseInt(match[4], 10) : 1
-
-        // Skip malformed hunks with invalid line numbers
-        if (Number.isNaN(newStart) || Number.isNaN(newCount)) {
-          continue
-        }
-
-        if (!fileModifications.has(currentFile)) {
-          fileModifications.set(currentFile, [])
-        }
-
-        // Handle deletion-only hunks (newCount = 0) to avoid invalid ranges where end < start
-        // Deletion hunks have newCount=0, resulting in range [start, start] which represents
-        // the line position where content was deleted
-        const end = newCount === 0 ? newStart : newStart + newCount - 1
-        fileModifications.get(currentFile).push({ end, start: newStart })
-      }
-    }
-
-    i++
-  }
-
-  return fileModifications
-}
-
-/**
- * Check if two line ranges overlap.
- *
- * @param {object} range1 - First range {start, end}
- * @param {object} range2 - Second range {start, end}
- * @returns {boolean}
- */
-function rangesOverlap(range1, range2) {
-  return range1.start <= range2.end && range2.start <= range1.end
-}
-
-/**
  * Check for conflicts between patches.
  *
  * @param {Array} patchData - Array of patch data objects with {name, path, content, analysis}
@@ -419,4 +185,238 @@ export function checkPatchConflicts(patchData) {
   }
 
   return conflicts
+}
+
+/**
+ * Create a patch file from git diff.
+ *
+ * @param {string} repoDir - Git repository directory
+ * @param {string} outputFile - Output patch file path
+ * @param {object} options - Options
+ * @param {boolean} options.staged - Only include staged changes (default: false)
+ * @returns {Promise<void>}
+ */
+export async function createPatchFromGit(
+  repoDir,
+  outputFile,
+  { staged = false } = {},
+) {
+  logger.substep('Creating patch from git diff')
+
+  const gitPath = await which('git', { nothrow: true })
+  if (!gitPath) {
+    throw new Error('git not found in PATH')
+  }
+
+  const args = ['diff']
+  if (staged) {
+    args.push('--cached')
+  }
+
+  const result = await spawn(gitPath, args, {
+    cwd: repoDir,
+  })
+
+  const stdout = result.stdout ?? ''
+  if (!stdout.trim()) {
+    throw new Error('No changes to create patch from')
+  }
+
+  await fs.writeFile(outputFile, stdout, 'utf8')
+
+  logger.info(`Created patch: ${path.basename(outputFile)}`)
+}
+
+/**
+ * Parse a patch file to extract file modifications and line ranges.
+ *
+ * @param {string} content - Patch file content
+ * @returns {Map<string, Array<{start: number, end: number}>>} Map of file paths to modified line ranges
+ */
+export function parsePatchFileModifications(content) {
+  const fileModifications = new Map()
+  const lines = content.split('\n')
+
+  let currentFile
+  let i = 0
+
+  while (i < lines.length) {
+    const line = lines[i]
+
+    // Parse unified diff file header: "--- a/path/to/file.js"
+    if (line.startsWith('--- a/')) {
+      currentFile = line.slice(6).trim()
+      i++
+      continue
+    }
+
+    // Parse hunk header: "@@ -10,5 +10,6 @@" (old start, old count, new start, new count)
+    if (line.startsWith('@@') && currentFile) {
+      const match = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(line)
+      if (match) {
+        const newStart = Number.parseInt(match[3], 10)
+        const newCount = match[4] ? Number.parseInt(match[4], 10) : 1
+
+        // Skip malformed hunks with invalid line numbers
+        if (Number.isNaN(newStart) || Number.isNaN(newCount)) {
+          continue
+        }
+
+        if (!fileModifications.has(currentFile)) {
+          fileModifications.set(currentFile, [])
+        }
+
+        // Handle deletion-only hunks (newCount = 0) to avoid invalid ranges where end < start
+        // Deletion hunks have newCount=0, resulting in range [start, start] which represents
+        // the line position where content was deleted
+        const end = newCount === 0 ? newStart : newStart + newCount - 1
+        fileModifications.get(currentFile).push({ end, start: newStart })
+      }
+    }
+
+    i++
+  }
+
+  return fileModifications
+}
+
+/**
+ * Check if two line ranges overlap.
+ *
+ * @param {object} range1 - First range {start, end}
+ * @param {object} range2 - Second range {start, end}
+ * @returns {boolean}
+ */
+export function rangesOverlap(range1, range2) {
+  return range1.start <= range2.end && range2.start <= range1.end
+}
+
+/**
+ * Revert a patch that has been applied.
+ *
+ * @param {string} patchFile - Path to patch file
+ * @param {string} targetDir - Directory to revert patch from
+ * @returns {Promise<void>}
+ */
+export async function revertPatch(patchFile, targetDir) {
+  logger.info(`Reverting ${path.basename(patchFile)}`)
+
+  const patchPath = await which('patch', { nothrow: true })
+  if (!patchPath) {
+    throw new Error(PATCH_NOT_FOUND_MSG)
+  }
+
+  // Resolve to absolute path since we're changing cwd
+  const absolutePatchFile = path.resolve(patchFile)
+
+  let result
+  try {
+    result = await spawn(
+      patchPath,
+      ['-p1', '--batch', '--reverse', '-i', absolutePatchFile],
+      {
+        cwd: targetDir,
+        env: process.env,
+      },
+    )
+  } catch (spawnError) {
+    // spawn() throws when command exits with non-zero code
+    result = spawnError
+  }
+
+  const exitCode = result.code ?? 0
+  if (exitCode !== 0) {
+    throw new Error(`Failed to revert patch: ${patchFile}`)
+  }
+}
+
+/**
+ * Test if a patch has already been applied.
+ *
+ * @param {string} patchFile - Path to patch file
+ * @param {string} targetDir - Directory to check
+ * @returns {Promise<boolean>}
+ */
+export async function testPatchApplication(patchFile, targetDir) {
+  try {
+    const patchPath = await which('patch', { nothrow: true })
+    if (!patchPath) {
+      return false
+    }
+
+    // Resolve to absolute path
+    const absolutePatchFile = path.resolve(patchFile)
+
+    let result
+    try {
+      result = await spawn(
+        patchPath,
+        ['-p1', '--batch', '--dry-run', '--reverse', '-i', absolutePatchFile],
+        {
+          cwd: targetDir,
+          env: process.env,
+        },
+      )
+    } catch (spawnError) {
+      // spawn() throws when command exits with non-zero code
+      result = spawnError
+    }
+
+    // If reverse patch succeeds, the patch has been applied.
+    return (result.code ?? 0) === 0
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Validate a patch file can be applied cleanly.
+ *
+ * @param {string} patchFile - Path to patch file
+ * @param {string} targetDir - Directory to apply patch to
+ * @returns {Promise<boolean>}
+ */
+export async function validatePatch(patchFile, targetDir) {
+  try {
+    const patchPath = await which('patch', { nothrow: true })
+    if (!patchPath) {
+      printError(PATCH_NOT_FOUND_MSG)
+      return false
+    }
+
+    // Resolve to absolute path
+    const absolutePatchFile = path.resolve(patchFile)
+
+    let result
+    try {
+      result = await spawn(
+        patchPath,
+        ['-p1', '--batch', '--dry-run', '-i', absolutePatchFile],
+        {
+          cwd: targetDir,
+          env: process.env,
+        },
+      )
+    } catch (spawnError) {
+      // spawn() throws when command exits with non-zero code
+      result = spawnError
+    }
+
+    const exitCode = result.code ?? 0
+    if (exitCode !== 0) {
+      printError(`Patch validation failed: ${patchFile}`)
+      if (result.stderr) {
+        printError(`stderr: ${result.stderr}`)
+      }
+      if (result.stdout) {
+        printError(`stdout: ${result.stdout}`)
+      }
+      return false
+    }
+
+    return true
+  } catch (e) {
+    printError(`Patch validation error: ${patchFile}`, e)
+    return false
+  }
 }

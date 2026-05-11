@@ -18,6 +18,20 @@ import {
 } from '../../scripts/binary-compressed/shared/constants.mts'
 
 /**
+ * Calculate cache key for a compressed binary.
+ * Matches the decompressor's dlx_calculate_cache_key() function.
+ *
+ * @param {string} compressedBinaryPath - Path to compressed binary
+ * @returns {Promise<string>} Cache key (first 16 hex chars of SHA-512 hash)
+ */
+export async function calculateCacheKey(compressedBinaryPath) {
+  const binaryData = await fs.readFile(compressedBinaryPath)
+  const compressedData = extractCompressedData(binaryData)
+  const hash = createHash('sha512').update(compressedData).digest('hex')
+  return hash.slice(0, 16)
+}
+
+/**
  * Extract compressed data portion from self-extracting binary.
  * The decompressor calculates cache keys from compressed data only,
  * not from the entire binary (decompressor stub + data).
@@ -57,38 +71,6 @@ export function extractCompressedData(binaryData) {
 }
 
 /**
- * Calculate cache key for a compressed binary.
- * Matches the decompressor's dlx_calculate_cache_key() function.
- *
- * @param {string} compressedBinaryPath - Path to compressed binary
- * @returns {Promise<string>} Cache key (first 16 hex chars of SHA-512 hash)
- */
-export async function calculateCacheKey(compressedBinaryPath) {
-  const binaryData = await fs.readFile(compressedBinaryPath)
-  const compressedData = extractCompressedData(binaryData)
-  const hash = createHash('sha512').update(compressedData).digest('hex')
-  return hash.slice(0, 16)
-}
-
-/**
- * Get the path to the extracted binary in the cache for a compressed binary.
- *
- * @param {string} compressedBinaryPath - Path to compressed binary
- * @returns {Promise<string>} Path to extracted binary in ~/.socket/_dlx/
- */
-export async function getExtractedBinaryPath(compressedBinaryPath) {
-  const cacheKey = await calculateCacheKey(compressedBinaryPath)
-  const dlxDir = getSocketDlxDir()
-  const cacheDir = path.join(dlxDir, cacheKey)
-
-  // Cache path: ~/.socket/_dlx/<hash>/node (or node.exe on Windows)
-  const platformName = os.platform()
-  const binaryName = platformName === 'win32' ? 'node.exe' : 'node'
-
-  return path.join(cacheDir, binaryName)
-}
-
-/**
  * Extract binary to cache by running it once.
  * This triggers the decompression and writes the binary to ~/.socket/_dlx/
  *
@@ -111,4 +93,22 @@ export async function extractToCache(compressedBinaryPath, timeout = 60_000) {
 
   // Return the path to the extracted binary
   return await getExtractedBinaryPath(compressedBinaryPath)
+}
+
+/**
+ * Get the path to the extracted binary in the cache for a compressed binary.
+ *
+ * @param {string} compressedBinaryPath - Path to compressed binary
+ * @returns {Promise<string>} Path to extracted binary in ~/.socket/_dlx/
+ */
+export async function getExtractedBinaryPath(compressedBinaryPath) {
+  const cacheKey = await calculateCacheKey(compressedBinaryPath)
+  const dlxDir = getSocketDlxDir()
+  const cacheDir = path.join(dlxDir, cacheKey)
+
+  // Cache path: ~/.socket/_dlx/<hash>/node (or node.exe on Windows)
+  const platformName = os.platform()
+  const binaryName = platformName === 'win32' ? 'node.exe' : 'node'
+
+  return path.join(cacheDir, binaryName)
 }

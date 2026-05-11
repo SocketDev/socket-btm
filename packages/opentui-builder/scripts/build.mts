@@ -91,133 +91,10 @@ const {
 const logger = getDefaultLogger()
 
 /**
- * Ensure Zig toolchain is available at the required version.
- * Uses build-infra's tool-installer with pinned tool auto-download.
- * Returns the path to the zig binary.
- */
-async function ensureZig() {
-  logger.substep('Checking for Zig toolchain...')
-
-  const result = await ensureToolInstalled('zig', {
-    autoInstall: true,
-    toolOptions: { packageRoot: PACKAGE_ROOT },
-  })
-
-  if (!result.available) {
-    printError('Zig toolchain is required but not found')
-    printError(
-      result.error || 'Install Zig from: https://ziglang.org/download/',
-    )
-    throw new Error('Zig toolchain required')
-  }
-
-  const zigBin = result.path || 'zig'
-
-  // Smoke-test: verify Zig can link on this platform.
-  // Zig 0.15.x has known linker issues on macOS 26+ where system
-  // symbols (abort, bzero, etc.) are undefined. Detect this early
-  // with a trivial link test instead of failing deep in the build.
-  try {
-    // Zig linker probe — scope to BUILD_DIR (build/<mode>/<platform-arch>)
-    // so concurrent builds on different platforms don't collide on these names.
-    const testFile = path.join(BUILD_DIR, '_zig_link_test.zig')
-    await safeMkdir(BUILD_DIR)
-    await fs.writeFile(
-      testFile,
-      'export fn _zig_link_test() callconv(.c) void {}\n',
-    )
-    const testResult = await spawn(
-      zigBin,
-      ['build-lib', testFile, '-dynamic', '-ODebug'],
-      { cwd: BUILD_DIR, shell: WIN32, stdio: 'pipe' },
-    )
-    const testExit = testResult.code ?? testResult.exitCode ?? 0
-    // Clean up test artifacts.
-    await safeDelete(testFile)
-    await safeDelete(path.join(BUILD_DIR, '_zig_link_test.dylib'))
-    await safeDelete(path.join(BUILD_DIR, '_zig_link_test.so'))
-    await safeDelete(path.join(BUILD_DIR, '_zig_link_test.dll'))
-    if (testExit !== 0) {
-      printError(
-        `Zig ${result.version ?? 'unknown'} cannot link on this platform.`,
-      )
-      printError('This is a known issue with Zig 0.15.x on macOS 26+.')
-      printError('Workarounds: upgrade Zig when a fix ships, or build in CI.')
-      throw new Error('Zig linker incompatible with current platform')
-    }
-  } catch (e) {
-    if (errorMessage(e) === 'Zig linker incompatible with current platform') {
-      throw e
-    }
-    // If smoke test itself threw (spawn failed), warn but continue.
-    logger.warn(`Zig link smoke test failed: ${errorMessage(e)}`)
-  }
-
-  logger.success(`Zig ready: ${zigBin}`)
-  return zigBin
-}
-
-/**
- * Check if upstream submodule is initialized.
- */
-async function checkUpstream() {
-  logger.substep('Checking OpenTUI submodule...')
-
-  const buildZigPath = path.join(
-    UPSTREAM_PATH,
-    'packages',
-    'core',
-    'src',
-    'zig',
-    'build.zig',
-  )
-  if (!existsSync(buildZigPath)) {
-    printError('OpenTUI submodule not initialized')
-    printError(
-      'Run: git submodule update --init packages/opentui-builder/upstream/opentui',
-    )
-    throw new Error('OpenTUI submodule not initialized')
-  }
-
-  logger.success('OpenTUI submodule found')
-}
-
-/**
- * Resolve the Zig target triple for the current platform.
- */
-function getZigTarget(platformArch) {
-  // Allow explicit override via ZIG_TARGET env var
-  if (process.env.ZIG_TARGET) {
-    return process.env.ZIG_TARGET
-  }
-  const zigTarget = ZIG_TARGETS[platformArch]
-  if (!zigTarget) {
-    throw new Error(`No Zig target mapping for platform: ${platformArch}`)
-  }
-  return zigTarget
-}
-
-/**
- * Get the OS name from a platform-arch string.
- */
-function getPlatformOS(platformArch) {
-  if (platformArch.startsWith('darwin')) {
-    return 'darwin'
-  }
-  if (platformArch.startsWith('linux')) {
-    return 'linux'
-  }
-  if (platformArch.startsWith('win')) {
-    return 'win32'
-  }
-  return 'linux'
-}
-
-/**
  * Build the native addon using Zig.
  * @param {string} zigBin - Path to the zig binary
  */
-async function buildNativeAddon(zigBin) {
+export async function buildNativeAddon(zigBin) {
   logger.step('Building native addon')
 
   const outputPath = getPlatformOutputPath(PLATFORM_ARCH)
@@ -313,6 +190,129 @@ async function buildNativeAddon(zigBin) {
     }
     throw new Error('Built library not found')
   }
+}
+
+/**
+ * Check if upstream submodule is initialized.
+ */
+export async function checkUpstream() {
+  logger.substep('Checking OpenTUI submodule...')
+
+  const buildZigPath = path.join(
+    UPSTREAM_PATH,
+    'packages',
+    'core',
+    'src',
+    'zig',
+    'build.zig',
+  )
+  if (!existsSync(buildZigPath)) {
+    printError('OpenTUI submodule not initialized')
+    printError(
+      'Run: git submodule update --init packages/opentui-builder/upstream/opentui',
+    )
+    throw new Error('OpenTUI submodule not initialized')
+  }
+
+  logger.success('OpenTUI submodule found')
+}
+
+/**
+ * Ensure Zig toolchain is available at the required version.
+ * Uses build-infra's tool-installer with pinned tool auto-download.
+ * Returns the path to the zig binary.
+ */
+export async function ensureZig() {
+  logger.substep('Checking for Zig toolchain...')
+
+  const result = await ensureToolInstalled('zig', {
+    autoInstall: true,
+    toolOptions: { packageRoot: PACKAGE_ROOT },
+  })
+
+  if (!result.available) {
+    printError('Zig toolchain is required but not found')
+    printError(
+      result.error || 'Install Zig from: https://ziglang.org/download/',
+    )
+    throw new Error('Zig toolchain required')
+  }
+
+  const zigBin = result.path || 'zig'
+
+  // Smoke-test: verify Zig can link on this platform.
+  // Zig 0.15.x has known linker issues on macOS 26+ where system
+  // symbols (abort, bzero, etc.) are undefined. Detect this early
+  // with a trivial link test instead of failing deep in the build.
+  try {
+    // Zig linker probe — scope to BUILD_DIR (build/<mode>/<platform-arch>)
+    // so concurrent builds on different platforms don't collide on these names.
+    const testFile = path.join(BUILD_DIR, '_zig_link_test.zig')
+    await safeMkdir(BUILD_DIR)
+    await fs.writeFile(
+      testFile,
+      'export fn _zig_link_test() callconv(.c) void {}\n',
+    )
+    const testResult = await spawn(
+      zigBin,
+      ['build-lib', testFile, '-dynamic', '-ODebug'],
+      { cwd: BUILD_DIR, shell: WIN32, stdio: 'pipe' },
+    )
+    const testExit = testResult.code ?? testResult.exitCode ?? 0
+    // Clean up test artifacts.
+    await safeDelete(testFile)
+    await safeDelete(path.join(BUILD_DIR, '_zig_link_test.dylib'))
+    await safeDelete(path.join(BUILD_DIR, '_zig_link_test.so'))
+    await safeDelete(path.join(BUILD_DIR, '_zig_link_test.dll'))
+    if (testExit !== 0) {
+      printError(
+        `Zig ${result.version ?? 'unknown'} cannot link on this platform.`,
+      )
+      printError('This is a known issue with Zig 0.15.x on macOS 26+.')
+      printError('Workarounds: upgrade Zig when a fix ships, or build in CI.')
+      throw new Error('Zig linker incompatible with current platform')
+    }
+  } catch (e) {
+    if (errorMessage(e) === 'Zig linker incompatible with current platform') {
+      throw e
+    }
+    // If smoke test itself threw (spawn failed), warn but continue.
+    logger.warn(`Zig link smoke test failed: ${errorMessage(e)}`)
+  }
+
+  logger.success(`Zig ready: ${zigBin}`)
+  return zigBin
+}
+
+/**
+ * Get the OS name from a platform-arch string.
+ */
+export function getPlatformOS(platformArch) {
+  if (platformArch.startsWith('darwin')) {
+    return 'darwin'
+  }
+  if (platformArch.startsWith('linux')) {
+    return 'linux'
+  }
+  if (platformArch.startsWith('win')) {
+    return 'win32'
+  }
+  return 'linux'
+}
+
+/**
+ * Resolve the Zig target triple for the current platform.
+ */
+export function getZigTarget(platformArch) {
+  // Allow explicit override via ZIG_TARGET env var
+  if (process.env.ZIG_TARGET) {
+    return process.env.ZIG_TARGET
+  }
+  const zigTarget = ZIG_TARGETS[platformArch]
+  if (!zigTarget) {
+    throw new Error(`No Zig target mapping for platform: ${platformArch}`)
+  }
+  return zigTarget
 }
 
 /**

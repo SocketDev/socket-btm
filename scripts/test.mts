@@ -32,7 +32,7 @@ const ROOT_DIR = path.dirname(__dirname)
  * @param {string} command - Command to check
  * @returns {boolean} True if command exists
  */
-function commandExists(command: string): boolean {
+export function commandExists(command: string): boolean {
   try {
     let result
     if (WIN32) {
@@ -52,7 +52,7 @@ function commandExists(command: string): boolean {
  * Pre-flight check for common build tools
  * Warns if tools are missing but doesn't block (individual tests will skip gracefully)
  */
-function preflightCheck(): void {
+export function preflightCheck(): void {
   const warnings: string[] = []
 
   // Check common build tools

@@ -15,6 +15,8 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { ensureZstd } from 'build-infra/lib/zstd-init'
 import { ensureLief } from 'lief-builder/lib/ensure-lief'
 
+const logger = getDefaultLogger()
+
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const packageRoot = path.join(__dirname, '..')
@@ -25,14 +27,14 @@ const packageRoot = path.join(__dirname, '..')
 // - Linux: compress Mach-O/PE (ELF is native)
 // - Windows: compress Mach-O/ELF (PE is native)
 // LIEF is downloaded from releases if needed.
-async function ensureDependencies({ buildMode, packageDir }) {
+export async function ensureDependencies({ buildMode, packageDir }) {
   await ensureLief({ buildMode })
   await ensureZstd({ packageDir })
 }
 
 // Custom smoke test for Windows: only verify file exists and size.
 // Skip --version test to avoid DLL dependency issues and cross-architecture execution problems.
-async function windowsSmokeTest(binaryPath) {
+export async function windowsSmokeTest(binaryPath) {
   const stats = await fs.stat(binaryPath)
   if (stats.size < 1000) {
     throw new Error(`Binary too small: ${stats.size} bytes (expected >1KB)`)
@@ -45,6 +47,6 @@ buildBinSuitePackage({
   packageName: 'binpress',
   smokeTest: os.platform() === 'win32' ? windowsSmokeTest : undefined,
 }).catch(e => {
-  getDefaultLogger().error(errorMessage(e))
+  logger.error(errorMessage(e))
   process.exitCode = 1
 })

@@ -72,7 +72,7 @@ logger.info(`Using Dockerfile: ${dockerfile}`)
 /**
  * Build in Docker and extract artifacts.
  */
-async function buildInDocker() {
+export async function buildInDocker() {
   logger.info('Building node-smol in Docker...')
 
   const buildArgs = [
@@ -117,7 +117,7 @@ async function buildInDocker() {
 /**
  * Run integration tests.
  */
-async function runTests() {
+export async function runTests() {
   logger.info('Running linux-x64 Docker integration tests...')
 
   // Check if binary exists

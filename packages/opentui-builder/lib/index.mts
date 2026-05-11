@@ -36,7 +36,7 @@ const PLATFORM_ARCH_MAP = {
   win32: 'win32',
 }
 
-function detectMusl() {
+export function detectMusl() {
   if (process.platform !== 'linux') {
     return false
   }
@@ -67,7 +67,7 @@ function detectMusl() {
   return false
 }
 
-function loadNativeModule() {
+export function loadNativeModule() {
   const { platform, arch } = process
   const platformMap = PLATFORM_MAP[platform]
   if (!platformMap) {
@@ -406,7 +406,7 @@ const _hasSized = typeof native.editBufferGetTextSized === 'function'
 const _hasBinary = typeof native.writeOutBinary === 'function'
 const _hasCursorInto = typeof native.editBufferGetCursorInto === 'function'
 
-function colorBuf(color) {
+export function colorBuf(color) {
   if (color instanceof RGBA) {
     return color.buffer
   }

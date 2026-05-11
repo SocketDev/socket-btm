@@ -7,16 +7,9 @@
  */
 
 /**
- * Simulate path normalization (backslash → forward slash)
- */
-function normalizePath(filepath: string): string {
-  return filepath.replace(/\\/g, '/')
-}
-
-/**
  * Simulate getSeaAssetKey logic
  */
-function getSeaAssetKey(filepath: string): string | null {
+export function getSeaAssetKey(filepath: string): string | null {
   const SEA_PREFIX = '/sea'
   const normalized = normalizePath(filepath)
 
@@ -30,14 +23,14 @@ function getSeaAssetKey(filepath: string): string | null {
 
   // Extract key: /sea/foo/bar.json → foo/bar.json
   if (!cleanPath.startsWith(`${SEA_PREFIX}/`)) {
-    return null
+    return undefined
   }
 
   const key = cleanPath.slice(SEA_PREFIX.length + 1)
 
   // Security: reject path traversal
   if (key.includes('..')) {
-    return null
+    return undefined
   }
 
   // Normalize any ./ in the path
@@ -51,7 +44,7 @@ function getSeaAssetKey(filepath: string): string | null {
 /**
  * Simulate isSeaPath logic
  */
-function isSeaPath(filepath: string | null | undefined): boolean {
+export function isSeaPath(filepath: string | null | undefined): boolean {
   if (!filepath || typeof filepath !== 'string') {
     return false
   }
@@ -64,6 +57,13 @@ function isSeaPath(filepath: string | null | undefined): boolean {
     normalized === `${SEA_PREFIX}/` ||
     normalized.startsWith(`${SEA_PREFIX}/`)
   )
+}
+
+/**
+ * Simulate path normalization (backslash → forward slash)
+ */
+export function normalizePath(filepath: string): string {
+  return filepath.replace(/\\/g, '/')
 }
 
 describe('sEA Path Handling', () => {

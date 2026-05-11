@@ -55,11 +55,96 @@ const NODE_BINARY = process.execPath
 const PRESSED_DATA_MAGIC_MARKER = SMOL_PRESSED_DATA_MAGIC_MARKER
 
 /**
+ * Count PT_NOTE segments in ELF binary
+ * @param {Buffer} elfData - ELF binary data
+ * @returns {number} Number of PT_NOTE segments
+ */
+export function countPTNoteSegments(elfData) {
+  const header = parseElfHeader(elfData)
+  const { e_phentsize, e_phnum, e_phoff } = header
+
+  let noteCount = 0
+
+  for (let i = 0; i < e_phnum; i++) {
+    const phOffset = e_phoff + i * e_phentsize
+
+    // Read p_type (first field in program header)
+    const p_type = elfData.readUInt32LE(phOffset)
+
+    // PT_NOTE = 4
+    if (p_type === 4) {
+      noteCount++
+    }
+  }
+
+  return noteCount
+}
+
+/**
+ * Find PT_NOTE segments with their content
+ * @param {Buffer} elfData - ELF binary data
+ * @returns {Array} Array of PT_NOTE segment info
+ */
+export function findPTNoteSegments(elfData) {
+  const header = parseElfHeader(elfData)
+  const { e_phentsize, e_phnum, e_phoff, is64bit } = header
+
+  const notes = []
+
+  for (let i = 0; i < e_phnum; i++) {
+    const phOffset = e_phoff + i * e_phentsize
+
+    const p_type = elfData.readUInt32LE(phOffset)
+
+    if (p_type === 4) {
+      // PT_NOTE
+      let p_offset: number
+      let p_filesz: number
+
+      if (is64bit) {
+        p_offset = Number(elfData.readBigUInt64LE(phOffset + 8))
+        p_filesz = Number(elfData.readBigUInt64LE(phOffset + 32))
+      } else {
+        p_offset = elfData.readUInt32LE(phOffset + 4)
+        p_filesz = elfData.readUInt32LE(phOffset + 16)
+      }
+
+      notes.push({
+        content: elfData.subarray(p_offset, p_offset + p_filesz),
+        offset: p_offset,
+        size: p_filesz,
+      })
+    }
+  }
+
+  return notes
+}
+
+/**
+ * Search for magic marker in PT_NOTE segments
+ * @param {Buffer} elfData - ELF binary data
+ * @param {string} marker - Marker string to search for
+ * @returns {boolean} True if marker found
+ */
+export function hasMarkerInPTNote(elfData, marker) {
+  const notes = findPTNoteSegments(elfData)
+  const markerBuffer = Buffer.from(marker, 'utf8')
+
+  for (const note of notes) {
+    if (note.content.includes(markerBuffer)) {
+      return true
+    }
+  }
+
+  return false
+}
+
+/**
  * Parse ELF header and return basic information
  * @param {Buffer} elfData - ELF binary data
  * @returns {Object} ELF header information
  */
-function parseElfHeader(elfData) {
+export function parseElfHeader(elfData) {
   // Validate ELF magic
   // 'E' 'L' 'F'
   if (
@@ -107,91 +192,6 @@ function parseElfHeader(elfData) {
     e_phoff: Number(e_phoff),
     is64bit,
   }
-}
-
-/**
- * Count PT_NOTE segments in ELF binary
- * @param {Buffer} elfData - ELF binary data
- * @returns {number} Number of PT_NOTE segments
- */
-function countPTNoteSegments(elfData) {
-  const header = parseElfHeader(elfData)
-  const { e_phentsize, e_phnum, e_phoff } = header
-
-  let noteCount = 0
-
-  for (let i = 0; i < e_phnum; i++) {
-    const phOffset = e_phoff + i * e_phentsize
-
-    // Read p_type (first field in program header)
-    const p_type = elfData.readUInt32LE(phOffset)
-
-    // PT_NOTE = 4
-    if (p_type === 4) {
-      noteCount++
-    }
-  }
-
-  return noteCount
-}
-
-/**
- * Find PT_NOTE segments with their content
- * @param {Buffer} elfData - ELF binary data
- * @returns {Array} Array of PT_NOTE segment info
- */
-function findPTNoteSegments(elfData) {
-  const header = parseElfHeader(elfData)
-  const { e_phentsize, e_phnum, e_phoff, is64bit } = header
-
-  const notes = []
-
-  for (let i = 0; i < e_phnum; i++) {
-    const phOffset = e_phoff + i * e_phentsize
-
-    const p_type = elfData.readUInt32LE(phOffset)
-
-    if (p_type === 4) {
-      // PT_NOTE
-      let p_offset: number
-      let p_filesz: number
-
-      if (is64bit) {
-        p_offset = Number(elfData.readBigUInt64LE(phOffset + 8))
-        p_filesz = Number(elfData.readBigUInt64LE(phOffset + 32))
-      } else {
-        p_offset = elfData.readUInt32LE(phOffset + 4)
-        p_filesz = elfData.readUInt32LE(phOffset + 16)
-      }
-
-      notes.push({
-        content: elfData.subarray(p_offset, p_offset + p_filesz),
-        offset: p_offset,
-        size: p_filesz,
-      })
-    }
-  }
-
-  return notes
-}
-
-/**
- * Search for magic marker in PT_NOTE segments
- * @param {Buffer} elfData - ELF binary data
- * @param {string} marker - Marker string to search for
- * @returns {boolean} True if marker found
- */
-function hasMarkerInPTNote(elfData, marker) {
-  const notes = findPTNoteSegments(elfData)
-  const markerBuffer = Buffer.from(marker, 'utf8')
-
-  for (const note of notes) {
-    if (note.content.includes(markerBuffer)) {
-      return true
-    }
-  }
-
-  return false
 }
 
 // Only run on Linux where ELF is native

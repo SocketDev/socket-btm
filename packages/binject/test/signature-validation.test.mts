@@ -35,7 +35,16 @@ const describeOnMac = canRun ? describe : describe.skip
 
 let testDir: string
 
-async function execCommand(command, args = [], options = {}) {
+export async function checkFileLocks(filePath) {
+  try {
+    const { stdout } = await execCommand('lsof', [filePath], { timeout: 5000 })
+    return stdout.trim()
+  } catch {
+    return ''
+  }
+}
+
+export async function execCommand(command, args = [], options = {}) {
   return new Promise((resolve, reject) => {
     const spawnPromise = spawn(command, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -64,7 +73,7 @@ async function execCommand(command, args = [], options = {}) {
               )
             }
           }, timeoutMs)
-        : null
+        : undefined
 
     proc.stdout?.on('data', data => {
       stdout += data.toString()
@@ -97,69 +106,16 @@ async function execCommand(command, args = [], options = {}) {
   })
 }
 
-async function verifySignature(binaryPath) {
-  const result = await execCommand('codesign', [
-    '--verify',
-    '--strict',
-    '--deep',
-    binaryPath,
-  ])
-  return result.code === 0
-}
-
-async function getSignatureInfo(binaryPath) {
+export async function getSignatureInfo(binaryPath) {
   // codesign outputs to stderr
   const result = await execCommand('codesign', ['-dvvv', binaryPath])
   return result.stderr
 }
 
-async function checkFileLocks(filePath) {
-  try {
-    const { stdout } = await execCommand('lsof', [filePath], { timeout: 5000 })
-    return stdout.trim()
-  } catch {
-    return ''
-  }
-}
-
-async function waitForFileReady(filePath, maxWaitMs = 10_000) {
-  const startTime = Date.now()
-  while (Date.now() - startTime < maxWaitMs) {
-    try {
-      // Try to open the file for reading
-      // eslint-disable-next-line no-await-in-loop
-      const handle = await fs.open(filePath, 'r')
-      // eslint-disable-next-line no-await-in-loop
-      await handle.close()
-
-      // Check for file locks
-      // eslint-disable-next-line no-await-in-loop
-      const locks = await checkFileLocks(filePath)
-      if (locks) {
-        console.log(`  ⚠ File still has open handles: ${locks}`)
-        // eslint-disable-next-line no-await-in-loop
-        await sleep(1000)
-        continue
-      }
-
-      // Long delay to ensure codesign and any background processes complete
-      // macOS codesign can take time to release file handles
-      // eslint-disable-next-line no-await-in-loop
-      await sleep(3000)
-      return true
-    } catch {
-      // File not ready, wait and try again
-      // eslint-disable-next-line no-await-in-loop
-      await sleep(200)
-    }
-  }
-  return false
-}
-
 /**
  * Helper to inject SEA resource and verify signature
  */
-async function injectAndVerify(binaryPath, seaBlob, vfsBlob = null) {
+export async function injectAndVerify(binaryPath, seaBlob, vfsBlob = undefined) {
   const args = ['inject', '-e', binaryPath, '-o', binaryPath, '--sea', seaBlob]
   if (vfsBlob) {
     args.push('--vfs', vfsBlob)
@@ -182,7 +138,7 @@ async function injectAndVerify(binaryPath, seaBlob, vfsBlob = null) {
  * Helper to prepare a test binary
  * Uses Node.js binary as consistent test input (not BINJECT which may vary between builds)
  */
-async function prepareTestBinary(name) {
+export async function prepareTestBinary(name) {
   const binaryPath = path.join(testDir, name)
   // Use process.execPath (Node.js binary) as consistent test input
   await fs.copyFile(process.execPath, binaryPath)
@@ -191,6 +147,50 @@ async function prepareTestBinary(name) {
   expect(originalSigned).toBeTruthy()
 
   return binaryPath
+}
+
+export async function verifySignature(binaryPath) {
+  const result = await execCommand('codesign', [
+    '--verify',
+    '--strict',
+    '--deep',
+    binaryPath,
+  ])
+  return result.code === 0
+}
+
+export async function waitForFileReady(filePath, maxWaitMs = 10_000) {
+  const startTime = Date.now()
+  while (Date.now() - startTime < maxWaitMs) {
+    try {
+      // Try to open the file for reading
+      // eslint-disable-next-line no-await-in-loop
+      const handle = await fs.open(filePath, 'r')
+      // eslint-disable-next-line no-await-in-loop
+      await handle.close()
+
+      // Check for file locks
+      // eslint-disable-next-line no-await-in-loop
+      const locks = await checkFileLocks(filePath)
+      if (locks) {
+        logger.log(`  ⚠ File still has open handles: ${locks}`)
+        // eslint-disable-next-line no-await-in-loop
+        await sleep(1000)
+        continue
+      }
+
+      // Long delay to ensure codesign and any background processes complete
+      // macOS codesign can take time to release file handles
+      // eslint-disable-next-line no-await-in-loop
+      await sleep(3000)
+      return true
+    } catch {
+      // File not ready, wait and try again
+      // eslint-disable-next-line no-await-in-loop
+      await sleep(200)
+    }
+  }
+  return false
 }
 
 describeOnMac('Signature Validation', () => {

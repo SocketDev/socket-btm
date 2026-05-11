@@ -35,67 +35,6 @@ const ANON_CARGO_HOME = '/cargo'
 const ANON_BUILD = '/build'
 
 /**
- * Resolve the canonical path-remap source paths from the current environment.
- * Each entry is `<absolute-path-on-build-host>=<anonymized-prefix>`.
- *
- * Order matters for `-ffile-prefix-map` and `--remap-path-prefix`: the first
- * matching prefix wins, so longer/more-specific paths must come first.
- */
-function getRemapPairs() {
-  const home = os.homedir()
-  const cargoHome = process.env['CARGO_HOME'] || path.join(home, '.cargo')
-  const projectRoot = process.cwd()
-
-  const pairs = []
-  // Cargo registry/cache lives under CARGO_HOME — must remap before $HOME so
-  // the more specific prefix wins.
-  pairs.push([cargoHome, ANON_CARGO_HOME])
-  // The project root is what __FILE__ + DWARF source paths resolve against.
-  // Map it before $HOME so a project under $HOME still gets /build, not /home/...
-  if (projectRoot !== home && !projectRoot.startsWith(cargoHome + path.sep)) {
-    pairs.push([projectRoot, ANON_BUILD])
-  }
-  pairs.push([home, ANON_HOME])
-  return pairs
-}
-
-/**
- * C/C++ flags (-ffile-prefix-map=...). Works with clang, gcc, and Emscripten's
- * em++/emcc. `-ffile-prefix-map` is a superset of `-fdebug-prefix-map` and
- * `-fmacro-prefix-map`, so this single flag covers DWARF source paths and
- * `__FILE__` macro expansions.
- */
-export function getCCRemapFlags() {
-  return getRemapPairs().map(([from, to]) => `-ffile-prefix-map=${from}=${to}`)
-}
-
-/**
- * Rust flags (--remap-path-prefix). Each pair becomes its own `--remap-path-prefix`
- * argument; rustc reads them in order and applies them to source-file paths in
- * DWARF, panic messages, and any path-bearing diagnostics that survive into
- * the binary.
- */
-export function getRustcRemapFlags() {
-  return getRemapPairs().map(
-    ([from, to]) => `--remap-path-prefix=${from}=${to}`,
-  )
-}
-
-/**
- * Encoded RUSTFLAGS for Cargo's CARGO_ENCODED_RUSTFLAGS env var. Cargo expects
- * 0x1f-separated tokens. This form lets us pass flags containing spaces (none
- * of the remap paths do, but stay correct by construction).
- *
- * Pass an optional `extraFlags` array (e.g. perf flags from a Cargo
- * config.toml that we'd otherwise lose by setting RUSTFLAGS) and they're
- * concatenated after the remap flags.
- */
-export function getEncodedRustflags(extraFlags = []) {
-  const all = [...getRustcRemapFlags(), ...extraFlags]
-  return all.join('')
-}
-
-/**
  * Append remap flags to an existing CFLAGS / CXXFLAGS / EMCC_CFLAGS /
  * CGO_CFLAGS env value. Returns the combined string suitable for assignment.
  * If `existing` is empty/undefined, returns just the remap flags.
@@ -133,9 +72,70 @@ export function getCCRemapEnv(existingEnv = process.env) {
 }
 
 /**
+ * C/C++ flags (-ffile-prefix-map=...). Works with clang, gcc, and Emscripten's
+ * em++/emcc. `-ffile-prefix-map` is a superset of `-fdebug-prefix-map` and
+ * `-fmacro-prefix-map`, so this single flag covers DWARF source paths and
+ * `__FILE__` macro expansions.
+ */
+export function getCCRemapFlags() {
+  return getRemapPairs().map(([from, to]) => `-ffile-prefix-map=${from}=${to}`)
+}
+
+/**
  * Make-style space-joined version of the remap flags. Useful for embedding
  * into makefile variables or cmake `-DCMAKE_C_FLAGS=...` arguments.
  */
 export function getCCRemapFlagsString() {
   return getCCRemapFlags().join(' ')
+}
+
+/**
+ * Encoded RUSTFLAGS for Cargo's CARGO_ENCODED_RUSTFLAGS env var. Cargo expects
+ * 0x1f-separated tokens. This form lets us pass flags containing spaces (none
+ * of the remap paths do, but stay correct by construction).
+ *
+ * Pass an optional `extraFlags` array (e.g. perf flags from a Cargo
+ * config.toml that we'd otherwise lose by setting RUSTFLAGS) and they're
+ * concatenated after the remap flags.
+ */
+export function getEncodedRustflags(extraFlags = []) {
+  const all = [...getRustcRemapFlags(), ...extraFlags]
+  return all.join('')
+}
+
+/**
+ * Resolve the canonical path-remap source paths from the current environment.
+ * Each entry is `<absolute-path-on-build-host>=<anonymized-prefix>`.
+ *
+ * Order matters for `-ffile-prefix-map` and `--remap-path-prefix`: the first
+ * matching prefix wins, so longer/more-specific paths must come first.
+ */
+export function getRemapPairs() {
+  const home = os.homedir()
+  const cargoHome = process.env['CARGO_HOME'] || path.join(home, '.cargo')
+  const projectRoot = process.cwd()
+
+  const pairs = []
+  // Cargo registry/cache lives under CARGO_HOME — must remap before $HOME so
+  // the more specific prefix wins.
+  pairs.push([cargoHome, ANON_CARGO_HOME])
+  // The project root is what __FILE__ + DWARF source paths resolve against.
+  // Map it before $HOME so a project under $HOME still gets /build, not /home/...
+  if (projectRoot !== home && !projectRoot.startsWith(cargoHome + path.sep)) {
+    pairs.push([projectRoot, ANON_BUILD])
+  }
+  pairs.push([home, ANON_HOME])
+  return pairs
+}
+
+/**
+ * Rust flags (--remap-path-prefix). Each pair becomes its own `--remap-path-prefix`
+ * argument; rustc reads them in order and applies them to source-file paths in
+ * DWARF, panic messages, and any path-bearing diagnostics that survive into
+ * the binary.
+ */
+export function getRustcRemapFlags() {
+  return getRemapPairs().map(
+    ([from, to]) => `--remap-path-prefix=${from}=${to}`,
+  )
 }

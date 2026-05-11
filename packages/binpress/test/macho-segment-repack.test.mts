@@ -55,41 +55,11 @@ const BINPRESS = path.join(
 const NODE_BINARY = process.execPath
 
 /**
- * Parse Mach-O header and return basic information
- * @param {Buffer} machoData - Mach-O binary data
- * @returns {Object} Mach-O header information
- *
- * Note: We only support little-endian binaries.
- */
-function parseMachoHeader(machoData) {
-  const magic = machoData.readUInt32LE(0)
-
-  const is64bit = magic === MACHO_MAGIC.MH_MAGIC_64
-
-  if (magic !== MACHO_MAGIC.MH_MAGIC_64 && magic !== MACHO_MAGIC.MH_MAGIC) {
-    throw new Error(`Invalid Mach-O magic: 0x${magic.toString(16)}`)
-  }
-
-  const ncmds = machoData.readUInt32LE(MACHO_HEADER_OFFSET.NCMDS)
-  const sizeofcmds = machoData.readUInt32LE(MACHO_HEADER_OFFSET.SIZEOFCMDS)
-  const headerSize = is64bit
-    ? MACHO_HEADER_SIZE.HEADER_64
-    : MACHO_HEADER_SIZE.HEADER_32
-
-  return {
-    headerSize,
-    is64bit,
-    ncmds,
-    sizeofcmds,
-  }
-}
-
-/**
  * Count SMOL segments in Mach-O binary
  * @param {Buffer} machoData - Mach-O binary data
  * @returns {number} Number of SMOL segments
  */
-function countSmolSegments(machoData) {
+export function countSmolSegments(machoData) {
   const header = parseMachoHeader(machoData)
   const { headerSize, is64bit, ncmds } = header
 
@@ -130,7 +100,7 @@ function countSmolSegments(machoData) {
  * @param {Buffer} machoData - Mach-O binary data
  * @returns {Array} Array of SMOL segment info
  */
-function findSmolSegments(machoData) {
+export function findSmolSegments(machoData) {
   const header = parseMachoHeader(machoData)
   const { headerSize, is64bit, ncmds } = header
 
@@ -200,7 +170,7 @@ function findSmolSegments(machoData) {
  * @param {string} marker - Marker string to search for
  * @returns {boolean} True if marker found
  */
-function hasMarkerInSmolSegment(machoData, marker) {
+export function hasMarkerInSmolSegment(machoData, marker) {
   const segments = findSmolSegments(machoData)
   const markerBuffer = Buffer.from(marker, 'utf8')
 
@@ -211,6 +181,36 @@ function hasMarkerInSmolSegment(machoData, marker) {
   }
 
   return false
+}
+
+/**
+ * Parse Mach-O header and return basic information
+ * @param {Buffer} machoData - Mach-O binary data
+ * @returns {Object} Mach-O header information
+ *
+ * Note: We only support little-endian binaries.
+ */
+export function parseMachoHeader(machoData) {
+  const magic = machoData.readUInt32LE(0)
+
+  const is64bit = magic === MACHO_MAGIC.MH_MAGIC_64
+
+  if (magic !== MACHO_MAGIC.MH_MAGIC_64 && magic !== MACHO_MAGIC.MH_MAGIC) {
+    throw new Error(`Invalid Mach-O magic: 0x${magic.toString(16)}`)
+  }
+
+  const ncmds = machoData.readUInt32LE(MACHO_HEADER_OFFSET.NCMDS)
+  const sizeofcmds = machoData.readUInt32LE(MACHO_HEADER_OFFSET.SIZEOFCMDS)
+  const headerSize = is64bit
+    ? MACHO_HEADER_SIZE.HEADER_64
+    : MACHO_HEADER_SIZE.HEADER_32
+
+  return {
+    headerSize,
+    is64bit,
+    ncmds,
+    sizeofcmds,
+  }
 }
 
 // Only run on macOS where Mach-O is native

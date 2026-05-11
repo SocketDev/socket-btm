@@ -14,6 +14,7 @@ import path from 'node:path'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 import { getLatestFinalBinary } from '../paths.mts'
+import { safeDelete } from '@socketsecurity/lib/fs'
 
 const finalBinaryPath = getLatestFinalBinary()
 const skipTests = !finalBinaryPath || !existsSync(finalBinaryPath)
@@ -54,6 +55,6 @@ describe.skipIf(skipTests)('--build-sea flag', () => {
     const stat = await fs.stat(blobFile)
     expect(stat.size).toBeGreaterThan(0)
 
-    await fs.rm(testDir, { recursive: true, force: true })
+    await safeDelete(testDir)
   })
 })

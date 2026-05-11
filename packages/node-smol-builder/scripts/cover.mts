@@ -31,24 +31,7 @@ const PACKAGE_DIR = path.resolve(__dirname, '..')
 const PACKAGES_DIR = path.resolve(__dirname, '../..')
 const C_PACKAGES = ['binject', 'binpress', 'binflate']
 
-async function runCommand(command, args, cwd) {
-  logger.log('')
-  logger.info(`Running: ${command} ${args.join(' ')}`)
-  logger.substep(`Directory: ${cwd}`)
-  logger.log('')
-
-  const result = await spawn(command, args, {
-    cwd,
-    shell: WIN32,
-    stdio: 'inherit',
-  })
-
-  if (result.code !== 0) {
-    throw new Error(`Command failed with exit code ${result.code}`)
-  }
-}
-
-async function runCCoverageForPackage(packageName) {
+export async function runCCoverageForPackage(packageName) {
   const packagePath = path.join(PACKAGES_DIR, packageName)
 
   if (!existsSync(packagePath)) {
@@ -85,7 +68,24 @@ async function runCCoverageForPackage(packageName) {
   }
 }
 
-async function runVitestCoverage() {
+export async function runCommand(command, args, cwd) {
+  logger.log('')
+  logger.info(`Running: ${command} ${args.join(' ')}`)
+  logger.substep(`Directory: ${cwd}`)
+  logger.log('')
+
+  const result = await spawn(command, args, {
+    cwd,
+    shell: WIN32,
+    stdio: 'inherit',
+  })
+
+  if (result.code !== 0) {
+    throw new Error(`Command failed with exit code ${result.code}`)
+  }
+}
+
+export async function runVitestCoverage() {
   logger.log('')
   logger.step('Running vitest coverage for node-smol-builder')
   try {

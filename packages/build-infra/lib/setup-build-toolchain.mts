@@ -64,93 +64,6 @@ export function createSetupToolchain(config) {
 }
 
 /**
- * macOS setup
- */
-async function setupDarwin(config, packageRoot, logger) {
-  const tools = config.darwin || ['clang', 'make']
-
-  logger.log('Installing macOS build dependencies...')
-
-  const { failed, installed } = await installTools(tools, {
-    packageRoot,
-    skipVersionPin: true,
-  })
-
-  if (failed.length > 0) {
-    logger.warn(`Failed to install: ${failed.join(', ')}`)
-    logger.info('Install manually:')
-    logger.info('  xcode-select --install  # For clang/clang++')
-    if (tools.some(t => !['clang', 'clang++'].includes(t))) {
-      const brewTools = tools.filter(t => !['clang', 'clang++'].includes(t))
-      logger.info(`  brew install ${brewTools.join(' ')}`)
-    }
-    return false
-  }
-
-  logger.success(`Installed: ${installed.join(', ')}`)
-  if (config.darwinNote) {
-    logger.info(config.darwinNote)
-  }
-  return true
-}
-
-/**
- * Linux setup
- */
-async function setupLinux(config, packageRoot, logger) {
-  const tools = config.linux || ['gcc', 'make']
-
-  logger.log('Installing Linux build dependencies...')
-  updatePackageCache()
-
-  const { failed, installed } = await installTools(tools, {
-    packageRoot,
-  })
-
-  if (failed.length > 0) {
-    logger.error(`Failed to install: ${failed.join(', ')}`)
-    logger.info(
-      'You may need to install these manually. See packages/build-infra/docs/prerequisites.md',
-    )
-    return false
-  }
-
-  logger.success(`Installed: ${installed.join(', ')}`)
-  if (config.linuxNote) {
-    logger.info(config.linuxNote)
-  }
-  return true
-}
-
-/**
- * Windows setup
- */
-async function setupWindows(config, packageRoot, logger) {
-  const tools = config.win32 || ['mingw-w64', 'make']
-
-  logger.log('Installing Windows build dependencies...')
-
-  const { failed, installed } = await installTools(tools, {
-    packageRoot,
-  })
-
-  if (failed.length > 0) {
-    logger.error(`Failed to install: ${failed.join(', ')}`)
-    logger.info('Install manually:')
-    logger.info(`  choco install ${tools.join(' ')}`)
-    logger.info('  -or-')
-    logger.info(`  scoop install ${tools.join(' ')}`)
-    return false
-  }
-
-  logger.success(`Installed: ${installed.join(', ')}`)
-  if (config.win32Note) {
-    logger.info(config.win32Note)
-  }
-  return true
-}
-
-/**
  * Check if running in CI environment.
  * Thin re-export of @socketsecurity/lib's getCI() so the 6 packages that
  * already import isCI from here keep working without churn.
@@ -204,4 +117,91 @@ export async function runSetupToolchain(options) {
     logger.error(errorMessage(e))
     process.exitCode = 1
   }
+}
+
+/**
+ * macOS setup
+ */
+export async function setupDarwin(config, packageRoot, logger) {
+  const tools = config.darwin || ['clang', 'make']
+
+  logger.log('Installing macOS build dependencies...')
+
+  const { failed, installed } = await installTools(tools, {
+    packageRoot,
+    skipVersionPin: true,
+  })
+
+  if (failed.length > 0) {
+    logger.warn(`Failed to install: ${failed.join(', ')}`)
+    logger.info('Install manually:')
+    logger.info('  xcode-select --install  # For clang/clang++')
+    if (tools.some(t => !['clang', 'clang++'].includes(t))) {
+      const brewTools = tools.filter(t => !['clang', 'clang++'].includes(t))
+      logger.info(`  brew install ${brewTools.join(' ')}`)
+    }
+    return false
+  }
+
+  logger.success(`Installed: ${installed.join(', ')}`)
+  if (config.darwinNote) {
+    logger.info(config.darwinNote)
+  }
+  return true
+}
+
+/**
+ * Linux setup
+ */
+export async function setupLinux(config, packageRoot, logger) {
+  const tools = config.linux || ['gcc', 'make']
+
+  logger.log('Installing Linux build dependencies...')
+  updatePackageCache()
+
+  const { failed, installed } = await installTools(tools, {
+    packageRoot,
+  })
+
+  if (failed.length > 0) {
+    logger.error(`Failed to install: ${failed.join(', ')}`)
+    logger.info(
+      'You may need to install these manually. See packages/build-infra/docs/prerequisites.md',
+    )
+    return false
+  }
+
+  logger.success(`Installed: ${installed.join(', ')}`)
+  if (config.linuxNote) {
+    logger.info(config.linuxNote)
+  }
+  return true
+}
+
+/**
+ * Windows setup
+ */
+export async function setupWindows(config, packageRoot, logger) {
+  const tools = config.win32 || ['mingw-w64', 'make']
+
+  logger.log('Installing Windows build dependencies...')
+
+  const { failed, installed } = await installTools(tools, {
+    packageRoot,
+  })
+
+  if (failed.length > 0) {
+    logger.error(`Failed to install: ${failed.join(', ')}`)
+    logger.info('Install manually:')
+    logger.info(`  choco install ${tools.join(' ')}`)
+    logger.info('  -or-')
+    logger.info(`  scoop install ${tools.join(' ')}`)
+    return false
+  }
+
+  logger.success(`Installed: ${installed.join(', ')}`)
+  if (config.win32Note) {
+    logger.info(config.win32Note)
+  }
+  return true
 }

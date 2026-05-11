@@ -52,7 +52,7 @@ const NODE_BINARY = process.execPath
 let testDir: string
 let testBinary: string
 
-async function execCommand(command, args = [], options = {}) {
+export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {
     const spawnPromise = spawn(command, args, {
       ...options,
@@ -87,7 +87,7 @@ async function execCommand(command, args = [], options = {}) {
 /**
  * Parse Mach-O segments from binary data
  */
-function parseMachoSegments(binaryData) {
+export function parseMachoSegments(binaryData) {
   const segments = []
 
   // Mach-O magic numbers

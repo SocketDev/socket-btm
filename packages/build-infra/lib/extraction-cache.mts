@@ -18,80 +18,6 @@ const { getDefaultLogger } = loggerPkg
 const logger = getDefaultLogger()
 
 /**
- * Check if extraction is needed based on source content hash.
- *
- * Compares the SHA256 hash of the source file(s) against the hash
- * stored in the output file. Returns true if extraction is needed.
- *
- * @param {object} options - Extraction cache options
- * @param {string|string[]} options.sourcePaths - Source file path(s) to hash
- * @param {string} options.outputPath - Output file path to check
- * @param {RegExp} options.hashPattern - Pattern to extract hash from output (default: /Source hash: ([a-f0-9]{64})/)
- * @param {function} [options.validateOutput] - Optional function to validate output content
- * @returns {Promise<boolean>} True if extraction needed, false if cached
- */
-export async function shouldExtract({
-  hashPattern = /Source hash: ([a-f0-9]{64})/,
-  outputPath,
-  sourcePaths,
-  validateOutput,
-}) {
-  // Normalize to array.
-  const sources = Array.isArray(sourcePaths) ? sourcePaths : [sourcePaths]
-
-  // Check if output exists.
-  if (!existsSync(outputPath)) {
-    return true
-  }
-
-  // Check if all sources exist.
-  for (const sourcePath of sources) {
-    if (!existsSync(sourcePath)) {
-      return true
-    }
-  }
-
-  try {
-    const existing = readFileSync(outputPath, 'utf8')
-
-    // Validate output if validator provided.
-    if (validateOutput && !validateOutput(existing)) {
-      return true
-    }
-
-    // Extract cached hash from output.
-    const hashMatch = existing.match(hashPattern)
-    if (!hashMatch) {
-      return true
-    }
-
-    const cachedSourceHash = hashMatch[1]
-    if (!cachedSourceHash) {
-      // Regex matched but capture group missing - this is a programmer error
-      throw new Error(
-        'Cache hash pattern matched but capture group is missing. ' +
-          `Pattern: ${hashPattern} | Match: ${hashMatch[0] ?? 'undefined'}`,
-      )
-    }
-
-    // Compute current source hash.
-    const currentSourceHash = computeSourceHash(sources)
-
-    // Compare hashes.
-    if (cachedSourceHash !== currentSourceHash) {
-      return true
-    }
-
-    // Cache hit!
-    logger.success(`Using cached ${outputPath}`)
-    return false
-  } catch {
-    // Any error, regenerate.
-    return true
-  }
-}
-
-/**
  * Iteratively collect all files from a directory.
  * Uses a stack-based approach to avoid recursion limits on deep directories.
  *
@@ -101,7 +27,7 @@ export async function shouldExtract({
  * @param {string} dirPath - Directory path
  * @returns {string[]} Array of file paths
  */
-function collectFiles(dirPath) {
+export function collectFiles(dirPath) {
   const files = []
   const stack = [dirPath]
 
@@ -272,6 +198,15 @@ export function computeSourceHash(sourcePaths, platformMetadata, options) {
 }
 
 /**
+ * Ensure output directory exists.
+ *
+ * @param {string} outputPath - Output file path
+ */
+export function ensureOutputDir(outputPath) {
+  safeMkdirSync(path.dirname(outputPath))
+}
+
+/**
  * Generate source hash comment for embedding in output.
  *
  * @param {string|string[]} sourcePaths - Source file path(s)
@@ -284,10 +219,75 @@ export function generateHashComment(sourcePaths) {
 }
 
 /**
- * Ensure output directory exists.
+ * Check if extraction is needed based on source content hash.
  *
- * @param {string} outputPath - Output file path
+ * Compares the SHA256 hash of the source file(s) against the hash
+ * stored in the output file. Returns true if extraction is needed.
+ *
+ * @param {object} options - Extraction cache options
+ * @param {string|string[]} options.sourcePaths - Source file path(s) to hash
+ * @param {string} options.outputPath - Output file path to check
+ * @param {RegExp} options.hashPattern - Pattern to extract hash from output (default: /Source hash: ([a-f0-9]{64})/)
+ * @param {function} [options.validateOutput] - Optional function to validate output content
+ * @returns {Promise<boolean>} True if extraction needed, false if cached
  */
-export function ensureOutputDir(outputPath) {
-  safeMkdirSync(path.dirname(outputPath))
+export async function shouldExtract({
+  hashPattern = /Source hash: ([a-f0-9]{64})/,
+  outputPath,
+  sourcePaths,
+  validateOutput,
+}) {
+  // Normalize to array.
+  const sources = Array.isArray(sourcePaths) ? sourcePaths : [sourcePaths]
+
+  // Check if output exists.
+  if (!existsSync(outputPath)) {
+    return true
+  }
+
+  // Check if all sources exist.
+  for (const sourcePath of sources) {
+    if (!existsSync(sourcePath)) {
+      return true
+    }
+  }
+
+  try {
+    const existing = readFileSync(outputPath, 'utf8')
+
+    // Validate output if validator provided.
+    if (validateOutput && !validateOutput(existing)) {
+      return true
+    }
+
+    // Extract cached hash from output.
+    const hashMatch = existing.match(hashPattern)
+    if (!hashMatch) {
+      return true
+    }
+
+    const cachedSourceHash = hashMatch[1]
+    if (!cachedSourceHash) {
+      // Regex matched but capture group missing - this is a programmer error
+      throw new Error(
+        'Cache hash pattern matched but capture group is missing. ' +
+          `Pattern: ${hashPattern} | Match: ${hashMatch[0] ?? 'undefined'}`,
+      )
+    }
+
+    // Compute current source hash.
+    const currentSourceHash = computeSourceHash(sources)
+
+    // Compare hashes.
+    if (cachedSourceHash !== currentSourceHash) {
+      return true
+    }
+
+    // Cache hit!
+    logger.success(`Using cached ${outputPath}`)
+    return false
+  } catch {
+    // Any error, regenerate.
+    return true
+  }
 }

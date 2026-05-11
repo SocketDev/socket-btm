@@ -216,7 +216,7 @@ const RETRY_DELAY_MS = 1000
  * @param {string} filePath - Path to file
  * @returns {Promise<string>} Hex-encoded SHA256 hash
  */
-async function computeFileSha256(filePath) {
+export async function computeFileSha256(filePath) {
   const hash = crypto.createHash('sha256')
   const stream = createReadStream(filePath)
 
@@ -240,7 +240,7 @@ async function computeFileSha256(filePath) {
  * @param {string} expectedHash - Expected SHA256 hash (hex)
  * @returns {Promise<boolean>} True if hash matches
  */
-async function verifyFileSha256(filePath, expectedHash) {
+export async function verifyFileSha256(filePath, expectedHash) {
   const actualHash = await computeFileSha256(filePath)
   return actualHash.toLowerCase() === expectedHash.toLowerCase()
 }
@@ -255,7 +255,7 @@ async function verifyFileSha256(filePath, expectedHash) {
  * @param {number} [options.retries] - Max retries (default: 3)
  * @returns {Promise<void>}
  */
-async function downloadFile(url, destPath, options = {}) {
+export async function downloadFile(url, destPath, options = {}) {
   const timeout = options.timeout ?? DOWNLOAD_TIMEOUT_MS
   const maxRetries = options.retries ?? MAX_RETRIES
 
@@ -277,7 +277,7 @@ async function downloadFile(url, destPath, options = {}) {
  * @param {string} destDir - Destination directory
  * @returns {Promise<void>}
  */
-async function extractArchive(archivePath, destDir) {
+export async function extractArchive(archivePath, destDir) {
   await fs.mkdir(destDir, { recursive: true })
 
   if (archivePath.endsWith('.zip')) {

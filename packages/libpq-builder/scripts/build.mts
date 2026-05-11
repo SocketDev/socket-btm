@@ -70,7 +70,7 @@ const TARGET_ARCH = process.env.TARGET_ARCH || process.arch
  * @param {string} platformArch - Platform-arch identifier.
  * @returns {{ buildDir: string, libpqBuildDir: string }}
  */
-function getBuildDirs(platformArch) {
+export function getBuildDirs(platformArch) {
   const buildDir = getPlatformBuildDir(packageRoot, platformArch)
   const libpqBuildDir = path.join(buildDir, 'out', BUILD_STAGES.FINAL, 'libpq')
   return { buildDir, libpqBuildDir }
@@ -99,7 +99,7 @@ export function libpqExistsAt(dir) {
  * @param {string} assetName - Asset name for checksum lookup.
  * @returns {Promise<{valid: boolean, expected?: string, actual?: string, skipped?: boolean}>}
  */
-async function verifyArchiveChecksum(archivePath, assetName) {
+export async function verifyArchiveChecksum(archivePath, assetName) {
   return verifyReleaseChecksum({
     assetName,
     filePath: archivePath,
@@ -305,7 +305,7 @@ const POSTGRES_VERSION = getPostgresVersion()
  * Extract PostgreSQL version from .gitmodules comment.
  * @returns {string} PostgreSQL version (e.g., "16.6")
  */
-function getPostgresVersion() {
+export function getPostgresVersion() {
   try {
     const version = getSubmoduleVersion(
       'packages/libpq-builder/upstream/postgres',
@@ -319,7 +319,7 @@ function getPostgresVersion() {
   }
 }
 
-async function runCommand(command, args, cwd, env = {}) {
+export async function runCommand(command, args, cwd, env = {}) {
   logger.info(`Running: ${command} ${args.join(' ')}`)
 
   // Merge env properly, filtering out undefined values.
@@ -357,7 +357,7 @@ async function runCommand(command, args, cwd, env = {}) {
  *
  * @returns {{ includeDir: string, libDir: string }} OpenSSL paths
  */
-function getNodeOpenSSLPaths() {
+export function getNodeOpenSSLPaths() {
   // Node.js OpenSSL is in node-smol-builder's upstream
   const nodeUpstream = path.join(
     packageRoot,
@@ -389,7 +389,7 @@ function getNodeOpenSSLPaths() {
  * tree doesn't carry built libs yet. Returns undefined when nothing
  * works so configure can auto-probe.
  */
-function getOpenSSLPaths() {
+export function getOpenSSLPaths() {
   const candidates = []
   candidates.push(getNodeOpenSSLPaths())
   if (process.platform === 'darwin') {
@@ -436,7 +436,7 @@ function getOpenSSLPaths() {
  *
  * @param {string} libpqBuildDir - Directory to build libpq in.
  */
-async function buildLibpq(libpqBuildDir) {
+export async function buildLibpq(libpqBuildDir) {
   logger.info('Building libpq from PostgreSQL source...')
 
   // Check if PostgreSQL upstream exists.
@@ -578,7 +578,7 @@ async function buildLibpq(libpqBuildDir) {
  *
  * @param {string} libpqBuildDir - Directory containing libpq build.
  */
-async function copyDistributionFiles(libpqBuildDir) {
+export async function copyDistributionFiles(libpqBuildDir) {
   const distDir = path.join(libpqBuildDir, 'dist')
   await safeMkdir(distDir)
   await safeMkdir(path.join(distDir, 'include'))

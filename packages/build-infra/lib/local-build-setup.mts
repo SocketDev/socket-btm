@@ -68,133 +68,88 @@ export const ALL_TARGETS = [
 ]
 
 /**
- * Map target to Docker image tag.
- *
- * @param {string} target - Build target (e.g., 'linux-x64-glibc')
- * @returns {string|undefined} Docker image tag or undefined if not Docker-buildable
- */
-export function getBuilderImageTag(target) {
-  return BUILDER_IMAGE_TAGS[target]
-}
-
-/**
- * Map target to docker-compose service name.
+ * Build a specific builder image.
  *
  * @param {string} target - Build target
- * @returns {string|undefined} Service name or undefined
- */
-export function getComposeServiceName(target) {
-  return COMPOSE_SERVICE_NAMES[target]
-}
-
-/**
- * Check if Docker is available.
- *
+ * @param {object} options - Build options
+ * @param {boolean} options.force - Force rebuild even if image exists
  * @returns {Promise<boolean>}
  */
-export async function isDockerAvailable() {
-  try {
-    const result = await spawn('docker', ['--version'], {
-      shell: WIN32,
-      stdio: 'pipe',
-    })
-    return result.code === 0
-  } catch {
-    return false
-  }
-}
-
-/**
- * Check if Docker daemon is running.
- *
- * @returns {Promise<boolean>}
- */
-export async function isDockerRunning() {
-  try {
-    const result = await spawn('docker', ['info'], {
-      shell: WIN32,
-      stdio: 'pipe',
-    })
-    return result.code === 0
-  } catch {
-    return false
-  }
-}
-
-/**
- * Check if Docker Buildx is available.
- *
- * @returns {Promise<boolean>}
- */
-export async function isBuildxAvailable() {
-  try {
-    const result = await spawn('docker', ['buildx', 'version'], {
-      shell: WIN32,
-      stdio: 'pipe',
-    })
-    return result.code === 0
-  } catch {
-    return false
-  }
-}
-
-/**
- * Check if a builder image exists locally.
- *
- * @param {string} target - Build target
- * @returns {Promise<boolean>}
- */
-export async function hasBuilderImage(target) {
+export async function buildBuilderImage(target, options = {}) {
+  const { force = false } = options
+  const serviceName = getComposeServiceName(target)
   const imageTag = getBuilderImageTag(target)
-  if (!imageTag) {
+
+  if (!serviceName || !imageTag) {
+    printError(`Unknown target: ${target}`)
     return false
   }
 
-  try {
-    const result = await spawn('docker', ['image', 'inspect', imageTag], {
-      shell: WIN32,
-      stdio: 'pipe',
-    })
-    return result.code === 0
-  } catch {
-    return false
+  // Check if image already exists
+  if (!force && (await hasBuilderImage(target))) {
+    printInfo(`Image ${imageTag} already exists (use --force to rebuild)`)
+    return true
   }
-}
 
-/**
- * Setup QEMU emulation for cross-architecture builds.
- * This allows building arm64 images on x64 hosts and vice versa.
- *
- * @returns {Promise<boolean>} True if setup succeeded
- */
-export async function setupQemuEmulation() {
-  printInfo('Setting up QEMU emulation for cross-architecture builds...')
+  printInfo(`Building ${imageTag}...`)
 
   try {
-    // Use tonistiigi/binfmt to install QEMU handlers
     const result = await spawn(
       'docker',
-      ['run', '--privileged', '--rm', 'tonistiigi/binfmt', '--install', 'all'],
+      ['compose', '-f', 'docker-compose.yml', 'build', serviceName],
       {
+        cwd: DOCKER_DIR,
         shell: WIN32,
-        stdio: 'pipe',
+        stdio: 'inherit',
       },
     )
 
     if (result.code === 0) {
-      printSuccess('QEMU emulation configured')
+      printSuccess(`Built ${imageTag}`)
       return true
     }
 
-    printError('Failed to setup QEMU emulation')
-    if (result.stderr) {
-      logger.fail(result.stderr.toString?.() ?? String(result.stderr))
-    }
+    printError(`Failed to build ${imageTag}`)
     return false
   } catch (e) {
-    printError(`QEMU setup error: ${errorMessage(e)}`)
+    printError(`Build error: ${errorMessage(e)}`)
     return false
   }
+}
+
+/**
+ * Check Docker setup requirements.
+ *
+ * @returns {Promise<{ok: boolean, errors: string[]}>}
+ */
+export async function checkDockerSetup() {
+  const errors = []
+
+  // Check Docker is installed
+  if (!(await isDockerAvailable())) {
+    errors.push(
+      'Docker is not installed. Install Docker Desktop (macOS/Windows) or Docker Engine (Linux).',
+    )
+    return { errors, ok: false }
+  }
+
+  // Check Docker daemon is running
+  if (!(await isDockerRunning())) {
+    errors.push(
+      'Docker daemon is not running. Start Docker Desktop or the docker service.',
+    )
+    return { errors, ok: false }
+  }
+
+  // Check buildx is available
+  if (!(await isBuildxAvailable())) {
+    errors.push(
+      'Docker Buildx is not available. Update Docker or enable buildx plugin.',
+    )
+    return { errors, ok: false }
+  }
+
+  return { errors, ok: true }
 }
 
 /**
@@ -263,78 +218,105 @@ export async function ensureBuildxBuilder() {
 }
 
 /**
- * Build a specific builder image.
+ * Determine build strategy for a target.
  *
  * @param {string} target - Build target
- * @param {object} options - Build options
- * @param {boolean} options.force - Force rebuild even if image exists
- * @returns {Promise<boolean>}
+ * @returns {'native' | 'docker' | 'download'}
  */
-export async function buildBuilderImage(target, options = {}) {
-  const { force = false } = options
-  const serviceName = getComposeServiceName(target)
-  const imageTag = getBuilderImageTag(target)
+export function getBuildStrategy(target) {
+  const { arch, platform } = getHostInfo()
 
-  if (!serviceName || !imageTag) {
-    printError(`Unknown target: ${target}`)
-    return false
-  }
+  // Parse target (expects format: platform-arch or platform-arch-libc)
+  const parts = target.split('-')
+  const targetPlatform = parts[0] || ''
+  const targetArch = parts[1] || ''
 
-  // Check if image already exists
-  if (!force && (await hasBuilderImage(target))) {
-    printInfo(`Image ${imageTag} already exists (use --force to rebuild)`)
-    return true
-  }
-
-  printInfo(`Building ${imageTag}...`)
-
-  try {
-    const result = await spawn(
-      'docker',
-      ['compose', '-f', 'docker-compose.yml', 'build', serviceName],
-      {
-        cwd: DOCKER_DIR,
-        shell: WIN32,
-        stdio: 'inherit',
-      },
-    )
-
-    if (result.code === 0) {
-      printSuccess(`Built ${imageTag}`)
-      return true
+  // Native build if platform and arch match
+  if (targetPlatform === platform) {
+    // For Linux, allow native build on matching arch
+    if (platform === 'linux' && targetArch === arch) {
+      return 'native'
     }
-
-    printError(`Failed to build ${imageTag}`)
-    return false
-  } catch (e) {
-    printError(`Build error: ${errorMessage(e)}`)
-    return false
+    // For macOS/Windows, must match arch exactly
+    if (platform !== 'linux' && targetArch === arch) {
+      return 'native'
+    }
+    // Windows can cross-compile arm64 on x64
+    if (platform === 'win32' && arch === 'x64' && targetArch === 'arm64') {
+      return 'native'
+    }
   }
+
+  // Docker build for Linux targets (from any host)
+  if (LINUX_TARGETS.includes(target)) {
+    return 'docker'
+  }
+
+  // Download pre-built for everything else
+  return 'download'
 }
 
 /**
- * Verify a builder image works correctly.
+ * Map target to Docker image tag.
+ *
+ * @param {string} target - Build target (e.g., 'linux-x64-glibc')
+ * @returns {string|undefined} Docker image tag or undefined if not Docker-buildable
+ */
+export function getBuilderImageTag(target) {
+  return BUILDER_IMAGE_TAGS[target]
+}
+
+/**
+ * Map target to docker-compose service name.
+ *
+ * @param {string} target - Build target
+ * @returns {string|undefined} Service name or undefined
+ */
+export function getComposeServiceName(target) {
+  return COMPOSE_SERVICE_NAMES[target]
+}
+
+/**
+ * Get current host information.
+ *
+ * @returns {{platform: string, arch: string, target: string|undefined}}
+ */
+export function getHostInfo() {
+  const platform = getPlatform()
+  const arch = getArch()
+
+  // Determine the native target for this host
+  let target
+  if (platform === 'linux') {
+    // For Linux, we'd need to detect glibc vs musl
+    // Default to glibc as it's more common
+    target = `linux-${arch}-glibc`
+  } else if (platform === 'darwin') {
+    target = `darwin-${arch}`
+  } else if (platform === 'win32') {
+    target = `win32-${arch}`
+  }
+
+  return { arch, platform, target }
+}
+
+/**
+ * Check if a builder image exists locally.
  *
  * @param {string} target - Build target
  * @returns {Promise<boolean>}
  */
-export async function verifyBuilderImage(target) {
+export async function hasBuilderImage(target) {
   const imageTag = getBuilderImageTag(target)
   if (!imageTag) {
     return false
   }
 
   try {
-    // Run a simple test command in the container
-    const result = await spawn(
-      'docker',
-      ['run', '--rm', imageTag, 'sh', '-c', 'node --version && pnpm --version'],
-      {
-        shell: WIN32,
-        stdio: 'pipe',
-      },
-    )
-
+    const result = await spawn('docker', ['image', 'inspect', imageTag], {
+      shell: WIN32,
+      stdio: 'pipe',
+    })
     return result.code === 0
   } catch {
     return false
@@ -342,38 +324,54 @@ export async function verifyBuilderImage(target) {
 }
 
 /**
- * Check Docker setup requirements.
+ * Check if Docker Buildx is available.
  *
- * @returns {Promise<{ok: boolean, errors: string[]}>}
+ * @returns {Promise<boolean>}
  */
-export async function checkDockerSetup() {
-  const errors = []
-
-  // Check Docker is installed
-  if (!(await isDockerAvailable())) {
-    errors.push(
-      'Docker is not installed. Install Docker Desktop (macOS/Windows) or Docker Engine (Linux).',
-    )
-    return { errors, ok: false }
+export async function isBuildxAvailable() {
+  try {
+    const result = await spawn('docker', ['buildx', 'version'], {
+      shell: WIN32,
+      stdio: 'pipe',
+    })
+    return result.code === 0
+  } catch {
+    return false
   }
+}
 
-  // Check Docker daemon is running
-  if (!(await isDockerRunning())) {
-    errors.push(
-      'Docker daemon is not running. Start Docker Desktop or the docker service.',
-    )
-    return { errors, ok: false }
+/**
+ * Check if Docker is available.
+ *
+ * @returns {Promise<boolean>}
+ */
+export async function isDockerAvailable() {
+  try {
+    const result = await spawn('docker', ['--version'], {
+      shell: WIN32,
+      stdio: 'pipe',
+    })
+    return result.code === 0
+  } catch {
+    return false
   }
+}
 
-  // Check buildx is available
-  if (!(await isBuildxAvailable())) {
-    errors.push(
-      'Docker Buildx is not available. Update Docker or enable buildx plugin.',
-    )
-    return { errors, ok: false }
+/**
+ * Check if Docker daemon is running.
+ *
+ * @returns {Promise<boolean>}
+ */
+export async function isDockerRunning() {
+  try {
+    const result = await spawn('docker', ['info'], {
+      shell: WIN32,
+      stdio: 'pipe',
+    })
+    return result.code === 0
+  } catch {
+    return false
   }
-
-  return { errors, ok: true }
 }
 
 /**
@@ -463,64 +461,66 @@ export async function setupDockerBuilds(options = {}) {
 }
 
 /**
- * Get current host information.
+ * Setup QEMU emulation for cross-architecture builds.
+ * This allows building arm64 images on x64 hosts and vice versa.
  *
- * @returns {{platform: string, arch: string, target: string|undefined}}
+ * @returns {Promise<boolean>} True if setup succeeded
  */
-export function getHostInfo() {
-  const platform = getPlatform()
-  const arch = getArch()
+export async function setupQemuEmulation() {
+  printInfo('Setting up QEMU emulation for cross-architecture builds...')
 
-  // Determine the native target for this host
-  let target
-  if (platform === 'linux') {
-    // For Linux, we'd need to detect glibc vs musl
-    // Default to glibc as it's more common
-    target = `linux-${arch}-glibc`
-  } else if (platform === 'darwin') {
-    target = `darwin-${arch}`
-  } else if (platform === 'win32') {
-    target = `win32-${arch}`
+  try {
+    // Use tonistiigi/binfmt to install QEMU handlers
+    const result = await spawn(
+      'docker',
+      ['run', '--privileged', '--rm', 'tonistiigi/binfmt', '--install', 'all'],
+      {
+        shell: WIN32,
+        stdio: 'pipe',
+      },
+    )
+
+    if (result.code === 0) {
+      printSuccess('QEMU emulation configured')
+      return true
+    }
+
+    printError('Failed to setup QEMU emulation')
+    if (result.stderr) {
+      logger.fail(result.stderr.toString?.() ?? String(result.stderr))
+    }
+    return false
+  } catch (e) {
+    printError(`QEMU setup error: ${errorMessage(e)}`)
+    return false
   }
-
-  return { arch, platform, target }
 }
 
 /**
- * Determine build strategy for a target.
+ * Verify a builder image works correctly.
  *
  * @param {string} target - Build target
- * @returns {'native' | 'docker' | 'download'}
+ * @returns {Promise<boolean>}
  */
-export function getBuildStrategy(target) {
-  const { arch, platform } = getHostInfo()
-
-  // Parse target (expects format: platform-arch or platform-arch-libc)
-  const parts = target.split('-')
-  const targetPlatform = parts[0] || ''
-  const targetArch = parts[1] || ''
-
-  // Native build if platform and arch match
-  if (targetPlatform === platform) {
-    // For Linux, allow native build on matching arch
-    if (platform === 'linux' && targetArch === arch) {
-      return 'native'
-    }
-    // For macOS/Windows, must match arch exactly
-    if (platform !== 'linux' && targetArch === arch) {
-      return 'native'
-    }
-    // Windows can cross-compile arm64 on x64
-    if (platform === 'win32' && arch === 'x64' && targetArch === 'arm64') {
-      return 'native'
-    }
+export async function verifyBuilderImage(target) {
+  const imageTag = getBuilderImageTag(target)
+  if (!imageTag) {
+    return false
   }
 
-  // Docker build for Linux targets (from any host)
-  if (LINUX_TARGETS.includes(target)) {
-    return 'docker'
-  }
+  try {
+    // Run a simple test command in the container
+    const result = await spawn(
+      'docker',
+      ['run', '--rm', imageTag, 'sh', '-c', 'node --version && pnpm --version'],
+      {
+        shell: WIN32,
+        stdio: 'pipe',
+      },
+    )
 
-  // Download pre-built for everything else
-  return 'download'
+    return result.code === 0
+  } catch {
+    return false
+  }
 }

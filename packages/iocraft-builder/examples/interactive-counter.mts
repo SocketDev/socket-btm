@@ -38,7 +38,7 @@ const state = {
 // UI Component Tree Builder
 // ============================================================================
 
-function buildUI() {
+export function buildUI() {
   const counter = state.counter.get()
   const lastEvent = state.lastEvent.get()
   const renderCount = state.renderCount.get()
@@ -165,7 +165,7 @@ function buildUI() {
 // Event Handler
 // ============================================================================
 
-function handleEvent(event, renderer) {
+export function handleEvent(event, renderer) {
   // Update last event for display
   let eventDesc = 'Unknown'
 

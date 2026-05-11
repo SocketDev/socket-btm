@@ -31,85 +31,13 @@ export const COMPILER_REQUIREMENTS = {
 }
 
 /**
- * Parse semantic version string.
- *
- * @param {string} versionString - Version string (e.g., "12.2.0", "11.4.0-1ubuntu1~22.04")
- * @returns {{major: number, minor: number, patch: number}|undefined}
- */
-function parseVersion(versionString) {
-  const match = versionString.match(/(\d+)\.(\d+)\.(\d+)/)
-  if (!match) {
-    return undefined
-  }
-
-  return {
-    major: Number.parseInt(match[1], 10),
-    minor: Number.parseInt(match[2], 10),
-    patch: Number.parseInt(match[3], 10),
-  }
-}
-
-/**
- * Compare two semantic versions. Returns NaN when either side fails to
- * parse — callers must treat NaN as "cannot satisfy requirement" rather
- * than relying on the old 0-fallback, which made `>= 0` silently pass
- * every unparseable input.
- *
- * @param {string} version1 - First version
- * @param {string} version2 - Second version
- * @returns {number} -1 if v1 < v2, 0 if equal, 1 if v1 > v2, NaN on parse failure
- */
-function compareVersions(version1, version2) {
-  const v1 = parseVersion(version1)
-  const v2 = parseVersion(version2)
-
-  if (!v1 || !v2) {
-    return Number.NaN
-  }
-
-  if (v1.major !== v2.major) {
-    return v1.major < v2.major ? -1 : 1
-  }
-  if (v1.minor !== v2.minor) {
-    return v1.minor < v2.minor ? -1 : 1
-  }
-  if (v1.patch !== v2.patch) {
-    return v1.patch < v2.patch ? -1 : 1
-  }
-
-  return 0
-}
-
-/**
- * Get GCC version.
- *
- * @param {string} gccPath - Path to GCC binary (default: 'gcc')
- * @returns {Promise<string|undefined>} Version string or undefined if not found
- */
-async function getGccVersion(gccPath = 'gcc') {
-  try {
-    const result = await spawn(gccPath, ['--version'], {})
-
-    if (result.code !== 0) {
-      return undefined
-    }
-
-    const stdout = result.stdout?.toString() || ''
-    const match = stdout.match(/gcc.*?(\d+\.\d+\.\d+)/)
-    return match ? match[1] : undefined
-  } catch {
-    return undefined
-  }
-}
-
-/**
  * Check if GCC version meets minimum requirements.
  *
  * @param {string} gccPath - Path to GCC binary
  * @param {string} minVersion - Minimum required version
  * @returns {Promise<{installed: boolean, version: string|undefined, meetsRequirements: boolean}>}
  */
-async function checkGccVersion(gccPath, minVersion) {
+export async function checkGccVersion(gccPath, minVersion) {
   const version = await getGccVersion(gccPath)
 
   if (!version) {
@@ -133,79 +61,34 @@ async function checkGccVersion(gccPath, minVersion) {
 }
 
 /**
- * Install GCC on Linux using apt.
+ * Compare two semantic versions. Returns NaN when either side fails to
+ * parse — callers must treat NaN as "cannot satisfy requirement" rather
+ * than relying on the old 0-fallback, which made `>= 0` silently pass
+ * every unparseable input.
  *
- * @param {string} version - GCC major version (e.g., '12')
- * @returns {Promise<boolean>} True if installation succeeded
+ * @param {string} version1 - First version
+ * @param {string} version2 - Second version
+ * @returns {number} -1 if v1 < v2, 0 if equal, 1 if v1 > v2, NaN on parse failure
  */
-async function installGccApt(version) {
-  const gccPackage = `gcc-${version}`
-  const gxxPackage = `g++-${version}`
+export function compareVersions(version1, version2) {
+  const v1 = parseVersion(version1)
+  const v2 = parseVersion(version2)
 
-  logger.info(`Installing ${gccPackage} and ${gxxPackage}...`)
-
-  try {
-    const sudoPath = await which('sudo', { nothrow: true })
-    if (!sudoPath || Array.isArray(sudoPath)) {
-      printError('sudo not found in PATH')
-      return false
-    }
-
-    // Install GCC and G++
-    const installResult = await spawn(
-      sudoPath,
-      ['apt-get', 'install', '-y', gccPackage, gxxPackage],
-      {
-        stdio: 'inherit',
-      },
-    )
-
-    if (installResult.code !== 0) {
-      printError(`Failed to install GCC ${version}`)
-      return false
-    }
-
-    // Set as default using update-alternatives
-    logger.info(`Setting GCC ${version} as default...`)
-
-    const gccPath = `/usr/bin/gcc-${version}`
-    const gxxPath = `/usr/bin/g++-${version}`
-
-    const gccAltResult = await spawn(
-      sudoPath,
-      [
-        'update-alternatives',
-        '--install',
-        '/usr/bin/gcc',
-        'gcc',
-        gccPath,
-        '100',
-      ],
-      { stdio: 'pipe' },
-    )
-
-    const gxxAltResult = await spawn(
-      sudoPath,
-      [
-        'update-alternatives',
-        '--install',
-        '/usr/bin/g++',
-        'g++',
-        gxxPath,
-        '100',
-      ],
-      { stdio: 'pipe' },
-    )
-
-    if (gccAltResult.code !== 0 || gxxAltResult.code !== 0) {
-      logger.warn('Failed to set GCC as default, but installation succeeded')
-    }
-
-    return true
-  } catch (e) {
-    printError(`Error installing GCC ${version}: ${errorMessage(e)}`)
-    return false
+  if (!v1 || !v2) {
+    return Number.NaN
   }
+
+  if (v1.major !== v2.major) {
+    return v1.major < v2.major ? -1 : 1
+  }
+  if (v1.minor !== v2.minor) {
+    return v1.minor < v2.minor ? -1 : 1
+  }
+  if (v1.patch !== v2.patch) {
+    return v1.patch < v2.patch ? -1 : 1
+  }
+
+  return 0
 }
 
 /**
@@ -355,4 +238,121 @@ export function getGccInstructions() {
   }
 
   return instructions
+}
+
+/**
+ * Get GCC version.
+ *
+ * @param {string} gccPath - Path to GCC binary (default: 'gcc')
+ * @returns {Promise<string|undefined>} Version string or undefined if not found
+ */
+export async function getGccVersion(gccPath = 'gcc') {
+  try {
+    const result = await spawn(gccPath, ['--version'], {})
+
+    if (result.code !== 0) {
+      return undefined
+    }
+
+    const stdout = result.stdout?.toString() || ''
+    const match = stdout.match(/gcc.*?(\d+\.\d+\.\d+)/)
+    return match ? match[1] : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Install GCC on Linux using apt.
+ *
+ * @param {string} version - GCC major version (e.g., '12')
+ * @returns {Promise<boolean>} True if installation succeeded
+ */
+export async function installGccApt(version) {
+  const gccPackage = `gcc-${version}`
+  const gxxPackage = `g++-${version}`
+
+  logger.info(`Installing ${gccPackage} and ${gxxPackage}...`)
+
+  try {
+    const sudoPath = await which('sudo', { nothrow: true })
+    if (!sudoPath || Array.isArray(sudoPath)) {
+      printError('sudo not found in PATH')
+      return false
+    }
+
+    // Install GCC and G++
+    const installResult = await spawn(
+      sudoPath,
+      ['apt-get', 'install', '-y', gccPackage, gxxPackage],
+      {
+        stdio: 'inherit',
+      },
+    )
+
+    if (installResult.code !== 0) {
+      printError(`Failed to install GCC ${version}`)
+      return false
+    }
+
+    // Set as default using update-alternatives
+    logger.info(`Setting GCC ${version} as default...`)
+
+    const gccPath = `/usr/bin/gcc-${version}`
+    const gxxPath = `/usr/bin/g++-${version}`
+
+    const gccAltResult = await spawn(
+      sudoPath,
+      [
+        'update-alternatives',
+        '--install',
+        '/usr/bin/gcc',
+        'gcc',
+        gccPath,
+        '100',
+      ],
+      { stdio: 'pipe' },
+    )
+
+    const gxxAltResult = await spawn(
+      sudoPath,
+      [
+        'update-alternatives',
+        '--install',
+        '/usr/bin/g++',
+        'g++',
+        gxxPath,
+        '100',
+      ],
+      { stdio: 'pipe' },
+    )
+
+    if (gccAltResult.code !== 0 || gxxAltResult.code !== 0) {
+      logger.warn('Failed to set GCC as default, but installation succeeded')
+    }
+
+    return true
+  } catch (e) {
+    printError(`Error installing GCC ${version}: ${errorMessage(e)}`)
+    return false
+  }
+}
+
+/**
+ * Parse semantic version string.
+ *
+ * @param {string} versionString - Version string (e.g., "12.2.0", "11.4.0-1ubuntu1~22.04")
+ * @returns {{major: number, minor: number, patch: number}|undefined}
+ */
+export function parseVersion(versionString) {
+  const match = versionString.match(/(\d+)\.(\d+)\.(\d+)/)
+  if (!match) {
+    return undefined
+  }
+
+  return {
+    major: Number.parseInt(match[1], 10),
+    minor: Number.parseInt(match[2], 10),
+    patch: Number.parseInt(match[3], 10),
+  }
 }

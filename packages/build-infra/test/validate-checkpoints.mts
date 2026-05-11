@@ -38,52 +38,9 @@ export interface ValidationOptions {
 }
 
 /**
- * Checks if a file matches supported checkpoint formats.
- */
-function isCheckpointFile(filename: string): boolean {
-  return (
-    filename.endsWith('.tar') ||
-    filename.endsWith('.tar.gz') ||
-    filename.endsWith('.tgz')
-  )
-}
-
-/**
- * Validates a single tar archive using tar command.
- * Checks both integrity (readable) and that it contains files.
- */
-function validateTarArchive(tarPath: string): boolean {
-  try {
-    // Check if file exists and is readable.
-    accessSync(tarPath, constants.R_OK)
-
-    // Use tar -tf for .tar files, tar -tzf for compressed files.
-    // The -z flag is for gzip compression (.tar.gz, .tgz).
-    const isCompressed = tarPath.endsWith('.tar.gz') || tarPath.endsWith('.tgz')
-    const flags = isCompressed ? '-tzf' : '-tf'
-
-    const result = spawnSync('tar', [flags, tarPath], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
-
-    // Check that tar command succeeded and archive contains files.
-    if (result.status !== 0) {
-      return false
-    }
-
-    // Empty tar archives are invalid for checkpoint purposes.
-    const hasContent = result.stdout && result.stdout.trim().length > 0
-    return hasContent
-  } catch {
-    return false
-  }
-}
-
-/**
  * Finds checkpoint archives in a directory matching supported formats.
  */
-function findCheckpoints(checkpointDir: string): string[] {
+export function findCheckpoints(checkpointDir: string): string[] {
   try {
     accessSync(checkpointDir, constants.R_OK)
     const entries = readdirSync(checkpointDir)
@@ -107,6 +64,17 @@ function findCheckpoints(checkpointDir: string): string[] {
   } catch {
     return []
   }
+}
+
+/**
+ * Checks if a file matches supported checkpoint formats.
+ */
+export function isCheckpointFile(filename: string): boolean {
+  return (
+    filename.endsWith('.tar') ||
+    filename.endsWith('.tar.gz') ||
+    filename.endsWith('.tgz')
+  )
 }
 
 /**
@@ -212,5 +180,37 @@ export function validateCheckpoints(
     corruptedCount,
     message: 'Corrupted checkpoints detected',
     valid: false,
+  }
+}
+
+/**
+ * Validates a single tar archive using tar command.
+ * Checks both integrity (readable) and that it contains files.
+ */
+export function validateTarArchive(tarPath: string): boolean {
+  try {
+    // Check if file exists and is readable.
+    accessSync(tarPath, constants.R_OK)
+
+    // Use tar -tf for .tar files, tar -tzf for compressed files.
+    // The -z flag is for gzip compression (.tar.gz, .tgz).
+    const isCompressed = tarPath.endsWith('.tar.gz') || tarPath.endsWith('.tgz')
+    const flags = isCompressed ? '-tzf' : '-tf'
+
+    const result = spawnSync('tar', [flags, tarPath], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+
+    // Check that tar command succeeded and archive contains files.
+    if (result.status !== 0) {
+      return false
+    }
+
+    // Empty tar archives are invalid for checkpoint purposes.
+    const hasContent = result.stdout && result.stdout.trim().length > 0
+    return hasContent
+  } catch {
+    return false
   }
 }

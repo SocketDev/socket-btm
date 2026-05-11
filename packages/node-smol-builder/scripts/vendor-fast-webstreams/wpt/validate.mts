@@ -190,75 +190,7 @@ const SKIP_FILES = new Set([
   'writable-streams/garbage-collection.any.js',
 ])
 
-function parseArgs(): CliOptions {
-  const args = process.argv.slice(2)
-  const opts: CliOptions = {
-    binary: DEFAULT_BINARY,
-    fetch: false,
-    filter: '',
-    verbose: false,
-  }
-
-  for (const arg of args) {
-    if (arg === '--fetch') {
-      opts.fetch = true
-    } else if (arg === '--verbose') {
-      opts.verbose = true
-    } else if (arg.startsWith('--filter=')) {
-      opts.filter = arg.slice(9)
-    } else if (!arg.startsWith('--')) {
-      opts.binary = arg
-    }
-  }
-  return opts
-}
-
-/**
- * Parse .gitmodules to get WPT URL and SHA
- */
-function getWPTConfig(): WptConfig {
-  if (!existsSync(GITMODULES)) {
-    throw new Error(`.gitmodules not found at ${GITMODULES}`)
-  }
-
-  const content = readFileSync(GITMODULES, 'utf8')
-  const lines = content.split('\n')
-
-  let inWPTSection = false
-  let url = ''
-  let ref = ''
-
-  for (const line of lines) {
-    // Match only the [submodule "..."] header line, not the path line
-    if (
-      /^\[submodule ".*vendor-fast-webstreams\/wpt\/streams.*"\]$/.test(line)
-    ) {
-      inWPTSection = true
-      continue
-    }
-    if (inWPTSection && line.startsWith('[')) {
-      break // End of section
-    }
-    if (inWPTSection) {
-      const urlMatch = line.match(/^\s*url\s*=\s*(.+)$/)
-      if (urlMatch) {
-        url = urlMatch[1].trim()
-      }
-      const refMatch = line.match(/^\s*ref\s*=\s*([a-f0-9]+)$/)
-      if (refMatch) {
-        ref = refMatch[1].trim()
-      }
-    }
-  }
-
-  if (!url || !ref) {
-    throw new Error('Could not find WPT URL or ref in .gitmodules')
-  }
-
-  return { url, ref }
-}
-
-/**
+export /**
  * Sparse checkout only streams/ directory from WPT repo
  */
 async function fetchWPTStreams(
@@ -346,7 +278,7 @@ async function fetchWPTStreams(
 /**
  * Find all test files
  */
-function findTestFiles(dir: string): string[] {
+export function findTestFiles(dir: string): string[] {
   const results: string[] = []
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const fullPath = path.join(dir, entry.name)
@@ -360,10 +292,78 @@ function findTestFiles(dir: string): string[] {
 }
 
 /**
+ * Parse .gitmodules to get WPT URL and SHA
+ */
+export function getWPTConfig(): WptConfig {
+  if (!existsSync(GITMODULES)) {
+    throw new Error(`.gitmodules not found at ${GITMODULES}`)
+  }
+
+  const content = readFileSync(GITMODULES, 'utf8')
+  const lines = content.split('\n')
+
+  let inWPTSection = false
+  let url = ''
+  let ref = ''
+
+  for (const line of lines) {
+    // Match only the [submodule "..."] header line, not the path line
+    if (
+      /^\[submodule ".*vendor-fast-webstreams\/wpt\/streams.*"\]$/.test(line)
+    ) {
+      inWPTSection = true
+      continue
+    }
+    if (inWPTSection && line.startsWith('[')) {
+      break // End of section
+    }
+    if (inWPTSection) {
+      const urlMatch = line.match(/^\s*url\s*=\s*(.+)$/)
+      if (urlMatch) {
+        url = urlMatch[1].trim()
+      }
+      const refMatch = line.match(/^\s*ref\s*=\s*([a-f0-9]+)$/)
+      if (refMatch) {
+        ref = refMatch[1].trim()
+      }
+    }
+  }
+
+  if (!url || !ref) {
+    throw new Error('Could not find WPT URL or ref in .gitmodules')
+  }
+
+  return { url, ref }
+}
+
+export function parseArgs(): CliOptions {
+  const args = process.argv.slice(2)
+  const opts: CliOptions = {
+    binary: DEFAULT_BINARY,
+    fetch: false,
+    filter: '',
+    verbose: false,
+  }
+
+  for (const arg of args) {
+    if (arg === '--fetch') {
+      opts.fetch = true
+    } else if (arg === '--verbose') {
+      opts.verbose = true
+    } else if (arg.startsWith('--filter=')) {
+      opts.filter = arg.slice(9)
+    } else if (!arg.startsWith('--')) {
+      opts.binary = arg
+    }
+  }
+  return opts
+}
+
+/**
  * Run a single test file as a subprocess inside the binary
  * This ensures tests run against the patched fast-webstreams, not native Node.js streams
  */
-async function runTestFile(
+export async function runTestFile(
   binaryPath: string,
   testFile: string,
 ): Promise<TestResult> {

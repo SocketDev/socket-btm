@@ -12,11 +12,13 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 import { ensureZstd } from 'build-infra/lib/zstd-init'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
+const logger = getDefaultLogger()
+
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const packageRoot = path.join(__dirname, '..')
 
-async function ensureDependencies({ packageDir }) {
+export async function ensureDependencies({ packageDir }) {
   await ensureZstd({ packageDir })
 }
 
@@ -25,6 +27,6 @@ buildBinSuitePackage({
   packageDir: packageRoot,
   packageName: 'binflate',
 }).catch(e => {
-  getDefaultLogger().error(errorMessage(e))
+  logger.error(errorMessage(e))
   process.exitCode = 1
 })

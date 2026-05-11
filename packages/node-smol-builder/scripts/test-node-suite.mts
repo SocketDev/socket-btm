@@ -363,13 +363,32 @@ const SKIP_PATTERNS = [
 ]
 
 /**
+ * Compile skip patterns once for efficient reuse.
+ * Pre-computes regex and stripped patterns to avoid repeated string operations.
+ *
+ * @param {string[]} skipPatterns - Raw skip patterns
+ * @returns {Array<{regex: RegExp, stripped: string}>} Compiled patterns
+ */
+export function compileSkipPatterns(skipPatterns) {
+  return skipPatterns.map(pattern => {
+    const lowerPattern = pattern.toLowerCase()
+    return {
+      regex: new RegExp(
+        `^${lowerPattern.replaceAll('*', '.*').replaceAll('?', '.')}$`,
+      ),
+      stripped: lowerPattern.replaceAll('*', ''),
+    }
+  })
+}
+
+/**
  * Expand glob patterns into actual test file paths.
  *
  * @param {string} testDir - Node.js test directory
  * @param {string[]} patterns - Glob patterns to expand
  * @returns {Promise<string[]>} Array of absolute test file paths
  */
-async function expandTestPatterns(testDir, patterns) {
+export async function expandTestPatterns(testDir, patterns) {
   const matchedFiles = new Set()
   const checkedDirs = new Set()
   const dirEntryCache = new Map()
@@ -417,58 +436,13 @@ async function expandTestPatterns(testDir, patterns) {
 }
 
 /**
- * Compile skip patterns once for efficient reuse.
- * Pre-computes regex and stripped patterns to avoid repeated string operations.
- *
- * @param {string[]} skipPatterns - Raw skip patterns
- * @returns {Array<{regex: RegExp, stripped: string}>} Compiled patterns
- */
-function compileSkipPatterns(skipPatterns) {
-  return skipPatterns.map(pattern => {
-    const lowerPattern = pattern.toLowerCase()
-    return {
-      regex: new RegExp(
-        `^${lowerPattern.replaceAll('*', '.*').replaceAll('?', '.')}$`,
-      ),
-      stripped: lowerPattern.replaceAll('*', ''),
-    }
-  })
-}
-
-/**
- * Check if a test file path matches any skip pattern.
- *
- * @param {string} testPath - Absolute test file path
- * @param {Array<{regex: RegExp, stripped: string}>} compiledPatterns - Pre-compiled patterns
- * @returns {boolean} True if should be skipped
- */
-function shouldSkipTest(testPath, compiledPatterns) {
-  const testName = path.basename(testPath).toLowerCase()
-  const testRelPath = testPath.toLowerCase()
-
-  for (const { regex, stripped } of compiledPatterns) {
-    // Match against filename.
-    if (regex.test(testName)) {
-      return true
-    }
-
-    // Match against relative path.
-    if (testRelPath.includes(stripped)) {
-      return true
-    }
-  }
-
-  return false
-}
-
-/**
  * Filter test files based on skip patterns.
  *
  * @param {string[]} testFiles - Array of test file paths
  * @param {string[]} skipPatterns - Patterns to skip
  * @returns {object} Filtered tests and statistics
  */
-function filterTests(testFiles, skipPatterns) {
+export function filterTests(testFiles, skipPatterns) {
   const filtered = []
   const skipped = []
 
@@ -492,6 +466,32 @@ function filterTests(testFiles, skipPatterns) {
       total: testFiles.length,
     },
   }
+}
+
+/**
+ * Check if a test file path matches any skip pattern.
+ *
+ * @param {string} testPath - Absolute test file path
+ * @param {Array<{regex: RegExp, stripped: string}>} compiledPatterns - Pre-compiled patterns
+ * @returns {boolean} True if should be skipped
+ */
+export function shouldSkipTest(testPath, compiledPatterns) {
+  const testName = path.basename(testPath).toLowerCase()
+  const testRelPath = testPath.toLowerCase()
+
+  for (const { regex, stripped } of compiledPatterns) {
+    // Match against filename.
+    if (regex.test(testName)) {
+      return true
+    }
+
+    // Match against relative path.
+    if (testRelPath.includes(stripped)) {
+      return true
+    }
+  }
+
+  return false
 }
 
 /**

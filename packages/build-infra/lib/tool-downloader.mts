@@ -26,29 +26,50 @@ import { spawn } from '@socketsecurity/lib/spawn'
 const logger = getDefaultLogger()
 
 /**
- * Get the repo-local cache directory for downloaded tools.
- * @returns {string}
+ * Acquire a simple file-based lock to prevent concurrent downloads.
+ * Returns a release function.
+ * @param {string} lockPath - Path to lock file
+ * @param {number} [timeoutMs=120_000] - Maximum wait time
+ * @returns {Promise<() => Promise<void>>} Release function
  */
-export function getCacheDir() {
-  if (process.env.EXTERNAL_TOOLS_CACHE) {
-    return process.env.EXTERNAL_TOOLS_CACHE
-  }
-  return path.join(process.cwd(), 'node_modules', '.cache', 'external-tools')
-}
+export async function acquireLock(lockPath, timeoutMs = 120_000) {
+  await fs.mkdir(path.dirname(lockPath), { recursive: true })
 
-/**
- * Get the cache path for a specific tool version + platform.
- * @param {string} tool - Tool name (e.g., "zig")
- * @param {string} version - Tool version (e.g., "0.15.2")
- * @param {string} platform - Node.js process.platform
- * @param {string} arch - Node.js process.arch
- * @returns {string}
- */
-export function getToolCachePath(tool, version, platform, arch) {
-  const archMap = { arm64: 'aarch64', x64: 'x86_64' }
-  const osMap = { darwin: 'macos', linux: 'linux', win32: 'windows' }
-  const target = `${archMap[arch] || arch}-${osMap[platform] || platform}`
-  return path.join(getCacheDir(), tool, `${version}-${target}`)
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    try {
+      // O_CREAT | O_EXCL — fails if file exists
+      const fd = await fs.open(lockPath, 'wx')
+      try {
+        await fd.writeFile(String(process.pid))
+      } finally {
+        await fd.close()
+      }
+      return async () => {
+        await safeDelete(lockPath).catch(() => {})
+      }
+    } catch (e) {
+      if (e.code === 'EEXIST') {
+        // Check if lock holder is still alive
+        try {
+          const pid = parseInt(readFileSync(lockPath, 'utf8').trim(), 10)
+          // NaN (corrupt/truncated lock file) is treated as stale — otherwise
+          // the `pid && ...` guard short-circuits and the lock never expires.
+          if (Number.isNaN(pid) || !isProcessAlive(pid)) {
+            // Stale lock — remove and retry
+            await safeDelete(lockPath).catch(() => {})
+            continue
+          }
+        } catch {
+          // Can't read lock — wait
+        }
+        await new Promise(r => setTimeout(r, 500))
+        continue
+      }
+      throw e
+    }
+  }
+  throw new Error(`Timed out waiting for lock: ${lockPath}`)
 }
 
 /**
@@ -70,154 +91,6 @@ export function computeSha256(filePath) {
       reject(err)
     })
   })
-}
-
-/**
- * Verify the integrity of a cached tool by checking the stored checksum.
- * @param {string} cachePath - Path to the tool's cache directory
- * @param {string} expectedSha256 - Expected SHA256 of the original archive
- * @returns {boolean}
- */
-export function verifyCacheIntegrity(cachePath, expectedSha256) {
-  const checksumFile = path.join(cachePath, '.checksum')
-  if (!existsSync(checksumFile)) {
-    return false
-  }
-  try {
-    const stored = readFileSync(checksumFile, 'utf8').trim()
-    return stored === expectedSha256
-  } catch {
-    return false
-  }
-}
-
-/**
- * Download a file over HTTPS using Node's bundled TLS stack.
- *
- * Why not shell out to `curl`: libcurl trusts the runner's /etc/ssl/certs
- * CA bundle. Hosted Compute macOS-15 and Depot Ubuntu images have been
- * observed to ship broken or stale CA chains that reject valid certs
- * with CURLE_SSL_CACERT (exit 60), and --retry does not retry cert
- * errors. Node's https module uses the bundled Mozilla root store and
- * is unaffected by host-level cert-bundle drift.
- *
- * @param {string} url - URL to download
- * @param {string} destPath - Destination file path
- * @returns {Promise<void>}
- */
-async function downloadFile(url, destPath) {
-  await fs.mkdir(path.dirname(destPath), { recursive: true })
-  await httpDownload(url, destPath, {
-    followRedirects: true,
-    retries: 3,
-  })
-}
-
-/**
- * Extract an archive to a directory.
- * @param {string} archivePath - Path to archive
- * @param {string} destDir - Destination directory
- * @param {string} format - Archive format: "tar.xz" or "zip"
- * @returns {Promise<void>}
- */
-async function extractArchive(archivePath, destDir, format) {
-  await fs.mkdir(destDir, { recursive: true })
-
-  if (format === 'zip') {
-    const result = await spawn(
-      WIN32 ? 'powershell' : 'unzip',
-      WIN32
-        ? [
-            '-Command',
-            `Expand-Archive -Path '${archivePath.replace(/'/g, "''")}' -DestinationPath '${destDir.replace(/'/g, "''")}' -Force`,
-          ]
-        : ['-q', '-o', archivePath, '-d', destDir],
-      { stdio: 'inherit', shell: WIN32 },
-    )
-    if (result.signal) {
-      throw new Error(
-        `Zip extraction killed by signal ${result.signal} for ${archivePath}`,
-      )
-    }
-    if ((result.code ?? result.exitCode ?? 0) !== 0) {
-      throw new Error(`Zip extraction failed for ${archivePath}`)
-    }
-  } else {
-    // tar.xz
-    const result = await spawn('tar', ['xf', archivePath, '-C', destDir], {
-      stdio: 'inherit',
-      shell: WIN32,
-    })
-    if (result.signal) {
-      throw new Error(
-        `Tar extraction killed by signal ${result.signal} for ${archivePath}`,
-      )
-    }
-    if ((result.code ?? result.exitCode ?? 0) !== 0) {
-      throw new Error(`Tar extraction failed for ${archivePath}`)
-    }
-  }
-}
-
-/**
- * Acquire a simple file-based lock to prevent concurrent downloads.
- * Returns a release function.
- * @param {string} lockPath - Path to lock file
- * @param {number} [timeoutMs=120_000] - Maximum wait time
- * @returns {Promise<() => Promise<void>>} Release function
- */
-async function acquireLock(lockPath, timeoutMs = 120_000) {
-  await fs.mkdir(path.dirname(lockPath), { recursive: true })
-
-  const start = Date.now()
-  while (Date.now() - start < timeoutMs) {
-    try {
-      // O_CREAT | O_EXCL — fails if file exists
-      const fd = await fs.open(lockPath, 'wx')
-      try {
-        await fd.writeFile(String(process.pid))
-      } finally {
-        await fd.close()
-      }
-      return async () => {
-        await fs.unlink(lockPath).catch(() => {})
-      }
-    } catch (e) {
-      if (e.code === 'EEXIST') {
-        // Check if lock holder is still alive
-        try {
-          const pid = parseInt(readFileSync(lockPath, 'utf8').trim(), 10)
-          // NaN (corrupt/truncated lock file) is treated as stale — otherwise
-          // the `pid && ...` guard short-circuits and the lock never expires.
-          if (Number.isNaN(pid) || !isProcessAlive(pid)) {
-            // Stale lock — remove and retry
-            await fs.unlink(lockPath).catch(() => {})
-            continue
-          }
-        } catch {
-          // Can't read lock — wait
-        }
-        await new Promise(r => setTimeout(r, 500))
-        continue
-      }
-      throw e
-    }
-  }
-  throw new Error(`Timed out waiting for lock: ${lockPath}`)
-}
-
-/**
- * Check if a process is still alive.
- * @param {number} pid
- * @returns {boolean}
- */
-function isProcessAlive(pid) {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch {
-    return false
-  }
 }
 
 /**
@@ -357,6 +230,103 @@ export async function downloadAndCache(
 }
 
 /**
+ * Download a file over HTTPS using Node's bundled TLS stack.
+ *
+ * Why not shell out to `curl`: libcurl trusts the runner's /etc/ssl/certs
+ * CA bundle. Hosted Compute macOS-15 and Depot Ubuntu images have been
+ * observed to ship broken or stale CA chains that reject valid certs
+ * with CURLE_SSL_CACERT (exit 60), and --retry does not retry cert
+ * errors. Node's https module uses the bundled Mozilla root store and
+ * is unaffected by host-level cert-bundle drift.
+ *
+ * @param {string} url - URL to download
+ * @param {string} destPath - Destination file path
+ * @returns {Promise<void>}
+ */
+export async function downloadFile(url, destPath) {
+  await fs.mkdir(path.dirname(destPath), { recursive: true })
+  await httpDownload(url, destPath, {
+    followRedirects: true,
+    retries: 3,
+  })
+}
+
+/**
+ * Extract an archive to a directory.
+ * @param {string} archivePath - Path to archive
+ * @param {string} destDir - Destination directory
+ * @param {string} format - Archive format: "tar.xz" or "zip"
+ * @returns {Promise<void>}
+ */
+export async function extractArchive(archivePath, destDir, format) {
+  await fs.mkdir(destDir, { recursive: true })
+
+  if (format === 'zip') {
+    const result = await spawn(
+      WIN32 ? 'powershell' : 'unzip',
+      WIN32
+        ? [
+            '-Command',
+            `Expand-Archive -Path '${archivePath.replace(/'/g, "''")}' -DestinationPath '${destDir.replace(/'/g, "''")}' -Force`,
+          ]
+        : ['-q', '-o', archivePath, '-d', destDir],
+      { stdio: 'inherit', shell: WIN32 },
+    )
+    if (result.signal) {
+      throw new Error(
+        `Zip extraction killed by signal ${result.signal} for ${archivePath}`,
+      )
+    }
+    if ((result.code ?? result.exitCode ?? 0) !== 0) {
+      throw new Error(`Zip extraction failed for ${archivePath}`)
+    }
+  } else {
+    // tar.xz
+    const result = await spawn('tar', ['xf', archivePath, '-C', destDir], {
+      stdio: 'inherit',
+      shell: WIN32,
+    })
+    if (result.signal) {
+      throw new Error(
+        `Tar extraction killed by signal ${result.signal} for ${archivePath}`,
+      )
+    }
+    if ((result.code ?? result.exitCode ?? 0) !== 0) {
+      throw new Error(`Tar extraction failed for ${archivePath}`)
+    }
+  }
+}
+
+/**
+ * Format byte size for display.
+ * @param {number} [bytes]
+ * @returns {string}
+ */
+export function formatSize(bytes) {
+  if (!bytes) {
+    return 'unknown size'
+  }
+  if (bytes < 1024) {
+    return `${bytes} B`
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(0)} KB`
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+/**
+ * Get the repo-local cache directory for downloaded tools.
+ * @returns {string}
+ */
+export function getCacheDir() {
+  if (process.env.EXTERNAL_TOOLS_CACHE) {
+    return process.env.EXTERNAL_TOOLS_CACHE
+  }
+  return path.join(process.cwd(), 'node_modules', '.cache', 'external-tools')
+}
+
+/**
  * Get a cached tool binary path, or undefined if not cached/invalid.
  * @param {string} tool - Tool name
  * @param {string} version - Tool version
@@ -386,19 +356,49 @@ export function getCachedToolBinary(
 }
 
 /**
- * Format byte size for display.
- * @param {number} [bytes]
+ * Get the cache path for a specific tool version + platform.
+ * @param {string} tool - Tool name (e.g., "zig")
+ * @param {string} version - Tool version (e.g., "0.15.2")
+ * @param {string} platform - Node.js process.platform
+ * @param {string} arch - Node.js process.arch
  * @returns {string}
  */
-function formatSize(bytes) {
-  if (!bytes) {
-    return 'unknown size'
+export function getToolCachePath(tool, version, platform, arch) {
+  const archMap = { arm64: 'aarch64', x64: 'x86_64' }
+  const osMap = { darwin: 'macos', linux: 'linux', win32: 'windows' }
+  const target = `${archMap[arch] || arch}-${osMap[platform] || platform}`
+  return path.join(getCacheDir(), tool, `${version}-${target}`)
+}
+
+/**
+ * Check if a process is still alive.
+ * @param {number} pid
+ * @returns {boolean}
+ */
+export function isProcessAlive(pid) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
   }
-  if (bytes < 1024) {
-    return `${bytes} B`
+}
+
+/**
+ * Verify the integrity of a cached tool by checking the stored checksum.
+ * @param {string} cachePath - Path to the tool's cache directory
+ * @param {string} expectedSha256 - Expected SHA256 of the original archive
+ * @returns {boolean}
+ */
+export function verifyCacheIntegrity(cachePath, expectedSha256) {
+  const checksumFile = path.join(cachePath, '.checksum')
+  if (!existsSync(checksumFile)) {
+    return false
   }
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(0)} KB`
+  try {
+    const stored = readFileSync(checksumFile, 'utf8').trim()
+    return stored === expectedSha256
+  } catch {
+    return false
   }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }

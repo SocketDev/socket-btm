@@ -42,9 +42,17 @@ let binpressExists = false
 let binflateExists = false
 
 /**
+ * Calculate SHA-256 hash of file
+ */
+export async function _hashFile(filePath) {
+  const data = await fs.readFile(filePath)
+  return createHash('sha256').update(data).digest('hex')
+}
+
+/**
  * Execute command and return result
  */
-async function execCommand(command, args = [], options = {}) {
+export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {
     const spawnPromise = spawn(command, args, {
       ...options,
@@ -76,14 +84,6 @@ async function execCommand(command, args = [], options = {}) {
   })
 }
 
-/**
- * Calculate SHA-256 hash of file
- */
-async function _hashFile(filePath) {
-  const data = await fs.readFile(filePath)
-  return createHash('sha256').update(data).digest('hex')
-}
-
 beforeAll(async () => {
   // Check if tools exist
   binjectExists = existsSync(BINJECT)
@@ -91,20 +91,20 @@ beforeAll(async () => {
   binflateExists = existsSync(BINFLATE)
 
   if (!binjectExists) {
-    console.warn(`⚠️  binject not found at ${BINJECT}`)
-    console.warn('   Run: pnpm build in packages/binject')
+    logger.warn(`⚠️  binject not found at ${BINJECT}`)
+    logger.warn('   Run: pnpm build in packages/binject')
     return
   }
 
   if (!binpressExists) {
-    console.warn(`⚠️  binpress not found at ${BINPRESS}`)
-    console.warn('   Run: pnpm build in packages/binpress')
+    logger.warn(`⚠️  binpress not found at ${BINPRESS}`)
+    logger.warn('   Run: pnpm build in packages/binpress')
     return
   }
 
   if (!binflateExists) {
-    console.warn(`⚠️  binflate not found at ${BINFLATE}`)
-    console.warn('   Run: pnpm build in packages/binflate')
+    logger.warn(`⚠️  binflate not found at ${BINFLATE}`)
+    logger.warn('   Run: pnpm build in packages/binflate')
     return
   }
 

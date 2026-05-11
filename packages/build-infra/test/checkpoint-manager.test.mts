@@ -547,7 +547,7 @@ describe('checkpoint-manager', () => {
 /**
  * Recursively find all .mts files in a directory
  */
-async function findMjsFiles(dir, files = []) {
+export async function findMjsFiles(dir, files = []) {
   const entries = await readdir(dir, { withFileTypes: true })
 
   for (const entry of entries) {
@@ -572,7 +572,7 @@ async function findMjsFiles(dir, files = []) {
 /**
  * Check if a createCheckpoint call uses the correct signature
  */
-function validateCreateCheckpointCall(fileContent, filePath) {
+export function validateCreateCheckpointCall(fileContent, filePath) {
   const lines = fileContent.split('\n')
   const errors = []
 

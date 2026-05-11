@@ -25,33 +25,12 @@ type PnpmTask = {
 }
 
 /**
- * Run a pnpm command.
- * @param {string[]} args - Arguments to pass to pnpm
- * @returns {Promise<void>}
- */
-async function runPnpm(args: string[]): Promise<void> {
-  try {
-    await spawn('pnpm', args, {
-      cwd: process.cwd(),
-      shell: WIN32,
-      stdio: 'inherit',
-    })
-  } catch (e) {
-    const error = e as { exitCode?: number }
-    throw new Error(
-      `pnpm ${args.join(' ')} failed with exit code ${error.exitCode || 'unknown'}`,
-      { cause: error },
-    )
-  }
-}
-
-/**
  * Run multiple pnpm commands in parallel.
  * @param {Array<{filter: string, script: string}>} tasks - Tasks to run
  * @returns {Promise<void>}
  * @throws {Error} If any task fails
  */
-async function runParallel(tasks: PnpmTask[]): Promise<void> {
+export async function runParallel(tasks: PnpmTask[]): Promise<void> {
   const promises = tasks.map(({ filter, script }) =>
     runPnpm(['--filter', filter, script]),
   )
@@ -75,6 +54,27 @@ async function runParallel(tasks: PnpmTask[]): Promise<void> {
 
   if (failures.length > 0) {
     throw new Error(`Parallel tasks failed:\n${failures.join('\n')}`)
+  }
+}
+
+/**
+ * Run a pnpm command.
+ * @param {string[]} args - Arguments to pass to pnpm
+ * @returns {Promise<void>}
+ */
+export async function runPnpm(args: string[]): Promise<void> {
+  try {
+    await spawn('pnpm', args, {
+      cwd: process.cwd(),
+      shell: WIN32,
+      stdio: 'inherit',
+    })
+  } catch (e) {
+    const error = e as { exitCode?: number }
+    throw new Error(
+      `pnpm ${args.join(' ')} failed with exit code ${error.exitCode || 'unknown'}`,
+      { cause: error },
+    )
   }
 }
 

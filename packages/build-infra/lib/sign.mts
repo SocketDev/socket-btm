@@ -29,33 +29,6 @@ const MACH_O_MAGIC = Object.freeze({
 })
 
 /**
- * Check if file is a Mach-O binary by reading magic number.
- *
- * @param {string} filePath - Path to file to check.
- * @returns {Promise<boolean>} - True if file is a Mach-O binary.
- */
-async function isMachOBinary(filePath) {
-  if (!existsSync(filePath)) {
-    return false
-  }
-
-  try {
-    const buffer = Buffer.allocUnsafe(4)
-    const fd = await fs.open(filePath, 'r')
-    try {
-      await fd.read(buffer, 0, 4, 0)
-    } finally {
-      await fd.close()
-    }
-
-    const magic = buffer.toString('hex').toUpperCase()
-    return magic in MACH_O_MAGIC
-  } catch {
-    return false
-  }
-}
-
-/**
  * Ad-hoc code sign a binary for macOS.
  *
  * Uses ad-hoc signing (no certificate required) to satisfy macOS code signing
@@ -105,5 +78,32 @@ export async function adHocSign(binaryPath, beforeSign) {
   } catch (e) {
     logger.fail(`Code signing failed: ${errorMessage(e)}`)
     throw e
+  }
+}
+
+/**
+ * Check if file is a Mach-O binary by reading magic number.
+ *
+ * @param {string} filePath - Path to file to check.
+ * @returns {Promise<boolean>} - True if file is a Mach-O binary.
+ */
+export async function isMachOBinary(filePath) {
+  if (!existsSync(filePath)) {
+    return false
+  }
+
+  try {
+    const buffer = Buffer.allocUnsafe(4)
+    const fd = await fs.open(filePath, 'r')
+    try {
+      await fd.read(buffer, 0, 4, 0)
+    } finally {
+      await fd.close()
+    }
+
+    const magic = buffer.toString('hex').toUpperCase()
+    return magic in MACH_O_MAGIC
+  } catch {
+    return false
   }
 }

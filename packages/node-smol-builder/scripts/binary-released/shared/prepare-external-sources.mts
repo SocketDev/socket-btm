@@ -134,7 +134,7 @@ const EXTERNAL_SOURCES = [
  * @param {string} dirPath - Directory to hash
  * @returns {Promise<string|undefined>} Hash of directory contents, or undefined if directory doesn't exist
  */
-async function computeDirectoryHash(dirPath) {
+export async function computeDirectoryHash(dirPath) {
   if (!existsSync(dirPath)) {
     return undefined
   }
@@ -170,83 +170,6 @@ async function computeDirectoryHash(dirPath) {
   }
 
   return hash.digest('hex')
-}
-
-/**
- * Validate that additions directory is in sync with source packages.
- * Only validates socketsecurity/ source packages, NOT upstream dependencies.
- * Throws error if directories are out of sync.
- */
-async function validateAdditionsSync() {
-  logger.substep(
-    'Validating additions directory is in sync with source packages',
-  )
-
-  for (const { from, to } of EXTERNAL_SOURCES) {
-    if (!existsSync(from)) {
-      throw new Error(`Source directory not found: ${from}`)
-    }
-
-    // Only validate socketsecurity source packages (binject, bin-infra, build-infra).
-    // Skip upstream dependencies (lzfse, libdeflate) which come from git submodules.
-    if (!from.includes('socketsecurity')) {
-      continue
-    }
-
-    const fromHash = await computeDirectoryHash(from)
-    const toHash = await computeDirectoryHash(to)
-
-    // Skip validation if target doesn't exist yet (will be created during copy)
-    if (toHash === undefined) {
-      continue
-    }
-
-    if (fromHash !== toHash) {
-      const relativeFrom = path.relative(process.cwd(), from)
-      const relativeTo = path.relative(process.cwd(), to)
-      throw new Error(
-        `Additions mirror does not match source after copy: ${relativeTo} drifted from ${relativeFrom}. ` +
-          'This indicates a concurrent writer or an unreadable source file; ' +
-          'verify the source tree is quiescent and rerun the build.',
-      )
-    }
-  }
-
-  logger.success('Additions directory is in sync with source packages')
-}
-
-/**
- * Sync vendored npm packages from npm registry.
- * These are external packages that need ES→CJS conversion for Node.js additions.
- */
-async function syncVendoredPackages() {
-  logger.step('Syncing Vendored Packages')
-
-  // Sync fast-webstreams from npm registry.
-  const syncScript = path.join(
-    PACKAGE_ROOT,
-    'scripts',
-    'vendor-fast-webstreams',
-    'sync.mts',
-  )
-
-  if (!existsSync(syncScript)) {
-    throw new Error(`Vendor sync script not found: ${syncScript}`)
-  }
-
-  try {
-    await spawn('node', [syncScript], {
-      cwd: PACKAGE_ROOT,
-      stdio: 'inherit',
-    })
-    logger.success('Synced fast-webstreams from npm registry')
-  } catch (e) {
-    throw new Error(`Failed to sync fast-webstreams: ${errorMessage(e)}`, {
-      cause: e,
-    })
-  }
-
-  logger.log('')
 }
 
 /**
@@ -296,4 +219,81 @@ export async function prepareExternalSources() {
 
   // Sync vendored npm packages after copying external sources.
   await syncVendoredPackages()
+}
+
+/**
+ * Sync vendored npm packages from npm registry.
+ * These are external packages that need ES→CJS conversion for Node.js additions.
+ */
+export async function syncVendoredPackages() {
+  logger.step('Syncing Vendored Packages')
+
+  // Sync fast-webstreams from npm registry.
+  const syncScript = path.join(
+    PACKAGE_ROOT,
+    'scripts',
+    'vendor-fast-webstreams',
+    'sync.mts',
+  )
+
+  if (!existsSync(syncScript)) {
+    throw new Error(`Vendor sync script not found: ${syncScript}`)
+  }
+
+  try {
+    await spawn('node', [syncScript], {
+      cwd: PACKAGE_ROOT,
+      stdio: 'inherit',
+    })
+    logger.success('Synced fast-webstreams from npm registry')
+  } catch (e) {
+    throw new Error(`Failed to sync fast-webstreams: ${errorMessage(e)}`, {
+      cause: e,
+    })
+  }
+
+  logger.log('')
+}
+
+/**
+ * Validate that additions directory is in sync with source packages.
+ * Only validates socketsecurity/ source packages, NOT upstream dependencies.
+ * Throws error if directories are out of sync.
+ */
+export async function validateAdditionsSync() {
+  logger.substep(
+    'Validating additions directory is in sync with source packages',
+  )
+
+  for (const { from, to } of EXTERNAL_SOURCES) {
+    if (!existsSync(from)) {
+      throw new Error(`Source directory not found: ${from}`)
+    }
+
+    // Only validate socketsecurity source packages (binject, bin-infra, build-infra).
+    // Skip upstream dependencies (lzfse, libdeflate) which come from git submodules.
+    if (!from.includes('socketsecurity')) {
+      continue
+    }
+
+    const fromHash = await computeDirectoryHash(from)
+    const toHash = await computeDirectoryHash(to)
+
+    // Skip validation if target doesn't exist yet (will be created during copy)
+    if (toHash === undefined) {
+      continue
+    }
+
+    if (fromHash !== toHash) {
+      const relativeFrom = path.relative(process.cwd(), from)
+      const relativeTo = path.relative(process.cwd(), to)
+      throw new Error(
+        `Additions mirror does not match source after copy: ${relativeTo} drifted from ${relativeFrom}. ` +
+          'This indicates a concurrent writer or an unreadable source file; ' +
+          'verify the source tree is quiescent and rerun the build.',
+      )
+    }
+  }
+
+  logger.success('Additions directory is in sync with source packages')
 }

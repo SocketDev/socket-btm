@@ -66,22 +66,6 @@ import { applySocketPatches } from '../../source-patched/shared/apply-patches.mt
 const logger = getDefaultLogger()
 
 /**
- * Get checkpoint chain for progressive restoration (newest → oldest).
- * Matches CI restore-checkpoint action chain.
- *
- * Uses centralized CHECKPOINT_CHAINS registry from build-infra.
- * CI workflows should use this same function to generate their checkpoint chain.
- *
- * @param {string} _buildMode - Build mode ('dev' or 'prod') - unused for node-smol but kept for API consistency
- * @returns {string[]} Checkpoint chain array
- */
-export function getCheckpointChain(_buildMode) {
-  const chain = CHECKPOINT_CHAINS.nodeSmol()
-  validateCheckpointChain(chain, 'build-released')
-  return chain
-}
-
-/**
  * Build Release binary phase.
  *
  * @param {object} options - Build options
@@ -946,4 +930,20 @@ export async function buildRelease(config, buildOptions = {}) {
     isCrossCompiling,
     releaseBinaryPath: outputReleaseBinary,
   }
+}
+
+/**
+ * Get checkpoint chain for progressive restoration (newest → oldest).
+ * Matches CI restore-checkpoint action chain.
+ *
+ * Uses centralized CHECKPOINT_CHAINS registry from build-infra.
+ * CI workflows should use this same function to generate their checkpoint chain.
+ *
+ * @param {string} _buildMode - Build mode ('dev' or 'prod') - unused for node-smol but kept for API consistency
+ * @returns {string[]} Checkpoint chain array
+ */
+export function getCheckpointChain(_buildMode) {
+  const chain = CHECKPOINT_CHAINS.nodeSmol()
+  validateCheckpointChain(chain, 'build-released')
+  return chain
 }

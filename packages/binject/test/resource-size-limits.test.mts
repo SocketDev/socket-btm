@@ -35,9 +35,35 @@ let testDir: string
 let binjectExists = false
 
 /**
+ * Create a file of specified size with pattern data
+ */
+export async function createTestFile(filePath, sizeBytes) {
+  // 1MB chunks
+  const chunkSize = 1024 * 1024
+  const handle = await fs.open(filePath, 'w')
+
+  try {
+    let remaining = sizeBytes
+    while (remaining > 0) {
+      const writeSize = Math.min(chunkSize, remaining)
+      // Fill with pattern to avoid compression
+      const chunk = Buffer.alloc(writeSize)
+      for (let i = 0; i < writeSize; i++) {
+        chunk[i] = i % 256
+      }
+      // eslint-disable-next-line no-await-in-loop
+      await handle.write(chunk)
+      remaining -= writeSize
+    }
+  } finally {
+    await handle.close()
+  }
+}
+
+/**
  * Execute command
  */
-async function execCommand(command, args = [], options = {}) {
+export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {
     const spawnPromise = spawn(command, args, {
       ...options,
@@ -69,36 +95,10 @@ async function execCommand(command, args = [], options = {}) {
   })
 }
 
-/**
- * Create a file of specified size with pattern data
- */
-async function createTestFile(filePath, sizeBytes) {
-  // 1MB chunks
-  const chunkSize = 1024 * 1024
-  const handle = await fs.open(filePath, 'w')
-
-  try {
-    let remaining = sizeBytes
-    while (remaining > 0) {
-      const writeSize = Math.min(chunkSize, remaining)
-      // Fill with pattern to avoid compression
-      const chunk = Buffer.alloc(writeSize)
-      for (let i = 0; i < writeSize; i++) {
-        chunk[i] = i % 256
-      }
-      // eslint-disable-next-line no-await-in-loop
-      await handle.write(chunk)
-      remaining -= writeSize
-    }
-  } finally {
-    await handle.close()
-  }
-}
-
 beforeAll(async () => {
   binjectExists = existsSync(BINJECT)
   if (!binjectExists) {
-    console.warn(`⚠️  binject not found at ${BINJECT}`)
+    logger.warn(`⚠️  binject not found at ${BINJECT}`)
     return
   }
 

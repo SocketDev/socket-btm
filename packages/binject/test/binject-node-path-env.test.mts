@@ -28,7 +28,17 @@ const BINJECT = getBinjectPath()
 let testDir: string
 let binjectExists = false
 
-async function execCommand(
+export /**
+ * Create a copy of BINJECT for a test to use as input (-e parameter)
+ */
+async function createTestBinject(name = 'test-binject') {
+  const testBinject = path.join(testDir, name)
+  await fs.copyFile(BINJECT, testBinject)
+  await makeExecutable(testBinject)
+  return testBinject
+}
+
+export async function execCommand(
   command: string,
   args: string[] = [],
   options: { cwd?: string; env?: NodeJS.ProcessEnv } = {},
@@ -70,16 +80,6 @@ async function execCommand(
       })
     })
   })
-}
-
-/**
- * Create a copy of BINJECT for a test to use as input (-e parameter)
- */
-async function createTestBinject(name = 'test-binject') {
-  const testBinject = path.join(testDir, name)
-  await fs.copyFile(BINJECT, testBinject)
-  await makeExecutable(testBinject)
-  return testBinject
 }
 
 describe('bINJECT_NODE_PATH environment variable', () => {

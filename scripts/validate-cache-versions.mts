@@ -189,16 +189,19 @@ const CASCADE_RULES = {
   ],
 }
 
-function validateBranchName(branchName: string): string {
-  // Validate branch name to prevent command injection
-  // Allow: alphanumeric, slashes, hyphens, underscores, dots
-  if (!/^[\w./-]+$/.test(branchName)) {
-    throw new Error(`Invalid branch name: ${branchName}`)
+export function getCacheVersions(): CacheVersions {
+  const cacheVersionsPath = path.join(
+    MONOREPO_ROOT,
+    '.github/cache-versions.json',
+  )
+  if (!existsSync(cacheVersionsPath)) {
+    throw new Error(`Cache versions file not found: ${cacheVersionsPath}`)
   }
-  return branchName
+  const content = readFileSync(cacheVersionsPath, 'utf8')
+  return (JSON.parse(content) as CacheVersionsFile).versions
 }
 
-async function getChangedFiles(baseBranch = 'origin/main'): Promise<string[]> {
+export async function getChangedFiles(baseBranch = 'origin/main'): Promise<string[]> {
   try {
     // Validate branch name to prevent command injection
     const safeBranch = validateBranchName(baseBranch)
@@ -226,22 +229,19 @@ async function getChangedFiles(baseBranch = 'origin/main'): Promise<string[]> {
   }
 }
 
-function getCacheVersions(): CacheVersions {
-  const cacheVersionsPath = path.join(
-    MONOREPO_ROOT,
-    '.github/cache-versions.json',
-  )
-  if (!existsSync(cacheVersionsPath)) {
-    throw new Error(`Cache versions file not found: ${cacheVersionsPath}`)
-  }
-  const content = readFileSync(cacheVersionsPath, 'utf8')
-  return (JSON.parse(content) as CacheVersionsFile).versions
-}
-
-function parseVersion(versionString: string): number {
+export function parseVersion(versionString: string): number {
   // Parse "v123" → 123
   const match = versionString.match(/^v(\d+)$/)
   return match ? Number.parseInt(match[1]!, 10) : 0
+}
+
+export function validateBranchName(branchName: string): string {
+  // Validate branch name to prevent command injection
+  // Allow: alphanumeric, slashes, hyphens, underscores, dots
+  if (!/^[\w./-]+$/.test(branchName)) {
+    throw new Error(`Invalid branch name: ${branchName}`)
+  }
+  return branchName
 }
 
 async function main(): Promise<void> {

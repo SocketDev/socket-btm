@@ -29,7 +29,7 @@ const logger = getDefaultLogger()
 const args = new Set(process.argv.slice(2))
 const BUILD_MODE = getBuildMode(args)
 
-async function ensureGoDeps() {
+export async function ensureGoDeps() {
   logger.substep('Resolving Go module deps (go mod tidy)')
   const result = await spawn('go', ['mod', 'tidy'], {
     cwd: SRC_DIR,

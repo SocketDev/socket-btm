@@ -178,7 +178,7 @@ const colors = {
 }
 
 // Wrapper for logger.log() with color support for consistency report formatting
-function log(message: string, color = colors.reset): void {
+export function log(message: string, color = colors.reset): void {
   logger.log(`${color}${message}${colors.reset}`)
 }
 
@@ -204,7 +204,7 @@ const patternStats: {
   total: 0,
 }
 
-function reportIssue(
+export function reportIssue(
   level: IssueLevel,
   category: string,
   message: string,
@@ -229,7 +229,7 @@ function reportIssue(
 /**
  * Prompts user for yes/no confirmation in interactive mode
  */
-async function promptUser(question: string): Promise<boolean> {
+export async function promptUser(question: string): Promise<boolean> {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -247,7 +247,7 @@ async function promptUser(question: string): Promise<boolean> {
 // Package Discovery
 // ============================================================================
 
-async function discoverPackages(): Promise<PackageInfo[]> {
+export async function discoverPackages(): Promise<PackageInfo[]> {
   const entries = await fs.readdir(PACKAGES_DIR, {
     withFileTypes: true,
   })
@@ -282,7 +282,7 @@ async function discoverPackages(): Promise<PackageInfo[]> {
 // Check 1: Required Files
 // ============================================================================
 
-async function checkRequiredFiles(packages: PackageInfo[]): Promise<void> {
+export async function checkRequiredFiles(packages: PackageInfo[]): Promise<void> {
   log('\n[1/8] Checking required files...', colors.blue)
 
   for (const pkg of packages) {
@@ -319,7 +319,7 @@ async function checkRequiredFiles(packages: PackageInfo[]): Promise<void> {
 // Check 2: Vitest Configuration
 // ============================================================================
 
-async function checkVitestConfig(packages: PackageInfo[]): Promise<void> {
+export async function checkVitestConfig(packages: PackageInfo[]): Promise<void> {
   log('[2/8] Checking vitest configurations...', colors.blue)
 
   const vitestPackages = packages.filter(pkg =>
@@ -372,7 +372,7 @@ export default mergeConfig(baseConfig, {
 // Check 3: Test Scripts
 // ============================================================================
 
-async function checkTestScripts(packages: PackageInfo[]): Promise<void> {
+export async function checkTestScripts(packages: PackageInfo[]): Promise<void> {
   log('[3/8] Checking test scripts...', colors.blue)
 
   const PATTERNS = {
@@ -416,7 +416,7 @@ async function checkTestScripts(packages: PackageInfo[]): Promise<void> {
 // Check 4: Coverage Scripts
 // ============================================================================
 
-async function checkCoverageScripts(packages: PackageInfo[]): Promise<void> {
+export async function checkCoverageScripts(packages: PackageInfo[]): Promise<void> {
   log('[4/8] Checking coverage scripts...', colors.blue)
 
   const C_PACKAGES = new Set(['binflate', 'binject', 'binpress'])
@@ -468,7 +468,7 @@ async function checkCoverageScripts(packages: PackageInfo[]): Promise<void> {
 // Check 5: External Tools Documentation
 // ============================================================================
 
-async function checkExternalTools(packages: PackageInfo[]): Promise<void> {
+export async function checkExternalTools(packages: PackageInfo[]): Promise<void> {
   log('[5/8] Checking external-tools.json...', colors.blue)
 
   const C_PACKAGES: string[] = [
@@ -538,7 +538,7 @@ async function checkExternalTools(packages: PackageInfo[]): Promise<void> {
 // Check 6: Build Output Structure
 // ============================================================================
 
-async function checkBuildOutputStructure(
+export async function checkBuildOutputStructure(
   packages: PackageInfo[],
 ): Promise<void> {
   log('[6/8] Checking build output structure...', colors.blue)
@@ -623,7 +623,7 @@ async function checkBuildOutputStructure(
 // Check 7: Package.json Structure
 // ============================================================================
 
-async function checkPackageJsonStructure(
+export async function checkPackageJsonStructure(
   packages: PackageInfo[],
 ): Promise<void> {
   log('[7/8] Checking package.json structure...', colors.blue)
@@ -748,7 +748,7 @@ async function checkPackageJsonStructure(
 // Check 8: Workspace Dependencies
 // ============================================================================
 
-async function checkWorkspaceDependencies(
+export async function checkWorkspaceDependencies(
   packages: PackageInfo[],
 ): Promise<void> {
   log('[8/8] Checking workspace dependencies...', colors.blue)
@@ -818,7 +818,7 @@ async function checkWorkspaceDependencies(
 /**
  * Collects patterns across all packages for ML-powered suggestions
  */
-function collectPatterns(packages: PackageInfo[]): void {
+export function collectPatterns(packages: PackageInfo[]): void {
   patternStats.total = packages.length
 
   for (const pkg of packages) {
@@ -919,14 +919,14 @@ function collectPatterns(packages: PackageInfo[]): void {
 /**
  * Calculate confidence score as percentage
  */
-function getConfidence(count: number, total: number): number {
+export function getConfidence(count: number, total: number): number {
   return (count / total) * 100
 }
 
 /**
  * Get confidence level based on percentage
  */
-function getConfidenceLevel(
+export function getConfidenceLevel(
   confidence: number,
 ): 'HIGH' | 'LOW' | 'MEDIUM' | 'VERY HIGH' {
   if (confidence >= 96) {
@@ -944,7 +944,7 @@ function getConfidenceLevel(
 /**
  * Generates ML-powered suggestions based on pattern analysis
  */
-function generateSuggestions(packages: PackageInfo[]): Suggestion[] {
+export function generateSuggestions(packages: PackageInfo[]): Suggestion[] {
   const suggestions: Suggestion[] = []
 
   // Analyze script patterns
@@ -1053,7 +1053,7 @@ function generateSuggestions(packages: PackageInfo[]): Suggestion[] {
 /**
  * Displays ML-powered suggestions
  */
-function displaySuggestions(suggestions: Suggestion[]): void {
+export function displaySuggestions(suggestions: Suggestion[]): void {
   if (suggestions.length === 0) {
     log(
       '\nNo suggestions found. Codebase patterns are consistent!',
@@ -1094,7 +1094,7 @@ function displaySuggestions(suggestions: Suggestion[]): void {
 /**
  * Executes fixes for all fixable issues
  */
-async function executeFixes(): Promise<void> {
+export async function executeFixes(): Promise<void> {
   if (fixableIssues.length === 0) {
     log('\nNo fixable issues found.', colors.green)
     return

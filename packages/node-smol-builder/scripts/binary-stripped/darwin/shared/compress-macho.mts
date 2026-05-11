@@ -40,7 +40,7 @@ const DECOMPRESS_TOOL = path.join(TOOLS_DIR, 'socket_macho_decompress')
 /**
  * Build compression tools if needed.
  */
-async function buildTools() {
+export async function buildTools() {
   if (existsSync(COMPRESS_TOOL) && existsSync(DECOMPRESS_TOOL)) {
     logger.success('Compression tools already built')
     return
@@ -82,7 +82,7 @@ async function buildTools() {
 /**
  * Compress a Mach-O binary.
  */
-async function compressBinary(inputPath, outputPath, quality = 'zstd') {
+export async function compressBinary(inputPath, outputPath, quality = 'zstd') {
   logger.log('Compressing binary...')
   logger.log(`  Input: ${inputPath}`)
   logger.log(`  Output: ${outputPath}`)

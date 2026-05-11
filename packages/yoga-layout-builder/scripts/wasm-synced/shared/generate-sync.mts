@@ -148,11 +148,170 @@ export async function generateSync(options) {
  * @param {boolean} isModule - Whether to parse as ES module
  * @returns {object} AST
  */
-function parseCode(code, isModule = true) {
+export function parseCode(code, isModule = true) {
   return acorn.parse(code, {
     ecmaVersion: 'latest',
     sourceType: isModule ? 'module' : 'script',
   })
+}
+
+/**
+ * Post-process CJS wrapper to include wrapAssembly.
+ */
+export async function postProcessCjsWrapper(
+  syncCjsFile,
+  ygEnumsContent,
+  wrapAssemblyContent,
+) {
+  let content = await fs.readFile(syncCjsFile, 'utf8')
+
+  // Transform YGEnums for CJS: remove imports, convert exports, alias default export.
+  // This reuses the existing 'constants' object from YGEnums.mts instead of duplicating it.
+  const ygEnumsCjs = transformEsmForInlining(ygEnumsContent, {
+    convertDefaultExport: true,
+    convertExportConst: true,
+    // Alias 'constants' as 'YGEnums' for wrapAssembly compatibility.
+    defaultExportName: 'YGEnums',
+    removeImports: true,
+  })
+
+  // Transform wrapAssembly for CJS: remove imports, convert export default function.
+  const wrapAssemblyCjs = transformEsmForInlining(wrapAssemblyContent, {
+    convertDefaultExport: true,
+    defaultExportName: 'wrapAssembly',
+    removeImports: true,
+  })
+
+  // Build replacement code - no duplication, reuses constants object.
+  const replacement = `// ============================================
+// Inlined YGEnums (CJS)
+// ============================================
+${ygEnumsCjs}
+
+// ============================================
+// Inlined wrapAssembly (CJS)
+// ============================================
+${wrapAssemblyCjs}
+
+// Apply wrapper to get official yoga-layout API.
+var _yoga = wrapAssembly(yogaModule);
+module.exports = _yoga;
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  Align: 0, BoxSizing: 0, Config: 0, Dimension: 0, Direction: 0, Display: 0,
+  Edge: 0, Errata: 0, ExperimentalFeature: 0, FlexDirection: 0, Gutter: 0,
+  Justify: 0, LogLevel: 0, MeasureMode: 0, Node: 0, NodeType: 0, Overflow: 0,
+  PositionType: 0, Unit: 0, Wrap: 0
+});`
+
+  // Replace the module.exports = yogaModule; with our wrapped version.
+  content = replaceWrapperExport(content, replacement, false)
+
+  await fs.writeFile(syncCjsFile, content, 'utf8')
+  logger.substep('CJS wrapper post-processed with wrapAssembly')
+}
+
+/**
+ * Post-process ESM wrapper to include wrapAssembly.
+ */
+export async function postProcessEsmWrapper(
+  syncEsmFile,
+  ygEnumsContent,
+  wrapAssemblyContent,
+) {
+  let content = await fs.readFile(syncEsmFile, 'utf8')
+
+  // Transform YGEnums: remove imports, convert default export to alias.
+  const ygEnumsInlined = transformEsmForInlining(ygEnumsContent, {
+    convertDefaultExport: true,
+    defaultExportName: 'YGEnums',
+    removeImports: true,
+  })
+
+  // Transform wrapAssembly: remove imports, keep function (remove export default).
+  const wrapAssemblyInlined = transformEsmForInlining(wrapAssemblyContent, {
+    convertDefaultExport: true,
+    // Function name is preserved, just remove 'export default'.
+    defaultExportName: 'wrapAssembly',
+    removeImports: true,
+  })
+
+  // Build replacement code.
+  const replacement = `// ============================================
+// Inlined YGEnums.mts
+// ============================================
+${ygEnumsInlined}
+
+// ============================================
+// Inlined wrapAssembly.mts
+// ============================================
+${wrapAssemblyInlined}
+
+// Apply wrapper to get official yoga-layout API.
+const Yoga = wrapAssembly(yogaModule);
+
+// ESM export - wrapped Yoga with official API.
+export default Yoga;`
+
+  // Replace the export default yogaModule; with our wrapped version.
+  content = replaceWrapperExport(content, replacement, true)
+
+  await fs.writeFile(syncEsmFile, content, 'utf8')
+  logger.substep('ESM wrapper post-processed with wrapAssembly')
+}
+
+/**
+ * Find and replace the default export in generated wrapper.
+ *
+ * @param {string} code - Wrapper code
+ * @param {string} replacement - Replacement code
+ * @param {boolean} isEsm - Whether ESM or CJS
+ * @returns {string} Modified code
+ */
+export function replaceWrapperExport(code, replacement, isEsm) {
+  const ast = parseCode(code, isEsm)
+  const s = new MagicString(code)
+  let replaced = false
+
+  if (isEsm) {
+    // Find: export default yogaModule;
+    walk.simple(ast, {
+      ExportDefaultDeclaration(node) {
+        if (
+          node.declaration.type === 'Identifier' &&
+          node.declaration.name.endsWith('Module')
+        ) {
+          s.overwrite(node.start, node.end, replacement)
+          replaced = true
+        }
+      },
+    })
+  } else {
+    // Find: module.exports = yogaModule;
+    walk.simple(ast, {
+      ExpressionStatement(node) {
+        if (
+          node.expression.type === 'AssignmentExpression' &&
+          node.expression.left.type === 'MemberExpression' &&
+          node.expression.left.object.name === 'module' &&
+          node.expression.left.property.name === 'exports' &&
+          node.expression.right.type === 'Identifier' &&
+          node.expression.right.name.endsWith('Module')
+        ) {
+          s.overwrite(node.start, node.end, replacement)
+          replaced = true
+        }
+      },
+    })
+  }
+
+  if (!replaced) {
+    throw new Error(
+      `Failed to find ${isEsm ? 'export default' : 'module.exports'} in wrapper`,
+    )
+  }
+
+  return s.toString()
 }
 
 /**
@@ -167,7 +326,7 @@ function parseCode(code, isModule = true) {
  * @param {boolean} options.convertExportConst - Convert 'export const' to 'const'
  * @returns {string} Transformed code
  */
-function transformEsmForInlining(code, options = {}) {
+export function transformEsmForInlining(code, options = {}) {
   const {
     convertDefaultExport = false,
     convertExportConst = false,
@@ -227,163 +386,4 @@ function transformEsmForInlining(code, options = {}) {
   })
 
   return s.toString()
-}
-
-/**
- * Find and replace the default export in generated wrapper.
- *
- * @param {string} code - Wrapper code
- * @param {string} replacement - Replacement code
- * @param {boolean} isEsm - Whether ESM or CJS
- * @returns {string} Modified code
- */
-function replaceWrapperExport(code, replacement, isEsm) {
-  const ast = parseCode(code, isEsm)
-  const s = new MagicString(code)
-  let replaced = false
-
-  if (isEsm) {
-    // Find: export default yogaModule;
-    walk.simple(ast, {
-      ExportDefaultDeclaration(node) {
-        if (
-          node.declaration.type === 'Identifier' &&
-          node.declaration.name.endsWith('Module')
-        ) {
-          s.overwrite(node.start, node.end, replacement)
-          replaced = true
-        }
-      },
-    })
-  } else {
-    // Find: module.exports = yogaModule;
-    walk.simple(ast, {
-      ExpressionStatement(node) {
-        if (
-          node.expression.type === 'AssignmentExpression' &&
-          node.expression.left.type === 'MemberExpression' &&
-          node.expression.left.object.name === 'module' &&
-          node.expression.left.property.name === 'exports' &&
-          node.expression.right.type === 'Identifier' &&
-          node.expression.right.name.endsWith('Module')
-        ) {
-          s.overwrite(node.start, node.end, replacement)
-          replaced = true
-        }
-      },
-    })
-  }
-
-  if (!replaced) {
-    throw new Error(
-      `Failed to find ${isEsm ? 'export default' : 'module.exports'} in wrapper`,
-    )
-  }
-
-  return s.toString()
-}
-
-/**
- * Post-process ESM wrapper to include wrapAssembly.
- */
-async function postProcessEsmWrapper(
-  syncEsmFile,
-  ygEnumsContent,
-  wrapAssemblyContent,
-) {
-  let content = await fs.readFile(syncEsmFile, 'utf8')
-
-  // Transform YGEnums: remove imports, convert default export to alias.
-  const ygEnumsInlined = transformEsmForInlining(ygEnumsContent, {
-    convertDefaultExport: true,
-    defaultExportName: 'YGEnums',
-    removeImports: true,
-  })
-
-  // Transform wrapAssembly: remove imports, keep function (remove export default).
-  const wrapAssemblyInlined = transformEsmForInlining(wrapAssemblyContent, {
-    convertDefaultExport: true,
-    // Function name is preserved, just remove 'export default'.
-    defaultExportName: 'wrapAssembly',
-    removeImports: true,
-  })
-
-  // Build replacement code.
-  const replacement = `// ============================================
-// Inlined YGEnums.mts
-// ============================================
-${ygEnumsInlined}
-
-// ============================================
-// Inlined wrapAssembly.mts
-// ============================================
-${wrapAssemblyInlined}
-
-// Apply wrapper to get official yoga-layout API.
-const Yoga = wrapAssembly(yogaModule);
-
-// ESM export - wrapped Yoga with official API.
-export default Yoga;`
-
-  // Replace the export default yogaModule; with our wrapped version.
-  content = replaceWrapperExport(content, replacement, true)
-
-  await fs.writeFile(syncEsmFile, content, 'utf8')
-  logger.substep('ESM wrapper post-processed with wrapAssembly')
-}
-
-/**
- * Post-process CJS wrapper to include wrapAssembly.
- */
-async function postProcessCjsWrapper(
-  syncCjsFile,
-  ygEnumsContent,
-  wrapAssemblyContent,
-) {
-  let content = await fs.readFile(syncCjsFile, 'utf8')
-
-  // Transform YGEnums for CJS: remove imports, convert exports, alias default export.
-  // This reuses the existing 'constants' object from YGEnums.mts instead of duplicating it.
-  const ygEnumsCjs = transformEsmForInlining(ygEnumsContent, {
-    convertDefaultExport: true,
-    convertExportConst: true,
-    // Alias 'constants' as 'YGEnums' for wrapAssembly compatibility.
-    defaultExportName: 'YGEnums',
-    removeImports: true,
-  })
-
-  // Transform wrapAssembly for CJS: remove imports, convert export default function.
-  const wrapAssemblyCjs = transformEsmForInlining(wrapAssemblyContent, {
-    convertDefaultExport: true,
-    defaultExportName: 'wrapAssembly',
-    removeImports: true,
-  })
-
-  // Build replacement code - no duplication, reuses constants object.
-  const replacement = `// ============================================
-// Inlined YGEnums (CJS)
-// ============================================
-${ygEnumsCjs}
-
-// ============================================
-// Inlined wrapAssembly (CJS)
-// ============================================
-${wrapAssemblyCjs}
-
-// Apply wrapper to get official yoga-layout API.
-var _yoga = wrapAssembly(yogaModule);
-module.exports = _yoga;
-// Annotate the CommonJS export names for ESM import in node:
-0 && (module.exports = {
-  Align: 0, BoxSizing: 0, Config: 0, Dimension: 0, Direction: 0, Display: 0,
-  Edge: 0, Errata: 0, ExperimentalFeature: 0, FlexDirection: 0, Gutter: 0,
-  Justify: 0, LogLevel: 0, MeasureMode: 0, Node: 0, NodeType: 0, Overflow: 0,
-  PositionType: 0, Unit: 0, Wrap: 0
-});`
-
-  // Replace the module.exports = yogaModule; with our wrapped version.
-  content = replaceWrapperExport(content, replacement, false)
-
-  await fs.writeFile(syncCjsFile, content, 'utf8')
-  logger.substep('CJS wrapper post-processed with wrapAssembly')
 }

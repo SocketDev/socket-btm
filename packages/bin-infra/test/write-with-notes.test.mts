@@ -53,7 +53,7 @@ let testDataFile: string
 /**
  * Execute command and return result
  */
-async function execCommand(
+export async function execCommand(
   command: string,
   args: string[] = [],
   options: { timeout?: number; cwd?: string } = {},
@@ -198,7 +198,7 @@ describe.skipIf(!existsSync(BINJECT_BIN) || process.platform === 'win32')(
         // If VirtAddr is 0, ALLOC flag must NOT be present
         if (virtAddr === '0000000000000000' || virtAddr === '00000000') {
           expect(flags).not.toContain('A')
-          console.log(
+          logger.log(
             `✓ Section ${sectionName}: VirtAddr=0, ALLOC flag correctly removed`,
           )
         }
@@ -217,9 +217,9 @@ describe.skipIf(!existsSync(BINJECT_BIN) || process.platform === 'win32')(
 
       // Timeout (code 124) is acceptable - means binary started successfully
       if (result.code === 124) {
-        console.log('✓ Binary started successfully (timed out, which is OK)')
+        logger.success('Binary started successfully (timed out, which is OK)')
       } else {
-        console.log(`✓ Binary executed (exit code: ${result.code})`)
+        logger.log(`✓ Binary executed (exit code: ${result.code})`)
       }
     }, 30_000)
   },

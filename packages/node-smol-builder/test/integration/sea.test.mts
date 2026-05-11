@@ -23,13 +23,13 @@ const testTmpDir = path.join(os.tmpdir(), 'socket-btm-sea-minimal-test')
 
 describe.skipIf(skipTests)('test with actual binject', () => {
   beforeAll(async () => {
-    console.log('beforeAll: creating temp dir')
+    logger.log('beforeAll: creating temp dir')
     await fs.mkdir(testTmpDir, { recursive: true })
-    console.log('beforeAll: done')
+    logger.log('beforeAll: done')
   })
 
   afterAll(async () => {
-    console.log('afterAll: SKIPPING cleanup to test binary manually')
+    logger.log('afterAll: SKIPPING cleanup to test binary manually')
     // await fs.rm(testTmpDir, { recursive: true, force: true })
   })
 
@@ -57,7 +57,7 @@ describe.skipIf(skipTests)('test with actual binject', () => {
     await fs.copyFile(finalBinaryPath, seaBinary)
     await makeExecutable(seaBinary)
 
-    console.log(
+    logger.log(
       'About to call runBinject WITHOUT sentinelFuse/machoSegmentName...',
     )
     // Inject SEA blob - NO sentinelFuse or machoSegmentName
@@ -69,18 +69,18 @@ describe.skipIf(skipTests)('test with actual binject', () => {
         testDir,
       },
     )
-    console.log('runBinject completed with exit code:', result.code)
+    logger.log('runBinject completed with exit code:', result.code)
 
     expect(result.code).toBe(0)
 
     // Run binary
-    console.log('About to execute binary...')
+    logger.log('About to execute binary...')
     const execResult = await spawn(seaBinary, [], { cwd: testDir })
-    console.log('Binary executed with exit code:', execResult.code)
+    logger.log('Binary executed with exit code:', execResult.code)
 
     expect(execResult.code).toBe(0)
     expect(execResult.stdout).toContain('Hello SEA')
 
-    console.log('Test completed successfully!')
+    logger.log('Test completed successfully!')
   })
 })

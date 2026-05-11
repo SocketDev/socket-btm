@@ -66,33 +66,9 @@ const PROPERTY_ORDER = [
 ]
 
 /**
- * Reorder object properties according to standard order.
- */
-function reorderProperties(obj: JsonObject): JsonObject {
-  const ordered: JsonObject = { __proto__: null } as JsonObject
-  const remaining: JsonObject = { __proto__: null } as JsonObject
-
-  // First, add properties in standard order.
-  for (const key of PROPERTY_ORDER) {
-    if (key in obj) {
-      ordered[key] = obj[key]!
-    }
-  }
-
-  // Then add remaining properties alphabetically.
-  for (const key of Object.keys(obj).toSorted()) {
-    if (!(key in ordered)) {
-      remaining[key] = obj[key]!
-    }
-  }
-
-  return { ...ordered, ...remaining }
-}
-
-/**
  * Find all package.json files in packages/*.
  */
-function findPackages(): PackageEntry[] {
+export function findPackages(): PackageEntry[] {
   const packages: PackageEntry[] = []
   const entries = readdirSync(packagesDir)
 
@@ -117,7 +93,7 @@ function findPackages(): PackageEntry[] {
 /**
  * Normalize a package.json file.
  */
-function normalizePackageJson(pkgPath: string): boolean {
+export function normalizePackageJson(pkgPath: string): boolean {
   const content = readFileSync(pkgPath, 'utf8')
   const pkg = JSON.parse(content) as JsonObject
 
@@ -137,9 +113,33 @@ function normalizePackageJson(pkgPath: string): boolean {
 }
 
 /**
+ * Reorder object properties according to standard order.
+ */
+export function reorderProperties(obj: JsonObject): JsonObject {
+  const ordered: JsonObject = { __proto__: null } as JsonObject
+  const remaining: JsonObject = { __proto__: null } as JsonObject
+
+  // First, add properties in standard order.
+  for (const key of PROPERTY_ORDER) {
+    if (key in obj) {
+      ordered[key] = obj[key]!
+    }
+  }
+
+  // Then add remaining properties alphabetically.
+  for (const key of Object.keys(obj).toSorted()) {
+    if (!(key in ordered)) {
+      remaining[key] = obj[key]!
+    }
+  }
+
+  return { ...ordered, ...remaining }
+}
+
+/**
  * Run npm pkg fix on a package.
  */
-async function runNpmPkgFix(pkgPath: string): Promise<boolean> {
+export async function runNpmPkgFix(pkgPath: string): Promise<boolean> {
   const pkgDir = path.dirname(pkgPath)
   try {
     await spawn('npm', ['pkg', 'fix'], {

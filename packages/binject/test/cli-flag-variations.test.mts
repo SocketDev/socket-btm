@@ -33,7 +33,7 @@ const binjectExists = existsSync(BINJECT)
 /**
  * Execute command and return result
  */
-async function execCommand(command, args = [], options = {}) {
+export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {
     const spawnPromise = spawn(command, args, {
       ...options,

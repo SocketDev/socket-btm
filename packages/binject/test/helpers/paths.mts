@@ -22,6 +22,21 @@ const BUILD_MODE = getBuildMode()
 const PLATFORM_ARCH = getPlatformArch(process.platform, process.arch, undefined)
 
 /**
+ * Get the binflate binary path based on build mode
+ * @param {string} [platform] - Platform override (defaults to process.platform)
+ * @returns {string} Path to binflate binary
+ */
+export function getBinflatePath(platform = process.platform) {
+  const binaryName = platform === 'win32' ? 'binflate.exe' : 'binflate'
+  return getFinalBinaryPath(
+    BINFLATE_ROOT,
+    BUILD_MODE,
+    PLATFORM_ARCH,
+    binaryName,
+  )
+}
+
+/**
  * Get the binject binary path based on build mode
  * @param {string} [platform] - Platform override (defaults to process.platform)
  * @returns {string} Path to binject binary
@@ -40,21 +55,6 @@ export function getBinpressPath(platform = process.platform) {
   const binaryName = platform === 'win32' ? 'binpress.exe' : 'binpress'
   return getFinalBinaryPath(
     BINPRESS_ROOT,
-    BUILD_MODE,
-    PLATFORM_ARCH,
-    binaryName,
-  )
-}
-
-/**
- * Get the binflate binary path based on build mode
- * @param {string} [platform] - Platform override (defaults to process.platform)
- * @returns {string} Path to binflate binary
- */
-export function getBinflatePath(platform = process.platform) {
-  const binaryName = platform === 'win32' ? 'binflate.exe' : 'binflate'
-  return getFinalBinaryPath(
-    BINFLATE_ROOT,
     BUILD_MODE,
     PLATFORM_ARCH,
     binaryName,

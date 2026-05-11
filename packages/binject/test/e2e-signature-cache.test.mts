@@ -38,7 +38,7 @@ const PLATFORM_ARCH = getPlatformArch(process.platform, process.arch, undefined)
  * Tries multiple locations and build variants.
  * @returns {string|null} Path to binary or null if none found
  */
-function findTestStub() {
+export function findTestStub() {
   const platform = os.platform()
   const binaryName = platform === 'win32' ? 'node.exe' : 'node'
 
@@ -124,7 +124,7 @@ function findTestStub() {
     }
   }
 
-  return null
+  return undefined
 }
 
 /**
@@ -133,7 +133,7 @@ function findTestStub() {
  * This is more reliable than extracting from cache which can be inconsistent.
  * @returns {string|null} Path to uncompressed binary or null if none found
  */
-function findNodeSmolBinary() {
+export function findNodeSmolBinary() {
   const platform = os.platform()
   const binaryName = platform === 'win32' ? 'node.exe' : 'node'
 
@@ -184,7 +184,7 @@ function findNodeSmolBinary() {
     }
   }
 
-  return null
+  return undefined
 }
 
 // Only run on macOS since this tests Mach-O signatures
@@ -192,7 +192,7 @@ const describeOnMac = os.platform() === 'darwin' ? describe : describe.skip
 
 let testDir: string
 
-async function execCommand(command, args = [], options = {}) {
+export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {
     const spawnPromise = spawn(command, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -227,7 +227,7 @@ async function execCommand(command, args = [], options = {}) {
   })
 }
 
-async function verifySignature(binaryPath) {
+export async function verifySignature(binaryPath) {
   const result = await execCommand('codesign', [
     '--verify',
     '--strict',
@@ -237,17 +237,17 @@ async function verifySignature(binaryPath) {
   return result.code === 0
 }
 
-async function _getSignatureInfo(binaryPath) {
+export async function _getSignatureInfo(binaryPath) {
   // codesign outputs to stderr
   const result = await execCommand('codesign', ['-dvvv', binaryPath])
   return result.stderr
 }
 
-function getCacheDir() {
+export function getCacheDir() {
   return getSocketDlxDir()
 }
 
-async function getCacheEntries() {
+export async function getCacheEntries() {
   const cacheDir = getCacheDir()
   try {
     const entries = await fs.readdir(cacheDir)
@@ -258,7 +258,7 @@ async function getCacheEntries() {
   }
 }
 
-async function getCachedBinaryPath(cacheKey) {
+export async function getCachedBinaryPath(cacheKey) {
   const platform = os.platform()
   const binaryName = platform === 'win32' ? 'node.exe' : 'node'
   return path.join(getCacheDir(), cacheKey, binaryName)
@@ -269,7 +269,7 @@ async function getCachedBinaryPath(cacheKey) {
  * This is necessary because the repack workflow modifies the cache state
  * in ways that break subsequent injections.
  */
-async function cleanCacheBeforeTest() {
+export async function cleanCacheBeforeTest() {
   const cacheDir = getCacheDir()
   try {
     const entries = await fs.readdir(cacheDir)
@@ -295,7 +295,7 @@ async function cleanCacheBeforeTest() {
  * @param nodeBinaryPath - Optional path to Node.js binary for SEA generation (for version matching)
  * @returns Path to the generated .blob file
  */
-async function generateValidSEABlob(
+export async function generateValidSEABlob(
   baseDir: string,
   prefix: string,
   nodeBinaryPath?: string,
@@ -337,7 +337,7 @@ async function generateValidSEABlob(
 /**
  * Create unique VFS content using UUID to ensure each test creates a unique cache entry
  */
-function createUniqueVFSContent(description: string) {
+export function createUniqueVFSContent(description: string) {
   const uuid = randomUUID()
   return `${description}\nUnique ID: ${uuid}\n`
 }
@@ -392,8 +392,8 @@ describeOnMac('E2E Signature and Cache Tests', () => {
 
     // Skip if stub doesn't exist
     if (!stubPath) {
-      console.log('⊘ Skipping: node-smol stub not found')
-      console.log(
+      logger.log('⊘ Skipping: node-smol stub not found')
+      logger.log(
         '  Build node-smol-builder first: cd ../node-smol-builder && pnpm run build',
       )
       return
@@ -401,8 +401,8 @@ describeOnMac('E2E Signature and Cache Tests', () => {
 
     // Skip if no uncompressed binary for SEA generation
     if (!nodeSmolBinary) {
-      console.log('⊘ Skipping: node-smol binary not found for SEA generation')
-      console.log(
+      logger.log('⊘ Skipping: node-smol binary not found for SEA generation')
+      logger.log(
         '  Build node-smol-builder first: cd ../node-smol-builder && pnpm run build',
       )
       return
@@ -470,8 +470,8 @@ describeOnMac('E2E Signature and Cache Tests', () => {
     const stubPath = findTestStub()
 
     if (!stubPath) {
-      console.log('⊘ Skipping: node-smol stub not found')
-      console.log(
+      logger.log('⊘ Skipping: node-smol stub not found')
+      logger.log(
         '  Build node-smol-builder first: cd ../node-smol-builder && pnpm run build',
       )
       return
@@ -479,8 +479,8 @@ describeOnMac('E2E Signature and Cache Tests', () => {
 
     // Skip if no uncompressed binary for SEA generation
     if (!nodeSmolBinary) {
-      console.log('⊘ Skipping: node-smol binary not found for SEA generation')
-      console.log(
+      logger.log('⊘ Skipping: node-smol binary not found for SEA generation')
+      logger.log(
         '  Build node-smol-builder first: cd ../node-smol-builder && pnpm run build',
       )
       return
@@ -513,7 +513,7 @@ describeOnMac('E2E Signature and Cache Tests', () => {
       vfsBlob1,
     ])
     if (inject1.code !== 0) {
-      console.log('inject1 failed:', inject1.output)
+      logger.log('inject1 failed:', inject1.output)
     }
     expect(inject1.code).toBe(0)
 
@@ -594,7 +594,7 @@ describeOnMac('E2E Signature and Cache Tests', () => {
     // expect(v1Exists).toBe(false)
     // For now, we just document that both exist:
     if (v1Exists) {
-      console.log(
+      logger.log(
         `  ⚠ Note: Old cache still exists at ${cacheKeyV1} (cleanup not yet implemented)`,
       )
     }
@@ -607,8 +607,8 @@ describeOnMac('E2E Signature and Cache Tests', () => {
     const stubPath = findTestStub()
 
     if (!stubPath) {
-      console.log('⊘ Skipping: node-smol stub not found')
-      console.log(
+      logger.log('⊘ Skipping: node-smol stub not found')
+      logger.log(
         '  Build node-smol-builder first: cd ../node-smol-builder && pnpm run build',
       )
       return
@@ -616,8 +616,8 @@ describeOnMac('E2E Signature and Cache Tests', () => {
 
     // Skip if no uncompressed binary for SEA generation
     if (!nodeSmolBinary) {
-      console.log('⊘ Skipping: node-smol binary not found for SEA generation')
-      console.log(
+      logger.log('⊘ Skipping: node-smol binary not found for SEA generation')
+      logger.log(
         '  Build node-smol-builder first: cd ../node-smol-builder && pnpm run build',
       )
       return

@@ -23,7 +23,7 @@ const DARWIN = platform === 'darwin'
 /**
  * Detect available package manager on current system
  */
-async function detectPackageManager() {
+export async function detectPackageManager() {
   if (DARWIN) {
     try {
       await spawn('which', ['brew'], { stdio: 'ignore' })
@@ -67,19 +67,6 @@ async function detectPackageManager() {
 
   logger.warn('No supported package manager found on Linux')
   return undefined
-}
-
-/**
- * Check if a tool is already installed
- */
-async function isToolInstalled(toolName) {
-  try {
-    const cmd = WIN32 ? 'where' : 'which'
-    await spawn(cmd, [toolName], { stdio: 'ignore' })
-    return true
-  } catch {
-    return false
-  }
 }
 
 /**
@@ -249,6 +236,19 @@ export async function installTools(toolNames, options = {}) {
   }
 
   return { failed, installed }
+}
+
+/**
+ * Check if a tool is already installed
+ */
+export async function isToolInstalled(toolName) {
+  try {
+    const cmd = WIN32 ? 'where' : 'which'
+    await spawn(cmd, [toolName], { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**

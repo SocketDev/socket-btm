@@ -63,7 +63,7 @@ type AllowlistEntry = {
   reason: string
 }
 
-function loadAllowlist(): AllowlistEntry[] {
+export function loadAllowlist(): AllowlistEntry[] {
   if (!existsSync(ALLOWLIST_PATH)) {
     return []
   }
@@ -108,7 +108,7 @@ type Submodule = {
 }
 
 /** Walk .gitmodules for submodules + their version comments. */
-function loadSubmodules(): Submodule[] {
+export function loadSubmodules(): Submodule[] {
   if (!existsSync(GITMODULES_PATH)) {
     return []
   }
@@ -151,7 +151,7 @@ function loadSubmodules(): Submodule[] {
 }
 
 /** Get the short gitlink commit SHA for a submodule path. */
-async function getSubmoduleSha(subPath: string): Promise<string | undefined> {
+export async function getSubmoduleSha(subPath: string): Promise<string | undefined> {
   try {
     const result = await spawn('git', ['ls-tree', 'HEAD', subPath], {
       cwd: MONOREPO_ROOT,
@@ -186,7 +186,7 @@ type PackageJsonSource = {
   ref: string | undefined
 }
 
-function loadPackageJsonSources(): PackageJsonSource[] {
+export function loadPackageJsonSources(): PackageJsonSource[] {
   const sources: PackageJsonSource[] = []
   const pkgsDir = path.join(MONOREPO_ROOT, 'packages')
   if (!existsSync(pkgsDir)) {
@@ -241,7 +241,7 @@ type Mismatch = {
   kind: 'version' | 'ref'
 }
 
-async function collectMismatches(): Promise<Mismatch[]> {
+export async function collectMismatches(): Promise<Mismatch[]> {
   const mismatches: Mismatch[] = []
   const submodules = loadSubmodules()
   const pkgSources = loadPackageJsonSources()
@@ -314,7 +314,7 @@ type Options = {
   quiet: boolean
 }
 
-function printMismatch(m: Mismatch, opts: Options): void {
+export function printMismatch(m: Mismatch, opts: Options): void {
   if (opts.json) {
     logger.log(JSON.stringify(m))
     return

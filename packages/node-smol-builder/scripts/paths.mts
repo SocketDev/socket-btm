@@ -37,25 +37,6 @@ export const SOCKET_CACHE_DIR = getSocketHomePath()
 export const UPSTREAM_PATH = path.join(PACKAGE_ROOT, 'upstream/node')
 
 /**
- * Get the default platform-arch string for the current system.
- * Thin wrapper over build-infra's getAssetPlatformArch so the rest of
- * node-smol-builder can keep its existing callsites while the shared
- * helper remains the source of truth.
- *
- * @param {string} [platform] - Target platform (defaults to process.platform)
- * @param {string} [arch] - Target architecture (defaults to process.arch)
- * @param {string} [libc] - C library variant ('musl' for Alpine Linux)
- * @returns {string} Platform-arch string (e.g., 'darwin-arm64', 'linux-x64-musl')
- */
-export function getDefaultPlatformArch(
-  platform = process.platform,
-  arch = process.arch,
-  libc,
-) {
-  return getAssetPlatformArch(platform, arch, libc)
-}
-
-/**
  * Get build directories for a specific mode (dev/prod) with REQUIRED platformArch.
  * @param {string} mode - Build mode ('dev' or 'prod')
  * @param {string} platform - Target platform ('darwin', 'linux', 'win32')
@@ -315,6 +296,25 @@ export function getCumulativeHierarchicalPaths(
   }
 
   return allPaths
+}
+
+/**
+ * Get the default platform-arch string for the current system.
+ * Thin wrapper over build-infra's getAssetPlatformArch so the rest of
+ * node-smol-builder can keep its existing callsites while the shared
+ * helper remains the source of truth.
+ *
+ * @param {string} [platform] - Target platform (defaults to process.platform)
+ * @param {string} [arch] - Target architecture (defaults to process.arch)
+ * @param {string} [libc] - C library variant ('musl' for Alpine Linux)
+ * @returns {string} Platform-arch string (e.g., 'darwin-arm64', 'linux-x64-musl')
+ */
+export function getDefaultPlatformArch(
+  platform = process.platform,
+  arch = process.arch,
+  libc,
+) {
+  return getAssetPlatformArch(platform, arch, libc)
 }
 
 /**

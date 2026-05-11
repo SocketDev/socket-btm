@@ -7,49 +7,9 @@
  */
 
 /**
- * Simulate path normalization (backslash → forward slash)
- */
-function normalizePath(filepath: string): string {
-  return filepath.replace(/\\/g, '/')
-}
-
-/**
- * Simulate isVFSPrefixPath logic
- */
-function isVFSPrefixPath(
-  filepath: string | null | undefined,
-  prefix = '/snapshot',
-): boolean {
-  if (!filepath || typeof filepath !== 'string') {
-    return false
-  }
-
-  const normalized = normalizePath(filepath)
-
-  return (
-    normalized === prefix ||
-    normalized === `${prefix}/` ||
-    normalized.startsWith(`${prefix}/`)
-  )
-}
-
-/**
- * Simulate toVFSPath logic (extract relative path from VFS prefix path)
- */
-function toVFSPath(filepath: string, prefix = '/snapshot'): string | undefined {
-  const normalized = normalizePath(filepath)
-
-  if (normalized.startsWith(`${prefix}/`)) {
-    return normalized.slice(prefix.length + 1)
-  }
-
-  return undefined
-}
-
-/**
  * Simulate findVFSKey logic (try with/without trailing slash)
  */
-function findVFSKey(vfsPath: string, entries: Set<string>): string | undefined {
+export function findVFSKey(vfsPath: string, entries: Set<string>): string | undefined {
   // Check exact match
   if (entries.has(vfsPath)) {
     return vfsPath
@@ -71,9 +31,29 @@ function findVFSKey(vfsPath: string, entries: Set<string>): string | undefined {
 }
 
 /**
+ * Simulate isVFSPrefixPath logic
+ */
+export function isVFSPrefixPath(
+  filepath: string | null | undefined,
+  prefix = '/snapshot',
+): boolean {
+  if (!filepath || typeof filepath !== 'string') {
+    return false
+  }
+
+  const normalized = normalizePath(filepath)
+
+  return (
+    normalized === prefix ||
+    normalized === `${prefix}/` ||
+    normalized.startsWith(`${prefix}/`)
+  )
+}
+
+/**
  * Validate VFS prefix format
  */
-function isValidVFSPrefix(prefix: string): { valid: boolean; error?: string } {
+export function isValidVFSPrefix(prefix: string): { valid: boolean; error?: string } {
   if (!prefix.startsWith('/')) {
     return {
       error: `prefix must start with a forward slash`,
@@ -93,6 +73,26 @@ function isValidVFSPrefix(prefix: string): { valid: boolean; error?: string } {
     }
   }
   return { valid: true }
+}
+
+/**
+ * Simulate path normalization (backslash → forward slash)
+ */
+export function normalizePath(filepath: string): string {
+  return filepath.replace(/\\/g, '/')
+}
+
+/**
+ * Simulate toVFSPath logic (extract relative path from VFS prefix path)
+ */
+export function toVFSPath(filepath: string, prefix = '/snapshot'): string | undefined {
+  const normalized = normalizePath(filepath)
+
+  if (normalized.startsWith(`${prefix}/`)) {
+    return normalized.slice(prefix.length + 1)
+  }
+
+  return undefined
 }
 
 describe('vFS Path Handling', () => {

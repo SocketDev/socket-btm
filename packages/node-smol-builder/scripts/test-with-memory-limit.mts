@@ -52,7 +52,7 @@ const startTime = Date.now()
 let killed = false
 
 // Get memory usage cross-platform
-function getMemoryUsageMB(pid) {
+export function getMemoryUsageMB(pid) {
   try {
     if (WIN32) {
       // Windows: Use PowerShell (wmic is deprecated/removed on Windows 11+)
@@ -83,7 +83,7 @@ function getMemoryUsageMB(pid) {
 }
 
 // Kill process tree cross-platform
-function killProcessTree(pid) {
+export function killProcessTree(pid) {
   try {
     if (WIN32) {
       spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], {

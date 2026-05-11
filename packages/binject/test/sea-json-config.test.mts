@@ -31,13 +31,26 @@ const PLATFORM_ARCH = getPlatformArch(process.platform, process.arch, undefined)
 
 let testDir: string
 let binjectExists = false
-let nodeBinary = null
+let nodeBinary = undefined
+
+/**
+ * Create a copy of BINJECT for a test to use as input (-e parameter)
+ *
+ * The injection process modifies the input binary in-place to remove signatures,
+ * so each test needs its own copy to avoid affecting other tests.
+ */
+export async function createTestBinject(name = 'test-binject') {
+  const testBinject = path.join(testDir, name)
+  await fs.copyFile(BINJECT, testBinject)
+  await makeExecutable(testBinject)
+  return testBinject
+}
 
 /**
  * Download latest node-smol release from GitHub
  * Returns path to downloaded binary in cache directory
  */
-async function downloadNodeSmolRelease() {
+export async function downloadNodeSmolRelease() {
   try {
     // Use a persistent cache directory (not testDir which gets cleaned up)
     const cacheDir = path.join(os.tmpdir(), 'binject-node-cache')
@@ -55,7 +68,7 @@ async function downloadNodeSmolRelease() {
 
     const release = JSON.parse(releaseJson)
     if (!release || !release.tagName || !release.assets) {
-      return null
+      return undefined
     }
 
     // Determine platform-specific asset name
@@ -70,7 +83,7 @@ async function downloadNodeSmolRelease() {
     } else if (platform === 'win32') {
       assetPattern = `node-smol-.*-win-${arch}.zip`
     } else {
-      return null
+      return undefined
     }
 
     // Find matching asset
@@ -78,7 +91,7 @@ async function downloadNodeSmolRelease() {
       new RegExp(assetPattern).test(a.name),
     )
     if (!asset) {
-      return null
+      return undefined
     }
 
     const ext = platform === 'win32' ? '.exe' : ''
@@ -122,15 +135,50 @@ async function downloadNodeSmolRelease() {
     await fs.access(cachedBinary, fs.constants.X_OK)
     return cachedBinary
   } catch {
-    return null
+    return undefined
   }
+}
+
+export async function execCommand(command, args = [], options = {}) {
+  return new Promise(resolve => {
+    const spawnPromise = spawn(command, args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      ...options,
+    })
+
+    // Prevent unhandled rejection — we handle exit via proc.on('close')
+    spawnPromise.catch(() => {})
+
+    // @socketsecurity/lib/spawn returns a Promise with .process property
+    const proc = spawnPromise.process
+
+    let stdout = ''
+    let stderr = ''
+
+    proc.stdout?.on('data', data => {
+      stdout += data.toString()
+    })
+
+    proc.stderr?.on('data', data => {
+      stderr += data.toString()
+    })
+
+    proc.on('close', code => {
+      resolve({
+        code: code ?? -1,
+        output: stdout + stderr,
+        stderr,
+        stdout,
+      })
+    })
+  })
 }
 
 /**
  * Find a suitable Node.js binary for testing
  * Priority: local node-smol build > released node-smol > system Node.js
  */
-async function findNodeBinary() {
+export async function findNodeBinary() {
   // Local node-smol builds — paths come from node-smol-builder's paths.mts
   // so the on-disk layout stays in one place. outputFinalBinary already
   // encodes the platform-specific binary name (node vs node.exe).
@@ -173,54 +221,6 @@ async function findNodeBinary() {
   return process.execPath
 }
 
-/**
- * Create a copy of BINJECT for a test to use as input (-e parameter)
- *
- * The injection process modifies the input binary in-place to remove signatures,
- * so each test needs its own copy to avoid affecting other tests.
- */
-async function createTestBinject(name = 'test-binject') {
-  const testBinject = path.join(testDir, name)
-  await fs.copyFile(BINJECT, testBinject)
-  await makeExecutable(testBinject)
-  return testBinject
-}
-
-async function execCommand(command, args = [], options = {}) {
-  return new Promise(resolve => {
-    const spawnPromise = spawn(command, args, {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      ...options,
-    })
-
-    // Prevent unhandled rejection — we handle exit via proc.on('close')
-    spawnPromise.catch(() => {})
-
-    // @socketsecurity/lib/spawn returns a Promise with .process property
-    const proc = spawnPromise.process
-
-    let stdout = ''
-    let stderr = ''
-
-    proc.stdout?.on('data', data => {
-      stdout += data.toString()
-    })
-
-    proc.stderr?.on('data', data => {
-      stderr += data.toString()
-    })
-
-    proc.on('close', code => {
-      resolve({
-        code: code ?? -1,
-        output: stdout + stderr,
-        stderr,
-        stdout,
-      })
-    })
-  })
-}
-
 describe('sEA JSON Config', () => {
   beforeAll(async () => {
     // Check if binject binary exists
@@ -239,10 +239,10 @@ describe('sEA JSON Config', () => {
     // Check if binary is small enough for binject
     const stats = await fs.stat(foundBinary)
     if (stats.size > MAX_NODE_BINARY_SIZE) {
-      console.warn(
+      logger.warn(
         `Node binary too large for binject tests: ${(stats.size / 1024 / 1024).toFixed(2)}MB > ${MAX_NODE_BINARY_SIZE / 1024 / 1024}MB`,
       )
-      console.warn(
+      logger.warn(
         'Skipping tests - node-smol not available and system Node.js too large',
       )
       binjectExists = false

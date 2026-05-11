@@ -42,24 +42,75 @@ const VENDOR_DIR = path.resolve(
 )
 
 /**
- * Convert relative paths to absolute internal paths
- * Node.js internal module system doesn't resolve relative paths like regular Node.js
- * It prepends 'internal/deps/' to the path, so './file' becomes 'internal/deps/./file'
- * We need to convert './file' to 'internal/deps/fast-webstreams/file' (absolute internal path)
- * Also strips .js extension since js2c strips it from module names
+ * Add primordials protection to all fast-webstreams files
+ *
+ * Replaces direct Promise.* calls with primordials equivalents:
+ * - Promise.resolve() → PromiseResolve()
+ * - Promise.reject() → PromiseReject()
+ * - new Promise() → new SafePromise()
+ * - Promise.all() → SafePromiseAllReturnVoid() (pipe-to.js only)
+ *
+ * This protects against prototype pollution attacks on Promise methods.
  */
-function toInternalPath(source) {
-  // Convert relative paths to absolute internal paths
-  if (source.startsWith('./')) {
-    const basename = source.slice(2).replace(/\.js$/, '')
-    return `internal/deps/fast-webstreams/${basename}`
+export function addPrimordialsProtection(content, filename) {
+  // Check if this file uses any Promise patterns that need protection
+  const usesPromiseResolve = /Promise\.resolve\s*\(/g.test(content)
+  const usesPromiseReject = /Promise\.reject\s*\(/g.test(content)
+  const usesNewPromise = /new\s+Promise\s*\(/g.test(content)
+  const usesPromiseAll = /Promise\.all\s*\(/g.test(content)
+
+  const needsPrimordials =
+    usesPromiseResolve || usesPromiseReject || usesNewPromise || usesPromiseAll
+
+  if (!needsPrimordials) {
+    return content
   }
-  if (source.startsWith('../')) {
-    // Parent paths shouldn't occur within fast-webstreams, but handle gracefully
-    const basename = source.replace(/^\.\.\//, '').replace(/\.js$/, '')
-    return `internal/deps/${basename}`
+
+  // Build the primordials import based on what's needed
+  const primordialImports = []
+  if (usesPromiseResolve) {
+    primordialImports.push('PromiseResolve')
   }
-  return source
+  if (usesPromiseReject) {
+    primordialImports.push('PromiseReject')
+  }
+  if (usesNewPromise) {
+    primordialImports.push('SafePromise')
+  }
+  if (usesPromiseAll) {
+    primordialImports.push('SafePromiseAllReturnVoid')
+  }
+
+  // Find insertion point - after 'use strict' and any initial requires
+  // Insert primordials import at the top, right after 'use strict'
+  const useStrictMatch = content.match(/^'use strict'\s*\n/)
+  if (useStrictMatch) {
+    const insertPoint = useStrictMatch[0].length
+    const primordialsComment =
+      '// Use primordials for protection against prototype pollution'
+    const primordialsImport = `const {\n  ${primordialImports.join(',\n  ')},\n} = primordials`
+
+    content =
+      content.slice(0, insertPoint) +
+      `\n${primordialsComment}\n${primordialsImport}\n` +
+      content.slice(insertPoint)
+  }
+
+  // Replace Promise patterns with primordials
+  if (usesPromiseResolve) {
+    content = content.replace(/Promise\.resolve\s*\(/g, 'PromiseResolve(')
+  }
+  if (usesPromiseReject) {
+    content = content.replace(/Promise\.reject\s*\(/g, 'PromiseReject(')
+  }
+  if (usesNewPromise) {
+    content = content.replace(/new\s+Promise\s*\(/g, 'new SafePromise(')
+  }
+  if (usesPromiseAll) {
+    content = content.replace(/Promise\.all\s*\(/g, 'SafePromiseAllReturnVoid(')
+  }
+
+  return content
 }
 
 /**
@@ -71,7 +122,7 @@ function toInternalPath(source) {
  * like _getDesiredSize are called at runtime (not at module load time), so as long
  * as exports are populated by the end of module execution, circular deps work.
  */
-function convertToCommonJS(content, _filename) {
+export function convertToCommonJS(content, _filename) {
   let result = content
 
   // Add 'use strict' at the top
@@ -210,7 +261,7 @@ function convertToCommonJS(content, _filename) {
  * patch.js imports from index.js, but index.js re-exports from patch.js
  * Fix by making patch.js import directly from the source modules
  */
-function fixPatchCircularDependency(content, filename) {
+export function fixPatchCircularDependency(content, filename) {
   if (filename !== 'patch.js') {
     return content
   }
@@ -240,7 +291,7 @@ const { FastWritableStream } = require('internal/deps/fast-webstreams/writable')
  * This works because the functions that use _writable exports are called after
  * both modules have finished loading (at runtime, not at module load time).
  */
-function fixWriterWritableCycle(content, filename) {
+export function fixWriterWritableCycle(content, filename) {
   if (filename !== 'writer.js') {
     return content
   }
@@ -268,75 +319,90 @@ function fixWriterWritableCycle(content, filename) {
 }
 
 /**
- * Add primordials protection to all fast-webstreams files
- *
- * Replaces direct Promise.* calls with primordials equivalents:
- * - Promise.resolve() → PromiseResolve()
- * - Promise.reject() → PromiseReject()
- * - new Promise() → new SafePromise()
- * - Promise.all() → SafePromiseAllReturnVoid() (pipe-to.js only)
- *
- * This protects against prototype pollution attacks on Promise methods.
+ * Process and convert source files from node_modules
  */
-function addPrimordialsProtection(content, filename) {
-  // Check if this file uses any Promise patterns that need protection
-  const usesPromiseResolve = /Promise\.resolve\s*\(/g.test(content)
-  const usesPromiseReject = /Promise\.reject\s*\(/g.test(content)
-  const usesNewPromise = /new\s+Promise\s*\(/g.test(content)
-  const usesPromiseAll = /Promise\.all\s*\(/g.test(content)
-
-  const needsPrimordials =
-    usesPromiseResolve || usesPromiseReject || usesNewPromise || usesPromiseAll
-
-  if (!needsPrimordials) {
-    return content
+export async function processSourceFiles() {
+  const srcDir = path.join(NODE_MODULES_PKG, 'src')
+  if (!existsSync(srcDir)) {
+    throw new Error(`Source directory not found: ${srcDir}`)
   }
 
-  // Build the primordials import based on what's needed
-  const primordialImports = []
-  if (usesPromiseResolve) {
-    primordialImports.push('PromiseResolve')
-  }
-  if (usesPromiseReject) {
-    primordialImports.push('PromiseReject')
-  }
-  if (usesNewPromise) {
-    primordialImports.push('SafePromise')
-  }
-  if (usesPromiseAll) {
-    primordialImports.push('SafePromiseAllReturnVoid')
+  // Clean vendor directory
+  safeDeleteSync(VENDOR_DIR)
+  mkdirSync(VENDOR_DIR, { recursive: true })
+
+  // Process each source file
+  const files = readdirSync(srcDir).filter(f => f.endsWith('.js'))
+  logger.info(`Processing ${files.length} source files...`)
+
+  for (const file of files) {
+    const srcPath = path.join(srcDir, file)
+    const content = readFileSync(srcPath, 'utf8')
+    let converted = convertToCommonJS(content, file)
+    // Fix circular dependencies
+    converted = fixPatchCircularDependency(converted, file)
+    converted = fixWriterWritableCycle(converted, file)
+    // Wire C++ chunk pool for zero-allocation reads (AST-based, reader.js only)
+    converted = wireNativeChunkPool(converted, file)
+    // Add primordials for security (must be last to catch all Promise patterns)
+    converted = addPrimordialsProtection(converted, file)
+    const destPath = path.join(VENDOR_DIR, file)
+    writeFileSync(destPath, converted)
+    logger.info(`  Converted: ${file}`)
   }
 
-  // Find insertion point - after 'use strict' and any initial requires
-  // Insert primordials import at the top, right after 'use strict'
-  const useStrictMatch = content.match(/^'use strict'\s*\n/)
-  if (useStrictMatch) {
-    const insertPoint = useStrictMatch[0].length
-    const primordialsComment =
-      '// Use primordials for protection against prototype pollution'
-    const primordialsImport = `const {\n  ${primordialImports.join(',\n  ')},\n} = primordials`
+  // Create version file
+  const versionFile = path.join(VENDOR_DIR, 'VERSION')
+  const pkgJsonPath = path.join(NODE_MODULES_PKG, 'package.json')
+  let pkgJson
+  try {
+    pkgJson = JSON.parse(readFileSync(pkgJsonPath, 'utf8'))
+  } catch (e) {
+    throw new Error(
+      `Failed to parse package.json at ${pkgJsonPath}: ${errorMessage(e)}`,
+      { cause: e },
+    )
+  }
+  writeFileSync(
+    versionFile,
+    `Package: ${PACKAGE_NAME}\nVersion: ${pkgJson.version}\nSynced: ${new Date().toISOString()}\n`,
+  )
 
-    content =
-      content.slice(0, insertPoint) +
-      `\n${primordialsComment}\n${primordialsImport}\n` +
-      content.slice(insertPoint)
-  }
+  // Copy package.json but remove the type field
+  // Node.js internal module system (js2c) doesn't use package.json type resolution
+  const vendorPkgPath = path.join(VENDOR_DIR, 'package.json')
+  const editablePkgJson = await readPackageJson(
+    path.join(NODE_MODULES_PKG, 'package.json'),
+    { editable: true },
+  )
+  editablePkgJson.update({ type: undefined })
+  writeFileSync(
+    vendorPkgPath,
+    `${JSON.stringify(editablePkgJson.content, null, 2)}\n`,
+  )
 
-  // Replace Promise patterns with primordials
-  if (usesPromiseResolve) {
-    content = content.replace(/Promise\.resolve\s*\(/g, 'PromiseResolve(')
-  }
-  if (usesPromiseReject) {
-    content = content.replace(/Promise\.reject\s*\(/g, 'PromiseReject(')
-  }
-  if (usesNewPromise) {
-    content = content.replace(/new\s+Promise\s*\(/g, 'new SafePromise(')
-  }
-  if (usesPromiseAll) {
-    content = content.replace(/Promise\.all\s*\(/g, 'SafePromiseAllReturnVoid(')
-  }
+  return files.length
+}
 
-  return content
+/**
+ * Convert relative paths to absolute internal paths
+ * Node.js internal module system doesn't resolve relative paths like regular Node.js
+ * It prepends 'internal/deps/' to the path, so './file' becomes 'internal/deps/./file'
+ * We need to convert './file' to 'internal/deps/fast-webstreams/file' (absolute internal path)
+ * Also strips .js extension since js2c strips it from module names
+ */
+export function toInternalPath(source) {
+  // Convert relative paths to absolute internal paths
+  if (source.startsWith('./')) {
+    const basename = source.slice(2).replace(/\.js$/, '')
+    return `internal/deps/fast-webstreams/${basename}`
+  }
+  if (source.startsWith('../')) {
+    // Parent paths shouldn't occur within fast-webstreams, but handle gracefully
+    const basename = source.replace(/^\.\.\//, '').replace(/\.js$/, '')
+    return `internal/deps/${basename}`
+  }
+  return source
 }
 
 /**
@@ -349,7 +415,7 @@ function addPrimordialsProtection(content, filename) {
  *
  * Also prepends the internalBinding import for the chunk pool.
  */
-function wireNativeChunkPool(content, filename) {
+export function wireNativeChunkPool(content, filename) {
   if (filename !== 'reader.js') {
     return content
   }
@@ -424,72 +490,6 @@ function wireNativeChunkPool(content, filename) {
   }
 
   return content
-}
-
-/**
- * Process and convert source files from node_modules
- */
-async function processSourceFiles() {
-  const srcDir = path.join(NODE_MODULES_PKG, 'src')
-  if (!existsSync(srcDir)) {
-    throw new Error(`Source directory not found: ${srcDir}`)
-  }
-
-  // Clean vendor directory
-  safeDeleteSync(VENDOR_DIR)
-  mkdirSync(VENDOR_DIR, { recursive: true })
-
-  // Process each source file
-  const files = readdirSync(srcDir).filter(f => f.endsWith('.js'))
-  logger.info(`Processing ${files.length} source files...`)
-
-  for (const file of files) {
-    const srcPath = path.join(srcDir, file)
-    const content = readFileSync(srcPath, 'utf8')
-    let converted = convertToCommonJS(content, file)
-    // Fix circular dependencies
-    converted = fixPatchCircularDependency(converted, file)
-    converted = fixWriterWritableCycle(converted, file)
-    // Wire C++ chunk pool for zero-allocation reads (AST-based, reader.js only)
-    converted = wireNativeChunkPool(converted, file)
-    // Add primordials for security (must be last to catch all Promise patterns)
-    converted = addPrimordialsProtection(converted, file)
-    const destPath = path.join(VENDOR_DIR, file)
-    writeFileSync(destPath, converted)
-    logger.info(`  Converted: ${file}`)
-  }
-
-  // Create version file
-  const versionFile = path.join(VENDOR_DIR, 'VERSION')
-  const pkgJsonPath = path.join(NODE_MODULES_PKG, 'package.json')
-  let pkgJson
-  try {
-    pkgJson = JSON.parse(readFileSync(pkgJsonPath, 'utf8'))
-  } catch (e) {
-    throw new Error(
-      `Failed to parse package.json at ${pkgJsonPath}: ${errorMessage(e)}`,
-      { cause: e },
-    )
-  }
-  writeFileSync(
-    versionFile,
-    `Package: ${PACKAGE_NAME}\nVersion: ${pkgJson.version}\nSynced: ${new Date().toISOString()}\n`,
-  )
-
-  // Copy package.json but remove the type field
-  // Node.js internal module system (js2c) doesn't use package.json type resolution
-  const vendorPkgPath = path.join(VENDOR_DIR, 'package.json')
-  const editablePkgJson = await readPackageJson(
-    path.join(NODE_MODULES_PKG, 'package.json'),
-    { editable: true },
-  )
-  editablePkgJson.update({ type: undefined })
-  writeFileSync(
-    vendorPkgPath,
-    `${JSON.stringify(editablePkgJson.content, null, 2)}\n`,
-  )
-
-  return files.length
 }
 
 /**

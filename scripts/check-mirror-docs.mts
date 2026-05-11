@@ -67,7 +67,7 @@ type AllowlistEntry = {
   reason: string
 }
 
-function loadAllowlist(): AllowlistEntry[] {
+export function loadAllowlist(): AllowlistEntry[] {
   if (!existsSync(ALLOWLIST_PATH)) {
     return []
   }
@@ -106,7 +106,7 @@ function loadAllowlist(): AllowlistEntry[] {
 }
 
 /** Walk a tree returning relative file paths. */
-function walk(root: string, filterFn: (relPath: string) => boolean): string[] {
+export function walk(root: string, filterFn: (relPath: string) => boolean): string[] {
   const out: string[] = []
   if (!existsSync(root)) {
     return out
@@ -142,7 +142,7 @@ type Finding = {
   fix: string
 }
 
-function collectOrphanDocs(): Finding[] {
+export function collectOrphanDocs(): Finding[] {
   const docs = walk(DOCS_ROOT, r => r.endsWith('.md'))
   const findings: Finding[] = []
   for (const docRel of docs) {
@@ -175,7 +175,7 @@ function collectOrphanDocs(): Finding[] {
   return findings
 }
 
-function collectMissingDocs(): Finding[] {
+export function collectMissingDocs(): Finding[] {
   const findings: Finding[] = []
   // Invariant 2 per CLAUDE.md: only PUBLIC `lib/smol-*.js` modules
   // (things users `require('node:smol-http')` etc.) plus explicitly
@@ -219,7 +219,7 @@ type Options = {
   quiet: boolean
 }
 
-function printFinding(f: Finding, opts: Options): void {
+export function printFinding(f: Finding, opts: Options): void {
   if (opts.json) {
     logger.log(JSON.stringify(f))
     return

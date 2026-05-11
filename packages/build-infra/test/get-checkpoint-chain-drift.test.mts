@@ -21,7 +21,7 @@ import { CHECKPOINT_CHAINS } from '../lib/constants.mts'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PACKAGES_DIR = path.resolve(__dirname, '../..')
 
-async function loadChain(builder: string) {
+export async function loadChain(builder: string) {
   const mod = await import(
     pathToFileURL(
       path.join(PACKAGES_DIR, builder, 'scripts/get-checkpoint-chain.mts'),

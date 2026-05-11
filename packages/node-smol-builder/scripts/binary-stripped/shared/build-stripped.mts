@@ -35,13 +35,6 @@ import { PACKAGE_ROOT } from './paths.mts'
 const logger = getDefaultLogger()
 
 /**
- * Check if a command exists in PATH.
- */
-function commandExists(cmd) {
-  return Boolean(whichSync(cmd, { nothrow: true }))
-}
-
-/**
  * Build stripped binary phase.
  *
  * @param {object} config - Build configuration
@@ -363,4 +356,11 @@ export async function buildStripped(config, buildOptions = {}) {
     )
     logger.log('')
   }
+}
+
+/**
+ * Check if a command exists in PATH.
+ */
+export function commandExists(cmd) {
+  return Boolean(whichSync(cmd, { nothrow: true }))
 }

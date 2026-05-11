@@ -32,20 +32,84 @@ import { getMinPythonVersion } from './version-helpers.mts'
 const logger = getDefaultLogger()
 
 /**
- * Check if building from source is required for a given flag type.
+ * Activate Emscripten SDK.
  *
- * @param {'TOOLS' | 'DEPS' | 'ALL'} flagType - The type of build flag to check.
- * @returns {boolean} True if building from source is required.
+ * Sets environment variables for current process to use Emscripten.
+ * Returns true if successful, false otherwise.
  */
-export function shouldBuildFromSource(flagType) {
-  const buildAllFromSource = envAsBoolean(process.env.BUILD_ALL_FROM_SOURCE)
-  if (buildAllFromSource) {
-    return true
-  }
-  if (flagType === 'ALL') {
+export async function activateEmscriptenSDK() {
+  const emsdkInfo = await findEmscriptenSDK()
+
+  if (!emsdkInfo) {
     return false
   }
-  return envAsBoolean(process.env[`BUILD_${flagType}_FROM_SOURCE`])
+
+  const { path: emsdkPath, type } = emsdkInfo
+
+  try {
+    // For Homebrew installations, just set EMSDK environment variable.
+    // emcc is already in PATH, no need to source scripts.
+    if (type === 'homebrew') {
+      process.env.EMSDK = emsdkPath
+      process.env.EMSCRIPTEN = path.join(emsdkPath, 'libexec')
+      return await commandExists('emcc')
+    }
+
+    // For standard EMSDK installations, source the environment script.
+    const platform = getPlatform()
+
+    if (platform === 'win32') {
+      // On Windows, run emsdk_env.bat and capture environment.
+      const envScript = path.join(emsdkPath, 'emsdk_env.bat')
+      if (!existsSync(envScript)) {
+        return false
+      }
+
+      // Run emsdk_env.bat and capture resulting environment.
+      const { stdout: envOutput } = await spawn(
+        'cmd',
+        ['/c', `"${envScript}" && set`],
+        { stdio: 'pipe' },
+      )
+
+      // Parse environment variables.
+      const envLines = envOutput.split('\n')
+      for (const line of envLines) {
+        const match = line.match(/^(EMSDK|EM_\w+|PATH)=(.*)$/)
+        if (match) {
+          process.env[match[1]] = match[2].trim()
+        }
+      }
+    } else {
+      // On Unix, source emsdk_env.sh and capture environment.
+      const envScript = path.join(emsdkPath, 'emsdk_env.sh')
+      if (!existsSync(envScript)) {
+        return false
+      }
+
+      // Run bash to source script and print environment.
+      const { stdout: envOutput } = await spawn(
+        'bash',
+        ['-c', `source ${envScript} > /dev/null 2>&1 && env`],
+        { stdio: 'pipe' },
+      )
+
+      // Parse environment variables.
+      const envLines = envOutput.split('\n')
+      for (const line of envLines) {
+        const match = line.match(/^(EMSDK|EM_\w+|PATH)=(.*)$/)
+        if (match) {
+          process.env[match[1]] = match[2].trim()
+        }
+      }
+    }
+
+    // Verify emcc is now available and EMSDK is set.
+    return (await commandExists('emcc')) && Boolean(process.env.EMSDK)
+  } catch (e) {
+    logger.fail(`Failed to activate Emscripten: ${errorMessage(e)}`)
+    return false
+  }
 }
 
 /**
@@ -73,35 +137,80 @@ export function checkBuildSourceFlag(toolName, flagType, options = {}) {
 }
 
 /**
- * Get all build source flags as an object.
- *
- * @returns {{buildAllFromSource: boolean, buildToolsFromSource: boolean, buildDepsFromSource: boolean}}
+ * Check Python version.
  */
-export function getBuildSourceFlags() {
-  const buildAllFromSource = envAsBoolean(process.env.BUILD_ALL_FROM_SOURCE)
-  return {
-    buildAllFromSource,
-    buildDepsFromSource:
-      buildAllFromSource || envAsBoolean(process.env.BUILD_DEPS_FROM_SOURCE),
-    buildToolsFromSource:
-      buildAllFromSource || envAsBoolean(process.env.BUILD_TOOLS_FROM_SOURCE),
+export async function checkPython() {
+  const pythonCmds = ['python3', 'python']
+  const minVersion = getMinPythonVersion()
+  const versionParts = minVersion.split('.').map(Number)
+  const minMajor = versionParts[0] ?? 3
+  const minMinor = versionParts[1] ?? 0
+
+  for (const cmd of pythonCmds) {
+    // eslint-disable-next-line no-await-in-loop
+    if (await commandExists(cmd)) {
+      // eslint-disable-next-line no-await-in-loop
+      const version = await getCommandOutput(cmd, ['--version'])
+      const match = version.match(/Python (\d+)\.(\d+)\.(\d+)/)
+
+      if (match) {
+        const major = Number.parseInt(match[1], 10)
+        const minor = Number.parseInt(match[2], 10)
+        const patch = Number.parseInt(match[3], 10)
+
+        return {
+          available: true,
+          command: cmd,
+          meetsRequirement:
+            major > minMajor || (major === minMajor && minor >= minMinor),
+          version: `${major}.${minor}.${patch}`,
+        }
+      }
+    }
   }
+
+  return { available: false }
 }
 
 /**
- * Detect if running in Docker.
+ * Check if Rust is available with WASM support.
  */
-export function isDocker() {
-  return existsSync(DOCKER_ENV_FILE) || existsSync(PODMAN_ENV_FILE)
-}
+export async function checkRust() {
+  if (!(await commandExists('rustc'))) {
+    return { available: false, reason: 'rustc not found' }
+  }
 
-/**
- * Get platform identifier.
- *
- * @returns {NodeJS.Platform}
- */
-export function getPlatform() {
-  return os.platform()
+  const version = await getCommandOutput('rustc', ['--version'])
+  const match = version.match(/rustc (\d+\.\d+\.\d+)/)
+
+  if (!match) {
+    return { available: false, reason: 'version detection failed' }
+  }
+
+  // Check for WASM target.
+  const targets = await getCommandOutput('rustup', [
+    'target',
+    'list',
+    '--installed',
+  ])
+  if (!targets.includes('wasm32-unknown-unknown')) {
+    return {
+      available: false,
+      fix: 'rustup target add wasm32-unknown-unknown',
+      reason: 'wasm32-unknown-unknown target not installed',
+    }
+  }
+
+  // Check for wasm-pack.
+  if (!(await commandExists('wasm-pack'))) {
+    return {
+      available: false,
+      fix: 'cargo install wasm-pack',
+      reason: 'wasm-pack not found',
+    }
+  }
+
+  return { available: true, version: match[1] }
 }
 
 /**
@@ -118,22 +227,6 @@ export async function commandExists(cmd) {
     return true
   } catch {
     return false
-  }
-}
-
-/**
- * Get command output.
- *
- * @param {string} cmd - Command to run.
- * @param {string[]} [args] - Command arguments.
- * @returns {Promise<string>} Trimmed stdout, or empty string if the spawn failed.
- */
-export async function getCommandOutput(cmd, args = []) {
-  try {
-    const { stdout } = await spawn(cmd, args, { stdio: 'pipe' })
-    return stdout.trim()
-  } catch {
-    return ''
   }
 }
 
@@ -237,83 +330,34 @@ export async function findEmscriptenSDK() {
 }
 
 /**
- * Activate Emscripten SDK.
+ * Get all build source flags as an object.
  *
- * Sets environment variables for current process to use Emscripten.
- * Returns true if successful, false otherwise.
+ * @returns {{buildAllFromSource: boolean, buildToolsFromSource: boolean, buildDepsFromSource: boolean}}
  */
-export async function activateEmscriptenSDK() {
-  const emsdkInfo = await findEmscriptenSDK()
-
-  if (!emsdkInfo) {
-    return false
+export function getBuildSourceFlags() {
+  const buildAllFromSource = envAsBoolean(process.env.BUILD_ALL_FROM_SOURCE)
+  return {
+    buildAllFromSource,
+    buildDepsFromSource:
+      buildAllFromSource || envAsBoolean(process.env.BUILD_DEPS_FROM_SOURCE),
+    buildToolsFromSource:
+      buildAllFromSource || envAsBoolean(process.env.BUILD_TOOLS_FROM_SOURCE),
   }
+}
 
-  const { path: emsdkPath, type } = emsdkInfo
-
+/**
+ * Get command output.
+ *
+ * @param {string} cmd - Command to run.
+ * @param {string[]} [args] - Command arguments.
+ * @returns {Promise<string>} Trimmed stdout, or empty string if the spawn failed.
+ */
+export async function getCommandOutput(cmd, args = []) {
   try {
-    // For Homebrew installations, just set EMSDK environment variable.
-    // emcc is already in PATH, no need to source scripts.
-    if (type === 'homebrew') {
-      process.env.EMSDK = emsdkPath
-      process.env.EMSCRIPTEN = path.join(emsdkPath, 'libexec')
-      return await commandExists('emcc')
-    }
-
-    // For standard EMSDK installations, source the environment script.
-    const platform = getPlatform()
-
-    if (platform === 'win32') {
-      // On Windows, run emsdk_env.bat and capture environment.
-      const envScript = path.join(emsdkPath, 'emsdk_env.bat')
-      if (!existsSync(envScript)) {
-        return false
-      }
-
-      // Run emsdk_env.bat and capture resulting environment.
-      const { stdout: envOutput } = await spawn(
-        'cmd',
-        ['/c', `"${envScript}" && set`],
-        { stdio: 'pipe' },
-      )
-
-      // Parse environment variables.
-      const envLines = envOutput.split('\n')
-      for (const line of envLines) {
-        const match = line.match(/^(EMSDK|EM_\w+|PATH)=(.*)$/)
-        if (match) {
-          process.env[match[1]] = match[2].trim()
-        }
-      }
-    } else {
-      // On Unix, source emsdk_env.sh and capture environment.
-      const envScript = path.join(emsdkPath, 'emsdk_env.sh')
-      if (!existsSync(envScript)) {
-        return false
-      }
-
-      // Run bash to source script and print environment.
-      const { stdout: envOutput } = await spawn(
-        'bash',
-        ['-c', `source ${envScript} > /dev/null 2>&1 && env`],
-        { stdio: 'pipe' },
-      )
-
-      // Parse environment variables.
-      const envLines = envOutput.split('\n')
-      for (const line of envLines) {
-        const match = line.match(/^(EMSDK|EM_\w+|PATH)=(.*)$/)
-        if (match) {
-          process.env[match[1]] = match[2].trim()
-        }
-      }
-    }
-
-    // Verify emcc is now available and EMSDK is set.
-    return (await commandExists('emcc')) && Boolean(process.env.EMSDK)
-  } catch (e) {
-    logger.fail(`Failed to activate Emscripten: ${errorMessage(e)}`)
-    return false
+    const { stdout } = await spawn(cmd, args, { stdio: 'pipe' })
+    return stdout.trim()
+  } catch {
+    return ''
   }
 }
 
@@ -335,80 +379,43 @@ export async function getEmscriptenVersion() {
 }
 
 /**
- * Check if Rust is available with WASM support.
+ * Get platform identifier.
+ *
+ * @returns {NodeJS.Platform}
  */
-export async function checkRust() {
-  if (!(await commandExists('rustc'))) {
-    return { available: false, reason: 'rustc not found' }
-  }
-
-  const version = await getCommandOutput('rustc', ['--version'])
-  const match = version.match(/rustc (\d+\.\d+\.\d+)/)
-
-  if (!match) {
-    return { available: false, reason: 'version detection failed' }
-  }
-
-  // Check for WASM target.
-  const targets = await getCommandOutput('rustup', [
-    'target',
-    'list',
-    '--installed',
-  ])
-  if (!targets.includes('wasm32-unknown-unknown')) {
-    return {
-      available: false,
-      fix: 'rustup target add wasm32-unknown-unknown',
-      reason: 'wasm32-unknown-unknown target not installed',
-    }
-  }
-
-  // Check for wasm-pack.
-  if (!(await commandExists('wasm-pack'))) {
-    return {
-      available: false,
-      fix: 'cargo install wasm-pack',
-      reason: 'wasm-pack not found',
-    }
-  }
-
-  return { available: true, version: match[1] }
+export function getPlatform() {
+  return os.platform()
 }
 
 /**
- * Check Python version.
+ * Detect if running in Docker.
  */
-export async function checkPython() {
-  const pythonCmds = ['python3', 'python']
-  const minVersion = getMinPythonVersion()
-  const versionParts = minVersion.split('.').map(Number)
-  const minMajor = versionParts[0] ?? 3
-  const minMinor = versionParts[1] ?? 0
+export function isDocker() {
+  return existsSync(DOCKER_ENV_FILE) || existsSync(PODMAN_ENV_FILE)
+}
 
-  for (const cmd of pythonCmds) {
-    // eslint-disable-next-line no-await-in-loop
-    if (await commandExists(cmd)) {
-      // eslint-disable-next-line no-await-in-loop
-      const version = await getCommandOutput(cmd, ['--version'])
-      const match = version.match(/Python (\d+)\.(\d+)\.(\d+)/)
-
-      if (match) {
-        const major = Number.parseInt(match[1], 10)
-        const minor = Number.parseInt(match[2], 10)
-        const patch = Number.parseInt(match[3], 10)
-
-        return {
-          available: true,
-          command: cmd,
-          meetsRequirement:
-            major > minMajor || (major === minMajor && minor >= minMinor),
-          version: `${major}.${minor}.${patch}`,
-        }
-      }
+/**
+ * Print environment setup results.
+ */
+export function printSetupResults(results) {
+  if (results.messages.length > 0) {
+    logger.info('\nBuild Environment:')
+    for (const message of results.messages) {
+      logger.info(`  ${message}`)
     }
   }
 
-  return { available: false }
+  if (results.errors.length > 0) {
+    logger.warn('\nMissing Prerequisites:')
+    for (const error of results.errors) {
+      logger.warn(`  ${error}`)
+    }
+  }
+
+  if (!results.success) {
+    logger.fail('Build environment setup failed')
+    logger.info('   Run setup script to install missing tools\n')
+  }
 }
 
 /**
@@ -516,25 +523,18 @@ export async function setupBuildEnvironment(options = {}) {
 }
 
 /**
- * Print environment setup results.
+ * Check if building from source is required for a given flag type.
+ *
+ * @param {'TOOLS' | 'DEPS' | 'ALL'} flagType - The type of build flag to check.
+ * @returns {boolean} True if building from source is required.
  */
-export function printSetupResults(results) {
-  if (results.messages.length > 0) {
-    logger.info('\nBuild Environment:')
-    for (const message of results.messages) {
-      logger.info(`  ${message}`)
-    }
+export function shouldBuildFromSource(flagType) {
+  const buildAllFromSource = envAsBoolean(process.env.BUILD_ALL_FROM_SOURCE)
+  if (buildAllFromSource) {
+    return true
   }
-
-  if (results.errors.length > 0) {
-    logger.warn('\nMissing Prerequisites:')
-    for (const error of results.errors) {
-      logger.warn(`  ${error}`)
-    }
+  if (flagType === 'ALL') {
+    return false
   }
-
-  if (!results.success) {
-    logger.fail('Build environment setup failed')
-    logger.info('   Run setup script to install missing tools\n')
-  }
+  return envAsBoolean(process.env[`BUILD_${flagType}_FROM_SOURCE`])
 }

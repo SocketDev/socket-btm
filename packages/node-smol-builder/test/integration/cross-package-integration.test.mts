@@ -41,7 +41,7 @@ const PROJECT_ROOT = path.join(__dirname, '..', '..', '..', '..')
 // Package binaries
 const BUILD_MODE = getBuildMode()
 
-async function getBinaryPath(packageName, binaryName) {
+export async function getBinaryPath(packageName, binaryName) {
   const ext = process.platform === 'win32' ? '.exe' : ''
   const platformArch = await getCurrentPlatformArch()
   // Try platform-arch path first (includes -musl suffix on Alpine), then legacy path without it.
@@ -81,7 +81,7 @@ let allBinariesExist = false
 /**
  * Execute command.
  */
-async function execCommand(command, args = [], options = {}) {
+export async function execCommand(command, args = [], options = {}) {
   const result = await spawn(command, args, {
     ...options,
     stdio: 'pipe',
@@ -102,17 +102,17 @@ beforeAll(async () => {
   allBinariesExist = binpressExists && binjectExists && nodeExists
 
   if (!allBinariesExist) {
-    console.warn('⚠️  Missing required binaries:')
+    logger.warn('⚠️  Missing required binaries:')
     if (!binpressExists) {
-      console.warn(`   - binpress: ${BINPRESS}`)
+      logger.warn(`   - binpress: ${BINPRESS}`)
     }
     if (!binjectExists) {
-      console.warn(`   - binject: ${BINJECT}`)
+      logger.warn(`   - binject: ${BINJECT}`)
     }
     if (!nodeExists) {
-      console.warn(`   - node binary: ${NODE_BINARY}`)
+      logger.warn(`   - node binary: ${NODE_BINARY}`)
     }
-    console.warn('   Run: pnpm build in respective packages')
+    logger.warn('   Run: pnpm build in respective packages')
     return
   }
 
@@ -132,7 +132,7 @@ describe.skipIf(!allBinariesExist)('cross-package integration', () => {
       // Step 1: Compress Node.js binary using binpress
       const compressedNode = path.join(testDir, 'node_compressed')
 
-      console.log('  Step 1: Compressing Node.js binary...')
+      logger.log('  Step 1: Compressing Node.js binary...')
       const compressResult = await execCommand(
         BINPRESS,
         [NODE_BINARY, '-o', compressedNode],
@@ -155,7 +155,7 @@ describe.skipIf(!allBinariesExist)('cross-package integration', () => {
 
       const finalBinary = path.join(testDir, 'node_final')
 
-      console.log('  Step 2: Injecting SEA blob...')
+      logger.log('  Step 2: Injecting SEA blob...')
       const injectResult = await execCommand(BINJECT, [
         'inject',
         '-e',
@@ -170,7 +170,7 @@ describe.skipIf(!allBinariesExist)('cross-package integration', () => {
       expect(existsSync(finalBinary)).toBeTruthy()
 
       // Step 3: Execute final binary
-      console.log('  Step 3: Executing final binary...')
+      logger.log('  Step 3: Executing final binary...')
       const finalExec = await execCommand(finalBinary, ['--version'])
 
       expect(finalExec.code).toBe(0)

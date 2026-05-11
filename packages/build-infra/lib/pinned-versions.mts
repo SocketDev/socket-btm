@@ -29,7 +29,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
  * @param {Set<string>} [visited] - Set of visited paths to prevent circular dependencies
  * @returns {object} Tools configuration
  */
-function loadExternalToolsJson(jsonPath, visited = new Set()) {
+export function loadExternalToolsJson(jsonPath, visited = new Set()) {
   try {
     if (!existsSync(jsonPath)) {
       return {}
@@ -99,7 +99,7 @@ function loadExternalToolsJson(jsonPath, visited = new Set()) {
  * @param {string} [options.checkpointName] - Checkpoint name (e.g., 'binary-released')
  * @returns {object} Merged external tools configuration
  */
-function loadExternalTools({ checkpointName, packageRoot } = {}) {
+export function loadExternalTools({ checkpointName, packageRoot } = {}) {
   let tools = {}
 
   // 1. Load core fundamentals from build-infra

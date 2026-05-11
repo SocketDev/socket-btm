@@ -25,43 +25,39 @@ export const BUILD_ROOT = path.join(PACKAGE_ROOT, 'build')
 export const UPSTREAM_PATH = path.join(PACKAGE_ROOT, 'upstream/onnxruntime')
 
 /**
- * Get shared build directories for pristine artifacts (shared across dev/prod).
- * Used for source-cloned checkpoint that both dev and prod extract from.
+ * Get build output paths (platform-dependent).
+ *
+ * NOTE: Unlike other builder packages, ONNX Runtime's CMake build system
+ * organizes outputs into platform-specific directories (build/MacOS/Release
+ * on macOS, build/Linux/Release on Linux). This is the official ONNX Runtime
+ * build structure, not something we added.
+ *
+ * @param {string} sourceDir - Mode-specific source directory
+ * @param {string} platform - 'darwin' or 'linux'
+ * @returns {object} Build output paths
  */
-export function getSharedBuildPaths() {
-  const buildDir = path.join(BUILD_ROOT, 'shared')
-  const sourceDir = path.join(buildDir, 'source')
-  const checkpointsDir = path.join(buildDir, 'checkpoints')
-
-  // Shared source file paths (used during cloning)
-  const cmakeDepsFile = path.join(sourceDir, 'cmake', 'deps.txt')
-  const cmakeListsFile = path.join(sourceDir, 'cmake', 'CMakeLists.txt')
-  const cmakeWebassemblyFile = path.join(
+export function getBuildOutputPaths(sourceDir, platform = process.platform) {
+  const platformName = platform === 'darwin' ? 'MacOS' : 'Linux'
+  const buildOutputDir = path.join(
     sourceDir,
-    'cmake',
-    'onnxruntime_webassembly.cmake',
+    'build',
+    platformName,
+    BUILD_STAGES.RELEASE,
   )
-  const postBuildSourceFile = path.join(
-    sourceDir,
-    'js',
-    'web',
-    'script',
+  const buildWasmFile = path.join(buildOutputDir, 'ort-wasm-simd-threaded.wasm')
+  const buildMjsFile = path.join(buildOutputDir, 'ort-wasm-simd-threaded.mjs')
+  const buildPostBuildScriptFile = path.join(
+    buildOutputDir,
     'wasm_post_build.js',
   )
-  const buildScriptFile = path.join(
-    sourceDir,
-    process.platform === 'win32' ? 'build.bat' : 'build.sh',
-  )
+  const buildCmakeCacheFile = path.join(buildOutputDir, 'CMakeCache.txt')
 
   return {
-    buildDir,
-    buildScriptFile,
-    checkpointsDir,
-    cmakeDepsFile,
-    cmakeListsFile,
-    cmakeWebassemblyFile,
-    postBuildSourceFile,
-    sourceDir,
+    buildCmakeCacheFile,
+    buildMjsFile,
+    buildOutputDir,
+    buildPostBuildScriptFile,
+    buildWasmFile,
   }
 }
 
@@ -128,46 +124,50 @@ export function getBuildPaths(mode, platformArch) {
 }
 
 /**
- * Get build output paths (platform-dependent).
- *
- * NOTE: Unlike other builder packages, ONNX Runtime's CMake build system
- * organizes outputs into platform-specific directories (build/MacOS/Release
- * on macOS, build/Linux/Release on Linux). This is the official ONNX Runtime
- * build structure, not something we added.
- *
- * @param {string} sourceDir - Mode-specific source directory
- * @param {string} platform - 'darwin' or 'linux'
- * @returns {object} Build output paths
- */
-export function getBuildOutputPaths(sourceDir, platform = process.platform) {
-  const platformName = platform === 'darwin' ? 'MacOS' : 'Linux'
-  const buildOutputDir = path.join(
-    sourceDir,
-    'build',
-    platformName,
-    BUILD_STAGES.RELEASE,
-  )
-  const buildWasmFile = path.join(buildOutputDir, 'ort-wasm-simd-threaded.wasm')
-  const buildMjsFile = path.join(buildOutputDir, 'ort-wasm-simd-threaded.mjs')
-  const buildPostBuildScriptFile = path.join(
-    buildOutputDir,
-    'wasm_post_build.js',
-  )
-  const buildCmakeCacheFile = path.join(buildOutputDir, 'CMakeCache.txt')
-
-  return {
-    buildCmakeCacheFile,
-    buildMjsFile,
-    buildOutputDir,
-    buildPostBuildScriptFile,
-    buildWasmFile,
-  }
-}
-
-/**
  * Get the current platform identifier using shared utility.
  * Handles musl detection and respects TARGET_ARCH environment variable.
  */
 export async function getCurrentPlatform() {
   return await getCurrentPlatformArch()
+}
+
+/**
+ * Get shared build directories for pristine artifacts (shared across dev/prod).
+ * Used for source-cloned checkpoint that both dev and prod extract from.
+ */
+export function getSharedBuildPaths() {
+  const buildDir = path.join(BUILD_ROOT, 'shared')
+  const sourceDir = path.join(buildDir, 'source')
+  const checkpointsDir = path.join(buildDir, 'checkpoints')
+
+  // Shared source file paths (used during cloning)
+  const cmakeDepsFile = path.join(sourceDir, 'cmake', 'deps.txt')
+  const cmakeListsFile = path.join(sourceDir, 'cmake', 'CMakeLists.txt')
+  const cmakeWebassemblyFile = path.join(
+    sourceDir,
+    'cmake',
+    'onnxruntime_webassembly.cmake',
+  )
+  const postBuildSourceFile = path.join(
+    sourceDir,
+    'js',
+    'web',
+    'script',
+    'wasm_post_build.js',
+  )
+  const buildScriptFile = path.join(
+    sourceDir,
+    process.platform === 'win32' ? 'build.bat' : 'build.sh',
+  )
+
+  return {
+    buildDir,
+    buildScriptFile,
+    checkpointsDir,
+    cmakeDepsFile,
+    cmakeListsFile,
+    cmakeWebassemblyFile,
+    postBuildSourceFile,
+    sourceDir,
+  }
 }

@@ -95,7 +95,7 @@ const logger = getDefaultLogger()
 /**
  * Check if Rust toolchain is available.
  */
-async function checkRustToolchain() {
+export async function checkRustToolchain() {
   logger.substep('Checking for Rust toolchain...')
 
   const rustcResult = await ensureToolInstalled('rustc', { autoInstall: false })
@@ -118,7 +118,7 @@ async function checkRustToolchain() {
 /**
  * Check if upstream submodule is initialized.
  */
-async function checkUpstream() {
+export async function checkUpstream() {
   logger.substep('Checking iocraft submodule...')
 
   if (!existsSync(path.join(UPSTREAM_PATH, 'Cargo.toml'))) {
@@ -137,7 +137,7 @@ async function checkUpstream() {
  * SFW injects shims into PATH that intercept HTTPS but cargo uses its own
  * TLS stack (not Node.js), so the SFW CA cert isn't trusted.
  */
-function findRealCargo() {
+export function findRealCargo() {
   const cargoHome =
     process.env['CARGO_HOME'] || path.join(os.homedir(), '.cargo')
   const ext = WIN32 ? '.exe' : ''
@@ -191,7 +191,7 @@ const IOCRAFT_PERF_RUSTFLAGS = [
  * source by precedence, no merging), so this list MUST contain everything we
  * want rustc to receive.
  */
-function buildRustflags() {
+export function buildRustflags() {
   return [...getRustcRemapFlags(), ...IOCRAFT_PERF_RUSTFLAGS]
 }
 
@@ -205,7 +205,7 @@ function buildRustflags() {
  * structured tokens (0x1f-separated) rather than relying on shell-style space
  * splitting in RUSTFLAGS.
  */
-async function runCargo(args, options = {}) {
+export async function runCargo(args, options = {}) {
   const cargoPath = findRealCargo()
   logger.substep(`Using cargo: ${cargoPath}`)
 
@@ -227,7 +227,7 @@ async function runCargo(args, options = {}) {
 /**
  * Build the native addon.
  */
-async function buildNativeAddon() {
+export async function buildNativeAddon() {
   logger.step('Building native addon')
 
   const platform = await getCurrentPlatform()
@@ -319,7 +319,7 @@ async function buildNativeAddon() {
 /**
  * Map Rust target triple to Node.js platform.
  */
-function getTargetPlatform(rustTarget) {
+export function getTargetPlatform(rustTarget) {
   if (rustTarget.includes('darwin') || rustTarget.includes('apple')) {
     return 'darwin'
   } else if (rustTarget.includes('windows') || rustTarget.includes('msvc')) {

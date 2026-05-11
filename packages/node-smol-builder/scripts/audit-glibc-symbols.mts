@@ -41,18 +41,9 @@ type SymbolRow = {
 }
 
 /**
- * Parse "2.17" / "2.17.1" / "2.2.5" into a readonly integer tuple.
- * Uses plain Number() — matching Bun's symbols.test.ts comparator. npm semver
- * libs throw on "2.17" (not valid semver), hence this custom parser.
- */
-function parseVersionTuple(raw: string): readonly number[] {
-  return raw.split('.').map(n => Number(n) || 0)
-}
-
-/**
  * Lexicographic tuple comparison: [2,17] > [2,17,0] is false.
  */
-function compareTuples(a: readonly number[], b: readonly number[]): number {
+export function compareTuples(a: readonly number[], b: readonly number[]): number {
   const len = Math.max(a.length, b.length)
   for (let i = 0; i < len; i++) {
     const av = a[i] ?? 0
@@ -64,7 +55,15 @@ function compareTuples(a: readonly number[], b: readonly number[]): number {
   return 0
 }
 
-function parseCliArgs(argv: readonly string[]) {
+export function countByVersion(rows: readonly SymbolRow[]): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const row of rows) {
+    counts.set(row.version, (counts.get(row.version) ?? 0) + 1)
+  }
+  return counts
+}
+
+export function parseCliArgs(argv: readonly string[]) {
   const result = {
     __proto__: null,
     binary: undefined as string | undefined,
@@ -83,52 +82,7 @@ function parseCliArgs(argv: readonly string[]) {
   return result
 }
 
-/**
- * Parse `src/socketsecurity/compat/glibc_compat.h` to learn which symbols
- * the compat layer currently wraps. Used by --fallback-report to annotate
- * each violation with "wrapped?" yes/no, so an engineer extending the floor
- * can see at a glance which symbols already have a fallback and which need
- * new __wrap_ entries.
- */
-async function readWrappedSymbols(): Promise<ReadonlySet<string>> {
-  const header = path.join(
-    __dirname,
-    '..',
-    'additions',
-    'source-patched',
-    'src',
-    'socketsecurity',
-    'compat',
-    'glibc_compat.h',
-  )
-  try {
-    const text = await fs.readFile(header, 'utf8')
-    const pattern = /__wrap_(\w+)\s*\(/g
-    const wrapped = new Set<string>()
-    let match: RegExpExecArray | null
-    while ((match = pattern.exec(text)) !== null) {
-      wrapped.add(match[1]!)
-    }
-    return wrapped
-  } catch {
-    return new Set()
-  }
-}
-
-async function runObjdump(binary: string): Promise<string> {
-  // Prefer `objdump` (GNU / LLVM). On macOS the LLVM tool is `llvm-objdump`
-  // — point PATH at Homebrew's llvm keg (`brew install llvm`) and the
-  // symlink is provided as `objdump` inside its bin dir.
-  const result = await spawn('objdump', ['-T', binary], { stdio: 'pipe' })
-  if (result.code !== 0) {
-    throw new Error(
-      `objdump failed with exit ${result.code}: ${result.stderr?.toString()}`,
-    )
-  }
-  return result.stdout?.toString() ?? ''
-}
-
-function parseObjdumpOutput(text: string): SymbolRow[] {
+export function parseObjdumpOutput(text: string): SymbolRow[] {
   // objdump -T lines look like:
   //   0000000000000000  w   DF *UND*  0000000000000000 (GLIBC_2.17) dlsym
   //                     ^                             ^^^^^^^^^^^^  ^^^^^
@@ -153,7 +107,61 @@ function parseObjdumpOutput(text: string): SymbolRow[] {
   return rows
 }
 
-function uniqueSortedByVersion(rows: readonly SymbolRow[]): SymbolRow[] {
+/**
+ * Parse "2.17" / "2.17.1" / "2.2.5" into a readonly integer tuple.
+ * Uses plain Number() — matching Bun's symbols.test.ts comparator. npm semver
+ * libs throw on "2.17" (not valid semver), hence this custom parser.
+ */
+export function parseVersionTuple(raw: string): readonly number[] {
+  return raw.split('.').map(n => Number(n) || 0)
+}
+
+/**
+ * Parse `src/socketsecurity/compat/glibc_compat.h` to learn which symbols
+ * the compat layer currently wraps. Used by --fallback-report to annotate
+ * each violation with "wrapped?" yes/no, so an engineer extending the floor
+ * can see at a glance which symbols already have a fallback and which need
+ * new __wrap_ entries.
+ */
+export async function readWrappedSymbols(): Promise<ReadonlySet<string>> {
+  const header = path.join(
+    __dirname,
+    '..',
+    'additions',
+    'source-patched',
+    'src',
+    'socketsecurity',
+    'compat',
+    'glibc_compat.h',
+  )
+  try {
+    const text = await fs.readFile(header, 'utf8')
+    const pattern = /__wrap_(\w+)\s*\(/g
+    const wrapped = new Set<string>()
+    let match: RegExpExecArray | null
+    while ((match = pattern.exec(text)) !== null) {
+      wrapped.add(match[1]!)
+    }
+    return wrapped
+  } catch {
+    return new Set()
+  }
+}
+
+export async function runObjdump(binary: string): Promise<string> {
+  // Prefer `objdump` (GNU / LLVM). On macOS the LLVM tool is `llvm-objdump`
+  // — point PATH at Homebrew's llvm keg (`brew install llvm`) and the
+  // symlink is provided as `objdump` inside its bin dir.
+  const result = await spawn('objdump', ['-T', binary], { stdio: 'pipe' })
+  if (result.code !== 0) {
+    throw new Error(
+      `objdump failed with exit ${result.code}: ${result.stderr?.toString()}`,
+    )
+  }
+  return result.stdout?.toString() ?? ''
+}
+
+export function uniqueSortedByVersion(rows: readonly SymbolRow[]): SymbolRow[] {
   const seen = new Set<string>()
   const unique: SymbolRow[] = []
   for (const row of rows) {
@@ -168,14 +176,6 @@ function uniqueSortedByVersion(rows: readonly SymbolRow[]): SymbolRow[] {
     const cmp = compareTuples(a.tuple, b.tuple)
     return cmp !== 0 ? cmp : a.symbol.localeCompare(b.symbol)
   })
-}
-
-function countByVersion(rows: readonly SymbolRow[]): Map<string, number> {
-  const counts = new Map<string, number>()
-  for (const row of rows) {
-    counts.set(row.version, (counts.get(row.version) ?? 0) + 1)
-  }
-  return counts
 }
 
 async function main() {

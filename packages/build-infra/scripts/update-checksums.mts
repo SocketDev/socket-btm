@@ -28,6 +28,7 @@ import { SOCKET_BTM_REPO } from '@socketsecurity/lib/releases/socket-btm'
 
 import { errorMessage } from '../lib/error-utils.mts'
 import { parseChecksums } from '../lib/release-checksums/core.mts'
+import { safeDelete } from '@socketsecurity/lib/fs'
 
 const logger = getDefaultLogger()
 
@@ -60,7 +61,7 @@ const TOOLS = [
  * @param {string} tool - Tool name.
  * @returns {Promise<{tag: string, checksums: Record<string, string>} | undefined>}
  */
-async function fetchToolChecksums(tool) {
+export async function fetchToolChecksums(tool) {
   const toolPrefix = `${tool}-`
 
   try {
@@ -92,7 +93,7 @@ async function fetchToolChecksums(tool) {
     const checksums = parseChecksums(content)
 
     // Clean up temp file.
-    await fs.unlink(checksumPath).catch(() => {})
+    await safeDelete(checksumPath).catch(() => {})
 
     return { checksums, tag }
   } catch (e) {

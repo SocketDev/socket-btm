@@ -35,11 +35,27 @@ afterEach(async () => {
   }
 })
 
+/**
+ * Creates a corrupted tar archive for testing.
+ */
+export function createCorruptedTar(tarPath: string): void {
+  writeFileSync(tarPath, 'not a valid tar archive')
+}
+
+/**
+ * Creates test package structure.
+ */
+export function createTestPackage(packageName: string): string {
+  const packagePath = path.join(testDir, 'packages', packageName)
+  safeMkdirSync(packagePath)
+  return packagePath
+}
+
 // Helper functions.
 /**
  * Creates a valid tar archive for testing.
  */
-function createValidTar(tarPath: string): void {
+export function createValidTar(tarPath: string): void {
   const contentDir = path.join(
     os.tmpdir(),
     `tar-content-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
@@ -67,7 +83,7 @@ function createValidTar(tarPath: string): void {
 /**
  * Creates a valid compressed tar.gz archive for testing.
  */
-function createValidTarGz(tarPath: string): void {
+export function createValidTarGz(tarPath: string): void {
   const contentDir = path.join(
     os.tmpdir(),
     `tar-content-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
@@ -90,22 +106,6 @@ function createValidTarGz(tarPath: string): void {
     throw new Error(`Failed to create tar.gz archive: ${result.stderr}`)
   }
   // Note: Temporary directory cleanup will be handled by afterEach.
-}
-
-/**
- * Creates a corrupted tar archive for testing.
- */
-function createCorruptedTar(tarPath: string): void {
-  writeFileSync(tarPath, 'not a valid tar archive')
-}
-
-/**
- * Creates test package structure.
- */
-function createTestPackage(packageName: string): string {
-  const packagePath = path.join(testDir, 'packages', packageName)
-  safeMkdirSync(packagePath)
-  return packagePath
 }
 
 // =============================================================================

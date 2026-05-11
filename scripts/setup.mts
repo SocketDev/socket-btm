@@ -64,69 +64,7 @@ type ToolCheck = {
   name: string
 }
 
-// Compare two dotted-numeric versions. Returns true if `have` is greater
-// than or equal to `need`. Non-numeric segments (prerelease tags, build
-// metadata) are ignored — setup-script scope is simple gte of release
-// versions. For full semver semantics, downstream code uses
-// node:smol-versions; this script runs before any workspace install and
-// must stay zero-dependency.
-function versionGte(have: string, need: string): boolean {
-  const parts = (v: string): number[] =>
-    v
-      .split(/[.+-]/, 3)
-      .map(p => Number.parseInt(p, 10))
-      .map(n => (Number.isNaN(n) ? 0 : n))
-  const a = parts(have)
-  const b = parts(need)
-  for (let i = 0; i < 3; i++) {
-    const ai = a[i] ?? 0
-    const bi = b[i] ?? 0
-    if (ai > bi) {
-      return true
-    }
-    if (ai < bi) {
-      return false
-    }
-  }
-  return true
-}
-
-async function checkNodeVersion(): Promise<boolean> {
-  const required = '18.0.0'
-  // Remove 'v' prefix
-  const current = process.version.slice(1)
-  if (!versionGte(current, required)) {
-    log.error(`Node.js ${current} is below required ${required}`)
-    log.info('Install from: https://nodejs.org/')
-    return false
-  }
-  log.success(`Node.js ${current} (required: >=${required})`)
-  return true
-}
-
-async function checkPnpmVersion(): Promise<boolean> {
-  const required = '10.21.0'
-  try {
-    const result = spawnSync('pnpm', ['--version'])
-    if (result.status !== 0) {
-      throw new Error('pnpm command failed')
-    }
-    const version = String(result.stdout).trim()
-    if (!versionGte(version, required)) {
-      log.error(`pnpm ${version} is below required ${required}`)
-      log.info('Install from: https://pnpm.io/installation')
-      return false
-    }
-    log.success(`pnpm ${version} (required: >=${required})`)
-    return true
-  } catch {
-    log.error(`pnpm not found (required: >=${required})`)
-    log.info('Install from: https://pnpm.io/installation')
-    return false
-  }
-}
-
-async function checkBuildToolchain(): Promise<boolean> {
+export async function checkBuildToolchain(): Promise<boolean> {
   // Required tools for `pnpm run check` and basic builds. Names map to
   // entries in packages/build-infra/external-tools.json — the JSON is
   // the source of truth for versions and install docs; this list just
@@ -206,7 +144,42 @@ async function checkBuildToolchain(): Promise<boolean> {
   return true
 }
 
-async function setup(): Promise<void> {
+export async function checkNodeVersion(): Promise<boolean> {
+  const required = '18.0.0'
+  // Remove 'v' prefix
+  const current = process.version.slice(1)
+  if (!versionGte(current, required)) {
+    log.error(`Node.js ${current} is below required ${required}`)
+    log.info('Install from: https://nodejs.org/')
+    return false
+  }
+  log.success(`Node.js ${current} (required: >=${required})`)
+  return true
+}
+
+export async function checkPnpmVersion(): Promise<boolean> {
+  const required = '10.21.0'
+  try {
+    const result = spawnSync('pnpm', ['--version'])
+    if (result.status !== 0) {
+      throw new Error('pnpm command failed')
+    }
+    const version = String(result.stdout).trim()
+    if (!versionGte(version, required)) {
+      log.error(`pnpm ${version} is below required ${required}`)
+      log.info('Install from: https://pnpm.io/installation')
+      return false
+    }
+    log.success(`pnpm ${version} (required: >=${required})`)
+    return true
+  } catch {
+    log.error(`pnpm not found (required: >=${required})`)
+    log.info('Install from: https://pnpm.io/installation')
+    return false
+  }
+}
+
+export async function setup(): Promise<void> {
   if (!quiet) {
     logger.step('socket-btm Setup')
   }
@@ -239,6 +212,33 @@ async function setup(): Promise<void> {
   }
 
   process.exitCode = allGood ? 0 : 1
+}
+
+// Compare two dotted-numeric versions. Returns true if `have` is greater
+// than or equal to `need`. Non-numeric segments (prerelease tags, build
+// metadata) are ignored — setup-script scope is simple gte of release
+// versions. For full semver semantics, downstream code uses
+// node:smol-versions; this script runs before any workspace install and
+// must stay zero-dependency.
+export function versionGte(have: string, need: string): boolean {
+  const parts = (v: string): number[] =>
+    v
+      .split(/[.+-]/, 3)
+      .map(p => Number.parseInt(p, 10))
+      .map(n => (Number.isNaN(n) ? 0 : n))
+  const a = parts(have)
+  const b = parts(need)
+  for (let i = 0; i < 3; i++) {
+    const ai = a[i] ?? 0
+    const bi = b[i] ?? 0
+    if (ai > bi) {
+      return true
+    }
+    if (ai < bi) {
+      return false
+    }
+  }
+  return true
 }
 
 setup().catch((e: unknown) => {

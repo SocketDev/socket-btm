@@ -13,6 +13,69 @@ const logger = getDefaultLogger()
 const PNPM_NOT_FOUND_MSG = 'pnpm not found in PATH'
 
 /**
+ * Run a command with inherited stdio, throwing on non-zero exit.
+ * This is the common pattern used across build/clean/test scripts.
+ *
+ * @param {string} command - Command to run
+ * @param {string[]} args - Arguments
+ * @param {string} [cwd] - Working directory
+ * @returns {Promise<void>}
+ * @throws {Error} If command exits with non-zero code
+ */
+export async function runCommand(command, args = [], cwd = undefined) {
+  logger.info(`Running: ${command} ${args.join(' ')}`)
+
+  const result = await spawn(command, args, {
+    cwd,
+    shell: WIN32,
+    stdio: 'inherit',
+  })
+
+  if (result.code !== 0) {
+    throw new Error(`Command failed with exit code ${result.code}`)
+  }
+}
+
+/**
+ * Run multiple commands in parallel.
+ *
+ * @param {Array<{command: string, args?: string[], options?: object}>} commands
+ * @param {object} globalOptions - Options to merge into all commands
+ * @returns {Promise<Array<{code: number, stdout?: string, stderr?: string, error?: Error}>>}
+ */
+export async function runParallel(commands, globalOptions = {}) {
+  const promises = commands.map(({ args = [], command, options = {} }) =>
+    spawn(command, args, {
+      shell: WIN32,
+      stdio: 'inherit',
+      ...globalOptions,
+      ...options,
+    }),
+  )
+
+  const results = await Promise.allSettled(promises)
+
+  // Check for failures and log them.
+  const failures = results
+    .map((result, i) => ({ command: commands[i], index: i, result }))
+    .filter(({ result }) => result.status === 'rejected')
+
+  if (failures.length > 0) {
+    for (const { command, result } of failures) {
+      const cmdStr = `${command.command} ${(command.args || []).join(' ')}`
+      logger.error(`Command failed: ${cmdStr}`)
+      logger.error(`  Error: ${result.reason?.message || result.reason}`)
+    }
+  }
+
+  return results.map(r =>
+    r.status === 'fulfilled'
+      ? r.value
+      : { code: 1, error: r.reason, stderr: r.reason?.message },
+  )
+}
+
+/**
  * Run a pnpm script in a specific package.
  *
  * @param {string} packageName - Package name (e.g., '@socketsecurity/cli')
@@ -65,6 +128,21 @@ export async function runPnpmScriptAll(scriptName, args = [], options = {}) {
 }
 
 /**
+ * Run a command quietly (capture output).
+ *
+ * @param {string} command - Command to run
+ * @param {string[]} args - Arguments
+ * @param {object} options - Spawn options
+ * @returns {Promise<{code: number, stdout: string, stderr: string}>}
+ */
+export async function runQuiet(command, args = [], options = {}) {
+  return spawn(command, args, {
+    shell: WIN32,
+    ...options,
+  })
+}
+
+/**
  * Run multiple commands in sequence, stopping on first failure.
  *
  * @param {Array<{command: string, args?: string[], options?: object, description?: string}>} commands
@@ -91,84 +169,6 @@ export async function runSequence(commands, globalOptions = {}) {
   }
 
   return 0
-}
-
-/**
- * Run multiple commands in parallel.
- *
- * @param {Array<{command: string, args?: string[], options?: object}>} commands
- * @param {object} globalOptions - Options to merge into all commands
- * @returns {Promise<Array<{code: number, stdout?: string, stderr?: string, error?: Error}>>}
- */
-export async function runParallel(commands, globalOptions = {}) {
-  const promises = commands.map(({ args = [], command, options = {} }) =>
-    spawn(command, args, {
-      shell: WIN32,
-      stdio: 'inherit',
-      ...globalOptions,
-      ...options,
-    }),
-  )
-
-  const results = await Promise.allSettled(promises)
-
-  // Check for failures and log them.
-  const failures = results
-    .map((result, i) => ({ command: commands[i], index: i, result }))
-    .filter(({ result }) => result.status === 'rejected')
-
-  if (failures.length > 0) {
-    for (const { command, result } of failures) {
-      const cmdStr = `${command.command} ${(command.args || []).join(' ')}`
-      logger.error(`Command failed: ${cmdStr}`)
-      logger.error(`  Error: ${result.reason?.message || result.reason}`)
-    }
-  }
-
-  return results.map(r =>
-    r.status === 'fulfilled'
-      ? r.value
-      : { code: 1, error: r.reason, stderr: r.reason?.message },
-  )
-}
-
-/**
- * Run a command quietly (capture output).
- *
- * @param {string} command - Command to run
- * @param {string[]} args - Arguments
- * @param {object} options - Spawn options
- * @returns {Promise<{code: number, stdout: string, stderr: string}>}
- */
-export async function runQuiet(command, args = [], options = {}) {
-  return spawn(command, args, {
-    shell: WIN32,
-    ...options,
-  })
-}
-
-/**
- * Run a command with inherited stdio, throwing on non-zero exit.
- * This is the common pattern used across build/clean/test scripts.
- *
- * @param {string} command - Command to run
- * @param {string[]} args - Arguments
- * @param {string} [cwd] - Working directory
- * @returns {Promise<void>}
- * @throws {Error} If command exits with non-zero code
- */
-export async function runCommand(command, args = [], cwd = undefined) {
-  logger.info(`Running: ${command} ${args.join(' ')}`)
-
-  const result = await spawn(command, args, {
-    cwd,
-    shell: WIN32,
-    stdio: 'inherit',
-  })
-
-  if (result.code !== 0) {
-    throw new Error(`Command failed with exit code ${result.code}`)
-  }
 }
 
 /**

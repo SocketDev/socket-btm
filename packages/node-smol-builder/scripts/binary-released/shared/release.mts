@@ -69,7 +69,7 @@ const REPO = 'socket-btm'
  * Format: {YYYYMMDD}-{short-git-sha}
  * Example: 20251119-f245c0f
  */
-async function generateVersion() {
+export async function generateVersion() {
   const now = new Date()
   const year = now.getFullYear()
   const month = String(now.getMonth() + 1).padStart(2, '0')
@@ -128,7 +128,7 @@ const PLATFORMS = [
  * - linux + musl libc + arch → linux-{arch}-musl
  * - others → unchanged
  */
-function getArchivePlatform(platform, arch, libc) {
+export function getArchivePlatform(platform, arch, libc) {
   if (platform === 'win32') {
     return 'win'
   }
@@ -142,7 +142,7 @@ function getArchivePlatform(platform, arch, libc) {
  * Check if GitHub API is authenticated.
  * Validates by attempting to get authenticated user.
  */
-async function checkGitHubAuth() {
+export async function checkGitHubAuth() {
   try {
     const octokit = new Octokit({
       auth: process.env.GITHUB_TOKEN,
@@ -157,7 +157,7 @@ async function checkGitHubAuth() {
 /**
  * Calculate SHA-256 checksum of a file.
  */
-async function calculateChecksum(filePath) {
+export async function calculateChecksum(filePath) {
   const hash = crypto.createHash('sha256')
   const stream = createReadStream(filePath)
 
@@ -175,7 +175,7 @@ async function calculateChecksum(filePath) {
  * 1. build/${BUILD_MODE}/<platform-arch>/out/Final/node/ (if building for current platform)
  * 2. build/${BUILD_MODE}/<platform-arch>/cache/node-{platform}-{arch} (from cached builds)
  */
-async function findBinary(platform, arch, libc) {
+export async function findBinary(platform, arch, libc) {
   // Check Final build (if current platform).
   const binaryName = platform === 'win32' ? 'node.exe' : 'node'
   const platformArch = getDefaultPlatformArch(platform, arch, libc)
@@ -218,7 +218,7 @@ async function findBinary(platform, arch, libc) {
  *
  * This enables deterministic cache keys when the binary is used.
  */
-async function embedSmolSpec(
+export async function embedSmolSpec(
   binaryPath,
   _platform,
   _arch,
@@ -244,7 +244,7 @@ async function embedSmolSpec(
 /**
  * Create release archive for a platform.
  */
-async function createReleaseArchive(
+export async function createReleaseArchive(
   platform,
   arch,
   libc,
@@ -353,7 +353,7 @@ async function createReleaseArchive(
 /**
  * Check if release already exists.
  */
-async function releaseExists(tag) {
+export async function releaseExists(tag) {
   try {
     const octokit = new Octokit({
       auth: process.env.GITHUB_TOKEN,
@@ -372,7 +372,7 @@ async function releaseExists(tag) {
 /**
  * Delete existing release.
  */
-async function deleteRelease(tag) {
+export async function deleteRelease(tag) {
   logger.log(`\nDeleting existing release: ${tag}`)
   const octokit = new Octokit({
     auth: process.env.GITHUB_TOKEN,
@@ -396,7 +396,7 @@ async function deleteRelease(tag) {
 /**
  * Create GitHub release.
  */
-async function createGitHubRelease(
+export async function createGitHubRelease(
   tag,
   archives,
   publish,

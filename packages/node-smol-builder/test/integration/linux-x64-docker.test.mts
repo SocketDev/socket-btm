@@ -45,7 +45,7 @@ const _DLX_DIR = getSocketDlxDir()
  * @param {string} filePath - Path to the file
  * @returns {Promise<string>} SHA-256 hash of the file contents
  */
-async function calculateFileHash(filePath) {
+export async function calculateFileHash(filePath) {
   const content = await fs.readFile(filePath)
   return createHash('sha256').update(content).digest('hex')
 }

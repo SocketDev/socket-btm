@@ -18,6 +18,39 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const packageDir = path.resolve(__dirname, '..')
 
 /**
+ * Add a candidate if the binary exists.
+ * @param {Array} candidates - Array to add to
+ * @param {string} binaryPath - Path to check
+ */
+export function addCandidate(candidates, binaryPath) {
+  try {
+    const stat = statSync(binaryPath)
+    candidates.push({ mtime: stat.mtimeMs, path: binaryPath })
+  } catch {
+    // Binary doesn't exist
+  }
+}
+
+/**
+ * Get binary path for a given stage from build paths.
+ * @param {object} buildPaths - Build paths from getBuildPaths()
+ * @param {string} stage - Build stage
+ * @returns {string} Binary path
+ */
+export function getBinaryPath(buildPaths, stage) {
+  switch (stage) {
+    case 'Stripped':
+      return buildPaths.outputStrippedBinary
+    case 'Compressed':
+      return buildPaths.outputCompressedBinary
+    case 'Final':
+      return buildPaths.outputFinalBinary
+    default:
+      throw new Error(`Unknown stage: ${stage}`)
+  }
+}
+
+/**
  * Find the latest binary from build/{dev,prod}/{platform-arch}/out/{stage}/node/node.
  * Returns the path to whichever exists and has the latest modification time,
  * or undefined if none exists so callers can skipIf without a built binary.
@@ -25,7 +58,7 @@ const packageDir = path.resolve(__dirname, '..')
  * @param {string} stage - Build stage: 'Stripped', 'Compressed', or 'Final'
  * @returns {string | undefined} Path to the latest binary, or undefined if not built
  */
-function getLatestBinary(stage) {
+export function getLatestBinary(stage) {
   const candidates = []
   const platformArch = getDefaultPlatformArch()
 
@@ -46,50 +79,14 @@ function getLatestBinary(stage) {
 }
 
 /**
- * Get binary path for a given stage from build paths.
- * @param {object} buildPaths - Build paths from getBuildPaths()
- * @param {string} stage - Build stage
- * @returns {string} Binary path
- */
-function getBinaryPath(buildPaths, stage) {
-  switch (stage) {
-    case 'Stripped':
-      return buildPaths.outputStrippedBinary
-    case 'Compressed':
-      return buildPaths.outputCompressedBinary
-    case 'Final':
-      return buildPaths.outputFinalBinary
-    default:
-      throw new Error(`Unknown stage: ${stage}`)
-  }
-}
-
-/**
- * Add a candidate if the binary exists.
- * @param {Array} candidates - Array to add to
- * @param {string} binaryPath - Path to check
- */
-function addCandidate(candidates, binaryPath) {
-  try {
-    const stat = statSync(binaryPath)
-    candidates.push({ mtime: stat.mtimeMs, path: binaryPath })
-  } catch {
-    // Binary doesn't exist
-  }
-}
-
-/**
- * Find the latest Stripped binary from build/{dev,prod}/{platform-arch}/out/Stripped/node/node.
- *
- * The Stripped binary has debug symbols removed but retains pre-created Mach-O sections
- * (NODE_SEA_BLOB, SMOL_VFS_BLOB) required for binject injection.
- *
+ * Find the latest Compressed binary from build/{dev,prod}/{platform-arch}/out/Compressed/node/node.
+ * This binary tests the compression extraction feature.
  * Returns the path to whichever exists and has the latest modification time.
  *
- * @returns {string | undefined} Path to the latest Stripped binary, or undefined if not built
+ * @returns {string | undefined} Path to the latest Compressed binary, or undefined if not built
  */
-export function getLatestStrippedBinary() {
-  return getLatestBinary('Stripped')
+export function getLatestCompressedBinary() {
+  return getLatestBinary('Compressed')
 }
 
 /**
@@ -104,14 +101,17 @@ export function getLatestFinalBinary() {
 }
 
 /**
- * Find the latest Compressed binary from build/{dev,prod}/{platform-arch}/out/Compressed/node/node.
- * This binary tests the compression extraction feature.
+ * Find the latest Stripped binary from build/{dev,prod}/{platform-arch}/out/Stripped/node/node.
+ *
+ * The Stripped binary has debug symbols removed but retains pre-created Mach-O sections
+ * (NODE_SEA_BLOB, SMOL_VFS_BLOB) required for binject injection.
+ *
  * Returns the path to whichever exists and has the latest modification time.
  *
- * @returns {string | undefined} Path to the latest Compressed binary, or undefined if not built
+ * @returns {string | undefined} Path to the latest Stripped binary, or undefined if not built
  */
-export function getLatestCompressedBinary() {
-  return getLatestBinary('Compressed')
+export function getLatestStrippedBinary() {
+  return getLatestBinary('Stripped')
 }
 
 /**

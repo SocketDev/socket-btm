@@ -94,24 +94,9 @@ if (!MODEL_SOURCES) {
 }
 
 /**
- * Download model from Hugging Face.
- */
-async function downloadModel(modelKey) {
-  // Use empty packageName for flat checkpoint structure (workflow caching requirement)
-  return downloadModelImpl({
-    buildDir: BUILD,
-    forceRebuild: FORCE_BUILD,
-    modelKey,
-    modelSources: MODEL_SOURCES,
-    modelsDir: MODELS,
-    packageName: '',
-  })
-}
-
-/**
  * Convert model to ONNX if needed.
  */
-async function convertToOnnx(modelKey) {
+export async function convertToOnnx(modelKey) {
   // Use empty packageName for flat checkpoint structure (workflow caching requirement)
   return convertToOnnxImpl({
     buildDir: BUILD,
@@ -124,31 +109,10 @@ async function convertToOnnx(modelKey) {
 }
 
 /**
- * Apply quantization for compression.
- *
- * Supports two quantization levels:
- * - INT4: MatMulNBitsQuantizer with RTN weight-only quantization (maximum compression).
- * - INT8: Dynamic quantization (better compatibility, moderate compression).
- *
- * Results in significant size reduction with minimal accuracy loss.
- */
-async function quantizeModel(modelKey, quantLevel) {
-  // Use empty packageName for flat checkpoint structure (workflow caching requirement)
-  return quantizeModelImpl({
-    buildDir: BUILD,
-    forceRebuild: FORCE_BUILD,
-    modelKey,
-    modelsDir: MODELS,
-    packageName: '',
-    quantLevel,
-  })
-}
-
-/**
  * Copy quantized models and tokenizers to build output directory.
  * Output structure: build/{mode}/{platform-arch}/out/Final/{modelKey}/model.onnx
  */
-async function copyToDist(modelKey, quantizedPaths, quantLevel) {
+export async function copyToDist(modelKey, quantizedPaths, quantLevel) {
   logger.step('Copying models to build output')
 
   // Create nested directory structure: build/<mode>/<platform-arch>/out/Final/minilm-l6/
@@ -190,6 +154,42 @@ tokenizer.save_pretrained('${outputDir}')
   logger.success(
     `Copied ${modelKey} model (${quantLevel}) to ${path.relative(PACKAGE_ROOT, outputDir)}/`,
   )
+}
+
+/**
+ * Download model from Hugging Face.
+ */
+export async function downloadModel(modelKey) {
+  // Use empty packageName for flat checkpoint structure (workflow caching requirement)
+  return downloadModelImpl({
+    buildDir: BUILD,
+    forceRebuild: FORCE_BUILD,
+    modelKey,
+    modelSources: MODEL_SOURCES,
+    modelsDir: MODELS,
+    packageName: '',
+  })
+}
+
+/**
+ * Apply quantization for compression.
+ *
+ * Supports two quantization levels:
+ * - INT4: MatMulNBitsQuantizer with RTN weight-only quantization (maximum compression).
+ * - INT8: Dynamic quantization (better compatibility, moderate compression).
+ *
+ * Results in significant size reduction with minimal accuracy loss.
+ */
+export async function quantizeModel(modelKey, quantLevel) {
+  // Use empty packageName for flat checkpoint structure (workflow caching requirement)
+  return quantizeModelImpl({
+    buildDir: BUILD,
+    forceRebuild: FORCE_BUILD,
+    modelKey,
+    modelsDir: MODELS,
+    packageName: '',
+    quantLevel,
+  })
 }
 
 /**

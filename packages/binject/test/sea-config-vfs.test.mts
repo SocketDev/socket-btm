@@ -33,41 +33,9 @@ const BINJECT = getBinjectPath()
 
 let testDir: string
 let binjectExists = false
-let nodeBinary = null
+let nodeBinary = undefined
 
-/**
- * Find a suitable Node.js binary for testing.
- */
-async function findNodeBinary() {
-  // Local node-smol builds — paths come from node-smol-builder's paths.mts
-  // so the on-disk layout stays in one place. outputFinalBinary already
-  // encodes the platform-specific binary name (node vs node.exe).
-  const possiblePaths = [
-    getNodeSmolBuildPaths('dev', process.platform, PLATFORM_ARCH)
-      .outputFinalBinary,
-    getNodeSmolBuildPaths('prod', process.platform, PLATFORM_ARCH)
-      .outputFinalBinary,
-  ]
-
-  for (const binaryPath of possiblePaths) {
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      const stats = await fs.stat(binaryPath)
-      if (stats.isFile()) {
-        // eslint-disable-next-line no-await-in-loop
-        await fs.access(binaryPath, fs.constants.X_OK)
-        return binaryPath
-      }
-    } catch {
-      // Continue to next path.
-    }
-  }
-
-  // Fall back to system Node.js.
-  return process.execPath
-}
-
-async function execCommand(command, args = [], options = {}) {
+export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {
     const spawnPromise = spawn(command, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -102,6 +70,38 @@ async function execCommand(command, args = [], options = {}) {
   })
 }
 
+/**
+ * Find a suitable Node.js binary for testing.
+ */
+export async function findNodeBinary() {
+  // Local node-smol builds — paths come from node-smol-builder's paths.mts
+  // so the on-disk layout stays in one place. outputFinalBinary already
+  // encodes the platform-specific binary name (node vs node.exe).
+  const possiblePaths = [
+    getNodeSmolBuildPaths('dev', process.platform, PLATFORM_ARCH)
+      .outputFinalBinary,
+    getNodeSmolBuildPaths('prod', process.platform, PLATFORM_ARCH)
+      .outputFinalBinary,
+  ]
+
+  for (const binaryPath of possiblePaths) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const stats = await fs.stat(binaryPath)
+      if (stats.isFile()) {
+        // eslint-disable-next-line no-await-in-loop
+        await fs.access(binaryPath, fs.constants.X_OK)
+        return binaryPath
+      }
+    } catch {
+      // Continue to next path.
+    }
+  }
+
+  // Fall back to system Node.js.
+  return process.execPath
+}
+
 describe('sEA Config VFS Configuration', () => {
   beforeAll(async () => {
     // Check if binject binary exists.
@@ -119,7 +119,7 @@ describe('sEA Config VFS Configuration', () => {
     // Check if binary is small enough for binject.
     const stats = await fs.stat(foundBinary)
     if (stats.size > MAX_NODE_BINARY_SIZE) {
-      console.warn(
+      logger.warn(
         `Node binary too large for binject tests: ${(stats.size / 1024 / 1024).toFixed(2)}MB > ${MAX_NODE_BINARY_SIZE / 1024 / 1024}MB`,
       )
       binjectExists = false

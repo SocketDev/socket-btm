@@ -20,146 +20,6 @@ import { errorMessage } from './error-utils.mts'
 const logger = getDefaultLogger()
 
 /**
- * Default Emscripten SDK installation path.
- */
-export function getDefaultEmsdkPath() {
-  return path.join(os.homedir(), '.emsdk')
-}
-
-/**
- * Check if Emscripten is available.
- *
- * @returns {boolean} True if emcc is in PATH.
- */
-export function checkEmscriptenAvailable() {
-  return Boolean(whichSync('emcc', { nothrow: true }))
-}
-
-/**
- * Get Emscripten SDK path from environment or default location.
- *
- * @returns {string} Emscripten SDK path.
- */
-export function getEmsdkPath() {
-  return process.env.EMSDK || getDefaultEmsdkPath()
-}
-
-/**
- * Check if Emscripten SDK is installed at the given path.
- *
- * @param {string} emsdkPath - Path to emsdk directory.
- * @returns {boolean} True if emsdk exists at path.
- */
-export function checkEmsdkInstalled(emsdkPath = getEmsdkPath()) {
-  return (
-    existsSync(path.join(emsdkPath, 'emsdk')) ||
-    existsSync(path.join(emsdkPath, 'emsdk.bat'))
-  )
-}
-
-/**
- * Install Emscripten SDK.
- *
- * @param {object} options - Installation options.
- * @param {string} options.version - Version to install (default: 'latest').
- * @param {string} options.installPath - Installation path (default: ~/.emsdk).
- * @param {boolean} options.quiet - Suppress output.
- * @returns {Promise<boolean>} True if installation succeeded.
- */
-export async function installEmscripten({
-  installPath,
-  quiet = false,
-  version = 'latest',
-} = {}) {
-  const emsdkPath = installPath || getDefaultEmsdkPath()
-
-  // Check if git is available.
-  if (!whichSync('git', { nothrow: true })) {
-    if (!quiet) {
-      printError('git is required to install Emscripten SDK')
-    }
-    return false
-  }
-
-  try {
-    // Create parent directory.
-    await fs.mkdir(emsdkPath, { recursive: true })
-
-    // Clone emsdk repository.
-    if (!quiet) {
-      logger.substep(`Cloning Emscripten SDK to ${emsdkPath}...`)
-    }
-
-    const cloneResult = await spawn(
-      'git',
-      ['clone', 'https://github.com/emscripten-core/emsdk.git', emsdkPath],
-      {
-        env: process.env,
-        stdio: quiet ? 'pipe' : 'inherit',
-      },
-    )
-
-    if (cloneResult.code !== 0) {
-      if (!quiet) {
-        printError('Failed to clone Emscripten SDK')
-      }
-      return false
-    }
-
-    // Run emsdk install.
-    const emsdkCmd = WIN32 ? 'emsdk.bat' : './emsdk'
-    if (!quiet) {
-      logger.info(`Installing Emscripten ${version}...`)
-    }
-
-    const installResult = await spawn(emsdkCmd, ['install', version], {
-      cwd: emsdkPath,
-      env: process.env,
-      shell: WIN32,
-      stdio: quiet ? 'pipe' : 'inherit',
-    })
-
-    if (installResult.code !== 0) {
-      if (!quiet) {
-        printError(`Failed to install Emscripten ${version}`)
-      }
-      return false
-    }
-
-    // Activate the installed version.
-    if (!quiet) {
-      logger.info(`Activating Emscripten ${version}...`)
-    }
-
-    const activateResult = await spawn(emsdkCmd, ['activate', version], {
-      cwd: emsdkPath,
-      env: process.env,
-      shell: WIN32,
-      stdio: quiet ? 'pipe' : 'inherit',
-    })
-
-    if (activateResult.code !== 0) {
-      if (!quiet) {
-        printError(`Failed to activate Emscripten ${version}`)
-      }
-      return false
-    }
-
-    if (!quiet) {
-      logger.success(`Emscripten SDK ${version} installed successfully`)
-      logger.warn(`Add to your environment: source ${emsdkPath}/emsdk_env.sh`)
-    }
-
-    return true
-  } catch (e) {
-    if (!quiet) {
-      printError(`Error installing Emscripten: ${errorMessage(e)}`)
-    }
-    return false
-  }
-}
-
-/**
  * Activate Emscripten SDK environment for current process.
  *
  * @param {object} options - Options.
@@ -263,6 +123,28 @@ export async function activateEmscripten({
     }
     return { activated: false, env: {} }
   }
+}
+
+/**
+ * Check if Emscripten is available.
+ *
+ * @returns {boolean} True if emcc is in PATH.
+ */
+export function checkEmscriptenAvailable() {
+  return Boolean(whichSync('emcc', { nothrow: true }))
+}
+
+/**
+ * Check if Emscripten SDK is installed at the given path.
+ *
+ * @param {string} emsdkPath - Path to emsdk directory.
+ * @returns {boolean} True if emsdk exists at path.
+ */
+export function checkEmsdkInstalled(emsdkPath = getEmsdkPath()) {
+  return (
+    existsSync(path.join(emsdkPath, 'emsdk')) ||
+    existsSync(path.join(emsdkPath, 'emsdk.bat'))
+  )
 }
 
 /**
@@ -373,6 +255,13 @@ export async function ensureEmscripten({
 }
 
 /**
+ * Default Emscripten SDK installation path.
+ */
+export function getDefaultEmsdkPath() {
+  return path.join(os.homedir(), '.emsdk')
+}
+
+/**
  * Get Emscripten installation instructions.
  *
  * @param {object} options - Options.
@@ -389,4 +278,115 @@ export function getEmscriptenInstructions({ installPath } = {}) {
     '  ./emsdk activate latest',
     `  source ${emsdkPath}/emsdk_env.sh`,
   ]
+}
+
+/**
+ * Get Emscripten SDK path from environment or default location.
+ *
+ * @returns {string} Emscripten SDK path.
+ */
+export function getEmsdkPath() {
+  return process.env.EMSDK || getDefaultEmsdkPath()
+}
+
+/**
+ * Install Emscripten SDK.
+ *
+ * @param {object} options - Installation options.
+ * @param {string} options.version - Version to install (default: 'latest').
+ * @param {string} options.installPath - Installation path (default: ~/.emsdk).
+ * @param {boolean} options.quiet - Suppress output.
+ * @returns {Promise<boolean>} True if installation succeeded.
+ */
+export async function installEmscripten({
+  installPath,
+  quiet = false,
+  version = 'latest',
+} = {}) {
+  const emsdkPath = installPath || getDefaultEmsdkPath()
+
+  // Check if git is available.
+  if (!whichSync('git', { nothrow: true })) {
+    if (!quiet) {
+      printError('git is required to install Emscripten SDK')
+    }
+    return false
+  }
+
+  try {
+    // Create parent directory.
+    await fs.mkdir(emsdkPath, { recursive: true })
+
+    // Clone emsdk repository.
+    if (!quiet) {
+      logger.substep(`Cloning Emscripten SDK to ${emsdkPath}...`)
+    }
+
+    const cloneResult = await spawn(
+      'git',
+      ['clone', 'https://github.com/emscripten-core/emsdk.git', emsdkPath],
+      {
+        env: process.env,
+        stdio: quiet ? 'pipe' : 'inherit',
+      },
+    )
+
+    if (cloneResult.code !== 0) {
+      if (!quiet) {
+        printError('Failed to clone Emscripten SDK')
+      }
+      return false
+    }
+
+    // Run emsdk install.
+    const emsdkCmd = WIN32 ? 'emsdk.bat' : './emsdk'
+    if (!quiet) {
+      logger.info(`Installing Emscripten ${version}...`)
+    }
+
+    const installResult = await spawn(emsdkCmd, ['install', version], {
+      cwd: emsdkPath,
+      env: process.env,
+      shell: WIN32,
+      stdio: quiet ? 'pipe' : 'inherit',
+    })
+
+    if (installResult.code !== 0) {
+      if (!quiet) {
+        printError(`Failed to install Emscripten ${version}`)
+      }
+      return false
+    }
+
+    // Activate the installed version.
+    if (!quiet) {
+      logger.info(`Activating Emscripten ${version}...`)
+    }
+
+    const activateResult = await spawn(emsdkCmd, ['activate', version], {
+      cwd: emsdkPath,
+      env: process.env,
+      shell: WIN32,
+      stdio: quiet ? 'pipe' : 'inherit',
+    })
+
+    if (activateResult.code !== 0) {
+      if (!quiet) {
+        printError(`Failed to activate Emscripten ${version}`)
+      }
+      return false
+    }
+
+    if (!quiet) {
+      logger.success(`Emscripten SDK ${version} installed successfully`)
+      logger.warn(`Add to your environment: source ${emsdkPath}/emsdk_env.sh`)
+    }
+
+    return true
+  } catch (e) {
+    if (!quiet) {
+      printError(`Error installing Emscripten: ${errorMessage(e)}`)
+    }
+    return false
+  }
 }

@@ -319,297 +319,50 @@ pnpm run fleet-skill --list-skills                  # classify skills fleet/part
 
 🚨 When re-publishing builder workflows after a registry/source SHA cascade, the order MUST be:
 
-1. **curl + lief** — in PARALLEL (independent of each other)
-2. **stubs** — AFTER curl AND lief are green at the new SHA (stubs links libcurl + uses lief)
-3. **binsuite** — AFTER stubs is green
-4. **node-smol** — AFTER binsuite is green
+1. **curl + lief** — in PARALLEL (independent of each other).
+2. **stubs** — AFTER curl AND lief are green at the new SHA (stubs links libcurl + uses lief).
+3. **binsuite** — AFTER stubs is green.
+4. **node-smol** — AFTER binsuite is green.
 
-Never parallel-dispatch across tiers. Within a tier, parallel is fine. Bump `cache-versions.json` BEFORE re-dispatching so the cache key actually changes — otherwise the workflow finds a stale cached tarball and the rebuild is a no-op.
-
-Out-of-order dispatch is gated by `scripts/check-publish-prereq.mts` (runs as a `verify-prereqs` job at the top of stubs.yml / binsuite.yml / node-smol.yml). The gate compares each upstream's cache-version bump commit against the SHA on the latest published release tag — if the bump is newer than the latest release, the workflow hard-fails with a clear "re-publish ${upstream} first" message before any build runs.
+Never parallel-dispatch across tiers. Within a tier, parallel is fine. Bump `cache-versions.json` BEFORE re-dispatching — otherwise the cache key doesn't change and the workflow rebuilds nothing. Out-of-order dispatch is gated by `scripts/check-publish-prereq.mts` (runs as a `verify-prereqs` job at the top of stubs.yml / binsuite.yml / node-smol.yml); it hard-fails if an upstream's cache-version bump is newer than its latest published release tag.
 
 ### Node.js Additions (`additions/` directory)
 
-Code embedded into Node.js during early bootstrap. Special constraints:
+Code embedded into Node.js during early bootstrap. Constraints:
 
-#### Restrictions
+- No third-party packages — built-ins only. NEVER import from `@socketsecurity/*`.
+- Use `require('fs')` not `require('node:fs')` — the `node:` protocol is unavailable at bootstrap.
+- Start `.js` files with `'use strict';`. Use flat `.js` files (upstream convention), NEVER `index.js`-in-a-directory.
+- `internalBinding` is already in scope — don't require it from `'internal/bootstrap/realm'`.
+- All `node:smol-*` modules REQUIRE the `node:` prefix (enforced via `schemelessBlockList` in `lib/internal/bootstrap/realm.js`). Modules listed in [`docs/references/btm-glossary.md`](docs/references/btm-glossary.md).
+- Use primordials for Map/Set: `SafeMap`, `SafeSet`, `MapPrototypeGet/Set/Delete/Has`, `SetPrototypeAdd/Delete/Has`, `ArrayFrom`, `ObjectKeys`. `*Ctor` suffix for constructors shadowing globals (`BigIntCtor`, `ErrorCtor`). `.size` is safe on SafeMap/SafeSet. Prefer `ObjectKeys()` + indexed for-loop over `for...in` + `hasOwnProperty`.
 
-- **No third-party packages** — only built-in modules
-- Use `require('fs')` not `require('node:fs')` — `node:` protocol unavailable at bootstrap
-- NEVER import from `@socketsecurity/*` packages
-- ALWAYS start `.js` files with `'use strict';`
+#### C++ rules
 
-#### Module Naming
+🚨 NEVER use C++ exceptions — Node.js compiles with `-fno-exceptions`; `std::bad_alloc` becomes `abort()` and kills the isolate. Allocations at JS entrypoints MUST use `new (std::nothrow) T(...)` + null-check + `isolate->ThrowException(...)`. STL containers have no nothrow escape — `.reserve(N)` upfront, cap user sizes before `.resize(n)`. `String::Utf8Value` — null-check `*utf8` before deref. Async libuv work must heap-allocate state and `delete` in the callback (callback does NOT fire on uv non-zero return — caller cleans up). Full `socketsecurity/...` include paths. Full patterns: [`docs/references/btm-additions-cpp.md`](docs/references/btm-additions-cpp.md).
 
-All `node:smol-*` modules REQUIRE the `node:` prefix (enforced via `schemelessBlockList` in `lib/internal/bootstrap/realm.js`).
+#### SEA entry: require-from-VFS
 
-Available: `node:smol-ffi`, `node:smol-http`, `node:smol-https`, `node:smol-ilp`, `node:smol-manifest`, `node:smol-power`, `node:smol-primordial`, `node:smol-purl`, `node:smol-sql`, `node:smol-util`, `node:smol-versions`, `node:smol-vfs`
+Node 25.7+ replaces the ambient `require` inside a CJS SEA entry with embedder hooks that only resolve built-in names — external loads (file://, abs paths, VFS) fail with `ERR_UNKNOWN_BUILTIN_MODULE`. Always use `Module.createRequire(scriptPath)`; `createVFSRequire()` in `internal/socketsecurity/smol/bootstrap.js` already does this. Don't substitute `await import(pathToFileURL(...))` — same limitation applies.
 
-#### Primordials
+### Source patches (Node.js, iocraft, ink, LIEF)
 
-ALWAYS use primordials for Map/Set operations in internal modules: `SafeMap`, `SafeSet`, `MapPrototypeGet/Set/Delete/Has`, `SetPrototypeAdd/Delete/Has`, `ArrayFrom`, `ObjectKeys`. Use `*Ctor` suffix for constructors shadowing globals (`BigIntCtor`, `ErrorCtor`). `.size` is safe on SafeMap/SafeSet.
+🚨 **1 patch, 1 file. 1 file, 1 patch.** Bidirectional. Every source file in the patch series is owned by exactly one patch, and every patch modifies exactly one source file. No exceptions, no allowlist, no "intentional splits." Numbered series is contiguous — renumber when folding patches.
 
-#### Object Iteration
-
-ALWAYS use `ObjectKeys()` + indexed for-loop (faster than `for...in` with `hasOwnProperty`).
-
-#### C++ Code
-
-- **NEVER use C++ exceptions** — Node.js compiled with `-fno-exceptions`. Use status flags.
-- **Allocations at JS entrypoints MUST use `std::nothrow` + null-check + `ThrowException`**. Because `-fno-exceptions` turns `std::bad_alloc` into an `abort()` that kills the whole isolate, every `new T(...)` / `std::make_unique<T>(...)` / `std::make_shared<T>(...)` touched at a binding entry point MUST be written as:
-  ```cpp
-  auto* obj = new (std::nothrow) T(...);
-  if (obj == nullptr) {
-    isolate->ThrowException(v8::Exception::Error(
-        FIXED_ONE_BYTE_STRING(isolate, "Out of memory: ...")));
-    return;  // or roll back any partial state first
-  }
-  ```
-  For `std::make_unique`, use `std::unique_ptr<T>(new (std::nothrow) T(...))`. Helper classes like `FFIBinding::GetStateOrThrow` / `CheckObjectPoolOrThrow` / `CheckChunkPoolOrThrow` consolidate this on hot call sites.
-  For `std::unordered_map` / `std::vector`: insertion can still `bad_alloc` through the allocator and there is **no nothrow escape at the STL API level** — `emplace` / `insert` / `operator[]=` all go through the same allocator and `std::terminate()` the process on failure. Mitigate by calling `.reserve(N)` once at state construction so typical-workload inserts never rehash (narrows the failure surface to one bounded-small, one-time allocation), and cap user-controlled sizes before `.resize(n)` / `vector<T>(n)` with an explicit bound check.
-  For `String::Utf8Value`: always null-check `*utf8` before dereferencing. The internal allocation can fail and leave `*utf8` as nullptr; `std::string::assign(nullptr)` or passing nullptr to libpq crashes. Pattern: `String::Utf8Value utf8(isolate, val); if (*utf8 == nullptr) { isolate->ThrowException(...); return; }`.
-  Async work that escapes the current stack (`uv_write`, `uv_queue_work`, `setTimeout`-style) MUST allocate its buffer/state on the heap alongside the libuv request — never on the stack — and `delete` in the callback. Stack buffers passed to async `uv_write` are a use-after-stack bug (libuv reads the buffer at send time, not at `uv_write()` call time). If the uv call returns non-zero, the callback will NOT fire — the caller owns the state and must `delete` it on the error path.
-- **ALWAYS use full `socketsecurity/...` include paths** (e.g., `#include "socketsecurity/http/http_fast_response.h"`)
-- `env-inl.h` vs `env.h`: include `env-inl.h` if .cc file uses `Environment*` methods
-
-#### Internal Module Structure
-
-- Use flat `.js` files (Node.js upstream convention), NEVER directories with `index.js`
-- `internalBinding` is already in scope — NEVER require it from `'internal/bootstrap/realm'`
-
-#### SEA entry: require-from-VFS route
-
-**Node 25.7+** replaces the ambient `require` inside a CJS SEA entry with embedder hooks that only resolve built-in module names. External loads (file://, absolute paths, VFS paths) fail with `ERR_UNKNOWN_BUILTIN_MODULE`. ALWAYS use `Module.createRequire(scriptPath)` to get a require function that bypasses those hooks — our `createVFSRequire()` in `internal/socketsecurity/smol/bootstrap.js` already does this correctly. NEVER replace that helper with `await import(pathToFileURL(...))`; the `import()` hooks have the same limitation in 25.7+.
-
-### Source Patches (Node.js, iocraft, ink, LIEF)
-
-- **Node.js**: `packages/node-smol-builder/patches/source-patched/*.patch`
-- **iocraft**: `packages/iocraft-builder/patches/*.patch`
-- **ink**: `packages/ink-builder/patches/*.patch`
-- **LIEF**: `packages/lief-builder/patches/lief/*.patch`
-
-#### Format
-
-ALWAYS use standard unified diff (`--- a/`, `+++ b/`). NEVER use `git format-patch` output.
-
-Required headers — one `@<project>-versions` token per patch matching the target:
+Standard unified diff (`--- a/`, `+++ b/`), NEVER `git format-patch`. Required headers on the first non-blank lines:
 
 ```diff
-
-### @node-versions: vX.Y.Z     (or @iocraft-versions / @ink-versions / @lief-versions)
-
-### @description: One-line summary
-#
---- a/file
-+++ b/file
+# @<project>-versions: vX.Y.Z     (or @iocraft-versions / @ink-versions / @lief-versions)
+# @description: One-line summary
 ```
 
-##### Patch Rules
+Locations, project-tag mapping, multi-file feature workflow, enforcement script details, and regeneration guidance: [`docs/references/btm-source-patches.md`](docs/references/btm-source-patches.md). Related: `.claude/rules/gitmodules-version-comments.md`.
 
-🚨 **1 patch, 1 file. 1 file, 1 patch.** Bidirectional. Every source file in the patch series is owned by exactly one patch, and every patch modifies exactly one source file. No exceptions, no allowlist entries, no "intentional splits."
+### Check gates
 
-- **Within a patch**: only ONE source file is modified. No multi-file diffs.
-- **Across the series**: each source file is touched by EXACTLY ONE patch. If you need to make several edits to `src/node_binding.cc`, fold them into the single canonical patch for that file. Two patches modifying the same file is forbidden — fold them.
-- **Numbered series is contiguous.** When a patch is folded into another and deleted, renumber the remainder to close the gap. Numbered-series gaps are forbidden — no historic-reference allowlist for "patch N was removed in cleanup R<x>."
-- For multi-file features that cannot be split independently, use an ordered numeric-prefix series (`001-*.patch`, `002-*.patch`, `003-*.patch`) applied in filename order. Each patch still owns exactly ONE file; dependencies flow in ascending order only.
-- Both rules are enforced by `scripts/check-patch-format.mts` (`one-file-per-patch`, `multiple-patches-per-file`, `numbered-series-gap`). Fix the patches when these fire.
-- Minimal touch, clean diffs, no style changes outside scope.
-- To regenerate / refold: use `/regenerating-patches` skill.
-- Manual: `diff -u a/file b/file`, add headers, validate with `patch --dry-run`.
+Every gate runs on `pnpm run check` and supports `--explain` / `--json`. Scripts: `check-version-consistency.mts`, `check-mirror-docs.mts`, `check-regression-patterns.mts`, `check-cascade-completeness.mts`, `check-patch-format.mts`. Full table in [`docs/references/btm-check-gates.md`](docs/references/btm-check-gates.md).
 
-#### Version consistency gate
+### Build conventions & glossary
 
-`scripts/check-version-consistency.mts` cross-references `.gitmodules` version comments against each upstream's `package.json` `sources.<upstream>.version` + `.ref` and the actual gitlink SHA. Catches the shape R22-R25 hand-fixed during upstream version audits — a submodule bump that forgot to touch the version table, or a version table that points at a commit the submodule isn't actually on. Runs on every `pnpm run check`.
-
-- **Run locally**: `pnpm run check:version-consistency`
-- **See why a match is flagged**: `node scripts/check-version-consistency.mts --explain`
-- **Machine-readable output**: `--json`
-
-#### Mirror-docs sync gate
-
-`scripts/check-mirror-docs.mts` enforces the doc-mirror invariant from "Documentation Policy": every public `lib/smol-*.js` module has a matching `docs/additions/lib/<name>.js.md`, and every mirror doc still has a live source. Catches orphaned docs from deleted sources and new public modules that shipped without a doc. Runs on every `pnpm run check`.
-
-- **Run locally**: `pnpm run check:mirror-docs`
-- **See why a match is flagged**: `node scripts/check-mirror-docs.mts --explain`
-- **Machine-readable output**: `--json`
-
-#### Regression-pattern gate
-
-`scripts/check-regression-patterns.mts` encodes recurring bug *shapes* (regex patterns) caught across R14+ quality-scan rounds — "pattern" here means a regex pattern / code shape, nothing to do with JS/TS class definitions. It runs on every `pnpm run check` invocation (so it runs in CI via `.github/workflows/ci.yml`) and fails on any match. Strict — no allowlist; fix the code (apply the canonical remediation in the rule's `fix:` field) so the regex no longer fires.
-
-- **Run locally**: `pnpm run check:regression-patterns` (or just `pnpm check`)
-- **See why a match is flagged**: `node scripts/check-regression-patterns.mts --explain`
-- **Machine-readable output**: `--json`
-- **Add a new pattern**: edit `scripts/check-regression-patterns.mts` REGRESSIONS, fix any pre-existing matches the new rule surfaces in the same commit, and document the lesson in the commit message.
-
-The gate is regression-prevention only. It cannot find NEW patterns the codebase hasn't seen yet — `/quality-scan` still runs periodically for that.
-
-#### Cascade-completeness gate
-
-`scripts/check-cascade-completeness.mts` walks every Makefile `include`, every cross-package TypeScript `import`, and every Dockerfile `COPY` and verifies each discovered dependency is covered by a CASCADE_RULE in `scripts/validate-cache-versions.mts` OR by a hash in the consuming workflow's cache-key composition. Runs on every `pnpm run check` invocation.
-
-- **Run locally**: `pnpm run check:cascade-completeness`
-- **See why a match is flagged**: `node scripts/check-cascade-completeness.mts --explain`
-- **Machine-readable output**: `--json`
-- **Allowlist genuinely non-build-affecting deps**: `.github/cascade-completeness-allowlist.yml`
-
-Catches the shape that powered R18-R27 scope creep — R18 missed `build-infra/wasm-synced/`, R19 missed `curl-builder/{docker,lib,scripts}/`, R20 missed `lief-builder/{lib,scripts}/`, R24 missed root `package.json` + `pnpm-workspace.yaml` across 11 workflows, R27 missed LIEF in stubs.yml. All same shape: dependency exists, builder uses it, cache key doesn't know. One PR's Dockerfile edit or `import { x } from 'foo-builder/bar'` that's missing cascade coverage now fails CI instead of leaking into a later scan round.
-
-#### Patch format gate
-
-`scripts/check-patch-format.mts` validates every `.patch` under `packages/*/patches/` against the canonical format documented in "Source Patches" above and the lessons from R14-R21 quality scans. Runs on every `pnpm run check`.
-
-- **Run locally**: `pnpm run check:patch-format`
-- **See why a patch is flagged**: `node scripts/check-patch-format.mts --explain`
-- **Machine-readable output**: `--json`
-
-Rules enforced:
-
-- `# @<project>-versions: vX.Y.Z` header on first non-blank line; project tag must match the patch tree (node/ink/iocraft/lief)
-- `# @description:` header present and non-empty
-- Standard unified diff (`--- a/`, `+++ b/`), NOT `git format-patch` preamble
-- Hunk header counts (`@@ -A,B +C,D @@`) match actual body line counts (blank-line tolerance matches `git apply`)
-- One file per patch (both axes: within a patch, AND across the series — each source file owned by exactly one patch)
-- No gaps in numbered-series filenames unless allowlisted
-
-- Rules: `.claude/rules/gitmodules-version-comments.md` — `.gitmodules` version-comment format
-
-#### Build System
-
-- **ALWAYS use `pnpm run build`**, NEVER invoke Makefiles directly (build scripts handle dependency downloads)
-- **ALWAYS run clean before rebuilding**: `pnpm --filter <pkg> clean && pnpm --filter <pkg> build`
-- NEVER manually delete checkpoint files — the clean script knows all locations
-
-##### Toolchain alignment with language upstreams
-
-Keep our pins, source-of-truth URLs, and checksum metadata aligned with where each language project **currently lives and publishes**, not where it used to. When a language or compiler migrates its canonical home, mirror the move in our tooling the same release cycle:
-
-- **`packages/*/external-tools.json`**: update `source`, `sourceTag`, and `notes` so the canonical URL points at the new home.
-- **`packages/build-infra/tool-checksums/<tool>-<version>.json`**: record the new `source`, `sourceTag`, `sourceTagSha`, `sourceCommitSha`, `sourceTarball`, `sourceTarballSha256`. Keep `binaryHost` pointing at wherever the prebuilt artifacts actually live (often a separate CDN), with a `binaryHostNote` explaining why.
-- **Prebuilt binary URLs stay where the project hosts them.** Don't assume the new source home also hosts binaries — verify, and keep the fields distinct.
-- **One concrete precedent**: Zig moved its source from GitHub → Codeberg. The `zig-*.json` tool-checksum files record Codeberg as the `source` + tag SHA, while `binaryHost` stays on `ziglang.org/download` because that's still the official binary distribution.
-
-When in doubt, check the language's own `README`/`index.json`/release metadata for where they're pushing tagged releases now — that's the canonical answer.
-
-##### Source of Truth Architecture
-
-Source packages (`binject`, `bin-infra`, `build-infra`) are canonical. ALL work in source packages, then sync to `additions/`. NEVER make changes only in `additions/` — they will be overwritten.
-
-**The mirrored subdirectories under `additions/source-patched/src/socketsecurity/{bin-infra,binject,build-infra}/` are GITIGNORED** (see `.gitignore` lines 59-61). The `prepare-external-sources.mts` step of the node-smol build populates them by copying from the canonical source packages and then validates the hash matches. If the build fails with "Additions directory out of sync!", the working-tree copy is stale — rerun `pnpm --filter node-smol-builder build` (which will re-sync), or do it manually with `rsync -a --delete packages/<pkg>/src/socketsecurity/<pkg>/ packages/node-smol-builder/additions/source-patched/src/socketsecurity/<pkg>/`. Never "commit" a fix — those paths are untracked on purpose.
-
-##### Cache Version Cascade
-
-When modifying source, bump `.github/cache-versions.json` for all dependents. The full path → consumer mapping lives in `scripts/validate-cache-versions.mts` (`CASCADE_RULES`); the gate runs in `pnpm check` and CI, so missed bumps fail the build instead of leaking into a release.
-
-##### Test Style
-
-**NEVER write source-code-scanning tests.** Write functional tests that verify behavior. For modules requiring the built binary: use integration tests with final binary (`getLatestFinalBinary`), NEVER intermediate stages.
-
-**Test fixtures run by the built binary** (smoke tests, integration tests) MUST use `.mjs`/`.js` extensions, NOT `.mts`. The node-smol binary is built `--without-amaro` so it has no TypeScript stripping support. This only applies to files executed by the built binary — build scripts run by the host Node.js can use `.mts` normally.
-
-##### Fetching npm Packages
-
-**ALWAYS use npm registry directly** (`npm pack` or `https://registry.npmjs.org/`), NEVER CDNs like unpkg.
-
-#### Glossary
-
-##### Binary Formats
-
-- **Mach-O**: macOS/iOS, **ELF**: Linux, **PE**: Windows
-
-##### Build Concepts
-
-- **Checkpoint**: Cached snapshot of build progress for incremental builds
-- **Cache Version**: Version in `.github/cache-versions.json` that invalidates CI caches
-- **Upstream**: Original Node.js source before patches
-
-##### Node.js Customization
-
-- **SEA**: Single Executable Application (standalone with runtime + app code)
-- **VFS**: Virtual File System embedded inside a binary
-- **Additions Directory**: Code embedded into Node.js during build
-
-##### Binary Manipulation
-
-- **Binary Injection**: Inserting data into compiled binary without recompilation
-- **Section/Segment**: Named regions in executables
-- **LIEF**: Library for reading/modifying executable formats
-
-##### Compression
-
-- **zstd**: Zstandard compression (fast decompression ~1.5 GB/s, good ratio)
-- **Stub Binary**: Small executable that decompresses and runs main binary
-
-##### Cross-Platform
-
-- **musl**: Lightweight C library for Alpine Linux (vs glibc on most distros)
-- **Universal Binary**: macOS binary with ARM64 + x64 code
-
-##### Package Names
-
-**Core binary-injection suite:**
-
-- **binject**: Injects data into binaries (SEA resources, VFS archives)
-- **binpress**: Compresses binaries (zstd)
-- **binflate**: Decompresses binaries
-- **stubs-builder**: Builds self-extracting stub binaries
-
-**Infrastructure (canonical TypeScript helpers — additions/source-patched/ mirrors these):**
-
-- **build-infra**: Cross-package build helpers (checkpoint-manager, platform-mappings, release-checksums, docker-builder)
-- **bin-infra**: Binary-manipulation helpers (zstd bindings, compression utilities)
-
-**Custom Node.js:**
-
-- **node-smol-builder**: Builds custom Node.js binary with Socket patches — provides the `node:smol-*` built-in modules (`smol-ffi`, `smol-http`, `smol-https`, `smol-ilp`, `smol-manifest`, `smol-purl`, `smol-sql`, `smol-versions`, `smol-vfs`)
-
-**Native library builders (each produces a shared/static library consumed by node-smol or stubs):**
-
-- **curl-builder**: Builds libcurl + mbedTLS (used by stubs for HTTP)
-- **lief-builder**: Builds LIEF (used by binject for Mach-O/ELF/PE manipulation)
-- **libpq-builder**: Builds libpq (PostgreSQL client, used by node:smol-sql)
-
-**Native Node.js addons (each produces a `.node` binary):**
-
-- **iocraft-builder**: Rust → .node; TUI rendering primitives
-- **opentui-builder**: Zig → .node; terminal UI layer
-- **yoga-layout-builder**: Yoga Layout → WASM; flexbox for ink
-- **ink-builder**: React for terminals; consumes yoga-layout and iocraft
-- **napi-go**: Go → .node framework; source-distributed N-API binding infrastructure (the napi-rs analog for Go)
-- **ultraviolet-builder**: Go → .node via napi-go; Charmbracelet Ultraviolet — kitty/fixterms/SGR terminal decoder (Bubble Tea v2 foundation)
-
-**ML/models:**
-
-- **onnxruntime-builder**: Builds ONNX Runtime → WASM
-- **codet5-models-builder**, **minilm-builder**, **models**: Model pipeline (downloads → converts → quantizes → optimizes)
-
-#### Codex Usage
-
-**Codex is for advice and critical assessment ONLY — never for making code changes.** Proactively consult before complex optimizations (>30min estimated) to catch design flaws early.
-
-#### spawn() Usage
-
-**NEVER change `shell: WIN32` to `shell: true`** — `shell: WIN32` enables shell on Windows (needed) and disables on Unix (not needed). If spawn fails with ENOENT, separate command from arguments.
-
-#### Built-in Module Import Style
-
-- Cherry-pick `fs` (`import { existsSync, promises as fs } from 'node:fs'`), default import `path`/`os`/`url`/`crypto`
-- File existence: ALWAYS `existsSync`. NEVER `fs.access`, `fs.stat`-for-existence, or an async `fileExists` wrapper.
-- Use `@socketsecurity/lib/spawn` instead of `node:child_process` (except in `additions/`)
-- Exception: cherry-pick `fileURLToPath` from `node:url`
-
-#### isMainModule Detection
-
-**ALWAYS use `fileURLToPath(import.meta.url) === path.resolve(process.argv[1])`** — works cross-platform. NEVER use `endsWith()` or raw URL comparison.
-
-#### Platform-Arch and libc
-
-**ALWAYS pass libc parameter for Linux platform operations.** Prefer `getCurrentPlatformArch()` which auto-detects libc. Missing libc causes builds to output to wrong directories.
-
-#### Working Directory
-
-🚨 **NEVER use `process.chdir()`** — pass `{ cwd }` options and absolute paths instead. Breaks tests, worker threads, causes race conditions.
-
-#### Logging
-
-**ALWAYS use `@socketsecurity/lib/logger`** instead of `console.*`. NEVER add emoji/symbols manually (logger provides them). Exception: `additions/` directory.
+- Build system, toolchain alignment, source-of-truth, cache cascade, test style, npm-fetch, code style: [`docs/references/btm-build-conventions.md`](docs/references/btm-build-conventions.md).
+- Binary formats, build concepts, Node customization terms, `node:smol-*` listing, package names, ML/models lineup: [`docs/references/btm-glossary.md`](docs/references/btm-glossary.md).

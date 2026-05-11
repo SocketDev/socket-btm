@@ -41,7 +41,7 @@ const WORKSPACE_ROOT = path.resolve(__dirname, '..', '..', '..')
  * @param {string} target - Input target
  * @returns {string} Normalized target
  */
-function normalizeTarget(target) {
+export function normalizeTarget(target) {
   // If target is linux-x64 or linux-arm64 without libc suffix, default to glibc
   if (target === 'linux-x64') {
     return 'linux-x64-glibc'
@@ -52,7 +52,36 @@ function normalizeTarget(target) {
   return target
 }
 
-function printHelp() {
+export function parseArgs(args) {
+  const options = {
+    buildMode: 'prod',
+    force: false,
+    help: false,
+    outputDir: undefined,
+    packageName: undefined,
+    target: undefined,
+  }
+
+  for (const arg of args) {
+    if (arg === '--force') {
+      options.force = true
+    } else if (arg === '--help' || arg === '-h') {
+      options.help = true
+    } else if (arg.startsWith('--package=')) {
+      options.packageName = arg.slice('--package='.length)
+    } else if (arg.startsWith('--target=')) {
+      options.target = arg.slice('--target='.length)
+    } else if (arg.startsWith('--output=')) {
+      options.outputDir = arg.slice('--output='.length)
+    } else if (arg.startsWith('--mode=')) {
+      options.buildMode = arg.slice('--mode='.length)
+    }
+  }
+
+  return options
+}
+
+export function printHelp() {
   const targets = getAllTargets()
   logger.log(`
 Build a package for a specific target.
@@ -80,35 +109,6 @@ Examples:
   # Force rebuild with custom output
   node scripts/build-docker.mts --package=binpress --target=linux-x64 --force --output=./out
 `)
-}
-
-function parseArgs(args) {
-  const options = {
-    buildMode: 'prod',
-    force: false,
-    help: false,
-    outputDir: undefined,
-    packageName: undefined,
-    target: undefined,
-  }
-
-  for (const arg of args) {
-    if (arg === '--force') {
-      options.force = true
-    } else if (arg === '--help' || arg === '-h') {
-      options.help = true
-    } else if (arg.startsWith('--package=')) {
-      options.packageName = arg.slice('--package='.length)
-    } else if (arg.startsWith('--target=')) {
-      options.target = arg.slice('--target='.length)
-    } else if (arg.startsWith('--output=')) {
-      options.outputDir = arg.slice('--output='.length)
-    } else if (arg.startsWith('--mode=')) {
-      options.buildMode = arg.slice('--mode='.length)
-    }
-  }
-
-  return options
 }
 
 async function main() {

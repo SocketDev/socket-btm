@@ -30,7 +30,7 @@ type CheckpointName = string
 /**
  * Check if a checkpoint name follows past-tense convention
  */
-function isPastTense(checkpoint: CheckpointName): boolean {
+export function isPastTense(checkpoint: CheckpointName): boolean {
   const pastTenseEndings: string[] = [
     'ed',
     'ized',
@@ -45,9 +45,49 @@ function isPastTense(checkpoint: CheckpointName): boolean {
 }
 
 /**
+ * Validate models package checkpoints
+ */
+export function validateModels(): void {
+  logger.info('Validating models package checkpoints...')
+
+  const scriptsDir = path.join(MONOREPO_ROOT, 'packages/models/scripts')
+  if (!existsSync(scriptsDir)) {
+    logger.fail('models: scripts directory not found')
+    hasErrors = true
+    return
+  }
+
+  const dirs = new Set(
+    readdirSync(scriptsDir, { withFileTypes: true })
+      .filter(d => d.isDirectory() && d.name !== 'common')
+      .map(d => d.name),
+  )
+
+  const expectedCheckpoints: CheckpointName[] = [
+    CHECKPOINTS.DOWNLOADED,
+    CHECKPOINTS.CONVERTED,
+    CHECKPOINTS.QUANTIZED,
+  ]
+
+  for (const checkpoint of expectedCheckpoints) {
+    if (!dirs.has(checkpoint)) {
+      logger.fail(`models: Missing directory for checkpoint "${checkpoint}"`)
+      hasErrors = true
+    } else {
+      logger.success(`models: Directory "${checkpoint}" exists`)
+    }
+
+    if (!isPastTense(checkpoint)) {
+      logger.fail(`models: Checkpoint "${checkpoint}" is not past-tense`)
+      hasErrors = true
+    }
+  }
+}
+
+/**
  * Validate node-smol-builder checkpoints
  */
-function validateNodeSmol(): void {
+export function validateNodeSmol(): void {
   logger.info('Validating node-smol-builder checkpoints...')
 
   const scriptsDir = path.join(
@@ -85,57 +125,9 @@ function validateNodeSmol(): void {
 }
 
 /**
- * Validate yoga-layout-builder checkpoints
- */
-function validateYoga(): void {
-  logger.info('Validating yoga-layout-builder checkpoints...')
-
-  const scriptsDir = path.join(
-    MONOREPO_ROOT,
-    'packages/yoga-layout-builder/scripts',
-  )
-  if (!existsSync(scriptsDir)) {
-    logger.fail('yoga-layout: scripts directory not found')
-    hasErrors = true
-    return
-  }
-
-  const dirs = new Set(
-    readdirSync(scriptsDir, { withFileTypes: true })
-      .filter(d => d.isDirectory() && d.name !== 'common')
-      .map(d => d.name),
-  )
-
-  const expectedCheckpoints: CheckpointName[] = [
-    CHECKPOINTS.SOURCE_CONFIGURED,
-    CHECKPOINTS.WASM_COMPILED,
-    CHECKPOINTS.WASM_RELEASED,
-    CHECKPOINTS.WASM_OPTIMIZED,
-    CHECKPOINTS.WASM_SYNCED,
-    CHECKPOINTS.FINALIZED,
-  ]
-
-  for (const checkpoint of expectedCheckpoints) {
-    if (!dirs.has(checkpoint)) {
-      logger.fail(
-        `yoga-layout: Missing directory for checkpoint "${checkpoint}"`,
-      )
-      hasErrors = true
-    } else {
-      logger.success(`yoga-layout: Directory "${checkpoint}" exists`)
-    }
-
-    if (!isPastTense(checkpoint)) {
-      logger.fail(`yoga-layout: Checkpoint "${checkpoint}" is not past-tense`)
-      hasErrors = true
-    }
-  }
-}
-
-/**
  * Validate onnxruntime-builder checkpoints
  */
-function validateOnnxruntime(): void {
+export function validateOnnxruntime(): void {
   logger.info('Validating onnxruntime-builder checkpoints...')
 
   const scriptsDir = path.join(
@@ -180,14 +172,17 @@ function validateOnnxruntime(): void {
 }
 
 /**
- * Validate models package checkpoints
+ * Validate yoga-layout-builder checkpoints
  */
-function validateModels(): void {
-  logger.info('Validating models package checkpoints...')
+export function validateYoga(): void {
+  logger.info('Validating yoga-layout-builder checkpoints...')
 
-  const scriptsDir = path.join(MONOREPO_ROOT, 'packages/models/scripts')
+  const scriptsDir = path.join(
+    MONOREPO_ROOT,
+    'packages/yoga-layout-builder/scripts',
+  )
   if (!existsSync(scriptsDir)) {
-    logger.fail('models: scripts directory not found')
+    logger.fail('yoga-layout: scripts directory not found')
     hasErrors = true
     return
   }
@@ -199,21 +194,26 @@ function validateModels(): void {
   )
 
   const expectedCheckpoints: CheckpointName[] = [
-    CHECKPOINTS.DOWNLOADED,
-    CHECKPOINTS.CONVERTED,
-    CHECKPOINTS.QUANTIZED,
+    CHECKPOINTS.SOURCE_CONFIGURED,
+    CHECKPOINTS.WASM_COMPILED,
+    CHECKPOINTS.WASM_RELEASED,
+    CHECKPOINTS.WASM_OPTIMIZED,
+    CHECKPOINTS.WASM_SYNCED,
+    CHECKPOINTS.FINALIZED,
   ]
 
   for (const checkpoint of expectedCheckpoints) {
     if (!dirs.has(checkpoint)) {
-      logger.fail(`models: Missing directory for checkpoint "${checkpoint}"`)
+      logger.fail(
+        `yoga-layout: Missing directory for checkpoint "${checkpoint}"`,
+      )
       hasErrors = true
     } else {
-      logger.success(`models: Directory "${checkpoint}" exists`)
+      logger.success(`yoga-layout: Directory "${checkpoint}" exists`)
     }
 
     if (!isPastTense(checkpoint)) {
-      logger.fail(`models: Checkpoint "${checkpoint}" is not past-tense`)
+      logger.fail(`yoga-layout: Checkpoint "${checkpoint}" is not past-tense`)
       hasErrors = true
     }
   }

@@ -34,112 +34,54 @@ export class SmolConfigValidationError extends Error {
 }
 
 /**
- * Validate and normalize a string field.
- *
- * The downstream C deserializer (smol_config.c) uses strlen() and writes raw
- * UTF-8 bytes into fixed-size slots, so the budget is UTF-8 byte length, not
- * UTF-16 code units. `'café'` is 4 JS code units but 5 UTF-8 bytes; using
- * `value.length` would silently truncate mid-codepoint at the boundary.
+ * Parse smol config JSON string and serialize to binary.
+ * @param {string} jsonString - JSON string
+ * @returns {Buffer} - Binary buffer (1192 bytes, SMFG v2)
+ * @throws {SmolConfigValidationError} - If validation fails
+ * @throws {SyntaxError} - If JSON parsing fails
  */
-function validateString(name, value, maxLength, defaultValue = '') {
-  if (value === undefined) {
-    return defaultValue
+export function parseAndSerialize(jsonString) {
+  let config
+  try {
+    config = JSON.parse(jsonString)
+  } catch (e) {
+    throw new Error(`Failed to parse smol config JSON: ${errorMessage(e)}`, {
+      cause: e,
+    })
   }
 
-  if (typeof value !== 'string') {
-    throw new SmolConfigValidationError(
-      name,
-      `must be a string, got ${typeof value}`,
-    )
-  }
-
-  const byteLength = Buffer.byteLength(value, 'utf8')
-  if (byteLength > maxLength) {
-    throw new SmolConfigValidationError(
-      name,
-      `exceeds maximum length of ${maxLength} bytes (got ${byteLength})`,
-    )
-  }
-
-  return value
+  return serializeUpdateConfig(config)
 }
 
 /**
- * Validate and normalize a boolean field.
+ * Parse smol config JSON file and serialize to binary.
+ * @param {string} filePath - Path to smol-config.json file
+ * @returns {Buffer} - Binary buffer (1192 bytes, SMFG v2)
+ * @throws {SmolConfigValidationError} - If validation fails
+ * @throws {Error} - If file read or JSON parsing fails
  */
-function validateBoolean(name, value, defaultValue) {
-  if (value === undefined) {
-    return defaultValue
-  }
-
-  if (typeof value !== 'boolean') {
-    throw new SmolConfigValidationError(
-      name,
-      `must be a boolean, got ${typeof value}`,
+export function parseConfigFile(filePath) {
+  let fileContent
+  try {
+    fileContent = readFileSync(filePath, 'utf8')
+  } catch (e) {
+    throw new Error(
+      `Failed to read smol config file '${filePath}': ${errorMessage(e)}`,
+      { cause: e },
     )
   }
 
-  return value
-}
-
-/**
- * Validate and normalize a number field.
- */
-function validateNumber(
-  name,
-  value,
-  defaultValue,
-  min = 0,
-  max = Number.MAX_SAFE_INTEGER,
-) {
-  if (value === undefined) {
-    return defaultValue
-  }
-
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    throw new SmolConfigValidationError(
-      name,
-      `must be a finite number, got ${typeof value}`,
+  let config
+  try {
+    config = JSON.parse(fileContent)
+  } catch (e) {
+    throw new Error(
+      `Failed to parse smol config JSON in '${filePath}': ${errorMessage(e)}`,
+      { cause: e },
     )
   }
 
-  if (value < min || value > max) {
-    throw new SmolConfigValidationError(
-      name,
-      `must be between ${min} and ${max}, got ${value}`,
-    )
-  }
-
-  return value
-}
-
-/**
- * Validate and normalize prompt_default field.
- */
-function validatePromptDefault(name, value, defaultValue) {
-  if (value === undefined) {
-    return defaultValue
-  }
-
-  if (typeof value !== 'string') {
-    throw new SmolConfigValidationError(
-      name,
-      `must be a string, got ${typeof value}`,
-    )
-  }
-
-  const normalized = value.toLowerCase()
-  if (normalized === 'y' || normalized === 'yes') {
-    return 'y'
-  }
-  if (normalized === 'n' || normalized === 'no') {
-    return 'n'
-  }
-
-  throw new SmolConfigValidationError(
-    name,
-    `must be 'y', 'yes', 'n', or 'no' (case-insensitive), got '${value}'`,
-  )
+  return serializeUpdateConfig(config)
 }
 
 /**
@@ -274,57 +216,6 @@ export function serializeSmolConfig(config) {
 }
 
 /**
- * Parse smol config JSON file and serialize to binary.
- * @param {string} filePath - Path to smol-config.json file
- * @returns {Buffer} - Binary buffer (1192 bytes, SMFG v2)
- * @throws {SmolConfigValidationError} - If validation fails
- * @throws {Error} - If file read or JSON parsing fails
- */
-export function parseConfigFile(filePath) {
-  let fileContent
-  try {
-    fileContent = readFileSync(filePath, 'utf8')
-  } catch (e) {
-    throw new Error(
-      `Failed to read smol config file '${filePath}': ${errorMessage(e)}`,
-      { cause: e },
-    )
-  }
-
-  let config
-  try {
-    config = JSON.parse(fileContent)
-  } catch (e) {
-    throw new Error(
-      `Failed to parse smol config JSON in '${filePath}': ${errorMessage(e)}`,
-      { cause: e },
-    )
-  }
-
-  return serializeUpdateConfig(config)
-}
-
-/**
- * Parse smol config JSON string and serialize to binary.
- * @param {string} jsonString - JSON string
- * @returns {Buffer} - Binary buffer (1192 bytes, SMFG v2)
- * @throws {SmolConfigValidationError} - If validation fails
- * @throws {SyntaxError} - If JSON parsing fails
- */
-export function parseAndSerialize(jsonString) {
-  let config
-  try {
-    config = JSON.parse(jsonString)
-  } catch (e) {
-    throw new Error(`Failed to parse smol config JSON: ${errorMessage(e)}`, {
-      cause: e,
-    })
-  }
-
-  return serializeUpdateConfig(config)
-}
-
-/**
  * Backward compatibility wrapper for serializeUpdateConfig.
  * Accepts flat config (old format) and wraps it in smol.update structure.
  * Also converts snake_case to camelCase for backward compatibility.
@@ -342,4 +233,113 @@ export function serializeUpdateConfig(config) {
 
   // Wrap flat config in 'update' key
   return serializeSmolConfig({ update: config })
+}
+
+/**
+ * Validate and normalize a boolean field.
+ */
+export function validateBoolean(name, value, defaultValue) {
+  if (value === undefined) {
+    return defaultValue
+  }
+
+  if (typeof value !== 'boolean') {
+    throw new SmolConfigValidationError(
+      name,
+      `must be a boolean, got ${typeof value}`,
+    )
+  }
+
+  return value
+}
+
+/**
+ * Validate and normalize a number field.
+ */
+export function validateNumber(
+  name,
+  value,
+  defaultValue,
+  min = 0,
+  max = Number.MAX_SAFE_INTEGER,
+) {
+  if (value === undefined) {
+    return defaultValue
+  }
+
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new SmolConfigValidationError(
+      name,
+      `must be a finite number, got ${typeof value}`,
+    )
+  }
+
+  if (value < min || value > max) {
+    throw new SmolConfigValidationError(
+      name,
+      `must be between ${min} and ${max}, got ${value}`,
+    )
+  }
+
+  return value
+}
+
+/**
+ * Validate and normalize prompt_default field.
+ */
+export function validatePromptDefault(name, value, defaultValue) {
+  if (value === undefined) {
+    return defaultValue
+  }
+
+  if (typeof value !== 'string') {
+    throw new SmolConfigValidationError(
+      name,
+      `must be a string, got ${typeof value}`,
+    )
+  }
+
+  const normalized = value.toLowerCase()
+  if (normalized === 'y' || normalized === 'yes') {
+    return 'y'
+  }
+  if (normalized === 'n' || normalized === 'no') {
+    return 'n'
+  }
+
+  throw new SmolConfigValidationError(
+    name,
+    `must be 'y', 'yes', 'n', or 'no' (case-insensitive), got '${value}'`,
+  )
+}
+
+/**
+ * Validate and normalize a string field.
+ *
+ * The downstream C deserializer (smol_config.c) uses strlen() and writes raw
+ * UTF-8 bytes into fixed-size slots, so the budget is UTF-8 byte length, not
+ * UTF-16 code units. `'café'` is 4 JS code units but 5 UTF-8 bytes; using
+ * `value.length` would silently truncate mid-codepoint at the boundary.
+ */
+export function validateString(name, value, maxLength, defaultValue = '') {
+  if (value === undefined) {
+    return defaultValue
+  }
+
+  if (typeof value !== 'string') {
+    throw new SmolConfigValidationError(
+      name,
+      `must be a string, got ${typeof value}`,
+    )
+  }
+
+  const byteLength = Buffer.byteLength(value, 'utf8')
+  if (byteLength > maxLength) {
+    throw new SmolConfigValidationError(
+      name,
+      `exceeds maximum length of ${maxLength} bytes (got ${byteLength})`,
+    )
+  }
+
+  return value
 }

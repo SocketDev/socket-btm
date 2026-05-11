@@ -98,62 +98,9 @@ if (!codet5Source) {
 const MODEL_NAME = codet5Source.version
 
 /**
- * Download CodeT5 models from Hugging Face.
- */
-async function downloadModels() {
-  if (!(await shouldRun(BUILD_DIR, '', CHECKPOINTS.DOWNLOADED, FORCE_BUILD))) {
-    return
-  }
-
-  logger.step('Downloading CodeT5 Models')
-  logger.substep(`Model: ${MODEL_NAME}`)
-
-  await safeMkdir(MODELS_DIR)
-
-  const python3Path = await getPythonCommand()
-  if (!python3Path) {
-    throw new Error('Python not found (checked pip shebang and PATH)')
-  }
-
-  // Use Hugging Face CLI to download models.
-  const pythonScript =
-    'from transformers import AutoTokenizer, AutoModelForSeq2SeqLM; ' +
-    `tokenizer = AutoTokenizer.from_pretrained('${MODEL_NAME}'); ` +
-    `model = AutoModelForSeq2SeqLM.from_pretrained('${MODEL_NAME}'); ` +
-    `tokenizer.save_pretrained('${MODELS_DIR}'); ` +
-    `model.save_pretrained('${MODELS_DIR}')`
-
-  const downloadResult = await spawn(python3Path, ['-c', pythonScript], {
-    stdio: 'inherit',
-  })
-
-  if (downloadResult.code !== 0) {
-    throw new Error('Failed to download models')
-  }
-
-  logger.success('Models downloaded')
-
-  await createCheckpoint(
-    BUILD_DIR,
-    CHECKPOINTS.DOWNLOADED,
-    async () => {
-      // Smoke test: Verify tokenizer.json and model config exist.
-      if (!existsSync(tokenizerFile)) {
-        throw new Error(`Tokenizer file not found: ${tokenizerFile}`)
-      }
-      if (!existsSync(configFile)) {
-        throw new Error(`Config file not found: ${configFile}`)
-      }
-      logger.substep('Model files validated')
-    },
-    { arch: TARGET_ARCH, platform: TARGET_PLATFORM },
-  )
-}
-
-/**
  * Convert models to ONNX format.
  */
-async function convertToOnnx() {
+export async function convertToOnnx() {
   if (!(await shouldRun(BUILD_DIR, '', CHECKPOINTS.CONVERTED, FORCE_BUILD))) {
     return
   }
@@ -245,88 +192,102 @@ async function convertToOnnx() {
 }
 
 /**
- * Apply quantization to models.
+ * Download CodeT5 models from Hugging Face.
  */
-async function quantizeModels() {
-  if (!(await shouldRun(BUILD_DIR, '', CHECKPOINTS.QUANTIZED, FORCE_BUILD))) {
+export async function downloadModels() {
+  if (!(await shouldRun(BUILD_DIR, '', CHECKPOINTS.DOWNLOADED, FORCE_BUILD))) {
     return
   }
 
-  logger.step('Quantizing Models')
+  logger.step('Downloading CodeT5 Models')
+  logger.substep(`Model: ${MODEL_NAME}`)
 
-  // Quantize encoder with INT8.
-  logger.substep('Quantizing encoder (INT8)')
-  const quantizeEncoderScript =
-    'from onnxruntime.quantization import quantize_dynamic, QuantType; ' +
-    `quantize_dynamic('${encoderFile}', '${encoderFile}.quant', weight_type=QuantType.QInt8)`
+  await safeMkdir(MODELS_DIR)
 
   const python3Path = await getPythonCommand()
   if (!python3Path) {
     throw new Error('Python not found (checked pip shebang and PATH)')
   }
 
-  const quantizeEncoderResult = await spawn(
-    python3Path,
-    ['-c', quantizeEncoderScript],
-    {
-      stdio: 'inherit',
-    },
-  )
+  // Use Hugging Face CLI to download models.
+  const pythonScript =
+    'from transformers import AutoTokenizer, AutoModelForSeq2SeqLM; ' +
+    `tokenizer = AutoTokenizer.from_pretrained('${MODEL_NAME}'); ` +
+    `model = AutoModelForSeq2SeqLM.from_pretrained('${MODEL_NAME}'); ` +
+    `tokenizer.save_pretrained('${MODELS_DIR}'); ` +
+    `model.save_pretrained('${MODELS_DIR}')`
 
-  if (quantizeEncoderResult.code !== 0) {
-    throw new Error('Failed to quantize encoder')
+  const downloadResult = await spawn(python3Path, ['-c', pythonScript], {
+    stdio: 'inherit',
+  })
+
+  if (downloadResult.code !== 0) {
+    throw new Error('Failed to download models')
   }
 
-  // Quantize decoder with INT8.
-  logger.substep('Quantizing decoder (INT8)')
-  const quantizeDecoderScript =
-    'from onnxruntime.quantization import quantize_dynamic, QuantType; ' +
-    `quantize_dynamic('${decoderFile}', '${decoderFile}.quant', weight_type=QuantType.QInt8)`
+  logger.success('Models downloaded')
 
-  const python3PathDecoder = await getPythonCommand()
-  if (!python3PathDecoder) {
-    throw new Error('Python not found (checked pip shebang and PATH)')
-  }
-
-  const quantizeDecoderResult = await spawn(
-    python3PathDecoder,
-    ['-c', quantizeDecoderScript],
-    {
-      stdio: 'inherit',
-    },
-  )
-
-  if (quantizeDecoderResult.code !== 0) {
-    throw new Error('Failed to quantize decoder')
-  }
-
-  // Replace original models with quantized versions.
-  await fs.rename(`${encoderFile}.quant`, encoderFile)
-  await fs.rename(`${decoderFile}.quant`, decoderFile)
-
-  const encoderSize = await getFileSize(encoderFile)
-  const decoderSize = await getFileSize(decoderFile)
-
-  logger.substep(`Encoder: ${encoderSize}`)
-  logger.substep(`Decoder: ${decoderSize}`)
-
-  logger.success('Models quantized')
-
-  // Create checkpoint with smoke test.
   await createCheckpoint(
     BUILD_DIR,
-    CHECKPOINTS.QUANTIZED,
+    CHECKPOINTS.DOWNLOADED,
     async () => {
-      // Smoke test: Verify quantized models are still valid ONNX files.
-      await validateOnnxFile(encoderFile, 'quantized encoder')
-      await validateOnnxFile(decoderFile, 'quantized decoder')
-      logger.substep('Quantized models valid')
+      // Smoke test: Verify tokenizer.json and model config exist.
+      if (!existsSync(tokenizerFile)) {
+        throw new Error(`Tokenizer file not found: ${tokenizerFile}`)
+      }
+      if (!existsSync(configFile)) {
+        throw new Error(`Config file not found: ${configFile}`)
+      }
+      logger.substep('Model files validated')
+    },
+    { arch: TARGET_ARCH, platform: TARGET_PLATFORM },
+  )
+}
+
+/**
+ * Export models to output directory.
+ */
+export async function exportModels() {
+  logger.step('Exporting Models')
+
+  await safeMkdir(OUTPUT_DIR)
+
+  await fs.copyFile(encoderFile, outputEncoderFile)
+  await fs.copyFile(decoderFile, outputDecoderFile)
+
+  if (existsSync(tokenizerFile)) {
+    await fs.copyFile(tokenizerFile, outputTokenizerFile)
+  }
+
+  const encoderSize = await getFileSize(outputEncoderFile)
+  const decoderSize = await getFileSize(outputDecoderFile)
+
+  logger.substep(`Encoder: ${outputEncoderFile} (${encoderSize})`)
+  logger.substep(`Decoder: ${outputDecoderFile} (${decoderSize})`)
+
+  logger.success('Models exported')
+
+  // Create checkpoint with comprehensive smoke test.
+  await createCheckpoint(
+    BUILD_DIR,
+    CHECKPOINTS.FINALIZED,
+    async () => {
+      // Smoke test: Verify exported models with onnxruntime-node.
+      await validateOnnxFile(outputEncoderFile, 'exported encoder')
+      logger.substep('ONNX protobuf format valid')
+
+      // Comprehensive test: Load model with ONNX Runtime (native Node.js).
+      const session = await ort.InferenceSession.create(outputEncoderFile)
+
+      logger.substep('Model loaded successfully')
+      logger.substep(`Input names: ${session.inputNames.join(', ')}`)
+      logger.substep(`Output names: ${session.outputNames.join(', ')}`)
     },
     {
       arch: TARGET_ARCH,
-      decoderFile: path.relative(BUILD_DIR, decoderFile),
+      decoderFile: path.relative(BUILD_DIR, outputDecoderFile),
       decoderSize,
-      encoderFile: path.relative(BUILD_DIR, encoderFile),
+      encoderFile: path.relative(BUILD_DIR, outputEncoderFile),
       encoderSize,
       platform: TARGET_PLATFORM,
     },
@@ -344,7 +305,7 @@ async function quantizeModels() {
  * In dev mode (int8), skip this for faster builds.
  * In prod mode (int4), apply optimizations for maximum performance.
  */
-async function optimizeModels() {
+export async function optimizeModels() {
   // Skip optimization in dev mode (int8 - faster iteration).
   if (QUANT_LEVEL === 'int8') {
     logger.substep(
@@ -446,49 +407,88 @@ async function optimizeModels() {
 }
 
 /**
- * Export models to output directory.
+ * Apply quantization to models.
  */
-async function exportModels() {
-  logger.step('Exporting Models')
-
-  await safeMkdir(OUTPUT_DIR)
-
-  await fs.copyFile(encoderFile, outputEncoderFile)
-  await fs.copyFile(decoderFile, outputDecoderFile)
-
-  if (existsSync(tokenizerFile)) {
-    await fs.copyFile(tokenizerFile, outputTokenizerFile)
+export async function quantizeModels() {
+  if (!(await shouldRun(BUILD_DIR, '', CHECKPOINTS.QUANTIZED, FORCE_BUILD))) {
+    return
   }
 
-  const encoderSize = await getFileSize(outputEncoderFile)
-  const decoderSize = await getFileSize(outputDecoderFile)
+  logger.step('Quantizing Models')
 
-  logger.substep(`Encoder: ${outputEncoderFile} (${encoderSize})`)
-  logger.substep(`Decoder: ${outputDecoderFile} (${decoderSize})`)
+  // Quantize encoder with INT8.
+  logger.substep('Quantizing encoder (INT8)')
+  const quantizeEncoderScript =
+    'from onnxruntime.quantization import quantize_dynamic, QuantType; ' +
+    `quantize_dynamic('${encoderFile}', '${encoderFile}.quant', weight_type=QuantType.QInt8)`
 
-  logger.success('Models exported')
+  const python3Path = await getPythonCommand()
+  if (!python3Path) {
+    throw new Error('Python not found (checked pip shebang and PATH)')
+  }
 
-  // Create checkpoint with comprehensive smoke test.
+  const quantizeEncoderResult = await spawn(
+    python3Path,
+    ['-c', quantizeEncoderScript],
+    {
+      stdio: 'inherit',
+    },
+  )
+
+  if (quantizeEncoderResult.code !== 0) {
+    throw new Error('Failed to quantize encoder')
+  }
+
+  // Quantize decoder with INT8.
+  logger.substep('Quantizing decoder (INT8)')
+  const quantizeDecoderScript =
+    'from onnxruntime.quantization import quantize_dynamic, QuantType; ' +
+    `quantize_dynamic('${decoderFile}', '${decoderFile}.quant', weight_type=QuantType.QInt8)`
+
+  const python3PathDecoder = await getPythonCommand()
+  if (!python3PathDecoder) {
+    throw new Error('Python not found (checked pip shebang and PATH)')
+  }
+
+  const quantizeDecoderResult = await spawn(
+    python3PathDecoder,
+    ['-c', quantizeDecoderScript],
+    {
+      stdio: 'inherit',
+    },
+  )
+
+  if (quantizeDecoderResult.code !== 0) {
+    throw new Error('Failed to quantize decoder')
+  }
+
+  // Replace original models with quantized versions.
+  await fs.rename(`${encoderFile}.quant`, encoderFile)
+  await fs.rename(`${decoderFile}.quant`, decoderFile)
+
+  const encoderSize = await getFileSize(encoderFile)
+  const decoderSize = await getFileSize(decoderFile)
+
+  logger.substep(`Encoder: ${encoderSize}`)
+  logger.substep(`Decoder: ${decoderSize}`)
+
+  logger.success('Models quantized')
+
+  // Create checkpoint with smoke test.
   await createCheckpoint(
     BUILD_DIR,
-    CHECKPOINTS.FINALIZED,
+    CHECKPOINTS.QUANTIZED,
     async () => {
-      // Smoke test: Verify exported models with onnxruntime-node.
-      await validateOnnxFile(outputEncoderFile, 'exported encoder')
-      logger.substep('ONNX protobuf format valid')
-
-      // Comprehensive test: Load model with ONNX Runtime (native Node.js).
-      const session = await ort.InferenceSession.create(outputEncoderFile)
-
-      logger.substep('Model loaded successfully')
-      logger.substep(`Input names: ${session.inputNames.join(', ')}`)
-      logger.substep(`Output names: ${session.outputNames.join(', ')}`)
+      // Smoke test: Verify quantized models are still valid ONNX files.
+      await validateOnnxFile(encoderFile, 'quantized encoder')
+      await validateOnnxFile(decoderFile, 'quantized decoder')
+      logger.substep('Quantized models valid')
     },
     {
       arch: TARGET_ARCH,
-      decoderFile: path.relative(BUILD_DIR, outputDecoderFile),
+      decoderFile: path.relative(BUILD_DIR, decoderFile),
       decoderSize,
-      encoderFile: path.relative(BUILD_DIR, outputEncoderFile),
+      encoderFile: path.relative(BUILD_DIR, encoderFile),
       encoderSize,
       platform: TARGET_PLATFORM,
     },

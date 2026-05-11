@@ -26,7 +26,7 @@ const CACHE_DIR = getDownloadedDir(PROJECT_ROOT)
  * Read Node.js version from .node-version file
  * Falls back to a default if not found
  */
-function getNodeVersion() {
+export function getNodeVersion() {
   const nodeVersionPath = path.join(PROJECT_ROOT, '..', '..', '.node-version')
   try {
     const version = readFileSync(nodeVersionPath, 'utf8').trim()
@@ -43,7 +43,7 @@ const NODE_VERSION = getNodeVersion()
  * Get platform/arch configuration for binary downloads
  * Uses lazy evaluation to ensure NODE_VERSION is resolved
  */
-function getBinaryConfig(platform, arch) {
+export function getBinaryConfig(platform, arch) {
   const version = NODE_VERSION
   const key = `${platform}-${arch}`
 
@@ -99,7 +99,7 @@ const SUPPORTED_PLATFORMS = [
  * @param {string} url - URL to download from
  * @returns {Promise<Buffer>} Binary data
  */
-async function downloadBinary(url) {
+export async function downloadBinary(url) {
   const response = await httpRequest(url)
   if (!response.ok) {
     throw new Error(
@@ -115,7 +115,7 @@ async function downloadBinary(url) {
  * @param {string} extractPath - Path within archive to extract
  * @returns {Promise<Buffer>} Extracted binary data
  */
-async function extractFromTarGz(tarGzData, extractPath) {
+export async function extractFromTarGz(tarGzData, extractPath) {
   const tempDir = path.join(os.tmpdir(), `binject-extract-${Date.now()}`)
   await mkdir(tempDir, { recursive: true })
 
@@ -145,7 +145,7 @@ async function extractFromTarGz(tarGzData, extractPath) {
  * @param {string} extractPath - Path within archive to extract
  * @returns {Promise<Buffer>} Extracted binary data
  */
-async function extractFromZip(zipData, extractPath) {
+export async function extractFromZip(zipData, extractPath) {
   const zip = new AdmZip(zipData)
   const entry = zip.getEntry(extractPath)
   if (!entry) {

@@ -32,13 +32,43 @@ const BINJECT = getBinjectPath()
 
 let testDir: string
 let binjectExists = false
-let nodeBinary = null
+let nodeBinary = undefined
+
+/**
+ * Create a copy of the real Node.js binary for testing
+ *
+ * This ensures we test with valid, real binaries across all platforms.
+ * The copy is created in tmpdir to avoid corrupting the source binary.
+ *
+ * For compressed node-smol binaries:
+ * - Simply copies the stub to tmpdir
+ * - Tests will inject into the stub, which will handle extraction/repacking internally
+ *
+ * For regular Node binaries:
+ * - Copies the binary directly to tmpdir
+ */
+export async function createTestBinary(name) {
+  const filePath = path.join(testDir, name)
+
+  // Simply copy nodeBinary (works for both regular Node and node-smol stubs)
+  // If it's a compressed stub, binject will handle extraction and repacking
+  await fs.copyFile(nodeBinary, filePath)
+  await makeExecutable(filePath)
+
+  return filePath
+}
+
+export async function createTestResource(name) {
+  const filePath = path.join(testDir, name)
+  await fs.writeFile(filePath, 'Test resource data\n')
+  return filePath
+}
 
 /**
  * Download latest node-smol release from GitHub
  * Returns path to downloaded binary in a cache directory (can be copied repeatedly)
  */
-async function downloadNodeSmolRelease() {
+export async function downloadNodeSmolRelease() {
   try {
     // Use a persistent cache directory (not testDir which gets cleaned up)
     const cacheDir = path.join(os.tmpdir(), 'binject-node-cache')
@@ -56,7 +86,7 @@ async function downloadNodeSmolRelease() {
 
     const release = JSON.parse(releaseJson)
     if (!release || !release.tagName || !release.assets) {
-      return null
+      return undefined
     }
 
     // Determine platform-specific asset name
@@ -71,7 +101,7 @@ async function downloadNodeSmolRelease() {
     } else if (platform === 'win32') {
       assetPattern = `node-smol-.*-win-${arch}.zip`
     } else {
-      return null
+      return undefined
     }
 
     // Find matching asset
@@ -79,7 +109,7 @@ async function downloadNodeSmolRelease() {
       new RegExp(assetPattern).test(a.name),
     )
     if (!asset) {
-      return null
+      return undefined
     }
 
     const ext = platform === 'win32' ? '.exe' : ''
@@ -123,53 +153,11 @@ async function downloadNodeSmolRelease() {
     await fs.access(cachedBinary, FS_CONSTANTS.X_OK)
     return cachedBinary
   } catch {
-    return null
+    return undefined
   }
 }
 
-/**
- * Find a suitable Node.js binary for testing
- * Priority: local node-smol build > released node-smol > system Node.js
- */
-async function findNodeBinary() {
-  // Check for node-smol-builder output in the monorepo
-  // Local node-smol builds — paths come from node-smol-builder's paths.mts
-  // so the on-disk layout stays in one place. outputFinalBinary already
-  // encodes the platform-specific binary name (node vs node.exe).
-  const possiblePaths = [
-    getNodeSmolBuildPaths('dev', process.platform, PLATFORM_ARCH)
-      .outputFinalBinary,
-    getNodeSmolBuildPaths('prod', process.platform, PLATFORM_ARCH)
-      .outputFinalBinary,
-    // Common installation paths
-    path.join(os.homedir(), '.btm', 'node'),
-    path.join(os.homedir(), '.btm', 'node.exe'),
-    '/usr/local/bin/node-smol',
-    '/opt/btm/node',
-  ]
-
-  // Try each path sequentially
-  for (const binaryPath of possiblePaths) {
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      await fs.access(binaryPath, FS_CONSTANTS.X_OK)
-      return binaryPath
-    } catch {
-      // Continue to next path
-    }
-  }
-
-  // Try downloading latest release from GitHub
-  const downloadedBinary = await downloadNodeSmolRelease()
-  if (downloadedBinary) {
-    return downloadedBinary
-  }
-
-  // Fall back to system Node.js
-  return process.execPath
-}
-
-async function execCommand(command, args = []) {
+export async function execCommand(command, args = []) {
   return new Promise(resolve => {
     const spawnPromise = spawn(command, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -219,43 +207,55 @@ async function execCommand(command, args = []) {
 }
 
 /**
- * Create a copy of the real Node.js binary for testing
- *
- * This ensures we test with valid, real binaries across all platforms.
- * The copy is created in tmpdir to avoid corrupting the source binary.
- *
- * For compressed node-smol binaries:
- * - Simply copies the stub to tmpdir
- * - Tests will inject into the stub, which will handle extraction/repacking internally
- *
- * For regular Node binaries:
- * - Copies the binary directly to tmpdir
+ * Find a suitable Node.js binary for testing
+ * Priority: local node-smol build > released node-smol > system Node.js
  */
-async function createTestBinary(name) {
-  const filePath = path.join(testDir, name)
+export async function findNodeBinary() {
+  // Check for node-smol-builder output in the monorepo
+  // Local node-smol builds — paths come from node-smol-builder's paths.mts
+  // so the on-disk layout stays in one place. outputFinalBinary already
+  // encodes the platform-specific binary name (node vs node.exe).
+  const possiblePaths = [
+    getNodeSmolBuildPaths('dev', process.platform, PLATFORM_ARCH)
+      .outputFinalBinary,
+    getNodeSmolBuildPaths('prod', process.platform, PLATFORM_ARCH)
+      .outputFinalBinary,
+    // Common installation paths
+    path.join(os.homedir(), '.btm', 'node'),
+    path.join(os.homedir(), '.btm', 'node.exe'),
+    '/usr/local/bin/node-smol',
+    '/opt/btm/node',
+  ]
 
-  // Simply copy nodeBinary (works for both regular Node and node-smol stubs)
-  // If it's a compressed stub, binject will handle extraction and repacking
-  await fs.copyFile(nodeBinary, filePath)
-  await makeExecutable(filePath)
+  // Try each path sequentially
+  for (const binaryPath of possiblePaths) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await fs.access(binaryPath, FS_CONSTANTS.X_OK)
+      return binaryPath
+    } catch {
+      // Continue to next path
+    }
+  }
 
-  return filePath
-}
+  // Try downloading latest release from GitHub
+  const downloadedBinary = await downloadNodeSmolRelease()
+  if (downloadedBinary) {
+    return downloadedBinary
+  }
 
-async function createTestResource(name) {
-  const filePath = path.join(testDir, name)
-  await fs.writeFile(filePath, 'Test resource data\n')
-  return filePath
+  // Fall back to system Node.js
+  return process.execPath
 }
 
 describe('binject CLI', () => {
   beforeAll(async () => {
     // Check if binject binary exists
-    console.log('Checking for BINJECT at:', BINJECT)
+    logger.log('Checking for BINJECT at:', BINJECT)
     try {
       await fs.access(BINJECT, FS_CONSTANTS.X_OK)
       const stats = await fs.stat(BINJECT)
-      console.log(
+      logger.log(
         'BINJECT found! Size:',
         stats.size,
         'Mode:',
@@ -263,7 +263,7 @@ describe('binject CLI', () => {
       )
       binjectExists = true
     } catch (e) {
-      console.error('BINJECT not accessible:', e.code, errorMessage(e))
+      logger.fail('BINJECT not accessible:', e.code, errorMessage(e))
       binjectExists = false
       // Skip tests gracefully if binary not built yet
       return
@@ -278,10 +278,10 @@ describe('binject CLI', () => {
     // Check if binary is small enough for binject
     const stats = await fs.stat(foundBinary)
     if (stats.size > MAX_NODE_BINARY_SIZE) {
-      console.warn(
+      logger.warn(
         `Node binary too large for binject tests: ${(stats.size / 1024 / 1024).toFixed(2)}MB > ${MAX_NODE_BINARY_SIZE / 1024 / 1024}MB`,
       )
-      console.warn(
+      logger.warn(
         'Skipping tests - node-smol not available and system Node.js too large',
       )
       binjectExists = false
@@ -293,7 +293,7 @@ describe('binject CLI', () => {
     nodeBinary = path.join(testDir, `node-copy${ext}`)
     await fs.copyFile(foundBinary, nodeBinary)
     await makeExecutable(nodeBinary)
-    console.log('Copied node binary to tmpdir:', nodeBinary)
+    logger.log('Copied node binary to tmpdir:', nodeBinary)
   })
 
   beforeEach(ctx => {
@@ -653,9 +653,9 @@ describe('binject CLI', () => {
       ])
 
       if (result1.code !== 0) {
-        console.error('First injection failed:')
-        console.error('Exit code:', result1.code)
-        console.error('Output:', result1.output)
+        logger.fail('First injection failed:')
+        logger.fail('Exit code:', result1.code)
+        logger.fail('Output:', result1.output)
       }
       expect(result1.code).toBe(0)
       expect(result1.output).toMatch(/(Success|injected)/i)
@@ -678,9 +678,9 @@ describe('binject CLI', () => {
       ])
 
       if (result2.code !== 0) {
-        console.error('Second injection failed:')
-        console.error('Exit code:', result2.code)
-        console.error('Output:', result2.output)
+        logger.fail('Second injection failed:')
+        logger.fail('Exit code:', result2.code)
+        logger.fail('Output:', result2.output)
       }
       expect(result2.code).toBe(0)
       expect(result2.output).toMatch(/(Success|injected)/i)
@@ -703,9 +703,9 @@ describe('binject CLI', () => {
       ])
 
       if (result3.code !== 0) {
-        console.error('Third injection failed:')
-        console.error('Exit code:', result3.code)
-        console.error('Output:', result3.output)
+        logger.fail('Third injection failed:')
+        logger.fail('Exit code:', result3.code)
+        logger.fail('Output:', result3.output)
       }
       expect(result3.code).toBe(0)
       expect(result3.output).toMatch(/(Success|injected)/i)

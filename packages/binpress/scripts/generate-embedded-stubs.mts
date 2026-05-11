@@ -103,7 +103,7 @@ if (stubsTag) {
 /**
  * Download and extract a stub for a specific platform-arch
  */
-async function downloadStub(
+export async function downloadStub(
   platform,
   arch,
   libc,
@@ -215,7 +215,7 @@ async function downloadStub(
 /**
  * Convert binary to C array
  */
-async function binaryToCArray(stubPath, varName) {
+export async function binaryToCArray(stubPath, varName) {
   // Read binary
   const data = await fs.readFile(stubPath)
 
@@ -297,7 +297,7 @@ const [
 logger.info('\nEmbedding stubs into C arrays...')
 
 // Helper to generate empty stub placeholder
-function emptyStubCArray(varName) {
+export function emptyStubCArray(varName) {
   return `/* Stub not available - empty placeholder */\nconst unsigned char ${varName}[] = { 0x00 };\nconst size_t ${varName}_len = 0;\n\n`
 }
 

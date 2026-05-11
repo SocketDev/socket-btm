@@ -32,116 +32,6 @@ const logger = getDefaultLogger()
 const IS_MACOS = process.platform === 'darwin'
 
 /**
- * Check for required build tools.
- *
- * @param {object} options - Check options
- * @param {boolean} options.autoYes - Auto-confirm installations
- * @param {string} options.arch - Target architecture
- */
-export async function checkRequiredTools({ arch, autoYes }) {
-  logger.step('Pre-flight Checks')
-
-  // Step 1: Ensure package manager is available.
-  const pmResult = await ensurePackageManagerAvailable({
-    autoInstall: autoYes,
-    autoYes,
-  })
-
-  const canAutoInstall = pmResult.available
-
-  if (pmResult.installed) {
-    logger.success(
-      `Package manager (${pmResult.manager}) installed successfully`,
-    )
-  } else if (pmResult.available) {
-    logger.log(`📦 Package manager detected: ${pmResult.manager}`)
-  } else {
-    logger.warn('No package manager available for auto-installing tools')
-    const pmInstructions = getPackageManagerInstructions()
-    for (const instruction of pmInstructions) {
-      logger.substep(instruction)
-    }
-  }
-
-  // Step 2: Tools that support auto-installation.
-  const autoInstallableTools = ['git', 'curl', 'patch', 'make']
-
-  // Step 3: Tools that must be checked manually.
-  const manualTools = [{ checkExists: true, cmd: 'strip', name: 'strip' }]
-
-  if (IS_MACOS && arch === 'arm64') {
-    manualTools.push({
-      checkExists: true,
-      cmd: 'codesign',
-      name: 'codesign',
-    })
-  }
-
-  // Step 4: Attempt auto-installation for missing tools.
-  const result = await ensureAllToolsInstalled(autoInstallableTools, {
-    autoInstall: canAutoInstall,
-    autoYes,
-  })
-
-  // Step 5: Report results.
-  for (const tool of autoInstallableTools) {
-    if (result.installed.includes(tool)) {
-      logger.success(`${tool} installed automatically`)
-    } else if (!result.missing.includes(tool)) {
-      logger.success(`${tool} is available`)
-    }
-  }
-
-  // Step 6: Check manual tools.
-  let allManualAvailable = true
-  for (const { cmd, name } of manualTools) {
-    const binPath = whichSync(cmd, { nothrow: true })
-    if (binPath) {
-      logger.success(`${name} is available`)
-    } else {
-      logger.fail(`${name} is NOT available`)
-      allManualAvailable = false
-    }
-  }
-
-  // Step 7: Handle missing tools.
-  if (!result.allAvailable || !allManualAvailable) {
-    const missingTools = [
-      ...result.missing,
-      ...manualTools
-        .filter(t => !whichSync(t.cmd, { nothrow: true }))
-        .map(t => t.name),
-    ]
-
-    if (missingTools.length > 0) {
-      const instructions = []
-      instructions.push('Missing required build tools:')
-      instructions.push('')
-
-      for (const tool of missingTools) {
-        const toolInstructions = getInstallInstructions(tool)
-        instructions.push(...toolInstructions)
-        instructions.push('')
-      }
-
-      if (IS_MACOS) {
-        instructions.push('For Xcode Command Line Tools:')
-        instructions.push('  xcode-select --install')
-      }
-
-      printError(
-        'Missing Required Tools',
-        'Some required build tools are not available.',
-        instructions,
-      )
-      throw new Error('Missing required build tools')
-    }
-  }
-
-  logger.log('')
-}
-
-/**
  * Check build environment.
  *
  * @param {string} buildDir - Build directory path
@@ -290,4 +180,114 @@ export async function checkBuildEnvironment(buildDir) {
 
   logger.success('Build environment is ready')
   logger.logNewline()
+}
+
+/**
+ * Check for required build tools.
+ *
+ * @param {object} options - Check options
+ * @param {boolean} options.autoYes - Auto-confirm installations
+ * @param {string} options.arch - Target architecture
+ */
+export async function checkRequiredTools({ arch, autoYes }) {
+  logger.step('Pre-flight Checks')
+
+  // Step 1: Ensure package manager is available.
+  const pmResult = await ensurePackageManagerAvailable({
+    autoInstall: autoYes,
+    autoYes,
+  })
+
+  const canAutoInstall = pmResult.available
+
+  if (pmResult.installed) {
+    logger.success(
+      `Package manager (${pmResult.manager}) installed successfully`,
+    )
+  } else if (pmResult.available) {
+    logger.log(`📦 Package manager detected: ${pmResult.manager}`)
+  } else {
+    logger.warn('No package manager available for auto-installing tools')
+    const pmInstructions = getPackageManagerInstructions()
+    for (const instruction of pmInstructions) {
+      logger.substep(instruction)
+    }
+  }
+
+  // Step 2: Tools that support auto-installation.
+  const autoInstallableTools = ['git', 'curl', 'patch', 'make']
+
+  // Step 3: Tools that must be checked manually.
+  const manualTools = [{ checkExists: true, cmd: 'strip', name: 'strip' }]
+
+  if (IS_MACOS && arch === 'arm64') {
+    manualTools.push({
+      checkExists: true,
+      cmd: 'codesign',
+      name: 'codesign',
+    })
+  }
+
+  // Step 4: Attempt auto-installation for missing tools.
+  const result = await ensureAllToolsInstalled(autoInstallableTools, {
+    autoInstall: canAutoInstall,
+    autoYes,
+  })
+
+  // Step 5: Report results.
+  for (const tool of autoInstallableTools) {
+    if (result.installed.includes(tool)) {
+      logger.success(`${tool} installed automatically`)
+    } else if (!result.missing.includes(tool)) {
+      logger.success(`${tool} is available`)
+    }
+  }
+
+  // Step 6: Check manual tools.
+  let allManualAvailable = true
+  for (const { cmd, name } of manualTools) {
+    const binPath = whichSync(cmd, { nothrow: true })
+    if (binPath) {
+      logger.success(`${name} is available`)
+    } else {
+      logger.fail(`${name} is NOT available`)
+      allManualAvailable = false
+    }
+  }
+
+  // Step 7: Handle missing tools.
+  if (!result.allAvailable || !allManualAvailable) {
+    const missingTools = [
+      ...result.missing,
+      ...manualTools
+        .filter(t => !whichSync(t.cmd, { nothrow: true }))
+        .map(t => t.name),
+    ]
+
+    if (missingTools.length > 0) {
+      const instructions = []
+      instructions.push('Missing required build tools:')
+      instructions.push('')
+
+      for (const tool of missingTools) {
+        const toolInstructions = getInstallInstructions(tool)
+        instructions.push(...toolInstructions)
+        instructions.push('')
+      }
+
+      if (IS_MACOS) {
+        instructions.push('For Xcode Command Line Tools:')
+        instructions.push('  xcode-select --install')
+      }
+
+      printError(
+        'Missing Required Tools',
+        'Some required build tools are not available.',
+        instructions,
+      )
+      throw new Error('Missing required build tools')
+    }
+  }
+
+  logger.log('')
 }

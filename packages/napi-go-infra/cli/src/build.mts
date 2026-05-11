@@ -31,6 +31,7 @@ import { spawn } from '@socketsecurity/lib/spawn'
 import { getCCRemapFlags } from 'build-infra/lib/path-remap-flags'
 
 import { getGoTarget, resolveNodeIncludeDir } from './resolve.mts'
+import { safeDelete } from '@socketsecurity/lib/fs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -53,6 +54,82 @@ const logger = getDefaultLogger()
  * @property {string} platformArch  Target platform-arch (must match host for initial build; cross-compile later).
  * @property {string} [mode]        'dev' (default) or 'prod'. prod uses -O2 and strips symbols.
  */
+
+/**
+ * Build the compiler argument list to link the final .node.
+ *
+ * @param {object} params
+ * @param {{cmd: string, flavor: string}} params.cc
+ * @param {string} params.platformArch
+ * @param {string} params.nodeInclude
+ * @param {string} params.napiGoInclude
+ * @param {string} params.napiGoShim
+ * @param {string} params.consumerShim
+ * @param {string} params.goArchive
+ * @param {string} params.outPath
+ * @param {string} params.mode
+ */
+export function buildLinkArgs({
+  cc,
+  platformArch,
+  nodeInclude,
+  napiGoInclude,
+  napiGoShim,
+  consumerShim,
+  goArchive,
+  outPath,
+  mode,
+}) {
+  const args = ['-shared']
+  // Never embed DWARF from the C shim into the .node. Distribution
+  // binaries must not carry host-path references, and the shim is
+  // trivial enough that dev-mode debug info has no practical value.
+  // When dev debugging is needed, rerun the build with
+  // NAPI_GO_C_EXTRA='-g' and accept the local-only artifact.
+  const optimize = mode === 'prod' ? ['-O2'] : ['-O0']
+
+  if (platformArch.startsWith('darwin')) {
+    // N-API symbols are resolved dynamically from the running Node.
+    args.push('-undefined', 'dynamic_lookup')
+    // -Wl,-S strips the symbol table on macOS at link time, matching
+    // what `strip -x` would do post-link; keeps .node path-free.
+    args.push('-Wl,-S')
+    const sdk = process.env['SDKROOT']
+    if (!sdk) {
+      args.push('-isysroot', path.join(macosSDKFallback()))
+    }
+  } else if (platformArch.startsWith('linux')) {
+    args.push('-fPIC')
+    // -Wl,-s = strip all symbols at link time (GNU ld).
+    args.push('-Wl,-s')
+  }
+
+  args.push(
+    ...optimize,
+    // Path-remap so the C shim and consumer shim don't embed host paths via
+    // __FILE__ in error messages or DWARF in any debug builds that survive
+    // into the .node.
+    ...getCCRemapFlags(),
+    `-I${nodeInclude}`,
+    `-I${napiGoInclude}`,
+    '-o',
+    outPath,
+    consumerShim,
+    napiGoShim,
+    goArchive,
+  )
+
+  // macOS frameworks Go's c-archive links against (CoreFoundation +
+  // Security are pulled in by cgo's runtime on darwin).
+  if (platformArch.startsWith('darwin')) {
+    args.push('-framework', 'CoreFoundation', '-framework', 'Security')
+  } else if (platformArch.startsWith('linux')) {
+    // Go's c-archive on linux pulls in pthread/dl and libresolv for cgo.
+    args.push('-lpthread', '-ldl', '-lresolv')
+  }
+
+  return args
+}
 
 /**
  * Build a napi-go addon end-to-end.
@@ -199,46 +276,52 @@ export async function buildNapiGoAddon(opts) {
   }
 
   // Clean up intermediate c-archive artifacts; the .node is self-contained.
-  await fs.rm(archive, { force: true })
-  await fs.rm(archiveHeader, { force: true })
+  await safeDelete(archive)
+  await safeDelete(archiveHeader)
 
   logger.success(`Built: ${nodePath}`)
   return nodePath
 }
 
 /**
- * @param {BuildOptions} opts
+ * Classify a compiler command as clang / gcc / msvc based on its name.
+ *
+ * @param {string} cmd
+ * @returns {'clang' | 'gcc' | 'msvc'}
  */
-function validateOptions(opts) {
-  const required = [
-    'packageRoot',
-    'bindingName',
-    'goDir',
-    'consumerShim',
-    'outDir',
-    'platformArch',
+export function classifyCompiler(cmd) {
+  const base = path.basename(cmd).toLowerCase()
+  if (base.includes('clang')) {
+    return 'clang'
+  }
+  if (base === 'cl' || base === 'cl.exe') {
+    return 'msvc'
+  }
+  return 'gcc'
+}
+
+/**
+ * Best-effort fallback for macOS SDK path when SDKROOT is unset. The
+ * build-infra `spawn` helper does not expose xcrun; we probe common
+ * locations and otherwise throw, which the user resolves by running
+ * `export SDKROOT=$(xcrun --show-sdk-path)`.
+ *
+ * @returns {string}
+ */
+export function macosSDKFallback() {
+  const common = [
+    '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk',
+    '/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk',
   ]
-  for (const key of required) {
-    if (!opts[key]) {
-      throw new Error(
-        `napi-go.buildNapiGoAddon: missing required option '${key}'. ` +
-          `All of { ${required.join(', ')} } must be provided.`,
-      )
+  for (const p of common) {
+    if (existsSync(p)) {
+      return p
     }
   }
-  if (!existsSync(opts.goDir)) {
-    throw new Error(
-      `napi-go: goDir does not exist: ${opts.goDir}. ` +
-        `Point it at the directory containing the consumer's Go source files + go.mod.`,
-    )
-  }
-  if (!existsSync(opts.consumerShim)) {
-    throw new Error(
-      `napi-go: consumerShim does not exist: ${opts.consumerShim}. ` +
-        `Create a minimal C file that #includes <node_api.h> and <napi_go.h>, ` +
-        `and registers NAPI_MODULE_INIT to forward to the consumer's Go //export init.`,
-    )
-  }
+  throw new Error(
+    `napi-go: could not locate the macOS SDK. Expected one of: ${common.join(', ')}. ` +
+      `Run 'xcode-select --install' or set SDKROOT=$(xcrun --show-sdk-path) before building.`,
+  )
 }
 
 /**
@@ -252,7 +335,7 @@ function validateOptions(opts) {
  *
  * @returns {Promise<{ cmd: string, flavor: 'clang' | 'gcc' | 'msvc' }>}
  */
-async function resolveCompiler() {
+export async function resolveCompiler() {
   const override = process.env['NAPI_GO_CC']
   if (override) {
     return { cmd: override, flavor: classifyCompiler(override) }
@@ -285,7 +368,7 @@ async function resolveCompiler() {
  *
  * @returns {Promise<string>}
  */
-async function resolveXcrunClang() {
+export async function resolveXcrunClang() {
   const result = await spawn('xcrun', ['--find', 'clang'], {
     shell: false,
     stdio: 'pipe',
@@ -301,118 +384,36 @@ async function resolveXcrunClang() {
 }
 
 /**
- * Classify a compiler command as clang / gcc / msvc based on its name.
- *
- * @param {string} cmd
- * @returns {'clang' | 'gcc' | 'msvc'}
+ * @param {BuildOptions} opts
  */
-function classifyCompiler(cmd) {
-  const base = path.basename(cmd).toLowerCase()
-  if (base.includes('clang')) {
-    return 'clang'
-  }
-  if (base === 'cl' || base === 'cl.exe') {
-    return 'msvc'
-  }
-  return 'gcc'
-}
-
-/**
- * Build the compiler argument list to link the final .node.
- *
- * @param {object} params
- * @param {{cmd: string, flavor: string}} params.cc
- * @param {string} params.platformArch
- * @param {string} params.nodeInclude
- * @param {string} params.napiGoInclude
- * @param {string} params.napiGoShim
- * @param {string} params.consumerShim
- * @param {string} params.goArchive
- * @param {string} params.outPath
- * @param {string} params.mode
- */
-function buildLinkArgs({
-  cc,
-  platformArch,
-  nodeInclude,
-  napiGoInclude,
-  napiGoShim,
-  consumerShim,
-  goArchive,
-  outPath,
-  mode,
-}) {
-  const args = ['-shared']
-  // Never embed DWARF from the C shim into the .node. Distribution
-  // binaries must not carry host-path references, and the shim is
-  // trivial enough that dev-mode debug info has no practical value.
-  // When dev debugging is needed, rerun the build with
-  // NAPI_GO_C_EXTRA='-g' and accept the local-only artifact.
-  const optimize = mode === 'prod' ? ['-O2'] : ['-O0']
-
-  if (platformArch.startsWith('darwin')) {
-    // N-API symbols are resolved dynamically from the running Node.
-    args.push('-undefined', 'dynamic_lookup')
-    // -Wl,-S strips the symbol table on macOS at link time, matching
-    // what `strip -x` would do post-link; keeps .node path-free.
-    args.push('-Wl,-S')
-    const sdk = process.env['SDKROOT']
-    if (!sdk) {
-      args.push('-isysroot', path.join(macosSDKFallback()))
-    }
-  } else if (platformArch.startsWith('linux')) {
-    args.push('-fPIC')
-    // -Wl,-s = strip all symbols at link time (GNU ld).
-    args.push('-Wl,-s')
-  }
-
-  args.push(
-    ...optimize,
-    // Path-remap so the C shim and consumer shim don't embed host paths via
-    // __FILE__ in error messages or DWARF in any debug builds that survive
-    // into the .node.
-    ...getCCRemapFlags(),
-    `-I${nodeInclude}`,
-    `-I${napiGoInclude}`,
-    '-o',
-    outPath,
-    consumerShim,
-    napiGoShim,
-    goArchive,
-  )
-
-  // macOS frameworks Go's c-archive links against (CoreFoundation +
-  // Security are pulled in by cgo's runtime on darwin).
-  if (platformArch.startsWith('darwin')) {
-    args.push('-framework', 'CoreFoundation', '-framework', 'Security')
-  } else if (platformArch.startsWith('linux')) {
-    // Go's c-archive on linux pulls in pthread/dl and libresolv for cgo.
-    args.push('-lpthread', '-ldl', '-lresolv')
-  }
-
-  return args
-}
-
-/**
- * Best-effort fallback for macOS SDK path when SDKROOT is unset. The
- * build-infra `spawn` helper does not expose xcrun; we probe common
- * locations and otherwise throw, which the user resolves by running
- * `export SDKROOT=$(xcrun --show-sdk-path)`.
- *
- * @returns {string}
- */
-function macosSDKFallback() {
-  const common = [
-    '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk',
-    '/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk',
+export function validateOptions(opts) {
+  const required = [
+    'packageRoot',
+    'bindingName',
+    'goDir',
+    'consumerShim',
+    'outDir',
+    'platformArch',
   ]
-  for (const p of common) {
-    if (existsSync(p)) {
-      return p
+  for (const key of required) {
+    if (!opts[key]) {
+      throw new Error(
+        `napi-go.buildNapiGoAddon: missing required option '${key}'. ` +
+          `All of { ${required.join(', ')} } must be provided.`,
+      )
     }
   }
-  throw new Error(
-    `napi-go: could not locate the macOS SDK. Expected one of: ${common.join(', ')}. ` +
-      `Run 'xcode-select --install' or set SDKROOT=$(xcrun --show-sdk-path) before building.`,
-  )
+  if (!existsSync(opts.goDir)) {
+    throw new Error(
+      `napi-go: goDir does not exist: ${opts.goDir}. ` +
+        `Point it at the directory containing the consumer's Go source files + go.mod.`,
+    )
+  }
+  if (!existsSync(opts.consumerShim)) {
+    throw new Error(
+      `napi-go: consumerShim does not exist: ${opts.consumerShim}. ` +
+        `Create a minimal C file that #includes <node_api.h> and <napi_go.h>, ` +
+        `and registers NAPI_MODULE_INIT to forward to the consumer's Go //export init.`,
+    )
+  }
 }

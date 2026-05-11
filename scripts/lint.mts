@@ -61,69 +61,9 @@ type ParsedLintValues = {
 }
 
 /**
- * Get Oxlint exclude patterns from .oxlintrc.json.
- */
-function getOxlintExcludePatterns(): string[] {
-  try {
-    const oxlintConfigPath = path.join(process.cwd(), '.oxlintrc.json')
-    if (!existsSync(oxlintConfigPath)) {
-      return []
-    }
-
-    const oxlintConfig = JSON.parse(readFileSync(oxlintConfigPath, 'utf8'))
-    return oxlintConfig.ignorePatterns ?? []
-  } catch {
-    // If we can't read .oxlintrc.json, return empty array
-    return []
-  }
-}
-
-/**
- * Check if a file matches any of the exclude patterns.
- */
-function isExcludedByOxlint(file: string, excludePatterns: string[]): boolean {
-  for (const pattern of excludePatterns) {
-    // Convert glob pattern to regex-like matching
-    // Support **/ for directory wildcards and * for filename wildcards
-    const regexPattern = pattern
-      // **/ matches any directory
-      .replace(/\*\*\//g, '.*')
-      // * matches any characters except /
-      .replace(/\*/g, '[^/]*')
-      // Escape dots
-      .replace(/\./g, String.raw`\.`)
-
-    const regex = new RegExp(`^${regexPattern}$`)
-    if (regex.test(file)) {
-      return true
-    }
-  }
-  return false
-}
-
-/**
- * Check if we should run all linters based on changed files.
- */
-function shouldRunAllLinters(changedFiles: string[]): {
-  reason?: string
-  runAll: boolean
-} {
-  for (const file of changedFiles) {
-    // Config or infrastructure files
-    for (const pattern of CONFIG_PATTERNS) {
-      if (file.includes(pattern.replace('**', ''))) {
-        return { reason: 'config files changed', runAll: true }
-      }
-    }
-  }
-
-  return { runAll: false }
-}
-
-/**
  * Filter files to only those that should be linted.
  */
-function filterLintableFiles(files: string[]): string[] {
+export function filterLintableFiles(files: string[]): string[] {
   // Only include extensions actually supported by oxfmt/oxlint
   const lintableExtensions = new Set(['.cjs', '.js', '.mts'])
 
@@ -146,9 +86,161 @@ function filterLintableFiles(files: string[]): string[] {
 }
 
 /**
+ * Get files to lint based on options.
+ */
+export async function getFilesToLint(
+  options: ParsedLintValues,
+): Promise<LintSelection> {
+  const { all, changed, staged } = options
+
+  // If --all, return early
+  if (all) {
+    return { files: 'all', mode: 'all', reason: 'all flag specified' }
+  }
+
+  // Get changed files
+  let changedFiles: string[] = []
+  // Track what mode we're in
+  let mode: 'changed' | 'staged' = 'changed'
+
+  if (staged) {
+    mode = 'staged'
+    changedFiles = await getStagedFiles({ absolute: false })
+    if (!changedFiles.length) {
+      return { files: undefined, mode, reason: 'no staged files' }
+    }
+  } else if (changed) {
+    mode = 'changed'
+    changedFiles = await getChangedFiles({ absolute: false })
+    if (!changedFiles.length) {
+      return { files: undefined, mode, reason: 'no changed files' }
+    }
+  } else {
+    // Default to changed files if no specific flag
+    mode = 'changed'
+    changedFiles = await getChangedFiles({ absolute: false })
+    if (!changedFiles.length) {
+      return { files: undefined, mode, reason: 'no changed files' }
+    }
+  }
+
+  // Check if we should run all based on changed files
+  const { reason, runAll } = shouldRunAllLinters(changedFiles)
+  if (runAll) {
+    return { files: 'all', mode: 'all', reason: reason! }
+  }
+
+  // Filter to lintable files
+  const lintableFiles = filterLintableFiles(changedFiles)
+  if (!lintableFiles.length) {
+    return { files: undefined, mode, reason: 'no lintable files changed' }
+  }
+
+  return { files: lintableFiles, mode, reason: undefined }
+}
+
+/**
+ * Get Oxlint exclude patterns from .oxlintrc.json.
+ */
+export function getOxlintExcludePatterns(): string[] {
+  try {
+    const oxlintConfigPath = path.join(process.cwd(), '.oxlintrc.json')
+    if (!existsSync(oxlintConfigPath)) {
+      return []
+    }
+
+    const oxlintConfig = JSON.parse(readFileSync(oxlintConfigPath, 'utf8'))
+    return oxlintConfig.ignorePatterns ?? []
+  } catch {
+    // If we can't read .oxlintrc.json, return empty array
+    return []
+  }
+}
+
+/**
+ * Check if a file matches any of the exclude patterns.
+ */
+export function isExcludedByOxlint(file: string, excludePatterns: string[]): boolean {
+  for (const pattern of excludePatterns) {
+    // Convert glob pattern to regex-like matching
+    // Support **/ for directory wildcards and * for filename wildcards
+    const regexPattern = pattern
+      // **/ matches any directory
+      .replace(/\*\*\//g, '.*')
+      // * matches any characters except /
+      .replace(/\*/g, '[^/]*')
+      // Escape dots
+      .replace(/\./g, String.raw`\.`)
+
+    const regex = new RegExp(`^${regexPattern}$`)
+    if (regex.test(file)) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
+ * Run linters on all files.
+ */
+export async function runLintOnAll(options: LintOptions = {}): Promise<number> {
+  const { fix = false, quiet = false } = options
+
+  if (!quiet) {
+    logger.stdout.progress('Linting all files')
+  }
+
+  const linters = [
+    {
+      args: [
+        'exec',
+        'oxlint',
+        '-c',
+        '.oxlintrc.json',
+        '--import-plugin',
+        '--node-plugin',
+        '--vitest-plugin',
+        ...(fix ? ['--fix'] : []),
+        '.',
+      ],
+      name: 'oxlint',
+    },
+  ]
+
+  for (const { args } of linters) {
+    const result = await runCommandQuiet('pnpm', args)
+
+    if (result.exitCode !== 0) {
+      // When fixing, non-zero exit codes are normal if fixes were applied.
+      if (!fix || (result.stderr && result.stderr.trim().length > 0)) {
+        if (!quiet) {
+          logger.error('Linting failed')
+        }
+        if (result.stderr) {
+          logger.error(result.stderr)
+        }
+        if (result.stdout && !fix) {
+          logger.log(result.stdout)
+        }
+        return result.exitCode
+      }
+    }
+  }
+
+  if (!quiet) {
+    logger.stdout.clearLine()
+    logger.success('Linting passed')
+    // Add newline after message (use error to write to same stream)
+    logger.error('')
+  }
+
+  return 0
+}
+
+/**
  * Run linters on specific files.
  */
-async function runLintOnFiles(
+export async function runLintOnFiles(
   files: string[],
   options: LintOptions = {},
 ): Promise<number> {
@@ -217,114 +309,22 @@ async function runLintOnFiles(
 }
 
 /**
- * Run linters on all files.
+ * Check if we should run all linters based on changed files.
  */
-async function runLintOnAll(options: LintOptions = {}): Promise<number> {
-  const { fix = false, quiet = false } = options
-
-  if (!quiet) {
-    logger.stdout.progress('Linting all files')
-  }
-
-  const linters = [
-    {
-      args: [
-        'exec',
-        'oxlint',
-        '-c',
-        '.oxlintrc.json',
-        '--import-plugin',
-        '--node-plugin',
-        '--vitest-plugin',
-        ...(fix ? ['--fix'] : []),
-        '.',
-      ],
-      name: 'oxlint',
-    },
-  ]
-
-  for (const { args } of linters) {
-    const result = await runCommandQuiet('pnpm', args)
-
-    if (result.exitCode !== 0) {
-      // When fixing, non-zero exit codes are normal if fixes were applied.
-      if (!fix || (result.stderr && result.stderr.trim().length > 0)) {
-        if (!quiet) {
-          logger.error('Linting failed')
-        }
-        if (result.stderr) {
-          logger.error(result.stderr)
-        }
-        if (result.stdout && !fix) {
-          logger.log(result.stdout)
-        }
-        return result.exitCode
+export function shouldRunAllLinters(changedFiles: string[]): {
+  reason?: string
+  runAll: boolean
+} {
+  for (const file of changedFiles) {
+    // Config or infrastructure files
+    for (const pattern of CONFIG_PATTERNS) {
+      if (file.includes(pattern.replace('**', ''))) {
+        return { reason: 'config files changed', runAll: true }
       }
     }
   }
 
-  if (!quiet) {
-    logger.stdout.clearLine()
-    logger.success('Linting passed')
-    // Add newline after message (use error to write to same stream)
-    logger.error('')
-  }
-
-  return 0
-}
-
-/**
- * Get files to lint based on options.
- */
-async function getFilesToLint(
-  options: ParsedLintValues,
-): Promise<LintSelection> {
-  const { all, changed, staged } = options
-
-  // If --all, return early
-  if (all) {
-    return { files: 'all', mode: 'all', reason: 'all flag specified' }
-  }
-
-  // Get changed files
-  let changedFiles: string[] = []
-  // Track what mode we're in
-  let mode: 'changed' | 'staged' = 'changed'
-
-  if (staged) {
-    mode = 'staged'
-    changedFiles = await getStagedFiles({ absolute: false })
-    if (!changedFiles.length) {
-      return { files: undefined, mode, reason: 'no staged files' }
-    }
-  } else if (changed) {
-    mode = 'changed'
-    changedFiles = await getChangedFiles({ absolute: false })
-    if (!changedFiles.length) {
-      return { files: undefined, mode, reason: 'no changed files' }
-    }
-  } else {
-    // Default to changed files if no specific flag
-    mode = 'changed'
-    changedFiles = await getChangedFiles({ absolute: false })
-    if (!changedFiles.length) {
-      return { files: undefined, mode, reason: 'no changed files' }
-    }
-  }
-
-  // Check if we should run all based on changed files
-  const { reason, runAll } = shouldRunAllLinters(changedFiles)
-  if (runAll) {
-    return { files: 'all', mode: 'all', reason: reason! }
-  }
-
-  // Filter to lintable files
-  const lintableFiles = filterLintableFiles(changedFiles)
-  if (!lintableFiles.length) {
-    return { files: undefined, mode, reason: 'no lintable files changed' }
-  }
-
-  return { files: lintableFiles, mode, reason: undefined }
+  return { runAll: false }
 }
 
 async function main(): Promise<void> {

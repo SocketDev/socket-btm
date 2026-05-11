@@ -36,69 +36,6 @@ const logger = getDefaultLogger()
 export { runCommand }
 
 /**
- * Check if we're cross-compiling (target arch differs from host arch).
- * When cross-compiling, we can't run the binary for smoke tests.
- *
- * @returns {boolean} True if cross-compiling
- */
-function isCrossCompiling() {
-  const targetArch = process.env.TARGET_ARCH
-  if (!targetArch) {
-    return false
-  }
-  // Normalize arm64/aarch64 to compare correctly.
-  const normalizedTarget =
-    targetArch === 'aarch64' || targetArch === 'arm64' ? 'arm64' : targetArch
-  const normalizedHost = process.arch === 'arm64' ? 'arm64' : process.arch
-  return normalizedTarget !== normalizedHost
-}
-
-/**
- * Default smoke test that validates binary size and --version output.
- *
- * @param {string} binaryPath - Path to binary
- * @param {string} packageName - Package name to check in version output
- * @returns {Promise<void>}
- */
-async function defaultSmokeTest(binaryPath, packageName) {
-  // Smoke test: verify binary exists and has reasonable size
-  const stats = await fs.stat(binaryPath)
-  if (stats.size < 1000) {
-    throw new Error(`Binary too small: ${stats.size} bytes (expected >1KB)`)
-  }
-
-  // Run --version to ensure binary is functional
-  const result = await spawn(binaryPath, ['--version'])
-  if (result.code !== 0) {
-    throw new Error(
-      `Binary --version check failed with exit code ${result.code}`,
-    )
-  }
-  if (!(result.stdout || '').includes(packageName)) {
-    throw new Error(
-      `Binary --version output missing '${packageName}': ${result.stdout || ''}`,
-    )
-  }
-
-  logger.info('Binary validated')
-}
-
-/**
- * Select platform-specific Makefile.
- *
- * @returns {string} Makefile name
- */
-export function selectMakefile() {
-  if (process.platform === 'linux') {
-    return 'Makefile.linux'
-  }
-  if (WIN32) {
-    return 'Makefile.win'
-  }
-  return 'Makefile.macos'
-}
-
-/**
  * Build a C package with common infrastructure.
  *
  * @param {object} config - Build configuration
@@ -288,4 +225,67 @@ export async function buildBinSuitePackage(config) {
     logger.fail(`Build failed: ${errorMessage(e)}`)
     throw e
   }
+}
+
+/**
+ * Default smoke test that validates binary size and --version output.
+ *
+ * @param {string} binaryPath - Path to binary
+ * @param {string} packageName - Package name to check in version output
+ * @returns {Promise<void>}
+ */
+export async function defaultSmokeTest(binaryPath, packageName) {
+  // Smoke test: verify binary exists and has reasonable size
+  const stats = await fs.stat(binaryPath)
+  if (stats.size < 1000) {
+    throw new Error(`Binary too small: ${stats.size} bytes (expected >1KB)`)
+  }
+
+  // Run --version to ensure binary is functional
+  const result = await spawn(binaryPath, ['--version'])
+  if (result.code !== 0) {
+    throw new Error(
+      `Binary --version check failed with exit code ${result.code}`,
+    )
+  }
+  if (!(result.stdout || '').includes(packageName)) {
+    throw new Error(
+      `Binary --version output missing '${packageName}': ${result.stdout || ''}`,
+    )
+  }
+
+  logger.info('Binary validated')
+}
+
+/**
+ * Check if we're cross-compiling (target arch differs from host arch).
+ * When cross-compiling, we can't run the binary for smoke tests.
+ *
+ * @returns {boolean} True if cross-compiling
+ */
+export function isCrossCompiling() {
+  const targetArch = process.env.TARGET_ARCH
+  if (!targetArch) {
+    return false
+  }
+  // Normalize arm64/aarch64 to compare correctly.
+  const normalizedTarget =
+    targetArch === 'aarch64' || targetArch === 'arm64' ? 'arm64' : targetArch
+  const normalizedHost = process.arch === 'arm64' ? 'arm64' : process.arch
+  return normalizedTarget !== normalizedHost
+}
+
+/**
+ * Select platform-specific Makefile.
+ *
+ * @returns {string} Makefile name
+ */
+export function selectMakefile() {
+  if (process.platform === 'linux') {
+    return 'Makefile.linux'
+  }
+  if (WIN32) {
+    return 'Makefile.win'
+  }
+  return 'Makefile.macos'
 }

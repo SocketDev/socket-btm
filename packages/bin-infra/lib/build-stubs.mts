@@ -52,64 +52,48 @@ const packageRoot = path.join(__dirname, '..')
 const stubDir = path.join(packageRoot, '..', 'stubs-builder')
 
 /**
- * Get checkpoint chain for CI workflows.
- * @returns {string[]} Checkpoint chain in reverse dependency order
- */
-export function getCheckpointChain() {
-  const chain = CHECKPOINT_CHAINS.simple()
-  validateCheckpointChain(chain, 'build-stubs')
-  return chain
-}
-
-/**
- * Get stub binary name for the current platform.
- * @returns {string} Stub binary name
- */
-function getStubBinaryName() {
-  return WIN32 ? 'smol_stub.exe' : 'smol_stub'
-}
-
-/**
- * Get current platform-arch for stubs.
- * Respects TARGET_ARCH environment variable for cross-compilation.
- * @returns {Promise<string>} Platform-arch identifier.
- */
-async function getCurrentStubPlatformArch() {
-  const libc = detectLibc()
-  // Respect TARGET_ARCH for cross-compilation (from environment or process.arch)
-  const targetArch = process.env.TARGET_ARCH || process.arch
-  const arch = targetArch === 'x64' ? 'x64' : targetArch
-  // Use asset platform naming (win instead of win32).
-  return getAssetPlatformArch(process.platform, arch, libc)
-}
-
-/**
- * Check if stub binary exists at a given directory.
+ * Build stub from source using Makefile.
  *
- * @param {string} dir - Directory to check.
- * @returns {boolean} True if stub binary exists.
+ * @param {string} platformArch - Platform-arch identifier for the build.
  */
-export function stubExistsAt(dir) {
-  const stubBinary = getStubBinaryName()
-  return existsSync(path.join(dir, stubBinary))
-}
+export async function buildStubFromSource(platformArch) {
+  const makefile = getMakefileName()
+  logger.info(`Building stub from source using ${makefile}...`)
 
-/**
- * Get Makefile name for the current platform.
- * @returns {string} Makefile name
- */
-function getMakefileName() {
-  switch (process.platform) {
-    case 'darwin': {
-      return 'Makefile.macos'
-    }
-    case 'win32': {
-      return 'Makefile.win'
-    }
-    default: {
-      return 'Makefile.linux'
-    }
+  // Check if source files exist.
+  const sourceFile = path.join(stubDir, 'src')
+  if (!existsSync(sourceFile)) {
+    throw new Error(`Stub source directory not found: ${sourceFile}`)
   }
+
+  // Build environment.
+  const env = { ...process.env }
+
+  // Pass BUILD_MODE and PLATFORM_ARCH to Makefile for platform-specific output.
+  env.BUILD_MODE = getBuildMode()
+  env.PLATFORM_ARCH = platformArch
+
+  // For cross-compilation on macOS.
+  if (process.env.TARGET_ARCH) {
+    env.TARGET_ARCH = process.env.TARGET_ARCH
+  }
+
+  // Run make clean all.
+  const buildStart = Date.now()
+  const result = await spawn('make', ['-f', makefile, 'clean', 'all'], {
+    cwd: stubDir,
+    env,
+    stdio: 'inherit',
+  })
+
+  if (result.code !== 0) {
+    throw new Error(`Make failed with exit code ${result.code}`)
+  }
+
+  const buildDuration = Math.round((Date.now() - buildStart) / 1000)
+  logger.info(`Stub build completed in ${buildDuration}s`)
+
+  logger.success('Stub build completed successfully!')
 }
 
 /**
@@ -119,7 +103,7 @@ function getMakefileName() {
  * @param {string} [options.platformArch] - Override platform-arch.
  * @returns {Promise<string|null>} Path to downloaded stub directory, or null on failure.
  */
-async function downloadPrebuiltStub(options = {}) {
+export async function downloadPrebuiltStub(options = {}) {
   const { platformArch } = options
   const resolvedPlatformArch =
     platformArch ?? (await getCurrentStubPlatformArch())
@@ -224,83 +208,6 @@ async function downloadPrebuiltStub(options = {}) {
 }
 
 /**
- * Get stub output directory path for a given platform.
- * Uses platform-specific build directory for isolation.
- *
- * @param {string} platformArch - Platform-arch identifier (e.g., 'linux-x64', 'darwin-arm64').
- * @returns {string} Path to stub output directory.
- */
-export function getStubOutDir(platformArch) {
-  const buildDir = getPlatformBuildDir(stubDir, platformArch)
-  return path.join(buildDir, 'out', BUILD_STAGES.FINAL)
-}
-
-/**
- * Get stub binary path for a given platform.
- *
- * @param {string} platformArch - Platform-arch identifier.
- * @returns {string} Path to stub binary.
- */
-export function getStubPath(platformArch) {
-  return path.join(getStubOutDir(platformArch), getStubBinaryName())
-}
-
-/**
- * Check if stub binary exists for a given platform.
- *
- * @param {string} platformArch - Platform-arch identifier.
- * @returns {boolean} True if stub binary exists.
- */
-export function stubExists(platformArch) {
-  return existsSync(getStubPath(platformArch))
-}
-
-/**
- * Build stub from source using Makefile.
- *
- * @param {string} platformArch - Platform-arch identifier for the build.
- */
-async function buildStubFromSource(platformArch) {
-  const makefile = getMakefileName()
-  logger.info(`Building stub from source using ${makefile}...`)
-
-  // Check if source files exist.
-  const sourceFile = path.join(stubDir, 'src')
-  if (!existsSync(sourceFile)) {
-    throw new Error(`Stub source directory not found: ${sourceFile}`)
-  }
-
-  // Build environment.
-  const env = { ...process.env }
-
-  // Pass BUILD_MODE and PLATFORM_ARCH to Makefile for platform-specific output.
-  env.BUILD_MODE = getBuildMode()
-  env.PLATFORM_ARCH = platformArch
-
-  // For cross-compilation on macOS.
-  if (process.env.TARGET_ARCH) {
-    env.TARGET_ARCH = process.env.TARGET_ARCH
-  }
-
-  // Run make clean all.
-  const buildStart = Date.now()
-  const result = await spawn('make', ['-f', makefile, 'clean', 'all'], {
-    cwd: stubDir,
-    env,
-    stdio: 'inherit',
-  })
-
-  if (result.code !== 0) {
-    throw new Error(`Make failed with exit code ${result.code}`)
-  }
-
-  const buildDuration = Math.round((Date.now() - buildStart) / 1000)
-  logger.info(`Stub build completed in ${buildDuration}s`)
-
-  logger.success('Stub build completed successfully!')
-}
-
-/**
  * Ensure stub binary is available.
  * Checks local build first, then downloaded, then builds/downloads if needed.
  *
@@ -395,6 +302,99 @@ export async function ensureStubs(options = {}) {
     }
     return path.join(downloadDir, stubBinary)
   }
+}
+
+/**
+ * Get checkpoint chain for CI workflows.
+ * @returns {string[]} Checkpoint chain in reverse dependency order
+ */
+export function getCheckpointChain() {
+  const chain = CHECKPOINT_CHAINS.simple()
+  validateCheckpointChain(chain, 'build-stubs')
+  return chain
+}
+
+/**
+ * Get current platform-arch for stubs.
+ * Respects TARGET_ARCH environment variable for cross-compilation.
+ * @returns {Promise<string>} Platform-arch identifier.
+ */
+export async function getCurrentStubPlatformArch() {
+  const libc = detectLibc()
+  // Respect TARGET_ARCH for cross-compilation (from environment or process.arch)
+  const targetArch = process.env.TARGET_ARCH || process.arch
+  const arch = targetArch === 'x64' ? 'x64' : targetArch
+  // Use asset platform naming (win instead of win32).
+  return getAssetPlatformArch(process.platform, arch, libc)
+}
+
+/**
+ * Get Makefile name for the current platform.
+ * @returns {string} Makefile name
+ */
+export function getMakefileName() {
+  switch (process.platform) {
+    case 'darwin': {
+      return 'Makefile.macos'
+    }
+    case 'win32': {
+      return 'Makefile.win'
+    }
+    default: {
+      return 'Makefile.linux'
+    }
+  }
+}
+
+/**
+ * Get stub binary name for the current platform.
+ * @returns {string} Stub binary name
+ */
+export function getStubBinaryName() {
+  return WIN32 ? 'smol_stub.exe' : 'smol_stub'
+}
+
+/**
+ * Get stub output directory path for a given platform.
+ * Uses platform-specific build directory for isolation.
+ *
+ * @param {string} platformArch - Platform-arch identifier (e.g., 'linux-x64', 'darwin-arm64').
+ * @returns {string} Path to stub output directory.
+ */
+export function getStubOutDir(platformArch) {
+  const buildDir = getPlatformBuildDir(stubDir, platformArch)
+  return path.join(buildDir, 'out', BUILD_STAGES.FINAL)
+}
+
+/**
+ * Get stub binary path for a given platform.
+ *
+ * @param {string} platformArch - Platform-arch identifier.
+ * @returns {string} Path to stub binary.
+ */
+export function getStubPath(platformArch) {
+  return path.join(getStubOutDir(platformArch), getStubBinaryName())
+}
+
+/**
+ * Check if stub binary exists for a given platform.
+ *
+ * @param {string} platformArch - Platform-arch identifier.
+ * @returns {boolean} True if stub binary exists.
+ */
+export function stubExists(platformArch) {
+  return existsSync(getStubPath(platformArch))
+}
+
+/**
+ * Check if stub binary exists at a given directory.
+ *
+ * @param {string} dir - Directory to check.
+ * @returns {boolean} True if stub binary exists.
+ */
+export function stubExistsAt(dir) {
+  const stubBinary = getStubBinaryName()
+  return existsSync(path.join(dir, stubBinary))
 }
 
 async function main() {

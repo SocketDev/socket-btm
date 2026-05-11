@@ -34,11 +34,7 @@ import { spawn } from '@socketsecurity/lib/spawn'
 
 import { getLatestFinalBinary } from '../paths.mts'
 
-function parseVersionTuple(raw: string): readonly number[] {
-  return raw.split('.').map(n => Number(n) || 0)
-}
-
-function isAboveFloor(version: string, floor: readonly number[]): boolean {
+export function isAboveFloor(version: string, floor: readonly number[]): boolean {
   const tuple = parseVersionTuple(version)
   const len = Math.max(tuple.length, floor.length)
   for (let i = 0; i < len; i++) {
@@ -49,6 +45,10 @@ function isAboveFloor(version: string, floor: readonly number[]): boolean {
     }
   }
   return false
+}
+
+export function parseVersionTuple(raw: string): readonly number[] {
+  return raw.split('.').map(n => Number(n) || 0)
 }
 
 const GLIBC_FLOOR_RAW = process.env.GLIBC_FLOOR

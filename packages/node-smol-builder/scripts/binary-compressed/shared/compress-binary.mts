@@ -62,68 +62,13 @@ const PLATFORM_CONFIG = {
 }
 
 /**
- * Parse command line arguments.
- */
-function parseArgs() {
-  const args = process.argv.slice(2)
-
-  if (args.length < 2) {
-    logger.error(
-      'Usage: compress-binary.mts <input> <output> [--target-arch=x64|arm64] [--target-libc=glibc|musl] [--binpress-path=<path>]',
-    )
-    logger.error('')
-    logger.error('Examples:')
-    logger.error('  node scripts/compress-binary.mts ./node ./node.compressed')
-    logger.error(
-      '  node scripts/compress-binary.mts ./node ./node.compressed --target-arch=x64 --target-libc=musl',
-    )
-    throw new Error('Missing required arguments')
-  }
-
-  const inputPath = path.resolve(args[0])
-  const outputPath = path.resolve(args[1])
-  // Default to host architecture
-  let targetArch = process.arch
-  let targetLibc
-  let binpressPath
-
-  for (const arg of args.slice(2)) {
-    if (arg.startsWith('--target-arch=')) {
-      targetArch = arg.substring('--target-arch='.length)
-    } else if (arg.startsWith('--target-libc=')) {
-      targetLibc = arg.substring('--target-libc='.length)
-    } else if (arg.startsWith('--binpress-path=')) {
-      binpressPath = arg.substring('--binpress-path='.length)
-    }
-  }
-
-  return { binpressPath, inputPath, outputPath, targetArch, targetLibc }
-}
-
-/**
- * Get platform configuration.
- */
-function getPlatformConfig() {
-  const { platform } = process
-  const config = PLATFORM_CONFIG[platform]
-
-  if (!config) {
-    throw new Error(
-      `Unsupported platform: ${platform}. Supported: macOS, Linux, Windows`,
-    )
-  }
-
-  return config
-}
-
-/**
  * Detect libc variant (musl vs glibc) for a Linux binary.
  * Uses ldd to check which C library the binary is linked against.
  *
  * @param {string} binaryPath - Path to binary to analyze
  * @returns {Promise<number>} - LIBC_VALUES.musl, LIBC_VALUES.glibc, or LIBC_VALUES.na
  */
-async function _detectLibc(binaryPath) {
+export async function _detectLibc(binaryPath) {
   try {
     // Run ldd on the binary and check output.
     const result = await spawn('ldd', [binaryPath], {
@@ -156,75 +101,10 @@ async function _detectLibc(binaryPath) {
   }
 }
 
-// NOTE: binpress path resolution is now handled by compression-tools.mts
-// and passed via --binpress-path argument. This ensures DRY - single source of truth
-// for tool paths, respecting BUILD_TOOLS_FROM_SOURCE and other env vars.
-
-/**
- * Get file size in MB.
- */
-async function getFileSizeMB(filePath) {
-  const stats = await fs.stat(filePath)
-  return stats.size / 1024 / 1024
-}
-
-/**
- * Check if a binary is already compressed by looking for the magic marker.
- * @param {string} filePath - Path to binary to check
- * @returns {Promise<boolean>} true if binary is already compressed
- */
-async function isCompressedBinary(filePath) {
-  try {
-    const fileHandle = await fs.open(filePath, 'r')
-    const BUFFER_SIZE = 4096
-    const buffer = Buffer.alloc(BUFFER_SIZE)
-    let totalRead = 0
-    // A marker straddling the boundary between two reads would be missed
-    // if we checked each window in isolation. Carry the last
-    // (MAGIC_MARKER.length - 1) bytes of each window forward so any
-    // boundary-straddling match is still detected.
-    const overlap = MAGIC_MARKER.length - 1
-    let tail = ''
-
-    try {
-      while (true) {
-        const { bytesRead } = await fileHandle.read(
-          buffer,
-          0,
-          BUFFER_SIZE,
-          totalRead,
-        )
-        if (bytesRead === 0) {
-          break
-        }
-
-        const window = tail + buffer.toString('binary', 0, bytesRead)
-        if (window.includes(MAGIC_MARKER)) {
-          return true
-        }
-        tail = window.slice(-overlap)
-
-        totalRead += bytesRead
-        // Only check first few MB (marker should be near beginning after stub)
-        if (totalRead > 5 * 1024 * 1024) {
-          break
-        }
-      }
-    } finally {
-      await fileHandle.close()
-    }
-
-    return false
-  } catch {
-    // If we can't read the file, assume not compressed
-    return false
-  }
-}
-
 /**
  * Compress binary using binpress (zstd compression).
  */
-async function compressBinary(
+export async function compressBinary(
   _toolPath,
   inputPath,
   outputPath,
@@ -315,6 +195,122 @@ async function compressBinary(
 
   // binpress handled everything - we're done.
   return
+}
+
+/**
+ * Get file size in MB.
+ */
+export async function getFileSizeMB(filePath) {
+  const stats = await fs.stat(filePath)
+  return stats.size / 1024 / 1024
+}
+
+/**
+ * Get platform configuration.
+ */
+export function getPlatformConfig() {
+  const { platform } = process
+  const config = PLATFORM_CONFIG[platform]
+
+  if (!config) {
+    throw new Error(
+      `Unsupported platform: ${platform}. Supported: macOS, Linux, Windows`,
+    )
+  }
+
+  return config
+}
+
+/**
+ * Check if a binary is already compressed by looking for the magic marker.
+ * @param {string} filePath - Path to binary to check
+ * @returns {Promise<boolean>} true if binary is already compressed
+ */
+export async function isCompressedBinary(filePath) {
+  try {
+    const fileHandle = await fs.open(filePath, 'r')
+    const BUFFER_SIZE = 4096
+    const buffer = Buffer.alloc(BUFFER_SIZE)
+    let totalRead = 0
+    // A marker straddling the boundary between two reads would be missed
+    // if we checked each window in isolation. Carry the last
+    // (MAGIC_MARKER.length - 1) bytes of each window forward so any
+    // boundary-straddling match is still detected.
+    const overlap = MAGIC_MARKER.length - 1
+    let tail = ''
+
+    try {
+      while (true) {
+        const { bytesRead } = await fileHandle.read(
+          buffer,
+          0,
+          BUFFER_SIZE,
+          totalRead,
+        )
+        if (bytesRead === 0) {
+          break
+        }
+
+        const window = tail + buffer.toString('binary', 0, bytesRead)
+        if (window.includes(MAGIC_MARKER)) {
+          return true
+        }
+        tail = window.slice(-overlap)
+
+        totalRead += bytesRead
+        // Only check first few MB (marker should be near beginning after stub)
+        if (totalRead > 5 * 1024 * 1024) {
+          break
+        }
+      }
+    } finally {
+      await fileHandle.close()
+    }
+
+    return false
+  } catch {
+    // If we can't read the file, assume not compressed
+    return false
+  }
+}
+
+/**
+ * Parse command line arguments.
+ */
+export function parseArgs() {
+  const args = process.argv.slice(2)
+
+  if (args.length < 2) {
+    logger.error(
+      'Usage: compress-binary.mts <input> <output> [--target-arch=x64|arm64] [--target-libc=glibc|musl] [--binpress-path=<path>]',
+    )
+    logger.error('')
+    logger.error('Examples:')
+    logger.error('  node scripts/compress-binary.mts ./node ./node.compressed')
+    logger.error(
+      '  node scripts/compress-binary.mts ./node ./node.compressed --target-arch=x64 --target-libc=musl',
+    )
+    throw new Error('Missing required arguments')
+  }
+
+  const inputPath = path.resolve(args[0])
+  const outputPath = path.resolve(args[1])
+  // Default to host architecture
+  let targetArch = process.arch
+  let targetLibc
+  let binpressPath
+
+  for (const arg of args.slice(2)) {
+    if (arg.startsWith('--target-arch=')) {
+      targetArch = arg.substring('--target-arch='.length)
+    } else if (arg.startsWith('--target-libc=')) {
+      targetLibc = arg.substring('--target-libc='.length)
+    } else if (arg.startsWith('--binpress-path=')) {
+      binpressPath = arg.substring('--binpress-path='.length)
+    }
+  }
+
+  return { binpressPath, inputPath, outputPath, targetArch, targetLibc }
 }
 
 /**

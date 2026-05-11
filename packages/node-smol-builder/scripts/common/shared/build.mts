@@ -261,20 +261,6 @@ const { buildDir: SHARED_BUILD_DIR, nodeSourceDir: SHARED_SOURCE_DIR } =
 //   build/<mode>/<platform-arch>/checkpoints/ - Build checkpoints (source-patched, binary-released, ...).
 
 /**
- * Normalize and deduplicate an array of file paths.
- *
- * Applies cross-platform path normalization (using @socketsecurity/lib) and
- * removes duplicates. This is a defensive pattern to prevent cache invalidation
- * bugs where the same file path is added multiple times with different formats.
- *
- * @param {string[]} paths - Array of file paths to normalize and deduplicate
- * @returns {string[]} Array of unique, normalized paths
- */
-function normalizeAndDedup(paths) {
-  return [...new Set(paths.map(p => normalizePath(p)))]
-}
-
-/**
  * Collect source files for a specific build phase.
  * Used for phase-specific cache key generation to minimize invalidation.
  *
@@ -293,7 +279,7 @@ function normalizeAndDedup(paths) {
  * @param {string} phase - Build phase ('binary-released', 'binary-stripped', 'binary-compressed', 'finalized')
  * @returns {string[]} Array of absolute paths to source files for this phase
  */
-async function collectBuildSourceFiles(phase = 'binary-released') {
+export async function collectBuildSourceFiles(phase = 'binary-released') {
   const sources = []
 
   // Use getBuildSourcePaths (NOT getCumulativeBuildSourcePaths) to get:
@@ -408,6 +394,20 @@ async function collectBuildSourceFiles(phase = 'binary-released') {
   // Apply cross-platform normalization and deduplication
   // (e.g., __filename may also be included via scriptDir glob)
   return normalizeAndDedup(sources)
+}
+
+/**
+ * Normalize and deduplicate an array of file paths.
+ *
+ * Applies cross-platform path normalization (using @socketsecurity/lib) and
+ * removes duplicates. This is a defensive pattern to prevent cache invalidation
+ * bugs where the same file path is added multiple times with different formats.
+ *
+ * @param {string[]} paths - Array of file paths to normalize and deduplicate
+ * @returns {string[]} Array of unique, normalized paths
+ */
+export function normalizeAndDedup(paths) {
+  return [...new Set(paths.map(p => normalizePath(p)))]
 }
 
 /**

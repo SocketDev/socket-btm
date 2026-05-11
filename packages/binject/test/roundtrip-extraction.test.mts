@@ -38,7 +38,7 @@ let binjectExists = false
 /**
  * Execute command and return result
  */
-async function execCommand(command, args = [], options = {}) {
+export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {
     const spawnPromise = spawn(command, args, {
       ...options,
@@ -73,7 +73,7 @@ async function execCommand(command, args = [], options = {}) {
 /**
  * Calculate SHA-256 hash of file
  */
-async function hashFile(filePath) {
+export async function hashFile(filePath) {
   const data = await fs.readFile(filePath)
   return createHash('sha256').update(data).digest('hex')
 }
@@ -82,8 +82,8 @@ beforeAll(async () => {
   // Check if binject exists
   binjectExists = existsSync(BINJECT)
   if (!binjectExists) {
-    console.warn(`⚠️  binject not found at ${BINJECT}`)
-    console.warn('   Run: pnpm build in packages/binject')
+    logger.warn(`⚠️  binject not found at ${BINJECT}`)
+    logger.warn('   Run: pnpm build in packages/binject')
     return
   }
 

@@ -75,7 +75,7 @@ const TARGET_ARCH = process.env.TARGET_ARCH || process.arch
  * @param {string} platformArch - Platform-arch identifier.
  * @returns {{ buildDir: string, curlBuildDir: string, mbedtlsBuildDir: string }}
  */
-function getBuildDirs(platformArch) {
+export function getBuildDirs(platformArch) {
   const buildDir = getPlatformBuildDir(packageRoot, platformArch)
   const curlBuildDir = path.join(buildDir, 'out', BUILD_STAGES.FINAL, 'curl')
   const mbedtlsBuildDir = path.join(
@@ -115,7 +115,7 @@ export function curlExistsAt(dir) {
  * @param {string} assetName - Asset name for checksum lookup.
  * @returns {Promise<{valid: boolean, expected?: string, actual?: string, skipped?: boolean}>}
  */
-async function verifyArchiveChecksum(archivePath, assetName) {
+export async function verifyArchiveChecksum(archivePath, assetName) {
   return verifyReleaseChecksum({
     assetName,
     filePath: archivePath,
@@ -338,7 +338,7 @@ const MBEDTLS_VERSION = getMbedTLSVersion()
  * Extract curl version from .gitmodules comment.
  * @returns {string} Curl version (e.g., "8.18.0")
  */
-function getCurlVersion() {
+export function getCurlVersion() {
   const version = getSubmoduleVersion(
     'packages/curl-builder/upstream/curl',
     'curl',
@@ -351,7 +351,7 @@ function getCurlVersion() {
  * Extract mbedTLS version from .gitmodules comment.
  * @returns {string} mbedTLS version (e.g., "3.6.5")
  */
-function getMbedTLSVersion() {
+export function getMbedTLSVersion() {
   const version = getSubmoduleVersion(
     'packages/curl-builder/upstream/mbedtls',
     'mbedtls',
@@ -360,7 +360,7 @@ function getMbedTLSVersion() {
   return version
 }
 
-async function runCommand(command, args, cwd, env = {}) {
+export async function runCommand(command, args, cwd, env = {}) {
   logger.info(`Running: ${command} ${args.join(' ')}`)
 
   // Merge env properly, filtering out undefined values.
@@ -397,7 +397,7 @@ async function runCommand(command, args, cwd, env = {}) {
  *
  * @param {string} mbedtlsBuildDir - Directory to build mbedTLS in.
  */
-async function buildMbedTLS(mbedtlsBuildDir) {
+export async function buildMbedTLS(mbedtlsBuildDir) {
   logger.info('Building mbedTLS...')
 
   // Check if mbedTLS upstream exists.
@@ -512,7 +512,7 @@ async function buildMbedTLS(mbedtlsBuildDir) {
  * @param {string} mbedtlsDir - Directory containing mbedTLS build.
  * @param {string} curlBuildDir - Directory to build curl in.
  */
-async function buildCurl(mbedtlsDir, curlBuildDir) {
+export async function buildCurl(mbedtlsDir, curlBuildDir) {
   logger.info('Building curl with mbedTLS...')
 
   // Check if curl upstream exists.
@@ -668,7 +668,7 @@ async function buildCurl(mbedtlsDir, curlBuildDir) {
  * @param {string} mbedtlsDir - Directory containing mbedTLS build.
  * @param {string} curlBuildDir - Directory containing curl build.
  */
-async function copyDistributionFiles(mbedtlsDir, curlBuildDir) {
+export async function copyDistributionFiles(mbedtlsDir, curlBuildDir) {
   const distDir = path.join(curlBuildDir, 'dist')
   await safeMkdir(distDir)
 

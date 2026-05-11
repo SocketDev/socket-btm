@@ -66,7 +66,7 @@ const EXTERNAL_PEERS = [
  * resolver hook. yoga-sync is built per-platform-arch; the resolver picks
  * the prod build first, falls back to dev.
  */
-function createYogaResolverPlugin() {
+export function createYogaResolverPlugin() {
   return {
     name: 'yoga-resolver',
     async setup(build: import('esbuild').PluginBuild) {

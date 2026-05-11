@@ -15,19 +15,19 @@ export function printError(message) {
 }
 
 /**
- * Print a success message to stdout.
- * @param {string} message - Success message to print.
- */
-export function printSuccess(message) {
-  logger.success(message)
-}
-
-/**
  * Print an info message to stdout.
  * @param {string} message - Info message to print.
  */
 export function printInfo(message) {
   logger.info(message)
+}
+
+/**
+ * Print a success message to stdout.
+ * @param {string} message - Success message to print.
+ */
+export function printSuccess(message) {
+  logger.success(message)
 }
 
 /**

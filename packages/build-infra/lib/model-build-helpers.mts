@@ -21,39 +21,6 @@ import { getMinPythonVersion } from './version-helpers.mts'
 const logger = getDefaultLogger()
 
 /**
- * Extract Python packages from external-tools.json config.
- *
- * @param {object} externalTools - Tools config from loadAllTools()
- * @returns {Array<string|{name: string, importName: string}>} Python packages
- */
-export function extractPythonPackages(externalTools) {
-  return Object.entries(externalTools)
-    .filter(
-      ([name, config]) =>
-        // pip is the installer itself — distros that ship it via dpkg
-        // refuse `pip install --upgrade pip` even with
-        // --break-system-packages (no RECORD file on the dpkg copy).
-        // Treat it as bootstrap; pin via external-tools.json for docs
-        // but don't auto-reinstall it.
-        name !== 'pip' &&
-        // Two equivalent shapes exist in external-tools.json files:
-        //   { packageManager: "pip", ... }                  (newer)
-        //   { type: "python", versions: { pip: "x.y.z" } }  (shared ml-tools)
-        // Both should count as a Python package to auto-install via pip.
-        (config.packageManager === 'pip' ||
-          config.type === 'python' ||
-          (config.versions && Object.hasOwn(config.versions, 'pip'))),
-    )
-    .map(([name]) => {
-      // Handle packages that need special import names
-      if (name === 'onnxruntime') {
-        return { importName: 'onnxruntime', name }
-      }
-      return name
-    })
-}
-
-/**
  * Run preflight checks for model builds.
  *
  * Centralizes the common prerequisite checks:
@@ -170,4 +137,37 @@ export async function checkModelBuildPrerequisites(options) {
     externalTools,
     pythonPackages,
   }
+}
+
+/**
+ * Extract Python packages from external-tools.json config.
+ *
+ * @param {object} externalTools - Tools config from loadAllTools()
+ * @returns {Array<string|{name: string, importName: string}>} Python packages
+ */
+export function extractPythonPackages(externalTools) {
+  return Object.entries(externalTools)
+    .filter(
+      ([name, config]) =>
+        // pip is the installer itself — distros that ship it via dpkg
+        // refuse `pip install --upgrade pip` even with
+        // --break-system-packages (no RECORD file on the dpkg copy).
+        // Treat it as bootstrap; pin via external-tools.json for docs
+        // but don't auto-reinstall it.
+        name !== 'pip' &&
+        // Two equivalent shapes exist in external-tools.json files:
+        //   { packageManager: "pip", ... }                  (newer)
+        //   { type: "python", versions: { pip: "x.y.z" } }  (shared ml-tools)
+        // Both should count as a Python package to auto-install via pip.
+        (config.packageManager === 'pip' ||
+          config.type === 'python' ||
+          (config.versions && Object.hasOwn(config.versions, 'pip'))),
+    )
+    .map(([name]) => {
+      // Handle packages that need special import names
+      if (name === 'onnxruntime') {
+        return { importName: 'onnxruntime', name }
+      }
+      return name
+    })
 }

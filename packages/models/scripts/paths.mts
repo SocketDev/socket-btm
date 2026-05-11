@@ -20,29 +20,6 @@ export const PACKAGE_ROOT = path.resolve(__dirname, '..')
 export const BUILD_ROOT = path.join(PACKAGE_ROOT, 'build')
 
 /**
- * Get shared build directories for models (shared across dev/prod).
- */
-export function getSharedBuildPaths() {
-  const buildDir = path.join(BUILD_ROOT, 'shared')
-  // Models are downloaded to centralized location: ../build-infra/build/downloaded/models/{modelKey}/
-  const modelsDir = path.join(
-    PACKAGE_ROOT,
-    '..',
-    'build-infra',
-    'build',
-    'downloaded',
-    'models',
-  )
-  const checkpointsDir = path.join(buildDir, 'checkpoints')
-
-  return {
-    buildDir,
-    checkpointsDir,
-    modelsDir,
-  }
-}
-
-/**
  * Get build directories for a specific mode (dev/prod) with REQUIRED platformArch.
  * @param {string} mode - Build mode ('dev' or 'prod')
  * @param {string} platformArch - Platform-arch (e.g., 'darwin-arm64') - REQUIRED
@@ -85,4 +62,27 @@ export function getBuildPaths(mode, platformArch) {
  */
 export async function getCurrentPlatform() {
   return await getCurrentPlatformArch()
+}
+
+/**
+ * Get shared build directories for models (shared across dev/prod).
+ */
+export function getSharedBuildPaths() {
+  const buildDir = path.join(BUILD_ROOT, 'shared')
+  // Models are downloaded to centralized location: ../build-infra/build/downloaded/models/{modelKey}/
+  const modelsDir = path.join(
+    PACKAGE_ROOT,
+    '..',
+    'build-infra',
+    'build',
+    'downloaded',
+    'models',
+  )
+  const checkpointsDir = path.join(buildDir, 'checkpoints')
+
+  return {
+    buildDir,
+    checkpointsDir,
+    modelsDir,
+  }
 }

@@ -14,33 +14,42 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 
 const logger = getDefaultLogger()
 
-/**
- * Copy build additions to Node.js source tree.
- *
- * @param {string} modeSourceDir - Target Node.js source directory
- */
-/**
- * Process file content for placeholders.
- * Returns object with processed content and whether file was processed.
- */
-async function processFileContent(sourcePath, version) {
-  const ext = path.extname(sourcePath)
+export async function copyBuildAdditions(modeSourceDir) {
+  logger.step('Copying Build Additions')
 
-  // For JS files, replace placeholders.
-  if (ext === '.js' || ext === '.mjs' || ext === '.cjs') {
-    const stats = await fs.stat(sourcePath)
-    let content = await fs.readFile(sourcePath, 'utf8')
-    content = content.replaceAll('%SMOL_VERSION%', version)
-    return { content, mode: stats.mode, processed: true }
+  // Read package.json version for placeholder replacement.
+  const pkgJsonPath = path.join(PACKAGE_ROOT, 'package.json')
+  let pkgJson
+  try {
+    pkgJson = JSON.parse(await fs.readFile(pkgJsonPath, 'utf8'))
+  } catch (e) {
+    throw new Error(
+      `Failed to parse package.json at ${pkgJsonPath}: ${errorMessage(e)}`,
+      { cause: e },
+    )
+  }
+  const { version } = pkgJson
+
+  if (!existsSync(ADDITIONS_SOURCE_PATCHED_DIR)) {
+    throw new Error(
+      `Build additions source directory not found: ${ADDITIONS_SOURCE_PATCHED_DIR}`,
+    )
   }
 
-  return { processed: false }
+  const fileCount = await copyDirectoryRecursive(
+    ADDITIONS_SOURCE_PATCHED_DIR,
+    modeSourceDir,
+    version,
+  )
+
+  logger.success(`Copied ${fileCount} file(s) from additions/`)
+  logger.log('')
 }
 
 /**
  * Recursively copy directory with placeholder replacement.
  */
-async function copyDirectoryRecursive(source, dest, version) {
+export async function copyDirectoryRecursive(source, dest, version) {
   await safeMkdir(dest)
 
   const entries = await fs.readdir(source, { withFileTypes: true })
@@ -84,34 +93,25 @@ async function copyDirectoryRecursive(source, dest, version) {
   return fileCount
 }
 
-export async function copyBuildAdditions(modeSourceDir) {
-  logger.step('Copying Build Additions')
+/**
+ * Copy build additions to Node.js source tree.
+ *
+ * @param {string} modeSourceDir - Target Node.js source directory
+ */
+/**
+ * Process file content for placeholders.
+ * Returns object with processed content and whether file was processed.
+ */
+export async function processFileContent(sourcePath, version) {
+  const ext = path.extname(sourcePath)
 
-  // Read package.json version for placeholder replacement.
-  const pkgJsonPath = path.join(PACKAGE_ROOT, 'package.json')
-  let pkgJson
-  try {
-    pkgJson = JSON.parse(await fs.readFile(pkgJsonPath, 'utf8'))
-  } catch (e) {
-    throw new Error(
-      `Failed to parse package.json at ${pkgJsonPath}: ${errorMessage(e)}`,
-      { cause: e },
-    )
-  }
-  const { version } = pkgJson
-
-  if (!existsSync(ADDITIONS_SOURCE_PATCHED_DIR)) {
-    throw new Error(
-      `Build additions source directory not found: ${ADDITIONS_SOURCE_PATCHED_DIR}`,
-    )
+  // For JS files, replace placeholders.
+  if (ext === '.js' || ext === '.mjs' || ext === '.cjs') {
+    const stats = await fs.stat(sourcePath)
+    let content = await fs.readFile(sourcePath, 'utf8')
+    content = content.replaceAll('%SMOL_VERSION%', version)
+    return { content, mode: stats.mode, processed: true }
   }
 
-  const fileCount = await copyDirectoryRecursive(
-    ADDITIONS_SOURCE_PATCHED_DIR,
-    modeSourceDir,
-    version,
-  )
-
-  logger.success(`Copied ${fileCount} file(s) from additions/`)
-  logger.log('')
+  return { processed: false }
 }

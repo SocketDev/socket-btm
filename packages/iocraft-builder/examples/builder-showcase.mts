@@ -310,7 +310,7 @@ const spacing = ViewBuilder.new()
 logger.info(render_to_string(spacing))
 logger.log()
 
-logger.info('✅ All examples rendered successfully!')
+logger.success('All examples rendered successfully!')
 logger.log()
 logger.info('💡 Key Takeaways:')
 logger.info('   • Builder API provides fluent, chainable methods')

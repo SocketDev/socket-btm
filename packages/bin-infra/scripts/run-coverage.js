@@ -27,7 +27,7 @@ const PACKAGES_DIR = path.resolve(__dirname, '../..')
 const C_PACKAGES = ['binject', 'binpress', 'binflate']
 const WIN32 = process.platform === 'win32'
 
-async function runCommand(command, args, cwd) {
+export async function runCommand(command, args, cwd) {
   logger.info(`Running: ${command} ${args.join(' ')}`)
   logger.info(`Directory: ${cwd}`)
   logger.info('')
@@ -44,7 +44,7 @@ async function runCommand(command, args, cwd) {
   throw new Error(`Command failed with exit code ${result.code}`)
 }
 
-async function runCoverageForPackage(packageName) {
+export async function runCoverageForPackage(packageName) {
   const packagePath = path.join(PACKAGES_DIR, packageName)
 
   if (!fs.existsSync(packagePath)) {

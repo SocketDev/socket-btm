@@ -39,7 +39,7 @@ const PROJECT_ROOT = path.join(__dirname, '..', '..', '..', '..')
 // Package binaries
 const BUILD_MODE = getBuildMode()
 
-async function getBinaryPath(packageName, binaryName) {
+export async function getBinaryPath(packageName, binaryName) {
   const ext = process.platform === 'win32' ? '.exe' : ''
   const platformArch = await getCurrentPlatformArch()
   // Try platform-arch path first (includes -musl suffix on Alpine), then legacy path without it.
@@ -79,7 +79,7 @@ let allBinariesExist = false
 /**
  * Execute command.
  */
-async function execCommand(command, args = [], options = {}) {
+export async function execCommand(command, args = [], options = {}) {
   const result = await spawn(command, args, {
     ...options,
     stdio: 'pipe',
@@ -100,17 +100,17 @@ beforeAll(async () => {
   allBinariesExist = binpressExists && binjectExists && nodeExists
 
   if (!allBinariesExist) {
-    console.warn('⚠️  Missing required binaries:')
+    logger.warn('⚠️  Missing required binaries:')
     if (!binpressExists) {
-      console.warn(`   - binpress: ${BINPRESS}`)
+      logger.warn(`   - binpress: ${BINPRESS}`)
     }
     if (!binjectExists) {
-      console.warn(`   - binject: ${BINJECT}`)
+      logger.warn(`   - binject: ${BINJECT}`)
     }
     if (!nodeExists) {
-      console.warn(`   - node binary: ${NODE_BINARY}`)
+      logger.warn(`   - node binary: ${NODE_BINARY}`)
     }
-    console.warn('   Run: pnpm build in respective packages')
+    logger.warn('   Run: pnpm build in respective packages')
     return
   }
 
@@ -129,7 +129,7 @@ describe.skipIf(!allBinariesExist)('cross-tool repacking', () => {
     it('should preserve SEA and VFS after binpress update', async () => {
       // Step 1: Compress Node.js binary
       const compressed1 = path.join(testDir, 'batch_repack_1')
-      console.log('  Step 1: Initial compression...')
+      logger.log('  Step 1: Initial compression...')
 
       const compress1 = await execCommand(
         BINPRESS,
@@ -147,7 +147,7 @@ describe.skipIf(!allBinariesExist)('cross-tool repacking', () => {
       await fs.writeFile(vfsArchive, Buffer.from('VFS_REPACK_TEST_DATA'))
 
       const withBatch = path.join(testDir, 'batch_repack_2')
-      console.log('  Step 2: Injecting SEA + VFS (batch)...')
+      logger.log('  Step 2: Injecting SEA + VFS (batch)...')
 
       const inject = await execCommand(BINJECT, [
         'inject',
@@ -167,7 +167,7 @@ describe.skipIf(!allBinariesExist)('cross-tool repacking', () => {
       // binpress has no in-place "-u" flag; passing `<input> -o <output>`
       // recompresses, which is the same end state.
       const compressed2 = path.join(testDir, 'batch_repack_3')
-      console.log('  Step 3: Recompressing with fresh pass...')
+      logger.log('  Step 3: Recompressing with fresh pass...')
 
       const update = await execCommand(
         BINPRESS,
@@ -179,7 +179,7 @@ describe.skipIf(!allBinariesExist)('cross-tool repacking', () => {
 
       // Step 4: Extract both SEA and VFS to verify they survived update
       const extractedSea = path.join(testDir, 'extracted.blob')
-      console.log('  Step 4: Extracting SEA and VFS...')
+      logger.log('  Step 4: Extracting SEA and VFS...')
 
       const extractSea = await execCommand(BINJECT, [
         'extract',
@@ -215,7 +215,7 @@ describe.skipIf(!allBinariesExist)('cross-tool repacking', () => {
       expect(vfsContent).toBe('VFS_REPACK_TEST_DATA')
 
       // Step 5: Verify binary is still executable
-      console.log('  Step 5: Verifying execution...')
+      logger.log('  Step 5: Verifying execution...')
       const exec = await execCommand(compressed2, ['--version'])
       expect(exec.code).toBe(0)
     }, 300_000)

@@ -38,7 +38,7 @@ type FileIssues = {
   path: string
 }
 
-async function findDockerfiles(): Promise<string[]> {
+export async function findDockerfiles(): Promise<string[]> {
   const result = await spawn(
     'find',
     ['packages', '-name', 'Dockerfile.build', '-type', 'f'],
@@ -59,7 +59,7 @@ async function findDockerfiles(): Promise<string[]> {
     .map((line: string) => path.join(repoRoot, line))
 }
 
-async function validateDockerfile(
+export async function validateDockerfile(
   dockerfilePath: string,
 ): Promise<DockerfileIssue[]> {
   const content = await fs.readFile(dockerfilePath, 'utf8')

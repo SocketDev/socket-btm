@@ -47,7 +47,7 @@ let cachedPEP668
  *
  * @returns {boolean} True if a PEP 668 marker is present.
  */
-function isPEP668Managed() {
+export function isPEP668Managed() {
   if (cachedPEP668 !== undefined) {
     return cachedPEP668
   }

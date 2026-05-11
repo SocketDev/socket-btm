@@ -48,7 +48,7 @@ const VERSION_PATTERN = String.raw`[\d.]+`
  * @param {string} template - Filename template with {version} placeholder
  * @returns {RegExp} Regex pattern matching the template
  */
-function assetPattern(template) {
+export function assetPattern(template) {
   // Split by {version}, escape each part, rejoin with version pattern
   const parts = template.split('{version}')
   const escaped = parts.map(escapeRegExp).join(VERSION_PATTERN)
@@ -114,7 +114,7 @@ const TOOL_CONFIGS = {
 /**
  * Fetch JSON from URL with GitHub API headers.
  */
-async function fetchJson(url) {
+export async function fetchJson(url) {
   const headers = {
     Accept: 'application/vnd.github+json',
     'User-Agent': 'socket-btm-vfs-tools-updater/1.0',
@@ -131,7 +131,7 @@ async function fetchJson(url) {
 /**
  * Fetch text content from URL.
  */
-async function fetchText(url) {
+export async function fetchText(url) {
   return httpText(url, {
     headers: { 'User-Agent': 'socket-btm-vfs-tools-updater/1.0' },
   })
@@ -140,7 +140,7 @@ async function fetchText(url) {
 /**
  * Download file and compute SHA256.
  */
-async function downloadAndHash(url) {
+export async function downloadAndHash(url) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vfs-hash-'))
   const tmpFile = path.join(tmpDir, 'download')
 
@@ -162,7 +162,7 @@ async function downloadAndHash(url) {
 /**
  * Parse checksum file (format: "hash  filename" or "hash filename")
  */
-function parseChecksumFile(content) {
+export function parseChecksumFile(content) {
   const checksums = new Map()
 
   for (const line of content.split('\n')) {
@@ -185,7 +185,7 @@ function parseChecksumFile(content) {
 /**
  * Get Python embeddable package info (downloads and computes hashes).
  */
-async function getPythonRelease() {
+export async function getPythonRelease() {
   const { assets: assetPatterns, baseUrl, version } = PYTHON_CONFIG
   const assets = new Map()
 
@@ -209,7 +209,7 @@ async function getPythonRelease() {
 /**
  * Get latest release info for a tool.
  */
-async function getLatestRelease(toolName) {
+export async function getLatestRelease(toolName) {
   const config = TOOL_CONFIGS[toolName]
   if (!config) {
     throw new Error(`Unknown tool: ${toolName}`)
@@ -261,7 +261,7 @@ async function getLatestRelease(toolName) {
 /**
  * Generate the updated VFS_TOOL_URLS object as a string.
  */
-function generateToolConfig(toolName, version, assets) {
+export function generateToolConfig(toolName, version, assets) {
   const lines = [`  ${toolName}: {`, `    version: '${version}',`]
 
   // Determine which platforms this tool supports
@@ -304,7 +304,7 @@ function generateToolConfig(toolName, version, assets) {
 /**
  * Update the vfs-tools-downloader.mts file.
  */
-async function updateDownloaderFile(updates, dryRun) {
+export async function updateDownloaderFile(updates, dryRun) {
   const downloaderPath = path.join(
     __dirname,
     '..',

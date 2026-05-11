@@ -35,47 +35,6 @@ const CACHE_BUSTING_DEPS = {
 }
 
 /**
- * Get dependency versions from package.json.
- *
- * @param {string} packageJsonPath - Path to package.json
- * @param {string[]} depNames - Dependency names to extract
- * @returns {Record<string, string>} Dependency versions
- */
-function getDependencyVersions(packageJsonPath, depNames) {
-  let content
-  try {
-    content = readFileSync(packageJsonPath, 'utf8')
-  } catch (e) {
-    throw new Error(
-      `Failed to read package.json at ${packageJsonPath}: ${errorMessage(e)}`,
-      { cause: e },
-    )
-  }
-
-  let packageJson
-  try {
-    packageJson = JSON.parse(content)
-  } catch (e) {
-    throw new Error(
-      `Failed to parse package.json at ${packageJsonPath}: ${errorMessage(e)}`,
-      { cause: e },
-    )
-  }
-
-  const versions = {}
-  for (const depName of depNames) {
-    const version =
-      packageJson.dependencies?.[depName] ||
-      packageJson.devDependencies?.[depName]
-    if (version) {
-      versions[depName] = version
-    }
-  }
-
-  return versions
-}
-
-/**
  * Generate a cache key for a package build.
  *
  * @param {object} options
@@ -163,6 +122,64 @@ export function generateCacheKey({
 }
 
 /**
+ * Get dependency versions from package.json.
+ *
+ * @param {string} packageJsonPath - Path to package.json
+ * @param {string[]} depNames - Dependency names to extract
+ * @returns {Record<string, string>} Dependency versions
+ */
+export function getDependencyVersions(packageJsonPath, depNames) {
+  let content
+  try {
+    content = readFileSync(packageJsonPath, 'utf8')
+  } catch (e) {
+    throw new Error(
+      `Failed to read package.json at ${packageJsonPath}: ${errorMessage(e)}`,
+      { cause: e },
+    )
+  }
+
+  let packageJson
+  try {
+    packageJson = JSON.parse(content)
+  } catch (e) {
+    throw new Error(
+      `Failed to parse package.json at ${packageJsonPath}: ${errorMessage(e)}`,
+      { cause: e },
+    )
+  }
+
+  const versions = {}
+  for (const depName of depNames) {
+    const version =
+      packageJson.dependencies?.[depName] ||
+      packageJson.devDependencies?.[depName]
+    if (version) {
+      versions[depName] = version
+    }
+  }
+
+  return versions
+}
+
+/**
+ * Check if a cache key is still valid.
+ *
+ * @param {string} cacheKey
+ * @param {object} currentOptions - Current build options (same as generateCacheKey)
+ * @returns {boolean}
+ */
+export function isCacheValid(cacheKey, currentOptions) {
+  const parsed = parseCacheKey(cacheKey)
+  if (!parsed) {
+    return false
+  }
+
+  const currentKey = generateCacheKey(currentOptions)
+  return cacheKey === currentKey
+}
+
+/**
  * Parse a cache key to extract components.
  *
  * @param {string} cacheKey
@@ -222,21 +239,4 @@ export function parseCacheKey(cacheKey) {
     packageVersion,
     platform: match[2],
   }
-}
-
-/**
- * Check if a cache key is still valid.
- *
- * @param {string} cacheKey
- * @param {object} currentOptions - Current build options (same as generateCacheKey)
- * @returns {boolean}
- */
-export function isCacheValid(cacheKey, currentOptions) {
-  const parsed = parseCacheKey(cacheKey)
-  if (!parsed) {
-    return false
-  }
-
-  const currentKey = generateCacheKey(currentOptions)
-  return cacheKey === currentKey
 }

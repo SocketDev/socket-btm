@@ -44,7 +44,7 @@ const logger = getDefaultLogger()
  * @param {string|undefined} libc - Target libc (musl, glibc, or undefined)
  * @returns {Promise<string>} Path to downloaded tool
  */
-async function downloadToolIfMissing(tool, platform, arch, libc) {
+export async function downloadToolIfMissing(tool, platform, arch, libc) {
   const binaryName = platform === 'win32' ? `${tool}.exe` : tool
   const platformArch = getPlatformArch(platform, arch, libc)
   const buildAllFromSource = envAsBoolean(process.env.BUILD_ALL_FROM_SOURCE)

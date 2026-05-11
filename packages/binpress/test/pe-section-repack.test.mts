@@ -53,11 +53,50 @@ const PRESSED_DATA_SECTION_NAME = '.PRESSED'
 const PRESSED_DATA_MAGIC_MARKER = SMOL_PRESSED_DATA_MAGIC_MARKER
 
 /**
+ * Count .PRESSED_DATA sections in PE binary
+ * @param {Buffer} peData - PE binary data
+ * @returns {number} Number of .PRESSED_DATA sections
+ */
+export function countPressedDataSections(peData) {
+  const sections = parseSections(peData)
+  return sections.filter(s => s.name === PRESSED_DATA_SECTION_NAME).length
+}
+
+/**
+ * Find .PRESSED_DATA sections with their content
+ * @param {Buffer} peData - PE binary data
+ * @returns {Array} Array of .PRESSED_DATA section info
+ */
+export function findPressedDataSections(peData) {
+  const sections = parseSections(peData)
+  return sections.filter(s => s.name === PRESSED_DATA_SECTION_NAME)
+}
+
+/**
+ * Search for magic marker in .pressed_data sections
+ * @param {Buffer} peData - PE binary data
+ * @param {string} marker - Marker string to search for
+ * @returns {boolean} True if marker found
+ */
+export function hasMarkerInPressedDataSection(peData, marker) {
+  const sections = findPressedDataSections(peData)
+  const markerBuffer = Buffer.from(marker, 'utf8')
+
+  for (const section of sections) {
+    if (section.content.includes(markerBuffer)) {
+      return true
+    }
+  }
+
+  return false
+}
+
+/**
  * Parse PE header and return basic information
  * @param {Buffer} peData - PE binary data
  * @returns {Object} PE header information
  */
-function parsePeHeader(peData) {
+export function parsePeHeader(peData) {
   // Validate DOS header magic "MZ"
   if (peData[0] !== 0x4d || peData[1] !== 0x5a) {
     throw new Error('Invalid DOS magic (expected MZ)')
@@ -104,7 +143,7 @@ function parsePeHeader(peData) {
  * @param {Buffer} peData - PE binary data
  * @returns {Array} Array of section information
  */
-function parseSections(peData) {
+export function parseSections(peData) {
   const header = parsePeHeader(peData)
   const { numberOfSections, sectionHeadersOffset } = header
 
@@ -146,45 +185,6 @@ function parseSections(peData) {
   }
 
   return sections
-}
-
-/**
- * Count .PRESSED_DATA sections in PE binary
- * @param {Buffer} peData - PE binary data
- * @returns {number} Number of .PRESSED_DATA sections
- */
-function countPressedDataSections(peData) {
-  const sections = parseSections(peData)
-  return sections.filter(s => s.name === PRESSED_DATA_SECTION_NAME).length
-}
-
-/**
- * Find .PRESSED_DATA sections with their content
- * @param {Buffer} peData - PE binary data
- * @returns {Array} Array of .PRESSED_DATA section info
- */
-function findPressedDataSections(peData) {
-  const sections = parseSections(peData)
-  return sections.filter(s => s.name === PRESSED_DATA_SECTION_NAME)
-}
-
-/**
- * Search for magic marker in .pressed_data sections
- * @param {Buffer} peData - PE binary data
- * @param {string} marker - Marker string to search for
- * @returns {boolean} True if marker found
- */
-function hasMarkerInPressedDataSection(peData, marker) {
-  const sections = findPressedDataSections(peData)
-  const markerBuffer = Buffer.from(marker, 'utf8')
-
-  for (const section of sections) {
-    if (section.content.includes(markerBuffer)) {
-      return true
-    }
-  }
-
-  return false
 }
 
 // Only run on Windows where PE is native

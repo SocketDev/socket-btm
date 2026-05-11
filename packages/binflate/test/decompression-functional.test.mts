@@ -82,9 +82,21 @@ const binflateExists = existsSync(BINFLATE)
 const binpressExists = existsSync(BINPRESS)
 
 /**
+ * Create a test binary file with known content
+ */
+export async function createTestBinary(filePath, size = 1024 * 10) {
+  // Create binary with repeated pattern (compresses well)
+  const pattern = Buffer.from('TESTDATA'.repeat(16))
+  const chunks = Math.ceil(size / pattern.length)
+  const data = Buffer.concat(Array(chunks).fill(pattern)).subarray(0, size)
+  await fs.writeFile(filePath, data)
+  await makeExecutable(filePath)
+}
+
+/**
  * Execute command and return result
  */
-async function execCommand(command, args = [], options = {}) {
+export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {
     const spawnPromise = spawn(command, args, {
       ...options,
@@ -119,34 +131,22 @@ async function execCommand(command, args = [], options = {}) {
 /**
  * Calculate file hash
  */
-async function hashFile(filePath) {
+export async function hashFile(filePath) {
   const data = await fs.readFile(filePath)
   return createHash('sha256').update(data).digest('hex')
 }
 
-/**
- * Create a test binary file with known content
- */
-async function createTestBinary(filePath, size = 1024 * 10) {
-  // Create binary with repeated pattern (compresses well)
-  const pattern = Buffer.from('TESTDATA'.repeat(16))
-  const chunks = Math.ceil(size / pattern.length)
-  const data = Buffer.concat(Array(chunks).fill(pattern)).subarray(0, size)
-  await fs.writeFile(filePath, data)
-  await makeExecutable(filePath)
-}
-
 beforeAll(async () => {
   if (!binflateExists) {
-    console.warn(`⚠️  binflate not found at ${BINFLATE}`)
-    console.warn('   Run: pnpm build in packages/binflate')
+    logger.warn(`⚠️  binflate not found at ${BINFLATE}`)
+    logger.warn('   Run: pnpm build in packages/binflate')
     return
   }
 
   if (!binpressExists) {
-    console.warn(`⚠️  binpress not found at ${BINPRESS}`)
-    console.warn('   Run: pnpm build in packages/binpress')
-    console.warn('   binpress is required to create compressed test data')
+    logger.warn(`⚠️  binpress not found at ${BINPRESS}`)
+    logger.warn('   Run: pnpm build in packages/binpress')
+    logger.warn('   binpress is required to create compressed test data')
     return
   }
 

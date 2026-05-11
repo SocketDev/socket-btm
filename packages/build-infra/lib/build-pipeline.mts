@@ -45,6 +45,7 @@ import {
   parsePlatformArch,
 } from './platform-mappings.mts'
 import { getNodeVersion } from './version-helpers.mts'
+import { safeDelete } from '@socketsecurity/lib/fs'
 
 const logger = getDefaultLogger()
 
@@ -115,28 +116,22 @@ const logger = getDefaultLogger()
  *   inputs (external-tools.json + package.json) are already included.
  */
 
-async function readJson(filePath) {
-  let raw
-  try {
-    raw = await fs.readFile(filePath, 'utf8')
-  } catch (e) {
-    if (e.code === 'ENOENT') {
-      return undefined
+export function hashFileContents(files) {
+  const hash = crypto.createHash('sha256')
+  for (const file of files.toSorted()) {
+    let content = Buffer.alloc(0)
+    if (existsSync(file)) {
+      try {
+        content = readFileSync(file)
+      } catch {}
     }
-    throw new Error(`Failed to read ${filePath}: ${errorMessage(e)}`, {
-      cause: e,
-    })
+    hash.update(`${file}:`)
+    hash.update(content)
   }
-  try {
-    return JSON.parse(raw)
-  } catch (e) {
-    throw new Error(`Failed to parse ${filePath}: ${errorMessage(e)}`, {
-      cause: e,
-    })
-  }
+  return hash.digest('hex').slice(0, 16)
 }
 
-async function loadExternalTools(packageRoot) {
+export async function loadExternalTools(packageRoot) {
   const filePath = path.join(packageRoot, 'external-tools.json')
   const data = await readJson(filePath)
   if (!data) {
@@ -155,7 +150,7 @@ async function loadExternalTools(packageRoot) {
   return { versions, rawHash }
 }
 
-async function loadPackageJson(packageRoot) {
+export async function loadPackageJson(packageRoot) {
   const pkg = await readJson(path.join(packageRoot, 'package.json'))
   if (!pkg) {
     throw new Error(`Missing package.json in ${packageRoot}`)
@@ -163,53 +158,7 @@ async function loadPackageJson(packageRoot) {
   return pkg
 }
 
-function hashFileContents(files) {
-  const hash = crypto.createHash('sha256')
-  for (const file of files.toSorted()) {
-    let content = Buffer.alloc(0)
-    if (existsSync(file)) {
-      try {
-        content = readFileSync(file)
-      } catch {}
-    }
-    hash.update(`${file}:`)
-    hash.update(content)
-  }
-  return hash.digest('hex').slice(0, 16)
-}
-
-function buildCacheKey({
-  buildMode,
-  nodeVersion,
-  platformArch,
-  sources,
-  toolVersions,
-  toolsHash,
-  packageVersion,
-  extraHash,
-}) {
-  const hash = crypto.createHash('sha256')
-  hash.update(`node=${nodeVersion}`)
-  hash.update(`platformArch=${platformArch}`)
-  hash.update(`mode=${buildMode}`)
-  hash.update(`tools=${toolsHash}`)
-  for (const tool of Object.keys(toolVersions).toSorted()) {
-    hash.update(`${tool}@${toolVersions[tool]}`)
-  }
-  for (const key of Object.keys(sources).toSorted()) {
-    const src = sources[key] ?? {}
-    hash.update(
-      `src:${key}=${src.version ?? ''}:${src.ref ?? ''}:${src.url ?? ''}`,
-    )
-  }
-  if (extraHash) {
-    hash.update(`extra=${extraHash}`)
-  }
-  const digest = hash.digest('hex').slice(0, 12)
-  return `v${nodeVersion}-${platformArch}-${buildMode}-${digest}-${packageVersion}`
-}
-
-function parseFlags(argv) {
+export function parseFlags(argv) {
   const args = new Set(argv)
   const getValue = flag => {
     const prefix = `${flag}=`
@@ -230,14 +179,35 @@ function parseFlags(argv) {
   }
 }
 
-function resolveCheckpointBuildDir(stage, ctx) {
+export async function readJson(filePath) {
+  let raw
+  try {
+    raw = await fs.readFile(filePath, 'utf8')
+  } catch (e) {
+    if (e.code === 'ENOENT') {
+      return undefined
+    }
+    throw new Error(`Failed to read ${filePath}: ${errorMessage(e)}`, {
+      cause: e,
+    })
+  }
+  try {
+    return JSON.parse(raw)
+  } catch (e) {
+    throw new Error(`Failed to parse ${filePath}: ${errorMessage(e)}`, {
+      cause: e,
+    })
+  }
+}
+
+export function resolveCheckpointBuildDir(stage, ctx) {
   if (stage.shared && ctx.sharedPaths?.buildDir) {
     return ctx.sharedPaths.buildDir
   }
   return ctx.paths.buildDir
 }
 
-async function runStage(stage, ctx, stageParams) {
+export async function runStage(stage, ctx, stageParams) {
   const { buildMode, forceRebuild, logger } = ctx
 
   if (stage.skipInDev && buildMode === 'dev') {
@@ -302,6 +272,37 @@ async function runStage(stage, ctx, stageParams) {
     sourcePaths,
     ...platformMeta,
   })
+}
+
+export function buildCacheKey({
+  buildMode,
+  nodeVersion,
+  platformArch,
+  sources,
+  toolVersions,
+  toolsHash,
+  packageVersion,
+  extraHash,
+}) {
+  const hash = crypto.createHash('sha256')
+  hash.update(`node=${nodeVersion}`)
+  hash.update(`platformArch=${platformArch}`)
+  hash.update(`mode=${buildMode}`)
+  hash.update(`tools=${toolsHash}`)
+  for (const tool of Object.keys(toolVersions).toSorted()) {
+    hash.update(`${tool}@${toolVersions[tool]}`)
+  }
+  for (const key of Object.keys(sources).toSorted()) {
+    const src = sources[key] ?? {}
+    hash.update(
+      `src:${key}=${src.version ?? ''}:${src.ref ?? ''}:${src.url ?? ''}`,
+    )
+  }
+  if (extraHash) {
+    hash.update(`extra=${extraHash}`)
+  }
+  const digest = hash.digest('hex').slice(0, 12)
+  return `v${nodeVersion}-${platformArch}-${buildMode}-${digest}-${packageVersion}`
 }
 
 /**
@@ -410,7 +411,7 @@ export async function runPipeline(options, cliOverrides) {
       for (const ext of ['.json', '.tar.gz', '.tar.gz.lock']) {
         const file = path.join(markerDir, `${stage.name}${ext}`)
         if (existsSync(file)) {
-          await fs.rm(file, { force: true })
+          await safeDelete(file)
         }
       }
     }

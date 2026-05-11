@@ -17,61 +17,6 @@ import { spawn } from '@socketsecurity/lib/spawn'
 const logger = getDefaultLogger()
 
 /**
- * Get linking optimization flags (different from configure flags due to bindings).
- *
- * @param {string} buildMode - 'prod' or 'dev'
- * @returns {{cxxFlags: string[], linkerFlags: string[]}}
- */
-function getLinkingFlags(buildMode) {
-  // Note: Emscripten bindings require RTTI, so we can't use -fno-rtti here.
-  const cxxFlags =
-    buildMode === 'prod'
-      ? [
-          '-Oz',
-          '-flto=thin',
-          '-ffunction-sections',
-          '-fdata-sections',
-          '-ffast-math',
-          '-fno-finite-math-only',
-        ]
-      : ['-O1']
-
-  const linkerFlags =
-    buildMode === 'prod'
-      ? [
-          '--closure=1',
-          '-Wl,--gc-sections',
-          '-flto=thin',
-          '-Oz',
-          '-sDISABLE_EXCEPTION_CATCHING=1',
-          '-sALLOW_MEMORY_GROWTH=1',
-          '-sASSERTIONS=0',
-          '-sEXPORT_ES6=1',
-          '-sFILESYSTEM=0',
-          '-sINITIAL_MEMORY=64KB',
-          '-sMALLOC=emmalloc',
-          '-sMODULARIZE=1',
-          '-sNO_EXIT_RUNTIME=1',
-          '-sSTACK_SIZE=16KB',
-          '-sSUPPORT_LONGJMP=0',
-          '--bind',
-        ]
-      : [
-          '-sDISABLE_EXCEPTION_CATCHING=1',
-          '-sALLOW_MEMORY_GROWTH=1',
-          '-sASSERTIONS=2',
-          '-sEXPORT_ES6=1',
-          '-sFILESYSTEM=0',
-          '-sMODULARIZE=1',
-          '-sNO_EXIT_RUNTIME=1',
-          '-sWASM_ASYNC_COMPILATION=0',
-          '--bind',
-        ]
-
-  return { cxxFlags, linkerFlags }
-}
-
-/**
  * Build Yoga with Emscripten.
  *
  * @param {object} options - Build options
@@ -169,4 +114,59 @@ export async function compileWasm(options) {
       }
     },
   }
+}
+
+/**
+ * Get linking optimization flags (different from configure flags due to bindings).
+ *
+ * @param {string} buildMode - 'prod' or 'dev'
+ * @returns {{cxxFlags: string[], linkerFlags: string[]}}
+ */
+export function getLinkingFlags(buildMode) {
+  // Note: Emscripten bindings require RTTI, so we can't use -fno-rtti here.
+  const cxxFlags =
+    buildMode === 'prod'
+      ? [
+          '-Oz',
+          '-flto=thin',
+          '-ffunction-sections',
+          '-fdata-sections',
+          '-ffast-math',
+          '-fno-finite-math-only',
+        ]
+      : ['-O1']
+
+  const linkerFlags =
+    buildMode === 'prod'
+      ? [
+          '--closure=1',
+          '-Wl,--gc-sections',
+          '-flto=thin',
+          '-Oz',
+          '-sDISABLE_EXCEPTION_CATCHING=1',
+          '-sALLOW_MEMORY_GROWTH=1',
+          '-sASSERTIONS=0',
+          '-sEXPORT_ES6=1',
+          '-sFILESYSTEM=0',
+          '-sINITIAL_MEMORY=64KB',
+          '-sMALLOC=emmalloc',
+          '-sMODULARIZE=1',
+          '-sNO_EXIT_RUNTIME=1',
+          '-sSTACK_SIZE=16KB',
+          '-sSUPPORT_LONGJMP=0',
+          '--bind',
+        ]
+      : [
+          '-sDISABLE_EXCEPTION_CATCHING=1',
+          '-sALLOW_MEMORY_GROWTH=1',
+          '-sASSERTIONS=2',
+          '-sEXPORT_ES6=1',
+          '-sFILESYSTEM=0',
+          '-sMODULARIZE=1',
+          '-sNO_EXIT_RUNTIME=1',
+          '-sWASM_ASYNC_COMPILATION=0',
+          '--bind',
+        ]
+
+  return { cxxFlags, linkerFlags }
 }

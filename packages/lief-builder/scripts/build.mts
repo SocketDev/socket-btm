@@ -60,7 +60,7 @@ const liefPatchedDir = path.join(
  * @param {string} platformArch - Platform-arch identifier.
  * @returns {{ buildDir: string, liefBuildDir: string }}
  */
-function getLiefBuildDirs(platformArch) {
+export function getLiefBuildDirs(platformArch) {
   const buildDir = getPlatformBuildDir(packageRoot, platformArch)
   const liefBuildDir = path.join(buildDir, 'out', BUILD_STAGES.FINAL, 'lief')
   return { buildDir, liefBuildDir }
@@ -72,7 +72,7 @@ function getLiefBuildDirs(platformArch) {
  *
  * @returns {string} Platform-arch identifier.
  */
-function getCurrentLiefPlatformArch() {
+export function getCurrentLiefPlatformArch() {
   const libc = detectLibc()
   // Respect TARGET_ARCH for cross-compilation (set by workflows/Makefiles)
   const arch = process.env.TARGET_ARCH || process.arch
@@ -87,7 +87,7 @@ function getCurrentLiefPlatformArch() {
  * @param {string} platformArch - Platform-arch identifier.
  * @returns {string} Path to downloaded LIEF directory.
  */
-function getDownloadedLiefDir(platformArch) {
+export function getDownloadedLiefDir(platformArch) {
   return path.join(getDownloadedDir(packageRoot), 'lief', platformArch)
 }
 
@@ -99,7 +99,7 @@ function getDownloadedLiefDir(platformArch) {
  * @param {string} assetName - Asset name for checksum lookup.
  * @returns {Promise<{valid: boolean, expected?: string, actual?: string, skipped?: boolean}>}
  */
-async function verifyArchiveChecksum(archivePath, assetName) {
+export async function verifyArchiveChecksum(archivePath, assetName) {
   return verifyReleaseChecksum({
     assetName,
     filePath: archivePath,
@@ -113,7 +113,7 @@ async function verifyArchiveChecksum(archivePath, assetName) {
  *
  * @returns {Array<string|string[]>} Array of required files. Arrays indicate alternatives (any one must exist).
  */
-function getLiefRequiredFiles() {
+export function getLiefRequiredFiles() {
   return LIEF_REQUIRED_FILES
 }
 
@@ -157,7 +157,7 @@ export function liefExistsAt(dir) {
  * @param {string} dir - Directory to check.
  * @returns {string|undefined} Path to LIEF library if exists, undefined otherwise.
  */
-function getLiefLibPathAt(dir) {
+export function getLiefLibPathAt(dir) {
   const unixPath = path.join(dir, 'libLIEF.a')
   const msvcPath = path.join(dir, 'LIEF.lib')
 
@@ -197,7 +197,7 @@ export function liefExists(platformArch) {
  * The version is specified in the comment above the LIEF submodule entry.
  * @returns {string} LIEF version (e.g., "0.17.0")
  */
-function getLiefVersion() {
+export function getLiefVersion() {
   const version = getSubmoduleVersion(
     'packages/lief-builder/upstream/lief',
     'lief',
@@ -209,7 +209,7 @@ function getLiefVersion() {
 // LIEF version (extracted from .gitmodules comment).
 const LIEF_VERSION = getLiefVersion()
 
-async function runCommand(command, args, cwd, env = {}) {
+export async function runCommand(command, args, cwd, env = {}) {
   logger.info(`Running: ${command} ${args.join(' ')}`)
 
   // Merge env properly, filtering out undefined values.
@@ -247,7 +247,7 @@ async function runCommand(command, args, cwd, env = {}) {
  * @param {string} libPath - Path to libLIEF.a
  * @returns {Promise<{compatible: boolean, reason?: string}>}
  */
-async function verifyMuslCompatibility(libPath) {
+export async function verifyMuslCompatibility(libPath) {
   if (!(await isMusl())) {
     return { compatible: true }
   }
@@ -327,7 +327,7 @@ async function verifyMuslCompatibility(libPath) {
  * This allows patching without modifying the git submodule.
  * @param {string} sourceDir - Destination directory for copied source
  */
-async function copyLiefSource(sourceDir) {
+export async function copyLiefSource(sourceDir) {
   if (!existsSync(liefUpstream)) {
     throw new Error(
       `LIEF upstream not found at ${liefUpstream}. Run 'git submodule update --init --recursive' first.`,
@@ -431,7 +431,7 @@ async function copyLiefSource(sourceDir) {
  * Uses `patch -p1` command (doesn't require git).
  * @param {string} sourceDir - Path to LIEF source directory
  */
-async function applyLiefPatches(sourceDir) {
+export async function applyLiefPatches(sourceDir) {
   const patchesDir = path.join(packageRoot, 'patches', 'lief')
 
   if (!existsSync(patchesDir)) {
@@ -493,7 +493,7 @@ async function applyLiefPatches(sourceDir) {
  * @param {string} [options.platformArch] - Override platform-arch.
  * @returns {Promise<string|null>} Path to downloaded LIEF directory, or null on failure.
  */
-async function downloadPrebuiltLIEF(options = {}) {
+export async function downloadPrebuiltLIEF(options = {}) {
   // Check if download is blocked by BUILD_DEPS_FROM_SOURCE environment flag.
   checkBuildSourceFlag('LIEF', 'DEPS', {
     buildCommand: 'Install LIEF system-wide or build from source',
@@ -741,7 +741,7 @@ export async function ensureLief(options = {}) {
 /**
  * Internal implementation of ensureLief.
  */
-async function ensureLiefImpl(options = {}) {
+export async function ensureLiefImpl(options = {}) {
   const { force = false, platformArch } = options
   const resolvedPlatformArch = platformArch ?? getCurrentLiefPlatformArch()
 

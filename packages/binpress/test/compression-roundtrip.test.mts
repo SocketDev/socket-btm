@@ -70,9 +70,17 @@ let testDir: string
 let testBinary: string
 
 /**
+ * Calculate file hash
+ */
+export async function _hashFile(filePath) {
+  const data = await fs.readFile(filePath)
+  return createHash('sha256').update(data).digest('hex')
+}
+
+/**
  * Execute command and return result
  */
-async function execCommand(command, args = [], options = {}) {
+export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {
     const spawnPromise = spawn(command, args, {
       ...options,
@@ -103,14 +111,6 @@ async function execCommand(command, args = [], options = {}) {
       // Already handled by 'close' event
     })
   })
-}
-
-/**
- * Calculate file hash
- */
-async function _hashFile(filePath) {
-  const data = await fs.readFile(filePath)
-  return createHash('sha256').update(data).digest('hex')
 }
 
 beforeAll(async () => {
@@ -151,10 +151,10 @@ describe.skipIf(!existsSync(BINPRESS))(
           ])
 
           if (compressResult.code !== 0) {
-            console.error('❌ Compression failed!')
-            console.error('Exit code:', compressResult.code)
-            console.error('Stdout:', compressResult.stdout)
-            console.error('Stderr:', compressResult.stderr)
+            logger.fail('❌ Compression failed!')
+            logger.fail('Exit code:', compressResult.code)
+            logger.fail('Stdout:', compressResult.stdout)
+            logger.fail('Stderr:', compressResult.stderr)
           }
 
           expect(compressResult.code).toBe(0)
@@ -175,11 +175,11 @@ describe.skipIf(!existsSync(BINPRESS))(
 
           // Always log stderr to diagnose failures
           if (execResult.stderr || execResult.code !== 0) {
-            console.error('=== EXECUTION RESULT ===')
-            console.error('Exit code:', execResult.code)
-            console.error('Stderr:', execResult.stderr)
-            console.error('Stdout:', execResult.stdout)
-            console.error('=== END RESULT ===')
+            logger.fail('=== EXECUTION RESULT ===')
+            logger.fail('Exit code:', execResult.code)
+            logger.fail('Stderr:', execResult.stderr)
+            logger.fail('Stdout:', execResult.stdout)
+            logger.fail('=== END RESULT ===')
           }
 
           expect(execResult.code).toBe(0)
@@ -401,9 +401,9 @@ describe.skipIf(!existsSync(BINPRESS))(
 
           // Verify compression succeeded
           if (compressResult.code !== 0) {
-            console.error(`Compression ${i} failed:`)
-            console.error('stdout:', compressResult.stdout)
-            console.error('stderr:', compressResult.stderr)
+            logger.fail(`Compression ${i} failed:`)
+            logger.fail('stdout:', compressResult.stdout)
+            logger.fail('stderr:', compressResult.stderr)
           }
           expect(compressResult.code).toBe(0)
 

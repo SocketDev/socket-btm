@@ -46,57 +46,9 @@ type RebuildOptions = {
 }
 
 /**
- * Parse command line arguments.
- */
-function parseArgs(): RebuildOptions {
-  const argv: string[] = process.argv
-  const args = new Set(argv.slice(2))
-  return {
-    binsuiteOnly: args.has('--binsuite-only'),
-    help: args.has('--help') || args.has('-h'),
-    liefOnly: args.has('--lief-only'),
-    nodeOnly: args.has('--node-only'),
-    skipClean: args.has('--skip-clean'),
-  }
-}
-
-/**
- * Show help message.
- */
-function showHelp(): void {
-  logger.log('')
-  logger.log('Local Rebuild Script - Build everything from source')
-  logger.log('='.repeat(60))
-  logger.log('')
-  logger.log('Usage:')
-  logger.log('  node scripts/rebuild-all-local.mts [options]')
-  logger.log('')
-  logger.log('Options:')
-  logger.log('  --skip-clean     Skip cache/checkpoint cleaning')
-  logger.log('  --lief-only      Only rebuild LIEF')
-  logger.log('  --binsuite-only  Only rebuild binsuite tools')
-  logger.log('  --node-only      Only rebuild node-smol')
-  logger.log('  --help, -h       Show this help message')
-  logger.log('')
-  logger.log('What this script does:')
-  logger.log('  1. Clears all build caches and checkpoints')
-  logger.log('  2. Rebuilds LIEF library from source')
-  logger.log('  3. Rebuilds binsuite tools (binject, binflate, binpress)')
-  logger.log('  4. Rebuilds node-smol binaries from source')
-  logger.log('')
-  logger.log('Environment variables set:')
-  logger.log('  SOCKET_BUILD_FORCE_REBUILD=1    - Force rebuild from source')
-  logger.log('  SOCKET_SKIP_PREBUILT=1          - Skip prebuilt downloads')
-  logger.log(
-    '  PREBUILT_NODE_DOWNLOAD_URL=""   - Disable node binary downloads',
-  )
-  logger.log('')
-}
-
-/**
  * Clean build caches and checkpoints.
  */
-async function cleanCaches(): Promise<void> {
+export async function cleanCaches(): Promise<void> {
   logger.log('')
   logger.log('Cleaning Caches')
   logger.log('='.repeat(60))
@@ -124,9 +76,62 @@ async function cleanCaches(): Promise<void> {
 }
 
 /**
+ * Parse command line arguments.
+ */
+export function parseArgs(): RebuildOptions {
+  const argv: string[] = process.argv
+  const args = new Set(argv.slice(2))
+  return {
+    binsuiteOnly: args.has('--binsuite-only'),
+    help: args.has('--help') || args.has('-h'),
+    liefOnly: args.has('--lief-only'),
+    nodeOnly: args.has('--node-only'),
+    skipClean: args.has('--skip-clean'),
+  }
+}
+
+/**
+ * Rebuild binsuite tools from source.
+ */
+export async function rebuildBinsuite(): Promise<void> {
+  logger.log('')
+  logger.log('Rebuilding Binsuite Tools')
+  logger.log('='.repeat(60))
+  logger.log('')
+
+  const tools: string[] = ['binject', 'binflate', 'binpress']
+
+  for (const tool of tools) {
+    logger.info(`Building ${tool} from source...`)
+    logger.log('')
+
+    const result = await spawn('pnpm', ['--filter', tool, 'run', 'build'], {
+      cwd: rootDir,
+      env: {
+        ...process.env,
+        // Disable prebuilt downloads.
+        PREBUILT_NODE_DOWNLOAD_URL: '',
+        SOCKET_BUILD_FORCE_REBUILD: '1',
+        SOCKET_SKIP_PREBUILT: '1',
+      },
+      shell: WIN32,
+      stdio: 'inherit',
+    })
+
+    if (result.code !== 0) {
+      logger.fail(`${tool} build failed`)
+      throw new Error(`${tool} build failed with exit code ${result.code}`)
+    }
+
+    logger.success(`${tool} build complete`)
+    logger.log('')
+  }
+}
+
+/**
  * Rebuild LIEF from source.
  */
-async function rebuildLief(): Promise<void> {
+export async function rebuildLief(): Promise<void> {
   logger.log('')
   logger.log('Rebuilding LIEF')
   logger.log('='.repeat(60))
@@ -168,47 +173,9 @@ async function rebuildLief(): Promise<void> {
 }
 
 /**
- * Rebuild binsuite tools from source.
- */
-async function rebuildBinsuite(): Promise<void> {
-  logger.log('')
-  logger.log('Rebuilding Binsuite Tools')
-  logger.log('='.repeat(60))
-  logger.log('')
-
-  const tools: string[] = ['binject', 'binflate', 'binpress']
-
-  for (const tool of tools) {
-    logger.info(`Building ${tool} from source...`)
-    logger.log('')
-
-    const result = await spawn('pnpm', ['--filter', tool, 'run', 'build'], {
-      cwd: rootDir,
-      env: {
-        ...process.env,
-        // Disable prebuilt downloads.
-        PREBUILT_NODE_DOWNLOAD_URL: '',
-        SOCKET_BUILD_FORCE_REBUILD: '1',
-        SOCKET_SKIP_PREBUILT: '1',
-      },
-      shell: WIN32,
-      stdio: 'inherit',
-    })
-
-    if (result.code !== 0) {
-      logger.fail(`${tool} build failed`)
-      throw new Error(`${tool} build failed with exit code ${result.code}`)
-    }
-
-    logger.success(`${tool} build complete`)
-    logger.log('')
-  }
-}
-
-/**
  * Rebuild node-smol binaries from source.
  */
-async function rebuildNodeSmol(): Promise<void> {
+export async function rebuildNodeSmol(): Promise<void> {
   logger.log('')
   logger.log('Rebuilding Node-Smol')
   logger.log('='.repeat(60))
@@ -240,6 +207,39 @@ async function rebuildNodeSmol(): Promise<void> {
   }
 
   logger.success('node-smol build complete')
+  logger.log('')
+}
+
+/**
+ * Show help message.
+ */
+export function showHelp(): void {
+  logger.log('')
+  logger.log('Local Rebuild Script - Build everything from source')
+  logger.log('='.repeat(60))
+  logger.log('')
+  logger.log('Usage:')
+  logger.log('  node scripts/rebuild-all-local.mts [options]')
+  logger.log('')
+  logger.log('Options:')
+  logger.log('  --skip-clean     Skip cache/checkpoint cleaning')
+  logger.log('  --lief-only      Only rebuild LIEF')
+  logger.log('  --binsuite-only  Only rebuild binsuite tools')
+  logger.log('  --node-only      Only rebuild node-smol')
+  logger.log('  --help, -h       Show this help message')
+  logger.log('')
+  logger.log('What this script does:')
+  logger.log('  1. Clears all build caches and checkpoints')
+  logger.log('  2. Rebuilds LIEF library from source')
+  logger.log('  3. Rebuilds binsuite tools (binject, binflate, binpress)')
+  logger.log('  4. Rebuilds node-smol binaries from source')
+  logger.log('')
+  logger.log('Environment variables set:')
+  logger.log('  SOCKET_BUILD_FORCE_REBUILD=1    - Force rebuild from source')
+  logger.log('  SOCKET_SKIP_PREBUILT=1          - Skip prebuilt downloads')
+  logger.log(
+    '  PREBUILT_NODE_DOWNLOAD_URL=""   - Disable node binary downloads',
+  )
   logger.log('')
 }
 

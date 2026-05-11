@@ -395,6 +395,38 @@ describe('release-workflow-guard hook', () => {
       }
     })
 
+    it('allows when inline `cd <path> &&` prefix points at a sibling clone with the workflow', async () => {
+      // Setup: two siblings under a parent. CLAUDE_PROJECT_DIR points
+      // at A (no workflow). The command is `cd ../B && gh workflow
+      // run ...` — A's hook process never has cwd=B (the chained
+      // shell does, but the hook runs before that), so resolution
+      // must parse the inline cd to find B.
+      const parentDir = await fs.mkdtemp(path.join(tmpdir(), 'rwg-cd-'))
+      const projectA = path.join(parentDir, 'project-a')
+      const projectB = path.join(parentDir, 'project-b')
+      await fs.mkdir(projectA, { recursive: true })
+      await fs.mkdir(path.join(projectB, '.github', 'workflows'), {
+        recursive: true,
+      })
+      await fs.writeFile(
+        path.join(projectB, '.github', 'workflows', 'build.yml'),
+        WF_WITH_DRY_RUN,
+        'utf8',
+      )
+      try {
+        // The cd path is relative to A (the projectDir resolver root).
+        const r = await runHook(
+          'cd ../project-b && gh workflow run build.yml -f dry-run=true',
+          'Bash',
+          { CLAUDE_PROJECT_DIR: projectA },
+        )
+        assert.equal(r.code, 0, `Expected 0 but got ${r.code}: ${r.stderr}`)
+        assert.match(r.stderr, /ALLOWED/)
+      } finally {
+        await safeDelete(parentDir, { force: true })
+      }
+    })
+
     it('allows when cwd holds the workflow but CLAUDE_PROJECT_DIR points elsewhere', async () => {
       // Setup: two sibling projects under a parent. CLAUDE_PROJECT_DIR
       // is set to project A (no workflow), but the child is spawned

@@ -196,7 +196,7 @@ export async function runLintOnAll(options: LintOptions = {}): Promise<number> {
         'exec',
         'oxlint',
         '-c',
-      
+        '.config/oxlintrc.json',
         '--import-plugin',
         '--node-plugin',
         '--vitest-plugin',
@@ -262,7 +262,7 @@ export async function runLintOnFiles(
         'exec',
         'oxlint',
         '-c',
-      
+        '.config/oxlintrc.json',
         '--import-plugin',
         '--node-plugin',
         '--vitest-plugin',

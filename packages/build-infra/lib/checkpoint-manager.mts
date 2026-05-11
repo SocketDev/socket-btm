@@ -109,6 +109,32 @@ export async function cleanCheckpoint(buildDir, packageName) {
 }
 
 /**
+ * Build the underscore-joined checkpoint metadata string from the
+ * standard segment list. Single source of truth for both the write
+ * side (createCheckpoint) and read side (shouldRun) — the two halves
+ * cannot drift the segment order or set if they both call this.
+ */
+export function composeCheckpointMetadata(segments: {
+  platform: string | undefined
+  version: string | undefined
+  env: string | undefined
+  buildMode: string | undefined
+  lief: string | undefined
+  configureFlags: string | undefined
+}): string {
+  return [
+    segments.platform,
+    segments.version,
+    segments.env,
+    segments.buildMode,
+    segments.lief,
+    segments.configureFlags,
+  ]
+    .filter(Boolean)
+    .join('_')
+}
+
+/**
  * Compute the `env-<hash>` metadata segment of the checkpoint cache
  * key, or `undefined` if every relevant env var is unset. Single
  * source of truth — both `createCheckpoint` and `shouldRun` call this.
@@ -480,7 +506,7 @@ export async function createCheckpoint(
       const lockPath = `${tarballPath}.lock`
       let lockFile
       try {
-        lockFile = await fs.open(lockPath, 'w')
+        lockFile = await fs.open(lockPath, 'a')
         // Acquire exclusive lock (no concurrent readers or writers)
         // On Windows, flock isn't available, so we skip locking
         if (typeof lockFile.lock === 'function') {
@@ -668,16 +694,14 @@ export async function createCheckpoint(
       ? `config-${crypto.createHash('sha256').update(data.configureFlags).digest('hex').slice(0, 8)}`
       : undefined
 
-    const fullMetadata = [
-      platformMetadata,
-      versionMetadata,
-      envMetadata,
-      buildModeMetadata,
-      liefMetadata,
-      configureFlagsMetadata,
-    ]
-      .filter(Boolean)
-      .join('_')
+    const fullMetadata = composeCheckpointMetadata({
+      platform: platformMetadata,
+      version: versionMetadata,
+      env: envMetadata,
+      buildMode: buildModeMetadata,
+      lief: liefMetadata,
+      configureFlags: configureFlagsMetadata,
+    })
 
     // Validate we have metadata for non-platform-agnostic checkpoints
     if (!isPlatformAgnostic && !fullMetadata) {
@@ -740,13 +764,11 @@ export async function createCheckpoint(
   // may not be available for recovery. If a build needs to restart from an earlier stage
   // (e.g., source-copied), it will need to rebuild from scratch rather than restoring
   // from checkpoint. This is intentional to optimize CI storage usage.
-  const isCI = Boolean(
-    getCI() ||
-    process.env['GITHUB_ACTIONS'] ||
-    process.env['GITLAB_CI'] ||
-    process.env['CIRCLECI'] ||
-    process.env['TRAVIS'],
-  )
+  // @socketsecurity/lib's getCI() already checks GITHUB_ACTIONS,
+  // GITLAB_CI, CIRCLECI, TRAVIS, and ~25 other CI env vars — keep
+  // the fleet's single source of truth so cleanup semantics stay
+  // consistent with the rest of the build pipeline.
+  const isCI = Boolean(getCI())
 
   if (isCI && checkpointChain && data.artifactPath) {
     try {
@@ -791,7 +813,7 @@ export async function createCheckpoint(
               let lockFile
               let canDelete = false
               try {
-                lockFile = await fs.open(lockPath, 'w')
+                lockFile = await fs.open(lockPath, 'a')
                 // Try to acquire exclusive lock
                 if (typeof lockFile.lock === 'function') {
                   canDelete = await lockFile.tryLock('ex')
@@ -1206,7 +1228,7 @@ export async function restoreCheckpoint(
 
           const lockPath = `${tarballPath}.lock`
           // eslint-disable-next-line no-await-in-loop
-          lockFile = await fs.open(lockPath, 'w')
+          lockFile = await fs.open(lockPath, 'a')
 
           // Try to acquire shared lock (multiple readers allowed)
           // On Windows, flock isn't available, so we skip locking
@@ -1516,16 +1538,14 @@ export async function shouldRun(
         ? `config-${crypto.createHash('sha256').update(options.configureFlags).digest('hex').slice(0, 8)}`
         : undefined
 
-      const fullMetadata = [
-        platformMetadata,
-        versionMetadata,
-        envMetadata,
-        buildModeMetadata,
-        liefMetadata,
-        configureFlagsMetadata,
-      ]
-        .filter(Boolean)
-        .join('_')
+      const fullMetadata = composeCheckpointMetadata({
+        platform: platformMetadata,
+        version: versionMetadata,
+        env: envMetadata,
+        buildMode: buildModeMetadata,
+        lief: liefMetadata,
+        configureFlags: configureFlagsMetadata,
+      })
       currentCacheHash = computeSourceHash(
         sourcePaths,
         fullMetadata || platformMetadata,

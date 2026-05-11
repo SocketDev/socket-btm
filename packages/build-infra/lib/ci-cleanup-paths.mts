@@ -74,7 +74,20 @@ export function getCleanupPaths(platform, homeDir) {
     }
 
     case 'darwin': {
-      const home = homeDir || process.env.HOME || '/Users/runner'
+      // ID1 (quality scan): fail loud if no home directory is
+      // available. The previous '/Users/runner' fallback worked on
+      // GitHub-hosted runners but silently produced bogus cleanup
+      // paths on self-hosted runners, developer laptops, and non-Mac
+      // CI runs — the cleanup step would `rm -rf` against
+      // non-existent paths (or worse, a coincidentally-existing one).
+      const home = homeDir || process.env.HOME
+      if (!home) {
+        throw new Error(
+          'getCleanupPaths: homeDir argument or $HOME env var ' +
+            'required for darwin cleanup (refusing to fall back to ' +
+            "'/Users/runner' — that path is GHA-runner-specific).",
+        )
+      }
       return [
         {
           desc: 'Android SDK (~10GB)',

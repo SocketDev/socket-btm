@@ -103,7 +103,9 @@ export async function applySocketPatches(options) {
   if (socketPatches.length === 0) {
     throw new Error(
       `No Socket patches found for Node.js ${nodeVersion}.\n\n` +
-        `Expected patches in: ${patchesReleaseDir}`,
+        `Expected patches in:\n` +
+        `  - ${patchesReleaseDir} (static)\n` +
+        `  - ${buildPatchesDir} (dynamic)`,
     )
   }
 
@@ -184,7 +186,7 @@ export function findSocketPatches(patchesReleaseDir, buildPatchesDir) {
   // Get static patches from patches/ directory
   if (existsSync(patchesReleaseDir)) {
     const staticPatches = readdirSync(patchesReleaseDir)
-      .filter(f => f.endsWith('.patch') && !f.endsWith('.template.patch'))
+      .filter(f => f.endsWith('.patch'))
       .map(f => ({
         name: f,
         path: path.join(patchesReleaseDir, f),

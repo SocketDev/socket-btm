@@ -1,3 +1,4 @@
+/* oxlint-disable socket/no-console-prefer-logger -- this script runs BEFORE `pnpm install`; node_modules isn't there yet, so the logger from @socketsecurity/lib can't be imported. */
 /**
  * Get tool version from external-tools.json.
  *
@@ -31,8 +32,13 @@ const EXTERNAL_TOOLS_PATH = path.join(packageRoot, 'external-tools.json')
 const toolName = args[0]
 const versionKey = args[1] || 'version'
 
+// This script runs BEFORE `pnpm install` (it reads external-tools.json
+// to learn the pnpm + node versions). Importing @socketsecurity/lib's
+// logger would create a chicken-and-egg dependency — node_modules
+// doesn't exist yet. Use console directly; the markers exempt the
+// logger-guard PreToolUse hook from flagging the writes.
 if (!toolName) {
-  logger.fail(
+  console.error( // socket-hook: allow logger
     'Usage: get-tool-version.mts <tool-name> [version-key] [--package-root <path>]',
   )
   process.exitCode = 1
@@ -41,20 +47,20 @@ if (!toolName) {
     const data = JSON.parse(readFileSync(EXTERNAL_TOOLS_PATH, 'utf8'))
     const tool = data.tools?.[toolName]
     if (!tool) {
-      logger.fail(`Tool '${toolName}' not found in external-tools.json`)
-      logger.fail(`Available: ${Object.keys(data.tools || {}).join(', ')}`)
+      console.error(`Tool '${toolName}' not found in external-tools.json`) // socket-hook: allow logger
+      console.error(`Available: ${Object.keys(data.tools || {}).join(', ')}`) // socket-hook: allow logger
       process.exitCode = 1
     } else {
       const value = tool[versionKey] ?? tool.version
       if (!value) {
-        logger.fail(`No '${versionKey}' found for tool '${toolName}'`)
+        console.error(`No '${versionKey}' found for tool '${toolName}'`) // socket-hook: allow logger
         process.exitCode = 1
       } else {
-        logger.log(value)
+        console.log(value) // socket-hook: allow logger
       }
     }
   } catch (e) {
-    logger.fail(e.message)
+    console.error(e.message) // socket-hook: allow logger
     process.exitCode = 1
   }
 }

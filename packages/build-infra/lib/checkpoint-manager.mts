@@ -43,20 +43,86 @@ import { extractTarball } from './tarball-utils.mts'
 const logger = getDefaultLogger()
 
 /**
- * Check if a checkpoint exists.
+ * Environment variables that participate in the build-checkpoint cache
+ * key. Touched by both `createCheckpoint` (write side) and `shouldRun`
+ * (read side). The two MUST stay byte-identical or the cache silently
+ * desyncs — writes hash one value, reads hash another, every build is
+ * a miss-or-stale. Single export so both sites read from one source.
+ *
+ * Includes:
+ *   - Compiler / linker flag envs (CFLAGS, CXXFLAGS, LDFLAGS): affect
+ *     the produced binary directly.
+ *   - Compiler / toolchain selectors (CC, CXX, AR, RANLIB): switching
+ *     CC=clang → CC=gcc produces a different binary; the cache must
+ *     reflect this.
+ *   - SDK / target selectors (SDKROOT, MACOSX_DEPLOYMENT_TARGET,
+ *     DEVELOPER_DIR): macOS toolchain root, deployment target.
+ *   - pkg-config / linker search (PKG_CONFIG_PATH, LD_LIBRARY_PATH):
+ *     change which libraries the build picks up.
+ *   - Runtime knobs that change build observers (NODE_OPTIONS,
+ *     UV_THREADPOOL_SIZE, V8_OPTIONS, MAKEFLAGS): can affect
+ *     deterministic-build output and parallelism choices.
+ *
+ * Keep this list sorted by category, not alphabetically — readers can
+ * scan it faster when related vars cluster.
+ */
+export const BUILD_CACHE_ENV_VARS = [
+  // Build-output-affecting flags.
+  'CFLAGS',
+  'CXXFLAGS',
+  'LDFLAGS',
+  'MAKEFLAGS',
+  // Toolchain selectors.
+  'CC',
+  'CXX',
+  'AR',
+  'RANLIB',
+  // SDK / target selectors.
+  'SDKROOT',
+  'MACOSX_DEPLOYMENT_TARGET',
+  'DEVELOPER_DIR',
+  // pkg-config / linker search.
+  'PKG_CONFIG_PATH',
+  'LD_LIBRARY_PATH',
+  // Runtime knobs.
+  'NODE_OPTIONS',
+  'UV_THREADPOOL_SIZE',
+  'V8_OPTIONS',
+] as const
+
+/**
+ * Clean all workflow checkpoints for a package.
  *
  * @param {string} buildDir - Build directory path
  * @param {string} packageName - Package name
- * @param {string} checkpointName - Checkpoint name
- * @returns {boolean}
+ * @returns {Promise<void>}
  */
-export function hasCheckpoint(buildDir, packageName, checkpointName) {
+export async function cleanCheckpoint(buildDir, packageName) {
+  logger.substep(`Cleaning checkpoints for ${packageName}`)
+
   const checkpointDir = packageName
     ? path.join(buildDir, 'checkpoints', packageName)
     : path.join(buildDir, 'checkpoints')
-  const checkpointFile = path.join(checkpointDir, `${checkpointName}.json`)
 
-  return existsSync(checkpointFile)
+  await safeDelete(checkpointDir)
+  logger.info('Checkpoints cleaned')
+}
+
+/**
+ * Compute the `env-<hash>` metadata segment of the checkpoint cache
+ * key, or `undefined` if every relevant env var is unset. Single
+ * source of truth — both `createCheckpoint` and `shouldRun` call this.
+ */
+export function computeBuildCacheEnvMetadata(): string | undefined {
+  const values = BUILD_CACHE_ENV_VARS.map(
+    name => process.env[name] ?? 'unset',
+  )
+  if (!values.some(v => v !== 'unset')) {
+    return undefined
+  }
+  return `env-${values
+    .map(v => crypto.createHash('sha256').update(v).digest('hex').slice(0, 8))
+    .join('-')}`
 }
 
 /**
@@ -180,7 +246,7 @@ export async function createCheckpoint(
         '  }, options)\n' +
         '\n' +
         'You passed:\n' +
-        '  createCheckpoint(buildDir, checkpointName, options) ❌ Missing callback!\n' +
+        '  createCheckpoint(buildDir, checkpointName, options) Missing callback!\n' +
         `${'='.repeat(70)}\n`,
     )
   }
@@ -250,6 +316,8 @@ export async function createCheckpoint(
     const tarDir = path.dirname(artifactPath)
     const tarBase = path.basename(artifactPath)
 
+    // Need stat for the isDirectory() metadata to decide directory-vs-file archiving.
+    // oxlint-disable-next-line socket/prefer-exists-sync
     const stats = await fs.stat(artifactPath)
     const isDir = stats.isDirectory()
 
@@ -350,7 +418,9 @@ export async function createCheckpoint(
         }
       }
 
-      // Validate temp tarball before rename
+      // Validate temp tarball before rename — need stat for size metadata
+      // to detect empty (0-byte) or oversized output from a failed tar run.
+      // oxlint-disable-next-line socket/prefer-exists-sync
       const tempStats = await fs.stat(tempTarballPath)
       if (tempStats.size === 0) {
         rmSync(tempTarballPath, { force: true })
@@ -423,6 +493,9 @@ export async function createCheckpoint(
         if (e?.code === 'EEXIST' || e?.code === 'EPERM') {
           // Verify existing checkpoint is complete before giving up
           try {
+            // Need stat for size metadata to distinguish a complete checkpoint
+            // (size > 0, keep it) from an incomplete one (0 bytes, retry rename).
+            // oxlint-disable-next-line socket/prefer-exists-sync
             const existingStats = await fs.stat(tarballPath)
             if (existingStats.size > 0) {
               logger.warn(
@@ -479,11 +552,11 @@ export async function createCheckpoint(
         `Failed to create checkpoint tarball: ${checkpointName}.tar.gz`,
         '',
         'Common causes:',
-        `  ${sourceExists ? '✓' : '✗'} Source artifact exists`,
-        `  ${workingDirExists ? '✓' : '✗'} Working directory exists`,
-        '  ✗ Insufficient disk space',
-        '  ✗ Permission denied writing tarball',
-        '  ✗ Invalid tar command or arguments',
+        `  - Source artifact exists: ${sourceExists ? 'yes' : 'no'}`,
+        `  - Working directory exists: ${workingDirExists ? 'yes' : 'no'}`,
+        '  - Insufficient disk space',
+        '  - Permission denied writing tarball',
+        '  - Invalid tar command or arguments',
         '',
         'Troubleshooting:',
         `  1. Source: ${artifactPath}`,
@@ -498,6 +571,8 @@ export async function createCheckpoint(
       throw err
     }
 
+    // Need stat for size metadata to report the human-readable tarball size.
+    // oxlint-disable-next-line socket/prefer-exists-sync
     const tarStats = await fs.stat(tarballPath)
     const sizeMB = (tarStats.size / 1024 / 1024).toFixed(1)
     logger.substep(`Saved ${checkpointName}.tar.gz (${sizeMB}MB)`)
@@ -552,25 +627,11 @@ export async function createCheckpoint(
       ? `node-${data.nodeVersion}`
       : undefined
 
-    // Include environment variables that affect builds in cache key
-    // Use ?? so empty strings are preserved (only null/undefined become 'unset')
-    const envVars = [
-      process.env.NODE_OPTIONS ?? 'unset',
-      process.env.UV_THREADPOOL_SIZE ?? 'unset',
-      process.env.V8_OPTIONS ?? 'unset',
-      process.env.MAKEFLAGS ?? 'unset',
-      process.env.CFLAGS ?? 'unset',
-      process.env.CXXFLAGS ?? 'unset',
-      process.env.LDFLAGS ?? 'unset',
-    ]
-
-    const envMetadata = envVars.some(v => v !== 'unset')
-      ? `env-${envVars
-          .map(v =>
-            crypto.createHash('sha256').update(v).digest('hex').slice(0, 8),
-          )
-          .join('-')}`
-      : undefined
+    // Include build-affecting env vars in cache key. Single source of
+    // truth — see BUILD_CACHE_ENV_VARS / computeBuildCacheEnvMetadata
+    // above. The read side in shouldRun() calls the same helper so
+    // the two halves can't drift.
+    const envMetadata = computeBuildCacheEnvMetadata()
 
     // Include build configuration that affects binary output
     // Validate buildMode to prevent cache poisoning
@@ -710,7 +771,10 @@ export async function createCheckpoint(
 
           if (existsSync(previousTarball)) {
             // Check if checkpoint is valid before deciding cleanup
-            // Invalid checkpoints should be deleted regardless of age
+            // Invalid checkpoints should be deleted regardless of age.
+            // Need stat for size + mtimeMs metadata: size validates the
+            // gzip header/footer envelope; mtimeMs drives the cleanup grace period.
+            // oxlint-disable-next-line socket/prefer-exists-sync
             const stats = await fs.stat(previousTarball)
             // Too small to be valid gzip (header 10 bytes + footer 8 bytes = 18 minimum)
             const isInvalidCheckpoint = stats.size === 0 || stats.size < 18
@@ -785,6 +849,27 @@ export async function createCheckpoint(
 }
 
 /**
+ * Get current cache hash for source files.
+ *
+ * @param {string[]} sourcePaths - Source file paths to hash
+ * @returns {string} SHA256 hash (hex)
+ */
+export function getCacheHash(sourcePaths) {
+  return computeSourceHash(sourcePaths)
+}
+
+/**
+ * Get cache validation hash file path.
+ * Single source of truth for cache hash filename.
+ *
+ * @param {string} cacheDir - Cache directory path (e.g., 'build/dev/<platform-arch>/.cache')
+ * @returns {string} Cache hash file path
+ */
+export function getCacheHashFile(cacheDir) {
+  return path.join(cacheDir, 'cache-validation.hash')
+}
+
+/**
  * Get checkpoint data.
  *
  * @param {string} buildDir - Build directory path
@@ -816,6 +901,87 @@ export async function getCheckpointData(buildDir, packageName, checkpointName) {
     }
     throw e
   }
+}
+
+/**
+ * Check if a checkpoint exists.
+ *
+ * @param {string} buildDir - Build directory path
+ * @param {string} packageName - Package name
+ * @param {string} checkpointName - Checkpoint name
+ * @returns {boolean}
+ */
+export function hasCheckpoint(buildDir, packageName, checkpointName) {
+  const checkpointDir = packageName
+    ? path.join(buildDir, 'checkpoints', packageName)
+    : path.join(buildDir, 'checkpoints')
+  const checkpointFile = path.join(checkpointDir, `${checkpointName}.json`)
+
+  return existsSync(checkpointFile)
+}
+
+/**
+ * List all checkpoints for a package.
+ *
+ * @param {string} buildDir - Build directory path
+ * @param {string} packageName - Package name
+ * @returns {Promise<string[]>} Array of checkpoint names
+ */
+export async function listCheckpoints(buildDir, packageName) {
+  const checkpointDir = packageName
+    ? path.join(buildDir, 'checkpoints', packageName)
+    : path.join(buildDir, 'checkpoints')
+
+  try {
+    const files = await fs.readdir(checkpointDir)
+    return files
+      .filter(file => file.endsWith('.json'))
+      .map(file => file.replace('.json', ''))
+      .toSorted()
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Check if build cache is valid based on source file hashes.
+ *
+ * @param {string} cacheDir - Cache directory path
+ * @param {string[]} sourcePaths - Source file paths to validate
+ * @returns {Promise<boolean>} True if cache needs rebuild, false if valid
+ */
+export async function needsCacheRebuild(cacheDir, sourcePaths) {
+  const hashFilePath = getCacheHashFile(cacheDir)
+  return await shouldExtract({
+    outputPath: hashFilePath,
+    sourcePaths,
+  })
+}
+
+/**
+ * Clean a specific checkpoint.
+ *
+ * @param {string} buildDir - Build directory path
+ * @param {string} packageName - Package name
+ * @param {string} checkpointName - Checkpoint name
+ * @returns {Promise<void>}
+ */
+export async function removeCheckpoint(buildDir, packageName, checkpointName) {
+  const checkpointDir = packageName
+    ? path.join(buildDir, 'checkpoints', packageName)
+    : path.join(buildDir, 'checkpoints')
+  const checkpointFile = path.join(checkpointDir, `${checkpointName}.json`)
+  // Also remove the companion tarball and its lock file so a later run
+  // doesn't find a stale .tar.gz / .lock sitting next to a missing .json
+  // (which would accumulate on dev machines across many clean-rebuild cycles).
+  const tarballFile = checkpointFile.replace('.json', '.tar.gz')
+  const lockFile = `${tarballFile}.lock`
+
+  await Promise.all([
+    safeDelete(checkpointFile),
+    safeDelete(tarballFile),
+    safeDelete(lockFile),
+  ])
 }
 
 /**
@@ -936,6 +1102,10 @@ export async function restoreCheckpoint(
     }
 
     try {
+      // Need stat for size + mtimeMs metadata: size drives empty/oversize/truncation
+      // checks; mtimeMs is captured as initialModTime to detect concurrent replacement
+      // during the retry loop below.
+      // oxlint-disable-next-line socket/prefer-exists-sync
       const stats = await fs.stat(tarballPath)
       const initialModTime = stats.mtimeMs
       const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
@@ -1045,8 +1215,12 @@ export async function restoreCheckpoint(
             await lockFile.lock('sh')
           }
 
-          // Re-validate checkpoint exists before extraction (catches TOCTOU deletion)
+          // Re-validate checkpoint exists before extraction (catches TOCTOU
+          // deletion). Need stat for size + mtimeMs metadata: size detects an
+          // emptied file mid-restore; mtimeMs delta detects replacement by a
+          // concurrent build.
           // eslint-disable-next-line no-await-in-loop
+          // oxlint-disable-next-line socket/prefer-exists-sync
           const preExtractStats = await fs.stat(tarballPath)
           if (preExtractStats.size === 0) {
             throw new Error('Checkpoint file became empty before extraction')
@@ -1168,9 +1342,12 @@ export async function restoreCheckpoint(
         throw new Error(`Checkpoint extraction failed: ${extractError.message}`)
       }
 
-      // Verify extraction succeeded with single stat() call (avoid TOCTOU race)
+      // Verify extraction succeeded with a single stat() call (avoid TOCTOU race).
+      // Need stat for isFile() + size metadata to confirm the extracted artifact
+      // is non-empty for file artifacts.
       let extractedStats
       try {
+        // oxlint-disable-next-line socket/prefer-exists-sync
         extractedStats = await fs.stat(targetPath)
       } catch (e) {
         if (e.code === 'ENOENT') {
@@ -1205,73 +1382,6 @@ export async function restoreCheckpoint(
   }
 
   return true
-}
-
-/**
- * Clean all workflow checkpoints for a package.
- *
- * @param {string} buildDir - Build directory path
- * @param {string} packageName - Package name
- * @returns {Promise<void>}
- */
-export async function cleanCheckpoint(buildDir, packageName) {
-  logger.substep(`Cleaning checkpoints for ${packageName}`)
-
-  const checkpointDir = packageName
-    ? path.join(buildDir, 'checkpoints', packageName)
-    : path.join(buildDir, 'checkpoints')
-
-  await safeDelete(checkpointDir)
-  logger.info('Checkpoints cleaned')
-}
-
-/**
- * Clean a specific checkpoint.
- *
- * @param {string} buildDir - Build directory path
- * @param {string} packageName - Package name
- * @param {string} checkpointName - Checkpoint name
- * @returns {Promise<void>}
- */
-export async function removeCheckpoint(buildDir, packageName, checkpointName) {
-  const checkpointDir = packageName
-    ? path.join(buildDir, 'checkpoints', packageName)
-    : path.join(buildDir, 'checkpoints')
-  const checkpointFile = path.join(checkpointDir, `${checkpointName}.json`)
-  // Also remove the companion tarball and its lock file so a later run
-  // doesn't find a stale .tar.gz / .lock sitting next to a missing .json
-  // (which would accumulate on dev machines across many clean-rebuild cycles).
-  const tarballFile = checkpointFile.replace('.json', '.tar.gz')
-  const lockFile = `${tarballFile}.lock`
-
-  await Promise.all([
-    safeDelete(checkpointFile),
-    safeDelete(tarballFile),
-    safeDelete(lockFile),
-  ])
-}
-
-/**
- * List all checkpoints for a package.
- *
- * @param {string} buildDir - Build directory path
- * @param {string} packageName - Package name
- * @returns {Promise<string[]>} Array of checkpoint names
- */
-export async function listCheckpoints(buildDir, packageName) {
-  const checkpointDir = packageName
-    ? path.join(buildDir, 'checkpoints', packageName)
-    : path.join(buildDir, 'checkpoints')
-
-  try {
-    const files = await fs.readdir(checkpointDir)
-    return files
-      .filter(file => file.endsWith('.json'))
-      .map(file => file.replace('.json', ''))
-      .toSorted()
-  } catch {
-    return []
-  }
 }
 
 /**
@@ -1363,24 +1473,10 @@ export async function shouldRun(
         ? `node-${options.nodeVersion}`
         : undefined
 
-      // Include environment variables that affect builds in cache key (must match createCheckpoint logic)
-      const envVars = [
-        process.env.NODE_OPTIONS ?? 'unset',
-        process.env.UV_THREADPOOL_SIZE ?? 'unset',
-        process.env.V8_OPTIONS ?? 'unset',
-        process.env.MAKEFLAGS ?? 'unset',
-        process.env.CFLAGS ?? 'unset',
-        process.env.CXXFLAGS ?? 'unset',
-        process.env.LDFLAGS ?? 'unset',
-      ]
-
-      const envMetadata = envVars.some(v => v !== 'unset')
-        ? `env-${envVars
-            .map(v =>
-              crypto.createHash('sha256').update(v).digest('hex').slice(0, 8),
-            )
-            .join('-')}`
-        : undefined
+      // Include build-affecting env vars in cache key. Shared with
+      // the write side via computeBuildCacheEnvMetadata so the two
+      // can't drift.
+      const envMetadata = computeBuildCacheEnvMetadata()
 
       // Include build configuration that affects binary output (must match createCheckpoint logic)
       // Validate buildMode to prevent cache poisoning
@@ -1451,39 +1547,6 @@ export async function shouldRun(
 }
 
 /**
- * CACHE KEY MANAGEMENT
- *
- * Centralized cache key helpers for build source validation.
- * Provides single source of truth for cache file naming and validation.
- */
-
-/**
- * Get cache validation hash file path.
- * Single source of truth for cache hash filename.
- *
- * @param {string} cacheDir - Cache directory path (e.g., 'build/dev/<platform-arch>/.cache')
- * @returns {string} Cache hash file path
- */
-export function getCacheHashFile(cacheDir) {
-  return path.join(cacheDir, 'cache-validation.hash')
-}
-
-/**
- * Check if build cache is valid based on source file hashes.
- *
- * @param {string} cacheDir - Cache directory path
- * @param {string[]} sourcePaths - Source file paths to validate
- * @returns {Promise<boolean>} True if cache needs rebuild, false if valid
- */
-export async function needsCacheRebuild(cacheDir, sourcePaths) {
-  const hashFilePath = getCacheHashFile(cacheDir)
-  return await shouldExtract({
-    outputPath: hashFilePath,
-    sourcePaths,
-  })
-}
-
-/**
  * Write cache validation hash file.
  *
  * @param {string} cacheDir - Cache directory path
@@ -1514,14 +1577,4 @@ export async function writeCacheHash(cacheDir, sourcePaths) {
   }
 
   logger.info(`Cache hash: ${hashFilePath}`)
-}
-
-/**
- * Get current cache hash for source files.
- *
- * @param {string[]} sourcePaths - Source file paths to hash
- * @returns {string} SHA256 hash (hex)
- */
-export function getCacheHash(sourcePaths) {
-  return computeSourceHash(sourcePaths)
 }

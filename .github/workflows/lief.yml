@@ -317,7 +317,7 @@ jobs:
         # Cache-miss only: the cache-key uses `git ls-tree HEAD` so the
         # submodule does not need to be initialized to compute it. R9
         # unblocked this change by switching the SHA extraction.
-        if: (steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') || steps.restore-checkpoint.outputs.build-required == 'true' || inputs.force
+        if: (steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') || steps.restore-checkpoint.outputs.build-required == 'true' || inputs.force
         uses: ./.github/actions/init-submodules
         with:
           submodules: packages/lief-builder/upstream/lief
@@ -326,7 +326,7 @@ jobs:
         # Skip the CLI download on cache-hit — if the finalized checkpoint
         # is already in cache no Depot build runs. Saves ~5-10s per Linux
         # matrix entry on fully-cached runs.
-        if: matrix.os == 'linux' && (steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false' || steps.restore-checkpoint.outputs.build-required != 'false' || inputs.force)
+        if: matrix.os == 'linux' && (steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true' || steps.restore-checkpoint.outputs.build-required != 'false' || inputs.force)
         uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
         with:
           oidc: true
@@ -334,7 +334,7 @@ jobs:
       - name: Stage registry tool-checksums for Docker build context
         if: |
           matrix.os == 'linux' &&
-          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true')
         shell: bash
         run: |
@@ -349,7 +349,7 @@ jobs:
       - name: Build LIEF with Depot (Linux - offloads compute)
         if: |
           matrix.os == 'linux' &&
-          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true')
         uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0
         with:
@@ -368,7 +368,7 @@ jobs:
       - name: Verify Depot build output (Linux)
         if: |
           matrix.os == 'linux' &&
-          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true')
         shell: bash
         env:
@@ -395,7 +395,7 @@ jobs:
       - name: Setup build toolchain (macOS)
         if: |
           matrix.os == 'macos' &&
-          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true')
         shell: bash
         run: |
@@ -415,7 +415,7 @@ jobs:
       - name: Setup build toolchain (Windows x64)
         if: |
           matrix.os == 'windows' && !matrix.cross_compile &&
-          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true')
         shell: bash
         run: |
@@ -431,7 +431,7 @@ jobs:
       - name: Setup build toolchain (Windows ARM64 cross-compile)
         if: |
           matrix.os == 'windows' && matrix.cross_compile &&
-          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true')
         shell: bash
         run: |
@@ -447,14 +447,14 @@ jobs:
       - name: Install llvm-mingw (Windows ARM64 cross-compile)
         if: |
           matrix.os == 'windows' && matrix.cross_compile &&
-          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true')
         uses: ./.github/actions/install-llvm-mingw
 
       - name: Build LIEF native (macOS/Windows)
         if: |
           matrix.os != 'linux' &&
-          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          ((steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true')
         shell: bash
         env:
@@ -470,7 +470,7 @@ jobs:
       # wastes I/O across every matrix entry.
       - name: Debug build output structure
         if: |
-          (steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          (steps.lief-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true'
         shell: bash
         env:

@@ -272,7 +272,7 @@ jobs:
         # MUST run before Setup Depot CLI — setup-action installs the
         # `depot` binary under $AGENT_TOOLSDIRECTORY (hostedtoolcache),
         # so wiping that after setup would delete the CLI.
-        if: (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') || steps.restore-checkpoint.outputs.build-required == 'true'
+        if: (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') || steps.restore-checkpoint.outputs.build-required == 'true'
         shell: bash
         run: |
           echo "Disk space before cleanup:"
@@ -296,14 +296,14 @@ jobs:
           df -h
 
       - name: Setup Depot CLI
-        if: (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') || steps.restore-checkpoint.outputs.build-required == 'true'
+        if: (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') || steps.restore-checkpoint.outputs.build-required == 'true'
         uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
         with:
           oidc: true
 
       - name: Stage registry tool-checksums for Docker build context
         if: |
-          (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true'
         shell: bash
         run: |
@@ -317,7 +317,7 @@ jobs:
 
       - name: Build models with Depot (offloads compute)
         if: |
-          (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true'
         uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0
         with:
@@ -335,7 +335,7 @@ jobs:
 
       - name: Verify Depot build output
         if: |
-          (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true'
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
@@ -355,7 +355,7 @@ jobs:
 
       - name: Validate Depot checkpoints
         if: |
-          (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true'
         uses: ./.github/actions/validate-depot-checkpoints
         with:
@@ -367,7 +367,7 @@ jobs:
       # Skip on full cache-hit — files came from the restored checkpoint
       # tarball and were already integrity-checked by validate-cache.
       - name: Validate build output
-        if: (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') || steps.restore-checkpoint.outputs.build-required == 'true'
+        if: (steps.model-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') || steps.restore-checkpoint.outputs.build-required == 'true'
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
           MINILM_MODEL: ${{ steps.paths.outputs.minilm_model }}

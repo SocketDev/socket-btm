@@ -286,7 +286,7 @@ jobs:
           platform-arch: ${{ env.PLATFORM_ARCH }}
 
       - name: Setup Depot CLI
-        if: (steps.yoga-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') || steps.restore-checkpoint.outputs.build-required == 'true'
+        if: (steps.yoga-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') || steps.restore-checkpoint.outputs.build-required == 'true'
         uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
         with:
           oidc: true
@@ -294,14 +294,14 @@ jobs:
       - name: Initialize Yoga submodule
         # Cache-miss only: the cache-key uses `git ls-tree HEAD` so the
         # submodule does not need to be initialized to compute it.
-        if: (steps.yoga-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') || steps.restore-checkpoint.outputs.build-required == 'true'
+        if: (steps.yoga-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') || steps.restore-checkpoint.outputs.build-required == 'true'
         uses: ./.github/actions/init-submodules
         with:
           submodules: packages/yoga-layout-builder/upstream/yoga
 
       - name: Stage registry tool-checksums for Docker build context
         if: |
-          (steps.yoga-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          (steps.yoga-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true'
         shell: bash
         run: |
@@ -316,7 +316,7 @@ jobs:
       - name: Build Yoga Layout WASM with Depot (offloads compute)
         id: build
         if: |
-          (steps.yoga-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          (steps.yoga-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true'
         uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0
         with:
@@ -334,7 +334,7 @@ jobs:
 
       - name: Verify Depot build output
         if: |
-          (steps.yoga-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          (steps.yoga-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true'
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
@@ -354,7 +354,7 @@ jobs:
 
       - name: Validate Depot checkpoints
         if: |
-          (steps.yoga-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          (steps.yoga-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true'
         uses: ./.github/actions/validate-depot-checkpoints
         with:
@@ -367,7 +367,7 @@ jobs:
       # runs. Full cache-hit rounds have a known-good layout from the
       # restored checkpoint tarball — skip the full tree walk to save I/O.
       - name: Debug build output structure
-        if: (steps.yoga-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') || steps.restore-checkpoint.outputs.build-required == 'true'
+        if: (steps.yoga-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') || steps.restore-checkpoint.outputs.build-required == 'true'
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
         run: |
@@ -386,7 +386,7 @@ jobs:
       # Skip on full cache-hit — files came from the restored checkpoint
       # tarball and were already integrity-checked by validate-cache.
       - name: Validate build output
-        if: (steps.yoga-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') || steps.restore-checkpoint.outputs.build-required == 'true'
+        if: (steps.yoga-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') || steps.restore-checkpoint.outputs.build-required == 'true'
         env:
           FINAL_DIR: ${{ steps.paths.outputs.final_dir }}
         run: |

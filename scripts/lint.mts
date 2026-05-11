@@ -76,7 +76,7 @@ export function filterLintableFiles(files: string[]): string[] {
       return false
     }
 
-    // Filter out files excluded by .oxlintrc.json
+    // Filter out files excluded by .config/oxlintrc.json
     if (isExcludedByOxlint(file, oxlintExcludePatterns)) {
       return false
     }
@@ -140,11 +140,11 @@ export async function getFilesToLint(
 }
 
 /**
- * Get Oxlint exclude patterns from .oxlintrc.json.
+ * Get Oxlint exclude patterns from .config/oxlintrc.json.
  */
 export function getOxlintExcludePatterns(): string[] {
   try {
-    const oxlintConfigPath = path.join(process.cwd(), '.oxlintrc.json')
+    const oxlintConfigPath = path.join(process.cwd(), '.config', 'oxlintrc.json')
     if (!existsSync(oxlintConfigPath)) {
       return []
     }
@@ -152,7 +152,7 @@ export function getOxlintExcludePatterns(): string[] {
     const oxlintConfig = JSON.parse(readFileSync(oxlintConfigPath, 'utf8'))
     return oxlintConfig.ignorePatterns ?? []
   } catch {
-    // If we can't read .oxlintrc.json, return empty array
+    // If we can't read .config/oxlintrc.json, return empty array
     return []
   }
 }

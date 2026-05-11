@@ -288,7 +288,7 @@ jobs:
           platform-arch: ${{ env.PLATFORM_ARCH }}
 
       - name: Setup Depot CLI
-        if: (steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') || steps.restore-checkpoint.outputs.build-required == 'true'
+        if: (steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') || steps.restore-checkpoint.outputs.build-required == 'true'
         uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
         with:
           oidc: true
@@ -298,14 +298,14 @@ jobs:
         # submodule does not need to be initialized to compute it. Skipping
         # the ~30-60s clone on cache-hit is significant because onnxruntime
         # has nested submodules (abseil, protobuf, etc.).
-        if: (steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') || steps.restore-checkpoint.outputs.build-required == 'true'
+        if: (steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') || steps.restore-checkpoint.outputs.build-required == 'true'
         uses: ./.github/actions/init-submodules
         with:
           submodules: packages/onnxruntime-builder/upstream/onnxruntime
 
       - name: Stage registry tool-checksums for Docker build context
         if: |
-          (steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          (steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true'
         shell: bash
         run: |
@@ -320,7 +320,7 @@ jobs:
       - name: Build ONNX Runtime WASM with Depot (offloads compute)
         id: build
         if: |
-          (steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          (steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true'
         uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0
         with:
@@ -338,7 +338,7 @@ jobs:
 
       - name: Verify Depot build output
         if: |
-          (steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          (steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true'
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
@@ -358,7 +358,7 @@ jobs:
 
       - name: Validate Depot checkpoints
         if: |
-          (steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          (steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true'
         uses: ./.github/actions/validate-depot-checkpoints
         with:
@@ -371,7 +371,7 @@ jobs:
       # runs. Full cache-hit rounds have a known-good layout from the
       # restored checkpoint tarball — skip the full tree walk to save I/O.
       - name: Debug build output structure
-        if: (steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') || steps.restore-checkpoint.outputs.build-required == 'true'
+        if: (steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') || steps.restore-checkpoint.outputs.build-required == 'true'
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
         run: |
@@ -390,7 +390,7 @@ jobs:
       # Skip on full cache-hit — files came from the restored checkpoint
       # tarball and were already integrity-checked by validate-cache.
       - name: Validate build output
-        if: (steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') || steps.restore-checkpoint.outputs.build-required == 'true'
+        if: (steps.onnx-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') || steps.restore-checkpoint.outputs.build-required == 'true'
         env:
           WASM_FILE: ${{ steps.paths.outputs.wasm_file }}
           MJS_FILE: ${{ steps.paths.outputs.mjs_file }}

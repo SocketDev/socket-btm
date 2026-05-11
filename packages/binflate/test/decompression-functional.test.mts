@@ -1,5 +1,4 @@
 /* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
 
 /**
  * @fileoverview Binflate decompression functional tests
@@ -141,13 +140,13 @@ export async function hashFile(filePath) {
 
 beforeAll(async () => {
   if (!binflateExists) {
-    logger.warn(`⚠️  binflate not found at ${BINFLATE}`)
+    logger.warn(`binflate not found at ${BINFLATE}`)
     logger.warn('   Run: pnpm build in packages/binflate')
     return
   }
 
   if (!binpressExists) {
-    logger.warn(`⚠️  binpress not found at ${BINPRESS}`)
+    logger.warn(`binpress not found at ${BINPRESS}`)
     logger.warn('   Run: pnpm build in packages/binpress')
     logger.warn('   binpress is required to create compressed test data')
     return

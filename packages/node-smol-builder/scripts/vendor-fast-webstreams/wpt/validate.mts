@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+/* oxlint-disable socket/no-status-emoji -- WPT validator emits ANSI-colored status markers ("\x1b[32m✓\x1b[0m" etc.) in column-aligned table rows; logger.success() would lose the colorization required by the WPT result format. */
 
 /**
  * WPT (Web Platform Tests) validation for fast-webstreams integration

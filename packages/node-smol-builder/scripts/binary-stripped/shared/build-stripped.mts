@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+/* oxlint-disable socket/no-status-emoji -- emoji is wrapped in colors.green() decorator (composes color with marker) before being embedded in a multi-line summary string; logger.success() would drop the color. */
 
 /**
  * @fileoverview Stripped Binary Build Phase

@@ -1,5 +1,3 @@
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
-
 /**
  * @fileoverview Tests for checkpoint-manager utilities.
  */
@@ -711,7 +709,7 @@ describe('createCheckpoint signature validation', () => {
 
     // Report errors
     if (allErrors.length > 0) {
-      logger.fail('\n❌ Found createCheckpoint signature errors:\n')
+      logger.fail('\nFound createCheckpoint signature errors:\n')
       for (const error of allErrors) {
         logger.fail(`\n${error.file}:${error.line}`)
         logger.fail(`  Error: ${error.error}`)
@@ -720,7 +718,7 @@ describe('createCheckpoint signature validation', () => {
 
       expect(allErrors).toHaveLength(0)
     } else {
-      logger.log(`✓ All ${scriptFiles.length} files validated successfully`)
+      logger.success(`All ${scriptFiles.length} files validated successfully`)
     }
   })
 

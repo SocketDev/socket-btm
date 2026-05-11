@@ -1,4 +1,4 @@
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+/* oxlint-disable socket/no-status-emoji -- emoji is wrapped in colors.green() decorator before being embedded in multi-line build summary; logger.success() would drop the color. */
 
 /**
  * @fileoverview Release Binary Build Phase

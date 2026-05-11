@@ -1,6 +1,5 @@
 /* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
 /* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
 
 /**
  * @fileoverview Cross-tool repacking integration tests
@@ -104,7 +103,7 @@ beforeAll(async () => {
   allBinariesExist = binpressExists && binjectExists && nodeExists
 
   if (!allBinariesExist) {
-    logger.warn('⚠️  Missing required binaries:')
+    logger.warn('Missing required binaries:')
     if (!binpressExists) {
       logger.warn(`   - binpress: ${BINPRESS}`)
     }

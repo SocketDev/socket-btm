@@ -1,5 +1,4 @@
 /* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
 
 /**
  * @fileoverview Resource size limit tests for binject
@@ -101,7 +100,7 @@ export async function execCommand(command, args = [], options = {}) {
 beforeAll(async () => {
   binjectExists = existsSync(BINJECT)
   if (!binjectExists) {
-    logger.warn(`⚠️  binject not found at ${BINJECT}`)
+    logger.warn(`binject not found at ${BINJECT}`)
     return
   }
 

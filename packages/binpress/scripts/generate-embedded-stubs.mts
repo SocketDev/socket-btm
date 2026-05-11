@@ -1,6 +1,5 @@
 /* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
 /* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
 
 /**
  * @fileoverview Generate embedded stubs for binpress
@@ -133,8 +132,8 @@ export async function downloadStub(
     await fs.copyFile(LOCAL_STUB_PATH, stubOut)
 
     const stats = await fs.stat(stubOut)
-    logger.info(
-      `  ✓ ${platformName} stub (local, ${(stats.size / 1024).toFixed(1)}KB)`,
+    logger.success(
+      `${platformName} stub (local, ${(stats.size / 1024).toFixed(1)}KB)`,
     )
 
     return stubOut
@@ -192,8 +191,8 @@ export async function downloadStub(
     await fs.rename(extractedPath, stubOut)
 
     const stats = await fs.stat(stubOut)
-    logger.info(
-      `  ✓ ${platformName} stub (${(stats.size / 1024).toFixed(1)}KB)`,
+    logger.success(
+      `${platformName} stub (${(stats.size / 1024).toFixed(1)}KB)`,
     )
 
     // Remove tarball after extraction

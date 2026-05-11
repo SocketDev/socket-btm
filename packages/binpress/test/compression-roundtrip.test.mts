@@ -1,5 +1,4 @@
 /* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
 
 /**
  * @fileoverview Compression round-trip tests for binpress
@@ -154,7 +153,7 @@ describe.skipIf(!existsSync(BINPRESS))(
           ])
 
           if (compressResult.code !== 0) {
-            logger.fail('❌ Compression failed!')
+            logger.fail('Compression failed!')
             logger.fail('Exit code:', compressResult.code)
             logger.fail('Stdout:', compressResult.stdout)
             logger.fail('Stderr:', compressResult.stderr)

@@ -1,5 +1,3 @@
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
-
 /**
  * Signature Validation Tests
  *
@@ -175,7 +173,7 @@ export async function waitForFileReady(filePath, maxWaitMs = 10_000) {
       // eslint-disable-next-line no-await-in-loop
       const locks = await checkFileLocks(filePath)
       if (locks) {
-        logger.log(`  ⚠ File still has open handles: ${locks}`)
+        logger.warn(`File still has open handles: ${locks}`)
         // eslint-disable-next-line no-await-in-loop
         await sleep(1000)
         continue

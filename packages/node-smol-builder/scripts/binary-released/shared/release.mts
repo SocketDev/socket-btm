@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+/* oxlint-disable socket/no-status-emoji -- emoji is wrapped in colors.green() decorator before being embedded in multi-line release summary; logger.success() would drop the color. */
 /* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order. */
 /* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime); existsSync would lose information needed by callers. */
 

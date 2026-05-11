@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
 
 /**
  * Validates Dockerfile.build export patterns to prevent Depot nesting issues.
@@ -122,12 +121,12 @@ async function main(): Promise<void> {
     }
 
     if (totalIssues === 0) {
-      logger.success('✅ All Dockerfiles have correct export patterns!\n')
+      logger.success('All Dockerfiles have correct export patterns!\n')
       return
     }
 
     logger.fail(
-      `\n❌ Found ${totalIssues} issue(s) in ${filesWithIssues.length} file(s):\n`,
+      `\nFound ${totalIssues} issue(s) in ${filesWithIssues.length} file(s):\n`,
     )
 
     for (const { issues, path: filePath } of filesWithIssues) {

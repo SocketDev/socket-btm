@@ -1,5 +1,5 @@
 /* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+/* oxlint-disable socket/no-status-emoji -- emoji literals are embedded in test fixture JS source executed inside the SEA binary and asserted via toContain(); the runtime can't call logger.success() because it runs without our logger import. */
 
 /**
  * @fileoverview Integration tests for linux-x64 Docker build validation.

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+/* oxlint-disable socket/no-status-emoji -- script uses a local log(msg, color) helper that composes ANSI color with status markers; logger.success/fail would drop the explicit color control needed for the consistency-checker's multi-column report. */
 /* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order. */
 
 /**

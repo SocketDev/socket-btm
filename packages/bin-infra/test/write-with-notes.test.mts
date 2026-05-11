@@ -1,5 +1,3 @@
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
-
 /**
  * @fileoverview Tests for write_with_notes() function in elf_note_utils.hpp
  *
@@ -200,8 +198,8 @@ describe.skipIf(!existsSync(BINJECT_BIN) || process.platform === 'win32')(
         // If VirtAddr is 0, ALLOC flag must NOT be present
         if (virtAddr === '0000000000000000' || virtAddr === '00000000') {
           expect(flags).not.toContain('A')
-          logger.log(
-            `✓ Section ${sectionName}: VirtAddr=0, ALLOC flag correctly removed`,
+          logger.success(
+            `Section ${sectionName}: VirtAddr=0, ALLOC flag correctly removed`,
           )
         }
       }
@@ -221,7 +219,7 @@ describe.skipIf(!existsSync(BINJECT_BIN) || process.platform === 'win32')(
       if (result.code === 124) {
         logger.success('Binary started successfully (timed out, which is OK)')
       } else {
-        logger.log(`✓ Binary executed (exit code: ${result.code})`)
+        logger.success(`Binary executed (exit code: ${result.code})`)
       }
     }, 30_000)
   },

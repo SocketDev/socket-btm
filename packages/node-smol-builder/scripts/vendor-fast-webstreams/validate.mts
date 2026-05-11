@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+/* oxlint-disable socket/no-status-emoji -- vendored upstream validator; emits pass/fail markers via direct stdout writes (matches upstream WPT test reporter format) with no logger import. */
 
 /**
  * Validate fast-webstreams integration in built Node.js binary

@@ -1,4 +1,4 @@
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+/* oxlint-disable socket/no-status-emoji -- emoji are pushed into result.messages/result.errors arrays that callers may render anywhere (JSON, file, stderr); there is no single logger.success/fail call to migrate to. */
 
 /**
  * Build Environment Detection and Setup

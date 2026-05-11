@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+/* oxlint-disable socket/no-status-emoji -- emoji are column-aligned table cell markers ("✓ yes   "/"✗ NO    "), not status prefixes. */
 
 /**
  * @fileoverview Enumerate GLIBC_2.x symbol versions pulled in by the built node binary.

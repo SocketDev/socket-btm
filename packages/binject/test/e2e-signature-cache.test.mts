@@ -1,5 +1,4 @@
 /* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
 
 /**
  * E2E Tests for Signature Validation and Cache Management
@@ -597,8 +596,8 @@ describeOnMac('E2E Signature and Cache Tests', () => {
     // expect(v1Exists).toBe(false)
     // For now, we just document that both exist:
     if (v1Exists) {
-      logger.log(
-        `  ⚠ Note: Old cache still exists at ${cacheKeyV1} (cleanup not yet implemented)`,
+      logger.warn(
+        `Note: Old cache still exists at ${cacheKeyV1} (cleanup not yet implemented)`,
       )
     }
   }, 120_000)

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
 
 /**
  * @fileoverview Clean temporal-infra build artifacts.
@@ -24,5 +23,5 @@ const CLEAN_TARGETS = ['node_modules', 'coverage', 'dist']
 for (const target of CLEAN_TARGETS) {
   const fullPath = path.join(packageRoot, target)
   await safeDelete(fullPath, { force: true })
-  logger.log(`✓ removed ${target}/`)
+  logger.success(`removed ${target}/`)
 }

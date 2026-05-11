@@ -1,5 +1,3 @@
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
-
 /**
  * @fileoverview Extract and verify tests for binject with SMOL-compressed binaries
  *
@@ -93,19 +91,19 @@ beforeAll(async () => {
   binflateExists = existsSync(BINFLATE)
 
   if (!binjectExists) {
-    logger.warn(`⚠️  binject not found at ${BINJECT}`)
+    logger.warn(`binject not found at ${BINJECT}`)
     logger.warn('   Run: pnpm build in packages/binject')
     return
   }
 
   if (!binpressExists) {
-    logger.warn(`⚠️  binpress not found at ${BINPRESS}`)
+    logger.warn(`binpress not found at ${BINPRESS}`)
     logger.warn('   Run: pnpm build in packages/binpress')
     return
   }
 
   if (!binflateExists) {
-    logger.warn(`⚠️  binflate not found at ${BINFLATE}`)
+    logger.warn(`binflate not found at ${BINFLATE}`)
     logger.warn('   Run: pnpm build in packages/binflate')
     return
   }

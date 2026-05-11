@@ -1,4 +1,4 @@
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+/* oxlint-disable socket/no-status-emoji -- emoji are bullet markers in a multi-line troubleshooting message array (joined with \n) thrown as Error.message; there is no per-bullet logger.fail() call possible. */
 
 /**
  * WASM compilation phase for ONNX Runtime

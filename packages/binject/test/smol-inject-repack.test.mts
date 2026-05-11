@@ -1,5 +1,4 @@
 /* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
 
 /**
  * @fileoverview SMOL stub injection and repack workflow tests
@@ -125,15 +124,15 @@ export async function isSMOLStub(binaryPath) {
 
 // Warn if binaries are missing (tests will be skipped)
 if (!binjectExists) {
-  logger.warn(`⚠️  binject not found at ${BINJECT}`)
+  logger.warn(`binject not found at ${BINJECT}`)
   logger.warn('   Run: pnpm build in packages/binject')
 }
 if (!binpressExists) {
-  logger.warn(`⚠️  binpress not found at ${BINPRESS}`)
+  logger.warn(`binpress not found at ${BINPRESS}`)
   logger.warn('   Run: pnpm build in packages/binpress')
 }
 if (!binflateExists) {
-  logger.warn(`⚠️  binflate not found at ${BINFLATE}`)
+  logger.warn(`binflate not found at ${BINFLATE}`)
   logger.warn('   Run: pnpm build in packages/binflate')
 }
 

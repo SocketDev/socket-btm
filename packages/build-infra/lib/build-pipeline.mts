@@ -1,5 +1,3 @@
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
-
 /**
  * WASM build pipeline orchestrator.
  *
@@ -456,6 +454,7 @@ export async function runStage(stage, ctx, stageParams) {
   )
 
   if (!shouldProceed) {
+    // oxlint-disable-next-line socket/no-status-emoji -- substep is an indented line marker, not a top-level status; the leading "✓" complements the substep indent.
     logger.substep(`✓ ${stage.name} up-to-date (cached)`)
     return
   }

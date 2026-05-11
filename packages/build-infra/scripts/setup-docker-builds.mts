@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
 
 /**
  * Setup Docker builder images for local builds.
@@ -167,8 +166,11 @@ async function main() {
   logger.log('\n=== Summary ===\n')
 
   for (const [target, success] of Object.entries(results)) {
-    const status = success ? '\u2713' : '\u2717'
-    logger.log(`  ${status} ${target}`)
+    if (success) {
+      logger.success(target)
+    } else {
+      logger.fail(target)
+    }
   }
 
   logger.log('')

@@ -21,46 +21,6 @@ import { BINJECT_DIR, BIN_INFRA_DIR, BUILD_INFRA_DIR } from '../../paths.mts'
 const logger = getDefaultLogger()
 
 /**
- * Find all Socket patches for this build.
- *
- * @param {string} patchesReleaseDir - Static patches directory
- * @param {string} buildPatchesDir - Dynamic patches directory
- * @returns {Array} Array of patch objects
- */
-function findSocketPatches(patchesReleaseDir, buildPatchesDir) {
-  const patches = []
-
-  // Get static patches from patches/ directory
-  if (existsSync(patchesReleaseDir)) {
-    const staticPatches = readdirSync(patchesReleaseDir)
-      .filter(f => f.endsWith('.patch') && !f.endsWith('.template.patch'))
-      .map(f => ({
-        name: f,
-        path: path.join(patchesReleaseDir, f),
-        source: 'patches/',
-      }))
-    patches.push(...staticPatches)
-  }
-
-  // Get dynamic patches from build/patches/ directory
-  if (existsSync(buildPatchesDir)) {
-    const dynamicPatches = readdirSync(buildPatchesDir)
-      .filter(f => f.endsWith('.patch'))
-      .map(f => ({
-        name: f,
-        path: path.join(buildPatchesDir, f),
-        source: 'build/patches/',
-      }))
-    patches.push(...dynamicPatches)
-  }
-
-  // Sort by name for consistent ordering
-  patches.sort((a, b) => a.name.localeCompare(b.name))
-
-  return patches
-}
-
-/**
  * Apply Socket patches to Node.js source.
  *
  * @param {object} options - Patch options
@@ -108,8 +68,23 @@ export async function applySocketPatches(options) {
     }
   }
 
-  // Combine patches and source package files for cache key
-  const allSourcePaths = [...patchFilePaths, ...sourcePackageFiles]
+  // H7 (quality scan): include canonical upstream-Node files in the
+  // cache key so an upstream Node bump (different source tree under
+  // modeSourceDir, byte-identical patches) invalidates this stage.
+  // Without these, byte-identical patches against a different Node
+  // version short-circuit and we ship unpatched output.
+  const upstreamSentinelPaths = [
+    path.join(modeSourceDir, 'src', 'node.cc'),
+    path.join(modeSourceDir, 'src', 'node_main.cc'),
+  ].filter(p => existsSync(p))
+
+  // Combine patches, source package files, and upstream-source
+  // sentinels for cache key.
+  const allSourcePaths = [
+    ...patchFilePaths,
+    ...sourcePackageFiles,
+    ...upstreamSentinelPaths,
+  ]
 
   if (
     !(await shouldRun(
@@ -194,4 +169,44 @@ export async function applySocketPatches(options) {
     },
   )
   logger.log('')
+}
+
+/**
+ * Find all Socket patches for this build.
+ *
+ * @param {string} patchesReleaseDir - Static patches directory
+ * @param {string} buildPatchesDir - Dynamic patches directory
+ * @returns {Array} Array of patch objects
+ */
+export function findSocketPatches(patchesReleaseDir, buildPatchesDir) {
+  const patches = []
+
+  // Get static patches from patches/ directory
+  if (existsSync(patchesReleaseDir)) {
+    const staticPatches = readdirSync(patchesReleaseDir)
+      .filter(f => f.endsWith('.patch') && !f.endsWith('.template.patch'))
+      .map(f => ({
+        name: f,
+        path: path.join(patchesReleaseDir, f),
+        source: 'patches/',
+      }))
+    patches.push(...staticPatches)
+  }
+
+  // Get dynamic patches from build/patches/ directory
+  if (existsSync(buildPatchesDir)) {
+    const dynamicPatches = readdirSync(buildPatchesDir)
+      .filter(f => f.endsWith('.patch'))
+      .map(f => ({
+        name: f,
+        path: path.join(buildPatchesDir, f),
+        source: 'build/patches/',
+      }))
+    patches.push(...dynamicPatches)
+  }
+
+  // Sort by name for consistent ordering
+  patches.sort((a, b) => a.name.localeCompare(b.name))
+
+  return patches
 }

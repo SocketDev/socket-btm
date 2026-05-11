@@ -522,9 +522,13 @@ jobs:
           # makes .build-context/registry-tools.json — whose contents
           # are materialized per-run from SOCKET_TOOL_CHECKSUMS_FILE
           # — implicitly part of the cache key.
-          WORKFLOW_FILE="${GITHUB_WORKFLOW_REF%@*}"
-          WORKFLOW_FILE="${WORKFLOW_FILE#${GITHUB_REPOSITORY}/}"
-          SOCKET_REGISTRY_SHA=$(grep -ohE 'SocketDev/socket-registry/[^@]+@[0-9a-f]{40}' "$WORKFLOW_FILE" 2>/dev/null | head -1 | grep -oE '[0-9a-f]{40}$' || echo "")
+          # H8 (quality scan): GITHUB_WORKFLOW_REF points at the
+          # CALLER's workflow under workflow_call, not this file. The
+          # grep then misses every SocketDev/socket-registry pin and
+          # SOCKET_REGISTRY_SHA collapses to empty — a registry-SHA
+          # bump silently fails to invalidate the cache. Hardcode the
+          # path so the lookup is invariant under workflow_call.
+          SOCKET_REGISTRY_SHA=$(grep -ohE 'SocketDev/socket-registry/[^@]+@[0-9a-f]{40}' .github/workflows/node-smol.yml 2>/dev/null | head -1 | grep -oE '[0-9a-f]{40}$' || echo "")
 
           FINAL_HASH=$(echo "${COMMON_SCRIPTS}${FINAL_PATCHES}${FINAL_ADDITIONS}${FINAL_SCRIPTS}${SCRIPTS_TOP}${SCRIPTS_LIB}${VENDOR_FASTWS}${BUILD_INFRA_SRC}${BIN_INFRA_SRC}${BUILD_INFRA_LIB}${BIN_INFRA_LIB}${BUILD_INFRA_EXTERNAL_TOOLS}${BUILD_INFRA_SCRIPTS}${BINJECT_SRC}${BINPRESS_SRC}${BINFLATE_SRC}${DOCKERFILES}${GITHUB_SCRIPTS}${PNPM_LOCK_HASH}${ROOT_PACKAGE_JSON_HASH}${PNPM_WORKSPACE_HASH}${EXTERNAL_TOOLS_ROOT}${PACKAGE_JSON_ROOT}${NODE_SMOL_MAKE}${LIEF_MAKE}${LIEF_LIB_SCRIPTS}${BINJECT_MAKE}${BUILD_INFRA_MAKE}${BIN_INFRA_MAKE}${STUBS_MAKE}${LIEF_VERSION}${STUBS_VERSION}${USOCKETS_SHA}${UWEBSOCKETS_SHA}${LIBURING_SHA}${CURL_SHA}${MBEDTLS_SHA}${ZSTD_SHA}${LIBDEFLATE_SHA}${CJSON_SHA}${SOCKET_REGISTRY_SHA}" | $hash_cmd | cut -d' ' -f1)
 

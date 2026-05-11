@@ -128,6 +128,10 @@ vendor/acorn-wasm/*.wasm binary
 .claude/hooks/private-name-guard/README.md linguist-generated=true
 .claude/hooks/public-surface-reminder/README.md linguist-generated=true
 .claude/hooks/release-workflow-guard/README.md linguist-generated=true
+.claude/hooks/release-workflow-guard/index.mts linguist-generated=true
+.claude/hooks/release-workflow-guard/package.json linguist-generated=true
+.claude/hooks/release-workflow-guard/test/release-workflow-guard.test.mts linguist-generated=true
+.claude/hooks/release-workflow-guard/tsconfig.json linguist-generated=true
 .claude/hooks/setup-security-tools/README.md linguist-generated=true
 .claude/hooks/stale-process-sweeper/README.md linguist-generated=true
 .claude/hooks/stale-process-sweeper/index.mts linguist-generated=true

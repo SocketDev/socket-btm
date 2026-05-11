@@ -242,7 +242,7 @@ class Instant {
 
   // 1:1 from upstream instant.rs:420 / :431.
   diplomat::result<std::string, TemporalError>
-  to_ixdtf_string_with_provider(std::optional<TimeZone> /*zone*/,
+  to_ixdtf_string_with_provider(std::optional<TimeZone> zone,
                                  ToStringRoundingOptions options,
                                  const Provider& /*p*/) const {
     auto resolved =
@@ -252,13 +252,31 @@ class Instant {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(resolved.error()));
     }
-    // Upstream's path:
-    //   if Some(timezone): get_iso_datetime_for + offset minutes →
-    //                       with_minute_offset(..., DisplayOffset::Auto)
-    //   else: with_z(DisplayOffset::Auto) + UTC.get_iso_datetime_for
-    // Until the shim TimeZone surface gets a full ToInfra bridge for
-    // non-UTC zones in this code path, route the no-zone case 1:1 with
-    // upstream's else-branch.
+    // H2 (quality scan): Some(zone) branch needs offset resolution
+    // via get_offset_nanos_for + nanoseconds_to_formattable_offset_minutes.
+    // Until that lands, refuse rather than silently emit `Z`-suffixed
+    // output for a caller that asked for a specific zone.
+    if (zone.has_value()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "Instant.toString(timeZone) requires provider integration"});
+    }
+    // H1 (quality scan): upstream rounds the instant via round_instant
+    // BEFORE feeding GetIsoDateTimeFor. Without that, precision-truncation
+    // in formatting doesn't match round-then-format semantics — a
+    // `2026-05-08T12:34:56.999999999Z` rounded to seconds with
+    // halfExpand should emit `...:57`, not `...:56`. RoundInstant lands
+    // alongside the calendar/provider integration phase.
+    if (resolved.value().smallest_unit !=
+        ::node::socketsecurity::temporal::Unit::kNanosecond) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "Instant.toString rounding to non-nanosecond units requires "
+          "RoundInstant integration"});
+    }
+    // No-zone path: 1:1 with upstream's `with_z(DisplayOffset::Auto)`
+    // else-branch. Routes through UTC since the instant is already
+    // anchored at UTC.
     auto utc = ::node::socketsecurity::temporal::TimeZone::Utc();
     auto datetime = utc.GetIsoDateTimeFor(inner_);
     if (!datetime.ok()) {

@@ -188,7 +188,7 @@ class PlainDate {
   }
   uint8_t days_in_week() const { return 7; }
   uint8_t months_in_year() const { return 12; }
-  std::string month_code() const { return ""; }
+  std::string month_code() const { const uint8_t m = month(); return std::string("M") + (m < 10 ? "0" : "") + std::to_string(m); }
   std::string era() const { return ""; }
   std::optional<int32_t> era_year() const { return std::nullopt; }
   std::optional<int32_t> year_of_week() const { return std::nullopt; }

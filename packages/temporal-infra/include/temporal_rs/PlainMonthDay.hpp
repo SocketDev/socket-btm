@@ -137,7 +137,7 @@ class PlainMonthDay {
   Calendar calendar() const {
     return Calendar(::node::socketsecurity::temporal::Calendar::Iso());
   }
-  std::string month_code() const { return ""; }
+  std::string month_code() const { const uint8_t m = month(); return std::string("M") + (m < 10 ? "0" : "") + std::to_string(m); }
 
   // Conversion: PlainMonthDay + year -> PlainDate. Templated so the
   // PlainDate.hpp / PlainMonthDay.hpp include cycle stays one-way.

@@ -201,7 +201,7 @@ class ZonedDateTime {
                : false;
   }
   // Calendar-extension fields (non-ISO only). Stub: empty for now.
-  std::string month_code() const { return ""; }
+  std::string month_code() const { const uint8_t m = month(); return std::string("M") + (m < 10 ? "0" : "") + std::to_string(m); }
   std::string era() const { return ""; }
   std::optional<int32_t> era_year() const { return std::nullopt; }
   std::optional<uint8_t> week_of_year() const { return std::nullopt; }
@@ -328,20 +328,41 @@ class ZonedDateTime {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(resolved.error()));
     }
+    // C2/H4 (quality scan): IANA-zone offset requires
+    // get_offset_nanos_for(provider). Until the TimeZoneBackend hooks
+    // land we hard-fail rather than silently emitting `+00:00` for
+    // every IANA zone.
+    if (!inner_.time_zone.IsOffsetOnly()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "ZonedDateTime.toString for IANA zones requires provider "
+          "integration"});
+    }
+    // H3 (quality scan): upstream rounds the instant via round_instant
+    // BEFORE feeding GetIsoDateTimeFor; same shape as Instant H1.
+    if (resolved.value().smallest_unit !=
+        ::node::socketsecurity::temporal::Unit::kNanosecond) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "ZonedDateTime.toString rounding to non-nanosecond units "
+          "requires RoundInstant integration"});
+    }
     auto datetime = inner_.time_zone.GetIsoDateTimeFor(inner_.instant);
     if (!datetime.ok()) {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(datetime.error()));
     }
-    // Offset for the IXDTF string. Upstream uses get_offset_nanos_for;
-    // for offset-only zones this is just the stored offset. For IANA
-    // zones, the temporal-infra TimeZoneBackend hooks land in a later
-    // phase — until then, the offset reflected here is the offset
-    // implied by the IsoDateTime returned by GetIsoDateTimeFor.
-    const int64_t offset_ns =
-        inner_.time_zone.IsOffsetOnly()
-            ? inner_.time_zone.OffsetOrNull().Nanoseconds()
-            : 0;
+    // Offset-only zone: the stored offset IS the resolved offset.
+    const int64_t offset_ns = inner_.time_zone.OffsetOrNull().Nanoseconds();
+    // H4: refuse sub-minute offsets. IXDTF's WithMinuteOffset truncates
+    // seconds/nanoseconds silently; upstream's
+    // nanoseconds_to_formattable_offset_minutes returns an error.
+    constexpr int64_t kNsPerMinute = 60'000'000'000LL;
+    if (offset_ns % kNsPerMinute != 0) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "ZonedDateTime.toString offset is not minute-aligned"});
+    }
     const ::node::socketsecurity::temporal::Sign sign =
         offset_ns < 0
             ? ::node::socketsecurity::temporal::Sign::kNegative

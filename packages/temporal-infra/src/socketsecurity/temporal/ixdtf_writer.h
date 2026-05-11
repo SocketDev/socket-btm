@@ -92,11 +92,11 @@ struct FormattableUtcOffset {
 
 // ── FormattableTimeZone ───────────────────────────────────────────────
 // 1:1 port of `FormattableTimeZone<'a>`. Upstream borrows with a Rust
-// lifetime; the C++ port owns the string outright. Earlier this was
-// `std::string_view` to mirror upstream's surface, but a dangling-view
-// risk (same shape as the TemporalError bug fixed in 9aea3e3c) wasn't
-// worth the surface-mirror — every caller passes a string-by-value or
-// a `Calendar::Identifier()` literal anyway.
+// lifetime; the C++ port owns the string outright. Was a string_view
+// to mirror the upstream surface, but the field stores its argument
+// past the caller's expression — owning the bytes eliminates the
+// dangling-view footgun without any surface change at the builder
+// API (WithTimeZone still takes string_view).
 struct FormattableTimeZone {
   DisplayTimeZone show;
   std::string timezone;

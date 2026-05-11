@@ -13,8 +13,9 @@ import { promises as fs } from 'node:fs'
  *
  * The lock file is opened with mode `'a'` (append) — the file is
  * never written, but `'a'` creates the file if missing without
- * truncating an existing one. This is the contract checkpoint-manager
- * has relied on since M-4.
+ * truncating an existing one. Opening with `'w'` would clobber any
+ * stale lock from a previous run; the append-mode open is the
+ * inode-stable shape flock() expects.
  */
 
 type LockableHandle = Awaited<ReturnType<typeof fs.open>> & {
@@ -76,9 +77,13 @@ export async function withTryLock<T>(
   let acquired = false
   try {
     lockFile = (await fs.open(lockPath, 'a')) as LockableHandle
-    if (typeof lockFile.lock === 'function') {
-      acquired = await lockFile.tryLock!('ex')
+    if (typeof lockFile.tryLock === 'function') {
+      acquired = await lockFile.tryLock('ex')
     } else {
+      // Platform without non-blocking flock (Windows, or a Node build
+      // that ships `lock` but not `tryLock`). Treat as "no contention
+      // detectable" — the caller proceeds because there's nothing else
+      // that could be holding the lock.
       acquired = true
     }
     return await fn(acquired)

@@ -9,12 +9,18 @@
 // rationale (it's the ABI shape V8's js-temporal-objects.cc was
 // generated against; renaming would mean a ~459-line V8 patch).
 //
-// Phase 10a covers: try_new, from_epoch_milliseconds, from_utf8,
-// from_utf16, epoch_milliseconds, epoch_nanoseconds, equals,
-// compare, clone. Methods that depend on the unported V8/ICU
-// integration boundary (round, since, until, add, subtract,
-// to_ixdtf_string_with_provider, to_zoned_date_time_iso) return
-// TemporalError until Phase 10b activates them.
+// Activated: try_new, from_epoch_milliseconds, from_utf8, from_utf16,
+// epoch_milliseconds, epoch_nanoseconds, equals, compare, clone,
+// to_zoned_date_time_iso{,_with_provider}, to_ixdtf_string,
+// to_ixdtf_string_with_provider, add (templated), since_dur/until_dur
+// (templated).
+//
+// Still pending: round (rounding-tail wiring), since/until (the
+// non-templated V8-facing variants that need a Duration-arithmetic
+// pass + smallest_unit rounding), add/subtract on the V8-facing
+// non-templated paths. These return TemporalError::Range
+// "not yet implemented" so V8 surfaces a clean RangeError until the
+// Duration arithmetic phase lands.
 
 #ifndef TEMPORAL_RS_COMPAT_INSTANT_HPP_
 #define TEMPORAL_RS_COMPAT_INSTANT_HPP_
@@ -238,15 +244,33 @@ class Instant {
     return D::FromInfra(d);
   }
 
-  // V8-facing non-templated since/until. Stub.
+  // V8-facing non-templated since/until. Upstream's instant.rs:415
+  // routes through `diff_instant(DifferenceOperation, other, settings)`
+  // which resolves DifferenceSettings (largestUnit / smallestUnit /
+  // roundingMode / roundingIncrement) before computing the diff. The
+  // templated since_dur/until_dur above only handle the raw diff —
+  // they're sufficient for V8's internal call sites that pass
+  // default settings, but the public Temporal API exposes the full
+  // settings surface and we can't fake it.
+  //
+  // Returns Range so V8's smoke test surfaces a clean
+  // "Instant.until requires DifferenceSettings resolution
+  // (not yet implemented)" instead of silently producing the raw
+  // unrounded diff.
   diplomat::result<std::unique_ptr<Duration>, TemporalError>
   since(const Instant& /*other*/, DifferenceSettings /*settings*/) const {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{
+        ::temporal_rs::ErrorKind::Range,
+        "Instant.since requires DifferenceSettings resolution "
+        "(not yet implemented)"});
   }
 
   diplomat::result<std::unique_ptr<Duration>, TemporalError>
   until(const Instant& /*other*/, DifferenceSettings /*settings*/) const {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{
+        ::temporal_rs::ErrorKind::Range,
+        "Instant.until requires DifferenceSettings resolution "
+        "(not yet implemented)"});
   }
 
   // 1:1 from upstream instant.rs:420 / :431.

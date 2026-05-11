@@ -10,8 +10,9 @@
 // `std::optional<std::string>` — that assignment implicitly converts
 // to a view into V8's temporary, which is then used after the
 // statement completes. Replaced with `std::optional<std::string>` to
-// take ownership, eliminating the dangling-view risk (same shape as
-// the TemporalError fix in 9aea3e3c).
+// take ownership, eliminating the dangling-view risk that an
+// optional<string_view> field carries when assigned from an
+// optional<string> rvalue.
 
 #ifndef TEMPORAL_RS_COMPAT_PARTIALZONEDDATETIME_HPP_
 #define TEMPORAL_RS_COMPAT_PARTIALZONEDDATETIME_HPP_

@@ -132,7 +132,7 @@ Rules:
    referencing this section.
 3. **Never** put a cross-class call inside the class body — it'll compile in
    one TU and fail in another depending on which header the consumer included
-   first. This bit us twice (commits `8980706a`, `b9c5b244`).
+   first. This bit us twice before the rule landed.
 
 Pattern:
 

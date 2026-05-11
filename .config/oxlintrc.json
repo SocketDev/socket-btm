@@ -1,13 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
-  "plugins": [
-    "typescript",
-    "unicorn",
-    "import"
-  ],
-  "jsPlugins": [
-    "./oxlint-plugin/index.mts"
-  ],
+  "plugins": ["typescript", "unicorn", "import"],
+  "jsPlugins": ["./oxlint-plugin/index.mts"],
   "categories": {
     "correctness": "off",
     "suspicious": "off"
@@ -26,10 +20,7 @@
     "socket/prefer-undefined-over-null": "error",
     "socket/sort-set-args": "error",
     "socket/sort-source-methods": "error",
-    "eslint/curly": [
-      "error",
-      "all"
-    ],
+    "eslint/curly": ["error", "all"],
     "eslint/no-await-in-loop": "off",
     "eslint/no-console": "off",
     "eslint/no-control-regex": "off",
@@ -129,6 +120,8 @@
     "**/scripts/socket-wheelhouse-schema.mts",
     "**/scripts/update.mts",
     "**/scripts/validate-config-paths.mts",
+    "**/scripts/validate-esbuild-minify.mts",
+    "**/scripts/validate-file-size.mts",
     "#fleet-canonical-end"
   ]
 }

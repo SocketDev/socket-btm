@@ -10,7 +10,7 @@
  * tree. Importing would force a fragile peer-install setup just for
  * the test surface.
  *
- * The shape of these assertions follows socket-repo-template's
+ * The shape of these assertions follows socket-wheelhouse's
  * `validate-bundle-deps` / `validate-no-link-deps` style: read the
  * dist file, assert structural properties, fail on drift.
  *

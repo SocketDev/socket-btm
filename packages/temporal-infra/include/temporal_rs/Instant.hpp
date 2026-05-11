@@ -164,16 +164,22 @@ class Instant {
 
   // ── ZDT projection ─────────────────────────────────────────────
   //
-  // Trivial body (returns nullptr) so the inline definition only
-  // needs a forward declaration of ZonedDateTime. The full surface
-  // lands when the calendar/DST integration activates and we can
-  // restructure cross-class bodies into a dedicated header included
-  // only after both classes are complete.
+  // 1:1 from upstream instant.rs:412 `to_zoned_date_time_iso_with_provider`:
+  // construct a ZonedDateTime{this, time_zone, Calendar::ISO}. The
+  // upstream provider arg drives DST/calendar resolution at later
+  // calls (e.g. ZonedDateTime::to_plain_date_time) — at construction
+  // time it's unused. The non-provider variant below routes through
+  // this with a default-constructed Provider.
+  //
+  // Bodies are defined at the tail of this header (after class
+  // ZonedDateTime is fully visible via the include cycle resolving)
+  // because they call ZonedDateTime::FromInfra.
   inline diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
-  to_zoned_date_time_iso_with_provider(const TimeZone& /*tz*/,
-                                         const Provider& /*p*/) const {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
-  }
+  to_zoned_date_time_iso(const TimeZone& tz) const;
+
+  inline diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+  to_zoned_date_time_iso_with_provider(const TimeZone& tz,
+                                         const Provider& /*p*/) const;
 
   // ── Arithmetic ─────────────────────────────────────────────────
   //
@@ -334,6 +340,35 @@ inline std::unique_ptr<Instant> ZonedDateTime::to_instant() const {
   // inner instant by value. The previous body returned nullptr which
   // would crash V8 callers on deref.
   return Instant::FromInfra(inner_.instant);
+}
+
+// ── Instant::to_zoned_date_time_iso{,_with_provider} ───────────────
+//
+// 1:1 from upstream instant.rs:412 (with-provider) and
+// builtins/compiled/instant.rs:32 (no-provider routes through
+// with-provider + default TZ_PROVIDER). Construction is trivial —
+// `ZonedDateTime{this->inner_, time_zone, Calendar::ISO}` — because
+// DST/calendar resolution happens lazily at later calls on the ZDT
+// (e.g. `to_plain_date_time`), not at construction.
+//
+// Defined at the bottom of Instant.hpp (after ZonedDateTime is
+// fully visible via the cycle unwinding) for the same reason as
+// to_instant above.
+inline diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+Instant::to_zoned_date_time_iso(const TimeZone& tz) const {
+  ::node::socketsecurity::temporal::ZonedDateTime inner{
+      inner_,
+      tz.ToInfra(),
+      ::node::socketsecurity::temporal::Calendar::Iso(),
+  };
+  return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+      ZonedDateTime::FromInfra(inner));
+}
+
+inline diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+Instant::to_zoned_date_time_iso_with_provider(const TimeZone& tz,
+                                                const Provider& /*p*/) const {
+  return to_zoned_date_time_iso(tz);
 }
 
 }  // namespace temporal_rs

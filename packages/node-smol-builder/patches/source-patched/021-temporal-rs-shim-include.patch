@@ -32,7 +32,7 @@
 #    node::socketsecurity::temporal::*" because libnode isn't part of
 #    the snapshot tool.
 #
-# The C++ port files are listed by name (24 files in temporal-infra/src/
+# The C++ port files are listed by name (23 files in temporal-infra/src/
 # socketsecurity/temporal/) rather than glob to keep the dependency
 # manifest explicit. Update both this patch and patch 004 in lockstep
 # when adding/removing port files.

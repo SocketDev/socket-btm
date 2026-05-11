@@ -91,23 +91,27 @@ struct FormattableUtcOffset {
 };
 
 // ── FormattableTimeZone ───────────────────────────────────────────────
-// 1:1 port of `FormattableTimeZone<'a>`. Upstream borrows the timezone
-// string with a lifetime; we copy into std::string_view (caller owns
-// the underlying buffer through the build duration).
+// 1:1 port of `FormattableTimeZone<'a>`. Upstream borrows with a Rust
+// lifetime; the C++ port owns the string outright. Earlier this was
+// `std::string_view` to mirror upstream's surface, but a dangling-view
+// risk (same shape as the TemporalError bug fixed in 9aea3e3c) wasn't
+// worth the surface-mirror — every caller passes a string-by-value or
+// a `Calendar::Identifier()` literal anyway.
 struct FormattableTimeZone {
   DisplayTimeZone show;
-  std::string_view timezone;
+  std::string timezone;
 
   void WriteTo(std::string& sink) const;
 };
 
 // ── FormattableCalendar ───────────────────────────────────────────────
-// 1:1 port of `FormattableCalendar<'a>`. Upstream takes a `&'static str`
-// from Calendar::identifier(); ours takes a string_view (Calendar's
-// identifier is a static-storage string in our port too).
+// 1:1 port of `FormattableCalendar<'a>`. Upstream uses `&'static str`
+// from Calendar::identifier(); we own the string outright. Same
+// rationale as FormattableTimeZone above — eliminate the view-aliasing
+// footgun by owning the bytes.
 struct FormattableCalendar {
   DisplayCalendar show;
-  std::string_view calendar;
+  std::string calendar;
 
   void WriteTo(std::string& sink) const;
 };
@@ -210,12 +214,12 @@ class IxdtfStringBuilder {
   }
 
   IxdtfStringBuilder& WithTimeZone(std::string_view tz, DisplayTimeZone show) {
-    inner_.timezone = FormattableTimeZone{show, tz};
+    inner_.timezone = FormattableTimeZone{show, std::string(tz)};
     return *this;
   }
 
   IxdtfStringBuilder& WithCalendar(std::string_view cal, DisplayCalendar show) {
-    inner_.calendar = FormattableCalendar{show, cal};
+    inner_.calendar = FormattableCalendar{show, std::string(cal)};
     return *this;
   }
 

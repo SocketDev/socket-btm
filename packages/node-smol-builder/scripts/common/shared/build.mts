@@ -114,7 +114,12 @@ import { buildRelease } from '../../binary-released/shared/build-released.mts'
 import { buildStripped } from '../../binary-stripped/shared/build-stripped.mts'
 import { finalizeBinary } from '../../finalized/shared/finalize-binary.mts'
 import { printBuildSummary } from '../../lib/build-summary.mts'
-import { BINJECT_DIR, BIN_INFRA_DIR, BUILD_INFRA_DIR } from '../../paths.mts'
+import {
+  BINJECT_DIR,
+  BIN_INFRA_DIR,
+  BUILD_INFRA_DIR,
+  TEMPORAL_INFRA_DIR,
+} from '../../paths.mts'
 
 const __filename = fileURLToPath(import.meta.url)
 
@@ -309,6 +314,16 @@ export async function collectBuildSourceFiles(phase = 'binary-released') {
     path.join(BINJECT_DIR, 'src', 'socketsecurity', 'binject'),
     path.join(BIN_INFRA_DIR, 'src', 'socketsecurity', 'bin-infra'),
     path.join(BUILD_INFRA_DIR, 'src', 'socketsecurity', 'build-infra'),
+    // temporal-infra ships TWO source trees: the spec-faithful C++
+    // port under src/, and the V8-facing diplomat shim under include/.
+    // Both must contribute to the cache key — a libnode rebuild has
+    // to fire on any shim or port change, not just on additions/
+    // copies. The additions sweep below picks them up via the
+    // include-of-everything fallback today, but listing them here
+    // explicitly guards against a future additionsIgnorePatterns
+    // entry silently dropping them out of the hash.
+    path.join(TEMPORAL_INFRA_DIR, 'src', 'socketsecurity', 'temporal'),
+    path.join(TEMPORAL_INFRA_DIR, 'include', 'temporal_rs'),
   ]
 
   for (const srcDir of sourcePackageDirs) {

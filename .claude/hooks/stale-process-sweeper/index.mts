@@ -73,13 +73,19 @@ const STALE_PATTERNS: Array<{ name: string; rx: RegExp }> = [
     name: 'esbuild-service',
     rx: /esbuild\/(bin|lib)\/.*\bservice\b/,
   },
-  // Socket Firewall command wrappers. Path is stable across hosts:
-  // `~/.socket/sfw/bin/sfw <wrapped-cmd> ...`. Matches both macOS
-  // (`/Users/<u>/.socket/sfw/bin/sfw`) and Linux (`/home/<u>/...`).
-  // Orphan-only (the parent-alive branch in sweep()).
+  // Socket Firewall command wrappers. Three deployment layouts:
+  //   - ~/.socket/sfw/bin/sfw[-<version>]            (current dev install)
+  //   - ~/.socket/_dlx/<hash>/sfw                    (planned: dlxBinary cache)
+  //   - ${RUNNER_TEMP}/sfw-bin/sfw[.exe]             (CI runner install)
+  // Path component is invariant across home prefixes (/Users/<u>/ vs
+  // /home/<u>/). The CI path uses RUNNER_TEMP which varies per OS but
+  // the trailing `/sfw-bin/sfw` is stable.
+  //
+  // Orphan-only (the parent-alive branch in sweep()) — a live-parent
+  // sfw is likely a mid-flight pnpm/yarn install.
   {
     name: 'sfw-wrapper',
-    rx: /\/\.socket\/sfw\/bin\/sfw\b/,
+    rx: /(?:\.socket\/(?:_dlx\/[0-9a-f]+|sfw\/bin)|sfw-bin)\/sfw(?:-[\w.]+)?(?:\.exe)?\b/,
   },
 ]
 

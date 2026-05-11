@@ -26,6 +26,7 @@
     "fix": "node scripts/fix.mts",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
+    "install:sfw": "node scripts/install-sfw.mts",
     "lint": "node scripts/lint.mts",
     "lint:fix": "node scripts/fix.mts",
     "normalize:package-json": "node scripts/normalize-package-json.mts",

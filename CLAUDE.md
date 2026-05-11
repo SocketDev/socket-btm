@@ -4,7 +4,7 @@
 
 <!-- BEGIN FLEET-CANONICAL — sync via socket-wheelhouse/scripts/sync-scaffolding.mts. Do not edit downstream. -->
 
-## 📚 Fleet Standards
+## 📚 Wheelhouse Standards
 
 ### Identifying users
 

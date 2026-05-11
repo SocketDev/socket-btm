@@ -74,12 +74,12 @@ export function getCleanupPaths(platform, homeDir) {
     }
 
     case 'darwin': {
-      // ID1 (quality scan): fail loud if no home directory is
-      // available. The previous '/Users/runner' fallback worked on
-      // GitHub-hosted runners but silently produced bogus cleanup
-      // paths on self-hosted runners, developer laptops, and non-Mac
-      // CI runs — the cleanup step would `rm -rf` against
-      // non-existent paths (or worse, a coincidentally-existing one).
+      // Fail loud if no home directory is available. A prior
+      // '/Users/runner' fallback worked on GitHub-hosted runners but
+      // silently produced bogus cleanup paths on self-hosted runners,
+      // developer laptops, and non-Mac CI runs — the cleanup step
+      // would `rm -rf` against non-existent paths (or worse, a
+      // coincidentally-existing one).
       const home = homeDir || process.env.HOME
       if (!home) {
         throw new Error(

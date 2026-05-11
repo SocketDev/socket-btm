@@ -34,6 +34,7 @@ import {
   composeCheckpointMetadata,
   computeBuildCacheEnvMetadata,
 } from './checkpoint-cache-key.mts'
+import { withLock, withTryLock } from './checkpoint-lock.mts'
 import { PLATFORM_AGNOSTIC_CHECKPOINTS } from './constants.mts'
 import { errorMessage } from './error-utils.mts'
 import {
@@ -415,69 +416,50 @@ export async function createCheckpoint(
       // Note: If concurrent builds create the same checkpoint, both will produce identical
       // output (deterministic builds), so it's safe if one overwrites the other. We use
       // unique temp files (PID + random ID) to prevent corruption during creation.
-      // Acquire exclusive lock during rename to prevent concurrent readers
-      const lockPath = `${tarballPath}.lock`
-      let lockFile
-      try {
-        lockFile = await fs.open(lockPath, 'a')
-        // Acquire exclusive lock (no concurrent readers or writers)
-        // On Windows, flock isn't available, so we skip locking
-        if (typeof lockFile.lock === 'function') {
-          await lockFile.lock('ex')
-        }
-
-        renameSync(tempTarballPath, tarballPath)
-      } catch (e) {
-        // On some platforms, rename may fail if target exists and is being accessed
-        if (e?.code === 'EEXIST' || e?.code === 'EPERM') {
-          // Verify existing checkpoint is complete before giving up
-          try {
-            // Need stat for size metadata to distinguish a complete checkpoint
-            // (size > 0, keep it) from an incomplete one (0 bytes, retry rename).
-            // oxlint-disable-next-line socket/prefer-exists-sync
-            const existingStats = await fs.stat(tarballPath)
-            if (existingStats.size > 0) {
-              logger.warn(
-                `Checkpoint already exists: ${tarballPath}. Concurrent build detected, skipping overwrite.`,
-              )
+      // Acquire exclusive lock during rename to prevent concurrent readers.
+      await withLock(`${tarballPath}.lock`, 'ex', async () => {
+        try {
+          renameSync(tempTarballPath, tarballPath)
+        } catch (e) {
+          // On some platforms, rename may fail if target exists and is being accessed
+          if (e?.code === 'EEXIST' || e?.code === 'EPERM') {
+            // Verify existing checkpoint is complete before giving up
+            try {
+              // Need stat for size metadata to distinguish a complete checkpoint
+              // (size > 0, keep it) from an incomplete one (0 bytes, retry rename).
+              // oxlint-disable-next-line socket/prefer-exists-sync
+              const existingStats = await fs.stat(tarballPath)
+              if (existingStats.size > 0) {
+                logger.warn(
+                  `Checkpoint already exists: ${tarballPath}. Concurrent build detected, skipping overwrite.`,
+                )
+                safeDeleteSync(tempTarballPath, { force: true })
+                checkpointAlreadyExists = true
+                // Don't return - continue to cleanup code
+              } else {
+                // Existing checkpoint is incomplete (0 bytes), retry once
+                await new Promise(resolve => setTimeout(resolve, 100))
+                renameSync(tempTarballPath, tarballPath)
+              }
+            } catch {
               safeDeleteSync(tempTarballPath, { force: true })
               checkpointAlreadyExists = true
-              // Don't return - continue to cleanup code
-            } else {
-              // Existing checkpoint is incomplete (0 bytes), retry once
-              await new Promise(resolve => setTimeout(resolve, 100))
-              renameSync(tempTarballPath, tarballPath)
             }
-          } catch {
-            safeDeleteSync(tempTarballPath, { force: true })
-            checkpointAlreadyExists = true
-          }
-        } else if (e?.code === 'ENOENT') {
-          // TOCTOU race: temp file was deleted between validation and rename
-          // This can happen if concurrent cleanup deleted an old temp file.
-          // Re-throw to trigger outer error handling - checkpoint needs to be recreated.
-          throw new Error(
-            `Temp tarball was deleted before rename (TOCTOU race): ${tempTarballPath}. ` +
-              'This can happen with concurrent builds. Checkpoint needs to be recreated.',
-            { cause: e },
-          )
-        } else {
-          // For other errors, let them propagate to the outer catch block
-          throw e
-        }
-      } finally {
-        // Release lock
-        if (lockFile) {
-          try {
-            if (typeof lockFile.unlock === 'function') {
-              await lockFile.unlock()
-            }
-            await lockFile.close()
-          } catch {
-            // Ignore unlock/close errors
+          } else if (e?.code === 'ENOENT') {
+            // TOCTOU race: temp file was deleted between validation and rename
+            // This can happen if concurrent cleanup deleted an old temp file.
+            // Re-throw to trigger outer error handling - checkpoint needs to be recreated.
+            throw new Error(
+              `Temp tarball was deleted before rename (TOCTOU race): ${tempTarballPath}. ` +
+                'This can happen with concurrent builds. Checkpoint needs to be recreated.',
+              { cause: e },
+            )
+          } else {
+            // For other errors, let them propagate to the outer catch block
+            throw e
           }
         }
-      }
+      })
     } catch (e) {
       // Clean up temp file on failure
       if (existsSync(tempTarballPath)) {
@@ -721,50 +703,33 @@ export async function createCheckpoint(
             const CLEANUP_GRACE_PERIOD_MS = 5 * 60 * 1000
 
             if (isInvalidCheckpoint || ageMs > CLEANUP_GRACE_PERIOD_MS) {
-              // Check if checkpoint is locked (in use by another build)
-              const lockPath = `${previousTarball}.lock`
-              let lockFile
-              let canDelete = false
-              try {
-                lockFile = await fs.open(lockPath, 'a')
-                // Try to acquire exclusive lock
-                if (typeof lockFile.lock === 'function') {
-                  canDelete = await lockFile.tryLock('ex')
-                } else {
-                  // Windows or platform without flock - skip lock check
-                  canDelete = true
-                }
-
-                if (canDelete) {
-                  logger.substep(
-                    `Removing previous checkpoint: ${previousCheckpointName}.tar.gz (${Math.floor(ageMs / 60_000)}min old)`,
-                  )
-                  await safeDelete(previousTarball)
-
-                  if (existsSync(previousJson)) {
-                    await safeDelete(previousJson)
+              // Check if checkpoint is locked (in use by another build).
+              // withTryLock swallows lock-open errors and returns
+              // undefined; the post-call branch handles that as
+              // "couldn't take the lock, skip cleanup."
+              const result = await withTryLock(
+                `${previousTarball}.lock`,
+                async (canDelete: boolean) => {
+                  if (canDelete) {
+                    logger.substep(
+                      `Removing previous checkpoint: ${previousCheckpointName}.tar.gz (${Math.floor(ageMs / 60_000)}min old)`,
+                    )
+                    await safeDelete(previousTarball)
+                    if (existsSync(previousJson)) {
+                      await safeDelete(previousJson)
+                    }
                   }
-                } else {
-                  logger.substep(
-                    `Checkpoint in use, skipping cleanup: ${previousCheckpointName}.tar.gz`,
-                  )
-                }
-              } catch {
-                // Lock file access error, skip cleanup
+                  return canDelete
+                },
+              )
+              if (result === false) {
+                logger.substep(
+                  `Checkpoint in use, skipping cleanup: ${previousCheckpointName}.tar.gz`,
+                )
+              } else if (result === undefined) {
                 logger.substep(
                   `Cannot acquire lock, skipping cleanup: ${previousCheckpointName}.tar.gz`,
                 )
-              } finally {
-                if (lockFile) {
-                  try {
-                    if (canDelete && typeof lockFile.unlock === 'function') {
-                      await lockFile.unlock()
-                    }
-                    await lockFile.close()
-                  } catch {
-                    // Ignore unlock/close errors
-                  }
-                }
               }
             } else {
               logger.substep(
@@ -1135,98 +1100,74 @@ export async function restoreCheckpoint(
       let extractError
 
       while (extractAttempts < MAX_EXTRACT_ATTEMPTS) {
-        let lockFile
         try {
-          // Acquire shared lock for reading checkpoint
-
-          const lockPath = `${tarballPath}.lock`
+          // Acquire shared lock for reading checkpoint (multiple
+          // readers allowed). On Windows flock is unavailable;
+          // withLock no-ops the acquisition there.
           // eslint-disable-next-line no-await-in-loop
-          lockFile = await fs.open(lockPath, 'a')
+          await withLock(`${tarballPath}.lock`, 'sh', async () => {
+            // Re-validate checkpoint exists before extraction (catches TOCTOU
+            // deletion). Need stat for size + mtimeMs metadata: size detects an
+            // emptied file mid-restore; mtimeMs delta detects replacement by a
+            // concurrent build.
+            // oxlint-disable-next-line socket/prefer-exists-sync
+            const preExtractStats = await fs.stat(tarballPath)
+            if (preExtractStats.size === 0) {
+              throw new Error('Checkpoint file became empty before extraction')
+            }
 
-          // Try to acquire shared lock (multiple readers allowed)
-          // On Windows, flock isn't available, so we skip locking
-          if (typeof lockFile.lock === 'function') {
-            // eslint-disable-next-line no-await-in-loop
-            await lockFile.lock('sh')
-          }
-
-          // Re-validate checkpoint exists before extraction (catches TOCTOU
-          // deletion). Need stat for size + mtimeMs metadata: size detects an
-          // emptied file mid-restore; mtimeMs delta detects replacement by a
-          // concurrent build.
-          // eslint-disable-next-line no-await-in-loop
-          // oxlint-disable-next-line socket/prefer-exists-sync
-          const preExtractStats = await fs.stat(tarballPath)
-          if (preExtractStats.size === 0) {
-            throw new Error('Checkpoint file became empty before extraction')
-          }
-
-          // Check if checkpoint was replaced (mtime changed significantly)
-          // Use 1-second threshold to detect concurrent checkpoint replacement
-          // while still handling filesystem timestamp granularity
-          const MTIME_CHANGE_THRESHOLD_MS = 1000
-          const mtimeDelta = Math.abs(preExtractStats.mtimeMs - initialModTime)
-          if (mtimeDelta > MTIME_CHANGE_THRESHOLD_MS) {
-            throw new Error(
-              'Checkpoint was replaced during restoration (mtime changed). ' +
-                'This indicates concurrent builds creating new checkpoints. ' +
-                'Rebuild with --clean to create fresh checkpoints.',
+            // Check if checkpoint was replaced (mtime changed significantly)
+            // Use 1-second threshold to detect concurrent checkpoint replacement
+            // while still handling filesystem timestamp granularity
+            const MTIME_CHANGE_THRESHOLD_MS = 1000
+            const mtimeDelta = Math.abs(
+              preExtractStats.mtimeMs - initialModTime,
             )
-          }
+            if (mtimeDelta > MTIME_CHANGE_THRESHOLD_MS) {
+              throw new Error(
+                'Checkpoint was replaced during restoration (mtime changed). ' +
+                  'This indicates concurrent builds creating new checkpoints. ' +
+                  'Rebuild with --clean to create fresh checkpoints.',
+              )
+            }
 
-          // eslint-disable-next-line no-await-in-loop
-          await extractTarball(tarballPath, extractDir)
+            await extractTarball(tarballPath, extractDir)
 
-          // Validate extracted content hash to detect concurrent modifications.
-          // IMPORTANT: Hash computation must happen while holding shared lock
-          // to prevent modifications between extraction and validation. Use
-          // `relativeTo: extractDir` so this hash matches the one computed at
-          // creation time (line ~520) where relativeTo was the temp extract
-          // dir — the tarball was the same in both cases, only the absolute
-          // extract prefix differs.
-          // eslint-disable-next-line no-await-in-loop
-          const extractedHash = await computeSourceHash(
-            [targetPath],
-            undefined,
-            { relativeTo: extractDir },
-          )
-
-          // Require artifactHash for all checkpoints (corruption detection)
-          if (!checkpointData.artifactHash) {
-            throw new Error(
-              'Checkpoint missing artifactHash (legacy checkpoint format). ' +
-                'Rebuild with --clean to create checkpoints with hash validation.',
+            // Validate extracted content hash to detect concurrent modifications.
+            // IMPORTANT: Hash computation must happen while holding shared lock
+            // to prevent modifications between extraction and validation. Use
+            // `relativeTo: extractDir` so this hash matches the one computed at
+            // creation time (line ~520) where relativeTo was the temp extract
+            // dir — the tarball was the same in both cases, only the absolute
+            // extract prefix differs.
+            const extractedHash = await computeSourceHash(
+              [targetPath],
+              undefined,
+              { relativeTo: extractDir },
             )
-          }
 
-          if (extractedHash !== checkpointData.artifactHash) {
-            throw new Error(
-              'Extracted checkpoint hash mismatch - concurrent modification detected. ' +
-                `Expected: ${checkpointData.artifactHash}, Got: ${extractedHash}. ` +
-                'Rebuild with --clean to create fresh checkpoints.',
-            )
-          }
+            // Require artifactHash for all checkpoints (corruption detection)
+            if (!checkpointData.artifactHash) {
+              throw new Error(
+                'Checkpoint missing artifactHash (legacy checkpoint format). ' +
+                  'Rebuild with --clean to create checkpoints with hash validation.',
+              )
+            }
 
+            if (extractedHash !== checkpointData.artifactHash) {
+              throw new Error(
+                'Extracted checkpoint hash mismatch - concurrent modification detected. ' +
+                  `Expected: ${checkpointData.artifactHash}, Got: ${extractedHash}. ` +
+                  'Rebuild with --clean to create fresh checkpoints.',
+              )
+            }
+          })
           extractError = undefined
           // Success
           break
         } catch (e) {
           extractError = e
           extractAttempts++
-        } finally {
-          // Release lock and close file
-          if (lockFile) {
-            try {
-              if (typeof lockFile.unlock === 'function') {
-                // eslint-disable-next-line no-await-in-loop
-                await lockFile.unlock()
-              }
-              // eslint-disable-next-line no-await-in-loop
-              await lockFile.close()
-            } catch {
-              // Ignore unlock/close errors
-            }
-          }
         }
 
         // Handle error after finally block

@@ -17,7 +17,6 @@ import {
   openSync,
   readSync,
   renameSync,
-  rmSync,
 } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -25,11 +24,16 @@ import process from 'node:process'
 import { which } from '@socketsecurity/lib/bin'
 import { DARWIN, WIN32 } from '@socketsecurity/lib/constants/platform'
 import { getCI } from '@socketsecurity/lib/env/ci'
-import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
+import { safeDelete, safeDeleteSync, safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { toUnixPath } from '@socketsecurity/lib/paths/normalize'
 import { spawn } from '@socketsecurity/lib/spawn'
 
+import {
+  BUILD_CACHE_ENV_VARS,
+  composeCheckpointMetadata,
+  computeBuildCacheEnvMetadata,
+} from './checkpoint-cache-key.mts'
 import { PLATFORM_AGNOSTIC_CHECKPOINTS } from './constants.mts'
 import { errorMessage } from './error-utils.mts'
 import {
@@ -41,54 +45,6 @@ import { adHocSign } from './sign.mts'
 import { extractTarball } from './tarball-utils.mts'
 
 const logger = getDefaultLogger()
-
-/**
- * Environment variables that participate in the build-checkpoint cache
- * key. Touched by both `createCheckpoint` (write side) and `shouldRun`
- * (read side). The two MUST stay byte-identical or the cache silently
- * desyncs — writes hash one value, reads hash another, every build is
- * a miss-or-stale. Single export so both sites read from one source.
- *
- * Includes:
- *   - Compiler / linker flag envs (CFLAGS, CXXFLAGS, LDFLAGS): affect
- *     the produced binary directly.
- *   - Compiler / toolchain selectors (CC, CXX, AR, RANLIB): switching
- *     CC=clang → CC=gcc produces a different binary; the cache must
- *     reflect this.
- *   - SDK / target selectors (SDKROOT, MACOSX_DEPLOYMENT_TARGET,
- *     DEVELOPER_DIR): macOS toolchain root, deployment target.
- *   - pkg-config / linker search (PKG_CONFIG_PATH, LD_LIBRARY_PATH):
- *     change which libraries the build picks up.
- *   - Runtime knobs that change build observers (NODE_OPTIONS,
- *     UV_THREADPOOL_SIZE, V8_OPTIONS, MAKEFLAGS): can affect
- *     deterministic-build output and parallelism choices.
- *
- * Keep this list sorted by category, not alphabetically — readers can
- * scan it faster when related vars cluster.
- */
-export const BUILD_CACHE_ENV_VARS = [
-  // Build-output-affecting flags.
-  'CFLAGS',
-  'CXXFLAGS',
-  'LDFLAGS',
-  'MAKEFLAGS',
-  // Toolchain selectors.
-  'CC',
-  'CXX',
-  'AR',
-  'RANLIB',
-  // SDK / target selectors.
-  'SDKROOT',
-  'MACOSX_DEPLOYMENT_TARGET',
-  'DEVELOPER_DIR',
-  // pkg-config / linker search.
-  'PKG_CONFIG_PATH',
-  'LD_LIBRARY_PATH',
-  // Runtime knobs.
-  'NODE_OPTIONS',
-  'UV_THREADPOOL_SIZE',
-  'V8_OPTIONS',
-] as const
 
 /**
  * Clean all workflow checkpoints for a package.
@@ -106,49 +62,6 @@ export async function cleanCheckpoint(buildDir, packageName) {
 
   await safeDelete(checkpointDir)
   logger.info('Checkpoints cleaned')
-}
-
-/**
- * Build the underscore-joined checkpoint metadata string from the
- * standard segment list. Single source of truth for both the write
- * side (createCheckpoint) and read side (shouldRun) — the two halves
- * cannot drift the segment order or set if they both call this.
- */
-export function composeCheckpointMetadata(segments: {
-  platform: string | undefined
-  version: string | undefined
-  env: string | undefined
-  buildMode: string | undefined
-  lief: string | undefined
-  configureFlags: string | undefined
-}): string {
-  return [
-    segments.platform,
-    segments.version,
-    segments.env,
-    segments.buildMode,
-    segments.lief,
-    segments.configureFlags,
-  ]
-    .filter(Boolean)
-    .join('_')
-}
-
-/**
- * Compute the `env-<hash>` metadata segment of the checkpoint cache
- * key, or `undefined` if every relevant env var is unset. Single
- * source of truth — both `createCheckpoint` and `shouldRun` call this.
- */
-export function computeBuildCacheEnvMetadata(): string | undefined {
-  const values = BUILD_CACHE_ENV_VARS.map(
-    name => process.env[name] ?? 'unset',
-  )
-  if (!values.some(v => v !== 'unset')) {
-    return undefined
-  }
-  return `env-${values
-    .map(v => crypto.createHash('sha256').update(v).digest('hex').slice(0, 8))
-    .join('-')}`
 }
 
 /**
@@ -449,7 +362,7 @@ export async function createCheckpoint(
       // oxlint-disable-next-line socket/prefer-exists-sync
       const tempStats = await fs.stat(tempTarballPath)
       if (tempStats.size === 0) {
-        rmSync(tempTarballPath, { force: true })
+        safeDeleteSync(tempTarballPath, { force: true })
         throw new Error(
           `Tar created empty file (0 bytes). Artifact may not exist or tar command failed: ${artifactPath}`,
         )
@@ -458,7 +371,7 @@ export async function createCheckpoint(
       // Check for unreasonably large checkpoints (>2GB indicates unintended files included)
       const MAX_CHECKPOINT_SIZE = 2 * 1024 * 1024 * 1024
       if (tempStats.size > MAX_CHECKPOINT_SIZE) {
-        rmSync(tempTarballPath, { force: true })
+        safeDeleteSync(tempTarballPath, { force: true })
         throw new Error(
           `Checkpoint tarball exceeds maximum size: ${(tempStats.size / 1024 / 1024).toFixed(1)}MB > 2048MB. ` +
             `This may indicate unintended files were included in checkpoint: ${artifactPath}`,
@@ -527,7 +440,7 @@ export async function createCheckpoint(
               logger.warn(
                 `Checkpoint already exists: ${tarballPath}. Concurrent build detected, skipping overwrite.`,
               )
-              rmSync(tempTarballPath, { force: true })
+              safeDeleteSync(tempTarballPath, { force: true })
               checkpointAlreadyExists = true
               // Don't return - continue to cleanup code
             } else {
@@ -536,7 +449,7 @@ export async function createCheckpoint(
               renameSync(tempTarballPath, tarballPath)
             }
           } catch {
-            rmSync(tempTarballPath, { force: true })
+            safeDeleteSync(tempTarballPath, { force: true })
             checkpointAlreadyExists = true
           }
         } else if (e?.code === 'ENOENT') {
@@ -568,7 +481,7 @@ export async function createCheckpoint(
     } catch (e) {
       // Clean up temp file on failure
       if (existsSync(tempTarballPath)) {
-        rmSync(tempTarballPath, { force: true })
+        safeDeleteSync(tempTarballPath, { force: true })
       }
       const workingDirExists = existsSync(tarDir)
       const sourceExists = existsSync(artifactPath)
@@ -628,7 +541,7 @@ export async function createCheckpoint(
       } finally {
         // Clean up temporary extraction directory
         if (existsSync(tempExtractDir)) {
-          rmSync(tempExtractDir, { force: true, recursive: true })
+          safeDeleteSync(tempExtractDir, { force: true, recursive: true })
         }
       }
     }
@@ -749,7 +662,7 @@ export async function createCheckpoint(
         logger.warn(
           `Checkpoint JSON already exists: ${checkpointFile}. Concurrent build detected.`,
         )
-        rmSync(tempCheckpointFile, { force: true })
+        safeDeleteSync(tempCheckpointFile, { force: true })
         // Don't return - continue to cleanup code
       } else {
         throw e
@@ -1590,7 +1503,7 @@ export async function writeCacheHash(cacheDir, sourcePaths) {
     if (e.code === 'EEXIST' || e.code === 'EPERM') {
       // Concurrent build already wrote hash file - safe to ignore since
       // deterministic builds produce identical hashes
-      rmSync(tempHashFile, { force: true })
+      safeDeleteSync(tempHashFile, { force: true })
       return
     }
     throw e

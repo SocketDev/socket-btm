@@ -844,7 +844,7 @@ jobs:
             PLATFORM_ARCH=${{ steps.platform-arch.outputs.platform_arch }}
           secrets: |
             GITHUB_TOKEN=${{ github.token }}
-          no-cache: ${{ inputs.force == true }}
+          no-cache: ${{ inputs.force }}
           file: packages/node-smol-builder/docker/Dockerfile.${{ matrix.libc || 'glibc' }}-released
           target: export
           outputs: type=local,dest=packages/node-smol-builder/build
@@ -873,7 +873,7 @@ jobs:
       - name: Continue build from Released checkpoint (Linux - strip, compress, finalize)
         if: |
           matrix.os == 'linux' &&
-          ((steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid == 'false') ||
+          ((steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true')
         shell: bash
         env:
@@ -1071,8 +1071,14 @@ jobs:
         run: |
           if [ -f "${BINARY}" ]; then
             if [ "$MATRIX_OS" = "windows" ]; then
-              # Convert Unix path to Windows format for PowerShell
-              BINARY_SIZE_MB=$(powershell -NoProfile -Command "\$winPath = '${BINARY}' -replace '/', '\\'; [math]::Round((Get-Item \$winPath).Length / 1MB, 2)")
+              # Convert Unix path to Windows format for PowerShell.
+              # L7 (quality scan): read $BINARY via $env:BINARY inside
+              # PowerShell instead of bash-interpolating into a single-
+              # quoted PowerShell literal. The interpolation form
+              # breaks if BINARY ever contains a single quote; using
+              # $env:BINARY (BINARY is already exported via the step's
+              # env: block) eliminates the quoting risk entirely.
+              BINARY_SIZE_MB=$(powershell -NoProfile -Command "\$winPath = \$env:BINARY -replace '/', '\\'; [math]::Round((Get-Item \$winPath).Length / 1MB, 2)")
             else
               # Use platform-specific stat command (BSD/macOS vs GNU/Linux)
               if [ "$(uname)" = "Darwin" ]; then

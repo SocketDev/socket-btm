@@ -7,7 +7,15 @@
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
-FROM almalinux:8
+FROM almalinux:8 AS build
+
+# Explicit cache-version tag from cache-versions.json; bumping this
+# invalidates every layer below. Declared as an ARG so the workflow's
+# `build-args: CACHE_VERSION=${{ steps.cache-version.outputs.version }}`
+# actually invalidates the build cache when bumped — without the ARG
+# the build-arg is silently ignored and the cache survives.
+ARG CACHE_VERSION=unset
+RUN echo "Cache version: ${CACHE_VERSION}"
 
 # Socket-registry tool-checksums. Workflows `cp "$SOCKET_TOOL_CHECKSUMS_FILE"
 # .build-context/registry-tools.json` before `docker build`, so this
@@ -117,4 +125,4 @@ RUN source /opt/rh/gcc-toolset-13/enable && \
 FROM scratch AS export
 ARG BUILD_MODE=prod
 ARG PLATFORM_ARCH=linux-x64
-COPY --from=0 /workspace/packages/node-smol-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Release /${BUILD_MODE}/${PLATFORM_ARCH}/out/Release
+COPY --from=build /workspace/packages/node-smol-builder/build/${BUILD_MODE}/${PLATFORM_ARCH}/out/Release /${BUILD_MODE}/${PLATFORM_ARCH}/out/Release

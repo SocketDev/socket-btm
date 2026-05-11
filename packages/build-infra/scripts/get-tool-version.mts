@@ -1,4 +1,3 @@
-/* oxlint-disable socket/no-console-prefer-logger -- this script runs BEFORE `pnpm install`; node_modules isn't there yet, so the logger from @socketsecurity/lib can't be imported. */
 /**
  * Get tool version from external-tools.json.
  *
@@ -38,6 +37,7 @@ const versionKey = args[1] || 'version'
 // doesn't exist yet. Use console directly; the markers exempt the
 // logger-guard PreToolUse hook from flagging the writes.
 if (!toolName) {
+  // oxlint-disable-next-line socket/no-console-prefer-logger
   console.error( // socket-hook: allow logger
     'Usage: get-tool-version.mts <tool-name> [version-key] [--package-root <path>]',
   )
@@ -47,19 +47,24 @@ if (!toolName) {
     const data = JSON.parse(readFileSync(EXTERNAL_TOOLS_PATH, 'utf8'))
     const tool = data.tools?.[toolName]
     if (!tool) {
+      // oxlint-disable-next-line socket/no-console-prefer-logger
       console.error(`Tool '${toolName}' not found in external-tools.json`) // socket-hook: allow logger
+      // oxlint-disable-next-line socket/no-console-prefer-logger
       console.error(`Available: ${Object.keys(data.tools || {}).join(', ')}`) // socket-hook: allow logger
       process.exitCode = 1
     } else {
       const value = tool[versionKey] ?? tool.version
       if (!value) {
+        // oxlint-disable-next-line socket/no-console-prefer-logger
         console.error(`No '${versionKey}' found for tool '${toolName}'`) // socket-hook: allow logger
         process.exitCode = 1
       } else {
+        // oxlint-disable-next-line socket/no-console-prefer-logger
         console.log(value) // socket-hook: allow logger
       }
     }
   } catch (e) {
+    // oxlint-disable-next-line socket/no-console-prefer-logger
     console.error(e.message) // socket-hook: allow logger
     process.exitCode = 1
   }

@@ -194,7 +194,8 @@ Soft cap **500 lines**, hard cap **1000 lines** per source file. Past those, spl
 - **Errors, not warnings.** Default `"error"` for new rules.
 - **Fixable when possible.** Ship an autofix (`fixable: 'code'` + `fix(fixer) => ...`) whenever the rewrite is deterministic.
 - **Skill or hook ≠ no rule.** Defense in depth — skill is docs, hook is edit-time, lint is commit-time.
-- **Tooling: oxlint + oxfmt only.** No ESLint, no Prettier. Fleet socket-* oxlint plugin lives in `template/.config/oxlint-plugin/`.
+- **Tooling: oxlint + oxfmt only.** No ESLint, no Prettier. Fleet socket-\* oxlint plugin lives in `template/.config/oxlint-plugin/`.
+- **Invoke oxfmt / oxlint with `-c .config/...rc.json` explicitly.** Both tools accept a `-c PATH` (oxfmt) / `--config PATH` (oxlint). The fleet keeps both configs under `.config/`, not at repo root. Without the flag, the tools fall through to their built-in defaults — oxfmt's default is double-quotes + semis, the opposite of the fleet style, and would silently rewrite ~200 files on `pnpm run format`. Canonical script bodies in `manifest.mts` already encode the flag; the sync-scaffolding gate rewrites drifted scripts back to the canonical form.
 
 Full rationale + cascade behavior in [`docs/claude.md/lint-rules.md`](docs/claude.md/lint-rules.md).
 

@@ -12,6 +12,7 @@
 #define TEMPORAL_RS_COMPAT_ZONEDDATETIME_HPP_
 
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <optional>
 #include <string>
@@ -259,15 +260,20 @@ class ZonedDateTime {
   // construction, so the error branch is unreachable in practice. If
   // it does fire, surface as the spec's expected RangeError via a
   // throwing unique_ptr — better than the silent-null V8 deref crash.
+  // V8's binding consumes `unique_ptr<T>` directly (no result wrap) —
+  // that matches upstream's diplomat surface so the V8 patch surface
+  // stays minimal. The infra-side conversion can in principle fail
+  // (e.g. malformed IANA zone), but ZonedDateTime's construction
+  // invariants reject those upstream, so the error branch is genuinely
+  // unreachable from valid ZDT inputs. If the branch ever fires we
+  // abort rather than silently return a zero-valued PlainDate{} —
+  // the latter was the original "silent garbage to V8" failure mode
+  // that produced the @UZ-shaped error in the TemporalError bug.
   std::unique_ptr<PlainDateTime> to_plain_datetime() const {
     auto r = ::node::socketsecurity::temporal::ZonedDateTimeToPlainDateTime(
         inner_);
     if (!r.ok()) {
-      // Unreachable for valid ZonedDateTime per construction invariant.
-      // Return a default-constructed PlainDateTime so V8's call site
-      // gets a usable pointer instead of a null deref.
-      return PlainDateTime::FromInfra(
-          ::node::socketsecurity::temporal::PlainDateTime{});
+      std::abort();
     }
     return PlainDateTime::FromInfra(r.value());
   }
@@ -276,8 +282,7 @@ class ZonedDateTime {
     auto r =
         ::node::socketsecurity::temporal::ZonedDateTimeToPlainDate(inner_);
     if (!r.ok()) {
-      return PlainDate::FromInfra(
-          ::node::socketsecurity::temporal::PlainDate{});
+      std::abort();
     }
     return PlainDate::FromInfra(r.value());
   }
@@ -286,8 +291,7 @@ class ZonedDateTime {
     auto r =
         ::node::socketsecurity::temporal::ZonedDateTimeToPlainTime(inner_);
     if (!r.ok()) {
-      return PlainTime::FromInfra(
-          ::node::socketsecurity::temporal::PlainTime{});
+      std::abort();
     }
     return PlainTime::FromInfra(r.value());
   }

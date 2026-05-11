@@ -74,24 +74,36 @@ class PlainYearMonth {
     return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
+  // `with` / `add` / `subtract` require calendar-aware year-month
+  // arithmetic that lives in the calendar.cc Phase 11 work. Until
+  // those land, return an explicit Err — the previous shape silently
+  // cloned `inner_` and returned the *unmodified* year-month, which
+  // produced observably-wrong JS results (e.g. `ym.add({months: 7})`
+  // yielding the same year-month instead of advancing).
   diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
   with(PartialDate /*partial*/,
        std::optional<ArithmeticOverflow> /*overflow*/) const {
-    return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
-        std::unique_ptr<PlainYearMonth>(new PlainYearMonth(inner_)));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{
+        ::temporal_rs::ErrorKind::Range,
+        "PlainYearMonth.with requires calendar-aware arithmetic "
+        "(not yet implemented)"});
   }
 
   diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
   add(const Duration& /*duration*/, ArithmeticOverflow /*overflow*/) const {
-    return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
-        std::unique_ptr<PlainYearMonth>(new PlainYearMonth(inner_)));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{
+        ::temporal_rs::ErrorKind::Range,
+        "PlainYearMonth.add requires calendar-aware arithmetic "
+        "(not yet implemented)"});
   }
 
   diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
   subtract(const Duration& /*duration*/,
            ArithmeticOverflow /*overflow*/) const {
-    return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
-        std::unique_ptr<PlainYearMonth>(new PlainYearMonth(inner_)));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{
+        ::temporal_rs::ErrorKind::Range,
+        "PlainYearMonth.subtract requires calendar-aware arithmetic "
+        "(not yet implemented)"});
   }
 
   diplomat::result<std::unique_ptr<Duration>, TemporalError>

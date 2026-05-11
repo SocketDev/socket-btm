@@ -18,6 +18,19 @@ function check(name, ok, detail) {
   }
 }
 
+// `tryCheck` lets a single section call a Temporal method that may
+// throw (because a shim path is intentionally NotImplemented) without
+// killing the rest of the test. Records the throw as a failure and
+// returns sentinel so caller code can short-circuit subsequent checks.
+function tryCheck(name, fn) {
+  try {
+    return fn()
+  } catch (err) {
+    failures.push(`${name}: threw ${err?.constructor?.name ?? 'Error'}: ${err?.message ?? err}`)
+    return undefined
+  }
+}
+
 if (typeof Temporal !== 'object' || Temporal === null) {
   throw new Error('Temporal global missing — temporal_rs not linked')
 }
@@ -170,12 +183,16 @@ if (typeof Temporal !== 'object' || Temporal === null) {
     `got ${JSON.stringify(ym.toString())}`,
   )
 
-  const ym2 = ym.add({ months: 7 })
-  check(
-    'PlainYearMonth.add months',
-    ym2.toString() === '2026-12',
-    `got ${ym2.toString()}`,
+  const ym2 = tryCheck('PlainYearMonth.add (call)', () =>
+    ym.add({ months: 7 }),
   )
+  if (ym2 !== undefined) {
+    check(
+      'PlainYearMonth.add result',
+      ym2.toString() === '2026-12',
+      `got ${ym2.toString()}`,
+    )
+  }
 }
 
 // ── Temporal.PlainMonthDay ──────────────────────────────────────────
@@ -216,12 +233,16 @@ if (typeof Temporal !== 'object' || Temporal === null) {
     `got ${i3.toString()}`,
   )
 
-  const dur = i.until(Temporal.Instant.from('2026-05-08T13:34:56Z'))
-  check(
-    'Instant.until shape',
-    dur instanceof Temporal.Duration,
-    `got ${typeof dur}`,
+  const dur = tryCheck('Instant.until (call)', () =>
+    i.until(Temporal.Instant.from('2026-05-08T13:34:56Z')),
   )
+  if (dur !== undefined) {
+    check(
+      'Instant.until shape',
+      dur instanceof Temporal.Duration,
+      `got ${typeof dur}`,
+    )
+  }
 }
 
 // ── Temporal.ZonedDateTime ──────────────────────────────────────────

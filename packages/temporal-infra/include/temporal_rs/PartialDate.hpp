@@ -12,19 +12,25 @@
 
 #include <cstdint>
 #include <optional>
-#include <string_view>
+#include <string>
 
 #include "socketsecurity/temporal/plain_date.h"
 #include "temporal_rs/AnyCalendarKind.hpp"
 
 namespace temporal_rs {
 
+// `month_code` / `era` are `std::string` (not `std::string_view`) so
+// they own the bytes. V8 assigns via `partial.month_code = optString.value()`
+// — with a view here, the assignment would alias V8's temporary string,
+// which is freed at the end of the enclosing statement. Owning the
+// bytes eliminates the dangling-view risk (same shape as TemporalError
+// and PartialZonedDateTime::offset).
 struct PartialDate {
   std::optional<int32_t> year;
   std::optional<uint8_t> month;
-  std::string_view month_code;
+  std::string month_code;
   std::optional<uint8_t> day;
-  std::string_view era;
+  std::string era;
   std::optional<int32_t> era_year;
   AnyCalendarKind calendar;
 

@@ -112,6 +112,40 @@ in `src/socketsecurity/temporal/duration.cc` as part of this phase.
 
 That's all — point the include path, drop the Rust dep, ship.
 
+## Cross-class member bodies — where to put them
+
+Several shim methods cross class boundaries (e.g. `ZonedDateTime::to_instant()`
+needs `Instant::FromInfra`; `Instant::to_zoned_date_time_iso_with_provider`
+returns `unique_ptr<ZonedDateTime>`). The shim has a transitive include cycle
+`Instant.hpp → Duration.hpp → RelativeTo.hpp → ZonedDateTime.hpp`, so when one
+header is mid-parse the other is only forward-declared.
+
+Rules:
+
+1. **If the body needs a forward-decl only** (returns `unique_ptr<T>`, never
+   calls `T::method`), inline-in-class is fine.
+2. **If the body calls a method on the cross-class** (`T::FromInfra`,
+   `T::SomeStatic`), the cross-class must be **fully defined** at the
+   definition point. The only place that's guaranteed for both `Instant` and
+   `ZonedDateTime` is the **tail of `Instant.hpp`** (after `class Instant {};`
+   and after the cycle has unwound). Place the def there with a comment
+   referencing this section.
+3. **Never** put a cross-class call inside the class body — it'll compile in
+   one TU and fail in another depending on which header the consumer included
+   first. This bit us twice (commits `8980706a`, `b9c5b244`).
+
+Pattern:
+
+```cpp
+// In ZonedDateTime.hpp, inside class body:
+inline std::unique_ptr<Instant> to_instant() const;  // declaration only
+
+// In Instant.hpp, AFTER class Instant {};, before namespace close:
+inline std::unique_ptr<Instant> ZonedDateTime::to_instant() const {
+  return Instant::FromInfra(inner_.instant);  // private-member access OK
+}
+```
+
 ## Why two layers (compat shim + temporal-infra)?
 
 - `socketsecurity/temporal/` (temporal-infra) — the spec-faithful, idiomatic C++

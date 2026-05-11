@@ -1,3 +1,5 @@
+/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+
 /**
  * @fileoverview Tests for checkpoint-manager utilities.
  */

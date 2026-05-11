@@ -1,3 +1,5 @@
+/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+
 /**
  * WASM build pipeline orchestrator.
  *

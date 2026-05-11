@@ -1,3 +1,5 @@
+/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+
 /**
  * @fileoverview Extract and verify tests for binject with SMOL-compressed binaries
  *

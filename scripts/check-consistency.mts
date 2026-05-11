@@ -1,3 +1,5 @@
+/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+
 #!/usr/bin/env node
 /**
  * Automated consistency checker for Socket BTM monorepo.

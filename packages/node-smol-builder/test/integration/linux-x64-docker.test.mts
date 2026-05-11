@@ -1,3 +1,5 @@
+/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+
 /**
  * @fileoverview Integration tests for linux-x64 Docker build validation.
  *

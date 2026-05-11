@@ -1,3 +1,5 @@
+/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+
 #!/usr/bin/env node
 /**
  * @fileoverview Clean temporal-infra build artifacts.

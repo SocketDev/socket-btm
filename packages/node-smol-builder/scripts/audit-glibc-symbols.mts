@@ -1,3 +1,5 @@
+/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+
 #!/usr/bin/env node
 /**
  * @fileoverview Enumerate GLIBC_2.x symbol versions pulled in by the built node binary.

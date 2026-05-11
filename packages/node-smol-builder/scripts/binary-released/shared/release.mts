@@ -1,3 +1,5 @@
+/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+
 #!/usr/bin/env node
 /**
  * @fileoverview Deploy built smol binaries to GitHub Releases

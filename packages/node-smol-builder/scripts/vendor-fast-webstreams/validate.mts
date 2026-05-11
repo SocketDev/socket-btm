@@ -1,3 +1,5 @@
+/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+
 #!/usr/bin/env node
 /**
  * Validate fast-webstreams integration in built Node.js binary

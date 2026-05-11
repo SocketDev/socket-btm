@@ -116,6 +116,37 @@ const logger = getDefaultLogger()
  *   inputs (external-tools.json + package.json) are already included.
  */
 
+export function buildCacheKey({
+  buildMode,
+  nodeVersion,
+  platformArch,
+  sources,
+  toolVersions,
+  toolsHash,
+  packageVersion,
+  extraHash,
+}) {
+  const hash = crypto.createHash('sha256')
+  hash.update(`node=${nodeVersion}`)
+  hash.update(`platformArch=${platformArch}`)
+  hash.update(`mode=${buildMode}`)
+  hash.update(`tools=${toolsHash}`)
+  for (const tool of Object.keys(toolVersions).toSorted()) {
+    hash.update(`${tool}@${toolVersions[tool]}`)
+  }
+  for (const key of Object.keys(sources).toSorted()) {
+    const src = sources[key] ?? {}
+    hash.update(
+      `src:${key}=${src.version ?? ''}:${src.ref ?? ''}:${src.url ?? ''}`,
+    )
+  }
+  if (extraHash) {
+    hash.update(`extra=${extraHash}`)
+  }
+  const digest = hash.digest('hex').slice(0, 12)
+  return `v${nodeVersion}-${platformArch}-${buildMode}-${digest}-${packageVersion}`
+}
+
 export function hashFileContents(files) {
   const hash = crypto.createHash('sha256')
   for (const file of files.toSorted()) {
@@ -205,104 +236,6 @@ export function resolveCheckpointBuildDir(stage, ctx) {
     return ctx.sharedPaths.buildDir
   }
   return ctx.paths.buildDir
-}
-
-export async function runStage(stage, ctx, stageParams) {
-  const { buildMode, forceRebuild, logger } = ctx
-
-  if (stage.skipInDev && buildMode === 'dev') {
-    logger.substep(`Skipping ${stage.name} (dev build)`)
-    return
-  }
-
-  const buildDir = resolveCheckpointBuildDir(stage, ctx)
-  const sourcePaths = [
-    path.join(ctx.packageRoot, 'external-tools.json'),
-    path.join(ctx.packageRoot, 'package.json'),
-    ...(stage.sourcePaths ?? []),
-  ].filter(p => existsSync(p))
-
-  // Derive target {platform, arch, libc} from ctx.platformArch instead of
-  // falling back to process.*. The pipeline may cross-compile (e.g. building
-  // a linux-musl WASM bundle from a darwin host), and createCheckpoint /
-  // shouldRun now reject host-fallback metadata because it silently mis-tags
-  // cache entries. parsePlatformArch is the inverse of getAssetPlatformArch
-  // that produced ctx.platformArch at pipeline startup.
-  const platformMeta = stage.shared
-    ? {}
-    : (() => {
-        const { platform, arch, libc } = parsePlatformArch(ctx.platformArch)
-        return {
-          arch,
-          buildMode,
-          libc,
-          nodeVersion: ctx.nodeVersion,
-          platform,
-        }
-      })()
-
-  const shouldProceed = await shouldRun(
-    buildDir,
-    '',
-    stage.name,
-    forceRebuild,
-    sourcePaths,
-    platformMeta,
-  )
-
-  if (!shouldProceed) {
-    logger.substep(`✓ ${stage.name} up-to-date (cached)`)
-    return
-  }
-
-  logger.step(`Running ${stage.name}`)
-  const result = (await stage.run(ctx, stageParams)) ?? {}
-  const {
-    artifactPath,
-    binaryPath,
-    binarySize,
-    smokeTest = async () => {},
-  } = result
-
-  await createCheckpoint(buildDir, stage.name, smokeTest, {
-    ...(artifactPath ? { artifactPath } : {}),
-    ...(binaryPath ? { binaryPath } : {}),
-    ...(binarySize !== undefined ? { binarySize } : {}),
-    packageRoot: ctx.packageRoot,
-    sourcePaths,
-    ...platformMeta,
-  })
-}
-
-export function buildCacheKey({
-  buildMode,
-  nodeVersion,
-  platformArch,
-  sources,
-  toolVersions,
-  toolsHash,
-  packageVersion,
-  extraHash,
-}) {
-  const hash = crypto.createHash('sha256')
-  hash.update(`node=${nodeVersion}`)
-  hash.update(`platformArch=${platformArch}`)
-  hash.update(`mode=${buildMode}`)
-  hash.update(`tools=${toolsHash}`)
-  for (const tool of Object.keys(toolVersions).toSorted()) {
-    hash.update(`${tool}@${toolVersions[tool]}`)
-  }
-  for (const key of Object.keys(sources).toSorted()) {
-    const src = sources[key] ?? {}
-    hash.update(
-      `src:${key}=${src.version ?? ''}:${src.ref ?? ''}:${src.url ?? ''}`,
-    )
-  }
-  if (extraHash) {
-    hash.update(`extra=${extraHash}`)
-  }
-  const digest = hash.digest('hex').slice(0, 12)
-  return `v${nodeVersion}-${platformArch}-${buildMode}-${digest}-${packageVersion}`
 }
 
 /**
@@ -475,4 +408,71 @@ export async function runPipelineCli(options) {
     process.exitCode = 1
     throw e
   }
+}
+
+export async function runStage(stage, ctx, stageParams) {
+  const { buildMode, forceRebuild, logger } = ctx
+
+  if (stage.skipInDev && buildMode === 'dev') {
+    logger.substep(`Skipping ${stage.name} (dev build)`)
+    return
+  }
+
+  const buildDir = resolveCheckpointBuildDir(stage, ctx)
+  const sourcePaths = [
+    path.join(ctx.packageRoot, 'external-tools.json'),
+    path.join(ctx.packageRoot, 'package.json'),
+    ...(stage.sourcePaths ?? []),
+  ].filter(p => existsSync(p))
+
+  // Derive target {platform, arch, libc} from ctx.platformArch instead of
+  // falling back to process.*. The pipeline may cross-compile (e.g. building
+  // a linux-musl WASM bundle from a darwin host), and createCheckpoint /
+  // shouldRun now reject host-fallback metadata because it silently mis-tags
+  // cache entries. parsePlatformArch is the inverse of getAssetPlatformArch
+  // that produced ctx.platformArch at pipeline startup.
+  const platformMeta = stage.shared
+    ? {}
+    : (() => {
+        const { platform, arch, libc } = parsePlatformArch(ctx.platformArch)
+        return {
+          arch,
+          buildMode,
+          libc,
+          nodeVersion: ctx.nodeVersion,
+          platform,
+        }
+      })()
+
+  const shouldProceed = await shouldRun(
+    buildDir,
+    '',
+    stage.name,
+    forceRebuild,
+    sourcePaths,
+    platformMeta,
+  )
+
+  if (!shouldProceed) {
+    logger.substep(`✓ ${stage.name} up-to-date (cached)`)
+    return
+  }
+
+  logger.step(`Running ${stage.name}`)
+  const result = (await stage.run(ctx, stageParams)) ?? {}
+  const {
+    artifactPath,
+    binaryPath,
+    binarySize,
+    smokeTest = async () => {},
+  } = result
+
+  await createCheckpoint(buildDir, stage.name, smokeTest, {
+    ...(artifactPath ? { artifactPath } : {}),
+    ...(binaryPath ? { binaryPath } : {}),
+    ...(binarySize !== undefined ? { binarySize } : {}),
+    packageRoot: ctx.packageRoot,
+    sourcePaths,
+    ...platformMeta,
+  })
 }

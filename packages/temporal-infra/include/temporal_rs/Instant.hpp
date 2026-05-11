@@ -319,6 +319,23 @@ class Instant {
   ::node::socketsecurity::temporal::Instant inner_;
 };
 
+// ── ZonedDateTime member-definitions that depend on Instant ───────
+//
+// `ZonedDateTime::to_instant()` is declared in ZonedDateTime.hpp but
+// defined here. The cycle Instant.hpp → Duration.hpp → RelativeTo.hpp
+// → ZonedDateTime.hpp re-enters Instant.hpp (guard set, skip) while
+// `class Instant` is mid-parse upstream. Defining at the bottom of
+// ZonedDateTime.hpp doesn't help either — Instant is still only
+// forward-declared in that scope. Defining here at the tail of
+// Instant.hpp guarantees both `class Instant` (just above) and
+// `class ZonedDateTime` (parsed earlier in the cycle) are visible.
+inline std::unique_ptr<Instant> ZonedDateTime::to_instant() const {
+  // 1:1 from upstream zoned_date_time.rs `to_instant`: returns the
+  // inner instant by value. The previous body returned nullptr which
+  // would crash V8 callers on deref.
+  return Instant::FromInfra(inner_.instant);
+}
+
 }  // namespace temporal_rs
 
 #endif  // TEMPORAL_RS_COMPAT_INSTANT_HPP_

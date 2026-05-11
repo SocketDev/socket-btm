@@ -557,21 +557,12 @@ class ZonedDateTime {
 
 // ── Out-of-line ZonedDateTime methods ───────────────────────────
 //
-// `to_instant()` lives outside the class body because it needs
-// Instant only as a forward-declared type for the unique_ptr return.
-// The body is trivial (returns nullptr) so a forward decl is enough;
-// runtime correctness is deferred to when the calendar/DST integration
-// activates.
-//
-// `Instant::to_zoned_date_time_iso_with_provider` is defined in-class
-// inside Instant.hpp (also with a trivial body) since we can't define
-// member functions of an incomplete Instant from this header.
-inline std::unique_ptr<Instant> ZonedDateTime::to_instant() const {
-  // 1:1 from upstream zoned_date_time.rs `to_instant`: returns the
-  // inner instant by value. The previous body returned nullptr which
-  // would crash V8 callers on deref.
-  return Instant::FromInfra(inner_.instant);
-}
+// `ZonedDateTime::to_instant()` is defined in Instant.hpp's late
+// section because its body calls `Instant::FromInfra` — `Instant` is
+// only forward-declared at this point in the include cycle
+// (Instant.hpp → Duration.hpp → RelativeTo.hpp → ZonedDateTime.hpp
+// re-enters Instant.hpp before its class body has parsed). Defining
+// here would compile against the forward decl and fail.
 
 // ── ZonedDateTime::from_parsed{,_with_provider} definitions ───────
 //

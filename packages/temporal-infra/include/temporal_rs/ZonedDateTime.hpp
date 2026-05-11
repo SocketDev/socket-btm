@@ -214,8 +214,8 @@ class ZonedDateTime {
   // Spec: floor(instant.epoch_nanoseconds / 1_000_000).
   int64_t epoch_milliseconds() const {
     using ::node::socketsecurity::temporal::Int128;
-    // C5 (quality scan): floor div (not truncated div) to match spec —
-    // sub-ms negative epoch nanoseconds round down, not toward zero.
+    // Floor div (not truncated div) to match spec — sub-ms negative
+    // epoch nanoseconds round down, not toward zero.
     Int128 ms = inner_.instant.epoch_nanoseconds.FloorDiv(
         Int128(int64_t{1'000'000}));
     return ms.ToInt64();
@@ -344,18 +344,17 @@ class ZonedDateTime {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(resolved.error()));
     }
-    // C2/H4 (quality scan): IANA-zone offset requires
-    // get_offset_nanos_for(provider). Until the TimeZoneBackend hooks
-    // land we hard-fail rather than silently emitting `+00:00` for
-    // every IANA zone.
+    // IANA-zone offset requires get_offset_nanos_for(provider). Until
+    // the TimeZoneBackend hooks land we hard-fail rather than silently
+    // emitting `+00:00` for every IANA zone.
     if (!inner_.time_zone.IsOffsetOnly()) {
       return diplomat::Err<TemporalError>(TemporalError{
           ErrorKind::Range,
           "ZonedDateTime.toString for IANA zones requires provider "
           "integration"});
     }
-    // H3 (quality scan): upstream rounds the instant via round_instant
-    // BEFORE feeding GetIsoDateTimeFor; same shape as Instant H1.
+    // Upstream rounds the instant via round_instant BEFORE feeding
+    // GetIsoDateTimeFor; same shape as Instant::to_ixdtf_string.
     if (resolved.value().smallest_unit !=
         ::node::socketsecurity::temporal::Unit::kNanosecond) {
       return diplomat::Err<TemporalError>(TemporalError{
@@ -384,8 +383,14 @@ class ZonedDateTime {
             ? ::node::socketsecurity::temporal::Sign::kNegative
             : ::node::socketsecurity::temporal::Sign::kPositive;
     const int64_t abs_ns = offset_ns < 0 ? -offset_ns : offset_ns;
+    constexpr int64_t kNsPerDay = 24LL * 3600LL * 1'000'000'000LL;
+    if (abs_ns >= kNsPerDay) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "ZonedDateTime.toString offset magnitude exceeds 24 hours"});
+    }
     const uint8_t hour =
-        static_cast<uint8_t>((abs_ns / 1'000'000'000LL / 3600) % 24);
+        static_cast<uint8_t>(abs_ns / 1'000'000'000LL / 3600);
     const uint8_t minute =
         static_cast<uint8_t>((abs_ns / 1'000'000'000LL / 60) % 60);
     const std::string tz_id = inner_.time_zone.Identifier();

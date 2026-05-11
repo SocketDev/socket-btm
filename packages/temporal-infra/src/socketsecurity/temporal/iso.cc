@@ -520,8 +520,8 @@ TemporalResult<IsoDateTime> RoundIsoDateTime(
   //   i64::from(day) + rounded_days)?;
   const int64_t balanced_day =
       static_cast<int64_t>(self.date.day) + round_result.value().days;
-  // M1 (quality scan): bound at MAX_EPOCH_DAYS (10^8 + 1), not int32::max
-  // (~2.1B). Upstream `try_balance` rejects out-of-range inputs early
+  // Bound at MAX_EPOCH_DAYS (10^8 + 1), not int32::max (~2.1B).
+  // Upstream `try_balance` rejects out-of-range inputs early
   // instead of letting BalanceISODate loop ~700M iterations on an
   // int32-max input. The spec's valid Temporal range bottoms out at
   // ±10^8 days; anything beyond is a programming error, not a math

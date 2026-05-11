@@ -117,9 +117,9 @@ class Instant {
 
   int64_t epoch_milliseconds() const {
     using ::node::socketsecurity::temporal::Int128;
-    // C5 (quality scan): spec uses floor(epochNs / 10^6). C++ `/`
-    // truncates toward zero — `-500000ns / 1_000_000 == 0`, but the
-    // spec wants `-1` (one ms before epoch). FloorDiv restores spec.
+    // Spec uses floor(epochNs / 10^6). C++ `/` truncates toward zero —
+    // `-500000ns / 1_000_000 == 0`, but the spec wants `-1` (one ms
+    // before epoch). FloorDiv restores spec.
     Int128 ms = inner_.epoch_nanoseconds.FloorDiv(Int128(int64_t{1'000'000}));
     return ms.ToInt64();
   }
@@ -255,17 +255,17 @@ class Instant {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(resolved.error()));
     }
-    // H2 (quality scan): Some(zone) branch needs offset resolution
-    // via get_offset_nanos_for + nanoseconds_to_formattable_offset_minutes.
-    // Until that lands, refuse rather than silently emit `Z`-suffixed
-    // output for a caller that asked for a specific zone.
+    // Some(zone) branch needs offset resolution via get_offset_nanos_for
+    // + nanoseconds_to_formattable_offset_minutes. Until that lands,
+    // refuse rather than silently emit `Z`-suffixed output for a caller
+    // that asked for a specific zone.
     if (zone.has_value()) {
       return diplomat::Err<TemporalError>(TemporalError{
           ErrorKind::Range,
           "Instant.toString(timeZone) requires provider integration"});
     }
-    // H1 (quality scan): upstream rounds the instant via round_instant
-    // BEFORE feeding GetIsoDateTimeFor. Without that, precision-truncation
+    // Upstream rounds the instant via round_instant BEFORE feeding
+    // GetIsoDateTimeFor. Without that, precision-truncation
     // in formatting doesn't match round-then-format semantics — a
     // `2026-05-08T12:34:56.999999999Z` rounded to seconds with
     // halfExpand should emit `...:57`, not `...:56`. RoundInstant lands

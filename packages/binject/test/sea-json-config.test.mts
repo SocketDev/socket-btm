@@ -1,4 +1,4 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
+/* oxlint-disable socket/prefer-exists-sync -- access(X_OK) checks executable permission, not just existence; stats.size verifies non-empty binary; existsSync can't substitute for either. */
 /**
  * SEA JSON Config Tests
  *

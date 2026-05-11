@@ -1,4 +1,4 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
+/* oxlint-disable socket/prefer-exists-sync -- file tests the VFS surface itself; fs.stat()/fs.access()/fs.statSync() calls verify VFS metadata fidelity (size/mode) AND appear inside test-fixture JS source executed by the SEA binary. */
 /**
  * @fileoverview Tests for VFS (Virtual Filesystem) support with TAR/TAR.GZ archives.
  *

@@ -500,9 +500,7 @@ export function getBuildLogPath(buildDir) {
  * @returns {Promise<string>} Size string (e.g., '1.2 MB')
  */
 export async function getFileSize(filePath) {
-  // Need stat for the size metadata (caller wants byte count for the
-  // human-readable formatter below).
-  // oxlint-disable-next-line socket/prefer-exists-sync
+  // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size for human-readable byte formatter.
   const stats = await fs.stat(filePath)
   const bytes = stats.size
 
@@ -1005,10 +1003,7 @@ export async function staticVerifyBinary(binaryPath, options = {}) {
   logger.substep('Performing static verification (cross-compiled binary)')
 
   try {
-    // Need stat for the size metadata (not just existence) — reject
-    // 0-byte cross-compiled artifacts that the linker may have
-    // silently created when the build skipped a step.
-    // oxlint-disable-next-line socket/prefer-exists-sync
+    // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size to reject 0-byte cross-compiled artifacts the linker may have silently emitted.
     const stats = await fs.stat(binaryPath)
     if (stats.size === 0) {
       printError('Binary is empty')

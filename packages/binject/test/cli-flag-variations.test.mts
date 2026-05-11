@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * @fileoverview CLI flag variation tests for binject
  *
@@ -121,6 +120,7 @@ describe.skipIf(!binjectExists)('cLI flag variations', () => {
         expect(existsSync(outputBinary)).toBeTruthy()
 
         // Verify binary is still executable
+        // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.mode for executable-permission assertion.
         const stats = await fs.stat(outputBinary)
         expect(stats.mode & 0o111).not.toBe(0)
       }, 30_000)

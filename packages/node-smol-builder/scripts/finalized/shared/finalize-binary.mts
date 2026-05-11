@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * Binary finalization phase for Node.js
  *
@@ -123,6 +122,7 @@ export async function finalizeBinary(options) {
       if (!existsSync(finalBinary)) {
         throw new Error('Final binary not found')
       }
+      // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size and stats.mode to validate the final binary.
       const stats = await fs.stat(finalBinary)
       if (stats.size === 0) {
         throw new Error('Final binary is empty')

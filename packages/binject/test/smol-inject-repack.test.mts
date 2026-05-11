@@ -1,4 +1,4 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
+/* oxlint-disable socket/prefer-exists-sync -- four fs.stat() calls all consume stats.size to compare original vs. injected stub sizes; existsSync would lose the size data. */
 
 /**
  * @fileoverview SMOL stub injection and repack workflow tests

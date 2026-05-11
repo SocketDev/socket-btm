@@ -1,4 +1,4 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
+/* oxlint-disable socket/prefer-exists-sync -- many access(X_OK) and access(F_OK) calls check executable permission / output-file readiness inside Promise.all races; existsSync (sync, no permission check) is not a substitute. */
 /**
  * CLI Integration Tests for binject
  * Tests all command-line flags, help output, and user-facing workflows

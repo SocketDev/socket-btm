@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * @fileoverview Integration tests for the prepatched ink bundle.
  *
@@ -80,6 +79,7 @@ describe.skipIf(!HAS_DIST)('ink-builder bundle', () => {
     })
 
     it('bundle is non-trivial in size', async () => {
+      // oxlint-disable-next-line socket/prefer-exists-sync -- need stat.size for the bundle-size regression bounds.
       const stat = await fs.stat(BUNDLE_PATH)
       // Empirical: ~585 KB. The lower bound here catches a bundling
       // regression where externals leak (yoga-sync alone is ~200 KB

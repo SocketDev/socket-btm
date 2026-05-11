@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * @fileoverview Tests for binpress automatic repack detection
  *
@@ -172,6 +171,7 @@ describe.skipIf(
       const initialStub = getStubPath('ratio-stub')
       await execCommand(BINPRESS, [TEST_INPUT, '-o', initialStub])
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size to verify non-empty stub.
       const initialSize = (await fs.stat(initialStub)).size
       expect(initialSize).toBeGreaterThan(0)
 
@@ -185,6 +185,7 @@ describe.skipIf(
 
       expect(result.code).toBe(0)
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size to verify non-empty stub.
       const updatedSize = (await fs.stat(updatedStub)).size
       expect(updatedSize).toBeGreaterThan(0)
     })

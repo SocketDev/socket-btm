@@ -1,5 +1,4 @@
 /* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * VFS External Tools Downloader
  *
@@ -505,6 +504,7 @@ export async function createVfsToolsTarball({
     stdio: 'pipe',
   })
 
+  // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size for log output and return value.
   const stats = await fs.stat(outputPath)
   logger.success(
     `Created ${outputPath} (${(stats.size / 1024 / 1024).toFixed(2)} MB)`,

@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * WASM finalization phase for ONNX Runtime
  *
@@ -99,6 +98,7 @@ export async function finalizeWasm(options) {
       if (magic !== '0061736d') {
         throw new Error('Invalid WASM file (bad magic number)')
       }
+      // oxlint-disable-next-line socket/prefer-exists-sync -- need wasmStats.size for the minimum-size sanity check.
       const wasmStats = await fs.stat(outputWasmFile)
       if (wasmStats.size < 1_000_000) {
         throw new Error(

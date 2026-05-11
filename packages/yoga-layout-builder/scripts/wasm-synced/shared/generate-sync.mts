@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * WASM sync wrapper generation phase for Yoga Layout.
  *
@@ -101,6 +100,7 @@ export async function generateSync(options) {
     binarySize: syncSize,
     smokeTest: async () => {
       const _require = createRequire(import.meta.url)
+      // oxlint-disable-next-line socket/prefer-exists-sync -- need syncStats.size to detect empty-output failure.
       const syncStats = await fs.stat(syncCjsFile)
       if (syncStats.size === 0) {
         throw new Error('Sync wrapper file is empty')

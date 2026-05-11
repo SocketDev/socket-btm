@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 
 /**
  * @fileoverview Resource size limit tests for binject
@@ -330,7 +329,9 @@ describe.skipIf(!binjectExists)('resource size limit enforcement', () => {
       expect(injectResult.code).toBe(0)
 
       // Verify output binary is larger than input
+      // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size for size-growth assertion.
       const inputStats = await fs.stat(inputBinary)
+      // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size for size-growth assertion.
       const outputStats = await fs.stat(outputBinary)
 
       const expectedMinSize = inputStats.size + testSize * 2

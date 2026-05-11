@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * Copy build additions to Node.js source tree.
  * Handles placeholder replacement for version strings in JS files.
@@ -108,6 +107,7 @@ export async function processFileContent(sourcePath, version) {
 
   // For JS files, replace placeholders.
   if (ext === '.js' || ext === '.mjs' || ext === '.cjs') {
+    // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.mode to preserve file permissions on copy.
     const stats = await fs.stat(sourcePath)
     let content = await fs.readFile(sourcePath, 'utf8')
     content = content.replaceAll('%SMOL_VERSION%', version)

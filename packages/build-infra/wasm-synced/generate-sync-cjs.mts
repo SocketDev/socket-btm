@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * Generate CommonJS synchronous WASM wrapper.
  *
@@ -83,6 +82,7 @@ export async function generateSyncCjs(options) {
     : ' * Built for synchronous instantiation.'
 
   // Get file size for documentation
+  // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size for size-in-comment documentation.
   const mjsStats = await fs.stat(mjsFile)
 
   // Generate the CommonJS wrapper
@@ -124,6 +124,7 @@ module.exports = ${exportName}Module;
 
   await fs.writeFile(outputSyncJs, jsContent, 'utf8')
 
+  // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size for the size log line.
   const syncJsSize = (await fs.stat(outputSyncJs)).size
   logger.substep(`Sync JS (CJS): ${outputSyncJs}`)
   logger.substep(`Sync JS size: ${(syncJsSize / 1024).toFixed(2)} KB`)

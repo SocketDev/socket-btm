@@ -1,4 +1,4 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
+/* oxlint-disable socket/prefer-exists-sync -- fs.stat() calls consume stats.size to size-document the WASM input and report the generated MJS wrapper size. */
 /**
  * Generate ESM synchronous WASM wrapper.
  *

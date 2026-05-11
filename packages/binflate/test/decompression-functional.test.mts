@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 
 /**
  * @fileoverview Binflate decompression functional tests
@@ -249,6 +248,7 @@ describe.skipIf(!binflateExists || !binpressExists)(
           decompressedBinary,
         ])
 
+        // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.mode for executable-permission assertion.
         const stats = await fs.stat(decompressedBinary)
         const isExecutable = (stats.mode & 0o111) !== 0
 
@@ -496,6 +496,7 @@ describe.skipIf(!binflateExists || !binpressExists)(
         expect(result.code).toBe(0)
 
         // Verify platform-specific details
+        // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size to verify decompressed payload is non-empty.
         const stats = await fs.stat(decompressedBinary)
         expect(stats.size).toBeGreaterThan(0)
 

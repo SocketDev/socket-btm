@@ -1,4 +1,4 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
+/* oxlint-disable socket/prefer-exists-sync -- fs.stat() calls consume stats.size to verify downloaded model size after HuggingFace fetch. */
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'

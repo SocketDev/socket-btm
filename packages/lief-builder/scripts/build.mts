@@ -1,5 +1,5 @@
 /* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
+/* oxlint-disable socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size sanity checks. */
 /**
  * Build script for LIEF library.
  * Downloads prebuilt LIEF from GitHub releases or builds from source.

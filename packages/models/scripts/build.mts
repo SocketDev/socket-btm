@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
+/* oxlint-disable socket/prefer-exists-sync -- fs.stat() calls consume stats.size to verify minilm/codet5 model artifacts are in expected size range during the build smoke test. */
 /**
  * Build script for @socketsecurity/models.
  *

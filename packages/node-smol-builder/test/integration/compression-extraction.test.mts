@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * @fileoverview Integration tests for final binary extraction to ~/.socket/_dlx/
  *
@@ -131,6 +130,7 @@ describe.skipIf(skipTests)('final binary extraction to ~/.socket/_dlx/', () => {
       expect(existsSync(cachedBinaryPath)).toBeTruthy()
 
       // Verify binary is executable
+      // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.mode for executable-permission assertion.
       const stats = await fs.stat(cachedBinaryPath)
       expect(stats.mode & 0o100).not.toBe(0)
     })

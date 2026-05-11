@@ -1,4 +1,4 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
+/* oxlint-disable socket/prefer-exists-sync -- every stat call in this file consumes stats.size to assert the synthesized PE fixtures are non-empty before the C parser sees them. */
 /**
  * @fileoverview Tests for PE VS_VERSION_INFO reader scan guards
  *

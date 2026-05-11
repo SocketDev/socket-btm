@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * @fileoverview Tests for --build-sea flag behavior.
  *
@@ -53,6 +52,7 @@ describe.skipIf(skipTests)('--build-sea flag', () => {
     expect(result.code).toBe(0)
     expect(existsSync(blobFile)).toBeTruthy()
 
+    // oxlint-disable-next-line socket/prefer-exists-sync -- need stat.size to verify blob is non-empty.
     const stat = await fs.stat(blobFile)
     expect(stat.size).toBeGreaterThan(0)
 

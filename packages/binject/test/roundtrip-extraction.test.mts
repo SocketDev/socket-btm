@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 
 /**
  * @fileoverview Round-trip injection and extraction tests for binject
@@ -224,6 +223,7 @@ describe.skipIf(!binjectExists)('round-trip injection and extraction', () => {
       expect(extractResult.code).toBe(0)
 
       // Verify size and hash
+      // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size to verify extracted payload matches.
       const extractedStats = await fs.stat(extractedSea)
       expect(extractedStats.size).toBe(largeContent.length)
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * Build script for stubs-builder package.
  * Wraps the Makefile build target for pnpm integration.
@@ -37,6 +36,7 @@ buildBinSuitePackage({
   smokeTest: async binaryPath => {
     // Custom smoke test for smol_stub (doesn't have --version flag).
     // Just verify binary exists and has reasonable size.
+    // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size for size sanity check + log.
     const stats = await fs.stat(binaryPath)
     if (stats.size < 1000) {
       throw new Error(`Binary too small: ${stats.size} bytes (expected >1KB)`)

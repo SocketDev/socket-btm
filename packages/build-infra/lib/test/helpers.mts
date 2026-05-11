@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * Shared test helpers for validating WASM build outputs.
  *
@@ -106,6 +105,7 @@ export function createWasmTestHelpers(config) {
         return
       }
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size for size-expectations assertions.
       const stats = await fs.stat(wasmPath)
       if (sizeExpectations.wasmMin) {
         expect(stats.size).toBeGreaterThan(sizeExpectations.wasmMin)

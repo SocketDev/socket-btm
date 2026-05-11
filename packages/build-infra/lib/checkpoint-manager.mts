@@ -256,8 +256,7 @@ export async function createCheckpoint(
     const tarDir = path.dirname(artifactPath)
     const tarBase = path.basename(artifactPath)
 
-    // Need stat for the isDirectory() metadata to decide directory-vs-file archiving.
-    // oxlint-disable-next-line socket/prefer-exists-sync
+    // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.isDirectory() to choose dir-vs-file archive flow.
     const stats = await fs.stat(artifactPath)
     const isDir = stats.isDirectory()
 
@@ -358,9 +357,7 @@ export async function createCheckpoint(
         }
       }
 
-      // Validate temp tarball before rename — need stat for size metadata
-      // to detect empty (0-byte) or oversized output from a failed tar run.
-      // oxlint-disable-next-line socket/prefer-exists-sync
+      // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size to detect empty or oversized tarball from a failed tar run.
       const tempStats = await fs.stat(tempTarballPath)
       if (tempStats.size === 0) {
         safeDeleteSync(tempTarballPath, { force: true })
@@ -425,9 +422,7 @@ export async function createCheckpoint(
           if (e?.code === 'EEXIST' || e?.code === 'EPERM') {
             // Verify existing checkpoint is complete before giving up
             try {
-              // Need stat for size metadata to distinguish a complete checkpoint
-              // (size > 0, keep it) from an incomplete one (0 bytes, retry rename).
-              // oxlint-disable-next-line socket/prefer-exists-sync
+              // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size to distinguish complete (>0 keep) from incomplete (0 retry).
               const existingStats = await fs.stat(tarballPath)
               if (existingStats.size > 0) {
                 logger.warn(
@@ -492,8 +487,7 @@ export async function createCheckpoint(
       throw err
     }
 
-    // Need stat for size metadata to report the human-readable tarball size.
-    // oxlint-disable-next-line socket/prefer-exists-sync
+    // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size for the human-readable tarball-size log line.
     const tarStats = await fs.stat(tarballPath)
     const sizeMB = (tarStats.size / 1024 / 1024).toFixed(1)
     logger.substep(`Saved ${checkpointName}.tar.gz (${sizeMB}MB)`)
@@ -689,9 +683,7 @@ export async function createCheckpoint(
           if (existsSync(previousTarball)) {
             // Check if checkpoint is valid before deciding cleanup
             // Invalid checkpoints should be deleted regardless of age.
-            // Need stat for size + mtimeMs metadata: size validates the
-            // gzip header/footer envelope; mtimeMs drives the cleanup grace period.
-            // oxlint-disable-next-line socket/prefer-exists-sync
+            // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size (gzip envelope check) and stats.mtimeMs (cleanup grace).
             const stats = await fs.stat(previousTarball)
             // Too small to be valid gzip (header 10 bytes + footer 8 bytes = 18 minimum)
             const isInvalidCheckpoint = stats.size === 0 || stats.size < 18
@@ -1002,10 +994,7 @@ export async function restoreCheckpoint(
     }
 
     try {
-      // Need stat for size + mtimeMs metadata: size drives empty/oversize/truncation
-      // checks; mtimeMs is captured as initialModTime to detect concurrent replacement
-      // during the retry loop below.
-      // oxlint-disable-next-line socket/prefer-exists-sync
+      // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size (truncation guard) and stats.mtimeMs (concurrent-replacement detector).
       const stats = await fs.stat(tarballPath)
       const initialModTime = stats.mtimeMs
       const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
@@ -1107,10 +1096,8 @@ export async function restoreCheckpoint(
           // eslint-disable-next-line no-await-in-loop
           await withLock(`${tarballPath}.lock`, 'sh', async () => {
             // Re-validate checkpoint exists before extraction (catches TOCTOU
-            // deletion). Need stat for size + mtimeMs metadata: size detects an
-            // emptied file mid-restore; mtimeMs delta detects replacement by a
-            // concurrent build.
-            // oxlint-disable-next-line socket/prefer-exists-sync
+            // deletion).
+            // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size (emptied mid-restore) and stats.mtimeMs (concurrent-replacement delta).
             const preExtractStats = await fs.stat(tarballPath)
             if (preExtractStats.size === 0) {
               throw new Error('Checkpoint file became empty before extraction')
@@ -1219,11 +1206,9 @@ export async function restoreCheckpoint(
       }
 
       // Verify extraction succeeded with a single stat() call (avoid TOCTOU race).
-      // Need stat for isFile() + size metadata to confirm the extracted artifact
-      // is non-empty for file artifacts.
       let extractedStats
       try {
-        // oxlint-disable-next-line socket/prefer-exists-sync
+        // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.isFile() + stats.size to confirm extracted artifact is non-empty file.
         extractedStats = await fs.stat(targetPath)
       } catch (e) {
         if (e.code === 'ENOENT') {

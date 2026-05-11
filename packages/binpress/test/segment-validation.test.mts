@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * @fileoverview Segment and section validation tests for binpress
  *
@@ -505,6 +504,7 @@ describe.skipIf(!existsSync(BINPRESS))('segment and section validation', () => {
           ? `${compressedBinary}.exe`
           : compressedBinary
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.mode for executable-permission assertion.
       const stats = await fs.stat(finalPath)
 
       // Windows doesn't use Unix-style executable bits, so skip this check on Windows

@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /* oxlint-disable socket/no-status-emoji -- emoji is wrapped in colors.green() decorator before being embedded in multi-line release summary; logger.success() would drop the color. */
 /* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order. */
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime); existsSync would lose information needed by callers. */
 
 /**
  * @fileoverview Deploy built smol binaries to GitHub Releases
@@ -342,6 +341,7 @@ export async function createReleaseArchive(
   logger.log(`  SHA-256: ${checksum}`)
 
   // Get file size.
+  // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size for release-notes size column.
   const stats = await fs.stat(archivePath)
   const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
   logger.log(`  Size: ${sizeMB} MB`)

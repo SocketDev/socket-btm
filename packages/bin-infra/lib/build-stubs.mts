@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * Build script for smol_stub self-extracting binaries.
  * Downloads prebuilt stubs from GitHub releases or builds from source.
@@ -445,6 +444,7 @@ async function main() {
     // Ensure stubs are available.
     const stubBinaryPath = await ensureStubs({ force: forceRebuild })
 
+    // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size for the log line.
     const stats = await fs.stat(stubBinaryPath)
     const sizeKB = (stats.size / 1024).toFixed(2)
     logger.info(`Stub binary size: ${sizeKB} KB`)
@@ -461,6 +461,7 @@ async function main() {
       CHECKPOINTS.FINALIZED,
       async () => {
         // Verify binary exists and has reasonable size (< 200KB for stub).
+        // oxlint-disable-next-line socket/prefer-exists-sync -- need stubStats.size for the size-cap check.
         const stubStats = await fs.stat(stubBinaryPath)
         if (stubStats.size > 200_000) {
           logger.info(

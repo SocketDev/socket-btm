@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * Build script for binpress C package
  * Wraps the Makefile build target for pnpm integration
@@ -36,6 +35,7 @@ export async function ensureDependencies({ buildMode, packageDir }) {
 // Custom smoke test for Windows: only verify file exists and size.
 // Skip --version test to avoid DLL dependency issues and cross-architecture execution problems.
 export async function windowsSmokeTest(binaryPath) {
+  // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size for size sanity check.
   const stats = await fs.stat(binaryPath)
   if (stats.size < 1000) {
     throw new Error(`Binary too small: ${stats.size} bytes (expected >1KB)`)

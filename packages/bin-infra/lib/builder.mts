@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * bin-infra Builder
  *
@@ -237,6 +236,7 @@ export async function buildBinSuitePackage(config) {
  */
 export async function defaultSmokeTest(binaryPath, packageName) {
   // Smoke test: verify binary exists and has reasonable size
+  // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size for size sanity check.
   const stats = await fs.stat(binaryPath)
   if (stats.size < 1000) {
     throw new Error(`Binary too small: ${stats.size} bytes (expected >1KB)`)

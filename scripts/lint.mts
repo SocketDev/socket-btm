@@ -24,8 +24,8 @@ const CONFIG_PATTERNS = [
   '.config/**',
   'scripts/utils/**',
   'pnpm-lock.yaml',
-  '.oxlintrc.json',
-  '.oxfmtrc.json',
+
+
 ]
 
 type LintSelection =
@@ -196,7 +196,7 @@ export async function runLintOnAll(options: LintOptions = {}): Promise<number> {
         'exec',
         'oxlint',
         '-c',
-        '.oxlintrc.json',
+      
         '--import-plugin',
         '--node-plugin',
         '--vitest-plugin',
@@ -262,7 +262,7 @@ export async function runLintOnFiles(
         'exec',
         'oxlint',
         '-c',
-        '.oxlintrc.json',
+      
         '--import-plugin',
         '--node-plugin',
         '--vitest-plugin',

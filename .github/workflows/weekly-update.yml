@@ -25,7 +25,7 @@ jobs:
       checkout-submodules: 'true'
       test-setup-script: 'pnpm run build'
       test-script: 'pnpm test'
-      validate-file-patterns: 'package.json|*/package.json|pnpm-lock.yaml|*/pnpm-lock.yaml|.npmrc|pnpm-workspace.yaml|.gitmodules|lockstep.json'
+      validate-file-patterns: 'package.json|*/package.json|pnpm-lock.yaml|*/pnpm-lock.yaml|.npmrc|pnpm-workspace.yaml|.gitmodules|.config/lockstep.json'
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       BOT_GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}

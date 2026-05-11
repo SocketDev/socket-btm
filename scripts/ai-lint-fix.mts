@@ -203,7 +203,7 @@ function bucketFindings(files: OxlintFile[]): Map<string, OxlintMessage[]> {
  * inside a `<rules>` block. Claude sees only the rules that fired in
  * the current file, so noise stays low.
  */
-const RULE_GUIDANCE: Readonly<Record<string, string>> = {
+const RULE_GUIDANCE: Record<string, string | undefined> = {
   __proto__: null,
   'socket/inclusive-language':
     'Replace `master`/`slave` with the contextually correct term: `main` (branch), `primary`/`controller` (process), `replica`/`worker`/`secondary`/`follower` (subordinate). Read the surrounding code to pick the right one. Do not autofix when an external API field name forces the legacy term — leave a `// inclusive-language: external-api` comment instead.',
@@ -223,9 +223,9 @@ const RULE_GUIDANCE: Readonly<Record<string, string>> = {
     'Implement the placeholder. If the work is too large, do NOT delete the marker — leave the file unchanged and explain in your final reply.',
   'socket/no-fetch-prefer-http-request':
     'Replace `fetch(url, opts)` with the right helper from `@socketsecurity/lib/http-request`: `httpJson` when the caller calls `.json()` on the response, `httpText` when it calls `.text()`, `httpRequest` for raw access. Add the named import.',
-}
+} as unknown as Record<string, string | undefined>
 
-function renderFindings(findings: OxlintMessage[], rel: string): string {
+function renderFindings(findings: OxlintMessage[]): string {
   return findings
     .map(
       f =>
@@ -282,7 +282,7 @@ function buildPrompt(
   findings: OxlintMessage[],
 ): string {
   const rel = path.relative(process.cwd(), filePath)
-  const findingsBlock = renderFindings(findings, rel)
+  const findingsBlock = renderFindings(findings)
   const rulesBlock = renderRuleGuidance(findings)
   return `<task>Fix the lint findings in a single source file.</task>
 
@@ -306,7 +306,6 @@ ${rulesBlock}
 }
 
 async function runClaudeFix(
-  filePath: string,
   prompt: string,
   cwd: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
@@ -378,7 +377,7 @@ async function main(): Promise<void> {
   if (args.noAi) {
     return
   }
-  if (process.env.SKIP_AI_FIX === '1') {
+  if (process.env['SKIP_AI_FIX'] === '1') {
     return
   }
   if (!existsSync('.oxlintrc.json')) {
@@ -407,7 +406,7 @@ async function main(): Promise<void> {
     const rel = path.relative(cwd, filePath)
     logger.log(`AI-fix ${rel} (${findings.length} findings)…`)
     const prompt = buildPrompt(filePath, findings)
-    const { exitCode, stderr } = await runClaudeFix(filePath, prompt, cwd)
+    const { exitCode, stderr } = await runClaudeFix(prompt, cwd)
     if (exitCode === 0) {
       totalEdits += findings.length
       continue

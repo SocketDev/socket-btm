@@ -169,8 +169,7 @@ class Instant {
   inline diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
   to_zoned_date_time_iso_with_provider(const TimeZone& /*tz*/,
                                          const Provider& /*p*/) const {
-    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
-        std::unique_ptr<ZonedDateTime>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   // ── Arithmetic ─────────────────────────────────────────────────
@@ -233,14 +232,12 @@ class Instant {
   // V8-facing non-templated since/until. Stub.
   diplomat::result<std::unique_ptr<Duration>, TemporalError>
   since(const Instant& /*other*/, DifferenceSettings /*settings*/) const {
-    return diplomat::Ok<std::unique_ptr<Duration>>(
-        std::unique_ptr<Duration>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   diplomat::result<std::unique_ptr<Duration>, TemporalError>
   until(const Instant& /*other*/, DifferenceSettings /*settings*/) const {
-    return diplomat::Ok<std::unique_ptr<Duration>>(
-        std::unique_ptr<Duration>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   // 1:1 from upstream instant.rs:420 / :431.

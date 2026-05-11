@@ -59,8 +59,7 @@ class PlainMonthDay {
                std::optional<ArithmeticOverflow> /*overflow*/) {
     // Stub — full PartialDate → PlainMonthDay resolution lands when
     // the calendar-aware path activates.
-    return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
-        std::unique_ptr<PlainMonthDay>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   static diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
@@ -68,8 +67,7 @@ class PlainMonthDay {
                         AnyCalendarKind /*calendar*/,
                         ArithmeticOverflow /*overflow*/,
                         std::optional<int32_t> /*ref_year*/) {
-    return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
-        std::unique_ptr<PlainMonthDay>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
@@ -81,8 +79,7 @@ class PlainMonthDay {
 
   diplomat::result<std::unique_ptr<PlainDate>, TemporalError>
   to_plain_date(std::optional<PartialDate> /*year*/) const {
-    return diplomat::Ok<std::unique_ptr<PlainDate>>(
-        std::unique_ptr<PlainDate>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   diplomat::result<int64_t, TemporalError>

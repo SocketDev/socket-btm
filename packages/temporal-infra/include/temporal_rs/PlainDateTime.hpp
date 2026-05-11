@@ -275,8 +275,7 @@ class PlainDateTime {
   // Stub returns nullptr until the calendar/DST path activates.
   diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
   to_zoned_date_time(TimeZone /*tz*/, Disambiguation /*disamb*/) const {
-    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
-        std::unique_ptr<ZonedDateTime>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>

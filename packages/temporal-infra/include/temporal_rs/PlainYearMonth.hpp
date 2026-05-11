@@ -59,11 +59,11 @@ class PlainYearMonth {
   static diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
   from_partial(PartialDate /*partial*/,
                std::optional<ArithmeticOverflow> /*overflow*/) {
-    // Stub: full PartialDate → PlainYearMonth resolution lands when the
-    // calendar-aware path activates. Return Ok with a default-constructed
-    // shape so V8's call site has a usable handle.
-    return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
-        std::unique_ptr<PlainYearMonth>(nullptr));
+    // Stub: full PartialDate → PlainYearMonth resolution lands when
+    // the calendar-aware path activates. Return Err so V8 surfaces a
+    // RangeError rather than silently handing the caller a null
+    // PlainYearMonth.
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   static diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
@@ -71,8 +71,7 @@ class PlainYearMonth {
                         std::optional<uint8_t> /*reference_day*/,
                         AnyCalendarKind /*calendar*/,
                         ArithmeticOverflow /*overflow*/) {
-    return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
-        std::unique_ptr<PlainYearMonth>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
@@ -98,26 +97,29 @@ class PlainYearMonth {
   diplomat::result<std::unique_ptr<Duration>, TemporalError>
   until(const PlainYearMonth& /*other*/,
         DifferenceSettings /*settings*/) const {
-    return diplomat::Ok<std::unique_ptr<Duration>>(
-        std::unique_ptr<Duration>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   diplomat::result<std::unique_ptr<Duration>, TemporalError>
   since(const PlainYearMonth& /*other*/,
         DifferenceSettings /*settings*/) const {
-    return diplomat::Ok<std::unique_ptr<Duration>>(
-        std::unique_ptr<Duration>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   diplomat::result<std::unique_ptr<PlainDate>, TemporalError>
   to_plain_date(std::optional<PartialDate> /*day*/) const {
-    return diplomat::Ok<std::unique_ptr<PlainDate>>(
-        std::unique_ptr<PlainDate>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
+  // Stub: requires calendar-aware day projection + provider integration.
+  // Two-argument form (TimeZone + Provider) mirrors upstream Rust's
+  // signature; the single-Provider overload below shares the same fate.
   diplomat::result<int64_t, TemporalError>
   epoch_ms_for_with_provider(TimeZone /*tz*/, const Provider& /*p*/) const {
-    return diplomat::Ok<int64_t>(0);
+    return diplomat::Err<TemporalError>(TemporalError{
+        ErrorKind::Range,
+        "PlainYearMonth.epochMsFor(timeZone, provider) requires a "
+        "calendar backend + provider integration"});
   }
 
   // 1:1 from upstream plain_year_month.rs:630 / :638.

@@ -121,8 +121,7 @@ class ZonedDateTime {
       const Provider& /*p*/) {
     // Stub — full PartialZonedDateTime → ZonedDateTime resolution lands
     // when the calendar/DST integration activates.
-    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
-        std::unique_ptr<ZonedDateTime>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   static diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
@@ -130,8 +129,7 @@ class ZonedDateTime {
                         AnyCalendarKind /*calendar*/,
                         TimeZone /*time_zone*/,
                         const Provider& /*p*/) {
-    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
-        std::unique_ptr<ZonedDateTime>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   // ── Field accessors ─────────────────────────────────────────────
@@ -303,8 +301,7 @@ class ZonedDateTime {
   diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
   get_time_zone_transition_with_provider(TransitionDirection /*dir*/,
                                           const Provider& /*p*/) const {
-    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
-        std::unique_ptr<ZonedDateTime>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   diplomat::result<double, TemporalError> hours_in_day_with_provider(
@@ -387,16 +384,14 @@ class ZonedDateTime {
   until_with_provider(const ZonedDateTime& /*other*/,
                        DifferenceSettings /*settings*/,
                        const Provider& /*p*/) const {
-    return diplomat::Ok<std::unique_ptr<Duration>>(
-        std::unique_ptr<Duration>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   diplomat::result<std::unique_ptr<Duration>, TemporalError>
   since_with_provider(const ZonedDateTime& /*other*/,
                        DifferenceSettings /*settings*/,
                        const Provider& /*p*/) const {
-    return diplomat::Ok<std::unique_ptr<Duration>>(
-        std::unique_ptr<Duration>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   // Upstream: returns plain unique_ptr (no result wrap, no error case).

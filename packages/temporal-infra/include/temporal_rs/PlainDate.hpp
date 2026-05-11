@@ -198,8 +198,7 @@ class PlainDate {
   // Stub returns nullptr; full impl lands when calendar.cc activates.
   diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError>
   to_plain_date_time(const PlainTime* /*time*/) const {
-    return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
-        std::unique_ptr<PlainDateTime>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   // 1:1 from upstream plain_date.rs:644.
@@ -218,8 +217,7 @@ class PlainDate {
   diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
   to_zoned_date_time(TimeZone /*tz*/,
                      const PlainTime* /*time*/) const {
-    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
-        std::unique_ptr<ZonedDateTime>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
@@ -240,14 +238,12 @@ class PlainDate {
   // compile/link. Full surface lands when calendar.cc activates.
   diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
   to_plain_month_day() const {
-    return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
-        std::unique_ptr<PlainMonthDay>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
   to_plain_year_month() const {
-    return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
-        std::unique_ptr<PlainYearMonth>(nullptr));
+    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
   // ── Mutation (returns new heap-owned PlainDate) ───────────────────

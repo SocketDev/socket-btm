@@ -1,4 +1,4 @@
-/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
+/* oxlint-disable socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers. */
 /**
  * Shared helpers for loading tool versions from external-tools.json
  *

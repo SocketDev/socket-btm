@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
+/* oxlint-disable socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover mirror pairs → diff content → report); alphabetizing would scatter the flow. */
 /**
  * @fileoverview Mirror-doc sync checker.
  *

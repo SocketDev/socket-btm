@@ -1,4 +1,4 @@
-/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
+/* oxlint-disable socket/sort-source-methods -- build script is ordered as a top-down pipeline (cargo setup → napi-rs build → finalize); alphabetizing would scatter the flow. */
 /**
  * Build iocraft - Native Node.js bindings for iocraft TUI library.
  *

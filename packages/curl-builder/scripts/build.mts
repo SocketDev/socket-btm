@@ -1,4 +1,4 @@
-/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
+/* oxlint-disable socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order. */
 /* oxlint-disable socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size sanity checks. */
 /**
  * Build script for libcurl with mbedTLS.

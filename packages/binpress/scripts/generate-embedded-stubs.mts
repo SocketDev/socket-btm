@@ -1,4 +1,4 @@
-/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
+/* oxlint-disable socket/sort-source-methods -- script ordered as a top-down stub-generation pipeline (resolve platforms → fetch or build → embed → write); alphabetizing would scatter the flow. */
 /* oxlint-disable socket/prefer-exists-sync -- fs.stat() calls consume stats.size for the per-stub log message and per-platform size summary. */
 
 /**

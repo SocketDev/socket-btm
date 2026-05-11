@@ -1,4 +1,4 @@
-/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
+/* oxlint-disable socket/sort-source-methods -- helpers grouped by builtin probe (probe → assert → describe); alphabetizing would split each builtin's helper triplet. */
 /**
  * @fileoverview Shared helpers for probing `node:smol-*` builtins on
  * the built smol binary. Every `node:smol-*` integration test uses the

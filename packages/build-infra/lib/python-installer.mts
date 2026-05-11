@@ -1,4 +1,4 @@
-/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
+/* oxlint-disable socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow. */
 /**
  * Python Package Installation Utilities
  *

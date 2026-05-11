@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* oxlint-disable socket/no-status-emoji -- emoji is wrapped in colors.green() decorator before being embedded in multi-line release summary; logger.success() would drop the color. */
-/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order. */
+/* oxlint-disable socket/sort-source-methods -- release script ordered as a top-down pipeline (gather artifacts → checksum → assemble notes → upload → publish); alphabetizing would scatter the flow. */
 
 /**
  * @fileoverview Deploy built smol binaries to GitHub Releases

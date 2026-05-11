@@ -1,4 +1,4 @@
-/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
+/* oxlint-disable socket/sort-source-methods -- test helpers are ordered by the repack flow they exercise; alphabetizing would scatter them across the file. */
 /* oxlint-disable socket/prefer-exists-sync -- fs.stat() calls consume stats.size to compare compressed/batched/updated artifact sizes through the repack flow. */
 
 /**

@@ -1,4 +1,4 @@
-/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
+/* oxlint-disable socket/sort-source-methods -- test helpers ordered by signature-cache flow (build → sign → cache → verify → invalidate); alphabetizing would scatter the flow. */
 
 /**
  * E2E Tests for Signature Validation and Cache Management

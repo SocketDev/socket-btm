@@ -1,4 +1,4 @@
-/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
+/* oxlint-disable socket/sort-source-methods -- public API surface ordered by usage (createRenderer first, then helpers); alphabetizing would bury the entry-point function. */
 import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'

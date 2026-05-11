@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* oxlint-disable socket/no-status-emoji -- script uses a local log(msg, color) helper that composes ANSI color with status markers; logger.success/fail would drop the explicit color control needed for the consistency-checker's multi-column report. */
-/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order. */
+/* oxlint-disable socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow. */
 
 /**
  * Automated consistency checker for Socket BTM monorepo.

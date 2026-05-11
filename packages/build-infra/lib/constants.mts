@@ -1,4 +1,4 @@
-/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
+/* oxlint-disable socket/sort-source-methods -- file is grouped by section header banners ("Path Constants" / "Build Constants" / ...) with helpers co-located with their constants; autofix bails on the const-interleaved layout and reordering would scatter related declarations across sections. */
 /**
  * Shared constants for Socket BTM build infrastructure
  *

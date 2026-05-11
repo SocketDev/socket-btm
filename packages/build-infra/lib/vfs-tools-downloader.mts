@@ -1,4 +1,4 @@
-/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
+/* oxlint-disable socket/sort-source-methods -- file is ordered by download pipeline phase (parse manifest → fetch → verify checksum → pack); alphabetizing across phases would scatter the download flow. */
 /**
  * VFS External Tools Downloader
  *

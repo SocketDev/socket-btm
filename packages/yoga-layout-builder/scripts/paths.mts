@@ -1,4 +1,4 @@
-/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
+/* oxlint-disable socket/sort-source-methods -- top-level functions interleave with `export const` path constants; autofix bails on the interleaved state, and reordering would split each constant from the helper that produces it. */
 /**
  * Centralized path resolution for yoga-layout-builder.
  *

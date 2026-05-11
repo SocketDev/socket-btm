@@ -1,4 +1,4 @@
-/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
+/* oxlint-disable socket/sort-source-methods -- platform/arch mapping tables (const) and the helpers that read them are co-located; autofix bails on the const-interleaved layout. */
 import process from 'node:process'
 
 /**

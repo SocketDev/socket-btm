@@ -22,7 +22,18 @@ struct TemporalError {
   // ownership story is different (no FFI boundary, we own the
   // string), but for V8 source-compat we must expose `msg` as a
   // public optional<string_view> field. The backing storage lives
-  // in `msg_storage`; FromInfra() constructs the view-into-storage.
+  // in `msg_storage`; the copy/move ctors below rebind `msg` to
+  // point at THIS instance's storage so the view is never dangling.
+  //
+  // The previous shape used implicit defaulted ctors, which copied
+  // `msg` (string_view) bitwise from the source — leaving it pointing
+  // at the SOURCE's storage. When V8 received the error by value
+  // (TemporalResult::err().value()), the source had already destructed,
+  // so `err.msg.value()` was a dangling view and printed garbage
+  // ("@UZ"-style undefined-behavior output) instead of the real
+  // message. Custom copy/move ctors + assignment ops rebind `msg`
+  // onto `this->msg_storage` after the move, eliminating the
+  // dangling-pointer footgun.
   std::string msg_storage;
   std::optional<std::string_view> msg;
 
@@ -36,6 +47,49 @@ struct TemporalError {
     if (!msg_storage.empty()) {
       msg = std::string_view(msg_storage);
     }
+  }
+
+  // Rebinding copy: copy storage, then point `msg` at OUR storage.
+  TemporalError(const TemporalError& other)
+      : kind(other.kind), msg_storage(other.msg_storage) {
+    if (!msg_storage.empty()) {
+      msg = std::string_view(msg_storage);
+    }
+  }
+
+  // Rebinding move: move storage, then point `msg` at OUR storage.
+  // The source's `msg` is left empty (it points at moved-from storage,
+  // which std::string guarantees is left in a valid empty-or-similar
+  // state — but we clear `msg` explicitly to avoid surprise).
+  TemporalError(TemporalError&& other) noexcept
+      : kind(other.kind), msg_storage(std::move(other.msg_storage)) {
+    if (!msg_storage.empty()) {
+      msg = std::string_view(msg_storage);
+    }
+    other.msg.reset();
+  }
+
+  TemporalError& operator=(const TemporalError& other) {
+    if (this != &other) {
+      kind = other.kind;
+      msg_storage = other.msg_storage;
+      msg = msg_storage.empty()
+                ? std::optional<std::string_view>{}
+                : std::optional<std::string_view>{std::string_view(msg_storage)};
+    }
+    return *this;
+  }
+
+  TemporalError& operator=(TemporalError&& other) noexcept {
+    if (this != &other) {
+      kind = other.kind;
+      msg_storage = std::move(other.msg_storage);
+      msg = msg_storage.empty()
+                ? std::optional<std::string_view>{}
+                : std::optional<std::string_view>{std::string_view(msg_storage)};
+      other.msg.reset();
+    }
+    return *this;
   }
 
   // Bridge from temporal-infra's TemporalError.

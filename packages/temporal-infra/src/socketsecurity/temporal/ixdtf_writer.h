@@ -21,6 +21,7 @@
 #include <string>
 #include <string_view>
 
+#include "socketsecurity/temporal/duration_normalized.h"
 #include "socketsecurity/temporal/options.h"
 #include "socketsecurity/temporal/temporal.h"
 
@@ -28,11 +29,10 @@ namespace node {
 namespace socketsecurity {
 namespace temporal {
 
-// ── Sign tag ──────────────────────────────────────────────────────────
-// Mirror of upstream's `Sign` enum (used by FormattableOffset and
-// FormattableDuration). Spec has Negative / Zero / Positive but the
-// writer only distinguishes Negative vs non-negative.
-enum class Sign : int8_t { kNegative = -1, kZero = 0, kPositive = 1 };
+// `Sign` lives in duration_normalized.h — included above. Re-used here
+// by FormattableOffset and FormattableDuration. (Previously defined
+// inline, which caused a duplicate-definition error at link time
+// when both headers landed in the same translation unit.)
 
 // ── FormattableDate ───────────────────────────────────────────────────
 // 1:1 port of `pub struct FormattableDate(pub i32, pub u8, pub u8)`.

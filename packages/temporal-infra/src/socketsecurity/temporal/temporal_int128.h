@@ -69,6 +69,24 @@ struct Int128 {
   constexpr Int128 operator%(Int128 o) const noexcept {
     return Int128(value % o.value);
   }
+  // Floor division (toward negative infinity). Temporal spec uses
+  // `floor(epochNs / 10^6)` for epoch_milliseconds; C++ `/` truncates
+  // toward zero, so `-500000 / 1000000 == 0` instead of the expected
+  // `-1`. This helper restores spec behavior.
+  //
+  // Caller ensures `o != 0`. Behavior for o < 0 mirrors std::div:
+  // result rounds toward negative infinity regardless of divisor sign.
+  constexpr Int128 FloorDiv(Int128 o) const noexcept {
+    const NativeInt128 q = value / o.value;
+    const NativeInt128 r = value % o.value;
+    // If the remainder is non-zero AND its sign differs from the
+    // divisor's, subtract 1 — that's exactly when truncated division
+    // overshoots the floor.
+    if (r != 0 && ((r < 0) != (o.value < 0))) {
+      return Int128(q - 1);
+    }
+    return Int128(q);
+  }
   constexpr Int128 operator-() const noexcept { return Int128(-value); }
   constexpr bool operator==(Int128 o) const noexcept {
     return value == o.value;

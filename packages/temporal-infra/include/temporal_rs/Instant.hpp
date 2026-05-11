@@ -117,7 +117,10 @@ class Instant {
 
   int64_t epoch_milliseconds() const {
     using ::node::socketsecurity::temporal::Int128;
-    Int128 ms = inner_.epoch_nanoseconds / Int128(int64_t{1'000'000});
+    // C5 (quality scan): spec uses floor(epochNs / 10^6). C++ `/`
+    // truncates toward zero — `-500000ns / 1_000_000 == 0`, but the
+    // spec wants `-1` (one ms before epoch). FloorDiv restores spec.
+    Int128 ms = inner_.epoch_nanoseconds.FloorDiv(Int128(int64_t{1'000'000}));
     return ms.ToInt64();
   }
 

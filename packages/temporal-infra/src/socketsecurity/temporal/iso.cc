@@ -520,11 +520,14 @@ TemporalResult<IsoDateTime> RoundIsoDateTime(
   //   i64::from(day) + rounded_days)?;
   const int64_t balanced_day =
       static_cast<int64_t>(self.date.day) + round_result.value().days;
-  // BalanceISODate accepts (year, month, day) as int32_t. Day overflow
-  // beyond int32_t range is far outside spec limits; we still pass via
-  // int64_t until the cast at the seam.
-  if (balanced_day > std::numeric_limits<int32_t>::max() ||
-      balanced_day < std::numeric_limits<int32_t>::min()) {
+  // M1 (quality scan): bound at MAX_EPOCH_DAYS (10^8 + 1), not int32::max
+  // (~2.1B). Upstream `try_balance` rejects out-of-range inputs early
+  // instead of letting BalanceISODate loop ~700M iterations on an
+  // int32-max input. The spec's valid Temporal range bottoms out at
+  // ±10^8 days; anything beyond is a programming error, not a math
+  // problem to balance through.
+  constexpr int64_t kMaxEpochDays = 100'000'001LL;
+  if (balanced_day > kMaxEpochDays || balanced_day < -kMaxEpochDays) {
     return TemporalError::Range("PlainDateTime out of representable range");
   }
   IsoDate balanced = BalanceISODate(self.date.year, self.date.month,

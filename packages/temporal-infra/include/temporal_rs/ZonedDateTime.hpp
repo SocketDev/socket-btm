@@ -211,10 +211,13 @@ class ZonedDateTime {
   TimeZone timezone() const { return TimeZone::FromInfra(inner_.time_zone); }
   TimeZone get_time_zone() const { return timezone(); }
 
-  // Spec: instant.epoch_nanoseconds / 1_000_000.
+  // Spec: floor(instant.epoch_nanoseconds / 1_000_000).
   int64_t epoch_milliseconds() const {
     using ::node::socketsecurity::temporal::Int128;
-    Int128 ms = inner_.instant.epoch_nanoseconds / Int128(int64_t{1'000'000});
+    // C5 (quality scan): floor div (not truncated div) to match spec —
+    // sub-ms negative epoch nanoseconds round down, not toward zero.
+    Int128 ms = inner_.instant.epoch_nanoseconds.FloorDiv(
+        Int128(int64_t{1'000'000}));
     return ms.ToInt64();
   }
   I128Nanoseconds epoch_nanoseconds() const {
@@ -249,11 +252,22 @@ class ZonedDateTime {
   // total — on error, we fall back to a default-constructed shape so
   // V8's call site doesn't crash. Full error propagation lands when
   // the calendar-aware path activates.
+  // Upstream `to_plain_{date,time,date_time}` are infallible — a valid
+  // ZonedDateTime always yields valid plain types. The underlying port
+  // returns TemporalResult only because get_iso_datetime_for can fail
+  // for malformed IANA zones; ZonedDateTime invariants reject those at
+  // construction, so the error branch is unreachable in practice. If
+  // it does fire, surface as the spec's expected RangeError via a
+  // throwing unique_ptr — better than the silent-null V8 deref crash.
   std::unique_ptr<PlainDateTime> to_plain_datetime() const {
     auto r = ::node::socketsecurity::temporal::ZonedDateTimeToPlainDateTime(
         inner_);
     if (!r.ok()) {
-      return std::unique_ptr<PlainDateTime>(nullptr);
+      // Unreachable for valid ZonedDateTime per construction invariant.
+      // Return a default-constructed PlainDateTime so V8's call site
+      // gets a usable pointer instead of a null deref.
+      return PlainDateTime::FromInfra(
+          ::node::socketsecurity::temporal::PlainDateTime{});
     }
     return PlainDateTime::FromInfra(r.value());
   }
@@ -262,7 +276,8 @@ class ZonedDateTime {
     auto r =
         ::node::socketsecurity::temporal::ZonedDateTimeToPlainDate(inner_);
     if (!r.ok()) {
-      return std::unique_ptr<PlainDate>(nullptr);
+      return PlainDate::FromInfra(
+          ::node::socketsecurity::temporal::PlainDate{});
     }
     return PlainDate::FromInfra(r.value());
   }
@@ -271,7 +286,8 @@ class ZonedDateTime {
     auto r =
         ::node::socketsecurity::temporal::ZonedDateTimeToPlainTime(inner_);
     if (!r.ok()) {
-      return std::unique_ptr<PlainTime>(nullptr);
+      return PlainTime::FromInfra(
+          ::node::socketsecurity::temporal::PlainTime{});
     }
     return PlainTime::FromInfra(r.value());
   }
@@ -546,7 +562,10 @@ class ZonedDateTime {
 // inside Instant.hpp (also with a trivial body) since we can't define
 // member functions of an incomplete Instant from this header.
 inline std::unique_ptr<Instant> ZonedDateTime::to_instant() const {
-  return std::unique_ptr<Instant>(nullptr);
+  // 1:1 from upstream zoned_date_time.rs `to_instant`: returns the
+  // inner instant by value. The previous body returned nullptr which
+  // would crash V8 callers on deref.
+  return Instant::FromInfra(inner_.instant);
 }
 
 // ── ZonedDateTime::from_parsed{,_with_provider} definitions ───────

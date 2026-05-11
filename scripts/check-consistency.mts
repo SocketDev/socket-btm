@@ -1,6 +1,7 @@
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
-
 #!/usr/bin/env node
+/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order. */
+
 /**
  * Automated consistency checker for Socket BTM monorepo.
  * Validates architectural patterns and conventions documented in ARCHITECTURE.md.

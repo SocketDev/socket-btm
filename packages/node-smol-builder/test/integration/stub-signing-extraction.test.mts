@@ -1,3 +1,4 @@
+/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * @fileoverview Integration tests for stub signing, extraction, and execution flow
  *
@@ -64,7 +65,7 @@ export function extractCompressedData(binaryData: Buffer) {
   const markerIndex = binaryData.indexOf(magicMarker)
 
   if (markerIndex === -1) {
-    throw new Error('Magic marker not found in stub binary')
+    throw new Error('Magic marker not found in the binary')
   }
 
   // Check config flag to determine actual header size. Layout:

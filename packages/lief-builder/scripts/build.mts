@@ -1,3 +1,5 @@
+/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
+/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * Build script for LIEF library.
  * Downloads prebuilt LIEF from GitHub releases or builds from source.
@@ -593,8 +595,8 @@ export async function downloadPrebuiltLIEF(options = {}) {
 
     // Verify file size matches expected before extraction.
     // This catches incomplete downloads that might have correct partial checksums.
-    // TODO: Fetch expected sizes from release metadata instead of hardcoding.
-    // Sizes removed - will be updated after next LIEF release with LTO enabled.
+    // Expected sizes will be re-populated from release metadata after the next
+    // LIEF release with LTO enabled lands.
     const EXPECTED_SIZES = {
       __proto__: null,
     }

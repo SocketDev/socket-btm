@@ -1,7 +1,13 @@
 {
   "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "unicorn", "import"],
-  "jsPlugins": ["./oxlint-plugin/index.mts"],
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "import"
+  ],
+  "jsPlugins": [
+    "./oxlint-plugin/index.mts"
+  ],
   "categories": {
     "correctness": "off",
     "suspicious": "off"
@@ -20,7 +26,10 @@
     "socket/prefer-undefined-over-null": "error",
     "socket/sort-set-args": "error",
     "socket/sort-source-methods": "error",
-    "eslint/curly": ["error", "all"],
+    "eslint/curly": [
+      "error",
+      "all"
+    ],
     "eslint/no-await-in-loop": "off",
     "eslint/no-console": "off",
     "eslint/no-control-regex": "off",
@@ -92,6 +101,32 @@
     "**/patches",
     "**/test/fixtures",
     "**/test/packages",
-    "**/vendor"
+    "**/vendor",
+    "#fleet-canonical-begin (managed by socket-wheelhouse sync)",
+    "**/.config/oxlint-plugin/**",
+    "**/.config/rolldown/**",
+    "**/.git-hooks/**",
+    "**/.husky/**",
+    "**/.config/lockstep.schema.json",
+    "**/.config/socket-wheelhouse-schema.json",
+    "**/.config/taze.config.mts",
+    "**/packages/build-infra/lib/release-checksums/consumer.mts",
+    "**/packages/build-infra/lib/release-checksums/core.mts",
+    "**/packages/build-infra/lib/release-checksums/producer.mts",
+    "**/packages/build-infra/release-assets.schema.json",
+    "**/scripts/ai-lint-fix.mts",
+    "**/scripts/check-paths.mts",
+    "**/scripts/fix.mts",
+    "**/scripts/install-sfw.mts",
+    "**/scripts/lockstep-emit-schema.mts",
+    "**/scripts/lockstep-schema.mts",
+    "**/scripts/lockstep.mts",
+    "**/scripts/power-state.mts",
+    "**/scripts/security.mts",
+    "**/scripts/socket-wheelhouse-emit-schema.mts",
+    "**/scripts/socket-wheelhouse-schema.mts",
+    "**/scripts/update.mts",
+    "**/scripts/validate-config-paths.mts",
+    "#fleet-canonical-end"
   ]
 }

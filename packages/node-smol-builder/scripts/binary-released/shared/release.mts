@@ -1,6 +1,8 @@
-/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
-
 #!/usr/bin/env node
+/* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
+/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order. */
+/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime); existsSync would lose information needed by callers. */
+
 /**
  * @fileoverview Deploy built smol binaries to GitHub Releases
  *

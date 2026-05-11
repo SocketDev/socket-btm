@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * Cross-platform binary compression script.
  *
@@ -201,6 +202,7 @@ export async function compressBinary(
  * Get file size in MB.
  */
 export async function getFileSizeMB(filePath) {
+  // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size for file size calculation.
   const stats = await fs.stat(filePath)
   return stats.size / 1024 / 1024
 }

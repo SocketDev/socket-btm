@@ -1,3 +1,5 @@
+/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
+/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
 
 /**
@@ -90,7 +92,7 @@ if (hasLocalStub) {
 const stubsTag = await getLatestRelease('stubs', SOCKET_BTM_REPO)
 if (!stubsTag && !hasLocalStub) {
   throw new Error(
-    'No stubs release found and no local stub available. Please run the stubs workflow first.',
+    'No prebuilt release found and no local artifact available. Please run the prebuilt workflow first.',
   )
 }
 

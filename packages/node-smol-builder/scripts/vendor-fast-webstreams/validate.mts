@@ -1,6 +1,6 @@
+#!/usr/bin/env node
 /* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
 
-#!/usr/bin/env node
 /**
  * Validate fast-webstreams integration in built Node.js binary
  *
@@ -54,23 +54,23 @@ function test(name, fn) {
     const result = fn();
     if (result instanceof Promise) {
       return result
-        .then(() => { passed++; console.log('  ✓', name); })
-        .catch(err => { failed++; console.log('  ✗', name, '-', err.message); });
+        .then(() => { passed++; console.log('  ✓', name); }) // socket-hook: allow console
+        .catch(err => { failed++; console.log('  ✗', name, '-', err.message); }); // socket-hook: allow console
     }
     passed++;
-    console.log('  ✓', name);
+    console.log('  ✓', name); // socket-hook: allow console
   } catch (e) {
     failed++;
-    console.log('  ✗', name, '-', e.message);
+    console.log('  ✗', name, '-', e.message); // socket-hook: allow console
   }
   return Promise.resolve();
 }
 
 async function runTests() {
-  console.log('\\n=== fast-webstreams Integration Tests ===\\n');
+  console.log('\\n=== fast-webstreams Integration Tests ===\\n'); // socket-hook: allow console
 
   // Test 1: Globals are patched (ReadableStream is not native)
-  console.log('Global Patching:');
+  console.log('Global Patching:'); // socket-hook: allow console
   await test('ReadableStream is defined', () => {
     assert.strictEqual(typeof ReadableStream, 'function');
   });
@@ -82,7 +82,7 @@ async function runTests() {
   });
 
   // Test 2: Basic ReadableStream functionality
-  console.log('\\nReadableStream:');
+  console.log('\\nReadableStream:'); // socket-hook: allow console
   await test('read chunks from stream', async () => {
     const rs = new ReadableStream({
       start(controller) {
@@ -101,7 +101,7 @@ async function runTests() {
   });
 
   // Test 3: Basic WritableStream functionality
-  console.log('\\nWritableStream:');
+  console.log('\\nWritableStream:'); // socket-hook: allow console
   await test('write chunks to stream', async () => {
     const chunks = [];
     const ws = new WritableStream({
@@ -122,7 +122,7 @@ async function runTests() {
   });
 
   // Test 4: Basic TransformStream functionality
-  console.log('\\nTransformStream:');
+  console.log('\\nTransformStream:'); // socket-hook: allow console
   await test('transform chunks', async () => {
     const ts = new TransformStream({
       transform(chunk, controller) {
@@ -138,7 +138,7 @@ async function runTests() {
   });
 
   // Test 5: pipeTo between streams
-  console.log('\\npipeTo:');
+  console.log('\\npipeTo:'); // socket-hook: allow console
   await test('pipe readable to writable', async () => {
     const chunks = [];
     const rs = new ReadableStream({
@@ -157,7 +157,7 @@ async function runTests() {
   });
 
   // Test 6: pipeThrough with transform
-  console.log('\\npipeThrough:');
+  console.log('\\npipeThrough:'); // socket-hook: allow console
   await test('pipe through transform', async () => {
     const results = [];
     const rs = new ReadableStream({
@@ -180,7 +180,7 @@ async function runTests() {
   });
 
   // Test 7: Byte streams
-  console.log('\\nByte Streams:');
+  console.log('\\nByte Streams:'); // socket-hook: allow console
   await test('byte stream with start+enqueue pattern', async () => {
     const rs = new ReadableStream({
       type: 'bytes',
@@ -209,7 +209,7 @@ async function runTests() {
   });
 
   // Test 8: Tee (concurrent drain)
-  console.log('\\nTee:');
+  console.log('\\nTee:'); // socket-hook: allow console
   await test('tee concurrent drain', async () => {
     const rs = new ReadableStream({
       start(controller) {
@@ -239,7 +239,7 @@ async function runTests() {
   });
 
   // Test 9: Response integration
-  console.log('\\nResponse Integration:');
+  console.log('\\nResponse Integration:'); // socket-hook: allow console
   await test('new Response(stream).text()', async () => {
     const rs = new ReadableStream({
       start(controller) {
@@ -263,7 +263,7 @@ async function runTests() {
   });
 
   // Test 10: Async iteration
-  console.log('\\nAsync Iteration:');
+  console.log('\\nAsync Iteration:'); // socket-hook: allow console
   await test('for await...of stream', async () => {
     const rs = new ReadableStream({
       start(controller) {
@@ -281,15 +281,15 @@ async function runTests() {
   });
 
   // Summary
-  console.log('\\n=== Results ===');
-  console.log('Passed:', passed);
-  console.log('Failed:', failed);
+  console.log('\\n=== Results ==='); // socket-hook: allow console
+  console.log('Passed:', passed); // socket-hook: allow console
+  console.log('Failed:', failed); // socket-hook: allow console
 
   process.exitCode = failed > 0 ? 1 : 0;
 }
 
 runTests().catch(err => {
-  console.error('Test runner error:', err);
+  console.error('Test runner error:', err); // socket-hook: allow console
   process.exitCode = 1;
 });
 `

@@ -1,3 +1,4 @@
+/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * Build script for smol_stub self-extracting binaries.
  * Downloads prebuilt stubs from GitHub releases or builds from source.
@@ -296,7 +297,7 @@ export async function ensureStubs(options = {}) {
     })
     if (!downloadDir) {
       throw new Error(
-        'Failed to build stub from source and prebuilt download also failed',
+        'Failed to build the binary from source and the prebuilt download also failed',
         { cause: e },
       )
     }

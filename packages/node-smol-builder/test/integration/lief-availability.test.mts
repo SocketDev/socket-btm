@@ -103,15 +103,14 @@ describe.skipIf(skipTests)('lIEF availability', () => {
       return
     }
 
-    // TODO: Patch 009 currently removes the #else section entirely.
-    // We need to add it back with a fallback warning:
-    // FPrintF(stderr, "WARNING: BuildSingleExecutable reached despite LIEF disabled.\n"
-    //               "Validation patch (014) may be missing. Config: %s\n", sea_config_path.c_str());
-    // return ExitCode::kNoFailure;
-    //
-    // This requires properly regenerating patch 009 with correct unified diff format.
-    // The fallback should not execute when patch 014 is applied (patch 014 clears the flag).
-    // If reached, it indicates patch 014 may be missing.
+    // Patch 009 currently removes the #else section entirely. A future
+    // revision should add it back with a fallback warning:
+    //   FPrintF(stderr, "WARNING: BuildSingleExecutable reached despite LIEF disabled.\n"
+    //                   "Validation patch (014) may be missing. Config: %s\n", sea_config_path.c_str());
+    //   return ExitCode::kNoFailure;
+    // That requires regenerating patch 009 with correct unified diff format.
+    // The fallback should not execute when patch 014 is applied (patch 014
+    // clears the flag). If reached, it indicates patch 014 may be missing.
 
     // For now, this test documents the expected behavior.
     expect(true).toBeTruthy()

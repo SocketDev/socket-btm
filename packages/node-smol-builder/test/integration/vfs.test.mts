@@ -1,3 +1,4 @@
+/* oxlint-disable socket/prefer-exists-sync -- fs.stat()/fs.access() used for metadata (size/mode/mtime) or existing try/catch flows; existsSync would lose information needed by callers. */
 /**
  * @fileoverview Tests for VFS (Virtual Filesystem) support with TAR/TAR.GZ archives.
  *
@@ -2609,7 +2610,8 @@ console.log(results.join('\\n'))
 
       // Async glob captures fs/promises references at module load time, before
       // VFS shim installation. globSync works (uses shimmed fs methods directly).
-      // TODO: fix by ensuring VFS shim installs before glob module loads.
+      // Resolving this requires installing the VFS shim before the glob module
+      // loads. Tracked separately; the test is pending the shim ordering fix.
       it.todo('should support async fs.glob() on VFS paths', async () => {
         const testDir = path.join(testTmpDir, 'vfs-glob-async')
         await safeMkdir(testDir)

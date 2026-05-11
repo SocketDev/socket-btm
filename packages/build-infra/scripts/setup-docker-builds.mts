@@ -1,6 +1,6 @@
+#!/usr/bin/env node
 /* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
 
-#!/usr/bin/env node
 /**
  * Setup Docker builder images for local builds.
  *

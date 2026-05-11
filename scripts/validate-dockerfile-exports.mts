@@ -1,6 +1,6 @@
+#!/usr/bin/env node
 /* oxlint-disable socket/no-status-emoji -- intentional emoji output. */
 
-#!/usr/bin/env node
 /**
  * Validates Dockerfile.build export patterns to prevent Depot nesting issues.
  *

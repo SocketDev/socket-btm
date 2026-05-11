@@ -1,3 +1,4 @@
+/* oxlint-disable socket/sort-source-methods -- function ordering follows semantic grouping (dependencies, build steps, helpers) rather than strict alphabetical order; reordering would obscure flow and risk hoisting issues. */
 /**
  * Helper for downloading Node.js binaries for cross-platform testing
  * Downloads node-smol binaries or falls back to official Node.js releases

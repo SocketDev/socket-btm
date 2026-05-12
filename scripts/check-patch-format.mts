@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// max-file-lines: legitimate -- patch-format gate: parse → validate → report pipeline; splitting fractures the flow
 /**
  * @fileoverview Patch format validator.
  *
@@ -37,7 +38,7 @@
  * Allowlist: `.github/patch-format-allowlist.yml`.
  */
 
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -114,7 +115,8 @@ export function collectMultiplePatchesPerFileViolations(
   // modify it. We read each patch, parse its `--- a/<file>` markers,
   // and accumulate.
   const fileToPatches = new Map<string, string[]>()
-  for (const patchName of files) {
+  for (let i = 0, { length } = files; i < length; i += 1) {
+    const patchName = files[i]
     const abs = path.join(dir, patchName)
     let content
     try {
@@ -125,19 +127,22 @@ export function collectMultiplePatchesPerFileViolations(
     // Parse the patch's `--- a/<path>` markers. Mirror the parsing
     // shape from validatePatch's own use to stay consistent.
     const minusFiles = new Set<string>()
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const line of content.split('\n')) {
       const match = /^---\s+a\/(.+?)\s*$/.exec(line)
       if (match) {
         minusFiles.add(match[1]!)
       }
     }
-    for (const f of minusFiles) {
+    for (let i = 0, { length } = minusFiles; i < length; i += 1) {
+      const f = minusFiles[i]
       const list = fileToPatches.get(f) ?? []
       list.push(patchName)
       fileToPatches.set(f, list)
     }
   }
   const violations: Violation[] = []
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [sourceFile, patches] of fileToPatches) {
     if (patches.length <= 1) {
       continue
@@ -147,6 +152,7 @@ export function collectMultiplePatchesPerFileViolations(
     // ones are the violators). This makes the fix path clear: fold
     // the violator's hunks into the canonical patch.
     const canonical = patches[0]!
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const violator of patches.slice(1)) {
       violations.push({
         detail:
@@ -172,7 +178,8 @@ export function collectNumberGapViolations(dir: string): Violation[] {
   }
   const files = readdirSync(dir).filter(f => f.endsWith('.patch'))
   const numbered: Array<{ name: string; num: number }> = []
-  for (const name of files) {
+  for (let i = 0, { length } = files; i < length; i += 1) {
+    const name = files[i]
     const num = numericPrefix(name)
     if (num !== undefined) {
       numbered.push({ name, num })
@@ -211,6 +218,7 @@ export function loadAllowlist(): AllowlistEntry[] {
   const content = readFileSync(ALLOWLIST_PATH, 'utf8')
   const entries: AllowlistEntry[] = []
   let current: Partial<AllowlistEntry> = {}
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const line of content.split(/\r?\n/)) {
     const trimmed = line.trim()
     if (!trimmed || trimmed.startsWith('#') || trimmed === '---') {
@@ -495,6 +503,7 @@ export function validatePatch(absPath: string, project: string): Violation[] {
   }
 
   // Rule: hunk line counts match header numbers.
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const hunk of parsed.hunks) {
     let contextLines = 0
     let minusLines = 0
@@ -618,7 +627,8 @@ async function main(): Promise<void> {
 
   const allViolations: Violation[] = []
   let patchesScanned = 0
-  for (const root of PATCH_ROOTS) {
+  for (let i = 0, { length } = PATCH_ROOTS; i < length; i += 1) {
+    const root = PATCH_ROOTS[i]
     const absRoot = path.join(MONOREPO_ROOT, root.dir)
     if (!existsSync(absRoot)) {
       continue
@@ -631,7 +641,8 @@ async function main(): Promise<void> {
     } catch {
       continue
     }
-    for (const f of files) {
+    for (let i = 0, { length } = files; i < length; i += 1) {
+      const f = files[i]
       const abs = path.join(absRoot, f)
       try {
         const stat = statSync(abs)
@@ -667,7 +678,8 @@ async function main(): Promise<void> {
       `Found ${surviving.length} patch format violation${surviving.length === 1 ? '' : 's'}:`,
     )
   }
-  for (const v of surviving) {
+  for (let i = 0, { length } = surviving; i < length; i += 1) {
+    const v = surviving[i]
     printViolation(v, opts)
   }
   if (!opts.json) {

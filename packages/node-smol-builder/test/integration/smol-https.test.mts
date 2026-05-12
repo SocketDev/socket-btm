@@ -56,6 +56,7 @@ describe.skipIf(skipTests)('node:smol-https integration', () => {
     )
     expect(code).toBe(0)
     const shape = parseExportShape(stdout)
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
     for (const [name, type] of EXPECTED_EXPORTS) {
       expect(shape.get(name), `export ${name}`).toBe(type)
     }

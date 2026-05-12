@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// max-file-lines: legitimate -- orchestration script — top-down pipeline (gather → validate → report); splitting fractures the flow
 /* oxlint-disable socket/no-status-emoji -- WPT validator emits ANSI-colored status markers ("\x1b[32m✓\x1b[0m" etc.) in column-aligned table rows; logger.success() would lose the colorization required by the WPT result format. */
 
 /**
@@ -25,9 +26,9 @@
 
 import {
   existsSync,
+  mkdirSync,
   readFileSync,
   readdirSync,
-  mkdirSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
@@ -282,6 +283,7 @@ async function fetchWPTStreams(
  */
 export function findTestFiles(dir: string): string[] {
   const results: string[] = []
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const fullPath = path.join(dir, entry.name)
     if (entry.isDirectory()) {
@@ -308,7 +310,8 @@ export function getWPTConfig(): WptConfig {
   let url = ''
   let ref = ''
 
-  for (const line of lines) {
+  for (let i = 0, { length } = lines; i < length; i += 1) {
+    const line = lines[i]
     // Match only the [submodule "..."] header line, not the path line
     if (
       /^\[submodule ".*vendor-fast-webstreams\/wpt\/streams.*"\]$/.test(line)
@@ -347,7 +350,8 @@ export function parseArgs(): CliOptions {
     verbose: false,
   }
 
-  for (const arg of args) {
+  for (let i = 0, { length } = args; i < length; i += 1) {
+    const arg = args[i]
     if (arg === '--fetch') {
       opts.fetch = true
     } else if (arg === '--verbose') {
@@ -384,7 +388,8 @@ export async function runTestFile(
     const stdout = String(result.stdout ?? '')
     // Try to parse JSON from stdout
     const lines = stdout.trim().split('\n')
-    for (const line of lines) {
+    for (let i = 0, { length } = lines; i < length; i += 1) {
+      const line = lines[i]
       try {
         const parsed = JSON.parse(line) as Partial<TestResult>
         if (parsed && typeof parsed.passed === 'number') {
@@ -487,7 +492,8 @@ async function main(): Promise<void> {
   const matchedExpected = new Set<string>()
   const unexpectedFailures: UnexpectedFailure[] = []
 
-  for (const testFile of testFiles) {
+  for (let i = 0, { length } = testFiles; i < length; i += 1) {
+    const testFile = testFiles[i]
     let result: TestResult
     try {
       result = await runTestFile(opts.binary, testFile)
@@ -514,6 +520,7 @@ async function main(): Promise<void> {
       filesWithFailures++
 
       // Check each error against expected failures
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
       for (const err of result.errors) {
         // Extract test name from error (format: "testName: error message")
         const colonIdx = err.indexOf(':')
@@ -530,6 +537,7 @@ async function main(): Promise<void> {
           matched = true
         } else {
           // Try prefix matching - expected failure key may be a prefix of actual test name
+          // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
           for (const [expKey] of EXPECTED_FAILURES) {
             if (
               expKey.startsWith(`${fileKey}:`) &&
@@ -566,10 +574,12 @@ async function main(): Promise<void> {
 
     if (result.failed > 0) {
       if (opts.verbose) {
+        // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
         for (const err of result.errors) {
           logger.log(`    ${err}`)
         }
       } else if (result.errors.length > 0) {
+        // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
         for (const err of result.errors.slice(0, 2)) {
           logger.log(`    ${err}`)
         }
@@ -582,7 +592,8 @@ async function main(): Promise<void> {
 
   // Find expected failures that now pass (improvements)
   const nowPassing: string[] = []
-  for (const key of expectedFailureKeys) {
+  for (let i = 0, { length } = expectedFailureKeys; i < length; i += 1) {
+    const key = expectedFailureKeys[i]
     if (!matchedExpected.has(key)) {
       nowPassing.push(key)
     }
@@ -610,13 +621,15 @@ async function main(): Promise<void> {
     logger.log(
       '\n\x1b[32m✨ Tests that now PASS (update expected failures list):\x1b[0m',
     )
-    for (const key of nowPassing) {
+    for (let i = 0, { length } = nowPassing; i < length; i += 1) {
+      const key = nowPassing[i]
       logger.log(`  - ${key}`)
     }
   }
 
   if (unexpectedFailures.length > 0) {
     logger.log('\n\x1b[31m❌ UNEXPECTED failures (regressions):\x1b[0m')
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
     for (const { file, test } of unexpectedFailures.slice(0, 10)) {
       logger.log(`  - ${file}: ${test}`)
     }

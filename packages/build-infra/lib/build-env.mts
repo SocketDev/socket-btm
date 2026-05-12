@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- cohesive build-environment helper module — one tool family (emscripten/python/cmake setup); splitting scatters related setup
 /* oxlint-disable socket/no-status-emoji -- emoji are pushed into result.messages/result.errors arrays that callers may render anywhere (JSON, file, stderr); there is no single logger.success/fail call to migrate to. */
 
 /**
@@ -76,7 +77,8 @@ export async function activateEmscriptenSDK() {
 
       // Parse environment variables.
       const envLines = envOutput.split('\n')
-      for (const line of envLines) {
+      for (let i = 0, { length } = envLines; i < length; i += 1) {
+        const line = envLines[i]
         const match = line.match(/^(EMSDK|EM_\w+|PATH)=(.*)$/)
         if (match) {
           process.env[match[1]] = match[2].trim()
@@ -98,7 +100,8 @@ export async function activateEmscriptenSDK() {
 
       // Parse environment variables.
       const envLines = envOutput.split('\n')
-      for (const line of envLines) {
+      for (let i = 0, { length } = envLines; i < length; i += 1) {
+        const line = envLines[i]
         const match = line.match(/^(EMSDK|EM_\w+|PATH)=(.*)$/)
         if (match) {
           process.env[match[1]] = match[2].trim()
@@ -148,7 +151,8 @@ export async function checkPython() {
   const minMajor = versionParts[0] ?? 3
   const minMinor = versionParts[1] ?? 0
 
-  for (const cmd of pythonCmds) {
+  for (let i = 0, { length } = pythonCmds; i < length; i += 1) {
+    const cmd = pythonCmds[i]
     // eslint-disable-next-line no-await-in-loop
     if (await commandExists(cmd)) {
       // eslint-disable-next-line no-await-in-loop
@@ -317,7 +321,8 @@ export async function findEmscriptenSDK() {
   // Search common installation locations.
   const searchPaths = getEmsdkSearchPaths(getPlatform())
 
-  for (const emsdkPath of searchPaths) {
+  for (let i = 0, { length } = searchPaths; i < length; i += 1) {
+    const emsdkPath = searchPaths[i]
     const emsdkScript = path.join(
       emsdkPath,
       getPlatform() === 'win32' ? 'emsdk.bat' : 'emsdk',
@@ -402,6 +407,7 @@ export function isDocker() {
 export function printSetupResults(results) {
   if (results.messages.length > 0) {
     logger.info('\nBuild Environment:')
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const message of results.messages) {
       logger.info(`  ${message}`)
     }
@@ -409,6 +415,7 @@ export function printSetupResults(results) {
 
   if (results.errors.length > 0) {
     logger.warn('\nMissing Prerequisites:')
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const error of results.errors) {
       logger.warn(`  ${error}`)
     }

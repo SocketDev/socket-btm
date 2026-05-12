@@ -45,7 +45,10 @@ type SymbolRow = {
 /**
  * Lexicographic tuple comparison: [2,17] > [2,17,0] is false.
  */
-export function compareTuples(a: readonly number[], b: readonly number[]): number {
+export function compareTuples(
+  a: readonly number[],
+  b: readonly number[],
+): number {
   const len = Math.max(a.length, b.length)
   for (let i = 0; i < len; i++) {
     const av = a[i] ?? 0
@@ -57,9 +60,12 @@ export function compareTuples(a: readonly number[], b: readonly number[]): numbe
   return 0
 }
 
-export function countByVersion(rows: readonly SymbolRow[]): Map<string, number> {
+export function countByVersion(
+  rows: readonly SymbolRow[],
+): Map<string, number> {
   const counts = new Map<string, number>()
-  for (const row of rows) {
+  for (let i = 0, { length } = rows; i < length; i += 1) {
+    const row = rows[i]
     counts.set(row.version, (counts.get(row.version) ?? 0) + 1)
   }
   return counts
@@ -72,6 +78,7 @@ export function parseCliArgs(argv: readonly string[]) {
     floor: '2.17',
     fallbackReport: false,
   }
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const arg of argv.slice(2)) {
     if (arg.startsWith('--binary=')) {
       result.binary = arg.slice('--binary='.length)
@@ -94,6 +101,7 @@ export function parseObjdumpOutput(text: string): SymbolRow[] {
   // symbol name. Empty captures are skipped.
   const pattern = /\(GLIBC_(\d+(?:\.\d+)+)\)\s+(\S+)/
   const rows: SymbolRow[] = []
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const line of text.split('\n')) {
     const match = pattern.exec(line)
     if (!match) {
@@ -166,7 +174,8 @@ export async function runObjdump(binary: string): Promise<string> {
 export function uniqueSortedByVersion(rows: readonly SymbolRow[]): SymbolRow[] {
   const seen = new Set<string>()
   const unique: SymbolRow[] = []
-  for (const row of rows) {
+  for (let i = 0, { length } = rows; i < length; i += 1) {
+    const row = rows[i]
     const key = `${row.version}\0${row.symbol}`
     if (seen.has(key)) {
       continue
@@ -222,6 +231,7 @@ async function main() {
   logger.log('')
   logger.log('GLIBC version  |  Symbol count')
   logger.log('---------------|--------------')
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [version, count] of countByVersion(rows)) {
     logger.log(`  ${version.padEnd(12)} | ${String(count).padStart(5)}`)
   }
@@ -238,7 +248,8 @@ async function main() {
       const wrapped = await readWrappedSymbols()
       logger.log('  wrapped? | symbol (GLIBC_ver)')
       logger.log('  ---------|-------------------')
-      for (const v of violations) {
+      for (let i = 0, { length } = violations; i < length; i += 1) {
+        const v = violations[i]
         const has = wrapped.has(v.symbol) ? '✓ yes   ' : '✗ NO    '
         logger.log(`  ${has} | GLIBC_${v.version.padEnd(6)} ${v.symbol}`)
       }
@@ -254,7 +265,8 @@ async function main() {
         )
       }
     } else {
-      for (const v of violations) {
+      for (let i = 0, { length } = violations; i < length; i += 1) {
+        const v = violations[i]
         logger.log(`  GLIBC_${v.version.padEnd(8)} ${v.symbol}`)
       }
       logger.log('')

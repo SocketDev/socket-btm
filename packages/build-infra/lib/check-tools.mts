@@ -41,7 +41,8 @@ export async function checkTools(
   })
 
   // Report auto-installable tools.
-  for (const tool of autoInstallableTools) {
+  for (let i = 0, { length } = autoInstallableTools; i < length; i += 1) {
+    const tool = autoInstallableTools[i]
     if (result.installed.includes(tool)) {
       logger.success(`${tool} installed automatically`)
     } else if (!result.missing.includes(tool)) {
@@ -51,7 +52,8 @@ export async function checkTools(
 
   // Check manual tools
   let allManualAvailable = true
-  for (const tool of manualTools) {
+  for (let i = 0, { length } = manualTools; i < length; i += 1) {
+    const tool = manualTools[i]
     const { args, cmd, filePaths, isLibrary, name } = tool
 
     if (isLibrary) {
@@ -59,7 +61,8 @@ export async function checkTools(
 
       // First, check if any of the file paths exist (for prebuilt static libs)
       if (filePaths?.length) {
-        for (const filePath of filePaths) {
+        for (let i = 0, { length } = filePaths; i < length; i += 1) {
+          const filePath = filePaths[i]
           if (existsSync(filePath)) {
             logger.success(`${name} is available (${filePath})`)
             found = true
@@ -107,6 +110,7 @@ export async function checkTools(
 
     if (result.missing.length > 0) {
       logger.warn('Missing auto-installable tools:')
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
       for (const tool of result.missing) {
         logger.info(`  - ${tool}`)
       }
@@ -120,6 +124,7 @@ export async function checkTools(
         if (needsXcode) {
           logger.info('  xcode-select --install')
         }
+        // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
         for (const tool of result.missing) {
           if (!['clang', 'clang++'].includes(tool)) {
             logger.info(`  brew install ${tool}`)

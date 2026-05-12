@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- vendored wasm transform — synced from upstream, mirror layout preserved verbatim for diffability
 /**
  * Common AST transformations for both CJS and ESM sync wrappers.
  *
@@ -492,7 +493,7 @@ export async function applyCommonTransforms(options) {
 
         // Skip if this is require("url") or require("node:url") followed by .fileURLToPath
         if (
-          (moduleName === 'url' || moduleName === 'node:url') &&
+          (moduleName === 'node:url' || moduleName === 'url') &&
           parent.type === 'MemberExpression' &&
           parent.property?.name === 'fileURLToPath'
         ) {
@@ -522,7 +523,7 @@ export async function applyCommonTransforms(options) {
         const { properties } = node.declarations[0].id
         const hasCreateRequire = properties?.some(
           prop =>
-            (prop.type === 'Property' || prop.type === 'ObjectProperty') &&
+            (prop.type === 'ObjectProperty' || prop.type === 'Property') &&
             (prop.key?.name === 'createRequire' ||
               prop.value?.name?.includes('createRequire') ||
               prop.key?.value === 'createRequire'),
@@ -681,6 +682,7 @@ export async function applyCommonTransforms(options) {
   })
 
   // Handle require declarators - remove them from their variable declarations
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const { node: declaratorNode, varDecl } of requireDeclaratorsToRemove) {
     const declarators = varDecl.declarations
     const index = declarators.indexOf(declaratorNode)
@@ -719,7 +721,8 @@ export async function applyCommonTransforms(options) {
   }
 
   // Remove all top-level statements containing await
-  for (const node of topLevelStatementsToRemove) {
+  for (let i = 0, { length } = topLevelStatementsToRemove; i < length; i += 1) {
+    const node = topLevelStatementsToRemove[i]
     safeRemove(node.start, node.end)
   }
 
@@ -886,8 +889,10 @@ export async function applyCommonTransforms(options) {
           // Strategy 2: Look for variable declarations in the function body that construct imports
           if (!foundInstantiate) {
             const bodyStatements = node.body.body
-            for (const stmt of bodyStatements) {
+            for (let i = 0, { length } = bodyStatements; i < length; i += 1) {
+              const stmt = bodyStatements[i]
               if (stmt.type === 'VariableDeclaration') {
+                // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
                 for (const decl of stmt.declarations) {
                   const varName = decl.id?.name
                   if (!varName) {

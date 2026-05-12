@@ -1,5 +1,6 @@
+// max-file-lines: legitimate -- single builder pipeline (fetch → patch → build → package) — splitting fractures the build sequence
 /* oxlint-disable socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order. */
-/* oxlint-disable socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size sanity checks. */
+/* oxlint-disable socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks. */
 /**
  * Build script for LIEF library.
  * Downloads prebuilt LIEF from GitHub releases or builds from source.
@@ -216,6 +217,7 @@ export async function runCommand(command, args, cwd, env = {}) {
 
   // Merge env properly, filtering out undefined values.
   const mergedEnv = { ...process.env }
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [key, value] of Object.entries(env)) {
     if (value === undefined) {
       delete mergedEnv[key]
@@ -452,7 +454,8 @@ export async function applyLiefPatches(sourceDir) {
 
   logger.info(`Applying ${patches.length} LIEF patch(es)...`)
 
-  for (const patchFile of patches) {
+  for (let i = 0, { length } = patches; i < length; i += 1) {
+    const patchFile = patches[i]
     const patchPath = path.join(patchesDir, patchFile)
     logger.info(`  Applying ${patchFile}...`)
 
@@ -622,7 +625,8 @@ export async function downloadPrebuiltLIEF(options = {}) {
     // Use safeDelete with retry logic to handle transient filesystem errors.
     const extractDirContents = readdirSync(extractDir)
     const archiveBasename = path.basename(downloadedArchive)
-    for (const item of extractDirContents) {
+    for (let i = 0, { length } = extractDirContents; i < length; i += 1) {
+      const item = extractDirContents[i]
       // Keep the archive and version file, delete everything else
       if (item !== archiveBasename && item !== '.version') {
         const itemPath = path.join(extractDir, item)
@@ -966,7 +970,7 @@ async function main() {
       // Support cross-compilation via TARGET_ARCH environment variable.
       const targetArch = process.env.TARGET_ARCH
       const isCrossCompileArm64 =
-        targetArch === 'arm64' || targetArch === 'aarch64'
+        targetArch === 'aarch64' || targetArch === 'arm64'
 
       // Use cross-compiler for ARM64, native gcc for x64.
       const cc = isCrossCompileArm64 ? 'aarch64-w64-mingw32-gcc' : 'gcc'

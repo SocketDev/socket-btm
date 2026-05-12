@@ -34,7 +34,7 @@
  * version while the submodule tracks newer).
  */
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -71,6 +71,7 @@ export function loadAllowlist(): AllowlistEntry[] {
   const content = readFileSync(ALLOWLIST_PATH, 'utf8')
   const entries: AllowlistEntry[] = []
   let current: Partial<AllowlistEntry> = {}
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const line of content.split(/\r?\n/)) {
     const trimmed = line.trim()
     if (!trimmed || trimmed.startsWith('#') || trimmed === '---') {
@@ -152,7 +153,9 @@ export function loadSubmodules(): Submodule[] {
 }
 
 /** Get the short gitlink commit SHA for a submodule path. */
-export async function getSubmoduleSha(subPath: string): Promise<string | undefined> {
+export async function getSubmoduleSha(
+  subPath: string,
+): Promise<string | undefined> {
   try {
     const result = await spawn('git', ['ls-tree', 'HEAD', subPath], {
       cwd: MONOREPO_ROOT,
@@ -193,6 +196,7 @@ export function loadPackageJsonSources(): PackageJsonSource[] {
   if (!existsSync(pkgsDir)) {
     return sources
   }
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const entry of readdirSync(pkgsDir, { withFileTypes: true })) {
     if (!entry.isDirectory()) {
       continue
@@ -217,6 +221,7 @@ export function loadPackageJsonSources(): PackageJsonSource[] {
       continue
     }
     const src = (pkg as { sources: Record<string, unknown> }).sources
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
     for (const [upstream, entryRaw] of Object.entries(src)) {
       if (typeof entryRaw !== 'object' || entryRaw === null) {
         continue
@@ -249,13 +254,15 @@ export async function collectMismatches(): Promise<Mismatch[]> {
 
   // Group package.json source entries by upstream name.
   const pkgByUpstream = new Map<string, PackageJsonSource>()
-  for (const s of pkgSources) {
+  for (let i = 0, { length } = pkgSources; i < length; i += 1) {
+    const s = pkgSources[i]
     pkgByUpstream.set(s.upstream, s)
   }
 
   // For each submodule with a version comment, find a matching package.json
   // source entry (same upstream name) and compare.
-  for (const sub of submodules) {
+  for (let i = 0, { length } = submodules; i < length; i += 1) {
+    const sub = submodules[i]
     if (!sub.versionComment) {
       continue
     }
@@ -322,6 +329,7 @@ export function printMismatch(m: Mismatch, opts: Options): void {
   }
   logger.log('')
   logger.log(`[${m.kind} drift] ${m.upstream}`)
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const loc of m.locations) {
     logger.log(`  ${loc.source}`)
     logger.log(`    → ${loc.value}`)
@@ -388,7 +396,8 @@ async function main(): Promise<void> {
       `Found ${surviving.length} version drift${surviving.length === 1 ? '' : 's'}:`,
     )
   }
-  for (const m of surviving) {
+  for (let i = 0, { length } = surviving; i < length; i += 1) {
+    const m = surviving[i]
     printMismatch(m, opts)
   }
   if (!opts.json) {

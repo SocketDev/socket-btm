@@ -1,5 +1,6 @@
+// max-file-lines: legitimate -- single builder pipeline (fetch → patch → build → package) — splitting fractures the build sequence
 /* oxlint-disable socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order. */
-/* oxlint-disable socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size sanity checks. */
+/* oxlint-disable socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks. */
 /**
  * Build script for libpq PostgreSQL client library.
  * Downloads prebuilt libpq from GitHub releases or builds from source.
@@ -245,7 +246,8 @@ export async function downloadLibpq(options = {}) {
   }
 
   // Verify expected files exist after extraction.
-  for (const file of LIBPQ_REQUIRED_FILES) {
+  for (let i = 0, { length } = LIBPQ_REQUIRED_FILES; i < length; i += 1) {
+    const file = LIBPQ_REQUIRED_FILES[i]
     if (!existsSync(path.join(extractDir, file))) {
       throw new Error(`Expected file not found after extraction: ${file}`)
     }
@@ -326,6 +328,7 @@ export async function runCommand(command, args, cwd, env = {}) {
 
   // Merge env properly, filtering out undefined values.
   const mergedEnv = { ...process.env }
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [key, value] of Object.entries(env)) {
     if (value === undefined) {
       delete mergedEnv[key]
@@ -418,7 +421,8 @@ export function getOpenSSLPaths() {
       { includeDir: '/usr/include/openssl', libDir: '/usr/lib' },
     )
   }
-  for (const cand of candidates) {
+  for (let i = 0, { length } = candidates; i < length; i += 1) {
+    const cand = candidates[i]
     if (!existsSync(cand.includeDir)) {
       continue
     }

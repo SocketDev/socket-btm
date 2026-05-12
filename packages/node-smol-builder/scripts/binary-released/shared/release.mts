@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// max-file-lines: legitimate -- orchestration script — top-down pipeline (gather → validate → report); splitting fractures the flow
 /* oxlint-disable socket/no-status-emoji -- emoji is wrapped in colors.green() decorator before being embedded in multi-line release summary; logger.success() would drop the color. */
 /* oxlint-disable socket/sort-source-methods -- release script ordered as a top-down pipeline (gather artifacts → checksum → assemble notes → upload → publish); alphabetizing would scatter the flow. */
 
@@ -473,7 +474,8 @@ export async function createGitHubRelease(
 
   // Upload assets.
   logger.log('Uploading assets...')
-  for (const archive of archives) {
+  for (let i = 0, { length } = archives; i < length; i += 1) {
+    const archive = archives[i]
     logger.log(`  Uploading ${archive.archiveName}...`)
     const data = await fs.readFile(archive.archivePath)
 
@@ -540,6 +542,7 @@ async function main() {
   logger.log('\nCreating release archives...')
 
   const archives = []
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const { arch, libc, platform } of PLATFORMS) {
     const archive = await createReleaseArchive(
       platform,

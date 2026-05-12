@@ -104,7 +104,8 @@ async function main(): Promise<void> {
     let totalIssues = 0
     const filesWithIssues: FileIssues[] = []
 
-    for (const dockerfilePath of dockerfiles) {
+    for (let i = 0, { length } = dockerfiles; i < length; i += 1) {
+      const dockerfilePath = dockerfiles[i]
       const relativePath = path.relative(repoRoot, dockerfilePath)
 
       if (!existsSync(dockerfilePath)) {
@@ -129,9 +130,11 @@ async function main(): Promise<void> {
       `\nFound ${totalIssues} issue(s) in ${filesWithIssues.length} file(s):\n`,
     )
 
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
     for (const { issues, path: filePath } of filesWithIssues) {
       logger.info(`\n${filePath}:`)
-      for (const issue of issues) {
+      for (let i = 0, { length } = issues; i < length; i += 1) {
+        const issue = issues[i]
         logger.info(`  Line ${issue.line}: ${issue.message}`)
         logger.info(`    Current:  ${issue.content}`)
         logger.info(`    Expected: ${issue.suggestion.trim()}`)

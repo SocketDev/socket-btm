@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// max-file-lines: legitimate -- cascade-completeness gate: gather → analyze → report pipeline; splitting fractures the flow
 /**
  * @fileoverview Cascade-completeness checker.
  *
@@ -32,7 +33,8 @@
  * Allowlist at `.github/cascade-completeness-allowlist.yml`.
  */
 
-import { existsSync, readdirSync, readFileSync, type Dirent } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import type { Dirent } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -126,7 +128,8 @@ export function collectDockerfileCopies(): Finding[] {
   const packages = readdirSync(path.join(MONOREPO_ROOT, 'packages'), {
     withFileTypes: true,
   })
-  for (const pkgEntry of packages) {
+  for (let i = 0, { length } = packages; i < length; i += 1) {
+    const pkgEntry = packages[i]
     if (!pkgEntry.isDirectory()) {
       continue
     }
@@ -156,7 +159,8 @@ export function collectDockerfileCopies(): Finding[] {
     } catch {
       continue
     }
-    for (const df of dockerFiles) {
+    for (let i = 0, { length } = dockerFiles; i < length; i += 1) {
+      const df = dockerFiles[i]
       const dfPath = path.join(dockerDir, df)
       let contents: string
       try {
@@ -178,7 +182,8 @@ export function collectDockerfileCopies(): Finding[] {
         const tokens = afterCopy.trim().split(/\s+/)
         // Last token is the destination; everything else is a source.
         const sources = tokens.slice(0, -1)
-        for (const src of sources) {
+        for (let i2 = 0, { length } = sources; i2 < length; i2 += 1) {
+          const src = sources[i2]
           // Skip variable interpolations / quoted anomalies — out of scope.
           if (src.includes('${') || src.includes('"') || src === '.') {
             continue
@@ -243,18 +248,20 @@ export function collectMakefileIncludes(): Finding[] {
   const packages = readdirSync(path.join(MONOREPO_ROOT, 'packages'), {
     withFileTypes: true,
   })
-  for (const pkgEntry of packages) {
+  for (let i = 0, { length } = packages; i < length; i += 1) {
+    const pkgEntry = packages[i]
     if (!pkgEntry.isDirectory()) {
       continue
     }
     const pkgDir = path.join(MONOREPO_ROOT, 'packages', pkgEntry.name)
     let files: string[]
     try {
-      files = readdirSync(pkgDir).filter(f => /^Makefile(\.|$)/.test(f))
+      files = readdirSync(pkgDir).filter(f => /^Makefile($|\.)/.test(f))
     } catch {
       continue
     }
-    for (const file of files) {
+    for (let i = 0, { length } = files; i < length; i += 1) {
+      const file = files[i]
       const mkPath = path.join(pkgDir, file)
       let contents: string
       try {
@@ -286,12 +293,28 @@ export function collectMakefileIncludes(): Finding[] {
   return findings
 }
 
+// Test directories (`test`, `tests`, `__tests__`) import test-helpers
+// (e.g. bin-infra/test) which don't feed the produced binary. Flagging
+// them would force test-helper changes to bump every downstream cache,
+// which isn't a meaningful build-output dependency.
+const COLLECT_TS_IMPORTS_SKIP_DIRS = new Set([
+  '.git',
+  '__tests__',
+  'build',
+  'dist',
+  'node_modules',
+  'out',
+  'test',
+  'tests',
+  'upstream',
+])
+
 /** Walk every .mts/.ts for cross-package imports and check cascade coverage. */
 export function collectTypeScriptImports(): Finding[] {
   const findings: Finding[] = []
   const cascadeKeys = loadCascadeRuleKeys()
   const importRe =
-    /from\s+'(build-infra|bin-infra|curl-builder|lief-builder|stubs-builder|binject|binpress|binflate|yoga-layout-builder|node-smol-builder)\/([^']+)'/g
+    /from\s+'(bin-infra|binflate|binject|binpress|build-infra|curl-builder|lief-builder|node-smol-builder|stubs-builder|yoga-layout-builder)\/([^']+)'/g
   const walk = (dir: string): string[] => {
     const out: string[] = []
     let entries: Dirent[]
@@ -300,22 +323,9 @@ export function collectTypeScriptImports(): Finding[] {
     } catch {
       return out
     }
-    for (const entry of entries) {
-      if (
-        entry.name === 'node_modules' ||
-        entry.name === 'build' ||
-        entry.name === 'dist' ||
-        entry.name === 'upstream' ||
-        entry.name === 'out' ||
-        entry.name === '.git' ||
-        // Test directories import test-helpers (e.g. bin-infra/test)
-        // which don't feed the produced binary. Flagging them would
-        // force test-helper changes to bump every downstream cache,
-        // which isn't a meaningful build-output dependency.
-        entry.name === 'test' ||
-        entry.name === 'tests' ||
-        entry.name === '__tests__'
-      ) {
+    for (let i = 0, { length } = entries; i < length; i += 1) {
+      const entry = entries[i]
+      if (COLLECT_TS_IMPORTS_SKIP_DIRS.has(entry.name)) {
         continue
       }
       const full = path.join(dir, entry.name)
@@ -331,7 +341,8 @@ export function collectTypeScriptImports(): Finding[] {
     return out
   }
   const files = walk(path.join(MONOREPO_ROOT, 'packages'))
-  for (const file of files) {
+  for (let i = 0, { length } = files; i < length; i += 1) {
+    const file = files[i]
     let contents: string
     try {
       contents = readFileSync(file, 'utf8')
@@ -347,6 +358,7 @@ export function collectTypeScriptImports(): Finding[] {
       // liner `export { a } from 'pkg/a'; export { b } from 'pkg/b'`).
       // Before the fix, every import past the first on a shared line
       // slipped past the gate.
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
       for (const match of lines[i]!.matchAll(importRe)) {
         const pkg = match[1]!
         const rest = match[2]!
@@ -379,6 +391,7 @@ export function loadAllowlist(): AllowlistEntry[] {
   const content = readFileSync(ALLOWLIST_PATH, 'utf8')
   const entries: AllowlistEntry[] = []
   let current: Partial<AllowlistEntry> = {}
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const line of content.split(/\r?\n/)) {
     const trimmed = line.trim()
     if (!trimmed || trimmed.startsWith('#') || trimmed === '---') {
@@ -433,7 +446,7 @@ export function loadCascadeRuleKeys(): Set<string> {
   const keys = new Set<string>()
   // Capture the single-quoted string immediately before a colon +
   // square-bracket array. Multiline / whitespace tolerant.
-  const re = /'((?:packages\/|\.github\/)[^']+)'\s*:\s*(?:\[|ALL_DOWNSTREAM)/g
+  const re = /'((?:\.github\/|packages\/)[^']+)'\s*:\s*(?:ALL_DOWNSTREAM|\[)/g
   let match: RegExpExecArray | null
   while ((match = re.exec(content)) !== null) {
     keys.add(match[1]!)
@@ -512,7 +525,8 @@ async function main(): Promise<void> {
   // multiple files; report once but include one discoveredAt sample.
   const seen = new Set<string>()
   const deduped: Finding[] = []
-  for (const f of surviving) {
+  for (let i = 0, { length } = surviving; i < length; i += 1) {
+    const f = surviving[i]
     const key = `${f.consumer}|${f.gap}|${f.missingPath}`
     if (seen.has(key)) {
       continue
@@ -540,7 +554,8 @@ async function main(): Promise<void> {
       `Found ${deduped.length} cascade gap${deduped.length === 1 ? '' : 's'}:`,
     )
   }
-  for (const f of deduped) {
+  for (let i = 0, { length } = deduped; i < length; i += 1) {
+    const f = deduped[i]
     printFinding(f, opts)
   }
   if (!opts.json) {

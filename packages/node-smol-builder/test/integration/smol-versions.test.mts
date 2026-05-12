@@ -75,6 +75,7 @@ describe.skipIf(skipTests)('node:smol-versions integration', () => {
     )
     expect(code).toBe(0)
     const shape = parseExportShape(stdout)
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
     for (const [name, type] of EXPECTED_EXPORTS) {
       expect(shape.get(name), `export ${name}`).toBe(type)
     }
@@ -94,6 +95,7 @@ describe.skipIf(skipTests)('node:smol-versions integration', () => {
     `
     const { code, stdout } = await runOnSmolBinary(script)
     expect(code).toBe(0)
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const n of [
       'parse',
       'tryParse',

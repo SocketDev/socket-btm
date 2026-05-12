@@ -131,9 +131,11 @@ export function buildCacheKey({
   hash.update(`platformArch=${platformArch}`)
   hash.update(`mode=${buildMode}`)
   hash.update(`tools=${toolsHash}`)
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const tool of Object.keys(toolVersions).toSorted()) {
     hash.update(`${tool}@${toolVersions[tool]}`)
   }
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const key of Object.keys(sources).toSorted()) {
     const src = sources[key] ?? {}
     hash.update(
@@ -149,6 +151,7 @@ export function buildCacheKey({
 
 export function hashFileContents(files) {
   const hash = crypto.createHash('sha256')
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const file of files.toSorted()) {
     let content = Buffer.alloc(0)
     if (existsSync(file)) {
@@ -170,6 +173,7 @@ export async function loadExternalTools(packageRoot) {
   }
   validateExternalTools(data)
   const versions = {}
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [tool, meta] of Object.entries(data.tools ?? {})) {
     versions[tool] = meta?.version ?? ''
   }
@@ -193,7 +197,8 @@ export function parseFlags(argv) {
   const args = new Set(argv)
   const getValue = flag => {
     const prefix = `${flag}=`
-    for (const arg of argv) {
+    for (let i = 0, { length } = argv; i < length; i += 1) {
+      const arg = argv[i]
       if (arg.startsWith(prefix)) {
         return arg.slice(prefix.length)
       }
@@ -338,9 +343,11 @@ export async function runPipeline(options, cliOverrides) {
         `Unknown --clean-stage=${flags.cleanStage}. Valid: ${stages.map(s => s.name).join(', ')}`,
       )
     }
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const stage of stages.slice(idx)) {
       const buildDir = resolveCheckpointBuildDir(stage, ctx)
       const markerDir = path.join(buildDir, 'checkpoints')
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
       for (const ext of ['.json', '.tar.gz', '.tar.gz.lock']) {
         const file = path.join(markerDir, `${stage.name}${ext}`)
         if (existsSync(file)) {
@@ -377,6 +384,7 @@ export async function runPipeline(options, cliOverrides) {
     logger.substep(`Starting from stage: ${flags.fromStage}`)
   }
 
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const stage of stages.slice(startIdx)) {
     await runStage(stage, ctx, {})
   }
@@ -388,7 +396,8 @@ export async function runPipeline(options, cliOverrides) {
   if (outputFiles.length) {
     logger.info('')
     logger.info('Files:')
-    for (const file of outputFiles) {
+    for (let i = 0, { length } = outputFiles; i < length; i += 1) {
+      const file = outputFiles[i]
       logger.info(`  - ${path.relative(packageRoot, file)}`)
     }
     logger.info('')

@@ -36,7 +36,8 @@ export function createPathShorteningPlugin() {
             f => f.endsWith('.js') || f.endsWith('.mjs'),
           )
 
-          for (const outputPath of outputs) {
+          for (let i = 0, { length } = outputs; i < length; i += 1) {
+            const outputPath = outputs[i]
             // eslint-disable-next-line no-await-in-loop
             const content = await fs.readFile(outputPath, 'utf8')
             const magicString = new MagicString(content)
@@ -95,6 +96,7 @@ export function createPathShorteningPlugin() {
                 plugins: [],
               })
 
+              // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
               for (const comment of (ast.comments || []) as Comment[]) {
                 if (
                   comment.type === 'CommentLine' &&
@@ -142,13 +144,15 @@ export function createPathShorteningPlugin() {
                   }
                 }
 
+                // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
                 for (const key of Object.keys(n)) {
-                  if (key === 'start' || key === 'end' || key === 'loc') {
+                  if (key === 'end' || key === 'loc' || key === 'start') {
                     continue
                   }
                   const value = n[key]
                   if (Array.isArray(value)) {
-                    for (const item of value) {
+                    for (let i = 0, { length } = value; i < length; i += 1) {
+                      const item = value[i]
                       walk(item)
                     }
                   } else {

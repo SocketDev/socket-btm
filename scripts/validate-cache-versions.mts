@@ -201,7 +201,9 @@ export function getCacheVersions(): CacheVersions {
   return (JSON.parse(content) as CacheVersionsFile).versions
 }
 
-export async function getChangedFiles(baseBranch = 'origin/main'): Promise<string[]> {
+export async function getChangedFiles(
+  baseBranch = 'origin/main',
+): Promise<string[]> {
   try {
     // Validate branch name to prevent command injection
     const safeBranch = validateBranchName(baseBranch)
@@ -259,6 +261,7 @@ async function main(): Promise<void> {
   }
 
   logger.info(`Changed files (${changedFiles.length}):`)
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- callback uses expression body
   changedFiles.forEach(f => logger.info(`  - ${f}`))
 
   // Check if cache-versions.json was modified
@@ -269,9 +272,12 @@ async function main(): Promise<void> {
   // Determine which packages need cache bumps based on changed source files
   const requiredBumps = new Set<string>()
 
-  for (const file of changedFiles) {
+  for (let i = 0, { length } = changedFiles; i < length; i += 1) {
+    const file = changedFiles[i]
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
     for (const [pathPrefix, packages] of Object.entries(CASCADE_RULES)) {
       if (file.startsWith(pathPrefix)) {
+        // oxlint-disable-next-line socket/prefer-cached-for-loop -- callback uses expression body
         packages.forEach(pkg => requiredBumps.add(pkg))
       }
     }
@@ -284,6 +290,7 @@ async function main(): Promise<void> {
   }
 
   logger.info('Required cache version bumps:')
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- callback uses expression body
   requiredBumps.forEach(pkg => logger.info(`  - ${pkg}`))
 
   // If cache-versions.json wasn't modified, that's an error
@@ -292,6 +299,7 @@ async function main(): Promise<void> {
       'Source packages changed but .github/cache-versions.json was not modified.',
     )
     logger.error('You must bump cache versions for the following packages:')
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- callback uses expression body
     requiredBumps.forEach(pkg => logger.error(`  - ${pkg}`))
     logger.error(
       'See CLAUDE.md "Cache Version Cascade Dependencies" for details.',
@@ -325,7 +333,8 @@ async function main(): Promise<void> {
 
     // Check each required bump actually happened
     const missingBumps: MissingBump[] = []
-    for (const pkg of requiredBumps) {
+    for (let i = 0, { length } = requiredBumps; i < length; i += 1) {
+      const pkg = requiredBumps[i]
       const current = parseVersion(currentVersions[pkg] || 'v0')
       const previous = parseVersion(previousVersions[pkg] || 'v0')
 
@@ -340,6 +349,7 @@ async function main(): Promise<void> {
 
     if (missingBumps.length > 0) {
       logger.error('Cache versions were not properly bumped:')
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- first parameter is destructured
       missingBumps.forEach(({ current, package: pkg, previous }) => {
         logger.error(`  - ${pkg}: ${previous} → ${current} (should increase)`)
       })

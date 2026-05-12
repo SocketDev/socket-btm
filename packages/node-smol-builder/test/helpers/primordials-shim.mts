@@ -6,10 +6,9 @@
  * same API so additions/ JS files can be imported in vitest.
  */
 
-const uncurryThis =
-  fn =>
-  (thisArg, ...args) =>
-    fn.call(thisArg, ...args)
+export function uncurryThis(fn) {
+  return (thisArg, ...args) => fn.call(thisArg, ...args)
+}
 
 // Hoist prototype refs so each entry below is a one-liner instead of
 // typing `Array.prototype.X` / `String.prototype.X` repeatedly.

@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
 /**
  * Tool Installation Utilities
  *
@@ -184,6 +185,7 @@ export function detectPackageManagers() {
 
   const managers = []
 
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const managerName of config.available) {
     const managerConfig = config[managerName]
     if (whichSync(managerConfig.binary, { nothrow: true })) {
@@ -422,6 +424,7 @@ export async function ensureToolInstalled(
     // Try to install dependencies first.
     if (config?.dependencies?.length) {
       logger.warn(`${tool} exists but failed to run - checking dependencies...`)
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
       for (const dep of config.dependencies) {
         // eslint-disable-next-line no-await-in-loop
         const depResult = await ensureToolInstalled(dep, {
@@ -474,6 +477,7 @@ export async function ensureToolInstalled(
   // Install dependencies first.
   if (config?.dependencies?.length) {
     logger.substep(`Installing dependencies for ${tool}...`)
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const dep of config.dependencies) {
       // eslint-disable-next-line no-await-in-loop
       const depResult = await ensureToolInstalled(dep, {

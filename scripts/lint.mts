@@ -20,13 +20,7 @@ import { runCommandQuiet } from './utils/run-command.mts'
 const logger = getDefaultLogger()
 
 // Config patterns that trigger a full lint
-const CONFIG_PATTERNS = [
-  '.config/**',
-  'scripts/utils/**',
-  'pnpm-lock.yaml',
-
-
-]
+const CONFIG_PATTERNS = ['.config/**', 'scripts/utils/**', 'pnpm-lock.yaml']
 
 type LintSelection =
   | {
@@ -144,7 +138,11 @@ export async function getFilesToLint(
  */
 export function getOxlintExcludePatterns(): string[] {
   try {
-    const oxlintConfigPath = path.join(process.cwd(), '.config', 'oxlintrc.json')
+    const oxlintConfigPath = path.join(
+      process.cwd(),
+      '.config',
+      'oxlintrc.json',
+    )
     if (!existsSync(oxlintConfigPath)) {
       return []
     }
@@ -160,8 +158,12 @@ export function getOxlintExcludePatterns(): string[] {
 /**
  * Check if a file matches any of the exclude patterns.
  */
-export function isExcludedByOxlint(file: string, excludePatterns: string[]): boolean {
-  for (const pattern of excludePatterns) {
+export function isExcludedByOxlint(
+  file: string,
+  excludePatterns: string[],
+): boolean {
+  for (let i = 0, { length } = excludePatterns; i < length; i += 1) {
+    const pattern = excludePatterns[i]
     // Convert glob pattern to regex-like matching
     // Support **/ for directory wildcards and * for filename wildcards
     const regexPattern = pattern
@@ -207,6 +209,7 @@ export async function runLintOnAll(options: LintOptions = {}): Promise<number> {
     },
   ]
 
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const { args } of linters) {
     const result = await runCommandQuiet('pnpm', args)
 
@@ -274,6 +277,7 @@ export async function runLintOnFiles(
     },
   ]
 
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const { args, enabled } of linters) {
     if (!enabled) {
       continue
@@ -315,9 +319,11 @@ export function shouldRunAllLinters(changedFiles: string[]): {
   reason?: string
   runAll: boolean
 } {
-  for (const file of changedFiles) {
+  for (let i = 0, { length } = changedFiles; i < length; i += 1) {
+    const file = changedFiles[i]
     // Config or infrastructure files
-    for (const pattern of CONFIG_PATTERNS) {
+    for (let i = 0, { length } = CONFIG_PATTERNS; i < length; i += 1) {
+      const pattern = CONFIG_PATTERNS[i]
       if (file.includes(pattern.replace('**', ''))) {
         return { reason: 'config files changed', runAll: true }
       }

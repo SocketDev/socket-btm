@@ -117,7 +117,8 @@ async function main() {
 
   const coverageResults = await Promise.allSettled(coveragePromises)
 
-  for (const result of coverageResults) {
+  for (let i = 0, { length } = coverageResults; i < length; i += 1) {
+    const result = coverageResults[i]
     if (result.status === 'fulfilled') {
       const { pkg, success } = result.value
       if (success) {
@@ -138,10 +139,12 @@ async function main() {
   logger.info('='.repeat(60))
   logger.info(`Passed: ${results.passed.length}/${packagesToRun.length}`)
   if (results.passed.length > 0) {
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- callback uses expression body
     results.passed.forEach(pkg => logger.success(`  ${pkg}`))
   }
   if (results.failed.length > 0) {
     logger.error(`Failed: ${results.failed.length}`)
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- callback uses expression body
     results.failed.forEach(pkg => logger.error(`  ${pkg}`))
     throw new Error(`Coverage failed for ${results.failed.length} package(s)`)
   }

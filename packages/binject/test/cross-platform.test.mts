@@ -34,6 +34,7 @@ describeOrSkip('Cross-platform binary manipulation', () => {
   })
 
   // Test each platform/arch combination
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const { arch, format, platform } of getSupportedPlatforms()) {
     // Determine if this format can be injected on the current platform
     // With LIEF library (built with matching toolchain):

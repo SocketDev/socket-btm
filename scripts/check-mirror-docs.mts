@@ -31,7 +31,8 @@
  * genuinely doesn't exist (transitional states).
  */
 
-import { existsSync, readdirSync, readFileSync, type Dirent } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import type { Dirent } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -75,6 +76,7 @@ export function loadAllowlist(): AllowlistEntry[] {
   const content = readFileSync(ALLOWLIST_PATH, 'utf8')
   const entries: AllowlistEntry[] = []
   let current: Partial<AllowlistEntry> = {}
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const line of content.split(/\r?\n/)) {
     const trimmed = line.trim()
     if (!trimmed || trimmed.startsWith('#') || trimmed === '---') {
@@ -107,7 +109,10 @@ export function loadAllowlist(): AllowlistEntry[] {
 }
 
 /** Walk a tree returning relative file paths. */
-export function walk(root: string, filterFn: (relPath: string) => boolean): string[] {
+export function walk(
+  root: string,
+  filterFn: (relPath: string) => boolean,
+): string[] {
   const out: string[] = []
   if (!existsSync(root)) {
     return out
@@ -121,7 +126,8 @@ export function walk(root: string, filterFn: (relPath: string) => boolean): stri
     } catch {
       continue
     }
-    for (const entry of entries) {
+    for (let i = 0, { length } = entries; i < length; i += 1) {
+      const entry = entries[i]
       const full = path.join(dir, entry.name)
       if (entry.isDirectory()) {
         queue.push(full)
@@ -146,7 +152,8 @@ type Finding = {
 export function collectOrphanDocs(): Finding[] {
   const docs = walk(DOCS_ROOT, r => r.endsWith('.md'))
   const findings: Finding[] = []
-  for (const docRel of docs) {
+  for (let i = 0, { length } = docs; i < length; i += 1) {
+    const docRel = docs[i]
     // Doc naming convention: trim the trailing ".md" — the remaining
     // path (e.g. "lib/smol-http.js" or "lib/internal/.../version_subset.js")
     // is the expected source file name. Per CLAUDE.md, the JS extension
@@ -194,6 +201,7 @@ export function collectMissingDocs(): Finding[] {
   if (!existsSync(libDir)) {
     return findings
   }
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const entry of readdirSync(libDir, { withFileTypes: true })) {
     if (!entry.isFile() || !entry.name.startsWith('smol-')) {
       continue
@@ -276,7 +284,8 @@ async function main(): Promise<void> {
       `Found ${surviving.length} mirror-doc drift${surviving.length === 1 ? '' : 's'}:`,
     )
   }
-  for (const f of surviving) {
+  for (let i = 0, { length } = surviving; i < length; i += 1) {
+    const f = surviving[i]
     printFinding(f, opts)
   }
   if (!opts.json) {

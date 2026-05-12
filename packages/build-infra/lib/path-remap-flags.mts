@@ -57,6 +57,7 @@ export function appendCCRemapFlags(existing) {
  */
 export function getCCRemapEnv(existingEnv = process.env) {
   const out = { __proto__: null }
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const key of [
     'CFLAGS',
     'CXXFLAGS',

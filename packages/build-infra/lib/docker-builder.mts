@@ -279,7 +279,7 @@ export function getAllTargets() {
 export function getBuildableTargets() {
   return getAllTargets().filter(target => {
     const strategy = getBuildStrategy(target)
-    return strategy === 'native' || strategy === 'docker'
+    return strategy === 'docker' || strategy === 'native'
   })
 }
 
@@ -331,12 +331,14 @@ export async function runInDocker(options) {
   args.push('-w', workdir)
 
   // Add environment variables
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [key, value] of Object.entries(env)) {
     args.push('-e', `${key}=${value}`)
   }
 
   // Add volume mounts
-  for (const volume of volumes) {
+  for (let i = 0, { length } = volumes; i < length; i += 1) {
+    const volume = volumes[i]
     args.push('-v', volume)
   }
 
@@ -376,12 +378,13 @@ export async function runInDocker(options) {
     stdio: 'pipe',
   })
 
-  // Stream output to console in real-time
+  // Stream raw docker output bytes to console in real-time — logger.info would
+  // add timestamps/prefixes and break passthrough of docker's own progress UI.
   result.process.stdout?.on('data', data => {
-    process.stdout.write(data)
+    process.stdout.write(data) // socket-hook: allow logger
   })
   result.process.stderr?.on('data', data => {
-    process.stderr.write(data)
+    process.stderr.write(data) // socket-hook: allow logger
   })
 
   try {

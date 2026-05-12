@@ -135,7 +135,8 @@ async function main() {
       return { name: pkg, success }
     })
     const cResults = await Promise.allSettled(cPromises)
-    for (const result of cResults) {
+    for (let i = 0, { length } = cResults; i < length; i += 1) {
+      const result = cResults[i]
       if (result.status === 'fulfilled') {
         const { name, success } = result.value
         if (success) {
@@ -162,12 +163,14 @@ async function main() {
   logger.step('Coverage Summary')
   logger.success(`Passed: ${results.passed.length}`)
   if (results.passed.length > 0) {
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const name of results.passed) {
       logger.substep(`${name}`)
     }
   }
   if (results.failed.length > 0) {
     logger.error(`Failed: ${results.failed.length}`)
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const name of results.failed) {
       logger.substep(`${name}`)
     }

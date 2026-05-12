@@ -110,6 +110,7 @@ export async function checkModelBuildPrerequisites(options) {
 
   if (!packagesResult.allAvailable) {
     printError('Failed to install required Python packages:')
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const pkg of packagesResult.missing) {
       logger.error(`  - ${pkg}`)
     }

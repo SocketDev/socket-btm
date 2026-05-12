@@ -126,6 +126,7 @@ export async function runPreflightChecksOrExit(options = {}) {
   if (!result.passed) {
     if (!options.quiet) {
       logger.error('Preflight checks failed')
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
       for (const failure of result.failures) {
         logger.error(`  - ${failure}`)
       }

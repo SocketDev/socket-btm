@@ -41,7 +41,7 @@ import YGEnums from './YGEnums.mts'
  * @param {object} lib - Raw Emscripten module
  * @returns {object} Wrapped Yoga API
  */
-export default function wrapAssembly(lib) {
+export function wrapAssembly(lib) {
   function patch(prototype, name, fn) {
     const original = prototype[name]
 
@@ -50,6 +50,7 @@ export default function wrapAssembly(lib) {
     }
   }
 
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const fnName of [
     'setPosition',
     'setMargin',

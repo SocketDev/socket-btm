@@ -108,6 +108,7 @@ describe.skipIf(skipTests)('node:smol-vfs api surface', () => {
     expect(code).toBe(0)
 
     const members = new Map<string, string>()
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const line of stdout.split('\n')) {
       const m = /^member:([^=]+)=(.*)$/.exec(line)
       if (m) {
@@ -115,10 +116,12 @@ describe.skipIf(skipTests)('node:smol-vfs api surface', () => {
       }
     }
 
-    for (const name of EAGER_EXPORTS) {
+    for (let i = 0, { length } = EAGER_EXPORTS; i < length; i += 1) {
+      const name = EAGER_EXPORTS[i]
       expect(members.get(name), `eager export ${name}`).toBe('value')
     }
-    for (const name of LAZY_GETTERS) {
+    for (let i = 0, { length } = LAZY_GETTERS; i < length; i += 1) {
+      const name = LAZY_GETTERS[i]
       expect(members.get(name), `lazy getter ${name}`).toBe('getter')
     }
 
@@ -194,7 +197,7 @@ describe.skipIf(skipTests)(
   'node:smol-vfs api-surface helpers (parse step)',
   () => {
     it('parseExportShape correctly parses helper output', async () => {
-      // Sanity check that the shared helper still works against
+      // Quick check that the shared helper still works against
       // smol-vfs (which is the smol-* module with the most members).
       const { code, stdout } = await runOnSmolBinary(`
         process.stdout.write('export:foo=function\\n')

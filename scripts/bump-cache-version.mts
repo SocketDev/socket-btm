@@ -46,7 +46,8 @@ export async function bumpAll(): Promise<BumpResult[]> {
   logger.info(`Bumping cache versions for ${packages.length} packages...\n`)
 
   const results: BumpResult[] = []
-  for (const pkg of packages) {
+  for (let i = 0, { length } = packages; i < length; i += 1) {
+    const pkg = packages[i]
     const result = await bumpCacheVersion(pkg)
     results.push(result)
   }
@@ -55,7 +56,9 @@ export async function bumpAll(): Promise<BumpResult[]> {
   return results
 }
 
-export async function bumpCacheVersion(packageName: string): Promise<BumpResult> {
+export async function bumpCacheVersion(
+  packageName: string,
+): Promise<BumpResult> {
   // Read config
   const configText = await fs.readFile(CONFIG_PATH, 'utf8')
   const config = parseCacheVersionsFile(configText)
@@ -112,6 +115,7 @@ if (!packageName) {
 
   const configText = await fs.readFile(CONFIG_PATH, 'utf8')
   const config = parseCacheVersionsFile(configText)
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [pkg, version] of Object.entries(config.versions)) {
     logger.log(`  - ${pkg} (${version})`)
   }

@@ -121,7 +121,8 @@ export async function applyPatchDirectory(
   }
 
   // Apply patches in order.
-  for (const patchFile of patchFiles) {
+  for (let i = 0, { length } = patchFiles; i < length; i += 1) {
+    const patchFile = patchFiles[i]
     // eslint-disable-next-line no-await-in-loop
     await applyPatch(patchFile, targetDir)
   }
@@ -141,7 +142,8 @@ export function checkPatchConflicts(patchData) {
   // Map each patch to its file modifications
   const patchModifications = []
 
-  for (const patch of patchData) {
+  for (let i = 0, { length } = patchData; i < length; i += 1) {
+    const patch = patchData[i]
     if (!patch.content) {
       conflicts.push({
         message: `Patch ${patch.name} missing content`,
@@ -164,13 +166,16 @@ export function checkPatchConflicts(patchData) {
       const patch2 = patchModifications[j]
 
       // Find files modified by both patches
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
       for (const [file, ranges1] of patch1.modifications.entries()) {
         if (patch2.modifications.has(file)) {
           const ranges2 = patch2.modifications.get(file)
 
           // Check if any line ranges overlap
-          for (const range1 of ranges1) {
-            for (const range2 of ranges2) {
+          for (let i = 0, { length } = ranges1; i < length; i += 1) {
+            const range1 = ranges1[i]
+            for (let i = 0, { length } = ranges2; i < length; i += 1) {
+              const range2 = ranges2[i]
               if (rangesOverlap(range1, range2)) {
                 conflicts.push({
                   message: `Patches '${patch1.name}' and '${patch2.name}' both modify ${file} at overlapping lines (${range1.start}-${range1.end} vs ${range2.start}-${range2.end})`,

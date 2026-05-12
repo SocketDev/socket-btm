@@ -52,7 +52,8 @@ export function parseArgs(args) {
     targets: LINUX_TARGETS,
   }
 
-  for (const arg of args) {
+  for (let i = 0, { length } = args; i < length; i += 1) {
+    const arg = args[i]
     if (arg === '--force') {
       options.force = true
     } else if (arg === '--skip-qemu') {
@@ -66,6 +67,7 @@ export function parseArgs(args) {
       options.targets = targetsStr.split(',').map(t => t.trim())
 
       // Validate targets.
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
       for (const target of options.targets) {
         if (!LINUX_TARGETS.includes(target)) {
           logger.fail(`Unknown target: ${target}`)
@@ -117,7 +119,8 @@ export async function showStatus() {
   logger.log('Target                 | Strategy | Image Status')
   logger.log('-----------------------|----------|-------------')
 
-  for (const target of ALL_TARGETS) {
+  for (let i = 0, { length } = ALL_TARGETS; i < length; i += 1) {
+    const target = ALL_TARGETS[i]
     const strategy = getBuildStrategy(target)
     let imageStatus = '-'
 
@@ -165,6 +168,7 @@ async function main() {
   // Print summary.
   logger.log('\n=== Summary ===\n')
 
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [target, success] of Object.entries(results)) {
     if (success) {
       logger.success(target)

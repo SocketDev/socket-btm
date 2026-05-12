@@ -63,6 +63,7 @@ export function getLatestBinary(stage) {
   const platformArch = getDefaultPlatformArch()
 
   // Check both dev and prod.
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const mode of ['dev', 'prod']) {
     const buildPaths = getBuildPaths(mode, process.platform, platformArch)
     const binary = getBinaryPath(buildPaths, stage)

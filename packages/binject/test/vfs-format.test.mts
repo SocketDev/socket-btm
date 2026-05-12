@@ -66,6 +66,7 @@ void _runBinject
 export function createTar(files) {
   const blocks = []
 
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [name, content] of files) {
     // Create header (512 bytes)
     const header = Buffer.alloc(512)

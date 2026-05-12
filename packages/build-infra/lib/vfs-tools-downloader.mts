@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
 /* oxlint-disable socket/sort-source-methods -- file is ordered by download pipeline phase (parse manifest → fetch → verify checksum → pack); alphabetizing across phases would scatter the download flow. */
 /**
  * VFS External Tools Downloader
@@ -193,6 +194,7 @@ export function getAvailableTools(
   const key = getPlatformKey(platform, arch)
   const tools = []
 
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [toolName, config] of Object.entries(VFS_TOOL_URLS)) {
     if (config[key]) {
       tools.push(toolName)

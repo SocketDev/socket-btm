@@ -1,3 +1,4 @@
+/* oxlint-disable socket/no-default-export -- vitest's CLI auto-discovers configs via default import; the rule's `export { name }` form breaks discovery. */
 /**
  * Shared Vitest configuration for simple packages.
  * Used by packages with basic test needs.

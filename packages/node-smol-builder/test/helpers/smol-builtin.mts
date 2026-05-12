@@ -132,6 +132,7 @@ export function printExportShapeScript(name: string): string {
  */
 export function parseExportShape(stdout: string): Map<string, string> {
   const shape = new Map<string, string>()
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const line of stdout.split('\n')) {
     const match = /^export:([^=]+)=(.*)$/.exec(line)
     if (match) {

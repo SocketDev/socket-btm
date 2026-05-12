@@ -257,10 +257,13 @@ async function main(): Promise<void> {
     process.exit(1)
   }
   if (entry.deps.length === 0) {
-    logger.success(`${target} has no upstream dependencies — nothing to verify.`)
+    logger.success(
+      `${target} has no upstream dependencies — nothing to verify.`,
+    )
     return
   }
   logger.log(`Checking publish-chain freshness for ${target}...`)
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const dep of entry.deps) {
     await checkUpstream(target, dep)
   }

@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
  * @fileoverview CLI flag variation tests for binject
  *
@@ -90,6 +91,7 @@ describe.skipIf(!binjectExists)('cLI flag variations', () => {
       ['--executable', '-o', 'mixed: long executable, short output'],
     ]
 
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- first parameter is destructured
     flagCombinations.forEach(([execFlag, outFlag, description]) => {
       it(`should inject SEA blob using ${description}`, async () => {
         const inputBinary = path.join(
@@ -264,6 +266,7 @@ describe.skipIf(!binjectExists)('cLI flag variations', () => {
       ['--executable', '-o', 'mixed: long executable, short output'],
     ]
 
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- first parameter is destructured
     flagCombinations.forEach(([execFlag, outFlag, description]) => {
       it(`should extract SEA blob using ${description}`, async () => {
         const extractedSea = path.join(
@@ -370,6 +373,7 @@ describe.skipIf(!binjectExists)('cLI flag variations', () => {
       ['--executable', 'long form'],
     ]
 
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- first parameter is destructured
     execFlags.forEach(([execFlag, description]) => {
       it(`should verify SEA blob using ${description}`, async () => {
         const result = await execCommand(BINJECT, [

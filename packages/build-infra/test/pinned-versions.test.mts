@@ -40,6 +40,7 @@ describe('pinned-versions', () => {
 
       expect(systemTools.length).toBeGreaterThan(0)
 
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
       for (const [_name, config] of systemTools) {
         expect(config).toHaveProperty('description')
       }
@@ -57,7 +58,8 @@ describe('pinned-versions', () => {
         'patch',
       ]
 
-      for (const tool of requiredTools) {
+      for (let i = 0, { length } = requiredTools; i < length; i += 1) {
+        const tool = requiredTools[i]
         expect(TOOL_VERSIONS).toHaveProperty(tool)
         expect(TOOL_VERSIONS[tool]).toHaveProperty('description')
       }
@@ -84,11 +86,13 @@ describe('pinned-versions', () => {
     })
 
     it('should have arrays of extras for packages that define them', () => {
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
       for (const [_name, extras] of Object.entries(PYTHON_PACKAGE_EXTRAS)) {
         expect(Array.isArray(extras)).toBeTruthy()
         expect(extras.length).toBeGreaterThan(0)
 
-        for (const extra of extras) {
+        for (let i = 0, { length } = extras; i < length; i += 1) {
+          const extra = extras[i]
           expectTypeOf(extra).toBeString()
           expect(extra.length).toBeGreaterThan(0)
         }
@@ -222,6 +226,7 @@ describe('pinned-versions', () => {
           expect(versions).toHaveProperty('onnxruntime')
 
           // Test getPinnedPackage with loaded versions
+          // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
           for (const [_name, version] of Object.entries(versions)) {
             expectTypeOf(version).toBeString()
             expect(version.length).toBeGreaterThan(0)
@@ -259,6 +264,7 @@ describe('pinned-versions', () => {
 
   describe('version consistency', () => {
     it('should have consistent versions across exports', () => {
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
       for (const [name, config] of Object.entries(TOOL_VERSIONS)) {
         const toolConfig = getToolConfig(name)
 
@@ -295,6 +301,7 @@ describe('pinned-versions', () => {
           expect(packages.length).toBeGreaterThan(0)
 
           // Each version should be a valid string
+          // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
           for (const [_name, version] of Object.entries(versions)) {
             expectTypeOf(version).toBeString()
             expect(version.length).toBeGreaterThan(0)

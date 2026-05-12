@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
 /* oxlint-disable socket/sort-source-methods -- file is grouped by section header banners ("Path Constants" / "Build Constants" / ...) with helpers co-located with their constants; autofix bails on the const-interleaved layout and reordering would scatter related declarations across sections. */
 /**
  * Shared constants for Socket BTM build infrastructure
@@ -265,7 +266,8 @@ export function validateCheckpointChain(chain: string[], packageName: string) {
 
   // Check for duplicates.
   const seen = new Set()
-  for (const cp of chain) {
+  for (let i = 0, { length } = chain; i < length; i += 1) {
+    const cp = chain[i]
     if (seen.has(cp)) {
       throw new Error(`${packageName}: Duplicate checkpoint in chain: ${cp}`)
     }
@@ -275,6 +277,7 @@ export function validateCheckpointChain(chain: string[], packageName: string) {
 
 // Validate all checkpoint chains at module load time.
 // This catches typos and invalid checkpoint names early.
+// oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
 for (const [name, generator] of Object.entries(CHECKPOINT_CHAINS)) {
   // Some generators require a mode argument.
   if (name === 'onnxruntime' || name === 'yoga') {

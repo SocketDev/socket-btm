@@ -12,7 +12,7 @@
  * UPX (Ultimate Packer for eXecutables) is a popular packer, but has critical issues:
  * - 50-60% compression vs our 75-79% (20-30% worse)
  * - Breaks macOS code signing (Gatekeeper blocks)
- * - 15-30% antivirus false positive rate (blacklisted packer signature)
+ * - 15-30% antivirus false positive rate (denylisted packer signature)
  * - Uses self-modifying code (triggers heuristic scanners)
  * - Windows Defender often flags UPX-packed binaries
  *
@@ -301,6 +301,7 @@ export function parseArgs() {
   let targetLibc
   let binpressPath
 
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const arg of args.slice(2)) {
     if (arg.startsWith('--target-arch=')) {
       targetArch = arg.substring('--target-arch='.length)

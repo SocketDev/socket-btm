@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// max-file-lines: legitimate -- consistency gate: gather → diff → report pipeline across many subsystems; splitting fractures the flow
 /* oxlint-disable socket/no-status-emoji -- script uses a local log(msg, color) helper that composes ANSI color with status markers; logger.success/fail would drop the explicit color control needed for the consistency-checker's multi-column report. */
 /* oxlint-disable socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow. */
 
@@ -256,7 +257,8 @@ export async function discoverPackages(): Promise<PackageInfo[]> {
   })
   const packages: PackageInfo[] = []
 
-  for (const entry of entries) {
+  for (let i = 0, { length } = entries; i < length; i += 1) {
+    const entry = entries[i]
     if (!entry.isDirectory()) {
       continue
     }
@@ -285,13 +287,17 @@ export async function discoverPackages(): Promise<PackageInfo[]> {
 // Check 1: Required Files
 // ============================================================================
 
-export async function checkRequiredFiles(packages: PackageInfo[]): Promise<void> {
+export async function checkRequiredFiles(
+  packages: PackageInfo[],
+): Promise<void> {
   log('\n[1/8] Checking required files...', colors.blue)
 
-  for (const pkg of packages) {
+  for (let i = 0, { length } = packages; i < length; i += 1) {
+    const pkg = packages[i]
     const requiredFiles: string[] = ['package.json', 'README.md']
 
-    for (const file of requiredFiles) {
+    for (let i = 0, { length } = requiredFiles; i < length; i += 1) {
+      const file = requiredFiles[i]
       const filePath = path.join(pkg.path, file)
       if (!existsSync(filePath)) {
         reportIssue(
@@ -322,14 +328,17 @@ export async function checkRequiredFiles(packages: PackageInfo[]): Promise<void>
 // Check 2: Vitest Configuration
 // ============================================================================
 
-export async function checkVitestConfig(packages: PackageInfo[]): Promise<void> {
+export async function checkVitestConfig(
+  packages: PackageInfo[],
+): Promise<void> {
   log('[2/8] Checking vitest configurations...', colors.blue)
 
   const vitestPackages = packages.filter(pkg =>
     existsSync(path.join(pkg.path, 'vitest.config.mts')),
   )
 
-  for (const pkg of vitestPackages) {
+  for (let i = 0, { length } = vitestPackages; i < length; i += 1) {
+    const pkg = vitestPackages[i]
     const configPath = path.join(pkg.path, 'vitest.config.mts')
     const config = await fs.readFile(configPath, 'utf8')
 
@@ -386,7 +395,8 @@ export async function checkTestScripts(packages: PackageInfo[]): Promise<void> {
     standard: 'vitest run',
   }
 
-  for (const pkg of packages) {
+  for (let i = 0, { length } = packages; i < length; i += 1) {
+    const pkg = packages[i]
     const { scripts } = pkg.pkgJson
 
     if (!scripts || !scripts['test']) {
@@ -419,13 +429,16 @@ export async function checkTestScripts(packages: PackageInfo[]): Promise<void> {
 // Check 4: Coverage Scripts
 // ============================================================================
 
-export async function checkCoverageScripts(packages: PackageInfo[]): Promise<void> {
+export async function checkCoverageScripts(
+  packages: PackageInfo[],
+): Promise<void> {
   log('[4/8] Checking coverage scripts...', colors.blue)
 
   const C_PACKAGES = new Set(['binflate', 'binject', 'binpress'])
   const jsPackages = packages.filter(pkg => !C_PACKAGES.has(pkg.name))
 
-  for (const pkg of jsPackages) {
+  for (let i = 0, { length } = jsPackages; i < length; i += 1) {
+    const pkg = jsPackages[i]
     const { devDependencies, scripts } = pkg.pkgJson
 
     // Check for cover script (standardized name across the workspace).
@@ -471,7 +484,9 @@ export async function checkCoverageScripts(packages: PackageInfo[]): Promise<voi
 // Check 5: External Tools Documentation
 // ============================================================================
 
-export async function checkExternalTools(packages: PackageInfo[]): Promise<void> {
+export async function checkExternalTools(
+  packages: PackageInfo[],
+): Promise<void> {
   log('[5/8] Checking external-tools.json...', colors.blue)
 
   const C_PACKAGES: string[] = [
@@ -482,7 +497,8 @@ export async function checkExternalTools(packages: PackageInfo[]): Promise<void>
     'stubs-builder',
   ]
 
-  for (const pkgName of C_PACKAGES) {
+  for (let i = 0, { length } = C_PACKAGES; i < length; i += 1) {
+    const pkgName = C_PACKAGES[i]
     const pkg = packages.find(p => p.name === pkgName)
     if (!pkg) {
       continue
@@ -546,7 +562,8 @@ export async function checkBuildOutputStructure(
 ): Promise<void> {
   log('[6/8] Checking build output structure...', colors.blue)
 
-  for (const pkg of packages) {
+  for (let i = 0, { length } = packages; i < length; i += 1) {
+    const pkg = packages[i]
     const buildDir = path.join(pkg.path, 'build')
 
     if (!existsSync(buildDir)) {
@@ -581,7 +598,8 @@ export async function checkBuildOutputStructure(
       }
       // Fall back to per-platform subdirs (binsuite, wasm, and native-addon styles).
       const entries = await fs.readdir(modeDir, { withFileTypes: true })
-      for (const entry of entries) {
+      for (let i = 0, { length } = entries; i < length; i += 1) {
+        const entry = entries[i]
         if (!entry.isDirectory()) {
           continue
         }
@@ -604,6 +622,7 @@ export async function checkBuildOutputStructure(
       return false
     }
 
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const mode of ['dev', 'prod'] as const) {
       const modeDir = path.join(buildDir, mode)
       if (!existsSync(modeDir)) {
@@ -631,7 +650,8 @@ export async function checkPackageJsonStructure(
 ): Promise<void> {
   log('[7/8] Checking package.json structure...', colors.blue)
 
-  for (const pkg of packages) {
+  for (let i = 0, { length } = packages; i < length; i += 1) {
+    const pkg = packages[i]
     const { description, license, name, scripts, type, version } = pkg.pkgJson
     const pkgJsonPath = path.join(pkg.path, 'package.json')
 
@@ -756,7 +776,8 @@ export async function checkWorkspaceDependencies(
 ): Promise<void> {
   log('[8/8] Checking workspace dependencies...', colors.blue)
 
-  for (const pkg of packages) {
+  for (let i = 0, { length } = packages; i < length; i += 1) {
+    const pkg = packages[i]
     const { dependencies = {}, devDependencies = {} } = pkg.pkgJson
     const allDeps = { ...dependencies, ...devDependencies }
     const pkgJsonPath = path.join(pkg.path, 'package.json')
@@ -766,6 +787,7 @@ export async function checkWorkspaceDependencies(
       packages.some(p => p.name === depName),
     )
 
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
     for (const [depName, version] of internalDeps) {
       if (version !== 'workspace:*') {
         reportIssue(
@@ -824,9 +846,11 @@ export async function checkWorkspaceDependencies(
 export function collectPatterns(packages: PackageInfo[]): void {
   patternStats.total = packages.length
 
-  for (const pkg of packages) {
+  for (let i = 0, { length } = packages; i < length; i += 1) {
+    const pkg = packages[i]
     // Collect script patterns
     if (pkg.pkgJson.scripts) {
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
       for (const [scriptName, scriptValue] of Object.entries(
         pkg.pkgJson.scripts,
       )) {
@@ -849,6 +873,7 @@ export function collectPatterns(packages: PackageInfo[]): void {
 
     // Collect dependency patterns
     if (pkg.pkgJson.dependencies) {
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
       for (const [depName, depVersion] of Object.entries(
         pkg.pkgJson.dependencies,
       )) {
@@ -868,6 +893,7 @@ export function collectPatterns(packages: PackageInfo[]): void {
 
     // Collect devDependency patterns
     if (pkg.pkgJson.devDependencies) {
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
       for (const [depName, depVersion] of Object.entries(
         pkg.pkgJson.devDependencies,
       )) {
@@ -886,6 +912,7 @@ export function collectPatterns(packages: PackageInfo[]): void {
     }
 
     // Collect field patterns
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
     for (const [field, value] of Object.entries(pkg.pkgJson)) {
       if (
         [
@@ -951,6 +978,7 @@ export function generateSuggestions(packages: PackageInfo[]): Suggestion[] {
   const suggestions: Suggestion[] = []
 
   // Analyze script patterns
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [scriptName, stats] of Object.entries(patternStats.scripts)) {
     const confidence = getConfidence(stats.count, patternStats.total)
     if (confidence >= 75) {
@@ -983,6 +1011,7 @@ export function generateSuggestions(packages: PackageInfo[]): Suggestion[] {
   }
 
   // Analyze dependency patterns
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [depName, stats] of Object.entries(patternStats.dependencies)) {
     const confidence = getConfidence(stats.count, patternStats.total)
     if (confidence >= 75) {
@@ -1016,6 +1045,7 @@ export function generateSuggestions(packages: PackageInfo[]): Suggestion[] {
   }
 
   // Analyze devDependency patterns
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [depName, stats] of Object.entries(patternStats.devDependencies)) {
     const confidence = getConfidence(stats.count, patternStats.total)
     if (confidence >= 75) {
@@ -1069,9 +1099,10 @@ export function displaySuggestions(suggestions: Suggestion[]): void {
   log('ML-Powered Suggestions (Pattern Analysis)', colors.bright)
   log('='.repeat(60), colors.bright)
 
-  for (const suggestion of suggestions) {
+  for (let i = 0, { length } = suggestions; i < length; i += 1) {
+    const suggestion = suggestions[i]
     const confidenceColor =
-      suggestion.level === 'VERY HIGH' || suggestion.level === 'HIGH'
+      suggestion.level === 'HIGH' || suggestion.level === 'VERY HIGH'
         ? colors.green
         : suggestion.level === 'MEDIUM'
           ? colors.yellow
@@ -1107,7 +1138,8 @@ export async function executeFixes(): Promise<void> {
   log(`Found ${fixableIssues.length} fixable issue(s)`, colors.yellow)
   log('='.repeat(60), colors.bright)
 
-  for (const issue of fixableIssues) {
+  for (let i = 0, { length } = fixableIssues; i < length; i += 1) {
+    const issue = fixableIssues[i]
     if (CLI_FLAGS.dryRun) {
       log('\n[DRY RUN] Would fix:', colors.yellow)
       log(`  ${issue.file}`, colors.blue)
@@ -1158,7 +1190,8 @@ export async function executeFixes(): Promise<void> {
     log('='.repeat(60), colors.bright)
     log(`Successfully fixed ${fixedIssues.length} issue(s)`, colors.green)
 
-    for (const fixed of fixedIssues) {
+    for (let i = 0, { length } = fixedIssues; i < length; i += 1) {
+      const fixed = fixedIssues[i]
       log(`  ✓ ${fixed.file}`, colors.green)
     }
   }
@@ -1224,7 +1257,8 @@ async function main(): Promise<void> {
       ...issues.info.map(i => i.category),
     ])
 
-    for (const category of categories) {
+    for (let i = 0, { length } = categories; i < length; i += 1) {
+      const category = categories[i]
       const categoryIssues = {
         error: issues.error.filter(i => i.category === category),
         info: issues.info.filter(i => i.category === category),
@@ -1243,18 +1277,21 @@ async function main(): Promise<void> {
       log(`\n[${category}] ${categoryTotal} issue(s)`, colors.bright)
 
       // Errors
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
       for (const issue of categoryIssues.error) {
         log(`  ✗ ${issue.file}`, colors.red)
         log(`    ${issue.message}`, colors.red)
       }
 
       // Warnings
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
       for (const issue of categoryIssues.warning) {
         log(`  ⚠ ${issue.file}`, colors.yellow)
         log(`    ${issue.message}`, colors.yellow)
       }
 
       // Info
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
       for (const issue of categoryIssues.info) {
         log(`  ℹ ${issue.file}`, colors.blue)
         log(`    ${issue.message}`, colors.blue)

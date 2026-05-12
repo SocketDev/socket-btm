@@ -191,6 +191,7 @@ async function main() {
   const srcBuild = path.join(inkPackageDir, 'build')
   const dstBuild = path.join(DIST_DIR, 'build')
   await safeMkdir(dstBuild)
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const entry of await fs.readdir(srcBuild)) {
     if (entry.endsWith('.d.ts')) {
       await fs.copyFile(path.join(srcBuild, entry), path.join(dstBuild, entry))

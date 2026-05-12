@@ -3,29 +3,29 @@
  * This validates that our implementation matches the gold standard in all aspects
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import semver from '../../node_modules/.pnpm/semver@7.7.4/node_modules/semver/index.js'
 import {
-  parse,
-  tryParse,
+  coerce,
   compare,
-  lt,
-  lte,
+  eq,
+  filter,
   gt,
   gte,
-  eq,
-  neq,
-  sort,
-  rsort,
-  max,
-  min,
-  satisfies,
-  maxSatisfying,
-  minSatisfying,
-  filter,
-  valid,
-  coerce,
   inc,
+  lt,
+  lte,
+  max,
+  maxSatisfying,
+  min,
+  minSatisfying,
+  neq,
+  parse,
+  rsort,
+  satisfies,
+  sort,
+  tryParse,
+  valid,
 } from '../additions/source-patched/lib/internal/socketsecurity/versions.js'
 
 describe('Comparison with semver gold standard', () => {
@@ -48,7 +48,8 @@ describe('Comparison with semver gold standard', () => {
       '10.20.30',
     ]
 
-    testVersions.forEach(v => {
+    for (let i = 0, { length } = testVersions; i < length; i += 1) {
+      const v = testVersions[i]
       it(`should parse ${v} identically to semver`, () => {
         const semverParsed = semver.parse(v)
 
@@ -63,7 +64,7 @@ describe('Comparison with semver gold standard', () => {
           expect(ourParsed.prerelease).toEqual(semverParsed.prerelease)
         }
       })
-    })
+    }
 
     it('should handle prerelease identifiers the same way', () => {
       // Test that numeric identifiers are converted to numbers
@@ -81,13 +82,14 @@ describe('Comparison with semver gold standard', () => {
     it('should reject invalid versions like semver', () => {
       const invalidVersions = ['not-a-version', '1.2.x', 'x.y.z', '', 'v']
 
-      invalidVersions.forEach(v => {
+      for (let i = 0, { length } = invalidVersions; i < length; i += 1) {
+        const v = invalidVersions[i]
         const semverValid = semver.valid(v)
         const ourValid = valid(v)
         // semver returns null, our implementation returns undefined.
         // Both mean "invalid" — normalize for comparison.
         expect(ourValid ?? undefined).toBe(semverValid ?? undefined)
-      })
+      }
     })
   })
 
@@ -105,6 +107,7 @@ describe('Comparison with semver gold standard', () => {
       ['10.0.0', '2.0.0'],
     ]
 
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- first parameter is destructured
     comparisonPairs.forEach(([a, b]) => {
       it(`should compare ${a} and ${b} identically to semver`, () => {
         const semverResult = semver.compare(a, b)
@@ -200,6 +203,7 @@ describe('Comparison with semver gold standard', () => {
       ['2.0.1', '1.0.0 - 2.0.0'],
     ]
 
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- first parameter is destructured
     rangeTests.forEach(([version, range]) => {
       it(`should test ${version} satisfies ${range} identically to semver`, () => {
         const semverResult = semver.satisfies(version, range)
@@ -218,6 +222,7 @@ describe('Comparison with semver gold standard', () => {
         ['2.0.0-rc.1', '>=1.0.0'],
       ]
 
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- first parameter is destructured
       tests.forEach(([version, range]) => {
         const semverResult = semver.satisfies(version, range)
         const ourResult = satisfies(version, range)
@@ -233,6 +238,7 @@ describe('Comparison with semver gold standard', () => {
         ['1.0.0-rc.1', '^1.0.0-alpha.1'],
       ]
 
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- first parameter is destructured
       tests.forEach(([version, range]) => {
         const semverResult = semver.satisfies(version, range)
         const ourResult = satisfies(version, range)
@@ -247,6 +253,7 @@ describe('Comparison with semver gold standard', () => {
         ['1.1.0-alpha', '>=1.0.0-alpha'],
       ]
 
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- first parameter is destructured
       tests.forEach(([version, range]) => {
         const semverResult = semver.satisfies(version, range)
         const ourResult = satisfies(version, range)
@@ -261,6 +268,7 @@ describe('Comparison with semver gold standard', () => {
         ['1.0.1', '>=1.0.0-alpha'],
       ]
 
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- first parameter is destructured
       tests.forEach(([version, range]) => {
         const semverResult = semver.satisfies(version, range)
         const ourResult = satisfies(version, range)
@@ -308,20 +316,22 @@ describe('Comparison with semver gold standard', () => {
 
     it('should find maxSatisfying identically to semver', () => {
       const ranges = ['^1.0.0', '>=2.0.0', '~1.5.0', '<3.0.0']
-      ranges.forEach(range => {
+      for (let i = 0, { length } = ranges; i < length; i += 1) {
+        const range = ranges[i]
         const semverResult = semver.maxSatisfying(versions, range)
         const ourResult = maxSatisfying(versions, range)
         expect(ourResult).toBe(semverResult)
-      })
+      }
     })
 
     it('should find minSatisfying identically to semver', () => {
       const ranges = ['^1.0.0', '>=2.0.0', '~1.5.0', '<3.0.0']
-      ranges.forEach(range => {
+      for (let i = 0, { length } = ranges; i < length; i += 1) {
+        const range = ranges[i]
         const semverResult = semver.minSatisfying(versions, range)
         const ourResult = minSatisfying(versions, range)
         expect(ourResult).toBe(semverResult)
-      })
+      }
     })
   })
 
@@ -336,7 +346,8 @@ describe('Comparison with semver gold standard', () => {
       'not-a-version',
     ]
 
-    coerceTests.forEach(input => {
+    for (let i = 0, { length } = coerceTests; i < length; i += 1) {
+      const input = coerceTests[i]
       it(`should coerce "${input}" identically to semver`, () => {
         const semverResult = semver.coerce(input)
         const ourResult = coerce(input)
@@ -347,7 +358,7 @@ describe('Comparison with semver gold standard', () => {
           expect(ourResult).toBe(semverResult.version)
         }
       })
-    })
+    }
   })
 
   describe('Increment', () => {
@@ -359,6 +370,7 @@ describe('Comparison with semver gold standard', () => {
       ['1.2.3', 'prerelease'],
     ]
 
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- first parameter is destructured
     incrementTests.forEach(([version, release]) => {
       it(`should increment ${version} ${release} identically to semver`, () => {
         const semverResult = semver.inc(version, release)
@@ -396,12 +408,13 @@ describe('Comparison with semver gold standard', () => {
       // Note: our implementation uses loose mode equivalent
       const versions = ['01.2.3', '1.02.3', '1.2.03']
 
-      versions.forEach(v => {
+      for (let i = 0, { length } = versions; i < length; i += 1) {
+        const v = versions[i]
         const semverValid = semver.valid(v)
         const ourValid = valid(v)
         // Both should reject or both should accept
         expect(!!ourValid).toBe(!!semverValid)
-      })
+      }
     })
 
     it('should handle null/undefined inputs gracefully', () => {
@@ -443,13 +456,15 @@ describe('Comparison with semver gold standard', () => {
 
       const testVersions = ['1.0.0', '1.5.0', '2.0.0', '2.5.0', '3.0.0']
 
-      ranges.forEach(range => {
-        testVersions.forEach(version => {
+      for (let i = 0, { length } = ranges; i < length; i += 1) {
+        const range = ranges[i]
+        for (let i = 0, { length } = testVersions; i < length; i += 1) {
+          const version = testVersions[i]
           const semverResult = semver.satisfies(version, range)
           const ourResult = satisfies(version, range)
           expect(ourResult).toBe(semverResult)
-        })
-      })
+        }
+      }
     })
 
     it('should handle complex AND expressions like semver', () => {
@@ -469,13 +484,15 @@ describe('Comparison with semver gold standard', () => {
         '2.0.0',
       ]
 
-      ranges.forEach(range => {
-        testVersions.forEach(version => {
+      for (let i = 0, { length } = ranges; i < length; i += 1) {
+        const range = ranges[i]
+        for (let i = 0, { length } = testVersions; i < length; i += 1) {
+          const version = testVersions[i]
           const semverResult = semver.satisfies(version, range)
           const ourResult = satisfies(version, range)
           expect(ourResult).toBe(semverResult)
-        })
-      })
+        }
+      }
     })
   })
 })

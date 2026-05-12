@@ -191,9 +191,7 @@ export async function downloadStub(
     await fs.rename(extractedPath, stubOut)
 
     const stats = await fs.stat(stubOut)
-    logger.success(
-      `${platformName} stub (${(stats.size / 1024).toFixed(1)}KB)`,
-    )
+    logger.success(`${platformName} stub (${(stats.size / 1024).toFixed(1)}KB)`)
 
     // Remove tarball after extraction
     await safeDelete(tarballPath)
@@ -358,6 +356,7 @@ const stubSummary = [
   ['win32-x64', stubWinX64],
 ].filter(([, stubPath]) => stubPath !== undefined && stubPath !== '')
 
+// oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
 for (const [name, stubPath] of stubSummary) {
   try {
     const stats = await fs.stat(stubPath)
@@ -368,6 +367,7 @@ for (const [name, stubPath] of stubSummary) {
 }
 
 // Clean up downloaded stubs from build directory
+// oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
 for (const [, stubPath] of stubSummary) {
   await safeDelete(stubPath)
 }

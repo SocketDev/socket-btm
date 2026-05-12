@@ -48,7 +48,8 @@ export function collectFiles(dirPath) {
       }
       throw e
     }
-    for (const entry of entries) {
+    for (let i = 0, { length } = entries; i < length; i += 1) {
+      const entry = entries[i]
       const fullPath = path.join(currentDir, entry.name)
       // Skip symlinks to prevent infinite loops and symlink attacks
       if (entry.isSymbolicLink()) {
@@ -96,7 +97,8 @@ export function computeSourceHash(sourcePaths, platformMetadata, options) {
   const relativeTo = options?.relativeTo
   // Expand directories to individual files
   const expandedPaths = []
-  for (const sourcePath of sourcePaths) {
+  for (let i = 0, { length } = sourcePaths; i < length; i += 1) {
+    const sourcePath = sourcePaths[i]
     try {
       // Use lstatSync to detect symlinks without following them
       const stats = lstatSync(sourcePath)
@@ -145,6 +147,7 @@ export function computeSourceHash(sourcePaths, platformMetadata, options) {
 
   // Hash each file individually (include filename to detect renames that affect ordering)
   const fileHashes = []
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const { absolutePath, hashPath } of entries) {
     try {
       // Read as raw bytes. Reading with 'utf8' corrupts binary inputs
@@ -246,7 +249,8 @@ export async function shouldExtract({
   }
 
   // Check if all sources exist.
-  for (const sourcePath of sources) {
+  for (let i = 0, { length } = sources; i < length; i += 1) {
+    const sourcePath = sources[i]
     if (!existsSync(sourcePath)) {
       return true
     }

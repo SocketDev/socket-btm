@@ -103,6 +103,7 @@ export async function checkBuildEnvironment(buildDir) {
       logger.fail('GCC version does not meet requirements')
       logger.substep('Node.js v24 requires GCC 12.2+ for C++20 support')
       const instructions = getGccInstructions()
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- callback uses expression body
       instructions.forEach(line => logger.substep(line))
       allChecks = false
     }
@@ -209,7 +210,8 @@ export async function checkRequiredTools({ arch, autoYes }) {
   } else {
     logger.warn('No package manager available for auto-installing tools')
     const pmInstructions = getPackageManagerInstructions()
-    for (const instruction of pmInstructions) {
+    for (let i = 0, { length } = pmInstructions; i < length; i += 1) {
+      const instruction = pmInstructions[i]
       logger.substep(instruction)
     }
   }
@@ -235,7 +237,8 @@ export async function checkRequiredTools({ arch, autoYes }) {
   })
 
   // Step 5: Report results.
-  for (const tool of autoInstallableTools) {
+  for (let i = 0, { length } = autoInstallableTools; i < length; i += 1) {
+    const tool = autoInstallableTools[i]
     if (result.installed.includes(tool)) {
       logger.success(`${tool} installed automatically`)
     } else if (!result.missing.includes(tool)) {
@@ -245,6 +248,7 @@ export async function checkRequiredTools({ arch, autoYes }) {
 
   // Step 6: Check manual tools.
   let allManualAvailable = true
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const { cmd, name } of manualTools) {
     const binPath = whichSync(cmd, { nothrow: true })
     if (binPath) {
@@ -269,7 +273,8 @@ export async function checkRequiredTools({ arch, autoYes }) {
       instructions.push('Missing required build tools:')
       instructions.push('')
 
-      for (const tool of missingTools) {
+      for (let i = 0, { length } = missingTools; i < length; i += 1) {
+        const tool = missingTools[i]
         const toolInstructions = getInstallInstructions(tool)
         instructions.push(...toolInstructions)
         instructions.push('')

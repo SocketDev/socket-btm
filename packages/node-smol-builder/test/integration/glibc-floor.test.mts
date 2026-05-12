@@ -34,7 +34,10 @@ import { spawn } from '@socketsecurity/lib/spawn'
 
 import { getLatestFinalBinary } from '../paths.mts'
 
-export function isAboveFloor(version: string, floor: readonly number[]): boolean {
+export function isAboveFloor(
+  version: string,
+  floor: readonly number[],
+): boolean {
   const tuple = parseVersionTuple(version)
   const len = Math.max(tuple.length, floor.length)
   for (let i = 0; i < len; i++) {
@@ -83,6 +86,7 @@ describe.skipIf(process.platform !== 'linux' || !GLIBC_FLOOR_RAW)(
       const pattern = /\(GLIBC_(\d+(?:\.\d+)+)\)\s+(\S+)/
       const offenders: Array<{ symbol: string; version: string }> = []
 
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
       for (const line of text.split('\n')) {
         const match = pattern.exec(line)
         if (!match) {

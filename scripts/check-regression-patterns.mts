@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// max-file-lines: legitimate -- regression-patterns gate: scan → classify → report pipeline; splitting fractures the flow
 /**
  * @fileoverview Regression-pattern gate.
  *
@@ -405,6 +406,7 @@ export async function findNonExistentPnpmScripts(
     try {
       const pkg = JSON.parse(readFileSync(pkgJsonPath, 'utf8'))
       const scripts = pkg.scripts || {}
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
       for (const name of Object.keys(scripts)) {
         knownScripts.add(name)
       }
@@ -416,7 +418,8 @@ export async function findNonExistentPnpmScripts(
   const pkgsDir = path.join(MONOREPO_ROOT, 'packages')
   if (existsSync(pkgsDir)) {
     const entries = await fsPromises.readdir(pkgsDir, { withFileTypes: true })
-    for (const entry of entries) {
+    for (let i = 0, { length } = entries; i < length; i += 1) {
+      const entry = entries[i]
       if (entry.isDirectory()) {
         await collectPackageScripts(
           path.join(pkgsDir, entry.name, 'package.json'),
@@ -431,7 +434,8 @@ export async function findNonExistentPnpmScripts(
   // explicit examples in skill docs explaining the `pnpm run <name>`
   // convention.
   const placeholders = new Set(['bar', 'baz', 'foo', 'script'])
-  for (const m of rawMatches) {
+  for (let i = 0, { length } = rawMatches; i < length; i += 1) {
+    const m = rawMatches[i]
     // Skip Claude Code permission-glob patterns like
     //   Bash(pnpm run check:*)
     // Those describe a class of allowed Bash invocations, not a
@@ -487,11 +491,13 @@ export function printMatch(m: Match, opts: Options): void {
   if (opts.explain) {
     logger.log('')
     logger.log(`  Why it matters:`)
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const chunk of wrapText(regression.why, 74, 4)) {
       logger.log(chunk)
     }
     logger.log('')
     logger.log(`  Fix:`)
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const chunk of wrapText(regression.fix, 74, 4)) {
       logger.log(chunk)
     }
@@ -508,6 +514,7 @@ export function printMatch(m: Match, opts: Options): void {
 
 export async function runRipgrep(regression: Regression): Promise<Match[]> {
   const matches: Match[] = []
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const scanPath of regression.paths) {
     const absPath = path.join(MONOREPO_ROOT, scanPath)
     if (!existsSync(absPath)) {
@@ -571,6 +578,7 @@ export async function runRipgrep(regression: Regression): Promise<Match[]> {
         throw e
       }
     }
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const rawLine of stdout.split('\n')) {
       if (!rawLine) {
         continue
@@ -595,7 +603,7 @@ export async function runRipgrep(regression: Regression): Promise<Match[]> {
       // aren't instances of it. Handles C/C++ (`//`, `*`), markdown
       // (`>`), and TS JSDoc (`*`) line comments. Block comments
       // beginning with `/*` on the match line are also skipped.
-      if (/^(?:\/\/|\*|\/\*|>)/.test(text) || /^\s*\*\s/.test(text)) {
+      if (/^(?:>|\*|\/\*|\/\/)/.test(text) || /^\s*\*\s/.test(text)) {
         continue
       }
       matches.push({
@@ -610,12 +618,17 @@ export async function runRipgrep(regression: Regression): Promise<Match[]> {
   return matches
 }
 
-export function wrapText(text: string, width: number, indent: number): string[] {
+export function wrapText(
+  text: string,
+  width: number,
+  indent: number,
+): string[] {
   const out: string[] = []
   const pad = ' '.repeat(indent)
   const words = text.split(/\s+/)
   let line = ''
-  for (const w of words) {
+  for (let i = 0, { length } = words; i < length; i += 1) {
+    const w = words[i]
     if (line.length + w.length + 1 > width) {
       out.push(pad + line)
       line = w
@@ -650,7 +663,8 @@ async function main(): Promise<void> {
   }
 
   const allMatches: Match[] = []
-  for (const regression of REGRESSIONS) {
+  for (let i = 0, { length } = REGRESSIONS; i < length; i += 1) {
+    const regression = REGRESSIONS[i]
     const matches =
       regression.id === 'docs-pnpm-run-nonexistent'
         ? await findNonExistentPnpmScripts(regression)
@@ -670,7 +684,8 @@ async function main(): Promise<void> {
 
   // Group by pattern for a readable summary first.
   const byPattern = new Map<string, Match[]>()
-  for (const m of allMatches) {
+  for (let i = 0, { length } = allMatches; i < length; i += 1) {
+    const m = allMatches[i]
     const key = m.regression.id
     const arr = byPattern.get(key) || []
     arr.push(m)
@@ -678,14 +693,16 @@ async function main(): Promise<void> {
   }
 
   if (opts.json) {
-    for (const m of allMatches) {
+    for (let i = 0, { length } = allMatches; i < length; i += 1) {
+      const m = allMatches[i]
       printMatch(m, opts)
     }
   } else {
     logger.error(
       `Found ${allMatches.length} regression-pattern match${allMatches.length === 1 ? '' : 'es'} across ${byPattern.size} pattern${byPattern.size === 1 ? '' : 's'}:`,
     )
-    for (const m of allMatches) {
+    for (let i = 0, { length } = allMatches; i < length; i += 1) {
+      const m = allMatches[i]
       printMatch(m, opts)
     }
     logger.log('')

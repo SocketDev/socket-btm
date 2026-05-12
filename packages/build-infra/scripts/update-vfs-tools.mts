@@ -166,6 +166,7 @@ export async function downloadAndHash(url) {
 export function parseChecksumFile(content) {
   const checksums = new Map()
 
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const line of content.split('\n')) {
     const trimmed = line.trim()
     if (!trimmed || trimmed.startsWith('#')) {
@@ -190,6 +191,7 @@ export async function getPythonRelease() {
   const { assets: assetPatterns, baseUrl, version } = PYTHON_CONFIG
   const assets = new Map()
 
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [platform, pattern] of Object.entries(assetPatterns)) {
     const filename = pattern.replace('{version}', version)
     const url = `${baseUrl}/${version}/${filename}`
@@ -237,6 +239,7 @@ export async function getLatestRelease(toolName) {
   }
 
   // Match assets to platforms
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [platform, pattern] of Object.entries(config.assetPatterns)) {
     const asset = release.assets.find(a => pattern.test(a.name))
     if (asset) {
@@ -282,7 +285,8 @@ export function generateToolConfig(toolName, version, assets) {
     'linux-arm64',
   ]
 
-  for (const platform of platforms) {
+  for (let i = 0, { length } = platforms; i < length; i += 1) {
+    const platform = platforms[i]
     const asset = assets.get(platform)
     if (asset) {
       lines.push(`    '${platform}': {`)
@@ -314,6 +318,7 @@ export async function updateDownloaderFile(updates, dryRun) {
   )
   let content = await fs.readFile(downloaderPath, 'utf8')
 
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [toolName, { assets, version }] of Object.entries(updates)) {
     const newConfig = generateToolConfig(toolName, version, assets)
 
@@ -356,7 +361,8 @@ async function main() {
 
   const updates = {}
 
-  for (const toolName of toolsToUpdate) {
+  for (let i = 0, { length } = toolsToUpdate; i < length; i += 1) {
+    const toolName = toolsToUpdate[i]
     // Handle Python separately (not a GitHub release)
     if (toolName === 'python') {
       try {

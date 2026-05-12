@@ -115,7 +115,8 @@ async function main(): Promise<void> {
       // Run vitest with specific test files
       // Group files by package to run tests in each package context
       const filesByPackage = new Map<string, string[]>()
-      for (const file of stagedFiles) {
+      for (let i = 0, { length } = stagedFiles; i < length; i += 1) {
+        const file = stagedFiles[i]
         // Find the package directory (contains package.json)
         let pkgDir = path.dirname(file)
         const { root } = path.parse(pkgDir)
@@ -142,6 +143,7 @@ async function main(): Promise<void> {
 
       // Run tests for each package
       let exitCode = 0
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
       for (const [pkgDir, files] of filesByPackage) {
         const pkgName = path.relative(ROOT_DIR, pkgDir)
         logger.info(`\nTesting ${pkgName}:`)

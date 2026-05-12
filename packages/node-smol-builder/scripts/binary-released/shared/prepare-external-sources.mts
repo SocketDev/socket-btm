@@ -142,7 +142,8 @@ export async function computeDirectoryHash(dirPath) {
   const files = []
   async function walk(dir) {
     const entries = await fs.readdir(dir, { withFileTypes: true })
-    for (const entry of entries) {
+    for (let i = 0, { length } = entries; i < length; i += 1) {
+      const entry = entries[i]
       const fullPath = path.join(dir, entry.name)
       if (entry.isDirectory()) {
         await walk(fullPath)
@@ -164,7 +165,8 @@ export async function computeDirectoryHash(dirPath) {
   files.sort((a, b) => a.path.localeCompare(b.path))
 
   const hash = crypto.createHash('sha256')
-  for (const file of files) {
+  for (let i = 0, { length } = files; i < length; i += 1) {
+    const file = files[i]
     hash.update(file.path)
     hash.update(file.content)
   }
@@ -190,6 +192,7 @@ export async function prepareExternalSources() {
   // out of date. Use `recursive: true` + `force: true` so existing
   // target files are overwritten; orphan files left from a prior
   // source layout are cleaned up by the explicit prune below.
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const { from, to } of EXTERNAL_SOURCES) {
     if (!existsSync(from)) {
       throw new Error(`External source directory not found: ${from}`)
@@ -265,6 +268,7 @@ export async function validateAdditionsSync() {
     'Validating additions directory is in sync with source packages',
   )
 
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const { from, to } of EXTERNAL_SOURCES) {
     if (!existsSync(from)) {
       throw new Error(`Source directory not found: ${from}`)

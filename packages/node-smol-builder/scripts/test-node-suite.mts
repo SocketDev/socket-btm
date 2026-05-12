@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// max-file-lines: legitimate -- orchestration script — top-down pipeline (gather → validate → report); splitting fractures the flow
 /**
  * @fileoverview Run Node.js test suite against node-smol binary
  *
@@ -393,7 +394,8 @@ export async function expandTestPatterns(testDir, patterns) {
   const checkedDirs = new Set()
   const dirEntryCache = new Map()
 
-  for (const pattern of patterns) {
+  for (let i = 0, { length } = patterns; i < length; i += 1) {
+    const pattern = patterns[i]
     const fullPattern = path.join(testDir, pattern)
     const dir = path.dirname(fullPattern)
     const filePattern = path.basename(fullPattern)
@@ -422,7 +424,8 @@ export async function expandTestPatterns(testDir, patterns) {
         dirEntryCache.set(dir, entries)
       }
 
-      for (const entry of entries) {
+      for (let i = 0, { length } = entries; i < length; i += 1) {
+        const entry = entries[i]
         if (entry.isFile() && regex.test(entry.name)) {
           matchedFiles.add(path.join(dir, entry.name))
         }
@@ -449,7 +452,8 @@ export function filterTests(testFiles, skipPatterns) {
   // Pre-compile patterns once for efficient reuse across all test files.
   const compiledPatterns = compileSkipPatterns(skipPatterns)
 
-  for (const testFile of testFiles) {
+  for (let i = 0, { length } = testFiles; i < length; i += 1) {
+    const testFile = testFiles[i]
     if (shouldSkipTest(testFile, compiledPatterns)) {
       skipped.push(testFile)
     } else {
@@ -479,6 +483,7 @@ export function shouldSkipTest(testPath, compiledPatterns) {
   const testName = path.basename(testPath).toLowerCase()
   const testRelPath = testPath.toLowerCase()
 
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const { regex, stripped } of compiledPatterns) {
     // Match against filename.
     if (regex.test(testName)) {
@@ -568,6 +573,7 @@ async function main() {
 
   if (values.verbose && skipped.length > 0) {
     logger.log('Skipped tests (first 10):')
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const test of skipped.slice(0, 10)) {
       logger.log(`  - ${path.basename(test)}`)
     }

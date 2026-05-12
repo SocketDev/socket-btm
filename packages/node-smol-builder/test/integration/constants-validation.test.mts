@@ -132,6 +132,7 @@ describe('header Size Constant Validation', () => {
   })
 
   it('should have platform values within valid byte range', () => {
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const value of Object.values(PLATFORM_VALUES)) {
       expect(value).toBeGreaterThanOrEqual(0)
       expect(value).toBeLessThanOrEqual(255)
@@ -139,6 +140,7 @@ describe('header Size Constant Validation', () => {
   })
 
   it('should have arch values within valid byte range', () => {
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const value of Object.values(ARCH_VALUES)) {
       expect(value).toBeGreaterThanOrEqual(0)
       expect(value).toBeLessThanOrEqual(255)
@@ -146,6 +148,7 @@ describe('header Size Constant Validation', () => {
   })
 
   it('should have libc values within valid byte range', () => {
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const value of Object.values(LIBC_VALUES)) {
       expect(value).toBeGreaterThanOrEqual(0)
       expect(value).toBeLessThanOrEqual(255)

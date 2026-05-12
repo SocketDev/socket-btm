@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// max-file-lines: legitimate -- orchestration script — top-down pipeline (gather → validate → report); splitting fractures the flow
 /**
  * Sync fast-webstreams vendor from node_modules
  *
@@ -219,6 +220,7 @@ export function convertToCommonJS(content, _filename) {
   result = result.replace(
     /export\s*\{\s*([^}]+)\s*\}(?!\s*from)/g,
     (_match, items) => {
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
       for (const item of items.split(',')) {
         const name = item
           .trim()
@@ -238,13 +240,16 @@ export function convertToCommonJS(content, _filename) {
   const exportLines = []
 
   // Add re-exports
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const { names, tempVar } of reExports) {
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
     for (const { alias, original } of names) {
       exportLines.push(`exports.${alias} = ${tempVar}.${original};`)
     }
   }
 
   // Add local exports
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const name of Array.from(localExports).sort()) {
     exportLines.push(`exports.${name} = ${name};`)
   }
@@ -335,7 +340,8 @@ export async function processSourceFiles() {
   const files = readdirSync(srcDir).filter(f => f.endsWith('.js'))
   logger.info(`Processing ${files.length} source files...`)
 
-  for (const file of files) {
+  for (let i = 0, { length } = files; i < length; i += 1) {
+    const file = files[i]
     const srcPath = path.join(srcDir, file)
     const content = readFileSync(srcPath, 'utf8')
     let converted = convertToCommonJS(content, file)

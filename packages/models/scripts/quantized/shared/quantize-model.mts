@@ -62,6 +62,7 @@ export async function quantizeModel(options) {
 
   const quantizedPaths = []
 
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const { input, output } of models) {
     const onnxPath = path.join(modelDir, input)
     const quantPath = path.join(modelDir, output)
@@ -128,7 +129,8 @@ export async function quantizeModel(options) {
     checkpointKey,
     async () => {
       // Smoke test: Verify all quantized models exist and are valid
-      for (const quantPath of quantizedPaths) {
+      for (let i = 0, { length } = quantizedPaths; i < length; i += 1) {
+        const quantPath = quantizedPaths[i]
         // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size for empty-output and size-cap checks.
         const stats = await fs.stat(quantPath)
         if (stats.size === 0) {
@@ -136,7 +138,7 @@ export async function quantizeModel(options) {
             `Quantized model is empty: ${path.basename(quantPath)}`,
           )
         }
-        // Verify it's smaller or equal to original (sanity check)
+        // Verify it's smaller or equal to original (soundness check)
         if (stats.size > 1024 * 1024 * 1024) {
           // > 1GB is suspicious
           throw new Error(

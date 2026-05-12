@@ -72,7 +72,8 @@ export function findPackages(): PackageEntry[] {
   const packages: PackageEntry[] = []
   const entries = readdirSync(packagesDir)
 
-  for (const entry of entries) {
+  for (let i = 0, { length } = entries; i < length; i += 1) {
+    const entry = entries[i]
     const pkgPath = path.join(packagesDir, entry)
     if (!statSync(pkgPath).isDirectory()) {
       continue
@@ -120,13 +121,15 @@ export function reorderProperties(obj: JsonObject): JsonObject {
   const remaining: JsonObject = { __proto__: null } as JsonObject
 
   // First, add properties in standard order.
-  for (const key of PROPERTY_ORDER) {
+  for (let i = 0, { length } = PROPERTY_ORDER; i < length; i += 1) {
+    const key = PROPERTY_ORDER[i]
     if (key in obj) {
       ordered[key] = obj[key]!
     }
   }
 
   // Then add remaining properties alphabetically.
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const key of Object.keys(obj).toSorted()) {
     if (!(key in ordered)) {
       remaining[key] = obj[key]!
@@ -165,6 +168,7 @@ async function main(): Promise<void> {
   let normalizedCount = 0
   let fixedCount = 0
 
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const { name, path: pkgPath } of packages) {
     process.stdout.write(`${name.padEnd(40)} `)
 

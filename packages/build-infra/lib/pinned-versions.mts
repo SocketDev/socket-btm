@@ -67,7 +67,8 @@ export function loadExternalToolsJson(jsonPath, visited = new Set()) {
         : Array.isArray(extendsField)
           ? extendsField
           : []
-    for (const relativeBase of extendsList) {
+    for (let i = 0, { length } = extendsList; i < length; i += 1) {
+      const relativeBase = extendsList[i]
       const extendsPath = path.resolve(path.dirname(jsonPath), relativeBase)
       const extendedTools = loadExternalToolsJson(extendsPath, visited)
       tools = { ...tools, ...extendedTools }
@@ -163,6 +164,7 @@ export const TOOL_VERSIONS = loadExternalTools()
  */
 export const PYTHON_VERSIONS = (() => {
   const versions = {}
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [name, config] of Object.entries(TOOL_VERSIONS)) {
     if (config.packageManager === 'pip' && config.version) {
       versions[name] = config.version
@@ -179,6 +181,7 @@ export const PYTHON_VERSIONS = (() => {
  */
 export const PYTHON_PACKAGE_EXTRAS = (() => {
   const extras = {}
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [name, config] of Object.entries(TOOL_VERSIONS)) {
     if (
       config.packageManager === 'pip' &&
@@ -317,6 +320,7 @@ export function loadPythonVersions(options) {
   const versions = {}
   const extras = {}
 
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [name, config] of Object.entries(tools)) {
     if (config.packageManager === 'pip' && config.version) {
       versions[name] = config.version

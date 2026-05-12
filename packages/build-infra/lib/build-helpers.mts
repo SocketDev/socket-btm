@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- cohesive build-environment helper module — one tool family (emscripten/python/cmake setup); splitting scatters related setup
 /**
  * Build Helper Utilities
  *
@@ -52,7 +53,8 @@ export async function checkCompiler(compilers) {
       ? [compilers]
       : ['clang++', 'g++', 'c++']
 
-  for (const compiler of compilerList) {
+  for (let i = 0, { length } = compilerList; i < length; i += 1) {
+    const compiler = compilerList[i]
     logger.substep(`Checking for ${compiler}`)
 
     const binPath = whichSync(compiler, { nothrow: true })
@@ -167,7 +169,8 @@ export async function checkPythonVersion(minVersion) {
   // Use shell on all platforms to ensure PATH resolution works with setup-python.
   const pythonCommands = ['python3', 'python']
 
-  for (const pythonCmd of pythonCommands) {
+  for (let i = 0, { length } = pythonCommands; i < length; i += 1) {
+    const pythonCmd = pythonCommands[i]
     try {
       // eslint-disable-next-line no-await-in-loop
       const result = await spawn(
@@ -393,6 +396,7 @@ export async function freeDiskSpace() {
 
     if (platform === 'linux') {
       // Linux-specific cleanup (~10GB total)
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
       for (const { desc, path: targetPath } of cleanupTasks) {
         try {
           // eslint-disable-next-line no-await-in-loop
@@ -412,6 +416,7 @@ export async function freeDiskSpace() {
       }
     } else if (platform === 'darwin') {
       // macOS-specific cleanup (~20GB total)
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
       for (const { desc, path: targetPath } of cleanupTasks) {
         try {
           // eslint-disable-next-line no-await-in-loop
@@ -431,6 +436,7 @@ export async function freeDiskSpace() {
       }
     } else if (WIN32) {
       // Windows-specific cleanup (~15GB total)
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
       for (const { desc, path: targetPath } of cleanupTasks) {
         try {
           // Windows: Use rmdir or Remove-Item
@@ -854,11 +860,7 @@ export async function smokeTestBinary(binaryPath, options = {}) {
         'smoke-test-temporal.mjs',
       )
       if (
-        !(await runBinaryTest(
-          binaryPath,
-          [temporalTestFile],
-          'Temporal API',
-        ))
+        !(await runBinaryTest(binaryPath, [temporalTestFile], 'Temporal API'))
       ) {
         return false
       }
@@ -1188,4 +1190,3 @@ export async function testBinaryWithDocker(binaryPath, options = {}) {
     return false
   }
 }
-

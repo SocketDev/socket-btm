@@ -16,6 +16,7 @@ export function createNodeProtocolPlugin() {
   return {
     name: 'node-protocol',
     setup(build: PluginBuild) {
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
       for (const builtin of Module.builtinModules) {
         // Skip builtins that already carry the node: prefix.
         if (builtin.startsWith('node:')) {

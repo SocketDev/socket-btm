@@ -194,6 +194,7 @@ export async function runPnpmScript(
 export async function runSequence(
   commands: CommandDefinition[],
 ): Promise<number> {
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const { args = [], command, options = {} } of commands) {
     const exitCode = await runCommand(command, args, options)
     if (exitCode !== 0) {

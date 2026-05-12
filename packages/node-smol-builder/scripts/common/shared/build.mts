@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- single builder pipeline (fetch → patch → build → package) — splitting fractures the build sequence
 /**
  * @fileoverview Build Node.js with SEA and dual compression support
  *
@@ -299,7 +300,8 @@ export async function collectBuildSourceFiles(phase = 'binary-released') {
     ...sourcePaths.scripts,
   ])
 
-  for (const patchDir of existingPatchDirs) {
+  for (let i = 0, { length } = existingPatchDirs; i < length; i += 1) {
+    const patchDir = existingPatchDirs[i]
     const patchFiles = await glob('*.patch', {
       absolute: true,
       cwd: patchDir,
@@ -326,7 +328,8 @@ export async function collectBuildSourceFiles(phase = 'binary-released') {
     path.join(TEMPORAL_INFRA_DIR, 'include', 'temporal_rs'),
   ]
 
-  for (const srcDir of sourcePackageDirs) {
+  for (let i = 0, { length } = sourcePackageDirs; i < length; i += 1) {
+    const srcDir = sourcePackageDirs[i]
     if (existsSync(srcDir)) {
       const srcFiles = await glob('**/*.{c,cc,cpp,h,hh,hpp}', {
         absolute: true,
@@ -342,6 +345,7 @@ export async function collectBuildSourceFiles(phase = 'binary-released') {
   // This handles custom directory structures like additions/source-patched/{js,cpp}
   const additionPhaseDirs = new Set()
 
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const addPath of sourcePaths.additions) {
     // Extract base phase directory (e.g., additions/source-patched)
     const match = addPath.match(/additions\/([^/]+)/)
@@ -387,6 +391,7 @@ export async function collectBuildSourceFiles(phase = 'binary-released') {
     sources.push(libdeflateGyp)
   }
 
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const addDir of [...existingAdditionDirs, ...additionPhaseDirs]) {
     const addFiles = await glob('**/*', {
       absolute: true,
@@ -396,7 +401,8 @@ export async function collectBuildSourceFiles(phase = 'binary-released') {
     sources.push(...addFiles)
   }
 
-  for (const scriptDir of existingScriptDirs) {
+  for (let i = 0, { length } = existingScriptDirs; i < length; i += 1) {
+    const scriptDir = existingScriptDirs[i]
     const scriptFiles = await glob('*.mts', {
       absolute: true,
       cwd: scriptDir,

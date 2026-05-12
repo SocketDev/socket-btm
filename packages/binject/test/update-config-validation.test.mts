@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
  * Update Config Validation Tests
  *
@@ -150,6 +151,7 @@ describe('update Config Validation', () => {
         { expected: 110, input: 'NO' },
       ]
 
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
       for (const { expected, input } of testCases) {
         const config = {
           promptDefault: input,
@@ -325,7 +327,8 @@ describe('update Config Validation', () => {
         'file:///path/to/file',
       ]
 
-      for (const url of invalidUrls) {
+      for (let i = 0, { length } = invalidUrls; i < length; i += 1) {
+        const url = invalidUrls[i]
         expect(() => serializeUpdateConfig({ url })).toThrow(
           /url.*must start with http:\/\/ or https:\/\//,
         )
@@ -340,7 +343,8 @@ describe('update Config Validation', () => {
         'https://api.github.com/repos/test/repo/releases',
       ]
 
-      for (const url of validUrls) {
+      for (let i = 0, { length } = validUrls; i < length; i += 1) {
+        const url = validUrls[i]
         expect(() => serializeUpdateConfig({ url })).not.toThrow()
       }
     })
@@ -358,7 +362,8 @@ describe('update Config Validation', () => {
     it('should reject invalid promptDefault values', () => {
       const invalidValues = ['maybe', 'true', 'false', '1', '0', 'yep', 'nope']
 
-      for (const value of invalidValues) {
+      for (let i = 0, { length } = invalidValues; i < length; i += 1) {
+        const value = invalidValues[i]
         const config = {
           promptDefault: value,
           url: 'https://example.com',

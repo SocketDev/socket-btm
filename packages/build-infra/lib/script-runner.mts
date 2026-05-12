@@ -61,6 +61,7 @@ export async function runParallel(commands, globalOptions = {}) {
     .filter(({ result }) => result.status === 'rejected')
 
   if (failures.length > 0) {
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
     for (const { command, result } of failures) {
       const cmdStr = `${command.command} ${(command.args || []).join(' ')}`
       logger.error(`Command failed: ${cmdStr}`)
@@ -150,6 +151,7 @@ export async function runQuiet(command, args = [], options = {}) {
  * @returns {Promise<number>} Exit code of first failing command, or 0 if all succeed
  */
 export async function runSequence(commands, globalOptions = {}) {
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const { args = [], command, description, options = {} } of commands) {
     if (description) {
       logger.step(description)

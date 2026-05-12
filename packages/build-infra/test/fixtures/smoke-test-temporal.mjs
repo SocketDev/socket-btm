@@ -193,6 +193,63 @@ if (typeof Temporal !== 'object' || Temporal === null) {
       `got ${ym2.toString()}`,
     )
   }
+
+  // Day-clamp on overflow: Jan 31 + 1 month must clamp to Feb 28/29
+  // (default overflow='constrain'). Previously the implementation
+  // rejected this with a Range error — observably wrong.
+  const ymJan = Temporal.PlainYearMonth.from('1999-01')
+  const ymFeb = tryCheck('PlainYearMonth.add day-clamp (call)', () =>
+    ymJan.add({ months: 1 }),
+  )
+  if (ymFeb !== undefined) {
+    check(
+      'PlainYearMonth.add day-clamp result',
+      ymFeb.toString() === '1999-02',
+      `got ${ymFeb.toString()}`,
+    )
+  }
+
+  // Negative months crossing year boundary.
+  const ymPrev = tryCheck('PlainYearMonth.subtract crossing year (call)', () =>
+    ym.subtract({ months: 8 }),
+  )
+  if (ymPrev !== undefined) {
+    check(
+      'PlainYearMonth.subtract crossing year result',
+      ymPrev.toString() === '2025-09',
+      `got ${ymPrev.toString()}`,
+    )
+  }
+}
+
+// ── Temporal.Instant cross-unit / largestUnit:day ───────────────────
+
+{
+  const i1 = Temporal.Instant.from('2026-05-08T12:00:00Z')
+  const i2 = Temporal.Instant.from('2026-05-10T18:30:00Z')
+
+  const durSec = tryCheck('Instant.until default seconds (call)', () =>
+    i1.until(i2),
+  )
+  if (durSec !== undefined) {
+    // 2 days + 6h 30m → 196_200 seconds at default largestUnit='second'.
+    check(
+      'Instant.until default seconds value',
+      durSec.seconds === 196200 && durSec.hours === 0 && durSec.days === 0,
+      `got seconds=${durSec.seconds} hours=${durSec.hours} days=${durSec.days}`,
+    )
+  }
+
+  const durDay = tryCheck('Instant.until largestUnit=day (call)', () =>
+    i1.until(i2, { largestUnit: 'day' }),
+  )
+  if (durDay !== undefined) {
+    check(
+      'Instant.until largestUnit=day result',
+      durDay.days === 2 && durDay.hours === 6 && durDay.minutes === 30,
+      `got days=${durDay.days} hours=${durDay.hours} minutes=${durDay.minutes}`,
+    )
+  }
 }
 
 // ── Temporal.PlainMonthDay ──────────────────────────────────────────
@@ -345,4 +402,4 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log(`Temporal smoke test: all ${37} checks passed`)
+console.log(`Temporal smoke test: all ${43} checks passed`)

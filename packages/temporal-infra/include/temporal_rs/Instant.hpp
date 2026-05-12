@@ -158,14 +158,16 @@ class Instant {
 
   // ── Rounding ───────────────────────────────────────────────────
   //
-  // Stub: temporal-infra exposes ResolvedRoundingOptionsFromInstant but
+  // temporal-infra exposes ResolvedRoundingOptionsFromInstant but
   // wiring it through to a re-balanced Instant requires the rounding
-  // tail to land. For now, return a clone (which is the no-op rounding
-  // result); V8 sees this as "rounding succeeded with the same value."
+  // tail to land. Previously returned a clone — silent wrong-answer
+  // for any non-trivial rounding request. Surface Err until the
+  // rounding tail lands.
   diplomat::result<std::unique_ptr<Instant>, TemporalError> round(
       const RoundingOptions& /*options*/) const {
-    return diplomat::Ok<std::unique_ptr<Instant>>(
-        std::unique_ptr<Instant>(new Instant(inner_)));
+    return diplomat::Err<TemporalError>(TemporalError{
+        ErrorKind::Range,
+        "Instant.round not yet implemented"});
   }
 
   // ── ZDT projection ─────────────────────────────────────────────
@@ -230,20 +232,6 @@ class Instant {
         std::unique_ptr<Instant>(new Instant(out_inner)));
   }
 
-  // since / until — Duration of (self - other) / (other - self).
-  template <class D>
-  std::unique_ptr<D> since_dur(const Instant& other) const {
-    auto d = ::node::socketsecurity::temporal::InstantSince(other.inner_,
-                                                              inner_);
-    return D::FromInfra(d);
-  }
-  template <class D>
-  std::unique_ptr<D> until_dur(const Instant& other) const {
-    auto d = ::node::socketsecurity::temporal::InstantSince(inner_,
-                                                              other.inner_);
-    return D::FromInfra(d);
-  }
-
   // V8-facing since/until. Upstream's instant.rs:360-367 routes through
   // `diff_instant(op, other, settings)` which (1) resolves
   // DifferenceSettings via ResolvedRoundingOptionsFromDiffSettings,
@@ -303,9 +291,8 @@ class Instant {
     }
 
     // Determine largestUnit. Default is Second per upstream
-    // instant.rs:217. Only Hour/Minute/Second balance levels are
-    // implemented here — Day requires calendar-aware day boundaries
-    // (the Instant API rejects Year/Week/Month anyway per spec).
+    // instant.rs:217. The Instant API rejects Year/Week/Month per
+    // spec but accepts Day and below.
     using Unit = ::node::socketsecurity::temporal::Unit;
     Unit largest = Unit::kSecond;
     if (settings.largest_unit.has_value()) {
@@ -313,12 +300,13 @@ class Instant {
       if (largest == Unit::kAuto) {
         largest = Unit::kSecond;
       }
-      if (largest != Unit::kHour && largest != Unit::kMinute &&
-          largest != Unit::kSecond && largest != Unit::kMillisecond &&
-          largest != Unit::kMicrosecond && largest != Unit::kNanosecond) {
+      if (largest != Unit::kDay && largest != Unit::kHour &&
+          largest != Unit::kMinute && largest != Unit::kSecond &&
+          largest != Unit::kMillisecond && largest != Unit::kMicrosecond &&
+          largest != Unit::kNanosecond) {
         return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{
             ::temporal_rs::ErrorKind::Range,
-            "Instant.until/since largestUnit must be 'hour' or smaller"});
+            "Instant.until/since largestUnit must be 'day' or smaller"});
       }
     }
 
@@ -332,31 +320,67 @@ class Instant {
       delta_ns = -delta_ns;
     }
 
+    // Guard against int64 narrowing at the chosen largestUnit. Valid
+    // Instant range is ±8.64e21 ns. After dividing by the unit size,
+    // the largest field of the resulting Duration (a `double` per
+    // spec, but we materialize through int64 here) must fit:
+    //   - Day:    8.64e21 / 86_400_000_000_000 = 1e8  ✓
+    //   - Hour:   8.64e21 / 3_600_000_000_000  = 2.4e9  ✓
+    //   - Minute: 8.64e21 / 60_000_000_000     = 1.44e11  ✓
+    //   - Second: 8.64e21 / 1_000_000_000      = 8.64e12  ✓
+    //   - Ms:     8.64e21 / 1_000_000          = 8.64e15  ✓
+    //   - Us:     8.64e21 / 1_000              = 8.64e18  ✗ overflows int64
+    //   - Ns:     8.64e21                       ✗ overflows int64
+    // Reject the two overflowing cases explicitly rather than silently
+    // truncating. Full int128-carry support is its own change.
+    constexpr NativeInt128 kInt64Max = NativeInt128{INT64_MAX};
+    if (largest == Unit::kMicrosecond) {
+      const NativeInt128 abs_delta = delta_ns < 0 ? -delta_ns : delta_ns;
+      if (abs_delta / NativeInt128{1000} > kInt64Max) {
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range,
+            "Instant.until/since delta exceeds int64 microseconds at "
+            "the requested largestUnit; use 'millisecond' or larger"});
+      }
+    } else if (largest == Unit::kNanosecond) {
+      const NativeInt128 abs_delta = delta_ns < 0 ? -delta_ns : delta_ns;
+      if (abs_delta > kInt64Max) {
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range,
+            "Instant.until/since delta exceeds int64 nanoseconds at "
+            "the requested largestUnit; use 'microsecond' or larger"});
+      }
+    }
+
     // Balance per the spec's BalanceTimeDuration(ns, largestUnit).
-    // The result fields below are int64; the smoke test's call uses
-    // pairs that fit easily within int64 even at the nanosecond level.
-    // Wider deltas (>~292 years apart) overflow seconds@int64 and
-    // would need int128 carry — out of scope for the default-settings
-    // smoke path.
+    // C++ integer division truncates toward zero — same as the spec's
+    // R(remainder / divisor) for negative values — so the per-field
+    // signs naturally agree with the overall delta sign.
     constexpr NativeInt128 kNsPerUs = 1000;
     constexpr NativeInt128 kNsPerMs = 1000 * kNsPerUs;
     constexpr NativeInt128 kNsPerSec = 1000 * kNsPerMs;
     constexpr NativeInt128 kNsPerMin = 60 * kNsPerSec;
     constexpr NativeInt128 kNsPerHour = 60 * kNsPerMin;
+    constexpr NativeInt128 kNsPerDay = 24 * kNsPerHour;
 
-    int64_t hours = 0, minutes = 0, seconds = 0;
+    int64_t days = 0, hours = 0, minutes = 0, seconds = 0;
     int64_t ms = 0, us = 0, ns = 0;
     NativeInt128 remainder = delta_ns;
-    if (largest == Unit::kHour) {
+    if (largest == Unit::kDay) {
+      days = static_cast<int64_t>(remainder / kNsPerDay);
+      remainder -= NativeInt128(days) * kNsPerDay;
+    }
+    if (largest == Unit::kDay || largest == Unit::kHour) {
       hours = static_cast<int64_t>(remainder / kNsPerHour);
       remainder -= NativeInt128(hours) * kNsPerHour;
     }
-    if (largest == Unit::kHour || largest == Unit::kMinute) {
+    if (largest == Unit::kDay || largest == Unit::kHour ||
+        largest == Unit::kMinute) {
       minutes = static_cast<int64_t>(remainder / kNsPerMin);
       remainder -= NativeInt128(minutes) * kNsPerMin;
     }
-    if (largest == Unit::kHour || largest == Unit::kMinute ||
-        largest == Unit::kSecond) {
+    if (largest == Unit::kDay || largest == Unit::kHour ||
+        largest == Unit::kMinute || largest == Unit::kSecond) {
       seconds = static_cast<int64_t>(remainder / kNsPerSec);
       remainder -= NativeInt128(seconds) * kNsPerSec;
     }
@@ -371,7 +395,7 @@ class Instant {
     ns = static_cast<int64_t>(remainder);
 
     auto d = ::node::socketsecurity::temporal::DurationCreate(
-        /*years=*/0, /*months=*/0, /*weeks=*/0, /*days=*/0,
+        /*years=*/0, /*months=*/0, /*weeks=*/0, days,
         hours, minutes, seconds, ms,
         static_cast<double>(us), static_cast<double>(ns));
     return diplomat::Ok<std::unique_ptr<Duration>>(Duration::FromInfra(d));

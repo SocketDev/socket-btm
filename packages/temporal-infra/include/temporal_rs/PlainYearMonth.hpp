@@ -102,12 +102,19 @@ class PlainYearMonth {
   // ISO-only year-month arithmetic. PlainYearMonth.add/subtract apply
   // only years/months from the duration (weeks/days/hours/etc are
   // disallowed per spec). The day component stays at the original
-  // `reference_day` (preserved on the inner) and is clamped on overflow
-  // via PlainYearMonthTryNewIso, which performs the spec's
-  // RegulateISOYearMonth.
+  // `reference_day` (preserved on the inner); when the resulting
+  // year-month has fewer days (e.g. Jan 31 + 1M → Feb), the spec
+  // default (overflow='constrain') clamps the day to the new month's
+  // length; overflow='reject' returns Range.
   diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
-  add_or_subtract(const Duration& duration, ArithmeticOverflow /*overflow*/,
+  add_or_subtract(const Duration& duration, ArithmeticOverflow overflow,
                   bool negate) const {
+    // Reject invalid Durations before any double→int cast — the cast
+    // is UB on NaN/Inf and silently truncates out-of-range doubles.
+    if (!duration.IsValid()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range, "Duration is not valid"});
+    }
     if (duration.weeks != 0 || duration.days != 0 || duration.hours != 0 ||
         duration.minutes != 0 || duration.seconds != 0 ||
         duration.milliseconds != 0 || duration.microseconds != 0 ||
@@ -124,18 +131,31 @@ class PlainYearMonth {
         static_cast<int64_t>(inner_.iso.year) * 12 +
         static_cast<int64_t>(inner_.iso.month - 1) +
         add_years * 12 + add_months;
+    // Floor-divide by 12 without UB at INT64_MIN. `-((-x + 11)/12)` is
+    // UB if `x == INT64_MIN` because `-x` overflows; `(x - 11) / 12`
+    // computes floor(x/12) for negative x without the negation step.
     const int64_t new_year = total_months >= 0
                                  ? total_months / 12
-                                 : -((-total_months + 11) / 12);
+                                 : (total_months - 11) / 12;
     const int64_t new_month_zero = total_months - new_year * 12;
     if (new_year < -271820 || new_year > 275759) {
       return diplomat::Err<TemporalError>(TemporalError{
           ErrorKind::Range,
           "PlainYearMonth.add result outside representable range"});
     }
-    const auto result = ::node::socketsecurity::temporal::PlainYearMonthTryNewIso(
-        static_cast<int32_t>(new_year),
-        static_cast<uint8_t>(new_month_zero + 1), inner_.iso.day);
+    const int32_t year_i32 = static_cast<int32_t>(new_year);
+    const uint8_t month_u8 = static_cast<uint8_t>(new_month_zero + 1);
+    auto result = ::node::socketsecurity::temporal::PlainYearMonthTryNewIso(
+        year_i32, month_u8, inner_.iso.day);
+    if (!result.ok() && overflow.ToInfra() ==
+                            ::node::socketsecurity::temporal::Overflow::kConstrain) {
+      // Spec default: clamp the reference day to the new month's max.
+      // `Jan 31 + 1M` → `Feb 28/29` per RegulateISOYearMonth.
+      const uint8_t clamped =
+          ::node::socketsecurity::temporal::ISODaysInMonth(year_i32, month_u8);
+      result = ::node::socketsecurity::temporal::PlainYearMonthTryNewIso(
+          year_i32, month_u8, clamped);
+    }
     if (!result.ok()) {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(result.error()));

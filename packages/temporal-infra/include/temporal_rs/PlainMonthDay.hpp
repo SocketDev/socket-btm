@@ -73,8 +73,12 @@ class PlainMonthDay {
   diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
   with(PartialDate /*partial*/,
        std::optional<ArithmeticOverflow> /*overflow*/) const {
-    return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
-        std::unique_ptr<PlainMonthDay>(new PlainMonthDay(inner_)));
+    // Previously silent identity-clone; that's an observable wrong
+    // answer (`md.with({day: 9})` returned `md` unchanged). PartialDate
+    // resolution lands with calendar.cc Phase 11; until then, Err.
+    return diplomat::Err<TemporalError>(TemporalError{
+        ErrorKind::Range,
+        "PlainMonthDay.with not yet implemented"});
   }
 
   diplomat::result<std::unique_ptr<PlainDate>, TemporalError>
@@ -84,7 +88,14 @@ class PlainMonthDay {
 
   diplomat::result<int64_t, TemporalError>
   epoch_ms_for_with_provider(TimeZone /*tz*/, const Provider& /*p*/) const {
-    return diplomat::Ok<int64_t>(0);
+    // Previously returned Ok(0) — silent wrong-answer: every
+    // PlainMonthDay mapped to 1970-01-01T00:00:00Z. Match the
+    // single-Provider overload below: return Err until calendar-aware
+    // day projection + provider integration land.
+    return diplomat::Err<TemporalError>(TemporalError{
+        ErrorKind::Range,
+        "PlainMonthDay.epochMsFor(timeZone, provider) requires a "
+        "calendar backend + provider integration"});
   }
 
   // 1:1 from upstream plain_month_day.rs:380 / :387.

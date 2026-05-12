@@ -5,6 +5,7 @@
 
 #include <chrono>
 
+#include "socketsecurity/temporal/iso.h"
 #include "socketsecurity/temporal/temporal_int128.h"
 
 namespace node {
@@ -50,22 +51,22 @@ bool Instant::IsValid() const noexcept {
 // PlainDateTime delegate to these via their `iso` field.
 
 bool IsoDate::IsValid() const noexcept {
-  // Spec: IsValidISODate(year, month, day)
-  // Year range: -271821..275760 (per spec: math allows ±10^8 days from
-  // epoch ≈ ±273_972 years, narrowed to spec's ±271821/+275760).
+  // Spec: IsValidISODate(year, month, day) — performs a per-month day
+  // check including leap-year handling, NOT just the 1..31 shape. The
+  // distinction matters: callers like ParseInstantString and the
+  // PlainDateTime parser route bare ISO records straight through this
+  // gate, so accepting `2025-02-30` here surfaces as a wrong-answer
+  // Instant downstream. Use ISODaysInMonth so leap years validate
+  // correctly (29 Feb 2024 ok, 29 Feb 2025 rejected).
   if (year < -271821 || year > 275760) {
     return false;
   }
   if (month < 1 || month > 12) {
     return false;
   }
-  if (day < 1 || day > 31) {
+  if (day < 1 || day > ISODaysInMonth(year, month)) {
     return false;
   }
-  // Per-month day count + leap year checks land with the calendar
-  // binding (calendar.cc, future). For now this is the cheap shape
-  // check; a 31-day check on Feb still passes here, gets caught
-  // downstream when arithmetic constructs an actual date.
   return true;
 }
 

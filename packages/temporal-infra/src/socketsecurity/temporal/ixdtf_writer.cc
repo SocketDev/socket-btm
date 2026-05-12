@@ -2,7 +2,6 @@
 
 #include "socketsecurity/temporal/ixdtf_writer.h"
 
-#include <cassert>
 #include <cstdint>
 #include <cstdlib>
 #include <string>
@@ -95,10 +94,13 @@ void WriteYear(int32_t year, std::string& sink) {
   // Extended year: ±NNNNNN (6 digits).
   sink.push_back(year < 0 ? '-' : '+');
   uint32_t abs_y = static_cast<uint32_t>(std::abs(static_cast<int64_t>(year)));
-  assert(abs_y <= 999999u && "WriteYear: |year| exceeds 6-digit IXDTF range; "
-                              "caller missed an IsoDate::IsValid() gate");
+  // Silent clamping here would produce data corruption visible to JS
+  // (e.g. year 9_999_999 becomes "+999999"). The IxdtfStringBuilder
+  // API returns std::string with no error channel, so we can't bubble
+  // a RangeError. Hard-abort instead — callers MUST run IsoDate's
+  // per-month + range gate (which rejects |year| > 275760) first.
   if (abs_y > 999999u) {
-    abs_y = 999999u;
+    std::abort();
   }
   DigitArray9 d = U32ToDigits(abs_y);
   // Upstream takes digits[3..9] (skip leading 3 digits since the array is

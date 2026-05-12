@@ -2,6 +2,7 @@
 
 #include "socketsecurity/temporal/plain_date_time.h"
 
+#include <cmath>
 #include <string_view>
 
 #include "socketsecurity/temporal/duration_normalized.h"
@@ -149,8 +150,10 @@ PlainTime PlainDateTimeToPlainTime(const PlainDateTime& self) noexcept {
 
 namespace {
 
-// Saturating cast f64 → i32 for date components.
+// Saturating cast f64 → i32 for date components. NaN → 0 prevents
+// UB from `static_cast<int32_t>(NaN)` per [conv.fpint]/4.
 int32_t SaturatingI32(double d) noexcept {
+  if (std::isnan(d)) return 0;
   if (d > 2147483647.0) return 2147483647;
   if (d < -2147483648.0) return -2147483648;
   return static_cast<int32_t>(d);

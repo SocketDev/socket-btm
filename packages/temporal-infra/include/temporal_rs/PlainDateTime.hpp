@@ -205,28 +205,34 @@ class PlainDateTime {
            inner_.iso.time.nanosecond == other.inner_.iso.time.nanosecond;
   }
 
-  // Stubs - rounding tail and time-overlay both require deeper
-  // infra integration. Surface preserved so V8 compiles.
+  // The three methods below previously returned silent identity-clones
+  // ("not yet implemented" disguised as Ok(*this)). That's an observable
+  // wrong-answer — `pdt.with({hour: 5})` returned the unmodified pdt.
+  // Surface the limitation explicitly until the rounding-tail / time-
+  // overlay / PartialDateTime resolution paths land.
   diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError> round(
       const RoundingOptions& /*options*/) const {
-    return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
-        std::unique_ptr<PlainDateTime>(new PlainDateTime(inner_)));
+    return diplomat::Err<TemporalError>(TemporalError{
+        ErrorKind::Range,
+        "PlainDateTime.round not yet implemented"});
   }
 
   // Upstream: with_time(const PlainTime*) — V8 passes the raw pointer
   // straight from `temporal_time->time()->raw()`, possibly nullptr.
   diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError> with_time(
       const PlainTime* /*time*/) const {
-    return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
-        std::unique_ptr<PlainDateTime>(new PlainDateTime(inner_)));
+    return diplomat::Err<TemporalError>(TemporalError{
+        ErrorKind::Range,
+        "PlainDateTime.withPlainTime not yet implemented"});
   }
 
   // Upstream: with(PartialDateTime, optional<ArithmeticOverflow>).
   diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError> with(
       PartialDateTime /*partial*/,
       std::optional<ArithmeticOverflow> /*overflow*/) const {
-    return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
-        std::unique_ptr<PlainDateTime>(new PlainDateTime(inner_)));
+    return diplomat::Err<TemporalError>(TemporalError{
+        ErrorKind::Range,
+        "PlainDateTime.with not yet implemented"});
   }
 
   // Upstream is a static method: PlainDateTime::compare(a, b).

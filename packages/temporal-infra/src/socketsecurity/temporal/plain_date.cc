@@ -2,6 +2,7 @@
 
 #include "socketsecurity/temporal/plain_date.h"
 
+#include <cmath>
 #include <string_view>
 
 #include "socketsecurity/temporal/iso.h"
@@ -122,7 +123,11 @@ bool PlainDateInLeapYear(const PlainDate& self) noexcept {
 namespace {
 
 // Helper: convert Duration's double fields to int32, saturating.
+// NaN guard is essential — `static_cast<int32_t>(NaN)` is UB per
+// [conv.fpint]/4. Caller is responsible for IsValid() on the Duration
+// upstream; this is belt-and-suspenders for the noexcept boundary.
 int32_t SaturatingToI32(double d) noexcept {
+  if (std::isnan(d)) return 0;
   if (d > 2147483647.0) return 2147483647;
   if (d < -2147483648.0) return -2147483648;
   return static_cast<int32_t>(d);

@@ -223,20 +223,17 @@ TemporalResult<int8_t> DurationCompare(const Duration& a,
 // IsValid() == false (caller decides whether to throw a RangeError).
 Instant AddDuration(const Instant& instant, const Duration& duration) noexcept;
 
-// Difference between two instants as a balanced Duration.
-Duration InstantSince(const Instant& earlier, const Instant& later) noexcept;
-
-// ── Parsing ────────────────────────────────────────────────────────
-
-// Parse an ISO 8601 / RFC 9557 string into an Instant. Accepts the
-// Temporal-extended grammar (annotated calendars, timezones).
-// Returns Instant with IsValid() == false on parse error.
-Instant ParseInstant(std::string_view input) noexcept;
-
-// ── Formatting ─────────────────────────────────────────────────────
-
-// Format an Instant as an ISO 8601 string with optional precision.
-std::string FormatInstant(const Instant& instant) noexcept;
+// Note: InstantSince was previously declared here but never defined.
+// V8's call sites route through the non-templated since/until on the
+// compat shim (`include/temporal_rs/Instant.hpp`), which inlines the
+// int128 nanosecond delta directly. The templated since_dur/until_dur
+// stubs that referenced this symbol were dead code and have been
+// removed alongside this declaration.
+//
+// ParseInstant and FormatInstant were similarly declared-only —
+// callers route through ParseInstantString (parse.cc) and
+// to_ixdtf_string_with_provider (Instant.hpp) respectively. Removed
+// to prevent link-time surprises and dead-code drift.
 
 }  // namespace temporal
 }  // namespace socketsecurity

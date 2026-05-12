@@ -9,6 +9,7 @@
 
 #include <atomic>
 #include <cctype>
+#include <cmath>
 #include <string_view>
 
 #include "socketsecurity/temporal/iso.h"
@@ -128,7 +129,10 @@ std::string_view Calendar::Identifier() const noexcept {
 
 namespace {
 
+// NaN guard prevents UB on `static_cast<int32_t>(NaN)`; see
+// plain_date.cc for the rationale.
 int32_t SaturatingToI32(double d) noexcept {
+  if (std::isnan(d)) return 0;
   if (d > 2147483647.0) return 2147483647;
   if (d < -2147483648.0) return -2147483648;
   return static_cast<int32_t>(d);

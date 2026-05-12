@@ -3,6 +3,7 @@
 #ifndef TEMPORAL_RS_COMPAT_PLAINYEARMONTH_HPP_
 #define TEMPORAL_RS_COMPAT_PLAINYEARMONTH_HPP_
 
+#include <cmath>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -109,23 +110,28 @@ class PlainYearMonth {
   diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
   add_or_subtract(const Duration& duration, ArithmeticOverflow overflow,
                   bool negate) const {
-    // Reject invalid Durations before any double→int cast — the cast
-    // is UB on NaN/Inf and silently truncates out-of-range doubles.
-    if (!duration.IsValid()) {
+    // Reject non-finite duration fields before any double→int cast —
+    // `static_cast<int64_t>(NaN/Inf)` is UB per [conv.fpint]/4. The
+    // V8 caller normally validates via Duration::TryNew, but this is
+    // a `noexcept` boundary; belt-and-suspenders. Field accessors on
+    // the compat Duration are zero-arg getters (`years()` etc.).
+    const double dy = duration.years();
+    const double dM = duration.months();
+    if (std::isnan(dy) || std::isinf(dy) || std::isnan(dM) || std::isinf(dM)) {
       return diplomat::Err<TemporalError>(TemporalError{
-          ErrorKind::Range, "Duration is not valid"});
+          ErrorKind::Range, "Duration year/month component is not finite"});
     }
-    if (duration.weeks != 0 || duration.days != 0 || duration.hours != 0 ||
-        duration.minutes != 0 || duration.seconds != 0 ||
-        duration.milliseconds != 0 || duration.microseconds != 0 ||
-        duration.nanoseconds != 0) {
+    if (duration.weeks() != 0 || duration.days() != 0 ||
+        duration.hours() != 0 || duration.minutes() != 0 ||
+        duration.seconds() != 0 || duration.milliseconds() != 0 ||
+        duration.microseconds() != 0 || duration.nanoseconds() != 0) {
       return diplomat::Err<TemporalError>(TemporalError{
           ErrorKind::Range,
           "PlainYearMonth arithmetic only accepts year + month durations"});
     }
     const double sign = negate ? -1.0 : 1.0;
-    const int64_t add_years = static_cast<int64_t>(duration.years * sign);
-    const int64_t add_months = static_cast<int64_t>(duration.months * sign);
+    const int64_t add_years = static_cast<int64_t>(dy * sign);
+    const int64_t add_months = static_cast<int64_t>(dM * sign);
 
     int64_t total_months =
         static_cast<int64_t>(inner_.iso.year) * 12 +
@@ -145,23 +151,31 @@ class PlainYearMonth {
     }
     const int32_t year_i32 = static_cast<int32_t>(new_year);
     const uint8_t month_u8 = static_cast<uint8_t>(new_month_zero + 1);
-    auto result = ::node::socketsecurity::temporal::PlainYearMonthTryNewIso(
-        year_i32, month_u8, inner_.iso.day);
-    if (!result.ok() && overflow.ToInfra() ==
-                            ::node::socketsecurity::temporal::Overflow::kConstrain) {
-      // Spec default: clamp the reference day to the new month's max.
-      // `Jan 31 + 1M` → `Feb 28/29` per RegulateISOYearMonth.
-      const uint8_t clamped =
-          ::node::socketsecurity::temporal::ISODaysInMonth(year_i32, month_u8);
-      result = ::node::socketsecurity::temporal::PlainYearMonthTryNewIso(
-          year_i32, month_u8, clamped);
+    auto first_try =
+        ::node::socketsecurity::temporal::PlainYearMonthTryNewIso(
+            year_i32, month_u8, inner_.iso.day);
+    if (first_try.ok()) {
+      return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
+          std::unique_ptr<PlainYearMonth>(new PlainYearMonth(first_try.value())));
     }
-    if (!result.ok()) {
+    if (overflow.ToInfra() !=
+        ::node::socketsecurity::temporal::Overflow::kConstrain) {
       return diplomat::Err<TemporalError>(
-          TemporalError::FromInfra(result.error()));
+          TemporalError::FromInfra(first_try.error()));
+    }
+    // Spec default (overflow='constrain'): clamp the reference day to
+    // the new month's max. `Jan 31 + 1M` → `Feb 28/29` per
+    // RegulateISOYearMonth.
+    const uint8_t clamped =
+        ::node::socketsecurity::temporal::ISODaysInMonth(year_i32, month_u8);
+    auto retry = ::node::socketsecurity::temporal::PlainYearMonthTryNewIso(
+        year_i32, month_u8, clamped);
+    if (!retry.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(retry.error()));
     }
     return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
-        std::unique_ptr<PlainYearMonth>(new PlainYearMonth(result.value())));
+        std::unique_ptr<PlainYearMonth>(new PlainYearMonth(retry.value())));
   }
 
  public:

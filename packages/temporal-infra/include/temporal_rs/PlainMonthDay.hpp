@@ -54,12 +54,34 @@ class PlainMonthDay {
         std::unique_ptr<PlainMonthDay>(new PlainMonthDay(result.value())));
   }
 
+  // 1:1 from upstream plain_month_day.rs `from_partial`. ISO path:
+  // requires partial.month + partial.day. partial.year (when present)
+  // becomes the reference_year; otherwise defaults to 1972 (the
+  // leap-year anchor) inside PlainMonthDayTryNewIso.
   static diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
-  from_partial(PartialDate /*partial*/,
-               std::optional<ArithmeticOverflow> /*overflow*/) {
-    // Stub — full PartialDate → PlainMonthDay resolution lands when
-    // the calendar-aware path activates.
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
+  from_partial(PartialDate partial,
+               std::optional<ArithmeticOverflow> overflow) {
+    if (!partial.month.has_value() && !partial.month_code.empty()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "PlainMonthDay.from month_code resolution requires "
+          "calendar backend"});
+    }
+    if (!partial.month.has_value()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "PlainMonthDay.from requires month or monthCode"});
+    }
+    if (!partial.day.has_value()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "PlainMonthDay.from requires day"});
+    }
+    const ArithmeticOverflow ov =
+        overflow.value_or(ArithmeticOverflow{});  // default kConstrain
+    return try_new_with_overflow(*partial.month, *partial.day,
+                                  AnyCalendarKind{AnyCalendarKind::Iso}, ov,
+                                  partial.year);
   }
 
   // 1:1 from upstream plain_month_day.rs `try_new_with_overflow`.

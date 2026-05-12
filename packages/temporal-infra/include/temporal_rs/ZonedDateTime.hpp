@@ -125,12 +125,39 @@ class ZonedDateTime {
     return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
+  // 1:1 from upstream zoned_date_time.rs `try_new_with_provider`. The
+  // Provider is unused at construction (it would be needed if we
+  // validated the wall-time against DST transitions, but try_new
+  // takes raw epoch_ns + a time_zone identifier — no resolution
+  // happens until the caller asks for wall-clock fields). Delegates
+  // to the existing ZonedDateTimeTryNew helper.
   static diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
-  try_new_with_provider(I128Nanoseconds /*nanosecond*/,
-                        AnyCalendarKind /*calendar*/,
-                        TimeZone /*time_zone*/,
+  try_new_with_provider(I128Nanoseconds nanosecond,
+                        AnyCalendarKind calendar,
+                        TimeZone time_zone,
                         const Provider& /*p*/) {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
+    if (calendar.ToInfra() !=
+        ::node::socketsecurity::temporal::CalendarKind::kIso) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "ZonedDateTime.try_new_with_provider non-ISO calendars "
+          "not yet implemented"});
+    }
+    ::node::socketsecurity::temporal::Instant instant{};
+    instant.epoch_nanoseconds = nanosecond.ToInfra();
+    if (!instant.IsValid()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range, "Instant epoch nanoseconds out of range"});
+    }
+    auto r = ::node::socketsecurity::temporal::ZonedDateTimeTryNew(
+        instant, time_zone.ToInfra(),
+        ::node::socketsecurity::temporal::Calendar::Iso());
+    if (!r.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(r.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+        ZonedDateTime::FromInfra(r.value()));
   }
 
   // ── Field accessors ─────────────────────────────────────────────

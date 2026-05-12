@@ -254,13 +254,23 @@ class PlainDateTime {
         std::unique_ptr<PlainDateTime>(new PlainDateTime(out)));
   }
 
-  // Upstream: with(PartialDateTime, optional<ArithmeticOverflow>).
+  // 1:1 from upstream plain_date_time.rs `with`. Delegates to the
+  // pre-existing PlainDateTimeWith helper in plain_date_time.cc.
   diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError> with(
-      PartialDateTime /*partial*/,
-      std::optional<ArithmeticOverflow> /*overflow*/) const {
-    return diplomat::Err<TemporalError>(TemporalError{
-        ErrorKind::Range,
-        "PlainDateTime.with not yet implemented"});
+      PartialDateTime partial,
+      std::optional<ArithmeticOverflow> overflow) const {
+    std::optional<::node::socketsecurity::temporal::Overflow> infra_overflow;
+    if (overflow.has_value()) {
+      infra_overflow = overflow->ToInfra();
+    }
+    auto result = ::node::socketsecurity::temporal::PlainDateTimeWith(
+        inner_, partial.ToInfra(), infra_overflow);
+    if (!result.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(result.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
+        PlainDateTime::FromInfra(result.value()));
   }
 
   // Upstream is a static method: PlainDateTime::compare(a, b).

@@ -342,29 +342,52 @@ class Instant {
   diplomat::result<std::unique_ptr<Duration>, TemporalError> diff(
       const Instant& other, const DifferenceSettings& settings,
       bool negate) const {
-    // Reject non-default settings rather than silently producing the
-    // wrong answer.
-    if (settings.smallest_unit.has_value() &&
-        settings.smallest_unit->ToInfra() !=
-            ::node::socketsecurity::temporal::Unit::kNanosecond) {
-      return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{
-          ::temporal_rs::ErrorKind::Range,
-          "Instant.until/since smallestUnit other than 'nanosecond' "
-          "is not yet supported"});
+    using Unit = ::node::socketsecurity::temporal::Unit;
+    using RoundingMode = ::node::socketsecurity::temporal::RoundingMode;
+    using UnsignedRoundingMode =
+        ::node::socketsecurity::temporal::UnsignedRoundingMode;
+    using ::node::socketsecurity::temporal::Int128;
+    using ::node::socketsecurity::temporal::RoundingModeGetUnsigned;
+
+    // Resolve smallestUnit (defaults to Nanosecond), roundingMode
+    // (default Trunc; Since negates), increment (default 1). The
+    // rounding is applied to the int128 nanosecond delta BEFORE
+    // balancing into Duration components.
+    const Unit smallest = settings.smallest_unit.has_value()
+                              ? settings.smallest_unit->ToInfra()
+                              : Unit::kNanosecond;
+    if (smallest != Unit::kDay && smallest != Unit::kHour &&
+        smallest != Unit::kMinute && smallest != Unit::kSecond &&
+        smallest != Unit::kMillisecond && smallest != Unit::kMicrosecond &&
+        smallest != Unit::kNanosecond) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "Instant.until/since smallestUnit must be 'day' or smaller"});
     }
-    if (settings.rounding_mode.has_value() &&
-        settings.rounding_mode->ToInfra() !=
-            ::node::socketsecurity::temporal::RoundingMode::kTrunc) {
-      return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{
-          ::temporal_rs::ErrorKind::Range,
-          "Instant.until/since roundingMode other than 'trunc' "
-          "is not yet supported"});
+    uint64_t smallest_ns = 1;
+    switch (smallest) {
+      case Unit::kDay:         smallest_ns = 86'400'000'000'000ULL; break;
+      case Unit::kHour:        smallest_ns =  3'600'000'000'000ULL; break;
+      case Unit::kMinute:      smallest_ns =     60'000'000'000ULL; break;
+      case Unit::kSecond:      smallest_ns =      1'000'000'000ULL; break;
+      case Unit::kMillisecond: smallest_ns =          1'000'000ULL; break;
+      case Unit::kMicrosecond: smallest_ns =              1'000ULL; break;
+      case Unit::kNanosecond:  smallest_ns =                  1ULL; break;
+      default: break;  // unreachable per guard above
     }
-    if (settings.increment.has_value() && *settings.increment != 1) {
-      return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{
-          ::temporal_rs::ErrorKind::Range,
-          "Instant.until/since roundingIncrement > 1 is not yet "
-          "supported"});
+    const uint64_t increment = settings.increment.value_or(1u);
+    if (increment == 0) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "Instant.until/since roundingIncrement must be > 0"});
+    }
+    RoundingMode mode = settings.rounding_mode.has_value()
+                            ? settings.rounding_mode->ToInfra()
+                            : RoundingMode::kTrunc;
+    // Spec: Since op negates the rounding mode (per
+    // ResolvedRoundingOptions::from_diff_settings).
+    if (negate) {
+      mode = ::node::socketsecurity::temporal::RoundingModeNegate(mode);
     }
 
     // Determine largestUnit. Default is Second per upstream
@@ -395,6 +418,46 @@ class Instant {
         other.inner_.epoch_nanoseconds.value - inner_.epoch_nanoseconds.value;
     if (negate) {
       delta_ns = -delta_ns;
+    }
+
+    // Apply rounding to delta_ns. Per upstream
+    // ResolvedRoundingOptions::from_diff_settings, smallestUnit defaults
+    // to Nanosecond + increment 1 (a no-op); for non-default values
+    // round delta_ns to the nearest multiple of
+    // (increment * smallest_ns) per the resolved mode.
+    if (smallest_ns != 1 || increment != 1 || mode != RoundingMode::kTrunc) {
+      const NativeInt128 inc_ns =
+          NativeInt128(static_cast<int64_t>(increment * smallest_ns));
+      const bool ns_sign = delta_ns >= 0;
+      const UnsignedRoundingMode u_mode = RoundingModeGetUnsigned(mode, ns_sign);
+      NativeInt128 abs_q = ns_sign ? delta_ns : -delta_ns;
+      NativeInt128 q = abs_q / inc_ns;
+      NativeInt128 r = abs_q % inc_ns;
+      NativeInt128 rounded_q;
+      if (r == NativeInt128(0) || u_mode == UnsignedRoundingMode::kZero) {
+        rounded_q = q;
+      } else if (u_mode == UnsignedRoundingMode::kInfinity) {
+        rounded_q = q + NativeInt128(1);
+      } else {
+        NativeInt128 twice_r = r + r;
+        if (twice_r < inc_ns) {
+          rounded_q = q;
+        } else if (twice_r > inc_ns) {
+          rounded_q = q + NativeInt128(1);
+        } else {
+          switch (u_mode) {
+            case UnsignedRoundingMode::kHalfZero:     rounded_q = q; break;
+            case UnsignedRoundingMode::kHalfInfinity: rounded_q = q + NativeInt128(1); break;
+            case UnsignedRoundingMode::kHalfEven: {
+              NativeInt128 m2 = q % NativeInt128(2);
+              rounded_q = (m2 == NativeInt128(0)) ? q : q + NativeInt128(1);
+              break;
+            }
+            default: rounded_q = q; break;
+          }
+        }
+      }
+      delta_ns = ns_sign ? rounded_q * inc_ns : -(rounded_q * inc_ns);
     }
 
     // Guard against int64 narrowing at the chosen largestUnit. Valid

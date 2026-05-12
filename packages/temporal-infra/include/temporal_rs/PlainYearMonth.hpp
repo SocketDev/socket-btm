@@ -57,14 +57,37 @@ class PlainYearMonth {
         std::unique_ptr<PlainYearMonth>(new PlainYearMonth(result.value())));
   }
 
+  // 1:1 from upstream plain_year_month.rs `from_partial`. ISO path:
+  // requires partial.year + partial.month (no defaults per spec; the
+  // ECMA-spec wraps this in ToTemporalYearMonth which validates).
+  // For non-ISO calendars this still Errs.
   static diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
-  from_partial(PartialDate /*partial*/,
-               std::optional<ArithmeticOverflow> /*overflow*/) {
-    // Stub: full PartialDate → PlainYearMonth resolution lands when
-    // the calendar-aware path activates. Return Err so V8 surfaces a
-    // RangeError rather than silently handing the caller a null
-    // PlainYearMonth.
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
+  from_partial(PartialDate partial,
+               std::optional<ArithmeticOverflow> overflow) {
+    // PartialDate has no calendar field — for the V8-facing entry,
+    // ISO is the only path until the calendar backend lands.
+    if (!partial.year.has_value()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "PlainYearMonth.from requires year"});
+    }
+    if (!partial.month.has_value() && !partial.month_code.empty()) {
+      // month_code only — defer to calendar backend (Mxx parsing).
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "PlainYearMonth.from month_code resolution requires "
+          "calendar backend"});
+    }
+    if (!partial.month.has_value()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "PlainYearMonth.from requires month or monthCode"});
+    }
+    const ArithmeticOverflow ov =
+        overflow.value_or(ArithmeticOverflow{});  // default kConstrain
+    return try_new_with_overflow(*partial.year, *partial.month,
+                                  partial.day,
+                                  AnyCalendarKind{AnyCalendarKind::Iso}, ov);
   }
 
   // 1:1 from upstream plain_year_month.rs `try_new_with_overflow`.
@@ -112,18 +135,29 @@ class PlainYearMonth {
         std::unique_ptr<PlainYearMonth>(new PlainYearMonth(retry.value())));
   }
 
-  // `with` still requires calendar-aware partial-date resolution
-  // (Phase 11 calendar.cc work); add/subtract implement the ISO path
-  // because that's the only calendar V8 currently exposes through this
-  // shim. Once the calendar layer lands, the ISO fast path should fall
-  // through to it for non-ISO calendars.
+  // 1:1 from upstream plain_year_month.rs `with`. ISO path: merge
+  // partial.year / partial.month / partial.day onto self, re-validate
+  // via try_new_with_overflow. month_code resolution falls back to
+  // calendar backend.
   diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
-  with(PartialDate /*partial*/,
-       std::optional<ArithmeticOverflow> /*overflow*/) const {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{
-        ::temporal_rs::ErrorKind::Range,
-        "PlainYearMonth.with requires calendar-aware arithmetic "
-        "(not yet implemented)"});
+  with(PartialDate partial,
+       std::optional<ArithmeticOverflow> overflow) const {
+    if (!partial.month_code.empty()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "PlainYearMonth.with month_code resolution requires "
+          "calendar backend"});
+    }
+    const int32_t merged_year = partial.year.value_or(inner_.iso.year);
+    const uint8_t merged_month = partial.month.value_or(inner_.iso.month);
+    const std::optional<uint8_t> merged_day =
+        partial.day.has_value() ? partial.day
+                                : std::optional<uint8_t>(inner_.iso.day);
+    const ArithmeticOverflow ov =
+        overflow.value_or(ArithmeticOverflow{});
+    return try_new_with_overflow(
+        merged_year, merged_month, merged_day,
+        AnyCalendarKind{AnyCalendarKind::Iso}, ov);
   }
 
   diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>

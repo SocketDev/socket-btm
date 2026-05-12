@@ -53,7 +53,7 @@ Adopted verbatim from Bun's [oven-sh/bun#29461](https://github.com/oven-sh/bun/p
 For every glibc symbol that arrived after 2.17, we:
 
 1. **Tell the linker to rename references** to the symbol via `-Wl,--wrap=<name>`. Instead of linking against `<name>`, the binary now links against `__wrap_<name>`, which we own.
-2. **Define `__wrap_<name>` in `glibc_compat.cc`**:
+2. **Define `__wrap_<name>` in `glibc_2_17_compat.cc`**:
    - Call `dlsym(RTLD_NEXT, "<name>")` to look up the real glibc implementation at runtime.
    - If it exists (i.e. running on glibc ≥ the introduction version): forward to it. **Behavior identical to unwrapped.**
    - If it doesn't exist (i.e. running on glibc 2.17): run a compatibility fallback that stays within the 2.17 ABI.
@@ -68,7 +68,7 @@ These are done and live in `main`. You do not need to redo them.
 
 ### Wraps implemented
 
-**File**: `additions/source-patched/src/socketsecurity/compat/glibc_compat.{h,cc}`
+**File**: `additions/source-patched/src/socketsecurity/glibc-2.17-compat/glibc_2_17_compat.{h,cc}`
 **Patch**: `patches/source-patched/021-glibc-compat-layer.patch`
 
 | Symbol                     | glibc intro | Fallback                                         |
@@ -176,7 +176,7 @@ pnpm --filter node-smol-builder run glibc:audit --floor=2.17
 
 - **Zero violations**: we're already at 2.17. Skip to Phase 3.
 - **Violations are all already handled by 021 + 022**: skip to Phase 2.
-- **Violations include new symbols not in 021**: extend `glibc_compat.cc` with one wrap per new symbol, following the existing pattern (dlsym + fallback). Rebuild, re-audit. Loop until zero.
+- **Violations include new symbols not in 021**: extend `glibc_2_17_compat.cc` with one wrap per new symbol, following the existing pattern (dlsym + fallback). Rebuild, re-audit. Loop until zero.
 
 **Rollback**: none needed — this phase is read-only.
 
@@ -233,7 +233,7 @@ for arch in x64 arm64; do
 done
 ```
 
-If step 2 shows `✗ NO` rows (unwrapped symbols), extend `glibc_compat.cc` following the Phase 1 decision tree and re-run from step 1.
+If step 2 shows `✗ NO` rows (unwrapped symbols), extend `glibc_2_17_compat.cc` following the Phase 1 decision tree and re-run from step 1.
 
 If step 3 prints the Node version on both arches without crashes, the binary works on glibc 2.17 — proceed to Phase 3.
 
@@ -284,7 +284,7 @@ If step 3 prints the Node version on both arches without crashes, the binary wor
 
 1. Set `GLIBC_FLOOR=${{ matrix.glibc_floor }}` in the workflow env.
 2. The test's `describe.skipIf` flips from `skip` to `run`.
-3. First run will either pass (we're genuinely at the floor) or produce the violation list for you to feed back into Phase 1's glibc_compat.cc extension.
+3. First run will either pass (we're genuinely at the floor) or produce the violation list for you to feed back into Phase 1's glibc_2_17_compat.cc extension.
 
 **Rollback**: unset `GLIBC_FLOOR` in CI; test goes back to skipped.
 
@@ -313,7 +313,7 @@ If step 3 prints the Node version on both arches without crashes, the binary wor
 
 ## Testing the compat layer locally (without touching main CI)
 
-You don't need to run the full phase plan to exercise the `glibc_compat.cc` fallback paths — you can do it today on any host that has Docker.
+You don't need to run the full phase plan to exercise the `glibc_2_17_compat.cc` fallback paths — you can do it today on any host that has Docker.
 
 ### Quick smoke test: build with the glibc-2.17 Dockerfile
 
@@ -352,7 +352,7 @@ pnpm --filter node-smol-builder run glibc:audit -- \
   --fallback-report
 ```
 
-Expected output on a 2.28-built binary with `--floor=2.17`: a table of violations, each annotated `✓ yes` or `✗ NO` depending on whether `glibc_compat.h` already declares a `__wrap_<symbol>()`. Any `✗ NO` means Phase 1 needs extending.
+Expected output on a 2.28-built binary with `--floor=2.17`: a table of violations, each annotated `✓ yes` or `✗ NO` depending on whether `glibc_2_17_compat.h` already declares a `__wrap_<symbol>()`. Any `✗ NO` means Phase 1 needs extending.
 
 ### Exercise the fallback path directly
 

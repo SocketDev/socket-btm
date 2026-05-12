@@ -1,4 +1,4 @@
-// socketsecurity/compat/glibc_compat.cc
+// socketsecurity/glibc-2.17-compat/glibc_2_17_compat.cc
 //
 // glibc compatibility layer (groundwork for lowering the glibc floor).
 //
@@ -11,7 +11,7 @@
 
 #if defined(__GLIBC__) && defined(__linux__)
 
-#include "socketsecurity/compat/glibc_compat.h"
+#include "socketsecurity/glibc-2.17-compat/glibc_2_17_compat.h"
 
 #include <dlfcn.h>
 #include <errno.h>

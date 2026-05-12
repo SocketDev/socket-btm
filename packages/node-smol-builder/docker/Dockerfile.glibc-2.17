@@ -16,7 +16,7 @@
 # v25.x. SCL packages use the HOST glibc at runtime, so glibc stays 2.17
 # while we get a modern compiler.
 #
-# The compat layer in src/socketsecurity/compat/glibc_compat.{h,cc} (patched in
+# The compat layer in src/socketsecurity/glibc-2.17-compat/glibc_2_17_compat.{h,cc} (patched in
 # via 021-glibc-compat-layer.patch) wraps four symbols (__cxa_thread_atexit_impl,
 # getrandom, quick_exit, at_quick_exit) so the resulting binary runs on glibc
 # 2.17 even though we can rely on newer kernels at build time. See
@@ -128,7 +128,7 @@ ENV BUILD_MODE=$BUILD_MODE
 ENV PLATFORM_ARCH=$PLATFORM_ARCH
 ENV MATRIX_PLATFORM=$MATRIX_PLATFORM
 ENV MATRIX_ARCH=$MATRIX_ARCH
-# Flag so compat/glibc_compat.cc knows we're targeting the 2.17 floor.
+# Flag so glibc-2.17-compat/glibc_2_17_compat.cc knows we're targeting the 2.17 floor.
 # (Currently informational; the wraps are version-tolerant anyway.)
 ENV GLIBC_FLOOR=2.17
 

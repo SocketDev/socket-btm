@@ -24,7 +24,7 @@
 #     getrandom is exposed by musl's <unistd.h>
 #
 # The link-time getrandom symbol is handled separately by our
-# glibc_compat.cc __wrap_getrandom; this patch only fixes the
+# glibc_2_17_compat.cc __wrap_getrandom; this patch only fixes the
 # compile-time header inclusion.
 #
 --- a/deps/cares/config/linux/ares_config.h
@@ -40,7 +40,7 @@
 +#define HAVE_GETRANDOM 1
 +#else
 +/* glibc < 2.25: getrandom is not declared in <unistd.h>. Our linker wrap
-+ * in src/socketsecurity/compat/glibc_compat.cc provides a syscall fallback. */
++ * in src/socketsecurity/glibc-2.17-compat/glibc_2_17_compat.cc provides a syscall fallback. */
 +#endif
  
  /* Define to 1 if you have `getservbyport_r` */

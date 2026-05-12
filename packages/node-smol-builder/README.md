@@ -29,4 +29,4 @@ Output: `build/<mode>/<platform-arch>/out/Final/node` (stripped + signed on macO
 
 ## Auditing the binary's glibc surface
 
-`pnpm --filter node-smol-builder run glibc:audit` runs `objdump -T` on the latest built binary and prints a per-version symbol count plus any `> floor` violations. The `--fallback-report` flag annotates each violation with whether our compat layer (`additions/source-patched/src/socketsecurity/compat/glibc_compat.{h,cc}`) already wraps it. See [docs/plans/glibc-floor-lowering.md](./docs/plans/glibc-floor-lowering.md) for the full staged plan to lower the floor to 2.17 (RHEL 7 / Amazon Linux 1 / 2).
+`pnpm --filter node-smol-builder run glibc:audit` runs `objdump -T` on the latest built binary and prints a per-version symbol count plus any `> floor` violations. The `--fallback-report` flag annotates each violation with whether our compat layer (`additions/source-patched/src/socketsecurity/glibc-2.17-compat/glibc_2_17_compat.{h,cc}`) already wraps it. See [docs/plans/glibc-floor-lowering.md](./docs/plans/glibc-floor-lowering.md) for the full staged plan to lower the floor to 2.17 (RHEL 7 / Amazon Linux 1 / 2).

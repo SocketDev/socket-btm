@@ -103,7 +103,7 @@ describe.skipIf(process.platform !== 'linux' || !GLIBC_FLOOR_RAW)(
         throw new Error(
           `${offenders.length} symbol(s) exceed GLIBC_FLOOR=${GLIBC_FLOOR_RAW}:\n${lines.join('\n')}\n\n` +
             `To fix: add -Wl,--wrap=<symbol> to 021-glibc-compat-layer.patch\n` +
-            `and implement __wrap_<symbol> in socketsecurity/compat/glibc_compat.cc.\n` +
+            `and implement __wrap_<symbol> in socketsecurity/glibc-2.17-compat/glibc_2_17_compat.cc.\n` +
             `See docs/plans/glibc-floor-lowering.md.`,
         )
       }

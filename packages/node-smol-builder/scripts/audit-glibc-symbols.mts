@@ -127,7 +127,7 @@ export function parseVersionTuple(raw: string): readonly number[] {
 }
 
 /**
- * Parse `src/socketsecurity/compat/glibc_compat.h` to learn which symbols
+ * Parse `src/socketsecurity/glibc-2.17-compat/glibc_2_17_compat.h` to learn which symbols
  * the compat layer currently wraps. Used by --fallback-report to annotate
  * each violation with "wrapped?" yes/no, so an engineer extending the floor
  * can see at a glance which symbols already have a fallback and which need
@@ -141,8 +141,8 @@ export async function readWrappedSymbols(): Promise<ReadonlySet<string>> {
     'source-patched',
     'src',
     'socketsecurity',
-    'compat',
-    'glibc_compat.h',
+    'glibc-2.17-compat',
+    'glibc_2_17_compat.h',
   )
   try {
     const text = await fs.readFile(header, 'utf8')
@@ -257,7 +257,7 @@ async function main() {
       const missing = violations.filter(v => !wrapped.has(v.symbol)).length
       if (missing > 0) {
         logger.log(
-          `${missing} symbol(s) have no __wrap_ in glibc_compat.h — must be added.`,
+          `${missing} symbol(s) have no __wrap_ in glibc_2_17_compat.h — must be added.`,
         )
       } else {
         logger.log(
@@ -274,7 +274,7 @@ async function main() {
         'To lower the floor, add -Wl,--wrap=<symbol> in 021-glibc-compat-layer.patch',
       )
       logger.log(
-        'and implement __wrap_<symbol> in socketsecurity/compat/glibc_compat.cc.',
+        'and implement __wrap_<symbol> in socketsecurity/glibc-2.17-compat/glibc_2_17_compat.cc.',
       )
       logger.log(
         'Pass --fallback-report to see which symbols are already wrapped.',

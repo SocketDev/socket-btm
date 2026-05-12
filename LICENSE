@@ -24,7 +24,7 @@ SOFTWARE.
 
 THIRD-PARTY ATTRIBUTIONS
 
-packages/node-smol-builder/additions/source-patched/src/socketsecurity/compat/glibc_compat.cc
+packages/node-smol-builder/additions/source-patched/src/socketsecurity/glibc-2.17-compat/glibc_2_17_compat.cc
 includes code adapted from libc++abi 19.1.0
 (https://github.com/llvm/llvm-project/blob/llvmorg-19.1.0/libcxxabi/src/cxa_thread_atexit.cpp),
 used under the terms of the Apache License 2.0 with the LLVM Exception.

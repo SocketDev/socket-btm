@@ -1,4 +1,4 @@
-// socketsecurity/compat/glibc_compat.h
+// socketsecurity/glibc-2.17-compat/glibc_2_17_compat.h
 //
 // Groundwork for lowering the Linux glibc floor without yet doing so. Provides
 // linker wraps that, on current glibc 2.18+ builds, dlsym() the real glibc
@@ -21,8 +21,8 @@
 //   if (real) return real(...);   // glibc has it — use real impl
 //   return fallback(...);          // pre-glibc-introduction-version fallback
 
-#ifndef SOCKETSECURITY_COMPAT_GLIBC_COMPAT_H_
-#define SOCKETSECURITY_COMPAT_GLIBC_COMPAT_H_
+#ifndef SOCKETSECURITY_GLIBC_2_17_COMPAT_H_
+#define SOCKETSECURITY_GLIBC_2_17_COMPAT_H_
 
 #if defined(__GLIBC__) && defined(__linux__)
 
@@ -55,4 +55,4 @@ int __wrap_at_quick_exit(void (*handler)(void));
 
 #endif  // __GLIBC__ && __linux__
 
-#endif  // SOCKETSECURITY_COMPAT_GLIBC_COMPAT_H_
+#endif  // SOCKETSECURITY_GLIBC_2_17_COMPAT_H_

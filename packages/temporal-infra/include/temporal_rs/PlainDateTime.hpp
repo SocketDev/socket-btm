@@ -188,7 +188,12 @@ class PlainDateTime {
         ::node::socketsecurity::temporal::PlainDate{inner_.iso.date});
   }
   std::optional<uint8_t> week_of_year() const { return std::nullopt; }
-  std::optional<int32_t> year_of_week() const { return std::nullopt; }
+  std::optional<int32_t> year_of_week() const {
+    return std::optional<int32_t>(
+        ::node::socketsecurity::temporal::ISOYearOfWeek(
+            inner_.iso.date.year, inner_.iso.date.month,
+            inner_.iso.date.day));
+  }
   std::string month_code() const { const uint8_t m = month(); return std::string("M") + (m < 10 ? "0" : "") + std::to_string(m); }
   std::string era() const { return ""; }
   std::optional<int32_t> era_year() const { return std::nullopt; }

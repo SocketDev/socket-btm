@@ -191,7 +191,11 @@ class PlainDate {
   std::string month_code() const { const uint8_t m = month(); return std::string("M") + (m < 10 ? "0" : "") + std::to_string(m); }
   std::string era() const { return ""; }
   std::optional<int32_t> era_year() const { return std::nullopt; }
-  std::optional<int32_t> year_of_week() const { return std::nullopt; }
+  std::optional<int32_t> year_of_week() const {
+    return std::optional<int32_t>(
+        ::node::socketsecurity::temporal::ISOYearOfWeek(
+            inner_.iso.year, inner_.iso.month, inner_.iso.day));
+  }
 
   // 1:1 from upstream plain_date.rs `to_plain_date_time`. Pure ISO
   // merge — this.iso.date + (time ? time.iso : midnight). Body lives

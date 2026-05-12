@@ -108,6 +108,26 @@ uint8_t ISOWeekOfYear(int32_t year, uint8_t month, uint8_t day) noexcept {
   return static_cast<uint8_t>((thursday_doy - 1) / 7 + 1);
 }
 
+// Spec: ISOYearOfWeek(year, month, day). Same Thursday-anchor rule as
+// ISOWeekOfYear, but returns the year that owns the Thursday instead
+// of the week number. Days at the very start of January may belong to
+// the previous calendar year's last ISO week; days at the very end of
+// December may belong to the next calendar year's first ISO week.
+int32_t ISOYearOfWeek(int32_t year, uint8_t month, uint8_t day) noexcept {
+  const uint16_t doy = ISODayOfYear(year, month, day);
+  const uint8_t dow = ISODayOfWeek(year, month, day);
+  const int thursday_doy =
+      static_cast<int>(doy) + (4 - static_cast<int>(dow));
+  const uint16_t year_len = IsLeapYear(year) ? 366 : 365;
+  if (thursday_doy < 1) {
+    return year - 1;
+  }
+  if (thursday_doy > static_cast<int>(year_len)) {
+    return year + 1;
+  }
+  return year;
+}
+
 // Spec: BalanceISODate(year, month, day)
 // Carries day → month → year. Used when arithmetic produces a date
 // with an out-of-range day or month.
@@ -223,9 +243,15 @@ IsoDate AddISODate(const IsoDate& base, int32_t years, int32_t months,
 // can be subtracted to get exact days between two dates regardless of
 // leap years.
 static int64_t ToJDN(int32_t year, uint8_t month, uint8_t day) noexcept {
-  int32_t a = (14 - month) / 12;
-  int32_t y = year + 4800 - a;
-  int32_t m = month + 12 * a - 3;
+  // All intermediates promoted to int64. The previous int32 form was
+  // safe for the spec's ±271821 year range (`365 * y` peaked at
+  // ~1e8) but `365 * y` would overflow at `y ≈ ±5.88M`; future
+  // relaxation of the year range — or a calendar-aware caller that
+  // calls ToJDN with an out-of-bounds intermediate — would silently
+  // wrap. Per the perfectionist review (H4).
+  const int64_t a = (14 - static_cast<int64_t>(month)) / 12;
+  const int64_t y = static_cast<int64_t>(year) + 4800 - a;
+  const int64_t m = static_cast<int64_t>(month) + 12 * a - 3;
   return static_cast<int64_t>(day) + (153 * m + 2) / 5 + 365 * y + y / 4 -
          y / 100 + y / 400 - 32045;
 }

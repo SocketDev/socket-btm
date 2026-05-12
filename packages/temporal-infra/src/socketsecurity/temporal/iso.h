@@ -70,6 +70,13 @@ uint16_t ISODayOfYear(int32_t year, uint8_t month, uint8_t day) noexcept;
 // Thursday.
 uint8_t ISOWeekOfYear(int32_t year, uint8_t month, uint8_t day) noexcept;
 
+// Spec: ISOYearOfWeek(year, month, day) — the year that owns the
+// ISO 8601 week containing the input date. Same as `year` except for
+// the last few days of December (which may belong to the next year's
+// week 1) and the first few days of January (which may belong to the
+// previous year's week 52 or 53).
+int32_t ISOYearOfWeek(int32_t year, uint8_t month, uint8_t day) noexcept;
+
 // Spec: BalanceISODate(year, month, day)
 // Normalizes a possibly-out-of-range date by carrying day → month →
 // year. Used internally by date arithmetic when components overflow

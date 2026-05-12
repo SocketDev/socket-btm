@@ -112,7 +112,13 @@ class ZonedDateTime {
                              OffsetDisambiguation offset_option,
                              const Provider& p);
 
-  // Build a ZonedDateTime from a PartialZonedDateTime.
+  // Build a ZonedDateTime from a PartialZonedDateTime. Requires the
+  // spec's full PartialZonedDateTime resolution algorithm: parse
+  // calendar + tz from partial.tz_id/offset, resolve PartialDate +
+  // PartialTime + Calendar onto IsoDateTime, then
+  // GetEpochNanosecondsFor with the chosen Disambiguation +
+  // OffsetDisambiguation. The Provider-side wall-clock resolution
+  // isn't wired through time_zone.cc yet.
   static diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
   from_partial_with_provider(
       PartialZonedDateTime /*partial*/,
@@ -120,9 +126,11 @@ class ZonedDateTime {
       std::optional<Disambiguation> /*disambiguation*/,
       std::optional<OffsetDisambiguation> /*offset_option*/,
       const Provider& /*p*/) {
-    // Stub — full PartialZonedDateTime → ZonedDateTime resolution lands
-    // when the calendar/DST integration activates.
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
+    return diplomat::Err<TemporalError>(TemporalError{
+        ErrorKind::Range,
+        "ZonedDateTime.from(partial) requires DST + offset "
+        "disambiguation via Provider; the time_zone.cc "
+        "GetEpochNanosecondsFor integration is not yet wired"});
   }
 
   // 1:1 from upstream zoned_date_time.rs `try_new_with_provider`. The
@@ -342,13 +350,16 @@ class ZonedDateTime {
         std::unique_ptr<ZonedDateTime>(new ZonedDateTime(inner_)));
   }
 
-  // Upstream returns `result<unique_ptr<ZDT>, TemporalError>` — V8
-  // expects to MoveTo(&zdt) into a `unique_ptr<ZDT>`. Stub returns
-  // an Ok with nullptr until the DST-aware path activates.
+  // Returns the next/previous DST transition in the receiver's time
+  // zone. Needs the Provider's transition table, which is part of the
+  // time_zone.cc Provider integration that isn't yet wired through.
   diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
   get_time_zone_transition_with_provider(TransitionDirection /*dir*/,
                                           const Provider& /*p*/) const {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
+    return diplomat::Err<TemporalError>(TemporalError{
+        ErrorKind::Range,
+        "ZonedDateTime.getTimeZoneTransition requires Provider's "
+        "transition table; not yet wired through time_zone.cc"});
   }
 
   diplomat::result<double, TemporalError> hours_in_day_with_provider(
@@ -453,19 +464,49 @@ class ZonedDateTime {
         std::unique_ptr<ZonedDateTime>(new ZonedDateTime(inner_)));
   }
 
+  // until/since on ZonedDateTime. For largestUnit ≤ Hour (the time-
+  // only path), the answer is identical to Instant.until/since on the
+  // inner instants — the TZ + Provider don't enter the calculation
+  // because we're not crossing day boundaries. For largestUnit ∈
+  // {Day, Week, Month, Year} the spec requires DST-aware calendar
+  // carry via Provider, which isn't yet wired through time_zone.cc.
   diplomat::result<std::unique_ptr<Duration>, TemporalError>
-  until_with_provider(const ZonedDateTime& /*other*/,
-                       DifferenceSettings /*settings*/,
+  until_with_provider(const ZonedDateTime& other,
+                       DifferenceSettings settings,
                        const Provider& /*p*/) const {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
+    return diff_via_instant(other, settings, /*negate=*/false);
   }
 
   diplomat::result<std::unique_ptr<Duration>, TemporalError>
-  since_with_provider(const ZonedDateTime& /*other*/,
-                       DifferenceSettings /*settings*/,
+  since_with_provider(const ZonedDateTime& other,
+                       DifferenceSettings settings,
                        const Provider& /*p*/) const {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
+    return diff_via_instant(other, settings, /*negate=*/true);
   }
+
+ private:
+  diplomat::result<std::unique_ptr<Duration>, TemporalError>
+  diff_via_instant(const ZonedDateTime& other,
+                   const DifferenceSettings& settings, bool negate) const {
+    // Reject calendar-carry units that need DST/Provider integration.
+    using Unit = ::node::socketsecurity::temporal::Unit;
+    if (settings.largest_unit.has_value()) {
+      const Unit lu = settings.largest_unit->ToInfra();
+      if (lu == Unit::kDay || lu == Unit::kWeek || lu == Unit::kMonth ||
+          lu == Unit::kYear) {
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range,
+            "ZonedDateTime.until/since with largestUnit >= 'day' "
+            "requires DST-aware Provider integration; not yet wired"});
+      }
+    }
+    auto self_inst = Instant::FromInfra(inner_.instant);
+    auto other_inst = Instant::FromInfra(other.inner_.instant);
+    return negate ? self_inst->since(*other_inst, settings)
+                  : self_inst->until(*other_inst, settings);
+  }
+
+ public:
 
   // Upstream: returns plain unique_ptr (no result wrap, no error case).
   std::unique_ptr<ZonedDateTime> with_calendar(AnyCalendarKind kind) const {

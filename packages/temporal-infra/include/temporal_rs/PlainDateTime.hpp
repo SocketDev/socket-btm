@@ -349,10 +349,16 @@ class PlainDateTime {
   //   to_zoned_date_time(TimeZone, Disambiguation)
   //   to_zoned_date_time_with_provider(TimeZone, Disambiguation,
   //                                     const Provider&)
-  // Stub returns nullptr until the calendar/DST path activates.
+  // Requires the spec's GetEpochNanosecondsFor wall-clock → epoch-ns
+  // resolution against the Provider's DST transition table. Tracked
+  // separately from this stub.
   diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
   to_zoned_date_time(TimeZone /*tz*/, Disambiguation /*disamb*/) const {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
+    return diplomat::Err<TemporalError>(TemporalError{
+        ErrorKind::Range,
+        "PlainDateTime.toZonedDateTime requires DST resolution via "
+        "Provider; the time_zone.cc GetEpochNanosecondsFor "
+        "integration is not yet wired"});
   }
 
   diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>

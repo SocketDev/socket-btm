@@ -222,7 +222,14 @@ void FormattableIxdtf::WriteTo(std::string& sink) const {
 }
 
 // ── FormattableMonthDay ──────────────────────────────────────────────
-// 1:1 from parsers.rs:390 `impl Writeable for FormattableMonthDay<'_>`.
+// Adapted from parsers.rs:390 `impl Writeable for FormattableMonthDay<'_>`.
+// Upstream temporal_rs emits "MM-DD" in the no-year branch, but the JS
+// Temporal spec (TemporalMonthDayToString,
+// https://tc39.es/proposal-temporal/#sec-temporal-temporalmonthdaytostring)
+// requires the "--" prefix when no year is included. V8 calls
+// to_ixdtf_string directly without post-processing, so the prefix MUST
+// be emitted here or PlainMonthDay.prototype.toString returns a
+// non-conformant "05-08".
 void FormattableMonthDay::WriteTo(std::string& sink) const {
   const bool show_year =
       calendar.show == DisplayCalendar::kAlways ||
@@ -230,6 +237,8 @@ void FormattableMonthDay::WriteTo(std::string& sink) const {
   if (show_year) {
     WriteYear(date.year, sink);
     sink.push_back('-');
+  } else {
+    sink.append("--");
   }
   WritePaddedU8(date.month, sink);
   sink.push_back('-');

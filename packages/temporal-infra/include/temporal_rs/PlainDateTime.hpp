@@ -230,9 +230,41 @@ class PlainDateTime {
   }
 
   // Upstream is a static method: PlainDateTime::compare(a, b).
-  static int8_t compare(const PlainDateTime& /*one*/,
-                        const PlainDateTime& /*two*/) {
-    return 0;
+  // Lexicographic compare over ISO fields (year → nanosecond). Returns
+  // -1 / 0 / 1 matching upstream temporal_rs semantics; calendar is
+  // intentionally ignored because every PlainDateTime is normalized to
+  // ISO at construction.
+  static int8_t compare(const PlainDateTime& one, const PlainDateTime& two) {
+    const auto& a = one.inner_.iso;
+    const auto& b = two.inner_.iso;
+    auto cmp = [](auto x, auto y) -> int8_t {
+      return x < y ? -1 : (x > y ? 1 : 0);
+    };
+    if (auto c = cmp(a.date.year, b.date.year); c != 0) {
+      return c;
+    }
+    if (auto c = cmp(a.date.month, b.date.month); c != 0) {
+      return c;
+    }
+    if (auto c = cmp(a.date.day, b.date.day); c != 0) {
+      return c;
+    }
+    if (auto c = cmp(a.time.hour, b.time.hour); c != 0) {
+      return c;
+    }
+    if (auto c = cmp(a.time.minute, b.time.minute); c != 0) {
+      return c;
+    }
+    if (auto c = cmp(a.time.second, b.time.second); c != 0) {
+      return c;
+    }
+    if (auto c = cmp(a.time.millisecond, b.time.millisecond); c != 0) {
+      return c;
+    }
+    if (auto c = cmp(a.time.microsecond, b.time.microsecond); c != 0) {
+      return c;
+    }
+    return cmp(a.time.nanosecond, b.time.nanosecond);
   }
 
   // 1:1 from upstream plain_date_time.rs:937 / :961.

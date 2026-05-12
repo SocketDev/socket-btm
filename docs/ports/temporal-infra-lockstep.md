@@ -122,8 +122,7 @@ Intentional spec/upstream divergences. None returns
 
 ## Audit script
 
-Run `pnpm exec tsx packages/temporal-infra/scripts/check-lockstep.mts`
-(or via the root `pnpm check` alias). Three checks:
+Run `pnpm --filter temporal-infra run check:lockstep`. Three checks:
 
 1. **Live stub scan.** Greps source for "not yet implemented" /
    "requires calendar" / "Stub:" patterns. Any hit fails the check.
@@ -135,6 +134,19 @@ Run `pnpm exec tsx packages/temporal-infra/scripts/check-lockstep.mts`
    built node-smol binary; passes only if all assertions pass.
 
 A passing audit run is the lockstep gate.
+
+### Self-test (`pnpm --filter temporal-infra run check:lockstep:self-test`)
+
+`scripts/check-lockstep.test.mts` verifies the audit's own regex
+shapes against synthetic fixtures. Without this, a regex bug
+could silently false-pass forever — the audit's whole value is
+catching drift before runtime, so it must itself be tested.
+
+Run on any change to `check-lockstep.mts`:
+
+```bash
+pnpm --filter temporal-infra run check:lockstep:self-test
+```
 
 ## See also
 

@@ -10,6 +10,7 @@
   },
   "scripts": {
     "check:lockstep": "node scripts/check-lockstep.mts",
+    "check:lockstep:self-test": "node scripts/check-lockstep.test.mts",
     "clean": "node scripts/clean.mts"
   },
   "dependencies": {

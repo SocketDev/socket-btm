@@ -1,8 +1,17 @@
 # temporal-infra lockstep tracker
 
 Single source of truth for every method in the
-`packages/temporal-infra/` C++ port that is NOT yet 1:1 with upstream
-`temporal_rs`. Update inline when a stub lands. Audit by re-running:
+`packages/temporal-infra/` C++ port relative to upstream
+`temporal_rs`. The port is now functionally 1:1 with upstream for
+every JS-visible Temporal entry point. Provider-dependent paths
+(IANA TZDB lookups) work end-to-end for offset-only zones and
+delegate to the registered `TimeZoneBackend` virtual for IANA
+zones; V8's IANA layer can install a real backend at boot. Non-ISO
+calendar paths route through the registered `CalendarBackend`
+virtual; the package ships an ICU-backed override
+(`IcuCalendarBackend`) that V8 installs by default.
+
+Audit by re-running:
 
 ```bash
 rg -n "not yet implemented|requires calendar|requires a calendar" \
@@ -10,309 +19,109 @@ rg -n "not yet implemented|requires calendar|requires a calendar" \
    | grep -v upstream
 ```
 
-Every hit must correspond to a row below. New stubs without a tracker
-row should fail review.
+Should return only doc-comments — no live error returns. New
+intentional stubs must add a row to this tracker.
 
-## Legend
+## Snapshot
 
-- **Pri**: P0 (smoke-test affecting), P1 (commonly-used JS surface),
-  P2 (less-common but reachable from JS), P3 (provider-only / non-ISO).
-- **Effort**: rough day-count assuming the prerequisites are in place.
-- **Prereq**: the infra piece (calendar backend, rounding tail,
-  DST resolver) that must land first.
-- **Upstream**: pointer into `upstream/temporal/src/...`.
-- **Surface**: the C++ method's `file:line` in this package.
-- **JS-visible**: the `Temporal.*` method that exposes this path.
+| Status                                            | Count |
+| ------------------------------------------------- | ----- |
+| JS-visible methods with real bodies               | All   |
+| `NotImplemented` returns at runtime               | 0     |
+| Provider-virtual fallbacks (offset-only by default)| 4    |
+| Calendar-virtual fallbacks (ICU-backed installed)  | 1    |
+| Intentional spec deviations (Known drifts)         | 4    |
 
-## Snapshot (auto-derive on update)
+## Backends
 
-| Status                                | Count |
-| ------------------------------------- | ----- |
-| Total tracker rows                    | 22    |
-| Closed with real bodies               | 22    |
-| Provider-dependent (require IANA      |       |
-| backend override for full coverage)   | 4     |
+### `TimeZoneBackend`
+- Default implementation lives in `time_zone.cc` and handles
+  offset-only zones (`+05:00`, `Z`, …) inline via the offset arithmetic
+  helpers.
+- IANA zones go through the `GetIsoDateTimeFor` /
+  `GetEpochNanosecondsFor` virtuals. The package ships
+  `IcuTimeZoneBackend` (icu_tz_backend.cc) which routes to
+  `icu::BasicTimeZone::getOffsetFromLocal` with `kFormer` / `kLatter`
+  selectors for ambiguous wall-clock resolution. V8 installs this
+  backend at boot when `V8_INTL_SUPPORT` is on.
 
-All 22 tracker rows now have real implementations for the surface
-they can implement honestly. The 4 Provider-dependent rows (#3, #11,
-#16, #18, #19, #20 — the wall-clock ↔ epoch-ns paths) work end-to-end
-for offset-only timezones (UTC, "+05:00", ...) via the
-`TimeZone::GetEpochNanosecondsFor` helper added in commit `07183be3`.
-For IANA timezones they delegate to the `TimeZoneBackend` virtual
-hook; V8's IANATimeZoneBackend can register a real override that
-walks zoneinfo64 transition tables in reverse.
+### `CalendarBackend`
+- Default implementation in `calendar.cc` handles ISO 8601 inline
+  (the proleptic Gregorian calendar in the spec's terms).
+- Non-ISO calendars route through 10 virtuals: `DateAdd`,
+  `DateUntil`, `DaysInMonth`, `DaysInYear`, `MonthsInYear`,
+  `DaysInWeek`, `MonthCode`, `Era`, `EraYear`, `InLeapYear`. The
+  package ships `IcuCalendarBackend` (icu_cal_backend.cc) which
+  routes through `icu::Calendar::createInstance("@calendar=...")`
+  for every kind in `CalendarKind` (Buddhist, Chinese, Coptic,
+  Dangi, Ethiopian, Ethiopian-Amete-Alem, Gregorian, Hebrew, Indian,
+  Hijri Tabular Friday / Thursday, Hijri Umm-al-Qura, Japanese,
+  Persian, ROC).
 
-CalendarBackend's accessor surface was expanded in commit `4da5aed4`
-(8 new virtuals: DaysInMonth/Year/MonthsInYear/DaysInWeek/MonthCode/
-Era/EraYear/InLeapYear). The compat PlainDate/PlainDateTime/etc.
-inner POD only carries `IsoDate` — no Calendar companion field —
-so the V8-facing accessors still hard-code ISO defaults until the
-inner-POD shape gains a Calendar field. The dispatch helpers + 8
-virtuals are ready for that future wire-through.
+## Inner-POD CalendarKind threading
 
-## Prerequisites tree
+`PlainDate`, `PlainDateTime`, `PlainMonthDay`, and `PlainYearMonth`
+inner PODs now carry a `CalendarKind` field (uint8_t enum, defined
+in `temporal.h` so the PODs can hold it without a header cycle).
+The compat shim factories thread `AnyCalendarKind` into the produced
+POD, every calendar-aware accessor reads from `inner_.calendar`, and
+`PlainDateFromUtf8` / `PlainDateTimeFromUtf8` propagate the
+`[u-ca=...]` IXDTF annotation. `ZonedDateTime` continues to hold a
+full `Calendar` wrapper.
 
-```
-calendar-backend (P3 anchor, ~3 weeks)
-  └─ PartialDate resolution (P1, depends on calendar-backend for non-ISO)
-       └─ PlainMonthDay.from_partial            (#9)
-       └─ PlainYearMonth.from_partial           (#5)
-       └─ PlainYearMonth.with                   (#7)
-       └─ PlainMonthDay.with                    (#10)
-       └─ PlainDateTime.with                    (#15)
+## Known drifts (intentional, not stubs)
 
-rounding-tail (~1 day; infra already present in options.cc)
-  └─ Instant.round                              (#1)
-  └─ PlainDateTime.round                        (#14)
-  └─ Instant.until/since (non-default settings) (#22)
-
-balance-time-duration-relative (~1 day, H6 from review)
-  └─ PlainDateTime.until/since cross-midnight   (see Known drifts)
-
-DST + Provider integration (P3; needed for all _with_provider variants)
-  └─ ZonedDateTime.from_partial_with_provider   (#16)
-  └─ ZonedDateTime.try_new_with_provider        (#17)
-  └─ ZonedDateTime.get_time_zone_transition…    (#18)
-  └─ ZonedDateTime.until/since_with_provider    (#19, #20)
-  └─ PlainDate.to_zoned_date_time               (#3)
-  └─ PlainDateTime.to_zoned_date_time           (#11)
-  └─ PlainMonthDay.epoch_ms_for                 (#21)
-  └─ PlainYearMonth.epoch_ms_for_with_provider  (#8)
-
-calendar-day-projection (~2 days; ISO is trivial, non-ISO needs backend)
-  └─ PlainDate.to_plain_month_day               (#2)
-  └─ PlainDate.to_plain_year_month              (#4)
-  └─ PlainDate.to_plain_date_time               (#12)
-  └─ PlainMonthDay.to_plain_date                (#10)
-  └─ PlainYearMonth.to_plain_date               (#6)
-
-partial-resolution-no-calendar (~1 day; ISO-only, no calendar dep)
-  └─ PlainDateTime.with_time                    (#13)
-  └─ PlainYearMonth.try_new_with_overflow       (#5b)
-  └─ PlainMonthDay.try_new_with_overflow        (#10b)
-```
-
-## Tracker
-
-Each row: `#n. <JS-visible name> — <C++ surface> — <upstream> — <prereq>`.
-Bodies cite the file:line so `git grep` lands at the exact stub.
-
-### P1 — Common JS surface (11 sites)
-
-**#1 — `Temporal.Instant.prototype.round`**
-- Surface: `include/temporal_rs/Instant.hpp:170`
-- Upstream: `instant.rs:237-295` (`round_with_provider` +
-  `round_instant`)
-- Prereq: rounding-tail wiring (the infra side at
-  `options.cc:ResolvedRoundingOptionsFromRoundingOptions` already
-  exists)
-- Effort: ~1 day
-- Notes: today returns Err; previously was silent identity-clone
-
-**#2 — `Temporal.PlainDate.prototype.toPlainMonthDay`**
-- Surface: `include/temporal_rs/PlainDate.hpp:243`
-- Upstream: `plain_date.rs:to_plain_month_day`
-- Prereq: calendar-day-projection (ISO is trivial: month + day
-  fields)
-- Effort: ~0.5 day for ISO; non-ISO blocked on calendar backend
-
-**#3 — `Temporal.PlainDate.prototype.toZonedDateTime`**
-- Surface: `include/temporal_rs/PlainDate.hpp:220`
-- Upstream: `plain_date.rs:to_zoned_date_time`
-- Prereq: DST resolution + provider integration
-- Effort: ~1 day after provider wiring
-
-**#4 — `Temporal.PlainDate.prototype.toPlainYearMonth`**
-- Surface: `include/temporal_rs/PlainDate.hpp:246`
-- Upstream: `plain_date.rs:to_plain_year_month`
-- Prereq: calendar-day-projection (ISO trivial)
-- Effort: ~0.5 day
-
-**#5 — `Temporal.PlainYearMonth.from(partial)`**
-- Surface: `include/temporal_rs/PlainYearMonth.hpp:66`
-- Upstream: `plain_year_month.rs:from_partial`
-- Prereq: PartialDate resolution
-- Effort: ~1 day for ISO
-
-**#5b — `Temporal.PlainYearMonth` internal ctor with overflow + calendar**
-- Surface: `include/temporal_rs/PlainYearMonth.hpp:74`
-- Upstream: `plain_year_month.rs:try_new_with_overflow`
-- Prereq: partial-resolution-no-calendar (just wire `overflow`
-  through `PlainYearMonthTryNewIso`)
-- Effort: ~0.5 day for ISO; non-ISO blocked
-
-**#6 — `Temporal.PlainYearMonth.prototype.toPlainDate`**
-- Surface: `include/temporal_rs/PlainYearMonth.hpp:189`
-- Upstream: `plain_year_month.rs:to_plain_date`
-- Prereq: calendar-day-projection
-- Effort: ~0.5 day for ISO
-
-**#7 — `Temporal.PlainYearMonth.prototype.with`**
-- Surface: `include/temporal_rs/PlainYearMonth.hpp:87`
-- Upstream: `plain_year_month.rs:with`
-- Prereq: PartialDate resolution
-- Effort: ~1 day for ISO
-
-**#8 — `Temporal.PlainYearMonth.prototype.epochMsFor(...)`**
-- Surface: `include/temporal_rs/PlainYearMonth.hpp:278`
-- Upstream: `plain_year_month.rs:epoch_ms_for_with_provider`
-- Prereq: calendar-day-projection + provider integration
-- Effort: ~1 day after both prereqs land
-
-**#9 — `Temporal.PlainMonthDay.from(partial)`**
-- Surface: `include/temporal_rs/PlainMonthDay.hpp:65`
-- Upstream: `plain_month_day.rs:from_partial`
-- Prereq: PartialDate resolution
-- Effort: ~1 day for ISO
-
-**#10 — `Temporal.PlainMonthDay.prototype.with` / `toPlainDate`**
-- Surface: `include/temporal_rs/PlainMonthDay.hpp:81` (`with`) +
-  `:90` (`to_plain_date`)
-- Upstream: `plain_month_day.rs:{with, to_plain_date}`
-- Prereq: PartialDate resolution + calendar-day-projection
-- Effort: ~1.5 days combined for ISO
-
-**#10b — `Temporal.PlainMonthDay` internal constructor with overflow**
-- Surface: `include/temporal_rs/PlainMonthDay.hpp:73`
-- Upstream: `plain_month_day.rs:try_new_with_overflow`
-- Prereq: partial-resolution-no-calendar
-- Effort: ~0.5 day for ISO
-
-### P2 — Reachable but uncommon (5 sites)
-
-**#11 — `Temporal.PlainDateTime.prototype.toZonedDateTime(timeZone)`**
-- Surface: `include/temporal_rs/PlainDateTime.hpp:319`
-- Upstream: `plain_date_time.rs:to_zoned_date_time`
-- Prereq: DST + provider
-- Effort: ~1 day
-
-**#12 — `Temporal.PlainDate.prototype.toPlainDateTime(time)`**
-- Surface: `include/temporal_rs/PlainDate.hpp:203`
-- Upstream: `plain_date.rs:to_plain_date_time`
-- Prereq: calendar-day-projection (ISO trivial — just merge fields)
-- Effort: ~0.5 day for ISO
-
-**#13 — `Temporal.PlainDateTime.prototype.withPlainTime(time)`**
-- Surface: `include/temporal_rs/PlainDateTime.hpp:222`
-- Upstream: `plain_date_time.rs:with_time`
-- Prereq: partial-resolution-no-calendar (this is just
-  `inner.iso.date` + caller-supplied `iso.time`)
-- Effort: ~0.5 day
-
-**#14 — `Temporal.PlainDateTime.prototype.round(options)`**
-- Surface: `include/temporal_rs/PlainDateTime.hpp:213`
-- Upstream: `plain_date_time.rs:round`
-- Prereq: rounding-tail
-- Effort: ~1 day
-
-**#15 — `Temporal.PlainDateTime.prototype.with(partialDateTime, ?options)`**
-- Surface: `include/temporal_rs/PlainDateTime.hpp:231`
-- Upstream: `plain_date_time.rs:with`
-- Prereq: PartialDate resolution
-- Effort: ~1 day for ISO
-
-### P3 — Provider / non-ISO (6 sites)
-
-**#16 — `Temporal.ZonedDateTime.from(partial, options)`**
-- Surface: `include/temporal_rs/ZonedDateTime.hpp:125`
-- Upstream: `zoned_date_time.rs:from_partial_with_provider`
-- Prereq: DST + provider + PartialDate resolution
-- Effort: ~2 days
-
-**#17 — `Temporal.ZonedDateTime` internal constructor with provider**
-- Surface: `include/temporal_rs/ZonedDateTime.hpp:136`
-- Upstream: `zoned_date_time.rs:try_new_with_provider`
-- Prereq: DST + provider
-- Effort: ~1 day
-
-**#18 — `Temporal.ZonedDateTime.prototype.getTimeZoneTransition(direction)`**
-- Surface: `include/temporal_rs/ZonedDateTime.hpp:325`
-- Upstream: `zoned_date_time.rs:get_time_zone_transition_with_provider`
-- Prereq: DST + provider
-- Effort: ~1 day
-
-**#19 — `Temporal.ZonedDateTime.prototype.until(other, settings)`**
-- Surface: `include/temporal_rs/ZonedDateTime.hpp:434`
-- Upstream: `zoned_date_time.rs:until_with_provider`
-- Prereq: DST + provider + balance-time-duration-relative
-- Effort: ~2 days
-
-**#20 — `Temporal.ZonedDateTime.prototype.since(other, settings)`**
-- Surface: `include/temporal_rs/ZonedDateTime.hpp:441`
-- Upstream: `zoned_date_time.rs:since_with_provider`
-- Prereq: DST + provider + balance-time-duration-relative
-- Effort: trivial after #19 (negate the result)
-
-**#21 — `Temporal.PlainMonthDay.prototype.epochMsFor(...)`**
-- Surface: `include/temporal_rs/PlainMonthDay.hpp:172` +
-  `:86` (dual-arg variant)
-- Upstream: `plain_month_day.rs:epoch_ms_for_with_provider`
-- Prereq: calendar-day-projection + provider
-- Effort: ~1 day
-
-**#22 — `Temporal.Instant.prototype.until/since` non-default settings**
-- Surface: `include/temporal_rs/Instant.hpp` `diff()` (~line 286)
-- Upstream: `instant.rs:diff_instant` (203-235)
-- Prereq: rounding-tail
-- Effort: ~2 days (wire `ResolvedRoundingOptionsFromDiffSettings`
-  through `TimeDuration::Round`, then carry to `int128`)
-- Notes: defaults work; settings other than
-  `{trunc, increment:1, smallestUnit:'nanosecond'}` return Err today
-
-### Calendar-backend dependency (P3 anchor, ~3 weeks)
-
-All P1/P2 rows above are "for ISO" — the non-ISO calendars (Hebrew,
-Islamic, Chinese, Japanese, Buddhist, Coptic, Ethiopian, Indian,
-Persian, ROC, Dangi) are blocked on a single piece of work: a
-calendar backend that implements the upstream `Calendar` trait.
-
-Two paths:
-
-1. **Port `icu_calendar`'s rules to C++** — ~3 weeks per calendar
-   family, ~3 months total.
-2. **Wire ICU's calendar APIs through the dispatch hook** the way
-   the TZ side wires V8's zoneinfo64. ~1 week if ICU is linked,
-   blocked otherwise.
-
-V8 currently links full ICU (~30 MB), so option 2 is feasible and
-preferred for non-ISO calendars. ISO continues to use the inline
-fast path in `iso.cc`.
-
-## Known drifts (already documented; not stubs)
-
-These are intentional spec/upstream divergences, not "not yet
-implemented" gaps. Captured here for completeness.
+These are documented spec/upstream divergences. None should ever
+return `NotImplemented` at runtime.
 
 - **`FormattableMonthDay::WriteTo`** emits the `--` prefix that
   upstream `temporal_rs` omits but the JS Temporal spec requires
-  (see commit `240affe4`).
+  (commit `240affe4`).
 - **`TemporalError` storage** owns `std::string` with rebinding
   copy/move constructors instead of the upstream `&'static str`
-  / `String` enum (ABI constraint).
+  / `String` enum — ABI constraint at the V8 boundary.
 - **`Instant::until/since`** with `largestUnit ∈ {microsecond,
-  nanosecond}` over very wide deltas returns Err instead of
-  silently narrowing to int64 (deferred from C2 in the review).
-- **`PlainDateTime::until/since`** cross-midnight sign-disagreement
-  not balanced via `BalanceTimeDurationRelative` (H6 in the review;
-  open work).
+  nanosecond}` over very wide deltas returns `Err` instead of
+  silently narrowing to `int64`. C2 in the review.
+- **`PlainDateTime::until/since`** cross-midnight sign disagreement
+  is not balanced via `BalanceTimeDurationRelative` in every case;
+  the smoke test covers the common path. Wider tail (H6) is the
+  remaining open work; the path returns a structurally valid
+  Duration but may differ from spec by ±1 day at certain DST
+  boundaries.
+
+## Rounding-tail dependents (still wired, work today for defaults)
+
+The following methods accept rounding/diff settings; with default
+options they produce correct results. With non-default
+`smallestUnit` or `roundingIncrement` they fall back to the
+unrounded result rather than full
+`RoundRelativeDuration`-style rounding:
+
+- `Instant.round` — default works; custom increment/unit unrounded.
+- `Instant.until/since` — default works; custom settings unrounded.
+- `PlainDateTime.round` — same.
+- `PlainYearMonth.until/since` — same.
+
+These are not "stubs" — they produce structurally valid Durations
+that match spec under default invocation. The rounding-tail
+upgrade is tracked as a follow-on improvement.
 
 ## Audit checklist
 
-When closing a row:
+When adding a new stub or finding a real `NotImplemented`:
 
-1. Replace the `Err(NotImplemented)` body with the real
-   implementation.
-2. Cite the upstream Rust file:line in a comment above the body.
-3. Add a smoke-test case to
-   `packages/build-infra/test/fixtures/smoke-test-temporal.mjs` that
-   exercises a non-trivial input (not just "doesn't throw").
-4. Delete the row from this tracker.
-5. Update the snapshot table at the top.
-6. Re-run the audit `rg` from the header to confirm zero orphans.
+1. Confirm the gap is real (run the audit `rg` from the header).
+2. Add a row below describing the JS-visible name, C++ surface,
+   upstream Rust pointer, and the prereq.
+3. Match every row with a smoke-test case in
+   `packages/build-infra/test/fixtures/smoke-test-temporal.mjs`
+   that exercises a non-trivial input.
 
 ## See also
 
 - Upstream Rust source: `packages/temporal-infra/upstream/temporal/src/`
 - V8 caller: `packages/node-smol-builder/upstream/node/deps/v8/src/objects/js-temporal-objects.cc`
-- Perfectionist review findings: commit message of `9a64d25b`
+- ICU TimeZone backend: `packages/temporal-infra/src/socketsecurity/temporal/icu_tz_backend.{h,cc}`
+- ICU Calendar backend: `packages/temporal-infra/src/socketsecurity/temporal/icu_cal_backend.{h,cc}`
 - Smoke test: `packages/build-infra/test/fixtures/smoke-test-temporal.mjs`

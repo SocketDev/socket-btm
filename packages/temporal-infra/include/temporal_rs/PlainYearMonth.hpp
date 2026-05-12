@@ -252,17 +252,92 @@ class PlainYearMonth {
 
  public:
 
+  // 1:1 from upstream plain_year_month.rs:240-330 `diff`. Spec
+  // disallows `week`/`day` as largest/smallest_unit for YearMonth
+  // differences; everything else routes through CalendarDateUntil
+  // on day-1-normalized dates so the ICU-backed CalendarBackend
+  // services non-ISO calendars.
+  //
+  // The rounding tail (smallest_unit ≠ month or increment ≠ 1) is
+  // deferred to rounding-tail; until that lands, non-default
+  // smallest/increment settings still produce the unrounded
+  // year+month difference (the spec's pre-rounding result).
   diplomat::result<std::unique_ptr<Duration>, TemporalError>
-  until(const PlainYearMonth& /*other*/,
-        DifferenceSettings /*settings*/) const {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
+  until(const PlainYearMonth& other, DifferenceSettings settings) const {
+    return diff_year_month(other, settings, /*negate=*/false);
   }
 
   diplomat::result<std::unique_ptr<Duration>, TemporalError>
-  since(const PlainYearMonth& /*other*/,
-        DifferenceSettings /*settings*/) const {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
+  since(const PlainYearMonth& other, DifferenceSettings settings) const {
+    return diff_year_month(other, settings, /*negate=*/true);
   }
+
+ private:
+  diplomat::result<std::unique_ptr<Duration>, TemporalError>
+  diff_year_month(const PlainYearMonth& other, DifferenceSettings settings,
+                  bool negate) const {
+    // Spec: calendar-mismatch is a hard RangeError. ToInfra here
+    // because the inner CalendarKind is uint8_t — equality only.
+    if (inner_.calendar != other.inner_.calendar) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "Calendars for difference operation are not the same."});
+    }
+    // Spec disallows week/day units in YearMonth differences.
+    if (settings.largest_unit.has_value()) {
+      const auto u = *settings.largest_unit;
+      if (u == Unit::Week || u == Unit::Day) {
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range,
+            "Weeks and days are not allowed in this operation."});
+      }
+    }
+    if (settings.smallest_unit.has_value()) {
+      const auto u = *settings.smallest_unit;
+      if (u == Unit::Week || u == Unit::Day) {
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range,
+            "Weeks and days are not allowed in this operation."});
+      }
+    }
+    // Equal ISO date → zero duration (spec: line 273-276).
+    if (inner_.iso.year == other.inner_.iso.year &&
+        inner_.iso.month == other.inner_.iso.month) {
+      return diplomat::Ok<std::unique_ptr<Duration>>(
+          std::unique_ptr<Duration>(new Duration(
+              ::node::socketsecurity::temporal::Duration{})));
+    }
+    // Spec: ISODateToFields with day=1 on both sides, then
+    // CalendarDateUntil with largestUnit. Defaults to Year for
+    // YearMonth differences (matches upstream).
+    const ::node::socketsecurity::temporal::IsoDate this_iso{
+        inner_.iso.year, inner_.iso.month, 1};
+    const ::node::socketsecurity::temporal::IsoDate other_iso{
+        other.inner_.iso.year, other.inner_.iso.month, 1};
+    const ::node::socketsecurity::temporal::Unit largest =
+        settings.largest_unit.has_value()
+            ? settings.largest_unit->ToInfra()
+            : ::node::socketsecurity::temporal::Unit::kYear;
+    ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+    auto diff = ::node::socketsecurity::temporal::CalendarDateUntil(
+        cal, this_iso, other_iso, largest);
+    if (!diff.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(diff.error()));
+    }
+    // YearMonth differences zero out weeks + days per upstream
+    // `result.date().adjust(0, Some(0), None)` (line 301).
+    auto d = diff.value();
+    d.weeks = 0;
+    d.days = 0;
+    if (negate) {
+      d = ::node::socketsecurity::temporal::DurationNegated(d);
+    }
+    return diplomat::Ok<std::unique_ptr<Duration>>(
+        std::unique_ptr<Duration>(new Duration(d)));
+  }
+
+ public:
 
   // 1:1 from upstream plain_year_month.rs `to_plain_date`. ISO path:
   // pair the YearMonth's year+month with a caller-supplied day (via

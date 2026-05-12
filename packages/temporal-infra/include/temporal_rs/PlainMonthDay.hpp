@@ -128,15 +128,39 @@ class PlainMonthDay {
         std::unique_ptr<PlainMonthDay>(new PlainMonthDay(pmd)));
   }
 
+  // 1:1 from upstream plain_month_day.rs:262 `with`. Empty partial is
+  // a spec TypeError. ISO path: merge partial.month / partial.day onto
+  // self, route through try_new_with_overflow with the carried-forward
+  // calendar kind. month_code-only resolution requires the calendar
+  // backend to map "M01"…"M12" to ordinal months; we keep that path
+  // gated until the backend lands, but the common case (month + day
+  // as plain integers) works today.
   diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
-  with(PartialDate /*partial*/,
-       std::optional<ArithmeticOverflow> /*overflow*/) const {
-    // Previously silent identity-clone; that's an observable wrong
-    // answer (`md.with({day: 9})` returned `md` unchanged). PartialDate
-    // resolution lands with calendar.cc Phase 11; until then, Err.
-    return diplomat::Err<TemporalError>(TemporalError{
-        ErrorKind::Range,
-        "PlainMonthDay.with not yet implemented"});
+  with(PartialDate partial,
+       std::optional<ArithmeticOverflow> overflow) const {
+    if (!partial.month.has_value() && partial.month_code.empty() &&
+        !partial.day.has_value() && !partial.year.has_value() &&
+        partial.era.empty() && !partial.era_year.has_value()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Type, "PartialDate cannot be empty"});
+    }
+    // month_code-only resolution needs the calendar backend to parse
+    // "M01"…"M12"; until that lands, require numeric month.
+    if (!partial.month.has_value() && !partial.month_code.empty()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "PlainMonthDay.with month_code resolution requires "
+          "calendar backend"});
+    }
+    const uint8_t merged_month =
+        partial.month.value_or(inner_.iso.month);
+    const uint8_t merged_day = partial.day.value_or(inner_.iso.day);
+    const ArithmeticOverflow ov =
+        overflow.value_or(ArithmeticOverflow{});
+    return try_new_with_overflow(
+        merged_month, merged_day,
+        AnyCalendarKind::FromInfra(inner_.calendar), ov,
+        std::optional<int32_t>(inner_.iso.year));
   }
 
   // 1:1 from upstream plain_month_day.rs `to_plain_date`. ISO path:

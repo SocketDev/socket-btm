@@ -83,9 +83,14 @@ auto-cascaded — semantic re-implementations need human review.
 
 ## Status
 
-🚧 **Scaffold only.** The actual C++ port is task #217 in the work
-tracker. This package defines the home + architecture contract;
-the implementation lands in follow-up commits.
+Functional for ISO-calendar Temporal — the smoke test at
+`packages/build-infra/test/fixtures/smoke-test-temporal.mjs` passes
+end-to-end. Non-ISO calendars (Hebrew, Islamic, Chinese, etc.) and
+several less-common methods are still stubbed. **See
+[`docs/ports/temporal-infra-lockstep.md`](../../docs/ports/temporal-infra-lockstep.md)
+for the per-method tracker** — every remaining
+`not yet implemented` Err in the port corresponds to a tracker row
+with priority, effort estimate, and prerequisite dependency.
 
 ### Implementation order (when port work begins)
 

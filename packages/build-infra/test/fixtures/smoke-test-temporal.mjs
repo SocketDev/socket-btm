@@ -671,6 +671,197 @@ if (typeof Temporal !== 'object' || Temporal === null) {
   )
 }
 
+// ── getTimeZoneTransition (IcuTimeZoneBackend) ──────────────────────
+
+{
+  // America/New_York switches to DST on 2024-03-10 (spring forward,
+  // 02:00 → 03:00) and back on 2024-11-03 (fall back, 02:00 → 01:00).
+  // ICU returns the transition instant as epoch ms; the wrapped ZDT
+  // should land on the transition moment.
+  const nyc = tryCheck('ZonedDateTime.getTimeZoneTransition (next) (call)', () =>
+    Temporal.ZonedDateTime.from(
+      '2024-01-15T12:00:00[America/New_York]',
+    ).getTimeZoneTransition('next'),
+  )
+  if (nyc !== undefined && nyc !== null) {
+    check(
+      'getTimeZoneTransition next from Jan finds spring-forward in Mar',
+      nyc.month === 3 && nyc.day === 10,
+      `got ${nyc.month}/${nyc.day} ${nyc.toString()}`,
+    )
+  }
+
+  const back = tryCheck(
+    'ZonedDateTime.getTimeZoneTransition (previous) (call)',
+    () =>
+      Temporal.ZonedDateTime.from(
+        '2024-06-15T12:00:00[America/New_York]',
+      ).getTimeZoneTransition('previous'),
+  )
+  if (back !== undefined && back !== null) {
+    check(
+      'getTimeZoneTransition previous from June finds spring-forward in Mar',
+      back.month === 3 && back.day === 10,
+      `got ${back.month}/${back.day} ${back.toString()}`,
+    )
+  }
+
+  // Offset-only zones never have transitions; spec says return null.
+  const offset = tryCheck(
+    'ZonedDateTime.getTimeZoneTransition (offset-only) (call)',
+    () =>
+      Temporal.ZonedDateTime.from(
+        '2024-06-01T12:00:00+05:00[+05:00]',
+      ).getTimeZoneTransition('next'),
+  )
+  check(
+    'getTimeZoneTransition offset-only returns null',
+    offset === null,
+    `got ${offset}`,
+  )
+}
+
+// ── PlainYearMonth.until with custom roundingIncrement ──────────────
+
+{
+  const ym1 = Temporal.PlainYearMonth.from('2024-01')
+  const ym2 = Temporal.PlainYearMonth.from('2024-10')
+  // Default: returns 9 months. With smallestUnit=year + roundingMode=trunc
+  // it floors to 0 years. With roundingMode=halfExpand it rounds to 1 year.
+  const trunc = tryCheck('PlainYearMonth.until trunc to year (call)', () =>
+    ym1.until(ym2, { smallestUnit: 'year', roundingMode: 'trunc' }),
+  )
+  if (trunc !== undefined) {
+    check(
+      'PlainYearMonth.until trunc to year = 0',
+      trunc.years === 0 && trunc.months === 0,
+      `got years=${trunc.years} months=${trunc.months}`,
+    )
+  }
+
+  const halfExpand = tryCheck(
+    'PlainYearMonth.until halfExpand to year (call)',
+    () =>
+      ym1.until(ym2, { smallestUnit: 'year', roundingMode: 'halfExpand' }),
+  )
+  if (halfExpand !== undefined) {
+    check(
+      'PlainYearMonth.until halfExpand 9mo → 1yr',
+      halfExpand.years === 1 && halfExpand.months === 0,
+      `got years=${halfExpand.years} months=${halfExpand.months}`,
+    )
+  }
+
+  // Quarter granularity: smallestUnit=month + roundingIncrement=3.
+  const ym3 = Temporal.PlainYearMonth.from('2024-05')
+  const quarter = tryCheck(
+    'PlainYearMonth.until quarter increment (call)',
+    () =>
+      ym1.until(ym3, {
+        smallestUnit: 'month',
+        roundingIncrement: 3,
+        roundingMode: 'trunc',
+      }),
+  )
+  if (quarter !== undefined) {
+    // 4 months trunc to nearest multiple of 3 = 3 months.
+    check(
+      'PlainYearMonth.until 4mo trunc to quarter = 3mo',
+      quarter.months === 3,
+      `got ${quarter.months}`,
+    )
+  }
+}
+
+// ── Hebrew leap-month monthCode resolution (CalendarResolveMonthCode) ─
+
+{
+  // 5784 is a Hebrew leap year (3, 6, 8, 11, 14, 17, 19 in the
+  // Metonic cycle — 5784 mod 19 = 8). M05L is Adar I; M06 is Adar II.
+  // 5784 starts at 2023-09-16 and ends at 2024-10-03; Adar I 1 falls
+  // around 2024-02-10. Construct via from({...}, {calendar:'hebrew'}).
+  const hebrewLeap = tryCheck(
+    'PlainMonthDay.from(Hebrew M05L) (call)',
+    () =>
+      Temporal.PlainMonthDay.from(
+        { monthCode: 'M05L', day: 1, year: 5784 },
+        { overflow: 'reject' },
+      ),
+  )
+  if (hebrewLeap !== undefined) {
+    check(
+      'PlainMonthDay Hebrew M05L resolves',
+      hebrewLeap.monthCode === 'M05L',
+      `got monthCode=${hebrewLeap.monthCode}`,
+    )
+  }
+}
+
+// ── Coptic M13 (epagomenal month) ───────────────────────────────────
+
+{
+  // Coptic year 1740 corresponds roughly to 2023-09 / 2024-09.
+  // Month 13 ("Nasi"/"Pi Kogi Enavot") is the 5/6-day epagomenal
+  // month at year-end. PlainYearMonth.from with M13 should accept it.
+  const coptic = tryCheck(
+    'PlainYearMonth.from(Coptic M13) (call)',
+    () =>
+      Temporal.PlainYearMonth.from(
+        { year: 1740, monthCode: 'M13' },
+        { calendar: 'coptic' },
+      ),
+  )
+  if (coptic !== undefined) {
+    check(
+      'PlainYearMonth Coptic M13 month is 13',
+      coptic.month === 13,
+      `got ${coptic.month}`,
+    )
+  }
+}
+
+// ── epochMsFor on PlainYearMonth + PlainMonthDay ────────────────────
+
+{
+  // PlainYearMonth has no epochMilliseconds accessor directly; it's
+  // exposed as Intl.DateTimeFormat.format(plainYearMonth) under the
+  // hood, but the underlying epoch_ms_for_with_provider is what the
+  // V8 binding calls. We can't reach it from JS without an Intl
+  // formatter — the smoke test reaches it via Intl.DateTimeFormat.
+  // Skip if Intl isn't built in (offset-only builds).
+  const ym = Temporal.PlainYearMonth.from('2024-06')
+  const fmt = tryCheck('Intl.DateTimeFormat for PlainYearMonth (call)', () =>
+    new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'long',
+      calendar: 'iso8601',
+    }).format(ym),
+  )
+  if (fmt !== undefined) {
+    check(
+      'Intl.DateTimeFormat(PlainYearMonth) returns non-empty string',
+      typeof fmt === 'string' && fmt.length > 0,
+      `got ${JSON.stringify(fmt)}`,
+    )
+  }
+
+  const md = Temporal.PlainMonthDay.from('--06-15')
+  const fmt2 = tryCheck('Intl.DateTimeFormat for PlainMonthDay (call)', () =>
+    new Intl.DateTimeFormat('en-US', {
+      month: 'long',
+      day: 'numeric',
+      calendar: 'iso8601',
+    }).format(md),
+  )
+  if (fmt2 !== undefined) {
+    check(
+      'Intl.DateTimeFormat(PlainMonthDay) returns non-empty string',
+      typeof fmt2 === 'string' && fmt2.length > 0,
+      `got ${JSON.stringify(fmt2)}`,
+    )
+  }
+}
+
 // ── Report ──────────────────────────────────────────────────────────
 
 if (failures.length > 0) {
@@ -681,4 +872,4 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log(`Temporal smoke test: all ${74} checks passed`)
+console.log(`Temporal smoke test: all ${85} checks passed`)

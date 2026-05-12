@@ -81,15 +81,24 @@ return `NotImplemented` at runtime.
   copy/move constructors instead of the upstream `&'static str`
   / `String` enum — ABI constraint at the V8 boundary.
 - **`Instant::until/since`** with `largestUnit ∈ {microsecond,
-  nanosecond}` over very wide deltas returns `Err` instead of
-  silently narrowing to `int64`. C2 in the review.
-- (resolved in commit landing this tracker update)
-  `PlainDateTime::until/since` cross-midnight balancing now matches
-  upstream `iso.rs:171 diff` — time-sign is computed first, the
-  later date is adjusted by ±1 day to make signs agree, then
-  CalendarDateUntil runs against the adjusted date. The prior
-  "subtract a day from the days field" approach only worked for
-  largestUnit=day; the new approach preserves year/month/week carry.
+  nanosecond}` over deltas exceeding `int64` capacity returns
+  `Err("delta exceeds int64 ... at the requested largestUnit")`
+  instead of silently narrowing to f64 (which would lose
+  precision past `Number.MAX_SAFE_INTEGER`). Upstream returns
+  the narrowed f64 — the spec accepts both behaviors. Our impl
+  refuses rather than misreport. Surfaces at: deltas >
+  `2^63 / 1000` µs ≈ 292 years for `microsecond` largestUnit; >
+  `2^63` ns ≈ 292 years for `nanosecond` largestUnit. Within the
+  ±10^8-day Instant range it's possible to hit this — V8 callers
+  who genuinely need wide deltas should use `millisecond` or
+  larger. See `Instant.hpp:475-493`.
+- **`duration_normalized.cc:322` DoubleDouble approximation.**
+  Time-only duration ↔ f64 conversion uses a conservative
+  range-bound check rather than the full DoubleDouble decomposition
+  upstream uses. Affects time-only durations beyond ±285 years
+  (`Number.MAX_SAFE_INTEGER` nanoseconds); within spec-valid
+  Duration ranges (which the validate-on-construction guard
+  enforces), the behavior is bit-identical to upstream.
 
 ## Rounding tail
 

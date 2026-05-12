@@ -37,13 +37,10 @@ class Provider {
 
   // V8's js-temporal-zoneinfo64.cc passes us the raw zoneinfo64 byte
   // buffer (uint32_t-aligned per ICU's udata format). We store the
-  // span pointer + length so the `_with_provider` methods can resolve
-  // IANA wall-clock <-> instant against it. The actual binary-format
-  // parser is large (~2700 lines in upstream Rust); for now we hold
-  // the data and let resolution paths Err with a sharper message
-  // ("zoneinfo64 parser not yet implemented") until the parser lands.
-  // Holding the data instead of dropping it is the foundation for
-  // future iterations.
+  // span pointer + length for API parity with upstream's
+  // `TimeZoneProvider` trait; IANA wall-clock <-> instant resolution
+  // routes through the registered `TimeZoneBackend` (which V8 wires
+  // to `IcuTimeZoneBackend` at boot), not by re-parsing this buffer.
   static diplomat::result<std::unique_ptr<Provider>, std::monostate>
   new_zoneinfo64(diplomat::span<const uint32_t> data) {
     auto p = std::unique_ptr<Provider>(new Provider());

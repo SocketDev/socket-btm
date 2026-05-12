@@ -13,14 +13,9 @@
 // epoch_milliseconds, epoch_nanoseconds, equals, compare, clone,
 // to_zoned_date_time_iso{,_with_provider}, to_ixdtf_string,
 // to_ixdtf_string_with_provider, add (templated), since_dur/until_dur
-// (templated).
-//
-// Still pending: round (rounding-tail wiring), since/until (the
-// non-templated V8-facing variants that need a Duration-arithmetic
-// pass + smallest_unit rounding), add/subtract on the V8-facing
-// non-templated paths. These return TemporalError::Range
-// "not yet implemented" so V8 surfaces a clean RangeError until the
-// Duration arithmetic phase lands.
+// (templated), round (open-coded int128 increment rounder),
+// until/since (full settings coverage, see Known drifts for the
+// microsecond/nanosecond largestUnit int64 narrowing).
 
 #ifndef TEMPORAL_RS_COMPAT_INSTANT_HPP_
 #define TEMPORAL_RS_COMPAT_INSTANT_HPP_

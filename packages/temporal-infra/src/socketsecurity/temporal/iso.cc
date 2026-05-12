@@ -258,9 +258,9 @@ static int64_t ToJDN(int32_t year, uint8_t month, uint8_t day) noexcept {
 
 // Spec: DifferenceISODate(y1, m1, d1, y2, m2, d2, "day")
 // Returns the difference as a Duration with only the `days` field set.
-// `largestUnit` ∈ {year, month, week} requires calendar-aware
-// handling and routes through CalendarDateUntil (which delegates to
-// the registered CalendarBackend).
+// `largestUnit` ∈ {year, month, week} is calendar-aware and routes
+// through CalendarDateUntil (which delegates to the active
+// CalendarBackend — ICU-backed by default).
 Duration DifferenceISODate(const IsoDate& earlier,
                            const IsoDate& later) noexcept {
   Duration d = {};

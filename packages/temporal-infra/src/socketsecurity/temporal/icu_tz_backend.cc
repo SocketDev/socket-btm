@@ -10,6 +10,7 @@
 #include "unicode/basictz.h"
 #include "unicode/locid.h"
 #include "unicode/timezone.h"
+#include "unicode/tztrans.h"
 #include "unicode/unistr.h"
 #include "unicode/utypes.h"
 #endif

@@ -10,6 +10,7 @@
 #include <atomic>
 #include <cctype>
 #include <cmath>
+#include <mutex>
 #include <string_view>
 
 #include "socketsecurity/temporal/iso.h"
@@ -350,6 +351,13 @@ std::atomic<CalendarBackend*>& ActiveCalendarBackendSlot() noexcept {
 }  // namespace
 
 CalendarBackend& GetCalendarBackend() noexcept {
+  // Mirror of time_zone.cc: lazy-install the ICU-backed backend on
+  // first call. The trampoline lives in icu_cal_backend.cc with a
+  // V8_INTL_SUPPORT-conditional body (no-op in non-intl builds).
+  extern void InstallIcuCalendarBackendIfAvailable() noexcept;
+  static std::once_flag s_installed_once;
+  std::call_once(s_installed_once,
+                  []() { InstallIcuCalendarBackendIfAvailable(); });
   return *ActiveCalendarBackendSlot().load(std::memory_order_acquire);
 }
 

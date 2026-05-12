@@ -306,12 +306,38 @@ class PlainMonthDay {
     return diplomat::Ok<std::unique_ptr<PD>>(PD::FromInfra(pd));
   }
 
-  // Stub: requires calendar-aware projection from MD + year.
+  // 1:1 from upstream plain_month_day.rs:354 `epoch_ns_for_with_provider`.
+  // Combines (iso.date, IsoTime::noon) at the MonthDay's reference year
+  // and returns epoch ms in UTC.
   diplomat::result<int64_t, TemporalError> epoch_ms_for_with_provider(
       const Provider& /*p*/) const {
-    return diplomat::Err<TemporalError>(TemporalError{
-        ErrorKind::Range,
-        "PlainMonthDay.epochMsFor requires a calendar backend"});
+    ::node::socketsecurity::temporal::IsoDateTime iso{};
+    iso.date = inner_.iso;
+    iso.time.hour = 12;
+    iso.time.minute = 0;
+    iso.time.second = 0;
+    iso.time.millisecond = 0;
+    iso.time.microsecond = 0;
+    iso.time.nanosecond = 0;
+    auto utc = ::node::socketsecurity::temporal::TimeZone::Utc();
+    auto ns = utc.GetEpochNanosecondsFor(
+        iso, ::node::socketsecurity::temporal::Disambiguation::kCompatible);
+    if (!ns.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(ns.error()));
+    }
+    using NativeInt128 = decltype(ns.value().value);
+    const NativeInt128 ns_per_ms{1'000'000};
+    const NativeInt128 n = ns.value().value;
+    NativeInt128 ms;
+    if (n >= 0) {
+      ms = n / ns_per_ms;
+    } else {
+      NativeInt128 q = n / ns_per_ms;
+      NativeInt128 r = n % ns_per_ms;
+      ms = (r == 0) ? q : q - 1;
+    }
+    return static_cast<int64_t>(ms);
   }
 
   std::unique_ptr<PlainMonthDay> clone() const {

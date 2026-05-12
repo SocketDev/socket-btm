@@ -455,15 +455,41 @@ class PlainYearMonth {
         PlainDate::FromInfra(result.value()));
   }
 
-  // Stub: requires calendar-aware day projection + provider integration.
-  // Two-argument form (TimeZone + Provider) mirrors upstream Rust's
-  // signature; the single-Provider overload below shares the same fate.
+  // 1:1 from upstream plain_year_month.rs:602 `epoch_ns_for_with_provider`.
+  // Combines (iso.date, IsoTime::noon) and routes through
+  // TimeZone::GetEpochNanosecondsFor with Disambiguation::Compatible.
+  // Returns epoch *milliseconds* per V8's API; internal conversion
+  // divides epoch_ns by 1_000_000.
   diplomat::result<int64_t, TemporalError>
-  epoch_ms_for_with_provider(TimeZone /*tz*/, const Provider& /*p*/) const {
-    return diplomat::Err<TemporalError>(TemporalError{
-        ErrorKind::Range,
-        "PlainYearMonth.epochMsFor(timeZone, provider) requires a "
-        "calendar backend + provider integration"});
+  epoch_ms_for_with_provider(TimeZone tz, const Provider& /*p*/) const {
+    ::node::socketsecurity::temporal::IsoDateTime iso{};
+    iso.date = inner_.iso;
+    iso.time.hour = 12;
+    iso.time.minute = 0;
+    iso.time.second = 0;
+    iso.time.millisecond = 0;
+    iso.time.microsecond = 0;
+    iso.time.nanosecond = 0;
+    auto ns = tz.ToInfra().GetEpochNanosecondsFor(
+        iso, ::node::socketsecurity::temporal::Disambiguation::kCompatible);
+    if (!ns.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(ns.error()));
+    }
+    // Floor-divide int128 ns by 1e6 to get ms. Spec: epochMilliseconds
+    // floors toward -infinity, not toward zero.
+    using NativeInt128 = decltype(ns.value().value);
+    const NativeInt128 ns_per_ms{1'000'000};
+    const NativeInt128 n = ns.value().value;
+    NativeInt128 ms;
+    if (n >= 0) {
+      ms = n / ns_per_ms;
+    } else {
+      NativeInt128 q = n / ns_per_ms;
+      NativeInt128 r = n % ns_per_ms;
+      ms = (r == 0) ? q : q - 1;
+    }
+    return static_cast<int64_t>(ms);
   }
 
   // 1:1 from upstream plain_year_month.rs:630 / :638.
@@ -562,12 +588,13 @@ class PlainYearMonth {
     return diplomat::Ok<std::unique_ptr<PD>>(PD::FromInfra(r.value()));
   }
 
-  // Stub: requires calendar-aware day projection.
+  // 1:1 from upstream plain_year_month.rs:619 `epoch_ns_for_utc`.
+  // Combines (iso.date, IsoTime::noon) and returns epoch ms in UTC.
   diplomat::result<int64_t, TemporalError> epoch_ms_for_with_provider(
       const Provider& /*p*/) const {
-    return diplomat::Err<TemporalError>(TemporalError{
-        ErrorKind::Range,
-        "PlainYearMonth.epochMsFor requires a calendar backend"});
+    auto utc = ::node::socketsecurity::temporal::TimeZone::Utc();
+    TimeZone tz = TimeZone::FromInfra(utc);
+    return epoch_ms_for_with_provider(tz, Provider{});
   }
 
   std::unique_ptr<PlainYearMonth> clone() const {

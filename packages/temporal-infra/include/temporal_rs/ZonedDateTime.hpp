@@ -273,10 +273,31 @@ class ZonedDateTime {
                ? ::node::socketsecurity::temporal::PlainDateInLeapYear(*pd)
                : false;
   }
-  // Calendar-extension fields (non-ISO only). Stub: empty for now.
-  std::string month_code() const { const uint8_t m = month(); return std::string("M") + (m < 10 ? "0" : "") + std::to_string(m); }
-  std::string era() const { return ""; }
-  std::optional<int32_t> era_year() const { return std::nullopt; }
+  // Calendar-aware accessors. Route through the CalendarBackend so
+  // non-ISO calendars (Hebrew, Japanese, ...) get the right answer.
+  std::string month_code() const {
+    auto pd = AsPlainDate();
+    if (!pd.has_value()) {
+      const uint8_t m = month();
+      return std::string("M") + (m < 10 ? "0" : "") + std::to_string(m);
+    }
+    return ::node::socketsecurity::temporal::CalendarMonthCode(
+        inner_.calendar, pd->iso);
+  }
+  std::string era() const {
+    auto pd = AsPlainDate();
+    return pd.has_value()
+               ? ::node::socketsecurity::temporal::CalendarEra(inner_.calendar,
+                                                                  pd->iso)
+               : std::string{};
+  }
+  std::optional<int32_t> era_year() const {
+    auto pd = AsPlainDate();
+    return pd.has_value()
+               ? ::node::socketsecurity::temporal::CalendarEraYear(
+                     inner_.calendar, pd->iso)
+               : std::nullopt;
+  }
   std::optional<uint8_t> week_of_year() const {
     return std::optional<uint8_t>(
         ::node::socketsecurity::temporal::ISOWeekOfYear(year(), month(), day()));

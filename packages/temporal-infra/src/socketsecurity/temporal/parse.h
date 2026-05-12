@@ -88,6 +88,13 @@ ParseStatus ParseInstantString(std::string_view input, Instant* out) noexcept;
 // Parse just a date (no time/offset). Accepts YYYY-MM-DD or YYYYMMDD.
 ParseStatus ParseDate(std::string_view input, PlainDate* out) noexcept;
 
+// Parse just a time (no date/offset). Accepts HH:MM, HH:MM:SS,
+// HH:MM:SS.fff, HHMM, HHMMSS, optionally preceded by a 'T' / 't'
+// designator. Rejects trailing characters (the input must be a
+// complete time string). Used by PlainTime::from on bare time inputs
+// that ParseDateTime can't handle because it requires a leading date.
+ParseStatus ParseTimeOnly(std::string_view input, PlainTime* out) noexcept;
+
 // Parse a YearMonth string (TemporalYearMonthString). Accepts the
 // bare YYYY-MM / YYYYMM forms as well as full TemporalDateTimeString
 // inputs (where the day component is treated as a reference value).

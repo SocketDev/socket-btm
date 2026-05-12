@@ -289,6 +289,23 @@ ParseStatus ParseDate(std::string_view input, PlainDate* out) noexcept {
   return ParseStatus::kOk;
 }
 
+ParseStatus ParseTimeOnly(std::string_view input, PlainTime* out) noexcept {
+  Cursor c{input.data(), input.size()};
+  // Optional 'T' / 't' designator prefix.
+  if (!c.Eof() && (c.Peek() == 'T' || c.Peek() == 't')) {
+    c.Get();
+  }
+  ParseStatus s = ParseTimeInto(c, out);
+  if (s != ParseStatus::kOk) {
+    return s;
+  }
+  // Reject trailing offset or annotations — PlainTime forbids those.
+  if (!c.Eof()) {
+    return ParseStatus::kInvalid;
+  }
+  return ParseStatus::kOk;
+}
+
 ParseStatus ParseDateTime(std::string_view input,
                           ParseDateTimeRecord* out) noexcept {
   Cursor c{input.data(), input.size()};

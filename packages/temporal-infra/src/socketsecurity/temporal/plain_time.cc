@@ -92,8 +92,18 @@ TemporalResult<PlainTime> PlainTimeFromUtf8(const uint8_t* data,
                                               size_t length) noexcept {
   PlainTime pt{};
   std::string_view view(reinterpret_cast<const char*>(data), length);
-  // ParseDateTime handles time-only inputs ("T12:00:00") by zero-filling
-  // the date part. Reject Z/offset (PlainTime::from_str rejects those).
+  // Two accepted forms:
+  //   1. Time-only: "12:34:56" / "12:34:56.789" / "T12:34:56"
+  //   2. Full DateTime where ParseDateTime extracts the time part:
+  //      "2026-05-08T12:34:56", "2026-05-08 12:34:56"
+  //
+  // ParseTimeOnly handles the bare-time form (with optional 'T'
+  // prefix). ParseDateTime requires a leading date so isolated time
+  // strings would fail without the dedicated entry point.
+  if (ParseTimeOnly(view, &pt) == ParseStatus::kOk) {
+    return pt;
+  }
+  pt = PlainTime{};
   ParseDateTimeRecord rec;
   const ParseStatus status = ParseDateTime(view, &rec);
   if (status != ParseStatus::kOk) {

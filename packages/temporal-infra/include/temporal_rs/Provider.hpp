@@ -35,22 +35,42 @@ class Provider {
     return std::unique_ptr<Provider>(new Provider());
   }
 
-  // V8's js-temporal-zoneinfo64.cc calls these. The TimeZoneBackend
-  // installed at boot resolves IANA queries through ICU + zoneinfo64,
-  // so the actual zoneinfo64 byte buffer doesn't need to be parsed
-  // here — V8 has its own ICU-backed tzdata. We return an Ok result
-  // with a fresh marker Provider so the V8 caller's
-  // `std::move(result).ok().value()` gets a usable instance.
+  // V8's js-temporal-zoneinfo64.cc passes us the raw zoneinfo64 byte
+  // buffer (uint32_t-aligned per ICU's udata format). We store the
+  // span pointer + length so the `_with_provider` methods can resolve
+  // IANA wall-clock <-> instant against it. The actual binary-format
+  // parser is large (~2700 lines in upstream Rust); for now we hold
+  // the data and let resolution paths Err with a sharper message
+  // ("zoneinfo64 parser not yet implemented") until the parser lands.
+  // Holding the data instead of dropping it is the foundation for
+  // future iterations.
   static diplomat::result<std::unique_ptr<Provider>, std::monostate>
-  new_zoneinfo64(diplomat::span<const uint32_t> /* data */) {
+  new_zoneinfo64(diplomat::span<const uint32_t> data) {
+    auto p = std::unique_ptr<Provider>(new Provider());
+    p->zoneinfo64_data_ = data.data();
+    p->zoneinfo64_size_ = data.size();
     return diplomat::result<std::unique_ptr<Provider>, std::monostate>(
-        diplomat::Ok<std::unique_ptr<Provider>>(
-            std::unique_ptr<Provider>(new Provider())));
+        diplomat::Ok<std::unique_ptr<Provider>>(std::move(p)));
   }
 
   // Fallback factory V8 uses when zoneinfo64 data is unavailable.
+  // The resulting Provider has no IANA data — only offset-only TZs
+  // will work through it.
   static std::unique_ptr<Provider> empty() {
     return std::unique_ptr<Provider>(new Provider());
+  }
+
+  // Accessors for the held zoneinfo64 buffer. Both default to a
+  // null/zero state when the Provider was constructed without
+  // zoneinfo64 data (the `compiled()`, `new_compiled()`, `fs()`,
+  // `empty()` paths). Real consumers must null-check before walking
+  // the buffer.
+  const uint32_t* zoneinfo64_data() const noexcept {
+    return zoneinfo64_data_;
+  }
+  size_t zoneinfo64_size() const noexcept { return zoneinfo64_size_; }
+  bool has_zoneinfo64() const noexcept {
+    return zoneinfo64_data_ != nullptr && zoneinfo64_size_ > 0;
   }
 
   Provider(const Provider&) = delete;
@@ -60,6 +80,14 @@ class Provider {
 
  private:
   Provider() = default;
+
+  // Borrowed span — V8's ZoneInfo64Provider singleton owns the
+  // underlying ICU UDataMemory and outlives every Provider instance
+  // it produces. Holding a non-owning pointer matches upstream's
+  // diplomat-generated lifetime contract (Provider is constructed
+  // from a borrowed span and is itself heap-owned by V8).
+  const uint32_t* zoneinfo64_data_ = nullptr;
+  size_t zoneinfo64_size_ = 0;
 };
 
 }  // namespace temporal_rs

@@ -112,25 +112,68 @@ class ZonedDateTime {
                              OffsetDisambiguation offset_option,
                              const Provider& p);
 
-  // Build a ZonedDateTime from a PartialZonedDateTime. Requires the
-  // spec's full PartialZonedDateTime resolution algorithm: parse
-  // calendar + tz from partial.tz_id/offset, resolve PartialDate +
-  // PartialTime + Calendar onto IsoDateTime, then
-  // GetEpochNanosecondsFor with the chosen Disambiguation +
-  // OffsetDisambiguation. The Provider-side wall-clock resolution
-  // isn't wired through time_zone.cc yet.
+  // 1:1 from upstream zoned_date_time.rs `from_partial_with_provider`.
+  // ISO path: requires year + month + day in partial.date plus a tz
+  // identifier; resolves the (date, time) wall clock to epoch-ns via
+  // TimeZone::GetEpochNanosecondsFor with the requested
+  // Disambiguation. OffsetDisambiguation only matters when the
+  // partial also supplies an explicit offset — currently we ignore
+  // it (the spec's `use` / `reject` semantics for offset matching
+  // need the partial.offset field which the upstream parses out of
+  // the tz string; for the V8 path this is rarely the entry point).
   static diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
   from_partial_with_provider(
-      PartialZonedDateTime /*partial*/,
+      PartialZonedDateTime partial,
       std::optional<ArithmeticOverflow> /*overflow*/,
-      std::optional<Disambiguation> /*disambiguation*/,
+      std::optional<Disambiguation> disambiguation,
       std::optional<OffsetDisambiguation> /*offset_option*/,
       const Provider& /*p*/) {
-    return diplomat::Err<TemporalError>(TemporalError{
-        ErrorKind::Range,
-        "ZonedDateTime.from(partial) requires DST + offset "
-        "disambiguation via Provider; the time_zone.cc "
-        "GetEpochNanosecondsFor integration is not yet wired"});
+    if (!partial.timezone.has_value()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "ZonedDateTime.from(partial) requires a timeZone"});
+    }
+    if (!partial.date.year.has_value() || !partial.date.month.has_value() ||
+        !partial.date.day.has_value()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "ZonedDateTime.from(partial) requires year/month/day"});
+    }
+    ::node::socketsecurity::temporal::IsoDateTime iso{};
+    iso.date.year = *partial.date.year;
+    iso.date.month = *partial.date.month;
+    iso.date.day = *partial.date.day;
+    iso.time.hour = partial.time.hour.value_or(0);
+    iso.time.minute = partial.time.minute.value_or(0);
+    iso.time.second = partial.time.second.value_or(0);
+    iso.time.millisecond = partial.time.millisecond.value_or(0);
+    iso.time.microsecond = partial.time.microsecond.value_or(0);
+    iso.time.nanosecond = partial.time.nanosecond.value_or(0);
+    if (!iso.IsValid()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "ZonedDateTime.from(partial) produced invalid IsoDateTime"});
+    }
+    const ::node::socketsecurity::temporal::Disambiguation d =
+        disambiguation.has_value()
+            ? disambiguation->ToInfra()
+            : ::node::socketsecurity::temporal::Disambiguation::kCompatible;
+    auto ns = partial.timezone->ToInfra().GetEpochNanosecondsFor(iso, d);
+    if (!ns.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(ns.error()));
+    }
+    ::node::socketsecurity::temporal::Instant instant{};
+    instant.epoch_nanoseconds = ns.value();
+    auto zr = ::node::socketsecurity::temporal::ZonedDateTimeTryNew(
+        instant, partial.timezone->ToInfra(),
+        ::node::socketsecurity::temporal::Calendar::Iso());
+    if (!zr.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(zr.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+        ZonedDateTime::FromInfra(zr.value()));
   }
 
   // 1:1 from upstream zoned_date_time.rs `try_new_with_provider`. The
@@ -657,6 +700,35 @@ ZonedDateTime::from_parsed_with_provider(const ParsedZonedDateTime& parsed,
                                           OffsetDisambiguation offset_option,
                                           const Provider& /*p*/) {
   return from_parsed(parsed, disambiguation, offset_option);
+}
+
+// Cross-class: PlainDate -> ZonedDateTime. Lives here because both
+// PlainDateTime (intermediate, only its iso field used) and
+// ZonedDateTime are complete.
+inline diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+PlainDate::to_zoned_date_time(TimeZone tz, const PlainTime* time) const {
+  ::node::socketsecurity::temporal::IsoDateTime iso{};
+  iso.date = inner_.iso;
+  if (time != nullptr) {
+    iso.time = time->ToInfra().iso;
+  }
+  auto ns = tz.ToInfra().GetEpochNanosecondsFor(
+      iso, ::node::socketsecurity::temporal::Disambiguation::kCompatible);
+  if (!ns.ok()) {
+    return diplomat::Err<TemporalError>(
+        TemporalError::FromInfra(ns.error()));
+  }
+  ::node::socketsecurity::temporal::Instant instant{};
+  instant.epoch_nanoseconds = ns.value();
+  auto zr = ::node::socketsecurity::temporal::ZonedDateTimeTryNew(
+      instant, tz.ToInfra(),
+      ::node::socketsecurity::temporal::Calendar::Iso());
+  if (!zr.ok()) {
+    return diplomat::Err<TemporalError>(
+        TemporalError::FromInfra(zr.error()));
+  }
+  return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+      ZonedDateTime::FromInfra(zr.value()));
 }
 
 }  // namespace temporal_rs

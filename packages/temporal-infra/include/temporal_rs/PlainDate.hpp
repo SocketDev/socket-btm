@@ -208,23 +208,14 @@ class PlainDate {
         .Build();
   }
 
-  // PlainDate -> ZonedDateTime. Upstream signature:
-  //   to_zoned_date_time(TimeZone, const PlainTime* time)
-  //   to_zoned_date_time_with_provider(TimeZone, const PlainTime* time,
-  //                                     const Provider&)
-  // Requires wall-clock → epoch-ns resolution (the spec's
-  // GetEpochNanosecondsFor with default Disambiguation::Compatible),
-  // which depends on the time_zone.cc Provider integration that's
-  // tracked separately from this stub. Returns Range until then.
+  // 1:1 from upstream plain_date.rs `to_zoned_date_time`. Pairs
+  // (this date + time-or-midnight) with the given TimeZone and
+  // resolves to epoch-ns via the spec's default Disambiguation
+  // (Compatible). Body lives at the tail of ZonedDateTime.hpp where
+  // both the ZonedDateTime ctor surface and TimeZone::
+  // GetEpochNanosecondsFor are complete.
   diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
-  to_zoned_date_time(TimeZone /*tz*/,
-                     const PlainTime* /*time*/) const {
-    return diplomat::Err<TemporalError>(TemporalError{
-        ErrorKind::Range,
-        "PlainDate.toZonedDateTime requires DST resolution via "
-        "Provider; the time_zone.cc GetEpochNanosecondsFor "
-        "integration is not yet wired"});
-  }
+  to_zoned_date_time(TimeZone tz, const PlainTime* time) const;
 
   diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
   to_zoned_date_time_with_provider(TimeZone tz,

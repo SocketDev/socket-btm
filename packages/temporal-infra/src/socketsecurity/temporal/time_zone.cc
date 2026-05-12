@@ -215,6 +215,51 @@ TemporalResult<IsoDateTime> TimeZoneBackend::GetIsoDateTimeFor(
       "(V8's js-temporal layer installs one at boot)");
 }
 
+TemporalResult<Int128> TimeZoneBackend::GetEpochNanosecondsFor(
+    std::string_view /*iana_id*/, const IsoDateTime& /*datetime*/,
+    Disambiguation /*disambiguation*/) noexcept {
+  return TemporalError::Range(
+      "IANA time-zone wall-clock resolution requires a registered "
+      "backend (V8's js-temporal layer installs one at boot)");
+}
+
+TemporalResult<Int128> TimeZone::GetEpochNanosecondsFor(
+    const IsoDateTime& datetime,
+    Disambiguation disambiguation) const noexcept {
+  if (kind_ != Kind::kOffsetOnly) {
+    // IANA path: delegate to the active backend, which is responsible
+    // for picking the correct instant in the case of DST overlap
+    // (fall-back) and rejecting the gap (spring-forward) per the
+    // Disambiguation argument.
+    return GetTimeZoneBackend().GetEpochNanosecondsFor(iana_id_, datetime,
+                                                       disambiguation);
+  }
+  // Offset-only path: the wall clock unambiguously maps to one
+  // instant. Compute epoch_ns "as UTC" from the IsoDateTime, then
+  // subtract the offset.
+  const int64_t epoch_days = EpochDaysFromGregorianDate(
+      datetime.date.year, datetime.date.month, datetime.date.day);
+  const int64_t tod_ns =
+      static_cast<int64_t>(datetime.time.hour) * kNsPerHour +
+      static_cast<int64_t>(datetime.time.minute) * kNsPerMinute +
+      static_cast<int64_t>(datetime.time.second) * kNsPerSecond +
+      static_cast<int64_t>(datetime.time.millisecond) * kNsPerMillisecond +
+      static_cast<int64_t>(datetime.time.microsecond) * kNsPerMicrosecond +
+      static_cast<int64_t>(datetime.time.nanosecond);
+  const Int128 utc_ns =
+      Int128(epoch_days) * Int128(static_cast<int64_t>(kNsPerDay)) +
+      Int128(tod_ns);
+  const Int128 ns = utc_ns - Int128(offset_.Nanoseconds());
+  // Validity check matches Instant::IsValid's range.
+  Instant probe{};
+  probe.epoch_nanoseconds = ns;
+  if (!probe.IsValid()) {
+    return TemporalError::Range(
+        "Resolved epoch nanoseconds outside valid Instant range");
+  }
+  return ns;
+}
+
 namespace {
 // Process-static default backend + active-backend pointer. The pointer
 // is read on every IANA lookup; we use atomic for thread-safety

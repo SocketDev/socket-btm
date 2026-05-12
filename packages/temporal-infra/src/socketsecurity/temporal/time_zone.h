@@ -120,6 +120,16 @@ class TimeZone {
   TemporalResult<IsoDateTime> GetIsoDateTimeFor(
       const Instant& instant) const noexcept;
 
+  // Mirror of upstream's `get_epoch_nanoseconds_for`. The inverse of
+  // GetIsoDateTimeFor: given a wall-clock IsoDateTime in this zone,
+  // return the epoch_nanoseconds of the matching Instant. For
+  // offset-only zones this is straight arithmetic. For IANA zones the
+  // wall clock may map to 0 (spring-forward gap), 1, or 2
+  // (fall-back overlap) instants — the Disambiguation argument
+  // selects which to return. Routes through TimeZoneBackend for IANA.
+  TemporalResult<Int128> GetEpochNanosecondsFor(
+      const IsoDateTime& datetime, Disambiguation disambiguation) const noexcept;
+
  private:
   friend class TimeZoneBackend;
   Kind kind_ = Kind::kOffsetOnly;
@@ -148,6 +158,14 @@ class TimeZoneBackend {
   // the named IANA zone. Default impl rejects every input.
   virtual TemporalResult<IsoDateTime> GetIsoDateTimeFor(
       std::string_view iana_id, const Instant& instant) noexcept;
+
+  // Inverse of GetIsoDateTimeFor: resolve a wall-clock IsoDateTime in
+  // the named IANA zone to the epoch nanoseconds of the matching
+  // Instant. May error during spring-forward gaps depending on the
+  // requested Disambiguation. Default impl rejects every input.
+  virtual TemporalResult<Int128> GetEpochNanosecondsFor(
+      std::string_view iana_id, const IsoDateTime& datetime,
+      Disambiguation disambiguation) noexcept;
 };
 
 // Returns the active backend. When V8 has registered an

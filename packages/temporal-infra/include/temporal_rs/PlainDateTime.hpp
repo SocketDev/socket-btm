@@ -345,20 +345,30 @@ class PlainDateTime {
     return std::unique_ptr<PlainDateTime>(new PlainDateTime(inner_));
   }
 
-  // PlainDateTime -> ZonedDateTime. Upstream signature:
-  //   to_zoned_date_time(TimeZone, Disambiguation)
-  //   to_zoned_date_time_with_provider(TimeZone, Disambiguation,
-  //                                     const Provider&)
-  // Requires the spec's GetEpochNanosecondsFor wall-clock → epoch-ns
-  // resolution against the Provider's DST transition table. Tracked
-  // separately from this stub.
+  // 1:1 from upstream plain_date_time.rs `to_zoned_date_time`.
+  // Resolves the wall-clock IsoDateTime to epoch-ns via
+  // TimeZone::GetEpochNanosecondsFor, then constructs a
+  // ZonedDateTime. For offset-only TZs (UTC, "+05:00", etc.) this
+  // works directly; for IANA TZs the active TimeZoneBackend must
+  // resolve the wall clock against its DST transition table.
   diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
-  to_zoned_date_time(TimeZone /*tz*/, Disambiguation /*disamb*/) const {
-    return diplomat::Err<TemporalError>(TemporalError{
-        ErrorKind::Range,
-        "PlainDateTime.toZonedDateTime requires DST resolution via "
-        "Provider; the time_zone.cc GetEpochNanosecondsFor "
-        "integration is not yet wired"});
+  to_zoned_date_time(TimeZone tz, Disambiguation disamb) const {
+    auto ns = tz.ToInfra().GetEpochNanosecondsFor(inner_.iso, disamb.ToInfra());
+    if (!ns.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(ns.error()));
+    }
+    ::node::socketsecurity::temporal::Instant instant{};
+    instant.epoch_nanoseconds = ns.value();
+    auto zr = ::node::socketsecurity::temporal::ZonedDateTimeTryNew(
+        instant, tz.ToInfra(),
+        ::node::socketsecurity::temporal::Calendar::Iso());
+    if (!zr.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(zr.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+        ZonedDateTime::FromInfra(zr.value()));
   }
 
   diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>

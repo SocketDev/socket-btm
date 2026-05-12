@@ -14,7 +14,7 @@
  *   --dry-run      Show what would be updated without writing
  */
 
-import { existsSync, readFileSync, promises as fs } from 'node:fs'
+import { existsSync, promises as fs, readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -140,7 +140,8 @@ async function main() {
   let skipped = 0
   let failed = 0
 
-  for (const tool of toolsToSync) {
+  for (let i = 0, { length } = toolsToSync; i < length; i += 1) {
+    const tool = toolsToSync[i]
     logger.info(`Fetching checksums for ${tool}...`)
 
     const result = await fetchToolChecksums(tool)

@@ -5,7 +5,7 @@
  * This example demonstrates all builder features and best practices.
  */
 
-import { ViewBuilder, TextBuilder, render_to_string } from '../index.mts'
+import { TextBuilder, ViewBuilder, render_to_string } from '../index.mts'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 const logger = getDefaultLogger()

@@ -157,7 +157,8 @@ export function validateCheckpoints(
   // Validate each checkpoint archive.
   let corruptedCount = 0
 
-  for (const checkpoint of allCheckpoints) {
+  for (let i = 0, { length } = allCheckpoints; i < length; i += 1) {
+    const checkpoint = allCheckpoints[i]
     if (!validateTarArchive(checkpoint)) {
       corruptedCount++
     }

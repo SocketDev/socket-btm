@@ -2,7 +2,7 @@
  * Simple state-only tests to isolate tokio runtime issues
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'

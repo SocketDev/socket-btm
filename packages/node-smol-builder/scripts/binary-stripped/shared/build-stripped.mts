@@ -84,7 +84,8 @@ export async function buildStripped(config, buildOptions = {}) {
     'outputStrippedDir',
     'platform',
   ]
-  for (const prop of requiredProps) {
+  for (let i = 0, { length } = requiredProps; i < length; i += 1) {
+    const prop = requiredProps[i]
     if (config[prop] === undefined) {
       throw new Error(
         `buildStripped: missing required config property '${prop}'`,
@@ -220,7 +221,8 @@ export async function buildStripped(config, buildOptions = {}) {
         '.comment',
         '.gnu.version',
       ]
-      for (const section of sections) {
+      for (let i = 0, { length } = sections; i < length; i += 1) {
+        const section = sections[i]
         try {
           await exec('objcopy', [
             `--remove-section=${section}`,
@@ -315,7 +317,8 @@ export async function buildStripped(config, buildOptions = {}) {
     logger.substep('Cleaning checkpoint directory...')
     const strippedDirFiles = await fs.readdir(outputStrippedNodeDir)
     const strippedBinaryName = path.basename(outputStrippedBinary)
-    for (const file of strippedDirFiles) {
+    for (let i = 0, { length } = strippedDirFiles; i < length; i += 1) {
+      const file = strippedDirFiles[i]
       if (file !== strippedBinaryName) {
         const filePath = path.join(outputStrippedNodeDir, file)
         await safeDelete(filePath)

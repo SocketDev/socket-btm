@@ -79,7 +79,8 @@ export async function buildCompressed(config, buildOptions = {}) {
     'outputStrippedBinary',
     'platform',
   ]
-  for (const prop of requiredProps) {
+  for (let i = 0, { length } = requiredProps; i < length; i += 1) {
+    const prop = requiredProps[i]
     if (config[prop] === undefined) {
       throw new Error(
         `buildCompressed: missing required config property '${prop}'`,
@@ -153,7 +154,8 @@ export async function buildCompressed(config, buildOptions = {}) {
     logger.substep('Cleaning checkpoint directory...')
     const compressedDirFiles = await fs.readdir(outputCompressedNodeDir)
     const compressedBinaryName = path.basename(outputCompressedBinary)
-    for (const file of compressedDirFiles) {
+    for (let i = 0, { length } = compressedDirFiles; i < length; i += 1) {
+      const file = compressedDirFiles[i]
       if (file !== compressedBinaryName) {
         const filePath = path.join(outputCompressedNodeDir, file)
         await safeDelete(filePath)

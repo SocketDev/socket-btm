@@ -266,9 +266,10 @@ describe('script-runner', () => {
 
       expect(results).toHaveLength(3)
       expect(mockSpawn).toHaveBeenCalledTimes(3)
-      results.forEach(result => {
+      for (let i = 0, { length } = results; i < length; i += 1) {
+        const result = results[i]
         expect(result.code).toBe(0)
-      })
+      }
     })
 
     it('should wait for all commands to complete', async () => {

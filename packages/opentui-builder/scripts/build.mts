@@ -161,7 +161,8 @@ export async function buildNativeAddon(zigBin) {
   ]
 
   let builtLib
-  for (const candidate of possiblePaths) {
+  for (let i = 0, { length } = possiblePaths; i < length; i += 1) {
+    const candidate = possiblePaths[i]
     if (existsSync(candidate)) {
       builtLib = candidate
       break
@@ -173,7 +174,8 @@ export async function buildNativeAddon(zigBin) {
     logger.success(`Built: ${outputPath}`)
   } else {
     logger.warn(`Built library not found at expected paths:`)
-    for (const p of possiblePaths) {
+    for (let i = 0, { length } = possiblePaths; i < length; i += 1) {
+      const p = possiblePaths[i]
       logger.warn(`  ${p}`)
     }
     // Try to find where the library was actually built

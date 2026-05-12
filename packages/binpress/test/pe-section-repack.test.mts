@@ -13,7 +13,7 @@
  * handling for ELF binaries and SMOL segment handling for Mach-O binaries.
  */
 
-import { randomUUID } from 'node:crypto'
+import crypto from 'node:crypto'
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -82,7 +82,8 @@ export function hasMarkerInPressedDataSection(peData, marker) {
   const sections = findPressedDataSections(peData)
   const markerBuffer = Buffer.from(marker, 'utf8')
 
-  for (const section of sections) {
+  for (let i = 0, { length } = sections; i < length; i += 1) {
+    const section = sections[i]
     if (section.content.includes(markerBuffer)) {
       return true
     }
@@ -196,7 +197,7 @@ describe.skipIf(process.platform !== 'win32' || !existsSync(BINPRESS))(
 
     beforeAll(async () => {
       // Create unique test directory with timestamp and random suffix to isolate from parallel runs
-      const uniqueId = randomUUID()
+      const uniqueId = crypto.randomUUID()
       testDir = path.join(os.tmpdir(), `binpress-pe-section-${uniqueId}`)
       await safeMkdir(testDir)
 

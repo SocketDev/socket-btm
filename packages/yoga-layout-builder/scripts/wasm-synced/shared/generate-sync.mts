@@ -123,7 +123,8 @@ export async function generateSync(options) {
       }
       const allEnumNames = Object.keys(YGEnums)
       const missing = []
-      for (const name of allEnumNames) {
+      for (let i = 0, { length } = allEnumNames; i < length; i += 1) {
+        const name = allEnumNames[i]
         if (typeof Yoga[name] !== 'number') {
           missing.push(name)
         } else if (Yoga[name] !== YGEnums[name]) {

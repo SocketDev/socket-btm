@@ -17,8 +17,8 @@
 import process from 'node:process'
 
 import {
-  TuiRenderer,
   JsStateHandle,
+  TuiRenderer,
 } from '../build/dev/darwin-arm64/out/darwin-arm64/iocraft.node'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 

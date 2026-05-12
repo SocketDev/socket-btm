@@ -11,7 +11,7 @@
  * 4. Extract and decompress full workflow (binpress -> binject extract -> binflate decompress)
  */
 
-import { createHash } from 'node:crypto'
+import crypto from 'node:crypto'
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -22,9 +22,9 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
 import {
+  getBinflatePath,
   getBinjectPath,
   getBinpressPath,
-  getBinflatePath,
 } from './helpers/paths.mts'
 import { MACHO_SEGMENT_SMOL } from 'bin-infra/test/helpers/segment-names'
 
@@ -46,7 +46,7 @@ let binflateExists = false
  */
 export async function _hashFile(filePath) {
   const data = await fs.readFile(filePath)
-  return createHash('sha256').update(data).digest('hex')
+  return crypto.createHash('sha256').update(data).digest('hex')
 }
 
 /**

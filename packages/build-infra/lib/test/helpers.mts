@@ -268,7 +268,8 @@ export function createWasmTestHelpers(config) {
       const content = await fs.readFile(syncJsPath, 'utf8')
       const lines = content.split('\n')
 
-      for (const line of lines) {
+      for (let i = 0, { length } = lines; i < length; i += 1) {
+        const line = lines[i]
         const trimmed = line.trim()
         // Skip comments and string literals
         if (trimmed.startsWith('//') || trimmed.startsWith('*')) {

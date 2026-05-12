@@ -109,7 +109,8 @@ export async function validateTarballPaths(tarballPath) {
     .map(f => f.trim())
 
   // Check for path traversal attempts.
-  for (const file of files) {
+  for (let i = 0, { length } = files; i < length; i += 1) {
+    const file = files[i]
     // Check for null bytes (can bypass filesystem checks)
     if (file.includes('\0')) {
       throw new Error(

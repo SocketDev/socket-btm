@@ -185,7 +185,8 @@ describe.skipIf(!existsSync(BINJECT_BIN) || process.platform === 'win32')(
       const lines = result.stdout.split('\n')
       const noteSections = lines.filter(line => line.includes('.note.'))
 
-      for (const line of noteSections) {
+      for (let i = 0, { length } = noteSections; i < length; i += 1) {
+        const line = noteSections[i]
         const parts = line.trim().split(/\s+/)
         if (parts.length < 8) {
           continue
@@ -196,7 +197,7 @@ describe.skipIf(!existsSync(BINJECT_BIN) || process.platform === 'win32')(
         const flags = parts[7]
 
         // If VirtAddr is 0, ALLOC flag must NOT be present
-        if (virtAddr === '0000000000000000' || virtAddr === '00000000') {
+        if (virtAddr === '00000000' || virtAddr === '0000000000000000') {
           expect(flags).not.toContain('A')
           logger.success(
             `Section ${sectionName}: VirtAddr=0, ALLOC flag correctly removed`,

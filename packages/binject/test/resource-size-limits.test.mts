@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Resource size limit tests for binject
  *

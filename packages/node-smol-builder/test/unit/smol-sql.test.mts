@@ -6,13 +6,13 @@
  */
 
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
 describe('node:smol-sql TypeScript definitions', () => {
-  const typingsPath = join(
+  const typingsPath = path.join(
     __dirname,
     '../../additions/source-patched/typings/node_smol-sql.d.ts',
   )
@@ -217,7 +217,7 @@ describe('node:smol-sql TypeScript definitions', () => {
 })
 
 describe('node:smol-sql documentation', () => {
-  const typingsPath = join(
+  const typingsPath = path.join(
     __dirname,
     '../../additions/source-patched/typings/node_smol-sql.d.ts',
   )

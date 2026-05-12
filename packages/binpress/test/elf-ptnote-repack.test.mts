@@ -15,7 +15,7 @@
  * - 46736c6f: fix: correct ELF PT_NOTE section naming
  */
 
-import { randomUUID } from 'node:crypto'
+import crypto from 'node:crypto'
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -130,7 +130,8 @@ export function hasMarkerInPTNote(elfData, marker) {
   const notes = findPTNoteSegments(elfData)
   const markerBuffer = Buffer.from(marker, 'utf8')
 
-  for (const note of notes) {
+  for (let i = 0, { length } = notes; i < length; i += 1) {
+    const note = notes[i]
     if (note.content.includes(markerBuffer)) {
       return true
     }
@@ -203,7 +204,7 @@ describe.skipIf(process.platform !== 'linux' || !existsSync(BINPRESS))(
 
     beforeAll(async () => {
       // Create unique test directory with timestamp and random suffix to isolate from parallel runs
-      const uniqueId = randomUUID()
+      const uniqueId = crypto.randomUUID()
       testDir = path.join(os.tmpdir(), `binpress-elf-ptnote-${uniqueId}`)
       await safeMkdir(testDir)
 

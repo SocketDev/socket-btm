@@ -191,7 +191,8 @@ async function main(): Promise<void> {
     if (patchFiles.length > 0) {
       logger.log(`Found ${patchFiles.length} patch(es) to update`)
 
-      for (const patchFile of patchFiles) {
+      for (let i = 0, { length } = patchFiles; i < length; i += 1) {
+        const patchFile = patchFiles[i]
         const content = await fs.readFile(patchFile, 'utf8')
         if (content.includes('@node-versions:')) {
           logger.log(`Updating metadata in ${path.basename(patchFile)}`)

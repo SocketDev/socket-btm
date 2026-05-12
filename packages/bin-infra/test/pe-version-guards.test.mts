@@ -149,7 +149,8 @@ export function createMinimalPE(
 let tempFiles: string[] = []
 
 afterEach(async () => {
-  for (const file of tempFiles) {
+  for (let i = 0, { length } = tempFiles; i < length; i += 1) {
+    const file = tempFiles[i]
     try {
       await safeDelete(file)
     } catch {
@@ -159,7 +160,10 @@ afterEach(async () => {
   tempFiles = []
 })
 
-export async function writeTempPE(name: string, buffer: Buffer): Promise<string> {
+export async function writeTempPE(
+  name: string,
+  buffer: Buffer,
+): Promise<string> {
   await fs.mkdir(TEST_TMP_DIR, { recursive: true })
   const filePath = path.join(TEST_TMP_DIR, `${name}-${Date.now()}.exe`)
   await fs.writeFile(filePath, buffer)

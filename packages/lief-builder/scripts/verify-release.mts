@@ -40,7 +40,8 @@ function main() {
   logger.info(`Verifying LIEF release at: ${absoluteDir}`)
 
   const missing = []
-  for (const requirement of LIEF_REQUIRED_FILES) {
+  for (let i = 0, { length } = LIEF_REQUIRED_FILES; i < length; i += 1) {
+    const requirement = LIEF_REQUIRED_FILES[i]
     if (Array.isArray(requirement)) {
       const present = requirement.some(alt =>
         existsSync(path.join(absoluteDir, alt)),
@@ -59,7 +60,8 @@ function main() {
   }
 
   logger.error('Missing required files:')
-  for (const file of missing) {
+  for (let i = 0, { length } = missing; i < length; i += 1) {
+    const file = missing[i]
     logger.error(`  - ${file}`)
   }
   logger.error('LIEF release verification failed')

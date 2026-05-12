@@ -13,29 +13,29 @@
  * - Prerelease restriction: prereleases only match ranges with explicit prerelease on same tuple
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
-  parse,
-  tryParse,
+  coerce,
   compare,
-  lt,
-  lte,
+  ecosystems,
+  eq,
+  filter,
   gt,
   gte,
-  eq,
-  neq,
-  sort,
-  rsort,
-  max,
-  min,
-  satisfies,
-  maxSatisfying,
-  minSatisfying,
-  filter,
-  valid,
-  coerce,
   inc,
-  ecosystems,
+  lt,
+  lte,
+  max,
+  maxSatisfying,
+  min,
+  minSatisfying,
+  neq,
+  parse,
+  rsort,
+  satisfies,
+  sort,
+  tryParse,
+  valid,
 } from '../additions/source-patched/lib/internal/socketsecurity/versions.js'
 
 describe('node:smol-versions', () => {

@@ -35,7 +35,7 @@ export async function ensureDependencies({ buildMode, packageDir }) {
 // Custom smoke test for Windows: only verify file exists and size.
 // Skip --version test to avoid DLL dependency issues and cross-architecture execution problems.
 export async function windowsSmokeTest(binaryPath) {
-  // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size for size sanity check.
+  // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.size for size quick check.
   const stats = await fs.stat(binaryPath)
   if (stats.size < 1000) {
     throw new Error(`Binary too small: ${stats.size} bytes (expected >1KB)`)

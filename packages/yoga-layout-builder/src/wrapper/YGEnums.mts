@@ -210,4 +210,4 @@ const constants = {
   WRAP_WRAP_REVERSE: Wrap.WrapReverse,
 }
 
-export default constants
+export { constants }

@@ -61,7 +61,8 @@ export function generateCacheKey({
   // Hash content files.
   const hash = crypto.createHash('sha256')
 
-  for (const file of contentFiles) {
+  for (let i = 0, { length } = contentFiles; i < length; i += 1) {
+    const file = contentFiles[i]
     try {
       const content = readFileSync(file, 'utf8')
       // Hash based on content only - mtime changes with git operations (squash, rebase)
@@ -90,7 +91,8 @@ export function generateCacheKey({
     const depVersions = getDependencyVersions(packageJsonPath, depsToCheck)
     // Sort for consistent hashing.
     const sortedDeps = Object.keys(depVersions).toSorted()
-    for (const dep of sortedDeps) {
+    for (let i = 0, { length } = sortedDeps; i < length; i += 1) {
+      const dep = sortedDeps[i]
       hash.update(`${dep}@${depVersions[dep]}`)
     }
   }
@@ -150,7 +152,8 @@ export function getDependencyVersions(packageJsonPath, depNames) {
   }
 
   const versions = {}
-  for (const depName of depNames) {
+  for (let i = 0, { length } = depNames; i < length; i += 1) {
+    const depName = depNames[i]
     const version =
       packageJson.dependencies?.[depName] ||
       packageJson.devDependencies?.[depName]
@@ -216,7 +219,8 @@ export function parseCacheKey(cacheKey) {
   // Reconstruct version using component lengths
   const parts = []
   let offset = 0
-  for (const len of componentLengths) {
+  for (let i = 0, { length } = componentLengths; i < length; i += 1) {
+    const len = componentLengths[i]
     if (offset + len > versionDigits.length) {
       // Invalid cache key - component lengths don't match digits
       return undefined

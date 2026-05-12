@@ -105,14 +105,16 @@ describe.skipIf(!HAS_DIST)('ink-builder bundle', () => {
           .map(m => m.slice(m.indexOf('"') + 1, -1))
           .filter(s => !s.startsWith('node:')),
       )
-      for (const spec of bareSpecs) {
+      for (let i = 0, { length } = bareSpecs; i < length; i += 1) {
+        const spec = bareSpecs[i]
         expect(EXPECTED_EXTERNALS).toContain(spec)
       }
     })
 
     it('does not externalize ink runtime deps', async () => {
       const bundle = await fs.readFile(BUNDLE_PATH, 'utf8')
-      for (const pkg of MUST_BE_INLINED) {
+      for (let i = 0, { length } = MUST_BE_INLINED; i < length; i += 1) {
+        const pkg = MUST_BE_INLINED[i]
         // Bare `from "<pkg>"` would mean the bundle imports it at
         // runtime — i.e. it leaked out of the inlining instead of
         // being bundled in.
@@ -134,7 +136,8 @@ describe.skipIf(!HAS_DIST)('ink-builder bundle', () => {
         'stream',
         'tty',
       ]
-      for (const builtin of builtins) {
+      for (let i = 0, { length } = builtins; i < length; i += 1) {
+        const builtin = builtins[i]
         // Reject the bare form. The plugin we ship in
         // `.config/esbuild/node-protocol.mts` rewrites these to the
         // `node:` prefix; finding any bare form is a regression.

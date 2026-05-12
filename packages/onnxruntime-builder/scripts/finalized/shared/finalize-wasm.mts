@@ -98,7 +98,7 @@ export async function finalizeWasm(options) {
       if (magic !== '0061736d') {
         throw new Error('Invalid WASM file (bad magic number)')
       }
-      // oxlint-disable-next-line socket/prefer-exists-sync -- need wasmStats.size for the minimum-size sanity check.
+      // oxlint-disable-next-line socket/prefer-exists-sync -- need wasmStats.size for the minimum-size quick check.
       const wasmStats = await fs.stat(outputWasmFile)
       if (wasmStats.size < 1_000_000) {
         throw new Error(

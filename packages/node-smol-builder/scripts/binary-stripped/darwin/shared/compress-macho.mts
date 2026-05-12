@@ -149,7 +149,8 @@ async function main() {
 
   // Parse quality argument.
   let quality = 'zstd'
-  for (const arg of args) {
+  for (let i = 0, { length } = args; i < length; i += 1) {
+    const arg = args[i]
     if (arg.startsWith('--quality=')) {
       quality = arg.substring(10)
     }

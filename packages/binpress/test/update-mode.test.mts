@@ -13,7 +13,7 @@
  * 5. Error handling for invalid scenarios
  */
 
-import { createHash } from 'node:crypto'
+import crypto from 'node:crypto'
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -64,7 +64,7 @@ export function getStubPath(name) {
  */
 export async function hashFile(filePath) {
   const data = await fs.readFile(filePath)
-  return createHash('sha256').update(data).digest('hex')
+  return crypto.createHash('sha256').update(data).digest('hex')
 }
 
 beforeAll(async () => {

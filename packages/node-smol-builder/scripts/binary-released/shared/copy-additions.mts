@@ -55,7 +55,8 @@ export async function copyDirectoryRecursive(source, dest, version) {
   const entries = await fs.readdir(source, { withFileTypes: true })
   let fileCount = 0
 
-  for (const entry of entries) {
+  for (let i = 0, { length } = entries; i < length; i += 1) {
+    const entry = entries[i]
     // Skip docs directories and markdown files — documentation lives
     // in docs/ and doesn't ship in the compiled binary.
     if (
@@ -106,7 +107,7 @@ export async function processFileContent(sourcePath, version) {
   const ext = path.extname(sourcePath)
 
   // For JS files, replace placeholders.
-  if (ext === '.js' || ext === '.mjs' || ext === '.cjs') {
+  if (ext === '.cjs' || ext === '.js' || ext === '.mjs') {
     // oxlint-disable-next-line socket/prefer-exists-sync -- need stats.mode to preserve file permissions on copy.
     const stats = await fs.stat(sourcePath)
     let content = await fs.readFile(sourcePath, 'utf8')

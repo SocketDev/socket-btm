@@ -2,7 +2,7 @@
  * @fileoverview Helper utilities for working with compressed binaries and cache extraction.
  */
 
-import { createHash } from 'node:crypto'
+import crypto from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -27,7 +27,7 @@ import {
 export async function calculateCacheKey(compressedBinaryPath) {
   const binaryData = await fs.readFile(compressedBinaryPath)
   const compressedData = extractCompressedData(binaryData)
-  const hash = createHash('sha512').update(compressedData).digest('hex')
+  const hash = crypto.createHash('sha512').update(compressedData).digest('hex')
   return hash.slice(0, 16)
 }
 

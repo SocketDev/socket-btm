@@ -115,7 +115,11 @@ export async function getSignatureInfo(binaryPath) {
 /**
  * Helper to inject SEA resource and verify signature
  */
-export async function injectAndVerify(binaryPath, seaBlob, vfsBlob = undefined) {
+export async function injectAndVerify(
+  binaryPath,
+  seaBlob,
+  vfsBlob = undefined,
+) {
   const args = ['inject', '-e', binaryPath, '-o', binaryPath, '--sea', seaBlob]
   if (vfsBlob) {
     args.push('--vfs', vfsBlob)

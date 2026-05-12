@@ -76,7 +76,8 @@ export async function cleanBuilder(packageName, options = {}) {
   let cleanedCount = 0
 
   // Delete each specified directory
-  for (const dir of cleanDirs) {
+  for (let i = 0, { length } = cleanDirs; i < length; i += 1) {
+    const dir = cleanDirs[i]
     const dirPath = path.join(packageDir, dir)
     if (existsSync(dirPath)) {
       // eslint-disable-next-line no-await-in-loop
@@ -89,7 +90,8 @@ export async function cleanBuilder(packageName, options = {}) {
   // Clean checkpoints for specified modes
   if (checkpointModes.length > 0) {
     const buildDirPath = path.join(packageDir, buildDir)
-    for (const mode of checkpointModes) {
+    for (let i = 0, { length } = checkpointModes; i < length; i += 1) {
+      const mode = checkpointModes[i]
       const modeDirPath = path.join(buildDirPath, mode)
       // eslint-disable-next-line no-await-in-loop
       await cleanCheckpoint(modeDirPath, '')

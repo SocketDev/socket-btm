@@ -14,7 +14,7 @@
  * 5. Extract and verify the injected binary has correct NODE_SEA_FUSE marker
  */
 
-import { createHash } from 'node:crypto'
+import crypto from 'node:crypto'
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -57,7 +57,7 @@ const binflateExists = existsSync(BINFLATE)
  */
 export async function _hashFile(filePath) {
   const data = await fs.readFile(filePath)
-  return createHash('sha256').update(data).digest('hex')
+  return crypto.createHash('sha256').update(data).digest('hex')
 }
 
 /**

@@ -14,7 +14,7 @@
  */
 
 import path from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import url, { fileURLToPath } from 'node:url'
 
 import { CHECKPOINT_CHAINS } from '../lib/constants.mts'
 
@@ -23,7 +23,7 @@ const PACKAGES_DIR = path.resolve(__dirname, '../..')
 
 export async function loadChain(builder: string) {
   const mod = await import(
-    pathToFileURL(
+    url.pathToFileURL(
       path.join(PACKAGES_DIR, builder, 'scripts/get-checkpoint-chain.mts'),
     ).href
   )

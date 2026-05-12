@@ -32,7 +32,7 @@ import { compileWasm } from './wasm-compiled/shared/compile-wasm.mts'
 import { optimizeWasm } from './wasm-optimized/shared/optimize-wasm.mts'
 import { copyToRelease } from './wasm-released/shared/copy-to-release.mts'
 
-const IS_CI = process.env.CI === 'true' || process.env.CI === '1'
+const IS_CI = process.env.CI === '1' || process.env.CI === 'true'
 
 const pkgJson = JSON.parse(
   await fs.readFile(path.join(PACKAGE_ROOT, 'package.json'), 'utf8'),

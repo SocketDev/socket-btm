@@ -37,10 +37,10 @@ const versionKey = args[1] || 'version'
 // doesn't exist yet. Use console directly; the markers exempt the
 // logger-guard PreToolUse hook from flagging the writes.
 if (!toolName) {
+  const usage =
+    'Usage: get-tool-version.mts <tool-name> [version-key] [--package-root <path>]'
   // oxlint-disable-next-line socket/no-console-prefer-logger
-  console.error( // socket-hook: allow logger
-    'Usage: get-tool-version.mts <tool-name> [version-key] [--package-root <path>]',
-  )
+  console.error(usage) // socket-hook: allow logger
   process.exitCode = 1
 } else {
   try {

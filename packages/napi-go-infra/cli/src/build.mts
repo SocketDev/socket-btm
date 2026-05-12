@@ -313,7 +313,8 @@ export function macosSDKFallback() {
     '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk',
     '/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk',
   ]
-  for (const p of common) {
+  for (let i = 0, { length } = common; i < length; i += 1) {
+    const p = common[i]
     if (existsSync(p)) {
       return p
     }
@@ -395,7 +396,8 @@ export function validateOptions(opts) {
     'outDir',
     'platformArch',
   ]
-  for (const key of required) {
+  for (let i = 0, { length } = required; i < length; i += 1) {
+    const key = required[i]
     if (!opts[key]) {
       throw new Error(
         `napi-go.buildNapiGoAddon: missing required option '${key}'. ` +

@@ -1,3 +1,4 @@
+/* oxlint-disable socket/no-default-export -- vitest CLI auto-discovers config via default import. */
 /**
  * Extends shared vitest config.
  * Uses forks pool with singleFork for codesigning compatibility.

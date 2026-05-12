@@ -69,7 +69,8 @@ export async function convertToOnnx(options) {
       async () => {
         // Smoke test: Verify ONNX files are valid
         const modelPath = path.join(modelsDir, modelKey)
-        for (const fileName of expectedFiles) {
+        for (let i = 0, { length } = expectedFiles; i < length; i += 1) {
+          const fileName = expectedFiles[i]
           const filePath = path.join(modelPath, fileName)
           const stats = await fs.stat(filePath)
           if (stats.size === 0) {

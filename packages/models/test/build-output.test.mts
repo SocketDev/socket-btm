@@ -184,7 +184,8 @@ describe.skipIf(!hasBuiltArtifacts)('models build output', () => {
 
       const models = ['minilm-l6', 'codet5']
 
-      for (const model of models) {
+      for (let i = 0, { length } = models; i < length; i += 1) {
+        const model = models[i]
         const int8Path = path.join(buildDevDir, `${model}/model.onnx`)
         const int4Path = path.join(buildProdDir, `${model}/model.onnx`)
 

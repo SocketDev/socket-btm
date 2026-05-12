@@ -18,7 +18,7 @@
  * Run with: pnpm build --dev or pnpm build --prod
  */
 
-import { createHash } from 'node:crypto'
+import crypto from 'node:crypto'
 import { existsSync, promises as fs, readFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'

@@ -79,7 +79,8 @@ export async function configureCMake(options) {
   }
 
   let toolchainFile
-  for (const candidate of searchPaths) {
+  for (let i = 0, { length } = searchPaths; i < length; i += 1) {
+    const candidate = searchPaths[i]
     if (existsSync(candidate)) {
       toolchainFile = candidate
       break
@@ -89,7 +90,8 @@ export async function configureCMake(options) {
   if (!toolchainFile) {
     printError('Emscripten toolchain file not found')
     printError('Searched paths:')
-    for (const p of searchPaths) {
+    for (let i = 0, { length } = searchPaths; i < length; i += 1) {
+      const p = searchPaths[i]
       printError(`  ${p}`)
     }
     throw new Error('Emscripten toolchain file required')

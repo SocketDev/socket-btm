@@ -1,22 +1,21 @@
+// oxlint-disable socket/inclusive-language -- upstream PURL spec URL uses a legacy branch name we don't control.
 /**
  * PURL Tests for node:smol-purl
  *
  * Test cases derived from the official PURL spec test suite:
  * https://github.com/package-url/purl-spec/tree/master/test-suite-data
  *
- * Gold standard: socket-packageurl-js
- * @see /Users/jdalton/projects/socket-packageurl-js/test/purl-spec.test.mts
- * @see /Users/jdalton/projects/socket-packageurl-js/test/data/contrib-tests.json
+ * Gold standard: socket-packageurl-js (sibling fleet repo).
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
-  parse,
-  tryParse,
   build,
+  equals,
   isValid,
   normalize,
-  equals,
+  parse,
+  tryParse,
   types,
 } from '../additions/source-patched/lib/internal/socketsecurity/purl.js'
 

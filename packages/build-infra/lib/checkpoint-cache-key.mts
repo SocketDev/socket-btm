@@ -81,9 +81,7 @@ export function composeCheckpointMetadata(segments: {
  * source of truth — both `createCheckpoint` and `shouldRun` call this.
  */
 export function computeBuildCacheEnvMetadata(): string | undefined {
-  const values = BUILD_CACHE_ENV_VARS.map(
-    name => process.env[name] ?? 'unset',
-  )
+  const values = BUILD_CACHE_ENV_VARS.map(name => process.env[name] ?? 'unset')
   if (!values.some(v => v !== 'unset')) {
     return undefined
   }

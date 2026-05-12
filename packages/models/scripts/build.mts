@@ -286,7 +286,8 @@ async function main() {
         // Smoke test: Verify at least one ONNX file exists
         const modelDirs = await fs.readdir(MODELS)
         let hasOnnx = false
-        for (const modelDir of modelDirs) {
+        for (let i = 0, { length } = modelDirs; i < length; i += 1) {
+          const modelDir = modelDirs[i]
           const modelPath = path.join(MODELS, modelDir, 'model.onnx')
           if (existsSync(modelPath)) {
             hasOnnx = true
@@ -314,7 +315,8 @@ async function main() {
         // Smoke test: Verify at least one quantized model exists
         const modelDirs = await fs.readdir(MODELS)
         let hasQuantized = false
-        for (const modelDir of modelDirs) {
+        for (let i = 0, { length } = modelDirs; i < length; i += 1) {
+          const modelDir = modelDirs[i]
           const int4Path = path.join(MODELS, modelDir, 'model.int4.onnx')
           const int8Path = path.join(MODELS, modelDir, 'model.int8.onnx')
           if (existsSync(int4Path) || existsSync(int8Path)) {

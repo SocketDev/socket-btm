@@ -290,7 +290,8 @@ export function getCumulativeHierarchicalPaths(
 ) {
   const allPaths = []
 
-  for (const phase of phases) {
+  for (let i = 0, { length } = phases; i < length; i += 1) {
+    const phase = phases[i]
     const phasePaths = getHierarchicalPaths(category, phase, platform, arch)
     allPaths.push(...phasePaths)
   }

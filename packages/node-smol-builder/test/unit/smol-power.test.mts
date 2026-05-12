@@ -29,7 +29,7 @@ describe('node:smol-power (system Node)', () => {
   })
 
   it('isBuiltin() reports true for a real Node builtin', () => {
-    // Sanity check: confirm the negative result above isn't because
+    // Quick check: confirm the negative result above isn't because
     // isBuiltin() is broken or the module name has a typo elsewhere.
     expect(isBuiltin('node:fs')).toBe(true)
     expect(isBuiltin('fs')).toBe(true)

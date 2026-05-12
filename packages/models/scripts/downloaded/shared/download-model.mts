@@ -59,7 +59,8 @@ export async function downloadModel(options) {
   const sources = [config.primary, ...config.fallbacks]
   const { revision } = config
 
-  for (const source of sources) {
+  for (let i = 0, { length } = sources; i < length; i += 1) {
+    const source = sources[i]
     try {
       logger.substep(`Trying: ${source}@${revision}`)
 

@@ -13,7 +13,7 @@
  * handling for ELF binaries.
  */
 
-import { randomUUID } from 'node:crypto'
+import crypto from 'node:crypto'
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -174,7 +174,8 @@ export function hasMarkerInSmolSegment(machoData, marker) {
   const segments = findSmolSegments(machoData)
   const markerBuffer = Buffer.from(marker, 'utf8')
 
-  for (const segment of segments) {
+  for (let i = 0, { length } = segments; i < length; i += 1) {
+    const segment = segments[i]
     if (segment.content.includes(markerBuffer)) {
       return true
     }
@@ -222,7 +223,7 @@ describe.skipIf(process.platform !== 'darwin' || !existsSync(BINPRESS))(
 
     beforeAll(async () => {
       // Create unique test directory with timestamp and random suffix to isolate from parallel runs
-      const uniqueId = randomUUID()
+      const uniqueId = crypto.randomUUID()
       testDir = path.join(os.tmpdir(), `binpress-macho-segment-${uniqueId}`)
       await safeMkdir(testDir)
 

@@ -103,7 +103,8 @@ describe.skipIf(skipTests)('cache Metadata Validation', () => {
     const cacheKeyDirs = await fs.readdir(dlxDir)
 
     // Check all metadata files
-    for (const cacheKeyDir of cacheKeyDirs) {
+    for (let i = 0, { length } = cacheKeyDirs; i < length; i += 1) {
+      const cacheKeyDir = cacheKeyDirs[i]
       const metadataPath = path.join(dlxDir, cacheKeyDir, '.dlx-metadata.json')
       if (existsSync(metadataPath)) {
         // eslint-disable-next-line no-await-in-loop
@@ -143,7 +144,8 @@ describe.skipIf(skipTests)('cache Metadata Validation', () => {
       // eslint-disable-next-line no-await-in-loop
       const cacheKeyDirs = await fs.readdir(dlxDir)
 
-      for (const cacheKeyDir of cacheKeyDirs) {
+      for (let i = 0, { length } = cacheKeyDirs; i < length; i += 1) {
+        const cacheKeyDir = cacheKeyDirs[i]
         const metadataPath = path.join(
           dlxDir,
           cacheKeyDir,

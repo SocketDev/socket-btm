@@ -1,3 +1,4 @@
+/* oxlint-disable socket/no-default-export -- vitest CLI auto-discovers config via default import. */
 /**
  * Extends shared vitest config — ultraviolet-builder tests exercise
  * Go N-API bindings which load quickly, so override to the 30s

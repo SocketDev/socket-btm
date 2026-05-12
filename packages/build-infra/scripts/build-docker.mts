@@ -62,7 +62,8 @@ export function parseArgs(args) {
     target: undefined,
   }
 
-  for (const arg of args) {
+  for (let i = 0, { length } = args; i < length; i += 1) {
+    const arg = args[i]
     if (arg === '--force') {
       options.force = true
     } else if (arg === '--help' || arg === '-h') {

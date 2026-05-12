@@ -58,7 +58,8 @@ export async function applySocketPatches(options) {
   ]
 
   const sourcePackageFiles = []
-  for (const srcDir of sourcePackageDirs) {
+  for (let i = 0, { length } = sourcePackageDirs; i < length; i += 1) {
+    const srcDir = sourcePackageDirs[i]
     if (existsSync(srcDir)) {
       const srcFiles = await glob('**/*.{c,cc,cpp,h,hh,hpp}', {
         absolute: true,
@@ -120,7 +121,8 @@ export async function applySocketPatches(options) {
   logger.substep(`Found ${socketPatches.length} patch(es) for ${nodeVersion}`)
   logger.log('')
 
-  for (const patch of socketPatches) {
+  for (let i = 0, { length } = socketPatches; i < length; i += 1) {
+    const patch = socketPatches[i]
     logger.group()
     logger.info(`Applying ${patch.name}`)
 

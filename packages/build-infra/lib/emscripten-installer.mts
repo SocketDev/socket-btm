@@ -86,7 +86,8 @@ export async function activateEmscripten({
     const envVars = {}
     if (constructResult.stdout) {
       const lines = constructResult.stdout.toString().split('\n')
-      for (const line of lines) {
+      for (let i = 0, { length } = lines; i < length; i += 1) {
+        const line = lines[i]
         const match = line.match(/^(\w+)=(.*)$/)
         if (match) {
           const [, key, value] = match

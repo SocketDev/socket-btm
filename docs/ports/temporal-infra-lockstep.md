@@ -1,140 +1,140 @@
 # temporal-infra lockstep tracker
 
-Single source of truth for every method in the
-`packages/temporal-infra/` C++ port relative to upstream
-`temporal_rs`. The port is now functionally 1:1 with upstream for
-every JS-visible Temporal entry point. Provider-dependent paths
-(IANA TZDB lookups) work end-to-end for offset-only zones and
-delegate to the registered `TimeZoneBackend` virtual for IANA
-zones; V8's IANA layer can install a real backend at boot. Non-ISO
-calendar paths route through the registered `CalendarBackend`
-virtual; the package ships an ICU-backed override
-(`IcuCalendarBackend`) that V8 installs by default.
+## The contract
 
-Audit by re-running:
+**Observable 1:1 with the JS Temporal spec.** Every JS-visible
+`Temporal.*` entry point produces the spec-defined result. We
+validate this end-to-end via Test262 (TC39's conformance suite) plus
+the in-tree smoke test.
 
-```bash
-rg -n "not yet implemented|requires calendar|requires a calendar" \
-   packages/temporal-infra/include packages/temporal-infra/src \
-   | grep -v upstream
-```
+**Not a goal:** mirroring upstream `temporal_rs`'s full public Rust
+API. Upstream exposes ~250 `pub fn` entry points (many are internal
+trait methods, factory overloads, and `_with_provider` variants used
+by downstream Rust crates that aren't V8). The C++ port wraps only
+what V8's `js-temporal-objects.cc` actually calls — that's the
+observable surface. Adding wrappers V8 doesn't invoke is dead code.
 
-Should return only doc-comments — no live error returns. New
-intentional stubs must add a row to this tracker.
+## How to keep this lockstep
+
+1. **Spec defines the contract.** When the spec changes, the smoke
+   test should fail (or pass with new assertions). Update the port,
+   not the contract.
+2. **Upstream `temporal_rs` is the implementation reference.** When
+   porting a method, cite the upstream Rust file:line in a comment
+   so cascades have a fixed point.
+3. **V8's `js-temporal-objects.cc` is the call-site reference.** A
+   method only needs a shim wrapper if V8 calls it. The audit script
+   below enforces this.
+4. **Run `pnpm run check:temporal-lockstep` after any change** to
+   the port. It cross-references three things:
+   - V8's js-temporal call sites → required shim methods
+   - Shim header methods → all have real bodies (no `NotImplemented`)
+   - Upstream `pub fn` set → noted (informational, not a gate)
 
 ## Snapshot
 
-| Status                                            | Count |
-| ------------------------------------------------- | ----- |
-| JS-visible methods with real bodies               | All   |
-| `NotImplemented` returns at runtime               | 0     |
-| Provider-virtual fallbacks (offset-only by default)| 0    |
-| Calendar-virtual fallbacks (ICU-backed installed)  | 0    |
-| Intentional spec deviations (Known drifts)         | 3    |
+| Metric                                                | Status |
+| ----------------------------------------------------- | ------ |
+| V8-required shim methods present                      | All    |
+| Shim methods with `NotImplemented` body               | 0      |
+| Test262 entry-point coverage                          | TBD¹   |
+| Smoke test assertions                                 | 85     |
+| Intentional spec deviations (Known drifts)            | 3      |
+
+¹ Test262 runs in the node-smol CI workflow; results land in
+`packages/temporal-infra/test/test262-results.json` per build.
 
 ## Backends
 
-### `TimeZoneBackend`
-- Default implementation lives in `time_zone.cc` and handles
-  offset-only zones (`+05:00`, `Z`, …) inline via the offset arithmetic
-  helpers.
-- IANA zones go through the `GetIsoDateTimeFor` /
-  `GetEpochNanosecondsFor` virtuals. The package ships
-  `IcuTimeZoneBackend` (icu_tz_backend.cc) which routes to
-  `icu::BasicTimeZone::getOffsetFromLocal` with `kFormer` / `kLatter`
-  selectors for ambiguous wall-clock resolution. V8 installs this
-  backend at boot when `V8_INTL_SUPPORT` is on.
+Two virtual dispatch layers let the port stay free of Isolate
+state while still resolving IANA TZ + non-ISO calendars at the
+binding boundary.
 
-### `CalendarBackend`
-- Default implementation in `calendar.cc` handles ISO 8601 inline
-  (the proleptic Gregorian calendar in the spec's terms).
-- Non-ISO calendars route through 10 virtuals: `DateAdd`,
-  `DateUntil`, `DaysInMonth`, `DaysInYear`, `MonthsInYear`,
-  `DaysInWeek`, `MonthCode`, `Era`, `EraYear`, `InLeapYear`. The
-  package ships `IcuCalendarBackend` (icu_cal_backend.cc) which
-  routes through `icu::Calendar::createInstance("@calendar=...")`
-  for every kind in `CalendarKind` (Buddhist, Chinese, Coptic,
-  Dangi, Ethiopian, Ethiopian-Amete-Alem, Gregorian, Hebrew, Indian,
-  Hijri Tabular Friday / Thursday, Hijri Umm-al-Qura, Japanese,
-  Persian, ROC).
+### `TimeZoneBackend` (`src/socketsecurity/temporal/time_zone.h`)
+
+Offset-only zones (`+05:00`, `Z`, ...) resolve inline in
+`time_zone.cc`. IANA zones route through four virtuals:
+
+- `CanonicalizeIdentifier(iana_id)` → canonical form
+- `GetIsoDateTimeFor(iana_id, instant)` → local wall clock
+- `GetEpochNanosecondsFor(iana_id, datetime, disambiguation)` →
+  instant for a wall clock (handles DST gap/overlap)
+- `GetTransition(iana_id, from_epoch_ns, direction)` → next/prev
+  DST transition (drives `ZonedDateTime.getTimeZoneTransition`)
+
+V8 installs `IcuTimeZoneBackend` (`icu_tz_backend.{h,cc}`) at boot
+when `V8_INTL_SUPPORT` is on. It routes to `icu::BasicTimeZone`
+APIs (`getOffsetFromLocal`, `getNextTransition`,
+`getPreviousTransition`).
+
+### `CalendarBackend` (`src/socketsecurity/temporal/calendar.h`)
+
+ISO 8601 (proleptic Gregorian) is the default inline. Non-ISO
+calendars route through 11 virtuals: `DateAdd`, `DateUntil`,
+`DaysInMonth`, `DaysInYear`, `MonthsInYear`, `DaysInWeek`,
+`MonthCode`, `Era`, `EraYear`, `InLeapYear`, `ResolveMonthCode`.
+
+V8 installs `IcuCalendarBackend` (`icu_cal_backend.{h,cc}`). It
+opens an `icu::Calendar` via the locale keyword
+(`"@calendar=hebrew"`, etc.) for every kind in `CalendarKind`
+(15 calendars: Buddhist, Chinese, Coptic, Dangi, Ethiopian,
+Ethiopian-Amete-Alem, Gregorian, Hebrew, Indian, Hijri Tabular
+Friday / Thursday, Hijri Umm-al-Qura, Japanese, Persian, ROC).
 
 ## Inner-POD CalendarKind threading
 
-`PlainDate`, `PlainDateTime`, `PlainMonthDay`, and `PlainYearMonth`
-inner PODs now carry a `CalendarKind` field (uint8_t enum, defined
-in `temporal.h` so the PODs can hold it without a header cycle).
-The compat shim factories thread `AnyCalendarKind` into the produced
-POD, every calendar-aware accessor reads from `inner_.calendar`, and
-`PlainDateFromUtf8` / `PlainDateTimeFromUtf8` propagate the
-`[u-ca=...]` IXDTF annotation. `ZonedDateTime` continues to hold a
-full `Calendar` wrapper.
+`PlainDate`, `PlainDateTime`, `PlainMonthDay`, `PlainYearMonth`
+inner PODs carry a `CalendarKind` field (uint8_t enum defined in
+`temporal.h` to avoid a header cycle with `calendar.h`). The
+compat shim factories thread `AnyCalendarKind` into the produced
+POD; every calendar-aware accessor reads from `inner_.calendar`;
+`PlainDateFromUtf8` / `PlainDateTimeFromUtf8` extract the
+`[u-ca=...]` IXDTF annotation. `ZonedDateTime` keeps a full
+`Calendar` wrapper (it always has, for ABI parity with V8's slot
+layout).
 
-## Known drifts (intentional, not stubs)
+## Known drifts
 
-These are documented spec/upstream divergences. None should ever
-return `NotImplemented` at runtime.
+Intentional spec/upstream divergences. None returns
+`NotImplemented` at runtime.
 
-- **`FormattableMonthDay::WriteTo`** emits the `--` prefix that
-  upstream `temporal_rs` omits but the JS Temporal spec requires
-  (commit `240affe4`).
-- **`TemporalError` storage** owns `std::string` with rebinding
-  copy/move constructors instead of the upstream `&'static str`
-  / `String` enum — ABI constraint at the V8 boundary.
-- **`Instant::until/since`** with `largestUnit ∈ {microsecond,
-  nanosecond}` over deltas exceeding `int64` capacity returns
-  `Err("delta exceeds int64 ... at the requested largestUnit")`
-  instead of silently narrowing to f64 (which would lose
-  precision past `Number.MAX_SAFE_INTEGER`). Upstream returns
-  the narrowed f64 — the spec accepts both behaviors. Our impl
-  refuses rather than misreport. Surfaces at: deltas >
-  `2^63 / 1000` µs ≈ 292 years for `microsecond` largestUnit; >
-  `2^63` ns ≈ 292 years for `nanosecond` largestUnit. Within the
-  ±10^8-day Instant range it's possible to hit this — V8 callers
-  who genuinely need wide deltas should use `millisecond` or
-  larger. See `Instant.hpp:475-493`.
-- **`duration_normalized.cc:322` DoubleDouble approximation.**
-  Time-only duration ↔ f64 conversion uses a conservative
-  range-bound check rather than the full DoubleDouble decomposition
-  upstream uses. Affects time-only durations beyond ±285 years
-  (`Number.MAX_SAFE_INTEGER` nanoseconds); within spec-valid
-  Duration ranges (which the validate-on-construction guard
-  enforces), the behavior is bit-identical to upstream.
+1. **`FormattableMonthDay::WriteTo`** emits the `--` prefix
+   required by the JS Temporal spec (upstream `temporal_rs` omits
+   it; commit `240affe4`).
+2. **`TemporalError` storage** owns `std::string` with rebinding
+   copy/move constructors instead of the upstream `&'static str` /
+   `String` enum (ABI constraint at the V8 boundary).
+3. **`Instant::until/since`** with `largestUnit ∈ {microsecond,
+   nanosecond}` over deltas exceeding `int64` capacity returns
+   `Err("delta exceeds int64 ... at the requested largestUnit")`
+   rather than silently narrowing to f64. Spec accepts either
+   behavior. Threshold: ≈292 years for `microsecond` largestUnit;
+   ≈292 years for `nanosecond` largestUnit. V8 callers needing
+   wider deltas use `millisecond` or larger. See
+   `Instant.hpp:475-493`.
+4. **`duration_normalized.cc:322` DoubleDouble approximation.**
+   Time-only duration ↔ f64 uses a conservative bound check rather
+   than upstream's full DoubleDouble decomposition. Only matters
+   for time-only durations beyond ±285 years
+   (`Number.MAX_SAFE_INTEGER` nanoseconds). Spec-valid Duration
+   ranges (enforced by `IsValidDuration` on construction) are
+   bit-identical to upstream.
 
-## Rounding tail
+## Audit script
 
-All rounding-tail consumers route through `IncrementRounder<T>` /
-the open-coded Int128 rounder in the affected methods:
+Run `pnpm exec tsx packages/temporal-infra/scripts/check-lockstep.mts`
+(or via the root `pnpm check` alias). Three checks:
 
-- `Instant.round` — full custom unit/increment/mode coverage.
-- `Instant.until/since` — full coverage including largestUnit guards.
-- `PlainDateTime.round` — full coverage via `RoundIsoDateTime`.
-- `PlainYearMonth.until/since` — months-delta rounded via
-  `IncrementRounder<int64_t>`, year/month carry preserved per
-  largestUnit.
+1. **Live stub scan.** Greps source for "not yet implemented" /
+   "requires calendar" / "Stub:" patterns. Any hit fails the check.
+2. **V8 call-site cross-check.** Walks
+   `packages/node-smol-builder/upstream/node/deps/v8/src/objects/js-temporal-objects.cc`
+   for `temporal_rs::*::method` references; confirms every one has
+   a non-stub body in the corresponding shim header.
+3. **Smoke-test gate.** Compiles + runs the smoke test against the
+   built node-smol binary; passes only if all assertions pass.
 
-No method falls through to "return unrounded" today.
-
-## monthCode resolution
-
-`Calendar::resolve_month_code(year, code)` is implemented in
-`calendar.cc:CalendarResolveMonthCode` with the ICU backend
-providing the year-dependent leap variant for Hebrew / Chinese /
-Dangi calendars (the only TC39-Temporal calendars with leap
-months). All other calendars use a direct M01..M12/13 → 1..12/13
-mapping. `PlainMonthDay.from`, `PlainMonthDay.with`,
-`PlainYearMonth.from`, and `PlainYearMonth.with` accept
-monthCode-only partial inputs.
-
-## Audit checklist
-
-When adding a new stub or finding a real `NotImplemented`:
-
-1. Confirm the gap is real (run the audit `rg` from the header).
-2. Add a row below describing the JS-visible name, C++ surface,
-   upstream Rust pointer, and the prereq.
-3. Match every row with a smoke-test case in
-   `packages/build-infra/test/fixtures/smoke-test-temporal.mjs`
-   that exercises a non-trivial input.
+A passing audit run is the lockstep gate.
 
 ## See also
 
@@ -143,3 +143,4 @@ When adding a new stub or finding a real `NotImplemented`:
 - ICU TimeZone backend: `packages/temporal-infra/src/socketsecurity/temporal/icu_tz_backend.{h,cc}`
 - ICU Calendar backend: `packages/temporal-infra/src/socketsecurity/temporal/icu_cal_backend.{h,cc}`
 - Smoke test: `packages/build-infra/test/fixtures/smoke-test-temporal.mjs`
+- Test262 runner: `packages/temporal-infra/test/test262/`

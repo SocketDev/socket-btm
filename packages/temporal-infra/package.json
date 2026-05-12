@@ -9,6 +9,7 @@
     "./lib/paths": "./lib/paths.mts"
   },
   "scripts": {
+    "check:lockstep": "node scripts/check-lockstep.mts",
     "clean": "node scripts/clean.mts"
   },
   "dependencies": {

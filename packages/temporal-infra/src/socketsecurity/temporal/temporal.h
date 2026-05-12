@@ -87,26 +87,47 @@ struct IsoDateTime {
 // ── Calendar-aware wrappers ───────────────────────────────────────────
 //
 // These mirror upstream's `PlainDate { iso, calendar }` etc. The C++
-// PODs intentionally hold only the `iso` slot; the `Calendar` value
-// (when non-ISO) is carried alongside by the V8 binding (which puts
-// it in a separate Object slot in JSTemporalPlainDate / etc.). This
-// keeps the temporal-infra structs trivially copyable and ABI-stable.
+// PODs store a `CalendarKind` (uint8_t enum) directly — full `Calendar`
+// objects (with methods like `Identifier()`) live in calendar.h and
+// wrap this enum. Storing the enum keeps PODs trivially copyable and
+// ABI-stable while still threading calendar identity through the API.
 
-class Calendar;  // Defined in calendar.h.
+// Mirror of upstream's `AnyCalendarKind` enum (subset that Temporal
+// supports, per the spec's allowed calendar identifiers). Values are
+// stable IDs the C++ port uses to dispatch into ICU. Defined here
+// (not in calendar.h) so the PlainDate / PlainDateTime / etc. PODs
+// below can hold a CalendarKind member without a header cycle.
+enum class CalendarKind : uint8_t {
+  kIso = 0,  // default
+  kBuddhist,
+  kChinese,
+  kCoptic,
+  kDangi,
+  kEthiopian,
+  kEthiopianAmeteAlem,
+  kGregorian,
+  kHebrew,
+  kIndian,
+  kHijriTabularFriday,
+  kHijriTabularThursday,
+  kHijriUmmAlQura,
+  kJapanese,
+  kPersian,
+  kRoc,
+};
 
 // Temporal.PlainDate — a calendar date with no time-of-day or timezone.
-// The calendar slot is intentionally omitted from this POD struct;
-// callers wanting calendar-aware semantics carry a `Calendar` value
-// alongside the IsoDate (matches V8's `JSTemporalPlainDate` layout
-// where calendar is a separate Object slot). Canonical home: this
-// header; plain_date.h adds methods/helpers but does NOT redefine.
+// Canonical home: this header; plain_date.h adds methods/helpers but
+// does NOT redefine.
 struct PlainDate {
   IsoDate iso;
+  CalendarKind calendar = CalendarKind::kIso;
 
   bool IsValid() const noexcept { return iso.IsValid(); }
 };
 
 // Temporal.PlainTime — wall-clock time of day, no date or timezone.
+// No calendar slot — time-of-day is calendar-agnostic.
 // Canonical home: this header; plain_time.h adds methods/helpers.
 struct PlainTime {
   IsoTime iso;
@@ -118,6 +139,7 @@ struct PlainTime {
 // Canonical home: this header; plain_date_time.h adds methods/helpers.
 struct PlainDateTime {
   IsoDateTime iso;
+  CalendarKind calendar = CalendarKind::kIso;
 
   bool IsValid() const noexcept { return iso.IsValid(); }
 };

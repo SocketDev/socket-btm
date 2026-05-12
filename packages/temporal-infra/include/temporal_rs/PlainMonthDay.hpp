@@ -92,19 +92,16 @@ class PlainMonthDay {
                         AnyCalendarKind calendar,
                         ArithmeticOverflow overflow,
                         std::optional<int32_t> ref_year) {
-    if (calendar.ToInfra() !=
-        ::node::socketsecurity::temporal::CalendarKind::kIso) {
-      return diplomat::Err<TemporalError>(TemporalError{
-          ErrorKind::Range,
-          "PlainMonthDay.try_new_with_overflow non-ISO calendars "
-          "not yet implemented"});
-    }
+    // ISO arithmetic with the calendar kind threaded onto the POD;
+    // calendar-aware accessors route through CalendarBackend at read.
     auto first_try =
         ::node::socketsecurity::temporal::PlainMonthDayTryNewIso(
             month, day, ref_year);
     if (first_try.ok()) {
+      auto pmd = first_try.value();
+      pmd.calendar = calendar.ToInfra();
       return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
-          std::unique_ptr<PlainMonthDay>(new PlainMonthDay(first_try.value())));
+          std::unique_ptr<PlainMonthDay>(new PlainMonthDay(pmd)));
     }
     if (overflow.ToInfra() !=
         ::node::socketsecurity::temporal::Overflow::kConstrain) {
@@ -125,8 +122,10 @@ class PlainMonthDay {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(retry.error()));
     }
+    auto pmd = retry.value();
+    pmd.calendar = calendar.ToInfra();
     return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
-        std::unique_ptr<PlainMonthDay>(new PlainMonthDay(retry.value())));
+        std::unique_ptr<PlainMonthDay>(new PlainMonthDay(pmd)));
   }
 
   diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
@@ -218,11 +217,16 @@ class PlainMonthDay {
   }
   bool is_valid() const { return inner_.IsValid(); }
 
-  // Calendar-aware accessors. ISO defaults until calendar.cc lands.
+  // Calendar-aware accessors. Inner POD carries CalendarKind; non-ISO
+  // answers route through the active CalendarBackend.
   Calendar calendar() const {
-    return Calendar(::node::socketsecurity::temporal::Calendar::Iso());
+    return Calendar(
+        ::node::socketsecurity::temporal::Calendar(inner_.calendar));
   }
-  std::string month_code() const { const uint8_t m = month(); return std::string("M") + (m < 10 ? "0" : "") + std::to_string(m); }
+  std::string month_code() const {
+    ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+    return ::node::socketsecurity::temporal::CalendarMonthCode(cal, inner_.iso);
+  }
 
   // Conversion: PlainMonthDay + year -> PlainDate. Templated so the
   // PlainDate.hpp / PlainMonthDay.hpp include cycle stays one-way.
@@ -235,7 +239,9 @@ class PlainMonthDay {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(r.error()));
     }
-    return diplomat::Ok<std::unique_ptr<PD>>(PD::FromInfra(r.value()));
+    auto pd = r.value();
+    pd.calendar = inner_.calendar;
+    return diplomat::Ok<std::unique_ptr<PD>>(PD::FromInfra(pd));
   }
 
   // Stub: requires calendar-aware projection from MD + year.

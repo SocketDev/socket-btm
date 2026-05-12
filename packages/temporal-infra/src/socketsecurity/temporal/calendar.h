@@ -30,27 +30,9 @@ namespace node {
 namespace socketsecurity {
 namespace temporal {
 
-// Mirror of upstream's `AnyCalendarKind` enum (subset that Temporal
-// supports, per the spec's allowed calendar identifiers). Values are
-// stable IDs the C++ port uses to dispatch into ICU.
-enum class CalendarKind : uint8_t {
-  kIso = 0,  // default
-  kBuddhist,
-  kChinese,
-  kCoptic,
-  kDangi,
-  kEthiopian,
-  kEthiopianAmeteAlem,
-  kGregorian,
-  kHebrew,
-  kIndian,
-  kHijriTabularFriday,
-  kHijriTabularThursday,
-  kHijriUmmAlQura,
-  kJapanese,
-  kPersian,
-  kRoc,
-};
+// `CalendarKind` enum is canonically defined in temporal.h so the
+// inner PODs (PlainDate { iso, calendar }, etc.) can hold a kind
+// without a header cycle. This header just consumes it.
 
 // Mirror of upstream's `MonthCode`. A 4-byte ASCII string of the form
 // "M01"…"M12", or "M13L" for a leap month (Hebrew calendar, etc.).

@@ -5,6 +5,7 @@
 #include <cmath>
 #include <string_view>
 
+#include "socketsecurity/temporal/calendar.h"
 #include "socketsecurity/temporal/iso.h"
 #include "socketsecurity/temporal/parse.h"
 
@@ -74,6 +75,16 @@ TemporalResult<PlainDate> PlainDateFromUtf8(const uint8_t* data,
   ParseDateTimeRecord rec;
   if (ParseDateTime(view, &rec) == ParseStatus::kOk) {
     out.iso = rec.datetime.iso.date;
+    // Propagate [u-ca=...] annotation into the inner POD so callers
+    // see the right calendar identifier (Calendar::TryKindFromUtf8
+    // returns kIso for unknown / empty inputs).
+    if (rec.calendar_len > 0) {
+      auto kind = Calendar::TryKindFromUtf8(
+          reinterpret_cast<const uint8_t*>(rec.calendar), rec.calendar_len);
+      if (kind.ok()) {
+        out.calendar = kind.value();
+      }
+    }
     return out;
   }
   return TemporalError::Range("Invalid PlainDate string");

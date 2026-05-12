@@ -23,11 +23,10 @@ namespace node {
 namespace socketsecurity {
 namespace temporal {
 
-// Mirror of upstream's `PlainYearMonth { iso, calendar }`. Calendar
-// slot is carried alongside by the V8 binding (separate Object slot
-// in JSTemporalPlainYearMonth); the C++ POD here is iso-only.
+// Mirror of upstream's `PlainYearMonth { iso, calendar }`.
 struct PlainYearMonth {
   IsoDate iso;
+  CalendarKind calendar = CalendarKind::kIso;
 
   bool IsValid() const noexcept { return iso.IsValid(); }
 };

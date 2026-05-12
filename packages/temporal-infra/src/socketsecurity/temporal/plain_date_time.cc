@@ -5,6 +5,7 @@
 #include <cmath>
 #include <string_view>
 
+#include "socketsecurity/temporal/calendar.h"
 #include "socketsecurity/temporal/duration_normalized.h"
 #include "socketsecurity/temporal/iso.h"
 #include "socketsecurity/temporal/parse.h"
@@ -83,6 +84,14 @@ TemporalResult<PlainDateTime> PlainDateTimeFromUtf8(
   // is ZonedDateTime).
   PlainDateTime out{};
   out.iso = rec.datetime.iso;
+  // Propagate [u-ca=...] annotation into the inner POD.
+  if (rec.calendar_len > 0) {
+    auto kind = Calendar::TryKindFromUtf8(
+        reinterpret_cast<const uint8_t*>(rec.calendar), rec.calendar_len);
+    if (kind.ok()) {
+      out.calendar = kind.value();
+    }
+  }
   if (!out.IsValid()) {
     return TemporalError::Range("PlainDateTime out of range");
   }

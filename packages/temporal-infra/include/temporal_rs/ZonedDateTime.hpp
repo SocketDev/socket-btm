@@ -167,7 +167,8 @@ class ZonedDateTime {
     instant.epoch_nanoseconds = ns.value();
     auto zr = ::node::socketsecurity::temporal::ZonedDateTimeTryNew(
         instant, partial.timezone->ToInfra(),
-        ::node::socketsecurity::temporal::Calendar::Iso());
+        ::node::socketsecurity::temporal::Calendar(
+            partial.date.calendar.ToInfra()));
     if (!zr.ok()) {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(zr.error()));
@@ -187,13 +188,6 @@ class ZonedDateTime {
                         AnyCalendarKind calendar,
                         TimeZone time_zone,
                         const Provider& /*p*/) {
-    if (calendar.ToInfra() !=
-        ::node::socketsecurity::temporal::CalendarKind::kIso) {
-      return diplomat::Err<TemporalError>(TemporalError{
-          ErrorKind::Range,
-          "ZonedDateTime.try_new_with_provider non-ISO calendars "
-          "not yet implemented"});
-    }
     ::node::socketsecurity::temporal::Instant instant{};
     instant.epoch_nanoseconds = nanosecond.ToInfra();
     if (!instant.IsValid()) {
@@ -202,7 +196,7 @@ class ZonedDateTime {
     }
     auto r = ::node::socketsecurity::temporal::ZonedDateTimeTryNew(
         instant, time_zone.ToInfra(),
-        ::node::socketsecurity::temporal::Calendar::Iso());
+        ::node::socketsecurity::temporal::Calendar(calendar.ToInfra()));
     if (!r.ok()) {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(r.error()));
@@ -656,7 +650,8 @@ class ZonedDateTime {
     if (!idt.ok()) {
       return std::nullopt;
     }
-    return ::node::socketsecurity::temporal::PlainDate{idt.value().date};
+    return ::node::socketsecurity::temporal::PlainDate{
+        idt.value().date, inner_.calendar.Kind()};
   }
 
   ::node::socketsecurity::temporal::ZonedDateTime inner_;
@@ -714,7 +709,7 @@ PlainDate::to_zoned_date_time(TimeZone tz, const PlainTime* time) const {
   instant.epoch_nanoseconds = ns.value();
   auto zr = ::node::socketsecurity::temporal::ZonedDateTimeTryNew(
       instant, tz.ToInfra(),
-      ::node::socketsecurity::temporal::Calendar::Iso());
+      ::node::socketsecurity::temporal::Calendar(inner_.calendar));
   if (!zr.ok()) {
     return diplomat::Err<TemporalError>(
         TemporalError::FromInfra(zr.error()));
@@ -737,7 +732,7 @@ PlainDateTime::to_zoned_date_time(TimeZone tz, Disambiguation disamb) const {
   instant.epoch_nanoseconds = ns.value();
   auto zr = ::node::socketsecurity::temporal::ZonedDateTimeTryNew(
       instant, tz.ToInfra(),
-      ::node::socketsecurity::temporal::Calendar::Iso());
+      ::node::socketsecurity::temporal::Calendar(inner_.calendar));
   if (!zr.ok()) {
     return diplomat::Err<TemporalError>(
         TemporalError::FromInfra(zr.error()));

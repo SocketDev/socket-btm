@@ -46,21 +46,22 @@ class PlainDate {
   // ── Static factories ──────────────────────────────────────────────
 
   static diplomat::result<std::unique_ptr<PlainDate>, TemporalError> try_new(
-      int32_t year, uint8_t month, uint8_t day,
-      AnyCalendarKind /*calendar*/) {
+      int32_t year, uint8_t month, uint8_t day, AnyCalendarKind calendar) {
     auto result =
         ::node::socketsecurity::temporal::PlainDateTryNewIso(year, month, day);
     if (!result.ok()) {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(result.error()));
     }
+    auto pd = result.value();
+    pd.calendar = calendar.ToInfra();
     return diplomat::Ok<std::unique_ptr<PlainDate>>(
-        std::unique_ptr<PlainDate>(new PlainDate(result.value())));
+        std::unique_ptr<PlainDate>(new PlainDate(pd)));
   }
 
   static diplomat::result<std::unique_ptr<PlainDate>, TemporalError>
   try_new_constrain(int32_t year, uint8_t month, uint8_t day,
-                     AnyCalendarKind /*calendar*/) {
+                     AnyCalendarKind calendar) {
     auto result = ::node::socketsecurity::temporal::PlainDateNewWithOverflow(
         year, month, day,
         ::node::socketsecurity::temporal::Overflow::kConstrain);
@@ -68,13 +69,15 @@ class PlainDate {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(result.error()));
     }
+    auto pd = result.value();
+    pd.calendar = calendar.ToInfra();
     return diplomat::Ok<std::unique_ptr<PlainDate>>(
-        std::unique_ptr<PlainDate>(new PlainDate(result.value())));
+        std::unique_ptr<PlainDate>(new PlainDate(pd)));
   }
 
   static diplomat::result<std::unique_ptr<PlainDate>, TemporalError>
   try_new_with_overflow(int32_t year, uint8_t month, uint8_t day,
-                         AnyCalendarKind /*calendar*/,
+                         AnyCalendarKind calendar,
                          ArithmeticOverflow overflow) {
     auto result = ::node::socketsecurity::temporal::PlainDateNewWithOverflow(
         year, month, day, overflow.ToInfra());
@@ -82,8 +85,10 @@ class PlainDate {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(result.error()));
     }
+    auto pd = result.value();
+    pd.calendar = calendar.ToInfra();
     return diplomat::Ok<std::unique_ptr<PlainDate>>(
-        std::unique_ptr<PlainDate>(new PlainDate(result.value())));
+        std::unique_ptr<PlainDate>(new PlainDate(pd)));
   }
 
   static diplomat::result<std::unique_ptr<PlainDate>, TemporalError>
@@ -99,10 +104,14 @@ class PlainDate {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(result.error()));
     }
+    auto pd = result.value();
+    pd.calendar = partial.calendar.ToInfra();
     return diplomat::Ok<std::unique_ptr<PlainDate>>(
-        std::unique_ptr<PlainDate>(new PlainDate(result.value())));
+        std::unique_ptr<PlainDate>(new PlainDate(pd)));
   }
 
+  // from_utf8 parses IXDTF + may include a [u-ca=...] annotation;
+  // PlainDateFromUtf8 already sets the calendar field if present.
   static diplomat::result<std::unique_ptr<PlainDate>, TemporalError> from_utf8(
       std::string_view s) {
     auto result = ::node::socketsecurity::temporal::PlainDateFromUtf8(
@@ -168,36 +177,49 @@ class PlainDate {
         ::node::socketsecurity::temporal::PlainDateWeekOfYear(inner_));
   }
   uint8_t days_in_month() const {
-    return ::node::socketsecurity::temporal::PlainDateDaysInMonth(inner_);
+    ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+    return ::node::socketsecurity::temporal::CalendarDaysInMonth(cal,
+                                                                   inner_.iso);
   }
   uint16_t days_in_year() const {
-    return ::node::socketsecurity::temporal::PlainDateDaysInYear(inner_);
+    ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+    return ::node::socketsecurity::temporal::CalendarDaysInYear(cal, inner_.iso);
   }
   bool in_leap_year() const {
-    return ::node::socketsecurity::temporal::PlainDateInLeapYear(inner_);
+    ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+    return ::node::socketsecurity::temporal::CalendarInLeapYear(cal, inner_.iso);
   }
 
   bool is_valid() const { return inner_.IsValid(); }
 
-  // Calendar-aware accessors. The compat layer's inner POD only
-  // carries IsoDate — V8 holds the actual Calendar in a separate
-  // slot on JSTemporalPlainDate. These accessors return ISO defaults;
-  // V8's js-temporal-objects.cc consults the Calendar slot for the
-  // non-ISO answer via the Calendar* helpers in calendar.cc directly.
-  // To make the compat PlainDate carry its own Calendar, the inner
-  // POD would need a Calendar field threaded through every
-  // constructor — deferred.
+  // Calendar-aware accessors. Inner POD carries CalendarKind directly;
+  // non-ISO answers route through the active CalendarBackend (which
+  // V8's js-temporal binding installs as an ICU-backed override at
+  // boot — see icu_cal_backend.h).
   Calendar calendar() const {
-    return Calendar(::node::socketsecurity::temporal::Calendar::Iso());
+    return Calendar(::node::socketsecurity::temporal::Calendar(inner_.calendar));
   }
-  uint8_t days_in_week() const { return 7; }
-  uint8_t months_in_year() const { return 12; }
+  uint8_t days_in_week() const {
+    ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+    return ::node::socketsecurity::temporal::CalendarDaysInWeek(cal, inner_.iso);
+  }
+  uint8_t months_in_year() const {
+    ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+    return ::node::socketsecurity::temporal::CalendarMonthsInYear(cal,
+                                                                    inner_.iso);
+  }
   std::string month_code() const {
-    const uint8_t m = month();
-    return std::string("M") + (m < 10 ? "0" : "") + std::to_string(m);
+    ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+    return ::node::socketsecurity::temporal::CalendarMonthCode(cal, inner_.iso);
   }
-  std::string era() const { return ""; }
-  std::optional<int32_t> era_year() const { return std::nullopt; }
+  std::string era() const {
+    ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+    return ::node::socketsecurity::temporal::CalendarEra(cal, inner_.iso);
+  }
+  std::optional<int32_t> era_year() const {
+    ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+    return ::node::socketsecurity::temporal::CalendarEraYear(cal, inner_.iso);
+  }
   std::optional<int32_t> year_of_week() const {
     return std::optional<int32_t>(
         ::node::socketsecurity::temporal::ISOYearOfWeek(

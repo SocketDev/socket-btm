@@ -158,6 +158,7 @@ TemporalResult<PlainDateTime> ZonedDateTimeToPlainDateTime(
   }
   PlainDateTime out{};
   out.iso = idt.value();
+  out.calendar = self.calendar.Kind();
   return out;
 }
 
@@ -169,6 +170,7 @@ TemporalResult<PlainDate> ZonedDateTimeToPlainDate(
   }
   PlainDate out{};
   out.iso = idt.value().date;
+  out.calendar = self.calendar.Kind();
   return out;
 }
 

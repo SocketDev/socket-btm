@@ -74,12 +74,11 @@ class PlainYearMonth {
     return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
-  // `with` / `add` / `subtract` require calendar-aware year-month
-  // arithmetic that lives in the calendar.cc Phase 11 work. Until
-  // those land, return an explicit Err — the previous shape silently
-  // cloned `inner_` and returned the *unmodified* year-month, which
-  // produced observably-wrong JS results (e.g. `ym.add({months: 7})`
-  // yielding the same year-month instead of advancing).
+  // `with` still requires calendar-aware partial-date resolution
+  // (Phase 11 calendar.cc work); add/subtract implement the ISO path
+  // because that's the only calendar V8 currently exposes through this
+  // shim. Once the calendar layer lands, the ISO fast path should fall
+  // through to it for non-ISO calendars.
   diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
   with(PartialDate /*partial*/,
        std::optional<ArithmeticOverflow> /*overflow*/) const {
@@ -90,21 +89,62 @@ class PlainYearMonth {
   }
 
   diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
-  add(const Duration& /*duration*/, ArithmeticOverflow /*overflow*/) const {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{
-        ::temporal_rs::ErrorKind::Range,
-        "PlainYearMonth.add requires calendar-aware arithmetic "
-        "(not yet implemented)"});
+  add(const Duration& duration, ArithmeticOverflow overflow) const {
+    return add_or_subtract(duration, overflow, /*negate=*/false);
   }
 
   diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
-  subtract(const Duration& /*duration*/,
-           ArithmeticOverflow /*overflow*/) const {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{
-        ::temporal_rs::ErrorKind::Range,
-        "PlainYearMonth.subtract requires calendar-aware arithmetic "
-        "(not yet implemented)"});
+  subtract(const Duration& duration, ArithmeticOverflow overflow) const {
+    return add_or_subtract(duration, overflow, /*negate=*/true);
   }
+
+ private:
+  // ISO-only year-month arithmetic. PlainYearMonth.add/subtract apply
+  // only years/months from the duration (weeks/days/hours/etc are
+  // disallowed per spec). The day component stays at the original
+  // `reference_day` (preserved on the inner) and is clamped on overflow
+  // via PlainYearMonthTryNewIso, which performs the spec's
+  // RegulateISOYearMonth.
+  diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
+  add_or_subtract(const Duration& duration, ArithmeticOverflow /*overflow*/,
+                  bool negate) const {
+    if (duration.weeks != 0 || duration.days != 0 || duration.hours != 0 ||
+        duration.minutes != 0 || duration.seconds != 0 ||
+        duration.milliseconds != 0 || duration.microseconds != 0 ||
+        duration.nanoseconds != 0) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "PlainYearMonth arithmetic only accepts year + month durations"});
+    }
+    const double sign = negate ? -1.0 : 1.0;
+    const int64_t add_years = static_cast<int64_t>(duration.years * sign);
+    const int64_t add_months = static_cast<int64_t>(duration.months * sign);
+
+    int64_t total_months =
+        static_cast<int64_t>(inner_.iso.year) * 12 +
+        static_cast<int64_t>(inner_.iso.month - 1) +
+        add_years * 12 + add_months;
+    const int64_t new_year = total_months >= 0
+                                 ? total_months / 12
+                                 : -((-total_months + 11) / 12);
+    const int64_t new_month_zero = total_months - new_year * 12;
+    if (new_year < -271820 || new_year > 275759) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "PlainYearMonth.add result outside representable range"});
+    }
+    const auto result = ::node::socketsecurity::temporal::PlainYearMonthTryNewIso(
+        static_cast<int32_t>(new_year),
+        static_cast<uint8_t>(new_month_zero + 1), inner_.iso.day);
+    if (!result.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(result.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
+        std::unique_ptr<PlainYearMonth>(new PlainYearMonth(result.value())));
+  }
+
+ public:
 
   diplomat::result<std::unique_ptr<Duration>, TemporalError>
   until(const PlainYearMonth& /*other*/,

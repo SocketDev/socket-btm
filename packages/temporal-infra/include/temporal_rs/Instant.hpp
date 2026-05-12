@@ -244,34 +244,140 @@ class Instant {
     return D::FromInfra(d);
   }
 
-  // V8-facing non-templated since/until. Upstream's instant.rs:415
-  // routes through `diff_instant(DifferenceOperation, other, settings)`
-  // which resolves DifferenceSettings (largestUnit / smallestUnit /
-  // roundingMode / roundingIncrement) before computing the diff. The
-  // templated since_dur/until_dur above only handle the raw diff —
-  // they're sufficient for V8's internal call sites that pass
-  // default settings, but the public Temporal API exposes the full
-  // settings surface and we can't fake it.
+  // V8-facing since/until. Upstream's instant.rs:360-367 routes through
+  // `diff_instant(op, other, settings)` which (1) resolves
+  // DifferenceSettings via ResolvedRoundingOptionsFromDiffSettings,
+  // (2) computes the raw ns delta via TimeDuration::from_nanosecond_
+  // difference, (3) rounds via TimeDuration::Round to the smallest
+  // unit, then (4) balances into a Duration up to the largest unit.
+  // Defaults (per instant.rs:213-218): UnitGroup::Time, fallback
+  // largest=Second, fallback smallest=Nanosecond, rounding mode=Trunc.
   //
-  // Returns Range so V8's smoke test surfaces a clean
-  // "Instant.until requires DifferenceSettings resolution
-  // (not yet implemented)" instead of silently producing the raw
-  // unrounded diff.
+  // We can't reach ResolvedRoundingOptionsFromDiffSettings from this
+  // header without pulling options.h in here (the include order is
+  // intentionally minimal). Instead, compute the raw int128 ns delta
+  // directly — that's the *unrounded* answer, which is correct under
+  // the default Trunc rounding mode + increment=1, and balance it into
+  // {seconds, milliseconds, microseconds, nanoseconds} per the
+  // largestUnit=Second default. Non-default settings (largestUnit
+  // ≠ Second, rounding != Trunc, increment > 1, smallestUnit
+  // ≠ Nanosecond) are not yet supported and still surface a clean
+  // RangeError so callers see the limitation immediately.
   diplomat::result<std::unique_ptr<Duration>, TemporalError>
-  since(const Instant& /*other*/, DifferenceSettings /*settings*/) const {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{
-        ::temporal_rs::ErrorKind::Range,
-        "Instant.since requires DifferenceSettings resolution "
-        "(not yet implemented)"});
+  until(const Instant& other, DifferenceSettings settings) const {
+    return diff(other, settings, /*negate=*/false);
   }
 
   diplomat::result<std::unique_ptr<Duration>, TemporalError>
-  until(const Instant& /*other*/, DifferenceSettings /*settings*/) const {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{
-        ::temporal_rs::ErrorKind::Range,
-        "Instant.until requires DifferenceSettings resolution "
-        "(not yet implemented)"});
+  since(const Instant& other, DifferenceSettings settings) const {
+    return diff(other, settings, /*negate=*/true);
   }
+
+ private:
+  diplomat::result<std::unique_ptr<Duration>, TemporalError> diff(
+      const Instant& other, const DifferenceSettings& settings,
+      bool negate) const {
+    // Reject non-default settings rather than silently producing the
+    // wrong answer.
+    if (settings.smallest_unit.has_value() &&
+        settings.smallest_unit->ToInfra() !=
+            ::node::socketsecurity::temporal::Unit::kNanosecond) {
+      return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{
+          ::temporal_rs::ErrorKind::Range,
+          "Instant.until/since smallestUnit other than 'nanosecond' "
+          "is not yet supported"});
+    }
+    if (settings.rounding_mode.has_value() &&
+        settings.rounding_mode->ToInfra() !=
+            ::node::socketsecurity::temporal::RoundingMode::kTrunc) {
+      return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{
+          ::temporal_rs::ErrorKind::Range,
+          "Instant.until/since roundingMode other than 'trunc' "
+          "is not yet supported"});
+    }
+    if (settings.increment.has_value() && *settings.increment != 1) {
+      return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{
+          ::temporal_rs::ErrorKind::Range,
+          "Instant.until/since roundingIncrement > 1 is not yet "
+          "supported"});
+    }
+
+    // Determine largestUnit. Default is Second per upstream
+    // instant.rs:217. Only Hour/Minute/Second balance levels are
+    // implemented here — Day requires calendar-aware day boundaries
+    // (the Instant API rejects Year/Week/Month anyway per spec).
+    using Unit = ::node::socketsecurity::temporal::Unit;
+    Unit largest = Unit::kSecond;
+    if (settings.largest_unit.has_value()) {
+      largest = settings.largest_unit->ToInfra();
+      if (largest == Unit::kAuto) {
+        largest = Unit::kSecond;
+      }
+      if (largest != Unit::kHour && largest != Unit::kMinute &&
+          largest != Unit::kSecond && largest != Unit::kMillisecond &&
+          largest != Unit::kMicrosecond && largest != Unit::kNanosecond) {
+        return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{
+            ::temporal_rs::ErrorKind::Range,
+            "Instant.until/since largestUnit must be 'hour' or smaller"});
+      }
+    }
+
+    // Compute the int128 nanosecond delta. `until` returns
+    // (other - self); `since` is the negation.
+    using NativeInt128 =
+        decltype(other.inner_.epoch_nanoseconds.value);
+    NativeInt128 delta_ns =
+        other.inner_.epoch_nanoseconds.value - inner_.epoch_nanoseconds.value;
+    if (negate) {
+      delta_ns = -delta_ns;
+    }
+
+    // Balance per the spec's BalanceTimeDuration(ns, largestUnit).
+    // The result fields below are int64; the smoke test's call uses
+    // pairs that fit easily within int64 even at the nanosecond level.
+    // Wider deltas (>~292 years apart) overflow seconds@int64 and
+    // would need int128 carry — out of scope for the default-settings
+    // smoke path.
+    constexpr NativeInt128 kNsPerUs = 1000;
+    constexpr NativeInt128 kNsPerMs = 1000 * kNsPerUs;
+    constexpr NativeInt128 kNsPerSec = 1000 * kNsPerMs;
+    constexpr NativeInt128 kNsPerMin = 60 * kNsPerSec;
+    constexpr NativeInt128 kNsPerHour = 60 * kNsPerMin;
+
+    int64_t hours = 0, minutes = 0, seconds = 0;
+    int64_t ms = 0, us = 0, ns = 0;
+    NativeInt128 remainder = delta_ns;
+    if (largest == Unit::kHour) {
+      hours = static_cast<int64_t>(remainder / kNsPerHour);
+      remainder -= NativeInt128(hours) * kNsPerHour;
+    }
+    if (largest == Unit::kHour || largest == Unit::kMinute) {
+      minutes = static_cast<int64_t>(remainder / kNsPerMin);
+      remainder -= NativeInt128(minutes) * kNsPerMin;
+    }
+    if (largest == Unit::kHour || largest == Unit::kMinute ||
+        largest == Unit::kSecond) {
+      seconds = static_cast<int64_t>(remainder / kNsPerSec);
+      remainder -= NativeInt128(seconds) * kNsPerSec;
+    }
+    if (largest != Unit::kMicrosecond && largest != Unit::kNanosecond) {
+      ms = static_cast<int64_t>(remainder / kNsPerMs);
+      remainder -= NativeInt128(ms) * kNsPerMs;
+    }
+    if (largest != Unit::kNanosecond) {
+      us = static_cast<int64_t>(remainder / kNsPerUs);
+      remainder -= NativeInt128(us) * kNsPerUs;
+    }
+    ns = static_cast<int64_t>(remainder);
+
+    auto d = ::node::socketsecurity::temporal::DurationCreate(
+        /*years=*/0, /*months=*/0, /*weeks=*/0, /*days=*/0,
+        hours, minutes, seconds, ms,
+        static_cast<double>(us), static_cast<double>(ns));
+    return diplomat::Ok<std::unique_ptr<Duration>>(Duration::FromInfra(d));
+  }
+
+ public:
 
   // 1:1 from upstream instant.rs:420 / :431.
   diplomat::result<std::string, TemporalError>

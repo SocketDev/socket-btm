@@ -1,4 +1,4 @@
-
+// max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
  * @fileoverview Round-trip injection and extraction tests for binject
  *
@@ -15,7 +15,7 @@
  * - Binary format remains valid after modifications
  */
 
-import { createHash } from 'node:crypto'
+import crypto from 'node:crypto'
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -76,7 +76,7 @@ export async function execCommand(command, args = [], options = {}) {
  */
 export async function hashFile(filePath) {
   const data = await fs.readFile(filePath)
-  return createHash('sha256').update(data).digest('hex')
+  return crypto.createHash('sha256').update(data).digest('hex')
 }
 
 beforeAll(async () => {
@@ -107,7 +107,7 @@ describe.skipIf(!binjectExists)('round-trip injection and extraction', () => {
       const seaContent = Buffer.from(`TEST_SEA_BLOB_CONTENT_${Date.now()}`)
       await fs.writeFile(seaBlob, seaContent)
 
-      // Create dummy binary (use binject itself as test binary)
+      // Create placeholder binary (use binject itself as test binary)
       const inputBinary = path.join(testDir, 'input_binary')
       await fs.copyFile(BINJECT, inputBinary)
 

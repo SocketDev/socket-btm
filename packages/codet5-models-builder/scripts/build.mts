@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- single builder pipeline (fetch → patch → build → package) — splitting fractures the build sequence
 /**
  * Build codet5-models - Convert and optimize CodeT5 models for Socket CLI.
  *
@@ -133,7 +134,8 @@ export async function convertToOnnx() {
   // Parse JSON output from convert.py
   if (convertResult.stdout) {
     const lines = convertResult.stdout.toString().trim().split('\n')
-    for (const line of lines) {
+    for (let i = 0, { length } = lines; i < length; i += 1) {
+      const line = lines[i]
       if (!line) {
         continue
       }

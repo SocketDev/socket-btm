@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
  * @fileoverview Tests for VFS path handling (/snapshot/* path prefix).
  *
@@ -9,7 +10,10 @@
 /**
  * Simulate findVFSKey logic (try with/without trailing slash)
  */
-export function findVFSKey(vfsPath: string, entries: Set<string>): string | undefined {
+export function findVFSKey(
+  vfsPath: string,
+  entries: Set<string>,
+): string | undefined {
   // Check exact match
   if (entries.has(vfsPath)) {
     return vfsPath
@@ -53,7 +57,10 @@ export function isVFSPrefixPath(
 /**
  * Validate VFS prefix format
  */
-export function isValidVFSPrefix(prefix: string): { valid: boolean; error?: string } {
+export function isValidVFSPrefix(prefix: string): {
+  valid: boolean
+  error?: string
+} {
   if (!prefix.startsWith('/')) {
     return {
       error: `prefix must start with a forward slash`,
@@ -85,7 +92,10 @@ export function normalizePath(filepath: string): string {
 /**
  * Simulate toVFSPath logic (extract relative path from VFS prefix path)
  */
-export function toVFSPath(filepath: string, prefix = '/snapshot'): string | undefined {
+export function toVFSPath(
+  filepath: string,
+  prefix = '/snapshot',
+): string | undefined {
   const normalized = normalizePath(filepath)
 
   if (normalized.startsWith(`${prefix}/`)) {

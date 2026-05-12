@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
 /* oxlint-disable socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers. */
 /**
  * Shared helpers for loading tool versions from external-tools.json

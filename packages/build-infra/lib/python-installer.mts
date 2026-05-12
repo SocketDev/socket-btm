@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
 /* oxlint-disable socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow. */
 /**
  * Python Package Installation Utilities
@@ -298,7 +299,7 @@ export async function getPythonCommand() {
     })
 
     // Parse the path from output: "pip X.X.X from /path/to/site-packages/pip (python X.X)"
-    const pathMatch = pipVersion.trim().match(/from\s+(.+?)(?:\s+\(|$)/)
+    const pathMatch = pipVersion.trim().match(/from\s+(.+?)(?:$|\s+\()/)
     if (pathMatch) {
       const pipPath = pathMatch[1].trim()
       // pipPath is like: /path/to/lib/pythonX.X/site-packages/pip
@@ -323,7 +324,8 @@ export async function getPythonCommand() {
 
         // Try python3 first, then pythonX.X
         const candidates = ['python3', pythonVersion, 'python']
-        for (const candidate of candidates) {
+        for (let i = 0, { length } = candidates; i < length; i += 1) {
+          const candidate = candidates[i]
           const pythonPath = path.join(binDir, candidate)
           if (existsSync(pythonPath)) {
             cachedPythonCommand = pythonPath

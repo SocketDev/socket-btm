@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
 /**
  * Build Checkpoint Manager
  *
@@ -13,8 +14,8 @@ import crypto from 'node:crypto'
 import {
   closeSync,
   existsSync,
-  promises as fs,
   openSync,
+  promises as fs,
   readSync,
   renameSync,
 } from 'node:fs'
@@ -1219,7 +1220,7 @@ export async function restoreCheckpoint(
         throw e
       }
 
-      // Verify artifact is not empty (basic sanity check for files)
+      // Verify artifact is not empty (basic quick check for files)
       if (extractedStats.isFile() && extractedStats.size === 0) {
         throw new Error(
           `Checkpoint extraction failed: artifact is empty after extraction: ${path.basename(targetPath)}`,

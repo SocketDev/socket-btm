@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
 /**
  * Build script for smol_stub self-extracting binaries.
  * Downloads prebuilt stubs from GitHub releases or builds from source.
@@ -179,7 +180,8 @@ export async function downloadPrebuiltStub(options = {}) {
       .map(f => f.trim())
 
     // Check for path traversal attempts.
-    for (const file of files) {
+    for (let i = 0, { length } = files; i < length; i += 1) {
+      const file = files[i]
       const normalized = path.normalize(file)
       if (normalized.startsWith('..') || path.isAbsolute(normalized)) {
         throw new Error(

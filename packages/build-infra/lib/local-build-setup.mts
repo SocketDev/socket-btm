@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
 /**
  * Local Build Setup
  *
@@ -393,7 +394,8 @@ export async function setupDockerBuilds(options = {}) {
   const { errors, ok } = await checkDockerSetup()
 
   if (!ok) {
-    for (const error of errors) {
+    for (let i = 0, { length } = errors; i < length; i += 1) {
+      const error = errors[i]
       printError(error)
     }
     return { ok: false, results }
@@ -425,7 +427,8 @@ export async function setupDockerBuilds(options = {}) {
   // overwhelming Docker daemon with parallel builds
   printInfo(`Building images for ${targets.length} targets...`)
 
-  for (const target of targets) {
+  for (let i = 0, { length } = targets; i < length; i += 1) {
+    const target = targets[i]
     if (!LINUX_TARGETS.includes(target)) {
       printInfo(`Skipping ${target} (not Docker-buildable)`)
       results[target] = false

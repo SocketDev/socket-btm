@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /* oxlint-disable socket/prefer-exists-sync -- fs.stat() calls consume stats.size / stats.mode for round-trip size and executable-permission assertions. */
 
 /**
@@ -17,7 +18,7 @@
  * - Compressed binaries maintain original functionality
  */
 
-import { createHash, randomUUID } from 'node:crypto'
+import crypto from 'node:crypto'
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -76,7 +77,7 @@ let testBinary: string
  */
 export async function _hashFile(filePath) {
   const data = await fs.readFile(filePath)
-  return createHash('sha256').update(data).digest('hex')
+  return crypto.createHash('sha256').update(data).digest('hex')
 }
 
 /**
@@ -117,7 +118,7 @@ export async function execCommand(command, args = [], options = {}) {
 
 beforeAll(async () => {
   // Create unique test directory with timestamp and random suffix to isolate from parallel runs
-  const uniqueId = randomUUID()
+  const uniqueId = crypto.randomUUID()
   testDir = path.join(os.tmpdir(), `binpress-roundtrip-${uniqueId}`)
   await safeMkdir(testDir)
 
@@ -644,7 +645,8 @@ describe.skipIf(!existsSync(BINPRESS))(
           // requires metadata anyway.
           const newDirs = cacheDirs.filter(d => !beforeDirs.has(d))
           let cacheDir: string | undefined
-          for (const d of newDirs) {
+          for (let i = 0, { length } = newDirs; i < length; i += 1) {
+            const d = newDirs[i]
             if (existsSync(path.join(DLX_DIR, d, '.dlx-metadata.json'))) {
               cacheDir = path.join(DLX_DIR, d)
               break
@@ -656,7 +658,8 @@ describe.skipIf(!existsSync(BINPRESS))(
             // during the run window; restrict to dirs that have
             // metadata so we never end up at an aborted/legacy dir.
             let bestMtime = 0
-            for (const dir of cacheDirs) {
+            for (let i = 0, { length } = cacheDirs; i < length; i += 1) {
+              const dir = cacheDirs[i]
               const candidate = path.join(DLX_DIR, dir)
               const meta = path.join(candidate, '.dlx-metadata.json')
               if (!existsSync(meta)) {

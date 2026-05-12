@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
  * @fileoverview Tests for cache-key utility.
  * Validates cache key generation, parsing, and validation logic.

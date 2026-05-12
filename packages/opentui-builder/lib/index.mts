@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
 /* oxlint-disable socket/sort-source-methods -- public API surface ordered by usage (createRenderer first, then helpers); alphabetizing would bury the entry-point function. */
 import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -108,7 +109,8 @@ export function loadNativeModule() {
     ),
   ]
 
-  for (const candidate of candidates) {
+  for (let i = 0, { length } = candidates; i < length; i += 1) {
+    const candidate = candidates[i]
     if (existsSync(candidate)) {
       return esmRequire(candidate)
     }

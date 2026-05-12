@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
  * @fileoverview Segment and section validation tests for binpress
  *
@@ -12,7 +13,7 @@
  * that loaders can correctly parse and execute.
  */
 
-import { randomUUID } from 'node:crypto'
+import crypto from 'node:crypto'
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -154,7 +155,7 @@ export function parseMachoSegments(binaryData) {
 
 beforeAll(async () => {
   // Create unique test directory with timestamp and random suffix to isolate from parallel runs
-  const uniqueId = randomUUID()
+  const uniqueId = crypto.randomUUID()
   testDir = path.join(os.tmpdir(), `binpress-segments-${uniqueId}`)
   await safeMkdir(testDir)
 

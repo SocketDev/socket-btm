@@ -1,10 +1,11 @@
+// max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
  * Manifest Tests for node:smol-manifest
  *
  * Test cases aligned with socket-sbom-generator lockfile parsing behavior.
  *
  * Gold standard: socket-sbom-generator
- * @see /Users/jdalton/projects/socket-sbom-generator
+ * @see /Users/<user>/projects/socket-sbom-generator
  *
  * Supported formats:
  * - package.json (npm manifest)
@@ -13,15 +14,15 @@
  * - pnpm-lock.yaml (v5, v6, v9)
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
-  parse,
-  parseManifest,
-  parseLockfile,
   analyzeLockfile,
-  getPackage,
-  findPackages,
   detectFormat,
+  findPackages,
+  getPackage,
+  parse,
+  parseLockfile,
+  parseManifest,
   supportedFiles,
 } from '../additions/source-patched/lib/internal/socketsecurity/manifest.js'
 

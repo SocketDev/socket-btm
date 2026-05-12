@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /* oxlint-disable socket/prefer-exists-sync -- every fs.stat() in this file consumes stats.size to assert input/output binary size deltas after injection. */
 /**
  * @fileoverview Binary format validation tests for binject

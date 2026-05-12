@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
  * @fileoverview Tests for checkpoint-manager utilities.
  */
@@ -550,7 +551,8 @@ describe('checkpoint-manager', () => {
 export async function findMjsFiles(dir, files = []) {
   const entries = await readdir(dir, { withFileTypes: true })
 
-  for (const entry of entries) {
+  for (let i = 0, { length } = entries; i < length; i += 1) {
+    const entry = entries[i]
     const fullPath = path.join(dir, entry.name)
 
     // Skip node_modules and test directories
@@ -700,7 +702,8 @@ describe('createCheckpoint signature validation', () => {
     // Validate each file
     const allErrors = []
 
-    for (const file of scriptFiles) {
+    for (let i = 0, { length } = scriptFiles; i < length; i += 1) {
+      const file = scriptFiles[i]
       // eslint-disable-next-line no-await-in-loop
       const content = await readFile(file, 'utf8')
       const errors = validateCreateCheckpointCall(content, file)
@@ -710,7 +713,8 @@ describe('createCheckpoint signature validation', () => {
     // Report errors
     if (allErrors.length > 0) {
       logger.fail('\nFound createCheckpoint signature errors:\n')
-      for (const error of allErrors) {
+      for (let i = 0, { length } = allErrors; i < length; i += 1) {
+        const error = allErrors[i]
         logger.fail(`\n${error.file}:${error.line}`)
         logger.fail(`  Error: ${error.error}`)
         logger.fail(`  Context:\n${error.context}\n`)

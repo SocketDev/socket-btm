@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /* oxlint-disable socket/prefer-exists-sync -- fs.stat() calls consume stats.size and stats.mode to verify extracted/final Linux x64 binaries. */
 /* oxlint-disable socket/no-status-emoji -- emoji literals are embedded in test fixture JS source executed inside the SEA binary and asserted via toContain(); the runtime can't call logger.success() because it runs without our logger import. */
 
@@ -17,7 +18,7 @@
  * Run `pnpm build --dev --platform=linux --arch=x64` first to create the binary.
  */
 
-import { createHash } from 'node:crypto'
+import crypto from 'node:crypto'
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -50,7 +51,7 @@ const _DLX_DIR = getSocketDlxDir()
  */
 export async function calculateFileHash(filePath) {
   const content = await fs.readFile(filePath)
-  return createHash('sha256').update(content).digest('hex')
+  return crypto.createHash('sha256').update(content).digest('hex')
 }
 
 describe.skipIf(skipTests)('linux-x64 Docker build integration', () => {
@@ -416,7 +417,8 @@ console.log('Platform:', process.platform);
 
         const versions = ['v1', 'v2', 'v3']
 
-        for (const version of versions) {
+        for (let i = 0, { length } = versions; i < length; i += 1) {
+          const version = versions[i]
           // Create application for this version
           const appJs = path.join(testDir, `app-${version}.js`)
           // eslint-disable-next-line no-await-in-loop

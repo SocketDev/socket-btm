@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import {

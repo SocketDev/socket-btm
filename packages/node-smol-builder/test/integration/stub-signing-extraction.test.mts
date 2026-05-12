@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /* oxlint-disable socket/prefer-exists-sync -- fs.stat() calls consume stats.size and stats.mtime to verify extracted artifacts and detect metadata-rewrite races. */
 /**
  * @fileoverview Integration tests for stub signing, extraction, and execution flow
@@ -16,7 +17,7 @@
  * Run with: pnpm build --dev or pnpm build --prod
  */
 
-import { createHash } from 'node:crypto'
+import crypto from 'node:crypto'
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'

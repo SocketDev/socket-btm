@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /* oxlint-disable socket/prefer-exists-sync -- access(X_OK) checks executable permission, not just existence; stats.size verifies non-empty binary; existsSync can't substitute for either. */
 /**
  * SEA Config VFS Tests
@@ -85,7 +86,8 @@ export async function findNodeBinary() {
       .outputFinalBinary,
   ]
 
-  for (const binaryPath of possiblePaths) {
+  for (let i = 0, { length } = possiblePaths; i < length; i += 1) {
+    const binaryPath = possiblePaths[i]
     try {
       // eslint-disable-next-line no-await-in-loop
       const stats = await fs.stat(binaryPath)

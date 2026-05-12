@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /* oxlint-disable socket/sort-source-methods -- test helpers ordered by signature-cache flow (build → sign → cache → verify → invalidate); alphabetizing would scatter the flow. */
 
 /**
@@ -11,7 +12,7 @@
  * 5. Old cache should be cleaned up
  */
 
-import { randomUUID } from 'node:crypto'
+import crypto from 'node:crypto'
 import { existsSync, promises as fs, statSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -111,7 +112,8 @@ export function findTestStub() {
     ),
   ]
 
-  for (const candidate of candidates) {
+  for (let i = 0, { length } = candidates; i < length; i += 1) {
+    const candidate = candidates[i]
     // Only return if it's a file (not a directory)
     if (existsSync(candidate)) {
       try {
@@ -173,7 +175,8 @@ export function findNodeSmolBinary() {
     ),
   ]
 
-  for (const candidate of candidates) {
+  for (let i = 0, { length } = candidates; i < length; i += 1) {
+    const candidate = candidates[i]
     if (existsSync(candidate)) {
       try {
         const stats = statSync(candidate)
@@ -275,7 +278,8 @@ export async function cleanCacheBeforeTest() {
   const cacheDir = getCacheDir()
   try {
     const entries = await fs.readdir(cacheDir)
-    for (const entry of entries) {
+    for (let i = 0, { length } = entries; i < length; i += 1) {
+      const entry = entries[i]
       if (!/^[0-9a-f]{16}$/.test(entry)) {
         continue
       }
@@ -302,7 +306,7 @@ export async function generateValidSEABlob(
   prefix: string,
   nodeBinaryPath?: string,
 ) {
-  const uuid = randomUUID()
+  const uuid = crypto.randomUUID()
 
   // Create a unique JS file
   const jsFile = path.join(baseDir, `${prefix}-${uuid}.js`)
@@ -340,7 +344,7 @@ export async function generateValidSEABlob(
  * Create unique VFS content using UUID to ensure each test creates a unique cache entry
  */
 export function createUniqueVFSContent(description: string) {
-  const uuid = randomUUID()
+  const uuid = crypto.randomUUID()
   return `${description}\nUnique ID: ${uuid}\n`
 }
 
@@ -372,14 +376,16 @@ describeOnMac('E2E Signature and Cache Tests', () => {
     )
 
     // Clean up all new entries (whether expected or not)
-    for (const entry of newEntries) {
+    for (let i = 0, { length } = newEntries; i < length; i += 1) {
+      const entry = newEntries[i]
       const cachePath = path.join(getCacheDir(), entry)
       // eslint-disable-next-line no-await-in-loop
       await safeDelete(cachePath)
     }
 
     // Also clean up expected entries that might have been created
-    for (const entry of expectedCacheEntries) {
+    for (let i = 0, { length } = expectedCacheEntries; i < length; i += 1) {
+      const entry = expectedCacheEntries[i]
       if (!newEntries.includes(entry)) {
         const cachePath = path.join(getCacheDir(), entry)
         // eslint-disable-next-line no-await-in-loop

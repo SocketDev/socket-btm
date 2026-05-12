@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// max-file-lines: legitimate -- single builder pipeline (fetch → patch → build → package) — splitting fractures the build sequence
 /**
  * MiniLM Model Builder
  *
@@ -114,7 +115,8 @@ export async function convertToOnnx() {
 
   await safeMkdir(MODELS_DIR)
 
-  for (const model of MODELS) {
+  for (let i = 0, { length } = MODELS; i < length; i += 1) {
+    const model = MODELS[i]
     logger.substep(`Converting: ${model.name}`)
     const { cacheModelDir, onnxModelDir } = getModelPaths(
       BUILD_MODE,
@@ -133,7 +135,8 @@ export async function convertToOnnx() {
     CHECKPOINTS.CONVERTED,
     async () => {
       // Smoke test: Verify ONNX models exist
-      for (const model of MODELS) {
+      for (let i = 0, { length } = MODELS; i < length; i += 1) {
+        const model = MODELS[i]
         const { onnxModelFile } = getModelPaths(
           BUILD_MODE,
           PLATFORM_ARCH,
@@ -164,7 +167,8 @@ export async function downloadModels() {
 
   await safeMkdir(CACHE_DIR)
 
-  for (const model of MODELS) {
+  for (let i = 0, { length } = MODELS; i < length; i += 1) {
+    const model = MODELS[i]
     logger.substep(`Model: ${model.name}`)
 
     try {
@@ -207,7 +211,8 @@ export async function downloadModels() {
 export async function exportModels() {
   logger.step('Exporting Models')
 
-  for (const model of MODELS) {
+  for (let i = 0, { length } = MODELS; i < length; i += 1) {
+    const model = MODELS[i]
     logger.substep(`Exporting: ${model.outputName}`)
 
     const {
@@ -236,7 +241,8 @@ export async function exportModels() {
       'special_tokens_map.json',
       'vocab.txt',
     ]
-    for (const file of tokenizerFiles) {
+    for (let i = 0, { length } = tokenizerFiles; i < length; i += 1) {
+      const file = tokenizerFiles[i]
       const src = path.join(quantizedModelDir, file)
       const dst = path.join(tokenizerDir, file)
 
@@ -265,7 +271,8 @@ export async function optimizeGraphs() {
 
   logger.step('Optimizing ONNX Graphs')
 
-  for (const model of MODELS) {
+  for (let i = 0, { length } = MODELS; i < length; i += 1) {
+    const model = MODELS[i]
     logger.substep(`Optimizing: ${model.outputName}`)
 
     try {
@@ -306,7 +313,8 @@ export async function optimizeGraphs() {
     CHECKPOINTS.OPTIMIZED,
     async () => {
       // Smoke test: Verify optimized models exist
-      for (const model of MODELS) {
+      for (let i = 0, { length } = MODELS; i < length; i += 1) {
+        const model = MODELS[i]
         const { optimizedModelFile } = getModelPaths(
           BUILD_MODE,
           PLATFORM_ARCH,
@@ -335,7 +343,8 @@ export async function quantizeModels() {
 
   logger.step('Applying INT8 Quantization')
 
-  for (const model of MODELS) {
+  for (let i = 0, { length } = MODELS; i < length; i += 1) {
+    const model = MODELS[i]
     logger.substep(`Quantizing: ${model.outputName}`)
     const {
       optimizedModelDir,
@@ -361,7 +370,8 @@ export async function quantizeModels() {
     CHECKPOINTS.QUANTIZED,
     async () => {
       // Smoke test: Verify quantized models exist
-      for (const model of MODELS) {
+      for (let i = 0, { length } = MODELS; i < length; i += 1) {
+        const model = MODELS[i]
         const { quantizedModelFile } = getModelPaths(
           BUILD_MODE,
           PLATFORM_ARCH,
@@ -406,7 +416,8 @@ export async function runPythonScript(scriptName, args, options = {}) {
   const lines = result.stdout.split('\n').filter(Boolean)
   const results = []
 
-  for (const line of lines) {
+  for (let i = 0, { length } = lines; i < length; i += 1) {
+    const line = lines[i]
     try {
       const parsedResult = JSON.parse(line)
       results.push(parsedResult)
@@ -441,7 +452,8 @@ export async function verifyModels() {
 
   logger.step('Verifying Model Inference')
 
-  for (const model of MODELS) {
+  for (let i = 0, { length } = MODELS; i < length; i += 1) {
+    const model = MODELS[i]
     logger.substep(`Verifying: ${model.outputName}`)
 
     try {
@@ -482,7 +494,8 @@ export async function verifyModels() {
     CHECKPOINTS.FINALIZED,
     async () => {
       // Smoke test: Verify quantized models exist
-      for (const model of MODELS) {
+      for (let i = 0, { length } = MODELS; i < length; i += 1) {
+        const model = MODELS[i]
         const { quantizedModelFile } = getModelPaths(
           BUILD_MODE,
           PLATFORM_ARCH,
@@ -533,7 +546,8 @@ async function main() {
   logger.success(`Output: ${MODELS_DIR}`)
   logger.info('')
   logger.info('Models ready for use:')
-  for (const model of MODELS) {
+  for (let i = 0, { length } = MODELS; i < length; i += 1) {
+    const model = MODELS[i]
     logger.info(`  - ${model.outputName}.onnx`)
     logger.info(`  - ${model.outputName}-tokenizer/`)
   }

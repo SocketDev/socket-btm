@@ -1,4 +1,4 @@
-
+// max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
  * @fileoverview Binflate decompression functional tests
  *
@@ -20,7 +20,7 @@
  * without this file. The shell tests only validate binary structure.
  */
 
-import { createHash, randomUUID } from 'node:crypto'
+import crypto from 'node:crypto'
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -134,7 +134,7 @@ export async function execCommand(command, args = [], options = {}) {
  */
 export async function hashFile(filePath) {
   const data = await fs.readFile(filePath)
-  return createHash('sha256').update(data).digest('hex')
+  return crypto.createHash('sha256').update(data).digest('hex')
 }
 
 beforeAll(async () => {
@@ -152,7 +152,7 @@ beforeAll(async () => {
   }
 
   // Create unique test directory with timestamp and random suffix to isolate from parallel runs
-  const uniqueId = randomUUID()
+  const uniqueId = crypto.randomUUID()
   testDir = path.join(os.tmpdir(), `binflate-functional-${uniqueId}`)
   await safeMkdir(testDir)
 

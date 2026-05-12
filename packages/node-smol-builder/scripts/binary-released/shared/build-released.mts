@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- orchestration script — top-down pipeline (gather → validate → report); splitting fractures the flow
 /* oxlint-disable socket/no-status-emoji -- emoji is wrapped in colors.green() decorator before being embedded in multi-line build summary; logger.success() would drop the color. */
 
 /**
@@ -148,7 +149,8 @@ export async function buildRelease(config, buildOptions = {}) {
     'sharedBuildDir',
     'sharedSourceDir',
   ]
-  for (const prop of requiredProps) {
+  for (let i = 0, { length } = requiredProps; i < length; i += 1) {
+    const prop = requiredProps[i]
     if (config[prop] === undefined) {
       throw new Error(
         `buildRelease: missing required config property '${prop}'`,
@@ -228,7 +230,8 @@ export async function buildRelease(config, buildOptions = {}) {
       '--without-snapshot': 'nosnapshot',
     }
 
-    for (const flag of configureFlags) {
+    for (let i = 0, { length } = configureFlags; i < length; i += 1) {
+      const flag = configureFlags[i]
       if (flag === '--dest-cpu=arm64') {
         vcbuildFlags.push('arm64')
       } else if (flag === '--dest-cpu=x64') {
@@ -362,7 +365,8 @@ export async function buildRelease(config, buildOptions = {}) {
   const checkpointChain = getCheckpointChain(buildMode)
   let resumeFromCheckpoint
 
-  for (const checkpoint of checkpointChain) {
+  for (let i = 0, { length } = checkpointChain; i < length; i += 1) {
+    const checkpoint = checkpointChain[i]
     // Check if this checkpoint exists
     const exists = await hasCheckpoint(buildDir, packageName, checkpoint)
 
@@ -682,7 +686,8 @@ export async function buildRelease(config, buildOptions = {}) {
     // Windows: Clean stale junction links.
     if (WIN32) {
       const configDirs = ['Release', 'Debug']
-      for (const configDir of configDirs) {
+      for (let i = 0, { length } = configDirs; i < length; i += 1) {
+        const configDir = configDirs[i]
         const junctionPath = path.join(modeSourceDir, configDir)
         if (existsSync(junctionPath)) {
           logger.log(`Removing stale ${configDir} directory/junction...`)
@@ -884,7 +889,8 @@ export async function buildRelease(config, buildOptions = {}) {
     logger.substep('Cleaning checkpoint directory...')
     const releaseDirFiles = await fs.readdir(outputReleaseNodeDir)
     const releaseBinaryName = path.basename(outputReleaseBinary)
-    for (const file of releaseDirFiles) {
+    for (let i = 0, { length } = releaseDirFiles; i < length; i += 1) {
+      const file = releaseDirFiles[i]
       if (file !== releaseBinaryName) {
         const filePath = path.join(outputReleaseNodeDir, file)
         await safeDelete(filePath)

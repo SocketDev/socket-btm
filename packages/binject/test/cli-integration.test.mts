@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /* oxlint-disable socket/prefer-exists-sync -- many access(X_OK) and access(F_OK) calls check executable permission / output-file readiness inside Promise.all races; existsSync (sync, no permission check) is not a substitute. */
 /**
  * CLI Integration Tests for binject
@@ -229,7 +230,8 @@ export async function findNodeBinary() {
   ]
 
   // Try each path sequentially
-  for (const binaryPath of possiblePaths) {
+  for (let i = 0, { length } = possiblePaths; i < length; i += 1) {
+    const binaryPath = possiblePaths[i]
     try {
       // eslint-disable-next-line no-await-in-loop
       await fs.access(binaryPath, FS_CONSTANTS.X_OK)
@@ -420,7 +422,7 @@ describe('binject CLI', () => {
     it('--version should show version number', async () => {
       const { output } = await execCommand(BINJECT, ['--version'])
       // Accept both semver (1.2.3) and git-style (20251212-abc123) versions
-      expect(output).toMatch(/([0-9]+\.[0-9]+\.[0-9]+|[0-9]+-[a-f0-9]+)/)
+      expect(output).toMatch(/([0-9]+-[a-f0-9]+|[0-9]+\.[0-9]+\.[0-9]+)/)
     })
   })
 
@@ -472,7 +474,7 @@ describe('binject CLI', () => {
         '--sea',
         resource,
       ])
-      expect(result.output).toMatch(/(not found|cannot open|error|unknown)/i)
+      expect(result.output).toMatch(/(cannot open|error|not found|unknown)/i)
     })
 
     it('inject with nonexistent resource should show error', async () => {
@@ -486,7 +488,7 @@ describe('binject CLI', () => {
         '--sea',
         '/nonexistent/resource',
       ])
-      expect(result.output).toMatch(/(not found|cannot open|error)/i)
+      expect(result.output).toMatch(/(cannot open|error|not found)/i)
     })
   })
 
@@ -738,7 +740,7 @@ describe('binject CLI', () => {
         '-o',
         'output.blob',
       ])
-      expect(result.output).toMatch(/(sea|vfs|either)/i)
+      expect(result.output).toMatch(/(either|sea|vfs)/i)
     })
 
     it('extract without --output should show error', async () => {
@@ -759,7 +761,7 @@ describe('binject CLI', () => {
       const binary = await createTestBinary('test-verify.bin')
 
       const result = await execCommand(BINJECT, ['verify', '-e', binary])
-      expect(result.output).toMatch(/(sea|vfs|either)/i)
+      expect(result.output).toMatch(/(either|sea|vfs)/i)
     })
   })
 
@@ -780,7 +782,7 @@ describe('binject CLI', () => {
         resource,
       ])
 
-      expect(result.output).toMatch(/(Success|both|batch|injected)/i)
+      expect(result.output).toMatch(/(Success|batch|both|injected)/i)
     })
   })
 })

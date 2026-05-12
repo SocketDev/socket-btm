@@ -1,3 +1,4 @@
+// max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /* oxlint-disable socket/prefer-exists-sync -- file tests the VFS surface itself; fs.stat()/fs.access()/fs.statSync() calls verify VFS metadata fidelity (size/mode) AND appear inside test-fixture JS source executed by the SEA binary. */
 /**
  * @fileoverview Tests for VFS (Virtual Filesystem) support with TAR/TAR.GZ archives.
@@ -55,7 +56,8 @@ describe.sequential.skipIf(skipTests)(
 
       // Cleanup all VFS cache directories created during tests
       const cleanupPromises = []
-      for (const cacheDir of createdCacheDirs) {
+      for (let i = 0, { length } = createdCacheDirs; i < length; i += 1) {
+        const cacheDir = createdCacheDirs[i]
         if (existsSync(cacheDir)) {
           cleanupPromises.push(safeDelete(cacheDir))
         }
@@ -650,7 +652,7 @@ if (smolVfs.hasVFS()) {
 
         // Compression: <cache>/<sha512-16chars>-<platform>-<arch>/
         const compressionPattern =
-          /^[\da-f]{16}-(macos|linux|windows)-(x64|arm64|ia32|arm)$/
+          /^[\da-f]{16}-(linux|macos|windows)-(arm|arm64|ia32|x64)$/
 
         // VFS uses simpler hash-only pattern
         expect('a1b2c3d4e5f67890'.match(vfsPattern)).toBeTruthy()

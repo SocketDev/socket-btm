@@ -9,6 +9,7 @@
 
 #include <atomic>
 #include <cstdio>
+#include <mutex>
 
 #include "socketsecurity/temporal/parse.h"
 #include "socketsecurity/temporal/utils.h"
@@ -276,6 +277,18 @@ std::atomic<TimeZoneBackend*>& ActiveBackendSlot() noexcept {
 }  // namespace
 
 TimeZoneBackend& GetTimeZoneBackend() noexcept {
+  // Lazy auto-install of the ICU-backed backend if nothing has
+  // already been installed. Called once per process via std::call_once
+  // to avoid pulling icu_tz_backend.cc's translation unit into builds
+  // that won't link ICU (V8 builds without intl support don't link
+  // icu_tz_backend.cc into libnode via patch 004's source list).
+  // When ICU isn't linked the InstallIcuTimeZoneBackend symbol still
+  // exists (the V8_INTL_SUPPORT-free path is a no-op) so this is
+  // always callable.
+  extern void InstallIcuTimeZoneBackendIfAvailable() noexcept;
+  static std::once_flag s_installed_once;
+  std::call_once(s_installed_once,
+                  []() { InstallIcuTimeZoneBackendIfAvailable(); });
   return *ActiveBackendSlot().load(std::memory_order_acquire);
 }
 

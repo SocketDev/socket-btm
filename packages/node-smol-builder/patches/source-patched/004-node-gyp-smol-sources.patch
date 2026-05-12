@@ -63,7 +63,7 @@
            ],
          }],
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
-@@ -1055,14 +1079,250 @@
+@@ -1055,14 +1079,251 @@
            ],
            'dependencies': [
              'deps/ncrypto/ncrypto.gyp:ncrypto',
@@ -145,6 +145,7 @@
 +            'src/socketsecurity/temporal/plain_month_day.cc',
 +            'src/socketsecurity/temporal/calendar.cc',
 +            'src/socketsecurity/temporal/time_zone.cc',
++            'src/socketsecurity/temporal/icu_tz_backend.cc',
 +            'src/socketsecurity/temporal/zoned_date_time.cc',
 +            'src/socketsecurity/temporal/relative_to.cc',
 +            'src/socketsecurity/temporal/duration_normalized.cc',
@@ -315,7 +316,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1447,6 +1707,17 @@
+@@ -1447,6 +1708,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -333,7 +334,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1521,6 +1791,17 @@
+@@ -1521,6 +1792,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -351,7 +352,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1744,6 +2024,17 @@
+@@ -1744,6 +2025,17 @@
              'Ws2_32.lib',
            ],
          }],

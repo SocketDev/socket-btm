@@ -130,3 +130,9 @@
 	url = https://github.com/boa-dev/temporal.git
 	ignore = dirty
 	shallow = true
+# icu4x-zoneinfo64-v0.3.0 (track-latest: hosts the zoneinfo64 + resb crates that temporal_rs uses for IANA TZ resolution; bump via updating-temporal-infra)
+[submodule "packages/temporal-infra/upstream/icu4x"]
+	path = packages/temporal-infra/upstream/icu4x
+	url = https://github.com/unicode-org/icu4x.git
+	ignore = dirty
+	shallow = true

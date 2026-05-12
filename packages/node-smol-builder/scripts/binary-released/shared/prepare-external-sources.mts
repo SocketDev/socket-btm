@@ -40,12 +40,16 @@ const UWEBSOCKETS_UPSTREAM_DIR = path.join(
 const logger = getDefaultLogger()
 
 /**
- * External source mappings using absolute paths.
- * Copies whole directory trees preserving structure.
- * Note: Packages now use socketsecurity/ namespace in their src/ directories.
- * Note: sea-smol and vfs C++ files are already in additions/source-patched/src/socketsecurity/.
+ * Monorepo-package source mappings — changes here invalidate the
+ * SOURCE_PATCHED cache. apply-patches.mts imports this list to compute
+ * its cache key, so adding a new package here is the only edit needed
+ * (no parallel list in apply-patches.mts).
+ *
+ * Note: Packages use the socketsecurity/ namespace in their src/ trees.
+ * Note: sea-smol and vfs C++ files live in additions/source-patched/src/socketsecurity/
+ *       already (not copied here).
  */
-const EXTERNAL_SOURCES = [
+export const MONOREPO_PACKAGE_SOURCES = [
   {
     from: path.join(BINJECT_DIR, 'src', 'socketsecurity', 'binject'),
     to: path.join(
@@ -83,16 +87,23 @@ const EXTERNAL_SOURCES = [
     ),
   },
   // temporal_rs compat shim: drop-in replacement for the diplomat
-  // bindings that V8's js-temporal-objects.cc #includes. By landing
-  // these headers ahead of `deps/crates/vendor/temporal_capi/bindings/cpp/`
-  // on the V8 target's include search path (see patch 004), V8 compiles
-  // against our temporal-infra C++ port instead of the rustc/cargo-built
-  // temporal_capi static lib. End result: rustc + cargo drop out of the
-  // libnode build chain entirely.
+  // bindings that V8's js-temporal-objects.cc #includes. Lands these
+  // headers at <src_root>/include/temporal_rs/ so V8 compiles against
+  // the C++ port instead of the rustc/cargo-built temporal_capi
+  // static lib. Patch 021 wires the include path into v8.gyp.
   {
     from: path.join(TEMPORAL_INFRA_DIR, 'include', 'temporal_rs'),
     to: path.join(ADDITIONS_SOURCE_PATCHED_DIR, 'include', 'temporal_rs'),
   },
+]
+
+/**
+ * Vendored / upstream source mappings — these come from submodules or
+ * npm vendoring, NOT from the monorepo. They don't participate in the
+ * SOURCE_PATCHED cache key (their content is pinned by submodule SHA
+ * or version, not by file content).
+ */
+const VENDORED_SOURCES = [
   {
     from: path.join(BINJECT_DIR, 'upstream', 'libdeflate'),
     to: path.join(ADDITIONS_SOURCE_PATCHED_DIR, 'deps', 'libdeflate'),
@@ -128,6 +139,13 @@ const EXTERNAL_SOURCES = [
     to: path.join(ADDITIONS_SOURCE_PATCHED_DIR, 'deps', 'uWebSockets', 'src'),
   },
 ]
+
+/**
+ * Combined copy manifest — monorepo packages first (so source-of-truth
+ * is staged before vendored upstreams that may depend on it). Loops
+ * that copy/validate iterate over this.
+ */
+const EXTERNAL_SOURCES = [...MONOREPO_PACKAGE_SOURCES, ...VENDORED_SOURCES]
 
 /**
  * Compute hash of directory contents for sync validation.

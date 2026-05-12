@@ -64,7 +64,10 @@ import {
 } from './preflight-checks.mts'
 import { prepareExternalSources } from './prepare-external-sources.mts'
 import { cloneNodeSource } from '../../source-copied/shared/copy-source.mts'
-import { applySocketPatches } from '../../source-patched/shared/apply-patches.mts'
+import {
+  applySocketPatches,
+  computeSourcePatchedCachePaths,
+} from '../../source-patched/shared/apply-patches.mts'
 
 const logger = getDefaultLogger()
 
@@ -433,18 +436,33 @@ export async function buildRelease(config, buildOptions = {}) {
 
   // Check if mode source needs to be reset before extraction.
   // This handles two cases:
-  // 1. Source exists but needs patching (source-patched checkpoint doesn't exist)
-  // 2. Source has uncommitted changes (local dev modified files)
+  // 1. Source exists but needs patching (source-patched checkpoint stale —
+  //    either the file is missing OR its cache hash no longer matches the
+  //    canonical source paths).
+  // 2. Source has uncommitted changes (local dev modified files).
   // In both cases, delete the directory so it will be re-extracted below.
+  //
+  // CRITICAL: this outer check MUST use the same cache-key paths that
+  // applySocketPatches uses internally. Otherwise: the outer check says
+  // "checkpoint exists, source clean, keep it" while applySocketPatches
+  // says "cache hash mismatch, re-apply patches" — patches get re-applied
+  // on top of a stale source dir that may contain GBs of leftover
+  // out/Release/ build outputs, then createCheckpoint tries to tarball
+  // the whole thing and trips the 2GB size guardrail. See computeSourcePatchedCachePaths.
   if (existsSync(modeSourceDir)) {
     logger.step('Checking Existing Node.js Source')
 
-    // Check if we need to apply patches (source-patched checkpoint doesn't exist).
+    const sourcePatchedCachePaths = await computeSourcePatchedCachePaths({
+      buildPatchesDir,
+      modeSourceDir,
+      patchesReleaseDir: PATCHES_SOURCE_PATCHED_DIR,
+    })
     const needsPatching = await shouldRun(
       buildDir,
       packageName,
       CHECKPOINTS.SOURCE_PATCHED,
       cleanBuild,
+      sourcePatchedCachePaths,
     )
 
     if (needsPatching) {
@@ -589,9 +607,12 @@ export async function buildRelease(config, buildOptions = {}) {
     '--experimental-enable-pointer-compression',
     // Node 26 ships Temporal via temporal_rs (Rust crate) linked
     // statically. socket-btm replaces this with the temporal-infra
-    // C++ port: patch 037 repoints V8's temporal_rs include path
-    // to our shim; patch 038 disables configure.py's cargo gate.
-    // No rustc/cargo on PATH needed.
+    // C++ port: patch 004 lands the port sources in libnode; patch
+    // 021 hijacks the deps/crates/crates.gyp:temporal_capi target to
+    // compile our C++ port instead of building the Rust crate (so
+    // V8's mksnapshot — which links temporal_capi but NOT libnode —
+    // still resolves the temporal symbols); patch 022 disables
+    // configure.py's cargo gate. No rustc/cargo on PATH needed.
     '--v8-enable-temporal-support',
   ]
 

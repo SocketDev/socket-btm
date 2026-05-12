@@ -8,7 +8,7 @@
 
 #include "socketsecurity/temporal/utils.h"
 
-#if defined(V8_INTL_SUPPORT) || defined(NODE_HAVE_I18N_SUPPORT)
+#ifdef TEMPORAL_INFRA_HAS_ICU
 #include "unicode/basictz.h"
 #include "unicode/locid.h"
 #include "unicode/timezone.h"
@@ -22,7 +22,7 @@ namespace node {
 namespace socketsecurity {
 namespace temporal {
 
-#if defined(V8_INTL_SUPPORT) || defined(NODE_HAVE_I18N_SUPPORT)
+#ifdef TEMPORAL_INFRA_HAS_ICU
 
 namespace {
 

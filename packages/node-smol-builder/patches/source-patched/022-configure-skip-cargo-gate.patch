@@ -1,0 +1,39 @@
+# @node-versions: v26.1.0
+# @description: Skip configure.py's cargo/rustc probe when shim is wired
+#
+# Node v26 ships Temporal via the Rust `temporal_rs` crate compiled by
+# `cargo rustc`. socket-btm's temporal-infra C++ port replaces that
+# Rust path entirely — patches 004 + 021 wire the C++ implementation
+# into libnode directly, and the temporal_capi gyp target in
+# `deps/crates/crates.gyp` is left orphan (nothing depends on it).
+#
+# But configure.py still probes for cargo + rustc whenever
+# `--v8-enable-temporal-support` is set (which our build invocation
+# uses). The probe is pointless: we never invoke rustc. With the probe
+# in place, every developer building from scratch must have cargo +
+# rustc installed even though they're never executed, otherwise
+# configure errors out with no useful diagnostic.
+#
+# Skip the whole probe block. The shim's symbol surface is supplied
+# at compile time by libnode (see patch 004 sources list) and at
+# include time by v8.gyp's inline include_dirs (see patch 021).
+#
+# Files modified:
+# - configure.py: cargo/rustc probe disabled
+#
+--- a/configure.py
++++ b/configure.py
+@@ -1576,8 +1576,11 @@
+
+   o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else '0.0'
+
+-  # cargo and rustc are needed for Temporal.
+-  if not options.v8_disable_temporal_support and not options.shared_temporal_capi:
++  # cargo and rustc would normally be needed for Temporal (upstream's
++  # temporal_rs Rust crate). socket-btm patches 004 + 021 replace that
++  # with the temporal-infra C++ port, so the toolchain probe is dead.
++  # Skip it so builds don't require a Rust toolchain on PATH.
++  if False:
+     # Minimum cargo and rustc versions should match values in BUILDING.md.
+     min_cargo_ver_tuple = (1, 82)
+     min_rustc_ver_tuple = (1, 82)

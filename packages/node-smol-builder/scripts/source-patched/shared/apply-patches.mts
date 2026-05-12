@@ -16,12 +16,7 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 import { glob } from '@socketsecurity/lib/globs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
-import {
-  BINJECT_DIR,
-  BIN_INFRA_DIR,
-  BUILD_INFRA_DIR,
-  TEMPORAL_INFRA_DIR,
-} from '../../paths.mts'
+import { MONOREPO_PACKAGE_SOURCES } from '../../binary-released/shared/prepare-external-sources.mts'
 
 const logger = getDefaultLogger()
 
@@ -50,49 +45,12 @@ export async function applySocketPatches(options) {
     patchesReleaseDir,
   } = options
 
-  // Find all patches
   const socketPatches = findSocketPatches(patchesReleaseDir, buildPatchesDir)
-  const patchFilePaths = socketPatches.map(p => p.path)
-
-  // Include source package files (canonical source, not copies in additions/)
-  // These are the source of truth that get copied to additions/source-patched/
-  const sourcePackageDirs = [
-    path.join(BINJECT_DIR, 'src', 'socketsecurity', 'binject'),
-    path.join(BIN_INFRA_DIR, 'src', 'socketsecurity', 'bin-infra'),
-    path.join(BUILD_INFRA_DIR, 'src', 'socketsecurity', 'build-infra'),
-    path.join(TEMPORAL_INFRA_DIR, 'src', 'socketsecurity', 'temporal'),
-    path.join(TEMPORAL_INFRA_DIR, 'include', 'temporal_rs'),
-  ]
-
-  const sourcePackageFiles = []
-  for (let i = 0, { length } = sourcePackageDirs; i < length; i += 1) {
-    const srcDir = sourcePackageDirs[i]
-    if (existsSync(srcDir)) {
-      const srcFiles = await glob('**/*.{c,cc,cpp,h,hh,hpp}', {
-        absolute: true,
-        cwd: srcDir,
-      })
-      sourcePackageFiles.push(...srcFiles)
-    }
-  }
-
-  // H7 (quality scan): include canonical upstream-Node files in the
-  // cache key so an upstream Node bump (different source tree under
-  // modeSourceDir, byte-identical patches) invalidates this stage.
-  // Without these, byte-identical patches against a different Node
-  // version short-circuit and we ship unpatched output.
-  const upstreamSentinelPaths = [
-    path.join(modeSourceDir, 'src', 'node.cc'),
-    path.join(modeSourceDir, 'src', 'node_main.cc'),
-  ].filter(p => existsSync(p))
-
-  // Combine patches, source package files, and upstream-source
-  // sentinels for cache key.
-  const allSourcePaths = [
-    ...patchFilePaths,
-    ...sourcePackageFiles,
-    ...upstreamSentinelPaths,
-  ]
+  const allSourcePaths = await computeSourcePatchedCachePaths({
+    buildPatchesDir,
+    modeSourceDir,
+    patchesReleaseDir,
+  })
 
   if (
     !(await shouldRun(
@@ -177,9 +135,61 @@ export async function applySocketPatches(options) {
       packageName,
       patchCount: socketPatches.length,
       sourcePaths: allSourcePaths,
+      // SOURCE_PATCHED captures pristine + patches, not compiled output.
+      // A previous successful build leaves source/out/Release/ behind
+      // (~22GB). Without this exclude, the next time apply-patches
+      // re-runs (e.g. patch text changed), createCheckpoint tries to
+      // tarball the whole source dir and trips the 2GB size guardrail.
+      tarExcludes: ['out'],
     },
   )
   logger.log('')
+}
+
+/**
+ * Compute the cache-key path list for SOURCE_PATCHED. Reused by
+ * applySocketPatches (to decide whether to re-apply patches) AND by
+ * build-released.mts (to decide whether to wipe modeSourceDir before
+ * re-extraction). Both call sites MUST agree on staleness or we land
+ * in the "patches re-apply over stale source dir with leftover
+ * out/Release" state that trips the checkpoint guardrail.
+ */
+export async function computeSourcePatchedCachePaths(options: {
+  buildPatchesDir: string
+  modeSourceDir: string
+  patchesReleaseDir: string
+}): Promise<string[]> {
+  const { buildPatchesDir, modeSourceDir, patchesReleaseDir } = options
+  const socketPatches = findSocketPatches(patchesReleaseDir, buildPatchesDir)
+  const patchFilePaths = socketPatches.map(p => p.path)
+
+  const sourcePackageFiles: string[] = []
+  for (
+    let i = 0, { length } = MONOREPO_PACKAGE_SOURCES;
+    i < length;
+    i += 1
+  ) {
+    const srcDir = MONOREPO_PACKAGE_SOURCES[i]!.from
+    if (existsSync(srcDir)) {
+      const srcFiles = await glob('**/*.{c,cc,cpp,h,hh,hpp}', {
+        absolute: true,
+        cwd: srcDir,
+      })
+      sourcePackageFiles.push(...srcFiles)
+    }
+  }
+
+  // H7: include canonical upstream-Node files in the cache key so an
+  // upstream Node bump (different source tree under modeSourceDir,
+  // byte-identical patches) invalidates this stage. Without these,
+  // byte-identical patches against a different Node version
+  // short-circuit and we ship unpatched output.
+  const upstreamSentinelPaths = [
+    path.join(modeSourceDir, 'src', 'node.cc'),
+    path.join(modeSourceDir, 'src', 'node_main.cc'),
+  ].filter(p => existsSync(p))
+
+  return [...patchFilePaths, ...sourcePackageFiles, ...upstreamSentinelPaths]
 }
 
 /**

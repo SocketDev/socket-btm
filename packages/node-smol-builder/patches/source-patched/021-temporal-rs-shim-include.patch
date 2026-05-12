@@ -1,61 +1,97 @@
 # @node-versions: v26.1.0
-# @description: Bypass temporal_capi gyp target; inline shim include paths into V8
+# @description: Replace V8's temporal_rs Rust dependency with socket-btm C++ shim
 #
-# V8's js-temporal-objects.cc #includes `temporal_rs/*.hpp`. Upstream
-# resolves this through the `:temporal_capi` gyp target's
-# `direct_dependent_settings.include_dirs`, where temporal_capi is
-# defined in `deps/crates/crates.gyp` and points at the diplomat-
-# generated headers shipped by the Rust crate `temporal_capi`
-# (`<cargo_vendor_dir>/temporal_capi/bindings/cpp/`).
+# V8's js-temporal-objects.cc #includes `temporal_rs/*.hpp`, which
+# upstream resolves through a header set shipped by the Rust crate
+# `temporal_capi` at deps/crates/vendor/temporal_capi/bindings/cpp/.
+# Building those headers requires rustc + cargo + ICU4X data crates
+# (~50 transitive deps, ~5 minute cold build).
 #
 # socket-btm ships a hand-written C++ port of temporal_capi (the
-# `temporal-infra` package) plus a drop-in shim header layer at
-# `packages/temporal-infra/include/temporal_rs/` that exposes the same
+# `temporal-infra` package) plus a drop-in shim layer at
+# packages/temporal-infra/include/temporal_rs/ that has the same
 # `temporal_rs::*` surface V8 expects but routes everything to the
-# C++ port (compiled directly into libnode by patch 004).
+# C++ port instead of through diplomat/FFI to Rust.
 #
-# This patch sidesteps the `temporal_capi` gyp target entirely. The
-# two V8 targets that previously depended on `:temporal_capi`
-# (mksnapshot, v8_base_without_compiler) now declare the shim include
-# paths inline via `include_dirs`. Result:
+# This patch reshapes the `temporal_capi` gyp target so it:
 #
-#   1. `deps/crates/crates.gyp` becomes orphan — nothing depends on
-#      either of its targets (`temporal_capi`, `node_crates`), so gyp
-#      doesn't generate ninja rules for them. The rustc/cargo
-#      toolchain drops out of the build entirely.
-#   2. V8's compile of js-temporal-objects.cc resolves
-#      `temporal_rs/Calendar.hpp` via the shim headers at
-#      `<src_root>/include/temporal_rs/` (populated by
-#      copy-additions.mts from packages/temporal-infra/include/).
-#   3. Link of libnode + mksnapshot picks up the temporal-infra C++
-#      port symbols from libnode.a (added by patch 004).
+# 1. Drops the rustc/cargo dependency (`node_crates`) — no Rust build.
+# 2. Repoints the include path from the Rust-generated bindings dir
+#    (`<(cargo_vendor_dir)/temporal_capi/bindings/cpp`) to
+#    `../../include` + `../../src` (i.e. Node-source-root-relative paths
+#    that, after copy-additions.mts populates them from
+#    packages/temporal-infra/include/temporal_rs/ +
+#    packages/temporal-infra/src/socketsecurity/temporal/, give V8
+#    the shim headers and the C++ port headers).
+# 3. Compiles the temporal-infra `.cc` files directly into a
+#    `static_library` produced by this target, so V8's
+#    `v8_base_without_compiler` (which depends on `:temporal_capi`) and
+#    `mksnapshot` (which links a subset of v8_base) both get the
+#    `node::socketsecurity::temporal::*` symbols at link time. Without
+#    this, mksnapshot's link fails with "undefined reference to
+#    node::socketsecurity::temporal::*" because libnode isn't part of
+#    the snapshot tool.
+#
+# The C++ port files are listed by name (23 files in temporal-infra/src/
+# socketsecurity/temporal/) rather than glob to keep the dependency
+# manifest explicit. Update both this patch and patch 004 in lockstep
+# when adding/removing port files.
 #
 # Files modified:
-# - tools/v8_gypfiles/v8.gyp: 2 dependency-edges swapped for include_dirs
+# - deps/crates/crates.gyp: temporal_capi target compiles shim + port
 #
---- a/tools/v8_gypfiles/v8.gyp
-+++ b/tools/v8_gypfiles/v8.gyp
-@@ -316,8 +316,9 @@
-           ],
-         }],
-         ['v8_enable_temporal_support==1 and node_shared_temporal_capi=="false"', {
--          'dependencies': [
--            '../../deps/crates/crates.gyp:temporal_capi',
-+          'include_dirs': [
-+            '../../include',
-+            '../../src',
-           ],
-         }],
-         ['v8_target_arch=="ia32"', {
-@@ -1090,8 +1091,9 @@
-         ['v8_enable_temporal_support==1', {
-           'conditions': [
-             ['node_shared_temporal_capi=="false"', {
--              'dependencies': [
--                '../../deps/crates/crates.gyp:temporal_capi',
-+              'include_dirs': [
-+                '../../include',
-+                '../../src',
-               ],
-             }],
-           ],
+--- a/deps/crates/crates.gyp
++++ b/deps/crates/crates.gyp
+@@ -112,15 +112,47 @@
+     },
+     {
+       'target_name': 'temporal_capi',
+-      'type': 'none',
++      'type': 'static_library',
+       'toolsets': ['host', 'target'],
+-      'sources': [],
+-      'dependencies': [
+-        'node_crates',
++      'sources': [
++        # Socket-btm C++ port of boa-dev/temporal. Headers are in
++        # `<src_root>/include/temporal_rs/` (diplomat-shaped shim) and
++        # `<src_root>/src/socketsecurity/temporal/` (port headers); the
++        # corresponding .cc files live alongside the port headers.
++        '../../src/socketsecurity/temporal/calendar.cc',
++        '../../src/socketsecurity/temporal/duration_normalized.cc',
++        '../../src/socketsecurity/temporal/duration.cc',
++        '../../src/socketsecurity/temporal/error.cc',
++        '../../src/socketsecurity/temporal/host.cc',
++        '../../src/socketsecurity/temporal/icu_cal_backend.cc',
++        '../../src/socketsecurity/temporal/icu_tz_backend.cc',
++        '../../src/socketsecurity/temporal/instant.cc',
++        '../../src/socketsecurity/temporal/iso.cc',
++        '../../src/socketsecurity/temporal/ixdtf_writer.cc',
++        '../../src/socketsecurity/temporal/now.cc',
++        '../../src/socketsecurity/temporal/options.cc',
++        '../../src/socketsecurity/temporal/parse.cc',
++        '../../src/socketsecurity/temporal/parsed_intermediates.cc',
++        '../../src/socketsecurity/temporal/plain_date_time.cc',
++        '../../src/socketsecurity/temporal/plain_date.cc',
++        '../../src/socketsecurity/temporal/plain_month_day.cc',
++        '../../src/socketsecurity/temporal/plain_time.cc',
++        '../../src/socketsecurity/temporal/plain_year_month.cc',
++        '../../src/socketsecurity/temporal/primitive.cc',
++        '../../src/socketsecurity/temporal/relative_to.cc',
++        '../../src/socketsecurity/temporal/sys.cc',
++        '../../src/socketsecurity/temporal/time_zone.cc',
++        '../../src/socketsecurity/temporal/utils.cc',
++        '../../src/socketsecurity/temporal/zoned_date_time.cc',
+       ],
++      'include_dirs': [
++        '../../include',
++        '../../src',
++      ],
+       'direct_dependent_settings': {
+         'include_dirs': [
+-          '<(cargo_vendor_dir)/temporal_capi/bindings/cpp',
++          '../../include',
++          '../../src',
+         ],
+       },
+     },

@@ -10,6 +10,21 @@
 
 #include <cstdint>
 
+// ICU availability gate for the temporal-infra port. The two
+// underlying defines come from different gyp scopes:
+//   - V8_INTL_SUPPORT is set inside V8's gyp targets when
+//     v8_enable_i18n_support==1 (V8 self-compiled with ICU).
+//   - NODE_HAVE_I18N_SUPPORT is set on libnode's gyp target when
+//     v8_enable_i18n_support==1 (libnode compiles with ICU includes).
+// Either signal means ICU headers + symbols are reachable, so the
+// real backend branch should compile. We mirror this check in every
+// ICU-dispatch TU; if you find yourself writing
+// `#if defined(V8_INTL_SUPPORT) || defined(NODE_HAVE_I18N_SUPPORT)`
+// somewhere, use TEMPORAL_INFRA_HAS_ICU instead.
+#if defined(V8_INTL_SUPPORT) || defined(NODE_HAVE_I18N_SUPPORT)
+#define TEMPORAL_INFRA_HAS_ICU 1
+#endif
+
 namespace node {
 namespace socketsecurity {
 namespace temporal {

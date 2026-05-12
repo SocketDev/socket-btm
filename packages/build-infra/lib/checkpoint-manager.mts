@@ -137,6 +137,11 @@ export async function createCheckpoint(
     packageRoot,
     platform,
     sourcePaths,
+    // tar `--exclude` patterns to strip subtrees from the checkpoint
+    // archive. Patterns are tar globs interpreted relative to the
+    // archive root. Use this to drop build outputs (e.g. `out`) that
+    // a previous run left behind in the artifact directory.
+    tarExcludes,
     ...rest
   } = options
 
@@ -320,17 +325,23 @@ export async function createCheckpoint(
       // - Exit code 2+: Fatal errors
       // Note: @socketsecurity/lib/spawn throws on non-zero exit codes, so we catch
       // exit code 1 and check if it's the benign "file changed" warning.
+      // Build tar args: default macOS-resource-fork exclude, plus any
+      // caller-supplied excludes (e.g. `out` for source checkpoints to
+      // drop leftover build outputs and stay under the size guardrail).
+      const extraExcludes = Array.isArray(tarExcludes) ? tarExcludes : []
+      const tarArgs = [
+        '-czf',
+        unixTempTarballPath,
+        '--exclude=._*',
+        ...extraExcludes.map(p => `--exclude=${p}`),
+        '-C',
+        unixTarDir,
+        tarBase,
+      ]
       try {
         await spawn(
           tarBin,
-          [
-            '-czf',
-            unixTempTarballPath,
-            '--exclude=._*',
-            '-C',
-            unixTarDir,
-            tarBase,
-          ],
+          tarArgs,
           {
             // On macOS, COPYFILE_DISABLE=1 prevents tar from including
             // AppleDouble resource fork files (._* files) which cause
@@ -480,7 +491,7 @@ export async function createCheckpoint(
         `  2. Tarball: ${tarballPath}`,
         `  3. Check disk space: df -h ${checkpointDir}`,
         `  4. Check permissions: ls -ld ${checkpointDir}`,
-        `  5. Tar command: ${tarBin} -czf ${unixTempTarballPath} --exclude=._* -C ${unixTarDir} ${tarBase}`,
+        `  5. Tar command: ${tarBin} ${tarArgs.join(' ')}`,
       ].join('\n')
 
       const err = new Error(errorMsg)

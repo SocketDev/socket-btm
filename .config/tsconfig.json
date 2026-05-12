@@ -3,15 +3,9 @@
   "compilerOptions": {
     "declarationMap": false,
     "sourceMap": false,
-    "types": [
-      "node"
-    ]
+    "types": ["node"]
   },
-  "include": [
-    "../scripts/**/*.mts",
-    "../src/**/*.mts",
-    "../src/**/*.ts"
-  ],
+  "include": ["../scripts/**/*.mts", "../src/**/*.mts", "../src/**/*.ts"],
   "exclude": [
     "../.cache",
     "../build",

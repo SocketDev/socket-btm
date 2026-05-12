@@ -193,13 +193,12 @@ class PlainDate {
   std::optional<int32_t> era_year() const { return std::nullopt; }
   std::optional<int32_t> year_of_week() const { return std::nullopt; }
 
-  // Conversion: PlainDate -> PlainDateTime. Upstream signature takes
-  // `const PlainTime* time` (raw pointer, can be null = midnight).
-  // Stub returns nullptr; full impl lands when calendar.cc activates.
+  // 1:1 from upstream plain_date.rs `to_plain_date_time`. Pure ISO
+  // merge — this.iso.date + (time ? time.iso : midnight). Body lives
+  // at the tail of PlainDateTime.hpp because PlainTime and
+  // PlainDateTime are both incomplete here (forward-declared only).
   diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError>
-  to_plain_date_time(const PlainTime* /*time*/) const {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
-  }
+  to_plain_date_time(const PlainTime* time) const;
 
   // 1:1 from upstream plain_date.rs:644.
   std::string to_ixdtf_string(DisplayCalendar display_calendar) const {
@@ -234,17 +233,16 @@ class PlainDate {
     return std::unique_ptr<PlainDate>(new PlainDate(inner_));
   }
 
-  // Calendar projections — stub returns nullptr so V8's call sites
-  // compile/link. Full surface lands when calendar.cc activates.
+  // 1:1 from upstream plain_date.rs `to_plain_month_day` /
+  // `to_plain_year_month`. Bodies at the tail of PlainMonthDay.hpp /
+  // PlainYearMonth.hpp respectively, because PlainMonthDay and
+  // PlainYearMonth are forward-declared here (they include this
+  // header, not the other way around).
   diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
-  to_plain_month_day() const {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
-  }
+  to_plain_month_day() const;
 
   diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
-  to_plain_year_month() const {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
-  }
+  to_plain_year_month() const;
 
   // ── Mutation (returns new heap-owned PlainDate) ───────────────────
 

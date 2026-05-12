@@ -205,25 +205,53 @@ class PlainDateTime {
            inner_.iso.time.nanosecond == other.inner_.iso.time.nanosecond;
   }
 
-  // The three methods below previously returned silent identity-clones
-  // ("not yet implemented" disguised as Ok(*this)). That's an observable
-  // wrong-answer — `pdt.with({hour: 5})` returned the unmodified pdt.
-  // Surface the limitation explicitly until the rounding-tail / time-
-  // overlay / PartialDateTime resolution paths land.
+  // 1:1 from upstream plain_date_time.rs `round`. Resolves the
+  // RoundingOptions then delegates to RoundIsoDateTime, which handles
+  // the time-rounding plus carry-into-date.
   diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError> round(
-      const RoundingOptions& /*options*/) const {
-    return diplomat::Err<TemporalError>(TemporalError{
-        ErrorKind::Range,
-        "PlainDateTime.round not yet implemented"});
+      const RoundingOptions& options) const {
+    auto resolved =
+        ::node::socketsecurity::temporal::ResolvedRoundingOptionsFromDateTime(
+            options.ToInfra());
+    if (!resolved.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(resolved.error()));
+    }
+    auto rounded = ::node::socketsecurity::temporal::RoundIsoDateTime(
+        inner_.iso, resolved.value());
+    if (!rounded.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(rounded.error()));
+    }
+    ::node::socketsecurity::temporal::PlainDateTime out{};
+    out.iso = rounded.value();
+    if (!out.IsValid()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "PlainDateTime.round result outside valid range"});
+    }
+    return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
+        PlainDateTime::FromInfra(out));
   }
 
-  // Upstream: with_time(const PlainTime*) — V8 passes the raw pointer
-  // straight from `temporal_time->time()->raw()`, possibly nullptr.
+  // 1:1 from upstream plain_date_time.rs `with_time`. Replaces the
+  // time portion while keeping the date. Null time = midnight per
+  // spec. The date portion comes from this->inner_.iso.date which
+  // was already validated when the receiver was constructed.
   diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError> with_time(
-      const PlainTime* /*time*/) const {
-    return diplomat::Err<TemporalError>(TemporalError{
-        ErrorKind::Range,
-        "PlainDateTime.withPlainTime not yet implemented"});
+      const PlainTime* time) const {
+    ::node::socketsecurity::temporal::PlainDateTime out{};
+    out.iso.date = inner_.iso.date;
+    if (time != nullptr) {
+      out.iso.time = time->ToInfra().iso;
+    }
+    if (!out.IsValid()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "PlainDateTime invalid after time replacement"});
+    }
+    return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
+        std::unique_ptr<PlainDateTime>(new PlainDateTime(out)));
   }
 
   // Upstream: with(PartialDateTime, optional<ArithmeticOverflow>).
@@ -429,6 +457,29 @@ class PlainDateTime {
 
   ::node::socketsecurity::temporal::PlainDateTime inner_;
 };
+
+// ── Cross-class out-of-line definitions ──────────────────────────────
+// PlainDate::to_plain_date_time needs both PlainTime (for ToInfra)
+// and PlainDateTime (for FromInfra) complete. PlainDate.hpp can only
+// forward-declare both because PlainDateTime.hpp already includes
+// PlainDate.hpp; the body lives here at the tail where everything is
+// complete.
+
+inline diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError>
+PlainDate::to_plain_date_time(const PlainTime* time) const {
+  ::node::socketsecurity::temporal::PlainDateTime out{};
+  out.iso.date = inner_.iso;
+  if (time != nullptr) {
+    out.iso.time = time->ToInfra().iso;
+  }
+  if (!out.IsValid()) {
+    return diplomat::Err<TemporalError>(TemporalError{
+        ErrorKind::Range,
+        "PlainDateTime out of range after combining date + time"});
+  }
+  return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
+      PlainDateTime::FromInfra(out));
+}
 
 }  // namespace temporal_rs
 

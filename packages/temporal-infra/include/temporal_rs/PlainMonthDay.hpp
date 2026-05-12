@@ -62,12 +62,49 @@ class PlainMonthDay {
     return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
   }
 
+  // 1:1 from upstream plain_month_day.rs `try_new_with_overflow`.
+  // ISO path implemented inline; non-ISO calendars Err until backend.
+  // Overflow='constrain' clamps month + day; 'reject' Errs.
   static diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
-  try_new_with_overflow(uint8_t /*month*/, uint8_t /*day*/,
-                        AnyCalendarKind /*calendar*/,
-                        ArithmeticOverflow /*overflow*/,
-                        std::optional<int32_t> /*ref_year*/) {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
+  try_new_with_overflow(uint8_t month, uint8_t day,
+                        AnyCalendarKind calendar,
+                        ArithmeticOverflow overflow,
+                        std::optional<int32_t> ref_year) {
+    if (calendar.ToInfra() !=
+        ::node::socketsecurity::temporal::CalendarKind::kIso) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "PlainMonthDay.try_new_with_overflow non-ISO calendars "
+          "not yet implemented"});
+    }
+    auto first_try =
+        ::node::socketsecurity::temporal::PlainMonthDayTryNewIso(
+            month, day, ref_year);
+    if (first_try.ok()) {
+      return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
+          std::unique_ptr<PlainMonthDay>(new PlainMonthDay(first_try.value())));
+    }
+    if (overflow.ToInfra() !=
+        ::node::socketsecurity::temporal::Overflow::kConstrain) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(first_try.error()));
+    }
+    // Constrain: clamp month then day. Use ref_year (or 1972 — the
+    // ISO leap-year reference) for the day clamp computation.
+    const uint8_t clamped_month = month < 1 ? 1 : (month > 12 ? 12 : month);
+    const int32_t year_for_days = ref_year.value_or(1972);
+    const uint8_t max_day =
+        ::node::socketsecurity::temporal::ISODaysInMonth(year_for_days,
+                                                          clamped_month);
+    const uint8_t clamped_day = day < 1 ? 1 : (day > max_day ? max_day : day);
+    auto retry = ::node::socketsecurity::temporal::PlainMonthDayTryNewIso(
+        clamped_month, clamped_day, ref_year);
+    if (!retry.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(retry.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
+        std::unique_ptr<PlainMonthDay>(new PlainMonthDay(retry.value())));
   }
 
   diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
@@ -81,9 +118,24 @@ class PlainMonthDay {
         "PlainMonthDay.with not yet implemented"});
   }
 
+  // 1:1 from upstream plain_month_day.rs `to_plain_date`. ISO path:
+  // pair the MonthDay's month+day with the caller-supplied year
+  // override (PartialDate.year) or the MonthDay's reference_year.
+  // Spec requires year to be provided when reference_year is the
+  // default 1972; we accept either.
   diplomat::result<std::unique_ptr<PlainDate>, TemporalError>
-  to_plain_date(std::optional<PartialDate> /*year*/) const {
-    return diplomat::Err<::temporal_rs::TemporalError>(::temporal_rs::TemporalError{::temporal_rs::ErrorKind::Range, "not yet implemented"});
+  to_plain_date(std::optional<PartialDate> year) const {
+    const int32_t resolved_year = (year.has_value() && year->year.has_value())
+                                      ? *year->year
+                                      : inner_.iso.year;
+    auto result = ::node::socketsecurity::temporal::PlainDateTryNewIso(
+        resolved_year, inner_.iso.month, inner_.iso.day);
+    if (!result.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(result.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PlainDate>>(
+        PlainDate::FromInfra(result.value()));
   }
 
   diplomat::result<int64_t, TemporalError>
@@ -218,6 +270,25 @@ class PlainMonthDay {
 
   ::node::socketsecurity::temporal::PlainMonthDay inner_;
 };
+
+// ── Cross-class out-of-line definitions ──────────────────────────────
+// PlainDate::to_plain_month_day's body lives here because
+// PlainMonthDay is forward-declared in PlainDate.hpp.
+
+inline diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
+PlainDate::to_plain_month_day() const {
+  // ISO path: pass month + day directly with no reference_year
+  // override. PlainMonthDayTryNewIso uses 1972 as the leap-year
+  // anchor so Feb 29 round-trips cleanly.
+  auto result = ::node::socketsecurity::temporal::PlainMonthDayTryNewIso(
+      inner_.iso.month, inner_.iso.day, std::optional<int32_t>{});
+  if (!result.ok()) {
+    return diplomat::Err<TemporalError>(
+        TemporalError::FromInfra(result.error()));
+  }
+  return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
+      PlainMonthDay::FromInfra(result.value()));
+}
 
 }  // namespace temporal_rs
 

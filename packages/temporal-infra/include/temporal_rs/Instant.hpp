@@ -158,16 +158,93 @@ class Instant {
 
   // ── Rounding ───────────────────────────────────────────────────
   //
-  // temporal-infra exposes ResolvedRoundingOptionsFromInstant but
-  // wiring it through to a re-balanced Instant requires the rounding
-  // tail to land. Previously returned a clone — silent wrong-answer
-  // for any non-trivial rounding request. Surface Err until the
-  // rounding tail lands.
+  // 1:1 from upstream instant.rs:238-269 `round_instant`. Rounds the
+  // epoch-ns to a multiple of `increment * nsPerUnit` per the
+  // requested mode. Only time units (hour/minute/second/ms/us/ns) are
+  // valid; day/year/week/month return Range per spec.
   diplomat::result<std::unique_ptr<Instant>, TemporalError> round(
-      const RoundingOptions& /*options*/) const {
-    return diplomat::Err<TemporalError>(TemporalError{
-        ErrorKind::Range,
-        "Instant.round not yet implemented"});
+      const RoundingOptions& options) const {
+    using Unit = ::node::socketsecurity::temporal::Unit;
+    using RoundingMode = ::node::socketsecurity::temporal::RoundingMode;
+    using UnsignedRoundingMode =
+        ::node::socketsecurity::temporal::UnsignedRoundingMode;
+    using ::node::socketsecurity::temporal::Int128;
+    using ::node::socketsecurity::temporal::RoundingModeGetUnsigned;
+
+    // Per spec: smallest_unit is required for Instant.round.
+    if (!options.smallest_unit.has_value()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "Instant.round requires smallestUnit"});
+    }
+    const Unit unit = options.smallest_unit->ToInfra();
+    uint64_t unit_ns = 0;
+    switch (unit) {
+      case Unit::kHour:        unit_ns = 3'600'000'000'000ULL; break;
+      case Unit::kMinute:      unit_ns =    60'000'000'000ULL; break;
+      case Unit::kSecond:      unit_ns =     1'000'000'000ULL; break;
+      case Unit::kMillisecond: unit_ns =         1'000'000ULL; break;
+      case Unit::kMicrosecond: unit_ns =             1'000ULL; break;
+      case Unit::kNanosecond:  unit_ns =                 1ULL; break;
+      default:
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range,
+            "Instant.round smallestUnit must be 'hour' or smaller"});
+    }
+    const uint64_t increment = options.increment.value_or(1u);
+    if (increment == 0) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range, "Instant.round roundingIncrement must be > 0"});
+    }
+    const RoundingMode mode =
+        options.rounding_mode.has_value()
+            ? options.rounding_mode->ToInfra()
+            : RoundingMode::kHalfExpand;
+    const Int128 inc(static_cast<int64_t>(increment * unit_ns));
+
+    // Round epoch_ns to the nearest multiple of `inc` per `mode`,
+    // matching the algorithm in iso.cc:420-460 (RoundIsoTime tail).
+    const Int128 quantity = inner_.epoch_nanoseconds;
+    const bool sign = quantity >= Int128(0);
+    const UnsignedRoundingMode unsigned_mode =
+        RoundingModeGetUnsigned(mode, sign);
+    Int128 abs_q = sign ? quantity : -quantity;
+    Int128 r1 = abs_q / inc;
+    Int128 rem = abs_q % inc;
+    Int128 rounded;
+    if (rem == Int128(0) || unsigned_mode == UnsignedRoundingMode::kZero) {
+      rounded = r1;
+    } else if (unsigned_mode == UnsignedRoundingMode::kInfinity) {
+      rounded = r1 + Int128(1);
+    } else {
+      Int128 twice_rem = rem + rem;
+      if (twice_rem < inc) {
+        rounded = r1;
+      } else if (twice_rem > inc) {
+        rounded = r1 + Int128(1);
+      } else {
+        switch (unsigned_mode) {
+          case UnsignedRoundingMode::kHalfZero:     rounded = r1; break;
+          case UnsignedRoundingMode::kHalfInfinity: rounded = r1 + Int128(1); break;
+          case UnsignedRoundingMode::kHalfEven: {
+            Int128 mod = r1 % Int128(2);
+            rounded = (mod == Int128(0)) ? r1 : r1 + Int128(1);
+            break;
+          }
+          default: rounded = r1; break;
+        }
+      }
+    }
+    if (!sign) rounded = -rounded;
+    const Int128 rounded_ns = rounded * inc;
+    ::node::socketsecurity::temporal::Instant out{};
+    out.epoch_nanoseconds = rounded_ns;
+    if (!out.IsValid()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "Instant.round result exceeds valid epoch range"});
+    }
+    return diplomat::Ok<std::unique_ptr<Instant>>(Instant::FromInfra(out));
   }
 
   // ── ZDT projection ─────────────────────────────────────────────

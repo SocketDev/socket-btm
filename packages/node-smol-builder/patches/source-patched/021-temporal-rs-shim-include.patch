@@ -42,7 +42,7 @@
 #
 --- a/deps/crates/crates.gyp
 +++ b/deps/crates/crates.gyp
-@@ -112,15 +112,45 @@
+@@ -112,15 +112,47 @@
      },
      {
        'target_name': 'temporal_capi',
@@ -62,6 +62,8 @@
 +        '../../src/socketsecurity/temporal/duration.cc',
 +        '../../src/socketsecurity/temporal/error.cc',
 +        '../../src/socketsecurity/temporal/host.cc',
++        '../../src/socketsecurity/temporal/icu_cal_backend.cc',
++        '../../src/socketsecurity/temporal/icu_tz_backend.cc',
 +        '../../src/socketsecurity/temporal/instant.cc',
 +        '../../src/socketsecurity/temporal/iso.cc',
 +        '../../src/socketsecurity/temporal/ixdtf_writer.cc',

@@ -18,6 +18,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
+#include <string>
 #include <string_view>
 
 #include "socketsecurity/temporal/error.h"
@@ -188,7 +190,46 @@ class CalendarBackend {
                                                const IsoDate& earlier,
                                                const IsoDate& later,
                                                Unit largest_unit) noexcept;
+
+  // Calendar-aware field accessors. Each defaults to rejecting non-
+  // ISO calendars; V8's ICU-backed override resolves them against
+  // icu::Calendar.
+  virtual TemporalResult<uint8_t> DaysInMonth(CalendarKind kind,
+                                                const IsoDate& iso) noexcept;
+  virtual TemporalResult<uint16_t> DaysInYear(CalendarKind kind,
+                                                const IsoDate& iso) noexcept;
+  virtual TemporalResult<uint8_t> MonthsInYear(CalendarKind kind,
+                                                 const IsoDate& iso) noexcept;
+  virtual TemporalResult<uint8_t> DaysInWeek(CalendarKind kind,
+                                               const IsoDate& iso) noexcept;
+  virtual TemporalResult<std::string> MonthCode(CalendarKind kind,
+                                                  const IsoDate& iso) noexcept;
+  virtual TemporalResult<std::string> Era(CalendarKind kind,
+                                            const IsoDate& iso) noexcept;
+  virtual TemporalResult<std::optional<int32_t>> EraYear(
+      CalendarKind kind, const IsoDate& iso) noexcept;
+  virtual TemporalResult<bool> InLeapYear(CalendarKind kind,
+                                            const IsoDate& iso) noexcept;
 };
+
+// Front-door dispatch helpers — choose ISO inline or delegate to the
+// backend for non-ISO. Each compat accessor on PlainDate /
+// PlainDateTime / ZonedDateTime / PlainYearMonth / PlainMonthDay
+// can call these instead of branching by hand.
+uint8_t CalendarDaysInMonth(const Calendar& cal,
+                              const IsoDate& iso) noexcept;
+uint16_t CalendarDaysInYear(const Calendar& cal,
+                              const IsoDate& iso) noexcept;
+uint8_t CalendarMonthsInYear(const Calendar& cal,
+                               const IsoDate& iso) noexcept;
+uint8_t CalendarDaysInWeek(const Calendar& cal,
+                             const IsoDate& iso) noexcept;
+std::string CalendarMonthCode(const Calendar& cal,
+                                const IsoDate& iso) noexcept;
+std::string CalendarEra(const Calendar& cal, const IsoDate& iso) noexcept;
+std::optional<int32_t> CalendarEraYear(const Calendar& cal,
+                                         const IsoDate& iso) noexcept;
+bool CalendarInLeapYear(const Calendar& cal, const IsoDate& iso) noexcept;
 
 CalendarBackend& GetCalendarBackend() noexcept;
 void SetCalendarBackend(CalendarBackend* backend) noexcept;

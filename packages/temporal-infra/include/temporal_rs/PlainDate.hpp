@@ -179,16 +179,23 @@ class PlainDate {
 
   bool is_valid() const { return inner_.IsValid(); }
 
-  // Calendar-aware accessors. Calendar-backend integration is
-  // pending; these stub to ISO-equivalent or empty defaults so V8
-  // links. Real values land when calendar.cc activates the non-ISO
-  // paths.
+  // Calendar-aware accessors. The compat layer's inner POD only
+  // carries IsoDate — V8 holds the actual Calendar in a separate
+  // slot on JSTemporalPlainDate. These accessors return ISO defaults;
+  // V8's js-temporal-objects.cc consults the Calendar slot for the
+  // non-ISO answer via the Calendar* helpers in calendar.cc directly.
+  // To make the compat PlainDate carry its own Calendar, the inner
+  // POD would need a Calendar field threaded through every
+  // constructor — deferred.
   Calendar calendar() const {
     return Calendar(::node::socketsecurity::temporal::Calendar::Iso());
   }
   uint8_t days_in_week() const { return 7; }
   uint8_t months_in_year() const { return 12; }
-  std::string month_code() const { const uint8_t m = month(); return std::string("M") + (m < 10 ? "0" : "") + std::to_string(m); }
+  std::string month_code() const {
+    const uint8_t m = month();
+    return std::string("M") + (m < 10 ? "0" : "") + std::to_string(m);
+  }
   std::string era() const { return ""; }
   std::optional<int32_t> era_year() const { return std::nullopt; }
   std::optional<int32_t> year_of_week() const {

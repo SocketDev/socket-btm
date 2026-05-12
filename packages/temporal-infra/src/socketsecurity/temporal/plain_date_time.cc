@@ -228,6 +228,27 @@ TemporalResult<Duration> DiffDateTime(const PlainDateTime& self,
     date_part.months = -date_part.months;
     date_part.weeks = -date_part.weeks;
   }
+  // Spec: BalanceTimeDurationRelative — date_part.days and the time
+  // portion must share the same sign. When they disagree (the
+  // "cross-midnight" case, e.g. earlier=23:00 → later=01:00 the next
+  // day), transfer one whole day from the date portion to the time
+  // portion: days -= sign(days); ns += sign(days) * kNsPerDay.
+  // Without this the resulting Duration fails IsValid() per the
+  // sign-agreement rule, surfacing as a confusing JS-side error.
+  const Int128 ns_per_day(static_cast<int64_t>(kNsPerDay));
+  if (date_part.days != 0 && ns != Int128(0)) {
+    const bool date_negative = date_part.days < 0;
+    const bool time_negative = ns < Int128(0);
+    if (date_negative != time_negative) {
+      if (date_negative) {
+        date_part.days += 1;
+        ns -= ns_per_day;
+      } else {
+        date_part.days -= 1;
+        ns += ns_per_day;
+      }
+    }
+  }
   // Decompose ns into time components (hours .. nanoseconds).
   bool negative = ns < Int128(0);
   Int128 abs_ns = negative ? -ns : ns;

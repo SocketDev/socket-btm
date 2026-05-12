@@ -205,6 +205,139 @@ TemporalResult<Duration> CalendarBackend::DateUntil(
       "(V8's js-temporal layer installs one at boot)");
 }
 
+TemporalResult<uint8_t> CalendarBackend::DaysInMonth(
+    CalendarKind /*kind*/, const IsoDate& /*iso*/) noexcept {
+  return TemporalError::Range(
+      "Non-ISO calendar daysInMonth requires a registered backend");
+}
+
+TemporalResult<uint16_t> CalendarBackend::DaysInYear(
+    CalendarKind /*kind*/, const IsoDate& /*iso*/) noexcept {
+  return TemporalError::Range(
+      "Non-ISO calendar daysInYear requires a registered backend");
+}
+
+TemporalResult<uint8_t> CalendarBackend::MonthsInYear(
+    CalendarKind /*kind*/, const IsoDate& /*iso*/) noexcept {
+  return TemporalError::Range(
+      "Non-ISO calendar monthsInYear requires a registered backend");
+}
+
+TemporalResult<uint8_t> CalendarBackend::DaysInWeek(
+    CalendarKind /*kind*/, const IsoDate& /*iso*/) noexcept {
+  return TemporalError::Range(
+      "Non-ISO calendar daysInWeek requires a registered backend");
+}
+
+TemporalResult<std::string> CalendarBackend::MonthCode(
+    CalendarKind /*kind*/, const IsoDate& /*iso*/) noexcept {
+  return TemporalError::Range(
+      "Non-ISO calendar monthCode requires a registered backend");
+}
+
+TemporalResult<std::string> CalendarBackend::Era(
+    CalendarKind /*kind*/, const IsoDate& /*iso*/) noexcept {
+  return TemporalError::Range(
+      "Non-ISO calendar era requires a registered backend");
+}
+
+TemporalResult<std::optional<int32_t>> CalendarBackend::EraYear(
+    CalendarKind /*kind*/, const IsoDate& /*iso*/) noexcept {
+  return TemporalError::Range(
+      "Non-ISO calendar eraYear requires a registered backend");
+}
+
+TemporalResult<bool> CalendarBackend::InLeapYear(
+    CalendarKind /*kind*/, const IsoDate& /*iso*/) noexcept {
+  return TemporalError::Range(
+      "Non-ISO calendar inLeapYear requires a registered backend");
+}
+
+// ── Front-door dispatch helpers ──────────────────────────────────────
+//
+// Each accessor short-circuits for ISO (the inline math is trivial)
+// and falls through to the registered backend for non-ISO calendars.
+// Non-ISO without a registered backend returns the spec-acceptable
+// default (rather than propagating an error through accessors that
+// V8 expects to be infallible).
+
+uint8_t CalendarDaysInMonth(const Calendar& cal,
+                             const IsoDate& iso) noexcept {
+  if (cal.IsIso()) {
+    return ISODaysInMonth(iso.year, iso.month);
+  }
+  auto r = GetCalendarBackend().DaysInMonth(cal.Kind(), iso);
+  return r.ok() ? r.value() : ISODaysInMonth(iso.year, iso.month);
+}
+
+uint16_t CalendarDaysInYear(const Calendar& cal,
+                             const IsoDate& iso) noexcept {
+  if (cal.IsIso()) {
+    return IsLeapYear(iso.year) ? 366 : 365;
+  }
+  auto r = GetCalendarBackend().DaysInYear(cal.Kind(), iso);
+  return r.ok() ? r.value() : (IsLeapYear(iso.year) ? 366 : 365);
+}
+
+uint8_t CalendarMonthsInYear(const Calendar& cal,
+                              const IsoDate& iso) noexcept {
+  if (cal.IsIso()) {
+    return 12;
+  }
+  auto r = GetCalendarBackend().MonthsInYear(cal.Kind(), iso);
+  return r.ok() ? r.value() : 12;
+}
+
+uint8_t CalendarDaysInWeek(const Calendar& cal,
+                            const IsoDate& iso) noexcept {
+  if (cal.IsIso()) {
+    return 7;
+  }
+  auto r = GetCalendarBackend().DaysInWeek(cal.Kind(), iso);
+  return r.ok() ? r.value() : 7;
+}
+
+std::string CalendarMonthCode(const Calendar& cal,
+                               const IsoDate& iso) noexcept {
+  if (cal.IsIso()) {
+    std::string out = "M";
+    if (iso.month < 10) out.push_back('0');
+    out += std::to_string(iso.month);
+    return out;
+  }
+  auto r = GetCalendarBackend().MonthCode(cal.Kind(), iso);
+  if (r.ok()) return r.value();
+  std::string out = "M";
+  if (iso.month < 10) out.push_back('0');
+  out += std::to_string(iso.month);
+  return out;
+}
+
+std::string CalendarEra(const Calendar& cal, const IsoDate& iso) noexcept {
+  if (cal.IsIso()) {
+    return "";  // ISO has no era surface.
+  }
+  auto r = GetCalendarBackend().Era(cal.Kind(), iso);
+  return r.ok() ? r.value() : "";
+}
+
+std::optional<int32_t> CalendarEraYear(const Calendar& cal,
+                                         const IsoDate& iso) noexcept {
+  if (cal.IsIso()) {
+    return std::nullopt;
+  }
+  auto r = GetCalendarBackend().EraYear(cal.Kind(), iso);
+  return r.ok() ? r.value() : std::optional<int32_t>{};
+}
+
+bool CalendarInLeapYear(const Calendar& cal, const IsoDate& iso) noexcept {
+  if (cal.IsIso()) {
+    return IsLeapYear(iso.year);
+  }
+  auto r = GetCalendarBackend().InLeapYear(cal.Kind(), iso);
+  return r.ok() ? r.value() : IsLeapYear(iso.year);
+}
+
 namespace {
 CalendarBackend& DefaultCalendarBackend() noexcept {
   static CalendarBackend instance;

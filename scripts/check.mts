@@ -210,7 +210,7 @@ export async function runTypeCheck(): Promise<number> {
 
   const result = await spawn(
     tsgoResult,
-    ['--noEmit', '-p', '.config/tsconfig.json'],
+    ['--noEmit', '-p', 'tsconfig.json'],
     {
       shell: WIN32,
       stdio: 'inherit',

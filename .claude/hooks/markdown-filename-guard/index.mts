@@ -141,13 +141,6 @@ export function classifyMarkdownPath(absPath: string): Verdict {
     return { ok: true }
   }
 
-  // Claude Code auto-memory dir lives at
-  // ~/.claude/projects/<slug>/memory/ — outside any git repo, with
-  // its own per-type naming convention. Fleet doc rules don't apply.
-  if (/\/\.claude\/projects\/[^/]+\/memory\//.test(absPath)) {
-    return { ok: true }
-  }
-
   const relPath = toRepoRelative(absPath).split(path.sep).join('/')
   const nameWithoutExt = filename.replace(/\.(md|MD|markdown)$/, '')
 

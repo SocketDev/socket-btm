@@ -1,7 +1,11 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "declaration": false,
     "declarationMap": false,
+    "module": "nodenext",
+    "noEmit": true,
     "sourceMap": false,
     "types": ["node"]
   },

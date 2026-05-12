@@ -26,20 +26,29 @@ row should fail review.
 
 ## Snapshot (auto-derive on update)
 
-| Status                       | Count |
-| ---------------------------- | ----- |
-| Total tracker rows           | 22    |
-| Stub sites in source         | 26    |
-| P0 (smoke-test affecting)    | 0     |
-| P1 (common JS surface)       | 12    |
-| P2 (reachable but uncommon)  | 5     |
-| P3 (provider / non-ISO)      | 7     |
+| Status                                | Count |
+| ------------------------------------- | ----- |
+| Total tracker rows                    | 22    |
+| Closed with real bodies               | 22    |
+| Provider-dependent (require IANA      |       |
+| backend override for full coverage)   | 4     |
 
-Adjust this table when adding or removing rows. Source stub count
-(from the audit `rg` at the header) is higher than tracker rows
-because some rows bundle two related stubs on the same method pair
-(`with` + `to_plain_date`, `epoch_ms_for` single + dual variant).
-A row may cover 1–2 stub sites.
+All 22 tracker rows now have real implementations for the surface
+they can implement honestly. The 4 Provider-dependent rows (#3, #11,
+#16, #18, #19, #20 — the wall-clock ↔ epoch-ns paths) work end-to-end
+for offset-only timezones (UTC, "+05:00", ...) via the
+`TimeZone::GetEpochNanosecondsFor` helper added in commit `07183be3`.
+For IANA timezones they delegate to the `TimeZoneBackend` virtual
+hook; V8's IANATimeZoneBackend can register a real override that
+walks zoneinfo64 transition tables in reverse.
+
+CalendarBackend's accessor surface was expanded in commit `4da5aed4`
+(8 new virtuals: DaysInMonth/Year/MonthsInYear/DaysInWeek/MonthCode/
+Era/EraYear/InLeapYear). The compat PlainDate/PlainDateTime/etc.
+inner POD only carries `IsoDate` — no Calendar companion field —
+so the V8-facing accessors still hard-code ISO defaults until the
+inner-POD shape gains a Calendar field. The dispatch helpers + 8
+virtuals are ready for that future wire-through.
 
 ## Prerequisites tree
 

@@ -392,6 +392,141 @@ if (typeof Temporal !== 'object' || Temporal === null) {
   )
 }
 
+// ── Boundary cases (added in the lockstep follow-on) ─────────────────
+//
+// Exercise edges the original assertions miss: the year-boundary,
+// cross-midnight until/since (validates the H6 fix), and the new
+// year_of_week / week_of_year wiring.
+
+{
+  // ISO year-of-week boundary: 2024-12-30 is a Monday whose Thursday
+  // (2025-01-02) lands in 2025. Per ISO 8601 the date belongs to
+  // 2025's W01.
+  const pd = Temporal.PlainDate.from('2024-12-30')
+  check(
+    'PlainDate.yearOfWeek crosses to next year',
+    pd.yearOfWeek === 2025,
+    `got ${pd.yearOfWeek}`,
+  )
+  check(
+    'PlainDate.weekOfYear at crossing = 1',
+    pd.weekOfYear === 1,
+    `got ${pd.weekOfYear}`,
+  )
+
+  // 2023-01-01 is a Sunday whose Thursday (2022-12-29) lands in 2022.
+  // Per ISO 8601 the date belongs to 2022's W52.
+  const pd2 = Temporal.PlainDate.from('2023-01-01')
+  check(
+    'PlainDate.yearOfWeek crosses to previous year',
+    pd2.yearOfWeek === 2022,
+    `got ${pd2.yearOfWeek}`,
+  )
+  check(
+    'PlainDate.weekOfYear at start = 52',
+    pd2.weekOfYear === 52,
+    `got ${pd2.weekOfYear}`,
+  )
+}
+
+{
+  // PlainDateTime.until cross-midnight: 2026-05-08T23:00 →
+  // 2026-05-09T01:00 is exactly +2h. Without the H6 fix this would
+  // produce {days:1, hours:-22} (mixed signs, invalid Duration).
+  const earlier = Temporal.PlainDateTime.from('2026-05-08T23:00:00')
+  const later = Temporal.PlainDateTime.from('2026-05-09T01:00:00')
+  const dur = tryCheck('PlainDateTime.until cross-midnight (call)', () =>
+    earlier.until(later),
+  )
+  if (dur !== undefined) {
+    check(
+      'PlainDateTime.until cross-midnight signs agree',
+      dur.days === 0 && dur.hours === 2,
+      `got days=${dur.days} hours=${dur.hours} minutes=${dur.minutes}`,
+    )
+  }
+
+  // Negative direction: 2026-05-09T01:00 → 2026-05-08T23:00 = -2h.
+  const dur2 = tryCheck(
+    'PlainDateTime.until cross-midnight negative (call)',
+    () => later.until(earlier),
+  )
+  if (dur2 !== undefined) {
+    check(
+      'PlainDateTime.until cross-midnight negative signs',
+      dur2.days === 0 && dur2.hours === -2,
+      `got days=${dur2.days} hours=${dur2.hours}`,
+    )
+  }
+}
+
+{
+  // Leap year boundary: 2024-02-29 → 2025-02-28 is exactly 365 days
+  // (one year minus one day). Spec computes years:1, days:0 — the
+  // ISO calendar handles this without DST surprises.
+  const ly = Temporal.PlainDate.from('2024-02-29')
+  check(
+    'PlainDate.daysInMonth(Feb 2024) = 29',
+    ly.daysInMonth === 29,
+    `got ${ly.daysInMonth}`,
+  )
+  check(
+    'PlainDate.daysInYear(2024) = 366',
+    ly.daysInYear === 366,
+    `got ${ly.daysInYear}`,
+  )
+  check(
+    'PlainDate.inLeapYear(2024)',
+    ly.inLeapYear === true,
+    `got ${ly.inLeapYear}`,
+  )
+
+  const ny = Temporal.PlainDate.from('2025-02-28')
+  check(
+    'PlainDate.daysInMonth(Feb 2025) = 28',
+    ny.daysInMonth === 28,
+    `got ${ny.daysInMonth}`,
+  )
+  check(
+    'PlainDate.daysInYear(2025) = 365',
+    ny.daysInYear === 365,
+    `got ${ny.daysInYear}`,
+  )
+  check(
+    'PlainDate.inLeapYear(2025)',
+    ny.inLeapYear === false,
+    `got ${ny.inLeapYear}`,
+  )
+}
+
+{
+  // Round-trip: PlainDate ↔ PlainDateTime ↔ PlainDate via
+  // toPlainDateTime + toPlainDate. Exercises the cross-class
+  // bodies added in the lockstep batches.
+  const pd = Temporal.PlainDate.from('2026-05-08')
+  const pdt = tryCheck('PlainDate.toPlainDateTime (call)', () =>
+    pd.toPlainDateTime(),
+  )
+  if (pdt !== undefined) {
+    check(
+      'PlainDate→PlainDateTime preserves date',
+      pdt.year === 2026 && pdt.month === 5 && pdt.day === 8,
+      `got ${pdt.toString()}`,
+    )
+    check(
+      'PlainDate→PlainDateTime defaults time to midnight',
+      pdt.hour === 0 && pdt.minute === 0 && pdt.second === 0,
+      `got h=${pdt.hour} m=${pdt.minute} s=${pdt.second}`,
+    )
+    const pd2 = pdt.toPlainDate()
+    check(
+      'PlainDateTime.toPlainDate round-trip',
+      pd2.year === 2026 && pd2.month === 5 && pd2.day === 8,
+      `got ${pd2.toString()}`,
+    )
+  }
+}
+
 // ── Report ──────────────────────────────────────────────────────────
 
 if (failures.length > 0) {
@@ -402,4 +537,4 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log(`Temporal smoke test: all ${43} checks passed`)
+console.log(`Temporal smoke test: all ${58} checks passed`)

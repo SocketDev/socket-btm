@@ -534,26 +534,12 @@ class ZonedDateTime {
   }
 
  private:
+  // Body lives at the tail of Instant.hpp where both ZonedDateTime
+  // and Instant are complete (this header has Instant only forward-
+  // declared in some include orders).
   diplomat::result<std::unique_ptr<Duration>, TemporalError>
   diff_via_instant(const ZonedDateTime& other,
-                   const DifferenceSettings& settings, bool negate) const {
-    // Reject calendar-carry units that need DST/Provider integration.
-    using Unit = ::node::socketsecurity::temporal::Unit;
-    if (settings.largest_unit.has_value()) {
-      const Unit lu = settings.largest_unit->ToInfra();
-      if (lu == Unit::kDay || lu == Unit::kWeek || lu == Unit::kMonth ||
-          lu == Unit::kYear) {
-        return diplomat::Err<TemporalError>(TemporalError{
-            ErrorKind::Range,
-            "ZonedDateTime.until/since with largestUnit >= 'day' "
-            "requires DST-aware Provider integration; not yet wired"});
-      }
-    }
-    auto self_inst = Instant::FromInfra(inner_.instant);
-    auto other_inst = Instant::FromInfra(other.inner_.instant);
-    return negate ? self_inst->since(*other_inst, settings)
-                  : self_inst->until(*other_inst, settings);
-  }
+                   const DifferenceSettings& settings, bool negate) const;
 
  public:
 
@@ -720,6 +706,29 @@ PlainDate::to_zoned_date_time(TimeZone tz, const PlainTime* time) const {
   }
   auto ns = tz.ToInfra().GetEpochNanosecondsFor(
       iso, ::node::socketsecurity::temporal::Disambiguation::kCompatible);
+  if (!ns.ok()) {
+    return diplomat::Err<TemporalError>(
+        TemporalError::FromInfra(ns.error()));
+  }
+  ::node::socketsecurity::temporal::Instant instant{};
+  instant.epoch_nanoseconds = ns.value();
+  auto zr = ::node::socketsecurity::temporal::ZonedDateTimeTryNew(
+      instant, tz.ToInfra(),
+      ::node::socketsecurity::temporal::Calendar::Iso());
+  if (!zr.ok()) {
+    return diplomat::Err<TemporalError>(
+        TemporalError::FromInfra(zr.error()));
+  }
+  return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+      ZonedDateTime::FromInfra(zr.value()));
+}
+
+// Cross-class: PlainDateTime::to_zoned_date_time body. Lives here so
+// ZonedDateTime is complete at the use site. PlainDateTime.hpp only
+// forward-declares ZonedDateTime in some include orders.
+inline diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
+PlainDateTime::to_zoned_date_time(TimeZone tz, Disambiguation disamb) const {
+  auto ns = tz.ToInfra().GetEpochNanosecondsFor(inner_.iso, disamb.ToInfra());
   if (!ns.ok()) {
     return diplomat::Err<TemporalError>(
         TemporalError::FromInfra(ns.error()));

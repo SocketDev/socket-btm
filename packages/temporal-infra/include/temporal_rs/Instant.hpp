@@ -665,6 +665,35 @@ Instant::to_zoned_date_time_iso_with_provider(const TimeZone& tz,
   return to_zoned_date_time_iso(tz);
 }
 
+// Cross-class: ZonedDateTime::diff_via_instant body. Lives here so
+// both Instant (complete after this header's body) and ZonedDateTime
+// (complete because this header includes its forward-decl + the
+// include-pulling translation unit will have ZonedDateTime.hpp
+// completed before reaching this tail). Worst case the user must
+// include ZonedDateTime.hpp BEFORE Instant.hpp; in practice the
+// include chain ZonedDateTime → Instant means this body materializes
+// after ZonedDateTime's class body is parsed.
+inline diplomat::result<std::unique_ptr<Duration>, TemporalError>
+ZonedDateTime::diff_via_instant(const ZonedDateTime& other,
+                                 const DifferenceSettings& settings,
+                                 bool negate) const {
+  using Unit = ::node::socketsecurity::temporal::Unit;
+  if (settings.largest_unit.has_value()) {
+    const Unit lu = settings.largest_unit->ToInfra();
+    if (lu == Unit::kDay || lu == Unit::kWeek || lu == Unit::kMonth ||
+        lu == Unit::kYear) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "ZonedDateTime.until/since with largestUnit >= 'day' "
+          "requires DST-aware Provider integration; not yet wired"});
+    }
+  }
+  auto self_inst = Instant::FromInfra(inner_.instant);
+  auto other_inst = Instant::FromInfra(other.inner_.instant);
+  return negate ? self_inst->since(*other_inst, settings)
+                : self_inst->until(*other_inst, settings);
+}
+
 }  // namespace temporal_rs
 
 #endif  // TEMPORAL_RS_COMPAT_INSTANT_HPP_

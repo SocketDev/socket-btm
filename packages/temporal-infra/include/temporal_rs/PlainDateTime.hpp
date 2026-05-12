@@ -356,25 +356,10 @@ class PlainDateTime {
   // ZonedDateTime. For offset-only TZs (UTC, "+05:00", etc.) this
   // works directly; for IANA TZs the active TimeZoneBackend must
   // resolve the wall clock against its DST transition table.
+  // Body lives at the tail of ZonedDateTime.hpp where the
+  // ZonedDateTime class is complete (this header forward-declares it).
   diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
-  to_zoned_date_time(TimeZone tz, Disambiguation disamb) const {
-    auto ns = tz.ToInfra().GetEpochNanosecondsFor(inner_.iso, disamb.ToInfra());
-    if (!ns.ok()) {
-      return diplomat::Err<TemporalError>(
-          TemporalError::FromInfra(ns.error()));
-    }
-    ::node::socketsecurity::temporal::Instant instant{};
-    instant.epoch_nanoseconds = ns.value();
-    auto zr = ::node::socketsecurity::temporal::ZonedDateTimeTryNew(
-        instant, tz.ToInfra(),
-        ::node::socketsecurity::temporal::Calendar::Iso());
-    if (!zr.ok()) {
-      return diplomat::Err<TemporalError>(
-          TemporalError::FromInfra(zr.error()));
-    }
-    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
-        ZonedDateTime::FromInfra(zr.value()));
-  }
+  to_zoned_date_time(TimeZone tz, Disambiguation disamb) const;
 
   diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
   to_zoned_date_time_with_provider(TimeZone tz,

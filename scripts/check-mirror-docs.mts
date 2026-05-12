@@ -127,7 +127,7 @@ export function walk(
       continue
     }
     for (let i = 0, { length } = entries; i < length; i += 1) {
-      const entry = entries[i]
+      const entry = entries[i]!
       const full = path.join(dir, entry.name)
       if (entry.isDirectory()) {
         queue.push(full)
@@ -153,7 +153,7 @@ export function collectOrphanDocs(): Finding[] {
   const docs = walk(DOCS_ROOT, r => r.endsWith('.md'))
   const findings: Finding[] = []
   for (let i = 0, { length } = docs; i < length; i += 1) {
-    const docRel = docs[i]
+    const docRel = docs[i]!
     // Doc naming convention: trim the trailing ".md" — the remaining
     // path (e.g. "lib/smol-http.js" or "lib/internal/.../version_subset.js")
     // is the expected source file name. Per CLAUDE.md, the JS extension
@@ -285,7 +285,7 @@ async function main(): Promise<void> {
     )
   }
   for (let i = 0, { length } = surviving; i < length; i += 1) {
-    const f = surviving[i]
+    const f = surviving[i]!
     printFinding(f, opts)
   }
   if (!opts.json) {

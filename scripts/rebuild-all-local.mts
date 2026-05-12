@@ -65,7 +65,7 @@ export async function cleanCaches(): Promise<void> {
   ]
 
   for (let i = 0, { length } = cacheDirs; i < length; i += 1) {
-    const dir = cacheDirs[i]
+    const dir = cacheDirs[i]!
     if (existsSync(dir)) {
       logger.info(`Removing: ${path.relative(rootDir, dir)}`)
       await safeDelete(dir)
@@ -103,7 +103,7 @@ export async function rebuildBinsuite(): Promise<void> {
   const tools: string[] = ['binject', 'binflate', 'binpress']
 
   for (let i = 0, { length } = tools; i < length; i += 1) {
-    const tool = tools[i]
+    const tool = tools[i]!
     logger.info(`Building ${tool} from source...`)
     logger.log('')
 

@@ -70,7 +70,7 @@ export function validateModels(): void {
   ]
 
   for (let i = 0, { length } = expectedCheckpoints; i < length; i += 1) {
-    const checkpoint = expectedCheckpoints[i]
+    const checkpoint = expectedCheckpoints[i]!
     if (!dirs.has(checkpoint)) {
       logger.fail(`models: Missing directory for checkpoint "${checkpoint}"`)
       hasErrors = true
@@ -111,7 +111,7 @@ export function validateNodeSmol(): void {
   ]
 
   for (let i = 0, { length } = expectedCheckpoints; i < length; i += 1) {
-    const checkpoint = expectedCheckpoints[i]
+    const checkpoint = expectedCheckpoints[i]!
     if (!dirs.has(checkpoint)) {
       logger.fail(`node-smol: Missing directory for checkpoint "${checkpoint}"`)
       hasErrors = true
@@ -157,7 +157,7 @@ export function validateOnnxruntime(): void {
   ]
 
   for (let i = 0, { length } = expectedCheckpoints; i < length; i += 1) {
-    const checkpoint = expectedCheckpoints[i]
+    const checkpoint = expectedCheckpoints[i]!
     if (!dirs.has(checkpoint)) {
       logger.fail(
         `onnxruntime: Missing directory for checkpoint "${checkpoint}"`,
@@ -206,7 +206,7 @@ export function validateYoga(): void {
   ]
 
   for (let i = 0, { length } = expectedCheckpoints; i < length; i += 1) {
-    const checkpoint = expectedCheckpoints[i]
+    const checkpoint = expectedCheckpoints[i]!
     if (!dirs.has(checkpoint)) {
       logger.fail(
         `yoga-layout: Missing directory for checkpoint "${checkpoint}"`,

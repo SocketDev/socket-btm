@@ -255,14 +255,14 @@ export async function collectMismatches(): Promise<Mismatch[]> {
   // Group package.json source entries by upstream name.
   const pkgByUpstream = new Map<string, PackageJsonSource>()
   for (let i = 0, { length } = pkgSources; i < length; i += 1) {
-    const s = pkgSources[i]
+    const s = pkgSources[i]!
     pkgByUpstream.set(s.upstream, s)
   }
 
   // For each submodule with a version comment, find a matching package.json
   // source entry (same upstream name) and compare.
   for (let i = 0, { length } = submodules; i < length; i += 1) {
-    const sub = submodules[i]
+    const sub = submodules[i]!
     if (!sub.versionComment) {
       continue
     }
@@ -397,7 +397,7 @@ async function main(): Promise<void> {
     )
   }
   for (let i = 0, { length } = surviving; i < length; i += 1) {
-    const m = surviving[i]
+    const m = surviving[i]!
     printMismatch(m, opts)
   }
   if (!opts.json) {

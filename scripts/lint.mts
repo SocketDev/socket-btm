@@ -163,7 +163,7 @@ export function isExcludedByOxlint(
   excludePatterns: string[],
 ): boolean {
   for (let i = 0, { length } = excludePatterns; i < length; i += 1) {
-    const pattern = excludePatterns[i]
+    const pattern = excludePatterns[i]!
     // Convert glob pattern to regex-like matching
     // Support **/ for directory wildcards and * for filename wildcards
     const regexPattern = pattern
@@ -320,10 +320,10 @@ export function shouldRunAllLinters(changedFiles: string[]): {
   runAll: boolean
 } {
   for (let i = 0, { length } = changedFiles; i < length; i += 1) {
-    const file = changedFiles[i]
+    const file = changedFiles[i]!
     // Config or infrastructure files
     for (let i = 0, { length } = CONFIG_PATTERNS; i < length; i += 1) {
-      const pattern = CONFIG_PATTERNS[i]
+      const pattern = CONFIG_PATTERNS[i]!
       if (file.includes(pattern.replace('**', ''))) {
         return { reason: 'config files changed', runAll: true }
       }

@@ -73,7 +73,7 @@ export function findPackages(): PackageEntry[] {
   const entries = readdirSync(packagesDir)
 
   for (let i = 0, { length } = entries; i < length; i += 1) {
-    const entry = entries[i]
+    const entry = entries[i]!
     const pkgPath = path.join(packagesDir, entry)
     if (!statSync(pkgPath).isDirectory()) {
       continue
@@ -122,7 +122,7 @@ export function reorderProperties(obj: JsonObject): JsonObject {
 
   // First, add properties in standard order.
   for (let i = 0, { length } = PROPERTY_ORDER; i < length; i += 1) {
-    const key = PROPERTY_ORDER[i]
+    const key = PROPERTY_ORDER[i]!
     if (key in obj) {
       ordered[key] = obj[key]!
     }

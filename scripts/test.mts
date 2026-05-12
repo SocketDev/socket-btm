@@ -116,7 +116,7 @@ async function main(): Promise<void> {
       // Group files by package to run tests in each package context
       const filesByPackage = new Map<string, string[]>()
       for (let i = 0, { length } = stagedFiles; i < length; i += 1) {
-        const file = stagedFiles[i]
+        const file = stagedFiles[i]!
         // Find the package directory (contains package.json)
         let pkgDir = path.dirname(file)
         const { root } = path.parse(pkgDir)

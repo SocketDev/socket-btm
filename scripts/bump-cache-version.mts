@@ -47,7 +47,7 @@ export async function bumpAll(): Promise<BumpResult[]> {
 
   const results: BumpResult[] = []
   for (let i = 0, { length } = packages; i < length; i += 1) {
-    const pkg = packages[i]
+    const pkg = packages[i]!
     const result = await bumpCacheVersion(pkg)
     results.push(result)
   }

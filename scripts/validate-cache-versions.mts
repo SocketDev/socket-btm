@@ -273,7 +273,7 @@ async function main(): Promise<void> {
   const requiredBumps = new Set<string>()
 
   for (let i = 0, { length } = changedFiles; i < length; i += 1) {
-    const file = changedFiles[i]
+    const file = changedFiles[i]!
     // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
     for (const [pathPrefix, packages] of Object.entries(CASCADE_RULES)) {
       if (file.startsWith(pathPrefix)) {
@@ -333,8 +333,8 @@ async function main(): Promise<void> {
 
     // Check each required bump actually happened
     const missingBumps: MissingBump[] = []
-    for (let i = 0, { length } = requiredBumps; i < length; i += 1) {
-      const pkg = requiredBumps[i]
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is a Set (not array-indexed)
+    for (const pkg of requiredBumps) {
       const current = parseVersion(currentVersions[pkg] || 'v0')
       const previous = parseVersion(previousVersions[pkg] || 'v0')
 

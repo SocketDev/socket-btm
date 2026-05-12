@@ -258,7 +258,7 @@ export async function discoverPackages(): Promise<PackageInfo[]> {
   const packages: PackageInfo[] = []
 
   for (let i = 0, { length } = entries; i < length; i += 1) {
-    const entry = entries[i]
+    const entry = entries[i]!
     if (!entry.isDirectory()) {
       continue
     }
@@ -293,11 +293,11 @@ export async function checkRequiredFiles(
   log('\n[1/8] Checking required files...', colors.blue)
 
   for (let i = 0, { length } = packages; i < length; i += 1) {
-    const pkg = packages[i]
+    const pkg = packages[i]!
     const requiredFiles: string[] = ['package.json', 'README.md']
 
     for (let i = 0, { length } = requiredFiles; i < length; i += 1) {
-      const file = requiredFiles[i]
+      const file = requiredFiles[i]!
       const filePath = path.join(pkg.path, file)
       if (!existsSync(filePath)) {
         reportIssue(
@@ -338,7 +338,7 @@ export async function checkVitestConfig(
   )
 
   for (let i = 0, { length } = vitestPackages; i < length; i += 1) {
-    const pkg = vitestPackages[i]
+    const pkg = vitestPackages[i]!
     const configPath = path.join(pkg.path, 'vitest.config.mts')
     const config = await fs.readFile(configPath, 'utf8')
 
@@ -396,7 +396,7 @@ export async function checkTestScripts(packages: PackageInfo[]): Promise<void> {
   }
 
   for (let i = 0, { length } = packages; i < length; i += 1) {
-    const pkg = packages[i]
+    const pkg = packages[i]!
     const { scripts } = pkg.pkgJson
 
     if (!scripts || !scripts['test']) {
@@ -438,7 +438,7 @@ export async function checkCoverageScripts(
   const jsPackages = packages.filter(pkg => !C_PACKAGES.has(pkg.name))
 
   for (let i = 0, { length } = jsPackages; i < length; i += 1) {
-    const pkg = jsPackages[i]
+    const pkg = jsPackages[i]!
     const { devDependencies, scripts } = pkg.pkgJson
 
     // Check for cover script (standardized name across the workspace).
@@ -563,7 +563,7 @@ export async function checkBuildOutputStructure(
   log('[6/8] Checking build output structure...', colors.blue)
 
   for (let i = 0, { length } = packages; i < length; i += 1) {
-    const pkg = packages[i]
+    const pkg = packages[i]!
     const buildDir = path.join(pkg.path, 'build')
 
     if (!existsSync(buildDir)) {
@@ -599,7 +599,7 @@ export async function checkBuildOutputStructure(
       // Fall back to per-platform subdirs (binsuite, wasm, and native-addon styles).
       const entries = await fs.readdir(modeDir, { withFileTypes: true })
       for (let i = 0, { length } = entries; i < length; i += 1) {
-        const entry = entries[i]
+        const entry = entries[i]!
         if (!entry.isDirectory()) {
           continue
         }
@@ -651,7 +651,7 @@ export async function checkPackageJsonStructure(
   log('[7/8] Checking package.json structure...', colors.blue)
 
   for (let i = 0, { length } = packages; i < length; i += 1) {
-    const pkg = packages[i]
+    const pkg = packages[i]!
     const { description, license, name, scripts, type, version } = pkg.pkgJson
     const pkgJsonPath = path.join(pkg.path, 'package.json')
 
@@ -777,7 +777,7 @@ export async function checkWorkspaceDependencies(
   log('[8/8] Checking workspace dependencies...', colors.blue)
 
   for (let i = 0, { length } = packages; i < length; i += 1) {
-    const pkg = packages[i]
+    const pkg = packages[i]!
     const { dependencies = {}, devDependencies = {} } = pkg.pkgJson
     const allDeps = { ...dependencies, ...devDependencies }
     const pkgJsonPath = path.join(pkg.path, 'package.json')
@@ -847,7 +847,7 @@ export function collectPatterns(packages: PackageInfo[]): void {
   patternStats.total = packages.length
 
   for (let i = 0, { length } = packages; i < length; i += 1) {
-    const pkg = packages[i]
+    const pkg = packages[i]!
     // Collect script patterns
     if (pkg.pkgJson.scripts) {
       // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
@@ -1100,7 +1100,7 @@ export function displaySuggestions(suggestions: Suggestion[]): void {
   log('='.repeat(60), colors.bright)
 
   for (let i = 0, { length } = suggestions; i < length; i += 1) {
-    const suggestion = suggestions[i]
+    const suggestion = suggestions[i]!
     const confidenceColor =
       suggestion.level === 'HIGH' || suggestion.level === 'VERY HIGH'
         ? colors.green
@@ -1139,7 +1139,7 @@ export async function executeFixes(): Promise<void> {
   log('='.repeat(60), colors.bright)
 
   for (let i = 0, { length } = fixableIssues; i < length; i += 1) {
-    const issue = fixableIssues[i]
+    const issue = fixableIssues[i]!
     if (CLI_FLAGS.dryRun) {
       log('\n[DRY RUN] Would fix:', colors.yellow)
       log(`  ${issue.file}`, colors.blue)
@@ -1191,7 +1191,7 @@ export async function executeFixes(): Promise<void> {
     log(`Successfully fixed ${fixedIssues.length} issue(s)`, colors.green)
 
     for (let i = 0, { length } = fixedIssues; i < length; i += 1) {
-      const fixed = fixedIssues[i]
+      const fixed = fixedIssues[i]!
       log(`  ✓ ${fixed.file}`, colors.green)
     }
   }
@@ -1257,8 +1257,8 @@ async function main(): Promise<void> {
       ...issues.info.map(i => i.category),
     ])
 
-    for (let i = 0, { length } = categories; i < length; i += 1) {
-      const category = categories[i]
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is a Set (not array-indexed)
+    for (const category of categories) {
       const categoryIssues = {
         error: issues.error.filter(i => i.category === category),
         info: issues.info.filter(i => i.category === category),

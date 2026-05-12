@@ -129,7 +129,7 @@ export function collectDockerfileCopies(): Finding[] {
     withFileTypes: true,
   })
   for (let i = 0, { length } = packages; i < length; i += 1) {
-    const pkgEntry = packages[i]
+    const pkgEntry = packages[i]!
     if (!pkgEntry.isDirectory()) {
       continue
     }
@@ -160,7 +160,7 @@ export function collectDockerfileCopies(): Finding[] {
       continue
     }
     for (let i = 0, { length } = dockerFiles; i < length; i += 1) {
-      const df = dockerFiles[i]
+      const df = dockerFiles[i]!
       const dfPath = path.join(dockerDir, df)
       let contents: string
       try {
@@ -183,7 +183,7 @@ export function collectDockerfileCopies(): Finding[] {
         // Last token is the destination; everything else is a source.
         const sources = tokens.slice(0, -1)
         for (let i2 = 0, { length } = sources; i2 < length; i2 += 1) {
-          const src = sources[i2]
+          const src = sources[i2]!
           // Skip variable interpolations / quoted anomalies — out of scope.
           if (src.includes('${') || src.includes('"') || src === '.') {
             continue
@@ -249,7 +249,7 @@ export function collectMakefileIncludes(): Finding[] {
     withFileTypes: true,
   })
   for (let i = 0, { length } = packages; i < length; i += 1) {
-    const pkgEntry = packages[i]
+    const pkgEntry = packages[i]!
     if (!pkgEntry.isDirectory()) {
       continue
     }
@@ -261,7 +261,7 @@ export function collectMakefileIncludes(): Finding[] {
       continue
     }
     for (let i = 0, { length } = files; i < length; i += 1) {
-      const file = files[i]
+      const file = files[i]!
       const mkPath = path.join(pkgDir, file)
       let contents: string
       try {
@@ -324,7 +324,7 @@ export function collectTypeScriptImports(): Finding[] {
       return out
     }
     for (let i = 0, { length } = entries; i < length; i += 1) {
-      const entry = entries[i]
+      const entry = entries[i]!
       if (COLLECT_TS_IMPORTS_SKIP_DIRS.has(entry.name)) {
         continue
       }
@@ -342,7 +342,7 @@ export function collectTypeScriptImports(): Finding[] {
   }
   const files = walk(path.join(MONOREPO_ROOT, 'packages'))
   for (let i = 0, { length } = files; i < length; i += 1) {
-    const file = files[i]
+    const file = files[i]!
     let contents: string
     try {
       contents = readFileSync(file, 'utf8')
@@ -526,7 +526,7 @@ async function main(): Promise<void> {
   const seen = new Set<string>()
   const deduped: Finding[] = []
   for (let i = 0, { length } = surviving; i < length; i += 1) {
-    const f = surviving[i]
+    const f = surviving[i]!
     const key = `${f.consumer}|${f.gap}|${f.missingPath}`
     if (seen.has(key)) {
       continue
@@ -555,7 +555,7 @@ async function main(): Promise<void> {
     )
   }
   for (let i = 0, { length } = deduped; i < length; i += 1) {
-    const f = deduped[i]
+    const f = deduped[i]!
     printFinding(f, opts)
   }
   if (!opts.json) {

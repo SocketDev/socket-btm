@@ -105,7 +105,7 @@ async function main(): Promise<void> {
     const filesWithIssues: FileIssues[] = []
 
     for (let i = 0, { length } = dockerfiles; i < length; i += 1) {
-      const dockerfilePath = dockerfiles[i]
+      const dockerfilePath = dockerfiles[i]!
       const relativePath = path.relative(repoRoot, dockerfilePath)
 
       if (!existsSync(dockerfilePath)) {
@@ -134,7 +134,7 @@ async function main(): Promise<void> {
     for (const { issues, path: filePath } of filesWithIssues) {
       logger.info(`\n${filePath}:`)
       for (let i = 0, { length } = issues; i < length; i += 1) {
-        const issue = issues[i]
+        const issue = issues[i]!
         logger.info(`  Line ${issue.line}: ${issue.message}`)
         logger.info(`    Current:  ${issue.content}`)
         logger.info(`    Expected: ${issue.suggestion.trim()}`)

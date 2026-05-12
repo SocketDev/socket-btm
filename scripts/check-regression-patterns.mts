@@ -419,7 +419,7 @@ export async function findNonExistentPnpmScripts(
   if (existsSync(pkgsDir)) {
     const entries = await fsPromises.readdir(pkgsDir, { withFileTypes: true })
     for (let i = 0, { length } = entries; i < length; i += 1) {
-      const entry = entries[i]
+      const entry = entries[i]!
       if (entry.isDirectory()) {
         await collectPackageScripts(
           path.join(pkgsDir, entry.name, 'package.json'),
@@ -435,7 +435,7 @@ export async function findNonExistentPnpmScripts(
   // convention.
   const placeholders = new Set(['bar', 'baz', 'foo', 'script'])
   for (let i = 0, { length } = rawMatches; i < length; i += 1) {
-    const m = rawMatches[i]
+    const m = rawMatches[i]!
     // Skip Claude Code permission-glob patterns like
     //   Bash(pnpm run check:*)
     // Those describe a class of allowed Bash invocations, not a
@@ -628,7 +628,7 @@ export function wrapText(
   const words = text.split(/\s+/)
   let line = ''
   for (let i = 0, { length } = words; i < length; i += 1) {
-    const w = words[i]
+    const w = words[i]!
     if (line.length + w.length + 1 > width) {
       out.push(pad + line)
       line = w
@@ -664,7 +664,7 @@ async function main(): Promise<void> {
 
   const allMatches: Match[] = []
   for (let i = 0, { length } = REGRESSIONS; i < length; i += 1) {
-    const regression = REGRESSIONS[i]
+    const regression = REGRESSIONS[i]!
     const matches =
       regression.id === 'docs-pnpm-run-nonexistent'
         ? await findNonExistentPnpmScripts(regression)
@@ -685,7 +685,7 @@ async function main(): Promise<void> {
   // Group by pattern for a readable summary first.
   const byPattern = new Map<string, Match[]>()
   for (let i = 0, { length } = allMatches; i < length; i += 1) {
-    const m = allMatches[i]
+    const m = allMatches[i]!
     const key = m.regression.id
     const arr = byPattern.get(key) || []
     arr.push(m)
@@ -694,7 +694,7 @@ async function main(): Promise<void> {
 
   if (opts.json) {
     for (let i = 0, { length } = allMatches; i < length; i += 1) {
-      const m = allMatches[i]
+      const m = allMatches[i]!
       printMatch(m, opts)
     }
   } else {
@@ -702,7 +702,7 @@ async function main(): Promise<void> {
       `Found ${allMatches.length} regression-pattern match${allMatches.length === 1 ? '' : 'es'} across ${byPattern.size} pattern${byPattern.size === 1 ? '' : 's'}:`,
     )
     for (let i = 0, { length } = allMatches; i < length; i += 1) {
-      const m = allMatches[i]
+      const m = allMatches[i]!
       printMatch(m, opts)
     }
     logger.log('')

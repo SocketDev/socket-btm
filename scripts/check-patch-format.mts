@@ -116,7 +116,7 @@ export function collectMultiplePatchesPerFileViolations(
   // and accumulate.
   const fileToPatches = new Map<string, string[]>()
   for (let i = 0, { length } = files; i < length; i += 1) {
-    const patchName = files[i]
+    const patchName = files[i]!
     const abs = path.join(dir, patchName)
     let content
     try {
@@ -134,8 +134,8 @@ export function collectMultiplePatchesPerFileViolations(
         minusFiles.add(match[1]!)
       }
     }
-    for (let i = 0, { length } = minusFiles; i < length; i += 1) {
-      const f = minusFiles[i]
+    // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is a Set (not array-indexed)
+    for (const f of minusFiles) {
       const list = fileToPatches.get(f) ?? []
       list.push(patchName)
       fileToPatches.set(f, list)
@@ -179,7 +179,7 @@ export function collectNumberGapViolations(dir: string): Violation[] {
   const files = readdirSync(dir).filter(f => f.endsWith('.patch'))
   const numbered: Array<{ name: string; num: number }> = []
   for (let i = 0, { length } = files; i < length; i += 1) {
-    const name = files[i]
+    const name = files[i]!
     const num = numericPrefix(name)
     if (num !== undefined) {
       numbered.push({ name, num })
@@ -628,7 +628,7 @@ async function main(): Promise<void> {
   const allViolations: Violation[] = []
   let patchesScanned = 0
   for (let i = 0, { length } = PATCH_ROOTS; i < length; i += 1) {
-    const root = PATCH_ROOTS[i]
+    const root = PATCH_ROOTS[i]!
     const absRoot = path.join(MONOREPO_ROOT, root.dir)
     if (!existsSync(absRoot)) {
       continue
@@ -642,7 +642,7 @@ async function main(): Promise<void> {
       continue
     }
     for (let i = 0, { length } = files; i < length; i += 1) {
-      const f = files[i]
+      const f = files[i]!
       const abs = path.join(absRoot, f)
       try {
         const stat = statSync(abs)
@@ -679,7 +679,7 @@ async function main(): Promise<void> {
     )
   }
   for (let i = 0, { length } = surviving; i < length; i += 1) {
-    const v = surviving[i]
+    const v = surviving[i]!
     printViolation(v, opts)
   }
   if (!opts.json) {

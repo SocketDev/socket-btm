@@ -109,7 +109,7 @@ export async function checkBuildToolchain(): Promise<boolean> {
   const found: string[] = []
 
   for (let i = 0, { length } = tools; i < length; i += 1) {
-    const tool = tools[i]
+    const tool = tools[i]!
     try {
       // Split command into program and arguments
       const [cmd, ...args] = tool.command.split(' ')

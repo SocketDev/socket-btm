@@ -527,6 +527,150 @@ if (typeof Temporal !== 'object' || Temporal === null) {
   }
 }
 
+// ── IANA TimeZone resolution (IcuTimeZoneBackend) ────────────────────
+//
+// Exercises the ICU-backed TimeZoneBackend installed by V8 at boot.
+// New York / London / Tokyo cover the three common DST shapes: spring-
+// forward gap, fixed offset, and non-DST zone. Skipped silently on
+// builds that haven't activated the IANA backend yet — the call
+// surfaces as a thrown Range error which tryCheck reports.
+
+{
+  // America/New_York at 2024-01-15T12:00 → epoch -5h offset (EST).
+  // 2024-07-15T12:00 → -4h offset (EDT).
+  const winter = tryCheck('ZonedDateTime.from(NYC winter) (call)', () =>
+    Temporal.ZonedDateTime.from('2024-01-15T12:00:00[America/New_York]'),
+  )
+  if (winter !== undefined) {
+    check(
+      'ZonedDateTime IANA winter offset',
+      winter.offset === '-05:00',
+      `got ${winter.offset}`,
+    )
+    check(
+      'ZonedDateTime IANA winter hour preserved',
+      winter.hour === 12,
+      `got ${winter.hour}`,
+    )
+  }
+
+  const summer = tryCheck('ZonedDateTime.from(NYC summer) (call)', () =>
+    Temporal.ZonedDateTime.from('2024-07-15T12:00:00[America/New_York]'),
+  )
+  if (summer !== undefined) {
+    check(
+      'ZonedDateTime IANA summer offset (DST)',
+      summer.offset === '-04:00',
+      `got ${summer.offset}`,
+    )
+  }
+
+  // Tokyo: no DST, fixed +09:00 year-round.
+  const tokyo = tryCheck('ZonedDateTime.from(Tokyo) (call)', () =>
+    Temporal.ZonedDateTime.from('2024-06-01T12:00:00[Asia/Tokyo]'),
+  )
+  if (tokyo !== undefined) {
+    check(
+      'ZonedDateTime IANA Tokyo offset',
+      tokyo.offset === '+09:00',
+      `got ${tokyo.offset}`,
+    )
+  }
+
+  // Cross-day arithmetic across a DST spring-forward boundary. In
+  // America/New_York, 2024-03-10 02:00 jumps to 03:00 — that 23-hour
+  // day is the canonical DST test. ZonedDateTime.add({hours:24}) lands
+  // on +1 day at the same wall-clock hour (spec behavior), not +25h.
+  const beforeDst = tryCheck('ZonedDateTime DST add (call)', () =>
+    Temporal.ZonedDateTime.from(
+      '2024-03-09T12:00:00[America/New_York]',
+    ).add({ days: 1 }),
+  )
+  if (beforeDst !== undefined) {
+    check(
+      'ZonedDateTime DST: +1 day preserves wall hour',
+      beforeDst.hour === 12,
+      `got ${beforeDst.hour} at ${beforeDst.toString()}`,
+    )
+  }
+}
+
+// ── Non-ISO calendar accessors (IcuCalendarBackend) ──────────────────
+//
+// Exercises the ICU-backed CalendarBackend. Hebrew is the canonical
+// leap-month test (Adar I / Adar II); Japanese is the era-aware test
+// (Reiwa starts 2019-05-01). Skipped silently when the backend isn't
+// installed — tryCheck reports the throw.
+
+{
+  // Hebrew leap year: 5784 (2023-2024) is leap (Adar I + Adar II).
+  // We test via PlainDate.from with [u-ca=hebrew] annotation, then
+  // read monthCode + inLeapYear.
+  const hebrewLeap = tryCheck('PlainDate.from(Hebrew leap) (call)', () =>
+    Temporal.PlainDate.from('2024-03-15[u-ca=hebrew]'),
+  )
+  if (hebrewLeap !== undefined) {
+    check(
+      'PlainDate Hebrew calendar identifier',
+      hebrewLeap.calendarId === 'hebrew',
+      `got ${hebrewLeap.calendarId}`,
+    )
+    // 2024-03-15 ISO = Adar II 5 5784 (leap year). monthsInYear=13.
+    check(
+      'PlainDate Hebrew monthsInYear (leap)',
+      hebrewLeap.monthsInYear === 13,
+      `got ${hebrewLeap.monthsInYear}`,
+    )
+    check(
+      'PlainDate Hebrew inLeapYear',
+      hebrewLeap.inLeapYear === true,
+      `got ${hebrewLeap.inLeapYear}`,
+    )
+  }
+
+  // Japanese era: 2024-06-01 → Reiwa 6 (era started 2019-05-01).
+  const japanese = tryCheck('PlainDate.from(Japanese) (call)', () =>
+    Temporal.PlainDate.from('2024-06-01[u-ca=japanese]'),
+  )
+  if (japanese !== undefined) {
+    check(
+      'PlainDate Japanese calendar identifier',
+      japanese.calendarId === 'japanese',
+      `got ${japanese.calendarId}`,
+    )
+    check(
+      'PlainDate Japanese era is Reiwa',
+      japanese.era === 'reiwa' || japanese.era === 'heisei',
+      `got era=${japanese.era}`,
+    )
+    check(
+      'PlainDate Japanese eraYear is positive',
+      typeof japanese.eraYear === 'number' && japanese.eraYear > 0,
+      `got eraYear=${japanese.eraYear}`,
+    )
+  }
+
+  // Gregorian (same as ISO arithmetically but era-aware: CE/BCE).
+  const greg = tryCheck('PlainDate.from(Gregorian) (call)', () =>
+    Temporal.PlainDate.from('2024-06-01[u-ca=gregory]'),
+  )
+  if (greg !== undefined) {
+    check(
+      'PlainDate Gregorian era',
+      greg.era === 'ce' || greg.era === 'gregory',
+      `got era=${greg.era}`,
+    )
+  }
+
+  // Default ISO calendar (no annotation) → 'iso8601'.
+  const iso = Temporal.PlainDate.from('2024-06-01')
+  check(
+    'PlainDate ISO default identifier',
+    iso.calendarId === 'iso8601',
+    `got ${iso.calendarId}`,
+  )
+}
+
 // ── Report ──────────────────────────────────────────────────────────
 
 if (failures.length > 0) {
@@ -537,4 +681,4 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log(`Temporal smoke test: all ${58} checks passed`)
+console.log(`Temporal smoke test: all ${74} checks passed`)

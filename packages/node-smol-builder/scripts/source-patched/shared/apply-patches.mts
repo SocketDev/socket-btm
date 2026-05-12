@@ -16,7 +16,12 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 import { glob } from '@socketsecurity/lib/globs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
-import { BINJECT_DIR, BIN_INFRA_DIR, BUILD_INFRA_DIR } from '../../paths.mts'
+import {
+  BINJECT_DIR,
+  BIN_INFRA_DIR,
+  BUILD_INFRA_DIR,
+  TEMPORAL_INFRA_DIR,
+} from '../../paths.mts'
 
 const logger = getDefaultLogger()
 
@@ -55,6 +60,8 @@ export async function applySocketPatches(options) {
     path.join(BINJECT_DIR, 'src', 'socketsecurity', 'binject'),
     path.join(BIN_INFRA_DIR, 'src', 'socketsecurity', 'bin-infra'),
     path.join(BUILD_INFRA_DIR, 'src', 'socketsecurity', 'build-infra'),
+    path.join(TEMPORAL_INFRA_DIR, 'src', 'socketsecurity', 'temporal'),
+    path.join(TEMPORAL_INFRA_DIR, 'include', 'temporal_rs'),
   ]
 
   const sourcePackageFiles = []

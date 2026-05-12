@@ -1,13 +1,15 @@
 // ICU-backed CalendarBackend implementation. Mirrors the structure of
-// icu_tz_backend.cc — V8_INTL_SUPPORT enables ICU dispatch, otherwise
-// every virtual returns a sharp "ICU calendar backend requires
+// icu_tz_backend.cc — when ICU headers are available (either V8's
+// V8_INTL_SUPPORT inside V8's gyp scope, or node's NODE_HAVE_I18N_SUPPORT
+// when this TU is compiled into libnode), the real ICU dispatch runs.
+// Otherwise every virtual returns a sharp "ICU calendar backend requires
 // V8_INTL_SUPPORT" error.
 
 #include "socketsecurity/temporal/icu_cal_backend.h"
 
 #include "socketsecurity/temporal/utils.h"
 
-#ifdef V8_INTL_SUPPORT
+#if defined(V8_INTL_SUPPORT) || defined(NODE_HAVE_I18N_SUPPORT)
 #include "unicode/calendar.h"
 #include "unicode/locid.h"
 #include "unicode/ucal.h"
@@ -18,7 +20,7 @@ namespace node {
 namespace socketsecurity {
 namespace temporal {
 
-#ifdef V8_INTL_SUPPORT
+#if defined(V8_INTL_SUPPORT) || defined(NODE_HAVE_I18N_SUPPORT)
 
 namespace {
 
@@ -452,7 +454,7 @@ void InstallIcuCalendarBackendIfAvailable() noexcept {
   InstallIcuCalendarBackend();
 }
 
-#else  // !V8_INTL_SUPPORT
+#else  // No ICU available — stub everything.
 
 TemporalResult<IsoDate> IcuCalendarBackend::DateAdd(
     CalendarKind /*kind*/, const IsoDate& /*base*/,

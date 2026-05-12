@@ -1,12 +1,14 @@
 // ICU-backed TimeZoneBackend implementation. Routes through
-// icu::TimeZone (V8 already links ICU when V8_INTL_SUPPORT is on)
-// rather than re-implementing the zoneinfo64 binary parser.
+// icu::TimeZone when ICU is available — either V8's V8_INTL_SUPPORT
+// (inside V8's gyp scope) or node's NODE_HAVE_I18N_SUPPORT (when this
+// TU is compiled into libnode) — rather than re-implementing the
+// zoneinfo64 binary parser.
 
 #include "socketsecurity/temporal/icu_tz_backend.h"
 
 #include "socketsecurity/temporal/utils.h"
 
-#ifdef V8_INTL_SUPPORT
+#if defined(V8_INTL_SUPPORT) || defined(NODE_HAVE_I18N_SUPPORT)
 #include "unicode/basictz.h"
 #include "unicode/locid.h"
 #include "unicode/timezone.h"
@@ -19,7 +21,7 @@ namespace node {
 namespace socketsecurity {
 namespace temporal {
 
-#ifdef V8_INTL_SUPPORT
+#if defined(V8_INTL_SUPPORT) || defined(NODE_HAVE_I18N_SUPPORT)
 
 namespace {
 
@@ -304,7 +306,7 @@ void InstallIcuTimeZoneBackendIfAvailable() noexcept {
   InstallIcuTimeZoneBackend();
 }
 
-#else  // !V8_INTL_SUPPORT
+#else  // No ICU available — stub everything.
 
 TemporalResult<std::string> IcuTimeZoneBackend::CanonicalizeIdentifier(
     std::string_view /*identifier*/) noexcept {

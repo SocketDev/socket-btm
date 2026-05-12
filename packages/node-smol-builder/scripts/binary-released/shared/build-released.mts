@@ -611,8 +611,9 @@ export async function buildRelease(config, buildOptions = {}) {
     // 021 hijacks the deps/crates/crates.gyp:temporal_capi target to
     // compile our C++ port instead of building the Rust crate (so
     // V8's mksnapshot — which links temporal_capi but NOT libnode —
-    // still resolves the temporal symbols); patch 022 disables
-    // configure.py's cargo gate. No rustc/cargo on PATH needed.
+    // still resolves the temporal symbols); patch 018 disables
+    // configure.py's cargo gate (the cargo/rustc probe near line 1580).
+    // No rustc/cargo on PATH needed.
     '--v8-enable-temporal-support',
   ]
 

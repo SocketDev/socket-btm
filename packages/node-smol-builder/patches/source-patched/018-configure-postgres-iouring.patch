@@ -38,7 +38,7 @@
  
 -  # cargo and rustc are needed for Temporal.
 -  if not options.v8_disable_temporal_support and not options.shared_temporal_capi:
-+  # cargo/rustc gate disabled — Temporal backed by temporal-infra C++ shim (patch 037).
++  # cargo/rustc gate disabled — Temporal backed by temporal-infra C++ shim (patches 004 + 021).
 +  if False:
      # Minimum cargo and rustc versions should match values in BUILDING.md.
      min_cargo_ver_tuple = (1, 82)

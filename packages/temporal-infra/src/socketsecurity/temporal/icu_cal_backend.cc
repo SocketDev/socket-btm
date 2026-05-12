@@ -230,7 +230,7 @@ TemporalResult<uint8_t> IcuCalendarBackend::DaysInWeek(
   return uint8_t{7};
 }
 
-TemporalResult<std::string> IcuCalendarBackend::MonthCode(
+TemporalResult<std::string> IcuCalendarBackend::GetMonthCodeString(
     CalendarKind kind, const IsoDate& iso) noexcept {
   auto cal = OpenIcuCal(kind, iso);
   if (cal == nullptr) {
@@ -485,7 +485,7 @@ TemporalResult<uint8_t> IcuCalendarBackend::DaysInWeek(
     CalendarKind /*kind*/, const IsoDate& /*iso*/) noexcept {
   return uint8_t{7};
 }
-TemporalResult<std::string> IcuCalendarBackend::MonthCode(
+TemporalResult<std::string> IcuCalendarBackend::GetMonthCodeString(
     CalendarKind /*kind*/, const IsoDate& /*iso*/) noexcept {
   return TemporalError::Range(
       "ICU calendar backend requires V8_INTL_SUPPORT to be enabled");

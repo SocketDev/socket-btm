@@ -196,8 +196,13 @@ class CalendarBackend {
                                                  const IsoDate& iso) noexcept;
   virtual TemporalResult<uint8_t> DaysInWeek(CalendarKind kind,
                                                const IsoDate& iso) noexcept;
-  virtual TemporalResult<std::string> MonthCode(CalendarKind kind,
-                                                  const IsoDate& iso) noexcept;
+  // Named GetMonthCodeString (not MonthCode) so it doesn't shadow the
+  // MonthCode struct declared in the same namespace. Method-vs-type
+  // shadow was a recurring lockstep papercut; the rename trades a
+  // 1-token divergence from upstream's `month_code` for compile-time
+  // hygiene across every shim header that references the struct.
+  virtual TemporalResult<std::string> GetMonthCodeString(
+      CalendarKind kind, const IsoDate& iso) noexcept;
   virtual TemporalResult<std::string> Era(CalendarKind kind,
                                             const IsoDate& iso) noexcept;
   virtual TemporalResult<std::optional<int32_t>> EraYear(

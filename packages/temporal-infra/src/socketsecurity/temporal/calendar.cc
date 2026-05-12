@@ -230,7 +230,7 @@ TemporalResult<uint8_t> CalendarBackend::DaysInWeek(
       "Non-ISO calendar daysInWeek requires a registered backend");
 }
 
-TemporalResult<std::string> CalendarBackend::MonthCode(
+TemporalResult<std::string> CalendarBackend::GetMonthCodeString(
     CalendarKind /*kind*/, const IsoDate& /*iso*/) noexcept {
   return TemporalError::Range(
       "Non-ISO calendar monthCode requires a registered backend");
@@ -313,7 +313,7 @@ std::string CalendarMonthCode(const Calendar& cal,
     out += std::to_string(iso.month);
     return out;
   }
-  auto r = GetCalendarBackend().MonthCode(cal.Kind(), iso);
+  auto r = GetCalendarBackend().GetMonthCodeString(cal.Kind(), iso);
   if (r.ok()) return r.value();
   std::string out = "M";
   if (iso.month < 10) out.push_back('0');

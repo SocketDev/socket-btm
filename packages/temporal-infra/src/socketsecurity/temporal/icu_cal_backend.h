@@ -58,8 +58,8 @@ class IcuCalendarBackend : public CalendarBackend {
                                          const IsoDate& iso) noexcept override;
   TemporalResult<uint8_t> DaysInWeek(CalendarKind kind,
                                        const IsoDate& iso) noexcept override;
-  TemporalResult<std::string> MonthCode(CalendarKind kind,
-                                          const IsoDate& iso) noexcept override;
+  TemporalResult<std::string> GetMonthCodeString(
+      CalendarKind kind, const IsoDate& iso) noexcept override;
   TemporalResult<std::string> Era(CalendarKind kind,
                                     const IsoDate& iso) noexcept override;
   TemporalResult<std::optional<int32_t>> EraYear(

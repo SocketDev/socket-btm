@@ -337,7 +337,7 @@ class PlainMonthDay {
       NativeInt128 r = n % ns_per_ms;
       ms = (r == 0) ? q : q - 1;
     }
-    return static_cast<int64_t>(ms);
+    return diplomat::Ok<int64_t>(static_cast<int64_t>(ms));
   }
 
   std::unique_ptr<PlainMonthDay> clone() const {

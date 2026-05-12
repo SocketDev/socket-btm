@@ -333,8 +333,7 @@ class PlainYearMonth {
     if (inner_.iso.year == other.inner_.iso.year &&
         inner_.iso.month == other.inner_.iso.month) {
       return diplomat::Ok<std::unique_ptr<Duration>>(
-          std::unique_ptr<Duration>(new Duration(
-              ::node::socketsecurity::temporal::Duration{})));
+          Duration::FromInfra(::node::socketsecurity::temporal::Duration{}));
     }
     // Spec: ISODateToFields with day=1 on both sides, then
     // CalendarDateUntil with largestUnit. Defaults to Year for
@@ -428,8 +427,7 @@ class PlainYearMonth {
     if (negate) {
       d = ::node::socketsecurity::temporal::DurationNegated(d);
     }
-    return diplomat::Ok<std::unique_ptr<Duration>>(
-        std::unique_ptr<Duration>(new Duration(d)));
+    return diplomat::Ok<std::unique_ptr<Duration>>(Duration::FromInfra(d));
   }
 
  public:
@@ -489,7 +487,7 @@ class PlainYearMonth {
       NativeInt128 r = n % ns_per_ms;
       ms = (r == 0) ? q : q - 1;
     }
-    return static_cast<int64_t>(ms);
+    return diplomat::Ok<int64_t>(static_cast<int64_t>(ms));
   }
 
   // 1:1 from upstream plain_year_month.rs:630 / :638.
@@ -591,10 +589,10 @@ class PlainYearMonth {
   // 1:1 from upstream plain_year_month.rs:619 `epoch_ns_for_utc`.
   // Combines (iso.date, IsoTime::noon) and returns epoch ms in UTC.
   diplomat::result<int64_t, TemporalError> epoch_ms_for_with_provider(
-      const Provider& /*p*/) const {
+      const Provider& p) const {
     auto utc = ::node::socketsecurity::temporal::TimeZone::Utc();
     TimeZone tz = TimeZone::FromInfra(utc);
-    return epoch_ms_for_with_provider(tz, Provider{});
+    return epoch_ms_for_with_provider(tz, p);
   }
 
   std::unique_ptr<PlainYearMonth> clone() const {

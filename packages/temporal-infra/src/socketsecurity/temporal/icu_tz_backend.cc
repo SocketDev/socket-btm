@@ -226,6 +226,68 @@ TemporalResult<Int128> IcuTimeZoneBackend::GetEpochNanosecondsFor(
   return ns;
 }
 
+// 1:1 from upstream `provider::get_time_zone_transition`. The ICU
+// API is `BasicTimeZone::getNextTransition(base, inclusive, result)`
+// / `getPreviousTransition(base, inclusive, result)`; both return
+// `true` when a transition exists in the requested direction and
+// fill `result` with a UDate (ms since epoch). We translate that
+// back to int128 epoch_nanoseconds.
+TemporalResult<std::optional<Int128>> IcuTimeZoneBackend::GetTransition(
+    std::string_view iana_id, const Int128& from_epoch_ns,
+    TransitionDirection direction) noexcept {
+  icu::UnicodeString id =
+      icu::UnicodeString::fromUTF8(icu::StringPiece(iana_id.data(),
+                                                     iana_id.size()));
+  std::unique_ptr<icu::TimeZone> tz(icu::TimeZone::createTimeZone(id));
+  icu::UnicodeString actual_id;
+  tz->getID(actual_id);
+  if (actual_id == UNICODE_STRING_SIMPLE("Etc/Unknown")) {
+    return TemporalError::Range(
+        "ICU does not recognize the requested IANA identifier");
+  }
+  auto* basic_tz = dynamic_cast<icu::BasicTimeZone*>(tz.get());
+  if (basic_tz == nullptr) {
+    return TemporalError::Range(
+        "ICU TimeZone is not a BasicTimeZone (no transition table)");
+  }
+  using NativeInt128 = decltype(from_epoch_ns.value);
+  const NativeInt128 from_ns = from_epoch_ns.value;
+  const NativeInt128 ns_per_ms{1'000'000};
+  // Floor division for negative values (UDate is double ms).
+  NativeInt128 from_ms;
+  if (from_ns >= 0) {
+    from_ms = from_ns / ns_per_ms;
+  } else {
+    NativeInt128 q = from_ns / ns_per_ms;
+    NativeInt128 r = from_ns % ns_per_ms;
+    from_ms = (r == 0) ? q : q - 1;
+  }
+  const UDate base_ms = static_cast<UDate>(static_cast<double>(from_ms));
+  icu::TimeZoneTransition tzt;
+  UBool found = FALSE;
+  if (direction == TransitionDirection::kNext) {
+    found = basic_tz->getNextTransition(base_ms, /*inclusive=*/FALSE, tzt);
+  } else {
+    found =
+        basic_tz->getPreviousTransition(base_ms, /*inclusive=*/FALSE, tzt);
+  }
+  if (!found) {
+    return std::optional<Int128>(std::nullopt);
+  }
+  const UDate result_ms = tzt.getTime();
+  const int64_t result_ms_i = static_cast<int64_t>(result_ms);
+  Int128 out;
+  out.value = static_cast<NativeInt128>(result_ms_i) * ns_per_ms;
+  // Validate Instant range so the caller doesn't materialize an
+  // out-of-bounds ZDT (upstream's check_validity() guard).
+  Instant probe{};
+  probe.epoch_nanoseconds = out;
+  if (!probe.IsValid()) {
+    return std::optional<Int128>(std::nullopt);
+  }
+  return std::optional<Int128>(out);
+}
+
 void InstallIcuTimeZoneBackend() noexcept {
   // Process-static instance — TimeZoneBackend's SetTimeZoneBackend
   // takes a non-owning pointer.
@@ -258,6 +320,13 @@ TemporalResult<IsoDateTime> IcuTimeZoneBackend::GetIsoDateTimeFor(
 TemporalResult<Int128> IcuTimeZoneBackend::GetEpochNanosecondsFor(
     std::string_view /*iana_id*/, const IsoDateTime& /*datetime*/,
     Disambiguation /*disambiguation*/) noexcept {
+  return TemporalError::Range(
+      "ICU TimeZone backend requires V8_INTL_SUPPORT to be enabled");
+}
+
+TemporalResult<std::optional<Int128>> IcuTimeZoneBackend::GetTransition(
+    std::string_view /*iana_id*/, const Int128& /*from_epoch_ns*/,
+    TransitionDirection /*direction*/) noexcept {
   return TemporalError::Range(
       "ICU TimeZone backend requires V8_INTL_SUPPORT to be enabled");
 }

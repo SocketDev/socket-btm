@@ -220,43 +220,57 @@ Duration NegateDuration(const Duration& d) noexcept {
   return out;
 }
 
-// DiffDateTime: emit a (date + time) Duration via the time pipeline
-// then the date pipeline. Largest-unit defaults to `nanosecond` for
-// the time part and `day` for the date part — matches upstream's
-// `diff_dt_with_rounding` for the no-rounding case.
+// DiffDateTime: 1:1 from upstream iso.rs:171 `IsoDateTime::diff`.
+// Spec algorithm: compute time-portion sign first, adjust the
+// (later) date by ±1 day to make signs agree, then run the date
+// diff against the adjusted date. This is the canonical way to
+// resolve cross-midnight sign disagreement and preserves the
+// year/month/week carry through CalendarDateUntil (the prior
+// "subtract a day from the days field" approach only worked for
+// largestUnit=day and broke for year/month).
 TemporalResult<Duration> DiffDateTime(const PlainDateTime& self,
                                         const PlainDateTime& other,
                                         bool since) noexcept {
+  // Time portion: other.time - self.time (BalanceTime-aware).
   TimeDuration time_delta = DiffIsoTime(self.iso.time, other.iso.time);
   Int128 ns = time_delta.Nanoseconds();
-  Duration date_part = DifferenceISODate(self.iso.date, other.iso.date);
+  // Sign of the time portion (-1, 0, +1).
+  int time_sign = 0;
+  if (ns > Int128(0)) time_sign = 1;
+  else if (ns < Int128(0)) time_sign = -1;
+  // Sign of date portion: cmp(other.date, self.date).
+  int date_sign = 0;
+  if (other.iso.date.year != self.iso.date.year) {
+    date_sign = other.iso.date.year > self.iso.date.year ? 1 : -1;
+  } else if (other.iso.date.month != self.iso.date.month) {
+    date_sign = other.iso.date.month > self.iso.date.month ? 1 : -1;
+  } else if (other.iso.date.day != self.iso.date.day) {
+    date_sign = other.iso.date.day > self.iso.date.day ? 1 : -1;
+  }
+  // Spec step 8: if time_sign == -date_sign, balance one day from
+  // the date portion into the time portion. adjusted_date = other.date
+  // + time_sign days; time_delta -= time_sign * 24h.
+  IsoDate adjusted_other_date = other.iso.date;
+  if (time_sign == -date_sign && time_sign != 0) {
+    adjusted_other_date = BalanceISODate(
+        other.iso.date.year, static_cast<int32_t>(other.iso.date.month),
+        static_cast<int32_t>(other.iso.date.day) + time_sign);
+    const Int128 ns_per_day(static_cast<int64_t>(kNsPerDay));
+    ns = ns - Int128(static_cast<int64_t>(time_sign)) * ns_per_day;
+  }
+  // Compute the date portion using ISO-only DifferenceISODate against
+  // the adjusted later date. (Non-ISO calendar arithmetic would route
+  // through CalendarDateUntil; PlainDateTime here is calendar-bound
+  // via inner_.calendar but DifferenceISODate is the ISO fast path —
+  // matches upstream's `internal_diff_date` for the ISO calendar.)
+  Duration date_part =
+      DifferenceISODate(self.iso.date, adjusted_other_date);
   if (since) {
     ns = -ns;
     date_part.days = -date_part.days;
     date_part.years = -date_part.years;
     date_part.months = -date_part.months;
     date_part.weeks = -date_part.weeks;
-  }
-  // Spec: BalanceTimeDurationRelative — date_part.days and the time
-  // portion must share the same sign. When they disagree (the
-  // "cross-midnight" case, e.g. earlier=23:00 → later=01:00 the next
-  // day), transfer one whole day from the date portion to the time
-  // portion: days -= sign(days); ns += sign(days) * kNsPerDay.
-  // Without this the resulting Duration fails IsValid() per the
-  // sign-agreement rule, surfacing as a confusing JS-side error.
-  const Int128 ns_per_day(static_cast<int64_t>(kNsPerDay));
-  if (date_part.days != 0 && ns != Int128(0)) {
-    const bool date_negative = date_part.days < 0;
-    const bool time_negative = ns < Int128(0);
-    if (date_negative != time_negative) {
-      if (date_negative) {
-        date_part.days += 1;
-        ns -= ns_per_day;
-      } else {
-        date_part.days -= 1;
-        ns += ns_per_day;
-      }
-    }
   }
   // Decompose ns into time components (hours .. nanoseconds).
   bool negative = ns < Int128(0);

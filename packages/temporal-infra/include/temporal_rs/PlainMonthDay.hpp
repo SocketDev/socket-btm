@@ -58,16 +58,41 @@ class PlainMonthDay {
   // requires partial.month + partial.day. partial.year (when present)
   // becomes the reference_year; otherwise defaults to 1972 (the
   // leap-year anchor) inside PlainMonthDayTryNewIso.
+  // 1:1 from upstream plain_month_day.rs `from_partial`. ISO path
+  // accepts month + day; non-ISO accepts monthCode + day (or month).
+  // monthCode resolution routes through CalendarResolveMonthCode which
+  // delegates to the ICU calendar backend for Hebrew/Chinese/Dangi
+  // leap-month variants.
   static diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
   from_partial(PartialDate partial,
                std::optional<ArithmeticOverflow> overflow) {
-    if (!partial.month.has_value() && !partial.month_code.empty()) {
-      return diplomat::Err<TemporalError>(TemporalError{
-          ErrorKind::Range,
-          "PlainMonthDay.from month_code resolution requires "
-          "calendar backend"});
-    }
-    if (!partial.month.has_value()) {
+    uint8_t resolved_month = 0;
+    if (partial.month.has_value()) {
+      resolved_month = *partial.month;
+    } else if (!partial.month_code.empty()) {
+      // Parse the monthCode string into a MonthCode POD.
+      if (partial.month_code.size() < 3 ||
+          partial.month_code.size() > 4) {
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range, "Invalid monthCode length"});
+      }
+      ::node::socketsecurity::temporal::MonthCode code{};
+      for (size_t i = 0; i < partial.month_code.size(); ++i) {
+        code.bytes[i] = static_cast<uint8_t>(partial.month_code[i]);
+      }
+      // Use the partial.year (or the ISO leap-year reference 1972)
+      // for year-dependent leap resolution.
+      const int32_t resolve_year = partial.year.value_or(1972);
+      ::node::socketsecurity::temporal::Calendar cal(
+          partial.calendar.ToInfra());
+      auto r = ::node::socketsecurity::temporal::CalendarResolveMonthCode(
+          cal, resolve_year, code);
+      if (!r.ok()) {
+        return diplomat::Err<TemporalError>(
+            TemporalError::FromInfra(r.error()));
+      }
+      resolved_month = r.value();
+    } else {
       return diplomat::Err<TemporalError>(TemporalError{
           ErrorKind::Range,
           "PlainMonthDay.from requires month or monthCode"});
@@ -79,9 +104,8 @@ class PlainMonthDay {
     }
     const ArithmeticOverflow ov =
         overflow.value_or(ArithmeticOverflow{});  // default kConstrain
-    return try_new_with_overflow(*partial.month, *partial.day,
-                                  AnyCalendarKind{AnyCalendarKind::Iso}, ov,
-                                  partial.year);
+    return try_new_with_overflow(resolved_month, *partial.day,
+                                  partial.calendar, ov, partial.year);
   }
 
   // 1:1 from upstream plain_month_day.rs `try_new_with_overflow`.
@@ -144,16 +168,30 @@ class PlainMonthDay {
       return diplomat::Err<TemporalError>(TemporalError{
           ErrorKind::Type, "PartialDate cannot be empty"});
     }
-    // month_code-only resolution needs the calendar backend to parse
-    // "M01"…"M12"; until that lands, require numeric month.
-    if (!partial.month.has_value() && !partial.month_code.empty()) {
-      return diplomat::Err<TemporalError>(TemporalError{
-          ErrorKind::Range,
-          "PlainMonthDay.with month_code resolution requires "
-          "calendar backend"});
+    // month_code-only resolution routes through CalendarResolveMonthCode
+    // (ICU backend handles year-dependent leap variants).
+    uint8_t merged_month = inner_.iso.month;
+    if (partial.month.has_value()) {
+      merged_month = *partial.month;
+    } else if (!partial.month_code.empty()) {
+      if (partial.month_code.size() < 3 ||
+          partial.month_code.size() > 4) {
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range, "Invalid monthCode length"});
+      }
+      ::node::socketsecurity::temporal::MonthCode code{};
+      for (size_t i = 0; i < partial.month_code.size(); ++i) {
+        code.bytes[i] = static_cast<uint8_t>(partial.month_code[i]);
+      }
+      ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+      auto r = ::node::socketsecurity::temporal::CalendarResolveMonthCode(
+          cal, inner_.iso.year, code);
+      if (!r.ok()) {
+        return diplomat::Err<TemporalError>(
+            TemporalError::FromInfra(r.error()));
+      }
+      merged_month = r.value();
     }
-    const uint8_t merged_month =
-        partial.month.value_or(inner_.iso.month);
     const uint8_t merged_day = partial.day.value_or(inner_.iso.day);
     const ArithmeticOverflow ov =
         overflow.value_or(ArithmeticOverflow{});

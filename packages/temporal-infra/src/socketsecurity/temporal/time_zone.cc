@@ -224,6 +224,14 @@ TemporalResult<Int128> TimeZoneBackend::GetEpochNanosecondsFor(
       "backend (V8's js-temporal layer installs one at boot)");
 }
 
+TemporalResult<std::optional<Int128>> TimeZoneBackend::GetTransition(
+    std::string_view /*iana_id*/, const Int128& /*from_epoch_ns*/,
+    TransitionDirection /*direction*/) noexcept {
+  return TemporalError::Range(
+      "IANA time-zone transition lookup requires a registered backend "
+      "(V8's js-temporal layer installs one at boot)");
+}
+
 TemporalResult<Int128> TimeZone::GetEpochNanosecondsFor(
     const IsoDateTime& datetime,
     Disambiguation disambiguation) const noexcept {

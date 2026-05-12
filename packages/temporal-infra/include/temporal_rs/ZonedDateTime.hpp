@@ -393,16 +393,44 @@ class ZonedDateTime {
         std::unique_ptr<ZonedDateTime>(new ZonedDateTime(inner_)));
   }
 
-  // Returns the next/previous DST transition in the receiver's time
-  // zone. Needs the Provider's transition table, which is part of the
-  // time_zone.cc Provider integration that isn't yet wired through.
+  // 1:1 from upstream zoned_date_time.rs:846 `get_time_zone_transition`.
+  // Routes through the registered TimeZoneBackend's GetTransition virtual
+  // (IcuTimeZoneBackend uses BasicTimeZone::getNextTransition under the
+  // hood). Offset-only timezones never have transitions and return
+  // nullptr per spec (line 851).
   diplomat::result<std::unique_ptr<ZonedDateTime>, TemporalError>
-  get_time_zone_transition_with_provider(TransitionDirection /*dir*/,
+  get_time_zone_transition_with_provider(TransitionDirection dir,
                                           const Provider& /*p*/) const {
-    return diplomat::Err<TemporalError>(TemporalError{
-        ErrorKind::Range,
-        "ZonedDateTime.getTimeZoneTransition requires Provider's "
-        "transition table; not yet wired through time_zone.cc"});
+    if (inner_.time_zone.IsOffsetOnly()) {
+      return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(nullptr);
+    }
+    auto& backend = ::node::socketsecurity::temporal::GetTimeZoneBackend();
+    const auto direction =
+        (dir == TransitionDirection::Next)
+            ? ::node::socketsecurity::temporal::TimeZoneBackend::
+                  TransitionDirection::kNext
+            : ::node::socketsecurity::temporal::TimeZoneBackend::
+                  TransitionDirection::kPrevious;
+    auto result = backend.GetTransition(inner_.time_zone.Identifier(),
+                                          inner_.instant.epoch_nanoseconds,
+                                          direction);
+    if (!result.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(result.error()));
+    }
+    if (!result.value().has_value()) {
+      return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(nullptr);
+    }
+    ::node::socketsecurity::temporal::Instant inst{};
+    inst.epoch_nanoseconds = *result.value();
+    auto zr = ::node::socketsecurity::temporal::ZonedDateTimeTryNew(
+        inst, inner_.time_zone, inner_.calendar);
+    if (!zr.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(zr.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<ZonedDateTime>>(
+        ZonedDateTime::FromInfra(zr.value()));
   }
 
   diplomat::result<double, TemporalError> hours_in_day_with_provider(

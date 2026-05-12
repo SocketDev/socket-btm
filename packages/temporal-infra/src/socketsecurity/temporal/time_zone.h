@@ -18,6 +18,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -166,6 +167,19 @@ class TimeZoneBackend {
   virtual TemporalResult<Int128> GetEpochNanosecondsFor(
       std::string_view iana_id, const IsoDateTime& datetime,
       Disambiguation disambiguation) noexcept;
+
+  // Mirror of upstream `TimeZoneProvider::get_time_zone_transition`.
+  // Returns the next-or-previous DST transition epoch_nanoseconds in
+  // the named IANA zone relative to `from_epoch_ns`, or std::nullopt
+  // if no transition exists in the requested direction. Default impl
+  // rejects every input.
+  enum class TransitionDirection : uint8_t {
+    kNext = 0,
+    kPrevious = 1,
+  };
+  virtual TemporalResult<std::optional<Int128>> GetTransition(
+      std::string_view iana_id, const Int128& from_epoch_ns,
+      TransitionDirection direction) noexcept;
 };
 
 // Returns the active backend. When V8 has registered an

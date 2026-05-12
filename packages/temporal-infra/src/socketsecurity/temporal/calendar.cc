@@ -254,6 +254,13 @@ TemporalResult<bool> CalendarBackend::InLeapYear(
       "Non-ISO calendar inLeapYear requires a registered backend");
 }
 
+TemporalResult<uint8_t> CalendarBackend::ResolveMonthCode(
+    CalendarKind /*kind*/, int32_t /*year*/,
+    const MonthCode& /*code*/) noexcept {
+  return TemporalError::Range(
+      "Non-ISO calendar month-code resolution requires a registered backend");
+}
+
 // ── Front-door dispatch helpers ──────────────────────────────────────
 //
 // Each accessor short-circuits for ISO (the inline math is trivial)
@@ -337,6 +344,36 @@ bool CalendarInLeapYear(const Calendar& cal, const IsoDate& iso) noexcept {
   }
   auto r = GetCalendarBackend().InLeapYear(cal.Kind(), iso);
   return r.ok() ? r.value() : IsLeapYear(iso.year);
+}
+
+TemporalResult<uint8_t> CalendarResolveMonthCode(
+    const Calendar& cal, int32_t year, const MonthCode& code) noexcept {
+  // Spec: bytes[0] must be 'M', bytes[1..2] must be ASCII digits.
+  if (code.bytes[0] != 'M') {
+    return TemporalError::Range(
+        "MonthCode must start with 'M' followed by two digits");
+  }
+  const uint8_t tens = code.bytes[1];
+  const uint8_t ones = code.bytes[2];
+  if (tens < '0' || tens > '9' || ones < '0' || ones > '9') {
+    return TemporalError::Range(
+        "MonthCode tens/ones bytes must be ASCII digits");
+  }
+  const uint8_t ordinal = static_cast<uint8_t>((tens - '0') * 10 + (ones - '0'));
+  if (ordinal < 1 || ordinal > 13) {
+    return TemporalError::Range("MonthCode ordinal out of 1..13 range");
+  }
+  const bool leap = (code.bytes[3] == 'L');
+  if (cal.IsIso()) {
+    if (leap || ordinal > 12) {
+      return TemporalError::Range(
+          "ISO calendar does not support leap months");
+    }
+    return ordinal;
+  }
+  // Non-ISO: delegate to the registered backend. ICU resolves the
+  // year-dependent mapping (Hebrew Adar I/II, Chinese leap months).
+  return GetCalendarBackend().ResolveMonthCode(cal.Kind(), year, code);
 }
 
 namespace {

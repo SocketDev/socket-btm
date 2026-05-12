@@ -330,6 +330,119 @@ TemporalResult<bool> IcuCalendarBackend::InLeapYear(
   return dy.value() > 365;
 }
 
+// 1:1 from upstream `Calendar::resolve_month_code`. Hebrew and Chinese
+// (Dangi) calendars are the only TC39-Temporal calendars with leap
+// months. For Hebrew, the leap month is Adar I in years 3, 6, 8, 11,
+// 14, 17, 19 of a 19-year Metonic cycle; M05L (Adar I) precedes M06
+// (Adar II == regular Adar) in those years. ICU's UCAL_IS_LEAP_MONTH
+// extension lets us detect leap-position months directly.
+TemporalResult<uint8_t> IcuCalendarBackend::ResolveMonthCode(
+    CalendarKind kind, int32_t year, const MonthCode& code) noexcept {
+  // Validate ASCII shape (caller already checked, but be defensive).
+  if (code.bytes[0] != 'M') {
+    return TemporalError::Range("MonthCode must start with 'M'");
+  }
+  const uint8_t tens = code.bytes[1];
+  const uint8_t ones = code.bytes[2];
+  if (tens < '0' || tens > '9' || ones < '0' || ones > '9') {
+    return TemporalError::Range("MonthCode digits invalid");
+  }
+  const uint8_t target_month =
+      static_cast<uint8_t>((tens - '0') * 10 + (ones - '0'));
+  const bool target_leap = (code.bytes[3] == 'L');
+
+  // Fast path: calendars without leap months. For these, M01..M12
+  // maps 1:1 and leap codes are invalid.
+  switch (kind) {
+    case CalendarKind::kIso:
+    case CalendarKind::kBuddhist:
+    case CalendarKind::kCoptic:
+    case CalendarKind::kEthiopian:
+    case CalendarKind::kEthiopianAmeteAlem:
+    case CalendarKind::kGregorian:
+    case CalendarKind::kIndian:
+    case CalendarKind::kHijriTabularFriday:
+    case CalendarKind::kHijriTabularThursday:
+    case CalendarKind::kHijriUmmAlQura:
+    case CalendarKind::kJapanese:
+    case CalendarKind::kPersian:
+    case CalendarKind::kRoc: {
+      if (target_leap) {
+        return TemporalError::Range(
+            "Calendar does not support leap months");
+      }
+      // Coptic/Ethiopian have 13 months in normal years; others have
+      // 12. The 13th is non-leap (the 5/6-day "epagomenal" month).
+      // M13 is valid for them and 13.
+      const uint8_t max_months =
+          (kind == CalendarKind::kCoptic ||
+           kind == CalendarKind::kEthiopian ||
+           kind == CalendarKind::kEthiopianAmeteAlem)
+              ? 13
+              : 12;
+      if (target_month < 1 || target_month > max_months) {
+        return TemporalError::Range("MonthCode ordinal out of range");
+      }
+      return target_month;
+    }
+    case CalendarKind::kHebrew:
+    case CalendarKind::kChinese:
+    case CalendarKind::kDangi:
+      // Fall through to ICU-aware path below.
+      break;
+  }
+
+  // Leap-aware path. Open ICU on Jan 1 of the requested ISO year so
+  // we can walk months counting leap positions. The actual ISO date
+  // doesn't matter — we just need a calendar pinned to a year in
+  // which the requested monthCode resolves.
+  IsoDate probe{year, 1, 1};
+  auto cal = OpenIcuCal(kind, probe);
+  if (cal == nullptr) {
+    return TemporalError::Range("Unknown calendar identifier");
+  }
+  UErrorCode status = U_ZERO_ERROR;
+  const int32_t max_month = cal->getActualMaximum(UCAL_MONTH, status);
+  if (U_FAILURE(status)) {
+    return TemporalError::Range("ICU Calendar::getActualMaximum failed");
+  }
+  // Walk months 0..max_month inclusive (ICU's UCAL_MONTH is
+  // zero-indexed). For each, check the UCAL_IS_LEAP_MONTH extension.
+  // Hebrew sequence: M01..M04 = Tishri..Tevet, M05 = Shevat, M05L =
+  // Adar I (leap years only), M06 = Adar (or Adar II in leap years),
+  // M07..M12 = Nisan..Elul. ICU walks the months in chronological
+  // order; M05L is the position where IS_LEAP_MONTH is set.
+  uint8_t ordinal = 0;
+  for (int32_t m = 0; m <= max_month; ++m) {
+    cal->set(UCAL_MONTH, m);
+    status = U_ZERO_ERROR;
+    const int32_t is_leap = cal->get(UCAL_IS_LEAP_MONTH, status);
+    if (U_FAILURE(status)) {
+      // Calendars that don't implement UCAL_IS_LEAP_MONTH return error;
+      // treat all months as non-leap.
+      status = U_ZERO_ERROR;
+    }
+    const bool month_is_leap = (is_leap == 1);
+    if (!month_is_leap) {
+      ordinal += 1;
+    }
+    if (target_leap && month_is_leap) {
+      // Hebrew: leap-month sits between ordinals target_month and
+      // target_month+1 (Adar I before Adar II). Match when the
+      // running ordinal equals target_month.
+      if (ordinal == target_month) {
+        return static_cast<uint8_t>(m + 1);  // 1-indexed return
+      }
+    } else if (!target_leap && !month_is_leap) {
+      if (ordinal == target_month) {
+        return static_cast<uint8_t>(m + 1);
+      }
+    }
+  }
+  return TemporalError::Range(
+      "MonthCode does not resolve to a month in this calendar/year");
+}
+
 void InstallIcuCalendarBackend() noexcept {
   static IcuCalendarBackend instance;
   SetCalendarBackend(&instance);
@@ -389,6 +502,12 @@ TemporalResult<std::optional<int32_t>> IcuCalendarBackend::EraYear(
 }
 TemporalResult<bool> IcuCalendarBackend::InLeapYear(
     CalendarKind /*kind*/, const IsoDate& /*iso*/) noexcept {
+  return TemporalError::Range(
+      "ICU calendar backend requires V8_INTL_SUPPORT to be enabled");
+}
+TemporalResult<uint8_t> IcuCalendarBackend::ResolveMonthCode(
+    CalendarKind /*kind*/, int32_t /*year*/,
+    const MonthCode& /*code*/) noexcept {
   return TemporalError::Range(
       "ICU calendar backend requires V8_INTL_SUPPORT to be enabled");
 }

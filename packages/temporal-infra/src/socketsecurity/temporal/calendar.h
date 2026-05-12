@@ -149,6 +149,18 @@ TemporalResult<Duration> CalendarDateUntil(const Calendar& cal,
                                              const IsoDate& later,
                                              Unit largest_unit) noexcept;
 
+// Mirror of upstream's `Calendar::resolve_month_code`. Maps a
+// MonthCode ("M01"…"M12" / "M05L" / "M07L" / …) to a 1-indexed
+// ordinal month for the given (year, calendar). Most calendars
+// have no leap-month variant; for those, leap=false codes map
+// M0X → X and leap codes return Range. Hebrew uses M05L (leap
+// Adar I) variant in 7 of 19 years per Metonic cycle; the call
+// routes through CalendarBackend so the ICU backend can resolve
+// the year-dependent mapping. Default ISO impl handles plain
+// M01..M12 and rejects every leap variant.
+TemporalResult<uint8_t> CalendarResolveMonthCode(
+    const Calendar& cal, int32_t year, const MonthCode& code) noexcept;
+
 // ── CalendarBackend ───────────────────────────────────────────────────
 //
 // Plug-in interface for non-ISO calendar resolution. The default
@@ -192,6 +204,16 @@ class CalendarBackend {
       CalendarKind kind, const IsoDate& iso) noexcept;
   virtual TemporalResult<bool> InLeapYear(CalendarKind kind,
                                             const IsoDate& iso) noexcept;
+
+  // Mirror of upstream's `Calendar::resolve_month_code(year, code)`.
+  // Returns the ordinal month for the given monthCode in the named
+  // calendar / year. Default impl handles ISO (M01..M12 → 1..12,
+  // leap variants rejected). ICU backend handles leap variants for
+  // Hebrew + Chinese + Dangi calendars (the only TC39-Temporal
+  // calendars with leap months).
+  virtual TemporalResult<uint8_t> ResolveMonthCode(
+      CalendarKind kind, int32_t year,
+      const MonthCode& code) noexcept;
 };
 
 // Front-door dispatch helpers — choose ISO inline or delegate to the

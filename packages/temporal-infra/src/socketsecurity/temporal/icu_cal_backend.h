@@ -66,6 +66,9 @@ class IcuCalendarBackend : public CalendarBackend {
       CalendarKind kind, const IsoDate& iso) noexcept override;
   TemporalResult<bool> InLeapYear(CalendarKind kind,
                                     const IsoDate& iso) noexcept override;
+  TemporalResult<uint8_t> ResolveMonthCode(
+      CalendarKind kind, int32_t year,
+      const MonthCode& code) noexcept override;
 };
 
 // Install the ICU-backed backend as the active CalendarBackend.

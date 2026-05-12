@@ -13,6 +13,7 @@
 #include "socketsecurity/temporal/plain_date.h"
 #include "socketsecurity/temporal/ixdtf_writer.h"
 #include "socketsecurity/temporal/plain_year_month.h"
+#include "socketsecurity/temporal/rounding.h"
 #include "temporal_rs/AnyCalendarKind.hpp"
 #include "temporal_rs/ArithmeticOverflow.hpp"
 #include "temporal_rs/Calendar.hpp"
@@ -71,23 +72,37 @@ class PlainYearMonth {
           ErrorKind::Range,
           "PlainYearMonth.from requires year"});
     }
-    if (!partial.month.has_value() && !partial.month_code.empty()) {
-      // month_code only — defer to calendar backend (Mxx parsing).
-      return diplomat::Err<TemporalError>(TemporalError{
-          ErrorKind::Range,
-          "PlainYearMonth.from month_code resolution requires "
-          "calendar backend"});
-    }
-    if (!partial.month.has_value()) {
+    uint8_t resolved_month = 0;
+    if (partial.month.has_value()) {
+      resolved_month = *partial.month;
+    } else if (!partial.month_code.empty()) {
+      if (partial.month_code.size() < 3 ||
+          partial.month_code.size() > 4) {
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range, "Invalid monthCode length"});
+      }
+      ::node::socketsecurity::temporal::MonthCode code{};
+      for (size_t i = 0; i < partial.month_code.size(); ++i) {
+        code.bytes[i] = static_cast<uint8_t>(partial.month_code[i]);
+      }
+      ::node::socketsecurity::temporal::Calendar cal(
+          partial.calendar.ToInfra());
+      auto r = ::node::socketsecurity::temporal::CalendarResolveMonthCode(
+          cal, *partial.year, code);
+      if (!r.ok()) {
+        return diplomat::Err<TemporalError>(
+            TemporalError::FromInfra(r.error()));
+      }
+      resolved_month = r.value();
+    } else {
       return diplomat::Err<TemporalError>(TemporalError{
           ErrorKind::Range,
           "PlainYearMonth.from requires month or monthCode"});
     }
     const ArithmeticOverflow ov =
         overflow.value_or(ArithmeticOverflow{});  // default kConstrain
-    return try_new_with_overflow(*partial.year, *partial.month,
-                                  partial.day,
-                                  AnyCalendarKind{AnyCalendarKind::Iso}, ov);
+    return try_new_with_overflow(*partial.year, resolved_month,
+                                  partial.day, partial.calendar, ov);
   }
 
   // 1:1 from upstream plain_year_month.rs `try_new_with_overflow`.
@@ -143,14 +158,29 @@ class PlainYearMonth {
   diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
   with(PartialDate partial,
        std::optional<ArithmeticOverflow> overflow) const {
-    if (!partial.month_code.empty()) {
-      return diplomat::Err<TemporalError>(TemporalError{
-          ErrorKind::Range,
-          "PlainYearMonth.with month_code resolution requires "
-          "calendar backend"});
-    }
     const int32_t merged_year = partial.year.value_or(inner_.iso.year);
-    const uint8_t merged_month = partial.month.value_or(inner_.iso.month);
+    uint8_t merged_month = inner_.iso.month;
+    if (partial.month.has_value()) {
+      merged_month = *partial.month;
+    } else if (!partial.month_code.empty()) {
+      if (partial.month_code.size() < 3 ||
+          partial.month_code.size() > 4) {
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range, "Invalid monthCode length"});
+      }
+      ::node::socketsecurity::temporal::MonthCode code{};
+      for (size_t i = 0; i < partial.month_code.size(); ++i) {
+        code.bytes[i] = static_cast<uint8_t>(partial.month_code[i]);
+      }
+      ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+      auto r = ::node::socketsecurity::temporal::CalendarResolveMonthCode(
+          cal, merged_year, code);
+      if (!r.ok()) {
+        return diplomat::Err<TemporalError>(
+            TemporalError::FromInfra(r.error()));
+      }
+      merged_month = r.value();
+    }
     const std::optional<uint8_t> merged_day =
         partial.day.has_value() ? partial.day
                                 : std::optional<uint8_t>(inner_.iso.day);
@@ -256,12 +286,11 @@ class PlainYearMonth {
   // disallows `week`/`day` as largest/smallest_unit for YearMonth
   // differences; everything else routes through CalendarDateUntil
   // on day-1-normalized dates so the ICU-backed CalendarBackend
-  // services non-ISO calendars.
-  //
-  // The rounding tail (smallest_unit ≠ month or increment ≠ 1) is
-  // deferred to rounding-tail; until that lands, non-default
-  // smallest/increment settings still produce the unrounded
-  // year+month difference (the spec's pre-rounding result).
+  // services non-ISO calendars. Rounding tail (smallest != month
+  // or increment != 1) routes through IncrementRounder<int64_t>
+  // on the months-delta; upstream's `round_relative_duration`
+  // collapses to this case for YearMonth because there's no time
+  // or day component.
   diplomat::result<std::unique_ptr<Duration>, TemporalError>
   until(const PlainYearMonth& other, DifferenceSettings settings) const {
     return diff_year_month(other, settings, /*negate=*/false);
@@ -330,6 +359,72 @@ class PlainYearMonth {
     auto d = diff.value();
     d.weeks = 0;
     d.days = 0;
+
+    // Rounding tail. Upstream gates on `smallest != Month ||
+    // increment != 1` (line 307). Spec's RoundRelativeDuration for
+    // YearMonth collapses to a months-delta rounding since the
+    // duration has only year + month components.
+    const ::node::socketsecurity::temporal::Unit smallest =
+        settings.smallest_unit.has_value()
+            ? settings.smallest_unit->ToInfra()
+            : ::node::socketsecurity::temporal::Unit::kMonth;
+    const uint32_t increment = settings.increment.value_or(1u);
+    const ::node::socketsecurity::temporal::RoundingMode mode =
+        settings.rounding_mode.has_value()
+            ? settings.rounding_mode->ToInfra()
+            : ::node::socketsecurity::temporal::RoundingMode::kTrunc;
+    if (smallest != ::node::socketsecurity::temporal::Unit::kMonth ||
+        increment != 1u) {
+      // Total months in d (years*12 + months). Both are doubles in the
+      // POD; for diff results they're integral and well within int64.
+      int64_t total_months = static_cast<int64_t>(d.years) * 12 +
+                              static_cast<int64_t>(d.months);
+      // Per spec: `since` negates the rounding mode (already applied
+      // upstream for `until`; for `since` we'll negate the final
+      // result, so apply the mode-negate here to mirror upstream's
+      // ResolvedRoundingOptions::from_diff_settings + since flip).
+      const ::node::socketsecurity::temporal::RoundingMode effective_mode =
+          negate
+              ? ::node::socketsecurity::temporal::RoundingModeNegate(mode)
+              : mode;
+      if (smallest == ::node::socketsecurity::temporal::Unit::kYear) {
+        // Round to multiples of (12 * increment) months.
+        const uint64_t step = 12ULL * static_cast<uint64_t>(increment);
+        auto r = ::node::socketsecurity::temporal::IncrementRounder<int64_t>
+                     ::FromSignedNum(total_months, step);
+        if (!r.ok()) {
+          return diplomat::Err<TemporalError>(
+              TemporalError::FromInfra(r.error()));
+        }
+        const int64_t rounded_months = r.value().Round(effective_mode);
+        d.years = static_cast<double>(rounded_months / 12);
+        d.months = static_cast<double>(rounded_months -
+                                         (rounded_months / 12) * 12);
+      } else {
+        // smallest == Month, increment != 1. Round months-delta to
+        // multiples of increment, preserving the years carry.
+        auto r = ::node::socketsecurity::temporal::IncrementRounder<int64_t>
+                     ::FromSignedNum(total_months,
+                                     static_cast<uint64_t>(increment));
+        if (!r.ok()) {
+          return diplomat::Err<TemporalError>(
+              TemporalError::FromInfra(r.error()));
+        }
+        const int64_t rounded_months = r.value().Round(effective_mode);
+        // Re-balance the rounded result back into years + months
+        // matching largestUnit's expectation. If largestUnit is Year
+        // the months may carry to years; if Month, keep as months.
+        if (largest == ::node::socketsecurity::temporal::Unit::kYear) {
+          d.years = static_cast<double>(rounded_months / 12);
+          d.months = static_cast<double>(rounded_months -
+                                           (rounded_months / 12) * 12);
+        } else {
+          d.years = 0;
+          d.months = static_cast<double>(rounded_months);
+        }
+      }
+    }
+
     if (negate) {
       d = ::node::socketsecurity::temporal::DurationNegated(d);
     }

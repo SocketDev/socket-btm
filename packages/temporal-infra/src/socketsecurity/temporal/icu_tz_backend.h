@@ -27,6 +27,8 @@
 #ifndef SRC_SOCKETSECURITY_TEMPORAL_ICU_TZ_BACKEND_H_
 #define SRC_SOCKETSECURITY_TEMPORAL_ICU_TZ_BACKEND_H_
 
+#include <optional>
+
 #include "socketsecurity/temporal/time_zone.h"
 
 namespace node {
@@ -58,6 +60,14 @@ class IcuTimeZoneBackend : public TimeZoneBackend {
   TemporalResult<Int128> GetEpochNanosecondsFor(
       std::string_view iana_id, const IsoDateTime& datetime,
       Disambiguation disambiguation) noexcept override;
+
+  // 1:1 from upstream `TimeZoneProvider::get_time_zone_transition`.
+  // Uses icu::BasicTimeZone::getNextTransition /
+  // getPreviousTransition (inclusive=false) — the same API V8 uses
+  // for its own DST-transition lookups.
+  TemporalResult<std::optional<Int128>> GetTransition(
+      std::string_view iana_id, const Int128& from_epoch_ns,
+      TransitionDirection direction) noexcept override;
 };
 
 // Install the ICU-backed backend as the active TimeZoneBackend.

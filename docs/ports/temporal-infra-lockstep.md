@@ -28,9 +28,9 @@ intentional stubs must add a row to this tracker.
 | ------------------------------------------------- | ----- |
 | JS-visible methods with real bodies               | All   |
 | `NotImplemented` returns at runtime               | 0     |
-| Provider-virtual fallbacks (offset-only by default)| 4    |
-| Calendar-virtual fallbacks (ICU-backed installed)  | 1    |
-| Intentional spec deviations (Known drifts)         | 4    |
+| Provider-virtual fallbacks (offset-only by default)| 0    |
+| Calendar-virtual fallbacks (ICU-backed installed)  | 0    |
+| Intentional spec deviations (Known drifts)         | 3    |
 
 ## Backends
 
@@ -83,29 +83,38 @@ return `NotImplemented` at runtime.
 - **`Instant::until/since`** with `largestUnit ∈ {microsecond,
   nanosecond}` over very wide deltas returns `Err` instead of
   silently narrowing to `int64`. C2 in the review.
-- **`PlainDateTime::until/since`** cross-midnight sign disagreement
-  is not balanced via `BalanceTimeDurationRelative` in every case;
-  the smoke test covers the common path. Wider tail (H6) is the
-  remaining open work; the path returns a structurally valid
-  Duration but may differ from spec by ±1 day at certain DST
-  boundaries.
+- (resolved in commit landing this tracker update)
+  `PlainDateTime::until/since` cross-midnight balancing now matches
+  upstream `iso.rs:171 diff` — time-sign is computed first, the
+  later date is adjusted by ±1 day to make signs agree, then
+  CalendarDateUntil runs against the adjusted date. The prior
+  "subtract a day from the days field" approach only worked for
+  largestUnit=day; the new approach preserves year/month/week carry.
 
-## Rounding-tail dependents (still wired, work today for defaults)
+## Rounding tail
 
-The following methods accept rounding/diff settings; with default
-options they produce correct results. With non-default
-`smallestUnit` or `roundingIncrement` they fall back to the
-unrounded result rather than full
-`RoundRelativeDuration`-style rounding:
+All rounding-tail consumers route through `IncrementRounder<T>` /
+the open-coded Int128 rounder in the affected methods:
 
-- `Instant.round` — default works; custom increment/unit unrounded.
-- `Instant.until/since` — default works; custom settings unrounded.
-- `PlainDateTime.round` — same.
-- `PlainYearMonth.until/since` — same.
+- `Instant.round` — full custom unit/increment/mode coverage.
+- `Instant.until/since` — full coverage including largestUnit guards.
+- `PlainDateTime.round` — full coverage via `RoundIsoDateTime`.
+- `PlainYearMonth.until/since` — months-delta rounded via
+  `IncrementRounder<int64_t>`, year/month carry preserved per
+  largestUnit.
 
-These are not "stubs" — they produce structurally valid Durations
-that match spec under default invocation. The rounding-tail
-upgrade is tracked as a follow-on improvement.
+No method falls through to "return unrounded" today.
+
+## monthCode resolution
+
+`Calendar::resolve_month_code(year, code)` is implemented in
+`calendar.cc:CalendarResolveMonthCode` with the ICU backend
+providing the year-dependent leap variant for Hebrew / Chinese /
+Dangi calendars (the only TC39-Temporal calendars with leap
+months). All other calendars use a direct M01..M12/13 → 1..12/13
+mapping. `PlainMonthDay.from`, `PlainMonthDay.with`,
+`PlainYearMonth.from`, and `PlainYearMonth.with` accept
+monthCode-only partial inputs.
 
 ## Audit checklist
 

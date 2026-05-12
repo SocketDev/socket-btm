@@ -13,6 +13,7 @@
 #include "unicode/locid.h"
 #include "unicode/timezone.h"
 #include "unicode/tztrans.h"
+#include "unicode/ucal.h"
 #include "unicode/unistr.h"
 #include "unicode/utypes.h"
 #endif
@@ -153,28 +154,29 @@ TemporalResult<Int128> IcuTimeZoneBackend::GetEpochNanosecondsFor(
   //   kEarlier    — both ambiguous cases pick the earlier instant.
   //   kLater      — both pick the later instant.
   //   kReject     — return Range when ambiguous or gap.
-  auto* basic_tz = dynamic_cast<icu::BasicTimeZone*>(tz.get());
-  if (basic_tz == nullptr) {
-    return TemporalError::Range(
-        "ICU TimeZone does not support local-offset resolution");
-  }
-  icu::BasicTimeZone::EOffsetLocalOption nonexisting =
-      icu::BasicTimeZone::kFormer;
-  icu::BasicTimeZone::EOffsetLocalOption duplicated =
-      icu::BasicTimeZone::kFormer;
+  // SimpleTimeZone + OlsonTimeZone both inherit from BasicTimeZone, and
+  // createTimeZone returns one of those for any non-bogus IANA ID (we
+  // checked Etc/Unknown above). Using static_cast lets this TU compile
+  // under -fno-rtti (libnode) while keeping the same runtime behavior.
+  auto* basic_tz = static_cast<icu::BasicTimeZone*>(tz.get());
+  // Use the public UTimeZoneLocalOption API from unicode/ucal.h rather
+  // than BasicTimeZone's anonymous internal enum, which is hidden when
+  // U_HIDE_INTERNAL_API is set (libnode's ICU build).
+  UTimeZoneLocalOption nonexisting = UCAL_TZ_LOCAL_FORMER;
+  UTimeZoneLocalOption duplicated = UCAL_TZ_LOCAL_FORMER;
   bool reject_on_ambiguity = false;
   switch (disambiguation) {
     case Disambiguation::kCompatible:
-      nonexisting = icu::BasicTimeZone::kFormer;
-      duplicated = icu::BasicTimeZone::kFormer;
+      nonexisting = UCAL_TZ_LOCAL_FORMER;
+      duplicated = UCAL_TZ_LOCAL_FORMER;
       break;
     case Disambiguation::kEarlier:
-      nonexisting = icu::BasicTimeZone::kFormer;
-      duplicated = icu::BasicTimeZone::kFormer;
+      nonexisting = UCAL_TZ_LOCAL_FORMER;
+      duplicated = UCAL_TZ_LOCAL_FORMER;
       break;
     case Disambiguation::kLater:
-      nonexisting = icu::BasicTimeZone::kLatter;
-      duplicated = icu::BasicTimeZone::kLatter;
+      nonexisting = UCAL_TZ_LOCAL_LATTER;
+      duplicated = UCAL_TZ_LOCAL_LATTER;
       break;
     case Disambiguation::kReject:
       reject_on_ambiguity = true;
@@ -248,11 +250,10 @@ TemporalResult<std::optional<Int128>> IcuTimeZoneBackend::GetTransition(
     return TemporalError::Range(
         "ICU does not recognize the requested IANA identifier");
   }
-  auto* basic_tz = dynamic_cast<icu::BasicTimeZone*>(tz.get());
-  if (basic_tz == nullptr) {
-    return TemporalError::Range(
-        "ICU TimeZone is not a BasicTimeZone (no transition table)");
-  }
+  // See static_cast rationale in ResolveOffsetFromLocal above. ICU's
+  // createTimeZone returns SimpleTimeZone or OlsonTimeZone for any
+  // non-bogus IANA id, both of which inherit from BasicTimeZone.
+  auto* basic_tz = static_cast<icu::BasicTimeZone*>(tz.get());
   using NativeInt128 = decltype(from_epoch_ns.value);
   const NativeInt128 from_ns = from_epoch_ns.value;
   const NativeInt128 ns_per_ms{1'000'000};
@@ -267,12 +268,12 @@ TemporalResult<std::optional<Int128>> IcuTimeZoneBackend::GetTransition(
   }
   const UDate base_ms = static_cast<UDate>(static_cast<double>(from_ms));
   icu::TimeZoneTransition tzt;
-  UBool found = FALSE;
+  UBool found = false;
   if (direction == TransitionDirection::kNext) {
-    found = basic_tz->getNextTransition(base_ms, /*inclusive=*/FALSE, tzt);
+    found = basic_tz->getNextTransition(base_ms, /*inclusive=*/false, tzt);
   } else {
     found =
-        basic_tz->getPreviousTransition(base_ms, /*inclusive=*/FALSE, tzt);
+        basic_tz->getPreviousTransition(base_ms, /*inclusive=*/false, tzt);
   }
   if (!found) {
     return std::optional<Int128>(std::nullopt);

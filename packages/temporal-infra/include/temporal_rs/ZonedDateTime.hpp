@@ -336,7 +336,7 @@ class ZonedDateTime {
   diplomat::result<std::string, TemporalError> offset() const {
     auto ns = ResolvedOffsetNs();
     if (!ns.ok()) {
-      return diplomat::Err<TemporalError>(ns.error());
+      return diplomat::Err<TemporalError>(TemporalError::FromInfra(ns.error()));
     }
     return diplomat::Ok<std::string>(FormatOffsetMinuteString(ns.value()));
   }
@@ -350,15 +350,18 @@ class ZonedDateTime {
   // the stored offset directly. IANA zones derive it from
   // GetIsoDateTimeFor(instant): the wall-clock components and the
   // canonical instant_ns together pin down the active offset.
-  diplomat::result<int64_t, TemporalError> ResolvedOffsetNs() const {
+  // Uses the infra-side TemporalResult (not diplomat::result) so the
+  // shim-internal callers can read .ok()/.value()/.error() as lvalues —
+  // diplomat::result's accessors are rvalue-only and don't compose
+  // through const member functions.
+  ::node::socketsecurity::temporal::TemporalResult<int64_t>
+  ResolvedOffsetNs() const {
     if (inner_.time_zone.IsOffsetOnly()) {
-      return diplomat::Ok<int64_t>(
-          inner_.time_zone.OffsetOrNull().Nanoseconds());
+      return inner_.time_zone.OffsetOrNull().Nanoseconds();
     }
     auto datetime = inner_.time_zone.GetIsoDateTimeFor(inner_.instant);
     if (!datetime.ok()) {
-      return diplomat::Err<TemporalError>(
-          TemporalError::FromInfra(datetime.error()));
+      return datetime.error();
     }
     const auto& d = datetime.value().date;
     const auto& t = datetime.value().time;
@@ -378,7 +381,7 @@ class ZonedDateTime {
             NativeInt128(86'400'000'000'000LL) +
         NativeInt128(tod_ns);
     const NativeInt128 utc_ns = inner_.instant.epoch_nanoseconds.value;
-    return diplomat::Ok<int64_t>(static_cast<int64_t>(local_ns - utc_ns));
+    return static_cast<int64_t>(local_ns - utc_ns);
   }
 
   // Format ±HH:MM (and append :SS only if non-zero, per spec
@@ -558,7 +561,8 @@ class ZonedDateTime {
     }
     auto offset_ns_result = ResolvedOffsetNs();
     if (!offset_ns_result.ok()) {
-      return diplomat::Err<TemporalError>(offset_ns_result.error());
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(offset_ns_result.error()));
     }
     int64_t offset_ns = offset_ns_result.value();
     // H4: refuse sub-minute offsets. IXDTF's WithMinuteOffset truncates

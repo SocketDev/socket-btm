@@ -449,20 +449,50 @@ TemporalResult<uint8_t> IcuCalendarBackend::ResolveMonthCode(
   if (U_FAILURE(status)) {
     return TemporalError::Range("ICU Calendar::getActualMaximum failed");
   }
-  // Walk months 0..max_month inclusive (ICU's UCAL_MONTH is
-  // zero-indexed). For each, check the UCAL_IS_LEAP_MONTH extension.
-  // Hebrew sequence: M01..M04 = Tishri..Tevet, M05 = Shevat, M05L =
-  // Adar I (leap years only), M06 = Adar (or Adar II in leap years),
-  // M07..M12 = Nisan..Elul. ICU walks the months in chronological
-  // order; M05L is the position where IS_LEAP_MONTH is set.
+
+  // Hebrew calendar: ICU does NOT set UCAL_IS_LEAP_MONTH for Hebrew
+  // (hebrwcal.cpp:66 marks it N/A). Detect leap year structurally via
+  // max_month (12 = leap year with 13 months, 11 = non-leap with 12).
+  // ICU Hebrew enum: TISHRI=0, HESHVAN=1, KISLEV=2, TEVET=3, SHEVAT=4,
+  // ADAR_1=5, ADAR=6, NISAN=7, IYAR=8, SIVAN=9, TAMMUZ=10, AV=11, ELUL=12.
+  // In non-leap years ICU skips ADAR_1 — months are 0..11 with ADAR=6.
+  // In leap years ADAR_1 is present at index 5, ADAR (=Adar II) at 6.
+  if (kind == CalendarKind::kHebrew) {
+    const bool is_leap_year = (max_month == 12);
+    if (target_leap) {
+      // Only M05L is valid (Adar I).
+      if (target_month != 5) {
+        return TemporalError::Range(
+            "Hebrew leap month must have monthCode M05L");
+      }
+      if (!is_leap_year) {
+        return TemporalError::Range(
+            "Hebrew monthCode M05L is invalid in non-leap year");
+      }
+      return 6;  // 1-indexed ICU position of ADAR_1.
+    }
+    if (target_month < 1 || target_month > 12) {
+      return TemporalError::Range("MonthCode ordinal out of range");
+    }
+    // M01..M05 map identically: ICU index = target_month - 1, return = target_month.
+    if (target_month <= 5) {
+      return target_month;
+    }
+    // In leap years M06..M12 are shifted by ADAR_1 at index 5.
+    // M06=Adar=index 6 → return 7; M07=Nisan=index 7 → return 8; ...
+    // In non-leap years M06..M12 are not shifted.
+    return is_leap_year ? static_cast<uint8_t>(target_month + 1)
+                        : target_month;
+  }
+
+  // Chinese/Dangi: use UCAL_IS_LEAP_MONTH (the only calendars where
+  // ICU sets it). Walk months 0..max_month, counting non-leap into ordinal.
   uint8_t ordinal = 0;
   for (int32_t m = 0; m <= max_month; ++m) {
     cal->set(UCAL_MONTH, m);
     status = U_ZERO_ERROR;
     const int32_t is_leap = cal->get(UCAL_IS_LEAP_MONTH, status);
     if (U_FAILURE(status)) {
-      // Calendars that don't implement UCAL_IS_LEAP_MONTH return error;
-      // treat all months as non-leap.
       status = U_ZERO_ERROR;
     }
     const bool month_is_leap = (is_leap == 1);
@@ -470,11 +500,8 @@ TemporalResult<uint8_t> IcuCalendarBackend::ResolveMonthCode(
       ordinal += 1;
     }
     if (target_leap && month_is_leap) {
-      // Hebrew: leap-month sits between ordinals target_month and
-      // target_month+1 (Adar I before Adar II). Match when the
-      // running ordinal equals target_month.
       if (ordinal == target_month) {
-        return static_cast<uint8_t>(m + 1);  // 1-indexed return
+        return static_cast<uint8_t>(m + 1);
       }
     } else if (!target_leap && !month_is_leap) {
       if (ordinal == target_month) {

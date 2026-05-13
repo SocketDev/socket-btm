@@ -13,20 +13,10 @@
 // ptr / toArrayBuffer / toBuffer. Sufficient to lift most bun:ffi
 // snippets verbatim, minus callbacks.
 //
-// Phase 2 (deferred — needs new C++ in src/socketsecurity/ffi/binding.cc):
-//   JSCallback: would wrap binding().registerCallback so callers can
-//     pass a JS fn into native code as a function pointer. The native
-//     plumbing exists already — JSCallback just needs the surface
-//     adapter — but the threadsafe default + .ptr + .close shape need
-//     a careful audit against bun's lifecycle, and the brief instructs
-//     us to defer it.
-//   CFunction({returns, args, ptr}): would build a callable from a
-//     raw ptr. binding().sym() requires a libId today, so a new
-//     "call-by-pointer" native path is needed first.
-//   linkSymbols({...}): batch version of CFunction; trivial once
-//     CFunction lands.
-// Until then, the deferred constructors throw FFIError with
-// code ENOTIMPL so callers fail fast with a structured error.
+// Phase 2: JSCallback, CFunction, linkSymbols — all wired through
+// internal/socketsecurity/ffi-callable now that the native binding
+// exposes registerFunction / unregisterFunction (call-by-raw-pointer)
+// and the lib_id == 0 sentinel for standalone callbacks.
 
 const {
   ArrayIsArray,
@@ -36,6 +26,7 @@ const {
 } = primordials
 
 const internalFfi = require('internal/socketsecurity/ffi')
+const internalFfiExtras = require('internal/socketsecurity/ffi-callable')
 
 const {
   open: smolOpen,
@@ -48,6 +39,12 @@ const {
   FFI_ERROR_CODES,
   read,
 } = internalFfi
+
+const {
+  CFunction: smolCFunction,
+  JSCallback: smolJSCallback,
+  linkSymbols: smolLinkSymbols,
+} = internalFfiExtras
 
 // FFIType — bun's full type enum, mapped to smol-ffi canonical type
 // strings. Values are exposed as both numeric ordinals (bun's own
@@ -280,42 +277,14 @@ class CString extends String {
 
 // JSCallback — Phase 2 (deferred). bun's API:
 //   const cb = new JSCallback(fn, { args, returns, threadsafe? })
-//   // pass cb.ptr to native code
-//   cb.close()
-// Implementation will route through binding().registerCallback /
-// unregisterCallback, which already exist on the native side. The
-// deferral is per the brief; throwing ENOTIMPL means callers see a
-// structured error instead of a confusing "is not a constructor".
-class JSCallback {
-  constructor() {
-    throw new FFIError(
-      'JSCallback is not yet implemented in node:smol-ffi/bun (Phase 2). ' +
-        'See docs/additions/lib/smol-ffi-compat.md for status and a ' +
-        'workaround using lib.registerCallback() on node:smol-ffi.',
-      FFI_ERROR_CODES.ENOTIMPL,
-    )
-  }
-}
-
-// CFunction({returns, args, ptr}) — Phase 2 (deferred). Requires a
-// "call by raw pointer" native path the binding doesn't have yet.
-function CFunction() {
-  throw new FFIError(
-    'CFunction is not yet implemented in node:smol-ffi/bun (Phase 2). ' +
-      'See docs/additions/lib/smol-ffi-compat.md for status.',
-    FFI_ERROR_CODES.ENOTIMPL,
-  )
-}
-
-// linkSymbols({...}) — Phase 2 (deferred). Trivial once CFunction
-// lands; iterates the def map invoking CFunction per entry.
-function linkSymbols() {
-  throw new FFIError(
-    'linkSymbols is not yet implemented in node:smol-ffi/bun (Phase 2). ' +
-      'It depends on CFunction; see docs/additions/lib/smol-ffi-compat.md.',
-    FFI_ERROR_CODES.ENOTIMPL,
-  )
-}
+// JSCallback / CFunction / linkSymbols delegate to the canonical
+// implementations in internal/socketsecurity/ffi-callable. bun's docs
+// surface and our surface match shape-for-shape (constructor signature,
+// .ptr property, .close() method, threadsafe flag accepted), so a
+// direct re-export is the right wiring — no shape adapter needed.
+const JSCallback = smolJSCallback
+const CFunction = smolCFunction
+const linkSymbols = smolLinkSymbols
 
 // ptr(typedarray) — bun's alias for "give me a BigInt pointer to this
 // view's backing memory." Forwards verbatim to bufferToPtr.

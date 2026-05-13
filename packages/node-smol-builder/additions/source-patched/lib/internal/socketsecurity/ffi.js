@@ -220,6 +220,101 @@ function parseSignature(arg1, arg2) {
   )
 }
 
+// Build a monomorphic JS wrapper around a native function ID.
+//
+// Returns a function that:
+//   - throws when `isClosed()` returns true (carrying `closedMessage` /
+//     `closedCode`)
+//   - primes the V8 Fast API target (when `hasFast`) so the trampoline
+//     can dispatch without going through the slow Call() path
+//   - finally calls `binding().call(fnId, ...args)`.
+//
+// The arity switch generates per-arg-count wrappers so V8 can inline the
+// call site; the `...args` default is for >6 params and intentionally
+// blocks inlining (rest args are slow but pass through the marshaling
+// path correctly). Shared between Library.func (closed = library closed)
+// and CFunction (closed = .close() called).
+function buildCallWrapper({
+  fnId,
+  hasFast,
+  argc,
+  isClosed,
+  closedMessage,
+  closedCode,
+}) {
+  const b = binding()
+  const call = b.call
+  const setTarget = hasFast ? b.setTarget : undefined
+  const closedErr = () => new FFIError(closedMessage, closedCode)
+  switch (argc) {
+    case 0:
+      return hasFast
+        ? () => {
+            if (isClosed()) { throw closedErr() }
+            setTarget(fnId)
+            return call(fnId)
+          }
+        : () => {
+            if (isClosed()) { throw closedErr() }
+            return call(fnId)
+          }
+    case 1:
+      return hasFast
+        ? a0 => {
+            if (isClosed()) { throw closedErr() }
+            setTarget(fnId)
+            return call(fnId, a0)
+          }
+        : a0 => {
+            if (isClosed()) { throw closedErr() }
+            return call(fnId, a0)
+          }
+    case 2:
+      return hasFast
+        ? (a0, a1) => {
+            if (isClosed()) { throw closedErr() }
+            setTarget(fnId)
+            return call(fnId, a0, a1)
+          }
+        : (a0, a1) => {
+            if (isClosed()) { throw closedErr() }
+            return call(fnId, a0, a1)
+          }
+    case 3:
+      return hasFast
+        ? (a0, a1, a2) => {
+            if (isClosed()) { throw closedErr() }
+            setTarget(fnId)
+            return call(fnId, a0, a1, a2)
+          }
+        : (a0, a1, a2) => {
+            if (isClosed()) { throw closedErr() }
+            return call(fnId, a0, a1, a2)
+          }
+    case 4:
+      return (a0, a1, a2, a3) => {
+        if (isClosed()) { throw closedErr() }
+        if (setTarget) { setTarget(fnId) }
+        return call(fnId, a0, a1, a2, a3)
+      }
+    case 5:
+      return (a0, a1, a2, a3, a4) => {
+        if (isClosed()) { throw closedErr() }
+        return call(fnId, a0, a1, a2, a3, a4)
+      }
+    case 6:
+      return (a0, a1, a2, a3, a4, a5) => {
+        if (isClosed()) { throw closedErr() }
+        return call(fnId, a0, a1, a2, a3, a4, a5)
+      }
+    default:
+      return (...args) => {
+        if (isClosed()) { throw closedErr() }
+        return call(fnId, ...args)
+      }
+  }
+}
+
 // Represents a loaded native library.
 class Library {
   #id
@@ -307,118 +402,19 @@ class Library {
     }
     const fnId = result[0]
     const hasFast = result[1]
-    const b = binding()
-    const call = b.call
-    const setTarget = hasFast ? b.setTarget : undefined
-    const closed = () => this.#closed
-
-    // Generate monomorphic wrappers by param count.
-    // Rest args (...) prevents V8 from inlining the call.
-    // When hasFast is true, setTarget primes the TLS fn_ptr so the
-    // V8 Fast API trampoline can bypass argument marshaling entirely.
     const argc = params ? params.length : 0
-    let wrapper
-    switch (argc) {
-      case 0:
-        wrapper = hasFast
-          ? () => {
-              if (closed()) {
-                throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
-              }
-              setTarget(fnId)
-              return call(fnId)
-            }
-          : () => {
-              if (closed()) {
-                throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
-              }
-              return call(fnId)
-            }
-        break
-      case 1:
-        wrapper = hasFast
-          ? a0 => {
-              if (closed()) {
-                throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
-              }
-              setTarget(fnId)
-              return call(fnId, a0)
-            }
-          : a0 => {
-              if (closed()) {
-                throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
-              }
-              return call(fnId, a0)
-            }
-        break
-      case 2:
-        wrapper = hasFast
-          ? (a0, a1) => {
-              if (closed()) {
-                throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
-              }
-              setTarget(fnId)
-              return call(fnId, a0, a1)
-            }
-          : (a0, a1) => {
-              if (closed()) {
-                throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
-              }
-              return call(fnId, a0, a1)
-            }
-        break
-      case 3:
-        wrapper = hasFast
-          ? (a0, a1, a2) => {
-              if (closed()) {
-                throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
-              }
-              setTarget(fnId)
-              return call(fnId, a0, a1, a2)
-            }
-          : (a0, a1, a2) => {
-              if (closed()) {
-                throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
-              }
-              return call(fnId, a0, a1, a2)
-            }
-        break
-      case 4:
-        wrapper = (a0, a1, a2, a3) => {
-          if (closed()) {
-            throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
-          }
-          if (setTarget) {
-            setTarget(fnId)
-          }
-          return call(fnId, a0, a1, a2, a3)
-        }
-        break
-      case 5:
-        wrapper = (a0, a1, a2, a3, a4) => {
-          if (closed()) {
-            throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
-          }
-          return call(fnId, a0, a1, a2, a3, a4)
-        }
-        break
-      case 6:
-        wrapper = (a0, a1, a2, a3, a4, a5) => {
-          if (closed()) {
-            throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
-          }
-          return call(fnId, a0, a1, a2, a3, a4, a5)
-        }
-        break
-      default:
-        wrapper = (...args) => {
-          if (closed()) {
-            throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
-          }
-          return call(fnId, ...args)
-        }
-        break
-    }
+    // Capture a closure over `this.#closed`. Arrow inherits `this`; private
+    // fields are class-lexically scoped so the access reads correctly.
+    const isClosed = () => this.#closed
+    const wrapper = buildCallWrapper({
+      __proto__: null,
+      fnId,
+      hasFast,
+      argc,
+      isClosed,
+      closedMessage: 'Library has been closed',
+      closedCode: FFI_ERROR_CODES.EBADLIB,
+    })
 
     ObjectDefineProperty(wrapper, 'name', {
       __proto__: null,
@@ -928,6 +924,13 @@ module.exports = {
   Library,
   FFIError,
   FFI_ERROR_CODES,
+
+  // Internal helpers exposed for sibling internal modules
+  // (internal/socketsecurity/ffi-callable). NOT part of the public surface;
+  // callers from `node:smol-ffi` should go through the named exports.
+  binding,
+  buildCallWrapper,
+  validateType,
 
   // Constants
   suffix,

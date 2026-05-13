@@ -652,6 +652,152 @@ void FFIBinding::Sym(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+// JS: binding.registerFunction(ptrBigInt, 'i32', ['i32', 'i32'])
+//        -> [functionId, hasFastPath]
+//
+// Same shape as Sym() but takes a raw function pointer instead of resolving
+// one from (libraryId, symbolName). Used by CFunction({ ptr, returns, args })
+// in node:smol-ffi/bun: the caller already has the pointer (e.g. a callback
+// registered into a sibling FFI library) and just needs a signature bound
+// to it so it can be invoked through binding().call(). The dispatch path
+// is identical to Sym()'s — Call() only reads func->fn_ptr/signature, never
+// library_id, so a function registered this way is fully callable.
+//
+// library_id is set to 0, which can never collide with a real library
+// (next_library_id starts at 1). Close() consequently won't auto-drop
+// these entries; callers must UnregisterFunction() explicitly, or rely
+// on thread teardown via FFIState destructor.
+void FFIBinding::RegisterFunction(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  if (args.Length() < 2) {
+    isolate->ThrowException(Exception::TypeError(
+      String::NewFromUtf8(isolate,
+        "registerFunction(ptr, returnType, [paramTypes])")
+        .ToLocalChecked()));
+    return;
+  }
+
+  Environment* env = Environment::GetCurrent(args);
+  FFIState* state = GetStateOrThrow(env);
+  if (state == nullptr) {
+    return;
+  }
+
+  // Pointer: required BigInt. Null pointers are rejected because there's
+  // no legitimate use — calling them would segfault the process.
+  if (!args[0]->IsBigInt()) {
+    isolate->ThrowException(Exception::TypeError(
+      String::NewFromUtf8(isolate,
+        "registerFunction: ptr must be a BigInt")
+        .ToLocalChecked()));
+    return;
+  }
+  bool lossless;
+  uint64_t raw = args[0].As<BigInt>()->Uint64Value(&lossless);
+  if (!lossless || raw == 0) {
+    isolate->ThrowException(Exception::TypeError(
+      String::NewFromUtf8(isolate,
+        "registerFunction: ptr must be a non-zero BigInt fitting in uint64")
+        .ToLocalChecked()));
+    return;
+  }
+  // Cast to function pointer. Same ABI-dependent reinterpret_cast pattern
+  // as the dlsym path uses on the Sym() result.
+  void* fn_ptr = reinterpret_cast<void*>(static_cast<uintptr_t>(raw));
+
+  // Parse return type.
+  FFIType ret_type = ParseTypeString(isolate, args[1]);
+
+  // Parse parameter types.
+  FFISignature sig;
+  sig.return_type = ret_type;
+  sig.param_count = 0;
+
+  if (args.Length() >= 3 && args[2]->IsArray()) {
+    Local<Array> param_arr = args[2].As<Array>();
+    sig.param_count = param_arr->Length();
+    if (sig.param_count > kMaxFFIParams) {
+      isolate->ThrowException(Exception::RangeError(
+        String::NewFromUtf8(isolate, "Too many parameters (max 16)")
+          .ToLocalChecked()));
+      return;
+    }
+    for (size_t i = 0; i < sig.param_count; ++i) {
+      // Same Array::Get-from-Proxy guard as FFIBinding::Sym above.
+      Local<Value> pt;
+      if (!param_arr->Get(context, i).ToLocal(&pt)) {
+        sig.param_types[i] = FFIType::kVoid;
+        continue;
+      }
+      sig.param_types[i] = ParseTypeString(isolate, pt);
+    }
+  }
+
+  bool has_fast = FFITrampoline::GetTrampoline(sig) != nullptr;
+
+  auto func = std::unique_ptr<FFIFunction>(new (std::nothrow) FFIFunction());
+  if (!func) {
+    isolate->ThrowException(Exception::Error(
+      String::NewFromUtf8(isolate,
+          "Out of memory: failed to allocate FFI function")
+        .ToLocalChecked()));
+    return;
+  }
+  func->fn_ptr = fn_ptr;
+  func->id = state->next_function_id++;
+  // 0 is the "no library" sentinel — next_library_id starts at 1 so this
+  // can never collide with a real library, and Close()'s library_id ==
+  // sweep will not match this entry.
+  func->library_id = 0;
+  func->signature = sig;
+  func->has_fast_path = has_fast;
+
+  uint32_t fn_id = func->id;
+  state->functions[fn_id] = std::move(func);
+
+  Local<Array> result = Array::New(isolate, 2);
+  result->Set(context, 0, Uint32::New(isolate, fn_id)).Check();
+  result->Set(context, 1, Boolean::New(isolate, has_fast)).Check();
+  args.GetReturnValue().Set(result);
+}
+
+// JS: binding.unregisterFunction(functionId)
+//
+// Removes a function entry from state->functions. Used by CFunction.close()
+// to reclaim the slot when the caller is done with the callable.
+// The fn_ptr itself is owned by whoever provided it (a library, a callback
+// slot, or static native code) — we never free it here.
+void FFIBinding::UnregisterFunction(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  if (args.Length() < 1) {
+    isolate->ThrowException(Exception::TypeError(
+      String::NewFromUtf8(isolate,
+        "unregisterFunction() requires a function ID")
+        .ToLocalChecked()));
+    return;
+  }
+
+  Environment* env = Environment::GetCurrent(args);
+  FFIState* state = GetStateOrThrow(env);
+  if (state == nullptr) {
+    return;
+  }
+
+  uint32_t fn_id = args[0]->Uint32Value(context).FromMaybe(0);
+  auto fn_it = state->functions.find(fn_id);
+  if (fn_it == state->functions.end()) {
+    // Idempotent: missing IDs are silently accepted so a double-close()
+    // from JS doesn't throw. Mirrors the lenient pattern of Library.close()
+    // on the JS side.
+    return;
+  }
+  state->functions.erase(fn_it);
+}
+
 // ============================================================================
 // Function call dispatcher -- the heart of the FFI module
 // ============================================================================
@@ -2294,12 +2440,19 @@ void FFIBinding::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
   }
 
   uint32_t lib_id = args[0]->Uint32Value(context).FromMaybe(0);
-  auto lib_it = state->libraries.find(lib_id);
-  if (lib_it == state->libraries.end() || lib_it->second->closed) {
-    isolate->ThrowException(Exception::Error(
-      String::NewFromUtf8(isolate, "Library not found or closed")
-        .ToLocalChecked()));
-    return;
+  // lib_id == 0 is the "standalone callback" sentinel — used by JSCallback
+  // on node:smol-ffi/bun, which has no owning library. The callback is
+  // released via UnregisterCallback() or FFIState teardown; Close()'s
+  // library-id sweep never matches a 0 here because next_library_id
+  // starts at 1.
+  if (lib_id != 0) {
+    auto lib_it = state->libraries.find(lib_id);
+    if (lib_it == state->libraries.end() || lib_it->second->closed) {
+      isolate->ThrowException(Exception::Error(
+        String::NewFromUtf8(isolate, "Library not found or closed")
+          .ToLocalChecked()));
+      return;
+    }
   }
 
   FFIType ret_type = ParseTypeString(isolate, args[1]);
@@ -2534,6 +2687,10 @@ void FFIBinding::Initialize(
   // Callbacks
   SetMethod(context, target, "registerCallback", RegisterCallback);
   SetMethod(context, target, "unregisterCallback", UnregisterCallback);
+
+  // Call-by-pointer (CFunction, linkSymbols)
+  SetMethod(context, target, "registerFunction", RegisterFunction);
+  SetMethod(context, target, "unregisterFunction", UnregisterFunction);
 }
 
 // HISTORY: WHY REGISTER EXTERNAL REFERENCES (SNAPSHOTS)
@@ -2586,6 +2743,8 @@ void FFIBinding::RegisterExternalReferences(
   registry->Register(cf_set_f64);
   registry->Register(RegisterCallback);
   registry->Register(UnregisterCallback);
+  registry->Register(RegisterFunction);
+  registry->Register(UnregisterFunction);
 }
 
 }  // namespace ffi

@@ -41,6 +41,19 @@ const {
   readPtr,
 } = require('internal/socketsecurity/ffi')
 
+// Library-free FFI surface (JSCallback, CFunction, linkSymbols) lives
+// in a sibling internal module so the main ffi.js stays under the
+// 1000-line hard cap. Promoting these to the canonical surface (not
+// just bun-compat) is intentional — JSCallback wraps the same native
+// registerCallback the Library.registerCallback method uses, and
+// CFunction / linkSymbols are general primitives, not bun-specific.
+const {
+  boundedToNumber,
+  CFunction,
+  JSCallback,
+  linkSymbols,
+} = require('internal/socketsecurity/ffi-callable')
+
 // HISTORY: WHY FREEZE MODULE EXPORTS
 // Node.js freezes some internal export objects to prevent prototype mutation
 // attacks. If a shared module's exports object is mutable, any consumer can
@@ -90,5 +103,16 @@ module.exports = ObjectFreeze({
   read,
   readBatch,
   readPtr,
+  // Library-free FFI surface from internal/socketsecurity/ffi-callable.
+  // JSCallback wraps the native registerCallback for callbacks that
+  // don't belong to a Library. CFunction wraps registerFunction for
+  // call-by-raw-pointer (e.g. function pointers handed in from native
+  // code or from another callback). linkSymbols batches CFunction.
+  // boundedToNumber is the BigInt -> Number downcast for bun's
+  // i64_fast / u64_fast types.
+  CFunction,
+  JSCallback,
+  boundedToNumber,
+  linkSymbols,
   default: open,
 })

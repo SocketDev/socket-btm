@@ -130,6 +130,21 @@ class FFIBinding {
   static void Sym(const v8::FunctionCallbackInfo<v8::Value>& args);
   // JS: binding.dlsym(libId, 'sqrt') -> BigInt (raw address)
   static void Dlsym(const v8::FunctionCallbackInfo<v8::Value>& args);
+  // JS: binding.registerFunction(ptrBigInt, 'f64', ['f64']) -> [fnId, hasFast]
+  // Binds a signature to a caller-provided raw function pointer (e.g. one
+  // returned from registerCallback, or handed in from native code). Same
+  // dispatch path as Sym() — the only difference is that the function is
+  // not tied to a library handle, so library Close() will not auto-drop
+  // it. Callers must explicitly UnregisterFunction() to reclaim the slot,
+  // or rely on thread teardown.
+  static void RegisterFunction(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  // JS: binding.unregisterFunction(functionId)
+  // Removes a function entry registered via RegisterFunction(). Safe to
+  // call on entries created via Sym() too — but those normally live for
+  // the library's lifetime and Close() takes care of them.
+  static void UnregisterFunction(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // -- Function calling --
   // JS: binding.call(functionId, arg0, arg1, ...) -> returnValue

@@ -66,6 +66,7 @@ import { prepareExternalSources } from './prepare-external-sources.mts'
 import { cloneNodeSource } from '../../source-copied/shared/copy-source.mts'
 import {
   applySocketPatches,
+  computePatchChainCachePaths,
   computeSourcePatchedCachePaths,
 } from '../../source-patched/shared/apply-patches.mts'
 
@@ -436,30 +437,27 @@ export async function buildRelease(config, buildOptions = {}) {
 
   // Check if mode source needs to be reset before extraction.
   // This handles two cases:
-  // 1. Source exists but needs patching (source-patched checkpoint stale —
-  //    either the file is missing OR its cache hash no longer matches the
-  //    canonical source paths).
+  // 1. Source exists but the upstream-Node-touching patch chain is stale
+  //    (a patch file changed, or the pristine Node source under modeSourceDir
+  //    differs from what the patches expect). In that case the patched tree
+  //    is invalid — we must re-extract pristine source and re-apply patches.
   // 2. Source has uncommitted changes (local dev modified files).
-  // In both cases, delete the directory so it will be re-extracted below.
   //
-  // CRITICAL: this outer check MUST use the same cache-key paths that
-  // applySocketPatches uses internally. Otherwise: the outer check says
-  // "checkpoint exists, source clean, keep it" while applySocketPatches
-  // says "cache hash mismatch, re-apply patches" — patches get re-applied
-  // on top of a stale source dir that may contain GBs of leftover
-  // out/Release/ build outputs, then createCheckpoint tries to tarball
-  // the whole thing and trips the 2GB size guardrail. See computeSourcePatchedCachePaths.
-  // F10: when patches need to be (re-)applied, also invalidate the
-  // source-patched checkpoint tarball. Otherwise the next restoreCheckpoint
-  // call below happily restores the already-patched checkpoint, and
-  // applySocketPatches then tries to apply the new patches on top of
-  // an already-patched tree — patches fail with "hunks already applied"
-  // when the patch contents themselves drifted (e.g. patch 003 grew new
-  // smol-* entries between the cached and current patch versions).
+  // Addition source files (under packages/*/src/socketsecurity/...) get
+  // copied into the source tree by copyBuildAdditions. They do NOT modify
+  // upstream Node files, so iterating on them must NOT wipe the patched
+  // tree or out/Release/ — the wipe decision uses computePatchChainCachePaths
+  // (patches + upstream sentinels only), while applySocketPatches uses
+  // the combined key (which includes additions) for its checkpoint
+  // bookkeeping. The mismatch is intentional: we keep the patched source
+  // and out/Release/ across addition-only edits, copyBuildAdditions
+  // re-overlays the changed files, and ninja recompiles only the affected
+  // .o. The checkpoint stays current because applySocketPatches re-runs
+  // and refreshes the metadata even when it short-circuits.
   if (existsSync(modeSourceDir)) {
     logger.step('Checking Existing Node.js Source')
 
-    const sourcePatchedCachePaths = await computeSourcePatchedCachePaths({
+    const patchChainCachePaths = computePatchChainCachePaths({
       buildPatchesDir,
       modeSourceDir,
       patchesReleaseDir: PATCHES_SOURCE_PATCHED_DIR,
@@ -469,7 +467,7 @@ export async function buildRelease(config, buildOptions = {}) {
       packageName,
       CHECKPOINTS.SOURCE_PATCHED,
       cleanBuild,
-      sourcePatchedCachePaths,
+      patchChainCachePaths,
     )
 
     if (needsPatching) {

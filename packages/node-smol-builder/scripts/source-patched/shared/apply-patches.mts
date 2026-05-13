@@ -52,6 +52,7 @@ export async function applySocketPatches(options) {
     patchesReleaseDir,
   })
 
+  // Combined-key short-circuit: nothing changed at all (patches OR additions).
   if (
     !(await shouldRun(
       buildDir,
@@ -73,6 +74,53 @@ export async function applySocketPatches(options) {
         `  - ${patchesReleaseDir} (static)\n` +
         `  - ${buildPatchesDir} (dynamic)`,
     )
+  }
+
+  // Patch-only-key check: are the upstream-touching patches stale,
+  // or did only addition source files change? If only additions
+  // changed, the patched tree is still valid — skip the actual
+  // patch operation and just refresh the checkpoint metadata so
+  // the combined cache key reflects the new addition hashes.
+  // build-released.mts skips its modeSourceDir wipe based on this
+  // same patch-only key; if we re-applied patches here, they would
+  // hit "hunks already applied" against the (still-valid) patched
+  // tree.
+  const patchChainPaths = computePatchChainCachePaths({
+    buildPatchesDir,
+    modeSourceDir,
+    patchesReleaseDir,
+  })
+  const patchChainStale = await shouldRun(
+    buildDir,
+    packageName,
+    CHECKPOINTS.SOURCE_PATCHED,
+    cleanBuild,
+    patchChainPaths,
+  )
+
+  if (!patchChainStale) {
+    logger.skip(
+      'Patches already applied; refreshing checkpoint for addition-only changes',
+    )
+    await createCheckpoint(
+      buildDir,
+      CHECKPOINTS.SOURCE_PATCHED,
+      async () => {
+        if (!existsSync(patchedFile)) {
+          throw new Error(`Patched file not found: ${patchedFile}`)
+        }
+        logger.substep('Patches verified')
+      },
+      {
+        artifactPath: modeSourceDir,
+        packageName,
+        patchCount: socketPatches.length,
+        sourcePaths: allSourcePaths,
+        tarExcludes: ['out'],
+      },
+    )
+    logger.log('')
+    return
   }
 
   // Validate + apply cumulatively. Patches are ordered 001-NNN and
@@ -147,21 +195,49 @@ export async function applySocketPatches(options) {
 }
 
 /**
+ * Compute the patch-chain-only cache-key paths. Used by build-released.mts
+ * to decide whether the patched source tree needs to be re-extracted
+ * from a pristine baseline. When this key is fresh but the combined
+ * source-patched key is stale, only addition source files changed —
+ * the patched source tree is still valid and just needs a re-overlay
+ * (copyBuildAdditions handles that, ninja recompiles affected .o).
+ */
+export function computePatchChainCachePaths(options: {
+  buildPatchesDir: string
+  modeSourceDir: string
+  patchesReleaseDir: string
+}): string[] {
+  const { buildPatchesDir, modeSourceDir, patchesReleaseDir } = options
+  const socketPatches = findSocketPatches(patchesReleaseDir, buildPatchesDir)
+  const patchFilePaths = socketPatches.map(p => p.path)
+
+  // H7: include canonical upstream-Node files in the cache key so an
+  // upstream Node bump (different source tree under modeSourceDir,
+  // byte-identical patches) invalidates this stage. Without these,
+  // byte-identical patches against a different Node version
+  // short-circuit and we ship unpatched output.
+  const upstreamSentinelPaths = [
+    path.join(modeSourceDir, 'src', 'node.cc'),
+    path.join(modeSourceDir, 'src', 'node_main.cc'),
+  ].filter(p => existsSync(p))
+
+  return [...patchFilePaths, ...upstreamSentinelPaths]
+}
+
+/**
  * Compute the cache-key path list for SOURCE_PATCHED. Reused by
  * applySocketPatches (to decide whether to re-apply patches) AND by
- * build-released.mts (to decide whether to wipe modeSourceDir before
- * re-extraction). Both call sites MUST agree on staleness or we land
- * in the "patches re-apply over stale source dir with leftover
- * out/Release" state that trips the checkpoint guardrail.
+ * build-released.mts (to decide whether to refresh the patched tree).
+ * Both call sites MUST agree on staleness or we land in the "patches
+ * re-apply over stale source dir with leftover out/Release" state that
+ * trips the checkpoint guardrail.
  */
 export async function computeSourcePatchedCachePaths(options: {
   buildPatchesDir: string
   modeSourceDir: string
   patchesReleaseDir: string
 }): Promise<string[]> {
-  const { buildPatchesDir, modeSourceDir, patchesReleaseDir } = options
-  const socketPatches = findSocketPatches(patchesReleaseDir, buildPatchesDir)
-  const patchFilePaths = socketPatches.map(p => p.path)
+  const patchChainPaths = computePatchChainCachePaths(options)
 
   const sourcePackageFiles: string[] = []
   for (
@@ -179,17 +255,7 @@ export async function computeSourcePatchedCachePaths(options: {
     }
   }
 
-  // H7: include canonical upstream-Node files in the cache key so an
-  // upstream Node bump (different source tree under modeSourceDir,
-  // byte-identical patches) invalidates this stage. Without these,
-  // byte-identical patches against a different Node version
-  // short-circuit and we ship unpatched output.
-  const upstreamSentinelPaths = [
-    path.join(modeSourceDir, 'src', 'node.cc'),
-    path.join(modeSourceDir, 'src', 'node_main.cc'),
-  ].filter(p => existsSync(p))
-
-  return [...patchFilePaths, ...sourcePackageFiles, ...upstreamSentinelPaths]
+  return [...patchChainPaths, ...sourcePackageFiles]
 }
 
 /**

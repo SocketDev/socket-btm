@@ -258,7 +258,8 @@ class PlainMonthDay {
     return from_utf8(narrow);
   }
 
-  // Build a PlainMonthDay from a parsed record.
+  // Build a PlainMonthDay from a parsed record. Try-new ignores
+  // calendar; overlay the parsed kind so [u-ca=...] survives.
   static diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
   from_parsed(const ParsedDate& parsed) {
     auto r = ::node::socketsecurity::temporal::PlainMonthDayTryNewIso(
@@ -267,8 +268,12 @@ class PlainMonthDay {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(r.error()));
     }
+    ::node::socketsecurity::temporal::PlainMonthDay inner = r.value();
+    inner.calendar =
+        static_cast<::node::socketsecurity::temporal::CalendarKind>(
+            parsed.ToInfra().calendar_kind);
     return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
-        std::unique_ptr<PlainMonthDay>(new PlainMonthDay(r.value())));
+        std::unique_ptr<PlainMonthDay>(new PlainMonthDay(inner)));
   }
 
   uint8_t month() const {

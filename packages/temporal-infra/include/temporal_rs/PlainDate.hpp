@@ -140,7 +140,11 @@ class PlainDate {
   }
 
   // Spec: build a PlainDate from an already-parsed ParsedDate. Routes
-  // through the temporal-infra Try-iso path on the ISO components.
+  // through the temporal-infra Try-iso path on the ISO components, then
+  // overlays the parsed calendar kind so [u-ca=...] annotations survive
+  // the FromParsed path (V8's PlainDate.from('YYYY-MM-DD[u-ca=hebrew]')
+  // goes through ParsedDate::from_utf8 -> PlainDate::from_parsed, not
+  // through PlainDate::from_utf8 directly).
   static diplomat::result<std::unique_ptr<PlainDate>, TemporalError>
   from_parsed(const ParsedDate& parsed) {
     auto r = ::node::socketsecurity::temporal::PlainDateTryNewIso(
@@ -149,8 +153,12 @@ class PlainDate {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(r.error()));
     }
+    ::node::socketsecurity::temporal::PlainDate inner = r.value();
+    inner.calendar =
+        static_cast<::node::socketsecurity::temporal::CalendarKind>(
+            parsed.ToInfra().calendar_kind);
     return diplomat::Ok<std::unique_ptr<PlainDate>>(
-        std::unique_ptr<PlainDate>(new PlainDate(r.value())));
+        std::unique_ptr<PlainDate>(new PlainDate(inner)));
   }
 
   // ── Field accessors ───────────────────────────────────────────────

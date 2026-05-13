@@ -121,7 +121,10 @@ class PlainDateTime {
     return from_utf8(narrow);
   }
 
-  // Build a PlainDateTime from an already-parsed ParsedDateTime.
+  // Build a PlainDateTime from an already-parsed ParsedDateTime. Same
+  // pattern as PlainDate::from_parsed — the ISO try-new only knows about
+  // year/month/day/time-of-day, so the parsed calendar kind is layered
+  // on top so [u-ca=...] annotations survive ParsedDateTime → V8 PD.
   static diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError>
   from_parsed(const ParsedDateTime& parsed) {
     auto r = ::node::socketsecurity::temporal::PlainDateTimeTryNew(
@@ -132,8 +135,12 @@ class PlainDateTime {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(r.error()));
     }
+    ::node::socketsecurity::temporal::PlainDateTime inner = r.value();
+    inner.calendar =
+        static_cast<::node::socketsecurity::temporal::CalendarKind>(
+            parsed.ToInfra().date.calendar_kind);
     return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
-        std::unique_ptr<PlainDateTime>(new PlainDateTime(r.value())));
+        std::unique_ptr<PlainDateTime>(new PlainDateTime(inner)));
   }
 
   // Field accessors.

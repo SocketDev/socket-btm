@@ -12,6 +12,7 @@
 #define TEMPORAL_RS_COMPAT_ZONEDDATETIME_HPP_
 
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <memory>
 #include <optional>
@@ -325,20 +326,82 @@ class ZonedDateTime {
     return I128Nanoseconds::FromInfra(inner_.instant.epoch_nanoseconds);
   }
 
-  // Offset accessors. Stubbed for non-offset zones; returns "+00:00"
-  // until the full IANA-DST path lands. For offset-only zones, the
-  // value is correct. Upstream returns `result<string, TemporalError>`.
+  // Offset accessors. For IANA zones the resolved offset is derived
+  // from GetIsoDateTimeFor(instant) — same trick as ZonedDateTime.toString
+  // (the offset between the wall-clock representation and the UTC
+  // instant IS the active offset). Spec: PolyfillTC39/temporal §
+  // 6.5.5 GetOffsetNanosecondsFor — when zone is an IANA name, the
+  // implementation queries the provider for the resolved offset at
+  // the given instant.
   diplomat::result<std::string, TemporalError> offset() const {
-    return diplomat::Ok<std::string>(
-        inner_.time_zone.IsOffsetOnly()
-            ? inner_.time_zone.OffsetOrNull().ToString()
-            : std::string("+00:00"));
+    auto ns = ResolvedOffsetNs();
+    if (!ns.ok()) {
+      return diplomat::Err<TemporalError>(ns.error());
+    }
+    return diplomat::Ok<std::string>(FormatOffsetMinuteString(ns.value()));
   }
   int64_t offset_nanoseconds() const {
-    return inner_.time_zone.IsOffsetOnly()
-               ? inner_.time_zone.OffsetOrNull().Nanoseconds()
-               : 0;
+    auto ns = ResolvedOffsetNs();
+    return ns.ok() ? ns.value() : 0;
   }
+
+ private:
+  // Resolve the active offset for this ZDT. Offset-only zones return
+  // the stored offset directly. IANA zones derive it from
+  // GetIsoDateTimeFor(instant): the wall-clock components and the
+  // canonical instant_ns together pin down the active offset.
+  diplomat::result<int64_t, TemporalError> ResolvedOffsetNs() const {
+    if (inner_.time_zone.IsOffsetOnly()) {
+      return diplomat::Ok<int64_t>(
+          inner_.time_zone.OffsetOrNull().Nanoseconds());
+    }
+    auto datetime = inner_.time_zone.GetIsoDateTimeFor(inner_.instant);
+    if (!datetime.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(datetime.error()));
+    }
+    const auto& d = datetime.value().date;
+    const auto& t = datetime.value().time;
+    const int64_t epoch_days =
+        ::node::socketsecurity::temporal::EpochDaysFromGregorianDate(
+            d.year, d.month, d.day);
+    const int64_t tod_ns =
+        static_cast<int64_t>(t.hour) * 3600 * 1'000'000'000LL +
+        static_cast<int64_t>(t.minute) * 60 * 1'000'000'000LL +
+        static_cast<int64_t>(t.second) * 1'000'000'000LL +
+        static_cast<int64_t>(t.millisecond) * 1'000'000LL +
+        static_cast<int64_t>(t.microsecond) * 1'000LL +
+        static_cast<int64_t>(t.nanosecond);
+    using NativeInt128 = decltype(inner_.instant.epoch_nanoseconds.value);
+    const NativeInt128 local_ns =
+        NativeInt128(epoch_days) *
+            NativeInt128(86'400'000'000'000LL) +
+        NativeInt128(tod_ns);
+    const NativeInt128 utc_ns = inner_.instant.epoch_nanoseconds.value;
+    return diplomat::Ok<int64_t>(static_cast<int64_t>(local_ns - utc_ns));
+  }
+
+  // Format ±HH:MM (and append :SS only if non-zero, per spec
+  // FormatTimeZoneOffsetString). Matches upstream temporal_rs's
+  // nanoseconds_to_formattable_offset_minutes pattern.
+  static std::string FormatOffsetMinuteString(int64_t offset_ns) {
+    const char sign = offset_ns < 0 ? '-' : '+';
+    const int64_t abs_ns = offset_ns < 0 ? -offset_ns : offset_ns;
+    const int64_t total_seconds = abs_ns / 1'000'000'000LL;
+    const int hours = static_cast<int>(total_seconds / 3600);
+    const int minutes = static_cast<int>((total_seconds / 60) % 60);
+    const int seconds = static_cast<int>(total_seconds % 60);
+    char buf[12];
+    if (seconds == 0) {
+      std::snprintf(buf, sizeof(buf), "%c%02d:%02d", sign, hours, minutes);
+    } else {
+      std::snprintf(buf, sizeof(buf), "%c%02d:%02d:%02d", sign, hours, minutes,
+                    seconds);
+    }
+    return std::string(buf);
+  }
+
+ public:
 
   // ── Conversions ─────────────────────────────────────────────────
 
@@ -493,36 +556,11 @@ class ZonedDateTime {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(datetime.error()));
     }
-    // Compute the offset_ns: for offset-only zones the stored offset IS
-    // the resolved offset; for IANA zones the offset is derived by
-    // comparing GetIsoDateTimeFor's wall-clock against the underlying
-    // instant's UTC representation.
-    int64_t offset_ns;
-    if (inner_.time_zone.IsOffsetOnly()) {
-      offset_ns = inner_.time_zone.OffsetOrNull().Nanoseconds();
-    } else {
-      // IANA: local_epoch_ns (from wall-clock) - utc_epoch_ns = offset.
-      const auto& d = datetime.value().date;
-      const auto& t = datetime.value().time;
-      const int64_t epoch_days =
-          ::node::socketsecurity::temporal::EpochDaysFromGregorianDate(
-              d.year, d.month, d.day);
-      const int64_t tod_ns =
-          static_cast<int64_t>(t.hour) * 3600 * 1'000'000'000LL +
-          static_cast<int64_t>(t.minute) * 60 * 1'000'000'000LL +
-          static_cast<int64_t>(t.second) * 1'000'000'000LL +
-          static_cast<int64_t>(t.millisecond) * 1'000'000LL +
-          static_cast<int64_t>(t.microsecond) * 1'000LL +
-          static_cast<int64_t>(t.nanosecond);
-      using NativeInt128 =
-          decltype(inner_.instant.epoch_nanoseconds.value);
-      const NativeInt128 local_ns =
-          NativeInt128(epoch_days) *
-              NativeInt128(86'400'000'000'000LL) +
-          NativeInt128(tod_ns);
-      const NativeInt128 utc_ns = inner_.instant.epoch_nanoseconds.value;
-      offset_ns = static_cast<int64_t>(local_ns - utc_ns);
+    auto offset_ns_result = ResolvedOffsetNs();
+    if (!offset_ns_result.ok()) {
+      return diplomat::Err<TemporalError>(offset_ns_result.error());
     }
+    int64_t offset_ns = offset_ns_result.value();
     // H4: refuse sub-minute offsets. IXDTF's WithMinuteOffset truncates
     // seconds/nanoseconds silently; upstream's
     // nanoseconds_to_formattable_offset_minutes returns an error.

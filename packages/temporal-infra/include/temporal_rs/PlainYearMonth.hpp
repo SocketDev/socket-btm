@@ -515,7 +515,8 @@ class PlainYearMonth {
     return from_utf8(narrow);
   }
 
-  // Build a PlainYearMonth from a parsed-and-validated record.
+  // Build a PlainYearMonth from a parsed-and-validated record. Try-new
+  // ignores calendar; overlay the parsed kind so [u-ca=...] survives.
   static diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
   from_parsed(const ParsedDate& parsed) {
     auto r = ::node::socketsecurity::temporal::PlainYearMonthTryNewIso(
@@ -524,8 +525,12 @@ class PlainYearMonth {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(r.error()));
     }
+    ::node::socketsecurity::temporal::PlainYearMonth inner = r.value();
+    inner.calendar =
+        static_cast<::node::socketsecurity::temporal::CalendarKind>(
+            parsed.ToInfra().calendar_kind);
     return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
-        std::unique_ptr<PlainYearMonth>(new PlainYearMonth(r.value())));
+        std::unique_ptr<PlainYearMonth>(new PlainYearMonth(inner)));
   }
 
   int32_t year() const {

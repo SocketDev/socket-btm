@@ -4,6 +4,7 @@
 
 #include <string_view>
 
+#include "socketsecurity/temporal/calendar.h"
 #include "socketsecurity/temporal/parse.h"
 #include "socketsecurity/temporal/temporal.h"
 
@@ -31,6 +32,24 @@ std::string_view AsView(const uint8_t* data, size_t length) noexcept {
   return std::string_view(reinterpret_cast<const char*>(data), length);
 }
 
+// Translate a [u-ca=...] annotation captured in ParseDateTimeRecord
+// into ParsedDate.calendar_kind. Empty annotation → ISO (0); unknown
+// identifier also → ISO (Calendar::TryKindFromUtf8's documented
+// behavior is to fall through to kIso on unrecognized input rather
+// than reject — matches upstream's lenient parse).
+uint8_t CalendarKindFromAnnotation(const char* calendar,
+                                    uint8_t calendar_len) noexcept {
+  if (calendar_len == 0) {
+    return 0;
+  }
+  auto kind = Calendar::TryKindFromUtf8(
+      reinterpret_cast<const uint8_t*>(calendar), calendar_len);
+  if (!kind.ok()) {
+    return 0;
+  }
+  return static_cast<uint8_t>(kind.value());
+}
+
 }  // namespace
 
 TemporalResult<ParsedDate> ParsedDate::FromUtf8(const uint8_t* data,
@@ -44,8 +63,7 @@ TemporalResult<ParsedDate> ParsedDate::FromUtf8(const uint8_t* data,
   out.record.year = rec.datetime.iso.date.year;
   out.record.month = rec.datetime.iso.date.month;
   out.record.day = rec.datetime.iso.date.day;
-  // Calendar handling lands with calendar.cc; ISO (0) is the default.
-  out.calendar_kind = 0;
+  out.calendar_kind = CalendarKindFromAnnotation(rec.calendar, rec.calendar_len);
   return out;
 }
 
@@ -60,9 +78,8 @@ TemporalResult<ParsedDate> ParsedDate::YearMonthFromUtf8(
   out.record.year = rec.datetime.iso.date.year;
   out.record.month = rec.datetime.iso.date.month;
   // Day defaults to 0 (the spec uses a reference value here; callers
-  // ignore it). Calendar handling lands with calendar.cc; ISO (0)
-  // is the default.
-  out.calendar_kind = 0;
+  // ignore it).
+  out.calendar_kind = CalendarKindFromAnnotation(rec.calendar, rec.calendar_len);
   return out;
 }
 
@@ -76,7 +93,7 @@ TemporalResult<ParsedDate> ParsedDate::MonthDayFromUtf8(
   ParsedDate out{};
   out.record.month = rec.datetime.iso.date.month;
   out.record.day = rec.datetime.iso.date.day;
-  out.calendar_kind = 0;
+  out.calendar_kind = CalendarKindFromAnnotation(rec.calendar, rec.calendar_len);
   return out;
 }
 
@@ -91,7 +108,8 @@ TemporalResult<ParsedDateTime> ParsedDateTime::FromUtf8(
   out.date.record.year = rec.datetime.iso.date.year;
   out.date.record.month = rec.datetime.iso.date.month;
   out.date.record.day = rec.datetime.iso.date.day;
-  out.date.calendar_kind = 0;
+  out.date.calendar_kind =
+      CalendarKindFromAnnotation(rec.calendar, rec.calendar_len);
   out.time.hour = rec.datetime.iso.time.hour;
   out.time.minute = rec.datetime.iso.time.minute;
   out.time.second = rec.datetime.iso.time.second;

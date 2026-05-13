@@ -65,6 +65,7 @@ overrides:
 trustPolicy: no-downgrade
 trustPolicyExclude:
   - semver@6.3.1
+  - 'compromise@14.15.0'
 
 # Auto-install missing peer deps (pnpm default). Declared explicitly
 # so a future default flip can't silently change install behavior.

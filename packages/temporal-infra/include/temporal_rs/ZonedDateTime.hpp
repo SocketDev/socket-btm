@@ -565,7 +565,7 @@ class ZonedDateTime {
           TemporalError::FromInfra(offset_ns_result.error()));
     }
     int64_t offset_ns = offset_ns_result.value();
-    // H4: refuse sub-minute offsets. IXDTF's WithMinuteOffset truncates
+    // Refuse sub-minute offsets. IXDTF's WithMinuteOffset truncates
     // seconds/nanoseconds silently; upstream's
     // nanoseconds_to_formattable_offset_minutes returns an error.
     constexpr int64_t kNsPerMinute = 60'000'000'000LL;

@@ -211,7 +211,7 @@ export function computePatchChainCachePaths(options: {
   const socketPatches = findSocketPatches(patchesReleaseDir, buildPatchesDir)
   const patchFilePaths = socketPatches.map(p => p.path)
 
-  // H7: include canonical upstream-Node files in the cache key so an
+  // Include canonical upstream-Node files in the cache key so an
   // upstream Node bump (different source tree under modeSourceDir,
   // byte-identical patches) invalidates this stage. Without these,
   // byte-identical patches against a different Node version

@@ -423,16 +423,28 @@ TemporalResult<uint8_t> IcuCalendarBackend::ResolveMonthCode(
       break;
   }
 
-  // Leap-aware path. Open ICU on Jan 1 of the requested ISO year so
-  // we can walk months counting leap positions. The actual ISO date
-  // doesn't matter — we just need a calendar pinned to a year in
-  // which the requested monthCode resolves.
-  IsoDate probe{year, 1, 1};
+  // Leap-aware path. Open ICU on a known-safe ISO probe date (year=2024
+  // is in every supported calendar's range), then set the calendar's
+  // native UCAL_YEAR so ICU walks the months for the requested calendar
+  // year. CalendarResolveMonthCode receives the year in the *calendar's*
+  // numbering (Hebrew 5784, not ISO 5784), so we can't construct an ISO
+  // probe directly with `year` — that would pick up ISO year 5784, an
+  // entirely different point in time.
+  IsoDate probe{2024, 1, 1};
   auto cal = OpenIcuCal(kind, probe);
   if (cal == nullptr) {
     return TemporalError::Range("Unknown calendar identifier");
   }
   UErrorCode status = U_ZERO_ERROR;
+  cal->set(UCAL_YEAR, year);
+  if (U_FAILURE(status)) {
+    return TemporalError::Range("ICU Calendar::set(YEAR) failed");
+  }
+  // After setting year, also reset month/day to known-safe values; ICU
+  // recomputes leap-position info per-calendar when we re-walk months.
+  cal->set(UCAL_MONTH, 0);
+  cal->set(UCAL_DATE, 1);
+  status = U_ZERO_ERROR;
   const int32_t max_month = cal->getActualMaximum(UCAL_MONTH, status);
   if (U_FAILURE(status)) {
     return TemporalError::Range("ICU Calendar::getActualMaximum failed");

@@ -119,6 +119,26 @@ class PlainYearMonth {
     // calendar here; non-ISO callers get the same ISO result with the
     // calendar kind stashed on the POD so accessors route through the
     // CalendarBackend at read time.
+    //
+    // 13-month calendars (Coptic, Ethiopian): PlainYearMonthTryNewIso
+    // rejects month==13 (ISO has only 12). Bypass strict ISO validation
+    // for these and assemble the POD directly — the calendar-aware
+    // accessors then interpret month==13 correctly via the backend.
+    const auto cal_kind = calendar.ToInfra();
+    const bool calendar_allows_13_months =
+        cal_kind == ::node::socketsecurity::temporal::CalendarKind::kCoptic ||
+        cal_kind == ::node::socketsecurity::temporal::CalendarKind::kEthiopian ||
+        cal_kind ==
+            ::node::socketsecurity::temporal::CalendarKind::kEthiopianAmeteAlem;
+    if (calendar_allows_13_months && month == 13) {
+      ::node::socketsecurity::temporal::PlainYearMonth pym{};
+      pym.iso.year = year;
+      pym.iso.month = 13;
+      pym.iso.day = reference_day.value_or(1);
+      pym.calendar = cal_kind;
+      return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
+          std::unique_ptr<PlainYearMonth>(new PlainYearMonth(pym)));
+    }
     auto first_try =
         ::node::socketsecurity::temporal::PlainYearMonthTryNewIso(
             year, month, reference_day);

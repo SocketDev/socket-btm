@@ -449,6 +449,13 @@ export async function buildRelease(config, buildOptions = {}) {
   // on top of a stale source dir that may contain GBs of leftover
   // out/Release/ build outputs, then createCheckpoint tries to tarball
   // the whole thing and trips the 2GB size guardrail. See computeSourcePatchedCachePaths.
+  // F10: when patches need to be (re-)applied, also invalidate the
+  // source-patched checkpoint tarball. Otherwise the next restoreCheckpoint
+  // call below happily restores the already-patched checkpoint, and
+  // applySocketPatches then tries to apply the new patches on top of
+  // an already-patched tree — patches fail with "hunks already applied"
+  // when the patch contents themselves drifted (e.g. patch 003 grew new
+  // smol-* entries between the cached and current patch versions).
   if (existsSync(modeSourceDir)) {
     logger.step('Checking Existing Node.js Source')
 
@@ -470,6 +477,21 @@ export async function buildRelease(config, buildOptions = {}) {
         'Source exists but patches need to be applied - will re-extract pristine source',
       )
       await safeDelete(modeSourceDir)
+      // Invalidate stale source-patched tarball so the restore phase
+      // below falls through to source-copied (the pristine baseline
+      // that the new patches expect).
+      const stalePatchedTarball = path.join(
+        buildDir,
+        'checkpoints',
+        `${CHECKPOINTS.SOURCE_PATCHED}.tar.gz`,
+      )
+      const stalePatchedMeta = path.join(
+        buildDir,
+        'checkpoints',
+        `${CHECKPOINTS.SOURCE_PATCHED}.json`,
+      )
+      await safeDelete(stalePatchedTarball)
+      await safeDelete(stalePatchedMeta)
       logger.log('')
     } else {
       // Check for uncommitted changes only if we're not patching.

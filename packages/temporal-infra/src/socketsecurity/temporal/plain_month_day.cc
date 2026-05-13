@@ -63,11 +63,19 @@ TemporalResult<PlainMonthDay> PlainMonthDayFromUtf8(
 }
 
 uint8_t PlainMonthDayMonth(const PlainMonthDay& self) noexcept {
-  return self.iso.month;
+  if (self.calendar == CalendarKind::kIso) {
+    return self.iso.month;
+  }
+  auto r = GetCalendarBackend().Month(self.calendar, self.iso);
+  return r.ok() ? r.value() : self.iso.month;
 }
 
 uint8_t PlainMonthDayDay(const PlainMonthDay& self) noexcept {
-  return self.iso.day;
+  if (self.calendar == CalendarKind::kIso) {
+    return self.iso.day;
+  }
+  auto r = GetCalendarBackend().Day(self.calendar, self.iso);
+  return r.ok() ? r.value() : self.iso.day;
 }
 
 }  // namespace temporal

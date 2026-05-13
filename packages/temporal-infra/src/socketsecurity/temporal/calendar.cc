@@ -358,6 +358,33 @@ TemporalResult<uint8_t> CalendarBackend::ResolveMonthCode(
       "Non-ISO calendar month-code resolution requires a registered backend");
 }
 
+TemporalResult<int32_t> CalendarBackend::Year(
+    CalendarKind kind, const IsoDate& iso) noexcept {
+  if (kind != CalendarKind::kIso) {
+    return TemporalError::Range(
+        "Non-ISO calendar year accessor requires a registered backend");
+  }
+  return iso.year;
+}
+
+TemporalResult<uint8_t> CalendarBackend::Month(
+    CalendarKind kind, const IsoDate& iso) noexcept {
+  if (kind != CalendarKind::kIso) {
+    return TemporalError::Range(
+        "Non-ISO calendar month accessor requires a registered backend");
+  }
+  return iso.month;
+}
+
+TemporalResult<uint8_t> CalendarBackend::Day(
+    CalendarKind kind, const IsoDate& iso) noexcept {
+  if (kind != CalendarKind::kIso) {
+    return TemporalError::Range(
+        "Non-ISO calendar day accessor requires a registered backend");
+  }
+  return iso.day;
+}
+
 TemporalResult<IsoDate> CalendarBackend::IsoFromCalendarFields(
     CalendarKind kind, int32_t year, uint8_t ordinal_month, uint8_t day,
     Overflow overflow) noexcept {

@@ -105,9 +105,27 @@ TemporalResult<PlainDate> PlainDateWith(const PlainDate& base,
       overflow.value_or(Overflow::kConstrain));
 }
 
-int32_t PlainDateYear(const PlainDate& self) noexcept { return self.iso.year; }
-uint8_t PlainDateMonth(const PlainDate& self) noexcept { return self.iso.month; }
-uint8_t PlainDateDay(const PlainDate& self) noexcept { return self.iso.day; }
+int32_t PlainDateYear(const PlainDate& self) noexcept {
+  if (self.calendar == CalendarKind::kIso) {
+    return self.iso.year;
+  }
+  auto r = GetCalendarBackend().Year(self.calendar, self.iso);
+  return r.ok() ? r.value() : self.iso.year;
+}
+uint8_t PlainDateMonth(const PlainDate& self) noexcept {
+  if (self.calendar == CalendarKind::kIso) {
+    return self.iso.month;
+  }
+  auto r = GetCalendarBackend().Month(self.calendar, self.iso);
+  return r.ok() ? r.value() : self.iso.month;
+}
+uint8_t PlainDateDay(const PlainDate& self) noexcept {
+  if (self.calendar == CalendarKind::kIso) {
+    return self.iso.day;
+  }
+  auto r = GetCalendarBackend().Day(self.calendar, self.iso);
+  return r.ok() ? r.value() : self.iso.day;
+}
 
 uint8_t PlainDateDayOfWeek(const PlainDate& self) noexcept {
   return ISODayOfWeek(self.iso.year, self.iso.month, self.iso.day);

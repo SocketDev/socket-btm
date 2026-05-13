@@ -234,6 +234,20 @@ class CalendarBackend {
   virtual TemporalResult<IsoDate> IsoFromCalendarFields(
       CalendarKind kind, int32_t year, uint8_t ordinal_month,
       uint8_t day, Overflow overflow) noexcept;
+
+  // Read the calendar-native year / ordinal month / day-of-month for
+  // the given ISO date. The inverse of IsoFromCalendarFields — used by
+  // PlainDate / PlainYearMonth / PlainMonthDay .year/.month/.day
+  // accessors when the calendar is non-ISO.
+  // ISO defaults to iso.year / iso.month / iso.day. ICU backend reads
+  // UCAL_YEAR / UCAL_MONTH+1 / UCAL_DATE off an icu::Calendar
+  // positioned at the ISO date.
+  virtual TemporalResult<int32_t> Year(CalendarKind kind,
+                                         const IsoDate& iso) noexcept;
+  virtual TemporalResult<uint8_t> Month(CalendarKind kind,
+                                          const IsoDate& iso) noexcept;
+  virtual TemporalResult<uint8_t> Day(CalendarKind kind,
+                                        const IsoDate& iso) noexcept;
 };
 
 // Front-door dispatch helpers — choose ISO inline or delegate to the

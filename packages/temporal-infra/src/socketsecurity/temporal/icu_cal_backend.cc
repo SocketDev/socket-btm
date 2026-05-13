@@ -611,6 +611,53 @@ TemporalResult<IsoDate> IcuCalendarBackend::IsoFromCalendarFields(
   return out;
 }
 
+TemporalResult<int32_t> IcuCalendarBackend::Year(
+    CalendarKind kind, const IsoDate& iso) noexcept {
+  if (kind == CalendarKind::kIso) {
+    return iso.year;
+  }
+  // UCAL_YEAR returns the era-local year for calendars that have eras
+  // (Japanese, Buddhist, ROC, etc.). UCAL_EXTENDED_YEAR returns the
+  // proleptic year — what Temporal exposes via .year for most calendars.
+  // Mirror upstream temporal_rs's behavior: extended for proleptic
+  // calendars, era-local for era calendars. ICU's get(UCAL_EXTENDED_YEAR)
+  // returns the right thing for both classes.
+  return GetField(kind, iso, UCAL_EXTENDED_YEAR);
+}
+
+TemporalResult<uint8_t> IcuCalendarBackend::Month(
+    CalendarKind kind, const IsoDate& iso) noexcept {
+  if (kind == CalendarKind::kIso) {
+    return iso.month;
+  }
+  auto raw = GetField(kind, iso, UCAL_MONTH);
+  if (!raw.ok()) {
+    return TemporalError::Range(raw.error().message);
+  }
+  // ICU's MONTH is 0-indexed; Temporal exposes 1-indexed ordinal month.
+  const int32_t v = raw.value();
+  if (v < 0 || v > 254) {
+    return TemporalError::Range("ICU month out of expected range");
+  }
+  return static_cast<uint8_t>(v + 1);
+}
+
+TemporalResult<uint8_t> IcuCalendarBackend::Day(
+    CalendarKind kind, const IsoDate& iso) noexcept {
+  if (kind == CalendarKind::kIso) {
+    return iso.day;
+  }
+  auto raw = GetField(kind, iso, UCAL_DATE);
+  if (!raw.ok()) {
+    return TemporalError::Range(raw.error().message);
+  }
+  const int32_t v = raw.value();
+  if (v < 1 || v > 255) {
+    return TemporalError::Range("ICU day out of expected range");
+  }
+  return static_cast<uint8_t>(v);
+}
+
 void InstallIcuCalendarBackend() noexcept {
   static IcuCalendarBackend instance;
   SetCalendarBackend(&instance);
@@ -686,6 +733,18 @@ TemporalResult<IsoDate> IcuCalendarBackend::IsoFromCalendarFields(
   // and rejects non-ISO calendars with a clear error.
   return CalendarBackend::IsoFromCalendarFields(kind, year, ordinal_month, day,
                                                   overflow);
+}
+TemporalResult<int32_t> IcuCalendarBackend::Year(
+    CalendarKind kind, const IsoDate& iso) noexcept {
+  return CalendarBackend::Year(kind, iso);
+}
+TemporalResult<uint8_t> IcuCalendarBackend::Month(
+    CalendarKind kind, const IsoDate& iso) noexcept {
+  return CalendarBackend::Month(kind, iso);
+}
+TemporalResult<uint8_t> IcuCalendarBackend::Day(
+    CalendarKind kind, const IsoDate& iso) noexcept {
+  return CalendarBackend::Day(kind, iso);
 }
 
 void InstallIcuCalendarBackend() noexcept {}

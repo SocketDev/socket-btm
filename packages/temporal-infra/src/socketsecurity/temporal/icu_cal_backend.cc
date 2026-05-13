@@ -546,6 +546,71 @@ TemporalResult<uint8_t> IcuCalendarBackend::ResolveMonthCode(
       "MonthCode does not resolve to a month in this calendar/year");
 }
 
+TemporalResult<IsoDate> IcuCalendarBackend::IsoFromCalendarFields(
+    CalendarKind kind, int32_t year, uint8_t ordinal_month, uint8_t day,
+    Overflow overflow) noexcept {
+  // ISO short-circuits through the base impl (no ICU round-trip).
+  if (kind == CalendarKind::kIso) {
+    return CalendarBackend::IsoFromCalendarFields(kind, year, ordinal_month,
+                                                    day, overflow);
+  }
+  // Open ICU at a known-safe ISO probe; then overwrite the calendar's
+  // native YEAR/MONTH/DATE so ICU walks them in the calendar's own
+  // numbering. Same probe trick as ResolveMonthCode — we can't probe
+  // at ISO(year, ...) because for non-ISO calendars `year` is the
+  // calendar's year, not ISO.
+  IsoDate probe{2024, 1, 1};
+  auto cal = OpenIcuCal(kind, probe);
+  if (cal == nullptr) {
+    return TemporalError::Range("Unknown calendar identifier");
+  }
+  UErrorCode status = U_ZERO_ERROR;
+  cal->set(UCAL_YEAR, year);
+  // ICU MONTH is 0-indexed; ordinal_month is 1-indexed (post-monthCode
+  // resolution: callers go through CalendarResolveMonthCode for leap
+  // variants, then pass the ICU-native ordinal position here).
+  if (ordinal_month < 1) {
+    if (overflow != Overflow::kConstrain) {
+      return TemporalError::Range("month out of range");
+    }
+    cal->set(UCAL_MONTH, 0);
+  } else {
+    cal->set(UCAL_MONTH, static_cast<int32_t>(ordinal_month - 1));
+  }
+  // Clamp day to the actual month's max when constrain; let ICU's
+  // setLenient(false) catch it when reject.
+  if (overflow == Overflow::kConstrain) {
+    cal->setLenient(true);
+    cal->set(UCAL_DATE, day < 1 ? 1 : static_cast<int32_t>(day));
+    UErrorCode probe_status = U_ZERO_ERROR;
+    const int32_t max_day =
+        cal->getActualMaximum(UCAL_DAY_OF_MONTH, probe_status);
+    if (U_SUCCESS(probe_status) && max_day > 0 && day > max_day) {
+      cal->set(UCAL_DATE, max_day);
+    }
+  } else {
+    cal->setLenient(false);
+    cal->set(UCAL_DATE, static_cast<int32_t>(day));
+  }
+  status = U_ZERO_ERROR;
+  const UDate result_ms = cal->getTime(status);
+  if (U_FAILURE(status)) {
+    return TemporalError::Range(
+        "ICU Calendar::getTime failed during calendar→ISO conversion");
+  }
+  const int64_t epoch_ms = static_cast<int64_t>(result_ms);
+  int64_t epoch_days = epoch_ms / kMsPerDay;
+  if ((epoch_ms % kMsPerDay) != 0 && epoch_ms < 0) {
+    epoch_days -= 1;
+  }
+  IsoDate out{};
+  YmdFromEpochDays(epoch_days, &out.year, &out.month, &out.day);
+  if (!out.IsValid()) {
+    return TemporalError::Range("Resulting date out of valid range");
+  }
+  return out;
+}
+
 void InstallIcuCalendarBackend() noexcept {
   static IcuCalendarBackend instance;
   SetCalendarBackend(&instance);
@@ -613,6 +678,14 @@ TemporalResult<uint8_t> IcuCalendarBackend::ResolveMonthCode(
     const MonthCode& /*code*/) noexcept {
   return TemporalError::Range(
       "ICU calendar backend requires V8_INTL_SUPPORT to be enabled");
+}
+TemporalResult<IsoDate> IcuCalendarBackend::IsoFromCalendarFields(
+    CalendarKind kind, int32_t year, uint8_t ordinal_month, uint8_t day,
+    Overflow overflow) noexcept {
+  // No ICU available — defer to the base impl, which handles ISO
+  // and rejects non-ISO calendars with a clear error.
+  return CalendarBackend::IsoFromCalendarFields(kind, year, ordinal_month, day,
+                                                  overflow);
 }
 
 void InstallIcuCalendarBackend() noexcept {}

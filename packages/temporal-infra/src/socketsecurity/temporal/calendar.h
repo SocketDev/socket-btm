@@ -219,6 +219,21 @@ class CalendarBackend {
   virtual TemporalResult<uint8_t> ResolveMonthCode(
       CalendarKind kind, int32_t year,
       const MonthCode& code) noexcept;
+
+  // Convert (calendar_year, ordinal_month, day) in the named calendar
+  // to an ISO date. The inputs are in the *calendar's* numbering:
+  //   - For Hebrew: year=5784, ordinal_month=6 means Adar I (M05L) in
+  //     a leap year — NOT ISO month 6.
+  //   - For Coptic / Ethiopian: year=2017, ordinal_month=13 is M13.
+  // The ordinal_month is post-monthCode-resolution: the caller should
+  // have already routed an "M05L" through ResolveMonthCode for the
+  // year to get the ICU-native ordinal position (6 for Adar I in
+  // Hebrew leap, etc.).
+  // Default impl handles ISO (passthrough with overflow). ICU backend
+  // walks UCAL_YEAR/MONTH/DATE → getTime() → epoch_ms → IsoDate.
+  virtual TemporalResult<IsoDate> IsoFromCalendarFields(
+      CalendarKind kind, int32_t year, uint8_t ordinal_month,
+      uint8_t day, Overflow overflow) noexcept;
 };
 
 // Front-door dispatch helpers — choose ISO inline or delegate to the

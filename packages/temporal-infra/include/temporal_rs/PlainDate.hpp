@@ -80,14 +80,32 @@ class PlainDate {
   try_new_with_overflow(int32_t year, uint8_t month, uint8_t day,
                          AnyCalendarKind calendar,
                          ArithmeticOverflow overflow) {
-    auto result = ::node::socketsecurity::temporal::PlainDateNewWithOverflow(
-        year, month, day, overflow.ToInfra());
-    if (!result.ok()) {
-      return diplomat::Err<TemporalError>(
-          TemporalError::FromInfra(result.error()));
+    const auto kind = calendar.ToInfra();
+    if (kind == ::node::socketsecurity::temporal::CalendarKind::kIso) {
+      auto result = ::node::socketsecurity::temporal::PlainDateNewWithOverflow(
+          year, month, day, overflow.ToInfra());
+      if (!result.ok()) {
+        return diplomat::Err<TemporalError>(
+            TemporalError::FromInfra(result.error()));
+      }
+      auto pd = result.value();
+      pd.calendar = kind;
+      return diplomat::Ok<std::unique_ptr<PlainDate>>(
+          std::unique_ptr<PlainDate>(new PlainDate(pd)));
     }
-    auto pd = result.value();
-    pd.calendar = calendar.ToInfra();
+    // Non-ISO: (year, month, day) are CALENDAR fields. Route through
+    // IsoFromCalendarFields so the stored IsoDate is the real ISO
+    // projection of the calendar date (Hebrew M05L was the prototype).
+    auto iso_result =
+        ::node::socketsecurity::temporal::GetCalendarBackend()
+            .IsoFromCalendarFields(kind, year, month, day, overflow.ToInfra());
+    if (!iso_result.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(iso_result.error()));
+    }
+    ::node::socketsecurity::temporal::PlainDate pd{};
+    pd.iso = iso_result.value();
+    pd.calendar = kind;
     return diplomat::Ok<std::unique_ptr<PlainDate>>(
         std::unique_ptr<PlainDate>(new PlainDate(pd)));
   }

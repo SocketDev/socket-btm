@@ -125,16 +125,25 @@ class PlainYearMonth {
     // for these and assemble the POD directly — the calendar-aware
     // accessors then interpret month==13 correctly via the backend.
     const auto cal_kind = calendar.ToInfra();
-    const bool calendar_allows_13_months =
-        cal_kind == ::node::socketsecurity::temporal::CalendarKind::kCoptic ||
-        cal_kind == ::node::socketsecurity::temporal::CalendarKind::kEthiopian ||
-        cal_kind ==
-            ::node::socketsecurity::temporal::CalendarKind::kEthiopianAmeteAlem;
-    if (calendar_allows_13_months && month == 13) {
+    const bool is_iso =
+        cal_kind == ::node::socketsecurity::temporal::CalendarKind::kIso;
+    // Non-ISO: route (calendar_year, ordinal_month, day) through
+    // IsoFromCalendarFields so the stored IsoDate is the real ISO
+    // projection. The 13-month calendars (Coptic, Ethiopian) and
+    // leap-month calendars (Hebrew, Chinese, Dangi) all work uniformly
+    // via the backend.
+    if (!is_iso) {
+      const uint8_t day = reference_day.value_or(1);
+      auto iso_result =
+          ::node::socketsecurity::temporal::GetCalendarBackend()
+              .IsoFromCalendarFields(cal_kind, year, month, day,
+                                      overflow.ToInfra());
+      if (!iso_result.ok()) {
+        return diplomat::Err<TemporalError>(
+            TemporalError::FromInfra(iso_result.error()));
+      }
       ::node::socketsecurity::temporal::PlainYearMonth pym{};
-      pym.iso.year = year;
-      pym.iso.month = 13;
-      pym.iso.day = reference_day.value_or(1);
+      pym.iso = iso_result.value();
       pym.calendar = cal_kind;
       return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
           std::unique_ptr<PlainYearMonth>(new PlainYearMonth(pym)));

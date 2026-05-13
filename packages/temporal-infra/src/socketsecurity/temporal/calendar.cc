@@ -358,6 +358,43 @@ TemporalResult<uint8_t> CalendarBackend::ResolveMonthCode(
       "Non-ISO calendar month-code resolution requires a registered backend");
 }
 
+TemporalResult<IsoDate> CalendarBackend::IsoFromCalendarFields(
+    CalendarKind kind, int32_t year, uint8_t ordinal_month, uint8_t day,
+    Overflow overflow) noexcept {
+  // Default impl handles ISO directly. Non-ISO calendars need the ICU
+  // backend to walk calendar fields → epoch_ms → ISO date.
+  if (kind != CalendarKind::kIso) {
+    return TemporalError::Range(
+        "Non-ISO calendar field→ISO conversion requires a registered backend");
+  }
+  if (year < -271821 || year > 275760) {
+    return TemporalError::Range("year out of range");
+  }
+  // For ISO, ordinal_month is the ISO month directly (1..12).
+  uint8_t m = ordinal_month;
+  uint8_t d = day;
+  if (m < 1 || m > 12) {
+    if (overflow == Overflow::kConstrain) {
+      m = m < 1 ? 1 : 12;
+    } else {
+      return TemporalError::Range("month out of range");
+    }
+  }
+  const uint8_t max_day = ISODaysInMonth(year, m);
+  if (d < 1 || d > max_day) {
+    if (overflow == Overflow::kConstrain) {
+      d = d < 1 ? 1 : max_day;
+    } else {
+      return TemporalError::Range("day out of range for given month");
+    }
+  }
+  IsoDate out{};
+  out.year = year;
+  out.month = m;
+  out.day = d;
+  return out;
+}
+
 // ── Front-door dispatch helpers ──────────────────────────────────────
 //
 // Each accessor short-circuits for ISO (the inline math is trivial)

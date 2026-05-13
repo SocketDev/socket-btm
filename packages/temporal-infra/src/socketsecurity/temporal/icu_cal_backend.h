@@ -69,6 +69,9 @@ class IcuCalendarBackend : public CalendarBackend {
   TemporalResult<uint8_t> ResolveMonthCode(
       CalendarKind kind, int32_t year,
       const MonthCode& code) noexcept override;
+  TemporalResult<IsoDate> IsoFromCalendarFields(
+      CalendarKind kind, int32_t year, uint8_t ordinal_month,
+      uint8_t day, Overflow overflow) noexcept override;
 };
 
 // Install the ICU-backed backend as the active CalendarBackend.

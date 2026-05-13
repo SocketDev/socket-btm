@@ -109,45 +109,74 @@ class PlainMonthDay {
   }
 
   // 1:1 from upstream plain_month_day.rs `try_new_with_overflow`.
-  // ISO path implemented inline; non-ISO calendars Err until backend.
-  // Overflow='constrain' clamps month + day; 'reject' Errs.
+  // ISO path: store inputs as-is (PMD's reference year is 1972 by
+  // convention for ISO).
+  // Non-ISO path: route (calendar_year, ordinal_month, day) through
+  // CalendarBackend::IsoFromCalendarFields so the stored IsoDate is
+  // the ACTUAL ISO projection of the calendar date — not the ISO
+  // year-misread (Hebrew M05L was the prototype: ICU re-projects a
+  // year stored as ISO into a different calendar month).
   static diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
   try_new_with_overflow(uint8_t month, uint8_t day,
                         AnyCalendarKind calendar,
                         ArithmeticOverflow overflow,
                         std::optional<int32_t> ref_year) {
-    // ISO arithmetic with the calendar kind threaded onto the POD;
-    // calendar-aware accessors route through CalendarBackend at read.
-    auto first_try =
-        ::node::socketsecurity::temporal::PlainMonthDayTryNewIso(
-            month, day, ref_year);
-    if (first_try.ok()) {
-      auto pmd = first_try.value();
-      pmd.calendar = calendar.ToInfra();
+    const auto kind = calendar.ToInfra();
+    const bool is_iso = kind == ::node::socketsecurity::temporal::CalendarKind::kIso;
+    if (is_iso) {
+      // ISO path — unchanged. PMD's reference year is 1972; the day
+      // clamp here uses the (potentially user-supplied) ref_year.
+      auto first_try =
+          ::node::socketsecurity::temporal::PlainMonthDayTryNewIso(
+              month, day, ref_year);
+      if (first_try.ok()) {
+        auto pmd = first_try.value();
+        pmd.calendar = kind;
+        return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
+            std::unique_ptr<PlainMonthDay>(new PlainMonthDay(pmd)));
+      }
+      if (overflow.ToInfra() !=
+          ::node::socketsecurity::temporal::Overflow::kConstrain) {
+        return diplomat::Err<TemporalError>(
+            TemporalError::FromInfra(first_try.error()));
+      }
+      const uint8_t clamped_month =
+          month < 1 ? 1 : (month > 12 ? 12 : month);
+      const int32_t year_for_days = ref_year.value_or(1972);
+      const uint8_t max_day =
+          ::node::socketsecurity::temporal::ISODaysInMonth(year_for_days,
+                                                            clamped_month);
+      const uint8_t clamped_day =
+          day < 1 ? 1 : (day > max_day ? max_day : day);
+      auto retry =
+          ::node::socketsecurity::temporal::PlainMonthDayTryNewIso(
+              clamped_month, clamped_day, ref_year);
+      if (!retry.ok()) {
+        return diplomat::Err<TemporalError>(
+            TemporalError::FromInfra(retry.error()));
+      }
+      auto pmd = retry.value();
+      pmd.calendar = kind;
       return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
           std::unique_ptr<PlainMonthDay>(new PlainMonthDay(pmd)));
     }
-    if (overflow.ToInfra() !=
-        ::node::socketsecurity::temporal::Overflow::kConstrain) {
+    // Non-ISO: user-supplied (ref_year, month, day) are CALENDAR
+    // fields. ref_year defaults to the spec's PMD reference year
+    // (1972) — for non-ISO calendars there's no good default, but
+    // ICU will project whatever is passed. Caller is expected to
+    // pass a real year when they care (PartialDate.year).
+    const int32_t calendar_year = ref_year.value_or(1972);
+    auto iso_result =
+        ::node::socketsecurity::temporal::GetCalendarBackend()
+            .IsoFromCalendarFields(kind, calendar_year, month, day,
+                                    overflow.ToInfra());
+    if (!iso_result.ok()) {
       return diplomat::Err<TemporalError>(
-          TemporalError::FromInfra(first_try.error()));
+          TemporalError::FromInfra(iso_result.error()));
     }
-    // Constrain: clamp month then day. Use ref_year (or 1972 — the
-    // ISO leap-year reference) for the day clamp computation.
-    const uint8_t clamped_month = month < 1 ? 1 : (month > 12 ? 12 : month);
-    const int32_t year_for_days = ref_year.value_or(1972);
-    const uint8_t max_day =
-        ::node::socketsecurity::temporal::ISODaysInMonth(year_for_days,
-                                                          clamped_month);
-    const uint8_t clamped_day = day < 1 ? 1 : (day > max_day ? max_day : day);
-    auto retry = ::node::socketsecurity::temporal::PlainMonthDayTryNewIso(
-        clamped_month, clamped_day, ref_year);
-    if (!retry.ok()) {
-      return diplomat::Err<TemporalError>(
-          TemporalError::FromInfra(retry.error()));
-    }
-    auto pmd = retry.value();
-    pmd.calendar = calendar.ToInfra();
+    ::node::socketsecurity::temporal::PlainMonthDay pmd{};
+    pmd.iso = iso_result.value();
+    pmd.calendar = kind;
     return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
         std::unique_ptr<PlainMonthDay>(new PlainMonthDay(pmd)));
   }

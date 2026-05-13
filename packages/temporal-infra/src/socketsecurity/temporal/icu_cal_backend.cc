@@ -24,28 +24,32 @@ namespace temporal {
 
 namespace {
 
-// Map our CalendarKind to ICU's locale-keyword string. Returns
+// Map our CalendarKind to ICU's calendar-keyword value. Returns
 // nullptr for kIso (which never routes through this backend — the
-// front-door dispatch helpers short-circuit ISO inline).
-const char* CalendarKindToLocaleKeyword(CalendarKind kind) noexcept {
+// front-door dispatch helpers short-circuit ISO inline). These are
+// raw keyword values for setKeywordValue("calendar", …) — NOT full
+// locale strings. ICU's icu::Locale("@calendar=hebrew") constructor
+// silently fails (the parser expects language[_country]?@keyword=…),
+// so the @-prefix form returns an unusable locale; we apply the
+// keyword via setKeywordValue against an explicit base locale instead.
+const char* CalendarKindToIcuKeyword(CalendarKind kind) noexcept {
   switch (kind) {
     case CalendarKind::kIso:                  return nullptr;
-    case CalendarKind::kBuddhist:             return "@calendar=buddhist";
-    case CalendarKind::kChinese:              return "@calendar=chinese";
-    case CalendarKind::kCoptic:               return "@calendar=coptic";
-    case CalendarKind::kDangi:                return "@calendar=dangi";
-    case CalendarKind::kEthiopian:            return "@calendar=ethiopic";
-    case CalendarKind::kEthiopianAmeteAlem:
-      return "@calendar=ethiopic-amete-alem";
-    case CalendarKind::kGregorian:            return "@calendar=gregorian";
-    case CalendarKind::kHebrew:               return "@calendar=hebrew";
-    case CalendarKind::kIndian:               return "@calendar=indian";
-    case CalendarKind::kHijriTabularFriday:   return "@calendar=islamic-civil";
-    case CalendarKind::kHijriTabularThursday: return "@calendar=islamic-tbla";
-    case CalendarKind::kHijriUmmAlQura:       return "@calendar=islamic-umalqura";
-    case CalendarKind::kJapanese:             return "@calendar=japanese";
-    case CalendarKind::kPersian:              return "@calendar=persian";
-    case CalendarKind::kRoc:                  return "@calendar=roc";
+    case CalendarKind::kBuddhist:             return "buddhist";
+    case CalendarKind::kChinese:              return "chinese";
+    case CalendarKind::kCoptic:               return "coptic";
+    case CalendarKind::kDangi:                return "dangi";
+    case CalendarKind::kEthiopian:            return "ethiopic";
+    case CalendarKind::kEthiopianAmeteAlem:   return "ethiopic-amete-alem";
+    case CalendarKind::kGregorian:            return "gregorian";
+    case CalendarKind::kHebrew:               return "hebrew";
+    case CalendarKind::kIndian:               return "indian";
+    case CalendarKind::kHijriTabularFriday:   return "islamic-civil";
+    case CalendarKind::kHijriTabularThursday: return "islamic-tbla";
+    case CalendarKind::kHijriUmmAlQura:       return "islamic-umalqura";
+    case CalendarKind::kJapanese:             return "japanese";
+    case CalendarKind::kPersian:              return "persian";
+    case CalendarKind::kRoc:                  return "roc";
   }
   return nullptr;
 }
@@ -55,10 +59,17 @@ const char* CalendarKindToLocaleKeyword(CalendarKind kind) noexcept {
 // internal failure). Caller owns the returned pointer.
 std::unique_ptr<icu::Calendar> OpenIcuCal(CalendarKind kind,
                                             const IsoDate& iso) {
-  const char* keyword = CalendarKindToLocaleKeyword(kind);
+  const char* keyword = CalendarKindToIcuKeyword(kind);
   if (keyword == nullptr) return nullptr;
   UErrorCode status = U_ZERO_ERROR;
-  icu::Locale locale(keyword);
+  // Build locale: start from a base locale ("en_US" — root would also
+  // work but explicit base avoids any locale-resolution surprises),
+  // attach the calendar keyword. createInstance(locale) then uses the
+  // keyword to pick the calendar class (HebrewCalendar, JapaneseCalendar,
+  // etc.) regardless of base-locale display preferences.
+  icu::Locale locale("en_US");
+  locale.setKeywordValue("calendar", keyword, status);
+  if (U_FAILURE(status)) return nullptr;
   std::unique_ptr<icu::Calendar> cal(
       icu::Calendar::createInstance(locale, status));
   if (U_FAILURE(status) || cal == nullptr) return nullptr;

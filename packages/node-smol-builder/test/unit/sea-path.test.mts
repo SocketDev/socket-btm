@@ -9,7 +9,7 @@
 /**
  * Simulate getSeaAssetKey logic
  */
-export function getSeaAssetKey(filepath: string): string | null {
+export function getSeaAssetKey(filepath: string): string | undefined {
   const SEA_PREFIX = '/sea'
   const normalized = normalizePath(filepath)
 
@@ -44,7 +44,7 @@ export function getSeaAssetKey(filepath: string): string | null {
 /**
  * Simulate isSeaPath logic
  */
-export function isSeaPath(filepath: string | null | undefined): boolean {
+export function isSeaPath(filepath: string | undefined): boolean {
   if (!filepath || typeof filepath !== 'string') {
     return false
   }
@@ -102,7 +102,7 @@ describe('sEA Path Handling', () => {
       expect(isSeaPath('\\sea\\')).toBeTruthy()
     })
 
-    it('should return false for null/undefined', () => {
+    it('should return false for undefined', () => {
       expect(isSeaPath(undefined)).toBeFalsy()
       expect(isSeaPath(undefined)).toBeFalsy()
     })
@@ -137,18 +137,18 @@ describe('sEA Path Handling', () => {
     })
 
     it('should reject path traversal attempts', () => {
-      expect(getSeaAssetKey('/sea/../etc/passwd')).toBeNull()
-      expect(getSeaAssetKey('/sea/foo/../bar')).toBeNull()
-      expect(getSeaAssetKey('/sea/..config')).toBeNull()
+      expect(getSeaAssetKey('/sea/../etc/passwd')).toBeUndefined()
+      expect(getSeaAssetKey('/sea/foo/../bar')).toBeUndefined()
+      expect(getSeaAssetKey('/sea/..config')).toBeUndefined()
     })
 
     it('should normalize ./ prefix', () => {
       expect(getSeaAssetKey('/sea/./config.json')).toBe('config.json')
     })
 
-    it('should return null for non-SEA paths', () => {
-      expect(getSeaAssetKey('/snapshot/file.js')).toBeNull()
-      expect(getSeaAssetKey('/usr/local/bin')).toBeNull()
+    it('should return undefined for non-SEA paths', () => {
+      expect(getSeaAssetKey('/snapshot/file.js')).toBeUndefined()
+      expect(getSeaAssetKey('/usr/local/bin')).toBeUndefined()
     })
 
     it('should handle Windows-style paths', () => {
@@ -204,26 +204,26 @@ describe('sEA Path Handling', () => {
     it('should handle dots in filenames (not traversal)', () => {
       expect(getSeaAssetKey('/sea/.hidden')).toBe('.hidden')
       expect(getSeaAssetKey('/sea/file.tar.gz')).toBe('file.tar.gz')
-      expect(getSeaAssetKey('/sea/..config')).toBeNull() // Contains ..
+      expect(getSeaAssetKey('/sea/..config')).toBeUndefined() // Contains ..
     })
   })
 
   describe('security', () => {
     it('should block all path traversal variations', () => {
       // Direct traversal
-      expect(getSeaAssetKey('/sea/..')).toBeNull()
-      expect(getSeaAssetKey('/sea/../')).toBeNull()
-      expect(getSeaAssetKey('/sea/../etc/passwd')).toBeNull()
+      expect(getSeaAssetKey('/sea/..')).toBeUndefined()
+      expect(getSeaAssetKey('/sea/../')).toBeUndefined()
+      expect(getSeaAssetKey('/sea/../etc/passwd')).toBeUndefined()
 
       // Traversal in middle of path
-      expect(getSeaAssetKey('/sea/foo/../bar')).toBeNull()
-      expect(getSeaAssetKey('/sea/a/b/../c')).toBeNull()
+      expect(getSeaAssetKey('/sea/foo/../bar')).toBeUndefined()
+      expect(getSeaAssetKey('/sea/a/b/../c')).toBeUndefined()
 
       // Multiple traversals
-      expect(getSeaAssetKey('/sea/../../etc/passwd')).toBeNull()
+      expect(getSeaAssetKey('/sea/../../etc/passwd')).toBeUndefined()
 
       // Traversal with Windows separators
-      expect(getSeaAssetKey(String.raw`\sea\..\etc\passwd`)).toBeNull()
+      expect(getSeaAssetKey(String.raw`\sea\..\etc\passwd`)).toBeUndefined()
     })
 
     it('should allow files starting with dots (not traversal)', () => {

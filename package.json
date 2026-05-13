@@ -30,7 +30,7 @@
     "lint": "node scripts/lint.mts",
     "lint:fix": "node scripts/fix.mts",
     "normalize:package-json": "node scripts/normalize-package-json.mts",
-    "prepare": "husky",
+    "prepare": "node scripts/install-git-hooks.mts",
     "security": "node scripts/security.mts",
     "setup": "node scripts/setup.mts",
     "test": "node scripts/test.mts",

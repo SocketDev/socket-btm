@@ -254,11 +254,44 @@ TemporalResult<std::string> IcuCalendarBackend::GetMonthCodeString(
   if (U_FAILURE(status) || month_zero < 0 || month_zero > 12) {
     return TemporalError::Range("ICU Calendar::get(MONTH) failed");
   }
+
+  // Hebrew calendar: ICU does NOT populate UCAL_IS_LEAP_MONTH (the
+  // Hebrew resolver table marks it N/A). Detect Adar I structurally:
+  // ICU's Hebrew month enum is fixed-positioned — TISHRI=0..ELUL=12,
+  // ADAR_1=5 only in leap years. In non-leap years ICU skips index 5
+  // entirely (max month = 11). We detect leap year via getActualMaximum
+  // and map back to spec monthCode:
+  //   non-leap year (max=11): ICU 0..11 → M01..M12 (1:1)
+  //   leap year     (max=12): ICU 0..4   → M01..M05
+  //                           ICU 5      → M05L (Adar I)
+  //                           ICU 6..12  → M06..M12
+  if (kind == CalendarKind::kHebrew) {
+    UErrorCode max_status = U_ZERO_ERROR;
+    const int32_t max_month = cal->getActualMaximum(UCAL_MONTH, max_status);
+    if (U_FAILURE(max_status)) {
+      return TemporalError::Range("ICU Calendar::getActualMaximum failed");
+    }
+    const bool is_leap_year = (max_month == 12);
+    std::string out = "M";
+    if (is_leap_year && month_zero == 5) {
+      return std::string("M05L");
+    }
+    int32_t spec_month;
+    if (!is_leap_year || month_zero <= 4) {
+      spec_month = month_zero + 1;
+    } else {
+      // Leap year, month_zero in 6..12 — spec sees these as 6..12.
+      spec_month = month_zero;
+    }
+    if (spec_month < 10) out.push_back('0');
+    out += std::to_string(spec_month);
+    return out;
+  }
+
   // Temporal spec MonthCode is "M01".."M13" for normal months and
   // "M01L".."M12L" for leap months. ICU's IS_LEAP_MONTH field (when
-  // available) tells us whether to append "L". For calendars where
-  // the field is absent (Gregorian-derived, Hebrew sometimes), the
-  // suffix is omitted.
+  // available — Chinese/Dangi only) tells us whether to append "L".
+  // For other calendars the suffix is omitted.
   const int32_t month_one = month_zero + 1;
   bool is_leap = false;
   UErrorCode leap_status = U_ZERO_ERROR;

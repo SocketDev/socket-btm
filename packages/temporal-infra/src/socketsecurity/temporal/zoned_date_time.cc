@@ -60,33 +60,43 @@ TemporalResult<ZonedDateTime> ZonedDateTimeFromUtf8(
   // when 'Z'). Mirror upstream's `interpret_isodatetime_offset` for
   // the "exact offset" path: if the input has an explicit offset, the
   // local datetime is anchored against that offset; if 'Z', it's UTC.
-  // Without an offset (just [TimeZone]), the spec defers to
-  // disambiguation via the time zone — that path requires
-  // GetIsoDateTimeFor's IANA dispatch and lands in a follow-on phase.
-  if (!rec.has_offset) {
-    return TemporalError::Range(
-        "ZonedDateTime string without an offset requires IANA disambiguation; "
-        "supply an explicit offset or 'Z'");
+  // Without an offset (just [TimeZone]), call TimeZone::GetEpochNanosecondsFor
+  // which routes to the active IcuTimeZoneBackend for wall-clock-to-
+  // instant resolution using kCompatible disambiguation (spec default).
+  Int128 epoch_ns;
+  if (rec.has_offset) {
+    // Exact-offset path: anchor local datetime against the explicit
+    // offset (or UTC when 'Z').
+    const IsoDate& d = rec.datetime.iso.date;
+    int32_t a = (14 - d.month) / 12;
+    int32_t y = d.year + 4800 - a;
+    int32_t m = d.month + 12 * a - 3;
+    int64_t jdn = static_cast<int64_t>(d.day) + (153 * m + 2) / 5 +
+                  365LL * y + y / 4 - y / 100 + y / 400 - 32045;
+    int64_t days_since_epoch = jdn - 2440588;
+    const IsoTime& t = rec.datetime.iso.time;
+    int64_t tod_ns = (static_cast<int64_t>(t.hour) * 3600 +
+                      static_cast<int64_t>(t.minute) * 60 +
+                      t.second) *
+                         1'000'000'000LL +
+                     static_cast<int64_t>(t.millisecond) * 1'000'000 +
+                     static_cast<int64_t>(t.microsecond) * 1'000 +
+                     t.nanosecond;
+    Int128 day_ns = Int128(days_since_epoch) *
+                     Int128(static_cast<int64_t>(86'400'000'000'000LL));
+    epoch_ns = day_ns + Int128(tod_ns) - Int128(rec.offset_nanoseconds);
+  } else {
+    // No-offset path: defer to the IANA backend's
+    // ResolveOffsetFromLocal via GetEpochNanosecondsFor. kCompatible
+    // is the spec-default disambiguation for parse paths (fall-back
+    // overlap → earlier instant, spring-forward gap → post-transition).
+    auto epoch_result = tz_result.value().GetEpochNanosecondsFor(
+        rec.datetime.iso, Disambiguation::kCompatible);
+    if (!epoch_result.ok()) {
+      return epoch_result.error();
+    }
+    epoch_ns = epoch_result.value();
   }
-  // Convert local IsoDateTime → epoch nanoseconds via JDN.
-  const IsoDate& d = rec.datetime.iso.date;
-  int32_t a = (14 - d.month) / 12;
-  int32_t y = d.year + 4800 - a;
-  int32_t m = d.month + 12 * a - 3;
-  int64_t jdn = static_cast<int64_t>(d.day) + (153 * m + 2) / 5 +
-                365LL * y + y / 4 - y / 100 + y / 400 - 32045;
-  int64_t days_since_epoch = jdn - 2440588;
-  const IsoTime& t = rec.datetime.iso.time;
-  int64_t tod_ns = (static_cast<int64_t>(t.hour) * 3600 +
-                    static_cast<int64_t>(t.minute) * 60 +
-                    t.second) *
-                       1'000'000'000LL +
-                   static_cast<int64_t>(t.millisecond) * 1'000'000 +
-                   static_cast<int64_t>(t.microsecond) * 1'000 +
-                   t.nanosecond;
-  Int128 day_ns = Int128(days_since_epoch) *
-                   Int128(static_cast<int64_t>(86'400'000'000'000LL));
-  Int128 epoch_ns = day_ns + Int128(tod_ns) - Int128(rec.offset_nanoseconds);
 
   ZonedDateTime out{};
   out.instant.epoch_nanoseconds = epoch_ns;

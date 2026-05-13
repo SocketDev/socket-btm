@@ -273,9 +273,6 @@ importers:
       ecc-agentshield:
         specifier: 'catalog:'
         version: 1.4.0
-      husky:
-        specifier: 9.1.7
-        version: 9.1.7
       oxfmt:
         specifier: 0.37.0
         version: 0.37.0
@@ -324,6 +321,12 @@ importers:
         specifier: 'catalog:'
         version: 24.9.2
 
+  .claude/hooks/comment-tone-reminder:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
   .claude/hooks/commit-author-guard:
     devDependencies:
       '@types/node':
@@ -331,6 +334,12 @@ importers:
         version: 24.9.2
 
   .claude/hooks/commit-pr-reminder:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
+  .claude/hooks/compound-lessons-reminder:
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -360,13 +369,41 @@ importers:
         specifier: 'catalog:'
         version: 24.9.2
 
+  .claude/hooks/error-message-quality-reminder:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
   .claude/hooks/excuse-detector:
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 24.9.2
 
+  .claude/hooks/file-size-reminder:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
   .claude/hooks/gitmodules-comment-guard: {}
+
+  .claude/hooks/identifying-users-reminder:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
+  .claude/hooks/judgment-reminder:
+    dependencies:
+      compromise:
+        specifier: 14.15.0
+        version: 14.15.0
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
 
   .claude/hooks/logger-guard:
     devDependencies:
@@ -379,6 +416,12 @@ importers:
       '@socketsecurity/lib-stable':
         specifier: npm:@socketsecurity/lib@5.28.0
         version: '@socketsecurity/lib@5.28.0'
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
+  .claude/hooks/new-hook-claude-md-guard:
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -412,7 +455,19 @@ importers:
         specifier: 'catalog:'
         version: 24.9.2
 
+  .claude/hooks/no-token-in-dotenv-guard:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
   .claude/hooks/path-guard: {}
+
+  .claude/hooks/perfectionist-reminder:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
 
   .claude/hooks/plan-review-reminder:
     devDependencies:
@@ -438,6 +493,12 @@ importers:
         specifier: 24.9.2
         version: 24.9.2
 
+  .claude/hooks/pull-request-target-guard:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
   .claude/hooks/release-workflow-guard:
     devDependencies:
       '@socketsecurity/lib-stable':
@@ -447,9 +508,27 @@ importers:
         specifier: 'catalog:'
         version: 24.9.2
 
+  .claude/hooks/setup-security-tools:
+    dependencies:
+      '@sinclair/typebox':
+        specifier: 'catalog:'
+        version: 0.34.49
+      '@socketregistry/packageurl-js-stable':
+        specifier: npm:@socketregistry/packageurl-js@1.4.2
+        version: '@socketregistry/packageurl-js@1.4.2'
+      '@socketsecurity/lib-stable':
+        specifier: npm:@socketsecurity/lib@5.28.0
+        version: '@socketsecurity/lib@5.28.0'
+
   .claude/hooks/stale-process-sweeper: {}
 
   .claude/hooks/token-guard: {}
+
+  .claude/hooks/variant-analysis-reminder:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
 
   .claude/hooks/version-bump-order-guard:
     devDependencies:
@@ -2356,6 +2435,10 @@ packages:
     resolution: {integrity: sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==}
     engines: {node: '>=20'}
 
+  compromise@14.15.0:
+    resolution: {integrity: sha512-YEMv5JGWyqRJw5hdZqDVQF3MMlHA6TRiXreR8IYffk6xB7GA5p/8DeDzvg0Jy2tHNGpD+qJGl0+oJwA+5R/sVA==}
+    engines: {node: '>=12.0.0'}
+
   configstore@5.0.1:
     resolution: {integrity: sha512-aMKprgk5YhBNyH25hj8wGt2+D52Sw1DRRIzqBwLp2Ya9mFmY8KPvvtvmna8SxVR9JMZ4kzMD68N22vlaRpkeFA==}
     engines: {node: '>=8'}
@@ -2471,6 +2554,10 @@ packages:
 
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
+
+  efrt@2.7.0:
+    resolution: {integrity: sha512-/RInbCy1d4P6Zdfa+TMVsf/ufZVotat5hCw3QXmWtjU+3pFEOvOQ7ibo3aIxyCJw2leIeAMjmPj+1SLJiCpdrQ==}
+    engines: {node: '>=12.0.0'}
 
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
@@ -2673,6 +2760,10 @@ packages:
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
 
+  grad-school@0.0.5:
+    resolution: {integrity: sha512-rXunEHF9M9EkMydTBux7+IryYXEZinRk6g8OBOGDBzo/qWJjhTxy86i5q7lQYpCLHN8Sqv1XX3OIOc7ka2gtvQ==}
+    engines: {node: '>=8.0.0'}
+
   has-ansi@2.0.0:
     resolution: {integrity: sha512-C8vBJ8DwUCx19vhm7urhTuUsr4/IyP6l4VzNQDv+ryHQObW3TTTp9yB68WpYgRe2bbaGuZ/se74IqFeVnMnLZg==}
     engines: {node: '>=0.10.0'}
@@ -2717,11 +2808,6 @@ packages:
 
   humanize-ms@1.2.1:
     resolution: {integrity: sha512-Fl70vYtsAFb/C06PTS9dZBo7ihau+Tu/DNCk/OyHhea07S+aeMWpFFkUaXRa8fI+ScZbEI8dfSxwY7gxZ9SAVQ==}
-
-  husky@9.1.7:
-    resolution: {integrity: sha512-5gs5ytaNjBrh5Ow3zrvdUUY+0VxIuWVL4i9irt6friV+BqdCfmV11CQTWMiBYWHbXhco+J1kHfTOUkePhCDvMA==}
-    engines: {node: '>=18'}
-    hasBin: true
 
   ignore@5.3.2:
     resolution: {integrity: sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==}
@@ -3295,6 +3381,9 @@ packages:
   strip-json-comments@2.0.1:
     resolution: {integrity: sha512-4gB8na07fecVVkOI6Rs4e7T6NOTki5EmL7TUduTs6bu3EdnSycntVJ4re8kgZA+wx9IueI2Y11bfbgwtzuE0KQ==}
     engines: {node: '>=0.10.0'}
+
+  suffix-thumb@5.0.2:
+    resolution: {integrity: sha512-I5PWXAFKx3FYnI9a+dQMWNqTxoRt6vdBdb0O+BJ1sxXCWtSoQCusc13E58f+9p4MYx/qCnEMkD5jac6K2j3dgA==}
 
   supports-color@2.0.0:
     resolution: {integrity: sha512-KKNVtd6pCYgPIKU4cp2733HWYCpplQhddZLBUryaAHou723x+FRzQ5Df824Fj+IyyuiQTRoub4SnIFfIcrp70g==}
@@ -4647,6 +4736,12 @@ snapshots:
 
   commander@14.0.3: {}
 
+  compromise@14.15.0:
+    dependencies:
+      efrt: 2.7.0
+      grad-school: 0.0.5
+      suffix-thumb: 5.0.2
+
   configstore@5.0.1:
     dependencies:
       dot-prop: 5.3.0
@@ -4790,6 +4885,8 @@ snapshots:
       '@noble/hashes': 1.8.0
 
   ee-first@1.1.1: {}
+
+  efrt@2.7.0: {}
 
   emoji-regex@8.0.0: {}
 
@@ -5048,6 +5145,8 @@ snapshots:
 
   graceful-fs@4.2.11: {}
 
+  grad-school@0.0.5: {}
+
   has-ansi@2.0.0:
     dependencies:
       ansi-regex: 2.1.1
@@ -5085,8 +5184,6 @@ snapshots:
   humanize-ms@1.2.1:
     dependencies:
       ms: 2.1.3
-
-  husky@9.1.7: {}
 
   ignore@5.3.2: {}
 
@@ -5653,6 +5750,8 @@ snapshots:
       min-indent: 1.0.1
 
   strip-json-comments@2.0.1: {}
+
+  suffix-thumb@5.0.2: {}
 
   supports-color@2.0.0: {}
 

@@ -51,7 +51,6 @@
     "build-infra": "workspace:*",
     "docsify-cli": "4.4.4",
     "ecc-agentshield": "catalog:",
-    "husky": "9.1.7",
     "oxfmt": "0.37.0",
     "oxlint": "1.52.0",
     "taze": "19.9.2",

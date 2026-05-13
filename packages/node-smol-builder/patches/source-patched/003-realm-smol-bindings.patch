@@ -7,6 +7,9 @@
 #    applications.
 # 2. Adds every smol-* module to schemelessBlockList so each requires the
 #    node: prefix (e.g. node:smol-http instead of smol-http).
+#    Includes the smol-ffi/node and smol-ffi/bun compat subpaths so they
+#    can only be loaded as `node:smol-ffi/node` / `node:smol-ffi/bun`,
+#    mirroring the schemelessness of the parent `smol-ffi` module.
 #
 # Files modified:
 # - lib/internal/bootstrap/realm.js: smol_vfs binding + smol-* schemelessBlockList
@@ -21,11 +24,13 @@
    'spawn_sync',
    'stream_wrap',
    'tcp_wrap',
-@@ -127,6 +128,18 @@
+@@ -127,6 +128,20 @@
    'ffi',
    'sea',
    'sqlite',
 +  'smol-ffi',
++  'smol-ffi/bun',
++  'smol-ffi/node',
 +  'smol-http',
 +  'smol-https',
 +  'smol-ilp',

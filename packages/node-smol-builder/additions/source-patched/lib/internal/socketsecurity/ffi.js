@@ -5,6 +5,7 @@
 const {
   ArrayBufferIsView,
   ArrayIsArray,
+  ArrayPrototypePush,
   Error: ErrorCtor,
   ErrorCaptureStackTrace,
   NumberIsSafeInteger,
@@ -21,12 +22,30 @@ const {
   // of map.get(key). This also protects iterator methods, which were another
   // vector for prototype pollution.
   SafeMap,
+  SafeSet,
   MapPrototypeSet,
+  MapPrototypeGet,
+  MapPrototypeHas,
   MapPrototypeDelete,
   MapPrototypeForEach,
+  SetPrototypeAdd,
+  SetPrototypeValues,
+  ArrayFrom,
   TypeError: TypeErrorCtor,
   RangeError: RangeErrorCtor,
 } = primordials
+
+// Lazy-loaded to avoid pulling fs into smol-ffi's load graph until
+// dlopen.find() is actually called. The find() helper is a discovery
+// convenience used at startup; the rest of smol-ffi must remain
+// loadable without dragging the fs module in.
+let _fs
+function lazyFs() {
+  if (!_fs) {
+    _fs = require('fs')
+  }
+  return _fs
+}
 
 // HISTORY: WHY internalBinding() INSTEAD OF process.binding()
 // process.binding() was deprecated in 2018 (PR #22004) because it was an
@@ -70,6 +89,9 @@ const VALID_TYPES = ObjectFreeze({
 })
 
 // Type name constants (mirrors upstream node:ffi types).
+// Extended over v26.1.0's set: ARRAY_BUFFER, FUNCTION, CHAR are aliases
+// the upstream surface exposes that smol-ffi mirrors verbatim so code
+// targeting node:ffi types can be lifted over without rename churn.
 const types = ObjectFreeze({
   __proto__: null,
   VOID: 'void',
@@ -89,6 +111,27 @@ const types = ObjectFreeze({
   POINTER: 'pointer',
   STRING: 'string',
   BUFFER: 'buffer',
+  ARRAY_BUFFER: 'arraybuffer',
+  FUNCTION: 'function',
+  CHAR: 'char',
+})
+
+// Structured error codes for FFIError. Surfaced on err.code so callers
+// can branch on the failure mode without string-matching the message.
+const FFI_ERROR_CODES = ObjectFreeze({
+  __proto__: null,
+  // Failed to dlopen the library file (missing, wrong arch, perms).
+  EBADLIB: 'EBADLIB',
+  // dlsym failed: requested symbol does not exist in the library.
+  ENOSYM: 'ENOSYM',
+  // Argument count / shape did not match the bound signature.
+  EBADARGS: 'EBADARGS',
+  // Type string was not recognized (e.g. unknown 'u128').
+  EBADTYPE: 'EBADTYPE',
+  // Pointer was null or otherwise unusable for the requested op.
+  EBADPTR: 'EBADPTR',
+  // Feature exists in the upstream API but is not implemented here yet.
+  ENOTIMPL: 'ENOTIMPL',
 })
 
 // Platform shared-library suffix.
@@ -99,10 +142,35 @@ const suffix =
       ? 'dylib'
       : 'so'
 
+// FFIError carries an optional `.code` (one of FFI_ERROR_CODES) so
+// callers can branch on the failure mode without string-matching the
+// message. Constructor accepts either:
+//   new FFIError(message)
+//   new FFIError(message, code)
+//   new FFIError(message, { code, cause })
 class FFIError extends ErrorCtor {
-  constructor(message) {
+  constructor(message, codeOrOptions) {
     super(message)
+    let code
+    let cause
+    if (typeof codeOrOptions === 'string') {
+      code = codeOrOptions
+    } else if (codeOrOptions !== undefined && codeOrOptions !== null) {
+      code = codeOrOptions.code
+      cause = codeOrOptions.cause
+    }
     this.name = 'FFIError'
+    if (code !== undefined) {
+      this.code = code
+    }
+    // Cause is set as a plain own property (matching the pattern
+    // upstream's internal/errors.js uses). The Error(msg, options)
+    // constructor would also work for setting cause, but doing it
+    // here keeps the spread of construction strategies inside FFIError
+    // narrow and easier to audit.
+    if (cause !== undefined) {
+      this.cause = cause
+    }
     ErrorCaptureStackTrace(this, FFIError)
   }
 }
@@ -111,7 +179,11 @@ ObjectSetPrototypeOf(FFIError.prototype, ErrorCtor.prototype)
 
 function validateType(type) {
   if (typeof type !== 'string' || !VALID_TYPES[type]) {
-    throw new TypeErrorCtor(`Invalid FFI type: "${type}"`)
+    throw new FFIError(
+      `Invalid FFI type: "${type}". Allowed types are listed in ` +
+        '`require("node:smol-ffi").types`.',
+      FFI_ERROR_CODES.EBADTYPE,
+    )
   }
 }
 
@@ -151,16 +223,36 @@ function parseSignature(arg1, arg2) {
 // Represents a loaded native library.
 class Library {
   #id
+  // Path the library was opened with. May be undefined for libraries
+  // constructed without a path (legacy callers). When present, close()
+  // evicts the cache entry so the next open() reloads cleanly.
+  #path
   #closed = false
   #functions = new SafeMap()
   #callbacks = new SafeMap()
+  // SafeSet of every symbol name resolved through this library
+  // (via func, funcs, or symbol). Used by list() to enumerate the
+  // public surface this library has exposed to JS.
+  #symbolNames = new SafeSet()
 
-  constructor(id) {
+  constructor(id, path) {
     this.#id = id
+    this.#path = path
   }
 
   get id() {
     return this.#id
+  }
+
+  get path() {
+    return this.#path
+  }
+
+  // Returns an array of every symbol name previously resolved through
+  // this library (via func, funcs, or symbol). Useful for diagnostics
+  // and for surfacing the dynamic shape of a wrapped library.
+  list() {
+    return ArrayFrom(SetPrototypeValues(this.#symbolNames))
   }
 
   // Define a callable function from this library.
@@ -169,7 +261,7 @@ class Library {
   //   lib.func('sqrt', { result: 'f64', parameters: ['f64'] })
   func(name, returnTypeOrSig, paramTypes) {
     if (this.#closed) {
-      throw new FFIError('Library has been closed')
+      throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
     }
     if (typeof name !== 'string') {
       throw new TypeErrorCtor('Function name must be a string')
@@ -182,14 +274,37 @@ class Library {
     validateType(returnType)
     if (params !== undefined) {
       if (!ArrayIsArray(params)) {
-        throw new TypeErrorCtor('paramTypes must be an array')
+        throw new FFIError(
+          'paramTypes must be an array',
+          FFI_ERROR_CODES.EBADARGS,
+        )
       }
       for (let i = 0; i < params.length; i++) {
         validateType(params[i])
       }
     }
 
-    const result = binding().sym(this.#id, name, returnType, params)
+    let result
+    try {
+      result = binding().sym(this.#id, name, returnType, params)
+    } catch (err) {
+      // The native binding throws plain Error/TypeError; classify based on
+      // message text and rewrap as FFIError with a structured .code. The
+      // text matching is fragile (binding.cc owns these strings) but the
+      // surface area is small (3 native error texts) and a missing match
+      // falls through to a generic FFIError preserving the original cause.
+      const msg = (err && err.message) || ''
+      let code = FFI_ERROR_CODES.ENOSYM
+      if (msg.indexOf('Symbol not found') === -1 &&
+          msg.indexOf('dlsym') === -1) {
+        code = FFI_ERROR_CODES.EBADARGS
+      }
+      throw new FFIError(`func("${name}"): ${msg}`, {
+        __proto__: null,
+        code,
+        cause: err,
+      })
+    }
     const fnId = result[0]
     const hasFast = result[1]
     const b = binding()
@@ -208,14 +323,14 @@ class Library {
         wrapper = hasFast
           ? () => {
               if (closed()) {
-                throw new FFIError('Library has been closed')
+                throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
               }
               setTarget(fnId)
               return call(fnId)
             }
           : () => {
               if (closed()) {
-                throw new FFIError('Library has been closed')
+                throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
               }
               return call(fnId)
             }
@@ -224,14 +339,14 @@ class Library {
         wrapper = hasFast
           ? a0 => {
               if (closed()) {
-                throw new FFIError('Library has been closed')
+                throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
               }
               setTarget(fnId)
               return call(fnId, a0)
             }
           : a0 => {
               if (closed()) {
-                throw new FFIError('Library has been closed')
+                throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
               }
               return call(fnId, a0)
             }
@@ -240,14 +355,14 @@ class Library {
         wrapper = hasFast
           ? (a0, a1) => {
               if (closed()) {
-                throw new FFIError('Library has been closed')
+                throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
               }
               setTarget(fnId)
               return call(fnId, a0, a1)
             }
           : (a0, a1) => {
               if (closed()) {
-                throw new FFIError('Library has been closed')
+                throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
               }
               return call(fnId, a0, a1)
             }
@@ -256,14 +371,14 @@ class Library {
         wrapper = hasFast
           ? (a0, a1, a2) => {
               if (closed()) {
-                throw new FFIError('Library has been closed')
+                throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
               }
               setTarget(fnId)
               return call(fnId, a0, a1, a2)
             }
           : (a0, a1, a2) => {
               if (closed()) {
-                throw new FFIError('Library has been closed')
+                throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
               }
               return call(fnId, a0, a1, a2)
             }
@@ -271,7 +386,7 @@ class Library {
       case 4:
         wrapper = (a0, a1, a2, a3) => {
           if (closed()) {
-            throw new FFIError('Library has been closed')
+            throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
           }
           if (setTarget) {
             setTarget(fnId)
@@ -282,7 +397,7 @@ class Library {
       case 5:
         wrapper = (a0, a1, a2, a3, a4) => {
           if (closed()) {
-            throw new FFIError('Library has been closed')
+            throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
           }
           return call(fnId, a0, a1, a2, a3, a4)
         }
@@ -290,7 +405,7 @@ class Library {
       case 6:
         wrapper = (a0, a1, a2, a3, a4, a5) => {
           if (closed()) {
-            throw new FFIError('Library has been closed')
+            throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
           }
           return call(fnId, a0, a1, a2, a3, a4, a5)
         }
@@ -298,7 +413,7 @@ class Library {
       default:
         wrapper = (...args) => {
           if (closed()) {
-            throw new FFIError('Library has been closed')
+            throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
           }
           return call(fnId, ...args)
         }
@@ -317,6 +432,7 @@ class Library {
     })
 
     MapPrototypeSet(this.#functions, name, fnId)
+    SetPrototypeAdd(this.#symbolNames, name)
     return wrapper
   }
 
@@ -325,7 +441,7 @@ class Library {
   // OR: { name: [returnType, [paramTypes]], ... }
   funcs(definitions) {
     if (this.#closed) {
-      throw new FFIError('Library has been closed')
+      throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
     }
     if (typeof definitions !== 'object' || definitions === null) {
       throw new TypeErrorCtor('definitions must be an object')
@@ -348,19 +464,30 @@ class Library {
   // Resolve a raw symbol address (without binding a signature).
   symbol(name) {
     if (this.#closed) {
-      throw new FFIError('Library has been closed')
+      throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
     }
     if (typeof name !== 'string') {
       throw new TypeErrorCtor('Symbol name must be a string')
     }
-    return binding().dlsym(this.#id, name)
+    let ptr
+    try {
+      ptr = binding().dlsym(this.#id, name)
+    } catch (err) {
+      throw new FFIError(`Symbol not found: "${name}"`, {
+        __proto__: null,
+        code: FFI_ERROR_CODES.ENOSYM,
+        cause: err,
+      })
+    }
+    SetPrototypeAdd(this.#symbolNames, name)
+    return ptr
   }
 
   // Register a JS function as a native callback pointer.
   // Returns a BigInt pointer that can be passed to native code.
   registerCallback(returnTypeOrSig, paramTypesOrFn, maybeFn) {
     if (this.#closed) {
-      throw new FFIError('Library has been closed')
+      throw new FFIError('Library has been closed', FFI_ERROR_CODES.EBADLIB)
     }
 
     let returnType
@@ -439,6 +566,15 @@ class Library {
       return
     }
     this.#closed = true
+    // Evict from the dlopen cache first so a concurrent open() of the
+    // same path can't hand out this dying handle. The eviction is
+    // unconditional even if the cache value isn't us — defensive
+    // against external callers who replaced the cache entry, which
+    // shouldn't happen but the check is free.
+    if (this.#path !== undefined &&
+        MapPrototypeGet(LIBRARY_CACHE, this.#path) === this) {
+      MapPrototypeDelete(LIBRARY_CACHE, this.#path)
+    }
     // Unregister every live callback BEFORE closing the library. Just
     // dropping the map leaked the native trampoline/thunk allocations
     // the binding pinned per registerCallback(), and if any native
@@ -463,13 +599,41 @@ class Library {
   }
 }
 
-// Open a native library by path.
+// Cache of absolute-path → live Library so repeated dlopen()/open()
+// of the same library is free. Closing a library evicts the entry.
+// Keyed on the exact path string the caller passed; we deliberately
+// do NOT canonicalize via fs.realpath here — that would add an extra
+// syscall per cache lookup on the hot path and break callers that
+// rely on per-path identity for testing/isolation.
+const LIBRARY_CACHE = new SafeMap()
+
+// Open a native library by path. Cached: re-opening the same path
+// returns the existing Library instance (incrementing no refcount —
+// the cache IS the refcount, since close() evicts).
 function open(path) {
   if (typeof path !== 'string') {
     throw new TypeErrorCtor('Library path must be a string')
   }
-  const id = binding().open(path)
-  return new Library(id)
+  if (MapPrototypeHas(LIBRARY_CACHE, path)) {
+    const cached = MapPrototypeGet(LIBRARY_CACHE, path)
+    if (!cached.closed) {
+      return cached
+    }
+    MapPrototypeDelete(LIBRARY_CACHE, path)
+  }
+  let id
+  try {
+    id = binding().open(path)
+  } catch (err) {
+    throw new FFIError(`Failed to load library: "${path}"`, {
+      __proto__: null,
+      code: FFI_ERROR_CODES.EBADLIB,
+      cause: err,
+    })
+  }
+  const lib = new Library(id, path)
+  MapPrototypeSet(LIBRARY_CACHE, path, lib)
+  return lib
 }
 
 // Convenience: dlopen with batch definitions (matches upstream API shape).
@@ -488,6 +652,51 @@ function dlopen(path, definitions) {
   }
 }
 
+// dlopen.find(name): probe common path forms for a library and return
+// the first that exists on disk. Tries `lib{name}.{suffix}` first (the
+// POSIX convention) and falls back to `{name}.{suffix}` (Windows /
+// platforms that don't use the lib prefix). Returns undefined when no
+// candidate exists — callers should treat that as ENOENT and fall back
+// to whatever discovery they were doing before.
+//
+// Search semantics: paths are existsSync'd verbatim. If `name` is a
+// bare library name like 'sqlite3', the probe checks 'libsqlite3.so'
+// (or .dylib / .dll) relative to the CWD. Callers that want the
+// system loader path (LD_LIBRARY_PATH / DYLD_LIBRARY_PATH / system32)
+// should pre-resolve via their own search or just call open() with
+// the bare suffixed name and let the OS resolver handle it. This
+// helper is the cheap path: it sees what the filesystem can show
+// without going through dlopen() first.
+function dlopenFind(name) {
+  if (typeof name !== 'string') {
+    throw new TypeErrorCtor('Library name must be a string')
+  }
+  const fsMod = lazyFs()
+  const candidates = [`lib${name}.${suffix}`, `${name}.${suffix}`]
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i]
+    try {
+      if (fsMod.existsSync(candidate)) {
+        return candidate
+      }
+    } catch {
+      // Existence probes shouldn't throw on EACCES / ENOENT, but if
+      // the caller stubbed fs.existsSync, swallow and keep probing.
+    }
+  }
+  return undefined
+}
+
+// Attach find as a static helper on dlopen so callers can do
+// `dlopen.find('sqlite3')` without a separate import.
+ObjectDefineProperty(dlopen, 'find', {
+  __proto__: null,
+  value: dlopenFind,
+  writable: false,
+  configurable: false,
+  enumerable: false,
+})
+
 // Max bytes ptrToBuffer will copy (128 MB). Prevents accidental OOM.
 const kMaxPtrReadLength = 128 * 1024 * 1024
 
@@ -496,7 +705,10 @@ function ptrToBuffer(ptr, length, copy) {
     throw new TypeErrorCtor('ptr must be a BigInt')
   }
   if (ptr === 0n && length > 0) {
-    throw new TypeErrorCtor('Cannot read from null pointer')
+    throw new FFIError(
+      'Cannot read from null pointer',
+      FFI_ERROR_CODES.EBADPTR,
+    )
   }
   if (!NumberIsSafeInteger(length) || length < 0) {
     throw new TypeErrorCtor('length must be a non-negative integer')
@@ -520,6 +732,12 @@ function ptrToString(ptr) {
   if (typeof ptr !== 'bigint') {
     throw new TypeErrorCtor('ptr must be a BigInt')
   }
+  if (ptr === 0n) {
+    throw new FFIError(
+      'Cannot read string from null pointer',
+      FFI_ERROR_CODES.EBADPTR,
+    )
+  }
   return binding().ptrToString(ptr)
 }
 
@@ -528,7 +746,10 @@ function ptrToArrayBuffer(ptr, length, copy) {
     throw new TypeErrorCtor('ptr must be a BigInt')
   }
   if (ptr === 0n && length > 0) {
-    throw new TypeErrorCtor('Cannot read from null pointer')
+    throw new FFIError(
+      'Cannot read from null pointer',
+      FFI_ERROR_CODES.EBADPTR,
+    )
   }
   if (!NumberIsSafeInteger(length) || length < 0) {
     throw new TypeErrorCtor('length must be a non-negative integer')
@@ -602,6 +823,102 @@ function setFloat64(ptr, offset, value) {
   binding().setFloat64(ptr, offset, value)
 }
 
+// Byte sizes used by read.batch to advance offset between reads.
+// Keyed on the canonical 1/2/4/8-byte type names (smol-ffi's `i32`,
+// `u8`, ...). `ptr` is 8 bytes on every platform we ship (we don't
+// support 32-bit targets); this stays correct even on i386 Linux
+// builds because we don't run JS on those.
+const TYPE_SIZES = ObjectFreeze({
+  __proto__: null,
+  i8: 1, u8: 1, bool: 1, char: 1,
+  i16: 2, u16: 2,
+  i32: 4, u32: 4, int: 4, uint: 4, f32: 4, float: 4,
+  i64: 8, u64: 8, f64: 8, double: 8, pointer: 8, ptr: 8,
+})
+
+// Type → accessor map for read.batch. Cached at module load so the
+// hot path is a single map lookup. Keys mirror the user-facing type
+// strings from `types`.
+const READERS_BY_TYPE = ObjectFreeze({
+  __proto__: null,
+  i8: getInt8, u8: getUint8, char: getInt8, bool: getUint8,
+  i16: getInt16, u16: getUint16,
+  i32: getInt32, u32: getUint32, int: getInt32, uint: getUint32,
+  f32: getFloat32, float: getFloat32,
+  i64: getInt64, u64: getUint64,
+  f64: getFloat64, double: getFloat64,
+  // pointer / ptr read as unsigned 64-bit BigInt (matches the shape
+  // bufferToPtr/dlsym return).
+  pointer: getUint64, ptr: getUint64,
+})
+
+// readBatch(ptr, types) — read each type from `ptr` at auto-advancing
+// offsets. Example: readBatch(p, ['i32', 'u8', 'f64']) reads at
+// offsets 0, 4, 5 and returns [int32, uint8, float64].
+// This is the equivalent of a fixed-shape struct read; no alignment
+// padding is inserted (the caller is responsible for matching the
+// native layout, including any padding bytes).
+function readBatch(ptr, fieldTypes) {
+  if (typeof ptr !== 'bigint') {
+    throw new TypeErrorCtor('ptr must be a BigInt')
+  }
+  if (ptr === 0n) {
+    throw new FFIError(
+      'Cannot read from null pointer',
+      FFI_ERROR_CODES.EBADPTR,
+    )
+  }
+  if (!ArrayIsArray(fieldTypes)) {
+    throw new FFIError(
+      'fieldTypes must be an array of type strings',
+      FFI_ERROR_CODES.EBADARGS,
+    )
+  }
+  const out = []
+  let offset = 0
+  for (let i = 0; i < fieldTypes.length; i++) {
+    const t = fieldTypes[i]
+    const reader = READERS_BY_TYPE[t]
+    const size = TYPE_SIZES[t]
+    if (reader === undefined || size === undefined) {
+      throw new FFIError(
+        `read.batch: unsupported field type "${t}" at index ${i}. ` +
+          'Use one of: i8, u8, i16, u16, i32, u32, i64, u64, f32, f64, ' +
+          'pointer, ptr, bool, char, int, uint, float, double.',
+        FFI_ERROR_CODES.EBADTYPE,
+      )
+    }
+    ArrayPrototypePush(out, reader(ptr, offset))
+    offset += size
+  }
+  return out
+}
+
+// readPtr(ptr, offset?) — read a pointer-sized BigInt at offset. Alias
+// for getUint64 to make pointer-reads grep-friendly at the call site.
+function readPtr(ptr, offset) {
+  return getUint64(ptr, offset)
+}
+
+// bun-style `read` namespace. Each accessor takes (ptr, offset?) and
+// returns the value. The shape matches https://bun.sh/docs/api/ffi#reading-pointers
+// so code lifted from bun stays grep-friendly.
+const read = ObjectFreeze({
+  __proto__: null,
+  i8: getInt8,
+  u8: getUint8,
+  i16: getInt16,
+  u16: getUint16,
+  i32: getInt32,
+  u32: getUint32,
+  i64: getInt64,
+  u64: getUint64,
+  f32: getFloat32,
+  f64: getFloat64,
+  ptr: readPtr,
+  batch: readBatch,
+})
+
 module.exports = {
   __proto__: null,
 
@@ -610,6 +927,7 @@ module.exports = {
   dlopen,
   Library,
   FFIError,
+  FFI_ERROR_CODES,
 
   // Constants
   suffix,
@@ -642,4 +960,9 @@ module.exports = {
   setUint64,
   setFloat32,
   setFloat64,
+
+  // bun-style read namespace + batch reader
+  read,
+  readBatch,
+  readPtr,
 }

@@ -13,6 +13,7 @@ const {
   ptrToArrayBuffer,
   Library,
   FFIError,
+  FFI_ERROR_CODES,
   suffix,
   types,
   getInt8,
@@ -35,6 +36,9 @@ const {
   setUint64,
   setFloat32,
   setFloat64,
+  read,
+  readBatch,
+  readPtr,
 } = require('internal/socketsecurity/ffi')
 
 // HISTORY: WHY FREEZE MODULE EXPORTS
@@ -54,6 +58,11 @@ module.exports = ObjectFreeze({
   ptrToArrayBuffer,
   Library,
   FFIError,
+  // Structured error codes surfaced on FFIError.code. Branchable
+  // alternative to message-string matching for callers that need to
+  // recover from specific failure modes (missing library vs missing
+  // symbol vs invalid type, etc).
+  FFI_ERROR_CODES,
   suffix,
   types,
   getInt8,
@@ -76,5 +85,10 @@ module.exports = ObjectFreeze({
   setUint64,
   setFloat32,
   setFloat64,
+  // bun-style read namespace: read.i32(ptr), read.batch(ptr, types), etc.
+  // Aliases for the get* accessors; advance-aware batch read on top.
+  read,
+  readBatch,
+  readPtr,
   default: open,
 })

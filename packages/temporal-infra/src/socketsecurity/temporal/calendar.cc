@@ -14,6 +14,7 @@
 #include <string_view>
 
 #include "socketsecurity/temporal/iso.h"
+#include "socketsecurity/temporal/utils.h"
 
 namespace node {
 namespace socketsecurity {
@@ -170,6 +171,45 @@ TemporalResult<PlainDate> CalendarDateAdd(const Calendar& cal,
   return out;
 }
 
+namespace {
+
+// Spec: CompareISODate(d1, d2). -1 if d1<d2, 0 if equal, 1 if d1>d2.
+int CompareIsoDate(const IsoDate& a, const IsoDate& b) noexcept {
+  if (a.year != b.year) return a.year < b.year ? -1 : 1;
+  if (a.month != b.month) return a.month < b.month ? -1 : 1;
+  if (a.day != b.day) return a.day < b.day ? -1 : 1;
+  return 0;
+}
+
+// Spec: ISODateSurpasses(sign, earlier, later, candidate_years,
+// candidate_months, candidate_weeks, candidate_days). True iff
+// earlier + candidate_duration surpasses later in the given sign
+// direction (positive sign = surpasses means "goes past later";
+// negative sign = surpasses means "goes before later").
+//
+// We only need years + months for the YearMonth/Month path.
+bool IsoDateSurpasses(int sign, const IsoDate& earlier, const IsoDate& later,
+                       int64_t cand_years, int64_t cand_months) noexcept {
+  // Balance year+month addition into IsoDate.
+  int64_t total_months = static_cast<int64_t>(earlier.month) - 1 + cand_months;
+  int64_t carry_years = total_months / 12;
+  total_months %= 12;
+  if (total_months < 0) {
+    total_months += 12;
+    carry_years -= 1;
+  }
+  int32_t new_year = static_cast<int32_t>(
+      static_cast<int64_t>(earlier.year) + cand_years + carry_years);
+  uint8_t new_month = static_cast<uint8_t>(total_months + 1);
+  uint8_t dim = ISODaysInMonth(new_year, new_month);
+  uint8_t new_day = earlier.day < dim ? earlier.day : dim;
+  IsoDate intermediate{new_year, new_month, new_day};
+  int cmp = CompareIsoDate(intermediate, later);
+  return sign > 0 ? cmp > 0 : cmp < 0;
+}
+
+}  // namespace
+
 TemporalResult<Duration> CalendarDateUntil(const Calendar& cal,
                                              const IsoDate& earlier,
                                              const IsoDate& later,
@@ -178,14 +218,71 @@ TemporalResult<Duration> CalendarDateUntil(const Calendar& cal,
     return GetCalendarBackend().DateUntil(cal.Kind(), earlier, later,
                                             largest_unit);
   }
-  // ISO path. `largest_unit == Day` (or Auto) emits days only; year/
-  // month/week breakdowns require the calendar's day-of-month rules
-  // and route through the same backend.
+  // ISO Day / Auto path: pure day-count.
   if (largest_unit == Unit::kDay || largest_unit == Unit::kAuto) {
     return DifferenceISODate(earlier, later);
   }
-  return GetCalendarBackend().DateUntil(CalendarKind::kIso, earlier, later,
-                                          largest_unit);
+  // ISO Year/Month/Week path: spec polyfill calendar.mjs helperISO.dateUntil
+  // (loops at most twice for years, at most 12 times for months). Same
+  // algorithm temporal_rs uses for iso_date_until; doesn't need a backend.
+  const int sign_cmp = CompareIsoDate(earlier, later);
+  if (sign_cmp == 0) {
+    return Duration{};
+  }
+  const int sign = sign_cmp < 0 ? 1 : -1;
+
+  int64_t years = 0;
+  int64_t months = 0;
+  if (largest_unit == Unit::kYear || largest_unit == Unit::kMonth) {
+    int64_t candidate_years = static_cast<int64_t>(later.year) - earlier.year;
+    if (candidate_years != 0) candidate_years -= sign;
+    while (!IsoDateSurpasses(sign, earlier, later, candidate_years, 0)) {
+      years = candidate_years;
+      candidate_years += sign;
+    }
+    int64_t candidate_months = sign;
+    while (!IsoDateSurpasses(sign, earlier, later, years, candidate_months)) {
+      months = candidate_months;
+      candidate_months += sign;
+    }
+    if (largest_unit == Unit::kMonth) {
+      months += years * 12;
+      years = 0;
+    }
+  }
+
+  // Balance earlier + (years, months) into intermediate; remaining diff is
+  // weeks + days.
+  int64_t total_months = static_cast<int64_t>(earlier.month) - 1 + months;
+  int64_t carry_years = total_months / 12;
+  total_months %= 12;
+  if (total_months < 0) {
+    total_months += 12;
+    carry_years -= 1;
+  }
+  int32_t inter_year = static_cast<int32_t>(
+      static_cast<int64_t>(earlier.year) + years + carry_years);
+  uint8_t inter_month = static_cast<uint8_t>(total_months + 1);
+  uint8_t dim = ISODaysInMonth(inter_year, inter_month);
+  uint8_t inter_day = earlier.day < dim ? earlier.day : dim;
+
+  const int64_t inter_jdn =
+      EpochDaysFromGregorianDate(inter_year, inter_month, inter_day);
+  const int64_t later_jdn =
+      EpochDaysFromGregorianDate(later.year, later.month, later.day);
+  int64_t days = later_jdn - inter_jdn;
+  int64_t weeks = 0;
+  if (largest_unit == Unit::kWeek) {
+    weeks = days / 7;
+    days -= weeks * 7;
+  }
+
+  Duration d{};
+  d.years = static_cast<double>(years);
+  d.months = static_cast<double>(months);
+  d.weeks = static_cast<double>(weeks);
+  d.days = static_cast<double>(days);
+  return d;
 }
 
 // ── CalendarBackend ───────────────────────────────────────────────────

@@ -287,13 +287,31 @@ TemporalResult<std::string> IcuCalendarBackend::Era(
     case CalendarKind::kBuddhist:
       // Gregorian-style: 0 = BC/BCE, 1 = AD/CE.
       return std::string(era.value() == 0 ? "bce" : "ce");
-    case CalendarKind::kJapanese:
-      // Japanese: numeric index into era list. Spec uses lower-cased
-      // era names ("meiji", "taisho", "showa", "heisei", "reiwa"
-      // and earlier). Without ICU's era-name lookup at compile
-      // time, we return the era index as a string for now; consumers
-      // who need the name can resolve via Intl.
-      return std::string("japanese-" + std::to_string(era.value()));
+    case CalendarKind::kJapanese: {
+      // Japanese eras — spec uses lower-cased era names. ICU exposes
+      // a numeric era index but the index is ICU-version-dependent
+      // (new eras shift older indices), so we resolve the era name
+      // from the ISO date directly via the spec-stable epoch boundaries
+      // (TC39 proposal-temporal calendar.mjs:1956-1964).
+      //
+      // For ISO years ≤0 the Japanese calendar falls back to bce/ce
+      // (matching reviseIntlEra in calendar.mjs:1971).
+      if (iso.year < 1) {
+        return std::string("bce");
+      }
+      const int32_t y = iso.year;
+      const int8_t m = static_cast<int8_t>(iso.month);
+      const int8_t d = static_cast<int8_t>(iso.day);
+      auto onOrAfter = [&](int32_t ey, int8_t em, int8_t ed) {
+        return y > ey || (y == ey && (m > em || (m == em && d >= ed)));
+      };
+      if (onOrAfter(2019, 5, 1)) return std::string("reiwa");
+      if (onOrAfter(1989, 1, 8)) return std::string("heisei");
+      if (onOrAfter(1926, 12, 25)) return std::string("showa");
+      if (onOrAfter(1912, 7, 30)) return std::string("taisho");
+      if (onOrAfter(1873, 1, 1)) return std::string("meiji");
+      return std::string("ce");
+    }
     case CalendarKind::kRoc:
       return std::string(era.value() == 0 ? "before-roc" : "roc");
     case CalendarKind::kCoptic:

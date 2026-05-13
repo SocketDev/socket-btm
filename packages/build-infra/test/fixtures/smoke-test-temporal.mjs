@@ -784,7 +784,7 @@ if (typeof Temporal !== 'object' || Temporal === null) {
     'PlainMonthDay.from(Hebrew M05L) (call)',
     () =>
       Temporal.PlainMonthDay.from(
-        { monthCode: 'M05L', day: 1, year: 5784 },
+        { monthCode: 'M05L', day: 1, year: 5784, calendar: 'hebrew' },
         { overflow: 'reject' },
       ),
   )
@@ -806,10 +806,11 @@ if (typeof Temporal !== 'object' || Temporal === null) {
   const coptic = tryCheck(
     'PlainYearMonth.from(Coptic M13) (call)',
     () =>
-      Temporal.PlainYearMonth.from(
-        { year: 1740, monthCode: 'M13' },
-        { calendar: 'coptic' },
-      ),
+      Temporal.PlainYearMonth.from({
+        year: 1740,
+        monthCode: 'M13',
+        calendar: 'coptic',
+      }),
   )
   if (coptic !== undefined) {
     check(

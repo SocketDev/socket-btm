@@ -222,15 +222,40 @@ class PlainMonthDay {
   }
 
   diplomat::result<int64_t, TemporalError>
-  epoch_ms_for_with_provider(TimeZone /*tz*/, const Provider& /*p*/) const {
-    // Previously returned Ok(0) — silent wrong-answer: every
-    // PlainMonthDay mapped to 1970-01-01T00:00:00Z. Match the
-    // single-Provider overload below: return Err until calendar-aware
-    // day projection + provider integration land.
-    return diplomat::Err<TemporalError>(TemporalError{
-        ErrorKind::Range,
-        "PlainMonthDay.epochMsFor(timeZone, provider) requires a "
-        "calendar backend + provider integration"});
+  epoch_ms_for_with_provider(TimeZone tz, const Provider& /*p*/) const {
+    // Combine (inner_.iso, noon) and resolve through the supplied
+    // time zone. For ISO MonthDay, inner_.iso.year is the reference
+    // year (1972) — the actual day value is stable.
+    //
+    // Mirrors the single-Provider overload below (which assumes UTC)
+    // and the upstream plain_month_day.rs:380 algorithm. Provider arg
+    // is unused: TimeZone carries its IANA id and the temporal-infra
+    // backend dispatches directly through the V8 zoneinfo64 hook.
+    ::node::socketsecurity::temporal::IsoDateTime iso{};
+    iso.date = inner_.iso;
+    iso.time.hour = 12;
+    iso.time.minute = 0;
+    iso.time.second = 0;
+    iso.time.millisecond = 0;
+    iso.time.microsecond = 0;
+    iso.time.nanosecond = 0;
+    auto ns = tz.ToInfra().GetEpochNanosecondsFor(
+        iso, ::node::socketsecurity::temporal::Disambiguation::kCompatible);
+    if (!ns.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(ns.error()));
+    }
+    using NativeInt128 = decltype(ns.value().value);
+    const NativeInt128 ns_per_ms{1'000'000};
+    const NativeInt128 n = ns.value().value;
+    NativeInt128 ms;
+    if (n >= 0) {
+      ms = n / ns_per_ms;
+    } else {
+      // Floor-division for negative: -1ms = -1_000_000ns, -1_000_001ns = -2ms.
+      ms = (n - ns_per_ms + 1) / ns_per_ms;
+    }
+    return diplomat::Ok<int64_t>(static_cast<int64_t>(ms));
   }
 
   // 1:1 from upstream plain_month_day.rs:380 / :387.

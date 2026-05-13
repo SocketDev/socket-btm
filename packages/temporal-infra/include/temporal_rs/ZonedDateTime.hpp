@@ -21,6 +21,7 @@
 #include "socketsecurity/temporal/error.h"
 #include "socketsecurity/temporal/temporal.h"
 #include "socketsecurity/temporal/ixdtf_writer.h"
+#include "socketsecurity/temporal/utils.h"
 #include "socketsecurity/temporal/zoned_date_time.h"
 #include "temporal_rs/AnyCalendarKind.hpp"
 #include "temporal_rs/ArithmeticOverflow.hpp"
@@ -478,15 +479,6 @@ class ZonedDateTime {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(resolved.error()));
     }
-    // IANA-zone offset requires get_offset_nanos_for(provider). Until
-    // the TimeZoneBackend hooks land we hard-fail rather than silently
-    // emitting `+00:00` for every IANA zone.
-    if (!inner_.time_zone.IsOffsetOnly()) {
-      return diplomat::Err<TemporalError>(TemporalError{
-          ErrorKind::Range,
-          "ZonedDateTime.toString for IANA zones requires provider "
-          "integration"});
-    }
     // Upstream rounds the instant via round_instant BEFORE feeding
     // GetIsoDateTimeFor; same shape as Instant::to_ixdtf_string.
     if (resolved.value().smallest_unit !=
@@ -501,8 +493,36 @@ class ZonedDateTime {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(datetime.error()));
     }
-    // Offset-only zone: the stored offset IS the resolved offset.
-    const int64_t offset_ns = inner_.time_zone.OffsetOrNull().Nanoseconds();
+    // Compute the offset_ns: for offset-only zones the stored offset IS
+    // the resolved offset; for IANA zones the offset is derived by
+    // comparing GetIsoDateTimeFor's wall-clock against the underlying
+    // instant's UTC representation.
+    int64_t offset_ns;
+    if (inner_.time_zone.IsOffsetOnly()) {
+      offset_ns = inner_.time_zone.OffsetOrNull().Nanoseconds();
+    } else {
+      // IANA: local_epoch_ns (from wall-clock) - utc_epoch_ns = offset.
+      const auto& d = datetime.value().date;
+      const auto& t = datetime.value().time;
+      const int64_t epoch_days =
+          ::node::socketsecurity::temporal::EpochDaysFromGregorianDate(
+              d.year, d.month, d.day);
+      const int64_t tod_ns =
+          static_cast<int64_t>(t.hour) * 3600 * 1'000'000'000LL +
+          static_cast<int64_t>(t.minute) * 60 * 1'000'000'000LL +
+          static_cast<int64_t>(t.second) * 1'000'000'000LL +
+          static_cast<int64_t>(t.millisecond) * 1'000'000LL +
+          static_cast<int64_t>(t.microsecond) * 1'000LL +
+          static_cast<int64_t>(t.nanosecond);
+      using NativeInt128 =
+          decltype(inner_.instant.epoch_nanoseconds.value);
+      const NativeInt128 local_ns =
+          NativeInt128(epoch_days) *
+              NativeInt128(86'400'000'000'000LL) +
+          NativeInt128(tod_ns);
+      const NativeInt128 utc_ns = inner_.instant.epoch_nanoseconds.value;
+      offset_ns = static_cast<int64_t>(local_ns - utc_ns);
+    }
     // H4: refuse sub-minute offsets. IXDTF's WithMinuteOffset truncates
     // seconds/nanoseconds silently; upstream's
     // nanoseconds_to_formattable_offset_minutes returns an error.

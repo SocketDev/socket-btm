@@ -66,12 +66,10 @@ TemporalResult<PlainDate> PlainDateFromUtf8(const uint8_t* data,
                                               size_t length) noexcept {
   std::string_view view(reinterpret_cast<const char*>(data), length);
   PlainDate out{};
-  // ParseDate handles bare YYYY-MM-DD; ParseDateTime handles full IXDTF.
-  // Try date-only first; fall back to date-time (PlainDate::from_str
-  // accepts both per upstream tests).
-  if (ParseDate(view, &out) == ParseStatus::kOk) {
-    return out;
-  }
+  // Try ParseDateTime FIRST — it extracts the [u-ca=...] annotation.
+  // ParseDate ignores annotations and would silently drop the calendar
+  // identifier, leaving callers with out.calendar == kIso even when the
+  // input carries [u-ca=hebrew] / [u-ca=japanese] / etc.
   ParseDateTimeRecord rec;
   if (ParseDateTime(view, &rec) == ParseStatus::kOk) {
     out.iso = rec.datetime.iso.date;
@@ -85,6 +83,10 @@ TemporalResult<PlainDate> PlainDateFromUtf8(const uint8_t* data,
         out.calendar = kind.value();
       }
     }
+    return out;
+  }
+  // Fall back to bare YYYY-MM-DD (no time, no annotations).
+  if (ParseDate(view, &out) == ParseStatus::kOk) {
     return out;
   }
   return TemporalError::Range("Invalid PlainDate string");

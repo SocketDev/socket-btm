@@ -4,6 +4,7 @@
 
 #include <string_view>
 
+#include "socketsecurity/temporal/calendar.h"
 #include "socketsecurity/temporal/iso.h"
 #include "socketsecurity/temporal/parse.h"
 
@@ -49,6 +50,15 @@ TemporalResult<PlainMonthDay> PlainMonthDayFromUtf8(
   out.iso = rec.datetime.iso.date;
   // Spec: year is reference-only; canonical rep stores 1972.
   out.iso.year = kReferenceYear;
+  // Propagate [u-ca=...] annotation so non-ISO calendars (Hebrew M05L,
+  // Coptic M13, etc.) get their kind preserved through string parsing.
+  if (rec.calendar_len > 0) {
+    auto kind = Calendar::TryKindFromUtf8(
+        reinterpret_cast<const uint8_t*>(rec.calendar), rec.calendar_len);
+    if (kind.ok()) {
+      out.calendar = kind.value();
+    }
+  }
   return out;
 }
 

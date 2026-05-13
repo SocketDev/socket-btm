@@ -554,18 +554,38 @@ TemporalResult<IsoDate> IcuCalendarBackend::IsoFromCalendarFields(
     return CalendarBackend::IsoFromCalendarFields(kind, year, ordinal_month,
                                                     day, overflow);
   }
-  // Open ICU at a known-safe ISO probe; then overwrite the calendar's
-  // native YEAR/MONTH/DATE so ICU walks them in the calendar's own
-  // numbering. Same probe trick as ResolveMonthCode — we can't probe
-  // at ISO(year, ...) because for non-ISO calendars `year` is the
-  // calendar's year, not ISO.
+  // Open ICU at a known-safe ISO probe (we need it positioned in some
+  // valid era for the calendar's locale-keyword construction; the
+  // probe's actual date doesn't matter because we clear() before
+  // setting calendar fields). Same probe trick as ResolveMonthCode —
+  // we can't probe at ISO(year, ...) because for non-ISO calendars
+  // `year` is the calendar's year, not ISO.
   IsoDate probe{2024, 1, 1};
   auto cal = OpenIcuCal(kind, probe);
   if (cal == nullptr) {
     return TemporalError::Range("Unknown calendar identifier");
   }
+  // Clear() wipes all field state. Without this, the probe's
+  // year/month/day fields leak through and confuse ICU's resolution
+  // when we set sparse fields (e.g. setting MONTH alone leaves the
+  // probe's DAY=22 active, which can cause month rollover for
+  // calendars where day=22 doesn't exist in the requested month —
+  // observed concretely with Coptic M13 + day 22 rolling into M1 of
+  // the next year).
+  cal->clear();
   UErrorCode status = U_ZERO_ERROR;
-  cal->set(UCAL_YEAR, year);
+  // Set HOUR/MINUTE/SECOND to noon to avoid any DST / day-boundary
+  // edge cases when ICU converts back to epoch ms.
+  cal->set(UCAL_HOUR_OF_DAY, 12);
+  cal->set(UCAL_MINUTE, 0);
+  cal->set(UCAL_SECOND, 0);
+  cal->set(UCAL_MILLISECOND, 0);
+  // Set EXTENDED_YEAR (proleptic year, matches Temporal semantics) —
+  // UCAL_YEAR is era-local for calendars with eras (Japanese, Buddhist,
+  // ROC), but EXTENDED_YEAR is the proleptic value Temporal exposes.
+  // For calendars without eras (Coptic, Ethiopian, Hebrew, Chinese,
+  // Dangi, Indian, Persian, Islamic), EXTENDED_YEAR == YEAR.
+  cal->set(UCAL_EXTENDED_YEAR, year);
   // ICU MONTH is 0-indexed; ordinal_month is 1-indexed (post-monthCode
   // resolution: callers go through CalendarResolveMonthCode for leap
   // variants, then pass the ICU-native ordinal position here).
@@ -577,11 +597,14 @@ TemporalResult<IsoDate> IcuCalendarBackend::IsoFromCalendarFields(
   } else {
     cal->set(UCAL_MONTH, static_cast<int32_t>(ordinal_month - 1));
   }
-  // Clamp day to the actual month's max when constrain; let ICU's
-  // setLenient(false) catch it when reject.
+  // Set day. For constrain, clamp to month's actual max (which we
+  // compute after year/month are committed via a getActualMaximum
+  // call). For reject, set the user value and let lenient=false trip
+  // on commit.
   if (overflow == Overflow::kConstrain) {
     cal->setLenient(true);
-    cal->set(UCAL_DATE, day < 1 ? 1 : static_cast<int32_t>(day));
+    const uint8_t safe_day = day < 1 ? 1 : day;
+    cal->set(UCAL_DATE, safe_day);
     UErrorCode probe_status = U_ZERO_ERROR;
     const int32_t max_day =
         cal->getActualMaximum(UCAL_DAY_OF_MONTH, probe_status);

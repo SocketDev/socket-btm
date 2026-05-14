@@ -22,6 +22,22 @@
  * This checker cross-references all four sources and fails if any
  * disagree.
  *
+ * In addition to cross-source consistency, the checker validates the
+ * `.gitmodules` comment shape itself:
+ *
+ *   - `comment-missing`        — no "# name-version" comment above
+ *                                the [submodule] section.
+ *   - `comment-name-mismatch`  — the <name> slug doesn't appear in
+ *                                the submodule path (catches typos
+ *                                and stale comments on renamed paths).
+ *   - `comment-version-format` — the <version> portion has no digit
+ *                                (catches "rc1" or "main" pasted as
+ *                                a placeholder).
+ *   - `comment-sha256-format`  — optional sha256:<hex> isn't exactly
+ *                                64 lowercase hex chars (catches
+ *                                truncation, uppercase paste, or
+ *                                non-hex contamination).
+ *
  * Wired into `pnpm run check` via check.mts.
  *
  * Usage:
@@ -106,7 +122,17 @@ export function loadAllowlist(): AllowlistEntry[] {
 type Submodule = {
   name: string
   path: string
-  versionComment: string | undefined // e.g. "1.24.4"
+  // Just the version portion, e.g. "1.24.4". Kept for back-compat with
+  // collectMismatches comparing against package.json `sources.*.version`.
+  versionComment: string | undefined
+  // The full comment slug ("name-version"). Used for name-path
+  // consistency checks (the <name> portion should appear in the path).
+  commentSlug: string | undefined
+  // sha256 hex when the comment carries `sha256:<hex>`. Used by the
+  // format-validation pass below. Undefined when no sha256 is present.
+  commentSha256: string | undefined
+  // The raw comment line, kept for error reporting.
+  commentLine: string | undefined
 }
 
 /** Walk .gitmodules for submodules + their version comments. */
@@ -118,13 +144,24 @@ export function loadSubmodules(): Submodule[] {
   const lines = content.split(/\r?\n/)
   const submodules: Submodule[] = []
   let prevComment: string | undefined
+  let prevSlug: string | undefined
+  let prevSha256: string | undefined
+  let prevRawLine: string | undefined
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i]!
-    // Version comment: `# name-X.Y.Z ...`. Capture the "name-X.Y.Z"
-    // token; trailing sha256:hex or epoch path segments are tolerated.
-    const commentMatch = line.match(/^# ([a-z][a-z0-9_-]*)-([^\s]+)/)
+    // Version comment: `# name-X.Y.Z [sha256:<hex>] [...]`.
+    //   - <name> token: lowercase letters/digits/underscores/hyphens,
+    //     starting with a letter.
+    //   - <version>: anything up to the next whitespace.
+    //   - optional sha256:hex64 trailing after one space.
+    // Capture all three so downstream checks can validate consistency
+    // without re-parsing the line.
+    const commentMatch = line.match(/^# ([a-z][a-z0-9_-]*)-(\S+)(?:\s+sha256:([0-9a-fA-F]+))?/)
     if (commentMatch) {
       prevComment = commentMatch[2]
+      prevSlug = commentMatch[1]
+      prevSha256 = commentMatch[3]
+      prevRawLine = line
       continue
     }
     const submoduleMatch = line.match(/^\[submodule "([^"]+)"\]/)
@@ -137,8 +174,14 @@ export function loadSubmodules(): Submodule[] {
         name,
         path: subPath,
         versionComment: prevComment,
+        commentSlug: prevSlug,
+        commentSha256: prevSha256,
+        commentLine: prevRawLine,
       })
       prevComment = undefined
+      prevSlug = undefined
+      prevSha256 = undefined
+      prevRawLine = undefined
       continue
     }
     // The parser deliberately keeps prevComment alive across url/path
@@ -244,7 +287,21 @@ export function loadPackageJsonSources(): PackageJsonSource[] {
 type Mismatch = {
   upstream: string
   locations: Array<{ source: string; value: string }>
-  kind: 'version' | 'ref'
+  kind:
+    | 'version'
+    | 'ref'
+    // `.gitmodules` comment is missing entirely above a [submodule]
+    // section. Caught by `gitmodules-comment-guard` PreToolUse hook
+    // too, but this gates non-Claude-Code edits (CI, manual `git`
+    // operations).
+    | 'comment-missing'
+    // `# name-version` slug doesn't appear in the submodule's path.
+    // Catches typos and stale comments above renamed paths.
+    | 'comment-name-mismatch'
+    // The version portion isn't a recognized release-tag shape.
+    | 'comment-version-format'
+    // `sha256:<hex>` is present but not exactly 64 lowercase hex chars.
+    | 'comment-sha256-format'
 }
 
 export async function collectMismatches(): Promise<Mismatch[]> {
@@ -257,6 +314,113 @@ export async function collectMismatches(): Promise<Mismatch[]> {
   for (let i = 0, { length } = pkgSources; i < length; i += 1) {
     const s = pkgSources[i]!
     pkgByUpstream.set(s.upstream, s)
+  }
+
+  // Per-submodule comment-format validation. These checks run BEFORE
+  // the version comparison so a misshapen comment surfaces with a
+  // specific reason rather than getting swallowed by the
+  // "versionComment is undefined → skip" path.
+  for (let i = 0, { length } = submodules; i < length; i += 1) {
+    const sub = submodules[i]!
+
+    // Check 1: comment missing entirely.
+    if (!sub.commentLine) {
+      mismatches.push({
+        kind: 'comment-missing',
+        upstream: sub.name,
+        locations: [
+          {
+            source: `.gitmodules (${sub.path})`,
+            value: '(no preceding # name-version comment)',
+          },
+        ],
+      })
+      continue
+    }
+
+    // Check 2: name slug must match a path segment, case-insensitive.
+    // Example: `# node-26.1.0` ↔ `packages/.../upstream/node`. The
+    // basename is the most common match site, but some submodules
+    // nest deeper, so we accept any path segment.
+    //
+    // Case-insensitivity is intentional: upstreams like cJSON / uWebSockets
+    // ship camel/PascalCase repo names, but the convention in the
+    // comment slug is lowercase ("# cjson-1.7.19"). The check passes
+    // as long as the lowercase slug matches a path segment's lowercase
+    // form. Also tolerates an extra dash-separated qualifier in the
+    // slug (e.g. `icu4x-zoneinfo64`) when the leading token still
+    // matches a path segment.
+    if (sub.commentSlug) {
+      const slug = sub.commentSlug.toLowerCase()
+      const segments = sub.path.split('/').map(s => s.toLowerCase())
+      const slugHead = slug.split('-')[0]!
+      const matches =
+        segments.includes(slug) ||
+        (slugHead.length > 0 && segments.includes(slugHead))
+      if (!matches) {
+        mismatches.push({
+          kind: 'comment-name-mismatch',
+          upstream: sub.name,
+          locations: [
+            {
+              source: `.gitmodules comment (${sub.path})`,
+              value: `${sub.commentLine}`,
+            },
+            {
+              source: `expected slug from path basename`,
+              value: path.basename(sub.path),
+            },
+          ],
+        })
+      }
+    }
+
+    // Check 3: version format. Accept anything starting with a digit
+    // optionally prefixed with `v` (`v1.2.3`, `1.2.3`, `1.2.3-beta`).
+    // Also accept date-like epoch paths used by some submodules
+    // (`epochs/three_hourly/2026-02-24_21H` from the original example).
+    // The conservative shape: must contain at least one digit. This
+    // catches typos like `# node-rcsomething` while staying tolerant
+    // of upstream tag variety.
+    if (sub.versionComment && !/\d/.test(sub.versionComment)) {
+      mismatches.push({
+        kind: 'comment-version-format',
+        upstream: sub.name,
+        locations: [
+          {
+            source: `.gitmodules comment (${sub.path})`,
+            value: sub.commentLine!,
+          },
+          {
+            source: 'expected version shape',
+            value: '<digits>(.<digits>)* or v<digits>...',
+          },
+        ],
+      })
+    }
+
+    // Check 4: sha256 format. When `sha256:` is present, require
+    // exactly 64 lowercase hex chars. Catches truncation, accidental
+    // uppercase (some pasted hex is uppercase), or non-hex contamination.
+    if (sub.commentSha256 !== undefined) {
+      const sha = sub.commentSha256
+      if (sha.length !== 64 || !/^[0-9a-f]{64}$/.test(sha)) {
+        mismatches.push({
+          kind: 'comment-sha256-format',
+          upstream: sub.name,
+          locations: [
+            {
+              source: `.gitmodules comment sha256 (${sub.path})`,
+              value: `sha256:${sha} (len=${sha.length})`,
+            },
+            {
+              source: 'expected',
+              value: 'sha256:<64 lowercase hex chars>',
+            },
+          ],
+        })
+      }
+    }
   }
 
   // For each submodule with a version comment, find a matching package.json
@@ -336,21 +500,69 @@ export function printMismatch(m: Mismatch, opts: Options): void {
   }
   if (opts.explain) {
     logger.log('')
-    if (m.kind === 'version') {
-      logger.log(
-        `  Fix: pick the authoritative version and update every site to match.`,
-      )
-      logger.log(
-        `       Usually .gitmodules is canonical; workflows read package.json`,
-      )
-      logger.log(`       for cache keys + release labels, so both must agree.`)
-    } else {
-      logger.log(
-        `  Fix: update sources.${m.upstream}.ref in packages/<pkg>/package.json`,
-      )
-      logger.log(
-        `       to the full commit SHA from \`git ls-tree HEAD <submodule>\`.`,
-      )
+    switch (m.kind) {
+      case 'version':
+        logger.log(
+          `  Fix: pick the authoritative version and update every site to match.`,
+        )
+        logger.log(
+          `       Usually .gitmodules is canonical; workflows read package.json`,
+        )
+        logger.log(
+          `       for cache keys + release labels, so both must agree.`,
+        )
+        break
+      case 'ref':
+        logger.log(
+          `  Fix: update sources.${m.upstream}.ref in packages/<pkg>/package.json`,
+        )
+        logger.log(
+          `       to the full commit SHA from \`git ls-tree HEAD <submodule>\`.`,
+        )
+        break
+      case 'comment-missing':
+        logger.log(
+          `  Fix: add a "# <name>-<version>" comment on the line BEFORE the`,
+        )
+        logger.log(`       [submodule "..."] header. Example:`)
+        logger.log(`         # ${m.upstream}-1.2.3`)
+        logger.log(`         [submodule "..."]`)
+        logger.log(
+          `       The optional sha256 of the release tarball can follow:`,
+        )
+        logger.log(`         # ${m.upstream}-1.2.3 sha256:<64 hex chars>`)
+        break
+      case 'comment-name-mismatch':
+        logger.log(
+          `  Fix: the <name> in the "# <name>-<version>" comment must appear`,
+        )
+        logger.log(
+          `       as a path segment of the submodule (typically the basename).`,
+        )
+        logger.log(
+          `       Either fix the comment's slug or rename the submodule path.`,
+        )
+        break
+      case 'comment-version-format':
+        logger.log(
+          `  Fix: the <version> portion of "# <name>-<version>" must include`,
+        )
+        logger.log(
+          `       at least one digit. Use the upstream's released tag form:`,
+        )
+        logger.log(`         # ${m.upstream}-1.2.3`)
+        logger.log(`         # ${m.upstream}-v25.9.0`)
+        logger.log(`         # ${m.upstream}-2026-02-24_21H  (epoch tags)`)
+        break
+      case 'comment-sha256-format':
+        logger.log(
+          `  Fix: sha256:<hex> must be exactly 64 lowercase hex characters.`,
+        )
+        logger.log(`       Re-derive the digest from the release tarball:`)
+        logger.log(
+          `         shasum -a 256 <tarball> | cut -d' ' -f1 | tr A-Z a-z`,
+        )
+        break
     }
   }
 }

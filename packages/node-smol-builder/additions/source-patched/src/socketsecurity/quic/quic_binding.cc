@@ -568,6 +568,160 @@ static void EngineConnect(const FunctionCallbackInfo<Value>& args) {
       Integer::NewFromUnsigned(isolate, RegisterConn(conn)));
 }
 
+// ─── Section 6: Connection lifecycle ─────────────────────────────────
+//
+// lsquic.h:
+//   void              lsquic_conn_close(lsquic_conn_t*);
+//   enum LSQUIC_CONN_STATUS lsquic_conn_status(lsquic_conn_t*,
+//                                               char* errbuf,
+//                                               size_t bufsz);
+//   const lsquic_cid_t* lsquic_conn_id(const lsquic_conn_t*);
+//   enum lsquic_version lsquic_conn_quic_version(const lsquic_conn_t*);
+//   const char*       lsquic_conn_get_sni(lsquic_conn_t*);
+//
+// JS surface:
+//   connClose(connId)
+//   connGetStatus(connId) -> { status, error? }
+//     - status integers from LSCONN_ST_* (HSK_IN_PROGRESS, CONNECTED,
+//       HSK_FAILURE, GOING_AWAY, TIMED_OUT, RESET, USER_ABORTED, ERROR,
+//       CLOSED, PEER_GOING_AWAY)
+//     - error: string from lsquic's errbuf when non-empty
+//   connGetCID(connId) -> Uint8Array (raw CID bytes) | null
+//   connGetVersion(connId) -> int (one of version.* entries)
+//   connGetSNI(connId) -> string | null
+
+static void ConnClose(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  lsquic_conn_t* conn = LookupConn(id);
+  if (conn == nullptr) return;
+  lsquic_conn_close(conn);
+  // Note: the connection isn't actually freed by lsquic_conn_close;
+  // lsquic will invoke on_conn_closed (when callbacks are wired in
+  // step 7) and then free the slot. The JS layer should not call
+  // any other conn* method after connClose. We keep the registry
+  // entry until on_conn_closed fires to give callbacks a valid
+  // handle to surface the close event.
+}
+
+static void ConnGetStatus(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  Local<Object> out = Object::New(isolate);
+  lsquic_conn_t* conn = LookupConn(id);
+  if (conn == nullptr) {
+    out->Set(context, NewOneByteString(isolate, "status"),
+             Integer::New(isolate, -1))
+        .Check();
+    args.GetReturnValue().Set(out);
+    return;
+  }
+  char errbuf[512];
+  errbuf[0] = '\0';
+  enum LSQUIC_CONN_STATUS status =
+      lsquic_conn_status(conn, errbuf, sizeof(errbuf));
+  out->Set(context, NewOneByteString(isolate, "status"),
+           Integer::New(isolate, static_cast<int32_t>(status)))
+      .Check();
+  if (errbuf[0] != '\0') {
+    Local<String> err = String::NewFromUtf8(isolate, errbuf,
+                                              NewStringType::kNormal)
+                            .ToLocalChecked();
+    out->Set(context, NewOneByteString(isolate, "error"), err).Check();
+  }
+  args.GetReturnValue().Set(out);
+}
+
+static void ConnGetCID(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  lsquic_conn_t* conn = LookupConn(id);
+  if (conn == nullptr) {
+    args.GetReturnValue().SetNull();
+    return;
+  }
+  const lsquic_cid_t* cid = lsquic_conn_id(conn);
+  if (cid == nullptr) {
+    args.GetReturnValue().SetNull();
+    return;
+  }
+  // lsquic_cid_t is a fixed-size byte slot (typically up to 20 bytes
+  // per RFC 9000). Copy the raw bytes into a Uint8Array sized to
+  // cid->len. The structure layout is `{ uint_fast8_t len; uint8_t
+  // idbuf[MAX_CID_LEN]; }`.
+  const size_t len = cid->len;
+  auto backing = v8::ArrayBuffer::NewBackingStore(isolate, len);
+  std::memcpy(backing->Data(), cid->idbuf, len);
+  Local<v8::ArrayBuffer> ab =
+      v8::ArrayBuffer::New(isolate, std::move(backing));
+  Local<v8::Uint8Array> arr = v8::Uint8Array::New(ab, 0, len);
+  args.GetReturnValue().Set(arr);
+}
+
+static void ConnGetVersion(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  lsquic_conn_t* conn = LookupConn(id);
+  if (conn == nullptr) {
+    args.GetReturnValue().Set(Integer::New(isolate, -1));
+    return;
+  }
+  args.GetReturnValue().Set(Integer::New(
+      isolate, static_cast<int32_t>(lsquic_conn_quic_version(conn))));
+}
+
+static void ConnGetSNI(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  lsquic_conn_t* conn = LookupConn(id);
+  if (conn == nullptr) {
+    args.GetReturnValue().SetNull();
+    return;
+  }
+  const char* sni = lsquic_conn_get_sni(conn);
+  if (sni == nullptr) {
+    args.GetReturnValue().SetNull();
+    return;
+  }
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(isolate, sni, NewStringType::kNormal)
+          .ToLocalChecked());
+}
+
+// ─── LSCONN_ST_* enum mirror ─────────────────────────────────────────
+//
+// lsquic.h:`enum LSQUIC_CONN_STATUS`. Numeric values exposed so JS
+// can compare connGetStatus().status against named constants.
+
+static void BindConnStatus(Isolate* isolate, Local<Context> context,
+                           Local<Object> target) {
+  Local<Object> connStatus = Object::New(isolate);
+#define BIND_STATUS(name, value)                                         \
+  connStatus                                                             \
+      ->Set(context, NewOneByteString(isolate, name),                    \
+            Integer::New(isolate, static_cast<int32_t>(value)))          \
+      .Check();
+  BIND_STATUS("HSK_IN_PROGRESS", LSCONN_ST_HSK_IN_PROGRESS);
+  BIND_STATUS("CONNECTED", LSCONN_ST_CONNECTED);
+  BIND_STATUS("HSK_FAILURE", LSCONN_ST_HSK_FAILURE);
+  BIND_STATUS("GOING_AWAY", LSCONN_ST_GOING_AWAY);
+  BIND_STATUS("TIMED_OUT", LSCONN_ST_TIMED_OUT);
+  BIND_STATUS("RESET", LSCONN_ST_RESET);
+  BIND_STATUS("USER_ABORTED", LSCONN_ST_USER_ABORTED);
+  BIND_STATUS("ERROR", LSCONN_ST_ERROR);
+  BIND_STATUS("CLOSED", LSCONN_ST_CLOSED);
+  BIND_STATUS("PEER_GOING_AWAY", LSCONN_ST_PEER_GOING_AWAY);
+#undef BIND_STATUS
+  target
+      ->Set(context, NewOneByteString(isolate, "connStatus"), connStatus)
+      .Check();
+}
+
 // ─── Engine flag mirror ──────────────────────────────────────────────
 //
 // LSQUIC_ENG_SERVER + LSQUIC_ENG_HTTP from lsquic.h:`enum
@@ -608,9 +762,15 @@ static void Initialize(Local<Object> target,
   SetMethod(context, target, "engineCountAttq", EngineCountAttq);
   SetMethod(context, target, "engineQuicVersions", EngineQuicVersions);
   SetMethod(context, target, "engineConnect", EngineConnect);
+  SetMethod(context, target, "connClose", ConnClose);
+  SetMethod(context, target, "connGetStatus", ConnGetStatus);
+  SetMethod(context, target, "connGetCID", ConnGetCID);
+  SetMethod(context, target, "connGetVersion", ConnGetVersion);
+  SetMethod(context, target, "connGetSNI", ConnGetSNI);
 
   BindVersionEnum(isolate, context, target);
   BindEngineFlags(isolate, context, target);
+  BindConnStatus(isolate, context, target);
 }
 
 static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -624,6 +784,11 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(EngineCountAttq);
   registry->Register(EngineQuicVersions);
   registry->Register(EngineConnect);
+  registry->Register(ConnClose);
+  registry->Register(ConnGetStatus);
+  registry->Register(ConnGetCID);
+  registry->Register(ConnGetVersion);
+  registry->Register(ConnGetSNI);
 }
 
 }  // namespace quic

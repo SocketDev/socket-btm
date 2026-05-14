@@ -1,30 +1,27 @@
 /**
  * Equivalence harness for the smol-manifest C++ binding.
  *
- * This test file is the gate for the native port (steps 4-7 of
- * docs/plans/smol-manifest-native-full.md). Each fixture under
- * test/fixtures/sdxgen-bug-regressions/ is loaded, fed to the
- * native binding, and the result is compared to expected.json
- * via toEqual.
+ * Spawns the built smol Node binary (out/Release/node) on the live
+ * verifier script (test/smol-manifest-binding-live.mjs), which
+ * exercises every sdxgen-bug-regressions fixture through the C++
+ * binding and exits non-zero on any mismatch.
  *
- * STATUS:
- *   - If `internalBinding('smol_manifest_native')` is not present
- *     (stock Node, or a smol build before the binding lands), the
- *     entire describe block is skipped via `describe.skipIf`.
- *   - Each fixture's it.todo flips to it as the corresponding
- *     parser implementation lands in the C++ port:
- *       - npm parser → fix1, fix2a, fix2b enabled
- *       - pnpm parser → fix3a, fix3b, fix5 enabled
- *       - yarn parser → fix4 enabled
- *       - cargo parser → cargo-patch-unused-no-leak enabled
+ * Why a subprocess instead of in-process: vitest runs under stock
+ * Node, where the `node:smol-manifest` module / `internalBinding`
+ * surface isn't exposed. The subprocess approach lets the same
+ * vitest CI lane catch binding regressions without requiring a
+ * smol-Node-aware test runner.
  *
- * The binding shape is defined in
- * docs/plans/smol-manifest-native-full.md "V8 binding surface":
- *   parseLockfile(content: Buffer | string, ecosystem: number,
- *                 format: number) -> ParsedLockfile
+ * Behavior:
+ *  - When build/<mode>/<platform-arch>/source/out/Release/node exists,
+ *    spawn it on the verifier and assert exit 0 + verify the output
+ *    enumerates every expected fixture as PASS.
+ *  - When it doesn't exist (clean checkout, CI lane that hasn't run
+ *    `pnpm build`), skip the suite with a clear message.
  */
 
-import { readFileSync, readdirSync } from 'node:fs'
+import { execFileSync, type ExecFileSyncOptionsWithStringEncoding } from 'node:child_process'
+import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -32,158 +29,109 @@ import { describe, expect, it } from 'vitest'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const FIXTURES_DIR = join(__dirname, 'fixtures/sdxgen-bug-regressions')
+const LIVE_VERIFIER = join(__dirname, 'smol-manifest-binding-live.mjs')
+const REAL_FIXTURE_VERIFIER = join(__dirname, 'smol-manifest-real-fixture.mjs')
 
-// Try to resolve the native binding. On stock Node + on smol builds
-// that don't yet have the smol_manifest_native binding registered,
-// this is undefined and the entire suite is skipped.
+// The build pipeline emits the smol Node binary at
+// build/<mode>/<platform-arch>/source/out/Release/node. We only
+// support darwin-arm64 dev for local iteration; CI builds populate
+// the same shape on linux-x64 / linux-arm64.
 //
-// internalBinding is exposed only inside the smol Node binary's
-// internal modules, NOT to userland test files. The harness uses
-// `process._smolManifestNative` as a publicly-accessible alias the
-// smol startup code wires up; until then, this is always undefined.
-const native = (globalThis as { process?: { _smolManifestNative?: unknown } })
-  .process?._smolManifestNative as
-  | {
-      parseLockfile: (
-        content: string | Buffer,
-        ecosystem: number,
-        format: number,
-      ) => unknown
-    }
-  | undefined
-
-// Per the binding contract — ecosystem + format are passed as numeric
-// enum values to avoid string-marshal cost on every call. These
-// constants match the C++ enum values defined in
-// src/socketsecurity/manifest/manifest.h.
-const ECO_NPM = 0
-const ECO_CARGO = 1
-
-const FMT_NPM = 0
-const FMT_PNPM = 1
-const FMT_YARN = 2
-const FMT_CARGO = 3
-
-interface Fixture {
-  dir: string
-  input: string
-  ecosystem: number
-  format: number
-  // When `enabled: false`, the parser for this fixture's
-  // ecosystem/format pair has not yet landed in the C++ port.
-  // Test is registered as it.todo. Flip to true when the
-  // corresponding parser_<format>.cc is wired up.
-  enabled: boolean
-}
-
-const FIXTURES: Fixture[] = [
-  {
-    dir: 'fix1-npm-v1-alias',
-    input: 'input.json',
-    ecosystem: ECO_NPM,
-    format: FMT_NPM,
-    enabled: false,
-  },
-  {
-    dir: 'fix2a-npm-v3-workspace-name',
-    input: 'input.json',
-    ecosystem: ECO_NPM,
-    format: FMT_NPM,
-    enabled: false,
-  },
-  {
-    dir: 'fix2b-npm-v3-alias-name',
-    input: 'input.json',
-    ecosystem: ECO_NPM,
-    format: FMT_NPM,
-    enabled: false,
-  },
-  {
-    dir: 'fix3a-pnpm-v9-empty-version',
-    input: 'input.yaml',
-    ecosystem: ECO_NPM,
-    format: FMT_PNPM,
-    enabled: false,
-  },
-  {
-    dir: 'fix3b-pnpm-v9-workspace-file-filter',
-    input: 'input.yaml',
-    ecosystem: ECO_NPM,
-    format: FMT_PNPM,
-    enabled: false,
-  },
-  {
-    dir: 'fix4-yarn-depsmeta-inversion',
-    input: 'input.lock',
-    ecosystem: ECO_NPM,
-    format: FMT_YARN,
-    enabled: false,
-  },
-  {
-    dir: 'fix5-pnpm-v9-isdev-derivation',
-    input: 'input.yaml',
-    ecosystem: ECO_NPM,
-    format: FMT_PNPM,
-    enabled: false,
-  },
-  {
-    dir: 'cargo-patch-unused-no-leak',
-    input: 'input.toml',
-    ecosystem: ECO_CARGO,
-    format: FMT_CARGO,
-    enabled: false,
-  },
+// Pick the first existing path. The list is intentionally short —
+// we don't want to silently exercise stale binaries from past
+// platform-arch builds.
+const PLATFORM_ARCH = `${process.platform}-${process.arch}`
+const SMOL_BINARY_CANDIDATES = [
+  join(
+    __dirname,
+    '..',
+    'build',
+    'dev',
+    PLATFORM_ARCH,
+    'source',
+    'out',
+    'Release',
+    'node',
+  ),
+  join(
+    __dirname,
+    '..',
+    'build',
+    'dev',
+    PLATFORM_ARCH,
+    'out',
+    'Final',
+    'node',
+    'node',
+  ),
 ]
 
-describe.skipIf(!native)(
-  'smol_manifest_native binding — sdxgen-bug-regressions equivalence',
-  () => {
-    it('binding exposes parseLockfile()', () => {
-      expect(native).toBeDefined()
-      expect(typeof native!.parseLockfile).toBe('function')
-    })
-
-    // Fixture register cross-check — independent of binding presence.
-    // (Pulled into this describe so the skipIf gates it too; the
-    // fixture-register sanity check in smol-manifest.test.mts runs
-    // regardless of binding state.)
-    it('every fixture directory is wired into the table', () => {
-      const onDisk = readdirSync(FIXTURES_DIR, { withFileTypes: true })
-        .filter(e => e.isDirectory())
-        .map(e => e.name)
-        .sort()
-      const inTable = FIXTURES.map(f => f.dir).sort()
-      expect(onDisk).toEqual(inTable)
-    })
-
-    for (const fixture of FIXTURES) {
-      const title = `${fixture.dir} (C++ binding matches expected.json)`
-      if (!fixture.enabled) {
-        it.todo(title)
-        continue
-      }
-      it(title, () => {
-        const content = readFileSync(
-          join(FIXTURES_DIR, fixture.dir, fixture.input),
-          'utf8',
-        )
-        const expected = JSON.parse(
-          readFileSync(
-            join(FIXTURES_DIR, fixture.dir, 'expected.json'),
-            'utf8',
-          ),
-        )
-        const actual = native!.parseLockfile(
-          content,
-          fixture.ecosystem,
-          fixture.format,
-        )
-        // Round-trip through JSON to normalize the frozen-null-proto
-        // shape so toEqual compares structural value, not prototype
-        // chain. This mirrors the matching pattern in
-        // smol-manifest.test.mts.
-        expect(JSON.parse(JSON.stringify(actual))).toEqual(expected)
-      })
+function findSmolBinary(): string | undefined {
+  for (const candidate of SMOL_BINARY_CANDIDATES) {
+    if (existsSync(candidate)) {
+      return candidate
     }
-  },
-)
+  }
+  return undefined
+}
+
+const smolBinary = findSmolBinary()
+
+// Every fixture that should appear in the verifier output. Kept in
+// lock-step with FIXTURES in smol-manifest-binding-live.mjs.
+const EXPECTED_FIXTURE_NAMES = [
+  'fix1-npm-v1-alias',
+  'fix2a-npm-v3-workspace-name',
+  'fix2b-npm-v3-alias-name',
+  'fix3a-pnpm-v9-empty-version',
+  'fix3b-pnpm-v9-workspace-file-filter',
+  'fix4-yarn-depsmeta-inversion',
+  'fix5-pnpm-v9-isdev-derivation',
+  'cargo-patch-unused-no-leak',
+]
+
+describe('smol_manifest_native binding — sdxgen-bug-regressions equivalence', () => {
+  // The fixture register cross-check runs even without a smol
+  // binary — catches "added a fixture dir but forgot to wire it
+  // into the live verifier" before the smol-only assertions
+  // would fail with a less specific error.
+  it('every fixture directory is wired into EXPECTED_FIXTURE_NAMES', () => {
+    const onDisk = readdirSync(FIXTURES_DIR, { withFileTypes: true })
+      .filter(e => e.isDirectory())
+      .map(e => e.name)
+      .sort()
+    expect(onDisk).toEqual([...EXPECTED_FIXTURE_NAMES].sort())
+  })
+
+  it.skipIf(!smolBinary)(
+    'live binding verifies all fixtures PASS',
+    () => {
+      const opts: ExecFileSyncOptionsWithStringEncoding = {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }
+      const output = execFileSync(smolBinary!, [LIVE_VERIFIER], opts)
+      // Confirm every expected fixture name appears with PASS.
+      for (const name of EXPECTED_FIXTURE_NAMES) {
+        expect(output).toContain(`PASS  ${name}`)
+      }
+      // Confirm zero failures in the trailing summary.
+      expect(output).toMatch(/\b0 fail\b/)
+      // Confirm zero skips (all parsers ported).
+      expect(output).toMatch(/\b0 skip\b/)
+    },
+  )
+
+  it.skipIf(!smolBinary)(
+    "parses socket-btm's own pnpm-lock.yaml without malformed entries",
+    () => {
+      const opts: ExecFileSyncOptionsWithStringEncoding = {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }
+      const output = execFileSync(smolBinary!, [REAL_FIXTURE_VERIFIER], opts)
+      expect(output).toContain('PASS')
+      expect(output).not.toContain('FAIL')
+    },
+  )
+})

@@ -503,8 +503,22 @@ bool ParsePnpmLock(std::string_view content,
     // Package entry header — `  /lodash/4.17.21:` (v5) or
     // `  lodash@4.17.21:` (v6/v9). Indent 2 (most pnpm versions) or
     // 4 (some legacy variants). Trailing colon.
+    //
+    // CRUCIAL: when we're already inside a package entry, only treat
+    // a new colon-terminated line as a fresh package header when it
+    // appears at the SAME or SHALLOWER indent as the current entry's
+    // header. Otherwise inner sub-section headers like
+    //   '@pnpm/exe@11.0.0-rc.2':         <-- pkg header (indent 2)
+    //     dependencies:                  <-- sub-section (indent 4)
+    //   @reflink/reflink: 0.1.19
+    // would be mis-parsed as a phantom `dependencies` PackageRef.
+    // The JS impl in manifest.js relies on this via its property-loop
+    // structure (sub-property checks short-circuit before
+    // isPackageEntry fires); the C++ port uses a flat single-pass
+    // loop, so the guard has to be explicit here.
     bool is_pkg_entry = indent >= 2 && indent <= 4 &&
-                        EndsWith(trimmed, ":") && trimmed.size() > 1;
+                        EndsWith(trimmed, ":") && trimmed.size() > 1 &&
+                        (!has_cur || indent <= cur_indent);
     if (is_pkg_entry) {
       flush_cur();
 

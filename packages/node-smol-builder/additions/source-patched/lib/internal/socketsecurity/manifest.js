@@ -408,8 +408,15 @@ function parsePackageLock(content) {
           continue
         }
 
-        // Only add if not already present (first occurrence wins)
-        if (packageIndex[name] === undefined) {
+        // Only add if not already present (first occurrence wins).
+        //
+        // _index is keyed by the ORIGINAL alias key from the lockfile
+        // (`aliasName`), NOT the resolved real name. This matches
+        // socket-lib's TS port + the C++ binding. Consumers looking
+        // up by the lockfile's declared name (e.g. `string-width-cjs`)
+        // still find the entry; the PackageRef's `name` field
+        // surfaces the real registry identity (e.g. `string-width`).
+        if (packageIndex[aliasName] === undefined) {
           // P0.3: Git dependency detection
           let vcsUrl
           let vcsCommit
@@ -445,7 +452,7 @@ function parsePackageLock(content) {
           })
 
           ArrayPrototypePush(packages, ref)
-          packageIndex[name] = packages.length - 1
+          packageIndex[aliasName] = packages.length - 1
         }
 
         // Recursively flatten nested dependencies
@@ -787,6 +794,8 @@ function parseYarnLock(content) {
           depType: PROD,
           isDev: false,
           isOptional,
+          isPeer: false,
+          isBundled: false,
           dependencies,
         })
 
@@ -1078,6 +1087,8 @@ function parsePnpmLock(content) {
                       : PROD,
                 isDev: currentImporter.section === 'dev',
                 isOptional: currentImporter.section === 'optional',
+                isPeer: false,
+                isBundled: false,
                 dependencies: [],
               })
 
@@ -1142,6 +1153,8 @@ function parsePnpmLock(content) {
         depType: PROD,
         isDev: false,
         isOptional: false,
+        isPeer: false,
+        isBundled: false,
         dependencies: [],
         // Sub-section cursor — flipped on by `dependencies:`, off by
         // any sibling section header (peerDependencies, engines, etc.)

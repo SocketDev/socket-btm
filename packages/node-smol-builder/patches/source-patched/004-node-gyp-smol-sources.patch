@@ -71,7 +71,7 @@
            ],
          }],
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
-@@ -1055,14 +1079,263 @@
+@@ -1055,14 +1079,267 @@
            ],
            'dependencies': [
              'deps/ncrypto/ncrypto.gyp:ncrypto',
@@ -130,6 +130,10 @@
 +            # Socket Security: smol-versions-native binding (semver C++ impl).
 +            'src/socketsecurity/versions/versions.cc',
 +            'src/socketsecurity/versions/versions_binding.cc',
++            # Socket Security: smol-manifest-native binding (lockfile parsers).
++            'src/socketsecurity/manifest/manifest.cc',
++            'src/socketsecurity/manifest/manifest_binding.cc',
++            'src/socketsecurity/manifest/parser_pnpm.cc',
 +            # Socket Security: temporal-infra C++ port of boa-dev/temporal
 +            # (Stage 4 ECMAScript Temporal proposal). Drops the Rust
 +            # toolchain dep by delegating calendars to system ICU and
@@ -336,7 +340,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1084,7 +1357,7 @@
+@@ -1084,7 +1361,7 @@
            ],
          }],
 -        [ 'node_use_quic=="true"', {
@@ -345,7 +349,7 @@
              '<@(node_quic_sources)',
            ],
          }],
-@@ -1406,7 +1679,7 @@
+@@ -1406,7 +1683,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -354,7 +358,7 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1447,6 +1720,17 @@
+@@ -1447,6 +1724,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -372,7 +376,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1521,6 +1804,17 @@
+@@ -1521,6 +1808,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -390,7 +394,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1744,6 +2037,17 @@
+@@ -1744,6 +2041,17 @@
              'Ws2_32.lib',
            ],
          }],

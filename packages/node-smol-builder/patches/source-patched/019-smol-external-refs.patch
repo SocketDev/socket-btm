@@ -11,7 +11,7 @@
 #
 --- a/src/node_external_reference.h
 +++ b/src/node_external_reference.h
-@@ -144,12 +144,28 @@
+@@ -144,12 +144,29 @@
  #define EXTERNAL_REFERENCE_BINDING_LIST_QUIC(V)
  #endif
  
@@ -31,6 +31,7 @@
 +  V(smol_ffi)                                                                  \
 +  V(smol_http)                                                                 \
 +  V(smol_ilp)                                                                  \
++  V(smol_manifest_native)                                                      \
 +  V(smol_power)                                                                \
 +  V(smol_primordial)                                                           \
 +  V(smol_util)                                                                 \

@@ -18,7 +18,7 @@
    V(wasm_web_api)                                                              \
    V(watchdog)                                                                  \
    V(worker)                                                                    \
-@@ -108,7 +109,16 @@
+@@ -108,7 +109,17 @@
    NODE_BUILTIN_DEBUG_BINDINGS(V)                                               \
    NODE_BUILTIN_QUIC_BINDINGS(V)                                                \
    NODE_BUILTIN_SQLITE_BINDINGS(V)                                              \
@@ -28,6 +28,7 @@
 +  V(smol_ffi)                                                                  \
 +  V(smol_http)                                                                 \
 +  V(smol_ilp)                                                                  \
++  V(smol_manifest_native)                                                      \
 +  V(smol_power)                                                                \
 +  V(smol_primordial)                                                           \
 +  V(smol_util)                                                                 \

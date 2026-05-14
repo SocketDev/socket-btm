@@ -549,7 +549,7 @@ TemporalResult<uint8_t> IcuCalendarBackend::ResolveMonthCode(
 namespace {
 
 // Approximate ISO date for a calendar (year, month, day). Mirrors the
-// polyfill's `estimateIsoDate` (lib/calendar.mjs:1370 Hebrew, :1818
+// polyfill's `estimateIsoDate` (js-temporal/temporal-polyfill/tree/rebase-part3/lib/calendar.ts:1370 Hebrew, :1818
 // Gregorian-like). Goal: get within ~30 days of the real ISO date so
 // the iterative search converges quickly.
 //
@@ -572,7 +572,7 @@ struct CalendarEpoch {
 // Polyfill-sourced epoch table. Each entry: ISO date corresponding to
 // (calendar year 1, month 1, day 1) of the primary era, plus a flag
 // indicating whether month/day numbers approximately track ISO.
-// Verified against polyfill `lib/calendar.mjs` helper* definitions.
+// Verified against polyfill `js-temporal/temporal-polyfill/tree/rebase-part3/lib/calendar.ts` helper* definitions.
 constexpr CalendarEpoch CalendarEpochFor(CalendarKind kind) noexcept {
   switch (kind) {
     // Coptic / Ethiopian / EthiopianAmeteAlem: polyfill treats these
@@ -645,7 +645,7 @@ constexpr int CompareCalendarFields(int32_t y1, uint8_t m1, uint8_t d1,
 }
 
 // Clamp an ISO date to the spec-legal Temporal range. Mirrors the
-// polyfill's clampISODate (lib/calendar.mjs:598).
+// polyfill's clampISODate (js-temporal/temporal-polyfill/tree/rebase-part3/lib/calendar.ts:598).
 IsoDate ClampIsoDate(int32_t year, int32_t month, int32_t day) noexcept {
   // Min: -271821-04-19, Max: 275760-09-13. Spec-mandated.
   if (year < -271821 || (year == -271821 && (month < 4 ||
@@ -674,7 +674,7 @@ IsoDate AddDaysToIso(const IsoDate& iso, int64_t days) noexcept {
 }  // namespace
 
 // Polyfill-style iterative calendar→ISO conversion. Mirrors
-// `lib/calendar.mjs:950 calendarToIsoDate`. ICU4C lacks an equivalent
+// `js-temporal/temporal-polyfill/tree/rebase-part3/lib/calendar.ts:950 calendarToIsoDate`. ICU4C lacks an equivalent
 // of ICU4X's `from_fields/to_iso` (the temporal_rs Rust path), so we
 // can't call into ICU directly to convert calendar fields to ISO.
 // Instead: estimate, roundtrip via ICU's reliable ISO→calendar
@@ -706,7 +706,7 @@ TemporalResult<IsoDate> IcuCalendarBackend::IsoFromCalendarFields(
 
   // Step 1: rough ISO estimate.
   //
-  // Mirror the polyfill's `estimateIsoDate` (lib/calendar.mjs:1818)
+  // Mirror the polyfill's `estimateIsoDate` (js-temporal/temporal-polyfill/tree/rebase-part3/lib/calendar.ts:1818)
   // which lands on `(year + epoch.year - 1, month, day)` then runs
   // ES.RegulateISODate(_, _, _, 'constrain') to fold any out-of-range
   // month/day into legal ISO values. For Coptic M13 specifically, the

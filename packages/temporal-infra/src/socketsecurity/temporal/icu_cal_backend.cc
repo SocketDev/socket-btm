@@ -7,6 +7,9 @@
 
 #include "socketsecurity/temporal/icu_cal_backend.h"
 
+#include <cstring>
+#include <string_view>
+
 #include "socketsecurity/temporal/utils.h"
 
 #ifdef TEMPORAL_INFRA_HAS_ICU
@@ -19,6 +22,198 @@
 namespace node {
 namespace socketsecurity {
 namespace temporal {
+
+// ─── (era, era_year) → ISO year resolution ────────────────────────────
+//
+// Pure spec arithmetic — no ICU calls — so this implementation is
+// shared between the V8_INTL_SUPPORT-enabled and -disabled branches.
+// Era → calendar-year arithmetic comes from the Temporal spec's
+// "Calendar Era Codes" table, cross-referenced with:
+//   - js-temporal/temporal-polyfill/tree/rebase-part3/lib/calendar.ts
+//     reviseIntlEra / etc.
+//   - boa-dev/temporal calendar.rs:into_proleptic_year.
+//
+// Each calendar uses one of three shapes:
+//   (a) Linear offset:   year = era_year + K  (Buddhist, Coptic,
+//                                              Ethiopian, Persian, ROC).
+//   (b) Bidirectional:   forward era adds, reverse era subtracts (BCE/
+//                        CE pair, before-roc / roc, etc.).
+//   (c) Era-epoch table: Japanese eras pick a starting (year, month,
+//                        day) and the year within the era counts from
+//                        that point. Returns the proleptic *year*
+//                        only — caller still pairs with month/day to
+//                        get a full IsoDate.
+//
+// Inputs that don't match the calendar's era set yield Range errors
+// with a clear "unknown era" message; callers map those to
+// TypeError on the JS side as appropriate.
+static TemporalResult<int32_t> ResolveEraYearToIsoYear(
+    CalendarKind kind, std::string_view era_sv,
+    int32_t era_year) noexcept {
+  // Lowercase compare — every era code in the spec is lowercase.
+  // (Inputs come from PartialDate.era, which V8 lowercases at
+  // ECMA-262's IsoString stage.)
+  auto eq = [&](const char* expect) noexcept {
+    const size_t n = std::strlen(expect);
+    if (era_sv.size() != n) return false;
+    for (size_t i = 0; i < n; i += 1) {
+      if (era_sv[i] != expect[i]) return false;
+    }
+    return true;
+  };
+
+  switch (kind) {
+    case CalendarKind::kIso:
+      // ISO has no eras at all.
+      return TemporalError::Range(
+          "ISO calendar does not support era — pass year directly");
+
+    case CalendarKind::kGregorian: {
+      // Gregorian / proleptic-Gregorian spec era table:
+      //   "ce" / "ad"   → year =  era_year       (era_year ≥ 1)
+      //   "bce" / "bc"  → year = -era_year + 1   (era_year ≥ 1)
+      if (era_year < 1) {
+        return TemporalError::Range("era_year must be ≥ 1");
+      }
+      if (eq("ce") || eq("ad") || eq("gregory") || eq("gregorian")) {
+        return era_year;
+      }
+      if (eq("bce") || eq("bc") || eq("gregory-inverse") ||
+          eq("gregorian-inverse")) {
+        return 1 - era_year;
+      }
+      return TemporalError::Range(
+          "unknown era for gregorian calendar (expected ce/bce)");
+    }
+
+    case CalendarKind::kBuddhist: {
+      // Buddhist Era (BE): year = era_year - 543 (e.g. BE 2568 → 2025).
+      // Only forward era ("be") supported by the spec.
+      if (era_year < 1) {
+        return TemporalError::Range("era_year must be ≥ 1");
+      }
+      if (eq("be")) {
+        return era_year - 543;
+      }
+      return TemporalError::Range(
+          "unknown era for buddhist calendar (expected be)");
+    }
+
+    case CalendarKind::kRoc: {
+      // Republic of China: ROC year 1 = ISO 1912.
+      //   "roc"        → year =  era_year + 1911
+      //   "before-roc" → year =  1912 - era_year
+      if (era_year < 1) {
+        return TemporalError::Range("era_year must be ≥ 1");
+      }
+      if (eq("roc") || eq("minguo")) {
+        return era_year + 1911;
+      }
+      if (eq("before-roc") || eq("broc")) {
+        return 1912 - era_year;
+      }
+      return TemporalError::Range(
+          "unknown era for roc calendar (expected roc/before-roc)");
+    }
+
+    case CalendarKind::kCoptic: {
+      // Coptic AM: year 1 starts 284 CE (Diocletian epoch).
+      //   "am"             → year =  era_year + 283
+      //   "bbm" / "before-am" → year = -era_year + 284
+      if (era_year < 1) {
+        return TemporalError::Range("era_year must be ≥ 1");
+      }
+      if (eq("am") || eq("coptic")) {
+        return era_year + 283;
+      }
+      if (eq("bbm") || eq("before-am") || eq("coptic-inverse")) {
+        return 284 - era_year;
+      }
+      return TemporalError::Range(
+          "unknown era for coptic calendar (expected am/bbm)");
+    }
+
+    case CalendarKind::kEthiopian:
+    case CalendarKind::kEthiopianAmeteAlem: {
+      // Ethiopian Incarnation Era (Amete Mihret): year 1 = 8 CE.
+      // Ethiopian Amete Alem: year 1 = -5492 CE (continuous count from
+      // creation; year 5500 of Alem == year 8 CE Mihret).
+      // Spec era codes: "incarnation" / "before-incarnation" /
+      // "ethiopic" / "ethiopic-amete-alem".
+      if (era_year < 1) {
+        return TemporalError::Range("era_year must be ≥ 1");
+      }
+      if (kind == CalendarKind::kEthiopianAmeteAlem) {
+        if (eq("ethiopic-amete-alem") || eq("mundi")) {
+          return era_year - 5492;
+        }
+        return TemporalError::Range(
+            "unknown era for ethioaa calendar (expected ethiopic-amete-alem)");
+      }
+      if (eq("incarnation") || eq("ethiopic") || eq("mihret")) {
+        return era_year + 7;
+      }
+      if (eq("before-incarnation")) {
+        return 8 - era_year;
+      }
+      return TemporalError::Range(
+          "unknown era for ethiopic calendar (expected incarnation/before-incarnation)");
+    }
+
+    case CalendarKind::kPersian: {
+      // Solar Hijri (Persian / Iranian): year 1 AP = 622 CE.
+      //   "ap" → year = era_year + 621
+      if (era_year < 1) {
+        return TemporalError::Range("era_year must be ≥ 1");
+      }
+      if (eq("ap") || eq("persian")) {
+        return era_year + 621;
+      }
+      return TemporalError::Range(
+          "unknown era for persian calendar (expected ap)");
+    }
+
+    case CalendarKind::kJapanese: {
+      // Japanese eras — discrete table from Meiji onward. Each era's
+      // year 1 = the ISO year of the era start. Years preceding Meiji
+      // fall back to Gregorian eras (ce / bce).
+      //   reiwa  : 1 = 2019
+      //   heisei : 1 = 1989
+      //   showa  : 1 = 1926
+      //   taisho : 1 = 1912
+      //   meiji  : 1 = 1868
+      // (Era *start day* is checked at the IsoDate level by Era()
+      // above; this function only resolves the year.)
+      if (era_year < 1) {
+        return TemporalError::Range("era_year must be ≥ 1");
+      }
+      if (eq("reiwa")) return era_year + 2018;
+      if (eq("heisei")) return era_year + 1988;
+      if (eq("showa")) return era_year + 1925;
+      if (eq("taisho")) return era_year + 1911;
+      if (eq("meiji")) return era_year + 1867;
+      // Pre-Meiji uses Gregorian eras; reuse that table.
+      if (eq("ce") || eq("ad")) return era_year;
+      if (eq("bce") || eq("bc")) return 1 - era_year;
+      return TemporalError::Range(
+          "unknown era for japanese calendar (expected reiwa/heisei/showa/taisho/meiji/ce/bce)");
+    }
+
+    // Calendars without distinct eras — caller should not pass era.
+    case CalendarKind::kHebrew:
+    case CalendarKind::kChinese:
+    case CalendarKind::kDangi:
+    case CalendarKind::kIslamic:
+    case CalendarKind::kIslamicCivil:
+    case CalendarKind::kIslamicTbla:
+    case CalendarKind::kIslamicUmalqura:
+    case CalendarKind::kIslamicRgsa:
+    case CalendarKind::kIndian:
+      return TemporalError::Range(
+          "this calendar does not support era — pass year directly");
+  }
+  return TemporalError::Range("unknown calendar kind");
+}
 
 #ifdef TEMPORAL_INFRA_HAS_ICU
 
@@ -823,6 +1018,15 @@ TemporalResult<IsoDate> IcuCalendarBackend::IsoFromCalendarFields(
   return iso_estimate;
 }
 
+TemporalResult<int32_t> IcuCalendarBackend::EraYearToIsoYear(
+    CalendarKind kind, const Era& era, int32_t era_year) noexcept {
+  if (era.IsEmpty()) {
+    return TemporalError::Range(
+        "era must be non-empty when resolving (era, era_year) → year");
+  }
+  return ResolveEraYearToIsoYear(kind, era.View(), era_year);
+}
+
 TemporalResult<int32_t> IcuCalendarBackend::Year(
     CalendarKind kind, const IsoDate& iso) noexcept {
   if (kind == CalendarKind::kIso) {
@@ -945,6 +1149,19 @@ TemporalResult<IsoDate> IcuCalendarBackend::IsoFromCalendarFields(
   // and rejects non-ISO calendars with a clear error.
   return CalendarBackend::IsoFromCalendarFields(kind, year, ordinal_month, day,
                                                   overflow);
+}
+TemporalResult<int32_t> IcuCalendarBackend::EraYearToIsoYear(
+    CalendarKind kind, const Era& era, int32_t era_year) noexcept {
+  if (era.IsEmpty()) {
+    return TemporalError::Range(
+        "era must be non-empty when resolving (era, era_year) → year");
+  }
+  // The era → year math is pure arithmetic (Temporal "Calendar Era
+  // Codes" table), not an ICU call, so this branch runs even without
+  // ICU. The constraint is just that downstream non-ISO IsoDate
+  // construction still needs ICU; without it the caller hits the
+  // IsoFromCalendarFields fallback above.
+  return ResolveEraYearToIsoYear(kind, era.View(), era_year);
 }
 TemporalResult<int32_t> IcuCalendarBackend::Year(
     CalendarKind kind, const IsoDate& iso) noexcept {

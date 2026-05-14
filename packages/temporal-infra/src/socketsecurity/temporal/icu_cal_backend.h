@@ -72,6 +72,9 @@ class IcuCalendarBackend : public CalendarBackend {
   TemporalResult<IsoDate> IsoFromCalendarFields(
       CalendarKind kind, int32_t year, uint8_t ordinal_month,
       uint8_t day, Overflow overflow) noexcept override;
+  TemporalResult<int32_t> EraYearToIsoYear(
+      CalendarKind kind, const Era& era,
+      int32_t era_year) noexcept override;
   TemporalResult<int32_t> Year(CalendarKind kind,
                                   const IsoDate& iso) noexcept override;
   TemporalResult<uint8_t> Month(CalendarKind kind,

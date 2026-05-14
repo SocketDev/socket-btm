@@ -117,13 +117,26 @@ class PlainDate {
     if (overflow.has_value()) {
       infra_overflow = overflow->ToInfra();
     }
-    auto result = ::node::socketsecurity::temporal::PlainDateFromPartial(
-        partial.ToInfra(), infra_overflow);
+    // Calendar-aware path: pass era / era_year / month_code through to
+    // the infra layer alongside the bare ISO fields. The infra layer
+    // dispatches by calendar.kind — ISO short-circuits to the legacy
+    // ISO-only PlainDateFromPartial, non-ISO routes through the
+    // CalendarBackend for era → year and month_code → ordinal_month
+    // resolution before walking IsoFromCalendarFields.
+    const auto ext = partial.ToInfraExtensions();
+    auto result =
+        ::node::socketsecurity::temporal::PlainDateFromPartialWithCalendar(
+            partial.calendar.ToInfra(), partial.ToInfra(),
+            ext.era, ext.has_era, ext.era_year, ext.has_era_year,
+            ext.month_code, ext.has_month_code, infra_overflow);
     if (!result.ok()) {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(result.error()));
     }
     auto pd = result.value();
+    // PlainDateFromPartialWithCalendar already sets pd.calendar; this
+    // line is defensive for the (vanishingly rare) case where a
+    // future change to the infra entry drops the calendar slot.
     pd.calendar = partial.calendar.ToInfra();
     return diplomat::Ok<std::unique_ptr<PlainDate>>(
         std::unique_ptr<PlainDate>(new PlainDate(pd)));

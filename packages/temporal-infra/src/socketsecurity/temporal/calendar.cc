@@ -385,6 +385,22 @@ TemporalResult<uint8_t> CalendarBackend::Day(
   return iso.day;
 }
 
+TemporalResult<int32_t> CalendarBackend::EraYearToIsoYear(
+    CalendarKind kind, const Era& era, int32_t /* era_year */) noexcept {
+  if (era.IsEmpty()) {
+    return TemporalError::Range(
+        "era must be non-empty when resolving (era, era_year) → year");
+  }
+  // Base impl: only ISO is handled here, and ISO doesn't have eras.
+  // Non-ISO calendars route through the ICU backend's override.
+  if (kind == CalendarKind::kIso) {
+    return TemporalError::Range(
+        "ISO calendar does not support era — pass year directly");
+  }
+  return TemporalError::Range(
+      "Non-ISO (era, era_year) → year requires a registered backend");
+}
+
 TemporalResult<IsoDate> CalendarBackend::IsoFromCalendarFields(
     CalendarKind kind, int32_t year, uint8_t ordinal_month, uint8_t day,
     Overflow overflow) noexcept {

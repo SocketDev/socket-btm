@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <optional>
 
+#include "socketsecurity/temporal/calendar.h"
 #include "socketsecurity/temporal/error.h"
 #include "socketsecurity/temporal/options.h"
 #include "socketsecurity/temporal/temporal.h"
@@ -61,6 +62,28 @@ TemporalResult<PlainDate> PlainDateNewWithOverflow(int32_t year,
 // Mirror of upstream's `PlainDate::from_partial`.
 TemporalResult<PlainDate> PlainDateFromPartial(
     const PartialDate& partial,
+    std::optional<Overflow> overflow) noexcept;
+
+// Calendar-aware variant of PlainDateFromPartial. Accepts the
+// non-ISO calendar extension fields (era / era_year / month_code)
+// alongside the bare numeric fields, dispatches through the
+// CalendarBackend to resolve era → year (when era is set) and
+// month_code → ordinal_month (when month_code is set), then walks
+// the resulting (kind, year, ordinal_month, day) through
+// IsoFromCalendarFields. The returned PlainDate carries the
+// requested calendar on its `calendar` slot.
+//
+// For kIso: era / era_year / month_code must be empty; otherwise
+// returns Range error. Same shape as upstream's
+// `PlainDate::from_partial` when the partial carries non-empty
+// extension fields.
+//
+// MonthCode / Era / CalendarKind are defined in calendar.h, included
+// above.
+TemporalResult<PlainDate> PlainDateFromPartialWithCalendar(
+    CalendarKind calendar, const PartialDate& iso_partial,
+    const Era& era, bool has_era, int32_t era_year, bool has_era_year,
+    const MonthCode& month_code, bool has_month_code,
     std::optional<Overflow> overflow) noexcept;
 
 // Mirror of upstream's `PlainDate::from_utf8`.

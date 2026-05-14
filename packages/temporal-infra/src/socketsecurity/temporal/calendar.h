@@ -51,6 +51,50 @@ struct MonthCode {
   constexpr bool IsLeap() const noexcept { return bytes[3] == 'L'; }
 };
 
+// Mirror of upstream's `EraCode`. Short ASCII era identifier per the
+// Temporal spec's "Calendar Era Codes" table — lowercase, hyphen-
+// separated. Longest known era code is "before-incarnation" (18 bytes)
+// for Coptic/Ethiopian; 24 bytes gives a 25% headroom margin. Empty
+// (length == 0) means "no era specified" — calendars without distinct
+// eras (Chinese, Hebrew, Islamic family) return empty from Era().
+//
+// Layout choice: fixed-size POD (not std::string) so CalendarFields
+// stays trivially copyable and fits in a small handful of cache lines.
+// Comparison treats trailing zero bytes as padding.
+struct Era {
+  static constexpr size_t kMaxLen = 24;
+  uint8_t bytes[kMaxLen] = {};
+  uint8_t length = 0;
+
+  constexpr bool IsEmpty() const noexcept { return length == 0; }
+
+  // String view into the populated prefix. Lifetime is tied to the
+  // Era struct's storage.
+  std::string_view View() const noexcept {
+    return std::string_view(reinterpret_cast<const char*>(bytes), length);
+  }
+
+  // Populate from a sized byte range. Truncates silently at kMaxLen —
+  // any caller passing a longer era is wrong (no real era code
+  // approaches 24 bytes; the truncation just keeps memory safe).
+  static Era FromBytes(const uint8_t* data, size_t len) noexcept {
+    Era out;
+    if (len > kMaxLen) len = kMaxLen;
+    for (size_t i = 0; i < len; i += 1) out.bytes[i] = data[i];
+    out.length = static_cast<uint8_t>(len);
+    return out;
+  }
+
+  bool operator==(const Era& other) const noexcept {
+    if (length != other.length) return false;
+    for (size_t i = 0; i < length; i += 1) {
+      if (bytes[i] != other.bytes[i]) return false;
+    }
+    return true;
+  }
+  bool operator!=(const Era& other) const noexcept { return !(*this == other); }
+};
+
 // Mirror of upstream's `Calendar` struct.
 class Calendar {
  public:
@@ -103,8 +147,12 @@ struct CalendarFields {
   bool has_month_code = false;
   uint8_t day = 0;
   bool has_day = false;
-  // era/era_year are short ASCII strings — ported as uint8_t arrays
-  // when needed by callers; for now we keep flags only.
+  // era is the short ASCII era identifier per the Temporal spec's
+  // "Calendar Era Codes" table (lowercase, hyphen-separated). Stored
+  // as a fixed-size Era POD so CalendarFields stays trivially
+  // copyable. era_year is the year *within* the era — e.g.
+  // (era="reiwa", era_year=7) ↔ ISO 2025.
+  Era era{};
   bool has_era = false;
   int32_t era_year = 0;
   bool has_era_year = false;
@@ -123,6 +171,7 @@ struct YearMonthCalendarFields {
   bool has_month = false;
   MonthCode month_code{};
   bool has_month_code = false;
+  Era era{};
   bool has_era = false;
   int32_t era_year = 0;
   bool has_era_year = false;
@@ -234,6 +283,25 @@ class CalendarBackend {
   virtual TemporalResult<IsoDate> IsoFromCalendarFields(
       CalendarKind kind, int32_t year, uint8_t ordinal_month,
       uint8_t day, Overflow overflow) noexcept;
+
+  // Resolve (era, era_year) → the calendar's proleptic year. Inverse
+  // of Era() + EraYear(). The "proleptic year" here means the year
+  // suitable for passing back into IsoFromCalendarFields as `year`.
+  //
+  // Calendar-specific arithmetic (epochs lifted from
+  // js-temporal/temporal-polyfill/tree/rebase-part3/lib/calendar.ts
+  // and the Temporal spec):
+  //   - Gregorian / Buddhist / Coptic / Ethiopian / Persian / ROC /
+  //     Japanese: deterministic era → year mapping.
+  //   - Hebrew / Chinese / Dangi / Islamic family: no distinct eras;
+  //     era is conventionally empty. Calling with a non-empty era is
+  //     an error.
+  //   - ISO: no era; calling with a non-empty era is an error.
+  //
+  // Default impl handles ISO (errors on non-empty era). ICU backend
+  // implements the full table.
+  virtual TemporalResult<int32_t> EraYearToIsoYear(
+      CalendarKind kind, const Era& era, int32_t era_year) noexcept;
 
   // Read the calendar-native year / ordinal month / day-of-month for
   // the given ISO date. The inverse of IsoFromCalendarFields — used by

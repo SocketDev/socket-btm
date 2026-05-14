@@ -62,6 +62,91 @@ TemporalResult<PlainDate> PlainDateFromPartial(
                                    overflow.value_or(Overflow::kConstrain));
 }
 
+TemporalResult<PlainDate> PlainDateFromPartialWithCalendar(
+    CalendarKind calendar, const PartialDate& iso_partial,
+    const Era& era, bool has_era, int32_t era_year, bool has_era_year,
+    const MonthCode& month_code, bool has_month_code,
+    std::optional<Overflow> overflow) noexcept {
+  // ISO calendar: era / era_year / month_code must all be absent.
+  // Non-ISO inputs there are a spec-level type error.
+  if (calendar == CalendarKind::kIso) {
+    if (has_era || has_era_year || has_month_code) {
+      return TemporalError::Range(
+          "ISO calendar does not accept era / era_year / month_code "
+          "— pass year + month + day directly");
+    }
+    auto p = PlainDateFromPartial(iso_partial, overflow);
+    if (!p.ok()) return p.error();
+    PlainDate out = p.value();
+    out.calendar = calendar;
+    return out;
+  }
+
+  // Non-ISO: resolve era → year if needed, month_code → ordinal_month
+  // if needed, then walk IsoFromCalendarFields. day comes from
+  // iso_partial.day (the spec carries day through unchanged).
+  const Overflow ov = overflow.value_or(Overflow::kConstrain);
+
+  // Step 1: year. era + era_year resolves to a proleptic year via
+  // the backend. If `year` is also set, it must agree post-resolution.
+  int32_t year = 0;
+  if (has_era && has_era_year) {
+    auto y = GetCalendarBackend().EraYearToIsoYear(calendar, era, era_year);
+    if (!y.ok()) return y.error();
+    year = y.value();
+    if (iso_partial.year.has_value() && *iso_partial.year != year) {
+      return TemporalError::Range(
+          "year and (era, era_year) disagree on the same date");
+    }
+  } else if (has_era != has_era_year) {
+    return TemporalError::Range(
+        "era and era_year must be specified together");
+  } else if (iso_partial.year.has_value()) {
+    year = *iso_partial.year;
+  } else {
+    return TemporalError::Type(
+        "PartialDate requires year or (era, era_year)");
+  }
+
+  // Step 2: ordinal_month. month_code resolves via the backend
+  // (handles leap months per-calendar). If both `month` and
+  // `month_code` are given, they must agree after resolution.
+  uint8_t ordinal_month = 0;
+  if (has_month_code) {
+    auto m = GetCalendarBackend().ResolveMonthCode(calendar, year, month_code);
+    if (!m.ok()) return m.error();
+    ordinal_month = m.value();
+    if (iso_partial.month.has_value() &&
+        *iso_partial.month != ordinal_month) {
+      return TemporalError::Range(
+          "month and month_code disagree on the same date");
+    }
+  } else if (iso_partial.month.has_value()) {
+    ordinal_month = *iso_partial.month;
+  } else {
+    return TemporalError::Type(
+        "PartialDate requires month or month_code");
+  }
+
+  // Step 3: day.
+  if (!iso_partial.day.has_value()) {
+    return TemporalError::Type("PartialDate requires day");
+  }
+  const uint8_t day = *iso_partial.day;
+
+  // Step 4: walk through the backend's IsoFromCalendarFields to land
+  // on the IsoDate. The backend handles per-calendar arithmetic
+  // (Hebrew leap months, Coptic M13, etc.).
+  auto iso = GetCalendarBackend().IsoFromCalendarFields(
+      calendar, year, ordinal_month, day, ov);
+  if (!iso.ok()) return iso.error();
+
+  PlainDate out{};
+  out.iso = iso.value();
+  out.calendar = calendar;
+  return out;
+}
+
 TemporalResult<PlainDate> PlainDateFromUtf8(const uint8_t* data,
                                               size_t length) noexcept {
   std::string_view view(reinterpret_cast<const char*>(data), length);

@@ -71,7 +71,7 @@
            ],
          }],
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
-@@ -1055,14 +1079,252 @@
+@@ -1055,14 +1079,259 @@
            ],
            'dependencies': [
              'deps/ncrypto/ncrypto.gyp:ncrypto',
@@ -159,9 +159,16 @@
 +            'src/socketsecurity/temporal/relative_to.cc',
 +            'src/socketsecurity/temporal/duration_normalized.cc',
 +            'src/socketsecurity/temporal/primitive.cc',
++            # Socket Security: tui-infra ANSI emit primitives (Tier 1).
++            # Cold-path builders return std::string; hot-path writers
++            # fill caller-provided buffers without allocation. The
++            # node:smol-tui binding (separate task) consumes these via
++            # V8 FastApi.
++            'src/socketsecurity/tui/ansi.cc',
            ],
 +          'include_dirs': [
 +            'src',
++            'include',
 +            'deps/uSockets/src',
 +            'deps/uWebSockets/src',
 +          ],
@@ -325,7 +332,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1084,7 +1346,7 @@
+@@ -1084,7 +1353,7 @@
            ],
          }],
 -        [ 'node_use_quic=="true"', {
@@ -334,7 +341,7 @@
              '<@(node_quic_sources)',
            ],
          }],
-@@ -1406,7 +1668,7 @@
+@@ -1406,7 +1675,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -343,7 +350,7 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1447,6 +1709,17 @@
+@@ -1447,6 +1716,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -361,7 +368,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1521,6 +1793,17 @@
+@@ -1521,6 +1800,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -379,7 +386,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1744,6 +2026,17 @@
+@@ -1744,6 +2033,17 @@
              'Ws2_32.lib',
            ],
          }],

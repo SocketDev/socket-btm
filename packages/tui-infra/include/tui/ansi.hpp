@@ -85,9 +85,9 @@ std::string SetBgRgb(uint8_t r, uint8_t g, uint8_t b);
 // Called per-cell-change in the renderer flush loop. V8 FastApi
 // inlines these so the JS↔C++ boundary cost approaches zero.
 
-constexpr size_t kMaxCursorPositionLen = 12;  // ESC[65535;65535H
+constexpr size_t kMaxCursorPositionLen = 14;  // ESC[65535;65535H = 14 bytes
 constexpr size_t kMaxRgbSgrLen = 20;          // ESC[38;2;255;255;255m
-constexpr size_t kMaxAttrRunLen = 32;         // worst-case multi-attr SGR
+constexpr size_t kMaxAttrRunLen = 26;         // ESC[1;2;3;4;5;7;8;9m = 18; pad to 26
 
 size_t WriteCursorPosition(char* dst, uint16_t row, uint16_t col);
 size_t WriteFgRgb(char* dst, uint8_t r, uint8_t g, uint8_t b);

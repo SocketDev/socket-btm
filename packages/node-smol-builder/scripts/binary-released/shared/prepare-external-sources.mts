@@ -24,6 +24,7 @@ import {
   LSQUIC_INFRA_DIR,
   PACKAGE_ROOT,
   TEMPORAL_INFRA_DIR,
+  TUI_INFRA_DIR,
 } from '../../paths.mts'
 
 // Upstream liburing is in node-smol-builder/upstream/liburing (sibling to upstream/node).
@@ -96,6 +97,23 @@ export const MONOREPO_PACKAGE_SOURCES = [
   {
     from: path.join(TEMPORAL_INFRA_DIR, 'include', 'temporal_rs'),
     to: path.join(ADDITIONS_SOURCE_PATCHED_DIR, 'include', 'temporal_rs'),
+  },
+  // tui-infra: ANSI emit primitives + (Tier 2+) cell buffer / render
+  // loop port from socket-stuie's OpenTUI fork. The node:smol-tui
+  // binding glue lives in src/socketsecurity/tui/ and includes the
+  // public header from include/tui/ansi.hpp.
+  {
+    from: path.join(TUI_INFRA_DIR, 'src', 'socketsecurity', 'tui'),
+    to: path.join(
+      ADDITIONS_SOURCE_PATCHED_DIR,
+      'src',
+      'socketsecurity',
+      'tui',
+    ),
+  },
+  {
+    from: path.join(TUI_INFRA_DIR, 'include', 'tui'),
+    to: path.join(ADDITIONS_SOURCE_PATCHED_DIR, 'include', 'tui'),
   },
 ]
 

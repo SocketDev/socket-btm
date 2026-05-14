@@ -216,10 +216,10 @@ describe.skipIf(skipTests)('node:smol-ffi/bun integration', () => {
     `
     const { code, stdout } = await runOnSmolBinary(script)
     expect(code).toBe(0)
-    expect(stdout).toContain('isObject=true')
-    expect(stdout).toContain('hasPtr=true')
-    expect(stdout).toContain('hasClose=true')
     expect(stdout).toContain('closed=ok')
+    expect(stdout).toContain('hasClose=true')
+    expect(stdout).toContain('hasPtr=true')
+    expect(stdout).toContain('isObject=true')
   })
 
   it('CFunction rejects null pointer with FFIError code EBADPTR', async () => {
@@ -253,11 +253,11 @@ describe.skipIf(skipTests)('node:smol-ffi/bun integration', () => {
     `
     const { code, stdout } = await runOnSmolBinary(script)
     expect(code).toBe(0)
-    expect(stdout).toContain('isObject=true')
-    expect(stdout).toContain('hasSymbols=true')
-    expect(stdout).toContain('hasClose=true')
-    expect(stdout).toContain('symbolKeys=0')
     expect(stdout).toContain('closed=ok')
+    expect(stdout).toContain('hasClose=true')
+    expect(stdout).toContain('hasSymbols=true')
+    expect(stdout).toContain('isObject=true')
+    expect(stdout).toContain('symbolKeys=0')
   })
 
   it('suffix is the platform-correct shared-lib extension', async () => {

@@ -575,27 +575,35 @@ struct CalendarEpoch {
 // Verified against polyfill `lib/calendar.mjs` helper* definitions.
 constexpr CalendarEpoch CalendarEpochFor(CalendarKind kind) noexcept {
   switch (kind) {
-    // Coptic: am era, iso 284-08-29.
+    // Coptic / Ethiopian / EthiopianAmeteAlem: polyfill treats these
+    // as Gregorian-like for estimation (makeHelperOrthodox extends
+    // makeHelperGregorian — month numbering tracks Gregorian for
+    // M1..M12; M13 is the epagomenal extra). Use the Gregorian-style
+    // estimate (year + epoch.iso_year - 1, month, day) with the user-
+    // supplied month constrained to 1..12 for the seed; the iterative
+    // search then steps forward into M13 if needed.
     case CalendarKind::kCoptic:
-      return {284, 8, 29, false};
-    // Ethiopian: am era (modern), iso 8-08-27.
+      return {284, 8, 29, true};
     case CalendarKind::kEthiopian:
-      return {8, 8, 27, false};
-    // Ethiopian Amete Alem: aa era, iso -5492-07-17.
+      return {8, 8, 27, true};
     case CalendarKind::kEthiopianAmeteAlem:
-      return {-5492, 7, 17, false};
-    // Hebrew: am era, iso -3760-09-08. Months don't track ISO.
+      return {-5492, 7, 17, true};
+    // Hebrew: am era, iso -3760-09-08. Months don't track ISO at all
+    // (Hebrew M01 = Tishri ≈ September). Lunisolar — use epoch month/
+    // day for the estimate; the search finds the actual month.
     case CalendarKind::kHebrew:
       return {-3760, 9, 8, false};
     // Islamic / Hijri (tabular + Umm al-Qura): ah era, iso 622-07-15.
+    // Lunar — months drift through the seasons. Use epoch month/day.
     case CalendarKind::kHijriTabularFriday:
     case CalendarKind::kHijriTabularThursday:
     case CalendarKind::kHijriUmmAlQura:
       return {622, 7, 15, false};
-    // Persian: ap era, iso 622-03-22.
+    // Persian: ap era, iso 622-03-22. Solar but offset months — use
+    // epoch month/day for the estimate.
     case CalendarKind::kPersian:
       return {622, 3, 22, false};
-    // Indian: shaka era, iso 79-03-23.
+    // Indian (Shaka): solar but offset months.
     case CalendarKind::kIndian:
       return {79, 3, 23, false};
     // ROC: roc era, iso 1912-01-01. Same month/day as Gregorian.
@@ -697,17 +705,31 @@ TemporalResult<IsoDate> IcuCalendarBackend::IsoFromCalendarFields(
   }
 
   // Step 1: rough ISO estimate.
+  //
+  // Mirror the polyfill's `estimateIsoDate` (lib/calendar.mjs:1818)
+  // which lands on `(year + epoch.year - 1, month, day)` then runs
+  // ES.RegulateISODate(_, _, _, 'constrain') to fold any out-of-range
+  // month/day into legal ISO values. For Coptic M13 specifically, the
+  // estimate lands on ISO month 12 (RegulateISODate clamps 13 → 12),
+  // and the iterative search steps forward into the Coptic-M13 range.
+  //
+  // For lunisolar calendars (Hebrew, Chinese, Dangi) where months
+  // don't track ISO at all, the year-only estimate (epoch month/day)
+  // is closer; the search still finds the right month.
   const CalendarEpoch epoch = CalendarEpochFor(kind);
   IsoDate iso_estimate;
   if (epoch.same_month_as_gregorian) {
-    iso_estimate = ClampIsoDate(
-        year + epoch.iso_year - 1,
-        static_cast<int32_t>(ordinal_month),
-        static_cast<int32_t>(day));
+    // Constrain ordinal_month to 1..12 + day to 1..28 for the estimate
+    // so RegulateISODate-like normalization happens before the search.
+    const int32_t est_month = ordinal_month > 12 ? 12 : ordinal_month;
+    const int32_t est_day = day > 28 ? 28 : day;
+    iso_estimate = ClampIsoDate(year + epoch.iso_year - 1, est_month,
+                                  est_day);
   } else {
-    // Lunisolar / non-gregorian-monthing: estimate by epoch + years
-    // (year-1 because year 1 corresponds to the epoch); land on epoch
-    // month/day. The iterative search refines from here.
+    // Lunisolar / non-Gregorian month numbering: use the epoch's ISO
+    // month/day rather than the user's calendar month/day. The
+    // iterative search starts at a known-valid ISO date and walks to
+    // the requested calendar (year, month, day).
     iso_estimate = ClampIsoDate(year + epoch.iso_year - 1,
                                   epoch.iso_month, epoch.iso_day);
   }

@@ -52,12 +52,21 @@ export async function finalizeBinary(options) {
     ? outputCompressedBinary
     : outputStrippedBinary
 
+  // shouldRun signature is (buildDir, packageName, checkpointName,
+  // force, sourcePaths, options) — packageName omitted here (matches
+  // the createCheckpoint() call below which also omits it, so they
+  // agree on the checkpoint path <buildDir>/checkpoints/FINALIZED.json).
+  // Source-path validation feeds the final binary so checkpoint
+  // invalidates when the stripped/compressed input changes; options
+  // tags the cache key with platform/arch/libc/nodeVersion so cross-
+  // compile builds don't restore a host-tagged binary.
   if (
     !(await shouldRun(
       buildDir,
-      sourceBinary,
+      undefined,
       CHECKPOINTS.FINALIZED,
       forceRebuild,
+      [sourceBinary],
       {
         arch,
         libc,

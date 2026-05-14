@@ -2,19 +2,27 @@
 /**
  * @fileoverview Test262 Temporal subset runner.
  *
- * Walks `packages/temporal-infra/upstream/test262/test/built-ins/Temporal/`
- * + `test/intl402/Temporal/`, executes each test against the built
- * node-smol binary, tallies pass/fail/skip.
+ * Drives `packages/temporal-infra/upstream/test262/test/built-ins/Temporal/`
+ * + `test/intl402/Temporal/` through the built node-smol binary,
+ * classifies each result against an allowlist of known-failures, and
+ * exits non-zero on regression OR stale allowlist entry.
  *
- * Why hand-rolled vs `test262-stream`: zero new deps. The Temporal
- * subset is ~700 tests — a synchronous walk is fine.
+ * Shape mirrors ultrathink's `test262-parser-runner/report.mts` —
+ * same vocabulary (`success/failure/falsePositive/falseNegative`),
+ * same `allowed/disallowed` buckets, same allowlist semantics. This
+ * runner additionally handles execution (vs ultrathink's parser-only
+ * model): harness composition, strict/sloppy/raw scenarios, throw vs
+ * pass diff, negative-frontmatter phase matching.
+ *
+ * Frontmatter is parsed inline (no test262-stream dep): Temporal
+ * tests don't use `$INCLUDE(...)` so a minimal YAML-subset parser
+ * covers the surface we need.
  *
  * Usage:
- *   pnpm exec node packages/temporal-infra/scripts/test262.mts
- *   pnpm exec node packages/temporal-infra/scripts/test262.mts --include 'PlainDate.prototype.with'
- *   pnpm exec node packages/temporal-infra/scripts/test262.mts --no-intl
- *   pnpm exec node packages/temporal-infra/scripts/test262.mts --limit 100
- *   pnpm exec node packages/temporal-infra/scripts/test262.mts --json /tmp/results.json
+ *   pnpm --filter temporal-infra run test262:temporal
+ *   pnpm --filter temporal-infra run test262:temporal:no-intl
+ *   node scripts/test262.mts --include 'PlainDate.prototype.with'
+ *   node scripts/test262.mts --limit 100 --json /tmp/results.json
  */
 
 import { spawnSync } from 'node:child_process'
@@ -26,6 +34,7 @@ import { errorMessage } from '@socketsecurity/lib/errors'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 import {
+  PACKAGE_ROOT,
   TEST262_HARNESS_DIR,
   TEST262_ROOT,
   TEST262_TEMPORAL_BUILTINS_DIR,
@@ -35,6 +44,15 @@ import {
 
 const logger = getDefaultLogger()
 
+// Allowlist file lives alongside the runner config.
+const ALLOWLIST_PATH = path.join(
+  PACKAGE_ROOT,
+  'test262-config',
+  'test262.allowlist',
+)
+
+// ── CLI ────────────────────────────────────────────────────────────
+
 type ParsedArgs = {
   include?: string
   noIntl: boolean
@@ -42,6 +60,7 @@ type ParsedArgs = {
   json?: string
   binary?: string
   verbose: boolean
+  allowlist?: string
 }
 
 function parseArgs(argv: readonly string[]): ParsedArgs {
@@ -58,6 +77,8 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
       opts.json = argv[++i]
     } else if (arg === '--binary' && i + 1 < argv.length) {
       opts.binary = argv[++i]
+    } else if (arg === '--allowlist' && i + 1 < argv.length) {
+      opts.allowlist = argv[++i]
     } else if (arg === '--verbose' || arg === '-v') {
       opts.verbose = true
     } else if (arg === '--help' || arg === '-h') {
@@ -81,19 +102,20 @@ Options:
   --limit <n>           Run at most N tests (after filtering)
   --json <path>         Write a JSON report to <path>
   --binary <path>       Path to the Node.js binary (default: built node-smol)
-  --verbose, -v         Print per-test failures inline
+  --allowlist <path>    Path to a known-failures allowlist file
+                        (default: test262-config/test262.allowlist)
+  --verbose, -v         Print per-test classification inline
   --help, -h            Show this message
 `)
 }
 
+// ── Types ──────────────────────────────────────────────────────────
+
 interface TestCase {
-  /** Absolute path to the .js test file. */
   filePath: string
-  /** Path relative to the test262 root (matches upstream reporting). */
-  relPath: string
-  /** Raw test source. */
+  /** Path relative to <test262>/ — matches the allowlist key shape. */
+  file: string
   source: string
-  /** Parsed YAML-frontmatter attributes. */
   attrs: TestAttrs
 }
 
@@ -103,7 +125,7 @@ interface TestAttrs {
   features?: string[]
   flags?: string[]
   includes?: string[]
-  /** Test expects to throw at the given phase with the given error type. */
+  /** Test expects to throw at <phase> with <type>. */
   negative?: { phase: string; type: string }
   raw?: boolean
   module?: boolean
@@ -112,28 +134,48 @@ interface TestAttrs {
   onlyStrict?: boolean
 }
 
-interface TestResult {
-  relPath: string
+interface Test {
+  file: string
   scenario: 'strict' | 'sloppy' | 'raw'
-  status: 'pass' | 'fail' | 'skip' | 'error'
+  /** Test expects to throw (parser/exec error). */
+  expectedError: boolean
+  /** Test actually threw. */
+  actualError: boolean
+  /** Captured stderr/stdout when failing — for verbose / JSON. */
   detail?: string
 }
 
-interface RunSummary {
+interface SkippedResult {
+  skip: true
+  file: string
+  reason: string
+}
+
+type Result = Test | SkippedResult
+
+interface ResultBuckets {
+  success: Test[]
+  failure: Test[]
+  falsePositive: Test[]
+  falseNegative: Test[]
+}
+
+interface Summary {
+  passed: boolean
+  allowed: ResultBuckets
+  disallowed: ResultBuckets
+  unrecognized: string[]
+  skipped: SkippedResult[]
   total: number
-  pass: number
-  fail: number
-  skip: number
-  error: number
   durationMs: number
-  failures: TestResult[]
-  errors: TestResult[]
 }
 
 // ── Frontmatter parser ─────────────────────────────────────────────
 
-// Test262 metadata: /*--- ... ---*/ YAML block. We parse the keys we
-// care about by hand — full YAML is overkill.
+// Test262 metadata: /*--- ... ---*/ YAML block. Hand-rolled
+// minimal parser — Temporal subset has no $INCLUDE expansion and a
+// stable frontmatter shape (description/esid/features/flags/includes/
+// negative). Full YAML is overkill.
 function parseFrontmatter(source: string): TestAttrs {
   const match = source.match(/\/\*---([\s\S]*?)---\*\//)
   if (!match) {
@@ -164,7 +206,6 @@ function parseFrontmatter(source: string): TestAttrs {
     attrs.onlyStrict = flags.includes('onlyStrict')
   }
 
-  // negative block: nested keys.
   const negMatch = yaml.match(/^negative:\s*\n((?:[ \t]+[^\n]+\n?)+)/m)
   if (negMatch) {
     const negBlock = negMatch[1]
@@ -207,8 +248,6 @@ function parseList(yaml: string, key: string): string[] | undefined {
 
 const harnessCache = new Map<string, string>()
 
-// Load a harness file. Accepts either bare name (`assert`) or full
-// filename (`assert.js`); normalizes to the basename .js form.
 function loadHarness(name: string): string {
   const filename = name.endsWith('.js') ? name : `${name}.js`
   const cached = harnessCache.get(filename)
@@ -225,9 +264,12 @@ function loadHarness(name: string): string {
 // https://github.com/tc39/test262/blob/main/INTERPRETING.md
 const DEFAULT_INCLUDES = ['assert.js', 'sta.js']
 
-function composeScript(test: TestCase, mode: 'strict' | 'sloppy'): string {
+function composeScript(
+  test: TestCase,
+  scenario: 'strict' | 'sloppy',
+): string {
   const parts: string[] = []
-  if (mode === 'strict') {
+  if (scenario === 'strict') {
     parts.push("'use strict';")
   }
   if (!test.attrs.raw) {
@@ -263,7 +305,20 @@ function* walkTests(rootDir: string): Generator<string> {
   }
 }
 
-// ── Test execution ─────────────────────────────────────────────────
+// ── Allowlist ──────────────────────────────────────────────────────
+
+function loadAllowlist(filePath: string): string[] {
+  if (!fs.existsSync(filePath)) {
+    return []
+  }
+  return fs
+    .readFileSync(filePath, 'utf8')
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0 && !line.startsWith('#'))
+}
+
+// ── Execution ──────────────────────────────────────────────────────
 
 function resolveBinary(override?: string): string {
   if (override) {
@@ -285,13 +340,13 @@ function resolveBinary(override?: string): string {
 
 function runOneTest(
   test: TestCase,
-  mode: 'strict' | 'sloppy' | 'raw',
+  scenario: 'strict' | 'sloppy' | 'raw',
   binary: string,
-): TestResult {
+): Test {
   const script =
-    mode === 'raw'
+    scenario === 'raw'
       ? test.source
-      : composeScript(test, mode as 'strict' | 'sloppy')
+      : composeScript(test, scenario as 'strict' | 'sloppy')
   const result = spawnSync(binary, ['-e', script], {
     encoding: 'utf8',
     timeout: 10_000,
@@ -299,61 +354,171 @@ function runOneTest(
   })
   const stderr = result.stderr ?? ''
   const stdout = result.stdout ?? ''
-  const threw = result.status !== 0 || stderr.includes('Error')
+  // Non-zero exit OR Test262Error in stdout (sta.js's throwing
+  // assertion writes the error to stdout via Test262Error.toString).
+  const actualError =
+    result.status !== 0 ||
+    stderr.length > 0 ||
+    stdout.includes('Test262Error')
 
-  if (test.attrs.negative) {
-    const expectedType = test.attrs.negative.type
-    if (!threw) {
-      return {
-        relPath: test.relPath,
-        scenario: mode,
-        status: 'fail',
-        detail: `expected throw of ${expectedType}, got success`,
-      }
-    }
-    // Match against stderr — V8 prints `${TypeName}: ${message}`.
-    if (!stderr.includes(expectedType)) {
-      return {
-        relPath: test.relPath,
-        scenario: mode,
-        status: 'fail',
-        detail: `expected ${expectedType}, stderr=${stderr.slice(0, 200)}`,
-      }
-    }
-    return { relPath: test.relPath, scenario: mode, status: 'pass' }
+  const expectedError = test.attrs.negative !== undefined
+
+  // Build detail only when we'd want to inspect — saves memory on
+  // long runs. Allowlist matching doesn't read .detail.
+  let detail: string | undefined
+  if (expectedError !== actualError) {
+    detail = (stderr || stdout).slice(0, 400)
   }
 
-  if (threw) {
-    return {
-      relPath: test.relPath,
-      scenario: mode,
-      status: 'fail',
-      detail: stderr.slice(0, 400) || stdout.slice(0, 200),
-    }
+  return {
+    file: test.file,
+    scenario,
+    expectedError,
+    actualError,
+    detail,
   }
-  // Test262 assertion failures throw `Test262Error: <msg>`; the script
-  // exits 0 (sta.js prints to stdout). Sniff stdout.
-  if (stdout.includes('Test262Error')) {
-    return {
-      relPath: test.relPath,
-      scenario: mode,
-      status: 'fail',
-      detail: stdout.slice(0, 400),
-    }
-  }
-  return { relPath: test.relPath, scenario: mode, status: 'pass' }
 }
 
 function shouldSkip(test: TestCase): string | undefined {
-  // Async tests need doneprintHandle.js + completion plumbing — TODO.
   if (test.attrs.async) {
     return 'async (not yet supported)'
   }
-  // Module tests need a tempfile + --input-type=module — TODO.
   if (test.attrs.module) {
     return 'module (not yet supported via -e)'
   }
   return undefined
+}
+
+// ── Interpret + Report (1:1 with ultrathink's report.mts) ─────────
+
+function emptyBuckets(): ResultBuckets {
+  return {
+    success: [],
+    failure: [],
+    falsePositive: [],
+    falseNegative: [],
+  }
+}
+
+function interpret(
+  results: Result[],
+  allowlist: readonly string[],
+  durationMs: number,
+): Summary {
+  const remaining = new Set<string>(allowlist)
+  const summary: Summary = {
+    passed: true,
+    allowed: emptyBuckets(),
+    disallowed: emptyBuckets(),
+    unrecognized: [],
+    skipped: [],
+    total: results.length,
+    durationMs,
+  }
+
+  for (let i = 0, { length } = results; i < length; i += 1) {
+    const result = results[i]!
+    if ('skip' in result) {
+      summary.skipped.push(result)
+      continue
+    }
+    const test = result
+    const desc = `${test.file} (${test.scenario})`
+    const inAllowlist = remaining.has(desc)
+    remaining.delete(desc)
+
+    let classification: keyof ResultBuckets
+    let isAllowed: boolean
+    if (!test.expectedError) {
+      if (!test.actualError) {
+        classification = 'success'
+        isAllowed = !inAllowlist
+      } else {
+        classification = 'falseNegative'
+        isAllowed = inAllowlist
+      }
+    } else {
+      if (!test.actualError) {
+        classification = 'falsePositive'
+        isAllowed = inAllowlist
+      } else {
+        classification = 'failure'
+        isAllowed = !inAllowlist
+      }
+    }
+
+    summary[isAllowed ? 'allowed' : 'disallowed'][classification].push(test)
+    if (!isAllowed) {
+      summary.passed = false
+    }
+  }
+
+  summary.unrecognized = [...remaining]
+  if (summary.unrecognized.length > 0) {
+    summary.passed = false
+  }
+  return summary
+}
+
+function report(summary: Summary): void {
+  const goodNews = [
+    `${summary.allowed.success.length} tests passed (no error expected, none thrown)`,
+    `${summary.allowed.failure.length} tests passed (error expected, expected error thrown)`,
+    `${summary.allowed.falsePositive.length} tests classified as falsePositive but allowlisted`,
+    `${summary.allowed.falseNegative.length} tests classified as falseNegative but allowlisted`,
+    `${summary.skipped.length} tests skipped`,
+  ]
+
+  const badSections: Array<{ tests: Test[] | string[]; label: string }> = [
+    {
+      tests: summary.disallowed.success,
+      label:
+        'tests passed despite being in the allowlist (remove the entry)',
+    },
+    {
+      tests: summary.disallowed.failure,
+      label:
+        'tests threw expected error despite being in the allowlist (remove the entry)',
+    },
+    {
+      tests: summary.disallowed.falsePositive,
+      label:
+        'tests expected to throw, did not (regression — add to allowlist or fix)',
+    },
+    {
+      tests: summary.disallowed.falseNegative,
+      label:
+        'tests threw unexpectedly (regression — add to allowlist or fix)',
+    },
+    {
+      tests: summary.unrecognized,
+      label:
+        'allowlist entries did not match any test (stale — remove)',
+    },
+  ]
+
+  logger.log('')
+  logger.log('═══════════════════════════════════════════════════════')
+  logger.log(`Test262 Temporal subset summary (${(summary.durationMs / 1000).toFixed(1)}s)`)
+  logger.log('═══════════════════════════════════════════════════════')
+  for (let i = 0; i < goodNews.length; i++) {
+    logger.success(goodNews[i]!)
+  }
+
+  if (!summary.passed) {
+    logger.log('')
+    logger.log('Disallowed results:')
+    for (const section of badSections) {
+      if (section.tests.length === 0) {
+        continue
+      }
+      logger.warn(` ✘ ${section.tests.length} ${section.label}`)
+      for (const t of section.tests) {
+        const line = typeof t === 'string' ? t : `${t.file} (${t.scenario})`
+        logger.log(`   ${line}`)
+      }
+    }
+  }
 }
 
 // ── Main ───────────────────────────────────────────────────────────
@@ -368,9 +533,13 @@ function main(): void {
     process.exit(1)
   }
 
-  logger.log(`Test262 Temporal Subset Runner`)
-  logger.log(`Binary: ${binary}`)
-  logger.log(`Corpus: ${TEST262_ROOT}`)
+  const allowlist = loadAllowlist(args.allowlist ?? ALLOWLIST_PATH)
+
+  logger.log('Test262 Temporal Subset Runner')
+  logger.log(`Binary:    ${binary}`)
+  logger.log(`Corpus:    ${TEST262_ROOT}`)
+  logger.log(`Allowlist: ${allowlist.length} entries`)
+  logger.log('')
 
   const includeRe = args.include ? new RegExp(args.include, 'i') : undefined
   const startTime = Date.now()
@@ -382,8 +551,8 @@ function main(): void {
   const candidates: string[] = []
   for (const dir of dirs) {
     for (const filePath of walkTests(dir)) {
-      const relPath = path.relative(TEST262_ROOT, filePath)
-      if (includeRe && !includeRe.test(relPath)) {
+      const file = path.relative(TEST262_ROOT, filePath)
+      if (includeRe && !includeRe.test(file)) {
         continue
       }
       candidates.push(filePath)
@@ -396,30 +565,18 @@ function main(): void {
     }
   }
   logger.log(`Tests to run: ${candidates.length}`)
-  logger.log('')
 
-  const summary: RunSummary = {
-    total: 0,
-    pass: 0,
-    fail: 0,
-    skip: 0,
-    error: 0,
-    durationMs: 0,
-    failures: [],
-    errors: [],
-  }
-
+  const results: Result[] = []
   for (let i = 0, { length } = candidates; i < length; i += 1) {
     const filePath = candidates[i]
-    const relPath = path.relative(TEST262_ROOT, filePath)
+    const file = path.relative(TEST262_ROOT, filePath)
     const source = fs.readFileSync(filePath, 'utf8')
     const attrs = parseFrontmatter(source)
-    const test: TestCase = { filePath, relPath, source, attrs }
+    const test: TestCase = { filePath, file, source, attrs }
 
     const skipReason = shouldSkip(test)
     if (skipReason) {
-      summary.skip += 1
-      summary.total += 1
+      results.push({ skip: true, file, reason: skipReason })
       continue
     }
 
@@ -435,54 +592,30 @@ function main(): void {
     }
 
     for (const scenario of scenarios) {
-      summary.total += 1
-      try {
-        const result = runOneTest(test, scenario, binary)
-        if (result.status === 'pass') {
-          summary.pass += 1
-        } else if (result.status === 'fail') {
-          summary.fail += 1
-          summary.failures.push(result)
-          if (args.verbose) {
-            logger.warn(`FAIL [${scenario}] ${relPath}: ${result.detail}`)
-          }
-        }
-      } catch (e) {
-        summary.error += 1
-        summary.errors.push({
-          relPath,
-          scenario,
-          status: 'error',
-          detail: errorMessage(e),
-        })
+      const result = runOneTest(test, scenario, binary)
+      results.push(result)
+      if (args.verbose && result.expectedError !== result.actualError) {
+        logger.warn(
+          `  [${scenario}] ${file}: ${result.detail?.slice(0, 200)}`,
+        )
       }
     }
 
     if (i > 0 && i % 50 === 0) {
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
-      logger.info(
-        `Progress: ${i}/${length} (${summary.pass} pass, ${summary.fail} fail, ${summary.skip} skip, ${elapsed}s)`,
-      )
+      logger.info(`Progress: ${i}/${length} (${elapsed}s)`)
     }
   }
-  summary.durationMs = Date.now() - startTime
 
-  logger.log('')
-  logger.log('═══════════════════════════════════════════════════════')
-  logger.log(`Total:    ${summary.total}`)
-  logger.log(`Pass:     ${summary.pass}`)
-  logger.log(`Fail:     ${summary.fail}`)
-  logger.log(`Skip:     ${summary.skip}`)
-  logger.log(`Error:    ${summary.error}`)
-  logger.log(`Duration: ${(summary.durationMs / 1000).toFixed(1)}s`)
-  logger.log('═══════════════════════════════════════════════════════')
+  const summary = interpret(results, allowlist, Date.now() - startTime)
+  report(summary)
 
   if (args.json) {
     fs.writeFileSync(args.json, JSON.stringify(summary, null, 2))
     logger.log(`JSON report: ${args.json}`)
   }
 
-  process.exit(summary.fail > 0 || summary.error > 0 ? 1 : 0)
+  process.exit(summary.passed ? 0 : 1)
 }
 
 main()

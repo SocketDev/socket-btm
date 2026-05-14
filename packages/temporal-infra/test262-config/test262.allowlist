@@ -1,0 +1,31 @@
+# Test262 Temporal subset — known-failure allowlist
+#
+# Format: one `<file> (<scenario>)` per line. Blank lines and `# …`
+# comments are ignored.
+#
+# A test listed here is expected to fail; if it starts passing, the
+# runner reports it as `unrecognized` and fails the run (drift signal
+# — fix the entry, then remove from the list).
+#
+# A test NOT listed here that fails the run will be reported as a
+# regression and fail the build.
+#
+# Scenarios:
+#   strict  — test composed with 'use strict' prologue
+#   sloppy  — test composed without strict prologue
+#   raw     — test has flags:[raw], harness omitted
+#
+# Match shape mirrors ultrathink's test262.allowlist (see
+# packages/acorn/test262-config/) — keep it portable across runners.
+
+# ── Duration ────────────────────────────────────────────────────────
+# Negative-zero microseconds field: spec expects -0, got 0.
+# Filed: socket-btm task to thread negative-zero through Duration.
+test/built-ins/Temporal/Duration/basic.js (strict)
+test/built-ins/Temporal/Duration/basic.js (sloppy)
+
+# Duration.compare with maximum-magnitude argument trips an internal
+# range check before the comparison fires. Likely an int128 overflow
+# in compare()'s normalization.
+test/built-ins/Temporal/Duration/compare/argument-duration-max.js (strict)
+test/built-ins/Temporal/Duration/compare/argument-duration-max.js (sloppy)

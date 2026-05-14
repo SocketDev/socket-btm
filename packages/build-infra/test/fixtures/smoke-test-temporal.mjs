@@ -527,6 +527,44 @@ if (typeof Temporal !== 'object' || Temporal === null) {
   }
 }
 
+{
+  // PlainDateTime.withPlainTime: ISO merge — date+calendar stay, time
+  // replaced. Argument shapes: missing/undefined → midnight; PlainTime
+  // → its iso time fields.
+  const dt = Temporal.PlainDateTime.from('2026-05-08T15:30:45.123456789')
+  const noon = Temporal.PlainTime.from('12:00:00')
+  const replaced = tryCheck('PlainDateTime.withPlainTime(PlainTime) (call)',
+    () => dt.withPlainTime(noon),
+  )
+  if (replaced !== undefined) {
+    check(
+      'withPlainTime keeps date',
+      replaced.year === 2026 && replaced.month === 5 && replaced.day === 8,
+      `got ${replaced.toString()}`,
+    )
+    check(
+      'withPlainTime replaces time',
+      replaced.hour === 12 && replaced.minute === 0 && replaced.second === 0
+        && replaced.millisecond === 0 && replaced.microsecond === 0
+        && replaced.nanosecond === 0,
+      `got h=${replaced.hour} m=${replaced.minute} s=${replaced.second}.` +
+        `${replaced.millisecond}.${replaced.microsecond}.${replaced.nanosecond}`,
+    )
+  }
+  const midnighted = tryCheck('PlainDateTime.withPlainTime() (call)',
+    () => dt.withPlainTime(),
+  )
+  if (midnighted !== undefined) {
+    check(
+      'withPlainTime() defaults to midnight',
+      midnighted.hour === 0 && midnighted.minute === 0
+        && midnighted.second === 0 && midnighted.millisecond === 0
+        && midnighted.microsecond === 0 && midnighted.nanosecond === 0,
+      `got ${midnighted.toString()}`,
+    )
+  }
+}
+
 // ── IANA TimeZone resolution (IcuTimeZoneBackend) ────────────────────
 //
 // Exercises the ICU-backed TimeZoneBackend installed by V8 at boot.

@@ -390,6 +390,33 @@ class PlainDateTime {
     return std::unique_ptr<PlainDateTime>(new PlainDateTime(inner_));
   }
 
+  // 1:1 from js-temporal/temporal-polyfill rebase-part3
+  // /lib/plaindatetime.ts ~withPlainTime (PlainDateTime.prototype
+  // .withPlainTime → ES.ToTimeRecordOrMidnight + ES.
+  // CombineISODateAndTimeRecord). The binding layer pre-coerces the
+  // JS-side argument to PlainTime*; nullptr means "use midnight"
+  // (matches ES.ToTimeRecordOrMidnight(undefined) → 00:00:00.000.000.000).
+  // Date fields + calendar are inherited from this; only the time
+  // fields change. Range-check via IsValid() guards the result against
+  // a malformed PlainTime smuggled in via FromInfra (e.g. a future
+  // leap-second-flag bit).
+  diplomat::result<std::unique_ptr<PlainDateTime>, TemporalError>
+  with_plain_time(const PlainTime* time) const {
+    ::node::socketsecurity::temporal::PlainDateTime out{};
+    out.iso.date = inner_.iso.date;
+    out.calendar = inner_.calendar;
+    if (time != nullptr) {
+      out.iso.time = time->ToInfra().iso;
+    }
+    if (!out.IsValid()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "PlainDateTime out of range after withPlainTime"});
+    }
+    return diplomat::Ok<std::unique_ptr<PlainDateTime>>(
+        PlainDateTime::FromInfra(out));
+  }
+
   // 1:1 from upstream plain_date_time.rs `to_zoned_date_time`.
   // Resolves the wall-clock IsoDateTime to epoch-ns via
   // TimeZone::GetEpochNanosecondsFor, then constructs a

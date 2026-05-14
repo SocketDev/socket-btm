@@ -49,7 +49,7 @@
 // `SSL_set_quic_tls_cbs` rationale. lsquic auto-detects via cmake
 // flag `LSQUIC_LIBSSL=OPENSSL`.
 
-#include "lsquic.h"
+#include "quic_internal.h"
 
 #include "node.h"
 #include "node_binding.h"
@@ -58,11 +58,7 @@
 #include "uv.h"
 #include "v8.h"
 
-#include <atomic>
 #include <cstring>
-#include <memory>
-#include <mutex>
-#include <unordered_map>
 
 namespace node {
 namespace socketsecurity {
@@ -70,14 +66,57 @@ namespace quic {
 
 using v8::Boolean;
 using v8::Context;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Object;
 using v8::String;
 using v8::Value;
+
+EngineRegistry& Engines() {
+  static EngineRegistry r;
+  return r;
+}
+
+ConnRegistry& Conns() {
+  static ConnRegistry r;
+  return r;
+}
+
+uint32_t RegisterConn(lsquic_conn_t* conn, uint32_t engine_id) {
+  ConnRegistry& r = Conns();
+  std::lock_guard<std::mutex> lock(r.mu);
+  uint32_t id = r.next_id++;
+  auto slot = std::make_unique<ConnSlot>();
+  slot->conn = conn;
+  slot->engine_id = engine_id;
+  r.conns.emplace(id, std::move(slot));
+  return id;
+}
+
+lsquic_conn_t* LookupConn(uint32_t id) {
+  ConnRegistry& r = Conns();
+  std::lock_guard<std::mutex> lock(r.mu);
+  auto it = r.conns.find(id);
+  return it == r.conns.end() ? nullptr : it->second->conn;
+}
+
+bool UnregisterConn(uint32_t id) {
+  ConnRegistry& r = Conns();
+  std::lock_guard<std::mutex> lock(r.mu);
+  return r.conns.erase(id) > 0;
+}
+
+EngineSlot* LookupEngineSlot(uint32_t engine_id) {
+  EngineRegistry& r = Engines();
+  std::lock_guard<std::mutex> lock(r.mu);
+  auto it = r.engines.find(engine_id);
+  return it == r.engines.end() ? nullptr : it->second.get();
+}
 
 namespace {
 
@@ -95,72 +134,39 @@ Local<String> NewOneByteString(Isolate* isolate, const char* literal) {
 // layer's idempotent `globalInit()` doesn't re-enter the C library.
 std::atomic<bool> g_lsquic_inited{false};
 
-// Engine handle registry. Process-wide map keyed by uint32 handle.
-// Mutex-guarded so cross-worker access is safe even though typical
-// QUIC use is single-threaded per engine. JS owns the lifecycle:
-// createEngine() returns a handle, destroyEngine(handle) releases it.
-//
-// Engines hold a packets_out callback that fires synchronously inside
-// engineProcessConns / engineConnect. The JS layer registers the
-// callback at createEngine time; we trampoline through a static
-// dispatcher that reads the per-engine V8 Persistent from the
-// registry slot.
-struct EngineSlot {
-  lsquic_engine_t* engine;
-  // Per-engine state for callbacks lands here in step 5 when
-  // engineConnect introduces the packets_out trampoline.
-};
-
-struct EngineRegistry {
-  std::mutex mu;
-  uint32_t next_id = 1;
-  std::unordered_map<uint32_t, std::unique_ptr<EngineSlot>> engines;
-};
-
-EngineRegistry& Engines() {
-  static EngineRegistry r;
-  return r;
+// Bind one optional v8::Function from the callbacks object into a
+// v8::Global slot. `key` is the property name. Returns true on
+// success (key absent OR value is a function); false on bad type.
+bool BindOptionalCallback(Isolate* isolate, Local<Context> context,
+                          Local<Object> callbacks, const char* key,
+                          v8::Global<Function>* out) {
+  Local<String> name = NewOneByteString(isolate, key);
+  if (!callbacks->Has(context, name).FromMaybe(false)) {
+    return true;
+  }
+  MaybeLocal<Value> v = callbacks->Get(context, name);
+  Local<Value> value;
+  if (!v.ToLocal(&value) || value->IsNullOrUndefined()) {
+    return true;
+  }
+  if (!value->IsFunction()) {
+    return false;
+  }
+  out->Reset(isolate, value.As<Function>());
+  return true;
 }
 
-// Connection handle registry. Same shape as EngineRegistry; opaque
-// uint32 returned by engineConnect, looked up by subsequent
-// connClose / connGetStatus / connGetCID / streamOpen.
-struct ConnSlot {
-  lsquic_conn_t* conn;
-};
-
-struct ConnRegistry {
-  std::mutex mu;
-  uint32_t next_id = 1;
-  std::unordered_map<uint32_t, std::unique_ptr<ConnSlot>> conns;
-};
-
-ConnRegistry& Conns() {
-  static ConnRegistry r;
-  return r;
-}
-
-uint32_t RegisterConn(lsquic_conn_t* conn) {
-  ConnRegistry& r = Conns();
-  std::lock_guard<std::mutex> lock(r.mu);
-  uint32_t id = r.next_id++;
-  auto slot = std::make_unique<ConnSlot>();
-  slot->conn = conn;
-  r.conns.emplace(id, std::move(slot));
-  return id;
-}
-
-lsquic_conn_t* LookupConn(uint32_t id) {
-  ConnRegistry& r = Conns();
-  std::lock_guard<std::mutex> lock(r.mu);
-  auto it = r.conns.find(id);
-  return it == r.conns.end() ? nullptr : it->second->conn;
-}
-
-bool UnregisterConn(uint32_t id) {
-  ConnRegistry& r = Conns();
-  std::lock_guard<std::mutex> lock(r.mu);
-  return r.conns.erase(id) > 0;
+bool BindRequiredCallback(Isolate* isolate, Local<Context> context,
+                          Local<Object> callbacks, const char* key,
+                          v8::Global<Function>* out) {
+  Local<String> name = NewOneByteString(isolate, key);
+  MaybeLocal<Value> v = callbacks->Get(context, name);
+  Local<Value> value;
+  if (!v.ToLocal(&value) || !value->IsFunction()) {
+    return false;
+  }
+  out->Reset(isolate, value.As<Function>());
+  return true;
 }
 
 }  // namespace
@@ -265,6 +271,24 @@ static void BindVersionEnum(Isolate* isolate, Local<Context> context,
 // (engine compiles but can't yet send packets) — callback wiring
 // lands in steps 3-4 as the dispatcher trampoline shape stabilizes.
 
+// createEngine(flags, callbacks, settings?) -> engineHandle | 0
+//
+// `callbacks` is required and must be a plain object. Keys (all
+// optional individually; clients typically pass on_new_stream / on_read /
+// on_write / on_close / packets_out; servers add on_new_conn / on_hsk_done):
+//   - packetsOut         (required for clients; lsquic refuses sending
+//                         packets if absent)
+//   - onNewConn          (server-side accept hook)
+//   - onConnClosed
+//   - onNewStream
+//   - onRead             — readiness signal; JS calls streamRead to drain
+//   - onWrite            — readiness signal; JS calls streamWrite to fill
+//   - onClose
+//   - onHskDone          — client-side handshake completion
+//   - onGoawayReceived
+//
+// `settings` is currently unused; lsquic defaults are applied. Step 8
+// will marshal the full lsquic_engine_settings struct here.
 static void CreateEngine(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   if (!g_lsquic_inited.load(std::memory_order_acquire)) {
@@ -275,28 +299,83 @@ static void CreateEngine(const FunctionCallbackInfo<Value>& args) {
   unsigned flags = static_cast<unsigned>(
       args[0]->Uint32Value(context).FromMaybe(0));
 
+  // Validate callbacks object.
+  if (args.Length() < 2 || !args[1]->IsObject()) {
+    isolate->ThrowException(v8::Exception::TypeError(NewOneByteString(
+        isolate,
+        "createEngine(flags, callbacks, settings?): callbacks must be an object")));
+    return;
+  }
+  Local<Object> callbacks = args[1].As<Object>();
+
+  // Reserve a slot up front so the engine_id is stable before
+  // lsquic_engine_new captures it via ea_packets_out_ctx /
+  // ea_stream_if_ctx.
+  EngineRegistry& reg = Engines();
+  uint32_t id;
+  EngineSlot* slot_ptr;
+  {
+    std::lock_guard<std::mutex> lock(reg.mu);
+    id = reg.next_id++;
+    auto slot = std::make_unique<EngineSlot>();
+    slot->engine_id = id;
+    slot->cb.isolate = isolate;
+    slot->cb.context.Reset(isolate, context);
+    slot_ptr = slot.get();
+    reg.engines.emplace(id, std::move(slot));
+  }
+
+  bool ok = true;
+  ok &= BindOptionalCallback(isolate, context, callbacks, "packetsOut",
+                             &slot_ptr->cb.packets_out);
+  ok &= BindOptionalCallback(isolate, context, callbacks, "onNewConn",
+                             &slot_ptr->cb.on_new_conn);
+  ok &= BindOptionalCallback(isolate, context, callbacks, "onConnClosed",
+                             &slot_ptr->cb.on_conn_closed);
+  ok &= BindOptionalCallback(isolate, context, callbacks, "onNewStream",
+                             &slot_ptr->cb.on_new_stream);
+  ok &= BindOptionalCallback(isolate, context, callbacks, "onRead",
+                             &slot_ptr->cb.on_read);
+  ok &= BindOptionalCallback(isolate, context, callbacks, "onWrite",
+                             &slot_ptr->cb.on_write);
+  ok &= BindOptionalCallback(isolate, context, callbacks, "onClose",
+                             &slot_ptr->cb.on_close);
+  ok &= BindOptionalCallback(isolate, context, callbacks, "onHskDone",
+                             &slot_ptr->cb.on_hsk_done);
+  ok &= BindOptionalCallback(isolate, context, callbacks, "onGoawayReceived",
+                             &slot_ptr->cb.on_goaway_received);
+  if (!ok) {
+    std::lock_guard<std::mutex> lock(reg.mu);
+    reg.engines.erase(id);
+    isolate->ThrowException(v8::Exception::TypeError(NewOneByteString(
+        isolate,
+        "createEngine: a callback property is present but not a function")));
+    return;
+  }
+
   // Populate defaults for the requested flags.
   lsquic_engine_settings settings;
   lsquic_engine_init_settings(&settings, flags);
 
-  // Engine API struct — callbacks land in steps 3-4. For now the
-  // engine can be constructed and destroyed but not driven; the JS
-  // layer will see a valid handle and exercise the lifecycle.
+  // Wire the callback infrastructure: packets_out + stream_if both
+  // route through the slot pointer, so trampolines recover the slot
+  // (and its v8::Global handles) from the lsquic context.
   lsquic_engine_api api{};
   api.ea_settings = &settings;
+  api.ea_packets_out = PacketsOutTrampoline;
+  api.ea_packets_out_ctx = slot_ptr;
+  api.ea_stream_if = &kStreamIf;
+  api.ea_stream_if_ctx = slot_ptr;
 
   lsquic_engine_t* engine = lsquic_engine_new(flags, &api);
   if (engine == nullptr) {
+    std::lock_guard<std::mutex> lock(reg.mu);
+    reg.engines.erase(id);
     args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, 0));
     return;
   }
 
-  EngineRegistry& r = Engines();
-  std::lock_guard<std::mutex> lock(r.mu);
-  uint32_t id = r.next_id++;
-  auto slot = std::make_unique<EngineSlot>();
-  slot->engine = engine;
-  r.engines.emplace(id, std::move(slot));
+  slot_ptr->engine = engine;
   args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, id));
 }
 
@@ -305,13 +384,46 @@ static void DestroyEngine(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = isolate->GetCurrentContext();
   uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
   EngineRegistry& r = Engines();
-  std::lock_guard<std::mutex> lock(r.mu);
-  auto it = r.engines.find(id);
-  if (it == r.engines.end()) {
-    return;
+  std::unique_ptr<EngineSlot> slot;
+  {
+    std::lock_guard<std::mutex> lock(r.mu);
+    auto it = r.engines.find(id);
+    if (it == r.engines.end()) {
+      return;
+    }
+    // If we're being called from inside a callback for this engine,
+    // refuse — a JS callback can't tear down its own engine without
+    // tripping into lsquic's reentrancy guards. Document via stderr
+    // so the JS bug is visible.
+    if (it->second->in_callback.load()) {
+      fprintf(stderr,
+              "smol_quic: destroyEngine(%u) refused — engine is in a "
+              "callback. Defer destroyEngine outside the trampoline.\n",
+              id);
+      return;
+    }
+    slot = std::move(it->second);
+    r.engines.erase(it);
   }
-  lsquic_engine_destroy(it->second->engine);
-  r.engines.erase(it);
+  // Run lsquic_engine_destroy WITHOUT the registry mutex held — it
+  // synchronously calls on_conn_closed for every live conn, and those
+  // trampolines may take the registry mutex when looking up the slot.
+  // The slot pointer stays valid because we own the unique_ptr here.
+  if (slot->engine != nullptr) {
+    lsquic_engine_destroy(slot->engine);
+  }
+  // Reset all v8::Global handles so the JS callback Functions can be
+  // GC'd. Order doesn't matter — they're independent.
+  slot->cb.packets_out.Reset();
+  slot->cb.on_new_conn.Reset();
+  slot->cb.on_conn_closed.Reset();
+  slot->cb.on_new_stream.Reset();
+  slot->cb.on_read.Reset();
+  slot->cb.on_write.Reset();
+  slot->cb.on_close.Reset();
+  slot->cb.on_hsk_done.Reset();
+  slot->cb.on_goaway_received.Reset();
+  slot->cb.context.Reset();
 }
 
 // ─── Engine lookup helper ────────────────────────────────────────────
@@ -508,8 +620,8 @@ static void EngineQuicVersions(const FunctionCallbackInfo<Value>& args) {
 static void EngineConnect(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
-  lsquic_engine_t* engine =
-      LookupEngine(args[0]->Uint32Value(context).FromMaybe(0));
+  uint32_t engine_id = args[0]->Uint32Value(context).FromMaybe(0);
+  lsquic_engine_t* engine = LookupEngine(engine_id);
   if (engine == nullptr) {
     args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, 0));
     return;
@@ -565,7 +677,7 @@ static void EngineConnect(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   args.GetReturnValue().Set(
-      Integer::NewFromUnsigned(isolate, RegisterConn(conn)));
+      Integer::NewFromUnsigned(isolate, RegisterConn(conn, engine_id)));
 }
 
 // ─── Section 6: Connection lifecycle ─────────────────────────────────
@@ -771,6 +883,12 @@ static void Initialize(Local<Object> target,
   BindVersionEnum(isolate, context, target);
   BindEngineFlags(isolate, context, target);
   BindConnStatus(isolate, context, target);
+
+  // Stream methods live in quic_stream_binding.cc so each .cc file
+  // stays under the 1000-line hard cap. The stream binding registers
+  // streamRead / streamWrite / streamShutdown / streamClose /
+  // streamWantRead / streamWantWrite on the same `target` object.
+  RegisterStreamMethods(context, target);
 }
 
 static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -789,6 +907,7 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ConnGetCID);
   registry->Register(ConnGetVersion);
   registry->Register(ConnGetSNI);
+  RegisterStreamExternalReferences(registry);
 }
 
 }  // namespace quic

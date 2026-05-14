@@ -6,7 +6,7 @@
 // TLS backend (instead of BoringSSL — see lsquic-infra/README.md for
 // the SSL_set_quic_tls_cbs rationale).
 //
-// Current surface (steps 1-5 of 8 landed):
+// Current surface (steps 1-6 of 8 landed):
 //
 //   Group 1 — Global init / cleanup
 //     globalInit(flags?) -> int
@@ -17,7 +17,10 @@
 //     engineFlags.{SERVER, HTTP}
 //     connStatus.{HSK_IN_PROGRESS, CONNECTED, HSK_FAILURE, ...}
 //   Group 3 — Engine create / destroy
-//     createEngine(flags?) -> engineHandle | 0
+//     createEngine(flags, callbacks, settings?) -> engineHandle | 0
+//       callbacks: { packetsOut, onNewConn?, onConnClosed?,
+//                    onNewStream?, onRead?, onWrite?, onClose?,
+//                    onHskDone?, onGoawayReceived? }
 //     destroyEngine(engineHandle)
 //   Group 4 — Engine I/O
 //     engineProcessConns(engineHandle)
@@ -34,20 +37,20 @@
 //     connGetCID(connId) -> Uint8Array | null
 //     connGetVersion(connId) -> int | -1
 //     connGetSNI(connId) -> string | null
+//   Group 7 — Stream methods (step 6/8)
+//     streamRead(streamId, dest: Uint8Array) -> int (bytes; -1 err)
+//     streamWrite(streamId, src: Uint8Array) -> int (bytes; -1 err)
+//     streamShutdown(streamId, how) -> int  // 0=read, 1=write, 2=both
+//     streamClose(streamId) -> int
+//     streamWantRead(streamId, want: bool) -> int  // prev flag
+//     streamWantWrite(streamId, want: bool) -> int
 //
-// Pending (planning round needed for callback dispatcher design):
-//   Group 7 — Stream lifecycle (needs on_new_stream callback infra)
-//   Group 8 — HTTP/3 framer (smol-http3.js + ls-qpack wiring)
-//   Group 9 — Full lsquic_engine_settings struct passthrough (50+ fields)
-//   Group 10 — packets_out callback (UDP transport hook) +
-//              stream_if callback table + cert_lookup callback
-//
-// Until the callback infrastructure lands, an engine constructed via
-// createEngine() can open a conn via engineConnect() but has no way
-// to actually transmit packets (no packets_out callback registered)
-// and no way to materialize streams from the conn (no on_new_stream
-// callback registered). The handle plumbing is complete; the
-// network bridge is the next planning round.
+// Pending:
+//   Step 7 — Server-side acceptance + datagrams (lookupCert cb,
+//            datagram extension).
+//   Step 8 — Full lsquic_engine_settings struct passthrough +
+//            HTTP/3 lsquic_hset_if (header set/unset) wiring via
+//            ls-qpack.
 //
 // Upstream pin:
 //   lsquic v4.6.2 (lsquic-infra/.gitmodules # lsquic-4.6.2)
@@ -77,6 +80,12 @@ const {
   globalCleanup,
   globalFlags,
   globalInit,
+  streamClose,
+  streamRead,
+  streamShutdown,
+  streamWantRead,
+  streamWantWrite,
+  streamWrite,
   version,
 } = internalBinding('smol_quic')
 
@@ -100,5 +109,11 @@ module.exports = ObjectFreeze({
   globalCleanup,
   globalFlags: ObjectFreeze({ __proto__: null, ...globalFlags }),
   globalInit,
+  streamClose,
+  streamRead,
+  streamShutdown,
+  streamWantRead,
+  streamWantWrite,
+  streamWrite,
   version: ObjectFreeze({ __proto__: null, ...version }),
 })

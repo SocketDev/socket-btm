@@ -178,6 +178,14 @@
 +            'src/socketsecurity/tui/mouse.cc',
 +            'src/socketsecurity/tui/renderer.cc',
 +            'src/socketsecurity/tui/tui_binding.cc',
++            # node:smol-quic — QUIC + UDP transport. lsquic v4.6.2 with
++            # OpenSSL 3.5.6 as the TLS backend (matches bun). The
++            # binding splits the engine/connection surface (quic_binding.cc)
++            # from the stream + callback dispatcher (quic_stream_binding.cc)
++            # so neither file exceeds the 1000-line hard cap. Shared
++            # types in quic_internal.h.
++            'src/socketsecurity/quic/quic_binding.cc',
++            'src/socketsecurity/quic/quic_stream_binding.cc',
            ],
 +          'include_dirs': [
 +            'src',

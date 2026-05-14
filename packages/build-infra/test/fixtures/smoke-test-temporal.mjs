@@ -903,6 +903,171 @@ if (typeof Temporal !== 'object' || Temporal === null) {
   }
 }
 
+// ── (era, era_year) → PlainDate construction ────────────────────────
+//
+// Exercises temporal-infra's CalendarBackend::EraYearToIsoYear path
+// (Phase 11): the V8 binding receives era / era_year from JS, passes
+// them through the shim's PartialDate, and the infra layer resolves
+// them to a proleptic year via per-calendar era arithmetic.
+//
+// Spec reference: Temporal "Calendar Era Codes" table —
+// https://tc39.es/proposal-temporal/#table-temporal-calendar-era-codes
+//
+// Each block also tests the reverse direction: read .era / .eraYear
+// off the constructed date and verify they match the input.
+
+{
+  // Japanese: Reiwa 7 = ISO 2025. Era started 2019-05-01, so
+  // (reiwa, 7, M05, 01) → ISO 2025-05-01 (Reiwa 7 month 5 day 1).
+  const reiwa = tryCheck(
+    'PlainDate.from({era:reiwa, eraYear:7, month:5, day:1}, japanese)',
+    () =>
+      Temporal.PlainDate.from({
+        era: 'reiwa',
+        eraYear: 7,
+        month: 5,
+        day: 1,
+        calendar: 'japanese',
+      }),
+  )
+  if (reiwa !== undefined) {
+    check(
+      'Japanese Reiwa 7 → ISO 2025',
+      reiwa.year === 2025,
+      `got year=${reiwa.year}`,
+    )
+    check(
+      'Japanese Reiwa round-trip: .era === "reiwa"',
+      reiwa.era === 'reiwa',
+      `got era=${reiwa.era}`,
+    )
+    check(
+      'Japanese Reiwa round-trip: .eraYear === 7',
+      reiwa.eraYear === 7,
+      `got eraYear=${reiwa.eraYear}`,
+    )
+  }
+}
+
+{
+  // Buddhist Era: BE 2568 = ISO 2025 (offset -543).
+  const be = tryCheck(
+    'PlainDate.from({era:be, eraYear:2568, ...}, buddhist)',
+    () =>
+      Temporal.PlainDate.from({
+        era: 'be',
+        eraYear: 2568,
+        month: 6,
+        day: 15,
+        calendar: 'buddhist',
+      }),
+  )
+  if (be !== undefined) {
+    check(
+      'Buddhist BE 2568 → ISO 2025',
+      be.year === 2025,
+      `got year=${be.year}`,
+    )
+  }
+}
+
+{
+  // ROC: era "roc" year 114 = ISO 2025 (ROC year 1 = ISO 1912, offset +1911).
+  const roc = tryCheck(
+    'PlainDate.from({era:roc, eraYear:114, ...}, roc)',
+    () =>
+      Temporal.PlainDate.from({
+        era: 'roc',
+        eraYear: 114,
+        month: 1,
+        day: 1,
+        calendar: 'roc',
+      }),
+  )
+  if (roc !== undefined) {
+    check(
+      'ROC year 114 → ISO 2025',
+      roc.year === 2025,
+      `got year=${roc.year}`,
+    )
+  }
+}
+
+{
+  // ROC "before-roc": era counts backwards. before-roc year 1 = ISO 1911.
+  const broc = tryCheck(
+    'PlainDate.from({era:before-roc, eraYear:1, ...}, roc)',
+    () =>
+      Temporal.PlainDate.from({
+        era: 'before-roc',
+        eraYear: 1,
+        month: 1,
+        day: 1,
+        calendar: 'roc',
+      }),
+  )
+  if (broc !== undefined) {
+    check(
+      'ROC before-roc year 1 → ISO 1911',
+      broc.year === 1911,
+      `got year=${broc.year}`,
+    )
+  }
+}
+
+{
+  // Gregorian BCE: BCE 1 → ISO 0; BCE 2 → ISO -1; etc.
+  const bce = tryCheck(
+    'PlainDate.from({era:bce, eraYear:44, ...}, gregory)',
+    () =>
+      Temporal.PlainDate.from({
+        era: 'bce',
+        eraYear: 44,
+        month: 3,
+        day: 15,
+        calendar: 'gregory',
+      }),
+  )
+  if (bce !== undefined) {
+    // Ides of March 44 BCE → ISO -43.
+    check(
+      'Gregorian BCE 44 → ISO -43',
+      bce.year === -43,
+      `got year=${bce.year}`,
+    )
+  }
+}
+
+{
+  // year + (era, eraYear) cross-validation: when both are given they
+  // must agree post-resolution. Disagreement → RangeError.
+  const disagree = tryCheck(
+    'PlainDate.from rejects year/era disagreement (call must throw)',
+    () => {
+      try {
+        Temporal.PlainDate.from({
+          era: 'reiwa',
+          eraYear: 7,
+          year: 2030, // disagrees with reiwa 7 = 2025
+          month: 5,
+          day: 1,
+          calendar: 'japanese',
+        })
+        return null
+      } catch (e) {
+        return e
+      }
+    },
+  )
+  if (disagree !== undefined) {
+    check(
+      'year/era disagreement throws RangeError',
+      disagree !== null && disagree instanceof RangeError,
+      `got ${disagree === null ? 'no error' : disagree.name}`,
+    )
+  }
+}
+
 // ── Report ──────────────────────────────────────────────────────────
 
 if (failures.length > 0) {

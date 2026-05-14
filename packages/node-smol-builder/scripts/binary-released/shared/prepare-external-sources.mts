@@ -15,11 +15,13 @@ import { spawn } from '@socketsecurity/lib/spawn'
 
 import { ADDITIONS_SOURCE_PATCHED_DIR } from './paths.mts'
 import { errorMessage } from 'build-infra/lib/error-utils'
+import { applyPatch } from 'build-infra/lib/patch-validator'
 import {
   BINJECT_DIR,
   BIN_INFRA_DIR,
   BUILD_INFRA_DIR,
   LIEF_BUILDER_DIR,
+  LSQUIC_INFRA_DIR,
   PACKAGE_ROOT,
   TEMPORAL_INFRA_DIR,
 } from '../../paths.mts'
@@ -138,6 +140,21 @@ const VENDORED_SOURCES = [
     from: path.join(UWEBSOCKETS_UPSTREAM_DIR, 'src'),
     to: path.join(ADDITIONS_SOURCE_PATCHED_DIR, 'deps', 'uWebSockets', 'src'),
   },
+  // lsquic: LiteSpeed QUIC engine (node:smol-quic backend). Pinned to
+  // v4.6.2 in lsquic-infra/upstream/lsquic. node.gyp consumes
+  // deps/lsquic/src/liblsquic/*.c + deps/lsquic/include/ under the
+  // use_smol_quic configure flag.
+  {
+    from: path.join(LSQUIC_INFRA_DIR, 'upstream', 'lsquic'),
+    to: path.join(ADDITIONS_SOURCE_PATCHED_DIR, 'deps', 'lsquic'),
+  },
+  // ls-qpack: HTTP/3 header compression (QPACK). Pinned to v2.6.2 in
+  // lsquic-infra/upstream/ls-qpack. node.gyp consumes deps/ls-qpack/lsqpack.c
+  // under the use_smol_quic configure flag (HTTP/3 sits on top of QUIC).
+  {
+    from: path.join(LSQUIC_INFRA_DIR, 'upstream', 'ls-qpack'),
+    to: path.join(ADDITIONS_SOURCE_PATCHED_DIR, 'deps', 'ls-qpack'),
+  },
 ]
 
 /**
@@ -146,6 +163,21 @@ const VENDORED_SOURCES = [
  * that copy/validate iterate over this.
  */
 const EXTERNAL_SOURCES = [...MONOREPO_PACKAGE_SOURCES, ...VENDORED_SOURCES]
+
+/**
+ * Vendor-source patch bundles — applied to the copied vendor tree under
+ * additions/source-patched/deps/<name>/ after EXTERNAL_SOURCES copies
+ * land. Each bundle declares a patches dir + the deps/<name> target the
+ * patches expect as their cwd (since patch paths are relative to the
+ * vendor's own root, not to additions/source-patched/).
+ */
+export const VENDOR_PATCH_BUNDLES = [
+  {
+    name: 'lsquic',
+    patchesDir: path.join(LSQUIC_INFRA_DIR, 'patches', 'lsquic'),
+    targetDir: path.join(ADDITIONS_SOURCE_PATCHED_DIR, 'deps', 'lsquic'),
+  },
+]
 
 /**
  * Compute hash of directory contents for sync validation.
@@ -238,8 +270,62 @@ export async function prepareExternalSources() {
 
   logger.log('')
 
+  // Apply vendor patches AFTER the copy completes. Each bundle's
+  // patches are rooted at deps/<name>/ relative to the vendor's own
+  // tree, so applyPatch() runs with cwd=deps/<name> and patch -p1.
+  await applyVendorPatches()
+
+  logger.log('')
+
   // Sync vendored npm packages after copying external sources.
   await syncVendoredPackages()
+}
+
+/**
+ * Apply vendor-source patches (e.g. bun's 3 lsquic patches) against
+ * the freshly-copied vendor tree under additions/source-patched/deps/.
+ *
+ * Vendor patches are owned by the *-infra packages (patches/<vendor>/),
+ * not the node-smol-builder patches/ tree, because they patch upstream
+ * vendor source — not Node source. They live next to the submodule they
+ * patch and travel together via lockstep.
+ */
+export async function applyVendorPatches() {
+  logger.step('Applying Vendor Patches')
+
+  for (let i = 0, { length } = VENDOR_PATCH_BUNDLES; i < length; i += 1) {
+    const bundle = VENDOR_PATCH_BUNDLES[i]
+    if (!existsSync(bundle.patchesDir)) {
+      logger.substep(`No patches dir for ${bundle.name}, skipping`)
+      continue
+    }
+    if (!existsSync(bundle.targetDir)) {
+      throw new Error(
+        `Vendor target directory missing for ${bundle.name}: ${bundle.targetDir}. ` +
+          'EXTERNAL_SOURCES copy must run before applyVendorPatches.',
+      )
+    }
+    const entries = (await fs.readdir(bundle.patchesDir))
+      .filter(name => name.endsWith('.patch'))
+      .sort()
+    if (!entries.length) {
+      logger.substep(`No .patch files in ${bundle.patchesDir}, skipping`)
+      continue
+    }
+    logger.substep(`Applying ${entries.length} patch(es) for ${bundle.name}`)
+    for (let j = 0, jLen = entries.length; j < jLen; j += 1) {
+      const patchPath = path.join(bundle.patchesDir, entries[j])
+      try {
+        await applyPatch(patchPath, bundle.targetDir)
+      } catch (e) {
+        throw new Error(
+          `Failed to apply vendor patch ${entries[j]} for ${bundle.name}: ${errorMessage(e)}`,
+          { cause: e },
+        )
+      }
+    }
+    logger.success(`All ${bundle.name} patches applied`)
+  }
 }
 
 /**

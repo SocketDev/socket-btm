@@ -1,10 +1,25 @@
 # @node-versions: v26.1.0
-# @description: Add --with-postgres and --with-iouring configure options + drop cargo gate
+# @description: Add --with-postgres/--with-iouring/--with-{node,smol}-quic/--with-smol-http3 configure options + drop cargo gate
 #
 # Adds configure options for building Node.js with PostgreSQL support
 # and optional io_uring acceleration (both disabled by default).
 # PostgreSQL requires libpq bundled in deps/libpq; io_uring is Linux-only
 # and requires liburing.
+#
+# Adds three QUIC/HTTP3 toggles replacing the single --experimental-quic
+# switch:
+#
+#   --with-node-quic     (default false): upstream's ngtcp2 stack +
+#                                         node:quic builtin.
+#   --with-smol-quic     (default true):  socket-btm's lsquic stack +
+#                                         node:smol-quic builtin.
+#   --with-smol-http3    (default true):  http3 binding glue +
+#                                         node:smol-http3 builtin
+#                                         (depends on smol-quic).
+#
+# Implication rules: --without-smol-quic with --with-smol-http3 errors;
+# --without-ssl forces all three off; --experimental-quic stays as a
+# back-compat alias for --with-node-quic.
 #
 # Also disables the upstream cargo/rustc gate — Temporal is provided via
 # the C++ shim in temporal-infra, so the build does not need a Rust
@@ -12,7 +27,7 @@
 #
 --- a/configure.py
 +++ b/configure.py
-@@ -1058,7 +1058,19 @@
+@@ -1058,11 +1058,41 @@
      dest='without_ffi',
      default=None,
      help='build without FFI (Foreign Function Interface) support')
@@ -32,6 +47,29 @@
  parser.add_argument('--experimental-quic',
      action='store_true',
      dest='experimental_quic',
+     default=None,
+-    help='build with experimental QUIC support')
++    help='alias for --with-node-quic (upstream ngtcp2 QUIC)')
++
++parser.add_argument('--with-node-quic',
++    action='store_true',
++    dest='with_node_quic',
++    default=None,
++    help='build upstream Node QUIC (ngtcp2 + node:quic, default off)')
++
++parser.add_argument('--without-smol-quic',
++    action='store_true',
++    dest='without_smol_quic',
++    default=None,
++    help='disable socket-btm lsquic + node:smol-quic (default enabled)')
++
++parser.add_argument('--without-smol-http3',
++    action='store_true',
++    dest='without_smol_http3',
++    default=None,
++    help='disable socket-btm http3 + node:smol-http3 (default enabled)')
+ 
+ parser.add_argument('--ninja',
 @@ -1576,8 +1588,8 @@
  
    o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else '0.0'
@@ -43,7 +81,7 @@
      # Minimum cargo and rustc versions should match values in BUILDING.md.
      min_cargo_ver_tuple = (1, 82)
      min_rustc_ver_tuple = (1, 82)
-@@ -2345,6 +2357,14 @@
+@@ -2345,7 +2357,40 @@
      return
  
    configure_library('ffi', o, pkgname='libffi')
@@ -57,7 +95,35 @@
 +  o['variables']['node_use_iouring'] = b(options.with_iouring)
  
  def configure_quic(o):
-   o['variables']['node_use_quic'] = b(options.experimental_quic and
+-  o['variables']['node_use_quic'] = b(options.experimental_quic and
+-                                      not options.without_ssl)
++  # Socket Security: three independent QUIC stacks.
++  #
++  #   use_node_quic   gates upstream's src/quic/*.cc + deps/ngtcp2 + deps/nghttp3
++  #                   + node:quic builtin. Default off — files stay on disk but
++  #                   are excluded from the build graph.
++  #
++  #   use_smol_quic   gates packages/lsquic-infra (lsquic + ls-qpack) +
++  #                   node:smol-quic builtin. Default on.
++  #
++  #   use_smol_http3  gates the http3 binding glue + node:smol-http3 builtin.
++  #                   Default on. Requires use_smol_quic.
++  use_node_quic   = bool(options.with_node_quic or options.experimental_quic)
++  use_smol_quic   = not bool(options.without_smol_quic)
++  use_smol_http3  = not bool(options.without_smol_http3)
++  if use_smol_http3 and not use_smol_quic:
++    raise Exception(
++      '--without-smol-quic conflicts with --with-smol-http3 '
++      '(HTTP/3 requires QUIC). Pass --without-smol-http3 too.')
++  if options.without_ssl:
++    use_node_quic = use_smol_quic = use_smol_http3 = False
++  # Legacy node_use_quic stays in sync with node_use_node_quic so
++  # third-party gyp files keep working; node.gyp itself now gates on
++  # node_use_node_quic (patch 004).
++  o['variables']['node_use_quic']       = b(use_node_quic)
++  o['variables']['node_use_node_quic']  = b(use_node_quic)
++  o['variables']['node_use_smol_quic']  = b(use_smol_quic)
++  o['variables']['node_use_smol_http3'] = b(use_smol_http3)
 @@ -2802,6 +2822,8 @@
  configure_lief(output);
  configure_sqlite(output);

@@ -1,5 +1,5 @@
 # @node-versions: v26.1.0
-# @description: Wire smol sources, libcompression/IOKit links, and glibc compat into node.gyp
+# @description: Wire smol sources, libcompression/IOKit links, glibc compat, and QUIC gate flips into node.gyp
 #
 # Integrates Socket Security's source files into the Node.js build system
 # along with the platform-specific link wiring needed by those sources.
@@ -21,6 +21,14 @@
 #
 # glibc compat: defines a minimal compat layer for the cares/getrandom path
 # so the resulting binary tolerates older glibc.
+#
+# QUIC gates: the two upstream condition blocks that pull node_quic_sources
+# into libnode and cctest now gate on node_use_node_quic instead of
+# node_use_quic — patch 018 emits both variables in lockstep so legacy
+# third-party gyp files keep working but upstream's ngtcp2 / src/quic stack
+# is excluded from the build graph by default. The smol-side compile
+# wiring (lsquic + ls-qpack sources + node:smol-quic / node:smol-http3
+# binding glue) lands alongside the JS module-map patches in #331.
 #
 --- a/node.gyp
 +++ b/node.gyp
@@ -317,6 +325,24 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
+@@ -1084,7 +1346,7 @@
+           ],
+         }],
+-        [ 'node_use_quic=="true"', {
++        [ 'node_use_node_quic=="true"', {
+           'sources': [
+             '<@(node_quic_sources)',
+           ],
+         }],
+@@ -1406,7 +1668,7 @@
+         }, {
+           'sources!': [ '<@(node_cctest_openssl_sources)' ],
+         }],
+-        [ 'node_use_quic=="true"', {
++        [ 'node_use_node_quic=="true"', {
+           'defines': [
+             'HAVE_QUIC=1',
+           ],
 @@ -1447,6 +1709,17 @@
              'Ws2_32.lib',
            ],

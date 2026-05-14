@@ -1,5 +1,5 @@
 # @node-versions: v26.1.0
-# @description: Add --with-postgres/--with-iouring/--with-{node,smol}-quic/--with-smol-http3 configure options + drop cargo gate
+# @description: Add --with-postgres/--with-iouring/--with-{node,smol}-quic/--with-smol-http3/--without-smol-tui configure options + drop cargo gate
 #
 # Adds configure options for building Node.js with PostgreSQL support
 # and optional io_uring acceleration (both disabled by default).
@@ -21,13 +21,18 @@
 # --without-ssl forces all three off; --experimental-quic stays as a
 # back-compat alias for --with-node-quic.
 #
+# Adds --without-smol-tui (default enabled) gating the tui-infra C++ port
+# + Yoga 3.2.1 layout engine + node:smol-tui builtin. When disabled the
+# tui sources and Yoga sources are excluded from the build graph and the
+# binding is not registered.
+#
 # Also disables the upstream cargo/rustc gate — Temporal is provided via
 # the C++ shim in temporal-infra, so the build does not need a Rust
 # toolchain.
 #
 --- a/configure.py
 +++ b/configure.py
-@@ -1058,11 +1058,41 @@
+@@ -1058,11 +1058,47 @@
      dest='without_ffi',
      default=None,
      help='build without FFI (Foreign Function Interface) support')
@@ -68,9 +73,15 @@
 +    dest='without_smol_http3',
 +    default=None,
 +    help='disable socket-btm http3 + node:smol-http3 (default enabled)')
- 
++
++parser.add_argument('--without-smol-tui',
++    action='store_true',
++    dest='without_smol_tui',
++    default=None,
++    help='disable tui-infra + Yoga + node:smol-tui (default enabled)')
+
  parser.add_argument('--ninja',
-@@ -1576,8 +1588,8 @@
+@@ -1576,8 +1594,8 @@
  
    o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else '0.0'
  
@@ -81,7 +92,7 @@
      # Minimum cargo and rustc versions should match values in BUILDING.md.
      min_cargo_ver_tuple = (1, 82)
      min_rustc_ver_tuple = (1, 82)
-@@ -2345,7 +2357,40 @@
+@@ -2345,7 +2363,44 @@
      return
  
    configure_library('ffi', o, pkgname='libffi')
@@ -93,7 +104,11 @@
 +def configure_iouring(o):
 +  # Socket Security: io_uring is disabled by default (Linux only, requires liburing).
 +  o['variables']['node_use_iouring'] = b(options.with_iouring)
- 
++
++def configure_smol_tui(o):
++  # Socket Security: tui-infra + Yoga + node:smol-tui (default enabled).
++  o['variables']['node_use_smol_tui'] = b(not options.without_smol_tui)
+
  def configure_quic(o):
 -  o['variables']['node_use_quic'] = b(options.experimental_quic and
 -                                      not options.without_ssl)
@@ -124,12 +139,13 @@
 +  o['variables']['node_use_node_quic']  = b(use_node_quic)
 +  o['variables']['node_use_smol_quic']  = b(use_smol_quic)
 +  o['variables']['node_use_smol_http3'] = b(use_smol_http3)
-@@ -2802,6 +2822,8 @@
+@@ -2802,6 +2832,9 @@
  configure_lief(output);
  configure_sqlite(output);
  configure_ffi(output);
 +configure_postgres(output);
 +configure_iouring(output);
++configure_smol_tui(output);
  configure_library('temporal_capi', output)
  configure_library('uvwasi', output)
  configure_library('zstd', output, pkgname='libzstd')

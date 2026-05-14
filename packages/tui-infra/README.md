@@ -8,16 +8,22 @@ no binary release, no Docker, no workflow. Consumers compile the `.cc`
 
 ## Status
 
-**v0 scaffold.** Native code not yet ported; this is the skeleton + xport
-plan only. The first three PRs port one tier each.
+**v0 scaffold.** Native code not yet ported; this is the skeleton +
+lockstep plan only. The first three PRs port one tier each.
 
 ## Three-tier plan
 
-| Tier   | Surface                                              | Hot path?                       | Upstream                          | Status |
-| ------ | ---------------------------------------------------- | ------------------------------- | --------------------------------- | ------ |
-| Tier 1 | ANSI emit (cursor moves, SGR, cell flushes)          | Yes — every frame               | OpenTUI `lib/ansi.ts` (~300 LOC)  | TODO   |
-| Tier 2 | Cell buffer + diff + render loop                     | Yes — every frame               | OpenTUI `lib/render.ts` (~800 LOC)| TODO   |
-| Tier 3 | Yoga direct binding + mouse parser                   | Per-event (mouse), per-frame (Yoga) | yoga + OpenTUI `parse.mouse.ts` | TODO   |
+| Tier   | Surface                                              | Hot path?                       | Upstream                                                              | Status |
+| ------ | ---------------------------------------------------- | ------------------------------- | --------------------------------------------------------------------- | ------ |
+| Tier 1 | ANSI emit (cursor moves, SGR, cell flushes)          | Yes — every frame               | OpenTUI `packages/core/src/zig/ansi.zig` (268 LOC, the per-cell path) | TODO   |
+| Tier 2 | Cell buffer + diff + render loop                     | Yes — every frame               | OpenTUI `packages/core/src/zig/renderer.zig`                          | TODO   |
+| Tier 3 | Yoga direct binding + mouse parser                   | Per-event (mouse), per-frame (Yoga) | yoga + socket-stuie `packages/react/src/mouse-parser.ts`            | TODO   |
+
+The user-facing `packages/core/src/ansi.ts` (18 LOC) is a thin
+re-export of cursor/screen state primitives — NOT the per-cell hot
+path. The Zig file is where the render loop's flush calls land
+(`ANSI.moveToOutput / fgColorOutput / bgColorOutput /
+applyAttributesOutputWriter`).
 
 Each tier ships independently. Tier 1 alone wins ~30% per-frame on
 typical OpenTUI workloads (per socket-stuie's `bench/render.mts`).
@@ -40,22 +46,24 @@ Same rationale as `temporal-infra`:
   headers and compiles the `.cc` files alongside V8/Node sources.
 - Single source of truth: socket-stuie's TS render loop and this C++
   port both target the same OpenTUI semantics; lockstep tracked via
-  `xport.json` `file-fork` rows.
+  the central `.config/lockstep.json` `rows` array (matches the
+  socket-btm fleet pattern — same file temporal-infra and other
+  upstream-tracking packages use).
 - Bumping OpenTUI means bumping the submodule SHA + re-running the
   parity tests — same workflow as bumping `boa-dev/temporal` in
   temporal-infra.
 
 ## Lockstep
 
-`xport.json` rows planned:
+Rows planned for socket-btm's `.config/lockstep.json`:
 
-| ID                  | Kind         | Upstream                                                                   | Local                                                |
-| ------------------- | ------------ | -------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `ansi-emit`         | `file-fork`  | socket-stuie `packages/core/upstream/opentui/lib/ansi.ts`                  | `src/socketsecurity/tui/ansi.cc`                     |
-| `render-loop`       | `file-fork`  | socket-stuie `packages/core/upstream/opentui/lib/render.ts`                | `src/socketsecurity/tui/render.cc`                   |
-| `mouse-parser`      | `file-fork`  | socket-stuie `packages/react/src/mouse-parser.ts` (already optimized)      | `src/socketsecurity/tui/mouse_parser.cc`             |
-| `yoga`              | `version-pin`| `facebook/yoga` (matches socket-stuie's pin)                               | `upstream/yoga/`                                     |
-| `opentui`           | `version-pin`| `anomalyco/opentui` (matches socket-stuie's pin)                           | `upstream/opentui/`                                  |
+| ID                  | Kind         | Upstream                                                                                              | Local                                                |
+| ------------------- | ------------ | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `tui-infra-ansi`    | `file-fork`  | socket-stuie `packages/core/upstream/opentui/packages/core/src/zig/ansi.zig`                          | `src/socketsecurity/tui/ansi.cc`                     |
+| `tui-infra-render`  | `file-fork`  | socket-stuie `packages/core/upstream/opentui/packages/core/src/zig/renderer.zig`                      | `src/socketsecurity/tui/render.cc` (Tier 2)          |
+| `tui-infra-mouse`   | `file-fork`  | socket-stuie `packages/react/src/mouse-parser.ts` (already optimized)                                 | `src/socketsecurity/tui/mouse_parser.cc` (Tier 3)    |
+| `opentui-parity`    | `version-pin`| `anomalyco/opentui` v0.1.99 (SHA `cc94b58`, matches socket-stuie's existing `opentui` pin)            | upstream submodule reference                         |
+| `yoga`              | `version-pin`| `facebook/yoga` (matches socket-stuie's pin)                                                          | `upstream/yoga/` (Tier 3)                            |
 
 socket-stuie's TS layer keeps being the test-bed for new TUI features;
 when a feature stabilizes there, the file-fork row picks it up and the

@@ -385,6 +385,11 @@ static void CreateEngine(const FunctionCallbackInfo<Value>& args) {
   api.ea_stream_if_ctx = slot_ptr;
   api.ea_lookup_cert = LookupCertTrampoline;
   api.ea_cert_lu_ctx = slot_ptr;
+  // ea_hsi_if is set unconditionally; lsquic only invokes it when the
+  // engine is configured for HTTP/3 (engineFlags.HTTP set + the conn
+  // negotiates h3-* ALPN). Raw QUIC engines ignore it.
+  api.ea_hsi_if = &kHsetIf;
+  api.ea_hsi_ctx = slot_ptr;
 
   lsquic_engine_t* engine = lsquic_engine_new(flags, &api);
   if (engine == nullptr) {
@@ -916,6 +921,8 @@ static void Initialize(Local<Object> target,
   RegisterStreamMethods(context, target);
   // Settings + server cert methods live in quic_settings_binding.cc.
   RegisterSettingsMethods(context, target);
+  // HTTP/3 header send/recv lives in quic_http3_binding.cc.
+  RegisterHttp3Methods(context, target);
 }
 
 static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -936,6 +943,7 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ConnGetSNI);
   RegisterStreamExternalReferences(registry);
   RegisterSettingsExternalReferences(registry);
+  RegisterHttp3ExternalReferences(registry);
 }
 
 }  // namespace quic

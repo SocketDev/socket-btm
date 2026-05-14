@@ -6,7 +6,7 @@
 // TLS backend (instead of BoringSSL — see lsquic-infra/README.md for
 // the SSL_set_quic_tls_cbs rationale).
 //
-// Current surface (steps 1-8 of 8 landed; HTTP/3 framer is a follow-up):
+// Current surface (steps 1-8 of 8 landed + HTTP/3 framer):
 //
 //   Group 1 — Global init / cleanup
 //     globalInit(flags?) -> int
@@ -66,8 +66,19 @@
 //       connections. Single-SNI for now; multi-SNI dispatch is a
 //       future refinement.
 //
-// HTTP/3 framer + smol-http3 module is the next stage (deferred from
-// step 8 — needs ls-qpack header-set-decoder integration).
+//   Group 10 — HTTP/3 framer (post-step-8)
+//     streamGetHeaders(streamId) -> {name: value, ...} | null
+//       Claims the decoded HEADERS frame from a server-pushed or
+//       client-received stream. Returns null if no headers are
+//       available (stream isn't HTTP/3, HEADERS hasn't arrived yet,
+//       or already claimed). lsquic owns the QPACK decode via
+//       ls-qpack; this just marshals to JS.
+//     streamSendHeaders(streamId, headersObj, eos: bool) -> int
+//       Flattens a JS object {":status": "200", ...} into an
+//       lsxpack_header[] + contiguous backing buffer, calls
+//       lsquic_stream_send_headers. JS is responsible for HTTP/3
+//       pseudo-header ordering (:method/:scheme/:authority/:path
+//       first for requests, :status first for responses).
 //
 // Upstream pin:
 //   lsquic v4.6.2 (lsquic-infra/.gitmodules # lsquic-4.6.2)
@@ -102,7 +113,9 @@ const {
   globalInit,
   setServerCertContext,
   streamClose,
+  streamGetHeaders,
   streamRead,
+  streamSendHeaders,
   streamShutdown,
   streamWantRead,
   streamWantWrite,
@@ -135,7 +148,9 @@ module.exports = ObjectFreeze({
   globalInit,
   setServerCertContext,
   streamClose,
+  streamGetHeaders,
   streamRead,
+  streamSendHeaders,
   streamShutdown,
   streamWantRead,
   streamWantWrite,

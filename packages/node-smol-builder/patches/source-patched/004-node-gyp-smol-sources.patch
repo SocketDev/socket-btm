@@ -187,6 +187,7 @@
 +            'src/socketsecurity/quic/quic_binding.cc',
 +            'src/socketsecurity/quic/quic_stream_binding.cc',
 +            'src/socketsecurity/quic/quic_settings_binding.cc',
++            'src/socketsecurity/quic/quic_http3_binding.cc',
            ],
 +          'include_dirs': [
 +            'src',

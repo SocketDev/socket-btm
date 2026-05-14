@@ -149,6 +149,17 @@ void RegisterSettingsMethods(v8::Local<v8::Context> context,
                              v8::Local<v8::Object> target);
 void RegisterSettingsExternalReferences(ExternalReferenceRegistry* registry);
 
+// HTTP/3 stream JS methods registered by quic_http3_binding.cc. Called
+// from quic_binding.cc::Initialize.
+void RegisterHttp3Methods(v8::Local<v8::Context> context,
+                          v8::Local<v8::Object> target);
+void RegisterHttp3ExternalReferences(ExternalReferenceRegistry* registry);
+
+// Header-set interface registered via lsquic_engine_api::ea_hsi_if.
+// Defined in quic_http3_binding.cc. Always non-null; lsquic only uses
+// it when the engine is in HTTP/3 mode.
+extern const struct lsquic_hset_if kHsetIf;
+
 // Apply a JS settings object onto an lsquic_engine_settings struct.
 // Returns true on success; throws a v8 exception and returns false on
 // invalid field type. Unknown keys are silently ignored (so JS can

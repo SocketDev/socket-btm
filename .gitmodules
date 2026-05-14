@@ -136,3 +136,9 @@
 	url = https://github.com/unicode-org/icu4x.git
 	ignore = dirty
 	shallow = true
+# test262-2026.05.07 (track-latest: tc39/test262 corpus for Temporal subset; bump independently via updating-temporal-infra)
+[submodule "packages/temporal-infra/upstream/test262"]
+	path = packages/temporal-infra/upstream/test262
+	url = https://github.com/tc39/test262.git
+	ignore = dirty
+	shallow = true

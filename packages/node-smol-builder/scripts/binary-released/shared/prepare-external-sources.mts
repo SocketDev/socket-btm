@@ -180,6 +180,53 @@ export const VENDOR_PATCH_BUNDLES = [
 ]
 
 /**
+ * Apply vendor-source patches (e.g. bun's 3 lsquic patches) against
+ * the freshly-copied vendor tree under additions/source-patched/deps/.
+ *
+ * Vendor patches are owned by the *-infra packages (patches/<vendor>/),
+ * not the node-smol-builder patches/ tree, because they patch upstream
+ * vendor source — not Node source. They live next to the submodule they
+ * patch and travel together via lockstep.
+ */
+export async function applyVendorPatches() {
+  logger.step('Applying Vendor Patches')
+
+  for (let i = 0, { length } = VENDOR_PATCH_BUNDLES; i < length; i += 1) {
+    const bundle = VENDOR_PATCH_BUNDLES[i]
+    if (!existsSync(bundle.patchesDir)) {
+      logger.substep(`No patches dir for ${bundle.name}, skipping`)
+      continue
+    }
+    if (!existsSync(bundle.targetDir)) {
+      throw new Error(
+        `Vendor target directory missing for ${bundle.name}: ${bundle.targetDir}. ` +
+          'EXTERNAL_SOURCES copy must run before applyVendorPatches.',
+      )
+    }
+    const entries = (await fs.readdir(bundle.patchesDir))
+      .filter(name => name.endsWith('.patch'))
+      .sort()
+    if (!entries.length) {
+      logger.substep(`No .patch files in ${bundle.patchesDir}, skipping`)
+      continue
+    }
+    logger.substep(`Applying ${entries.length} patch(es) for ${bundle.name}`)
+    for (let j = 0, jLen = entries.length; j < jLen; j += 1) {
+      const patchPath = path.join(bundle.patchesDir, entries[j])
+      try {
+        await applyPatch(patchPath, bundle.targetDir)
+      } catch (e) {
+        throw new Error(
+          `Failed to apply vendor patch ${entries[j]} for ${bundle.name}: ${errorMessage(e)}`,
+          { cause: e },
+        )
+      }
+    }
+    logger.success(`All ${bundle.name} patches applied`)
+  }
+}
+
+/**
  * Compute hash of directory contents for sync validation.
  * @param {string} dirPath - Directory to hash
  * @returns {Promise<string|undefined>} Hash of directory contents, or undefined if directory doesn't exist
@@ -257,7 +304,7 @@ export async function prepareExternalSources() {
 
     await fs.cp(from, to, { recursive: true, force: true })
 
-    const relativeFrom = path.relative(process.cwd(), from)
+    const relativeFrom = path.relative(PACKAGE_ROOT, from)
     logger.success(`Copied directory tree from ${relativeFrom}`)
   }
 
@@ -279,53 +326,6 @@ export async function prepareExternalSources() {
 
   // Sync vendored npm packages after copying external sources.
   await syncVendoredPackages()
-}
-
-/**
- * Apply vendor-source patches (e.g. bun's 3 lsquic patches) against
- * the freshly-copied vendor tree under additions/source-patched/deps/.
- *
- * Vendor patches are owned by the *-infra packages (patches/<vendor>/),
- * not the node-smol-builder patches/ tree, because they patch upstream
- * vendor source — not Node source. They live next to the submodule they
- * patch and travel together via lockstep.
- */
-export async function applyVendorPatches() {
-  logger.step('Applying Vendor Patches')
-
-  for (let i = 0, { length } = VENDOR_PATCH_BUNDLES; i < length; i += 1) {
-    const bundle = VENDOR_PATCH_BUNDLES[i]
-    if (!existsSync(bundle.patchesDir)) {
-      logger.substep(`No patches dir for ${bundle.name}, skipping`)
-      continue
-    }
-    if (!existsSync(bundle.targetDir)) {
-      throw new Error(
-        `Vendor target directory missing for ${bundle.name}: ${bundle.targetDir}. ` +
-          'EXTERNAL_SOURCES copy must run before applyVendorPatches.',
-      )
-    }
-    const entries = (await fs.readdir(bundle.patchesDir))
-      .filter(name => name.endsWith('.patch'))
-      .sort()
-    if (!entries.length) {
-      logger.substep(`No .patch files in ${bundle.patchesDir}, skipping`)
-      continue
-    }
-    logger.substep(`Applying ${entries.length} patch(es) for ${bundle.name}`)
-    for (let j = 0, jLen = entries.length; j < jLen; j += 1) {
-      const patchPath = path.join(bundle.patchesDir, entries[j])
-      try {
-        await applyPatch(patchPath, bundle.targetDir)
-      } catch (e) {
-        throw new Error(
-          `Failed to apply vendor patch ${entries[j]} for ${bundle.name}: ${errorMessage(e)}`,
-          { cause: e },
-        )
-      }
-    }
-    logger.success(`All ${bundle.name} patches applied`)
-  }
 }
 
 /**
@@ -393,8 +393,8 @@ export async function validateAdditionsSync() {
     }
 
     if (fromHash !== toHash) {
-      const relativeFrom = path.relative(process.cwd(), from)
-      const relativeTo = path.relative(process.cwd(), to)
+      const relativeFrom = path.relative(PACKAGE_ROOT, from)
+      const relativeTo = path.relative(PACKAGE_ROOT, to)
       throw new Error(
         `Additions mirror does not match source after copy: ${relativeTo} drifted from ${relativeFrom}. ` +
           'This indicates a concurrent writer or an unreadable source file; ' +

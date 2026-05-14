@@ -119,7 +119,7 @@
 +    use_node_quic = use_smol_quic = use_smol_http3 = False
 +  # Legacy node_use_quic stays in sync with node_use_node_quic so
 +  # third-party gyp files keep working; node.gyp itself now gates on
-+  # node_use_node_quic (patch 004).
++  # node_use_node_quic (paired wiring in the node.gyp source-list patch).
 +  o['variables']['node_use_quic']       = b(use_node_quic)
 +  o['variables']['node_use_node_quic']  = b(use_node_quic)
 +  o['variables']['node_use_smol_quic']  = b(use_smol_quic)

@@ -24,11 +24,11 @@
 #
 # QUIC gates: the two upstream condition blocks that pull node_quic_sources
 # into libnode and cctest now gate on node_use_node_quic instead of
-# node_use_quic — patch 018 emits both variables in lockstep so legacy
-# third-party gyp files keep working but upstream's ngtcp2 / src/quic stack
-# is excluded from the build graph by default. The smol-side compile
-# wiring (lsquic + ls-qpack sources + node:smol-quic / node:smol-http3
-# binding glue) lands alongside the JS module-map patches in #331.
+# node_use_quic — the configure.py rewrite emits both variables in lockstep
+# so legacy third-party gyp files keep working but upstream's ngtcp2 /
+# src/quic stack is excluded from the build graph by default. The smol-side
+# compile wiring (lsquic + ls-qpack sources + node:smol-quic /
+# node:smol-http3 binding glue) lands alongside the JS module-map work.
 #
 --- a/node.gyp
 +++ b/node.gyp

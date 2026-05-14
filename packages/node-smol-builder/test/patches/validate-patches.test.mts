@@ -35,11 +35,13 @@ const EXPECTED_PATCHES = [
   '012-debug-smol-sea.patch',
   '013-sea-silent-exit.patch',
   '014-fast-webstreams.patch',
-  '016-http-server-wire.patch',
-  '017-http-parser-pool.patch',
-  '018-smol-builtin-bindings.patch',
-  '019-configure-postgres-iouring.patch',
-  '020-smol-external-refs.patch',
+  '015-http-server-wire.patch',
+  '016-http-parser-pool.patch',
+  '017-smol-builtin-bindings.patch',
+  '018-configure-postgres-iouring.patch',
+  '019-smol-external-refs.patch',
+  '020-cares-getrandom-glibc-prereq.patch',
+  '021-temporal-rs-shim-include.patch',
 ]
 
 // Expected files modified by each patch (for overlap detection).
@@ -61,11 +63,15 @@ const EXPECTED_FILE_MAP = {
   '014-fast-webstreams.patch': [
     'lib/internal/bootstrap/web/exposed-wildcard.js',
   ],
-  '016-http-server-wire.patch': ['lib/_http_server.js'],
-  '017-http-parser-pool.patch': ['src/node_http_parser.cc'],
-  '018-smol-builtin-bindings.patch': ['src/node_binding.cc'],
-  '019-configure-postgres-iouring.patch': ['configure.py'],
-  '020-smol-external-refs.patch': ['src/node_external_reference.h'],
+  '015-http-server-wire.patch': ['lib/_http_server.js'],
+  '016-http-parser-pool.patch': ['src/node_http_parser.cc'],
+  '017-smol-builtin-bindings.patch': ['src/node_binding.cc'],
+  '018-configure-postgres-iouring.patch': ['configure.py'],
+  '019-smol-external-refs.patch': ['src/node_external_reference.h'],
+  '020-cares-getrandom-glibc-prereq.patch': [
+    'deps/cares/config/linux/ares_config.h',
+  ],
+  '021-temporal-rs-shim-include.patch': ['deps/crates/crates.gyp'],
 }
 
 describe('patch File Existence', () => {
@@ -390,7 +396,7 @@ describe('patch Metadata', () => {
   })
 
   it('should have correct patch count', () => {
-    expect(EXPECTED_PATCHES).toHaveLength(19)
+    expect(EXPECTED_PATCHES).toHaveLength(21)
   })
 
   it('should have sequential numbering without duplicates', () => {

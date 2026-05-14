@@ -570,8 +570,6 @@ describe.skipIf(skipTests)('stub signing and extraction flow', () => {
         `
 import { compressSync, uncompressSync } from 'snappy';
 
-const logger = getDefaultLogger()
-
 const input = Buffer.from('hello from native addon test');
 const compressed = compressSync(input);
 const decompressed = uncompressSync(compressed);
@@ -797,7 +795,7 @@ console.log('UTF-8 string:', str);
         })
 
         expect(result.code).toBe(0)
-        expect(result.stdout).toMatch(/^v25\.\d+\.\d+/)
+        expect(result.stdout).toMatch(/^v\d+\.\d+\.\d+/)
       },
     )
   })

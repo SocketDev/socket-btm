@@ -12,7 +12,9 @@
 // skipped here — they live in the larger conformance suite.
 
 const failures = []
+let totalChecks = 0
 function check(name, ok, detail) {
+  totalChecks += 1
   if (!ok) {
     failures.push(detail ? `${name}: ${detail}` : name)
   }
@@ -911,4 +913,4 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log(`Temporal smoke test: all ${85} checks passed`)
+console.log(`Temporal smoke test: all ${totalChecks} checks passed`)

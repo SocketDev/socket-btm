@@ -23,6 +23,7 @@ import {
   PACKAGE_ROOT,
   TEMPORAL_INFRA_DIR,
   TUI_INFRA_DIR,
+  YOGA_LAYOUT_BUILDER_DIR,
 } from '../../paths.mts'
 
 // Upstream liburing is in node-smol-builder/upstream/liburing (sibling to upstream/node).
@@ -159,6 +160,15 @@ const VENDORED_SOURCES = [
   {
     from: path.join(LSQUIC_INFRA_DIR, 'upstream', 'ls-qpack'),
     to: path.join(ADDITIONS_SOURCE_PATCHED_DIR, 'deps', 'ls-qpack'),
+  },
+  // Yoga: Facebook's flexbox layout engine. The yoga-layout-builder
+  // package submodules yoga's upstream tree; we lift the `yoga/`
+  // subdir (the actual C++ sources + headers) under deps/yoga/ so
+  // node.gyp can list them in the source list when --with-smol-tui
+  // is enabled and #include "yoga/Yoga.h" works from binding glue.
+  {
+    from: path.join(YOGA_LAYOUT_BUILDER_DIR, 'upstream', 'yoga', 'yoga'),
+    to: path.join(ADDITIONS_SOURCE_PATCHED_DIR, 'deps', 'yoga'),
   },
 ]
 

@@ -57,6 +57,11 @@ export function getBuildPaths(mode, platform = process.platform, platformArch) {
   const outputStrippedDir = path.join(buildOutDir, BUILD_STAGES.STRIPPED)
   const outputCompressedDir = path.join(buildOutDir, BUILD_STAGES.COMPRESSED)
   const outputFinalDir = path.join(buildOutDir, BUILD_STAGES.FINAL)
+  // The build cache lives next to build artifacts (build/<mode>/<plat>/
+  // .cache/), not in node_modules/.cache. It's keyed on the build mode
+  // + platform tuple that owns this build, so a node_modules-rooted
+  // cache would be wrong here (one node_modules feeds many builds).
+  // oxlint-disable-next-line socket/prefer-node-modules-dot-cache
   const cacheDir = path.join(buildDir, '.cache')
 
   // Platform-specific binary name
@@ -421,6 +426,11 @@ export const LSQUIC_INFRA_DIR = path.join(
   PACKAGE_ROOT,
   '..',
   'lsquic-infra',
+)
+export const YOGA_LAYOUT_BUILDER_DIR = path.join(
+  PACKAGE_ROOT,
+  '..',
+  'yoga-layout-builder',
 )
 
 // Build output directories

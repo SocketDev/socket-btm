@@ -1,7 +1,7 @@
-// Renderer — Tier 2 implementation.
+// Renderer.
 //
 // Cell-by-cell diff between prev and next buffers. Emits ANSI via the
-// Tier 1 hot-path writers (WriteCursorPosition, WriteFg/BgRgb,
+// hot-path writers in ansi.hpp (WriteCursorPosition, WriteFg/BgRgb,
 // WriteAttributes) — no allocations on the per-cell path.
 
 #include "tui/renderer.hpp"

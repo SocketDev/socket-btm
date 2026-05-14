@@ -2,9 +2,9 @@
 //
 // Mirrors socket-stuie/packages/core/upstream/opentui/packages/core/src/
 // zig/buffer-methods.zig `Cell` POD layout, but slimmed down to ASCII-RGB
-// (no float color, no alpha). The Tier 2 CellBuffer holds a contiguous
-// array of these; the Renderer's flush loop diffs cell-by-cell against
-// the previous frame and emits ANSI only for changed cells.
+// (no float color, no alpha). The CellBuffer holds a contiguous array
+// of these; the Renderer's flush loop diffs cell-by-cell against the
+// previous frame and emits ANSI only for changed cells.
 //
 // Memory layout: 12 bytes per cell. Compact enough that a 200×60 grid
 // (12k cells) fits in ~144 KB — well below any L1 cache, so diffing a

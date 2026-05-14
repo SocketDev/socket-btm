@@ -1,4 +1,4 @@
-// CellBuffer — Tier 2 implementation.
+// CellBuffer.
 //
 // Mirrors socket-stuie's OpenTUI buffer-methods.zig surface trimmed to
 // what the diff renderer needs.

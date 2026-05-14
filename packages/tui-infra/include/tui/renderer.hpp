@@ -1,15 +1,15 @@
 // Renderer — double-buffered cell-grid diff + ANSI emit.
 //
-// Tier 2 surface. Mirrors the core of socket-stuie's OpenTUI fork render
-// loop (renderer.zig CliRenderer): hold a `next` buffer the caller draws
-// into and a `prev` buffer of what the terminal currently shows, then on
+// Mirrors the core of socket-stuie's OpenTUI fork render loop
+// (renderer.zig CliRenderer): hold a `next` buffer the caller draws into
+// and a `prev` buffer of what the terminal currently shows, then on
 // Flush() walk both buffers cell-by-cell, emit ANSI only for the cells
 // that changed, and swap prev↔next.
 //
-// The flush loop is the actual perf-critical path of a TUI app. Tier 1's
-// hot-path writers (WriteCursorPosition / WriteFg/BgRgb / WriteAttributes
-// in ansi.hpp) are the targets the diff emit calls; no allocations on
-// the per-cell path.
+// The flush loop is the actual perf-critical path of a TUI app. The
+// hot-path writers in ansi.hpp (WriteCursorPosition / WriteFg/BgRgb /
+// WriteAttributes) are the targets the diff emit calls; no allocations
+// on the per-cell path.
 
 #ifndef TUI_INFRA_RENDERER_HPP_
 #define TUI_INFRA_RENDERER_HPP_

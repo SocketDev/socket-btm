@@ -1,6 +1,5 @@
 // Public surface for tui-infra ANSI emit primitives.
 //
-// Status: scaffold + declarations only. Implementations land in Tier 1.
 // node-smol's `node:smol-tui` binding will #include this header once the
 // additions/source-patched wiring is in place.
 //

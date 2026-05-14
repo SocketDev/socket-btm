@@ -1,4 +1,4 @@
-// Tier 2 test for tui::CellBuffer + tui::Renderer.
+// Test for tui::CellBuffer + tui::Renderer.
 //
 // Exercises the diff path with a few representative scenarios: empty
 // frame stays empty, full-screen write emits all cells, second frame

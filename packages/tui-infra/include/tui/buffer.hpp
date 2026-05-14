@@ -1,12 +1,11 @@
 // CellBuffer — width × height grid of Cell.
 //
-// Tier 2 surface. Mirrors socket-stuie/packages/core/upstream/opentui/
-// packages/core/src/zig/renderer.zig OptimizedBuffer trimmed down to the
-// minimum the diff renderer needs: storage + the most-used drawing
-// primitives (Set, Fill, DrawText). SIMD color matrices, alpha blending,
-// scissor stacks, and hit-test grids live in OpenTUI's full surface but
-// aren't on the Tier 2 critical path — they land later or stay
-// JS-side.
+// Mirrors socket-stuie/packages/core/upstream/opentui/packages/core/src/
+// zig/renderer.zig OptimizedBuffer trimmed down to the minimum the diff
+// renderer needs: storage + the most-used drawing primitives (Set, Fill,
+// DrawText). SIMD color matrices, alpha blending, scissor stacks, and
+// hit-test grids live in OpenTUI's full surface but aren't on the
+// critical path — they stay JS-side for now.
 
 #ifndef TUI_INFRA_BUFFER_HPP_
 #define TUI_INFRA_BUFFER_HPP_
@@ -51,7 +50,7 @@ class CellBuffer {
   // cell carrying the supplied fg/bg/attrs. ASCII and basic multi-byte
   // UTF-8 are supported; combining characters and wide chars (CJK,
   // emoji) count as a single cell each — proper grapheme width handling
-  // is a Tier 3 follow-up.
+  // is a follow-up.
   void DrawText(uint32_t x, uint32_t y, const char* utf8, size_t length,
                 uint8_t fg_r, uint8_t fg_g, uint8_t fg_b, uint8_t bg_r,
                 uint8_t bg_g, uint8_t bg_b, uint8_t attrs);

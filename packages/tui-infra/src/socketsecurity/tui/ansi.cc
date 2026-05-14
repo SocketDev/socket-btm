@@ -1,10 +1,10 @@
-// ANSI emit primitives — Tier 1 implementation.
+// ANSI emit primitives.
 //
 // Lockstep reference: socket-stuie's OpenTUI fork
 // (opentui/packages/core/src/zig/ansi.zig). Cold-path builders return
 // std::string for one-shot setup/teardown writes; hot-path writers
 // fill caller-provided char buffers without allocation so they can be
-// targeted by V8 FastApi from node:smol-tui (Tier 2 wiring).
+// targeted by V8 FastApi from node:smol-tui.
 
 #include "tui/ansi.hpp"
 

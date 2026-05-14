@@ -1,4 +1,4 @@
-// Tier 1 self-contained test for tui::* ANSI emit primitives.
+// Self-contained test for tui::* ANSI emit primitives.
 //
 // Builds with system clang++ via scripts/test.mts. Hits both the cold-
 // path (std::string builders) and hot-path (char* writers) so wire

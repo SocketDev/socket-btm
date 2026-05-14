@@ -10,7 +10,9 @@
 // NotImplemented until the per-frame flush logic lands.
 
 #include "socketsecurity/tui/ansi.hpp"
+#include "socketsecurity/tui/cell.hpp"
 #include "socketsecurity/tui/mouse.hpp"
+#include "socketsecurity/tui/renderer.hpp"
 
 #include "node.h"
 #include "node_binding.h"
@@ -339,6 +341,215 @@ static void LooksLikeMouseSequence(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Boolean::New(isolate, match));
 }
 
+// Renderer handle registry — same pattern as ParserRegistry. Each handle
+// owns a Renderer (double-buffered cell grid + dirty flag). JS calls
+// drawing methods by handle; the methods are stateless from V8's POV.
+struct RendererRegistry {
+  std::mutex mu;
+  uint32_t next_id = 1;
+  std::unordered_map<uint32_t, std::unique_ptr<ti::Renderer>> renderers;
+};
+
+static RendererRegistry& Renderers() {
+  static RendererRegistry r;
+  return r;
+}
+
+static void CreateRenderer(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t width = args[0]->Uint32Value(context).FromMaybe(0);
+  uint32_t height = args[1]->Uint32Value(context).FromMaybe(0);
+  RendererRegistry& r = Renderers();
+  std::lock_guard<std::mutex> lock(r.mu);
+  uint32_t id = r.next_id++;
+  r.renderers.emplace(id, std::make_unique<ti::Renderer>(width, height));
+  args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, id));
+}
+
+static void DestroyRenderer(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  RendererRegistry& r = Renderers();
+  std::lock_guard<std::mutex> lock(r.mu);
+  r.renderers.erase(id);
+}
+
+static ti::Renderer* LookupRenderer(uint32_t id) {
+  RendererRegistry& r = Renderers();
+  std::lock_guard<std::mutex> lock(r.mu);
+  auto it = r.renderers.find(id);
+  return it == r.renderers.end() ? nullptr : it->second.get();
+}
+
+static void RendererResize(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  uint32_t width = args[1]->Uint32Value(context).FromMaybe(0);
+  uint32_t height = args[2]->Uint32Value(context).FromMaybe(0);
+  ti::Renderer* renderer = LookupRenderer(id);
+  if (renderer != nullptr) {
+    renderer->Resize(width, height);
+  }
+}
+
+static void RendererInvalidate(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  ti::Renderer* renderer = LookupRenderer(id);
+  if (renderer != nullptr) {
+    renderer->Invalidate();
+  }
+}
+
+// Helper: build a ti::Cell from args[start..start+7]
+//   codepoint, fgR, fgG, fgB, bgR, bgG, bgB, attrs
+static ti::Cell CellFromArgs(Local<Context> context,
+                             const FunctionCallbackInfo<Value>& args,
+                             int start) {
+  ti::Cell c;
+  c.codepoint = args[start]->Uint32Value(context).FromMaybe(U' ');
+  c.fg_r = static_cast<uint8_t>(
+      args[start + 1]->Uint32Value(context).FromMaybe(0));
+  c.fg_g = static_cast<uint8_t>(
+      args[start + 2]->Uint32Value(context).FromMaybe(0));
+  c.fg_b = static_cast<uint8_t>(
+      args[start + 3]->Uint32Value(context).FromMaybe(0));
+  c.bg_r = static_cast<uint8_t>(
+      args[start + 4]->Uint32Value(context).FromMaybe(0));
+  c.bg_g = static_cast<uint8_t>(
+      args[start + 5]->Uint32Value(context).FromMaybe(0));
+  c.bg_b = static_cast<uint8_t>(
+      args[start + 6]->Uint32Value(context).FromMaybe(0));
+  c.attrs = static_cast<uint8_t>(
+      args[start + 7]->Uint32Value(context).FromMaybe(0));
+  return c;
+}
+
+// rendererClear(handle, codepoint, fgR, fgG, fgB, bgR, bgG, bgB, attrs)
+static void RendererClear(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  ti::Renderer* renderer = LookupRenderer(id);
+  if (renderer == nullptr) {
+    return;
+  }
+  renderer->Next().Clear(CellFromArgs(context, args, 1));
+}
+
+// rendererSet(handle, x, y, codepoint, fgR, fgG, fgB, bgR, bgG, bgB, attrs)
+static void RendererSet(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  uint32_t x = args[1]->Uint32Value(context).FromMaybe(0);
+  uint32_t y = args[2]->Uint32Value(context).FromMaybe(0);
+  ti::Renderer* renderer = LookupRenderer(id);
+  if (renderer == nullptr) {
+    return;
+  }
+  renderer->Next().Set(x, y, CellFromArgs(context, args, 3));
+}
+
+// rendererFillRect(handle, x, y, w, h, codepoint, fgR, fgG, fgB, bgR, bgG,
+//                  bgB, attrs)
+static void RendererFillRect(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  uint32_t x = args[1]->Uint32Value(context).FromMaybe(0);
+  uint32_t y = args[2]->Uint32Value(context).FromMaybe(0);
+  uint32_t w = args[3]->Uint32Value(context).FromMaybe(0);
+  uint32_t h = args[4]->Uint32Value(context).FromMaybe(0);
+  ti::Renderer* renderer = LookupRenderer(id);
+  if (renderer == nullptr) {
+    return;
+  }
+  renderer->Next().FillRect(x, y, w, h, CellFromArgs(context, args, 5));
+}
+
+// rendererDrawText(handle, x, y, utf8Bytes, fgR, fgG, fgB, bgR, bgG, bgB,
+//                  attrs)
+static void RendererDrawText(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  uint32_t x = args[1]->Uint32Value(context).FromMaybe(0);
+  uint32_t y = args[2]->Uint32Value(context).FromMaybe(0);
+  if (!args[3]->IsUint8Array()) {
+    return;
+  }
+  Local<Uint8Array> arr = args[3].As<Uint8Array>();
+  uint8_t fg_r = static_cast<uint8_t>(args[4]->Uint32Value(context).FromMaybe(0));
+  uint8_t fg_g = static_cast<uint8_t>(args[5]->Uint32Value(context).FromMaybe(0));
+  uint8_t fg_b = static_cast<uint8_t>(args[6]->Uint32Value(context).FromMaybe(0));
+  uint8_t bg_r = static_cast<uint8_t>(args[7]->Uint32Value(context).FromMaybe(0));
+  uint8_t bg_g = static_cast<uint8_t>(args[8]->Uint32Value(context).FromMaybe(0));
+  uint8_t bg_b = static_cast<uint8_t>(args[9]->Uint32Value(context).FromMaybe(0));
+  uint8_t attrs = static_cast<uint8_t>(
+      args[10]->Uint32Value(context).FromMaybe(0));
+  ti::Renderer* renderer = LookupRenderer(id);
+  if (renderer == nullptr) {
+    return;
+  }
+  auto store = arr->Buffer()->GetBackingStore();
+  const char* utf8 =
+      static_cast<const char*>(store->Data()) + arr->ByteOffset();
+  renderer->Next().DrawText(x, y, utf8, arr->ByteLength(), fg_r, fg_g, fg_b,
+                            bg_r, bg_g, bg_b, attrs);
+}
+
+// rendererFlush(handle, dstBuf, dstCapacity) -> bytesWritten (or
+// kFlushOverflow if dst was too small).
+static void RendererFlush(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  if (!args[1]->IsUint8Array()) {
+    args.GetReturnValue().Set(Number::New(isolate, 0));
+    return;
+  }
+  Local<Uint8Array> arr = args[1].As<Uint8Array>();
+  uint32_t capacity = args[2]->Uint32Value(context).FromMaybe(0);
+  if (capacity > arr->ByteLength()) {
+    capacity = static_cast<uint32_t>(arr->ByteLength());
+  }
+  ti::Renderer* renderer = LookupRenderer(id);
+  if (renderer == nullptr) {
+    args.GetReturnValue().Set(Number::New(isolate, 0));
+    return;
+  }
+  auto store = arr->Buffer()->GetBackingStore();
+  char* dst = static_cast<char*>(store->Data()) + arr->ByteOffset();
+  size_t written = renderer->Flush(dst, capacity);
+  // Use Number for the return so the kFlushOverflow sentinel (size_t -1)
+  // survives intact — JS observes it as 2^53-1ish; the JS layer checks
+  // against the same sentinel exposed in `sizes.flushOverflow`.
+  args.GetReturnValue().Set(
+      Number::New(isolate, static_cast<double>(written)));
+}
+
+static void RendererSize(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  ti::Renderer* renderer = LookupRenderer(id);
+  Local<Object> obj = Object::New(isolate);
+  uint32_t width = renderer == nullptr ? 0 : renderer->Width();
+  uint32_t height = renderer == nullptr ? 0 : renderer->Height();
+  obj->Set(context, NewOneByteString(isolate, "width"),
+           Integer::NewFromUnsigned(isolate, width))
+      .Check();
+  obj->Set(context, NewOneByteString(isolate, "height"),
+           Integer::NewFromUnsigned(isolate, height))
+      .Check();
+  args.GetReturnValue().Set(obj);
+}
+
 static void Initialize(Local<Object> target,
                        Local<Value> /* unused */,
                        Local<Context> context,
@@ -397,6 +608,11 @@ static void Initialize(Local<Object> target,
       ->Set(context, NewOneByteString(isolate, "maxAttrRunLen"),
             Integer::New(isolate, static_cast<int32_t>(ti::kMaxAttrRunLen)))
       .Check();
+  sizes
+      ->Set(context, NewOneByteString(isolate, "flushOverflow"),
+            Number::New(isolate,
+                        static_cast<double>(ti::Renderer::kFlushOverflow)))
+      .Check();
   target->Set(context, NewOneByteString(isolate, "sizes"), sizes).Check();
 
   SetMethod(context, target, "cursorPosition", CursorPosition);
@@ -412,6 +628,17 @@ static void Initialize(Local<Object> target,
   SetMethod(context, target, "resetParser", ResetParser);
   SetMethod(context, target, "parseMouseOne", ParseMouseOne);
   SetMethod(context, target, "looksLikeMouseSequence", LooksLikeMouseSequence);
+
+  SetMethod(context, target, "createRenderer", CreateRenderer);
+  SetMethod(context, target, "destroyRenderer", DestroyRenderer);
+  SetMethod(context, target, "rendererResize", RendererResize);
+  SetMethod(context, target, "rendererInvalidate", RendererInvalidate);
+  SetMethod(context, target, "rendererClear", RendererClear);
+  SetMethod(context, target, "rendererSet", RendererSet);
+  SetMethod(context, target, "rendererFillRect", RendererFillRect);
+  SetMethod(context, target, "rendererDrawText", RendererDrawText);
+  SetMethod(context, target, "rendererFlush", RendererFlush);
+  SetMethod(context, target, "rendererSize", RendererSize);
 
   Local<Object> events = Object::New(isolate);
 #define BIND_EVENT(name, value) \
@@ -460,6 +687,16 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ResetParser);
   registry->Register(ParseMouseOne);
   registry->Register(LooksLikeMouseSequence);
+  registry->Register(CreateRenderer);
+  registry->Register(DestroyRenderer);
+  registry->Register(RendererResize);
+  registry->Register(RendererInvalidate);
+  registry->Register(RendererClear);
+  registry->Register(RendererSet);
+  registry->Register(RendererFillRect);
+  registry->Register(RendererDrawText);
+  registry->Register(RendererFlush);
+  registry->Register(RendererSize);
 }
 
 }  // namespace tui

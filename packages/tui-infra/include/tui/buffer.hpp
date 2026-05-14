@@ -1,11 +1,28 @@
 // CellBuffer — width × height grid of Cell.
 //
-// Mirrors socket-stuie/packages/core/upstream/opentui/packages/core/src/
-// zig/renderer.zig OptimizedBuffer trimmed down to the minimum the diff
-// renderer needs: storage + the most-used drawing primitives (Set, Fill,
-// DrawText). SIMD color matrices, alpha blending, scissor stacks, and
-// hit-test grids live in OpenTUI's full surface but aren't on the
-// critical path — they stay JS-side for now.
+// 1:1 port of the storage + draw primitives from OpenTUI's
+// `OptimizedBuffer`:
+//
+//   opentui/packages/core/src/zig/renderer.zig
+//     pub const OptimizedBuffer = struct {
+//         cells: []Cell,
+//         height: u32,
+//         width: u32,
+//         pub fn drawText(...) void
+//         pub fn fillRect(...) void
+//         pub fn set(...) void
+//         ...
+//     };
+//
+// Trimmed to the minimum the diff renderer needs: storage + the most-
+// used drawing primitives (Set, Fill, DrawText). OpenTUI's full surface
+// adds:
+//   - SIMD color matrices and alpha blending (renderer.zig blendCell)
+//   - Scissor stacks (renderer.zig clipStack)
+//   - Hit-test grids (renderer.zig hitTestGrid)
+//   - Floating-point colors and per-cell shaders
+// These aren't on the critical path for the common terminal-grid case;
+// they stay JS-side or in a follow-up port.
 
 #ifndef TUI_INFRA_BUFFER_HPP_
 #define TUI_INFRA_BUFFER_HPP_

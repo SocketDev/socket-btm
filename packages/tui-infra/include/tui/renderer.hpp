@@ -1,15 +1,37 @@
 // Renderer — double-buffered cell-grid diff + ANSI emit.
 //
-// Mirrors the core of socket-stuie's OpenTUI fork render loop
-// (renderer.zig CliRenderer): hold a `next` buffer the caller draws into
-// and a `prev` buffer of what the terminal currently shows, then on
-// Flush() walk both buffers cell-by-cell, emit ANSI only for the cells
-// that changed, and swap prev↔next.
+// 1:1 port of OpenTUI's CliRenderer render loop:
+//   opentui/packages/core/src/zig/renderer.zig
+//     pub const CliRenderer = struct {
+//         next: OptimizedBuffer,    // caller-drawn frame
+//         prev: OptimizedBuffer,    // last-flushed state (for diff)
+//         needs_full_redraw: bool,  // force on resize / signal-reentry
+//         pub fn render(...) void   // walk both → emit ANSI for changes
+//         pub fn invalidate(...) void
+//         pub fn resize(...) void
+//     };
 //
-// The flush loop is the actual perf-critical path of a TUI app. The
-// hot-path writers in ansi.hpp (WriteCursorPosition / WriteFg/BgRgb /
-// WriteAttributes) are the targets the diff emit calls; no allocations
-// on the per-cell path.
+// Per-frame contract:
+//   1. caller draws into `next` (CellBuffer setters)
+//   2. caller calls Flush(dst, dstCapacity)
+//   3. Flush walks every cell, compares next vs prev:
+//        - identical: skip (no ANSI emitted)
+//        - differs:   emit cursor-move + style-set + codepoint
+//      Using the hot-path writers in ansi.hpp (WriteCursorPosition /
+//      WriteFg/BgRgb / WriteAttributes) which are zero-allocation.
+//   4. prev ↔ next are swapped; caller's next-frame Clear starts fresh.
+//
+// The flush loop is the actual perf-critical path of a TUI app: every
+// keystroke triggers one. No allocations on the per-cell path; the
+// output Uint8Array is reused frame-to-frame.
+//
+// kFlushOverflow: returned when `dst` would overflow before the frame
+// finishes. Caller should grow the buffer and retry on the same
+// (unswapped) state — Renderer guarantees Flush is restartable until it
+// succeeds. JS callers should size the buffer to
+// `width * height * (kMaxCursorPositionLen + 2*kMaxRgbSgrLen +
+//                    kMaxAttrRunLen + 4 bytes UTF-8)`
+// to avoid retries on the common case.
 
 #ifndef TUI_INFRA_RENDERER_HPP_
 #define TUI_INFRA_RENDERER_HPP_

@@ -1,9 +1,17 @@
 // Cell — single terminal cell carrying a codepoint plus its style.
 //
-// Mirrors socket-stuie/packages/core/upstream/opentui/packages/core/src/
-// zig/buffer-methods.zig `Cell` POD layout, but slimmed down to ASCII-RGB
-// (no float color, no alpha). The CellBuffer holds a contiguous array
-// of these; the Renderer's flush loop diffs cell-by-cell against the
+// Mirrors OpenTUI's `Cell` POD layout:
+//   opentui/packages/core/src/zig/buffer-methods.zig
+//     pub const Cell = struct {
+//         attrs: u8,        // bitfield matching TextAttributes in ansi.zig
+//         bg: RGB,          // 24-bit background
+//         char: u32,        // unicode codepoint (UTF-8 collapsed)
+//         fg: RGB,          // 24-bit foreground
+//     };
+//
+// Slimmed from OpenTUI's full Cell (which carries float-valued colors
+// for SIMD-friendly alpha compositing) to ASCII-RGB (uint8 channels, no
+// alpha). The Renderer's flush loop diffs cell-by-cell against the
 // previous frame and emits ANSI only for changed cells.
 //
 // Memory layout: 12 bytes per cell. Compact enough that a 200×60 grid

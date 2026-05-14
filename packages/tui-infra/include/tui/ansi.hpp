@@ -1,21 +1,40 @@
 // Public surface for tui-infra ANSI emit primitives.
 //
-// node-smol's `node:smol-tui` binding will #include this header once the
-// additions/source-patched wiring is in place.
+// 1:1 C++ port of OpenTUI's `ansi.zig` (Zig source vendored into
+// socket-stuie's @opentui/core fork at packages/core/upstream/opentui/
+// packages/core/src/zig/ansi.zig). The Zig file defines:
 //
-// Lockstep refs:
-//   - js-temporal/temporal-polyfill ← unrelated (the temporal-infra
-//     analog of this header is temporal/CalendarBackend.hpp)
-//   - socket-stuie's OpenTUI fork (Zig surface):
-//     opentui/packages/core/src/zig/ansi.zig — the per-cell hot path
-//     `ANSI.moveToOutput / fgColorOutput / bgColorOutput /
-//      applyAttributesOutputWriter`
-//   - VT100 / xterm SGR sequences:
+//   pub const ANSI = struct {
+//       pub const reset             = "\x1b[0m";
+//       pub const clear             = "\x1b[2J";
+//       ...
+//       pub fn cursorPosition(...) ...   // CUP — ESC[<row>;<col>H
+//       pub fn fgRgbTrue(...) ...        // SGR FG — ESC[38;2;r;g;bm
+//       pub fn bgRgbTrue(...) ...        // SGR BG — ESC[48;2;r;g;bm
+//       pub fn moveToOutput(...) ...     // CUP into caller buffer
+//       pub fn fgColorOutput(...) ...    // SGR into caller buffer
+//       pub fn bgColorOutput(...) ...    // SGR into caller buffer
+//       pub fn applyAttributesOutputWriter(...) ...  // SGR attrs
+//   };
+//
+// The constants are byte-identical to OpenTUI's. The cold-path
+// `std::string`-returning builders mirror `cursorPosition` / `fgRgbTrue`
+// / `bgRgbTrue`. The hot-path writers (Write* functions) match the
+// `*Output` writers in semantics — write into a caller-provided buffer
+// and return bytes written. Per-frame flush uses the hot-path writers
+// exclusively to avoid heap traffic.
+//
+// Wire-protocol references:
+//   xterm Control Sequences:
 //     https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
+//     - #h2-CSI-Ps-_-Ps-H  (CUP — cursor position)
+//     - #h2-Character-Attributes-_SGR_  (SGR)
+//   VT100 — DEC STD 070 / ECMA-48
 //
 // API split:
 //   1. Constants — fixed escape sequences for cursor/screen state.
-//   2. Cold-path builders — return std::string; called once per setup.
+//   2. Cold-path builders — return std::string; called once per setup
+//      (banner, alt-screen switch, etc.). NOT the per-frame path.
 //   3. Hot-path writers — write into caller-provided char* buffer,
 //      return bytes written. These are the V8 FastApi targets — JS
 //      hands us a Uint8Array, we fill it without allocation.

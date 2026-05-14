@@ -1,9 +1,40 @@
 // MouseParser — ANSI mouse sequence decoder.
 //
-// Decodes SGR (ESC [ < b ; x ; y M|m) and X10 (ESC [ M <byte> <x> <y>)
-// mouse protocols into structured events. 1:1 port from socket-stuie's
-// react package mouse-parser.ts (which is itself a near-verbatim
-// vendor from @opentui/core).
+// 1:1 port of @opentui/core's mouse-parser.ts (TypeScript):
+//   opentui/packages/core/src/parse/mouse-parser.ts
+//     export class MouseParser {
+//         private mouseButtonsPressed = new Set<number>()
+//         private reusedEvent: RawMouseEvent = { ... }
+//         parseOne(buf, offset) -> { consumed, event } | null
+//         parseAll(buf, sink) -> count
+//         reset(): void
+//     }
+//
+// Decodes the two terminal mouse wire protocols:
+//
+//   SGR mode (xterm 277+, modern default — what every modern terminal
+//   emulator sends by default once we send DECSET 1006):
+//     ESC [ < b ; x ; y M     press / motion-with-button
+//     ESC [ < b ; x ; y m     release
+//     - `b` encodes button in low 2 bits (0=left, 1=middle, 2=right,
+//       3=release), modifiers in bits 2-4 (shift / alt / ctrl), motion
+//       flag in bit 5 (motion event vs button event), scroll button in
+//       bit 6 (button 4/5 → scroll up/down with bit 6 set).
+//     - x, y are 1-indexed character coords. No cap (24-bit decimal).
+//     Spec: xterm Mouse Tracking + SGR Pixel Position
+//
+//   X10 mode (legacy, xterm pre-277 default — still seen on tmux):
+//     ESC [ M <byte> <x> <y>     single press, no release info
+//     - Each byte is +32 offset; coords capped at 223 (255 - 32).
+//
+// Wire-protocol reference:
+//   https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking
+//
+// Drag state: SGR motion+button events translate to JS-level DRAG; the
+// `mouse_buttons_pressed_` set tracks which buttons are currently held.
+// On release, an event with `type=DRAG_END` is emitted followed by a
+// `type=DROP` event (matches @opentui/core's event mapping in
+// mouse-parser.ts).
 //
 // Hot path semantics: the parser owns its `RawMouseEvent` slot so
 // every parsed event reuses the same memory. Consumers reading via

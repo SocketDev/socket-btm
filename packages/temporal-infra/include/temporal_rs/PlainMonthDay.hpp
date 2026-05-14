@@ -430,10 +430,35 @@ class PlainMonthDay {
 
   // Build a PlainMonthDay from a parsed record. Try-new ignores
   // calendar; overlay the parsed kind so [u-ca=...] survives.
+  //
+  // Reference-year handling mirrors upstream temporal_rs
+  // /src/builtins/core/plain_month_day.rs `from_parsed`:
+  //
+  //   - ISO calendar:    hardcode 1972 (the spec's reference year —
+  //                      first ISO 8601 leap year after the epoch).
+  //                      Parsed year is ignored for ISO MonthDay since
+  //                      toString omits the year and the only
+  //                      consumer (equals) compares iso8601 month-day.
+  //
+  //   - Non-ISO calendar: pass parsed.year() through. The parser sets
+  //                      year=1972 when the input was `--MM-DD` or
+  //                      `MM-DD`, and the actual parsed year when the
+  //                      input was `YYYY-MM-DD[u-ca=...]`. The
+  //                      calendar-aware monthCode resolution downstream
+  //                      depends on a specific reference year (e.g.
+  //                      Hebrew M05L only exists in leap years), so
+  //                      dropping it produces wrong monthCodes for
+  //                      non-ISO calendars.
   static diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
   from_parsed(const ParsedDate& parsed) {
+    const bool is_iso =
+        parsed.ToInfra().calendar_kind ==
+        ::node::socketsecurity::temporal::CalendarKind::kIso;
+    std::optional<int32_t> reference_year =
+        is_iso ? std::optional<int32_t>{}
+               : std::optional<int32_t>(parsed.year());
     auto r = ::node::socketsecurity::temporal::PlainMonthDayTryNewIso(
-        parsed.month(), parsed.day(), std::optional<int32_t>{});
+        parsed.month(), parsed.day(), reference_year);
     if (!r.ok()) {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(r.error()));

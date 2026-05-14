@@ -39,7 +39,7 @@ observable surface. Adding wrappers V8 doesn't invoke is dead code.
 | Shim methods with `NotImplemented` body               | 0      |
 | Test262 entry-point coverage                          | TBD¹   |
 | Smoke test assertions                                 | 85     |
-| Intentional spec deviations (Known drifts)            | 3      |
+| Intentional spec deviations (Known drifts)            | 4      |
 
 ¹ Test262 runs in the node-smol CI workflow; results land in
 `packages/temporal-infra/test/test262-results.json` per build.

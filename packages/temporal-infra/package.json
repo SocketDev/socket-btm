@@ -12,8 +12,8 @@
     "check:lockstep": "node scripts/check-lockstep.mts",
     "check:lockstep:self-test": "node scripts/check-lockstep.test.mts",
     "clean": "node scripts/clean.mts",
-    "test262": "node scripts/test262.mts",
-    "test262:no-intl": "node scripts/test262.mts --no-intl"
+    "test262:temporal": "node scripts/test262.mts",
+    "test262:temporal:no-intl": "node scripts/test262.mts --no-intl"
   },
   "dependencies": {
     "@socketsecurity/lib": "catalog:",

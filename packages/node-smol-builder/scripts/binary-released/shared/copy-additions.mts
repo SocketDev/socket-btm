@@ -10,6 +10,7 @@ import { safeMkdir } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 import { ADDITIONS_SOURCE_PATCHED_DIR, PACKAGE_ROOT } from './paths.mts'
+import { MONOREPO_PACKAGE_SOURCES } from './prepare-external-sources.mts'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
 const logger = getDefaultLogger()
@@ -36,11 +37,24 @@ export async function copyBuildAdditions(modeSourceDir) {
     )
   }
 
-  const fileCount = await copyDirectoryRecursive(
+  let fileCount = await copyDirectoryRecursive(
     ADDITIONS_SOURCE_PATCHED_DIR,
     modeSourceDir,
     version,
   )
+
+  // Direct-copy MONOREPO_PACKAGE_SOURCES into modeSourceDir at the slot
+  // given by `relativeTo`. These bypass the additions/source-patched/
+  // staging step so the source-of-truth in temporal-infra/binject/etc
+  // lands straight in the patched tree.
+  for (let i = 0, { length } = MONOREPO_PACKAGE_SOURCES; i < length; i += 1) {
+    const { from, relativeTo } = MONOREPO_PACKAGE_SOURCES[i]
+    if (!existsSync(from)) {
+      throw new Error(`Monorepo source directory not found: ${from}`)
+    }
+    const dest = path.join(modeSourceDir, relativeTo)
+    fileCount += await copyDirectoryRecursive(from, dest, version)
+  }
 
   logger.success(`Copied ${fileCount} file(s) from additions/`)
   logger.log('')

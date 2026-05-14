@@ -4,12 +4,10 @@
  * Syncs vendored npm packages (fast-webstreams) from npm registry.
  */
 
-import crypto from 'node:crypto'
 import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
-import { safeDelete } from '@socketsecurity/lib/fs'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { spawn } from '@socketsecurity/lib/spawn'
 
@@ -43,60 +41,43 @@ const UWEBSOCKETS_UPSTREAM_DIR = path.join(
 const logger = getDefaultLogger()
 
 /**
- * Monorepo-package source mappings — changes here invalidate the
- * SOURCE_PATCHED cache. apply-patches.mts imports this list to compute
- * its cache key, so adding a new package here is the only edit needed
- * (no parallel list in apply-patches.mts).
+ * Monorepo-package source mappings — direct-copied by copyBuildAdditions
+ * from each `from` into modeSourceDir/`relativeTo`. apply-patches.mts
+ * imports this list and hashes `from` for the SOURCE_PATCHED cache key,
+ * so adding a new package here is the only edit needed to wire it into
+ * both the cache and the source tree.
  *
- * Note: Packages use the socketsecurity/ namespace in their src/ trees.
- * Note: sea-smol and vfs C++ files live in additions/source-patched/src/socketsecurity/
- *       already (not copied here).
+ * Hand-maintained sources under additions/source-patched/src/
+ * socketsecurity/ (sea-smol, vfs, ffi, http, etc.) are NOT in this
+ * list — they live only in additions/ as authoritative sources and
+ * are picked up by copyBuildAdditions' directory walk.
  */
 export const MONOREPO_PACKAGE_SOURCES = [
   {
     from: path.join(BINJECT_DIR, 'src', 'socketsecurity', 'binject'),
-    to: path.join(
-      ADDITIONS_SOURCE_PATCHED_DIR,
-      'src',
-      'socketsecurity',
-      'binject',
-    ),
+    relativeTo: path.join('src', 'socketsecurity', 'binject'),
   },
   {
     from: path.join(BIN_INFRA_DIR, 'src', 'socketsecurity', 'bin-infra'),
-    to: path.join(
-      ADDITIONS_SOURCE_PATCHED_DIR,
-      'src',
-      'socketsecurity',
-      'bin-infra',
-    ),
+    relativeTo: path.join('src', 'socketsecurity', 'bin-infra'),
   },
   {
     from: path.join(BUILD_INFRA_DIR, 'src', 'socketsecurity', 'build-infra'),
-    to: path.join(
-      ADDITIONS_SOURCE_PATCHED_DIR,
-      'src',
-      'socketsecurity',
-      'build-infra',
-    ),
+    relativeTo: path.join('src', 'socketsecurity', 'build-infra'),
   },
   {
     from: path.join(TEMPORAL_INFRA_DIR, 'src', 'socketsecurity', 'temporal'),
-    to: path.join(
-      ADDITIONS_SOURCE_PATCHED_DIR,
-      'src',
-      'socketsecurity',
-      'temporal',
-    ),
+    relativeTo: path.join('src', 'socketsecurity', 'temporal'),
   },
   // temporal_rs compat shim: drop-in replacement for the diplomat
   // bindings that V8's js-temporal-objects.cc #includes. Lands these
   // headers at <src_root>/include/temporal_rs/ so V8 compiles against
   // the C++ port instead of the rustc/cargo-built temporal_capi
-  // static lib. Patch 021 wires the include path into v8.gyp.
+  // static lib. The node.gyp source-list patch wires the include path
+  // into v8.gyp.
   {
     from: path.join(TEMPORAL_INFRA_DIR, 'include', 'temporal_rs'),
-    to: path.join(ADDITIONS_SOURCE_PATCHED_DIR, 'include', 'temporal_rs'),
+    relativeTo: path.join('include', 'temporal_rs'),
   },
   // tui-infra: ANSI emit primitives + (Tier 2+) cell buffer / render
   // loop port from socket-stuie's OpenTUI fork. The node:smol-tui
@@ -104,16 +85,11 @@ export const MONOREPO_PACKAGE_SOURCES = [
   // public header from include/tui/ansi.hpp.
   {
     from: path.join(TUI_INFRA_DIR, 'src', 'socketsecurity', 'tui'),
-    to: path.join(
-      ADDITIONS_SOURCE_PATCHED_DIR,
-      'src',
-      'socketsecurity',
-      'tui',
-    ),
+    relativeTo: path.join('src', 'socketsecurity', 'tui'),
   },
   {
     from: path.join(TUI_INFRA_DIR, 'include', 'tui'),
-    to: path.join(ADDITIONS_SOURCE_PATCHED_DIR, 'include', 'tui'),
+    relativeTo: path.join('include', 'tui'),
   },
 ]
 
@@ -175,12 +151,7 @@ const VENDORED_SOURCES = [
   },
 ]
 
-/**
- * Combined copy manifest — monorepo packages first (so source-of-truth
- * is staged before vendored upstreams that may depend on it). Loops
- * that copy/validate iterate over this.
- */
-const EXTERNAL_SOURCES = [...MONOREPO_PACKAGE_SOURCES, ...VENDORED_SOURCES]
+const EXTERNAL_SOURCES = [...VENDORED_SOURCES]
 
 /**
  * Vendor-source patch bundles — applied to the copied vendor tree under
@@ -245,51 +216,6 @@ export async function applyVendorPatches() {
 }
 
 /**
- * Compute hash of directory contents for sync validation.
- * @param {string} dirPath - Directory to hash
- * @returns {Promise<string|undefined>} Hash of directory contents, or undefined if directory doesn't exist
- */
-export async function computeDirectoryHash(dirPath) {
-  if (!existsSync(dirPath)) {
-    return undefined
-  }
-
-  const files = []
-  async function walk(dir) {
-    const entries = await fs.readdir(dir, { withFileTypes: true })
-    for (let i = 0, { length } = entries; i < length; i += 1) {
-      const entry = entries[i]
-      const fullPath = path.join(dir, entry.name)
-      if (entry.isDirectory()) {
-        await walk(fullPath)
-      } else if (entry.isFile()) {
-        const content = await fs.readFile(fullPath)
-        // Normalize separators so hashes match between Windows and POSIX.
-        const relativePath = path
-          .relative(dirPath, fullPath)
-          .split(path.sep)
-          .join('/')
-        files.push({ content, path: relativePath })
-      }
-    }
-  }
-
-  await walk(dirPath)
-
-  // Sort by path for deterministic hashing
-  files.sort((a, b) => a.path.localeCompare(b.path))
-
-  const hash = crypto.createHash('sha256')
-  for (let i = 0, { length } = files; i < length; i += 1) {
-    const file = files[i]
-    hash.update(file.path)
-    hash.update(file.content)
-  }
-
-  return hash.digest('hex')
-}
-
-/**
  * Prepare external sources by copying them to additions directory.
  * Copies whole directory trees using fs.cp() with recursive flag.
  *
@@ -299,25 +225,14 @@ export async function computeDirectoryHash(dirPath) {
 export async function prepareExternalSources() {
   logger.step('Preparing External Sources')
 
-  // Re-sync targets from sources BEFORE validating. Targets under
-  // additions/source-patched/src/socketsecurity/* are gitignored and
-  // can be stale from a previous run; running the copy first makes
-  // validateAdditionsSync() a post-condition check (did the copy land?)
-  // instead of a precondition that aborts whenever the working tree is
-  // out of date. Use `recursive: true` + `force: true` so existing
-  // target files are overwritten; orphan files left from a prior
-  // source layout are cleaned up by the explicit prune below.
+  // Stage VENDORED_SOURCES into additions/source-patched/ so the
+  // vendor-patch hook can mutate the copy without touching the
+  // submodule. Use `recursive: true` + `force: true` so existing
+  // target files are overwritten.
   // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const { from, to } of EXTERNAL_SOURCES) {
     if (!existsSync(from)) {
       throw new Error(`External source directory not found: ${from}`)
-    }
-
-    // Only prune orphan files for socketsecurity source packages;
-    // upstream submodule targets (lzfse, libdeflate) are managed by
-    // their own sync scripts.
-    if (from.includes('socketsecurity') && existsSync(to)) {
-      await safeDelete(to)
     }
 
     await fs.cp(from, to, { recursive: true, force: true })
@@ -325,13 +240,6 @@ export async function prepareExternalSources() {
     const relativeFrom = path.relative(PACKAGE_ROOT, from)
     logger.success(`Copied directory tree from ${relativeFrom}`)
   }
-
-  logger.log('')
-
-  // Verify the copy produced a byte-identical mirror. If this fails
-  // now, something is wrong with the source tree itself (race with a
-  // concurrent writer, unreadable file), not with our sync state.
-  await validateAdditionsSync()
 
   logger.log('')
 
@@ -378,48 +286,4 @@ export async function syncVendoredPackages() {
   }
 
   logger.log('')
-}
-
-/**
- * Validate that additions directory is in sync with source packages.
- * Only validates socketsecurity/ source packages, NOT upstream dependencies.
- * Throws error if directories are out of sync.
- */
-export async function validateAdditionsSync() {
-  logger.substep(
-    'Validating additions directory is in sync with source packages',
-  )
-
-  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
-  for (const { from, to } of EXTERNAL_SOURCES) {
-    if (!existsSync(from)) {
-      throw new Error(`Source directory not found: ${from}`)
-    }
-
-    // Only validate socketsecurity source packages (binject, bin-infra, build-infra).
-    // Skip upstream dependencies (lzfse, libdeflate) which come from git submodules.
-    if (!from.includes('socketsecurity')) {
-      continue
-    }
-
-    const fromHash = await computeDirectoryHash(from)
-    const toHash = await computeDirectoryHash(to)
-
-    // Skip validation if target doesn't exist yet (will be created during copy)
-    if (toHash === undefined) {
-      continue
-    }
-
-    if (fromHash !== toHash) {
-      const relativeFrom = path.relative(PACKAGE_ROOT, from)
-      const relativeTo = path.relative(PACKAGE_ROOT, to)
-      throw new Error(
-        `Additions mirror does not match source after copy: ${relativeTo} drifted from ${relativeFrom}. ` +
-          'This indicates a concurrent writer or an unreadable source file; ' +
-          'verify the source tree is quiescent and rerun the build.',
-      )
-    }
-  }
-
-  logger.success('Additions directory is in sync with source packages')
 }

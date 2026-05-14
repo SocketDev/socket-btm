@@ -69,6 +69,11 @@ packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/.wpt-tmp/
 packages/node-smol-builder/additions/source-patched/deps/lzfse/src/
 packages/node-smol-builder/additions/source-patched/deps/libdeflate/*
 !packages/node-smol-builder/additions/source-patched/deps/libdeflate/libdeflate.gyp
+# QUIC + HTTP/3 source copied from lsquic-infra/upstream at build time.
+# When custom .gyp glue lands (parallel to libdeflate.gyp), add the
+# matching `!.../lsquic.gyp` and `!.../ls-qpack.gyp` allowlist lines.
+packages/node-smol-builder/additions/source-patched/deps/lsquic/
+packages/node-smol-builder/additions/source-patched/deps/ls-qpack/
 
 # Firewall test/debug Dockerfiles and scripts
 Dockerfile.firewall-*-test

@@ -94,6 +94,33 @@ Local<String> NewOneByteString(Isolate* isolate, const char* literal) {
 // layer's idempotent `globalInit()` doesn't re-enter the C library.
 std::atomic<bool> g_lsquic_inited{false};
 
+// Engine handle registry. Process-wide map keyed by uint32 handle.
+// Mutex-guarded so cross-worker access is safe even though typical
+// QUIC use is single-threaded per engine. JS owns the lifecycle:
+// createEngine() returns a handle, destroyEngine(handle) releases it.
+//
+// Engines hold a packets_out callback that fires synchronously inside
+// engineProcessConns / engineConnect. The JS layer registers the
+// callback at createEngine time; we trampoline through a static
+// dispatcher that reads the per-engine V8 Persistent from the
+// registry slot.
+struct EngineSlot {
+  lsquic_engine_t* engine;
+  // Per-engine state for callbacks lands here in step 4 when
+  // engineConnect introduces the packets_out trampoline.
+};
+
+struct EngineRegistry {
+  std::mutex mu;
+  uint32_t next_id = 1;
+  std::unordered_map<uint32_t, std::unique_ptr<EngineSlot>> engines;
+};
+
+EngineRegistry& Engines() {
+  static EngineRegistry r;
+  return r;
+}
+
 }  // namespace
 
 // ─── Section 1: Global init / cleanup ────────────────────────────────
@@ -170,6 +197,103 @@ static void BindVersionEnum(Isolate* isolate, Local<Context> context,
       .Check();
 }
 
+// ─── Section 3: Engine create / destroy ──────────────────────────────
+//
+// lsquic.h:
+//   void           lsquic_engine_init_settings(struct lsquic_engine_settings*,
+//                                              unsigned flags);
+//   int            lsquic_engine_check_settings(const struct
+//                                               lsquic_engine_settings*,
+//                                               unsigned flags,
+//                                               char* err_buf,
+//                                               size_t err_buf_sz);
+//   lsquic_engine_t* lsquic_engine_new(unsigned flags,
+//                                       const struct lsquic_engine_api*);
+//   void           lsquic_engine_destroy(lsquic_engine_t*);
+//
+// createEngine(flags) accepts the flag mask (LSQUIC_ENG_SERVER on
+// for server mode, 0 for client) and returns an opaque uint32
+// handle. The full settings-struct passthrough (50+ fields) lands in
+// step 8 — this step uses lsquic_engine_init_settings to populate
+// defaults appropriate for the requested flags.
+//
+// The engine_api struct that lsquic_engine_new wants carries the
+// stream-callback table + packets_out callback + cert lookup
+// callback. We pass a minimal struct with nullptr callbacks here
+// (engine compiles but can't yet send packets) — callback wiring
+// lands in steps 3-4 as the dispatcher trampoline shape stabilizes.
+
+static void CreateEngine(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  if (!g_lsquic_inited.load(std::memory_order_acquire)) {
+    args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, 0));
+    return;
+  }
+  Local<Context> context = isolate->GetCurrentContext();
+  unsigned flags = static_cast<unsigned>(
+      args[0]->Uint32Value(context).FromMaybe(0));
+
+  // Populate defaults for the requested flags.
+  lsquic_engine_settings settings;
+  lsquic_engine_init_settings(&settings, flags);
+
+  // Engine API struct — callbacks land in steps 3-4. For now the
+  // engine can be constructed and destroyed but not driven; the JS
+  // layer will see a valid handle and exercise the lifecycle.
+  lsquic_engine_api api{};
+  api.ea_settings = &settings;
+
+  lsquic_engine_t* engine = lsquic_engine_new(flags, &api);
+  if (engine == nullptr) {
+    args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, 0));
+    return;
+  }
+
+  EngineRegistry& r = Engines();
+  std::lock_guard<std::mutex> lock(r.mu);
+  uint32_t id = r.next_id++;
+  auto slot = std::make_unique<EngineSlot>();
+  slot->engine = engine;
+  r.engines.emplace(id, std::move(slot));
+  args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, id));
+}
+
+static void DestroyEngine(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  EngineRegistry& r = Engines();
+  std::lock_guard<std::mutex> lock(r.mu);
+  auto it = r.engines.find(id);
+  if (it == r.engines.end()) {
+    return;
+  }
+  lsquic_engine_destroy(it->second->engine);
+  r.engines.erase(it);
+}
+
+// ─── Engine flag mirror ──────────────────────────────────────────────
+//
+// LSQUIC_ENG_SERVER + LSQUIC_ENG_HTTP from lsquic.h:`enum
+// lsquic_engine_flags`. Composed by JS into the flag mask passed to
+// createEngine().
+
+static void BindEngineFlags(Isolate* isolate, Local<Context> context,
+                            Local<Object> target) {
+  Local<Object> engineFlags = Object::New(isolate);
+  engineFlags
+      ->Set(context, NewOneByteString(isolate, "SERVER"),
+            Integer::New(isolate, LSQUIC_ENG_SERVER))
+      .Check();
+  engineFlags
+      ->Set(context, NewOneByteString(isolate, "HTTP"),
+            Integer::New(isolate, LSQUIC_ENG_HTTP))
+      .Check();
+  target
+      ->Set(context, NewOneByteString(isolate, "engineFlags"), engineFlags)
+      .Check();
+}
+
 // ─── Initialize / RegisterExternalReferences ─────────────────────────
 
 static void Initialize(Local<Object> target,
@@ -180,13 +304,18 @@ static void Initialize(Local<Object> target,
 
   SetMethod(context, target, "globalInit", GlobalInit);
   SetMethod(context, target, "globalCleanup", GlobalCleanup);
+  SetMethod(context, target, "createEngine", CreateEngine);
+  SetMethod(context, target, "destroyEngine", DestroyEngine);
 
   BindVersionEnum(isolate, context, target);
+  BindEngineFlags(isolate, context, target);
 }
 
 static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GlobalInit);
   registry->Register(GlobalCleanup);
+  registry->Register(CreateEngine);
+  registry->Register(DestroyEngine);
 }
 
 }  // namespace quic

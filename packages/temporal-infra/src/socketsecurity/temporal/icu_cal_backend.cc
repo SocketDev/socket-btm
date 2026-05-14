@@ -546,79 +546,259 @@ TemporalResult<uint8_t> IcuCalendarBackend::ResolveMonthCode(
       "MonthCode does not resolve to a month in this calendar/year");
 }
 
+namespace {
+
+// Approximate ISO date for a calendar (year, month, day). Mirrors the
+// polyfill's `estimateIsoDate` (lib/calendar.mjs:1370 Hebrew, :1818
+// Gregorian-like). Goal: get within ~30 days of the real ISO date so
+// the iterative search converges quickly.
+//
+// Two strategy classes:
+//   - Same-month-as-Gregorian calendars (Coptic, Ethiopian, ROC,
+//     Buddhist, Japanese, Persian, Indian, Islamic): iso_year =
+//     calendar_year + epoch.year - 1 (era starts at year 1); keep
+//     month/day as-is. Per-month-day-count differences smooth out
+//     within the iterative search's tolerance.
+//   - Lunisolar / fully-divergent (Hebrew, Chinese, Dangi): land on
+//     iso epoch + (year - 1) years using year-only math; months get
+//     resolved by the search.
+struct CalendarEpoch {
+  int32_t iso_year;
+  uint8_t iso_month;  // 1-indexed
+  uint8_t iso_day;    // 1-indexed
+  bool same_month_as_gregorian;
+};
+
+// Polyfill-sourced epoch table. Each entry: ISO date corresponding to
+// (calendar year 1, month 1, day 1) of the primary era, plus a flag
+// indicating whether month/day numbers approximately track ISO.
+// Verified against polyfill `lib/calendar.mjs` helper* definitions.
+constexpr CalendarEpoch CalendarEpochFor(CalendarKind kind) noexcept {
+  switch (kind) {
+    // Coptic: am era, iso 284-08-29.
+    case CalendarKind::kCoptic:
+      return {284, 8, 29, false};
+    // Ethiopian: am era (modern), iso 8-08-27.
+    case CalendarKind::kEthiopian:
+      return {8, 8, 27, false};
+    // Ethiopian Amete Alem: aa era, iso -5492-07-17.
+    case CalendarKind::kEthiopianAmeteAlem:
+      return {-5492, 7, 17, false};
+    // Hebrew: am era, iso -3760-09-08. Months don't track ISO.
+    case CalendarKind::kHebrew:
+      return {-3760, 9, 8, false};
+    // Islamic / Hijri (tabular + Umm al-Qura): ah era, iso 622-07-15.
+    case CalendarKind::kHijriTabularFriday:
+    case CalendarKind::kHijriTabularThursday:
+    case CalendarKind::kHijriUmmAlQura:
+      return {622, 7, 15, false};
+    // Persian: ap era, iso 622-03-22.
+    case CalendarKind::kPersian:
+      return {622, 3, 22, false};
+    // Indian: shaka era, iso 79-03-23.
+    case CalendarKind::kIndian:
+      return {79, 3, 23, false};
+    // ROC: roc era, iso 1912-01-01. Same month/day as Gregorian.
+    case CalendarKind::kRoc:
+      return {1912, 1, 1, true};
+    // Buddhist: be era, iso -542-01-01 (year 0 = BE 543). Same as Greg.
+    case CalendarKind::kBuddhist:
+      return {-542, 1, 1, true};
+    // Gregorian (ce era): iso 1-01-01.
+    case CalendarKind::kGregorian:
+      return {1, 1, 1, true};
+    // Japanese: anchor at modern era; pre-Meiji falls back to gregorian.
+    // The polyfill uses Meiji era = iso 1868-09-08, but for estimation
+    // purposes we use ce-equivalent gregorian (the iterative search
+    // converges in either case).
+    case CalendarKind::kJapanese:
+      return {1, 1, 1, true};
+    // Chinese / Dangi: lunisolar; polyfill uses a 'cycleYears' search
+    // (60-year cycle). For estimation, anchor at a recent year where
+    // chinese year ≈ iso year. iso 2000-02-05 ≈ chinese year 4697 day 1.
+    case CalendarKind::kChinese:
+      return {-2636, 2, 15, false};
+    case CalendarKind::kDangi:
+      return {-2333, 2, 15, false};
+    case CalendarKind::kIso:
+    default:
+      return {1, 1, 1, true};
+  }
+}
+
+// Compare two (year, month, day) triples lexicographically.
+constexpr int CompareCalendarFields(int32_t y1, uint8_t m1, uint8_t d1,
+                                      int32_t y2, uint8_t m2,
+                                      uint8_t d2) noexcept {
+  if (y1 != y2) return y1 < y2 ? -1 : 1;
+  if (m1 != m2) return m1 < m2 ? -1 : 1;
+  if (d1 != d2) return d1 < d2 ? -1 : 1;
+  return 0;
+}
+
+// Clamp an ISO date to the spec-legal Temporal range. Mirrors the
+// polyfill's clampISODate (lib/calendar.mjs:598).
+IsoDate ClampIsoDate(int32_t year, int32_t month, int32_t day) noexcept {
+  // Min: -271821-04-19, Max: 275760-09-13. Spec-mandated.
+  if (year < -271821 || (year == -271821 && (month < 4 ||
+        (month == 4 && day < 19)))) {
+    return IsoDate{-271821, 4, 19};
+  }
+  if (year > 275760 || (year == 275760 && (month > 9 ||
+        (month == 9 && day > 13)))) {
+    return IsoDate{275760, 9, 13};
+  }
+  return IsoDate{year,
+                 static_cast<uint8_t>(month),
+                 static_cast<uint8_t>(day)};
+}
+
+// Add `days` to an ISO date by going through epoch days. Used by the
+// iterative search to step the estimate.
+IsoDate AddDaysToIso(const IsoDate& iso, int64_t days) noexcept {
+  const int64_t epoch_days =
+      EpochDaysFromGregorianDate(iso.year, iso.month, iso.day) + days;
+  IsoDate out{};
+  YmdFromEpochDays(epoch_days, &out.year, &out.month, &out.day);
+  return ClampIsoDate(out.year, out.month, out.day);
+}
+
+}  // namespace
+
+// Polyfill-style iterative calendar→ISO conversion. Mirrors
+// `lib/calendar.mjs:950 calendarToIsoDate`. ICU4C lacks an equivalent
+// of ICU4X's `from_fields/to_iso` (the temporal_rs Rust path), so we
+// can't call into ICU directly to convert calendar fields to ISO.
+// Instead: estimate, roundtrip via ICU's reliable ISO→calendar
+// direction, search in 8-day increments until in the right month,
+// then refine by exact day delta.
+//
+// Lockstep note: this function intentionally diverges from temporal_rs's
+// algorithm (which uses ICU4X's `from_fields`). Mirror the polyfill
+// instead; see temporal-infra/docs/lockstep-divergence-isofromcalendar.md.
 TemporalResult<IsoDate> IcuCalendarBackend::IsoFromCalendarFields(
     CalendarKind kind, int32_t year, uint8_t ordinal_month, uint8_t day,
     Overflow overflow) noexcept {
-  // ISO short-circuits through the base impl (no ICU round-trip).
   if (kind == CalendarKind::kIso) {
     return CalendarBackend::IsoFromCalendarFields(kind, year, ordinal_month,
                                                     day, overflow);
   }
-  // Open ICU at a known-safe ISO probe. We then set year/month/day in
-  // an order that avoids the probe's day-of-month leaking through and
-  // causing month rollover for calendars where the probe's day doesn't
-  // exist in the requested month (observed concretely with Coptic M13
-  // — only 5/6 days — and a probe positioned at day=22).
-  //
-  // Strategy: set day=1 FIRST (a value that exists in every month of
-  // every supported calendar), THEN set year, THEN set month. With the
-  // day already on a safe value, ICU's per-field commit on the year/
-  // month set can't roll the month.
-  IsoDate probe{2024, 1, 1};
-  auto cal = OpenIcuCal(kind, probe);
-  if (cal == nullptr) {
-    return TemporalError::Range("Unknown calendar identifier");
-  }
-  UErrorCode status = U_ZERO_ERROR;
-  cal->set(UCAL_DATE, 1);
-  cal->set(UCAL_YEAR, year);
-  // ICU MONTH is 0-indexed; ordinal_month is 1-indexed (post-monthCode
-  // resolution: callers go through CalendarResolveMonthCode for leap
-  // variants, then pass the ICU-native ordinal position here).
   if (ordinal_month < 1) {
     if (overflow != Overflow::kConstrain) {
       return TemporalError::Range("month out of range");
     }
-    cal->set(UCAL_MONTH, 0);
-  } else {
-    cal->set(UCAL_MONTH, static_cast<int32_t>(ordinal_month - 1));
+    ordinal_month = 1;
   }
-  // NOW set the actual day. For constrain, clamp to month's actual max
-  // (which we read via getActualMaximum AFTER year+month are committed
-  // — the year/month getters trigger the commit). For reject, set the
-  // user value and let lenient=false trip on the commit.
-  if (overflow == Overflow::kConstrain) {
-    cal->setLenient(true);
-    UErrorCode probe_status = U_ZERO_ERROR;
-    const int32_t max_day =
-        cal->getActualMaximum(UCAL_DAY_OF_MONTH, probe_status);
-    const uint8_t safe_day = day < 1 ? 1 : day;
-    if (U_SUCCESS(probe_status) && max_day > 0 && safe_day > max_day) {
-      cal->set(UCAL_DATE, max_day);
-    } else {
-      cal->set(UCAL_DATE, safe_day);
+  if (day < 1) {
+    if (overflow != Overflow::kConstrain) {
+      return TemporalError::Range("day out of range");
     }
+    day = 1;
+  }
+
+  // Step 1: rough ISO estimate.
+  const CalendarEpoch epoch = CalendarEpochFor(kind);
+  IsoDate iso_estimate;
+  if (epoch.same_month_as_gregorian) {
+    iso_estimate = ClampIsoDate(
+        year + epoch.iso_year - 1,
+        static_cast<int32_t>(ordinal_month),
+        static_cast<int32_t>(day));
   } else {
-    cal->setLenient(false);
-    cal->set(UCAL_DATE, static_cast<int32_t>(day));
+    // Lunisolar / non-gregorian-monthing: estimate by epoch + years
+    // (year-1 because year 1 corresponds to the epoch); land on epoch
+    // month/day. The iterative search refines from here.
+    iso_estimate = ClampIsoDate(year + epoch.iso_year - 1,
+                                  epoch.iso_month, epoch.iso_day);
   }
-  status = U_ZERO_ERROR;
-  const UDate result_ms = cal->getTime(status);
-  if (U_FAILURE(status)) {
+
+  // Roundtrip helper: read calendar (year, month, day) for an ISO date.
+  // Reuses our reliable ISO→calendar accessors. Returns false on
+  // backend error; caller propagates a generic Range error.
+  int32_t rt_y = 0;
+  uint8_t rt_m = 0;
+  uint8_t rt_d = 0;
+  auto do_roundtrip = [&](const IsoDate& iso) -> bool {
+    auto r_y = Year(kind, iso);
+    if (!r_y.ok()) return false;
+    auto r_m = Month(kind, iso);
+    if (!r_m.ok()) return false;
+    auto r_d = Day(kind, iso);
+    if (!r_d.ok()) return false;
+    rt_y = r_y.value();
+    rt_m = r_m.value();
+    rt_d = r_d.value();
+    return true;
+  };
+
+  // Step 2: roundtrip via ICU to measure error.
+  if (!do_roundtrip(iso_estimate)) {
+    return TemporalError::Range("calendar→ISO roundtrip failed");
+  }
+
+  // If we landed in a different year/month, do a coarse correction
+  // before the 8-day search. Polyfill: diff.years*365 + diff.months*30
+  // + diff.days. This skips most of the search for far-off estimates.
+  if (rt_y != year || rt_m != ordinal_month) {
+    const int64_t diff_days =
+        static_cast<int64_t>(year - rt_y) * 365 +
+        static_cast<int64_t>(static_cast<int32_t>(ordinal_month) -
+                              static_cast<int32_t>(rt_m)) * 30 +
+        static_cast<int64_t>(static_cast<int32_t>(day) -
+                              static_cast<int32_t>(rt_d));
+    iso_estimate = AddDaysToIso(iso_estimate, diff_days);
+    if (!do_roundtrip(iso_estimate)) {
+      return TemporalError::Range("calendar→ISO roundtrip failed");
+    }
+  }
+
+  // Step 3: iterative 8-day-step search until in the target month.
+  // Polyfill caps implicitly via the assert "should not overshoot a
+  // month entirely". We cap at 100 iters as a safety net.
+  int sign = CompareCalendarFields(year, ordinal_month, day, rt_y, rt_m, rt_d);
+  constexpr int kIncrement = 8;
+  constexpr int kMaxIters = 100;
+  int iters = 0;
+  while (sign != 0 && iters < kMaxIters) {
+    iso_estimate = AddDaysToIso(iso_estimate, sign * kIncrement);
+    if (!do_roundtrip(iso_estimate)) {
+      return TemporalError::Range("calendar→ISO roundtrip failed");
+    }
+    if (rt_y == year && rt_m == ordinal_month) {
+      // In target month — step by exact day delta and break.
+      const int64_t day_delta = static_cast<int64_t>(day) -
+                                 static_cast<int64_t>(rt_d);
+      iso_estimate = AddDaysToIso(iso_estimate, day_delta);
+      break;
+    }
+    sign = CompareCalendarFields(year, ordinal_month, day, rt_y, rt_m, rt_d);
+    iters++;
+  }
+  if (iters >= kMaxIters) {
     return TemporalError::Range(
-        "ICU Calendar::getTime failed during calendar→ISO conversion");
+        "calendar→ISO conversion failed to converge");
   }
-  const int64_t epoch_ms = static_cast<int64_t>(result_ms);
-  int64_t epoch_days = epoch_ms / kMsPerDay;
-  if ((epoch_ms % kMsPerDay) != 0 && epoch_ms < 0) {
-    epoch_days -= 1;
+
+  // Step 4: handle day-out-of-month overflow for the constrain path.
+  // If the requested day doesn't exist in the target month, the day
+  // delta above may have overshot into the next month. Back up.
+  if (!do_roundtrip(iso_estimate)) {
+    return TemporalError::Range("calendar→ISO final read failed");
   }
-  IsoDate out{};
-  YmdFromEpochDays(epoch_days, &out.year, &out.month, &out.day);
-  if (!out.IsValid()) {
+  while (rt_y != year || rt_m != ordinal_month) {
+    if (overflow == Overflow::kReject) {
+      return TemporalError::Range(
+          "day out of range for given calendar month");
+    }
+    iso_estimate = AddDaysToIso(iso_estimate, -1);
+    if (!do_roundtrip(iso_estimate)) {
+      return TemporalError::Range("calendar→ISO final read failed");
+    }
+  }
+  if (!iso_estimate.IsValid()) {
     return TemporalError::Range("Resulting date out of valid range");
   }
-  return out;
+  return iso_estimate;
 }
 
 TemporalResult<int32_t> IcuCalendarBackend::Year(

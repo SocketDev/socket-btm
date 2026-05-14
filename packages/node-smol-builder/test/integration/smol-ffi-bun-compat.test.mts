@@ -204,25 +204,25 @@ describe.skipIf(skipTests)('node:smol-ffi/bun integration', () => {
     expect(stdout).toContain('batch=true')
   })
 
-  it('JSCallback throws ENOTIMPL (Phase 2 deferral)', async () => {
+  it('JSCallback constructs and exposes ptr + close()', async () => {
     const script = `
-      const { JSCallback, FFIError } = require('node:smol-ffi/bun')
-      try {
-        new JSCallback(() => {}, { args: [], returns: 'void' })
-        console.log('UNEXPECTED-OK')
-      } catch (e) {
-        console.log('isFFIError=' + (e instanceof FFIError))
-        console.log('code=' + e.code)
-      }
+      const { JSCallback } = require('node:smol-ffi/bun')
+      const cb = new JSCallback(() => {}, { args: [], returns: 'void' })
+      console.log('isObject=' + (typeof cb === 'object' && cb !== null))
+      console.log('hasPtr=' + (typeof cb.ptr === 'bigint' || typeof cb.ptr === 'number'))
+      console.log('hasClose=' + (typeof cb.close === 'function'))
+      cb.close()
+      console.log('closed=ok')
     `
     const { code, stdout } = await runOnSmolBinary(script)
     expect(code).toBe(0)
-    expect(stdout).not.toContain('UNEXPECTED-OK')
-    expect(stdout).toContain('isFFIError=true')
-    expect(stdout).toContain('code=ENOTIMPL')
+    expect(stdout).toContain('isObject=true')
+    expect(stdout).toContain('hasPtr=true')
+    expect(stdout).toContain('hasClose=true')
+    expect(stdout).toContain('closed=ok')
   })
 
-  it('CFunction throws ENOTIMPL (Phase 2 deferral)', async () => {
+  it('CFunction rejects null pointer with FFIError code EBADPTR', async () => {
     const script = `
       const { CFunction, FFIError } = require('node:smol-ffi/bun')
       try {
@@ -237,25 +237,27 @@ describe.skipIf(skipTests)('node:smol-ffi/bun integration', () => {
     expect(code).toBe(0)
     expect(stdout).not.toContain('UNEXPECTED-OK')
     expect(stdout).toContain('isFFIError=true')
-    expect(stdout).toContain('code=ENOTIMPL')
+    expect(stdout).toContain('code=EBADPTR')
   })
 
-  it('linkSymbols throws ENOTIMPL (Phase 2 deferral)', async () => {
+  it('linkSymbols({}) returns { symbols, close } with empty symbols', async () => {
     const script = `
-      const { linkSymbols, FFIError } = require('node:smol-ffi/bun')
-      try {
-        linkSymbols({})
-        console.log('UNEXPECTED-OK')
-      } catch (e) {
-        console.log('isFFIError=' + (e instanceof FFIError))
-        console.log('code=' + e.code)
-      }
+      const { linkSymbols } = require('node:smol-ffi/bun')
+      const r = linkSymbols({})
+      console.log('isObject=' + (typeof r === 'object' && r !== null))
+      console.log('hasSymbols=' + ('symbols' in r))
+      console.log('hasClose=' + (typeof r.close === 'function'))
+      console.log('symbolKeys=' + Object.keys(r.symbols).length)
+      r.close()
+      console.log('closed=ok')
     `
     const { code, stdout } = await runOnSmolBinary(script)
     expect(code).toBe(0)
-    expect(stdout).not.toContain('UNEXPECTED-OK')
-    expect(stdout).toContain('isFFIError=true')
-    expect(stdout).toContain('code=ENOTIMPL')
+    expect(stdout).toContain('isObject=true')
+    expect(stdout).toContain('hasSymbols=true')
+    expect(stdout).toContain('hasClose=true')
+    expect(stdout).toContain('symbolKeys=0')
+    expect(stdout).toContain('closed=ok')
   })
 
   it('suffix is the platform-correct shared-lib extension', async () => {

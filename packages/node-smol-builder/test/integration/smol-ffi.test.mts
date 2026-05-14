@@ -28,12 +28,24 @@ import {
 const skipTests = !smolBuiltinIsAvailable('smol-ffi')
 
 const EXPECTED_EXPORTS: ReadonlyArray<readonly [string, string]> = [
+  // bun-parity callable that wraps a single native function pointer.
+  // Re-exported here so callers can use node:smol-ffi (the canonical
+  // surface) without dropping down to node:smol-ffi/bun for these
+  // bun-style primitives.
+  ['CFunction', 'function'],
   ['FFIError', 'function'],
   // Structured error-code constants object surfaced for error
   // recovery (EBADLIB / ENOSYM / EBADARGS / EBADTYPE / EBADPTR /
   // ENOTIMPL). Frozen, null-prototype.
   ['FFI_ERROR_CODES', 'object'],
+  // bun-parity native callback wrapper — registers a JS function as
+  // a C-callable function pointer.
+  ['JSCallback', 'function'],
   ['Library', 'function'],
+  // Safe BigInt → Number downcast: returns the Number when it fits
+  // in Number.MAX_SAFE_INTEGER, otherwise the original BigInt. Used
+  // by code that consumes mixed Number/BigInt return values.
+  ['boundedToNumber', 'function'],
   ['bufferToPtr', 'function'],
   ['default', 'function'],
   ['dlopen', 'function'],
@@ -47,6 +59,9 @@ const EXPECTED_EXPORTS: ReadonlyArray<readonly [string, string]> = [
   ['getUint32', 'function'],
   ['getUint64', 'function'],
   ['getUint8', 'function'],
+  // bun-parity batch CFunction wrapper — accepts a record of
+  // { name → { args, returns, ptr } } and returns { symbols, close }.
+  ['linkSymbols', 'function'],
   ['open', 'function'],
   ['ptrToArrayBuffer', 'function'],
   ['ptrToBuffer', 'function'],

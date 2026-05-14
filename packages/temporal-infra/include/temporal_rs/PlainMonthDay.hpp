@@ -418,7 +418,7 @@ class PlainMonthDay {
   // stays one-way. For ISO, pass through inner_.iso directly. For
   // non-ISO, route through IsoFromCalendarFields using the calendar-
   // native (month, day) read from inner_.iso (the polyfill's
-  // toPlainDate semantics: see js-temporal/temporal-polyfill/tree/rebase-part3/lib/plainmonthday.ts ~toPlainDate).
+  // toPlainDate semantics: see js-temporal/temporal-polyfill/tree/rebase-part3/lib/plainmonthday.ts).
   template <class PD>
   diplomat::result<std::unique_ptr<PD>, TemporalError> to_plain_date(
       const PD* /*reference_year_date*/) const {

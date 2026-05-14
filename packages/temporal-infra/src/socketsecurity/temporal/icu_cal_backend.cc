@@ -100,64 +100,80 @@ static TemporalResult<int32_t> ResolveEraYearToIsoYear(
     }
 
     case CalendarKind::kRoc: {
-      // Republic of China: ROC year 1 = ISO 1912.
-      //   "roc"        → year =  era_year + 1911
-      //   "before-roc" → year =  1912 - era_year
+      // Republic of China (Minguo). ROC year 1 = ISO 1912.
+      //   "roc" (canonical) / "minguo" (alias)       → year =  era_year + 1911
+      //   "broc" (canonical) / "before-roc" (alias)  → year =  1912 - era_year
+      // Spec canonical names: js-temporal/temporal-polyfill rebase-part3
+      // lib/calendar.ts:495-496 (eraAliases).
       if (era_year < 1) {
         return TemporalError::Range("era_year must be ≥ 1");
       }
       if (eq("roc") || eq("minguo")) {
         return era_year + 1911;
       }
-      if (eq("before-roc") || eq("broc")) {
+      if (eq("broc") || eq("before-roc") || eq("minguo-qian")) {
         return 1912 - era_year;
       }
       return TemporalError::Range(
-          "unknown era for roc calendar (expected roc/before-roc)");
+          "unknown era for roc calendar (expected roc/broc)");
     }
 
     case CalendarKind::kCoptic: {
-      // Coptic AM: year 1 starts 284 CE (Diocletian epoch).
-      //   "am"             → year =  era_year + 283
-      //   "bbm" / "before-am" → year = -era_year + 284
+      // Coptic Anno Martyrum (Era of Martyrs). Year 1 = ISO 284.
+      //   "am" (canonical)        → year = era_year + 283
+      //   "before-am" (legacy ICU era 0, surfaces as the inverse)
+      //                            → year = 284 - era_year
+      // Canonical from js-temporal/temporal-polyfill rebase-part3
+      // lib/calendar.ts:2098-2110 (CopticHelper.reviseIntlEra
+      // normalizes the legacy slot to "am" with 1-eraYear).
       if (era_year < 1) {
         return TemporalError::Range("era_year must be ≥ 1");
       }
       if (eq("am") || eq("coptic")) {
         return era_year + 283;
       }
-      if (eq("bbm") || eq("before-am") || eq("coptic-inverse")) {
+      if (eq("before-am") || eq("bbm") || eq("coptic-inverse")) {
         return 284 - era_year;
       }
       return TemporalError::Range(
-          "unknown era for coptic calendar (expected am/bbm)");
+          "unknown era for coptic calendar (expected am/before-am)");
     }
 
-    case CalendarKind::kEthiopian:
-    case CalendarKind::kEthiopianAmeteAlem: {
-      // Ethiopian Incarnation Era (Amete Mihret): year 1 = 8 CE.
-      // Ethiopian Amete Alem: year 1 = -5492 CE (continuous count from
-      // creation; year 5500 of Alem == year 8 CE Mihret).
-      // Spec era codes: "incarnation" / "before-incarnation" /
-      // "ethiopic" / "ethiopic-amete-alem".
+    case CalendarKind::kEthiopian: {
+      // Ethiopian Amete Mihret. Year 1 = ISO 8.
+      //   "am" (canonical) / "incarnation" / "ethiopic" / "mihret" (aliases)
+      //                                       → year = era_year + 7
+      //   "before-am" / "before-incarnation"   → year = 8 - era_year
+      // Canonical from js-temporal/temporal-polyfill rebase-part3
+      // lib/calendar.ts:2113-2120 EthiopicHelper.
       if (era_year < 1) {
         return TemporalError::Range("era_year must be ≥ 1");
       }
-      if (kind == CalendarKind::kEthiopianAmeteAlem) {
-        if (eq("ethiopic-amete-alem") || eq("mundi")) {
-          return era_year - 5492;
-        }
-        return TemporalError::Range(
-            "unknown era for ethioaa calendar (expected ethiopic-amete-alem)");
-      }
-      if (eq("incarnation") || eq("ethiopic") || eq("mihret")) {
+      if (eq("am") || eq("incarnation") || eq("ethiopic") || eq("mihret")) {
         return era_year + 7;
       }
-      if (eq("before-incarnation")) {
+      if (eq("before-am") || eq("before-incarnation")) {
         return 8 - era_year;
       }
       return TemporalError::Range(
-          "unknown era for ethiopic calendar (expected incarnation/before-incarnation)");
+          "unknown era for ethiopic calendar (expected am/before-am)");
+    }
+
+    case CalendarKind::kEthiopianAmeteAlem: {
+      // Ethiopian Amete Alem ("Era of the World" — continuous count
+      // from creation). Year 1 = ISO -5492.
+      //   "aa" (canonical) / "ethiopic-amete-alem" / "mundi" (aliases)
+      //                                       → year = era_year - 5492
+      // Note: year 5500 of Amete Alem == year 8 CE Mihret (i.e. AA 5500
+      // is the start of AM era 1 in the Mihret calendar).
+      if (era_year < 1) {
+        return TemporalError::Range("era_year must be ≥ 1");
+      }
+      if (eq("aa") || eq("ethiopic-amete-alem") || eq("mundi")) {
+        return era_year - 5492;
+      }
+      return TemporalError::Range(
+          "unknown era for ethioaa calendar (expected aa)");
     }
 
     case CalendarKind::kPersian: {
@@ -541,11 +557,27 @@ TemporalResult<std::string> IcuCalendarBackend::Era(
       return std::string("ce");
     }
     case CalendarKind::kRoc:
-      return std::string(era.value() == 0 ? "before-roc" : "roc");
+      // Spec canonical names (js-temporal/temporal-polyfill rebase-part3
+      // lib/calendar.ts line 495-496): "roc" forward (Minguo year),
+      // "broc" reverse. Aliases "minguo" / "before-roc" / "minguo-qian"
+      // are accepted on input but the canonical reverse-read is "broc".
+      return std::string(era.value() == 0 ? "broc" : "roc");
     case CalendarKind::kCoptic:
+      // Coptic canonical: only "am" forward (Anno Martyrum / Era of
+      // Martyrs). Legacy ICU era 0 normalizes to am with 1-eraYear
+      // (polyfill CopticHelper.reviseIntlEra). era.value()==0 returns
+      // "am" with the year already flipped at the EraYear() boundary;
+      // we surface the legacy slot as the inverse name "before-am" so
+      // the forward / reverse paths stay distinguishable at the API.
+      return std::string(era.value() == 0 ? "before-am" : "am");
     case CalendarKind::kEthiopian:
+      // Ethiopian Mihret: "am" forward (year 1 = ISO 8); ICU era 0
+      // surfaces as the inverse "before-am".
+      return std::string(era.value() == 0 ? "before-am" : "am");
     case CalendarKind::kEthiopianAmeteAlem:
-      return std::string(era.value() == 0 ? "incarnation" : "before-incarnation");
+      // Ethiopian Amete Alem (continuous count from creation): the
+      // single era "aa" (year 1 = ISO -5492).
+      return std::string("aa");
     default:
       return std::string();
   }
@@ -555,6 +587,9 @@ TemporalResult<std::optional<int32_t>> IcuCalendarBackend::EraYear(
     CalendarKind kind, const IsoDate& iso) noexcept {
   switch (kind) {
     // Calendars without distinct eras have no eraYear surface.
+    // Persian has era "ap" (Solar Hijri) — see js-temporal/temporal-
+    // polyfill rebase-part3 lib/calendar.ts:1651 PersianHelper —
+    // so it stays out of this list.
     case CalendarKind::kChinese:
     case CalendarKind::kDangi:
     case CalendarKind::kHebrew:
@@ -562,7 +597,6 @@ TemporalResult<std::optional<int32_t>> IcuCalendarBackend::EraYear(
     case CalendarKind::kHijriTabularFriday:
     case CalendarKind::kHijriTabularThursday:
     case CalendarKind::kHijriUmmAlQura:
-    case CalendarKind::kPersian:
     case CalendarKind::kIso:
       return std::optional<int32_t>{};
     default:

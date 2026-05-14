@@ -512,6 +512,14 @@ function parseYarnDescriptor(descriptor) {
 // Parse yarn.lock (supports v1 Classic and v2+ Berry formats)
 // Aligned with socket-sbom-generator gold standard
 function parseYarnLock(content) {
+  // Native fast path. The C++ impl correctly consumes the
+  // dependenciesMeta block without flipping parent.isOptional (Fix 4)
+  // and emits the canonical socket-lib v6.0.0 ParsedLockfile shape
+  // (always-emit isPeer / isBundled).
+  if (_native !== undefined) {
+    return _native.parseLockfile(content, NATIVE_ECO_NPM, NATIVE_FMT_YARN)
+  }
+
   const packages = []
   const packageIndex = { __proto__: null }
 

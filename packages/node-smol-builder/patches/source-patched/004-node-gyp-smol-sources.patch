@@ -134,6 +134,7 @@
 +            'src/socketsecurity/manifest/manifest.cc',
 +            'src/socketsecurity/manifest/manifest_binding.cc',
 +            'src/socketsecurity/manifest/parser_pnpm.cc',
++            'src/socketsecurity/manifest/parser_yarn.cc',
 +            # Socket Security: temporal-infra C++ port of boa-dev/temporal
 +            # (Stage 4 ECMAScript Temporal proposal). Drops the Rust
 +            # toolchain dep by delegating calendars to system ICU and

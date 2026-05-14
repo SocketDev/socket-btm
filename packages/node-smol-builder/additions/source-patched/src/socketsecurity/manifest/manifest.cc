@@ -6,6 +6,7 @@
 #include "manifest.h"
 
 #include "parser_pnpm.h"
+#include "parser_yarn.h"
 
 namespace node {
 namespace socketsecurity {
@@ -21,11 +22,10 @@ bool ParseLockfile(std::string_view content,
     switch (format) {
       case LockFormat::kPnpm:
         return ParsePnpmLock(content, ctx, out, err);
-      case LockFormat::kNpm:
       case LockFormat::kYarn:
-        // Stub — parser_npm.cc and parser_yarn.cc land in later
-        // commits per the plan. Return empty lockfile so the binding
-        // is testable.
+        return ParseYarnLock(content, ctx, out, err);
+      case LockFormat::kNpm:
+        // Stub — parser_npm.cc lands in step 6.
         out->lockVersion = "0";
         out->ecosystem = Ecosystem::kNpm;
         return true;

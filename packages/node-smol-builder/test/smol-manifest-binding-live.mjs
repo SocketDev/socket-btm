@@ -34,7 +34,7 @@ const FIXTURES = [
   { dir: 'fix2b-npm-v3-alias-name', input: 'input.json', fmt: 'npm', enabled: false },
   { dir: 'fix3a-pnpm-v9-empty-version', input: 'input.yaml', fmt: 'pnpm', enabled: true },
   { dir: 'fix3b-pnpm-v9-workspace-file-filter', input: 'input.yaml', fmt: 'pnpm', enabled: true },
-  { dir: 'fix4-yarn-depsmeta-inversion', input: 'input.lock', fmt: 'yarn', enabled: false },
+  { dir: 'fix4-yarn-depsmeta-inversion', input: 'input.lock', fmt: 'yarn', enabled: true },
   { dir: 'fix5-pnpm-v9-isdev-derivation', input: 'input.yaml', fmt: 'pnpm', enabled: true },
   { dir: 'cargo-patch-unused-no-leak', input: 'input.toml', fmt: 'cargo', enabled: false },
 ]

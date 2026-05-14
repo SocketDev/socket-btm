@@ -325,7 +325,7 @@ TemporalResult<std::string> IcuCalendarBackend::Era(
       // a numeric era index but the index is ICU-version-dependent
       // (new eras shift older indices), so we resolve the era name
       // from the ISO date directly via the spec-stable epoch boundaries
-      // (TC39 proposal-temporal calendar.mjs:1956-1964).
+      // (js-temporal/temporal-polyfill/tree/rebase-part3/lib/calendar.ts).
       //
       // For ISO years ≤0 the Japanese calendar falls back to bce/ce
       // (matching reviseIntlEra in calendar.mjs:1971).

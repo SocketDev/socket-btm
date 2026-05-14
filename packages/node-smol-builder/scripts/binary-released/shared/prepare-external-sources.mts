@@ -41,16 +41,27 @@ const UWEBSOCKETS_UPSTREAM_DIR = path.join(
 const logger = getDefaultLogger()
 
 /**
- * Monorepo-package source mappings — direct-copied by copyBuildAdditions
- * from each `from` into modeSourceDir/`relativeTo`. apply-patches.mts
- * imports this list and hashes `from` for the SOURCE_PATCHED cache key,
- * so adding a new package here is the only edit needed to wire it into
- * both the cache and the source tree.
+ * Monorepo-package source mappings.
+ *
+ * INVARIANT: `from` is the cache-key authority. apply-patches.mts
+ * imports this list and feeds each `from` directory to computeSourceHash
+ * for the SOURCE_PATCHED cache key. `relativeTo` is purely a copy-routing
+ * detail — it tells copyBuildAdditions where to land the tree under
+ * modeSourceDir, and has no role in cache invalidation. Editing the
+ * upstream package contents invalidates SOURCE_PATCHED automatically;
+ * changing `relativeTo` does not (and shouldn't — it's a path rewrite,
+ * not a content change).
+ *
+ * Flow: from (in this manifest) → modeSourceDir/<relativeTo> (direct copy
+ * by copyBuildAdditions, no intermediate stop in additions/).
+ *
+ * Adding a new package here is the only edit needed to wire it into both
+ * the cache and the source tree.
  *
  * Hand-maintained sources under additions/source-patched/src/
- * socketsecurity/ (sea-smol, vfs, ffi, http, etc.) are NOT in this
- * list — they live only in additions/ as authoritative sources and
- * are picked up by copyBuildAdditions' directory walk.
+ * socketsecurity/ (sea-smol, vfs, ffi, http, etc.) are NOT in this list
+ * — they live only in additions/ as authoritative sources and are picked
+ * up by copyBuildAdditions' directory walk over ADDITIONS_SOURCE_PATCHED_DIR.
  */
 export const MONOREPO_PACKAGE_SOURCES = [
   {

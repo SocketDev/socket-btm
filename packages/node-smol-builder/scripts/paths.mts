@@ -416,6 +416,7 @@ export const TEMPORAL_INFRA_DIR = path.join(
   '..',
   'temporal-infra',
 )
+export const TUI_INFRA_DIR = path.join(PACKAGE_ROOT, '..', 'tui-infra')
 
 // Build output directories
 export const BINJECTED_DIR = path.join(

@@ -253,6 +253,13 @@ function extractPackageNameFromPath(pkgPath) {
 
 // Parse package-lock.json
 function parsePackageLock(content) {
+  // Native fast path. The C++ impl correctly handles v1 alias
+  // extraction (Fix 1) and v2/v3 pkg.name preference (Fix 2a/2b)
+  // and produces the canonical socket-lib v6 ParsedLockfile shape.
+  if (_native !== undefined) {
+    return _native.parseLockfile(content, NATIVE_ECO_NPM, NATIVE_FMT_NPM)
+  }
+
   let data
   try {
     data = JSONParse(content)

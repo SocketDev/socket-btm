@@ -1,13 +1,67 @@
 // node:smol-manifest — yarn.lock parser implementation.
 //
-// Algorithm oracle: socket-sdxgen/src/parsers/yarn-classic/yarn-lock-v1.mts
-// + the smol JS impl in
-// lib/internal/socketsecurity/manifest.js (parseYarnLock).
+// =====================================================================
+// Source material (in lock-step order, newest → oldest)
+// =====================================================================
 //
-// Fix register: see header. The dependenciesMeta consume-only branch
-// is the critical Fix 4 anti-regression — synthesizing PackageRefs
-// from that block (or flipping parent.isOptional) inverts the
-// semantics.
+// 1. **socket-lib's TS port** — the v6.0.0 public contract:
+//      socket-lib/src/eco/npm/yarnpkg/yarn/parse-lockfile.ts
+//      socket-lib/src/eco/npm/yarnpkg/yarn/parse-yarn-descriptor.ts
+//
+// 2. **socket-btm smol JS impl** — stock-Node fallback:
+//      additions/source-patched/lib/internal/socketsecurity/manifest.js
+//      (parseYarnLock, parseYarnDescriptor)
+//
+// 3. **socket-sdxgen TS parsers** — algorithm oracle:
+//      socket-sdxgen/src/parsers/yarn-classic/yarn-lock-v1.mts
+//      socket-sdxgen/src/parsers/yarn-berry/yarn-lock-v2.mts
+//      socket-sdxgen/src/parsers/zpm/yarn-lock-v6.mts (zpm fork)
+//    sdxgen uses `@yarnpkg/parsers.parseSyml` (a real syml grammar
+//    parser). We line-walk instead because syml-as-yarn-uses-it is a
+//    strict subset (column-0 descriptors, 2-space property indent,
+//    4-space dep indent, no anchors/aliases).
+//
+// 4. **cdxgen** (pinned v11.11.0) baseline:
+//      https://github.com/CycloneDX/cdxgen/blob/v11.11.0/lib/parsers/js.js
+//      (parseYarnLock)
+//
+// 5. **yarn lockfile format docs**:
+//      classic (v1): https://github.com/yarnpkg/yarn/blob/master/src/lockfile/parse.js
+//                    (syml grammar — pre-Berry)
+//      berry (v2+):  https://yarnpkg.com/configuration/yarnrc#lockfileVersion
+//      protocols:    https://yarnpkg.com/protocol/
+//                    (npm:, workspace:, patch:, portal:, etc.)
+//
+// =====================================================================
+// Fix register
+// =====================================================================
+//
+//   fix4 — dependenciesMeta inversion.
+//          `dependenciesMeta.<child>.optional = true` flags a CHILD
+//          as optional (e.g., `react`'s `fsevents` is an optional
+//          peer). Earlier impls were:
+//          (a) synthesizing a phantom PackageRef from the child, AND
+//          (b) flipping the PARENT's `isOptional` based on any
+//              child flag — inverted semantics.
+//          The C++ port consumes the block for position only.
+//          See the `dependenciesMeta:` branch below.
+//
+// =====================================================================
+// Yarn-specific notes
+// =====================================================================
+//
+// - Berry detection: `__metadata:` block at column 0 is unique to
+//   v2+. Classic v1 has only comments + descriptor blocks.
+//
+// - Workspace entries (Berry) come in two flavors:
+//     (a) `@workspace:` protocol — `"foo@workspace:packages/foo":`
+//         These are project-local; skip the whole block.
+//     (b) Soft links — `linkType: soft` on a real-looking entry.
+//         Also skipped per the JS impl.
+//
+// - Multi-spec descriptors: `"foo@^1.0.0, foo@^1.1.0":` declares the
+//   same package under two ranges. We take only the first (matches
+//   manifest.js + sdxgen).
 
 #include "parser_yarn.h"
 
@@ -273,10 +327,36 @@ bool ParseYarnLock(std::string_view content,
         }
         continue;
       } else if (StartsWith(prop, "dependenciesMeta:")) {
-        // FIX 4: consume the block for position only. Do NOT
-        // synthesize PackageRefs from `<child>.optional: true` —
-        // that flags the CHILD as optional from the parent's view,
-        // not the parent itself. Earlier impls inverted this.
+        // ---- FIX 4: dependenciesMeta consume-only ----
+        //
+        // Source: manifest.js parseYarnLock lines 731-755 +
+        //         socket-sdxgen/src/parsers/yarn-classic/yarn-lock-v1.mts
+        //         (which deliberately ignores dependenciesMeta in
+        //         `parsePackage`).
+        //
+        // Berry semantics:
+        //   "react@npm:^18":
+        //     version: 18.0.0
+        //     dependenciesMeta:
+        //       fsevents:
+        //         optional: true   <-- flags react's `fsevents`
+        //                              dep as optional, NOT react.
+        //
+        // Earlier impls were doing two wrong things at once:
+        //   (a) synthesizing a PackageRef for `fsevents` from the
+        //       metadata block — but it has no version / resolved
+        //       / integrity, so the entry is malformed.
+        //   (b) flipping the PARENT's `isOptional` to true based
+        //       on any child's optional flag — inverted semantics,
+        //       made every package with `fsevents`-like deps show
+        //       up as optional in SBOMs.
+        //
+        // Correct behavior: consume the block for cursor advance
+        // only. The block is 4-space indented (one level deeper
+        // than the parent's properties); we skip lines until we
+        // see something at a shallower indent.
+        //
+        // See test/fixtures/sdxgen-bug-regressions/fix4-yarn-depsmeta-inversion/.
         while (pos < content.size()) {
           size_t meol = NextLf(content, pos);
           std::string_view mline = content.substr(pos, meol - pos);

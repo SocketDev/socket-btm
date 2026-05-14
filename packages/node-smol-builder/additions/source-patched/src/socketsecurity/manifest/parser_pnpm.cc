@@ -1,15 +1,66 @@
 // node:smol-manifest — pnpm-lock.yaml parser implementation.
 //
-// Ported from lib/internal/socketsecurity/manifest.js parsePnpmLock,
-// which is itself ported from socket-sdxgen's pnpm/pnpm-lock-v{5,6,9}.mts.
+// =====================================================================
+// Source material (in lock-step order, newest → oldest)
+// =====================================================================
 //
-// Fix register (see test/fixtures/sdxgen-bug-regressions/):
-//   - fix3a: empty-version guard in importer walker (block-style entries)
-//   - fix3b: workspace/file/link protocol filter in importer walker
-//   - fix5: pnpm v9 isDev derivation from importer prod/dev sets,
-//           post-pass classified. NOT inherited from the JS impl — JS
-//           classifies every snapshot as `depType: prod` regardless of
-//           the importers; this impl does it correctly per sdxgen.
+// 1. **socket-lib's TS port** — the v6.0.0 public contract this impl
+//    must match byte-for-byte (modulo internal-shape details that
+//    don't surface through the binding):
+//      socket-lib/src/eco/npm/pnpm/parse-lockfile.ts
+//
+// 2. **socket-btm smol JS impl** — the existing in-tree pure-JS
+//    parser this C++ port REPLACES on the smol fast path. Kept alive
+//    as the stock-Node fallback inside the same module:
+//      additions/source-patched/lib/internal/socketsecurity/manifest.js
+//      (parsePnpmLock, parsePnpmPackageIdV5, parsePnpmPackageIdV6V9)
+//
+// 3. **socket-sdxgen TS parsers** — the algorithm oracle, with the
+//    most production exposure (Socket's batch-ingestion pipeline):
+//      socket-sdxgen/src/parsers/pnpm/pnpm-lock-v5.mts
+//      socket-sdxgen/src/parsers/pnpm/pnpm-lock-v6.mts
+//      socket-sdxgen/src/parsers/pnpm/pnpm-lock-v9.mts
+//
+// 4. **cdxgen** (pinned v11.11.0) — sdxgen's upstream baseline.
+//    cdxgen parses pnpm-lock.yaml via the `yaml` npm package and
+//    walks the resulting JS tree; we skip the YAML lib and walk
+//    lines directly because the pnpm grammar is a strict subset
+//    (indent-significant blocks, no flow style, no anchors).
+//      https://github.com/CycloneDX/cdxgen/blob/v11.11.0/lib/parsers/js.js
+//      (parsePnpmLock — search for "parsePnpmLock" in that file)
+//
+// 5. **pnpm lockfile spec** — format reference for v5/v6/v9 shape:
+//      https://github.com/pnpm/spec/blob/master/lockfile/9.0.md
+//      https://github.com/pnpm/pnpm/blob/main/packages/lockfile-file/
+//
+// =====================================================================
+// Fix register (see test/fixtures/sdxgen-bug-regressions/)
+// =====================================================================
+//
+//   fix3a — Empty-version guard in importer walker. pnpm v9 nests
+//           each dep as a block:
+//             pkg:
+//               specifier: ^1
+//               version: 1.0.0
+//           Without the guard, the parent `pkg:` line emits a
+//           PackageRef with empty version (a phantom entry). See
+//           the importer walker's empty-version `continue` below.
+//
+//   fix3b — workspace/file/link protocol filter. Importer dep
+//           values starting with `link:`, `workspace:`, or `file:`
+//           are workspace-local refs, not shippable registry
+//           artifacts. They MUST NOT enter the parsed packages
+//           array. See the importer walker's protocol-prefix
+//           `continue` below.
+//
+//   fix5  — pnpm v9 isDev derivation. v9 snapshots don't carry
+//           `dev: true` markers the way v5/v6 did. Classification
+//           is derived from the importers block: prod_set ∪
+//           optional_set wins over dev_only_set on any name
+//           overlap. The JS impl in manifest.js does NOT implement
+//           this — every v9 snapshot lands as `depType: prod`.
+//           This C++ impl does it correctly from day one, in the
+//           POST-PASS at the bottom of ParsePnpmLock.
 
 #include "parser_pnpm.h"
 
@@ -69,8 +120,14 @@ size_t NextLf(std::string_view content, size_t from) {
 
 // --- Lockfile-version detection --- //
 //
-// Scans the first few hundred bytes for `lockfileVersion: <X>`.
-// Returns the major version (5, 6, or 9) or 0 if not found.
+// Scans for `lockfileVersion: <X>`. The major version drives format
+// branching: v5 (pnpm 5-6, classic shape), v6 (pnpm 7-8, deps inlined),
+// v9 (pnpm 9-10, importers + snapshots split).
+//
+// Mirrors `detectPnpmVersion` in manifest.js (`RE_LOCKFILE_VERSION`)
+// and `versionMatch` in sdxgen's `pnpm/index.mts:detectAndParsePnpmLock`.
+// cdxgen's equivalent is the `lockfileVersion` capture in
+// `lib/parsers/js.js:parsePnpmLock`.
 
 int DetectLockfileVersion(std::string_view content) {
   constexpr std::string_view kKey = "lockfileVersion:";
@@ -102,11 +159,21 @@ int DetectLockfileVersion(std::string_view content) {
 //
 // v5 key: "/lodash/4.17.21" or "/@scope/name/1.2.3" — leading slash,
 // name and version separated by slash. Last slash splits name from
-// version.
+// version. Mirrors `parsePnpmPackageIdV5` in manifest.js + sdxgen's
+// `parsePnpmDescriptorV5` in `pnpm/pnpm-lock-v5.mts`.
 //
 // v6/v9 key: "lodash@4.17.21" or "@scope/name@1.2.3(peer@1)" — no
 // leading slash, name and version separated by `@`. The version may
-// carry a `(peer@x)` or `_peer-1` suffix that we strip.
+// carry a `(peer@x)` or `_peer-1` suffix that we strip. Mirrors
+// `parsePnpmPackageIdV6V9` + sdxgen's `parsePnpmPackageIdV9` in
+// `pnpm/pnpm-lock-v9.mts` (which uses `lastIndexOf('@')` plus
+// `.split('(')[0]`).
+//
+// Scoped-name caveat: `@scope/name@1.0.0`'s leading `@` belongs to
+// the scope, not the version separator — so the search starts at
+// position 1 when descriptor[0] === '@'. cdxgen handles this via the
+// same pattern in `lib/parsers/js.js:parsePnpmPackageId`
+// (v11.11.0).
 
 struct ParsedPkgId {
   std::string_view name;
@@ -367,9 +434,26 @@ bool ParsePnpmLock(std::string_view content,
         dev_only_set.erase(interned_name);
       }
 
-      // fix3a: skip empty-version (block-shape parent line).
-      // fix3b: skip workspace/file/link protocol values — these are
-      // workspace-local references, not shippable registry artifacts.
+      // ---- FIX 3a + 3b: importer-walk skip filters ----
+      //
+      // Source: manifest.js lines 994-1001 (parsePnpmLock importer
+      //         walker) + sdxgen `pnpm/pnpm-lock-v9.mts:processImporter`.
+      //         No equivalent guard in cdxgen v11.11.0 — that's
+      //         the cdxgen-side bug both sdxgen + socket-btm
+      //         correct.
+      //
+      // 3a — empty dep_version: v9 importer block-shape entries
+      //      have the version under a nested `version:` property;
+      //      the parent `pkg:` line emits with empty trailing
+      //      value. Without this guard the parser pushes a
+      //      phantom PackageRef with version: "".
+      //
+      // 3b — link: / workspace: / file: protocol values are
+      //      workspace-local references (not shippable registry
+      //      artifacts). Emitting them pollutes the SBOM with
+      //      entries that have no valid purl shape.
+      //
+      // Both filters land in one branch — same `continue` chain.
       if (dep_version.empty() || StartsWith(dep_version, "link:") ||
           StartsWith(dep_version, "workspace:") ||
           StartsWith(dep_version, "file:")) {
@@ -524,14 +608,37 @@ bool ParsePnpmLock(std::string_view content,
   // Save last package if any.
   flush_cur();
 
-  // --- Fix 5: pnpm v9 isDev post-pass classification --- //
+  // ---- FIX 5: pnpm v9 isDev post-pass classification ----
   //
-  // Per sdxgen: a package is dev iff it appears only in
-  // devDependencies across all importers (and not in dependencies or
-  // optionalDependencies of any importer). When there's no importer
-  // signal (single-package projects without an importers: block), we
-  // leave everything at the parser's per-snapshot default — which for
-  // v5/v6 is the `dev: true` flag and for v9 is `false`.
+  // Source: socket-sdxgen/src/parsers/pnpm/pnpm-lock-v9.mts
+  //         (the `isDev = !prodNames.has(name) && devOnlyNames.has(name)`
+  //         derivation in `parsePnpmLockV9` — search for "isDev").
+  //
+  // Crucially NOT inherited from the smol JS impl: manifest.js's
+  // parsePnpmLock has no equivalent post-pass — every v9 snapshot
+  // lands as `depType: prod`. This is the fixture/test-deferred
+  // bug the C++ port lands correctly from day one.
+  //
+  // Algorithm (per sdxgen):
+  //   1. Collect prod_set from every importer's `dependencies` +
+  //      `optionalDependencies` blocks.
+  //   2. Collect dev_only_set from every importer's
+  //      `devDependencies` MINUS the prod_set.
+  //   3. For each non-importer-emitted PackageRef in the result:
+  //      `isDev = !prod_set.contains(name) && dev_only_set.contains(name)`
+  //
+  // Tiebreak: any package reachable from a prod dep is prod (prod
+  // wins on overlap). Matches pnpm's resolution semantics where a
+  // package promoted from devDeps to deps by another importer is
+  // treated as prod throughout the dependency graph.
+  //
+  // Skipped on v5/v6 (those use `dev: true` markers on the snapshot
+  // itself, captured in the per-package sub-property walker above).
+  // Skipped when there's no importer signal — for single-package
+  // projects without an importers block, we trust the per-snapshot
+  // flags as captured (v5/v6) or leave everything at default-prod
+  // (v9 without importers — rare; consumer can supply package.json
+  // signal via a higher-layer wrapper, matching sdxgen behavior).
   bool has_importer_signal = !prod_set.empty() || !dev_only_set.empty();
   if (lock_version == 9 && has_importer_signal) {
     for (size_t i = 0; i < out->packages.size(); ++i) {

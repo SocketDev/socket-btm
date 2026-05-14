@@ -133,6 +133,7 @@
 +            # Socket Security: smol-manifest-native binding (lockfile parsers).
 +            'src/socketsecurity/manifest/manifest.cc',
 +            'src/socketsecurity/manifest/manifest_binding.cc',
++            'src/socketsecurity/manifest/parser_npm.cc',
 +            'src/socketsecurity/manifest/parser_pnpm.cc',
 +            'src/socketsecurity/manifest/parser_yarn.cc',
 +            # Socket Security: temporal-infra C++ port of boa-dev/temporal

@@ -29,9 +29,9 @@ const FIXTURES_DIR = join(__dirname, 'fixtures/sdxgen-bug-regressions')
 // `enabled: false` fixtures are pending later parser-implementation
 // commits (steps 5-7 for yarn / npm / cargo).
 const FIXTURES = [
-  { dir: 'fix1-npm-v1-alias', input: 'input.json', fmt: 'npm', enabled: false },
-  { dir: 'fix2a-npm-v3-workspace-name', input: 'input.json', fmt: 'npm', enabled: false },
-  { dir: 'fix2b-npm-v3-alias-name', input: 'input.json', fmt: 'npm', enabled: false },
+  { dir: 'fix1-npm-v1-alias', input: 'input.json', fmt: 'npm', enabled: true },
+  { dir: 'fix2a-npm-v3-workspace-name', input: 'input.json', fmt: 'npm', enabled: true },
+  { dir: 'fix2b-npm-v3-alias-name', input: 'input.json', fmt: 'npm', enabled: true },
   { dir: 'fix3a-pnpm-v9-empty-version', input: 'input.yaml', fmt: 'pnpm', enabled: true },
   { dir: 'fix3b-pnpm-v9-workspace-file-filter', input: 'input.yaml', fmt: 'pnpm', enabled: true },
   { dir: 'fix4-yarn-depsmeta-inversion', input: 'input.lock', fmt: 'yarn', enabled: true },

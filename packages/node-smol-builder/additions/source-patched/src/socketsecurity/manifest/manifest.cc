@@ -5,6 +5,7 @@
 
 #include "manifest.h"
 
+#include "parser_npm.h"
 #include "parser_pnpm.h"
 #include "parser_yarn.h"
 
@@ -25,10 +26,7 @@ bool ParseLockfile(std::string_view content,
       case LockFormat::kYarn:
         return ParseYarnLock(content, ctx, out, err);
       case LockFormat::kNpm:
-        // Stub — parser_npm.cc lands in step 6.
-        out->lockVersion = "0";
-        out->ecosystem = Ecosystem::kNpm;
-        return true;
+        return ParseNpmLock(content, ctx, out, err);
       default:
         break;
     }

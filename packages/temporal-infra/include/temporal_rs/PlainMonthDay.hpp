@@ -182,7 +182,7 @@ class PlainMonthDay {
   }
 
   // 1:1 from polyfill `PlainMonthDay.prototype.with`
-  // (lib/plainmonthday.mjs). Algorithm:
+  // (js-temporal/temporal-polyfill lib/plainmonthday.ts). Algorithm:
   //   1. Empty partial is a spec TypeError.
   //   2. Read calendar-native (year, month, day) from this PMD's
   //      stored ISO via backend accessors.
@@ -260,7 +260,7 @@ class PlainMonthDay {
   }
 
   // 1:1 from polyfill `PlainMonthDay.prototype.toPlainDate`
-  // (lib/plainmonthday.mjs). Algorithm:
+  // (js-temporal/temporal-polyfill lib/plainmonthday.ts). Algorithm:
   //   1. Extract calendar-native (year, month, day) from this PMD's
   //      stored ISO (ISO is the projection of those calendar fields
   //      after IsoFromCalendarFields; for non-ISO calendars
@@ -311,8 +311,7 @@ class PlainMonthDay {
     ::node::socketsecurity::temporal::PlainDate pd{};
     pd.iso = iso.value();
     pd.calendar = kind;
-    return diplomat::Ok<std::unique_ptr<PlainDate>>(
-        std::unique_ptr<PlainDate>(new PlainDate(pd)));
+    return diplomat::Ok<std::unique_ptr<PlainDate>>(PlainDate::FromInfra(pd));
   }
 
   diplomat::result<int64_t, TemporalError>
@@ -419,7 +418,7 @@ class PlainMonthDay {
   // stays one-way. For ISO, pass through inner_.iso directly. For
   // non-ISO, route through IsoFromCalendarFields using the calendar-
   // native (month, day) read from inner_.iso (the polyfill's
-  // toPlainDate semantics: see lib/plainmonthday.mjs ~toPlainDate).
+  // toPlainDate semantics: see js-temporal/temporal-polyfill lib/plainmonthday.ts ~toPlainDate).
   template <class PD>
   diplomat::result<std::unique_ptr<PD>, TemporalError> to_plain_date(
       const PD* /*reference_year_date*/) const {
@@ -553,7 +552,7 @@ class PlainMonthDay {
 inline diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
 PlainDate::to_plain_month_day() const {
   // 1:1 from polyfill `PlainDate.prototype.toPlainMonthDay`
-  // (lib/plaindate.mjs). Algorithm:
+  // (js-temporal/temporal-polyfill lib/plaindate.ts). Algorithm:
   //   1. Read calendar-native (year, month, day) from this PlainDate.
   //   2. Route (cal_year, cal_month, cal_day) through
   //      IsoFromCalendarFields with constrain to produce the PMD-

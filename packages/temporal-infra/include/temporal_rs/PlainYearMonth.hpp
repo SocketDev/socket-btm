@@ -181,7 +181,7 @@ class PlainYearMonth {
   }
 
   // 1:1 from polyfill `PlainYearMonth.prototype.with`
-  // (lib/plainyearmonth.mjs). Algorithm:
+  // (js-temporal/temporal-polyfill lib/plainyearmonth.ts). Algorithm:
   //   1. Read calendar-native (year, month, day) from self via backend.
   //   2. Merge partial.{year,month,monthCode,day} over self's fields.
   //   3. Route through try_new_with_overflow with the carried-forward
@@ -490,7 +490,7 @@ class PlainYearMonth {
  public:
 
   // 1:1 from polyfill `PlainYearMonth.prototype.toPlainDate`
-  // (lib/plainyearmonth.mjs). Algorithm:
+  // (js-temporal/temporal-polyfill lib/plainyearmonth.ts). Algorithm:
   //   1. Read calendar-native (year, month) from this PYM's stored ISO.
   //   2. Take day from input override (spec requires `day` field).
   //   3. Merge: cal year + cal month from this + day from input.
@@ -539,8 +539,7 @@ class PlainYearMonth {
     ::node::socketsecurity::temporal::PlainDate pd{};
     pd.iso = iso.value();
     pd.calendar = kind;
-    return diplomat::Ok<std::unique_ptr<PlainDate>>(
-        std::unique_ptr<PlainDate>(new PlainDate(pd)));
+    return diplomat::Ok<std::unique_ptr<PlainDate>>(PlainDate::FromInfra(pd));
   }
 
   // 1:1 from upstream plain_year_month.rs:602 `epoch_ns_for_with_provider`.
@@ -672,7 +671,7 @@ class PlainYearMonth {
   // takes a reference_day_date PlainDate). For ISO, pass through
   // inner_.iso directly. For non-ISO, route through IsoFromCalendarFields
   // using calendar-native (year, month) read from inner_.iso (polyfill
-  // toPlainDate semantics: see lib/plainyearmonth.mjs ~toPlainDate).
+  // toPlainDate semantics: see js-temporal/temporal-polyfill lib/plainyearmonth.ts ~toPlainDate).
   template <class PD>
   diplomat::result<std::unique_ptr<PD>, TemporalError> to_plain_date(
       const PD* /*reference_day_date*/) const {

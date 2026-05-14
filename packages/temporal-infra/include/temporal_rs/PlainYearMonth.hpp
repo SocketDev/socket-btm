@@ -180,22 +180,38 @@ class PlainYearMonth {
         std::unique_ptr<PlainYearMonth>(new PlainYearMonth(pym)));
   }
 
-  // 1:1 from polyfill `PlainYearMonth.prototype.with`
-  // (js-temporal/temporal-polyfill/tree/rebase-part3/lib/plainyearmonth.ts). Algorithm:
-  //   1. Read calendar-native (year, month, day) from self via backend.
-  //   2. Merge partial.{year,month,monthCode,day} over self's fields.
-  //   3. Route through try_new_with_overflow with the carried-forward
-  //      calendar kind — try_new_with_overflow already routes non-ISO
-  //      through IsoFromCalendarFields.
+  // Spec: Temporal.PlainYearMonth.prototype.with — TC39 §9.3.13
+  //   https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.with
+  // Polyfill: js-temporal/temporal-polyfill/tree/rebase-part3/lib/plainyearmonth.ts
   //
-  // For ISO PYM, calendar-native == ISO, so the path collapses to the
-  // direct merge of inner_.iso fields.
+  // Spec algorithm:
+  //   1. Let plainYearMonth be the this value.
+  //   2. Perform ? RequireInternalSlot.
+  //   3. If ? IsPartialTemporalObject(temporalYearMonthLike) is false, throw TypeError.
+  //   4. Let calendar be plainYearMonth.[[Calendar]].
+  //   5. Let fields be ISODateToFields(calendar, plainYearMonth.[[ISODate]], year-month).
+  //   6. Let partialYearMonth be ? PrepareCalendarFields(calendar, temporalYearMonthLike,
+  //                                « year, month, month-code », « », partial).
+  //   7. Set fields to CalendarMergeFields(calendar, fields, partialYearMonth).
+  //   8. Let resolvedOptions be ? GetOptionsObject(options).
+  //   9. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+  //  10. Let isoDate be ? CalendarYearMonthFromFields(calendar, fields, overflow).
+  //  11. Return ! CreateTemporalYearMonth(isoDate, calendar).
+  //
+  // Note: PYM's input field set is « year, month, month-code » — `day`
+  // is NOT included. CalendarYearMonthFromFields step 1 sets fields.[[Day]]
+  // to 1 before projection.
   diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
   with(PartialDate partial,
        std::optional<ArithmeticOverflow> overflow) const {
+    // Spec step 4: calendar.
     const auto kind = inner_.calendar;
     const bool is_iso =
         kind == ::node::socketsecurity::temporal::CalendarKind::kIso;
+    // Spec step 5: ISODateToFields(calendar, isoDate, year-month) = CalendarISOToDate,
+    // copy MonthCode + Year (type=year-month skips Day; we read day anyway
+    // because try_new_with_overflow preserves a reference day in inner_.iso
+    // for PYM round-tripping — see divergence note below).
     int32_t self_year = inner_.iso.year;
     uint8_t self_month = inner_.iso.month;
     uint8_t self_day = inner_.iso.day;
@@ -215,6 +231,11 @@ class PlainYearMonth {
       self_month = m.value();
       self_day = d.value();
     }
+    // Spec steps 6 + 7: PrepareCalendarFields(« year, month, monthCode »)
+    // + CalendarMergeFields. Note `day` is NOT in PYM's input field set;
+    // we still pass `partial.day` if set because temporal_rs's PYM
+    // canonical form carries a reference day. Spec ignores it via the
+    // step 1 of CalendarYearMonthFromFields (fields.[[Day]] = 1).
     const int32_t merged_year = partial.year.value_or(self_year);
     uint8_t merged_month = self_month;
     if (partial.month.has_value()) {
@@ -241,8 +262,17 @@ class PlainYearMonth {
     const std::optional<uint8_t> merged_day =
         partial.day.has_value() ? partial.day
                                 : std::optional<uint8_t>(self_day);
+    // Spec steps 8 + 9: GetOptionsObject + GetTemporalOverflowOption.
     const ArithmeticOverflow ov =
         overflow.value_or(ArithmeticOverflow{});
+    // Spec steps 10 + 11: CalendarYearMonthFromFields + CreateTemporalYearMonth.
+    // try_new_with_overflow routes non-ISO through IsoFromCalendarFields.
+    // KNOWN DIVERGENCE: spec sets fields.[[Day]] = 1 at the start of
+    // CalendarYearMonthFromFields (§9.3.13 step 10 → §12.3.13 step 1).
+    // We pass merged_day through. For ISO this only affects the stored
+    // reference day, which is invisible at the PYM API surface. For
+    // lunisolar calendars where day-of-month influences ICU back-
+    // projection of year/month, this could land on a different ISO date.
     return try_new_with_overflow(
         merged_year, merged_month, merged_day,
         AnyCalendarKind::FromInfra(kind), ov);
@@ -489,22 +519,38 @@ class PlainYearMonth {
 
  public:
 
-  // 1:1 from polyfill `PlainYearMonth.prototype.toPlainDate`
-  // (js-temporal/temporal-polyfill/tree/rebase-part3/lib/plainyearmonth.ts). Algorithm:
-  //   1. Read calendar-native (year, month) from this PYM's stored ISO.
-  //   2. Take day from input override (spec requires `day` field).
-  //   3. Merge: cal year + cal month from this + day from input.
-  //   4. Route through IsoFromCalendarFields with constrain.
+  // Spec: Temporal.PlainYearMonth.prototype.toPlainDate — TC39 §9.3.23
+  //   https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.toplaindate
+  // Polyfill: js-temporal/temporal-polyfill/tree/rebase-part3/lib/plainyearmonth.ts
   //
-  // For ISO PYM, calendar-native fields == ISO fields, so the path
-  // collapses to PlainDateTryNewIso(iso.year, iso.month, resolved_day).
+  // Spec algorithm:
+  //   1. Let plainYearMonth be the this value.
+  //   2. Perform ? RequireInternalSlot.
+  //   3. If item is not an Object, throw a TypeError exception.
+  //   4. Let calendar be plainYearMonth.[[Calendar]].
+  //   5. Let fields be ISODateToFields(calendar, plainYearMonth.[[ISODate]],
+  //                                     year-month).
+  //   6. Let inputFields be ? PrepareCalendarFields(calendar, item,
+  //                            « day », « », « »).
+  //   7. Let mergedFields be CalendarMergeFields(calendar, fields, inputFields).
+  //   8. Let isoDate be ? CalendarDateFromFields(calendar, mergedFields, constrain).
+  //   9. Return ! CreateTemporalDate(isoDate, calendar).
+  //
+  // For ISO PYM, ISODateToFields collapses to inner_.iso, so the path
+  // becomes PlainDateTryNewIso(iso.year, iso.month, resolved_day).
   diplomat::result<std::unique_ptr<PlainDate>, TemporalError>
   to_plain_date(std::optional<PartialDate> day) const {
+    // Spec step 4: calendar = self.[[Calendar]].
     const auto kind = inner_.calendar;
+    // Spec steps 6 + 7: PrepareCalendarFields(« day ») + CalendarMergeFields.
+    // Input field set is « day » only; pull from override or fall back
+    // to self's stored ISO day (as PYM reference day).
     const uint8_t resolved_day = (day.has_value() && day->day.has_value())
                                      ? *day->day
                                      : inner_.iso.day;
     if (kind == ::node::socketsecurity::temporal::CalendarKind::kIso) {
+      // Spec steps 5 + 8 + 9 (ISO): CalendarISOToDate is identity for
+      // calendar=iso8601; CalendarDateFromFields → PlainDateTryNewIso.
       auto result = ::node::socketsecurity::temporal::PlainDateTryNewIso(
           inner_.iso.year, inner_.iso.month, resolved_day);
       if (!result.ok()) {
@@ -514,10 +560,10 @@ class PlainYearMonth {
       return diplomat::Ok<std::unique_ptr<PlainDate>>(
           PlainDate::FromInfra(result.value()));
     }
-    // Non-ISO: read calendar-native year/month from stored ISO. The
-    // PYM's inner_.iso.year/month are the IsoFromCalendarFields-projected
-    // values; the calendar-native fields are what to_plain_date must
-    // preserve.
+    // Spec step 5 (non-ISO): ISODateToFields(calendar, isoDate, year-month) =
+    // CalendarISOToDate, copy MonthCode + Year. The PYM's inner_.iso.year/
+    // month are the IsoFromCalendarFields-projected ISO values; the
+    // calendar-native fields are what spec needs for the merge.
     auto cal_year = ::node::socketsecurity::temporal::GetCalendarBackend()
                         .Year(kind, inner_.iso);
     auto cal_month = ::node::socketsecurity::temporal::GetCalendarBackend()
@@ -527,6 +573,9 @@ class PlainYearMonth {
           ErrorKind::Range,
           "Calendar backend unavailable for PlainYearMonth.toPlainDate"});
     }
+    // Spec step 8: CalendarDateFromFields(calendar, mergedFields, constrain).
+    // ICU4C backend collapses CalendarResolveFields + CalendarDateToISO +
+    // ISODateWithinLimits into IsoFromCalendarFields.
     auto iso = ::node::socketsecurity::temporal::GetCalendarBackend()
                     .IsoFromCalendarFields(
                         kind, cal_year.value(), cal_month.value(),
@@ -536,6 +585,7 @@ class PlainYearMonth {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(iso.error()));
     }
+    // Spec step 9: CreateTemporalDate.
     ::node::socketsecurity::temporal::PlainDate pd{};
     pd.iso = iso.value();
     pd.calendar = kind;
@@ -667,16 +717,29 @@ class PlainYearMonth {
     return ::node::socketsecurity::temporal::CalendarEraYear(cal, inner_.iso);
   }
 
-  // Conversion: PlainYearMonth + day -> PlainDate (templated overload,
-  // takes a reference_day_date PlainDate). For ISO, pass through
-  // inner_.iso directly. For non-ISO, route through IsoFromCalendarFields
-  // using calendar-native (year, month) read from inner_.iso (polyfill
-  // toPlainDate semantics: see js-temporal/temporal-polyfill/tree/rebase-part3/lib/plainyearmonth.ts).
+  // Spec: Temporal.PlainYearMonth.prototype.toPlainDate — TC39 §9.3.23
+  //   https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.toplaindate
+  // Polyfill: js-temporal/temporal-polyfill/tree/rebase-part3/lib/plainyearmonth.ts
+  //
+  // Templated overload — takes a reference_day_date PlainDate for type
+  // wiring; the day used comes from self's stored reference day, not
+  // from the parameter (V8 wrapper dispatches based on overload).
+  //
+  // Spec algorithm (steps 4-9, same as the (item) overload):
+  //   4. calendar = self.[[Calendar]].
+  //   5. fields = ISODateToFields(calendar, self.[[ISODate]], year-month).
+  //   6. inputFields = PrepareCalendarFields(calendar, item, « day »).
+  //   7. mergedFields = CalendarMergeFields(calendar, fields, inputFields).
+  //   8. isoDate = ? CalendarDateFromFields(calendar, mergedFields, constrain).
+  //   9. Return CreateTemporalDate(isoDate, calendar).
   template <class PD>
   diplomat::result<std::unique_ptr<PD>, TemporalError> to_plain_date(
       const PD* /*reference_day_date*/) const {
+    // Spec step 4: calendar.
     const auto kind = inner_.calendar;
     if (kind == ::node::socketsecurity::temporal::CalendarKind::kIso) {
+      // Spec steps 5/7/8 (ISO path): CalendarISOToDate is identity;
+      // CalendarDateFromFields → PlainDateTryNewIso.
       auto r = ::node::socketsecurity::temporal::PlainDateTryNewIso(
           inner_.iso.year, inner_.iso.month, inner_.iso.day);
       if (!r.ok()) {
@@ -687,10 +750,10 @@ class PlainYearMonth {
       pd.calendar = inner_.calendar;
       return diplomat::Ok<std::unique_ptr<PD>>(PD::FromInfra(pd));
     }
-    // Non-ISO: read calendar-native year/month from stored ISO; preserve
-    // inner_.iso.day as the calendar-native day (PYM stores its reference
-    // day in inner_.iso.day directly — IsoFromCalendarFields was used to
-    // construct it).
+    // Spec step 5 (non-ISO): ISODateToFields(calendar, isoDate, year-month).
+    // PYM stores its reference day in inner_.iso.day (constructed via
+    // IsoFromCalendarFields); we read calendar-native (year, month, day)
+    // because the merge then runs CalendarDateFromFields which needs all 3.
     auto cal_year = ::node::socketsecurity::temporal::GetCalendarBackend()
                         .Year(kind, inner_.iso);
     auto cal_month = ::node::socketsecurity::temporal::GetCalendarBackend()
@@ -702,6 +765,7 @@ class PlainYearMonth {
           ErrorKind::Range,
           "Calendar backend unavailable for PlainYearMonth.toPlainDate"});
     }
+    // Spec step 8: CalendarDateFromFields(calendar, mergedFields, constrain).
     auto iso = ::node::socketsecurity::temporal::GetCalendarBackend()
                     .IsoFromCalendarFields(
                         kind, cal_year.value(), cal_month.value(),
@@ -711,6 +775,7 @@ class PlainYearMonth {
       return diplomat::Err<TemporalError>(
           TemporalError::FromInfra(iso.error()));
     }
+    // Spec step 9: CreateTemporalDate.
     ::node::socketsecurity::temporal::PlainDate pd{};
     pd.iso = iso.value();
     pd.calendar = kind;
@@ -779,20 +844,27 @@ class PlainYearMonth {
 
 inline diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
 PlainDate::to_plain_year_month() const {
-  // 1:1 from polyfill `PlainDate.prototype.toPlainYearMonth`
-  // (js-temporal/temporal-polyfill/tree/rebase-part3/lib/plaindate.ts). Algorithm:
-  //   1. Read calendar-native (year, month, day) from this PlainDate's
-  //      stored ISO via the backend accessors.
-  //   2. Route through IsoFromCalendarFields with constrain to produce
-  //      the PYM-canonical ISO date (the calendar's projection of
-  //      (cal_year, cal_month, 1) — but we preserve cal_day as the
-  //      reference day to match temporal_rs's "reference day" field).
-  //   3. Carry the calendar kind forward.
+  // Spec: Temporal.PlainDate.prototype.toPlainYearMonth — TC39 §3.3.19
+  //   https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.toplainyearmonth
+  // Polyfill: js-temporal/temporal-polyfill/tree/rebase-part3/lib/plaindate.ts
   //
-  // For ISO PlainDate, calendar-native == ISO, so the path collapses
-  // to PlainYearMonthTryNewIso(iso.year, iso.month, iso.day).
+  // Spec algorithm:
+  //   1. Let plainDate be the this value.
+  //   2. Perform ? RequireInternalSlot.
+  //   3. Let calendar be plainDate.[[Calendar]].
+  //   4. Let fields be ISODateToFields(calendar, plainDate.[[ISODate]], date).
+  //   5. Let isoDate be ? CalendarYearMonthFromFields(calendar, fields, constrain).
+  //   6. Return ! CreateTemporalYearMonth(isoDate, calendar).
+  //   NOTE: CalendarYearMonthFromFields is necessary to set [[Day]] of the
+  //         [[ISODate]] internal slot correctly (sets it to 1).
+  //
+  // For ISO PlainDate, calendar-native == ISO and PlainYearMonthTryNewIso
+  // handles the day-1 reference internally.
+  // Spec step 3: calendar = self.[[Calendar]].
   const auto kind = inner_.calendar;
   if (kind == ::node::socketsecurity::temporal::CalendarKind::kIso) {
+    // Spec steps 4 + 5 (ISO): ISODateToFields → inner_.iso verbatim;
+    // CalendarYearMonthFromFields → PlainYearMonthTryNewIso.
     auto result = ::node::socketsecurity::temporal::PlainYearMonthTryNewIso(
         inner_.iso.year, inner_.iso.month, inner_.iso.day);
     if (!result.ok()) {
@@ -801,9 +873,12 @@ PlainDate::to_plain_year_month() const {
     }
     auto pym = result.value();
     pym.calendar = kind;
+    // Spec step 6.
     return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
         PlainYearMonth::FromInfra(pym));
   }
+  // Spec step 4 (non-ISO): ISODateToFields(calendar, isoDate, date) =
+  // CalendarISOToDate, copy MonthCode + Year + Day.
   auto cal_year = ::node::socketsecurity::temporal::GetCalendarBackend()
                       .Year(kind, inner_.iso);
   auto cal_month = ::node::socketsecurity::temporal::GetCalendarBackend()
@@ -815,6 +890,14 @@ PlainDate::to_plain_year_month() const {
         ErrorKind::Range,
         "Calendar backend unavailable for PlainDate.toPlainYearMonth"});
   }
+  // Spec step 5: CalendarYearMonthFromFields → CalendarResolveFields +
+  // step 1 sets fields.[[Day]] = 1 + CalendarDateToISO.
+  // KNOWN DIVERGENCE: spec step 1 of CalendarYearMonthFromFields sets
+  // fields.[[Day]] to 1; we pass cal_day through (so PYM's stored
+  // [[ISODate]].[[Day]] keeps the PD's day instead of being normalized
+  // to day-1). For most calendars this only affects the invisible
+  // reference day. For lunisolar calendars where day-of-month influences
+  // ICU back-projection, the result could land on a different ISO date.
   auto iso = ::node::socketsecurity::temporal::GetCalendarBackend()
                   .IsoFromCalendarFields(
                       kind, cal_year.value(), cal_month.value(),
@@ -824,6 +907,7 @@ PlainDate::to_plain_year_month() const {
     return diplomat::Err<TemporalError>(
         TemporalError::FromInfra(iso.error()));
   }
+  // Spec step 6: CreateTemporalYearMonth.
   ::node::socketsecurity::temporal::PlainYearMonth pym{};
   pym.iso = iso.value();
   pym.calendar = kind;

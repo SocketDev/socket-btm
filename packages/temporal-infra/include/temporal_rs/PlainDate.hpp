@@ -304,21 +304,89 @@ class PlainDate {
 
   // ── Mutation (returns new heap-owned PlainDate) ───────────────────
 
+  // 1:1 from polyfill `PlainDate.prototype.with` (lib/plaindate.mjs).
+  // ISO path: delegate to PlainDateWith (ISO-only merge).
+  // Non-ISO path: read calendar-native (year, month, day) via backend,
+  // merge partial fields, route through IsoFromCalendarFields with the
+  // requested overflow. Polyfill semantics: `ISODateToFields` →
+  // merge → `CalendarDateFromFields`.
   diplomat::result<std::unique_ptr<PlainDate>, TemporalError> with(
       PartialDate partial,
       std::optional<ArithmeticOverflow> overflow) const {
+    const auto kind = inner_.calendar;
     std::optional<::node::socketsecurity::temporal::Overflow> infra_overflow;
     if (overflow.has_value()) {
       infra_overflow = overflow->ToInfra();
     }
-    auto result = ::node::socketsecurity::temporal::PlainDateWith(
-        inner_, partial.ToInfra(), infra_overflow);
-    if (!result.ok()) {
-      return diplomat::Err<TemporalError>(
-          TemporalError::FromInfra(result.error()));
+    if (kind == ::node::socketsecurity::temporal::CalendarKind::kIso) {
+      auto result = ::node::socketsecurity::temporal::PlainDateWith(
+          inner_, partial.ToInfra(), infra_overflow);
+      if (!result.ok()) {
+        return diplomat::Err<TemporalError>(
+            TemporalError::FromInfra(result.error()));
+      }
+      auto pd = result.value();
+      pd.calendar = kind;
+      return diplomat::Ok<std::unique_ptr<PlainDate>>(
+          std::unique_ptr<PlainDate>(new PlainDate(pd)));
     }
+    // Non-ISO: empty partial is a spec TypeError.
+    if (!partial.year.has_value() && !partial.month.has_value() &&
+        partial.month_code.empty() && !partial.day.has_value() &&
+        partial.era.empty() && !partial.era_year.has_value()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Type, "PartialDate cannot be empty"});
+    }
+    auto y = ::node::socketsecurity::temporal::GetCalendarBackend()
+                  .Year(kind, inner_.iso);
+    auto m = ::node::socketsecurity::temporal::GetCalendarBackend()
+                  .Month(kind, inner_.iso);
+    auto d = ::node::socketsecurity::temporal::GetCalendarBackend()
+                  .Day(kind, inner_.iso);
+    if (!y.ok() || !m.ok() || !d.ok()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "Calendar backend unavailable for PlainDate.with"});
+    }
+    const int32_t merged_year = partial.year.value_or(y.value());
+    uint8_t merged_month = m.value();
+    if (partial.month.has_value()) {
+      merged_month = *partial.month;
+    } else if (!partial.month_code.empty()) {
+      if (partial.month_code.size() < 3 ||
+          partial.month_code.size() > 4) {
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range, "Invalid monthCode length"});
+      }
+      ::node::socketsecurity::temporal::MonthCode code{};
+      for (size_t i = 0; i < partial.month_code.size(); ++i) {
+        code.bytes[i] = static_cast<uint8_t>(partial.month_code[i]);
+      }
+      ::node::socketsecurity::temporal::Calendar cal(kind);
+      auto r = ::node::socketsecurity::temporal::CalendarResolveMonthCode(
+          cal, merged_year, code);
+      if (!r.ok()) {
+        return diplomat::Err<TemporalError>(
+            TemporalError::FromInfra(r.error()));
+      }
+      merged_month = r.value();
+    }
+    const uint8_t merged_day = partial.day.value_or(d.value());
+    const ::node::socketsecurity::temporal::Overflow ov =
+        infra_overflow.value_or(
+            ::node::socketsecurity::temporal::Overflow::kConstrain);
+    auto iso = ::node::socketsecurity::temporal::GetCalendarBackend()
+                    .IsoFromCalendarFields(kind, merged_year, merged_month,
+                                            merged_day, ov);
+    if (!iso.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(iso.error()));
+    }
+    ::node::socketsecurity::temporal::PlainDate pd{};
+    pd.iso = iso.value();
+    pd.calendar = kind;
     return diplomat::Ok<std::unique_ptr<PlainDate>>(
-        std::unique_ptr<PlainDate>(new PlainDate(result.value())));
+        std::unique_ptr<PlainDate>(new PlainDate(pd)));
   }
 
   // ── Comparison ────────────────────────────────────────────────────

@@ -181,13 +181,17 @@ class PlainMonthDay {
         std::unique_ptr<PlainMonthDay>(new PlainMonthDay(pmd)));
   }
 
-  // 1:1 from upstream plain_month_day.rs:262 `with`. Empty partial is
-  // a spec TypeError. ISO path: merge partial.month / partial.day onto
-  // self, route through try_new_with_overflow with the carried-forward
-  // calendar kind. month_code-only resolution requires the calendar
-  // backend to map "M01"…"M12" to ordinal months; we keep that path
-  // gated until the backend lands, but the common case (month + day
-  // as plain integers) works today.
+  // 1:1 from polyfill `PlainMonthDay.prototype.with`
+  // (lib/plainmonthday.mjs). Algorithm:
+  //   1. Empty partial is a spec TypeError.
+  //   2. Read calendar-native (year, month, day) from this PMD's
+  //      stored ISO via backend accessors.
+  //   3. Merge partial.{year,month,monthCode,day} over self's fields.
+  //   4. Route through try_new_with_overflow with the carried-forward
+  //      calendar kind + merged calendar year as ref_year.
+  //
+  // For ISO PMD, calendar-native == ISO, so the path collapses to the
+  // direct merge of inner_.iso.{month, day} (year-1972 reference).
   diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
   with(PartialDate partial,
        std::optional<ArithmeticOverflow> overflow) const {
@@ -197,9 +201,34 @@ class PlainMonthDay {
       return diplomat::Err<TemporalError>(TemporalError{
           ErrorKind::Type, "PartialDate cannot be empty"});
     }
-    // month_code-only resolution routes through CalendarResolveMonthCode
-    // (ICU backend handles year-dependent leap variants).
-    uint8_t merged_month = inner_.iso.month;
+    const auto kind = inner_.calendar;
+    const bool is_iso =
+        kind == ::node::socketsecurity::temporal::CalendarKind::kIso;
+    // Read self's calendar-native fields. For ISO these are the stored
+    // ISO values; for non-ISO we route through the backend so the merge
+    // operates on calendar-native fields, then IsoFromCalendarFields
+    // re-projects on store.
+    int32_t self_year = inner_.iso.year;
+    uint8_t self_month = inner_.iso.month;
+    uint8_t self_day = inner_.iso.day;
+    if (!is_iso) {
+      auto y = ::node::socketsecurity::temporal::GetCalendarBackend()
+                    .Year(kind, inner_.iso);
+      auto m = ::node::socketsecurity::temporal::GetCalendarBackend()
+                    .Month(kind, inner_.iso);
+      auto d = ::node::socketsecurity::temporal::GetCalendarBackend()
+                    .Day(kind, inner_.iso);
+      if (!y.ok() || !m.ok() || !d.ok()) {
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range,
+            "Calendar backend unavailable for PlainMonthDay.with"});
+      }
+      self_year = y.value();
+      self_month = m.value();
+      self_day = d.value();
+    }
+    const int32_t merged_year = partial.year.value_or(self_year);
+    uint8_t merged_month = self_month;
     if (partial.month.has_value()) {
       merged_month = *partial.month;
     } else if (!partial.month_code.empty()) {
@@ -212,42 +241,78 @@ class PlainMonthDay {
       for (size_t i = 0; i < partial.month_code.size(); ++i) {
         code.bytes[i] = static_cast<uint8_t>(partial.month_code[i]);
       }
-      ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+      ::node::socketsecurity::temporal::Calendar cal(kind);
       auto r = ::node::socketsecurity::temporal::CalendarResolveMonthCode(
-          cal, inner_.iso.year, code);
+          cal, merged_year, code);
       if (!r.ok()) {
         return diplomat::Err<TemporalError>(
             TemporalError::FromInfra(r.error()));
       }
       merged_month = r.value();
     }
-    const uint8_t merged_day = partial.day.value_or(inner_.iso.day);
+    const uint8_t merged_day = partial.day.value_or(self_day);
     const ArithmeticOverflow ov =
         overflow.value_or(ArithmeticOverflow{});
     return try_new_with_overflow(
         merged_month, merged_day,
-        AnyCalendarKind::FromInfra(inner_.calendar), ov,
-        std::optional<int32_t>(inner_.iso.year));
+        AnyCalendarKind::FromInfra(kind), ov,
+        std::optional<int32_t>(merged_year));
   }
 
-  // 1:1 from upstream plain_month_day.rs `to_plain_date`. ISO path:
-  // pair the MonthDay's month+day with the caller-supplied year
-  // override (PartialDate.year) or the MonthDay's reference_year.
-  // Spec requires year to be provided when reference_year is the
-  // default 1972; we accept either.
+  // 1:1 from polyfill `PlainMonthDay.prototype.toPlainDate`
+  // (lib/plainmonthday.mjs). Algorithm:
+  //   1. Extract calendar-native (year, month, day) from this PMD's
+  //      stored ISO (ISO is the projection of those calendar fields
+  //      after IsoFromCalendarFields; for non-ISO calendars
+  //      inner_.iso.month is the ISO month, NOT the calendar month).
+  //   2. Take year from input override.
+  //   3. Merge: year from input + calendar-native month/day from this.
+  //   4. Calendar→ISO via IsoFromCalendarFields with overflow=constrain.
+  //   5. Return PlainDate carrying the calendar kind.
+  //
+  // For ISO PMD, calendar-native fields == iso fields, so the path
+  // collapses to PlainDateTryNewIso(resolved_year, iso.month, iso.day).
   diplomat::result<std::unique_ptr<PlainDate>, TemporalError>
   to_plain_date(std::optional<PartialDate> year) const {
-    const int32_t resolved_year = (year.has_value() && year->year.has_value())
-                                      ? *year->year
-                                      : inner_.iso.year;
-    auto result = ::node::socketsecurity::temporal::PlainDateTryNewIso(
-        resolved_year, inner_.iso.month, inner_.iso.day);
-    if (!result.ok()) {
-      return diplomat::Err<TemporalError>(
-          TemporalError::FromInfra(result.error()));
+    const auto kind = inner_.calendar;
+    const int32_t resolved_year =
+        (year.has_value() && year->year.has_value()) ? *year->year
+                                                      : inner_.iso.year;
+    if (kind == ::node::socketsecurity::temporal::CalendarKind::kIso) {
+      auto result = ::node::socketsecurity::temporal::PlainDateTryNewIso(
+          resolved_year, inner_.iso.month, inner_.iso.day);
+      if (!result.ok()) {
+        return diplomat::Err<TemporalError>(
+            TemporalError::FromInfra(result.error()));
+      }
+      return diplomat::Ok<std::unique_ptr<PlainDate>>(
+          PlainDate::FromInfra(result.value()));
     }
+    // Non-ISO: read calendar-native month/day from the stored ISO,
+    // then run year + (cal month, cal day) through IsoFromCalendarFields.
+    auto cal_month = ::node::socketsecurity::temporal::GetCalendarBackend()
+                          .Month(kind, inner_.iso);
+    auto cal_day = ::node::socketsecurity::temporal::GetCalendarBackend()
+                        .Day(kind, inner_.iso);
+    if (!cal_month.ok() || !cal_day.ok()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "Calendar backend unavailable for PlainMonthDay.toPlainDate"});
+    }
+    auto iso = ::node::socketsecurity::temporal::GetCalendarBackend()
+                    .IsoFromCalendarFields(
+                        kind, resolved_year, cal_month.value(),
+                        cal_day.value(),
+                        ::node::socketsecurity::temporal::Overflow::kConstrain);
+    if (!iso.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(iso.error()));
+    }
+    ::node::socketsecurity::temporal::PlainDate pd{};
+    pd.iso = iso.value();
+    pd.calendar = kind;
     return diplomat::Ok<std::unique_ptr<PlainDate>>(
-        PlainDate::FromInfra(result.value()));
+        std::unique_ptr<PlainDate>(new PlainDate(pd)));
   }
 
   diplomat::result<int64_t, TemporalError>
@@ -349,19 +414,54 @@ class PlainMonthDay {
     return ::node::socketsecurity::temporal::CalendarMonthCode(cal, inner_.iso);
   }
 
-  // Conversion: PlainMonthDay + year -> PlainDate. Templated so the
-  // PlainDate.hpp / PlainMonthDay.hpp include cycle stays one-way.
+  // Conversion: PlainMonthDay + reference_year_date -> PlainDate.
+  // Templated so the PlainDate.hpp / PlainMonthDay.hpp include cycle
+  // stays one-way. For ISO, pass through inner_.iso directly. For
+  // non-ISO, route through IsoFromCalendarFields using the calendar-
+  // native (month, day) read from inner_.iso (the polyfill's
+  // toPlainDate semantics: see lib/plainmonthday.mjs ~toPlainDate).
   template <class PD>
   diplomat::result<std::unique_ptr<PD>, TemporalError> to_plain_date(
       const PD* /*reference_year_date*/) const {
-    auto r = ::node::socketsecurity::temporal::PlainDateTryNewIso(
-        inner_.iso.year, inner_.iso.month, inner_.iso.day);
-    if (!r.ok()) {
-      return diplomat::Err<TemporalError>(
-          TemporalError::FromInfra(r.error()));
+    const auto kind = inner_.calendar;
+    if (kind == ::node::socketsecurity::temporal::CalendarKind::kIso) {
+      auto r = ::node::socketsecurity::temporal::PlainDateTryNewIso(
+          inner_.iso.year, inner_.iso.month, inner_.iso.day);
+      if (!r.ok()) {
+        return diplomat::Err<TemporalError>(
+            TemporalError::FromInfra(r.error()));
+      }
+      auto pd = r.value();
+      pd.calendar = inner_.calendar;
+      return diplomat::Ok<std::unique_ptr<PD>>(PD::FromInfra(pd));
     }
-    auto pd = r.value();
-    pd.calendar = inner_.calendar;
+    // Non-ISO: read calendar-native year/month/day from the stored
+    // ISO. The PMD's inner_.iso.year is the IsoFromCalendarFields-
+    // projected ISO year (e.g. 2024 for Hebrew 5784), but the
+    // calendar-native year is what to_plain_date should preserve.
+    auto cal_year = ::node::socketsecurity::temporal::GetCalendarBackend()
+                        .Year(kind, inner_.iso);
+    auto cal_month = ::node::socketsecurity::temporal::GetCalendarBackend()
+                          .Month(kind, inner_.iso);
+    auto cal_day = ::node::socketsecurity::temporal::GetCalendarBackend()
+                        .Day(kind, inner_.iso);
+    if (!cal_year.ok() || !cal_month.ok() || !cal_day.ok()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "Calendar backend unavailable for PlainMonthDay.toPlainDate"});
+    }
+    auto iso = ::node::socketsecurity::temporal::GetCalendarBackend()
+                    .IsoFromCalendarFields(
+                        kind, cal_year.value(), cal_month.value(),
+                        cal_day.value(),
+                        ::node::socketsecurity::temporal::Overflow::kConstrain);
+    if (!iso.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(iso.error()));
+    }
+    ::node::socketsecurity::temporal::PlainDate pd{};
+    pd.iso = iso.value();
+    pd.calendar = kind;
     return diplomat::Ok<std::unique_ptr<PD>>(PD::FromInfra(pd));
   }
 
@@ -452,17 +552,57 @@ class PlainMonthDay {
 
 inline diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
 PlainDate::to_plain_month_day() const {
-  // ISO path: pass month + day directly with no reference_year
-  // override. PlainMonthDayTryNewIso uses 1972 as the leap-year
-  // anchor so Feb 29 round-trips cleanly.
-  auto result = ::node::socketsecurity::temporal::PlainMonthDayTryNewIso(
-      inner_.iso.month, inner_.iso.day, std::optional<int32_t>{});
-  if (!result.ok()) {
-    return diplomat::Err<TemporalError>(
-        TemporalError::FromInfra(result.error()));
+  // 1:1 from polyfill `PlainDate.prototype.toPlainMonthDay`
+  // (lib/plaindate.mjs). Algorithm:
+  //   1. Read calendar-native (year, month, day) from this PlainDate.
+  //   2. Route (cal_year, cal_month, cal_day) through
+  //      IsoFromCalendarFields with constrain to produce the PMD-
+  //      canonical ISO storage. The year survives in the stored ISO so
+  //      the calendar-aware month_code / day accessors return the
+  //      right values.
+  //   3. Carry the calendar kind forward.
+  //
+  // For ISO PlainDate, calendar-native == ISO, so the path collapses
+  // to PlainMonthDayTryNewIso(iso.month, iso.day, nullopt) — the
+  // upstream behavior (1972 leap-year anchor) is preserved.
+  const auto kind = inner_.calendar;
+  if (kind == ::node::socketsecurity::temporal::CalendarKind::kIso) {
+    auto result = ::node::socketsecurity::temporal::PlainMonthDayTryNewIso(
+        inner_.iso.month, inner_.iso.day, std::optional<int32_t>{});
+    if (!result.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(result.error()));
+    }
+    auto pmd = result.value();
+    pmd.calendar = kind;
+    return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
+        PlainMonthDay::FromInfra(pmd));
   }
+  auto cal_year = ::node::socketsecurity::temporal::GetCalendarBackend()
+                      .Year(kind, inner_.iso);
+  auto cal_month = ::node::socketsecurity::temporal::GetCalendarBackend()
+                        .Month(kind, inner_.iso);
+  auto cal_day = ::node::socketsecurity::temporal::GetCalendarBackend()
+                      .Day(kind, inner_.iso);
+  if (!cal_year.ok() || !cal_month.ok() || !cal_day.ok()) {
+    return diplomat::Err<TemporalError>(TemporalError{
+        ErrorKind::Range,
+        "Calendar backend unavailable for PlainDate.toPlainMonthDay"});
+  }
+  auto iso = ::node::socketsecurity::temporal::GetCalendarBackend()
+                  .IsoFromCalendarFields(
+                      kind, cal_year.value(), cal_month.value(),
+                      cal_day.value(),
+                      ::node::socketsecurity::temporal::Overflow::kConstrain);
+  if (!iso.ok()) {
+    return diplomat::Err<TemporalError>(
+        TemporalError::FromInfra(iso.error()));
+  }
+  ::node::socketsecurity::temporal::PlainMonthDay pmd{};
+  pmd.iso = iso.value();
+  pmd.calendar = kind;
   return diplomat::Ok<std::unique_ptr<PlainMonthDay>>(
-      PlainMonthDay::FromInfra(result.value()));
+      PlainMonthDay::FromInfra(pmd));
 }
 
 }  // namespace temporal_rs

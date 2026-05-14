@@ -305,7 +305,7 @@ class PlainDate {
   // ── Mutation (returns new heap-owned PlainDate) ───────────────────
 
   // 1:1 from polyfill `PlainDate.prototype.with`
-  // (js-temporal/temporal-polyfill lib/plaindate.ts, rebase-part3).
+  // (js-temporal/temporal-polyfill/lib/plaindate.ts, rebase-part3).
   // ISO path: delegate to PlainDateWith (ISO-only merge).
   // Non-ISO path: read calendar-native (year, month, day) via backend,
   // merge partial fields, route through IsoFromCalendarFields with the

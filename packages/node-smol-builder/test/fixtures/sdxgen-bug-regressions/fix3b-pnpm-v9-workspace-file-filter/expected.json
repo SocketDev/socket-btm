@@ -1,0 +1,21 @@
+{
+  "type": "lockfile",
+  "lockVersion": "9",
+  "ecosystem": "npm",
+  "packages": [
+    {
+      "name": "real-dep",
+      "version": "1.0.0",
+      "ecosystem": "npm",
+      "depType": "prod",
+      "isDev": false,
+      "isOptional": false,
+      "isPeer": false,
+      "isBundled": false,
+      "dependencies": []
+    }
+  ],
+  "_index": {
+    "real-dep": 0
+  }
+}

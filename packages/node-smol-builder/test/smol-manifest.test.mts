@@ -14,6 +14,10 @@
  * - pnpm-lock.yaml (v5, v6, v9)
  */
 
+import { readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 import { describe, expect, it } from 'vitest'
 import {
   analyzeLockfile,
@@ -25,6 +29,9 @@ import {
   parseManifest,
   supportedFiles,
 } from '../additions/source-patched/lib/internal/socketsecurity/manifest.js'
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
+const FIXTURES_DIR = join(__dirname, 'fixtures/sdxgen-bug-regressions')
 
 describe('node:smol-manifest', () => {
   describe('detectFormat()', () => {
@@ -794,5 +801,67 @@ importers:
       const result = parseLockfile(content, 'npm', 'npm')
       expect(result.packages.map(p => p.name)).toEqual(['string-width'])
     })
+  })
+
+  describe('sdxgen-bug-regressions fixtures', () => {
+    // Fixtures under test/fixtures/sdxgen-bug-regressions/ encode the
+    // expected output shape for the smol-manifest C++ port (the public
+    // contract that matches socket-lib's TS parsers). Step 1 of
+    // docs/plans/smol-manifest-native-full.md.
+    //
+    // STATUS: All file-driven assertions are it.todo until either
+    //  (a) the smol JS impl in additions/.../manifest.js is reconciled
+    //      with socket-lib's TS parsers (drift discovered during fixture
+    //      authoring — see fixture README files), or
+    //  (b) the C++ port lands and replaces the smol JS impl entirely.
+    //
+    // Known divergences between smol JS and socket-lib (oracle):
+    //  - fix1: smol indexes by real name, socket-lib indexes by alias key
+    //  - fix3a/fix3b/fix4: smol omits isPeer / isBundled fields when false;
+    //    socket-lib always emits them. Different shape, same semantics.
+    //  - cargo: smol JS doesn't support cargo at all (ManifestError); the
+    //    fixture is reserved for the C++ port's equivalence harness.
+    //
+    // The fixture register cross-check (next test) always runs — it gates
+    // "fixture added but not wired into a test."
+    const FIXTURES = [
+      { dir: 'fix1-npm-v1-alias' },
+      { dir: 'fix2a-npm-v3-workspace-name' },
+      { dir: 'fix2b-npm-v3-alias-name' },
+      { dir: 'fix3a-pnpm-v9-empty-version' },
+      { dir: 'fix3b-pnpm-v9-workspace-file-filter' },
+      { dir: 'fix4-yarn-depsmeta-inversion' },
+      { dir: 'fix5-pnpm-v9-isdev-derivation' },
+      { dir: 'cargo-patch-unused-no-leak' },
+    ]
+
+    it('every fixture directory is wired into the table', () => {
+      const onDisk = readdirSync(FIXTURES_DIR, { withFileTypes: true })
+        .filter(e => e.isDirectory())
+        .map(e => e.name)
+        .sort()
+      const inTable = FIXTURES.map(f => f.dir).sort()
+      expect(onDisk).toEqual(inTable)
+    })
+
+    it('every fixture directory contains input.* + expected.json + README.md', () => {
+      for (const f of FIXTURES) {
+        const dirEntries = readdirSync(join(FIXTURES_DIR, f.dir))
+        expect(dirEntries.some(e => e.startsWith('input.'))).toBe(true)
+        expect(dirEntries).toContain('expected.json')
+        expect(dirEntries).toContain('README.md')
+        // expected.json must be valid JSON.
+        const expected = JSON.parse(
+          readFileSync(join(FIXTURES_DIR, f.dir, 'expected.json'), 'utf8'),
+        )
+        expect(expected).toHaveProperty('type', 'lockfile')
+        expect(expected).toHaveProperty('packages')
+        expect(Array.isArray(expected.packages)).toBe(true)
+      }
+    })
+
+    for (const fixture of FIXTURES) {
+      it.todo(`${fixture.dir}: smol parseLockfile output matches expected.json`)
+    }
   })
 })

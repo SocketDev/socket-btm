@@ -71,7 +71,7 @@
            ],
          }],
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
-@@ -1055,14 +1079,259 @@
+@@ -1055,14 +1079,263 @@
            ],
            'dependencies': [
              'deps/ncrypto/ncrypto.gyp:ncrypto',
@@ -159,12 +159,16 @@
 +            'src/socketsecurity/temporal/relative_to.cc',
 +            'src/socketsecurity/temporal/duration_normalized.cc',
 +            'src/socketsecurity/temporal/primitive.cc',
-+            # Socket Security: tui-infra ANSI emit primitives (Tier 1).
-+            # Cold-path builders return std::string; hot-path writers
-+            # fill caller-provided buffers without allocation. The
-+            # node:smol-tui binding (separate task) consumes these via
-+            # V8 FastApi.
++            # Socket Security: tui-infra ANSI emit primitives (Tier 1)
++            # + cell buffer + render-loop diff (Tier 2). ansi.cc holds
++            # cold-path builders + hot-path writers; buffer.cc owns the
++            # CellBuffer grid; renderer.cc walks the prev/next diff and
++            # emits ANSI via the Tier 1 writers — no allocations on the
++            # per-cell path. The node:smol-tui binding (separate task)
++            # consumes the Renderer surface via V8 FastApi.
 +            'src/socketsecurity/tui/ansi.cc',
++            'src/socketsecurity/tui/buffer.cc',
++            'src/socketsecurity/tui/renderer.cc',
            ],
 +          'include_dirs': [
 +            'src',
@@ -332,7 +336,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1084,7 +1353,7 @@
+@@ -1084,7 +1357,7 @@
            ],
          }],
 -        [ 'node_use_quic=="true"', {
@@ -341,7 +345,7 @@
              '<@(node_quic_sources)',
            ],
          }],
-@@ -1406,7 +1675,7 @@
+@@ -1406,7 +1679,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -350,7 +354,7 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1447,6 +1716,17 @@
+@@ -1447,6 +1720,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -368,7 +372,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1521,6 +1800,17 @@
+@@ -1521,6 +1804,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -386,7 +390,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1744,6 +2033,17 @@
+@@ -1744,6 +2037,17 @@
              'Ws2_32.lib',
            ],
          }],

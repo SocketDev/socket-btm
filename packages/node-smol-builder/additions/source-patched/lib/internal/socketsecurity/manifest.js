@@ -265,8 +265,17 @@ function parsePackageLock(content) {
       }
 
       const pkg = data.packages[pkgPath]
-      // Extract name from path using proper scoped package handling
-      const name = extractPackageNameFromPath(pkgPath)
+      // Workspace entries in npm v2/v3 lockfiles are keyed by their
+      // relative path (e.g. `packages/foo`) without a `node_modules/`
+      // prefix. For those, prefer `pkg.name` from the entry body —
+      // falling back to the path-derived name keeps node_modules/*
+      // entries working unchanged. Same fallback chain covers aliased
+      // installs (which carry the alias name in `pkg.name`).
+      const nameFromPath = extractPackageNameFromPath(pkgPath)
+      const name =
+        typeof pkg.name === 'string' && pkg.name.length > 0
+          ? pkg.name
+          : nameFromPath
       const version = pkg.version || '0.0.0'
 
       // P0.3: Git dependency detection
@@ -341,9 +350,25 @@ function parsePackageLock(content) {
       }
       const depKeys = ObjectKeys(deps)
       for (let di = 0, dlen = depKeys.length; di < dlen; di++) {
-        const name = depKeys[di]
-        const pkg = deps[name]
-        const version = pkg.version || '0.0.0'
+        const aliasName = depKeys[di]
+        const pkg = deps[aliasName]
+        let rawVersion = pkg.version || '0.0.0'
+        // Aliased installs in npm v1 lockfiles encode the real identity
+        // in the version field as `npm:<real-name>@<real-version>`.
+        // Emitting the alias directly would produce a malformed purl
+        // (`pkg:npm/alias@npm%3Areal%401.0`) pointing at a non-existent
+        // package. Extract the underlying name + version so downstream
+        // consumers reference the actual registry package.
+        let name = aliasName
+        let version = rawVersion
+        if (StringPrototypeIndexOf(rawVersion, 'npm:') === 0) {
+          const rest = StringPrototypeSlice(rawVersion, 4)
+          const atIdx = StringPrototypeLastIndexOf(rest, '@')
+          if (atIdx > 0) {
+            name = StringPrototypeSlice(rest, 0, atIdx)
+            version = StringPrototypeSlice(rest, atIdx + 1)
+          }
+        }
         const key = `${name}@${version}`
 
         // Skip if already visited (prevents infinite recursion on circular deps)
@@ -681,7 +706,13 @@ function parseYarnLock(content) {
         } else if (
           StringPrototypeIndexOf(propLine, 'dependenciesMeta:') === 0
         ) {
-          // Check for optional dependencies in Berry
+          // `dependenciesMeta.<child>.optional = true` flags a CHILD as
+          // optional (parent listed it as an optional peer / optional
+          // sub-dep), NOT the parent itself. Flipping the parent's
+          // `isOptional` based on any child's flag was inverted semantics
+          // — it made every package with `fsevents`-like optional
+          // children show up as optional. Consume the block for
+          // position-tracking only; don't synthesize anything from it.
           while (pos < content.length) {
             const meol = StringPrototypeIndexOf(content, '\n', pos)
             const mend = meol === -1 ? content.length : meol
@@ -694,13 +725,6 @@ function parseYarnLock(content) {
               mline[3] !== ' '
             )
               break
-            const metaLine = StringPrototypeTrim(mline)
-            if (
-              StringPrototypeIndexOf(metaLine, 'optional:') !== -1 &&
-              StringPrototypeIndexOf(metaLine, 'true') !== -1
-            ) {
-              isOptional = true
-            }
             pos = mend + 1
           }
           continue
@@ -960,8 +984,19 @@ function parsePnpmLock(content) {
               StringPrototypeSlice(trimmed, colonIdx + 1),
             )
 
-            // Skip workspace links
-            if (StringPrototypeIndexOf(depVersion, 'link:') === 0) {
+            // Skip block-style v9 importer entries (where the parent
+            // line is `name:` and the version is nested under it as a
+            // separate `version:` property). The nested-line skip above
+            // handles the children; this guard stops the parent line
+            // from being emitted with empty version. Also skip
+            // workspace-local protocol refs (`link:` / `workspace:` /
+            // `file:`) — they aren't shippable artifacts.
+            if (
+              depVersion.length === 0 ||
+              StringPrototypeIndexOf(depVersion, 'link:') === 0 ||
+              StringPrototypeIndexOf(depVersion, 'workspace:') === 0 ||
+              StringPrototypeIndexOf(depVersion, 'file:') === 0
+            ) {
               continue
             }
 

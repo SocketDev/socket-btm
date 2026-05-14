@@ -669,4 +669,130 @@ snapshots:
       expect(result.packages[0].vcsCommit).toBeUndefined()
     })
   })
+
+  // Regression tests aligned with socket-lib's parser fixes (PR aligning
+  // socket-lib + node:smol-manifest with the socket-sdxgen reference
+  // parsers). Each test asserts the post-fix behavior; the comments
+  // describe the bug class.
+  describe('alignment with sdxgen reference parsers', () => {
+    it('pnpm v9 importer entries with block-style version do not leak empty version', () => {
+      // pnpm v9 importers can use block-style entries where the parent
+      // line is `name:` and the version is a nested `version:` property.
+      // The parser must NOT emit the parent with empty version.
+      const content = `lockfileVersion: '9.0'
+
+importers:
+
+  .:
+    dependencies:
+      lodash:
+        specifier: ^4.17.0
+        version: 4.17.21
+`
+      const result = parseLockfile(content, 'npm', 'pnpm')
+      for (const pkg of result.packages) {
+        expect(pkg.version).not.toBe('')
+      }
+    })
+
+    it('pnpm importer scan skips workspace: and file: protocol versions', () => {
+      // link: was already filtered. workspace: and file: are also
+      // workspace-local refs, not shippable artifacts.
+      const content = `lockfileVersion: '9.0'
+
+importers:
+
+  .:
+    dependencies:
+      ws-dep: workspace:^1.0.0
+      file-dep: file:./local.tgz
+      real-dep: 1.0.0
+`
+      const result = parseLockfile(content, 'npm', 'pnpm')
+      const names = result.packages.map(p => p.name)
+      expect(names).toContain('real-dep')
+      expect(names).not.toContain('ws-dep')
+      expect(names).not.toContain('file-dep')
+    })
+
+    it('yarn dependenciesMeta.<child>.optional does NOT flip parent isOptional', () => {
+      // `dependenciesMeta.<child>.optional = true` flags a CHILD as
+      // optional from the parent's view, not the parent itself.
+      // Common case: packages depending on `fsevents` would previously
+      // be marked optional incorrectly.
+      const content = `__metadata:
+  version: 6
+
+"react@npm:^18.0.0":
+  version: 18.0.0
+  resolution: "react@npm:18.0.0"
+  dependenciesMeta:
+    fsevents:
+      optional: true
+  linkType: hard
+`
+      const result = parseLockfile(content, 'npm', 'yarn')
+      const react = result.packages.find(p => p.name === 'react')
+      expect(react.isOptional).toBe(false)
+    })
+
+    it('npm v1 aliased installs extract real name + version from npm: prefix', () => {
+      // v1 lockfiles encode `name: { version: "npm:<real>@<version>" }`
+      // for aliased installs. Must extract the real identity so purls
+      // point at the actual registry package.
+      const content = JSON.stringify({
+        lockfileVersion: 1,
+        dependencies: {
+          'string-width-cjs': {
+            version: 'npm:string-width@4.2.3',
+            resolved:
+              'https://registry.npmjs.org/string-width/-/string-width-4.2.3.tgz',
+          },
+        },
+      })
+      const result = parseLockfile(content, 'npm', 'npm')
+      const sw = result.packages.find(p => p.name === 'string-width')
+      expect(sw).toBeDefined()
+      expect(sw.version).toBe('4.2.3')
+    })
+
+    it('npm v2/v3 workspace entries are named by pkg.name (not path)', () => {
+      // Workspace entries are keyed by their relative path
+      // (e.g. `packages/ui`) with no `node_modules/` prefix.
+      // Prefer the explicit `pkg.name` field over the path-derived
+      // fallback.
+      const content = JSON.stringify({
+        lockfileVersion: 3,
+        packages: {
+          'packages/ui': {
+            name: '@my-org/ui',
+            version: '0.0.0',
+          },
+          'node_modules/regular-dep': { version: '1.0.0' },
+        },
+      })
+      const result = parseLockfile(content, 'npm', 'npm')
+      const ws = result.packages.find(p => p.name === '@my-org/ui')
+      expect(ws).toBeDefined()
+      expect(ws.version).toBe('0.0.0')
+      const reg = result.packages.find(p => p.name === 'regular-dep')
+      expect(reg).toBeDefined()
+    })
+
+    it('npm v2/v3 aliased installs prefer pkg.name', () => {
+      // npm v2/v3 writes aliased installs as
+      //   "node_modules/<alias>": { name: "<real>", version: "..." }
+      const content = JSON.stringify({
+        lockfileVersion: 3,
+        packages: {
+          'node_modules/sw-cjs': {
+            name: 'string-width',
+            version: '4.2.3',
+          },
+        },
+      })
+      const result = parseLockfile(content, 'npm', 'npm')
+      expect(result.packages.map(p => p.name)).toEqual(['string-width'])
+    })
+  })
 })

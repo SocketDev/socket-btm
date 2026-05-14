@@ -51,6 +51,8 @@
 
 #include "quic_internal.h"
 
+#include <openssl/ssl.h>
+
 #include "node.h"
 #include "node_binding.h"
 #include "node_external_reference.h"
@@ -357,19 +359,32 @@ static void CreateEngine(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  // Populate defaults for the requested flags.
+  // Populate defaults for the requested flags, then overlay any
+  // settings passed in args[2].
   lsquic_engine_settings settings;
   lsquic_engine_init_settings(&settings, flags);
+  if (args.Length() >= 3 && !args[2]->IsNullOrUndefined()) {
+    if (!ApplyJsSettings(isolate, context, args[2], &settings)) {
+      std::lock_guard<std::mutex> lock(reg.mu);
+      reg.engines.erase(id);
+      // ApplyJsSettings throws on type error — pass it through.
+      return;
+    }
+  }
 
   // Wire the callback infrastructure: packets_out + stream_if both
   // route through the slot pointer, so trampolines recover the slot
-  // (and its v8::Global handles) from the lsquic context.
+  // (and its v8::Global handles) from the lsquic context. lookup_cert
+  // is wired to the same slot so server engines can return the
+  // SSL_CTX set via setServerCertContext.
   lsquic_engine_api api{};
   api.ea_settings = &settings;
   api.ea_packets_out = PacketsOutTrampoline;
   api.ea_packets_out_ctx = slot_ptr;
   api.ea_stream_if = &kStreamIf;
   api.ea_stream_if_ctx = slot_ptr;
+  api.ea_lookup_cert = LookupCertTrampoline;
+  api.ea_cert_lu_ctx = slot_ptr;
 
   lsquic_engine_t* engine = lsquic_engine_new(flags, &api);
   if (engine == nullptr) {
@@ -430,6 +445,10 @@ static void DestroyEngine(const FunctionCallbackInfo<Value>& args) {
   slot->cb.on_datagram_write.Reset();
   slot->cb.on_datagram.Reset();
   slot->cb.context.Reset();
+  if (slot->ssl_ctx != nullptr) {
+    SSL_CTX_free(slot->ssl_ctx);
+    slot->ssl_ctx = nullptr;
+  }
 }
 
 // ─── Engine lookup helper ────────────────────────────────────────────
@@ -811,56 +830,6 @@ static void ConnGetSNI(const FunctionCallbackInfo<Value>& args) {
           .ToLocalChecked());
 }
 
-// ─── Section 7: Datagram conn methods ────────────────────────────────
-//
-// lsquic.h: lsquic_conn_want_datagram_write, lsquic_conn_get_min_datagram_size,
-// lsquic_conn_set_min_datagram_size. The on_datagram + on_dg_write
-// trampolines live in quic_stream_binding.cc next to the stream_if
-// instance; these JS methods are the conn-state setters callers use
-// to opt in to datagram traffic.
-
-static void ConnWantDatagramWrite(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  Local<Context> context = isolate->GetCurrentContext();
-  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
-  lsquic_conn_t* conn = LookupConn(id);
-  if (conn == nullptr) {
-    args.GetReturnValue().Set(Integer::New(isolate, -1));
-    return;
-  }
-  int want = args[1]->BooleanValue(isolate) ? 1 : 0;
-  args.GetReturnValue().Set(
-      Integer::New(isolate, lsquic_conn_want_datagram_write(conn, want)));
-}
-
-static void ConnGetMinDatagramSize(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  Local<Context> context = isolate->GetCurrentContext();
-  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
-  lsquic_conn_t* conn = LookupConn(id);
-  if (conn == nullptr) {
-    args.GetReturnValue().Set(Integer::New(isolate, 0));
-    return;
-  }
-  args.GetReturnValue().Set(Integer::New(
-      isolate, static_cast<int32_t>(lsquic_conn_get_min_datagram_size(conn))));
-}
-
-static void ConnSetMinDatagramSize(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  Local<Context> context = isolate->GetCurrentContext();
-  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
-  lsquic_conn_t* conn = LookupConn(id);
-  if (conn == nullptr) {
-    args.GetReturnValue().Set(Integer::New(isolate, -1));
-    return;
-  }
-  size_t sz =
-      static_cast<size_t>(args[1]->Uint32Value(context).FromMaybe(0));
-  args.GetReturnValue().Set(
-      Integer::New(isolate, lsquic_conn_set_min_datagram_size(conn, sz)));
-}
-
 // ─── LSCONN_ST_* enum mirror ─────────────────────────────────────────
 //
 // lsquic.h:`enum LSQUIC_CONN_STATUS`. Numeric values exposed so JS
@@ -935,9 +904,6 @@ static void Initialize(Local<Object> target,
   SetMethod(context, target, "connGetCID", ConnGetCID);
   SetMethod(context, target, "connGetVersion", ConnGetVersion);
   SetMethod(context, target, "connGetSNI", ConnGetSNI);
-  SetMethod(context, target, "connWantDatagramWrite", ConnWantDatagramWrite);
-  SetMethod(context, target, "connGetMinDatagramSize", ConnGetMinDatagramSize);
-  SetMethod(context, target, "connSetMinDatagramSize", ConnSetMinDatagramSize);
 
   BindVersionEnum(isolate, context, target);
   BindEngineFlags(isolate, context, target);
@@ -948,6 +914,8 @@ static void Initialize(Local<Object> target,
   // streamRead / streamWrite / streamShutdown / streamClose /
   // streamWantRead / streamWantWrite on the same `target` object.
   RegisterStreamMethods(context, target);
+  // Settings + server cert methods live in quic_settings_binding.cc.
+  RegisterSettingsMethods(context, target);
 }
 
 static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -966,10 +934,8 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ConnGetCID);
   registry->Register(ConnGetVersion);
   registry->Register(ConnGetSNI);
-  registry->Register(ConnWantDatagramWrite);
-  registry->Register(ConnGetMinDatagramSize);
-  registry->Register(ConnSetMinDatagramSize);
   RegisterStreamExternalReferences(registry);
+  RegisterSettingsExternalReferences(registry);
 }
 
 }  // namespace quic

@@ -6,7 +6,7 @@
 // TLS backend (instead of BoringSSL — see lsquic-infra/README.md for
 // the SSL_set_quic_tls_cbs rationale).
 //
-// Current surface (steps 1-7 of 8 landed):
+// Current surface (steps 1-8 of 8 landed; HTTP/3 framer is a follow-up):
 //
 //   Group 1 — Global init / cleanup
 //     globalInit(flags?) -> int
@@ -51,11 +51,23 @@
 //     connSetMinDatagramSize(connId, sz) -> int
 //     callbacks.onDatagramWrite(connId, maxBytes) -> Uint8Array | null
 //     callbacks.onDatagram(connId, data: Uint8Array) -> void
+//   Group 9 — Settings + server cert (step 8/8)
+//     createEngine(flags, callbacks, settings?) — settings is a JS
+//       object whose camelCase keys map to lsquic_engine_settings
+//       fields. ~30 commonly-tuned fields covered: idleTimeout,
+//       pingPeriod, maxStreamsIn, initMax*, qpack*, ecn, datagrams,
+//       dplpmtud, base/maxPlpmtu, maxUdpPayloadSizeRx, ccAlgo,
+//       pacePackets, etc. Unknown keys are silently ignored. See
+//       quic_settings_binding.cc for the full table.
+//     setServerCertContext(engineHandle, certPem: Uint8Array,
+//                          keyPem: Uint8Array) -> true
+//       Builds an SSL_CTX from PEM cert+key bytes and stashes it on
+//       the engine slot. Server engines need this before accepting
+//       connections. Single-SNI for now; multi-SNI dispatch is a
+//       future refinement.
 //
-// Pending:
-//   Step 8 — Full lsquic_engine_settings struct passthrough +
-//            HTTP/3 lsquic_hset_if (header set/unset) wiring via
-//            ls-qpack + server-side cert lookup (lookupCert via SSL_CTX).
+// HTTP/3 framer + smol-http3 module is the next stage (deferred from
+// step 8 — needs ls-qpack header-set-decoder integration).
 //
 // Upstream pin:
 //   lsquic v4.6.2 (lsquic-infra/.gitmodules # lsquic-4.6.2)
@@ -88,6 +100,7 @@ const {
   globalCleanup,
   globalFlags,
   globalInit,
+  setServerCertContext,
   streamClose,
   streamRead,
   streamShutdown,
@@ -120,6 +133,7 @@ module.exports = ObjectFreeze({
   globalCleanup,
   globalFlags: ObjectFreeze({ __proto__: null, ...globalFlags }),
   globalInit,
+  setServerCertContext,
   streamClose,
   streamRead,
   streamShutdown,

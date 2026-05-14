@@ -55,6 +55,12 @@ struct JsCallbackTable {
   v8::Global<v8::Function> on_datagram;        // inbound payload
 };
 
+// Forward-declare opaque OpenSSL types we hold a pointer to without
+// pulling in <openssl/ssl.h> from this header. Real definitions come
+// in quic_settings_binding.cc where the SSL_CTX is built.
+struct ssl_ctx_st;
+typedef struct ssl_ctx_st SSL_CTX;
+
 struct EngineSlot {
   lsquic_engine_t* engine = nullptr;
   // Set in CreateEngine when callbacks are bound; queried by every
@@ -72,6 +78,10 @@ struct EngineSlot {
   // Per-engine ID for stream-side back-pointer. Matches the registry
   // key under which Engines() stores this slot.
   uint32_t engine_id = 0;
+  // Server-side cert context (step 8). Built via setServerCertContext
+  // from PEM cert+key blobs. Single-SNI for now — multi-SNI lookup is
+  // a future refinement. Owned by the slot; freed in destroyEngine.
+  SSL_CTX* ssl_ctx = nullptr;
 };
 
 struct EngineRegistry {
@@ -132,6 +142,30 @@ extern "C" int PacketsOutTrampoline(void* packets_out_ctx,
 void RegisterStreamMethods(v8::Local<v8::Context> context,
                            v8::Local<v8::Object> target);
 void RegisterStreamExternalReferences(ExternalReferenceRegistry* registry);
+
+// Settings + cert JS methods registered into the binding target by
+// quic_settings_binding.cc. Called from quic_binding.cc::Initialize.
+void RegisterSettingsMethods(v8::Local<v8::Context> context,
+                             v8::Local<v8::Object> target);
+void RegisterSettingsExternalReferences(ExternalReferenceRegistry* registry);
+
+// Apply a JS settings object onto an lsquic_engine_settings struct.
+// Returns true on success; throws a v8 exception and returns false on
+// invalid field type. Unknown keys are silently ignored (so JS can
+// pass through future-proofing data without per-version breakage).
+//
+// Implementation lives in quic_settings_binding.cc; called from
+// quic_binding.cc::CreateEngine.
+bool ApplyJsSettings(v8::Isolate* isolate, v8::Local<v8::Context> context,
+                     v8::Local<v8::Value> settings_arg,
+                     lsquic_engine_settings* out);
+
+// Cert-lookup trampoline registered via lsquic_engine_api::ea_lookup_cert.
+// Returns the EngineSlot::ssl_ctx (single-SNI). NULL if no cert was set
+// via setServerCertContext.
+extern "C" struct ssl_ctx_st* LookupCertTrampoline(
+    void* lsquic_cert_lookup_ctx, const struct sockaddr* local,
+    const char* sni);
 
 }  // namespace quic
 }  // namespace socketsecurity

@@ -617,6 +617,51 @@ void StreamWantWrite(const FunctionCallbackInfo<Value>& args) {
       Integer::New(isolate, lsquic_stream_wantwrite(s, want)));
 }
 
+// Datagram conn methods live here next to the datagram trampolines —
+// JS-side setters for opt-in to QUIC datagrams (RFC 9221).
+
+void ConnWantDatagramWrite(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  uint32_t id =
+      args[0]->Uint32Value(isolate->GetCurrentContext()).FromMaybe(0);
+  lsquic_conn_t* conn = LookupConn(id);
+  if (conn == nullptr) {
+    args.GetReturnValue().Set(Integer::New(isolate, -1));
+    return;
+  }
+  int want = args[1]->BooleanValue(isolate) ? 1 : 0;
+  args.GetReturnValue().Set(
+      Integer::New(isolate, lsquic_conn_want_datagram_write(conn, want)));
+}
+
+void ConnGetMinDatagramSize(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  uint32_t id =
+      args[0]->Uint32Value(isolate->GetCurrentContext()).FromMaybe(0);
+  lsquic_conn_t* conn = LookupConn(id);
+  if (conn == nullptr) {
+    args.GetReturnValue().Set(Integer::New(isolate, 0));
+    return;
+  }
+  args.GetReturnValue().Set(Integer::New(
+      isolate, static_cast<int32_t>(lsquic_conn_get_min_datagram_size(conn))));
+}
+
+void ConnSetMinDatagramSize(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  lsquic_conn_t* conn = LookupConn(id);
+  if (conn == nullptr) {
+    args.GetReturnValue().Set(Integer::New(isolate, -1));
+    return;
+  }
+  size_t sz =
+      static_cast<size_t>(args[1]->Uint32Value(context).FromMaybe(0));
+  args.GetReturnValue().Set(
+      Integer::New(isolate, lsquic_conn_set_min_datagram_size(conn, sz)));
+}
+
 }  // namespace
 
 void RegisterStreamMethods(Local<Context> context, Local<Object> target) {
@@ -626,6 +671,9 @@ void RegisterStreamMethods(Local<Context> context, Local<Object> target) {
   SetMethod(context, target, "streamClose", StreamClose);
   SetMethod(context, target, "streamWantRead", StreamWantRead);
   SetMethod(context, target, "streamWantWrite", StreamWantWrite);
+  SetMethod(context, target, "connWantDatagramWrite", ConnWantDatagramWrite);
+  SetMethod(context, target, "connGetMinDatagramSize", ConnGetMinDatagramSize);
+  SetMethod(context, target, "connSetMinDatagramSize", ConnSetMinDatagramSize);
 }
 
 void RegisterStreamExternalReferences(ExternalReferenceRegistry* registry) {
@@ -635,6 +683,9 @@ void RegisterStreamExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(StreamClose);
   registry->Register(StreamWantRead);
   registry->Register(StreamWantWrite);
+  registry->Register(ConnWantDatagramWrite);
+  registry->Register(ConnGetMinDatagramSize);
+  registry->Register(ConnSetMinDatagramSize);
 }
 
 }  // namespace quic

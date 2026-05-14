@@ -96,29 +96,83 @@ layout).
 ## Known drifts
 
 Intentional spec/upstream divergences. None returns
-`NotImplemented` at runtime.
+`NotImplemented` at runtime. Each entry follows the same shape:
+**Drift** — what diverges; **Why** — the reason it's intentional;
+**Impact** — what callers observe; **Reference** — the code site.
 
-1. **`FormattableMonthDay::WriteTo`** emits the `--` prefix
-   required by the JS Temporal spec (upstream `temporal_rs` omits
-   it; commit `240affe4`).
-2. **`TemporalError` storage** owns `std::string` with rebinding
-   copy/move constructors instead of the upstream `&'static str` /
-   `String` enum (ABI constraint at the V8 boundary).
-3. **`Instant::until/since`** with `largestUnit ∈ {microsecond,
-   nanosecond}` over deltas exceeding `int64` capacity returns
-   `Err("delta exceeds int64 ... at the requested largestUnit")`
-   rather than silently narrowing to f64. Spec accepts either
-   behavior. Threshold: ≈292 years for `microsecond` largestUnit;
-   ≈292 years for `nanosecond` largestUnit. V8 callers needing
-   wider deltas use `millisecond` or larger. See
-   `Instant.hpp:475-493`.
-4. **`duration_normalized.cc:322` DoubleDouble approximation.**
-   Time-only duration ↔ f64 uses a conservative bound check rather
-   than upstream's full DoubleDouble decomposition. Only matters
-   for time-only durations beyond ±285 years
-   (`Number.MAX_SAFE_INTEGER` nanoseconds). Spec-valid Duration
-   ranges (enforced by `IsValidDuration` on construction) are
-   bit-identical to upstream.
+### 1. `FormattableMonthDay::WriteTo` emits the `--` prefix
+
+- **Drift.** Output starts with `--` (e.g. `--12-25`). Upstream
+  `temporal_rs::FormattableMonthDay::write_to` omits the prefix.
+- **Why.** ECMA-262 Temporal proposal section 11.3.27
+  (`Temporal.PlainMonthDay.prototype.toString`) and IXDTF (RFC 9557)
+  both require the `--` prefix for MD-only date strings. Upstream's
+  omission is a Rust-side ergonomic shortcut that downstream Rust
+  callers patch themselves; for V8 the C++ port must produce the
+  spec output directly.
+- **Impact.** Strictly observable on `PlainMonthDay.toString()`. The
+  port's output passes Test262 cases like
+  `built-ins/Temporal/PlainMonthDay/prototype/toString/basic.js`;
+  upstream's would fail them.
+- **Reference.** Commit `240affe4`, `ixdtf_writer.cc` MD path.
+
+### 2. `TemporalError` storage owns `std::string`
+
+- **Drift.** `TemporalError::message_` is a `std::string` member
+  (with explicit copy/move constructors and assignment operators).
+  Upstream's `temporal_rs::TemporalError` is a Rust enum with
+  `&'static str` for built-in variants and `String` for dynamic
+  ones; storage is implicit via Rust's tagged-union layout.
+- **Why.** ABI constraint at the V8 boundary. The port crosses
+  into V8 via the diplomat shim, which expects opaque heap-owned
+  objects with stable copy/move semantics. A tagged-union over
+  `&'static str` cannot survive cross-translation-unit boundaries
+  without ad-hoc deep-copy logic; owning `std::string` gives the
+  same observable error messages with a simpler ABI.
+- **Impact.** Zero observable difference at the JS surface — the
+  message text is identical to upstream's for every error variant.
+  Internal C++ callers see `std::string&` instead of `&str`.
+- **Reference.** `error.h:25-78`, `error.cc:14-92`.
+
+### 3. `Instant::until/since` rejects sub-second largestUnit on huge deltas
+
+- **Drift.** When `largestUnit ∈ {microsecond, nanosecond}` and the
+  delta exceeds `int64` capacity at that unit, the port returns
+  `Err("delta exceeds int64 ... at the requested largestUnit")`.
+  Upstream silently narrows to f64 (losing precision).
+- **Why.** The spec accepts either behavior — implementations may
+  reject or lossy-narrow per
+  [ECMA-262 §22.1.5.7](https://tc39.es/proposal-temporal/#sec-temporal-totaldurationnanoseconds).
+  Returning `Err` makes precision loss observable to V8 (which
+  surfaces as a thrown `RangeError`) rather than silently producing
+  a wrong `Duration` object. V8 callers needing deltas over 292
+  years use `largestUnit: 'millisecond'` or larger, which doesn't
+  hit the int64 ceiling.
+- **Impact.** Deltas beyond ≈292 years between two `Instant`s at
+  `microsecond`/`nanosecond` largestUnit throw instead of returning
+  a lossy `Duration`. Smaller deltas: bit-identical to upstream.
+- **Reference.** `instant.h:475-493`, `instant.cc::DifferenceInstant`.
+
+### 4. `duration_normalized.cc` DoubleDouble approximation
+
+- **Drift.** `NormalizedTimeDuration ↔ f64` uses a conservative
+  range check (compare against a fixed bound) rather than
+  upstream's full DoubleDouble decomposition (which preserves
+  precision near the f64 limit).
+- **Why.** Full DoubleDouble decomposition requires a ~200-line
+  helper that's only exercised when time-only duration values
+  exceed `Number.MAX_SAFE_INTEGER` nanoseconds (≈285 years).
+  `IsValidDuration` already rejects out-of-spec Durations at
+  construction; the range that DoubleDouble would matter for is
+  exclusively *invalid* Durations the spec rejects. The
+  approximation is a code-size/maintenance optimization.
+- **Impact.** **Zero impact on spec-valid Durations** — every
+  Duration that passes `IsValidDuration` (enforced at every
+  factory entry point) computes bit-identically to upstream. The
+  difference only surfaces if a caller bypasses validation, which
+  the V8 binding never does.
+- **Reference.** `duration_normalized.cc:322`,
+  `duration.cc::IsValidDuration`.
 
 ## Audit script
 

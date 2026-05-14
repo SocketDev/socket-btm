@@ -328,7 +328,7 @@ TemporalResult<std::string> IcuCalendarBackend::Era(
       // (js-temporal/temporal-polyfill/tree/rebase-part3/lib/calendar.ts).
       //
       // For ISO years ≤0 the Japanese calendar falls back to bce/ce
-      // (matching reviseIntlEra in calendar.mjs:1971).
+      // (matching reviseIntlEra in js-temporal/temporal-polyfill/tree/rebase-part3/lib/calendar.ts).
       if (iso.year < 1) {
         return std::string("bce");
       }

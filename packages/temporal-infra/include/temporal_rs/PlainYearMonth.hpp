@@ -780,7 +780,7 @@ class PlainYearMonth {
 inline diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
 PlainDate::to_plain_year_month() const {
   // 1:1 from polyfill `PlainDate.prototype.toPlainYearMonth`
-  // (lib/plaindate.mjs). Algorithm:
+  // (js-temporal/temporal-polyfill/tree/rebase-part3/lib/plaindate.ts). Algorithm:
   //   1. Read calendar-native (year, month, day) from this PlainDate's
   //      stored ISO via the backend accessors.
   //   2. Route through IsoFromCalendarFields with constrain to produce

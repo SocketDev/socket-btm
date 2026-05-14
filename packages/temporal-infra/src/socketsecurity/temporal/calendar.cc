@@ -222,7 +222,7 @@ TemporalResult<Duration> CalendarDateUntil(const Calendar& cal,
   if (largest_unit == Unit::kDay || largest_unit == Unit::kAuto) {
     return DifferenceISODate(earlier, later);
   }
-  // ISO Year/Month/Week path: spec polyfill calendar.mjs helperISO.dateUntil
+  // ISO Year/Month/Week path: js-temporal/temporal-polyfill/tree/rebase-part3/lib/calendar.ts helperISO.dateUntil
   // (loops at most twice for years, at most 12 times for months). Same
   // algorithm temporal_rs uses for iso_date_until; doesn't need a backend.
   const int sign_cmp = CompareIsoDate(earlier, later);

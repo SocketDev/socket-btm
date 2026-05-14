@@ -29,6 +29,7 @@ const { ObjectFreeze } = primordials
 const {
   createEngine,
   destroyEngine,
+  engineConnect,
   engineCountAttq,
   engineFlags,
   engineHasUnsent,
@@ -45,6 +46,7 @@ module.exports = ObjectFreeze({
   __proto__: null,
   createEngine,
   destroyEngine,
+  engineConnect,
   engineCountAttq,
   engineFlags: ObjectFreeze({ __proto__: null, ...engineFlags }),
   engineHasUnsent,

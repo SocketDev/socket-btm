@@ -107,7 +107,7 @@ std::atomic<bool> g_lsquic_inited{false};
 // registry slot.
 struct EngineSlot {
   lsquic_engine_t* engine;
-  // Per-engine state for callbacks lands here in step 4 when
+  // Per-engine state for callbacks lands here in step 5 when
   // engineConnect introduces the packets_out trampoline.
 };
 
@@ -120,6 +120,47 @@ struct EngineRegistry {
 EngineRegistry& Engines() {
   static EngineRegistry r;
   return r;
+}
+
+// Connection handle registry. Same shape as EngineRegistry; opaque
+// uint32 returned by engineConnect, looked up by subsequent
+// connClose / connGetStatus / connGetCID / streamOpen.
+struct ConnSlot {
+  lsquic_conn_t* conn;
+};
+
+struct ConnRegistry {
+  std::mutex mu;
+  uint32_t next_id = 1;
+  std::unordered_map<uint32_t, std::unique_ptr<ConnSlot>> conns;
+};
+
+ConnRegistry& Conns() {
+  static ConnRegistry r;
+  return r;
+}
+
+uint32_t RegisterConn(lsquic_conn_t* conn) {
+  ConnRegistry& r = Conns();
+  std::lock_guard<std::mutex> lock(r.mu);
+  uint32_t id = r.next_id++;
+  auto slot = std::make_unique<ConnSlot>();
+  slot->conn = conn;
+  r.conns.emplace(id, std::move(slot));
+  return id;
+}
+
+lsquic_conn_t* LookupConn(uint32_t id) {
+  ConnRegistry& r = Conns();
+  std::lock_guard<std::mutex> lock(r.mu);
+  auto it = r.conns.find(id);
+  return it == r.conns.end() ? nullptr : it->second->conn;
+}
+
+bool UnregisterConn(uint32_t id) {
+  ConnRegistry& r = Conns();
+  std::lock_guard<std::mutex> lock(r.mu);
+  return r.conns.erase(id) > 0;
 }
 
 }  // namespace
@@ -436,6 +477,97 @@ static void EngineQuicVersions(const FunctionCallbackInfo<Value>& args) {
       isolate, lsquic_engine_quic_versions(engine)));
 }
 
+// ─── Section 5: Engine connect (outbound) ────────────────────────────
+//
+// lsquic.h:
+//   lsquic_conn_t* lsquic_engine_connect(
+//       lsquic_engine_t*, enum lsquic_version,
+//       const struct sockaddr* local_sa,
+//       const struct sockaddr* peer_sa,
+//       void* peer_ctx,
+//       lsquic_conn_ctx_t* conn_ctx,
+//       const char* hostname,
+//       unsigned short base_plpmtu,
+//       const unsigned char* sess_resume, size_t sess_resume_len,
+//       const unsigned char* token, size_t token_sz);
+//
+// JS surface:
+//   engineConnect(handle, version, localSa, peerSa, sni, plpmtu,
+//                 sessResume?, token?) -> connectionId | 0
+//
+// Returns a uint32 handle into the per-engine connection map (step 6
+// lands the connection registry; for now we return 1 on success, 0 on
+// failure as a placeholder).
+//
+// stream_if callbacks (on_new_conn / on_conn_closed / on_new_stream /
+// on_read / on_write / on_close) wire in steps 5-6 once the JS
+// callback dispatcher is in place. For now, this is connect-only:
+// the connection opens, attempts the handshake via packets_out, but
+// no JS-side events fire until the callback table is registered.
+
+static void EngineConnect(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  lsquic_engine_t* engine =
+      LookupEngine(args[0]->Uint32Value(context).FromMaybe(0));
+  if (engine == nullptr) {
+    args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, 0));
+    return;
+  }
+
+  int version = args[1]->Int32Value(context).FromMaybe(LSQVER_I001);
+
+  struct sockaddr_storage local_sa{};
+  struct sockaddr_storage peer_sa{};
+  size_t local_len = PackSockaddr(isolate, context, args[2], &local_sa);
+  size_t peer_len = PackSockaddr(isolate, context, args[3], &peer_sa);
+  if (local_len == 0 || peer_len == 0) {
+    args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, 0));
+    return;
+  }
+
+  // SNI hostname. Optional — null means "no hostname verification".
+  String::Utf8Value sni(isolate, args[4]);
+  const char* sni_cstr = (*sni == nullptr) ? nullptr : *sni;
+
+  unsigned short plpmtu = static_cast<unsigned short>(
+      args[5]->Uint32Value(context).FromMaybe(0));
+
+  // sess_resume and token are optional Uint8Arrays. nullptr if not
+  // provided — lsquic does a 1-RTT handshake instead of 0-RTT.
+  const unsigned char* sess_resume = nullptr;
+  size_t sess_resume_len = 0;
+  if (args[6]->IsUint8Array()) {
+    auto arr = args[6].As<v8::Uint8Array>();
+    auto store = arr->Buffer()->GetBackingStore();
+    sess_resume = static_cast<const unsigned char*>(store->Data()) +
+                  arr->ByteOffset();
+    sess_resume_len = arr->ByteLength();
+  }
+  const unsigned char* token = nullptr;
+  size_t token_sz = 0;
+  if (args[7]->IsUint8Array()) {
+    auto arr = args[7].As<v8::Uint8Array>();
+    auto store = arr->Buffer()->GetBackingStore();
+    token = static_cast<const unsigned char*>(store->Data()) +
+            arr->ByteOffset();
+    token_sz = arr->ByteLength();
+  }
+
+  lsquic_conn_t* conn = lsquic_engine_connect(
+      engine, static_cast<enum lsquic_version>(version),
+      reinterpret_cast<const struct sockaddr*>(&local_sa),
+      reinterpret_cast<const struct sockaddr*>(&peer_sa),
+      /*peer_ctx=*/nullptr, /*conn_ctx=*/nullptr, sni_cstr, plpmtu,
+      sess_resume, sess_resume_len, token, token_sz);
+  if (conn == nullptr) {
+    args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, 0));
+    return;
+  }
+  args.GetReturnValue().Set(
+      Integer::NewFromUnsigned(isolate, RegisterConn(conn)));
+}
+
 // ─── Engine flag mirror ──────────────────────────────────────────────
 //
 // LSQUIC_ENG_SERVER + LSQUIC_ENG_HTTP from lsquic.h:`enum
@@ -475,6 +607,7 @@ static void Initialize(Local<Object> target,
   SetMethod(context, target, "engineHasUnsent", EngineHasUnsent);
   SetMethod(context, target, "engineCountAttq", EngineCountAttq);
   SetMethod(context, target, "engineQuicVersions", EngineQuicVersions);
+  SetMethod(context, target, "engineConnect", EngineConnect);
 
   BindVersionEnum(isolate, context, target);
   BindEngineFlags(isolate, context, target);
@@ -490,6 +623,7 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(EngineHasUnsent);
   registry->Register(EngineCountAttq);
   registry->Register(EngineQuicVersions);
+  registry->Register(EngineConnect);
 }
 
 }  // namespace quic

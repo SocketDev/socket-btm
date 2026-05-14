@@ -86,6 +86,14 @@
     "temporal-rs-parity": {
       "submodule": "packages/temporal-infra/upstream/temporal",
       "repo": "https://github.com/boa-dev/temporal"
+    },
+    "lsquic": {
+      "submodule": "packages/lsquic-infra/upstream/lsquic",
+      "repo": "https://github.com/litespeedtech/lsquic"
+    },
+    "ls-qpack": {
+      "submodule": "packages/lsquic-infra/upstream/ls-qpack",
+      "repo": "https://github.com/litespeedtech/ls-qpack"
     }
   },
   "rows": [
@@ -535,6 +543,36 @@
       "upgrade_policy": "track-latest",
       "criticality": 9,
       "notes": "TLS library under curl. Crypto/security sensitive."
+    },
+    {
+      "kind": "version-pin",
+      "id": "lsquic",
+      "upstream": "lsquic",
+      "pinned_sha": "3181911301b1aa4f54c1ed690901abc674ee08fb",
+      "pinned_tag": "v4.6.2",
+      "upgrade_policy": "locked",
+      "criticality": 9,
+      "notes": "LiteSpeed QUIC engine backing node:smol-quic + node:smol-http3 (replaces upstream Node's ngtcp2 stack at the build-graph level — files stay on disk but are not compiled unless --with-node-quic is passed). Pinned to v4.6.2 matching bun PR #29768 so we inherit a known-working combination with ls-qpack v2.6.2 + the 3 bun patches in packages/lsquic-infra/patches/lsquic/. Bumping requires re-validating against the bun PR head + verifying OpenSSL QUIC API compatibility (SSL_set_quic_tls_cbs)."
+    },
+    {
+      "kind": "version-pin",
+      "id": "ls-qpack",
+      "upstream": "ls-qpack",
+      "pinned_sha": "1e9c5b8e59f8161c54f168a570c8bfdc59ded0c3",
+      "pinned_tag": "v2.6.2",
+      "upgrade_policy": "locked",
+      "criticality": 9,
+      "notes": "HTTP/3 header compression (QPACK) sibling to lsquic v4.6.2. Pinned to v2.6.2 matching bun PR #29768. Bumps in lockstep with lsquic."
+    },
+    {
+      "kind": "file-fork",
+      "id": "lsquic-patches",
+      "upstream": "lsquic",
+      "local": "packages/lsquic-infra/patches/lsquic",
+      "upstream_path": "patches/lsquic",
+      "forked_at_sha": "3addffd8ced40f1f912deeb5558c4df4cddb63b4",
+      "criticality": 8,
+      "notes": "Three patches mirrored verbatim from bun's HTTP/3 PR (versions-to-string ships a pre-generated lsquic_versions_to_string.c so CI doesn't need Perl; allow-no-sni permits HTTP/3 connections to IP-literals; skip-priority-walk short-circuits the send-control hot path when no stream has a non-default priority). Applied against the copied vendor tree under additions/source-patched/deps/lsquic/ by prepare-external-sources.mts."
     },
     {
       "kind": "version-pin",

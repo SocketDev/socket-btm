@@ -426,6 +426,80 @@ extern "C" void OnGoawayReceivedTrampoline(lsquic_conn_t* c) {
   CallJsVoid(isolate, context, slot->cb.on_goaway_received, 1, argv);
 }
 
+// ─── Datagram trampolines (step 7) ───────────────────────────────────
+//
+// on_dg_write fires when there's room for an outbound datagram. We
+// dispatch to JS as `onDatagramWrite(connId, maxBytes)` which returns
+// a Uint8Array (the bytes to send) or null/undefined (nothing to send
+// right now). The trampoline copies into lsquic's buffer and returns
+// the byte count.
+//
+// on_datagram fires with an inbound datagram payload. We zero-copy
+// wrap lsquic's buffer in a Uint8Array (EmptyDeleter — JS must
+// consume synchronously) and dispatch `onDatagram(connId, data)`.
+
+extern "C" ssize_t OnDatagramWriteTrampoline(lsquic_conn_t* c, void* buf,
+                                              size_t sz) {
+  lsquic_conn_ctx_t* ctx = lsquic_conn_get_ctx(c);
+  uint32_t conn_id = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(ctx));
+  EngineSlot* slot = LookupEngineSlot(EngineIdForConn(conn_id));
+  if (slot == nullptr || slot->cb.on_datagram_write.IsEmpty()) {
+    return -1;
+  }
+  Isolate* isolate = slot->cb.isolate;
+  Isolate::Scope iso_scope(isolate);
+  HandleScope handle_scope(isolate);
+  Local<Context> context = slot->cb.context.Get(isolate);
+  Context::Scope context_scope(context);
+  InCallbackGuard guard(&slot->in_callback);
+  Local<Value> argv[] = {
+      Integer::NewFromUnsigned(isolate, conn_id),
+      Integer::New(isolate, static_cast<int32_t>(sz)),
+  };
+  Local<Value> result;
+  if (!CallJs(isolate, context, slot->cb.on_datagram_write, 2, argv,
+              &result)) {
+    return -1;
+  }
+  if (!result->IsUint8Array()) {
+    // JS returned null/undefined — no datagram ready right now.
+    return -1;
+  }
+  auto arr = result.As<Uint8Array>();
+  size_t len = arr->ByteLength();
+  if (len > sz) {
+    len = sz;
+  }
+  auto store = arr->Buffer()->GetBackingStore();
+  std::memcpy(buf,
+              static_cast<const uint8_t*>(store->Data()) + arr->ByteOffset(),
+              len);
+  return static_cast<ssize_t>(len);
+}
+
+extern "C" void OnDatagramTrampoline(lsquic_conn_t* c, const void* buf,
+                                     size_t sz) {
+  lsquic_conn_ctx_t* ctx = lsquic_conn_get_ctx(c);
+  uint32_t conn_id = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(ctx));
+  EngineSlot* slot = LookupEngineSlot(EngineIdForConn(conn_id));
+  if (slot == nullptr || slot->cb.on_datagram.IsEmpty()) {
+    return;
+  }
+  Isolate* isolate = slot->cb.isolate;
+  Isolate::Scope iso_scope(isolate);
+  HandleScope handle_scope(isolate);
+  Local<Context> context = slot->cb.context.Get(isolate);
+  Context::Scope context_scope(context);
+  InCallbackGuard guard(&slot->in_callback);
+  // Zero-copy wrap the payload — JS must consume synchronously.
+  std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+      const_cast<void*>(buf), sz, BackingStore::EmptyDeleter, nullptr);
+  Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
+  Local<Uint8Array> view = Uint8Array::New(ab, 0, sz);
+  Local<Value> argv[] = {Integer::NewFromUnsigned(isolate, conn_id), view};
+  CallJsVoid(isolate, context, slot->cb.on_datagram, 2, argv);
+}
+
 // ─── kStreamIf static instance ───────────────────────────────────────
 //
 // quic_binding.cc passes &kStreamIf to lsquic_engine_api.ea_stream_if
@@ -440,8 +514,8 @@ const lsquic_stream_if kStreamIf = {
     /* .on_read             = */ OnReadTrampoline,
     /* .on_write            = */ OnWriteTrampoline,
     /* .on_close            = */ OnCloseTrampoline,
-    /* .on_dg_write         = */ nullptr,
-    /* .on_datagram         = */ nullptr,
+    /* .on_dg_write         = */ OnDatagramWriteTrampoline,
+    /* .on_datagram         = */ OnDatagramTrampoline,
     /* .on_hsk_done         = */ OnHskDoneTrampoline,
     /* .on_new_token        = */ nullptr,
     /* .on_sess_resume_info = */ nullptr,

@@ -50,6 +50,9 @@ struct JsCallbackTable {
   v8::Global<v8::Function> on_close;
   v8::Global<v8::Function> on_hsk_done;
   v8::Global<v8::Function> on_goaway_received;
+  // step 7 — server + datagrams
+  v8::Global<v8::Function> on_datagram_write;  // outbound readiness
+  v8::Global<v8::Function> on_datagram;        // inbound payload
 };
 
 struct EngineSlot {

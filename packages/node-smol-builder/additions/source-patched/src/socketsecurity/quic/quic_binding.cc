@@ -344,6 +344,10 @@ static void CreateEngine(const FunctionCallbackInfo<Value>& args) {
                              &slot_ptr->cb.on_hsk_done);
   ok &= BindOptionalCallback(isolate, context, callbacks, "onGoawayReceived",
                              &slot_ptr->cb.on_goaway_received);
+  ok &= BindOptionalCallback(isolate, context, callbacks, "onDatagramWrite",
+                             &slot_ptr->cb.on_datagram_write);
+  ok &= BindOptionalCallback(isolate, context, callbacks, "onDatagram",
+                             &slot_ptr->cb.on_datagram);
   if (!ok) {
     std::lock_guard<std::mutex> lock(reg.mu);
     reg.engines.erase(id);
@@ -423,6 +427,8 @@ static void DestroyEngine(const FunctionCallbackInfo<Value>& args) {
   slot->cb.on_close.Reset();
   slot->cb.on_hsk_done.Reset();
   slot->cb.on_goaway_received.Reset();
+  slot->cb.on_datagram_write.Reset();
+  slot->cb.on_datagram.Reset();
   slot->cb.context.Reset();
 }
 
@@ -805,6 +811,56 @@ static void ConnGetSNI(const FunctionCallbackInfo<Value>& args) {
           .ToLocalChecked());
 }
 
+// ─── Section 7: Datagram conn methods ────────────────────────────────
+//
+// lsquic.h: lsquic_conn_want_datagram_write, lsquic_conn_get_min_datagram_size,
+// lsquic_conn_set_min_datagram_size. The on_datagram + on_dg_write
+// trampolines live in quic_stream_binding.cc next to the stream_if
+// instance; these JS methods are the conn-state setters callers use
+// to opt in to datagram traffic.
+
+static void ConnWantDatagramWrite(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  lsquic_conn_t* conn = LookupConn(id);
+  if (conn == nullptr) {
+    args.GetReturnValue().Set(Integer::New(isolate, -1));
+    return;
+  }
+  int want = args[1]->BooleanValue(isolate) ? 1 : 0;
+  args.GetReturnValue().Set(
+      Integer::New(isolate, lsquic_conn_want_datagram_write(conn, want)));
+}
+
+static void ConnGetMinDatagramSize(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  lsquic_conn_t* conn = LookupConn(id);
+  if (conn == nullptr) {
+    args.GetReturnValue().Set(Integer::New(isolate, 0));
+    return;
+  }
+  args.GetReturnValue().Set(Integer::New(
+      isolate, static_cast<int32_t>(lsquic_conn_get_min_datagram_size(conn))));
+}
+
+static void ConnSetMinDatagramSize(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  lsquic_conn_t* conn = LookupConn(id);
+  if (conn == nullptr) {
+    args.GetReturnValue().Set(Integer::New(isolate, -1));
+    return;
+  }
+  size_t sz =
+      static_cast<size_t>(args[1]->Uint32Value(context).FromMaybe(0));
+  args.GetReturnValue().Set(
+      Integer::New(isolate, lsquic_conn_set_min_datagram_size(conn, sz)));
+}
+
 // ─── LSCONN_ST_* enum mirror ─────────────────────────────────────────
 //
 // lsquic.h:`enum LSQUIC_CONN_STATUS`. Numeric values exposed so JS
@@ -879,6 +935,9 @@ static void Initialize(Local<Object> target,
   SetMethod(context, target, "connGetCID", ConnGetCID);
   SetMethod(context, target, "connGetVersion", ConnGetVersion);
   SetMethod(context, target, "connGetSNI", ConnGetSNI);
+  SetMethod(context, target, "connWantDatagramWrite", ConnWantDatagramWrite);
+  SetMethod(context, target, "connGetMinDatagramSize", ConnGetMinDatagramSize);
+  SetMethod(context, target, "connSetMinDatagramSize", ConnSetMinDatagramSize);
 
   BindVersionEnum(isolate, context, target);
   BindEngineFlags(isolate, context, target);
@@ -907,6 +966,9 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ConnGetCID);
   registry->Register(ConnGetVersion);
   registry->Register(ConnGetSNI);
+  registry->Register(ConnWantDatagramWrite);
+  registry->Register(ConnGetMinDatagramSize);
+  registry->Register(ConnSetMinDatagramSize);
   RegisterStreamExternalReferences(registry);
 }
 

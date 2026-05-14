@@ -6,7 +6,7 @@
 // TLS backend (instead of BoringSSL — see lsquic-infra/README.md for
 // the SSL_set_quic_tls_cbs rationale).
 //
-// Current surface (steps 1-6 of 8 landed):
+// Current surface (steps 1-7 of 8 landed):
 //
 //   Group 1 — Global init / cleanup
 //     globalInit(flags?) -> int
@@ -20,7 +20,8 @@
 //     createEngine(flags, callbacks, settings?) -> engineHandle | 0
 //       callbacks: { packetsOut, onNewConn?, onConnClosed?,
 //                    onNewStream?, onRead?, onWrite?, onClose?,
-//                    onHskDone?, onGoawayReceived? }
+//                    onHskDone?, onGoawayReceived?,
+//                    onDatagramWrite?, onDatagram? }
 //     destroyEngine(engineHandle)
 //   Group 4 — Engine I/O
 //     engineProcessConns(engineHandle)
@@ -44,13 +45,17 @@
 //     streamClose(streamId) -> int
 //     streamWantRead(streamId, want: bool) -> int  // prev flag
 //     streamWantWrite(streamId, want: bool) -> int
+//   Group 8 — Datagrams (step 7/8)
+//     connWantDatagramWrite(connId, want: bool) -> int
+//     connGetMinDatagramSize(connId) -> int
+//     connSetMinDatagramSize(connId, sz) -> int
+//     callbacks.onDatagramWrite(connId, maxBytes) -> Uint8Array | null
+//     callbacks.onDatagram(connId, data: Uint8Array) -> void
 //
 // Pending:
-//   Step 7 — Server-side acceptance + datagrams (lookupCert cb,
-//            datagram extension).
 //   Step 8 — Full lsquic_engine_settings struct passthrough +
 //            HTTP/3 lsquic_hset_if (header set/unset) wiring via
-//            ls-qpack.
+//            ls-qpack + server-side cert lookup (lookupCert via SSL_CTX).
 //
 // Upstream pin:
 //   lsquic v4.6.2 (lsquic-infra/.gitmodules # lsquic-4.6.2)
@@ -64,10 +69,13 @@ const { ObjectFreeze } = primordials
 const {
   connClose,
   connGetCID,
+  connGetMinDatagramSize,
   connGetSNI,
   connGetStatus,
   connGetVersion,
+  connSetMinDatagramSize,
   connStatus,
+  connWantDatagramWrite,
   createEngine,
   destroyEngine,
   engineConnect,
@@ -93,10 +101,13 @@ module.exports = ObjectFreeze({
   __proto__: null,
   connClose,
   connGetCID,
+  connGetMinDatagramSize,
   connGetSNI,
   connGetStatus,
   connGetVersion,
+  connSetMinDatagramSize,
   connStatus: ObjectFreeze({ __proto__: null, ...connStatus }),
+  connWantDatagramWrite,
   createEngine,
   destroyEngine,
   engineConnect,

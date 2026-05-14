@@ -1,6 +1,31 @@
 'use strict'
 
 // Documentation: docs/additions/lib/internal/socketsecurity/manifest.js.md
+//
+// Native fast path: when the smol_manifest_native C++ binding is
+// available, parseLockfile() routes through it for the supported
+// (ecosystem, format) pairs. Currently wired: ('npm', 'pnpm').
+// Other pairs (yarn, npm, cargo) and the deferred Fix 5 isDev
+// derivation will flip on as the C++ port lands per-format parsers.
+//
+// The binding may be unavailable in unusual configurations (snapshot
+// replay before bindings load, broken builds). The fallback JS impls
+// below handle the missing-binding case transparently.
+let _native
+try {
+  _native = internalBinding('smol_manifest_native')
+} catch {
+  _native = undefined
+}
+
+// Numeric enum values matching src/socketsecurity/manifest/manifest.h.
+// Kept in lockstep with test/smol-manifest-native.test.mts (ECO_*, FMT_*).
+const NATIVE_ECO_NPM = 0
+const NATIVE_ECO_CARGO = 1
+const NATIVE_FMT_NPM = 0
+const NATIVE_FMT_PNPM = 1
+const NATIVE_FMT_YARN = 2
+const NATIVE_FMT_CARGO = 3
 
 const {
   ArrayPrototypeFilter,
@@ -851,6 +876,15 @@ function parsePnpmPackageIdV6V9(pkgId) {
 // Aligned with socket-sbom-generator gold standard
 // P1.7: Includes workspace/monorepo support via importers
 function parsePnpmLock(content) {
+  // Native fast path. The C++ impl produces the canonical
+  // ParsedLockfile shape per socket-lib v6.0.0 — including correct
+  // pnpm v9 isDev derivation (Fix 5) that the JS fallback below
+  // doesn't yet handle. When the binding is unavailable (stock
+  // Node fallback, snapshot replay), drop to the JS path.
+  if (_native !== undefined) {
+    return _native.parseLockfile(content, NATIVE_ECO_NPM, NATIVE_FMT_PNPM)
+  }
+
   const packages = []
   const packageIndex = { __proto__: null }
 

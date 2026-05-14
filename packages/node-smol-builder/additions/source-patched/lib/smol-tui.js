@@ -19,6 +19,11 @@ const {
   cursorPosition,
   setFgRgb,
   setBgRgb,
+  sizes,
+  writeAttributes,
+  writeBgRgb,
+  writeCursorPosition,
+  writeFgRgb,
 } = internalBinding('smol_tui')
 
 module.exports = ObjectFreeze({
@@ -27,4 +32,9 @@ module.exports = ObjectFreeze({
   cursorPosition,
   setFgRgb,
   setBgRgb,
+  sizes: ObjectFreeze({ __proto__: null, ...sizes }),
+  writeAttributes,
+  writeBgRgb,
+  writeCursorPosition,
+  writeFgRgb,
 })

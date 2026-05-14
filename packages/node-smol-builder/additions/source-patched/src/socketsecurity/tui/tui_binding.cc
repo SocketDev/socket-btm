@@ -26,11 +26,13 @@ namespace tui {
 
 using v8::Context;
 using v8::FunctionCallbackInfo;
+using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::NewStringType;
 using v8::Object;
 using v8::String;
+using v8::Uint8Array;
 using v8::Value;
 
 namespace ti = ::tui;
@@ -83,6 +85,106 @@ static void SetBgRgb(const FunctionCallbackInfo<Value>& args) {
           .ToLocalChecked());
 }
 
+// Hot-path writers: caller passes a Uint8Array and a byte offset; we
+// write directly into the backing store. JS does no allocation per call.
+// Returns the number of bytes written. Out-of-bounds offsets or
+// overshort buffers return 0; the JS layer treats 0 as an overflow
+// signal and grows.
+
+static char* Uint8ArrayDataAt(Local<Uint8Array> arr, uint32_t offset,
+                              size_t required) {
+  size_t length = arr->ByteLength();
+  if (offset > length || length - offset < required) {
+    return nullptr;
+  }
+  auto store = arr->Buffer()->GetBackingStore();
+  return static_cast<char*>(store->Data()) + arr->ByteOffset() + offset;
+}
+
+static void WriteCursorPosition(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  if (!args[0]->IsUint8Array()) {
+    args.GetReturnValue().Set(Integer::New(isolate, 0));
+    return;
+  }
+  Local<Uint8Array> arr = args[0].As<Uint8Array>();
+  uint32_t offset = args[1]->Uint32Value(context).FromMaybe(0);
+  uint16_t row = static_cast<uint16_t>(
+      args[2]->Uint32Value(context).FromMaybe(0));
+  uint16_t col = static_cast<uint16_t>(
+      args[3]->Uint32Value(context).FromMaybe(0));
+  char* dst = Uint8ArrayDataAt(arr, offset, ti::kMaxCursorPositionLen);
+  if (!dst) {
+    args.GetReturnValue().Set(Integer::New(isolate, 0));
+    return;
+  }
+  size_t n = ti::WriteCursorPosition(dst, row, col);
+  args.GetReturnValue().Set(Integer::New(isolate, static_cast<int32_t>(n)));
+}
+
+static void WriteFgRgb(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  if (!args[0]->IsUint8Array()) {
+    args.GetReturnValue().Set(Integer::New(isolate, 0));
+    return;
+  }
+  Local<Uint8Array> arr = args[0].As<Uint8Array>();
+  uint32_t offset = args[1]->Uint32Value(context).FromMaybe(0);
+  uint8_t r = static_cast<uint8_t>(args[2]->Uint32Value(context).FromMaybe(0));
+  uint8_t g = static_cast<uint8_t>(args[3]->Uint32Value(context).FromMaybe(0));
+  uint8_t b = static_cast<uint8_t>(args[4]->Uint32Value(context).FromMaybe(0));
+  char* dst = Uint8ArrayDataAt(arr, offset, ti::kMaxRgbSgrLen);
+  if (!dst) {
+    args.GetReturnValue().Set(Integer::New(isolate, 0));
+    return;
+  }
+  size_t n = ti::WriteFgRgb(dst, r, g, b);
+  args.GetReturnValue().Set(Integer::New(isolate, static_cast<int32_t>(n)));
+}
+
+static void WriteBgRgb(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  if (!args[0]->IsUint8Array()) {
+    args.GetReturnValue().Set(Integer::New(isolate, 0));
+    return;
+  }
+  Local<Uint8Array> arr = args[0].As<Uint8Array>();
+  uint32_t offset = args[1]->Uint32Value(context).FromMaybe(0);
+  uint8_t r = static_cast<uint8_t>(args[2]->Uint32Value(context).FromMaybe(0));
+  uint8_t g = static_cast<uint8_t>(args[3]->Uint32Value(context).FromMaybe(0));
+  uint8_t b = static_cast<uint8_t>(args[4]->Uint32Value(context).FromMaybe(0));
+  char* dst = Uint8ArrayDataAt(arr, offset, ti::kMaxRgbSgrLen);
+  if (!dst) {
+    args.GetReturnValue().Set(Integer::New(isolate, 0));
+    return;
+  }
+  size_t n = ti::WriteBgRgb(dst, r, g, b);
+  args.GetReturnValue().Set(Integer::New(isolate, static_cast<int32_t>(n)));
+}
+
+static void WriteAttributes(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  if (!args[0]->IsUint8Array()) {
+    args.GetReturnValue().Set(Integer::New(isolate, 0));
+    return;
+  }
+  Local<Uint8Array> arr = args[0].As<Uint8Array>();
+  uint32_t offset = args[1]->Uint32Value(context).FromMaybe(0);
+  uint8_t attrs = static_cast<uint8_t>(
+      args[2]->Uint32Value(context).FromMaybe(0));
+  char* dst = Uint8ArrayDataAt(arr, offset, ti::kMaxAttrRunLen);
+  if (!dst) {
+    args.GetReturnValue().Set(Integer::New(isolate, 0));
+    return;
+  }
+  size_t n = ti::WriteAttributes(dst, attrs);
+  args.GetReturnValue().Set(Integer::New(isolate, static_cast<int32_t>(n)));
+}
+
 static void Initialize(Local<Object> target,
                        Local<Value> /* unused */,
                        Local<Context> context,
@@ -126,15 +228,40 @@ static void Initialize(Local<Object> target,
   target->Set(context, NewOneByteString(isolate, "constants"), constants)
       .Check();
 
+  Local<Object> sizes = Object::New(isolate);
+  sizes
+      ->Set(context, NewOneByteString(isolate, "maxCursorPositionLen"),
+            Integer::New(
+                isolate,
+                static_cast<int32_t>(ti::kMaxCursorPositionLen)))
+      .Check();
+  sizes
+      ->Set(context, NewOneByteString(isolate, "maxRgbSgrLen"),
+            Integer::New(isolate, static_cast<int32_t>(ti::kMaxRgbSgrLen)))
+      .Check();
+  sizes
+      ->Set(context, NewOneByteString(isolate, "maxAttrRunLen"),
+            Integer::New(isolate, static_cast<int32_t>(ti::kMaxAttrRunLen)))
+      .Check();
+  target->Set(context, NewOneByteString(isolate, "sizes"), sizes).Check();
+
   SetMethod(context, target, "cursorPosition", CursorPosition);
   SetMethod(context, target, "setFgRgb", SetFgRgb);
   SetMethod(context, target, "setBgRgb", SetBgRgb);
+  SetMethod(context, target, "writeCursorPosition", WriteCursorPosition);
+  SetMethod(context, target, "writeFgRgb", WriteFgRgb);
+  SetMethod(context, target, "writeBgRgb", WriteBgRgb);
+  SetMethod(context, target, "writeAttributes", WriteAttributes);
 }
 
 static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(CursorPosition);
   registry->Register(SetFgRgb);
   registry->Register(SetBgRgb);
+  registry->Register(WriteCursorPosition);
+  registry->Register(WriteFgRgb);
+  registry->Register(WriteBgRgb);
+  registry->Register(WriteAttributes);
 }
 
 }  // namespace tui

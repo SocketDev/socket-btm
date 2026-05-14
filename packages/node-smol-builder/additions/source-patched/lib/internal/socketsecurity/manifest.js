@@ -1267,6 +1267,20 @@ function parseLockfile(content, ecosystem, format) {
             'ERR_UNKNOWN_FORMAT',
           )
       }
+    case 'cargo':
+      // Cargo lockfile parsing is native-only inside the smol Node
+      // binary. There is no pure-JS fallback in this module — stock
+      // Node consumers route through socket-lib's TS parser
+      // (src/eco/cargo/parse-lockfile.ts), which is the v6.0.0 public
+      // API and the algorithm oracle this native impl matches.
+      if (_native !== undefined) {
+        return _native.parseLockfile(content, NATIVE_ECO_CARGO, NATIVE_FMT_CARGO)
+      }
+      throw new ManifestError(
+        'cargo parsing requires the smol Node binary; use ' +
+          "socket-lib's parseCargoLock on stock Node",
+        'ERR_UNSUPPORTED',
+      )
     default:
       throw new ManifestError(
         `Unsupported ecosystem: ${ecosystem}`,

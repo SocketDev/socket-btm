@@ -29,14 +29,14 @@ const FIXTURES_DIR = join(__dirname, 'fixtures/sdxgen-bug-regressions')
 // `enabled: false` fixtures are pending later parser-implementation
 // commits (steps 5-7 for yarn / npm / cargo).
 const FIXTURES = [
-  { dir: 'fix1-npm-v1-alias', input: 'input.json', fmt: 'npm', enabled: true },
-  { dir: 'fix2a-npm-v3-workspace-name', input: 'input.json', fmt: 'npm', enabled: true },
-  { dir: 'fix2b-npm-v3-alias-name', input: 'input.json', fmt: 'npm', enabled: true },
-  { dir: 'fix3a-pnpm-v9-empty-version', input: 'input.yaml', fmt: 'pnpm', enabled: true },
-  { dir: 'fix3b-pnpm-v9-workspace-file-filter', input: 'input.yaml', fmt: 'pnpm', enabled: true },
-  { dir: 'fix4-yarn-depsmeta-inversion', input: 'input.lock', fmt: 'yarn', enabled: true },
-  { dir: 'fix5-pnpm-v9-isdev-derivation', input: 'input.yaml', fmt: 'pnpm', enabled: true },
-  { dir: 'cargo-patch-unused-no-leak', input: 'input.toml', fmt: 'cargo', enabled: false },
+  { dir: 'fix1-npm-v1-alias', input: 'input.json', eco: 'npm', fmt: 'npm', enabled: true },
+  { dir: 'fix2a-npm-v3-workspace-name', input: 'input.json', eco: 'npm', fmt: 'npm', enabled: true },
+  { dir: 'fix2b-npm-v3-alias-name', input: 'input.json', eco: 'npm', fmt: 'npm', enabled: true },
+  { dir: 'fix3a-pnpm-v9-empty-version', input: 'input.yaml', eco: 'npm', fmt: 'pnpm', enabled: true },
+  { dir: 'fix3b-pnpm-v9-workspace-file-filter', input: 'input.yaml', eco: 'npm', fmt: 'pnpm', enabled: true },
+  { dir: 'fix4-yarn-depsmeta-inversion', input: 'input.lock', eco: 'npm', fmt: 'yarn', enabled: true },
+  { dir: 'fix5-pnpm-v9-isdev-derivation', input: 'input.yaml', eco: 'npm', fmt: 'pnpm', enabled: true },
+  { dir: 'cargo-patch-unused-no-leak', input: 'input.toml', eco: 'cargo', fmt: 'cargo', enabled: true },
 ]
 
 // Cross-check on-disk dirs match the table.
@@ -72,7 +72,7 @@ for (const fixture of FIXTURES) {
   const expected = JSON.parse(
     readFileSync(join(FIXTURES_DIR, fixture.dir, 'expected.json'), 'utf8'),
   )
-  const actual = parseLockfile(content, 'npm', fixture.fmt)
+  const actual = parseLockfile(content, fixture.eco, fixture.fmt)
   const ja = JSON.parse(JSON.stringify(actual))
   const jaStr = JSON.stringify(ja)
   const jeStr = JSON.stringify(expected)

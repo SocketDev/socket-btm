@@ -5,6 +5,7 @@
 
 #include "manifest.h"
 
+#include "parser_cargo.h"
 #include "parser_npm.h"
 #include "parser_pnpm.h"
 #include "parser_yarn.h"
@@ -32,10 +33,7 @@ bool ParseLockfile(std::string_view content,
     }
   }
   if (ecosystem == Ecosystem::kCargo && format == LockFormat::kCargo) {
-    // Stub — parser_cargo.cc lands in a later commit.
-    out->lockVersion = "0.0.0";
-    out->ecosystem = Ecosystem::kCargo;
-    return true;
+    return ParseCargoLock(content, ctx, out, err);
   }
   err->message = "Unsupported (ecosystem, format) pair";
   err->code = "ERR_UNSUPPORTED";

@@ -142,3 +142,15 @@
 	url = https://github.com/tc39/test262.git
 	ignore = dirty
 	shallow = true
+# lsquic-4.6.2
+[submodule "packages/lsquic-infra/upstream/lsquic"]
+	path = packages/lsquic-infra/upstream/lsquic
+	url = https://github.com/litespeedtech/lsquic.git
+	ignore = dirty
+	shallow = true
+# ls-qpack-2.6.2
+[submodule "packages/lsquic-infra/upstream/ls-qpack"]
+	path = packages/lsquic-infra/upstream/ls-qpack
+	url = https://github.com/litespeedtech/ls-qpack.git
+	ignore = dirty
+	shallow = true

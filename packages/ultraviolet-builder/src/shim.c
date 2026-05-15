@@ -7,7 +7,7 @@
 
 #include <node_api.h>
 
-#include "../../napi-go/include/napi_go.h"
+#include "../../napi-go-infra/include/napi_go.h"
 
 extern napi_value NapiGoInit(napi_env env, napi_value exports);
 

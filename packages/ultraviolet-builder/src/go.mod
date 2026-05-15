@@ -26,4 +26,4 @@ require (
 	golang.org/x/sys v0.43.0 // indirect
 )
 
-replace napi-go => ../../napi-go/src
+replace napi-go => ../../napi-go-infra/src

@@ -255,12 +255,17 @@ export async function ensureZig() {
       testFile,
       'export fn _zig_link_test() callconv(.c) void {}\n',
     )
-    const testResult = await spawn(
-      zigBin,
-      ['build-lib', testFile, '-dynamic', '-ODebug'],
-      { cwd: BUILD_DIR, shell: WIN32, stdio: 'pipe' },
-    )
-    const testExit = testResult.code ?? testResult.exitCode ?? 0
+    let testExit = 0
+    try {
+      const testResult = await spawn(
+        zigBin,
+        ['build-lib', testFile, '-dynamic', '-ODebug'],
+        { cwd: BUILD_DIR, shell: WIN32, stdio: 'pipe' },
+      )
+      testExit = testResult.code ?? testResult.exitCode ?? 0
+    } catch (spawnError) {
+      testExit = spawnError.code ?? spawnError.exitCode ?? 1
+    }
     // Clean up test artifacts.
     await safeDelete(testFile)
     await safeDelete(path.join(BUILD_DIR, '_zig_link_test.dylib'))
@@ -278,8 +283,8 @@ export async function ensureZig() {
     if (errorMessage(e) === 'Zig linker incompatible with current platform') {
       throw e
     }
-    // If smoke test itself threw (spawn failed), warn but continue.
-    logger.warn(`Zig link smoke test failed: ${errorMessage(e)}`)
+    // If smoke test setup itself threw (e.g., writeFile failure), warn but continue.
+    logger.warn(`Zig link smoke test setup failed: ${errorMessage(e)}`)
   }
 
   logger.success(`Zig ready: ${zigBin}`)

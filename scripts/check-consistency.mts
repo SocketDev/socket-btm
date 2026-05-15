@@ -50,15 +50,15 @@ type JsonValue =
 type JsonObject = { [key: string]: JsonValue }
 
 type PackageJson = JsonObject & {
-  dependencies?: Record<string, string>
-  description?: string
-  devDependencies?: Record<string, string>
-  license?: string
-  name?: string
-  private?: boolean
-  scripts?: Record<string, string>
-  type?: string
-  version?: string
+  dependencies?: Record<string, string> | undefined
+  description?: string | undefined
+  devDependencies?: Record<string, string> | undefined
+  license?: string | undefined
+  name?: string | undefined
+  private?: boolean | undefined
+  scripts?: Record<string, string> | undefined
+  type?: string | undefined
+  version?: string | undefined
 }
 
 type PackageInfo = {
@@ -521,8 +521,8 @@ export async function checkExternalTools(
       const tools = JSON.parse(
         await fs.readFile(externalToolsPath, 'utf8'),
       ) as {
-        $schema?: string
-        tools?: JsonObject
+        $schema?: string | undefined
+        tools?: JsonObject | undefined
       }
 
       if (!tools.$schema) {

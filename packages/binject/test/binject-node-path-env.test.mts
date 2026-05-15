@@ -42,7 +42,7 @@ async function createTestBinject(name = 'test-binject') {
 export async function execCommand(
   command: string,
   args: string[] = [],
-  options: { cwd?: string; env?: NodeJS.ProcessEnv } = {},
+  options: { cwd?: string | undefined; env?: NodeJS.ProcessEnv | undefined } = {},
 ) {
   return new Promise<{
     code: number

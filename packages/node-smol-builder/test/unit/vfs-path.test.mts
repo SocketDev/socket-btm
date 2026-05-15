@@ -59,7 +59,7 @@ export function isVFSPrefixPath(
  */
 export function isValidVFSPrefix(prefix: string): {
   valid: boolean
-  error?: string
+  error?: string | undefined
 } {
   if (!prefix.startsWith('/')) {
     return {

@@ -20,9 +20,10 @@
  *    `pnpm build`), skip the suite with a clear message.
  */
 
-import { execFileSync, type ExecFileSyncOptionsWithStringEncoding } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
+import type { ExecFileSyncOptionsWithStringEncoding } from 'node:child_process'
 import { existsSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
@@ -66,11 +67,13 @@ const SMOL_BINARY_CANDIDATES = [
   ),
 ]
 
-function findSmolBinary(): string | undefined {
-  for (const candidate of SMOL_BINARY_CANDIDATES) {
+export function findSmolBinary(): string | undefined {
+  for (let i = 0, { length } = SMOL_BINARY_CANDIDATES; i < length; i += 1) {
+    const candidate = SMOL_BINARY_CANDIDATES[i]
     if (existsSync(candidate)) {
       return candidate
     }
+  
   }
   return undefined
 }
@@ -112,8 +115,10 @@ describe('smol_manifest_native binding — sdxgen-bug-regressions equivalence', 
       }
       const output = execFileSync(smolBinary!, [LIVE_VERIFIER], opts)
       // Confirm every expected fixture name appears with PASS.
-      for (const name of EXPECTED_FIXTURE_NAMES) {
+      for (let i = 0, { length } = EXPECTED_FIXTURE_NAMES; i < length; i += 1) {
+        const name = EXPECTED_FIXTURE_NAMES[i]
         expect(output).toContain(`PASS  ${name}`)
+      
       }
       // Confirm zero failures in the trailing summary.
       expect(output).toMatch(/\b0 fail\b/)

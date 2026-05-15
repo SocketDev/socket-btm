@@ -64,7 +64,7 @@ export function smolBuiltinIsAvailable(name: string): boolean {
 
 export interface RunOptions {
   /** Override the default 10s timeout for slow setup paths. */
-  timeoutMs?: number
+  timeoutMs?: number | undefined
 }
 
 export interface RunResult {

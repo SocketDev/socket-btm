@@ -56,7 +56,7 @@ let testDataFile: string
 export async function execCommand(
   command: string,
   args: string[] = [],
-  options: { timeout?: number; cwd?: string } = {},
+  options: { timeout?: number | undefined; cwd?: string | undefined } = {},
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const spawnPromise = spawn(command, args, {

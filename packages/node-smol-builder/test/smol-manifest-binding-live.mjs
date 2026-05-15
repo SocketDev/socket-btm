@@ -17,10 +17,13 @@
  */
 
 import { readFileSync, readdirSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { parseLockfile } from 'node:smol-manifest'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+
+const logger = getDefaultLogger()
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const FIXTURES_DIR = join(__dirname, 'fixtures/sdxgen-bug-regressions')
@@ -47,9 +50,9 @@ const FIXTURES = [
     .sort()
   const inTable = FIXTURES.map(f => f.dir).sort()
   if (JSON.stringify(onDisk) !== JSON.stringify(inTable)) {
-    console.error('FIXTURE-TABLE-MISMATCH')
-    console.error('  on disk:', onDisk)
-    console.error('  in table:', inTable)
+    logger.fail('FIXTURE-TABLE-MISMATCH')
+    logger.fail('  on disk:', onDisk)
+    logger.fail('  in table:', inTable)
     process.exit(1)
   }
 }
@@ -59,9 +62,10 @@ let fail = 0
 let skip = 0
 const failures = []
 
-for (const fixture of FIXTURES) {
+for (let i = 0, { length } = FIXTURES; i < length; i += 1) {
+  const fixture = FIXTURES[i]
   if (!fixture.enabled) {
-    console.log(`SKIP  ${fixture.dir} (parser not yet ported)`)
+    logger.log(`SKIP  ${fixture.dir} (parser not yet ported)`)
     skip += 1
     continue
   }
@@ -77,23 +81,26 @@ for (const fixture of FIXTURES) {
   const jaStr = JSON.stringify(ja)
   const jeStr = JSON.stringify(expected)
   if (jaStr === jeStr) {
-    console.log(`PASS  ${fixture.dir}`)
+    logger.log(`PASS  ${fixture.dir}`)
     pass += 1
   } else {
-    console.log(`FAIL  ${fixture.dir}`)
+    logger.log(`FAIL  ${fixture.dir}`)
     failures.push({ dir: fixture.dir, actual: jaStr, expected: jeStr })
     fail += 1
   }
+
 }
 
-console.log(`\n${pass} pass, ${fail} fail, ${skip} skip`)
+logger.log(`\n${pass} pass, ${fail} fail, ${skip} skip`)
 
 if (fail > 0) {
-  console.log('\nFailure details:')
-  for (const f of failures) {
-    console.log(`  ${f.dir}`)
-    console.log(`    actual  : ${f.actual}`)
-    console.log(`    expected: ${f.expected}`)
+  logger.log('\nFailure details:')
+  for (let i = 0, { length } = failures; i < length; i += 1) {
+    const f = failures[i]
+    logger.log(`  ${f.dir}`)
+    logger.log(`    actual  : ${f.actual}`)
+    logger.log(`    expected: ${f.expected}`)
+  
   }
   process.exit(1)
 }

@@ -82,7 +82,7 @@ type Violation = {
   rule: string
   detail: string
   // Optional fix hint specific to this violation instance.
-  fix?: string
+  fix?: string | undefined
 }
 
 type AllowlistEntry = {

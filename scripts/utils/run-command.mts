@@ -17,9 +17,9 @@ type SpawnError = {
 }
 
 type CommandDefinition = {
-  args?: string[]
+  args?: string[] | undefined
   command: string
-  options?: SpawnOptions
+  options?: SpawnOptions | undefined
 }
 
 type QuietCommandResult = {

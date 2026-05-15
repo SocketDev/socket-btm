@@ -565,11 +565,11 @@ export async function runRipgrep(regression: Regression): Promise<Match[]> {
     } catch (e) {
       const code =
         typeof e === 'object' && e !== null && 'code' in e
-          ? (e as { code?: unknown }).code
+          ? (e as { code?: unknown | undefined }).code
           : undefined
       const errStdout =
         typeof e === 'object' && e !== null && 'stdout' in e
-          ? (e as { stdout?: unknown }).stdout
+          ? (e as { stdout?: unknown | undefined }).stdout
           : undefined
       if (code === 1 || code === '1') {
         // "no matches" — fine

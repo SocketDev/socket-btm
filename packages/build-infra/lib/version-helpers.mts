@@ -415,7 +415,7 @@ export function getSubmoduleChecksum(
  */
 export async function fetchNodeChecksum(
   version: string,
-  options?: { timeout?: number },
+  options?: { timeout?: number | undefined },
 ): Promise<
   { hash: string; version: string } | { error: string; version: string }
 > {
@@ -466,21 +466,21 @@ export async function fetchNodeChecksum(
  * if (!result.valid) throw new Error(`Checksum mismatch: ${result.expected} !== ${result.actual}`)
  */
 export async function verifyNodeChecksum(options?: {
-  version?: string
-  timeout?: number
+  version?: string | undefined
+  timeout?: number | undefined
 }): Promise<{
   valid: boolean
-  expected?: string
-  actual?: string
+  expected?: string | undefined
+  actual?: string | undefined
   version: string
-  error?: string
+  error?: string | undefined
 }> {
   type VerifyResult = {
     valid: boolean
-    expected?: string
-    actual?: string
+    expected?: string | undefined
+    actual?: string | undefined
     version: string
-    error?: string
+    error?: string | undefined
   }
   const version = options?.version ?? getNodeVersion()
 

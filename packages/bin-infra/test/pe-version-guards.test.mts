@@ -26,12 +26,12 @@ const TEST_TMP_DIR = path.join(os.tmpdir(), 'pe-version-guards-test')
  */
 export function createMinimalPE(
   options: {
-    numSections?: number
-    numResourceEntries?: number
-    versionDataSize?: number
-    invalidDOS?: boolean
-    invalidPE?: boolean
-    noResourceDir?: boolean
+    numSections?: number | undefined
+    numResourceEntries?: number | undefined
+    versionDataSize?: number | undefined
+    invalidDOS?: boolean | undefined
+    invalidPE?: boolean | undefined
+    noResourceDir?: boolean | undefined
   } = {},
 ): Buffer {
   const {

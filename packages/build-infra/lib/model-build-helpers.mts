@@ -56,10 +56,7 @@ export async function checkModelBuildPrerequisites(options) {
 
   // Check disk space.
   if (buildDir) {
-    const diskOk = await checkDiskSpace(
-      buildDir,
-      requiredDiskGB * 1024 * 1024 * 1024,
-    )
+    const diskOk = await checkDiskSpace(buildDir, requiredDiskGB)
     if (!diskOk) {
       if (!quiet) {
         logger.warn('Could not check disk space')

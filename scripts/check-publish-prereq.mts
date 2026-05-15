@@ -79,6 +79,7 @@ const CHAIN: ChainEntry[] = [
   { pkg: 'node-smol', deps: NODE_SMOL_DEPS },
 ]
 
+// oxlint-disable-next-line socket/no-process-cwd-in-scripts-hooks -- check-publish-prereq.mts is invoked from `pnpm run check:publish-prereq` which sets cwd=REPO_ROOT
 const repoRoot = process.cwd()
 const cacheVersionsPath = path.join(repoRoot, '.github', 'cache-versions.json')
 

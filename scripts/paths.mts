@@ -1,3 +1,4 @@
+/* oxlint-disable socket/sort-source-methods -- ordered as path resolution flow (resolver → primary roots → derived constants → helpers); alphabetizing would scatter the flow. */
 /**
  * @fileoverview Canonical path constants + resolvers for this package.
  *
@@ -58,7 +59,7 @@ import { fileURLToPath } from 'node:url'
  *
  * @throws if no package.json ancestor exists (= we're not in a repo).
  */
-function resolveRepoRoot(): string {
+export function resolveRepoRoot(): string {
   let cur = path.dirname(fileURLToPath(import.meta.url))
   const root = path.parse(cur).root
   while (cur && cur !== root) {
@@ -96,6 +97,7 @@ export const NODE_MODULES_DIR = path.join(REPO_ROOT, 'node_modules')
  * caches, etc.). Auto-gitignored via the fleet's `**∕.cache/` rule.
  * Build tools also write here (oxlint, etc.).
  */
+// oxlint-disable-next-line socket/prefer-node-modules-dot-cache -- NODE_MODULES_DIR is the canonical node_modules root; the rule's per-arg check can't see through identifiers.
 export const NODE_MODULES_CACHE_DIR = path.join(NODE_MODULES_DIR, '.cache')
 
 /** Absolute path to the repo's `pnpm-workspace.yaml`. */

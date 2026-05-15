@@ -36,6 +36,7 @@ function main() {
     return
   }
 
+  // oxlint-disable-next-line socket/no-process-cwd-in-scripts-hooks -- dir is a user-supplied CLI arg resolved against the caller's invocation cwd, by design
   const absoluteDir = path.isAbsolute(dir) ? dir : path.join(process.cwd(), dir)
   logger.info(`Verifying LIEF release at: ${absoluteDir}`)
 

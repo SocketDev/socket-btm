@@ -141,6 +141,7 @@ export async function runBinject(
 
   // Run binject (it handles everything: injection, sentinel flipping, section resizing)
   // Use test-specific cache directory to ensure test isolation
+  // oxlint-disable-next-line socket/prefer-node-modules-dot-cache -- testDir is a tmpdir, not a repo root
   const cacheDir = path.join(testDir, '.cache')
   await safeMkdir(cacheDir)
   const spawnEnv = { ...process.env, SOCKET_DLX_DIR: cacheDir }

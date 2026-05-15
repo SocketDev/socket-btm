@@ -19,9 +19,9 @@ import { promises as fs } from 'node:fs'
  */
 
 type LockableHandle = Awaited<ReturnType<typeof fs.open>> & {
-  lock?: (mode: 'sh' | 'ex') => Promise<void>
-  tryLock?: (mode: 'sh' | 'ex') => Promise<boolean>
-  unlock?: () => Promise<void>
+  lock?: ((mode: 'sh' | 'ex') => Promise<void>) | undefined
+  tryLock?: ((mode: 'sh' | 'ex') => Promise<boolean>) | undefined
+  unlock?: (() => Promise<void>) | undefined
 }
 
 /**

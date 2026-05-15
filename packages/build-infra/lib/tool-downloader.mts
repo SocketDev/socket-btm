@@ -323,6 +323,7 @@ export function getCacheDir() {
   if (process.env.EXTERNAL_TOOLS_CACHE) {
     return process.env.EXTERNAL_TOOLS_CACHE
   }
+  // oxlint-disable-next-line socket/prefer-node-modules-dot-cache -- this IS the canonical node_modules/.cache shape; the rule's per-arg check can't see the 'node_modules' literal preceding '.cache'.
   return path.join(process.cwd(), 'node_modules', '.cache', 'external-tools')
 }
 

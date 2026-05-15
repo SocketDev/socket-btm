@@ -17,11 +17,14 @@
  * picks it up.
  */
 
-import { readFileSync, existsSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { parseLockfile } from 'node:smol-manifest'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+
+const logger = getDefaultLogger()
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // socket-btm root: ../../.. from packages/node-smol-builder/test/.
@@ -42,9 +45,10 @@ const FIXTURES = [
 let totalPackages = 0
 let totalElapsedMs = 0
 
-for (const { path, eco, fmt, minPackages } of FIXTURES) {
+// oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
+  for (const { path, eco, fmt, minPackages } of FIXTURES) {
   if (!existsSync(path)) {
-    console.log(`SKIP  ${path} (not present)`)
+    logger.log(`SKIP  ${path} (not present)`)
     continue
   }
 
@@ -57,15 +61,15 @@ for (const { path, eco, fmt, minPackages } of FIXTURES) {
 
   // Structural assertions.
   if (result.type !== 'lockfile') {
-    console.error(`FAIL  ${path}: bad type ${result.type}`)
+    logger.fail(`FAIL  ${path}: bad type ${result.type}`)
     process.exit(1)
   }
   if (!Array.isArray(result.packages)) {
-    console.error(`FAIL  ${path}: packages not array`)
+    logger.fail(`FAIL  ${path}: packages not array`)
     process.exit(1)
   }
   if (result.packages.length < minPackages) {
-    console.error(
+    logger.fail(
       `FAIL  ${path}: only ${result.packages.length} packages, expected ≥ ${minPackages}`,
     )
     process.exit(1)
@@ -73,6 +77,7 @@ for (const { path, eco, fmt, minPackages } of FIXTURES) {
 
   // Every PackageRef is well-formed.
   const malformed = []
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
   for (const p of result.packages) {
     if (!p.name || typeof p.name !== 'string') {
       malformed.push(p)
@@ -100,10 +105,10 @@ for (const { path, eco, fmt, minPackages } of FIXTURES) {
     }
   }
   if (malformed.length > 0) {
-    console.error(
+    logger.fail(
       `FAIL  ${path}: ${malformed.length} malformed PackageRefs`,
     )
-    console.error(
+    logger.fail(
       `  samples: ${JSON.stringify(malformed.slice(0, 3), null, 2)}`,
     )
     process.exit(1)
@@ -112,17 +117,17 @@ for (const { path, eco, fmt, minPackages } of FIXTURES) {
   // _index must hold every package name (or alias).
   const indexKeys = Object.keys(result._index).length
   if (indexKeys === 0) {
-    console.error(`FAIL  ${path}: empty _index`)
+    logger.fail(`FAIL  ${path}: empty _index`)
     process.exit(1)
   }
 
-  console.log(
+  logger.log(
     `PASS  ${path}  (${result.packages.length} packages, ${indexKeys} index keys, ${elapsedMs.toFixed(2)}ms)`,
   )
   totalPackages += result.packages.length
 }
 
-console.log(
+logger.log(
   `\ntotal: ${totalPackages} packages parsed in ${totalElapsedMs.toFixed(2)}ms`,
 )
 process.exit(0)

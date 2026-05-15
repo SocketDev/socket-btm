@@ -16,10 +16,10 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { interpret } from '../scripts/test262-temporal-runner.mts'
-import type { Test } from '../scripts/test262-temporal-runner.mts'
+import { interpret } from '../scripts/test262/classifier.mts'
+import type { Test } from '../scripts/test262/types.mts'
 
-function key(t: Test): string {
+export function key(t: Test): string {
   return `${t.file} (${t.scenario})`
 }
 
@@ -27,7 +27,7 @@ function key(t: Test): string {
  * Build a Test record with sensible defaults so individual assertions
  * only spell out the fields they care about.
  */
-function makeTest(overrides: Partial<Test>): Test {
+export function makeTest(overrides: Partial<Test>): Test {
   return {
     file: 'test/built-ins/Temporal/Instant/from.js',
     scenario: 'strict',

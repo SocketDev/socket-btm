@@ -15,7 +15,7 @@
  */
 
 import { readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
@@ -697,6 +697,7 @@ importers:
         version: 4.17.21
 `
       const result = parseLockfile(content, 'npm', 'pnpm')
+      // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
       for (const pkg of result.packages) {
         expect(pkg.version).not.toBe('')
       }
@@ -845,7 +846,8 @@ importers:
     })
 
     it('every fixture directory contains input.* + expected.json + README.md', () => {
-      for (const f of FIXTURES) {
+      for (let i = 0, { length } = FIXTURES; i < length; i += 1) {
+        const f = FIXTURES[i]
         const dirEntries = readdirSync(join(FIXTURES_DIR, f.dir))
         expect(dirEntries.some(e => e.startsWith('input.'))).toBe(true)
         expect(dirEntries).toContain('expected.json')
@@ -857,11 +859,14 @@ importers:
         expect(expected).toHaveProperty('type', 'lockfile')
         expect(expected).toHaveProperty('packages')
         expect(Array.isArray(expected.packages)).toBe(true)
+      
       }
     })
 
-    for (const fixture of FIXTURES) {
+    for (let i = 0, { length } = FIXTURES; i < length; i += 1) {
+      const fixture = FIXTURES[i]
       it.todo(`${fixture.dir}: smol parseLockfile output matches expected.json`)
+    
     }
   })
 })

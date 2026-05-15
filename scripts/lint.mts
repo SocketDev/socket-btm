@@ -40,8 +40,8 @@ type LintSelection =
     }
 
 type LintOptions = {
-  fix?: boolean
-  quiet?: boolean
+  fix?: boolean | undefined
+  quiet?: boolean | undefined
 }
 
 type ParsedLintValues = {
@@ -139,6 +139,7 @@ export async function getFilesToLint(
 export function getOxlintExcludePatterns(): string[] {
   try {
     const oxlintConfigPath = path.join(
+      // oxlint-disable-next-line socket/no-process-cwd-in-scripts-hooks -- lint.mts is invoked from `pnpm run lint` which always sets cwd=REPO_ROOT
       process.cwd(),
       '.config',
       'oxlintrc.json',
@@ -316,7 +317,7 @@ export async function runLintOnFiles(
  * Check if we should run all linters based on changed files.
  */
 export function shouldRunAllLinters(changedFiles: string[]): {
-  reason?: string
+  reason?: string | undefined
   runAll: boolean
 } {
   for (let i = 0, { length } = changedFiles; i < length; i += 1) {

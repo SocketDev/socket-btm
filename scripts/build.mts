@@ -65,12 +65,13 @@ export async function runParallel(tasks: PnpmTask[]): Promise<void> {
 export async function runPnpm(args: string[]): Promise<void> {
   try {
     await spawn('pnpm', args, {
+      // oxlint-disable-next-line socket/no-process-cwd-in-scripts-hooks -- propagating cwd to a pnpm child invocation; the user-invoked cwd IS the right cwd to forward
       cwd: process.cwd(),
       shell: WIN32,
       stdio: 'inherit',
     })
   } catch (e) {
-    const error = e as { exitCode?: number }
+    const error = e as { exitCode?: number | undefined }
     throw new Error(
       `pnpm ${args.join(' ')} failed with exit code ${error.exitCode || 'unknown'}`,
       { cause: error },

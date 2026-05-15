@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* max-file-lines: legitimate — top-down checker pipeline with many small section helpers; splitting would scatter the linear flow that makes this script auditable. */
 /* oxlint-disable socket/sort-source-methods -- script ordered as a top-down checker pipeline (load configs → diff versions → report); alphabetizing would scatter the flow. */
 /**
  * @fileoverview External dependency version consistency checker.
@@ -269,7 +270,7 @@ export function loadPackageJsonSources(): PackageJsonSource[] {
       if (typeof entryRaw !== 'object' || entryRaw === null) {
         continue
       }
-      const e = entryRaw as { version?: unknown; ref?: unknown }
+      const e = entryRaw as { version?: unknown | undefined; ref?: unknown | undefined }
       if (typeof e.version !== 'string') {
         continue
       }

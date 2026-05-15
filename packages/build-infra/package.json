@@ -64,6 +64,7 @@
   "dependencies": {
     "@sinclair/typebox": "catalog:",
     "@socketsecurity/lib": "catalog:",
+    "@socketsecurity/lib-stable": "catalog:",
     "acorn": "catalog:",
     "acorn-walk": "catalog:",
     "adm-zip": "catalog:",

@@ -3,9 +3,9 @@
 import os from 'node:os'
 import type { SpawnOptions, SpawnSyncOptions } from 'node:child_process'
 
-import { WIN32 } from '@socketsecurity/lib/constants/platform'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn, spawnSync } from '@socketsecurity/lib/spawn'
+import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { spawn, spawnSync } from '@socketsecurity/lib-stable/spawn'
 
 // Initialize logger
 const logger = getDefaultLogger()

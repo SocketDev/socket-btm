@@ -40,7 +40,7 @@ import { fileURLToPath } from 'node:url'
 
 import { parseArgs } from 'node:util'
 
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 import { errorMessage } from 'build-infra/lib/error-utils'
 

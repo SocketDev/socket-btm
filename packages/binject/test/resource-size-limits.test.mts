@@ -18,9 +18,9 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 import { MAX_SEA_BLOB_SIZE, MAX_VFS_SIZE } from './helpers/constants.mts'
 import { getBinjectPath } from './helpers/paths.mts'

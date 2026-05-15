@@ -37,8 +37,8 @@ import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 import { LIBC_VALUES, MAGIC_MARKER } from './constants.mts'
 import { errorMessage } from 'build-infra/lib/error-utils'

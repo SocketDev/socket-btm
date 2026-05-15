@@ -30,9 +30,9 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 import * as ort from 'onnxruntime-node'
 import process from 'node:process'
 
-import { safeMkdir } from '@socketsecurity/lib/fs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 import { MODELS_DIR, getBuildPaths, getCurrentPlatform } from './paths.mts'
 

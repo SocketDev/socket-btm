@@ -5,9 +5,9 @@
  * and configured for building native dependencies.
  */
 
-import { which } from '@socketsecurity/lib/bin'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { which } from '@socketsecurity/lib-stable/bin'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 import { getPlatform } from './build-env.mts'
 import { printError } from './build-output.mts'

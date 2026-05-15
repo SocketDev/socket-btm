@@ -6,7 +6,7 @@ import process from 'node:process'
  * This module provides common test helpers to avoid code duplication.
  */
 
-import { spawn } from '@socketsecurity/lib/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 /**
  * Ad-hoc code sign a binary for macOS execution.

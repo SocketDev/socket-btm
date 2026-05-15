@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url'
 import { BUILD_STAGES, CHECKPOINTS } from 'build-infra/lib/constants'
 import { getAssetPlatformArch } from 'build-infra/lib/platform-mappings'
 
-import { getSocketHomePath } from '@socketsecurity/lib/paths/socket'
+import { getSocketHomePath } from '@socketsecurity/lib-stable/paths/socket'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

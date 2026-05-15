@@ -6,8 +6,8 @@ import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import { CHECKPOINTS } from 'build-infra/lib/constants'
 import { getPythonCommand } from 'build-infra/lib/python-installer'
 
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 const logger = getDefaultLogger()
 

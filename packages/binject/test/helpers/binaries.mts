@@ -14,8 +14,8 @@ import { extract } from 'tar'
 
 import { getDownloadedDir } from 'build-infra/lib/paths'
 
-import { httpRequest } from '@socketsecurity/lib/http-request'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { httpRequest } from '@socketsecurity/lib-stable/http-request'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 import { PROJECT_ROOT } from './paths.mts'
 

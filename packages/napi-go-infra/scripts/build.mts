@@ -17,7 +17,7 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 import { getBuildMode } from 'build-infra/lib/constants'
 import { printError } from 'build-infra/lib/build-output'
 
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 import { buildNapiGoAddon } from '../cli/src/build.mts'
 import { HELLO_GO_DIR, HELLO_SHIM, LIB_DIR, PACKAGE_ROOT } from './paths.mts'

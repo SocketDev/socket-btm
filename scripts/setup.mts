@@ -17,9 +17,9 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawnSync } from '@socketsecurity/lib/spawn'
-import { printFooter } from '@socketsecurity/lib/stdio/footer'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { spawnSync } from '@socketsecurity/lib-stable/spawn'
+import { printFooter } from '@socketsecurity/lib-stable/stdio/footer'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

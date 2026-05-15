@@ -16,9 +16,9 @@ import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 import { errorMessage } from 'build-infra/lib/error-utils'
 import { ensureLief } from 'lief-builder/lib/ensure-lief'
 
-import { WIN32 } from '@socketsecurity/lib/constants/platform'
-import { getCI } from '@socketsecurity/lib/env/ci'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
+import { getCI } from '@socketsecurity/lib-stable/env/ci'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 const logger = getDefaultLogger()
 

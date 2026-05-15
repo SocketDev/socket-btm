@@ -6,8 +6,8 @@
 import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 
-import { safeMkdir } from '@socketsecurity/lib/fs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 import { ADDITIONS_SOURCE_PATCHED_DIR, PACKAGE_ROOT } from './paths.mts'
 import { MONOREPO_PACKAGE_SOURCES } from './prepare-external-sources.mts'

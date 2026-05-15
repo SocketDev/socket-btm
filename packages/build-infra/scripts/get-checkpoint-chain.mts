@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url'
 
 import { CHECKPOINT_CHAINS } from '../lib/constants.mts'
 
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 const logger = getDefaultLogger()
 

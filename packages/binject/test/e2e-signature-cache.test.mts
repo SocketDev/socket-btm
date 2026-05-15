@@ -20,10 +20,10 @@ import process from 'node:process'
 
 import { fileURLToPath } from 'node:url'
 
-import { safeDelete } from '@socketsecurity/lib/fs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { getSocketDlxDir } from '@socketsecurity/lib/paths/socket'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { safeDelete } from '@socketsecurity/lib-stable/fs'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getSocketDlxDir } from '@socketsecurity/lib-stable/paths/socket'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 import { getPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { getBinjectPath } from './helpers/paths.mts'

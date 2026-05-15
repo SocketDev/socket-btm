@@ -7,4 +7,4 @@
  * more.
  */
 
-export { errorMessage } from '@socketsecurity/lib/errors'
+export { errorMessage } from '@socketsecurity/lib-stable/errors'

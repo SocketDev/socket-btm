@@ -9,9 +9,9 @@ import { existsSync, promises as fs } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 
-import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { hasKeys } from '@socketsecurity/lib/objects'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { hasKeys } from '@socketsecurity/lib-stable/objects'
 import { getFileSize } from 'build-infra/lib/build-helpers'
 import { generateWasmSyncWrapper } from 'build-infra/wasm-synced/wasm-sync-wrapper'
 

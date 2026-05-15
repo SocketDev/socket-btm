@@ -9,7 +9,7 @@
  * produces no message.
  */
 
-import { UNKNOWN_ERROR } from '@socketsecurity/lib/errors'
+import { UNKNOWN_ERROR } from '@socketsecurity/lib-stable/errors'
 
 import { errorMessage } from '../lib/error-utils.mts'
 

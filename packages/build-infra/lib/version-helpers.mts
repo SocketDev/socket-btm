@@ -11,7 +11,7 @@
 import { promises as fs, readFileSync } from 'node:fs'
 import path from 'node:path'
 
-import { fetchChecksums } from '@socketsecurity/lib/http-request'
+import { fetchChecksums } from '@socketsecurity/lib-stable/http-request'
 
 import { NODE_VERSION_FILE, PACKAGE_ROOT } from './constants.mts'
 import { errorMessage } from './error-utils.mts'

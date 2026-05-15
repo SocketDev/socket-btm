@@ -18,10 +18,10 @@ import path from 'node:path'
 import AdmZip from 'adm-zip'
 import process from 'node:process'
 
-import { safeDelete } from '@socketsecurity/lib/fs'
-import { httpDownload } from '@socketsecurity/lib/http-request'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { safeDelete } from '@socketsecurity/lib-stable/fs'
+import { httpDownload } from '@socketsecurity/lib-stable/http-request'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 import { errorMessage } from './error-utils.mts'
 

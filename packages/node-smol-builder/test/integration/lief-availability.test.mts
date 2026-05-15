@@ -14,7 +14,7 @@ import process from 'node:process'
 
 import { existsSync } from 'node:fs'
 
-import { spawn } from '@socketsecurity/lib/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 import { expectLiefEnabled, hasLiefSupport } from '../helpers/lief.mts'
 import { getLatestFinalBinary } from '../paths.mts'

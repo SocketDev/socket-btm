@@ -9,8 +9,8 @@ import path from 'node:path'
 import { createCheckpoint } from 'build-infra/lib/checkpoint-manager'
 import { CHECKPOINTS } from 'build-infra/lib/constants'
 
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { safeMkdir } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { safeMkdir } from '@socketsecurity/lib-stable/fs'
 
 import { UPSTREAM_PATH, getSharedBuildPaths } from '../paths.mts'
 

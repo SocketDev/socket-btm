@@ -37,9 +37,9 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { getBuildPaths as getYogaBuildPaths } from 'yoga-layout-builder/scripts/paths'
 
-import { ensurePackageInstalled } from '@socketsecurity/lib/dlx/package'
-import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { ensurePackageInstalled } from '@socketsecurity/lib-stable/dlx/package'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 import { createNodeProtocolPlugin } from '../.config/esbuild/node-protocol.mts'
 import { createPathShorteningPlugin } from '../.config/esbuild/shorten-paths.mts'

@@ -30,10 +30,10 @@ import {
   TOTAL_HEADER_SIZE_WITH_SMOL_CONFIG,
 } from 'build-infra/lib/constants'
 
-import { safeDelete } from '@socketsecurity/lib/fs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { getSocketDlxDir } from '@socketsecurity/lib/paths/socket'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { safeDelete } from '@socketsecurity/lib-stable/fs'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getSocketDlxDir } from '@socketsecurity/lib-stable/paths/socket'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 import {
   MACHO_SECTION_PRESSED_DATA,

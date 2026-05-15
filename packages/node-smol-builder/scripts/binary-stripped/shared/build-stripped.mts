@@ -28,9 +28,9 @@ import { CHECKPOINTS } from 'build-infra/lib/constants'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 import colors from 'yoctocolors-cjs'
 
-import { whichSync } from '@socketsecurity/lib/bin'
-import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { whichSync } from '@socketsecurity/lib-stable/bin'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 import { PACKAGE_ROOT } from './paths.mts'
 

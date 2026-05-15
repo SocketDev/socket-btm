@@ -793,6 +793,9 @@ jobs:
             packages/binject/upstream/libdeflate
             packages/node-smol-builder/upstream/uSockets
             packages/node-smol-builder/upstream/uWebSockets
+            packages/lsquic-infra/upstream/lsquic
+            packages/lsquic-infra/upstream/ls-qpack
+            packages/yoga-layout-builder/upstream/yoga
 
       - name: Initialize liburing submodule (Linux only)
         if: matrix.os == 'linux' && (steps.restore-checkpoint.outputs.build-required != 'false' || inputs.force)

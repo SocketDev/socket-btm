@@ -32,7 +32,7 @@
 #
 --- a/configure.py
 +++ b/configure.py
-@@ -1058,11 +1058,47 @@
+@@ -1058,13 +1058,49 @@
      dest='without_ffi',
      default=None,
      help='build without FFI (Foreign Function Interface) support')
@@ -42,20 +42,20 @@
 +    dest='with_postgres',
 +    default=None,
 +    help='build with PostgreSQL (enables PostgreSQL in node:sql API, requires libpq)')
- 
++
 +parser.add_argument('--with-iouring',
 +    action='store_true',
 +    dest='with_iouring',
 +    default=None,
 +    help='build with io_uring support (Linux only, requires liburing)')
-+
+ 
  parser.add_argument('--experimental-quic',
      action='store_true',
      dest='experimental_quic',
      default=None,
 -    help='build with experimental QUIC support')
 +    help='alias for --with-node-quic (upstream ngtcp2 QUIC)')
-+
+ 
 +parser.add_argument('--with-node-quic',
 +    action='store_true',
 +    dest='with_node_quic',
@@ -79,9 +79,11 @@
 +    dest='without_smol_tui',
 +    default=None,
 +    help='disable tui-infra + Yoga + node:smol-tui (default enabled)')
- 
++
  parser.add_argument('--ninja',
-@@ -1576,8 +1594,8 @@
+     action='store_true',
+     dest='use_ninja',
+@@ -1576,8 +1612,8 @@
  
    o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else '0.0'
  
@@ -92,7 +94,7 @@
      # Minimum cargo and rustc versions should match values in BUILDING.md.
      min_cargo_ver_tuple = (1, 82)
      min_rustc_ver_tuple = (1, 82)
-@@ -2345,7 +2363,44 @@
+@@ -2345,10 +2381,47 @@
      return
  
    configure_library('ffi', o, pkgname='libffi')
@@ -100,7 +102,7 @@
 +def configure_postgres(o):
 +  # Socket Security: PostgreSQL is disabled by default (requires libpq).
 +  o['variables']['node_use_postgres'] = b(options.with_postgres)
-+
+ 
 +def configure_iouring(o):
 +  # Socket Security: io_uring is disabled by default (Linux only, requires liburing).
 +  o['variables']['node_use_iouring'] = b(options.with_iouring)
@@ -108,7 +110,7 @@
 +def configure_smol_tui(o):
 +  # Socket Security: tui-infra + Yoga + node:smol-tui (default enabled).
 +  o['variables']['node_use_smol_tui'] = b(not options.without_smol_tui)
- 
++
  def configure_quic(o):
 -  o['variables']['node_use_quic'] = b(options.experimental_quic and
 -                                      not options.without_ssl)
@@ -139,7 +141,10 @@
 +  o['variables']['node_use_node_quic']  = b(use_node_quic)
 +  o['variables']['node_use_smol_quic']  = b(use_smol_quic)
 +  o['variables']['node_use_smol_http3'] = b(use_smol_http3)
-@@ -2802,6 +2832,9 @@
+ 
+ def configure_static(o):
+   if options.fully_static or options.partly_static:
+@@ -2802,6 +2875,9 @@
  configure_lief(output);
  configure_sqlite(output);
  configure_ffi(output);

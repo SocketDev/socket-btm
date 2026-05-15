@@ -95,7 +95,7 @@ jobs:
             target: aarch64-pc-windows-msvc
 
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@75964f14e0682ae4aa846119e2fc9a710d970056 # main (2026-05-15)
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@b5b9f01d8a2741bf2b6024589790bf922455c306 # main (2026-05-15)
       - name: Enable debug logging
         uses: ./.github/actions/enable-debug-logging
         with:
@@ -293,7 +293,7 @@ jobs:
 
       - name: Setup Rust cache
         if: steps.iocraft-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
-        uses: SocketDev/socket-registry/.github/actions/setup-rust-cache@c14cb59fdba637c16f851013d3307d8721e3eb23 # main (2026-05-15)
+        uses: SocketDev/socket-registry/.github/actions/setup-rust-cache@b5b9f01d8a2741bf2b6024589790bf922455c306 # main (2026-05-15)
         with:
           workspaces: packages/iocraft-builder -> target
           prefix-key: iocraft-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.libc && format('-{0}', matrix.libc) || '' }}

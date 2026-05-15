@@ -55,7 +55,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
           submodules: false
-      - uses: SocketDev/socket-registry/.github/actions/setup@a92445215e7370ce7f7ded560e9f150370e7dd43 # main (2026-05-15)
+      - uses: SocketDev/socket-registry/.github/actions/setup@b5b9f01d8a2741bf2b6024589790bf922455c306 # main (2026-05-15)
       - name: Check publish chain freshness
         env:
           GH_TOKEN: ${{ github.token }}
@@ -147,7 +147,7 @@ jobs:
         with:
           debug: ${{ inputs.debug }}
 
-      - uses: SocketDev/socket-registry/.github/actions/setup@a92445215e7370ce7f7ded560e9f150370e7dd43 # main (2026-05-15)
+      - uses: SocketDev/socket-registry/.github/actions/setup@b5b9f01d8a2741bf2b6024589790bf922455c306 # main (2026-05-15)
       - name: Load Node.js version
         id: node-version
         shell: bash
@@ -651,7 +651,7 @@ jobs:
 
       - name: Setup ccache (Unix)
         if: matrix.os != 'windows' && (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true' || inputs.force)
-        uses: SocketDev/socket-registry/.github/actions/setup-ccache@c14cb59fdba637c16f851013d3307d8721e3eb23 # main (2026-05-15)
+        uses: SocketDev/socket-registry/.github/actions/setup-ccache@b5b9f01d8a2741bf2b6024589790bf922455c306 # main (2026-05-15)
         with:
           key: ${{ matrix.os }}-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.libc && format('-{0}', matrix.libc) || '' }}-${{ steps.build-mode.outputs.mode }}
           # macOS: Depot.dev has 24GB RAM - can afford larger ccache
@@ -661,7 +661,7 @@ jobs:
 
       - name: Setup ccache (Windows)
         if: matrix.os == 'windows' && (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true' || inputs.force)
-        uses: SocketDev/socket-registry/.github/actions/setup-ccache@c14cb59fdba637c16f851013d3307d8721e3eb23 # main (2026-05-15)
+        uses: SocketDev/socket-registry/.github/actions/setup-ccache@b5b9f01d8a2741bf2b6024589790bf922455c306 # main (2026-05-15)
         with:
           key: windows-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.build-mode.outputs.mode }}
           max-size: 2G

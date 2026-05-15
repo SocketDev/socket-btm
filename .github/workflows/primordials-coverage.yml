@@ -50,7 +50,7 @@ jobs:
           persist-credentials: false
           submodules: false
 
-      - uses: SocketDev/socket-registry/.github/actions/setup@a92445215e7370ce7f7ded560e9f150370e7dd43 # main (2026-05-15)
+      - uses: SocketDev/socket-registry/.github/actions/setup@b5b9f01d8a2741bf2b6024589790bf922455c306 # main (2026-05-15)
       # Frozen lockfile guarantees socket-lib resolves to the catalog
       # pin, so the diff reflects the version we ship — not whatever
       # got hoisted yesterday.

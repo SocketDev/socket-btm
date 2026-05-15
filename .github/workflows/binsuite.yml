@@ -58,12 +58,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (2026-05-15)
         with:
           persist-credentials: false
           fetch-depth: 0
           submodules: false
-      - uses: SocketDev/socket-registry/.github/actions/setup@a92445215e7370ce7f7ded560e9f150370e7dd43 # main
+      - uses: SocketDev/socket-registry/.github/actions/setup@a92445215e7370ce7f7ded560e9f150370e7dd43 # main (2026-05-15)
       - name: Check publish chain freshness
         env:
           GH_TOKEN: ${{ github.token }}
@@ -133,8 +133,7 @@ jobs:
             cross_compile: true
 
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@75964f14e0682ae4aa846119e2fc9a710d970056 # main
-
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@75964f14e0682ae4aa846119e2fc9a710d970056 # main (2026-05-15)
       - name: Check if tool should be built
         id: build-enabled
         shell: bash
@@ -175,7 +174,7 @@ jobs:
 
       - name: Setup Depot CLI
         if: matrix.os == 'linux' && steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'true'
-        uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
+        uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1 (2026-05-15)
         with:
           oidc: true
 
@@ -335,7 +334,7 @@ jobs:
           steps.build-enabled.outputs.build == 'true' &&
           steps.setup-checkpoints.outputs.build-required == 'true' &&
           matrix.os == 'linux'
-        uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0
+        uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0 (2026-05-15)
         with:
           project: 8fpj9495vw
           platforms: linux/${{ matrix.arch == 'x64' && 'amd64' || matrix.arch }}
@@ -571,8 +570,7 @@ jobs:
             cross_compile: true
 
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@75964f14e0682ae4aa846119e2fc9a710d970056 # main
-
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@75964f14e0682ae4aa846119e2fc9a710d970056 # main (2026-05-15)
       - name: Check if tool should be built
         id: build-enabled
         shell: bash
@@ -613,7 +611,7 @@ jobs:
 
       - name: Setup Depot CLI
         if: matrix.os == 'linux' && steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'true'
-        uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
+        uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1 (2026-05-15)
         with:
           oidc: true
 
@@ -752,7 +750,7 @@ jobs:
           steps.build-enabled.outputs.build == 'true' &&
           steps.setup-checkpoints.outputs.build-required == 'true' &&
           matrix.os == 'linux'
-        uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0
+        uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0 (2026-05-15)
         with:
           project: 8fpj9495vw
           platforms: linux/${{ matrix.arch == 'x64' && 'amd64' || matrix.arch }}
@@ -958,8 +956,7 @@ jobs:
             cross_compile: true
 
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@75964f14e0682ae4aa846119e2fc9a710d970056 # main
-
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@75964f14e0682ae4aa846119e2fc9a710d970056 # main (2026-05-15)
       - name: Check if tool should be built
         id: build-enabled
         shell: bash
@@ -1000,7 +997,7 @@ jobs:
 
       - name: Setup Depot CLI
         if: matrix.os == 'linux' && steps.build-enabled.outputs.build == 'true' && steps.setup-checkpoints.outputs.build-required == 'true'
-        uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
+        uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1 (2026-05-15)
         with:
           oidc: true
 
@@ -1186,7 +1183,7 @@ jobs:
           steps.build-enabled.outputs.build == 'true' &&
           steps.setup-checkpoints.outputs.build-required == 'true' &&
           matrix.os == 'linux'
-        uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0
+        uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0 (2026-05-15)
         with:
           project: 8fpj9495vw
           platforms: linux/${{ matrix.arch == 'x64' && 'amd64' || matrix.arch }}
@@ -1365,7 +1362,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (2026-05-15)
         with:
           persist-credentials: false
           sparse-checkout: |

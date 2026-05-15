@@ -45,13 +45,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (2026-05-15)
         with:
           persist-credentials: false
           submodules: false
 
-      - uses: SocketDev/socket-registry/.github/actions/setup@a92445215e7370ce7f7ded560e9f150370e7dd43 # main
-
+      - uses: SocketDev/socket-registry/.github/actions/setup@a92445215e7370ce7f7ded560e9f150370e7dd43 # main (2026-05-15)
       # Frozen lockfile guarantees socket-lib resolves to the catalog
       # pin, so the diff reflects the version we ship — not whatever
       # got hoisted yesterday.

@@ -35,15 +35,14 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (2026-05-15)
         with:
           persist-credentials: false
           submodules: false
 
       # Scoped install — the audit script only needs node-smol-builder's deps.
       # Full monorepo setup-and-install would burn ~2-3 min for no reason.
-      - uses: SocketDev/socket-registry/.github/actions/setup@a92445215e7370ce7f7ded560e9f150370e7dd43 # main
-
+      - uses: SocketDev/socket-registry/.github/actions/setup@a92445215e7370ce7f7ded560e9f150370e7dd43 # main (2026-05-15)
       - name: Install node-smol-builder dependencies only
         shell: bash
         run: pnpm install --filter node-smol-builder --frozen-lockfile

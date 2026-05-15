@@ -32,7 +32,7 @@
 #
 --- a/configure.py
 +++ b/configure.py
-@@ -1058,10 +1058,46 @@
+@@ -1058,11 +1058,47 @@
      dest='without_ffi',
      default=None,
      help='build without FFI (Foreign Function Interface) support')
@@ -79,7 +79,7 @@
 +    dest='without_smol_tui',
 +    default=None,
 +    help='disable tui-infra + Yoga + node:smol-tui (default enabled)')
-
+ 
  parser.add_argument('--ninja',
 @@ -1576,8 +1594,8 @@
  
@@ -92,7 +92,7 @@
      # Minimum cargo and rustc versions should match values in BUILDING.md.
      min_cargo_ver_tuple = (1, 82)
      min_rustc_ver_tuple = (1, 82)
-@@ -2345,6 +2363,43 @@
+@@ -2345,7 +2363,44 @@
      return
  
    configure_library('ffi', o, pkgname='libffi')
@@ -108,7 +108,7 @@
 +def configure_smol_tui(o):
 +  # Socket Security: tui-infra + Yoga + node:smol-tui (default enabled).
 +  o['variables']['node_use_smol_tui'] = b(not options.without_smol_tui)
-
+ 
  def configure_quic(o):
 -  o['variables']['node_use_quic'] = b(options.experimental_quic and
 -                                      not options.without_ssl)

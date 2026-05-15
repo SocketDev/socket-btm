@@ -16,6 +16,7 @@
  *   await setup()
  */
 
+import path from 'node:path'
 import process from 'node:process'
 
 import { errorMessage } from './error-utils.mts'
@@ -93,7 +94,7 @@ export function isCI() {
  * Sets process.exitCode = 1 on failure. Never throws for the CI-skip path.
  */
 export async function runSetupToolchain(options) {
-  const { packageName, packageRoot, tools } = options
+  const { packageName, packageRoot, submodules = [], tools } = options
   const logger = getDefaultLogger()
 
   if (isCI()) {
@@ -104,6 +105,17 @@ export async function runSetupToolchain(options) {
 
   try {
     logger.step(`${packageName} - Setup Build Toolchain`)
+
+    if (submodules.length) {
+      const monorepoRoot = path.resolve(packageRoot, '../..')
+      const { ensureSubmodule } = await import('./submodule-init.mts')
+      for (let i = 0; i < submodules.length; i += 1) {
+        const sub = submodules[i]
+        // eslint-disable-next-line no-await-in-loop -- serial git submodule update avoids racing the index.lock
+        await ensureSubmodule({ monorepoRoot, ...sub })
+      }
+    }
+
     const setup = createSetupToolchain(tools)
     const success = await setup(packageRoot)
     if (success) {

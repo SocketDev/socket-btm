@@ -2,10 +2,9 @@
 /**
  * @fileoverview Setup build toolchain for yoga-layout-builder
  *
- * Installs required system dependencies:
- * - Linux: gcc, make, cmake, python3
- * - macOS: clang (Xcode), make, cmake, python3
- * - Windows: mingw-w64, make, cmake, python3
+ * - Initializes the upstream `yoga` submodule when missing.
+ * - Installs C/C++ build deps (gcc/clang/make/cmake/python3) per
+ *   the host platform via runSetupToolchain.
  */
 
 import path from 'node:path'
@@ -19,6 +18,13 @@ const packageRoot = path.resolve(__dirname, '..')
 await runSetupToolchain({
   packageName: 'yoga-layout-builder',
   packageRoot,
+  submodules: [
+    {
+      name: 'yoga',
+      sentinelFile: 'CMakeLists.txt',
+      submodulePath: 'packages/yoga-layout-builder/upstream/yoga',
+    },
+  ],
   tools: {
     darwin: ['clang', 'make', 'cmake', 'python3'],
     linux: ['gcc', 'make', 'cmake', 'python3'],

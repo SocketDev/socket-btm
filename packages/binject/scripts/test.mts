@@ -75,7 +75,9 @@ async function main() {
 
     const binaryExists = existsSync(binaryPath)
     if (binaryExists) {
-      logger.info('Binary already exists (restored from checkpoint), skipping build')
+      logger.info(
+        'Binary already exists (restored from checkpoint), skipping build',
+      )
       logger.error('')
     }
 

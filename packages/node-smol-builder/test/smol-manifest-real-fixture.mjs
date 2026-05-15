@@ -124,5 +124,7 @@ for (const { path, eco, fmt, minPackages } of FIXTURES) {
 }
 
 logger.log('')
-logger.log(`total: ${totalPackages} packages parsed in ${totalElapsedMs.toFixed(2)}ms`)
+logger.log(
+  `total: ${totalPackages} packages parsed in ${totalElapsedMs.toFixed(2)}ms`,
+)
 process.exit(0)

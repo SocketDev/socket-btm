@@ -146,8 +146,12 @@ async function main(): Promise<void> {
     }
 
     logger.error('')
-    logger.info('💡 Tip: Change COPY destination from "/build" to "/" in export stage')
-    logger.info('   This prevents Depot from creating nested build/build/* directories')
+    logger.info(
+      '💡 Tip: Change COPY destination from "/build" to "/" in export stage',
+    )
+    logger.info(
+      '   This prevents Depot from creating nested build/build/* directories',
+    )
     logger.error('')
 
     process.exitCode = 1

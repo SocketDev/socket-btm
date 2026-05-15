@@ -622,7 +622,9 @@ async function main(): Promise<void> {
 
   if (nowPassing.length > 0) {
     logger.log('')
-    logger.log('[32m✨ Tests that now PASS (update expected failures list):[0m')
+    logger.log(
+      '[32m✨ Tests that now PASS (update expected failures list):[0m',
+    )
     for (let i = 0, { length } = nowPassing; i < length; i += 1) {
       const key = nowPassing[i]
       logger.log(`  - ${key}`)
@@ -648,7 +650,9 @@ async function main(): Promise<void> {
     process.exitCode = 1
   } else if (totalFailed > 0) {
     logger.log('')
-    logger.log('[32mPASSED: All failures are expected (matches native Node 25)[0m')
+    logger.log(
+      '[32mPASSED: All failures are expected (matches native Node 25)[0m',
+    )
   }
 }
 

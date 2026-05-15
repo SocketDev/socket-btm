@@ -143,7 +143,9 @@ export async function checkTools(
     }
 
     logger.error('')
-    logger.info('Re-run without --no-auto-install to attempt automatic installation')
+    logger.info(
+      'Re-run without --no-auto-install to attempt automatic installation',
+    )
     return false
   }
 

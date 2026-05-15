@@ -277,7 +277,7 @@ jobs:
 
       - name: Setup Zig
         if: steps.opentui-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
-        uses: SocketDev/socket-registry/.github/actions/setup-zig@4e9a0575c474ea9bc5587d3554608a155307111c # main (2026-05-15)
+        uses: SocketDev/socket-registry/.github/actions/setup-zig@c14cb59fdba637c16f851013d3307d8721e3eb23 # main (2026-05-15)
         with:
           version: ${{ env.ZIG_VERSION }}
 

@@ -20,7 +20,7 @@
     "socket-registry — Layer 4 (_local-not-for-reuse-*.yml) SHAs are not valid pins for",
     "external consumers."
   ],
-  "propagationSha": "a92445215e7370ce7f7ded560e9f150370e7dd43",
+  "propagationSha": "c14cb59fdba637c16f851013d3307d8721e3eb23",
   "propagationShaUpdatedAt": "2026-05-15",
-  "propagationShaCommitSubject": "chore(catalog): drop non-stable Socket entries from catalog"
+  "propagationShaCommitSubject": "chore(workflows): bump actions/* SHAs to latest releases"
 }

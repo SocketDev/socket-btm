@@ -299,7 +299,8 @@ async function main() {
 
   if (!existsSync(binaryPath)) {
     logger.fail(`Binary not found: ${binaryPath}`)
-    logger.log('\nBuild the binary first:')
+    logger.log('')
+    logger.log('Build the binary first:')
     logger.log(
       '  pnpm --filter node-smol-builder clean && pnpm --filter node-smol-builder build',
     )

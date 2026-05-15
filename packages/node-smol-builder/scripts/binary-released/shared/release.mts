@@ -267,7 +267,8 @@ export async function createReleaseArchive(
   }
 
   const libcLabel = libc ? `-${libc}` : ''
-  logger.log(`\nPreparing ${platform}-${arch}${libcLabel}...`)
+  logger.log('')
+  logger.log(`Preparing ${platform}-${arch}${libcLabel}...`)
 
   // Find binary.
   const binaryPath = await findBinary(platform, arch, libc)
@@ -378,7 +379,8 @@ export async function releaseExists(tag) {
  * Delete existing release.
  */
 export async function deleteRelease(tag) {
-  logger.log(`\nDeleting existing release: ${tag}`)
+  logger.log('')
+  logger.log(`Deleting existing release: ${tag}`)
   const octokit = new Octokit({
     auth: process.env.GITHUB_TOKEN,
   })
@@ -408,7 +410,8 @@ export async function createGitHubRelease(
   packageName,
   version,
 ) {
-  logger.log(`\nCreating GitHub release: ${tag}`)
+  logger.log('')
+  logger.log(`Creating GitHub release: ${tag}`)
 
   // Build release notes.
   const notes = [
@@ -539,7 +542,8 @@ async function main() {
   }
 
   // Create release archives.
-  logger.log('\nCreating release archives...')
+  logger.log('')
+  logger.log('Creating release archives...')
 
   const archives = []
   // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured

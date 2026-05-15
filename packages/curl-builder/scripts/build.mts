@@ -769,7 +769,8 @@ async function main() {
       )
     }
 
-    logger.info('Building curl with mbedTLS for HTTPS support...\n')
+    logger.info('Building curl with mbedTLS for HTTPS support...')
+    logger.error('')
 
     // Check if curl submodule is initialized.
     const curlCMakeLists = path.join(curlUpstream, 'CMakeLists.txt')

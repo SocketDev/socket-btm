@@ -441,7 +441,8 @@ async function main() {
       )
     }
 
-    logger.info(`Building smol_stub for ${process.platform}...\n`)
+    logger.info(`Building smol_stub for ${process.platform}...`)
+    logger.error('')
 
     // Ensure stubs are available.
     const stubBinaryPath = await ensureStubs({ force: forceRebuild })

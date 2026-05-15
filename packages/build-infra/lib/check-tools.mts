@@ -32,7 +32,8 @@ export async function checkTools(
 ) {
   const { autoInstallableTools, manualTools, packageName } = config
 
-  logger.info(`Checking required build tools for ${packageName}...\n`)
+  logger.info(`Checking required build tools for ${packageName}...`)
+  logger.error('')
 
   // Check auto-installable tools
   const result = await ensureAllToolsInstalled(autoInstallableTools, {
@@ -106,7 +107,8 @@ export async function checkTools(
 
   // Handle missing tools.
   if (!result.allAvailable || !allManualAvailable) {
-    logger.fail('Some required tools are missing\n')
+    logger.fail('Some required tools are missing')
+    logger.error('')
 
     if (result.missing.length > 0) {
       logger.warn('Missing auto-installable tools:')
@@ -117,7 +119,8 @@ export async function checkTools(
 
       const { platform } = process
       if (platform === 'darwin') {
-        logger.info('\nTo install missing tools on macOS:')
+        logger.error('')
+        logger.info('To install missing tools on macOS:')
         const needsXcode = result.missing.some(t =>
           ['clang', 'clang++'].includes(t),
         )
@@ -131,20 +134,21 @@ export async function checkTools(
           }
         }
       } else if (platform === 'linux') {
-        logger.info('\nTo install missing tools on Linux:')
+        logger.error('')
+        logger.info('To install missing tools on Linux:')
         logger.info(
           `  sudo apt-get install -y ${result.missing.join(' ')} build-essential`,
         )
       }
     }
 
-    logger.info(
-      '\nRe-run without --no-auto-install to attempt automatic installation',
-    )
+    logger.error('')
+    logger.info('Re-run without --no-auto-install to attempt automatic installation')
     return false
   }
 
-  logger.success('All required tools are available\n')
+  logger.success('All required tools are available')
+  logger.error('')
   return true
 }
 

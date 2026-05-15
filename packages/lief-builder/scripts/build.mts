@@ -817,7 +817,8 @@ async function main() {
       )
     }
 
-    logger.info('🔨 Building LIEF library...\n')
+    logger.info('🔨 Building LIEF library...')
+    logger.error('')
 
     // Check if LIEF submodule is initialized.
     const liefSourceDir = path.join(packageRoot, 'upstream', 'lief')

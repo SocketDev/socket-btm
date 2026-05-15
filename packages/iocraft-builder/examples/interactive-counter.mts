@@ -221,7 +221,8 @@ export function handleEvent(event, renderer) {
 
 async function main() {
   console.clear()
-  logger.info('Starting interactive counter demo...\n')
+  logger.info('Starting interactive counter demo...')
+  logger.error('')
 
   // Create renderer
   const renderer = new TuiRenderer()

@@ -503,7 +503,8 @@ export function wireNativeChunkPool(content, filename) {
  */
 async function main() {
   try {
-    logger.info('=== fast-webstreams Vendor Sync ===\n')
+    logger.info('=== fast-webstreams Vendor Sync ===')
+    logger.error('')
 
     // Check node_modules package exists
     if (!existsSync(NODE_MODULES_PKG)) {
@@ -530,7 +531,8 @@ async function main() {
     // Process and convert files
     const fileCount = await processSourceFiles()
 
-    logger.info('\n=== Sync Complete ===')
+    logger.error('')
+    logger.info('=== Sync Complete ===')
     logger.info(`Version: ${pkgJson.version}`)
     logger.info(`Files: ${fileCount}`)
     logger.info(`Output: ${VENDOR_DIR}`)

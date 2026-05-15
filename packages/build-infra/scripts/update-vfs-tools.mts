@@ -335,7 +335,8 @@ export async function updateDownloaderFile(updates, dryRun) {
   }
 
   if (dryRun) {
-    logger.info('\n--- Dry run - would write: ---')
+    logger.error('')
+    logger.info('--- Dry run - would write: ---')
     logger.info(`${content.slice(0, 2000)}...`)
   } else {
     await fs.writeFile(downloaderPath, content)
@@ -357,7 +358,8 @@ async function main() {
   const allTools = ['python', ...Object.keys(TOOL_CONFIGS)]
   const toolsToUpdate = specificTool ? [specificTool] : allTools
 
-  logger.info('Fetching latest releases for VFS tools...\n')
+  logger.info('Fetching latest releases for VFS tools...')
+  logger.error('')
 
   const updates = {}
 
@@ -397,7 +399,8 @@ async function main() {
   if (Object.keys(updates).length > 0) {
     await updateDownloaderFile(updates, dryRun)
   } else {
-    logger.info('\nNo updates to apply.')
+    logger.error('')
+    logger.info('No updates to apply.')
   }
 }
 

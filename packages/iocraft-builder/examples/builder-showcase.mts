@@ -10,7 +10,8 @@ import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 const logger = getDefaultLogger()
 
-logger.info('🎨 iocraft-builder Builder API Showcase\n')
+logger.info('🎨 iocraft-builder Builder API Showcase')
+logger.error('')
 
 // ============================================================================
 // Example 1: Simple Text with Styling

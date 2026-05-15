@@ -138,10 +138,12 @@ for (let i = 0, { length } = FIXTURES; i < length; i += 1) {
   }
 }
 
-logger.log(`\n${pass} pass, ${fail} fail, ${skip} skip`)
+logger.log('')
+logger.log(`${pass} pass, ${fail} fail, ${skip} skip`)
 
 if (fail > 0) {
-  logger.log('\nFailure details:')
+  logger.log('')
+  logger.log('Failure details:')
   for (let i = 0, { length } = failures; i < length; i += 1) {
     const f = failures[i]
     logger.log(`  ${f.dir}`)

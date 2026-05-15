@@ -163,7 +163,8 @@ export async function runNpmPkgFix(pkgPath: string): Promise<boolean> {
 async function main(): Promise<void> {
   const packages = findPackages()
 
-  logger.info(`Found ${packages.length} packages\n`)
+  logger.info(`Found ${packages.length} packages`)
+  logger.error('')
 
   let normalizedCount = 0
   let fixedCount = 0
@@ -191,7 +192,8 @@ async function main(): Promise<void> {
     process.stdout.write('\n')
   }
 
-  logger.info(`\n${normalizedCount} normalized, ${fixedCount} fixed`)
+  logger.error('')
+  logger.info(`${normalizedCount} normalized, ${fixedCount} fixed`)
 }
 
 main().catch((e: unknown) => {

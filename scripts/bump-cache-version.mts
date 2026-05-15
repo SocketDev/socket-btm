@@ -43,7 +43,8 @@ export async function bumpAll(): Promise<BumpResult[]> {
   const config = parseCacheVersionsFile(configText)
   const packages = Object.keys(config.versions)
 
-  logger.info(`Bumping cache versions for ${packages.length} packages...\n`)
+  logger.info(`Bumping cache versions for ${packages.length} packages...`)
+  logger.error('')
 
   const results: BumpResult[] = []
   for (let i = 0, { length } = packages; i < length; i += 1) {

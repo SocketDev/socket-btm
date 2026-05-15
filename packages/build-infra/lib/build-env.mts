@@ -406,7 +406,8 @@ export function isDocker() {
  */
 export function printSetupResults(results) {
   if (results.messages.length > 0) {
-    logger.info('\nBuild Environment:')
+    logger.error('')
+    logger.info('Build Environment:')
     // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const message of results.messages) {
       logger.info(`  ${message}`)
@@ -414,7 +415,8 @@ export function printSetupResults(results) {
   }
 
   if (results.errors.length > 0) {
-    logger.warn('\nMissing Prerequisites:')
+    logger.error('')
+    logger.warn('Missing Prerequisites:')
     // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
     for (const error of results.errors) {
       logger.warn(`  ${error}`)
@@ -423,7 +425,8 @@ export function printSetupResults(results) {
 
   if (!results.success) {
     logger.fail('Build environment setup failed')
-    logger.info('   Run setup script to install missing tools\n')
+    logger.info('   Run setup script to install missing tools')
+    logger.error('')
   }
 }
 

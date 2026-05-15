@@ -146,7 +146,8 @@ async function main(): Promise<void> {
       // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
       for (const [pkgDir, files] of filesByPackage) {
         const pkgName = path.relative(ROOT_DIR, pkgDir)
-        logger.info(`\nTesting ${pkgName}:`)
+        logger.error('')
+        logger.info(`Testing ${pkgName}:`)
 
         try {
           // --passWithNoTests: a scoped run where files don't resolve to

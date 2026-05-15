@@ -28,7 +28,8 @@ const packageRoot = path.join(__dirname, '..')
 async function main() {
   try {
     // Check and install required tools (including runtime dependencies)
-    logger.info('Checking required tools...\n')
+    logger.info('Checking required tools...')
+    logger.error('')
     try {
       await runCommand(
         'node',
@@ -68,14 +69,14 @@ async function main() {
 
     const binaryExists = existsSync(binaryPath)
     if (binaryExists) {
-      logger.info(
-        'Binary already exists (restored from checkpoint), skipping build\n',
-      )
+      logger.info('Binary already exists (restored from checkpoint), skipping build')
+      logger.error('')
     }
 
     if (!binaryExists) {
       // Try to build (in case binary isn't built yet)
-      logger.info('Building binflate...\n')
+      logger.info('Building binflate...')
+      logger.error('')
       try {
         const makefile = selectMakefile()
         await runCommand('make', ['-f', makefile, 'all'], packageRoot)
@@ -97,7 +98,8 @@ async function main() {
     }
 
     logger.info('')
-    logger.info('Running binflate tests...\n')
+    logger.info('Running binflate tests...')
+    logger.error('')
     const makefile = selectMakefile()
     await runCommand('make', ['-f', makefile, 'test'], packageRoot)
     logger.info('')

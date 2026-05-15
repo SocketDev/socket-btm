@@ -90,7 +90,8 @@ export async function validateDockerfile(
 
 async function main(): Promise<void> {
   try {
-    logger.info('🔍 Validating Dockerfile.build export patterns...\n')
+    logger.info('🔍 Validating Dockerfile.build export patterns...')
+    logger.error('')
 
     const dockerfiles = await findDockerfiles()
 
@@ -99,7 +100,8 @@ async function main(): Promise<void> {
       return
     }
 
-    logger.info(`Found ${dockerfiles.length} Dockerfile(s) to validate\n`)
+    logger.info(`Found ${dockerfiles.length} Dockerfile(s) to validate`)
+    logger.error('')
 
     let totalIssues = 0
     const filesWithIssues: FileIssues[] = []
@@ -122,7 +124,8 @@ async function main(): Promise<void> {
     }
 
     if (totalIssues === 0) {
-      logger.success('All Dockerfiles have correct export patterns!\n')
+      logger.success('All Dockerfiles have correct export patterns!')
+      logger.error('')
       return
     }
 
@@ -132,7 +135,8 @@ async function main(): Promise<void> {
 
     // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
     for (const { issues, path: filePath } of filesWithIssues) {
-      logger.info(`\n${filePath}:`)
+      logger.error('')
+      logger.info(`${filePath}:`)
       for (let i = 0, { length } = issues; i < length; i += 1) {
         const issue = issues[i]!
         logger.info(`  Line ${issue.line}: ${issue.message}`)
@@ -141,16 +145,15 @@ async function main(): Promise<void> {
       }
     }
 
-    logger.info(
-      '\n💡 Tip: Change COPY destination from "/build" to "/" in export stage',
-    )
-    logger.info(
-      '   This prevents Depot from creating nested build/build/* directories\n',
-    )
+    logger.error('')
+    logger.info('💡 Tip: Change COPY destination from "/build" to "/" in export stage')
+    logger.info('   This prevents Depot from creating nested build/build/* directories')
+    logger.error('')
 
     process.exitCode = 1
   } catch (e) {
-    logger.fail(`\nValidation failed: ${errorMessage(e)}`)
+    logger.error('')
+    logger.fail(`Validation failed: ${errorMessage(e)}`)
     if ((e as Error).stack) {
       logger.info((e as Error).stack as string)
     }

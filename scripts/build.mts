@@ -81,18 +81,21 @@ export async function runPnpm(args: string[]): Promise<void> {
 
 async function main(): Promise<void> {
   try {
-    logger.log('Building socket-btm monorepo...\n')
+    logger.log('Building socket-btm monorepo...')
+    logger.log('')
 
     // Step 1: Build LIEF (required by binsuite).
     logger.info('[1/5] Building LIEF...')
     await runPnpm(['--filter', 'lief-builder', 'build'])
-    logger.success('LIEF built\n')
+    logger.success('LIEF built')
+    logger.error('')
 
     // Step 2: Build binsuite in parallel (depends on LIEF).
     // Also start WASM builds in parallel (independent of everything else).
     logger.info('[2/5] Building binsuite and WASM packages in parallel...')
     logger.log('  - Binsuite: binpress, binflate, binject')
-    logger.log('  - WASM: onnxruntime, yoga\n')
+    logger.log('  - WASM: onnxruntime, yoga')
+    logger.log('')
 
     const results = await Promise.allSettled([
       // Binsuite builds (binpress, binflate, binject)
@@ -137,12 +140,14 @@ async function main(): Promise<void> {
     // Step 3: Build node-smol-builder (depends on binsuite).
     logger.info('[3/5] Building node-smol-builder...')
     await runPnpm(['--filter', 'node-smol-builder', 'build'])
-    logger.success('Node-smol-builder built\n')
+    logger.success('Node-smol-builder built')
+    logger.error('')
 
     // Step 4: Build models (depends on onnxruntime which is already built).
     logger.info('[4/5] Building models...')
     await runPnpm(['--filter', 'models', 'build'])
-    logger.success('Models built\n')
+    logger.success('Models built')
+    logger.error('')
 
     logger.success('All builds completed successfully!')
   } catch (e) {

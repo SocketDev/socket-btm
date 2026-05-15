@@ -712,10 +712,12 @@ describe('createCheckpoint signature validation', () => {
 
     // Report errors
     if (allErrors.length > 0) {
-      logger.fail('\nFound createCheckpoint signature errors:\n')
+      logger.error('')
+      logger.fail('Found createCheckpoint signature errors:\n')
       for (let i = 0, { length } = allErrors; i < length; i += 1) {
         const error = allErrors[i]
-        logger.fail(`\n${error.file}:${error.line}`)
+        logger.error('')
+        logger.fail(`${error.file}:${error.line}`)
         logger.fail(`  Error: ${error.error}`)
         logger.fail(`  Context:\n${error.context}\n`)
       }

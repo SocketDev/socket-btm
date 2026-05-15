@@ -34,7 +34,8 @@ logger.log(
   `Memory limit: ${MAX_MEMORY_MB}MB | Timeout: ${TIMEOUT_MS / 1000}s ` +
     `(${ON_AC ? 'AC power' : 'battery — extended'})`,
 )
-logger.log(`Running: vitest ${vitestArgs.join(' ')}\n`)
+logger.log(`Running: vitest ${vitestArgs.join(' ')}`)
+logger.log('')
 
 // Spawn vitest process using @socketsecurity/lib spawn
 const vitestPromise = spawn('pnpm', ['exec', 'vitest', 'run', ...vitestArgs], {
@@ -165,14 +166,16 @@ vitestPromise
   .catch(error => {
     clearInterval(monitorInterval)
     if (!killed) {
-      logger.error(`\nTest failed: ${errorMessage(error)}`)
+      logger.error('')
+      logger.error(`Test failed: ${errorMessage(error)}`)
       process.exitCode = error.code || 1
     }
   })
 
 // Handle Ctrl+C
 process.on('SIGINT', () => {
-  logger.log('\n\nInterrupted by user - cleaning up...')
+  logger.log('')
+  logger.log('Interrupted by user - cleaning up...')
   killed = true
   killProcessTree(vitestProcess.pid)
   clearInterval(monitorInterval)

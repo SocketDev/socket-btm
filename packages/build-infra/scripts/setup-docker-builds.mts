@@ -112,9 +112,11 @@ Examples:
 export async function showStatus() {
   const { arch, platform, target: hostTarget } = getHostInfo()
 
-  logger.log('\n=== Docker Build Status ===\n')
+  logger.log('')
+  logger.log('=== Docker Build Status ===\n')
   logger.log(`Host: ${platform}-${arch}`)
-  logger.log(`Native target: ${hostTarget || 'unknown'}\n`)
+  logger.log(`Native target: ${hostTarget || 'unknown'}`)
+  logger.log('')
 
   logger.log('Target                 | Strategy | Image Status')
   logger.log('-----------------------|----------|-------------')
@@ -166,7 +168,8 @@ async function main() {
   })
 
   // Print summary.
-  logger.log('\n=== Summary ===\n')
+  logger.log('')
+  logger.log('=== Summary ===\n')
 
   // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [target, success] of Object.entries(results)) {

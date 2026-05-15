@@ -717,7 +717,8 @@ async function main() {
       )
     }
 
-    logger.info('Building libpq PostgreSQL client library...\n')
+    logger.info('Building libpq PostgreSQL client library...')
+    logger.error('')
 
     // Ensure PostgreSQL submodule is initialized.
     const postgresConfigure = path.join(postgresUpstream, 'configure')

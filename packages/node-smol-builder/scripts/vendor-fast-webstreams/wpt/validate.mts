@@ -432,12 +432,14 @@ export async function runTestFile(
 async function main(): Promise<void> {
   const opts = parseArgs()
 
-  logger.info('=== WPT Streams Validation ===\n')
+  logger.info('=== WPT Streams Validation ===')
+  logger.error('')
 
   // Check binary
   if (!existsSync(opts.binary)) {
     logger.fail(`Binary not found: ${opts.binary}`)
-    logger.log('\nBuild the binary first:')
+    logger.log('')
+    logger.log('Build the binary first:')
     logger.log(
       '  pnpm --filter node-smol-builder clean && pnpm --filter node-smol-builder build',
     )
@@ -600,7 +602,8 @@ async function main(): Promise<void> {
   }
 
   // Summary
-  logger.log(`\n${'='.repeat(60)}`)
+  logger.log('')
+  logger.log(`${'='.repeat(60)}`)
   logger.log('Results:')
   logger.log(`  Total tests: ${totalTests}`)
   logger.log(`  Passed: \x1b[32m${totalPassed}\x1b[0m`)
@@ -618,9 +621,8 @@ async function main(): Promise<void> {
   logger.log(`  Unexpected failures: ${unexpectedFailures.length}`)
 
   if (nowPassing.length > 0) {
-    logger.log(
-      '\n\x1b[32m✨ Tests that now PASS (update expected failures list):\x1b[0m',
-    )
+    logger.log('')
+    logger.log('[32m✨ Tests that now PASS (update expected failures list):[0m')
     for (let i = 0, { length } = nowPassing; i < length; i += 1) {
       const key = nowPassing[i]
       logger.log(`  - ${key}`)
@@ -628,7 +630,8 @@ async function main(): Promise<void> {
   }
 
   if (unexpectedFailures.length > 0) {
-    logger.log('\n\x1b[31m❌ UNEXPECTED failures (regressions):\x1b[0m')
+    logger.error('')
+    logger.fail('[31m❌ UNEXPECTED failures (regressions):[0m')
     // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
     for (const { file, test } of unexpectedFailures.slice(0, 10)) {
       logger.log(`  - ${file}: ${test}`)
@@ -640,12 +643,12 @@ async function main(): Promise<void> {
 
   // Exit with failure only if there are unexpected failures
   if (unexpectedFailures.length > 0) {
-    logger.log('\n\x1b[31mFAILED: Unexpected test failures detected\x1b[0m')
+    logger.log('')
+    logger.log('[31mFAILED: Unexpected test failures detected[0m')
     process.exitCode = 1
   } else if (totalFailed > 0) {
-    logger.log(
-      '\n\x1b[32mPASSED: All failures are expected (matches native Node 25)\x1b[0m',
-    )
+    logger.log('')
+    logger.log('[32mPASSED: All failures are expected (matches native Node 25)[0m')
   }
 }
 

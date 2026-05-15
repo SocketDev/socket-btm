@@ -123,7 +123,6 @@ for (const { path, eco, fmt, minPackages } of FIXTURES) {
   totalPackages += result.packages.length
 }
 
-logger.log(
-  `\ntotal: ${totalPackages} packages parsed in ${totalElapsedMs.toFixed(2)}ms`,
-)
+logger.log('')
+logger.log(`total: ${totalPackages} packages parsed in ${totalElapsedMs.toFixed(2)}ms`)
 process.exit(0)

@@ -295,7 +295,8 @@ const [
   stubWinX64,
 ] = stubFiles
 
-logger.info('\nEmbedding stubs into C arrays...')
+logger.error('')
+logger.info('Embedding stubs into C arrays...')
 
 // Helper to generate empty stub placeholder
 export function emptyStubCArray(varName) {
@@ -344,7 +345,8 @@ await fs.writeFile(OUTPUT_FILE, output, 'utf8')
 logger.success(`Generated: ${OUTPUT_FILE}`)
 
 // Print summary
-logger.info('\nStub summary:')
+logger.error('')
+logger.info('Stub summary:')
 const stubSummary = [
   ['darwin-arm64', stubDarwinArm64],
   ['darwin-x64', stubDarwinX64],

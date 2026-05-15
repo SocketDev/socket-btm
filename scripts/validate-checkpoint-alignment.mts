@@ -224,7 +224,8 @@ export function validateYoga(): void {
 }
 
 // Run all validations.
-logger.info('Validating checkpoint alignment...\n')
+logger.info('Validating checkpoint alignment...')
+logger.error('')
 
 validateNodeSmol()
 logger.log('')

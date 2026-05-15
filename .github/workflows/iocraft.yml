@@ -294,7 +294,7 @@ jobs:
 
       - name: Setup Rust cache
         if: steps.iocraft-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
-        uses: SocketDev/socket-registry/.github/actions/setup-rust-cache@4e9a0575c474ea9bc5587d3554608a155307111c # main
+        uses: SocketDev/socket-registry/.github/actions/setup-rust-cache@4e9a0575c474ea9bc5587d3554608a155307111c # main (2026-05-15)
         with:
           workspaces: packages/iocraft-builder -> target
           prefix-key: iocraft-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.libc && format('-{0}', matrix.libc) || '' }}

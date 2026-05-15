@@ -653,7 +653,7 @@ jobs:
 
       - name: Setup ccache (Unix)
         if: matrix.os != 'windows' && (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true' || inputs.force)
-        uses: SocketDev/socket-registry/.github/actions/setup-ccache@4e9a0575c474ea9bc5587d3554608a155307111c # main
+        uses: SocketDev/socket-registry/.github/actions/setup-ccache@4e9a0575c474ea9bc5587d3554608a155307111c # main (2026-05-15)
         with:
           key: ${{ matrix.os }}-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.libc && format('-{0}', matrix.libc) || '' }}-${{ steps.build-mode.outputs.mode }}
           # macOS: Depot.dev has 24GB RAM - can afford larger ccache
@@ -663,7 +663,7 @@ jobs:
 
       - name: Setup ccache (Windows)
         if: matrix.os == 'windows' && (steps.checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true' || inputs.force)
-        uses: SocketDev/socket-registry/.github/actions/setup-ccache@4e9a0575c474ea9bc5587d3554608a155307111c # main
+        uses: SocketDev/socket-registry/.github/actions/setup-ccache@4e9a0575c474ea9bc5587d3554608a155307111c # main (2026-05-15)
         with:
           key: windows-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.build-mode.outputs.mode }}
           max-size: 2G

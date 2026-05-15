@@ -25,18 +25,19 @@
  *   node test/scripts/test262-temporal-runner.mts --limit 100 --json /tmp/results.json
  */
 
-import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
 import { errorMessage } from '@socketsecurity/lib/errors'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
-
-// prefer-async-spawn: sync-required — runOneTest invokes spawnSync from
-// a sync helper that the corpus walker calls in a tight loop. The
-// migration to async spawn would require making the entire walker async
-// and the rule's per-finding rewrite cannot safely make that change.
+// Per fleet convention (CLAUDE.md "Spawn helpers"): use
+// `@socketsecurity/lib/spawn`'s exports, not `node:child_process`. The
+// lib's `spawnSync` is signature-compatible with node's — drop-in
+// replacement. `spawn` (async) would also work here but `runOneTest`
+// is called from a sync corpus walker, so the sync variant is the
+// right pick.
+import { spawnSync } from '@socketsecurity/lib/spawn'
 
 import {
   PACKAGE_ROOT,

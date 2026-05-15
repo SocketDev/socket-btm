@@ -261,6 +261,9 @@ importers:
       '@socketsecurity/lib':
         specifier: 'catalog:'
         version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       '@types/node':
         specifier: 'catalog:'
         version: 24.9.2
@@ -1015,6 +1018,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.9.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.0.3(@types/node@24.9.2)(jiti@2.6.1)(yaml@2.8.3)
 
   packages/tui-infra:
     dependencies:

@@ -17,7 +17,7 @@ import { getFileSize } from 'build-infra/lib/build-helpers'
 import { generateWasmSyncWrapper } from 'build-infra/wasm-synced/wasm-sync-wrapper'
 import MagicString from 'magic-string'
 
-import YGEnums from '../../../src/wrapper/YGEnums.mts'
+import { constants as YGEnums } from '../../../src/wrapper/YGEnums.mts'
 import { PACKAGE_ROOT } from '../../paths.mts'
 
 const logger = getDefaultLogger()
@@ -177,10 +177,10 @@ export async function postProcessCjsWrapper(
     removeImports: true,
   })
 
-  // Transform wrapAssembly for CJS: remove imports, convert export default function.
+  // Transform wrapAssembly for CJS: strip `export` from named declarations,
+  // remove imports.
   const wrapAssemblyCjs = transformEsmForInlining(wrapAssemblyContent, {
-    convertDefaultExport: true,
-    defaultExportName: 'wrapAssembly',
+    convertExportConst: true,
     removeImports: true,
   })
 
@@ -371,11 +371,20 @@ export function transformEsmForInlining(code, options = {}) {
       }
     },
     ExportNamedDeclaration(node) {
-      if (convertExportConst && node.declaration) {
-        // Convert 'export const X' to 'const X'.
-        const exportKeyword = code.slice(node.start, node.declaration.start)
-        if (exportKeyword.includes('export')) {
-          s.overwrite(node.start, node.declaration.start, '')
+      if (convertExportConst) {
+        if (node.declaration) {
+          // Strip the `export` keyword in front of any named declaration:
+          // const, let, var, function, class — they all become bare
+          // declarations when inlined into a CJS bundle.
+          const exportKeyword = code.slice(node.start, node.declaration.start)
+          if (exportKeyword.includes('export')) {
+            s.overwrite(node.start, node.declaration.start, '')
+          }
+        } else {
+          // `export { name1, name2 }` (specifier-only) — the bindings already
+          // exist in the surrounding scope, so the export statement is dead
+          // weight once the file is inlined into a CJS bundle.
+          s.remove(node.start, node.end)
         }
       }
     },

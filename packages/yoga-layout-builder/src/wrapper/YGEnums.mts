@@ -211,3 +211,4 @@ const constants = {
 }
 
 export { constants }
+export default constants

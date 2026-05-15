@@ -113,7 +113,8 @@ export async function showStatus() {
   const { arch, platform, target: hostTarget } = getHostInfo()
 
   logger.log('')
-  logger.log('=== Docker Build Status ===\n')
+  logger.log('=== Docker Build Status ===')
+  logger.log('')
   logger.log(`Host: ${platform}-${arch}`)
   logger.log(`Native target: ${hostTarget || 'unknown'}`)
   logger.log('')
@@ -169,7 +170,8 @@ async function main() {
 
   // Print summary.
   logger.log('')
-  logger.log('=== Summary ===\n')
+  logger.log('=== Summary ===')
+  logger.log('')
 
   // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const [target, success] of Object.entries(results)) {

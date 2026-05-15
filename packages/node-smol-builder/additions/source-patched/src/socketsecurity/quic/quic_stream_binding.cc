@@ -202,9 +202,11 @@ Local<Object> SockaddrToJs(Isolate* isolate, Local<Context> context,
   obj->Set(context, NewOneByte(isolate, "family"),
            Integer::New(isolate, sa->sa_family))
       .Check();
-  obj->Set(context, NewOneByte(isolate, "addr"),
-           String::NewFromUtf8(isolate, addr_buf).ToLocalChecked())
-      .Check();
+  Local<String> addr_str;
+  if (!String::NewFromUtf8(isolate, addr_buf).ToLocal(&addr_str)) {
+    addr_str = String::Empty(isolate);
+  }
+  obj->Set(context, NewOneByte(isolate, "addr"), addr_str).Check();
   obj->Set(context, NewOneByte(isolate, "port"), Integer::New(isolate, port))
       .Check();
   return obj;

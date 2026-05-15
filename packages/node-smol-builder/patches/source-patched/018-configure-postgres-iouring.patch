@@ -32,7 +32,7 @@
 #
 --- a/configure.py
 +++ b/configure.py
-@@ -1058,11 +1058,47 @@
+@@ -1058,10 +1058,46 @@
      dest='without_ffi',
      default=None,
      help='build without FFI (Foreign Function Interface) support')
@@ -92,7 +92,7 @@
      # Minimum cargo and rustc versions should match values in BUILDING.md.
      min_cargo_ver_tuple = (1, 82)
      min_rustc_ver_tuple = (1, 82)
-@@ -2345,7 +2363,44 @@
+@@ -2345,6 +2363,43 @@
      return
  
    configure_library('ffi', o, pkgname='libffi')

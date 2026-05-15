@@ -23,8 +23,7 @@ export function report(summary: Summary): void {
   const badSections: Array<{ tests: Test[] | string[]; label: string }> = [
     {
       tests: summary.disallowed.success,
-      label:
-        'tests passed despite being in the allowlist (remove the entry)',
+      label: 'tests passed despite being in the allowlist (remove the entry)',
     },
     {
       tests: summary.disallowed.failure,
@@ -38,19 +37,19 @@ export function report(summary: Summary): void {
     },
     {
       tests: summary.disallowed.falseNegative,
-      label:
-        'tests threw unexpectedly (regression — add to allowlist or fix)',
+      label: 'tests threw unexpectedly (regression — add to allowlist or fix)',
     },
     {
       tests: summary.unrecognized,
-      label:
-        'allowlist entries did not match any test (stale — remove)',
+      label: 'allowlist entries did not match any test (stale — remove)',
     },
   ]
 
   logger.log('')
   logger.log('═══════════════════════════════════════════════════════')
-  logger.log(`Test262 Temporal subset summary (${(summary.durationMs / 1000).toFixed(1)}s)`)
+  logger.log(
+    `Test262 Temporal subset summary (${(summary.durationMs / 1000).toFixed(1)}s)`,
+  )
   logger.log('═══════════════════════════════════════════════════════')
   for (let i = 0; i < goodNews.length; i++) {
     logger.success(goodNews[i]!)

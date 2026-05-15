@@ -73,7 +73,6 @@ export function findSmolBinary(): string | undefined {
     if (existsSync(candidate)) {
       return candidate
     }
-  
   }
   return undefined
 }
@@ -106,26 +105,22 @@ describe('smol_manifest_native binding — sdxgen-bug-regressions equivalence', 
     expect(onDisk).toEqual([...EXPECTED_FIXTURE_NAMES].sort())
   })
 
-  it.skipIf(!smolBinary)(
-    'live binding verifies all fixtures PASS',
-    () => {
-      const opts: ExecFileSyncOptionsWithStringEncoding = {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-      }
-      const output = execFileSync(smolBinary!, [LIVE_VERIFIER], opts)
-      // Confirm every expected fixture name appears with PASS.
-      for (let i = 0, { length } = EXPECTED_FIXTURE_NAMES; i < length; i += 1) {
-        const name = EXPECTED_FIXTURE_NAMES[i]
-        expect(output).toContain(`PASS  ${name}`)
-      
-      }
-      // Confirm zero failures in the trailing summary.
-      expect(output).toMatch(/\b0 fail\b/)
-      // Confirm zero skips (all parsers ported).
-      expect(output).toMatch(/\b0 skip\b/)
-    },
-  )
+  it.skipIf(!smolBinary)('live binding verifies all fixtures PASS', () => {
+    const opts: ExecFileSyncOptionsWithStringEncoding = {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }
+    const output = execFileSync(smolBinary!, [LIVE_VERIFIER], opts)
+    // Confirm every expected fixture name appears with PASS.
+    for (let i = 0, { length } = EXPECTED_FIXTURE_NAMES; i < length; i += 1) {
+      const name = EXPECTED_FIXTURE_NAMES[i]
+      expect(output).toContain(`PASS  ${name}`)
+    }
+    // Confirm zero failures in the trailing summary.
+    expect(output).toMatch(/\b0 fail\b/)
+    // Confirm zero skips (all parsers ported).
+    expect(output).toMatch(/\b0 skip\b/)
+  })
 
   it.skipIf(!smolBinary)(
     "parses socket-btm's own pnpm-lock.yaml without malformed entries",

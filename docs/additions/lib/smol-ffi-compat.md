@@ -12,12 +12,12 @@ upstreams don't.
 
 # When to use each
 
-| You have                            | Use                                  |
-| ----------------------------------- | ------------------------------------ |
-| New FFI code                        | `require('node:smol-ffi')`           |
-| Existing code targeting `node:ffi`  | `require('node:smol-ffi/node')`      |
-| Existing code targeting `bun:ffi`   | `require('node:smol-ffi/bun')`       |
-| Mix-and-match (compat + extensions) | both, side-by-side                   |
+| You have                            | Use                             |
+| ----------------------------------- | ------------------------------- |
+| New FFI code                        | `require('node:smol-ffi')`      |
+| Existing code targeting `node:ffi`  | `require('node:smol-ffi/node')` |
+| Existing code targeting `bun:ffi`   | `require('node:smol-ffi/bun')`  |
+| Mix-and-match (compat + extensions) | both, side-by-side              |
 
 The three layers share the same underlying native binding (`internalBinding('smol_ffi')`), so opening the same library from `node:smol-ffi/bun` and reading its bytes via `node:smol-ffi.read.batch` is supported and cheap — they share the dlopen cache.
 
@@ -52,24 +52,24 @@ if (ffi.__notAvailable__) {
 
 Every export from `node:ffi` v26.1.0 is forwarded verbatim:
 
-| node:ffi v26.1.0    | node:smol-ffi/node          | Notes                                       |
-| ------------------- | --------------------------- | ------------------------------------------- |
-| `DynamicLibrary`    | `DynamicLibrary`            | Same reference (re-exported)                |
-| `dlopen`            | `dlopen`                    | Same reference                              |
-| `dlclose`           | `dlclose`                   | Same reference                              |
-| `dlsym`             | `dlsym`                     | Same reference                              |
-| `exportArrayBuffer` | `exportArrayBuffer`         |                                             |
-| `exportArrayBufferView` | `exportArrayBufferView` |                                             |
-| `exportString`      | `exportString`              |                                             |
-| `exportBuffer`      | `exportBuffer`              |                                             |
-| `getInt*`/`getUint*`/`getFloat*` | same             | Aliased exports                             |
-| `getRawPointer`     | `getRawPointer`             |                                             |
-| `setInt*`/`setUint*`/`setFloat*` | same             |                                             |
-| `suffix`            | `suffix`                    |                                             |
-| `toString`          | `toString`                  |                                             |
-| `toArrayBuffer`     | `toArrayBuffer`             |                                             |
-| `toBuffer`          | `toBuffer`                  |                                             |
-| `types`             | `types`                     | upstream's type enum (different from `node:smol-ffi.types` — node:smol-ffi uses short names like `i32`; upstream uses `int32`) |
+| node:ffi v26.1.0                 | node:smol-ffi/node      | Notes                                                                                                                          |
+| -------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `DynamicLibrary`                 | `DynamicLibrary`        | Same reference (re-exported)                                                                                                   |
+| `dlopen`                         | `dlopen`                | Same reference                                                                                                                 |
+| `dlclose`                        | `dlclose`               | Same reference                                                                                                                 |
+| `dlsym`                          | `dlsym`                 | Same reference                                                                                                                 |
+| `exportArrayBuffer`              | `exportArrayBuffer`     |                                                                                                                                |
+| `exportArrayBufferView`          | `exportArrayBufferView` |                                                                                                                                |
+| `exportString`                   | `exportString`          |                                                                                                                                |
+| `exportBuffer`                   | `exportBuffer`          |                                                                                                                                |
+| `getInt*`/`getUint*`/`getFloat*` | same                    | Aliased exports                                                                                                                |
+| `getRawPointer`                  | `getRawPointer`         |                                                                                                                                |
+| `setInt*`/`setUint*`/`setFloat*` | same                    |                                                                                                                                |
+| `suffix`                         | `suffix`                |                                                                                                                                |
+| `toString`                       | `toString`              |                                                                                                                                |
+| `toArrayBuffer`                  | `toArrayBuffer`         |                                                                                                                                |
+| `toBuffer`                       | `toBuffer`              |                                                                                                                                |
+| `types`                          | `types`                 | upstream's type enum (different from `node:smol-ffi.types` — node:smol-ffi uses short names like `i32`; upstream uses `int32`) |
 
 # node:smol-ffi/bun — bun:ffi shim
 
@@ -90,19 +90,19 @@ lib.close()
 
 ## API parity
 
-| bun:ffi              | node:smol-ffi/bun                  | Status                                       |
-| -------------------- | ---------------------------------- | -------------------------------------------- |
-| `dlopen(path, defs)` | `dlopen(path, defs)`               | Phase 1                                      |
-| `FFIType` enum       | `FFIType` (string-valued)          | Phase 1; values are smol-ffi canonical strings (`'i32'`) rather than bun's numeric ordinals |
-| `CString`            | `CString`                          | Phase 1                                      |
-| `ptr(typedarray)`    | `ptr(typedarray)`                  | Phase 1; alias for `bufferToPtr`             |
-| `toArrayBuffer`      | `toArrayBuffer`                    | Phase 1; finalizer args ignored              |
-| `toBuffer`           | `toBuffer`                         | Phase 1; finalizer args ignored              |
-| `read.{i8..f64,ptr}` | `read.{i8..f64,ptr,batch}`         | Phase 1; same reference as canonical `read`  |
-| `suffix`             | `suffix`                           | Phase 1                                      |
-| `JSCallback`         | `JSCallback`                       | **Phase 2 deferred** — throws `FFIError(ENOTIMPL)` |
-| `CFunction`          | `CFunction`                        | **Phase 2 deferred** — throws `FFIError(ENOTIMPL)` |
-| `linkSymbols`        | `linkSymbols`                      | **Phase 2 deferred** — throws `FFIError(ENOTIMPL)` |
+| bun:ffi              | node:smol-ffi/bun          | Status                                                                                      |
+| -------------------- | -------------------------- | ------------------------------------------------------------------------------------------- |
+| `dlopen(path, defs)` | `dlopen(path, defs)`       | Phase 1                                                                                     |
+| `FFIType` enum       | `FFIType` (string-valued)  | Phase 1; values are smol-ffi canonical strings (`'i32'`) rather than bun's numeric ordinals |
+| `CString`            | `CString`                  | Phase 1                                                                                     |
+| `ptr(typedarray)`    | `ptr(typedarray)`          | Phase 1; alias for `bufferToPtr`                                                            |
+| `toArrayBuffer`      | `toArrayBuffer`            | Phase 1; finalizer args ignored                                                             |
+| `toBuffer`           | `toBuffer`                 | Phase 1; finalizer args ignored                                                             |
+| `read.{i8..f64,ptr}` | `read.{i8..f64,ptr,batch}` | Phase 1; same reference as canonical `read`                                                 |
+| `suffix`             | `suffix`                   | Phase 1                                                                                     |
+| `JSCallback`         | `JSCallback`               | **Phase 2 deferred** — throws `FFIError(ENOTIMPL)`                                          |
+| `CFunction`          | `CFunction`                | **Phase 2 deferred** — throws `FFIError(ENOTIMPL)`                                          |
+| `linkSymbols`        | `linkSymbols`              | **Phase 2 deferred** — throws `FFIError(ENOTIMPL)`                                          |
 
 ## Phase 2 — callbacks and call-by-pointer
 
@@ -134,20 +134,20 @@ bun:ffi uses several spelling variants for the same type. The shim
 normalizes them all to a single canonical smol-ffi type string at
 `dlopen` time:
 
-| bun spelling          | smol-ffi canonical |
-| --------------------- | ------------------ |
-| `i32`, `int32_t`, `int`, `FFIType.i32` | `'i32'` |
-| `u32`, `uint32_t`, `uint`              | `'u32'` |
-| `i64`, `int64_t`, `i64_fast`           | `'i64'` |
-| `u64`, `uint64_t`, `u64_fast`          | `'u64'` |
-| `f32`, `float`                         | `'f32'` |
-| `f64`, `double`                        | `'f64'` |
-| `cstring`                              | `'string'` |
-| `ptr`, `pointer`, `void*`, `char*`     | `'pointer'` |
-| `function`, `fn`, `callback`           | `'pointer'` |
-| `bool`                                 | `'bool'` |
-| `char`                                 | `'i8'` |
-| `buffer`                               | `'buffer'` |
+| bun spelling                           | smol-ffi canonical                                          |
+| -------------------------------------- | ----------------------------------------------------------- |
+| `i32`, `int32_t`, `int`, `FFIType.i32` | `'i32'`                                                     |
+| `u32`, `uint32_t`, `uint`              | `'u32'`                                                     |
+| `i64`, `int64_t`, `i64_fast`           | `'i64'`                                                     |
+| `u64`, `uint64_t`, `u64_fast`          | `'u64'`                                                     |
+| `f32`, `float`                         | `'f32'`                                                     |
+| `f64`, `double`                        | `'f64'`                                                     |
+| `cstring`                              | `'string'`                                                  |
+| `ptr`, `pointer`, `void*`, `char*`     | `'pointer'`                                                 |
+| `function`, `fn`, `callback`           | `'pointer'`                                                 |
+| `bool`                                 | `'bool'`                                                    |
+| `char`                                 | `'i8'`                                                      |
+| `buffer`                               | `'buffer'`                                                  |
 | `napi_env`, `napi_value`               | `'pointer'` (placeholder — N-API integration not supported) |
 
 ### Known compat gap: `i64_fast` / `u64_fast`

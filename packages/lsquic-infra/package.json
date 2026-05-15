@@ -12,7 +12,7 @@
     "clean": "node scripts/clean.mts"
   },
   "dependencies": {
-    "@socketsecurity/lib": "catalog:",
+    "@socketsecurity/lib-stable": "catalog:",
     "@socketsecurity/lib-stable": "catalog:",
     "build-infra": "workspace:*"
   },

@@ -15,24 +15,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export const PACKAGE_ROOT = path.resolve(__dirname, '..')
 
 /** Upstream lsquic submodule root (read-only parity reference). */
-export const UPSTREAM_LSQUIC_DIR = path.join(
-  PACKAGE_ROOT,
-  'upstream',
-  'lsquic',
-)
+export const UPSTREAM_LSQUIC_DIR = path.join(PACKAGE_ROOT, 'upstream', 'lsquic')
 
 /** lsquic engine sources: upstream/lsquic/src/liblsquic/ */
-export const LSQUIC_SRC_DIR = path.join(
-  UPSTREAM_LSQUIC_DIR,
-  'src',
-  'liblsquic',
-)
+export const LSQUIC_SRC_DIR = path.join(UPSTREAM_LSQUIC_DIR, 'src', 'liblsquic')
 
 /** lsquic public headers: upstream/lsquic/include/ */
-export const LSQUIC_INCLUDE_DIR = path.join(
-  UPSTREAM_LSQUIC_DIR,
-  'include',
-)
+export const LSQUIC_INCLUDE_DIR = path.join(UPSTREAM_LSQUIC_DIR, 'include')
 
 /** Upstream ls-qpack submodule root. */
 export const UPSTREAM_LS_QPACK_DIR = path.join(

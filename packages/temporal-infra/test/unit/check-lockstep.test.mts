@@ -30,7 +30,11 @@ afterEach(() => {
 })
 
 /** Stage a synthetic shim header file with the given method names. */
-export function stageShimHeader(root: string, cls: string, methods: string[]): string {
+export function stageShimHeader(
+  root: string,
+  cls: string,
+  methods: string[],
+): string {
   const dir = path.join(
     root,
     'packages',
@@ -78,8 +82,7 @@ describe('check-lockstep regex patterns', () => {
   it('V8 call-extraction regex pulls Class + method from a synthetic call', () => {
     stageV8File(fixtureRoot, ['temporal_rs::FakeAbsent::method'])
     const call = 'temporal_rs::FakeAbsent::method('
-    const pattern =
-      /temporal_rs::([A-Z][A-Za-z0-9]*)::([a-z_][a-z_0-9]*)\s*\(/g
+    const pattern = /temporal_rs::([A-Z][A-Za-z0-9]*)::([a-z_][a-z_0-9]*)\s*\(/g
     const matches = Array.from(call.matchAll(pattern))
     expect(matches.length).toBe(1)
     expect(matches[0]![1]).toBe('FakeAbsent')

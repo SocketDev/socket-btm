@@ -53,7 +53,10 @@ import process from 'node:process'
 import { which, whichSync } from '@socketsecurity/lib-stable/bin'
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
-import { LOG_SYMBOLS, getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import {
+  LOG_SYMBOLS,
+  getDefaultLogger,
+} from '@socketsecurity/lib-stable/logger'
 import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 import { copyBuildAdditions } from './copy-additions.mts'

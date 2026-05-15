@@ -18,12 +18,8 @@
 // exposes registerFunction / unregisterFunction (call-by-raw-pointer)
 // and the lib_id == 0 sentinel for standalone callbacks.
 
-const {
-  ArrayIsArray,
-  ObjectDefineProperty,
-  ObjectFreeze,
-  ObjectKeys,
-} = primordials
+const { ArrayIsArray, ObjectDefineProperty, ObjectFreeze, ObjectKeys } =
+  primordials
 
 const internalFfi = require('internal/socketsecurity/ffi')
 const internalFfiExtras = require('internal/socketsecurity/ffi-callable')

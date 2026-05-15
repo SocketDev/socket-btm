@@ -68,9 +68,7 @@ export function runOneTest(
   // Non-zero exit OR Test262Error in stdout (sta.js's throwing
   // assertion writes the error to stdout via Test262Error.toString).
   const actualError =
-    result.status !== 0 ||
-    stderr.length > 0 ||
-    stdout.includes('Test262Error')
+    result.status !== 0 || stderr.length > 0 || stdout.includes('Test262Error')
 
   const expectedError = test.attrs.negative !== undefined
 

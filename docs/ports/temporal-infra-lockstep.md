@@ -33,13 +33,13 @@ observable surface. Adding wrappers V8 doesn't invoke is dead code.
 
 ## Snapshot
 
-| Metric                                                | Status |
-| ----------------------------------------------------- | ------ |
-| V8-required shim methods present                      | All    |
-| Shim methods with `NotImplemented` body               | 0      |
-| Test262 entry-point coverage                          | TBD¹   |
-| Smoke test assertions                                 | 85     |
-| Intentional spec deviations (Known drifts)            | 4      |
+| Metric                                     | Status |
+| ------------------------------------------ | ------ |
+| V8-required shim methods present           | All    |
+| Shim methods with `NotImplemented` body    | 0      |
+| Test262 entry-point coverage               | TBD¹   |
+| Smoke test assertions                      | 85     |
+| Intentional spec deviations (Known drifts) | 4      |
 
 ¹ Test262 runs in the node-smol CI workflow; results land in
 `packages/temporal-infra/test/test262-results.json` per build.
@@ -84,13 +84,11 @@ Friday / Thursday, Hijri Umm-al-Qura, Japanese, Persian, ROC).
 ## Inner-POD CalendarKind threading
 
 `PlainDate`, `PlainDateTime`, `PlainMonthDay`, `PlainYearMonth`
-inner PODs carry a `CalendarKind` field (uint8_t enum defined in
+inner PODs carry a `CalendarKind` field (uint8*t enum defined in
 `temporal.h` to avoid a header cycle with `calendar.h`). The
 compat shim factories thread `AnyCalendarKind` into the produced
-POD; every calendar-aware accessor reads from `inner_.calendar`;
-`PlainDateFromUtf8` / `PlainDateTimeFromUtf8` extract the
-`[u-ca=...]` IXDTF annotation. `ZonedDateTime` keeps a full
-`Calendar` wrapper (it always has, for ABI parity with V8's slot
+POD; every calendar-aware accessor reads from `inner*.calendar`;
+`PlainDateFromUtf8`/`PlainDateTimeFromUtf8`extract the`[u-ca=...]`IXDTF annotation.`ZonedDateTime`keeps a full`Calendar` wrapper (it always has, for ABI parity with V8's slot
 layout).
 
 ## Known drifts
@@ -164,7 +162,7 @@ Intentional spec/upstream divergences. None returns
   exceed `Number.MAX_SAFE_INTEGER` nanoseconds (≈285 years).
   `IsValidDuration` already rejects out-of-spec Durations at
   construction; the range that DoubleDouble would matter for is
-  exclusively *invalid* Durations the spec rejects. The
+  exclusively _invalid_ Durations the spec rejects. The
   approximation is a code-size/maintenance optimization.
 - **Impact.** **Zero impact on spec-valid Durations** — every
   Duration that passes `IsValidDuration` (enforced at every

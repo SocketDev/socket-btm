@@ -859,14 +859,12 @@ importers:
         expect(expected).toHaveProperty('type', 'lockfile')
         expect(expected).toHaveProperty('packages')
         expect(Array.isArray(expected.packages)).toBe(true)
-      
       }
     })
 
     for (let i = 0, { length } = FIXTURES; i < length; i += 1) {
       const fixture = FIXTURES[i]
       it.todo(`${fixture.dir}: smol parseLockfile output matches expected.json`)
-    
     }
   })
 })

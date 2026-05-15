@@ -5,6 +5,7 @@
 > **Reference flow:** `socket-sdxgen/src/parsers/<eco>/*.mts` is the canonical algorithm. We port it to C++ (with the 4 already-shipped bug fixes folded in), then socket-lib v6.0.0 exports TS-equivalent parsers that route to the native binding when the smol Node binary is present, and to a pure-JS port of the same sdxgen logic otherwise. At v6.0.0 release, sdxgen migrates from its own in-repo parsers to socket-lib's exports.
 >
 > **The flow:**
+>
 > ```
 >   socket-sdxgen/src/parsers/<eco>/*.mts   ← canonical reference
 >           ↓
@@ -19,19 +20,19 @@
 
 ## TL;DR — head-to-head with the tokenizer-only alternative
 
-| Axis                        | Tokenizer-only (B2)                  | Full-native (this doc)                                |
-|-----------------------------|--------------------------------------|-------------------------------------------------------|
-| Tokenizer perf              | ~5–10x JS                            | ~5–10x JS (same code)                                 |
-| Total parse perf            | ~2–4x JS (JS assembly bottleneck)    | **~15–40x JS** on large lockfiles                     |
-| Object creation cost        | Per-PackageRef JS frame              | Single bulk V8 transfer (interned strings + frozen)   |
-| String allocs (large file)  | O(packages × fields)                 | **O(1) bulk transfer** via SerializeAsHostObject path |
-| Memory peak                 | content buf + JS objects             | content buf + arena, then released                    |
-| C++ LOC                     | ~600                                 | ~3000–4000                                            |
-| Bug-fix churn surface       | JS (cheap edits, ship daily)         | **C++ (rebuild + ship smol binary)**                  |
-| Fallback when smol absent   | JS path identical                    | JS path identical (must maintain in parallel)         |
-| Divergence risk             | Low — one tokenizer, two consumers   | **High — two full parsers must agree**                |
-| Cross-format reuse          | Tokenizer shared yarn+pnpm           | Each format = full impl                               |
-| Time to ship                | ~3–5 days                            | ~3–4 weeks                                            |
+| Axis                       | Tokenizer-only (B2)                | Full-native (this doc)                                |
+| -------------------------- | ---------------------------------- | ----------------------------------------------------- |
+| Tokenizer perf             | ~5–10x JS                          | ~5–10x JS (same code)                                 |
+| Total parse perf           | ~2–4x JS (JS assembly bottleneck)  | **~15–40x JS** on large lockfiles                     |
+| Object creation cost       | Per-PackageRef JS frame            | Single bulk V8 transfer (interned strings + frozen)   |
+| String allocs (large file) | O(packages × fields)               | **O(1) bulk transfer** via SerializeAsHostObject path |
+| Memory peak                | content buf + JS objects           | content buf + arena, then released                    |
+| C++ LOC                    | ~600                               | ~3000–4000                                            |
+| Bug-fix churn surface      | JS (cheap edits, ship daily)       | **C++ (rebuild + ship smol binary)**                  |
+| Fallback when smol absent  | JS path identical                  | JS path identical (must maintain in parallel)         |
+| Divergence risk            | Low — one tokenizer, two consumers | **High — two full parsers must agree**                |
+| Cross-format reuse         | Tokenizer shared yarn+pnpm         | Each format = full impl                               |
+| Time to ship               | ~3–5 days                          | ~3–4 weeks                                            |
 
 **Honest verdict for the impatient reader:** the tokenizer plan recovers ~70% of the win for ~15% of the code. The full-native plan is only the right answer if (a) parsers run inside a tight loop where call overhead dominates (e.g., scanning thousands of small lockfiles), or (b) we're willing to pay the maintenance tax forever to extract the last 2-3x.
 
@@ -41,18 +42,18 @@ The rest of this doc assumes you've accepted that tax and want the perf ceiling.
 
 **Canonical: socket-sdxgen.** Every parser in this plan is a port of the corresponding sdxgen file. sdxgen has the most production exposure (Socket's batch-ingestion pipeline scans millions of repos through it) and the bug fixes that landed in socket-btm + socket-lib during the QA pass originated from sdxgen. When the C++ impl and sdxgen disagree, sdxgen wins; when sdxgen and the existing JS port disagree, sdxgen wins; when sdxgen disagrees with itself across versions, the newer file wins. **sdxgen is the oracle.**
 
-| Ecosystem      | sdxgen source (canonical reference)                                  |
-|----------------|----------------------------------------------------------------------|
-| npm v1         | `socket-sdxgen/src/parsers/npm/package-lock-v1.mts`                  |
-| npm v2/v3      | `socket-sdxgen/src/parsers/npm/package-lock-v2.mts`                  |
-| npm shrinkwrap | `socket-sdxgen/src/parsers/npm/npm-shrinkwrap.mts`                   |
-| pnpm v5        | `socket-sdxgen/src/parsers/pnpm/pnpm-lock-v5.mts`                    |
-| pnpm v6        | `socket-sdxgen/src/parsers/pnpm/pnpm-lock-v6.mts`                    |
-| pnpm v9        | `socket-sdxgen/src/parsers/pnpm/pnpm-lock-v9.mts`                    |
-| yarn v1        | `socket-sdxgen/src/parsers/yarn-classic/yarn-lock-v1.mts`            |
-| yarn v2+       | `socket-sdxgen/src/parsers/yarn-berry/yarn-lock-v2.mts`              |
-| yarn v6 (zpm)  | `socket-sdxgen/src/parsers/zpm/yarn-lock-v6.mts`                     |
-| cargo          | `socket-sdxgen/src/parsers/cargo/index.mts`                          |
+| Ecosystem      | sdxgen source (canonical reference)                       |
+| -------------- | --------------------------------------------------------- |
+| npm v1         | `socket-sdxgen/src/parsers/npm/package-lock-v1.mts`       |
+| npm v2/v3      | `socket-sdxgen/src/parsers/npm/package-lock-v2.mts`       |
+| npm shrinkwrap | `socket-sdxgen/src/parsers/npm/npm-shrinkwrap.mts`        |
+| pnpm v5        | `socket-sdxgen/src/parsers/pnpm/pnpm-lock-v5.mts`         |
+| pnpm v6        | `socket-sdxgen/src/parsers/pnpm/pnpm-lock-v6.mts`         |
+| pnpm v9        | `socket-sdxgen/src/parsers/pnpm/pnpm-lock-v9.mts`         |
+| yarn v1        | `socket-sdxgen/src/parsers/yarn-classic/yarn-lock-v1.mts` |
+| yarn v2+       | `socket-sdxgen/src/parsers/yarn-berry/yarn-lock-v2.mts`   |
+| yarn v6 (zpm)  | `socket-sdxgen/src/parsers/zpm/yarn-lock-v6.mts`          |
+| cargo          | `socket-sdxgen/src/parsers/cargo/index.mts`               |
 
 **Out of scope for the v6.0.0 native cut** (sdxgen owns these until a later phase): maven, gradle, nuget, pypi, go, rubygems, packagist, swift, sbt, hex, conan, cocoapods, bun, vlt. These continue to live in sdxgen's TS parsers; socket-lib v6.0.0 will re-export thin wrappers around them so the consumer-facing API is uniform across all ecosystems, but only the table above gets the C++ acceleration in this phase.
 
@@ -74,6 +75,7 @@ These bugs were originally caught in sdxgen, then ported to socket-btm's JS impl
 **Bug:** v1 lockfiles encode aliased installs as `version: "npm:<real-name>@<real-version>"`. Previous impls emitted the alias key directly, producing a malformed purl (`pkg:npm/alias@npm%3Areal%401.0`) pointing at a non-existent registry package.
 
 **Fix shape (C++):**
+
 ```cpp
 // In parser_npm.cc when building PackageRef from v1 entry:
 std::string_view effective_name = entry_key;
@@ -113,14 +115,17 @@ if (!entry.name.empty()) {
 **Two bugs in one section:**
 
 **3a. Empty-version guard:** pnpm v9 importer entries can use the block shape:
+
 ```yaml
 pkg:
   specifier: ^1
   version: 1.0.0
 ```
+
 The previous impl emitted a PackageRef with empty `version: ""` for the parent line before the indented version: line was consumed.
 
 **Fix shape (C++):** in the importer-walk, skip entries whose extracted version string is empty:
+
 ```cpp
 if (dep_version.empty()) continue;
 ```
@@ -128,6 +133,7 @@ if (dep_version.empty()) continue;
 **3b. Workspace/file/link protocol filter:** importer dep values like `workspace:^1.0.0`, `file:./local.tgz`, `link:packages/my-workspace` are not real registry packages — they reference local workspaces / tarballs / symlinks. Previous impls emitted them as if they were real deps with non-semver versions.
 
 **Fix shape (C++):**
+
 ```cpp
 if (StartsWith(dep_version, "link:") ||
     StartsWith(dep_version, "workspace:") ||
@@ -168,6 +174,7 @@ Concretely: build two `std::unordered_set<std::string_view>` (prod, devOnly) fro
 ## v6.0.0 release flow
 
 **Current state (pre-v6.0.0):**
+
 - sdxgen ships its own parsers at `src/parsers/<eco>/*.mts`.
 - socket-btm's smol binary ships pure-JS parsers (mirror of sdxgen) at `lib/internal/socketsecurity/manifest.js`.
 - socket-lib v5.x ships TS ports of the same parsers at `src/eco/<eco>/parse-lockfile.ts`, dispatching to smol when present.
@@ -378,7 +385,8 @@ Today, `src/eco/npm/pnpm/parse-lockfile.ts` does:
 ```ts
 const _smol = getSmolManifest()
 export const parsePnpmLock = _smol
-  ? (content: string) => _smol.parseLockfile(content, 'npm', 'pnpm') as ParsedLockfile
+  ? (content: string) =>
+      _smol.parseLockfile(content, 'npm', 'pnpm') as ParsedLockfile
   : jsParsePnpmLock
 ```
 
@@ -392,7 +400,11 @@ That already routes to native when `process.smol` is present. **No code change i
 const binding = internalBinding('smol_manifest_native')
 
 function parseLockfile(content, ecosystem, format) {
-  return binding.parseLockfile(content, ecoToInt(ecosystem), formatToInt(format))
+  return binding.parseLockfile(
+    content,
+    ecoToInt(ecosystem),
+    formatToInt(format),
+  )
 }
 
 module.exports = { parseLockfile }
@@ -477,15 +489,9 @@ When step 13 (sdxgen migration) lands, each native-cut parser file becomes a re-
 ```ts
 // Before v6.0.0: 200+ lines of parser logic.
 // After v6.0.0:
-export {
-  parsePnpmLock as parsePnpmLockV5,
-} from '@socketsecurity/lib/eco/npm/pnpm/parse-lockfile'
-export {
-  parsePnpmLock as parsePnpmLockV6,
-} from '@socketsecurity/lib/eco/npm/pnpm/parse-lockfile'
-export {
-  parsePnpmLock as parsePnpmLockV9,
-} from '@socketsecurity/lib/eco/npm/pnpm/parse-lockfile'
+export { parsePnpmLock as parsePnpmLockV5 } from '@socketsecurity/lib/eco/npm/pnpm/parse-lockfile'
+export { parsePnpmLock as parsePnpmLockV6 } from '@socketsecurity/lib/eco/npm/pnpm/parse-lockfile'
+export { parsePnpmLock as parsePnpmLockV9 } from '@socketsecurity/lib/eco/npm/pnpm/parse-lockfile'
 ```
 
 (socket-lib's pnpm parser handles v5/v6/v9 dispatch internally — sdxgen's per-version split collapses into one entry point.)

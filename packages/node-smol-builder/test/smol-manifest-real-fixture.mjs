@@ -46,7 +46,7 @@ let totalPackages = 0
 let totalElapsedMs = 0
 
 // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
-  for (const { path, eco, fmt, minPackages } of FIXTURES) {
+for (const { path, eco, fmt, minPackages } of FIXTURES) {
   if (!existsSync(path)) {
     logger.log(`SKIP  ${path} (not present)`)
     continue
@@ -105,12 +105,8 @@ let totalElapsedMs = 0
     }
   }
   if (malformed.length > 0) {
-    logger.fail(
-      `FAIL  ${path}: ${malformed.length} malformed PackageRefs`,
-    )
-    logger.fail(
-      `  samples: ${JSON.stringify(malformed.slice(0, 3), null, 2)}`,
-    )
+    logger.fail(`FAIL  ${path}: ${malformed.length} malformed PackageRefs`)
+    logger.fail(`  samples: ${JSON.stringify(malformed.slice(0, 3), null, 2)}`)
     process.exit(1)
   }
 

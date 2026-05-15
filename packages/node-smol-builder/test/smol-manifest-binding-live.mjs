@@ -32,14 +32,62 @@ const FIXTURES_DIR = join(__dirname, 'fixtures/sdxgen-bug-regressions')
 // `enabled: false` fixtures are pending later parser-implementation
 // commits (steps 5-7 for yarn / npm / cargo).
 const FIXTURES = [
-  { dir: 'fix1-npm-v1-alias', input: 'input.json', eco: 'npm', fmt: 'npm', enabled: true },
-  { dir: 'fix2a-npm-v3-workspace-name', input: 'input.json', eco: 'npm', fmt: 'npm', enabled: true },
-  { dir: 'fix2b-npm-v3-alias-name', input: 'input.json', eco: 'npm', fmt: 'npm', enabled: true },
-  { dir: 'fix3a-pnpm-v9-empty-version', input: 'input.yaml', eco: 'npm', fmt: 'pnpm', enabled: true },
-  { dir: 'fix3b-pnpm-v9-workspace-file-filter', input: 'input.yaml', eco: 'npm', fmt: 'pnpm', enabled: true },
-  { dir: 'fix4-yarn-depsmeta-inversion', input: 'input.lock', eco: 'npm', fmt: 'yarn', enabled: true },
-  { dir: 'fix5-pnpm-v9-isdev-derivation', input: 'input.yaml', eco: 'npm', fmt: 'pnpm', enabled: true },
-  { dir: 'cargo-patch-unused-no-leak', input: 'input.toml', eco: 'cargo', fmt: 'cargo', enabled: true },
+  {
+    dir: 'fix1-npm-v1-alias',
+    input: 'input.json',
+    eco: 'npm',
+    fmt: 'npm',
+    enabled: true,
+  },
+  {
+    dir: 'fix2a-npm-v3-workspace-name',
+    input: 'input.json',
+    eco: 'npm',
+    fmt: 'npm',
+    enabled: true,
+  },
+  {
+    dir: 'fix2b-npm-v3-alias-name',
+    input: 'input.json',
+    eco: 'npm',
+    fmt: 'npm',
+    enabled: true,
+  },
+  {
+    dir: 'fix3a-pnpm-v9-empty-version',
+    input: 'input.yaml',
+    eco: 'npm',
+    fmt: 'pnpm',
+    enabled: true,
+  },
+  {
+    dir: 'fix3b-pnpm-v9-workspace-file-filter',
+    input: 'input.yaml',
+    eco: 'npm',
+    fmt: 'pnpm',
+    enabled: true,
+  },
+  {
+    dir: 'fix4-yarn-depsmeta-inversion',
+    input: 'input.lock',
+    eco: 'npm',
+    fmt: 'yarn',
+    enabled: true,
+  },
+  {
+    dir: 'fix5-pnpm-v9-isdev-derivation',
+    input: 'input.yaml',
+    eco: 'npm',
+    fmt: 'pnpm',
+    enabled: true,
+  },
+  {
+    dir: 'cargo-patch-unused-no-leak',
+    input: 'input.toml',
+    eco: 'cargo',
+    fmt: 'cargo',
+    enabled: true,
+  },
 ]
 
 // Cross-check on-disk dirs match the table.
@@ -88,7 +136,6 @@ for (let i = 0, { length } = FIXTURES; i < length; i += 1) {
     failures.push({ dir: fixture.dir, actual: jaStr, expected: jeStr })
     fail += 1
   }
-
 }
 
 logger.log(`\n${pass} pass, ${fail} fail, ${skip} skip`)
@@ -100,7 +147,6 @@ if (fail > 0) {
     logger.log(`  ${f.dir}`)
     logger.log(`    actual  : ${f.actual}`)
     logger.log(`    expected: ${f.expected}`)
-  
   }
   process.exit(1)
 }

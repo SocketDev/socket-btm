@@ -257,7 +257,7 @@ The existing `getSmolManifest()` dispatcher in socket-lib remains the entry poin
 ```js
 const native = process.smol?.manifestNative
 const parsePnpmLock = native
-  ? (content) => parsePnpmLockNative(content, native)
+  ? content => parsePnpmLockNative(content, native)
   : parsePnpmLockJs
 ```
 

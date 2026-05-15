@@ -25,7 +25,11 @@ import process from 'node:process'
 import { which } from '@socketsecurity/lib-stable/bin'
 import { DARWIN, WIN32 } from '@socketsecurity/lib-stable/constants/platform'
 import { getCI } from '@socketsecurity/lib-stable/env/ci'
-import { safeDelete, safeDeleteSync, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import {
+  safeDelete,
+  safeDeleteSync,
+  safeMkdir,
+} from '@socketsecurity/lib-stable/fs'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 import { toUnixPath } from '@socketsecurity/lib-stable/paths/normalize'
 import { spawn } from '@socketsecurity/lib-stable/spawn'
@@ -339,19 +343,13 @@ export async function createCheckpoint(
         tarBase,
       ]
       try {
-        await spawn(
-          tarBin,
-          tarArgs,
-          {
-            // On macOS, COPYFILE_DISABLE=1 prevents tar from including
-            // AppleDouble resource fork files (._* files) which cause
-            // compilation errors when extracted on Linux.
-            env: DARWIN
-              ? { ...process.env, COPYFILE_DISABLE: '1' }
-              : process.env,
-            stdio: 'pipe',
-          },
-        )
+        await spawn(tarBin, tarArgs, {
+          // On macOS, COPYFILE_DISABLE=1 prevents tar from including
+          // AppleDouble resource fork files (._* files) which cause
+          // compilation errors when extracted on Linux.
+          env: DARWIN ? { ...process.env, COPYFILE_DISABLE: '1' } : process.env,
+          stdio: 'pipe',
+        })
       } catch (tarError) {
         // Check if this is the benign "file changed as we read it" warning
         const stderr = tarError.stderr?.toString().trim() || ''

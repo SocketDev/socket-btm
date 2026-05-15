@@ -88,9 +88,7 @@ class JSCallback {
 
   constructor(fn, options) {
     if (typeof fn !== 'function') {
-      throw new TypeErrorCtor(
-        'JSCallback(fn, options): fn must be a function',
-      )
+      throw new TypeErrorCtor('JSCallback(fn, options): fn must be a function')
     }
     if (typeof options !== 'object' || options === null) {
       throw new FFIError(

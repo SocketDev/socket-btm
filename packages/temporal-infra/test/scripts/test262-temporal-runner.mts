@@ -44,7 +44,12 @@ import {
 } from '../../lib/paths.mts'
 
 import { interpret } from './test262/classifier.mts'
-import { loadAllowlist, resolveBinary, runOneTest, shouldSkip } from './test262/executor.mts'
+import {
+  loadAllowlist,
+  resolveBinary,
+  runOneTest,
+  shouldSkip,
+} from './test262/executor.mts'
 import { walkTests } from './test262/harness.mts'
 import { parseFrontmatter } from './test262/parser.mts'
 import { report } from './test262/report.mts'
@@ -194,9 +199,7 @@ function main(): void {
       const result = runOneTest(test, scenario, binary)
       results.push(result)
       if (args.verbose && result.expectedError !== result.actualError) {
-        logger.warn(
-          `  [${scenario}] ${file}: ${result.detail?.slice(0, 200)}`,
-        )
+        logger.warn(`  [${scenario}] ${file}: ${result.detail?.slice(0, 200)}`)
       }
     }
 

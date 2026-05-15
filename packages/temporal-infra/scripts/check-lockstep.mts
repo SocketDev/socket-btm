@@ -48,18 +48,8 @@ const packageRoot = path.resolve(__dirname, '..')
 const repoRoot = path.resolve(packageRoot, '..', '..')
 
 const PORT_INCLUDE_DIR = path.join(packageRoot, 'include', 'temporal_rs')
-const PORT_SRC_DIR = path.join(
-  packageRoot,
-  'src',
-  'socketsecurity',
-  'temporal',
-)
-const UPSTREAM_SRC_DIR = path.join(
-  packageRoot,
-  'upstream',
-  'temporal',
-  'src',
-)
+const PORT_SRC_DIR = path.join(packageRoot, 'src', 'socketsecurity', 'temporal')
+const UPSTREAM_SRC_DIR = path.join(packageRoot, 'upstream', 'temporal', 'src')
 const V8_JS_TEMPORAL = path.join(
   repoRoot,
   'packages',
@@ -335,9 +325,7 @@ logger.info('')
 logger.info('Check 3/3: upstream public-API drift (informational)')
 const upstreamCount = countUpstreamPubFns()
 const shimCount = countShimMethods()
-logger.info(
-  `  upstream pub fns: ${upstreamCount} | shim methods: ${shimCount}`,
-)
+logger.info(`  upstream pub fns: ${upstreamCount} | shim methods: ${shimCount}`)
 logger.info(
   '  (shim is deliberately narrower than upstream; only V8-required surface is wrapped)',
 )

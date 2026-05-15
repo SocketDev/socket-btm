@@ -33,13 +33,14 @@ already ships.
 
 ## Three configure flags
 
-| Flag              | Default | Gates                                                                              |
-| ----------------- | ------- | ---------------------------------------------------------------------------------- |
-| `use_node_quic`   | `false` | Upstream's `src/quic/*.cc`, `deps/ngtcp2/`, `deps/nghttp3/`, `node:quic` builtin    |
-| `use_smol_quic`   | `true`  | This package's lsquic + ls-qpack sources + `node:smol-quic` builtin                |
-| `use_smol_http3`  | `true`  | http3 binding glue + `node:smol-http3` builtin                                     |
+| Flag             | Default | Gates                                                                            |
+| ---------------- | ------- | -------------------------------------------------------------------------------- |
+| `use_node_quic`  | `false` | Upstream's `src/quic/*.cc`, `deps/ngtcp2/`, `deps/nghttp3/`, `node:quic` builtin |
+| `use_smol_quic`  | `true`  | This package's lsquic + ls-qpack sources + `node:smol-quic` builtin              |
+| `use_smol_http3` | `true`  | http3 binding glue + `node:smol-http3` builtin                                   |
 
 Implication rules:
+
 - `use_smol_http3=true` ⇒ forces `use_smol_quic=true` (configure error on conflict).
 - `use_smol_quic=false` ⇒ auto-disables `use_smol_http3`.
 - `--without-ssl` forces all three off.
@@ -47,10 +48,10 @@ Implication rules:
 
 ## Vendor plan
 
-| Submodule        | Pin                                                              | Match                 |
-| ---------------- | ---------------------------------------------------------------- | --------------------- |
-| `upstream/lsquic`  | v4.6.2 — SHA `3181911301b1aa4f54c1ed690901abc674ee08fb` (2026-04-20) | bun PR #29768         |
-| `upstream/ls-qpack`| v2.6.2 — SHA `1e9c5b8e59f8161c54f168a570c8bfdc59ded0c3` (2025-06-16) | bun PR #29768         |
+| Submodule           | Pin                                                                  | Match         |
+| ------------------- | -------------------------------------------------------------------- | ------------- |
+| `upstream/lsquic`   | v4.6.2 — SHA `3181911301b1aa4f54c1ed690901abc674ee08fb` (2026-04-20) | bun PR #29768 |
+| `upstream/ls-qpack` | v2.6.2 — SHA `1e9c5b8e59f8161c54f168a570c8bfdc59ded0c3` (2025-06-16) | bun PR #29768 |
 
 All SHAs verified against bun's HTTP/3 PR (`oven-sh/bun#29768` @
 `3addffd8c…`) so we inherit a known-working combination.
@@ -60,21 +61,21 @@ All SHAs verified against bun's HTTP/3 PR (`oven-sh/bun#29768` @
 Three bun patches mirrored verbatim from `oven-sh/bun#29768`
 (`packages/lsquic-infra/patches/lsquic/`):
 
-| Patch                          | Purpose                                                                                                                                       |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `versions-to-string.patch`     | Ship pre-generated `lsquic_versions_to_string.c` so CI doesn't need Perl (lsquic's normal build generates it via `gen-verstrs.pl`).             |
-| `allow-no-sni.patch`           | Allow HTTP/3 connections without SNI in `lsquic_enc_sess_ietf.c` (e.g. IP-literal connections). Removes the spec-strict early-return.            |
-| `skip-priority-walk.patch`     | Adds `CP_HAVE_PRIO` flag — short-circuits `find_lowest_prio` hash-table walk on the send-control hot path for the common single-stream case.   |
+| Patch                      | Purpose                                                                                                                                      |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `versions-to-string.patch` | Ship pre-generated `lsquic_versions_to_string.c` so CI doesn't need Perl (lsquic's normal build generates it via `gen-verstrs.pl`).          |
+| `allow-no-sni.patch`       | Allow HTTP/3 connections without SNI in `lsquic_enc_sess_ietf.c` (e.g. IP-literal connections). Removes the spec-strict early-return.        |
+| `skip-priority-walk.patch` | Adds `CP_HAVE_PRIO` flag — short-circuits `find_lowest_prio` hash-table walk on the send-control hot path for the common single-stream case. |
 
 ## Lockstep
 
 Rows planned for socket-btm's `.config/lockstep.json`:
 
-| ID                | Kind          | Upstream                                                                | Local                            |
-| ----------------- | ------------- | ----------------------------------------------------------------------- | -------------------------------- |
-| `lsquic`          | `version-pin` | `litespeedtech/lsquic` v4.6.2 (matches bun PR #29768)                   | `upstream/lsquic/`               |
-| `ls-qpack`        | `version-pin` | `litespeedtech/ls-qpack` v2.6.2 (matches bun PR #29768)                 | `upstream/ls-qpack/`             |
-| `lsquic-patches`  | `file-fork`   | bun PR #29768 `packages/bun-uws/patches/lsquic/*.patch`                 | `patches/lsquic/*.patch`         |
+| ID               | Kind          | Upstream                                                | Local                    |
+| ---------------- | ------------- | ------------------------------------------------------- | ------------------------ |
+| `lsquic`         | `version-pin` | `litespeedtech/lsquic` v4.6.2 (matches bun PR #29768)   | `upstream/lsquic/`       |
+| `ls-qpack`       | `version-pin` | `litespeedtech/ls-qpack` v2.6.2 (matches bun PR #29768) | `upstream/ls-qpack/`     |
+| `lsquic-patches` | `file-fork`   | bun PR #29768 `packages/bun-uws/patches/lsquic/*.patch` | `patches/lsquic/*.patch` |
 
 ## Wiring into node-smol
 

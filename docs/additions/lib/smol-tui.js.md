@@ -20,6 +20,7 @@ require('node:smol-tui') -> this file (smol-tui.js)
 ## Public API (5 groups)
 
 ### 1. ANSI emit -- constants + cold-path string builders
+
 Upstream ref: `@opentui/core packages/core/src/zig/ansi.zig`.
 VT/xterm spec: <https://invisible-island.net/xterm/ctlseqs/ctlseqs.html>.
 
@@ -29,54 +30,91 @@ setFgRgb(255, 128, 0) // -> string SGR sequence
 ```
 
 ### 2. ANSI hot-path -- Uint8Array writers
+
 Zero-allocation. Caller pre-allocates a `Buffer` of size
 `sizes.maxCursorPositionLen` / `sizes.maxRgbSgrLen` / `sizes.maxAttrRunLen`,
 and the binding writes directly into it.
 
 ```ts
-import { writeCursorPosition, writeFgRgb, writeBgRgb, writeAttributes }
-  from 'node:smol-tui'
+import {
+  writeCursorPosition,
+  writeFgRgb,
+  writeBgRgb,
+  writeAttributes,
+} from 'node:smol-tui'
 const buf = Buffer.allocUnsafe(sizes.maxCursorPositionLen)
 const n = writeCursorPosition(buf, 0, row, col)
 ```
 
 ### 3. Mouse parser -- SGR + X10 protocols
+
 Upstream ref: `@opentui/core packages/core/src/parse/mouse-parser.ts`.
 Decodes `ESC[<b;x;yM|m` (SGR) and `ESC[M<byte><x><y>` (X10); tracks
 drag state so press → motion → release becomes DOWN → DRAG →
 DRAG_END + DROP events.
 
 ```ts
-import { createParser, parseMouseOne, looksLikeMouseSequence,
-         resetParser, destroyParser, mouseEventType, scrollDirection }
-  from 'node:smol-tui'
+import {
+  createParser,
+  parseMouseOne,
+  looksLikeMouseSequence,
+  resetParser,
+  destroyParser,
+  mouseEventType,
+  scrollDirection,
+} from 'node:smol-tui'
 ```
 
 ### 4. Renderer + cell buffer -- double-buffered diff
+
 Upstream ref: `@opentui/core packages/core/src/zig/renderer.zig`. Each
 frame: clear → draw cells → flush. Flush walks both buffers, emits
 ANSI only for changed cells, and writes it into a caller-supplied
 Buffer.
 
 ```ts
-import { createRenderer, rendererResize, rendererClear, rendererSet,
-         rendererDrawText, rendererFillRect, rendererInvalidate,
-         rendererFlush, rendererSize, destroyRenderer }
-  from 'node:smol-tui'
+import {
+  createRenderer,
+  rendererResize,
+  rendererClear,
+  rendererSet,
+  rendererDrawText,
+  rendererFillRect,
+  rendererInvalidate,
+  rendererFlush,
+  rendererSize,
+  destroyRenderer,
+} from 'node:smol-tui'
 ```
 
 ### 5. Yoga layout (flexbox)
+
 Upstream: <https://github.com/facebook/yoga/tree/v3.2.1>. Submodule
 at `packages/yoga-layout-builder/upstream/yoga/`. Exposes Yoga C-API
 (YGNode\* / YGNodeStyle\* / YGNodeLayout\*) plus enum mirrors.
 
 ```ts
-import { yogaCreateNode, yogaSetFlexDirection, yogaSetFlexGrow,
-         yogaSetFlexBasis, yogaSetAlignItems, yogaSetAlignSelf,
-         yogaInsertChild, yogaRemoveChild, yogaCalculateLayout,
-         yogaGetComputedLayout, yogaMarkDirty, yogaFreeNode,
-         flexDirection, justify, edge, wrap, positionType, direction,
-         align } from 'node:smol-tui'
+import {
+  yogaCreateNode,
+  yogaSetFlexDirection,
+  yogaSetFlexGrow,
+  yogaSetFlexBasis,
+  yogaSetAlignItems,
+  yogaSetAlignSelf,
+  yogaInsertChild,
+  yogaRemoveChild,
+  yogaCalculateLayout,
+  yogaGetComputedLayout,
+  yogaMarkDirty,
+  yogaFreeNode,
+  flexDirection,
+  justify,
+  edge,
+  wrap,
+  positionType,
+  direction,
+  align,
+} from 'node:smol-tui'
 ```
 
 ## Design Choices

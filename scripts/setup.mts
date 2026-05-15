@@ -89,7 +89,9 @@ export async function checkBuildToolchain(): Promise<boolean> {
   let externalTools: Record<string, unknown> = {}
   try {
     const raw = readFileSync(BUILD_INFRA_EXTERNAL_TOOLS, 'utf8')
-    const parsed = JSON.parse(raw) as { tools?: Record<string, unknown> | undefined }
+    const parsed = JSON.parse(raw) as {
+      tools?: Record<string, unknown> | undefined
+    }
     externalTools = parsed.tools ?? {}
   } catch (e) {
     log.warn(

@@ -250,66 +250,92 @@ function buildCallWrapper({
     case 0:
       return hasFast
         ? () => {
-            if (isClosed()) { throw closedErr() }
+            if (isClosed()) {
+              throw closedErr()
+            }
             setTarget(fnId)
             return call(fnId)
           }
         : () => {
-            if (isClosed()) { throw closedErr() }
+            if (isClosed()) {
+              throw closedErr()
+            }
             return call(fnId)
           }
     case 1:
       return hasFast
         ? a0 => {
-            if (isClosed()) { throw closedErr() }
+            if (isClosed()) {
+              throw closedErr()
+            }
             setTarget(fnId)
             return call(fnId, a0)
           }
         : a0 => {
-            if (isClosed()) { throw closedErr() }
+            if (isClosed()) {
+              throw closedErr()
+            }
             return call(fnId, a0)
           }
     case 2:
       return hasFast
         ? (a0, a1) => {
-            if (isClosed()) { throw closedErr() }
+            if (isClosed()) {
+              throw closedErr()
+            }
             setTarget(fnId)
             return call(fnId, a0, a1)
           }
         : (a0, a1) => {
-            if (isClosed()) { throw closedErr() }
+            if (isClosed()) {
+              throw closedErr()
+            }
             return call(fnId, a0, a1)
           }
     case 3:
       return hasFast
         ? (a0, a1, a2) => {
-            if (isClosed()) { throw closedErr() }
+            if (isClosed()) {
+              throw closedErr()
+            }
             setTarget(fnId)
             return call(fnId, a0, a1, a2)
           }
         : (a0, a1, a2) => {
-            if (isClosed()) { throw closedErr() }
+            if (isClosed()) {
+              throw closedErr()
+            }
             return call(fnId, a0, a1, a2)
           }
     case 4:
       return (a0, a1, a2, a3) => {
-        if (isClosed()) { throw closedErr() }
-        if (setTarget) { setTarget(fnId) }
+        if (isClosed()) {
+          throw closedErr()
+        }
+        if (setTarget) {
+          setTarget(fnId)
+        }
         return call(fnId, a0, a1, a2, a3)
       }
     case 5:
       return (a0, a1, a2, a3, a4) => {
-        if (isClosed()) { throw closedErr() }
+        if (isClosed()) {
+          throw closedErr()
+        }
         return call(fnId, a0, a1, a2, a3, a4)
       }
     case 6:
       return (a0, a1, a2, a3, a4, a5) => {
-        if (isClosed()) { throw closedErr() }
+        if (isClosed()) {
+          throw closedErr()
+        }
         return call(fnId, a0, a1, a2, a3, a4, a5)
       }
     default:
       return (...args) => {
-        if (isClosed()) { throw closedErr() }
+        if (isClosed()) {
+          throw closedErr()
+        }
         return call(fnId, ...args)
       }
   }
@@ -390,8 +416,10 @@ class Library {
       // falls through to a generic FFIError preserving the original cause.
       const msg = (err && err.message) || ''
       let code = FFI_ERROR_CODES.ENOSYM
-      if (msg.indexOf('Symbol not found') === -1 &&
-          msg.indexOf('dlsym') === -1) {
+      if (
+        msg.indexOf('Symbol not found') === -1 &&
+        msg.indexOf('dlsym') === -1
+      ) {
         code = FFI_ERROR_CODES.EBADARGS
       }
       throw new FFIError(`func("${name}"): ${msg}`, {
@@ -567,8 +595,10 @@ class Library {
     // unconditional even if the cache value isn't us — defensive
     // against external callers who replaced the cache entry, which
     // shouldn't happen but the check is free.
-    if (this.#path !== undefined &&
-        MapPrototypeGet(LIBRARY_CACHE, this.#path) === this) {
+    if (
+      this.#path !== undefined &&
+      MapPrototypeGet(LIBRARY_CACHE, this.#path) === this
+    ) {
       MapPrototypeDelete(LIBRARY_CACHE, this.#path)
     }
     // Unregister every live callback BEFORE closing the library. Just
@@ -701,10 +731,7 @@ function ptrToBuffer(ptr, length, copy) {
     throw new TypeErrorCtor('ptr must be a BigInt')
   }
   if (ptr === 0n && length > 0) {
-    throw new FFIError(
-      'Cannot read from null pointer',
-      FFI_ERROR_CODES.EBADPTR,
-    )
+    throw new FFIError('Cannot read from null pointer', FFI_ERROR_CODES.EBADPTR)
   }
   if (!NumberIsSafeInteger(length) || length < 0) {
     throw new TypeErrorCtor('length must be a non-negative integer')
@@ -742,10 +769,7 @@ function ptrToArrayBuffer(ptr, length, copy) {
     throw new TypeErrorCtor('ptr must be a BigInt')
   }
   if (ptr === 0n && length > 0) {
-    throw new FFIError(
-      'Cannot read from null pointer',
-      FFI_ERROR_CODES.EBADPTR,
-    )
+    throw new FFIError('Cannot read from null pointer', FFI_ERROR_CODES.EBADPTR)
   }
   if (!NumberIsSafeInteger(length) || length < 0) {
     throw new TypeErrorCtor('length must be a non-negative integer')
@@ -826,10 +850,24 @@ function setFloat64(ptr, offset, value) {
 // builds because we don't run JS on those.
 const TYPE_SIZES = ObjectFreeze({
   __proto__: null,
-  i8: 1, u8: 1, bool: 1, char: 1,
-  i16: 2, u16: 2,
-  i32: 4, u32: 4, int: 4, uint: 4, f32: 4, float: 4,
-  i64: 8, u64: 8, f64: 8, double: 8, pointer: 8, ptr: 8,
+  i8: 1,
+  u8: 1,
+  bool: 1,
+  char: 1,
+  i16: 2,
+  u16: 2,
+  i32: 4,
+  u32: 4,
+  int: 4,
+  uint: 4,
+  f32: 4,
+  float: 4,
+  i64: 8,
+  u64: 8,
+  f64: 8,
+  double: 8,
+  pointer: 8,
+  ptr: 8,
 })
 
 // Type → accessor map for read.batch. Cached at module load so the
@@ -837,15 +875,26 @@ const TYPE_SIZES = ObjectFreeze({
 // strings from `types`.
 const READERS_BY_TYPE = ObjectFreeze({
   __proto__: null,
-  i8: getInt8, u8: getUint8, char: getInt8, bool: getUint8,
-  i16: getInt16, u16: getUint16,
-  i32: getInt32, u32: getUint32, int: getInt32, uint: getUint32,
-  f32: getFloat32, float: getFloat32,
-  i64: getInt64, u64: getUint64,
-  f64: getFloat64, double: getFloat64,
+  i8: getInt8,
+  u8: getUint8,
+  char: getInt8,
+  bool: getUint8,
+  i16: getInt16,
+  u16: getUint16,
+  i32: getInt32,
+  u32: getUint32,
+  int: getInt32,
+  uint: getUint32,
+  f32: getFloat32,
+  float: getFloat32,
+  i64: getInt64,
+  u64: getUint64,
+  f64: getFloat64,
+  double: getFloat64,
   // pointer / ptr read as unsigned 64-bit BigInt (matches the shape
   // bufferToPtr/dlsym return).
-  pointer: getUint64, ptr: getUint64,
+  pointer: getUint64,
+  ptr: getUint64,
 })
 
 // readBatch(ptr, types) — read each type from `ptr` at auto-advancing
@@ -859,10 +908,7 @@ function readBatch(ptr, fieldTypes) {
     throw new TypeErrorCtor('ptr must be a BigInt')
   }
   if (ptr === 0n) {
-    throw new FFIError(
-      'Cannot read from null pointer',
-      FFI_ERROR_CODES.EBADPTR,
-    )
+    throw new FFIError('Cannot read from null pointer', FFI_ERROR_CODES.EBADPTR)
   }
   if (!ArrayIsArray(fieldTypes)) {
     throw new FFIError(

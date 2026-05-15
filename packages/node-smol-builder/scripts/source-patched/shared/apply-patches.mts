@@ -240,11 +240,7 @@ export async function computeSourcePatchedCachePaths(options: {
   const patchChainPaths = computePatchChainCachePaths(options)
 
   const sourcePackageFiles: string[] = []
-  for (
-    let i = 0, { length } = MONOREPO_PACKAGE_SOURCES;
-    i < length;
-    i += 1
-  ) {
+  for (let i = 0, { length } = MONOREPO_PACKAGE_SOURCES; i < length; i += 1) {
     const srcDir = MONOREPO_PACKAGE_SOURCES[i]!.from
     if (existsSync(srcDir)) {
       const srcFiles = await glob('**/*.{c,cc,cpp,h,hh,hpp}', {

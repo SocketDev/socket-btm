@@ -45,7 +45,6 @@
   "devDependencies": {
     "@anthropic-ai/claude-code": "catalog:",
     "@sinclair/typebox": "catalog:",
-    "@socketsecurity/lib": "catalog:",
     "@socketsecurity/lib-stable": "catalog:",
     "@types/node": "catalog:",
     "@typescript/native-preview": "7.0.0-dev.20260415.1",

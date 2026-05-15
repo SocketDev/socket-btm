@@ -33,6 +33,7 @@ binary).
 Groups by lifecycle phase:
 
 ### 1. Global init / cleanup
+
 ```ts
 import { globalInit, globalCleanup, globalFlags } from 'node:smol-quic'
 globalInit(globalFlags.CLIENT) // or .SERVER
@@ -41,6 +42,7 @@ globalCleanup()
 ```
 
 ### 2. Version + flag enum mirrors
+
 ```ts
 import { version, engineFlags, connStatus } from 'node:smol-quic'
 // version.{Q043, Q046, Q050, ID27, ID29, I001, I002}
@@ -49,24 +51,31 @@ import { version, engineFlags, connStatus } from 'node:smol-quic'
 ```
 
 ### 3. Engine create / destroy
+
 ```ts
-const engine = createEngine(engineFlags.HTTP, {
-  packetsOut: (packets) => { /* send each via UDP socket */ },
-  onNewConn: (connId) => {},
-  onConnClosed: (connId) => {},
-  onNewStream: (streamId, connId) => {},
-  onRead: (streamId, data) => {},
-  onWrite: (streamId) => {},
-  onClose: (streamId) => {},
-  onHskDone: (connId, ok) => {},
-  onGoawayReceived: (connId) => {},
-  onDatagramWrite: (connId, buf) => {},
-  onDatagram: (connId, data) => {},
-}, /* optional settings */)
+const engine = createEngine(
+  engineFlags.HTTP,
+  {
+    packetsOut: packets => {
+      /* send each via UDP socket */
+    },
+    onNewConn: connId => {},
+    onConnClosed: connId => {},
+    onNewStream: (streamId, connId) => {},
+    onRead: (streamId, data) => {},
+    onWrite: streamId => {},
+    onClose: streamId => {},
+    onHskDone: (connId, ok) => {},
+    onGoawayReceived: connId => {},
+    onDatagramWrite: (connId, buf) => {},
+    onDatagram: (connId, data) => {},
+  } /* optional settings */,
+)
 destroyEngine(engine)
 ```
 
 ### 4. Engine I/O
+
 ```ts
 engineProcessConns(engine)
 enginePacketIn(engine, buf, localSa, peerSa, ecn)
@@ -75,22 +84,32 @@ engineCountAttq(engine, fromNowMs) // -> uint
 ```
 
 ### 5. Engine connect (client side)
+
 ```ts
-const connId = engineConnect(engine, version.I001, localSa, peerSa,
-  /* sni */ 'example.com', /* plpmtu */ 1350, /* sessResume? */ null,
-  /* token? */ null)
+const connId = engineConnect(
+  engine,
+  version.I001,
+  localSa,
+  peerSa,
+  /* sni */ 'example.com',
+  /* plpmtu */ 1350,
+  /* sessResume? */ null,
+  /* token? */ null,
+)
 ```
 
 ### 6. Connection accessors
+
 ```ts
 connClose(connId)
-connGetStatus(connId)  // -> { status, error? }
-connGetCID(connId)     // -> Uint8Array | null
+connGetStatus(connId) // -> { status, error? }
+connGetCID(connId) // -> Uint8Array | null
 connGetVersion(connId) // -> int
-connGetSNI(connId)     // -> string | null
+connGetSNI(connId) // -> string | null
 ```
 
 ### 7. Streams
+
 ```ts
 streamWrite(streamId, buf)
 streamRead(streamId, buf, off, n)
@@ -101,12 +120,14 @@ streamClose(streamId)
 ```
 
 ### 8. HTTP/3 headers (QPACK)
+
 ```ts
 streamSendHeaders(streamId, headers, fin)
 streamGetHeaders(streamId) // -> { ...headers }
 ```
 
 ### 9. Datagrams (unreliable)
+
 ```ts
 connSetMinDatagramSize(connId, n)
 connGetMinDatagramSize(connId)
@@ -114,6 +135,7 @@ connWantDatagramWrite(connId, want)
 ```
 
 ### 10. Server cert
+
 ```ts
 setServerCertContext(certPem, keyPem)
 ```

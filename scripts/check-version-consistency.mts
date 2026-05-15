@@ -157,7 +157,9 @@ export function loadSubmodules(): Submodule[] {
     //   - optional sha256:hex64 trailing after one space.
     // Capture all three so downstream checks can validate consistency
     // without re-parsing the line.
-    const commentMatch = line.match(/^# ([a-z][a-z0-9_-]*)-(\S+)(?:\s+sha256:([0-9a-fA-F]+))?/)
+    const commentMatch = line.match(
+      /^# ([a-z][a-z0-9_-]*)-(\S+)(?:\s+sha256:([0-9a-fA-F]+))?/,
+    )
     if (commentMatch) {
       prevComment = commentMatch[2]
       prevSlug = commentMatch[1]
@@ -270,7 +272,10 @@ export function loadPackageJsonSources(): PackageJsonSource[] {
       if (typeof entryRaw !== 'object' || entryRaw === null) {
         continue
       }
-      const e = entryRaw as { version?: unknown | undefined; ref?: unknown | undefined }
+      const e = entryRaw as {
+        version?: unknown | undefined
+        ref?: unknown | undefined
+      }
       if (typeof e.version !== 'string') {
         continue
       }

@@ -422,11 +422,7 @@ export const TEMPORAL_INFRA_DIR = path.join(
   'temporal-infra',
 )
 export const TUI_INFRA_DIR = path.join(PACKAGE_ROOT, '..', 'tui-infra')
-export const LSQUIC_INFRA_DIR = path.join(
-  PACKAGE_ROOT,
-  '..',
-  'lsquic-infra',
-)
+export const LSQUIC_INFRA_DIR = path.join(PACKAGE_ROOT, '..', 'lsquic-infra')
 export const YOGA_LAYOUT_BUILDER_DIR = path.join(
   PACKAGE_ROOT,
   '..',

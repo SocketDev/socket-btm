@@ -208,14 +208,10 @@ export async function runTypeCheck(): Promise<number> {
     return 0
   }
 
-  const result = await spawn(
-    tsgoResult,
-    ['--noEmit', '-p', 'tsconfig.json'],
-    {
-      shell: WIN32,
-      stdio: 'inherit',
-    },
-  )
+  const result = await spawn(tsgoResult, ['--noEmit', '-p', 'tsconfig.json'], {
+    shell: WIN32,
+    stdio: 'inherit',
+  })
 
   if (result.code !== 0) {
     logger.error('Type checks failed')

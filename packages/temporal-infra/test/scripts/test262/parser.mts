@@ -56,9 +56,7 @@ export function parseFrontmatter(source: string): TestAttrs {
 }
 
 export function parseList(yaml: string, key: string): string[] | undefined {
-  const inlineMatch = yaml.match(
-    new RegExp(`^${key}:\\s*\\[([^\\]]*)\\]`, 'm'),
-  )
+  const inlineMatch = yaml.match(new RegExp(`^${key}:\\s*\\[([^\\]]*)\\]`, 'm'))
   if (inlineMatch) {
     return inlineMatch[1]
       .split(',')

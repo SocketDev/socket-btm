@@ -40,12 +40,12 @@
     "update:node": "node scripts/update-node-version.mts",
     "validate:dockerfiles": "node scripts/validate-dockerfile-exports.mts",
     "lockstep": "node scripts/lockstep.mts",
-    "lockstep:emit-schema": "node scripts/lockstep-emit-schema.mts"
+    "lockstep:emit-schema": "node scripts/lockstep-emit-schema.mts",
+    "setup-security-tools": "node .claude/hooks/setup-security-tools/install.mts"
   },
   "devDependencies": {
     "@anthropic-ai/claude-code": "catalog:",
     "@sinclair/typebox": "catalog:",
-    "@socketsecurity/lib": "catalog:",
     "@socketsecurity/lib-stable": "catalog:",
     "@types/node": "catalog:",
     "@typescript/native-preview": "7.0.0-dev.20260415.1",
@@ -62,5 +62,5 @@
     "node": ">=26.1.0",
     "pnpm": ">=11.0.8"
   },
-  "packageManager": "pnpm@11.1.2"
+  "packageManager": "pnpm@11.0.8"
 }

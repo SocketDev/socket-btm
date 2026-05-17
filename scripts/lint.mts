@@ -20,7 +20,7 @@ import { runCommandQuiet } from './utils/run-command.mts'
 const logger = getDefaultLogger()
 
 // Config patterns that trigger a full lint
-const CONFIG_PATTERNS = ['.config/**', 'scripts/utils/**', 'pnpm-lock.yaml']
+const CONFIG_PATTERNS = ['.config/**', 'scripts/util/**', 'pnpm-lock.yaml']
 
 type LintSelection =
   | {

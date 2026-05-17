@@ -16,9 +16,9 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 import { printError } from 'build-infra/lib/build-output'
 
-import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 import { buildNapiGoAddon } from 'napi-go-infra/cli'
 

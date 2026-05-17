@@ -14,8 +14,8 @@
     "test262:temporal": "node test/scripts/test262-temporal-runner.mts"
   },
   "dependencies": {
-    "@socketsecurity/lib-stable": "catalog:",
-    "@socketsecurity/lib-stable": "catalog:",
+    "@socketsecurity/lib": "catalog:",
+    "@socketsecurity/lib": "catalog:",
     "build-infra": "workspace:*"
   },
   "devDependencies": {

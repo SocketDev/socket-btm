@@ -13,7 +13,7 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 import { ensureZstd } from 'build-infra/lib/zstd-init'
 import { ensureCurl } from 'curl-builder/lib/ensure-curl'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 const logger = getDefaultLogger()
 

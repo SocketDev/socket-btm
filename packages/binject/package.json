@@ -14,8 +14,8 @@
     "test:unit": "node scripts/test.mts"
   },
   "dependencies": {
-    "@socketsecurity/lib-stable": "catalog:",
-    "@socketsecurity/lib-stable": "catalog:",
+    "@socketsecurity/lib": "catalog:",
+    "@socketsecurity/lib": "catalog:",
     "bin-infra": "workspace:*",
     "build-infra": "workspace:*",
     "lief-builder": "workspace:*"

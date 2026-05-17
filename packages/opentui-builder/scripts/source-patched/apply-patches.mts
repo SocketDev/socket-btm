@@ -10,8 +10,8 @@ import { createCheckpoint } from 'build-infra/lib/checkpoint-manager'
 import { CHECKPOINTS } from 'build-infra/lib/constants'
 import { applyPatchDirectory } from 'build-infra/lib/patch-validator'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { safeMkdir } from '@socketsecurity/lib/fs'
 
 import {
   BUILD_ZIG,

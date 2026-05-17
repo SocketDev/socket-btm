@@ -28,8 +28,8 @@ import { printError } from 'build-infra/lib/build-output'
 import { CHECKPOINTS } from 'build-infra/lib/constants'
 import { adHocSign } from 'build-infra/lib/sign'
 
-import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 import { COMPRESS_BINARY_SCRIPT, PACKAGE_ROOT } from './paths.mts'
 import { ensureBinpress } from '../../common/shared/compression-tools.mts'

@@ -12,7 +12,7 @@ import process from 'node:process'
 
 import { fileURLToPath } from 'node:url'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 import { cleanBuilder } from '../lib/clean-builder.mts'
 import { errorMessage } from '../lib/error-utils.mts'

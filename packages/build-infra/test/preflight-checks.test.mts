@@ -9,8 +9,8 @@ import {
 } from '../lib/preflight-checks.mts'
 
 // Mock dependencies
-vi.mock<typeof import('@socketsecurity/lib-stable/logger')>(
-  import('@socketsecurity/lib-stable/logger'),
+vi.mock<typeof import('@socketsecurity/lib/logger')>(
+  import('@socketsecurity/lib/logger'),
   () => ({
     getDefaultLogger: () => ({
       error: vi.fn(),

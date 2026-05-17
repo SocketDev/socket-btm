@@ -18,8 +18,8 @@
     "test:suite": "node scripts/test-yoga-suite.mts"
   },
   "dependencies": {
-    "@socketsecurity/lib-stable": "catalog:",
-    "@socketsecurity/lib-stable": "catalog:",
+    "@socketsecurity/lib": "catalog:",
+    "@socketsecurity/lib": "catalog:",
     "acorn": "catalog:",
     "acorn-walk": "catalog:",
     "build-infra": "workspace:*",

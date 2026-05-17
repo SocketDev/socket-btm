@@ -24,8 +24,8 @@ import { fileURLToPath } from 'node:url'
 import { makeExecutable } from 'build-infra/lib/build-helpers'
 import { getBuildMode } from 'build-infra/lib/constants'
 
-import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 import { codeSignBinary, execCommand } from 'bin-infra/test/helpers/test-utils'
 

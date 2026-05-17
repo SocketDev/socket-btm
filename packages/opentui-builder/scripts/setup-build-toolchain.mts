@@ -8,7 +8,7 @@
  * build-ready environment without depending on a system Zig install.
  */
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 import { errorMessage } from 'build-infra/lib/error-utils'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'

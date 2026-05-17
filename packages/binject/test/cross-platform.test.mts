@@ -11,7 +11,7 @@ import { stat, unlink, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 import { getNodeBinary, getSupportedPlatforms } from './helpers/binaries.mts'
 import { getBinjectPath } from './helpers/paths.mts'

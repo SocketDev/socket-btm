@@ -50,11 +50,11 @@ import { Octokit } from 'octokit'
 import colors from 'yoctocolors-cjs'
 import process from 'node:process'
 
-import { parseArgs } from '@socketsecurity/lib-stable/argv/parse'
-import { which } from '@socketsecurity/lib-stable/bin'
-import { safeMkdir } from '@socketsecurity/lib-stable/fs'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { parseArgs } from '@socketsecurity/lib/argv/parse'
+import { which } from '@socketsecurity/lib/bin'
+import { safeMkdir } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 import { getBuildPaths, getDefaultPlatformArch } from '../../paths.mts'
 

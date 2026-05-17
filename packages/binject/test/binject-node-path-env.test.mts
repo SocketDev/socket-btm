@@ -17,8 +17,8 @@ import { fileURLToPath } from 'node:url'
 
 import { makeExecutable } from 'build-infra/lib/build-helpers'
 
-import { safeDelete } from '@socketsecurity/lib-stable/fs'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { safeDelete } from '@socketsecurity/lib/fs'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 import { getBinjectPath } from './helpers/paths.mts'
 

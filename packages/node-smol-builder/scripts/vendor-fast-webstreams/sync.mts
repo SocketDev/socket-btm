@@ -23,9 +23,9 @@ import { fileURLToPath } from 'node:url'
 
 import { parse as acornParse } from 'acorn'
 import { simple as acornWalkSimple } from 'acorn-walk'
-import { safeDeleteSync } from '@socketsecurity/lib-stable/fs'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { readPackageJson } from '@socketsecurity/lib-stable/packages/operations'
+import { safeDeleteSync } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { readPackageJson } from '@socketsecurity/lib/packages/operations'
 import process from 'node:process'
 import { errorMessage } from 'build-infra/lib/error-utils'
 

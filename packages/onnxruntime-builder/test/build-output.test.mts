@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 
 import { createWasmTestHelpers } from 'build-infra/lib/test/helpers'
 
-import { isObjectObject } from '@socketsecurity/lib-stable/objects'
+import { isObjectObject } from '@socketsecurity/lib/objects'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const packageDir = path.join(__dirname, '..')

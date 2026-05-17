@@ -22,14 +22,14 @@ import process from 'node:process'
 
 import { fileURLToPath } from 'node:url'
 
-import { safeDelete } from '@socketsecurity/lib-stable/fs'
+import { safeDelete } from '@socketsecurity/lib/fs'
 import {
   httpDownload,
   httpJson,
   httpText,
-} from '@socketsecurity/lib-stable/http-request'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { escapeRegExp } from '@socketsecurity/lib-stable/regexps'
+} from '@socketsecurity/lib/http-request'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { escapeRegExp } from '@socketsecurity/lib/regexps'
 
 import { errorMessage } from '../lib/error-utils.mts'
 

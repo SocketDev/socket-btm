@@ -12,9 +12,9 @@ import process from 'node:process'
 
 import { fileURLToPath } from 'node:url'
 
-import { DARWIN, WIN32 } from '@socketsecurity/lib-stable/constants/platform'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { DARWIN, WIN32 } from '@socketsecurity/lib/constants/platform'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 import { printError, printInfo, printSuccess } from './build-output.mts'
 import {

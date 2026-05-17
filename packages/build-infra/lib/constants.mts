@@ -13,7 +13,7 @@ import process from 'node:process'
 
 import { fileURLToPath } from 'node:url'
 
-import { getCI } from '@socketsecurity/lib-stable/env/ci'
+import { getCI } from '@socketsecurity/lib/env/ci'
 
 // =============================================================================
 // Path Constants

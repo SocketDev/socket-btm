@@ -14,8 +14,8 @@ import { getBuildMode } from 'build-infra/lib/constants'
 import { errorMessage } from 'build-infra/lib/error-utils'
 import { ensureLief } from 'lief-builder/lib/ensure-lief'
 
-import { getCI } from '@socketsecurity/lib-stable/env/ci'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getCI } from '@socketsecurity/lib/env/ci'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 const logger = getDefaultLogger()
 

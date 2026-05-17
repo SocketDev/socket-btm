@@ -15,13 +15,13 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
-import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
 
 import { fileURLToPath } from 'node:url'
 
-import binPkg, { which } from '@socketsecurity/lib-stable/bin'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import binPkg, { which } from '@socketsecurity/lib/bin'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 import { getPlatform } from './build-env.mts'
 import { printError } from './build-output.mts'

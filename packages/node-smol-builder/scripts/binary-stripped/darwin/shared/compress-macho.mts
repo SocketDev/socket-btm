@@ -24,9 +24,9 @@ import { fileURLToPath } from 'node:url'
 
 import { errorMessage } from 'build-infra/lib/error-utils'
 
-import { safeMkdir } from '@socketsecurity/lib-stable/fs'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { safeMkdir } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { spawn } from '@socketsecurity/lib/spawn'
 const logger = getDefaultLogger()
 
 const __filename = fileURLToPath(import.meta.url)

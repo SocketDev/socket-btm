@@ -23,7 +23,7 @@ import process from 'node:process'
 
 import { fileURLToPath } from 'node:url'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 import { printError, printInfo, printSuccess } from '../lib/build-output.mts'
 import { buildForTarget, getAllTargets } from '../lib/docker-builder.mts'

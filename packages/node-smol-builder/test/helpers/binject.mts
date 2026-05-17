@@ -12,8 +12,8 @@ import { fileURLToPath } from 'node:url'
 import { BUILD_STAGES, getBuildMode } from 'build-infra/lib/constants'
 import { getPlatformArch } from 'build-infra/lib/platform-mappings'
 
-import { safeMkdir } from '@socketsecurity/lib-stable/fs'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { safeMkdir } from '@socketsecurity/lib/fs'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 import {
   RESOURCE_SMOL_VFS_BLOB,

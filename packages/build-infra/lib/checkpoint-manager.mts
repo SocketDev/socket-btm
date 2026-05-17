@@ -22,17 +22,17 @@ import {
 import path from 'node:path'
 import process from 'node:process'
 
-import { which } from '@socketsecurity/lib-stable/bin'
-import { DARWIN, WIN32 } from '@socketsecurity/lib-stable/constants/platform'
-import { getCI } from '@socketsecurity/lib-stable/env/ci'
+import { which } from '@socketsecurity/lib/bin'
+import { DARWIN, WIN32 } from '@socketsecurity/lib/constants/platform'
+import { getCI } from '@socketsecurity/lib/env/ci'
 import {
   safeDelete,
   safeDeleteSync,
   safeMkdir,
-} from '@socketsecurity/lib-stable/fs'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { toUnixPath } from '@socketsecurity/lib-stable/paths/normalize'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+} from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { toUnixPath } from '@socketsecurity/lib/paths/normalize'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 import {
   BUILD_CACHE_ENV_VARS,

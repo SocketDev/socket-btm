@@ -30,7 +30,7 @@ import { existsSync, promises as fs, readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 import {
   cleanCheckpoint,
@@ -45,7 +45,7 @@ import {
   parsePlatformArch,
 } from './platform-mappings.mts'
 import { getNodeVersion } from './version-helpers.mts'
-import { safeDelete } from '@socketsecurity/lib-stable/fs'
+import { safeDelete } from '@socketsecurity/lib/fs'
 
 const logger = getDefaultLogger()
 

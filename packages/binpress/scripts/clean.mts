@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url'
 
 import { runCommand, selectMakefile } from 'bin-infra/lib/builder'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))

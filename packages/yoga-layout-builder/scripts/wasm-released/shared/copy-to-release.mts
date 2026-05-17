@@ -10,8 +10,8 @@ import path from 'node:path'
 import { getFileSize } from 'build-infra/lib/build-helpers'
 import { printError } from 'build-infra/lib/build-output'
 
-import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 const logger = getDefaultLogger()
 

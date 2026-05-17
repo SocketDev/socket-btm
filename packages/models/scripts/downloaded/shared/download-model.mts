@@ -8,11 +8,11 @@ import { CHECKPOINTS } from 'build-infra/lib/constants'
 import { getPythonCommand } from 'build-infra/lib/python-installer'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
-import { which } from '@socketsecurity/lib-stable/bin'
-import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
-import { safeMkdir } from '@socketsecurity/lib-stable/fs'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { which } from '@socketsecurity/lib/bin'
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
+import { safeMkdir } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 // Model pipelines run natively per host, so passing process.* is safe.
 // createCheckpoint now requires explicit target for non-source checkpoints.

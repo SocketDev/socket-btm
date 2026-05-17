@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url'
 
 import { CHECKPOINT_CHAINS } from 'build-infra/lib/constants'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 const logger = getDefaultLogger()
 

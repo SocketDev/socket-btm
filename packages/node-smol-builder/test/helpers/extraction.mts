@@ -7,8 +7,8 @@ import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { getSocketDlxDir } from '@socketsecurity/lib-stable/paths/socket'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { getSocketDlxDir } from '@socketsecurity/lib/paths/socket'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 import {
   HEADER_SIZES,

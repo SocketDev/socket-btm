@@ -30,15 +30,15 @@ import { extractTarball } from 'build-infra/lib/tarball-utils'
 import { getSubmoduleVersion } from 'build-infra/lib/version-helpers'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
-import { which } from '@socketsecurity/lib-stable/bin'
-import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
-import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { which } from '@socketsecurity/lib/bin'
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import {
   detectLibc,
   downloadSocketBtmRelease,
-} from '@socketsecurity/lib-stable/releases/socket-btm'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+} from '@socketsecurity/lib/releases/socket-btm'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 import { LIEF_REQUIRED_FILES } from '../lib/required-files.mts'
 

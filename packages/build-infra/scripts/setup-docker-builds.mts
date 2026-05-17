@@ -28,7 +28,7 @@
  */
 import process from 'node:process'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 import { printError, printInfo, printSuccess } from '../lib/build-output.mts'
 import { errorMessage } from '../lib/error-utils.mts'

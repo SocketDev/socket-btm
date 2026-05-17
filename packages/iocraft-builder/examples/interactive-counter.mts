@@ -20,7 +20,7 @@ import {
   JsStateHandle,
   TuiRenderer,
 } from '../build/dev/darwin-arm64/out/darwin-arm64/iocraft.node'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 const logger = getDefaultLogger()
 

@@ -6,7 +6,7 @@
  */
 
 import { TextBuilder, ViewBuilder, render_to_string } from '../index.mts'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 const logger = getDefaultLogger()
 

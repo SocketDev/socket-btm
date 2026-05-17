@@ -98,10 +98,10 @@ import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 import { verifyNodeChecksum } from 'build-infra/lib/version-helpers'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
-import { parseArgs } from '@socketsecurity/lib-stable/argv/parse'
-import { glob } from '@socketsecurity/lib-stable/globs'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { normalizePath } from '@socketsecurity/lib-stable/paths/normalize'
+import { parseArgs } from '@socketsecurity/lib/argv/parse'
+import { glob } from '@socketsecurity/lib/globs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { normalizePath } from '@socketsecurity/lib/paths/normalize'
 
 import {
   PACKAGE_ROOT,

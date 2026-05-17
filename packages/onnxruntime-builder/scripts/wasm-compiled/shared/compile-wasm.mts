@@ -19,12 +19,12 @@ import {
   getCCRemapFlagsString,
 } from 'build-infra/lib/path-remap-flags'
 
-import { whichSync } from '@socketsecurity/lib-stable/bin'
-import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
-import { safeDelete } from '@socketsecurity/lib-stable/fs'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
-import { getDefaultSpinner } from '@socketsecurity/lib-stable/spinner'
+import { whichSync } from '@socketsecurity/lib/bin'
+import { WIN32 } from '@socketsecurity/lib/constants/platform'
+import { safeDelete } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { spawn } from '@socketsecurity/lib/spawn'
+import { getDefaultSpinner } from '@socketsecurity/lib/spinner'
 
 const logger = getDefaultLogger()
 const spinner = getDefaultSpinner()

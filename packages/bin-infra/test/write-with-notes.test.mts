@@ -20,9 +20,9 @@ import { fileURLToPath } from 'node:url'
 import { BUILD_STAGES, getBuildMode } from 'build-infra/lib/constants'
 import { makeExecutable } from 'build-infra/lib/build-helpers'
 
-import { safeDelete } from '@socketsecurity/lib-stable/fs'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { safeDelete } from '@socketsecurity/lib/fs'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { spawn } from '@socketsecurity/lib/spawn'
 
 const logger = getDefaultLogger()
 

@@ -11,10 +11,10 @@
 // core.hooksPath value via `git config`. Idempotency is verified by
 // running the installer twice and confirming the second run is silent.
 
-import { spawnSync } from 'node:child_process'
+import { spawnSync } from '@socketsecurity/lib/spawn'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { tmpdir } from 'node:os'
+import os from 'node:os'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
@@ -22,17 +22,7 @@ import { fileURLToPath } from 'node:url'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const SCRIPT = path.join(here, '..', 'install-git-hooks.mts')
 
-function makeTmpRepo(): { dir: string; cleanup: () => void } {
-  const dir = mkdtempSync(path.join(tmpdir(), 'install-git-hooks-test-'))
-  return {
-    dir,
-    cleanup: () => {
-      rmSync(dir, { force: true, recursive: true })
-    },
-  }
-}
-
-// Initialize an empty git repo at dir. Uses `git init` so the .git
+export // Initialize an empty git repo at dir. Uses `git init` so the .git
 // directory has the same shape git itself expects (objects/, refs/,
 // HEAD, …). Inheriting the user's git config could pollute the local
 // `core.hooksPath` we're trying to inspect, so the test config sets a
@@ -43,14 +33,24 @@ function gitInit(dir: string): void {
   assert.strictEqual(r.status, 0, `git init failed: ${r.stderr}`)
 }
 
-function readLocalConfig(dir: string, key: string): string | undefined {
+export function makeTmpRepo(): { dir: string; cleanup: () => void } {
+  const dir = mkdtempSync(path.join(tmpdir(), 'install-git-hooks-test-'))
+  return {
+    dir,
+    cleanup: () => {
+      rmSync(dir, { force: true, recursive: true })
+    },
+  }
+}
+
+export function readLocalConfig(dir: string, key: string): string | undefined {
   const r = spawnSync('git', ['-C', dir, 'config', '--local', '--get', key], {
     encoding: 'utf8',
   })
   return r.status === 0 ? r.stdout.trim() : undefined
 }
 
-function runInstaller(dir: string): { code: number; stderr: string } {
+export function runInstaller(dir: string): { code: number; stderr: string } {
   const r = spawnSync(process.execPath, [SCRIPT], {
     cwd: dir,
     encoding: 'utf8',

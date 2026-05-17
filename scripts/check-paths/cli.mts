@@ -90,7 +90,7 @@ const args = parseArgs({
 
 const ALLOWLIST = loadAllowlist(REPO_ROOT)
 
-const main = (): number => {
+function main() {
   // Scan code files (Rule A + B).
   for (const rel of walk(
     REPO_ROOT,
@@ -162,7 +162,8 @@ const main = (): number => {
   logger.log('')
   logger.log('Mantra: 1 path, 1 reference')
   logger.log('')
-  for (const f of blocking) {
+  for (let i = 0, { length } = blocking; i < length; i += 1) {
+    const f = blocking[i]!
     logger.log(`  [${f.rule}] ${f.file}:${f.line}`)
     logger.log(`      ${f.snippet}`)
     logger.log(`      → ${f.message}`)
@@ -173,6 +174,7 @@ const main = (): number => {
       logger.log(`      Fix: ${f.fix}`)
     }
     logger.log('')
+  
   }
   if (!args.values.explain) {
     logger.log('Run with --explain to see fix suggestions per finding.')

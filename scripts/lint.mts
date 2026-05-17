@@ -14,7 +14,7 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 import { errorMessage } from 'build-infra/lib/error-utils'
 
-import { runCommandQuiet } from './utils/run-command.mts'
+import { runCommandQuiet } from './util/run-command.mts'
 
 // Initialize logger
 const logger = getDefaultLogger()

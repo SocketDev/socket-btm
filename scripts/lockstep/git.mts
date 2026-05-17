@@ -19,40 +19,6 @@ import { spawnSync } from '@socketsecurity/lib/spawn'
 import type { Upstream } from './schema.mts'
 import type { DriftCommit, Manifest } from './types.mts'
 
-/**
- * Split text on LF after CRLF normalization. Git on Windows / msys may
- * emit CRLF-terminated output; bare `.split('\n')` leaves a trailing
- * `\r` on every line that throws off downstream `includes`/match checks.
- */
-export function splitLines(text: string): string[] {
-  return text.replace(/\r\n/g, '\n').split('\n')
-}
-
-export function gitIn(submoduleDir: string, args: string[]): string {
-  const result = spawnSync('git', ['-C', submoduleDir, ...args], {
-    stdio: ['ignore', 'pipe', 'pipe'],
-    stdioString: true,
-  })
-  if (result.error) {
-    throw result.error
-  }
-  if (result.status !== 0) {
-    throw new Error(
-      `git ${args.join(' ')} failed (status ${result.status}): ${String(result.stderr).trim()}`,
-    )
-  }
-  return String(result.stdout)
-}
-
-export function shaIsReachable(submoduleDir: string, sha: string): boolean {
-  try {
-    gitIn(submoduleDir, ['cat-file', '-e', sha])
-    return true
-  } catch {
-    return false
-  }
-}
-
 export function driftCommitsSince(
   submoduleDir: string,
   sha: string,
@@ -85,6 +51,22 @@ export function driftCommitsSince(
   }
 }
 
+export function gitIn(submoduleDir: string, args: string[]): string {
+  const result = spawnSync('git', ['-C', submoduleDir, ...args], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    stdioString: true,
+  })
+  if (result.error) {
+    throw result.error
+  }
+  if (result.status !== 0) {
+    throw new Error(
+      `git ${args.join(' ')} failed (status ${result.status}): ${String(result.stderr).trim()}`,
+    )
+  }
+  return String(result.stdout)
+}
+
 export function resolveUpstream(
   manifest: Manifest,
   alias: string,
@@ -97,4 +79,22 @@ export function resolveUpstream(
     return undefined
   }
   return upstream
+}
+
+export function shaIsReachable(submoduleDir: string, sha: string): boolean {
+  try {
+    gitIn(submoduleDir, ['cat-file', '-e', sha])
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Split text on LF after CRLF normalization. Git on Windows / msys may
+ * emit CRLF-terminated output; bare `.split('\n')` leaves a trailing
+ * `\r` on every line that throws off downstream `includes`/match checks.
+ */
+export function splitLines(text: string): string[] {
+  return text.replace(/\r\n/g, '\n').split('\n')
 }

@@ -64,7 +64,7 @@ const rootDir = path.resolve(__dirname, '..', '..')
 // Dispatcher.
 // ---------------------------------------------------------------------------
 
-function evaluate(
+export function evaluate(
   rowsWithArea: Array<{ row: Row; area: string }>,
   merged: Manifest,
 ): Report[] {
@@ -120,8 +120,10 @@ function main(): void {
 
   const crossRowErrors = checkCrossRowConsistency(rowsWithArea, merged)
   if (crossRowErrors.length > 0) {
-    for (const err of crossRowErrors) {
+    for (let i = 0, { length } = crossRowErrors; i < length; i += 1) {
+      const err = crossRowErrors[i]!
       logger.fail(err)
+    
     }
     logger.error(
       `lockstep: ${crossRowErrors.length} cross-row error(s) — fix before running drift checks`,

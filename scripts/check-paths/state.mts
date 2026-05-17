@@ -14,14 +14,14 @@ import type { Finding } from './types.mts'
 
 export const findings: Finding[] = []
 
-export function pushFinding(f: Finding): void {
-  findings.push(f)
+export function clearFindings(): void {
+  findings.length = 0
 }
 
 export function getFindings(): readonly Finding[] {
   return findings
 }
 
-export function clearFindings(): void {
-  findings.length = 0
+export function pushFinding(f: Finding): void {
+  findings.push(f)
 }

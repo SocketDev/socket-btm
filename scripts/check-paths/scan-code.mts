@@ -42,29 +42,12 @@ export const TEMPLATE_LITERAL_RE =
   /`((?:\\.|(?:\$\{(?:[^{}]|\{[^{}]*\})*\})|(?!`)[^\\])*)`/g
 
 /**
- * Convert a template-literal body into a synthetic forward-slash path
- * by replacing `${...}` placeholders with a sentinel and normalizing
- * separators. Returns the sequence of path segments split on `/`. The
- * sentinel doesn't match any STAGE/BUILD_ROOT/MODE token, so a
- * placeholder-only segment (`${binaryName}`) won't match those sets.
- */
-export const templateLiteralSegments = (body: string): string[] => {
-  // Strip placeholders so they don't introduce noise in segments.
-  // Empty result for a placeholder is fine; downstream filters by set
-  // membership and skips empties.
-  const stripped = body.replace(/\$\{(?:[^{}]|\{[^{}]*\})*\}/g, '\x00')
-  return stripped.split('/').filter(seg => seg.length > 0 && seg !== '\x00')
-}
-
-/**
  * Extract every `path.join(...)` and `path.resolve(...)` call from the
  * source text, returning each call's literal start offset and argument
  * substring. Uses paren-balancing so deeply-nested arguments like
  * `path.join(getDir(child(x)), 'build', 'Final')` are captured fully.
  */
-export const extractPathCalls = (
-  source: string,
-): Array<{ offset: number; args: string }> => {
+export function extractPathCalls(source: string) {
   const calls: Array<{ offset: number; args: string }> = []
   PATH_CALL_RE.lastIndex = 0
   let match: RegExpExecArray | null
@@ -106,7 +89,7 @@ export const extractPathCalls = (
   return calls
 }
 
-export const extractStringLiterals = (args: string): string[] => {
+export function extractStringLiterals(args: string) {
   const literals: string[] = []
   let match: RegExpExecArray | null
   STRING_LITERAL_RE.lastIndex = 0
@@ -118,7 +101,7 @@ export const extractStringLiterals = (args: string): string[] => {
   return literals
 }
 
-export const scanCodeFile = (repoRoot: string, relPath: string): void => {
+export function scanCodeFile(repoRoot: string, relPath: string) {
   const full = path.join(repoRoot, relPath)
   let content: string
   try {
@@ -248,4 +231,19 @@ export const scanCodeFile = (repoRoot: string, relPath: string): void => {
       })
     }
   }
+}
+
+/**
+ * Convert a template-literal body into a synthetic forward-slash path
+ * by replacing `${...}` placeholders with a sentinel and normalizing
+ * separators. Returns the sequence of path segments split on `/`. The
+ * sentinel doesn't match any STAGE/BUILD_ROOT/MODE token, so a
+ * placeholder-only segment (`${binaryName}`) won't match those sets.
+ */
+export function templateLiteralSegments(body: string) {
+  // Strip placeholders so they don't introduce noise in segments.
+  // Empty result for a placeholder is fine; downstream filters by set
+  // membership and skips empties.
+  const stripped = body.replace(/\$\{(?:[^{}]|\{[^{}]*\})*\}/g, '\x00')
+  return stripped.split('/').filter(seg => seg.length > 0 && seg !== '\x00')
 }

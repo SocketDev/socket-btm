@@ -23,11 +23,14 @@ import path from 'node:path'
 import { pushFinding } from './state.mts'
 
 export const WORKFLOW_PATH_RE =
-  /build\/\$\{[^}]+\}\/[^"'`\s]*\/out\/(?:Compressed|Final|Optimized|Release|Stripped|Synced)/g
+  /build\/\$\{[^}]+\}\/[^"'`\s]*\/out\/(?:Final|Release|Stripped|Compressed|Optimized|Synced)/g
 export const WORKFLOW_GH_EXPR_PATH_RE =
-  /build\/\$\{\{\s*[^}]+\}\}\/[^"'`\s]*\/out\/(?:Compressed|Final|Optimized|Release|Stripped|Synced)/g
+  /build\/\$\{\{\s*[^}]+\}\}\/[^"'`\s]*\/out\/(?:Final|Release|Stripped|Compressed|Optimized|Synced)/g
 
-export function isInsideComputePathsBlock(lines: string[], lineIdx: number) {
+export const isInsideComputePathsBlock = (
+  lines: string[],
+  lineIdx: number,
+): boolean => {
   // Walk backwards up to 60 lines looking for the start of the
   // current step. If that step is a "Compute paths" step, the line
   // is exempt.
@@ -57,7 +60,7 @@ export function isInsideComputePathsBlock(lines: string[], lineIdx: number) {
   return false
 }
 
-export function scanWorkflowFile(repoRoot: string, relPath: string) {
+export const scanWorkflowFile = (repoRoot: string, relPath: string): void => {
   const full = path.join(repoRoot, relPath)
   let content: string
   try {
@@ -97,12 +100,10 @@ export function scanWorkflowFile(repoRoot: string, relPath: string) {
     while ((m = WORKFLOW_GH_EXPR_PATH_RE.exec(line)) !== null) {
       matches.push(m[0])
     }
-    for (let i = 0, { length } = matches; i < length; i += 1) {
-      const pathStr = matches[i]!
+    for (const pathStr of matches) {
       const list = occurrences.get(pathStr) ?? []
       list.push({ line: i + 1, snippet: line.trim(), pathStr })
       occurrences.set(pathStr, list)
-    
     }
   }
 
@@ -111,8 +112,7 @@ export function scanWorkflowFile(repoRoot: string, relPath: string) {
     if (hits.length < 2) {
       continue
     }
-    for (let i = 0, { length } = hits; i < length; i += 1) {
-      const hit = hits[i]!
+    for (const hit of hits) {
       pushFinding({
         rule: 'C',
         file: relPath,
@@ -121,7 +121,6 @@ export function scanWorkflowFile(repoRoot: string, relPath: string) {
         message: `Workflow constructs the same path ${hits.length} times: ${pathStr}`,
         fix: 'Add a "Compute <pkg> paths" step (id: paths) early in the job that computes this path ONCE and exposes it via $GITHUB_OUTPUT. Reference as ${{ steps.paths.outputs.<name> }} in subsequent steps. References of the constructed value are unlimited; reconstructing is the violation.',
       })
-    
     }
   }
 
@@ -133,7 +132,7 @@ export function scanWorkflowFile(repoRoot: string, relPath: string) {
       continue
     }
     const literalShape =
-      /build\/(?:dev|prod|shared)\/[a-z0-9-]+\/(?:wasm\/)?out\/(?:Compressed|Final|Optimized|Release|Stripped|Synced)/i
+      /build\/(?:dev|prod|shared)\/[a-z0-9-]+\/(?:wasm\/)?out\/(?:Final|Release|Stripped|Compressed|Optimized|Synced)/i
     if (literalShape.test(line)) {
       pushFinding({
         rule: 'D',

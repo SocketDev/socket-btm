@@ -47,9 +47,20 @@ const SOCKET_API_TOKEN = 'SOCKET_API_TOKEN'
 // SOCKET_API_TOKEN, never this slot directly.
 const LEGACY_SOCKET_KEY = 'SOCKET_API_KEY'
 
-// Order matters: writes loop in this order so the canonical slot lands
-// first; reads pick the first match.
-const SLOTS = [SOCKET_API_TOKEN, LEGACY_SOCKET_KEY] as const
+// Writes loop in this order so the canonical slot lands first and
+// the legacy alias mirrors it.
+const WRITE_SLOTS = [SOCKET_API_TOKEN, LEGACY_SOCKET_KEY] as const
+
+// Reads ONLY hit the canonical slot. The legacy slot is a write-only
+// compatibility mirror — consumers that still resolve `SOCKET_API_KEY`
+// via env get the value from `SOCKET_API_KEY` directly (or from the
+// `LEGACY_SOCKET_KEY` write that happens alongside the canonical one
+// at install time). Reading both on every lookup doubles the number
+// of macOS Keychain ACL prompts for no benefit — when the canonical
+// slot is populated (which install.mts guarantees), the legacy slot
+// is just a duplicate of the same value, and when the canonical
+// slot is empty the legacy slot is empty too (writes always pair).
+const READ_SLOTS = [SOCKET_API_TOKEN] as const
 
 type Platform = 'darwin' | 'linux' | 'win32' | 'other'
 
@@ -74,7 +85,7 @@ function detectPlatform(): Platform {
  */
 export function readTokenFromKeychain(): string | undefined {
   const platform_ = detectPlatform()
-  for (const slot of SLOTS) {
+  for (const slot of READ_SLOTS) {
     let value: string | undefined
     switch (platform_) {
       case 'darwin':
@@ -118,7 +129,7 @@ export function writeTokenToKeychain(token: string): void {
         'Token storage requires macOS, Linux, or Windows.',
     )
   }
-  for (const slot of SLOTS) {
+  for (const slot of WRITE_SLOTS) {
     switch (platform_) {
       case 'darwin':
         writeMacOS(token, slot)
@@ -140,7 +151,10 @@ export function writeTokenToKeychain(token: string): void {
  */
 export function deleteTokenFromKeychain(): void {
   const platform_ = detectPlatform()
-  for (const slot of SLOTS) {
+  // Delete loops through BOTH slots so a rotate/wipe clears the
+  // legacy mirror too (otherwise the legacy entry would persist
+  // until something overwrites it).
+  for (const slot of WRITE_SLOTS) {
     switch (platform_) {
       case 'darwin':
         deleteMacOS(slot)

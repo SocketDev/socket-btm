@@ -25,7 +25,7 @@ interface MinifyViolation {
 /**
  * Validate esbuild configuration has minify: false.
  */
-export async function validateEsbuildMinify(): Promise<MinifyViolation[]> {
+async function validateEsbuildMinify(): Promise<MinifyViolation[]> {
   const configPath = path.join(rootPath, '.config/esbuild.config.mts')
 
   try {
@@ -77,17 +77,14 @@ async function main(): Promise<void> {
     return
   }
 
-  logger.fail('esbuild minify validation failed')
-  logger.error('')
+  logger.fail('esbuild minify validation failed\n')
 
-  for (let i = 0, { length } = violations; i < length; i += 1) {
-    const violation = violations[i]!
+  for (const violation of violations) {
     logger.error(`  ${violation.message}`)
     logger.error(`  Found: minify: ${violation.value}`)
     logger.error('  Expected: minify: false')
     logger.error(`  Location: ${violation.location}`)
     logger.error('')
-  
   }
 
   logger.error(

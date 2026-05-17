@@ -21,12 +21,41 @@ import { errorMessage } from '@socketsecurity/lib/errors'
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 import { validateSchema } from '@socketsecurity/lib/schema/validate'
 
-import { LockstepManifestSchema } from './schema.mts'
-import type { Row, Site, Upstream } from './schema.mts'
+import {
+  LockstepManifestSchema,
+  type Row,
+  type Site,
+  type Upstream,
+} from './schema.mts'
 
 import type { Manifest } from './types.mts'
 
 const logger = getDefaultLogger()
+
+export function readManifest(manifestPath: string): Manifest {
+  if (!existsSync(manifestPath)) {
+    logger.error(`lockstep: manifest not found at ${manifestPath}`)
+    process.exit(1)
+  }
+  let raw: unknown
+  try {
+    raw = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  } catch (e) {
+    logger.error(`lockstep: could not parse ${manifestPath}`)
+    logger.fail(`  ${errorMessage(e)}`)
+    process.exit(1)
+  }
+  const result = validateSchema(LockstepManifestSchema, raw)
+  if (result.ok) {
+    return result.value
+  }
+  logger.error(`lockstep: schema validation failed for ${manifestPath}`)
+  for (const issue of result.errors) {
+    const loc = issue.path.length ? issue.path.join('.') : '<root>'
+    logger.fail(`  ${loc}: ${issue.message}`)
+  }
+  process.exit(1)
+}
 
 /**
  * Resolve a manifest + all its `includes[]` sub-manifests into a single
@@ -45,14 +74,12 @@ export function loadManifestTree(rootManifestPath: string): {
 
   const includes = rootManifest.includes ?? []
   const baseDir = path.dirname(rootManifestPath)
-  for (let i = 0, { length } = includes; i < length; i += 1) {
-    const rel = includes[i]!
+  for (const rel of includes) {
     const subPath = path.resolve(baseDir, rel)
     const sub = readManifest(subPath)
     const area =
       sub.area ?? path.basename(rel, '.json').replace(/^lockstep-/, '')
     areas.push({ area, manifest: sub })
-  
   }
 
   // Null-prototype maps guard against prototype pollution via untrusted
@@ -87,29 +114,4 @@ export function loadManifestTree(rootManifestPath: string): {
       rows: mergedRows,
     },
   }
-}
-
-export function readManifest(manifestPath: string): Manifest {
-  if (!existsSync(manifestPath)) {
-    logger.error(`lockstep: manifest not found at ${manifestPath}`)
-    process.exit(1)
-  }
-  let raw: unknown
-  try {
-    raw = JSON.parse(readFileSync(manifestPath, 'utf8'))
-  } catch (e) {
-    logger.error(`lockstep: could not parse ${manifestPath}`)
-    logger.fail(`  ${errorMessage(e)}`)
-    process.exit(1)
-  }
-  const result = validateSchema(LockstepManifestSchema, raw)
-  if (result.ok) {
-    return result.value
-  }
-  logger.error(`lockstep: schema validation failed for ${manifestPath}`)
-  for (const issue of result.errors) {
-    const loc = issue.path.length ? issue.path.join('.') : '<root>'
-    logger.fail(`  ${loc}: ${issue.message}`)
-  }
-  process.exit(1)
 }

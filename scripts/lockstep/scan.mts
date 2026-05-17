@@ -19,47 +19,6 @@ import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
 const logger = getDefaultLogger()
 
-export function countPatternHits(files: string[], patterns: string[]): number {
-  if (patterns.length === 0) {
-    return 0
-  }
-  // Manifest authors occasionally land a bad regex; surface the bad
-  // pattern and keep going rather than throwing a SyntaxError that
-  // kills the whole run.
-  const compiled: RegExp[] = []
-  for (let i = 0, { length } = patterns; i < length; i += 1) {
-    const p = patterns[i]!
-    try {
-      compiled.push(new RegExp(p))
-    } catch (e) {
-      logger.warn(
-        `lockstep: skipping invalid regex ${JSON.stringify(p)}: ${errorMessage(e)}`,
-      )
-    }
-  
-  }
-  let hits = 0
-  for (let i = 0, { length } = compiled; i < length; i += 1) {
-    const pat = compiled[i]!
-    for (let i = 0, { length } = files; i < length; i += 1) {
-      const file = files[i]!
-      let content: string
-      try {
-        content = readFileSync(file, 'utf8')
-      } catch {
-        continue
-      }
-      if (pat.test(content)) {
-        hits += 1
-        break
-      }
-    
-    }
-  
-  }
-  return hits
-}
-
 export function walkDirFiles(dir: string, extRe: RegExp): string[] {
   const files: string[] = []
   if (!existsSync(dir)) {
@@ -74,9 +33,8 @@ export function walkDirFiles(dir: string, extRe: RegExp): string[] {
     } catch {
       continue
     }
-    for (let i = 0, { length } = entries; i < length; i += 1) {
-      const entry = entries[i]!
-      if (entry === '.git' || entry === 'dist' || entry === 'node_modules') {
+    for (const entry of entries) {
+      if (entry === 'node_modules' || entry === '.git' || entry === 'dist') {
         continue
       }
       const full = path.join(current, entry)
@@ -91,8 +49,42 @@ export function walkDirFiles(dir: string, extRe: RegExp): string[] {
       } else if (stat.isFile() && extRe.test(entry)) {
         files.push(full)
       }
-    
     }
   }
   return files
+}
+
+export function countPatternHits(files: string[], patterns: string[]): number {
+  if (patterns.length === 0) {
+    return 0
+  }
+  // Manifest authors occasionally land a bad regex; surface the bad
+  // pattern and keep going rather than throwing a SyntaxError that
+  // kills the whole run.
+  const compiled: RegExp[] = []
+  for (const p of patterns) {
+    try {
+      compiled.push(new RegExp(p))
+    } catch (e) {
+      logger.warn(
+        `lockstep: skipping invalid regex ${JSON.stringify(p)}: ${errorMessage(e)}`,
+      )
+    }
+  }
+  let hits = 0
+  for (const pat of compiled) {
+    for (const file of files) {
+      let content: string
+      try {
+        content = readFileSync(file, 'utf8')
+      } catch {
+        continue
+      }
+      if (pat.test(content)) {
+        hits += 1
+        break
+      }
+    }
+  }
+  return hits
 }

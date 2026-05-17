@@ -47,43 +47,34 @@ interface SmolPower {
 }
 let _smolPower: SmolPower | undefined
 let _smolPowerProbed = false
-export async function detectLinux(): Promise<boolean> {
-  // Linux exposes power state under /sys/class/power_supply. Each
-  // AC adapter is its own dir (`AC`, `ADP1`, `AC0`, `ACAD`, …)
-  // with an `online` file holding "1" when power is connected.
-  // Containers and headless servers often have no power_supply
-  // tree at all — treat that as AC since those environments are
-  // expected to run at full speed.
-  const psDir = '/sys/class/power_supply'
-  if (!existsSync(psDir)) {
-    return true
+async function getSmolPower(): Promise<SmolPower | undefined> {
+  if (_smolPowerProbed) {
+    return _smolPower
   }
-  try {
-    const entries = await fs.readdir(psDir)
-    for (let i = 0, { length } = entries; i < length; i += 1) {
-      const entry = entries[i]!
-      const onlineFile = path.join(psDir, entry, 'online')
-      if (!existsSync(onlineFile)) {
-        continue
-      }
-      try {
-        const value = await fs.readFile(onlineFile, 'utf8')
-        if (value.trim() === '1') {
-          return true
-        }
-      } catch {
-        // Unreadable entry — skip; another entry may report.
-      }
-    
-    }
-  } catch {
-    // Directory enumeration failed — fall through to AC.
-    return true
+  _smolPowerProbed = true
+  if (!isBuiltin('node:smol-power')) {
+    return undefined
   }
-  return false
+  // Cast through `unknown` because system Node's typings don't
+  // declare the module — only node-smol's lib.d.ts does.
+  _smolPower = (await import(
+    'node:smol-power' as string
+  )) as unknown as SmolPower
+  return _smolPower
 }
 
-export async function detectMacOs(): Promise<boolean> {
+// Coerce spawn's stdout (string | Buffer | undefined) to a string.
+function stdoutString(value: unknown): string {
+  if (typeof value === 'string') {
+    return value
+  }
+  if (value instanceof Uint8Array) {
+    return Buffer.from(value).toString('utf8')
+  }
+  return ''
+}
+
+async function detectMacOs(): Promise<boolean> {
   try {
     // `pmset -g batt` on macOS prints lines like
     //   Now drawing from 'AC Power'
@@ -99,7 +90,41 @@ export async function detectMacOs(): Promise<boolean> {
   }
 }
 
-export async function detectWindows(): Promise<boolean> {
+async function detectLinux(): Promise<boolean> {
+  // Linux exposes power state under /sys/class/power_supply. Each
+  // AC adapter is its own dir (`AC`, `ADP1`, `AC0`, `ACAD`, …)
+  // with an `online` file holding "1" when power is connected.
+  // Containers and headless servers often have no power_supply
+  // tree at all — treat that as AC since those environments are
+  // expected to run at full speed.
+  const psDir = '/sys/class/power_supply'
+  if (!existsSync(psDir)) {
+    return true
+  }
+  try {
+    const entries = await fs.readdir(psDir)
+    for (const entry of entries) {
+      const onlineFile = path.join(psDir, entry, 'online')
+      if (!existsSync(onlineFile)) {
+        continue
+      }
+      try {
+        const value = await fs.readFile(onlineFile, 'utf8')
+        if (value.trim() === '1') {
+          return true
+        }
+      } catch {
+        // Unreadable entry — skip; another entry may report.
+      }
+    }
+  } catch {
+    // Directory enumeration failed — fall through to AC.
+    return true
+  }
+  return false
+}
+
+async function detectWindows(): Promise<boolean> {
   try {
     // Windows: query the battery status via PowerShell + CIM.
     // `Win32_Battery.BatteryStatus`:
@@ -131,22 +156,6 @@ export async function detectWindows(): Promise<boolean> {
   }
 }
 
-export async function getSmolPower(): Promise<SmolPower | undefined> {
-  if (_smolPowerProbed) {
-    return _smolPower
-  }
-  _smolPowerProbed = true
-  if (!isBuiltin('node:smol-power')) {
-    return undefined
-  }
-  // Cast through `unknown` because system Node's typings don't
-  // declare the module — only node-smol's lib.d.ts does.
-  _smolPower = (await import(
-    'node:smol-power' as string
-  )) as unknown as SmolPower
-  return _smolPower
-}
-
 /**
  * Returns `true` if the host is on AC power. Conservative on
  * detection failure (returns `true`) — callers using this for
@@ -173,15 +182,4 @@ export async function isOnAcPower(): Promise<boolean> {
   }
   // Unsupported platform; conservative default.
   return true
-}
-
-// Coerce spawn's stdout (string | Buffer | undefined) to a string.
-export function stdoutString(value: unknown): string {
-  if (typeof value === 'string') {
-    return value
-  }
-  if (value instanceof Uint8Array) {
-    return Buffer.from(value).toString('utf8')
-  }
-  return ''
 }

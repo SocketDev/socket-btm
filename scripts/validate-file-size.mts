@@ -44,7 +44,7 @@ const SKIP_DIRS = new Set([
 /**
  * Format bytes to human-readable size.
  */
-export function formatBytes(bytes: number): string {
+function formatBytes(bytes: number): string {
   if (bytes === 0) {
     return '0 B'
   }
@@ -67,15 +67,14 @@ interface FileSizeViolation {
 /**
  * Recursively scan directory for files exceeding size limit.
  */
-export async function scanDirectory(
+async function scanDirectory(
   dir: string,
   violations: FileSizeViolation[] = [],
 ): Promise<FileSizeViolation[]> {
   try {
     const entries = await fs.readdir(dir, { withFileTypes: true })
 
-    for (let i = 0, { length } = entries; i < length; i += 1) {
-      const entry = entries[i]!
+    for (const entry of entries) {
       const fullPath = path.join(dir, entry.name)
 
       if (entry.isDirectory()) {
@@ -106,7 +105,6 @@ export async function scanDirectory(
           // Skip files we can't stat
         }
       }
-    
     }
   } catch {
     // Skip directories we can't read
@@ -118,7 +116,7 @@ export async function scanDirectory(
 /**
  * Validate file sizes in repository.
  */
-export async function validateFileSizes(): Promise<FileSizeViolation[]> {
+async function validateFileSizes(): Promise<FileSizeViolation[]> {
   const violations = await scanDirectory(rootPath)
 
   // Sort by size descending (largest first)
@@ -144,15 +142,13 @@ async function main(): Promise<void> {
     logger.log('Files exceeding limit:')
     logger.log('')
 
-    for (let i = 0, { length } = violations; i < length; i += 1) {
-      const violation = violations[i]!
+    for (const violation of violations) {
       logger.log(`  ${violation.file}`)
       logger.log(`    Size: ${violation.formattedSize}`)
       logger.log(
         `    Exceeds limit by: ${formatBytes(violation.size - MAX_FILE_SIZE)}`,
       )
       logger.log('')
-    
     }
 
     logger.log(

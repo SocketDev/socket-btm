@@ -30,7 +30,7 @@
  *   node scripts/lint-github-settings.mts --json     # machine-readable
  */
 
-import { spawnSync } from '@socketsecurity/lib/spawn'
+import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -58,7 +58,7 @@ interface LoadedSocketWheelhouseConfig {
   readonly value: Record<string, unknown>
 }
 
-export function loadSocketWheelhouseConfig(
+function loadSocketWheelhouseConfig(
   repoRoot: string,
 ): LoadedSocketWheelhouseConfig | undefined {
   const primary = path.join(repoRoot, SOCKET_WHEELHOUSE_CONFIG_PRIMARY_REL)
@@ -68,7 +68,7 @@ export function loadSocketWheelhouseConfig(
     : existsSync(legacy)
       ? legacy
       : undefined
-  if (!target) {return undefined}
+  if (!target) return undefined
   let raw: string
   try {
     raw = readFileSync(target, 'utf8')
@@ -143,9 +143,9 @@ interface Finding {
   fixUrl: string
   fixable: boolean
   /** PATCH-shaped patch payload to apply when --fix is given. */
-  fixPatch?: Record<string, unknown> | undefined
+  fixPatch?: Record<string, unknown>
   /** Required permission for the PATCH; informational. */
-  fixRequires?: string | undefined
+  fixRequires?: string
 }
 
 interface CacheEntry {
@@ -178,7 +178,7 @@ interface CliFlags {
   json: boolean
 }
 
-export function parseFlags(): CliFlags {
+function parseFlags(): CliFlags {
   const argv = process.argv.slice(2)
   return {
     fix: argv.includes('--fix'),
@@ -193,8 +193,8 @@ export function parseFlags(): CliFlags {
  * (parse error, missing fields, wrong repo) are treated as absent —
  * the next run will rewrite them.
  */
-export function readCache(repo: string): CacheEntry | undefined {
-  if (!existsSync(CACHE_FILE)) {return undefined}
+function readCache(repo: string): CacheEntry | undefined {
+  if (!existsSync(CACHE_FILE)) return undefined
   let raw: string
   try {
     raw = readFileSync(CACHE_FILE, 'utf8')
@@ -207,14 +207,14 @@ export function readCache(repo: string): CacheEntry | undefined {
   } catch {
     return undefined
   }
-  if (entry.repo !== repo) {return undefined}
+  if (entry.repo !== repo) return undefined
   const verifiedAt = Date.parse(entry.verifiedAt)
-  if (!Number.isFinite(verifiedAt)) {return undefined}
-  if (Date.now() - verifiedAt > (entry.ttl ?? TTL_MS)) {return undefined}
+  if (!Number.isFinite(verifiedAt)) return undefined
+  if (Date.now() - verifiedAt > (entry.ttl ?? TTL_MS)) return undefined
   return entry
 }
 
-export function writeCache(entry: CacheEntry): void {
+function writeCache(entry: CacheEntry): void {
   if (!existsSync(NODE_MODULES_CACHE_DIR)) {
     mkdirSync(NODE_MODULES_CACHE_DIR, { recursive: true })
   }
@@ -230,18 +230,18 @@ export function writeCache(entry: CacheEntry): void {
  * SocketDev fork's settings, not upstream's. The git remote is the
  * source of truth for "which repo does this checkout push to."
  */
-export function resolveRepo(): string | undefined {
+function resolveRepo(): string | undefined {
   const remote = spawnSync(
     'git',
     ['config', '--get', 'remote.origin.url'],
     { cwd: REPO_ROOT, encoding: 'utf8' },
   )
-  if (remote.status !== 0) {return undefined}
+  if (remote.status !== 0) return undefined
   const url = remote.stdout.trim()
   // Match `git@github.com:owner/repo[.git]` or
   // `https://github.com/owner/repo[.git]`.
   const m = /github\.com[/:]([^/]+)\/([^/]+?)(?:\.git)?$/.exec(url)
-  if (!m) {return undefined}
+  if (!m) return undefined
   return `${m[1]}/${m[2]}`
 }
 
@@ -250,7 +250,7 @@ export function resolveRepo(): string | undefined {
  * or undefined on any error. The caller decides whether undefined is
  * an audit-failing condition or a soft skip.
  */
-export function ghApi<T>(
+function ghApi<T>(
   endpoint: string,
   method: 'GET' | 'PATCH' = 'GET',
   body?: Record<string, unknown>,
@@ -279,7 +279,7 @@ export function ghApi<T>(
     }
     return undefined
   }
-  if (!r.stdout.trim()) {return undefined as unknown as T}
+  if (!r.stdout.trim()) return undefined as unknown as T
   try {
     return JSON.parse(r.stdout) as T
   } catch {
@@ -299,8 +299,8 @@ const REQUIRED_APP_SLUGS = ['cursor', 'socket-security', 'socket-trufflehog'] as
 
 interface CheckSuitesPayload {
   check_suites?: Array<{
-    app?: { slug?: string | undefined } | undefined
-  }> | undefined
+    app?: { slug?: string }
+  }>
 }
 
 /**
@@ -324,17 +324,15 @@ interface CheckSuitesPayload {
  * `{ <name>: <value or null> }`. Empty object when the API isn't
  * available or the call fails — equivalent to "no opt-outs."
  */
-export function loadCustomProperties(repo: string): Record<string, string | null> {
+function loadCustomProperties(repo: string): Record<string, string | null> {
   const props = ghApi<CustomPropertyValue[]>(`repos/${repo}/properties/values`)
-  if (!Array.isArray(props)) {return {}}
+  if (!Array.isArray(props)) return {}
   const out: Record<string, string | null> = {}
-  for (let i = 0, { length } = props; i < length; i += 1) {
-    const p = props[i]!
+  for (const p of props) {
     if (typeof p.property_name === 'string') {
       out[p.property_name] =
-        p.value === null || typeof p.value === 'string' ? p.value : undefined
+        p.value === null || typeof p.value === 'string' ? p.value : null
     }
-  
   }
   return out
 }
@@ -360,40 +358,38 @@ export function loadCustomProperties(repo: string): Record<string, string | null
  * The maintainer's signed statement IS the install record — trust +
  * verify-once-via-eyeballs > unreliable automation.
  */
-export function readDeclaredApps(): Set<string> {
+function readDeclaredApps(): Set<string> {
   const declared = new Set<string>()
   const loaded = loadSocketWheelhouseConfig(REPO_ROOT)
-  if (!loaded) {return declared}
+  if (!loaded) return declared
   const github = loaded.value['github']
-  if (typeof github !== 'object' || github === null) {return declared}
+  if (typeof github !== 'object' || github === null) return declared
   const apps = (github as Record<string, unknown>)['apps']
   if (Array.isArray(apps)) {
-    for (let i = 0, { length } = apps; i < length; i += 1) {
-      const a = apps[i]!
-      if (typeof a === 'string') {declared.add(a)}
-    
+    for (const a of apps) {
+      if (typeof a === 'string') declared.add(a)
     }
   }
   return declared
 }
 
-export function detectInstalledApps(repo: string, defaultBranch: string): Set<string> {
+function detectInstalledApps(repo: string, defaultBranch: string): Set<string> {
   const seen = new Set<string>()
   // List of commits, not a single commit — `/commits` (plural) with
   // `sha` query for the branch ref. The singular `/commits/{ref}`
   // endpoint returns ONE commit, which is the bug shape this fixes.
-  const commits = ghApi<Array<{ sha?: string | undefined }>>(
+  const commits = ghApi<Array<{ sha?: string }>>(
     `repos/${repo}/commits?sha=${encodeURIComponent(defaultBranch)}&per_page=10`,
   )
   for (const c of commits ?? []) {
-    if (!c.sha) {continue}
+    if (!c.sha) continue
     const suites = ghApi<CheckSuitesPayload>(
       `repos/${repo}/commits/${c.sha}/check-suites?per_page=100`,
     )
     for (const s of suites?.check_suites ?? []) {
-      if (s.app?.slug) {seen.add(s.app.slug)}
+      if (s.app?.slug) seen.add(s.app.slug)
     }
-    if (seen.size >= REQUIRED_APP_SLUGS.length) {break}
+    if (seen.size >= REQUIRED_APP_SLUGS.length) break
   }
   return seen
 }
@@ -434,27 +430,27 @@ const SHARED_WORKFLOW_BASENAMES = [
   'test.yml',
 ] as const
 
-export function detectLocalShadows(
+function detectLocalShadows(
   repo: string,
 ): Array<{ basename: string; localPath: string }> {
   const out: Array<{ basename: string; localPath: string }> = []
   const wf = ghApi<WorkflowsPayload>(`repos/${repo}/actions/workflows?per_page=100`)
-  if (!wf?.workflows) {return out}
+  if (!wf?.workflows) return out
   for (const w of wf.workflows) {
-    if (!w.path || !w.path.startsWith('.github/workflows/')) {continue}
+    if (!w.path || !w.path.startsWith('.github/workflows/')) continue
     const basename = w.path.slice('.github/workflows/'.length)
-    if (basename.startsWith('_local-not-for-reuse-')) {continue}
-    if (!SHARED_WORKFLOW_BASENAMES.includes(basename as typeof SHARED_WORKFLOW_BASENAMES[number])) {continue}
+    if (basename.startsWith('_local-not-for-reuse-')) continue
+    if (!SHARED_WORKFLOW_BASENAMES.includes(basename as typeof SHARED_WORKFLOW_BASENAMES[number])) continue
     const r = spawnSync(
       'gh',
       ['api', `repos/${repo}/contents/${w.path}`],
       { cwd: REPO_ROOT, encoding: 'utf8' },
     )
-    if (r.status !== 0) {continue}
+    if (r.status !== 0) continue
     let bodyRaw: string
     try {
-      const obj = JSON.parse(r.stdout) as { content?: string | undefined; encoding?: string | undefined }
-      if (obj.encoding !== 'base64' || !obj.content) {continue}
+      const obj = JSON.parse(r.stdout) as { content?: string; encoding?: string }
+      if (obj.encoding !== 'base64' || !obj.content) continue
       bodyRaw = Buffer.from(obj.content, 'base64').toString('utf8')
     } catch {
       continue
@@ -494,7 +490,7 @@ export function detectLocalShadows(
  * would mean the eventual lift forgets the reminder existed. Warn
  * = visible-but-not-CI-blocking.
  */
-export function severityOverride(
+function severityOverride(
   ruleKey: string,
   props: Record<string, string | null>,
 ): Severity {
@@ -519,7 +515,12 @@ export function severityOverride(
   // customers. Private/unpublished or in-remediation repos get
   // warnings instead of errors so the maintainer sees the reminder
   // without CI red.
-  const customerFacingRules = new Set(['has_discussions must be false', 'has_projects must be false', 'has_wiki must be false', 'pull_request_creation_policy must be collaborators_only'])
+  const customerFacingRules = new Set([
+    'has_wiki must be false',
+    'has_discussions must be false',
+    'has_projects must be false',
+    'pull_request_creation_policy must be collaborators_only',
+  ])
   if (
     (doesntTouchCustomers || tempDoesntTouchCustomers) &&
     customerFacingRules.has(ruleKey)
@@ -530,7 +531,7 @@ export function severityOverride(
   return 'error'
 }
 
-export function evaluate(
+function evaluate(
   repo: string,
   apiRepo: RepoApiPayload,
   apiProtection: BranchProtectionPayload | undefined,
@@ -549,7 +550,7 @@ export function evaluate(
     fixUrl: string,
     fixPatch: Record<string, unknown> | undefined,
   ): void => {
-    if (current === expected) {return}
+    if (current === expected) return
     findings.push({
       rule,
       severity: severityOverride(rule, customProps),
@@ -619,8 +620,7 @@ export function evaluate(
   }
 
   // Required apps. Each missing app gets one finding with the install URL.
-  for (let i = 0, { length } = REQUIRED_APP_SLUGS; i < length; i += 1) {
-    const slug = REQUIRED_APP_SLUGS[i]!
+  for (const slug of REQUIRED_APP_SLUGS) {
     if (!installedApps.has(slug)) {
       findings.push({
         rule: `GitHub App must be installed: ${slug}`,
@@ -634,15 +634,13 @@ export function evaluate(
         fixable: false,
       })
     }
-  
   }
 
   // Local shadows of shared workflows. Either delete the local file
   // (and `uses:` the shared one), or add the explicit opt-out header
   // `# socket-wheelhouse-shadow-allow: <reason>` documenting why the
   // local version is intentional.
-  for (let i = 0, { length } = localShadows; i < length; i += 1) {
-    const shadow = localShadows[i]!
+  for (const shadow of localShadows) {
     findings.push({
       rule: `Local workflow shadows a shared one: ${shadow.basename}`,
       severity: 'error',
@@ -654,13 +652,12 @@ export function evaluate(
       fixUrl: `https://github.com/${repo}/blob/${apiRepo.default_branch ?? 'main'}/${shadow.localPath}`,
       fixable: false,
     })
-  
   }
 
   return findings
 }
 
-export function applyFixes(repo: string, findings: readonly Finding[]): number {
+function applyFixes(repo: string, findings: readonly Finding[]): number {
   const patchable = findings.filter(f => f.fixable && f.fixPatch)
   if (patchable.length === 0) {
     return 0
@@ -668,10 +665,8 @@ export function applyFixes(repo: string, findings: readonly Finding[]): number {
   // Merge all PATCH bodies into one call — /repos/{owner}/{repo}
   // accepts arbitrary subsets of settings.
   const patch: Record<string, unknown> = {}
-  for (let i = 0, { length } = patchable; i < length; i += 1) {
-    const f = patchable[i]!
+  for (const f of patchable) {
     Object.assign(patch, f.fixPatch)
-  
   }
   process.stdout.write(`\n🔧 Applying ${patchable.length} fixes via PATCH /repos/${repo}:\n`)
   for (const [k, v] of Object.entries(patch)) {
@@ -687,7 +682,7 @@ export function applyFixes(repo: string, findings: readonly Finding[]): number {
   return patchable.length
 }
 
-export function printReport(findings: readonly Finding[], repo: string, json: boolean): void {
+function printReport(findings: readonly Finding[], repo: string, json: boolean): void {
   if (json) {
     process.stdout.write(JSON.stringify({ repo, findings }, null, 2) + '\n')
     return

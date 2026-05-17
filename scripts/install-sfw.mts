@@ -48,7 +48,7 @@ const EXTERNAL_TOOLS_PATH = path.join(REPO_ROOT, 'external-tools.json')
 // rooted at the current working directory — silently installing sfw
 // somewhere unexpected. Insist on an absolute path before accepting
 // either value.
-export function resolveHome() {
+const resolveHome = (): string | undefined => {
   for (const candidate of [process.env['HOME'], process.env['USERPROFILE']]) {
     if (candidate && path.isAbsolute(candidate)) {
       return candidate
@@ -67,9 +67,9 @@ const SFW_BIN_DIR = path.join(HOME, '.socket', 'sfw', 'bin')
 
 interface ToolEntry {
   version: string
-  repository?: string | undefined
-  release?: string | undefined
-  checksums?: Record<string, { asset: string; sha256: string }> | undefined
+  repository?: string
+  release?: string
+  checksums?: Record<string, { asset: string; sha256: string }>
 }
 
 interface ExternalToolsFile {

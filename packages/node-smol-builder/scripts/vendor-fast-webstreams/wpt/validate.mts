@@ -592,10 +592,10 @@ async function main(): Promise<void> {
     }
   }
 
-  // Find expected failures that now pass (improvements)
+  // Find expected failures that now pass (improvements).
+  // `expectedFailureKeys` is a Set — use for...of.
   const nowPassing: string[] = []
-  for (let i = 0, { length } = expectedFailureKeys; i < length; i += 1) {
-    const key = expectedFailureKeys[i]
+  for (const key of expectedFailureKeys) {
     if (!matchedExpected.has(key)) {
       nowPassing.push(key)
     }

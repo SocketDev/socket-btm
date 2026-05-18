@@ -105,8 +105,8 @@ describe.skipIf(!HAS_DIST)('ink-builder bundle', () => {
           .map(m => m.slice(m.indexOf('"') + 1, -1))
           .filter(s => !s.startsWith('node:')),
       )
-      for (let i = 0, { length } = bareSpecs; i < length; i += 1) {
-        const spec = bareSpecs[i]
+      // `bareSpecs` is a Set — use for...of.
+      for (const spec of bareSpecs) {
         expect(EXPECTED_EXTERNALS).toContain(spec)
       }
     })

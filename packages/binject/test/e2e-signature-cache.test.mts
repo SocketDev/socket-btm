@@ -383,9 +383,9 @@ describeOnMac('E2E Signature and Cache Tests', () => {
       await safeDelete(cachePath)
     }
 
-    // Also clean up expected entries that might have been created
-    for (let i = 0, { length } = expectedCacheEntries; i < length; i += 1) {
-      const entry = expectedCacheEntries[i]
+    // Also clean up expected entries that might have been created.
+    // `expectedCacheEntries` is a Set — use for...of.
+    for (const entry of expectedCacheEntries) {
       if (!newEntries.includes(entry)) {
         const cachePath = path.join(getCacheDir(), entry)
         // eslint-disable-next-line no-await-in-loop

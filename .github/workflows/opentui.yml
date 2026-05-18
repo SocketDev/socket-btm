@@ -98,7 +98,7 @@ jobs:
             zig_target: aarch64-windows-gnu
 
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@b5b9f01d8a2741bf2b6024589790bf922455c306 # main (2026-05-15)
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@acfb0136c5c85334783e5e335a78b864e73f4fd9 # main (2026-05-15)
       - name: Enable debug logging
         uses: ./.github/actions/enable-debug-logging
         with:
@@ -276,7 +276,7 @@ jobs:
 
       - name: Setup Zig
         if: steps.opentui-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force
-        uses: SocketDev/socket-registry/.github/actions/setup-zig@c14cb59fdba637c16f851013d3307d8721e3eb23 # main (2026-05-15)
+        uses: SocketDev/socket-registry/.github/actions/setup-zig@acfb0136c5c85334783e5e335a78b864e73f4fd9 # main (2026-05-15)
         with:
           version: ${{ env.ZIG_VERSION }}
 

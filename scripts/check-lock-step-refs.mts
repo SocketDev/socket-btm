@@ -91,10 +91,11 @@ type Finding = {
 // Capture-group layout:
 //   1: form keyword — "with" or "from"
 //   2: lang token (letters, digits, +, #, hyphen — covers Rust/Go/C++/TS/Py/Zig)
-//   3: path (no whitespace, no colon)
+//   3: path (no whitespace, no colon; must contain `.` or `/` to avoid
+//      matching prose like "Lock-step with Go: JSON parser")
 //   4: optional `:start[-end]` line range (discarded for path resolution)
 const LOCK_STEP_RE =
-  /Lock-step (with|from) ([A-Za-z][A-Za-z0-9+#-]*): ([^\s:,]+)(?::(\d+(?:-\d+)?))?/g
+  /Lock-step (with|from) ([A-Za-z][A-Za-z0-9+#-]*): ([^\s:,]*[./][^\s:,]*)(?::(\d+(?:-\d+)?))?/g
 
 function loadConfig(repoRoot: string): Config | undefined {
   const configFile = path.join(repoRoot, CONFIG_PATH)

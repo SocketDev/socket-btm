@@ -1,5 +1,7 @@
 // 1:1 port of upstream `src/builtins/core/time_zone.rs`.
 //
+// Lock-step from Rust: builtins/core/time_zone.rs
+//
 // IANA-zone resolution is mediated by the TimeZoneBackend interface.
 // The default backend rejects every IANA identifier; V8's js-temporal
 // binding installs an `IANATimeZoneBackend` at boot that delegates

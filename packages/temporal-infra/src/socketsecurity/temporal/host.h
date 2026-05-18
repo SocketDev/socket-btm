@@ -1,6 +1,8 @@
 // 1:1 port of upstream `src/host.rs` at temporal v0.2.3
 // (c003cc92325e19b26f8ee2f85e4a47d98cbcc781).
 //
+// Lock-step from Rust: host.rs
+//
 // Rust uses three trait shapes (HostClock, HostTimeZone, HostHooks) to let
 // callers swap out the system clock and time zone for testing. C++ has no
 // trait inheritance — we model it with a single `HostHooks` abstract base

@@ -1,5 +1,7 @@
 // 1:1 port of upstream `src/builtins/core/zoned_date_time.rs`.
 //
+// Lock-step from Rust: builtins/core/zoned_date_time.rs
+//
 // SCAFFOLD — most operations require V8 zoneinfo64 + ICU calendar
 // dispatch. The structural surface is in place so callers can
 // compile against ZonedDateTime today; behavioral correctness for

@@ -1,5 +1,7 @@
 // 1:1 port of upstream `src/builtins/core/calendar.rs`.
 //
+// Lock-step from Rust: builtins/core/calendar.rs
+//
 // ISO is handled inline; non-ISO calendar arithmetic delegates to
 // the registered CalendarBackend. The default backend rejects every
 // non-ISO input; V8's js-temporal layer installs an ICU-backed

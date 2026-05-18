@@ -1,5 +1,7 @@
 // 1:1 port of upstream `src/builtins/core/duration/normalized.rs` (and
 // `duration/date.rs`).
+//
+// Lock-step from Rust: builtins/core/duration/normalized.rs
 
 #include "socketsecurity/temporal/duration_normalized.h"
 

@@ -1,6 +1,8 @@
 // 1:1 port of upstream `src/builtins/core/now.rs` at temporal v0.2.3
 // (c003cc92325e19b26f8ee2f85e4a47d98cbcc781).
 //
+// Lock-step from Rust: builtins/core/now.rs
+//
 // Rust's `Now<H>` is parameterized over the HostHooks trait. C++ takes a
 // `HostHooks*` (non-owning) — same flexibility, ABI-stable.
 

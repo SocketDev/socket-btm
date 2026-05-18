@@ -1,6 +1,8 @@
 // 1:1 port of upstream `src/options/relative_to.rs` at
 // temporal v0.2.3 (c003cc92325e19b26f8ee2f85e4a47d98cbcc781).
 //
+// Lock-step from Rust: options/relative_to.rs
+//
 // `RelativeTo` is a tagged union of PlainDate or ZonedDateTime. Used
 // by Duration arithmetic when calendar-aware year/month/week math
 // needs an anchor date.

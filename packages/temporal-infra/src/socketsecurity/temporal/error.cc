@@ -1,4 +1,6 @@
 // 1:1 port of upstream `src/error.rs`.
+//
+// Lock-step from Rust: error.rs
 
 #include "socketsecurity/temporal/error.h"
 

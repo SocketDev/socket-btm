@@ -1,4 +1,6 @@
 // 1:1 port of upstream `src/utils.rs`.
+//
+// Lock-step from Rust: utils.rs
 
 #include "socketsecurity/temporal/utils.h"
 

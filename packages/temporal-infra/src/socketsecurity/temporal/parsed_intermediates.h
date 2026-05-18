@@ -1,6 +1,8 @@
 // 1:1 port of upstream `src/parsed_intermediates.rs` at temporal v0.2.3
 // (c003cc92325e19b26f8ee2f85e4a47d98cbcc781).
 //
+// Lock-step from Rust: parsed_intermediates.rs
+//
 // Holds parsed-but-not-validated structures produced by the IXDTF parser
 // (parse.cc). The spec calls for parse → validate to be observable
 // separately, so these types are public but never escape Temporal's

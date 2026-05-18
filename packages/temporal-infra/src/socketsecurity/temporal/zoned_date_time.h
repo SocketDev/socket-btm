@@ -1,6 +1,8 @@
 // 1:1 port of upstream `src/builtins/core/zoned_date_time.rs` at
 // temporal v0.2.3 (c003cc92325e19b26f8ee2f85e4a47d98cbcc781).
 //
+// Lock-step from Rust: builtins/core/zoned_date_time.rs
+//
 // `ZonedDateTime` combines an Instant with a TimeZone and a Calendar.
 // IANA-zone DST resolution routes through TimeZone::GetIsoDateTimeFor
 // → the active TimeZoneBackend (V8's js-temporal layer registers the

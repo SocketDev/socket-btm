@@ -1,4 +1,6 @@
 // 1:1 port of upstream `src/parsers.rs` IXDTF writer impl section.
+//
+// Lock-step from Rust: parsers.rs
 
 #include "socketsecurity/temporal/ixdtf_writer.h"
 

@@ -1,4 +1,6 @@
 // 1:1 port of upstream `src/options/relative_to.rs`.
+//
+// Lock-step from Rust: options/relative_to.rs
 
 #include "socketsecurity/temporal/relative_to.h"
 

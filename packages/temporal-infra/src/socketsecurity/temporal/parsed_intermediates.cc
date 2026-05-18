@@ -1,4 +1,6 @@
 // 1:1 port of upstream `src/parsed_intermediates.rs`.
+//
+// Lock-step from Rust: parsed_intermediates.rs
 
 #include "socketsecurity/temporal/parsed_intermediates.h"
 

@@ -1,4 +1,6 @@
 // 1:1 port of upstream `src/sys.rs`.
+//
+// Lock-step from Rust: sys.rs
 
 #include "socketsecurity/temporal/sys.h"
 

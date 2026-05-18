@@ -1,6 +1,8 @@
 // 1:1 port of upstream `src/sys.rs` at temporal v0.2.3
 // (c003cc92325e19b26f8ee2f85e4a47d98cbcc781).
 //
+// Lock-step from Rust: sys.rs
+//
 // Rust gates Local/Utc host systems behind cargo features (sys, sys-local).
 // The C++ port unconditionally provides the UTC variant (no system
 // dependency) and exposes a hook for V8's existing IANA detection in the

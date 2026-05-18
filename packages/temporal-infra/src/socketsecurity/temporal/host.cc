@@ -1,4 +1,6 @@
 // 1:1 port of upstream `src/host.rs`.
+//
+// Lock-step from Rust: host.rs
 
 #include "socketsecurity/temporal/host.h"
 

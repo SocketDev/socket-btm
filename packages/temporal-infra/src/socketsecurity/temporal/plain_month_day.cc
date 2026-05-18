@@ -1,4 +1,6 @@
 // 1:1 port of upstream `src/builtins/core/plain_month_day.rs`.
+//
+// Lock-step from Rust: builtins/core/plain_month_day.rs
 
 #include "socketsecurity/temporal/plain_month_day.h"
 

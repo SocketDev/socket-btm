@@ -1,6 +1,8 @@
 // 1:1 port of upstream `src/builtins/core/calendar.rs` at
 // temporal v0.2.3 (c003cc92325e19b26f8ee2f85e4a47d98cbcc781).
 //
+// Lock-step from Rust: builtins/core/calendar.rs
+//
 // Architectural deviation: upstream wraps ICU4X's `AnyCalendar` (a
 // Rust calendar library); this C++ port delegates to the system ICU
 // (`icu::Calendar` from deps/icu-small) which V8 already links. The

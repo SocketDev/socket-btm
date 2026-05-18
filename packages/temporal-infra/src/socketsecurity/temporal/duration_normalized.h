@@ -2,6 +2,8 @@
 // `src/builtins/core/duration/date.rs` at temporal v0.2.3
 // (c003cc92325e19b26f8ee2f85e4a47d98cbcc781).
 //
+// Lock-step from Rust: builtins/core/duration/normalized.rs
+//
 // SCAFFOLD: defines DateDuration / TimeDuration / InternalDurationRecord
 // structs + sign/abs/negate/from-components helpers. The arithmetic
 // pipeline (round, balance, total, normalize) is the bulk of the port

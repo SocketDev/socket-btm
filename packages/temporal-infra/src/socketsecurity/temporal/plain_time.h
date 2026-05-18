@@ -1,6 +1,8 @@
 // 1:1 port of upstream `src/builtins/core/plain_time.rs` at
 // temporal v0.2.3 (c003cc92325e19b26f8ee2f85e4a47d98cbcc781).
 //
+// Lock-step from Rust: builtins/core/plain_time.rs
+//
 // `PlainTime` is already declared in temporal.h as the spec-level
 // wrapper around IsoTime. This header adds the upstream methods
 // (try_new, new_with_overflow, with, add, subtract, since, until,

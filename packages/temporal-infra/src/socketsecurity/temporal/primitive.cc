@@ -3,6 +3,8 @@
 // gyp source list to anchor any future non-inline implementations
 // (e.g. a Display equivalent) and to provide a translation unit
 // where ODR-able symbols can land.
+//
+// Lock-step from Rust: primitive.rs
 
 #include "socketsecurity/temporal/primitive.h"
 

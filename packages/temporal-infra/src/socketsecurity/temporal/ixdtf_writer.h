@@ -4,6 +4,8 @@
 // / FormattableIxdtf / FormattableMonthDay / FormattableYearMonth
 // / FormattableDuration types + the IxdtfStringBuilder facade.
 //
+// Lock-step from Rust: parsers.rs
+//
 // Reference upstream file:
 //   packages/temporal-infra/upstream/temporal/src/parsers.rs
 // (the writer half — the parser half lives in parse.cc).

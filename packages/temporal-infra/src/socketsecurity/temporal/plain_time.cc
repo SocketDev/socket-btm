@@ -1,4 +1,6 @@
 // 1:1 port of upstream `src/builtins/core/plain_time.rs`.
+//
+// Lock-step from Rust: builtins/core/plain_time.rs
 
 #include "socketsecurity/temporal/plain_time.h"
 

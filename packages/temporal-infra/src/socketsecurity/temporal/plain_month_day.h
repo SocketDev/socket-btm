@@ -1,6 +1,8 @@
 // 1:1 port of upstream `src/builtins/core/plain_month_day.rs` at
 // temporal v0.2.3 (c003cc92325e19b26f8ee2f85e4a47d98cbcc781).
 //
+// Lock-step from Rust: builtins/core/plain_month_day.rs
+//
 // `PlainMonthDay` is a calendar-aware month-day pair without a year
 // (e.g. "Birthday: March 15"). Internally stored as an IsoDate (with
 // `year` set to a reference value, typically 1972 — a leap year so

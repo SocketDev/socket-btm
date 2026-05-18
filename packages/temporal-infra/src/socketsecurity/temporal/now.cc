@@ -1,4 +1,6 @@
 // 1:1 port of upstream `src/builtins/core/now.rs`.
+//
+// Lock-step from Rust: builtins/core/now.rs
 
 #include "socketsecurity/temporal/now.h"
 

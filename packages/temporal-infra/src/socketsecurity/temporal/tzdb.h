@@ -1,5 +1,7 @@
 // 1:1 port of upstream `src/tzdb.rs` at temporal v0.2.3.
 //
+// Lock-step from Rust: tzdb.rs
+//
 // Upstream re-exports two providers (CompiledTzdbProvider + FsTzdbProvider)
 // and gates them behind cargo features. The C++ port intentionally does
 // NOT re-implement these — V8 already ships:

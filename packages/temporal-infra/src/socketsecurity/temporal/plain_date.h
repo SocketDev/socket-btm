@@ -1,6 +1,8 @@
 // 1:1 port of upstream `src/builtins/core/plain_date.rs` at
 // temporal v0.2.3 (c003cc92325e19b26f8ee2f85e4a47d98cbcc781).
 //
+// Lock-step from Rust: builtins/core/plain_date.rs
+//
 // `PlainDate` is the calendar-aware date wrapper. Internal layout
 // matches upstream 1:1: `PlainDate { iso: IsoDate, calendar: Calendar }`.
 // The C++ POD here holds only `iso`; non-ISO calendar values are

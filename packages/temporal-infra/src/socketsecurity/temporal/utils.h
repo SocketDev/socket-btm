@@ -1,5 +1,7 @@
 // 1:1 port of upstream `src/utils.rs` at temporal v0.2.3.
 //
+// Lock-step from Rust: utils.rs
+//
 // Utility constants and date equations. Upstream re-exports a few
 // helpers from `timezone_provider::utils`; we inline the minimal set
 // our other ports need (epoch_days_from_gregorian_date, etc.) here

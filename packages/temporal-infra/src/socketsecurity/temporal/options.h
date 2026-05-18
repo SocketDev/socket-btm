@@ -1,6 +1,8 @@
 // 1:1 port of upstream `src/options.rs` (+ `src/options/increment.rs`)
 // at temporal v0.2.3 (c003cc92325e19b26f8ee2f85e4a47d98cbcc781).
 //
+// Lock-step from Rust: options.rs
+//
 // Maps every options enum (Unit, UnitGroup, Overflow, Disambiguation,
 // OffsetDisambiguation, RoundingMode, UnsignedRoundingMode,
 // DisplayCalendar, DisplayOffset, DisplayTimeZone) and their FromStr /

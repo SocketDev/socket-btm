@@ -1,6 +1,8 @@
 // 1:1 port of upstream `src/builtins/core/time_zone.rs` at
 // temporal v0.2.3 (c003cc92325e19b26f8ee2f85e4a47d98cbcc781).
 //
+// Lock-step from Rust: builtins/core/time_zone.rs
+//
 // Architectural deviation: upstream consults `timezone_provider`
 // (a Rust crate that bundles tzdata). The C++ port delegates to V8's
 // existing js-temporal-zoneinfo64.cc + the system ICU `icu::TimeZone`

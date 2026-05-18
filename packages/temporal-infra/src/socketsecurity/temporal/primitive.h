@@ -1,6 +1,8 @@
 // 1:1 port of upstream `src/primitive.rs` at temporal v0.2.3
 // (c003cc92325e19b26f8ee2f85e4a47d98cbcc781).
 //
+// Lock-step from Rust: primitive.rs
+//
 // FiniteF64: a thin double wrapper that rejects NaN / +inf / -inf at the
 // boundary (mirrors the spec's IsFinite check). DoubleDouble: an
 // internal double-precision pair used for high-precision multiplication

@@ -1,13 +1,22 @@
 {
   "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "unicorn", "import"],
-  "jsPlugins": ["./oxlint-plugin/index.mts"],
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "import"
+  ],
+  "jsPlugins": [
+    "./oxlint-plugin/index.mts"
+  ],
   "categories": {
     "correctness": "off",
     "suspicious": "off"
   },
   "rules": {
-    "eslint/curly": ["error", "all"],
+    "eslint/curly": [
+      "error",
+      "all"
+    ],
     "eslint/no-await-in-loop": "off",
     "eslint/no-console": "off",
     "eslint/no-control-regex": "off",
@@ -134,6 +143,7 @@
     "**/scripts/ai-lint-fix.mts",
     "**/scripts/ai-lint-fix/cli.mts",
     "**/scripts/ai-lint-fix/rule-guidance.mts",
+    "**/scripts/check-lock-step-refs.mts",
     "**/scripts/check-paths.mts",
     "**/scripts/check-paths/allowlist.mts",
     "**/scripts/check-paths/cli.mts",

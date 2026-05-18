@@ -18,8 +18,7 @@ import path from 'node:path'
 
 import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
-import { computeFileHash } from './core.mts'
-import type { EmbeddedChecksums } from './core.mts'
+import { computeFileHash, type EmbeddedChecksums } from './core.mts'
 
 const logger = getDefaultLogger()
 
@@ -34,60 +33,14 @@ export async function hashDirectory(
 ): Promise<Record<string, string>> {
   const entries = await fs.readdir(dir, { withFileTypes: true })
   const out: Record<string, string> = { __proto__: null as never }
-  for (let i = 0, { length } = entries; i < length; i += 1) {
-    const entry = entries[i]!
+  for (const entry of entries) {
     if (!entry.isFile()) {
       continue
     }
     const filePath = path.join(dir, entry.name)
     out[entry.name] = await computeFileHash(filePath)
-  
   }
   return out
-}
-
-interface UpdateAssetsOptions {
-  /** Path to `release-assets.json`. */
-  manifestPath: string
-  /** Tool key inside the manifest (e.g. `iocraft`, `lief`). */
-  tool: string
-  /** Release tag, e.g. `iocraft-20260424-18f0f46`. */
-  tag: string
-  /** Asset → SHA-256 map (typically the return value of `writeChecksumsFile`). */
-  checksums: Record<string, string>
-  /** Optional human-readable description for the tool block. */
-  description?: string | undefined
-}
-
-/**
- * Update a tool's block in `release-assets.json` in place.
- *
- * Reads the existing manifest, replaces the block for `tool` with the
- * new `tag` + `checksums`, and writes the result back. Other tool blocks
- * are preserved untouched.
- *
- * The manifest's $schema field (if present) is preserved.
- */
-export function updateReleaseAssets(options: UpdateAssetsOptions): void {
-  const { checksums, description, manifestPath, tag, tool } = options
-
-  let manifest: EmbeddedChecksums & {
-    $schema?: string | undefined
-    $comment?: string | undefined
-  } = { __proto__: null as never } as never
-  try {
-    manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
-  } catch {
-    // New file — start fresh.
-  }
-
-  manifest[tool] = {
-    ...(description !== undefined ? { description } : {}),
-    tag,
-    checksums,
-  }
-
-  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8')
 }
 
 interface WriteChecksumsOptions {
@@ -96,9 +49,9 @@ interface WriteChecksumsOptions {
   /** Path of the `checksums.txt` to write. */
   outputPath: string
   /** Optional ordering. If omitted, entries are sorted alphabetically. */
-  order?: 'alphabetical' | readonly string[] | undefined
+  order?: 'alphabetical' | readonly string[]
   /** Suppress info logging (errors still log). */
-  quiet?: boolean | undefined
+  quiet?: boolean
 }
 
 /**
@@ -123,8 +76,7 @@ export async function writeChecksumsFile(
     order === 'alphabetical' ? Object.keys(checksums).sort() : [...order]
 
   const lines: string[] = []
-  for (let i = 0, { length } = names; i < length; i += 1) {
-    const name = names[i]!
+  for (const name of names) {
     const hash = checksums[name]
     if (!hash) {
       if (!quiet) {
@@ -133,7 +85,6 @@ export async function writeChecksumsFile(
       continue
     }
     lines.push(`${hash}  ${name}`)
-  
   }
   // POSIX-style trailing newline.
   await fs.writeFile(outputPath, lines.join('\n') + '\n', 'utf8')
@@ -141,4 +92,48 @@ export async function writeChecksumsFile(
     logger.info(`Wrote ${lines.length} checksums to ${outputPath}`)
   }
   return checksums
+}
+
+interface UpdateAssetsOptions {
+  /** Path to `release-assets.json`. */
+  manifestPath: string
+  /** Tool key inside the manifest (e.g. `iocraft`, `lief`). */
+  tool: string
+  /** Release tag, e.g. `iocraft-20260424-18f0f46`. */
+  tag: string
+  /** Asset → SHA-256 map (typically the return value of `writeChecksumsFile`). */
+  checksums: Record<string, string>
+  /** Optional human-readable description for the tool block. */
+  description?: string
+}
+
+/**
+ * Update a tool's block in `release-assets.json` in place.
+ *
+ * Reads the existing manifest, replaces the block for `tool` with the
+ * new `tag` + `checksums`, and writes the result back. Other tool blocks
+ * are preserved untouched.
+ *
+ * The manifest's $schema field (if present) is preserved.
+ */
+export function updateReleaseAssets(options: UpdateAssetsOptions): void {
+  const { checksums, description, manifestPath, tag, tool } = options
+
+  let manifest: EmbeddedChecksums & {
+    $schema?: string
+    $comment?: string
+  } = { __proto__: null as never } as never
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  } catch {
+    // New file — start fresh.
+  }
+
+  manifest[tool] = {
+    ...(description !== undefined ? { description } : {}),
+    tag,
+    checksums,
+  }
+
+  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8')
 }

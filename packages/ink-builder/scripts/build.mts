@@ -30,6 +30,7 @@ import path from 'node:path'
 import process from 'node:process'
 
 import { build as esbuild } from 'esbuild'
+import type { PluginBuild } from 'esbuild'
 
 import { applyPatchDirectory } from 'build-infra/lib/patch-validator'
 import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
@@ -69,7 +70,7 @@ const EXTERNAL_PEERS = [
 export function createYogaResolverPlugin() {
   return {
     name: 'yoga-resolver',
-    async setup(build: import('esbuild').PluginBuild) {
+    async setup(build: PluginBuild) {
       const platformArch = await getCurrentPlatformArch()
       let yogaSyncSource = getYogaBuildPaths(
         'prod',

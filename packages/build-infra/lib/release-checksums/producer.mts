@@ -2,10 +2,9 @@
  * Release-checksum producer: write `checksums.txt` for a directory of
  * artifacts; update a `release-assets.json` block.
  *
- * Use this when your repo *produces* releases (e.g. socket-btm builds
- * `.node` binaries and ships them to GH Releases). The output of
- * `writeChecksumsFile()` is what consumers download and verify against
- * via `consumer.mts`.
+ * Use this when your repo _produces_ releases (e.g. socket-btm builds `.node`
+ * binaries and ships them to GH Releases). The output of `writeChecksumsFile()`
+ * is what consumers download and verify against via `consumer.mts`.
  *
  * Repos that only consume releases don't need this file — see `consumer.mts`.
  *
@@ -25,8 +24,8 @@ const logger = getDefaultLogger()
 /**
  * Walk a directory and compute SHA-256 hashes for every regular file in it.
  *
- * Sub-paths are relative to `dir`. Symlinks and directories are not
- * recursed — pass a flat directory of artifacts.
+ * Sub-paths are relative to `dir`. Symlinks and directories are not recursed —
+ * pass a flat directory of artifacts.
  */
 export async function hashDirectory(
   dir: string,
@@ -44,22 +43,30 @@ export async function hashDirectory(
 }
 
 interface WriteChecksumsOptions {
-  /** Directory containing the artifacts to hash. */
+  /**
+   * Directory containing the artifacts to hash.
+   */
   inputDir: string
-  /** Path of the `checksums.txt` to write. */
+  /**
+   * Path of the `checksums.txt` to write.
+   */
   outputPath: string
-  /** Optional ordering. If omitted, entries are sorted alphabetically. */
+  /**
+   * Optional ordering. If omitted, entries are sorted alphabetically.
+   */
   order?: 'alphabetical' | readonly string[]
-  /** Suppress info logging (errors still log). */
+  /**
+   * Suppress info logging (errors still log).
+   */
   quiet?: boolean
 }
 
 /**
  * Write a `checksums.txt` file from a directory of artifacts.
  *
- * Output format: `<sha256-hex>  <filename>\n`, matching the format
- * `consumer.mts:parseChecksums` expects. Filenames are sorted
- * alphabetically by default for stable diffs.
+ * Output format: `<sha256-hex> <filename>\n`, matching the format
+ * `consumer.mts:parseChecksums` expects. Filenames are sorted alphabetically by
+ * default for stable diffs.
  */
 export async function writeChecksumsFile(
   options: WriteChecksumsOptions,
@@ -95,24 +102,34 @@ export async function writeChecksumsFile(
 }
 
 interface UpdateAssetsOptions {
-  /** Path to `release-assets.json`. */
+  /**
+   * Path to `release-assets.json`.
+   */
   manifestPath: string
-  /** Tool key inside the manifest (e.g. `iocraft`, `lief`). */
+  /**
+   * Tool key inside the manifest (e.g. `iocraft`, `lief`).
+   */
   tool: string
-  /** Release tag, e.g. `iocraft-20260424-18f0f46`. */
+  /**
+   * Release tag, e.g. `iocraft-20260424-18f0f46`.
+   */
   tag: string
-  /** Asset → SHA-256 map (typically the return value of `writeChecksumsFile`). */
+  /**
+   * Asset → SHA-256 map (typically the return value of `writeChecksumsFile`).
+   */
   checksums: Record<string, string>
-  /** Optional human-readable description for the tool block. */
+  /**
+   * Optional human-readable description for the tool block.
+   */
   description?: string
 }
 
 /**
  * Update a tool's block in `release-assets.json` in place.
  *
- * Reads the existing manifest, replaces the block for `tool` with the
- * new `tag` + `checksums`, and writes the result back. Other tool blocks
- * are preserved untouched.
+ * Reads the existing manifest, replaces the block for `tool` with the new `tag`
+ * + `checksums`, and writes the result back. Other tool blocks are preserved
+ * untouched.
  *
  * The manifest's $schema field (if present) is preserved.
  */

@@ -37,7 +37,7 @@ jobs:
     permissions:
       contents: write # Required to commit updated release-assets.json
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@acfb0136c5c85334783e5e335a78b864e73f4fd9 # main (2026-05-15)
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@edae625d0f450d02890a9bbd313368c27f0f8183 # main (2026-05-15)
       - uses: SocketDev/socket-registry/.github/actions/setup-git-signing@75964f14e0682ae4aa846119e2fc9a710d970056 # main (2026-05-15)
         with:
           gpg-private-key: ${{ secrets.BOT_GPG_PRIVATE_KEY }}

@@ -31,10 +31,22 @@
 //     arithmetic. No per-call allocation on either side; the JS layer
 //     reuses one buffer for the entire session.
 //
-//   * FastApi specialization is intentionally deferred. SetMethod
-//     entries are wired now so the surface is stable; the conversion
-//     to v8::CFunction is mechanical and lands once the bench is in
-//     place.
+//   * FastApi specialization. Hot-path entries are paired Slow + Fast:
+//     - ANSI writers (writeCursorPosition, writeFgRgb, writeBgRgb,
+//       writeAttributes) — called per cell per frame.
+//     - looksLikeMouseSequence — called once per terminal input chunk.
+//     - Yoga setters + yogaMarkDirty (14 entries) — called per element
+//       per layout pass.
+//     The fast path uses ArrayBufferViewContents<uint8_t> for direct
+//     byte access (no Isolate handle, no HandleScope) and forwards into
+//     the same C++ helpers the slow path uses. Slow path remains the
+//     fallback for non-monomorphic call sites.
+//
+//     Cold-path entries (lifecycle ops, ANSI cold builders that return
+//     std::string, Renderer hot path that requires 11+ args and a
+//     mutex-guarded handle lookup) stay on SetMethod — V8 Fast API's
+//     arg-count limit and return-type constraints (no fresh string
+//     handles) mean the conversion would either fail or yield no win.
 //
 // Upstream pins (with exact commits — link → file → line where useful):
 //
@@ -73,8 +85,10 @@
 #include "node.h"
 #include "node_binding.h"
 #include "node_external_reference.h"
-#include "util.h"
+#include "node_debug.h"
+#include "util-inl.h"
 #include "v8.h"
+#include "v8-fast-api-calls.h"
 
 #include <cstring>
 #include <memory>
@@ -86,9 +100,13 @@ namespace node {
 namespace socketsecurity {
 namespace tui {
 
+using node::ArrayBufferViewContents;
 using v8::Boolean;
+using v8::CFunction;
 using v8::Context;
+using v8::FastApiCallbackOptions;
 using v8::FunctionCallbackInfo;
+using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -213,6 +231,35 @@ static void WriteCursorPosition(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Integer::New(isolate, static_cast<int32_t>(n)));
 }
 
+// Fast path: V8 calls this when the receiver matches a known shape
+// (Uint8Array + ints monomorphic). Inlines the ANSI emit straight
+// into the JIT'd renderer flush loop — ~3-4 instructions per call
+// after register allocation, vs the dozen+ for the trampoline path.
+uint32_t FastWriteCursorPosition(Local<Value> receiver,
+                                 Local<Value> buffer_val,
+                                 uint32_t offset,
+                                 uint32_t row,
+                                 uint32_t col,
+                                 // NOLINTNEXTLINE(runtime/references)
+                                 FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.writeCursorPosition");
+  HandleScope scope(opts.isolate);
+  ArrayBufferViewContents<uint8_t> buf(buffer_val);
+  // Overflow-safe bounds check (same shape as slow path's Uint8ArrayDataAt).
+  if (offset > buf.length() ||
+      buf.length() - offset < ti::kMaxCursorPositionLen) {
+    return 0;
+  }
+  char* dst = reinterpret_cast<char*>(
+      const_cast<uint8_t*>(buf.data())) + offset;
+  return static_cast<uint32_t>(
+      ti::WriteCursorPosition(dst, static_cast<uint16_t>(row),
+                              static_cast<uint16_t>(col)));
+}
+
+static CFunction fast_write_cursor_position(
+    CFunction::Make(FastWriteCursorPosition));
+
 static void WriteFgRgb(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
@@ -233,6 +280,30 @@ static void WriteFgRgb(const FunctionCallbackInfo<Value>& args) {
   size_t n = ti::WriteFgRgb(dst, r, g, b);
   args.GetReturnValue().Set(Integer::New(isolate, static_cast<int32_t>(n)));
 }
+
+uint32_t FastWriteFgRgb(Local<Value> receiver,
+                        Local<Value> buffer_val,
+                        uint32_t offset,
+                        uint32_t r,
+                        uint32_t g,
+                        uint32_t b,
+                        // NOLINTNEXTLINE(runtime/references)
+                        FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.writeFgRgb");
+  HandleScope scope(opts.isolate);
+  ArrayBufferViewContents<uint8_t> buf(buffer_val);
+  if (offset > buf.length() ||
+      buf.length() - offset < ti::kMaxRgbSgrLen) {
+    return 0;
+  }
+  char* dst = reinterpret_cast<char*>(
+      const_cast<uint8_t*>(buf.data())) + offset;
+  return static_cast<uint32_t>(
+      ti::WriteFgRgb(dst, static_cast<uint8_t>(r),
+                     static_cast<uint8_t>(g), static_cast<uint8_t>(b)));
+}
+
+static CFunction fast_write_fg_rgb(CFunction::Make(FastWriteFgRgb));
 
 static void WriteBgRgb(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
@@ -255,6 +326,30 @@ static void WriteBgRgb(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Integer::New(isolate, static_cast<int32_t>(n)));
 }
 
+uint32_t FastWriteBgRgb(Local<Value> receiver,
+                        Local<Value> buffer_val,
+                        uint32_t offset,
+                        uint32_t r,
+                        uint32_t g,
+                        uint32_t b,
+                        // NOLINTNEXTLINE(runtime/references)
+                        FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.writeBgRgb");
+  HandleScope scope(opts.isolate);
+  ArrayBufferViewContents<uint8_t> buf(buffer_val);
+  if (offset > buf.length() ||
+      buf.length() - offset < ti::kMaxRgbSgrLen) {
+    return 0;
+  }
+  char* dst = reinterpret_cast<char*>(
+      const_cast<uint8_t*>(buf.data())) + offset;
+  return static_cast<uint32_t>(
+      ti::WriteBgRgb(dst, static_cast<uint8_t>(r),
+                     static_cast<uint8_t>(g), static_cast<uint8_t>(b)));
+}
+
+static CFunction fast_write_bg_rgb(CFunction::Make(FastWriteBgRgb));
+
 static void WriteAttributes(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
@@ -274,6 +369,27 @@ static void WriteAttributes(const FunctionCallbackInfo<Value>& args) {
   size_t n = ti::WriteAttributes(dst, attrs);
   args.GetReturnValue().Set(Integer::New(isolate, static_cast<int32_t>(n)));
 }
+
+uint32_t FastWriteAttributes(Local<Value> receiver,
+                             Local<Value> buffer_val,
+                             uint32_t offset,
+                             uint32_t attrs,
+                             // NOLINTNEXTLINE(runtime/references)
+                             FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.writeAttributes");
+  HandleScope scope(opts.isolate);
+  ArrayBufferViewContents<uint8_t> buf(buffer_val);
+  if (offset > buf.length() ||
+      buf.length() - offset < ti::kMaxAttrRunLen) {
+    return 0;
+  }
+  char* dst = reinterpret_cast<char*>(
+      const_cast<uint8_t*>(buf.data())) + offset;
+  return static_cast<uint32_t>(
+      ti::WriteAttributes(dst, static_cast<uint8_t>(attrs)));
+}
+
+static CFunction fast_write_attributes(CFunction::Make(FastWriteAttributes));
 
 // ─── Section 3: Mouse parser ──────────────────────────────────────────
 //
@@ -445,6 +561,24 @@ static void LooksLikeMouseSequence(const FunctionCallbackInfo<Value>& args) {
   bool match = ti::LooksLikeMouseSequence(data, length - offset);
   args.GetReturnValue().Set(Boolean::New(isolate, match));
 }
+
+bool FastLooksLikeMouseSequence(Local<Value> receiver,
+                                Local<Value> buffer_val,
+                                uint32_t offset,
+                                // NOLINTNEXTLINE(runtime/references)
+                                FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.looksLikeMouseSequence");
+  HandleScope scope(opts.isolate);
+  ArrayBufferViewContents<uint8_t> buf(buffer_val);
+  if (offset >= buf.length()) {
+    return false;
+  }
+  return ti::LooksLikeMouseSequence(buf.data() + offset,
+                                    buf.length() - offset);
+}
+
+static CFunction fast_looks_like_mouse_sequence(
+    CFunction::Make(FastLooksLikeMouseSequence));
 
 // ─── Section 4: Renderer / Cell buffer ────────────────────────────────
 //
@@ -821,6 +955,18 @@ static void YogaMarkDirty(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void FastYogaMarkDirty(Local<Value> receiver, uint32_t id,
+                       // NOLINTNEXTLINE(runtime/references)
+                       FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaMarkDirty");
+  YGNodeRef node = LookupYogaNode(id);
+  if (node != nullptr) {
+    YGNodeMarkDirty(node);
+  }
+}
+
+static CFunction fast_yoga_mark_dirty(CFunction::Make(FastYogaMarkDirty));
+
 // yogaGetComputedLayout(nodeId) -> { left, top, width, height }
 static void YogaGetComputedLayout(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
@@ -875,6 +1021,18 @@ static void YogaSetWidth(const FunctionCallbackInfo<Value>& args) {
   YGNodeStyleSetWidth(node, v);
 }
 
+void FastYogaSetWidth(Local<Value> receiver, uint32_t id, double v,
+                      // NOLINTNEXTLINE(runtime/references)
+                      FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaSetWidth");
+  YGNodeRef node = LookupYogaNode(id);
+  if (node != nullptr) {
+    YGNodeStyleSetWidth(node, static_cast<float>(v));
+  }
+}
+
+static CFunction fast_yoga_set_width(CFunction::Make(FastYogaSetWidth));
+
 static void YogaSetHeight(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
@@ -887,6 +1045,18 @@ static void YogaSetHeight(const FunctionCallbackInfo<Value>& args) {
   YGNodeStyleSetHeight(node, v);
 }
 
+void FastYogaSetHeight(Local<Value> receiver, uint32_t id, double v,
+                       // NOLINTNEXTLINE(runtime/references)
+                       FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaSetHeight");
+  YGNodeRef node = LookupYogaNode(id);
+  if (node != nullptr) {
+    YGNodeStyleSetHeight(node, static_cast<float>(v));
+  }
+}
+
+static CFunction fast_yoga_set_height(CFunction::Make(FastYogaSetHeight));
+
 static void YogaSetFlexDirection(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
@@ -897,6 +1067,19 @@ static void YogaSetFlexDirection(const FunctionCallbackInfo<Value>& args) {
   int32_t v = args[1]->Int32Value(context).FromMaybe(0);
   YGNodeStyleSetFlexDirection(node, static_cast<YGFlexDirection>(v));
 }
+
+void FastYogaSetFlexDirection(Local<Value> receiver, uint32_t id, int32_t v,
+                              // NOLINTNEXTLINE(runtime/references)
+                              FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaSetFlexDirection");
+  YGNodeRef node = LookupYogaNode(id);
+  if (node != nullptr) {
+    YGNodeStyleSetFlexDirection(node, static_cast<YGFlexDirection>(v));
+  }
+}
+
+static CFunction fast_yoga_set_flex_direction(
+    CFunction::Make(FastYogaSetFlexDirection));
 
 static void YogaSetJustifyContent(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
@@ -909,6 +1092,19 @@ static void YogaSetJustifyContent(const FunctionCallbackInfo<Value>& args) {
   YGNodeStyleSetJustifyContent(node, static_cast<YGJustify>(v));
 }
 
+void FastYogaSetJustifyContent(Local<Value> receiver, uint32_t id, int32_t v,
+                               // NOLINTNEXTLINE(runtime/references)
+                               FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaSetJustifyContent");
+  YGNodeRef node = LookupYogaNode(id);
+  if (node != nullptr) {
+    YGNodeStyleSetJustifyContent(node, static_cast<YGJustify>(v));
+  }
+}
+
+static CFunction fast_yoga_set_justify_content(
+    CFunction::Make(FastYogaSetJustifyContent));
+
 static void YogaSetAlignItems(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
@@ -919,6 +1115,19 @@ static void YogaSetAlignItems(const FunctionCallbackInfo<Value>& args) {
   int32_t v = args[1]->Int32Value(context).FromMaybe(0);
   YGNodeStyleSetAlignItems(node, static_cast<YGAlign>(v));
 }
+
+void FastYogaSetAlignItems(Local<Value> receiver, uint32_t id, int32_t v,
+                           // NOLINTNEXTLINE(runtime/references)
+                           FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaSetAlignItems");
+  YGNodeRef node = LookupYogaNode(id);
+  if (node != nullptr) {
+    YGNodeStyleSetAlignItems(node, static_cast<YGAlign>(v));
+  }
+}
+
+static CFunction fast_yoga_set_align_items(
+    CFunction::Make(FastYogaSetAlignItems));
 
 static void YogaSetAlignSelf(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
@@ -931,6 +1140,19 @@ static void YogaSetAlignSelf(const FunctionCallbackInfo<Value>& args) {
   YGNodeStyleSetAlignSelf(node, static_cast<YGAlign>(v));
 }
 
+void FastYogaSetAlignSelf(Local<Value> receiver, uint32_t id, int32_t v,
+                          // NOLINTNEXTLINE(runtime/references)
+                          FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaSetAlignSelf");
+  YGNodeRef node = LookupYogaNode(id);
+  if (node != nullptr) {
+    YGNodeStyleSetAlignSelf(node, static_cast<YGAlign>(v));
+  }
+}
+
+static CFunction fast_yoga_set_align_self(
+    CFunction::Make(FastYogaSetAlignSelf));
+
 static void YogaSetFlexWrap(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
@@ -941,6 +1163,18 @@ static void YogaSetFlexWrap(const FunctionCallbackInfo<Value>& args) {
   int32_t v = args[1]->Int32Value(context).FromMaybe(0);
   YGNodeStyleSetFlexWrap(node, static_cast<YGWrap>(v));
 }
+
+void FastYogaSetFlexWrap(Local<Value> receiver, uint32_t id, int32_t v,
+                         // NOLINTNEXTLINE(runtime/references)
+                         FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaSetFlexWrap");
+  YGNodeRef node = LookupYogaNode(id);
+  if (node != nullptr) {
+    YGNodeStyleSetFlexWrap(node, static_cast<YGWrap>(v));
+  }
+}
+
+static CFunction fast_yoga_set_flex_wrap(CFunction::Make(FastYogaSetFlexWrap));
 
 static void YogaSetFlexGrow(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
@@ -953,6 +1187,18 @@ static void YogaSetFlexGrow(const FunctionCallbackInfo<Value>& args) {
   YGNodeStyleSetFlexGrow(node, v);
 }
 
+void FastYogaSetFlexGrow(Local<Value> receiver, uint32_t id, double v,
+                         // NOLINTNEXTLINE(runtime/references)
+                         FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaSetFlexGrow");
+  YGNodeRef node = LookupYogaNode(id);
+  if (node != nullptr) {
+    YGNodeStyleSetFlexGrow(node, static_cast<float>(v));
+  }
+}
+
+static CFunction fast_yoga_set_flex_grow(CFunction::Make(FastYogaSetFlexGrow));
+
 static void YogaSetFlexShrink(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
@@ -963,6 +1209,19 @@ static void YogaSetFlexShrink(const FunctionCallbackInfo<Value>& args) {
   float v = static_cast<float>(args[1]->NumberValue(context).FromMaybe(0.0));
   YGNodeStyleSetFlexShrink(node, v);
 }
+
+void FastYogaSetFlexShrink(Local<Value> receiver, uint32_t id, double v,
+                           // NOLINTNEXTLINE(runtime/references)
+                           FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaSetFlexShrink");
+  YGNodeRef node = LookupYogaNode(id);
+  if (node != nullptr) {
+    YGNodeStyleSetFlexShrink(node, static_cast<float>(v));
+  }
+}
+
+static CFunction fast_yoga_set_flex_shrink(
+    CFunction::Make(FastYogaSetFlexShrink));
 
 static void YogaSetFlexBasis(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
@@ -975,6 +1234,19 @@ static void YogaSetFlexBasis(const FunctionCallbackInfo<Value>& args) {
       args[1]->NumberValue(context).FromMaybe(YGUndefined));
   YGNodeStyleSetFlexBasis(node, v);
 }
+
+void FastYogaSetFlexBasis(Local<Value> receiver, uint32_t id, double v,
+                          // NOLINTNEXTLINE(runtime/references)
+                          FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaSetFlexBasis");
+  YGNodeRef node = LookupYogaNode(id);
+  if (node != nullptr) {
+    YGNodeStyleSetFlexBasis(node, static_cast<float>(v));
+  }
+}
+
+static CFunction fast_yoga_set_flex_basis(
+    CFunction::Make(FastYogaSetFlexBasis));
 
 // yogaSetMargin(nodeId, edge, value)
 static void YogaSetMargin(const FunctionCallbackInfo<Value>& args) {
@@ -989,6 +1261,20 @@ static void YogaSetMargin(const FunctionCallbackInfo<Value>& args) {
   YGNodeStyleSetMargin(node, static_cast<YGEdge>(edge), v);
 }
 
+void FastYogaSetMargin(Local<Value> receiver, uint32_t id, int32_t edge,
+                       double v,
+                       // NOLINTNEXTLINE(runtime/references)
+                       FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaSetMargin");
+  YGNodeRef node = LookupYogaNode(id);
+  if (node != nullptr) {
+    YGNodeStyleSetMargin(node, static_cast<YGEdge>(edge),
+                         static_cast<float>(v));
+  }
+}
+
+static CFunction fast_yoga_set_margin(CFunction::Make(FastYogaSetMargin));
+
 static void YogaSetPadding(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
@@ -1001,6 +1287,20 @@ static void YogaSetPadding(const FunctionCallbackInfo<Value>& args) {
   YGNodeStyleSetPadding(node, static_cast<YGEdge>(edge), v);
 }
 
+void FastYogaSetPadding(Local<Value> receiver, uint32_t id, int32_t edge,
+                        double v,
+                        // NOLINTNEXTLINE(runtime/references)
+                        FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaSetPadding");
+  YGNodeRef node = LookupYogaNode(id);
+  if (node != nullptr) {
+    YGNodeStyleSetPadding(node, static_cast<YGEdge>(edge),
+                          static_cast<float>(v));
+  }
+}
+
+static CFunction fast_yoga_set_padding(CFunction::Make(FastYogaSetPadding));
+
 static void YogaSetPositionType(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
@@ -1011,6 +1311,19 @@ static void YogaSetPositionType(const FunctionCallbackInfo<Value>& args) {
   int32_t v = args[1]->Int32Value(context).FromMaybe(0);
   YGNodeStyleSetPositionType(node, static_cast<YGPositionType>(v));
 }
+
+void FastYogaSetPositionType(Local<Value> receiver, uint32_t id, int32_t v,
+                             // NOLINTNEXTLINE(runtime/references)
+                             FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaSetPositionType");
+  YGNodeRef node = LookupYogaNode(id);
+  if (node != nullptr) {
+    YGNodeStyleSetPositionType(node, static_cast<YGPositionType>(v));
+  }
+}
+
+static CFunction fast_yoga_set_position_type(
+    CFunction::Make(FastYogaSetPositionType));
 
 // yogaSetPosition(nodeId, edge, value)
 static void YogaSetPosition(const FunctionCallbackInfo<Value>& args) {
@@ -1025,6 +1338,20 @@ static void YogaSetPosition(const FunctionCallbackInfo<Value>& args) {
       args[2]->NumberValue(context).FromMaybe(YGUndefined));
   YGNodeStyleSetPosition(node, static_cast<YGEdge>(edge), v);
 }
+
+void FastYogaSetPosition(Local<Value> receiver, uint32_t id, int32_t edge,
+                         double v,
+                         // NOLINTNEXTLINE(runtime/references)
+                         FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaSetPosition");
+  YGNodeRef node = LookupYogaNode(id);
+  if (node != nullptr) {
+    YGNodeStyleSetPosition(node, static_cast<YGEdge>(edge),
+                           static_cast<float>(v));
+  }
+}
+
+static CFunction fast_yoga_set_position(CFunction::Make(FastYogaSetPosition));
 
 static void Initialize(Local<Object> target,
                        Local<Value> /* unused */,
@@ -1094,16 +1421,22 @@ static void Initialize(Local<Object> target,
   SetMethod(context, target, "cursorPosition", CursorPosition);
   SetMethod(context, target, "setFgRgb", SetFgRgb);
   SetMethod(context, target, "setBgRgb", SetBgRgb);
-  SetMethod(context, target, "writeCursorPosition", WriteCursorPosition);
-  SetMethod(context, target, "writeFgRgb", WriteFgRgb);
-  SetMethod(context, target, "writeBgRgb", WriteBgRgb);
-  SetMethod(context, target, "writeAttributes", WriteAttributes);
+  SetFastMethodNoSideEffect(context, target, "writeCursorPosition",
+                            WriteCursorPosition, &fast_write_cursor_position);
+  SetFastMethodNoSideEffect(context, target, "writeFgRgb", WriteFgRgb,
+                            &fast_write_fg_rgb);
+  SetFastMethodNoSideEffect(context, target, "writeBgRgb", WriteBgRgb,
+                            &fast_write_bg_rgb);
+  SetFastMethodNoSideEffect(context, target, "writeAttributes", WriteAttributes,
+                            &fast_write_attributes);
 
   SetMethod(context, target, "createParser", CreateParser);
   SetMethod(context, target, "destroyParser", DestroyParser);
   SetMethod(context, target, "resetParser", ResetParser);
   SetMethod(context, target, "parseMouseOne", ParseMouseOne);
-  SetMethod(context, target, "looksLikeMouseSequence", LooksLikeMouseSequence);
+  SetFastMethodNoSideEffect(context, target, "looksLikeMouseSequence",
+                            LooksLikeMouseSequence,
+                            &fast_looks_like_mouse_sequence);
 
   SetMethod(context, target, "createRenderer", CreateRenderer);
   SetMethod(context, target, "destroyRenderer", DestroyRenderer);
@@ -1121,22 +1454,40 @@ static void Initialize(Local<Object> target,
   SetMethod(context, target, "yogaFreeNode", YogaFreeNode);
   SetMethod(context, target, "yogaGetComputedLayout", YogaGetComputedLayout);
   SetMethod(context, target, "yogaInsertChild", YogaInsertChild);
-  SetMethod(context, target, "yogaMarkDirty", YogaMarkDirty);
+  SetFastMethodNoSideEffect(context, target, "yogaMarkDirty", YogaMarkDirty,
+                            &fast_yoga_mark_dirty);
   SetMethod(context, target, "yogaRemoveChild", YogaRemoveChild);
-  SetMethod(context, target, "yogaSetAlignItems", YogaSetAlignItems);
-  SetMethod(context, target, "yogaSetAlignSelf", YogaSetAlignSelf);
-  SetMethod(context, target, "yogaSetFlexBasis", YogaSetFlexBasis);
-  SetMethod(context, target, "yogaSetFlexDirection", YogaSetFlexDirection);
-  SetMethod(context, target, "yogaSetFlexGrow", YogaSetFlexGrow);
-  SetMethod(context, target, "yogaSetFlexShrink", YogaSetFlexShrink);
-  SetMethod(context, target, "yogaSetFlexWrap", YogaSetFlexWrap);
-  SetMethod(context, target, "yogaSetHeight", YogaSetHeight);
-  SetMethod(context, target, "yogaSetJustifyContent", YogaSetJustifyContent);
-  SetMethod(context, target, "yogaSetMargin", YogaSetMargin);
-  SetMethod(context, target, "yogaSetPadding", YogaSetPadding);
-  SetMethod(context, target, "yogaSetPosition", YogaSetPosition);
-  SetMethod(context, target, "yogaSetPositionType", YogaSetPositionType);
-  SetMethod(context, target, "yogaSetWidth", YogaSetWidth);
+  SetFastMethodNoSideEffect(context, target, "yogaSetAlignItems",
+                            YogaSetAlignItems, &fast_yoga_set_align_items);
+  SetFastMethodNoSideEffect(context, target, "yogaSetAlignSelf",
+                            YogaSetAlignSelf, &fast_yoga_set_align_self);
+  SetFastMethodNoSideEffect(context, target, "yogaSetFlexBasis",
+                            YogaSetFlexBasis, &fast_yoga_set_flex_basis);
+  SetFastMethodNoSideEffect(context, target, "yogaSetFlexDirection",
+                            YogaSetFlexDirection,
+                            &fast_yoga_set_flex_direction);
+  SetFastMethodNoSideEffect(context, target, "yogaSetFlexGrow",
+                            YogaSetFlexGrow, &fast_yoga_set_flex_grow);
+  SetFastMethodNoSideEffect(context, target, "yogaSetFlexShrink",
+                            YogaSetFlexShrink, &fast_yoga_set_flex_shrink);
+  SetFastMethodNoSideEffect(context, target, "yogaSetFlexWrap",
+                            YogaSetFlexWrap, &fast_yoga_set_flex_wrap);
+  SetFastMethodNoSideEffect(context, target, "yogaSetHeight", YogaSetHeight,
+                            &fast_yoga_set_height);
+  SetFastMethodNoSideEffect(context, target, "yogaSetJustifyContent",
+                            YogaSetJustifyContent,
+                            &fast_yoga_set_justify_content);
+  SetFastMethodNoSideEffect(context, target, "yogaSetMargin", YogaSetMargin,
+                            &fast_yoga_set_margin);
+  SetFastMethodNoSideEffect(context, target, "yogaSetPadding", YogaSetPadding,
+                            &fast_yoga_set_padding);
+  SetFastMethodNoSideEffect(context, target, "yogaSetPosition", YogaSetPosition,
+                            &fast_yoga_set_position);
+  SetFastMethodNoSideEffect(context, target, "yogaSetPositionType",
+                            YogaSetPositionType,
+                            &fast_yoga_set_position_type);
+  SetFastMethodNoSideEffect(context, target, "yogaSetWidth", YogaSetWidth,
+                            &fast_yoga_set_width);
 
   // Yoga enum mirrors. Values come straight from YG*.h so JS doesn't
   // hard-code numbers that could drift if Yoga adds a new entry.
@@ -1285,14 +1636,19 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetFgRgb);
   registry->Register(SetBgRgb);
   registry->Register(WriteCursorPosition);
+  registry->Register(fast_write_cursor_position);
   registry->Register(WriteFgRgb);
+  registry->Register(fast_write_fg_rgb);
   registry->Register(WriteBgRgb);
+  registry->Register(fast_write_bg_rgb);
   registry->Register(WriteAttributes);
+  registry->Register(fast_write_attributes);
   registry->Register(CreateParser);
   registry->Register(DestroyParser);
   registry->Register(ResetParser);
   registry->Register(ParseMouseOne);
   registry->Register(LooksLikeMouseSequence);
+  registry->Register(fast_looks_like_mouse_sequence);
   registry->Register(CreateRenderer);
   registry->Register(DestroyRenderer);
   registry->Register(RendererResize);
@@ -1309,21 +1665,36 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(YogaGetComputedLayout);
   registry->Register(YogaInsertChild);
   registry->Register(YogaMarkDirty);
+  registry->Register(fast_yoga_mark_dirty);
   registry->Register(YogaRemoveChild);
   registry->Register(YogaSetAlignItems);
+  registry->Register(fast_yoga_set_align_items);
   registry->Register(YogaSetAlignSelf);
+  registry->Register(fast_yoga_set_align_self);
   registry->Register(YogaSetFlexBasis);
+  registry->Register(fast_yoga_set_flex_basis);
   registry->Register(YogaSetFlexDirection);
+  registry->Register(fast_yoga_set_flex_direction);
   registry->Register(YogaSetFlexGrow);
+  registry->Register(fast_yoga_set_flex_grow);
   registry->Register(YogaSetFlexShrink);
+  registry->Register(fast_yoga_set_flex_shrink);
   registry->Register(YogaSetFlexWrap);
+  registry->Register(fast_yoga_set_flex_wrap);
   registry->Register(YogaSetHeight);
+  registry->Register(fast_yoga_set_height);
   registry->Register(YogaSetJustifyContent);
+  registry->Register(fast_yoga_set_justify_content);
   registry->Register(YogaSetMargin);
+  registry->Register(fast_yoga_set_margin);
   registry->Register(YogaSetPadding);
+  registry->Register(fast_yoga_set_padding);
   registry->Register(YogaSetPosition);
+  registry->Register(fast_yoga_set_position);
   registry->Register(YogaSetPositionType);
+  registry->Register(fast_yoga_set_position_type);
   registry->Register(YogaSetWidth);
+  registry->Register(fast_yoga_set_width);
 }
 
 }  // namespace tui

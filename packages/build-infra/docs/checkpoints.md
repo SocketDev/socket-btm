@@ -59,7 +59,7 @@ Two places:
 1. **Centralized registry** — `CHECKPOINT_CHAINS` in `packages/build-infra/lib/constants.mts`. Named generators like `simple()`, `nodeSmol()`, `curl()`, `yoga(mode)`, `onnxruntime(mode)`. Use these when a package's chain is one of the standard shapes.
 2. **Per-package entry point** — `packages/<pkg>/scripts/get-checkpoint-chain.mts`. This is what CI calls. It prints the chain to stdout as a comma-separated string. The contract between the script and the workflow is exactly that: comma-separated names on stdout.
 
-Packages with simple `['finalized']` chains (binsuite tools, stubs, lief, libpq) delegate to the shared `build-infra/scripts/get-checkpoint-chain.mts` to avoid duplication. Packages with multi-stage chains (curl, node-smol, yoga, onnx, models, minilm, codet5, iocraft) implement their chain inline.
+Packages with simple `['finalized']` chains (binsuite tools, stubs, lief, libpq) delegate to the shared `build-infra/scripts/get-checkpoint-chain.mts` to avoid duplication. Packages with multi-stage chains (curl, node-smol, yoga, onnx, models, minilm, codet5) implement their chain inline.
 
 ## The checkpoint names themselves
 

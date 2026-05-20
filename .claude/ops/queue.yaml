@@ -9,8 +9,6 @@ phase_order:
   updating-cjson: [env-check, fetch-latest, migrate, validate, report]
   updating-curl: [env-check, fetch-latest, migrate, validate, report]
   updating-fast-webstreams: [env-check, fetch-latest, migrate, validate, report]
-  updating-ink: [env-check, fetch-latest, migrate, validate, report]
-  updating-iocraft: [env-check, fetch-latest, migrate, validate, report]
   updating-libdeflate: [env-check, fetch-latest, migrate, validate, report]
   updating-lief: [env-check, fetch-latest, migrate, validate, report]
   updating-lzfse: [env-check, fetch-latest, migrate, validate, report]

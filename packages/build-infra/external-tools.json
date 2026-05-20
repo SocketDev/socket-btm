@@ -72,7 +72,7 @@
     "cargo": {
       "description": "Rust package manager and build tool (part of the Rust toolchain)",
       "version": "1.83.0",
-      "notes": "Reserved for any Rust toolchain consumers (none today after the iocraft retirement). Install via rustup (https://rustup.rs). Cargo ships with the Rust toolchain; pinning cargo version effectively pins rustc. On GitHub Actions runners, install with: `rustup toolchain install stable`."
+      "notes": "Reserved for any Rust toolchain consumers (none today). Install via rustup (https://rustup.rs). Cargo ships with the Rust toolchain; pinning cargo version effectively pins rustc. On GitHub Actions runners, install with: `rustup toolchain install stable`."
     },
     "ccache": {
       "description": "Compiler cache for faster recompilation",

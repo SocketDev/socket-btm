@@ -48,7 +48,7 @@ Socket-btm follows a consistent directory structure across all 20 packages.
 **Builder packages** (`*-builder/`)
 
 - Build native code or prepare assets
-- Examples: `node-smol-builder`, `curl-builder`, `iocraft-builder`
+- Examples: `node-smol-builder`, `curl-builder`, `opentui-builder`
 - Typically have `lib/` for build scripts, `src/` for native code
 
 **Infrastructure packages** (`*-infra/`)

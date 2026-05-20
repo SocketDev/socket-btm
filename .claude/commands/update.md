@@ -16,8 +16,6 @@ Usage: `/update <name>` (e.g., `/update node` invokes `updating-node`)
 - `libdeflate` - libdeflate compression library
 - `zstd` - zstd compression library (Node.js deps lockstep)
 - `onnxruntime` - ONNX Runtime ML engine
-- `ink` - ink TUI framework
-- `iocraft` - iocraft TUI library
 - `yoga` - Yoga layout library
 - `fast-webstreams` - Vendor fast-webstreams from npm
 - `checksums` - Sync SHA-256 checksums from releases

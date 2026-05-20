@@ -5,23 +5,22 @@ Detailed format and rules for patches under `packages/*/patches/`.
 ## Locations
 
 - **Node.js**: `packages/node-smol-builder/patches/source-patched/*.patch`
-- **iocraft**: `packages/iocraft-builder/patches/*.patch`
-- **ink**: `packages/ink-builder/patches/*.patch`
 - **LIEF**: `packages/lief-builder/patches/lief/*.patch`
+- **OpenTUI**: `packages/opentui-builder/patches/*.patch`
 
 ## Required format
 
 Standard unified diff (`--- a/`, `+++ b/`), NEVER `git format-patch` output. Required headers on the first non-blank lines:
 
 ```diff
-# @<project>-versions: vX.Y.Z     (or @iocraft-versions / @ink-versions / @lief-versions)
+# @<project>-versions: vX.Y.Z     (or @lief-versions / @opentui-versions)
 # @description: One-line summary
 #
 --- a/file
 +++ b/file
 ```
 
-The project tag must match the patch tree: `@node-versions` for Node.js patches, `@iocraft-versions` for iocraft, `@ink-versions` for ink, `@lief-versions` for LIEF.
+The project tag must match the patch tree: `@node-versions` for Node.js patches, `@lief-versions` for LIEF, `@opentui-versions` for OpenTUI.
 
 ## Patch rules
 

@@ -263,14 +263,14 @@ Code embedded into Node.js during early bootstrap. Constraints:
 
 Node 25.7+ replaces the ambient `require` inside a CJS SEA entry with embedder hooks that only resolve built-in names — external loads (file://, abs paths, VFS) fail with `ERR_UNKNOWN_BUILTIN_MODULE`. Always use `Module.createRequire(scriptPath)`; `createVFSRequire()` in `internal/socketsecurity/smol/bootstrap.js` already does this. Don't substitute `await import(pathToFileURL(...))` — same limitation applies.
 
-### Source patches (Node.js, iocraft, ink, LIEF)
+### Source patches (Node.js, LIEF, OpenTUI)
 
 🚨 **1 patch, 1 file. 1 file, 1 patch.** Bidirectional. Every source file in the patch series is owned by exactly one patch, and every patch modifies exactly one source file. No exceptions, no allowlist, no "intentional splits." Numbered series is contiguous — renumber when folding patches.
 
 Standard unified diff (`--- a/`, `+++ b/`), NEVER `git format-patch`. Required headers on the first non-blank lines:
 
 ```diff
-# @<project>-versions: vX.Y.Z     (or @iocraft-versions / @ink-versions / @lief-versions)
+# @<project>-versions: vX.Y.Z     (or @lief-versions / @opentui-versions)
 # @description: One-line summary
 ```
 

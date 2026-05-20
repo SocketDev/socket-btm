@@ -1734,7 +1734,8 @@ Your task is to validate patch file formats across the codebase. Ensure patches 
 
 Patch files must be in standard unified diff format for reliable application during builds:
 - Node.js patches: `packages/node-smol-builder/patches/source-patched/*.patch`
-- iocraft patches: `packages/iocraft-builder/patches/*.patch`
+- OpenTUI patches: `packages/opentui-builder/patches/*.patch`
+- LIEF patches: `packages/lief-builder/patches/lief/*.patch`
 
 **Correct Format:**
 ```diff
@@ -1766,12 +1767,13 @@ index ea08e2e..ba655a3 100644  ← FORBIDDEN
 
 1. **Find all patch files:**
    - `packages/node-smol-builder/patches/source-patched/*.patch`
-   - `packages/iocraft-builder/patches/*.patch`
+   - `packages/opentui-builder/patches/*.patch`
+   - `packages/lief-builder/patches/lief/*.patch`
 
 2. **For each patch file, check:**
    - ❌ Does NOT start with `From`, `Subject`, `Date` headers
    - ✅ Uses `--- a/` and `+++ b/` prefixes (not bare filenames)
-   - ✅ Has required header: `@node-versions` or `@iocraft-versions`
+   - ✅ Has required header: `@node-versions`, `@opentui-versions`, or `@lief-versions`
    - ✅ Has `@description` header
    - ❌ Does NOT contain `diff --git` lines
    - ❌ Does NOT contain `index` lines
@@ -1808,7 +1810,7 @@ Subject: [PATCH] description
 ```diff
 --- a/src/file.cc
 ```
-**Fix**: Add `# @node-versions: v25.5.0` or `# @iocraft-versions: v0.9.4`
+**Fix**: Add `# @node-versions: v25.5.0`, `# @opentui-versions: v0.6.0`, or `# @lief-versions: v0.18.0`
 
 4. **Git diff header:**
 ```diff
@@ -1826,7 +1828,7 @@ index ea08e2e..ba655a3
 ```
 ✓ All patch files use correct unified diff format
 - Validated N patches in node-smol-builder
-- Validated M patches in iocraft-builder
+- Validated M patches in opentui-builder
 ```
 
 **If format violations found:**
@@ -1834,12 +1836,12 @@ index ea08e2e..ba655a3
 ```
 ### CRITICAL - Patch Format Violations
 
-#### packages/iocraft-builder/patches/001-feature.patch:1
+#### packages/opentui-builder/patches/001-feature.patch:1
 - **Issue**: Uses git format-patch output instead of unified diff
 - **Pattern**: Starts with \`From 676c29ac...\` and \`Subject: [PATCH]\`
 - **Fix**: Remove git headers (lines 1-14), use standard unified diff:
   \`\`\`diff
-  # @iocraft-versions: v0.9.4
+  # @opentui-versions: v0.6.0
   # @description: Add feature
   #
   --- a/src/file.rs
@@ -1875,7 +1877,8 @@ Your task is to validate patch file formats across the codebase. Ensure patches 
 
 Patch files must be in standard unified diff format for reliable application during builds:
 - Node.js patches: `packages/node-smol-builder/patches/source-patched/*.patch`
-- iocraft patches: `packages/iocraft-builder/patches/*.patch`
+- OpenTUI patches: `packages/opentui-builder/patches/*.patch`
+- LIEF patches: `packages/lief-builder/patches/lief/*.patch`
 
 **Correct Format:**
 ```diff
@@ -1907,12 +1910,13 @@ index ea08e2e..ba655a3 100644  ← FORBIDDEN
 
 1. **Find all patch files:**
    - `packages/node-smol-builder/patches/source-patched/*.patch`
-   - `packages/iocraft-builder/patches/*.patch`
+   - `packages/opentui-builder/patches/*.patch`
+   - `packages/lief-builder/patches/lief/*.patch`
 
 2. **For each patch file, check:**
    - ❌ Does NOT start with `From`, `Subject`, `Date` headers
    - ✅ Uses `--- a/` and `+++ b/` prefixes (not bare filenames)
-   - ✅ Has required header: `@node-versions` or `@iocraft-versions`
+   - ✅ Has required header: `@node-versions`, `@opentui-versions`, or `@lief-versions`
    - ✅ Has `@description` header
    - ❌ Does NOT contain `diff --git` lines
    - ❌ Does NOT contain `index` lines
@@ -1949,7 +1953,7 @@ Subject: [PATCH] description
 ```diff
 --- a/src/file.cc
 ```
-**Fix**: Add `# @node-versions: v25.5.0` or `# @iocraft-versions: v0.9.4`
+**Fix**: Add `# @node-versions: v25.5.0`, `# @opentui-versions: v0.6.0`, or `# @lief-versions: v0.18.0`
 
 4. **Git diff header:**
 ```diff
@@ -1967,7 +1971,7 @@ index ea08e2e..ba655a3
 ```
 ✓ All patch files use correct unified diff format
 - Validated N patches in node-smol-builder
-- Validated M patches in iocraft-builder
+- Validated M patches in opentui-builder
 ```
 
 **If format violations found:**
@@ -1975,12 +1979,12 @@ index ea08e2e..ba655a3
 ```
 ### CRITICAL - Patch Format Violations
 
-#### packages/iocraft-builder/patches/001-feature.patch:1
+#### packages/opentui-builder/patches/001-feature.patch:1
 - **Issue**: Uses git format-patch output instead of unified diff
 - **Pattern**: Starts with `From 676c29ac...` and `Subject: [PATCH]`
 - **Fix**: Remove git headers (lines 1-14), use standard unified diff:
   ```diff
-  # @iocraft-versions: v0.9.4
+  # @opentui-versions: v0.6.0
   # @description: Add feature
   #
   --- a/src/file.rs

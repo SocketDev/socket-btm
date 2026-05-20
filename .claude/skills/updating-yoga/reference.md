@@ -33,7 +33,7 @@ When updating Yoga, bump this cache version:
 }
 ```
 
-**Note:** After updating Yoga, ink-builder should be rebuilt to pick up the new `yoga-sync.mjs`. Consider also bumping `ink` cache if yoga-sync output changed.
+**Note:** After updating Yoga, the WASM `yoga-sync.mjs` output may change; downstream builders that bundle yoga-sync (e.g. opentui-builder) should be rebuilt and their cache versions bumped if behavior shifts.
 
 ## Wrapper Files Sync
 
@@ -113,5 +113,5 @@ git push origin main
 
 **Solution:**
 1. Check Yoga changelog for layout behavior changes
-2. Test ink package: `cd packages/ink-builder && pnpm test`
+2. Test downstream consumers (opentui-builder) for layout regressions
 3. Rollback if layout regression confirmed

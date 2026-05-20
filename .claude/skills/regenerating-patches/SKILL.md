@@ -1,19 +1,20 @@
 ---
 name: regenerating-patches
-description: Regenerates Node.js or iocraft patches against pristine upstream source so each applies independently. Use after a Node.js version bump, when patches fail to apply, or when restructuring the patch chain.
+description: Regenerates Node.js, OpenTUI, or LIEF patches against pristine upstream source so each applies independently. Use after an upstream version bump, when patches fail to apply, or when restructuring the patch chain.
 user-invocable: true
 allowed-tools: Agent, Read, Edit, Write, Glob, Grep, Bash(git:*), Bash(patch:*), Bash(diff:*), Bash(cp:*), Bash(rm:*), Bash(mkdir:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(awk:*), Bash(grep:*), Bash(sed:*), Bash(find:*), AskUserQuestion
 ---
 
 # regenerating-patches
 
-Regenerate Node.js or iocraft patches against the current pristine upstream tag so every patch applies cleanly in numeric order. This is the canonical recovery flow when an upstream version bump shifts line numbers under our patches.
+Regenerate Node.js, OpenTUI, or LIEF patches against the current pristine upstream tag so every patch applies cleanly in numeric order. This is the canonical recovery flow when an upstream version bump shifts line numbers under our patches.
 
 ## Scope
 
 - **node** — `packages/node-smol-builder/patches/source-patched/*.patch` against `packages/node-smol-builder/upstream/node`
-- **iocraft** — `packages/iocraft-builder/patches/*.patch` against `packages/iocraft-builder/upstream/iocraft`
-- **both** — process node first, then iocraft
+- **opentui** — `packages/opentui-builder/patches/*.patch` against `packages/opentui-builder/upstream/opentui`
+- **lief** — `packages/lief-builder/patches/lief/*.patch` against `packages/lief-builder/upstream/lief`
+- **all** — process node first, then opentui, then lief
 
 If invoked without an explicit scope (`/regenerating-patches`), ask the user via `AskUserQuestion` (or default to **node** in non-interactive mode).
 
@@ -114,7 +115,7 @@ Patches use a 4-line metadata header above the unified diff:
  context
 ```
 
-For iocraft patches: replace `# @node-versions:` with `# @iocraft-versions:`. Never put timestamps on the `---`/`+++` lines (`diff -ruN` adds them; the post-process `sed` strips them).
+For non-node patches: replace `# @node-versions:` with `# @opentui-versions:` or `# @lief-versions:` to match the patch tree. Never put timestamps on the `---`/`+++` lines (`diff -ruN` adds them; the post-process `sed` strips them).
 
 The validator `git apply --check` rejects timestamps and demands matching context — those are the two most common regen failures. See `reference.md` § Common Failure Modes for the full list.
 

@@ -103,6 +103,7 @@
 #include <cstring>
 #include <limits>
 #include <string>
+#include <vector>
 
 namespace node {
 namespace socketsecurity {
@@ -321,6 +322,52 @@ using v8::Value;
   }                                                                      \
   static CFunction fast_##NAME(CFunction::Make(Fast##NAME))
 
+// Signature: (FastOneByteString) -> bool
+//
+// For String.prototype.isWellFormed (ES2024). Returns false if the
+// string contains a lone UTF-16 surrogate (an unpaired 0xD800..0xDFFF
+// code unit). Pure ASCII / Latin-1 strings are well-formed by
+// definition — every byte maps to a valid scalar value U+0000..U+00FF,
+// and the surrogate range is outside that — so the Fast API path on
+// `FastOneByteString` returns `true` unconditionally. The slow path
+// runs the actual UTF-16 scan for two-byte strings, ropes, etc.
+//
+// JS callers see roughly:
+//   ASCII:    `'hello'.isWellFormed()`   → fast path → ~3-4 inlined insns
+//   non-ASCII `'café'.isWellFormed()` → slow path → V8 spec impl
+#define DEFINE_FAST_STRING_BOOL(NAME, OP)                                \
+  static void Slow##NAME(const FunctionCallbackInfo<Value>& args) {      \
+    Isolate* isolate = args.GetIsolate();                                \
+    Local<Context> context = isolate->GetCurrentContext();               \
+    if (args.Length() < 1) {                                             \
+      args.GetReturnValue().Set(false);                                  \
+      return;                                                            \
+    }                                                                    \
+    v8::Local<v8::String> s;                                             \
+    if (!args[0]->ToString(context).ToLocal(&s)) return;                 \
+    /* V8 stores strings in 1-byte or 2-byte encodings. 1-byte is */    \
+    /* always well-formed (no surrogates representable). 2-byte needs */ \
+    /* a scan. We read into a heap buffer to avoid stack overflow for */ \
+    /* very long strings (V8's max string length is ~1GB on 64-bit). */  \
+    int32_t len = s->Length();                                           \
+    if (len == 0) {                                                      \
+      args.GetReturnValue().Set(true);                                   \
+      return;                                                            \
+    }                                                                    \
+    std::vector<uint16_t> buf(static_cast<size_t>(len));                 \
+    s->WriteV2(isolate, 0, static_cast<uint32_t>(len), buf.data());      \
+    args.GetReturnValue().Set(OP(buf.data(), len));                      \
+  }                                                                      \
+  static bool Fast##NAME(Local<Value> recv,                              \
+                         const v8::FastOneByteString& s,                 \
+                         /* NOLINTNEXTLINE(runtime/references) */        \
+                         FastApiCallbackOptions& opts) {                 \
+    /* One-byte strings are Latin-1: every code unit is in 0x00..0xFF, */ \
+    /* outside the surrogate range 0xD800..0xDFFF. Always well-formed. */ \
+    return true;                                                         \
+  }                                                                      \
+  static CFunction fast_##NAME(CFunction::Make(Fast##NAME))
+
 // Signature: (FastOneByteString, int32) -> int32 — for charCodeAt
 //
 // The "receiver" is passed as the first ARG (not as the C++ `recv`)
@@ -434,6 +481,35 @@ inline bool JsIsSafeInteger(double v) {
   if (!JsIsInteger(v)) return false;
   // 2^53 - 1
   return std::fabs(v) <= 9007199254740991.0;
+}
+
+// ─── String.prototype.isWellFormed (ES2024) ─────────────────────────────
+// Spec: https://tc39.es/ecma262/#sec-string.prototype.iswellformed
+//
+// A UTF-16 string is "well-formed" if every surrogate code unit is
+// part of a valid surrogate pair. High surrogates (0xD800-0xDBFF) must
+// be immediately followed by a low surrogate (0xDC00-0xDFFF). Lone
+// surrogates make the string ill-formed.
+inline bool JsStringIsWellFormed(const uint16_t* data, int32_t len) {
+  for (int32_t i = 0; i < len; ++i) {
+    uint16_t c = data[i];
+    if (c < 0xD800 || c > 0xDFFF) {
+      continue;  // Not a surrogate.
+    }
+    if (c >= 0xDC00) {
+      return false;  // Low surrogate without preceding high.
+    }
+    // High surrogate — must be followed by a low surrogate.
+    if (i + 1 >= len) {
+      return false;
+    }
+    uint16_t next = data[i + 1];
+    if (next < 0xDC00 || next > 0xDFFF) {
+      return false;
+    }
+    ++i;  // Skip the low surrogate; pair is valid.
+  }
+  return true;
 }
 
 // Trampoline wrappers for std:: math fns so DEFINE_FAST_DOUBLE_DOUBLE
@@ -677,6 +753,13 @@ DEFINE_FAST_VOID_DOUBLE(DateNow, JsDateNow);
 // Returns -1 sentinel for OOB; primordials.ts wrapper converts to NaN.
 DEFINE_FAST_STRING_INT32_INT32(StringCharCodeAt);
 
+// String.prototype.isWellFormed (FastOneByteString → bool)
+// Spec: https://tc39.es/ecma262/#sec-string.prototype.iswellformed
+// ASCII / Latin-1 strings are well-formed by definition; the fast path
+// returns true unconditionally. UTF-16 strings hit the slow path's
+// linear lone-surrogate scan.
+DEFINE_FAST_STRING_BOOL(StringIsWellFormed, JsStringIsWellFormed);
+
 // ═══════════════════════════════════════════════════════════════════════
 // Module registration helpers.
 // ═══════════════════════════════════════════════════════════════════════
@@ -743,6 +826,7 @@ static void Initialize(Local<Object> target,
   REGISTER_FAST(target, "numberParseFloat", NumberParseFloat);
   REGISTER_FAST(target, "numberParseInt10", NumberParseInt10);
   REGISTER_FAST(target, "stringCharCodeAt", StringCharCodeAt);
+  REGISTER_FAST(target, "stringIsWellFormed", StringIsWellFormed);
 }
 
 static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -787,6 +871,7 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   EXTREF_FAST(NumberParseFloat);
   EXTREF_FAST(NumberParseInt10);
   EXTREF_FAST(StringCharCodeAt);
+  EXTREF_FAST(StringIsWellFormed);
 }
 
 }  // namespace primordial

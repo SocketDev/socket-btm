@@ -31,7 +31,10 @@
 //   Date static:   dateNow
 //   String proto:  stringCharCodeAt (ASCII-only fast path; OOB
 //                  returns -1 sentinel — consumers must convert to
-//                  NaN to match spec)
+//                  NaN to match spec),
+//                  stringIsWellFormed (ASCII fast path always returns
+//                  true — surrogate range is unreachable in Latin-1
+//                  storage; UTF-16 strings hit the slow path scan)
 //
 // Math.round uses JS half-toward-+∞ semantics (NOT C's away-from-zero).
 // Math.sign preserves +0/-0/NaN. Math.imul casts through unsigned for

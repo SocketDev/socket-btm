@@ -62,10 +62,14 @@ numberIsNaN          numberIsSafeInteger
 numberParseFloat(s: string): number
 numberParseInt10(s: string): number  // radix 10 only
 
-// String prototype (FastOneByteString fast path; -1 sentinel for OOB
-// indices, callers must convert to NaN to match
-// String.prototype.charCodeAt spec)
+// String prototype (FastOneByteString fast path)
+// charCodeAt: -1 sentinel for OOB indices; callers convert to NaN to
+// match String.prototype.charCodeAt spec.
+// isWellFormed: ES2024 — Latin-1 strings are well-formed by definition
+// (surrogate range unreachable), so the fast path always returns true;
+// UTF-16 strings hit the slow path's linear surrogate scan.
 stringCharCodeAt(s: string, i: number): number
+stringIsWellFormed(s: string): boolean
 ```
 
 ## Design Choices

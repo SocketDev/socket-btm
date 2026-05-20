@@ -50,11 +50,11 @@ interface UpdateAssetsOptions {
    */
   manifestPath: string
   /**
-   * Tool key inside the manifest (e.g. `iocraft`, `lief`).
+   * Tool key inside the manifest (e.g. `lief`, `opentui`).
    */
   tool: string
   /**
-   * Release tag, e.g. `iocraft-20260424-18f0f46`.
+   * Release tag, e.g. `lief-20260507-76c1796`.
    */
   tag: string
   /**

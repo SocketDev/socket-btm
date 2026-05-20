@@ -3,7 +3,7 @@ description: Reads a package's cache version from .github/cache-versions.json an
 
 inputs:
   package-name:
-    description: 'Package key in .github/cache-versions.json (e.g. iocraft, lief, yoga-layout)'
+    description: 'Package key in .github/cache-versions.json (e.g. lief, opentui, yoga-layout)'
     required: true
 
 outputs:

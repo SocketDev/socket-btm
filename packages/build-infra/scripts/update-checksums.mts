@@ -40,19 +40,17 @@ const CHECKSUMS_FILE = path.join(packageRoot, 'release-assets.json')
 
 /** Tools to sync checksums for (only packages with GitHub releases). */
 const TOOLS = [
-  'lief',
-  'curl',
-  'stubs',
-  'binpress',
   'binflate',
   'binject',
-  'node-smol',
-  'ink',
-  'iocraft',
-  'onnxruntime',
+  'binpress',
+  'curl',
+  'lief',
   'models',
-  'yoga-layout',
+  'node-smol',
+  'onnxruntime',
   'opentui',
+  'stubs',
+  'yoga-layout',
 ]
 
 /**

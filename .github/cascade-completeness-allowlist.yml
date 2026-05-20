@@ -64,14 +64,6 @@
   gap: workflow-hash
   reason: Ephemeral staged at run time. See block comment above.
 - missingPath: .build-context/registry-tools.json
-  consumer: ink.yml
-  gap: workflow-hash
-  reason: Ephemeral staged at run time. See block comment above.
-- missingPath: .build-context/registry-tools.json
-  consumer: iocraft.yml
-  gap: workflow-hash
-  reason: Ephemeral staged at run time. See block comment above.
-- missingPath: .build-context/registry-tools.json
   consumer: lief.yml
   gap: workflow-hash
   reason: Ephemeral staged at run time. See block comment above.

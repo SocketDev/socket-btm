@@ -219,7 +219,7 @@ runs:
         # Map logical PACKAGE_NAME (used in cache-versions.json) to the
         # actual directory under packages/. Most names match their
         # directory, but `node-smol` lives at `packages/node-smol-builder`.
-        # Other builder-suffixed entries (lief, curl, ink, iocraft, etc.)
+        # Other builder-suffixed entries (curl, lief, opentui, etc.)
         # don't use setup-checkpoints today — add them here if a future
         # workflow wires them through.
         case "${PACKAGE_NAME}" in

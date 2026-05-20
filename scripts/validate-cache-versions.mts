@@ -49,8 +49,6 @@ const ALL_DOWNSTREAM = [
   'binject',
   'binpress',
   'curl',
-  'ink',
-  'iocraft',
   'lief',
   'models',
   'node-smol',
@@ -80,14 +78,14 @@ const CASCADE_RULES = {
     'binpress',
     'node-smol',
   ],
-  // ink bundles the yoga-sync.mjs produced by yoga-layout-builder's
-  // scripts, so yoga-layout source edits must cascade to ink. Note:
-  // yoga-layout-builder has no patches/ directory today (upstream yoga
-  // absorbed our patches); the rule is kept off the list until the
-  // directory returns, otherwise the validator would reference a dead
-  // path and misleadingly suggest coverage.
-  'packages/yoga-layout-builder/scripts/': ['yoga-layout', 'ink'],
-  'packages/yoga-layout-builder/src/': ['yoga-layout', 'ink'],
+  // yoga-layout-builder produces yoga-sync.mjs consumed by downstream
+  // TUI builders (e.g. opentui-builder) — yoga source edits cascade
+  // through the WASM artifact. yoga-layout-builder has no patches/
+  // directory today (upstream yoga absorbed our patches); the rule
+  // is kept off the list until the directory returns, otherwise the
+  // validator would reference a dead path.
+  'packages/yoga-layout-builder/scripts/': ['yoga-layout'],
+  'packages/yoga-layout-builder/src/': ['yoga-layout'],
   'packages/binpress/src/': ['binpress', 'node-smol'],
   'packages/build-infra/lib/': ALL_DOWNSTREAM,
   'packages/build-infra/src/socketsecurity/build-infra/': [
@@ -99,9 +97,8 @@ const CASCADE_RULES = {
   ],
   // build-infra/wasm-synced/ holds the WASM sync wrapper generator +
   // transform helpers that yoga-layout-builder and onnxruntime-builder
-  // import from build-infra/wasm-synced/*. ink bundles the produced
-  // yoga-sync.mjs so cascades to ink too.
-  'packages/build-infra/wasm-synced/': ['yoga-layout', 'onnxruntime', 'ink'],
+  // import from build-infra/wasm-synced/*.
+  'packages/build-infra/wasm-synced/': ['yoga-layout', 'onnxruntime'],
   // release-assets.json holds SHA-256 checksums for every released
   // binary (curl, lief, stubs, zstd, binject, binflate, binpress, …)
   // consumed by build-infra/lib/release-checksums.mts during offline

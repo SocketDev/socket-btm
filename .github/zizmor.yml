@@ -5,11 +5,6 @@ rules:
   secrets-outside-env:
     disable: true
 
-  superfluous-actions:
-    ignore:
-      # False positive: needed for cross-compilation targets via `targets:` input
-      - iocraft.yml:154
-
   template-injection:
     ignore:
       # False positive: Template expansion is in a comment, not executable code

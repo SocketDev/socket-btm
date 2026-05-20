@@ -70,8 +70,6 @@ const PACKAGE_TO_WORKFLOW: Record<string, string> = {
   binject: '.github/workflows/binsuite.yml',
   binpress: '.github/workflows/binsuite.yml',
   'curl-builder': '.github/workflows/curl.yml',
-  'ink-builder': '.github/workflows/ink.yml',
-  'iocraft-builder': '.github/workflows/iocraft.yml',
   'lief-builder': '.github/workflows/lief.yml',
   models: '.github/workflows/models.yml',
   'node-smol-builder': '.github/workflows/node-smol.yml',

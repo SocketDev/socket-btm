@@ -170,7 +170,7 @@ jobs:
           # Get curl and mbedtls submodule SHAs. git ls-tree HEAD reads
           # the gitlink from the repo's own HEAD, so the cache key can be
           # computed WITHOUT the submodules being initialized. Mirrors the
-          # pattern used in node-smol/iocraft/yoga/etc. and unblocks
+          # pattern used in node-smol/yoga/etc. and unblocks
           # gating the submodule init step on cache-miss.
           CURL_SHA=$(git ls-tree HEAD packages/curl-builder/upstream/curl 2>/dev/null | awk '{print $3}')
           MBEDTLS_SHA=$(git ls-tree HEAD packages/curl-builder/upstream/mbedtls 2>/dev/null | awk '{print $3}')

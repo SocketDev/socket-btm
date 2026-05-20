@@ -39,10 +39,6 @@
       "submodule": "packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/streams",
       "repo": "https://github.com/web-platform-tests/wpt"
     },
-    "iocraft": {
-      "submodule": "packages/iocraft-builder/upstream/iocraft",
-      "repo": "https://github.com/ccbrown/iocraft"
-    },
     "liburing": {
       "submodule": "packages/node-smol-builder/upstream/liburing",
       "repo": "https://github.com/axboe/liburing"
@@ -66,10 +62,6 @@
     "ultraviolet": {
       "submodule": "packages/ultraviolet-builder/upstream/ultraviolet",
       "repo": "https://github.com/charmbracelet/ultraviolet"
-    },
-    "ink": {
-      "submodule": "packages/ink-builder/upstream/ink",
-      "repo": "https://github.com/vadimdemedes/ink"
     },
     "semver": {
       "submodule": "packages/node-smol-builder/upstream/semver",
@@ -602,26 +594,6 @@
       "upgrade_policy": "track-latest",
       "criticality": 7,
       "notes": "Charmbracelet Ultraviolet \u2014 terminal I/O + decoder foundation under Bubble Tea v2 / Lip Gloss v2. Pre-1.0, fast-moving, no release tags. ultraviolet-builder wraps it via napi-go. Consumed by socket-tui for kitty/fixterms/SGR keyboard + mouse decoding."
-    },
-    {
-      "kind": "version-pin",
-      "id": "ink",
-      "upstream": "ink",
-      "pinned_sha": "fb14d811d513be19e5a57bb2faebbfd9ebd2f06a",
-      "pinned_tag": "v7.0.0",
-      "upgrade_policy": "major-gate",
-      "criticality": 7,
-      "notes": "React-for-terminal library builder."
-    },
-    {
-      "kind": "version-pin",
-      "id": "iocraft",
-      "upstream": "iocraft",
-      "pinned_sha": "3477adc7a67ff78f71b99662d6eff867e6269b53",
-      "pinned_tag": "v0.8.0",
-      "upgrade_policy": "major-gate",
-      "criticality": 7,
-      "notes": "Rust-based terminal UI framework builder."
     },
     {
       "kind": "version-pin",

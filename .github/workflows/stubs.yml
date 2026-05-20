@@ -256,7 +256,7 @@ jobs:
           # Per-package package.json defense-in-depth: holds devDeps
           # and (future) source pins specific to stubs. Captured by the
           # pnpm-lock hash today but hashing directly keeps the key
-          # uniform with iocraft/ink/onnxruntime/yoga-layout workflows.
+          # uniform with onnxruntime/yoga-layout workflows.
           STUBS_PACKAGE_JSON=$($hash_cmd packages/stubs-builder/package.json 2>/dev/null | cut -d' ' -f1)
           # Socket-registry propagation SHA — extracted from THIS
           # workflow's own YAML at runtime, not via a catalog lookup.

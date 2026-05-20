@@ -8,7 +8,7 @@
  * lessons from R14-R21 quality scans:
  *
  *   1. Starts with `# @<project>-versions: vX.Y.Z` header (allowed
- *      projects: node / iocraft / ink / lief)
+ *      projects: lief / node / opentui)
  *   2. Has a `# @description: <one-liner>` header
  *   3. Uses standard unified diff format (`--- a/`, `+++ b/`), NOT
  *      `git format-patch` output (which starts with `From <sha>`)
@@ -64,15 +64,13 @@ const ALLOWLIST_PATH = path.join(
 
 // Known patch roots. Each entry maps to an allowed `@<project>-versions`
 // token — validator rejects patches with a mismatched project tag so a
-// lief patch can't land in the ink tree with stale headers.
+// lief patch can't land in another builder's tree with stale headers.
 const PATCH_ROOTS: Array<{ dir: string; project: string }> = [
+  { dir: 'packages/lief-builder/patches/lief', project: 'lief' },
   {
     dir: 'packages/node-smol-builder/patches/source-patched',
     project: 'node',
   },
-  { dir: 'packages/ink-builder/patches', project: 'ink' },
-  { dir: 'packages/iocraft-builder/patches', project: 'iocraft' },
-  { dir: 'packages/lief-builder/patches/lief', project: 'lief' },
   { dir: 'packages/opentui-builder/patches', project: 'opentui' },
 ]
 

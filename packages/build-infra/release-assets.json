@@ -57,27 +57,6 @@
       "curl-win32-x64.tar.gz": "5abd21b56ad66231626b7fc37847affd3bd2b5f20bf57b5eb2ccea655c670dfa"
     }
   },
-  "ink": {
-    "description": "Prepatched ink TUI framework",
-    "tag": "ink-20260425-824bdd9",
-    "checksums": {
-      "ink-20260425-824bdd9.tgz": "ddca8f9ab37449d6a57cbfb66039ed7a0b957d24a1d303edf539e4fecad77645"
-    }
-  },
-  "iocraft": {
-    "description": "iocraft native Node.js bindings",
-    "tag": "iocraft-20260424-18f0f46",
-    "checksums": {
-      "iocraft-20260424-18f0f46-darwin-arm64.node": "c3eeea2ee77d7ddb4dd7f8d9c1feecc28001cbdf657cd88caa54f910f98c4027",
-      "iocraft-20260424-18f0f46-darwin-x64.node": "98f579a65d95da8bba05c12b4739dc426d244b3a7104a85528f7ff9c9b59348e",
-      "iocraft-20260424-18f0f46-linux-arm64-musl.node": "6674e7b2e0922c542bc29c7e350aa601a7c98a050239a1b3baf66d743f2565dc",
-      "iocraft-20260424-18f0f46-linux-arm64.node": "75222bc5475b4172c98e287e5c97a26c99c7e66a08c3382f8b15c117a9bfc801",
-      "iocraft-20260424-18f0f46-linux-x64-musl.node": "5a4cc4c7f6ce2c1e9ba7b44019bc97bbe99b737a3cefadd60b02f10d0a508f5c",
-      "iocraft-20260424-18f0f46-linux-x64.node": "d25c1e412ffa21aad33db06489ff4aac6fb7d4b7403f3b98484fdb5497498dcd",
-      "iocraft-20260424-18f0f46-win-arm64.node": "b70b3501f8fa25a38e93043a26587f4d8b2dc8da16950339a8b28b53e43620ac",
-      "iocraft-20260424-18f0f46-win-x64.node": "59177480a2afb6e301a78e0adbd87bae284667c839c9f5d586ff75655fe7fc8f"
-    }
-  },
   "lief": {
     "description": "LIEF binary manipulation library",
     "tag": "lief-20260507-76c1796",

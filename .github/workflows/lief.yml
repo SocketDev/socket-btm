@@ -182,14 +182,14 @@ jobs:
           # Foundational toolchain pins + cross-package build scripts. Per
           # validate-cache-versions CASCADE_RULES these are ALL_DOWNSTREAM —
           # a bump must invalidate every builder's cache. Mirrors the stubs/
-          # curl/iocraft/opentui coverage.
+          # curl/opentui coverage.
           BUILD_INFRA_EXTERNAL_TOOLS=$($hash_cmd packages/build-infra/external-tools.json 2>/dev/null | cut -d' ' -f1)
           BUILD_INFRA_SCRIPTS=$(find packages/build-infra/scripts -type f 2>/dev/null | LC_COLLATE=C sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
           PNPM_LOCK_HASH=$($hash_cmd pnpm-lock.yaml 2>/dev/null | cut -d' ' -f1)
           NODE_VERSION_HASH=$($hash_cmd .node-version 2>/dev/null | cut -d' ' -f1)
           # Use git ls-tree HEAD so the cache key can be computed WITHOUT
           # the submodule being initialized — the SHA is the gitlink
-          # already recorded in HEAD. Mirrors node-smol/iocraft/yoga/
+          # already recorded in HEAD. Mirrors node-smol/yoga/
           # onnxruntime/opentui and unblocks gating the submodule init
           # step on cache-miss.
           LIEF_SUBMODULE_SHA=$(git ls-tree HEAD packages/lief-builder/upstream/lief 2>/dev/null | awk '{print $3}')

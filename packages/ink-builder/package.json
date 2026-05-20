@@ -31,7 +31,6 @@
   },
   "dependencies": {
     "@socketsecurity/lib": "catalog:",
-    "@socketsecurity/lib": "catalog:",
     "build-infra": "workspace:*",
     "yoga-layout-builder": "workspace:*"
   },

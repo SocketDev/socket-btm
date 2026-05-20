@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@socketsecurity/lib": "catalog:",
-    "@socketsecurity/lib": "catalog:",
     "bin-infra": "workspace:*",
     "build-infra": "workspace:*",
     "curl-builder": "workspace:*"

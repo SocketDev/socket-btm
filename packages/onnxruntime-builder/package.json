@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "@socketsecurity/lib": "catalog:",
-    "@socketsecurity/lib": "catalog:",
     "acorn": "catalog:",
     "acorn-walk": "catalog:",
     "build-infra": "workspace:*",

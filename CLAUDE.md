@@ -252,7 +252,7 @@ Hooks that gate specific external tools — they only fire when those tools appe
 3. **binsuite** — AFTER stubs is green.
 4. **node-smol** — AFTER binsuite is green.
 
-Never parallel-dispatch across tiers. Within a tier, parallel is fine. Bump `cache-versions.json` BEFORE re-dispatching — otherwise the cache key doesn't change and the workflow rebuilds nothing. Out-of-order dispatch is gated by `scripts/check-publish-prereq.mts` (runs as a `verify-prereqs` job at the top of stubs.yml / binsuite.yml / node-smol.yml); it hard-fails if an upstream's cache-version bump is newer than its latest published release tag.
+Never parallel-dispatch across tiers; parallel within a tier is fine. Bump `cache-versions.json` BEFORE re-dispatching or the cache key doesn't change. Out-of-order dispatch is gated by `scripts/check-publish-prereq.mts` (runs as `verify-prereqs` in stubs.yml / binsuite.yml / node-smol.yml).
 
 ### Node.js Additions (`additions/` directory)
 

@@ -1,0 +1,248 @@
+name: SMOL 0. Orchestrate
+
+# Top-level orchestrator for the node-smol dependency chain. Calls each
+# stage as a reusable workflow in dependency order so a single dispatch
+# rebuilds the whole pipeline. The `from` input picks the earliest
+# stage to run; the `stop-at` input picks the latest. Stages outside
+# that window are skipped at the job level. Each stage's internal
+# cache decides whether actual work happens, so re-running with
+# defaults is cheap when nothing changed.
+#
+# Stage order (SMOL chain):
+#   1. lief       — packages/lief-builder/      (LIEF binary manipulation)
+#   2. curl       — packages/curl-builder/      (libcurl + mbedTLS)
+#   3. stubs      — packages/stubs-builder/     (compressed-binary stubs)
+#   4. binsuite   — packages/binject + binpress + binflate
+#   5. node-smol  — packages/node-smol-builder/ (final Node.js binary)
+#
+# Each child workflow gates its release job on
+#   github.event_name == 'workflow_dispatch' && !inputs['dry-run']
+# When invoked via workflow_call from here, `event_name` propagates as
+# 'workflow_dispatch', so release happens iff the orchestrator's
+# `dry-run` input is false.
+
+on:
+  workflow_dispatch:
+    inputs:
+      from:
+        description: 'Earliest stage to run (everything before is skipped)'
+        type: choice
+        options:
+          - lief
+          - curl
+          - stubs
+          - binsuite
+          - node-smol
+        default: lief
+      stop-at:
+        description: 'Latest stage to run (everything after is skipped)'
+        type: choice
+        options:
+          - lief
+          - curl
+          - stubs
+          - binsuite
+          - node-smol
+        default: node-smol
+      dry-run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      build-mode:
+        description: 'Build mode'
+        type: choice
+        options:
+          - prod
+          - dev
+        default: prod
+      tools:
+        description: 'Binsuite tools (comma-separated: binpress,binflate,binject or "all")'
+        type: string
+        default: 'all'
+      debug:
+        description: 'Debug (0|1|namespace[,...])'
+        type: string
+        default: '0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Resolve the numeric position of `from` and `stop-at` so each stage
+  # can compare against them in a single boolean expression. This
+  # avoids per-stage chained `contains(...)` calls and keeps the
+  # gating logic identical across stages.
+  resolve-window:
+    name: Resolve stage window
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    outputs:
+      from-rank: ${{ steps.compute.outputs.from-rank }}
+      stop-rank: ${{ steps.compute.outputs.stop-rank }}
+    steps:
+      - id: compute
+        env:
+          FROM: ${{ inputs.from }}
+          STOP_AT: ${{ inputs.stop-at }}
+        # Stage names → 1..5 ranks. Anything outside this list would
+        # have been rejected by the choice input, so the case
+        # statements are exhaustive by construction.
+        run: |
+          set -euo pipefail
+          rank_of() {
+            case "$1" in
+              lief)      echo 1 ;;
+              curl)      echo 2 ;;
+              stubs)     echo 3 ;;
+              binsuite)  echo 4 ;;
+              node-smol) echo 5 ;;
+              *) echo "unknown stage: $1" >&2; exit 1 ;;
+            esac
+          }
+          FROM_RANK=$(rank_of "$FROM")
+          STOP_RANK=$(rank_of "$STOP_AT")
+          if (( FROM_RANK > STOP_RANK )); then
+            echo "::error::from=$FROM (rank $FROM_RANK) is after stop-at=$STOP_AT (rank $STOP_RANK). Choose from <= stop-at." >&2
+            exit 1
+          fi
+          echo "from-rank=$FROM_RANK" >> "$GITHUB_OUTPUT"
+          echo "stop-rank=$STOP_RANK" >> "$GITHUB_OUTPUT"
+          echo "Window: from=$FROM (rank $FROM_RANK) through stop-at=$STOP_AT (rank $STOP_RANK)"
+
+  lief:
+    name: Stage 1 — LIEF
+    needs: resolve-window
+    # Run when the window includes lief (rank 1):
+    #   from-rank <= 1 AND stop-rank >= 1
+    # stop-rank >= 1 is always true for valid input, so the check
+    # reduces to from-rank <= 1, i.e. inputs.from == 'lief'.
+    if: needs.resolve-window.outputs.from-rank <= '1'
+    uses: ./.github/workflows/lief.yml
+    with:
+      dry-run: ${{ inputs.dry-run }}
+      force: ${{ inputs.force }}
+      build-mode: ${{ inputs.build-mode }}
+      debug: ${{ inputs.debug }}
+    secrets: inherit
+
+  curl:
+    name: Stage 2 — curl
+    needs: [resolve-window, lief]
+    # Run when curl is in the window (from-rank <= 2 <= stop-rank) AND
+    # lief either succeeded or was skipped (skipped means from > 1, so
+    # we're starting from curl or later and don't need lief output).
+    if: |
+      always()
+      && needs.resolve-window.outputs.from-rank <= '2'
+      && needs.resolve-window.outputs.stop-rank >= '2'
+      && (needs.lief.result == 'success' || needs.lief.result == 'skipped')
+    uses: ./.github/workflows/curl.yml
+    with:
+      dry-run: ${{ inputs.dry-run }}
+      force: ${{ inputs.force }}
+      build-mode: ${{ inputs.build-mode }}
+      debug: ${{ inputs.debug }}
+    secrets: inherit
+
+  stubs:
+    name: Stage 3 — Stubs
+    needs: [resolve-window, curl]
+    if: |
+      always()
+      && needs.resolve-window.outputs.from-rank <= '3'
+      && needs.resolve-window.outputs.stop-rank >= '3'
+      && (needs.curl.result == 'success' || needs.curl.result == 'skipped')
+    uses: ./.github/workflows/stubs.yml
+    with:
+      dry-run: ${{ inputs.dry-run }}
+      force: ${{ inputs.force }}
+      debug: ${{ inputs.debug }}
+    secrets: inherit
+
+  binsuite:
+    name: Stage 4 — Binsuite
+    needs: [resolve-window, stubs]
+    if: |
+      always()
+      && needs.resolve-window.outputs.from-rank <= '4'
+      && needs.resolve-window.outputs.stop-rank >= '4'
+      && (needs.stubs.result == 'success' || needs.stubs.result == 'skipped')
+    uses: ./.github/workflows/binsuite.yml
+    with:
+      dry-run: ${{ inputs.dry-run }}
+      force: ${{ inputs.force }}
+      build-mode: ${{ inputs.build-mode }}
+      tools: ${{ inputs.tools }}
+      debug: ${{ inputs.debug }}
+    secrets: inherit
+
+  node-smol:
+    name: Stage 5 — node-smol
+    needs: [resolve-window, binsuite]
+    if: |
+      always()
+      && needs.resolve-window.outputs.from-rank <= '5'
+      && needs.resolve-window.outputs.stop-rank >= '5'
+      && (needs.binsuite.result == 'success' || needs.binsuite.result == 'skipped')
+    uses: ./.github/workflows/node-smol.yml
+    with:
+      dry-run: ${{ inputs.dry-run }}
+      force: ${{ inputs.force }}
+      build-mode: ${{ inputs.build-mode }}
+      debug: ${{ inputs.debug }}
+    secrets: inherit
+
+  summary:
+    name: Orchestration summary
+    needs: [resolve-window, lief, curl, stubs, binsuite, node-smol]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Emit per-stage outcomes
+        env:
+          LIEF_RESULT: ${{ needs.lief.result }}
+          CURL_RESULT: ${{ needs.curl.result }}
+          STUBS_RESULT: ${{ needs.stubs.result }}
+          BINSUITE_RESULT: ${{ needs.binsuite.result }}
+          NODE_SMOL_RESULT: ${{ needs['node-smol'].result }}
+          FROM: ${{ inputs.from }}
+          STOP_AT: ${{ inputs.stop-at }}
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          set -euo pipefail
+          {
+            echo "# Orchestration summary"
+            echo ""
+            echo "**Window**: $FROM → $STOP_AT — **dry-run**: $DRY_RUN"
+            echo ""
+            echo "| Stage | Result |"
+            echo "| --- | --- |"
+            echo "| lief      | $LIEF_RESULT |"
+            echo "| curl      | $CURL_RESULT |"
+            echo "| stubs     | $STUBS_RESULT |"
+            echo "| binsuite  | $BINSUITE_RESULT |"
+            echo "| node-smol | $NODE_SMOL_RESULT |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Fail the orchestration if any executed stage failed.
+          # `skipped` is fine (out of window or upstream skipped); only
+          # `failure`, `cancelled`, or `timed_out` should fail us.
+          fail=0
+          for r in "$LIEF_RESULT" "$CURL_RESULT" "$STUBS_RESULT" "$BINSUITE_RESULT" "$NODE_SMOL_RESULT"; do
+            case "$r" in
+              success|skipped) ;;
+              *) fail=1 ;;
+            esac
+          done
+          if (( fail )); then
+            echo "::error::One or more stages did not succeed. See per-stage logs." >&2
+            exit 1
+          fi

@@ -15,9 +15,10 @@
 import { promises as fs, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib/logger'
 
-import { computeFileHash, type EmbeddedChecksums } from './core.mts'
+import { computeFileHash } from './core.mts'
+import type { EmbeddedChecksums } from './core.mts'
 
 const logger = getDefaultLogger()
 
@@ -32,7 +33,8 @@ export async function hashDirectory(
 ): Promise<Record<string, string>> {
   const entries = await fs.readdir(dir, { withFileTypes: true })
   const out: Record<string, string> = { __proto__: null as never }
-  for (const entry of entries) {
+  for (let i = 0, { length } = entries; i < length; i += 1) {
+    const entry = entries[i]!
     if (!entry.isFile()) {
       continue
     }
@@ -40,65 +42,6 @@ export async function hashDirectory(
     out[entry.name] = await computeFileHash(filePath)
   }
   return out
-}
-
-interface WriteChecksumsOptions {
-  /**
-   * Directory containing the artifacts to hash.
-   */
-  inputDir: string
-  /**
-   * Path of the `checksums.txt` to write.
-   */
-  outputPath: string
-  /**
-   * Optional ordering. If omitted, entries are sorted alphabetically.
-   */
-  order?: 'alphabetical' | readonly string[]
-  /**
-   * Suppress info logging (errors still log).
-   */
-  quiet?: boolean
-}
-
-/**
- * Write a `checksums.txt` file from a directory of artifacts.
- *
- * Output format: `<sha256-hex> <filename>\n`, matching the format
- * `consumer.mts:parseChecksums` expects. Filenames are sorted alphabetically by
- * default for stable diffs.
- */
-export async function writeChecksumsFile(
-  options: WriteChecksumsOptions,
-): Promise<Record<string, string>> {
-  const {
-    inputDir,
-    order = 'alphabetical',
-    outputPath,
-    quiet = false,
-  } = options
-
-  const checksums = await hashDirectory(inputDir)
-  const names =
-    order === 'alphabetical' ? Object.keys(checksums).sort() : [...order]
-
-  const lines: string[] = []
-  for (const name of names) {
-    const hash = checksums[name]
-    if (!hash) {
-      if (!quiet) {
-        logger.warn(`No file matched ordering entry: ${name}`)
-      }
-      continue
-    }
-    lines.push(`${hash}  ${name}`)
-  }
-  // POSIX-style trailing newline.
-  await fs.writeFile(outputPath, lines.join('\n') + '\n', 'utf8')
-  if (!quiet) {
-    logger.info(`Wrote ${lines.length} checksums to ${outputPath}`)
-  }
-  return checksums
 }
 
 interface UpdateAssetsOptions {
@@ -121,7 +64,7 @@ interface UpdateAssetsOptions {
   /**
    * Optional human-readable description for the tool block.
    */
-  description?: string
+  description?: string | undefined
 }
 
 /**
@@ -137,8 +80,8 @@ export function updateReleaseAssets(options: UpdateAssetsOptions): void {
   const { checksums, description, manifestPath, tag, tool } = options
 
   let manifest: EmbeddedChecksums & {
-    $schema?: string
-    $comment?: string
+    $schema?: string | undefined
+    $comment?: string | undefined
   } = { __proto__: null as never } as never
   try {
     manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
@@ -153,4 +96,64 @@ export function updateReleaseAssets(options: UpdateAssetsOptions): void {
   }
 
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8')
+}
+
+interface WriteChecksumsOptions {
+  /**
+   * Directory containing the artifacts to hash.
+   */
+  inputDir: string
+  /**
+   * Path of the `checksums.txt` to write.
+   */
+  outputPath: string
+  /**
+   * Optional ordering. If omitted, entries are sorted alphabetically.
+   */
+  order?: 'alphabetical' | readonly string[] | undefined
+  /**
+   * Suppress info logging (errors still log).
+   */
+  quiet?: boolean | undefined
+}
+
+/**
+ * Write a `checksums.txt` file from a directory of artifacts.
+ *
+ * Output format: `<sha256-hex> <filename>\n`, matching the format
+ * `consumer.mts:parseChecksums` expects. Filenames are sorted alphabetically by
+ * default for stable diffs.
+ */
+export async function writeChecksumsFile(
+  options: WriteChecksumsOptions,
+): Promise<Record<string, string>> {
+  const {
+    inputDir,
+    order = 'alphabetical',
+    outputPath,
+    quiet = false,
+  } = options
+
+  const checksums = await hashDirectory(inputDir)
+  const names =
+    order === 'alphabetical' ? Object.keys(checksums).toSorted() : [...order]
+
+  const lines: string[] = []
+  for (let i = 0, { length } = names; i < length; i += 1) {
+    const name = names[i]!
+    const hash = checksums[name]
+    if (!hash) {
+      if (!quiet) {
+        logger.warn(`No file matched ordering entry: ${name}`)
+      }
+      continue
+    }
+    lines.push(`${hash}  ${name}`)
+  }
+  // POSIX-style trailing newline.
+  await fs.writeFile(outputPath, lines.join('\n') + '\n', 'utf8')
+  if (!quiet) {
+    logger.info(`Wrote ${lines.length} checksums to ${outputPath}`)
+  }
+  return checksums
 }

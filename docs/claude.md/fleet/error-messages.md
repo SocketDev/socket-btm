@@ -88,7 +88,7 @@ terse keeps the assertion readable when you skim the code.
 
 When the error needs to show an allowed set, a list of conflicting
 records, or multiple missing fields, use the list formatters from
-`@socketsecurity/lib-stable/arrays` rather than hand-joining with commas:
+`@socketsecurity/lib/arrays` rather than hand-joining with commas:
 
 - `joinAnd(['a', 'b', 'c'])` → `"a, b, and c"` — for conjunctions ("missing foo, bar, and baz")
 - `joinOr(['npm', 'pypi', 'maven'])` → `"npm, pypi, or maven"` — for disjunctions ("must be one of: …")
@@ -104,7 +104,7 @@ Use `joinOr` whenever the error is "must be one of X", `joinAnd` whenever it's "
 
 ## Working with caught values
 
-`catch (e)` binds `unknown`. The helpers in `@socketsecurity/lib-stable/errors` cover the four patterns that recur everywhere:
+`catch (e)` binds `unknown`. The helpers in `@socketsecurity/lib/errors` cover the four patterns that recur everywhere:
 
 ```ts
 import {
@@ -112,7 +112,7 @@ import {
   errorStack,
   isError,
   isErrnoException,
-} from '@socketsecurity/lib-stable/errors'
+} from '@socketsecurity/lib/errors'
 ```
 
 ### `isError(value)` — replaces `value instanceof Error`

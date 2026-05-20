@@ -8,7 +8,7 @@ You are a security reviewer for Socket Security Node.js repositories.
 
 Apply these rules from CLAUDE.md exactly:
 
-**Safe File Operations**: Use safeDelete()/safeDeleteSync() from @socketsecurity/lib-stable/fs. NEVER fs.rm(), fs.rmSync(), or rm -rf. Use os.tmpdir() + fs.mkdtemp() for temp dirs. NEVER use fetch() — use httpJson/httpText/httpRequest from @socketsecurity/lib-stable/http-request.
+**Safe File Operations**: Use safeDelete()/safeDeleteSync() from @socketsecurity/lib/fs. NEVER fs.rm(), fs.rmSync(), or rm -rf. Use os.tmpdir() + fs.mkdtemp() for temp dirs. NEVER use fetch() — use httpJson/httpText/httpRequest from @socketsecurity/lib/http-request.
 
 **Absolute Rules**: NEVER use npx, pnpm dlx, or yarn dlx. Use pnpm exec or pnpm run with pinned devDeps. # zizmor: documentation-prohibition
 

@@ -61,7 +61,7 @@ A subtle gotcha: the script's pre-clean step (`git branch -D <branch>`) MUST run
 
 ## Soak time before catalog cascades
 
-If the wheelhouse template change includes a `@socketsecurity/lib-stable` catalog bump in `pnpm-workspace.yaml`, wait at least 5 minutes after the npm publish completes before starting the cascade. The cascade's `pnpm install` step will 404 if the new version isn't yet visible on the npm CDN.
+If the wheelhouse template change includes a `@socketsecurity/lib` catalog bump in `pnpm-workspace.yaml`, wait at least 5 minutes after the npm publish completes before starting the cascade. The cascade's `pnpm install` step will 404 if the new version isn't yet visible on the npm CDN.
 
 ## Stop conditions
 

@@ -6,10 +6,10 @@
  * but a few legacy / vendored repos still use master, and a script that
  * hard-codes main silently no-ops on those.
  *
- * Cross-platform: shells out to git via @socketsecurity/lib-stable/spawn, which works
+ * Cross-platform: shells out to git via @socketsecurity/lib/spawn, which works
  * the same on macOS / Linux / Windows.
  */
-import { isSpawnError, spawn } from '@socketsecurity/lib-stable/spawn'
+import { isSpawnError, spawn } from '@socketsecurity/lib/spawn'
 
 export type ResolveDefaultBranchOptions = {
   /**

@@ -31,22 +31,32 @@
 //     arithmetic. No per-call allocation on either side; the JS layer
 //     reuses one buffer for the entire session.
 //
-//   * FastApi specialization. Hot-path entries are paired Slow + Fast:
+//   * FastApi specialization. 32 hot-path entries are paired Slow +
+//     Fast:
 //     - ANSI writers (writeCursorPosition, writeFgRgb, writeBgRgb,
-//       writeAttributes) — called per cell per frame.
-//     - looksLikeMouseSequence — called once per terminal input chunk.
-//     - Yoga setters + yogaMarkDirty (14 entries) — called per element
-//       per layout pass.
-//     The fast path uses ArrayBufferViewContents<uint8_t> for direct
-//     byte access (no Isolate handle, no HandleScope) and forwards into
+//       writeAttributes) — called per cell per frame (4).
+//     - looksLikeMouseSequence — called once per terminal input chunk
+//       (1).
+//     - Renderer hot path (rendererResize, rendererInvalidate,
+//       rendererClear, rendererSet, rendererFillRect,
+//       rendererDrawText, rendererFlush) — called per
+//       frame / per-cell / per-glyph in the render loop (7). The flush
+//       in particular is the hottest call in the binding.
+//     - Yoga structural + setters + dirty mark (yogaCreateNode,
+//       yogaFreeNode, yogaInsertChild, yogaRemoveChild,
+//       yogaCalculateLayout, yogaMarkDirty, 14 yogaSet*) — called per
+//       element per layout pass (20).
+//
+//     The fast paths use ArrayBufferViewContents<uint8_t> for direct
+//     byte access (no Isolate handle, no HandleScope) and forward into
 //     the same C++ helpers the slow path uses. Slow path remains the
 //     fallback for non-monomorphic call sites.
 //
-//     Cold-path entries (lifecycle ops, ANSI cold builders that return
-//     std::string, Renderer hot path that requires 11+ args and a
-//     mutex-guarded handle lookup) stay on SetMethod — V8 Fast API's
-//     arg-count limit and return-type constraints (no fresh string
-//     handles) mean the conversion would either fail or yield no win.
+//     Cold-path entries kept on SetMethod: lifecycle Create/Destroy/
+//     Reset (rare-call); ANSI cold builders that return std::string
+//     (V8 Fast API can't return fresh string handles); parseMouseOne
+//     and yogaGetComputedLayout (return JS objects; allocation makes
+//     Fast API unsuitable); rendererSize (returns object).
 //
 // Upstream pins (with exact commits — link → file → line where useful):
 //
@@ -657,6 +667,19 @@ static void RendererResize(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void FastRendererResize(Local<Value> receiver, uint32_t id, uint32_t width,
+                        uint32_t height,
+                        // NOLINTNEXTLINE(runtime/references)
+                        FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.rendererResize");
+  ti::Renderer* renderer = LookupRenderer(id);
+  if (renderer != nullptr) {
+    renderer->Resize(width, height);
+  }
+}
+
+static CFunction fast_renderer_resize(CFunction::Make(FastRendererResize));
+
 static void RendererInvalidate(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
@@ -666,6 +689,19 @@ static void RendererInvalidate(const FunctionCallbackInfo<Value>& args) {
     renderer->Invalidate();
   }
 }
+
+void FastRendererInvalidate(Local<Value> receiver, uint32_t id,
+                            // NOLINTNEXTLINE(runtime/references)
+                            FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.rendererInvalidate");
+  ti::Renderer* renderer = LookupRenderer(id);
+  if (renderer != nullptr) {
+    renderer->Invalidate();
+  }
+}
+
+static CFunction fast_renderer_invalidate(
+    CFunction::Make(FastRendererInvalidate));
 
 // Helper: build a ti::Cell from args[start..start+7]
 //   codepoint, fgR, fgG, fgB, bgR, bgG, bgB, attrs
@@ -703,6 +739,28 @@ static void RendererClear(const FunctionCallbackInfo<Value>& args) {
   renderer->Next().Clear(CellFromArgs(context, args, 1));
 }
 
+void FastRendererClear(Local<Value> receiver, uint32_t id, uint32_t codepoint,
+                       uint32_t fg_r, uint32_t fg_g, uint32_t fg_b,
+                       uint32_t bg_r, uint32_t bg_g, uint32_t bg_b,
+                       uint32_t attrs,
+                       // NOLINTNEXTLINE(runtime/references)
+                       FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.rendererClear");
+  ti::Renderer* renderer = LookupRenderer(id);
+  if (renderer == nullptr) {
+    return;
+  }
+  ti::Cell cell{
+      codepoint,
+      static_cast<uint8_t>(fg_r), static_cast<uint8_t>(fg_g),
+      static_cast<uint8_t>(fg_b), static_cast<uint8_t>(bg_r),
+      static_cast<uint8_t>(bg_g), static_cast<uint8_t>(bg_b),
+      static_cast<uint8_t>(attrs)};
+  renderer->Next().Clear(cell);
+}
+
+static CFunction fast_renderer_clear(CFunction::Make(FastRendererClear));
+
 // rendererSet(handle, x, y, codepoint, fgR, fgG, fgB, bgR, bgG, bgB, attrs)
 static void RendererSet(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
@@ -716,6 +774,28 @@ static void RendererSet(const FunctionCallbackInfo<Value>& args) {
   }
   renderer->Next().Set(x, y, CellFromArgs(context, args, 3));
 }
+
+void FastRendererSet(Local<Value> receiver, uint32_t id, uint32_t x,
+                     uint32_t y, uint32_t codepoint, uint32_t fg_r,
+                     uint32_t fg_g, uint32_t fg_b, uint32_t bg_r,
+                     uint32_t bg_g, uint32_t bg_b, uint32_t attrs,
+                     // NOLINTNEXTLINE(runtime/references)
+                     FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.rendererSet");
+  ti::Renderer* renderer = LookupRenderer(id);
+  if (renderer == nullptr) {
+    return;
+  }
+  ti::Cell cell{
+      codepoint,
+      static_cast<uint8_t>(fg_r), static_cast<uint8_t>(fg_g),
+      static_cast<uint8_t>(fg_b), static_cast<uint8_t>(bg_r),
+      static_cast<uint8_t>(bg_g), static_cast<uint8_t>(bg_b),
+      static_cast<uint8_t>(attrs)};
+  renderer->Next().Set(x, y, cell);
+}
+
+static CFunction fast_renderer_set(CFunction::Make(FastRendererSet));
 
 // rendererFillRect(handle, x, y, w, h, codepoint, fgR, fgG, fgB, bgR, bgG,
 //                  bgB, attrs)
@@ -733,6 +813,30 @@ static void RendererFillRect(const FunctionCallbackInfo<Value>& args) {
   }
   renderer->Next().FillRect(x, y, w, h, CellFromArgs(context, args, 5));
 }
+
+void FastRendererFillRect(Local<Value> receiver, uint32_t id, uint32_t x,
+                          uint32_t y, uint32_t w, uint32_t h,
+                          uint32_t codepoint, uint32_t fg_r, uint32_t fg_g,
+                          uint32_t fg_b, uint32_t bg_r, uint32_t bg_g,
+                          uint32_t bg_b, uint32_t attrs,
+                          // NOLINTNEXTLINE(runtime/references)
+                          FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.rendererFillRect");
+  ti::Renderer* renderer = LookupRenderer(id);
+  if (renderer == nullptr) {
+    return;
+  }
+  ti::Cell cell{
+      codepoint,
+      static_cast<uint8_t>(fg_r), static_cast<uint8_t>(fg_g),
+      static_cast<uint8_t>(fg_b), static_cast<uint8_t>(bg_r),
+      static_cast<uint8_t>(bg_g), static_cast<uint8_t>(bg_b),
+      static_cast<uint8_t>(attrs)};
+  renderer->Next().FillRect(x, y, w, h, cell);
+}
+
+static CFunction fast_renderer_fill_rect(
+    CFunction::Make(FastRendererFillRect));
 
 // rendererDrawText(handle, x, y, utf8Bytes, fgR, fgG, fgB, bgR, bgG, bgB,
 //                  attrs)
@@ -765,6 +869,33 @@ static void RendererDrawText(const FunctionCallbackInfo<Value>& args) {
                             bg_r, bg_g, bg_b, attrs);
 }
 
+void FastRendererDrawText(Local<Value> receiver, uint32_t id, uint32_t x,
+                          uint32_t y, Local<Value> buffer_val, uint32_t fg_r,
+                          uint32_t fg_g, uint32_t fg_b, uint32_t bg_r,
+                          uint32_t bg_g, uint32_t bg_b, uint32_t attrs,
+                          // NOLINTNEXTLINE(runtime/references)
+                          FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.rendererDrawText");
+  HandleScope scope(opts.isolate);
+  ArrayBufferViewContents<uint8_t> buf(buffer_val);
+  ti::Renderer* renderer = LookupRenderer(id);
+  if (renderer == nullptr) {
+    return;
+  }
+  const char* utf8 = reinterpret_cast<const char*>(buf.data());
+  renderer->Next().DrawText(x, y, utf8, buf.length(),
+                            static_cast<uint8_t>(fg_r),
+                            static_cast<uint8_t>(fg_g),
+                            static_cast<uint8_t>(fg_b),
+                            static_cast<uint8_t>(bg_r),
+                            static_cast<uint8_t>(bg_g),
+                            static_cast<uint8_t>(bg_b),
+                            static_cast<uint8_t>(attrs));
+}
+
+static CFunction fast_renderer_draw_text(
+    CFunction::Make(FastRendererDrawText));
+
 // rendererFlush(handle, dstBuf, dstCapacity) -> bytesWritten (or
 // kFlushOverflow if dst was too small).
 static void RendererFlush(const FunctionCallbackInfo<Value>& args) {
@@ -794,6 +925,30 @@ static void RendererFlush(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(
       Number::New(isolate, static_cast<double>(written)));
 }
+
+// Fast path for the per-frame flush — the hottest call in the binding,
+// running once per rendered frame. Returns a double so the
+// kFlushOverflow sentinel (size_t -1 cast to double) survives intact.
+double FastRendererFlush(Local<Value> receiver, uint32_t id,
+                         Local<Value> buffer_val, uint32_t capacity,
+                         // NOLINTNEXTLINE(runtime/references)
+                         FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.rendererFlush");
+  HandleScope scope(opts.isolate);
+  ArrayBufferViewContents<uint8_t> buf(buffer_val);
+  if (capacity > buf.length()) {
+    capacity = static_cast<uint32_t>(buf.length());
+  }
+  ti::Renderer* renderer = LookupRenderer(id);
+  if (renderer == nullptr) {
+    return 0.0;
+  }
+  char* dst = reinterpret_cast<char*>(const_cast<uint8_t*>(buf.data()));
+  size_t written = renderer->Flush(dst, capacity);
+  return static_cast<double>(written);
+}
+
+static CFunction fast_renderer_flush(CFunction::Make(FastRendererFlush));
 
 static void RendererSize(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
@@ -886,6 +1041,23 @@ static void YogaCreateNode(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, id));
 }
 
+uint32_t FastYogaCreateNode(Local<Value> receiver,
+                            // NOLINTNEXTLINE(runtime/references)
+                            FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaCreateNode");
+  YogaRegistry& r = YogaReg();
+  std::lock_guard<std::mutex> lock(r.mu);
+  if (r.config == nullptr) {
+    r.config = YGConfigNew();
+  }
+  YGNodeRef node = YGNodeNewWithConfig(r.config);
+  uint32_t id = r.next_id++;
+  r.nodes.emplace(id, node);
+  return id;
+}
+
+static CFunction fast_yoga_create_node(CFunction::Make(FastYogaCreateNode));
+
 static void YogaFreeNode(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
@@ -898,6 +1070,21 @@ static void YogaFreeNode(const FunctionCallbackInfo<Value>& args) {
     r.nodes.erase(it);
   }
 }
+
+void FastYogaFreeNode(Local<Value> receiver, uint32_t id,
+                      // NOLINTNEXTLINE(runtime/references)
+                      FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaFreeNode");
+  YogaRegistry& r = YogaReg();
+  std::lock_guard<std::mutex> lock(r.mu);
+  auto it = r.nodes.find(id);
+  if (it != r.nodes.end()) {
+    YGNodeFree(it->second);
+    r.nodes.erase(it);
+  }
+}
+
+static CFunction fast_yoga_free_node(CFunction::Make(FastYogaFreeNode));
 
 // yogaInsertChild(parentId, childId, index)
 static void YogaInsertChild(const FunctionCallbackInfo<Value>& args) {
@@ -913,6 +1100,21 @@ static void YogaInsertChild(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void FastYogaInsertChild(Local<Value> receiver, uint32_t parent_id,
+                         uint32_t child_id, uint32_t index,
+                         // NOLINTNEXTLINE(runtime/references)
+                         FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaInsertChild");
+  YGNodeRef parent = LookupYogaNode(parent_id);
+  YGNodeRef child = LookupYogaNode(child_id);
+  if (parent != nullptr && child != nullptr) {
+    YGNodeInsertChild(parent, child, index);
+  }
+}
+
+static CFunction fast_yoga_insert_child(
+    CFunction::Make(FastYogaInsertChild));
+
 static void YogaRemoveChild(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
@@ -924,6 +1126,21 @@ static void YogaRemoveChild(const FunctionCallbackInfo<Value>& args) {
     YGNodeRemoveChild(parent, child);
   }
 }
+
+void FastYogaRemoveChild(Local<Value> receiver, uint32_t parent_id,
+                         uint32_t child_id,
+                         // NOLINTNEXTLINE(runtime/references)
+                         FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaRemoveChild");
+  YGNodeRef parent = LookupYogaNode(parent_id);
+  YGNodeRef child = LookupYogaNode(child_id);
+  if (parent != nullptr && child != nullptr) {
+    YGNodeRemoveChild(parent, child);
+  }
+}
+
+static CFunction fast_yoga_remove_child(
+    CFunction::Make(FastYogaRemoveChild));
 
 // yogaCalculateLayout(nodeId, availWidth, availHeight, ownerDirection)
 // availWidth/availHeight are floats; NaN means unconstrained.
@@ -944,6 +1161,23 @@ static void YogaCalculateLayout(const FunctionCallbackInfo<Value>& args) {
   YGNodeCalculateLayout(node, avail_w, avail_h,
                         static_cast<YGDirection>(dir));
 }
+
+void FastYogaCalculateLayout(Local<Value> receiver, uint32_t id,
+                             double avail_w, double avail_h, int32_t dir,
+                             // NOLINTNEXTLINE(runtime/references)
+                             FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.yogaCalculateLayout");
+  YGNodeRef node = LookupYogaNode(id);
+  if (node == nullptr) {
+    return;
+  }
+  YGNodeCalculateLayout(node, static_cast<float>(avail_w),
+                        static_cast<float>(avail_h),
+                        static_cast<YGDirection>(dir));
+}
+
+static CFunction fast_yoga_calculate_layout(
+    CFunction::Make(FastYogaCalculateLayout));
 
 static void YogaMarkDirty(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
@@ -1440,23 +1674,36 @@ static void Initialize(Local<Object> target,
 
   SetMethod(context, target, "createRenderer", CreateRenderer);
   SetMethod(context, target, "destroyRenderer", DestroyRenderer);
-  SetMethod(context, target, "rendererResize", RendererResize);
-  SetMethod(context, target, "rendererInvalidate", RendererInvalidate);
-  SetMethod(context, target, "rendererClear", RendererClear);
-  SetMethod(context, target, "rendererSet", RendererSet);
-  SetMethod(context, target, "rendererFillRect", RendererFillRect);
-  SetMethod(context, target, "rendererDrawText", RendererDrawText);
-  SetMethod(context, target, "rendererFlush", RendererFlush);
+  SetFastMethodNoSideEffect(context, target, "rendererResize", RendererResize,
+                            &fast_renderer_resize);
+  SetFastMethodNoSideEffect(context, target, "rendererInvalidate",
+                            RendererInvalidate, &fast_renderer_invalidate);
+  SetFastMethodNoSideEffect(context, target, "rendererClear", RendererClear,
+                            &fast_renderer_clear);
+  SetFastMethodNoSideEffect(context, target, "rendererSet", RendererSet,
+                            &fast_renderer_set);
+  SetFastMethodNoSideEffect(context, target, "rendererFillRect",
+                            RendererFillRect, &fast_renderer_fill_rect);
+  SetFastMethodNoSideEffect(context, target, "rendererDrawText",
+                            RendererDrawText, &fast_renderer_draw_text);
+  SetFastMethodNoSideEffect(context, target, "rendererFlush", RendererFlush,
+                            &fast_renderer_flush);
   SetMethod(context, target, "rendererSize", RendererSize);
 
-  SetMethod(context, target, "yogaCalculateLayout", YogaCalculateLayout);
-  SetMethod(context, target, "yogaCreateNode", YogaCreateNode);
-  SetMethod(context, target, "yogaFreeNode", YogaFreeNode);
+  SetFastMethodNoSideEffect(context, target, "yogaCalculateLayout",
+                            YogaCalculateLayout,
+                            &fast_yoga_calculate_layout);
+  SetFastMethodNoSideEffect(context, target, "yogaCreateNode", YogaCreateNode,
+                            &fast_yoga_create_node);
+  SetFastMethodNoSideEffect(context, target, "yogaFreeNode", YogaFreeNode,
+                            &fast_yoga_free_node);
   SetMethod(context, target, "yogaGetComputedLayout", YogaGetComputedLayout);
-  SetMethod(context, target, "yogaInsertChild", YogaInsertChild);
+  SetFastMethodNoSideEffect(context, target, "yogaInsertChild",
+                            YogaInsertChild, &fast_yoga_insert_child);
   SetFastMethodNoSideEffect(context, target, "yogaMarkDirty", YogaMarkDirty,
                             &fast_yoga_mark_dirty);
-  SetMethod(context, target, "yogaRemoveChild", YogaRemoveChild);
+  SetFastMethodNoSideEffect(context, target, "yogaRemoveChild",
+                            YogaRemoveChild, &fast_yoga_remove_child);
   SetFastMethodNoSideEffect(context, target, "yogaSetAlignItems",
                             YogaSetAlignItems, &fast_yoga_set_align_items);
   SetFastMethodNoSideEffect(context, target, "yogaSetAlignSelf",
@@ -1652,21 +1899,33 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(CreateRenderer);
   registry->Register(DestroyRenderer);
   registry->Register(RendererResize);
+  registry->Register(fast_renderer_resize);
   registry->Register(RendererInvalidate);
+  registry->Register(fast_renderer_invalidate);
   registry->Register(RendererClear);
+  registry->Register(fast_renderer_clear);
   registry->Register(RendererSet);
+  registry->Register(fast_renderer_set);
   registry->Register(RendererFillRect);
+  registry->Register(fast_renderer_fill_rect);
   registry->Register(RendererDrawText);
+  registry->Register(fast_renderer_draw_text);
   registry->Register(RendererFlush);
+  registry->Register(fast_renderer_flush);
   registry->Register(RendererSize);
   registry->Register(YogaCalculateLayout);
+  registry->Register(fast_yoga_calculate_layout);
   registry->Register(YogaCreateNode);
+  registry->Register(fast_yoga_create_node);
   registry->Register(YogaFreeNode);
+  registry->Register(fast_yoga_free_node);
   registry->Register(YogaGetComputedLayout);
   registry->Register(YogaInsertChild);
+  registry->Register(fast_yoga_insert_child);
   registry->Register(YogaMarkDirty);
   registry->Register(fast_yoga_mark_dirty);
   registry->Register(YogaRemoveChild);
+  registry->Register(fast_yoga_remove_child);
   registry->Register(YogaSetAlignItems);
   registry->Register(fast_yoga_set_align_items);
   registry->Register(YogaSetAlignSelf);

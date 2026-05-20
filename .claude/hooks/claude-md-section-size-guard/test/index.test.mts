@@ -2,6 +2,9 @@
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
+// prefer-async-spawn: streaming-stdio-required — test spawns child
+// subprocess and pipes stdin/stdout/stderr; Node spawn returns the
+// ChildProcess streaming surface the lib promise wrapper does not.
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -34,7 +37,9 @@ async function runHook(
 const PROLOG = `# Header\n\n<!-- BEGIN FLEET-CANONICAL -->\n\n`
 const EPILOG = `\n<!-- END FLEET-CANONICAL -->\n\nAfter the block.\n`
 
-function buildClaudeMd(sections: { heading: string; body: string }[]): string {
+function buildClaudeMd(
+  sections: Array<{ heading: string; body: string }>,
+): string {
   const body = sections.map(s => `### ${s.heading}\n\n${s.body}\n`).join('\n')
   return PROLOG + body + EPILOG
 }

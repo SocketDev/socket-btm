@@ -9,7 +9,7 @@
  */
 
 import { promises as fs } from 'node:fs'
-import { tmpdir } from 'node:os'
+import os from 'node:os'
 import path from 'node:path'
 import process, { execPath } from 'node:process'
 import { afterEach, describe, it } from 'node:test'
@@ -541,7 +541,8 @@ describe('release-workflow-guard hook', () => {
     let cleanups: Array<() => Promise<void>> = []
 
     afterEach(async () => {
-      for (const cleanup of cleanups) {
+      for (let i = 0, { length } = cleanups; i < length; i += 1) {
+        const cleanup = cleanups[i]!
         await cleanup()
       }
       cleanups = []
@@ -734,7 +735,8 @@ describe('release-workflow-guard hook', () => {
     let cleanups: Array<() => Promise<void>> = []
 
     afterEach(async () => {
-      for (const cleanup of cleanups) {
+      for (let i = 0, { length } = cleanups; i < length; i += 1) {
+        const cleanup = cleanups[i]!
         await cleanup()
       }
       cleanups = []

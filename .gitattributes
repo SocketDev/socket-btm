@@ -265,6 +265,11 @@ vendor/acorn-wasm/*.wasm binary
 .claude/hooks/no-revert-guard/package.json linguist-generated=true
 .claude/hooks/no-revert-guard/test/index.test.mts linguist-generated=true
 .claude/hooks/no-revert-guard/tsconfig.json linguist-generated=true
+.claude/hooks/no-structured-clone-prefer-json-guard/README.md linguist-generated=true
+.claude/hooks/no-structured-clone-prefer-json-guard/index.mts linguist-generated=true
+.claude/hooks/no-structured-clone-prefer-json-guard/package.json linguist-generated=true
+.claude/hooks/no-structured-clone-prefer-json-guard/test/index.test.mts linguist-generated=true
+.claude/hooks/no-structured-clone-prefer-json-guard/tsconfig.json linguist-generated=true
 .claude/hooks/no-token-in-dotenv-guard/README.md linguist-generated=true
 .claude/hooks/no-token-in-dotenv-guard/index.mts linguist-generated=true
 .claude/hooks/no-token-in-dotenv-guard/package.json linguist-generated=true
@@ -273,6 +278,7 @@ vendor/acorn-wasm/*.wasm binary
 .claude/hooks/no-underscore-identifier-guard/README.md linguist-generated=true
 .claude/hooks/no-underscore-identifier-guard/index.mts linguist-generated=true
 .claude/hooks/no-underscore-identifier-guard/package.json linguist-generated=true
+.claude/hooks/no-underscore-identifier-guard/test/index.test.mts linguist-generated=true
 .claude/hooks/no-underscore-identifier-guard/tsconfig.json linguist-generated=true
 .claude/hooks/node-modules-staging-guard/README.md linguist-generated=true
 .claude/hooks/node-modules-staging-guard/index.mts linguist-generated=true
@@ -365,6 +371,10 @@ vendor/acorn-wasm/*.wasm binary
 .claude/hooks/soak-exclude-date-annotation-guard/package.json linguist-generated=true
 .claude/hooks/soak-exclude-date-annotation-guard/test/index.test.mts linguist-generated=true
 .claude/hooks/soak-exclude-date-annotation-guard/tsconfig.json linguist-generated=true
+.claude/hooks/socket-token-minifier-start/README.md linguist-generated=true
+.claude/hooks/socket-token-minifier-start/index.mts linguist-generated=true
+.claude/hooks/socket-token-minifier-start/package.json linguist-generated=true
+.claude/hooks/socket-token-minifier-start/tsconfig.json linguist-generated=true
 .claude/hooks/stale-process-sweeper/README.md linguist-generated=true
 .claude/hooks/stale-process-sweeper/index.mts linguist-generated=true
 .claude/hooks/stale-process-sweeper/package.json linguist-generated=true
@@ -480,6 +490,7 @@ vendor/acorn-wasm/*.wasm binary
 .config/oxlint-plugin/rules/no-promise-race-in-loop.mts linguist-generated=true
 .config/oxlint-plugin/rules/no-promise-race.mts linguist-generated=true
 .config/oxlint-plugin/rules/no-status-emoji.mts linguist-generated=true
+.config/oxlint-plugin/rules/no-structured-clone-prefer-json.mts linguist-generated=true
 .config/oxlint-plugin/rules/no-sync-rm-in-test-lifecycle.mts linguist-generated=true
 .config/oxlint-plugin/rules/optional-explicit-undefined.mts linguist-generated=true
 .config/oxlint-plugin/rules/personal-path-placeholders.mts linguist-generated=true
@@ -521,6 +532,7 @@ vendor/acorn-wasm/*.wasm binary
 .config/oxlint-plugin/test/no-promise-race-in-loop.test.mts linguist-generated=true
 .config/oxlint-plugin/test/no-promise-race.test.mts linguist-generated=true
 .config/oxlint-plugin/test/no-status-emoji.test.mts linguist-generated=true
+.config/oxlint-plugin/test/no-structured-clone-prefer-json.test.mts linguist-generated=true
 .config/oxlint-plugin/test/no-sync-rm-in-test-lifecycle.test.mts linguist-generated=true
 .config/oxlint-plugin/test/optional-explicit-undefined.test.mts linguist-generated=true
 .config/oxlint-plugin/test/personal-path-placeholders.test.mts linguist-generated=true
@@ -627,6 +639,7 @@ scripts/fix.mts linguist-generated=true
 scripts/install-claude-plugins.mts linguist-generated=true
 scripts/install-git-hooks.mts linguist-generated=true
 scripts/install-sfw.mts linguist-generated=true
+scripts/install-token-minifier.mts linguist-generated=true
 scripts/janus.mts linguist-generated=true
 scripts/lint-github-settings.mts linguist-generated=true
 scripts/lockstep-emit-schema.mts linguist-generated=true
@@ -654,4 +667,8 @@ scripts/validate-bundle-deps.mts linguist-generated=true
 scripts/validate-config-paths.mts linguist-generated=true
 scripts/validate-esbuild-minify.mts linguist-generated=true
 scripts/validate-file-size.mts linguist-generated=true
+
+# Vendored binary blobs (no diff, no merge, no text-mode).
+.claude/hooks/_shared/acorn/acorn.wasm binary
+template/.claude/hooks/_shared/acorn/acorn.wasm binary
 # ─── END fleet-canonical ────────────────────────────────────────

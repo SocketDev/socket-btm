@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict'
+// prefer-async-spawn: streaming-stdio-required — test spawns child
+// subprocess and pipes stdin/stdout/stderr; Node spawn returns the
+// ChildProcess streaming surface the lib promise wrapper does not.
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { test } from 'node:test'
@@ -8,10 +11,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const HOOK = path.resolve(__dirname, '..', 'index.mts')
 
 interface Payload {
-  tool_name?: string
-  tool_input?: {
-    command?: string
-  }
+  tool_name?: string | undefined
+  tool_input?:
+    | {
+        command?: string | undefined
+      }
+    | undefined
 }
 
 function runHook(payload: Payload): Promise<{ code: number; stderr: string }> {

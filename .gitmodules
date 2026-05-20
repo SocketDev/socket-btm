@@ -53,12 +53,6 @@
 	ignore = dirty
 	shallow = true
 # iocraft-0.8.0
-[submodule "packages/iocraft-builder/upstream/iocraft"]
-	path = packages/iocraft-builder/upstream/iocraft
-	url = https://github.com/ccbrown/iocraft.git
-	ignore = dirty
-	shallow = true
-# liburing-2.14
 [submodule "packages/node-smol-builder/upstream/liburing"]
 	path = packages/node-smol-builder/upstream/liburing
 	url = https://github.com/axboe/liburing.git
@@ -89,12 +83,6 @@
 	ignore = dirty
 	shallow = true
 # ink-7.0.0
-[submodule "packages/ink-builder/upstream/ink"]
-	path = packages/ink-builder/upstream/ink
-	url = https://github.com/vadimdemedes/ink.git
-	ignore = dirty
-	shallow = true
-# zstd-1.5.7
 [submodule "packages/bin-infra/upstream/zstd"]
 	path = packages/bin-infra/upstream/zstd
 	url = https://github.com/facebook/zstd.git

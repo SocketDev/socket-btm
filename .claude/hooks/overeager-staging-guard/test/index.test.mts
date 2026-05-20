@@ -7,7 +7,7 @@
  */
 
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
+import { spawnSync } from '@socketsecurity/lib-stable/spawn'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -25,9 +25,9 @@ interface RunResult {
 function runHook(
   command: string,
   options: {
-    cwd?: string
-    transcriptPath?: string
-    env?: Record<string, string>
+    cwd?: string | undefined
+    transcriptPath?: string | undefined
+    env?: Record<string, string> | undefined
   } = {},
 ): RunResult {
   const payload = {

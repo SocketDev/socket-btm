@@ -176,7 +176,8 @@ function findStatusEmoji(
     }
   }
 
-  for (const emoji of UNAMBIGUOUS_LIST) {
+  for (let i = 0, { length } = UNAMBIGUOUS_LIST; i < length; i += 1) {
+    const emoji = UNAMBIGUOUS_LIST[i]!
     if (value.includes(emoji)) {
       return {
         emoji,
@@ -240,11 +241,11 @@ const rule = {
           return cur
         }
         if (
-          cur.type === 'BlockStatement' ||
-          cur.type === 'Program' ||
-          cur.type === 'FunctionDeclaration' ||
           cur.type === 'ArrowFunctionExpression' ||
-          cur.type === 'FunctionExpression'
+          cur.type === 'BlockStatement' ||
+          cur.type === 'FunctionDeclaration' ||
+          cur.type === 'FunctionExpression' ||
+          cur.type === 'Program'
         ) {
           return undefined
         }
@@ -267,7 +268,7 @@ const rule = {
         lineStart -= 1
       }
       let i = lineStart
-      while (i < start && (text[i] === ' ' || text[i] === '\t')) {
+      while (i < start && (text[i] === '\t' || text[i] === ' ')) {
         i += 1
       }
       return text.slice(lineStart, i)
@@ -450,8 +451,12 @@ const rule = {
           // No other newlines anywhere else.
           node.quasis.every((q: AstNode, i: number) => {
             const c = q.value?.cooked
-            if (typeof c !== 'string') return false
-            if (i === 0) return c.lastIndexOf('\n') === 0
+            if (typeof c !== 'string') {
+              return false
+            }
+            if (i === 0) {
+              return c.lastIndexOf('\n') === 0
+            }
             return !c.includes('\n')
           })
         ) {
@@ -500,7 +505,9 @@ const rule = {
           lastCooked.endsWith('\n') &&
           node.quasis.every((q: AstNode, i: number, arr: AstNode[]) => {
             const c = q.value?.cooked
-            if (typeof c !== 'string') return false
+            if (typeof c !== 'string') {
+              return false
+            }
             if (i === arr.length - 1) {
               // Last quasi: only the trailing-\n run is allowed.
               const trimmed = c.replace(/\n+$/, '')

@@ -112,7 +112,8 @@ const rule = {
       // matters; calls are excluded because they're side-effecting; literals
       // and unary expressions don't fit the "list of flags" shape.
       const names: string[] = []
-      for (const leaf of leaves) {
+      for (let i = 0, { length } = leaves; i < length; i += 1) {
+        const leaf = leaves[i]!
         if (leaf.type !== 'Identifier') {
           return
         }
@@ -125,7 +126,7 @@ const rule = {
         return
       }
 
-      const sortedNames = [...names].sort()
+      const sortedNames = [...names].toSorted()
       const actualOrder = names.join(', ')
       const expectedOrder = sortedNames.join(', ')
 

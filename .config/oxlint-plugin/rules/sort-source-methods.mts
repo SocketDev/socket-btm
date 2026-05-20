@@ -34,16 +34,16 @@ function isTypeOnlyStatement(node: AstNode) {
     return false
   }
   if (
-    node.type === 'TSTypeAliasDeclaration' ||
-    node.type === 'TSInterfaceDeclaration'
+    node.type === 'TSInterfaceDeclaration' ||
+    node.type === 'TSTypeAliasDeclaration'
   ) {
     return true
   }
   if (
     node.type === 'ExportNamedDeclaration' &&
     node.declaration &&
-    (node.declaration.type === 'TSTypeAliasDeclaration' ||
-      node.declaration.type === 'TSInterfaceDeclaration')
+    (node.declaration.type === 'TSInterfaceDeclaration' ||
+      node.declaration.type === 'TSTypeAliasDeclaration')
   ) {
     return true
   }
@@ -155,7 +155,8 @@ function trailingCommentEnd(
   if (!comments || comments.length === 0) {
     return latest
   }
-  for (const c of comments) {
+  for (let i = 0, { length } = comments; i < length; i += 1) {
+    const c = comments[i]!
     if (nextNodeStart !== undefined && c.range[0] >= nextNodeStart) {
       break
     }
@@ -202,8 +203,8 @@ const rule = {
         // First pass: collect entries + detect violations.
         const entries: FunctionEntry[] = []
         let lastVisibilityRank = -1
-        let lastNameInGroup = null
-        let currentVisibility = null
+        let lastNameInGroup = undefined
+        let currentVisibility = undefined
         const violations = []
 
         // First find the next program-body node after each function, so
@@ -289,7 +290,7 @@ const rule = {
 
         // Build the fix once, applied via the first violation. ESLint
         // dedupes overlapping fixes, so attaching it once is enough.
-        const sorted = entries.slice().sort((a, b) => {
+        const sorted = entries.slice().toSorted((a, b) => {
           const ka = sortKey(a)
           const kb = sortKey(b)
           if (ka < kb) {
@@ -303,7 +304,7 @@ const rule = {
 
         const orderedByPosition = entries
           .slice()
-          .sort((a, b) => a.start - b.start)
+          .toSorted((a, b) => a.start - b.start)
         const sourceText = sourceCode.text
         const rangeStart = orderedByPosition[0]!.start
         const rangeEnd = orderedByPosition[orderedByPosition.length - 1]!.end
@@ -322,7 +323,8 @@ const rule = {
           }
           if (stmt.range[0] >= rangeStart && stmt.range[1] <= rangeEnd) {
             // Statement is sandwiched between functions; skip autofix.
-            for (const v of violations) {
+            for (let i = 0, { length } = violations; i < length; i += 1) {
+              const v = violations[i]!
               context.report(v)
             }
             return
@@ -336,7 +338,8 @@ const rule = {
         // reported without a fix so the user sees what's wrong even
         // when applying without --fix.
         let fixerAttached = false
-        for (const v of violations) {
+        for (let i = 0, { length } = violations; i < length; i += 1) {
+          const v = violations[i]!
           if (!fixerAttached) {
             context.report({
               ...v,

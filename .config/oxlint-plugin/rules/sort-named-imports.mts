@@ -79,7 +79,7 @@ const rule = {
           return
         }
 
-        const sorted = [...named].sort((a, b) => {
+        const sorted = [...named].toSorted((a, b) => {
           const ka = specSortKey(a)
           const kb = specSortKey(b)
           return ka < kb ? -1 : ka > kb ? 1 : 0
@@ -130,7 +130,7 @@ const rule = {
               filter: (t: AstNode) => t.value === '}',
             })
             if (!openBrace || !closeBrace) {
-              return null
+              return undefined
             }
             const sliceStart = openBrace.range[1]
             const sliceEnd = closeBrace.range[0]

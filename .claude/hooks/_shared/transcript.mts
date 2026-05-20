@@ -22,18 +22,47 @@
 import { existsSync, readFileSync } from 'node:fs'
 
 /**
- * Read the entire stdin buffer into a string. Used by every PreToolUse hook to
- * slurp the JSON payload Claude Code sends.
+ * Shape of a tool-use event extracted from an assistant turn. The harness emits
+ * these as content blocks with `type: 'tool_use'`, carrying the tool name (e.g.
+ * 'Write', 'Edit', 'Bash') and the structured `input` object passed to that
+ * tool.
+ *
+ * Inputs are intentionally typed `Record<string, unknown>` because each tool
+ * has its own schema and we don't want to enumerate them here. Callers narrow
+ * on `name` and inspect the fields they care about (e.g. `input.file_path` for
+ * Write/Edit).
  */
-export function readStdin(): Promise<string> {
-  return new Promise(resolve => {
-    let buf = ''
-    process.stdin.setEncoding('utf8')
-    process.stdin.on('data', chunk => {
-      buf += chunk
-    })
-    process.stdin.on('end', () => resolve(buf))
-  })
+export interface ToolUseEvent {
+  readonly name: string
+  readonly input: Record<string, unknown>
+}
+
+/**
+ * Extract tool-use blocks from a single turn's content array. Skips
+ * non-tool-use blocks (text, etc.) and ignores malformed entries.
+ */
+export function extractToolUseBlocks(content: unknown): ToolUseEvent[] {
+  if (!Array.isArray(content)) {
+    return []
+  }
+  const out: ToolUseEvent[] = []
+  for (let i = 0, { length } = content; i < length; i += 1) {
+    const block = content[i]
+    if (!block || typeof block !== 'object') {
+      continue
+    }
+    const b = block as Record<string, unknown>
+    if (b['type'] !== 'tool_use') {
+      continue
+    }
+    const name = typeof b['name'] === 'string' ? b['name'] : undefined
+    const input = b['input']
+    if (!name || !input || typeof input !== 'object') {
+      continue
+    }
+    out.push({ name, input: input as Record<string, unknown> })
+  }
+  return out
 }
 
 type Role = 'user' | 'assistant'
@@ -43,12 +72,13 @@ type Role = 'user' | 'assistant'
  * content shapes the harness emits (string / array-of-blocks / nested
  * message.content).
  */
-function extractTurnPieces(content: unknown): string[] {
+export function extractTurnPieces(content: unknown): string[] {
   const pieces: string[] = []
   if (typeof content === 'string') {
     pieces.push(content)
   } else if (Array.isArray(content)) {
-    for (const block of content) {
+    for (let i = 0, { length } = content; i < length; i += 1) {
+      const block = content[i]!
       if (typeof block === 'string') {
         pieces.push(block)
       } else if (block && typeof block === 'object') {
@@ -65,46 +95,11 @@ function extractTurnPieces(content: unknown): string[] {
 }
 
 /**
- * Resolve a JSONL event's role (`'user'` / `'assistant'`) and content
- * tolerantly across the 3 variant shapes seen in harness versions:
- *
- * { role: 'user', content: '...' } { type: 'user', message: { role: 'user',
- * content: '...' } } { type: 'user', message: { content: [{ type: 'text', text:
- * '...' }] } }
- *
- * Returns undefined for malformed events so the caller can skip cleanly.
- */
-function resolveRoleAndContent(evt: unknown):
-  | {
-      content: unknown
-      role: string | undefined
-    }
-  | undefined {
-  if (!evt || typeof evt !== 'object') {
-    return undefined
-  }
-  const e = evt as Record<string, unknown>
-  const role =
-    typeof e['role'] === 'string'
-      ? e['role']
-      : typeof e['type'] === 'string'
-        ? e['type']
-        : undefined
-  const message = e['message']
-  const content =
-    e['content'] ??
-    (message && typeof message === 'object'
-      ? (message as Record<string, unknown>)['content']
-      : undefined)
-  return { content, role }
-}
-
-/**
  * Read the transcript JSONL file into newline-filtered lines. Returns an empty
  * array on missing path or read error — every caller in this module wants the
  * same empty-on-failure semantics.
  */
-function readLines(transcriptPath: string | undefined): string[] {
+export function readLines(transcriptPath: string | undefined): string[] {
   if (!transcriptPath || !existsSync(transcriptPath)) {
     return []
   }
@@ -126,7 +121,7 @@ function readLines(transcriptPath: string | undefined): string[] {
  * so callers don't pay the full-transcript cost when they only need recent
  * context.
  */
-function readRoleText(
+export function readRoleText(
   transcriptPath: string | undefined,
   role: Role,
   lookback?: number | undefined,
@@ -158,31 +153,42 @@ function readRoleText(
   }
   // Reverse to chronological order so substring matches that span
   // multiple turns (rare) read naturally.
-  return out.reverse().join('\n')
+  return out.toReversed().join('\n')
 }
 
 /**
- * Read every user-turn text content from a transcript JSONL, joined by
- * newlines. Returns empty string when the path is unset, missing, or
- * unparseable. `lookbackUserTurns` limits to the most-recent N user turns
- * (counted from the tail); omit to read all turns.
+ * Resolve a JSONL event's role (`'user'` / `'assistant'`) and content
+ * tolerantly across the 3 variant shapes seen in harness versions:
+ *
+ * { role: 'user', content: '...' } { type: 'user', message: { role: 'user',
+ * content: '...' } } { type: 'user', message: { content: [{ type: 'text', text:
+ * '...' }] } }
+ *
+ * Returns undefined for malformed events so the caller can skip cleanly.
  */
-export function readUserText(
-  transcriptPath: string | undefined,
-  lookbackUserTurns?: number | undefined,
-): string {
-  return readRoleText(transcriptPath, 'user', lookbackUserTurns)
-}
-
-/**
- * Read the most-recent assistant-turn text content. Same shape parser as
- * `readUserText`; used by hooks (excuse-detector) that scan what the assistant
- * just said rather than what the user typed.
- */
-export function readLastAssistantText(
-  transcriptPath: string | undefined,
-): string {
-  return readRoleText(transcriptPath, 'assistant', 1)
+export function resolveRoleAndContent(evt: unknown):
+  | {
+      content: unknown
+      role: string | undefined
+    }
+  | undefined {
+  if (!evt || typeof evt !== 'object') {
+    return undefined
+  }
+  const e = evt as Record<string, unknown>
+  const role =
+    typeof e['role'] === 'string'
+      ? e['role']
+      : typeof e['type'] === 'string'
+        ? e['type']
+        : undefined
+  const message = e['message']
+  const content =
+    e['content'] ??
+    (message && typeof message === 'object'
+      ? (message as Record<string, unknown>)['content']
+      : undefined)
+  return { content, role }
 }
 
 /**
@@ -224,6 +230,37 @@ export function bypassPhrasePresent(
 }
 
 /**
+ * Returns the count of bypass phrases NOT YET CONSUMED by prior actions. The
+ * caller supplies `priorActionCount` — usually a count of past tool-use
+ * invocations that would have consumed a phrase if it had been present. The
+ * phrase budget is replenished by every fresh user-typed occurrence.
+ *
+ * Remaining = phraseCount - priorActionCount remaining > 0 → caller may proceed
+ * (one slot consumed by this action) remaining <= 0 → caller must block; phrase
+ * budget exhausted.
+ *
+ * Per-trigger semantics: a single `Allow X bypass` authorizes exactly one
+ * action of the gated shape. To do a second, the user types the phrase again.
+ *
+ * For workflow_dispatch and similar "name the target" bypasses, the phrase
+ * format is `Allow <action> bypass: <target>` and the caller passes only
+ * target-matching phrases.
+ */
+export function bypassPhraseRemaining(
+  transcriptPath: string | undefined,
+  phrases: string | readonly string[],
+  priorActionCount: number,
+  lookbackUserTurns?: number | undefined,
+): number {
+  const phraseCount = countBypassPhrases(
+    transcriptPath,
+    phrases,
+    lookbackUserTurns,
+  )
+  return phraseCount - priorActionCount
+}
+
+/**
  * Count the number of bypass-phrase occurrences in recent user turns. Each
  * occurrence is a separate authorization slot — the user typing the phrase
  * twice authorizes two actions, not one.
@@ -256,7 +293,9 @@ export function countBypassPhrases(
   // shouldn't match again inside `Allow workflow-dispatch bypass:
   // build.yml`). Sort longest-first so the more specific phrase
   // claims the span first.
-  const sorted = [...list].filter(p => p).sort((a, b) => b.length - a.length)
+  const sorted = [...list]
+    .filter(p => p)
+    .toSorted((a, b) => b.length - a.length)
   const claimed: Array<[number, number]> = []
   let total = 0
   for (let i = 0, sortedLen = sorted.length; i < sortedLen; i += 1) {
@@ -293,34 +332,100 @@ export function countBypassPhrases(
 }
 
 /**
- * Returns the count of bypass phrases NOT YET CONSUMED by prior actions. The
- * caller supplies `priorActionCount` — usually a count of past tool-use
- * invocations that would have consumed a phrase if it had been present. The
- * phrase budget is replenished by every fresh user-typed occurrence.
+ * Inverse of `stripCodeFences`: extract the contents of fenced code blocks.
+ * Returns each block's body (the lines between the opening and closing fence)
+ * as a separate string. The leading language tag (e.g. ` ```ts `) is stripped —
+ * only the code lines are kept.
  *
- * Remaining = phraseCount - priorActionCount remaining > 0 → caller may proceed
- * (one slot consumed by this action) remaining <= 0 → caller must block; phrase
- * budget exhausted.
- *
- * Per-trigger semantics: a single `Allow X bypass` authorizes exactly one
- * action of the gated shape. To do a second, the user types the phrase again.
- *
- * For workflow_dispatch and similar "name the target" bypasses, the phrase
- * format is `Allow <action> bypass: <target>` and the caller passes only
- * target-matching phrases.
+ * Used by hooks (error-message-quality-reminder) that need to inspect the code
+ * the assistant wrote rather than the prose around it.
  */
-export function bypassPhraseRemaining(
+export interface CodeFence {
+  lang: string
+  body: string
+}
+
+export function extractCodeFences(text: string): CodeFence[] {
+  const out: CodeFence[] = []
+  // Match ```optional-lang\n...code...\n```
+  // The lang tag is optional; the content is anything (non-greedy) up
+  // to the closing fence. We're permissive — bad markdown still gets
+  // captured as a block.
+  const re = /```([a-zA-Z0-9_+-]*)\n?([\s\S]*?)```/g
+  let match: RegExpExecArray | null
+  while ((match = re.exec(text)) !== null) {
+    const body = match[2]
+    if (body !== undefined) {
+      out.push({ lang: match[1] ?? '', body })
+    }
+  }
+  return out
+}
+
+/**
+ * Read the most-recent assistant-turn text content. Same shape parser as
+ * `readUserText`; used by hooks (excuse-detector) that scan what the assistant
+ * just said rather than what the user typed.
+ */
+export function readLastAssistantText(
   transcriptPath: string | undefined,
-  phrases: string | readonly string[],
-  priorActionCount: number,
+): string {
+  return readRoleText(transcriptPath, 'assistant', 1)
+}
+
+/**
+ * Walk the transcript newest → oldest, return every tool-use event from the
+ * most recent assistant turn. Returns an empty array if the transcript is
+ * missing or the most recent assistant turn has no tool uses. Used by hooks
+ * that gate on what the assistant just did (e.g. file-size-reminder reading
+ * Write/Edit events).
+ */
+export function readLastAssistantToolUses(
+  transcriptPath: string | undefined,
+): readonly ToolUseEvent[] {
+  const lines = readLines(transcriptPath)
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    let evt: unknown
+    try {
+      evt = JSON.parse(lines[i]!)
+    } catch {
+      continue
+    }
+    const r = resolveRoleAndContent(evt)
+    if (!r || r.role !== 'assistant') {
+      continue
+    }
+    return extractToolUseBlocks(r.content)
+  }
+  return []
+}
+
+/**
+ * Read the entire stdin buffer into a string. Used by every PreToolUse hook to
+ * slurp the JSON payload Claude Code sends.
+ */
+export function readStdin(): Promise<string> {
+  return new Promise(resolve => {
+    let buf = ''
+    process.stdin.setEncoding('utf8')
+    process.stdin.on('data', chunk => {
+      buf += chunk
+    })
+    process.stdin.on('end', () => resolve(buf))
+  })
+}
+
+/**
+ * Read every user-turn text content from a transcript JSONL, joined by
+ * newlines. Returns empty string when the path is unset, missing, or
+ * unparseable. `lookbackUserTurns` limits to the most-recent N user turns
+ * (counted from the tail); omit to read all turns.
+ */
+export function readUserText(
+  transcriptPath: string | undefined,
   lookbackUserTurns?: number | undefined,
-): number {
-  const phraseCount = countBypassPhrases(
-    transcriptPath,
-    phrases,
-    lookbackUserTurns,
-  )
-  return phraseCount - priorActionCount
+): string {
+  return readRoleText(transcriptPath, 'user', lookbackUserTurns)
 }
 
 /**
@@ -361,109 +466,7 @@ export function stripQuotedSpans(text: string): string {
   // the ASCII charset and benefit from a separate, simpler regex.
   return text
     .replace(/"[^"\n]{1,80}"/g, ' ')
-    .replace(/(^|[\s(\[{,;:>])'[^'\n]{1,80}'/g, '$1 ')
+    .replace(/(^|[\s([{,;:>])'[^'\n]{1,80}'/g, '$1 ')
     .replace(/“[^”\n]{1,80}”/g, ' ')
     .replace(/‘[^’\n]{1,80}’/g, ' ')
-}
-
-/**
- * Inverse of `stripCodeFences`: extract the contents of fenced code blocks.
- * Returns each block's body (the lines between the opening and closing fence)
- * as a separate string. The leading language tag (e.g. ` ```ts `) is stripped —
- * only the code lines are kept.
- *
- * Used by hooks (error-message-quality-reminder) that need to inspect the code
- * the assistant wrote rather than the prose around it.
- */
-export interface CodeFence {
-  lang: string
-  body: string
-}
-
-export function extractCodeFences(text: string): CodeFence[] {
-  const out: CodeFence[] = []
-  // Match ```optional-lang\n...code...\n```
-  // The lang tag is optional; the content is anything (non-greedy) up
-  // to the closing fence. We're permissive — bad markdown still gets
-  // captured as a block.
-  const re = /```([a-zA-Z0-9_+-]*)\n?([\s\S]*?)```/g
-  let match: RegExpExecArray | null
-  while ((match = re.exec(text)) !== null) {
-    const body = match[2]
-    if (body !== undefined) {
-      out.push({ lang: match[1] ?? '', body })
-    }
-  }
-  return out
-}
-
-/**
- * Shape of a tool-use event extracted from an assistant turn. The harness emits
- * these as content blocks with `type: 'tool_use'`, carrying the tool name (e.g.
- * 'Write', 'Edit', 'Bash') and the structured `input` object passed to that
- * tool.
- *
- * Inputs are intentionally typed `Record<string, unknown>` because each tool
- * has its own schema and we don't want to enumerate them here. Callers narrow
- * on `name` and inspect the fields they care about (e.g. `input.file_path` for
- * Write/Edit).
- */
-export interface ToolUseEvent {
-  readonly name: string
-  readonly input: Record<string, unknown>
-}
-
-/**
- * Extract tool-use blocks from a single turn's content array. Skips
- * non-tool-use blocks (text, etc.) and ignores malformed entries.
- */
-function extractToolUseBlocks(content: unknown): ToolUseEvent[] {
-  if (!Array.isArray(content)) {
-    return []
-  }
-  const out: ToolUseEvent[] = []
-  for (let i = 0, { length } = content; i < length; i += 1) {
-    const block = content[i]
-    if (!block || typeof block !== 'object') {
-      continue
-    }
-    const b = block as Record<string, unknown>
-    if (b['type'] !== 'tool_use') {
-      continue
-    }
-    const name = typeof b['name'] === 'string' ? b['name'] : undefined
-    const input = b['input']
-    if (!name || !input || typeof input !== 'object') {
-      continue
-    }
-    out.push({ name, input: input as Record<string, unknown> })
-  }
-  return out
-}
-
-/**
- * Walk the transcript newest → oldest, return every tool-use event from the
- * most recent assistant turn. Returns an empty array if the transcript is
- * missing or the most recent assistant turn has no tool uses. Used by hooks
- * that gate on what the assistant just did (e.g. file-size-reminder reading
- * Write/Edit events).
- */
-export function readLastAssistantToolUses(
-  transcriptPath: string | undefined,
-): readonly ToolUseEvent[] {
-  const lines = readLines(transcriptPath)
-  for (let i = lines.length - 1; i >= 0; i -= 1) {
-    let evt: unknown
-    try {
-      evt = JSON.parse(lines[i]!)
-    } catch {
-      continue
-    }
-    const r = resolveRoleAndContent(evt)
-    if (!r || r.role !== 'assistant') {
-      continue
-    }
-    return extractToolUseBlocks(r.content)
-  }
-  return []
 }

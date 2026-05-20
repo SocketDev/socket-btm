@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict'
+// prefer-async-spawn: streaming-stdio-required — test spawns child
+// subprocess and pipes stdin/stdout/stderr; Node spawn returns the
+// ChildProcess streaming surface the lib promise wrapper does not.
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { test } from 'node:test'

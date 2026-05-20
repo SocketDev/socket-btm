@@ -1,6 +1,9 @@
 // Tests for soak-exclude-date-annotation-guard.
 
 import assert from 'node:assert/strict'
+// prefer-async-spawn: streaming-stdio-required — test spawns child
+// subprocess and pipes stdin/stdout/stderr; Node spawn returns the
+// ChildProcess streaming surface the lib promise wrapper does not.
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { describe, test } from 'node:test'
@@ -76,7 +79,10 @@ describe('soak-exclude-date-annotation-guard', () => {
   test('passes for glob-only soak-exclude block', async () => {
     const result = await runHook({
       tool_name: 'Write',
-      tool_input: { file_path: '/tmp/pnpm-workspace.yaml', content: ONLY_GLOBS },
+      tool_input: {
+        file_path: '/tmp/pnpm-workspace.yaml',
+        content: ONLY_GLOBS,
+      },
     })
     assert.equal(result.code, 0, result.stderr)
   })
@@ -92,7 +98,10 @@ describe('soak-exclude-date-annotation-guard', () => {
   test('ignores non-Edit/Write tool calls', async () => {
     const result = await runHook({
       tool_name: 'Read',
-      tool_input: { file_path: '/tmp/pnpm-workspace.yaml', content: UNANNOTATED },
+      tool_input: {
+        file_path: '/tmp/pnpm-workspace.yaml',
+        content: UNANNOTATED,
+      },
     })
     assert.equal(result.code, 0)
   })

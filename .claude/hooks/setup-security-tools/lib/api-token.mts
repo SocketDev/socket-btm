@@ -28,7 +28,7 @@
 
 import { readTokenFromKeychain } from './token-storage.mts'
 
-const PRIMARY = 'SOCKET_API_KEY'
+const PRIMARY = 'SOCKET_API_TOKEN'
 const FORWARD_CANONICAL = 'SOCKET_API_TOKEN'
 
 export interface TokenLookup {
@@ -46,6 +46,35 @@ export interface TokenLookup {
 // from `undefined` which means "not yet looked." Otherwise a
 // not-found case would re-hit the keychain on every call.
 let cached: TokenLookup | null | undefined
+
+/**
+ * Populate BOTH `SOCKET_API_KEY` (primary) and `SOCKET_API_TOKEN`
+ * (forward-canonical) in `process.env` so any spawned child resolves a value
+ * under whichever name it reads. The keychain-side mirror was removed at the
+ * storage layer (one stored slot = one macOS Keychain auth prompt), but env
+ * propagation here is free in-process and helps consumers that haven't migrated
+ * to SOCKET_API_KEY yet.
+ *
+ * Idempotent — already-set values are left alone (so the user's explicit env
+ * value isn't clobbered by a keychain read).
+ */
+export function propagateToEnv(token: string): void {
+  if (!process.env[PRIMARY]) {
+    process.env[PRIMARY] = token
+  }
+  if (!process.env[FORWARD_CANONICAL]) {
+    process.env[FORWARD_CANONICAL] = token
+  }
+}
+
+/**
+ * Clear the module cache. Test-only escape hatch — production code should never
+ * call this. Used by `--rotate` flows that need to re-prompt after wiping the
+ * keychain entry.
+ */
+export function _resetApiTokenCacheForTesting(): void {
+  cached = undefined
+}
 
 export function findApiToken(): TokenLookup {
   if (cached !== undefined) {
@@ -74,35 +103,6 @@ export function findApiToken(): TokenLookup {
     return cached
   }
 
-  cached = null
-  return { token: undefined, source: undefined }
-}
-
-/**
- * Populate BOTH `SOCKET_API_KEY` (primary) and `SOCKET_API_TOKEN`
- * (forward-canonical) in `process.env` so any spawned child resolves a value
- * under whichever name it reads. The keychain-side mirror was removed at the
- * storage layer (one stored slot = one macOS Keychain auth prompt), but env
- * propagation here is free in-process and helps consumers that haven't migrated
- * to SOCKET_API_KEY yet.
- *
- * Idempotent — already-set values are left alone (so the user's explicit env
- * value isn't clobbered by a keychain read).
- */
-function propagateToEnv(token: string): void {
-  if (!process.env[PRIMARY]) {
-    process.env[PRIMARY] = token
-  }
-  if (!process.env[FORWARD_CANONICAL]) {
-    process.env[FORWARD_CANONICAL] = token
-  }
-}
-
-/**
- * Clear the module cache. Test-only escape hatch — production code should never
- * call this. Used by `--rotate` flows that need to re-prompt after wiping the
- * keychain entry.
- */
-export function _resetApiTokenCacheForTesting(): void {
   cached = undefined
+  return { token: undefined, source: undefined }
 }

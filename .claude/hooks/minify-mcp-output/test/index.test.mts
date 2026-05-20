@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
+import { spawnSync } from '@socketsecurity/lib-stable/spawn'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -84,7 +84,7 @@ test('compressMCPOutput: passes through non-text blocks', () => {
 test('compressMCPOutput: passes through primitives that aren’t strings', () => {
   assert.equal(compressMCPOutput(42), 42)
   assert.equal(compressMCPOutput(true), true)
-  assert.equal(compressMCPOutput(null), null)
+  assert.equal(compressMCPOutput(undefined), null)
 })
 
 test('compressMCPOutput: minifies JSON-shaped strings', () => {

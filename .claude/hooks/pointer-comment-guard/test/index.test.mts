@@ -1,8 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
+import { spawnSync } from '@socketsecurity/lib-stable/spawn'
 import { mkdtempSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -23,7 +23,10 @@ function runHook(
   tool: 'Edit' | 'Write' | 'Read',
   filePath: string,
   content: string,
-  options: { transcriptPath?: string; env?: Record<string, string> } = {},
+  options: {
+    transcriptPath?: string | undefined
+    env?: Record<string, string> | undefined
+  } = {},
 ): { stderr: string; exitCode: number } {
   const payload: Record<string, unknown> = {
     tool_name: tool,

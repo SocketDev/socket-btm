@@ -1,6 +1,9 @@
+// prefer-async-spawn: streaming-stdio-required — test spawns child
+// subprocess and pipes stdin/stdout/stderr; Node spawn returns the
+// ChildProcess streaming surface the lib promise wrapper does not.
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
@@ -17,8 +20,8 @@ interface Env {
 
 function runHook(
   opts: {
-    cwd?: string
-    env?: Env
+    cwd?: string | undefined
+    env?: Env | undefined
   } = {},
 ): Promise<{ code: number; stderr: string }> {
   return new Promise((resolve, reject) => {

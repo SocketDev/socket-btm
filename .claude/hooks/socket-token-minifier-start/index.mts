@@ -17,6 +17,9 @@
 // Time budget: ~3 seconds total. Anything slower than that holds the
 // SessionStart hook chain and the user feels it.
 
+// prefer-async-spawn: detached-required — child.unref() lives on the
+// ChildProcess returned by node:child_process spawn; the lib's
+// promise-shaped spawn doesn't expose the unref API.
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import http from 'node:http'
@@ -30,26 +33,48 @@ const logger = getDefaultLogger()
 
 const PROXY_PORT = 7779
 const HEALTH_URL = `http://localhost:${PROXY_PORT}/health`
-const BIN_PATH = path.join(getSocketAppDir('wheelhouse'), 'bin', 'socket-token-minifier')
+const BIN_PATH = path.join(
+  getSocketAppDir('wheelhouse'),
+  'bin',
+  'socket-token-minifier',
+)
 const ANTHROPIC_BASE_URL = `http://localhost:${PROXY_PORT}`
 
 const PROBE_TIMEOUT_MS = 250
 const SPAWN_WAIT_BUDGET_MS = 2500
 const SPAWN_POLL_INTERVAL_MS = 100
 
+/**
+ * Emit additionalContext (visible in the transcript) so a user skimming the
+ * session log sees what the hook did. Optional — Claude Code reads it as
+ * informational text, not as an action.
+ */
+export function emitSessionStartContext(message: string): void {
+  const out = {
+    hookSpecificOutput: {
+      hookEventName: 'SessionStart',
+      additionalContext: `[socket-token-minifier] ${message}`,
+    },
+  }
+  process.stdout.write(JSON.stringify(out))
+}
+
 interface ProbeOutcome {
   healthy: boolean
-  /** undefined when probe couldn't connect (proxy absent); defined when something else returned). */
-  status?: number
+  /**
+   * Undefined when probe couldn't connect (proxy absent); defined when
+   * something else returned).
+   */
+  status?: number | undefined
 }
 
 /**
- * One-shot HTTP GET to /health. Resolves to {healthy: true} only on
- * 2xx — anything else (connection refused, timeout, wrong content,
- * non-2xx status) is treated as not-healthy. Fail-closed at this
- * layer keeps the env-var write conditional on actual liveness.
+ * One-shot HTTP GET to /health. Resolves to {healthy: true} only on 2xx —
+ * anything else (connection refused, timeout, wrong content, non-2xx status) is
+ * treated as not-healthy. Fail-closed at this layer keeps the env-var write
+ * conditional on actual liveness.
  */
-function probeHealth(): Promise<ProbeOutcome> {
+export function probeHealth(): Promise<ProbeOutcome> {
   return new Promise(resolve => {
     const req = http.get(HEALTH_URL, { timeout: PROBE_TIMEOUT_MS }, res => {
       const status = res.statusCode ?? 0
@@ -65,16 +90,15 @@ function probeHealth(): Promise<ProbeOutcome> {
   })
 }
 
-function sleep(ms: number): Promise<void> {
+export function sleep(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms))
 }
 
 /**
- * Spawn the proxy detached so it survives this hook exit. stdio
- * disconnected so any startup logs don't leak into Claude Code's
- * session output.
+ * Spawn the proxy detached so it survives this hook exit. stdio disconnected so
+ * any startup logs don't leak into Claude Code's session output.
  */
-function spawnDetached(): void {
+export function spawnDetached(): void {
   const child = spawn(BIN_PATH, [], {
     detached: true,
     stdio: 'ignore',
@@ -85,32 +109,18 @@ function spawnDetached(): void {
 }
 
 /**
- * Emit additionalContext (visible in the transcript) so a user
- * skimming the session log sees what the hook did. Optional — Claude
- * Code reads it as informational text, not as an action.
- */
-function emitSessionStartContext(message: string): void {
-  const out = {
-    hookSpecificOutput: {
-      hookEventName: 'SessionStart',
-      additionalContext: `[socket-token-minifier] ${message}`,
-    },
-  }
-  process.stdout.write(JSON.stringify(out))
-}
-
-/**
- * Append `export ANTHROPIC_BASE_URL=...` to CLAUDE_ENV_FILE so the
- * session env picks it up. Claude Code reads the file when assembling
- * its child-process env (per claude-code/src/utils/sessionEnvironment.ts).
+ * Append `export ANTHROPIC_BASE_URL=...` to CLAUDE_ENV_FILE so the session env
+ * picks it up. Claude Code reads the file when assembling its child-process env
+ * (per claude-code/src/utils/sessionEnvironment.ts).
  *
- * If the file isn't set OR isn't writable, fail-closed silently —
- * the env var stays unset and Claude Code falls back to direct
- * api.anthropic.com.
+ * If the file isn't set OR isn't writable, fail-closed silently — the env var
+ * stays unset and Claude Code falls back to direct api.anthropic.com.
  */
-function writeAnthropicBaseUrlToEnvFile(): void {
+export function writeAnthropicBaseUrlToEnvFile(): void {
   const envFile = process.env['CLAUDE_ENV_FILE']
-  if (!envFile) return
+  if (!envFile) {
+    return
+  }
   // Quote single-quoted POSIX style. The value is a known-safe URL,
   // but quote anyway for consistency with hooks that take user input.
   const line = `export ANTHROPIC_BASE_URL='${ANTHROPIC_BASE_URL}'\n`

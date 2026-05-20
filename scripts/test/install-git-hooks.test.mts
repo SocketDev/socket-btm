@@ -18,7 +18,7 @@
 // resolve REPO_ROOT to the real repo and write to the real git config
 // instead of the tmpdir, which is what we want to verify.
 
-import { spawnSync } from 'node:child_process'
+import { spawnSync } from '@socketsecurity/lib-stable/spawn'
 import {
   copyFileSync,
   mkdirSync,
@@ -27,7 +27,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
-import { tmpdir } from 'node:os'
+import os from 'node:os'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'

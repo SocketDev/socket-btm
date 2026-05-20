@@ -1,8 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { spawnSync } from '@socketsecurity/lib-stable/spawn'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -21,8 +21,8 @@ function makeTranscript(userText?: string): string {
 
 function makeRepo(
   opts: {
-    configContent?: string
-    existingFiles?: readonly string[]
+    configContent?: string | undefined
+    existingFiles?: readonly string[] | undefined
   } = {},
 ): string {
   const root = mkdtempSync(path.join(tmpdir(), 'lsrg-repo-'))
@@ -46,9 +46,9 @@ function runHook(
   filePath: string,
   content: string,
   options: {
-    transcriptPath?: string
-    env?: Record<string, string>
-    cwd?: string
+    transcriptPath?: string | undefined
+    env?: Record<string, string> | undefined
+    cwd?: string | undefined
   } = {},
 ): { stderr: string; exitCode: number } {
   const payload: Record<string, unknown> = {

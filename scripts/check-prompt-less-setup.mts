@@ -26,7 +26,7 @@
  *      signing/keychain prompt surprises you.
  */
 
-import { spawnSync } from 'node:child_process'
+import { spawnSync } from '@socketsecurity/lib-stable/spawn'
 import { existsSync, readFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -283,7 +283,7 @@ function checkSocketTokenInEnv(): CheckResult {
     // oxlint-disable-next-line socket/socket-api-token-env -- audit script: must check the primary slot because that's literally what's being audited (whether the install hook's primary export is wired up).
     process.env['SOCKET_API_KEY'] || process.env['SOCKET_API_TOKEN']
   if (env) {
-    const source = process.env['SOCKET_API_KEY']
+    const source = process.env['SOCKET_API_TOKEN']
       ? // oxlint-disable-next-line socket/socket-api-token-env -- audit script: reports which name was found, including the primary slot.
         'SOCKET_API_KEY'
       : 'SOCKET_API_TOKEN'
@@ -343,7 +343,7 @@ function checkKeychainTokenAcl(): CheckResult {
   // entry exists via the non-password-fetching form.
   const r = spawnSync(
     'security',
-    ['find-generic-password', '-s', 'socket-cli', '-a', 'SOCKET_API_KEY'],
+    ['find-generic-password', '-s', 'socket-cli', '-a', 'SOCKET_API_TOKEN'],
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
   )
   if (r.status !== 0) {

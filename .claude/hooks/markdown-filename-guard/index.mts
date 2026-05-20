@@ -72,6 +72,70 @@ const ALLOWED_SCREAMING_CASE: ReadonlySet<string> = new Set([
   'TRADEMARK',
 ])
 
+export function emitBlock(filePath: string, verdict: Verdict): void {
+  const lines: string[] = []
+  lines.push('[markdown-filename-guard] Blocked: non-canonical doc filename.')
+  lines.push(`  File:       ${filePath}`)
+  if (verdict.message) {
+    lines.push(`  Issue:      ${verdict.message}`)
+  }
+  if (verdict.suggestion) {
+    lines.push(`  Suggestion: ${verdict.suggestion}`)
+  }
+  lines.push('')
+  lines.push('  Fleet doc-filename rules:')
+  lines.push('    - README.md / LICENSE — allowed anywhere.')
+  lines.push(
+    '    - SCREAMING_CASE allowlist (AUTHORS, CHANGELOG, CLAUDE, CONTRIBUTING,',
+  )
+  lines.push(
+    '      GOVERNANCE, MAINTAINERS, NOTICE, README, SECURITY, SUPPORT, …) —',
+  )
+  lines.push('      allowed at root / docs/ / .claude/ (top level only).')
+  lines.push(
+    '    - Everything else: lowercase-with-hyphens, in docs/ or .claude/.',
+  )
+  process.stderr.write(lines.join('\n') + '\n')
+}
+
+export function isAtAllowedRegularLocation(relPath: string): boolean {
+  const dir = path.posix.dirname(relPath)
+  return (
+    dir === 'docs' ||
+    dir.startsWith('docs/') ||
+    dir === '.claude' ||
+    dir.startsWith('.claude/')
+  )
+}
+
+export function isAtAllowedScreamingLocation(relPath: string): boolean {
+  const dir = path.posix.dirname(relPath)
+  return dir === '.' || dir === '.claude' || dir === 'docs'
+}
+
+export function isLowercaseHyphenated(nameWithoutExt: string): boolean {
+  return /^[a-z0-9]+(-[a-z0-9]+)*$/.test(nameWithoutExt)
+}
+
+export function isScreamingCase(nameWithoutExt: string): boolean {
+  return /^[A-Z0-9_]+$/.test(nameWithoutExt) && /[A-Z]/.test(nameWithoutExt)
+}
+
+/**
+ * Strip a single trailing "source-file extension" hint from a doc-filename
+ * stem. Canonical fleet pattern for docs describing a specific code file is
+ * `<source>.md` (e.g. `smol-ffi.js.md` describes `smol-ffi.js`). Without this
+ * strip, `smol-ffi.js.md` is parsed as stem `smol-ffi.js` which fails
+ * `isLowercaseHyphenated` on the embedded `.`. The accepted hint extensions
+ * match the language set the fleet documents code in.
+ */
+export function stripCodeFileHintExt(stem: string): string {
+  return stem.replace(
+    /\.(?:[cm]?[jt]sx?|json|ya?ml|toml|sh|py|rs|go|cc|cpp|h|hpp)$/,
+    '',
+  )
+}
+
 /**
  * Strip a leading repo-absolute prefix (anything up through and including a
  * `<repo-name>/` segment) so we get the in-repo relative path. Falls back to
@@ -84,7 +148,7 @@ const ALLOWED_SCREAMING_CASE: ReadonlySet<string> = new Set([
  * SCREAMING_CASE doc in `template/` (CLAUDE.md, README.md at template root)
  * would trip the SCREAMING_CASE-only-at-repo-root rule.
  */
-function toRepoRelative(filePath: string): string {
+export function toRepoRelative(filePath: string): string {
   // PreToolUse passes absolute paths. Strip up through `/projects/<repo>/`.
   const m = filePath.match(/\/projects\/[^/]+\/(.+)$/)
   if (!m) {
@@ -98,53 +162,15 @@ function toRepoRelative(filePath: string): string {
   return rel
 }
 
-function isScreamingCase(nameWithoutExt: string): boolean {
-  return /^[A-Z0-9_]+$/.test(nameWithoutExt) && /[A-Z]/.test(nameWithoutExt)
-}
-
-function isLowercaseHyphenated(nameWithoutExt: string): boolean {
-  return /^[a-z0-9]+(-[a-z0-9]+)*$/.test(nameWithoutExt)
-}
-
-function isAtAllowedScreamingLocation(relPath: string): boolean {
-  const dir = path.posix.dirname(relPath)
-  return dir === '.' || dir === 'docs' || dir === '.claude'
-}
-
-function isAtAllowedRegularLocation(relPath: string): boolean {
-  const dir = path.posix.dirname(relPath)
-  return (
-    dir === 'docs' ||
-    dir.startsWith('docs/') ||
-    dir === '.claude' ||
-    dir.startsWith('.claude/')
-  )
-}
-
-/**
- * Strip a single trailing "source-file extension" hint from a doc-filename
- * stem. Canonical fleet pattern for docs describing a specific code file is
- * `<source>.md` (e.g. `smol-ffi.js.md` describes `smol-ffi.js`). Without this
- * strip, `smol-ffi.js.md` is parsed as stem `smol-ffi.js` which fails
- * `isLowercaseHyphenated` on the embedded `.`. The accepted hint extensions
- * match the language set the fleet documents code in.
- */
-function stripCodeFileHintExt(stem: string): string {
-  return stem.replace(
-    /\.(?:[cm]?[jt]sx?|json|ya?ml|toml|sh|py|rs|go|cc|cpp|h|hpp)$/,
-    '',
-  )
-}
-
 type Verdict = {
   ok: boolean
-  message?: string
-  suggestion?: string
+  message?: string | undefined
+  suggestion?: string | undefined
 }
 
 export function classifyMarkdownPath(absPath: string): Verdict {
   const filename = path.basename(absPath)
-  if (!/\.(md|MD|markdown)$/.test(filename)) {
+  if (!/\.(MD|markdown|md)$/.test(filename)) {
     return { ok: true }
   }
 
@@ -168,11 +194,11 @@ export function classifyMarkdownPath(absPath: string): Verdict {
   // For docs that describe a specific code file (e.g. `smol-ffi.js.md`),
   // strip the source-file hint before validating the stem.
   const nameWithoutExt = stripCodeFileHintExt(
-    filename.replace(/\.(md|MD|markdown)$/, ''),
+    filename.replace(/\.(MD|markdown|md)$/, ''),
   )
 
   // README / LICENSE — anywhere.
-  if (nameWithoutExt === 'README' || nameWithoutExt === 'LICENSE') {
+  if (nameWithoutExt === 'LICENSE' || nameWithoutExt === 'README') {
     return { ok: true }
   }
 
@@ -230,32 +256,6 @@ export function classifyMarkdownPath(absPath: string): Verdict {
   }
 
   return { ok: true }
-}
-
-function emitBlock(filePath: string, verdict: Verdict): void {
-  const lines: string[] = []
-  lines.push('[markdown-filename-guard] Blocked: non-canonical doc filename.')
-  lines.push(`  File:       ${filePath}`)
-  if (verdict.message) {
-    lines.push(`  Issue:      ${verdict.message}`)
-  }
-  if (verdict.suggestion) {
-    lines.push(`  Suggestion: ${verdict.suggestion}`)
-  }
-  lines.push('')
-  lines.push('  Fleet doc-filename rules:')
-  lines.push('    - README.md / LICENSE — allowed anywhere.')
-  lines.push(
-    '    - SCREAMING_CASE allowlist (AUTHORS, CHANGELOG, CLAUDE, CONTRIBUTING,',
-  )
-  lines.push(
-    '      GOVERNANCE, MAINTAINERS, NOTICE, README, SECURITY, SUPPORT, …) —',
-  )
-  lines.push('      allowed at root / docs/ / .claude/ (top level only).')
-  lines.push(
-    '    - Everything else: lowercase-with-hyphens, in docs/ or .claude/.',
-  )
-  process.stderr.write(lines.join('\n') + '\n')
 }
 
 async function main(): Promise<void> {

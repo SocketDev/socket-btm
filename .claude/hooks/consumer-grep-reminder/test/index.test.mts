@@ -1,8 +1,11 @@
 // node --test specs for the consumer-grep-reminder hook.
 
+// prefer-async-spawn: streaming-stdio-required — test spawns child
+// subprocess and pipes stdin/stdout/stderr; Node spawn returns the
+// ChildProcess streaming surface the lib promise wrapper does not.
 import { spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
@@ -13,7 +16,7 @@ const HOOK = path.join(here, '..', 'index.mts')
 
 type Result = { code: number; stderr: string }
 
-function mkRepo(opts: { consumerDirs?: string[] } = {}): string {
+function mkRepo(opts: { consumerDirs?: string[] | undefined } = {}): string {
   const repo = mkdtempSync(path.join(tmpdir(), 'consumer-grep-test-'))
   mkdirSync(path.join(repo, '.git'), { recursive: true })
   for (const d of opts.consumerDirs ?? []) {

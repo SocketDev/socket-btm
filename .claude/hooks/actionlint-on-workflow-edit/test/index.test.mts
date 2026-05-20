@@ -1,6 +1,6 @@
 // node --test specs for the actionlint-on-workflow-edit hook.
 
-import { spawn, spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from '@socketsecurity/lib-stable/spawn'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'

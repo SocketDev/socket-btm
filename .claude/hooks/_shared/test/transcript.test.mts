@@ -4,7 +4,7 @@
 //   node --test test/*.test.mts
 
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -187,7 +187,8 @@ test('bypassPhrasePresent: array of equivalent spellings — any matches', () =>
     'Allow soak time bypass',
     'Allow soak-time bypass',
   ]
-  for (const present of variants) {
+  for (let i = 0, { length } = variants; i < length; i += 1) {
+    const present = variants[i]!
     const f = writeTranscript(
       JSON.stringify({ role: 'user', content: `please ${present} now` }),
     )

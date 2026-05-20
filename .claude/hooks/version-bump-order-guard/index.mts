@@ -28,7 +28,7 @@ import { bypassPhrasePresent, readStdin } from '../_shared/transcript.mts'
 
 interface PreToolUsePayload {
   readonly tool_name?: string | undefined
-  readonly tool_input?: { readonly command?: unknown } | undefined
+  readonly tool_input?: { readonly command?: unknown | undefined } | undefined
   readonly transcript_path?: string | undefined
   readonly cwd?: string | undefined
 }

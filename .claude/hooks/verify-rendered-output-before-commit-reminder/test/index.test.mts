@@ -1,8 +1,8 @@
 // node --test specs for the verify-rendered-output-before-commit-reminder hook.
 
-import { spawn, spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from '@socketsecurity/lib-stable/spawn'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
@@ -18,7 +18,8 @@ function mkRepoWithStaged(stagedFiles: string[]): string {
   spawnSync('git', ['init', '-q'], { cwd: repo })
   spawnSync('git', ['config', 'user.email', 'test@example.com'], { cwd: repo })
   spawnSync('git', ['config', 'user.name', 'Test'], { cwd: repo })
-  for (const f of stagedFiles) {
+  for (let i = 0, { length } = stagedFiles; i < length; i += 1) {
+    const f = stagedFiles[i]!
     const p = path.join(repo, f)
     mkdirSync(path.dirname(p), { recursive: true })
     writeFileSync(p, 'x')

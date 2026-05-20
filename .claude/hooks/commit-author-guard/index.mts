@@ -38,7 +38,7 @@
 
 import { execSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -46,7 +46,7 @@ import { bypassPhrasePresent, readStdin } from '../_shared/transcript.mts'
 
 interface PreToolUsePayload {
   readonly tool_name?: string | undefined
-  readonly tool_input?: { readonly command?: unknown } | undefined
+  readonly tool_input?: { readonly command?: unknown | undefined } | undefined
   readonly transcript_path?: string | undefined
   readonly cwd?: string | undefined
 }
@@ -68,14 +68,75 @@ const BYPASS_PHRASES = [
   'Allow commitauthor bypass',
 ] as const
 
-function readAllowedAuthors(): AllowedAuthors {
+export function isAllowedAuthor(
+  candidate: GitAuthor,
+  allowed: AllowedAuthors,
+): boolean {
+  const candidateEmail = candidate.email?.toLowerCase()
+  if (!candidateEmail) {
+    // No email in candidate; can't compare. Treat as ok — git will
+    // fail on its own if no identity is configured.
+    return true
+  }
+  if (allowed.canonical.email?.toLowerCase() === candidateEmail) {
+    return true
+  }
+  for (let i = 0, { length } = allowed.aliases; i < length; i += 1) {
+    if (allowed.aliases[i]!.email?.toLowerCase() === candidateEmail) {
+      return true
+    }
+  }
+  return false
+}
+
+// Detect whether the command is `git commit ...` (not push, not log).
+// Also returns true for `git -c ... commit ...` and other forms with
+// flags before the subcommand.
+export function isGitCommit(command: string): boolean {
+  // Match `git` (optionally with -c flags between) followed by `commit`.
+  // Negative lookahead avoids `git config commit.gpgsign`.
+  return /\bgit\b(?:\s+-c\s+[^\s]+)*\s+commit(?:\s|$)/.test(command)
+}
+
+// Parse a `git commit ...` command for explicit author overrides.
+// Three forms we recognize:
+//
+//   --author="Name <email@example>"
+//   --author "Name <email@example>"
+//   -c user.email=email@example -c user.name=Name
+//
+// Returns the override author if any, otherwise undefined.
+export function parseAuthorOverride(command: string): GitAuthor | undefined {
+  // --author="Name <email>"  or  --author='Name <email>'
+  const authorEq = /--author=(['"]?)([^'"<>]+)\s*<([^>]+)>\1/i.exec(command)
+  if (authorEq) {
+    return { name: authorEq[2]!.trim(), email: authorEq[3]!.trim() }
+  }
+  // --author "Name <email>"
+  const authorSpace = /--author\s+(['"])([^'"<>]+)\s*<([^>]+)>\1/i.exec(command)
+  if (authorSpace) {
+    return { name: authorSpace[2]!.trim(), email: authorSpace[3]!.trim() }
+  }
+  // -c user.email=...
+  const cEmail = /-c\s+user\.email=([^\s'"]+)/i.exec(command)
+  const cName = /-c\s+user\.name=(?:(['"])([^'"]+)\1|([^\s]+))/i.exec(command)
+  if (cEmail || cName) {
+    return {
+      email: cEmail?.[1],
+      name: cName ? (cName[2] ?? cName[3]) : undefined,
+    }
+  }
+  return undefined
+}
+
+export function readAllowedAuthors(): AllowedAuthors {
   // Source (a): ~/.claude/git-authors.json
   const configPath = path.join(homedir(), '.claude', 'git-authors.json')
   if (existsSync(configPath)) {
     try {
       const raw = JSON.parse(readFileSync(configPath, 'utf8')) as {
-        canonical?: GitAuthor
-        aliases?: GitAuthor[]
+        canonical?: GitAuthor | undefined
+        aliases?: GitAuthor[] | undefined
       }
       const canonical = raw.canonical ?? {}
       const aliases = Array.isArray(raw.aliases) ? raw.aliases : []
@@ -104,62 +165,10 @@ function readAllowedAuthors(): AllowedAuthors {
   return { canonical: { name, email }, aliases: [] }
 }
 
-function isAllowedAuthor(
-  candidate: GitAuthor,
-  allowed: AllowedAuthors,
-): boolean {
-  const candidateEmail = candidate.email?.toLowerCase()
-  if (!candidateEmail) {
-    // No email in candidate; can't compare. Treat as ok — git will
-    // fail on its own if no identity is configured.
-    return true
-  }
-  if (allowed.canonical.email?.toLowerCase() === candidateEmail) {
-    return true
-  }
-  for (let i = 0, { length } = allowed.aliases; i < length; i += 1) {
-    if (allowed.aliases[i]!.email?.toLowerCase() === candidateEmail) {
-      return true
-    }
-  }
-  return false
-}
-
-// Parse a `git commit ...` command for explicit author overrides.
-// Three forms we recognize:
-//
-//   --author="Name <email@example>"
-//   --author "Name <email@example>"
-//   -c user.email=email@example -c user.name=Name
-//
-// Returns the override author if any, otherwise undefined.
-function parseAuthorOverride(command: string): GitAuthor | undefined {
-  // --author="Name <email>"  or  --author='Name <email>'
-  const authorEq = /--author=(['"]?)([^'"<>]+)\s*<([^>]+)>\1/i.exec(command)
-  if (authorEq) {
-    return { name: authorEq[2]!.trim(), email: authorEq[3]!.trim() }
-  }
-  // --author "Name <email>"
-  const authorSpace = /--author\s+(['"])([^'"<>]+)\s*<([^>]+)>\1/i.exec(command)
-  if (authorSpace) {
-    return { name: authorSpace[2]!.trim(), email: authorSpace[3]!.trim() }
-  }
-  // -c user.email=...
-  const cEmail = /-c\s+user\.email=([^\s'"]+)/i.exec(command)
-  const cName = /-c\s+user\.name=(?:(['"])([^'"]+)\1|([^\s]+))/i.exec(command)
-  if (cEmail || cName) {
-    return {
-      email: cEmail?.[1],
-      name: cName ? (cName[2] ?? cName[3]) : undefined,
-    }
-  }
-  return undefined
-}
-
 // Read the local checkout's user.email + user.name. Falls through to
 // undefined on failure. Used when the command has no explicit override
 // — we need to know what git would use by default.
-function readCheckoutAuthor(cwd: string | undefined): GitAuthor {
+export function readCheckoutAuthor(cwd: string | undefined): GitAuthor {
   let email: string | undefined
   let name: string | undefined
   const opts = cwd
@@ -176,15 +185,6 @@ function readCheckoutAuthor(cwd: string | undefined): GitAuthor {
     // unset
   }
   return { name, email }
-}
-
-// Detect whether the command is `git commit ...` (not push, not log).
-// Also returns true for `git -c ... commit ...` and other forms with
-// flags before the subcommand.
-function isGitCommit(command: string): boolean {
-  // Match `git` (optionally with -c flags between) followed by `commit`.
-  // Negative lookahead avoids `git config commit.gpgsign`.
-  return /\bgit\b(?:\s+-c\s+[^\s]+)*\s+commit(?:\s|$)/.test(command)
 }
 
 async function main(): Promise<void> {

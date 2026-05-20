@@ -5,7 +5,7 @@
 // Run: pnpm --filter hook-path-guard test
 //      (or directly: node --test test/*.test.mts)
 
-import { spawnSync } from 'node:child_process'
+import { spawnSync } from '@socketsecurity/lib-stable/spawn'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'

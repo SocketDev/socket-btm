@@ -1,3 +1,6 @@
+// prefer-async-spawn: streaming-stdio-required — test spawns child
+// subprocess and pipes stdin/stdout/stderr; Node spawn returns the
+// ChildProcess streaming surface the lib promise wrapper does not.
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -10,9 +13,9 @@ const HOOK = path.resolve(__dirname, '..', 'index.mts')
 interface Payload {
   tool_name: 'Edit' | 'Write' | string
   tool_input: {
-    file_path?: string
-    new_string?: string
-    content?: string
+    file_path?: string | undefined
+    new_string?: string | undefined
+    content?: string | undefined
   }
 }
 

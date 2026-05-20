@@ -16,6 +16,17 @@ on:
         required: false
         default: '0'
         type: string
+  workflow_call:
+    inputs:
+      dry-run:
+        type: boolean
+        default: true
+      force:
+        type: boolean
+        default: false
+      debug:
+        type: string
+        default: '0'
 
 permissions:
   contents: read

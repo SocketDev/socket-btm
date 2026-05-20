@@ -4,7 +4,7 @@
  * Five checks, one pass:
  *
  * 1. **Status-symbol emoji** (✓ ✔ ❌ ✗ ⚠ ⚠️ ❗ ✅ ❎ ☑) — banned. The
- *    `@socketsecurity/lib/logger` package owns the visual prefix via
+ *    `@socketsecurity/lib-stable/logger` package owns the visual prefix via
  *    `logger.success()` / `logger.fail()` / `logger.warn()` etc. Hand-rolling
  *    the symbols fragments the visual style and bypasses theme-aware color.
  * 2. **`console.log` / `console.error` / `console.warn` / `console.info` /
@@ -223,7 +223,7 @@ export async function checkLoggerGuardrails(
 
 export const GUARDRAIL_FIX_HINTS: Readonly<Record<GuardrailReason, string>> = {
   'console-call':
-    'Use logger from @socketsecurity/lib/logger: import { getDefaultLogger } from "@socketsecurity/lib/logger"; const logger = getDefaultLogger(); then logger.success(...) / logger.fail(...) / logger.warn(...) / logger.info(...) / logger.log(...).',
+    'Use logger from @socketsecurity/lib-stable/logger: import { getDefaultLogger } from "@socketsecurity/lib-stable/logger"; const logger = getDefaultLogger(); then logger.success(...) / logger.fail(...) / logger.warn(...) / logger.info(...) / logger.log(...).',
   'dynamic-import':
     "Use a static `import` statement at the top of the file. Dynamic `import()` is only allowed inside bundled code (src/ or bundler configs); script files run directly via `node` and don't need lazy resolution.",
   'inline-logger':

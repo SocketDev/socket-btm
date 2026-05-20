@@ -649,15 +649,15 @@ Error handling in scripts:
 
 <pattern name="import_conventions">
 Import style conventions (Socket Security standards):
-- Use `@socketsecurity/lib/logger` instead of custom log functions or cherry-picked console methods
-- Use `@socketsecurity/lib/spawn` instead of `node:child_process` (except in `additions/` directory)
+- Use `@socketsecurity/lib-stable/logger` instead of custom log functions or cherry-picked console methods
+- Use `@socketsecurity/lib-stable/spawn` instead of `node:child_process` (except in `additions/` directory)
 - For Node.js built-in modules: **Cherry-pick fs, default import path/os/url/crypto**
   - For `fs`: cherry-pick sync methods, use promises namespace for async
-  - For `child_process`: **avoid direct usage** - prefer `@socketsecurity/lib/spawn`
+  - For `child_process`: **avoid direct usage** - prefer `@socketsecurity/lib-stable/spawn`
   - For `path`, `os`, `url`, `crypto`: use default imports
   - Examples:
     - `import { existsSync, promises as fs } from 'node:fs'` ✅
-    - `import { spawn } from '@socketsecurity/lib/spawn'` ✅ (preferred over node:child_process)
+    - `import { spawn } from '@socketsecurity/lib-stable/spawn'` ✅ (preferred over node:child_process)
     - `import path from 'node:path'` ✅
     - `import os from 'node:os'` ✅
     - `import { fileURLToPath } from 'node:url'` ✅ (exception: cherry-pick specific exports from url)
@@ -665,9 +665,9 @@ Import style conventions (Socket Security standards):
 
 Examples of what to flag:
 
-- Custom log functions: `function log(msg) { console.log(msg) }` → use `@socketsecurity/lib/logger`
+- Custom log functions: `function log(msg) { console.log(msg) }` → use `@socketsecurity/lib-stable/logger`
 - Direct child_process usage (except in additions/):
-  - `import { execSync } from 'node:child_process'` → use `import { spawn } from '@socketsecurity/lib/spawn'`
+  - `import { execSync } from 'node:child_process'` → use `import { spawn } from '@socketsecurity/lib-stable/spawn'`
   - `execSync('cmd arg1')` → use `await spawn('cmd', ['arg1'])`
 - Default imports for fs:
   - `import fs from 'node:fs'` → use `import { existsSync, promises as fs } from 'node:fs'`
@@ -679,7 +679,7 @@ Examples of what to flag:
 Why this matters:
 
 - Consistent logging across all packages (formatting, levels, CI integration)
-- @socketsecurity/lib/spawn provides better error handling and cross-platform support than raw child_process
+- @socketsecurity/lib-stable/spawn provides better error handling and cross-platform support than raw child_process
 - Cherry-picked fs methods are explicit and tree-shakeable
 - Promises namespace clearly distinguishes async operations from sync
 - Default imports for path/os/crypto show which module provides the function
@@ -753,7 +753,7 @@ buildBinSuitePackage({
 
 - `ensureCurl()` - Downloads curl+mbedTLS from releases (stubs-builder)
 - `ensureLief()` - Downloads LIEF library from releases (binject, binpress)
-- `downloadSocketBtmRelease()` - Generic helper from `@socketsecurity/lib/releases/socket-btm`
+- `downloadSocketBtmRelease()` - Generic helper from `@socketsecurity/lib-stable/releases/socket-btm`
 
 **Common mistakes to flag:**
 

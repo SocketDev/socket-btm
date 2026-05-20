@@ -8,9 +8,9 @@ import { CHECKPOINTS } from 'build-infra/lib/constants'
 import { getPythonCommand } from 'build-infra/lib/python-installer'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
-import platformPkg from '@socketsecurity/lib/constants/platform'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
+import platformPkg from '@socketsecurity/lib-stable/constants/platform'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 const { WIN32 } = platformPkg
 const logger = getDefaultLogger()

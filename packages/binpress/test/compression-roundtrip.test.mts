@@ -29,10 +29,10 @@ import { fileURLToPath } from 'node:url'
 import { makeExecutable } from 'build-infra/lib/build-helpers'
 import { getBuildMode } from 'build-infra/lib/constants'
 
-import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { getSocketDlxDir } from '@socketsecurity/lib/paths/socket'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getSocketDlxDir } from '@socketsecurity/lib-stable/paths/socket'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 const logger = getDefaultLogger()
 
@@ -90,7 +90,7 @@ export async function execCommand(command, args = [], options = {}) {
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
-    // @socketsecurity/lib/spawn returns a Promise with .process property
+    // @socketsecurity/lib-stable/spawn returns a Promise with .process property
     const proc = spawnPromise.process
 
     let stdout = ''

@@ -17,8 +17,8 @@ import { fileURLToPath } from 'node:url'
 
 import { makeExecutable } from 'build-infra/lib/build-helpers'
 
-import { safeDelete } from '@socketsecurity/lib/fs'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { safeDelete } from '@socketsecurity/lib-stable/fs'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 import { getBinjectPath } from './helpers/paths.mts'
 
@@ -61,7 +61,7 @@ export async function execCommand(
     // Prevent unhandled rejection — we handle exit via proc.on('close')
     spawnPromise.catch(() => {})
 
-    // @socketsecurity/lib/spawn returns a Promise with .process property
+    // @socketsecurity/lib-stable/spawn returns a Promise with .process property
     const proc = spawnPromise.process
 
     let stdout = ''

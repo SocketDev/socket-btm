@@ -15,9 +15,9 @@
 const fs = require('node:fs')
 const path = require('node:path')
 
-const { joinAnd } = require('@socketsecurity/lib')
-const { getDefaultLogger } = require('@socketsecurity/lib/logger')
-const { spawn } = require('@socketsecurity/lib/spawn')
+const { joinAnd } = require('@socketsecurity/lib-stable')
+const { getDefaultLogger } = require('@socketsecurity/lib-stable/logger')
+const { spawn } = require('@socketsecurity/lib-stable/spawn')
 const process = require('node:process')
 
 const { errorMessage } = require('build-infra/lib/error-utils')

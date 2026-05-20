@@ -46,8 +46,8 @@ import { fileURLToPath } from 'node:url'
 
 import { parseArgs } from 'node:util'
 
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 import { errorMessage } from 'build-infra/lib/error-utils'
 
@@ -224,12 +224,12 @@ const REGRESSIONS: Regression[] = [
     pattern: String.raw`^\s*(?:await\s+)?fetch\(`,
     why:
       'Forbidden per CLAUDE.md — we wrap fetch with httpJson/httpText/' +
-      'httpRequest from @socketsecurity/lib/http-request so calls go ' +
+      'httpRequest from @socketsecurity/lib-stable/http-request so calls go ' +
       'through the project-wide timeout, retry, and mock-registry ' +
       'machinery.',
     fix:
       'Use httpJson / httpText / httpRequest from ' +
-      "'@socketsecurity/lib/http-request' instead.",
+      "'@socketsecurity/lib-stable/http-request' instead.",
     precedents: [],
   },
   {

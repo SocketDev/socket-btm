@@ -10,8 +10,8 @@ import { fileURLToPath } from 'node:url'
 import zlib from 'node:zlib'
 import process from 'node:process'
 
-import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 import { getBinjectPath } from './helpers/paths.mts'
 
@@ -32,7 +32,7 @@ export async function _runBinject(args, options = {}) {
       env: { ...process.env, ...options.env },
     })
 
-    // @socketsecurity/lib/spawn returns a Promise with .process property
+    // @socketsecurity/lib-stable/spawn returns a Promise with .process property
     const proc = spawnPromise.process
 
     let stdout = ''

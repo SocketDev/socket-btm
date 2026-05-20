@@ -6,9 +6,9 @@
 
 import process from 'node:process'
 
-import { WIN32 } from '@socketsecurity/lib/constants/platform'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn, spawnSync } from '@socketsecurity/lib/spawn'
+import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { spawn, spawnSync } from '@socketsecurity/lib-stable/spawn'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { isOnAcPower } from '../../../scripts/power-state.mts'
@@ -37,7 +37,7 @@ logger.log(
 logger.log(`Running: vitest ${vitestArgs.join(' ')}`)
 logger.log('')
 
-// Spawn vitest process using @socketsecurity/lib spawn
+// Spawn vitest process using @socketsecurity/lib-stable spawn
 const vitestPromise = spawn('pnpm', ['exec', 'vitest', 'run', ...vitestArgs], {
   shell: WIN32,
   stdio: 'inherit',

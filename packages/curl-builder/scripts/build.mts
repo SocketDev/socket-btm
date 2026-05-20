@@ -38,14 +38,14 @@ import { extractTarball } from 'build-infra/lib/tarball-utils'
 import { getSubmoduleVersion } from 'build-infra/lib/version-helpers'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
-import { WIN32 } from '@socketsecurity/lib/constants/platform'
-import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 import {
   detectLibc,
   downloadSocketBtmRelease,
-} from '@socketsecurity/lib/releases/socket-btm'
-import { spawn } from '@socketsecurity/lib/spawn'
+} from '@socketsecurity/lib-stable/releases/socket-btm'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 const logger = getDefaultLogger()
 
@@ -169,7 +169,7 @@ export async function downloadCurl(options = {}) {
   await safeMkdir(targetDir)
 
   // Download archive using socket-btm release helper.
-  // Note: httpDownload in @socketsecurity/lib now deletes existing files before
+  // Note: httpDownload in @socketsecurity/lib-stable now deletes existing files before
   // downloading to prevent partial/corrupted file issues from CI caching.
   const downloadedArchive = await downloadSocketBtmRelease('curl', {
     asset: assetName,

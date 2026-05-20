@@ -27,11 +27,11 @@ import { getBuildMode } from 'build-infra/lib/constants'
 import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
-import { WIN32 } from '@socketsecurity/lib/constants/platform'
-import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
-import { glob } from '@socketsecurity/lib/globs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { glob } from '@socketsecurity/lib-stable/globs'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 import { copySource } from './source-copied/copy-source.mts'
 import { applyPatches } from './source-patched/apply-patches.mts'
@@ -113,7 +113,7 @@ export async function buildNativeAddon(zigBin) {
 
   // Retry build up to 3 times — Zig fetches dependencies from GitHub at
   // build time and CI connections can be flaky (HttpConnectionClosing
-  // errors). @socketsecurity/lib's spawn rejects on non-zero exit, so
+  // errors). @socketsecurity/lib-stable's spawn rejects on non-zero exit, so
   // we must try/catch each attempt; reading `result.code` after the
   // await would never see a failure.
   let lastError

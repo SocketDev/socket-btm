@@ -20,7 +20,7 @@ import {
   loadAllTools,
   loadPythonVersions,
 } from '../lib/pinned-versions.mts'
-import { safeDelete } from '@socketsecurity/lib/fs'
+import { safeDelete } from '@socketsecurity/lib-stable/fs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const packageDir = path.join(__dirname, '..')

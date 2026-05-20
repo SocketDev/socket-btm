@@ -66,7 +66,7 @@ other session's progress.
 
 ## Never reach into a sibling fleet repo's path
 
-Cross-repo imports go through `@socketsecurity/lib/...` and
+Cross-repo imports go through `@socketsecurity/lib-stable/...` and
 `@socketregistry/...` (workspace exports). Path-based imports
 (`../<sibling-repo>/...`) break in CI, fresh clones, and CI agents
 that don't have the sibling checked out. The `cross-repo-guard` hook

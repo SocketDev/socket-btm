@@ -17,12 +17,12 @@ import { logTransientErrorHelp } from 'build-infra/lib/github-error-utils'
 import { getDownloadedDir, getFinalBinaryPath } from 'build-infra/lib/paths'
 import { getPlatformArch } from 'build-infra/lib/platform-mappings'
 
-import { envAsBoolean } from '@socketsecurity/lib/env'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { envAsBoolean } from '@socketsecurity/lib-stable/env'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 import {
   detectLibc,
   downloadSocketBtmRelease,
-} from '@socketsecurity/lib/releases/socket-btm'
+} from '@socketsecurity/lib-stable/releases/socket-btm'
 
 import { BINPRESS_DIR, BUILD_INFRA_DIR } from '../../paths.mts'
 

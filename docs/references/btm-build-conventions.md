@@ -44,4 +44,4 @@ ALWAYS use the npm registry directly (`npm pack` or `https://registry.npmjs.org/
 - **`isMainModule` detection** — ALWAYS use `fileURLToPath(import.meta.url) === path.resolve(process.argv[1])`. NEVER use `endsWith()` or raw URL comparison.
 - **Platform-arch and libc** — ALWAYS pass `libc` for Linux platform operations. Prefer `getCurrentPlatformArch()`, which auto-detects libc. Missing libc causes builds to output to wrong directories.
 
-The general fleet rules — existsSync, `@socketsecurity/lib/spawn`, `@socketsecurity/lib/logger`, no `process.chdir()`, no `fetch()`, etc. — apply here and are documented in the fleet block of `CLAUDE.md`.
+The general fleet rules — existsSync, `@socketsecurity/lib-stable/spawn`, `@socketsecurity/lib-stable/logger`, no `process.chdir()`, no `fetch()`, etc. — apply here and are documented in the fleet block of `CLAUDE.md`.

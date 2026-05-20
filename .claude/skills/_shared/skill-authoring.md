@@ -23,7 +23,7 @@ A skill's `SKILL.md` is the **orchestrator**, not the encyclopedia. When a skill
 
 Two naming conventions are load-bearing:
 
-- **`lib/` vs `scripts/`** matches the fleet's public-vs-private convention. `lib/` names a public, importable, stable surface (think `@socketsecurity/lib`); `scripts/` names private, internal automation that's not consumed outside the host repo. Skill helpers under `_shared/scripts/` are internal automation — no external consumers — so `scripts/` is the right name. (No `_shared/lib/` exists in this tree.)
+- **`lib/` vs `scripts/`** matches the fleet's public-vs-private convention. `lib/` names a public, importable, stable surface (think `@socketsecurity/lib-stable`); `scripts/` names private, internal automation that's not consumed outside the host repo. Skill helpers under `_shared/scripts/` are internal automation — no external consumers — so `scripts/` is the right name. (No `_shared/lib/` exists in this tree.)
 - **`reference.md` vs `reference/`** — single file by default; grow to a directory only when a skill genuinely has multiple distinct reference docs. Don't preemptively wrap a single doc in a dir.
 - **`templates/`** is reserved for file scaffolding (`.tmpl` files copied verbatim by `install` / `setup` modes). Don't mix templates into `reference/` — readers can't tell prose from scaffolding by directory name alone.
 
@@ -39,7 +39,7 @@ What goes where:
 | `<skill>/templates/<name>.tmpl`       | File scaffolding (`.tmpl` files copied verbatim by `install` / `setup` modes — gate scripts, allowlist starters, etc.). Distinct from `reference.md` which is prose, not scaffolding.                                                                                                    |
 | `<skill>/run.mts`                     | Skill-specific executable runner. Inline prompts so prompts and code can't drift. Per CLAUDE.md _Tooling — Runners are `.mts`, not `.sh`_.                                                                                                                                               |
 | `_shared/<topic>.md`                  | Shared **prose** (variant-analysis discipline, compound-lessons workflow, multi-agent backends). Cross-skill load surface.                                                                                                                                                               |
-| `_shared/scripts/<helper>.mts`        | Shared **TypeScript** helpers imported by per-skill `run.mts` (default-branch resolution, report formatting, spawn wrappers). Internal automation — not a public library, hence `scripts/` not `lib/`. Use `@socketsecurity/lib/spawn` for subprocesses, never raw `node:child_process`. |
+| `_shared/scripts/<helper>.mts`        | Shared **TypeScript** helpers imported by per-skill `run.mts` (default-branch resolution, report formatting, spawn wrappers). Internal automation — not a public library, hence `scripts/` not `lib/`. Use `@socketsecurity/lib-stable/spawn` for subprocesses, never raw `node:child_process`. |
 
 ## Auditor agents
 

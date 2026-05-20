@@ -21,9 +21,9 @@ import process from 'node:process'
 
 import { errorMessage } from './error-utils.mts'
 
-import { getCI } from '@socketsecurity/lib/env/ci'
+import { getCI } from '@socketsecurity/lib-stable/env/ci'
 
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 import { getPlatform } from './build-env.mts'
 import { installTools, updatePackageCache } from './install-tools.mts'
@@ -66,7 +66,7 @@ export function createSetupToolchain(config) {
 
 /**
  * Check if running in CI environment.
- * Thin re-export of @socketsecurity/lib's getCI() so the 6 packages that
+ * Thin re-export of @socketsecurity/lib-stable's getCI() so the 6 packages that
  * already import isCI from here keep working without churn.
  */
 export function isCI() {

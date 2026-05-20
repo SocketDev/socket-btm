@@ -10,7 +10,7 @@
 import { accessSync, constants, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 
-import { spawnSync } from '@socketsecurity/lib/spawn'
+import { spawnSync } from '@socketsecurity/lib-stable/spawn'
 
 /**
  * Supported tar archive formats.

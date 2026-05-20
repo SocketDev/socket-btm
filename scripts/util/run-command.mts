@@ -3,9 +3,9 @@
 import os from 'node:os'
 import type { SpawnOptions, SpawnSyncOptions } from 'node:child_process'
 
-import { WIN32 } from '@socketsecurity/lib/constants/platform'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn, spawnSync } from '@socketsecurity/lib/spawn'
+import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { spawn, spawnSync } from '@socketsecurity/lib-stable/spawn'
 
 // Initialize logger
 const logger = getDefaultLogger()
@@ -66,7 +66,7 @@ export async function runCommand(
     })
     return result.code
   } catch (e) {
-    // spawn() from @socketsecurity/lib throws on non-zero exit
+    // spawn() from @socketsecurity/lib-stable throws on non-zero exit
     // Return the exit code from the error
     if (
       e &&
@@ -104,7 +104,7 @@ export async function runCommandQuiet(
       stdout: String(result.stdout),
     }
   } catch (e) {
-    // spawn() from @socketsecurity/lib throws on non-zero exit
+    // spawn() from @socketsecurity/lib-stable throws on non-zero exit
     // Return the exit code and output from the error
     if (
       e &&

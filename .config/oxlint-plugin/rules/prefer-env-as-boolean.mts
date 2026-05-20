@@ -12,7 +12,7 @@
  *   - `getSocket<X>() === 'true'` / `=== '1'` / `== 'true'` / `== '1'` …where
  *     `getSocket<X>` is any identifier whose name starts with `getSocket` and
  *     follows the `getSocket<Pascal>` convention used by
- *     `@socketsecurity/lib/env/*`. Name-pattern-based; doesn't follow types.
+ *     `@socketsecurity/lib-stable/env/*`. Name-pattern-based; doesn't follow types.
  *     False-positive rate is low because the fleet doesn't name local getters
  *     `getSocket*`. Autofix: rewrites to `envAsBoolean(<call>)` and adds the
  *     import when missing. Allowed (skip):

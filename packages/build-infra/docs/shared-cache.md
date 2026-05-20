@@ -138,7 +138,7 @@ Every key must be prefixed with the project name to avoid collisions:
 | `socket-ultrathink:` | ultrathink/acorn    | `socket-ultrathink:http:test262-sha256`  |
 | `socket-btm:`        | socket-btm          | `socket-btm:build:node-v22-darwin-arm64` |
 | `socket-sdk:`        | socket-sdk-js       | `socket-sdk:quota`                       |
-| `github-refs:`       | @socketsecurity/lib | `github-refs:main-sha`                   |
+| `github-refs:`       | @socketsecurity/lib-stable | `github-refs:main-sha`                   |
 
 Go and TypeScript implementations auto-prefix with `socket-ultrathink:`.
 Rust and C require the caller to include the prefix.
@@ -146,7 +146,7 @@ Rust and C require the caller to include the prefix.
 ## Cache Directory Resolution
 
 All implementations follow the same priority order
-(lock-step with `@socketsecurity/lib` `getSocketCacacheDir()`):
+(lock-step with `@socketsecurity/lib-stable` `getSocketCacacheDir()`):
 
 | Priority | Source                              | Path                             |
 | -------- | ----------------------------------- | -------------------------------- |

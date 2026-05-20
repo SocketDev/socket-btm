@@ -14,7 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@socketsecurity/lib": "catalog:",
+    "@socketsecurity/lib-stable": "catalog:",
     "build-infra": "workspace:*"
   },
   "devDependencies": {

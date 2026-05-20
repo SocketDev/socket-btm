@@ -36,9 +36,9 @@ import { checkModelBuildPrerequisites } from 'build-infra/lib/model-build-helper
 import { getPythonCommand } from 'build-infra/lib/python-installer'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
-import { readJson, safeMkdir } from '@socketsecurity/lib/fs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { readJson, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 import { convertToOnnx as convertToOnnxImpl } from './converted/shared/convert-to-onnx.mts'
 import { downloadModel as downloadModelImpl } from './downloaded/shared/download-model.mts'

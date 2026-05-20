@@ -17,9 +17,9 @@ import process from 'node:process'
 
 import { makeExecutable } from 'build-infra/lib/build-helpers'
 
-import { safeDelete } from '@socketsecurity/lib/fs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { safeDelete } from '@socketsecurity/lib-stable/fs'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 import { getPlatformArch } from 'build-infra/lib/platform-mappings'
 import { getBuildPaths as getNodeSmolBuildPaths } from 'node-smol-builder/scripts/paths'
 
@@ -151,7 +151,7 @@ export async function execCommand(command, args = [], options = {}) {
     // Prevent unhandled rejection — we handle exit via proc.on('close')
     spawnPromise.catch(() => {})
 
-    // @socketsecurity/lib/spawn returns a Promise with .process property
+    // @socketsecurity/lib-stable/spawn returns a Promise with .process property
     const proc = spawnPromise.process
 
     let stdout = ''

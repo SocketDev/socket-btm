@@ -5,9 +5,9 @@
  * and fetch GitHub status to help users understand if the issue is temporary.
  */
 
-import { errorMessage } from '@socketsecurity/lib/errors'
-import { httpRequest } from '@socketsecurity/lib/http-request'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { errorMessage } from '@socketsecurity/lib-stable/errors'
+import { httpRequest } from '@socketsecurity/lib-stable/http-request'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 const logger = getDefaultLogger()
 

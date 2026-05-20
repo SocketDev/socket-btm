@@ -5,7 +5,7 @@
  * — no I/O beyond stdout via the fleet logger.
  */
 
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 import type { Summary, Test } from './types.mts'
 

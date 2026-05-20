@@ -26,7 +26,7 @@ import path from 'node:path'
 import readline from 'node:readline'
 import { fileURLToPath } from 'node:url'
 
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 import { errorMessage } from 'build-infra/lib/error-utils'
 
@@ -169,7 +169,7 @@ Examples:
 // ANSI colors for formatted output
 // Note: This consistency checker requires precise color control for multi-level severity
 // reports (errors in red, warnings in yellow, info in blue). The log() wrapper below
-// delegates to @socketsecurity/lib/logger.log() for all output, ensuring consistent
+// delegates to @socketsecurity/lib-stable/logger.log() for all output, ensuring consistent
 // logging behavior while adding color formatting. This is intentional and follows the
 // Socket Security standard of using the centralized logger for all output.
 const colors = {

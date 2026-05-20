@@ -17,10 +17,10 @@ import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 
-import { which } from '@socketsecurity/lib/bin'
-import { safeDelete } from '@socketsecurity/lib/fs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { isSpawnError, spawn } from '@socketsecurity/lib/spawn'
+import { which } from '@socketsecurity/lib-stable/bin'
+import { safeDelete } from '@socketsecurity/lib-stable/fs'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { isSpawnError, spawn } from '@socketsecurity/lib-stable/spawn'
 
 const logger = getDefaultLogger()
 
@@ -426,7 +426,7 @@ function slugify(s: string): string {
 }
 
 async function isCommandAvailable(bin: string): Promise<boolean> {
-  // Use `which` from @socketsecurity/lib/bin instead of spawning
+  // Use `which` from @socketsecurity/lib-stable/bin instead of spawning
   // `command -v` with shell: true. The shell:true variant invokes
   // cmd.exe on Windows and mangles `command -v`; `which` is
   // cross-platform and avoids the shell entirely.

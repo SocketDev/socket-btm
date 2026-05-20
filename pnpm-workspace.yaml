@@ -23,7 +23,6 @@ catalog:
   '@sinclair/typebox': 0.34.49
   '@socketregistry/packageurl-js': 1.4.2
   '@socketregistry/packageurl-js-stable': npm:@socketregistry/packageurl-js@1.4.2
-  '@socketsecurity/lib': 5.28.0
   '@socketsecurity/lib-stable': npm:@socketsecurity/lib@5.28.0
   '@socketsecurity/registry': 2.0.2
   '@socketsecurity/registry-stable': npm:@socketsecurity/registry@2.0.2
@@ -84,7 +83,6 @@ blockExoticSubdeps: true
 # local-checkout resolution when a sibling repo is on disk.
 overrides:
   '@socketregistry/packageurl-js': 'catalog:'
-  '@socketsecurity/lib': 'catalog:'
   '@socketsecurity/registry': 'catalog:'
   '@socketsecurity/sdk': 'catalog:'
   'vite': '7.3.2'

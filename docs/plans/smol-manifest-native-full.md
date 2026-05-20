@@ -185,7 +185,7 @@ Concretely: build two `std::unordered_set<std::string_view>` (prod, devOnly) fro
 2. **socket-btm publishes** a tagged smol binary with the native parsers in `external-tools.json`.
 3. **socket-lib v6.0.0 lands**. The `src/eco/<eco>/parse-lockfile.ts` files unchanged in structure — they already route to `getSmolManifest()` when present. With the new smol binary in `external-tools.json`, every socket-lib consumer transparently picks up the native perf.
 4. **socket-lib v6.0.0 publishes** to npm with the bumped smol pin.
-5. **socket-sdxgen v<next> migrates.** Replace `src/parsers/<eco>/*.mts` with re-exports from `@socketsecurity/lib/eco/<eco>`. sdxgen's parsers directory shrinks from ~25 files to ~10 (only the ecosystems not covered by socket-lib v6.0.0's native cut — maven, gradle, nuget, etc. — keep their original sdxgen impls). All native-cut ecosystems route to socket-lib, which routes to the smol binary.
+5. **socket-sdxgen v<next> migrates.** Replace `src/parsers/<eco>/*.mts` with re-exports from `@socketsecurity/lib-stable/eco/<eco>`. sdxgen's parsers directory shrinks from ~25 files to ~10 (only the ecosystems not covered by socket-lib v6.0.0's native cut — maven, gradle, nuget, etc. — keep their original sdxgen impls). All native-cut ecosystems route to socket-lib, which routes to the smol binary.
 
 After v6.0.0 ships, **sdxgen owns the not-yet-native ecosystems and socket-lib owns the native ones**. Both consume the same smol binary. Bug fixes for native-cut ecosystems land in sdxgen (the source of truth for the algorithm) → C++ in socket-btm → socket-lib pins the new smol → sdxgen pulls socket-lib. Bug fixes for not-yet-native ecosystems land in sdxgen and stay there until that ecosystem joins the native cut in a later phase.
 
@@ -478,7 +478,7 @@ Phase ordering follows the reference flow — start where sdxgen lives, end at v
 10. **Benchmarks + fuzz** (3 days). The 3 perf benchmarks + asan + cargo-fuzz-style harness.
 11. **socket-btm release** (0.5 day). Bump smol binary, publish to `external-tools.json`, tag.
 12. **socket-lib v6.0.0** (1 day). Bump smol pin in `external-tools.json`. **No source changes** — the existing dispatcher in `src/eco/<eco>/parse-lockfile.ts` picks up the native binding automatically. CHANGELOG names the perf win and the migration story for sdxgen consumers.
-13. **socket-sdxgen migration** (1–2 days, separate PR). Replace `src/parsers/{npm,pnpm,yarn-classic,yarn-berry,zpm,cargo}/*.mts` bodies with re-exports from `@socketsecurity/lib/eco/*`. Other ecosystem dirs stay sdxgen-owned.
+13. **socket-sdxgen migration** (1–2 days, separate PR). Replace `src/parsers/{npm,pnpm,yarn-classic,yarn-berry,zpm,cargo}/*.mts` bodies with re-exports from `@socketsecurity/lib-stable/eco/*`. Other ecosystem dirs stay sdxgen-owned.
 
 Total: ~4 weeks for steps 1–11, ~2 days each for steps 12 + 13, sequenced behind step 11's release.
 
@@ -489,9 +489,9 @@ When step 13 (sdxgen migration) lands, each native-cut parser file becomes a re-
 ```ts
 // Before v6.0.0: 200+ lines of parser logic.
 // After v6.0.0:
-export { parsePnpmLock as parsePnpmLockV5 } from '@socketsecurity/lib/eco/npm/pnpm/parse-lockfile'
-export { parsePnpmLock as parsePnpmLockV6 } from '@socketsecurity/lib/eco/npm/pnpm/parse-lockfile'
-export { parsePnpmLock as parsePnpmLockV9 } from '@socketsecurity/lib/eco/npm/pnpm/parse-lockfile'
+export { parsePnpmLock as parsePnpmLockV5 } from '@socketsecurity/lib-stable/eco/npm/pnpm/parse-lockfile'
+export { parsePnpmLock as parsePnpmLockV6 } from '@socketsecurity/lib-stable/eco/npm/pnpm/parse-lockfile'
+export { parsePnpmLock as parsePnpmLockV9 } from '@socketsecurity/lib-stable/eco/npm/pnpm/parse-lockfile'
 ```
 
 (socket-lib's pnpm parser handles v5/v6/v9 dispatch internally — sdxgen's per-version split collapses into one entry point.)

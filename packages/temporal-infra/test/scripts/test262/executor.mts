@@ -9,12 +9,12 @@
 import { existsSync, readFileSync } from 'node:fs'
 
 // Per fleet convention (CLAUDE.md "Spawn helpers"): use
-// `@socketsecurity/lib/spawn`'s exports, not `node:child_process`. The
+// `@socketsecurity/lib-stable/spawn`'s exports, not `node:child_process`. The
 // lib's `spawnSync` is signature-compatible with node's — drop-in
 // replacement. `spawn` (async) would also work here but `runOneTest`
 // is called from a sync corpus walker, so the sync variant is the
 // right pick.
-import { spawnSync } from '@socketsecurity/lib/spawn'
+import { spawnSync } from '@socketsecurity/lib-stable/spawn'
 
 import { getNodeSmolFinalBinary } from '../../../lib/paths.mts'
 

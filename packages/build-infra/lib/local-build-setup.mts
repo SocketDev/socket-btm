@@ -14,9 +14,9 @@ import {
   WIN32,
   getArch,
   getPlatform,
-} from '@socketsecurity/lib/constants/platform'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
+} from '@socketsecurity/lib-stable/constants/platform'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 import { printError, printInfo, printSuccess } from './build-output.mts'
 import { errorMessage } from './error-utils.mts'

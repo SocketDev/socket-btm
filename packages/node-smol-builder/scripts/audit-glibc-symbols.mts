@@ -25,8 +25,8 @@ import { fileURLToPath } from 'node:url'
 
 import { errorMessage } from 'build-infra/lib/error-utils'
 
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 import { getLatestFinalBinary } from '../test/paths.mts'
 

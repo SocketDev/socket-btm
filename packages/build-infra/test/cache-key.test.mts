@@ -8,8 +8,8 @@ import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { safeDelete } from '@socketsecurity/lib/fs'
-import { escapeRegExp } from '@socketsecurity/lib/regexps'
+import { safeDelete } from '@socketsecurity/lib-stable/fs'
+import { escapeRegExp } from '@socketsecurity/lib-stable/regexps'
 import { nodeVersionRaw } from 'build-infra/lib/constants'
 
 import {
@@ -146,7 +146,7 @@ describe('cache-key', () => {
           pkgJson1,
           JSON.stringify({
             dependencies: {
-              '@socketsecurity/lib': '1.0.0',
+              '@socketsecurity/lib-stable': '1.0.0',
               '@socketsecurity/packageurl-js': '2.0.0',
             },
           }),
@@ -157,7 +157,7 @@ describe('cache-key', () => {
           JSON.stringify({
             dependencies: {
               // Different version
-              '@socketsecurity/lib': '1.0.1',
+              '@socketsecurity/lib-stable': '1.0.1',
               '@socketsecurity/packageurl-js': '2.0.0',
             },
           }),
@@ -397,7 +397,7 @@ describe('cache-key', () => {
           pkgJson,
           JSON.stringify({
             dependencies: {
-              '@socketsecurity/lib': '1.0.0',
+              '@socketsecurity/lib-stable': '1.0.0',
               '@socketsecurity/packageurl-js': '2.0.0',
               // Should be ignored
               '@socketsecurity/other': '3.0.0',
@@ -419,7 +419,7 @@ describe('cache-key', () => {
           pkgJson,
           JSON.stringify({
             dependencies: {
-              '@socketsecurity/lib': '1.0.0',
+              '@socketsecurity/lib-stable': '1.0.0',
               '@socketsecurity/packageurl-js': '2.0.0',
               // Changed but should be ignored
               '@socketsecurity/other': '4.0.0',
@@ -454,7 +454,7 @@ describe('cache-key', () => {
           pkgJson,
           JSON.stringify({
             dependencies: {
-              '@socketsecurity/lib': '1.0.0',
+              '@socketsecurity/lib-stable': '1.0.0',
               '@socketsecurity/packageurl-js': '2.0.0',
               '@socketsecurity/registry': '4.0.0',
               '@socketsecurity/sdk': '3.0.0',
@@ -476,7 +476,7 @@ describe('cache-key', () => {
           pkgJson,
           JSON.stringify({
             dependencies: {
-              '@socketsecurity/lib': '1.0.0',
+              '@socketsecurity/lib-stable': '1.0.0',
               '@socketsecurity/packageurl-js': '2.0.0',
               // Changed
               '@socketsecurity/sdk': '3.0.1',

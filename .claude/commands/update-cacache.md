@@ -1,6 +1,6 @@
 # update-cacache — Update the C/C++ cacache implementation
 
-Update `socket_cacache.h` to match the `@socketsecurity/lib` cacache spec.
+Update `socket_cacache.h` to match the `@socketsecurity/lib-stable` cacache spec.
 Run when the cacache format changes or cross-platform behavior needs updating.
 
 ## What This Updates
@@ -11,9 +11,9 @@ Run when the cacache format changes or cross-platform behavior needs updating.
 
 ## Process
 
-1. **Read the reference spec** from `@socketsecurity/lib`:
-   - Path resolution: `../socket-sdk-js/node_modules/@socketsecurity/lib/dist/paths/socket.js`
-   - Cacache wrapper: `../socket-sdk-js/node_modules/@socketsecurity/lib/dist/cacache.js`
+1. **Read the reference spec** from `@socketsecurity/lib-stable`:
+   - Path resolution: `../socket-sdk-js/node_modules/@socketsecurity/lib-stable/dist/paths/socket.js`
+   - Cacache wrapper: `../socket-sdk-js/node_modules/@socketsecurity/lib-stable/dist/cacache.js`
    - Also check ultrathink implementations for consistency:
      - Rust: `../ultrathink/packages/acorn/lang/rust/src/socket_cacache.rs`
      - Go: `../ultrathink/packages/acorn/lang/go/pkg/acorn/socket_cacache.go`
@@ -51,7 +51,7 @@ Run when the cacache format changes or cross-platform behavior needs updating.
 
 6. **Run Codex sanity check** — ask Codex to validate against spec.
 
-7. **Commit** with: `fix(build-infra): update socket_cacache.h to match @socketsecurity/lib vX.Y.Z`
+7. **Commit** with: `fix(build-infra): update socket_cacache.h to match @socketsecurity/lib-stable vX.Y.Z`
 
 ## Key Constraints
 

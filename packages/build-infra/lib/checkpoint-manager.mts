@@ -22,17 +22,17 @@ import {
 import path from 'node:path'
 import process from 'node:process'
 
-import { which } from '@socketsecurity/lib/bin'
-import { DARWIN, WIN32 } from '@socketsecurity/lib/constants/platform'
-import { getCI } from '@socketsecurity/lib/env/ci'
+import { which } from '@socketsecurity/lib-stable/bin'
+import { DARWIN, WIN32 } from '@socketsecurity/lib-stable/constants/platform'
+import { getCI } from '@socketsecurity/lib-stable/env/ci'
 import {
   safeDelete,
   safeDeleteSync,
   safeMkdir,
-} from '@socketsecurity/lib/fs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { toUnixPath } from '@socketsecurity/lib/paths/normalize'
-import { spawn } from '@socketsecurity/lib/spawn'
+} from '@socketsecurity/lib-stable/fs'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { toUnixPath } from '@socketsecurity/lib-stable/paths/normalize'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 import {
   BUILD_CACHE_ENV_VARS,
@@ -327,7 +327,7 @@ export async function createCheckpoint(
       //   This is non-fatal - tar still creates a valid archive with the file contents
       //   at the time of reading. We check the tarball validity below.
       // - Exit code 2+: Fatal errors
-      // Note: @socketsecurity/lib/spawn throws on non-zero exit codes, so we catch
+      // Note: @socketsecurity/lib-stable/spawn throws on non-zero exit codes, so we catch
       // exit code 1 and check if it's the benign "file changed" warning.
       // Build tar args: default macOS-resource-fork exclude, plus any
       // caller-supplied excludes (e.g. `out` for source checkpoints to
@@ -663,7 +663,7 @@ export async function createCheckpoint(
   // may not be available for recovery. If a build needs to restart from an earlier stage
   // (e.g., source-copied), it will need to rebuild from scratch rather than restoring
   // from checkpoint. This is intentional to optimize CI storage usage.
-  // @socketsecurity/lib's getCI() already checks GITHUB_ACTIONS,
+  // @socketsecurity/lib-stable's getCI() already checks GITHUB_ACTIONS,
   // GITLAB_CI, CIRCLECI, TRAVIS, and ~25 other CI env vars — keep
   // the fleet's single source of truth so cleanup semantics stay
   // consistent with the rest of the build pipeline.

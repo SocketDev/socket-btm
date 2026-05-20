@@ -4,7 +4,7 @@
  */
 import process from 'node:process'
 
-import { WIN32 } from '@socketsecurity/lib/constants/platform'
+import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
 
 import { runCheckTools } from 'build-infra/lib/check-tools'
 

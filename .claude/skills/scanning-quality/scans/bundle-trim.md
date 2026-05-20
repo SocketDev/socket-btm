@@ -21,7 +21,7 @@ For each repo that ships a rolldown bundle, look at `dist/index.js` (or the prim
 
 ## Method
 
-1. **Survey resolved imports**: `rg --no-heading "from '@socketsecurity/lib/[^']+'" dist/` — list of every lib subpath the bundle imported.
+1. **Survey resolved imports**: `rg --no-heading "from '@socketsecurity/lib-stable/[^']+'" dist/` — list of every lib subpath the bundle imported.
 2. **Survey published surface**: read `src/index.ts` (or `package.json` `exports`-pointed entry) end-to-end and collect every transitively-reached lib subpath. Walk re-exports.
 3. **Compute delta**: subpaths in (1) but not in (2) are candidates.
 4. **Verify reachability claim** (cheap pass; the trim skill does the deep verification before stubbing): for each candidate, `rg --no-heading "<subpath-name>" src/` should return zero hits in src. Hits mean the subpath IS reached and the candidate is a false positive.
@@ -36,7 +36,7 @@ Bundle: dist/index.js (current size: <N> KB)
 Plugin status: createLibStubPlugin imported (current stubPattern: /<regex>/)
 
 Candidates (sorted by size, heaviest first):
-- @socketsecurity/lib/<subpath> — <KB> potential savings
+- @socketsecurity/lib-stable/<subpath> — <KB> potential savings
   Reason: imported by bundle, not reached from src/index.ts
   Verify: src/ has zero hits for `<subpath-name>`
   Confidence: HIGH | MEDIUM | LOW

@@ -31,9 +31,9 @@ import { checkModelBuildPrerequisites } from 'build-infra/lib/model-build-helper
 import { getPythonCommand } from 'build-infra/lib/python-installer'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
-import { safeMkdir } from '@socketsecurity/lib/fs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 import {
   PYTHON_DIR,

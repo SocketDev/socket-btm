@@ -3,7 +3,7 @@
  *
  * Pipeline:
  *   1. Install upstream ink + its runtime deps into a local
- *      build/_dlx/ tree via @socketsecurity/lib/dlx/package's
+ *      build/_dlx/ tree via @socketsecurity/lib-stable/dlx/package's
  *      ensurePackageInstalled (Arborist programmatic, not npm/pnpm
  *      subprocess — includes Socket Firewall checks against ink's
  *      transitive deps). The installRoot option keeps the install
@@ -38,9 +38,9 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { getBuildPaths as getYogaBuildPaths } from 'yoga-layout-builder/scripts/paths'
 
-import { ensurePackageInstalled } from '@socketsecurity/lib/dlx/package'
-import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { ensurePackageInstalled } from '@socketsecurity/lib-stable/dlx/package'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 import { createNodeProtocolPlugin } from '../.config/esbuild/node-protocol.mts'
 import { createPathShorteningPlugin } from '../.config/esbuild/shorten-paths.mts'

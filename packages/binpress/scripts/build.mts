@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url'
 
 import { buildBinSuitePackage } from 'bin-infra/lib/builder'
 import { errorMessage } from 'build-infra/lib/error-utils'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 import { ensureZstd } from 'build-infra/lib/zstd-init'
 import { ensureLief } from 'lief-builder/lib/ensure-lief'
 

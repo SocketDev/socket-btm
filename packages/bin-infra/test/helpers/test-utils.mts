@@ -6,7 +6,7 @@ import process from 'node:process'
  * This module provides common test helpers to avoid code duplication.
  */
 
-import { spawn } from '@socketsecurity/lib/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 /**
  * Ad-hoc code sign a binary for macOS execution.
@@ -51,7 +51,7 @@ export function execCommand(command, args = [], options = {}) {
     // Prevent unhandled rejection — we handle exit via proc.on('close')
     spawnPromise.catch(() => {})
 
-    // @socketsecurity/lib/spawn returns a Promise with .process property
+    // @socketsecurity/lib-stable/spawn returns a Promise with .process property
     const proc = spawnPromise.process
 
     let stdout = ''

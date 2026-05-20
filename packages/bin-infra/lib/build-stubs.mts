@@ -32,16 +32,16 @@ import {
 import { verifyReleaseChecksum } from 'build-infra/lib/release-checksums/core'
 import { ensureCurl } from 'curl-builder/lib/ensure-curl'
 
-import { WIN32 } from '@socketsecurity/lib/constants/platform'
-import { envAsBoolean } from '@socketsecurity/lib/env'
-import { getCI } from '@socketsecurity/lib/env/ci'
-import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
+import { envAsBoolean } from '@socketsecurity/lib-stable/env'
+import { getCI } from '@socketsecurity/lib-stable/env/ci'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 import {
   detectLibc,
   downloadSocketBtmRelease,
-} from '@socketsecurity/lib/releases/socket-btm'
-import { spawn } from '@socketsecurity/lib/spawn'
+} from '@socketsecurity/lib-stable/releases/socket-btm'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 const logger = getDefaultLogger()
 

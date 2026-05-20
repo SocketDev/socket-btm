@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url'
 import { makeExecutable } from 'build-infra/lib/build-helpers'
 import { getBuildMode } from 'build-infra/lib/constants'
 
-import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
 
 import {
   MACHO_HEADER_OFFSET,

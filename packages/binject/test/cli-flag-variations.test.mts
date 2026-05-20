@@ -19,8 +19,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { safeDelete, safeMkdir } from '@socketsecurity/lib/fs'
-import { spawn } from '@socketsecurity/lib/spawn'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { spawn } from '@socketsecurity/lib-stable/spawn'
 
 import { getBinjectPath } from './helpers/paths.mts'
 
@@ -41,7 +41,7 @@ export async function execCommand(command, args = [], options = {}) {
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
-    // @socketsecurity/lib/spawn returns a Promise with .process property
+    // @socketsecurity/lib-stable/spawn returns a Promise with .process property
     const proc = spawnPromise.process
 
     let stdout = ''

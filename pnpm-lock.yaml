@@ -69,7 +69,6 @@ catalogs:
 
 overrides:
   '@socketregistry/packageurl-js': 1.4.2
-  '@socketsecurity/lib': 5.28.0
   '@socketsecurity/registry': 2.0.2
   '@socketsecurity/sdk': 4.0.1
   vite: 7.3.2
@@ -84,9 +83,6 @@ importers:
       '@sinclair/typebox':
         specifier: 'catalog:'
         version: 0.34.49
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
       '@socketsecurity/lib-stable':
         specifier: 'catalog:'
         version: '@socketsecurity/lib@5.28.0'
@@ -542,9 +538,9 @@ importers:
 
   packages/bin-infra:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -570,9 +566,9 @@ importers:
 
   packages/binflate:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       bin-infra:
         specifier: workspace:*
         version: link:../bin-infra
@@ -589,9 +585,9 @@ importers:
 
   packages/binject:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       bin-infra:
         specifier: workspace:*
         version: link:../bin-infra
@@ -623,9 +619,9 @@ importers:
 
   packages/binpress:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       bin-infra:
         specifier: workspace:*
         version: link:../bin-infra
@@ -648,9 +644,9 @@ importers:
       '@sinclair/typebox':
         specifier: 'catalog:'
         version: 0.34.49
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       acorn:
         specifier: 'catalog:'
         version: 8.14.0
@@ -676,9 +672,9 @@ importers:
 
   packages/codet5-models-builder:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -695,9 +691,9 @@ importers:
 
   packages/curl-builder:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -711,9 +707,9 @@ importers:
 
   packages/ink-builder:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -748,9 +744,9 @@ importers:
 
   packages/iocraft-builder:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -764,9 +760,9 @@ importers:
 
   packages/libpq-builder:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -780,9 +776,9 @@ importers:
 
   packages/lief-builder:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -796,9 +792,9 @@ importers:
 
   packages/lsquic-infra:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -809,9 +805,9 @@ importers:
 
   packages/minilm-builder:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -825,9 +821,9 @@ importers:
 
   packages/models:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -841,9 +837,9 @@ importers:
 
   packages/napi-go-infra:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -857,9 +853,9 @@ importers:
 
   packages/node-smol-builder:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       bin-infra:
         specifier: workspace:*
         version: link:../bin-infra
@@ -894,9 +890,9 @@ importers:
 
   packages/onnxruntime-builder:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       acorn:
         specifier: 'catalog:'
         version: 8.14.0
@@ -919,9 +915,9 @@ importers:
 
   packages/opentui-builder:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -935,9 +931,9 @@ importers:
 
   packages/stubs-builder:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       bin-infra:
         specifier: workspace:*
         version: link:../bin-infra
@@ -960,9 +956,9 @@ importers:
 
   packages/temporal-infra:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -976,9 +972,9 @@ importers:
 
   packages/tui-infra:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -989,9 +985,9 @@ importers:
 
   packages/ultraviolet-builder:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
@@ -1008,9 +1004,9 @@ importers:
 
   packages/yoga-layout-builder:
     dependencies:
-      '@socketsecurity/lib':
-        specifier: 5.28.0
-        version: 5.28.0
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@5.28.0'
       acorn:
         specifier: 'catalog:'
         version: 8.14.0

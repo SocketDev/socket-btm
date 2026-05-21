@@ -8,9 +8,9 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
-import { which } from '@socketsecurity/lib-stable/bin'
+import { which } from '@socketsecurity/lib-stable/bin/which'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import { printError } from './build-output.mts'
 

@@ -10,8 +10,8 @@ import { fileURLToPath } from 'node:url'
 import zlib from 'node:zlib'
 import process from 'node:process'
 
-import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import { getBinjectPath } from './helpers/paths.mts'
 

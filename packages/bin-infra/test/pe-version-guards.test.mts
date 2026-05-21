@@ -16,7 +16,7 @@
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { safeDelete } from '@socketsecurity/lib-stable/fs'
+import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
 
 const TEST_TMP_DIR = path.join(os.tmpdir(), 'pe-version-guards-test')
 

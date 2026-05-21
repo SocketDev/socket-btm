@@ -16,8 +16,8 @@ import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 
-import { safeDelete } from '@socketsecurity/lib-stable/fs'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import {
   ARCH_VALUES,

@@ -26,7 +26,7 @@ import {
   getBuildMode,
 } from 'build-infra/lib/constants'
 
-import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 
 import { execCommand } from 'bin-infra/test/helpers/test-utils'
 

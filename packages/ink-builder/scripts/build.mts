@@ -39,7 +39,7 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 import { getBuildPaths as getYogaBuildPaths } from 'yoga-layout-builder/scripts/paths'
 
 import { ensurePackageInstalled } from '@socketsecurity/lib-stable/dlx/package'
-import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 import { createNodeProtocolPlugin } from '../.config/esbuild/node-protocol.mts'

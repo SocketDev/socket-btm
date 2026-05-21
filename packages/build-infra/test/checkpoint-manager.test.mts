@@ -9,11 +9,11 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { which } from '@socketsecurity/lib-stable/bin'
-import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { which } from '@socketsecurity/lib-stable/bin/which'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 import { toUnixPath } from '@socketsecurity/lib-stable/paths/normalize'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import {
   cleanCheckpoint,

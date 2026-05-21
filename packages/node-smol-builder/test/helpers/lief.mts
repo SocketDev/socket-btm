@@ -4,7 +4,7 @@ import process from 'node:process'
  * @fileoverview Helper utilities for detecting LIEF support in node-smol builds.
  */
 
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import { getLatestFinalBinary } from '../paths.mts'
 

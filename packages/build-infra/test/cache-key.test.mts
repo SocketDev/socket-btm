@@ -8,7 +8,7 @@ import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { safeDelete } from '@socketsecurity/lib-stable/fs'
+import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
 import { escapeRegExp } from '@socketsecurity/lib-stable/regexps'
 import { nodeVersionRaw } from 'build-infra/lib/constants'
 

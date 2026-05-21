@@ -25,7 +25,7 @@ import {
 } from 'build-infra/lib/tool-installer'
 import { getMinPythonVersion } from 'build-infra/lib/version-helpers'
 
-import { whichSync } from '@socketsecurity/lib-stable/bin'
+import { whichSync } from '@socketsecurity/lib-stable/bin/which'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 const logger = getDefaultLogger()

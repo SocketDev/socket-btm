@@ -51,10 +51,10 @@ import colors from 'yoctocolors-cjs'
 import process from 'node:process'
 
 import { parseArgs } from '@socketsecurity/lib-stable/argv/parse'
-import { which } from '@socketsecurity/lib-stable/bin'
-import { safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { which } from '@socketsecurity/lib-stable/bin/which'
+import { safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import { getBuildPaths, getDefaultPlatformArch } from '../../paths.mts'
 

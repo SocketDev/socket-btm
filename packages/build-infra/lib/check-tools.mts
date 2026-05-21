@@ -5,10 +5,10 @@
 import { existsSync } from 'node:fs'
 import process from 'node:process'
 
-import { whichSync } from '@socketsecurity/lib-stable/bin'
+import { whichSync } from '@socketsecurity/lib-stable/bin/which'
 import { getCI } from '@socketsecurity/lib-stable/env/ci'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import { errorMessage } from './error-utils.mts'
 import { ensureAllToolsInstalled } from './tool-installer.mts'

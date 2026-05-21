@@ -7,11 +7,11 @@
 
 import path from 'node:path'
 
-import { which } from '@socketsecurity/lib-stable/bin'
+import { which } from '@socketsecurity/lib-stable/bin/which'
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
-import { safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { toUnixPath } from '@socketsecurity/lib-stable/paths/normalize'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import {
   tarSupportsNoAbsoluteNames,

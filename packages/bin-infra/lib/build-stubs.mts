@@ -35,13 +35,13 @@ import { ensureCurl } from 'curl-builder/lib/ensure-curl'
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
 import { envAsBoolean } from '@socketsecurity/lib-stable/env'
 import { getCI } from '@socketsecurity/lib-stable/env/ci'
-import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 import {
   detectLibc,
   downloadSocketBtmRelease,
 } from '@socketsecurity/lib-stable/releases/socket-btm'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 const logger = getDefaultLogger()
 

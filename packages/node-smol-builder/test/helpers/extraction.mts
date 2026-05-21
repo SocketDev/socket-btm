@@ -8,7 +8,7 @@ import os from 'node:os'
 import path from 'node:path'
 
 import { getSocketDlxDir } from '@socketsecurity/lib-stable/paths/socket'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import {
   HEADER_SIZES,

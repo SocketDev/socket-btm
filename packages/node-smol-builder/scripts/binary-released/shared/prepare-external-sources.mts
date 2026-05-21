@@ -9,7 +9,7 @@ import path from 'node:path'
 import process from 'node:process'
 
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import { ADDITIONS_SOURCE_PATCHED_DIR } from './paths.mts'
 import { errorMessage } from 'build-infra/lib/error-utils'

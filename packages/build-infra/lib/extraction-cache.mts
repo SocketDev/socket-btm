@@ -11,7 +11,7 @@ import crypto from 'node:crypto'
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 
-import { safeMkdirSync } from '@socketsecurity/lib-stable/fs'
+import { safeMkdirSync } from '@socketsecurity/lib-stable/fs/safe'
 import loggerPkg from '@socketsecurity/lib-stable/logger'
 const { getDefaultLogger } = loggerPkg
 

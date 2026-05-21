@@ -16,7 +16,7 @@ import {
   getPlatform,
 } from '@socketsecurity/lib-stable/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import { printError, printInfo, printSuccess } from './build-output.mts'
 import { errorMessage } from './error-utils.mts'

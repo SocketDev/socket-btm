@@ -3,8 +3,8 @@
  * Validates pnpm script execution, command sequencing, and parallel execution.
  */
 
-import * as binModule from '@socketsecurity/lib-stable/bin'
-import * as spawnModule from '@socketsecurity/lib-stable/spawn'
+import * as binModule from '@socketsecurity/lib-stable/bin/which'
+import * as spawnModule from '@socketsecurity/lib-stable/spawn/spawn'
 
 import {
   pnpm,
@@ -16,15 +16,15 @@ import {
 } from '../lib/script-runner.mts'
 
 // Mock dependencies
-vi.mock<typeof import('@socketsecurity/lib-stable/bin')>(
-  import('@socketsecurity/lib-stable/bin'),
+vi.mock<typeof import('@socketsecurity/lib-stable/bin/which')>(
+  import('@socketsecurity/lib-stable/bin/which'),
   () => ({
     which: vi.fn(),
   }),
 )
 
-vi.mock<typeof import('@socketsecurity/lib-stable/spawn')>(
-  import('@socketsecurity/lib-stable/spawn'),
+vi.mock<typeof import('@socketsecurity/lib-stable/spawn/spawn')>(
+  import('@socketsecurity/lib-stable/spawn/spawn'),
   () => ({
     spawn: vi.fn(),
   }),

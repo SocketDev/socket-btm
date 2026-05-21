@@ -19,8 +19,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import { getBinjectPath } from './helpers/paths.mts'
 

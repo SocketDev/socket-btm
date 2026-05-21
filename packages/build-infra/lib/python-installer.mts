@@ -12,9 +12,9 @@ import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 
-import { whichSync } from '@socketsecurity/lib-stable/bin'
+import { whichSync } from '@socketsecurity/lib-stable/bin/which'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import { printError } from './build-output.mts'
 import { errorMessage } from './error-utils.mts'

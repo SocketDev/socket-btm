@@ -47,7 +47,7 @@ import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { naturalCompare } from '@socketsecurity/lib-stable/sorts'
+import { naturalCompare } from '@socketsecurity/lib-stable/sorts/natural'
 
 import { errorMessage } from 'build-infra/lib/error-utils'
 

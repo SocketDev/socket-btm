@@ -22,7 +22,7 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { parseArgs } from '@socketsecurity/lib-stable/argv/parse'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import { UPSTREAM_PATH, getBuildPaths, getCurrentPlatform } from './paths.mts'
 

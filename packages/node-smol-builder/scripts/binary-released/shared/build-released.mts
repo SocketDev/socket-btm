@@ -50,14 +50,14 @@ import { appendCCRemapFlags } from 'build-infra/lib/path-remap-flags'
 import colors from 'yoctocolors-cjs'
 import process from 'node:process'
 
-import { which, whichSync } from '@socketsecurity/lib-stable/bin'
+import { which, whichSync } from '@socketsecurity/lib-stable/bin/which'
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
-import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import {
   LOG_SYMBOLS,
   getDefaultLogger,
 } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import { copyBuildAdditions } from './copy-additions.mts'
 import { PATCHES_SOURCE_PATCHED_DIR } from './paths.mts'

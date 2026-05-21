@@ -45,7 +45,7 @@ import {
   parsePlatformArch,
 } from './platform-mappings.mts'
 import { getNodeVersion } from './version-helpers.mts'
-import { safeDelete } from '@socketsecurity/lib-stable/fs'
+import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
 
 const logger = getDefaultLogger()
 

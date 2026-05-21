@@ -11,7 +11,7 @@ import { CHECKPOINTS } from 'build-infra/lib/constants'
 import { applyPatchDirectory } from 'build-infra/lib/patch-validator'
 
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 
 import { PACKAGE_ROOT, getBuildPaths, getSharedBuildPaths } from '../paths.mts'
 

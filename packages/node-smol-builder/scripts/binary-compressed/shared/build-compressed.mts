@@ -28,7 +28,7 @@ import { printError } from 'build-infra/lib/build-output'
 import { CHECKPOINTS } from 'build-infra/lib/constants'
 import { adHocSign } from 'build-infra/lib/sign'
 
-import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 import { COMPRESS_BINARY_SCRIPT, PACKAGE_ROOT } from './paths.mts'

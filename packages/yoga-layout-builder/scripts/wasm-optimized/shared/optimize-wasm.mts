@@ -11,9 +11,9 @@ import process from 'node:process'
 import { getFileSize } from 'build-infra/lib/build-helpers'
 
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
-import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 const logger = getDefaultLogger()
 

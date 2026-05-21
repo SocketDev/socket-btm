@@ -28,10 +28,10 @@ import { ensureToolInstalled } from 'build-infra/lib/tool-installer'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
-import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
-import { glob } from '@socketsecurity/lib-stable/globs'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
+import { glob } from '@socketsecurity/lib-stable/globs/stream'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import { copySource } from './source-copied/copy-source.mts'
 import { applyPatches } from './source-patched/apply-patches.mts'

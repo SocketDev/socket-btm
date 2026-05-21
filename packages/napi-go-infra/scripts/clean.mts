@@ -7,7 +7,7 @@ import { promises as fs } from 'node:fs'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 import { LIB_DIR } from './paths.mts'
-import { safeDelete } from '@socketsecurity/lib-stable/fs'
+import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
 
 const logger = getDefaultLogger()
 

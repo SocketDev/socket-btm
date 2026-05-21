@@ -5,7 +5,7 @@ import type { SpawnOptions, SpawnSyncOptions } from 'node:child_process'
 
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn, spawnSync } from '@socketsecurity/lib-stable/spawn'
+import { spawn, spawnSync } from '@socketsecurity/lib-stable/spawn/spawn'
 
 // Initialize logger
 const logger = getDefaultLogger()

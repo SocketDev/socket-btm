@@ -9,8 +9,8 @@ import { writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { safeDelete, safeMkdirSync } from '@socketsecurity/lib-stable/fs'
-import { spawnSync } from '@socketsecurity/lib-stable/spawn'
+import { safeDelete, safeMkdirSync } from '@socketsecurity/lib-stable/fs/safe'
+import { spawnSync } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import { validateCheckpoints } from './validate-checkpoints.mts'
 

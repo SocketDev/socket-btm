@@ -39,13 +39,13 @@ import { getSubmoduleVersion } from 'build-infra/lib/version-helpers'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
-import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 import {
   detectLibc,
   downloadSocketBtmRelease,
 } from '@socketsecurity/lib-stable/releases/socket-btm'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 const logger = getDefaultLogger()
 

@@ -11,11 +11,11 @@ import process from 'node:process'
 import { printError } from 'build-infra/lib/build-output'
 import { ensureEmscripten } from 'build-infra/lib/emscripten-installer'
 
-import { which } from '@socketsecurity/lib-stable/bin'
+import { which } from '@socketsecurity/lib-stable/bin/which'
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
-import { safeMkdir } from '@socketsecurity/lib-stable/fs'
+import { safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import { getOptimizationFlags } from '../../lib/optimization-flags.mts'
 

@@ -10,7 +10,7 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 
 import platformPkg from '@socketsecurity/lib-stable/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 const { WIN32 } = platformPkg
 const logger = getDefaultLogger()

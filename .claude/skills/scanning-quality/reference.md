@@ -657,7 +657,7 @@ Import style conventions (Socket Security standards):
   - For `path`, `os`, `url`, `crypto`: use default imports
   - Examples:
     - `import { existsSync, promises as fs } from 'node:fs'` ✅
-    - `import { spawn } from '@socketsecurity/lib-stable/spawn'` ✅ (preferred over node:child_process)
+    - `import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'` ✅ (preferred over node:child_process)
     - `import path from 'node:path'` ✅
     - `import os from 'node:os'` ✅
     - `import { fileURLToPath } from 'node:url'` ✅ (exception: cherry-pick specific exports from url)
@@ -667,7 +667,7 @@ Examples of what to flag:
 
 - Custom log functions: `function log(msg) { console.log(msg) }` → use `@socketsecurity/lib-stable/logger`
 - Direct child_process usage (except in additions/):
-  - `import { execSync } from 'node:child_process'` → use `import { spawn } from '@socketsecurity/lib-stable/spawn'`
+  - `import { execSync } from 'node:child_process'` → use `import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'`
   - `execSync('cmd arg1')` → use `await spawn('cmd', ['arg1'])`
 - Default imports for fs:
   - `import fs from 'node:fs'` → use `import { existsSync, promises as fs } from 'node:fs'`

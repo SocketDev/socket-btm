@@ -22,12 +22,12 @@ import process from 'node:process'
 
 import { fileURLToPath } from 'node:url'
 
-import { safeDelete } from '@socketsecurity/lib-stable/fs'
+import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
 import {
   httpDownload,
   httpJson,
   httpText,
-} from '@socketsecurity/lib-stable/http-request'
+} from '@socketsecurity/lib-stable/http-request/convenience'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 import { escapeRegExp } from '@socketsecurity/lib-stable/regexps'
 

@@ -16,7 +16,7 @@ import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 import { errorMessage } from 'build-infra/lib/error-utils'
 import { fetchNodeChecksum } from 'build-infra/lib/version-helpers'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 const logger = getDefaultLogger()
 

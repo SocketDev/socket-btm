@@ -14,7 +14,7 @@ import { existsSync, readFileSync } from 'node:fs'
 // replacement. `spawn` (async) would also work here but `runOneTest`
 // is called from a sync corpus walker, so the sync variant is the
 // right pick.
-import { spawnSync } from '@socketsecurity/lib-stable/spawn'
+import { spawnSync } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import { getNodeSmolFinalBinary } from '../../../lib/paths.mts'
 

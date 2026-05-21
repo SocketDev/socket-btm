@@ -12,9 +12,9 @@ import {
   safeDelete,
   safeMkdir,
   safeReadFile,
-} from '@socketsecurity/lib-stable/fs'
+} from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn'
+import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 const logger = getDefaultLogger()
 

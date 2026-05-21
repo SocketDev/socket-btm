@@ -13,7 +13,7 @@ import { CHECKPOINTS } from 'build-infra/lib/constants'
 import { applyPatch, validatePatch } from 'build-infra/lib/patch-validator'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
-import { glob } from '@socketsecurity/lib-stable/globs'
+import { glob } from '@socketsecurity/lib-stable/globs/stream'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
 import { MONOREPO_PACKAGE_SOURCES } from '../../binary-released/shared/prepare-external-sources.mts'

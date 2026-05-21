@@ -2,82 +2,28 @@
 
 Build infrastructure for Socket's binary artifacts and ML models.
 
-## What is Socket BTM?
+## Why this repo exists
 
-Socket BTM (Binary Tooling Manager) is Socket Security's build infrastructure for creating custom Node.js binaries, binary manipulation tools, and machine learning models.
+Socket BTM (Binary Tooling Manager) is Socket Security's build infrastructure for creating custom Node.js binaries, manipulating compiled binaries, and producing quantized ML models. We need it because Socket ships:
 
-**Why does this exist?** Socket Security needs to:
+- A patched Node.js binary (~23-27MB) with security enhancements and embedded capabilities (VFS, SEA).
+- Tools to inject data into binaries post-compile (binject) and compress/decompress them while preserving functionality (binpress, binflate).
+- Optimized ML models for security analysis (CodeT5, MiniLM, ONNX Runtime, Yoga Layout).
+- Native bindings and UI libraries (Ink, iocraft, OpenTUI, Ultraviolet) compiled from C/C++/Go/Zig sources.
 
-- Build custom Node.js binaries with security enhancements and embedded capabilities (VFS, SEA)
-- Create tools to inject data into binaries without recompilation (binject)
-- Compress and decompress binaries while preserving functionality (binpress, binflate)
-- Ship optimized ML models for security analysis (CodeT5, MiniLM)
+The repo is for developers working on Socket's internal tools, contributing to Socket's open-source projects, or building custom Node.js distributions. Not user-facing.
 
-**What can you do with it?**
+## Install
 
-- Build a custom Node.js binary (~23-27MB) with Socket's security patches
-- Embed files into executables using Virtual File System (VFS)
-- Create Single Executable Applications (SEA) from Node.js apps
-- Compress binaries for smaller distribution size
-- Build WASM modules for browser and server-side use
-
-**Who is this for?** Developers working on Socket's internal tools, contributing to Socket's open source projects, or building custom Node.js distributions.
-
-## Overview
-
-Monorepo containing:
-
-- **Binary Tools** - binject, binpress, binflate (C/C++ binary manipulation)
-- **Node.js** - Custom Node.js v26 with Socket security patches
-- **WASM** - ONNX Runtime and Yoga Layout
-- **ML Models** - Quantized AI models (CodeT5, MiniLM)
-
-## Core Concepts
-
-If you're new to binary manipulation or Node.js customization, here are the key concepts you'll encounter:
-
-### Single Executable Application (SEA)
-
-A Node.js program bundled into a single executable file. Instead of shipping `node` + `.js` files, you get one `.exe`/binary that contains everything. This makes distribution easier and protects source code.
-
-**Example:** `my-app.exe` contains both Node.js runtime and your application code.
-
-### Virtual File System (VFS)
-
-A filesystem embedded inside a binary. Your executable can read "files" that are actually data baked into the binary itself. No need to extract files to disk first.
-
-**Example:** Your binary contains `config.json` and `index.js` internally, accessed via normal `fs.readFile()` calls.
-
-### Binary Injection
-
-Modifying a compiled binary without recompiling from source. We insert data into special sections of executables (Mach-O on macOS, ELF on Linux, PE on Windows).
-
-**Example:** Take `node` binary, inject a VFS archive into it, output `node-with-vfs`.
-
-### LIEF (Library for Instrumenting Executable Formats)
-
-A C++ library for reading and modifying executable formats (Mach-O, ELF, PE). We use it to inject data into binaries safely without corrupting them.
-
-### Checkpoints
-
-Incremental build caching system. Each build stage (copy sources → apply patches → compile → strip → compress) saves a checkpoint. If source hasn't changed, we skip rebuilding.
-
-**Example:** Building Node.js takes 30 minutes from scratch, but only 2 minutes if you only changed one patch file.
-
-### Compression (zstd)
-
-Reducing binary size for distribution. Compressed binaries self-extract at runtime.
-
-**Example:** 60MB Node.js binary → 23MB compressed binary (saves bandwidth, faster downloads).
-
-## Quick Start
+```sh
+pnpm install
+```
 
 `binject` / `binpress` depend on a prebuilt LIEF artifact, and `stubs-builder` depends on prebuilt curl+mbedTLS; both are fetched automatically from this repo's GitHub releases on first build. Pass `pnpm --filter <builder> run build -- --force` if you need to compile those libraries from source (e.g. an unsupported platform or a LIEF/curl bump that hasn't been published yet).
 
-```bash
-# Install dependencies
-pnpm install
+## Usage
 
+```sh
 # Build binary tools
 pnpm --filter binject run build
 pnpm --filter binpress run build
@@ -96,74 +42,79 @@ pnpm --filter minilm-builder run build
 pnpm --filter models run build
 ```
 
+### Core concepts
+
+If you're new to binary manipulation or Node.js customization, here are the key concepts you'll encounter:
+
+**Single Executable Application (SEA)** — A Node.js program bundled into a single executable file. Instead of shipping `node` + `.js` files, you get one binary that contains everything. Example: `my-app.exe` contains both Node.js runtime and your application code.
+
+**Virtual File System (VFS)** — A filesystem embedded inside a binary. Your executable can read "files" that are actually data baked into the binary itself. Example: your binary contains `config.json` and `index.js` internally, accessed via normal `fs.readFile()` calls.
+
+**Binary Injection** — Modifying a compiled binary without recompiling from source. We insert data into special sections of executables (Mach-O on macOS, ELF on Linux, PE on Windows). Example: take `node` binary, inject a VFS archive into it, output `node-with-vfs`.
+
+**LIEF (Library for Instrumenting Executable Formats)** — A C++ library for reading and modifying executable formats. We use it to inject data into binaries safely without corrupting them.
+
+**Checkpoints** — Build caching. Long builds (Node.js, ONNX Runtime) cache intermediate state so re-runs skip already-completed phases.
+
+**Compression (zstd)** — Facebook's zstandard compression algorithm. Used for binpress/binflate to ship smaller binaries.
+
+### Packages
+
+| Category            | Package                                                                | Purpose                                                           |
+| ------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| **Binary tools**    | [binject](packages/binject/)                                           | Binary injection (Mach-O, ELF, PE)                                |
+|                     | [binpress](packages/binpress/)                                         | Binary compression (zstd)                                         |
+|                     | [binflate](packages/binflate/)                                         | Binary decompression utility                                      |
+| **Infrastructure**  | [build-infra](packages/build-infra/)                                   | Shared build utilities (checkpoints, CMake, Rust, WASM)           |
+|                     | [bin-infra](packages/bin-infra/)                                       | Binary infrastructure (LIEF, compression, format handling)        |
+|                     | [stubs-builder](packages/stubs-builder/)                               | Self-extracting stub binaries for compressed executables          |
+|                     | [curl-builder](packages/curl-builder/)                                 | Curl static library builder                                       |
+|                     | [lief-builder](packages/lief-builder/)                                 | LIEF library builder                                              |
+|                     | [libpq-builder](packages/libpq-builder/)                               | libpq PostgreSQL client library with OpenSSL support              |
+| **Node.js**         | [node-smol-builder](packages/node-smol-builder/)                       | Custom Node.js v26 with Socket security patches                   |
+| **WASM builders**   | [onnxruntime-builder](packages/onnxruntime-builder/)                   | ONNX Runtime WASM module builder                                  |
+|                     | [yoga-layout-builder](packages/yoga-layout-builder/)                   | Yoga Layout WASM module builder                                   |
+| **UI libraries**    | [ink-builder](packages/ink-builder/)                                   | Prepatched Ink with yoga-sync                                     |
+|                     | [iocraft-builder](packages/iocraft-builder/)                           | Native Node.js bindings for iocraft TUI library via napi-rs       |
+|                     | [opentui-builder](packages/opentui-builder/)                           | Native Node.js bindings for OpenTUI library via Zig node-api      |
+|                     | [ultraviolet-builder](packages/ultraviolet-builder/)                   | Charmbracelet Ultraviolet terminal decoder (kitty/fixterms/SGR)   |
+| **N-API**           | [napi-go-infra](packages/napi-go-infra/)                               | Go → N-API framework (the napi-rs analog for Go)                  |
+| **ML models**       | [codet5-models-builder](packages/codet5-models-builder/)               | CodeT5 model quantization                                         |
+|                     | [minilm-builder](packages/minilm-builder/)                             | MiniLM model quantization                                         |
+|                     | [models](packages/models/)                                             | ML model distribution package                                     |
+
 ## Development
 
-### Git Hooks
+<details>
+<summary>Contributor commands</summary>
+
+```sh
+pnpm install   # installs deps + sets up git hooks via Husky's prepare script
+pnpm test      # run tests
+pnpm lint      # lint
+```
+
+### Git hooks
 
 This repository uses [Husky](https://typicode.github.io/husky/) for git hooks:
 
-**Pre-commit Hook** (optional quality checks):
+**Pre-commit hook** (optional quality checks):
 
 - Runs linting on staged files (`pnpm lint --staged`)
 - Runs tests on staged test files (`pnpm test --staged`)
 - Can be bypassed with `git commit --no-verify` for fast local commits, history operations (squash, rebase, amend), or emergency hotfixes
 - Selectively disable checks with environment variables:
-  - `DISABLE_PRECOMMIT_LINT=1` - Skip linting
-  - `DISABLE_PRECOMMIT_TEST=1` - Skip testing
+  - `DISABLE_PRECOMMIT_LINT=1` — skip linting
+  - `DISABLE_PRECOMMIT_TEST=1` — skip testing
 
-**Pre-push Hook** (mandatory security checks):
+**Pre-push hook** (mandatory security checks):
 
 - Runs security validation before pushing to remote
 - Cannot be bypassed
 
-**Setup**:
-Git hooks are automatically installed when running `pnpm install` (via the `prepare` script).
+**Windows requirements**: git hooks use bash scripts and require [Git Bash](https://gitforwindows.org/) or [WSL](https://docs.microsoft.com/en-us/windows/wsl/install) on Windows systems.
 
-**Windows Requirements**:
-Git hooks use bash scripts and require [Git Bash](https://gitforwindows.org/) or [WSL](https://docs.microsoft.com/en-us/windows/wsl/install) on Windows systems.
-
-## Packages
-
-### Binary Tools
-
-- [binject](packages/binject/) - Binary injection (Mach-O, ELF, PE)
-- [binpress](packages/binpress/) - Binary compression (zstd)
-- [binflate](packages/binflate/) - Binary decompression utility
-
-### Infrastructure
-
-- [build-infra](packages/build-infra/) - Shared build utilities (checkpoints, CMake, Rust, WASM)
-- [bin-infra](packages/bin-infra/) - Binary infrastructure (LIEF, compression, format handling)
-- [stubs-builder](packages/stubs-builder/) - Self-extracting stub binaries for compressed executables
-- [curl-builder](packages/curl-builder/) - Curl static library builder
-- [lief-builder](packages/lief-builder/) - LIEF library builder
-- [libpq-builder](packages/libpq-builder/) - libpq PostgreSQL client library with OpenSSL support
-
-### Node.js
-
-- [node-smol-builder](packages/node-smol-builder/) - Custom Node.js v26 with Socket security patches
-
-### WASM Builders
-
-- [onnxruntime-builder](packages/onnxruntime-builder/) - ONNX Runtime WASM module builder
-- [yoga-layout-builder](packages/yoga-layout-builder/) - Yoga Layout WASM module builder
-
-### UI Libraries
-
-- [ink-builder](packages/ink-builder/) - Prepatched Ink with yoga-sync
-- [iocraft-builder](packages/iocraft-builder/) - Native Node.js bindings for iocraft TUI library via napi-rs
-- [opentui-builder](packages/opentui-builder/) - Native Node.js bindings for OpenTUI library via Zig node-api
-- [ultraviolet-builder](packages/ultraviolet-builder/) - Charmbracelet Ultraviolet terminal decoder (kitty/fixterms/SGR) compiled from Go via napi-go-infra
-
-### N-API Frameworks
-
-- [napi-go-infra](packages/napi-go-infra/) - Go → N-API framework (the napi-rs analog for Go), source-distributed from this repo
-
-### ML Models
-
-- [codet5-models-builder](packages/codet5-models-builder/) - CodeT5 model quantization
-- [minilm-builder](packages/minilm-builder/) - MiniLM model quantization
-- [models](packages/models/) - ML model distribution package
+</details>
 
 ## License
 

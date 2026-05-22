@@ -163,10 +163,15 @@ static void CursorPosition(const FunctionCallbackInfo<Value>& args) {
       args[0]->Uint32Value(context).FromMaybe(0));
   uint16_t col = static_cast<uint16_t>(
       args[1]->Uint32Value(context).FromMaybe(0));
+  // ANSI escape sequences are always pure ASCII (digits + brackets +
+  // semicolons + final letter). Skip V8's NewFromUtf8 high-bit scan
+  // by emitting via NewFromOneByte directly.
   std::string seq = ti::CursorPosition(row, col);
   args.GetReturnValue().Set(
-      String::NewFromUtf8(isolate, seq.c_str(), NewStringType::kNormal,
-                          static_cast<int>(seq.size()))
+      String::NewFromOneByte(isolate,
+                             reinterpret_cast<const uint8_t*>(seq.data()),
+                             NewStringType::kNormal,
+                             static_cast<int>(seq.size()))
           .ToLocalChecked());
 }
 
@@ -178,8 +183,10 @@ static void SetFgRgb(const FunctionCallbackInfo<Value>& args) {
   uint8_t b = static_cast<uint8_t>(args[2]->Uint32Value(context).FromMaybe(0));
   std::string seq = ti::SetFgRgb(r, g, b);
   args.GetReturnValue().Set(
-      String::NewFromUtf8(isolate, seq.c_str(), NewStringType::kNormal,
-                          static_cast<int>(seq.size()))
+      String::NewFromOneByte(isolate,
+                             reinterpret_cast<const uint8_t*>(seq.data()),
+                             NewStringType::kNormal,
+                             static_cast<int>(seq.size()))
           .ToLocalChecked());
 }
 
@@ -191,8 +198,10 @@ static void SetBgRgb(const FunctionCallbackInfo<Value>& args) {
   uint8_t b = static_cast<uint8_t>(args[2]->Uint32Value(context).FromMaybe(0));
   std::string seq = ti::SetBgRgb(r, g, b);
   args.GetReturnValue().Set(
-      String::NewFromUtf8(isolate, seq.c_str(), NewStringType::kNormal,
-                          static_cast<int>(seq.size()))
+      String::NewFromOneByte(isolate,
+                             reinterpret_cast<const uint8_t*>(seq.data()),
+                             NewStringType::kNormal,
+                             static_cast<int>(seq.size()))
           .ToLocalChecked());
 }
 

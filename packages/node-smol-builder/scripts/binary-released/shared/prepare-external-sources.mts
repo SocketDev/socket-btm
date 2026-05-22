@@ -29,6 +29,10 @@ import {
 // Upstream liburing is in node-smol-builder/upstream/liburing (sibling to upstream/node).
 const LIBURING_UPSTREAM_DIR = path.join(PACKAGE_ROOT, 'upstream', 'liburing')
 
+// Upstream md4c (CommonMark + GFM Markdown parser) is sibling to upstream/node.
+// md4c.c + entity.c are compiled into the smol-markdown binding.
+const MD4C_UPSTREAM_DIR = path.join(PACKAGE_ROOT, 'upstream', 'md4c')
+
 // Upstream uSockets/uWebSockets for high-performance HTTP server (node:smol-http).
 // uSockets provides direct epoll/kqueue event loop + raw socket I/O.
 // uWebSockets provides HTTP parser (SWAR+bloom), cork buffer, response writer.
@@ -169,6 +173,51 @@ const VENDORED_SOURCES = [
   {
     from: path.join(YOGA_LAYOUT_BUILDER_DIR, 'upstream', 'yoga', 'yoga'),
     to: path.join(ADDITIONS_SOURCE_PATCHED_DIR, 'deps', 'yoga'),
+  },
+  // md4c: CommonMark + GFM Markdown parser. We lift the four source
+  // files (md4c.c + md4c.h + entity.c + entity.h) into
+  // src/socketsecurity/markdown/ alongside markdown_binding.cc so
+  // `#include "md4c.h"` resolves via the existing 'src' include_dirs
+  // entry without needing a new include path.
+  {
+    from: path.join(MD4C_UPSTREAM_DIR, 'src', 'md4c.c'),
+    to: path.join(
+      ADDITIONS_SOURCE_PATCHED_DIR,
+      'src',
+      'socketsecurity',
+      'markdown',
+      'md4c.c',
+    ),
+  },
+  {
+    from: path.join(MD4C_UPSTREAM_DIR, 'src', 'md4c.h'),
+    to: path.join(
+      ADDITIONS_SOURCE_PATCHED_DIR,
+      'src',
+      'socketsecurity',
+      'markdown',
+      'md4c.h',
+    ),
+  },
+  {
+    from: path.join(MD4C_UPSTREAM_DIR, 'src', 'entity.c'),
+    to: path.join(
+      ADDITIONS_SOURCE_PATCHED_DIR,
+      'src',
+      'socketsecurity',
+      'markdown',
+      'entity.c',
+    ),
+  },
+  {
+    from: path.join(MD4C_UPSTREAM_DIR, 'src', 'entity.h'),
+    to: path.join(
+      ADDITIONS_SOURCE_PATCHED_DIR,
+      'src',
+      'socketsecurity',
+      'markdown',
+      'entity.h',
+    ),
   },
 ]
 

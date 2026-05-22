@@ -69,6 +69,20 @@ size_t Renderer::Flush(char* dst, size_t dst_capacity) {
     // optimizer would hoist this in most cases, but writing it
     // explicitly makes the inner-loop index just `+ x` (one add).
     const size_t row_base = static_cast<size_t>(y) * w;
+
+    // Row-level memcmp fast skip: on a typical TUI frame most rows
+    // are completely unchanged (e.g. only the header / status line
+    // updated). One memcmp of `w * sizeof(Cell)` bytes (= 12w bytes)
+    // is ~13x faster than `w` per-cell == comparisons because libc's
+    // memcmp is vectorized (AVX2 / NEON, ~32 bytes/cycle). When the
+    // memcmp says the row is identical AND we're not doing a full
+    // redraw, skip the entire inner loop.
+    if (!full_redraw &&
+        std::memcmp(&next_data[row_base], &prev_data[row_base],
+                    static_cast<size_t>(w) * sizeof(Cell)) == 0) {
+      continue;
+    }
+
     for (uint32_t x = 0; x < w; ++x) {
       const size_t i = row_base + x;
       const Cell& cur = next_data[i];

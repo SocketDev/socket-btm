@@ -13,6 +13,7 @@
 #include "tui/renderables.hpp"
 
 #include "tui/cell.hpp"
+#include "tui/utf8.hpp"
 
 namespace tui {
 
@@ -63,29 +64,6 @@ inline Cell MakeCell(uint32_t cp, const BoxStyle& s, bool border_glyph) {
   c.bg_b = s.bg_b;
   c.attrs = s.attrs;
   return c;
-}
-
-// Scan one UTF-8 grapheme (1 byte for ASCII, 2-4 for non-ASCII) without
-// decoding. Returns the byte length. Used by the word-wrap line builder
-// when it needs to slice raw UTF-8 bytes (no codepoint needed).
-size_t Utf8ByteLen(const char* p, const char* end) {
-  if (p >= end) {
-    return 0;
-  }
-  const uint8_t b0 = static_cast<uint8_t>(*p);
-  if ((b0 & 0x80) == 0) {
-    return 1;
-  }
-  if ((b0 & 0xe0) == 0xc0) {
-    return 2;
-  }
-  if ((b0 & 0xf0) == 0xe0) {
-    return 3;
-  }
-  if ((b0 & 0xf8) == 0xf0) {
-    return 4;
-  }
-  return 1;
 }
 
 }  // namespace

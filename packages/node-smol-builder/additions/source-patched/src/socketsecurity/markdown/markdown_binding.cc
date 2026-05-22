@@ -193,6 +193,34 @@ unsigned ParseFlags(const std::string& s) {
   return out;
 }
 
+// V8-string-aware wrapper around ParseFlags. Stack-buffers short ASCII
+// flag strings (the common case — "commonmark", "github",
+// "tables,strikethrough") and falls through to the heap path for the
+// unlikely large/non-ASCII case.
+inline unsigned ParseFlagsFromV8(Isolate* isolate, Local<String> flag_str) {
+  constexpr size_t kInlineThreshold = 256;
+  const int str_len = flag_str->Length();
+  if (str_len == 0) {
+    return 0;
+  }
+  char inline_buf[kInlineThreshold];
+  if (flag_str->IsOneByte() &&
+      static_cast<size_t>(str_len) <= kInlineThreshold) {
+    flag_str->WriteOneByte(isolate, reinterpret_cast<uint8_t*>(inline_buf), 0,
+                           str_len, String::NO_NULL_TERMINATION);
+    return ParseFlags(
+        std::string(inline_buf, static_cast<size_t>(str_len)));
+  }
+  const int utf8_len = flag_str->Utf8Length(isolate);
+  if (utf8_len == 0) {
+    return 0;
+  }
+  std::string flag_buf(static_cast<size_t>(utf8_len), '\0');
+  flag_str->WriteUtf8(isolate, flag_buf.data(), utf8_len, nullptr,
+                      String::NO_NULL_TERMINATION);
+  return ParseFlags(flag_buf);
+}
+
 }  // namespace
 
 // parseMarkdownStream(text, flags?) -> ArrayBuffer
@@ -241,14 +269,11 @@ static void ParseMarkdownStream(const FunctionCallbackInfo<Value>& args) {
 
   unsigned flags = 0;
   if (args.Length() >= 2 && args[1]->IsString()) {
+    // Flag strings are short ASCII identifiers ("commonmark", "github",
+    // "tables,strikethrough"). Skip the Utf8Length probe + UTF-8
+    // conversion when possible — same shape as keymap/qrcode.
     Local<String> flag_str = args[1].As<String>();
-    int flag_len = flag_str->Utf8Length(isolate);
-    if (flag_len > 0) {
-      std::string flag_buf(static_cast<size_t>(flag_len), '\0');
-      flag_str->WriteUtf8(isolate, flag_buf.data(), flag_len, nullptr,
-                          String::NO_NULL_TERMINATION);
-      flags = ParseFlags(flag_buf);
-    }
+    flags = ParseFlagsFromV8(isolate, flag_str);
   }
 
   ParseState state{};
@@ -349,14 +374,11 @@ static void ParseMarkdown(const FunctionCallbackInfo<Value>& args) {
 
   unsigned flags = 0;
   if (args.Length() >= 2 && args[1]->IsString()) {
+    // Flag strings are short ASCII identifiers ("commonmark", "github",
+    // "tables,strikethrough"). Skip the Utf8Length probe + UTF-8
+    // conversion when possible — same shape as keymap/qrcode.
     Local<String> flag_str = args[1].As<String>();
-    int flag_len = flag_str->Utf8Length(isolate);
-    if (flag_len > 0) {
-      std::string flag_buf(static_cast<size_t>(flag_len), '\0');
-      flag_str->WriteUtf8(isolate, flag_buf.data(), flag_len, nullptr,
-                          String::NO_NULL_TERMINATION);
-      flags = ParseFlags(flag_buf);
-    }
+    flags = ParseFlagsFromV8(isolate, flag_str);
   }
 
   ParseState state{};

@@ -1009,7 +1009,47 @@ static void EncodeHtml(const FunctionCallbackInfo<Value>& args) {
   // five vectorized memchr passes still beat one branchy per-byte
   // scan for any non-trivial input length.
   constexpr int kInlineThreshold = 4096;
-  bool needs_escape = false;
+
+  // Encode a one-byte run into Latin-1 output. The five must-escape
+  // chars + their entity replacements are all ASCII, so a one-byte
+  // input ALWAYS produces a one-byte output — no UTF-8 round-trip
+  // needed. Return via NewFromOneByte to skip V8's high-bit scan.
+  auto encode_one_byte = [&](const uint8_t* bytes, size_t len) {
+    std::string out;
+    out.reserve(len + 16);
+    for (size_t i = 0; i < len; ++i) {
+      const uint8_t c = bytes[i];
+      switch (c) {
+        case '<':
+          out.append("&lt;", 4);
+          break;
+        case '>':
+          out.append("&gt;", 4);
+          break;
+        case '&':
+          out.append("&amp;", 5);
+          break;
+        case '"':
+          out.append("&quot;", 6);
+          break;
+        case '\'':
+          out.append("&#39;", 5);
+          break;
+        default:
+          out.push_back(static_cast<char>(c));
+      }
+    }
+    MaybeLocal<String> result_maybe = String::NewFromOneByte(
+        isolate, reinterpret_cast<const uint8_t*>(out.data()),
+        v8::NewStringType::kNormal, static_cast<int>(out.size()));
+    Local<String> result;
+    if (!result_maybe.ToLocal(&result)) {
+      args.GetReturnValue().SetUndefined();
+      return;
+    }
+    args.GetReturnValue().Set(result);
+  };
+
   if (input->IsOneByte()) {
     uint8_t stack_buf[kInlineThreshold];
     std::vector<uint8_t> heap_buf;
@@ -1027,17 +1067,20 @@ static void EncodeHtml(const FunctionCallbackInfo<Value>& args) {
     // the comparison results, and uses movemask / vmaxvq to bail
     // ASAP on the first match. ~5x faster than five sequential
     // memchr scans on inputs ≥64 bytes.
-    if (ContainsAnyEscapeChar(scan_ptr, static_cast<size_t>(char_len))) {
-      needs_escape = true;
-    }
-    if (!needs_escape) {
+    if (!ContainsAnyEscapeChar(scan_ptr, static_cast<size_t>(char_len))) {
       args.GetReturnValue().Set(input);
       return;
     }
-    // One-byte string with escape chars present. Latin-1 chars >= 0x80
-    // encode as 2-byte UTF-8; we need the UTF-8 form for the output
-    // since we're emitting `&amp;` etc. as bytes. Re-materialize.
-  } else {
+    // One-byte input with escape chars present. Encode directly from
+    // scan_ptr; no second WriteUtf8 needed, no UTF-8 round-trip.
+    encode_one_byte(scan_ptr, static_cast<size_t>(char_len));
+    return;
+  }
+
+  // Two-byte path. Output may contain non-ASCII codepoints from the
+  // input, so UTF-8 encoding is required.
+  bool needs_escape = false;
+  {
     uint16_t stack_buf[kInlineThreshold];
     std::vector<uint16_t> heap_buf;
     uint16_t* scan_ptr;
@@ -1062,7 +1105,7 @@ static void EncodeHtml(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  // Hit path: materialize UTF-8 for the actual escape pass.
+  // Two-byte hit path: materialize UTF-8 for the actual escape pass.
   const int input_len = input->Utf8Length(isolate);
   std::string buf(static_cast<size_t>(input_len), '\0');
   input->WriteUtf8(isolate, buf.data(), input_len, nullptr,

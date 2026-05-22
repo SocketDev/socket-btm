@@ -85,10 +85,10 @@
 // new entry to one of its enums in a future bump, the JS-side mirror
 // stays in sync because both pull from the same source.
 
-#include "socketsecurity/tui/ansi.hpp"
-#include "socketsecurity/tui/cell.hpp"
-#include "socketsecurity/tui/mouse.hpp"
-#include "socketsecurity/tui/renderer.hpp"
+#include "tui/ansi.hpp"
+#include "tui/cell.hpp"
+#include "tui/mouse.hpp"
+#include "tui/renderer.hpp"
 
 #include "yoga/Yoga.h"
 

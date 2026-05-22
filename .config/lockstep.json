@@ -59,6 +59,10 @@
       "submodule": "packages/node-smol-builder/upstream/uWebSockets",
       "repo": "https://github.com/uNetworking/uWebSockets"
     },
+    "dawn": {
+      "submodule": "packages/dawn-builder/upstream/dawn",
+      "repo": "https://dawn.googlesource.com/dawn"
+    },
     "libqrencode": {
       "submodule": "packages/node-smol-builder/upstream/libqrencode",
       "repo": "https://github.com/fukuchi/libqrencode"
@@ -595,6 +599,16 @@
       "upgrade_policy": "major-gate",
       "criticality": 8,
       "notes": "ML inference runtime for embedded models. Major bumps can break model compatibility."
+    },
+    {
+      "kind": "version-pin",
+      "id": "dawn",
+      "upstream": "dawn",
+      "pinned_sha": "86a5e62047fb580bef9d2e74900b30df76e570db",
+      "pinned_tag": "main",
+      "upgrade_policy": "track-latest",
+      "criticality": 5,
+      "notes": "Dawn — Chromium's WebGPU implementation. Submodule pinned at packages/dawn-builder/upstream/dawn. Currently scaffolding only (D1+D2 of the integration plan at .claude/plans/dawn-webgpu-integration.md); build wiring lands in D3. Dawn has no semver releases — it tracks Chromium branch numbers (current branch series: chromium/7852). Bumping happens on Chromium milestone cuts (~6 weeks)."
     },
     {
       "kind": "version-pin",

@@ -172,3 +172,9 @@
 	url = https://github.com/fukuchi/libqrencode
 	ignore = dirty
 	shallow = true
+# dawn-chromium/7852 (track-latest: bumps every ~6 weeks with chromium branch cuts; bump via updating-dawn skill once it exists)
+[submodule "packages/dawn-builder/upstream/dawn"]
+	path = packages/dawn-builder/upstream/dawn
+	url = https://dawn.googlesource.com/dawn
+	ignore = dirty
+	shallow = true

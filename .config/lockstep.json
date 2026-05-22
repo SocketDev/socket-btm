@@ -595,6 +595,64 @@
       "notes": "Native opentui builder. Matches the pin in socket-tui's lockstep for consistency across the OpenTUI ecosystem."
     },
     {
+      "kind": "file-fork",
+      "id": "tui-infra-ansi",
+      "upstream": "opentui",
+      "local": "packages/tui-infra/src/socketsecurity/tui/ansi.cc",
+      "upstream_path": "packages/core/src/zig/ansi.zig",
+      "forked_at_sha": "cc94b5829ac0f6f45320562811acd8260ddc1922",
+      "criticality": 7,
+      "deviations": [
+        "C++ instead of Zig — 1:1 port of `ANSI` namespace to `tui::ANSI`.",
+        "Cold-path builders return `std::string` (one-shot setup writes).",
+        "Hot-path writers (`WriteCursorPosition`, `WriteFgRgb`, `WriteBgRgb`, `WriteAttributes`) take a caller-provided char* buffer and return bytes written so V8 FastApi specializations can target them without per-call allocation."
+      ],
+      "notes": "Embedded into node-smol as the ANSI emit surface for `node:smol-tui` (per-frame flush path)."
+    },
+    {
+      "kind": "file-fork",
+      "id": "tui-infra-buffer",
+      "upstream": "opentui",
+      "local": "packages/tui-infra/src/socketsecurity/tui/buffer.cc",
+      "upstream_path": "packages/core/src/zig/buffer-methods.zig",
+      "forked_at_sha": "cc94b5829ac0f6f45320562811acd8260ddc1922",
+      "criticality": 7,
+      "deviations": [
+        "C++ instead of Zig.",
+        "Cell POD trimmed to the fields the diff renderer actually uses (codepoint + fg/bg RGB + attrs); upstream OptimizedBuffer carries extra fields (id, respectAlpha, scissor stack) not needed by the embedded renderer."
+      ],
+      "notes": "Embedded into node-smol as the cell-buffer storage backing the `node:smol-tui` renderer."
+    },
+    {
+      "kind": "file-fork",
+      "id": "tui-infra-renderer",
+      "upstream": "opentui",
+      "local": "packages/tui-infra/src/socketsecurity/tui/renderer.cc",
+      "upstream_path": "packages/core/src/zig/renderer.zig",
+      "forked_at_sha": "cc94b5829ac0f6f45320562811acd8260ddc1922",
+      "criticality": 7,
+      "deviations": [
+        "C++ instead of Zig — port of `CliRenderer` (next + prev double-buffer with diff flush) to `tui::Renderer`.",
+        "Single Flush(char*, size_t) entry point; caller supplies the output Uint8Array (zero allocation per frame).",
+        "kFlushOverflow sentinel return on buffer-too-small (caller retries with a bigger buffer); upstream Zig uses a fixed allocator instead."
+      ],
+      "notes": "Embedded into node-smol as the per-frame flush path of `node:smol-tui`."
+    },
+    {
+      "kind": "file-fork",
+      "id": "tui-infra-mouse",
+      "upstream": "opentui",
+      "local": "packages/tui-infra/src/socketsecurity/tui/mouse.cc",
+      "upstream_path": "packages/core/src/lib/parse.mouse.ts",
+      "forked_at_sha": "cc94b5829ac0f6f45320562811acd8260ddc1922",
+      "criticality": 7,
+      "deviations": [
+        "C++ instead of TypeScript — 1:1 port of the SGR + X10 mouse-sequence decoder including drag-state tracking (press → motion → release becomes DOWN → DRAG → DRAG_END + DROP).",
+        "Process-wide handle registry (`uint32_t` → `MouseParser*`) under a single mutex; upstream uses a per-process singleton object."
+      ],
+      "notes": "Embedded into node-smol as the mouse decode surface of `node:smol-tui`."
+    },
+    {
       "kind": "version-pin",
       "id": "ultraviolet",
       "upstream": "ultraviolet",

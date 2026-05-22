@@ -1,23 +1,31 @@
 # tui-infra
 
-Source-only C++ TUI primitives — render loop + Yoga binding + mouse
-parser — embedded into `node-smol-builder` as the `node:smol-tui`
-builtin module. Mirrors the [`temporal-infra`](../temporal-infra/) pattern:
-no binary release, no Docker, no workflow. Consumers compile the `.cc`
-/ `.hpp` files inline via additions/source-patched.
+Source-only C++ TUI primitives — ANSI emit + cell-buffer diff render
+loop + Yoga binding + mouse parser — embedded into `node-smol-builder`
+as the `node:smol-tui` builtin. Mirrors the
+[`temporal-infra`](../temporal-infra/) pattern: no binary release, no
+Docker, no workflow. Consumers compile the `.cc` / `.hpp` files inline
+via additions/source-patched.
 
 ## Status
 
-**v0 scaffold.** Native code not yet ported; this is the skeleton +
-lockstep plan only. The first three PRs port one tier each.
+**Tier 1–3 ported.** ANSI emit, cell-buffer diff render loop, mouse
+parser, and Yoga direct binding are all live in
+[`node:smol-tui`](../node-smol-builder/additions/source-patched/lib/smol-tui.js).
+The binding glue lives at
+[`additions/source-patched/src/socketsecurity/tui/tui_binding.cc`](../node-smol-builder/additions/source-patched/src/socketsecurity/tui/tui_binding.cc).
+Higher-level surfaces (`@opentui/react`, `@opentui/keymap`,
+`@opentui/qrcode`, `@opentui/solid`) are planned as
+`node:smol-tui/<surface>` siblings — see the design plan at
+[`.claude/plans/opentui-smol-tui-completion.md`](../../.claude/plans/opentui-smol-tui-completion.md).
 
-## Three-tier plan
+## Three-tier port
 
-| Tier   | Surface                                     | Hot path?                           | Upstream                                                              | Status |
-| ------ | ------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------- | ------ |
-| Tier 1 | ANSI emit (cursor moves, SGR, cell flushes) | Yes — every frame                   | OpenTUI `packages/core/src/zig/ansi.zig` (268 LOC, the per-cell path) | TODO   |
-| Tier 2 | Cell buffer + diff + render loop            | Yes — every frame                   | OpenTUI `packages/core/src/zig/renderer.zig`                          | TODO   |
-| Tier 3 | Yoga direct binding + mouse parser          | Per-event (mouse), per-frame (Yoga) | yoga + socket-stuie `packages/react/src/mouse-parser.ts`              | TODO   |
+| Tier   | Surface                                       | Hot path?                           | Upstream                                                                                                                                                                                                                                                                                              | Status |
+| ------ | --------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| Tier 1 | ANSI emit (cursor moves, SGR, cell flushes)   | Yes — every frame                   | [`opentui/packages/core/src/zig/ansi.zig`](../opentui-builder/upstream/opentui/packages/core/src/zig/ansi.zig)                                                                                                                                                                                       | DONE   |
+| Tier 2 | Cell buffer + diff + render loop              | Yes — every frame                   | [`opentui/packages/core/src/zig/renderer.zig`](../opentui-builder/upstream/opentui/packages/core/src/zig/renderer.zig) + [`buffer-methods.zig`](../opentui-builder/upstream/opentui/packages/core/src/zig/buffer-methods.zig)                                                                        | DONE   |
+| Tier 3 | Yoga direct binding + mouse parser            | Per-event (mouse), per-frame (Yoga) | yoga 3.2.1 (C++ upstream) + [`opentui/packages/core/src/lib/parse.mouse.ts`](../opentui-builder/upstream/opentui/packages/core/src/lib/parse.mouse.ts)                                                                                                                                               | DONE   |
 
 The user-facing `packages/core/src/ansi.ts` (18 LOC) is a thin
 re-export of cursor/screen state primitives — NOT the per-cell hot
@@ -25,18 +33,15 @@ path. The Zig file is where the render loop's flush calls land
 (`ANSI.moveToOutput / fgColorOutput / bgColorOutput /
 applyAttributesOutputWriter`).
 
-Each tier ships independently. Tier 1 alone wins ~30% per-frame on
-typical OpenTUI workloads (per socket-stuie's `bench/render.mts`).
-
 ## Architecture
 
 Three layers, same shape as `temporal-infra`:
 
-| Layer                     | Source                          | Notes                                                                                                                                    |
-| ------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| **(1) Layout (Yoga)**     | yoga submodule (C++ upstream)   | Yoga is already C++ — Tier 3 wires it directly into node-smol via `node:smol-tui.computeLayout()`, replacing socket-stuie's WASM bridge. |
-| **(2) Terminal I/O**      | Node's `process.stdout` + libuv | We don't re-implement raw I/O. ANSI emit produces a Buffer; we write it via the existing Node stream API.                                |
-| **(3) Render algorithms** | this package                    | Tier 1+2: cell buffer, dirty diff, ANSI batch emit. Tier 3: mouse-event SGR parser.                                                      |
+| Layer                     | Source                          | Notes                                                                                                                                |
+| ------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **(1) Layout (Yoga)**     | yoga submodule (C++ upstream)   | Yoga is already C++ — `node:smol-tui.computeLayout()` wires it directly into node-smol, no JS bridge.                                |
+| **(2) Terminal I/O**      | Node's `process.stdout` + libuv | Raw I/O stays in Node. ANSI emit produces a `Buffer`; the JS layer writes it via the existing Node stream API.                        |
+| **(3) Render algorithms** | this package                    | Cell buffer, dirty diff, ANSI batch emit, SGR / X10 mouse decode, Yoga handle registry.                                              |
 
 ## Why source-only
 
@@ -46,34 +51,43 @@ Same rationale as `temporal-infra`:
   headers and compiles the `.cc` files alongside V8/Node sources.
 - Single source of truth: socket-stuie's TS render loop and this C++
   port both target the same OpenTUI semantics; lockstep tracked via
-  the central `.config/lockstep.json` `rows` array (matches the
-  socket-btm fleet pattern — same file temporal-infra and other
-  upstream-tracking packages use).
+  `.config/lockstep.json` rows (`tui-infra-ansi`, `tui-infra-buffer`,
+  `tui-infra-renderer`, `tui-infra-mouse`, and the `opentui`
+  `version-pin`).
 - Bumping OpenTUI means bumping the submodule SHA + re-running the
   parity tests — same workflow as bumping `boa-dev/temporal` in
   temporal-infra.
 
-## Lockstep
+## JS contract
 
-Rows planned for socket-btm's `.config/lockstep.json`:
+`node:smol-tui` exposes one binding under `internalBinding('smol_tui')`
+re-exported by `lib/smol-tui.js`. The surface groups by tier:
 
-| ID                 | Kind          | Upstream                                                                                   | Local                                             |
-| ------------------ | ------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------- |
-| `tui-infra-ansi`   | `file-fork`   | socket-stuie `packages/core/upstream/opentui/packages/core/src/zig/ansi.zig`               | `src/socketsecurity/tui/ansi.cc`                  |
-| `tui-infra-render` | `file-fork`   | socket-stuie `packages/core/upstream/opentui/packages/core/src/zig/renderer.zig`           | `src/socketsecurity/tui/render.cc` (Tier 2)       |
-| `tui-infra-mouse`  | `file-fork`   | socket-stuie `packages/react/src/mouse-parser.ts` (already optimized)                      | `src/socketsecurity/tui/mouse_parser.cc` (Tier 3) |
-| `opentui-parity`   | `version-pin` | `anomalyco/opentui` v0.1.99 (SHA `cc94b58`, matches socket-stuie's existing `opentui` pin) | upstream submodule reference                      |
-| `yoga`             | `version-pin` | `facebook/yoga` (matches socket-stuie's pin)                                               | `upstream/yoga/` (Tier 3)                         |
+- **ANSI constants + writers** — `constants.{reset,clear,...}`,
+  `cursorPosition`, `setFgRgb`, `setBgRgb`, `writeCursorPosition` (Fast
+  API), `writeFgRgb` (Fast API), `writeBgRgb` (Fast API),
+  `writeAttributes` (Fast API), `sizes.{maxCursorPositionLen,...}`.
+- **Renderer / cell buffer** — `createRenderer`, `destroyRenderer`,
+  `rendererResize`, `rendererClear`, `rendererSet`, `rendererFillRect`,
+  `rendererDrawText`, `rendererInvalidate`, `rendererFlush`,
+  `rendererSize`.
+- **Mouse parser** — `createParser`, `destroyParser`, `resetParser`,
+  `parseMouseOne`, `looksLikeMouseSequence`, `mouseEventType.{...}`,
+  `scrollDirection.{...}`.
+- **Yoga layout** — `yogaCreateNode`, `yogaFreeNode`, `yogaInsertChild`,
+  `yogaRemoveChild`, `yogaCalculateLayout`, `yogaMarkDirty`,
+  `yogaGetComputedLayout`, plus 14 `yogaSet*` setters, plus enum
+  mirrors `flexDirection.{...}`, `justify.{...}`, `align.{...}`,
+  `edge.{...}`, `wrap.{...}`, `positionType.{...}`, `direction.{...}`.
 
-socket-stuie's TS layer keeps being the test-bed for new TUI features;
-when a feature stabilizes there, the file-fork row picks it up and the
-C++ port follows.
+All entries are zero-allocation per call where the binding can manage
+it: hot-path writers and `rendererFlush` take caller-allocated
+`Uint8Array` outputs; the JS layer reuses one buffer per session.
 
 ## Wiring into node-smol
 
-Once Tier 1 ports land, `node-smol-builder`'s
-`prepare-external-sources.mts` will add two `MONOREPO_PACKAGE_SOURCES`
-entries (mirrors temporal-infra's wiring):
+[`prepare-external-sources.mts`](../node-smol-builder/scripts/binary-released/shared/prepare-external-sources.mts)
+copies the two trees into `additions/source-patched/`:
 
 ```ts
 {
@@ -86,6 +100,19 @@ entries (mirrors temporal-infra's wiring):
 },
 ```
 
-The `node:smol-tui` builtin is then registered via a new node-smol
-patch parallel to the existing `node:smol-power` / `node:smol-util`
-patches.
+Three node-smol patches register the binding:
+
+- [`004-node-gyp-smol-sources.patch`](../node-smol-builder/patches/source-patched/004-node-gyp-smol-sources.patch)
+  — lists the `.cc` files in `node.gyp` under the
+  `node_use_smol_tui == "true"` gate.
+- [`017-smol-builtin-bindings.patch`](../node-smol-builder/patches/source-patched/017-smol-builtin-bindings.patch)
+  — declares `smol_tui` in `NODE_BUILTIN_BINDINGS`.
+- [`018-configure-postgres-iouring.patch`](../node-smol-builder/patches/source-patched/018-configure-postgres-iouring.patch)
+  — adds `--without-smol-tui` flag and `node_use_smol_tui` variable.
+
+The `node:` prefix is enforced by patch
+[`003-realm-smol-bindings.patch`](../node-smol-builder/patches/source-patched/003-realm-smol-bindings.patch),
+which adds `'smol-tui'` to the `schemelessBlockList` in
+`lib/internal/bootstrap/realm.js`. Loading `require('smol-tui')`
+without the prefix fails with `ERR_UNKNOWN_BUILTIN_MODULE`; the only
+valid spec is `require('node:smol-tui')`.

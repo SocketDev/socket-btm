@@ -35,7 +35,9 @@
 #include "v8.h"
 
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <string>
 
 namespace node {
@@ -125,13 +127,28 @@ static void Encode(const FunctionCallbackInfo<Value>& args) {
   const int width = qr->width;
   const size_t matrix_size = static_cast<size_t>(width) * width;
 
-  // Allocate the matrix as a JS-side ArrayBuffer so the JS layer owns
-  // the buffer (no manual lifetime management on the C++ side).
-  Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, matrix_size);
-  std::memcpy(ab->Data(), qr->data, matrix_size);
-  Local<Uint8Array> matrix = Uint8Array::New(ab, 0, matrix_size);
-
+  // Zero-copy adoption: steal `qr->data` and wrap it as a V8
+  // ArrayBuffer with a custom deleter that calls free() when the
+  // JS side garbage-collects the buffer. The QRcode struct itself
+  // is freed here; only its data buffer escapes via the V8 handle.
+  //
+  // The alternative (allocate a fresh ArrayBuffer + memcpy +
+  // QRcode_free) costs one extra allocation + one memcpy of
+  // matrix_size bytes. For a v40-H QR code (177×177 = ~31 KB) that's
+  // measurable.
+  unsigned char* data = qr->data;
+  qr->data = nullptr;  // prevent QRcode_free from touching it
   QRcode_free(qr);
+
+  std::unique_ptr<v8::BackingStore> store = ArrayBuffer::NewBackingStore(
+      data, matrix_size,
+      [](void* d, size_t /*len*/, void* /*info*/) {
+        // libqrencode allocates with malloc; symmetric free().
+        std::free(d);
+      },
+      /*deleter_data=*/nullptr);
+  Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(store));
+  Local<Uint8Array> matrix = Uint8Array::New(ab, 0, matrix_size);
 
   result->Set(context, String::NewFromUtf8Literal(isolate, "width"),
               Integer::NewFromUnsigned(isolate, static_cast<uint32_t>(width)))

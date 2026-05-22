@@ -167,8 +167,6 @@ static void FreeLanguage(const FunctionCallbackInfo<Value>& args) {
 
 namespace {
 
-// Pre-order DFS. Appends 4-element tuples [type_name, start_byte,
-// end_byte, child_count] for every named node in the tree to `out`.
 // Per-parse cache of v8::String handles keyed by the grammar's
 // node-type string pointer. tree-sitter interns type names per
 // language, so the same pointer == same string; we avoid re-creating
@@ -177,56 +175,83 @@ namespace {
 // hit rate is well above 95%.
 using TypeStringCache = std::unordered_map<const char*, v8::Eternal<String>>;
 
-void EmitNode(Isolate* isolate, Local<Context> context, Local<Array> out,
-              uint32_t& index, TSNode node, TypeStringCache& cache) {
-  if (ts_node_is_null(node)) {
+// Iterative pre-order walk using tree-sitter's TSTreeCursor API.
+// Replaces a recursive walk to avoid stack overflow on deeply nested
+// grammars (some JS/TS files nest 200+ levels deep through chained
+// method calls or JSX). The cursor maintains O(1) iteration state
+// internally + traverses with goto_first_child / goto_next_sibling /
+// goto_parent primitives — no recursion overhead, no stack risk on
+// any grammar depth.
+//
+// Behavior matches the previous recursive walk: ANON nodes are
+// skipped in the emit output, but the walk DOES descend through
+// them to find named grandchildren. Slot 3 (named_child_count) gives
+// JS consumers the named-only child count so tree reconstruction
+// stays correct.
+void EmitTree(Isolate* isolate, Local<Context> context, Local<Array> out,
+              TSNode root, TypeStringCache& cache) {
+  if (ts_node_is_null(root)) {
     return;
   }
+  TSTreeCursor cursor = ts_tree_cursor_new(root);
+  uint32_t index = 0;
 
-  // ts_node_named_child_count is implemented as an O(children) scan
-  // through the subtree's child array (it skips anonymous nodes). Read
-  // it once; the same value is used as the tuple slot 3 payload AND
-  // the loop bound below.
-  const uint32_t named_child_count = ts_node_named_child_count(node);
+  // Pre-order traversal pattern using a cursor:
+  //   - Visit current node (emit iff named).
+  //   - Descend to first child if any (anon or named — both can
+  //     contain named descendants).
+  //   - Otherwise advance to next sibling, climbing back up parents
+  //     as needed until we find one (or hit the root again).
+  for (;;) {
+    TSNode node = ts_tree_cursor_current_node(&cursor);
+    if (ts_node_is_named(node)) {
+      Local<Array> tuple = Array::New(isolate, 4);
 
-  // Only emit named nodes (anon punctuation blows up the output
-  // without adding value for highlighters).
-  if (ts_node_is_named(node)) {
-    Local<Array> tuple = Array::New(isolate, 4);
+      const char* type = ts_node_type(node);
+      Local<String> type_str;
+      auto it = cache.find(type);
+      if (it != cache.end()) {
+        type_str = it->second.Get(isolate);
+      } else {
+        Local<String> fresh =
+            String::NewFromUtf8(isolate, type,
+                                v8::NewStringType::kInternalized)
+                .ToLocalChecked();
+        cache.emplace(type, v8::Eternal<String>(isolate, fresh));
+        type_str = fresh;
+      }
 
-    // Cache lookup: same type pointer == same v8::String handle.
-    const char* type = ts_node_type(node);
-    Local<String> type_str;
-    auto it = cache.find(type);
-    if (it != cache.end()) {
-      type_str = it->second.Get(isolate);
-    } else {
-      // First sighting of this type in the current parse — materialize
-      // the v8::String and cache it via v8::Eternal so the handle is
-      // safe to hold across HandleScope exits.
-      Local<String> fresh =
-          String::NewFromUtf8(isolate, type, v8::NewStringType::kInternalized)
-              .ToLocalChecked();
-      cache.emplace(type, v8::Eternal<String>(isolate, fresh));
-      type_str = fresh;
+      tuple->Set(context, 0, type_str).Check();
+      tuple->Set(context, 1,
+                 Integer::NewFromUnsigned(isolate, ts_node_start_byte(node)))
+          .Check();
+      tuple->Set(context, 2,
+                 Integer::NewFromUnsigned(isolate, ts_node_end_byte(node)))
+          .Check();
+      tuple->Set(
+          context, 3,
+          Integer::NewFromUnsigned(isolate, ts_node_named_child_count(node)))
+          .Check();
+      out->Set(context, index++, tuple).Check();
     }
 
-    tuple->Set(context, 0, type_str).Check();
-    tuple->Set(context, 1,
-               Integer::NewFromUnsigned(isolate, ts_node_start_byte(node)))
-        .Check();
-    tuple->Set(context, 2,
-               Integer::NewFromUnsigned(isolate, ts_node_end_byte(node)))
-        .Check();
-    tuple->Set(context, 3,
-               Integer::NewFromUnsigned(isolate, named_child_count))
-        .Check();
-    out->Set(context, index++, tuple).Check();
-  }
-
-  for (uint32_t i = 0; i < named_child_count; ++i) {
-    EmitNode(isolate, context, out, index, ts_node_named_child(node, i),
-             cache);
+    // Descend first (into ALL children — anon nodes can contain
+    // named descendants the old recursive walk would have found via
+    // ts_node_named_child's transitive descent).
+    if (ts_tree_cursor_goto_first_child(&cursor)) {
+      continue;
+    }
+    // No child — advance horizontally / climb out.
+    for (;;) {
+      if (ts_tree_cursor_goto_next_sibling(&cursor)) {
+        break;
+      }
+      if (!ts_tree_cursor_goto_parent(&cursor)) {
+        // Climbed back past the root; we're done.
+        ts_tree_cursor_delete(&cursor);
+        return;
+      }
+    }
   }
 }
 
@@ -274,12 +299,11 @@ static void Parse(const FunctionCallbackInfo<Value>& args) {
 
   TSNode root = ts_tree_root_node(tree);
   Local<Array> out = Array::New(isolate, 0);
-  uint32_t idx = 0;
   TypeStringCache type_cache;
   // Most grammars have well under 200 unique node types; pre-size to
   // avoid rehash growth during the walk.
   type_cache.reserve(256);
-  EmitNode(isolate, context, out, idx, root, type_cache);
+  EmitTree(isolate, context, out, root, type_cache);
 
   ts_tree_delete(tree);
   ts_parser_delete(parser);

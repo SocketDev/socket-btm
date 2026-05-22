@@ -1,34 +1,37 @@
-// node:smol-webgpu binding — stub.
+// node:smol-webgpu binding — Dawn-detect entry shape.
 //
-// Exposes the JS surface (navigator.gpu shape) so userland code that
-// compiles against WebGPU resolves the module. Every call currently
-// throws "WebGPU not yet wired" — the underlying Dawn integration is
-// a multi-week effort tracked separately.
+// Build-time detection: when node-smol's configure step finds Dawn's
+// build artifact (libwebgpu_dawn.a + headers from packages/dawn-builder),
+// it defines HAVE_DAWN. Without Dawn, the binding compiles as a stub
+// that reports unavailable.
 //
-// Why a stub?
+// Detection contract for userland:
 //
-//   Dawn (https://dawn.googlesource.com/dawn) is Chromium's WebGPU
-//   implementation. Its `src/dawn/node/` subdirectory ships a Node.js
-//   binding ready to adapt to internalBinding shape. But the Dawn
-//   tree is ~436 MB cloned, pulls Tint (WGSL compiler) + SPIRV-Tools
-//   + per-platform GPU drivers (Metal on macOS, Vulkan/D3D12
-//   elsewhere), and the first compile is hours. Adding it as a
-//   submodule before the rest of the WebGPU surface is designed
-//   bloats the fleet repo without delivering value.
+//   const { isAvailable } = internalBinding('smol_webgpu')
+//   if (!isAvailable()) {
+//     // Fall back to userland shim or skip WebGPU-dependent features.
+//   }
 //
-// What lands now:
+// Why a compile-time gate (instead of dlopen at runtime)?
 //
-//   - The smol_webgpu binding name (so internalBinding('smol_webgpu')
-//     resolves without crashing).
-//   - createInstance() / requestAdapter() / requestDevice() stubs
-//     that throw a structured error pointing at the design doc.
+//   Dawn ships a Node binding under src/dawn/node/ — adapting that
+//   surface to internalBinding shape is multi-week work (D6-D9). The
+//   v0 milestone (this file) lands the detection plumbing only. When
+//   dawn-builder produces its artifact and node-smol configure picks
+//   it up, isAvailable() returns true; the remaining methods still
+//   throw the structured "not yet wired" error until D6+ implements
+//   them. This keeps the JS surface stable across the rollout — code
+//   written against `isAvailable()` works today (always falls back)
+//   and continues to work once real Dawn lands (returns true and the
+//   call sites actually run).
 //
-// What lands later:
+// What lands later (D6-D9):
 //
-//   - Dawn submodule at packages/node-smol-builder/upstream/dawn.
-//   - CMake island-build wrapper that compiles libwebgpu_dawn.a +
-//     libtint.a + libspirv_cross.a as static libs.
-//   - Real implementation of every stub here.
+//   - Real CreateInstance / RequestAdapter / RequestDevice backed by
+//     wgpu* C-API calls.
+//   - GPUCommandEncoder / GPURenderPassEncoder / GPUBuffer JS wrappers.
+//   - Adaptation of Dawn's src/dawn/node/ N-API binding to
+//     internalBinding shape (V1 milestone).
 //
 // The JS surface in lib/smol-webgpu.js mirrors the W3C WebGPU IDL
 // (https://www.w3.org/TR/webgpu/) so userland code is portable.
@@ -54,14 +57,18 @@ using v8::Value;
 
 namespace {
 
-// Single error message reused across every stub entry. Points at the
-// fleet plan doc so users can find the integration design + an issue
-// link to track progress.
+// Single error message reused across every not-yet-implemented entry.
+// Points at the fleet plan doc so users can find the integration
+// design + an issue link to track progress.
 const char kPendingMessage[] =
     "node:smol-webgpu is not yet wired — Dawn integration pending. "
-    "See .claude/plans/opentui-smol-tui-completion.md (Phase C) and "
-    "https://dawn.googlesource.com/dawn/+/refs/heads/main/src/dawn/node/ "
-    "for the design path.";
+    "See .claude/plans/dawn-webgpu-integration.md (D6-D9) for the "
+    "method rollout.";
+
+const char kUnavailableMessage[] =
+    "node:smol-webgpu unavailable — this node-smol build was not linked "
+    "against Dawn. Build dawn-builder (pnpm --filter dawn-builder run "
+    "build) and rebuild node-smol with the artifact present.";
 
 inline void ThrowPending(Isolate* isolate) {
   Local<String> msg =
@@ -71,36 +78,67 @@ inline void ThrowPending(Isolate* isolate) {
   isolate->ThrowException(Exception::Error(msg));
 }
 
+inline void ThrowUnavailable(Isolate* isolate) {
+  Local<String> msg =
+      String::NewFromUtf8(isolate, kUnavailableMessage,
+                          v8::NewStringType::kInternalized)
+          .ToLocalChecked();
+  isolate->ThrowException(Exception::Error(msg));
+}
+
 }  // namespace
 
-// All entries currently throw. The function names mirror the
-// W3C WebGPU IDL one-for-one so the JS layer can re-export them
-// under their canonical names.
+// IsAvailable is the ONE entry that returns rather than throws. It is
+// the detection mechanism userland reads to decide whether to attempt
+// the rest of the surface or fall back. Returns true iff this build
+// was linked against Dawn.
+
+static void IsAvailable(const FunctionCallbackInfo<Value>& args) {
+#ifdef HAVE_DAWN
+  args.GetReturnValue().Set(true);
+#else
+  args.GetReturnValue().Set(false);
+#endif
+}
+
+// All other entries currently throw — kUnavailableMessage if the build
+// has no Dawn, kPendingMessage otherwise (the method itself hasn't
+// been implemented yet but Dawn IS present, so an upgrade unblocks
+// it without a rebuild). The function names mirror the W3C WebGPU IDL
+// one-for-one so the JS layer can re-export them under their
+// canonical names.
 
 static void CreateInstance(const FunctionCallbackInfo<Value>& args) {
+#ifdef HAVE_DAWN
   ThrowPending(args.GetIsolate());
+#else
+  ThrowUnavailable(args.GetIsolate());
+#endif
 }
 
 static void RequestAdapter(const FunctionCallbackInfo<Value>& args) {
+#ifdef HAVE_DAWN
   ThrowPending(args.GetIsolate());
+#else
+  ThrowUnavailable(args.GetIsolate());
+#endif
 }
 
 static void RequestDevice(const FunctionCallbackInfo<Value>& args) {
+#ifdef HAVE_DAWN
   ThrowPending(args.GetIsolate());
+#else
+  ThrowUnavailable(args.GetIsolate());
+#endif
 }
 
 static void GetPreferredCanvasFormat(
     const FunctionCallbackInfo<Value>& args) {
+#ifdef HAVE_DAWN
   ThrowPending(args.GetIsolate());
-}
-
-static void IsAvailable(const FunctionCallbackInfo<Value>& args) {
-  // Synchronous detection helper — returns false in the stub. Userland
-  // code reads this before attempting to use the API and falls back
-  // to userland WebGPU shims (or skips WebGPU features) when it's
-  // false. This is the ONE entry that doesn't throw — userland needs
-  // a deterministic detection mechanism.
-  args.GetReturnValue().Set(false);
+#else
+  ThrowUnavailable(args.GetIsolate());
+#endif
 }
 
 static void Initialize(Local<Object> target,

@@ -221,10 +221,14 @@ size_t WriteAttributes(char* dst, uint8_t attrs) {
   // resolves to the SGR reset (ESC[0m). Bit positions match Zig
   // upstream's TextAttributes struct so the wire format is identical
   // to OpenTUI output. Worst case: all 8 bits set + reset = 32 bytes.
+  //
+  // Iteration walks only SET bits via __builtin_ctz: typical cells
+  // have 0-2 attrs set, so the loop runs 0-2 iterations instead of
+  // the 8 unconditional iterations a bit-mask-scan loop would do.
+  // For BOLD-only text (common case) that's 1 iteration vs 8.
   char* p = dst;
   *p++ = '\x1b';
   *p++ = '[';
-  bool first = true;
   if (attrs == TextAttributes::kNone) {
     *p++ = '0';
     *p++ = 'm';
@@ -232,14 +236,26 @@ size_t WriteAttributes(char* dst, uint8_t attrs) {
   }
   // SGR codes mirror the kBold/kDim/... constants above (1..5, 7..9).
   static constexpr uint8_t kSgrCode[8] = {1, 2, 3, 4, 5, 7, 8, 9};
-  for (size_t i = 0; i < 8; ++i) {
-    if (attrs & (1u << i)) {
-      if (!first) {
-        *p++ = ';';
-      }
-      first = false;
-      p += WriteU8(p, kSgrCode[i]);
+  bool first = true;
+  uint32_t bits = attrs;
+  while (bits != 0) {
+#if defined(__GNUC__) || defined(__clang__)
+    const unsigned bit_idx = __builtin_ctz(bits);
+#else
+    // MSVC fallback: same semantics via _BitScanForward.
+    unsigned long bit_idx_long;
+    _BitScanForward(&bit_idx_long, bits);
+    const unsigned bit_idx = static_cast<unsigned>(bit_idx_long);
+#endif
+    if (!first) {
+      *p++ = ';';
     }
+    first = false;
+    p += WriteU8(p, kSgrCode[bit_idx]);
+    // Clear the lowest set bit so the next __builtin_ctz finds the
+    // next-higher set bit. `bits & (bits - 1)` is the canonical
+    // branchless "clear lowest set bit" trick.
+    bits &= bits - 1;
   }
   *p++ = 'm';
   return static_cast<size_t>(p - dst);

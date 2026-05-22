@@ -150,16 +150,28 @@ size_t Renderer::Flush(char* dst, size_t dst_capacity) {
   // Trailing SGR reset so the next caller-driven write doesn't inherit
   // our last style. Only emit if we actually wrote anything.
   if (p != dst) {
-    const size_t reset_len = std::strlen(kReset);
-    if (static_cast<size_t>(end - p) < reset_len) {
+    // kReset is a compile-time const char[]; sizeof - 1 skips the
+    // null terminator without a runtime strlen call.
+    constexpr size_t kResetLen = sizeof(kReset) - 1;
+    if (static_cast<size_t>(end - p) < kResetLen) {
       return kFlushOverflow;
     }
-    std::memcpy(p, kReset, reset_len);
-    p += reset_len;
+    std::memcpy(p, kReset, kResetLen);
+    p += kResetLen;
   }
 
   // Commit: prev_ now matches what the terminal shows.
-  prev_ = next_;
+  //
+  // Swap rather than copy: prev_ and next_ are both owned by this
+  // Renderer; after Flush, the caller's next-frame setup starts with
+  // Clear() which overwrites next_'s contents anyway. Swap is three
+  // pointer assignments (the internal std::vector pointers); the
+  // alternative `prev_ = next_` is a full 12-bytes-per-cell copy —
+  // 144 KB for a 200×60 grid, every frame.
+  next_.Swap(prev_);
+  // After the swap, prev_ holds what the terminal now shows (the
+  // former next_), and next_ holds the previous frame's data — which
+  // the caller will Clear() on entry to the next render cycle.
   needs_full_redraw_ = false;
 
   return static_cast<size_t>(p - dst);

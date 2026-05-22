@@ -29,6 +29,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "tui/cell.hpp"
@@ -43,6 +44,15 @@ class CellBuffer {
   uint32_t Width() const noexcept { return width_; }
   uint32_t Height() const noexcept { return height_; }
   const Cell* Data() const noexcept { return cells_.data(); }
+
+  // Swap contents with another buffer of the same dimensions. O(1) —
+  // swaps the underlying std::vector + width/height triple. Used by
+  // Renderer::Flush to commit `prev_ <- next_` without a 144 KB copy.
+  void Swap(CellBuffer& other) noexcept {
+    cells_.swap(other.cells_);
+    std::swap(width_, other.width_);
+    std::swap(height_, other.height_);
+  }
 
   // Resize the grid. Existing content is discarded — callers redraw
   // after resize. Idempotent when width/height already match.

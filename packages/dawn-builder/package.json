@@ -1,0 +1,21 @@
+{
+  "name": "dawn-builder",
+  "version": "0.0.0",
+  "description": "Dawn (Chromium's WebGPU implementation) builder. Produces libwebgpu_dawn.a + headers that node-smol-builder links against to expose the node:smol-webgpu builtin.",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./scripts/paths": "./scripts/paths.mts"
+  },
+  "scripts": {
+    "clean": "node scripts/clean.mts"
+  },
+  "dependencies": {
+    "@socketsecurity/lib-stable": "catalog:",
+    "build-infra": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

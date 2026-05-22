@@ -65,16 +65,28 @@ sequential:
 2. **stubs** — consumes curl + lief; produces platform stubs that
    binsuite + node-smol SEA-inject.
 3. **binsuite** — consumes stubs (+ curl, lief).
-4. **node-smol** — consumes stubs + binsuite + curl + lief; the
-   final layer.
+4. **temporal-infra** — invokes `/updating-temporal-infra` to refresh
+   the parity reference + audit the C++ port for drift. Short-
+   circuits if `boa-dev/temporal` hasn't cut a new tag since the
+   last run (no commit, cascade proceeds). When it DOES move, the
+   C++ port catches up before node-smol consumes the changes via
+   `additions/source-patched/`.
+5. **node-smol** — consumes stubs + binsuite + curl + lief + the
+   refreshed temporal C++ port; the final layer.
 
 Adjacent vendor syncs (independent of the chain): `updating-fast-webstreams`,
 `updating-zstd` — can run any time.
 
 **Why the order matters:** node-smol embeds the stub-injected `curl`
-binary plus the LIEF library; dispatching node-smol before its
+binary plus the LIEF library AND consumes the temporal C++ port via
+`additions/source-patched/`; dispatching node-smol before its
 prerequisites cascade leaves it building against stale dependencies
 and surfaces "fixed" issues in the wrong layer.
+
+**Coupling is one-way:** `/updating-node` exercises
+`/updating-temporal-infra` so every Node bump has a current parity
+reference. A standalone `/updating-temporal-infra` run (boa-dev/temporal
+cuts a tag while Node is current) does NOT drag in a Node rebuild.
 
 ### Phase 4: Report
 

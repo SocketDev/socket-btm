@@ -71,7 +71,7 @@
            ],
          }],
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
-@@ -1055,14 +1079,294 @@
+@@ -1055,14 +1079,299 @@
            ],
            'dependencies': [
              'deps/ncrypto/ncrypto.gyp:ncrypto',
@@ -141,6 +141,11 @@
 +            'src/socketsecurity/markdown/markdown_binding.cc',
 +            'src/socketsecurity/markdown/md4c.c',
 +            'src/socketsecurity/markdown/entity.c',
++            # Socket Security: smol-tree-sitter binding. tree-sitter's
++            # lib.c is an umbrella that #includes every other lib/src/*.c
++            # via relative path, so only lib.c needs listing here.
++            'src/socketsecurity/tree_sitter/tree_sitter_binding.cc',
++            'src/socketsecurity/tree_sitter/tree-sitter/src/lib.c',
 +            'src/socketsecurity/manifest/manifest_binding.cc',
 +            'src/socketsecurity/manifest/parser_cargo.cc',
 +            'src/socketsecurity/manifest/parser_npm.cc',
@@ -367,7 +372,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1084,7 +1375,7 @@
+@@ -1084,7 +1380,7 @@
            ],
          }],
 -        [ 'node_use_quic=="true"', {
@@ -376,7 +381,7 @@
              '<@(node_quic_sources)',
            ],
          }],
-@@ -1406,7 +1697,7 @@
+@@ -1406,7 +1702,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -385,7 +390,7 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1447,6 +1738,17 @@
+@@ -1447,6 +1743,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -403,7 +408,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1521,6 +1822,17 @@
+@@ -1521,6 +1827,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -421,7 +426,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1744,6 +2055,17 @@
+@@ -1744,6 +2060,17 @@
              'Ws2_32.lib',
            ],
          }],

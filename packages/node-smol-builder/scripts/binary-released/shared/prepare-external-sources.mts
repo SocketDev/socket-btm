@@ -33,6 +33,15 @@ const LIBURING_UPSTREAM_DIR = path.join(PACKAGE_ROOT, 'upstream', 'liburing')
 // md4c.c + entity.c are compiled into the smol-markdown binding.
 const MD4C_UPSTREAM_DIR = path.join(PACKAGE_ROOT, 'upstream', 'md4c')
 
+// Upstream tree-sitter (incremental parser library) is sibling to upstream/node.
+// lib/src/lib.c is the umbrella TU that includes all parser sources;
+// lib/include/tree_sitter/api.h is the public header consumed by the binding.
+const TREE_SITTER_UPSTREAM_DIR = path.join(
+  PACKAGE_ROOT,
+  'upstream',
+  'tree-sitter',
+)
+
 // Upstream uSockets/uWebSockets for high-performance HTTP server (node:smol-http).
 // uSockets provides direct epoll/kqueue event loop + raw socket I/O.
 // uWebSockets provides HTTP parser (SWAR+bloom), cork buffer, response writer.
@@ -217,6 +226,25 @@ const VENDORED_SOURCES = [
       'socketsecurity',
       'markdown',
       'entity.h',
+    ),
+  },
+  // tree-sitter: incremental parser library. The lib/ directory holds
+  // the umbrella lib.c (which includes every other .c via relative
+  // path) + all internal headers (alloc.h, parser.h, ...) + the
+  // public include/tree_sitter/api.h. We copy the whole subtree under
+  // src/socketsecurity/tree_sitter/tree-sitter/ so:
+  //   - tree_sitter_binding.cc's `#include
+  //     "socketsecurity/tree_sitter/tree_sitter/api.h"` resolves
+  //   - the umbrella lib.c's `#include "./*.c"` works (siblings stay
+  //     adjacent inside lib/src/)
+  {
+    from: path.join(TREE_SITTER_UPSTREAM_DIR, 'lib'),
+    to: path.join(
+      ADDITIONS_SOURCE_PATCHED_DIR,
+      'src',
+      'socketsecurity',
+      'tree_sitter',
+      'tree-sitter',
     ),
   },
 ]

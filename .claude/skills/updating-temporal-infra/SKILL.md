@@ -22,69 +22,19 @@ submodule + lockstep row when upstream cuts a new release.
 - **Kind**: `feature-parity` (lockstep.json) — the port re-implements
   the Rust crate's externally observable behavior, not the source.
 
-## Why this tracks-latest (not locked) — emerging language feature
+## Why this tracks-latest — emerging language feature
 
-[`Temporal`](https://tc39.es/proposal-temporal/) is the
-**Stage 4** ECMAScript proposal (recently promoted from Stage 3)
-for first-class date/time/timezone/calendar handling. Spec:
-<https://tc39.es/proposal-temporal/>. Implementations are still
-shipping (V8 14.x has it behind a flag), boa-dev/temporal lands
-fixes regularly, and divergence between our port and the
-canonical Rust implementation is a real risk.
+[`Temporal`](https://tc39.es/proposal-temporal/) is the **Stage 4** ECMAScript proposal (recently promoted from Stage 3) for first-class date/time/timezone/calendar handling. boa-dev/temporal lands fixes on its own cadence — often faster than upstream Node bumps — and the C++ port at `packages/temporal-infra/src/socketsecurity/temporal/` mirrors the canonical Rust crate so the port stays aligned with what the spec is actually doing.
 
-### UNLIKE lief / curl / cjson / libdeflate / etc.
+V8's link target is the **vendored copy** inside the Node submodule at `deps/crates/vendor/temporal_rs/`. That's V8's concern; we don't track it explicitly. Our single top-level temporal submodule (`packages/temporal-infra/upstream/temporal`) exists for the C++ port to consume — track-latest, no separate locked copy.
 
-For most upstreams socket-btm vendors, we sync the submodule SHA
-to **whatever version upstream Node ships** (via `deps/<name>/`).
-That's the right policy for stable C/C++ libraries with frozen
-APIs — the goal is reproducible Node builds, not tracking the
-library's own cadence.
+The same logic applies to any **future emerging-feature ports** (decorators, pattern matching, etc.) — the `*-infra` package tracks the proposal cadence; V8's link target stays whatever Node ships.
 
-**Temporal is different.** It's an emerging language feature, not
-a stable utility library:
+## Coupling with `/updating-node`
 
-- The TC39 proposal is still settling edge cases (calendar
-  ambiguity, ISO week math, leap-second semantics).
-- boa-dev/temporal cuts releases on its own cadence, often
-  faster than upstream Node bumps.
-- V8's Temporal implementation lives in
-  `deps/v8/src/objects/js-temporal-objects.cc` and depends on
-  the Rust crate via FFI through `temporal_capi`. V8 may pin
-  an older boa-dev/temporal than what's current.
-- Locking us to V8's pin would mean the C++ port can never
-  exercise newer Temporal API shapes than what V8 happens to
-  ship — defeats the point of an independent port.
+`/updating-node` invokes this skill as a sub-step in its Phase 3 cascade order (between `binsuite` and `node-smol`). When Node cuts a new tag, the cascade refreshes the parity reference and audits the C++ port for drift before building node-smol. If this skill's Phase 2 short-circuits at "already at latest," the cascade proceeds straight to node-smol with no temporal commit.
 
-**Two submodules, two policies:**
-
-| Submodule | Policy | Driven by |
-|---|---|---|
-| `packages/node-smol-builder/upstream/temporal` | **locked** to upstream Node's `deps/crates/Cargo.toml` pin (currently v0.1.0) | `updating-node` cascade |
-| `packages/temporal-infra/upstream/temporal` | **track-latest** boa-dev/temporal release | this skill |
-
-**They DO NOT need to agree.** node-smol's submodule is what V8
-links against (the Rust crate compiled into the binary).
-temporal-infra's submodule is the **parity reference** for the
-hand-written C++ port — source of truth for "what should the API
-surface look like." A newer parity reference than what V8 ships
-against is fine; the C++ port matches the upstream API even when
-V8 doesn't expose every new symbol yet.
-
-The annotations in `.gitmodules` make this explicit:
-
-```
-# temporal-v0.1.0 (locked: pinned by upstream Node ...)
-[submodule "packages/node-smol-builder/upstream/temporal"]
-  ...
-# temporal-vX.Y.Z (track-latest: bump independently via updating-temporal-infra)
-[submodule "packages/temporal-infra/upstream/temporal"]
-  ...
-```
-
-The same logic applies to any **future emerging-feature ports**
-(decorators, pattern matching, etc.) — the *-infra package
-tracks the proposal cadence, the node-smol vendor copy stays
-locked to whatever Node ships.
+The reverse coupling does not apply: a standalone temporal bump (this skill invoked directly) does NOT drag in a Node rebuild.
 
 ## Process
 
@@ -103,21 +53,16 @@ CURRENT=$(git describe --tags 2>/dev/null || echo "unknown")
 
 If `LATEST == CURRENT`, exit 0 with "already at latest."
 
-### Phase 3 — Bump only temporal-infra's submodule
+### Phase 3 — Bump the temporal submodule
 
 ```bash
-# Bump temporal-infra to the latest upstream tag.
+# Bump the canonical temporal submodule to the latest upstream tag.
 git -C packages/temporal-infra/upstream/temporal checkout "$LATEST"
 ```
 
-**Do NOT bump `packages/node-smol-builder/upstream/temporal`** —
-that submodule is locked to upstream Node's `deps/crates/Cargo.toml`
-pin. Bumping it independently would diverge what V8 links against
-from what upstream expects, and is the `updating-node` skill's
-job, not this one.
+Update the `.gitmodules` annotation: `# temporal-vX.Y.Z (canonical temporal submodule; …)` → new tag.
 
-Update `.gitmodules` annotation for THIS submodule only:
-`# temporal-vX.Y.Z (track-latest: ...)` → new tag.
+There is exactly one temporal submodule (consolidated from the earlier two-submodule split in commit `67919e29`). V8's link target lives in the vendored Rust crate inside the Node submodule (`deps/crates/vendor/temporal_rs/`) and is unaffected by this bump — bumping the parity reference cannot diverge V8's link target.
 
 ### Phase 4 — Update lockstep.json
 
@@ -202,10 +147,12 @@ a parser update across all 4 ultrathink lang impls.
   follow-ups for task #217 (the implementation work). Don't block
   the SHA bump on having every symbol ported; the port catches
   up incrementally.
-- **node-smol's submodule SHA drifts ahead of temporal-infra's**:
-  fine — node-smol's vendored copy is the V8 link target;
-  temporal-infra's is the parity reference and may legitimately
-  be ahead. Concerning only in the reverse direction (V8 has a
-  newer Temporal API than the parity reference), in which case
-  consult upstream Node's `deps/crates/Cargo.toml` and decide
-  whether to bump temporal-infra forward.
+- **V8's link target is newer than the parity reference**:
+  V8's vendored `deps/crates/vendor/temporal_rs/` (inside the Node
+  submodule) is whatever Node ships; the parity reference at
+  `packages/temporal-infra/upstream/temporal` is whatever
+  boa-dev/temporal cuts. Usually parity is ahead. If V8 is ahead
+  (rare — only when Node ships a brand-new temporal_rs before
+  boa-dev tags it), consult upstream Node's `deps/crates/Cargo.toml`
+  and bump the parity submodule to a commit that matches or
+  exceeds V8's pin.

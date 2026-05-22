@@ -169,26 +169,49 @@ namespace {
 
 // Pre-order DFS. Appends 4-element tuples [type_name, start_byte,
 // end_byte, child_count] for every named node in the tree to `out`.
+// Per-parse cache of v8::String handles keyed by the grammar's
+// node-type string pointer. tree-sitter interns type names per
+// language, so the same pointer == same string; we avoid re-creating
+// the v8::String on every node. A typical grammar has 100-200 unique
+// node types but a parse produces thousands of named nodes — the
+// hit rate is well above 95%.
+using TypeStringCache = std::unordered_map<const char*, v8::Eternal<String>>;
+
 void EmitNode(Isolate* isolate, Local<Context> context, Local<Array> out,
-              uint32_t& index, TSNode node) {
+              uint32_t& index, TSNode node, TypeStringCache& cache) {
   if (ts_node_is_null(node)) {
     return;
   }
-  // Only emit named nodes (the anon punctuation nodes blow up the
-  // output without adding value for highlighters).
-  const bool is_named = ts_node_is_named(node);
 
-  if (is_named) {
+  // ts_node_named_child_count is implemented as an O(children) scan
+  // through the subtree's child array (it skips anonymous nodes). Read
+  // it once; the same value is used as the tuple slot 3 payload AND
+  // the loop bound below.
+  const uint32_t named_child_count = ts_node_named_child_count(node);
+
+  // Only emit named nodes (anon punctuation blows up the output
+  // without adding value for highlighters).
+  if (ts_node_is_named(node)) {
     Local<Array> tuple = Array::New(isolate, 4);
+
+    // Cache lookup: same type pointer == same v8::String handle.
     const char* type = ts_node_type(node);
-    MaybeLocal<String> type_str_maybe =
-        String::NewFromUtf8(isolate, type, v8::NewStringType::kNormal);
     Local<String> type_str;
-    if (type_str_maybe.ToLocal(&type_str)) {
-      tuple->Set(context, 0, type_str).Check();
+    auto it = cache.find(type);
+    if (it != cache.end()) {
+      type_str = it->second.Get(isolate);
     } else {
-      tuple->Set(context, 0, v8::Undefined(isolate)).Check();
+      // First sighting of this type in the current parse — materialize
+      // the v8::String and cache it via v8::Eternal so the handle is
+      // safe to hold across HandleScope exits.
+      Local<String> fresh =
+          String::NewFromUtf8(isolate, type, v8::NewStringType::kInternalized)
+              .ToLocalChecked();
+      cache.emplace(type, v8::Eternal<String>(isolate, fresh));
+      type_str = fresh;
     }
+
+    tuple->Set(context, 0, type_str).Check();
     tuple->Set(context, 1,
                Integer::NewFromUnsigned(isolate, ts_node_start_byte(node)))
         .Check();
@@ -196,15 +219,14 @@ void EmitNode(Isolate* isolate, Local<Context> context, Local<Array> out,
                Integer::NewFromUnsigned(isolate, ts_node_end_byte(node)))
         .Check();
     tuple->Set(context, 3,
-               Integer::NewFromUnsigned(
-                   isolate, ts_node_named_child_count(node)))
+               Integer::NewFromUnsigned(isolate, named_child_count))
         .Check();
     out->Set(context, index++, tuple).Check();
   }
 
-  const uint32_t n = ts_node_named_child_count(node);
-  for (uint32_t i = 0; i < n; ++i) {
-    EmitNode(isolate, context, out, index, ts_node_named_child(node, i));
+  for (uint32_t i = 0; i < named_child_count; ++i) {
+    EmitNode(isolate, context, out, index, ts_node_named_child(node, i),
+             cache);
   }
 }
 
@@ -253,7 +275,11 @@ static void Parse(const FunctionCallbackInfo<Value>& args) {
   TSNode root = ts_tree_root_node(tree);
   Local<Array> out = Array::New(isolate, 0);
   uint32_t idx = 0;
-  EmitNode(isolate, context, out, idx, root);
+  TypeStringCache type_cache;
+  // Most grammars have well under 200 unique node types; pre-size to
+  // avoid rehash growth during the walk.
+  type_cache.reserve(256);
+  EmitNode(isolate, context, out, idx, root, type_cache);
 
   ts_tree_delete(tree);
   ts_parser_delete(parser);

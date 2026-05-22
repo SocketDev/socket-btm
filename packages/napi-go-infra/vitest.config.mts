@@ -1,4 +1,3 @@
-/* oxlint-disable socket/no-default-export -- vitest CLI auto-discovers config via default import. */
 /**
  * Extends shared vitest config — Go-backed N-API framework tests use
  * the 30s timeout override because Go binaries load faster than the
@@ -8,6 +7,7 @@ import { defineConfig, mergeConfig } from 'vitest/config'
 
 import baseConfig from '../../.config/vitest.config.mts'
 
+// oxlint-disable-next-line socket/no-default-export -- vitest CLI auto-discovers config via default import.
 export default mergeConfig(
   baseConfig,
   defineConfig({

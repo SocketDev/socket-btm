@@ -1,4 +1,3 @@
-/* oxlint-disable socket/no-default-export -- vitest CLI auto-discovers config via default import. */
 /**
  * Extends shared vitest config — ultraviolet-builder tests exercise
  * Go N-API bindings which load quickly, so override to the 30s
@@ -8,6 +7,7 @@ import { defineConfig, mergeConfig } from 'vitest/config'
 
 import baseConfig from '../../.config/vitest.config.mts'
 
+// oxlint-disable-next-line socket/no-default-export -- vitest CLI auto-discovers config via default import.
 export default mergeConfig(
   baseConfig,
   defineConfig({

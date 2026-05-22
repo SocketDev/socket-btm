@@ -1,5 +1,4 @@
 // max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
-/* oxlint-disable socket/sort-source-methods -- public API surface ordered by usage (createRenderer first, then helpers); alphabetizing would bury the entry-point function. */
 import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
@@ -284,6 +283,7 @@ export const TargetChannel = {
 
 const textEncoder = new TextEncoder()
 
+// oxlint-disable-next-line socket/sort-source-methods -- public API surface ordered by usage (createRenderer first, then helpers); alphabetizing would bury the entry-point function.
 export function encodeText(text) {
   return textEncoder.encode(text)
 }
@@ -403,12 +403,13 @@ const BLACK = new Float32Array([0, 0, 0, 1])
 const WHITE = new Float32Array([1, 1, 1, 1])
 const TRANSPARENT = new Float32Array([0, 0, 0, 0])
 
-const _hasFA = typeof native.bufferDrawTextFA === 'function'
-const _hasFast = typeof native.editBufferInsertTextFast === 'function'
-const _hasSized = typeof native.editBufferGetTextSized === 'function'
-const _hasBinary = typeof native.writeOutBinary === 'function'
-const _hasCursorInto = typeof native.editBufferGetCursorInto === 'function'
+const hasFA = typeof native.bufferDrawTextFA === 'function'
+const hasFast = typeof native.editBufferInsertTextFast === 'function'
+const hasSized = typeof native.editBufferGetTextSized === 'function'
+const hasBinary = typeof native.writeOutBinary === 'function'
+const hasCursorInto = typeof native.editBufferGetCursorInto === 'function'
 
+// oxlint-disable-next-line socket/sort-source-methods -- public API surface ordered by usage (createRenderer first, then helpers); alphabetizing would bury the entry-point function.
 export function colorBuf(color) {
   if (color instanceof RGBA) {
     return color.buffer
@@ -452,7 +453,7 @@ export class Buffer {
   }
 
   clear(bg) {
-    if (_hasFA && bg) {
+    if (hasFA && bg) {
       const b = colorBuf(bg)
       native.bufferClear(this._ptr, b[0], b[1], b[2], b[3])
     } else {
@@ -473,7 +474,7 @@ export class Buffer {
   drawText(text, x, y, fg, bg, attrs = 0) {
     const fgBuf = colorBuf(fg ?? WHITE)
     const bgBuf = colorBuf(bg ?? BLACK)
-    if (_hasFA) {
+    if (hasFA) {
       native.bufferDrawTextFA(this._ptr, text, x, y, fgBuf, bgBuf, attrs)
     } else {
       native.bufferDrawText(
@@ -497,7 +498,7 @@ export class Buffer {
   drawChar(char, x, y, fg, bg, attrs = 0) {
     const fgBuf = colorBuf(fg ?? WHITE)
     const bgBuf = colorBuf(bg ?? BLACK)
-    if (_hasFA) {
+    if (hasFA) {
       native.bufferDrawCharFA(this._ptr, char, x, y, fgBuf, bgBuf, attrs)
     } else {
       native.bufferDrawChar(
@@ -521,7 +522,7 @@ export class Buffer {
   setCell(x, y, char, fg, bg, attrs = 0) {
     const fgBuf = colorBuf(fg ?? WHITE)
     const bgBuf = colorBuf(bg ?? BLACK)
-    if (_hasFA) {
+    if (hasFA) {
       native.bufferSetCellFA(this._ptr, x, y, char, fgBuf, bgBuf)
     } else {
       native.bufferSetCell(
@@ -544,7 +545,7 @@ export class Buffer {
 
   fillRect(x, y, width, height, bg) {
     const bgBuf = colorBuf(bg ?? BLACK)
-    if (_hasFA) {
+    if (hasFA) {
       native.bufferFillRectFA(this._ptr, x, y, width, height, bgBuf)
     } else {
       native.bufferFillRect(
@@ -617,13 +618,13 @@ export class TextBuffer {
   }
 
   get text() {
-    return _hasSized
+    return hasSized
       ? native.textBufferGetPlainTextSized(this._ptr)
       : native.textBufferGetPlainText(this._ptr)
   }
 
   append(text) {
-    if (_hasFast) {
+    if (hasFast) {
       native.textBufferAppendFast(this._ptr, text)
     } else {
       native.textBufferAppend(this._ptr, text)
@@ -694,7 +695,7 @@ export class TextBuffer {
 export class EditBuffer {
   constructor(widthMethod = WidthMethod.WCWIDTH) {
     this._ptr = native.createEditBuffer(widthMethod)
-    this._cursor = _hasCursorInto ? new CursorState() : undefined
+    this._cursor = hasCursorInto ? new CursorState() : undefined
   }
 
   get ptr() {
@@ -702,7 +703,7 @@ export class EditBuffer {
   }
 
   get text() {
-    return _hasSized
+    return hasSized
       ? native.editBufferGetTextSized(this._ptr)
       : native.editBufferGetText(this._ptr)
   }
@@ -712,7 +713,7 @@ export class EditBuffer {
   }
 
   insertText(text) {
-    if (_hasFast) {
+    if (hasFast) {
       native.editBufferInsertTextFast(this._ptr, text)
     } else {
       native.editBufferInsertText(this._ptr, text)
@@ -807,7 +808,7 @@ export class EditorView {
   constructor(editBuffer, width, height) {
     const ptr = editBuffer._ptr ?? editBuffer
     this._ptr = native.createEditorView(ptr, width, height)
-    this._cursor = _hasCursorInto ? new CursorState() : undefined
+    this._cursor = hasCursorInto ? new CursorState() : undefined
   }
 
   get ptr() {
@@ -933,7 +934,7 @@ export class Renderer {
     const testing = opts?.testing ?? false
     const remote = opts?.remote ?? false
     this._ptr = native.createRenderer(width, height, testing, remote)
-    this._cursor = _hasCursorInto ? new CursorState() : undefined
+    this._cursor = hasCursorInto ? new CursorState() : undefined
   }
 
   get ptr() {
@@ -996,7 +997,7 @@ export class Renderer {
   }
 
   writeOut(data) {
-    if (_hasBinary && data instanceof Uint8Array) {
+    if (hasBinary && data instanceof Uint8Array) {
       native.writeOutBinary(this._ptr, data)
     } else {
       native.writeOut(this._ptr, data)

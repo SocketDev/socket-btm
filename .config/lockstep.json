@@ -640,6 +640,16 @@
       "notes": "Embedded into node-smol as the per-frame flush path of `node:smol-tui`."
     },
     {
+      "kind": "version-pin",
+      "id": "unicode-data",
+      "upstream": "opentui",
+      "pinned_sha": "17.0.0",
+      "pinned_tag": "17.0.0",
+      "upgrade_policy": "track-latest",
+      "criticality": 6,
+      "notes": "Unicode Character Database version embedded in tui-infra/src/socketsecurity/tui/width_data.cc (EastAsianWidth.txt + emoji-data.txt range tables). Re-run packages/node-smol-builder/scripts/generate-width-data.mts when bumping. Tracked under the `opentui` upstream key for cascade alignment, though the actual upstream is unicode.org. Fleet-wide alignment: ultrathink's acorn parser pins Unicode 17.0 across Go / C++ (ICU 78.2) / Rust (unicode-id-start 1.4.0) / TS (@unicode/unicode-17.0.0); we ride the same major version so emoji/CJK width is consistent across the fleet."
+    },
+    {
       "kind": "file-fork",
       "id": "tui-infra-renderables",
       "upstream": "opentui",

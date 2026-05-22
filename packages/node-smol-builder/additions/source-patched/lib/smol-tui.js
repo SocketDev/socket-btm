@@ -38,6 +38,7 @@ const { ObjectFreeze } = primordials
 
 const {
   align,
+  codepointWidth,
   constants,
   createParser,
   createRenderer,
@@ -67,6 +68,8 @@ const {
   setBgRgb,
   setFgRgb,
   sizes,
+  stringWidth,
+  stringWidthFromBytes,
   wrap,
   writeAttributes,
   writeBgRgb,
@@ -98,6 +101,7 @@ const {
 module.exports = ObjectFreeze({
   __proto__: null,
   align: ObjectFreeze({ __proto__: null, ...align }),
+  codepointWidth,
   constants: ObjectFreeze({ __proto__: null, ...constants }),
   createParser,
   createRenderer,
@@ -127,6 +131,8 @@ module.exports = ObjectFreeze({
   setBgRgb,
   setFgRgb,
   sizes: ObjectFreeze({ __proto__: null, ...sizes }),
+  stringWidth,
+  stringWidthFromBytes,
   wrap: ObjectFreeze({ __proto__: null, ...wrap }),
   writeAttributes,
   writeBgRgb,

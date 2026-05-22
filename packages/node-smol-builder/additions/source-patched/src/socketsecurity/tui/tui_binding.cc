@@ -90,6 +90,7 @@
 #include "tui/mouse.hpp"
 #include "tui/renderables.hpp"
 #include "tui/renderer.hpp"
+#include "tui/width.hpp"
 
 #include "yoga/Yoga.h"
 
@@ -1069,6 +1070,67 @@ static void RendererDrawTextWrapped(
   args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, lines));
 }
 
+// ─── Section 4c: String width (Unicode 17.0 East Asian + emoji) ───────
+//
+// Terminal-cell width of a UTF-8 string. ASCII-only inputs run at
+// memory bandwidth (tight inner loop, no per-byte branch into the
+// range tables); non-ASCII inputs do one binary-search per codepoint
+// against the Unicode 16.0.0 wide-range and zero-width-range tables
+// generated into width_data.cc.
+//
+// Surface: node:smol-tui.stringWidth(s) → integer cell count.
+
+static void StringWidthBinding(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, 0));
+    return;
+  }
+  Local<String> input = args[0].As<String>();
+  const int input_len = input->Utf8Length(isolate);
+  if (input_len == 0) {
+    args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, 0));
+    return;
+  }
+  std::string buf(static_cast<size_t>(input_len), '\0');
+  input->WriteUtf8(isolate, buf.data(), input_len, nullptr,
+                   String::NO_NULL_TERMINATION);
+  uint32_t width = ti::StringWidth(buf.data(), buf.size());
+  args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, width));
+}
+
+// stringWidthFromBytes(Uint8Array) — same shape but skips the JS
+// String -> UTF-8 round-trip when the caller already holds a Uint8Array
+// (the renderer hot path does — every character it draws comes from a
+// pre-encoded Uint8Array via TextEncoder).
+static void StringWidthFromBytes(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  if (args.Length() < 1 || !args[0]->IsUint8Array()) {
+    args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, 0));
+    return;
+  }
+  Local<v8::Uint8Array> arr = args[0].As<v8::Uint8Array>();
+  auto store = arr->Buffer()->GetBackingStore();
+  const char* utf8 =
+      static_cast<const char*>(store->Data()) + arr->ByteOffset();
+  uint32_t width = ti::StringWidth(utf8, arr->ByteLength());
+  args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, width));
+}
+
+// codepointWidth(cp) — single-codepoint convenience. Skips the UTF-8
+// decode for callers that already have an integer codepoint.
+static void CodepointWidthBinding(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  if (args.Length() < 1) {
+    args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, 1));
+    return;
+  }
+  uint32_t cp = args[0]->Uint32Value(context).FromMaybe(0);
+  uint32_t width = ti::CodepointWidth(cp);
+  args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, width));
+}
+
 // ─── Section 5: Yoga layout (flexbox) ─────────────────────────────────
 //
 // Direct C-API binding for Yoga 3.2.1 — a flexbox-spec layout engine
@@ -1797,6 +1859,11 @@ static void Initialize(Local<Object> target,
   SetMethod(context, target, "rendererDrawTextWrapped",
             RendererDrawTextWrapped);
 
+  // String width (Unicode 16.0).
+  SetMethod(context, target, "stringWidth", StringWidthBinding);
+  SetMethod(context, target, "stringWidthFromBytes", StringWidthFromBytes);
+  SetMethod(context, target, "codepointWidth", CodepointWidthBinding);
+
   SetFastMethodNoSideEffect(context, target, "yogaCalculateLayout",
                             YogaCalculateLayout,
                             &fast_yoga_calculate_layout);
@@ -2022,6 +2089,9 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(RendererSize);
   registry->Register(RendererDrawBox);
   registry->Register(RendererDrawTextWrapped);
+  registry->Register(StringWidthBinding);
+  registry->Register(StringWidthFromBytes);
+  registry->Register(CodepointWidthBinding);
   registry->Register(YogaCalculateLayout);
   registry->Register(fast_yoga_calculate_layout);
   registry->Register(YogaCreateNode);

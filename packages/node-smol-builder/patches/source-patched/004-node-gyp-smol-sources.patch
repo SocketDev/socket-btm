@@ -71,7 +71,7 @@
            ],
          }],
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
-@@ -1055,14 +1079,285 @@
+@@ -1055,14 +1079,287 @@
            ],
            'dependencies': [
              'deps/ncrypto/ncrypto.gyp:ncrypto',
@@ -181,6 +181,8 @@
 +            'src/socketsecurity/tui/renderables.cc',
 +            'src/socketsecurity/tui/renderer.cc',
 +            'src/socketsecurity/tui/tui_binding.cc',
++            'src/socketsecurity/tui/width.cc',
++            'src/socketsecurity/tui/width_data.cc',
 +            # node:smol-quic — QUIC + UDP transport. lsquic v4.6.2 with
 +            # OpenSSL 3.5.6 as the TLS backend (matches bun). The
 +            # binding splits the engine/connection surface (quic_binding.cc)
@@ -358,7 +360,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1084,7 +1366,7 @@
+@@ -1084,7 +1368,7 @@
            ],
          }],
 -        [ 'node_use_quic=="true"', {
@@ -367,7 +369,7 @@
              '<@(node_quic_sources)',
            ],
          }],
-@@ -1406,7 +1688,7 @@
+@@ -1406,7 +1690,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -376,7 +378,7 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1447,6 +1729,17 @@
+@@ -1447,6 +1731,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -394,7 +396,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1521,6 +1813,17 @@
+@@ -1521,6 +1815,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -412,7 +414,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1744,6 +2046,17 @@
+@@ -1744,6 +2048,17 @@
              'Ws2_32.lib',
            ],
          }],

@@ -49,7 +49,8 @@
 
 const { ArrayPrototypePush, ObjectFreeze } = primordials
 
-const { parseMarkdown } = internalBinding('smol_markdown')
+const { parseMarkdown, parseMarkdownStream } =
+  internalBinding('smol_markdown')
 
 // Mirror md4c.h enums. Numeric values are stable across md4c releases
 // (per their semver policy); we re-export them for callers that want
@@ -110,6 +111,88 @@ const eventCategory = ObjectFreeze({
 const CATEGORY_MASK = 0xf000
 const VALUE_MASK = 0x0fff
 
+// parseMarkdownStream layout constants. Must stay in sync with the
+// native binding's ParseMarkdownStream (markdown_binding.cc).
+const STREAM_MAGIC = 0x534d4456  // "SMDV"
+const STREAM_HEADER_SIZE = 12
+const STREAM_EVENT_SIZE = 16
+
+// decodeStream(buf) -> { code: Uint32Array, textOffsets: Uint32Array,
+//                       textLens: Uint32Array, headingLevels: Int32Array,
+//                       textPool: Uint8Array }
+//
+// Slices the native ArrayBuffer into typed-array views — no copies.
+// Consumers iterate the parallel arrays; the textPool is a single
+// Uint8Array view sliced via subarray() for each event's payload.
+function decodeStream(arrayBuffer) {
+  if (
+    !arrayBuffer ||
+    typeof arrayBuffer.byteLength !== 'number' ||
+    arrayBuffer.byteLength < STREAM_HEADER_SIZE
+  ) {
+    throw new TypeError(
+      'parseMarkdownStream output too small to be a valid event stream',
+    )
+  }
+  const header = new DataView(arrayBuffer, 0, STREAM_HEADER_SIZE)
+  const magic = header.getUint32(0, true)
+  if (magic !== STREAM_MAGIC) {
+    throw new TypeError(
+      `parseMarkdownStream output has wrong magic ${magic.toString(16)}; expected SMDV`,
+    )
+  }
+  const eventCount = header.getUint32(4, true)
+  const textPoolSize = header.getUint32(8, true)
+  const recordsByteSize = eventCount * STREAM_EVENT_SIZE
+  // Typed-array views into the shared ArrayBuffer — zero-copy.
+  const records = new DataView(
+    arrayBuffer,
+    STREAM_HEADER_SIZE,
+    recordsByteSize,
+  )
+  const textPool = new Uint8Array(
+    arrayBuffer,
+    STREAM_HEADER_SIZE + recordsByteSize,
+    textPoolSize,
+  )
+  return {
+    __proto__: null,
+    eventCount,
+    records,
+    textPool,
+  }
+}
+
+// streamForEach(buf, fn): iterates the decoded stream, calling
+// `fn(code, payload)` for each event. Text payloads are decoded
+// only when present (TextDecoder cost paid per text event, not
+// per total event). Callers that don't need text strings can use
+// decodeStream() directly and read the records/textPool typed
+// arrays.
+const sharedDecoder = new TextDecoder('utf-8')
+function streamForEach(arrayBuffer, fn) {
+  const { eventCount, records, textPool } = decodeStream(arrayBuffer)
+  for (let i = 0, byteOff = 0; i < eventCount; i += 1, byteOff += STREAM_EVENT_SIZE) {
+    const code = records.getUint32(byteOff, true)
+    const textOffset = records.getUint32(byteOff + 4, true)
+    const textLen = records.getUint32(byteOff + 8, true)
+    const headingLevel = records.getInt32(byteOff + 12, true)
+    let payload
+    if (textLen !== 0) {
+      // textOffset is relative to textPool's start; subarray is a
+      // zero-copy view backed by the same ArrayBuffer.
+      payload = sharedDecoder.decode(
+        textPool.subarray(textOffset, textOffset + textLen),
+      )
+    } else if (headingLevel !== 0) {
+      payload = headingLevel
+    } else {
+      payload = undefined
+    }
+    fn(code, payload)
+  }
+}
+
 function parseTree(text, flags) {
   const events = parseMarkdown(text, flags || '')
   const root = { __proto__: null, type: 'doc', children: [] }
@@ -158,9 +241,12 @@ function parseTree(text, flags) {
 module.exports = ObjectFreeze({
   __proto__: null,
   blockType,
+  decodeStream,
   eventCategory,
   parseMarkdown,
+  parseMarkdownStream,
   parseTree,
   spanType,
+  streamForEach,
   textType,
 })

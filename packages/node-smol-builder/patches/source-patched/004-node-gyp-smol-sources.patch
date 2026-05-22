@@ -71,7 +71,7 @@
            ],
          }],
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
-@@ -1055,14 +1079,282 @@
+@@ -1055,14 +1079,283 @@
            ],
            'dependencies': [
              'deps/ncrypto/ncrypto.gyp:ncrypto',
@@ -176,6 +176,7 @@
 +            'src/socketsecurity/tui/ansi.cc',
 +            'src/socketsecurity/tui/buffer.cc',
 +            'src/socketsecurity/tui/mouse.cc',
++            'src/socketsecurity/tui/renderables.cc',
 +            'src/socketsecurity/tui/renderer.cc',
 +            'src/socketsecurity/tui/tui_binding.cc',
 +            # node:smol-quic — QUIC + UDP transport. lsquic v4.6.2 with
@@ -355,7 +356,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1084,7 +1363,7 @@
+@@ -1084,7 +1364,7 @@
            ],
          }],
 -        [ 'node_use_quic=="true"', {
@@ -364,7 +365,7 @@
              '<@(node_quic_sources)',
            ],
          }],
-@@ -1406,7 +1685,7 @@
+@@ -1406,7 +1686,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -373,7 +374,7 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1447,6 +1726,17 @@
+@@ -1447,6 +1727,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -391,7 +392,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1521,6 +1810,17 @@
+@@ -1521,6 +1811,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -409,7 +410,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1744,6 +2043,17 @@
+@@ -1744,6 +2044,17 @@
              'Ws2_32.lib',
            ],
          }],

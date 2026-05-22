@@ -71,7 +71,7 @@
            ],
          }],
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
-@@ -1055,14 +1079,308 @@
+@@ -1055,14 +1079,322 @@
            ],
            'dependencies': [
              'deps/ncrypto/ncrypto.gyp:ncrypto',
@@ -136,6 +136,20 @@
 +            'src/socketsecurity/manifest/manifest.cc',
 +            # Socket Security: smol-keymap binding (chord matcher).
 +            'src/socketsecurity/keymap/keymap_binding.cc',
++            # Socket Security: smol-qrcode binding (libqrencode v4.1.1).
++            # Source files copied from upstream/libqrencode/ by
++            # prepare-external-sources.mts; qrenc.c (the CLI tool's
++            # main()) is excluded from the build.
++            'src/socketsecurity/qrcode/qrcode_binding.cc',
++            'src/socketsecurity/qrcode/libqrencode/bitstream.c',
++            'src/socketsecurity/qrcode/libqrencode/mask.c',
++            'src/socketsecurity/qrcode/libqrencode/mmask.c',
++            'src/socketsecurity/qrcode/libqrencode/mqrspec.c',
++            'src/socketsecurity/qrcode/libqrencode/qrencode.c',
++            'src/socketsecurity/qrcode/libqrencode/qrinput.c',
++            'src/socketsecurity/qrcode/libqrencode/qrspec.c',
++            'src/socketsecurity/qrcode/libqrencode/rsecc.c',
++            'src/socketsecurity/qrcode/libqrencode/split.c',
 +            # Socket Security: smol-markdown binding (CommonMark + GFM via
 +            # md4c). md4c.c + entity.c are copied from
 +            # packages/node-smol-builder/upstream/md4c/src/ by
@@ -381,7 +395,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1084,7 +1389,7 @@
+@@ -1084,7 +1403,7 @@
            ],
          }],
 -        [ 'node_use_quic=="true"', {
@@ -390,7 +404,7 @@
              '<@(node_quic_sources)',
            ],
          }],
-@@ -1406,7 +1711,7 @@
+@@ -1406,7 +1725,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -399,7 +413,7 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1447,6 +1752,17 @@
+@@ -1447,6 +1766,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -417,7 +431,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1521,6 +1836,17 @@
+@@ -1521,6 +1850,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -435,7 +449,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1744,6 +2069,17 @@
+@@ -1744,6 +2083,17 @@
              'Ws2_32.lib',
            ],
          }],

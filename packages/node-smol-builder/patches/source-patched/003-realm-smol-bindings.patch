@@ -24,7 +24,7 @@
    'spawn_sync',
    'stream_wrap',
    'tcp_wrap',
-@@ -127,6 +128,26 @@
+@@ -127,6 +128,27 @@
    'ffi',
    'sea',
    'sqlite',
@@ -40,6 +40,7 @@
 +  'smol-power',
 +  'smol-primordial',
 +  'smol-purl',
++  'smol-qrcode',
 +  'smol-quic',
 +  'smol-sql',
 +  'smol-tree-sitter',

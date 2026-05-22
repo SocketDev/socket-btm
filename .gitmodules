@@ -166,3 +166,9 @@
 	url = https://github.com/tree-sitter/tree-sitter
 	ignore = dirty
 	shallow = true
+# libqrencode-4.1.1
+[submodule "packages/node-smol-builder/upstream/libqrencode"]
+	path = packages/node-smol-builder/upstream/libqrencode
+	url = https://github.com/fukuchi/libqrencode
+	ignore = dirty
+	shallow = true

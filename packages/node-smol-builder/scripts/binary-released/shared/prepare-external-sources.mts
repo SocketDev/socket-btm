@@ -42,6 +42,16 @@ const TREE_SITTER_UPSTREAM_DIR = path.join(
   'tree-sitter',
 )
 
+// Upstream libqrencode (QR code encoder) is sibling to upstream/node.
+// All .c + .h files live at the root of the repo; we lift the whole
+// set into src/socketsecurity/qrcode/libqrencode/ so sibling
+// `#include "qrencode.h"` etc. inside libqrencode itself resolves.
+const LIBQRENCODE_UPSTREAM_DIR = path.join(
+  PACKAGE_ROOT,
+  'upstream',
+  'libqrencode',
+)
+
 // Upstream uSockets/uWebSockets for high-performance HTTP server (node:smol-http).
 // uSockets provides direct epoll/kqueue event loop + raw socket I/O.
 // uWebSockets provides HTTP parser (SWAR+bloom), cork buffer, response writer.
@@ -245,6 +255,22 @@ const VENDORED_SOURCES = [
       'socketsecurity',
       'tree_sitter',
       'tree-sitter',
+    ),
+  },
+  // libqrencode: QR code encoder. All .c + .h files live at repo root
+  // and use sibling-relative #includes ("qrencode.h", "qrspec.h", ...).
+  // Lifting the whole repo into src/socketsecurity/qrcode/libqrencode/
+  // keeps siblings adjacent so the includes resolve. qrenc.c (CLI
+  // tool with main()) is copied too but NOT listed in node.gyp, so
+  // it's silently ignored at link time.
+  {
+    from: LIBQRENCODE_UPSTREAM_DIR,
+    to: path.join(
+      ADDITIONS_SOURCE_PATCHED_DIR,
+      'src',
+      'socketsecurity',
+      'qrcode',
+      'libqrencode',
     ),
   },
 ]

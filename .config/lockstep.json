@@ -59,6 +59,10 @@
       "submodule": "packages/node-smol-builder/upstream/uWebSockets",
       "repo": "https://github.com/uNetworking/uWebSockets"
     },
+    "libqrencode": {
+      "submodule": "packages/node-smol-builder/upstream/libqrencode",
+      "repo": "https://github.com/fukuchi/libqrencode"
+    },
     "md4c": {
       "submodule": "packages/node-smol-builder/upstream/md4c",
       "repo": "https://github.com/mity/md4c"
@@ -591,6 +595,16 @@
       "upgrade_policy": "major-gate",
       "criticality": 8,
       "notes": "ML inference runtime for embedded models. Major bumps can break model compatibility."
+    },
+    {
+      "kind": "version-pin",
+      "id": "libqrencode",
+      "upstream": "libqrencode",
+      "pinned_sha": "715e29fd4cd71b6e452ae0f4e36d917b43122ce8",
+      "pinned_tag": "v4.1.1",
+      "upgrade_policy": "track-latest",
+      "criticality": 5,
+      "notes": "fukuchi/libqrencode QR code encoder (C, ~6 KLOC, LGPL-2.1 with static-link allowance). Embedded into node-smol as src/socketsecurity/qrcode/qrcode_binding.cc. Pulls upstream/libqrencode/*.c into the build via prepare-external-sources copying. Replaces userland `qrcode` npm package."
     },
     {
       "kind": "version-pin",

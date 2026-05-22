@@ -49,10 +49,12 @@ export function loadExternalToolsJson(jsonPath, visited = new Set()) {
     // Validate against schema.
     const validation = validateExternalTools(data)
     if (!validation.ok) {
-      const issues = validation.errors
+      const issueLines = validation.errors
         .map(i => `  ${i.path.join('.') || '(root)'}: ${i.message}`)
-        .join('\n')
-      logger.warn(`Schema validation warnings in ${jsonPath}:\n${issues}`)
+      logger.warn(`Schema validation warnings in ${jsonPath}:`)
+      for (const line of issueLines) {
+        logger.warn(line)
+      }
     }
 
     let tools = {}

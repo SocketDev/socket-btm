@@ -69,7 +69,11 @@ export function preflightCheck(): void {
   }
 
   if (warnings.length > 0) {
-    logger.info(`\n${warnings.join('\n')}\n`)
+    logger.error('')
+    for (const warning of warnings) {
+      logger.info(warning)
+    }
+    logger.error('')
   }
 }
 

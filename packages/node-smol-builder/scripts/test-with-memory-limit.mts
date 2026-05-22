@@ -159,7 +159,9 @@ vitestPromise
   .then(result => {
     clearInterval(monitorInterval)
     if (!killed) {
-      logger.log(`\n\nTest completed with exit code: ${result.code}`)
+      logger.log('')
+      logger.log('')
+      logger.log(`Test completed with exit code: ${result.code}`)
       process.exitCode = result.code || 0
     }
   })

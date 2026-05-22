@@ -720,7 +720,11 @@ describe('createCheckpoint signature validation', () => {
         logger.error('')
         logger.fail(`${error.file}:${error.line}`)
         logger.fail(`  Error: ${error.error}`)
-        logger.fail(`  Context:\n${error.context}\n`)
+        logger.fail('  Context:')
+        for (const line of error.context.split('\n')) {
+          logger.fail(`    ${line}`)
+        }
+        logger.error('')
       }
 
       expect(allErrors).toHaveLength(0)

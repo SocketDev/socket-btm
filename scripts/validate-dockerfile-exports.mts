@@ -129,9 +129,11 @@ async function main(): Promise<void> {
       return
     }
 
+    logger.error('')
     logger.fail(
-      `\nFound ${totalIssues} issue(s) in ${filesWithIssues.length} file(s):\n`,
+      `Found ${totalIssues} issue(s) in ${filesWithIssues.length} file(s):`,
     )
+    logger.error('')
 
     // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
     for (const { issues, path: filePath } of filesWithIssues) {

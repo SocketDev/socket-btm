@@ -244,12 +244,14 @@ async function main() {
 
 // Error handling
 process.on('uncaughtException', err => {
-  logger.error('\nFatal error:', err)
+  logger.error('')
+  logger.error('Fatal error:', err)
   process.exit(1)
 })
 
 process.on('unhandledRejection', err => {
-  logger.error('\nUnhandled rejection:', err)
+  logger.error('')
+  logger.error('Unhandled rejection:', err)
   process.exit(1)
 })
 

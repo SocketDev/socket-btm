@@ -77,9 +77,11 @@ export function createPathShorteningPlugin() {
               if (conflictDetector.has(shortPath)) {
                 const existingPath = conflictDetector.get(shortPath)
                 if (existingPath !== longPath) {
-                  logger.warn(
-                    `Path conflict detected:\n  "${shortPath}"\n  Maps to: "${existingPath}"\n  Also from: "${longPath}"\n  Keeping original paths to avoid conflict.`,
-                  )
+                  logger.warn('Path conflict detected:')
+                  logger.warn(`  "${shortPath}"`)
+                  logger.warn(`  Maps to: "${existingPath}"`)
+                  logger.warn(`  Also from: "${longPath}"`)
+                  logger.warn('  Keeping original paths to avoid conflict.')
                   shortPath = longPath
                 }
               } else {

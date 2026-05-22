@@ -83,6 +83,7 @@ export function parseArgs(args) {
 }
 
 export function printHelp() {
+  // oxlint-disable-next-line socket/no-logger-newline-literal -- help text is a single readable block; splitting would obscure structure.
   logger.log(`
 Setup Docker builder images for local builds.
 

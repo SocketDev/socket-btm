@@ -103,6 +103,7 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
 }
 
 export function printHelp(): void {
+  // oxlint-disable-next-line socket/no-logger-newline-literal -- help text is a single readable block; splitting into 17 logger.log calls would obscure structure.
   logger.log(`
 Test262 Temporal Subset Runner
 

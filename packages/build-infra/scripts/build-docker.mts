@@ -84,6 +84,7 @@ export function parseArgs(args) {
 
 export function printHelp() {
   const targets = getAllTargets()
+  // oxlint-disable-next-line socket/no-logger-newline-literal -- help text is a single readable block; splitting would obscure structure.
   logger.log(`
 Build a package for a specific target.
 

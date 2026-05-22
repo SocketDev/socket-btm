@@ -36,10 +36,10 @@
   },
   "sources": {
     "opentui": {
-      "version": "0.1.99",
+      "version": "0.2.15",
       "type": "git",
       "url": "https://github.com/anomalyco/opentui.git",
-      "ref": "cc94b5829ac0f6f45320562811acd8260ddc1922"
+      "ref": "f464acfcba0dde0ffcd6b2728811df787a72975c"
     }
   }
 }

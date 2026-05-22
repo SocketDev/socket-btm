@@ -588,8 +588,8 @@
       "kind": "version-pin",
       "id": "opentui",
       "upstream": "opentui",
-      "pinned_sha": "cc94b5829ac0f6f45320562811acd8260ddc1922",
-      "pinned_tag": "v0.1.99",
+      "pinned_sha": "f464acfcba0dde0ffcd6b2728811df787a72975c",
+      "pinned_tag": "v0.2.15",
       "upgrade_policy": "track-latest",
       "criticality": 7,
       "notes": "Native opentui builder. Matches the pin in socket-tui's lockstep for consistency across the OpenTUI ecosystem."
@@ -600,10 +600,11 @@
       "upstream": "opentui",
       "local": "packages/tui-infra/src/socketsecurity/tui/ansi.cc",
       "upstream_path": "packages/core/src/zig/ansi.zig",
-      "forked_at_sha": "cc94b5829ac0f6f45320562811acd8260ddc1922",
+      "forked_at_sha": "f464acfcba0dde0ffcd6b2728811df787a72975c",
       "criticality": 7,
       "deviations": [
         "C++ instead of Zig — 1:1 port of `ANSI` namespace to `tui::ANSI`.",
+        "RGBA stays as raw 8-bit channels (uint8_t fg_r/g/b + bg_r/g/b on `tui::Cell`) instead of upstream v0.2.15's packed `[4]u16` with intent metadata in the high bytes. The packed layout encodes ColorIntent (rgb / indexed / default) + an ANSI palette slot so the renderer can emit `38;5;n` or `39/49` instead of always `38;2;r;g;b`. The C++ port doesn't expose indexed/default-color modes to its JS callers yet — when that surface lands, port the packed RGBA encoding alongside it.",
         "Cold-path builders return `std::string` (one-shot setup writes).",
         "Hot-path writers (`WriteCursorPosition`, `WriteFgRgb`, `WriteBgRgb`, `WriteAttributes`) take a caller-provided char* buffer and return bytes written so V8 FastApi specializations can target them without per-call allocation."
       ],
@@ -615,7 +616,7 @@
       "upstream": "opentui",
       "local": "packages/tui-infra/src/socketsecurity/tui/buffer.cc",
       "upstream_path": "packages/core/src/zig/buffer-methods.zig",
-      "forked_at_sha": "cc94b5829ac0f6f45320562811acd8260ddc1922",
+      "forked_at_sha": "f464acfcba0dde0ffcd6b2728811df787a72975c",
       "criticality": 7,
       "deviations": [
         "C++ instead of Zig.",
@@ -629,7 +630,7 @@
       "upstream": "opentui",
       "local": "packages/tui-infra/src/socketsecurity/tui/renderer.cc",
       "upstream_path": "packages/core/src/zig/renderer.zig",
-      "forked_at_sha": "cc94b5829ac0f6f45320562811acd8260ddc1922",
+      "forked_at_sha": "f464acfcba0dde0ffcd6b2728811df787a72975c",
       "criticality": 7,
       "deviations": [
         "C++ instead of Zig — port of `CliRenderer` (next + prev double-buffer with diff flush) to `tui::Renderer`.",
@@ -644,7 +645,7 @@
       "upstream": "opentui",
       "local": "packages/tui-infra/src/socketsecurity/tui/mouse.cc",
       "upstream_path": "packages/core/src/lib/parse.mouse.ts",
-      "forked_at_sha": "cc94b5829ac0f6f45320562811acd8260ddc1922",
+      "forked_at_sha": "f464acfcba0dde0ffcd6b2728811df787a72975c",
       "criticality": 7,
       "deviations": [
         "C++ instead of TypeScript — 1:1 port of the SGR + X10 mouse-sequence decoder including drag-state tracking (press → motion → release becomes DOWN → DRAG → DRAG_END + DROP).",

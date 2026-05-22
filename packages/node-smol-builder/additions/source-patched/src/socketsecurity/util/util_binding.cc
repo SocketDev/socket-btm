@@ -120,6 +120,9 @@
 #include "util.h"
 #include "v8.h"
 
+#include <cstdint>
+#include <string>
+
 namespace node {
 namespace socketsecurity {
 namespace util {
@@ -637,6 +640,193 @@ static void WeakRefSafe(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+// ─── stripAnsi: strip ANSI escape sequences from a string ─────────────
+//
+// Mirrors the npm `strip-ansi` package (https://github.com/chalk/strip-ansi),
+// which compiles to a single regex via `ansi-regex`. The C++ form skips
+// V8 regex compilation + UTF-16 string materialization on each call.
+//
+// Two sequence shapes are recognized (same as the upstream regex):
+//
+//   1. OSC (Operating System Command):
+//        ESC ']' <payload> ST
+//      where ST is one of: BEL (0x07), ESC '\\', or 0x9C (single-byte
+//      ST). Used for terminal title sets, hyperlinks, clipboard ops.
+//
+//   2. CSI (Control Sequence Introducer):
+//        (ESC | 0x9B) [\[\]()#;?]* (\d{1,4}([;:]\d{0,4})*)? <final>
+//      where <final> is one of:
+//        digit | A-P | R-T | Z | c | f-n | q-u | y | = | > | < | ~
+//      Covers SGR (colors/attrs), cursor moves, scroll regions, etc.
+//
+// Input is UTF-8 bytes via a JS String → utf-8 conversion. Output is a
+// new JS String containing the input minus the matched sequences.
+//
+// Performance: single allocation for the output (capacity = input
+// length, since strip is a contraction). The state machine walks the
+// input once, byte-by-byte. No regex engine, no backtracking.
+//
+// Compatibility note: V8's String::WriteUtf8 / NewFromUtf8 handle the
+// UTF-8 round-trip; the state machine reasons in single bytes and
+// passes non-ESC, non-0x9B bytes through verbatim (multi-byte UTF-8
+// sequences cannot collide with ANSI escape bytes — the high bit set
+// on continuation bytes 0x80..0xBF and lead bytes 0xC0..0xFD takes
+// care of that).
+
+namespace {
+
+// Returns true if c is a CSI "final byte" — the byte that terminates a
+// CSI sequence. Matches the npm regex character class:
+//   [\dA-PR-TZcf-nq-uy=><~]
+inline bool IsCsiFinalByte(uint8_t c) {
+  if (c >= '0' && c <= '9') {
+    return true;
+  }
+  if (c >= 'A' && c <= 'P') {
+    return true;
+  }
+  if (c >= 'R' && c <= 'T') {
+    return true;
+  }
+  if (c == 'Z') {
+    return true;
+  }
+  if (c == 'c') {
+    return true;
+  }
+  if (c >= 'f' && c <= 'n') {
+    return true;
+  }
+  if (c >= 'q' && c <= 'u') {
+    return true;
+  }
+  if (c == 'y') {
+    return true;
+  }
+  if (c == '=' || c == '>' || c == '<' || c == '~') {
+    return true;
+  }
+  return false;
+}
+
+// CSI param/intermediate-class bytes (the `[\[\]()#;?]*` prefix and
+// `\d{1,4}(?:[;:]\d{0,4})*` body, plus space-padding 0x20 the regex
+// strictly doesn't allow — we keep it strict to match upstream).
+inline bool IsCsiPrefixByte(uint8_t c) {
+  return c == '[' || c == ']' || c == '(' || c == ')' || c == '#' ||
+         c == ';' || c == '?';
+}
+
+inline bool IsCsiParamByte(uint8_t c) {
+  return (c >= '0' && c <= '9') || c == ';' || c == ':';
+}
+
+}  // namespace
+
+static void StripAnsi(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    // Match strip-ansi.js: throws TypeError on non-string. We surface
+    // the same behavior by returning undefined and letting a JS wrapper
+    // throw — keeps the binding allocation-free in the error path.
+    args.GetReturnValue().SetUndefined();
+    return;
+  }
+  Local<String> input = args[0].As<String>();
+  const int input_len_utf8 = input->Utf8Length(isolate);
+  if (input_len_utf8 == 0) {
+    args.GetReturnValue().Set(input);
+    return;
+  }
+
+  std::string buf(static_cast<size_t>(input_len_utf8), '\0');
+  input->WriteUtf8(isolate, buf.data(), input_len_utf8, nullptr,
+                   String::NO_NULL_TERMINATION);
+
+  std::string out;
+  out.reserve(buf.size());
+
+  const uint8_t* p = reinterpret_cast<const uint8_t*>(buf.data());
+  const uint8_t* const end = p + buf.size();
+
+  while (p < end) {
+    const uint8_t b = *p;
+
+    // ── OSC: ESC ']' ... ST  OR  CSI: ESC '[' ... final ──
+    if (b == 0x1B && p + 1 < end) {
+      const uint8_t b1 = *(p + 1);
+      if (b1 == ']') {
+        // OSC. Skip until ST: BEL (0x07), ESC '\\' (0x1B 0x5C), or
+        // 0x9C. Non-greedy.
+        const uint8_t* q = p + 2;
+        bool terminated = false;
+        while (q < end) {
+          const uint8_t bq = *q;
+          if (bq == 0x07 || bq == 0x9C) {
+            q += 1;
+            terminated = true;
+            break;
+          }
+          if (bq == 0x1B && q + 1 < end && *(q + 1) == 0x5C) {
+            q += 2;
+            terminated = true;
+            break;
+          }
+          q += 1;
+        }
+        if (terminated) {
+          p = q;
+          continue;
+        }
+        // Unterminated OSC — fall through and emit the ESC literally.
+      } else {
+        // Maybe CSI: ESC <prefix>* <param>* <final>
+        const uint8_t* q = p + 1;
+        while (q < end && IsCsiPrefixByte(*q)) {
+          ++q;
+        }
+        while (q < end && IsCsiParamByte(*q)) {
+          ++q;
+        }
+        if (q < end && IsCsiFinalByte(*q)) {
+          // Matched CSI starting at p; skip it.
+          p = q + 1;
+          continue;
+        }
+        // Not a CSI; fall through to emit ESC literally.
+      }
+    } else if (b == 0x9B) {
+      // CSI starting with 0x9B (single-byte form).
+      const uint8_t* q = p + 1;
+      while (q < end && IsCsiPrefixByte(*q)) {
+        ++q;
+      }
+      while (q < end && IsCsiParamByte(*q)) {
+        ++q;
+      }
+      if (q < end && IsCsiFinalByte(*q)) {
+        p = q + 1;
+        continue;
+      }
+      // Not a CSI; fall through.
+    }
+
+    // Pass-through byte.
+    out.push_back(static_cast<char>(b));
+    p += 1;
+  }
+
+  MaybeLocal<String> result_maybe =
+      String::NewFromUtf8(isolate, out.data(), v8::NewStringType::kNormal,
+                          static_cast<int>(out.size()));
+  Local<String> result;
+  if (!result_maybe.ToLocal(&result)) {
+    args.GetReturnValue().SetUndefined();
+    return;
+  }
+  args.GetReturnValue().Set(result);
+}
+
 static void Initialize(Local<Object> target,
                        Local<Value> /* unused */,
                        Local<Context> context,
@@ -644,6 +834,7 @@ static void Initialize(Local<Object> target,
   SetMethod(context, target, "applyBind", ApplyBind);
   SetMethod(context, target, "applySafe", ApplySafe);
   SetMethod(context, target, "bindCall", BindCall);
+  SetMethod(context, target, "stripAnsi", StripAnsi);
   SetMethod(context, target, "uncurryThis", UncurryThis);
   SetMethod(context, target, "weakRefSafe", WeakRefSafe);
 }
@@ -652,6 +843,7 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ApplyBind);
   registry->Register(ApplySafe);
   registry->Register(BindCall);
+  registry->Register(StripAnsi);
   registry->Register(UncurryThis);
   registry->Register(WeakRefSafe);
   // The internal call handlers are also externally referenced — they

@@ -20,6 +20,13 @@
 //                                   returns undefined for inputs that
 //                                   would throw (non-Object, non-Symbol)
 //                                   instead of throwing.
+//   - stripAnsi(s)                — native equivalent of the npm
+//                                   `strip-ansi` package. Walks the
+//                                   input bytes once, emits a copy
+//                                   minus OSC (ESC ']' ... ST) and
+//                                   CSI (ESC '[' ... final | 0x9B ...
+//                                   final) sequences. No regex
+//                                   compilation per call.
 //
 // All entries are backed by a native binding (smol_util) implemented
 // in src/socketsecurity/util/. The native form bypasses V8's
@@ -33,6 +40,7 @@ const {
   applyBind,
   applySafe,
   bindCall,
+  stripAnsi,
   uncurryThis,
   weakRefSafe,
 } = require('internal/socketsecurity/util')
@@ -42,6 +50,7 @@ module.exports = ObjectFreeze({
   applyBind,
   applySafe,
   bindCall,
+  stripAnsi,
   uncurryThis,
   weakRefSafe,
 })

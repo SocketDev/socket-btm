@@ -383,8 +383,8 @@ export async function applyCommonTransforms(options) {
           safeOverwrite(node.start, node.end, '__filename')
         } else if (
           isNewURLWithFilename ||
-          isNewURLWithImportMetaUrl ||
-          isNewURLWithImportMeta
+          isNewURLWithImportMeta ||
+          isNewURLWithImportMetaUrl
         ) {
           // Replace require("url").fileURLToPath(new URL("./", __filename or __importMetaUrl or import.meta.url)) with __dirname
           safeOverwrite(node.start, node.end, '__dirname')
@@ -436,8 +436,8 @@ export async function applyCommonTransforms(options) {
           safeOverwrite(node.start, node.end, '__filename')
         } else if (
           isNewURLWithFilename ||
-          isNewURLWithImportMetaUrl ||
-          isNewURLWithImportMeta
+          isNewURLWithImportMeta ||
+          isNewURLWithImportMetaUrl
         ) {
           // Replace fileURLToPath(new URL("./", __filename or __importMetaUrl or import.meta.url)) with __dirname
           safeOverwrite(node.start, node.end, '__dirname')

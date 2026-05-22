@@ -33,7 +33,7 @@ import { verifyReleaseChecksum } from 'build-infra/lib/release-checksums/core'
 import { ensureCurl } from 'curl-builder/lib/ensure-curl'
 
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
-import { envAsBoolean } from '@socketsecurity/lib-stable/env'
+import { envAsBoolean } from '@socketsecurity/lib-stable/env/boolean'
 import { getCI } from '@socketsecurity/lib-stable/env/ci'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'

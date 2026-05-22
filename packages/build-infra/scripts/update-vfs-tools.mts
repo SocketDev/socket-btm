@@ -29,7 +29,7 @@ import {
   httpText,
 } from '@socketsecurity/lib-stable/http-request/convenience'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { escapeRegExp } from '@socketsecurity/lib-stable/regexps'
+import { escapeRegExp } from '@socketsecurity/lib-stable/regexps/predicates'
 
 import { errorMessage } from '../lib/error-utils.mts'
 

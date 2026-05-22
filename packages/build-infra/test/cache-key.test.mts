@@ -9,7 +9,7 @@ import os from 'node:os'
 import path from 'node:path'
 
 import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
-import { escapeRegExp } from '@socketsecurity/lib-stable/regexps'
+import { escapeRegExp } from '@socketsecurity/lib-stable/regexps/predicates'
 import { nodeVersionRaw } from 'build-infra/lib/constants'
 
 import {

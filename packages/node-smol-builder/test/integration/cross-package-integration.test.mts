@@ -102,7 +102,7 @@ beforeAll(async () => {
   const binjectExists = existsSync(BINJECT)
   const nodeExists = NODE_BINARY && existsSync(NODE_BINARY)
 
-  allBinariesExist = binpressExists && binjectExists && nodeExists
+  allBinariesExist = binjectExists && binpressExists && nodeExists
 
   if (!allBinariesExist) {
     logger.warn('Missing required binaries:')

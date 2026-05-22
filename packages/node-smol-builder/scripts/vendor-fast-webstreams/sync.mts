@@ -61,7 +61,7 @@ export function addPrimordialsProtection(content, filename) {
   const usesPromiseAll = /Promise\.all\s*\(/g.test(content)
 
   const needsPrimordials =
-    usesPromiseResolve || usesPromiseReject || usesNewPromise || usesPromiseAll
+    usesNewPromise || usesPromiseAll || usesPromiseReject || usesPromiseResolve
 
   if (!needsPrimordials) {
     return content

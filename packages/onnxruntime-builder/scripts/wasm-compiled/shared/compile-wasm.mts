@@ -24,7 +24,7 @@ import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
 import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
-import { getDefaultSpinner } from '@socketsecurity/lib-stable/spinner'
+import { getDefaultSpinner } from '@socketsecurity/lib-stable/spinner/registry'
 
 const logger = getDefaultLogger()
 const spinner = getDefaultSpinner()

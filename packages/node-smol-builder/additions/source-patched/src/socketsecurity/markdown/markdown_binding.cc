@@ -222,7 +222,14 @@ static void ParseMarkdown(const FunctionCallbackInfo<Value>& args) {
   }
 
   ParseState state{};
-  state.events.reserve(64);
+  // Rough heuristic from sampling AI-output markdown: ~1 event per
+  // 16 bytes of input (block-enter + text + block-leave per
+  // paragraph + bullet + emphasis run). Pre-size to that estimate
+  // so we usually avoid all reallocs during the parse. Small
+  // documents stay near the minimum 64-entry floor.
+  const size_t event_hint =
+      buf.size() / 16 > 64 ? buf.size() / 16 : 64;
+  state.events.reserve(event_hint);
 
   MD_PARSER parser{};
   parser.abi_version = 0;

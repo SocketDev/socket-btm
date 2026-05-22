@@ -1260,8 +1260,71 @@ static void StripAnsi(const FunctionCallbackInfo<Value>& args) {
   // For ≤kInlineThreshold one-byte inputs we use std::memchr (libc's
   // vectorized SIMD scan) twice — once for ESC, once for 0x9B. That's
   // ~10x faster on ≥256-byte strings than per-byte branches.
+  // Strip body — operates on raw bytes. ESC / CSI / OSC sequences are
+  // ASCII; pass-through bytes are copied unchanged. This works
+  // identically whether the source is a one-byte (Latin-1) WriteOneByte
+  // buffer or a UTF-8 WriteUtf8 buffer — multi-byte UTF-8 sequences
+  // don't contain 0x1B / 0x9B / ASCII as continuation bytes.
+  auto strip_bytes = [&](const uint8_t* p, const uint8_t* end,
+                         std::string& out) {
+    out.reserve(static_cast<size_t>(end - p));
+    while (p < end) {
+      const uint8_t b = *p;
+      if (b == 0x1B && p + 1 < end) {
+        const uint8_t b1 = *(p + 1);
+        if (b1 == ']') {
+          const uint8_t* q = p + 2;
+          bool terminated = false;
+          while (q < end) {
+            const uint8_t bq = *q;
+            if (bq == 0x07 || bq == 0x9C) {
+              q += 1;
+              terminated = true;
+              break;
+            }
+            if (bq == 0x1B && q + 1 < end && *(q + 1) == 0x5C) {
+              q += 2;
+              terminated = true;
+              break;
+            }
+            q += 1;
+          }
+          if (terminated) {
+            p = q;
+            continue;
+          }
+        } else {
+          const uint8_t* q = p + 1;
+          while (q < end && IsCsiPrefixByte(*q)) {
+            ++q;
+          }
+          while (q < end && IsCsiParamByte(*q)) {
+            ++q;
+          }
+          if (q < end && IsCsiFinalByte(*q)) {
+            p = q + 1;
+            continue;
+          }
+        }
+      } else if (b == 0x9B) {
+        const uint8_t* q = p + 1;
+        while (q < end && IsCsiPrefixByte(*q)) {
+          ++q;
+        }
+        while (q < end && IsCsiParamByte(*q)) {
+          ++q;
+        }
+        if (q < end && IsCsiFinalByte(*q)) {
+          p = q + 1;
+          continue;
+        }
+      }
+      out.push_back(static_cast<char>(b));
+      p += 1;
+    }
+  };
+
   constexpr int kInlineThreshold = 4096;
-  bool has_escape = false;
   if (input->IsOneByte()) {
     uint8_t stack_buf[kInlineThreshold];
     std::vector<uint8_t> heap_buf;
@@ -1278,19 +1341,33 @@ static void StripAnsi(const FunctionCallbackInfo<Value>& args) {
     // ARM64) — 16 bytes per cycle. Beats two memchr passes (which
     // would each be vectorized internally but require two full scans
     // of the input).
-    if (ContainsAnsiEscape(scan_ptr, static_cast<size_t>(char_len))) {
-      has_escape = true;
-    }
-    if (!has_escape) {
+    if (!ContainsAnsiEscape(scan_ptr, static_cast<size_t>(char_len))) {
       args.GetReturnValue().Set(input);
       return;
     }
-    // Fall through to materialize UTF-8 below for the actual strip pass.
-  } else {
-    // Two-byte input: scan UCS-2 code units. No vectorized 16-bit
-    // memchr in stdc; per-element branch is fine here — two-byte V8
-    // strings only appear when the input contains BMP-above-Latin-1
-    // chars, which are uncommon in ANSI-bearing text.
+    // Hit path: strip directly on scan_ptr (we already have the
+    // bytes — no second WriteOneByte / WriteUtf8 needed) and return
+    // via NewFromOneByte. Latin-1 input + ASCII-only deletions =
+    // Latin-1 output, skipping V8's NewFromUtf8 high-bit scan.
+    std::string out;
+    strip_bytes(scan_ptr, scan_ptr + char_len, out);
+    MaybeLocal<String> result_maybe = String::NewFromOneByte(
+        isolate, reinterpret_cast<const uint8_t*>(out.data()),
+        v8::NewStringType::kNormal, static_cast<int>(out.size()));
+    Local<String> result;
+    if (!result_maybe.ToLocal(&result)) {
+      args.GetReturnValue().SetUndefined();
+      return;
+    }
+    args.GetReturnValue().Set(result);
+    return;
+  }
+
+  // Two-byte input: scan UCS-2 code units. No vectorized 16-bit
+  // memchr in stdc; per-element branch is fine here — two-byte V8
+  // strings only appear when the input contains BMP-above-Latin-1
+  // chars, which are uncommon in ANSI-bearing text.
+  {
     uint16_t stack_buf[kInlineThreshold];
     std::vector<uint16_t> heap_buf;
     uint16_t* scan_ptr;
@@ -1302,6 +1379,7 @@ static void StripAnsi(const FunctionCallbackInfo<Value>& args) {
     }
     input->Write(isolate, scan_ptr, /*start*/ 0, char_len,
                  String::NO_NULL_TERMINATION);
+    bool has_escape = false;
     for (int i = 0; i < char_len; ++i) {
       const uint16_t c = scan_ptr[i];
       if (c == 0x1B || c == 0x9B) {
@@ -1315,85 +1393,16 @@ static void StripAnsi(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  // Hit path: need to actually strip. Materialize UTF-8 now (we knew
-  // we couldn't avoid it once we found an ESC).
+  // Two-byte hit path: materialize UTF-8 (output may contain non-ASCII
+  // codepoints from the input).
   const int input_len_utf8 = input->Utf8Length(isolate);
   std::string buf(static_cast<size_t>(input_len_utf8), '\0');
   input->WriteUtf8(isolate, buf.data(), input_len_utf8, nullptr,
                    String::NO_NULL_TERMINATION);
 
   std::string out;
-  out.reserve(buf.size());
-
-  const uint8_t* p = reinterpret_cast<const uint8_t*>(buf.data());
-  const uint8_t* const end = p + buf.size();
-
-  while (p < end) {
-    const uint8_t b = *p;
-
-    // ── OSC: ESC ']' ... ST  OR  CSI: ESC '[' ... final ──
-    if (b == 0x1B && p + 1 < end) {
-      const uint8_t b1 = *(p + 1);
-      if (b1 == ']') {
-        // OSC. Skip until ST: BEL (0x07), ESC '\\' (0x1B 0x5C), or
-        // 0x9C. Non-greedy.
-        const uint8_t* q = p + 2;
-        bool terminated = false;
-        while (q < end) {
-          const uint8_t bq = *q;
-          if (bq == 0x07 || bq == 0x9C) {
-            q += 1;
-            terminated = true;
-            break;
-          }
-          if (bq == 0x1B && q + 1 < end && *(q + 1) == 0x5C) {
-            q += 2;
-            terminated = true;
-            break;
-          }
-          q += 1;
-        }
-        if (terminated) {
-          p = q;
-          continue;
-        }
-        // Unterminated OSC — fall through and emit the ESC literally.
-      } else {
-        // Maybe CSI: ESC <prefix>* <param>* <final>
-        const uint8_t* q = p + 1;
-        while (q < end && IsCsiPrefixByte(*q)) {
-          ++q;
-        }
-        while (q < end && IsCsiParamByte(*q)) {
-          ++q;
-        }
-        if (q < end && IsCsiFinalByte(*q)) {
-          // Matched CSI starting at p; skip it.
-          p = q + 1;
-          continue;
-        }
-        // Not a CSI; fall through to emit ESC literally.
-      }
-    } else if (b == 0x9B) {
-      // CSI starting with 0x9B (single-byte form).
-      const uint8_t* q = p + 1;
-      while (q < end && IsCsiPrefixByte(*q)) {
-        ++q;
-      }
-      while (q < end && IsCsiParamByte(*q)) {
-        ++q;
-      }
-      if (q < end && IsCsiFinalByte(*q)) {
-        p = q + 1;
-        continue;
-      }
-      // Not a CSI; fall through.
-    }
-
-    // Pass-through byte.
-    out.push_back(static_cast<char>(b));
-    p += 1;
-  }
+  strip_bytes(reinterpret_cast<const uint8_t*>(buf.data()),
+              reinterpret_cast<const uint8_t*>(buf.data() + buf.size()), out);
 
   MaybeLocal<String> result_maybe =
       String::NewFromUtf8(isolate, out.data(), v8::NewStringType::kNormal,

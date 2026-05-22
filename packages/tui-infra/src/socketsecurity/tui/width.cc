@@ -94,11 +94,25 @@ uint32_t CodepointWidth(uint32_t cp) {
     }
     return 1;
   }
-  // Zero-width first (smaller table; sparser hits but cheap when no
-  // hit). Wide check next.
+
+  // Zero-width first. The table is small (13 ranges); binary search
+  // is ~4 iterations worst case. Most non-ASCII codepoints are not
+  // zero-width, so the search exits fast through a non-match.
   if (InRangeTable(cp, kZeroWidthRanges, kZeroWidthRangesCount)) {
     return 0;
   }
+
+  // BMP fast path: the first wide-range entry is U+1100 (Hangul
+  // Jamo). Any codepoint below that — Latin Extended, IPA, Greek,
+  // Cyrillic, Hebrew, Arabic, Devanagari, etc. — is width 1 by
+  // definition once we've ruled out zero-width above. Skipping the
+  // ~7-iteration binary search saves cycles on the dominant
+  // non-ASCII codepath (Western European text, accents, smart
+  // quotes).
+  if (cp < 0x1100) {
+    return 1;
+  }
+
   if (InRangeTable(cp, kWideRanges, kWideRangesCount)) {
     return 2;
   }

@@ -88,10 +88,6 @@
       "repo": "https://github.com/facebook/zstd"
     },
     "temporal-rs": {
-      "submodule": "packages/node-smol-builder/upstream/temporal",
-      "repo": "https://github.com/boa-dev/temporal"
-    },
-    "temporal-rs-parity": {
       "submodule": "packages/temporal-infra/upstream/temporal",
       "repo": "https://github.com/boa-dev/temporal"
     },
@@ -116,19 +112,9 @@
       "notes": "node-smol-builder produces the slim Node.js runtime for Socket Firewall. Major bumps require wide testing (V8 API churn, perf regressions); patch/minor auto-track."
     },
     {
-      "kind": "version-pin",
-      "id": "temporal-rs",
-      "upstream": "temporal-rs",
-      "pinned_sha": "1d1b123ff78a3ab656d5aa19d803d1516f95e92f",
-      "pinned_tag": "v0.1.0",
-      "upgrade_policy": "locked",
-      "criticality": 9,
-      "notes": "temporal_rs / temporal_capi crates back the Temporal global in Node 26+. Pinned to =0.1.0 by upstream Node's deps/crates/Cargo.toml \u2014 bumping requires a matching upstream Node bump, which is why this row is locked rather than track-latest. Vendored under the node submodule at deps/crates/vendor/temporal_rs/; configure.py asserts rustc/cargo >= 1.82 with LLVM >= 19. Smoke-tested by packages/build-infra/test/fixtures/smoke-test-modules.mjs."
-    },
-    {
       "kind": "file-fork",
       "id": "temporal-infra-instant",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/instant.cc",
       "upstream_path": "src/builtins/core/instant.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -145,7 +131,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-duration",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/duration.cc",
       "upstream_path": "src/builtins/core/duration.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -161,7 +147,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-iso",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/iso.cc",
       "upstream_path": "src/iso.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -177,7 +163,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-parse",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/parse.cc",
       "upstream_path": "src/parsers.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -194,7 +180,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-ixdtf-writer",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/ixdtf_writer.cc",
       "upstream_path": "src/parsers.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -211,7 +197,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-error",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/error.cc",
       "upstream_path": "src/error.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -227,7 +213,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-utils",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/utils.cc",
       "upstream_path": "src/utils.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -241,7 +227,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-host",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/host.cc",
       "upstream_path": "src/host.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -255,7 +241,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-sys",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/sys.cc",
       "upstream_path": "src/sys.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -269,7 +255,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-now",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/now.cc",
       "upstream_path": "src/builtins/core/now.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -283,7 +269,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-parsed-intermediates",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/parsed_intermediates.cc",
       "upstream_path": "src/parsed_intermediates.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -297,7 +283,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-plain-time",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/plain_time.cc",
       "upstream_path": "src/builtins/core/plain_time.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -312,7 +298,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-plain-year-month",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/plain_year_month.cc",
       "upstream_path": "src/builtins/core/plain_year_month.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -326,7 +312,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-plain-month-day",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/plain_month_day.cc",
       "upstream_path": "src/builtins/core/plain_month_day.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -340,7 +326,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-options",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/options.cc",
       "upstream_path": "src/options.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -359,7 +345,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-rounding",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/rounding.h",
       "upstream_path": "src/rounding.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -375,7 +361,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-plain-date",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/plain_date.cc",
       "upstream_path": "src/builtins/core/plain_date.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -391,7 +377,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-plain-date-time",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/plain_date_time.cc",
       "upstream_path": "src/builtins/core/plain_date_time.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -406,7 +392,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-calendar",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/calendar.cc",
       "upstream_path": "src/builtins/core/calendar.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -422,7 +408,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-time-zone",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/time_zone.cc",
       "upstream_path": "src/builtins/core/time_zone.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -437,7 +423,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-zoned-date-time",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/zoned_date_time.cc",
       "upstream_path": "src/builtins/core/zoned_date_time.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -452,7 +438,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-relative-to",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/relative_to.cc",
       "upstream_path": "src/options/relative_to.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -466,7 +452,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-duration-normalized",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/duration_normalized.cc",
       "upstream_path": "src/builtins/core/duration/normalized.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -482,7 +468,7 @@
     {
       "kind": "file-fork",
       "id": "temporal-infra-primitive",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "local": "packages/temporal-infra/src/socketsecurity/temporal/primitive.cc",
       "upstream_path": "src/primitive.rs",
       "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -496,7 +482,7 @@
     {
       "kind": "feature-parity",
       "id": "temporal-infra-pending",
-      "upstream": "temporal-rs-parity",
+      "upstream": "temporal-rs",
       "criticality": 9,
       "local_area": "packages/temporal-infra/src/socketsecurity/temporal",
       "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",

@@ -106,13 +106,7 @@
 	url = https://github.com/npm/node-semver.git
 	ignore = dirty
 	shallow = true
-# temporal-v0.1.0 (locked: pinned by upstream Node's deps/crates/Cargo.toml; bump only via updating-node)
-[submodule "packages/node-smol-builder/upstream/temporal"]
-	path = packages/node-smol-builder/upstream/temporal
-	url = https://github.com/boa-dev/temporal.git
-	ignore = dirty
-	shallow = true
-# temporal-v0.2.3 (track-latest: bump independently via updating-temporal-infra)
+# temporal-v0.2.3 (canonical temporal submodule; track-latest, bumped via /updating-temporal-infra and the /updating-node cascade)
 [submodule "packages/temporal-infra/upstream/temporal"]
 	path = packages/temporal-infra/upstream/temporal
 	url = https://github.com/boa-dev/temporal.git

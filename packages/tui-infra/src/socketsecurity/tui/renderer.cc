@@ -65,8 +65,12 @@ size_t Renderer::Flush(char* dst, size_t dst_capacity) {
   const Cell* prev_data = prev_.Data();
 
   for (uint32_t y = 0; y < h; ++y) {
+    // Row base — y * w is loop-invariant within the inner loop. The
+    // optimizer would hoist this in most cases, but writing it
+    // explicitly makes the inner-loop index just `+ x` (one add).
+    const size_t row_base = static_cast<size_t>(y) * w;
     for (uint32_t x = 0; x < w; ++x) {
-      const size_t i = static_cast<size_t>(y) * w + x;
+      const size_t i = row_base + x;
       const Cell& cur = next_data[i];
       const Cell& old = prev_data[i];
 

@@ -47,7 +47,17 @@
 // MD_DIALECT_GITHUB aggregate (tables + strikethrough + tasklists +
 // permissive_*_autolinks).
 
-const { ArrayPrototypePush, ObjectFreeze } = primordials
+const {
+  ArrayPrototypePush,
+  DataView: DataViewCtor,
+  DataViewPrototypeGetInt32,
+  DataViewPrototypeGetUint32,
+  NumberPrototypeToString,
+  ObjectFreeze,
+  TypeError: TypeErrorCtor,
+  Uint8Array: Uint8ArrayCtor,
+  Uint8ArrayPrototypeSubarray,
+} = primordials
 
 const { parseMarkdown, parseMarkdownStream } =
   internalBinding('smol_markdown')
@@ -130,27 +140,27 @@ function decodeStream(arrayBuffer) {
     typeof arrayBuffer.byteLength !== 'number' ||
     arrayBuffer.byteLength < STREAM_HEADER_SIZE
   ) {
-    throw new TypeError(
+    throw new TypeErrorCtor(
       'parseMarkdownStream output too small to be a valid event stream',
     )
   }
-  const header = new DataView(arrayBuffer, 0, STREAM_HEADER_SIZE)
-  const magic = header.getUint32(0, true)
+  const header = new DataViewCtor(arrayBuffer, 0, STREAM_HEADER_SIZE)
+  const magic = DataViewPrototypeGetUint32(header, 0, true)
   if (magic !== STREAM_MAGIC) {
-    throw new TypeError(
-      `parseMarkdownStream output has wrong magic ${magic.toString(16)}; expected SMDV`,
+    throw new TypeErrorCtor(
+      `parseMarkdownStream output has wrong magic ${NumberPrototypeToString(magic, 16)}; expected SMDV`,
     )
   }
-  const eventCount = header.getUint32(4, true)
-  const textPoolSize = header.getUint32(8, true)
+  const eventCount = DataViewPrototypeGetUint32(header, 4, true)
+  const textPoolSize = DataViewPrototypeGetUint32(header, 8, true)
   const recordsByteSize = eventCount * STREAM_EVENT_SIZE
   // Typed-array views into the shared ArrayBuffer — zero-copy.
-  const records = new DataView(
+  const records = new DataViewCtor(
     arrayBuffer,
     STREAM_HEADER_SIZE,
     recordsByteSize,
   )
-  const textPool = new Uint8Array(
+  const textPool = new Uint8ArrayCtor(
     arrayBuffer,
     STREAM_HEADER_SIZE + recordsByteSize,
     textPoolSize,
@@ -169,20 +179,25 @@ function decodeStream(arrayBuffer) {
 // per total event). Callers that don't need text strings can use
 // decodeStream() directly and read the records/textPool typed
 // arrays.
+// TextDecoder is a WHATWG global, not part of Node's `primordials` —
+// safe to capture the constructor at module load and the prototype
+// method via uncurry to avoid prototype-mutation risk on the hot path.
 const sharedDecoder = new TextDecoder('utf-8')
+const sharedDecode = TextDecoder.prototype.decode
 function streamForEach(arrayBuffer, fn) {
   const { eventCount, records, textPool } = decodeStream(arrayBuffer)
   for (let i = 0, byteOff = 0; i < eventCount; i += 1, byteOff += STREAM_EVENT_SIZE) {
-    const code = records.getUint32(byteOff, true)
-    const textOffset = records.getUint32(byteOff + 4, true)
-    const textLen = records.getUint32(byteOff + 8, true)
-    const headingLevel = records.getInt32(byteOff + 12, true)
+    const code = DataViewPrototypeGetUint32(records, byteOff, true)
+    const textOffset = DataViewPrototypeGetUint32(records, byteOff + 4, true)
+    const textLen = DataViewPrototypeGetUint32(records, byteOff + 8, true)
+    const headingLevel = DataViewPrototypeGetInt32(records, byteOff + 12, true)
     let payload
     if (textLen !== 0) {
       // textOffset is relative to textPool's start; subarray is a
       // zero-copy view backed by the same ArrayBuffer.
-      payload = sharedDecoder.decode(
-        textPool.subarray(textOffset, textOffset + textLen),
+      payload = sharedDecode.call(
+        sharedDecoder,
+        Uint8ArrayPrototypeSubarray(textPool, textOffset, textOffset + textLen),
       )
     } else if (headingLevel !== 0) {
       payload = headingLevel

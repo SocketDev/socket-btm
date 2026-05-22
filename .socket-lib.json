@@ -30,6 +30,8 @@
       "encodeURIComponent": "encodeComponent"
     },
     "nodeInternalOnly": [
+      "DataViewPrototypeGetInt32",
+      "DataViewPrototypeGetUint32",
       "SafeMap",
       "SafePromise",
       "SafePromiseAllReturnVoid",
@@ -37,6 +39,8 @@
       "SafeSet",
       "SafeWeakMap",
       "SafeWeakSet",
+      "Uint8Array",
+      "Uint8ArrayPrototypeSubarray",
       "globalThis",
       "hardenRegExp"
     ]

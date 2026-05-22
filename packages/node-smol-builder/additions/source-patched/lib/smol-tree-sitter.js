@@ -31,7 +31,15 @@
 // See https://tree-sitter.github.io/tree-sitter/creating-parsers for
 // the grammar authoring guide.
 
-const { ObjectFreeze } = primordials
+const {
+  DataView: DataViewCtor,
+  DataViewPrototypeGetUint32,
+  NumberPrototypeToString,
+  ObjectFreeze,
+  TypeError: TypeErrorCtor,
+  Uint8Array: Uint8ArrayCtor,
+  Uint8ArrayPrototypeSubarray,
+} = primordials
 
 const { freeLanguage, loadLanguage, parse, parseStream } = internalBinding(
   'smol_tree_sitter',
@@ -65,7 +73,10 @@ const { freeLanguage, loadLanguage, parse, parseStream } = internalBinding(
 const STREAM_MAGIC = 0x53545356  // "STSV"
 const STREAM_HEADER_SIZE = 12
 const STREAM_RECORD_SIZE = 20
+// TextDecoder is a WHATWG global, not part of Node's `primordials`;
+// capture the constructor + prototype method at module load.
 const sharedDecoder = new TextDecoder('utf-8')
+const sharedDecode = TextDecoder.prototype.decode
 
 function decodeStream(arrayBuffer) {
   if (
@@ -73,26 +84,26 @@ function decodeStream(arrayBuffer) {
     typeof arrayBuffer.byteLength !== 'number' ||
     arrayBuffer.byteLength < STREAM_HEADER_SIZE
   ) {
-    throw new TypeError(
+    throw new TypeErrorCtor(
       'parseStream output too small to be a valid tree-sitter stream',
     )
   }
-  const header = new DataView(arrayBuffer, 0, STREAM_HEADER_SIZE)
-  const magic = header.getUint32(0, true)
+  const header = new DataViewCtor(arrayBuffer, 0, STREAM_HEADER_SIZE)
+  const magic = DataViewPrototypeGetUint32(header, 0, true)
   if (magic !== STREAM_MAGIC) {
-    throw new TypeError(
-      `parseStream output has wrong magic ${magic.toString(16)}; expected STSV`,
+    throw new TypeErrorCtor(
+      `parseStream output has wrong magic ${NumberPrototypeToString(magic, 16)}; expected STSV`,
     )
   }
-  const nodeCount = header.getUint32(4, true)
-  const typePoolSize = header.getUint32(8, true)
+  const nodeCount = DataViewPrototypeGetUint32(header, 4, true)
+  const typePoolSize = DataViewPrototypeGetUint32(header, 8, true)
   const recordsByteSize = nodeCount * STREAM_RECORD_SIZE
-  const records = new DataView(
+  const records = new DataViewCtor(
     arrayBuffer,
     STREAM_HEADER_SIZE,
     recordsByteSize,
   )
-  const typePool = new Uint8Array(
+  const typePool = new Uint8ArrayCtor(
     arrayBuffer,
     STREAM_HEADER_SIZE + recordsByteSize,
     typePoolSize,
@@ -113,13 +124,14 @@ function decodeStream(arrayBuffer) {
 function streamForEach(arrayBuffer, fn) {
   const { nodeCount, records, typePool } = decodeStream(arrayBuffer)
   for (let i = 0, byteOff = 0; i < nodeCount; i += 1, byteOff += STREAM_RECORD_SIZE) {
-    const typeOffset = records.getUint32(byteOff, true)
-    const typeLen = records.getUint32(byteOff + 4, true)
-    const startByte = records.getUint32(byteOff + 8, true)
-    const endByte = records.getUint32(byteOff + 12, true)
-    const namedChildCount = records.getUint32(byteOff + 16, true)
-    const type = sharedDecoder.decode(
-      typePool.subarray(typeOffset, typeOffset + typeLen),
+    const typeOffset = DataViewPrototypeGetUint32(records, byteOff, true)
+    const typeLen = DataViewPrototypeGetUint32(records, byteOff + 4, true)
+    const startByte = DataViewPrototypeGetUint32(records, byteOff + 8, true)
+    const endByte = DataViewPrototypeGetUint32(records, byteOff + 12, true)
+    const namedChildCount = DataViewPrototypeGetUint32(records, byteOff + 16, true)
+    const type = sharedDecode.call(
+      sharedDecoder,
+      Uint8ArrayPrototypeSubarray(typePool, typeOffset, typeOffset + typeLen),
     )
     fn(type, startByte, endByte, namedChildCount)
   }

@@ -22,16 +22,37 @@ import { errorMessage } from './error-utils.mts'
 /**
  * Critical dependencies that trigger cache invalidation.
  * When these packages are updated, caches must be rebuilt.
+ *
+ * Each role lists BOTH the canonical name and the `-stable` alias. The
+ * fleet catalog redirects every Socket package to its `-stable` form for
+ * build / config / hook code (see pnpm-workspace.yaml's catalog block);
+ * runtime consumers may use either spelling. Listing both ensures
+ * generateCacheKey() picks up the dep version regardless of which
+ * spelling a given package.json declares.
  */
 const CACHE_BUSTING_DEPS = {
-  bootstrap: ['@socketsecurity/lib', '@socketsecurity/packageurl-js'],
+  bootstrap: [
+    '@socketsecurity/lib',
+    '@socketsecurity/lib-stable',
+    '@socketsecurity/packageurl-js',
+    '@socketsecurity/packageurl-js-stable',
+  ],
   cli: [
     '@socketsecurity/lib',
+    '@socketsecurity/lib-stable',
     '@socketsecurity/packageurl-js',
+    '@socketsecurity/packageurl-js-stable',
     '@socketsecurity/sdk',
+    '@socketsecurity/sdk-stable',
     '@socketsecurity/registry',
+    '@socketsecurity/registry-stable',
   ],
-  'cli-with-sentry': ['@socketsecurity/lib', '@socketsecurity/packageurl-js'],
+  'cli-with-sentry': [
+    '@socketsecurity/lib',
+    '@socketsecurity/lib-stable',
+    '@socketsecurity/packageurl-js',
+    '@socketsecurity/packageurl-js-stable',
+  ],
 }
 
 /**

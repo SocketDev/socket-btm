@@ -38,7 +38,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
-#include <string>
 
 namespace node {
 namespace socketsecurity {
@@ -98,14 +97,63 @@ static void Encode(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   Local<String> text_str = args[0].As<String>();
-  const int text_len = text_str->Utf8Length(isolate);
-  if (text_len == 0) {
+  const int str_len = text_str->Length();
+  if (str_len == 0) {
     set_empty_result();
     return;
   }
-  std::string text(static_cast<size_t>(text_len), '\0');
-  text_str->WriteUtf8(isolate, text.data(), text_len, nullptr,
-                      String::NO_NULL_TERMINATION);
+
+  // QR payloads are typically short URLs or tokens — well under 4 KB.
+  // Stack-buffer the common case + heap-allocate only on overflow.
+  // libqrencode wants a C string (null-terminated); we always emit
+  // one null terminator into the last slot.
+  constexpr size_t kInlineThreshold = 4096;
+  char inline_buf[kInlineThreshold];
+  char* heap_buf = nullptr;
+  char* text_buf = inline_buf;
+
+  // QR 8-bit mode treats the input as opaque bytes. When the JS
+  // string is one-byte (ASCII / Latin-1) we can copy it directly
+  // and skip the UTF-8 length probe + conversion. Multi-byte UTF-8
+  // strings still need the WriteUtf8 path so libqrencode encodes
+  // the actual byte sequence the user expected.
+  size_t copied_len = 0;
+  if (text_str->IsOneByte()) {
+    const size_t needed = static_cast<size_t>(str_len) + 1;
+    if (needed > kInlineThreshold) {
+      heap_buf = static_cast<char*>(std::malloc(needed));
+      if (heap_buf == nullptr) {
+        set_empty_result();
+        return;
+      }
+      text_buf = heap_buf;
+    }
+    text_str->WriteOneByte(isolate, reinterpret_cast<uint8_t*>(text_buf), 0,
+                           str_len, String::NO_NULL_TERMINATION);
+    copied_len = static_cast<size_t>(str_len);
+  } else {
+    const int utf8_len = text_str->Utf8Length(isolate);
+    if (utf8_len == 0) {
+      set_empty_result();
+      return;
+    }
+    const size_t needed = static_cast<size_t>(utf8_len) + 1;
+    if (needed > kInlineThreshold) {
+      heap_buf = static_cast<char*>(std::malloc(needed));
+      if (heap_buf == nullptr) {
+        set_empty_result();
+        return;
+      }
+      text_buf = heap_buf;
+    }
+    text_str->WriteUtf8(isolate, text_buf, utf8_len, nullptr,
+                        String::NO_NULL_TERMINATION);
+    copied_len = static_cast<size_t>(utf8_len);
+  }
+  text_buf[copied_len] = '\0';
+
+  // RAII for the heap fallback — symmetric free() on every exit path.
+  std::unique_ptr<char, void(*)(void*)> heap_guard(heap_buf, std::free);
 
   uint32_t level_int = 1;  // default M
   if (args.Length() >= 2) {
@@ -117,7 +165,7 @@ static void Encode(const FunctionCallbackInfo<Value>& args) {
   // fits the input. case_sensitive=1 preserves the input bytes
   // verbatim (8-bit mode); the alternative would be alphanumeric
   // upper-case-only.
-  QRcode* qr = QRcode_encodeString8bit(text.c_str(), /*version=*/0,
+  QRcode* qr = QRcode_encodeString8bit(text_buf, /*version=*/0,
                                        ec_level);
   if (qr == nullptr) {
     set_empty_result();

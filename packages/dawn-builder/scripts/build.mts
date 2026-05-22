@@ -37,7 +37,8 @@
  * Build caching (ccache) lands in a follow-up.
  */
 
-import { existsSync } from 'node:fs'
+import { copyFileSync, existsSync } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -81,10 +82,6 @@ export function parseArgs(): BuildOptions {
     }
   }
   if (jobs === 0) {
-    // Detect at runtime; fall back to a conservative 4 if detection fails.
-    // Dawn's link step is single-threaded so over-provisioning helps the
-    // compile phase but doesn't speed up the tail.
-    const os = require('node:os')
     jobs = (typeof os.availableParallelism === 'function'
       ? os.availableParallelism()
       : os.cpus().length) || 4
@@ -143,9 +140,9 @@ async function main(): Promise<void> {
     cwd: UPSTREAM_DAWN_DIR,
     stdio: 'inherit',
   })
-  if (configureResult.exitCode !== 0) {
+  if (configureResult.code !== 0) {
     throw new Error(
-      `cmake configure failed with exit code ${configureResult.exitCode}`,
+      `cmake configure failed with exit code ${configureResult.code}`,
     )
   }
 
@@ -163,19 +160,26 @@ async function main(): Promise<void> {
   const buildResult = await spawn(cmakePath, buildArgs, {
     stdio: 'inherit',
   })
-  if (buildResult.exitCode !== 0) {
-    throw new Error(`cmake build failed with exit code ${buildResult.exitCode}`)
+  if (buildResult.code !== 0) {
+    throw new Error(`cmake build failed with exit code ${buildResult.code}`)
   }
 
-  // Verify the expected output landed.
-  const expectedLib = path.join(paths.cmakeDir, 'src', 'dawn', 'native',
-                                'libwebgpu_dawn.a')
-  if (!existsSync(expectedLib)) {
+  // Verify the expected output landed AND copy it into the canonical
+  // output path that paths.mts declares. CMake places the static lib
+  // at <cmakeDir>/src/dawn/native/libwebgpu_dawn.a; downstream consumers
+  // (node-smol's configure step that defines HAVE_DAWN) look at
+  // paths.outputLibFile, so we land it there in one step.
+  const builtLib = path.join(
+    paths.cmakeDir, 'src', 'dawn', 'native', 'libwebgpu_dawn.a',
+  )
+  if (!existsSync(builtLib)) {
     throw new Error(
-      `Build succeeded but ${expectedLib} not found. CMake target layout may have changed; check Dawn's CMakeLists.txt.`,
+      `Build succeeded but ${builtLib} not found. CMake target layout may have changed; check Dawn's CMakeLists.txt.`,
     )
   }
-  logger.success(`Dawn built at ${expectedLib}`)
+  await safeMkdir(path.dirname(paths.outputLibFile), { recursive: true })
+  copyFileSync(builtLib, paths.outputLibFile)
+  logger.success(`Dawn built at ${paths.outputLibFile}`)
 }
 
 main().catch(err => {

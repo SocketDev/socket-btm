@@ -15,7 +15,7 @@ import { spawnSync } from '@socketsecurity/lib-stable/spawn/spawn'
 /**
  * Supported tar archive formats.
  */
-const _CHECKPOINT_FORMATS = ['*.tar', '*.tar.gz', '*.tgz'] as const
+const CHECKPOINT_FORMATS = ['*.tar', '*.tar.gz', '*.tgz'] as const
 
 /**
  * Result of checkpoint validation.

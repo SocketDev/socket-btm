@@ -21,11 +21,11 @@ import {
 } from 'bin-infra/test/helpers/segment-names'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const _packageDir = path.resolve(__dirname, '..', '..')
+const packageDir = path.resolve(__dirname, '..', '..')
 
 const BUILD_MODE = getBuildMode()
 const PLATFORM_ARCH = getPlatformArch(process.platform, process.arch, undefined)
-const BINJECT_DIR = path.join(_packageDir, '..', 'binject')
+const BINJECT_DIR = path.join(packageDir, '..', 'binject')
 
 // Re-export VFS resource names for convenience
 export {

@@ -165,7 +165,7 @@ export async function buildRelease(config, buildOptions = {}) {
     }
   }
 
-  const _IS_MACOS = platform === 'darwin'
+  const IS_MACOS = platform === 'darwin'
   const IS_WINDOWS = platform === 'win32'
   const IS_LINUX = platform === 'linux'
   const IS_MUSL = libc === 'musl'
@@ -660,7 +660,7 @@ export async function buildRelease(config, buildOptions = {}) {
     // Enable LTO for smaller binaries and better optimization.
     // Linux: Uses GCC/Clang LTO.
     // macOS: Uses Apple Clang's -flto=thin for faster builds with good optimization.
-    if (IS_LINUX || _IS_MACOS) {
+    if (IS_LINUX || IS_MACOS) {
       configureFlags.push('--enable-lto')
     }
   }

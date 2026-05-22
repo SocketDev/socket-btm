@@ -114,8 +114,8 @@ describe('onnxruntime-builder WASM output', () => {
     })
 
     it('ort-sync.js can be required as CommonJS module', async () => {
-      const _require = createRequire(import.meta.url)
-      await helpers.testSyncJsRequirable(expect, _require)
+      const require = createRequire(import.meta.url)
+      await helpers.testSyncJsRequirable(expect, require)
     })
 
     it('loaded ort module should be an object', () => {
@@ -124,8 +124,8 @@ describe('onnxruntime-builder WASM output', () => {
         return
       }
 
-      const _require = createRequire(import.meta.url)
-      const ort = _require(syncJsPath)
+      const require = createRequire(import.meta.url)
+      const ort = require(syncJsPath)
       expect(isObjectObject(ort)).toBeTruthy()
     })
   })

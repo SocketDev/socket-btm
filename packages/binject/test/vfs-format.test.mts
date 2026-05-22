@@ -25,7 +25,7 @@ let binjectExists = false
 /**
  * Helper to run binject commands
  */
-export async function _runBinject(args, options = {}) {
+export async function runBinject(args, options = {}) {
   return new Promise(resolve => {
     const spawnPromise = spawn(BINJECT, args, {
       cwd: options.cwd || testDir,
@@ -56,7 +56,7 @@ export async function _runBinject(args, options = {}) {
     })
   })
 }
-void _runBinject
+void runBinject
 
 /**
  * Create a simple TAR archive from a buffer map

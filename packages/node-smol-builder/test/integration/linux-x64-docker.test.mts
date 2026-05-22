@@ -42,7 +42,7 @@ const isLinux = os.platform() === 'linux'
 const skipTests = !isLinux || !finalBinaryPath || !existsSync(finalBinaryPath)
 
 const testTmpDir = path.join(os.tmpdir(), 'socket-btm-linux-x64-docker-tests')
-const _DLX_DIR = getSocketDlxDir()
+const DLX_DIR = getSocketDlxDir()
 
 /**
  * Calculate the content hash for a file (matches node-smol extraction logic).
@@ -76,7 +76,7 @@ describe.skipIf(skipTests)('linux-x64 Docker build integration', () => {
       // Check if extraction occurred (only for compressed binaries)
       // Compressed binaries extract to ~/.socket/_dlx/<hash>/node
       const hash = await calculateFileHash(finalBinaryPath)
-      const extractedNodePath = path.join(_DLX_DIR, hash, 'node')
+      const extractedNodePath = path.join(DLX_DIR, hash, 'node')
 
       // If the binary is compressed, it should extract to the cache directory
       // If it's uncompressed (dev builds), the cache may not exist

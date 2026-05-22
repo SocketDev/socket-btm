@@ -62,46 +62,6 @@ const PLATFORM_CONFIG = {
 }
 
 /**
- * Detect libc variant (musl vs glibc) for a Linux binary.
- * Uses ldd to check which C library the binary is linked against.
- *
- * @param {string} binaryPath - Path to binary to analyze
- * @returns {Promise<number>} - LIBC_VALUES.musl, LIBC_VALUES.glibc, or LIBC_VALUES.na
- */
-export async function _detectLibc(binaryPath) {
-  try {
-    // Run ldd on the binary and check output.
-    const result = await spawn('ldd', [binaryPath], {
-      encoding: 'utf8',
-      timeout: 5000,
-    })
-
-    const output = result.stdout + result.stderr
-
-    // Check for musl first (more specific).
-    if (output.includes('musl')) {
-      return LIBC_VALUES.musl
-    }
-
-    // Check for glibc indicators.
-    if (output.includes('libc.so') || output.includes('glibc')) {
-      return LIBC_VALUES.glibc
-    }
-
-    // Default to glibc (most common on Linux).
-    logger.warn(
-      `Could not determine libc variant for ${binaryPath}, defaulting to glibc`,
-    )
-    return LIBC_VALUES.glibc
-  } catch (e) {
-    logger.warn(
-      `Failed to detect libc variant for ${binaryPath}: ${errorMessage(e)}, defaulting to glibc`,
-    )
-    return LIBC_VALUES.glibc
-  }
-}
-
-/**
  * Compress binary using binpress (zstd compression).
  */
 export async function compressBinary(
@@ -195,6 +155,46 @@ export async function compressBinary(
 
   // binpress handled everything - we're done.
   return
+}
+
+/**
+ * Detect libc variant (musl vs glibc) for a Linux binary.
+ * Uses ldd to check which C library the binary is linked against.
+ *
+ * @param {string} binaryPath - Path to binary to analyze
+ * @returns {Promise<number>} - LIBC_VALUES.musl, LIBC_VALUES.glibc, or LIBC_VALUES.na
+ */
+export async function detectLibc(binaryPath) {
+  try {
+    // Run ldd on the binary and check output.
+    const result = await spawn('ldd', [binaryPath], {
+      encoding: 'utf8',
+      timeout: 5000,
+    })
+
+    const output = result.stdout + result.stderr
+
+    // Check for musl first (more specific).
+    if (output.includes('musl')) {
+      return LIBC_VALUES.musl
+    }
+
+    // Check for glibc indicators.
+    if (output.includes('libc.so') || output.includes('glibc')) {
+      return LIBC_VALUES.glibc
+    }
+
+    // Default to glibc (most common on Linux).
+    logger.warn(
+      `Could not determine libc variant for ${binaryPath}, defaulting to glibc`,
+    )
+    return LIBC_VALUES.glibc
+  } catch (e) {
+    logger.warn(
+      `Failed to detect libc variant for ${binaryPath}: ${errorMessage(e)}, defaulting to glibc`,
+    )
+    return LIBC_VALUES.glibc
+  }
 }
 
 /**

@@ -50,7 +50,7 @@ export async function generateSync(options) {
   )
   logger.logNewline()
 
-  const _require = createRequire(import.meta.url)
+  const require = createRequire(import.meta.url)
 
   // Extract package-specific config.
   const {
@@ -122,7 +122,7 @@ export async function generateSync(options) {
       if (syncStats.size === 0) {
         throw new Error('Sync wrapper file is empty')
       }
-      const wasmModule = _require(syncJsFile)
+      const wasmModule = require(syncJsFile)
       if (wasmModule === undefined || typeof wasmModule !== 'object') {
         throw new Error(
           `Sync wrapper failed to load properly: got ${typeof wasmModule}`,

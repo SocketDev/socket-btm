@@ -571,7 +571,7 @@ describe('binject CLI', () => {
       const vfsResource = await createTestResource('test2.tar')
       const output = path.join(testDir, 'output-batch2.bin')
 
-      const _result = await execCommand(BINJECT, [
+      const result = await execCommand(BINJECT, [
         'inject',
         '-e',
         binary,

@@ -166,7 +166,7 @@ describe.skipIf(!hasBuiltArtifacts)('minilm-builder model output', () => {
       }
 
       const buffer = await fs.readFile(modelPath)
-      const _str = buffer.toString('utf8', 0, 1000)
+      const str = buffer.toString('utf8', 0, 1000)
       // ONNX models contain IR version info early in the file
       expect(buffer.length).toBeGreaterThan(1000)
       // Should contain model structure markers

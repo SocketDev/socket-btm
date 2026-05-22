@@ -38,7 +38,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const finalBinaryPath = getLatestFinalBinary()
 const packageDir = getPackageDir()
 const testTmpDir = path.join(os.tmpdir(), 'socket-btm-e2e-tests')
-const _DLX_DIR = getSocketDlxDir()
+const DLX_DIR = getSocketDlxDir()
 
 // Skip all tests if no final binary is available
 const skipTests = !finalBinaryPath || !existsSync(finalBinaryPath)

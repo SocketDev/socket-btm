@@ -112,8 +112,8 @@ describe('yoga-layout-builder WASM output', () => {
     })
 
     it('yoga-sync.js can be required as CommonJS module', async () => {
-      const _require = createRequire(import.meta.url)
-      await helpers.testSyncJsRequirable(expect, _require)
+      const require = createRequire(import.meta.url)
+      await helpers.testSyncJsRequirable(expect, require)
     })
 
     it('loaded yoga module should be an object', () => {
@@ -122,8 +122,8 @@ describe('yoga-layout-builder WASM output', () => {
         return
       }
 
-      const _require = createRequire(import.meta.url)
-      const yoga = _require(syncJsPath)
+      const require = createRequire(import.meta.url)
+      const yoga = require(syncJsPath)
       expect(isObjectObject(yoga)).toBeTruthy()
     })
   })

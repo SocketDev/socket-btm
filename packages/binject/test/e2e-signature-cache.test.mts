@@ -242,7 +242,7 @@ export async function verifySignature(binaryPath) {
   return result.code === 0
 }
 
-export async function _getSignatureInfo(binaryPath) {
+export async function getSignatureInfo(binaryPath) {
   // codesign outputs to stderr
   const result = await execCommand('codesign', ['-dvvv', binaryPath])
   return result.stderr

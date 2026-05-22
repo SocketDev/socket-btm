@@ -82,7 +82,7 @@ export function isPEP668Managed() {
 }
 
 // Global venv state
-let _venvPath
+let venvPath
 let venvPipPath
 let venvPythonPath
 let venvInitialized = false
@@ -111,11 +111,11 @@ export function getPipCommand() {
   }
   // Lazy detection — see getPythonCommand() for rationale.
   if (!venvInitialized) {
-    const probeVenvPath = _venvPath || getDefaultVenvPath()
+    const probeVenvPath = venvPath || getDefaultVenvPath()
     const probePython = path.join(probeVenvPath, 'bin', 'python3')
     const probePip = path.join(probeVenvPath, 'bin', 'pip3')
     if (existsSync(probePython) && existsSync(probePip)) {
-      _venvPath = probeVenvPath
+      venvPath = probeVenvPath
       venvPythonPath = probePython
       venvPipPath = probePip
       venvAvailable = true
@@ -160,7 +160,7 @@ export async function initializeVenv({ quiet = false, venvDir } = {}) {
   venvInitialized = true
 
   const targetVenvPath = venvDir || getDefaultVenvPath()
-  _venvPath = targetVenvPath
+  venvPath = targetVenvPath
 
   // Check if venv already exists and is valid
   const venvBinDir = path.join(targetVenvPath, 'bin')
@@ -268,11 +268,11 @@ export async function getPythonCommand() {
   // likely to be PEP 668 locked and missing packages we installed in
   // the venv earlier).
   if (!venvInitialized) {
-    const probeVenvPath = _venvPath || getDefaultVenvPath()
+    const probeVenvPath = venvPath || getDefaultVenvPath()
     const probePython = path.join(probeVenvPath, 'bin', 'python3')
     const probePip = path.join(probeVenvPath, 'bin', 'pip3')
     if (existsSync(probePython) && existsSync(probePip)) {
-      _venvPath = probeVenvPath
+      venvPath = probeVenvPath
       venvPythonPath = probePython
       venvPipPath = probePip
       venvAvailable = true

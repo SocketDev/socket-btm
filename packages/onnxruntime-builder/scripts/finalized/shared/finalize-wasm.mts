@@ -105,8 +105,8 @@ export async function finalizeWasm(options) {
           `WASM file too small: ${wasmStats.size} bytes (expected >1MB)`,
         )
       }
-      const _require = createRequire(import.meta.url)
-      const syncModule = _require(outputSyncCjsFile)
+      const require = createRequire(import.meta.url)
+      const syncModule = require(outputSyncCjsFile)
       if (!syncModule) {
         throw new Error('Sync module failed to load')
       }

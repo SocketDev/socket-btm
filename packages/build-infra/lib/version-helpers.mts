@@ -114,7 +114,7 @@ export async function getEmscriptenVersion(
   return version
 }
 
-let _nodeVersion: string | undefined
+let nodeVersion: string | undefined
 /**
  * Load Node.js version from .node-version file at monorepo root.
  * Result is memoized for performance.
@@ -126,7 +126,7 @@ let _nodeVersion: string | undefined
  * // Returns: '24.12.0'
  */
 export function getNodeVersion(): string {
-  if (_nodeVersion === undefined) {
+  if (nodeVersion === undefined) {
     try {
       const content = readFileSync(NODE_VERSION_FILE, 'utf8')
       const version = content.trim()
@@ -135,7 +135,7 @@ export function getNodeVersion(): string {
         throw new Error(`.node-version file is empty at: ${NODE_VERSION_FILE}`)
       }
 
-      _nodeVersion = version
+      nodeVersion = version
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
         throw new Error(
@@ -147,10 +147,10 @@ export function getNodeVersion(): string {
       throw e
     }
   }
-  return _nodeVersion
+  return nodeVersion
 }
 
-let _minPythonVersion: string | undefined
+let minPythonVersion: string | undefined
 /**
  * Load minimum Python version from build-infra/external-tools.json.
  * Result is memoized for performance.
@@ -162,7 +162,7 @@ let _minPythonVersion: string | undefined
  * // Returns: '3.6'
  */
 export function getMinPythonVersion(): string {
-  if (_minPythonVersion === undefined) {
+  if (minPythonVersion === undefined) {
     const data = loadExternalToolsSync(PACKAGE_ROOT)
 
     const pythonConfig = data.tools?.python
@@ -181,9 +181,9 @@ export function getMinPythonVersion(): string {
       )
     }
 
-    _minPythonVersion = version
+    minPythonVersion = version
   }
-  return _minPythonVersion as string
+  return minPythonVersion as string
 }
 
 /**

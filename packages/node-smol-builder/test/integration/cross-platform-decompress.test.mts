@@ -27,7 +27,7 @@ describe.skipIf(skipTests)('cross-Platform Decompression', () => {
   let binaryPath: string
   let binaryData: Buffer
   let platformByte: number
-  let _archByte: number
+  let archByte: number
 
   beforeAll(async () => {
     binaryPath = getLatestFinalBinary()
@@ -50,7 +50,7 @@ describe.skipIf(skipTests)('cross-Platform Decompression', () => {
       HEADER_SIZES.CACHE_KEY
 
     platformByte = binaryData[metadataOffset]
-    _archByte = binaryData[metadataOffset + 1]
+    archByte = binaryData[metadataOffset + 1]
   })
 
   describe('universal zstd compression', () => {
@@ -212,7 +212,7 @@ describe.skipIf(skipTests)('cross-Platform Decompression', () => {
       const markerIndex = binaryData.indexOf(Buffer.from(MAGIC_MARKER, 'utf8'))
       const dataOffset = markerIndex + 67
 
-      const _compressedData = binaryData.subarray(dataOffset)
+      const compressedData = binaryData.subarray(dataOffset)
 
       // We can verify the cache key matches the data by checking it's consistent
       const cacheKeyOffset = markerIndex + 48

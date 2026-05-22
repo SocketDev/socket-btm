@@ -101,7 +101,7 @@ describe.skipIf(
       expect(createResult.code).toBe(0)
       expect(existsSync(initialStub)).toBeTruthy()
 
-      const _initialStubHash = await hashFile(initialStub)
+      const initialStubHash = await hashFile(initialStub)
 
       // Step 2: Recompress the stub (auto-detection should trigger repack)
       const updatedStub = getStubPath('updated-stub')

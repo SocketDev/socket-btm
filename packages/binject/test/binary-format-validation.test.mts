@@ -252,7 +252,7 @@ describe.skipIf(!binjectExists)(
 
         // Set specific permissions
         await makeExecutable(inputBinary)
-        const _inputStats = await fs.stat(inputBinary)
+        const inputStats = await fs.stat(inputBinary)
 
         const seaBlob = path.join(testDir, 'perm_test.blob')
         await fs.writeFile(seaBlob, Buffer.from('test'))
@@ -352,7 +352,7 @@ describe.skipIf(!binjectExists)(
 
         // Get input binary size and hash of first 4KB (should be unchanged)
         const inputData = await fs.readFile(inputBinary)
-        const _inputHeader = inputData.subarray(0, 4096)
+        const inputHeader = inputData.subarray(0, 4096)
 
         const seaBlob = path.join(testDir, 'corrupt_test.blob')
         await fs.writeFile(seaBlob, Buffer.from('test content'))

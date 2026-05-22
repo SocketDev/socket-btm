@@ -99,13 +99,13 @@ export async function generateSync(options) {
     binaryPath: path.relative(buildDir, outputSyncDir),
     binarySize: syncSize,
     smokeTest: async () => {
-      const _require = createRequire(import.meta.url)
+      const require = createRequire(import.meta.url)
       // oxlint-disable-next-line socket/prefer-exists-sync -- need syncStats.size to detect empty-output failure.
       const syncStats = await fs.stat(syncCjsFile)
       if (syncStats.size === 0) {
         throw new Error('Sync wrapper file is empty')
       }
-      const Yoga = _require(syncCjsFile)
+      const Yoga = require(syncCjsFile)
       if (typeof Yoga !== 'object' || Yoga === null) {
         throw new Error(
           `Sync wrapper failed to load properly: got ${typeof Yoga}`,

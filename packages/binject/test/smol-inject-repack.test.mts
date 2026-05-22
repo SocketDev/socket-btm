@@ -53,14 +53,6 @@ const binpressExists = existsSync(BINPRESS)
 const binflateExists = existsSync(BINFLATE)
 
 /**
- * Calculate SHA-256 hash of file
- */
-export async function _hashFile(filePath) {
-  const data = await fs.readFile(filePath)
-  return crypto.createHash('sha256').update(data).digest('hex')
-}
-
-/**
  * Create a minimal SEA blob for testing
  */
 export async function createTestSEABlob(outputPath) {
@@ -104,6 +96,14 @@ export async function execCommand(command, args = [], options = {}) {
       resolve({ code, stderr, stdout })
     })
   })
+}
+
+/**
+ * Calculate SHA-256 hash of file
+ */
+export async function hashFile(filePath) {
+  const data = await fs.readFile(filePath)
+  return crypto.createHash('sha256').update(data).digest('hex')
 }
 
 /**
@@ -262,7 +262,7 @@ describe.skipIf(!binjectExists || !binpressExists || !binflateExists)(
 
         // Step 2: Run the stub once to extract to cache
         // (--skip-repack requires the extracted binary to exist in cache)
-        const _runResult = await execCommand(compressedStub, ['--version'])
+        const runResult = await execCommand(compressedStub, ['--version'])
         // Note: This may fail if Node.js doesn't support --version in this way, but extraction happens anyway
         // The important thing is the binary was executed and extracted to cache
 

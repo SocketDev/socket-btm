@@ -111,7 +111,7 @@ describe.skipIf(skipTests)('metadata Format Validation', () => {
 
   it('should not have compression_algorithm byte (old format)', async () => {
     const markerIndex = binaryData.indexOf(MAGIC_MARKER)
-    const _metadataOffset = markerIndex + 64
+    const metadataOffset = markerIndex + 64
 
     // In old format, compression_algorithm would be at offset + 3
     // In new format, compressed data starts at offset + 3

@@ -42,14 +42,6 @@ let binpressExists = false
 let binflateExists = false
 
 /**
- * Calculate SHA-256 hash of file
- */
-export async function _hashFile(filePath) {
-  const data = await fs.readFile(filePath)
-  return crypto.createHash('sha256').update(data).digest('hex')
-}
-
-/**
  * Execute command and return result
  */
 export async function execCommand(command, args = [], options = {}) {
@@ -82,6 +74,14 @@ export async function execCommand(command, args = [], options = {}) {
       // Already handled by 'close' event
     })
   })
+}
+
+/**
+ * Calculate SHA-256 hash of file
+ */
+export async function hashFile(filePath) {
+  const data = await fs.readFile(filePath)
+  return crypto.createHash('sha256').update(data).digest('hex')
 }
 
 beforeAll(async () => {

@@ -295,8 +295,8 @@ export function createWasmTestHelpers(config) {
         return
       }
 
-      const _require = createRequire
-      const syncModule = _require(syncJsPath)
+      const require = createRequire
+      const syncModule = require(syncJsPath)
       expect(syncModule).toBeTruthy()
       if (exportName) {
         expect(typeof syncModule).toBe('object')

@@ -5,8 +5,8 @@
 # full smol native binding set: smol_ffi, smol_http, smol_ilp,
 # smol_manifest_native, smol_markdown, smol_postgres (conditional on
 # HAVE_POSTGRES), smol_power, smol_primordial, smol_quic,
-# smol_tree_sitter, smol_tui, smol_util, smol_versions_native, and
-# smol_webstreams.
+# smol_tree_sitter, smol_tui, smol_util, smol_versions_native,
+# smol_webgpu (stub), and smol_webstreams.
 #
 --- a/src/node_binding.cc
 +++ b/src/node_binding.cc
@@ -20,7 +20,7 @@
    V(wasm_web_api)                                                              \
    V(watchdog)                                                                  \
    V(worker)                                                                    \
-@@ -108,7 +109,21 @@
+@@ -108,7 +109,22 @@
    NODE_BUILTIN_DEBUG_BINDINGS(V)                                               \
    NODE_BUILTIN_QUIC_BINDINGS(V)                                                \
    NODE_BUILTIN_SQLITE_BINDINGS(V)                                              \
@@ -39,6 +39,7 @@
 +  V(smol_tui)                                                                  \
 +  V(smol_util)                                                                 \
 +  V(smol_versions_native)                                                      \
++  V(smol_webgpu)                                                               \
 +  V(smol_webstreams)
  
  // This is used to load built-in bindings. Instead of using

@@ -71,7 +71,7 @@
            ],
          }],
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
-@@ -1055,14 +1079,299 @@
+@@ -1055,14 +1079,306 @@
            ],
            'dependencies': [
              'deps/ncrypto/ncrypto.gyp:ncrypto',
@@ -146,6 +146,13 @@
 +            # via relative path, so only lib.c needs listing here.
 +            'src/socketsecurity/tree_sitter/tree_sitter_binding.cc',
 +            'src/socketsecurity/tree_sitter/tree-sitter/src/lib.c',
++            # Socket Security: smol-webgpu binding (stub). Exposes the
++            # navigator.gpu surface so userland WebGPU code resolves the
++            # require('node:smol-webgpu') import. Every method except
++            # isAvailable() throws "not yet wired"; Dawn integration is
++            # tracked separately in .claude/plans/opentui-smol-tui-completion.md
++            # Phase C.
++            'src/socketsecurity/webgpu/webgpu_binding.cc',
 +            'src/socketsecurity/manifest/manifest_binding.cc',
 +            'src/socketsecurity/manifest/parser_cargo.cc',
 +            'src/socketsecurity/manifest/parser_npm.cc',
@@ -372,7 +379,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1084,7 +1380,7 @@
+@@ -1084,7 +1387,7 @@
            ],
          }],
 -        [ 'node_use_quic=="true"', {
@@ -381,7 +388,7 @@
              '<@(node_quic_sources)',
            ],
          }],
-@@ -1406,7 +1702,7 @@
+@@ -1406,7 +1709,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -390,7 +397,7 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1447,6 +1743,17 @@
+@@ -1447,6 +1750,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -408,7 +415,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1521,6 +1827,17 @@
+@@ -1521,6 +1834,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -426,7 +433,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1744,6 +2060,17 @@
+@@ -1744,6 +2067,17 @@
              'Ws2_32.lib',
            ],
          }],

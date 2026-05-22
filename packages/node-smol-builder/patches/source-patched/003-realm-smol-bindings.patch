@@ -24,7 +24,7 @@
    'spawn_sync',
    'stream_wrap',
    'tcp_wrap',
-@@ -127,6 +128,24 @@
+@@ -127,6 +128,25 @@
    'ffi',
    'sea',
    'sqlite',
@@ -46,6 +46,7 @@
 +  'smol-util',
 +  'smol-vfs',
 +  'smol-versions',
++  'smol-webgpu',
    'quic',
    'test',
    'test/reporters',

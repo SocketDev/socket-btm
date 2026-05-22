@@ -239,25 +239,36 @@ static void ParseMarkdown(const FunctionCallbackInfo<Value>& args) {
 
   // Convert events to JS array. Each event is a 2-element [code, payload]
   // tuple (sub-array). Payload is undefined / string / heading-level int.
-  Local<Array> out = Array::New(isolate, static_cast<int>(state.events.size()));
-  for (size_t i = 0, n = state.events.size(); i < n; ++i) {
+  //
+  // Hoist the undefined handle: most events (every block/span-leave plus
+  // most enters) have no payload. v8::Undefined() returns the singleton
+  // so it's free to call repeatedly, but the call still indirects through
+  // the isolate; capturing it once and reusing the Local<Value> shaves a
+  // ~5 ns isolate lookup per no-payload event.
+  const size_t event_count = state.events.size();
+  Local<Array> out =
+      Array::New(isolate, static_cast<int>(event_count));
+  Local<v8::Primitive> undef = v8::Undefined(isolate);
+  for (size_t i = 0; i < event_count; ++i) {
     const Event& e = state.events[i];
     Local<Array> tuple = Array::New(isolate, 2);
-    tuple->Set(context, 0,
-               Integer::NewFromUnsigned(isolate, e.code))
+    tuple->Set(context, 0, Integer::NewFromUnsigned(isolate, e.code))
         .Check();
     Local<Value> payload;
     if (!e.text.empty()) {
       MaybeLocal<String> s = String::NewFromUtf8(
           isolate, e.text.data(), v8::NewStringType::kNormal,
           static_cast<int>(e.text.size()));
-      if (!s.ToLocal(reinterpret_cast<Local<String>*>(&payload))) {
-        payload = v8::Undefined(isolate);
+      Local<String> s_local;
+      if (s.ToLocal(&s_local)) {
+        payload = s_local;
+      } else {
+        payload = undef;
       }
     } else if (e.has_detail) {
       payload = Integer::New(isolate, e.heading_level);
     } else {
-      payload = v8::Undefined(isolate);
+      payload = undef;
     }
     tuple->Set(context, 1, payload).Check();
     out->Set(context, static_cast<uint32_t>(i), tuple).Check();

@@ -12,8 +12,6 @@
 
 #include "tui/renderables.hpp"
 
-#include <cstring>
-
 #include "tui/cell.hpp"
 
 namespace tui {
@@ -67,47 +65,6 @@ inline Cell MakeCell(uint32_t cp, const BoxStyle& s, bool border_glyph) {
   return c;
 }
 
-// Decode one UTF-8 codepoint starting at p. Returns the codepoint and
-// advances p by the byte count. Same decoder used in buffer.cc; kept
-// inline here to avoid exporting it from CellBuffer's translation unit.
-uint32_t DecodeUtf8(const char*& p, const char* end) {
-  if (p >= end) {
-    return 0;
-  }
-  const uint8_t b0 = static_cast<uint8_t>(*p);
-  if ((b0 & 0x80) == 0) {
-    ++p;
-    return b0;
-  }
-  if ((b0 & 0xe0) == 0xc0 && p + 1 < end) {
-    const uint8_t b1 = static_cast<uint8_t>(*(p + 1));
-    if ((b1 & 0xc0) == 0x80) {
-      p += 2;
-      return ((b0 & 0x1fu) << 6) | (b1 & 0x3fu);
-    }
-  }
-  if ((b0 & 0xf0) == 0xe0 && p + 2 < end) {
-    const uint8_t b1 = static_cast<uint8_t>(*(p + 1));
-    const uint8_t b2 = static_cast<uint8_t>(*(p + 2));
-    if ((b1 & 0xc0) == 0x80 && (b2 & 0xc0) == 0x80) {
-      p += 3;
-      return ((b0 & 0x0fu) << 12) | ((b1 & 0x3fu) << 6) | (b2 & 0x3fu);
-    }
-  }
-  if ((b0 & 0xf8) == 0xf0 && p + 3 < end) {
-    const uint8_t b1 = static_cast<uint8_t>(*(p + 1));
-    const uint8_t b2 = static_cast<uint8_t>(*(p + 2));
-    const uint8_t b3 = static_cast<uint8_t>(*(p + 3));
-    if ((b1 & 0xc0) == 0x80 && (b2 & 0xc0) == 0x80 && (b3 & 0xc0) == 0x80) {
-      p += 4;
-      return ((b0 & 0x07u) << 18) | ((b1 & 0x3fu) << 12) |
-             ((b2 & 0x3fu) << 6) | (b3 & 0x3fu);
-    }
-  }
-  ++p;
-  return 0xfffd;
-}
-
 // Scan one UTF-8 grapheme (1 byte for ASCII, 2-4 for non-ASCII) without
 // decoding. Returns the byte length. Used by the word-wrap line builder
 // when it needs to slice raw UTF-8 bytes (no codepoint needed).
@@ -129,20 +86,6 @@ size_t Utf8ByteLen(const char* p, const char* end) {
     return 4;
   }
   return 1;
-}
-
-// Count UTF-8 codepoints in [start, end). Used for measuring whether a
-// candidate word fits the remaining line budget — one codepoint per
-// cell (CJK/emoji wide-char handling lives in StringWidth, which is a
-// future helper).
-uint32_t Utf8Codepoints(const char* start, const char* end) {
-  uint32_t count = 0;
-  const char* p = start;
-  while (p < end) {
-    p += Utf8ByteLen(p, end);
-    ++count;
-  }
-  return count;
 }
 
 }  // namespace
@@ -177,6 +120,13 @@ void DrawBox(CellBuffer& buf, uint32_t x, uint32_t y, uint32_t w, uint32_t h,
     }
   }
 
+  // Pre-compute the horizontal + vertical edge cells once. The
+  // per-edge FillRect / Set calls below all share these (same glyph
+  // + same style), so building the Cell up-front saves N redundant
+  // MakeCell() calls per edge.
+  const Cell h_cell = MakeCell(g[4], style, /*border_glyph=*/true);
+  const Cell v_cell = MakeCell(g[5], style, /*border_glyph=*/true);
+
   // Single-cell box degenerates: just draw a corner glyph.
   if (w == 1 && h == 1) {
     if (style.sides.top || style.sides.left || style.sides.right ||
@@ -186,27 +136,26 @@ void DrawBox(CellBuffer& buf, uint32_t x, uint32_t y, uint32_t w, uint32_t h,
     return;
   }
 
-  // Horizontal edges.
-  if (style.sides.top) {
-    for (uint32_t cx = left + 1; cx + 1 <= right; ++cx) {
-      buf.Set(cx, top, MakeCell(g[4], style, /*border_glyph=*/true));
+  // Horizontal edges. FillRect with h=1 batches all bounds checks
+  // into one pre-loop guard; the inner write loop is the same shape
+  // the compiler auto-vectorizes for fillRect's general path.
+  if (w > 2) {
+    if (style.sides.top) {
+      buf.FillRect(left + 1, top, w - 2, 1, h_cell);
     }
-  }
-  if (style.sides.bottom && bottom != top) {
-    for (uint32_t cx = left + 1; cx + 1 <= right; ++cx) {
-      buf.Set(cx, bottom, MakeCell(g[4], style, /*border_glyph=*/true));
+    if (style.sides.bottom && bottom != top) {
+      buf.FillRect(left + 1, bottom, w - 2, 1, h_cell);
     }
   }
 
-  // Vertical edges.
-  if (style.sides.left) {
-    for (uint32_t cy = top + 1; cy + 1 <= bottom; ++cy) {
-      buf.Set(left, cy, MakeCell(g[5], style, /*border_glyph=*/true));
+  // Vertical edges (w=1 column rectangles). FillRect still wins over
+  // per-cell Set because Set re-runs the bounds check per call.
+  if (h > 2) {
+    if (style.sides.left) {
+      buf.FillRect(left, top + 1, 1, h - 2, v_cell);
     }
-  }
-  if (style.sides.right && right != left) {
-    for (uint32_t cy = top + 1; cy + 1 <= bottom; ++cy) {
-      buf.Set(right, cy, MakeCell(g[5], style, /*border_glyph=*/true));
+    if (style.sides.right && right != left) {
+      buf.FillRect(right, top + 1, 1, h - 2, v_cell);
     }
   }
 
@@ -372,11 +321,6 @@ uint32_t DrawTextWrapped(CellBuffer& buf, uint32_t x, uint32_t y,
     }
   }
 
-  // Suppress unused-helper warning when the compiler proves
-  // Utf8Codepoints/DecodeUtf8 aren't reached on a given build (they're
-  // referenced by future StringWidth + diagnostic helpers in this TU).
-  (void)Utf8Codepoints;
-  (void)DecodeUtf8;
   return cur_line;
 }
 

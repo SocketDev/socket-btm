@@ -14,35 +14,11 @@
 #include "tui/ansi.hpp"
 #include "tui/buffer.hpp"
 #include "tui/cell.hpp"
+#include "tui/utf8.hpp"
 
 namespace tui {
 
 namespace {
-
-// Encode a codepoint as UTF-8 into dst. Returns bytes written
-// (1..4). Caller guarantees dst has at least 4 bytes free.
-size_t EncodeUtf8(uint32_t cp, char* dst) {
-  if (cp < 0x80) {
-    dst[0] = static_cast<char>(cp);
-    return 1;
-  }
-  if (cp < 0x800) {
-    dst[0] = static_cast<char>(0xc0 | (cp >> 6));
-    dst[1] = static_cast<char>(0x80 | (cp & 0x3f));
-    return 2;
-  }
-  if (cp < 0x10000) {
-    dst[0] = static_cast<char>(0xe0 | (cp >> 12));
-    dst[1] = static_cast<char>(0x80 | ((cp >> 6) & 0x3f));
-    dst[2] = static_cast<char>(0x80 | (cp & 0x3f));
-    return 3;
-  }
-  dst[0] = static_cast<char>(0xf0 | (cp >> 18));
-  dst[1] = static_cast<char>(0x80 | ((cp >> 12) & 0x3f));
-  dst[2] = static_cast<char>(0x80 | ((cp >> 6) & 0x3f));
-  dst[3] = static_cast<char>(0x80 | (cp & 0x3f));
-  return 4;
-}
 
 // Worst-case bytes for emitting a single changed cell from a cold state
 // (no carry-over fg/bg/attrs): cursor move + fg SGR + bg SGR + attr SGR

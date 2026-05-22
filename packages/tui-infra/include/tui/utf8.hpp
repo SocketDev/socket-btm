@@ -81,6 +81,38 @@ inline uint32_t DecodeUtf8(const char*& p, const char* end) {
   return 0xfffd;
 }
 
+// Encode a codepoint as UTF-8 into `dst`. Returns bytes written
+// (1..4). Caller MUST guarantee dst has at least 4 bytes free —
+// no overflow check inside.
+//
+// Codepoints above U+10FFFF are encoded as 4 bytes per the bit
+// pattern; callers should normalize invalid codepoints to U+FFFD
+// before calling if they want WHATWG-strict behavior. The renderer's
+// flush loop trusts CellBuffer to hold only valid codepoints (which
+// DecodeUtf8 guarantees on the input side).
+inline size_t EncodeUtf8(uint32_t cp, char* dst) {
+  if (cp < 0x80) {
+    dst[0] = static_cast<char>(cp);
+    return 1;
+  }
+  if (cp < 0x800) {
+    dst[0] = static_cast<char>(0xc0 | (cp >> 6));
+    dst[1] = static_cast<char>(0x80 | (cp & 0x3f));
+    return 2;
+  }
+  if (cp < 0x10000) {
+    dst[0] = static_cast<char>(0xe0 | (cp >> 12));
+    dst[1] = static_cast<char>(0x80 | ((cp >> 6) & 0x3f));
+    dst[2] = static_cast<char>(0x80 | (cp & 0x3f));
+    return 3;
+  }
+  dst[0] = static_cast<char>(0xf0 | (cp >> 18));
+  dst[1] = static_cast<char>(0x80 | ((cp >> 12) & 0x3f));
+  dst[2] = static_cast<char>(0x80 | ((cp >> 6) & 0x3f));
+  dst[3] = static_cast<char>(0x80 | (cp & 0x3f));
+  return 4;
+}
+
 inline size_t Utf8ByteLen(const char* p, const char* end) {
   if (p >= end) {
     return 0;

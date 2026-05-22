@@ -1023,6 +1023,46 @@ static void RendererDrawBox(const FunctionCallbackInfo<Value>& args) {
   ti::DrawBox(renderer->Next(), x, y, w, h, style);
 }
 
+// V8 Fast API specialization for drawBox. Called per-render-tree-node
+// per frame (React/Solid host-config commit phase dispatches here).
+// 15 args via the slow path = 15 Local<Value> -> Uint32Value chains
+// = ~80ns per call. The Fast API form takes uint32_t directly and
+// runs at ~5ns per call.
+void FastRendererDrawBox(Local<Value> receiver, uint32_t id, uint32_t x,
+                         uint32_t y, uint32_t w, uint32_t h,
+                         uint32_t style_idx, uint32_t sides_bits,
+                         uint32_t border_fg_r, uint32_t border_fg_g,
+                         uint32_t border_fg_b, uint32_t bg_r, uint32_t bg_g,
+                         uint32_t bg_b, uint32_t attrs,
+                         bool fill_background,
+                         // NOLINTNEXTLINE(runtime/references)
+                         FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.rendererDrawBox");
+  ti::Renderer* renderer = LookupRenderer(id);
+  if (renderer == nullptr) {
+    return;
+  }
+  ti::BoxStyle style{};
+  style.style = style_idx <= 3
+                    ? static_cast<ti::BorderStyle>(style_idx)
+                    : ti::BorderStyle::kSingle;
+  style.sides.top = (sides_bits & 0x1) != 0;
+  style.sides.right = (sides_bits & 0x2) != 0;
+  style.sides.bottom = (sides_bits & 0x4) != 0;
+  style.sides.left = (sides_bits & 0x8) != 0;
+  style.border_fg_r = static_cast<uint8_t>(border_fg_r);
+  style.border_fg_g = static_cast<uint8_t>(border_fg_g);
+  style.border_fg_b = static_cast<uint8_t>(border_fg_b);
+  style.bg_r = static_cast<uint8_t>(bg_r);
+  style.bg_g = static_cast<uint8_t>(bg_g);
+  style.bg_b = static_cast<uint8_t>(bg_b);
+  style.attrs = static_cast<uint8_t>(attrs);
+  style.fill_background = fill_background;
+  ti::DrawBox(renderer->Next(), x, y, w, h, style);
+}
+
+static CFunction fast_renderer_draw_box(CFunction::Make(FastRendererDrawBox));
+
 // drawTextWrapped(rendererId, x, y, maxWidth, maxLines, utf8Bytes,
 //                 fgR, fgG, fgB, bgR, bgG, bgB, attrs) -> linesEmitted
 //
@@ -1069,6 +1109,38 @@ static void RendererDrawTextWrapped(
       fg_r, fg_g, fg_b, bg_r, bg_g, bg_b, attrs);
   args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, lines));
 }
+
+// V8 Fast API specialization for drawTextWrapped. Same hot-path
+// rationale as FastRendererDrawText — text rendering happens
+// per-element per frame; the slow path's Local<Value>->Uint32Value
+// chain is the dominant per-call cost.
+uint32_t FastRendererDrawTextWrapped(Local<Value> receiver, uint32_t id,
+                                     uint32_t x, uint32_t y,
+                                     uint32_t max_width, uint32_t max_lines,
+                                     Local<Value> buffer_val, uint32_t fg_r,
+                                     uint32_t fg_g, uint32_t fg_b,
+                                     uint32_t bg_r, uint32_t bg_g,
+                                     uint32_t bg_b, uint32_t attrs,
+                                     // NOLINTNEXTLINE(runtime/references)
+                                     FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.rendererDrawTextWrapped");
+  HandleScope scope(opts.isolate);
+  ArrayBufferViewContents<uint8_t> buf(buffer_val);
+  ti::Renderer* renderer = LookupRenderer(id);
+  if (renderer == nullptr) {
+    return 0;
+  }
+  const char* utf8 = reinterpret_cast<const char*>(buf.data());
+  return ti::DrawTextWrapped(
+      renderer->Next(), x, y, max_width, max_lines, utf8, buf.length(),
+      static_cast<uint8_t>(fg_r), static_cast<uint8_t>(fg_g),
+      static_cast<uint8_t>(fg_b), static_cast<uint8_t>(bg_r),
+      static_cast<uint8_t>(bg_g), static_cast<uint8_t>(bg_b),
+      static_cast<uint8_t>(attrs));
+}
+
+static CFunction fast_renderer_draw_text_wrapped(
+    CFunction::Make(FastRendererDrawTextWrapped));
 
 // ─── Section 4c: String width (Unicode 17.0 East Asian + emoji) ───────
 //
@@ -1130,6 +1202,36 @@ static void CodepointWidthBinding(const FunctionCallbackInfo<Value>& args) {
   uint32_t width = ti::CodepointWidth(cp);
   args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, width));
 }
+
+// V8 Fast API specialization for codepointWidth — pure uint32 in /
+// uint32 out, ideal Fast API shape. Inner work is one binary search
+// at most; the Fast API call overhead saving (~70 ns -> ~5 ns) is
+// the dominant win.
+uint32_t FastCodepointWidth(Local<Value> receiver, uint32_t cp,
+                            // NOLINTNEXTLINE(runtime/references)
+                            FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.codepointWidth");
+  return ti::CodepointWidth(cp);
+}
+
+static CFunction fast_codepoint_width(CFunction::Make(FastCodepointWidth));
+
+// V8 Fast API specialization for stringWidthFromBytes — called per
+// glyph during text rendering. The Uint8Array input shape is Fast-API-
+// compatible via ArrayBufferViewContents.
+uint32_t FastStringWidthFromBytes(Local<Value> receiver,
+                                  Local<Value> buffer_val,
+                                  // NOLINTNEXTLINE(runtime/references)
+                                  FastApiCallbackOptions& opts) {
+  TRACK_V8_FAST_API_CALL("smol_tui.stringWidthFromBytes");
+  HandleScope scope(opts.isolate);
+  ArrayBufferViewContents<uint8_t> buf(buffer_val);
+  return ti::StringWidth(reinterpret_cast<const char*>(buf.data()),
+                         buf.length());
+}
+
+static CFunction fast_string_width_from_bytes(
+    CFunction::Make(FastStringWidthFromBytes));
 
 // ─── Section 5: Yoga layout (flexbox) ─────────────────────────────────
 //
@@ -1854,15 +1956,23 @@ static void Initialize(Local<Object> target,
                             &fast_renderer_flush);
   SetMethod(context, target, "rendererSize", RendererSize);
 
-  // Renderables (high-level draw helpers).
-  SetMethod(context, target, "rendererDrawBox", RendererDrawBox);
-  SetMethod(context, target, "rendererDrawTextWrapped",
-            RendererDrawTextWrapped);
+  // Renderables (high-level draw helpers). Per-render-tree-node hot
+  // path; Fast API saves ~70 ns per call on the dispatch.
+  SetFastMethodNoSideEffect(context, target, "rendererDrawBox",
+                            RendererDrawBox, &fast_renderer_draw_box);
+  SetFastMethodNoSideEffect(context, target, "rendererDrawTextWrapped",
+                            RendererDrawTextWrapped,
+                            &fast_renderer_draw_text_wrapped);
 
-  // String width (Unicode 16.0).
+  // String width (Unicode 17.0). stringWidth keeps the slow path
+  // (V8 Fast API string-arg support is limited); the byte-array
+  // variant and codepoint variant get Fast API.
   SetMethod(context, target, "stringWidth", StringWidthBinding);
-  SetMethod(context, target, "stringWidthFromBytes", StringWidthFromBytes);
-  SetMethod(context, target, "codepointWidth", CodepointWidthBinding);
+  SetFastMethodNoSideEffect(context, target, "stringWidthFromBytes",
+                            StringWidthFromBytes,
+                            &fast_string_width_from_bytes);
+  SetFastMethodNoSideEffect(context, target, "codepointWidth",
+                            CodepointWidthBinding, &fast_codepoint_width);
 
   SetFastMethodNoSideEffect(context, target, "yogaCalculateLayout",
                             YogaCalculateLayout,
@@ -2088,10 +2198,14 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(fast_renderer_flush);
   registry->Register(RendererSize);
   registry->Register(RendererDrawBox);
+  registry->Register(fast_renderer_draw_box);
   registry->Register(RendererDrawTextWrapped);
+  registry->Register(fast_renderer_draw_text_wrapped);
   registry->Register(StringWidthBinding);
   registry->Register(StringWidthFromBytes);
+  registry->Register(fast_string_width_from_bytes);
   registry->Register(CodepointWidthBinding);
+  registry->Register(fast_codepoint_width);
   registry->Register(YogaCalculateLayout);
   registry->Register(fast_yoga_calculate_layout);
   registry->Register(YogaCreateNode);

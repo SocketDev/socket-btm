@@ -52,6 +52,39 @@ const LIBQRENCODE_UPSTREAM_DIR = path.join(
   'libqrencode',
 )
 
+// dawn-builder ships the prebuilt libwebgpu_dawn.a + headers (built
+// by packages/dawn-builder/scripts/build.mts) that node:smol-webgpu
+// links against. We DON'T copy Dawn's source tree into the patched
+// node source — instead we link the prebuilt static lib at the
+// node.gyp level (wired in D5+).
+//
+// Dawn participates in the SOURCE_PATCHED cache key via the
+// submodule pin: every Dawn bump rewrites the `# dawn-chromium/<N>`
+// comment in .gitmodules, so hashing .gitmodules (and the lockstep
+// JSON, which also tracks pinned_sha) captures Dawn invalidation
+// without walking Dawn's 180 MB source tree on every cache check.
+const DAWN_BUILDER_DIR = path.join(PACKAGE_ROOT, '..', 'dawn-builder')
+const DAWN_UPSTREAM_DIR = path.join(DAWN_BUILDER_DIR, 'upstream', 'dawn')
+
+/**
+ * Files outside the regular MONOREPO_PACKAGE_SOURCES tree that still
+ * need to participate in the SOURCE_PATCHED cache key. These are
+ * "pin files" — single files whose content reflects the version of
+ * an external dependency that the build will link against (without
+ * copying that dependency's source into the patched tree).
+ *
+ * Currently:
+ *   - .gitmodules — every submodule SHA bump rewrites at least the
+ *     version comment line, so hashing this file catches Dawn,
+ *     md4c, tree-sitter, libqrencode, etc. bumps in one shot.
+ *   - .config/lockstep.json — tracks pinned_sha for every upstream;
+ *     hashing this is a redundant safety net.
+ */
+export const EXTERNAL_PIN_FILES = [
+  path.join(PACKAGE_ROOT, '..', '..', '.gitmodules'),
+  path.join(PACKAGE_ROOT, '..', '..', '.config', 'lockstep.json'),
+]
+
 // Upstream uSockets/uWebSockets for high-performance HTTP server (node:smol-http).
 // uSockets provides direct epoll/kqueue event loop + raw socket I/O.
 // uWebSockets provides HTTP parser (SWAR+bloom), cork buffer, response writer.

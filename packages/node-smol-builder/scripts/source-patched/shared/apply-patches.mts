@@ -16,7 +16,10 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 import { glob } from '@socketsecurity/lib-stable/globs/stream'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
 
-import { MONOREPO_PACKAGE_SOURCES } from '../../binary-released/shared/prepare-external-sources.mts'
+import {
+  EXTERNAL_PIN_FILES,
+  MONOREPO_PACKAGE_SOURCES,
+} from '../../binary-released/shared/prepare-external-sources.mts'
 
 const logger = getDefaultLogger()
 
@@ -251,7 +254,19 @@ export async function computeSourcePatchedCachePaths(options: {
     }
   }
 
-  return [...patchChainPaths, ...sourcePackageFiles]
+  // External pin files — single files (like .gitmodules + lockstep.json)
+  // whose content captures the version of external deps linked at build
+  // time but whose source isn't copied into the patched tree. See
+  // EXTERNAL_PIN_FILES in prepare-external-sources.mts for the list.
+  const externalPinFiles: string[] = []
+  for (let i = 0, { length } = EXTERNAL_PIN_FILES; i < length; i += 1) {
+    const pinFile = EXTERNAL_PIN_FILES[i]!
+    if (existsSync(pinFile)) {
+      externalPinFiles.push(pinFile)
+    }
+  }
+
+  return [...patchChainPaths, ...sourcePackageFiles, ...externalPinFiles]
 }
 
 /**

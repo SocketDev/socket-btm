@@ -76,8 +76,29 @@ size_t WriteU16(char* dst, uint16_t value) {
   return 5;
 }
 
+// Specialized u8 → decimal emitter. uint8_t maxes out at 255, so the
+// `< 1000`, `< 10000`, and `< 100000` cases from WriteU16 are dead
+// code. Hard-coding the three branches (1/2/3 digit) saves ~3-4
+// branches per call versus the generic u16 path.
+//
+// Per-cell RGB SGR writes call WriteU8 three times each (one per
+// channel); on a 12 k-cell diff frame that's up to 36 k calls, so
+// even the small branch savings add up.
 inline size_t WriteU8(char* dst, uint8_t value) {
-  return WriteU16(dst, value);
+  if (value < 10) {
+    dst[0] = static_cast<char>('0' + value);
+    return 1;
+  }
+  if (value < 100) {
+    dst[0] = static_cast<char>('0' + (value / 10));
+    dst[1] = static_cast<char>('0' + (value % 10));
+    return 2;
+  }
+  // 100..255: always 3 digits.
+  dst[0] = static_cast<char>('0' + (value / 100));
+  dst[1] = static_cast<char>('0' + ((value / 10) % 10));
+  dst[2] = static_cast<char>('0' + (value % 10));
+  return 3;
 }
 
 // Append a u16 as ASCII digits to a std::string. Used by cold-path

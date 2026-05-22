@@ -154,3 +154,9 @@
 	url = https://github.com/litespeedtech/ls-qpack.git
 	ignore = dirty
 	shallow = true
+# md4c-0.5.3
+[submodule "packages/node-smol-builder/upstream/md4c"]
+	path = packages/node-smol-builder/upstream/md4c
+	url = https://github.com/mity/md4c
+	ignore = dirty
+	shallow = true

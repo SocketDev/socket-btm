@@ -59,6 +59,10 @@
       "submodule": "packages/node-smol-builder/upstream/uWebSockets",
       "repo": "https://github.com/uNetworking/uWebSockets"
     },
+    "md4c": {
+      "submodule": "packages/node-smol-builder/upstream/md4c",
+      "repo": "https://github.com/mity/md4c"
+    },
     "opentui": {
       "submodule": "packages/opentui-builder/upstream/opentui",
       "repo": "https://github.com/anomalyco/opentui"
@@ -583,6 +587,16 @@
       "upgrade_policy": "major-gate",
       "criticality": 8,
       "notes": "ML inference runtime for embedded models. Major bumps can break model compatibility."
+    },
+    {
+      "kind": "version-pin",
+      "id": "md4c",
+      "upstream": "md4c",
+      "pinned_sha": "472c417005c2c71b8617de4f7b8d6b30411d78f4",
+      "pinned_tag": "release-0.5.3",
+      "upgrade_policy": "track-latest",
+      "criticality": 6,
+      "notes": "md4c CommonMark+GFM Markdown parser (C99, ~3 KLOC). Embedded into node-smol as src/socketsecurity/markdown/markdown_binding.cc. Pulls upstream/md4c/src/{md4c.c,md4c.h,entity.c,entity.h} into the build. Replaces opentui's userland `marked` dep on the hot AI-output rendering path."
     },
     {
       "kind": "version-pin",

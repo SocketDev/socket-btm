@@ -4,8 +4,16 @@
 
 const { ObjectFreeze } = primordials
 
-const { applyBind, applySafe, bindCall, stripAnsi, uncurryThis, weakRefSafe } =
-  internalBinding('smol_util')
+const {
+  applyBind,
+  applySafe,
+  bindCall,
+  decodeHtml,
+  encodeHtml,
+  stripAnsi,
+  uncurryThis,
+  weakRefSafe,
+} = internalBinding('smol_util')
 
 // Re-export frozen + null-prototype to match the shape of every other
 // internal/socketsecurity/* barrel.
@@ -14,6 +22,8 @@ module.exports = ObjectFreeze({
   applyBind,
   applySafe,
   bindCall,
+  decodeHtml,
+  encodeHtml,
   stripAnsi,
   uncurryThis,
   weakRefSafe,

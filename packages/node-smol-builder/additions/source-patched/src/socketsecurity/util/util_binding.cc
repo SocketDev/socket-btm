@@ -640,6 +640,281 @@ static void WeakRefSafe(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+// ─── HTML named entity decode/encode ──────────────────────────────────
+//
+// Native equivalent of the npm `entities` package for the WHATWG-named
+// character reference table. The full 2231-entry table is generated
+// into entities_data.cc (kEntities/kNamePool/kValuePool) by
+// scripts/generate-entities-data.mts.
+//
+// decodeHtml(s) handles named refs (`&amp;`, `&Aacute;`, …) plus
+// numeric refs (`&#39;`, `&#x27;`). Unknown sequences are passed
+// through verbatim.
+//
+// encodeHtml(s) is the conservative encoder that escapes the five
+// "must-escape" characters in HTML: `<`, `>`, `&`, `"`, `'`. Returns
+// the input unchanged when none of those bytes appear.
+
+namespace entities {
+
+// Forward decls — definitions live in entities_data.cc.
+struct EntityMeta {
+  uint16_t name_off;
+  uint16_t name_len;
+  uint16_t value_off;
+  uint8_t value_len;
+};
+extern const uint8_t kNamePool[];
+extern const uint8_t kValuePool[];
+extern const size_t kEntityCount;
+extern const EntityMeta kEntities[];
+
+// Lookup name `[start, start+len)` (bytes) in the sorted table. Returns
+// the matching EntityMeta or nullptr.
+inline const EntityMeta* FindEntity(const uint8_t* start, size_t len) {
+  // Binary search by lex comparison on the name pool.
+  size_t lo = 0;
+  size_t hi = kEntityCount;
+  while (lo < hi) {
+    const size_t mid = lo + (hi - lo) / 2;
+    const EntityMeta& m = kEntities[mid];
+    const uint8_t* name = &kNamePool[m.name_off];
+    const size_t cmp_len = m.name_len < len ? m.name_len : len;
+    int cmp = 0;
+    for (size_t i = 0; i < cmp_len; ++i) {
+      if (name[i] != start[i]) {
+        cmp = (name[i] < start[i]) ? -1 : 1;
+        break;
+      }
+    }
+    if (cmp == 0) {
+      if (m.name_len == len) {
+        return &m;
+      }
+      cmp = (m.name_len < len) ? -1 : 1;
+    }
+    if (cmp < 0) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  return nullptr;
+}
+
+inline void EncodeCodepointUtf8(uint32_t cp, std::string& out) {
+  if (cp < 0x80) {
+    out.push_back(static_cast<char>(cp));
+  } else if (cp < 0x800) {
+    out.push_back(static_cast<char>(0xC0 | (cp >> 6)));
+    out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+  } else if (cp < 0x10000) {
+    out.push_back(static_cast<char>(0xE0 | (cp >> 12)));
+    out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+    out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+  } else if (cp < 0x110000) {
+    out.push_back(static_cast<char>(0xF0 | (cp >> 18)));
+    out.push_back(static_cast<char>(0x80 | ((cp >> 12) & 0x3F)));
+    out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+    out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+  }
+  // Above U+10FFFF is invalid; silently drop (matches the npm impl).
+}
+
+}  // namespace entities
+
+static void DecodeHtml(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    args.GetReturnValue().SetUndefined();
+    return;
+  }
+  Local<String> input = args[0].As<String>();
+  const int input_len = input->Utf8Length(isolate);
+  if (input_len == 0) {
+    args.GetReturnValue().Set(input);
+    return;
+  }
+  std::string buf(static_cast<size_t>(input_len), '\0');
+  input->WriteUtf8(isolate, buf.data(), input_len, nullptr,
+                   String::NO_NULL_TERMINATION);
+
+  std::string out;
+  out.reserve(buf.size());
+
+  const uint8_t* p = reinterpret_cast<const uint8_t*>(buf.data());
+  const uint8_t* const end = p + buf.size();
+
+  while (p < end) {
+    if (*p != '&') {
+      out.push_back(static_cast<char>(*p));
+      ++p;
+      continue;
+    }
+    // Find the ';' that terminates this reference. WHATWG allows the
+    // semicolon to be elided in some legacy cases, but every entry in
+    // our table includes it as part of `name`. We require it here.
+    const uint8_t* q = p + 1;
+    // Cap the search to a sane window (longest entity name is < 32
+    // bytes plus '&' and ';'). Anything longer is treated as a literal.
+    const uint8_t* search_end = end < (q + 64) ? end : (q + 64);
+    while (q < search_end && *q != ';' && *q != '&') {
+      ++q;
+    }
+    if (q >= end || *q != ';') {
+      // No terminating ';' → literal '&'.
+      out.push_back('&');
+      ++p;
+      continue;
+    }
+    // Inclusive of ';' in the lookup key (table stores names like
+    // "amp;").
+    const size_t name_len = static_cast<size_t>(q - p);  // includes ';'
+    // Numeric refs: &#NNN; or &#xHHH;
+    if (name_len >= 3 && *(p + 1) == '#') {
+      uint32_t cp = 0;
+      bool ok = true;
+      if (*(p + 2) == 'x' || *(p + 2) == 'X') {
+        // Hex.
+        if (name_len < 4) {
+          ok = false;
+        } else {
+          for (const uint8_t* r = p + 3; r < q; ++r) {
+            uint8_t c = *r;
+            uint32_t d;
+            if (c >= '0' && c <= '9') {
+              d = c - '0';
+            } else if (c >= 'a' && c <= 'f') {
+              d = c - 'a' + 10;
+            } else if (c >= 'A' && c <= 'F') {
+              d = c - 'A' + 10;
+            } else {
+              ok = false;
+              break;
+            }
+            cp = (cp << 4) | d;
+            if (cp > 0x10FFFF) {
+              ok = false;
+              break;
+            }
+          }
+        }
+      } else {
+        // Decimal.
+        for (const uint8_t* r = p + 2; r < q; ++r) {
+          uint8_t c = *r;
+          if (c < '0' || c > '9') {
+            ok = false;
+            break;
+          }
+          cp = cp * 10 + (c - '0');
+          if (cp > 0x10FFFF) {
+            ok = false;
+            break;
+          }
+        }
+      }
+      if (ok && cp != 0) {
+        entities::EncodeCodepointUtf8(cp, out);
+        p = q + 1;
+        continue;
+      }
+      // Bad numeric ref → literal.
+      out.push_back('&');
+      ++p;
+      continue;
+    }
+    // Named ref.
+    const entities::EntityMeta* m =
+        entities::FindEntity(p + 1, name_len);  // skip leading '&'
+    if (m != nullptr) {
+      const uint8_t* val = &entities::kValuePool[m->value_off];
+      out.append(reinterpret_cast<const char*>(val), m->value_len);
+      p = q + 1;
+      continue;
+    }
+    // Unknown → literal.
+    out.push_back('&');
+    ++p;
+  }
+
+  MaybeLocal<String> result_maybe =
+      String::NewFromUtf8(isolate, out.data(), v8::NewStringType::kNormal,
+                          static_cast<int>(out.size()));
+  Local<String> result;
+  if (!result_maybe.ToLocal(&result)) {
+    args.GetReturnValue().SetUndefined();
+    return;
+  }
+  args.GetReturnValue().Set(result);
+}
+
+static void EncodeHtml(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    args.GetReturnValue().SetUndefined();
+    return;
+  }
+  Local<String> input = args[0].As<String>();
+  const int input_len = input->Utf8Length(isolate);
+  if (input_len == 0) {
+    args.GetReturnValue().Set(input);
+    return;
+  }
+  std::string buf(static_cast<size_t>(input_len), '\0');
+  input->WriteUtf8(isolate, buf.data(), input_len, nullptr,
+                   String::NO_NULL_TERMINATION);
+
+  // Quick scan: if no escape-needed char appears, return input as-is.
+  bool needs_escape = false;
+  for (size_t i = 0; i < buf.size(); ++i) {
+    const char c = buf[i];
+    if (c == '<' || c == '>' || c == '&' || c == '"' || c == '\'') {
+      needs_escape = true;
+      break;
+    }
+  }
+  if (!needs_escape) {
+    args.GetReturnValue().Set(input);
+    return;
+  }
+
+  std::string out;
+  out.reserve(buf.size() + 16);
+  for (size_t i = 0; i < buf.size(); ++i) {
+    const char c = buf[i];
+    switch (c) {
+      case '<':
+        out.append("&lt;", 4);
+        break;
+      case '>':
+        out.append("&gt;", 4);
+        break;
+      case '&':
+        out.append("&amp;", 5);
+        break;
+      case '"':
+        out.append("&quot;", 6);
+        break;
+      case '\'':
+        out.append("&#39;", 5);
+        break;
+      default:
+        out.push_back(c);
+    }
+  }
+
+  MaybeLocal<String> result_maybe =
+      String::NewFromUtf8(isolate, out.data(), v8::NewStringType::kNormal,
+                          static_cast<int>(out.size()));
+  Local<String> result;
+  if (!result_maybe.ToLocal(&result)) {
+    args.GetReturnValue().SetUndefined();
+    return;
+  }
+  args.GetReturnValue().Set(result);
+}
+
 // ─── stripAnsi: strip ANSI escape sequences from a string ─────────────
 //
 // Mirrors the npm `strip-ansi` package (https://github.com/chalk/strip-ansi),
@@ -834,6 +1109,8 @@ static void Initialize(Local<Object> target,
   SetMethod(context, target, "applyBind", ApplyBind);
   SetMethod(context, target, "applySafe", ApplySafe);
   SetMethod(context, target, "bindCall", BindCall);
+  SetMethod(context, target, "decodeHtml", DecodeHtml);
+  SetMethod(context, target, "encodeHtml", EncodeHtml);
   SetMethod(context, target, "stripAnsi", StripAnsi);
   SetMethod(context, target, "uncurryThis", UncurryThis);
   SetMethod(context, target, "weakRefSafe", WeakRefSafe);
@@ -843,6 +1120,8 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ApplyBind);
   registry->Register(ApplySafe);
   registry->Register(BindCall);
+  registry->Register(DecodeHtml);
+  registry->Register(EncodeHtml);
   registry->Register(StripAnsi);
   registry->Register(UncurryThis);
   registry->Register(WeakRefSafe);

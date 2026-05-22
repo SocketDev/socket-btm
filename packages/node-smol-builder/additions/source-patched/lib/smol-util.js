@@ -27,6 +27,17 @@
 //                                   CSI (ESC '[' ... final | 0x9B ...
 //                                   final) sequences. No regex
 //                                   compilation per call.
+//   - decodeHtml(s)               — native equivalent of the npm
+//                                   `entities` package decoder.
+//                                   Handles the full 2231-entry
+//                                   WHATWG named reference table
+//                                   (binary search) plus numeric
+//                                   refs (&#NN; / &#xNN;).
+//   - encodeHtml(s)               — escapes the five must-escape HTML
+//                                   characters (< > & " ') to their
+//                                   named references. Returns input
+//                                   unchanged when no escape is
+//                                   needed.
 //
 // All entries are backed by a native binding (smol_util) implemented
 // in src/socketsecurity/util/. The native form bypasses V8's
@@ -40,6 +51,8 @@ const {
   applyBind,
   applySafe,
   bindCall,
+  decodeHtml,
+  encodeHtml,
   stripAnsi,
   uncurryThis,
   weakRefSafe,
@@ -50,6 +63,8 @@ module.exports = ObjectFreeze({
   applyBind,
   applySafe,
   bindCall,
+  decodeHtml,
+  encodeHtml,
   stripAnsi,
   uncurryThis,
   weakRefSafe,

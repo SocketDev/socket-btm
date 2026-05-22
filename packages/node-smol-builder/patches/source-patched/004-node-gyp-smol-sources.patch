@@ -71,7 +71,7 @@
            ],
          }],
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
-@@ -1055,14 +1079,283 @@
+@@ -1055,14 +1079,285 @@
            ],
            'dependencies': [
              'deps/ncrypto/ncrypto.gyp:ncrypto',
@@ -123,7 +123,9 @@
 +            'src/socketsecurity/ffi/trampoline.cc',
 +            # Socket Security: smol-power binding (platform-agnostic glue).
 +            'src/socketsecurity/power/power_binding.cc',
-+            # Socket Security: smol-util binding (V8 uncurry / applyBind).
++            # Socket Security: smol-util binding (V8 uncurry / applyBind +
++            # native stripAnsi/encodeHtml/decodeHtml).
++            'src/socketsecurity/util/entities_data.cc',
 +            'src/socketsecurity/util/util_binding.cc',
 +            # Socket Security: smol-primordial binding (frozen primordials).
 +            'src/socketsecurity/primordial/primordial_binding.cc',
@@ -356,7 +358,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1084,7 +1364,7 @@
+@@ -1084,7 +1366,7 @@
            ],
          }],
 -        [ 'node_use_quic=="true"', {
@@ -365,7 +367,7 @@
              '<@(node_quic_sources)',
            ],
          }],
-@@ -1406,7 +1686,7 @@
+@@ -1406,7 +1688,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -374,7 +376,7 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1447,6 +1727,17 @@
+@@ -1447,6 +1729,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -392,7 +394,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1521,6 +1811,17 @@
+@@ -1521,6 +1813,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -410,7 +412,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1744,6 +2044,17 @@
+@@ -1744,6 +2046,17 @@
              'Ws2_32.lib',
            ],
          }],

@@ -3,10 +3,10 @@
 #
 # Replaces wasi with smol_vfs in the standard binding macro and adds the
 # full smol native binding set: smol_ffi, smol_http, smol_ilp,
-# smol_manifest_native, smol_markdown, smol_postgres (conditional on
-# HAVE_POSTGRES), smol_power, smol_primordial, smol_quic,
-# smol_tree_sitter, smol_tui, smol_util, smol_versions_native,
-# smol_webgpu (stub), and smol_webstreams.
+# smol_keymap, smol_manifest_native, smol_markdown, smol_postgres
+# (conditional on HAVE_POSTGRES), smol_power, smol_primordial,
+# smol_quic, smol_tree_sitter, smol_tui, smol_util,
+# smol_versions_native, smol_webgpu (stub), and smol_webstreams.
 #
 --- a/src/node_binding.cc
 +++ b/src/node_binding.cc
@@ -20,7 +20,7 @@
    V(wasm_web_api)                                                              \
    V(watchdog)                                                                  \
    V(worker)                                                                    \
-@@ -108,7 +109,22 @@
+@@ -108,7 +109,23 @@
    NODE_BUILTIN_DEBUG_BINDINGS(V)                                               \
    NODE_BUILTIN_QUIC_BINDINGS(V)                                                \
    NODE_BUILTIN_SQLITE_BINDINGS(V)                                              \
@@ -30,6 +30,7 @@
 +  V(smol_ffi)                                                                  \
 +  V(smol_http)                                                                 \
 +  V(smol_ilp)                                                                  \
++  V(smol_keymap)                                                               \
 +  V(smol_manifest_native)                                                      \
 +  V(smol_markdown)                                                             \
 +  V(smol_power)                                                                \

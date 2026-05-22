@@ -24,7 +24,7 @@
    'spawn_sync',
    'stream_wrap',
    'tcp_wrap',
-@@ -127,6 +128,25 @@
+@@ -127,6 +128,26 @@
    'ffi',
    'sea',
    'sqlite',
@@ -34,6 +34,7 @@
 +  'smol-http',
 +  'smol-https',
 +  'smol-ilp',
++  'smol-keymap',
 +  'smol-manifest',
 +  'smol-markdown',
 +  'smol-power',

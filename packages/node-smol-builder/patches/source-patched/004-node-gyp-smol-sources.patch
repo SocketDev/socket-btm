@@ -71,7 +71,7 @@
            ],
          }],
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
-@@ -1055,14 +1079,306 @@
+@@ -1055,14 +1079,308 @@
            ],
            'dependencies': [
              'deps/ncrypto/ncrypto.gyp:ncrypto',
@@ -134,6 +134,8 @@
 +            'src/socketsecurity/versions/versions_binding.cc',
 +            # Socket Security: smol-manifest-native binding (lockfile parsers).
 +            'src/socketsecurity/manifest/manifest.cc',
++            # Socket Security: smol-keymap binding (chord matcher).
++            'src/socketsecurity/keymap/keymap_binding.cc',
 +            # Socket Security: smol-markdown binding (CommonMark + GFM via
 +            # md4c). md4c.c + entity.c are copied from
 +            # packages/node-smol-builder/upstream/md4c/src/ by
@@ -379,7 +381,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1084,7 +1387,7 @@
+@@ -1084,7 +1389,7 @@
            ],
          }],
 -        [ 'node_use_quic=="true"', {
@@ -388,7 +390,7 @@
              '<@(node_quic_sources)',
            ],
          }],
-@@ -1406,7 +1709,7 @@
+@@ -1406,7 +1711,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -397,7 +399,7 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1447,6 +1750,17 @@
+@@ -1447,6 +1752,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -415,7 +417,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1521,6 +1834,17 @@
+@@ -1521,6 +1836,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -433,7 +435,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1744,6 +2067,17 @@
+@@ -1744,6 +2069,17 @@
              'Ws2_32.lib',
            ],
          }],

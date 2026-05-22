@@ -641,6 +641,22 @@
     },
     {
       "kind": "file-fork",
+      "id": "tui-infra-renderables",
+      "upstream": "opentui",
+      "local": "packages/tui-infra/src/socketsecurity/tui/renderables.cc",
+      "upstream_path": "packages/core/src/lib/border.ts + packages/core/src/renderables/{Box,Text}.ts",
+      "forked_at_sha": "f464acfcba0dde0ffcd6b2728811df787a72975c",
+      "criticality": 7,
+      "deviations": [
+        "C++ instead of TypeScript — collapses the Renderable class hierarchy to pure drawing primitives `tui::DrawBox()` + `tui::DrawTextWrapped()`. JS commit phase passes a computed rectangle (Yoga layout already lives in the smol-tui Yoga binding).",
+        "Border glyph table uses an 11-slot codepoint array per BorderStyle, matching opentui's borderCharsToArray output. Junction glyphs (slots 6-10) are forward-compat for a future table renderer; DrawBox currently reads slots 0-5 only.",
+        "Word wrap uses ASCII space + tab boundaries; long-word overflow hard-splits at the cell boundary. Full Unicode word segmentation (UAX #29) is a future helper alongside the planned StringWidth port (Unicode 16.0.0 width tables).",
+        "Title / bottomTitle / titleAlignment slots from upstream BoxDrawOptions are not yet ported — the title slot is a separate DrawTextWrapped overlay call in the consumer."
+      ],
+      "notes": "Embedded into node-smol as `node:smol-tui.rendererDrawBox` / `.rendererDrawTextWrapped`. Forms the C++ hot path that React/Solid host-config callbacks dispatch into (B4/B5)."
+    },
+    {
+      "kind": "file-fork",
       "id": "tui-infra-mouse",
       "upstream": "opentui",
       "local": "packages/tui-infra/src/socketsecurity/tui/mouse.cc",

@@ -88,6 +88,7 @@
 #include "tui/ansi.hpp"
 #include "tui/cell.hpp"
 #include "tui/mouse.hpp"
+#include "tui/renderables.hpp"
 #include "tui/renderer.hpp"
 
 #include "yoga/Yoga.h"
@@ -967,6 +968,107 @@ static void RendererSize(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(obj);
 }
 
+// ─── Section 4b: Renderables (box + wrapped text) ─────────────────────
+//
+// Higher-level draw primitives layered over CellBuffer. The React/Solid
+// host-config callbacks dispatch on element tag → one of these helpers.
+// Keeps the per-element commit overhead constant (no JS-side cell
+// iteration). Source: opentui v0.2.15 packages/core/src/lib/border.ts +
+// packages/core/src/renderables/{Box,Text}.ts.
+
+// drawBox(rendererId, x, y, w, h, style, sidesBits, borderFgR, borderFgG,
+//         borderFgB, bgR, bgG, bgB, attrs, fillBackground)
+//
+// sidesBits: bit 0 = top, bit 1 = right, bit 2 = bottom, bit 3 = left.
+// style: 0=single 1=double 2=rounded 3=heavy (matches tui::BorderStyle).
+static void RendererDrawBox(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  uint32_t x = args[1]->Uint32Value(context).FromMaybe(0);
+  uint32_t y = args[2]->Uint32Value(context).FromMaybe(0);
+  uint32_t w = args[3]->Uint32Value(context).FromMaybe(0);
+  uint32_t h = args[4]->Uint32Value(context).FromMaybe(0);
+  uint32_t style_idx = args[5]->Uint32Value(context).FromMaybe(0);
+  uint32_t sides_bits = args[6]->Uint32Value(context).FromMaybe(0xf);
+  ti::Renderer* renderer = LookupRenderer(id);
+  if (renderer == nullptr) {
+    return;
+  }
+  ti::BoxStyle style{};
+  // Clamp style to known values; >= 4 falls back to kSingle.
+  style.style = style_idx <= 3
+                    ? static_cast<ti::BorderStyle>(style_idx)
+                    : ti::BorderStyle::kSingle;
+  style.sides.top = (sides_bits & 0x1) != 0;
+  style.sides.right = (sides_bits & 0x2) != 0;
+  style.sides.bottom = (sides_bits & 0x4) != 0;
+  style.sides.left = (sides_bits & 0x8) != 0;
+  style.border_fg_r = static_cast<uint8_t>(
+      args[7]->Uint32Value(context).FromMaybe(255));
+  style.border_fg_g = static_cast<uint8_t>(
+      args[8]->Uint32Value(context).FromMaybe(255));
+  style.border_fg_b = static_cast<uint8_t>(
+      args[9]->Uint32Value(context).FromMaybe(255));
+  style.bg_r = static_cast<uint8_t>(
+      args[10]->Uint32Value(context).FromMaybe(0));
+  style.bg_g = static_cast<uint8_t>(
+      args[11]->Uint32Value(context).FromMaybe(0));
+  style.bg_b = static_cast<uint8_t>(
+      args[12]->Uint32Value(context).FromMaybe(0));
+  style.attrs = static_cast<uint8_t>(
+      args[13]->Uint32Value(context).FromMaybe(0));
+  style.fill_background = args[14]->BooleanValue(isolate);
+  ti::DrawBox(renderer->Next(), x, y, w, h, style);
+}
+
+// drawTextWrapped(rendererId, x, y, maxWidth, maxLines, utf8Bytes,
+//                 fgR, fgG, fgB, bgR, bgG, bgB, attrs) -> linesEmitted
+//
+// maxWidth=0 means "wrap to buffer right edge". maxLines=0 means "no
+// limit".
+static void RendererDrawTextWrapped(
+    const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t id = args[0]->Uint32Value(context).FromMaybe(0);
+  uint32_t x = args[1]->Uint32Value(context).FromMaybe(0);
+  uint32_t y = args[2]->Uint32Value(context).FromMaybe(0);
+  uint32_t max_width = args[3]->Uint32Value(context).FromMaybe(0);
+  uint32_t max_lines = args[4]->Uint32Value(context).FromMaybe(0);
+  if (!args[5]->IsUint8Array()) {
+    args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, 0));
+    return;
+  }
+  Local<Uint8Array> arr = args[5].As<Uint8Array>();
+  uint8_t fg_r = static_cast<uint8_t>(
+      args[6]->Uint32Value(context).FromMaybe(255));
+  uint8_t fg_g = static_cast<uint8_t>(
+      args[7]->Uint32Value(context).FromMaybe(255));
+  uint8_t fg_b = static_cast<uint8_t>(
+      args[8]->Uint32Value(context).FromMaybe(255));
+  uint8_t bg_r = static_cast<uint8_t>(
+      args[9]->Uint32Value(context).FromMaybe(0));
+  uint8_t bg_g = static_cast<uint8_t>(
+      args[10]->Uint32Value(context).FromMaybe(0));
+  uint8_t bg_b = static_cast<uint8_t>(
+      args[11]->Uint32Value(context).FromMaybe(0));
+  uint8_t attrs = static_cast<uint8_t>(
+      args[12]->Uint32Value(context).FromMaybe(0));
+  ti::Renderer* renderer = LookupRenderer(id);
+  if (renderer == nullptr) {
+    args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, 0));
+    return;
+  }
+  auto store = arr->Buffer()->GetBackingStore();
+  const char* utf8 =
+      static_cast<const char*>(store->Data()) + arr->ByteOffset();
+  uint32_t lines = ti::DrawTextWrapped(
+      renderer->Next(), x, y, max_width, max_lines, utf8, arr->ByteLength(),
+      fg_r, fg_g, fg_b, bg_r, bg_g, bg_b, attrs);
+  args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, lines));
+}
+
 // ─── Section 5: Yoga layout (flexbox) ─────────────────────────────────
 //
 // Direct C-API binding for Yoga 3.2.1 — a flexbox-spec layout engine
@@ -1690,6 +1792,11 @@ static void Initialize(Local<Object> target,
                             &fast_renderer_flush);
   SetMethod(context, target, "rendererSize", RendererSize);
 
+  // Renderables (high-level draw helpers).
+  SetMethod(context, target, "rendererDrawBox", RendererDrawBox);
+  SetMethod(context, target, "rendererDrawTextWrapped",
+            RendererDrawTextWrapped);
+
   SetFastMethodNoSideEffect(context, target, "yogaCalculateLayout",
                             YogaCalculateLayout,
                             &fast_yoga_calculate_layout);
@@ -1913,6 +2020,8 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(RendererFlush);
   registry->Register(fast_renderer_flush);
   registry->Register(RendererSize);
+  registry->Register(RendererDrawBox);
+  registry->Register(RendererDrawTextWrapped);
   registry->Register(YogaCalculateLayout);
   registry->Register(fast_yoga_calculate_layout);
   registry->Register(YogaCreateNode);

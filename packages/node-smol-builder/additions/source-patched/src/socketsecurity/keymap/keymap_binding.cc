@@ -110,6 +110,12 @@ struct Keymap {
   // How many steps we've matched in the pending chord. Equals the
   // index of the NEXT expected step in pending_indices[*].steps.
   size_t pending_depth = 0;
+
+  // Scratch buffer for MatchKey's filtered-candidates list. Owned by
+  // the Keymap so MatchKey can reuse the allocation across calls —
+  // one heap alloc per keymap lifetime rather than one per keystroke.
+  // Cleared at the start of every MatchKey.
+  std::vector<size_t> scratch_next_pending;
 };
 
 class KeymapRegistry {
@@ -386,9 +392,10 @@ static void MatchKey(const FunctionCallbackInfo<Value>& args) {
   uint32_t mods = args[2]->Uint32Value(context).FromMaybe(0);
   const std::string match_key = BuildMatchKey(key_name, mods);
 
-  // Filter candidates based on current chord position.
-  std::vector<size_t> next_pending;
-  next_pending.reserve(km->pending_indices.size());
+  // Filter candidates based on current chord position. Reuse the
+  // keymap's scratch buffer so we don't heap-allocate per keystroke.
+  std::vector<size_t>& next_pending = km->scratch_next_pending;
+  next_pending.clear();
 
   auto check_step = [&](size_t binding_idx) {
     const Binding& b = km->bindings[binding_idx];
@@ -439,8 +446,11 @@ static void MatchKey(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  // Chord continues. Stay pending.
-  km->pending_indices = std::move(next_pending);
+  // Chord continues. Stay pending. Swap (not move) so both vectors
+  // retain their allocations: pending_indices gets the new candidate
+  // list, scratch_next_pending takes the old pending_indices' storage
+  // — both buffers keep their capacity for the next call.
+  km->pending_indices.swap(next_pending);
   km->pending_depth += 1;
   args.GetReturnValue().SetNull();
 }

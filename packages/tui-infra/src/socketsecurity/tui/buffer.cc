@@ -110,19 +110,29 @@ void CellBuffer::DrawText(uint32_t x, uint32_t y, const char* utf8,
     return;
   }
   const char* p = utf8;
-  const char* end = utf8 + length;
-  uint32_t col = x;
-  while (p < end && col < width_) {
-    Cell c{};
+  const char* const end = utf8 + length;
+
+  // Hoist the style fields out of the loop — they're the same for
+  // every cell. Only the codepoint changes per iteration. Compiler
+  // can keep the partial Cell in registers.
+  Cell c{};
+  c.fg_r = fg_r;
+  c.fg_g = fg_g;
+  c.fg_b = fg_b;
+  c.bg_r = bg_r;
+  c.bg_g = bg_g;
+  c.bg_b = bg_b;
+  c.attrs = attrs;
+
+  // Row offset is loop-invariant. Pre-compute the row's base pointer
+  // and walk by one cell each step instead of recomputing IndexOf
+  // (which does y * width_) per character.
+  Cell* row = &cells_[static_cast<size_t>(y) * width_ + x];
+  const uint32_t col_end = width_ - x;
+  uint32_t col = 0;
+  while (p < end && col < col_end) {
     c.codepoint = DecodeUtf8(p, end);
-    c.fg_r = fg_r;
-    c.fg_g = fg_g;
-    c.fg_b = fg_b;
-    c.bg_r = bg_r;
-    c.bg_g = bg_g;
-    c.bg_b = bg_b;
-    c.attrs = attrs;
-    cells_[IndexOf(col, y)] = c;
+    row[col] = c;
     ++col;
   }
 }

@@ -260,7 +260,190 @@ void EmitNode(Isolate* isolate, Local<Context> context, Local<Array> out,
   }
 }
 
-}  // namespace
+// ─── Streaming variant ────────────────────────────────────────────────
+//
+// ParseStream is the zero-copy analog of Parse. Same parse work; the
+// emit phase writes into a single ArrayBuffer instead of allocating a
+// per-node 4-element v8::Array. Modeled after
+// ultrathink/acorn's BuildCompactBuffer pattern.
+//
+// Buffer layout (little-endian):
+//
+//   Header (12 bytes):
+//     uint32 magic              = 0x53545356 ("STSV")
+//     uint32 node_count
+//     uint32 type_pool_size_bytes
+//
+//   Node records (20 bytes × node_count):
+//     uint32 type_offset        // RELATIVE to type-pool start
+//     uint32 type_len
+//     uint32 start_byte
+//     uint32 end_byte
+//     uint32 named_child_count
+//
+//   Type pool (type_pool_size_bytes bytes):
+//     Concatenated UTF-8 type names. tree-sitter interns type-name
+//     pointers per grammar, so the type pool's actual storage cost
+//     is bounded by the grammar's unique-name count (~100-200)
+//     regardless of how many nodes appear in the parse.
+
+namespace stream {
+
+struct NodeRecord {
+  uint32_t type_offset;
+  uint32_t type_len;
+  uint32_t start_byte;
+  uint32_t end_byte;
+  uint32_t named_child_count;
+};
+
+// Pool of unique type names. Keyed by the grammar's interned
+// `const char*` (same pointer == same name); value is (offset, len)
+// in the flat byte pool.
+struct TypePool {
+  std::vector<uint8_t> bytes;
+  std::unordered_map<const char*, std::pair<uint32_t, uint32_t>> offsets;
+
+  std::pair<uint32_t, uint32_t> InternType(const char* type) {
+    auto it = offsets.find(type);
+    if (it != offsets.end()) {
+      return it->second;
+    }
+    const uint32_t off = static_cast<uint32_t>(bytes.size());
+    const size_t len = std::strlen(type);
+    bytes.insert(bytes.end(),
+                 reinterpret_cast<const uint8_t*>(type),
+                 reinterpret_cast<const uint8_t*>(type) + len);
+    const auto result = std::make_pair(off, static_cast<uint32_t>(len));
+    offsets.emplace(type, result);
+    return result;
+  }
+};
+
+constexpr int kStreamMaxRecursionDepth = 1024;
+
+// Recursive collection — same shape as EmitNode but writes into
+// `records` vector + `pool` byte vector instead of v8 objects.
+// Output materialization happens in one pass at the top level.
+void CollectNode(TSNode node, std::vector<NodeRecord>& records,
+                 TypePool& pool, int depth) {
+  if (depth >= kStreamMaxRecursionDepth) {
+    return;
+  }
+  if (ts_node_is_null(node)) {
+    return;
+  }
+  const uint32_t named_child_count = ts_node_named_child_count(node);
+  if (ts_node_is_named(node)) {
+    NodeRecord rec;
+    const char* type = ts_node_type(node);
+    auto [off, len] = pool.InternType(type);
+    rec.type_offset = off;
+    rec.type_len = len;
+    rec.start_byte = ts_node_start_byte(node);
+    rec.end_byte = ts_node_end_byte(node);
+    rec.named_child_count = named_child_count;
+    records.push_back(rec);
+  }
+  for (uint32_t i = 0; i < named_child_count; ++i) {
+    CollectNode(ts_node_named_child(node, i), records, pool, depth + 1);
+  }
+}
+
+}  // namespace stream
+
+static void ParseStream(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  if (args.Length() < 2 || !args[1]->IsString()) {
+    args.GetReturnValue().Set(v8::ArrayBuffer::New(isolate, 0));
+    return;
+  }
+  uint32_t lang_id = args[0]->Uint32Value(context).FromMaybe(0);
+  LanguageEntry entry = Registry().Get(lang_id);
+  if (entry.language == nullptr) {
+    args.GetReturnValue().Set(v8::ArrayBuffer::New(isolate, 0));
+    return;
+  }
+  Local<String> source_str = args[1].As<String>();
+  const int source_len = source_str->Utf8Length(isolate);
+  std::string source(static_cast<size_t>(source_len), '\0');
+  if (source_len > 0) {
+    source_str->WriteUtf8(isolate, source.data(), source_len, nullptr,
+                          String::NO_NULL_TERMINATION);
+  }
+
+  TSParser* parser = ts_parser_new();
+  if (parser == nullptr) {
+    args.GetReturnValue().Set(v8::ArrayBuffer::New(isolate, 0));
+    return;
+  }
+  if (!ts_parser_set_language(parser, entry.language)) {
+    ts_parser_delete(parser);
+    args.GetReturnValue().Set(v8::ArrayBuffer::New(isolate, 0));
+    return;
+  }
+  TSTree* tree = ts_parser_parse_string(parser, nullptr, source.data(),
+                                        static_cast<uint32_t>(source.size()));
+  if (tree == nullptr) {
+    ts_parser_delete(parser);
+    args.GetReturnValue().Set(v8::ArrayBuffer::New(isolate, 0));
+    return;
+  }
+
+  // Collect into vectors first; we need both counts before allocating
+  // the V8 buffer (the typical alternative is two tree walks).
+  std::vector<stream::NodeRecord> records;
+  records.reserve(static_cast<size_t>(source_len) / 8);
+  stream::TypePool pool;
+  pool.bytes.reserve(4096);
+  pool.offsets.reserve(256);
+  stream::CollectNode(ts_tree_root_node(tree), records, pool, /*depth=*/0);
+
+  ts_tree_delete(tree);
+  ts_parser_delete(parser);
+
+  constexpr size_t kHeaderSize = 12;
+  constexpr size_t kRecordSize = 20;
+  const size_t node_count = records.size();
+  const size_t pool_size = pool.bytes.size();
+  const size_t total_size =
+      kHeaderSize + node_count * kRecordSize + pool_size;
+
+  std::unique_ptr<v8::BackingStore> store =
+      v8::ArrayBuffer::NewBackingStore(isolate, total_size);
+  Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, std::move(store));
+  uint8_t* out = static_cast<uint8_t*>(ab->Data());
+
+  auto write_u32 = [](uint8_t* dst, uint32_t v) {
+    dst[0] = static_cast<uint8_t>(v & 0xff);
+    dst[1] = static_cast<uint8_t>((v >> 8) & 0xff);
+    dst[2] = static_cast<uint8_t>((v >> 16) & 0xff);
+    dst[3] = static_cast<uint8_t>((v >> 24) & 0xff);
+  };
+
+  // Header.
+  write_u32(out + 0, 0x53545356u);  // "STSV"
+  write_u32(out + 4, static_cast<uint32_t>(node_count));
+  write_u32(out + 8, static_cast<uint32_t>(pool_size));
+
+  // Node records. memcpy in 20-byte chunks since NodeRecord is
+  // packed (no padding — five uint32_t members fit exactly).
+  static_assert(sizeof(stream::NodeRecord) == 20,
+                "NodeRecord must be 20 bytes for direct memcpy");
+  if (node_count > 0) {
+    std::memcpy(out + kHeaderSize, records.data(),
+                node_count * kRecordSize);
+  }
+
+  // Type pool.
+  if (pool_size > 0) {
+    std::memcpy(out + kHeaderSize + node_count * kRecordSize,
+                pool.bytes.data(), pool_size);
+  }
+
+  args.GetReturnValue().Set(ab);
+}
 
 static void Parse(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
@@ -323,12 +506,14 @@ static void Initialize(Local<Object> target,
   SetMethod(context, target, "freeLanguage", FreeLanguage);
   SetMethod(context, target, "loadLanguage", LoadLanguage);
   SetMethod(context, target, "parse", Parse);
+  SetMethod(context, target, "parseStream", ParseStream);
 }
 
 static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(FreeLanguage);
   registry->Register(LoadLanguage);
   registry->Register(Parse);
+  registry->Register(ParseStream);
 }
 
 }  // namespace tree_sitter

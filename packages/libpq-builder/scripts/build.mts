@@ -1,6 +1,4 @@
 // max-file-lines: legitimate -- single builder pipeline (fetch → patch → build → package) — splitting fractures the build sequence
-/* oxlint-disable socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order. */
-/* oxlint-disable socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks. */
 /**
  * Build script for libpq PostgreSQL client library.
  * Downloads prebuilt libpq from GitHub releases or builds from source.
@@ -73,6 +71,7 @@ const TARGET_ARCH = process.env.TARGET_ARCH || process.arch
  * @param {string} platformArch - Platform-arch identifier.
  * @returns {{ buildDir: string, libpqBuildDir: string }}
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function getBuildDirs(platformArch) {
   const buildDir = getPlatformBuildDir(packageRoot, platformArch)
   const libpqBuildDir = path.join(buildDir, 'out', BUILD_STAGES.FINAL, 'libpq')
@@ -119,6 +118,7 @@ export async function verifyArchiveChecksum(archivePath, assetName) {
  * @param {string} [options.platformArch] - Override platform-arch.
  * @returns {Promise<string>} Path to downloaded libpq directory.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function downloadLibpq(options = {}) {
   const { force = false, platformArch } = options
   const resolvedPlatformArch = platformArch ?? (await getCurrentPlatformArch())
@@ -170,6 +170,7 @@ export async function downloadLibpq(options = {}) {
   }
 
   // Verify tarball integrity before extraction.
+  // oxlint-disable-next-line socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks.
   const archiveStats = await fs.stat(downloadedArchive)
   logger.info(
     `Archive size: ${(archiveStats.size / 1024 / 1024).toFixed(2)} MB`,
@@ -256,6 +257,7 @@ export async function downloadLibpq(options = {}) {
   // Write version file after cleanup.
   await fs.writeFile(versionFile, POSTGRES_VERSION, 'utf8')
 
+  // oxlint-disable-next-line socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks.
   const stats = await fs.stat(path.join(extractDir, 'libpq.a'))
   const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
   logger.success(`Downloaded libpq (${sizeMB} MB) to ${extractDir}`)
@@ -272,6 +274,7 @@ export async function downloadLibpq(options = {}) {
  * @param {string} [options.platformArch] - Override platform-arch.
  * @returns {Promise<string>} Path to directory containing libpq libraries.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function ensureLibpq(options = {}) {
   const { force = false, platformArch } = options
   const resolvedPlatformArch = platformArch ?? (await getCurrentPlatformArch())
@@ -309,6 +312,7 @@ const POSTGRES_VERSION = getPostgresVersion()
  * Extract PostgreSQL version from .gitmodules comment.
  * @returns {string} PostgreSQL version (e.g., "16.6")
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function getPostgresVersion() {
   try {
     const version = getSubmoduleVersion(
@@ -323,6 +327,7 @@ export function getPostgresVersion() {
   }
 }
 
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function runCommand(command, args, cwd, env = {}) {
   logger.info(`Running: ${command} ${args.join(' ')}`)
 
@@ -362,6 +367,7 @@ export async function runCommand(command, args, cwd, env = {}) {
  *
  * @returns {{ includeDir: string, libDir: string }} OpenSSL paths
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function getNodeOpenSSLPaths() {
   // Node.js OpenSSL is in node-smol-builder's upstream
   const nodeUpstream = path.join(
@@ -394,6 +400,7 @@ export function getNodeOpenSSLPaths() {
  * tree doesn't carry built libs yet. Returns undefined when nothing
  * works so configure can auto-probe.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function getOpenSSLPaths() {
   const candidates = []
   candidates.push(getNodeOpenSSLPaths())
@@ -442,6 +449,7 @@ export function getOpenSSLPaths() {
  *
  * @param {string} libpqBuildDir - Directory to build libpq in.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function buildLibpq(libpqBuildDir) {
   logger.info('Building libpq from PostgreSQL source...')
 
@@ -584,6 +592,7 @@ export async function buildLibpq(libpqBuildDir) {
  *
  * @param {string} libpqBuildDir - Directory containing libpq build.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function copyDistributionFiles(libpqBuildDir) {
   const distDir = path.join(libpqBuildDir, 'dist')
   await safeMkdir(distDir)
@@ -751,6 +760,7 @@ async function main() {
       // Should not reach here after auto-init above.
       const libpqDir = await ensureLibpq()
       const libpqLib = path.join(libpqDir, 'libpq.a')
+      // oxlint-disable-next-line socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks.
       const stats = await fs.stat(libpqLib)
       const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
 
@@ -760,6 +770,7 @@ async function main() {
         CHECKPOINTS.FINALIZED,
         async () => {
           // Verify library exists and has reasonable size.
+          // oxlint-disable-next-line socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks.
           const libStats = await fs.stat(libpqLib)
           if (libStats.size < 10_000) {
             throw new Error(
@@ -801,6 +812,7 @@ async function main() {
       throw new Error(`libpq library not found at ${libPath}`)
     }
 
+    // oxlint-disable-next-line socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks.
     const stats = await fs.stat(libPath)
     const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
     logger.info(`libpq library size: ${sizeMB} MB`)
@@ -811,6 +823,7 @@ async function main() {
       CHECKPOINTS.FINALIZED,
       async () => {
         // Verify library exists and has reasonable size.
+        // oxlint-disable-next-line socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks.
         const libStats = await fs.stat(libPath)
         if (libStats.size < 10_000) {
           throw new Error(

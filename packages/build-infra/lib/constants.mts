@@ -1,5 +1,4 @@
 // max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
-/* oxlint-disable socket/sort-source-methods -- file is grouped by section header banners ("Path Constants" / "Build Constants" / ...) with helpers co-located with their constants; autofix bails on the const-interleaved layout and reordering would scatter related declarations across sections. */
 /**
  * Shared constants for Socket BTM build infrastructure
  *
@@ -417,6 +416,7 @@ export const NODE_VERSION = `v${nodeVersionRaw}`
  * Defaults to 'prod' in CI, 'dev' otherwise.
  * @returns {string} The build mode ('dev' or 'prod')
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is grouped by section header banners ("Path Constants" / "Build Constants" / ...) with helpers co-located with their constants; autofix bails on the const-interleaved layout and reordering would scatter related declarations across sections.
 export function getBuildMode(args?: string[] | Set<string>): string {
   // Explicit --prod / --dev CLI flags win over env.
   if (args) {
@@ -448,6 +448,7 @@ export function getBuildMode(args?: string[] | Set<string>): string {
  * @param {string} platformArch - Platform-arch string (e.g., 'linux-x64', 'darwin-arm64')
  * @returns {string} Platform-specific build directory path
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is grouped by section header banners ("Path Constants" / "Build Constants" / ...) with helpers co-located with their constants; autofix bails on the const-interleaved layout and reordering would scatter related declarations across sections.
 export function getPlatformBuildDir(
   packageDir: string,
   platformArch: string,
@@ -461,6 +462,7 @@ export function getPlatformBuildDir(
  * @param {string} [platform] - Platform override (darwin, linux, win32)
  * @returns {string[]} Array of paths to search for EMSDK
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is grouped by section header banners ("Path Constants" / "Build Constants" / ...) with helpers co-located with their constants; autofix bails on the const-interleaved layout and reordering would scatter related declarations across sections.
 export function getEmsdkSearchPaths(
   platform: string = process.platform,
 ): string[] {
@@ -475,6 +477,7 @@ export function getEmsdkSearchPaths(
  * @param {number} version - GCC version number
  * @returns {string} Path to versioned GCC
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is grouped by section header banners ("Path Constants" / "Build Constants" / ...) with helpers co-located with their constants; autofix bails on the const-interleaved layout and reordering would scatter related declarations across sections.
 export function getGccPath(version: number): string {
   return COMPILER_PATHS.linux.gccVersioned(version)
 }
@@ -484,6 +487,7 @@ export function getGccPath(version: number): string {
  * @param {number} version - G++ version number
  * @returns {string} Path to versioned G++
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is grouped by section header banners ("Path Constants" / "Build Constants" / ...) with helpers co-located with their constants; autofix bails on the const-interleaved layout and reordering would scatter related declarations across sections.
 export function getGxxPath(version: number): string {
   return COMPILER_PATHS.linux.gxxVersioned(version)
 }

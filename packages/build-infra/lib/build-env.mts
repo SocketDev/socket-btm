@@ -1,5 +1,4 @@
 // max-file-lines: legitimate -- cohesive build-environment helper module — one tool family (emscripten/python/cmake setup); splitting scatters related setup
-/* oxlint-disable socket/no-status-emoji -- emoji are pushed into result.messages/result.errors arrays that callers may render anywhere (JSON, file, stderr); there is no single logger.success/fail call to migrate to. */
 
 /**
  * Build Environment Detection and Setup
@@ -463,9 +462,11 @@ export async function setupBuildEnvironment(options = {}) {
 
     if (activated) {
       const version = await getEmscriptenVersion()
+      // oxlint-disable-next-line socket/no-status-emoji -- emoji are pushed into result.messages/result.errors arrays that callers may render anywhere (JSON, file, stderr); there is no single logger.success/fail call to migrate to.
       results.messages.push(`✓ Emscripten ${version} activated`)
     } else {
       results.success = false
+      // oxlint-disable-next-line socket/no-status-emoji -- emoji are pushed into result.messages/result.errors arrays that callers may render anywhere (JSON, file, stderr); there is no single logger.success/fail call to migrate to.
       results.errors.push('✗ Emscripten SDK not found')
 
       if (autoSetup) {
@@ -485,9 +486,11 @@ export async function setupBuildEnvironment(options = {}) {
     const rustCheck = await checkRust()
 
     if (rustCheck.available) {
+      // oxlint-disable-next-line socket/no-status-emoji -- emoji are pushed into result.messages/result.errors arrays that callers may render anywhere (JSON, file, stderr); there is no single logger.success/fail call to migrate to.
       results.messages.push(`✓ Rust ${rustCheck.version} with WASM support`)
     } else {
       results.success = false
+      // oxlint-disable-next-line socket/no-status-emoji -- emoji are pushed into result.messages/result.errors arrays that callers may render anywhere (JSON, file, stderr); there is no single logger.success/fail call to migrate to.
       results.errors.push(`✗ Rust: ${rustCheck.reason}`)
 
       if (rustCheck.fix) {
@@ -506,10 +509,12 @@ export async function setupBuildEnvironment(options = {}) {
 
     if (pythonCheck.available) {
       if (pythonCheck.meetsRequirement) {
+        // oxlint-disable-next-line socket/no-status-emoji -- emoji are pushed into result.messages/result.errors arrays that callers may render anywhere (JSON, file, stderr); there is no single logger.success/fail call to migrate to.
         results.messages.push(`✓ Python ${pythonCheck.version}`)
       } else {
         results.success = false
         results.errors.push(
+          // oxlint-disable-next-line socket/no-status-emoji -- emoji are pushed into result.messages/result.errors arrays that callers may render anywhere (JSON, file, stderr); there is no single logger.success/fail call to migrate to.
           `✗ Python ${pythonCheck.version} is too old (need ${getMinPythonVersion()}+)`,
         )
 
@@ -521,6 +526,7 @@ export async function setupBuildEnvironment(options = {}) {
       }
     } else {
       results.success = false
+      // oxlint-disable-next-line socket/no-status-emoji -- emoji are pushed into result.messages/result.errors arrays that callers may render anywhere (JSON, file, stderr); there is no single logger.success/fail call to migrate to.
       results.errors.push(`✗ Python ${getMinPythonVersion()}+ not found`)
 
       if (autoSetup) {

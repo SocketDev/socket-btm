@@ -1,5 +1,4 @@
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat() calls consume stats.size / stats.mode for round-trip size and executable-permission assertions. */
 
 /**
  * @fileoverview Compression round-trip tests for binpress
@@ -205,7 +204,9 @@ describe.skipIf(!existsSync(BINPRESS))(
             ? `${compressedBinary}.exe`
             : compressedBinary
 
+        // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size / stats.mode for round-trip size and executable-permission assertions.
         const inputStats = await fs.stat(inputBinary)
+        // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size / stats.mode for round-trip size and executable-permission assertions.
         const compressedStats = await fs.stat(finalPath)
 
         // Compressed should be smaller (or at worst slightly larger due to stub overhead)
@@ -231,6 +232,7 @@ describe.skipIf(!existsSync(BINPRESS))(
             ? `${compressedBinary}.exe`
             : compressedBinary
 
+        // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size / stats.mode for round-trip size and executable-permission assertions.
         const stats = await fs.stat(finalPath)
 
         // Windows doesn't use Unix-style executable bits, so skip this check on Windows
@@ -453,6 +455,7 @@ describe.skipIf(!existsSync(BINPRESS))(
           await handle.close()
         }
 
+        // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size / stats.mode for round-trip size and executable-permission assertions.
         const inputStats = await fs.stat(inputBinary)
         expect(inputStats.size).toBeGreaterThan(targetSize)
 
@@ -473,6 +476,7 @@ describe.skipIf(!existsSync(BINPRESS))(
             ? `${compressedBinary}.exe`
             : compressedBinary
 
+        // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size / stats.mode for round-trip size and executable-permission assertions.
         const compressedStats = await fs.stat(finalPath)
 
         // With repetitive data, should compress significantly
@@ -563,6 +567,7 @@ describe.skipIf(!existsSync(BINPRESS))(
           process.platform === 'win32' ? `${output}.exe` : output
 
         // Output should be larger than "existing content"
+        // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size / stats.mode for round-trip size and executable-permission assertions.
         const stats = await fs.stat(finalPath)
         expect(stats.size).toBeGreaterThan(100)
       }, 60_000)
@@ -666,6 +671,7 @@ describe.skipIf(!existsSync(BINPRESS))(
                 continue
               }
               try {
+                // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size / stats.mode for round-trip size and executable-permission assertions.
                 const stat = await fs.stat(meta)
                 if (stat.mtimeMs > bestMtime) {
                   bestMtime = stat.mtimeMs

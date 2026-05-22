@@ -1,6 +1,4 @@
 // max-file-lines: legitimate -- single builder pipeline (fetch → patch → build → package) — splitting fractures the build sequence
-/* oxlint-disable socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order. */
-/* oxlint-disable socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks. */
 /**
  * Build script for libcurl with mbedTLS.
  * Downloads prebuilt libcurl from GitHub releases or builds from source.
@@ -78,6 +76,7 @@ const TARGET_ARCH = process.env.TARGET_ARCH || process.arch
  * @param {string} platformArch - Platform-arch identifier.
  * @returns {{ buildDir: string, curlBuildDir: string, mbedtlsBuildDir: string }}
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function getBuildDirs(platformArch) {
   const buildDir = getPlatformBuildDir(packageRoot, platformArch)
   const curlBuildDir = path.join(buildDir, 'out', BUILD_STAGES.FINAL, 'curl')
@@ -106,6 +105,7 @@ const CURL_REQUIRED_FILES = [
  * @param {string} dir - Directory to check.
  * @returns {boolean} True if all required files exist.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function curlExistsAt(dir) {
   return CURL_REQUIRED_FILES.every(file => existsSync(path.join(dir, file)))
 }
@@ -135,6 +135,7 @@ export async function verifyArchiveChecksum(archivePath, assetName) {
  * @param {string} [options.platformArch] - Override platform-arch.
  * @returns {Promise<string>} Path to downloaded curl directory.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function downloadCurl(options = {}) {
   const { force = false, platformArch } = options
   const resolvedPlatformArch = platformArch ?? (await getCurrentPlatformArch())
@@ -188,6 +189,7 @@ export async function downloadCurl(options = {}) {
   }
 
   // Verify tarball integrity before extraction (detect corrupted/truncated downloads).
+  // oxlint-disable-next-line socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks.
   const archiveStats = await fs.stat(downloadedArchive)
   logger.info(
     `Archive size: ${(archiveStats.size / 1024 / 1024).toFixed(2)} MB`,
@@ -286,6 +288,7 @@ export async function downloadCurl(options = {}) {
   // Write version file after cleanup to ensure curl exists check passes.
   await fs.writeFile(versionFile, CURL_VERSION, 'utf8')
 
+  // oxlint-disable-next-line socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks.
   const stats = await fs.stat(path.join(extractDir, 'libcurl.a'))
   const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
   logger.success(`Downloaded curl (${sizeMB} MB) to ${extractDir}`)
@@ -302,6 +305,7 @@ export async function downloadCurl(options = {}) {
  * @param {string} [options.platformArch] - Override platform-arch.
  * @returns {Promise<string>} Path to directory containing curl libraries.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function ensureCurl(options = {}) {
   const { force = false, platformArch } = options
   const resolvedPlatformArch = platformArch ?? (await getCurrentPlatformArch())
@@ -342,6 +346,7 @@ const MBEDTLS_VERSION = getMbedTLSVersion()
  * Extract curl version from .gitmodules comment.
  * @returns {string} Curl version (e.g., "8.18.0")
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function getCurlVersion() {
   const version = getSubmoduleVersion(
     'packages/curl-builder/upstream/curl',
@@ -355,6 +360,7 @@ export function getCurlVersion() {
  * Extract mbedTLS version from .gitmodules comment.
  * @returns {string} mbedTLS version (e.g., "3.6.5")
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function getMbedTLSVersion() {
   const version = getSubmoduleVersion(
     'packages/curl-builder/upstream/mbedtls',
@@ -364,6 +370,7 @@ export function getMbedTLSVersion() {
   return version
 }
 
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function runCommand(command, args, cwd, env = {}) {
   logger.info(`Running: ${command} ${args.join(' ')}`)
 
@@ -402,6 +409,7 @@ export async function runCommand(command, args, cwd, env = {}) {
  *
  * @param {string} mbedtlsBuildDir - Directory to build mbedTLS in.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function buildMbedTLS(mbedtlsBuildDir) {
   logger.info('Building mbedTLS...')
 
@@ -518,6 +526,7 @@ export async function buildMbedTLS(mbedtlsBuildDir) {
  * @param {string} mbedtlsDir - Directory containing mbedTLS build.
  * @param {string} curlBuildDir - Directory to build curl in.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function buildCurl(mbedtlsDir, curlBuildDir) {
   logger.info('Building curl with mbedTLS...')
 
@@ -674,6 +683,7 @@ export async function buildCurl(mbedtlsDir, curlBuildDir) {
  * @param {string} mbedtlsDir - Directory containing mbedTLS build.
  * @param {string} curlBuildDir - Directory containing curl build.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function copyDistributionFiles(mbedtlsDir, curlBuildDir) {
   const distDir = path.join(curlBuildDir, 'dist')
   await safeMkdir(distDir)
@@ -781,6 +791,7 @@ async function main() {
       logger.info('curl submodule not initialized, using prebuilt...')
       const curlDir = await ensureCurl()
       const curlLib = path.join(curlDir, 'libcurl.a')
+      // oxlint-disable-next-line socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks.
       const stats = await fs.stat(curlLib)
       const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
 
@@ -790,6 +801,7 @@ async function main() {
         CHECKPOINTS.FINALIZED,
         async () => {
           // Verify library exists and has reasonable size.
+          // oxlint-disable-next-line socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks.
           const libStats = await fs.stat(curlLib)
           if (libStats.size < 100_000) {
             throw new Error(
@@ -849,6 +861,7 @@ async function main() {
       mbedtlsDir = await buildMbedTLS(mbedtlsBuildDir)
 
       // Create mbedtls checkpoint.
+      // oxlint-disable-next-line socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks.
       const mbedtlsStats = await fs.stat(mbedtlsLibPath)
       await createCheckpoint(
         buildDir,
@@ -889,6 +902,7 @@ async function main() {
       throw new Error(`curl library not found at ${libPath}`)
     }
 
+    // oxlint-disable-next-line socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks.
     const stats = await fs.stat(libPath)
     const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
     logger.info(`curl library size: ${sizeMB} MB`)
@@ -899,6 +913,7 @@ async function main() {
       CHECKPOINTS.FINALIZED,
       async () => {
         // Verify library exists and has reasonable size.
+        // oxlint-disable-next-line socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks.
         const libStats = await fs.stat(libPath)
         if (libStats.size < 100_000) {
           throw new Error(

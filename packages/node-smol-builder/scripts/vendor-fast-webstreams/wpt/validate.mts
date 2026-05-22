@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 // max-file-lines: legitimate -- orchestration script — top-down pipeline (gather → validate → report); splitting fractures the flow
-/* oxlint-disable socket/no-status-emoji -- WPT validator emits ANSI-colored status markers ("\x1b[32m✓\x1b[0m" etc.) in column-aligned table rows; logger.success() would lose the colorization required by the WPT result format. */
 
 /**
  * WPT (Web Platform Tests) validation for fast-webstreams integration
@@ -560,6 +559,7 @@ async function main(): Promise<void> {
     // Status: green checkmark, yellow tilde (expected fail), red X (unexpected fail)
     let status
     if (result.failed === 0) {
+      // oxlint-disable-next-line socket/no-status-emoji -- WPT validator emits ANSI-colored status markers ("\x1b[32m✓\x1b[0m" etc.) in column-aligned table rows; logger.success() would lose the colorization required by the WPT result format.
       status = '\x1b[32m✓\x1b[0m'
     } else {
       // Check if all failures in this file are expected
@@ -569,6 +569,7 @@ async function main(): Promise<void> {
         const fullKey = `${fileKey}:${testName}`
         return EXPECTED_FAILURES.has(fullKey) || EXPECTED_FAILURES.has(fileKey)
       })
+      // oxlint-disable-next-line socket/no-status-emoji -- WPT validator emits ANSI-colored status markers ("\x1b[32m✓\x1b[0m" etc.) in column-aligned table rows; logger.success() would lose the colorization required by the WPT result format.
       status = allExpected ? '\x1b[33m~\x1b[0m' : '\x1b[31m✗\x1b[0m'
     }
 
@@ -633,6 +634,7 @@ async function main(): Promise<void> {
 
   if (unexpectedFailures.length > 0) {
     logger.error('')
+    // oxlint-disable-next-line socket/no-status-emoji -- WPT validator emits ANSI-colored status markers ("\x1b[32m✓\x1b[0m" etc.) in column-aligned table rows; logger.success() would lose the colorization required by the WPT result format.
     logger.fail('[31m❌ UNEXPECTED failures (regressions):[0m')
     // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
     for (const { file, test } of unexpectedFailures.slice(0, 10)) {

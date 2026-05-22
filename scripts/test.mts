@@ -70,8 +70,8 @@ export function preflightCheck(): void {
 
   if (warnings.length > 0) {
     logger.error('')
-    for (const warning of warnings) {
-      logger.info(warning)
+    for (let i = 0, { length } = warnings; i < length; i += 1) {
+      logger.info(warnings[i])
     }
     logger.error('')
   }

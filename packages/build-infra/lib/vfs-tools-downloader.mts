@@ -1,5 +1,4 @@
 // max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
-/* oxlint-disable socket/sort-source-methods -- file is ordered by download pipeline phase (parse manifest → fetch → verify checksum → pack); alphabetizing across phases would scatter the download flow. */
 /**
  * VFS External Tools Downloader
  *
@@ -187,6 +186,7 @@ export function getPlatformKey(
  * @param {string} [arch] - Architecture (x64, arm64)
  * @returns {string[]} Array of tool names available for this platform
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is ordered by download pipeline phase (parse manifest → fetch → verify checksum → pack); alphabetizing across phases would scatter the download flow.
 export function getAvailableTools(
   platform = process.platform,
   arch = process.arch,
@@ -219,6 +219,7 @@ const RETRY_DELAY_MS = 1000
  * @param {string} filePath - Path to file
  * @returns {Promise<string>} Hex-encoded SHA256 hash
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is ordered by download pipeline phase (parse manifest → fetch → verify checksum → pack); alphabetizing across phases would scatter the download flow.
 export async function computeFileSha256(filePath) {
   const hash = crypto.createHash('sha256')
   const stream = createReadStream(filePath)
@@ -258,6 +259,7 @@ export async function verifyFileSha256(filePath, expectedHash) {
  * @param {number} [options.retries] - Max retries (default: 3)
  * @returns {Promise<void>}
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is ordered by download pipeline phase (parse manifest → fetch → verify checksum → pack); alphabetizing across phases would scatter the download flow.
 export async function downloadFile(url, destPath, options = {}) {
   const timeout = options.timeout ?? DOWNLOAD_TIMEOUT_MS
   const maxRetries = options.retries ?? MAX_RETRIES
@@ -280,6 +282,7 @@ export async function downloadFile(url, destPath, options = {}) {
  * @param {string} destDir - Destination directory
  * @returns {Promise<void>}
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is ordered by download pipeline phase (parse manifest → fetch → verify checksum → pack); alphabetizing across phases would scatter the download flow.
 export async function extractArchive(archivePath, destDir) {
   await fs.mkdir(destDir, { recursive: true })
 
@@ -320,6 +323,7 @@ export async function extractArchive(archivePath, destDir) {
  * @param {boolean} [options.skipHashVerification] - Skip SHA256 verification (NOT RECOMMENDED)
  * @returns {Promise<{success: boolean, toolDir: string, version: string}>}
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is ordered by download pipeline phase (parse manifest → fetch → verify checksum → pack); alphabetizing across phases would scatter the download flow.
 export async function downloadVfsTool(
   toolName,
   {
@@ -420,6 +424,7 @@ export async function downloadVfsTool(
  * @param {boolean} [options.force] - Force re-download even if exists
  * @returns {Promise<{success: boolean, downloaded: string[], failed: string[]}>}
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is ordered by download pipeline phase (parse manifest → fetch → verify checksum → pack); alphabetizing across phases would scatter the download flow.
 export async function downloadAllVfsTools({
   arch = process.arch,
   destDir,
@@ -483,6 +488,7 @@ export async function downloadAllVfsTools({
  * @param {string} [options.arch] - Target architecture
  * @returns {Promise<{success: boolean, size: number}>}
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is ordered by download pipeline phase (parse manifest → fetch → verify checksum → pack); alphabetizing across phases would scatter the download flow.
 export async function createVfsToolsTarball({
   arch = process.arch,
   outputPath,

@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- every fs.stat() reads stats.size to assert int4/int8 quantized model artifacts are in the expected size range. */
 /**
  * @fileoverview Tests for codet5-models-builder model output files.
  * Validates that the build process generates correct encoder/decoder structure and formats.
@@ -93,6 +92,7 @@ describe.skipIf(!hasBuiltArtifacts)(
           return
         }
 
+        // oxlint-disable-next-line socket/prefer-exists-sync -- every fs.stat() reads stats.size to assert int4/int8 quantized model artifacts are in the expected size range.
         const stats = await fs.stat(encoderPath)
         expect(stats.size).toBeGreaterThan(20 * 1024 * 1024)
         // CodeT5 encoder is typically 40-120MB
@@ -107,6 +107,7 @@ describe.skipIf(!hasBuiltArtifacts)(
           return
         }
 
+        // oxlint-disable-next-line socket/prefer-exists-sync -- every fs.stat() reads stats.size to assert int4/int8 quantized model artifacts are in the expected size range.
         const stats = await fs.stat(decoderPath)
         expect(stats.size).toBeGreaterThan(20 * 1024 * 1024)
         // CodeT5 decoder is typically 40-200MB
@@ -164,7 +165,9 @@ describe.skipIf(!hasBuiltArtifacts)(
           return
         }
 
+        // oxlint-disable-next-line socket/prefer-exists-sync -- every fs.stat() reads stats.size to assert int4/int8 quantized model artifacts are in the expected size range.
         const int4Stats = await fs.stat(int4EncoderPath)
+        // oxlint-disable-next-line socket/prefer-exists-sync -- every fs.stat() reads stats.size to assert int4/int8 quantized model artifacts are in the expected size range.
         const int8Stats = await fs.stat(int8EncoderPath)
 
         expect(int4Stats.size).toBeLessThan(int8Stats.size)

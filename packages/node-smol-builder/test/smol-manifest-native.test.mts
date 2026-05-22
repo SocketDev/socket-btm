@@ -20,12 +20,11 @@
  *    `pnpm build`), skip the suite with a clear message.
  */
 
-import { execFileSync } from 'node:child_process'
-import type { ExecFileSyncOptionsWithStringEncoding } from 'node:child_process'
 import { existsSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { spawnSync } from '@socketsecurity/lib-stable/spawn/spawn'
 import { describe, expect, it } from 'vitest'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
@@ -106,11 +105,11 @@ describe('smol_manifest_native binding — sdxgen-bug-regressions equivalence', 
   })
 
   it.skipIf(!smolBinary)('live binding verifies all fixtures PASS', () => {
-    const opts: ExecFileSyncOptionsWithStringEncoding = {
+    const result = spawnSync(smolBinary!, [LIVE_VERIFIER], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
-    }
-    const output = execFileSync(smolBinary!, [LIVE_VERIFIER], opts)
+    })
+    const output = String(result.stdout ?? '')
     // Confirm every expected fixture name appears with PASS.
     for (let i = 0, { length } = EXPECTED_FIXTURE_NAMES; i < length; i += 1) {
       const name = EXPECTED_FIXTURE_NAMES[i]
@@ -125,11 +124,11 @@ describe('smol_manifest_native binding — sdxgen-bug-regressions equivalence', 
   it.skipIf(!smolBinary)(
     "parses socket-btm's own pnpm-lock.yaml without malformed entries",
     () => {
-      const opts: ExecFileSyncOptionsWithStringEncoding = {
+      const result = spawnSync(smolBinary!, [REAL_FIXTURE_VERIFIER], {
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'pipe'],
-      }
-      const output = execFileSync(smolBinary!, [REAL_FIXTURE_VERIFIER], opts)
+      })
+      const output = String(result.stdout ?? '')
       expect(output).toContain('PASS')
       expect(output).not.toContain('FAIL')
     },

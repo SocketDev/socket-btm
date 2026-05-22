@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat() calls consume stats.size to validate WASM and sync-wrapper size before finalize. */
 /**
  * WASM finalization phase for Yoga Layout
  *
@@ -98,12 +97,14 @@ export async function finalizeWasm(options) {
       if (magic !== '0061736d') {
         throw new Error('Invalid WASM file (bad magic number)')
       }
+      // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size to validate WASM and sync-wrapper size before finalize.
       const wasmStats = await fs.stat(outputWasmFile)
       if (wasmStats.size < 100_000) {
         throw new Error(
           `WASM file too small: ${wasmStats.size} bytes (expected >100KB)`,
         )
       }
+      // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size to validate WASM and sync-wrapper size before finalize.
       const syncStats = await fs.stat(outputSyncCjsFile)
       if (syncStats.size === 0) {
         throw new Error('Sync wrapper file is empty')

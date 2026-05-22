@@ -1,5 +1,4 @@
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
-/* oxlint-disable socket/prefer-exists-sync -- access(X_OK) checks executable permission, not just existence; stats.size verifies non-empty binary; existsSync can't substitute for either. */
 /**
  * SEA Config VFS Tests
  *
@@ -90,9 +89,11 @@ export async function findNodeBinary() {
     const binaryPath = possiblePaths[i]
     try {
       // eslint-disable-next-line no-await-in-loop
+      // oxlint-disable-next-line socket/prefer-exists-sync -- access(X_OK) checks executable permission, not just existence; stats.size verifies non-empty binary; existsSync can't substitute for either.
       const stats = await fs.stat(binaryPath)
       if (stats.isFile()) {
         // eslint-disable-next-line no-await-in-loop
+        // oxlint-disable-next-line socket/prefer-exists-sync -- access(X_OK) checks executable permission, not just existence; stats.size verifies non-empty binary; existsSync can't substitute for either.
         await fs.access(binaryPath, fs.constants.X_OK)
         return binaryPath
       }
@@ -120,6 +121,7 @@ describe('sEA Config VFS Configuration', () => {
     const foundBinary = await findNodeBinary()
 
     // Check if binary is small enough for binject.
+    // oxlint-disable-next-line socket/prefer-exists-sync -- access(X_OK) checks executable permission, not just existence; stats.size verifies non-empty binary; existsSync can't substitute for either.
     const stats = await fs.stat(foundBinary)
     if (stats.size > MAX_NODE_BINARY_SIZE) {
       logger.warn(

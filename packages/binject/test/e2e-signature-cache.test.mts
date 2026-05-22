@@ -1,5 +1,4 @@
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
-/* oxlint-disable socket/sort-source-methods -- test helpers ordered by signature-cache flow (build → sign → cache → verify → invalidate); alphabetizing would scatter the flow. */
 
 /**
  * E2E Tests for Signature Validation and Cache Management
@@ -137,6 +136,7 @@ export function findTestStub() {
  * This is more reliable than extracting from cache which can be inconsistent.
  * @returns {string|null} Path to uncompressed binary or null if none found
  */
+// oxlint-disable-next-line socket/sort-source-methods -- test helpers ordered by signature-cache flow (build → sign → cache → verify → invalidate); alphabetizing would scatter the flow.
 export function findNodeSmolBinary() {
   const platform = os.platform()
   const binaryName = platform === 'win32' ? 'node.exe' : 'node'
@@ -197,6 +197,7 @@ const describeOnMac = os.platform() === 'darwin' ? describe : describe.skip
 
 let testDir: string
 
+// oxlint-disable-next-line socket/sort-source-methods -- test helpers ordered by signature-cache flow (build → sign → cache → verify → invalidate); alphabetizing would scatter the flow.
 export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {
     const spawnPromise = spawn(command, args, {
@@ -242,16 +243,19 @@ export async function verifySignature(binaryPath) {
   return result.code === 0
 }
 
+// oxlint-disable-next-line socket/sort-source-methods -- test helpers ordered by signature-cache flow (build → sign → cache → verify → invalidate); alphabetizing would scatter the flow.
 export async function getSignatureInfo(binaryPath) {
   // codesign outputs to stderr
   const result = await execCommand('codesign', ['-dvvv', binaryPath])
   return result.stderr
 }
 
+// oxlint-disable-next-line socket/sort-source-methods -- test helpers ordered by signature-cache flow (build → sign → cache → verify → invalidate); alphabetizing would scatter the flow.
 export function getCacheDir() {
   return getSocketDlxDir()
 }
 
+// oxlint-disable-next-line socket/sort-source-methods -- test helpers ordered by signature-cache flow (build → sign → cache → verify → invalidate); alphabetizing would scatter the flow.
 export async function getCacheEntries() {
   const cacheDir = getCacheDir()
   try {
@@ -263,6 +267,7 @@ export async function getCacheEntries() {
   }
 }
 
+// oxlint-disable-next-line socket/sort-source-methods -- test helpers ordered by signature-cache flow (build → sign → cache → verify → invalidate); alphabetizing would scatter the flow.
 export async function getCachedBinaryPath(cacheKey) {
   const platform = os.platform()
   const binaryName = platform === 'win32' ? 'node.exe' : 'node'
@@ -274,6 +279,7 @@ export async function getCachedBinaryPath(cacheKey) {
  * This is necessary because the repack workflow modifies the cache state
  * in ways that break subsequent injections.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- test helpers ordered by signature-cache flow (build → sign → cache → verify → invalidate); alphabetizing would scatter the flow.
 export async function cleanCacheBeforeTest() {
   const cacheDir = getCacheDir()
   try {
@@ -301,6 +307,7 @@ export async function cleanCacheBeforeTest() {
  * @param nodeBinaryPath - Optional path to Node.js binary for SEA generation (for version matching)
  * @returns Path to the generated .blob file
  */
+// oxlint-disable-next-line socket/sort-source-methods -- test helpers ordered by signature-cache flow (build → sign → cache → verify → invalidate); alphabetizing would scatter the flow.
 export async function generateValidSEABlob(
   baseDir: string,
   prefix: string,
@@ -343,6 +350,7 @@ export async function generateValidSEABlob(
 /**
  * Create unique VFS content using UUID to ensure each test creates a unique cache entry
  */
+// oxlint-disable-next-line socket/sort-source-methods -- test helpers ordered by signature-cache flow (build → sign → cache → verify → invalidate); alphabetizing would scatter the flow.
 export function createUniqueVFSContent(description: string) {
   const uuid = crypto.randomUUID()
   return `${description}\nUnique ID: ${uuid}\n`

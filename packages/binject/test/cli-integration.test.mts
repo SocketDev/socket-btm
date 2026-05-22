@@ -1,5 +1,4 @@
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
-/* oxlint-disable socket/prefer-exists-sync -- many access(X_OK) and access(F_OK) calls check executable permission / output-file readiness inside Promise.all races; existsSync (sync, no permission check) is not a substitute. */
 /**
  * CLI Integration Tests for binject
  * Tests all command-line flags, help output, and user-facing workflows
@@ -119,6 +118,7 @@ export async function downloadNodeSmolRelease() {
 
     // Check if already downloaded and cached
     try {
+      // oxlint-disable-next-line socket/prefer-exists-sync -- many access(X_OK) and access(F_OK) calls check executable permission / output-file readiness inside Promise.all races; existsSync (sync, no permission check) is not a substitute.
       await fs.access(cachedBinary, FS_CONSTANTS.X_OK)
       return cachedBinary
     } catch {
@@ -152,6 +152,7 @@ export async function downloadNodeSmolRelease() {
     await fs.rename(extractedBinary, cachedBinary)
 
     // Verify cached binary exists and is executable
+    // oxlint-disable-next-line socket/prefer-exists-sync -- many access(X_OK) and access(F_OK) calls check executable permission / output-file readiness inside Promise.all races; existsSync (sync, no permission check) is not a substitute.
     await fs.access(cachedBinary, FS_CONSTANTS.X_OK)
     return cachedBinary
   } catch {
@@ -234,6 +235,7 @@ export async function findNodeBinary() {
     const binaryPath = possiblePaths[i]
     try {
       // eslint-disable-next-line no-await-in-loop
+      // oxlint-disable-next-line socket/prefer-exists-sync -- many access(X_OK) and access(F_OK) calls check executable permission / output-file readiness inside Promise.all races; existsSync (sync, no permission check) is not a substitute.
       await fs.access(binaryPath, FS_CONSTANTS.X_OK)
       return binaryPath
     } catch {
@@ -256,7 +258,9 @@ describe('binject CLI', () => {
     // Check if binject binary exists
     logger.log('Checking for BINJECT at:', BINJECT)
     try {
+      // oxlint-disable-next-line socket/prefer-exists-sync -- many access(X_OK) and access(F_OK) calls check executable permission / output-file readiness inside Promise.all races; existsSync (sync, no permission check) is not a substitute.
       await fs.access(BINJECT, FS_CONSTANTS.X_OK)
+      // oxlint-disable-next-line socket/prefer-exists-sync -- many access(X_OK) and access(F_OK) calls check executable permission / output-file readiness inside Promise.all races; existsSync (sync, no permission check) is not a substitute.
       const stats = await fs.stat(BINJECT)
       logger.log(
         'BINJECT found! Size:',
@@ -279,6 +283,7 @@ describe('binject CLI', () => {
     const foundBinary = await findNodeBinary()
 
     // Check if binary is small enough for binject
+    // oxlint-disable-next-line socket/prefer-exists-sync -- many access(X_OK) and access(F_OK) calls check executable permission / output-file readiness inside Promise.all races; existsSync (sync, no permission check) is not a substitute.
     const stats = await fs.stat(foundBinary)
     if (stats.size > MAX_NODE_BINARY_SIZE) {
       logger.warn(
@@ -410,6 +415,7 @@ describe('binject CLI', () => {
       // Should not error - both flags are valid together
       expect(result.output).toMatch(/(Success|both|injected)/i)
       await expect(
+        // oxlint-disable-next-line socket/prefer-exists-sync -- many access(X_OK) and access(F_OK) calls check executable permission / output-file readiness inside Promise.all races; existsSync (sync, no permission check) is not a substitute.
         fs.access(output, FS_CONSTANTS.F_OK),
       ).resolves.toBeUndefined()
     })
@@ -515,6 +521,7 @@ describe('binject CLI', () => {
       // All platforms should succeed with --sea injection
       expect(result.output).toMatch(/(Success|injected)/i)
       await expect(
+        // oxlint-disable-next-line socket/prefer-exists-sync -- many access(X_OK) and access(F_OK) calls check executable permission / output-file readiness inside Promise.all races; existsSync (sync, no permission check) is not a substitute.
         fs.access(output, FS_CONSTANTS.F_OK),
       ).resolves.toBeUndefined()
     })
@@ -561,6 +568,7 @@ describe('binject CLI', () => {
 
       expect(result.output).toMatch(/(Success|both|injected)/i)
       await expect(
+        // oxlint-disable-next-line socket/prefer-exists-sync -- many access(X_OK) and access(F_OK) calls check executable permission / output-file readiness inside Promise.all races; existsSync (sync, no permission check) is not a substitute.
         fs.access(output, FS_CONSTANTS.F_OK),
       ).resolves.toBeUndefined()
     })
@@ -628,6 +636,7 @@ describe('binject CLI', () => {
       // All platforms should succeed with --sea injection
       expect(result.code).toBe(0)
       await expect(
+        // oxlint-disable-next-line socket/prefer-exists-sync -- many access(X_OK) and access(F_OK) calls check executable permission / output-file readiness inside Promise.all races; existsSync (sync, no permission check) is not a substitute.
         fs.access(output, FS_CONSTANTS.F_OK),
       ).resolves.toBeUndefined()
     })

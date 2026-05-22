@@ -1,5 +1,3 @@
-/* oxlint-disable socket/sort-source-methods -- test helpers are ordered by the cross-package flow they exercise; alphabetizing would scatter them across the file. */
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat() calls consume stats.size to compare compressed/final artifact sizes through the repack flow. */
 
 /**
  * @fileoverview Cross-package integration tests
@@ -84,6 +82,7 @@ let allBinariesExist = false
 /**
  * Execute command.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- test helpers are ordered by the cross-package flow they exercise; alphabetizing would scatter them across the file.
 export async function execCommand(command, args = [], options = {}) {
   const result = await spawn(command, args, {
     ...options,
@@ -316,6 +315,7 @@ describe.skipIf(!allBinariesExist)('cross-package integration', () => {
       })
       await makeExecutable(compressed)
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size to compare compressed/final artifact sizes through the repack flow.
       const compressedSize = (await fs.stat(compressed)).size
 
       // Inject
@@ -334,6 +334,7 @@ describe.skipIf(!allBinariesExist)('cross-package integration', () => {
         seaBlob,
       ])
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size to compare compressed/final artifact sizes through the repack flow.
       const finalSize = (await fs.stat(final)).size
 
       // Final should be roughly compressed size + blob size (with some overhead)

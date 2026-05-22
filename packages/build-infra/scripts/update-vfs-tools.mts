@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* oxlint-disable socket/sort-source-methods -- script is ordered as a top-down build pipeline (load manifest → fetch each tool → verify → write); alphabetizing would scatter the pipeline. */
 /**
  * Update VFS Tools Script
  *
@@ -141,6 +140,7 @@ export async function fetchText(url) {
 /**
  * Download file and compute SHA256.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- script is ordered as a top-down build pipeline (load manifest → fetch each tool → verify → write); alphabetizing would scatter the pipeline.
 export async function downloadAndHash(url) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vfs-hash-'))
   const tmpFile = path.join(tmpDir, 'download')
@@ -187,6 +187,7 @@ export function parseChecksumFile(content) {
 /**
  * Get Python embeddable package info (downloads and computes hashes).
  */
+// oxlint-disable-next-line socket/sort-source-methods -- script is ordered as a top-down build pipeline (load manifest → fetch each tool → verify → write); alphabetizing would scatter the pipeline.
 export async function getPythonRelease() {
   const { assets: assetPatterns, baseUrl, version } = PYTHON_CONFIG
   const assets = new Map()
@@ -212,6 +213,7 @@ export async function getPythonRelease() {
 /**
  * Get latest release info for a tool.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- script is ordered as a top-down build pipeline (load manifest → fetch each tool → verify → write); alphabetizing would scatter the pipeline.
 export async function getLatestRelease(toolName) {
   const config = TOOL_CONFIGS[toolName]
   if (!config) {
@@ -265,6 +267,7 @@ export async function getLatestRelease(toolName) {
 /**
  * Generate the updated VFS_TOOL_URLS object as a string.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- script is ordered as a top-down build pipeline (load manifest → fetch each tool → verify → write); alphabetizing would scatter the pipeline.
 export function generateToolConfig(toolName, version, assets) {
   const lines = [`  ${toolName}: {`, `    version: '${version}',`]
 

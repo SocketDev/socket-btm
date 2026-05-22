@@ -1,5 +1,4 @@
 // max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
-/* oxlint-disable socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers. */
 /**
  * Shared helpers for loading tool versions from external-tools.json
  *
@@ -55,6 +54,7 @@ export function loadExternalToolsSync(packageRoot: string) {
  * @returns {Promise<object>} Parsed external-tools.json
  * @throws {Error} If file doesn't exist or is malformed
  */
+// oxlint-disable-next-line socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers.
 export async function loadExternalTools(packageRoot: string) {
   const externalToolsPath = path.join(packageRoot, 'external-tools.json')
 
@@ -90,6 +90,7 @@ export async function loadExternalTools(packageRoot: string) {
  * const version = await getEmscriptenVersion(PACKAGE_ROOT)
  * // Returns: '4.0.20'
  */
+// oxlint-disable-next-line socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers.
 export async function getEmscriptenVersion(
   packageRoot: string,
 ): Promise<string> {
@@ -125,6 +126,7 @@ let nodeVersion: string | undefined
  * const version = getNodeVersion()
  * // Returns: '24.12.0'
  */
+// oxlint-disable-next-line socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers.
 export function getNodeVersion(): string {
   if (nodeVersion === undefined) {
     try {
@@ -161,6 +163,7 @@ let minPythonVersion: string | undefined
  * const minVersion = getMinPythonVersion()
  * // Returns: '3.6'
  */
+// oxlint-disable-next-line socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers.
 export function getMinPythonVersion(): string {
   if (minPythonVersion === undefined) {
     const data = loadExternalToolsSync(PACKAGE_ROOT)
@@ -196,6 +199,7 @@ export function getMinPythonVersion(): string {
  * const version = await getCMakeVersion(PACKAGE_ROOT)
  * // Returns: '3.28.1'
  */
+// oxlint-disable-next-line socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers.
 export async function getCMakeVersion(packageRoot: string): Promise<string> {
   const data = await loadExternalTools(packageRoot)
 
@@ -229,6 +233,7 @@ export async function getCMakeVersion(packageRoot: string): Promise<string> {
  * const version = await getToolVersion(PACKAGE_ROOT, 'emscripten')
  * // Returns: '4.0.20'
  */
+// oxlint-disable-next-line socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers.
 export async function getToolVersion(
   packageRoot: string,
   toolName: string,
@@ -269,6 +274,7 @@ export async function getToolVersion(
  * const version = getSubmoduleVersion('packages/lief-builder/upstream/lief', 'lief')
  * // Returns: '0.17.0'
  */
+// oxlint-disable-next-line socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers.
 export function getSubmoduleVersion(
   submodulePath: string,
   packageName: string,
@@ -348,6 +354,7 @@ export function getSubmoduleVersion(
  * const checksum = getSubmoduleChecksum('packages/node-smol-builder/upstream/node', 'node')
  * // Returns: { algorithm: 'sha256', hash: '10335f268f...' }
  */
+// oxlint-disable-next-line socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers.
 export function getSubmoduleChecksum(
   submodulePath: string,
   packageName: string,
@@ -413,6 +420,7 @@ export function getSubmoduleChecksum(
  *   // Write to .gitmodules: # node-1.2.3 sha256:<result.hash>
  * }
  */
+// oxlint-disable-next-line socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers.
 export async function fetchNodeChecksum(
   version: string,
   options?: { timeout?: number | undefined },

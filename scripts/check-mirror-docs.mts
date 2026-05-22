@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* oxlint-disable socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover mirror pairs → diff content → report); alphabetizing would scatter the flow. */
 /**
  * @fileoverview Mirror-doc sync checker.
  *
@@ -149,6 +148,7 @@ type Finding = {
   fix: string
 }
 
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover mirror pairs → diff content → report); alphabetizing would scatter the flow.
 export function collectOrphanDocs(): Finding[] {
   const docs = walk(DOCS_ROOT, r => r.endsWith('.md'))
   const findings: Finding[] = []
@@ -183,6 +183,7 @@ export function collectOrphanDocs(): Finding[] {
   return findings
 }
 
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover mirror pairs → diff content → report); alphabetizing would scatter the flow.
 export function collectMissingDocs(): Finding[] {
   const findings: Finding[] = []
   // Invariant 2 per CLAUDE.md: only PUBLIC `lib/smol-*.js` modules
@@ -228,6 +229,7 @@ type Options = {
   quiet: boolean
 }
 
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover mirror pairs → diff content → report); alphabetizing would scatter the flow.
 export function printFinding(f: Finding, opts: Options): void {
   if (opts.json) {
     logger.log(JSON.stringify(f))

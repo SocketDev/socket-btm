@@ -1,4 +1,3 @@
-/* oxlint-disable socket/sort-source-methods -- file co-locates external-tools.json loaders with the version-resolution helpers that consume them; alphabetical reordering would split loader from consumer and obscure the hierarchical lookup flow. */
 /**
  * Pinned dependency versions for reproducible builds.
  *
@@ -103,6 +102,7 @@ export function loadExternalToolsJson(jsonPath, visited = new Set()) {
  * @param {string} [options.checkpointName] - Checkpoint name (e.g., 'binary-released')
  * @returns {object} Merged external tools configuration
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file co-locates external-tools.json loaders with the version-resolution helpers that consume them; alphabetical reordering would split loader from consumer and obscure the hierarchical lookup flow.
 export function loadExternalTools({ checkpointName, packageRoot } = {}) {
   let tools = {}
 
@@ -203,6 +203,7 @@ export const PYTHON_PACKAGE_EXTRAS = (() => {
  * @param {object} [options] - Loading options for hierarchical lookup
  * @returns {string} Package specifier with pinned version (e.g., 'torch==2.5.0')
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file co-locates external-tools.json loaders with the version-resolution helpers that consume them; alphabetical reordering would split loader from consumer and obscure the hierarchical lookup flow.
 export function getPinnedPackage(packageName, options) {
   const tools = options ? loadExternalTools(options) : TOOL_VERSIONS
   const config = tools[packageName]
@@ -231,6 +232,7 @@ export function getPinnedPackage(packageName, options) {
  * @param {object} [options] - Loading options for hierarchical lookup
  * @returns {string[]} Array of package specifiers with pinned versions
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file co-locates external-tools.json loaders with the version-resolution helpers that consume them; alphabetical reordering would split loader from consumer and obscure the hierarchical lookup flow.
 export function getPinnedPackages(packageNames, options) {
   return packageNames.map(name => getPinnedPackage(name, options))
 }
@@ -242,6 +244,7 @@ export function getPinnedPackages(packageNames, options) {
  * @param {object} [options] - Loading options for hierarchical lookup
  * @returns {object|undefined} Tool configuration or undefined if not found
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file co-locates external-tools.json loaders with the version-resolution helpers that consume them; alphabetical reordering would split loader from consumer and obscure the hierarchical lookup flow.
 export function getToolConfig(toolName, options) {
   const tools = options ? loadExternalTools(options) : TOOL_VERSIONS
   return tools[toolName] || undefined
@@ -256,6 +259,7 @@ export function getToolConfig(toolName, options) {
  * @param {object} [options] - Loading options for hierarchical lookup
  * @returns {string} Package specifier (e.g., 'cmake@3.31.4' for brew)
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file co-locates external-tools.json loaders with the version-resolution helpers that consume them; alphabetical reordering would split loader from consumer and obscure the hierarchical lookup flow.
 export function getToolPackageSpec(
   toolName,
   packageName,
@@ -296,6 +300,7 @@ export function getToolPackageSpec(
  * @param {object} [options] - Loading options for hierarchical lookup
  * @returns {string|undefined} Pinned version or undefined if not found
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file co-locates external-tools.json loaders with the version-resolution helpers that consume them; alphabetical reordering would split loader from consumer and obscure the hierarchical lookup flow.
 export function getToolVersion(toolName, _versionKey, options) {
   const tools = options ? loadExternalTools(options) : TOOL_VERSIONS
   const tool = tools[toolName]
@@ -347,6 +352,7 @@ export function loadPythonVersions(options) {
  * @param {string} [options.checkpointName] - Checkpoint name
  * @returns {object} All tools configuration
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file co-locates external-tools.json loaders with the version-resolution helpers that consume them; alphabetical reordering would split loader from consumer and obscure the hierarchical lookup flow.
 export function loadAllTools(options) {
   return loadExternalTools(options || {})
 }

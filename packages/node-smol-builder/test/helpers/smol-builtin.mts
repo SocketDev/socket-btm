@@ -1,4 +1,3 @@
-/* oxlint-disable socket/sort-source-methods -- helpers grouped by builtin probe (probe → assert → describe); alphabetizing would split each builtin's helper triplet. */
 /**
  * @fileoverview Shared helpers for probing `node:smol-*` builtins on
  * the built smol binary. Every `node:smol-*` integration test uses the
@@ -81,6 +80,7 @@ export interface RunResult {
  * Throws if no Final/ binary exists — call sites should gate the
  * whole suite via `smolBuiltinIsAvailable()` first.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- helpers grouped by builtin probe (probe → assert → describe); alphabetizing would split each builtin's helper triplet.
 export async function runOnSmolBinary(
   script: string,
   options: RunOptions = {},
@@ -111,6 +111,7 @@ export async function runOnSmolBinary(
  *
  * Output is one line per export: `export:<name>=<typeof>`.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- helpers grouped by builtin probe (probe → assert → describe); alphabetizing would split each builtin's helper triplet.
 export function printExportShapeScript(name: string): string {
   return `
     const mod = require('node:${name}')
@@ -130,6 +131,7 @@ export function printExportShapeScript(name: string): string {
  * Parse the output of `printExportShapeScript` into a Map of
  * export name → typeof string.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- helpers grouped by builtin probe (probe → assert → describe); alphabetizing would split each builtin's helper triplet.
 export function parseExportShape(stdout: string): Map<string, string> {
   const shape = new Map<string, string>()
   // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)

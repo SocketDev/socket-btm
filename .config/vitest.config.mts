@@ -1,4 +1,3 @@
-/* oxlint-disable socket/no-default-export -- vitest's CLI auto-discovers configs via default import; the rule's `export { name }` form breaks discovery. */
 /**
  * Shared Vitest configuration for simple packages.
  * Used by packages with basic test needs.
@@ -8,6 +7,7 @@
  */
 import { defineConfig } from 'vitest/config'
 
+// oxlint-disable-next-line socket/no-default-export -- vitest's CLI auto-discovers configs via default import; the rule's
 export default defineConfig({
   // Keep vitest's cache under node_modules so `pnpm install`
   // clears it automatically — no dedicated clean step.

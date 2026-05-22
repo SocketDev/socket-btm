@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 /* max-file-lines: legitimate — top-down checker pipeline with many small section helpers; splitting would scatter the linear flow that makes this script auditable. */
-/* oxlint-disable socket/sort-source-methods -- script ordered as a top-down checker pipeline (load configs → diff versions → report); alphabetizing would scatter the flow. */
 /**
  * @fileoverview External dependency version consistency checker.
  *
@@ -199,6 +198,7 @@ export function loadSubmodules(): Submodule[] {
 }
 
 /** Get the short gitlink commit SHA for a submodule path. */
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (load configs → diff versions → report); alphabetizing would scatter the flow.
 export async function getSubmoduleSha(
   subPath: string,
 ): Promise<string | undefined> {
@@ -236,6 +236,7 @@ type PackageJsonSource = {
   ref: string | undefined
 }
 
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (load configs → diff versions → report); alphabetizing would scatter the flow.
 export function loadPackageJsonSources(): PackageJsonSource[] {
   const sources: PackageJsonSource[] = []
   const pkgsDir = path.join(MONOREPO_ROOT, 'packages')
@@ -310,6 +311,7 @@ type Mismatch = {
     | 'comment-sha256-format'
 }
 
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (load configs → diff versions → report); alphabetizing would scatter the flow.
 export async function collectMismatches(): Promise<Mismatch[]> {
   const mismatches: Mismatch[] = []
   const submodules = loadSubmodules()

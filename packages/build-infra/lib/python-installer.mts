@@ -1,5 +1,4 @@
 // max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
-/* oxlint-disable socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow. */
 /**
  * Python Package Installation Utilities
  *
@@ -93,6 +92,7 @@ let venvAvailable = false
  *
  * @returns {boolean} True if pip is available.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.
 export function checkPipAvailable() {
   return Boolean(
     whichSync('pip3', { nothrow: true }) || whichSync('pip', { nothrow: true }),
@@ -104,6 +104,7 @@ export function checkPipAvailable() {
  *
  * @returns {string|undefined} Resolved pip command path or undefined if not found.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.
 export function getPipCommand() {
   // If venv is available, use it
   if (venvAvailable && venvPipPath) {
@@ -139,6 +140,7 @@ export function getPipCommand() {
  *
  * @returns {string} Path to the shared venv directory.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.
 export function getDefaultVenvPath() {
   return path.join(os.homedir(), '.socket-btm-venv')
 }
@@ -152,6 +154,7 @@ export function getDefaultVenvPath() {
  * @param {boolean} options.quiet - Suppress output.
  * @returns {Promise<boolean>} True if venv is ready.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.
 export async function initializeVenv({ quiet = false, venvDir } = {}) {
   // Only initialize once per process
   if (venvInitialized) {
@@ -257,6 +260,7 @@ let cachedPythonCommand
  *
  * @returns {Promise<string|undefined>} Resolved python command path or undefined if not found.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.
 export async function getPythonCommand() {
   // If venv is available, use it
   if (venvAvailable && venvPythonPath) {
@@ -355,6 +359,7 @@ export async function getPythonCommand() {
  * @param {string} packageName - Package name to check.
  * @returns {Promise<boolean>} True if package is installed.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.
 export async function checkPythonPackage(packageName) {
   try {
     const pythonCmd = await getPythonCommand()
@@ -375,6 +380,7 @@ export async function checkPythonPackage(packageName) {
  * @param {string} expectedVersion - Expected version (e.g., '2.5.1').
  * @returns {Promise<boolean>} True if package is installed with correct version.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.
 export async function checkPythonPackageVersion(packageName, expectedVersion) {
   try {
     const pythonCmd = await getPythonCommand()
@@ -410,6 +416,7 @@ export async function checkPythonPackageVersion(packageName, expectedVersion) {
  * @param {string} options.consumerPackageJsonPath - Optional path to consumer package.json for version overrides.
  * @returns {Promise<boolean>} True if installation succeeded.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.
 export async function installPythonPackage(
   packageName,
   { consumerPackageJsonPath, quiet = false, upgrade = false, user = true } = {},
@@ -578,6 +585,7 @@ export async function installPythonPackage(
  * @param {string} options.consumerPackageJsonPath - Optional path to consumer package.json for version overrides.
  * @returns {Promise<{available: boolean, installed: boolean}>}
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.
 export async function ensurePythonPackage(
   packageName,
   {
@@ -680,6 +688,7 @@ export async function ensurePythonPackage(
  * @param {string} options.consumerPackageJsonPath - Optional path to consumer package.json for version overrides.
  * @returns {Promise<{allAvailable: boolean, missing: string[], installed: string[]}>}
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.
 export async function ensureAllPythonPackages(
   packages,
   { autoInstall = true, consumerPackageJsonPath, quiet = false } = {},
@@ -750,6 +759,7 @@ export async function ensureAllPythonPackages(
  * @param {string[]} packages - Package names.
  * @returns {string[]} Array of installation instruction strings.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.
 export function getPythonPackageInstructions(packages) {
   const pinnedPackages = packages.map(pkg => getPinnedPackage(pkg))
   const instructions = ['Install required Python packages:']

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat() calls consume stats.size to verify minilm/codet5 model artifacts are in expected size range during the build smoke test. */
 /**
  * Build script for @socketsecurity/models.
  *
@@ -260,6 +259,7 @@ async function main() {
       CHECKPOINTS.DOWNLOADED,
       async () => {
         // Smoke test: Verify models directory exists and has models
+        // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size to verify minilm/codet5 model artifacts are in expected size range during the build smoke test.
         const stats = await fs.stat(MODELS)
         if (!stats.isDirectory()) {
           throw new Error(`Models directory not found: ${MODELS}`)
@@ -380,6 +380,7 @@ async function main() {
           if (!existsSync(minilmTokenizer)) {
             throw new Error(`MiniLM tokenizer not found: ${minilmTokenizer}`)
           }
+          // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size to verify minilm/codet5 model artifacts are in expected size range during the build smoke test.
           const stats = await fs.stat(minilmModel)
           if (stats.size < minSize) {
             throw new Error(
@@ -400,6 +401,7 @@ async function main() {
           if (!existsSync(codet5Tokenizer)) {
             throw new Error(`CodeT5 tokenizer not found: ${codet5Tokenizer}`)
           }
+          // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size to verify minilm/codet5 model artifacts are in expected size range during the build smoke test.
           const stats = await fs.stat(codet5Model)
           if (stats.size < minSize) {
             throw new Error(

@@ -1,4 +1,3 @@
-/* oxlint-disable socket/sort-source-methods -- build script is ordered as a top-down pipeline (cargo setup → napi-rs build → finalize); alphabetizing would scatter the flow. */
 /**
  * Build iocraft - Native Node.js bindings for iocraft TUI library.
  *
@@ -192,6 +191,7 @@ const IOCRAFT_PERF_RUSTFLAGS = [
  * source by precedence, no merging), so this list MUST contain everything we
  * want rustc to receive.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (cargo setup → napi-rs build → finalize); alphabetizing would scatter the flow.
 export function buildRustflags() {
   return [...getRustcRemapFlags(), ...IOCRAFT_PERF_RUSTFLAGS]
 }
@@ -228,6 +228,7 @@ export async function runCargo(args, options = {}) {
 /**
  * Build the native addon.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (cargo setup → napi-rs build → finalize); alphabetizing would scatter the flow.
 export async function buildNativeAddon() {
   logger.step('Building native addon')
 
@@ -320,6 +321,7 @@ export async function buildNativeAddon() {
 /**
  * Map Rust target triple to Node.js platform.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (cargo setup → napi-rs build → finalize); alphabetizing would scatter the flow.
 export function getTargetPlatform(rustTarget) {
   if (rustTarget.includes('darwin') || rustTarget.includes('apple')) {
     return 'darwin'

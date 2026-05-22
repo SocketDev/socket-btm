@@ -1,5 +1,4 @@
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
-/* oxlint-disable socket/prefer-exists-sync -- every fs.stat() in this file consumes stats.size to assert input/output binary size deltas after injection. */
 /**
  * @fileoverview Binary format validation tests for binject
  *
@@ -236,6 +235,7 @@ describe.skipIf(!binjectExists)(
         ])
 
         // Check file permissions
+        // oxlint-disable-next-line socket/prefer-exists-sync -- every fs.stat() in this file consumes stats.size to assert input/output binary size deltas after injection.
         const stats = await fs.stat(outputBinary)
         const isExecutable = (stats.mode & 0o111) !== 0
 
@@ -252,6 +252,7 @@ describe.skipIf(!binjectExists)(
 
         // Set specific permissions
         await makeExecutable(inputBinary)
+        // oxlint-disable-next-line socket/prefer-exists-sync -- every fs.stat() in this file consumes stats.size to assert input/output binary size deltas after injection.
         const inputStats = await fs.stat(inputBinary)
 
         const seaBlob = path.join(testDir, 'perm_test.blob')
@@ -270,6 +271,7 @@ describe.skipIf(!binjectExists)(
           seaBlob,
         ])
 
+        // oxlint-disable-next-line socket/prefer-exists-sync -- every fs.stat() in this file consumes stats.size to assert input/output binary size deltas after injection.
         const outputStats = await fs.stat(outputBinary)
 
         // Output should be executable
@@ -451,6 +453,7 @@ describe.skipIf(!binjectExists)(
         const inputBinary = path.join(testDir, 'size_input')
         await fs.copyFile(BINJECT, inputBinary)
 
+        // oxlint-disable-next-line socket/prefer-exists-sync -- every fs.stat() in this file consumes stats.size to assert input/output binary size deltas after injection.
         const inputStats = await fs.stat(inputBinary)
 
         const seaBlob = path.join(testDir, 'size_test.blob')
@@ -471,6 +474,7 @@ describe.skipIf(!binjectExists)(
           seaBlob,
         ])
 
+        // oxlint-disable-next-line socket/prefer-exists-sync -- every fs.stat() in this file consumes stats.size to assert input/output binary size deltas after injection.
         const outputStats = await fs.stat(outputBinary)
 
         // Output should be at least blob size larger (allowing for metadata overhead)

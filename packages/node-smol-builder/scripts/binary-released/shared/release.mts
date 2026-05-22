@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 // max-file-lines: legitimate -- orchestration script — top-down pipeline (gather → validate → report); splitting fractures the flow
-/* oxlint-disable socket/no-status-emoji -- emoji is wrapped in colors.green() decorator before being embedded in multi-line release summary; logger.success() would drop the color. */
-/* oxlint-disable socket/sort-source-methods -- release script ordered as a top-down pipeline (gather artifacts → checksum → assemble notes → upload → publish); alphabetizing would scatter the flow. */
 
 /**
  * @fileoverview Deploy built smol binaries to GitHub Releases
@@ -146,6 +144,7 @@ export function getArchivePlatform(platform, arch, libc) {
  * Check if GitHub API is authenticated.
  * Validates by attempting to get authenticated user.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- release script ordered as a top-down pipeline (gather artifacts → checksum → assemble notes → upload → publish); alphabetizing would scatter the flow.
 export async function checkGitHubAuth() {
   try {
     const octokit = new Octokit({
@@ -161,6 +160,7 @@ export async function checkGitHubAuth() {
 /**
  * Calculate SHA-256 checksum of a file.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- release script ordered as a top-down pipeline (gather artifacts → checksum → assemble notes → upload → publish); alphabetizing would scatter the flow.
 export async function calculateChecksum(filePath) {
   const hash = crypto.createHash('sha256')
   const stream = createReadStream(filePath)
@@ -179,6 +179,7 @@ export async function calculateChecksum(filePath) {
  * 1. build/${BUILD_MODE}/<platform-arch>/out/Final/node/ (if building for current platform)
  * 2. build/${BUILD_MODE}/<platform-arch>/cache/node-{platform}-{arch} (from cached builds)
  */
+// oxlint-disable-next-line socket/sort-source-methods -- release script ordered as a top-down pipeline (gather artifacts → checksum → assemble notes → upload → publish); alphabetizing would scatter the flow.
 export async function findBinary(platform, arch, libc) {
   // Check Final build (if current platform).
   const binaryName = platform === 'win32' ? 'node.exe' : 'node'
@@ -222,6 +223,7 @@ export async function findBinary(platform, arch, libc) {
  *
  * This enables deterministic cache keys when the binary is used.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- release script ordered as a top-down pipeline (gather artifacts → checksum → assemble notes → upload → publish); alphabetizing would scatter the flow.
 export async function embedSmolSpec(
   binaryPath,
   _platform,
@@ -248,6 +250,7 @@ export async function embedSmolSpec(
 /**
  * Create release archive for a platform.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- release script ordered as a top-down pipeline (gather artifacts → checksum → assemble notes → upload → publish); alphabetizing would scatter the flow.
 export async function createReleaseArchive(
   platform,
   arch,
@@ -378,6 +381,7 @@ export async function releaseExists(tag) {
 /**
  * Delete existing release.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- release script ordered as a top-down pipeline (gather artifacts → checksum → assemble notes → upload → publish); alphabetizing would scatter the flow.
 export async function deleteRelease(tag) {
   logger.log('')
   logger.log(`Deleting existing release: ${tag}`)
@@ -403,6 +407,7 @@ export async function deleteRelease(tag) {
 /**
  * Create GitHub release.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- release script ordered as a top-down pipeline (gather artifacts → checksum → assemble notes → upload → publish); alphabetizing would scatter the flow.
 export async function createGitHubRelease(
   tag,
   archives,
@@ -575,6 +580,7 @@ async function main() {
 
   logger.log('')
   logger.log(
+    // oxlint-disable-next-line socket/no-status-emoji -- emoji is wrapped in colors.green() decorator before being embedded in multi-line release summary; logger.success() would drop the color.
     `${colors.green('✓')} Release ${PUBLISH ? 'published' : 'created as draft'}!`,
   )
   logger.log('')

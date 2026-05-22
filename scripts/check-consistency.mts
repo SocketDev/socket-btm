@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 // max-file-lines: legitimate -- consistency gate: gather → diff → report pipeline across many subsystems; splitting fractures the flow
-/* oxlint-disable socket/no-status-emoji -- script uses a local log(msg, color) helper that composes ANSI color with status markers; logger.success/fail would drop the explicit color control needed for the consistency-checker's multi-column report. */
-/* oxlint-disable socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow. */
 
 /**
  * Automated consistency checker for Socket BTM monorepo.
@@ -233,6 +231,7 @@ export function reportIssue(
 /**
  * Prompts user for yes/no confirmation in interactive mode
  */
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow.
 export async function promptUser(question: string): Promise<boolean> {
   const rl = readline.createInterface({
     input: process.stdin,
@@ -251,6 +250,7 @@ export async function promptUser(question: string): Promise<boolean> {
 // Package Discovery
 // ============================================================================
 
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow.
 export async function discoverPackages(): Promise<PackageInfo[]> {
   const entries = await fs.readdir(PACKAGES_DIR, {
     withFileTypes: true,
@@ -287,6 +287,7 @@ export async function discoverPackages(): Promise<PackageInfo[]> {
 // Check 1: Required Files
 // ============================================================================
 
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow.
 export async function checkRequiredFiles(
   packages: PackageInfo[],
 ): Promise<void> {
@@ -328,6 +329,7 @@ export async function checkRequiredFiles(
 // Check 2: Vitest Configuration
 // ============================================================================
 
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow.
 export async function checkVitestConfig(
   packages: PackageInfo[],
 ): Promise<void> {
@@ -384,6 +386,7 @@ export default mergeConfig(baseConfig, {
 // Check 3: Test Scripts
 // ============================================================================
 
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow.
 export async function checkTestScripts(packages: PackageInfo[]): Promise<void> {
   log('[3/8] Checking test scripts...', colors.blue)
 
@@ -429,6 +432,7 @@ export async function checkTestScripts(packages: PackageInfo[]): Promise<void> {
 // Check 4: Coverage Scripts
 // ============================================================================
 
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow.
 export async function checkCoverageScripts(
   packages: PackageInfo[],
 ): Promise<void> {
@@ -484,6 +488,7 @@ export async function checkCoverageScripts(
 // Check 5: External Tools Documentation
 // ============================================================================
 
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow.
 export async function checkExternalTools(
   packages: PackageInfo[],
 ): Promise<void> {
@@ -557,6 +562,7 @@ export async function checkExternalTools(
 // Check 6: Build Output Structure
 // ============================================================================
 
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow.
 export async function checkBuildOutputStructure(
   packages: PackageInfo[],
 ): Promise<void> {
@@ -645,6 +651,7 @@ export async function checkBuildOutputStructure(
 // Check 7: Package.json Structure
 // ============================================================================
 
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow.
 export async function checkPackageJsonStructure(
   packages: PackageInfo[],
 ): Promise<void> {
@@ -771,6 +778,7 @@ export async function checkPackageJsonStructure(
 // Check 8: Workspace Dependencies
 // ============================================================================
 
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow.
 export async function checkWorkspaceDependencies(
   packages: PackageInfo[],
 ): Promise<void> {
@@ -843,6 +851,7 @@ export async function checkWorkspaceDependencies(
 /**
  * Collects patterns across all packages for ML-powered suggestions
  */
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow.
 export function collectPatterns(packages: PackageInfo[]): void {
   patternStats.total = packages.length
 
@@ -949,6 +958,7 @@ export function collectPatterns(packages: PackageInfo[]): void {
 /**
  * Calculate confidence score as percentage
  */
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow.
 export function getConfidence(count: number, total: number): number {
   return (count / total) * 100
 }
@@ -956,6 +966,7 @@ export function getConfidence(count: number, total: number): number {
 /**
  * Get confidence level based on percentage
  */
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow.
 export function getConfidenceLevel(
   confidence: number,
 ): 'HIGH' | 'LOW' | 'MEDIUM' | 'VERY HIGH' {
@@ -974,6 +985,7 @@ export function getConfidenceLevel(
 /**
  * Generates ML-powered suggestions based on pattern analysis
  */
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow.
 export function generateSuggestions(packages: PackageInfo[]): Suggestion[] {
   const suggestions: Suggestion[] = []
 
@@ -1086,6 +1098,7 @@ export function generateSuggestions(packages: PackageInfo[]): Suggestion[] {
 /**
  * Displays ML-powered suggestions
  */
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow.
 export function displaySuggestions(suggestions: Suggestion[]): void {
   if (suggestions.length === 0) {
     log(
@@ -1128,6 +1141,7 @@ export function displaySuggestions(suggestions: Suggestion[]): void {
 /**
  * Executes fixes for all fixable issues
  */
+// oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow.
 export async function executeFixes(): Promise<void> {
   if (fixableIssues.length === 0) {
     log('\nNo fixable issues found.', colors.green)
@@ -1168,12 +1182,15 @@ export async function executeFixes(): Promise<void> {
       })
 
       if (!CLI_FLAGS.interactive) {
+        // oxlint-disable-next-line socket/no-status-emoji -- script uses a local log(msg, color) helper that composes ANSI color with status markers; logger.success/fail would drop the explicit color control needed for the consistency-checker's multi-column report.
         log(`\n✓ Fixed: ${issue.file}`, colors.green)
         log(`  ${result}`, colors.reset)
       } else {
+        // oxlint-disable-next-line socket/no-status-emoji -- script uses a local log(msg, color) helper that composes ANSI color with status markers; logger.success/fail would drop the explicit color control needed for the consistency-checker's multi-column report.
         log(`  ✓ ${result}`, colors.green)
       }
     } catch (e) {
+      // oxlint-disable-next-line socket/no-status-emoji -- script uses a local log(msg, color) helper that composes ANSI color with status markers; logger.success/fail would drop the explicit color control needed for the consistency-checker's multi-column report.
       log(`\n✗ Failed to fix: ${issue.file}`, colors.red)
       log(`  Error: ${errorMessage(e)}`, colors.red)
     }
@@ -1192,6 +1209,7 @@ export async function executeFixes(): Promise<void> {
 
     for (let i = 0, { length } = fixedIssues; i < length; i += 1) {
       const fixed = fixedIssues[i]!
+      // oxlint-disable-next-line socket/no-status-emoji -- script uses a local log(msg, color) helper that composes ANSI color with status markers; logger.success/fail would drop the explicit color control needed for the consistency-checker's multi-column report.
       log(`  ✓ ${fixed.file}`, colors.green)
     }
   }
@@ -1248,6 +1266,7 @@ async function main(): Promise<void> {
     issues.error.length + issues.warning.length + issues.info.length
 
   if (totalIssues === 0) {
+    // oxlint-disable-next-line socket/no-status-emoji -- script uses a local log(msg, color) helper that composes ANSI color with status markers; logger.success/fail would drop the explicit color control needed for the consistency-checker's multi-column report.
     log('\n✓ All checks passed!', colors.green)
   } else {
     // Group issues by category
@@ -1279,6 +1298,7 @@ async function main(): Promise<void> {
       // Errors
       // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
       for (const issue of categoryIssues.error) {
+        // oxlint-disable-next-line socket/no-status-emoji -- script uses a local log(msg, color) helper that composes ANSI color with status markers; logger.success/fail would drop the explicit color control needed for the consistency-checker's multi-column report.
         log(`  ✗ ${issue.file}`, colors.red)
         log(`    ${issue.message}`, colors.red)
       }
@@ -1286,6 +1306,7 @@ async function main(): Promise<void> {
       // Warnings
       // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
       for (const issue of categoryIssues.warning) {
+        // oxlint-disable-next-line socket/no-status-emoji -- script uses a local log(msg, color) helper that composes ANSI color with status markers; logger.success/fail would drop the explicit color control needed for the consistency-checker's multi-column report.
         log(`  ⚠ ${issue.file}`, colors.yellow)
         log(`    ${issue.message}`, colors.yellow)
       }
@@ -1328,6 +1349,7 @@ async function main(): Promise<void> {
   if (CLI_FLAGS.dryRun) {
     log('Dry run complete - no changes made', colors.yellow)
   } else if (fixedIssues.length > 0) {
+    // oxlint-disable-next-line socket/no-status-emoji -- script uses a local log(msg, color) helper that composes ANSI color with status markers; logger.success/fail would drop the explicit color control needed for the consistency-checker's multi-column report.
     log(`✓ Fixed ${fixedIssues.length} issue(s)`, colors.green)
 
     // Recount remaining issues
@@ -1335,6 +1357,7 @@ async function main(): Promise<void> {
       issues.error.length + issues.warning.length - fixedIssues.length
     if (remainingIssues > 0) {
       log(
+        // oxlint-disable-next-line socket/no-status-emoji -- script uses a local log(msg, color) helper that composes ANSI color with status markers; logger.success/fail would drop the explicit color control needed for the consistency-checker's multi-column report.
         `⚠ ${remainingIssues} issue(s) still require manual attention`,
         colors.yellow,
       )
@@ -1347,13 +1370,17 @@ async function main(): Promise<void> {
   // were auto-fixed but errors remained.
   const fixedErrorCount = fixedIssues.filter(f => f.level === 'error').length
   if (issues.error.length > 0 && fixedErrorCount < issues.error.length) {
+    // oxlint-disable-next-line socket/no-status-emoji -- script uses a local log(msg, color) helper that composes ANSI color with status markers; logger.success/fail would drop the explicit color control needed for the consistency-checker's multi-column report.
     log('\n✗ Consistency check failed', colors.red)
     process.exitCode = 1
   } else if (issues.warning.length > 0) {
+    // oxlint-disable-next-line socket/no-status-emoji -- script uses a local log(msg, color) helper that composes ANSI color with status markers; logger.success/fail would drop the explicit color control needed for the consistency-checker's multi-column report.
     log('\n⚠ Consistency check passed with warnings', colors.yellow)
   } else if (totalIssues === 0) {
+    // oxlint-disable-next-line socket/no-status-emoji -- script uses a local log(msg, color) helper that composes ANSI color with status markers; logger.success/fail would drop the explicit color control needed for the consistency-checker's multi-column report.
     log('\n✓ Consistency check passed', colors.green)
   } else {
+    // oxlint-disable-next-line socket/no-status-emoji -- script uses a local log(msg, color) helper that composes ANSI color with status markers; logger.success/fail would drop the explicit color control needed for the consistency-checker's multi-column report.
     log('\n✓ All fixable issues resolved', colors.green)
   }
 }

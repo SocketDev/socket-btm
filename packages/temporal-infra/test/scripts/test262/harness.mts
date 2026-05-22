@@ -1,4 +1,3 @@
-/* oxlint-disable socket/sort-source-methods -- pipeline ordering (loader → composer → walker); the composer depends on the loader so reading it top-down requires this order. */
 /**
  * @fileoverview Test262 harness loader, script composer, and corpus
  * walker.
@@ -33,6 +32,7 @@ export function loadHarness(name: string): string {
 // https://github.com/tc39/test262/blob/main/INTERPRETING.md
 const DEFAULT_INCLUDES = ['assert.js', 'sta.js']
 
+// oxlint-disable-next-line socket/sort-source-methods -- pipeline ordering (loader → composer → walker); the composer depends on the loader so reading it top-down requires this order.
 export function composeScript(
   test: TestCase,
   scenario: 'strict' | 'sloppy',

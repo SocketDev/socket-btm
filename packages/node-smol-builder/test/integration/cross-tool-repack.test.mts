@@ -1,5 +1,3 @@
-/* oxlint-disable socket/sort-source-methods -- test helpers are ordered by the repack flow they exercise; alphabetizing would scatter them across the file. */
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat() calls consume stats.size to compare compressed/batched/updated artifact sizes through the repack flow. */
 
 /**
  * @fileoverview Cross-tool repacking integration tests
@@ -82,6 +80,7 @@ let allBinariesExist = false
 /**
  * Execute command.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- test helpers are ordered by the repack flow they exercise; alphabetizing would scatter them across the file.
 export async function execCommand(command, args = [], options = {}) {
   const result = await spawn(command, args, {
     ...options,
@@ -329,6 +328,7 @@ describe.skipIf(!allBinariesExist)('cross-tool repacking', () => {
       await execCommand(BINPRESS, [NODE_BINARY, '-o', compressed], {
         timeout: 120_000,
       })
+      // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size to compare compressed/batched/updated artifact sizes through the repack flow.
       const compressedSize = (await fs.stat(compressed)).size
 
       // Inject small batch (SEA + VFS)
@@ -350,6 +350,7 @@ describe.skipIf(!allBinariesExist)('cross-tool repacking', () => {
         '--vfs',
         vfsArchive,
       ])
+      // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size to compare compressed/batched/updated artifact sizes through the repack flow.
       const withBatchSize = (await fs.stat(withBatch)).size
 
       // Update compression
@@ -357,6 +358,7 @@ describe.skipIf(!allBinariesExist)('cross-tool repacking', () => {
       await execCommand(BINPRESS, [withBatch, '-o', updated], {
         timeout: 120_000,
       })
+      // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size to compare compressed/batched/updated artifact sizes through the repack flow.
       const updatedSize = (await fs.stat(updated)).size
 
       // Size checks

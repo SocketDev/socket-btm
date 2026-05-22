@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- every fs.stat() reads stats.size to assert quantized model artifacts are in the expected size range. */
 /**
  * @fileoverview Tests for models build output files.
  * Validates that the build process generates correct model structure and formats.
@@ -55,6 +54,7 @@ describe.skipIf(!hasBuiltArtifacts)('models build output', () => {
         return
       }
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- every fs.stat() reads stats.size to assert quantized model artifacts are in the expected size range.
       const stats = await fs.stat(modelPath)
       // MiniLM-L6 quantized models are typically 10-30MB
       // > 1MB (minimum threshold for both int4 and int8)
@@ -82,6 +82,7 @@ describe.skipIf(!hasBuiltArtifacts)('models build output', () => {
         return
       }
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- every fs.stat() reads stats.size to assert quantized model artifacts are in the expected size range.
       const stats = await fs.stat(modelPath)
       // CodeT5 quantized models are typically larger than MiniLM
       // > 10MB
@@ -195,8 +196,10 @@ describe.skipIf(!hasBuiltArtifacts)('models build output', () => {
         }
 
         // eslint-disable-next-line no-await-in-loop
+        // oxlint-disable-next-line socket/prefer-exists-sync -- every fs.stat() reads stats.size to assert quantized model artifacts are in the expected size range.
         const int8Stats = await fs.stat(int8Path)
         // eslint-disable-next-line no-await-in-loop
+        // oxlint-disable-next-line socket/prefer-exists-sync -- every fs.stat() reads stats.size to assert quantized model artifacts are in the expected size range.
         const int4Stats = await fs.stat(int4Path)
 
         const reduction = 1 - int4Stats.size / int8Stats.size

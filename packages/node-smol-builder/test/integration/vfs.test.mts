@@ -1,5 +1,4 @@
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
-/* oxlint-disable socket/prefer-exists-sync -- file tests the VFS surface itself; fs.stat()/fs.access()/fs.statSync() calls verify VFS metadata fidelity (size/mode) AND appear inside test-fixture JS source executed by the SEA binary. */
 /**
  * @fileoverview Tests for VFS (Virtual Filesystem) support with TAR/TAR.GZ archives.
  *
@@ -168,8 +167,10 @@ describe.sequential.skipIf(skipTests)(
 
         // Verify compression (should be smaller)
         const tarSize =
+          // oxlint-disable-next-line socket/prefer-exists-sync -- file tests the VFS surface itself; fs.stat()/fs.access()/fs.statSync() calls verify VFS metadata fidelity (size/mode) AND appear inside test-fixture JS source executed by the SEA binary.
           (await fs.stat(path.join(testDir, '../tar-uncompressed/vfs.tar')))
             .size || 10_000
+        // oxlint-disable-next-line socket/prefer-exists-sync -- file tests the VFS surface itself; fs.stat()/fs.access()/fs.statSync() calls verify VFS metadata fidelity (size/mode) AND appear inside test-fixture JS source executed by the SEA binary.
         const tarGzSize = (await fs.stat(tarGzPath)).size
         expect(tarGzSize).toBeLessThan(tarSize)
       })

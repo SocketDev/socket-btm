@@ -63,6 +63,7 @@ void runBinject
  * @param {Map<string, Buffer>} files - Map of filename to content
  * @returns {Buffer} TAR archive
  */
+// oxlint-disable-next-line socket/sort-source-methods -- test helpers grouped by workflow (runBinject first, then archive builders); alphabetizing would scatter the test setup flow.
 export function createTar(files) {
   const blocks = []
 

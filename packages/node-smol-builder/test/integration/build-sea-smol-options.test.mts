@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat() calls consume stats.size to compare source vs. output executable sizes. */
 /**
  * @fileoverview Integration tests for node --build-sea with smol options.
  *
@@ -88,7 +87,9 @@ describe.skipIf(skipTests)('--build-sea with smol options', () => {
       expect(existsSync(outputExe)).toBeTruthy()
 
       // Verify it's different from source (has SEA blob injected)
+      // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size to compare source vs. output executable sizes.
       const sourceSize = (await fs.stat(sourceExe)).size
+      // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size to compare source vs. output executable sizes.
       const outputSize = (await fs.stat(outputExe)).size
       expect(outputSize).toBeGreaterThan(sourceSize)
     })

@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- every stat call in this file consumes stats.size to assert the synthesized PE fixtures are non-empty before the C parser sees them. */
 /**
  * @fileoverview Tests for PE VS_VERSION_INFO reader scan guards
  *
@@ -178,6 +177,7 @@ describe('pE VS_VERSION_INFO scan guards', () => {
       const filePath = await writeTempPE('invalid-dos', pe)
 
       // The file should exist but version extraction should fail gracefully
+      // oxlint-disable-next-line socket/prefer-exists-sync -- every stat call in this file consumes stats.size to assert the synthesized PE fixtures are non-empty before the C parser sees them.
       const stat = await fs.stat(filePath)
       expect(stat.size).toBeGreaterThan(0)
 
@@ -189,6 +189,7 @@ describe('pE VS_VERSION_INFO scan guards', () => {
       const pe = createMinimalPE({ invalidPE: true })
       const filePath = await writeTempPE('invalid-pe', pe)
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- every stat call in this file consumes stats.size to assert the synthesized PE fixtures are non-empty before the C parser sees them.
       const stat = await fs.stat(filePath)
       expect(stat.size).toBeGreaterThan(0)
     })
@@ -199,6 +200,7 @@ describe('pE VS_VERSION_INFO scan guards', () => {
       const pe = createMinimalPE({ numSections: 5 })
       const filePath = await writeTempPE('normal-sections', pe)
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- every stat call in this file consumes stats.size to assert the synthesized PE fixtures are non-empty before the C parser sees them.
       const stat = await fs.stat(filePath)
       expect(stat.size).toBeGreaterThan(0)
     })
@@ -207,6 +209,7 @@ describe('pE VS_VERSION_INFO scan guards', () => {
       const pe = createMinimalPE({ numSections: 100 })
       const filePath = await writeTempPE('max-sections', pe)
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- every stat call in this file consumes stats.size to assert the synthesized PE fixtures are non-empty before the C parser sees them.
       const stat = await fs.stat(filePath)
       expect(stat.size).toBeGreaterThan(0)
     })
@@ -218,6 +221,7 @@ describe('pE VS_VERSION_INFO scan guards', () => {
 
       // Guard at line 1661: `i < number_of_sections && i < 100`
       // This limits iteration to 100 even if numSections > 100
+      // oxlint-disable-next-line socket/prefer-exists-sync -- every stat call in this file consumes stats.size to assert the synthesized PE fixtures are non-empty before the C parser sees them.
       const stat = await fs.stat(filePath)
       expect(stat.size).toBeGreaterThan(0)
     })
@@ -228,6 +232,7 @@ describe('pE VS_VERSION_INFO scan guards', () => {
       const pe = createMinimalPE({ numResourceEntries: 3 })
       const filePath = await writeTempPE('normal-entries', pe)
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- every stat call in this file consumes stats.size to assert the synthesized PE fixtures are non-empty before the C parser sees them.
       const stat = await fs.stat(filePath)
       expect(stat.size).toBeGreaterThan(0)
     })
@@ -236,6 +241,7 @@ describe('pE VS_VERSION_INFO scan guards', () => {
       const pe = createMinimalPE({ numResourceEntries: 100 })
       const filePath = await writeTempPE('max-entries', pe)
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- every stat call in this file consumes stats.size to assert the synthesized PE fixtures are non-empty before the C parser sees them.
       const stat = await fs.stat(filePath)
       expect(stat.size).toBeGreaterThan(0)
     })
@@ -245,6 +251,7 @@ describe('pE VS_VERSION_INFO scan guards', () => {
       const pe = createMinimalPE({ numResourceEntries: 101 })
       const filePath = await writeTempPE('too-many-entries', pe)
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- every stat call in this file consumes stats.size to assert the synthesized PE fixtures are non-empty before the C parser sees them.
       const stat = await fs.stat(filePath)
       expect(stat.size).toBeGreaterThan(0)
     })
@@ -255,6 +262,7 @@ describe('pE VS_VERSION_INFO scan guards', () => {
       const pe = createMinimalPE({ versionDataSize: 200 })
       const filePath = await writeTempPE('normal-version-size', pe)
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- every stat call in this file consumes stats.size to assert the synthesized PE fixtures are non-empty before the C parser sees them.
       const stat = await fs.stat(filePath)
       expect(stat.size).toBeGreaterThan(0)
     })
@@ -264,6 +272,7 @@ describe('pE VS_VERSION_INFO scan guards', () => {
       const pe = createMinimalPE({ versionDataSize: 40 })
       const filePath = await writeTempPE('too-small-version', pe)
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- every stat call in this file consumes stats.size to assert the synthesized PE fixtures are non-empty before the C parser sees them.
       const stat = await fs.stat(filePath)
       expect(stat.size).toBeGreaterThan(0)
     })
@@ -273,6 +282,7 @@ describe('pE VS_VERSION_INFO scan guards', () => {
       const pe = createMinimalPE({ versionDataSize: 70_000 })
       const filePath = await writeTempPE('too-large-version', pe)
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- every stat call in this file consumes stats.size to assert the synthesized PE fixtures are non-empty before the C parser sees them.
       const stat = await fs.stat(filePath)
       expect(stat.size).toBeGreaterThan(0)
     })
@@ -281,6 +291,7 @@ describe('pE VS_VERSION_INFO scan guards', () => {
       const pe = createMinimalPE({ versionDataSize: 65_536 })
       const filePath = await writeTempPE('max-version-size', pe)
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- every stat call in this file consumes stats.size to assert the synthesized PE fixtures are non-empty before the C parser sees them.
       const stat = await fs.stat(filePath)
       expect(stat.size).toBeGreaterThan(0)
     })
@@ -289,6 +300,7 @@ describe('pE VS_VERSION_INFO scan guards', () => {
       const pe = createMinimalPE({ versionDataSize: 52 })
       const filePath = await writeTempPE('min-version-size', pe)
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- every stat call in this file consumes stats.size to assert the synthesized PE fixtures are non-empty before the C parser sees them.
       const stat = await fs.stat(filePath)
       expect(stat.size).toBeGreaterThan(0)
     })
@@ -300,6 +312,7 @@ describe('pE VS_VERSION_INFO scan guards', () => {
       const filePath = await writeTempPE('no-resource-dir', pe)
 
       // Guard at line 1648: `resource_rva == 0 || resource_size == 0` returns NULL
+      // oxlint-disable-next-line socket/prefer-exists-sync -- every stat call in this file consumes stats.size to assert the synthesized PE fixtures are non-empty before the C parser sees them.
       const stat = await fs.stat(filePath)
       expect(stat.size).toBeGreaterThan(0)
     })
@@ -316,6 +329,7 @@ describe('pE VS_VERSION_INFO scan guards', () => {
 
       const filePath = await writeTempPE('large-pe', largePE)
 
+      // oxlint-disable-next-line socket/prefer-exists-sync -- every stat call in this file consumes stats.size to assert the synthesized PE fixtures are non-empty before the C parser sees them.
       const stat = await fs.stat(filePath)
       expect(stat.size).toBe(10 * 1024 * 1024)
 

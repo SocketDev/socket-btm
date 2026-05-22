@@ -1,6 +1,4 @@
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat() calls consume stats.size and stats.mode to verify extracted/final Linux x64 binaries. */
-/* oxlint-disable socket/no-status-emoji -- emoji literals are embedded in test fixture JS source executed inside the SEA binary and asserted via toContain(); the runtime can't call logger.success() because it runs without our logger import. */
 
 /**
  * @fileoverview Integration tests for linux-x64 Docker build validation.
@@ -81,6 +79,7 @@ describe.skipIf(skipTests)('linux-x64 Docker build integration', () => {
       // If the binary is compressed, it should extract to the cache directory
       // If it's uncompressed (dev builds), the cache may not exist
       if (existsSync(extractedNodePath)) {
+        // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size and stats.mode to verify extracted/final Linux x64 binaries.
         const extractedStat = await fs.stat(extractedNodePath)
         expect(extractedStat.isFile()).toBeTruthy()
         // Executable bit
@@ -205,6 +204,7 @@ console.log('Is SEA:', require('node:sea').isSea());
         const appJs = path.join(testDir, 'app.js')
         await fs.writeFile(
           appJs,
+          // oxlint-disable-next-line socket/no-status-emoji -- emoji literals are embedded in test fixture JS source executed inside the SEA binary and asserted via toContain(); the runtime can't call logger.success() because it runs without our logger import.
           `#!/usr/bin/env node
 const fs = require('fs');
 const path = require('path');
@@ -299,6 +299,7 @@ console.log('✓ Test completed successfully');
         expect(execResult.stdout).toContain('Is SEA: true')
         expect(execResult.stdout).toContain('VFS available: true')
         expect(execResult.stdout).toContain('Package name: test-sea-vfs-app')
+        // oxlint-disable-next-line socket/no-status-emoji -- emoji literals are embedded in test fixture JS source executed inside the SEA binary and asserted via toContain(); the runtime can't call logger.success() because it runs without our logger import.
         expect(execResult.stdout).toContain('✓ Test completed successfully')
       },
     )
@@ -486,6 +487,7 @@ console.log('Node version:', process.version);
     })
 
     it('should be executable', async () => {
+      // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size and stats.mode to verify extracted/final Linux x64 binaries.
       const stat = await fs.stat(finalBinaryPath)
 
       // Check executable bit
@@ -493,6 +495,7 @@ console.log('Node version:', process.version);
     })
 
     it('should have reasonable size', async () => {
+      // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size and stats.mode to verify extracted/final Linux x64 binaries.
       const stat = await fs.stat(finalBinaryPath)
       // Node.js binaries should be between 10MB and 200MB
       // > 10MB

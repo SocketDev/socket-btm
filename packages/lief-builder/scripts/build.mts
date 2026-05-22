@@ -1,6 +1,4 @@
 // max-file-lines: legitimate -- single builder pipeline (fetch → patch → build → package) — splitting fractures the build sequence
-/* oxlint-disable socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order. */
-/* oxlint-disable socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks. */
 /**
  * Build script for LIEF library.
  * Downloads prebuilt LIEF from GitHub releases or builds from source.
@@ -75,6 +73,7 @@ export function getLiefBuildDirs(platformArch) {
  *
  * @returns {string} Platform-arch identifier.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function getCurrentLiefPlatformArch() {
   const libc = detectLibc()
   // Respect TARGET_ARCH for cross-compilation (set by workflows/Makefiles)
@@ -90,6 +89,7 @@ export function getCurrentLiefPlatformArch() {
  * @param {string} platformArch - Platform-arch identifier.
  * @returns {string} Path to downloaded LIEF directory.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function getDownloadedLiefDir(platformArch) {
   return path.join(getDownloadedDir(packageRoot), 'lief', platformArch)
 }
@@ -116,6 +116,7 @@ export async function verifyArchiveChecksum(archivePath, assetName) {
  *
  * @returns {Array<string|string[]>} Array of required files. Arrays indicate alternatives (any one must exist).
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function getLiefRequiredFiles() {
   return LIEF_REQUIRED_FILES
 }
@@ -150,6 +151,7 @@ export function verifyLiefAt(dir) {
  * @param {string} dir - Directory to check.
  * @returns {boolean} True if complete LIEF installation exists.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function liefExistsAt(dir) {
   return verifyLiefAt(dir).valid
 }
@@ -160,6 +162,7 @@ export function liefExistsAt(dir) {
  * @param {string} dir - Directory to check.
  * @returns {string|undefined} Path to LIEF library if exists, undefined otherwise.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function getLiefLibPathAt(dir) {
   const unixPath = path.join(dir, 'libLIEF.a')
   const msvcPath = path.join(dir, 'LIEF.lib')
@@ -179,6 +182,7 @@ export function getLiefLibPathAt(dir) {
  * @param {string} [platformArch] - Platform-arch identifier. Defaults to current platform.
  * @returns {string|undefined} Path to LIEF library if exists, undefined otherwise.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function getLiefLibPath(platformArch) {
   const resolvedPlatformArch = platformArch ?? getCurrentLiefPlatformArch()
   const { liefBuildDir } = getLiefBuildDirs(resolvedPlatformArch)
@@ -191,6 +195,7 @@ export function getLiefLibPath(platformArch) {
  * @param {string} [platformArch] - Platform-arch identifier. Defaults to current platform.
  * @returns {boolean} True if LIEF library exists.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function liefExists(platformArch) {
   return getLiefLibPath(platformArch) !== undefined
 }
@@ -200,6 +205,7 @@ export function liefExists(platformArch) {
  * The version is specified in the comment above the LIEF submodule entry.
  * @returns {string} LIEF version (e.g., "0.17.0")
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function getLiefVersion() {
   const version = getSubmoduleVersion(
     'packages/lief-builder/upstream/lief',
@@ -212,6 +218,7 @@ export function getLiefVersion() {
 // LIEF version (extracted from .gitmodules comment).
 const LIEF_VERSION = getLiefVersion()
 
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function runCommand(command, args, cwd, env = {}) {
   logger.info(`Running: ${command} ${args.join(' ')}`)
 
@@ -331,6 +338,7 @@ export async function verifyMuslCompatibility(libPath) {
  * This allows patching without modifying the git submodule.
  * @param {string} sourceDir - Destination directory for copied source
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function copyLiefSource(sourceDir) {
   if (!existsSync(liefUpstream)) {
     throw new Error(
@@ -435,6 +443,7 @@ export async function copyLiefSource(sourceDir) {
  * Uses `patch -p1` command (doesn't require git).
  * @param {string} sourceDir - Path to LIEF source directory
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function applyLiefPatches(sourceDir) {
   const patchesDir = path.join(packageRoot, 'patches', 'lief')
 
@@ -498,6 +507,7 @@ export async function applyLiefPatches(sourceDir) {
  * @param {string} [options.platformArch] - Override platform-arch.
  * @returns {Promise<string|null>} Path to downloaded LIEF directory, or null on failure.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function downloadPrebuiltLIEF(options = {}) {
   // Check if download is blocked by BUILD_DEPS_FROM_SOURCE environment flag.
   checkBuildSourceFlag('LIEF', 'DEPS', {
@@ -542,6 +552,7 @@ export async function downloadPrebuiltLIEF(options = {}) {
 
     // Verify tarball integrity before extraction (detect corrupted/truncated downloads).
     // This catches issues where a previous download was cached but is corrupt.
+    // oxlint-disable-next-line socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks.
     const archiveStats = await fs.stat(downloadedArchive)
     logger.info(
       `Archive size: ${(archiveStats.size / 1024 / 1024).toFixed(2)} MB`,
@@ -719,6 +730,7 @@ const ensureLiefLocks = new Map()
  * @param {string} [options.platformArch] - Override platform-arch for downloads.
  * @returns {Promise<string>} Path to LIEF library.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function ensureLief(options = {}) {
   const resolvedPlatformArch =
     options.platformArch ?? getCurrentLiefPlatformArch()
@@ -747,6 +759,7 @@ export async function ensureLief(options = {}) {
 /**
  * Internal implementation of ensureLief.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function ensureLiefImpl(options = {}) {
   const { force = false, platformArch } = options
   const resolvedPlatformArch = platformArch ?? getCurrentLiefPlatformArch()
@@ -834,6 +847,7 @@ async function main() {
         const liefLibPathNew = getLiefLibPathAt(downloadDir)
 
         if (liefLibPathNew) {
+          // oxlint-disable-next-line socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks.
           const stats = await fs.stat(liefLibPathNew)
           const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
 
@@ -846,6 +860,7 @@ async function main() {
             CHECKPOINTS.LIEF_BUILT,
             async () => {
               // Verify library exists and has reasonable size.
+              // oxlint-disable-next-line socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks.
               const libStats = await fs.stat(liefLibPathNew)
               if (libStats.size < 1_000_000) {
                 throw new Error(
@@ -1093,6 +1108,7 @@ async function main() {
       }
     }
 
+    // oxlint-disable-next-line socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks.
     const stats = await fs.stat(libPath)
     const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
     logger.info(`LIEF library size: ${sizeMB} MB`)
@@ -1178,6 +1194,7 @@ async function main() {
       CHECKPOINTS.LIEF_BUILT,
       async () => {
         // Verify library exists and has reasonable size.
+        // oxlint-disable-next-line socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks.
         const libStats = await fs.stat(libPath)
         if (libStats.size < 1_000_000) {
           throw new Error(

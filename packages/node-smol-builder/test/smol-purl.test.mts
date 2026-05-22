@@ -1,12 +1,15 @@
-// oxlint-disable socket/inclusive-language -- upstream PURL spec URL uses a legacy branch name we don't control.
 /**
  * PURL Tests for node:smol-purl
  *
- * Test cases derived from the official PURL spec test suite:
- * https://github.com/package-url/purl-spec/tree/master/test-suite-data
+ * Test cases derived from the official PURL spec test suite.
+ * See `PURL_SPEC_URL` below for the upstream reference.
  *
  * Gold standard: socket-packageurl-js (sibling fleet repo).
  */
+const PURL_SPEC_URL =
+  // oxlint-disable-next-line socket/inclusive-language -- upstream PURL spec URL uses a legacy branch name we don't control.
+  'https://github.com/package-url/purl-spec/tree/master/test-suite-data'
+void PURL_SPEC_URL
 
 import { describe, expect, it } from 'vitest'
 import {

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* oxlint-disable socket/no-status-emoji -- emoji are column-aligned table cell markers ("✓ yes   "/"✗ NO    "), not status prefixes. */
 
 /**
  * @fileoverview Enumerate GLIBC_2.x symbol versions pulled in by the built node binary.
@@ -250,6 +249,7 @@ async function main() {
       logger.log('  ---------|-------------------')
       for (let i = 0, { length } = violations; i < length; i += 1) {
         const v = violations[i]
+        // oxlint-disable-next-line socket/no-status-emoji -- emoji are column-aligned table cell markers ("✓ yes   "/"✗ NO    "), not status prefixes.
         const has = wrapped.has(v.symbol) ? '✓ yes   ' : '✗ NO    '
         logger.log(`  ${has} | GLIBC_${v.version.padEnd(6)} ${v.symbol}`)
       }

@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat() calls consume stats.size to verify downloaded model size after HuggingFace fetch. */
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -95,6 +94,7 @@ export async function downloadModel(options) {
           async () => {
             // Smoke test: Verify model directory and files exist
             const modelPath = path.join(modelsDir, modelKey)
+            // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size to verify downloaded model size after HuggingFace fetch.
             const stats = await fs.stat(modelPath)
             if (!stats.isDirectory()) {
               throw new Error(`Model path is not a directory: ${modelPath}`)
@@ -154,6 +154,7 @@ export async function downloadModel(options) {
           async () => {
             // Smoke test: Verify model directory and files exist
             const modelPath = path.join(modelsDir, modelKey)
+            // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size to verify downloaded model size after HuggingFace fetch.
             const stats = await fs.stat(modelPath)
             if (!stats.isDirectory()) {
               throw new Error(`Model path is not a directory: ${modelPath}`, {

@@ -1,4 +1,3 @@
-/* oxlint-disable socket/sort-source-methods -- platform/arch mapping tables (const) and the helpers that read them are co-located; autofix bails on the const-interleaved layout. */
 import process from 'node:process'
 
 /**
@@ -92,6 +91,7 @@ export function getPlatformArch(platform, arch, libc) {
  * @returns {string} Platform-arch string for assets (e.g., 'win-x64', 'linux-x64-musl').
  * @throws {Error} If platform/arch is unsupported.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- platform/arch mapping tables (const) and the helpers that read them are co-located; autofix bails on the const-interleaved layout.
 export function getAssetPlatformArch(platform, arch, libc) {
   const releasePlatform = RELEASE_PLATFORM_MAP[platform]
   const releaseArch = RELEASE_ARCH_MAP[arch]
@@ -163,6 +163,7 @@ export async function isMusl() {
  *
  * @returns {Promise<string>} Platform-arch string (e.g., 'win-x64', 'linux-x64-musl').
  */
+// oxlint-disable-next-line socket/sort-source-methods -- platform/arch mapping tables (const) and the helpers that read them are co-located; autofix bails on the const-interleaved layout.
 export async function getCurrentPlatformArch() {
   // If the workflow or Dockerfile set PLATFORM_ARCH explicitly, trust it.
   if (process.env.PLATFORM_ARCH) {
@@ -256,6 +257,7 @@ export function parsePlatformArch(platformArch) {
  *
  * @returns {string | undefined} Requested glibc floor, or undefined.
  */
+// oxlint-disable-next-line socket/sort-source-methods -- platform/arch mapping tables (const) and the helpers that read them are co-located; autofix bails on the const-interleaved layout.
 export function getRequestedGlibcFloor(): string | undefined {
   const raw = process.env.GLIBC_FLOOR
   if (!raw) {

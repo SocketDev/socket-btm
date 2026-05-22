@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- four fs.stat() calls all consume stats.size to compare original vs. injected stub sizes; existsSync would lose the size data. */
 
 /**
  * @fileoverview SMOL stub injection and repack workflow tests
@@ -215,11 +214,13 @@ describe.skipIf(!binjectExists || !binpressExists || !binflateExists)(
         const compressedStub = path.join(testDir, 'size-stub')
 
         await execCommand(BINPRESS, [originalBinary, '-o', compressedStub])
+        // oxlint-disable-next-line socket/prefer-exists-sync -- four fs.stat() calls all consume stats.size to compare original vs. injected stub sizes; existsSync would lose the size data.
         const originalStubSize = (await fs.stat(compressedStub)).size
 
         // Step 2: Inject SEA into SMOL stub
         const seaBlob = path.join(testDir, 'size-test-sea.blob')
         await createTestSEABlob(seaBlob)
+        // oxlint-disable-next-line socket/prefer-exists-sync -- four fs.stat() calls all consume stats.size to compare original vs. injected stub sizes; existsSync would lose the size data.
         const seaBlobSize = (await fs.stat(seaBlob)).size
 
         const outputStub = path.join(testDir, 'size-output')
@@ -233,7 +234,9 @@ describe.skipIf(!binjectExists || !binpressExists || !binflateExists)(
           seaBlob,
         ])
 
+        // oxlint-disable-next-line socket/prefer-exists-sync -- four fs.stat() calls all consume stats.size to compare original vs. injected stub sizes; existsSync would lose the size data.
         const outputStubSize = (await fs.stat(outputStub)).size
+        // oxlint-disable-next-line socket/prefer-exists-sync -- four fs.stat() calls all consume stats.size to compare original vs. injected stub sizes; existsSync would lose the size data.
         const originalBinarySize = (await fs.stat(originalBinary)).size
 
         // Output stub should be:

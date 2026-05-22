@@ -1,4 +1,3 @@
-/* oxlint-disable socket/no-status-emoji -- emoji are bullet markers in a multi-line troubleshooting message array (joined with \n) thrown as Error.message; there is no per-bullet logger.fail() call possible. */
 
 /**
  * WASM compilation phase for ONNX Runtime
@@ -241,9 +240,13 @@ export async function compileWasm(options) {
       'ONNX Runtime build script failed',
       '',
       'Common causes:',
+      // oxlint-disable-next-line socket/no-status-emoji -- emoji are bullet markers in a multi-line troubleshooting message array (joined with \n) thrown as Error.message; there is no per-bullet logger.fail() call possible.
       '  ✗ Insufficient disk space (need ~5GB free)',
+      // oxlint-disable-next-line socket/no-status-emoji -- emoji are bullet markers in a multi-line troubleshooting message array (joined with \n) thrown as Error.message; there is no per-bullet logger.fail() call possible.
       '  ✗ Missing dependencies (cmake, python3, emscripten)',
+      // oxlint-disable-next-line socket/no-status-emoji -- emoji are bullet markers in a multi-line troubleshooting message array (joined with \n) thrown as Error.message; there is no per-bullet logger.fail() call possible.
       '  ✗ Compilation timeout or out-of-memory',
+      // oxlint-disable-next-line socket/no-status-emoji -- emoji are bullet markers in a multi-line troubleshooting message array (joined with \n) thrown as Error.message; there is no per-bullet logger.fail() call possible.
       '  ✗ Incompatible Emscripten version',
       '',
       'Troubleshooting:',

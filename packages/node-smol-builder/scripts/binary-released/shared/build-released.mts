@@ -1,5 +1,4 @@
 // max-file-lines: legitimate -- orchestration script — top-down pipeline (gather → validate → report); splitting fractures the flow
-/* oxlint-disable socket/no-status-emoji -- emoji is wrapped in colors.green() decorator before being embedded in multi-line build summary; logger.success() would drop the color. */
 
 /**
  * @fileoverview Release Binary Build Phase
@@ -769,6 +768,7 @@ export async function buildRelease(config, buildOptions = {}) {
     })
     logger.log('::endgroup::')
     logger.log(
+      // oxlint-disable-next-line socket/no-status-emoji -- emoji is wrapped in colors.green() decorator before being embedded in multi-line build summary; logger.success() would drop the color.
       `${colors.green('✓')} ${WIN32 ? 'Build' : 'Configuration'} complete`,
     )
     logger.log('')
@@ -850,10 +850,11 @@ export async function buildRelease(config, buildOptions = {}) {
     // mtime check beats a "run configure unconditionally" sledgehammer.
     const ninjaPath = path.join(modeSourceDir, 'out/Release/build.ninja')
     const gypPath = path.join(modeSourceDir, 'node.gyp')
-    /* oxlint-disable socket/prefer-exists-sync -- need mtimeMs for staleness comparison */
     try {
       const [ninjaStat, gypStat] = await Promise.all([
+        // oxlint-disable-next-line socket/prefer-exists-sync -- need mtimeMs for staleness comparison
         fs.stat(ninjaPath),
+        // oxlint-disable-next-line socket/prefer-exists-sync -- need mtimeMs for staleness comparison
         fs.stat(gypPath),
       ])
       if (gypStat.mtimeMs > ninjaStat.mtimeMs) {

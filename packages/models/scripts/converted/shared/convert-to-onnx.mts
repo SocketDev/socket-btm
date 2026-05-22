@@ -1,4 +1,3 @@
-/* oxlint-disable socket/prefer-exists-sync -- fs.stat() calls consume stats.size to detect empty-output failure and report the converted ONNX file size. */
 import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -72,6 +71,7 @@ export async function convertToOnnx(options) {
         for (let i = 0, { length } = expectedFiles; i < length; i += 1) {
           const fileName = expectedFiles[i]
           const filePath = path.join(modelPath, fileName)
+          // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size to detect empty-output failure and report the converted ONNX file size.
           const stats = await fs.stat(filePath)
           if (stats.size === 0) {
             throw new Error(`ONNX file is empty: ${fileName}`)
@@ -186,6 +186,7 @@ print(f"Successfully exported model to {output_path}")
         // Smoke test: Verify converted ONNX model exists and is valid
         const modelPath = path.join(modelsDir, modelKey)
         const onnxFile = path.join(modelPath, 'model.onnx')
+        // oxlint-disable-next-line socket/prefer-exists-sync -- fs.stat() calls consume stats.size to detect empty-output failure and report the converted ONNX file size.
         const stats = await fs.stat(onnxFile)
         if (stats.size === 0) {
           throw new Error('Converted ONNX file is empty')

@@ -160,3 +160,9 @@
 	url = https://github.com/mity/md4c
 	ignore = dirty
 	shallow = true
+# tree-sitter-0.26.9
+[submodule "packages/node-smol-builder/upstream/tree-sitter"]
+	path = packages/node-smol-builder/upstream/tree-sitter
+	url = https://github.com/tree-sitter/tree-sitter
+	ignore = dirty
+	shallow = true

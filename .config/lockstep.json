@@ -63,6 +63,10 @@
       "submodule": "packages/node-smol-builder/upstream/md4c",
       "repo": "https://github.com/mity/md4c"
     },
+    "tree-sitter": {
+      "submodule": "packages/node-smol-builder/upstream/tree-sitter",
+      "repo": "https://github.com/tree-sitter/tree-sitter"
+    },
     "opentui": {
       "submodule": "packages/opentui-builder/upstream/opentui",
       "repo": "https://github.com/anomalyco/opentui"
@@ -597,6 +601,16 @@
       "upgrade_policy": "track-latest",
       "criticality": 6,
       "notes": "md4c CommonMark+GFM Markdown parser (C99, ~3 KLOC). Embedded into node-smol as src/socketsecurity/markdown/markdown_binding.cc. Pulls upstream/md4c/src/{md4c.c,md4c.h,entity.c,entity.h} into the build. Replaces opentui's userland `marked` dep on the hot AI-output rendering path."
+    },
+    {
+      "kind": "version-pin",
+      "id": "tree-sitter",
+      "upstream": "tree-sitter",
+      "pinned_sha": "7f534862c3ec939c3a6ee147f7600ef5c1bf900f",
+      "pinned_tag": "v0.26.9",
+      "upgrade_policy": "track-latest",
+      "criticality": 6,
+      "notes": "tree-sitter incremental parser library (C, ~15 KLOC). Embedded into node-smol as src/socketsecurity/tree_sitter/tree_sitter_binding.cc. Pulls upstream/tree-sitter/lib/src/*.c + lib/include/*.h into the build. Per-grammar `.wasm` / `.so` loading is supported at runtime via the binding's parser interface. Replaces opentui's userland `web-tree-sitter` WASM dep for the syntax-highlighting Code renderable."
     },
     {
       "kind": "version-pin",

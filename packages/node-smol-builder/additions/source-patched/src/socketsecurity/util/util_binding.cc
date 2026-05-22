@@ -123,6 +123,7 @@
 #include <cstdint>
 #include <cstring>
 #include <string>
+#include <vector>
 
 namespace node {
 namespace socketsecurity {
@@ -855,28 +856,59 @@ static void EncodeHtml(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   Local<String> input = args[0].As<String>();
-  const int input_len = input->Utf8Length(isolate);
-  if (input_len == 0) {
+  const int char_len = input->Length();
+  if (char_len == 0) {
     args.GetReturnValue().Set(input);
     return;
   }
+
+  // True fast path: the five must-escape chars (< > & " ') are all
+  // ASCII (<= 0x7F). For one-byte strings the raw bytes ARE the
+  // characters. For two-byte strings, check UCS-2 directly — the
+  // escape chars encode as single 16-bit values <= 0x7F. No UTF-8
+  // round-trip needed.
+  bool needs_escape = false;
+  if (input->IsOneByte()) {
+    std::string scan_buf(static_cast<size_t>(char_len), '\0');
+    input->WriteOneByte(isolate, reinterpret_cast<uint8_t*>(scan_buf.data()),
+                        /*start*/ 0, char_len,
+                        String::NO_NULL_TERMINATION);
+    for (size_t i = 0, n = scan_buf.size(); i < n; ++i) {
+      const char c = scan_buf[i];
+      if (c == '<' || c == '>' || c == '&' || c == '"' || c == '\'') {
+        needs_escape = true;
+        break;
+      }
+    }
+    if (!needs_escape) {
+      args.GetReturnValue().Set(input);
+      return;
+    }
+    // One-byte string with escape chars present. Latin-1 chars >= 0x80
+    // encode as 2-byte UTF-8; we need the UTF-8 form for the output
+    // since we're emitting `&amp;` etc. as bytes. Re-materialize.
+  } else {
+    std::vector<uint16_t> scan_buf(static_cast<size_t>(char_len));
+    input->Write(isolate, scan_buf.data(), /*start*/ 0, char_len,
+                 String::NO_NULL_TERMINATION);
+    for (size_t i = 0, n = scan_buf.size(); i < n; ++i) {
+      const uint16_t c = scan_buf[i];
+      if (c == '<' || c == '>' || c == '&' || c == '"' || c == '\'') {
+        needs_escape = true;
+        break;
+      }
+    }
+    if (!needs_escape) {
+      args.GetReturnValue().Set(input);
+      return;
+    }
+  }
+
+  // Hit path: materialize UTF-8 for the actual escape pass.
+  const int input_len = input->Utf8Length(isolate);
   std::string buf(static_cast<size_t>(input_len), '\0');
   input->WriteUtf8(isolate, buf.data(), input_len, nullptr,
                    String::NO_NULL_TERMINATION);
-
-  // Quick scan: if no escape-needed char appears, return input as-is.
-  bool needs_escape = false;
-  for (size_t i = 0; i < buf.size(); ++i) {
-    const char c = buf[i];
-    if (c == '<' || c == '>' || c == '&' || c == '"' || c == '\'') {
-      needs_escape = true;
-      break;
-    }
-  }
-  if (!needs_escape) {
-    args.GetReturnValue().Set(input);
-    return;
-  }
 
   std::string out;
   out.reserve(buf.size() + 16);
@@ -1007,32 +1039,71 @@ static void StripAnsi(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   Local<String> input = args[0].As<String>();
-  const int input_len_utf8 = input->Utf8Length(isolate);
-  if (input_len_utf8 == 0) {
+  const int char_len = input->Length();
+  if (char_len == 0) {
     args.GetReturnValue().Set(input);
     return;
   }
 
+  // True fast path: detect ESC (0x1B) or CSI-introducer (0x9B) WITHOUT
+  // doing the UTF-8 round-trip. V8 stores strings as one-byte (Latin-1)
+  // or two-byte (UCS-2). Both representations let us scan for the two
+  // sentinel byte values cheaply:
+  //   - one-byte: WriteOneByte gives us the raw bytes; ESC = 0x1B (byte
+  //     literal), 0x9B sits in the high half (Latin-1 extension) and is
+  //     a single byte too.
+  //   - two-byte: WriteV2 (UCS-2) — ESC encodes as 0x001B, 0x9B as
+  //     0x009B. Codepoints from non-Latin scripts cannot collide with
+  //     these (codepoint == 0x9B only if the original codepoint is U+009B,
+  //     which is what we want to detect anyway).
+  //
+  // Strings without either byte are returned unchanged, zero-allocation.
+  bool has_escape = false;
+  if (input->IsOneByte()) {
+    std::string scan_buf(static_cast<size_t>(char_len), '\0');
+    input->WriteOneByte(isolate, reinterpret_cast<uint8_t*>(scan_buf.data()),
+                        /*start*/ 0, char_len,
+                        String::NO_NULL_TERMINATION);
+    for (size_t i = 0, n = scan_buf.size(); i < n; ++i) {
+      const uint8_t b = static_cast<uint8_t>(scan_buf[i]);
+      if (b == 0x1B || b == 0x9B) {
+        has_escape = true;
+        break;
+      }
+    }
+    if (!has_escape) {
+      args.GetReturnValue().Set(input);
+      return;
+    }
+    // Fall through with scan_buf already in hand (Latin-1 == UTF-8 for
+    // bytes < 0x80 and high bytes encode as 2-byte UTF-8). We need UTF-8
+    // for the strip loop's CSI-final-byte recognition (which assumes
+    // single-byte ASCII chars in the param region). Re-materialize as
+    // UTF-8 below.
+  } else {
+    // Two-byte input: scan UCS-2 code units.
+    std::vector<uint16_t> scan_buf(static_cast<size_t>(char_len));
+    input->Write(isolate, scan_buf.data(), /*start*/ 0, char_len,
+                 String::NO_NULL_TERMINATION);
+    for (size_t i = 0, n = scan_buf.size(); i < n; ++i) {
+      const uint16_t c = scan_buf[i];
+      if (c == 0x1B || c == 0x9B) {
+        has_escape = true;
+        break;
+      }
+    }
+    if (!has_escape) {
+      args.GetReturnValue().Set(input);
+      return;
+    }
+  }
+
+  // Hit path: need to actually strip. Materialize UTF-8 now (we knew
+  // we couldn't avoid it once we found an ESC).
+  const int input_len_utf8 = input->Utf8Length(isolate);
   std::string buf(static_cast<size_t>(input_len_utf8), '\0');
   input->WriteUtf8(isolate, buf.data(), input_len_utf8, nullptr,
                    String::NO_NULL_TERMINATION);
-
-  // Fast path: if the input contains no ESC (0x1B) and no single-byte
-  // CSI introducer (0x9B), there are no sequences to strip — return
-  // the input unchanged. The scan vectorizes; common case (plain
-  // text) is bandwidth-bound and avoids the second allocation.
-  bool has_escape = false;
-  for (size_t i = 0, n = buf.size(); i < n; ++i) {
-    const uint8_t b = static_cast<uint8_t>(buf[i]);
-    if (b == 0x1B || b == 0x9B) {
-      has_escape = true;
-      break;
-    }
-  }
-  if (!has_escape) {
-    args.GetReturnValue().Set(input);
-    return;
-  }
 
   std::string out;
   out.reserve(buf.size());

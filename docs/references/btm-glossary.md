@@ -64,10 +64,8 @@ All require the `node:` prefix. Available: `node:smol-ffi`, `node:smol-http`, `n
 
 ### Native Node.js addons (each produces a `.node` binary)
 
-- **iocraft-builder**: Rust → .node; TUI rendering primitives
 - **opentui-builder**: Zig → .node; terminal UI layer
-- **yoga-layout-builder**: Yoga Layout → WASM; flexbox for ink
-- **ink-builder**: React for terminals; consumes yoga-layout and iocraft
+- **yoga-layout-builder**: Yoga Layout → WASM; flexbox layout
 - **napi-go**: Go → .node framework; source-distributed N-API binding infrastructure (the napi-rs analog for Go)
 - **ultraviolet-builder**: Go → .node via napi-go; Charmbracelet Ultraviolet — kitty/fixterms/SGR terminal decoder (Bubble Tea v2 foundation)
 

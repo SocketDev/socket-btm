@@ -3,8 +3,7 @@
  *
  * Reports whether Go is on PATH. Does not attempt auto-install — Go is
  * currently a system dependency (see external-tools.json). A missing
- * toolchain is a warning, not an install-time failure, to match the
- * pattern used by iocraft-builder (Rust via rustup).
+ * toolchain is a warning, not an install-time failure.
  */
 
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'

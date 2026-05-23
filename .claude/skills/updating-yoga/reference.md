@@ -33,7 +33,7 @@ When updating Yoga, bump this cache version:
 }
 ```
 
-**Note:** After updating Yoga, ink-builder should be rebuilt to pick up the new `yoga-sync.mjs`. Consider also bumping `ink` cache if yoga-sync output changed.
+**Note:** Downstream consumers should be rebuilt to pick up the new `yoga-sync.mjs`.
 
 ## Wrapper Files Sync
 

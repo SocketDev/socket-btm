@@ -9,7 +9,7 @@ Socket BTM (Binary Tooling Manager) is Socket Security's build infrastructure fo
 - A patched Node.js binary (~23-27MB) with security enhancements and embedded capabilities (VFS, SEA).
 - Tools to inject data into binaries post-compile (binject) and compress/decompress them while preserving functionality (binpress, binflate).
 - Optimized ML models for security analysis (CodeT5, MiniLM, ONNX Runtime, Yoga Layout).
-- Native bindings and UI libraries (Ink, iocraft, OpenTUI, Ultraviolet) compiled from C/C++/Go/Zig sources.
+- Native bindings and UI libraries (OpenTUI, Ultraviolet) compiled from C/C++/Go/Zig sources.
 
 The repo is for developers working on Socket's internal tools, contributing to Socket's open-source projects, or building custom Node.js distributions. Not user-facing.
 
@@ -74,9 +74,7 @@ If you're new to binary manipulation or Node.js customization, here are the key 
 | **Node.js**         | [node-smol-builder](packages/node-smol-builder/)                       | Custom Node.js v26 with Socket security patches                   |
 | **WASM builders**   | [onnxruntime-builder](packages/onnxruntime-builder/)                   | ONNX Runtime WASM module builder                                  |
 |                     | [yoga-layout-builder](packages/yoga-layout-builder/)                   | Yoga Layout WASM module builder                                   |
-| **UI libraries**    | [ink-builder](packages/ink-builder/)                                   | Prepatched Ink with yoga-sync                                     |
-|                     | [iocraft-builder](packages/iocraft-builder/)                           | Native Node.js bindings for iocraft TUI library via napi-rs       |
-|                     | [opentui-builder](packages/opentui-builder/)                           | Native Node.js bindings for OpenTUI library via Zig node-api      |
+| **UI libraries**    | [opentui-builder](packages/opentui-builder/)                           | Native Node.js bindings for OpenTUI library via Zig node-api      |
 |                     | [ultraviolet-builder](packages/ultraviolet-builder/)                   | Charmbracelet Ultraviolet terminal decoder (kitty/fixterms/SGR)   |
 | **N-API**           | [napi-go-infra](packages/napi-go-infra/)                               | Go → N-API framework (the napi-rs analog for Go)                  |
 | **ML models**       | [codet5-models-builder](packages/codet5-models-builder/)               | CodeT5 model quantization                                         |

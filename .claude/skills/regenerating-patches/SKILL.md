@@ -1,21 +1,17 @@
 ---
 name: regenerating-patches
-description: Regenerates Node.js or iocraft patches against pristine upstream source so each applies independently. Use after a Node.js version bump, when patches fail to apply, or when restructuring the patch chain.
+description: Regenerates Node.js patches against pristine upstream source so each applies independently. Use after a Node.js version bump, when patches fail to apply, or when restructuring the patch chain.
 user-invocable: true
 allowed-tools: Agent, Read, Edit, Write, Glob, Grep, Bash(git:*), Bash(patch:*), Bash(diff:*), Bash(cp:*), Bash(rm:*), Bash(mkdir:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(awk:*), Bash(grep:*), Bash(sed:*), Bash(find:*), AskUserQuestion
 ---
 
 # regenerating-patches
 
-Regenerate Node.js or iocraft patches against the current pristine upstream tag so every patch applies cleanly in numeric order. This is the canonical recovery flow when an upstream version bump shifts line numbers under our patches.
+Regenerate Node.js patches against the current pristine upstream tag so every patch applies cleanly in numeric order. This is the canonical recovery flow when an upstream version bump shifts line numbers under our patches.
 
 ## Scope
 
 - **node** — `packages/node-smol-builder/patches/source-patched/*.patch` against `packages/node-smol-builder/upstream/node`
-- **iocraft** — `packages/iocraft-builder/patches/*.patch` against `packages/iocraft-builder/upstream/iocraft`
-- **both** — process node first, then iocraft
-
-If invoked without an explicit scope (`/regenerating-patches`), ask the user via `AskUserQuestion` (or default to **node** in non-interactive mode).
 
 ## Phase 1 — validate environment
 

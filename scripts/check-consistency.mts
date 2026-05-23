@@ -586,7 +586,7 @@ export async function checkBuildOutputStructure(
     //   1. node-smol style:  build/{mode}/out/Final/                       (single-platform per build)
     //   2. binsuite style:   build/{mode}/{platform-arch}/out/Final/       (per-platform subdir)
     //   3. wasm style:       build/{mode}/{platform-arch}/wasm/out/Final/  (yoga-layout-builder, onnxruntime-builder)
-    //   4. native-addon style: build/{mode}/{platform-arch}/out/{platform-arch}/<name>.node (iocraft-builder, opentui-builder)
+    //   4. native-addon style: build/{mode}/{platform-arch}/out/{platform-arch}/<name>.node (opentui-builder)
     //
     // A "Final" directory or per-arch addon directory under build/{mode}/** counts as built.
 
@@ -619,7 +619,7 @@ export async function checkBuildOutputStructure(
           return true
         }
         // native-addon style: build/{mode}/{platform-arch}/out/{platform-arch}/
-        // (iocraft-builder, opentui-builder write the .node binary into a
+        // (opentui-builder writes the .node binary into a
         // platform-arch subdir of out/, no Final/ segment).
         if (existsSync(path.join(archDir, 'out', entry.name))) {
           return true

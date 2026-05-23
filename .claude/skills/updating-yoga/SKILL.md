@@ -1,6 +1,6 @@
 ---
 name: updating-yoga
-description: Updates Yoga layout library source, checks wrapper files for upstream changes, rebuilds WASM module, bumps yoga-layout cache. Use for layout bug fixes, Flexbox improvements, or periodic maintenance. Run before updating-ink.
+description: Updates Yoga layout library source, checks wrapper files for upstream changes, rebuilds WASM module, bumps yoga-layout cache. Use for layout bug fixes, Flexbox improvements, or periodic maintenance.
 user-invocable: true
 allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Glob, Grep---
 
@@ -11,7 +11,7 @@ Update the Yoga layout library to latest stable version.
 - **Version source**: `packages/yoga-layout-builder/package.json` under `sources.yoga`
 - **Source**: Cloned from GitHub (not submodule) during build
 - **Cache bumps**: `yoga-layout`
-- **Downstream**: After updating Yoga, run `updating-ink` to rebuild ink with new yoga-sync.mjs
+- **Downstream**: Rebuild downstream consumers (e.g. opentui-builder, node:smol-tui) to pick up the new yoga-sync.mjs
 
 ## Build Architecture
 

@@ -38,5 +38,5 @@ the options accepted by the build driver.
 - Node.js headers (automatically resolved from the running node
   executable during builds).
 
-Go is not currently pinned via `build-infra`'s tool-checksums; follow
-the system-toolchain pattern used by `iocraft-builder` for `rustc`.
+Go is not currently pinned via `build-infra`'s tool-checksums; use
+the system-toolchain pattern: detect at build, error clearly if missing.

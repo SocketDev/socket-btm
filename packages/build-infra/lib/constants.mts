@@ -169,17 +169,6 @@ export const CHECKPOINT_CHAINS = {
   ],
 
   /**
-   * iocraft native Rust addon checkpoint chain.
-   *
-   * Walk order is finalized→earliest so restore picks the latest usable
-   * checkpoint. Must mirror what packages/iocraft-builder/scripts/
-   * actually creates via createCheckpoint(); currently that is
-   * SOURCE_PATCHED and SOURCE_COPIED. If a future build script adds
-   * FINALIZED or NATIVE_BUILT, add them here.
-   */
-  iocraft: () => [CHECKPOINTS.SOURCE_PATCHED, CHECKPOINTS.SOURCE_COPIED],
-
-  /**
    * Simple single-checkpoint chain (FINALIZED only).
    * Used by binsuite packages (binpress, binflate, binject), stubs-builder,
    * and libpq-builder.

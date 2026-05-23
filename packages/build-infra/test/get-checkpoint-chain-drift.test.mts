@@ -36,11 +36,6 @@ describe('get-checkpoint-chain drift guard', () => {
     expect(fn()).toEqual(CHECKPOINT_CHAINS.lief())
   })
 
-  it('iocraft-builder matches CHECKPOINT_CHAINS.iocraft()', async () => {
-    const fn = await loadChain('iocraft-builder')
-    expect(fn()).toEqual(CHECKPOINT_CHAINS.iocraft())
-  })
-
   it('node-smol-builder matches CHECKPOINT_CHAINS.nodeSmol()', async () => {
     const fn = await loadChain('node-smol-builder')
     expect(fn()).toEqual(CHECKPOINT_CHAINS.nodeSmol())

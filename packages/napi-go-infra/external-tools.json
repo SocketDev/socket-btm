@@ -5,7 +5,7 @@
     "go": {
       "description": "Go toolchain (required for compiling bindings via c-archive mode)",
       "version": "1.25.3",
-      "notes": "System Go on PATH. Minimum: 1.21. c-archive + cgo support required. No tool-checksum pinning yet — follow iocraft-builder's rustc pattern: detect at build, error clearly if missing."
+      "notes": "System Go on PATH. Minimum: 1.21. c-archive + cgo support required. No tool-checksum pinning yet — detect at build, error clearly if missing."
     },
     "clang": {
       "description": "C compiler used to link the N-API shim against Go's c-archive",

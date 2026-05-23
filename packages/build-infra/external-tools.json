@@ -72,7 +72,7 @@
     "cargo": {
       "description": "Rust package manager and build tool (part of the Rust toolchain)",
       "version": "1.83.0",
-      "notes": "Required for iocraft-builder (Rust → Node-API .node) and any other Rust components. Install via rustup (https://rustup.rs). Cargo ships with the Rust toolchain; pinning cargo version effectively pins rustc. On GitHub Actions runners, install with: `rustup toolchain install stable`."
+      "notes": "Required for any Rust components in the fleet. Install via rustup (https://rustup.rs). Cargo ships with the Rust toolchain; pinning cargo version effectively pins rustc. On GitHub Actions runners, install with: `rustup toolchain install stable`."
     },
     "ccache": {
       "description": "Compiler cache for faster recompilation",

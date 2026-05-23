@@ -6,6 +6,7 @@
   "license": "MIT",
   "type": "module",
   "exports": {
+    "./lib/ensure-yoga": "./lib/ensure-yoga.mts",
     "./scripts/paths": "./scripts/paths.mts"
   },
   "scripts": {

@@ -38,7 +38,13 @@ const logger = getDefaultLogger()
 
 // Publish dependency chain (see CLAUDE.md "Builder publish dispatch order"):
 //
-//   (curl ∥ lief) → stubs → binsuite → node-smol
+//   Parallel leaves (curl, lief, libpq, dawn, yoga-layout, opentui, onnxruntime)
+//     fan into stubs (curl + lief), then binsuite (stubs + lief),
+//     then node-smol (binsuite + every leaf above).
+//
+// Tier-1b builders (codet5-models, minilm, ultraviolet) publish
+// independently and are NOT in CHAIN — node-smol does not depend on them;
+// they flow to socket-cli + other downstream consumers.
 //
 // `binsuite` ships three releases (binflate, binject, binpress) from a
 // single workflow file (binsuite.yml). cache-versions.json keys the three
@@ -66,16 +72,36 @@ const BINSUITE_DEPS: UpstreamEntry[] = [
   { pkg: 'lief', dispatchWorkflow: 'lief.yml' },
   { pkg: 'stubs', dispatchWorkflow: 'stubs.yml' },
 ]
+// Each entry below fires the freshness gate before node-smol publish runs,
+// requiring that builder's workflow to be re-dispatched when its
+// cache-version bumps. Workflows that don't yet exist on disk
+// (dawn.yml / libpq.yml / onnxruntime.yml / yoga.yml) land in follow-up
+// commits — the dispatchWorkflow string here is the pre-declared name so
+// the error message points the right direction.
 const NODE_SMOL_DEPS: UpstreamEntry[] = [
   { pkg: 'binflate', dispatchWorkflow: 'binsuite.yml' },
   { pkg: 'binject', dispatchWorkflow: 'binsuite.yml' },
   { pkg: 'binpress', dispatchWorkflow: 'binsuite.yml' },
+  { pkg: 'dawn', dispatchWorkflow: 'dawn.yml' },
+  { pkg: 'libpq', dispatchWorkflow: 'libpq.yml' },
+  { pkg: 'onnxruntime', dispatchWorkflow: 'onnxruntime.yml' },
+  { pkg: 'opentui', dispatchWorkflow: 'opentui.yml' },
+  { pkg: 'yoga-layout', dispatchWorkflow: 'yoga.yml' },
 ]
 const CHAIN: ChainEntry[] = [
+  // Leaves — no upstream deps.
   { pkg: 'curl', deps: [] },
+  { pkg: 'dawn', deps: [] },
+  { pkg: 'libpq', deps: [] },
   { pkg: 'lief', deps: [] },
+  { pkg: 'onnxruntime', deps: [] },
+  { pkg: 'opentui', deps: [] },
+  { pkg: 'yoga-layout', deps: [] },
+  // stubs links libcurl + libLIEF.
   { pkg: 'stubs', deps: STUBS_DEPS },
+  // binsuite (binflate/binject/binpress) links LIEF + stubs.
   { pkg: 'binsuite', deps: BINSUITE_DEPS },
+  // node-smol links every leaf + binsuite output.
   { pkg: 'node-smol', deps: NODE_SMOL_DEPS },
 ]
 

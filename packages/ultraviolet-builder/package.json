@@ -12,9 +12,11 @@
       "types": "./lib/index.d.ts",
       "default": "./lib/index.mts"
     },
+    "./lib/ensure-ultraviolet": "./lib/ensure-ultraviolet.mts",
     "./native": {
       "types": "./lib/native.d.ts"
-    }
+    },
+    "./scripts/paths": "./scripts/paths.mts"
   },
   "scripts": {
     "build": "node scripts/build.mts",

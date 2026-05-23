@@ -11,6 +11,7 @@
     "build:local:binsuite": "node scripts/rebuild-all-local.mts --binsuite-only",
     "build:local:lief": "node scripts/rebuild-all-local.mts --lief-only",
     "build:local:node": "node scripts/rebuild-all-local.mts --node-only",
+    "build-status": "node scripts/build-status.mts",
     "bump:cache": "node scripts/bump-cache-version.mts",
     "check": "node scripts/check.mts",
     "check:cascade-completeness": "node scripts/check-cascade-completeness.mts",

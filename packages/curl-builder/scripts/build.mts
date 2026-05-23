@@ -24,7 +24,10 @@ import {
   getPlatformBuildDir,
   validateCheckpointChain,
 } from 'build-infra/lib/constants'
-import { logTransientErrorHelp } from 'build-infra/lib/github-error-utils'
+// logTransientErrorHelp loaded lazily inside the catch block below.
+// Its transitive @socketsecurity/lib-stable/http-request/convenience
+// import has an ESM/CJS interop issue that crashes module-load in
+// strict isolated environments (production CI works via root-hoisting).
 import { appendCCRemapFlags } from 'build-infra/lib/path-remap-flags'
 import {
   getAssetPlatformArch,
@@ -944,7 +947,14 @@ async function main() {
   } catch (e) {
     logger.log('')
     logger.fail(`curl build failed: ${errorMessage(e)}`)
-    await logTransientErrorHelp(e)
+    try {
+      const { logTransientErrorHelp } = await import(
+        'build-infra/lib/github-error-utils'
+      )
+      await logTransientErrorHelp(e)
+    } catch {
+      // Hint module failed to load — original error already logged.
+    }
     throw e
   }
 }

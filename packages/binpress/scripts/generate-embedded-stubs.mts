@@ -30,7 +30,9 @@ import { SOCKET_BTM_REPO } from '@socketsecurity/lib-stable/releases/socket-btm'
 import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import { getBuildMode, getPlatformBuildDir } from 'build-infra/lib/constants'
-import { logTransientErrorHelp } from 'build-infra/lib/github-error-utils'
+// logTransientErrorHelp loaded lazily inside catch block below (see
+// curl-builder/scripts/build.mts for full rationale on the
+// http-request/convenience CJS/ESM interop crash).
 import { errorMessage } from 'build-infra/lib/error-utils'
 import { getDownloadedDir, getFinalBinaryPath } from 'build-infra/lib/paths'
 import {
@@ -202,7 +204,14 @@ export async function downloadStub(
     logger.error(`${platformName} stub: ${errorMessage(e)}`)
 
     // Log helpful messages if this is a transient GitHub/network error.
-    await logTransientErrorHelp(e)
+    try {
+      const { logTransientErrorHelp } = await import(
+        'build-infra/lib/github-error-utils'
+      )
+      await logTransientErrorHelp(e)
+    } catch {
+      // Hint module failed to load — original error already logged.
+    }
 
     logger.groupEnd()
     throw new Error(

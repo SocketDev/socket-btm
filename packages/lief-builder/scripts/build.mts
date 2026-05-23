@@ -19,7 +19,9 @@ import {
   getBuildMode,
   getPlatformBuildDir,
 } from 'build-infra/lib/constants'
-import { logTransientErrorHelp } from 'build-infra/lib/github-error-utils'
+// logTransientErrorHelp loaded lazily inside catch blocks below (see
+// curl-builder/scripts/build.mts for full rationale on the
+// http-request/convenience CJS/ESM interop crash).
 import { appendCCRemapFlags } from 'build-infra/lib/path-remap-flags'
 import { getDownloadedDir } from 'build-infra/lib/paths'
 import { getAssetPlatformArch, isMusl } from 'build-infra/lib/platform-mappings'
@@ -710,7 +712,14 @@ export async function downloadPrebuiltLIEF(options = {}) {
     return extractDir
   } catch (e) {
     logger.info(`Failed to download prebuilt LIEF: ${errorMessage(e)}`)
-    await logTransientErrorHelp(e)
+    try {
+      const { logTransientErrorHelp } = await import(
+        'build-infra/lib/github-error-utils'
+      )
+      await logTransientErrorHelp(e)
+    } catch {
+      // Hint module failed to load — original error already logged.
+    }
     return undefined
   }
 }
@@ -1225,7 +1234,14 @@ async function main() {
   } catch (e) {
     logger.info('')
     logger.fail(`LIEF build failed: ${errorMessage(e)}`)
-    await logTransientErrorHelp(e)
+    try {
+      const { logTransientErrorHelp } = await import(
+        'build-infra/lib/github-error-utils'
+      )
+      await logTransientErrorHelp(e)
+    } catch {
+      // Hint module failed to load — original error already logged.
+    }
     throw e
   }
 }

@@ -13,7 +13,9 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
-import { logTransientErrorHelp } from 'build-infra/lib/github-error-utils'
+// logTransientErrorHelp loaded lazily inside the catch block below
+// (see curl-builder/scripts/build.mts for full rationale on the
+// http-request/convenience CJS/ESM interop crash).
 import { getDownloadedDir, getFinalBinaryPath } from 'build-infra/lib/paths'
 import { getPlatformArch } from 'build-infra/lib/platform-mappings'
 
@@ -120,7 +122,14 @@ export async function downloadToolIfMissing(tool, platform, arch, libc) {
 
     return binaryPath
   } catch (e) {
-    await logTransientErrorHelp(e)
+    try {
+      const { logTransientErrorHelp } = await import(
+        'build-infra/lib/github-error-utils'
+      )
+      await logTransientErrorHelp(e)
+    } catch {
+      // Hint module failed to load — original error already logged.
+    }
     throw e
   }
 }

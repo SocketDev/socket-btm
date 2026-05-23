@@ -17,6 +17,7 @@
     "./lib/compiler-installer": "./lib/compiler-installer.mts",
     "./lib/constants": "./lib/constants.mts",
     "./lib/emscripten-installer": "./lib/emscripten-installer.mts",
+    "./lib/ensure-prebuilt": "./lib/ensure-prebuilt.mts",
     "./lib/error-utils": "./lib/error-utils.mts",
     "./lib/extraction-cache": "./lib/extraction-cache.mts",
     "./lib/github-error-utils": "./lib/github-error-utils.mts",
@@ -63,6 +64,7 @@
   },
   "dependencies": {
     "@sinclair/typebox": "catalog:",
+    "@socketsecurity/lib": "catalog:",
     "@socketsecurity/lib-stable": "catalog:",
     "acorn": "catalog:",
     "acorn-walk": "catalog:",

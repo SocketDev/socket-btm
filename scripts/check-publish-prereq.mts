@@ -297,7 +297,12 @@ async function main(): Promise<void> {
   logger.success(`all ${target} prerequisites are fresh.`)
 }
 
-main().catch(e => {
-  logger.fail(e instanceof Error ? e.message : String(e))
-  process.exit(1)
-})
+// Skip execution when imported (e.g. scripts/build-status.mts reuses
+// the gh-release + git-ancestry helpers above). The CLI entry is
+// direct `node scripts/check-publish-prereq.mts <package>` invocation.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch(e => {
+    logger.fail(e instanceof Error ? e.message : String(e))
+    process.exit(1)
+  })
+}

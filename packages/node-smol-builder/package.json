@@ -28,7 +28,8 @@
     "bin-infra": "workspace:*",
     "build-infra": "workspace:*",
     "dawn-builder": "workspace:*",
-    "yoctocolors-cjs": "catalog:"
+    "yoctocolors-cjs": "catalog:",
+    "yoga-layout-builder": "workspace:*"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "catalog:",

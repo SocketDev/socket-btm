@@ -63,8 +63,10 @@ const LIBQRENCODE_UPSTREAM_DIR = path.join(
 // comment in .gitmodules, so hashing .gitmodules (and the lockstep
 // JSON, which also tracks pinned_sha) captures Dawn invalidation
 // without walking Dawn's 180 MB source tree on every cache check.
-const DAWN_BUILDER_DIR = path.join(PACKAGE_ROOT, '..', 'dawn-builder')
-const DAWN_UPSTREAM_DIR = path.join(DAWN_BUILDER_DIR, 'upstream', 'dawn')
+//
+// dawn-builder paths (PACKAGE_ROOT, UPSTREAM_DAWN_DIR, etc.) are
+// imported from `dawn-builder/scripts/paths` at the call sites that
+// need them — no re-derivation here per "1 path, 1 reference".
 
 /**
  * Files outside the regular MONOREPO_PACKAGE_SOURCES tree that still

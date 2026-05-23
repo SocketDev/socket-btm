@@ -916,6 +916,9 @@ importers:
       yoctocolors-cjs:
         specifier: 'catalog:'
         version: 2.1.3
+      yoga-layout-builder:
+        specifier: workspace:*
+        version: link:../yoga-layout-builder
     devDependencies:
       '@vitest/coverage-v8':
         specifier: 'catalog:'

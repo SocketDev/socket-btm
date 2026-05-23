@@ -299,15 +299,17 @@ export function createPrebuiltApi(config: PrebuiltConfig): PrebuiltApi {
     }
   }
 
-  async function ensure(
-    options: {
-      force?: boolean | undefined
-      platformArch?: string | undefined
-    } = {},
-  ): Promise<string> {
-    const { force = false, platformArch } = options
-    const resolvedPlatformArch = platformArch ?? getCurrentPlatformArch()
+  // Per-platform locks deduplicate concurrent ensure() calls from
+  // parallel workers (e.g. multi-arch matrix runs racing on the same
+  // downloaded cache). Without this two callers can both miss the
+  // local check, both miss the downloaded check, both fetch the
+  // prebuilt, and the second's extraction can stomp the first's.
+  const locks = new Map<string, Promise<string>>()
 
+  async function ensureImpl(
+    resolvedPlatformArch: string,
+    force: boolean,
+  ): Promise<string> {
     // 1. Local build first.
     const localDir = getLocalBuildDir(resolvedPlatformArch)
     if (!force && existsAt(localDir)) {
@@ -334,6 +336,28 @@ export function createPrebuiltApi(config: PrebuiltConfig): PrebuiltApi {
     throw new Error(
       `Failed to ensure ${name}. Run \`pnpm --filter ${name}-builder build\` to build from source.`,
     )
+  }
+
+  async function ensure(
+    options: {
+      force?: boolean | undefined
+      platformArch?: string | undefined
+    } = {},
+  ): Promise<string> {
+    const { force = false, platformArch } = options
+    const resolvedPlatformArch = platformArch ?? getCurrentPlatformArch()
+
+    const existing = locks.get(resolvedPlatformArch)
+    if (existing) {
+      return existing
+    }
+    const lockPromise = ensureImpl(resolvedPlatformArch, force)
+    locks.set(resolvedPlatformArch, lockPromise)
+    try {
+      return await lockPromise
+    } finally {
+      locks.delete(resolvedPlatformArch)
+    }
   }
 
   return {

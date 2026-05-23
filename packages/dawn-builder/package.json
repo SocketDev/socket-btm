@@ -6,6 +6,7 @@
   "license": "MIT",
   "type": "module",
   "exports": {
+    "./lib/ensure-dawn": "./lib/ensure-dawn.mts",
     "./scripts/paths": "./scripts/paths.mts"
   },
   "scripts": {

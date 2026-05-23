@@ -662,7 +662,7 @@ export async function buildRelease(config, buildOptions = {}) {
   // + node.gyp patches land (D6), the gate's success flips
   // `node_use_dawn=true` into the configure flags below.
   if (withDawn) {
-    const dawnPaths = getDawnBuildPaths(buildMode, getCurrentPlatformArch())
+    const dawnPaths = getDawnBuildPaths(buildMode, await getCurrentPlatformArch())
     if (!existsSync(dawnPaths.outputLibFile)) {
       throw new Error(
         '--with-dawn requested but dawn-builder artifact is missing.\n\n' +

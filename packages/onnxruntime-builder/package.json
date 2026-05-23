@@ -5,6 +5,10 @@
   "private": true,
   "license": "MIT",
   "type": "module",
+  "exports": {
+    "./lib/ensure-onnxruntime": "./lib/ensure-onnxruntime.mts",
+    "./scripts/paths": "./scripts/paths.mts"
+  },
   "scripts": {
     "build": "node scripts/build.mts",
     "build:force": "node scripts/build.mts --force",

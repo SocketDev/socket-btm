@@ -25,7 +25,12 @@ import { existsSync, promises as fs, readdirSync } from 'node:fs'
 import path from 'node:path'
 
 import { errorMessage } from './error-utils.mts'
-import { logTransientErrorHelp } from './github-error-utils.mts'
+// `logTransientErrorHelp` is loaded lazily from inside the catch block
+// in downloadPrebuilt() — its transitive `@socketsecurity/lib-stable/
+// http-request/convenience` import has an ESM/CJS interop issue that
+// fires at module-load time. Lazy-loading defers the resolution to
+// the actual error-handling path, where a failure to load it
+// degrades gracefully (the transient-error hint is omitted).
 import { getDownloadedDir } from './paths.mts'
 import { verifyReleaseChecksum } from './release-checksums/core.mts'
 import {
@@ -294,7 +299,19 @@ export function createPrebuiltApi(config: PrebuiltConfig): PrebuiltApi {
       return extractDir
     } catch (e) {
       logger.info(`Failed to download prebuilt ${name}: ${errorMessage(e)}`)
-      await logTransientErrorHelp(e)
+      // Lazy-load the transient-error hint so the eager module-load
+      // path doesn't depend on @socketsecurity/lib-stable's
+      // http-request/convenience (CJS export with ESM-only consumers).
+      // If lazy-load fails (e.g. the interop bug bites here too), we
+      // skip the hint rather than mask the original error.
+      try {
+        const { logTransientErrorHelp } = await import(
+          './github-error-utils.mts'
+        )
+        await logTransientErrorHelp(e)
+      } catch {
+        // Hint module failed to load — original error already logged.
+      }
       return undefined
     }
   }

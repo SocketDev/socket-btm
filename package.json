@@ -34,6 +34,7 @@
     "prepare": "node scripts/install-git-hooks.mts",
     "security": "node scripts/security.mts",
     "setup": "node scripts/setup.mts",
+    "smoke:ensures": "node scripts/smoke-test-ensures.mts",
     "test": "node scripts/test.mts",
     "test:build-infra": "pnpm --filter build-infra test",
     "test:node-smol": "pnpm --filter node-smol-builder test",

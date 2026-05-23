@@ -23,6 +23,9 @@
  *   --clean                     Force clean build (ignore cache)
  *   --prod                      Production optimizations (V8 Lite, LTO)
  *   --dev                       Development mode (faster builds)
+ *   --with-dawn                 Link against dawn-builder's libwebgpu_dawn.a
+ *                               (requires `pnpm --filter dawn-builder build` first;
+ *                               hard-fails if the artifact is missing)
  *   --with-lief                 Enable LIEF support (enables --build-sea flag, +5MB binary size)
  *   --from-checkpoint=<name>    Skip to specific build phase (resume from existing artifact)
  *                               Valid: binary-released, binary-stripped, binary-compressed, finalized
@@ -145,6 +148,7 @@ const { values } = parseArgs({
     test: { type: 'boolean' },
     'test-full': { type: 'boolean' },
     verify: { type: 'boolean' },
+    'with-dawn': { type: 'boolean' },
     'with-lief': { type: 'boolean' },
     yes: { short: 'y', type: 'boolean' },
   },
@@ -218,11 +222,17 @@ const NODE_REPO = 'https://github.com/nodejs/node.git'
 const NODE_SHA = undefined
 
 const BUILD_MODE = IS_PROD_BUILD ? 'prod' : 'dev'
+const WITH_DAWN = Boolean(values['with-dawn'])
 const WITH_LIEF = Boolean(values['with-lief'])
 
 // Set environment variable for tests to detect LIEF availability
 if (WITH_LIEF) {
   process.env.BUILD_WITH_LIEF = 'true'
+}
+
+// Set environment variable for tests to detect Dawn availability
+if (WITH_DAWN) {
+  process.env.BUILD_WITH_DAWN = 'true'
 }
 
 const {
@@ -554,6 +564,7 @@ async function main() {
         sharedBuildDir: SHARED_BUILD_DIR,
         sharedSourceDir: SHARED_SOURCE_DIR,
         testFile,
+        withDawn: WITH_DAWN,
         withLief: WITH_LIEF,
       },
       { skipCheckpoint: BUILD_ONLY === CHECKPOINTS.BINARY_RELEASED },
@@ -641,6 +652,7 @@ async function main() {
         outputStrippedDir,
         packageName: PACKAGE_NAME,
         platform: TARGET_PLATFORM,
+        withDawn: WITH_DAWN,
         withLief: WITH_LIEF,
       },
       { skipCheckpoint: BUILD_ONLY === CHECKPOINTS.BINARY_STRIPPED },
@@ -695,6 +707,7 @@ async function main() {
         outputStrippedBinary,
         packageName: PACKAGE_NAME,
         platform: TARGET_PLATFORM,
+        withDawn: WITH_DAWN,
         withLief: WITH_LIEF,
       },
       { skipCheckpoint: BUILD_ONLY === CHECKPOINTS.BINARY_COMPRESSED },

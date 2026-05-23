@@ -910,6 +910,9 @@ importers:
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
+      dawn-builder:
+        specifier: workspace:*
+        version: link:../dawn-builder
       yoctocolors-cjs:
         specifier: 'catalog:'
         version: 2.1.3

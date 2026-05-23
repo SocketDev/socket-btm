@@ -58,6 +58,9 @@ import {
 } from '@socketsecurity/lib-stable/logger'
 import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
+import { getBuildPaths as getDawnBuildPaths } from 'dawn-builder/scripts/paths'
+import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
+
 import { copyBuildAdditions } from './copy-additions.mts'
 import { PATCHES_SOURCE_PATCHED_DIR } from './paths.mts'
 import {
@@ -135,6 +138,7 @@ export async function buildRelease(config, buildOptions = {}) {
     sharedBuildDir,
     sharedSourceDir,
     testFile,
+    withDawn,
     withLief,
   } = config
 
@@ -645,6 +649,35 @@ export async function buildRelease(config, buildOptions = {}) {
     // Only disable LIEF when explicitly NOT wanted
     // Otherwise defaults to enabled (Node.js default on mac/linux/win)
     configureFlags.push('--without-lief')
+  }
+
+  // Dawn / WebGPU support: opt-in via --with-dawn. Hard-fails when
+  // requested but dawn-builder's artifact is missing — building Dawn
+  // takes 30-60 min so the operator must produce it explicitly via
+  // `pnpm --filter dawn-builder build` before re-running this flow.
+  //
+  // The artifact's canonical path lives in dawn-builder's paths.mts;
+  // we import getBuildPaths from there to avoid re-deriving the
+  // layout (per the "1 path, 1 reference" rule). When the configure.py
+  // + node.gyp patches land (D6), the gate's success flips
+  // `node_use_dawn=true` into the configure flags below.
+  if (withDawn) {
+    const dawnPaths = getDawnBuildPaths(buildMode, getCurrentPlatformArch())
+    if (!existsSync(dawnPaths.outputLibFile)) {
+      throw new Error(
+        '--with-dawn requested but dawn-builder artifact is missing.\n\n' +
+          `Expected: ${dawnPaths.outputLibFile}\n\n` +
+          'Build Dawn first:\n' +
+          '  pnpm --filter dawn-builder build' +
+          (buildMode === 'prod' ? ':prod' : '') +
+          '\n\n' +
+          'Then re-run this build with --with-dawn.',
+      )
+    }
+    // D6 will append: `configureFlags.push('--with-dawn')` here.
+    // For now the gate alone is the integration contract — the
+    // HAVE_DAWN compile-time define wiring (configure.py + node.gyp)
+    // lands once the Dawn build has been smoke-tested.
   }
 
   // For Linux x64 builds, disable OpenSSL assembly to avoid AVX/AVX2 instructions

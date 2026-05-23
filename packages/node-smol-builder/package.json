@@ -27,6 +27,7 @@
     "@socketsecurity/lib-stable": "catalog:",
     "bin-infra": "workspace:*",
     "build-infra": "workspace:*",
+    "dawn-builder": "workspace:*",
     "yoctocolors-cjs": "catalog:"
   },
   "devDependencies": {

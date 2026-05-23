@@ -10,6 +10,8 @@
  * Use getExistingPaths() to filter to only existing directories when needed.
  */
 
+export * from '../../../scripts/paths.mts'
+
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -409,7 +411,15 @@ export function getSharedBuildPaths() {
 // - COMPRESS_BINARY_SCRIPT → binary-compressed/shared/paths.mts
 // This ensures checkpoint-specific paths are tracked in cache keys appropriately.
 
-// External monorepo packages
+// External monorepo packages.
+//
+// Sibling packages that own their own scripts/paths.mts (dawn-builder,
+// yoga-layout-builder) get their PACKAGE_ROOT imported here; siblings
+// without a canonical paths.mts are re-derived (no other owner exists).
+import { PACKAGE_ROOT as YOGA_LAYOUT_BUILDER_DIR_FROM_OWNER } from 'yoga-layout-builder/scripts/paths'
+
+export const YOGA_LAYOUT_BUILDER_DIR = YOGA_LAYOUT_BUILDER_DIR_FROM_OWNER
+
 export const BINPRESS_DIR = path.join(PACKAGE_ROOT, '..', 'binpress')
 export const BINFLATE_DIR = path.join(PACKAGE_ROOT, '..', 'binflate')
 export const BINJECT_DIR = path.join(PACKAGE_ROOT, '..', 'binject')
@@ -423,11 +433,6 @@ export const TEMPORAL_INFRA_DIR = path.join(
 )
 export const TUI_INFRA_DIR = path.join(PACKAGE_ROOT, '..', 'tui-infra')
 export const LSQUIC_INFRA_DIR = path.join(PACKAGE_ROOT, '..', 'lsquic-infra')
-export const YOGA_LAYOUT_BUILDER_DIR = path.join(
-  PACKAGE_ROOT,
-  '..',
-  'yoga-layout-builder',
-)
 
 // Build output directories
 export const BINJECTED_DIR = path.join(

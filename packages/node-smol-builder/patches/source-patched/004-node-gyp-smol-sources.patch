@@ -71,7 +71,7 @@
            ],
          }],
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
-@@ -1055,14 +1079,322 @@
+@@ -1055,14 +1079,330 @@
            ],
            'dependencies': [
              'deps/ncrypto/ncrypto.gyp:ncrypto',
@@ -294,6 +294,14 @@
 +            'src/socketsecurity/postgres/postgres_async.cc',
 +          ],
 +          'dependencies': [ 'deps/libpq/libpq.gyp:libpq' ],
++        }],
++        # Socket Security: Optional Dawn WebGPU.
++        # Uses prebuilt libwebgpu_dawn from deps/dawn (built via dawn-builder).
++        # No node-side .cc sources yet — wiring just the HAVE_DAWN define
++        # + lib dependency for downstream webgpu binding sources.
++        ['node_use_dawn=="true"', {
++          'defines': [ 'HAVE_DAWN=1' ],
++          'dependencies': [ 'deps/dawn/dawn.gyp:dawn' ],
 +        }],
          [ 'node_use_lief=="true" and node_shared_lief=="false"', {
            'defines': [ 'HAVE_LIEF=1' ],

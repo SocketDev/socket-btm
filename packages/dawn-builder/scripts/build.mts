@@ -160,13 +160,19 @@ async function main(): Promise<void> {
       `go not found on PATH. Dawn's Tint code generator requires Go; install actions/setup-go in the workflow.`,
     )
   }
+  const genOutDir = path.join(paths.cmakeDir, 'gen')
+  // Pass `all` (the cmdAll default) instead of just `sources` so the
+  // build command also runs — Tint's build step writes additional
+  // .h headers that the C++ compile depends on. Also pass --verbose
+  // so the gen tool logs each processed template.
   const genResult = await spawn(
     goPath,
     [
       'run',
       path.join(UPSTREAM_DAWN_DIR, 'tools', 'src', 'cmd', 'gen', 'main.go'),
       'sources',
-      path.join(paths.cmakeDir, 'gen'),
+      '--verbose',
+      genOutDir,
     ],
     {
       cwd: UPSTREAM_DAWN_DIR,
@@ -176,6 +182,20 @@ async function main(): Promise<void> {
   if (genResult.code !== 0) {
     throw new Error(
       `Tint source generation failed with exit code ${genResult.code}. See stderr above.`,
+    )
+  }
+  // Diagnostic: confirm the gen tool actually produced the canonical
+  // first-target output file. If empty, the gen tool exited 0 without
+  // doing work — typically a DawnRoot() walk-up failure due to
+  // missing DEPS in the search path or a runtime.Caller path issue.
+  const enumsCc = path.join(
+    genOutDir, 'src', 'tint', 'lang', 'core', 'enums.cc',
+  )
+  if (!existsSync(enumsCc)) {
+    throw new Error(
+      `Tint gen produced no output: ${enumsCc} is missing after go run completed successfully. ` +
+        `This typically means fileutils.DawnRoot() failed to locate the DEPS file (gen runs from ` +
+        `${UPSTREAM_DAWN_DIR} but template discovery walks up from runtime.Caller paths).`,
     )
   }
 

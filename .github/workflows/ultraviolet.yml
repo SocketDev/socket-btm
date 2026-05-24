@@ -348,7 +348,10 @@ jobs:
           mkdir -p "$HEADERS_DIR"
           echo "Downloading Node ${NODE_VERSION} headers from ${HEADERS_URL}"
           curl -fSL "$HEADERS_URL" -o "${HEADERS_DIR}/headers.tar.gz"
-          tar -xzf "${HEADERS_DIR}/headers.tar.gz" -C "$HEADERS_DIR"
+          # Windows MSYS bsdtar interprets `D:` in a path as a remote
+          # host. --force-local tells tar to treat colons as part of
+          # the local path.
+          tar --force-local -xzf "${HEADERS_DIR}/headers.tar.gz" -C "$HEADERS_DIR"
           INCLUDE_DIR="${HEADERS_DIR}/node-v${NODE_VERSION}/include/node"
           if [ ! -f "${INCLUDE_DIR}/node_api.h" ]; then
             echo "× node_api.h not at ${INCLUDE_DIR}"

@@ -107,16 +107,12 @@ jobs:
             arch: arm64
             os: linux
             libc: glibc
-          # Windows builds.
-          - runner: windows-2022
-            platform: win32
-            arch: x64
-            os: windows
-          - runner: windows-2022
-            platform: win32
-            arch: arm64
-            os: windows
-            cross_compile: true
+          # No Windows matrix — Dawn's D3D backend requires DirectX
+          # SDK headers (DXProgrammableCapture.h etc.) that ship with
+          # MSVC but not with mingw / clang-mingw. Building Dawn on
+          # Windows needs MSVC + Windows SDK; revisit when the build
+          # script grows MSVC support or when we ship Dawn via the
+          # Vulkan-only backend on Windows.
 
     steps:
       - name: Checkout repository
@@ -300,43 +296,6 @@ jobs:
             libxcb-sync-dev libxshmfence-dev libxrandr-dev \
             libwayland-dev wayland-protocols \
             libxinerama-dev libxcursor-dev libxi-dev
-
-      - name: Setup build toolchain (Windows x64)
-        if: |
-          matrix.os == 'windows' && !matrix.cross_compile &&
-          ((steps.dawn-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
-          steps.restore-checkpoint.outputs.build-required == 'true')
-        shell: bash
-        run: |
-          for i in 1 2 3; do
-            if choco install cmake ninja ccache -y; then
-              break
-            fi
-            echo "Attempt $i failed, retrying in 10 seconds..."
-            sleep 10
-          done
-
-      - name: Setup build toolchain (Windows ARM64 cross-compile)
-        if: |
-          matrix.os == 'windows' && matrix.cross_compile &&
-          ((steps.dawn-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
-          steps.restore-checkpoint.outputs.build-required == 'true')
-        shell: bash
-        run: |
-          for i in 1 2 3; do
-            if choco install cmake ninja ccache -y; then
-              break
-            fi
-            echo "Attempt $i failed, retrying in 10 seconds..."
-            sleep 10
-          done
-
-      - name: Install llvm-mingw (Windows ARM64 cross-compile)
-        if: |
-          matrix.os == 'windows' && matrix.cross_compile &&
-          ((steps.dawn-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
-          steps.restore-checkpoint.outputs.build-required == 'true')
-        uses: ./.github/actions/install-llvm-mingw
 
       - name: Setup Go (Dawn Tint code generator)
         # Dawn's Tint shader compiler regenerates its enum / intrinsic /
@@ -600,8 +559,6 @@ jobs:
           - darwin-x64
           - linux-arm64
           - linux-x64
-          - win32-arm64
-          - win32-x64
 
           ## Files
           Each platform archive contains:

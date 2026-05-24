@@ -1,5 +1,5 @@
 # @node-versions: v26.1.0
-# @description: Add --with-postgres/--with-iouring/--with-{node,smol}-quic/--with-smol-http3/--without-smol-tui configure options + drop cargo gate
+# @description: Add --with-postgres/--with-iouring/--with-dawn/--with-{node,smol}-quic/--with-smol-http3/--without-smol-tui configure options + drop cargo gate
 #
 # Adds configure options for building Node.js with PostgreSQL support
 # and optional io_uring acceleration (both disabled by default).
@@ -32,7 +32,7 @@
 #
 --- a/configure.py
 +++ b/configure.py
-@@ -1058,13 +1058,49 @@
+@@ -1058,13 +1058,55 @@
      dest='without_ffi',
      default=None,
      help='build without FFI (Foreign Function Interface) support')
@@ -48,6 +48,12 @@
 +    dest='with_iouring',
 +    default=None,
 +    help='build with io_uring support (Linux only, requires liburing)')
++
++parser.add_argument('--with-dawn',
++    action='store_true',
++    dest='with_dawn',
++    default=None,
++    help='build with Dawn WebGPU (enables WebGPU API, requires libwebgpu_dawn from dawn-builder)')
  
  parser.add_argument('--experimental-quic',
      action='store_true',
@@ -94,18 +100,23 @@
      # Minimum cargo and rustc versions should match values in BUILDING.md.
      min_cargo_ver_tuple = (1, 82)
      min_rustc_ver_tuple = (1, 82)
-@@ -2345,10 +2381,47 @@
+@@ -2345,10 +2387,52 @@
      return
- 
+
    configure_library('ffi', o, pkgname='libffi')
 +
 +def configure_postgres(o):
 +  # Socket Security: PostgreSQL is disabled by default (requires libpq).
 +  o['variables']['node_use_postgres'] = b(options.with_postgres)
- 
+
 +def configure_iouring(o):
 +  # Socket Security: io_uring is disabled by default (Linux only, requires liburing).
 +  o['variables']['node_use_iouring'] = b(options.with_iouring)
++
++def configure_dawn(o):
++  # Socket Security: Dawn WebGPU is disabled by default (requires
++  # libwebgpu_dawn from dawn-builder).
++  o['variables']['node_use_dawn'] = b(options.with_dawn)
 +
 +def configure_smol_tui(o):
 +  # Socket Security: tui-infra + Yoga + node:smol-tui (default enabled).
@@ -144,12 +155,13 @@
  
  def configure_static(o):
    if options.fully_static or options.partly_static:
-@@ -2802,6 +2875,9 @@
+@@ -2802,6 +2885,10 @@
  configure_lief(output);
  configure_sqlite(output);
  configure_ffi(output);
 +configure_postgres(output);
 +configure_iouring(output);
++configure_dawn(output);
 +configure_smol_tui(output);
  configure_library('temporal_capi', output)
  configure_library('uvwasi', output)

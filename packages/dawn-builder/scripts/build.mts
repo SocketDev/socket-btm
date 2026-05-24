@@ -287,6 +287,23 @@ async function main(): Promise<void> {
   await safeMkdir(path.dirname(paths.outputLibFile), { recursive: true })
   copyFileSync(builtLib, paths.outputLibFile)
   logger.success(`Dawn built at ${paths.outputLibFile}`)
+
+  // Stage public headers alongside the static lib. Dawn's CMake build
+  // only emits libs to <out>/lib; the public C / C++ API headers ship
+  // from the upstream tree directly. Copy them into <out>/include so
+  // the workflow's verify-output + archive steps see a complete set.
+  const headerSrcDir = path.join(UPSTREAM_DAWN_DIR, 'include')
+  const headerDstDir = path.join(paths.outputDir, 'include')
+  await safeMkdir(headerDstDir, { recursive: true })
+  // Two top-level header subtrees: include/dawn/ + include/webgpu/.
+  for (const sub of ['dawn', 'webgpu']) {
+    const src = path.join(headerSrcDir, sub)
+    const dst = path.join(headerDstDir, sub)
+    if (existsSync(src)) {
+      await fs.cp(src, dst, { recursive: true })
+    }
+  }
+  logger.success(`Dawn headers staged at ${headerDstDir}`)
 }
 
 main().catch(err => {

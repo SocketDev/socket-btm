@@ -37,8 +37,7 @@
  * Build caching (ccache) lands in a follow-up.
  */
 
-import { copyFileSync, existsSync } from 'node:fs'
-import fs from 'node:fs/promises'
+import { copyFileSync, existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'

@@ -74,10 +74,10 @@ const BINSUITE_DEPS: UpstreamEntry[] = [
 ]
 // Each entry below fires the freshness gate before node-smol publish runs,
 // requiring that builder's workflow to be re-dispatched when its
-// cache-version bumps. Workflows that don't yet exist on disk
-// (dawn.yml / libpq.yml / onnxruntime.yml / yoga.yml) land in follow-up
-// commits — the dispatchWorkflow string here is the pre-declared name so
-// the error message points the right direction.
+// cache-version bumps. Two workflows don't yet exist on disk:
+// dawn.yml + libpq.yml — land in follow-up commits, dispatchWorkflow
+// string is the pre-declared name so the error message points the
+// right direction.
 const NODE_SMOL_DEPS: UpstreamEntry[] = [
   { pkg: 'binflate', dispatchWorkflow: 'binsuite.yml' },
   { pkg: 'binject', dispatchWorkflow: 'binsuite.yml' },
@@ -86,7 +86,7 @@ const NODE_SMOL_DEPS: UpstreamEntry[] = [
   { pkg: 'libpq', dispatchWorkflow: 'libpq.yml' },
   { pkg: 'onnxruntime', dispatchWorkflow: 'onnxruntime.yml' },
   { pkg: 'opentui', dispatchWorkflow: 'opentui.yml' },
-  { pkg: 'yoga-layout', dispatchWorkflow: 'yoga.yml' },
+  { pkg: 'yoga-layout', dispatchWorkflow: 'yoga-layout.yml' },
 ]
 const CHAIN: ChainEntry[] = [
   // Leaves — no upstream deps.

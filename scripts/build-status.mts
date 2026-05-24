@@ -81,7 +81,7 @@ const BUILDERS: BuilderEntry[] = [
   { pkg: 'lief', tier: 1, dispatchWorkflow: 'lief.yml' },
   { pkg: 'onnxruntime', tier: 1, dispatchWorkflow: 'onnxruntime.yml' },
   { pkg: 'opentui', tier: 1, dispatchWorkflow: 'opentui.yml' },
-  { pkg: 'yoga-layout', tier: 1, dispatchWorkflow: 'yoga.yml' },
+  { pkg: 'yoga-layout', tier: 1, dispatchWorkflow: 'yoga-layout.yml' },
   { pkg: 'stubs', tier: 2, dispatchWorkflow: 'stubs.yml' },
   { pkg: 'binflate', tier: 3, dispatchWorkflow: 'binsuite.yml' },
   { pkg: 'binject', tier: 3, dispatchWorkflow: 'binsuite.yml' },

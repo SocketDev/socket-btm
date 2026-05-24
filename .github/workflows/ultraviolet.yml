@@ -61,6 +61,13 @@ env:
   # packages/napi-go-infra/external-tools.json. Keep this string in
   # sync with both manifests; check-publish-prereq.mts gates drift.
   GO_VERSION: '1.25.3'
+  # Socket Firewall blocks proxy.golang.org / sum.golang.org egress
+  # (TLS handshake fails with "bad certificate" since SFW is not the
+  # expected CA). Force direct github.com fetches — SFW already permits
+  # github.com (the submodule init step succeeds via the same host) and
+  # disable the checksum database since it shares the same proxy block.
+  GOPROXY: direct
+  GOSUMDB: 'off'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

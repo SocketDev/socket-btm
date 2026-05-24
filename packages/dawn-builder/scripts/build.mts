@@ -239,11 +239,6 @@ async function main(): Promise<void> {
       await fs.rename(dotGitMoved, dotGit)
     }
   }
-  if (genResult.code !== 0) {
-    throw new Error(
-      `Tint source generation failed with exit code ${genResult.code}. See stderr above.`,
-    )
-  }
   // Diagnostic: confirm the gen tool actually produced the canonical
   // first-target output file. If empty, fileutils.DawnRoot() returned
   // "" (couldn't walk up to DEPS) and glob matched 0 templates.

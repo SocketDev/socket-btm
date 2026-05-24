@@ -111,7 +111,7 @@ async function main(): Promise<void> {
     )
   }
 
-  const platformArch = getCurrentPlatformArch()
+  const platformArch = await getCurrentPlatformArch()
   const paths = getBuildPaths(opts.mode, platformArch)
 
   await safeMkdir(paths.cmakeDir, { recursive: true })

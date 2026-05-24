@@ -188,6 +188,16 @@ async function main(): Promise<void> {
   logger.info(`DEPS exists at ${depsPath}: ${existsSync(depsPath)}`)
   logger.info(`gen binary: ${genBin} (exists: ${existsSync(genBin)})`)
   logger.info(`output dir: ${genOutDir}`)
+  // Strings dump of fileutils source paths embedded in the binary —
+  // these are the values runtime.Caller will report, which DawnRoot's
+  // walk-up uses to find DEPS. If the embedded path doesn't anchor at
+  // <dawn>/tools/src/fileutils/, DawnRoot fails silently.
+  logger.info('Embedded fileutils paths in binary:')
+  const stringsResult = await spawn('sh', [
+    '-c',
+    `strings "${genBin}" | grep -E 'fileutils/paths\\.go|tools/src/fileutils' | head -5`,
+  ], { stdio: 'inherit' })
+  logger.info(`strings probe exit: ${stringsResult.code}`)
   logger.info(`Running: ${genBin} sources ${genOutDir} (cwd=${UPSTREAM_DAWN_DIR})`)
   const genResult = await spawn(
     genBin,

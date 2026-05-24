@@ -60,6 +60,17 @@ const SPECS: EnsureSpec[] = [
     verifyAt: 'verifyCodet5At',
   },
   {
+    builderPath: 'packages/curl-builder',
+    exists: 'curlExists',
+    existsAt: 'curlExistsAt',
+    getCurrent: 'getCurrentCurlPlatformArch',
+    getLocalBuildDir: 'getCurlLocalBuildDir',
+    helperName: 'ensureCurl',
+    helperPath: 'lib/ensure-curl.mts',
+    name: 'curl',
+    verifyAt: 'verifyCurlAt',
+  },
+  {
     builderPath: 'packages/dawn-builder',
     exists: 'dawnExists',
     existsAt: 'dawnExistsAt',

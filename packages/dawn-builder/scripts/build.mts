@@ -173,6 +173,7 @@ async function main(): Promise<void> {
   const genBinDir = path.join(paths.cmakeDir, '.gen-bin')
   await safeMkdir(genBinDir, { recursive: true })
   const genBin = path.join(genBinDir, process.platform === 'win32' ? 'gen.exe' : 'gen')
+  logger.info(`Compiling gen → ${genBin}`)
   const buildBin = await spawn(
     goPath,
     ['build', '-o', genBin, './tools/src/cmd/gen'],
@@ -181,11 +182,19 @@ async function main(): Promise<void> {
   if (buildBin.code !== 0) {
     throw new Error(`go build of Tint gen tool failed with exit code ${buildBin.code}.`)
   }
+  // Diagnostics — confirm what the gen binary will actually see.
+  const depsPath = path.join(UPSTREAM_DAWN_DIR, 'DEPS')
+  logger.info(`UPSTREAM_DAWN_DIR=${UPSTREAM_DAWN_DIR}`)
+  logger.info(`DEPS exists at ${depsPath}: ${existsSync(depsPath)}`)
+  logger.info(`gen binary: ${genBin} (exists: ${existsSync(genBin)})`)
+  logger.info(`output dir: ${genOutDir}`)
+  logger.info(`Running: ${genBin} sources ${genOutDir} (cwd=${UPSTREAM_DAWN_DIR})`)
   const genResult = await spawn(
     genBin,
     ['sources', genOutDir],
     { cwd: UPSTREAM_DAWN_DIR, stdio: 'inherit' },
   )
+  logger.info(`gen exit code: ${genResult.code}`)
   if (genResult.code !== 0) {
     throw new Error(
       `Tint source generation failed with exit code ${genResult.code}. See stderr above.`,

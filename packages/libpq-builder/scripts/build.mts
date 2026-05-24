@@ -67,6 +67,17 @@ const postgresUpstream = path.join(packageRoot, 'upstream', 'postgres')
 const CROSS_COMPILE = process.env.CROSS_COMPILE === '1'
 const TARGET_ARCH = process.env.TARGET_ARCH || process.arch
 
+// GNU make's built-in implicit C compile rule references $(TARGET_ARCH)
+// as a standard recipe variable (historically used for `-m64`-style
+// flags). When TARGET_ARCH is set as an env var, make picks it up as
+// a make variable and appends it to the gcc command line, where gcc
+// interprets the raw value (e.g. `x64`) as a positional input file
+// and fails with `error: x64: linker input file not found`.
+//
+// We've already captured the value above, so unset it before spawning
+// any make/cmake/configure that descends into upstream Makefiles.
+delete process.env.TARGET_ARCH
+
 /**
  * Get build directories for a given platform-arch.
  *

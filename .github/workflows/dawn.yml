@@ -60,6 +60,15 @@ permissions:
 
 env:
   HOMEBREW_NO_ANALYTICS: '1'
+  # Dawn's Tint shader compiler regenerates sources via `go run`
+  # (see Setup Go step below). Socket Firewall intercepts proxy.golang.org
+  # and golang.org/x/<mod>?go-get=1 with its own CA which Go doesn't
+  # trust on Linux runners. Same mitigation as ultraviolet.yml: direct
+  # github fetches + skip cert verification for module discovery
+  # (integrity still guaranteed by Tint's own go.sum).
+  GOPROXY: direct
+  GOINSECURE: '*'
+  GOSUMDB: 'off'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

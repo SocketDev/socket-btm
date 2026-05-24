@@ -197,7 +197,11 @@ jobs:
           MODE_BUILD_DIR="${PACKAGE_DIR}/build/${BUILD_MODE}"
           PLATFORM_BUILD_DIR="${MODE_BUILD_DIR}/${PLATFORM_ARCH}"
           FINAL_DIR="${PLATFORM_BUILD_DIR}/out/Final"
-          LIBPQ_DIR="${FINAL_DIR}/libpq"
+          # libpq-builder's copyDistributionFiles() lands the static
+          # library + headers under `out/Final/libpq/dist/`, not under
+          # the `libpq` dir directly. The `dist/` segment is the
+          # PostgreSQL `--prefix` install root passed to configure.
+          LIBPQ_DIR="${FINAL_DIR}/libpq/dist"
           CHECKPOINTS_DIR="${PLATFORM_BUILD_DIR}/checkpoints"
           {
             echo "package_dir=${PACKAGE_DIR}"
@@ -373,10 +377,19 @@ jobs:
         run: |
           cd "$LIBPQ_DIR"
           ARCHIVE_NAME="libpq-${PLATFORM}-${ARCH}"
-          OUTPUT_PATH="../../../../${ARCHIVE_NAME}.tar.gz"
+          OUTPUT_PATH="../../../../../${ARCHIVE_NAME}.tar.gz"
           echo "Creating archive: ${ARCHIVE_NAME}.tar.gz"
+          # libpq-builder's copyDistributionFiles lays out:
+          #   dist/libpq.a            — PostgreSQL client library
+          #   dist/libpgcommon.a      — shared utility code (link-required)
+          #   dist/libpgport.a        — portability shims (link-required)
+          #   dist/include/           — public headers
+          # All three libs ship because the consuming gyp wrapper
+          # (deps/libpq/libpq.gyp) links them together.
           tar -czf "${OUTPUT_PATH}" \
             libpq.a \
+            libpgcommon.a \
+            libpgport.a \
             include/
           echo "✅ Archive created"
 

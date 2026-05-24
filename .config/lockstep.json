@@ -105,8 +105,8 @@
       "kind": "version-pin",
       "id": "node",
       "upstream": "node",
-      "pinned_sha": "1eaf8a9bd9b665c104bc49f1890e962dddc87d8c",
-      "pinned_tag": "v26.0.0",
+      "pinned_sha": "cfd7920d5a2d84905c4292362d01d07870047e93",
+      "pinned_tag": "v26.2.0",
       "upgrade_policy": "major-gate",
       "criticality": 10,
       "notes": "node-smol-builder produces the slim Node.js runtime for Socket Firewall. Major bumps require wide testing (V8 API churn, perf regressions); patch/minor auto-track."

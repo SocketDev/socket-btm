@@ -1,4 +1,4 @@
-# node-26.1.0 sha256:ccaf9bfea12ec3d2beb36f5a1d54483f2620ad9de007e551fb8640ed82d29989
+# node-26.2.0 sha256:37032a75a677f063dbe22f0cc72249a3a2faff2ce71056b63771d6967bd63384
 [submodule "packages/node-smol-builder/upstream/node"]
 	path = packages/node-smol-builder/upstream/node
 	url = https://github.com/nodejs/node.git

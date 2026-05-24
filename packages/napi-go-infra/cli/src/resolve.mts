@@ -61,17 +61,31 @@ export function getGoTarget(platformArch) {
  */
 export function getNodeIncludeDir() {
   const exec = process.execPath
-  let cur = path.dirname(path.dirname(exec)) // drop bin/
-  for (let i = 0; i < 4; i++) {
-    const candidate = path.join(cur, 'include', 'node')
-    if (existsSync(path.join(candidate, 'node_api.h'))) {
-      return candidate
+  // Start one level up from node.exe / node and also consider the
+  // sibling directory directly. Posix tarball layout puts node in
+  // <prefix>/bin/node so the headers are at <prefix>/include/node;
+  // Windows tool-cache layout puts node.exe directly at <prefix>/node.exe
+  // (no bin/) so the headers are at <prefix>/include/node from the
+  // EXE's own directory.
+  const candidates = [
+    // Posix: <prefix>/bin/node -> <prefix>/include/node
+    path.dirname(path.dirname(exec)),
+    // Windows: <prefix>/node.exe -> <prefix>/include/node
+    path.dirname(exec),
+  ]
+  for (const start of candidates) {
+    let cur = start
+    for (let i = 0; i < 4; i++) {
+      const candidate = path.join(cur, 'include', 'node')
+      if (existsSync(path.join(candidate, 'node_api.h'))) {
+        return candidate
+      }
+      const parent = path.dirname(cur)
+      if (parent === cur) {
+        break
+      }
+      cur = parent
     }
-    const parent = path.dirname(cur)
-    if (parent === cur) {
-      break
-    }
-    cur = parent
   }
   throw new Error(
     `napi-go: could not locate Node.js headers. Expected 'node_api.h' ` +

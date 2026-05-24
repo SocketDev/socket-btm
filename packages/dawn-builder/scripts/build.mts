@@ -146,21 +146,37 @@ async function main(): Promise<void> {
     )
   }
 
-  // Generate Tint sources first, serially. Tint's `add_custom_command`
-  // declares OUTPUT ${TINT_GENERATED_SOURCES} but ninja schedules
-  // dependent C++ compiles before the go-run completes, producing
-  // "No such file or directory" on enums.cc when the parallel build
-  // races. Build the explicit `tint_generate_sources` target first
-  // (single-threaded) to materialize all generated .cc/.h files before
-  // any compile-target picks them up.
-  logger.step('Generating Tint source files (serial)')
+  // Generate Tint sources first, serially. Invoking via CMake's
+  // tint_generate_sources target swallowed `go run` failures (cmake's
+  // add_custom_command reports success even on non-zero exit when the
+  // OUTPUT files exist from a prior run OR are declared but missing —
+  // ninja just schedules dependents anyway). Calling `go run` directly
+  // surfaces the real exit code and lets us fail loudly with the actual
+  // gen tool's stderr.
+  logger.step('Generating Tint source files (direct go run)')
+  const goPath = await which('go')
+  if (!goPath) {
+    throw new Error(
+      `go not found on PATH. Dawn's Tint code generator requires Go; install actions/setup-go in the workflow.`,
+    )
+  }
   const genResult = await spawn(
-    cmakePath,
-    ['--build', paths.cmakeDir, '--target', 'tint_generate_sources'],
-    { stdio: 'inherit' },
+    goPath,
+    [
+      'run',
+      path.join(UPSTREAM_DAWN_DIR, 'tools', 'src', 'cmd', 'gen', 'main.go'),
+      'sources',
+      path.join(paths.cmakeDir, 'gen'),
+    ],
+    {
+      cwd: UPSTREAM_DAWN_DIR,
+      stdio: 'inherit',
+    },
   )
   if (genResult.code !== 0) {
-    throw new Error(`tint_generate_sources failed with exit code ${genResult.code}`)
+    throw new Error(
+      `Tint source generation failed with exit code ${genResult.code}. See stderr above.`,
+    )
   }
 
   // CMake build — produces libwebgpu_dawn.a + transitive Tint /

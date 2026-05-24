@@ -133,6 +133,47 @@ jobs:
       debug: ${{ inputs.debug }}
     secrets: inherit
 
+  # Tier-1 leaves consumed by node-smol that don't feed into the
+  # curl→stubs→binsuite chain. They run in parallel with lief + curl
+  # (same rank-1 gate) and node-smol waits for them via its needs:
+  # list. Tier-1 builders without an existing workflow (libpq, dawn)
+  # will be added here when their workflows land.
+  yoga-layout:
+    name: Stage 1 — yoga-layout
+    needs: resolve-window
+    if: needs.resolve-window.outputs.from-rank <= '1'
+    uses: ./.github/workflows/yoga-layout.yml
+    with:
+      dry-run: ${{ inputs.dry-run }}
+      force: ${{ inputs.force }}
+      build-mode: ${{ inputs.build-mode }}
+      debug: ${{ inputs.debug }}
+    secrets: inherit
+
+  opentui:
+    name: Stage 1 — opentui
+    needs: resolve-window
+    if: needs.resolve-window.outputs.from-rank <= '1'
+    uses: ./.github/workflows/opentui.yml
+    with:
+      dry-run: ${{ inputs.dry-run }}
+      force: ${{ inputs.force }}
+      build-mode: ${{ inputs.build-mode }}
+      debug: ${{ inputs.debug }}
+    secrets: inherit
+
+  onnxruntime:
+    name: Stage 1 — onnxruntime
+    needs: resolve-window
+    if: needs.resolve-window.outputs.from-rank <= '1'
+    uses: ./.github/workflows/onnxruntime.yml
+    with:
+      dry-run: ${{ inputs.dry-run }}
+      force: ${{ inputs.force }}
+      build-mode: ${{ inputs.build-mode }}
+      debug: ${{ inputs.debug }}
+    secrets: inherit
+
   curl:
     name: Stage 2 — curl
     needs: [resolve-window, lief]
@@ -186,12 +227,25 @@ jobs:
 
   node-smol:
     name: Stage 5 — node-smol
-    needs: [resolve-window, binsuite]
+    # Waits for binsuite (SMOL chain) AND all tier-1 leaves consumed
+    # by node-smol that don't feed binsuite (yoga-layout, opentui,
+    # onnxruntime — and later libpq, dawn when their workflows land).
+    # All must be either success or skipped; failure of any blocks
+    # node-smol since they're linked at build time.
+    needs:
+      - resolve-window
+      - binsuite
+      - yoga-layout
+      - opentui
+      - onnxruntime
     if: |
       always()
       && needs.resolve-window.outputs.from-rank <= '5'
       && needs.resolve-window.outputs.stop-rank >= '5'
       && (needs.binsuite.result == 'success' || needs.binsuite.result == 'skipped')
+      && (needs['yoga-layout'].result == 'success' || needs['yoga-layout'].result == 'skipped')
+      && (needs.opentui.result == 'success' || needs.opentui.result == 'skipped')
+      && (needs.onnxruntime.result == 'success' || needs.onnxruntime.result == 'skipped')
     uses: ./.github/workflows/node-smol.yml
     with:
       dry-run: ${{ inputs.dry-run }}
@@ -202,7 +256,16 @@ jobs:
 
   summary:
     name: Orchestration summary
-    needs: [resolve-window, lief, curl, stubs, binsuite, node-smol]
+    needs:
+      - resolve-window
+      - lief
+      - yoga-layout
+      - opentui
+      - onnxruntime
+      - curl
+      - stubs
+      - binsuite
+      - node-smol
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 1
@@ -213,6 +276,9 @@ jobs:
           CURL_RESULT: ${{ needs.curl.result }}
           STUBS_RESULT: ${{ needs.stubs.result }}
           BINSUITE_RESULT: ${{ needs.binsuite.result }}
+          YOGA_RESULT: ${{ needs['yoga-layout'].result }}
+          OPENTUI_RESULT: ${{ needs.opentui.result }}
+          ONNXRUNTIME_RESULT: ${{ needs.onnxruntime.result }}
           NODE_SMOL_RESULT: ${{ needs['node-smol'].result }}
           FROM: ${{ inputs.from }}
           STOP_AT: ${{ inputs.stop-at }}
@@ -226,17 +292,20 @@ jobs:
             echo ""
             echo "| Stage | Result |"
             echo "| --- | --- |"
-            echo "| lief      | $LIEF_RESULT |"
-            echo "| curl      | $CURL_RESULT |"
-            echo "| stubs     | $STUBS_RESULT |"
-            echo "| binsuite  | $BINSUITE_RESULT |"
-            echo "| node-smol | $NODE_SMOL_RESULT |"
+            echo "| lief         | $LIEF_RESULT |"
+            echo "| yoga-layout  | $YOGA_RESULT |"
+            echo "| opentui      | $OPENTUI_RESULT |"
+            echo "| onnxruntime  | $ONNXRUNTIME_RESULT |"
+            echo "| curl         | $CURL_RESULT |"
+            echo "| stubs        | $STUBS_RESULT |"
+            echo "| binsuite     | $BINSUITE_RESULT |"
+            echo "| node-smol    | $NODE_SMOL_RESULT |"
           } >> "$GITHUB_STEP_SUMMARY"
           # Fail the orchestration if any executed stage failed.
           # `skipped` is fine (out of window or upstream skipped); only
           # `failure`, `cancelled`, or `timed_out` should fail us.
           fail=0
-          for r in "$LIEF_RESULT" "$CURL_RESULT" "$STUBS_RESULT" "$BINSUITE_RESULT" "$NODE_SMOL_RESULT"; do
+          for r in "$LIEF_RESULT" "$YOGA_RESULT" "$OPENTUI_RESULT" "$ONNXRUNTIME_RESULT" "$CURL_RESULT" "$STUBS_RESULT" "$BINSUITE_RESULT" "$NODE_SMOL_RESULT"; do
             case "$r" in
               success|skipped) ;;
               *) fail=1 ;;

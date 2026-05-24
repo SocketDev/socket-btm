@@ -93,16 +93,13 @@ jobs:
             arch: arm64
             os: linux
             libc: glibc
-          # Windows builds.
-          - runner: windows-2022
-            platform: win32
-            arch: x64
-            os: windows
-          - runner: windows-2022
-            platform: win32
-            arch: arm64
-            os: windows
-            cross_compile: true
+          # No Windows matrix — PostgreSQL's libpq on Windows is
+          # built via MSBuild or meson, not autotools. The bundled
+          # `./configure` shell script doesn't execute under Windows
+          # cmd / PowerShell (ENOENT on spawn even with MinGW present).
+          # node-smol's PostgreSQL integration is Linux + macOS only
+          # for now; Windows libpq can be added behind a separate
+          # meson-driven build script when the consumer needs it.
 
     steps:
       - name: Checkout repository
@@ -293,43 +290,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake ccache build-essential
 
-      - name: Setup build toolchain (Windows x64)
-        if: |
-          matrix.os == 'windows' && !matrix.cross_compile &&
-          ((steps.libpq-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
-          steps.restore-checkpoint.outputs.build-required == 'true')
-        shell: bash
-        run: |
-          for i in 1 2 3; do
-            if choco install cmake mingw ccache -y; then
-              break
-            fi
-            echo "Attempt $i failed, retrying in 10 seconds..."
-            sleep 10
-          done
-
-      - name: Setup build toolchain (Windows ARM64 cross-compile)
-        if: |
-          matrix.os == 'windows' && matrix.cross_compile &&
-          ((steps.libpq-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
-          steps.restore-checkpoint.outputs.build-required == 'true')
-        shell: bash
-        run: |
-          for i in 1 2 3; do
-            if choco install cmake ccache -y; then
-              break
-            fi
-            echo "Attempt $i failed, retrying in 10 seconds..."
-            sleep 10
-          done
-
-      - name: Install llvm-mingw (Windows ARM64 cross-compile)
-        if: |
-          matrix.os == 'windows' && matrix.cross_compile &&
-          ((steps.libpq-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
-          steps.restore-checkpoint.outputs.build-required == 'true')
-        uses: ./.github/actions/install-llvm-mingw
-
       - name: Build libpq native
         if: |
           (steps.libpq-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
@@ -338,6 +298,16 @@ jobs:
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
           TARGET_ARCH: ${{ matrix.arch }}
+          # PLATFORM_ARCH is consumed by getCurrentPlatformArch() to
+          # resolve the build output directory. Setting it explicitly
+          # is the only reliable way to land output under the matrix
+          # target when host != target — e.g. darwin-x64 on the M2
+          # depot runner, where process.arch reports `arm64`.
+          PLATFORM_ARCH: ${{ steps.platform-arch-cache.outputs.platform_arch }}
+          # darwin-x64 on the M2 depot runner is cross-compile.
+          # libpq-builder reads CROSS_COMPILE=1 to flip on the
+          # `--host=x86_64-apple-darwin` autotools triple.
+          CROSS_COMPILE: ${{ (matrix.os == 'macos' && matrix.arch == 'x64') && '1' || '' }}
         run: |
           cd packages/libpq-builder
           pnpm run build
@@ -535,12 +505,10 @@ jobs:
           - darwin-x64
           - linux-arm64
           - linux-x64
-          - win32-arm64
-          - win32-x64
 
           ## Files
           Each platform archive contains:
-          - Static library (\`libpq.a\`)
+          - Static libraries (\`libpq.a\`, \`libpgcommon.a\`, \`libpgport.a\`)
           - Header files (\`include/\` directory)
 
           Use \`checksums.txt\` to verify archive integrity." \

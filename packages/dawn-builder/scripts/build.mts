@@ -146,6 +146,23 @@ async function main(): Promise<void> {
     )
   }
 
+  // Generate Tint sources first, serially. Tint's `add_custom_command`
+  // declares OUTPUT ${TINT_GENERATED_SOURCES} but ninja schedules
+  // dependent C++ compiles before the go-run completes, producing
+  // "No such file or directory" on enums.cc when the parallel build
+  // races. Build the explicit `tint_generate_sources` target first
+  // (single-threaded) to materialize all generated .cc/.h files before
+  // any compile-target picks them up.
+  logger.step('Generating Tint source files (serial)')
+  const genResult = await spawn(
+    cmakePath,
+    ['--build', paths.cmakeDir, '--target', 'tint_generate_sources'],
+    { stdio: 'inherit' },
+  )
+  if (genResult.code !== 0) {
+    throw new Error(`tint_generate_sources failed with exit code ${genResult.code}`)
+  }
+
   // CMake build — produces libwebgpu_dawn.a + transitive Tint /
   // SPIRV-Tools static libs.
   const buildArgs = [

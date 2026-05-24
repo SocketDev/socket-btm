@@ -12,6 +12,9 @@ import process from 'node:process'
  *
  * @type {Readonly<Record<string, { goos: string, goarch: string }>>}
  */
+// The canonical fleet form is win32-* (matches Node's process.platform);
+// win-* aliases are retained for any downstream that still uses the
+// GitHub-release artifact-naming convention.
 export const GO_TARGETS = Object.freeze({
   __proto__: null,
   'darwin-arm64': { goos: 'darwin', goarch: 'arm64' },
@@ -22,6 +25,8 @@ export const GO_TARGETS = Object.freeze({
   'linux-x64-musl': { goos: 'linux', goarch: 'amd64' },
   'win-arm64': { goos: 'windows', goarch: 'arm64' },
   'win-x64': { goos: 'windows', goarch: 'amd64' },
+  'win32-arm64': { goos: 'windows', goarch: 'arm64' },
+  'win32-x64': { goos: 'windows', goarch: 'amd64' },
 })
 
 /**

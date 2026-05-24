@@ -93,6 +93,17 @@ const SPECS: EnsureSpec[] = [
     verifyAt: 'verifyLibpqAt',
   },
   {
+    builderPath: 'packages/lief-builder',
+    exists: 'liefExists',
+    existsAt: 'liefExistsAt',
+    getCurrent: 'getCurrentLiefPlatformArch',
+    getLocalBuildDir: 'getLiefLocalBuildDir',
+    helperName: 'ensureLief',
+    helperPath: 'lib/ensure-lief.mts',
+    name: 'lief',
+    verifyAt: 'verifyLiefAt',
+  },
+  {
     builderPath: 'packages/minilm-builder',
     exists: 'minilmExists',
     existsAt: 'minilmExistsAt',

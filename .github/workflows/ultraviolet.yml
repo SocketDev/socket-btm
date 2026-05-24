@@ -344,21 +344,21 @@ jobs:
         run: |
           NODE_VERSION=$(node -p 'process.versions.node')
           HEADERS_URL="https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-headers.tar.gz"
-          HEADERS_DIR="${RUNNER_TEMP}/node-headers"
+          # RUNNER_TEMP on Windows is `D:\a\_temp` (Windows-style); MSYS
+          # tar can't reliably handle backslash + drive-letter paths
+          # even with --force-local. Convert to POSIX form first.
+          HEADERS_DIR="$(cygpath -u "${RUNNER_TEMP}")/node-headers"
           mkdir -p "$HEADERS_DIR"
           echo "Downloading Node ${NODE_VERSION} headers from ${HEADERS_URL}"
           curl -fSL "$HEADERS_URL" -o "${HEADERS_DIR}/headers.tar.gz"
-          # Windows MSYS bsdtar interprets `D:` in a path as a remote
-          # host. --force-local tells tar to treat colons as part of
-          # the local path.
-          tar --force-local -xzf "${HEADERS_DIR}/headers.tar.gz" -C "$HEADERS_DIR"
+          tar -xzf "${HEADERS_DIR}/headers.tar.gz" -C "$HEADERS_DIR"
           INCLUDE_DIR="${HEADERS_DIR}/node-v${NODE_VERSION}/include/node"
           if [ ! -f "${INCLUDE_DIR}/node_api.h" ]; then
             echo "× node_api.h not at ${INCLUDE_DIR}"
             ls -la "${HEADERS_DIR}"
             exit 1
           fi
-          # Convert to Windows path for downstream consumers.
+          # Convert back to Windows path for downstream Go consumers.
           echo "NODE_API_INCLUDE_DIR=$(cygpath -w "$INCLUDE_DIR")" >> "$GITHUB_ENV"
           echo "✅ Node headers ready at ${INCLUDE_DIR}"
 

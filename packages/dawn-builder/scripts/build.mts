@@ -161,17 +161,12 @@ async function main(): Promise<void> {
     )
   }
   const genOutDir = path.join(paths.cmakeDir, 'gen')
-  // Pass `all` (the cmdAll default) instead of just `sources` so the
-  // build command also runs — Tint's build step writes additional
-  // .h headers that the C++ compile depends on. Also pass --verbose
-  // so the gen tool logs each processed template.
   const genResult = await spawn(
     goPath,
     [
       'run',
       path.join(UPSTREAM_DAWN_DIR, 'tools', 'src', 'cmd', 'gen', 'main.go'),
       'sources',
-      '--verbose',
       genOutDir,
     ],
     {

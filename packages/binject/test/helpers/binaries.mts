@@ -3,8 +3,7 @@
  * Downloads node-smol binaries or falls back to official Node.js releases
  */
 
-import { existsSync, readFileSync } from 'node:fs'
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { existsSync, promises as fs, readFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
@@ -120,11 +119,11 @@ export async function downloadBinary(url) {
 // oxlint-disable-next-line socket/sort-source-methods -- helpers ordered by download pipeline (resolve URL → fetch → extract → cache → return path); alphabetizing would scatter the flow.
 export async function extractFromTarGz(tarGzData, extractPath) {
   const tempDir = path.join(os.tmpdir(), `binject-extract-${Date.now()}`)
-  await mkdir(tempDir, { recursive: true })
+  await fs.mkdir(tempDir, { recursive: true })
 
   // Write tar.gz to temp file
   const tarGzPath = path.join(tempDir, 'archive.tar.gz')
-  await writeFile(tarGzPath, tarGzData)
+  await fs.writeFile(tarGzPath, tarGzData)
 
   // Extract specific file
   await extract({
@@ -134,10 +133,10 @@ export async function extractFromTarGz(tarGzData, extractPath) {
   })
 
   const extractedPath = path.join(tempDir, extractPath)
-  const binary = await readFile(extractedPath)
+  const binary = await fs.readFile(extractedPath)
 
   // Cleanup
-  await rm(tempDir, { force: true, recursive: true })
+  await fs.rm(tempDir, { force: true, recursive: true })
 
   return binary
 }
@@ -176,7 +175,7 @@ export async function getNodeBinary(platform, arch) {
   }
 
   // Ensure cache directory exists
-  await mkdir(CACHE_DIR, { recursive: true })
+  await fs.mkdir(CACHE_DIR, { recursive: true })
 
   const extension = platform === 'win32' ? '.exe' : ''
   const cachedPath = path.join(
@@ -230,7 +229,7 @@ export async function getNodeBinary(platform, arch) {
   }
 
   // Cache the binary
-  await writeFile(cachedPath, binaryData, { mode: 0o755 })
+  await fs.writeFile(cachedPath, binaryData, { mode: 0o755 })
   logger.info(`Cached binary to ${cachedPath}`)
 
   return {

@@ -6,8 +6,7 @@
  * Without LIEF, only native platform injection works for Mach-O.
  */
 
-import { existsSync } from 'node:fs'
-import { stat, unlink, writeFile } from 'node:fs/promises'
+import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
@@ -84,7 +83,7 @@ describeOrSkip('Cross-platform binary manipulation', () => {
       test('should inject SEA blob into binary', async () => {
         // Write test blob to temp file (use .blob extension to avoid SEA config processing)
         const blobPath = path.join(tmpdir(), `test-blob-${Date.now()}.blob`)
-        await writeFile(blobPath, testSeaBlob)
+        await fs.writeFile(blobPath, testSeaBlob)
 
         try {
           // Inject using binject
@@ -108,12 +107,12 @@ describeOrSkip('Cross-platform binary manipulation', () => {
 
           // Note: Output may be smaller than input for Mach-O due to signature stripping
           // We just verify the output exists and has reasonable size
-          const outputStats = await stat(outputPath)
+          const outputStats = await fs.stat(outputPath)
           expect(outputStats.size).toBeGreaterThan(0)
         } finally {
           // Cleanup
           if (existsSync(blobPath)) {
-            await unlink(blobPath).catch(() => {})
+            await fs.unlink(blobPath).catch(() => {})
           }
         }
       })
@@ -132,7 +131,7 @@ describeOrSkip('Cross-platform binary manipulation', () => {
           tmpdir(),
           `test-blob-reinject-${Date.now()}.blob`,
         )
-        await writeFile(blobPath, newBlob)
+        await fs.writeFile(blobPath, newBlob)
 
         try {
           // Re-inject
@@ -155,17 +154,17 @@ describeOrSkip('Cross-platform binary manipulation', () => {
           expect(existsSync(outputPath)).toBeTruthy()
 
           // Verify output still has reasonable size after re-injection
-          const afterStats = await stat(outputPath)
+          const afterStats = await fs.stat(outputPath)
 
           // Just verify it's still a valid binary (not empty or corrupted)
           expect(afterStats.size).toBeGreaterThan(0)
         } finally {
           // Cleanup
           if (existsSync(blobPath)) {
-            await unlink(blobPath).catch(() => {})
+            await fs.unlink(blobPath).catch(() => {})
           }
           if (existsSync(outputPath)) {
-            await unlink(outputPath).catch(() => {})
+            await fs.unlink(outputPath).catch(() => {})
           }
         }
       })

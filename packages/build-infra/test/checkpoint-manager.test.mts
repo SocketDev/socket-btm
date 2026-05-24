@@ -4,7 +4,6 @@
  */
 
 import { existsSync, promises as fs } from 'node:fs'
-import { readFile, readdir } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -549,7 +548,7 @@ describe('checkpoint-manager', () => {
  * Recursively find all .mts files in a directory
  */
 export async function findMjsFiles(dir, files = []) {
-  const entries = await readdir(dir, { withFileTypes: true })
+  const entries = await fs.readdir(dir, { withFileTypes: true })
 
   for (let i = 0, { length } = entries; i < length; i += 1) {
     const entry = entries[i]
@@ -705,7 +704,7 @@ describe('createCheckpoint signature validation', () => {
     for (let i = 0, { length } = scriptFiles; i < length; i += 1) {
       const file = scriptFiles[i]
       // eslint-disable-next-line no-await-in-loop
-      const content = await readFile(file, 'utf8')
+      const content = await fs.readFile(file, 'utf8')
       const errors = validateCreateCheckpointCall(content, file)
       allErrors.push(...errors)
     }

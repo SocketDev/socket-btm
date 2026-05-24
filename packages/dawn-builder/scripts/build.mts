@@ -38,6 +38,7 @@
  */
 
 import { copyFileSync, existsSync } from 'node:fs'
+import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -198,13 +199,47 @@ async function main(): Promise<void> {
     `strings "${genBin}" | grep -E 'fileutils/paths\\.go|tools/src/fileutils' | head -5`,
   ], { stdio: 'inherit' })
   logger.info(`strings probe exit: ${stringsResult.code}`)
-  logger.info(`Running: ${genBin} sources ${genOutDir} (cwd=${UPSTREAM_DAWN_DIR})`)
-  const genResult = await spawn(
-    genBin,
-    ['sources', genOutDir],
-    { cwd: UPSTREAM_DAWN_DIR, stdio: 'inherit' },
-  )
-  logger.info(`gen exit code: ${genResult.code}`)
+  // Upstream Tint's glob.Scan walker has a latent bug:
+  //
+  //   if rel == ".git" { return filepath.SkipDir }
+  //
+  // is meant to skip the .git DIRECTORY, but in a git submodule checkout
+  // `.git` is a regular FILE (a gitdir pointer like
+  // "gitdir: ../../.git/modules/<path>"). When filepath.Walk's callback
+  // returns SkipDir for a file, Go skips the REMAINDER of the parent
+  // directory — so the walker stops after 7 entries (`.bazelrc`,
+  // `.bazelversion`, `.clang-format*`, `.git`) and never reaches
+  // `src/tint/**/*.tmpl`, producing zero matches, zero generated files,
+  // and a silent exit code 0.
+  //
+  // Workaround: temporarily move the .git file out of the way before
+  // invoking gen, and restore it after. We can't patch upstream (fleet
+  // forbids forks of canonical upstream sources), and the gen tool
+  // doesn't honor any env-var override.
+  const dotGit = path.join(UPSTREAM_DAWN_DIR, '.git')
+  const dotGitMoved = path.join(UPSTREAM_DAWN_DIR, '.git.moved-for-tint-gen')
+  const dotGitExists = existsSync(dotGit)
+  if (dotGitExists) {
+    await fs.rename(dotGit, dotGitMoved)
+  }
+  try {
+    logger.info(`Running: ${genBin} sources ${genOutDir} (cwd=${UPSTREAM_DAWN_DIR})`)
+    const genResult = await spawn(
+      genBin,
+      ['sources', genOutDir],
+      { cwd: UPSTREAM_DAWN_DIR, stdio: 'inherit' },
+    )
+    logger.info(`gen exit code: ${genResult.code}`)
+    if (genResult.code !== 0) {
+      throw new Error(
+        `Tint source generation failed with exit code ${genResult.code}.`,
+      )
+    }
+  } finally {
+    if (dotGitExists) {
+      await fs.rename(dotGitMoved, dotGit)
+    }
+  }
   if (genResult.code !== 0) {
     throw new Error(
       `Tint source generation failed with exit code ${genResult.code}. See stderr above.`,

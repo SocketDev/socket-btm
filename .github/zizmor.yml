@@ -5,10 +5,23 @@ rules:
   secrets-outside-env:
     disable: true
 
-  superfluous-actions:
+  secrets-inherit:
     ignore:
-      # False positive: needed for cross-compilation targets via `targets:` input
-      - iocraft.yml:154
+      # orchestrate.yml is the SMOL chain orchestrator. Every `uses:`
+      # of a child workflow needs `secrets: inherit` so the called
+      # workflow can authenticate (GITHUB_TOKEN, depot OIDC, etc.).
+      # Listing each secret explicitly would duplicate every child
+      # workflow's secret needs in the orchestrator, and any new secret
+      # in a child would require parallel updates here. The inherit
+      # pattern is what makes the orchestrator generic.
+      - orchestrate.yml:128
+      - orchestrate.yml:145
+      - orchestrate.yml:157
+      - orchestrate.yml:169
+      - orchestrate.yml:188
+      - orchestrate.yml:204
+      - orchestrate.yml:219
+      - orchestrate.yml:249
 
   template-injection:
     ignore:

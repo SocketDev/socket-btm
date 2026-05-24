@@ -118,16 +118,14 @@ jobs:
             arch: arm64
             os: linux
             libc: glibc
-          # Windows builds.
-          - runner: windows-2022
-            platform: win32
-            arch: x64
-            os: windows
-          - runner: windows-2022
-            platform: win32
-            arch: arm64
-            os: windows
-            cross_compile: true
+          # No Windows matrix — napi-go-infra's reference build driver
+          # currently only supports POSIX C compilers (clang/gcc).
+          # Windows builds error with:
+          #   napi-go: Windows builds are not yet supported by the
+          #   reference build driver. Set NAPI_GO_CC to a working C
+          #   compiler, or contribute MSVC support.
+          # Add Windows here once napi-go-infra grows MSVC support OR
+          # we wire up clang-cl via NAPI_GO_CC.
 
     steps:
       - name: Checkout repository
@@ -322,45 +320,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential clang
-
-      - name: Setup C toolchain (Windows ARM64 cross-compile)
-        if: |
-          matrix.os == 'windows' && matrix.cross_compile &&
-          ((steps.ultraviolet-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
-          steps.restore-checkpoint.outputs.build-required == 'true')
-        uses: ./.github/actions/install-llvm-mingw
-
-      - name: Fetch Node headers (Windows)
-        # actions/setup-node ships the Windows tool-cache as just the
-        # standalone .exe — no `include/node/` directory. napi-go-infra
-        # needs `node_api.h` to link against, so download the
-        # source-tarball headers package and point NODE_API_INCLUDE_DIR
-        # at the extracted include/node/ for the build step.
-        if: |
-          matrix.os == 'windows' &&
-          ((steps.ultraviolet-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
-          steps.restore-checkpoint.outputs.build-required == 'true')
-        shell: bash
-        run: |
-          NODE_VERSION=$(node -p 'process.versions.node')
-          HEADERS_URL="https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-headers.tar.gz"
-          # RUNNER_TEMP on Windows is `D:\a\_temp` (Windows-style); MSYS
-          # tar can't reliably handle backslash + drive-letter paths
-          # even with --force-local. Convert to POSIX form first.
-          HEADERS_DIR="$(cygpath -u "${RUNNER_TEMP}")/node-headers"
-          mkdir -p "$HEADERS_DIR"
-          echo "Downloading Node ${NODE_VERSION} headers from ${HEADERS_URL}"
-          curl -fSL "$HEADERS_URL" -o "${HEADERS_DIR}/headers.tar.gz"
-          tar -xzf "${HEADERS_DIR}/headers.tar.gz" -C "$HEADERS_DIR"
-          INCLUDE_DIR="${HEADERS_DIR}/node-v${NODE_VERSION}/include/node"
-          if [ ! -f "${INCLUDE_DIR}/node_api.h" ]; then
-            echo "× node_api.h not at ${INCLUDE_DIR}"
-            ls -la "${HEADERS_DIR}"
-            exit 1
-          fi
-          # Convert back to Windows path for downstream Go consumers.
-          echo "NODE_API_INCLUDE_DIR=$(cygpath -w "$INCLUDE_DIR")" >> "$GITHUB_ENV"
-          echo "✅ Node headers ready at ${INCLUDE_DIR}"
 
       - name: Build ultraviolet native
         if: |
@@ -566,8 +525,6 @@ jobs:
           - darwin-x64
           - linux-arm64
           - linux-x64
-          - win32-arm64
-          - win32-x64
 
           ## Files
           Each platform archive contains:

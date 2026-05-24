@@ -161,18 +161,30 @@ async function main(): Promise<void> {
     )
   }
   const genOutDir = path.join(paths.cmakeDir, 'gen')
-  const genResult = await spawn(
+  // Compile the gen tool to a real binary under the dawn checkout
+  // rather than using `go run`. Tint's fileutils.DawnRoot() walks up
+  // from runtime.Caller's path looking for a DEPS file — `go run`
+  // can normalize source paths in ways that defeat the walk (we've
+  // seen 0.3s exits with no output even though the gen tool builds
+  // cleanly). A `go build -o <dawn>/build/.../gen` keeps the source
+  // paths embedded as the actual dawn checkout, so DawnRoot's walk
+  // up from /<dawn>/tools/src/fileutils/paths.go finds DEPS at
+  // /<dawn>/DEPS as expected.
+  const genBinDir = path.join(paths.cmakeDir, '.gen-bin')
+  await safeMkdir(genBinDir, { recursive: true })
+  const genBin = path.join(genBinDir, process.platform === 'win32' ? 'gen.exe' : 'gen')
+  const buildBin = await spawn(
     goPath,
-    [
-      'run',
-      path.join(UPSTREAM_DAWN_DIR, 'tools', 'src', 'cmd', 'gen', 'main.go'),
-      'sources',
-      genOutDir,
-    ],
-    {
-      cwd: UPSTREAM_DAWN_DIR,
-      stdio: 'inherit',
-    },
+    ['build', '-o', genBin, './tools/src/cmd/gen'],
+    { cwd: UPSTREAM_DAWN_DIR, stdio: 'inherit' },
+  )
+  if (buildBin.code !== 0) {
+    throw new Error(`go build of Tint gen tool failed with exit code ${buildBin.code}.`)
+  }
+  const genResult = await spawn(
+    genBin,
+    ['sources', genOutDir],
+    { cwd: UPSTREAM_DAWN_DIR, stdio: 'inherit' },
   )
   if (genResult.code !== 0) {
     throw new Error(
@@ -180,17 +192,16 @@ async function main(): Promise<void> {
     )
   }
   // Diagnostic: confirm the gen tool actually produced the canonical
-  // first-target output file. If empty, the gen tool exited 0 without
-  // doing work — typically a DawnRoot() walk-up failure due to
-  // missing DEPS in the search path or a runtime.Caller path issue.
+  // first-target output file. If empty, fileutils.DawnRoot() returned
+  // "" (couldn't walk up to DEPS) and glob matched 0 templates.
   const enumsCc = path.join(
     genOutDir, 'src', 'tint', 'lang', 'core', 'enums.cc',
   )
   if (!existsSync(enumsCc)) {
     throw new Error(
-      `Tint gen produced no output: ${enumsCc} is missing after go run completed successfully. ` +
-        `This typically means fileutils.DawnRoot() failed to locate the DEPS file (gen runs from ` +
-        `${UPSTREAM_DAWN_DIR} but template discovery walks up from runtime.Caller paths).`,
+      `Tint gen produced no output: ${enumsCc} is missing. ` +
+        `DawnRoot() likely returned "" (couldn't find DEPS in walked-up parents). ` +
+        `Try running the gen binary with strace -f -e openat to confirm.`,
     )
   }
 

@@ -448,8 +448,10 @@ jobs:
         run: |
           cd "$OUT_DIR"
           ARCHIVE_NAME="dawn-${PLATFORM}-${ARCH}"
-          # Up to mode build dir (out → platform → mode).
-          OUTPUT_PATH="../../../${ARCHIVE_NAME}.tar.gz"
+          # cwd = <pkg>/build/<mode>/<platformArch>/out; climb 2
+          # levels (out → platformArch → mode) to land at MODE_BUILD_DIR
+          # where Verify archive exists looks.
+          OUTPUT_PATH="../../${ARCHIVE_NAME}.tar.gz"
           echo "Creating archive: ${ARCHIVE_NAME}.tar.gz"
           tar -czf "${OUTPUT_PATH}" \
             lib/libwebgpu_dawn.a \

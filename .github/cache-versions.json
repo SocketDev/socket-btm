@@ -8,7 +8,7 @@
     "codet5": "v1",
     "curl": "v39",
     "dawn": "v1",
-    "libpq": "v1",
+    "libpq": "v2",
     "lief": "v75",
     "minilm": "v1",
     "models": "v34",

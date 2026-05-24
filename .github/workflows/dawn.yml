@@ -352,6 +352,25 @@ jobs:
           go-version: '1.25.3'
           cache: false
 
+      - name: Pre-fetch Dawn Tint Go modules
+        # Pre-fetch with explicit verbose output so any TLS/cert
+        # failure surfaces here instead of being swallowed by CMake's
+        # add_custom_command (which has been reporting success even
+        # when `go run` exits non-zero with module-fetch errors).
+        if: |
+          (steps.dawn-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true'
+        shell: bash
+        run: |
+          cd packages/dawn-builder/upstream/dawn/tools/src
+          echo "::group::go version + env"
+          go version
+          go env GOPROXY GOINSECURE GOSUMDB GOMODCACHE
+          echo "::endgroup::"
+          echo "::group::go mod download (verbose)"
+          go mod download -x
+          echo "::endgroup::"
+
       - name: Build Dawn native
         if: |
           (steps.dawn-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||

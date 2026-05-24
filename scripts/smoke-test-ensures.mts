@@ -71,6 +71,17 @@ const SPECS: EnsureSpec[] = [
     verifyAt: 'verifyDawnAt',
   },
   {
+    builderPath: 'packages/libpq-builder',
+    exists: 'libpqExists',
+    existsAt: 'libpqExistsAt',
+    getCurrent: 'getCurrentLibpqPlatformArch',
+    getLocalBuildDir: 'getLibpqLocalBuildDir',
+    helperName: 'ensureLibpq',
+    helperPath: 'lib/ensure-libpq.mts',
+    name: 'libpq',
+    verifyAt: 'verifyLibpqAt',
+  },
+  {
     builderPath: 'packages/minilm-builder',
     exists: 'minilmExists',
     existsAt: 'minilmExistsAt',

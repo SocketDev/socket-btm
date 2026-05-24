@@ -295,7 +295,7 @@ jobs:
           # driver headers. The headers list mirrors Dawn's CI docs
           # (https://dawn.googlesource.com/dawn/+/refs/heads/main/docs/dawn/building.md).
           sudo apt-get install -y \
-            cmake ninja-build ccache build-essential \
+            cmake ninja-build ccache build-essential clang \
             libx11-xcb-dev libxcb-dri3-dev libxcb-present-dev \
             libxcb-sync-dev libxshmfence-dev libxrandr-dev \
             libwayland-dev wayland-protocols \
@@ -389,6 +389,15 @@ jobs:
         env:
           BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
           TARGET_ARCH: ${{ matrix.arch }}
+          # On Linux force clang. Dawn's source uses C++20 patterns
+          # that don't compile cleanly under GCC 13 (template
+          # instantiation issues with std::array<ApiObjectList, N>::==
+          # for types lacking operator==). Dawn's own CI uses clang on
+          # Linux. macOS already uses Apple Clang; Windows uses MSVC
+          # or clang-cl. ${{ matrix.os == 'linux' && '...' || '' }} sets
+          # CC/CXX only on Linux entries.
+          CC: ${{ matrix.os == 'linux' && 'clang' || '' }}
+          CXX: ${{ matrix.os == 'linux' && 'clang++' || '' }}
         run: |
           cd packages/dawn-builder
           # Use prod or dev based on build mode; the build.mts wraps

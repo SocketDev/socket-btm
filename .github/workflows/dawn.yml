@@ -353,22 +353,32 @@ jobs:
           cache: false
 
       - name: Pre-fetch Dawn Tint Go modules
-        # Pre-fetch with explicit verbose output so any TLS/cert
-        # failure surfaces here instead of being swallowed by CMake's
-        # add_custom_command (which has been reporting success even
-        # when `go run` exits non-zero with module-fetch errors).
+        # Pre-fetch from the dawn submodule's go.mod root (NOT
+        # tools/src/ — there's no go.mod there). go run during the
+        # build invokes the gen tool from the same module, so this
+        # populates the module cache that the build will use. Verbose
+        # output surfaces TLS / network errors that would otherwise be
+        # swallowed by CMake's add_custom_command or by `go run`'s
+        # silent fallthrough.
         if: |
           (steps.dawn-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
           steps.restore-checkpoint.outputs.build-required == 'true'
         shell: bash
         run: |
-          cd packages/dawn-builder/upstream/dawn/tools/src
+          cd packages/dawn-builder/upstream/dawn
           echo "::group::go version + env"
           go version
           go env GOPROXY GOINSECURE GOSUMDB GOMODCACHE
           echo "::endgroup::"
           echo "::group::go mod download (verbose)"
           go mod download -x
+          echo "::endgroup::"
+          echo "::group::dry-run gen build"
+          # Verify the gen tool actually compiles + links. `go build`
+          # writes /dev/null but tries the same module graph that
+          # `go run` will use during the cmake build, surfacing any
+          # silent error here instead of mid-cmake-build.
+          go build -o /dev/null ./tools/src/cmd/gen
           echo "::endgroup::"
 
       - name: Build Dawn native

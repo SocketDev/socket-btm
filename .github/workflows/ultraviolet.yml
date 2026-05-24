@@ -330,6 +330,35 @@ jobs:
           steps.restore-checkpoint.outputs.build-required == 'true')
         uses: ./.github/actions/install-llvm-mingw
 
+      - name: Fetch Node headers (Windows)
+        # actions/setup-node ships the Windows tool-cache as just the
+        # standalone .exe — no `include/node/` directory. napi-go-infra
+        # needs `node_api.h` to link against, so download the
+        # source-tarball headers package and point NODE_API_INCLUDE_DIR
+        # at the extracted include/node/ for the build step.
+        if: |
+          matrix.os == 'windows' &&
+          ((steps.ultraviolet-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true')
+        shell: bash
+        run: |
+          NODE_VERSION=$(node -p 'process.versions.node')
+          HEADERS_URL="https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-headers.tar.gz"
+          HEADERS_DIR="${RUNNER_TEMP}/node-headers"
+          mkdir -p "$HEADERS_DIR"
+          echo "Downloading Node ${NODE_VERSION} headers from ${HEADERS_URL}"
+          curl -fSL "$HEADERS_URL" -o "${HEADERS_DIR}/headers.tar.gz"
+          tar -xzf "${HEADERS_DIR}/headers.tar.gz" -C "$HEADERS_DIR"
+          INCLUDE_DIR="${HEADERS_DIR}/node-v${NODE_VERSION}/include/node"
+          if [ ! -f "${INCLUDE_DIR}/node_api.h" ]; then
+            echo "× node_api.h not at ${INCLUDE_DIR}"
+            ls -la "${HEADERS_DIR}"
+            exit 1
+          fi
+          # Convert to Windows path for downstream consumers.
+          echo "NODE_API_INCLUDE_DIR=$(cygpath -w "$INCLUDE_DIR")" >> "$GITHUB_ENV"
+          echo "✅ Node headers ready at ${INCLUDE_DIR}"
+
       - name: Build ultraviolet native
         if: |
           (steps.ultraviolet-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||

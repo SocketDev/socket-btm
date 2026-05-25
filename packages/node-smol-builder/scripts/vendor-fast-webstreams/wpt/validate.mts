@@ -410,7 +410,21 @@ async function main(): Promise<void> {
 
   logger.info(`Binary: ${opts.binary}`)
   logger.info(`Test files: ${testFiles.length}`)
-  logger.info(`WPT ref: ${ref.slice(0, 8)}`)
+  // Surface the submodule SHA — the version pointer post-migration.
+  // Best-effort; if `git -C` fails we just skip the line.
+  try {
+    const shaResult = await spawn(
+      'git',
+      ['-C', WPT_SUBMODULE_DIR, 'rev-parse', 'HEAD'],
+      { stdio: ['inherit', 'pipe', 'pipe'] },
+    )
+    const sha = String(shaResult.stdout ?? '').trim()
+    if (sha) {
+      logger.info(`WPT ref: ${sha.slice(0, 8)}`)
+    }
+  } catch {
+    // Silent — informational only.
+  }
   if (opts.filter) {
     logger.info(`Filter: ${opts.filter}`)
   }

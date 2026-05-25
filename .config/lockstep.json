@@ -36,7 +36,7 @@
       "repo": "https://github.com/Mbed-TLS/mbedtls"
     },
     "wpt": {
-      "submodule": "packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/streams",
+      "submodule": "packages/node-smol-builder/test/fixtures/wpt/streams",
       "repo": "https://github.com/web-platform-tests/wpt"
     },
     "liburing": {

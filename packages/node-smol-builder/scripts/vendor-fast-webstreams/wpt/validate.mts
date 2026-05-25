@@ -17,7 +17,7 @@
  *
  * Usage:
  *   node scripts/vendor-fast-webstreams/wpt/validate.mts [binary-path]
- *   node scripts/vendor-fast-webstreams/wpt/validate.mts --fetch   # Force re-fetch
+ *   node scripts/vendor-fast-webstreams/wpt/validate.mts --force   # Force re-init the wpt streams submodule
  *   node scripts/vendor-fast-webstreams/wpt/validate.mts --filter=readable-streams
  *
  * If no binary path provided, uses the dev Final binary.
@@ -38,7 +38,7 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 
 type CliOptions = {
   binary: string
-  fetch: boolean
+  force: boolean
   filter: string
   verbose: boolean
 }
@@ -276,15 +276,15 @@ export function parseArgs(): CliOptions {
   const args = process.argv.slice(2)
   const opts: CliOptions = {
     binary: DEFAULT_BINARY,
-    fetch: false,
     filter: '',
+    force: false,
     verbose: false,
   }
 
   for (let i = 0, { length } = args; i < length; i += 1) {
     const arg = args[i]
-    if (arg === '--fetch') {
-      opts.fetch = true
+    if (arg === '--force') {
+      opts.force = true
     } else if (arg === '--verbose') {
       opts.verbose = true
     } else if (arg.startsWith('--filter=')) {
@@ -382,7 +382,7 @@ async function main(): Promise<void> {
   // (.gitmodules gitlink) is the version pointer; sparse-checkout =
   // streams/ in .gitmodules is honored by
   // scripts/git-partial-submodule.mts.
-  await ensureWptStreams(opts.fetch)
+  await ensureWptStreams(opts.force)
 
   if (!existsSync(WPT_DIR)) {
     logger.fail('WPT streams directory not found after fetch')

@@ -35,7 +35,7 @@ pnpm --filter node-smol-builder clean && pnpm --filter node-smol-builder build
 
 Quick (15 tests): `node packages/node-smol-builder/scripts/vendor-fast-webstreams/validate.mts`
 
-Full WPT (1,116 tests): `node packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/validate.mts` (options: `--fetch`, `--filter=`, `--verbose`)
+Full WPT (1,116 tests): `node packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/validate.mts` (options: `--force`, `--filter=`, `--verbose`)
 
 ### Update Version
 

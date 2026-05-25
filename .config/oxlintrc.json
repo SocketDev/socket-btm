@@ -1,13 +1,22 @@
 {
   "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "unicorn", "import"],
-  "jsPlugins": ["./oxlint-plugin/index.mts"],
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "import"
+  ],
+  "jsPlugins": [
+    "./oxlint-plugin/index.mts"
+  ],
   "categories": {
     "correctness": "off",
     "suspicious": "off"
   },
   "rules": {
-    "eslint/curly": ["error", "all"],
+    "eslint/curly": [
+      "error",
+      "all"
+    ],
     "eslint/no-await-in-loop": "off",
     "eslint/no-console": "off",
     "eslint/no-control-regex": "off",
@@ -160,6 +169,7 @@
     "**/scripts/check-prompt-less-setup.mts",
     "**/scripts/check-soak-exclude-dates.mts",
     "**/scripts/fix.mts",
+    "**/scripts/git-partial-submodule.mts",
     "**/scripts/install-claude-plugins.mts",
     "**/scripts/install-git-hooks.mts",
     "**/scripts/install-sfw.mts",

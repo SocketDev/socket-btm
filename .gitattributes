@@ -706,6 +706,7 @@ scripts/check-paths/walk.mts linguist-generated=true
 scripts/check-prompt-less-setup.mts linguist-generated=true
 scripts/check-soak-exclude-dates.mts linguist-generated=true
 scripts/fix.mts linguist-generated=true
+scripts/git-partial-submodule.mts linguist-generated=true
 scripts/install-claude-plugins.mts linguist-generated=true
 scripts/install-git-hooks.mts linguist-generated=true
 scripts/install-sfw.mts linguist-generated=true

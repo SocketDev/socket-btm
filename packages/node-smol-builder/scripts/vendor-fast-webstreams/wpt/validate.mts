@@ -75,7 +75,12 @@ const DEFAULT_BINARY = path.join(
   PLATFORM_ARCH,
   'out/Final/node/node',
 )
-const WPT_DIR = path.join(__dirname, 'streams')
+// The submodule lives at <__dirname>/streams (as declared in
+// .gitmodules). Sparse-checkout = streams/ inside the submodule means
+// the actual WHATWG-streams test corpus is at <submodule>/streams/.
+// Conceptually: `<wpt repo root>/streams/<test files>`.
+const WPT_SUBMODULE_DIR = path.join(__dirname, 'streams')
+const WPT_DIR = path.join(WPT_SUBMODULE_DIR, 'streams')
 
 const FILE_TIMEOUT = 30_000 // 30s per file (some have 60+ tests)
 
@@ -198,21 +203,26 @@ const WPT_SUBMODULE_REL =
  * version pointer; no separate .wpt-version file.
  */
 export async function fetchWPTStreams(force: boolean = false): Promise<void> {
-  if (force && existsSync(WPT_DIR) && readdirSync(WPT_DIR).length > 0) {
+  if (
+    force &&
+    existsSync(WPT_SUBMODULE_DIR) &&
+    readdirSync(WPT_SUBMODULE_DIR).length > 0
+  ) {
     logger.info('Force re-fetching WPT streams (clearing working tree)')
-    rmSync(WPT_DIR, { recursive: true })
+    rmSync(WPT_SUBMODULE_DIR, { recursive: true })
   }
 
-  // If the working tree is already populated AND has content, trust it —
-  // `git submodule update` will reconcile any mismatch with the gitlink.
+  // If the submodule working tree is already populated, trust it —
+  // `git submodule update` reconciles any mismatch with the gitlink.
   const alreadyPopulated =
-    existsSync(WPT_DIR) && readdirSync(WPT_DIR).length > 0
+    existsSync(WPT_SUBMODULE_DIR) &&
+    readdirSync(WPT_SUBMODULE_DIR).length > 0
 
   if (!alreadyPopulated) {
     logger.info('Cloning WPT streams (sparse submodule)...')
     // Delegate to the fleet utility that reads sparse-checkout from
-    // .gitmodules. This populates ~50 MB of streams/ content instead of
-    // the full ~5 GB WPT tree.
+    // .gitmodules. Materializes only the streams/ subtree (~1 MB)
+    // instead of the full ~5 GB WPT tree.
     await spawn(
       'node',
       [
@@ -235,13 +245,13 @@ export async function fetchWPTStreams(force: boolean = false): Promise<void> {
 
   if (!existsSync(WPT_DIR) || readdirSync(WPT_DIR).length === 0) {
     throw new Error(
-      `WPT streams directory empty after fetch: ${WPT_DIR}. ` +
+      `WPT streams test corpus empty at: ${WPT_DIR}. ` +
         `Check that scripts/git-partial-submodule.mts ran successfully ` +
         `and .gitmodules has sparse-checkout = streams/ on the wpt entry.`,
     )
   }
   logger.info(
-    `WPT streams ready (${readdirSync(WPT_DIR).length} directories)`,
+    `WPT streams ready (${readdirSync(WPT_DIR).length} entries in streams/)`,
   )
 }
 

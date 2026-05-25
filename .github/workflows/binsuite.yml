@@ -63,7 +63,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
           submodules: false
-      - uses: SocketDev/socket-registry/.github/actions/setup@27eee5cbe49334ac7e0e2f69dcdfdd501300e04f # main (2026-05-15)
+      - uses: SocketDev/socket-registry/.github/actions/setup@c291a14196d088970c0453e905b40969b11bf193 # main (2026-05-15)
       - name: Check publish chain freshness
         env:
           GH_TOKEN: ${{ github.token }}
@@ -133,7 +133,7 @@ jobs:
             cross_compile: true
 
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@fe3994c0a4b58d0302ca0039603f4535c13aa942 # main (2026-05-15)
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@c291a14196d088970c0453e905b40969b11bf193 # main (2026-05-15)
       - name: Check if tool should be built
         id: build-enabled
         shell: bash
@@ -570,7 +570,7 @@ jobs:
             cross_compile: true
 
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@fe3994c0a4b58d0302ca0039603f4535c13aa942 # main (2026-05-15)
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@c291a14196d088970c0453e905b40969b11bf193 # main (2026-05-15)
       - name: Check if tool should be built
         id: build-enabled
         shell: bash
@@ -956,7 +956,7 @@ jobs:
             cross_compile: true
 
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@fe3994c0a4b58d0302ca0039603f4535c13aa942 # main (2026-05-15)
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@c291a14196d088970c0453e905b40969b11bf193 # main (2026-05-15)
       - name: Check if tool should be built
         id: build-enabled
         shell: bash

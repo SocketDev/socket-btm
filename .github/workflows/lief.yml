@@ -687,7 +687,11 @@ jobs:
 
           # Create release (extract date-hash from tag for title).
           TITLE_SUFFIX="${RELEASE_TAG#lief-}"
+          # Immutable-releases 3-step: draft → upload → publish.
+          # Single-call form races the Sigstore attestation hash.
+          # See docs/claude.md/fleet/immutable-releases.md.
           gh release create "${RELEASE_TAG}" \
+            --draft \
             --title "lief ${TITLE_SUFFIX}" \
             --notes "LIEF v${LIEF_VERSION} library for binary parsing and manipulation.
 
@@ -714,9 +718,11 @@ jobs:
           tar -xzf lief-<platform>-<arch>.tar.gz
           # Or for musl:
           tar -xzf lief-<platform>-<arch>-musl.tar.gz
-          \`\`\`" \
+          \`\`\`"
+          gh release upload "${RELEASE_TAG}" \
             release/*.tar.gz \
             release/checksums.txt
+          gh release edit "${RELEASE_TAG}" --draft=false
 
   update-checksums:
     needs: release

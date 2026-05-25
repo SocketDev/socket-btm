@@ -590,7 +590,11 @@ jobs:
 
           # Create release.
           TITLE_SUFFIX="${RELEASE_TAG#curl-}"
+          # Immutable-releases 3-step: draft → upload → publish.
+          # Single-call form races the Sigstore attestation hash.
+          # See docs/claude.md/fleet/immutable-releases.md.
           gh release create "${RELEASE_TAG}" \
+            --draft \
             --title "curl ${TITLE_SUFFIX}" \
             --notes "curl ${CURL_VERSION} with mbedTLS ${MBEDTLS_VERSION} for HTTPS support in self-extracting stubs.
 
@@ -620,9 +624,11 @@ jobs:
           tar -xzf curl-<platform>-<arch>.tar.gz
           # Or for musl:
           tar -xzf curl-<platform>-<arch>-musl.tar.gz
-          \`\`\`" \
+          \`\`\`"
+          gh release upload "${RELEASE_TAG}" \
             release/*.tar.gz \
             release/checksums.txt
+          gh release edit "${RELEASE_TAG}" --draft=false
 
   update-checksums:
     needs: release

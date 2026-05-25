@@ -514,7 +514,11 @@ jobs:
           cd ..
 
           TITLE_SUFFIX="${RELEASE_TAG#ultraviolet-}"
+          # Immutable-releases 3-step: draft → upload → publish.
+          # Single-call form races the Sigstore attestation hash.
+          # See docs/claude.md/fleet/immutable-releases.md.
           gh release create "${RELEASE_TAG}" \
+            --draft \
             --title "ultraviolet ${TITLE_SUFFIX}" \
             --notes "Charmbracelet Ultraviolet v${UV_VERSION} N-API addon for SMOL.
 
@@ -530,9 +534,11 @@ jobs:
           Each platform archive contains:
           - Native addon (\`ultraviolet.node\`)
 
-          Use \`checksums.txt\` to verify archive integrity." \
+          Use \`checksums.txt\` to verify archive integrity."
+          gh release upload "${RELEASE_TAG}" \
             release/*.tar.gz \
             release/checksums.txt
+          gh release edit "${RELEASE_TAG}" --draft=false
 
   update-checksums:
     needs: release

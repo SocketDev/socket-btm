@@ -550,7 +550,11 @@ jobs:
           cd ..
 
           TITLE_SUFFIX="${RELEASE_TAG#dawn-}"
+          # Immutable-releases 3-step: draft → upload → publish.
+          # Single-call form races the Sigstore attestation hash.
+          # See docs/claude.md/fleet/immutable-releases.md.
           gh release create "${RELEASE_TAG}" \
+            --draft \
             --title "dawn ${TITLE_SUFFIX}" \
             --notes "Dawn (Chromium WebGPU implementation) ${DAWN_VERSION} static library for SMOL.
 
@@ -565,9 +569,11 @@ jobs:
           - Static library (\`lib/libwebgpu_dawn.a\`)
           - Header files (\`include/dawn/\` directory)
 
-          Use \`checksums.txt\` to verify archive integrity." \
+          Use \`checksums.txt\` to verify archive integrity."
+          gh release upload "${RELEASE_TAG}" \
             release/*.tar.gz \
             release/checksums.txt
+          gh release edit "${RELEASE_TAG}" --draft=false
 
   update-checksums:
     needs: release

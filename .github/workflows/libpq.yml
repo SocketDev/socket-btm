@@ -496,7 +496,11 @@ jobs:
           cd ..
 
           TITLE_SUFFIX="${RELEASE_TAG#libpq-}"
+          # Immutable-releases 3-step: draft → upload → publish.
+          # Single-call form races the Sigstore attestation hash.
+          # See docs/claude.md/fleet/immutable-releases.md.
           gh release create "${RELEASE_TAG}" \
+            --draft \
             --title "libpq ${TITLE_SUFFIX}" \
             --notes "PostgreSQL libpq v${POSTGRES_VERSION} static library for SMOL.
 
@@ -511,9 +515,11 @@ jobs:
           - Static libraries (\`libpq.a\`, \`libpgcommon.a\`, \`libpgport.a\`)
           - Header files (\`include/\` directory)
 
-          Use \`checksums.txt\` to verify archive integrity." \
+          Use \`checksums.txt\` to verify archive integrity."
+          gh release upload "${RELEASE_TAG}" \
             release/*.tar.gz \
             release/checksums.txt
+          gh release edit "${RELEASE_TAG}" --draft=false
 
   update-checksums:
     needs: release

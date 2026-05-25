@@ -26,8 +26,14 @@ export const TEMPORAL_SRC_DIR = path.join(
 /** Upstream submodule root (read-only parity reference). */
 export const UPSTREAM_DIR = path.join(PACKAGE_ROOT, 'upstream', 'temporal')
 
-/** Test262 corpus root (submodule, pinned in .gitmodules). */
-export const TEST262_ROOT = path.join(PACKAGE_ROOT, 'upstream', 'test262')
+/** Test262 corpus root (sparse-checkout submodule, pinned in
+ *  .gitmodules; sparse pattern keeps just the Temporal subset). */
+export const TEST262_ROOT = path.join(
+  PACKAGE_ROOT,
+  'test',
+  'fixtures',
+  'test262',
+)
 
 /** Test262 `test/` subdir — what runners walk. */
 export const TEST262_TEST_DIR = path.join(TEST262_ROOT, 'test')

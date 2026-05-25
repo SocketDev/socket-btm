@@ -124,10 +124,14 @@
 	shallow = true
 # test262-2026.05.21 (track-latest: tc39/test262 corpus for Temporal subset; bump independently via updating-temporal-infra)
 [submodule "packages/temporal-infra/upstream/test262"]
-	path = packages/temporal-infra/upstream/test262
+	path = packages/temporal-infra/test/fixtures/test262
 	url = https://github.com/tc39/test262.git
 	ignore = dirty
 	shallow = true
+	# Honored by scripts/git-partial-submodule.mts (vanilla git ignores
+	# this field). test262 is a ~270 MB corpus; runner only walks the
+	# Temporal subsets + the shared harness/.
+	sparse-checkout = test/built-ins/Temporal/ test/intl402/Temporal/ harness/
 # lsquic-4.6.2
 [submodule "packages/lsquic-infra/upstream/lsquic"]
 	path = packages/lsquic-infra/upstream/lsquic

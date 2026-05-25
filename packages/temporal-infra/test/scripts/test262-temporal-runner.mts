@@ -2,7 +2,7 @@
 /**
  * @fileoverview Test262 Temporal subset runner — CLI + main.
  *
- * Drives `packages/temporal-infra/upstream/test262/test/built-ins/Temporal/`
+ * Drives `packages/temporal-infra/test/fixtures/test262/test/built-ins/Temporal/`
  * + `test/intl402/Temporal/` through the built node-smol binary,
  * classifies each result against an allowlist of known-failures, and
  * exits non-zero on regression OR stale allowlist entry.

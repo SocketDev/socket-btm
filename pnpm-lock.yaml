@@ -230,6 +230,12 @@ importers:
         specifier: 'catalog:'
         version: 24.9.2
 
+  .claude/hooks/dirty-worktree-on-stop-reminder:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
   .claude/hooks/dont-stop-mid-queue-reminder:
     devDependencies:
       '@types/node':
@@ -275,6 +281,12 @@ importers:
   .claude/hooks/gitmodules-comment-guard: {}
 
   .claude/hooks/identifying-users-reminder:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
+  .claude/hooks/immutable-release-pattern-guard:
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

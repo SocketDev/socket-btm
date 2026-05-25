@@ -23,14 +23,7 @@
  * If no binary path provided, uses the dev Final binary.
  */
 
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { existsSync, readdirSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -48,11 +41,6 @@ type CliOptions = {
   fetch: boolean
   filter: string
   verbose: boolean
-}
-
-type WptConfig = {
-  url: string
-  ref: string
 }
 
 type TestResult = {
@@ -87,7 +75,6 @@ const DEFAULT_BINARY = path.join(
   PLATFORM_ARCH,
   'out/Final/node/node',
 )
-const GITMODULES = path.join(MONOREPO_ROOT, '.gitmodules')
 const WPT_DIR = path.join(__dirname, 'streams')
 
 const FILE_TIMEOUT = 30_000 // 30s per file (some have 60+ tests)
@@ -192,89 +179,70 @@ const SKIP_FILES = new Set([
   'writable-streams/garbage-collection.any.js',
 ])
 
-export /**
- * Sparse checkout only streams/ directory from WPT repo
+// Path of the WPT submodule relative to the monorepo root. Used as the
+// argument to `scripts/git-partial-submodule.mts clone` and to
+// `git submodule update`.
+const WPT_SUBMODULE_REL =
+  'packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/streams'
+
+/**
+ * Ensure the WPT streams sparse-checkout submodule is populated.
+ *
+ * Uses scripts/git-partial-submodule.mts to do a partial clone honoring
+ * the `sparse-checkout = streams/` field in .gitmodules. Idempotent —
+ * `git submodule update` is a no-op when the working tree already
+ * matches the recorded gitlink SHA.
+ *
+ * `force` triggers a full re-init by removing the working tree first.
+ * The recorded SHA (.gitmodules submodule gitlink) is the canonical
+ * version pointer; no separate .wpt-version file.
  */
-async function fetchWPTStreams(
-  url: string,
-  ref: string,
-  force: boolean = false,
-): Promise<void> {
-  if (existsSync(WPT_DIR) && !force) {
-    // Check if we have the right version
-    const versionFile = path.join(__dirname, '.wpt-version')
-    if (existsSync(versionFile)) {
-      const currentRef = readFileSync(versionFile, 'utf8').trim()
-      if (currentRef === ref) {
-        logger.info(`WPT streams already fetched at ${ref.slice(0, 8)}`)
-        return
-      }
-    }
-  }
-
-  logger.info(`Fetching WPT streams at ${ref.slice(0, 8)}...`)
-
-  // Clean existing
-  if (existsSync(WPT_DIR)) {
+export async function fetchWPTStreams(force: boolean = false): Promise<void> {
+  if (force && existsSync(WPT_DIR) && readdirSync(WPT_DIR).length > 0) {
+    logger.info('Force re-fetching WPT streams (clearing working tree)')
     rmSync(WPT_DIR, { recursive: true })
   }
 
-  const tmpDir = path.join(__dirname, '.wpt-tmp')
-  if (existsSync(tmpDir)) {
-    rmSync(tmpDir, { recursive: true })
-  }
+  // If the working tree is already populated AND has content, trust it —
+  // `git submodule update` will reconcile any mismatch with the gitlink.
+  const alreadyPopulated =
+    existsSync(WPT_DIR) && readdirSync(WPT_DIR).length > 0
 
-  try {
-    // Initialize sparse repo
-    mkdirSync(tmpDir)
-    await spawn('git', ['init'], { cwd: tmpDir, stdio: 'pipe' })
-    await spawn('git', ['remote', 'add', 'origin', url], {
-      cwd: tmpDir,
-      stdio: 'pipe',
-    })
-    await spawn('git', ['config', 'core.sparseCheckout', 'true'], {
-      cwd: tmpDir,
-      stdio: 'pipe',
-    })
-
-    // Configure sparse checkout for streams/ only
-    await spawn('sh', ['-c', 'echo "streams" >> .git/info/sparse-checkout'], {
-      cwd: tmpDir,
-      stdio: 'pipe',
-    })
-
-    // Fetch only the specific commit with depth=1
-    await spawn('git', ['fetch', '--depth=1', 'origin', ref], {
-      cwd: tmpDir,
-      stdio: 'pipe',
-    })
-    await spawn('git', ['checkout', 'FETCH_HEAD'], {
-      cwd: tmpDir,
-      stdio: 'pipe',
-    })
-
-    // Move streams/ to our wpt/ dir
-    const srcStreams = path.join(tmpDir, 'streams')
-    if (!existsSync(srcStreams)) {
-      throw new Error('streams/ directory not found after checkout')
-    }
-
-    // Copy to final location
-    await spawn('cp', ['-r', srcStreams, WPT_DIR], { stdio: 'pipe' })
-
-    // Write version file
-    const versionFile = path.join(__dirname, '.wpt-version')
-    writeFileSync(versionFile, ref)
-
-    logger.info(
-      `WPT streams fetched (${readdirSync(WPT_DIR).length} directories)`,
+  if (!alreadyPopulated) {
+    logger.info('Cloning WPT streams (sparse submodule)...')
+    // Delegate to the fleet utility that reads sparse-checkout from
+    // .gitmodules. This populates ~50 MB of streams/ content instead of
+    // the full ~5 GB WPT tree.
+    await spawn(
+      'node',
+      [
+        path.join(MONOREPO_ROOT, 'scripts', 'git-partial-submodule.mts'),
+        'clone',
+        WPT_SUBMODULE_REL,
+      ],
+      { cwd: MONOREPO_ROOT, stdio: 'inherit' },
     )
-  } finally {
-    // Cleanup tmp
-    if (existsSync(tmpDir)) {
-      rmSync(tmpDir, { recursive: true })
-    }
   }
+
+  // Sync the working tree to the recorded gitlink SHA. No-op if already
+  // aligned; advances the checkout if the outer repo's gitlink was
+  // updated since the last clone.
+  await spawn(
+    'git',
+    ['submodule', 'update', '--init', WPT_SUBMODULE_REL],
+    { cwd: MONOREPO_ROOT, stdio: 'inherit' },
+  )
+
+  if (!existsSync(WPT_DIR) || readdirSync(WPT_DIR).length === 0) {
+    throw new Error(
+      `WPT streams directory empty after fetch: ${WPT_DIR}. ` +
+        `Check that scripts/git-partial-submodule.mts ran successfully ` +
+        `and .gitmodules has sparse-checkout = streams/ on the wpt entry.`,
+    )
+  }
+  logger.info(
+    `WPT streams ready (${readdirSync(WPT_DIR).length} directories)`,
+  )
 }
 
 /**
@@ -292,52 +260,6 @@ export function findTestFiles(dir: string): string[] {
     }
   }
   return results.sort()
-}
-
-/**
- * Parse .gitmodules to get WPT URL and SHA
- */
-export function getWPTConfig(): WptConfig {
-  if (!existsSync(GITMODULES)) {
-    throw new Error(`.gitmodules not found at ${GITMODULES}`)
-  }
-
-  const content = readFileSync(GITMODULES, 'utf8')
-  const lines = content.split('\n')
-
-  let inWPTSection = false
-  let url = ''
-  let ref = ''
-
-  for (let i = 0, { length } = lines; i < length; i += 1) {
-    const line = lines[i]
-    // Match only the [submodule "..."] header line, not the path line
-    if (
-      /^\[submodule ".*vendor-fast-webstreams\/wpt\/streams.*"\]$/.test(line)
-    ) {
-      inWPTSection = true
-      continue
-    }
-    if (inWPTSection && line.startsWith('[')) {
-      break // End of section
-    }
-    if (inWPTSection) {
-      const urlMatch = line.match(/^\s*url\s*=\s*(.+)$/)
-      if (urlMatch) {
-        url = urlMatch[1].trim()
-      }
-      const refMatch = line.match(/^\s*ref\s*=\s*([a-f0-9]+)$/)
-      if (refMatch) {
-        ref = refMatch[1].trim()
-      }
-    }
-  }
-
-  if (!url || !ref) {
-    throw new Error('Could not find WPT URL or ref in .gitmodules')
-  }
-
-  return { url, ref }
 }
 
 export function parseArgs(): CliOptions {
@@ -446,9 +368,10 @@ async function main(): Promise<void> {
     return
   }
 
-  // Fetch WPT if needed
-  const { ref, url } = getWPTConfig()
-  await fetchWPTStreams(url, ref, opts.fetch)
+  // Fetch WPT if needed. The submodule's recorded SHA (.gitmodules
+  // gitlink) is the version pointer; sparse-checkout = streams/ in
+  // .gitmodules is honored by scripts/git-partial-submodule.mts.
+  await fetchWPTStreams(opts.fetch)
 
   if (!existsSync(WPT_DIR)) {
     logger.fail('WPT streams directory not found after fetch')

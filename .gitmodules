@@ -52,6 +52,10 @@
 	url = https://github.com/web-platform-tests/wpt.git
 	ignore = dirty
 	shallow = true
+	# Honored by scripts/git-partial-submodule.mts (vanilla git ignores
+	# this field). WPT is a ~5 GB tree; we only need the streams/ subtree
+	# for WHATWG streams conformance tests.
+	sparse-checkout = streams/
 # liburing-2.14
 [submodule "packages/node-smol-builder/upstream/liburing"]
 	path = packages/node-smol-builder/upstream/liburing

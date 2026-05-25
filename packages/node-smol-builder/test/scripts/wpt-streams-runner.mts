@@ -36,25 +36,18 @@ import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 
 import { errorMessage } from 'build-infra/lib/error-utils'
 
+import { loadAllowlist } from './wpt-streams/allowlist.mts'
+import {
+  classifyResult,
+  findStaleAllowlistEntries,
+} from './wpt-streams/classifier.mts'
+import type { TestResult, UnexpectedFailure } from './wpt-streams/types.mts'
+
 type CliOptions = {
   binary: string
   force: boolean
   filter: string
   verbose: boolean
-}
-
-type TestResult = {
-  file: string
-  passed: number
-  failed: number
-  total: number
-  errors: string[]
-}
-
-type UnexpectedFailure = {
-  file: string
-  test: string
-  error: string
 }
 
 const logger = getDefaultLogger()
@@ -93,89 +86,21 @@ const WPT_DIR = path.join(WPT_SUBMODULE_DIR, 'streams')
 
 const FILE_TIMEOUT = 30_000 // 30s per file (some have 60+ tests)
 
+// Path to the allowlist file. Format / rationale documented inside.
+const ALLOWLIST_PATH = path.join(
+  PACKAGE_ROOT,
+  'wpt-config',
+  'wpt-streams.allowlist',
+)
+
 /**
- * Expected failures - these match native Node 25's failures (17 tests).
- * Format: 'file:test name' or just 'file' for entire file failures.
- * These are tracked to ensure we don't regress beyond native.
+ * Expected failures — loaded from wpt-config/wpt-streams.allowlist
+ * (TSV: `<key>\t<category>` per line). Keys are either 'file' or
+ * 'file:test name'. See the allowlist file's header for the contract.
+ *
+ * Loaded once at module init; the classifier consumes it.
  */
-const EXPECTED_FAILURES = new Map([
-  // === owning type not implemented (5 tests) ===
-  // The 'owning' stream type is a newer WHATWG spec extension not in Node.js
-  [
-    'readable-streams/owning-type.any.js:ReadableStream can be constructed with owning type',
-    'owning type not implemented',
-  ],
-  [
-    'readable-streams/owning-type.any.js:ReadableStream of type owning should call start with a ReadableStreamDefaultController',
-    'owning type not implemented',
-  ],
-  [
-    'readable-streams/owning-type.any.js:ReadableStream should be able to call enqueue with an empty transfer list',
-    'owning type not implemented',
-  ],
-  [
-    'readable-streams/owning-type.any.js:ReadableStream should check transfer parameter',
-    'owning type not implemented',
-  ],
-  [
-    'readable-streams/owning-type.any.js:ReadableStream of type owning should transfer enqueued chunks',
-    'owning type not implemented',
-  ],
-
-  // === Tee monkey-patching (8 tests) ===
-  // WPT tests replace globalThis.ReadableStream with a throwing fake and expect tee() not to use it.
-  // Fast's tee() uses the patched global internally, so it fails when the test replaces it.
-  ['readable-streams/tee.any.js:ReadableStream teeing', 'tee monkey-patching'],
-  [
-    'readable-streams/tee.any.js:ReadableStreamTee should not pull more chunks than can fit in the branch queue',
-    'tee monkey-patching',
-  ],
-  [
-    'readable-streams/tee.any.js:ReadableStreamTee should only pull enough to fill the emptiest queue',
-    'tee monkey-patching',
-  ],
-  [
-    'readable-streams/tee.any.js:ReadableStreamTee should not pull when original is already errored',
-    'tee monkey-patching',
-  ],
-  [
-    'readable-streams/tee.any.js:ReadableStreamTee stops pulling when original stream errors while branch 1 is reading',
-    'tee monkey-patching',
-  ],
-  [
-    'readable-streams/tee.any.js:ReadableStreamTee stops pulling when original stream errors while branch 2 is reading',
-    'tee monkey-patching',
-  ],
-  [
-    'readable-streams/tee.any.js:ReadableStreamTee stops pulling when original stream errors while both branches are reading',
-    'tee monkey-patching',
-  ],
-
-  // === AsyncIteratorPrototype cross-realm (1 test) ===
-  // VM context isolation causes cross-realm prototype mismatch
-  [
-    'readable-streams/async-iterator.any.js:Async iterator instances should have the correct list of properties',
-    'cross-realm AsyncIteratorPrototype',
-  ],
-
-  // === BYOB cancel (2 tests) ===
-  // Byte stream edge cases with cancel propagation
-  [
-    'readable-byte-streams/templated.any.js:ReadableStream with byte source (empty) BYOB reader',
-    'BYOB cancel edge case',
-  ],
-  [
-    'readable-byte-streams/bad-buffers-and-views.any.js',
-    'runner error - file-level failure',
-  ],
-
-  // === Subclassing (1 test) ===
-  // Subclassing Fast streams doesn't preserve extra methods on the subclass
-  [
-    'readable-streams/general.any.js:Subclassing ReadableStream should work',
-    'subclassing not fully supported',
-  ],
-])
+const EXPECTED_FAILURES = loadAllowlist(ALLOWLIST_PATH)
 
 // Files to skip (IDL tests, GC tests, platform-specific)
 const SKIP_FILES = new Set([
@@ -445,8 +370,8 @@ async function main(): Promise<void> {
   let totalTests = 0
   let filesWithFailures = 0
 
-  // Track failures against expected list
-  const expectedFailureKeys = new Set(EXPECTED_FAILURES.keys())
+  // Track failures against expected list. `matchedExpected` accumulates
+  // across files; `unexpectedFailures` collects regressions.
   const matchedExpected = new Set<string>()
   const unexpectedFailures: UnexpectedFailure[] = []
 
@@ -470,47 +395,18 @@ async function main(): Promise<void> {
     totalFailed += result.failed
     totalTests += result.total
 
-    // Check if failures are expected
-    const fileKey = result.file
-    const isFileExpected = EXPECTED_FAILURES.has(fileKey)
-
+    // Classify this file's failures against the allowlist. The
+    // classifier is pure + unit-tested at
+    // test/unit/wpt-streams-classifier.test.mts.
+    const classification = classifyResult(result, EXPECTED_FAILURES)
     if (result.failed > 0) {
       filesWithFailures++
-
-      // Check each error against expected failures
-      // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
-      for (const err of result.errors) {
-        // Extract test name from error (format: "testName: error message")
-        const colonIdx = err.indexOf(':')
-        const testName = colonIdx > 0 ? err.slice(0, colonIdx) : err
-        const fullKey = `${fileKey}:${testName}`
-
-        // Check for exact match or prefix match (some expected keys are prefixes)
-        let matched = false
-        if (EXPECTED_FAILURES.has(fullKey)) {
-          matchedExpected.add(fullKey)
-          matched = true
-        } else if (isFileExpected) {
-          matchedExpected.add(fileKey)
-          matched = true
-        } else {
-          // Try prefix matching - expected failure key may be a prefix of actual test name
-          // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
-          for (const [expKey] of EXPECTED_FAILURES) {
-            if (
-              expKey.startsWith(`${fileKey}:`) &&
-              fullKey.startsWith(expKey)
-            ) {
-              matchedExpected.add(expKey)
-              matched = true
-              break
-            }
-          }
-        }
-        if (!matched) {
-          unexpectedFailures.push({ file: fileKey, test: testName, error: err })
-        }
-      }
+    }
+    for (const key of classification.matchedExpected) {
+      matchedExpected.add(key)
+    }
+    for (const u of classification.unexpected) {
+      unexpectedFailures.push(u)
     }
 
     // Status: green checkmark, yellow tilde (expected fail), red X (unexpected fail)
@@ -519,15 +415,8 @@ async function main(): Promise<void> {
       // oxlint-disable-next-line socket/no-status-emoji -- WPT validator emits ANSI-colored status markers ("\x1b[32m✓\x1b[0m" etc.) in column-aligned table rows; logger.success() would lose the colorization required by the WPT result format.
       status = '\x1b[32m✓\x1b[0m'
     } else {
-      // Check if all failures in this file are expected
-      const allExpected = result.errors.every(err => {
-        const colonIdx = err.indexOf(':')
-        const testName = colonIdx > 0 ? err.slice(0, colonIdx) : err
-        const fullKey = `${fileKey}:${testName}`
-        return EXPECTED_FAILURES.has(fullKey) || EXPECTED_FAILURES.has(fileKey)
-      })
       // oxlint-disable-next-line socket/no-status-emoji -- WPT validator emits ANSI-colored status markers ("\x1b[32m✓\x1b[0m" etc.) in column-aligned table rows; logger.success() would lose the colorization required by the WPT result format.
-      status = allExpected ? '\x1b[33m~\x1b[0m' : '\x1b[31m✗\x1b[0m'
+      status = classification.allExpected ? '\x1b[33m~\x1b[0m' : '\x1b[31m✗\x1b[0m'
     }
 
     logger.log(`${status} ${result.file} (${result.passed}/${result.total})`)
@@ -550,14 +439,12 @@ async function main(): Promise<void> {
     }
   }
 
-  // Find expected failures that now pass (improvements).
-  // `expectedFailureKeys` is a Set — use for...of.
-  const nowPassing: string[] = []
-  for (const key of expectedFailureKeys) {
-    if (!matchedExpected.has(key)) {
-      nowPassing.push(key)
-    }
-  }
+  // Find expected failures that now pass (improvements) — stale
+  // allowlist entries. Surfaced to the user so they can prune.
+  const nowPassing = findStaleAllowlistEntries(
+    EXPECTED_FAILURES,
+    matchedExpected,
+  )
 
   // Summary
   logger.log('')

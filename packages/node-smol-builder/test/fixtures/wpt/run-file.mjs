@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Runs a single WPT test file and outputs JSON results to stdout.
- * Designed to be spawned as a subprocess by scripts/vendor-fast-
- * webstreams/wpt/validate.mts.
+ * Designed to be spawned as a subprocess by
+ * test/scripts/wpt-streams-runner.mts.
  *
  * Usage: <binary> run-file.mjs <testFile>
  *
@@ -20,14 +20,11 @@ import { fileURLToPath } from 'node:url'
 import { createContext, runInContext } from 'node:vm'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-// WPT streams submodule lives with the orchestrator at
-// scripts/vendor-fast-webstreams/wpt/streams (where the submodule is
-// checked out by validate.mts). Resolve relative to package root.
-const PACKAGE_ROOT = path.resolve(__dirname, '../../..')
-const WPT_DIR = path.join(
-  PACKAGE_ROOT,
-  'scripts/vendor-fast-webstreams/wpt/streams',
-)
+// WPT streams submodule is a sibling of this fixture — both live
+// under <pkg>/test/fixtures/wpt/. The submodule root is
+// .../wpt/streams (declared in .gitmodules), with sparse-checkout =
+// streams/ so the actual test corpus is at .../wpt/streams/streams/.
+const WPT_DIR = path.join(__dirname, 'streams')
 
 process.on('unhandledRejection', () => {})
 process.on('uncaughtException', () => {})

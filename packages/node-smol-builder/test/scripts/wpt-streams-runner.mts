@@ -16,9 +16,9 @@
  * those must stay .mjs. See packages/node-smol-builder/test/fixtures/wpt/.
  *
  * Usage:
- *   node scripts/vendor-fast-webstreams/wpt/validate.mts [binary-path]
- *   node scripts/vendor-fast-webstreams/wpt/validate.mts --force   # Force re-init the wpt streams submodule
- *   node scripts/vendor-fast-webstreams/wpt/validate.mts --filter=readable-streams
+ *   pnpm --filter node-smol-builder run wpt:streams [-- <binary-path>]
+ *   pnpm --filter node-smol-builder run wpt:streams -- --force
+ *   pnpm --filter node-smol-builder run wpt:streams -- --filter=readable-streams
  *
  * If no binary path provided, uses the dev Final binary.
  */
@@ -66,7 +66,10 @@ const __dirname = path.dirname(__filename)
 process.on('unhandledRejection', () => {})
 process.on('uncaughtException', () => {})
 
-const PACKAGE_ROOT = path.resolve(__dirname, '../../..')
+// Runner lives at <pkg>/test/scripts/ — fleet convention (mirrors
+// temporal-infra's test/scripts/test262-temporal-runner.mts).
+// PACKAGE_ROOT is 2 levels up; MONOREPO_ROOT is 4 levels up.
+const PACKAGE_ROOT = path.resolve(__dirname, '../..')
 const MONOREPO_ROOT = path.resolve(PACKAGE_ROOT, '../..')
 const PLATFORM_ARCH = await getCurrentPlatformArch()
 const DEFAULT_BINARY = path.join(
@@ -75,11 +78,17 @@ const DEFAULT_BINARY = path.join(
   PLATFORM_ARCH,
   'out/Final/node/node',
 )
-// The submodule lives at <__dirname>/streams (as declared in
-// .gitmodules). Sparse-checkout = streams/ inside the submodule means
-// the actual WHATWG-streams test corpus is at <submodule>/streams/.
+// The submodule lives at <pkg>/test/fixtures/wpt/streams (as declared
+// in .gitmodules). Sparse-checkout = streams/ inside the submodule
+// means the actual WHATWG-streams test corpus is at <submodule>/streams/.
 // Conceptually: `<wpt repo root>/streams/<test files>`.
-const WPT_SUBMODULE_DIR = path.join(__dirname, 'streams')
+const WPT_SUBMODULE_DIR = path.join(
+  PACKAGE_ROOT,
+  'test',
+  'fixtures',
+  'wpt',
+  'streams',
+)
 const WPT_DIR = path.join(WPT_SUBMODULE_DIR, 'streams')
 
 const FILE_TIMEOUT = 30_000 // 30s per file (some have 60+ tests)
@@ -188,7 +197,7 @@ const SKIP_FILES = new Set([
 // argument to `scripts/git-partial-submodule.mts clone` and to
 // `git submodule update`.
 const WPT_SUBMODULE_REL =
-  'packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/streams'
+  'packages/node-smol-builder/test/fixtures/wpt/streams'
 
 /**
  * Ensure the WPT streams sparse-checkout submodule is populated.

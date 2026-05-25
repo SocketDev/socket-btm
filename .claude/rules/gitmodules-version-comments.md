@@ -31,7 +31,7 @@
 # Epoch-tagged upstream (no semver releases)
 # wpt-epochs/three_hourly/2026-02-24_21H
 [submodule "packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/streams"]
-	path = packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/streams
+	path = packages/node-smol-builder/test/fixtures/wpt/streams
 	url = https://github.com/web-platform-tests/wpt.git
 ```
 

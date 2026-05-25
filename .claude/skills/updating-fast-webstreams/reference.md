@@ -105,5 +105,5 @@ git push origin main
 
 **Solution:**
 ```bash
-git submodule update --init packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/streams
+node scripts/git-partial-submodule.mts clone packages/node-smol-builder/test/fixtures/wpt/streams
 ```

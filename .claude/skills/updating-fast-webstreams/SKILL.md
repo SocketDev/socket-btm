@@ -35,7 +35,7 @@ pnpm --filter node-smol-builder clean && pnpm --filter node-smol-builder build
 
 Quick (15 tests): `node packages/node-smol-builder/scripts/vendor-fast-webstreams/validate.mts`
 
-Full WPT (1,116 tests): `node packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/validate.mts` (options: `--force`, `--filter=`, `--verbose`)
+Full WPT (1,116 tests): `pnpm --filter node-smol-builder run wpt:streams` (options after `--`: `--force`, `--filter=`, `--verbose`). Also wired into `pnpm test` via `test/integration/wpt-streams.test.mts` (gated on a built binary being present).
 
 ### Update Version
 
@@ -56,5 +56,8 @@ Two cycles require special handling (managed by `sync.mts`):
 |------|---------|
 | `scripts/vendor-fast-webstreams/sync.mts` | ES-to-CJS conversion |
 | `scripts/vendor-fast-webstreams/validate.mts` | 15-test integration suite |
-| `scripts/vendor-fast-webstreams/wpt/validate.mts` | WPT spec compliance |
+| `test/scripts/wpt-streams-runner.mts` | WPT spec compliance (rich CLI runner) |
+| `test/integration/wpt-streams.test.mts` | WPT vitest wrapper (gates via `pnpm test`) |
+| `test/fixtures/wpt/streams/` | WPT sparse submodule (just `streams/` subtree) |
+| `test/fixtures/wpt/{harness,run-file}.mjs` | In-binary WPT harness + per-file runner |
 | `additions/source-patched/deps/fast-webstreams/` | Converted CommonJS (14 files) |

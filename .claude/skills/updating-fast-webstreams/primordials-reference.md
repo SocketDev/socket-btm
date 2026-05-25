@@ -460,7 +460,7 @@ After applying primordials transforms:
 
 1. **Build**: `pnpm --filter node-smol-builder clean && pnpm --filter node-smol-builder build`
 2. **Quick validation**: `node scripts/vendor-fast-webstreams/validate.mts` (15 tests)
-3. **WPT validation**: `node scripts/vendor-fast-webstreams/wpt/validate.mts` (1,116 tests)
+3. **WPT validation**: `pnpm --filter node-smol-builder run wpt:streams` (1,116 tests; also runs as `test/integration/wpt-streams.test.mts` under `pnpm test` when a built binary is available)
 
 All tests must pass at same rate as before transforms (98.5% WPT pass rate).
 

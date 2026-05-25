@@ -62,9 +62,12 @@ packages/node-smol-builder/additions/source-patched/include/temporal_rs/
 # Vendored npm packages (sync-time generated from node_modules).
 packages/node-smol-builder/additions/source-patched/deps/fast-webstreams/
 
-# WPT streams tests (fetched on-demand for validation).
-packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/streams/
-packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/.wpt-version
+# WPT streams tests — managed as a sparse-checkout submodule
+# (scripts/git-partial-submodule.mts reads sparse-checkout = streams/
+# from .gitmodules). The streams/ working tree is tracked through the
+# submodule machinery, not ignored. The .wpt-tmp/ scratch dir is still
+# ignored because the legacy rsync flow may write transient state
+# there during validate.mts runs.
 packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/.wpt-tmp/
 packages/node-smol-builder/additions/source-patched/deps/lzfse/src/
 packages/node-smol-builder/additions/source-patched/deps/libdeflate/*

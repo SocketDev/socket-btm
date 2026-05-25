@@ -21,7 +21,8 @@
     "test:node-suite": "node scripts/test-node-suite.mts",
     "test:node-suite:dev": "node scripts/test-node-suite.mts --dev",
     "test:node-suite:prod": "node scripts/test-node-suite.mts --prod",
-    "test:unsafe": "vitest run"
+    "test:unsafe": "vitest run",
+    "wpt:streams": "node test/scripts/wpt-streams-runner.mts"
   },
   "dependencies": {
     "@socketsecurity/lib-stable": "catalog:",

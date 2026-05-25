@@ -70,14 +70,14 @@ isolation.
 
 Canonical module set:
 
-| Module | Responsibility |
-|---|---|
-| `types.mts` | `Result`, `Test`, `Summary`, `TestCase` types |
-| `parser.mts` | Frontmatter / metadata parsing |
+| Module           | Responsibility                                                          |
+| ---------------- | ----------------------------------------------------------------------- |
+| `types.mts`      | `Result`, `Test`, `Summary`, `TestCase` types                           |
+| `parser.mts`     | Frontmatter / metadata parsing                                          |
 | `classifier.mts` | Pure: `(result, allowlist) → "expected" / "unexpected" / "now-passing"` |
-| `harness.mts` | Compose harness JS, walk corpus, filter |
-| `executor.mts` | Spawn subprocesses, collect output, retry |
-| `report.mts` | Format human-readable summary, exit-code policy |
+| `harness.mts`    | Compose harness JS, walk corpus, filter                                 |
+| `executor.mts`   | Spawn subprocesses, collect output, retry                               |
+| `report.mts`     | Format human-readable summary, exit-code policy                         |
 
 **The classifier is the highest-value module to extract** — get the
 result-bucketing logic wrong and the runner silently masks
@@ -100,15 +100,24 @@ import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
 import { resolveFinalBinary } from '../helpers/binary.mts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const RUNNER = path.resolve(__dirname, '..', 'scripts', '<corpus>-<scope>-runner.mts')
+const RUNNER = path.resolve(
+  __dirname,
+  '..',
+  'scripts',
+  '<corpus>-<scope>-runner.mts',
+)
 const skipTests = !resolveFinalBinary()
 const TIMEOUT_MS = 45 * 60 * 1000
 
 describe.skipIf(skipTests)('<corpus> <scope> conformance', () => {
-  it('no unexpected failures vs allowlist', async () => {
-    const result = await spawn('node', [RUNNER], { stdio: 'inherit' })
-    expect(result.code).toBe(0)
-  }, TIMEOUT_MS)
+  it(
+    'no unexpected failures vs allowlist',
+    async () => {
+      const result = await spawn('node', [RUNNER], { stdio: 'inherit' })
+      expect(result.code).toBe(0)
+    },
+    TIMEOUT_MS,
+  )
 })
 ```
 
@@ -152,7 +161,7 @@ Use this checklist:
    declared in `.gitmodules`.
 2. Runner skeleton at `test/scripts/<corpus>-<scope>-runner.mts`
    that imports from `test/scripts/<corpus>/{parser,classifier,
-   harness,executor,report}.mts`.
+harness,executor,report}.mts`.
 3. Allowlist file at `<corpus>-config/<corpus>.allowlist` (path- or
    feature-keyed).
 4. Vitest integration wrapper at

@@ -36,10 +36,10 @@ Bare `pnpm@<version>` is correct for pnpm 11+. pnpm 11 stores the integrity hash
 
 ## Bumping a versioned tool fleet-wide (pnpm, zizmor, sfw)
 
-🚨 **Single entry point: `socket-wheelhouse/scripts/cascade-tooling/cascade-fleet.mts`.** Run from the wheelhouse repo:
+🚨 **Single entry point: `socket-wheelhouse/scripts/fleet/cascade-fleet.mts`.** Run from the wheelhouse repo:
 
 ```bash
-node socket-wheelhouse/scripts/cascade-tooling/cascade-fleet.mts \
+node socket-wheelhouse/scripts/fleet/cascade-fleet.mts \
   --pnpm 11.3.0 \
   [--skip-ci-wait] \
   [--dry-run]
@@ -47,12 +47,12 @@ node socket-wheelhouse/scripts/cascade-tooling/cascade-fleet.mts \
 
 This is a **four-stage orchestrator** — don't reach for any of the lower-level scripts directly unless one of the stages bailed and you're recovering:
 
-| Stage | Does | Driven by |
-| ----- | ---- | --------- |
-| A | Bumps `socket-registry/external-tools.json`: downloads every platform binary from upstream, recomputes sha256 ourselves (integrity model is binary-download + own-checksum, not trust in upstream-published values), writes the file. Commits to registry. | `tools/pnpm.mts#applyToRegistry` (+ `zizmor.mts`, `sfw.mts`) |
-| B | Delegates to `socket-registry/scripts/cascade-internal.mts`: recursively bumps every SHA pin in registry's own workflows (`setup-and-install` → `setup` → `checkout`), converging to a fixed point. Commits to registry. | `pipeline.mts#stageB` |
-| C | Pushes registry main; polls GitHub Actions for the cascade SHA's CI to land green. Aborts the whole cascade if registry CI fails — fleet repos must not pin to a broken registry. Skipped via `--skip-ci-wait`. | `pipeline.mts#stageC` |
-| D | For every primary fleet checkout: runs `cleanup-stranded.mts --against <stageBSha>` (no-layering rule discards prior unpushed cascade commits), rewrites every `setup-and-install@<old-sha>` reference to the new registry SHA via diff-based pin matching, optionally runs the tool's per-fleet step (pnpm bumps `packageManager` + `engines.pnpm`), runs `pnpm run format` to fold pre-existing drift, commits + pushes. | `pipeline.mts#stageD` |
+| Stage | Does                                                                                                                                                                                                                                                                                                                                                                                                                       | Driven by                                                    |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| A     | Bumps `socket-registry/external-tools.json`: downloads every platform binary from upstream, recomputes sha256 ourselves (integrity model is binary-download + own-checksum, not trust in upstream-published values), writes the file. Commits to registry.                                                                                                                                                                 | `tools/pnpm.mts#applyToRegistry` (+ `zizmor.mts`, `sfw.mts`) |
+| B     | Delegates to `socket-registry/scripts/cascade-internal.mts`: recursively bumps every SHA pin in registry's own workflows (`setup-and-install` → `setup` → `checkout`), converging to a fixed point. Commits to registry.                                                                                                                                                                                                   | `pipeline.mts#stageB`                                        |
+| C     | Pushes registry main; polls GitHub Actions for the cascade SHA's CI to land green. Aborts the whole cascade if registry CI fails — fleet repos must not pin to a broken registry. Skipped via `--skip-ci-wait`.                                                                                                                                                                                                            | `pipeline.mts#stageC`                                        |
+| D     | For every primary fleet checkout: runs `cleanup-stranded.mts --against <stageBSha>` (no-layering rule discards prior unpushed cascade commits), rewrites every `setup-and-install@<old-sha>` reference to the new registry SHA via diff-based pin matching, optionally runs the tool's per-fleet step (pnpm bumps `packageManager` + `engines.pnpm`), runs `pnpm run format` to fold pre-existing drift, commits + pushes. | `pipeline.mts#stageD`                                        |
 
 ### Soak gate
 

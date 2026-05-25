@@ -622,7 +622,11 @@ jobs:
 
           # Create release.
           TITLE_SUFFIX="${RELEASE_TAG#stubs-}"
+          # Immutable-releases 3-step: draft → upload → publish.
+          # Single-call form races the Sigstore attestation hash.
+          # See docs/claude.md/fleet/immutable-releases.md.
           gh release create "${RELEASE_TAG}" \
+            --draft \
             --title "stubs ${TITLE_SUFFIX}" \
             --notes "SMOL decompression stub binaries for all platforms.
 
@@ -644,9 +648,11 @@ jobs:
           Download the appropriate stub for your platform and extract:
           \`\`\`bash
           tar -xzf smol-stub-<platform>-<arch>[-<libc>].tar.gz
-          \`\`\`" \
+          \`\`\`"
+          gh release upload "${RELEASE_TAG}" \
             release/*.tar.gz \
             release/checksums.txt
+          gh release edit "${RELEASE_TAG}" --draft=false
 
   update-checksums:
     needs: release

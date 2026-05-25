@@ -557,7 +557,11 @@ jobs:
 
           # Extract date-hash from tag for title
           TITLE_SUFFIX="${TAG#models-}"
+          # Immutable-releases 3-step: draft → upload → publish.
+          # Single-call form races the Sigstore attestation hash.
+          # See docs/claude.md/fleet/immutable-releases.md.
           gh release create "$TAG" \
+            --draft \
             --title "models ${TITLE_SUFFIX}" \
             --notes "INT4 quantized ONNX models: ${CODET5_MODEL} and ${MINILM_MODEL}.
 
@@ -576,10 +580,12 @@ jobs:
           Extract the archive and load models with ONNX Runtime:
           \`\`\`bash
           tar -xzf models-${VERSION}.tar.gz
-          \`\`\`" \
+          \`\`\`"
+          gh release upload "$TAG" \
             ../models-${VERSION}.tar.gz \
             checksums.txt \
             $([ -f checksums.txt.asc ] && echo "checksums.txt.asc" || echo "")
+          gh release edit "$TAG" --draft=false
 
   update-checksums:
     needs: release

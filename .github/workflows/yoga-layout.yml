@@ -573,7 +573,11 @@ jobs:
           echo "Creating new release $TAG..."
           # Extract date-hash from tag for title
           TITLE_SUFFIX="${TAG#yoga-layout-}"
+          # Immutable-releases 3-step: draft → upload → publish.
+          # Single-call form races the Sigstore attestation hash.
+          # See docs/claude.md/fleet/immutable-releases.md.
           gh release create "$TAG" \
+            --draft \
             --title "yoga-layout ${TITLE_SUFFIX}" \
             --notes "Yoga Layout v${YOGA_VERSION} compiled to WebAssembly.
 
@@ -588,13 +592,15 @@ jobs:
           Import the module in your project:
           \`\`\`javascript
           import yoga from './yoga-${VERSION}.mjs';
-          \`\`\`" \
+          \`\`\`"
+          gh release upload "$TAG" \
             "${YOGA_FINAL_DIR}/yoga-${VERSION}.wasm" \
             "${YOGA_FINAL_DIR}/yoga-${VERSION}.mjs" \
             "${YOGA_FINAL_DIR}/yoga-sync-${VERSION}.cjs" \
             "${YOGA_FINAL_DIR}/yoga-sync-${VERSION}.mjs" \
             "${YOGA_FINAL_DIR}/checksums.txt" \
             $([ -f "${YOGA_FINAL_DIR}/checksums.txt.asc" ] && echo "${YOGA_FINAL_DIR}/checksums.txt.asc" || echo "")
+          gh release edit "$TAG" --draft=false
 
   update-checksums:
     needs: release

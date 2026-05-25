@@ -1538,7 +1538,11 @@ jobs:
           esac
 
           echo "Creating new release $TAG..."
+          # Immutable-releases 3-step: draft → upload → publish.
+          # Single-call form races the Sigstore attestation hash.
+          # See docs/claude.md/fleet/immutable-releases.md.
           gh release create "$TAG" \
+            --draft \
             --title "${TOOL} ${VERSION}" \
             --notes "${DESCRIPTION}
 
@@ -1567,9 +1571,11 @@ jobs:
           Download the appropriate binary for your platform and run it:
           \`\`\`bash
           ./${TOOL}-darwin-arm64 --help
-          \`\`\`" \
+          \`\`\`"
+          gh release upload "$TAG" \
             dist/${TOOL}/${TOOL}-* \
             dist/${TOOL}/checksums.txt
+          gh release edit "$TAG" --draft=false
 
   update-checksums:
     needs: release

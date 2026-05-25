@@ -485,7 +485,11 @@ jobs:
 
           echo "Creating release $TAG..."
           TITLE_SUFFIX="${TAG#opentui-}"
+          # Immutable-releases 3-step: draft → upload → publish.
+          # Single-call form races the Sigstore attestation hash.
+          # See docs/claude.md/fleet/immutable-releases.md.
           gh release create "$TAG" \
+            --draft \
             --title "opentui ${TITLE_SUFFIX}" \
             --notes "OpenTUI v${OPENTUI_VERSION} native Node.js bindings via Zig node-api.
 
@@ -504,10 +508,12 @@ jobs:
           Load the native module in your Node.js project:
           \`\`\`javascript
           const opentui = require('./opentui-${VERSION}-\${platform}-\${arch}.node');
-          \`\`\`" \
+          \`\`\`"
+          gh release upload "$TAG" \
             release/opentui-*.node \
             release/checksums.txt \
             $([ -f release/checksums.txt.asc ] && echo "release/checksums.txt.asc" || echo "")
+          gh release edit "$TAG" --draft=false
 
   update-checksums:
     needs: release

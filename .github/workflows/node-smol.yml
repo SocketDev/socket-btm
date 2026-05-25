@@ -1302,7 +1302,11 @@ jobs:
           TAG="${RELEASE_NAME}-${VERSION}"
 
           echo "Creating new release $TAG..."
+          # Immutable-releases 3-step: draft → upload → publish.
+          # Single-call form races the Sigstore attestation hash.
+          # See docs/claude.md/fleet/immutable-releases.md.
           gh release create "$TAG" \
+            --draft \
             --title "${RELEASE_NAME} ${VERSION}" \
             --notes "Node.js v${NODE_VERSION} minimal binaries for all platforms.
 
@@ -1331,9 +1335,11 @@ jobs:
           Download the appropriate binary for your platform and run it:
           \`\`\`bash
           ./node-darwin-arm64 script.js
-          \`\`\`" \
+          \`\`\`"
+          gh release upload "$TAG" \
             packages/node-smol-builder/dist/node-* \
             packages/node-smol-builder/dist/checksums.txt
+          gh release edit "$TAG" --draft=false
 
   update-checksums:
     needs: release

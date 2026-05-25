@@ -569,7 +569,11 @@ jobs:
           echo "Creating new release $TAG..."
           # Extract date-hash from tag for title
           TITLE_SUFFIX="${TAG#onnxruntime-}"
+          # Immutable-releases 3-step: draft → upload → publish.
+          # Single-call form races the Sigstore attestation hash.
+          # See docs/claude.md/fleet/immutable-releases.md.
           gh release create "$TAG" \
+            --draft \
             --title "onnxruntime ${TITLE_SUFFIX}" \
             --notes "ONNX Runtime v${ONNX_VERSION} compiled to WebAssembly with SIMD and threading support.
 
@@ -585,12 +589,14 @@ jobs:
           Import the module in your project:
           \`\`\`javascript
           import ort from './ort.mjs';
-          \`\`\`" \
+          \`\`\`"
+          gh release upload "$TAG" \
             "${ONNX_FINAL_DIR}"/*.wasm \
             "${ONNX_FINAL_DIR}"/*.mjs \
             "${ONNX_FINAL_DIR}"/*.cjs \
             "${ONNX_FINAL_DIR}/checksums.txt" \
             $([ -f "${ONNX_FINAL_DIR}/checksums.txt.asc" ] && echo "${ONNX_FINAL_DIR}/checksums.txt.asc" || echo "")
+          gh release edit "$TAG" --draft=false
 
   update-checksums:
     needs: release

@@ -202,7 +202,7 @@ const WPT_SUBMODULE_REL =
  * The recorded SHA (.gitmodules submodule gitlink) is the canonical
  * version pointer; no separate .wpt-version file.
  */
-export async function fetchWPTStreams(force: boolean = false): Promise<void> {
+export async function ensureWptStreams(force: boolean = false): Promise<void> {
   if (
     force &&
     existsSync(WPT_SUBMODULE_DIR) &&
@@ -378,10 +378,11 @@ async function main(): Promise<void> {
     return
   }
 
-  // Fetch WPT if needed. The submodule's recorded SHA (.gitmodules
-  // gitlink) is the version pointer; sparse-checkout = streams/ in
-  // .gitmodules is honored by scripts/git-partial-submodule.mts.
-  await fetchWPTStreams(opts.fetch)
+  // Ensure WPT streams is on disk. The submodule's recorded SHA
+  // (.gitmodules gitlink) is the version pointer; sparse-checkout =
+  // streams/ in .gitmodules is honored by
+  // scripts/git-partial-submodule.mts.
+  await ensureWptStreams(opts.fetch)
 
   if (!existsSync(WPT_DIR)) {
     logger.fail('WPT streams directory not found after fetch')

@@ -58,6 +58,10 @@ export async function runCommand(
   args: string[] = [],
   options: SpawnOptions = {},
 ): Promise<number> {
+  // Clear any in-flight spinner/progress row so the child's first write
+  // doesn't butt into it. Children inherit our stdio and have no idea
+  // we left the cursor mid-line.
+  logger.clearLine()
   try {
     const result = await spawn(command, args, {
       shell: WIN32,
@@ -136,6 +140,8 @@ export function runCommandSync(
   args: string[] = [],
   options: SpawnSyncOptions = {},
 ): number {
+  // Clear any in-flight spinner/progress row — see runCommand() comment.
+  logger.clearLine()
   const result = spawnSync(command, args, {
     shell: WIN32,
     stdio: 'inherit',

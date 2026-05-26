@@ -15,7 +15,7 @@
 import { promises as fs, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
-import { getDefaultLogger } from '@socketsecurity/lib/logger'
+import { getDefaultLogger } from '@socketsecurity/lib/logger/default'
 
 import { computeFileHash } from './core.mts'
 import type { EmbeddedChecksums } from './core.mts'

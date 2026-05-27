@@ -211,3 +211,5 @@ const constants = {
 }
 
 export { constants }
+// oxlint-disable-next-line socket/no-default-export -- wrapAssembly.mts + the wasm-sync inliner consume the default export as `YGEnums`; converting to a named-only export breaks the generated yoga-sync.cjs wrapper.
+export default constants

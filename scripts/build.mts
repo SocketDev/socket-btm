@@ -84,34 +84,57 @@ async function main(): Promise<void> {
     logger.log('Building socket-btm monorepo...')
     logger.log('')
 
-    // Step 1: Build LIEF (required by binsuite).
-    logger.info('[1/5] Building LIEF...')
-    await runPnpm(['--filter', 'lief-builder', 'build'])
-    logger.success('LIEF built')
+    // curl + LIEF have no socket-btm prerequisites and both feed stubs
+    // (LIEF is also linked into node-smol); build them concurrently.
+    logger.info('[1/6] Building curl + LIEF in parallel...')
+    {
+      const [curlResult, liefResult] = await Promise.allSettled([
+        runPnpm(['--filter', 'curl-builder', 'build']),
+        runPnpm(['--filter', 'lief-builder', 'build']),
+      ])
+      const failures: string[] = []
+      if (curlResult.status === 'rejected') {
+        failures.push(`curl: ${errorMessage(curlResult.reason)}`)
+      }
+      if (liefResult.status === 'rejected') {
+        failures.push(`LIEF: ${errorMessage(liefResult.reason)}`)
+      }
+      if (failures.length > 0) {
+        throw new Error(
+          `curl/LIEF build failed:\n${failures.map(f => `  - ${f}`).join('\n')}`,
+        )
+      }
+    }
+    logger.success('curl + LIEF built')
     logger.error('')
 
-    // Step 2: Build binsuite in parallel (depends on LIEF).
-    // Also start WASM builds in parallel (independent of everything else).
-    logger.info('[2/5] Building binsuite and WASM packages in parallel...')
+    // stubs links curl + LIEF; binpress embeds the resulting stub binaries,
+    // so stubs MUST finish before binsuite or binpress falls back to
+    // downloading released stubs instead of the locally-built ones.
+    logger.info('[2/6] Building stubs (links curl + LIEF)...')
+    await runPnpm(['--filter', 'stubs-builder', 'build'])
+    logger.success('Stubs built')
+    logger.error('')
+
+    // Binsuite (binpress embeds stubs) runs alongside the WASM builders,
+    // which share no dependencies with the curl→stubs→binsuite chain.
+    logger.info('[3/6] Building binsuite and WASM packages in parallel...')
     logger.log('  - Binsuite: binpress, binflate, binject')
     logger.log('  - WASM: onnxruntime, yoga')
     logger.log('')
 
     const results = await Promise.allSettled([
-      // Binsuite builds (binpress, binflate, binject)
       runParallel([
         { filter: 'binpress', script: 'build' },
         { filter: 'binflate', script: 'build' },
         { filter: 'binject', script: 'build' },
       ]),
-      // WASM builds (onnxruntime, yoga)
       runParallel([
         { filter: 'onnxruntime-builder', script: 'build' },
         { filter: 'yoga-layout-builder', script: 'build' },
       ]),
     ])
 
-    // Check for failures
     const [binsuiteResult, wasmResult] = results
     const failures: string[] = []
 
@@ -137,14 +160,14 @@ async function main(): Promise<void> {
       )
     }
 
-    // Step 3: Build node-smol-builder (depends on binsuite).
-    logger.info('[3/5] Building node-smol-builder...')
+    // node-smol SEA-injects the binsuite output + links curl/LIEF.
+    logger.info('[4/6] Building node-smol-builder (consumes binsuite)...')
     await runPnpm(['--filter', 'node-smol-builder', 'build'])
     logger.success('Node-smol-builder built')
     logger.error('')
 
-    // Step 4: Build models (depends on onnxruntime which is already built).
-    logger.info('[4/5] Building models...')
+    // Models run the ONNX export + quantization through onnxruntime.
+    logger.info('[5/6] Building models (consumes onnxruntime)...')
     await runPnpm(['--filter', 'models', 'build'])
     logger.success('Models built')
     logger.error('')

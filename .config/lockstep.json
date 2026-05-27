@@ -838,6 +838,22 @@
         "Comparator op is a uint8_t enum (0..6) instead of an operator string.",
         "X-range / wildcard handling collapses 'x', 'X', and '*' into a single kXAny sentinel."
       ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "yoga-wrapassembly",
+      "upstream": "yoga",
+      "local": "packages/yoga-layout-builder/src/wrapper/wrapAssembly.mts",
+      "upstream_path": "javascript/src/wrapAssembly.ts",
+      "forked_at_sha": "042f5013152eb81c1552dec945b88f7b95ca350f",
+      "criticality": 7,
+      "conformance_test": "packages/yoga-layout-builder/test/build-output.test.mts",
+      "deviations": [
+        "1:1 port of Facebook's own JS convenience layer (TS -> our .mts conventions), NOT a reimplementation. Carries string-unit setters ('100%'/'auto'), measure/dirtied callback marshalling into embind, and the JS-GC vs yoga-manual-alloc memory reconciliation (Node.create/free/freeRecursive, Config.free).",
+        "On a yoga bump, re-port behavioral changes from the new upstream wrapAssembly.ts via the AI-assisted step in the updating-yoga skill (lib ai/spawn + AI_PROFILE.edit). The version marker in the file header is build-re-stamped from the verified submodule version.",
+        "The sibling YGEnums.mts is NOT a fork — it is GENERATED at build time from yoga/YGEnums.h by scripts/source-cloned/shared/generate-enums.mts, so only this behavioral wrapper needs a manual re-port."
+      ],
+      "notes": "Tracks the one hand-maintained yoga wrapper surface for drift audit on yoga bumps. Pairs with the version-pin 'yoga' row; bump forked_at_sha when re-ported."
     }
   ]
 }

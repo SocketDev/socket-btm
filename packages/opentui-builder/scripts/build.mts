@@ -29,7 +29,7 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
-import { glob } from '@socketsecurity/lib-stable/globs/stream'
+import { glob } from '@socketsecurity/lib-stable/globs/match'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 

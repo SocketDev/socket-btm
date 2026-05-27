@@ -11,8 +11,8 @@ import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
 import {
   safeDelete,
   safeMkdir,
-  safeReadFile,
 } from '@socketsecurity/lib-stable/fs/safe'
+import { safeReadFile } from '@socketsecurity/lib-stable/fs/read-file'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 

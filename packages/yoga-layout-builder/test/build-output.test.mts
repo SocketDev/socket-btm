@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 
 import { createWasmTestHelpers } from 'build-infra/lib/test/helpers'
 
-import { isObjectObject } from '@socketsecurity/lib-stable/objects/types'
+import { isObject } from '@socketsecurity/lib-stable/objects/predicates'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const packageDir = path.join(__dirname, '..')
@@ -124,7 +124,7 @@ describe('yoga-layout-builder WASM output', () => {
 
       const require = createRequire(import.meta.url)
       const yoga = require(syncJsPath)
-      expect(isObjectObject(yoga)).toBeTruthy()
+      expect(isObject(yoga)).toBeTruthy()
     })
   })
 })

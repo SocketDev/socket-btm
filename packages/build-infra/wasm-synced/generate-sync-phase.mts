@@ -10,7 +10,7 @@ import path from 'node:path'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
-import { hasKeys } from '@socketsecurity/lib-stable/objects/types'
+import { hasKeys } from '@socketsecurity/lib-stable/objects/predicates'
 import { getFileSize } from 'build-infra/lib/build-helpers'
 import { generateWasmSyncWrapper } from 'build-infra/wasm-synced/wasm-sync-wrapper'
 

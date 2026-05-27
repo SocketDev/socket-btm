@@ -52,10 +52,8 @@ import process from 'node:process'
 import { which, whichSync } from '@socketsecurity/lib-stable/bin/which'
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
-import {
-  LOG_SYMBOLS,
-  getDefaultLogger,
-} from '@socketsecurity/lib-stable/logger/default'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { LOG_SYMBOLS } from '@socketsecurity/lib-stable/logger/symbols'
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { getBuildPaths as getDawnBuildPaths } from 'dawn-builder/scripts/paths'

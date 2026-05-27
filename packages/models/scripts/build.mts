@@ -35,7 +35,8 @@ import { checkModelBuildPrerequisites } from 'build-infra/lib/model-build-helper
 import { getPythonCommand } from 'build-infra/lib/python-installer'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
-import { readJson, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
+import { readJson } from '@socketsecurity/lib-stable/fs/read-json'
+import { safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 

@@ -19,7 +19,7 @@ import {
 import type { TestResult } from '../scripts/wpt-streams/types.mts'
 
 /** Build a TestResult with sane defaults; override only fields under test. */
-function makeResult(overrides: Partial<TestResult>): TestResult {
+export function makeResult(overrides: Partial<TestResult>): TestResult {
   return {
     errors: [],
     failed: 0,

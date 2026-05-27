@@ -16,8 +16,8 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 import { getPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 import { getBuildPaths as getNodeSmolBuildPaths } from 'node-smol-builder/scripts/paths'
 
 import { MAX_NODE_BINARY_SIZE } from './helpers/constants.mts'
@@ -413,7 +413,7 @@ describe('binject CLI', () => {
       ])
 
       // Should not error - both flags are valid together
-      expect(result.output).toMatch(/(Success|both|injected)/i)
+      expect(result.output).toMatch(/(?:Success|both|injected)/i)
       await expect(
         // oxlint-disable-next-line socket/prefer-exists-sync -- many access(X_OK) and access(F_OK) calls check executable permission / output-file readiness inside Promise.all races; existsSync (sync, no permission check) is not a substitute.
         fs.access(output, FS_CONSTANTS.F_OK),
@@ -428,7 +428,7 @@ describe('binject CLI', () => {
     it('--version should show version number', async () => {
       const { output } = await execCommand(BINJECT, ['--version'])
       // Accept both semver (1.2.3) and git-style (20251212-abc123) versions
-      expect(output).toMatch(/([0-9]+-[a-f0-9]+|[0-9]+\.[0-9]+\.[0-9]+)/)
+      expect(output).toMatch(/(?:[0-9]+-[a-f0-9]+|[0-9]+\.[0-9]+\.[0-9]+)/)
     })
   })
 
@@ -480,7 +480,7 @@ describe('binject CLI', () => {
         '--sea',
         resource,
       ])
-      expect(result.output).toMatch(/(cannot open|error|not found|unknown)/i)
+      expect(result.output).toMatch(/(?:cannot open|error|not found|unknown)/i)
     })
 
     it('inject with nonexistent resource should show error', async () => {
@@ -494,7 +494,7 @@ describe('binject CLI', () => {
         '--sea',
         '/nonexistent/resource',
       ])
-      expect(result.output).toMatch(/(cannot open|error|not found)/i)
+      expect(result.output).toMatch(/(?:cannot open|error|not found)/i)
     })
   })
 
@@ -519,7 +519,7 @@ describe('binject CLI', () => {
       ])
 
       // All platforms should succeed with --sea injection
-      expect(result.output).toMatch(/(Success|injected)/i)
+      expect(result.output).toMatch(/(?:Success|injected)/i)
       await expect(
         // oxlint-disable-next-line socket/prefer-exists-sync -- many access(X_OK) and access(F_OK) calls check executable permission / output-file readiness inside Promise.all races; existsSync (sync, no permission check) is not a substitute.
         fs.access(output, FS_CONSTANTS.F_OK),
@@ -566,7 +566,7 @@ describe('binject CLI', () => {
         vfsResource,
       ])
 
-      expect(result.output).toMatch(/(Success|both|injected)/i)
+      expect(result.output).toMatch(/(?:Success|both|injected)/i)
       await expect(
         // oxlint-disable-next-line socket/prefer-exists-sync -- many access(X_OK) and access(F_OK) calls check executable permission / output-file readiness inside Promise.all races; existsSync (sync, no permission check) is not a substitute.
         fs.access(output, FS_CONSTANTS.F_OK),
@@ -670,7 +670,7 @@ describe('binject CLI', () => {
         logger.fail('Output:', result1.output)
       }
       expect(result1.code).toBe(0)
-      expect(result1.output).toMatch(/(Success|injected)/i)
+      expect(result1.output).toMatch(/(?:Success|injected)/i)
 
       // Move tmpOutput1 back to binary
       await safeDelete(binary)
@@ -695,7 +695,7 @@ describe('binject CLI', () => {
         logger.fail('Output:', result2.output)
       }
       expect(result2.code).toBe(0)
-      expect(result2.output).toMatch(/(Success|injected)/i)
+      expect(result2.output).toMatch(/(?:Success|injected)/i)
 
       // Move tmpOutput2 back to binary
       await safeDelete(binary)
@@ -720,7 +720,7 @@ describe('binject CLI', () => {
         logger.fail('Output:', result3.output)
       }
       expect(result3.code).toBe(0)
-      expect(result3.output).toMatch(/(Success|injected)/i)
+      expect(result3.output).toMatch(/(?:Success|injected)/i)
 
       // Move tmpOutput3 back to binary
       await safeDelete(binary)
@@ -734,7 +734,7 @@ describe('binject CLI', () => {
       const binary = await createTestBinary('test-list.bin')
 
       const result = await execCommand(BINJECT, ['list', binary])
-      expect(result.output).toMatch(/(Listing|resources|sections)/i)
+      expect(result.output).toMatch(/(?:Listing|resources|sections)/i)
     })
   })
 
@@ -749,7 +749,7 @@ describe('binject CLI', () => {
         '-o',
         'output.blob',
       ])
-      expect(result.output).toMatch(/(either|sea|vfs)/i)
+      expect(result.output).toMatch(/(?:either|sea|vfs)/i)
     })
 
     it('extract without --output should show error', async () => {
@@ -770,7 +770,7 @@ describe('binject CLI', () => {
       const binary = await createTestBinary('test-verify.bin')
 
       const result = await execCommand(BINJECT, ['verify', '-e', binary])
-      expect(result.output).toMatch(/(either|sea|vfs)/i)
+      expect(result.output).toMatch(/(?:either|sea|vfs)/i)
     })
   })
 
@@ -791,7 +791,7 @@ describe('binject CLI', () => {
         resource,
       ])
 
-      expect(result.output).toMatch(/(Success|batch|both|injected)/i)
+      expect(result.output).toMatch(/(?:Success|batch|both|injected)/i)
     })
   })
 })

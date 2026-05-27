@@ -12,7 +12,7 @@
 
 import { existsSync, promises as fs } from 'node:fs'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 import { generateSyncCjs } from './generate-sync-cjs.mts'
 import { generateSyncEsm } from './generate-sync-esm.mts'

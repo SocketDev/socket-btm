@@ -14,8 +14,8 @@ import { ensureEmscripten } from 'build-infra/lib/emscripten-installer'
 import { which } from '@socketsecurity/lib-stable/bin/which'
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
 import { safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { getOptimizationFlags } from '../../lib/optimization-flags.mts'
 

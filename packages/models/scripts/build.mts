@@ -36,8 +36,8 @@ import { getPythonCommand } from 'build-infra/lib/python-installer'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { readJson, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { convertToOnnx as convertToOnnxImpl } from './converted/shared/convert-to-onnx.mts'
 import { downloadModel as downloadModelImpl } from './downloaded/shared/download-model.mts'

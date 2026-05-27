@@ -10,7 +10,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import * as acorn from 'acorn'
 import * as walk from 'acorn-walk'
 import { getFileSize } from 'build-infra/lib/build-helpers'

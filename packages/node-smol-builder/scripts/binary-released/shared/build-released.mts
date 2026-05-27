@@ -55,8 +55,8 @@ import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import {
   LOG_SYMBOLS,
   getDefaultLogger,
-} from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+} from '@socketsecurity/lib-stable/logger/default'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { getBuildPaths as getDawnBuildPaths } from 'dawn-builder/scripts/paths'
 import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'

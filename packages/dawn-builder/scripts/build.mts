@@ -44,8 +44,8 @@ import process from 'node:process'
 
 import { which } from '@socketsecurity/lib-stable/bin/which'
 import { safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 

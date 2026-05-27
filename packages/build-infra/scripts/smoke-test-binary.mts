@@ -21,7 +21,7 @@
 import path from 'node:path'
 import process from 'node:process'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 import { smokeTestBinary } from '../lib/build-helpers.mts'
 

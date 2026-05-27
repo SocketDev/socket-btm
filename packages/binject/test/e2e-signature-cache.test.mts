@@ -20,9 +20,9 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { getSocketDlxDir } from '@socketsecurity/lib-stable/paths/socket'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 import { getPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { getBinjectPath } from './helpers/paths.mts'

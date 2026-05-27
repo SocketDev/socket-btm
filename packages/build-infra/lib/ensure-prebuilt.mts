@@ -40,7 +40,7 @@ import {
 import { extractTarball } from './tarball-utils.mts'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 const logger = getDefaultLogger()
 

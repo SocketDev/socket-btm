@@ -9,7 +9,7 @@ import process from 'node:process'
 
 import { fileURLToPath } from 'node:url'
 
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const sharedScript = path.join(

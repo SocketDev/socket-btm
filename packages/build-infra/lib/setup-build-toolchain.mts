@@ -23,7 +23,7 @@ import { errorMessage } from './error-utils.mts'
 
 import { getCI } from '@socketsecurity/lib-stable/env/ci'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 import { getPlatform } from './build-env.mts'
 import { installTools, updatePackageCache } from './install-tools.mts'

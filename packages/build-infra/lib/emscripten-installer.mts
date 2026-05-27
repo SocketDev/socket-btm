@@ -11,8 +11,8 @@ import process from 'node:process'
 
 import { whichSync } from '@socketsecurity/lib-stable/bin/which'
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { printError } from './build-output.mts'
 import { errorMessage } from './error-utils.mts'
@@ -88,7 +88,7 @@ export async function activateEmscripten({
       const lines = constructResult.stdout.toString().split('\n')
       for (let i = 0, { length } = lines; i < length; i += 1) {
         const line = lines[i]
-        const match = line.match(/^(\w+)=(.*)$/)
+        const match = line.match(/^(?:\w+)=(?:.*)$/)
         if (match) {
           const [, key, value] = match
           if (key === 'PATH' || key === 'EMSDK' || key.startsWith('EM_')) {

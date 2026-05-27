@@ -33,12 +33,12 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 import { which } from '@socketsecurity/lib-stable/bin/which'
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import {
   detectLibc,
   downloadSocketBtmRelease,
 } from '@socketsecurity/lib-stable/releases/socket-btm'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { LIEF_REQUIRED_FILES } from '../lib/required-files.mts'
 

@@ -12,11 +12,11 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 import { errorMessage } from 'build-infra/lib/error-utils'
 import { fetchNodeChecksum } from 'build-infra/lib/version-helpers'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 const logger = getDefaultLogger()
 

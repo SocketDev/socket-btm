@@ -11,7 +11,7 @@ import { getFileSize } from 'build-infra/lib/build-helpers'
 import { printError } from 'build-infra/lib/build-output'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 const logger = getDefaultLogger()
 

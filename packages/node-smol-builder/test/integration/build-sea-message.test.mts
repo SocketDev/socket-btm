@@ -11,7 +11,7 @@ import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { getLatestFinalBinary } from '../paths.mts'
 import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'

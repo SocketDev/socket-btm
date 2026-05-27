@@ -63,8 +63,8 @@ describe.skipIf(skipTests)('node:smol-ffi/node integration', () => {
     // Either branch is acceptable depending on how the smol binary
     // gates the experimental flag — assert only that the sentinel
     // is wired and consistent with the dlopen presence.
-    const notAvailableMatch = stdout.match(/notAvailable=(\w+)/)
-    const hasDlopenMatch = stdout.match(/hasDlopen=(\w+)/)
+    const notAvailableMatch = stdout.match(/notAvailable=(?:\w+)/)
+    const hasDlopenMatch = stdout.match(/hasDlopen=(?:\w+)/)
     expect(notAvailableMatch).not.toBeNull()
     expect(hasDlopenMatch).not.toBeNull()
     // If notAvailable=true then dlopen must be absent; if

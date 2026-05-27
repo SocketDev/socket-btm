@@ -25,7 +25,7 @@ import { makeExecutable } from 'build-infra/lib/build-helpers'
 
 import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
 import { getSocketDlxDir } from '@socketsecurity/lib-stable/paths/socket'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { MACHO_SEGMENT_NODE_SEA } from 'bin-infra/test/helpers/segment-names'
 import { runBinject } from '../helpers/binject.mts'

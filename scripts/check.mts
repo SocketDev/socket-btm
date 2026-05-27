@@ -14,8 +14,8 @@ import process from 'node:process'
 
 import { which } from '@socketsecurity/lib-stable/bin/which'
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 import { printFooter } from '@socketsecurity/lib-stable/stdio/footer'
 
 import { errorMessage } from 'build-infra/lib/error-utils'

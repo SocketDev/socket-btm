@@ -20,7 +20,7 @@ import { getDownloadedDir, getFinalBinaryPath } from 'build-infra/lib/paths'
 import { getPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { envAsBoolean } from '@socketsecurity/lib-stable/env/boolean'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import {
   detectLibc,
   downloadSocketBtmRelease,

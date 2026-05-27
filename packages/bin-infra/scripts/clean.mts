@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url'
 import { cleanBuilder } from 'build-infra/lib/clean-builder'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const packageDir = path.join(__dirname, '..')

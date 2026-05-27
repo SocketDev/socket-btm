@@ -73,7 +73,8 @@ export function getNodeIncludeDir() {
     // Windows: <prefix>/node.exe -> <prefix>/include/node
     path.dirname(exec),
   ]
-  for (const start of candidates) {
+  for (let i = 0, { length } = candidates; i < length; i += 1) {
+    const start = candidates[i]!
     let cur = start
     for (let i = 0; i < 4; i++) {
       const candidate = path.join(cur, 'include', 'node')
@@ -86,6 +87,7 @@ export function getNodeIncludeDir() {
       }
       cur = parent
     }
+  
   }
   throw new Error(
     `napi-go: could not locate Node.js headers. Expected 'node_api.h' ` +

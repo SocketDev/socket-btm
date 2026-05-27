@@ -26,8 +26,8 @@ import { getBuildMode } from 'build-infra/lib/constants'
 import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { getLatestFinalBinary } from '../paths.mts'
 

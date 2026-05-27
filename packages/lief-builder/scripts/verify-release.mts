@@ -24,7 +24,7 @@ import process from 'node:process'
 // file has zero imports of its own, so pulling it in does not drag
 // in the workspace-resolution graph that build.mts requires.
 import { LIEF_REQUIRED_FILES } from '../lib/required-files.mts'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 const logger = getDefaultLogger()
 

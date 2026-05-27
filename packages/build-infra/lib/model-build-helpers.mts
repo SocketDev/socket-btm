@@ -5,7 +5,7 @@
  * codet5-models-builder, models package) to reduce code duplication.
  */
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 import {
   checkDiskSpace,

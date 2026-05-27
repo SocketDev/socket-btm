@@ -7,8 +7,8 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { errorMessage } from './error-utils.mts'
 

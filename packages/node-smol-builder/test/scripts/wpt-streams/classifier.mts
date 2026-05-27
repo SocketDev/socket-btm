@@ -11,19 +11,6 @@
 import type { Classification, TestResult, UnexpectedFailure } from './types.mts'
 
 /**
- * Split an error message into (testName, restOfMessage).
- * Format that runtimes produce: "testName: error message". When no
- * colon, the whole string is treated as the test name with no message.
- */
-function splitErrorIntoTestName(err: string): { rest: string; testName: string } {
-  const colonIdx = err.indexOf(':')
-  if (colonIdx <= 0) {
-    return { rest: '', testName: err }
-  }
-  return { rest: err.slice(colonIdx + 1).trim(), testName: err.slice(0, colonIdx) }
-}
-
-/**
  * Classify a single file's TestResult against the allowlist.
  *
  *   - `result`: the per-file outcome.
@@ -102,4 +89,17 @@ export function findStaleAllowlistEntries(
     }
   }
   return stale
+}
+
+/**
+ * Split an error message into (testName, restOfMessage).
+ * Format that runtimes produce: "testName: error message". When no
+ * colon, the whole string is treated as the test name with no message.
+ */
+export function splitErrorIntoTestName(err: string): { rest: string; testName: string } {
+  const colonIdx = err.indexOf(':')
+  if (colonIdx <= 0) {
+    return { rest: '', testName: err }
+  }
+  return { rest: err.slice(colonIdx + 1).trim(), testName: err.slice(0, colonIdx) }
 }

@@ -27,7 +27,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { httpJson } from '@socketsecurity/lib-stable/http-request'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const OUTPUT = path.resolve(

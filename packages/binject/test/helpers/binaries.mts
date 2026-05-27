@@ -12,10 +12,11 @@ import { extract } from 'tar'
 
 import { getDownloadedDir } from 'build-infra/lib/paths'
 
-import { httpRequest } from '@socketsecurity/lib-stable/http-request/convenience'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { httpRequest } from '@socketsecurity/lib-stable/http-request/request'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 import { PROJECT_ROOT } from './paths.mts'
+import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
 
 const logger = getDefaultLogger()
 
@@ -136,7 +137,7 @@ export async function extractFromTarGz(tarGzData, extractPath) {
   const binary = await fs.readFile(extractedPath)
 
   // Cleanup
-  await fs.rm(tempDir, { force: true, recursive: true })
+  await safeDelete(tempDir)
 
   return binary
 }

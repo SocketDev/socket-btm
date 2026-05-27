@@ -19,8 +19,8 @@ import path from 'node:path'
 import process from 'node:process'
 
 import { envAsBoolean } from '@socketsecurity/lib-stable/env/boolean'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import {
   DOCKER_ENV_FILE,

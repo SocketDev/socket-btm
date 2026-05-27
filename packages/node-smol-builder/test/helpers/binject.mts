@@ -13,7 +13,7 @@ import { BUILD_STAGES, getBuildMode } from 'build-infra/lib/constants'
 import { getPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import {
   RESOURCE_SMOL_VFS_BLOB,

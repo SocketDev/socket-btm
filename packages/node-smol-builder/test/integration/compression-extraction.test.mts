@@ -26,7 +26,7 @@ import { fileURLToPath } from 'node:url'
 
 import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
 import { getSocketDlxDir } from '@socketsecurity/lib-stable/paths/socket'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import {
   HEADER_SIZES,

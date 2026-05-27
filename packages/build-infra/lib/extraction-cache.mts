@@ -12,7 +12,7 @@ import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 
 import { safeMkdirSync } from '@socketsecurity/lib-stable/fs/safe'
-import loggerPkg from '@socketsecurity/lib-stable/logger'
+import loggerPkg from '@socketsecurity/lib-stable/logger/default'
 const { getDefaultLogger } = loggerPkg
 
 const logger = getDefaultLogger()

@@ -25,7 +25,7 @@ import { makeExecutable } from 'build-infra/lib/build-helpers'
 import { getBuildMode } from 'build-infra/lib/constants'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import {
   MACHO_SECTION_PRESSED_DATA,

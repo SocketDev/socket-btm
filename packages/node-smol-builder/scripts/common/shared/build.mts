@@ -103,7 +103,7 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { parseArgs } from '@socketsecurity/lib-stable/argv/parse'
 import { glob } from '@socketsecurity/lib-stable/globs/stream'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { normalizePath } from '@socketsecurity/lib-stable/paths/normalize'
 
 import {

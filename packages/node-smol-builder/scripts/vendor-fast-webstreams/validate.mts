@@ -19,8 +19,8 @@ import { fileURLToPath } from 'node:url'
 import { errorMessage } from 'build-infra/lib/error-utils'
 import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 const logger = getDefaultLogger()
 

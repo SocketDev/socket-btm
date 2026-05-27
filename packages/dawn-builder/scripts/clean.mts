@@ -7,7 +7,7 @@
  */
 
 import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 import { BUILD_ROOT } from './paths.mts'
 

@@ -14,7 +14,7 @@ import process from 'node:process'
 
 import { fileURLToPath } from 'node:url'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 import { CHECKPOINTS } from '../packages/build-infra/lib/constants.mts'
 

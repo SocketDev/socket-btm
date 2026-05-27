@@ -3,7 +3,7 @@
  * Provides a DRY way to run common pre-build validation checks.
  */
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 import {
   checkCompiler,

@@ -6,8 +6,8 @@
  */
 
 import { errorMessage } from '@socketsecurity/lib-stable/errors'
-import { httpRequest } from '@socketsecurity/lib-stable/http-request/convenience'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { httpRequest } from '@socketsecurity/lib-stable/http-request/request'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 const logger = getDefaultLogger()
 

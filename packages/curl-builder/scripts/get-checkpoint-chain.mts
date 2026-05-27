@@ -8,7 +8,7 @@
  *   Comma-separated checkpoint chain (e.g., "finalized,mbedtls")
  */
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { getCheckpointChain } from './build.mts'
 
 const logger = getDefaultLogger()

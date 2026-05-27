@@ -21,8 +21,8 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { getLatestRelease } from '@socketsecurity/lib-stable/releases/github-api'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { getLatestRelease } from '@socketsecurity/lib-stable/releases/github-listing'
 import { downloadReleaseAsset } from '@socketsecurity/lib-stable/releases/github-downloads'
 import { SOCKET_BTM_REPO } from '@socketsecurity/lib-stable/releases/socket-btm'
 

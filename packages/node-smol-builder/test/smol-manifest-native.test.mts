@@ -24,7 +24,7 @@ import { existsSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { spawnSync } from '@socketsecurity/lib-stable/spawn/spawn'
+import { spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
 import { describe, expect, it } from 'vitest'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))

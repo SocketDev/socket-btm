@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url'
 import { getBuildMode } from 'build-infra/lib/constants'
 import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const testDir = __dirname

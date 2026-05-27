@@ -22,12 +22,12 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
+import { httpDownload } from '@socketsecurity/lib-stable/http-request/download'
 import {
-  httpDownload,
   httpJson,
   httpText,
-} from '@socketsecurity/lib-stable/http-request/convenience'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+} from '@socketsecurity/lib-stable/http-request'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { escapeRegExp } from '@socketsecurity/lib-stable/regexps/escape'
 
 import { errorMessage } from '../lib/error-utils.mts'
@@ -174,7 +174,7 @@ export function parseChecksumFile(content) {
     }
 
     // Try "hash  filename" (two spaces) or "hash filename" (one space)
-    const match = trimmed.match(/^([a-f0-9]{64})\s+(.+)$/i)
+    const match = trimmed.match(/^(?:[a-f0-9]{64})\s+(?:.+)$/i)
     if (match) {
       const [, hash, filename] = match
       checksums.set(filename, hash.toLowerCase())

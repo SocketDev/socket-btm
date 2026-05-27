@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url'
 import { makeExecutable } from 'build-infra/lib/build-helpers'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { MACHO_SEGMENT_NODE_SEA } from 'bin-infra/test/helpers/segment-names'
 import { SMOL_VFS_BLOB, runBinject } from '../helpers/binject.mts'

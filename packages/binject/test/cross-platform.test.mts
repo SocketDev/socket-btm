@@ -10,10 +10,11 @@ import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { getNodeBinary, getSupportedPlatforms } from './helpers/binaries.mts'
 import { getBinjectPath } from './helpers/paths.mts'
+import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
 
 const { tmpdir } = os
 
@@ -107,12 +108,13 @@ describeOrSkip('Cross-platform binary manipulation', () => {
 
           // Note: Output may be smaller than input for Mach-O due to signature stripping
           // We just verify the output exists and has reasonable size
+          // oxlint-disable-next-line socket/prefer-exists-sync -- need .size metadata, not just existence
           const outputStats = await fs.stat(outputPath)
           expect(outputStats.size).toBeGreaterThan(0)
         } finally {
           // Cleanup
           if (existsSync(blobPath)) {
-            await fs.unlink(blobPath).catch(() => {})
+            await safeDelete(blobPath).catch(() => {})
           }
         }
       })
@@ -154,6 +156,7 @@ describeOrSkip('Cross-platform binary manipulation', () => {
           expect(existsSync(outputPath)).toBeTruthy()
 
           // Verify output still has reasonable size after re-injection
+          // oxlint-disable-next-line socket/prefer-exists-sync -- need .size metadata, not just existence
           const afterStats = await fs.stat(outputPath)
 
           // Just verify it's still a valid binary (not empty or corrupted)
@@ -161,10 +164,10 @@ describeOrSkip('Cross-platform binary manipulation', () => {
         } finally {
           // Cleanup
           if (existsSync(blobPath)) {
-            await fs.unlink(blobPath).catch(() => {})
+            await safeDelete(blobPath).catch(() => {})
           }
           if (existsSync(outputPath)) {
-            await fs.unlink(outputPath).catch(() => {})
+            await safeDelete(outputPath).catch(() => {})
           }
         }
       })

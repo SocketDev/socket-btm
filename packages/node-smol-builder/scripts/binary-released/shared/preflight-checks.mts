@@ -26,7 +26,7 @@ import {
 import { getMinPythonVersion } from 'build-infra/lib/version-helpers'
 
 import { whichSync } from '@socketsecurity/lib-stable/bin/which'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 const logger = getDefaultLogger()
 const IS_MACOS = process.platform === 'darwin'

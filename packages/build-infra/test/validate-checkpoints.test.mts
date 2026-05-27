@@ -10,7 +10,7 @@ import os from 'node:os'
 import path from 'node:path'
 
 import { safeDelete, safeMkdirSync } from '@socketsecurity/lib-stable/fs/safe'
-import { spawnSync } from '@socketsecurity/lib-stable/spawn/spawn'
+import { spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { validateCheckpoints } from './validate-checkpoints.mts'
 

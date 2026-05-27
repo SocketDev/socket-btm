@@ -23,11 +23,11 @@ import { fileURLToPath } from 'node:url'
 
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { getLatestRelease } from '@socketsecurity/lib-stable/releases/github-api'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { getLatestRelease } from '@socketsecurity/lib-stable/releases/github-listing'
 import { downloadReleaseAsset } from '@socketsecurity/lib-stable/releases/github-downloads'
 import { SOCKET_BTM_REPO } from '@socketsecurity/lib-stable/releases/socket-btm'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { getBuildMode, getPlatformBuildDir } from 'build-infra/lib/constants'
 // logTransientErrorHelp loaded lazily inside catch block below (see

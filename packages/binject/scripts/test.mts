@@ -18,7 +18,7 @@ import { ensureLief } from 'lief-builder/lib/ensure-lief'
 
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
 import { getCI } from '@socketsecurity/lib-stable/env/ci'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 const logger = getDefaultLogger()
 

@@ -14,7 +14,7 @@ import { applyPatch, validatePatch } from 'build-infra/lib/patch-validator'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { glob } from '@socketsecurity/lib-stable/globs/stream'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 import {
   EXTERNAL_PIN_FILES,

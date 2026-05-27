@@ -31,8 +31,8 @@ import * as ort from 'onnxruntime-node'
 import process from 'node:process'
 
 import { safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { MODELS_DIR, getBuildPaths, getCurrentPlatform } from './paths.mts'
 

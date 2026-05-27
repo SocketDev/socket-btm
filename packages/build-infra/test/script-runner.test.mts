@@ -4,7 +4,7 @@
  */
 
 import * as binModule from '@socketsecurity/lib-stable/bin/which'
-import * as spawnModule from '@socketsecurity/lib-stable/spawn/spawn'
+import * as spawnModule from '@socketsecurity/lib-stable/process/spawn/child'
 
 import {
   pnpm,
@@ -23,8 +23,8 @@ vi.mock<typeof import('@socketsecurity/lib-stable/bin/which')>(
   }),
 )
 
-vi.mock<typeof import('@socketsecurity/lib-stable/spawn/spawn')>(
-  import('@socketsecurity/lib-stable/spawn/spawn'),
+vi.mock<typeof import('@socketsecurity/lib-stable/process/spawn/child')>(
+  import('@socketsecurity/lib-stable/process/spawn/child'),
   () => ({
     spawn: vi.fn(),
   }),

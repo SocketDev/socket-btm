@@ -28,7 +28,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { parseArgs } from 'node:util'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 import {
   commitDate,

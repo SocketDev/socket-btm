@@ -29,7 +29,7 @@ import colors from 'yoctocolors-cjs'
 
 import { whichSync } from '@socketsecurity/lib-stable/bin/which'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 import { PACKAGE_ROOT } from './paths.mts'
 

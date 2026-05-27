@@ -11,7 +11,7 @@ import path from 'node:path'
 import process from 'node:process'
 
 import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { getLatestFinalBinary } from '../paths.mts'
 

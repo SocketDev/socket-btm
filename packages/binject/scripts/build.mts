@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 
 import { buildBinSuitePackage } from 'bin-infra/lib/builder'
 import { errorMessage } from 'build-infra/lib/error-utils'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { ensureLibdeflate } from 'build-infra/lib/libdeflate-init'
 import { ensureZstd } from 'build-infra/lib/zstd-init'
 import { ensureLief } from 'lief-builder/lib/ensure-lief'

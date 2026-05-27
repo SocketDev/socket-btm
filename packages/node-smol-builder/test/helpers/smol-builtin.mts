@@ -10,7 +10,7 @@
 
 import { existsSync } from 'node:fs'
 
-import { spawn, spawnSync } from '@socketsecurity/lib-stable/spawn/spawn'
+import { spawn, spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { getLatestFinalBinary } from '../paths.mts'
 

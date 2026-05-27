@@ -20,8 +20,8 @@ import { makeExecutable } from 'build-infra/lib/build-helpers'
 import { getPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 import { getBuildPaths as getNodeSmolBuildPaths } from 'node-smol-builder/scripts/paths'
 
 import { MAX_NODE_BINARY_SIZE } from './helpers/constants.mts'

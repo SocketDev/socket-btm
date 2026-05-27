@@ -38,12 +38,12 @@ import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
 import { envAsBoolean } from '@socketsecurity/lib-stable/env/boolean'
 import { getCI } from '@socketsecurity/lib-stable/env/ci'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import {
   detectLibc,
   downloadSocketBtmRelease,
 } from '@socketsecurity/lib-stable/releases/socket-btm'
-import { spawn } from '@socketsecurity/lib-stable/spawn/spawn'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 const logger = getDefaultLogger()
 

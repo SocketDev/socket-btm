@@ -1,57 +1,21 @@
-/** @fileoverview Utility for running shell commands with proper error handling. */
+/**
+ * @file Utility for running shell commands with proper error handling.
+ */
 
-import os from 'node:os'
-import type { SpawnOptions, SpawnSyncOptions } from 'node:child_process'
+import process from 'node:process'
 
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger'
-import { spawn, spawnSync } from '@socketsecurity/lib-stable/spawn/spawn'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import type { SpawnOptions } from '@socketsecurity/lib-stable/process/spawn/child'
+import {
+  spawn,
+  spawnSync,
+} from '@socketsecurity/lib-stable/process/spawn/child'
 
-// Initialize logger
 const logger = getDefaultLogger()
-
-type SpawnError = {
-  code: number
-  stderr: string
-  stdout: string
-}
-
-type CommandDefinition = {
-  args?: string[] | undefined
-  command: string
-  options?: SpawnOptions | undefined
-}
-
-type QuietCommandResult = {
-  exitCode: number
-  stderr: string
-  stdout: string
-}
-
-/**
- * Log and run a command.
- * @param {string} description - Description of what the command does
- * @param {string} command - The command to run
- * @param {string[]} args - Arguments
- * @param {object} options - Spawn options
- * @returns {Promise<number>} Exit code
- */
-export async function logAndRun(
-  description: string,
-  command: string,
-  args: string[] = [],
-  options: SpawnOptions = {},
-): Promise<number> {
-  logger.log(description)
-  return runCommand(command, args, options)
-}
 
 /**
  * Run a command and return a promise that resolves with the exit code.
- * @param {string} command - The command to run
- * @param {string[]} args - Arguments to pass to the command
- * @param {object} options - Spawn options
- * @returns {Promise<number>} Exit code
  */
 export async function runCommand(
   command: string,
@@ -64,65 +28,16 @@ export async function runCommand(
   logger.clearLine()
   try {
     const result = await spawn(command, args, {
-      shell: WIN32,
       stdio: 'inherit',
-      ...options,
-    })
-    return result.code
-  } catch (e) {
-    // spawn() from @socketsecurity/lib-stable throws on non-zero exit
-    // Return the exit code from the error
-    if (
-      e &&
-      typeof e === 'object' &&
-      'code' in e &&
-      typeof (e as { code: unknown }).code === 'number'
-    ) {
-      return (e as { code: number }).code
-    }
-    throw e
-  }
-}
-
-/**
- * Run a command and suppress output.
- * @param {string} command - The command to run
- * @param {string[]} args - Arguments to pass to the command
- * @param {object} options - Spawn options
- * @returns {Promise<{exitCode: number, stdout: string, stderr: string}>}
- */
-export async function runCommandQuiet(
-  command: string,
-  args: string[] = [],
-  options: SpawnOptions = {},
-): Promise<QuietCommandResult> {
-  try {
-    const result = await spawn(command, args, {
       shell: WIN32,
       ...options,
     })
-
-    return {
-      exitCode: result.code,
-      stderr: String(result.stderr),
-      stdout: String(result.stdout),
-    }
+    // @socketsecurity/lib-stable/spawn reports null on signal termination.
+    return result.code ?? 1
   } catch (e) {
-    // spawn() from @socketsecurity/lib-stable throws on non-zero exit
-    // Return the exit code and output from the error
-    if (
-      e &&
-      typeof e === 'object' &&
-      'code' in e &&
-      'stdout' in e &&
-      'stderr' in e
-    ) {
-      const error = e as SpawnError
-      return {
-        exitCode: error.code,
-        stderr: error.stderr,
-        stdout: error.stdout,
-      }
+    if (e && typeof e === 'object' && 'code' in e) {
+      const code = (e as { code: unknown }).code
+      return typeof code === 'number' ? code : 1
     }
     throw e
   }
@@ -130,59 +45,29 @@ export async function runCommandQuiet(
 
 /**
  * Run a command synchronously.
- * @param {string} command - The command to run
- * @param {string[]} args - Arguments to pass to the command
- * @param {object} options - Spawn options
- * @returns {number} Exit code
  */
 export function runCommandSync(
   command: string,
   args: string[] = [],
-  options: SpawnSyncOptions = {},
+  options: SpawnOptions = {},
 ): number {
   // Clear any in-flight spinner/progress row — see runCommand() comment.
   logger.clearLine()
   const result = spawnSync(command, args, {
-    shell: WIN32,
     stdio: 'inherit',
+    shell: WIN32,
     ...options,
   })
-  // spawnSync returns status: null when the child was killed by a signal
-  // (SIGTERM/SIGKILL/SIGINT). `|| 0` treated null as success, so a crashed
-  // or OOM-killed subprocess was reported as a clean exit — callers would
-  // press on with a failed build. Return 128+signal for signal-kill (POSIX
-  // convention) and 1 for the null-without-signal edge case.
-  if (result.status != null) {
-    return result.status
-  }
-  if (result.signal) {
-    const signalNum = os.constants.signals[result.signal]
-    return signalNum ? 128 + signalNum : 1
-  }
-  return 1
-}
 
-/**
- * Run multiple commands in parallel.
- * @param {Array<{command: string, args?: string[], options?: object}>} commands
- * @returns {Promise<number[]>} Array of exit codes
- */
-export async function runParallel(
-  commands: CommandDefinition[],
-): Promise<number[]> {
-  const promises = commands.map(({ args = [], command, options = {} }) =>
-    runCommand(command, args, options),
-  )
-  const results = await Promise.allSettled(promises)
-  return results.map(r => (r.status === 'fulfilled' ? r.value : 1))
+  // When killed by signal, status is null — treat as failure.
+  if (result.signal) {
+    return 1
+  }
+  return result.status ?? 1
 }
 
 /**
  * Run a pnpm script.
- * @param {string} scriptName - The pnpm script to run
- * @param {string[]} extraArgs - Additional arguments
- * @param {object} options - Spawn options
- * @returns {Promise<number>} Exit code
  */
 export async function runPnpmScript(
   scriptName: string,
@@ -192,20 +77,190 @@ export async function runPnpmScript(
   return runCommand('pnpm', ['run', scriptName, ...extraArgs], options)
 }
 
+export interface CommandSpec {
+  args?: string[] | undefined
+  command: string
+  options?: SpawnOptions | undefined
+}
+
 /**
  * Run multiple commands in sequence, stopping on first failure.
- * @param {Array<{command: string, args?: string[], options?: object}>} commands
- * @returns {Promise<number>} Exit code of first failing command, or 0 if all succeed
  */
-export async function runSequence(
-  commands: CommandDefinition[],
-): Promise<number> {
-  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
+export async function runSequence(commands: CommandSpec[]): Promise<number> {
+  // oxlint-disable-next-line socket/prefer-cached-for-loop -- destructured command-list record; the cached-length rewrite would lose the destructuring shape.
   for (const { args = [], command, options = {} } of commands) {
+    // eslint-disable-next-line no-await-in-loop
     const exitCode = await runCommand(command, args, options)
     if (exitCode !== 0) {
       return exitCode
     }
   }
   return 0
+}
+
+/**
+ * Wait for stdio handles to finish flushing. When spawning multiple processes
+ * with stdio: 'inherit', child processes can exit while leaving stdio handles
+ * with pending write callbacks; polling for drain prevents intermittent hangs.
+ */
+export async function waitForStdioFlush(
+  timeoutMs: number = 1000,
+): Promise<void> {
+  const startTime = Date.now()
+
+  while (Date.now() - startTime < timeoutMs) {
+    const handles = (
+      process as unknown as {
+        _getActiveHandles(): Array<{
+          _isStdio?: boolean | undefined
+          _writableState?: { pendingcb: number } | undefined
+          constructor?: { name?: string | undefined } | undefined
+        }>
+      }
+    )._getActiveHandles()
+
+    const hasStdioWithPendingWrites = handles.some(handle => {
+      if (handle?.constructor?.name === 'Socket' && handle._isStdio) {
+        const writableState = handle._writableState
+        return writableState && writableState.pendingcb > 0
+      }
+      return false
+    })
+
+    if (!hasStdioWithPendingWrites) {
+      return
+    }
+
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise(resolve => {
+      setTimeout(resolve, 10)
+    })
+  }
+}
+
+/**
+ * Run multiple commands in parallel.
+ */
+export async function runParallel(commands: CommandSpec[]): Promise<number[]> {
+  const promises = commands.map(({ args = [], command, options = {} }) =>
+    runCommand(command, args, options),
+  )
+  const results = await Promise.allSettled(promises)
+
+  await waitForStdioFlush()
+
+  return results.map(r => (r.status === 'fulfilled' ? r.value : 1))
+}
+
+export interface QuietCommandResult {
+  exitCode: number
+  stderr: string
+  stdout: string
+}
+
+/**
+ * Run a command and capture output.
+ */
+export async function runCommandQuiet(
+  command: string,
+  args: string[] = [],
+  options: SpawnOptions = {},
+): Promise<QuietCommandResult> {
+  try {
+    const result = await spawn(command, args, {
+      ...options,
+      shell: WIN32,
+      stdio: 'pipe',
+      stdioString: true,
+    })
+
+    return {
+      // @socketsecurity/lib-stable/spawn reports null on signal termination.
+      exitCode: result.code ?? 1,
+      stderr: result.stderr as string,
+      stdout: result.stdout as string,
+    }
+  } catch (e) {
+    if (
+      e &&
+      typeof e === 'object' &&
+      'code' in e &&
+      'stdout' in e &&
+      'stderr' in e
+    ) {
+      const spawnErr = e as {
+        code: number | null
+        stderr: string
+        stdout: string
+      }
+      return {
+        exitCode: spawnErr.code ?? 1,
+        stderr: spawnErr.stderr,
+        stdout: spawnErr.stdout,
+      }
+    }
+    throw e
+  }
+}
+
+/**
+ * Run a command and throw on non-zero exit code.
+ *
+ * @throws {Error} When the command exits with a non-zero code.
+ */
+export async function runCommandStrict(
+  command: string,
+  args: string[] = [],
+  options: SpawnOptions = {},
+): Promise<void> {
+  const exitCode = await runCommand(command, args, options)
+  if (exitCode !== 0) {
+    const error: Error & { code?: number | undefined } = new Error(
+      `Command failed: ${command} ${args.join(' ')}`,
+    )
+    error.code = exitCode
+    throw error
+  }
+}
+
+/**
+ * Run a command quietly and throw on non-zero exit code.
+ *
+ * @throws {Error} When the command exits with a non-zero code.
+ */
+export async function runCommandQuietStrict(
+  command: string,
+  args: string[] = [],
+  options: SpawnOptions = {},
+): Promise<{ stderr: string; stdout: string }> {
+  const { exitCode, stderr, stdout } = await runCommandQuiet(
+    command,
+    args,
+    options,
+  )
+  if (exitCode !== 0) {
+    const error: Error & {
+      code?: number | undefined
+      stderr?: string | undefined
+      stdout?: string | undefined
+    } = new Error(`Command failed: ${command} ${args.join(' ')}`)
+    error.code = exitCode
+    error.stdout = stdout
+    error.stderr = stderr
+    throw error
+  }
+  return { stderr, stdout }
+}
+
+/**
+ * Log and run a command.
+ */
+export async function logAndRun(
+  description: string,
+  command: string,
+  args: string[] = [],
+  options: SpawnOptions = {},
+): Promise<number> {
+  logger.log(description)
+  return runCommand(command, args, options)
 }

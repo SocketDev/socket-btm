@@ -1,9 +1,9 @@
 /**
  * Yoga Layout Enums
  *
- * Converted from upstream yoga/javascript/src/generated/YGEnums.ts
- * Copyright (c) Meta Platforms, Inc. and affiliates.
- * MIT License
+ * GENERATED from upstream yoga/YGEnums.h @ yoga v3.2.1 by
+ * scripts/source-cloned/shared/generate-enums.mts — do not edit by hand.
+ * Copyright (c) Meta Platforms, Inc. and affiliates. MIT License.
  */
 
 export const Align = {
@@ -164,10 +164,8 @@ const constants = {
   EDGE_ALL: Edge.All,
   ERRATA_NONE: Errata.None,
   ERRATA_STRETCH_FLEX_BASIS: Errata.StretchFlexBasis,
-  ERRATA_ABSOLUTE_POSITION_WITHOUT_INSETS_EXCLUDES_PADDING:
-    Errata.AbsolutePositionWithoutInsetsExcludesPadding,
-  ERRATA_ABSOLUTE_PERCENT_AGAINST_INNER_SIZE:
-    Errata.AbsolutePercentAgainstInnerSize,
+  ERRATA_ABSOLUTE_POSITION_WITHOUT_INSETS_EXCLUDES_PADDING: Errata.AbsolutePositionWithoutInsetsExcludesPadding,
+  ERRATA_ABSOLUTE_PERCENT_AGAINST_INNER_SIZE: Errata.AbsolutePercentAgainstInnerSize,
   ERRATA_ALL: Errata.All,
   ERRATA_CLASSIC: Errata.Classic,
   EXPERIMENTAL_FEATURE_WEB_FLEX_BASIS: ExperimentalFeature.WebFlexBasis,
@@ -211,5 +209,5 @@ const constants = {
 }
 
 export { constants }
-// oxlint-disable-next-line socket/no-default-export -- wrapAssembly.mts + the wasm-sync inliner consume the default export as `YGEnums`; converting to a named-only export breaks the generated yoga-sync.cjs wrapper.
+// oxlint-disable-next-line socket/no-default-export -- wrapAssembly.mts + the wasm-sync inliner consume the default export as `YGEnums`.
 export default constants

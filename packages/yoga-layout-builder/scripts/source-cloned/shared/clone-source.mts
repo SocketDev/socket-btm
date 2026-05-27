@@ -12,6 +12,12 @@ import { safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
+import {
+  generateEnumsFile,
+  stampWrapAssemblyVersion,
+} from './generate-enums.mts'
+import { PACKAGE_ROOT } from '../../paths.mts'
+
 const logger = getDefaultLogger()
 
 /**
@@ -33,6 +39,7 @@ export async function cloneYogaSource(options) {
     const cmakeLists = path.join(sharedSourceDir, 'CMakeLists.txt')
     if (existsSync(cmakeLists)) {
       logger.substep('Yoga source already exists, skipping clone')
+      await regenerateEnums(sharedSourceDir, yogaVersion)
       return {
         artifactPath: sharedSourceDir,
         smokeTest: async () => {
@@ -97,6 +104,8 @@ export async function cloneYogaSource(options) {
     `Yoga ${yogaVersion} cloned and verified (${yogaSha.slice(0, 8)})`,
   )
 
+  await regenerateEnums(sharedSourceDir, yogaVersion)
+
   return {
     artifactPath: sharedSourceDir,
     smokeTest: async () => {
@@ -104,5 +113,37 @@ export async function cloneYogaSource(options) {
         throw new Error(`Cloned source missing: ${sharedSourceDir}`)
       }
     },
+  }
+}
+
+/**
+ * Regenerate src/wrapper/YGEnums.mts from the cloned yoga header AND re-stamp
+ * the yoga version in wrapAssembly.mts's Lock-step marker, both from the
+ * build-verified `yogaVersion`. The enum mirror can never drift from the
+ * binary's ABI (both come from this same checkout), and the wrapper's
+ * provenance comment can never silently lie about which yoga it tracks. Runs
+ * on every clone-source invocation, including the already-cloned fast path.
+ */
+export async function regenerateEnums(
+  sharedSourceDir: string,
+  yogaVersion: string,
+): Promise<void> {
+  const headerPath = path.join(sharedSourceDir, 'yoga', 'YGEnums.h')
+  if (!existsSync(headerPath)) {
+    throw new Error(`Yoga enum header missing: ${headerPath}`)
+  }
+  const wrapperDir = path.join(PACKAGE_ROOT, 'src', 'wrapper')
+  await generateEnumsFile(
+    headerPath,
+    path.join(wrapperDir, 'YGEnums.mts'),
+    yogaVersion,
+  )
+  logger.substep(`Regenerated YGEnums.mts from yoga/YGEnums.h (${yogaVersion})`)
+  const stamped = await stampWrapAssemblyVersion(
+    path.join(wrapperDir, 'wrapAssembly.mts'),
+    yogaVersion,
+  )
+  if (stamped) {
+    logger.substep(`Re-stamped wrapAssembly.mts Lock-step → yoga ${yogaVersion}`)
   }
 }

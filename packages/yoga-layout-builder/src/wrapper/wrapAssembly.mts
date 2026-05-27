@@ -1,12 +1,21 @@
 /**
  * Yoga Layout Assembly Wrapper
  *
- * Converted from upstream yoga/javascript/src/wrapAssembly.ts
- * Copyright (c) Meta Platforms, Inc. and affiliates.
- * MIT License
+ * Lock-step from upstream: yoga/javascript/src/wrapAssembly.ts @ yoga v3.2.1
+ * (submodule packages/yoga-layout-builder/upstream/yoga, pinned in .gitmodules
+ * as `# yoga-3.2.1`). This is a 1:1 port of Facebook's own JS convenience
+ * layer — NOT a reimplementation. It carries logic we deliberately do not
+ * own from scratch: string-unit setters ("100%" / "auto"), measure/dirtied
+ * callback marshalling into embind, and the JS-GC vs yoga-manual-alloc memory
+ * reconciliation (Node.create/free/freeRecursive, Config.free). On a yoga
+ * bump, re-port from the new upstream wrapAssembly.ts rather than hand-editing.
+ * The sibling YGEnums.mts is GENERATED from yoga/YGEnums.h (see
+ * scripts/source-cloned/shared/generate-enums.mts), so only this behavioral
+ * layer needs a manual re-port.
  *
- * This wrapper provides a nicer JavaScript API on top of the raw
- * Emscripten bindings, adding conveniences like:
+ * Copyright (c) Meta Platforms, Inc. and affiliates. MIT License.
+ *
+ * Conveniences added on top of the raw Emscripten bindings:
  * - Node.create() factory method
  * - node.free() for cleanup
  * - Patched setters that accept strings like "100%" or "auto"

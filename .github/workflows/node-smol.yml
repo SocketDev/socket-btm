@@ -221,6 +221,17 @@ jobs:
           MATRIX_PLATFORM: ${{ matrix.platform }}
           MATRIX_ARCH: ${{ matrix.arch }}
         run: |
+          # Fail fast on any command error or pipe-stage failure. The ~30
+          # hash invocations below tolerate missing paths via the
+          # `hash_files_optional` helper and explicit `2>/dev/null`, so
+          # this strict mode only catches genuine script-level bugs (typo
+          # in a path, missing tool, etc.) — exactly when a silent empty
+          # var could otherwise cause a cross-matrix cache collision.
+          # NOTE: `set -u` is deliberately omitted because some hashes
+          # legitimately resolve to empty strings (optional files,
+          # uninitialized submodules in dev) and those empties feed into
+          # FINAL_HASH as distinct values.
+          set -eo pipefail
           # Cross-platform hash function
           if command -v shasum &> /dev/null; then
             hash_cmd="shasum -a 256"
@@ -455,6 +466,15 @@ jobs:
           USOCKETS_SHA=$(git ls-tree HEAD packages/node-smol-builder/upstream/uSockets 2>/dev/null | awk '{print $3}')
           UWEBSOCKETS_SHA=$(git ls-tree HEAD packages/node-smol-builder/upstream/uWebSockets 2>/dev/null | awk '{print $3}')
           LIBURING_SHA=$(git ls-tree HEAD packages/node-smol-builder/upstream/liburing 2>/dev/null | awk '{print $3}')
+          # lsquic, ls-qpack, yoga — consumed by node-smol via init-submodules
+          # later in this workflow (HTTP/3 transport via lsquic-infra; TUI
+          # layout via yoga-layout-builder). Same rationale as uSockets/
+          # uWebSockets: a `git submodule update --remote` bump without a
+          # .gitmodules touch would otherwise leave the cache key unchanged
+          # and ship a node binary linked against the old code.
+          LSQUIC_SHA=$(git ls-tree HEAD packages/lsquic-infra/upstream/lsquic 2>/dev/null | awk '{print $3}')
+          LSQPACK_SHA=$(git ls-tree HEAD packages/lsquic-infra/upstream/ls-qpack 2>/dev/null | awk '{print $3}')
+          YOGA_SHA=$(git ls-tree HEAD packages/yoga-layout-builder/upstream/yoga 2>/dev/null | awk '{print $3}')
           # curl and mbedtls SHAs: node-smol embeds the stubs binary via
           # binpress; stubs links libcurl. A curl or mbedtls submodule
           # bump therefore changes the final node binary and MUST bust
@@ -474,6 +494,14 @@ jobs:
           # via the binflate runtime. Edits to binflate/src change the
           # final tarball even when no other source changed.
           BINFLATE_SRC=$(hash_files packages/binflate/src -type f)
+          # lief-builder/src + stubs-builder/src: node-smol embeds binpress
+          # (links LIEF) and the stubs binary (binpress-injected). Source
+          # edits to either change the final node binary, but the integer
+          # *_VERSION keys above only flip when cache-versions.json is
+          # manually bumped — easy to forget. Belt-and-suspenders hash the
+          # source content directly.
+          LIEF_SRC=$(hash_files packages/lief-builder/src -type f)
+          STUBS_SRC=$(hash_files packages/stubs-builder/src -type f)
 
           # Top-level scripts/ helpers used by every per-phase build.mts:
           # paths.mts is re-exported by scripts/<phase>/shared/paths.mts,
@@ -526,9 +554,13 @@ jobs:
           # SOCKET_REGISTRY_SHA collapses to empty — a registry-SHA
           # bump silently fails to invalidate the cache. Hardcode the
           # path so the lookup is invariant under workflow_call.
-          SOCKET_REGISTRY_SHA=$(grep -ohE 'SocketDev/socket-registry/[^@]+@[0-9a-f]{40}' .github/workflows/node-smol.yml 2>/dev/null | head -1 | grep -oE '[0-9a-f]{40}$' || echo "")
+          # All three registry pins flow into the hash so a cascade of any
+          # one of them (actions/install, actions/setup, setup-ccache, …)
+          # invalidates the cache. The previous `head -1` captured only the
+          # first match.
+          SOCKET_REGISTRY_SHA=$(grep -ohE 'SocketDev/socket-registry/[^@]+@[0-9a-f]{40}' .github/workflows/node-smol.yml 2>/dev/null | grep -oE '[0-9a-f]{40}$' | sort -u | $hash_cmd | cut -d' ' -f1 || echo "")
 
-          FINAL_HASH=$(echo "${COMMON_SCRIPTS}${FINAL_PATCHES}${FINAL_ADDITIONS}${FINAL_SCRIPTS}${SCRIPTS_TOP}${SCRIPTS_LIB}${VENDOR_FASTWS}${BUILD_INFRA_SRC}${BIN_INFRA_SRC}${BUILD_INFRA_LIB}${BIN_INFRA_LIB}${BUILD_INFRA_EXTERNAL_TOOLS}${BUILD_INFRA_SCRIPTS}${BINJECT_SRC}${BINPRESS_SRC}${BINFLATE_SRC}${DOCKERFILES}${GITHUB_SCRIPTS}${PNPM_LOCK_HASH}${ROOT_PACKAGE_JSON_HASH}${PNPM_WORKSPACE_HASH}${EXTERNAL_TOOLS_ROOT}${PACKAGE_JSON_ROOT}${NODE_SMOL_MAKE}${LIEF_MAKE}${LIEF_LIB_SCRIPTS}${BINJECT_MAKE}${BUILD_INFRA_MAKE}${BIN_INFRA_MAKE}${STUBS_MAKE}${LIEF_VERSION}${STUBS_VERSION}${USOCKETS_SHA}${UWEBSOCKETS_SHA}${LIBURING_SHA}${CURL_SHA}${MBEDTLS_SHA}${ZSTD_SHA}${LIBDEFLATE_SHA}${CJSON_SHA}${SOCKET_REGISTRY_SHA}" | $hash_cmd | cut -d' ' -f1)
+          FINAL_HASH=$(echo "${COMMON_SCRIPTS}${FINAL_PATCHES}${FINAL_ADDITIONS}${FINAL_SCRIPTS}${SCRIPTS_TOP}${SCRIPTS_LIB}${VENDOR_FASTWS}${BUILD_INFRA_SRC}${BIN_INFRA_SRC}${BUILD_INFRA_LIB}${BIN_INFRA_LIB}${BUILD_INFRA_EXTERNAL_TOOLS}${BUILD_INFRA_SCRIPTS}${BINJECT_SRC}${BINPRESS_SRC}${BINFLATE_SRC}${LIEF_SRC}${STUBS_SRC}${DOCKERFILES}${GITHUB_SCRIPTS}${PNPM_LOCK_HASH}${ROOT_PACKAGE_JSON_HASH}${PNPM_WORKSPACE_HASH}${EXTERNAL_TOOLS_ROOT}${PACKAGE_JSON_ROOT}${NODE_SMOL_MAKE}${LIEF_MAKE}${LIEF_LIB_SCRIPTS}${BINJECT_MAKE}${BUILD_INFRA_MAKE}${BIN_INFRA_MAKE}${STUBS_MAKE}${LIEF_VERSION}${STUBS_VERSION}${USOCKETS_SHA}${UWEBSOCKETS_SHA}${LIBURING_SHA}${LSQUIC_SHA}${LSQPACK_SHA}${YOGA_SHA}${CURL_SHA}${MBEDTLS_SHA}${ZSTD_SHA}${LIBDEFLATE_SHA}${CJSON_SHA}${SOCKET_REGISTRY_SHA}" | $hash_cmd | cut -d' ' -f1)
 
           echo "final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
           echo "build_mode=${BUILD_MODE}" >> $GITHUB_OUTPUT
@@ -582,8 +614,14 @@ jobs:
         id: checkpoint-cache
         if: ${{ !inputs.force }}
         with:
+          # NOTE: only the per-platform checkpoint dir lives here. The
+          # parallel `shared/checkpoints` path was previously included
+          # alongside this per-platform key, which raced under matrix
+          # parallel saves (last writer wins on the shared dir while keys
+          # differ in platform_arch). Shared checkpoints, if/when they
+          # come back, need their own cache step with a key that omits
+          # platform_arch.
           path: |
-            packages/node-smol-builder/build/shared/checkpoints
             ${{ steps.paths.outputs.checkpoints_dir }}
           key: node-checkpoints-${{ steps.cache-version.outputs.version }}-${{ steps.node-version.outputs.node-build-version }}-${{ steps.node-submodule.outputs.ref }}-${{ steps.platform-arch.outputs.platform_arch }}-${{ steps.smol-cache-key.outputs.build_mode }}-${{ steps.smol-cache-key.outputs.final_hash }}
 

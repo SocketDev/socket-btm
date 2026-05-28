@@ -45,7 +45,7 @@ const TREE_SITTER_UPSTREAM_DIR = path.join(
 
 // Upstream libqrencode (QR code encoder) is sibling to upstream/node.
 // All .c + .h files live at the root of the repo; we lift the whole
-// set into src/socketsecurity/qrcode/libqrencode/ so sibling
+// set into src/socketsecurity/deps/qrcode/upstream/libqrencode/ so sibling
 // `#include "qrencode.h"` etc. inside libqrencode itself resolves.
 const LIBQRENCODE_UPSTREAM_DIR = path.join(
   PACKAGE_ROOT,
@@ -231,16 +231,20 @@ const VENDORED_SOURCES = [
   },
   // md4c: CommonMark + GFM Markdown parser. We lift the four source
   // files (md4c.c + md4c.h + entity.c + entity.h) into
-  // src/socketsecurity/markdown/ alongside markdown_binding.cc so
-  // `#include "md4c.h"` resolves via the existing 'src' include_dirs
-  // entry without needing a new include path.
+  // src/socketsecurity/deps/markdown/upstream/ — markdown_binding.cc sits at
+  // src/socketsecurity/deps/markdown/ (one level up, tracked first-party).
+  // The `upstream/` segment lets the existing **/upstream/** .gitignore rule
+  // ignore the copied tree generically. `#include "md4c.h"` resolves via the
+  // existing 'src' include_dirs entry plus the binding's relative `#include`.
   {
     from: path.join(MD4C_UPSTREAM_DIR, 'src', 'md4c.c'),
     to: path.join(
       ADDITIONS_SOURCE_PATCHED_DIR,
       'src',
       'socketsecurity',
+      'deps',
       'markdown',
+      'upstream',
       'md4c.c',
     ),
   },
@@ -250,7 +254,9 @@ const VENDORED_SOURCES = [
       ADDITIONS_SOURCE_PATCHED_DIR,
       'src',
       'socketsecurity',
+      'deps',
       'markdown',
+      'upstream',
       'md4c.h',
     ),
   },
@@ -260,7 +266,9 @@ const VENDORED_SOURCES = [
       ADDITIONS_SOURCE_PATCHED_DIR,
       'src',
       'socketsecurity',
+      'deps',
       'markdown',
+      'upstream',
       'entity.c',
     ),
   },
@@ -270,7 +278,9 @@ const VENDORED_SOURCES = [
       ADDITIONS_SOURCE_PATCHED_DIR,
       'src',
       'socketsecurity',
+      'deps',
       'markdown',
+      'upstream',
       'entity.h',
     ),
   },
@@ -278,24 +288,28 @@ const VENDORED_SOURCES = [
   // the umbrella lib.c (which includes every other .c via relative
   // path) + all internal headers (alloc.h, parser.h, ...) + the
   // public include/tree_sitter/api.h. We copy the whole subtree under
-  // src/socketsecurity/tree_sitter/tree-sitter/ so:
+  // src/socketsecurity/deps/tree_sitter/upstream/tree-sitter/ so:
   //   - tree_sitter_binding.cc's `#include
-  //     "socketsecurity/tree_sitter/tree_sitter/api.h"` resolves
+  //     "socketsecurity/deps/tree_sitter/upstream/tree-sitter/include/tree_sitter/api.h"` resolves
   //   - the umbrella lib.c's `#include "./*.c"` works (siblings stay
   //     adjacent inside lib/src/)
+  // The `upstream/` segment lets the existing **/upstream/** .gitignore rule
+  // ignore the copied tree generically — no per-lib .gitignore lines needed.
   {
     from: path.join(TREE_SITTER_UPSTREAM_DIR, 'lib'),
     to: path.join(
       ADDITIONS_SOURCE_PATCHED_DIR,
       'src',
       'socketsecurity',
+      'deps',
       'tree_sitter',
+      'upstream',
       'tree-sitter',
     ),
   },
   // libqrencode: QR code encoder. All .c + .h files live at repo root
   // and use sibling-relative #includes ("qrencode.h", "qrspec.h", ...).
-  // Lifting the whole repo into src/socketsecurity/qrcode/libqrencode/
+  // Lifting the whole repo into src/socketsecurity/deps/qrcode/upstream/libqrencode/
   // keeps siblings adjacent so the includes resolve. qrenc.c (CLI
   // tool with main()) is copied too but NOT listed in node.gyp, so
   // it's silently ignored at link time.
@@ -305,7 +319,9 @@ const VENDORED_SOURCES = [
       ADDITIONS_SOURCE_PATCHED_DIR,
       'src',
       'socketsecurity',
+      'deps',
       'qrcode',
+      'upstream',
       'libqrencode',
     ),
   },

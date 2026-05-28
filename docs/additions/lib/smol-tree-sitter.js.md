@@ -18,7 +18,7 @@ require('node:smol-tree-sitter') -> this file (smol-tree-sitter.js)
 ```
 
 The C++ binding lives at
-`additions/source-patched/src/socketsecurity/tree_sitter/tree_sitter_binding.cc`.
+`additions/source-patched/src/socketsecurity/deps/tree_sitter/tree_sitter_binding.cc`.
 Languages (grammars) are loaded at runtime via `dlopen` from a `.dylib`
 / `.so` / `.dll` built from a tree-sitter grammar repo's `src/parser.c`.
 

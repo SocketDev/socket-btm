@@ -17,7 +17,7 @@ require('node:smol-markdown') -> this file (smol-markdown.js)
 ```
 
 The C++ binding lives at
-`additions/source-patched/src/socketsecurity/markdown/markdown_binding.cc`.
+`additions/source-patched/src/socketsecurity/deps/markdown/markdown_binding.cc`.
 md4c is callback-driven (enter/leave block, enter/leave span, text).
 The binding collects events into a flat C++ vector then materializes
 them as a JS `Array<[code, payload]>` in one pass.

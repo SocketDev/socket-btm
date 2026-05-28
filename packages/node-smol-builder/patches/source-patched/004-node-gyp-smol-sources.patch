@@ -140,28 +140,29 @@
 +            # Source files copied from upstream/libqrencode/ by
 +            # prepare-external-sources.mts; qrenc.c (the CLI tool's
 +            # main()) is excluded from the build.
-+            'src/socketsecurity/qrcode/qrcode_binding.cc',
-+            'src/socketsecurity/qrcode/libqrencode/bitstream.c',
-+            'src/socketsecurity/qrcode/libqrencode/mask.c',
-+            'src/socketsecurity/qrcode/libqrencode/mmask.c',
-+            'src/socketsecurity/qrcode/libqrencode/mqrspec.c',
-+            'src/socketsecurity/qrcode/libqrencode/qrencode.c',
-+            'src/socketsecurity/qrcode/libqrencode/qrinput.c',
-+            'src/socketsecurity/qrcode/libqrencode/qrspec.c',
-+            'src/socketsecurity/qrcode/libqrencode/rsecc.c',
-+            'src/socketsecurity/qrcode/libqrencode/split.c',
++            'src/socketsecurity/deps/qrcode/qrcode_binding.cc',
++            'src/socketsecurity/deps/qrcode/upstream/libqrencode/bitstream.c',
++            'src/socketsecurity/deps/qrcode/upstream/libqrencode/mask.c',
++            'src/socketsecurity/deps/qrcode/upstream/libqrencode/mmask.c',
++            'src/socketsecurity/deps/qrcode/upstream/libqrencode/mqrspec.c',
++            'src/socketsecurity/deps/qrcode/upstream/libqrencode/qrencode.c',
++            'src/socketsecurity/deps/qrcode/upstream/libqrencode/qrinput.c',
++            'src/socketsecurity/deps/qrcode/upstream/libqrencode/qrspec.c',
++            'src/socketsecurity/deps/qrcode/upstream/libqrencode/rsecc.c',
++            'src/socketsecurity/deps/qrcode/upstream/libqrencode/split.c',
 +            # Socket Security: smol-markdown binding (CommonMark + GFM via
 +            # md4c). md4c.c + entity.c are copied from
 +            # packages/node-smol-builder/upstream/md4c/src/ by
-+            # prepare-external-sources.mts at build time.
-+            'src/socketsecurity/markdown/markdown_binding.cc',
-+            'src/socketsecurity/markdown/md4c.c',
-+            'src/socketsecurity/markdown/entity.c',
++            # prepare-external-sources.mts at build time into the
++            # `upstream/` subdir so **/upstream/** in .gitignore catches them.
++            'src/socketsecurity/deps/markdown/markdown_binding.cc',
++            'src/socketsecurity/deps/markdown/upstream/md4c.c',
++            'src/socketsecurity/deps/markdown/upstream/entity.c',
 +            # Socket Security: smol-tree-sitter binding. tree-sitter's
 +            # lib.c is an umbrella that #includes every other lib/src/*.c
 +            # via relative path, so only lib.c needs listing here.
-+            'src/socketsecurity/tree_sitter/tree_sitter_binding.cc',
-+            'src/socketsecurity/tree_sitter/tree-sitter/src/lib.c',
++            'src/socketsecurity/deps/tree_sitter/tree_sitter_binding.cc',
++            'src/socketsecurity/deps/tree_sitter/upstream/tree-sitter/src/lib.c',
 +            # Socket Security: smol-webgpu binding (stub). Exposes the
 +            # navigator.gpu surface so userland WebGPU code resolves the
 +            # require('node:smol-webgpu') import. Every method except

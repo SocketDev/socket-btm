@@ -6,6 +6,7 @@
  * - Node.js version (>=18.0.0)
  * - pnpm version (>=10.21.0)
  * - Build toolchain (cmake, ninja, python, rust, etc.)
+ * - Optional Docker runtime (suggests OrbStack on macOS; non-fatal)
  *
  * Usage:
  *   pnpm run setup                # Check prerequisites
@@ -147,6 +148,37 @@ export async function checkBuildToolchain(): Promise<boolean> {
   return true
 }
 
+// Docker is OPTIONAL (the build-infra/external-tools.json `docker` entry
+// marks it so) — it only speeds up musl smoke tests via Alpine containers;
+// the build falls back to static verification without it. This check never
+// affects setup's exit status; on macOS it nudges toward OrbStack when no
+// docker CLI is present, since that's the recommended Mac runtime.
+export function checkDockerRuntime(): void {
+  let hasDocker = false
+  try {
+    hasDocker = spawnSync('docker', ['--version'], { stdio: 'ignore' }).status === 0
+  } catch {
+    hasDocker = false
+  }
+  if (hasDocker) {
+    log.success('Docker runtime found (optional musl smoke-test acceleration)')
+    return
+  }
+  if (process.platform === 'darwin') {
+    log.info(
+      'Docker not found (optional). macOS: install OrbStack — a fast, light ' +
+        'Docker Desktop drop-in — via `brew install --cask orbstack` or ' +
+        'https://orbstack.dev/download. Without it, musl smoke tests fall ' +
+        'back to static verification.',
+    )
+  } else {
+    log.info(
+      'Docker not found (optional). Install your distro\'s Docker/Podman to ' +
+        'enable musl smoke tests; without it they fall back to static verification.',
+    )
+  }
+}
+
 export async function checkNodeVersion(): Promise<boolean> {
   const required = '18.0.0'
   // Remove 'v' prefix
@@ -201,6 +233,11 @@ export async function setup(): Promise<void> {
 
   if (!toolchainOk && !quiet) {
     log.info('')
+  }
+
+  // Optional Docker runtime check (never affects allGood / exit status).
+  if (!quiet) {
+    checkDockerRuntime()
   }
 
   // Install dependencies

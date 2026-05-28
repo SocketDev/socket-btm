@@ -97,7 +97,10 @@
     "docker": {
       "description": "Docker container platform for testing musl binaries (optional, enhances CI)",
       "version": "27.0.3",
-      "notes": "Optional tool for testing musl-linked binaries in Alpine containers. When available, smoke tests can execute musl binaries in Docker (~1-2s overhead). Falls back to static verification if not installed. Requires Docker daemon to be running."
+      "notes": [
+        "Optional tool for testing musl-linked binaries in Alpine containers. When available, smoke tests can execute musl binaries in Docker (~1-2s overhead). Falls back to static verification if not installed. Requires Docker daemon to be running.",
+        "macOS: install via OrbStack (https://docs.orbstack.dev/, brew install --cask orbstack) — a faster, lighter Docker Desktop drop-in with a native docker CLI. Linux: use the distro's native Docker/Podman. CI runs on Linux runners with native Docker, so OrbStack is a local-dev convenience only, not a build requirement."
+      ]
     },
     "musl-tools": {
       "description": "musl C library toolchain for building statically-linked musl binaries",

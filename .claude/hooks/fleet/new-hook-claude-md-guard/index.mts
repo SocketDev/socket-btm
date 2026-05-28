@@ -170,25 +170,26 @@ async function main(): Promise<void> {
   } catch {
     return
   }
-  // The required form is the backticked hook path:
-  //   `.claude/hooks/<hookPathSuffix>/`
-  // where hookPathSuffix is `fleet/<name>` for fleet hooks or
-  // `<name>` (legacy top-level). Match with or without trailing slash.
-  // Two forms a hook can land in CLAUDE.md:
-  //   1. Inline rule:    ` ... bypass: ...; enforced by `.claude/hooks/<path>/`.`
-  //   2. Registry line:  `enforced by `.claude/hooks/<a>/`, `.claude/hooks/<b>/`, ...`
-  // Both flatten to a backticked-path mention; we just check that.
-  const expectedRefs = [
-    `\`.claude/hooks/${hookPathSuffix}/\``,
-    `\`.claude/hooks/${hookPathSuffix}\``,
-  ]
-  let found = false
-  for (let i = 0, { length } = expectedRefs; i < length; i += 1) {
-    if (content.includes(expectedRefs[i]!)) {
-      found = true
-      break
-    }
-  }
+  // Three citation shapes recognized:
+  //   1. Inline rule:    `enforced by \`.claude/hooks/fleet/<name>/\``
+  //   2. Comma-listed:   `enforced by \`.claude/hooks/fleet/a/\`, \`.../b/\``
+  //   3. Brace-grouped:  `enforced by \`.claude/hooks/fleet/{a,b,c}/\``
+  // 1+2 contain the literal backticked path; 3 is a brace expansion
+  // — the leaf name appears between `{...}`.
+  const literalSlashed = `\`.claude/hooks/${hookPathSuffix}/\``
+  const literalBare = `\`.claude/hooks/${hookPathSuffix}\``
+  const lastSlash = hookPathSuffix.lastIndexOf('/')
+  const prefix = lastSlash >= 0 ? hookPathSuffix.slice(0, lastSlash + 1) : ''
+  const leaf =
+    lastSlash >= 0 ? hookPathSuffix.slice(lastSlash + 1) : hookPathSuffix
+  const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const braceRe = new RegExp(
+    `\`\\.claude/hooks/${escape(prefix)}\\{[^}]*\\b${escape(leaf)}\\b[^}]*\\}/\``,
+  )
+  const found =
+    content.includes(literalSlashed) ||
+    content.includes(literalBare) ||
+    braceRe.test(content)
   if (found) {
     return
   }

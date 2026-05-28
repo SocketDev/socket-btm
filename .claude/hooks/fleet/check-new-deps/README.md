@@ -136,7 +136,7 @@ The hook is registered in `.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/check-new-deps/index.mts"
+            "command": "node .claude/hooks/fleet/check-new-deps/index.mts"
           }
         ]
       }

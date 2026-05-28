@@ -68,7 +68,7 @@ a Claude session:
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/release-workflow-guard/index.mts"
+            "command": "node .claude/hooks/fleet/release-workflow-guard/index.mts"
           }
         ]
       }

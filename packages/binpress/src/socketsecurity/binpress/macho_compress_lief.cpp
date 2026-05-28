@@ -189,6 +189,9 @@ int macho_compress_lief(const char* input_path,
     if (ensure_output_directory(output_path, context.stub_path) != 0) {
       fprintf(stderr, "ERROR: ensure_output_directory() failed, returning -1\n");
       fflush(stderr);
+      // Symmetric cleanup with the next branch (line ~203). Otherwise
+      // /tmp/binpress_stub_* leaks on this failure path.
+      cleanup_temp_stub(context.stub_path);
       return -1;
     }
     printf("  ensure_output_directory() completed successfully\n");

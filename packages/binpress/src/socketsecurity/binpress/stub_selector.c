@@ -203,8 +203,14 @@ static int is_musl_elf_from_header(const char *input_path, const uint8_t *elf_he
         char interp[256];
         if (fgets(interp, sizeof(interp), f)) {
           fclose(f);
-          // Check if interpreter path contains "musl"
-          return (strstr(interp, "musl") != NULL);
+          // Match the basename's `ld-musl-…` prefix rather than substring-
+          // anywhere. A glibc binary with interpreter path under e.g.
+          // /opt/musl-cross/usr/lib64/ld-linux.so.2 (real-world cross-
+          // compile toolchain layout) would otherwise misclassify as musl
+          // and the wrong stub would get linked.
+          const char *base = strrchr(interp, '/');
+          base = base ? base + 1 : interp;
+          return (strncmp(base, "ld-musl-", 8) == 0);
         }
       }
       break;

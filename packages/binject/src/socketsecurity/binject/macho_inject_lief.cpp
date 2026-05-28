@@ -694,6 +694,15 @@ extern "C" int binject_macho_lief_batch(
     int vfs_compat_mode,
     const uint8_t *vfs_config_data
 ) {
+    // Matches the input validation done by sibling APIs
+    // (binject_macho_lief, binject_pe_lief_batch). Calling this with NULL
+    // executable/output paths used to fall straight into Parser::parse(NULL)
+    // and snprintf(... NULL).
+    if (!executable || !output) {
+      fprintf(stderr, "Error: executable and output paths must be non-null\n");
+      return BINJECT_ERROR_INVALID_ARGS;
+    }
+
     printf("Using LIEF for batch injection...\n");
 
     // Note: LIEF v0.17.1 can parse signed binaries reliably.
@@ -709,8 +718,15 @@ extern "C" int binject_macho_lief_batch(
       return BINJECT_ERROR;
     }
 
-    // Get first architecture
+    // Get first architecture. Even when fat_binary->size() > 0, the
+    // returned pointer can be null on corrupted fat headers — matches
+    // the guards already present in binject_macho_lief (L269-274) and
+    // L550-554.
     LIEF::MachO::Binary *binary = fat_binary->at(0);
+    if (!binary) {
+      fprintf(stderr, "Error: fat binary first slice is null\n");
+      return BINJECT_ERROR;
+    }
 
     // Check if NODE_SEA segment already exists
     // IMPORTANT: We use segment existence as a proxy for whether the fuse is flipped.

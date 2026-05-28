@@ -49,11 +49,17 @@ extern "C" {
 #include "socketsecurity/bin-infra/elf_note_utils.hpp"
 
 #ifndef _WIN32
+#include <unistd.h>
 // Signal handler for debugging crashes (Unix only).
+//
+// POSIX requires only async-signal-safe functions inside a handler. fprintf
+// uses internal locks and can deadlock if the signal fires while another
+// thread holds the stdio lock; strsignal returns a pointer to thread-local
+// storage that may already be corrupted at the point we're handling a fault.
+// Use write(2) to a fixed string + _exit(2), both async-signal-safe.
 static void signal_handler(int signum) {
-  fprintf(stderr, "\n[FATAL] Caught signal %d\n", signum);
-  fprintf(stderr, "[FATAL] Signal name: %s\n", strsignal(signum));
-  fflush(stderr);
+  static const char kFatal[] = "\n[FATAL] Caught signal\n";
+  (void)!write(STDERR_FILENO, kFatal, sizeof(kFatal) - 1);
   _exit(128 + signum);
 }
 #endif

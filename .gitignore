@@ -70,11 +70,15 @@ packages/node-smol-builder/additions/source-patched/deps/fast-webstreams/
 packages/node-smol-builder/additions/source-patched/deps/lzfse/src/
 packages/node-smol-builder/additions/source-patched/deps/libdeflate/*
 !packages/node-smol-builder/additions/source-patched/deps/libdeflate/libdeflate.gyp
-# QUIC + HTTP/3 source copied from lsquic-infra/upstream at build time.
-# When custom .gyp glue lands (parallel to libdeflate.gyp), add the
-# matching `!.../lsquic.gyp` and `!.../ls-qpack.gyp` allowlist lines.
+# QUIC + HTTP/3 + layout source copied from lsquic-infra / yoga-layout-builder
+# upstream at build time, plus the auto-generated *.gypi source manifests
+# prepare-external-sources.mts emits next to them (one per vendored dep).
 packages/node-smol-builder/additions/source-patched/deps/lsquic/
 packages/node-smol-builder/additions/source-patched/deps/ls-qpack/
+packages/node-smol-builder/additions/source-patched/deps/yoga/
+packages/node-smol-builder/additions/source-patched/deps/lsquic.gypi
+packages/node-smol-builder/additions/source-patched/deps/ls-qpack.gypi
+packages/node-smol-builder/additions/source-patched/deps/yoga.gypi
 
 # Firewall test/debug Dockerfiles and scripts
 Dockerfile.firewall-*-test

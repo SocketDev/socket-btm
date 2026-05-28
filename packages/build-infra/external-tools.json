@@ -102,6 +102,17 @@
         "macOS: install via OrbStack (https://docs.orbstack.dev/, brew install --cask orbstack) — a faster, lighter Docker Desktop drop-in with a native docker CLI. Linux: use the distro's native Docker/Podman. CI runs on Linux runners with native Docker, so OrbStack is a local-dev convenience only, not a build requirement."
       ]
     },
+    "agent-ci": {
+      "description": "@redwoodjs/agent-ci — optional local GitHub Actions runner. Runs ci.yml jobs in a Linux container for fast local feedback before pushing.",
+      "version": "0.16.2",
+      "packageManager": "npm",
+      "repository": "github:redwoodjs/agent-ci",
+      "notes": [
+        "Optional, local-dev only. Requires a Docker runtime (see the docker entry — OrbStack on macOS).",
+        "Run via the fleet dlx (integrity-checked through Socket Firewall), NEVER raw npx: import { dlxPackage, executePackage } from '@socketsecurity/lib/dlx/package'. The pinned version here is the spec dlx resolves + verifies.",
+        "LIMITATIONS: skips reusable workflows (the fleet ci.yml's SocketDev/socket-registry/.github/workflows/* uses are SKIPPED with a warning), has no access to GH secrets, no concurrency groups, and a simplified job-`if` evaluator. Useful for the self-contained ci.yml jobs (lint/type/test matrix), not the provenance/release reusable workflows."
+      ]
+    },
     "musl-tools": {
       "description": "musl C library toolchain for building statically-linked musl binaries",
       "version": "1.2.4",

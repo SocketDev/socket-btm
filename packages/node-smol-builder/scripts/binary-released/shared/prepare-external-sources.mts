@@ -443,15 +443,16 @@ const VENDORED_GYPI_BUNDLES: ReadonlyArray<{
  * `skipSubstrings`. Returns paths normalized to forward slashes and
  * sorted for deterministic gypi output.
  */
-// oxlint-disable-next-line socket/sort-source-methods -- helper defined before its only caller (generateVendoredGypi); keeping the definition adjacent to the call site reads better than alphabetizing here.
-export async function walkSources(
+// oxlint-disable-next-line socket/sort-source-methods -- helper defined before its only caller (generateVendoredGypi); keeping the definition adjacent to the call site reads better than alphabetizing this set of exports.
+// oxlint-disable-next-line socket/export-top-level-functions -- internal helper for generateVendoredGypi; not consumed externally.
+async function walkSources(
   root: string,
   extensions: readonly string[],
   skipSubstrings: readonly string[],
 ): Promise<readonly string[]> {
   const out: string[] = []
   async function walk(dir: string): Promise<void> {
-    let entries: Array<Dirent>
+    let entries: Dirent[]
     try {
       entries = await fs.readdir(dir, { withFileTypes: true })
     } catch {

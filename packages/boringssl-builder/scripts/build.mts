@@ -9,16 +9,16 @@
  *
  * The two-phase BoringSSL prefix recipe (probe build → make_prefix_headers.go
  * → real build with -DBORINGSSL_PREFIX) is documented at
- * https://boringssl.googlesource.com/boringssl/+/master/BUILDING.md.
+ * boringssl.googlesource.com under BUILDING.md.
  */
 
-import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync } from 'node:fs'
 import process from 'node:process'
 
 import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { UPSTREAM_DIR, getPaths } from './paths.mts'
 
@@ -47,18 +47,18 @@ async function main(): Promise<void> {
     '-DCMAKE_POSITION_INDEPENDENT_CODE=ON',
   ]
   logger.info(`Configuring: cmake ${cmakeArgs.join(' ')}`)
-  const config = spawnSync('cmake', cmakeArgs, { stdio: 'inherit' })
-  if (config.status !== 0) {
-    throw new Error(`cmake configure failed (exit ${config.status})`)
+  const config = await spawn('cmake', cmakeArgs, { stdio: 'inherit' })
+  if (config.exitCode !== 0) {
+    throw new Error(`cmake configure failed (exit ${config.exitCode})`)
   }
 
-  const build = spawnSync(
+  const build = await spawn(
     'cmake',
     ['--build', cmakeBuildDir, '--config', 'Release', '--parallel'],
     { stdio: 'inherit' },
   )
-  if (build.status !== 0) {
-    throw new Error(`cmake build failed (exit ${build.status})`)
+  if (build.exitCode !== 0) {
+    throw new Error(`cmake build failed (exit ${build.exitCode})`)
   }
 
   logger.success(`BoringSSL built with prefix '${PREFIX}' at ${cmakeBuildDir}`)

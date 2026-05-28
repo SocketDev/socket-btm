@@ -6,7 +6,8 @@
     "import"
   ],
   "jsPlugins": [
-    "./oxlint-plugin/index.mts"
+    "./oxlint-plugin/index.mts",
+    "./oxlint-repo-plugin/index.mts"
   ],
   "categories": {
     "correctness": "off",

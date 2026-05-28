@@ -196,6 +196,27 @@ static int extract_and_execute(int self_fd, const char *exe_path, int argc, char
     DEBUG_LOG("Sizes: compressed=%lu, uncompressed=%lu\n",
               (unsigned long)compressed_size, (unsigned long)uncompressed_size);
 
+    // Validate sizes before malloc. compressed_size is attacker-controllable
+    // via a corrupted/mangled stub footer; without these checks:
+    //  - 0 → malloc(0) is implementation-defined; some return NULL and the
+    //    later integrity check would deref it.
+    //  - >SSIZE_MAX → (ssize_t)compressed_size below sign-flips and the
+    //    read loop guard misbehaves.
+    // Cap at 2 GiB compressed / 4 GiB uncompressed — orders of magnitude
+    // above what any real stub embeds (current stubs are <100 MiB).
+    static const uint64_t MAX_COMPRESSED = 2ULL * 1024 * 1024 * 1024;
+    static const uint64_t MAX_UNCOMPRESSED = 4ULL * 1024 * 1024 * 1024;
+    if (compressed_size == 0 || compressed_size > MAX_COMPRESSED) {
+        fprintf(stderr, "Error: invalid compressed_size %lu\n",
+                (unsigned long)compressed_size);
+        goto cleanup;
+    }
+    if (uncompressed_size == 0 || uncompressed_size > MAX_UNCOMPRESSED) {
+        fprintf(stderr, "Error: invalid uncompressed_size %lu\n",
+                (unsigned long)uncompressed_size);
+        goto cleanup;
+    }
+
     // Allocate buffers
     DEBUG_LOG("Allocating buffers...\n");
     compressed_data = malloc(compressed_size);

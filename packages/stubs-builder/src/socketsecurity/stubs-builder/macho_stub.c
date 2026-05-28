@@ -171,6 +171,21 @@ static int extract_and_execute(int self_fd, const char *exe_path, int argc, char
     uint64_t uncompressed_size = metadata.uncompressed_size;
     unsigned char *platform_metadata = metadata.platform_metadata;
 
+    // Validate sizes — see elf_stub.c for the rationale (sign-flip on
+    // (ssize_t)compressed_size and malloc(0) hazards).
+    static const uint64_t MAX_COMPRESSED = 2ULL * 1024 * 1024 * 1024;
+    static const uint64_t MAX_UNCOMPRESSED = 4ULL * 1024 * 1024 * 1024;
+    if (compressed_size == 0 || compressed_size > MAX_COMPRESSED) {
+        fprintf(stderr, "Error: invalid compressed_size %lu\n",
+                (unsigned long)compressed_size);
+        goto cleanup;
+    }
+    if (uncompressed_size == 0 || uncompressed_size > MAX_UNCOMPRESSED) {
+        fprintf(stderr, "Error: invalid uncompressed_size %lu\n",
+                (unsigned long)uncompressed_size);
+        goto cleanup;
+    }
+
     // Allocate buffers
     compressed_data = malloc(compressed_size);
     decompressed_data = malloc(uncompressed_size);

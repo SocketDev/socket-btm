@@ -339,7 +339,10 @@ static size_t update_write_callback(char *contents, size_t size, size_t nmemb, v
     size_t realsize = size * nmemb;
     curl_write_data_t *data = (curl_write_data_t *)userp;
 
-    if (data->size + realsize >= data->capacity) {
+    /* Wrap-safe capacity check: data->size + realsize may overflow size_t on
+     * extremely large attacker-controlled chunks. Rearrange the predicate
+     * so the addition never happens. */
+    if (realsize > data->capacity || data->size > data->capacity - realsize) {
         return 0; /* Buffer full. */
     }
 

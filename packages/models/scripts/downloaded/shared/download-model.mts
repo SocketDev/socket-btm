@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
+import { fileURLToPath } from 'node:url'
 
 import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import { CHECKPOINTS } from 'build-infra/lib/constants'
@@ -17,6 +18,11 @@ import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 // createCheckpoint now requires explicit target for non-source checkpoints.
 const TARGET_PLATFORM = process.platform
 const TARGET_ARCH = process.env.TARGET_ARCH || process.arch
+
+// Helper Python scripts live at <package>/python/*.py — three levels up
+// from this file (scripts/downloaded/shared/). Resolving via import.meta.url
+// keeps the path correct regardless of cwd.
+const PACKAGE_ROOT = path.resolve(fileURLToPath(import.meta.url), '..', '..', '..', '..')
 
 const logger = getDefaultLogger()
 
@@ -128,17 +134,22 @@ export async function downloadModel(options) {
           })
         }
 
-        const revisionParam = revision ? `, revision='${revision}'` : ''
-        const pythonCommand =
-          'from transformers import AutoTokenizer, AutoModel; ' +
-          `tokenizer = AutoTokenizer.from_pretrained('${source}'${revisionParam}); ` +
-          `model = AutoModel.from_pretrained('${source}'${revisionParam}); ` +
-          `tokenizer.save_pretrained('${modelsDir}/${modelKey}'); ` +
-          `model.save_pretrained('${modelsDir}/${modelKey}')`
-
-        const pythonResult = await spawn(python3Path, ['-c', pythonCommand], {
-          stdio: 'inherit',
-        })
+        // Pass identifiers as argv (not inline `-c` interpolation) so a
+        // model id or revision with a quote can't break out of a Python
+        // string literal and execute arbitrary code in the build runner.
+        const pythonScript = path.join(
+          PACKAGE_ROOT,
+          'python',
+          'download_hf_model.py',
+        )
+        const outputDir = path.join(modelsDir, modelKey)
+        const pythonResult = await spawn(
+          python3Path,
+          [pythonScript, source, outputDir, revision ?? ''],
+          {
+            stdio: 'inherit',
+          },
+        )
 
         if (pythonResult.code !== 0) {
           throw new Error(

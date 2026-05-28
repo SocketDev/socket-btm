@@ -1,6 +1,7 @@
 import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
+import { fileURLToPath } from 'node:url'
 
 import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import { CHECKPOINTS } from 'build-infra/lib/constants'
@@ -15,6 +16,17 @@ const logger = getDefaultLogger()
 // createCheckpoint now requires explicit target for non-source checkpoints.
 const TARGET_PLATFORM = process.platform
 const TARGET_ARCH = process.env.TARGET_ARCH || process.arch
+
+// Argv-driven Python helper lives at <package>/python/quantize_model.py —
+// three levels up from this file (scripts/quantized/shared/).
+const QUANTIZE_PYTHON_DIR = path.resolve(
+  fileURLToPath(import.meta.url),
+  '..',
+  '..',
+  '..',
+  '..',
+  'python',
+)
 
 /**
  * Apply quantization for compression.
@@ -76,39 +88,19 @@ export async function quantizeModel(options) {
       throw new Error('Python not found (checked pip shebang and PATH)')
     }
 
-    if (quantLevel.toLowerCase() === 'int8') {
-      // INT8: Use dynamic quantization (simpler, more compatible).
-      const int8Command =
-        'from onnxruntime.quantization import quantize_dynamic, QuantType; ' +
-        `quantize_dynamic('${onnxPath}', '${quantPath}', weight_type=QuantType.QUInt8)`
-
-      const int8Result = await spawn(python3Path, ['-c', int8Command], {
-        stdio: 'inherit',
-      })
-
-      if (int8Result.code !== 0) {
-        throw new Error(
-          `INT8 quantization failed with exit code ${int8Result.code}`,
-        )
-      }
-    } else {
-      // INT4: Use MatMulNBitsQuantizer (maximum compression).
-      // Note: In onnxruntime 1.23.2+, bits parameter is no longer in __init__, defaults to 4.
-      const int4Command =
-        'from onnxruntime.quantization.matmul_nbits_quantizer import MatMulNBitsQuantizer; ' +
-        `quant = MatMulNBitsQuantizer('${onnxPath}'); ` +
-        'quant.process(); ' +
-        `quant.model.save_model_to_file('${quantPath}', True)`
-
-      const int4Result = await spawn(python3Path, ['-c', int4Command], {
-        stdio: 'inherit',
-      })
-
-      if (int4Result.code !== 0) {
-        throw new Error(
-          `INT4 quantization failed with exit code ${int4Result.code}`,
-        )
-      }
+    // Pass mode + paths as argv (not inline `-c` interpolation) so a path
+    // containing a quote can't break out of a Python string literal.
+    const quantizeScript = path.join(QUANTIZE_PYTHON_DIR, 'quantize_model.py')
+    const mode = quantLevel.toLowerCase()
+    const quantResult = await spawn(
+      python3Path,
+      [quantizeScript, mode, onnxPath, quantPath],
+      { stdio: 'inherit' },
+    )
+    if (quantResult.code !== 0) {
+      throw new Error(
+        `${mode.toUpperCase()} quantization failed with exit code ${quantResult.code}`,
+      )
     }
 
     // Get sizes.

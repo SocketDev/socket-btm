@@ -211,17 +211,15 @@ export async function downloadModels() {
     throw new Error('Python not found (checked pip shebang and PATH)')
   }
 
-  // Use Hugging Face CLI to download models.
-  const pythonScript =
-    'from transformers import AutoTokenizer, AutoModelForSeq2SeqLM; ' +
-    `tokenizer = AutoTokenizer.from_pretrained('${MODEL_NAME}'); ` +
-    `model = AutoModelForSeq2SeqLM.from_pretrained('${MODEL_NAME}'); ` +
-    `tokenizer.save_pretrained('${MODELS_DIR}'); ` +
-    `model.save_pretrained('${MODELS_DIR}')`
-
-  const downloadResult = await spawn(python3Path, ['-c', pythonScript], {
-    stdio: 'inherit',
-  })
+  // Use argv-driven helper (not inline `-c` interpolation) so a model id
+  // containing a quote or backslash escape can't break out of a Python
+  // string literal and execute arbitrary code in the build runner.
+  const downloadScriptPath = path.join(packageRoot, 'python', 'download.py')
+  const downloadResult = await spawn(
+    python3Path,
+    [downloadScriptPath, MODEL_NAME, MODELS_DIR],
+    { stdio: 'inherit' },
+  )
 
   if (downloadResult.code !== 0) {
     throw new Error('Failed to download models')
@@ -337,40 +335,26 @@ export async function optimizeModels() {
     throw new Error('Python not found (checked pip shebang and PATH)')
   }
 
-  // Optimize encoder.
-  logger.substep('Optimizing encoder graph')
-  const optimizeEncoderScript =
-    'from onnxruntime.transformers import optimizer; ' +
-    `opt = optimizer.optimize_model('${encoderFile}', model_type='bert', num_heads=12, hidden_size=768); ` +
-    `opt.save_model_to_file('${optimizedEncoderPath}')`
+  // Argv-driven optimization helper — avoids the Python-`-c` injection
+  // shape on file paths. Same script handles encoder + decoder.
+  const optimizeScriptPath = path.join(packageRoot, 'python', 'optimize.py')
 
+  logger.substep('Optimizing encoder graph')
   const optimizeEncoderResult = await spawn(
     python3PathOpt,
-    ['-c', optimizeEncoderScript],
-    {
-      stdio: 'inherit',
-    },
+    [optimizeScriptPath, encoderFile, optimizedEncoderPath, '12', '768'],
+    { stdio: 'inherit' },
   )
-
   if (optimizeEncoderResult.code !== 0) {
     throw new Error('Failed to optimize encoder')
   }
 
-  // Optimize decoder.
   logger.substep('Optimizing decoder graph')
-  const optimizeDecoderScript =
-    'from onnxruntime.transformers import optimizer; ' +
-    `opt = optimizer.optimize_model('${decoderFile}', model_type='bert', num_heads=12, hidden_size=768); ` +
-    `opt.save_model_to_file('${optimizedDecoderPath}')`
-
   const optimizeDecoderResult = await spawn(
     python3PathOpt,
-    ['-c', optimizeDecoderScript],
-    {
-      stdio: 'inherit',
-    },
+    [optimizeScriptPath, decoderFile, optimizedDecoderPath, '12', '768'],
+    { stdio: 'inherit' },
   )
-
   if (optimizeDecoderResult.code !== 0) {
     throw new Error('Failed to optimize decoder')
   }
@@ -418,48 +402,29 @@ export async function quantizeModels() {
 
   logger.step('Quantizing Models')
 
-  // Quantize encoder with INT8.
-  logger.substep('Quantizing encoder (INT8)')
-  const quantizeEncoderScript =
-    'from onnxruntime.quantization import quantize_dynamic, QuantType; ' +
-    `quantize_dynamic('${encoderFile}', '${encoderFile}.quant', weight_type=QuantType.QInt8)`
-
   const python3Path = await getPythonCommand()
   if (!python3Path) {
     throw new Error('Python not found (checked pip shebang and PATH)')
   }
 
+  const quantizeScriptPath = path.join(packageRoot, 'python', 'quantize.py')
+
+  logger.substep('Quantizing encoder (INT8)')
   const quantizeEncoderResult = await spawn(
     python3Path,
-    ['-c', quantizeEncoderScript],
-    {
-      stdio: 'inherit',
-    },
+    [quantizeScriptPath, encoderFile, `${encoderFile}.quant`],
+    { stdio: 'inherit' },
   )
-
   if (quantizeEncoderResult.code !== 0) {
     throw new Error('Failed to quantize encoder')
   }
 
-  // Quantize decoder with INT8.
   logger.substep('Quantizing decoder (INT8)')
-  const quantizeDecoderScript =
-    'from onnxruntime.quantization import quantize_dynamic, QuantType; ' +
-    `quantize_dynamic('${decoderFile}', '${decoderFile}.quant', weight_type=QuantType.QInt8)`
-
-  const python3PathDecoder = await getPythonCommand()
-  if (!python3PathDecoder) {
-    throw new Error('Python not found (checked pip shebang and PATH)')
-  }
-
   const quantizeDecoderResult = await spawn(
-    python3PathDecoder,
-    ['-c', quantizeDecoderScript],
-    {
-      stdio: 'inherit',
-    },
+    python3Path,
+    [quantizeScriptPath, decoderFile, `${decoderFile}.quant`],
+    { stdio: 'inherit' },
   )
-
   if (quantizeDecoderResult.code !== 0) {
     throw new Error('Failed to quantize decoder')
   }

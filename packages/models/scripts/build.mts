@@ -136,14 +136,19 @@ export async function copyToDist(modelKey, quantizedPaths, quantLevel) {
       throw new Error('Python not found (checked pip shebang and PATH)')
     }
 
-    const generateScript = `
-from transformers import AutoTokenizer
-tokenizer = AutoTokenizer.from_pretrained('${modelDir}')
-tokenizer.save_pretrained('${outputDir}')
-`
-    const result = await spawn(python3Path, ['-c', generateScript], {
-      stdio: 'inherit',
-    })
+    // Pass paths as argv (not inline `-c` interpolation): a model dir or
+    // output dir containing a quote would otherwise break out of a Python
+    // string literal in the spawn script.
+    const generateScript = path.join(
+      PACKAGE_ROOT,
+      'python',
+      'generate_tokenizer_json.py',
+    )
+    const result = await spawn(
+      python3Path,
+      [generateScript, modelDir, outputDir],
+      { stdio: 'inherit' },
+    )
     if (result.code !== 0) {
       throw new Error(
         `Failed to generate tokenizer.json with exit code ${result.code}`,

@@ -53,6 +53,7 @@
 #include "node_binding.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
+#include "env-inl.h"
 #include "util.h"
 #include "uv.h"
 #include "v8.h"

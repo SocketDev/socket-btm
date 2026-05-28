@@ -8,6 +8,7 @@ import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
+import { isDirSync } from '@socketsecurity/lib-stable/fs/inspect'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
@@ -387,14 +388,25 @@ export async function prepareExternalSources() {
   // Stage VENDORED_SOURCES into additions/source-patched/ so the
   // vendor-patch hook can mutate the copy without touching the
   // submodule. Use `recursive: true` + `force: true` so existing
-  // target files are overwritten.
+  // target files are overwritten. The `filter` skips dot-prefixed
+  // DIRECTORIES (`.git`, `.github`, `.cache`, …) — upstream's VCS/CI
+  // metadata isn't source the build needs, and a nested `.git` pointer
+  // in the copy confuses tools that walk the tree. Dot-prefixed FILES
+  // (`.gitignore`, `.gitattributes`, `.travis.yml`, …) still copy
+  // through — they're cheap, harmless, and occasionally referenced by
+  // upstream build scripts.
   // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const { from, to } of EXTERNAL_SOURCES) {
     if (!existsSync(from)) {
       throw new Error(`External source directory not found: ${from}`)
     }
 
-    await fs.cp(from, to, { recursive: true, force: true })
+    await fs.cp(from, to, {
+      recursive: true,
+      force: true,
+      filter: src =>
+        !path.basename(src).startsWith('.') || !isDirSync(src),
+    })
 
     const relativeFrom = path.relative(PACKAGE_ROOT, from)
     logger.success(`Copied directory tree from ${relativeFrom}`)

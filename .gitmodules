@@ -22,6 +22,12 @@
 	url = https://github.com/lief-project/LIEF.git
 	ignore = dirty
 	shallow = true
+# boringssl-2026-04-15 via bun-v1.3.14
+[submodule "packages/boringssl-builder/upstream/boringssl"]
+	path = packages/boringssl-builder/upstream/boringssl
+	url = https://github.com/oven-sh/boringssl.git
+	ignore = dirty
+	shallow = true
 # cjson-1.7.19
 [submodule "packages/binject/upstream/cJSON"]
 	path = packages/binject/upstream/cJSON

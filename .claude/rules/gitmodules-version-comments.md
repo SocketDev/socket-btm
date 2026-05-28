@@ -9,9 +9,10 @@
    - `package` is the package name (lowercase)
    - `X.Y.Z` is the semantic version using DOTS (never underscores)
    - NO `v` prefix (use `1.0.0`, NOT `v1.0.0`)
-3. **Consistency**: ALL semver-tracked submodules use the default form. Two narrow extensions are allowed only when documented:
+3. **Consistency**: ALL semver-tracked submodules use the default form. Three narrow extensions are allowed only when documented:
    - **`# package-X.Y.Z sha256:HEX`** — for submodules whose tree integrity is verified at build time. Currently used by `node`. The `sha256:` token is single-spaced after the version.
    - **`# package-EPOCH/PATH`** — for submodules pinned to upstream epoch tags rather than semver releases (no semver releases are published). Currently used by `wpt-epochs/three_hourly/<date>_<hour>H`.
+   - **`# package-YYYY-MM-DD via <upstream>-vX.Y.Z`** — for submodules pinned to a SHA from a downstream consumer's tagged release (no upstream tags exist; provenance matters). Currently used by `boringssl` (pinned to whatever SHA Bun ships). The date is the commit date of the pinned SHA; the `via` clause cites the downstream consumer + their tag for traceability.
 
 ## Examples
 
@@ -33,6 +34,12 @@
 [submodule "packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/streams"]
 	path = packages/node-smol-builder/test/fixtures/wpt/streams
 	url = https://github.com/web-platform-tests/wpt.git
+
+# SHA pin via downstream consumer's tagged release (no upstream tags)
+# boringssl-2026-04-15 via bun-v1.3.14
+[submodule "packages/boringssl-builder/upstream/boringssl"]
+	path = packages/boringssl-builder/upstream/boringssl
+	url = https://github.com/oven-sh/boringssl.git
 ```
 
 ## Why This Matters
@@ -52,6 +59,6 @@
 
 When adding or updating submodules:
 1. Add the version comment BEFORE the `[submodule ...]` line.
-2. Pick the form: default semver, semver+sha256, or epoch path. Do not invent a fourth.
+2. Pick the form: default semver, semver+sha256, epoch path, or date-via-downstream. Do not invent a fifth.
 3. Run `grep -B 1 'submodule-path' .gitmodules` to verify extractability.
 4. Confirm `getSubmoduleVersion()` parses the comment without errors.

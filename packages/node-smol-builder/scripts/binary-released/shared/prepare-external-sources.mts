@@ -592,6 +592,7 @@ async function copyBoringsslArtifacts(): Promise<void> {
   const { ensureBoringssl, getCurrentBoringsslPlatformArch } = await import(
     path.join(BORINGSSL_BUILDER_DIR, 'lib', 'ensure-boringssl.mts')
   )
+  const { safeMkdir } = await import('@socketsecurity/lib-stable/fs/safe')
   const platformArch = getCurrentBoringsslPlatformArch()
   const sysrootDir: string = await ensureBoringssl(platformArch)
   const libSrc = path.join(sysrootDir, 'lib')
@@ -606,6 +607,8 @@ async function copyBoringsslArtifacts(): Promise<void> {
     'deps',
     'boringssl',
   )
+  await safeMkdir(path.join(depsBoringsslDir, 'lib'))
+  await safeMkdir(path.join(depsBoringsslDir, 'include'))
   await fs.cp(libSrc, path.join(depsBoringsslDir, 'lib'), {
     recursive: true,
     force: true,

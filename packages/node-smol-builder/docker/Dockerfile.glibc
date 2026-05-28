@@ -46,8 +46,20 @@ RUN dnf -y update && \
         && \
     # Enable GCC Toolset 13 (provides GCC 13 with C++20 support).
     dnf -y install gcc-toolset-13 gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ gcc-toolset-13-libstdc++-devel && \
-    # Install Node.js from NodeSource.
-    curl -fsSL https://rpm.nodesource.com/setup_current.x | bash - && \
+    # Install Node.js from NodeSource (verifiable alternative to the
+    # `curl … | bash` installer: import the GPG key and write the dnf
+    # repo file directly, exactly as NodeSource's docs describe).
+    rpm --import https://rpm.nodesource.com/pub_current.x/nodesource-repo.gpg.key && \
+    printf '%s\n' \
+      '[nodesource-nodejs]' \
+      'name=Node.js Packages - $basearch' \
+      'baseurl=https://rpm.nodesource.com/pub_current.x/nodistro/nodejs/$basearch' \
+      'priority=9' \
+      'enabled=1' \
+      'gpgcheck=1' \
+      'gpgkey=https://rpm.nodesource.com/gpgkey/ns-operations-public.key' \
+      'module_hotfixes=1' \
+      > /etc/yum.repos.d/nodesource-nodejs.repo && \
     dnf -y install nodejs && \
     ARCH=$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/') && \
     PLATFORM="linux-${ARCH}" && \

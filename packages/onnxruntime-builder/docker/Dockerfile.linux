@@ -34,8 +34,15 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ jammy main' | tee /etc/apt/sources.list.d/kitware.list >/dev/null && \
     apt-get update && \
     apt-get install -y cmake=3.29.* cmake-data=3.29.* && \
-    # Install Node.js from NodeSource.
-    curl -fsSL https://deb.nodesource.com/setup_current.x | bash - && \
+    # Install Node.js from NodeSource (verifiable alternative to the
+    # `curl … | bash` installer: import the GPG key with signed-by and
+    # write the apt source list directly).
+    mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+      | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+    echo 'deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_current.x nodistro main' \
+      > /etc/apt/sources.list.d/nodesource.list && \
+    apt-get update && \
     apt-get install -y nodejs && \
     ARCH=$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/') && \
     PLATFORM="linux-${ARCH}" && \

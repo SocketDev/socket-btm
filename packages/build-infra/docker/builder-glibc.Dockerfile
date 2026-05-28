@@ -52,8 +52,20 @@ RUN echo "Builder image cache version: ${CACHE_VERSION}" && \
         python3.11 \
         python3.11-pip \
         && \
-    # Install Node.js LTS from NodeSource
-    curl -fsSL https://rpm.nodesource.com/setup_lts.x | bash - && \
+    # Install Node.js LTS from NodeSource (verifiable alternative to the
+    # `curl … | bash` installer: import the GPG key and write the dnf
+    # repo file directly).
+    rpm --import https://rpm.nodesource.com/pub_lts.x/nodesource-repo.gpg.key && \
+    printf '%s\n' \
+      '[nodesource-nodejs]' \
+      'name=Node.js LTS Packages - $basearch' \
+      'baseurl=https://rpm.nodesource.com/pub_lts.x/nodistro/nodejs/$basearch' \
+      'priority=9' \
+      'enabled=1' \
+      'gpgcheck=1' \
+      'gpgkey=https://rpm.nodesource.com/gpgkey/ns-operations-public.key' \
+      'module_hotfixes=1' \
+      > /etc/yum.repos.d/nodesource-nodejs.repo && \
     dnf -y install nodejs && \
     # Install pnpm globally
     npm install -g pnpm@10.26.1 && \

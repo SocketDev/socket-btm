@@ -25,8 +25,15 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
         ca-certificates \
         jq \
         && \
-    # Install Node.js from NodeSource.
-    curl -fsSL https://deb.nodesource.com/setup_current.x | bash - && \
+    # Install Node.js from NodeSource (verifiable alternative to the
+    # `curl … | bash` installer: import the GPG key with signed-by and
+    # write the apt source list directly).
+    mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+      | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+    echo 'deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_current.x nodistro main' \
+      > /etc/apt/sources.list.d/nodesource.list && \
+    apt-get update && \
     apt-get install -y nodejs && \
     # Resolve pnpm provenance from the vendored registry tool-checksums.
     ARCH=$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/') && \

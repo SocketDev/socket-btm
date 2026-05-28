@@ -89,11 +89,17 @@ export async function optimizeWasm(options) {
       '--strip-target-features',
     ]
 
-    await spawn(
+    const result = await spawn(
       'wasm-opt',
       [...wasmOptFlags, inputWasmFile, '-o', optimizedWasmFile],
       { shell: WIN32, stdio: 'inherit' },
     )
+    // Don't trust the spawn-rejects-on-nonzero contract — be explicit so
+    // a truncated / mid-write wasm doesn't slip through to Final. Mirrors
+    // packages/yoga-layout-builder/scripts/wasm-optimized/shared/optimize-wasm.mts.
+    if (result.code !== 0) {
+      throw new Error(`wasm-opt failed with exit code ${result.code}`)
+    }
 
     const sizeAfterOpt = await getFileSize(optimizedWasmFile)
     logger.substep(`Size after optimization: ${sizeAfterOpt}`)

@@ -90,12 +90,28 @@ export function parseEnumHeader(header: string): ParsedEnum[] {
     let nextValue = 0
     for (let i = 1; i < tokens.length; i += 1) {
       const tok = tokens[i]!
-      // tok is either `YGAlignAuto` or `YGErrataNone = 0`.
-      const eqMatch = tok.match(/^(\S+)\s*=\s*(-?\d+)$/)
+      // tok is either `YGAlignAuto`, `YGErrataNone = 0`, `YGFlagThing = 0x1`,
+      // or a negative decimal. Accept hex literals so bitmask enums upstream
+      // can adopt the conventional `0x…` form without silently falling
+      // through to the auto-increment counter.
+      const eqMatch = tok.match(/^(\S+)\s*=\s*(-?(?:0[xX][0-9a-fA-F]+|\d+))$/)
       const rawMember = eqMatch ? eqMatch[1]! : tok
       // Strip the full enum prefix: YGAlignAuto → Auto.
       const memberName = rawMember.replace(new RegExp(`^${rawEnumName}`), '')
       const value = eqMatch ? Number(eqMatch[2]) : nextValue
+      if (!Number.isFinite(value)) {
+        throw new Error(
+          `generate-enums: failed to parse value for ${rawEnumName}.${memberName} (token: ${tok})`,
+        )
+      }
+      // Guard the auto-increment counter against silent 32-bit overflow.
+      // The WASM-emitted enum is i32, so a JS Number > 2^31-1 here would
+      // ABI-drift from the runtime value.
+      if (!eqMatch && nextValue > 0x7fffffff) {
+        throw new Error(
+          `generate-enums: ${rawEnumName}.${memberName} would auto-increment past int32 (${nextValue}); pin an explicit value upstream`,
+        )
+      }
       members.push({ name: memberName, value })
       nextValue = value + 1
     }

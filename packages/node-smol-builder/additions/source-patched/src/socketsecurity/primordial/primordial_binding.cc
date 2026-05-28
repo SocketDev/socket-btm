@@ -102,6 +102,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <new>
 #include <string>
 #include <vector>
 
@@ -613,7 +614,12 @@ inline double JsParseFloat(const char* data, uint32_t length) {
   if (span <= kStackBuf) {
     buf = stackbuf;
   } else {
-    heapbuf = new char[span + 1];
+    // `-fno-exceptions` turns std::bad_alloc into terminate; nothrow + NaN
+    // matches parseFloat's existing "no conversion → NaN" semantics.
+    heapbuf = new (std::nothrow) char[span + 1];
+    if (heapbuf == nullptr) {
+      return std::numeric_limits<double>::quiet_NaN();
+    }
     buf = heapbuf;
   }
   std::memcpy(buf, data + start, span);

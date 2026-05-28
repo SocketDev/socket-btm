@@ -122,6 +122,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <new>
 #include <string>
 #include <vector>
 
@@ -190,7 +191,14 @@ static void UncurriedCall(const FunctionCallbackInfo<Value>& args) {
   if (argc <= kStackArgvLimit) {
     argv = stack_argv;
   } else {
-    heap_argv = new Local<Value>[argc];
+    // `-fno-exceptions` turns std::bad_alloc into std::terminate, so use
+    // the nothrow form and throw a JS error instead.
+    heap_argv = new (std::nothrow) Local<Value>[argc];
+    if (heap_argv == nullptr) {
+      isolate->ThrowException(v8::Exception::Error(
+          String::NewFromUtf8Literal(isolate, "applyBind: out of memory")));
+      return;
+    }
     argv = heap_argv;
   }
   for (int i = 0; i < argc; ++i) {
@@ -250,7 +258,12 @@ static void ApplyBoundCall(const FunctionCallbackInfo<Value>& args) {
   if (len <= kStackArgvLimit) {
     argv = stack_argv;
   } else {
-    heap_argv = new Local<Value>[len];
+    heap_argv = new (std::nothrow) Local<Value>[len];
+    if (heap_argv == nullptr) {
+      isolate->ThrowException(v8::Exception::Error(
+          String::NewFromUtf8Literal(isolate, "applyBind: out of memory")));
+      return;
+    }
     argv = heap_argv;
   }
   for (uint32_t i = 0; i < len; ++i) {
@@ -378,7 +391,12 @@ static void BindCallCall(const FunctionCallbackInfo<Value>& args) {
   if (total <= kStackArgvLimit) {
     argv = stack_argv;
   } else {
-    heap_argv = new Local<Value>[total];
+    heap_argv = new (std::nothrow) Local<Value>[total];
+    if (heap_argv == nullptr) {
+      isolate->ThrowException(v8::Exception::Error(
+          String::NewFromUtf8Literal(isolate, "applyPreset: out of memory")));
+      return;
+    }
     argv = heap_argv;
   }
   for (uint32_t i = 0; i < preset_len; ++i) {
@@ -451,7 +469,12 @@ static void ApplySafeCall(const FunctionCallbackInfo<Value>& args) {
   if (len <= kStackArgvLimit) {
     argv = stack_argv;
   } else {
-    heap_argv = new Local<Value>[len];
+    heap_argv = new (std::nothrow) Local<Value>[len];
+    if (heap_argv == nullptr) {
+      // applySafe swallows errors as part of its contract — bail to undefined.
+      args.GetReturnValue().SetUndefined();
+      return;
+    }
     argv = heap_argv;
   }
   for (uint32_t i = 0; i < len; ++i) {
@@ -599,7 +622,9 @@ static v8::Persistent<v8::Function>* GetWeakRefCtor(Isolate* isolate,
       !ctor_val->IsFunction()) {
     return nullptr;
   }
-  ctor_cache = new v8::Persistent<v8::Function>(isolate, ctor_val.As<Function>());
+  ctor_cache =
+      new (std::nothrow) v8::Persistent<v8::Function>(isolate, ctor_val.As<Function>());
+  // Callers already handle nullptr cache (fresh resolve on next call).
   return ctor_cache;
 }
 

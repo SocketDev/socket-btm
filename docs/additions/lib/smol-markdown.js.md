@@ -13,7 +13,7 @@ a CommonMark + GFM Markdown parser backed by [md4c](https://github.com/mity/md4c
 require('node:smol-markdown') -> this file (smol-markdown.js)
   -> internalBinding('smol_markdown') (C++ native binding)
     -> md4c (vendored at upstream/md4c, copied into
-              src/socketsecurity/markdown/{md4c.c,entity.c} at build)
+              src/socketsecurity/deps/markdown/upstream/{md4c.c,entity.c} at build)
 ```
 
 The C++ binding lives at

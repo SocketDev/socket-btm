@@ -457,9 +457,10 @@ jobs:
             exit 1
           fi
 
-          # Write the tar.gz up to the mode build dir (4 levels up from
-          # out/Final). Source + destination owned by `paths` step.
-          OUTPUT_PATH="../../../../${ARCHIVE_NAME}.tar.gz"
+          # Write the tar.gz up to the mode build dir. cwd is $BORINGSSL_DIR
+          # = build/<mode>/<platform-arch>/out/Final/; 3 ups → build/<mode>/.
+          # (lief uses 4 ups because LIEF_DIR is out/Final/lief — one deeper.)
+          OUTPUT_PATH="../../../${ARCHIVE_NAME}.tar.gz"
           echo "Creating archive: ${ARCHIVE_NAME}.tar.gz"
           tar -czf "${OUTPUT_PATH}" \
             lib/ \

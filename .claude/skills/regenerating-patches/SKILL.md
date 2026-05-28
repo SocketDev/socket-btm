@@ -122,5 +122,6 @@ The validator `git apply --check` rejects timestamps and demands matching contex
 - **Use `diff -ruN`** for the regen, never `git diff` or `git format-patch`. Both inject git-specific markers (`index <hash>`, `new file mode`) that the build pipeline's `patch -p1` doesn't expect.
 - **Strip timestamps** before validating: `grep -v $'^[-+]\{3\}.*\t'` (or equivalent).
 - **Run the agent once.** Spawning per-patch agents loses cumulative state and is much slower than one agent processing the list serially.
+- **Explanatory comments belong in the header, not inline in hunks.** Add `# …` lines between `# @description:` and the first `--- a/`; never add `# …` or `// …` lines inside hunk bodies just to explain the change. Inline comments inflate the diff against upstream, force hunk-count bumps when edited, and survive into the patched source as noise. See `docs/references/btm-source-patches.md` § Comments: header, not inline.
 
 See `reference.md` for: edge cases, rollback procedures, retry logic, header normalization details, common failure modes, and cross-platform considerations (BSD vs GNU `diff`/`sed`).

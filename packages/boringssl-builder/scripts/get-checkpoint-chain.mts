@@ -25,8 +25,5 @@ export function getCheckpointChain() {
 }
 
 if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1]!)) {
-  // socket-hook: allow logger -- bare stdout write keeps this script
-  // standalone (no @socketsecurity/lib-stable import) so the CI step
-  // that invokes it before pnpm install can find node_modules works.
-  process.stdout.write(`${CHAIN.join(',')}\n`)
+  process.stdout.write(`${CHAIN.join(',')}\n`) // socket-hook: allow logger -- standalone script (no lib-stable import) runs in CI before pnpm install
 }

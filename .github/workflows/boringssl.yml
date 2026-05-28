@@ -132,18 +132,26 @@ jobs:
           LIBC: ${{ matrix.libc || 'glibc' }}
         shell: bash
         run: |
-          echo "DEBUG: step entry, pwd=$(pwd), CACHE_VERSION=${CACHE_VERSION}, LIBC=${LIBC}"
           # Cross-platform hash function.
           if command -v shasum &> /dev/null; then
             hash_cmd="shasum -a 256"
-            echo "DEBUG: using shasum"
           elif command -v sha256sum &> /dev/null; then
             hash_cmd="sha256sum"
-            echo "DEBUG: using sha256sum"
           else
             echo "Error: No SHA-256 command found"
             exit 1
           fi
+          # Hash a directory tree. Returns deterministic SHA over the
+          # concatenated file hashes; empty / missing dirs collapse to
+          # the sha256 of empty. Wrapped in `|| true` so a missing dir
+          # (e.g. an empty patches/ that git didn't track) doesn't trip
+          # `set -e -o pipefail` from the parent shell.
+          hash_dir() {
+            (find "$1" -type f 2>/dev/null | LC_COLLATE=C sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1) || echo ""
+          }
+          hash_file() {
+            ($hash_cmd "$1" 2>/dev/null | cut -d' ' -f1) || echo ""
+          }
 
           # Use libc-specific Dockerfile (glibc or musl) for Linux only.
           # macOS/Windows don't use Docker.
@@ -154,19 +162,19 @@ jobs:
           else
             DOCKERFILE_HASH="no-docker"
           fi
-          BUILD_SCRIPTS_HASH=$(find packages/boringssl-builder/scripts -type f 2>/dev/null | LC_COLLATE=C sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
-          PATCHES_HASH=$(find packages/boringssl-builder/patches -type f 2>/dev/null | LC_COLLATE=C sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
-          MAKE_HASH=$(find packages/boringssl-builder/make -type f 2>/dev/null | LC_COLLATE=C sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
-          BUILD_INFRA_LIB=$(find packages/build-infra/lib -type f 2>/dev/null | LC_COLLATE=C sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
-          BIN_INFRA_LIB=$(find packages/bin-infra/lib -type f 2>/dev/null | LC_COLLATE=C sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
-          BUILD_INFRA_EXTERNAL_TOOLS=$($hash_cmd packages/build-infra/external-tools.json 2>/dev/null | cut -d' ' -f1)
-          BUILD_INFRA_SCRIPTS=$(find packages/build-infra/scripts -type f 2>/dev/null | LC_COLLATE=C sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
-          PNPM_LOCK_HASH=$($hash_cmd pnpm-lock.yaml 2>/dev/null | cut -d' ' -f1)
-          NODE_VERSION_HASH=$($hash_cmd .node-version 2>/dev/null | cut -d' ' -f1)
-          BORINGSSL_SUBMODULE_SHA=$(git ls-tree HEAD packages/boringssl-builder/upstream/boringssl 2>/dev/null | awk '{print $3}')
-          ROOT_PACKAGE_JSON=$($hash_cmd package.json 2>/dev/null | cut -d' ' -f1)
-          PNPM_WORKSPACE=$($hash_cmd pnpm-workspace.yaml 2>/dev/null | cut -d' ' -f1)
-          BORINGSSL_PACKAGE_JSON=$($hash_cmd packages/boringssl-builder/package.json 2>/dev/null | cut -d' ' -f1)
+          BUILD_SCRIPTS_HASH=$(hash_dir packages/boringssl-builder/scripts)
+          PATCHES_HASH=$(hash_dir packages/boringssl-builder/patches)
+          MAKE_HASH=$(hash_dir packages/boringssl-builder/make)
+          BUILD_INFRA_LIB=$(hash_dir packages/build-infra/lib)
+          BIN_INFRA_LIB=$(hash_dir packages/bin-infra/lib)
+          BUILD_INFRA_EXTERNAL_TOOLS=$(hash_file packages/build-infra/external-tools.json)
+          BUILD_INFRA_SCRIPTS=$(hash_dir packages/build-infra/scripts)
+          PNPM_LOCK_HASH=$(hash_file pnpm-lock.yaml)
+          NODE_VERSION_HASH=$(hash_file .node-version)
+          BORINGSSL_SUBMODULE_SHA=$(git ls-tree HEAD packages/boringssl-builder/upstream/boringssl 2>/dev/null | awk '{print $3}' || echo "")
+          ROOT_PACKAGE_JSON=$(hash_file package.json)
+          PNPM_WORKSPACE=$(hash_file pnpm-workspace.yaml)
+          BORINGSSL_PACKAGE_JSON=$(hash_file packages/boringssl-builder/package.json)
           WORKFLOW_FILE="${GITHUB_WORKFLOW_REF%@*}"
           WORKFLOW_FILE="${WORKFLOW_FILE#${GITHUB_REPOSITORY}/}"
           SOCKET_REGISTRY_SHA=$(grep -ohE 'SocketDev/socket-registry/[^@]+@[0-9a-f]{40}' "$WORKFLOW_FILE" 2>/dev/null | head -1 | grep -oE '[0-9a-f]{40}$' || echo "")

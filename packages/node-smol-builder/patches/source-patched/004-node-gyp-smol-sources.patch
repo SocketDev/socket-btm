@@ -242,7 +242,7 @@
 +            'include',
 +            'deps/uSockets/src',
 +            'deps/uWebSockets/src',
-+            'deps/yoga',
++            'deps',
 +            'deps/lsquic/include',
 +            'src/socketsecurity/deps/tree_sitter/upstream/tree-sitter/include',
 +          ],

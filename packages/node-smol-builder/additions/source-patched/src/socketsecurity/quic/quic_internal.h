@@ -24,6 +24,14 @@
 #include <mutex>
 #include <unordered_map>
 
+// Forward-declare opaque OpenSSL types at GLOBAL scope (matches
+// <openssl/ssl.h>'s declaration). Pulling them inside the smol-quic
+// namespace would create a distinct local `ssl_ctx_st` type that
+// doesn't unify with the real one when quic_settings_binding.cc
+// includes <openssl/ssl.h>.
+struct ssl_ctx_st;
+using SSL_CTX = struct ssl_ctx_st;
+
 namespace node {
 
 class ExternalReferenceRegistry;
@@ -55,11 +63,9 @@ struct JsCallbackTable {
   v8::Global<v8::Function> on_datagram;        // inbound payload
 };
 
-// Forward-declare opaque OpenSSL types we hold a pointer to without
-// pulling in <openssl/ssl.h> from this header. Real definitions come
-// in quic_settings_binding.cc where the SSL_CTX is built.
-struct ssl_ctx_st;
-typedef struct ssl_ctx_st SSL_CTX;
+// SSL_CTX is forward-declared at global scope (above) so it unifies
+// with <openssl/ssl.h>'s declaration when quic_settings_binding.cc
+// pulls in the full header.
 
 struct EngineSlot {
   lsquic_engine_t* engine = nullptr;

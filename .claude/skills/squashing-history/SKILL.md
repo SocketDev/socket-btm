@@ -3,6 +3,8 @@ name: squashing-history
 description: Squashes all commits on the repo's default branch (main, falling back to master) to a single "Initial commit" with backup branch, integrity verification, and user confirmation before force push. Use when cleaning history or preparing for fresh start.
 user-invocable: true
 allowed-tools: AskUserQuestion, Bash(git:*), Bash(diff:*), Bash(rm:*), Bash(ls:*)
+model: claude-haiku-4-5
+context: fork
 ---
 
 # squashing-history

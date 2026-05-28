@@ -125,11 +125,11 @@ function probeHook(hookPath: string): ProbeFailure | undefined {
       '-e',
       // Resolving-only via import() lets the resolver run without
       // executing top-level code that might block (e.g. start a
-      // server). On ESM import success, exit 0 immediately.
-      // Child invocations: set exitCode and let the loop drain rather
-      // than process.exit(N) (libuv async-handle abort on Node 24+ /
-      // Windows). See feedback_node_exit_drain.
-      `import(${JSON.stringify(hookPath)}).then(() => { process.exitCode = 0 }, e => { console.error(e?.stack ?? e); process.exitCode = 1 })`,
+      // server). Success → loop drains, exit 0. Failure → Node's
+      // default unhandled-rejection handler prints the error to
+      // stderr and exits non-zero — the parent reads result.stderr
+      // for "Cannot find package" matching, no try/catch needed.
+      `await import(${JSON.stringify(hookPath)})`,
     ],
     {
       timeout: PER_PROBE_TIMEOUT_MS,
@@ -225,9 +225,6 @@ try {
   main()
 } catch {
   // Fail-open: never block a session on this hook's own bug.
-  // Prefer process.exitCode over process.exit(0) — short-lived Node
-  // CLIs that call process.exit can trigger libuv async-handle aborts
-  // on Node 24+ / Windows. Letting the event loop drain naturally is
-  // safer (fleet memory: feedback_node_exit_drain).
-  process.exitCode = 0
+  // No exitCode write needed — Node defaults to 0 when the loop
+  // drains naturally, and we explicitly never want a non-zero here.
 }

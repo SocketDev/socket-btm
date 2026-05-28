@@ -19,6 +19,7 @@ import { applyPatch } from 'build-infra/lib/patch-validator'
 import {
   BINJECT_DIR,
   BIN_INFRA_DIR,
+  BORINGSSL_BUILDER_DIR,
   BUILD_INFRA_DIR,
   LIEF_BUILDER_DIR,
   LSQUIC_INFRA_DIR,
@@ -575,6 +576,48 @@ export async function generateVendoredGypi(): Promise<void> {
  * This is called before copyBuildAdditions() to ensure external sources
  * are available in the additions/ directory tree.
  */
+/**
+ * Stage the prebuilt BoringSSL static libs + headers into the patched
+ * source tree so node.gyp can resolve `deps/boringssl/boringssl.gyp:boringssl`
+ * at configure time. boringssl-builder's `out/Final/{lib,include}` matches
+ * the sysroot shape the gyp wrapper expects.
+ *
+ * Local-build → already-downloaded → prebuilt-stub fall-through is
+ * handled by `ensureBoringssl` in boringssl-builder's public API; we
+ * invoke that lazily via dynamic import so this file stays loadable even
+ * if the boringssl-builder workspace package isn't installed yet (e.g.
+ * during early sync-scaffolding bootstrap).
+ */
+async function copyBoringsslArtifacts(): Promise<void> {
+  logger.step('Staging BoringSSL prebuilt → deps/boringssl/')
+  const { ensureBoringssl, getCurrentBoringsslPlatformArch } = await import(
+    path.join(BORINGSSL_BUILDER_DIR, 'lib', 'ensure-boringssl.mts')
+  )
+  const platformArch = getCurrentBoringsslPlatformArch()
+  const sysrootDir: string = await ensureBoringssl(platformArch)
+  const libSrc = path.join(sysrootDir, 'lib')
+  const includeSrc = path.join(sysrootDir, 'include')
+  if (!existsSync(libSrc) || !existsSync(includeSrc)) {
+    throw new Error(
+      `BoringSSL prebuilt missing lib/ or include/ at ${sysrootDir}; check boringssl-builder build output`,
+    )
+  }
+  const depsBoringsslDir = path.join(
+    ADDITIONS_SOURCE_PATCHED_DIR,
+    'deps',
+    'boringssl',
+  )
+  await fs.cp(libSrc, path.join(depsBoringsslDir, 'lib'), {
+    recursive: true,
+    force: true,
+  })
+  await fs.cp(includeSrc, path.join(depsBoringsslDir, 'include'), {
+    recursive: true,
+    force: true,
+  })
+  logger.substep(`staged BoringSSL artifacts → ${depsBoringsslDir}`)
+}
+
 export async function prepareExternalSources() {
   logger.step('Preparing External Sources')
 
@@ -620,6 +663,14 @@ export async function prepareExternalSources() {
   // walk + emit means a new upstream file appears in the build
   // automatically — no patch 004 update needed.
   await generateVendoredGypi()
+
+  logger.log('')
+
+  // Stage prebuilt BoringSSL (built by boringssl-builder with
+  // -DBORINGSSL_PREFIX=smol) into deps/boringssl/{lib,include}/ so
+  // patch 004's `dependencies: ['deps/boringssl/boringssl.gyp:boringssl']`
+  // resolves at gyp configure time.
+  await copyBoringsslArtifacts()
 
   logger.log('')
 

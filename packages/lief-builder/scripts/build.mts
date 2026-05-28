@@ -267,72 +267,71 @@ export async function verifyMuslCompatibility(libPath) {
 
   logger.info('Verifying LIEF library for musl compatibility...')
 
+  // Use nm to check for glibc-specific fortify symbols. These (__memcpy_chk,
+  // __printf_chk, …) don't exist in musl. The check must default-deny:
+  // missing nm, nm error, or empty stdout all mean "cannot verify", which
+  // is the exact failure mode this gate exists to catch.
+
+  // First check if nm is available.
   try {
-    // Use nm to check for glibc-specific fortify symbols.
-    // These symbols (__memcpy_chk, __printf_chk, etc.) don't exist in musl.
-
-    // First check if nm is available.
-    try {
-      await spawn('which', ['nm'], { stdio: 'pipe' })
-    } catch {
-      logger.info('Warning: nm not found, cannot verify musl compatibility')
-      return { compatible: true }
+    await spawn('which', ['nm'], { stdio: 'pipe' })
+  } catch {
+    return {
+      compatible: false,
+      reason: 'nm not found; cannot verify musl compatibility',
     }
-
-    // Run nm and capture output.
-    let nmOutput
-    try {
-      const result = await spawn('nm', [libPath], { stdio: 'pipe' })
-      nmOutput = result?.stdout
-    } catch (nmError) {
-      logger.info(`Warning: nm failed on ${libPath}: ${errorMessage(nmError)}`)
-      return { compatible: true }
-    }
-
-    // Guard against missing stdout
-    if (!nmOutput) {
-      logger.info('Warning: nm returned empty output')
-      return { compatible: true }
-    }
-
-    // Check for common glibc fortify symbols.
-    const glibcSymbols = [
-      '__memcpy_chk',
-      '__memmove_chk',
-      '__memset_chk',
-      '__strcpy_chk',
-      '__strncpy_chk',
-      '__strcat_chk',
-      '__strncat_chk',
-      '__sprintf_chk',
-      '__snprintf_chk',
-      '__printf_chk',
-      '__fprintf_chk',
-      '__vprintf_chk',
-      '__vfprintf_chk',
-      '__vsprintf_chk',
-      '__vsnprintf_chk',
-    ]
-
-    const foundSymbols = glibcSymbols.filter(sym => nmOutput.includes(sym))
-
-    if (foundSymbols.length > 0) {
-      logger.info(`Found ${foundSymbols.length} glibc fortify symbol(s)`)
-      return {
-        compatible: false,
-        reason: `Library contains glibc-specific fortify symbols: ${foundSymbols.join(', ')}`,
-      }
-    }
-
-    logger.info('No glibc fortify symbols found - library is musl-compatible')
-    return { compatible: true }
-  } catch (e) {
-    // If we can't check, warn but don't fail.
-    logger.info(
-      `Warning: Could not verify musl compatibility: ${errorMessage(e)}`,
-    )
-    return { compatible: true }
   }
+
+  // Run nm and capture output.
+  let nmOutput
+  try {
+    const result = await spawn('nm', [libPath], { stdio: 'pipe' })
+    nmOutput = result?.stdout
+  } catch (nmError) {
+    return {
+      compatible: false,
+      reason: `nm failed on ${libPath}: ${errorMessage(nmError)}`,
+    }
+  }
+
+  if (!nmOutput) {
+    return {
+      compatible: false,
+      reason: 'nm returned empty output; cannot verify musl compatibility',
+    }
+  }
+
+  // Check for common glibc fortify symbols.
+  const glibcSymbols = [
+    '__memcpy_chk',
+    '__memmove_chk',
+    '__memset_chk',
+    '__strcpy_chk',
+    '__strncpy_chk',
+    '__strcat_chk',
+    '__strncat_chk',
+    '__sprintf_chk',
+    '__snprintf_chk',
+    '__printf_chk',
+    '__fprintf_chk',
+    '__vprintf_chk',
+    '__vfprintf_chk',
+    '__vsprintf_chk',
+    '__vsnprintf_chk',
+  ]
+
+  const foundSymbols = glibcSymbols.filter(sym => nmOutput.includes(sym))
+
+  if (foundSymbols.length > 0) {
+    logger.info(`Found ${foundSymbols.length} glibc fortify symbol(s)`)
+    return {
+      compatible: false,
+      reason: `Library contains glibc-specific fortify symbols: ${foundSymbols.join(', ')}`,
+    }
+  }
+
+  logger.info('No glibc fortify symbols found - library is musl-compatible')
+  return { compatible: true }
 }
 
 /**
@@ -380,6 +379,15 @@ export async function copyLiefSource(sourceDir) {
         },
       )
     } catch (e) {
+      // String-shaped errno (`'ENOENT'`, `'EACCES'`) means robocopy didn't
+      // run at all — missing from PATH, blocked by policy, etc. Treat that
+      // as a hard fail instead of falling through to the existsSync check,
+      // which only verifies a pre-existing OLD copy and would report
+      // success against stale source. The numeric `>= 8` form below is the
+      // actual robocopy "real error" classifier; 1-7 are partial successes.
+      if (typeof e?.code === 'string') {
+        throw new Error(`robocopy did not run: ${e.code} (${errorMessage(e)})`)
+      }
       // spawn throws on non-zero exit codes, but robocopy uses 1-7 for success
       if (e?.code >= 8) {
         throw new Error(

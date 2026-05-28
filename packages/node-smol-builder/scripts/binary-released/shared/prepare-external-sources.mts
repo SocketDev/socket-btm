@@ -409,6 +409,10 @@ const VENDORED_GYPI_BUNDLES: ReadonlyArray<{
   // Subpath filter — drop matches whose path contains any of these
   // (tests/, fuzz/, bin/ standalone tools, etc.).
   readonly skipSubstrings: readonly string[]
+  // Exact-basename filter — drop files whose basename matches one of
+  // these. Used for non-compile data blobs that look like .c sources
+  // but aren't listed by upstream's build manifest.
+  readonly skipBasenames?: readonly string[] | undefined
 }> = [
   {
     name: 'yoga',
@@ -423,6 +427,12 @@ const VENDORED_GYPI_BUNDLES: ReadonlyArray<{
     gypiOut: 'deps/lsquic.gypi',
     extensions: ['.c'],
     skipSubstrings: ['/test/', '/tests/', '/fuzz/', '/bin/'],
+    // common_cert_set_2.c / common_cert_set_3.c are pre-generated cert
+    // BLOB data files included from lsquic_crt_compress.c via `#include`,
+    // NOT compile units. lsquic's CMakeLists never lists them; treating
+    // them as sources surfaces `unknown type name 'size_t'` because they
+    // intentionally have no preamble.
+    skipBasenames: ['common_cert_set_2.c', 'common_cert_set_3.c'],
   },
   {
     name: 'ls-qpack',
@@ -449,6 +459,7 @@ async function walkSources(
   root: string,
   extensions: readonly string[],
   skipSubstrings: readonly string[],
+  skipBasenames: readonly string[] = [],
 ): Promise<readonly string[]> {
   const out: string[] = []
   async function walk(dir: string): Promise<void> {
@@ -483,6 +494,9 @@ async function walkSources(
       if (skip) {
         continue
       }
+      if (skipBasenames.includes(entry.name)) {
+        continue
+      }
       out.push(normalized)
     }
   }
@@ -515,6 +529,7 @@ export async function generateVendoredGypi(): Promise<void> {
       absoluteWalkRoot,
       bundle.extensions,
       bundle.skipSubstrings,
+      bundle.skipBasenames,
     )
     if (sources.length === 0) {
       logger.substep(`${bundle.name}: no sources found under ${bundle.walkRoot}`)

@@ -5,6 +5,7 @@
     "binflate": "v133",
     "binject": "v187",
     "binpress": "v171",
+    "boringssl": "v1",
     "codet5": "v1",
     "curl": "v39",
     "dawn": "v1",

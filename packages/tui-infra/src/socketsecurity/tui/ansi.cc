@@ -12,33 +12,9 @@
 
 namespace tui {
 
-// ── Constants ──────────────────────────────────────────────────────
-
-const char kReset[] = "\x1b[0m";
-const char kClear[] = "\x1b[2J";
-const char kHome[] = "\x1b[H";
-const char kClearAndHome[] = "\x1b[H\x1b[2J";
-const char kHideCursor[] = "\x1b[?25l";
-const char kShowCursor[] = "\x1b[?25h";
-const char kSwitchToAltScreen[] = "\x1b[?1049h";
-const char kSwitchToMainScreen[] = "\x1b[?1049l";
-const char kBracketedPasteStart[] = "\x1b[200~";
-const char kBracketedPasteEnd[] = "\x1b[201~";
-const char kBracketedPasteSet[] = "\x1b[?2004h";
-const char kBracketedPasteReset[] = "\x1b[?2004l";
-const char kResetBackground[] = "\x1b[49m";
-const char kResetForeground[] = "\x1b[39m";
-const char kEraseBelowCursor[] = "\x1b[J";
-const char kNextLine[] = "\x1b[E";
-
-const char kBold[] = "\x1b[1m";
-const char kDim[] = "\x1b[2m";
-const char kItalic[] = "\x1b[3m";
-const char kUnderline[] = "\x1b[4m";
-const char kBlink[] = "\x1b[5m";
-const char kInverse[] = "\x1b[7m";
-const char kHidden[] = "\x1b[8m";
-const char kStrikethrough[] = "\x1b[9m";
+// Constants moved to ansi.hpp as inline constexpr so `sizeof(kX)` is
+// a compile-time constant at every callsite (extern-declared incomplete
+// arrays don't permit sizeof).
 
 namespace {
 

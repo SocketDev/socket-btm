@@ -50,32 +50,35 @@ namespace tui {
 
 // ── Constants ──────────────────────────────────────────────────────
 // All terminate with '\0' so JS-side `Buffer.from(constant)` works.
+// Defined inline so `sizeof(kX)` is a compile-time constant at every
+// callsite (was extern-declared as incomplete array; sizeof on an
+// incomplete type doesn't compile).
 
-extern const char kReset[];                // ESC[0m
-extern const char kClear[];                // ESC[2J
-extern const char kHome[];                 // ESC[H
-extern const char kClearAndHome[];         // ESC[H ESC[2J
-extern const char kHideCursor[];           // ESC[?25l
-extern const char kShowCursor[];           // ESC[?25h
-extern const char kSwitchToAltScreen[];    // ESC[?1049h
-extern const char kSwitchToMainScreen[];   // ESC[?1049l
-extern const char kBracketedPasteStart[];  // ESC[200~
-extern const char kBracketedPasteEnd[];    // ESC[201~
-extern const char kBracketedPasteSet[];    // ESC[?2004h
-extern const char kBracketedPasteReset[];  // ESC[?2004l
-extern const char kResetBackground[];      // ESC[49m
-extern const char kResetForeground[];      // ESC[39m
-extern const char kEraseBelowCursor[];     // ESC[J
-extern const char kNextLine[];             // ESC[E
+inline constexpr char kReset[] = "\x1b[0m";
+inline constexpr char kClear[] = "\x1b[2J";
+inline constexpr char kHome[] = "\x1b[H";
+inline constexpr char kClearAndHome[] = "\x1b[H\x1b[2J";
+inline constexpr char kHideCursor[] = "\x1b[?25l";
+inline constexpr char kShowCursor[] = "\x1b[?25h";
+inline constexpr char kSwitchToAltScreen[] = "\x1b[?1049h";
+inline constexpr char kSwitchToMainScreen[] = "\x1b[?1049l";
+inline constexpr char kBracketedPasteStart[] = "\x1b[200~";
+inline constexpr char kBracketedPasteEnd[] = "\x1b[201~";
+inline constexpr char kBracketedPasteSet[] = "\x1b[?2004h";
+inline constexpr char kBracketedPasteReset[] = "\x1b[?2004l";
+inline constexpr char kResetBackground[] = "\x1b[49m";
+inline constexpr char kResetForeground[] = "\x1b[39m";
+inline constexpr char kEraseBelowCursor[] = "\x1b[J";
+inline constexpr char kNextLine[] = "\x1b[E";
 
-extern const char kBold[];                 // ESC[1m
-extern const char kDim[];                  // ESC[2m
-extern const char kItalic[];               // ESC[3m
-extern const char kUnderline[];            // ESC[4m
-extern const char kBlink[];                // ESC[5m
-extern const char kInverse[];              // ESC[7m
-extern const char kHidden[];               // ESC[8m
-extern const char kStrikethrough[];        // ESC[9m
+inline constexpr char kBold[] = "\x1b[1m";
+inline constexpr char kDim[] = "\x1b[2m";
+inline constexpr char kItalic[] = "\x1b[3m";
+inline constexpr char kUnderline[] = "\x1b[4m";
+inline constexpr char kBlink[] = "\x1b[5m";
+inline constexpr char kInverse[] = "\x1b[7m";
+inline constexpr char kHidden[] = "\x1b[8m";
+inline constexpr char kStrikethrough[] = "\x1b[9m";
 
 // ── Cold-path builders ─────────────────────────────────────────────
 // Allocate a std::string. Use for one-shot setup / teardown writes

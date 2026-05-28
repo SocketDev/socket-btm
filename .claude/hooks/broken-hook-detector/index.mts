@@ -129,7 +129,7 @@ function probeHook(hookPath: string): ProbeFailure | undefined {
       // Child invocations: set exitCode and let the loop drain rather
       // than process.exit(N) (libuv async-handle abort on Node 24+ /
       // Windows). See feedback_node_exit_drain.
-      `import(${JSON.stringify(hookPath)}).then(() => { process.exitCode = 0 }, e => { process.stderr.write(String(e?.stack ?? e)); process.exitCode = 1 })`,
+      `import(${JSON.stringify(hookPath)}).then(() => { process.exitCode = 0 }, e => { console.error(e?.stack ?? e); process.exitCode = 1 })`,
     ],
     {
       timeout: PER_PROBE_TIMEOUT_MS,

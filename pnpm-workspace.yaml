@@ -47,6 +47,7 @@ catalog:
   octokit: 5.0.5
   'oxfmt': 0.48.0
   'oxlint': 1.63.0
+  'shell-quote': 1.8.4
   tar: 7.4.3
   'taze': 19.11.0
   vitest: 4.0.3
@@ -66,6 +67,10 @@ minimumReleaseAgeExclude:
   # npm's `time` field for the major; allow pinned beta until v15 GA.
   - 'nock@15.0.0-beta.11'
   - 'npm-run-all2@9.0.0'
+  # shell-quote AST parser used by .claude/hooks/_shared/shell-command.mts
+  # — fleet hook needs it now; soak entry expires 2026-05-29.
+  # published: 2026-05-22 | removable: 2026-05-29
+  - 'shell-quote@1.8.4'
 
 # Refuse transitive dependencies declared via git/tarball/local-tarball
 # specs — an npm package shouldn't be allowed to drag in a git URL we

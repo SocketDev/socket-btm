@@ -56,6 +56,7 @@
     "ecc-agentshield": "catalog:",
     "oxfmt": "0.37.0",
     "oxlint": "1.52.0",
+    "shell-quote": "catalog:",
     "taze": "19.9.2",
     "vitest": "catalog:",
     "yoctocolors-cjs": "catalog:"

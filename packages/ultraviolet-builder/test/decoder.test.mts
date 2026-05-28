@@ -1,8 +1,26 @@
+import { existsSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 import { describe, expect, it } from 'vitest'
 
-import { load } from '../lib/index.mts'
+// lib/index.mts is emitted by `pnpm run build` (napi-go addon stage), not
+// checked in. Skip the suite cleanly on a fresh checkout so `pnpm test`
+// stays green before the first build.
+const LIB_PATH = path.resolve(
+  fileURLToPath(import.meta.url),
+  '..',
+  '..',
+  'lib',
+  'index.mts',
+)
+const HAS_LIB = existsSync(LIB_PATH)
 
-describe('ultraviolet decoder binding', () => {
+const load = HAS_LIB
+  ? (await import('../lib/index.mts')).load
+  : (() => Promise.reject(new Error('lib/index.mts not built; run `pnpm run build` first')))
+
+describe.skipIf(!HAS_LIB)('ultraviolet decoder binding', () => {
   it('decodes the CSI up-arrow sequence', async () => {
     const uv = await load()
     const dec = uv.newDecoder()

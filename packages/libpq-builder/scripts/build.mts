@@ -758,7 +758,15 @@ async function main() {
         ],
         { cwd: path.resolve(packageRoot, '../..'), stdio: 'inherit' },
       )
-      if ((initResult.code ?? 0) !== 0 || !existsSync(postgresConfigure)) {
+      // Check signal + error before fallback-to-0 — a SIGTERM/SIGKILL kills
+      // the child with code === null, and `?? 0` would otherwise pass the
+      // check while leaving the submodule half-initialized.
+      if (
+        initResult.signal ||
+        initResult.error ||
+        (initResult.code ?? 1) !== 0 ||
+        !existsSync(postgresConfigure)
+      ) {
         throw new Error(
           'Failed to initialize PostgreSQL submodule. Run manually:\n' +
             '  git submodule update --init packages/libpq-builder/upstream/postgres',

@@ -1866,7 +1866,7 @@ static void Initialize(Local<Object> target,
                        Local<Value> /* unused */,
                        Local<Context> context,
                        void* /* priv */) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<Object> constants = Object::New(isolate);
 
 #define BIND_CONST(name, value) \

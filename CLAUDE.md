@@ -246,9 +246,8 @@ Hooks that gate specific external tools — they only fire when those tools appe
 
 - `codex-no-write-guard` — blocks `codex` / `codex-rescue` invocations with write-intent flags. Use Codex for advice not code. Bypass: `Allow codex-write bypass` (enforced by `.claude/hooks/codex-no-write-guard/`).
 - `concurrent-cargo-build-guard` — blocks a second `cargo build --release` while one is in flight (8 LLVM threads × 8-22GB = OOM). Cargo-only. Bypass: `Allow concurrent-cargo-build bypass` (enforced by `.claude/hooks/concurrent-cargo-build-guard/`).
-- `broken-hook-detector` — SessionStart probe: load each sibling hook, report missing-import → `pnpm i <pkg>` fix instead of `package_json_reader:314` spam. Node-builtins only (enforced by `.claude/hooks/broken-hook-detector/`).
-- `answer-passing-questions-reminder` — Stop hook: user asks a passing question while you're mid-task, you brush past with "later" / "right now I'm…" — reminds you to answer inline (one or two sentences max) before continuing. Not every user comment is a pivot (enforced by `.claude/hooks/answer-passing-questions-reminder/`).
-- `answer-status-requests-reminder` — Stop hook: user explicitly asks for a status ("check status", "how's it going", "status?") and the assistant declines with "too soon", "skipping", "not enough time has passed", etc. Status requests are explicit asks, not approximations of "should I bother you?" — RUN the check and report (enforced by `.claude/hooks/answer-status-requests-reminder/`).
+- `broken-hook-detector` — SessionStart probe: surfaces missing-dep → `pnpm i <pkg>` fix instead of `package_json_reader:314` spam (enforced by `.claude/hooks/broken-hook-detector/`).
+- `answer-passing-questions-reminder` + `answer-status-requests-reminder` — Stop hooks: when user asks a passing question OR explicitly requests status mid-task, fire if you brush past with "later" / "too soon" / "skipping". Lend a few tokens, then continue (enforced by `.claude/hooks/answer-passing-questions-reminder/` + `.claude/hooks/answer-status-requests-reminder/`).
 
 <!-- END FLEET-CANONICAL -->
 

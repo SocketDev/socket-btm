@@ -875,11 +875,11 @@ static void BindEngineFlags(Isolate* isolate, Local<Context> context,
   Local<Object> engineFlags = Object::New(isolate);
   engineFlags
       ->Set(context, NewOneByteString(isolate, "SERVER"),
-            Integer::New(isolate, LSQUIC_ENG_SERVER))
+            Integer::New(isolate, LSENG_SERVER))
       .Check();
   engineFlags
       ->Set(context, NewOneByteString(isolate, "HTTP"),
-            Integer::New(isolate, LSQUIC_ENG_HTTP))
+            Integer::New(isolate, LSENG_HTTP))
       .Check();
   target
       ->Set(context, NewOneByteString(isolate, "engineFlags"), engineFlags)
@@ -892,7 +892,7 @@ static void Initialize(Local<Object> target,
                        Local<Value> /* unused */,
                        Local<Context> context,
                        void* /* priv */) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
 
   SetMethod(context, target, "globalInit", GlobalInit);
   SetMethod(context, target, "globalCleanup", GlobalCleanup);

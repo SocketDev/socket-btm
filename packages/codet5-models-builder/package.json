@@ -30,7 +30,7 @@
       "version": "Salesforce/codet5-base",
       "type": "huggingface",
       "url": "https://huggingface.co/Salesforce/codet5-base",
-      "ref": "main"
+      "ref": "02cd2d31bb7c6d0e4d91156167b2de044989c733"
     }
   }
 }

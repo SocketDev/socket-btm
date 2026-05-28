@@ -38,7 +38,7 @@
     },
     "codet5": {
       "primary": "Salesforce/codet5-base",
-      "revision": "main",
+      "revision": "02cd2d31bb7c6d0e4d91156167b2de044989c733",
       "fallbacks": [
         "Salesforce/codet5-small"
       ],

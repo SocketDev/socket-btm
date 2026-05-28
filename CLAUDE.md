@@ -245,8 +245,9 @@ Use `isError` / `isErrnoException` / `errorMessage` / `errorStack` from `@socket
 
 Hooks that gate specific external tools — they only fire when those tools appear in a command, so they're safe to wire fleet-wide:
 
-- `codex-no-write-guard` — blocks `codex` CLI / `codex:codex-rescue` Agent invocations with write-intent flags or prompts. The rule (originally from ultrathink: Codex regressions cost real perf; use Codex for advice not code changes) applies fleet-wide whenever Codex is invoked. Bypass: `Allow codex-write bypass` (enforced by `.claude/hooks/codex-no-write-guard/`).
-- `concurrent-cargo-build-guard` — blocks a second `cargo build --release` while one is in flight (8 LLVM threads × 8-22GB = OOM on dual builds). Fires only on cargo release commands, so a no-op in non-cargo repos. Bypass: `Allow concurrent-cargo-build bypass` (enforced by `.claude/hooks/concurrent-cargo-build-guard/`).
+- `codex-no-write-guard` — blocks `codex` / `codex-rescue` invocations with write-intent flags. Use Codex for advice not code. Bypass: `Allow codex-write bypass` (enforced by `.claude/hooks/codex-no-write-guard/`).
+- `concurrent-cargo-build-guard` — blocks a second `cargo build --release` while one is in flight (8 LLVM threads × 8-22GB = OOM). Cargo-only. Bypass: `Allow concurrent-cargo-build bypass` (enforced by `.claude/hooks/concurrent-cargo-build-guard/`).
+- `broken-hook-detector` — SessionStart probe: load each sibling hook, report missing-import → `pnpm i <pkg>` fix instead of `package_json_reader:314` spam. Node-builtins only (enforced by `.claude/hooks/broken-hook-detector/`).
 
 <!-- END FLEET-CANONICAL -->
 

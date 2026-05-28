@@ -74,6 +74,10 @@
           },
           {
             "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/parallel-agent-edit-guard/index.mts"
+          },
+          {
+            "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/path-guard/index.mts"
           },
           {
@@ -131,6 +135,10 @@
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/no-structured-clone-prefer-json-guard/index.mts"
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/trust-downgrade-guard/index.mts"
           }
         ]
       },
@@ -155,6 +163,10 @@
       {
         "matcher": "Bash",
         "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/fleet/avoid-cd-reminder/index.mts"
+          },
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/codex-no-write-guard/index.mts"
@@ -221,6 +233,10 @@
           },
           {
             "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/parallel-agent-staging-guard/index.mts"
+          },
+          {
+            "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/prefer-rebase-over-revert-guard/index.mts"
           },
           {
@@ -242,6 +258,10 @@
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/token-guard/index.mts"
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/trust-downgrade-guard/index.mts"
           },
           {
             "type": "command",
@@ -368,6 +388,10 @@
           },
           {
             "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/parallel-agent-on-stop-reminder/index.mts"
+          },
+          {
+            "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/perfectionist-reminder/index.mts"
           },
           {
@@ -406,11 +430,14 @@
     "deny": [
       "Bash(gh release create:*)",
       "Bash(gh release delete:*)",
-      "Bash(git push --force:*)",
-      "Bash(git push -f:*)",
       "Bash(npm publish:*)",
       "Bash(pnpm publish:*)",
       "Bash(yarn publish:*)"
+    ],
+    "ask": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push --force-with-lease:*)"
     ]
   }
 }

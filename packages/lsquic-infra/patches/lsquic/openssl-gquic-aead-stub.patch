@@ -1,0 +1,18 @@
+--- a/src/liblsquic/lsquic_crypto.c
++++ b/src/liblsquic/lsquic_crypto.c
+@@ -400,6 +400,7 @@ end:
+
+
+
++#ifdef HAVE_BORINGSSL
+ /* AEAD nonce is always zero */
+ /* return 0 for OK */
+ int lsquic_aes_aead_enc(EVP_AEAD_CTX *key,
+@@ -465,6 +466,7 @@ int lsquic_aes_aead_dec(EVP_AEAD_CTX *key,
+         return -1;
+     }
+ }
++#endif /* HAVE_BORINGSSL */
+
+ /* 32 bytes client nonce with 4 bytes tm, 8 bytes orbit */
+ void lsquic_gen_nonce_c(unsigned char *buf, uint64_t orbit)

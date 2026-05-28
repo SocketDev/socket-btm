@@ -1,7 +1,7 @@
 // Platform-agnostic power-state interface for node:smol-power.
 //
 // One function. The implementation lives in a per-platform .cc file
-// (power_mac.cc / power_win.cc / power_linux.cc / power_stub.cc) so
+// (power_mac.cc / power_win.cc / power_linux.cc) so
 // the V8 binding glue in power_binding.cc stays free of platform
 // `#ifdef`s and platform headers.
 //

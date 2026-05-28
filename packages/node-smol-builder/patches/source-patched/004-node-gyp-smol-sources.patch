@@ -71,7 +71,7 @@
            ],
          }],
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
-@@ -1055,14 +1079,330 @@
+@@ -1055,14 +1079,331 @@
            ],
            'dependencies': [
              'deps/ncrypto/ncrypto.gyp:ncrypto',

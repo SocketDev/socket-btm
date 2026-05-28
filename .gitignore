@@ -76,6 +76,15 @@ packages/node-smol-builder/additions/source-patched/deps/libdeflate/*
 packages/node-smol-builder/additions/source-patched/deps/lsquic/
 packages/node-smol-builder/additions/source-patched/deps/ls-qpack/
 
+# C sources copied from upstream/* submodules at build time by
+# scripts/binary-released/shared/prepare-external-sources.mts. Source of truth
+# is the pinned submodule (md4c-0.5.3 / libqrencode-4.1.1 / tree-sitter-0.26.9
+# in .gitmodules); these copies are regenerable and wired into the build via the
+# node.gyp source-list patch, so they're untracked like every sibling dep above.
+packages/node-smol-builder/additions/source-patched/src/socketsecurity/markdown/
+packages/node-smol-builder/additions/source-patched/src/socketsecurity/qrcode/libqrencode/
+packages/node-smol-builder/additions/source-patched/src/socketsecurity/tree_sitter/tree-sitter/
+
 # Firewall test/debug Dockerfiles and scripts
 Dockerfile.firewall-*-test
 test-firewall-*.sh

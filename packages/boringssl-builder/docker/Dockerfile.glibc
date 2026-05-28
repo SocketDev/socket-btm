@@ -42,7 +42,7 @@ RUN dnf -y update && \
     printf '%s\n' \
       '[nodesource-nodejs]' \
       'name=Node.js Packages - $basearch' \
-      'baseurl=https://rpm.nodesource.com/pub_current.x/nodistro/nodejs/$basearch' \
+      'baseurl=https://rpm.nodesource.com/pub_26.x/nodistro/nodejs/$basearch' \
       'priority=9' \
       'enabled=1' \
       'gpgcheck=1' \

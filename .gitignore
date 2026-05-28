@@ -81,7 +81,10 @@ packages/node-smol-builder/additions/source-patched/deps/ls-qpack/
 # is the pinned submodule (md4c-0.5.3 / libqrencode-4.1.1 / tree-sitter-0.26.9
 # in .gitmodules); these copies are regenerable and wired into the build via the
 # node.gyp source-list patch, so they're untracked like every sibling dep above.
-packages/node-smol-builder/additions/source-patched/src/socketsecurity/markdown/
+# The hand-written *_binding.cc glue in each dir is first-party — keep it tracked
+# (ignore the copied tree, allowlist the binding, same shape as libdeflate.gyp).
+packages/node-smol-builder/additions/source-patched/src/socketsecurity/markdown/*
+!packages/node-smol-builder/additions/source-patched/src/socketsecurity/markdown/markdown_binding.cc
 packages/node-smol-builder/additions/source-patched/src/socketsecurity/qrcode/libqrencode/
 packages/node-smol-builder/additions/source-patched/src/socketsecurity/tree_sitter/tree-sitter/
 

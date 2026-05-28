@@ -163,19 +163,19 @@ jobs:
           else
             DOCKERFILE_HASH="no-docker"
           fi
-          BUILD_SCRIPTS_HASH=$(hash_dir packages/boringssl-builder/scripts)
-          PATCHES_HASH=$(hash_dir packages/boringssl-builder/patches)
-          MAKE_HASH=$(hash_dir packages/boringssl-builder/make)
-          BUILD_INFRA_LIB=$(hash_dir packages/build-infra/lib)
           BIN_INFRA_LIB=$(hash_dir packages/bin-infra/lib)
-          BUILD_INFRA_EXTERNAL_TOOLS=$(hash_file packages/build-infra/external-tools.json)
-          BUILD_INFRA_SCRIPTS=$(hash_dir packages/build-infra/scripts)
-          PNPM_LOCK_HASH=$(hash_file pnpm-lock.yaml)
-          NODE_VERSION_HASH=$(hash_file .node-version)
-          BORINGSSL_SUBMODULE_SHA=$(git ls-tree HEAD packages/boringssl-builder/upstream/boringssl 2>/dev/null | awk '{print $3}' || echo "")
-          ROOT_PACKAGE_JSON=$(hash_file package.json)
-          PNPM_WORKSPACE=$(hash_file pnpm-workspace.yaml)
           BORINGSSL_PACKAGE_JSON=$(hash_file packages/boringssl-builder/package.json)
+          BORINGSSL_SUBMODULE_SHA=$(git ls-tree HEAD packages/boringssl-builder/upstream/boringssl 2>/dev/null | awk '{print $3}' || echo "")
+          BUILD_INFRA_EXTERNAL_TOOLS=$(hash_file packages/build-infra/external-tools.json)
+          BUILD_INFRA_LIB=$(hash_dir packages/build-infra/lib)
+          BUILD_INFRA_SCRIPTS=$(hash_dir packages/build-infra/scripts)
+          BUILD_SCRIPTS_HASH=$(hash_dir packages/boringssl-builder/scripts)
+          MAKE_HASH=$(hash_dir packages/boringssl-builder/make)
+          NODE_VERSION_HASH=$(hash_file .node-version)
+          PATCHES_HASH=$(hash_dir packages/boringssl-builder/patches)
+          PNPM_LOCK_HASH=$(hash_file pnpm-lock.yaml)
+          PNPM_WORKSPACE=$(hash_file pnpm-workspace.yaml)
+          ROOT_PACKAGE_JSON=$(hash_file package.json)
           WORKFLOW_FILE="${GITHUB_WORKFLOW_REF%@*}"
           WORKFLOW_FILE="${WORKFLOW_FILE#${GITHUB_REPOSITORY}/}"
           SOCKET_REGISTRY_SHA=$(grep -ohE 'SocketDev/socket-registry/[^@]+@[0-9a-f]{40}' "$WORKFLOW_FILE" 2>/dev/null | head -1 | grep -oE '[0-9a-f]{40}$' || echo "")

@@ -47,6 +47,7 @@ import { safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
+import { errorMessage } from 'build-infra/lib/error-utils'
 import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { UPSTREAM_DAWN_DIR, getBuildPaths } from './paths.mts'
@@ -89,6 +90,25 @@ export function parseArgs(): BuildOptions {
   return { force, jobs, mode }
 }
 
+// Recover from a prior killed build that left .git renamed aside for the
+// Tint gen tool walker workaround. Runs before any other build step so
+// subsequent git invocations inside upstream/dawn don't fail with a missing
+// .git pointer. Idempotent + non-destructive: only acts if the moved-aside
+// file is present AND the canonical name is absent.
+async function recoverOrphanedDotGit(): Promise<void> {
+  const dotGit = path.join(UPSTREAM_DAWN_DIR, '.git')
+  const dotGitMoved = path.join(
+    UPSTREAM_DAWN_DIR,
+    '.git.moved-for-tint-gen',
+  )
+  if (existsSync(dotGitMoved) && !existsSync(dotGit)) {
+    logger.warn(
+      'Recovering .git after a previous interrupted build (was renamed aside for Tint gen workaround)',
+    )
+    await fs.rename(dotGitMoved, dotGit)
+  }
+}
+
 async function main(): Promise<void> {
   const opts = parseArgs()
 
@@ -97,6 +117,8 @@ async function main(): Promise<void> {
       `Dawn submodule not found at ${UPSTREAM_DAWN_DIR}. Run \`git submodule update --init packages/dawn-builder/upstream/dawn\` first.`,
     )
   }
+
+  await recoverOrphanedDotGit()
 
   const cmakePath = await which('cmake')
   if (!cmakePath) {
@@ -191,13 +213,30 @@ async function main(): Promise<void> {
   // Strings dump of fileutils source paths embedded in the binary —
   // these are the values runtime.Caller will report, which DawnRoot's
   // walk-up uses to find DEPS. If the embedded path doesn't anchor at
-  // <dawn>/tools/src/fileutils/, DawnRoot fails silently.
+  // <dawn>/tools/src/fileutils/, DawnRoot fails silently. Spawn each
+  // tool directly + pipe in-process rather than via `sh -c`; the latter
+  // EPIPE-poisons `strings`'s exit code when `head` closes early, and
+  // shell-quoting a path with whitespace would break it.
   logger.info('Embedded fileutils paths in binary:')
-  const stringsResult = await spawn('sh', [
-    '-c',
-    `strings "${genBin}" | grep -E 'fileutils/paths\\.go|tools/src/fileutils' | head -5`,
-  ], { stdio: 'inherit' })
-  logger.info(`strings probe exit: ${stringsResult.code}`)
+  try {
+    const stringsResult = await spawn(
+      'strings',
+      [genBin],
+      { stdio: ['ignore', 'pipe', 'inherit'] },
+    )
+    const matches = (stringsResult.stdout ?? '')
+      .split(/\r?\n/)
+      .filter(
+        l =>
+          l.includes('fileutils/paths.go') || l.includes('tools/src/fileutils'),
+      )
+      .slice(0, 5)
+    for (const line of matches) {
+      logger.info(`  ${line}`)
+    }
+  } catch (e) {
+    logger.info(`strings probe skipped: ${errorMessage(e)}`)
+  }
   // Upstream Tint's glob.Scan walker has a latent bug:
   //
   //   if rel == ".git" { return filepath.SkipDir }
@@ -307,6 +346,6 @@ async function main(): Promise<void> {
 }
 
 main().catch(err => {
-  logger.fail(`dawn-builder failed: ${err}`)
+  logger.fail(`dawn-builder failed: ${errorMessage(err)}`)
   process.exitCode = 1
 })

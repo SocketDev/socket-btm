@@ -1,217 +1,175 @@
-#!/usr/bin/env node
+/* eslint-disable no-shadow -- nested cached-length for-loops intentionally reuse `i`/`length` names for the fleet-wide cached-loop idiom; renaming would diverge from the codebase pattern. */
 /**
- * @fileoverview Test runner with flag-based configuration.
+ * @file Canonical minimal test runner for socket-* repos. Delegates the
+ *   scope-to-tests mapping to vitest itself rather than rolling a basename-
+ *   based mapper that would inevitably drift from the actual module graph.
  *
- * Supports:
- * - --all: Run all tests
- * - --staged: Run tests for staged files only
- * - --changed: Run tests for changed files (not yet implemented, falls back to --all)
+ *   Scope modes:
  *
- * Default behavior (no flags): runs all tests
+ *   - `(default)` — local-dev scope. Runs `vitest --changed`, vitest's
+ *     compare-vs-HEAD-with-uncommitted mode. Walks the actual import graph
+ *     so a change to a util shared by many tests runs every affected test
+ *     file, not the union of two guesses.
+ *   - `--staged` — pre-commit hook scope. Hands `git diff --cached` filenames
+ *     to `vitest related <files…> --run`. Same module-graph walk, but rooted
+ *     at the staged delta. The `--run` flag is mandatory: `vitest related`
+ *     defaults to watch mode just like the bare `vitest` invocation, which
+ *     would hang the pre-commit hook.
+ *   - `--all` — run the full suite (`vitest run`). Used in CI and on explicit
+ *     opt-in.
+ *
+ *   Flags: `--quiet` / `--silent` suppress progress output.
+ *
+ *   Config / infrastructure changes (`vitest.config*`, `tsconfig*`,
+ *   `.oxlintrc.json`, `.oxfmtrc.json`, `pnpm-lock.yaml`, `package.json`,
+ *   anything under `.config/` or `scripts/`) still escalate to `all` —
+ *   module-graph traversal doesn't capture config-derived discovery + alias
+ *   changes. See https://vitest.dev/guide/cli.html#vitest-related.
  */
 
-import { existsSync } from 'node:fs'
-import path from 'node:path'
+// prefer-async-spawn: sync-required — top-level CLI runner; entire
+// flow is sync (test runner invocation + exit-code aggregation).
+import { spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
+import type { SpawnSyncOptions } from 'node:child_process'
 import process from 'node:process'
-
-import { fileURLToPath } from 'node:url'
-
-import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
-import { spawn, spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
-
-import { errorMessage } from 'build-infra/lib/error-utils'
 
 const logger = getDefaultLogger()
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const ROOT_DIR = path.dirname(__dirname)
+const args = process.argv.slice(2)
+const mode: 'staged' | 'all' | 'modified' = args.includes('--all')
+  ? 'all'
+  : args.includes('--staged')
+    ? 'staged'
+    : 'modified'
+const quiet = args.includes('--quiet') || args.includes('--silent')
+const stdio: SpawnSyncOptions['stdio'] = quiet ? 'pipe' : 'inherit'
+// On Windows, `pnpm` is a .cmd shim that Node refuses to exec directly via
+// spawnSync (CVE-2024-27980 hardening). Wrap through the shell on Windows
+// only; POSIX keeps direct invocation.
+const useShell = process.platform === 'win32'
 
-/**
- * Check if a command exists
- * @param {string} command - Command to check
- * @returns {boolean} True if command exists
- */
-export function commandExists(command: string): boolean {
-  try {
-    let result
-    if (WIN32) {
-      result = spawnSync('where', [command], { stdio: 'ignore' })
-    } else {
-      result = spawnSync('sh', ['-c', `command -v "${command}"`], {
-        stdio: 'ignore',
-      })
-    }
-    return result.status === 0 && !result.error
-  } catch {
-    return false
+// Paths that, when changed, force the full suite to run.
+const ESCALATION_PATTERNS = [
+  /^\.config\//,
+  /^scripts\//,
+  /^pnpm-lock\.yaml$/,
+  /^tsconfig.*\.json$/,
+  /^\.oxlintrc\.json$/,
+  /^\.oxfmtrc\.json$/,
+  /^vitest\.config\.(js|mjs|mts|ts)$/,
+  /^package\.json$/,
+  /^lockstep\.schema\.json$/,
+]
+
+function log(msg: string): void {
+  if (!quiet) {
+    logger.log(msg)
   }
 }
 
-/**
- * Pre-flight check for common build tools
- * Warns if tools are missing but doesn't block (individual tests will skip gracefully)
- */
-export function preflightCheck(): void {
-  const warnings: string[] = []
-
-  // Check common build tools
-  const tools = ['make', 'gcc', 'cmake', 'python3']
-  const missing = tools.filter(tool => !commandExists(tool))
-
-  if (missing.length > 0) {
-    warnings.push(
-      `Warning: Some build tools are missing: ${missing.join(', ')}`,
-    )
-    warnings.push(
-      'Native package tests may skip or fail. Install build tools for full test coverage.',
-    )
+function gitFiles(args: string[]): string[] {
+  // spawnSync with array args — no shell interpolation. Matches the
+  // socket/prefer-spawn-over-execsync rule contract.
+  const r = spawnSync('git', args, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    stdioString: true,
+  })
+  if (r.status !== 0 || typeof r.stdout !== 'string') {
+    return []
   }
-
-  if (warnings.length > 0) {
-    logger.error('')
-    for (let i = 0, { length } = warnings; i < length; i += 1) {
-      logger.info(warnings[i])
-    }
-    logger.error('')
-  }
+  return r.stdout
+    .split('\n')
+    .map(s => s.trim())
+    .filter(s => s.length > 0)
 }
 
-async function main(): Promise<void> {
-  const argv: string[] = process.argv
-  const isStaged = argv.includes('--staged')
-  const isChanged = argv.includes('--changed')
+function getStagedFiles(): string[] {
+  return gitFiles(['diff', '--cached', '--name-only', '--diff-filter=ACMR'])
+}
 
-  // Run pre-flight checks (warnings only, doesn't block)
-  preflightCheck()
+function getModifiedFiles(): string[] {
+  return gitFiles(['diff', '--name-only', '--diff-filter=ACMR', 'HEAD'])
+}
 
-  if (isStaged) {
-    // Get staged test files
-    const { stdout } = await spawn(
-      'git',
-      ['diff', '--cached', '--name-only', '--diff-filter=ACM'],
-      {
-        cwd: ROOT_DIR,
-        shell: WIN32,
-      },
-    )
-    const stagedFiles = String(stdout)
-      .trim()
-      .split('\n')
-      .filter(Boolean)
-      .filter(
-        (file: string) =>
-          file.endsWith('.test.js') ||
-          file.endsWith('.test.mts') ||
-          file.endsWith('.test.ts'),
-      )
-      .map((file: string) => path.resolve(ROOT_DIR, file))
-      .filter((file: string) => existsSync(file))
-
-    if (stagedFiles.length === 0) {
-      logger.info('No staged test files to run')
-      process.exitCode = 0
-    } else {
-      logger.info(
-        `Running tests for ${stagedFiles.length} staged test file(s)...`,
-      )
-
-      // Run vitest with specific test files
-      // Group files by package to run tests in each package context
-      const filesByPackage = new Map<string, string[]>()
-      for (let i = 0, { length } = stagedFiles; i < length; i += 1) {
-        const file = stagedFiles[i]!
-        // Find the package directory (contains package.json)
-        let pkgDir = path.dirname(file)
-        const { root } = path.parse(pkgDir)
-        while (pkgDir !== ROOT_DIR && pkgDir !== root) {
-          if (existsSync(path.join(pkgDir, 'package.json'))) {
-            break
-          }
-          pkgDir = path.dirname(pkgDir)
-        }
-
-        // Skip files not in a package
-        if (pkgDir === ROOT_DIR || pkgDir === root) {
-          continue
-        }
-
-        if (!filesByPackage.has(pkgDir)) {
-          filesByPackage.set(pkgDir, [])
-        }
-        const pkgFiles = filesByPackage.get(pkgDir)
-        if (pkgFiles) {
-          pkgFiles.push(file)
-        }
+function shouldEscalate(files: string[]): boolean {
+  for (let i = 0, { length } = files; i < length; i += 1) {
+    const f = files[i]!
+    for (let i = 0, { length } = ESCALATION_PATTERNS; i < length; i += 1) {
+      const pattern = ESCALATION_PATTERNS[i]!
+      if (pattern.test(f)) {
+        return true
       }
-
-      // Run tests for each package
-      let exitCode = 0
-      // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
-      for (const [pkgDir, files] of filesByPackage) {
-        const pkgName = path.relative(ROOT_DIR, pkgDir)
-        logger.error('')
-        logger.info(`Testing ${pkgName}:`)
-
-        try {
-          // --passWithNoTests: a scoped run where files don't resolve to
-          // any test should succeed rather than error with "No test files
-          // found". Keeps pre-commit hooks passing when a staged change
-          // doesn't touch testable code.
-          const result = spawnSync(
-            'pnpm',
-            ['exec', 'vitest', 'run', '--passWithNoTests', ...files],
-            {
-              cwd: pkgDir,
-              shell: WIN32,
-              stdio: 'inherit',
-            },
-          )
-          if (result.error) {
-            logger.error(
-              `Failed to spawn vitest: ${errorMessage(result.error)}`,
-            )
-            exitCode = 1
-          } else if (result.status !== 0) {
-            exitCode = result.status || 1
-          }
-        } catch (e) {
-          logger.error(`Unexpected error running tests: ${errorMessage(e)}`)
-          exitCode = 1
-        }
-      }
-
-      process.exitCode = exitCode
-    }
-  } else {
-    // Run all tests
-    // Supported flags: --all, --changed (both run all tests)
-    // Default behavior (no flags): run all tests
-
-    if (isChanged) {
-      logger.info('Note: --changed flag currently runs all tests')
-    }
-
-    try {
-      await spawn('pnpm', ['--recursive', 'run', 'test'], {
-        cwd: ROOT_DIR,
-        shell: WIN32,
-        stdio: 'inherit',
-      })
-    } catch (e) {
-      const exitCode =
-        e &&
-        typeof e === 'object' &&
-        'exitCode' in e &&
-        typeof (e as { exitCode: unknown }).exitCode === 'number'
-          ? (e as { exitCode: number }).exitCode
-          : 1
-      process.exitCode = exitCode
     }
   }
+  return false
 }
 
-main().catch((e: unknown) => {
-  logger.error(errorMessage(e))
-  process.exitCode = 1
-})
+function runVitest(vitestArgs: string[], label: string): number {
+  log(`Test scope: ${label}`)
+  const r = spawnSync(
+    'pnpm',
+    ['exec', 'vitest', ...vitestArgs, '--config', '.config/vitest.config.mts'],
+    // Windows shell-shim rationale: see useShell at file top.
+    { shell: useShell, stdio },
+  )
+  if (r.status !== 0) {
+    log('Tests failed')
+    return 1
+  }
+  log('All tests passed')
+  return 0
+}
+
+function runAll(): number {
+  return runVitest(['run'], 'all')
+}
+
+// --passWithNoTests: a scoped run where the changed files don't resolve
+// to any test file should succeed rather than error with "No test files
+// found". Keeps pre-commit hooks passing when an edit touches only
+// non-testable code.
+function runChanged(): number {
+  return runVitest(['run', '--changed', '--passWithNoTests'], 'changed')
+}
+
+function runRelated(files: string[]): number {
+  // `vitest related <files…>` defaults to watch mode; `--run` forces a
+  // single non-watch execution. Pass the staged file list as positionals;
+  // vitest walks the module graph from each.
+  return runVitest(
+    ['related', ...files, '--run', '--passWithNoTests'],
+    `staged (${files.length} file(s))`,
+  )
+}
+
+function main(): void {
+  if (mode === 'all') {
+    process.exitCode = runAll()
+    return
+  }
+
+  const files = mode === 'staged' ? getStagedFiles() : getModifiedFiles()
+
+  if (files.length === 0) {
+    log(`No ${mode} files; skipping tests.`)
+    return
+  }
+
+  if (shouldEscalate(files)) {
+    log('Config files changed; escalating to full test suite.')
+    process.exitCode = runAll()
+    return
+  }
+
+  if (mode === 'staged') {
+    process.exitCode = runRelated(files)
+    return
+  }
+
+  // Working-tree changed → vitest's native --changed (it re-detects the
+  // file list via git itself, including uncommitted edits).
+  process.exitCode = runChanged()
+}
+
+main()

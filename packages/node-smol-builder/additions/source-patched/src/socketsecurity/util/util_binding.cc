@@ -867,14 +867,14 @@ static void DecodeHtml(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   Local<String> input = args[0].As<String>();
-  const int input_len = input->Utf8Length(isolate);
+  const size_t input_len = input->Utf8LengthV2(isolate);
   if (input_len == 0) {
     args.GetReturnValue().Set(input);
     return;
   }
   std::string buf(static_cast<size_t>(input_len), '\0');
-  input->WriteUtf8(isolate, buf.data(), input_len, nullptr,
-                   String::NO_NULL_TERMINATION);
+  input->WriteUtf8V2(isolate, buf.data(), input_len,
+                     String::WriteFlags::kNone, nullptr);
 
   std::string out;
   out.reserve(buf.size());
@@ -1060,8 +1060,9 @@ static void EncodeHtml(const FunctionCallbackInfo<Value>& args) {
       heap_buf.resize(static_cast<size_t>(char_len));
       scan_ptr = heap_buf.data();
     }
-    input->WriteOneByte(isolate, scan_ptr, /*start*/ 0, char_len,
-                        String::NO_NULL_TERMINATION);
+    input->WriteOneByteV2(isolate, /*offset*/ 0,
+                          static_cast<uint32_t>(char_len), scan_ptr,
+                          String::WriteFlags::kNone);
     // Single SIMD pass for the five must-escape chars (< > & " ').
     // SSE2 / NEON broadcasts each sentinel to 16 lanes, OR-combines
     // the comparison results, and uses movemask / vmaxvq to bail
@@ -1090,8 +1091,9 @@ static void EncodeHtml(const FunctionCallbackInfo<Value>& args) {
       heap_buf.resize(static_cast<size_t>(char_len));
       scan_ptr = heap_buf.data();
     }
-    input->Write(isolate, scan_ptr, /*start*/ 0, char_len,
-                 String::NO_NULL_TERMINATION);
+    input->WriteV2(isolate, /*offset*/ 0,
+                   static_cast<uint32_t>(char_len), scan_ptr,
+                   String::WriteFlags::kNone);
     for (int i = 0; i < char_len; ++i) {
       const uint16_t c = scan_ptr[i];
       if (c == '<' || c == '>' || c == '&' || c == '"' || c == '\'') {
@@ -1106,10 +1108,10 @@ static void EncodeHtml(const FunctionCallbackInfo<Value>& args) {
   }
 
   // Two-byte hit path: materialize UTF-8 for the actual escape pass.
-  const int input_len = input->Utf8Length(isolate);
+  const size_t input_len = input->Utf8LengthV2(isolate);
   std::string buf(static_cast<size_t>(input_len), '\0');
-  input->WriteUtf8(isolate, buf.data(), input_len, nullptr,
-                   String::NO_NULL_TERMINATION);
+  input->WriteUtf8V2(isolate, buf.data(), input_len,
+                     String::WriteFlags::kNone, nullptr);
 
   std::string out;
   out.reserve(buf.size() + 16);
@@ -1335,8 +1337,9 @@ static void StripAnsi(const FunctionCallbackInfo<Value>& args) {
       heap_buf.resize(static_cast<size_t>(char_len));
       scan_ptr = heap_buf.data();
     }
-    input->WriteOneByte(isolate, scan_ptr, /*start*/ 0, char_len,
-                        String::NO_NULL_TERMINATION);
+    input->WriteOneByteV2(isolate, /*offset*/ 0,
+                          static_cast<uint32_t>(char_len), scan_ptr,
+                          String::WriteFlags::kNone);
     // Single SIMD pass over the buffer (SSE2 on x86-64, NEON on
     // ARM64) — 16 bytes per cycle. Beats two memchr passes (which
     // would each be vectorized internally but require two full scans
@@ -1377,8 +1380,9 @@ static void StripAnsi(const FunctionCallbackInfo<Value>& args) {
       heap_buf.resize(static_cast<size_t>(char_len));
       scan_ptr = heap_buf.data();
     }
-    input->Write(isolate, scan_ptr, /*start*/ 0, char_len,
-                 String::NO_NULL_TERMINATION);
+    input->WriteV2(isolate, /*offset*/ 0,
+                   static_cast<uint32_t>(char_len), scan_ptr,
+                   String::WriteFlags::kNone);
     bool has_escape = false;
     for (int i = 0; i < char_len; ++i) {
       const uint16_t c = scan_ptr[i];
@@ -1395,10 +1399,10 @@ static void StripAnsi(const FunctionCallbackInfo<Value>& args) {
 
   // Two-byte hit path: materialize UTF-8 (output may contain non-ASCII
   // codepoints from the input).
-  const int input_len_utf8 = input->Utf8Length(isolate);
+  const size_t input_len_utf8 = input->Utf8LengthV2(isolate);
   std::string buf(static_cast<size_t>(input_len_utf8), '\0');
-  input->WriteUtf8(isolate, buf.data(), input_len_utf8, nullptr,
-                   String::NO_NULL_TERMINATION);
+  input->WriteUtf8V2(isolate, buf.data(), input_len_utf8,
+                     String::WriteFlags::kNone, nullptr);
 
   std::string out;
   strip_bytes(reinterpret_cast<const uint8_t*>(buf.data()),

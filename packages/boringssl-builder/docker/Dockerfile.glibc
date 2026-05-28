@@ -15,6 +15,11 @@ COPY .build-context/registry-tools.json /tmp/registry-tools.json
 # distro compatibility. PowerTools provides ninja-build; EPEL provides
 # ccache. BoringSSL needs gcc-c++, cmake, ninja-build, perl (for the
 # asm generators), and Go (the symbol-prefix tooling under util/ is Go).
+# .node-version goes in early so the dnf RUN below can read it for the
+# Node tarball URL. The full workspace COPY further down picks it up
+# again (idempotent — same content).
+COPY .node-version /tmp/node-version
+
 RUN dnf -y update && \
     dnf -y install epel-release dnf-plugins-core && \
     dnf config-manager --set-enabled powertools && \
@@ -30,27 +35,17 @@ RUN dnf -y update && \
         patch \
         perl \
         golang \
+        xz \
         && \
-    # Install Node.js from NodeSource (verifiable alternative to the
-    # `curl … | bash` installer: import the GPG key and write the dnf
-    # repo file directly, exactly as NodeSource's docs describe).
-    # 2026-05-28: nodesource-repo.gpg.key 404s; the working key is
-    # gpgkey/ns-operations-public.key (same key the .repo file points
-    # at via gpgkey=). Match dockerfile.musl which already uses npm
-    # post-install path.
-    rpm --import https://rpm.nodesource.com/gpgkey/ns-operations-public.key && \
-    printf '%s\n' \
-      '[nodesource-nodejs]' \
-      'name=Node.js Packages - $basearch' \
-      'baseurl=https://rpm.nodesource.com/pub_26.x/nodistro/nodejs/$basearch' \
-      'priority=9' \
-      'enabled=1' \
-      'gpgcheck=1' \
-      'gpgkey=https://rpm.nodesource.com/gpgkey/ns-operations-public.key' \
-      'module_hotfixes=1' \
-      > /etc/yum.repos.d/nodesource-nodejs.repo && \
-    dnf -y install nodejs && \
+    # Install Node.js directly from nodejs.org/dist instead of NodeSource.
+    # NodeSource reorganized their CDN paths (2026-05-28: pub_current.x
+    # 404s); fetching the official tarball from nodejs.org/dist —
+    # versioned by .node-version (single source of truth) — removes
+    # the dependency entirely. Same source actions/setup-node uses.
+    NODE_VERSION=$(tr -d '[:space:]' < /tmp/node-version) && \
     ARCH=$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/') && \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${ARCH}.tar.xz" \
+      | tar -xJ -C /usr/local --strip-components=1 && \
     PLATFORM="linux-${ARCH}" && \
     PNPM_VERSION=$(jq -r .pnpm.version /tmp/registry-tools.json) && \
     PNPM_ASSET=$(jq -r ".pnpm.checksums[\"${PLATFORM}\"].asset" /tmp/registry-tools.json) && \
@@ -59,7 +54,7 @@ RUN dnf -y update && \
     curl -fsSL -o /tmp/pnpm.tar.gz "https://github.com/pnpm/pnpm/releases/download/v${PNPM_VERSION}/${PNPM_ASSET}" && \
     echo "${PNPM_SHA256}  /tmp/pnpm.tar.gz" | sha256sum -c - && \
     tar -xzf /tmp/pnpm.tar.gz -C /usr/local/bin && \
-    rm /tmp/pnpm.tar.gz /tmp/registry-tools.json && \
+    rm /tmp/pnpm.tar.gz /tmp/registry-tools.json /tmp/node-version && \
     dnf clean all
 
 WORKDIR /workspace

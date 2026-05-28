@@ -122,7 +122,18 @@ export function parseObjdumpOutput(text: string): SymbolRow[] {
  * libs throw on "2.17" (not valid semver), hence this custom parser.
  */
 export function parseVersionTuple(raw: string): readonly number[] {
-  return raw.split('.').map(n => Number(n) || 0)
+  // Throw on malformed segments instead of `Number(n) || 0`, which silently
+  // downgrades NaN inputs (e.g. `--floor=2.foo`) to 0 and lets the rest of
+  // the audit report a false "compatible" against a non-existent floor.
+  return raw.split('.').map(n => {
+    const parsed = Number(n)
+    if (!Number.isFinite(parsed)) {
+      throw new Error(
+        `parseVersionTuple: non-numeric version segment "${n}" in "${raw}"`,
+      )
+    }
+    return parsed
+  })
 }
 
 /**

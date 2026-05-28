@@ -81,6 +81,15 @@ async function main() {
     const e = entries[i]
     const [nameOff, nameLen] = appendUtf8(nameBuf, e.name)
     const [valOff, valLen] = appendUtf8(valBuf, e.chars)
+    // Pool offsets are emitted as uint16_t into the generated C++ struct;
+    // a pool that crosses 65 535 bytes would silently truncate and corrupt
+    // every later entity lookup at runtime. Fail loud at codegen instead so
+    // a future WHATWG bump can trigger an intentional struct widening.
+    if (nameOff > 0xffff || valOff > 0xffff) {
+      throw new Error(
+        `entity pool exceeds uint16_t range (nameOff=${nameOff}, valOff=${valOff}); widen EntityMeta offsets to uint32_t`,
+      )
+    }
     meta.push({ nameOff, nameLen, valOff, valLen })
   }
 

@@ -108,7 +108,18 @@ export function addPrimordialsProtection(content, filename) {
     content = content.replace(/new\s+Promise\s*\(/g, 'new SafePromise(')
   }
   if (usesPromiseAll) {
-    content = content.replace(/Promise\.all\s*\(/g, 'SafePromiseAllReturnVoid(')
+    // Only pipe-to.js currently discards Promise.all's resolved array (the
+    // pipeline awaits side effects, not values). For any other vendored
+    // file that uses Promise.all the callers consume the result array, so
+    // ReturnVoid would silently corrupt the pipeline. Future vendored
+    // files that need the array-returning primordial should switch to the
+    // appropriate SafePromiseAll helper explicitly.
+    if (filename === 'pipe-to.js') {
+      content = content.replace(
+        /Promise\.all\s*\(/g,
+        'SafePromiseAllReturnVoid(',
+      )
+    }
   }
 
   return content
@@ -487,7 +498,16 @@ export function wireNativeChunkPool(content, filename) {
     '',
   ].join('\n')
 
-  const useStrictEnd = content.indexOf('\n', content.indexOf("'use strict'"))
+  // indexOf returns -1 if 'use strict' isn't found (e.g. converted-to-CJS
+  // upstream uses double quotes); guard so we don't silently inject at the
+  // very start of the file (which would land above any banner comment).
+  const useStrictIdx = content.indexOf("'use strict'")
+  if (useStrictIdx === -1) {
+    throw new Error(
+      "reader.js: expected leading 'use strict' to anchor lazy-pool inject point",
+    )
+  }
+  const useStrictEnd = content.indexOf('\n', useStrictIdx)
   if (useStrictEnd !== -1) {
     content =
       content.slice(0, useStrictEnd + 1) +

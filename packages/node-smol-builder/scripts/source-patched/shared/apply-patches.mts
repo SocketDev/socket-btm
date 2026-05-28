@@ -277,34 +277,37 @@ export async function computeSourcePatchedCachePaths(options: {
  * @returns {Array} Array of patch objects
  */
 export function findSocketPatches(patchesReleaseDir, buildPatchesDir) {
-  const patches = []
+  // Dedupe by filename — when a hot-fix sits in build/patches/ with the
+  // same name as a release patch, the dynamic copy wins. Without dedupe
+  // both entries would be sorted and applied; the second application
+  // throws "hunks already applied" with a misleading patch-content error,
+  // which is hard to diagnose during local patch iteration.
+  const byName = new Map()
 
-  // Get static patches from patches/ directory
+  // Static patches first; dynamic ones overwrite (build/ wins).
   if (existsSync(patchesReleaseDir)) {
-    const staticPatches = readdirSync(patchesReleaseDir)
-      .filter(f => f.endsWith('.patch'))
-      .map(f => ({
-        name: f,
-        path: path.join(patchesReleaseDir, f),
-        source: 'patches/',
-      }))
-    patches.push(...staticPatches)
+    for (const f of readdirSync(patchesReleaseDir)) {
+      if (f.endsWith('.patch')) {
+        byName.set(f, {
+          name: f,
+          path: path.join(patchesReleaseDir, f),
+          source: 'patches/',
+        })
+      }
+    }
   }
-
-  // Get dynamic patches from build/patches/ directory
   if (existsSync(buildPatchesDir)) {
-    const dynamicPatches = readdirSync(buildPatchesDir)
-      .filter(f => f.endsWith('.patch'))
-      .map(f => ({
-        name: f,
-        path: path.join(buildPatchesDir, f),
-        source: 'build/patches/',
-      }))
-    patches.push(...dynamicPatches)
+    for (const f of readdirSync(buildPatchesDir)) {
+      if (f.endsWith('.patch')) {
+        byName.set(f, {
+          name: f,
+          path: path.join(buildPatchesDir, f),
+          source: 'build/patches/',
+        })
+      }
+    }
   }
 
   // Sort by name for consistent ordering
-  patches.sort((a, b) => a.name.localeCompare(b.name))
-
-  return patches
+  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name))
 }

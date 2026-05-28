@@ -162,7 +162,9 @@ vitestPromise
       logger.log('')
       logger.log('')
       logger.log(`Test completed with exit code: ${result.code}`)
-      process.exitCode = result.code || 0
+      // result.code === null when the child was signal-terminated;
+      // `|| 0` would otherwise mask an OOM/kill as success.
+      process.exitCode = result.code ?? (result.signal ? 128 : 1)
     }
   })
   .catch(error => {

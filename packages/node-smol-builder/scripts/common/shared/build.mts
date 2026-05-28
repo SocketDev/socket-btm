@@ -465,24 +465,29 @@ async function main() {
     )
   })()
 
-  // Verify Node.js source checksum against nodejs.org (non-blocking).
-  if (!process.env.SKIP_CHECKSUM_VERIFY) {
-    logger.step('Verifying Node.js source checksum')
-    const checksumResult = await verifyNodeChecksum()
-    if (checksumResult.error) {
-      logger.warn(`Checksum verification skipped: ${checksumResult.error}`)
-    } else if (!checksumResult.valid) {
-      throw new Error(
-        `Node.js v${checksumResult.version} checksum mismatch!\n` +
-          `  Expected (nodejs.org): ${checksumResult.expected}\n` +
-          `  Actual (.gitmodules):  ${checksumResult.actual}\n` +
-          'The .gitmodules checksum does not match the official Node.js release.\n' +
-          'Run: SKIP_CHECKSUM_VERIFY=1 to bypass this check.',
-      )
-    } else {
-      logger.success(`Node.js v${checksumResult.version} checksum verified`)
-    }
+  // Verify Node.js source checksum against nodejs.org. Fail-closed: a network
+  // error from nodejs.org (DNS, 5xx, on-path attacker dropping the request)
+  // is treated as a hard fail, otherwise an attacker on the path can downgrade
+  // the only network-side cross-check of the .gitmodules SHA. The check is
+  // fast — one HTTPS GET — so there's no perf justification for a bypass.
+  logger.step('Verifying Node.js source checksum')
+  const checksumResult = await verifyNodeChecksum()
+  if (checksumResult.error) {
+    throw new Error(
+      `Node.js source checksum verification failed: ${checksumResult.error}\n` +
+        'The build cannot proceed without verifying the .gitmodules SHA against ' +
+        'the official Node.js release. Check network connectivity to nodejs.org.',
+    )
   }
+  if (!checksumResult.valid) {
+    throw new Error(
+      `Node.js v${checksumResult.version} checksum mismatch!\n` +
+        `  Expected (nodejs.org): ${checksumResult.expected}\n` +
+        `  Actual (.gitmodules):  ${checksumResult.actual}\n` +
+        'The .gitmodules checksum does not match the official Node.js release.',
+    )
+  }
+  logger.success(`Node.js v${checksumResult.version} checksum verified`)
 
   // ============================================================================
   // PHASE 1: BINARY-RELEASED - Clone, patch, configure, compile

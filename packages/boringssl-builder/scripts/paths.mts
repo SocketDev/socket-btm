@@ -9,6 +9,9 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { getPlatformBuildDir } from 'build-infra/lib/constants'
+import { getAssetPlatformArch } from 'build-infra/lib/platform-mappings'
+
+import { detectLibc } from '@socketsecurity/lib-stable/releases/socket-btm'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -16,8 +19,15 @@ const __dirname = path.dirname(__filename)
 export const PACKAGE_ROOT = path.resolve(__dirname, '..')
 export const UPSTREAM_DIR = path.join(PACKAGE_ROOT, 'upstream', 'boringssl')
 
-const PLATFORM_ARCH =
-  process.env['TARGET_ARCH'] || `${process.platform}-${process.arch}`
+// Canonical fleet form: darwin-{x64,arm64} / linux-{x64,arm64}[-musl] /
+// win32-{x64,arm64}. TARGET_ARCH is just the arch ('x64' / 'arm64') and
+// is the wrong shape — bare $arch leaks into the build path and breaks
+// CI's verify-release.mts which uses the workflow-side `<platform>-<arch>`.
+const PLATFORM_ARCH = getAssetPlatformArch(
+  process.platform,
+  process.env['TARGET_ARCH'] || process.arch,
+  detectLibc(),
+)
 
 export const PREFIX = 'smol'
 

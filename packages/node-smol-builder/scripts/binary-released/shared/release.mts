@@ -152,8 +152,14 @@ export async function checkGitHubAuth() {
     })
     await octokit.rest.users.getAuthenticated()
     return true
-  } catch {
-    return false
+  } catch (error) {
+    // Only 401/403 means "not authenticated" — surface other errors (5xx,
+    // network drop) so callers don't downgrade to a non-auth code path.
+    const status = error?.status
+    if (status === 401 || status === 403) {
+      return false
+    }
+    throw error
   }
 }
 
@@ -262,7 +268,7 @@ export async function createReleaseArchive(
     p =>
       p.platform === platform &&
       p.arch === arch &&
-      (p.libc || undefined) === (libc || undefined),
+      (p.libc ?? undefined) === (libc ?? undefined),
   )
   if (!config) {
     const libcLabel = libc ? `-${libc}` : ''
@@ -468,17 +474,20 @@ export async function createGitHubRelease(
     auth: process.env.GITHUB_TOKEN,
   })
 
-  // Create the release.
+  // GitHub Releases ship immutable (Sigstore attestation, GA 2025-10-28):
+  // creating a release with draft:false starts the attestation flow before
+  // assets are uploaded, racing the asset writes. The fleet pattern is
+  // always create-as-draft, upload all assets, then promote.
   const { data: release } = await octokit.rest.repos.createRelease({
     body: notes,
-    draft: !publish,
+    draft: true,
     name: `${packageName} ${version}`,
     owner: OWNER,
     repo: REPO,
     tag_name: tag,
   })
 
-  logger.log(`Created release: ${release.html_url}`)
+  logger.log(`Created draft release: ${release.html_url}`)
 
   // Upload assets.
   logger.log('Uploading assets...')
@@ -498,6 +507,17 @@ export async function createGitHubRelease(
       release_id: release.id,
       repo: REPO,
     })
+  }
+
+  if (publish) {
+    logger.log('Promoting draft to published release...')
+    await octokit.rest.repos.updateRelease({
+      draft: false,
+      owner: OWNER,
+      release_id: release.id,
+      repo: REPO,
+    })
+    logger.log(`Published: ${release.html_url}`)
   }
 }
 

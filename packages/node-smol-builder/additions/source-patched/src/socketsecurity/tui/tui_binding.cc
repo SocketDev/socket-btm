@@ -1168,14 +1168,14 @@ static void StringWidthBinding(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   Local<String> input = args[0].As<String>();
-  const int input_len = input->Utf8Length(isolate);
+  const size_t input_len = input->Utf8LengthV2(isolate);
   if (input_len == 0) {
     args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, 0));
     return;
   }
-  std::string buf(static_cast<size_t>(input_len), '\0');
-  input->WriteUtf8(isolate, buf.data(), input_len, nullptr,
-                   String::NO_NULL_TERMINATION);
+  std::string buf(input_len, '\0');
+  input->WriteUtf8V2(isolate, buf.data(), input_len,
+                     String::WriteFlags::kNone, nullptr);
   uint32_t width = ti::StringWidth(buf.data(), buf.size());
   args.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, width));
 }

@@ -128,16 +128,17 @@ static void Encode(const FunctionCallbackInfo<Value>& args) {
       }
       text_buf = heap_buf;
     }
-    text_str->WriteOneByte(isolate, reinterpret_cast<uint8_t*>(text_buf), 0,
-                           str_len, String::NO_NULL_TERMINATION);
+    text_str->WriteOneByteV2(isolate, 0, static_cast<uint32_t>(str_len),
+                             reinterpret_cast<uint8_t*>(text_buf),
+                             String::WriteFlags::kNone);
     copied_len = static_cast<size_t>(str_len);
   } else {
-    const int utf8_len = text_str->Utf8Length(isolate);
+    const size_t utf8_len = text_str->Utf8LengthV2(isolate);
     if (utf8_len == 0) {
       set_empty_result();
       return;
     }
-    const size_t needed = static_cast<size_t>(utf8_len) + 1;
+    const size_t needed = utf8_len + 1;
     if (needed > kInlineThreshold) {
       heap_buf = static_cast<char*>(std::malloc(needed));
       if (heap_buf == nullptr) {
@@ -146,9 +147,9 @@ static void Encode(const FunctionCallbackInfo<Value>& args) {
       }
       text_buf = heap_buf;
     }
-    text_str->WriteUtf8(isolate, text_buf, utf8_len, nullptr,
-                        String::NO_NULL_TERMINATION);
-    copied_len = static_cast<size_t>(utf8_len);
+    text_str->WriteUtf8V2(isolate, text_buf, utf8_len,
+                          String::WriteFlags::kNone, nullptr);
+    copied_len = utf8_len;
   }
   text_buf[copied_len] = '\0';
 

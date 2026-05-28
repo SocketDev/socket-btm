@@ -122,14 +122,14 @@ static void LoadLanguage(const FunctionCallbackInfo<Value>& args) {
   }
   Local<String> path_str = args[0].As<String>();
   Local<String> sym_str = args[1].As<String>();
-  const int path_len = path_str->Utf8Length(isolate);
-  const int sym_len = sym_str->Utf8Length(isolate);
-  std::string path(static_cast<size_t>(path_len), '\0');
-  std::string sym(static_cast<size_t>(sym_len), '\0');
-  path_str->WriteUtf8(isolate, path.data(), path_len, nullptr,
-                      String::NO_NULL_TERMINATION);
-  sym_str->WriteUtf8(isolate, sym.data(), sym_len, nullptr,
-                     String::NO_NULL_TERMINATION);
+  const size_t path_len = path_str->Utf8LengthV2(isolate);
+  const size_t sym_len = sym_str->Utf8LengthV2(isolate);
+  std::string path(path_len, '\0');
+  std::string sym(sym_len, '\0');
+  path_str->WriteUtf8V2(isolate, path.data(), path_len,
+                        String::WriteFlags::kNone, nullptr);
+  sym_str->WriteUtf8V2(isolate, sym.data(), sym_len,
+                       String::WriteFlags::kNone, nullptr);
 
   void* handle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
   if (handle == nullptr) {
@@ -366,11 +366,11 @@ static void ParseStream(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   Local<String> source_str = args[1].As<String>();
-  const int source_len = source_str->Utf8Length(isolate);
-  std::string source(static_cast<size_t>(source_len), '\0');
+  const size_t source_len = source_str->Utf8LengthV2(isolate);
+  std::string source(source_len, '\0');
   if (source_len > 0) {
-    source_str->WriteUtf8(isolate, source.data(), source_len, nullptr,
-                          String::NO_NULL_TERMINATION);
+    source_str->WriteUtf8V2(isolate, source.data(), source_len,
+                            String::WriteFlags::kNone, nullptr);
   }
 
   TSParser* parser = ts_parser_new();
@@ -460,11 +460,11 @@ static void Parse(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<String> source_str = args[1].As<String>();
-  const int source_len = source_str->Utf8Length(isolate);
-  std::string source(static_cast<size_t>(source_len), '\0');
+  const size_t source_len = source_str->Utf8LengthV2(isolate);
+  std::string source(source_len, '\0');
   if (source_len > 0) {
-    source_str->WriteUtf8(isolate, source.data(), source_len, nullptr,
-                          String::NO_NULL_TERMINATION);
+    source_str->WriteUtf8V2(isolate, source.data(), source_len,
+                            String::WriteFlags::kNone, nullptr);
   }
 
   TSParser* parser = ts_parser_new();

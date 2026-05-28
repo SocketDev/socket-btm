@@ -206,18 +206,19 @@ inline unsigned ParseFlagsFromV8(Isolate* isolate, Local<String> flag_str) {
   char inline_buf[kInlineThreshold];
   if (flag_str->IsOneByte() &&
       static_cast<size_t>(str_len) <= kInlineThreshold) {
-    flag_str->WriteOneByte(isolate, reinterpret_cast<uint8_t*>(inline_buf), 0,
-                           str_len, String::NO_NULL_TERMINATION);
+    flag_str->WriteOneByteV2(isolate, 0, static_cast<uint32_t>(str_len),
+                             reinterpret_cast<uint8_t*>(inline_buf),
+                             String::WriteFlags::kNone);
     return ParseFlags(
         std::string(inline_buf, static_cast<size_t>(str_len)));
   }
-  const int utf8_len = flag_str->Utf8Length(isolate);
+  const size_t utf8_len = flag_str->Utf8LengthV2(isolate);
   if (utf8_len == 0) {
     return 0;
   }
-  std::string flag_buf(static_cast<size_t>(utf8_len), '\0');
-  flag_str->WriteUtf8(isolate, flag_buf.data(), utf8_len, nullptr,
-                      String::NO_NULL_TERMINATION);
+  std::string flag_buf(utf8_len, '\0');
+  flag_str->WriteUtf8V2(isolate, flag_buf.data(), utf8_len,
+                        String::WriteFlags::kNone, nullptr);
   return ParseFlags(flag_buf);
 }
 
@@ -260,11 +261,11 @@ static void ParseMarkdownStream(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   Local<String> text_str = args[0].As<String>();
-  const int text_len = text_str->Utf8Length(isolate);
-  std::string buf(static_cast<size_t>(text_len), '\0');
+  const size_t text_len = text_str->Utf8LengthV2(isolate);
+  std::string buf(text_len, '\0');
   if (text_len > 0) {
-    text_str->WriteUtf8(isolate, buf.data(), text_len, nullptr,
-                        String::NO_NULL_TERMINATION);
+    text_str->WriteUtf8V2(isolate, buf.data(), text_len,
+                          String::WriteFlags::kNone, nullptr);
   }
 
   unsigned flags = 0;
@@ -364,12 +365,12 @@ static void ParseMarkdown(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   Local<String> input = args[0].As<String>();
-  const int input_len = input->Utf8Length(isolate);
+  const size_t input_len = input->Utf8LengthV2(isolate);
 
-  std::string buf(static_cast<size_t>(input_len), '\0');
+  std::string buf(input_len, '\0');
   if (input_len > 0) {
-    input->WriteUtf8(isolate, buf.data(), input_len, nullptr,
-                     String::NO_NULL_TERMINATION);
+    input->WriteUtf8V2(isolate, buf.data(), input_len,
+                       String::WriteFlags::kNone, nullptr);
   }
 
   unsigned flags = 0;

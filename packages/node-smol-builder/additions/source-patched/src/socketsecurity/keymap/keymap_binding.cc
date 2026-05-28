@@ -319,10 +319,10 @@ static void CreateKeymap(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   Local<String> rules_str = args[0].As<String>();
-  const int len = rules_str->Utf8Length(isolate);
-  std::string rules(static_cast<size_t>(len), '\0');
-  rules_str->WriteUtf8(isolate, rules.data(), len, nullptr,
-                       String::NO_NULL_TERMINATION);
+  const size_t len = rules_str->Utf8LengthV2(isolate);
+  std::string rules(len, '\0');
+  rules_str->WriteUtf8V2(isolate, rules.data(), len,
+                         String::WriteFlags::kNone, nullptr);
 
   auto km = ParseRulesJson(rules);
   if (km == nullptr) {
@@ -391,15 +391,16 @@ static void MatchKey(const FunctionCallbackInfo<Value>& args) {
   if (key_str->IsOneByte()) {
     key_name.resize(static_cast<size_t>(str_len));
     if (str_len > 0) {
-      key_str->WriteOneByte(isolate, reinterpret_cast<uint8_t*>(key_name.data()),
-                            0, str_len, String::NO_NULL_TERMINATION);
+      key_str->WriteOneByteV2(isolate, 0, static_cast<uint32_t>(str_len),
+                              reinterpret_cast<uint8_t*>(key_name.data()),
+                              String::WriteFlags::kNone);
     }
   } else {
-    const int utf8_len = key_str->Utf8Length(isolate);
-    key_name.resize(static_cast<size_t>(utf8_len));
+    const size_t utf8_len = key_str->Utf8LengthV2(isolate);
+    key_name.resize(utf8_len);
     if (utf8_len > 0) {
-      key_str->WriteUtf8(isolate, key_name.data(), utf8_len, nullptr,
-                         String::NO_NULL_TERMINATION);
+      key_str->WriteUtf8V2(isolate, key_name.data(), utf8_len,
+                           String::WriteFlags::kNone, nullptr);
     }
   }
   // Lowercase the key name to match canonicalized binding keys.

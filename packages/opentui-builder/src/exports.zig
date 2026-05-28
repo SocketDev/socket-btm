@@ -3,6 +3,7 @@
 ///
 /// The upstream lib.zig `export fn` symbols are linked at the shared library level.
 /// We call them via extern declarations matching their C ABI signatures.
+const std = @import("std");
 const napi = @import("napi.zig");
 const c = napi.c;
 
@@ -321,48 +322,86 @@ fn getCachedGlobal(env: napi.napi_env) napi.napi_value {
     return g;
 }
 
-const LogCallbackData = extern struct {
+// Callback payloads cross thread boundaries via the TSFN queue. They must
+// outlive the producing call (the upstream worker thread returns immediately
+// after callThreadsafeFunction). Allocate on the heap; free in the consumer.
+const LogCallbackData = struct {
     level: u32,
-    msg_ptr: [*]const u8,
-    msg_len: usize,
+    msg: []u8,
 };
 
-const EventCallbackData = extern struct {
+const EventCallbackData = struct {
     event_type: u32,
-    data_ptr: ?[*]const u8,
-    data_len: usize,
+    payload: ?[]u8,
 };
 
 fn logCallbackBridge(level: u32, msg_ptr: [*]const u8, msg_len: usize) callconv(.c) void {
     const tsfn = g_log_tsfn orelse return;
-    var data = LogCallbackData{ .level = level, .msg_ptr = msg_ptr, .msg_len = msg_len };
-    _ = napi.callThreadsafeFunction(tsfn, @ptrCast(&data));
+    const allocator = std.heap.c_allocator;
+    const msg_copy = allocator.alloc(u8, msg_len) catch return;
+    if (msg_len != 0) @memcpy(msg_copy, msg_ptr[0..msg_len]);
+    const data = allocator.create(LogCallbackData) catch {
+        allocator.free(msg_copy);
+        return;
+    };
+    data.* = .{ .level = level, .msg = msg_copy };
+    if (!napi.callThreadsafeFunction(tsfn, @ptrCast(data))) {
+        allocator.free(msg_copy);
+        allocator.destroy(data);
+    }
 }
 
 fn logCallbackCallJs(env: napi.napi_env, js_callback: napi.napi_value, _: ?*anyopaque, data_raw: ?*anyopaque) callconv(.c) void {
-    if (env == null or js_callback == null) return;
     const data: *LogCallbackData = @ptrCast(@alignCast(data_raw orelse return));
+    const allocator = std.heap.c_allocator;
+    defer {
+        allocator.free(data.msg);
+        allocator.destroy(data);
+    }
+    if (env == null or js_callback == null) return;
     const global = getCachedGlobal(env);
     var args: [2]napi.napi_value = .{
         napi.createU32(env, data.level),
-        napi.createString(env, data.msg_ptr[0..data.msg_len]),
+        napi.createString(env, data.msg),
     };
     _ = c.napi_call_function(env, global, js_callback, 2, &args, null);
 }
 
 fn eventCallbackBridge(event_type: u32, data_ptr: ?[*]const u8, data_len: usize) callconv(.c) void {
     const tsfn = g_event_tsfn orelse return;
-    var data = EventCallbackData{ .event_type = event_type, .data_ptr = data_ptr, .data_len = data_len };
-    _ = napi.callThreadsafeFunction(tsfn, @ptrCast(&data));
+    const allocator = std.heap.c_allocator;
+    var payload_copy: ?[]u8 = null;
+    if (data_ptr) |ptr| {
+        const copy = allocator.alloc(u8, data_len) catch return;
+        if (data_len != 0) @memcpy(copy, ptr[0..data_len]);
+        payload_copy = copy;
+    }
+    const data = allocator.create(EventCallbackData) catch {
+        if (payload_copy) |p| allocator.free(p);
+        return;
+    };
+    data.* = .{ .event_type = event_type, .payload = payload_copy };
+    if (!napi.callThreadsafeFunction(tsfn, @ptrCast(data))) {
+        if (payload_copy) |p| allocator.free(p);
+        allocator.destroy(data);
+    }
 }
 
 fn eventCallbackCallJs(env: napi.napi_env, js_callback: napi.napi_value, _: ?*anyopaque, data_raw: ?*anyopaque) callconv(.c) void {
-    if (env == null or js_callback == null) return;
     const data: *EventCallbackData = @ptrCast(@alignCast(data_raw orelse return));
+    const allocator = std.heap.c_allocator;
+    defer {
+        if (data.payload) |p| allocator.free(p);
+        allocator.destroy(data);
+    }
+    if (env == null or js_callback == null) return;
     const global = getCachedGlobal(env);
     var ab: napi.napi_value = null;
-    if (data.data_ptr) |ptr| {
-        _ = c.napi_create_external_arraybuffer(env, @constCast(@ptrCast(ptr)), data.data_len, null, null, &ab);
+    if (data.payload) |payload| {
+        // Copy into a JS-owned Buffer so the ArrayBuffer's lifetime is JS-managed,
+        // not tied to this stack-frame's heap allocation.
+        var copy_ptr: ?*anyopaque = null;
+        _ = c.napi_create_buffer_copy(env, payload.len, payload.ptr, &copy_ptr, &ab);
     } else {
         _ = c.napi_get_undefined(env, &ab);
     }

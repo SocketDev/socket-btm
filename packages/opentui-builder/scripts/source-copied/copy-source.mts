@@ -39,7 +39,7 @@ export async function copySource() {
 
   await fs.cp(zigSourceDir, sourceCopiedDir, {
     filter: source => {
-      return !source.includes('/.git')
+      return !source.includes(`${path.sep}.git`)
     },
     force: true,
     recursive: true,

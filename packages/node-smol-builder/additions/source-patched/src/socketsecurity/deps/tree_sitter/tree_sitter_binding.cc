@@ -352,6 +352,8 @@ void CollectNode(TSNode node, std::vector<NodeRecord>& records,
 
 }  // namespace stream
 
+}  // namespace (helpers — anonymous namespace opened at top of file)
+
 static void ParseStream(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();

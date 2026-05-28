@@ -426,6 +426,11 @@ export const BINJECT_DIR = path.join(PACKAGE_ROOT, '..', 'binject')
 export const BIN_INFRA_DIR = path.join(PACKAGE_ROOT, '..', 'bin-infra')
 export const BUILD_INFRA_DIR = path.join(PACKAGE_ROOT, '..', 'build-infra')
 export const LIEF_BUILDER_DIR = path.join(PACKAGE_ROOT, '..', 'lief-builder')
+export const BORINGSSL_BUILDER_DIR = path.join(
+  PACKAGE_ROOT,
+  '..',
+  'boringssl-builder',
+)
 export const TEMPORAL_INFRA_DIR = path.join(
   PACKAGE_ROOT,
   '..',

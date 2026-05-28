@@ -18,10 +18,14 @@ export const BUILD_DIR = path.join(PACKAGE_ROOT, 'build')
 const MODE = process.env['BUILD_MODE'] ?? 'release'
 const PLATFORM_ARCH = `${process.platform}-${process.arch}`
 
+export const PREFIX = 'smol'
+
 export function getPaths(): {
   packageRoot: string
   buildDir: string
   outFinal: string
+  outLibDir: string
+  outIncludeDir: string
   cmakeBuildDir: string
 } {
   const buildDir = path.join(BUILD_DIR, MODE, PLATFORM_ARCH)
@@ -30,6 +34,8 @@ export function getPaths(): {
     packageRoot: PACKAGE_ROOT,
     buildDir,
     outFinal,
+    outLibDir: path.join(outFinal, 'lib'),
+    outIncludeDir: path.join(outFinal, 'include'),
     cmakeBuildDir: path.join(buildDir, 'cmake'),
   }
 }

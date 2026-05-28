@@ -142,11 +142,12 @@ jobs:
             exit 1
           fi
           # Hash a directory tree. Returns deterministic SHA over the
-          # concatenated file hashes; empty / missing dirs collapse to
-          # the sha256 of empty. Wrapped in `|| true` so a missing dir
-          # (e.g. an empty patches/ that git didn't track) doesn't trip
-          # `set -e -o pipefail` from the parent shell.
+          # concatenated file hashes. mkdir -p first so missing dirs
+          # (e.g. an empty patches/ that git didn't track) materialize
+          # rather than tripping set -e -o pipefail at the find call.
+          # Trailing || echo "" still covers the empty-tree case.
           hash_dir() {
+            mkdir -p "$1"
             (find "$1" -type f 2>/dev/null | LC_COLLATE=C sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1) || echo ""
           }
           hash_file() {

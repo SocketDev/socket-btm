@@ -1,6 +1,7 @@
 packages:
   - packages/*
-  - .claude/hooks/*
+  - .claude/hooks/fleet/*
+  - .claude/hooks/repo/*
 
 # Packages allowed to run build scripts (pnpm v11 strictDepBuilds default).
 allowBuilds:

@@ -30,6 +30,7 @@ import { spawnSync } from 'node:child_process'
 import { readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
+import { pathToFileURL } from 'node:url'
 
 const PROJECT_DIR = process.env.CLAUDE_PROJECT_DIR ?? process.cwd()
 const HOOKS_DIR = path.join(PROJECT_DIR, '.claude', 'hooks')
@@ -129,7 +130,13 @@ function probeHook(hookPath: string): ProbeFailure | undefined {
       // default unhandled-rejection handler prints the error to
       // stderr and exits non-zero — the parent reads result.stderr
       // for "Cannot find package" matching, no try/catch needed.
-      `await import(${JSON.stringify(hookPath)})`,
+      //
+      // file:// form is required for cross-platform correctness: on
+      // Windows, an absolute path like `C:\foo\bar.mts` looks like a
+      // URL scheme (`C:`) to the ESM resolver and throws
+      // ERR_UNSUPPORTED_ESM_URL_SCHEME. pathToFileURL handles the
+      // platform-specific quoting + scheme prefix.
+      `await import(${JSON.stringify(pathToFileURL(hookPath).href)})`,
     ],
     {
       timeout: PER_PROBE_TIMEOUT_MS,

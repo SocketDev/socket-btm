@@ -78,7 +78,7 @@
            ],
          }],
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
-@@ -1055,14 +1079,336 @@
+@@ -1055,14 +1079,337 @@
            ],
            'dependencies': [
              'deps/ncrypto/ncrypto.gyp:ncrypto',
@@ -242,6 +242,7 @@
 +            'include',
 +            'deps/uSockets/src',
 +            'deps/uWebSockets/src',
++            'src/socketsecurity/deps/tree_sitter/upstream/tree-sitter/include',
 +          ],
 +          'defines': [
 +            'LIBUS_USE_LIBUV',

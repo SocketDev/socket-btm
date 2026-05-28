@@ -49,7 +49,7 @@ RUN dnf -y update && \
     # Install Node.js from NodeSource (verifiable alternative to the
     # `curl … | bash` installer: import the GPG key and write the dnf
     # repo file directly, exactly as NodeSource's docs describe).
-    rpm --import https://rpm.nodesource.com/pub_current.x/nodesource-repo.gpg.key && \
+    rpm --import https://rpm.nodesource.com/gpgkey/ns-operations-public.key && \
     printf '%s\n' \
       '[nodesource-nodejs]' \
       'name=Node.js Packages - $basearch' \

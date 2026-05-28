@@ -451,9 +451,14 @@ class PlainMonthDay {
   //                      non-ISO calendars.
   static diplomat::result<std::unique_ptr<PlainMonthDay>, TemporalError>
   from_parsed(const ParsedDate& parsed) {
+    // calendar_kind is a raw uint8_t in the parsed-intermediates POD
+    // (0 = ISO); CalendarKind is `enum class … : uint8_t`, which has no
+    // implicit conversion, so cast the enum to its underlying value to
+    // compare.
     const bool is_iso =
         parsed.ToInfra().calendar_kind ==
-        ::node::socketsecurity::temporal::CalendarKind::kIso;
+        static_cast<uint8_t>(
+            ::node::socketsecurity::temporal::CalendarKind::kIso);
     std::optional<int32_t> reference_year =
         is_iso ? std::optional<int32_t>{}
                : std::optional<int32_t>(parsed.year());

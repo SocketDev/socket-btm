@@ -388,7 +388,7 @@ TemporalResult<uint8_t> CalendarBackend::Day(
 }
 
 TemporalResult<int32_t> CalendarBackend::EraYearToIsoYear(
-    CalendarKind kind, const Era& era, int32_t /* era_year */) noexcept {
+    CalendarKind kind, const struct Era& era, int32_t /* era_year */) noexcept {
   if (era.IsEmpty()) {
     return TemporalError::Range(
         "era must be non-empty when resolving (era, era_year) → year");

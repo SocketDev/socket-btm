@@ -302,8 +302,12 @@ class CalendarBackend {
   //
   // Default impl handles ISO (errors on non-empty era). ICU backend
   // implements the full table.
+  // `struct Era` tag is required: the virtual `Era(...)` method above
+  // shadows the `Era` type name within this class scope, so a bare
+  // `const Era&` resolves to the method, not the struct (clang:
+  // "must use 'struct' tag to refer to type 'Era'").
   virtual TemporalResult<int32_t> EraYearToIsoYear(
-      CalendarKind kind, const Era& era, int32_t era_year) noexcept;
+      CalendarKind kind, const struct Era& era, int32_t era_year) noexcept;
 
   // Read the calendar-native year / ordinal month / day-of-month for
   // the given ISO date. The inverse of IsoFromCalendarFields — used by

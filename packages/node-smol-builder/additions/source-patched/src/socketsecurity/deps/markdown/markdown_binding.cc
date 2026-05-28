@@ -30,7 +30,7 @@
 // (CommonMark strict). All MD_FLAG_* values from md4c.h are honored;
 // unknown flag names are ignored.
 
-#include "socketsecurity/markdown/md4c.h"
+#include "socketsecurity/deps/markdown/upstream/md4c.h"
 
 #include "node.h"
 #include "node_binding.h"

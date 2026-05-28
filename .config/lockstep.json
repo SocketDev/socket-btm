@@ -596,7 +596,7 @@
       "pinned_tag": "v4.1.1",
       "upgrade_policy": "track-latest",
       "criticality": 5,
-      "notes": "fukuchi/libqrencode QR code encoder (C, ~6 KLOC, LGPL-2.1 with static-link allowance). Embedded into node-smol as src/socketsecurity/qrcode/qrcode_binding.cc. Pulls upstream/libqrencode/*.c into the build via prepare-external-sources copying. Replaces userland `qrcode` npm package."
+      "notes": "fukuchi/libqrencode QR code encoder (C, ~6 KLOC, LGPL-2.1 with static-link allowance). Embedded into node-smol as src/socketsecurity/deps/qrcode/qrcode_binding.cc. Pulls upstream/libqrencode/*.c into the build via prepare-external-sources copying. Replaces userland `qrcode` npm package."
     },
     {
       "kind": "version-pin",
@@ -606,7 +606,7 @@
       "pinned_tag": "release-0.5.3",
       "upgrade_policy": "track-latest",
       "criticality": 6,
-      "notes": "md4c CommonMark+GFM Markdown parser (C99, ~3 KLOC). Embedded into node-smol as src/socketsecurity/markdown/markdown_binding.cc. Pulls upstream/md4c/src/{md4c.c,md4c.h,entity.c,entity.h} into the build. Replaces opentui's userland `marked` dep on the hot AI-output rendering path."
+      "notes": "md4c CommonMark+GFM Markdown parser (C99, ~3 KLOC). Embedded into node-smol as src/socketsecurity/deps/markdown/markdown_binding.cc. Pulls upstream/md4c/src/{md4c.c,md4c.h,entity.c,entity.h} into the build. Replaces opentui's userland `marked` dep on the hot AI-output rendering path."
     },
     {
       "kind": "version-pin",
@@ -616,7 +616,7 @@
       "pinned_tag": "v0.26.9",
       "upgrade_policy": "track-latest",
       "criticality": 6,
-      "notes": "tree-sitter incremental parser library (C, ~15 KLOC). Embedded into node-smol as src/socketsecurity/tree_sitter/tree_sitter_binding.cc. Pulls upstream/tree-sitter/lib/src/*.c + lib/include/*.h into the build. Per-grammar `.wasm` / `.so` loading is supported at runtime via the binding's parser interface. Replaces opentui's userland `web-tree-sitter` WASM dep for the syntax-highlighting Code renderable."
+      "notes": "tree-sitter incremental parser library (C, ~15 KLOC). Embedded into node-smol as src/socketsecurity/deps/tree_sitter/tree_sitter_binding.cc. Pulls upstream/tree-sitter/lib/src/*.c + lib/include/*.h into the build. Per-grammar `.wasm` / `.so` loading is supported at runtime via the binding's parser interface. Replaces opentui's userland `web-tree-sitter` WASM dep for the syntax-highlighting Code renderable."
     },
     {
       "kind": "version-pin",

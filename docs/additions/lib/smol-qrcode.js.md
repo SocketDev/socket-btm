@@ -18,7 +18,7 @@ require('node:smol-qrcode') -> this file (smol-qrcode.js)
 The C++ binding lives at
 `additions/source-patched/src/socketsecurity/deps/qrcode/qrcode_binding.cc`.
 libqrencode sources are copied from
-`upstream/libqrencode/` into `additions/.../qrcode/libqrencode/` at
+`upstream/libqrencode/` into `additions/.../deps/qrcode/upstream/libqrencode/` at
 build time. Only the library `.c` files are listed in node.gyp —
 `qrenc.c` (the CLI tool with `main()`) is copied but not compiled.
 

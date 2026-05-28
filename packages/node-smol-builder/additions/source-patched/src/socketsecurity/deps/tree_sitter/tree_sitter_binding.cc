@@ -32,7 +32,7 @@
 // handle-registry pattern as the mouse parser / renderer / yoga
 // bindings in tui_binding.cc.
 
-#include "socketsecurity/tree_sitter/tree-sitter/include/tree_sitter/api.h"
+#include "socketsecurity/deps/tree_sitter/upstream/tree-sitter/include/tree_sitter/api.h"
 
 #include "node.h"
 #include "node_binding.h"

@@ -26,7 +26,7 @@
 // in the binding — libqrencode does all the Reed-Solomon + mask
 // computation in C.
 
-#include "socketsecurity/qrcode/libqrencode/qrencode.h"
+#include "socketsecurity/deps/qrcode/upstream/libqrencode/qrencode.h"
 
 #include "node.h"
 #include "node_binding.h"

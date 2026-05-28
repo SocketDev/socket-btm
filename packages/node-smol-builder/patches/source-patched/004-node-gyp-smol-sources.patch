@@ -71,7 +71,7 @@
            ],
          }],
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
-@@ -1055,14 +1079,331 @@
+@@ -1055,14 +1079,336 @@
            ],
            'dependencies': [
              'deps/ncrypto/ncrypto.gyp:ncrypto',
@@ -240,6 +240,11 @@
 +            'LIBUS_USE_LIBUV',
 +            'LIBUS_NO_SSL',
 +            'UWS_HTTPRESPONSE_NO_WRITEMARK',
++            # libqrencode (vendored under deps/qrcode/upstream/libqrencode):
++            # its autoconf / cmake builds normally define STATIC_IN_RELEASE
++            # as `static` to hide test-only helpers. Inside Node's gyp build
++            # neither toolchain runs, so define it here.
++            'STATIC_IN_RELEASE=static',
 +          ],
 +          'direct_dependent_settings': {
 +            'include_dirs': [

@@ -72,8 +72,11 @@ class IcuCalendarBackend : public CalendarBackend {
   TemporalResult<IsoDate> IsoFromCalendarFields(
       CalendarKind kind, int32_t year, uint8_t ordinal_month,
       uint8_t day, Overflow overflow) noexcept override;
+  // `struct Era` tag is required: the virtual `Era(...)` method above
+  // shadows the type within the class scope (same shadow as the base
+  // CalendarBackend::EraYearToIsoYear in calendar.h).
   TemporalResult<int32_t> EraYearToIsoYear(
-      CalendarKind kind, const Era& era,
+      CalendarKind kind, const struct Era& era,
       int32_t era_year) noexcept override;
   TemporalResult<int32_t> Year(CalendarKind kind,
                                   const IsoDate& iso) noexcept override;

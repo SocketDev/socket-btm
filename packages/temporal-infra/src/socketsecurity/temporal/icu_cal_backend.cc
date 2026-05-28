@@ -216,14 +216,16 @@ static TemporalResult<int32_t> ResolveEraYearToIsoYear(
     }
 
     // Calendars without distinct eras — caller should not pass era.
+    // The Hijri family enum was renamed to TR35 BCP-47 spelling:
+    // kIslamicCivil → kHijriTabularFriday, kIslamicTbla → kHijriTabularThursday,
+    // kIslamicUmalqura → kHijriUmmAlQura. The deprecated kIslamic (umbrella)
+    // and kIslamicRgsa (Saudi astronomical) have no current enum equivalent.
     case CalendarKind::kHebrew:
     case CalendarKind::kChinese:
     case CalendarKind::kDangi:
-    case CalendarKind::kIslamic:
-    case CalendarKind::kIslamicCivil:
-    case CalendarKind::kIslamicTbla:
-    case CalendarKind::kIslamicUmalqura:
-    case CalendarKind::kIslamicRgsa:
+    case CalendarKind::kHijriTabularFriday:
+    case CalendarKind::kHijriTabularThursday:
+    case CalendarKind::kHijriUmmAlQura:
     case CalendarKind::kIndian:
       return TemporalError::Range(
           "this calendar does not support era — pass year directly");
@@ -1053,7 +1055,7 @@ TemporalResult<IsoDate> IcuCalendarBackend::IsoFromCalendarFields(
 }
 
 TemporalResult<int32_t> IcuCalendarBackend::EraYearToIsoYear(
-    CalendarKind kind, const Era& era, int32_t era_year) noexcept {
+    CalendarKind kind, const struct Era& era, int32_t era_year) noexcept {
   if (era.IsEmpty()) {
     return TemporalError::Range(
         "era must be non-empty when resolving (era, era_year) → year");
@@ -1185,7 +1187,7 @@ TemporalResult<IsoDate> IcuCalendarBackend::IsoFromCalendarFields(
                                                   overflow);
 }
 TemporalResult<int32_t> IcuCalendarBackend::EraYearToIsoYear(
-    CalendarKind kind, const Era& era, int32_t era_year) noexcept {
+    CalendarKind kind, const struct Era& era, int32_t era_year) noexcept {
   if (era.IsEmpty()) {
     return TemporalError::Range(
         "era must be non-empty when resolving (era, era_year) → year");

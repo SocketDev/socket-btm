@@ -82,17 +82,20 @@ jobs:
             arch: arm64
             os: linux
             libc: glibc
-          # Linux builds (musl)
-          - runner: ubuntu-24.04
-            platform: linux
-            arch: x64
-            os: linux
-            libc: musl
-          - runner: ubuntu-24.04-arm
-            platform: linux
-            arch: arm64
-            os: linux
-            libc: musl
+          # Linux musl: pending Dockerfile.musl refactor to the pure-
+          # bash emit pattern. Alpine 3.20 uses apk + a different
+          # toolchain (musl libc, no devtoolset). Re-enable once
+          # setup-linux-build-musl.sh exists.
+          # - runner: ubuntu-24.04
+          #   platform: linux
+          #   arch: x64
+          #   os: linux
+          #   libc: musl
+          # - runner: ubuntu-24.04-arm
+          #   platform: linux
+          #   arch: arm64
+          #   os: linux
+          #   libc: musl
           # Windows builds
           - runner: windows-2022
             platform: win32

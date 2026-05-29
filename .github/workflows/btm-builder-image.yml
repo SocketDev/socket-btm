@@ -1,0 +1,152 @@
+name: SMOL 0. btm-builder-glibc image
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Dry run (build, push to ghcr.io NOT performed)'
+        type: boolean
+        default: true
+      platforms:
+        description: 'Comma-separated platforms (linux/amd64,linux/arm64)'
+        type: string
+        default: 'linux/amd64,linux/arm64'
+  schedule:
+    # First of the month at 09:00 UTC. Keeps the prebake fresh against
+    # upstream almalinux:8 security updates without manual nagging.
+    - cron: '0 9 1 * *'
+
+permissions:
+  contents: read
+
+env:
+  HOMEBREW_NO_ANALYTICS: '1'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: socketdev/btm-builder-glibc
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-and-publish:
+    name: build + publish
+    runs-on: depot-ubuntu-24.04-8
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (2026-05-15)
+        with:
+          submodules: false
+          persist-credentials: false
+
+      - name: Setup socket-registry tools (Node + pnpm + sfw)
+        uses: SocketDev/socket-registry/.github/actions/setup-and-install@c291a14196d088970c0453e905b40969b11bf193 # main (2026-05-15)
+
+      - name: Stage registry tool-checksums for Docker build context
+        shell: bash
+        run: |
+          mkdir -p .build-context
+          cp "$SOCKET_TOOL_CHECKSUMS_FILE" .build-context/registry-tools.json
+
+      - name: Compute image tag (YYYY-MM-DD-sha8)
+        id: tag
+        shell: bash
+        env:
+          GH_SHA: ${{ github.sha }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          SHA8=${GH_SHA:0:8}
+          echo "tag=${DATE}-${SHA8}" >> "$GITHUB_OUTPUT"
+          echo "Image will be tagged: ${REGISTRY}/${IMAGE_NAME}:${DATE}-${SHA8}"
+
+      - name: Read NODE_VERSION + pnpm metadata
+        id: meta
+        shell: bash
+        run: |
+          NODE_VERSION=$(tr -d '[:space:]' < .node-version)
+          PNPM_VERSION=$(jq -r .pnpm.version .build-context/registry-tools.json)
+          # x64 (the primary arch — arm64 build uses the same NODE_VERSION
+          # + pnpm version; only the per-platform PNPM_ASSET/SHA256 differ).
+          PNPM_ASSET_X64=$(jq -r '.pnpm.platforms["linux-x64"].asset' .build-context/registry-tools.json)
+          PNPM_INTEGRITY_X64=$(jq -r '.pnpm.platforms["linux-x64"].integrity' .build-context/registry-tools.json)
+          PNPM_SHA256_X64=$(echo "${PNPM_INTEGRITY_X64#sha256-}" | base64 -d | od -An -tx1 | tr -d ' \n')
+          PNPM_ASSET_ARM64=$(jq -r '.pnpm.platforms["linux-arm64"].asset' .build-context/registry-tools.json)
+          PNPM_INTEGRITY_ARM64=$(jq -r '.pnpm.platforms["linux-arm64"].integrity' .build-context/registry-tools.json)
+          PNPM_SHA256_ARM64=$(echo "${PNPM_INTEGRITY_ARM64#sha256-}" | base64 -d | od -An -tx1 | tr -d ' \n')
+          {
+            echo "node-version=${NODE_VERSION}"
+            echo "pnpm-version=${PNPM_VERSION}"
+            echo "pnpm-asset-x64=${PNPM_ASSET_X64}"
+            echo "pnpm-sha256-x64=${PNPM_SHA256_X64}"
+            echo "pnpm-asset-arm64=${PNPM_ASSET_ARM64}"
+            echo "pnpm-sha256-arm64=${PNPM_SHA256_ARM64}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0 (2026-05-22)
+
+      - name: Login to ghcr.io
+        if: ${{ !inputs.dry-run }}
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0 (2026-05-22)
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build x64
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0 (2026-05-21)
+        with:
+          context: .
+          file: packages/build-infra/docker/btm-builder-glibc.Dockerfile
+          platforms: linux/amd64
+          push: ${{ !inputs.dry-run }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-x64:${{ steps.tag.outputs.tag }}
+          build-args: |
+            NODE_VERSION=${{ steps.meta.outputs.node-version }}
+            PNPM_VERSION=${{ steps.meta.outputs.pnpm-version }}
+            PNPM_ASSET=${{ steps.meta.outputs.pnpm-asset-x64 }}
+            PNPM_SHA256=${{ steps.meta.outputs.pnpm-sha256-x64 }}
+            CACHE_VERSION=${{ steps.tag.outputs.tag }}
+          provenance: false
+
+      - name: Build arm64
+        if: ${{ contains(inputs.platforms, 'linux/arm64') }}
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0 (2026-05-21)
+        with:
+          context: .
+          file: packages/build-infra/docker/btm-builder-glibc.Dockerfile
+          platforms: linux/arm64
+          push: ${{ !inputs.dry-run }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-arm64:${{ steps.tag.outputs.tag }}
+          build-args: |
+            NODE_VERSION=${{ steps.meta.outputs.node-version }}
+            PNPM_VERSION=${{ steps.meta.outputs.pnpm-version }}
+            PNPM_ASSET=${{ steps.meta.outputs.pnpm-asset-arm64 }}
+            PNPM_SHA256=${{ steps.meta.outputs.pnpm-sha256-arm64 }}
+            CACHE_VERSION=${{ steps.tag.outputs.tag }}
+          provenance: false
+
+      - name: Summary
+        shell: bash
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.tag }}
+          NODE_VERSION: ${{ steps.meta.outputs.node-version }}
+          PNPM_VERSION: ${{ steps.meta.outputs.pnpm-version }}
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          echo "Image tag: ${IMAGE_TAG}"
+          echo "Node version: ${NODE_VERSION}"
+          echo "pnpm version: ${PNPM_VERSION}"
+          if [ "${DRY_RUN}" = "true" ]; then
+            echo "DRY RUN — no push performed."
+          else
+            echo "Published: ${REGISTRY}/${IMAGE_NAME}-x64:${IMAGE_TAG}"
+            echo "Published: ${REGISTRY}/${IMAGE_NAME}-arm64:${IMAGE_TAG}"
+          fi

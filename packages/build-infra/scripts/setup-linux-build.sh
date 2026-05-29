@@ -158,23 +158,25 @@ find /opt/rh -mindepth 1 -maxdepth 1 -type d ! -name devtoolset-10 \
 
 # devtoolset-10 internals we don't compile against. Sizes from probing:
 #   /usr/libexec/gcc/x86_64-redhat-linux/10/f951     27 MB (Fortran)
-#   /usr/libexec/gcc/x86_64-redhat-linux/10/lto1     25 MB (LTO — unused)
 #   /usr/lib/gcc/x86_64-redhat-linux/10/32            8 MB (32-bit multilib)
 #   /usr/lib/gcc/.../{libgfortran*,libquadmath*,
-#     libcaf_single*,libisl*,finclude}              ~9 MB
+#     libcaf_single*,finclude}                       ~7 MB
 #   /usr/bin/{gfortran,gcov*,gprof,dwp}             ~5 MB
+# KEEP: lto1 (LTO compiler) — lief-builder uses
+# `-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON` which needs it.
+# KEEP: libisl.so.15 — gcc loads it dynamically for loop opts even
+# without `-floop-*` flags; removing it breaks builds with `-O3`.
 # `${DTS10:?}` guard (shellcheck SC2115) — never let a partial
 # expansion delete /usr/share or similar.
 DTS10=/opt/rh/devtoolset-10/root
 rm -rf \
   "${DTS10:?}"/usr/bin/{dwp,gccgo,gcov,gcov-dump,gcov-tool,gdb,gdb-add-index,gdbserver,gfortran,gprof} \
-  "${DTS10:?}"/usr/libexec/gcc/*/*/{cgo,f951,go1,lto1} \
+  "${DTS10:?}"/usr/libexec/gcc/*/*/{cgo,f951,go1} \
   "${DTS10:?}"/usr/lib*/libgfortran* \
   "${DTS10:?}"/usr/lib*/libgo* \
   "${DTS10:?}"/usr/lib/gcc/*/10/32 \
   "${DTS10:?}"/usr/lib/gcc/*/10/finclude \
   "${DTS10:?}"/usr/lib/gcc/*/10/lib{caf_single,gfortran,quadmath}* \
-  "${DTS10:?}"/usr/lib/gcc/*/10/libisl* \
   "${DTS10:?}"/usr/share
 
 # Strip debug symbols from runtime libs we'll actually link against.

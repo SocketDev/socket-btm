@@ -57,6 +57,7 @@
     "build:docker": "node scripts/build-docker.mts",
     "clean": "node scripts/clean.mts",
     "cover": "vitest run --coverage",
+    "docker:builder-glibc": "node docker/build-builder-image.mts",
     "docker:status": "node scripts/setup-docker-builds.mts --status",
     "setup:docker": "node scripts/setup-docker-builds.mts",
     "test": "vitest run",

@@ -12,8 +12,19 @@
 # setup-linux-build.sh — fleet-canonical recipe shared with every other
 # *-builder Dockerfile.glibc. Updating that script reaches every builder.
 
-# hadolint ignore=DL3007
-FROM quay.io/pypa/manylinux2014_x86_64 AS build
+# Digest-pinned. `:latest` floats — PyPA retags every few weeks and the
+# entire toolchain (devtoolset-10 build, EPEL snapshot, system libs)
+# shifts under us silently. Pin the multi-arch index digest so the same
+# base resolves byte-deterministically across both x86_64 and aarch64
+# matrix entries.
+#
+# To refresh:
+#   curl -sI 'https://quay.io/v2/pypa/manylinux2014_x86_64/manifests/latest' \
+#     -H 'Accept: application/vnd.oci.image.index.v1+json' \
+#     | grep -i docker-content-digest
+#
+# Pinned 2026-05-28.
+FROM quay.io/pypa/manylinux2014_x86_64@sha256:e6edb7203ea8d786a91ba700b6213077b551ce37de72400963ce9888f9cd9024 AS build
 
 # Socket-registry tool-checksums + Node version pin. Workflows `cp
 # "$SOCKET_TOOL_CHECKSUMS_FILE" .build-context/registry-tools.json`

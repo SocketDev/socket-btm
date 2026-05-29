@@ -31,7 +31,11 @@ concurrency:
 jobs:
   build-and-publish:
     name: build + publish
-    runs-on: depot-ubuntu-24.04-8
+    # Hosted GHA runner — sufficient for a once-monthly prebake build
+    # (~10-15min wall time). Depot offload doesn't help here since the
+    # build is network-bound (dnf metadata + pkg downloads + nodejs.org
+    # tarball + pnpm release).
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write

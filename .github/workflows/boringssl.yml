@@ -394,6 +394,18 @@ jobs:
           steps.restore-checkpoint.outputs.build-required == 'true')
         uses: ./.github/actions/install-llvm-mingw
 
+      - name: Install NASM (Windows)
+        # BoringSSL's CMakeLists.txt unconditionally calls
+        # enable_language(ASM_NASM) on Windows regardless of target arch.
+        # Linux/macOS runners have nasm pre-installed; Windows runners do
+        # not. Install on every Windows job (~2MB) so configure succeeds;
+        # arm64 builds skip any NASM-compiled translation units anyway.
+        if: |
+          matrix.os == 'windows' &&
+          ((steps.boringssl-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true')
+        uses: ilammy/setup-nasm@72793074d3c8cdda771dba85f6deafe00623038b # v1.5.2 (2025-02-24)
+
       - name: Build BoringSSL native (macOS/Windows)
         if: |
           matrix.os != 'linux' &&

@@ -97,6 +97,16 @@ jobs:
         run: |
           echo "${GH_TOKEN}" | docker login "${REGISTRY}" --username "${GH_USER}" --password-stdin
 
+      - name: Setup QEMU for cross-arch emulation
+        if: ${{ contains(inputs.platforms, 'linux/arm64') }}
+        shell: bash
+        run: |
+          # docker/setup-qemu-action isn't in the org allowlist. Run
+          # binfmt installer image directly — same effect (registers
+          # qemu-aarch64 for binfmt_misc so docker buildx can run arm64
+          # containers under emulation).
+          docker run --rm --privileged tonistiigi/binfmt:latest --install all
+
       - name: Build x64
         shell: bash
         env:

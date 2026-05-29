@@ -40,6 +40,16 @@ if [ ! -f "${DEVTOOLSET_ENABLE}" ]; then
   exit 1
 fi
 
+# Pre-initialize PATH-style env vars the SCL enable script references —
+# in a fresh Docker shell these are unset, and our `set -u` aborts on
+# unbound-variable read. Default them to empty so `:+` expansions in
+# the enable script collapse cleanly.
+export MANPATH="${MANPATH:-}"
+export INFOPATH="${INFOPATH:-}"
+export PCP_DIR="${PCP_DIR:-}"
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
+export PKG_CONFIG_PATH="${PKG_CONFIG_PATH:-}"
+
 # shellcheck source=/dev/null
 . "${DEVTOOLSET_ENABLE}"
 echo "✓ devtoolset-10 activated"

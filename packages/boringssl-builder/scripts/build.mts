@@ -34,13 +34,30 @@ import { PREFIX, UPSTREAM_DIR, getPaths } from './paths.mts'
 
 const logger = getDefaultLogger()
 
+// MSVC-specific cmake flags. BoringSSL builds with /WX (warnings-as-
+// errors); upstream's pqcrypto code (mldsa.cc.inc) uses `#pragma GCC`
+// directives which MSVC flags as C4068 (unknown pragma). Suppress the
+// warning so we don't fork BoringSSL just for a noisy MSVC quirk.
+const MSVC_EXTRA_CMAKE_FLAGS = [
+  '-DCMAKE_C_FLAGS=/wd4068',
+  '-DCMAKE_CXX_FLAGS=/wd4068',
+]
+
 async function runSteps(placeholders: Record<string, string>): Promise<void> {
   for (const step of BUILD_STEPS) {
     const resolved = substituteStep(step, placeholders)
+    const isCmakeConfigure =
+      resolved.cmd === 'cmake' && resolved.args.includes('-S')
+    const extraFlags =
+      process.platform === 'win32' && isCmakeConfigure
+        ? MSVC_EXTRA_CMAKE_FLAGS
+        : []
     logger.info(`→ ${resolved.label}`)
-    const result = await spawn(resolved.cmd, [...resolved.args], {
-      stdio: 'inherit',
-    })
+    const result = await spawn(
+      resolved.cmd,
+      [...resolved.args, ...extraFlags],
+      { stdio: 'inherit' },
+    )
     if (result.exitCode !== 0) {
       throw new Error(`${resolved.label} failed (exit ${result.exitCode})`)
     }

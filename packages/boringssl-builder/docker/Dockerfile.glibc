@@ -1,62 +1,38 @@
 # Build BoringSSL (prefixed: smol_*) in container to offload compute
 # from GitHub Actions runners. Supports linux/amd64 and linux/arm64.
-# glibc variant uses AlmaLinux 8 (glibc 2.28) for maximum downstream
-# compatibility, matching lief-builder's base.
+#
+# Base: manylinux2014 (CentOS 7, glibc 2.17). The resulting libsmol_*.a
+# archives are object archives — the glibc floor is determined when the
+# consumer links the final binary. Using manylinux2014 here keeps the
+# build environment consistent with downstream node-smol-builder's
+# manylinux2014 link step, so the toolchain (gcc 11 via devtoolset-11)
+# is uniform across the static-lib pipeline.
+#
+# All tool installation goes through packages/build-infra/scripts/
+# setup-linux-build.sh — fleet-canonical recipe shared with every other
+# *-builder Dockerfile.glibc. Updating that script reaches every builder.
 
-FROM almalinux:8 AS build
+# hadolint ignore=DL3007
+FROM quay.io/pypa/manylinux2014_x86_64 AS build
 
-# Socket-registry tool-checksums. Workflows `cp "$SOCKET_TOOL_CHECKSUMS_FILE"
-# .build-context/registry-tools.json` before `docker build`, so this layer
-# reads the same authoritative pnpm version + per-platform sha256 the
-# setup action verified on the runner — no hardcoded SHA blocks here.
+# Socket-registry tool-checksums + Node version pin. Workflows `cp
+# "$SOCKET_TOOL_CHECKSUMS_FILE" .build-context/registry-tools.json`
+# before `docker build`, so this layer reads the same authoritative
+# pnpm version + per-platform sha256 the setup action verified.
 COPY .build-context/registry-tools.json /tmp/registry-tools.json
-
-# Install build dependencies. AlmaLinux 8 ships glibc 2.28 for ancient-
-# distro compatibility. PowerTools provides ninja-build; EPEL provides
-# ccache. BoringSSL needs gcc-c++, cmake, ninja-build, perl (for the
-# asm generators), and Go (the symbol-prefix tooling under util/ is Go).
-# .node-version goes in early so the dnf RUN below can read it for the
-# Node tarball URL. The full workspace COPY further down picks it up
-# again (idempotent — same content).
 COPY .node-version /tmp/node-version
 
-RUN dnf -y update && \
-    dnf -y install epel-release dnf-plugins-core && \
-    dnf config-manager --set-enabled powertools && \
-    dnf -y install \
-        gcc-c++ \
-        git \
-        ccache \
-        ninja-build \
-        curl \
-        ca-certificates \
-        jq \
-        cmake \
-        patch \
-        perl \
-        golang \
-        xz \
-        libatomic \
-        && \
-    # Install Node.js directly from nodejs.org/dist instead of NodeSource.
-    # NodeSource reorganized their CDN paths (2026-05-28: pub_current.x
-    # 404s); fetching the official tarball from nodejs.org/dist —
-    # versioned by .node-version (single source of truth) — removes
-    # the dependency entirely. Same source actions/setup-node uses.
-    NODE_VERSION=$(tr -d '[:space:]' < /tmp/node-version) && \
-    ARCH=$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/') && \
-    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${ARCH}.tar.xz" \
-      | tar -xJ -C /usr/local --strip-components=1 && \
-    PLATFORM="linux-${ARCH}" && \
-    PNPM_VERSION=$(jq -r .pnpm.version /tmp/registry-tools.json) && \
-    PNPM_ASSET=$(jq -r ".pnpm.checksums[\"${PLATFORM}\"].asset" /tmp/registry-tools.json) && \
-    PNPM_INTEGRITY=$(jq -r ".pnpm.checksums[\"${PLATFORM}\"].integrity" /tmp/registry-tools.json) && \
-    PNPM_SHA256=$(echo "${PNPM_INTEGRITY#sha256-}" | base64 -d | od -An -tx1 | tr -d ' \n') && \
-    curl -fsSL -o /tmp/pnpm.tar.gz "https://github.com/pnpm/pnpm/releases/download/v${PNPM_VERSION}/${PNPM_ASSET}" && \
-    echo "${PNPM_SHA256}  /tmp/pnpm.tar.gz" | sha256sum -c - && \
-    tar -xzf /tmp/pnpm.tar.gz -C /usr/local/bin && \
-    rm /tmp/pnpm.tar.gz /tmp/registry-tools.json /tmp/node-version && \
-    dnf clean all
+# Fleet-canonical Linux build setup. Activates devtoolset-11, installs
+# yum packages, downloads + sha256-verifies Node + pnpm. Golang added
+# via EXTRA_PACKAGES — BoringSSL's symbol-prefix tooling is Go.
+COPY packages/build-infra/scripts/setup-linux-build.sh /tmp/setup-linux-build.sh
+RUN EXTRA_PACKAGES="golang" bash /tmp/setup-linux-build.sh && \
+    rm /tmp/setup-linux-build.sh
+
+# Every subsequent RUN needs devtoolset-11 on PATH. Source it via
+# BASH_ENV so shebanged scripts pick it up too.
+ENV BASH_ENV=/etc/profile.d/devtoolset-11.sh
+SHELL ["/bin/bash", "-c"]
 
 WORKDIR /workspace
 
@@ -75,7 +51,6 @@ RUN pnpm install --frozen-lockfile --filter build-infra --filter boringssl-build
 ARG BUILD_MODE=prod
 ARG PLATFORM_ARCH=linux-x64
 ARG TARGETARCH
-# Cache version - managed centrally in .github/cache-versions.json
 ARG CACHE_VERSION=unset
 ENV BUILD_MODE=$BUILD_MODE
 ENV PLATFORM_ARCH=$PLATFORM_ARCH

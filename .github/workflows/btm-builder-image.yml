@@ -49,11 +49,16 @@ jobs:
           - arch: arm64
             runner: ubuntu-24.04-arm
             asset-key: arm64
+    # Both arches always build. The `platforms:` input is retained
+    # for documentation but doesn't gate matrix expansion — GHA's
+    # job-level `if:` can't reference `matrix.*` (it's evaluated
+    # before matrix bindings). The cost of building both when only
+    # one was requested is small (~30s of runner startup) and the
+    # filtering complexity isn't worth it.
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
-    if: ${{ github.event_name == 'schedule' || contains(inputs.platforms, format('linux/{0}', matrix.arch)) }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (2026-05-15)

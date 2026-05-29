@@ -1,30 +1,17 @@
-# Build BoringSSL (prefixed: smol_*) in container to offload compute
-# from GitHub Actions runners. Supports linux/amd64 and linux/arm64.
+# Build BoringSSL (prefixed: smol_*) in manylinux2014 (CentOS 7, glibc 2.17).
+# Pure C/C++ toolchain — NO Node, NO pnpm. build.sh is emitted from
+# scripts/build-step-defs.mts; vitest enforces drift via
+# test/build-defs-drift.test.mts.
 #
-# Base: manylinux2014 (CentOS 7, glibc 2.17). Pure C/C++ toolchain —
-# NO Node, NO pnpm. The build is driven by docker/build.sh (pure bash)
-# emitted from scripts/build-step-defs.mts. The Dockerfile's job is to
-# (1) install the C/C++ toolchain via packages/build-infra/scripts/
-# setup-linux-build.sh, (2) copy the upstream source + the generated
-# build.sh, (3) run build.sh.
+# PyPA publishes manylinux2014 x86_64 + aarch64 as separate single-arch
+# images; this Dockerfile is x86_64-only. Linux ARM64 needs a sibling
+# Dockerfile.glibc.arm64 once we add it.
 #
-# Why no Node in the container: Node's official binaries require
-# glibc 2.28+ — they won't run on glibc 2.17. We use bash inside Docker
-# and .mts on the host. Single source of truth in build-step-defs.mts;
-# vitest enforces docker/build.sh stays in sync.
+# Refresh the digest via quay's tags API:
+#   curl -s 'https://quay.io/api/v1/repository/pypa/manylinux2014_x86_64/tag/?limit=5&onlyActiveTags=true'
+# Bump both the tag comment AND the digest, and update the
+# `# published:` annotation (soak-policy gate).
 
-# Digest-pinned to manylinux2014_x86_64 v2 manifest. PyPA publishes
-# x86_64 + aarch64 as separate single-arch images (no multi-arch
-# index), so this Dockerfile is x86_64-only. The Linux ARM64 matrix
-# entry will use a sibling Dockerfile.glibc.arm64 once we add ARM64
-# support; for now the workflow's linux-arm64 matrix entry is
-# expected to fail until we add it.
-#
-# To refresh — look up tag + matching digest via quay's tags API:
-#   curl -s 'https://quay.io/api/v1/repository/pypa/manylinux2014_x86_64/tag/?limit=5&onlyActiveTags=true' \
-#     | jq '.tags[] | {name, manifest_digest}'
-# Then update both the version comment AND the digest below.
-#
 # manylinux2014_x86_64 tag 2026.05.27-1 (CentOS 7 + devtoolset-10)
 # published: 2026-05-27 | removable: 2026-06-03
 FROM quay.io/pypa/manylinux2014_x86_64@sha256:a5268fc528257092c3840fb069c71b522a8d73a4bd302ed0ce65f586890bdd14 AS build

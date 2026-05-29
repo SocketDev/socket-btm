@@ -95,36 +95,94 @@ cat > /etc/profile.d/devtoolset-10.sh <<'EOF'
 . /opt/rh/devtoolset-10/enable
 EOF
 
-# yum cleanup + image-size trim. The manylinux2014 base ships ~1.4 GB
-# of pip caches, Python wheel build infrastructure, locale data, and
-# duplicated docs — we use almost none of it. Strip aggressively so
-# Depot's layer cache (and our exported tarball) stays small.
-yum clean all
-rm -rf \
+# Image-size trim. manylinux2014 ships ~1.4GB of stuff we don't use:
+# 6 Python versions, pip caches, wheel build infra, locale data,
+# manylinux's bundled OpenSSL, docs, debug symbols. Strip aggressively
+# so Depot's layer cache + exported tarball stay small.
+#
+# Order: yum cleanup → big-ticket dirs → fine-grained pruning →
+# strip → locale-archive rebuild. Each phase prints a `du -sh /`
+# delta so future maintainers can see the savings.
+trim_step() {
+  # Print bytes saved by a cleanup step. `du` runs are cheap on the
+  # in-flight layer (everything cached).
+  local label="$1"; shift
+  local before; before=$(du -sb / 2>/dev/null | awk '{print $1}')
+  "$@" >/dev/null 2>&1 || true
+  local after; after=$(du -sb / 2>/dev/null | awk '{print $1}')
+  local saved=$(( (before - after) / 1024 / 1024 ))
+  echo "  trim: ${label} (-${saved}MB)"
+}
+
+echo "→ image-size trim"
+
+trim_step "yum cleanup" yum clean all
+
+trim_step "yum metadata + logs" rm -rf \
   /var/cache/yum \
   /var/cache/dnf \
   /var/lib/yum/yumdb \
-  /var/log/yum.log \
-  /opt/_internal/pip_download_cache \
-  /opt/_internal/wheels \
+  /var/log/yum.log
+
+# manylinux2014 ships every Python version it builds wheels for. We
+# don't run Python in the container — drop every cpython install.
+trim_step "/opt/python (every Python version)" rm -rf /opt/python
+
+# `_internal` is manylinux's wheel-build scratch space.
+trim_step "/opt/_internal (manylinux wheel scratch)" rm -rf /opt/_internal
+
+# Other SCL toolsets (we only use devtoolset-10).
+trim_step "/opt/rh siblings (keep devtoolset-10)" bash -c '
+  for d in /opt/rh/*/; do
+    name=$(basename "$d")
+    case "$name" in
+      devtoolset-10) ;;
+      *) rm -rf "$d" ;;
+    esac
+  done
+'
+
+trim_step "caches + docs" rm -rf \
   /root/.cache \
   /usr/share/man \
   /usr/share/info \
   /usr/share/doc \
   /usr/local/share/man \
   /usr/local/share/doc \
-  || true
+  /usr/share/gtk-doc \
+  /usr/share/help
 
-# Locale data: keep only en_US.UTF-8 (manylinux2014 ships full glibc locale-archive ~100MB).
-if command -v localedef >/dev/null; then
-  localedef --list-archive 2>/dev/null \
-    | grep -v "^en_US\(\.utf8\|\.UTF-8\)\?$" \
-    | xargs -r localedef --delete-from-archive 2>/dev/null || true
-  # Compact the archive in-place; ignore failures (some locales are pinned).
-  mv -f /usr/lib/locale/locale-archive /usr/lib/locale/locale-archive.tmpl 2>/dev/null || true
-  build-locale-archive 2>/dev/null || \
-    mv -f /usr/lib/locale/locale-archive.tmpl /usr/lib/locale/locale-archive 2>/dev/null || true
-fi
+# Python stdlib test suites + __pycache__ (in case any python3 RPM landed).
+trim_step "__pycache__ + python test dirs" bash -c '
+  find /usr/lib/python* -name __pycache__ -type d -exec rm -rf {} +
+  find /usr/lib/python* -name test -type d -exec rm -rf {} +
+  find /usr/lib/python* -name tests -type d -exec rm -rf {} +
+'
+
+# Strip debug symbols from C/C++ runtime libs. Saves ~30-50MB.
+trim_step "strip libc/libstdc++ debug symbols" bash -c '
+  find /usr/lib /usr/lib64 /opt/rh/devtoolset-10/root/usr/lib*  \
+    \( -name "libc*.so*" -o -name "libstdc++*" -o -name "libm*.so*" -o -name "libgcc*" \) \
+    -type f -exec strip --strip-unneeded {} +
+'
+
+# Locale data: keep only en_US.UTF-8. The locale-archive trim BEFORE
+# the per-language .mo file purge — the archive holds the binary
+# locale data, the .mo files are the gettext message catalogs.
+trim_step "locale-archive (keep en_US.UTF-8)" bash -c '
+  if command -v localedef >/dev/null; then
+    localedef --list-archive 2>/dev/null \
+      | grep -v "^en_US\(\.utf8\|\.UTF-8\)\?$" \
+      | xargs -r localedef --delete-from-archive 2>/dev/null
+    mv -f /usr/lib/locale/locale-archive /usr/lib/locale/locale-archive.tmpl 2>/dev/null
+    build-locale-archive 2>/dev/null \
+      || mv -f /usr/lib/locale/locale-archive.tmpl /usr/lib/locale/locale-archive 2>/dev/null
+  fi
+'
+
+trim_step "gettext .mo files (keep en)" bash -c '
+  find /usr/share/locale -mindepth 1 -maxdepth 1 -type d ! -name "en*" -exec rm -rf {} +
+'
 
 echo "✓ setup-linux-build complete"
-echo "  image size after cleanup: $(du -sh / 2>/dev/null | awk '{print $1}')"
+echo "  final image size: $(du -sh / 2>/dev/null | awk "{print \$1}")"

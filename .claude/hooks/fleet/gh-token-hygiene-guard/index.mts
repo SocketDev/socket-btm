@@ -635,7 +635,26 @@ function platformAuthGuidance(): readonly string[] {
     ]
   }
   if (process.platform === 'darwin') {
+    const noTty = !process.stdin.isTTY
     const osBlocked = isOsascriptBlocked()
+    const ttyNote = noTty
+      ? [
+          'This shell has no controlling TTY, so the Touch ID prompt',
+          "can't surface — `sudo` needs an interactive parent to ask",
+          'for the biometric confirmation. Common cause: running via',
+          "a tool that spawns subprocesses without `-it` (Claude Code's",
+          'Bash tool, CI runners, headless scripts).',
+          '',
+          'Workaround: run the gh refresh from your own terminal:',
+          '',
+          '  gh auth refresh -h github.com -s workflow',
+          '',
+          'Touch the sensor when prompted. The session-bound grant',
+          'will land at ~/.claude/gh-workflow-grant; the next workflow',
+          'dispatch in this Claude session will then pass through.',
+          '',
+        ]
+      : []
     const mdmNote = osBlocked
       ? [
           'An MDM (iru / Jamf / Mosyle / Kandji) is intercepting',
@@ -645,6 +664,7 @@ function platformAuthGuidance(): readonly string[] {
         ]
       : []
     return [
+      ...ttyNote,
       ...mdmNote,
       'Enable Touch ID for sudo (copy-paste verbatim — `EOF` MUST be',
       'at column 0, no leading whitespace, or the heredoc will hang):',
@@ -730,13 +750,21 @@ function requireUserAuthentication(): AuthResult {
     // surface their biometric dialog here. stdio inherited so the user
     // sees the prompt; 30s timeout so a missing sensor / cancelled
     // dialog doesn't hang the hook forever.
-    spawnSync(sudoBin, ['-k'], { stdio: 'ignore', timeout: 2000 })
-    const interactiveResult = spawnSync(sudoBin, ['true'], {
-      stdio: 'inherit',
-      timeout: 30_000,
-    })
-    if (interactiveResult.status === 0) {
-      return 'authenticated'
+    //
+    // Only attempt when stdin is a TTY — sudo without a TTY parent will
+    // hang waiting for input (or the biometric dialog won't surface in
+    // the right session). Surface 'unsupported' with a clearer message
+    // (see formatPhysicalAuthError) so the caller knows to run the gh
+    // refresh from their own terminal.
+    if (process.stdin.isTTY) {
+      spawnSync(sudoBin, ['-k'], { stdio: 'ignore', timeout: 2000 })
+      const interactiveResult = spawnSync(sudoBin, ['true'], {
+        stdio: 'inherit',
+        timeout: 30_000,
+      })
+      if (interactiveResult.status === 0) {
+        return 'authenticated'
+      }
     }
   }
   // Path 2: macOS-only — osascript password prompt + dscl validation.

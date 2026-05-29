@@ -704,24 +704,38 @@ function requireUserAuthentication(): AuthResult {
   //   macOS: pam_tid.so (Touch ID).
   //   Linux: pam_u2f.so (YubiKey / FIDO2) OR pam_fprintd.so (fingerprint
   //          reader on supported laptops).
-  // If PAM is configured to make these "sufficient" auth methods, then
-  // `sudo -n true` (non-interactive) succeeds silently after physical
-  // confirmation. If PAM falls through to password, `-n` blocks and
-  // we fall through here.
+  // Two sub-probes:
+  //   1a. `sudo -n true` (silent fast-path) — succeeds when PAM is
+  //       configured for a non-interactive biometric (e.g. some pam_u2f
+  //       setups with cached touch, or pam_pkcs11). Fails on the most
+  //       common pam_tid config because Touch ID prompts the user.
+  //   1b. Interactive `sudo true` (biometric prompt) — pops the system
+  //       Touch ID / U2F / fingerprint dialog. Inherit parent stdio so
+  //       the dialog appears in the user's foreground session. Cap at
+  //       30s so a missing sensor / cancelled prompt doesn't hang.
   const sudoBin = resolveSudoBin()
   if (sudoBin) {
     // Invalidate any cached sudo timestamp so the user can't accidentally
     // skip the prompt. -k is silent and always exits 0.
     spawnSync(sudoBin, ['-k'], { stdio: 'ignore', timeout: 2000 })
-    // -n suppresses the TTY password prompt. If pam_tid.so / pam_u2f /
-    // pam_fprintd is configured "sufficient" in the auth stack, sudo
-    // presents the system biometric dialog (no TTY needed) and -n
-    // still allows it to succeed.
-    const touchIdResult = spawnSync(sudoBin, ['-n', 'true'], {
+    // 1a. Silent fast-path.
+    const silentResult = spawnSync(sudoBin, ['-n', 'true'], {
       stdio: 'ignore',
+      timeout: 5000,
+    })
+    if (silentResult.status === 0) {
+      return 'authenticated'
+    }
+    // 1b. Interactive prompt. macOS pam_tid + Linux pam_u2f/pam_fprintd
+    // surface their biometric dialog here. stdio inherited so the user
+    // sees the prompt; 30s timeout so a missing sensor / cancelled
+    // dialog doesn't hang the hook forever.
+    spawnSync(sudoBin, ['-k'], { stdio: 'ignore', timeout: 2000 })
+    const interactiveResult = spawnSync(sudoBin, ['true'], {
+      stdio: 'inherit',
       timeout: 30_000,
     })
-    if (touchIdResult.status === 0) {
+    if (interactiveResult.status === 0) {
       return 'authenticated'
     }
   }

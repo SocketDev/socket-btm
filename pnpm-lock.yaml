@@ -124,6 +124,12 @@ importers:
         specifier: 'catalog:'
         version: 24.9.2
 
+  .claude/hooks/fleet/alpha-sort-reminder:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
   .claude/hooks/fleet/answer-passing-questions-reminder:
     devDependencies:
       '@types/node':

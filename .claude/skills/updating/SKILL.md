@@ -41,7 +41,7 @@ The fix order is fixed — **don't try to land the fleet-repo bump first**:
 
 3. **Update wheelhouse template** in the same wave: `template/package.json` `engines.pnpm` / `engines.npm` / `packageManager` + `template/pnpm-workspace.yaml` `allowBuilds` entries for any new transitive build-scripts the bumped pnpm enforces (`pnpm@11.4` added `[ERR_PNPM_IGNORED_BUILDS]` as hard exit, so `esbuild` and friends need explicit allowlisting).
 
-4. **Cascade fleet repos** atomically: each downstream socket-* repo gets the new pnpm pin AND the new propagation SHA in the same cascade commit. Without atomicity, you get the failure mode we hit on 2026-05-28: fleet repo bumps to pnpm@11.4, CI fails because the installed pnpm (11.3 via old setup-action) refuses the pin.
+4. **Cascade fleet repos** atomically: each downstream socket-\* repo gets the new pnpm pin AND the new propagation SHA in the same cascade commit. Without atomicity, you get the failure mode we hit on 2026-05-28: fleet repo bumps to pnpm@11.4, CI fails because the installed pnpm (11.3 via old setup-action) refuses the pin.
 
 Why reference, not duplicate: the cascade procedure is fleet-canonical knowledge owned by socket-registry. Duplicating it into wheelhouse means two copies that drift. The wheelhouse `updating` skill encodes "when to run the registry cascade and how to consume its output", not the cascade itself.
 

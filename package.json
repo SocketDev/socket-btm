@@ -64,9 +64,9 @@
   },
   "engines": {
     "node": ">=26.1.0",
-    "pnpm": ">=11.3.0"
+    "pnpm": ">=11.4.0"
   },
-  "packageManager": "pnpm@11.3.0",
+  "packageManager": "pnpm@11.4.0",
   "allowScripts": {
     "docsify": false,
     "esbuild": true,

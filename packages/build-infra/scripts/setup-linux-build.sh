@@ -10,8 +10,9 @@
 #                                  (provides pnpm.version + sha256)
 #
 # What this script does:
-#   1. Activate devtoolset-11 (gcc 11) via SCL — manylinux2014's stock
-#      gcc is 4.8 (CentOS 7) which can't compile modern C++.
+#   1. Activate devtoolset-10 (gcc 10) via SCL — manylinux2014 ships
+#      devtoolset-10 from the mayeut COPR; manylinux2014's stock gcc
+#      is 4.8 (CentOS 7) which can't compile modern C++.
 #   2. Install package set via yum (cmake, ccache, ninja, perl, go,
 #      libatomic — anything the build needs).
 #   3. Download Node from nodejs.org/dist, verify against the official
@@ -32,16 +33,16 @@
 
 set -euo pipefail
 
-DEVTOOLSET_ENABLE=/opt/rh/devtoolset-11/enable
+DEVTOOLSET_ENABLE=/opt/rh/devtoolset-10/enable
 if [ ! -f "${DEVTOOLSET_ENABLE}" ]; then
-  echo "× setup-linux-build: devtoolset-11 not found at ${DEVTOOLSET_ENABLE}" >&2
+  echo "× setup-linux-build: devtoolset-10 not found at ${DEVTOOLSET_ENABLE}" >&2
   echo "  Expected base image: quay.io/pypa/manylinux2014_x86_64 (or _aarch64)." >&2
   exit 1
 fi
 
 # shellcheck source=/dev/null
 . "${DEVTOOLSET_ENABLE}"
-echo "✓ devtoolset-11 activated"
+echo "✓ devtoolset-10 activated"
 echo "  gcc:  $(gcc --version | head -1)"
 echo "  g++:  $(g++ --version | head -1)"
 
@@ -103,11 +104,14 @@ tar -xJ -C /usr/local --strip-components=1 -f "/tmp/${NODE_TARBALL}"
 rm "/tmp/${NODE_TARBALL}" /tmp/SHASUMS256.txt
 echo "✓ Node $(node --version) installed"
 
-# pnpm — version + sha256 come from socket-registry's tool checksums.
+# pnpm — version + sha256 come from socket-registry's external-tools.json
+# (materialized into /tmp/registry-tools.json by socket-registry's setup
+# action). Canonical shape: pnpm.platforms.<plat-arch>.{asset,integrity}.
+# integrity is SRI-style "sha256-<base64>".
 PNPM_VERSION=$(jq -r .pnpm.version /tmp/registry-tools.json)
 PLATFORM="linux-${ARCH}"
-PNPM_ASSET=$(jq -r ".pnpm.checksums[\"${PLATFORM}\"].asset" /tmp/registry-tools.json)
-PNPM_INTEGRITY=$(jq -r ".pnpm.checksums[\"${PLATFORM}\"].integrity" /tmp/registry-tools.json)
+PNPM_ASSET=$(jq -r ".pnpm.platforms[\"${PLATFORM}\"].asset" /tmp/registry-tools.json)
+PNPM_INTEGRITY=$(jq -r ".pnpm.platforms[\"${PLATFORM}\"].integrity" /tmp/registry-tools.json)
 PNPM_SHA256=$(echo "${PNPM_INTEGRITY#sha256-}" | base64 -d | od -An -tx1 | tr -d ' \n')
 
 echo "→ Fetching pnpm ${PNPM_VERSION} (${ARCH})"
@@ -122,8 +126,8 @@ echo "✓ pnpm $(pnpm --version) installed"
 # manylinux2014 enable script exports PATH + LD_LIBRARY_PATH + MANPATH +
 # INFOPATH + PCP_DIR + PKG_CONFIG_PATH; pin all of them in /etc/profile.d/
 # so an interactive shell ALSO picks them up.
-cat > /etc/profile.d/devtoolset-11.sh <<'EOF'
-. /opt/rh/devtoolset-11/enable
+cat > /etc/profile.d/devtoolset-10.sh <<'EOF'
+. /opt/rh/devtoolset-10/enable
 EOF
 
 # yum cleanup keeps the resulting image small.

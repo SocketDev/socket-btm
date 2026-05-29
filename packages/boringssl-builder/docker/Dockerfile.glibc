@@ -29,9 +29,9 @@ COPY packages/build-infra/scripts/setup-linux-build.sh /tmp/setup-linux-build.sh
 RUN EXTRA_PACKAGES="golang" bash /tmp/setup-linux-build.sh && \
     rm /tmp/setup-linux-build.sh
 
-# Every subsequent RUN needs devtoolset-11 on PATH. Source it via
+# Every subsequent RUN needs devtoolset-10 on PATH. Source it via
 # BASH_ENV so shebanged scripts pick it up too.
-ENV BASH_ENV=/etc/profile.d/devtoolset-11.sh
+ENV BASH_ENV=/etc/profile.d/devtoolset-10.sh
 SHELL ["/bin/bash", "-c"]
 
 WORKDIR /workspace

@@ -45,6 +45,7 @@ RUN dnf -y update && \
         procps-ng \
         patch \
         xz \
+        libatomic \
         && \
     # Enable GCC Toolset 13 (provides GCC 13 with C++20 support).
     dnf -y install gcc-toolset-13 gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ gcc-toolset-13-libstdc++-devel && \

@@ -32,6 +32,7 @@ RUN dnf -y update && \
         cmake \
         patch \
         xz \
+        libatomic \
         && \
     # Install Node.js directly from nodejs.org/dist instead of NodeSource.
     # NodeSource reorganized their CDN paths (2026-05-28: pub_current.x

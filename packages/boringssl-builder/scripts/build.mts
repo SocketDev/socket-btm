@@ -1,15 +1,16 @@
 #!/usr/bin/env node
 /**
- * boringssl-builder: build BoringSSL static libs (prefixed: smol_*) for
- * embedding in node:smol-http. Output is a sysroot-style tree:
+ * boringssl-builder native build orchestrator. Used on macOS / Windows
+ * AND Linux-native runs (where the container path is not taken).
  *
+ * Linux-container builds run docker/build.sh inside manylinux2014 — that
+ * script is generated from build-step-defs.mts, so the two paths share
+ * the same build commands. See emit-docker-build.mts.
+ *
+ * Output:
  *   build/<mode>/<platform-arch>/out/Final/
- *   ├── lib/{libsmol_crypto.a, libsmol_ssl.a}
- *   └── include/openssl/...           # headers with prefix-rewrite macros
- *
- * BoringSSL's CMakeLists.txt handles symbol prefixing internally — pass
- * -DBORINGSSL_PREFIX=<name> and every public symbol gets that prefix.
- * Documented at boringssl.googlesource.com under BUILDING.md.
+ *   ├── lib/{libsmol_crypto.a, libsmol_ssl.a}  (or smol_*.lib on MSVC)
+ *   └── include/openssl/...
  */
 
 import { existsSync, mkdirSync, promises as fs } from 'node:fs'
@@ -21,92 +22,70 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
+import {
+  BUILD_STEPS,
+  PUBLISH_ARTIFACTS,
+  PUBLISH_HEADERS,
+  resolvePlaceholders,
+  substituteArtifact,
+  substituteStep,
+} from './build-step-defs.mts'
 import { PREFIX, UPSTREAM_DIR, getPaths } from './paths.mts'
 
 const logger = getDefaultLogger()
 
-async function copyTree(from: string, to: string): Promise<void> {
-  await fs.mkdir(path.dirname(to), { recursive: true })
-  await fs.cp(from, to, { recursive: true, force: true })
-}
-
-async function configure(
-  upstreamDir: string,
-  cmakeBuildDir: string,
-): Promise<void> {
-  const cmakeArgs = [
-    '-S',
-    upstreamDir,
-    '-B',
-    cmakeBuildDir,
-    '-DCMAKE_BUILD_TYPE=Release',
-    `-DBORINGSSL_PREFIX=${PREFIX}`,
-    '-DBUILD_SHARED_LIBS=OFF',
-    '-DCMAKE_POSITION_INDEPENDENT_CODE=ON',
-    '-DBUILD_TESTING=OFF',
-  ]
-  logger.info(`Configuring: cmake ${cmakeArgs.join(' ')}`)
-  const config = await spawn('cmake', cmakeArgs, { stdio: 'inherit' })
-  if (config.exitCode !== 0) {
-    throw new Error(`cmake configure failed (exit ${config.exitCode})`)
-  }
-}
-
-async function compile(cmakeBuildDir: string): Promise<void> {
-  const build = await spawn(
-    'cmake',
-    [
-      '--build',
-      cmakeBuildDir,
-      '--config',
-      'Release',
-      '--parallel',
-      '--target',
-      'crypto',
-      '--target',
-      'ssl',
-    ],
-    { stdio: 'inherit' },
-  )
-  if (build.exitCode !== 0) {
-    throw new Error(`cmake build failed (exit ${build.exitCode})`)
+async function runSteps(placeholders: Record<string, string>): Promise<void> {
+  for (const step of BUILD_STEPS) {
+    const resolved = substituteStep(step, placeholders)
+    logger.info(`→ ${resolved.label}`)
+    const result = await spawn(resolved.cmd, [...resolved.args], {
+      stdio: 'inherit',
+    })
+    if (result.exitCode !== 0) {
+      throw new Error(`${resolved.label} failed (exit ${result.exitCode})`)
+    }
   }
 }
 
 async function publishArtifacts(
-  cmakeBuildDir: string,
+  placeholders: Record<string, string>,
   outLibDir: string,
   outIncludeDir: string,
 ): Promise<void> {
   mkdirSync(outLibDir, { recursive: true })
   mkdirSync(outIncludeDir, { recursive: true })
-  // BoringSSL emits libcrypto.a + libssl.a regardless of -DBORINGSSL_PREFIX
-  // (the prefix renames C symbols, not the archive filenames). Rename on
-  // copy so downstream gyp can reference the unambiguous libsmol_* names.
+
+  // PUBLISH_ARTIFACTS lists libcrypto.a → libsmol_crypto.a (Unix names).
+  // On MSVC the names become smol_crypto.lib — handle that swap before
+  // resolving placeholders so the rest of the logic stays uniform.
   const platLibSuffix = process.platform === 'win32' ? '.lib' : '.a'
   const platLibPrefix = process.platform === 'win32' ? '' : 'lib'
-  const libs = [
-    {
-      from: path.join(
-        cmakeBuildDir,
-        `${platLibPrefix}crypto${platLibSuffix}`,
-      ),
-      to: path.join(outLibDir, `${platLibPrefix}${PREFIX}_crypto${platLibSuffix}`),
-    },
-    {
-      from: path.join(cmakeBuildDir, `${platLibPrefix}ssl${platLibSuffix}`),
-      to: path.join(outLibDir, `${platLibPrefix}${PREFIX}_ssl${platLibSuffix}`),
-    },
-  ]
-  for (const { from, to } of libs) {
+  for (const art of PUBLISH_ARTIFACTS) {
+    const resolved = substituteArtifact(art, placeholders)
+    // Swap .a → .lib + drop "lib" prefix on Windows.
+    const from = resolved.from
+      .replace(/lib(crypto|ssl)\.a$/, `${platLibPrefix}$1${platLibSuffix}`)
+    const to = resolved.to
+      .replace(
+        new RegExp(`lib${PREFIX}_(crypto|ssl)\\.a$`),
+        `${platLibPrefix}${PREFIX}_$1${platLibSuffix}`,
+      )
     if (!existsSync(from)) {
       throw new Error(`Expected build artifact not found: ${from}`)
     }
     await fs.copyFile(from, to)
     logger.substep(`copied ${path.basename(from)} → ${path.basename(to)}`)
   }
-  await copyTree(path.join(UPSTREAM_DIR, 'include'), outIncludeDir)
-  logger.substep(`copied include/ tree → ${outIncludeDir}`)
+
+  // Header tree copy. PUBLISH_HEADERS.fromSubdir is relative to upstream.
+  const headerSrc = path.join(UPSTREAM_DIR, PUBLISH_HEADERS.fromSubdir)
+  const headerDest =
+    PUBLISH_HEADERS.toSubdir === '.'
+      ? outIncludeDir
+      : path.join(outIncludeDir, PUBLISH_HEADERS.toSubdir)
+  await fs.mkdir(path.dirname(headerDest), { recursive: true })
+  await fs.cp(headerSrc, headerDest, { recursive: true, force: true })
+  logger.substep(`copied include/ tree → ${headerDest}`)
 }
 
 async function main(): Promise<void> {
@@ -119,9 +98,15 @@ async function main(): Promise<void> {
   mkdirSync(buildDir, { recursive: true })
   mkdirSync(cmakeBuildDir, { recursive: true })
 
-  await configure(UPSTREAM_DIR, cmakeBuildDir)
-  await compile(cmakeBuildDir)
-  await publishArtifacts(cmakeBuildDir, outLibDir, outIncludeDir)
+  const placeholders = resolvePlaceholders({
+    upstreamDir: UPSTREAM_DIR,
+    cmakeBuildDir,
+    outLibDir,
+    outIncludeDir,
+  })
+
+  await runSteps(placeholders)
+  await publishArtifacts(placeholders, outLibDir, outIncludeDir)
 
   logger.success(
     `BoringSSL built with prefix '${PREFIX}' → ${path.dirname(outLibDir)}`,

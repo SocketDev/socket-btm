@@ -12,6 +12,7 @@
     "build": "node scripts/build.mts",
     "clean": "node scripts/clean.mts",
     "cover": "vitest run --coverage",
+    "emit-docker-build": "node scripts/emit-docker-build.mts",
     "test": "vitest run"
   },
   "dependencies": {

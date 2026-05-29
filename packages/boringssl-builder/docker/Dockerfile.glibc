@@ -1,22 +1,22 @@
 # Build BoringSSL (prefixed: smol_*) in container to offload compute
 # from GitHub Actions runners. Supports linux/amd64 and linux/arm64.
 #
-# Base: manylinux2014 (CentOS 7, glibc 2.17). The resulting libsmol_*.a
-# archives are object archives — the glibc floor is determined when the
-# consumer links the final binary. Using manylinux2014 here keeps the
-# build environment consistent with downstream node-smol-builder's
-# manylinux2014 link step, so the toolchain (gcc 11 via devtoolset-11)
-# is uniform across the static-lib pipeline.
+# Base: manylinux2014 (CentOS 7, glibc 2.17). Pure C/C++ toolchain —
+# NO Node, NO pnpm. The build is driven by docker/build.sh (pure bash)
+# emitted from scripts/build-step-defs.mts. The Dockerfile's job is to
+# (1) install the C/C++ toolchain via packages/build-infra/scripts/
+# setup-linux-build.sh, (2) copy the upstream source + the generated
+# build.sh, (3) run build.sh.
 #
-# All tool installation goes through packages/build-infra/scripts/
-# setup-linux-build.sh — fleet-canonical recipe shared with every other
-# *-builder Dockerfile.glibc. Updating that script reaches every builder.
+# Why no Node in the container: Node's official binaries require
+# glibc 2.28+ — they won't run on glibc 2.17. We use bash inside Docker
+# and .mts on the host. Single source of truth in build-step-defs.mts;
+# vitest enforces docker/build.sh stays in sync.
 
 # Digest-pinned. `:latest` floats — PyPA retags every few weeks and the
-# entire toolchain (devtoolset-10 build, EPEL snapshot, system libs)
-# shifts under us silently. Pin the multi-arch index digest so the same
-# base resolves byte-deterministically across both x86_64 and aarch64
-# matrix entries.
+# entire toolchain shifts under us silently. Pin the multi-arch index
+# digest so the same base resolves byte-deterministically across both
+# x86_64 and aarch64.
 #
 # To refresh:
 #   curl -sI 'https://quay.io/v2/pypa/manylinux2014_x86_64/manifests/latest' \
@@ -26,18 +26,11 @@
 # Pinned 2026-05-28.
 FROM quay.io/pypa/manylinux2014_x86_64@sha256:e6edb7203ea8d786a91ba700b6213077b551ce37de72400963ce9888f9cd9024 AS build
 
-# Socket-registry tool-checksums + Node version pin. Workflows `cp
-# "$SOCKET_TOOL_CHECKSUMS_FILE" .build-context/registry-tools.json`
-# before `docker build`, so this layer reads the same authoritative
-# pnpm version + per-platform sha256 the setup action verified.
-COPY .build-context/registry-tools.json /tmp/registry-tools.json
-COPY .node-version /tmp/node-version
-
-# Fleet-canonical Linux build setup. Activates devtoolset-11, installs
-# yum packages, downloads + sha256-verifies Node + pnpm. Golang added
-# via EXTRA_PACKAGES — BoringSSL's symbol-prefix tooling is Go.
+# Setup script — installs devtoolset-10 + cmake3 + perl + go + libatomic
+# via yum. Fleet-canonical; shared by every *-builder Dockerfile.glibc.
+# Drops Node/pnpm install steps (we don't need them in the container).
 COPY packages/build-infra/scripts/setup-linux-build.sh /tmp/setup-linux-build.sh
-RUN EXTRA_PACKAGES="golang" bash /tmp/setup-linux-build.sh && \
+RUN EXTRA_PACKAGES="golang" SKIP_NODE_PNPM=1 bash /tmp/setup-linux-build.sh && \
     rm /tmp/setup-linux-build.sh
 
 # Every subsequent RUN needs devtoolset-10 on PATH. Source it via
@@ -45,38 +38,36 @@ RUN EXTRA_PACKAGES="golang" bash /tmp/setup-linux-build.sh && \
 ENV BASH_ENV=/etc/profile.d/devtoolset-10.sh
 SHELL ["/bin/bash", "-c"]
 
+# Upstream BoringSSL source. submodule is shallow-cloned at host time.
+COPY packages/boringssl-builder/upstream/boringssl /workspace/upstream
+
+# Generated build script — emitted from scripts/build-step-defs.mts.
+# Drift check in test/build-defs-drift.test.mts ensures this is current.
+COPY packages/boringssl-builder/docker/build.sh /workspace/build.sh
+
 WORKDIR /workspace
 
-# Workspace configuration files needed for pnpm workspace resolution.
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .gitmodules .node-version ./
-
-# build-infra is a workspace dep of boringssl-builder.
-COPY packages/build-infra ./packages/build-infra
-COPY packages/boringssl-builder ./packages/boringssl-builder
-
-# Install workspace dependencies (only boringssl-builder package).
-ENV CI=true
-RUN pnpm install --frozen-lockfile --filter build-infra --filter boringssl-builder
-
-# Build BoringSSL with -DBORINGSSL_PREFIX=smol.
+# Build via the emitted bash script. Env vars satisfy the script's
+# `${VAR:?}` checks at the top of build.sh.
 ARG BUILD_MODE=prod
 ARG PLATFORM_ARCH=linux-x64
 ARG TARGETARCH
 ARG CACHE_VERSION=unset
-ENV BUILD_MODE=$BUILD_MODE
-ENV PLATFORM_ARCH=$PLATFORM_ARCH
+ENV UPSTREAM_DIR=/workspace/upstream
+ENV CMAKE_BUILD_DIR=/workspace/build/$BUILD_MODE/$PLATFORM_ARCH/cmake
+ENV OUT_LIB_DIR=/workspace/build/$BUILD_MODE/$PLATFORM_ARCH/out/Final/lib
+ENV OUT_INCLUDE_DIR=/workspace/build/$BUILD_MODE/$PLATFORM_ARCH/out/Final/include
 
 # For amd64 builds, add -march=x86-64 -mtune=generic so the binary stays
 # portable across CPU generations (matches lief-builder).
 RUN echo "Cache version: ${CACHE_VERSION}" && \
     if [ "$TARGETARCH" = "amd64" ]; then \
-        export CFLAGS="$CFLAGS -march=x86-64 -mtune=generic" && \
-        export CXXFLAGS="$CXXFLAGS -march=x86-64 -mtune=generic"; \
+        export CFLAGS="${CFLAGS:-} -march=x86-64 -mtune=generic" && \
+        export CXXFLAGS="${CXXFLAGS:-} -march=x86-64 -mtune=generic"; \
     fi && \
-    cd packages/boringssl-builder && pnpm run build
+    bash /workspace/build.sh
 
-# Export stage: copy the build/ tree so the workflow can extract artifacts +
-# checkpoints. Mirrors lief-builder/docker/Dockerfile.glibc:export.
+# Export stage: copy the build/ tree so the workflow can extract artifacts.
 FROM scratch AS export
 ARG BUILD_MODE=prod
-COPY --from=build /workspace/packages/boringssl-builder/build /
+COPY --from=build /workspace/build /

@@ -28,13 +28,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Org allowlist permits only depot/* + a narrow set of actions/* (no
+# docker/* actions). Everything Docker-related uses the pre-installed
+# `docker` CLI directly via `shell: bash`.
 jobs:
   build-and-publish:
     name: build + publish
-    # Hosted GHA runner — sufficient for a once-monthly prebake build
-    # (~10-15min wall time). Depot offload doesn't help here since the
-    # build is network-bound (dnf metadata + pkg downloads + nodejs.org
-    # tarball + pnpm release).
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -55,25 +54,16 @@ jobs:
           mkdir -p .build-context
           cp "$SOCKET_TOOL_CHECKSUMS_FILE" .build-context/registry-tools.json
 
-      - name: Compute image tag (YYYY-MM-DD-sha8)
-        id: tag
+      - name: Compute image tag + read NODE/pnpm metadata
+        id: meta
         shell: bash
         env:
           GH_SHA: ${{ github.sha }}
         run: |
           DATE=$(date -u +%Y-%m-%d)
           SHA8=${GH_SHA:0:8}
-          echo "tag=${DATE}-${SHA8}" >> "$GITHUB_OUTPUT"
-          echo "Image will be tagged: ${REGISTRY}/${IMAGE_NAME}:${DATE}-${SHA8}"
-
-      - name: Read NODE_VERSION + pnpm metadata
-        id: meta
-        shell: bash
-        run: |
           NODE_VERSION=$(tr -d '[:space:]' < .node-version)
           PNPM_VERSION=$(jq -r .pnpm.version .build-context/registry-tools.json)
-          # x64 (the primary arch — arm64 build uses the same NODE_VERSION
-          # + pnpm version; only the per-platform PNPM_ASSET/SHA256 differ).
           PNPM_ASSET_X64=$(jq -r '.pnpm.platforms["linux-x64"].asset' .build-context/registry-tools.json)
           PNPM_INTEGRITY_X64=$(jq -r '.pnpm.platforms["linux-x64"].integrity' .build-context/registry-tools.json)
           PNPM_SHA256_X64=$(echo "${PNPM_INTEGRITY_X64#sha256-}" | base64 -d | od -An -tx1 | tr -d ' \n')
@@ -81,6 +71,7 @@ jobs:
           PNPM_INTEGRITY_ARM64=$(jq -r '.pnpm.platforms["linux-arm64"].integrity' .build-context/registry-tools.json)
           PNPM_SHA256_ARM64=$(echo "${PNPM_INTEGRITY_ARM64#sha256-}" | base64 -d | od -An -tx1 | tr -d ' \n')
           {
+            echo "tag=${DATE}-${SHA8}"
             echo "node-version=${NODE_VERSION}"
             echo "pnpm-version=${PNPM_VERSION}"
             echo "pnpm-asset-x64=${PNPM_ASSET_X64}"
@@ -88,69 +79,86 @@ jobs:
             echo "pnpm-asset-arm64=${PNPM_ASSET_ARM64}"
             echo "pnpm-sha256-arm64=${PNPM_SHA256_ARM64}"
           } >> "$GITHUB_OUTPUT"
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0 (2026-05-22)
+          echo "Image tag: ${REGISTRY}/${IMAGE_NAME}:${DATE}-${SHA8}"
 
       - name: Login to ghcr.io
         if: ${{ !inputs.dry-run }}
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0 (2026-05-22)
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_USER: ${{ github.actor }}
+        run: |
+          echo "${GH_TOKEN}" | docker login "${REGISTRY}" --username "${GH_USER}" --password-stdin
 
-      # Per-arch builds because PNPM_ASSET + PNPM_SHA256 differ between
-      # x64 and arm64 (build-args are scalar; can't vary per-platform in
-      # a single buildx invocation). After both arches push, the final
-      # step assembles a single multi-arch manifest list so consumer
-      # Dockerfiles can use `FROM <image>:<tag>` and Docker picks the
-      # right arch automatically.
       - name: Build x64
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0 (2026-05-21)
-        with:
-          context: .
-          file: packages/build-infra/docker/btm-builder-glibc.Dockerfile
-          platforms: linux/amd64
-          push: ${{ !inputs.dry-run }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}-amd64
-          build-args: |
-            NODE_VERSION=${{ steps.meta.outputs.node-version }}
-            PNPM_VERSION=${{ steps.meta.outputs.pnpm-version }}
-            PNPM_ASSET=${{ steps.meta.outputs.pnpm-asset-x64 }}
-            PNPM_SHA256=${{ steps.meta.outputs.pnpm-sha256-x64 }}
-            CACHE_VERSION=${{ steps.tag.outputs.tag }}
-          provenance: false
+        shell: bash
+        env:
+          IMAGE_TAG: ${{ steps.meta.outputs.tag }}
+          NODE_VERSION: ${{ steps.meta.outputs.node-version }}
+          PNPM_VERSION: ${{ steps.meta.outputs.pnpm-version }}
+          PNPM_ASSET: ${{ steps.meta.outputs.pnpm-asset-x64 }}
+          PNPM_SHA256: ${{ steps.meta.outputs.pnpm-sha256-x64 }}
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          # docker buildx is pre-installed on ubuntu-24.04. Use the bake
+          # equivalent via `docker buildx build`. `--push` writes to ghcr.io
+          # when GH_TOKEN is logged in; `--output type=docker` keeps it local
+          # for the dry-run path.
+          TAG="${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}-amd64"
+          if [ "${DRY_RUN}" = "true" ]; then
+            EXTRA_FLAGS="--output=type=docker"
+          else
+            EXTRA_FLAGS="--push"
+          fi
+          docker buildx build \
+            --platform linux/amd64 \
+            --file packages/build-infra/docker/btm-builder-glibc.Dockerfile \
+            --tag "${TAG}" \
+            --build-arg "NODE_VERSION=${NODE_VERSION}" \
+            --build-arg "PNPM_VERSION=${PNPM_VERSION}" \
+            --build-arg "PNPM_ASSET=${PNPM_ASSET}" \
+            --build-arg "PNPM_SHA256=${PNPM_SHA256}" \
+            --build-arg "CACHE_VERSION=${IMAGE_TAG}" \
+            --provenance=false \
+            ${EXTRA_FLAGS} \
+            .
 
       - name: Build arm64
         if: ${{ contains(inputs.platforms, 'linux/arm64') }}
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0 (2026-05-21)
-        with:
-          context: .
-          file: packages/build-infra/docker/btm-builder-glibc.Dockerfile
-          platforms: linux/arm64
-          push: ${{ !inputs.dry-run }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}-arm64
-          build-args: |
-            NODE_VERSION=${{ steps.meta.outputs.node-version }}
-            PNPM_VERSION=${{ steps.meta.outputs.pnpm-version }}
-            PNPM_ASSET=${{ steps.meta.outputs.pnpm-asset-arm64 }}
-            PNPM_SHA256=${{ steps.meta.outputs.pnpm-sha256-arm64 }}
-            CACHE_VERSION=${{ steps.tag.outputs.tag }}
-          provenance: false
+        shell: bash
+        env:
+          IMAGE_TAG: ${{ steps.meta.outputs.tag }}
+          NODE_VERSION: ${{ steps.meta.outputs.node-version }}
+          PNPM_VERSION: ${{ steps.meta.outputs.pnpm-version }}
+          PNPM_ASSET: ${{ steps.meta.outputs.pnpm-asset-arm64 }}
+          PNPM_SHA256: ${{ steps.meta.outputs.pnpm-sha256-arm64 }}
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          TAG="${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}-arm64"
+          if [ "${DRY_RUN}" = "true" ]; then
+            EXTRA_FLAGS="--output=type=docker"
+          else
+            EXTRA_FLAGS="--push"
+          fi
+          docker buildx build \
+            --platform linux/arm64 \
+            --file packages/build-infra/docker/btm-builder-glibc.Dockerfile \
+            --tag "${TAG}" \
+            --build-arg "NODE_VERSION=${NODE_VERSION}" \
+            --build-arg "PNPM_VERSION=${PNPM_VERSION}" \
+            --build-arg "PNPM_ASSET=${PNPM_ASSET}" \
+            --build-arg "PNPM_SHA256=${PNPM_SHA256}" \
+            --build-arg "CACHE_VERSION=${IMAGE_TAG}" \
+            --provenance=false \
+            ${EXTRA_FLAGS} \
+            .
 
       - name: Assemble multi-arch manifest list
         if: ${{ !inputs.dry-run }}
         shell: bash
         env:
-          IMAGE_TAG: ${{ steps.tag.outputs.tag }}
+          IMAGE_TAG: ${{ steps.meta.outputs.tag }}
         run: |
-          # docker manifest create works against the registry directly. The
-          # per-arch images pushed above are referenced by their tag; the
-          # output is a single tag <REGISTRY>/<IMAGE_NAME>:<tag> that
-          # downstream `FROM` clauses can use platform-agnostically.
           BASE="${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
           docker buildx imagetools create \
             --tag "${BASE}" \
@@ -161,7 +169,7 @@ jobs:
       - name: Summary
         shell: bash
         env:
-          IMAGE_TAG: ${{ steps.tag.outputs.tag }}
+          IMAGE_TAG: ${{ steps.meta.outputs.tag }}
           NODE_VERSION: ${{ steps.meta.outputs.node-version }}
           PNPM_VERSION: ${{ steps.meta.outputs.pnpm-version }}
           DRY_RUN: ${{ inputs.dry-run }}

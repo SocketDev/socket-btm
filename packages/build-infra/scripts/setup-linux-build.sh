@@ -70,8 +70,11 @@ if [ -n "${EXTRA_PACKAGES:-}" ]; then
   PACKAGES+=( ${EXTRA_PACKAGES} )
 fi
 
-yum install -y epel-release
-yum install -y "${PACKAGES[@]}"
+# --setopt=install_weak_deps=False keeps optional GUI/locale/docs deps
+# out of the install set — typically saves ~100-200MB across the whole
+# package set. Matches curl-builder's pattern.
+yum install -y --setopt=install_weak_deps=False epel-release
+yum install -y --setopt=install_weak_deps=False "${PACKAGES[@]}"
 
 # cmake3 is the package name on CentOS 7 EPEL; alias cmake → cmake3.
 if [ ! -e /usr/local/bin/cmake ] && command -v cmake3 >/dev/null; then
@@ -130,7 +133,39 @@ cat > /etc/profile.d/devtoolset-10.sh <<'EOF'
 . /opt/rh/devtoolset-10/enable
 EOF
 
-# yum cleanup keeps the resulting image small.
+# yum cleanup + image-size trim. The manylinux2014 base ships ~1.4 GB
+# of pip caches, Python wheel build infrastructure, locale data, and
+# duplicated docs — we use almost none of it. Strip aggressively so
+# Depot's layer cache (and our exported tarball) stays small.
 yum clean all
-rm -rf /var/cache/yum
+rm -rf \
+  /var/cache/yum \
+  /var/cache/dnf \
+  /var/lib/yum/yumdb \
+  /var/log/yum.log \
+  /tmp/* \
+  /opt/_internal/pip_download_cache \
+  /opt/_internal/wheels \
+  /root/.cache \
+  /usr/local/lib/node_modules/npm \
+  /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+  /usr/share/man \
+  /usr/share/info \
+  /usr/share/doc \
+  /usr/local/share/man \
+  /usr/local/share/doc \
+  || true
+
+# Locale data: keep only en_US.UTF-8 (manylinux2014 ships full glibc locale-archive ~100MB).
+if command -v localedef >/dev/null; then
+  localedef --list-archive 2>/dev/null \
+    | grep -v "^en_US\(\.utf8\|\.UTF-8\)\?$" \
+    | xargs -r localedef --delete-from-archive 2>/dev/null || true
+  # Compact the archive in-place; ignore failures (some locales are pinned).
+  mv -f /usr/lib/locale/locale-archive /usr/lib/locale/locale-archive.tmpl 2>/dev/null || true
+  build-locale-archive 2>/dev/null || \
+    mv -f /usr/lib/locale/locale-archive.tmpl /usr/lib/locale/locale-archive 2>/dev/null || true
+fi
+
 echo "✓ setup-linux-build complete"
+echo "  image size after cleanup: $(du -sh / 2>/dev/null | awk '{print $1}')"

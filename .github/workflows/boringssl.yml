@@ -365,12 +365,16 @@ jobs:
         shell: bash
         run: |
           for i in 1 2 3; do
-            if choco install cmake mingw ccache golang -y; then
+            if choco install cmake mingw ccache golang nasm -y; then
               break
             fi
             echo "Attempt $i failed, retrying in 10 seconds..."
             sleep 10
           done
+          # choco installs nasm to `C:\Program Files\NASM` which isn't
+          # added to PATH automatically; cmake's enable_language(ASM_NASM)
+          # probes for `nasm` on PATH and dies if missing.
+          echo "C:\Program Files\NASM" >> $GITHUB_PATH
 
       - name: Setup build toolchain (Windows ARM64 cross-compile)
         if: |
@@ -380,12 +384,16 @@ jobs:
         shell: bash
         run: |
           for i in 1 2 3; do
-            if choco install cmake ccache golang -y; then
+            if choco install cmake ccache golang nasm -y; then
               break
             fi
             echo "Attempt $i failed, retrying in 10 seconds..."
             sleep 10
           done
+          # See Setup build toolchain (Windows x64) for why NASM path is
+          # added manually. ARM64 cross-compile path also calls
+          # enable_language(ASM_NASM) at cmake configure time.
+          echo "C:\Program Files\NASM" >> $GITHUB_PATH
 
       - name: Install llvm-mingw (Windows ARM64 cross-compile)
         if: |

@@ -51,21 +51,32 @@ export async function publishArtifacts(
   mkdirSync(outLibDir, { recursive: true })
   mkdirSync(outIncludeDir, { recursive: true })
 
-  // PUBLISH_ARTIFACTS lists libcrypto.a → libsmol_crypto.a (Unix names).
-  // On MSVC the names become smol_crypto.lib — handle that swap before
-  // resolving placeholders so the rest of the logic stays uniform.
-  const platLibSuffix = process.platform === 'win32' ? '.lib' : '.a'
-  const platLibPrefix = process.platform === 'win32' ? '' : 'lib'
+  // PUBLISH_ARTIFACTS lists `$CMAKE_BUILD_DIR/libcrypto.a` (Unix names).
+  // Two MSVC quirks to absorb here so PUBLISH_ARTIFACTS stays portable:
+  //   1. Names: `libcrypto.a` → `crypto.lib` (drop `lib` prefix, swap suffix).
+  //   2. Path: Visual Studio's multi-config generator places the lib at
+  //      `$CMAKE_BUILD_DIR/Release/crypto.lib`, not `$CMAKE_BUILD_DIR/`
+  //      directly. Inject `/Release/` on Windows. Ninja/Make (Linux/macOS)
+  //      use single-config and emit to the cmake dir root.
+  const isWin = process.platform === 'win32'
+  const platLibSuffix = isWin ? '.lib' : '.a'
+  const platLibPrefix = isWin ? '' : 'lib'
   for (const art of PUBLISH_ARTIFACTS) {
     const resolved = substituteArtifact(art, placeholders)
-    // Swap .a → .lib + drop "lib" prefix on Windows.
-    const from = resolved.from
-      .replace(/lib(crypto|ssl)\.a$/, `${platLibPrefix}$1${platLibSuffix}`)
-    const to = resolved.to
-      .replace(
-        new RegExp(`lib${PREFIX}_(crypto|ssl)\\.a$`),
-        `${platLibPrefix}${PREFIX}_$1${platLibSuffix}`,
+    let from = resolved.from.replace(
+      /lib(crypto|ssl)\.a$/,
+      `${platLibPrefix}$1${platLibSuffix}`,
+    )
+    if (isWin) {
+      from = from.replace(
+        /(crypto|ssl)\.lib$/,
+        (_match, name) => `Release${path.sep}${name}.lib`,
       )
+    }
+    const to = resolved.to.replace(
+      new RegExp(`lib${PREFIX}_(crypto|ssl)\\.a$`),
+      `${platLibPrefix}${PREFIX}_$1${platLibSuffix}`,
+    )
     if (!existsSync(from)) {
       throw new Error(`Expected build artifact not found: ${from}`)
     }

@@ -431,6 +431,11 @@ export const BORINGSSL_BUILDER_DIR = path.join(
   '..',
   'boringssl-builder',
 )
+export const GLIBC_SHIMS_INFRA_DIR = path.join(
+  PACKAGE_ROOT,
+  '..',
+  'glibc-shims-infra',
+)
 export const TEMPORAL_INFRA_DIR = path.join(
   PACKAGE_ROOT,
   '..',

@@ -21,6 +21,7 @@ import {
   BIN_INFRA_DIR,
   BORINGSSL_BUILDER_DIR,
   BUILD_INFRA_DIR,
+  GLIBC_SHIMS_INFRA_DIR,
   LSQUIC_INFRA_DIR,
   PACKAGE_ROOT,
   TEMPORAL_INFRA_DIR,
@@ -587,6 +588,41 @@ export async function generateVendoredGypi(): Promise<void> {
  * if the boringssl-builder workspace package isn't installed yet (e.g.
  * during early sync-scaffolding bootstrap).
  */
+/**
+ * Stage the glibc-shims-infra workspace package into the patched source
+ * tree so patch 004's `'includes': ['deps/glibc-shims-infra/glibc-shims-infra.gypi']`
+ * resolves at gyp configure time. The gypi declares sources + ldflags +
+ * the libdl link — node-smol's binary inherits the wrap flags and the
+ * shim .cc files compile into the binary.
+ */
+async function copyGlibcShimsInfra(): Promise<void> {
+  logger.step('Staging glibc-shims-infra → deps/glibc-shims-infra/')
+  const { safeMkdir } = await import('@socketsecurity/lib-stable/fs/safe')
+  const depsDir = path.join(
+    ADDITIONS_SOURCE_PATCHED_DIR,
+    'deps',
+    'glibc-shims-infra',
+  )
+  await safeMkdir(depsDir)
+  // Stage the gypi at the deps/ root so patch 004's
+  // 'deps/glibc-shims-infra/glibc-shims-infra.gypi' include resolves.
+  await fs.cp(
+    path.join(GLIBC_SHIMS_INFRA_DIR, 'gyp', 'glibc-shims-infra.gypi'),
+    path.join(depsDir, 'glibc-shims-infra.gypi'),
+    { force: true },
+  )
+  // Stage the C++ source tree at deps/glibc-shims-infra/src/. The gypi's
+  // relative paths (src/socketsecurity/glibc-2-17-compat/...) line up with
+  // this layout because the gypi resolves source paths relative to its own
+  // location — same gypi rule that yoga/lsquic/boringssl follow.
+  await fs.cp(
+    path.join(GLIBC_SHIMS_INFRA_DIR, 'src'),
+    path.join(depsDir, 'src'),
+    { recursive: true, force: true },
+  )
+  logger.substep(`staged glibc-shims-infra → ${depsDir}`)
+}
+
 async function copyBoringsslArtifacts(): Promise<void> {
   logger.step('Staging BoringSSL prebuilt → deps/boringssl/')
   const { ensureBoringssl, getCurrentBoringsslPlatformArch } = await import(
@@ -665,6 +701,15 @@ export async function prepareExternalSources() {
   // walk + emit means a new upstream file appears in the build
   // automatically — no patch 004 update needed.
   await generateVendoredGypi()
+
+  logger.log('')
+
+  // Stage glibc-shims-infra (drop-in workspace package providing the
+  // glibc 2.17 shim layer + canonical -Wl,--wrap link flags) into
+  // deps/glibc-shims-infra/ so patch 004's
+  // `includes: ['deps/glibc-shims-infra/glibc-shims-infra.gypi']`
+  // resolves at gyp configure time.
+  await copyGlibcShimsInfra()
 
   logger.log('')
 

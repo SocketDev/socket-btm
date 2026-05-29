@@ -364,8 +364,26 @@ jobs:
           steps.restore-checkpoint.outputs.build-required == 'true')
         shell: bash
         run: |
+          # Pin every choco package to the version from
+          # packages/build-infra/external-tools.json — bare `choco install`
+          # picks "latest" at install time which makes Windows builds
+          # non-reproducible. Bumping a version means bumping the entry
+          # in external-tools.json; this step reads it as the source of
+          # truth.
+          TOOLS_JSON=packages/build-infra/external-tools.json
+          CMAKE_VERSION=$(jq -r '.tools.cmake.version' "$TOOLS_JSON")
+          CCACHE_VERSION=$(jq -r '.tools.ccache.version' "$TOOLS_JSON")
+          MINGW_VERSION=$(jq -r '.tools["mingw-w64"].version' "$TOOLS_JSON")
+          GO_VERSION=$(jq -r '.tools.go.version' "$TOOLS_JSON")
+          NASM_VERSION=$(jq -r '.tools.nasm.version' "$TOOLS_JSON")
           for i in 1 2 3; do
-            if choco install cmake mingw ccache golang nasm -y; then
+            if choco install \
+              cmake --version="$CMAKE_VERSION" \
+              mingw --version="$MINGW_VERSION" \
+              ccache --version="$CCACHE_VERSION" \
+              golang --version="$GO_VERSION" \
+              nasm --version="$NASM_VERSION" \
+              -y; then
               break
             fi
             echo "Attempt $i failed, retrying in 10 seconds..."
@@ -383,16 +401,30 @@ jobs:
           steps.restore-checkpoint.outputs.build-required == 'true')
         shell: bash
         run: |
+          # See Setup build toolchain (Windows x64) for the rationale on
+          # pinning choco versions to external-tools.json. ARM64
+          # cross-compile path uses llvm-mingw (separate step) instead of
+          # the standard mingw package; cmake + ccache + golang + nasm
+          # come from choco.
+          TOOLS_JSON=packages/build-infra/external-tools.json
+          CMAKE_VERSION=$(jq -r '.tools.cmake.version' "$TOOLS_JSON")
+          CCACHE_VERSION=$(jq -r '.tools.ccache.version' "$TOOLS_JSON")
+          GO_VERSION=$(jq -r '.tools.go.version' "$TOOLS_JSON")
+          NASM_VERSION=$(jq -r '.tools.nasm.version' "$TOOLS_JSON")
           for i in 1 2 3; do
-            if choco install cmake ccache golang nasm -y; then
+            if choco install \
+              cmake --version="$CMAKE_VERSION" \
+              ccache --version="$CCACHE_VERSION" \
+              golang --version="$GO_VERSION" \
+              nasm --version="$NASM_VERSION" \
+              -y; then
               break
             fi
             echo "Attempt $i failed, retrying in 10 seconds..."
             sleep 10
           done
-          # See Setup build toolchain (Windows x64) for why NASM path is
-          # added manually. ARM64 cross-compile path also calls
-          # enable_language(ASM_NASM) at cmake configure time.
+          # ARM64 cross-compile path also calls enable_language(ASM_NASM)
+          # at cmake configure time — PATH needs to include NASM here too.
           echo "C:\Program Files\NASM" >> $GITHUB_PATH
 
       - name: Install llvm-mingw (Windows ARM64 cross-compile)

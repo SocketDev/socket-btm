@@ -45,6 +45,16 @@
       "version": "14.2.0",
       "notes": "On Linux, 'build-essential' includes gcc, g++, and make. Provides both 'gcc' (C) and 'g++' (C++) compilers. On macOS, gcc from Homebrew is used when clang compatibility issues arise."
     },
+    "go": {
+      "description": "Go programming language toolchain (required for BoringSSL Windows builds)",
+      "version": "1.26.3",
+      "notes": "Required for BoringSSL's source-generation tooling (perlasm + go-based codegen). Pre-installed on GitHub Actions Linux/macOS runners. On Windows: choco install golang --version=1.26.3. Pin matches the latest stable upstream tag (github.com/golang/go) at the time of this entry."
+    },
+    "nasm": {
+      "description": "Netwide Assembler (NASM) — x86/x64 assembler",
+      "version": "3.1.0",
+      "notes": "Required by BoringSSL's CMakeLists.txt which unconditionally calls enable_language(ASM_NASM) on Windows. Pre-installed on Linux (apt: nasm) and macOS (brew: nasm). On Windows: choco install nasm --version=3.1.0. Version pin tracks chocolatey.org/packages/nasm; bump in lockstep with workflow `choco install --version=` flags."
+    },
     "make": {
       "description": "GNU Make build tool (fundamental build orchestration)",
       "notes": "Standard build tool. Usually pre-installed on Unix systems. On Linux, included in 'build-essential' package."

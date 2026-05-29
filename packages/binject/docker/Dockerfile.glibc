@@ -43,6 +43,7 @@ RUN dnf -y update && \
         wget \
         perl \
         file \
+        libatomic \
         && \
     # Install GitHub CLI.
     dnf -y install 'dnf-command(config-manager)' && \

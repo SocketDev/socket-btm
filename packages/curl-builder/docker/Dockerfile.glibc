@@ -35,23 +35,16 @@ RUN dnf -y --setopt=install_weak_deps=False update && \
         ca-certificates \
         jq \
         cmake \
+        xz \
+        libatomic \
         && \
-    # Install Node.js from NodeSource (verifiable alternative to the
-    # `curl … | bash` installer: import the GPG key and write the dnf
-    # repo file directly, exactly as NodeSource's docs describe).
-    rpm --import https://rpm.nodesource.com/gpgkey/ns-operations-public.key && \
-    printf '%s\n' \
-      '[nodesource-nodejs]' \
-      'name=Node.js Packages - $basearch' \
-      'baseurl=https://rpm.nodesource.com/pub_26.x/nodistro/nodejs/$basearch' \
-      'priority=9' \
-      'enabled=1' \
-      'gpgcheck=1' \
-      'gpgkey=https://rpm.nodesource.com/gpgkey/ns-operations-public.key' \
-      'module_hotfixes=1' \
-      > /etc/yum.repos.d/nodesource-nodejs.repo && \
-    dnf -y install --setopt=install_weak_deps=False nodejs && \
+    # Install Node.js directly from nodejs.org/dist (NodeSource CDN is
+    # unstable — pub_current.x 404'd 2026-05-28). Same source actions/
+    # setup-node uses. Pinned via .node-version.
+    NODE_VERSION=$(tr -d '[:space:]' < /tmp/node-version) && \
     ARCH=$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/') && \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${ARCH}.tar.xz" \
+      | tar -xJ -C /usr/local --strip-components=1 && \
     PLATFORM="linux-${ARCH}" && \
     PNPM_VERSION=$(jq -r .pnpm.version /tmp/registry-tools.json) && \
     PNPM_ASSET=$(jq -r ".pnpm.checksums[\"${PLATFORM}\"].asset" /tmp/registry-tools.json) && \

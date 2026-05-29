@@ -287,6 +287,7 @@ jobs:
           echo "version=$(load_version binpress)" >> $GITHUB_OUTPUT
           echo "lief_version=$(load_version lief)" >> $GITHUB_OUTPUT
           echo "stubs_version=$(load_version stubs)" >> $GITHUB_OUTPUT
+          echo "btm_builder_tag=$(load_version btm-builder-glibc)" >> $GITHUB_OUTPUT
 
       - name: Initialize submodules
         if: |
@@ -344,6 +345,7 @@ jobs:
             CACHE_VERSION=${{ steps.cache-version.outputs.version }}
             LIEF_CACHE_VERSION=${{ steps.cache-version.outputs.lief_version }}
             STUBS_CACHE_VERSION=${{ steps.cache-version.outputs.stubs_version }}
+            BTM_BUILDER_TAG=${{ steps.cache-version.outputs.btm_builder_tag }}
           # GH_TOKEN via BuildKit secret, not build-args. Passing it as
           # ARG+ENV bakes the token into image-layer metadata visible
           # through `docker history` and persisted across Depot cache
@@ -718,6 +720,7 @@ jobs:
           echo "version=$(load_version binflate)" >> $GITHUB_OUTPUT
           echo "lief_version=$(load_version lief)" >> $GITHUB_OUTPUT
           echo "stubs_version=$(load_version stubs)" >> $GITHUB_OUTPUT
+          echo "btm_builder_tag=$(load_version btm-builder-glibc)" >> $GITHUB_OUTPUT
 
       - name: Initialize submodules
         if: |
@@ -760,6 +763,7 @@ jobs:
             CACHE_VERSION=${{ steps.cache-version.outputs.version }}
             LIEF_CACHE_VERSION=${{ steps.cache-version.outputs.lief_version }}
             STUBS_CACHE_VERSION=${{ steps.cache-version.outputs.stubs_version }}
+            BTM_BUILDER_TAG=${{ steps.cache-version.outputs.btm_builder_tag }}
           no-cache: ${{ inputs.force == true }}
           file: packages/binflate/docker/Dockerfile.${{ matrix.libc == 'musl' && 'musl' || 'glibc' }}
           target: export
@@ -1122,6 +1126,7 @@ jobs:
           echo "version=$(load_version binject)" >> $GITHUB_OUTPUT
           echo "lief_version=$(load_version lief)" >> $GITHUB_OUTPUT
           echo "stubs_version=$(load_version stubs)" >> $GITHUB_OUTPUT
+          echo "btm_builder_tag=$(load_version btm-builder-glibc)" >> $GITHUB_OUTPUT
 
       - name: Initialize submodules
         if: |
@@ -1195,6 +1200,7 @@ jobs:
             LIBDEFLATE_CACHE_VERSION=${{ steps.submodule-sha.outputs.libdeflate }}
             CJSON_CACHE_VERSION=${{ steps.submodule-sha.outputs.cjson }}
             STUBS_CACHE_VERSION=${{ steps.cache-version.outputs.stubs_version }}
+            BTM_BUILDER_TAG=${{ steps.cache-version.outputs.btm_builder_tag }}
           # GH_TOKEN via BuildKit secret (see binpress build above).
           secrets: |
             gh_token=${{ github.token }}

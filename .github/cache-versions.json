@@ -6,6 +6,7 @@
     "binject": "v187",
     "binpress": "v171",
     "boringssl": "v1",
+    "btm-builder-glibc": "2026-05-29-a94bd4cd",
     "codet5": "v1",
     "curl": "v39",
     "dawn": "v1",

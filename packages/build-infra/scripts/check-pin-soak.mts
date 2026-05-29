@@ -28,12 +28,16 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
+import { errorMessage } from '@socketsecurity/lib-stable/errors'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+
 import {
   SOAK_DAYS,
   checkSoak,
   parseAnnotation,
 } from '../lib/soak-policy.mts'
 
+const logger = getDefaultLogger()
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..')
 
@@ -288,7 +292,7 @@ function auditExternalToolsJson() {
         lineNumber: 0,
         identifier: '(parse error)',
         soak: null,
-        note: `JSON parse error: ${error.message}`,
+        note: `JSON parse error: ${errorMessage(error)}`,
       })
       continue
     }
@@ -406,69 +410,69 @@ const soakedExpired = findings.filter(
 const fail = []
 
 if (jsonOutput) {
-  process.stdout.write(
-    `${JSON.stringify(
+  logger.log(
+    JSON.stringify(
       { findings, inSoakWarn, unannotated, soakedExpired, fail },
       null,
       2,
-    )}\n`,
+    ),
   )
   process.exitCode = fail.length > 0 ? 1 : 0
 } else {
-  process.stdout.write(`\n=== Pin soak audit (floor: ${SOAK_DAYS}d) ===\n\n`)
+  logger.log(`\n=== Pin soak audit (floor: ${SOAK_DAYS}d) ===\n`)
   if (verbose) {
     for (const f of findings) {
-      process.stdout.write(
-        `[${f.surface}] ${f.identifier}\n  ${f.file}:${f.lineNumber}\n  ${f.note}\n\n`,
+      logger.log(
+        `[${f.surface}] ${f.identifier}\n  ${f.file}:${f.lineNumber}\n  ${f.note}\n`,
       )
     }
   }
   if (inSoakWarn.length > 0) {
-    process.stdout.write(
-      `! ${inSoakWarn.length} pin(s) in 7-day soak (annotated; allowed):\n`,
+    logger.log(
+      `! ${inSoakWarn.length} pin(s) in 7-day soak (annotated; allowed):`,
     )
     for (const f of inSoakWarn) {
-      process.stdout.write(
-        `  - [${f.surface}] ${f.identifier} (${f.file}:${f.lineNumber})\n    ${f.note}\n`,
+      logger.log(
+        `  - [${f.surface}] ${f.identifier} (${f.file}:${f.lineNumber})\n    ${f.note}`,
       )
     }
-    process.stdout.write('\n')
+    logger.log('')
   }
   if (unannotated.length > 0) {
-    process.stdout.write(
-      `i ${unannotated.length} pin(s) without soak annotation (backfill opportunity; not a failure):\n`,
+    logger.log(
+      `i ${unannotated.length} pin(s) without soak annotation (backfill opportunity; not a failure):`,
     )
     if (verbose) {
       for (const f of unannotated) {
-        process.stdout.write(
-          `  - [${f.surface}] ${f.identifier} (${f.file}:${f.lineNumber})\n    ${f.note}\n`,
+        logger.log(
+          `  - [${f.surface}] ${f.identifier} (${f.file}:${f.lineNumber})\n    ${f.note}`,
         )
       }
     }
-    process.stdout.write('\n')
+    logger.log('')
   }
   if (soakedExpired.length > 0) {
-    process.stdout.write(
-      `i ${soakedExpired.length} pin(s) with annotation past the removable date (cleanup opportunity):\n`,
+    logger.log(
+      `i ${soakedExpired.length} pin(s) with annotation past the removable date (cleanup opportunity):`,
     )
     if (verbose) {
       for (const f of soakedExpired) {
-        process.stdout.write(
-          `  - [${f.surface}] ${f.identifier} (${f.file}:${f.lineNumber})\n    ${f.note}\n`,
+        logger.log(
+          `  - [${f.surface}] ${f.identifier} (${f.file}:${f.lineNumber})\n    ${f.note}`,
         )
       }
     }
-    process.stdout.write('\n')
+    logger.log('')
   }
   if (fail.length === 0) {
-    process.stdout.write(
-      `✓ Pin-soak audit clean (${findings.length} pins inspected, ${inSoakWarn.length} in soak, ${unannotated.length} unannotated).\n`,
+    logger.success(
+      `Pin-soak audit clean (${findings.length} pins inspected, ${inSoakWarn.length} in soak, ${unannotated.length} unannotated).`,
     )
   } else {
-    process.stdout.write(`× ${fail.length} hard-fail finding(s):\n`)
+    logger.error(`${fail.length} hard-fail finding(s):`)
     for (const f of fail) {
-      process.stdout.write(
-        `  - [${f.surface}] ${f.identifier} (${f.file}:${f.lineNumber})\n    ${f.note}\n`,
+      logger.error(
+        `  - [${f.surface}] ${f.identifier} (${f.file}:${f.lineNumber})\n    ${f.note}`,
       )
     }
   }

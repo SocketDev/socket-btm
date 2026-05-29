@@ -45,14 +45,21 @@ jobs:
           submodules: false
           persist-credentials: false
 
-      - name: Setup socket-registry tools (Node + pnpm + sfw)
-        uses: SocketDev/socket-registry/.github/actions/setup-and-install@c291a14196d088970c0453e905b40969b11bf193 # main (2026-05-15)
-
-      - name: Stage registry tool-checksums for Docker build context
+      - name: Stage socket-registry external-tools.json for Docker build context
         shell: bash
+        env:
+          # SHA-pinned read of socket-registry/external-tools.json. Bumped
+          # in lockstep with the setup-and-install action pin (c291a141).
+          # Direct fetch avoids needing setup-and-install + pnpm on the
+          # runner — the prebake's Node/pnpm live INSIDE the image, not
+          # on the runner.
+          REGISTRY_SHA: c291a14196d088970c0453e905b40969b11bf193
         run: |
           mkdir -p .build-context
-          cp "$SOCKET_TOOL_CHECKSUMS_FILE" .build-context/registry-tools.json
+          curl -fsSL \
+            "https://raw.githubusercontent.com/SocketDev/socket-registry/${REGISTRY_SHA}/external-tools.json" \
+            -o .build-context/registry-tools.json
+          jq -e '.pnpm.version' .build-context/registry-tools.json >/dev/null
 
       - name: Compute image tag + read NODE/pnpm metadata
         id: meta

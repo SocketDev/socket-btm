@@ -5,9 +5,12 @@ packages:
 
 # Packages allowed to run build scripts (pnpm v11 strictDepBuilds default).
 allowBuilds:
+  cpu-features: false
   docsify: false
   esbuild: true
   onnxruntime-node: true
+  protobufjs: false
+  ssh2: false
 
 # Refuse to run if the pnpm version on PATH differs from the packageManager
 # field in package.json. Our setup action pins pnpm via external-tools.json;
@@ -21,6 +24,7 @@ catalog:
   '@babel/types': 7.28.5
   '@biomejs/biome': 2.2.4
   '@dotenvx/dotenvx': 1.31.0
+  '@redwoodjs/agent-ci': 0.16.2
   '@sinclair/typebox': 0.34.49
   '@socketregistry/packageurl-js': 1.4.2
   '@socketregistry/packageurl-js-stable': npm:@socketregistry/packageurl-js@1.4.2
@@ -108,6 +112,8 @@ minimumReleaseAgeExclude:
   # tag; future 14.15.2 still goes through normal 7-day soak.
   # published: 2026-05-27 | removable: 2026-06-03
   - 'compromise@14.15.1'
+  - '@redwoodjs/agent-ci'
+  - 'dtu-github-actions'
 
 # Refuse transitive dependencies declared via git/tarball/local-tarball
 # specs — an npm package shouldn't be allowed to drag in a git URL we

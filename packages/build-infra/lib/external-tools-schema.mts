@@ -26,6 +26,13 @@ const toolSchema = Type.Object(
         description: 'Version requirement (exact "0.15.2" or range "3.28+")',
       }),
     ),
+    published: Type.Optional(
+      Type.String({
+        description:
+          'Publish date (ISO-8601 YYYY-MM-DD). Source-of-truth for the soak policy in lib/soak-policy.mts. Required when adding a pin inside the 7-day soak window.',
+        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+      }),
+    ),
     packageManager: Type.Optional(
       Type.Union(
         [Type.Literal('npm'), Type.Literal('pip'), Type.Literal('pnpm')],

@@ -2,22 +2,27 @@
  * check-pin-soak — auditor for external pin soak compliance.
  *
  * Walks every pin surface in the repo and verifies the soak policy from
- * lib/soak-policy.mts. Surfaces inspected:
+ * lib/soak-policy.mts:
  *
- *   - .gitmodules (submodule SHA pins)
- *   - .github/workflows/**\/*.yml + .github/actions/**\/*.yml (SHA-pinned `uses:` lines)
- *   - packages/*\/docker/Dockerfile* (FROM image@sha256: digests)
- *   - **\/external-tools.json (tool version pins)
- *   - pnpm-workspace.yaml (minimumReleaseAgeExclude entries)
+ *   - .gitmodules submodule SHA pins
+ *   - .github/workflows/**\/*.yml + .github/actions/**\/*.yml uses: pins
+ *   - **\/Dockerfile* FROM @sha256: digests
+ *   - **\/external-tools.json `published` fields
+ *   - pnpm-workspace.yaml minimumReleaseAgeExclude annotations
  *
  * Pure annotation validation — no network. The hook
- * `.claude/hooks/fleet/pin-soak-guard/` is where new pins get registry-
- * probed at edit time; once the annotation is in place, this script just
- * re-confirms the math.
+ * `.claude/hooks/fleet/pin-soak-guard/` probes the registry at edit time;
+ * this script just re-confirms the math on every pin.
  *
- * Exit codes:
- *   0  — every inspected pin satisfies the soak policy.
- *   1  — at least one pin is in hard-fail bucket (unannotated in-soak).
+ * A finding's `status` is one of:
+ *   - soaked          — past the 7d floor; if annotated, the annotation
+ *                       is cleanup-eligible.
+ *   - in-soak         — inside the 7d window with an annotation (allowed).
+ *   - unannotated     — no annotation; informational (treat as soaked).
+ *
+ * Exit 0 today (informational mode). Once the pin-soak-guard hook
+ * backfills annotations on edit, flip `--strict` to fail on `in-soak`
+ * without annotation evidence.
  */
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
@@ -28,11 +33,7 @@ import { fileURLToPath } from 'node:url'
 import { errorMessage } from '@socketsecurity/lib-stable/errors'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
-import {
-  SOAK_DAYS,
-  checkSoak,
-  parseAnnotation,
-} from '../lib/soak-policy.mts'
+import { SOAK_DAYS, checkSoak, parseAnnotation } from '../lib/soak-policy.mts'
 
 const logger = getDefaultLogger()
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -45,57 +46,18 @@ const jsonOutput = args.includes('--json')
 const findings = []
 
 // =============================================================================
-// Surface walkers — ordered alphabetically by `audit*` name (fleet rule
-// `socket/sort-source-methods`).
+// Surface walkers — alphabetical (fleet `socket/sort-source-methods`).
 // =============================================================================
 
-// .gitmodules layout per CLAUDE.md "gitmodules-version-comments":
-//
-//   # <package>-<version> [sha256:...]
-//   # published: YYYY-MM-DD | removable: YYYY-MM-DD   (optional, only within soak)
-//   [submodule "path"]
-//
 export function auditDockerfiles() {
   const fromRe = /^\s*FROM\s+\S+@sha256:[a-f0-9]{64}/
-  const pinDateRe = /#\s*Pinned\s+(\d{4}-\d{2}-\d{2})/
   for (const file of walk(REPO_ROOT, p => /Dockerfile(\.[^/]+)?$/.test(p))) {
-    const content = readFileSync(file, 'utf8')
-    const lines = content.split('\n')
+    const lines = readFileSync(file, 'utf8').split('\n')
     for (let i = 0, { length } = lines; i < length; i += 1) {
       if (!fromRe.test(lines[i])) {
         continue
       }
-      let pinDate
-      for (let j = Math.max(0, i - 8); j < i; j += 1) {
-        const match = lines[j].match(pinDateRe)
-        if (match !== null) {
-          pinDate = match[1]
-        }
-      }
-      if (pinDate === undefined) {
-        record({
-          surface: 'dockerfile-from',
-          file,
-          line: lines[i],
-          lineNumber: i + 1,
-          identifier: lines[i].trim(),
-          soak: undefined,
-          note: 'missing `# Pinned YYYY-MM-DD.` comment within 8 lines above FROM',
-        })
-        continue
-      }
-      const soak = checkSoak({ published: pinDate })
-      record({
-        surface: 'dockerfile-from',
-        file,
-        line: lines[i],
-        lineNumber: i + 1,
-        identifier: lines[i].trim(),
-        soak,
-        note: soak.soaked
-          ? `soaked (${soak.daysOld}d old)`
-          : `IN SOAK: ${soak.daysOld}d old, ${SOAK_DAYS - soak.daysOld}d remaining`,
-      })
+      recordPin(file, lines, i, lines[i].trim(), 'dockerfile-from')
     }
   }
 }
@@ -108,13 +70,12 @@ export function auditExternalToolsJson() {
     try {
       parsed = JSON.parse(readFileSync(file, 'utf8'))
     } catch (error) {
-      record({
+      findings.push({
         surface: 'external-tools',
-        file,
-        line: '',
+        file: path.relative(REPO_ROOT, file),
         lineNumber: 0,
         identifier: '(parse error)',
-        soak: undefined,
+        status: 'unannotated',
         note: `JSON parse error: ${errorMessage(error)}`,
       })
       continue
@@ -129,29 +90,23 @@ export function auditExternalToolsJson() {
         continue
       }
       if (typeof entry.published !== 'string') {
-        record({
+        findings.push({
           surface: 'external-tools',
-          file,
-          line: `${name}@${entry.version}`,
+          file: path.relative(REPO_ROOT, file),
           lineNumber: 0,
-          identifier: name,
-          soak: undefined,
-          note: 'no `published` field (backfill needed for full soak coverage)',
+          identifier: `${name}@${entry.version}`,
+          status: 'unannotated',
+          note: 'no `published` field (backfill for full soak coverage)',
         })
         continue
       }
-      const soak = checkSoak({ published: entry.published })
-      record({
-        surface: 'external-tools',
-        file,
-        line: `${name}@${entry.version}`,
-        lineNumber: 0,
-        identifier: name,
-        soak,
-        note: soak.soaked
-          ? `soaked (${soak.daysOld}d old)`
-          : `IN SOAK: ${soak.daysOld}d old, ${SOAK_DAYS - soak.daysOld}d remaining`,
-      })
+      pushFromSoak(
+        'external-tools',
+        path.relative(REPO_ROOT, file),
+        0,
+        `${name}@${entry.version}`,
+        entry.published,
+      )
     }
   }
 }
@@ -161,59 +116,13 @@ export function auditGitmodules() {
   if (!existsSync(file)) {
     return
   }
-  const content = readFileSync(file, 'utf8')
-  const lines = content.split('\n')
+  const lines = readFileSync(file, 'utf8').split('\n')
   for (let i = 0, { length } = lines; i < length; i += 1) {
-    const line = lines[i]
-    const submoduleMatch = line.match(/^\[submodule "([^"]+)"\]$/)
+    const submoduleMatch = lines[i].match(/^\[submodule "([^"]+)"\]$/)
     if (submoduleMatch === null) {
       continue
     }
-    const identifier = submoduleMatch[1]
-    let versionCommentLine
-    let annotationLine
-    for (let j = i - 1; j >= 0; j -= 1) {
-      const trimmed = lines[j].trim()
-      if (trimmed === '') {
-        break
-      }
-      if (!trimmed.startsWith('#')) {
-        break
-      }
-      if (parseAnnotation(lines[j]) !== null) {
-        annotationLine = j
-      } else if (versionCommentLine === undefined) {
-        versionCommentLine = j
-      }
-    }
-    const annotation =
-      annotationLine === undefined
-        ? undefined
-        : readAnnotationAt(lines, annotationLine)
-    if (annotation === undefined || annotation === null) {
-      record({
-        surface: 'gitmodules',
-        file,
-        line: versionCommentLine === undefined ? line : lines[versionCommentLine],
-        lineNumber: (versionCommentLine ?? i) + 1,
-        identifier,
-        soak: undefined,
-        note: 'no soak annotation (acceptable for submodules under human-review process; required when added within soak window)',
-      })
-      continue
-    }
-    const soak = checkSoak({ published: annotation.published })
-    record({
-      surface: 'gitmodules',
-      file,
-      line: lines[annotationLine],
-      lineNumber: annotationLine + 1,
-      identifier,
-      soak,
-      note: soak.soaked
-        ? `soaked (${soak.daysOld}d old); annotation can be removed`
-        : `IN SOAK: ${soak.daysOld}d old, ${SOAK_DAYS - soak.daysOld}d remaining`,
-    })
+    recordPin(file, lines, i, submoduleMatch[1], 'gitmodules')
   }
 }
 
@@ -222,98 +131,93 @@ export function auditPnpmWorkspace() {
   if (!existsSync(file)) {
     return
   }
-  const content = readFileSync(file, 'utf8')
-  const lines = content.split('\n')
+  const lines = readFileSync(file, 'utf8').split('\n')
   for (let i = 0, { length } = lines; i < length; i += 1) {
     const annotation = parseAnnotation(lines[i])
-    if (annotation === null) {
+    if (annotation === undefined) {
       continue
     }
-    let pkgLine
+    let pkgLine = '(annotation orphan)'
     for (let j = i + 1; j < length; j += 1) {
       if (lines[j].trim() !== '') {
         pkgLine = lines[j].trim()
         break
       }
     }
-    const soak = checkSoak({ published: annotation.published })
-    record({
-      surface: 'pnpm-workspace',
-      file,
-      line: lines[i],
-      lineNumber: i + 1,
-      identifier: pkgLine ?? '(annotation orphan)',
-      soak,
-      note: soak.soaked
-        ? `soaked (${soak.daysOld}d old); annotation entry can be removed`
-        : `IN SOAK: ${soak.daysOld}d old, ${SOAK_DAYS - soak.daysOld}d remaining`,
-    })
+    pushFromSoak(
+      'pnpm-workspace',
+      path.relative(REPO_ROOT, file),
+      i + 1,
+      pkgLine,
+      annotation.published,
+    )
   }
 }
 
 export function auditWorkflows() {
-  const dirs = [
-    path.join(REPO_ROOT, '.github', 'workflows'),
-    path.join(REPO_ROOT, '.github', 'actions'),
-  ]
   const usesPinRe =
     /^\s*-?\s*uses:\s*([^@\s]+)@([a-f0-9]{40})\s*#\s*[^(]+\((\d{4}-\d{2}-\d{2})\)/
-  for (let d = 0, { length: dLen } = dirs; d < dLen; d += 1) {
-    const dir = dirs[d]
-    for (const file of walk(dir, p => /\.ya?ml$/.test(p))) {
-      const content = readFileSync(file, 'utf8')
-      const lines = content.split('\n')
-      for (let i = 0, { length } = lines; i < length; i += 1) {
-        const match = lines[i].match(usesPinRe)
-        if (match === null) {
-          continue
-        }
-        const [, identifier, , publishedDate] = match
-        const soak = checkSoak({ published: publishedDate })
-        record({
-          surface: 'workflow-uses',
-          file,
-          line: lines[i],
-          lineNumber: i + 1,
-          identifier: `${identifier}@${match[2].slice(0, 8)}`,
-          soak,
-          note: soak.soaked
-            ? `soaked (${soak.daysOld}d old)`
-            : `IN SOAK: ${soak.daysOld}d old, ${SOAK_DAYS - soak.daysOld}d remaining`,
-        })
+  const root = path.join(REPO_ROOT, '.github')
+  for (const file of walk(root, p => /\.ya?ml$/.test(p))) {
+    const lines = readFileSync(file, 'utf8').split('\n')
+    for (let i = 0, { length } = lines; i < length; i += 1) {
+      const match = lines[i].match(usesPinRe)
+      if (match === null) {
+        continue
       }
+      pushFromSoak(
+        'workflow-uses',
+        path.relative(REPO_ROOT, file),
+        i + 1,
+        `${match[1]}@${match[2].slice(0, 8)}`,
+        match[3],
+      )
     }
   }
 }
 
 // =============================================================================
-// Helpers — ordered alphabetically.
+// Helpers — alphabetical.
 // =============================================================================
 
-export function readAnnotationAt(lines, lineIndex) {
-  if (lineIndex < 0 || lineIndex >= lines.length) {
-    return undefined
-  }
-  return parseAnnotation(lines[lineIndex])
+export function pushFromSoak(surface, file, lineNumber, identifier, published) {
+  const soak = checkSoak(published)
+  findings.push({
+    surface,
+    file,
+    lineNumber,
+    identifier,
+    status: soak.soaked ? 'soaked' : 'in-soak',
+    note: soak.soaked
+      ? `soaked (${soak.daysOld}d old)`
+      : `IN SOAK: ${soak.daysOld}d old, ${SOAK_DAYS - soak.daysOld}d remaining`,
+  })
 }
 
-export function record({
-  surface,
-  file,
-  line,
-  lineNumber,
-  identifier,
-  soak,
-  note,
-}) {
+// Walk up to 8 lines above `lineIndex` for the closest `# published:`
+// annotation. Used by every surface that places the annotation on the
+// line directly above the pin (.gitmodules, Dockerfiles).
+export function recordPin(file, lines, lineIndex, identifier, surface) {
+  for (let j = lineIndex - 1; j >= Math.max(0, lineIndex - 8); j -= 1) {
+    const annotation = parseAnnotation(lines[j])
+    if (annotation !== undefined) {
+      pushFromSoak(
+        surface,
+        path.relative(REPO_ROOT, file),
+        j + 1,
+        identifier,
+        annotation.published,
+      )
+      return
+    }
+  }
   findings.push({
     surface,
     file: path.relative(REPO_ROOT, file),
-    lineNumber,
-    line: line.trim(),
+    lineNumber: lineIndex + 1,
     identifier,
-    soak,
-    note,
+    status: 'unannotated',
+    note: 'no `# published: YYYY-MM-DD` annotation within 8 lines above',
   })
 }
 
@@ -326,8 +230,7 @@ export function* walk(dir, predicate) {
       continue
     }
     const full = path.join(dir, entry)
-    const st = statSync(full)
-    if (st.isDirectory()) {
+    if (statSync(full).isDirectory()) {
       yield* walk(full, predicate)
     } else if (predicate(full)) {
       yield full
@@ -344,25 +247,20 @@ auditGitmodules()
 auditPnpmWorkspace()
 auditWorkflows()
 
-const inSoakWarn = findings.filter(f => f.soak !== undefined && !f.soak.soaked)
-const unannotated = findings.filter(f => f.soak === undefined)
-const soakedExpired = findings.filter(
-  f =>
-    f.soak !== undefined &&
-    f.soak.soaked &&
-    /annotation (?:can|entry can) be removed/.test(f.note),
+const inSoak = findings.filter(f => f.status === 'in-soak')
+const unannotated = findings.filter(f => f.status === 'unannotated')
+const soakedAnnotated = findings.filter(
+  f => f.status === 'soaked' && f.surface !== 'workflow-uses',
 )
-const fail = []
+
+// Exit 0 today — informational mode. Flip to `inSoak.length > 0` once
+// pin-soak-guard hook is enforcing annotations at edit time.
+const exitCode = 0
 
 if (jsonOutput) {
   logger.log(
-    JSON.stringify(
-      { findings, inSoakWarn, unannotated, soakedExpired, fail },
-      undefined,
-      2,
-    ),
+    JSON.stringify({ findings, inSoak, unannotated, soakedAnnotated }, undefined, 2),
   )
-  process.exitCode = fail.length > 0 ? 1 : 0
 } else {
   logger.log('')
   logger.log(`=== Pin soak audit (floor: ${SOAK_DAYS}d) ===`)
@@ -376,10 +274,10 @@ if (jsonOutput) {
       logger.log('')
     }
   }
-  if (inSoakWarn.length > 0) {
-    logger.log(`! ${inSoakWarn.length} pin(s) in 7-day soak (annotated; allowed):`)
-    for (let i = 0, { length } = inSoakWarn; i < length; i += 1) {
-      const f = inSoakWarn[i]
+  if (inSoak.length > 0) {
+    logger.log(`! ${inSoak.length} pin(s) in 7-day soak (annotated; allowed):`)
+    for (let i = 0, { length } = inSoak; i < length; i += 1) {
+      const f = inSoak[i]
       logger.log(`  - [${f.surface}] ${f.identifier} (${f.file}:${f.lineNumber})`)
       logger.log(`    ${f.note}`)
     }
@@ -387,7 +285,7 @@ if (jsonOutput) {
   }
   if (unannotated.length > 0) {
     logger.log(
-      `i ${unannotated.length} pin(s) without soak annotation (backfill opportunity; not a failure):`,
+      `i ${unannotated.length} pin(s) without annotation (backfill opportunity):`,
     )
     if (verbose) {
       for (let i = 0, { length } = unannotated; i < length; i += 1) {
@@ -398,30 +296,22 @@ if (jsonOutput) {
     }
     logger.log('')
   }
-  if (soakedExpired.length > 0) {
+  if (soakedAnnotated.length > 0) {
     logger.log(
-      `i ${soakedExpired.length} pin(s) with annotation past the removable date (cleanup opportunity):`,
+      `i ${soakedAnnotated.length} pin(s) past soak with annotation (cleanup opportunity):`,
     )
     if (verbose) {
-      for (let i = 0, { length } = soakedExpired; i < length; i += 1) {
-        const f = soakedExpired[i]
+      for (let i = 0, { length } = soakedAnnotated; i < length; i += 1) {
+        const f = soakedAnnotated[i]
         logger.log(`  - [${f.surface}] ${f.identifier} (${f.file}:${f.lineNumber})`)
         logger.log(`    ${f.note}`)
       }
     }
     logger.log('')
   }
-  if (fail.length === 0) {
-    logger.success(
-      `Pin-soak audit clean (${findings.length} pins inspected, ${inSoakWarn.length} in soak, ${unannotated.length} unannotated).`,
-    )
-  } else {
-    logger.error(`${fail.length} hard-fail finding(s):`)
-    for (let i = 0, { length } = fail; i < length; i += 1) {
-      const f = fail[i]
-      logger.error(`  - [${f.surface}] ${f.identifier} (${f.file}:${f.lineNumber})`)
-      logger.error(`    ${f.note}`)
-    }
-  }
-  process.exitCode = fail.length > 0 ? 1 : 0
+  logger.success(
+    `Pin-soak audit clean (${findings.length} inspected, ${inSoak.length} in soak, ${unannotated.length} unannotated).`,
+  )
 }
+
+process.exitCode = exitCode

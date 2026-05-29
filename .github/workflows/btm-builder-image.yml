@@ -90,8 +90,8 @@ jobs:
           SHA8=${GH_SHA:0:8}
           NODE_VERSION=$(tr -d '[:space:]' < .node-version)
           PNPM_VERSION=$(jq -r .pnpm.version .build-context/registry-tools.json)
-          PNPM_ASSET=$(jq -r ".pnpm.platforms[\"linux-${ASSET_KEY}\"].asset" .build-context/registry-tools.json)
-          PNPM_INTEGRITY=$(jq -r ".pnpm.platforms[\"linux-${ASSET_KEY}\"].integrity" .build-context/registry-tools.json)
+          PNPM_ASSET=$(jq -r ".pnpm.checksums[\"linux-${ASSET_KEY}\"].asset" .build-context/registry-tools.json)
+          PNPM_INTEGRITY=$(jq -r ".pnpm.checksums[\"linux-${ASSET_KEY}\"].integrity" .build-context/registry-tools.json)
           PNPM_SHA256=$(echo "${PNPM_INTEGRITY#sha256-}" | base64 -d | od -An -tx1 | tr -d ' \n')
           {
             echo "tag=${DATE}-${SHA8}"

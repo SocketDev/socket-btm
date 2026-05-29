@@ -969,6 +969,12 @@ async function main() {
       '-DLIEF_LOGGING=OFF',
       '-DLIEF_LOGGING_DEBUG=OFF',
       '-DLIEF_ENABLE_JSON=OFF',
+      // Drop Android-format support — smol-Node only needs ELF (Linux),
+      // PE (Windows), MachO (macOS). DEX/ART are Android bytecode/AOT
+      // formats; the only consumer is the SEA-binject pipeline which
+      // doesn't touch Android. ~30% smaller libLIEF.a.
+      '-DLIEF_DEX=OFF',
+      '-DLIEF_ART=OFF',
     ]
 
     // Enable LTO (Link-Time Optimization) for Linux glibc builds.

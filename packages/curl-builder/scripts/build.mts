@@ -605,6 +605,10 @@ export async function buildCurl(mbedtlsDir, curlBuildDir) {
     '-DCURL_DISABLE_HTTP=OFF',
     // Disable installation targets.
     '-DCURL_DISABLE_INSTALL=ON',
+    // Enable LTO — ~5-15% smaller libcurl.a at the cost of ~30% slower
+    // link step. The static lib is embedded in node-smol so the link
+    // cost is paid once at node-smol build time.
+    '-DCURL_LTO=ON',
   ]
 
   // Handle cross-compilation for different platforms.

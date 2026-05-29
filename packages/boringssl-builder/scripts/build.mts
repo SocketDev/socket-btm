@@ -43,28 +43,7 @@ const MSVC_EXTRA_CMAKE_FLAGS = [
   '-DCMAKE_CXX_FLAGS=/wd4068',
 ]
 
-async function runSteps(placeholders: Record<string, string>): Promise<void> {
-  for (const step of BUILD_STEPS) {
-    const resolved = substituteStep(step, placeholders)
-    const isCmakeConfigure =
-      resolved.cmd === 'cmake' && resolved.args.includes('-S')
-    const extraFlags =
-      process.platform === 'win32' && isCmakeConfigure
-        ? MSVC_EXTRA_CMAKE_FLAGS
-        : []
-    logger.info(`→ ${resolved.label}`)
-    const result = await spawn(
-      resolved.cmd,
-      [...resolved.args, ...extraFlags],
-      { stdio: 'inherit' },
-    )
-    if (result.exitCode !== 0) {
-      throw new Error(`${resolved.label} failed (exit ${result.exitCode})`)
-    }
-  }
-}
-
-async function publishArtifacts(
+export async function publishArtifacts(
   placeholders: Record<string, string>,
   outLibDir: string,
   outIncludeDir: string,
@@ -103,6 +82,29 @@ async function publishArtifacts(
   await fs.mkdir(path.dirname(headerDest), { recursive: true })
   await fs.cp(headerSrc, headerDest, { recursive: true, force: true })
   logger.substep(`copied include/ tree → ${headerDest}`)
+}
+
+export async function runSteps(
+  placeholders: Record<string, string>,
+): Promise<void> {
+  for (const step of BUILD_STEPS) {
+    const resolved = substituteStep(step, placeholders)
+    const isCmakeConfigure =
+      resolved.cmd === 'cmake' && resolved.args.includes('-S')
+    const extraFlags =
+      process.platform === 'win32' && isCmakeConfigure
+        ? MSVC_EXTRA_CMAKE_FLAGS
+        : []
+    logger.info(`→ ${resolved.label}`)
+    const result = await spawn(
+      resolved.cmd,
+      [...resolved.args, ...extraFlags],
+      { stdio: 'inherit' },
+    )
+    if (result.exitCode !== 0) {
+      throw new Error(`${resolved.label} failed (exit ${result.exitCode})`)
+    }
+  }
 }
 
 async function main(): Promise<void> {

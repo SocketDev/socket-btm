@@ -13,24 +13,28 @@
 # and .mts on the host. Single source of truth in build-step-defs.mts;
 # vitest enforces docker/build.sh stays in sync.
 
-# Digest-pinned. `:latest` floats — PyPA retags every few weeks and the
-# entire toolchain shifts under us silently. Pin the multi-arch index
-# digest so the same base resolves byte-deterministically across both
-# x86_64 and aarch64.
+# Digest-pinned to manylinux2014_x86_64 v2 manifest. PyPA publishes
+# x86_64 + aarch64 as separate single-arch images (no multi-arch
+# index), so this Dockerfile is x86_64-only. The Linux ARM64 matrix
+# entry will use a sibling Dockerfile.glibc.arm64 once we add ARM64
+# support; for now the workflow's linux-arm64 matrix entry is
+# expected to fail until we add it.
 #
-# To refresh:
-#   curl -sI 'https://quay.io/v2/pypa/manylinux2014_x86_64/manifests/latest' \
-#     -H 'Accept: application/vnd.oci.image.index.v1+json' \
+# To refresh — use Accept: manifest.v2+json (the .v1 default returns a
+# legacy digest that quay.io can't actually serve):
+#   curl -sI \
+#     -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
+#     'https://quay.io/v2/pypa/manylinux2014_x86_64/manifests/latest' \
 #     | grep -i docker-content-digest
 #
 # Pinned 2026-05-28.
-FROM quay.io/pypa/manylinux2014_x86_64@sha256:e6edb7203ea8d786a91ba700b6213077b551ce37de72400963ce9888f9cd9024 AS build
+FROM quay.io/pypa/manylinux2014_x86_64@sha256:a5268fc528257092c3840fb069c71b522a8d73a4bd302ed0ce65f586890bdd14 AS build
 
 # Setup script — installs devtoolset-10 + cmake3 + perl + go + libatomic
 # via yum. Fleet-canonical; shared by every *-builder Dockerfile.glibc.
 # Drops Node/pnpm install steps (we don't need them in the container).
 COPY packages/build-infra/scripts/setup-linux-build.sh /tmp/setup-linux-build.sh
-RUN EXTRA_PACKAGES="golang" SKIP_NODE_PNPM=1 bash /tmp/setup-linux-build.sh && \
+RUN EXTRA_PACKAGES="golang" bash /tmp/setup-linux-build.sh && \
     rm /tmp/setup-linux-build.sh
 
 # Every subsequent RUN needs devtoolset-10 on PATH. Source it via

@@ -1,35 +1,26 @@
 #!/bin/bash
 # setup-linux-build.sh — fleet-canonical Linux Docker setup for builder
 # containers. Runs inside manylinux2014 (CentOS 7 base, glibc 2.17) and
-# leaves the container ready to invoke `pnpm run build` in a workspace
-# package.
-#
-# Inputs (env / files expected in image):
-#   /tmp/node-version            — single line, e.g. "26.2.0"
-#   /tmp/registry-tools.json     — socket-registry's tool checksums
-#                                  (provides pnpm.version + sha256)
+# leaves the container with a modern C/C++ toolchain.
 #
 # What this script does:
 #   1. Activate devtoolset-10 (gcc 10) via SCL — manylinux2014 ships
 #      devtoolset-10 from the mayeut COPR; manylinux2014's stock gcc
 #      is 4.8 (CentOS 7) which can't compile modern C++.
-#   2. Install package set via yum (cmake, ccache, ninja, perl, go,
+#   2. Install package set via yum (cmake, ccache, ninja, perl,
 #      libatomic — anything the build needs).
-#   3. Download Node from nodejs.org/dist, verify against the official
-#      SHASUMS256.txt from the same release.
-#   4. Download pnpm from github.com/pnpm/pnpm/releases, verify against
-#      registry-tools.json's pinned sha256.
-#   5. Persist devtoolset PATH so subsequent RUN steps in the Dockerfile
-#      inherit gcc 11.
+#   3. Persist devtoolset PATH so subsequent RUN steps in the Dockerfile
+#      inherit gcc 10.
+#
+# Builders define their build steps in scripts/build-step-defs.mts (host)
+# and run docker/build.sh (emitted bash, no Node/pnpm in container).
 #
 # Per fleet rule "1 path, 1 reference":
-#   - Node version source of truth: .node-version (mounted at /tmp/node-version).
-#   - pnpm version source of truth: registry-tools.json (socket-registry pin).
-#   - Tool list source of truth: PACKAGES variable below — single point to
-#     update when a new builder needs an extra package.
+#   - Tool list source of truth: PACKAGES variable below — single point
+#     to update when a new builder needs an extra package.
 #
-# Designed to fail loudly — every sha256 mismatch, every curl 4xx, every
-# missing tool is a hard exit. No silent fallbacks.
+# Designed to fail loudly — every curl 4xx, every missing tool is a
+# hard exit. No silent fallbacks.
 
 set -euo pipefail
 
@@ -92,62 +83,9 @@ if [ ! -e /usr/local/bin/cmake ] && command -v cmake3 >/dev/null; then
 fi
 echo "✓ yum packages installed: ${PACKAGES[*]}"
 
-# Node.js + pnpm. Builders that drive their build from pure bash (via
-# the emit-from-defs pattern in build-step-defs.mts → docker/build.sh)
-# call us with SKIP_NODE_PNPM=1 to skip this section entirely. Pure
-# C/C++ toolchain in the container; no JS runtime needed.
-#
-# For builders that still run .mts inside Docker (legacy path), we'd
-# need a glibc-2.17-compatible Node — nodejs.org/dist starts requiring
-# glibc 2.28 at Node 18+. unofficial-builds.nodejs.org ships glibc-217
-# variants for x64 only (not arm64), which is why we don't depend on
-# Node-in-container as the default path.
-ARCH=$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/')
-
-if [ "${SKIP_NODE_PNPM:-0}" != "1" ]; then
-  NODE_VERSION="20.19.5"  # 2026-04-30 — final Node 20 LTS patch
-  NODE_TARBALL="node-v${NODE_VERSION}-linux-${ARCH}.tar.xz"
-  NODE_URL="https://nodejs.org/dist/v${NODE_VERSION}/${NODE_TARBALL}"
-  NODE_SHASUMS_URL="https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt"
-
-  echo "→ Fetching Node ${NODE_VERSION} (${ARCH}) + SHASUMS"
-  curl -fsSL -o /tmp/SHASUMS256.txt "${NODE_SHASUMS_URL}"
-  NODE_SHA256=$(grep " ${NODE_TARBALL}$" /tmp/SHASUMS256.txt | awk '{print $1}')
-  if [ -z "${NODE_SHA256}" ]; then
-    echo "× Could not find ${NODE_TARBALL} sha256 in SHASUMS256.txt" >&2
-    exit 1
-  fi
-  echo "  sha256: ${NODE_SHA256}"
-
-  curl -fsSL -o "/tmp/${NODE_TARBALL}" "${NODE_URL}"
-  echo "${NODE_SHA256}  /tmp/${NODE_TARBALL}" | sha256sum -c -
-  tar -xJ -C /usr/local --strip-components=1 -f "/tmp/${NODE_TARBALL}"
-  rm "/tmp/${NODE_TARBALL}" /tmp/SHASUMS256.txt
-  echo "✓ Node $(node --version) installed"
-
-  # pnpm — version + sha256 come from socket-registry's external-tools.json
-  # (materialized into /tmp/registry-tools.json by socket-registry's setup
-  # action). Canonical shape: pnpm.platforms.<plat-arch>.{asset,integrity}.
-  # integrity is SRI-style "sha256-<base64>".
-  PNPM_VERSION=$(jq -r .pnpm.version /tmp/registry-tools.json)
-  PLATFORM="linux-${ARCH}"
-  PNPM_ASSET=$(jq -r ".pnpm.platforms[\"${PLATFORM}\"].asset" /tmp/registry-tools.json)
-  PNPM_INTEGRITY=$(jq -r ".pnpm.platforms[\"${PLATFORM}\"].integrity" /tmp/registry-tools.json)
-  PNPM_SHA256=$(echo "${PNPM_INTEGRITY#sha256-}" | base64 -d | od -An -tx1 | tr -d ' \n')
-
-  echo "→ Fetching pnpm ${PNPM_VERSION} (${ARCH})"
-  echo "  sha256: ${PNPM_SHA256}"
-  curl -fsSL -o /tmp/pnpm.tar.gz "https://github.com/pnpm/pnpm/releases/download/v${PNPM_VERSION}/${PNPM_ASSET}"
-  echo "${PNPM_SHA256}  /tmp/pnpm.tar.gz" | sha256sum -c -
-  tar -xzf /tmp/pnpm.tar.gz -C /usr/local/bin
-  rm /tmp/pnpm.tar.gz /tmp/registry-tools.json
-  echo "✓ pnpm $(pnpm --version) installed"
-else
-  # Pure-bash path: clean up registry-tools.json + node-version, which
-  # the Dockerfile may COPY in unconditionally for backward compat.
-  rm -f /tmp/registry-tools.json /tmp/node-version
-  echo "✓ SKIP_NODE_PNPM=1 — pure-bash builder, no Node/pnpm install"
-fi
+# C/C++ toolchain only. No Node, no pnpm. Builders run docker/build.sh
+# (pure bash) emitted from build-step-defs.mts via scripts/
+# emit-docker-build.mts. The container has zero JS runtime.
 
 # Persist devtoolset on PATH for subsequent Dockerfile RUN steps. The
 # manylinux2014 enable script exports PATH + LD_LIBRARY_PATH + MANPATH +

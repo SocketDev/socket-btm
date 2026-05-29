@@ -95,39 +95,86 @@ echo "→ image-size trim"
 
 yum clean all
 
-# Big-ticket dirs in one rm — these are independent and each is
-# 100s of MB. One scatter syscall is plenty.
+# Big-ticket dirs in one rm. Sizes from probing manylinux2014 base:
+#   /opt/_internal              622 MB (6 Python versions + pipx + pypy)
+#   /opt/python                  40 KB (just symlinks into _internal)
+#   /usr/share/cracklib            9 MB
+#   /usr/share/hwdata           7.7 MB
+#   /usr/share/i18n             9.5 MB (locale source — archive trimmed below)
+#   /usr/share/mime             5.4 MB
+#   /usr/share/fonts            5.2 MB
+#   /usr/share/X11              1.9 MB
+#   /usr/local/bin/git-lfs       13 MB
+# One scatter syscall, alphabetized for diffability.
 rm -rf \
   /opt/_internal \
   /opt/python \
   /root/.cache \
+  /usr/local/bin/git-lfs \
   /usr/local/share/doc \
   /usr/local/share/man \
+  /usr/share/X11 \
+  /usr/share/cracklib \
   /usr/share/doc \
+  /usr/share/fonts \
   /usr/share/gtk-doc \
   /usr/share/help \
+  /usr/share/hwdata \
+  /usr/share/i18n \
   /usr/share/info \
   /usr/share/man \
+  /usr/share/mime \
   /var/cache/dnf \
   /var/cache/yum \
   /var/lib/yum/yumdb \
   /var/log/yum.log
+
+# Manylinux's pip-tooling shims point into the already-removed /opt/_internal.
+# Drop the leftover binaries so PATH lookups don't find broken symlinks.
+rm -f \
+  /usr/local/bin/abi3audit \
+  /usr/local/bin/auditwheel \
+  /usr/local/bin/cpython* \
+  /usr/local/bin/pp31* \
+  /usr/local/bin/pypy*
+
+# Autotools — we use cmake; nothing in our build chain invokes autotools.
+rm -f \
+  /usr/local/bin/aclocal* \
+  /usr/local/bin/autoconf \
+  /usr/local/bin/autoheader \
+  /usr/local/bin/autom4te \
+  /usr/local/bin/automake* \
+  /usr/local/bin/autoreconf \
+  /usr/local/bin/autoscan \
+  /usr/local/bin/autoupdate \
+  /usr/local/bin/libtool* \
+  /usr/local/bin/m4
 
 # SCL siblings: manylinux variants sometimes ship devtoolset-{11,12}.
 # We pin to 10; drop everything else under /opt/rh.
 find /opt/rh -mindepth 1 -maxdepth 1 -type d ! -name devtoolset-10 \
   -exec rm -rf {} +
 
-# devtoolset-10 internals we don't compile against — gfortran (Fortran),
-# gccgo (gcc's Go front-end, distinct from `golang` RPM), gdb. Drop the
-# binaries + their gcc backends. Saves ~70 MB. The `${DTS10:?}` guard
-# is shellcheck SC2115 — never let a partial expansion delete /usr/share.
+# devtoolset-10 internals we don't compile against. Sizes from probing:
+#   /usr/libexec/gcc/x86_64-redhat-linux/10/f951     27 MB (Fortran)
+#   /usr/libexec/gcc/x86_64-redhat-linux/10/lto1     25 MB (LTO — unused)
+#   /usr/lib/gcc/x86_64-redhat-linux/10/32            8 MB (32-bit multilib)
+#   /usr/lib/gcc/.../{libgfortran*,libquadmath*,
+#     libcaf_single*,libisl*,finclude}              ~9 MB
+#   /usr/bin/{gfortran,gcov*,gprof,dwp}             ~5 MB
+# `${DTS10:?}` guard (shellcheck SC2115) — never let a partial
+# expansion delete /usr/share or similar.
 DTS10=/opt/rh/devtoolset-10/root
 rm -rf \
-  "${DTS10:?}"/usr/bin/{gfortran,gccgo,gdb,gdbserver,gdb-add-index} \
-  "${DTS10:?}"/usr/libexec/gcc/*/*/{f951,go1,cgo} \
+  "${DTS10:?}"/usr/bin/{dwp,gccgo,gcov,gcov-dump,gcov-tool,gdb,gdb-add-index,gdbserver,gfortran,gprof} \
+  "${DTS10:?}"/usr/libexec/gcc/*/*/{cgo,f951,go1,lto1} \
   "${DTS10:?}"/usr/lib*/libgfortran* \
   "${DTS10:?}"/usr/lib*/libgo* \
+  "${DTS10:?}"/usr/lib/gcc/*/10/32 \
+  "${DTS10:?}"/usr/lib/gcc/*/10/finclude \
+  "${DTS10:?}"/usr/lib/gcc/*/10/lib{caf_single,gfortran,quadmath}* \
+  "${DTS10:?}"/usr/lib/gcc/*/10/libisl* \
   "${DTS10:?}"/usr/share
 
 # Strip debug symbols from runtime libs we'll actually link against.
@@ -160,6 +207,14 @@ if command -v localedef >/dev/null; then
 fi
 if [ -d /usr/share/locale ]; then
   find /usr/share/locale -mindepth 1 -maxdepth 1 -type d ! -name 'en*' \
+    -exec rm -rf {} +
+fi
+
+# /usr/share/zoneinfo (~4.3 MB) — keep UTC only. Builds use UTC for
+# timestamps; nothing in our build chain reads a localized timezone.
+if [ -d /usr/share/zoneinfo ]; then
+  find /usr/share/zoneinfo -mindepth 1 -maxdepth 1 \
+    ! -name UTC ! -name 'zone*' ! -name iso3166.tab ! -name tzdata.zi \
     -exec rm -rf {} +
 fi
 

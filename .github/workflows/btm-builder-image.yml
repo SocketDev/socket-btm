@@ -170,6 +170,5 @@ jobs:
           if [ "${DRY_RUN}" = "true" ]; then
             echo "DRY RUN — no push performed."
           else
-            echo "Published: ${REGISTRY}/${IMAGE_NAME}-x64:${IMAGE_TAG}"
-            echo "Published: ${REGISTRY}/${IMAGE_NAME}-arm64:${IMAGE_TAG}"
+            echo "Published: ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} (multi-arch manifest)"
           fi

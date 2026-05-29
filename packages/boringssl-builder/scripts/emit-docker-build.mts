@@ -3,9 +3,10 @@
  * @file Generate docker/build.sh from build-step-defs.mts.
  *
  * Runs on the host (.mts), emits pure bash (.sh) that runs inside the
- * manylinux2014 container with NO Node. The container has only what
- * setup-linux-build.sh provisions: gcc-10 (devtoolset-10), cmake3,
- * perl, go, ninja-build, libatomic. No pnpm, no Node.
+ * btm-builder-glibc prebake (gcc-toolset-13, cmake, perl, go,
+ * ninja-build, libatomic — all in the shared prebake; see
+ * packages/build-infra/docker/btm-builder-glibc.Dockerfile). The
+ * container has Node + pnpm too but this build path doesn't use them.
  *
  * Output: docker/build.sh — tracked + committed so `docker build` sees
  * it. The vitest in test/build-defs-drift.test.mts re-runs this emit

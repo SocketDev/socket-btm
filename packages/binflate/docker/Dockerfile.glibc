@@ -27,7 +27,14 @@ RUN source /opt/rh/gcc-toolset-13/enable && .github/scripts/build-static-openssl
 
 WORKDIR /workspace
 
-COPY . .
+# Explicit per-path copies (NOT `COPY . .`) so cache invalidation tracks
+# only what this builder consumes. Unrelated repo edits don't re-trigger
+# the layers below.
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .gitmodules .node-version ./
+COPY .github/scripts/ensure-zstd.sh .github/scripts/
+COPY packages/bin-infra ./packages/bin-infra
+COPY packages/binflate ./packages/binflate
+COPY packages/build-infra ./packages/build-infra
 
 # Ensure vendored zstd source is available (submodule may not be in Docker context).
 RUN .github/scripts/ensure-zstd.sh

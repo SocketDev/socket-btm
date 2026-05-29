@@ -26,7 +26,15 @@ RUN source /opt/rh/gcc-toolset-13/enable && \
 
 WORKDIR /workspace
 
-COPY . .
+# Explicit per-path copies — tracks cache invalidation only for what
+# binject consumes.
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .gitmodules .node-version ./
+COPY .github/scripts/ensure-zstd.sh .github/scripts/
+COPY packages/bin-infra ./packages/bin-infra
+COPY packages/binject ./packages/binject
+COPY packages/build-infra ./packages/build-infra
+COPY packages/lief-builder ./packages/lief-builder
+COPY packages/node-smol-builder ./packages/node-smol-builder
 
 # Ensure vendored zstd source is available (submodule may not be in Docker context).
 RUN .github/scripts/ensure-zstd.sh

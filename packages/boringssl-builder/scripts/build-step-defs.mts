@@ -47,11 +47,14 @@ export interface PublishArtifact {
 }
 
 /**
- * Yum packages for the in-container build. Joined into a single
- * EXTRA_PACKAGES env var consumed by setup-linux-build.sh.
+ * Yum packages historically passed via EXTRA_PACKAGES to a per-builder
+ * setup script. The shared btm-builder-glibc prebake now installs golang,
+ * so this list is empty in practice — kept as a non-empty array for the
+ * emit drift-check test surface.
  */
 export const EXTRA_YUM_PACKAGES: readonly string[] = [
   // BoringSSL's symbol-prefix tooling under util/ is Go.
+  // (Already in the shared prebake; listed for documentation.)
   'golang',
 ]
 

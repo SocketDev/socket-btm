@@ -23,7 +23,22 @@ RUN source /opt/rh/gcc-toolset-13/enable && .github/scripts/build-static-openssl
 
 WORKDIR /workspace
 
-COPY . .
+# Explicit per-path copies — `node-smol-builder` consumes its own
+# package + every transitive workspace dep. Listing them keeps cache
+# invalidation precise (an unrelated repo edit doesn't blow the layer).
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .gitmodules .node-version ./
+COPY .github/scripts ./.github/scripts
+COPY packages/bin-infra ./packages/bin-infra
+COPY packages/binflate ./packages/binflate
+COPY packages/binject ./packages/binject
+COPY packages/binpress ./packages/binpress
+COPY packages/boringssl-builder ./packages/boringssl-builder
+COPY packages/build-infra ./packages/build-infra
+COPY packages/curl-builder ./packages/curl-builder
+COPY packages/glibc-shims-infra ./packages/glibc-shims-infra
+COPY packages/lief-builder ./packages/lief-builder
+COPY packages/node-smol-builder ./packages/node-smol-builder
+COPY packages/stubs-builder ./packages/stubs-builder
 
 # Install only what node-smol-builder needs (transitive workspace deps via `...`).
 # A full-workspace install would pull sibling builders' deps too —

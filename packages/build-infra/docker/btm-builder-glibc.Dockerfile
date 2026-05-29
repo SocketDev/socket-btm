@@ -1,47 +1,36 @@
 # btm-builder-glibc — fleet-shared base image for every glibc Linux builder.
 #
-# Every builder in this repo (boringssl, binsuite, curl, lief, node-smol,
-# stubs) starts from this prebake. Consolidates ~7 different per-builder
-# `dnf install` blocks into one image; downstream Dockerfiles become 5–10
-# lines of `FROM ghcr.io/... + COPY + RUN node scripts/build.mts`.
-#
-# Why almalinux:8: glibc 2.28 floor + gcc-toolset-13 (GCC 13 for Node 26
-# C++20 requirement) + Node 22+ binaries from nodejs.org/dist run natively.
-# Final shipped artifacts use packages/glibc-shims-infra (--wrap=getrandom,
-# quick_exit, etc.) so they run on glibc 2.17 hosts at runtime.
+# Why almalinux:8: glibc 2.28 floor + gcc-toolset-13 (GCC 13 — Node 26
+# needs >= 13.2) + Node binaries from nodejs.org/dist run natively.
+# Shipped artifacts use packages/glibc-shims-infra `--wrap=` ldflags so
+# they run on glibc 2.17 hosts; the shims are wired into each builder's
+# Makefile/cmake build, not into this image.
 #
 # Published as `ghcr.io/socketdev/btm-builder-glibc:YYYY-MM-DD-<sha8>`
-# by .github/workflows/btm-builder-image.yml (date-immutable, never `latest`).
-#
-# To refresh: bump the FROM digest below + run the publish workflow.
-# Soak-policy annotation (lib/soak-policy.mts) gates new pins.
+# by .github/workflows/btm-builder-image.yml. The publish workflow
+# refreshes the FROM digest below + bumps the soak annotation.
 
-# almalinux:8.10-20251111 (digest captured by build-builder-image.mts)
+# almalinux:8.10-20251111
 # published: 2025-11-11 | removable: 2025-11-18
 FROM almalinux:8 AS build
 
-# --- Argument plumbing for cache invalidation + build flags ---
 ARG CACHE_VERSION=unset
 ARG NODE_VERSION
-ARG PNPM_VERSION
 ARG PNPM_ASSET
 ARG PNPM_SHA256
+ARG PNPM_VERSION
 
-# --- Single RUN layer: install + trim ---
-# One RUN so deletes actually shrink the image. A later `RUN rm` would
-# leave delete-markers but the install layer keeps the bytes.
-RUN set -euo pipefail && \
-    echo "→ btm-builder-glibc cache: ${CACHE_VERSION}" && \
-    # ===== Install =====
-    # Disable weak deps (drops optional GUI/pinentry/etc., saves ~150 MB).
-    dnf -y --setopt=install_weak_deps=False update && \
-    dnf -y --setopt=install_weak_deps=False install \
-        epel-release \
-        dnf-plugins-core && \
+# Bash for `.` source + heredocs etc. Downstream RUN steps inherit /bin/sh
+# (Dockerfile SHELL is per-file); they MUST use POSIX `.` not bash `source`.
+SHELL ["/bin/bash", "-c"]
+
+# --- Layer 1: toolchain install + trim (rarely changes — only on package set bump) ---
+# BuildKit cache mount on /var/cache/dnf persists metadata across builds.
+RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked \
+    set -euo pipefail && \
+    echo "btm-builder-glibc cache: ${CACHE_VERSION}" && \
+    dnf -y install dnf-plugins-core epel-release && \
     dnf config-manager --set-enabled powertools && \
-    # Toolchain + build tools (union of every fleet builder's needs).
-    # gcc-toolset-13: GCC 13 (Node 26 needs >= 13.2). devtoolset is RHEL-7-only.
-    # Add gh CLI repo (binject needs it for GH artifact fetches).
     dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo && \
     dnf -y --setopt=install_weak_deps=False install \
         ca-certificates \
@@ -69,39 +58,18 @@ RUN set -euo pipefail && \
         pkgconfig \
         procps-ng \
         python3.11 \
-        python3.11-pip \
         wget \
         which \
         xz \
         xz-devel \
         zlib-devel \
         zlib-static && \
-    # ===== Install Node from nodejs.org/dist =====
-    # NodeSource CDN reorganized 2026-05-28 (pub_current.x 404s). Pin via
-    # build-arg passed from publish workflow (single source of truth in
-    # .node-version at repo root; workflow reads + injects).
-    ARCH=$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/') && \
-    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${ARCH}.tar.xz" \
-      | tar -xJ -C /usr/local --strip-components=1 && \
-    # ===== Install pnpm from GitHub releases =====
-    # Asset name + sha256 passed from publish workflow (single source of
-    # truth: socket-registry's tool-checksums; workflow reads + injects).
-    curl -fsSL -o /tmp/pnpm.tar.gz "https://github.com/pnpm/pnpm/releases/download/v${PNPM_VERSION}/${PNPM_ASSET}" && \
-    echo "${PNPM_SHA256}  /tmp/pnpm.tar.gz" | sha256sum -c - && \
-    tar -xzf /tmp/pnpm.tar.gz -C /usr/local/bin && \
-    rm /tmp/pnpm.tar.gz && \
-    # ===== Persist gcc-toolset-13 on PATH =====
-    # Subsequent RUN steps in downstream Dockerfiles inherit via BASH_ENV.
-    # Interactive shells pick it up from /etc/profile.d/.
+    # Persist gcc-toolset-13 on PATH for downstream RUN steps via BASH_ENV.
     echo '. /opt/rh/gcc-toolset-13/enable' > /etc/profile.d/gcc-toolset-13.sh && \
-    # ===== Trim =====
-    # Sizes from probing almalinux:8 base. Order: yum cleanup → big-ticket
-    # dirs → fine-grained pruning → strip. KEEP libstdc++.a, libgcc.a etc.
-    # (needed for -static-libstdc++/-static-libgcc in binject + co).
-    dnf clean all && \
+    # Big-ticket trim. Sizes from probing almalinux:8 base + installed set.
+    # /var/cache/dnf is on a BuildKit cache mount above — no image bytes; not listed here.
     rm -rf \
       /root/.cache \
-      /tmp/pnpm.tar.gz \
       /usr/local/share/doc \
       /usr/local/share/man \
       /usr/share/X11 \
@@ -115,18 +83,18 @@ RUN set -euo pipefail && \
       /usr/share/info \
       /usr/share/man \
       /usr/share/mime \
-      /var/cache/dnf \
-      /var/cache/yum \
       /var/lib/yum/yumdb \
-      /var/log/dnf.log /var/log/dnf.rpm.log /var/log/yum.log && \
-    # ===== gcc-toolset-13 trim =====
-    # Drop Fortran, Go-from-gcc, debug tools, gcov (we don't profile builds),
-    # 32-bit multilib (we only build x86_64 / arm64). KEEP lto1 (lief uses
-    # -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON), KEEP libisl (gcc loads it
-    # for graphite passes at -O3).
+      /var/log/dnf.log \
+      /var/log/dnf.rpm.log \
+      /var/log/yum.log && \
+    # gcc-toolset-13 internals: drop Fortran, Go-from-gcc, debug/profile
+    # tools, 32-bit multilib. KEEP lto1 (lief uses
+    # -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON), KEEP libisl (gcc loads
+    # it for graphite at -O3), KEEP libstdc++.a / libgcc.a (binsuite
+    # static linking).
     GCC_ROOT=/opt/rh/gcc-toolset-13/root && \
     rm -rf \
-      "${GCC_ROOT:?}"/usr/bin/{dwp,gccgo,gcov,gcov-dump,gcov-tool,gdb,gdb-add-index,gdbserver,gfortran,gprof} \
+      "${GCC_ROOT:?}"/usr/bin/{dwp,dwz,gccgo,gcov,gcov-dump,gcov-tool,gdb,gdb-add-index,gdbserver,gfortran,gprof,lto-dump} \
       "${GCC_ROOT:?}"/usr/libexec/gcc/*/*/{cgo,f951,go1} \
       "${GCC_ROOT:?}"/usr/lib*/libgfortran* \
       "${GCC_ROOT:?}"/usr/lib*/libgo* \
@@ -134,8 +102,7 @@ RUN set -euo pipefail && \
       "${GCC_ROOT:?}"/usr/lib/gcc/*/13/finclude \
       "${GCC_ROOT:?}"/usr/lib/gcc/*/13/lib{caf_single,gfortran,quadmath}* \
       "${GCC_ROOT:?}"/usr/share && \
-    # ===== Locale + zoneinfo =====
-    # Keep en_US.UTF-8 only. Builds use UTC; nothing reads localized TZ.
+    # Locale + zoneinfo: keep en_US.UTF-8 + UTC.
     if command -v localedef >/dev/null; then \
       localedef --list-archive 2>/dev/null \
         | grep -v "^en_US\(\.utf8\|\.UTF-8\)\?$" \
@@ -149,16 +116,24 @@ RUN set -euo pipefail && \
         ! -name UTC ! -name 'zone*' ! -name iso3166.tab ! -name tzdata.zi \
         -exec rm -rf {} +; \
     fi && \
-    # ===== Strip dynamic libs (KEEP --strip-unneeded — preserves linking) =====
+    # Strip dynamic libs. --strip-unneeded preserves linking surface.
     find /usr/lib /usr/lib64 "${GCC_ROOT}"/usr/lib* \
       \( -name "libstdc++.so*" -o -name "libgcc_s.so*" -o -name "libgomp.so*" \) \
-      -type f -exec strip --strip-unneeded {} + 2>/dev/null || true && \
-    # ===== Final size print =====
-    echo "✓ btm-builder-glibc final size: $(du -sh / 2>/dev/null | awk '{print $1}')"
+      -type f -exec strip --strip-unneeded {} + 2>/dev/null || true
 
-# Every downstream RUN inherits gcc-toolset-13 + PATH via BASH_ENV.
+# --- Layer 2: Node + pnpm (changes more often — separate layer for cache reuse) ---
+RUN set -euo pipefail && \
+    ARCH=$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/') && \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${ARCH}.tar.xz" \
+      | tar -xJ -C /usr/local --strip-components=1 && \
+    curl -fsSL -o /tmp/pnpm.tar.gz "https://github.com/pnpm/pnpm/releases/download/v${PNPM_VERSION}/${PNPM_ASSET}" && \
+    echo "${PNPM_SHA256}  /tmp/pnpm.tar.gz" | sha256sum -c - && \
+    tar -xzf /tmp/pnpm.tar.gz -C /usr/local/bin && \
+    rm /tmp/pnpm.tar.gz && \
+    # Both Node and pnpm 11.x ship as un-stripped ELFs with embedded debug
+    # info. Strip them — saves ~80 MB combined. --strip-debug preserves
+    # ALL functional symbols (only debug sections drop), so backtraces
+    # via /proc still work.
+    strip --strip-debug /usr/local/bin/node /usr/local/bin/pnpm 2>/dev/null || true
+
 ENV BASH_ENV=/etc/profile.d/gcc-toolset-13.sh
-SHELL ["/bin/bash", "-c"]
-
-# Downstream builders set WORKDIR + COPY + RUN. This image only provides
-# the toolchain.

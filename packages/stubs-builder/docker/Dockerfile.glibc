@@ -13,13 +13,13 @@ RUN source /opt/rh/gcc-toolset-13/enable && .github/scripts/build-static-openssl
 WORKDIR /workspace
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .gitmodules .node-version ./
-COPY packages/build-infra ./packages/build-infra
 COPY packages/bin-infra ./packages/bin-infra
+COPY packages/build-infra ./packages/build-infra
 COPY packages/curl-builder ./packages/curl-builder
 COPY packages/lief-builder/make ./packages/lief-builder/make
 COPY packages/lief-builder/upstream ./packages/lief-builder/upstream
-COPY packages/stubs-builder ./packages/stubs-builder
 COPY packages/node-smol-builder ./packages/node-smol-builder
+COPY packages/stubs-builder ./packages/stubs-builder
 COPY .github/scripts/ensure-zstd.sh .github/scripts/
 RUN .github/scripts/ensure-zstd.sh
 

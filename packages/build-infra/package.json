@@ -37,6 +37,7 @@
     "./lib/script-runner": "./lib/script-runner.mts",
     "./lib/setup-build-toolchain": "./lib/setup-build-toolchain.mts",
     "./lib/sign": "./lib/sign.mts",
+    "./lib/soak-policy": "./lib/soak-policy.mts",
     "./lib/submodule-init": "./lib/submodule-init.mts",
     "./lib/tarball-utils": "./lib/tarball-utils.mts",
     "./lib/test/helpers": "./lib/test/helpers.mts",

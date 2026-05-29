@@ -18,6 +18,7 @@
     "check:mirror-docs": "node scripts/check-mirror-docs.mts",
     "check:paths": "node scripts/check-paths.mts",
     "check:patch-format": "node scripts/check-patch-format.mts",
+    "check:pin-soak": "node packages/build-infra/scripts/check-pin-soak.mts",
     "check:regression-patterns": "node scripts/check-regression-patterns.mts",
     "check:version-consistency": "node scripts/check-version-consistency.mts",
     "clean": "pnpm -r run clean",

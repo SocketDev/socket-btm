@@ -27,6 +27,7 @@
 #
 # Pinned 2026-05-28.
 # manylinux2014_x86_64 tag 2026.05.27-1 (CentOS 7 + devtoolset-10)
+# published: 2026-05-27 | removable: 2026-06-03
 FROM quay.io/pypa/manylinux2014_x86_64@sha256:a5268fc528257092c3840fb069c71b522a8d73a4bd302ed0ce65f586890bdd14 AS build
 
 # Setup script — installs devtoolset-10 + cmake3 + perl + go + libatomic

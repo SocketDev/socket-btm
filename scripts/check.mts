@@ -145,6 +145,29 @@ export async function runPathHygieneCheck(): Promise<number> {
   return 0
 }
 
+export async function runPinSoakCheck(): Promise<number> {
+  logger.step('Running pin-soak check (7-day floor on external pins)')
+
+  const result = await spawn(
+    'node',
+    ['packages/build-infra/scripts/check-pin-soak.mts'],
+    {
+      shell: WIN32,
+      stdio: 'inherit',
+    },
+  )
+
+  if (result.code !== 0) {
+    logger.error(
+      'Pin-soak check failed — see findings above; bump pins past their 7-day window or add a soak annotation',
+    )
+    return result.code ?? 1
+  }
+
+  logger.success('Pin-soak check passed')
+  return 0
+}
+
 export async function runPrimordialsCoverageCheck(): Promise<number> {
   logger.step('Running primordials coverage check')
 
@@ -373,6 +396,18 @@ async function main(): Promise<void> {
     const primordialsCoverageCode = await runPrimordialsCoverageCheck()
     if (primordialsCoverageCode !== 0) {
       process.exitCode = primordialsCoverageCode
+      return
+    }
+
+    // Run pin-soak check. Mirrors pnpm-workspace.yaml `minimumReleaseAge`
+    // (7d) across every external pin surface — .gitmodules, workflow
+    // `uses:` SHA pins, Docker `FROM @sha256:` digests, external-tools.
+    // json `published` fields, pnpm-workspace.yaml soak excludes. A pin
+    // newer than 7d fails CI unless its source-of-truth annotation
+    // declares the publish date.
+    const pinSoakCode = await runPinSoakCheck()
+    if (pinSoakCode !== 0) {
+      process.exitCode = pinSoakCode
       return
     }
 

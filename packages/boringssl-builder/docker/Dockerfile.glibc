@@ -20,14 +20,13 @@
 # support; for now the workflow's linux-arm64 matrix entry is
 # expected to fail until we add it.
 #
-# To refresh — use Accept: manifest.v2+json (the .v1 default returns a
-# legacy digest that quay.io can't actually serve):
-#   curl -sI \
-#     -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
-#     'https://quay.io/v2/pypa/manylinux2014_x86_64/manifests/latest' \
-#     | grep -i docker-content-digest
+# To refresh — look up tag + matching digest via quay's tags API:
+#   curl -s 'https://quay.io/api/v1/repository/pypa/manylinux2014_x86_64/tag/?limit=5&onlyActiveTags=true' \
+#     | jq '.tags[] | {name, manifest_digest}'
+# Then update both the version comment AND the digest below.
 #
 # Pinned 2026-05-28.
+# manylinux2014_x86_64 tag 2026.05.27-1 (CentOS 7 + devtoolset-10)
 FROM quay.io/pypa/manylinux2014_x86_64@sha256:a5268fc528257092c3840fb069c71b522a8d73a4bd302ed0ce65f586890bdd14 AS build
 
 # Setup script — installs devtoolset-10 + cmake3 + perl + go + libatomic

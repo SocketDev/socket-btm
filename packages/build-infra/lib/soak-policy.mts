@@ -16,7 +16,7 @@
  */
 
 const ANNOTATION_RE =
-  /(?:#|\/\/)\s*published:\s*(\d{4}-\d{2}-\d{2})\s*\|\s*removable:\s*(\d{4}-\d{2}-\d{2})/
+  /(?:#|\/\/)\s*published:\s*(\d{4}-\d{2}-\d{2})\s*\|\s*removable:\s*\d{4}-\d{2}-\d{2}/
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -27,6 +27,8 @@ const MS_PER_DAY = 86_400_000
  * (10080 minutes = 7 days). Never reduce without `Allow trust-downgrade bypass`.
  */
 export const SOAK_DAYS = 7
+
+const SOAK_MS = SOAK_DAYS * MS_PER_DAY
 
 /**
  * Check whether a pin's `published` date satisfies the soak floor.
@@ -39,7 +41,7 @@ export function checkSoak(published, now = new Date()) {
   if (publishedDate === undefined) {
     return { soaked: false, daysOld: 0, removable: undefined }
   }
-  const removableAtMs = publishedDate.getTime() + SOAK_DAYS * MS_PER_DAY
+  const removableAtMs = publishedDate.getTime() + SOAK_MS
   return {
     soaked: now.getTime() >= removableAtMs,
     daysOld: Math.floor((now.getTime() - publishedDate.getTime()) / MS_PER_DAY),
@@ -51,7 +53,7 @@ export function computeRemovableIso(published) {
   const date = parseIsoDate(published)
   return date === undefined
     ? undefined
-    : formatIsoDate(new Date(date.getTime() + SOAK_DAYS * MS_PER_DAY))
+    : formatIsoDate(new Date(date.getTime() + SOAK_MS))
 }
 
 /**
@@ -71,7 +73,8 @@ export function formatIsoDate(date) {
 
 /**
  * Parse a soak annotation comment. Returns undefined when no match. The
- * `removable` date is recomputed from `published` so a corrupted annotation
+ * `removable` date is recomputed from `published` (the regex's literal
+ * `removable:` is matched only as a shape guard) so a corrupted annotation
  * can't lengthen the soak window.
  */
 export function parseAnnotation(line) {

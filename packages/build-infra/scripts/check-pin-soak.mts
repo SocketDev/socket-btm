@@ -15,14 +15,17 @@
  * this script just re-confirms the math on every pin.
  *
  * A finding's `status` is one of:
- *   - soaked          — past the 7d floor; if annotated, the annotation
- *                       is cleanup-eligible.
+ *   - soaked          — past the 7d floor.
  *   - in-soak         — inside the 7d window with an annotation (allowed).
- *   - unannotated     — no annotation; informational (treat as soaked).
+ *   - unannotated     — no annotation; informational.
  *
- * Exit 0 today (informational mode). Once the pin-soak-guard hook
- * backfills annotations on edit, flip `--strict` to fail on `in-soak`
- * without annotation evidence.
+ * Workflow `uses:` pins encode the publish date IN the pin line itself
+ * (the SHA-pin trailing-date comment), so they never have a separate
+ * "annotation to clean up" — they're filtered out of the cleanup bucket
+ * automatically by the `hasSeparateAnnotation` flag on the finding.
+ *
+ * Exit 0 today (informational mode). Once the pin-soak-guard hook is
+ * enforcing annotations at edit time, flip to fail on in-soak findings.
  */
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
@@ -57,7 +60,7 @@ export function auditDockerfiles() {
       if (!fromRe.test(lines[i])) {
         continue
       }
-      recordPin(file, lines, i, lines[i].trim(), 'dockerfile-from')
+      recordPinWithSeparateAnnotation(file, lines, i, lines[i].trim(), 'dockerfile-from')
     }
   }
 }
@@ -70,14 +73,13 @@ export function auditExternalToolsJson() {
     try {
       parsed = JSON.parse(readFileSync(file, 'utf8'))
     } catch (error) {
-      findings.push({
-        surface: 'external-tools',
-        file: path.relative(REPO_ROOT, file),
-        lineNumber: 0,
-        identifier: '(parse error)',
-        status: 'unannotated',
-        note: `JSON parse error: ${errorMessage(error)}`,
-      })
+      pushUnannotated(
+        'external-tools',
+        file,
+        0,
+        '(parse error)',
+        `JSON parse error: ${errorMessage(error)}`,
+      )
       continue
     }
     const tools = parsed.tools ?? {}
@@ -89,24 +91,18 @@ export function auditExternalToolsJson() {
       ) {
         continue
       }
+      const identifier = `${name}@${entry.version}`
       if (typeof entry.published !== 'string') {
-        findings.push({
-          surface: 'external-tools',
-          file: path.relative(REPO_ROOT, file),
-          lineNumber: 0,
-          identifier: `${name}@${entry.version}`,
-          status: 'unannotated',
-          note: 'no `published` field (backfill for full soak coverage)',
-        })
+        pushUnannotated(
+          'external-tools',
+          file,
+          0,
+          identifier,
+          'no `published` field (backfill for full soak coverage)',
+        )
         continue
       }
-      pushFromSoak(
-        'external-tools',
-        path.relative(REPO_ROOT, file),
-        0,
-        `${name}@${entry.version}`,
-        entry.published,
-      )
+      pushFromSoak('external-tools', file, 0, identifier, entry.published, false)
     }
   }
 }
@@ -122,7 +118,7 @@ export function auditGitmodules() {
     if (submoduleMatch === null) {
       continue
     }
-    recordPin(file, lines, i, submoduleMatch[1], 'gitmodules')
+    recordPinWithSeparateAnnotation(file, lines, i, submoduleMatch[1], 'gitmodules')
   }
 }
 
@@ -144,13 +140,7 @@ export function auditPnpmWorkspace() {
         break
       }
     }
-    pushFromSoak(
-      'pnpm-workspace',
-      path.relative(REPO_ROOT, file),
-      i + 1,
-      pkgLine,
-      annotation.published,
-    )
+    pushFromSoak('pnpm-workspace', file, i + 1, pkgLine, annotation.published, true)
   }
 }
 
@@ -167,58 +157,93 @@ export function auditWorkflows() {
       }
       pushFromSoak(
         'workflow-uses',
-        path.relative(REPO_ROOT, file),
+        file,
         i + 1,
         `${match[1]}@${match[2].slice(0, 8)}`,
         match[3],
+        false,
       )
     }
   }
 }
 
 // =============================================================================
-// Helpers — alphabetical.
+// Helpers — alphabetical. All take absolute `file`; relativize on push.
 // =============================================================================
 
-export function pushFromSoak(surface, file, lineNumber, identifier, published) {
+export function printBucket(label, items, alwaysList) {
+  if (items.length === 0) {
+    return
+  }
+  logger.log(`${label} (${items.length}):`)
+  if (alwaysList || verbose) {
+    for (let i = 0, { length } = items; i < length; i += 1) {
+      const f = items[i]
+      logger.log(`  - [${f.surface}] ${f.identifier} (${f.file}:${f.lineNumber})`)
+      logger.log(`    ${f.note}`)
+    }
+  }
+  logger.log('')
+}
+
+export function pushFromSoak(
+  surface,
+  file,
+  lineNumber,
+  identifier,
+  published,
+  hasSeparateAnnotation,
+) {
   const soak = checkSoak(published)
   findings.push({
     surface,
-    file,
+    file: path.relative(REPO_ROOT, file),
     lineNumber,
     identifier,
     status: soak.soaked ? 'soaked' : 'in-soak',
+    hasSeparateAnnotation,
     note: soak.soaked
       ? `soaked (${soak.daysOld}d old)`
       : `IN SOAK: ${soak.daysOld}d old, ${SOAK_DAYS - soak.daysOld}d remaining`,
   })
 }
 
-// Walk up to 8 lines above `lineIndex` for the closest `# published:`
-// annotation. Used by every surface that places the annotation on the
-// line directly above the pin (.gitmodules, Dockerfiles).
-export function recordPin(file, lines, lineIndex, identifier, surface) {
-  for (let j = lineIndex - 1; j >= Math.max(0, lineIndex - 8); j -= 1) {
-    const annotation = parseAnnotation(lines[j])
-    if (annotation !== undefined) {
-      pushFromSoak(
-        surface,
-        path.relative(REPO_ROOT, file),
-        j + 1,
-        identifier,
-        annotation.published,
-      )
-      return
-    }
-  }
+export function pushUnannotated(surface, file, lineNumber, identifier, note) {
   findings.push({
     surface,
     file: path.relative(REPO_ROOT, file),
-    lineNumber: lineIndex + 1,
+    lineNumber,
     identifier,
     status: 'unannotated',
-    note: 'no `# published: YYYY-MM-DD` annotation within 8 lines above',
+    hasSeparateAnnotation: false,
+    note,
   })
+}
+
+// Walk up to 8 lines above `lineIndex` for the closest `# published:`
+// annotation. Used by surfaces where the annotation is a separate comment
+// line above the pin (.gitmodules, Dockerfiles).
+export function recordPinWithSeparateAnnotation(
+  file,
+  lines,
+  lineIndex,
+  identifier,
+  surface,
+) {
+  for (let j = lineIndex - 1; j >= Math.max(0, lineIndex - 8); j -= 1) {
+    const annotation = parseAnnotation(lines[j])
+    if (annotation !== undefined) {
+      pushFromSoak(surface, file, j + 1, identifier, annotation.published, true)
+      return
+    }
+  }
+  pushUnannotated(
+    surface,
+    file,
+    lineIndex + 1,
+    identifier,
+    'no `# published: YYYY-MM-DD` annotation within 8 lines above',
+  )
 }
 
 export function* walk(dir, predicate) {
@@ -249,8 +274,10 @@ auditWorkflows()
 
 const inSoak = findings.filter(f => f.status === 'in-soak')
 const unannotated = findings.filter(f => f.status === 'unannotated')
+// Only surfaces with a SEPARATE annotation line have something to clean
+// up. Workflow `uses:` pins encode the date in the pin line itself.
 const soakedAnnotated = findings.filter(
-  f => f.status === 'soaked' && f.surface !== 'workflow-uses',
+  f => f.status === 'soaked' && f.hasSeparateAnnotation,
 )
 
 // Exit 0 today — informational mode. Flip to `inSoak.length > 0` once
@@ -274,41 +301,13 @@ if (jsonOutput) {
       logger.log('')
     }
   }
-  if (inSoak.length > 0) {
-    logger.log(`! ${inSoak.length} pin(s) in 7-day soak (annotated; allowed):`)
-    for (let i = 0, { length } = inSoak; i < length; i += 1) {
-      const f = inSoak[i]
-      logger.log(`  - [${f.surface}] ${f.identifier} (${f.file}:${f.lineNumber})`)
-      logger.log(`    ${f.note}`)
-    }
-    logger.log('')
-  }
-  if (unannotated.length > 0) {
-    logger.log(
-      `i ${unannotated.length} pin(s) without annotation (backfill opportunity):`,
-    )
-    if (verbose) {
-      for (let i = 0, { length } = unannotated; i < length; i += 1) {
-        const f = unannotated[i]
-        logger.log(`  - [${f.surface}] ${f.identifier} (${f.file}:${f.lineNumber})`)
-        logger.log(`    ${f.note}`)
-      }
-    }
-    logger.log('')
-  }
-  if (soakedAnnotated.length > 0) {
-    logger.log(
-      `i ${soakedAnnotated.length} pin(s) past soak with annotation (cleanup opportunity):`,
-    )
-    if (verbose) {
-      for (let i = 0, { length } = soakedAnnotated; i < length; i += 1) {
-        const f = soakedAnnotated[i]
-        logger.log(`  - [${f.surface}] ${f.identifier} (${f.file}:${f.lineNumber})`)
-        logger.log(`    ${f.note}`)
-      }
-    }
-    logger.log('')
-  }
+  printBucket('! pin(s) in 7-day soak (annotated; allowed)', inSoak, true)
+  printBucket('i pin(s) without annotation (backfill opportunity)', unannotated, false)
+  printBucket(
+    'i pin(s) past soak with annotation (cleanup opportunity)',
+    soakedAnnotated,
+    false,
+  )
   logger.success(
     `Pin-soak audit clean (${findings.length} inspected, ${inSoak.length} in soak, ${unannotated.length} unannotated).`,
   )

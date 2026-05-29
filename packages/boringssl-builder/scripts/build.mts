@@ -43,30 +43,24 @@ export async function publishArtifacts(
   mkdirSync(outIncludeDir, { recursive: true })
 
   // PUBLISH_ARTIFACTS lists `$CMAKE_BUILD_DIR/libcrypto.a` (Unix names).
-  // Two MSVC quirks to absorb here so PUBLISH_ARTIFACTS stays portable:
-  //   1. Names: `libcrypto.a` → `crypto.lib` (drop `lib` prefix, swap suffix).
-  //   2. Path: Visual Studio's multi-config generator places the lib at
-  //      `$CMAKE_BUILD_DIR/Release/crypto.lib`, not `$CMAKE_BUILD_DIR/`
-  //      directly. Inject `/Release/` on Windows. Ninja/Make (Linux/macOS)
-  //      use single-config and emit to the cmake dir root.
+  // MSVC quirks absorbed here so PUBLISH_ARTIFACTS stays portable:
+  //   - Names: `libcrypto.a` → `crypto.lib` (drop `lib`, swap suffix).
+  //   - Path:  Visual Studio's multi-config generator emits to
+  //            `$CMAKE_BUILD_DIR/Release/crypto.lib`. Ninja/Make use
+  //            single-config and emit to the cmake dir root.
   const isWin = process.platform === 'win32'
-  const platLibSuffix = isWin ? '.lib' : '.a'
-  const platLibPrefix = isWin ? '' : 'lib'
+  const libPrefix = isWin ? '' : 'lib'
+  const libSuffix = isWin ? '.lib' : '.a'
+  const winReleaseDir = isWin ? `Release${path.sep}` : ''
   for (const art of PUBLISH_ARTIFACTS) {
     const resolved = substituteArtifact(art, placeholders)
-    let from = resolved.from.replace(
-      /lib(crypto|ssl)\.a$/,
-      `${platLibPrefix}$1${platLibSuffix}`,
+    const from = resolved.from.replace(
+      /([\\/])lib(crypto|ssl)\.a$/,
+      `$1${winReleaseDir}${libPrefix}$2${libSuffix}`,
     )
-    if (isWin) {
-      from = from.replace(
-        /(crypto|ssl)\.lib$/,
-        (_match, name) => `Release${path.sep}${name}.lib`,
-      )
-    }
     const to = resolved.to.replace(
       new RegExp(`lib${PREFIX}_(crypto|ssl)\\.a$`),
-      `${platLibPrefix}${PREFIX}_$1${platLibSuffix}`,
+      `${libPrefix}${PREFIX}_$1${libSuffix}`,
     )
     if (!existsSync(from)) {
       throw new Error(`Expected build artifact not found: ${from}`)
@@ -75,13 +69,10 @@ export async function publishArtifacts(
     logger.substep(`copied ${path.basename(from)} → ${path.basename(to)}`)
   }
 
-  // Header tree copy. PUBLISH_HEADERS.fromSubdir is relative to upstream.
+  // Header tree copy. PUBLISH_HEADERS.fromSubdir is relative to upstream;
+  // `fs.cp` creates intermediate dirs so no explicit mkdir.
   const headerSrc = path.join(UPSTREAM_DIR, PUBLISH_HEADERS.fromSubdir)
-  const headerDest =
-    PUBLISH_HEADERS.toSubdir === '.'
-      ? outIncludeDir
-      : path.join(outIncludeDir, PUBLISH_HEADERS.toSubdir)
-  await fs.mkdir(path.dirname(headerDest), { recursive: true })
+  const headerDest = path.join(outIncludeDir, PUBLISH_HEADERS.toSubdir)
   await fs.cp(headerSrc, headerDest, { recursive: true, force: true })
   logger.substep(`copied include/ tree → ${headerDest}`)
 }

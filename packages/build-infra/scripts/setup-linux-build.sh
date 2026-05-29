@@ -26,8 +26,7 @@ set -euo pipefail
 
 DEVTOOLSET_ENABLE=/opt/rh/devtoolset-10/enable
 if [ ! -f "${DEVTOOLSET_ENABLE}" ]; then
-  echo "× setup-linux-build: devtoolset-10 not found at ${DEVTOOLSET_ENABLE}" >&2
-  echo "  Expected base image: quay.io/pypa/manylinux2014_x86_64 (or _aarch64)." >&2
+  echo "× setup-linux-build: devtoolset-10 not found at ${DEVTOOLSET_ENABLE} — expected manylinux2014 base" >&2
   exit 1
 fi
 
@@ -43,9 +42,7 @@ export PKG_CONFIG_PATH="${PKG_CONFIG_PATH:-}"
 
 # shellcheck source=/dev/null
 . "${DEVTOOLSET_ENABLE}"
-echo "✓ devtoolset-10 activated"
-echo "  gcc:  $(gcc --version | head -1)"
-echo "  g++:  $(g++ --version | head -1)"
+echo "✓ devtoolset-10 activated ($(gcc --version | head -1))"
 
 # yum package set. Add to this list rather than per-Dockerfile yum installs —
 # keeps the package surface uniform across builders. ninja-build is in EPEL.
@@ -78,22 +75,14 @@ yum install -y --setopt=install_weak_deps=False epel-release
 yum install -y --setopt=install_weak_deps=False "${PACKAGES[@]}"
 
 # cmake3 is the package name on CentOS 7 EPEL; alias cmake → cmake3.
-if [ ! -e /usr/local/bin/cmake ] && command -v cmake3 >/dev/null; then
+if command -v cmake3 >/dev/null; then
   ln -sf "$(command -v cmake3)" /usr/local/bin/cmake
 fi
-echo "✓ yum packages installed: ${PACKAGES[*]}"
 
-# C/C++ toolchain only. No Node, no pnpm. Builders run docker/build.sh
-# (pure bash) emitted from build-step-defs.mts via scripts/
-# emit-docker-build.mts. The container has zero JS runtime.
-
-# Persist devtoolset on PATH for subsequent Dockerfile RUN steps. The
-# manylinux2014 enable script exports PATH + LD_LIBRARY_PATH + MANPATH +
-# INFOPATH + PCP_DIR + PKG_CONFIG_PATH; pin all of them in /etc/profile.d/
-# so an interactive shell ALSO picks them up.
-cat > /etc/profile.d/devtoolset-10.sh <<'EOF'
-. /opt/rh/devtoolset-10/enable
-EOF
+# Persist devtoolset on PATH for subsequent Dockerfile RUN steps; the
+# enable script exports PATH + LD_LIBRARY_PATH + MANPATH + INFOPATH +
+# PCP_DIR + PKG_CONFIG_PATH.
+echo '. /opt/rh/devtoolset-10/enable' > /etc/profile.d/devtoolset-10.sh
 
 # Image-size trim. manylinux2014 ships ~1.4 GB of stuff we don't use:
 # 6 Python versions, pip caches, wheel build infra, locale data,
@@ -126,12 +115,8 @@ rm -rf \
 
 # SCL siblings: manylinux variants sometimes ship devtoolset-{11,12}.
 # We pin to 10; drop everything else under /opt/rh.
-for d in /opt/rh/*/; do
-  case "$(basename "$d")" in
-    devtoolset-10) ;;
-    *) rm -rf "$d" ;;
-  esac
-done
+find /opt/rh -mindepth 1 -maxdepth 1 -type d ! -name devtoolset-10 \
+  -exec rm -rf {} +
 
 # devtoolset-10 internals we don't compile against — gfortran (Fortran),
 # gccgo (gcc's Go front-end, distinct from `golang` RPM), gdb. Drop the
@@ -165,20 +150,17 @@ if [ "${#PY_DIRS[@]}" -gt 0 ]; then
     -type d -prune -exec rm -rf {} + || true
 fi
 
-# Locale data: keep en_US.UTF-8 only. Two surfaces — the binary
-# locale-archive (locale data) AND per-language .mo files
-# (gettext message catalogs).
+# Locale data: keep en_US.UTF-8 only. `localedef --delete-from-archive`
+# trims the binary locale-archive in-place; the per-language .mo files
+# (gettext message catalogs) under /usr/share/locale are separate.
 if command -v localedef >/dev/null; then
   localedef --list-archive 2>/dev/null \
     | grep -v "^en_US\(\.utf8\|\.UTF-8\)\?$" \
     | xargs -r localedef --delete-from-archive 2>/dev/null || true
-  if [ -f /usr/lib/locale/locale-archive ]; then
-    mv /usr/lib/locale/locale-archive /usr/lib/locale/locale-archive.tmpl
-    build-locale-archive 2>/dev/null \
-      || mv /usr/lib/locale/locale-archive.tmpl /usr/lib/locale/locale-archive
-  fi
 fi
-find /usr/share/locale -mindepth 1 -maxdepth 1 -type d ! -name 'en*' \
-  -exec rm -rf {} + 2>/dev/null || true
+if [ -d /usr/share/locale ]; then
+  find /usr/share/locale -mindepth 1 -maxdepth 1 -type d ! -name 'en*' \
+    -exec rm -rf {} +
+fi
 
 echo "✓ setup-linux-build complete ($(du -sh / 2>/dev/null | awk '{print $1}'))"

@@ -105,12 +105,9 @@ rm -rf \
   /var/cache/dnf \
   /var/lib/yum/yumdb \
   /var/log/yum.log \
-  /tmp/* \
   /opt/_internal/pip_download_cache \
   /opt/_internal/wheels \
   /root/.cache \
-  /usr/local/lib/node_modules/npm \
-  /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
   /usr/share/man \
   /usr/share/info \
   /usr/share/doc \

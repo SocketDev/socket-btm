@@ -1,34 +1,19 @@
-# Build BoringSSL (prefixed: smol_*) in manylinux2014 (CentOS 7, glibc 2.17).
-# Pure C/C++ toolchain — NO Node, NO pnpm. build.sh is emitted from
+# Build BoringSSL (prefixed: smol_*) on the fleet-shared btm-builder-glibc
+# prebake (almalinux:8 + gcc-toolset-13 + cmake + go + perl).
+#
+# Bash-only build path: docker/build.sh is emitted from
 # scripts/build-step-defs.mts; vitest enforces drift via
-# test/build-defs-drift.test.mts.
-#
-# PyPA publishes manylinux2014 x86_64 + aarch64 as separate single-arch
-# images; this Dockerfile is x86_64-only. Linux ARM64 needs a sibling
-# Dockerfile.glibc.arm64 once we add it.
-#
-# Refresh the digest via quay's tags API:
-#   curl -s 'https://quay.io/api/v1/repository/pypa/manylinux2014_x86_64/tag/?limit=5&onlyActiveTags=true'
-# Bump both the tag comment AND the digest, and update the
-# `# published:` annotation (soak-policy gate).
+# test/build-defs-drift.test.mts. The prebake includes Node + pnpm
+# (consumed by other builders) but we don't use them here — only the
+# C/C++ toolchain + go + cmake + perl.
 
-# manylinux2014_x86_64 tag 2026.05.27-1 (CentOS 7 + devtoolset-10)
-# published: 2026-05-27 | removable: 2026-06-03
-FROM quay.io/pypa/manylinux2014_x86_64@sha256:a5268fc528257092c3840fb069c71b522a8d73a4bd302ed0ce65f586890bdd14 AS build
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+ARG BTM_BUILDER_TAG
 
-# Setup script — installs devtoolset-10 + cmake3 + perl + go + libatomic
-# via yum. Fleet-canonical; shared by every *-builder Dockerfile.glibc.
-# Drops Node/pnpm install steps (we don't need them in the container).
-COPY packages/build-infra/scripts/setup-linux-build.sh /tmp/setup-linux-build.sh
-RUN EXTRA_PACKAGES="golang" bash /tmp/setup-linux-build.sh && \
-    rm /tmp/setup-linux-build.sh
+FROM ghcr.io/socketdev/btm-builder-glibc:${BTM_BUILDER_TAG} AS build
 
-# Every subsequent RUN needs devtoolset-10 on PATH. Source it via
-# BASH_ENV so shebanged scripts pick it up too.
-ENV BASH_ENV=/etc/profile.d/devtoolset-10.sh
-SHELL ["/bin/bash", "-c"]
-
-# Upstream BoringSSL source. submodule is shallow-cloned at host time.
+# Upstream BoringSSL source. Submodule is shallow-cloned at host time.
 COPY packages/boringssl-builder/upstream/boringssl /workspace/upstream
 
 # Generated build script — emitted from scripts/build-step-defs.mts.
@@ -37,8 +22,6 @@ COPY packages/boringssl-builder/docker/build.sh /workspace/build.sh
 
 WORKDIR /workspace
 
-# Build via the emitted bash script. Env vars satisfy the script's
-# `${VAR:?}` checks at the top of build.sh.
 ARG BUILD_MODE=prod
 ARG PLATFORM_ARCH=linux-x64
 ARG TARGETARCH
@@ -49,15 +32,15 @@ ENV OUT_LIB_DIR=/workspace/build/$BUILD_MODE/$PLATFORM_ARCH/out/Final/lib
 ENV OUT_INCLUDE_DIR=/workspace/build/$BUILD_MODE/$PLATFORM_ARCH/out/Final/include
 
 # For amd64 builds, add -march=x86-64 -mtune=generic so the binary stays
-# portable across CPU generations (matches lief-builder).
+# portable across CPU generations.
 RUN echo "Cache version: ${CACHE_VERSION}" && \
+    source /opt/rh/gcc-toolset-13/enable && \
     if [ "$TARGETARCH" = "amd64" ]; then \
         export CFLAGS="${CFLAGS:-} -march=x86-64 -mtune=generic" && \
         export CXXFLAGS="${CXXFLAGS:-} -march=x86-64 -mtune=generic"; \
     fi && \
     bash /workspace/build.sh
 
-# Export stage: copy the build/ tree so the workflow can extract artifacts.
 FROM scratch AS export
 ARG BUILD_MODE=prod
 COPY --from=build /workspace/build /

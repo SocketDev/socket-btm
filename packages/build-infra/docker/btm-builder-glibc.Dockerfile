@@ -41,27 +41,36 @@ RUN set -euo pipefail && \
     dnf config-manager --set-enabled powertools && \
     # Toolchain + build tools (union of every fleet builder's needs).
     # gcc-toolset-13: GCC 13 (Node 26 needs >= 13.2). devtoolset is RHEL-7-only.
+    # Add gh CLI repo (binject needs it for GH artifact fetches).
+    dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo && \
     dnf -y --setopt=install_weak_deps=False install \
         ca-certificates \
         ccache \
         cmake \
         curl \
+        file \
         gcc-toolset-13 \
+        gcc-toolset-13-binutils \
         gcc-toolset-13-gcc \
         gcc-toolset-13-gcc-c++ \
         gcc-toolset-13-libstdc++-devel \
-        gcc-toolset-13-binutils \
+        gh \
         git \
+        glibc-static \
+        golang \
         jq \
         libatomic \
         liburing-devel \
+        make \
         ninja-build \
         openssl-devel \
         patch \
         perl \
+        pkgconfig \
         procps-ng \
         python3.11 \
         python3.11-pip \
+        wget \
         which \
         xz \
         xz-devel \

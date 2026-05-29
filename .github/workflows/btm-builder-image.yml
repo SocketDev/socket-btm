@@ -98,6 +98,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Per-arch builds because PNPM_ASSET + PNPM_SHA256 differ between
+      # x64 and arm64 (build-args are scalar; can't vary per-platform in
+      # a single buildx invocation). After both arches push, the final
+      # step assembles a single multi-arch manifest list so consumer
+      # Dockerfiles can use `FROM <image>:<tag>` and Docker picks the
+      # right arch automatically.
       - name: Build x64
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0 (2026-05-21)
         with:
@@ -106,7 +112,7 @@ jobs:
           platforms: linux/amd64
           push: ${{ !inputs.dry-run }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-x64:${{ steps.tag.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}-amd64
           build-args: |
             NODE_VERSION=${{ steps.meta.outputs.node-version }}
             PNPM_VERSION=${{ steps.meta.outputs.pnpm-version }}
@@ -124,7 +130,7 @@ jobs:
           platforms: linux/arm64
           push: ${{ !inputs.dry-run }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-arm64:${{ steps.tag.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}-arm64
           build-args: |
             NODE_VERSION=${{ steps.meta.outputs.node-version }}
             PNPM_VERSION=${{ steps.meta.outputs.pnpm-version }}
@@ -132,6 +138,23 @@ jobs:
             PNPM_SHA256=${{ steps.meta.outputs.pnpm-sha256-arm64 }}
             CACHE_VERSION=${{ steps.tag.outputs.tag }}
           provenance: false
+
+      - name: Assemble multi-arch manifest list
+        if: ${{ !inputs.dry-run }}
+        shell: bash
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          # docker manifest create works against the registry directly. The
+          # per-arch images pushed above are referenced by their tag; the
+          # output is a single tag <REGISTRY>/<IMAGE_NAME>:<tag> that
+          # downstream `FROM` clauses can use platform-agnostically.
+          BASE="${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+          docker buildx imagetools create \
+            --tag "${BASE}" \
+            "${BASE}-amd64" \
+            "${BASE}-arm64"
+          echo "Multi-arch manifest published: ${BASE}"
 
       - name: Summary
         shell: bash

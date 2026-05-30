@@ -49,6 +49,7 @@
   },
   "devDependencies": {
     "@anthropic-ai/claude-code": "catalog:",
+    "@redwoodjs/agent-ci": "catalog:",
     "@sinclair/typebox": "catalog:",
     "@socketsecurity/lib-stable": "catalog:",
     "@types/node": "catalog:",
@@ -69,8 +70,11 @@
   },
   "packageManager": "pnpm@11.4.0",
   "allowScripts": {
+    "cpu-features": false,
     "docsify": false,
     "esbuild": true,
-    "onnxruntime-node": true
+    "onnxruntime-node": true,
+    "protobufjs": false,
+    "ssh2": false
   }
 }

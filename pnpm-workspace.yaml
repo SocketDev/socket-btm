@@ -44,6 +44,7 @@ catalog:
   acorn: 8.14.0
   acorn-walk: 8.3.4
   adm-zip: 0.5.16
+  'dtu-github-actions': 0.16.2
   ecc-agentshield: 1.4.0
   esbuild: 0.25.11
   magic-string: 0.30.19
@@ -114,6 +115,12 @@ minimumReleaseAgeExclude:
   - 'compromise@14.15.1'
   - '@redwoodjs/agent-ci'
   - 'dtu-github-actions'
+  - '@socketdev/*'
+  - 'ecc-agentshield'
+  - 'sfw'
+  - 'socket-*'
+  - '@redwoodjs/agent-ci@0.16.2'
+  - 'dtu-github-actions@0.16.2'
 
 # Refuse transitive dependencies declared via git/tarball/local-tarball
 # specs — an npm package shouldn't be allowed to drag in a git URL we

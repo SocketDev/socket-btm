@@ -146,6 +146,13 @@ overrides:
   'got': '11.8.6'
   'postcss': '8.5.10'
   'tar': '7.5.11'
+  # advisory #27 (medium GHSA-w5hq-g745-h8pq) — uuid < 11.1.1 buffer
+  # bounds check in v3/v5/v6. Resolved transitively via dockerode →
+  # @redwoodjs/agent-ci. dockerode uses uuid.v4() only; v4 generation
+  # unchanged across v10 → v11 (the v11 breaking changes affect v1/v7
+  # internal state). Major cross 10→11 verified BENIGN for this
+  # consumer chain.
+  'uuid': '11.1.1'
   'vite': '7.3.2'
 trustPolicy: no-downgrade
 trustPolicyExclude:

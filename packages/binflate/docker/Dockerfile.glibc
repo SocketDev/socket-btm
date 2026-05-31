@@ -54,7 +54,15 @@ ENV PLATFORM_ARCH=$PLATFORM_ARCH
 
 # For amd64 builds, add -march=x86-64 -mtune=generic so the binary stays
 # portable across CPU generations.
-RUN echo "Cache: ${CACHE_VERSION}" && \
+#
+# `CC="ccache gcc"` runs every Makefile-driven compile through ccache.
+# Paired with `--mount=type=cache,target=/root/.ccache` so the cache
+# persists across builds — incremental rebuilds skip unchanged TUs.
+ENV CCACHE_DIR=/root/.ccache
+ENV CC="ccache gcc"
+ENV CXX="ccache g++"
+RUN --mount=type=cache,target=/root/.ccache \
+    echo "Cache: ${CACHE_VERSION}" && \
     source /opt/rh/gcc-toolset-13/enable && \
     if [ "$TARGETARCH" = "amd64" ]; then \
         export CFLAGS="$CFLAGS -march=x86-64 -mtune=generic" && \
@@ -64,7 +72,9 @@ RUN echo "Cache: ${CACHE_VERSION}" && \
 
 # Run tests inside container (same compiler version as build).
 # Tests must run in the same environment to avoid LTO bytecode incompatibility.
-RUN source /opt/rh/gcc-toolset-13/enable && cd packages/binflate && pnpm run test
+RUN --mount=type=cache,target=/root/.ccache \
+    source /opt/rh/gcc-toolset-13/enable && \
+    cd packages/binflate && pnpm run test
 
 FROM scratch AS export
 ARG BUILD_MODE=prod

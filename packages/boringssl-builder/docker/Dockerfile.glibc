@@ -33,7 +33,14 @@ ENV OUT_INCLUDE_DIR=/workspace/build/$BUILD_MODE/$PLATFORM_ARCH/out/Final/includ
 
 # For amd64 builds, add -march=x86-64 -mtune=generic so the binary stays
 # portable across CPU generations.
-RUN echo "Cache version: ${CACHE_VERSION}" && \
+#
+# `--mount=type=cache,target=/root/.ccache` persists ccache across builds.
+# build-step-defs.mts passes -DCMAKE_C_COMPILER_LAUNCHER=ccache + the
+# CXX equivalent so every compile unit hits ccache. Re-runs after a
+# BoringSSL submodule bump skip unchanged TUs (~5-10x on incremental).
+ENV CCACHE_DIR=/root/.ccache
+RUN --mount=type=cache,target=/root/.ccache \
+    echo "Cache version: ${CACHE_VERSION}" && \
     source /opt/rh/gcc-toolset-13/enable && \
     if [ "$TARGETARCH" = "amd64" ]; then \
         export CFLAGS="${CFLAGS:-} -march=x86-64 -mtune=generic" && \

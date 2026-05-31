@@ -78,6 +78,13 @@ export const BUILD_STEPS: readonly BuildStep[] = [
       '-DBUILD_SHARED_LIBS=OFF',
       '-DCMAKE_POSITION_INDEPENDENT_CODE=ON',
       '-DBUILD_TESTING=OFF',
+      // ccache launcher — paired with `--mount=type=cache,target=/root/
+      // .ccache` in Dockerfile.glibc + the equivalent BuildKit cache
+      // mount in CI. Re-runs after BoringSSL submodule updates skip
+      // unchanged TUs (~5-10x speedup on incremental builds; first
+      // run pays the full compile cost).
+      '-DCMAKE_C_COMPILER_LAUNCHER=ccache',
+      '-DCMAKE_CXX_COMPILER_LAUNCHER=ccache',
     ],
   },
   {

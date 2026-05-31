@@ -39,6 +39,7 @@ import { extractTarball } from 'build-infra/lib/tarball-utils'
 import { getSubmoduleVersion } from 'build-infra/lib/version-helpers'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
+import { which } from '@socketsecurity/lib-stable/bin/which'
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
@@ -438,6 +439,17 @@ export async function buildMbedTLS(mbedtlsBuildDir) {
     // Disable features not needed for HTTPS.
     '-DMBEDTLS_FATAL_WARNINGS=OFF',
   ]
+
+  // ccache launcher on Linux (prebake includes ccache). Paired with
+  // --mount=type=cache,target=/root/.ccache in Dockerfile.glibc. Re-runs
+  // after mbedTLS submodule bumps skip unchanged TUs.
+  if (process.platform === 'linux' && (await which('ccache'))) {
+    cmakeArgs.push(
+      '-DCMAKE_C_COMPILER_LAUNCHER=ccache',
+      '-DCMAKE_CXX_COMPILER_LAUNCHER=ccache',
+    )
+    logger.info('Using ccache for mbedTLS compilation')
+  }
 
   // Handle cross-compilation for different platforms.
   if (process.platform === 'darwin' && CROSS_COMPILE) {

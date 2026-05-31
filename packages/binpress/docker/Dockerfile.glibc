@@ -47,7 +47,13 @@ ENV PLATFORM_ARCH=$PLATFORM_ARCH
 # GH_TOKEN is mounted via BuildKit secret rather than passed through
 # ARG+ENV. ARG+ENV bakes the token into image-layer metadata visible
 # via `docker history --no-trunc` and persisted in Depot's build cache.
+# `CC="ccache gcc"` + `--mount=type=cache,target=/root/.ccache` routes
+# every compile through ccache, persisted across builds.
+ENV CCACHE_DIR=/root/.ccache
+ENV CC="ccache gcc"
+ENV CXX="ccache g++"
 RUN --mount=type=secret,id=gh_token,required=false \
+    --mount=type=cache,target=/root/.ccache \
     source /opt/rh/gcc-toolset-13/enable && \
     if [ -f /run/secrets/gh_token ]; then \
       export GH_TOKEN="$(cat /run/secrets/gh_token)"; \
@@ -61,7 +67,9 @@ RUN --mount=type=secret,id=gh_token,required=false \
     cd packages/binpress && pnpm run build -- --force
 
 # Run tests inside container (same compiler/LIEF version as build).
-RUN source /opt/rh/gcc-toolset-13/enable && cd packages/binpress && pnpm run test
+RUN --mount=type=cache,target=/root/.ccache \
+    source /opt/rh/gcc-toolset-13/enable && \
+    cd packages/binpress && pnpm run test
 
 FROM scratch AS export
 ARG BUILD_MODE=prod

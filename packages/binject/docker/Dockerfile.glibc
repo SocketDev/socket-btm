@@ -60,7 +60,14 @@ ENV PLATFORM_ARCH=$PLATFORM_ARCH
 
 # Build binject (LIEF will be downloaded automatically if available in releases).
 # GH_TOKEN via BuildKit secret (no trace in image-layer metadata).
+# CCACHE_DIR + CC/CXX="ccache <compiler>" route every compile through
+# ccache. The `--mount=type=cache,target=/root/.ccache` persists the
+# cache across builds; incremental rebuilds skip unchanged TUs.
+ENV CCACHE_DIR=/root/.ccache
+ENV CC="ccache gcc"
+ENV CXX="ccache g++"
 RUN --mount=type=secret,id=gh_token,required=false \
+    --mount=type=cache,target=/root/.ccache \
     source /opt/rh/gcc-toolset-13/enable && \
     if [ -f /run/secrets/gh_token ]; then \
       export GH_TOKEN="$(cat /run/secrets/gh_token)"; \
@@ -75,7 +82,9 @@ RUN --mount=type=secret,id=gh_token,required=false \
 
 # Run tests inside container (same compiler/LIEF version as build).
 # Tests must run in the same environment to avoid LTO bytecode incompatibility.
-RUN source /opt/rh/gcc-toolset-13/enable && cd packages/binject && node scripts/test.mts
+RUN --mount=type=cache,target=/root/.ccache \
+    source /opt/rh/gcc-toolset-13/enable && \
+    cd packages/binject && node scripts/test.mts
 
 FROM scratch AS export
 ARG BUILD_MODE=prod

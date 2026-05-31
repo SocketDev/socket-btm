@@ -34,7 +34,13 @@ ENV BUILD_MODE=$BUILD_MODE
 ENV PLATFORM_ARCH=$PLATFORM_ARCH
 
 # Build stubs. Create symlink with TARGETARCH name for Docker COPY compatibility.
-RUN echo "Cache version: ${CACHE_VERSION}" && \
+# `CC="ccache gcc"` + `--mount=type=cache,target=/root/.ccache` routes
+# every compile through ccache, persisted across builds.
+ENV CCACHE_DIR=/root/.ccache
+ENV CC="ccache gcc"
+ENV CXX="ccache g++"
+RUN --mount=type=cache,target=/root/.ccache \
+    echo "Cache version: ${CACHE_VERSION}" && \
     source /opt/rh/gcc-toolset-13/enable && \
     if [ "$TARGETARCH" = "amd64" ]; then \
         export TARGET_ARCH="x64"; \

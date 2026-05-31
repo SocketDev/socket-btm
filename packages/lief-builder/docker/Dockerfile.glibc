@@ -26,7 +26,15 @@ ENV PLATFORM_ARCH=$PLATFORM_ARCH
 
 # For amd64 builds, add -march=x86-64 -mtune=generic to ensure binary portability
 # across CPU generations (GitHub Actions runners without AVX/AVX2).
-RUN echo "Cache version: ${CACHE_VERSION}" && \
+#
+# `--mount=type=cache,target=/root/.ccache` persists ccache across builds
+# at the BuildKit layer. lief-builder/scripts/build.mts passes
+# -DCMAKE_C_COMPILER_LAUNCHER=ccache so every compile unit hits ccache.
+# Re-runs after source edits skip unchanged TUs entirely (~5-10x
+# speedup on incremental builds).
+ENV CCACHE_DIR=/root/.ccache
+RUN --mount=type=cache,target=/root/.ccache \
+    echo "Cache version: ${CACHE_VERSION}" && \
     source /opt/rh/gcc-toolset-13/enable && \
     if [ "$TARGETARCH" = "amd64" ]; then \
         export CFLAGS="$CFLAGS -march=x86-64 -mtune=generic" && \

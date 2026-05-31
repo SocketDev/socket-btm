@@ -75,6 +75,16 @@ minimumReleaseAgeExclude:
   # npm's `time` field for the major; allow pinned beta until v15 GA.
   - 'nock@15.0.0-beta.11'
   - 'npm-run-all2@9.0.0'
+  # pnpm@11.5.0 — bumped via `Allow minimumReleaseAge bypass`. Fixes
+  # the runner-side setup-and-install version mismatch (socket-registry's
+  # pinned action ships 11.3.0, fleet packageManager was 11.4.0; aligning
+  # everyone at 11.5.0). Out of soak 2026-06-05.
+  # `pnpm` is the JS-only entry; `@pnpm/exe` is the SEA binary that
+  # `packageManager: pnpm@X` resolves through corepack. Both gate the
+  # version check; both need the bypass entry.
+  # published: 2026-05-29 | removable: 2026-06-05
+  - 'pnpm@11.5.0'
+  - '@pnpm/exe@11.5.0'
   # shell-quote AST parser used by .claude/hooks/_shared/shell-command.mts
   # — fleet hook needs it now; soak entry expires 2026-05-29.
   # published: 2026-05-22 | removable: 2026-05-29

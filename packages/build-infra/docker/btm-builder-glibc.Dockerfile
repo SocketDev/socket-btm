@@ -129,11 +129,12 @@ RUN set -euo pipefail && \
     curl -fsSL -o /tmp/pnpm.tar.gz "https://github.com/pnpm/pnpm/releases/download/v${PNPM_VERSION}/${PNPM_ASSET}" && \
     echo "${PNPM_SHA256}  /tmp/pnpm.tar.gz" | sha256sum -c - && \
     tar -xzf /tmp/pnpm.tar.gz -C /usr/local/bin && \
-    rm /tmp/pnpm.tar.gz && \
-    # Both Node and pnpm 11.x ship as un-stripped ELFs with embedded debug
-    # info. Strip them — saves ~80 MB combined. --strip-debug preserves
-    # ALL functional symbols (only debug sections drop), so backtraces
-    # via /proc still work.
-    strip --strip-debug /usr/local/bin/node /usr/local/bin/pnpm 2>/dev/null || true
+    rm /tmp/pnpm.tar.gz
+    # DO NOT strip /usr/local/bin/{node,pnpm} — both are SEA bundles
+    # with embedded data sections that `strip` corrupts. Verified
+    # empirically: stripped pnpm fails with
+    # "Inconsistency detected by ld.so: rtld.c: 1657: dl_main:
+    # Assertion `GL(dl_rtld_map).l_libname' failed!". The few extra
+    # MB of debug info are worth the working binary.
 
 ENV BASH_ENV=/etc/profile.d/gcc-toolset-13.sh

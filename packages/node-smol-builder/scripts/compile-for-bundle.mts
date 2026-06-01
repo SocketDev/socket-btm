@@ -12,11 +12,13 @@
  *   1. Run the static detector on the SEA bundle → feature manifest + flags.
  *   2. Compute a cache key = sha256(SOURCE_PATCHED id + sorted flags + platform).
  *      Two bundles with the same feature set hit the same compiled cache entry.
- *   3. Invoke the existing build, resuming from the shared SOURCE_PATCHED
- *      checkpoint (clone + patch are done once and shared), passing the detector's
- *      --without-smol-* flags via `build.mts --without-smol=…`. Only configure +
- *      make + strip run per distinct flag set — the expensive clone/patch prefix
- *      is reused.
+ *   3. Invoke the existing build with the detector's --without-smol-* flags via
+ *      `build.mts --without-smol=…`. The flags take effect at the configure step
+ *      inside Phase 1; build.mts's own checkpoint cache reuses the warm
+ *      source-patched sub-phase, so the expensive clone/patch prefix is not
+ *      repeated for an unchanged tree. (Note: `source-patched` is an internal
+ *      sub-checkpoint, NOT a --from-checkpoint resume entry point — build.mts
+ *      only accepts the four binary-stage checkpoints there.)
  *
  * --dry-run prints the resolved plan (manifest summary, flags, cache key, the
  * exact build command) WITHOUT building. The detector + flag mapping are fully
@@ -70,6 +72,32 @@ export function computeCacheKey(opts: {
   return createHash('sha256').update(material).digest('hex').slice(0, 16)
 }
 
+/**
+ * Construct the `node build.mts …` argv for a trimmed compile. Pure (no spawn,
+ * no fs) so the invariant is unit-testable.
+ *
+ * Critical invariant: NEVER pass `--from-checkpoint=source-patched`. build.mts
+ * only accepts the four binary-stage checkpoints (binary-released/stripped/
+ * compressed/finalized) as resume entry points and throws on anything else;
+ * `source-patched` is an internal Phase-1 sub-checkpoint. The `--without-smol`
+ * flags take effect at the configure step inside a normal Phase-1 build, and
+ * build.mts's own checkpoint cache reuses the warm source-patched sub-phase, so
+ * a plain build neither errors nor re-clones an unchanged tree.
+ */
+export function buildBuildArgs(opts: {
+  buildScriptPath: string
+  buildMode: 'dev' | 'prod'
+  flags: string[]
+}): string[] {
+  const args = [
+    opts.buildScriptPath,
+    opts.buildMode === 'prod' ? '--prod' : '--dev',
+  ]
+  if (opts.flags.length) {
+    args.push(`--without-smol=${opts.flags.join(',')}`)
+  }
+  return args
+}
 
 async function main(): Promise<void> {
   const { values } = parseArgs({
@@ -126,14 +154,14 @@ async function main(): Promise<void> {
   // raw `--…` flags verbatim, so the whole flag set (including --v8-lite-mode)
   // forwards through the one channel.
   const v8Lite = allFlags.includes('--v8-lite-mode')
-  const buildArgs = [
-    path.join(__dirname, 'common/shared/build.mts'),
-    `--from-checkpoint=${SOURCE_PATCHED}`,
-    buildMode === 'prod' ? '--prod' : '--dev',
-  ]
-  if (allFlags.length) {
-    buildArgs.push(`--without-smol=${allFlags.join(',')}`)
-  }
+  // Argv construction lives in buildBuildArgs() (exported, unit-tested) so the
+  // "never --from-checkpoint=source-patched" invariant is enforced by a test,
+  // not by remembering it here.
+  const buildArgs = buildBuildArgs({
+    buildScriptPath: path.join(__dirname, 'common/shared/build.mts'),
+    buildMode,
+    flags: allFlags,
+  })
 
   const dropped = Object.entries(manifest.features)
     .filter(([, v]) => v.drop)
@@ -154,9 +182,10 @@ async function main(): Promise<void> {
     return
   }
 
-  // Invoke the build, resuming from the shared SOURCE_PATCHED checkpoint.
+  // Invoke the build. build.mts's own checkpoint cache reuses the warm
+  // source-patched sub-phase, so this doesn't re-clone/re-patch unnecessarily.
   logger.log('')
-  logger.log('Starting build (resume from source-patched)…')
+  logger.log('Starting build…')
   const r = await spawn('node', buildArgs, { stdio: 'inherit' })
   if (r.code !== 0) {
     logger.fail(`build failed (exit ${r.code})`)

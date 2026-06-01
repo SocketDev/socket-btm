@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   weekly-update:
-    uses: SocketDev/socket-registry/.github/workflows/weekly-update.yml@eecde2c7dfdb9f5f8c1842979862ec3bb9072c38 # main (2026-06-01)
+    uses: SocketDev/socket-registry/.github/workflows/weekly-update.yml@d041120a8bc80bb6dd67e67eb6f64007f74eb60f # main (2026-06-01)
     with:
       checkout-submodules: 'true'
       test-setup-script: 'pnpm run build'

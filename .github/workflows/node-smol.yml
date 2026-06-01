@@ -1097,6 +1097,19 @@ jobs:
           echo "Running smoke test: node packages/build-infra/scripts/smoke-test-binary.mts $SMOKE_TEST_ARGS"
           node packages/build-infra/scripts/smoke-test-binary.mts $SMOKE_TEST_ARGS
 
+      # The default build must ship EVERY gated subsystem. assert-full-features
+      # probes isBuiltin('node:smol-*') for each and hard-fails if one is
+      # missing — catching a node_use_smol_* default flip or gyp-gate regression
+      # that the per-feature suites would otherwise skipIf past. Native runs only
+      # (executes the binary; cross-compiled binaries can't run on the host).
+      - name: Assert full-feature build (all gated subsystems present)
+        if: success() && matrix.cross_compile != true && steps.restore-checkpoint.outputs.build-required != 'false'
+        shell: bash
+        env:
+          BINARY: ${{ steps.paths.outputs.final_binary }}
+        run: |
+          node packages/node-smol-builder/scripts/assert-full-features.mts --binary="$BINARY" --require-binary
+
       - name: Collect build metrics
         if: always()
         shell: bash

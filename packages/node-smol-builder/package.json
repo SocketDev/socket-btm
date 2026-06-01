@@ -9,6 +9,7 @@
     "./scripts/paths": "./scripts/paths.mts"
   },
   "scripts": {
+    "assert-full-features": "node scripts/assert-full-features.mts",
     "build": "node scripts/common/shared/build.mts",
     "build:all": "node scripts/common/shared/build.mts --all-platforms",
     "clean": "node scripts/clean.mts",

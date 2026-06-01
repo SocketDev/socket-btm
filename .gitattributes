@@ -69,7 +69,6 @@ vendor/acorn-wasm/*.wasm binary
 .claude/commands/fleet/update-coverage.md linguist-generated=true
 .claude/commands/fleet/update-security.md linguist-generated=true
 .claude/hooks/fleet linguist-generated=true
-.claude/settings.json linguist-generated=true
 .claude/skills/fleet linguist-generated=true
 .claude/skills/fleet/_shared/compound-lessons.md linguist-generated=true
 .claude/skills/fleet/_shared/env-check.md linguist-generated=true

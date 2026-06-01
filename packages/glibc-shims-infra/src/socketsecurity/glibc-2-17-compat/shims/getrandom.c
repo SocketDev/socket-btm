@@ -13,11 +13,18 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-extern "C" ssize_t __wrap_getrandom(void* buf, size_t buflen,
-                                    unsigned int flags) {
-  using GetrandomFn = ssize_t (*)(void*, size_t, unsigned int);
-  static GetrandomFn real =
-      socketsecurity::compat::ResolveNext<GetrandomFn>("getrandom");
+typedef ssize_t (*getrandom_fn_t)(void*, size_t, unsigned int);
+
+ssize_t __wrap_getrandom(void* buf, size_t buflen, unsigned int flags) {
+  // File-static cache: one dlsym per process lifetime. Initialized lazily;
+  // benign data race on first call (multiple threads may resolve and write
+  // the same pointer — all writes are identical).
+  static getrandom_fn_t real = NULL;
+  static int resolved = 0;
+  if (!resolved) {
+    real = (getrandom_fn_t)socketsecurity_compat_resolve_next("getrandom");
+    resolved = 1;
+  }
   if (real) {
     // glibc 2.25+ path — preserves the vDSO fast path on glibc 2.41+.
     return real(buf, buflen, flags);

@@ -87,7 +87,7 @@ that symbol is also absent on glibc 2.17, so we don't reach it.
 
 **Fallback path.** Append `handler` to a fixed-size process-local array
 (`kMaxHandlers = 32`, the C11-required minimum). Returns `-1` if the
-array is full. Sharing the array with `quick_exit.cc` is intentional;
+array is full. Sharing the array with `quick_exit.c` is intentional;
 the snapshot-then-release pattern in `FallbackQuickExit` avoids
 torn-pointer reads under concurrent `at_quick_exit` calls.
 
@@ -100,7 +100,7 @@ array sizing is the only knob).
 
 ## Adding a new shim
 
-1. New file under `src/socketsecurity/glibc-2-17-compat/shims/<symbol>.cc`.
+1. New file under `src/socketsecurity/glibc-2-17-compat/shims/<symbol>.c`.
 2. Declare `__wrap_<symbol>` in `src/socketsecurity/glibc-2-17-compat/glibc_2_17_compat.h`.
 3. Add `--wrap=<symbol>` to `lib/link-flags.mts` AND `gyp/glibc-shims-infra.gypi`.
 4. Document the contract in this file (caller surface + dlsym path + fallback

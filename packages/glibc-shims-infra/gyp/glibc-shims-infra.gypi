@@ -4,15 +4,15 @@
   # file and the shim source files + the --wrap link flags are merged in.
   #
   # Sources are compiled only on Linux+glibc (gated at preprocessor time
-  # in each .cc). On musl/macOS/Windows the files compile to empty TUs
+  # in each .c). On musl/macOS/Windows the files compile to empty TUs
   # and the --wrap flags below are no-ops.
   'conditions': [
     ['OS=="linux"', {
       'sources': [
-        'src/socketsecurity/glibc-2-17-compat/shims/at_quick_exit.cc',
-        'src/socketsecurity/glibc-2-17-compat/shims/cxa_thread_atexit_impl.cc',
-        'src/socketsecurity/glibc-2-17-compat/shims/getrandom.cc',
-        'src/socketsecurity/glibc-2-17-compat/shims/quick_exit.cc',
+        'src/socketsecurity/glibc-2-17-compat/shims/at_quick_exit.c',
+        'src/socketsecurity/glibc-2-17-compat/shims/cxa_thread_atexit_impl.c',
+        'src/socketsecurity/glibc-2-17-compat/shims/getrandom.c',
+        'src/socketsecurity/glibc-2-17-compat/shims/quick_exit.c',
       ],
       'include_dirs': [
         'src',

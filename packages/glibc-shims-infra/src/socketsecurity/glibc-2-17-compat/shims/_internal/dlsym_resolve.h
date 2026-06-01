@@ -1,7 +1,7 @@
 // Shared dlsym(RTLD_NEXT, name) helper. Used by every shim to look up the
-// "real" glibc symbol at runtime. The static caching pattern means each
-// shim pays exactly one dlsym call per process lifetime (first invocation),
-// regardless of how hot the wrapped function is.
+// "real" glibc symbol at runtime. Callers cache the resolved pointer in a
+// file-static `void*` so each shim pays exactly one dlsym call per process
+// lifetime (first invocation), regardless of how hot the wrapped function is.
 
 #ifndef SOCKETSECURITY_GLIBC_2_17_COMPAT_SHIMS_INTERNAL_DLSYM_RESOLVE_H_
 #define SOCKETSECURITY_GLIBC_2_17_COMPAT_SHIMS_INTERNAL_DLSYM_RESOLVE_H_
@@ -10,19 +10,21 @@
 
 #include <dlfcn.h>
 
-namespace socketsecurity {
-namespace compat {
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // Look up `name` in the next shared object after the wrapping binary —
-// i.e. glibc when present. Returns the resolved function pointer cast to
-// FnPtr, or nullptr if the symbol is absent (the fallback case).
-template <typename FnPtr>
-inline FnPtr ResolveNext(const char* name) {
-  return reinterpret_cast<FnPtr>(dlsym(RTLD_NEXT, name));
+// i.e. glibc when present. Returns the resolved symbol pointer (cast at
+// the call site to the appropriate function-pointer type) or NULL when
+// the symbol is absent (the fallback case).
+static inline void* socketsecurity_compat_resolve_next(const char* name) {
+  return dlsym(RTLD_NEXT, name);
 }
 
-}  // namespace compat
-}  // namespace socketsecurity
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // __GLIBC__ && __linux__
 

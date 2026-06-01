@@ -3,7 +3,7 @@
 //
 // Drop-in for fleet Linux binaries that want to run on glibc >= 2.17. Each
 // declared symbol is implemented by exactly one file under
-// shims/<symbol>.cc. The compile unit is gated on __GLIBC__ + __linux__
+// shims/<symbol>.c. The compile unit is gated on __GLIBC__ + __linux__
 // so musl/Windows/macOS targets compile to empty TUs (the --wrap link
 // flags are then no-ops).
 //
@@ -22,7 +22,9 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#ifdef __cplusplus
 extern "C" {
+#endif
 
 // __cxa_thread_atexit_impl — glibc 2.18. libstdc++, libc++abi, Rust std all
 // emit references. Upstream lld does not propagate the weak attribute to
@@ -45,7 +47,9 @@ __attribute__((noreturn)) void __wrap_quick_exit(int code);
 // list that __wrap_quick_exit drains in LIFO order per C11 §7.22.4.3.
 int __wrap_at_quick_exit(void (*handler)(void));
 
+#ifdef __cplusplus
 }  // extern "C"
+#endif
 
 #endif  // __GLIBC__ && __linux__
 

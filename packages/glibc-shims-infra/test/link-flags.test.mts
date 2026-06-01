@@ -65,7 +65,7 @@ describe('GLIBC_SHIMS_WRAP_SYMBOLS', () => {
     // filesystem clarity.
     const expectedShimFiles = GLIBC_SHIMS_WRAP_SYMBOLS.map(s =>
       s.replace(/^__/, ''),
-    ).map(s => `${s}.cc`)
+    ).map(s => `${s}.c`)
     for (const filename of expectedShimFiles) {
       const shimPath = path.join(shimsDir, filename)
       expect(

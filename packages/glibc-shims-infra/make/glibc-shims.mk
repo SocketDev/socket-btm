@@ -22,17 +22,17 @@ GLIBC_SHIMS_INFRA_ROOT := $(dir $(lastword $(MAKEFILE_LIST)))..
 GLIBC_SHIMS_SRC := $(GLIBC_SHIMS_INFRA_ROOT)/src/socketsecurity/glibc-2-17-compat/shims
 GLIBC_SHIMS_INCLUDE := $(GLIBC_SHIMS_INFRA_ROOT)/src
 
-# Shim source files — gated at preprocessor time in each .cc to compile
+# Shim source files — gated at preprocessor time in each .c to compile
 # to an empty TU on non-Linux/non-glibc platforms. Safe to include
 # unconditionally; the linker drops them on musl/macOS/Windows.
 #
 # Order is alphabetical for stable diffs; the linker is order-agnostic
 # for translation units.
 GLIBC_SHIMS_SOURCES := \
-  $(GLIBC_SHIMS_SRC)/at_quick_exit.cc \
-  $(GLIBC_SHIMS_SRC)/cxa_thread_atexit_impl.cc \
-  $(GLIBC_SHIMS_SRC)/getrandom.cc \
-  $(GLIBC_SHIMS_SRC)/quick_exit.cc
+  $(GLIBC_SHIMS_SRC)/at_quick_exit.c \
+  $(GLIBC_SHIMS_SRC)/cxa_thread_atexit_impl.c \
+  $(GLIBC_SHIMS_SRC)/getrandom.c \
+  $(GLIBC_SHIMS_SRC)/quick_exit.c
 
 # Include path for the shim umbrella header + internal helpers.
 GLIBC_SHIMS_CFLAGS := -I$(GLIBC_SHIMS_INCLUDE)

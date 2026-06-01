@@ -62,7 +62,7 @@ Per-symbol detail + fallback semantics: [`docs/shim-contract.md`](docs/shim-cont
 
 ## Adding a new shim
 
-1. New file under `src/socketsecurity/glibc-2-17-compat/shims/<symbol>.cc`.
+1. New file under `src/socketsecurity/glibc-2-17-compat/shims/<symbol>.c`.
 2. Add the `--wrap=<symbol>` entry in `lib/link-flags.mts`.
 3. Add the declaration to `src/socketsecurity/glibc-2-17-compat/glibc_2_17_compat.h`.
 4. Document the contract in `docs/shim-contract.md`.

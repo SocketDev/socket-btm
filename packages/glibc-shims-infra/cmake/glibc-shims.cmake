@@ -22,14 +22,14 @@ set(GLIBC_SHIMS_INCLUDE_DIR
 set(_GLIBC_SHIMS_SRC
   "${GLIBC_SHIMS_INFRA_ROOT}/src/socketsecurity/glibc-2-17-compat/shims")
 
-# Shim source files. Each .cc gates with `#if defined(__GLIBC__) &&
+# Shim source files. Each .c gates with `#if defined(__GLIBC__) &&
 # defined(__linux__)` so they compile to empty TUs on musl/macOS/Windows.
 # Alphabetical for stable diffs.
 set(GLIBC_SHIMS_SOURCES
-  "${_GLIBC_SHIMS_SRC}/at_quick_exit.cc"
-  "${_GLIBC_SHIMS_SRC}/cxa_thread_atexit_impl.cc"
-  "${_GLIBC_SHIMS_SRC}/getrandom.cc"
-  "${_GLIBC_SHIMS_SRC}/quick_exit.cc"
+  "${_GLIBC_SHIMS_SRC}/at_quick_exit.c"
+  "${_GLIBC_SHIMS_SRC}/cxa_thread_atexit_impl.c"
+  "${_GLIBC_SHIMS_SRC}/getrandom.c"
+  "${_GLIBC_SHIMS_SRC}/quick_exit.c"
   CACHE INTERNAL "glibc-shims-infra source files")
 
 # --wrap flags activate the __wrap_<symbol> dispatchers. Without them,

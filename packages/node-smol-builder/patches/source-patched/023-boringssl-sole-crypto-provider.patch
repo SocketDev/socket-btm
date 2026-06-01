@@ -24,7 +24,7 @@
 #
 --- a/node.gypi
 +++ b/node.gypi
-@@ -394,48 +394,19 @@
+@@ -394,48 +394,28 @@
        'defines': [ 'HAVE_OPENSSL=1' ],
        'conditions': [
          [ 'node_shared_openssl=="false"', {
@@ -40,6 +40,14 @@
 +          # openssl dep + its -force_load/whole-archive wiring leaves BoringSSL as
 +          # the single provider. OPENSSL_API_COMPAT is kept (harmless define
 +          # referenced by crypto sources).
++          #
++          # The bundled openssl target used to export its headers to every
++          # dependent via direct_dependent_settings. The boringssl target does
++          # the same, but only reaches DIRECT dependents (libnode) — not libnode's
++          # own dependents like node_mksnapshot / cctest, which include
++          # node_options.h → <openssl/opensslv.h>. So add the BoringSSL include
++          # dir globally here (this block applies to every node target) to keep
++          # those headers resolvable everywhere, matching the old behavior.
            'defines': [ 'OPENSSL_API_COMPAT=0x10100000L', ],
 -          'dependencies': [
 -            './deps/openssl/openssl.gyp:openssl',
@@ -82,6 +90,7 @@
 -              ],
 -            }],
 -          ]
++          'include_dirs': [ 'deps/boringssl/include' ],
          }],
        ]
      }, {

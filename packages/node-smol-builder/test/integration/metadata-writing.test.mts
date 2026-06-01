@@ -28,7 +28,7 @@ describe.skipIf(skipTests)('stub Metadata Writing', () => {
   let testCacheDir: string
   let originalSocketHome: string | undefined
   let metadataPath: string
-  let metadata: any
+  let metadata: Record<string, unknown>
 
   beforeAll(async () => {
     binaryPath = getLatestFinalBinary()

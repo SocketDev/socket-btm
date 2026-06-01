@@ -6,7 +6,7 @@
  * and updates the embedded checksums in release-assets.json.
  *
  * Usage:
- *   node scripts/update-checksums.mts [--tool=<tool>] [--force]
+ *   node scripts/update-release-assets.mts [--tool=<tool>] [--force]
  *
  * Options:
  *   --tool=<name>  Only sync specific tool (lief, curl, stubs, binpress, binflate, binject)
@@ -209,7 +209,7 @@ async function main() {
     const output = {
       $schema: './release-assets.schema.json',
       $comment:
-        "SHA-256 checksums for GitHub release assets. Run 'pnpm --filter build-infra update-checksums' to update.",
+        "SHA-256 checksums for GitHub release assets. Run 'pnpm --filter build-infra update-release-assets' to update.",
       ...rest,
     }
 

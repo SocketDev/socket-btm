@@ -587,11 +587,11 @@ jobs:
             $([ -f checksums.txt.asc ] && echo "checksums.txt.asc" || echo "")
           gh release edit "$TAG" --draft=false
 
-  update-checksums:
+  update-release-assets:
     needs: release
     if: github.event_name == 'workflow_dispatch' && !inputs['dry-run']
     permissions:
       contents: write # release-assets.json commit after publishing GitHub release
-    uses: ./.github/workflows/update-checksums.yml
+    uses: ./.github/workflows/update-release-assets.yml
     secrets:
       BOT_GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}

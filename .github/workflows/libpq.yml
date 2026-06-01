@@ -521,11 +521,11 @@ jobs:
             release/checksums.txt
           gh release edit "${RELEASE_TAG}" --draft=false
 
-  update-checksums:
+  update-release-assets:
     needs: release
     if: github.event_name == 'workflow_dispatch' && !inputs['dry-run']
     permissions:
       contents: write
-    uses: ./.github/workflows/update-checksums.yml
+    uses: ./.github/workflows/update-release-assets.yml
     secrets:
       BOT_GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}

@@ -1,4 +1,4 @@
-name: 🔄 Update Release Checksums
+name: 🔄 Update Release Assets
 
 on:
   workflow_call:
@@ -18,12 +18,12 @@ concurrency:
   # and all try to `git pull --rebase && git push origin main` against
   # release-assets.json simultaneously — rebase is not atomic across
   # concurrent runners and one push is guaranteed to lose its commit.
-  # A static group (repo-scoped) serializes every update-checksums run.
-  group: update-checksums-${{ github.repository }}-main
+  # A static group (repo-scoped) serializes every update-release-assets run.
+  group: update-release-assets-${{ github.repository }}-main
   cancel-in-progress: false
 
 jobs:
-  update-checksums:
+  update-release-assets:
     name: release-assets.json
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -45,7 +45,7 @@ jobs:
       - name: Update checksums
         env:
           GH_TOKEN: ${{ github.token }}
-        run: pnpm --filter build-infra update-checksums
+        run: pnpm --filter build-infra update-release-assets
 
       - name: Check for changes
         id: changes
@@ -74,7 +74,7 @@ jobs:
           git commit -m "chore: update release checksums"
 
           # Retry-on-race: even with the workflow-level concurrency
-          # group serializing update-checksums, a parallel push from a
+          # group serializing update-release-assets, a parallel push from a
           # human (or another workflow that bumps unrelated files,
           # e.g. cascade-tooling) can land between our `pull --rebase`
           # and `push`, causing a non-fast-forward rejection. Retry

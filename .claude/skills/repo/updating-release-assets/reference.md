@@ -1,6 +1,6 @@
-# updating-checksums Reference Documentation
+# updating-release-assets Reference Documentation
 
-This document provides edge cases, troubleshooting, and additional context for the updating-checksums skill.
+This document provides edge cases, troubleshooting, and additional context for the updating-release-assets skill.
 
 ## Table of Contents
 
@@ -14,7 +14,7 @@ This document provides edge cases, troubleshooting, and additional context for t
 
 - Embedded checksums: `packages/build-infra/release-assets.json`
 - Verification logic: `packages/build-infra/lib/release-checksums.mts`
-- Update script: `packages/build-infra/scripts/update-checksums.mts`
+- Update script: `packages/build-infra/scripts/update-release-assets.mts`
 
 Embedded checksums are the source of truth. Verification rejects if checksums exist for the tool but not the asset.
 

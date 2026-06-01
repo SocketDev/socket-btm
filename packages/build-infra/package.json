@@ -61,7 +61,7 @@
     "docker:status": "node scripts/setup-docker-builds.mts --status",
     "setup:docker": "node scripts/setup-docker-builds.mts",
     "test": "vitest run",
-    "update-checksums": "node scripts/update-checksums.mts",
+    "update-release-assets": "node scripts/update-release-assets.mts",
     "update:vfs-tools": "node scripts/update-vfs-tools.mts"
   },
   "dependencies": {

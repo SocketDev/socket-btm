@@ -1583,7 +1583,7 @@ jobs:
             dist/${TOOL}/checksums.txt
           gh release edit "$TAG" --draft=false
 
-  update-checksums:
+  update-release-assets:
     needs: release
     # always() + explicit success check: without always(), a skipped release
     # matrix entry (e.g. when the user selected tools=binpress and binflate/
@@ -1598,6 +1598,6 @@ jobs:
       && !inputs['dry-run']
     permissions:
       contents: write # release-assets.json commit after publishing GitHub release
-    uses: ./.github/workflows/update-checksums.yml
+    uses: ./.github/workflows/update-release-assets.yml
     secrets:
       BOT_GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}

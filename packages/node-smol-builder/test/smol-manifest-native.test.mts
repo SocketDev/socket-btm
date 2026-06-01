@@ -21,7 +21,7 @@
  */
 
 import { existsSync, readdirSync } from 'node:fs'
-import path from 'node:path'
+import path, { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'

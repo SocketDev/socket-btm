@@ -39,7 +39,6 @@
     "test": "node scripts/test.mts",
     "test:build-infra": "pnpm --filter build-infra test",
     "test:node-smol": "pnpm --filter node-smol-builder test",
-    "test:node-smol:ci": "pnpm --filter node-smol-builder test:ci",
     "update": "node scripts/update.mts",
     "update:node": "node scripts/update-node-version.mts",
     "validate:dockerfiles": "node scripts/validate-dockerfile-exports.mts",

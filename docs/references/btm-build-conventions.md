@@ -27,6 +27,22 @@ The mirrored subdirectories under `additions/source-patched/src/socketsecurity/{
 
 When modifying source, bump `.github/cache-versions.json` for all dependents. The full path → consumer mapping lives in `scripts/validate-cache-versions.mts` (`CASCADE_RULES`); the gate runs in `pnpm check` and CI, so missed bumps fail the build instead of leaking into a release.
 
+## Linker & binary-size optimization (ICF)
+
+node-smol links with **LTO** (`--enable-lto`: `-flto=thin` Clang / `-flto=4 -ffat-lto-objects` GCC) plus **Identical Code Folding** to shrink the binary. ICF merges byte-identical functions at link time.
+
+Per-platform, by linker:
+
+- **Linux (gold)** — patch `001-common-gypi-lto.patch` adds a Linux-release block to `common.gypi` (active in the default `node_section_ordering_info==""` case) that sets `-fuse-ld=gold` + `-ffunction-sections` (cflags) and `-fuse-ld=gold -Wl,--icf=safe` (ldflags). gold is GCC's native companion linker (node-smol builds with GCC, not Clang) — no LLVM dependency. Stock node-smol linked with bfd `ld`, which has no `--icf`.
+- **Windows (MSVC link.exe)** — Release `VCLinkerTool` sets `OptimizeReferences` (`/OPT:REF`) + `EnableCOMDATFolding` (`/OPT:ICF`). Release implies these already; explicit keeps them durable. Debug keeps incremental linking (mutually exclusive with `/OPT:ICF`).
+- **macOS (ld64/ld-prime)** — already folds in release; no flag.
+
+🚨 **`--icf=safe`, never `--icf=all`.** `safe` preserves function-pointer identity (`&a != &b` for distinct symbols); V8/Node compare code pointers, so `all` risks miscompilation. The size delta is small — correctness wins.
+
+🚨 **Every Linux node-smol Dockerfile MUST install gold**, or the build fails at link (the gypi flag fires on all Linux builds, dev and released). gold ships in a binutils sub-package, installed explicitly: `gcc-toolset-13-binutils-gold` (AlmaLinux 8 — `Dockerfile.glibc`, `.glibc-released`, and the `btm-builder-glibc` base image), `devtoolset-11-binutils-gold` (manylinux2014 — `Dockerfile.glibc-2.17`), `binutils-gold` (Alpine — `Dockerfile.musl`, `.musl-released`). It survives the gcc-toolset prune in `btm-builder-glibc.Dockerfile` (`ld.gold` isn't in the rm list). Tracked in `build-infra/external-tools.json` under `binutils`.
+
+Post-link `strip` / `objcopy --remove-section` / `sstrip` are linker-agnostic — gold emits the same ELF sections as bfd, so `build-stripped.mts` is unchanged. Measure a size delta with `size -A <binary> | grep .text` (Linux) against a same-SHA baseline. Upstream technique: Deno's safe-ICF PR (`lld --icf=safe` / `/OPT:ICF`, ~4.4% on a Rust binary; expect less on C++ + LTO).
+
 ## Test style
 
 NEVER write source-code-scanning tests. Write functional tests that verify behavior. For modules requiring the built binary: use integration tests with the final binary (`getLatestFinalBinary`), NEVER intermediate stages.

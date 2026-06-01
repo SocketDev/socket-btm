@@ -40,6 +40,7 @@ RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked \
         file \
         gcc-toolset-13 \
         gcc-toolset-13-binutils \
+        gcc-toolset-13-binutils-gold \
         gcc-toolset-13-gcc \
         gcc-toolset-13-gcc-c++ \
         gcc-toolset-13-libstdc++-devel \

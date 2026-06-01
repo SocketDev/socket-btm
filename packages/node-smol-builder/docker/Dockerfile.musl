@@ -9,21 +9,24 @@ FROM alpine:3.20 AS build
 
 # Explicit cache-version tag from cache-versions.json; bumping this invalidates layers below.
 # Install build dependencies.
+# binutils-gold supplies the gold linker (ld.gold), which the build selects
+# via -fuse-ld=gold to enable --icf=safe (folds identical functions).
 RUN apk add --no-cache \
-        python3 \
-        make \
-        g++ \
-        linux-headers \
-        git \
-        curl \
-        patch \
+        binutils-gold \
         ccache \
-        ninja \
+        curl \
+        g++ \
+        git \
+        linux-headers \
+        liburing-dev \
+        make \
         musl-dev \
-        xz-dev \
+        ninja \
         openssl-dev \
         openssl-libs-static \
-        liburing-dev
+        patch \
+        python3 \
+        xz-dev
 
 # Install Node.js from official musl binaries (Alpine packages lag behind).
 ARG NODE_VERSION=25.9.0

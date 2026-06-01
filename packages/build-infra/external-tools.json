@@ -60,9 +60,9 @@
       "notes": "Standard build tool. Usually pre-installed on Unix systems. On Linux, included in 'build-essential' package."
     },
     "binutils": {
-      "description": "GNU binary utilities (includes objcopy for ELF section manipulation)",
+      "description": "GNU binary utilities (includes objcopy for ELF section manipulation and the gold linker for ICF)",
       "version": "2.38",
-      "notes": "Provides objcopy for ELF binary manipulation. On Linux, included in 'build-essential' package but listed explicitly for version tracking. objcopy is used for ARM64 binary optimization (removing .note sections). On macOS, not pre-installed - requires 'brew install binutils'. Windows uses MinGW binutils from mingw-w64 package. Version 2.38 matches GitHub Actions ubuntu-22.04 runner (our primary CI platform)."
+      "notes": "Provides objcopy for ELF binary manipulation. On Linux, included in 'build-essential' package but listed explicitly for version tracking. objcopy is used for ARM64 binary optimization (removing .note sections). The gold linker (ld.gold) is selected for node-smol Linux release links via -fuse-ld=gold to enable --icf=safe (Identical Code Folding); gold ships in a separate sub-package the builder Dockerfiles install explicitly (gcc-toolset-13-binutils-gold / devtoolset-11-binutils-gold on RPM, binutils-gold on Alpine). On macOS, not pre-installed - requires 'brew install binutils'. Windows uses MinGW binutils from mingw-w64 package. Version 2.38 matches GitHub Actions ubuntu-22.04 runner (our primary CI platform)."
     },
     "cmake": {
       "description": "CMake cross-platform build system generator",

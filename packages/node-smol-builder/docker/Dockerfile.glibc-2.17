@@ -71,6 +71,7 @@ RUN yum -y install \
         which \
         procps-ng \
         patch \
+        devtoolset-11-binutils-gold \
         devtoolset-11-gcc \
         devtoolset-11-gcc-c++ \
         devtoolset-11-libstdc++-devel \

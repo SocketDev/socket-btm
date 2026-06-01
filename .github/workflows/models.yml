@@ -58,7 +58,7 @@ jobs:
       PLATFORM_ARCH: linux-x64
 
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@c291a14196d088970c0453e905b40969b11bf193 # main (2026-05-15)
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@7c052ea027ec6cf975f96a2cd3c76ecc4e66803d # main (2026-06-01)
       - name: Load tool versions
         id: tool-versions
         run: |

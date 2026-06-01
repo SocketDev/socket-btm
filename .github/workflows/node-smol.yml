@@ -55,7 +55,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
           submodules: false
-      - uses: SocketDev/socket-registry/.github/actions/setup@c291a14196d088970c0453e905b40969b11bf193 # main (2026-05-15)
+      - uses: SocketDev/socket-registry/.github/actions/setup@7c052ea027ec6cf975f96a2cd3c76ecc4e66803d # main (2026-06-01)
       - name: Check publish chain freshness
         env:
           GH_TOKEN: ${{ github.token }}
@@ -147,7 +147,7 @@ jobs:
         with:
           debug: ${{ inputs.debug }}
 
-      - uses: SocketDev/socket-registry/.github/actions/setup@c291a14196d088970c0453e905b40969b11bf193 # main (2026-05-15)
+      - uses: SocketDev/socket-registry/.github/actions/setup@7c052ea027ec6cf975f96a2cd3c76ecc4e66803d # main (2026-06-01)
       - name: Load Node.js version
         id: node-version
         shell: bash

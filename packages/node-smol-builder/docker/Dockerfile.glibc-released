@@ -34,6 +34,9 @@ COPY .node-version /tmp/.node-version
 # AlmaLinux 8 has glibc 2.28, which is the minimum required by Node.js.
 # We use GCC Toolset 13 for C++20 support while maintaining glibc 2.28 compatibility.
 # Enable PowerTools for ninja-build, EPEL for ccache.
+# libatomic: pnpm's native binary links libatomic.so.1. NodeSource's nodejs
+# rpm pulled it in transitively; the nodejs.org tarball install below does
+# not, so list it explicitly (matches the btm-builder-glibc base image).
 RUN dnf -y update && \
     dnf -y install epel-release dnf-plugins-core && \
     dnf config-manager --set-enabled powertools && \
@@ -51,6 +54,7 @@ RUN dnf -y update && \
         which \
         procps-ng \
         patch \
+        libatomic \
         && \
     # Enable GCC Toolset 13 (provides GCC 13 with C++20 support).
     # gcc-toolset-13-binutils-gold supplies the gold linker (ld.gold), which

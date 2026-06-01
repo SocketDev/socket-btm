@@ -59,6 +59,8 @@ COPY .node-version /tmp/.node-version
 # NOTE: manylinux2014 ships WITH SCL preconfigured — no `centos-release-scl`
 # needed. If that package install ever appears necessary again, investigate
 # why; don't paper over it with `|| true`, which silently masks real errors.
+# libatomic: pnpm's native binary links libatomic.so.1; the nodejs.org
+# tarball install below (replacing NodeSource) doesn't pull it transitively.
 RUN yum -y install \
         git \
         curl \
@@ -75,6 +77,7 @@ RUN yum -y install \
         which \
         procps-ng \
         patch \
+        libatomic \
         devtoolset-11-binutils-gold \
         devtoolset-11-gcc \
         devtoolset-11-gcc-c++ \

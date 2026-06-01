@@ -1,0 +1,40 @@
+# @node-versions: v26.1.0
+# @description: Point ncrypto at BoringSSL instead of bundled OpenSSL
+#
+# node-smol uses BoringSSL as its crypto/TLS provider: patch 004 adds the
+# deps/boringssl dependency to libnode, so node::crypto compiles against the
+# BoringSSL headers (base.h #defines OPENSSL_IS_BORINGSSL; with BORINGSSL_PREFIX
+# set, EVP_MD is typed as env_md_st). But deps/ncrypto/ncrypto.gyp — the C++
+# crypto wrapper layer libnode calls into — still depended on the bundled
+# deps/openssl, so it saw OpenSSL's evp_md_st. The same ncrypto C++ functions
+# (ncrypto::hashDigest, ncrypto::Rsa, EVPKeyPointer::NewRSA, EVPMDCtxPointer::
+# reset, SSLPointer::setSession, xofHashDigest) therefore mangled with a
+# different EVP_MD type than libnode's references, so linking the node binary
+# failed with undefined ncrypto:: symbols.
+#
+# Switch ncrypto's node_shared_openssl=="false" dependency from
+# ../openssl/openssl.gyp:openssl to ../boringssl/boringssl.gyp:boringssl. The
+# boringssl target's direct_dependent_settings supply the BoringSSL include dir
+# + BORINGSSL_PREFIX define, so ncrypto and libnode now compile against the same
+# crypto headers and their symbols match.
+#
+--- a/deps/ncrypto/ncrypto.gyp
++++ b/deps/ncrypto/ncrypto.gyp
+@@ -24,8 +24,16 @@
+       'sources': [ '<@(ncrypto_sources)' ],
+       'conditions': [
+         ['node_shared_openssl=="false"', {
++          # Socket Security: node-smol uses BoringSSL as its crypto provider, so
++          # ncrypto must compile against the BoringSSL headers (which #define
++          # OPENSSL_IS_BORINGSSL and, with BORINGSSL_PREFIX, type EVP_MD as
++          # env_md_st) to match libnode. Depending on the bundled OpenSSL instead
++          # makes ncrypto see evp_md_st, so its C++ wrappers (ncrypto::hashDigest,
++          # ncrypto::Rsa, EVPKeyPointer::NewRSA, ...) mangle differently from
++          # libnode's references and the link fails. The boringssl target's
++          # direct_dependent_settings supply the include dir + BORINGSSL_PREFIX.
+           'dependencies': [
+-            '../openssl/openssl.gyp:openssl'
++            '../boringssl/boringssl.gyp:boringssl'
+           ]
+         }],
+       ]

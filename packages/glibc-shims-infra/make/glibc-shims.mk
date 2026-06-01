@@ -6,9 +6,16 @@
 # fleet sorting rule):
 #
 #   include ../glibc-shims-infra/make/glibc-shims.mk
-#   CXXFLAGS += $(GLIBC_SHIMS_CFLAGS)
+#   CFLAGS  += $(GLIBC_SHIMS_CFLAGS)
 #   LDFLAGS += $(GLIBC_SHIMS_LDFLAGS)
+#
+# Then EITHER (single-call link, like stubs-builder):
 #   SOURCES += $(GLIBC_SHIMS_SOURCES)
+#
+# OR (separate-compile model, like binject/binpress):
+#   OBJS    += $(GLIBC_SHIMS_OBJECTS)
+#   # plus depend on $(BUILD_DIR) — the pattern rule below builds each
+#   # GLIBC_SHIMS_OBJECTS entry from its matching GLIBC_SHIMS_SOURCES.
 #
 # The shim symbols are linker-rewritten via -Wl,--wrap=<symbol>; on glibc
 # >= 2.34 the dlsym path runs unchanged, on glibc 2.17 the fallback runs.
@@ -49,3 +56,22 @@ GLIBC_SHIMS_LDFLAGS := \
   -Wl,--wrap=getrandom \
   -Wl,--wrap=quick_exit \
   -ldl
+
+# Per-object names placed under the consumer's $(BUILD_DIR). The pattern
+# rule below maps each name to its source via the unique basename — every
+# shim file has a distinct basename so there is no collision risk.
+#
+# Alphabetical for stable diffs.
+GLIBC_SHIMS_OBJECTS := \
+  $(BUILD_DIR)/at_quick_exit.o \
+  $(BUILD_DIR)/cxa_thread_atexit_impl.o \
+  $(BUILD_DIR)/getrandom.o \
+  $(BUILD_DIR)/quick_exit.o
+
+# Compile each shim into the consumer's $(BUILD_DIR). The static-pattern
+# rule binds the four targets to the four source paths by basename. Uses
+# the consumer's $(CC) + $(CFLAGS) — by the time this rule fires, the
+# consumer has already appended $(GLIBC_SHIMS_CFLAGS) to its CFLAGS so
+# the include path is set.
+$(GLIBC_SHIMS_OBJECTS): $(BUILD_DIR)/%.o: $(GLIBC_SHIMS_SRC)/%.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@

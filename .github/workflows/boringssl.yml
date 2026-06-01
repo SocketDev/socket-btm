@@ -123,8 +123,8 @@ jobs:
         with:
           debug: ${{ inputs.debug }}
 
-      - uses: SocketDev/socket-registry/.github/actions/setup@7c052ea027ec6cf975f96a2cd3c76ecc4e66803d # main (2026-06-01)
-      - uses: SocketDev/socket-registry/.github/actions/install@75964f14e0682ae4aa846119e2fc9a710d970056 # main (2026-05-15)
+      - uses: SocketDev/socket-registry/.github/actions/setup@eecde2c7dfdb9f5f8c1842979862ec3bb9072c38 # main (2026-06-01)
+      - uses: SocketDev/socket-registry/.github/actions/install@eecde2c7dfdb9f5f8c1842979862ec3bb9072c38 # main (2026-06-01)
       - name: Load cache version from centralized config
         id: cache-version
         uses: ./.github/actions/load-cache-version

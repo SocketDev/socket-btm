@@ -55,7 +55,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
           submodules: false
-      - uses: SocketDev/socket-registry/.github/actions/setup@7c052ea027ec6cf975f96a2cd3c76ecc4e66803d # main (2026-06-01)
+      - uses: SocketDev/socket-registry/.github/actions/setup@eecde2c7dfdb9f5f8c1842979862ec3bb9072c38 # main (2026-06-01)
       - name: Check publish chain freshness
         # Publish-chain freshness only matters when we intend to release.
         # A dry-run is build-only and consumes none of these published
@@ -153,7 +153,7 @@ jobs:
         with:
           debug: ${{ inputs.debug }}
 
-      - uses: SocketDev/socket-registry/.github/actions/setup@7c052ea027ec6cf975f96a2cd3c76ecc4e66803d # main (2026-06-01)
+      - uses: SocketDev/socket-registry/.github/actions/setup@eecde2c7dfdb9f5f8c1842979862ec3bb9072c38 # main (2026-06-01)
       - name: Load Node.js version
         id: node-version
         shell: bash
@@ -163,7 +163,7 @@ jobs:
           echo "node-version=$NODE_BUILD_VERSION" >> $GITHUB_OUTPUT
           echo "Loaded Node.js build version: $NODE_BUILD_VERSION"
 
-      - uses: SocketDev/socket-registry/.github/actions/install@75964f14e0682ae4aa846119e2fc9a710d970056 # main (2026-05-15)
+      - uses: SocketDev/socket-registry/.github/actions/install@eecde2c7dfdb9f5f8c1842979862ec3bb9072c38 # main (2026-06-01)
       - name: Set build mode
         id: build-mode
         uses: ./.github/actions/set-build-mode

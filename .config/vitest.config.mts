@@ -31,6 +31,25 @@ export default defineConfig({
     },
     globals: true,
     hookTimeout: 30_000,
+    // Scope discovery to real test files. Without an explicit include +
+    // exclude, vitest's module-graph walk (e.g. `vitest related` in the
+    // pre-commit hook) reaches into vendored `upstream/` submodule
+    // fixtures that `import … from './foo.wasm'`, which vite's default
+    // loader can't transform — surfacing as a spurious "ESM integration
+    // proposal for Wasm" failure. Excluding the vendored trees keeps the
+    // walk inside our own suites.
+    include: ['**/test/**/*.test.{js,ts,mjs,mts,cjs}'],
+    exclude: [
+      '**/build/**',
+      '**/dist/**',
+      '**/node_modules/**',
+      '**/test/fixtures/**',
+      '**/upstream/**',
+      '.claude/hooks/**/test/**',
+      '.config/oxlint-plugin/test/**',
+      '.git-hooks/**',
+      'scripts/**/test/**',
+    ],
     testTimeout: 120_000, // 2 minutes for large binary spawning
   },
 })

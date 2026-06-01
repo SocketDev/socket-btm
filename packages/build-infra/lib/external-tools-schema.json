@@ -32,20 +32,22 @@
           "repository": { "type": "string" },
           "release": { "type": "string", "enum": ["asset", "archive"] },
           "tag": { "type": "string" },
-          "checksums": {
+          "platforms": {
             "type": "object",
+            "description": "Per-platform release assets keyed by <os>-<arch> (e.g. linux-x64, darwin-arm64, win-x64). Each entry pins the asset filename plus an SRI integrity string. Replaces the legacy `checksums` map (which keyed sha256 hex under `.sha256`).",
             "additionalProperties": {
-              "oneOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "asset": { "type": "string" },
-                    "sha256": { "type": "string" }
-                  },
-                  "required": ["asset", "sha256"]
+              "type": "object",
+              "properties": {
+                "asset": { "type": "string" },
+                "integrity": {
+                  "type": "string",
+                  "description": "SRI hash, e.g. sha256-<base64>. Decode the base64 to hex for `sha256sum -c`."
                 },
-                { "type": "string" }
-              ]
+                "source": { "type": "string" },
+                "binary": { "type": "string" },
+                "notes": { "type": "string" }
+              },
+              "required": ["asset", "integrity"]
             }
           }
         },

@@ -11,6 +11,10 @@ export default mergeConfig(
   baseConfig,
   defineConfig({
     test: {
+      // TEMP(validation): 20+ existing test files use bare describe/it/expect
+      // (written against the old globals:true base). Re-enable until the
+      // fleet decides globals true→false migration. See validation plan.
+      globals: true,
       exclude: [
         '**/build/**',
         '**/dist/**',

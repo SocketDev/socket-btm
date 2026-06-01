@@ -148,6 +148,12 @@ jobs:
         with:
           package-name: lief
 
+      - name: Load btm-builder-glibc prebake tag from centralized config
+        id: btm-builder-version
+        uses: ./.github/actions/load-cache-version
+        with:
+          package-name: btm-builder-glibc
+
       - name: Compose combined cache version with submodule SHAs + source hash
         id: cache-version
         shell: bash
@@ -364,6 +370,7 @@ jobs:
             PLATFORM_ARCH=${{ steps.platform-arch.outputs.platform_arch }}
             CACHE_VERSION=${{ steps.cache-version.outputs.version }}
             CURL_CACHE_VERSION=${{ steps.cache-version.outputs.curl_cache_key }}
+            BTM_BUILDER_TAG=${{ steps.btm-builder-version.outputs.version }}
           no-cache: ${{ inputs.force == true }}
           file: packages/stubs-builder/docker/Dockerfile.${{ matrix.libc || 'glibc' }}
           target: export

@@ -46,7 +46,7 @@
 +    # Socket Security: smol subsystem gates. Defaults here (mirroring
 +    # node_use_sqlite above) make node.gyp self-sufficient when configure.py
 +    # does not set them — notably the Windows vcbuild.bat path, which no-ops
-+    # --without-* flags. configure.py (patch 018) overrides these from the
++    # --without-* flags. configure.py overrides these from the matching
 +    # --without-smol-* flags the bundle feature detector emits.
 +    'node_use_smol_quic%': 'true',
 +    'node_use_smol_http3%': 'true',

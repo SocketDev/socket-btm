@@ -88,7 +88,7 @@
 +# Socket Security: per-subsystem smol toggles (all default enabled). The bundle
 +# feature detector (node-smol-builder/scripts/detect-bundle-features.mts) emits
 +# the matching flag to drop whatever a given SEA bundle does not reference. Each
-+# gates the like-named node_use_smol_* gyp var in node.gyp (patch 004).
++# gates the like-named node_use_smol_* gyp var in node.gyp.
 +parser.add_argument('--without-smol-http',
 +    action='store_true',
 +    dest='without_smol_http',
@@ -215,8 +215,8 @@
 +
 +def configure_smol_extras(o):
 +  # Socket Security: per-subsystem smol toggles (all default enabled). Each gates
-+  # the like-named node_use_smol_* condition in node.gyp (patch 004). node.gyp
-+  # references these unconditionally, so they MUST always be set here.
++  # the like-named node_use_smol_* condition in node.gyp, which references these
++  # unconditionally, so they MUST always be set here.
 +  o['variables']['node_use_smol_http'] = b(not options.without_smol_http)
 +  o['variables']['node_use_smol_ffi'] = b(not options.without_smol_ffi)
 +  o['variables']['node_use_smol_ilp'] = b(not options.without_smol_ilp)

@@ -5,7 +5,7 @@
  * and have ZERO file overlaps (no sequential dependencies).
  */
 
-import { existsSync, promises as fs } from 'node:fs'
+import { existsSync, promises as fs, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -19,60 +19,14 @@ const __dirname = path.dirname(__filename)
 
 const PATCHES_DIR = path.resolve(__dirname, '../../patches/source-patched')
 
-// Expected patches - NO sequential dependencies.
-const EXPECTED_PATCHES = [
-  '001-common-gypi-lto.patch',
-  '002-polyfills.patch',
-  '003-realm-smol-bindings.patch',
-  '004-node-gyp-smol-sources.patch',
-  '005-smol-binding-macros.patch',
-  '006-sea-smol-config.patch',
-  '007-sea-smol-structs.patch',
-  '008-sea-binject.patch',
-  '009-v8-typeindex-macos.patch',
-  '010-vfs-bootstrap.patch',
-  '011-vfs-require-resolve.patch',
-  '012-debug-smol-sea.patch',
-  '013-sea-silent-exit.patch',
-  '014-fast-webstreams.patch',
-  '015-http-server-wire.patch',
-  '016-http-parser-pool.patch',
-  '017-smol-builtin-bindings.patch',
-  '018-configure-postgres-iouring.patch',
-  '019-smol-external-refs.patch',
-  '020-cares-getrandom-glibc-prereq.patch',
-  '021-temporal-rs-shim-include.patch',
-]
-
-// Expected files modified by each patch (for overlap detection).
-// Each patch modifies exactly one file for zero-overlap independence.
-const EXPECTED_FILE_MAP = {
-  '001-common-gypi-lto.patch': ['common.gypi'],
-  '002-polyfills.patch': ['lib/internal/bootstrap/node.js'],
-  '003-realm-smol-bindings.patch': ['lib/internal/bootstrap/realm.js'],
-  '004-node-gyp-smol-sources.patch': ['node.gyp'],
-  '005-smol-binding-macros.patch': ['src/node_binding.h'],
-  '006-sea-smol-config.patch': ['src/node_sea.cc'],
-  '007-sea-smol-structs.patch': ['src/node_sea.h'],
-  '008-sea-binject.patch': ['src/node_sea_bin.cc'],
-  '009-v8-typeindex-macos.patch': ['deps/v8/src/wasm/value-type.h'],
-  '010-vfs-bootstrap.patch': ['lib/internal/process/pre_execution.js'],
-  '011-vfs-require-resolve.patch': ['lib/internal/main/embedding.js'],
-  '012-debug-smol-sea.patch': ['src/debug_utils.h'],
-  '013-sea-silent-exit.patch': ['src/node_options.cc'],
-  '014-fast-webstreams.patch': [
-    'lib/internal/bootstrap/web/exposed-wildcard.js',
-  ],
-  '015-http-server-wire.patch': ['lib/_http_server.js'],
-  '016-http-parser-pool.patch': ['src/node_http_parser.cc'],
-  '017-smol-builtin-bindings.patch': ['src/node_binding.cc'],
-  '018-configure-postgres-iouring.patch': ['configure.py'],
-  '019-smol-external-refs.patch': ['src/node_external_reference.h'],
-  '020-cares-getrandom-glibc-prereq.patch': [
-    'deps/cares/config/linux/ares_config.h',
-  ],
-  '021-temporal-rs-shim-include.patch': ['deps/crates/crates.gyp'],
-}
+// Auto-discover patches — the directory is the single source of truth, matching
+// the real build's apply-patches.mts (readdirSync + sort by name). A hardcoded
+// list silently drifts: a newly added patch goes untested, and the count
+// assertion breaks. Discovering keeps every patch covered by format / zero-
+// overlap / apply-in-any-order checks the moment it lands, no list to maintain.
+const EXPECTED_PATCHES = readdirSync(PATCHES_DIR)
+  .filter(f => f.endsWith('.patch'))
+  .sort((a, b) => a.localeCompare(b))
 
 describe('patch File Existence', () => {
   it('should have patches directory', () => {
@@ -261,25 +215,14 @@ describe('zero File Overlaps', () => {
       actualFileMap[patchName] = [...new Set(files)].toSorted()
     }
 
-    // Log actual vs expected.
-    console.log('\nFile Modifications by Patch:')
+    // Every patch must modify at least one real file (a no-op patch is a bug).
+    // The set of files each patch touches is derived from its own `--- a/`
+    // headers above — no hardcoded expected-file map to drift against. The
+    // zero-overlap test ('should verify each patch modifies unique files')
+    // already guarantees no two patches touch the same file.
     for (const patchName of EXPECTED_PATCHES) {
       const actual = actualFileMap[patchName]
-      const expected = EXPECTED_FILE_MAP[patchName]
-
-      console.log(`\n${patchName}:`)
-      console.log(`  Expected: ${expected.length} files`)
-      console.log(`  Actual:   ${actual.length} files`)
-
-      // All patches should modify exactly 1 file (zero-overlap design).
-      expect(actual.length).toBeGreaterThanOrEqual(1)
-
-      // For patches that modify more than expected, log but don't fail.
-      if (expected && actual.length !== expected.length) {
-        console.log(
-          `    MISMATCH: expected ${expected.length}, got ${actual.length}`,
-        )
-      }
+      expect(actual.length, `${patchName} modifies no files`).toBeGreaterThanOrEqual(1)
     }
   })
 })
@@ -395,8 +338,12 @@ describe('patch Metadata', () => {
     expect(totalLines).toBeLessThan(10_000)
   })
 
-  it('should have correct patch count', () => {
-    expect(EXPECTED_PATCHES).toHaveLength(21)
+  it('should discover at least the known patch set', () => {
+    // No hardcoded count — the directory is the source of truth (matches
+    // apply-patches.mts). A floor guards against a glob that silently finds
+    // nothing (e.g. wrong dir); the exact count is intentionally not asserted so
+    // adding a patch never requires editing this test.
+    expect(EXPECTED_PATCHES.length).toBeGreaterThanOrEqual(21)
   })
 
   it('should have sequential numbering without duplicates', () => {

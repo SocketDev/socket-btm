@@ -4,8 +4,8 @@
 # node-smol uses BoringSSL (built -DBORINGSSL_PREFIX=smol) as its crypto/TLS
 # provider — node::crypto compiles the OPENSSL_IS_BORINGSSL code paths and links
 # libsmol_{ssl,crypto,decrepit}.a via deps/boringssl/boringssl.gyp's
-# link_settings (reached through libnode's boringssl dependency + ncrypto, see
-# patches 004 + 022).
+# link_settings (reached through libnode's boringssl dependency + ncrypto's
+# boringssl dependency).
 #
 # But node.gypi's `node_use_openssl=="true" && node_shared_openssl=="false"`
 # block ALSO built and -force_load'ed the upstream bundled OpenSSL
@@ -32,7 +32,7 @@
 +          # crypto/TLS provider — node::crypto compiles the OPENSSL_IS_BORINGSSL
 +          # paths and links libsmol_{ssl,crypto,decrepit}.a via
 +          # deps/boringssl/boringssl.gyp's link_settings (pulled in through the
-+          # libnode `boringssl` dependency + ncrypto, patches 004/022). The
++          # libnode `boringssl` dependency + ncrypto's boringssl dependency). The
 +          # upstream bundled OpenSSL (deps/openssl) is NOT built or linked here:
 +          # force_load'ing libopenssl.a alongside BoringSSL produced duplicate
 +          # symbols (EVP_sha3_*, EVP_blake2b512, EVP_ripemd160 — BoringSSL exports

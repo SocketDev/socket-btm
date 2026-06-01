@@ -1,8 +1,8 @@
 # @node-versions: v26.1.0
 # @description: Point ncrypto at BoringSSL instead of bundled OpenSSL
 #
-# node-smol uses BoringSSL as its crypto/TLS provider: patch 004 adds the
-# deps/boringssl dependency to libnode, so node::crypto compiles against the
+# node-smol uses BoringSSL as its crypto/TLS provider: libnode depends on
+# deps/boringssl/boringssl.gyp:boringssl, so node::crypto compiles against the
 # BoringSSL headers (base.h #defines OPENSSL_IS_BORINGSSL; with BORINGSSL_PREFIX
 # set, EVP_MD is typed as env_md_st). But deps/ncrypto/ncrypto.gyp — the C++
 # crypto wrapper layer libnode calls into — still depended on the bundled

@@ -35,6 +35,8 @@
 //
 // Fails open on malformed payloads (exit 0 + stderr log).
 
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -42,6 +44,8 @@ import process from 'node:process'
 import { withBashGuard, type ToolCallPayload } from '../_shared/payload.mts'
 import { commandsFor } from '../_shared/shell-command.mts'
 import { bypassPhrasePresent } from '../_shared/transcript.mts'
+
+const logger = getDefaultLogger()
 
 interface Hit {
   readonly label: string
@@ -175,14 +179,14 @@ function checkCommand(command: string, payload: ToolCallPayload): void {
   const cwd = payload.cwd ?? process.cwd()
   const body = extractCommitMessage(command, cwd)
   if (!body) {
-    process.exit(0)
+    return
   }
   const hits = findScanLabels(body)
   if (hits.length === 0) {
-    process.exit(0)
+    return
   }
   if (bypassPhrasePresent(payload.transcript_path, BYPASS_PHRASE)) {
-    process.exit(0)
+    return
   }
   const lines: string[] = []
   lines.push(
@@ -207,8 +211,8 @@ function checkCommand(command: string, payload: ToolCallPayload): void {
   lines.push('')
   lines.push('  Bypass (e.g. citing a real advisory ID that happens to match):')
   lines.push(`    Type "${BYPASS_PHRASE}" in your next message.`)
-  process.stderr.write(lines.join('\n') + '\n')
-  process.exit(2)
+  logger.error(lines.join('\n') + '\n')
+  process.exitCode = 2
 }
 
 export { checkCommand }

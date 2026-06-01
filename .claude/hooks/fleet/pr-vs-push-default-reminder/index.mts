@@ -15,11 +15,14 @@
 // Skipped when the branch isn't main/master (feature branches always
 // PR via the wheelhouse push-fallback policy).
 
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
 import { readFileSync } from 'node:fs'
 import process from 'node:process'
 
 import { withBashGuard } from '../_shared/payload.mts'
+
+const logger = getDefaultLogger()
 
 // Patterns that signal "I want a PR." Match against the FULL trimmed
 // text of any of the last N user turns.
@@ -116,25 +119,25 @@ export function readRecentUserTurnTexts(
 // and fail-open on any throw.
 await withBashGuard((command, payload) => {
   if (!isGhPrCreate(command)) {
-    process.exit(0)
+    return
   }
 
   const cwd = payload.cwd ?? process.cwd()
   const branch = currentBranch(cwd)
   if (!branch || (branch !== 'main' && branch !== 'master')) {
-    process.exit(0)
+    return
   }
 
   // On main/master — check whether the user asked for a PR.
   if (!payload.transcript_path) {
-    process.exit(0)
+    return
   }
   const turns = readRecentUserTurnTexts(payload.transcript_path, TURN_WINDOW)
   if (hasPrDirective(turns)) {
-    process.exit(0)
+    return
   }
 
-  process.stderr.write(
+  logger.error(
     [
       '[pr-vs-push-default-reminder] About to open a PR from main',
       '',
@@ -157,5 +160,5 @@ await withBashGuard((command, payload) => {
       '',
     ].join('\n'),
   )
-  process.exit(0)
+  return
 })

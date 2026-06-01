@@ -21,12 +21,15 @@
 // Bypass: "Allow version-bump-order bypass" in a recent user turn, or
 // SOCKET_VERSION_BUMP_ORDER_GUARD_DISABLED=1.
 
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
 import process from 'node:process'
 
 import { withBashGuard } from '../_shared/payload.mts'
 import { commandsFor } from '../_shared/shell-command.mts'
 import { bypassPhrasePresent } from '../_shared/transcript.mts'
+
+const logger = getDefaultLogger()
 
 const BYPASS_PHRASES = [
   'Allow version-bump-order bypass',
@@ -54,13 +57,13 @@ const BUMP_SUBJECT_RE =
 // and fail-open on any throw.
 await withBashGuard((command, payload) => {
   if (process.env['SOCKET_VERSION_BUMP_ORDER_GUARD_DISABLED']) {
-    process.exit(0)
+    return
   }
   if (!isVersionTagCommand(command)) {
-    process.exit(0)
+    return
   }
   if (bypassPhrasePresent(payload.transcript_path, BYPASS_PHRASES)) {
-    process.exit(0)
+    return
   }
 
   // Read the most-recent commit subject from HEAD.
@@ -68,11 +71,11 @@ await withBashGuard((command, payload) => {
   const subjectResult = spawnSync('git', ['log', '-1', '--pretty=%s'], opts)
   if (subjectResult.status !== 0) {
     // Not a git repo or git unavailable — fail open.
-    process.exit(0)
+    return
   }
   const headSubject = String(subjectResult.stdout).trim()
   if (BUMP_SUBJECT_RE.test(headSubject)) {
-    process.exit(0)
+    return
   }
 
   // Look up whether CHANGELOG.md was touched in HEAD.
@@ -112,6 +115,6 @@ await withBashGuard((command, payload) => {
     '  Bypass: type "Allow version-bump-order bypass" in a recent message.',
     '',
   ]
-  process.stderr.write(lines.join('\n') + '\n')
-  process.exit(2)
+  logger.error(lines.join('\n') + '\n')
+  process.exitCode = 2
 })

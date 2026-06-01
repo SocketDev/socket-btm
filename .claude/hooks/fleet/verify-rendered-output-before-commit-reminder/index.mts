@@ -18,11 +18,14 @@
 //
 // No-op when the staged set is purely non-UI source.
 
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
 import { readFileSync } from 'node:fs'
 import process from 'node:process'
 
 import { withBashGuard } from '../_shared/payload.mts'
+
+const logger = getDefaultLogger()
 
 // Files whose changes likely affect rendered output.
 const UI_FILE_RE =
@@ -174,28 +177,28 @@ export function stagedFiles(cwd: string): string[] {
 // and fail-open on any throw.
 await withBashGuard((command, payload) => {
   if (!isGitCommit(command)) {
-    process.exit(0)
+    return
   }
 
   const cwd = payload.cwd ?? process.cwd()
   const staged = stagedFiles(cwd)
   const uiStaged = staged.filter(f => UI_FILE_RE.test(f))
   if (uiStaged.length === 0) {
-    process.exit(0)
+    return
   }
 
   if (!payload.transcript_path) {
-    process.exit(0)
+    return
   }
   const entries = readTranscript(payload.transcript_path)
   const { buildCommand, buildIndex, verifyIndex } = analyzeTranscript(entries)
   if (buildIndex < 0) {
     // No build ran; can't reason about freshness.
-    process.exit(0)
+    return
   }
   if (verifyIndex > buildIndex) {
     // User explicitly verified after the build.
-    process.exit(0)
+    return
   }
 
   const lines: string[] = []
@@ -226,6 +229,6 @@ await withBashGuard((command, payload) => {
   lines.push('')
   lines.push('  Reminder-only; not a block.')
   lines.push('')
-  process.stderr.write(lines.join('\n'))
-  process.exit(0)
+  logger.error(lines.join('\n'))
+  return
 })

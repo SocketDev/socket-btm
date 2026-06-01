@@ -25,10 +25,14 @@
 // Bypass: "Allow default-branch bypass" in a recent user turn, or set
 // SOCKET_DEFAULT_BRANCH_GUARD_DISABLED=1.
 
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+
 import process from 'node:process'
 
 import { withBashGuard } from '../_shared/payload.mts'
 import { bypassPhrasePresent } from '../_shared/transcript.mts'
+
+const logger = getDefaultLogger()
 
 const BYPASS_PHRASES = [
   'Allow default-branch bypass',
@@ -74,10 +78,10 @@ const TRIPLE_DOT_BRANCH_RE = /\b(?:main|master)\.{2,3}HEAD\b/
 // and fail-open on any throw.
 await withBashGuard((command, payload) => {
   if (process.env['SOCKET_DEFAULT_BRANCH_GUARD_DISABLED']) {
-    process.exit(0)
+    return
   }
   if (bypassPhrasePresent(payload.transcript_path, BYPASS_PHRASES)) {
-    process.exit(0)
+    return
   }
 
   const hits: string[] = []
@@ -94,7 +98,7 @@ await withBashGuard((command, payload) => {
     )
   }
   if (hits.length === 0) {
-    process.exit(0)
+    return
   }
 
   const lines = [
@@ -125,6 +129,6 @@ await withBashGuard((command, payload) => {
     '  Bypass: type "Allow default-branch bypass" in a recent message.',
   )
   lines.push('')
-  process.stderr.write(lines.join('\n') + '\n')
-  process.exit(2)
+  logger.error(lines.join('\n') + '\n')
+  process.exitCode = 2
 })

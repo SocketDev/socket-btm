@@ -33,11 +33,15 @@
 // Fails open on any internal error (exit 0 + stderr log) so the
 // hook never wedges the operator's flow.
 
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+
 import process from 'node:process'
 
 import { withBashGuard } from '../_shared/payload.mts'
 import { commandsFor } from '../_shared/shell-command.mts'
 import { bypassPhrasePresent } from '../_shared/transcript.mts'
+
+const logger = getDefaultLogger()
 
 const BYPASS_PHRASE = 'Allow empty-commit bypass'
 
@@ -76,18 +80,18 @@ await withBashGuard((command, payload) => {
   const allowEmptyCommit = isAllowEmptyCommit(command)
   const allowEmptyCherryPick = isCherryPickAllowEmpty(command)
   if (!allowEmptyCommit && !allowEmptyCherryPick) {
-    process.exit(0)
+    return
   }
 
   // Operator bypass — `Allow empty-commit bypass` in a recent turn.
   if (bypassPhrasePresent(payload.transcript_path, BYPASS_PHRASE)) {
-    process.exit(0)
+    return
   }
 
   const flag = allowEmptyCommit
     ? '--allow-empty (or --allow-empty-message)'
     : '--allow-empty / --keep-redundant-commits'
-  process.stderr.write(
+  logger.error(
     [
       `[no-empty-commit-guard] Blocked: git ${allowEmptyCommit ? 'commit' : 'cherry-pick'} ${flag}`,
       '',
@@ -103,5 +107,5 @@ await withBashGuard((command, payload) => {
       '',
     ].join('\n'),
   )
-  process.exit(2)
+  process.exitCode = 2
 })

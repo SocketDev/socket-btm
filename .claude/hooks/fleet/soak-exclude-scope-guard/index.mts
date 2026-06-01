@@ -20,20 +20,12 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
-import { bypassPhrasePresent, readStdin } from '../_shared/transcript.mts'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
-interface ToolInput {
-  readonly tool_name?: string | undefined
-  readonly tool_input?:
-    | {
-        readonly file_path?: string | undefined
-        readonly new_string?: string | undefined
-        readonly old_string?: string | undefined
-        readonly content?: string | undefined
-      }
-    | undefined
-  readonly transcript_path?: string | undefined
-}
+import { withEditGuard } from '../_shared/payload.mts'
+import { bypassPhrasePresent } from '../_shared/transcript.mts'
+
+const logger = getDefaultLogger()
 
 const BYPASS_PHRASE = 'Allow soak-exclude-third-party bypass'
 
@@ -121,43 +113,25 @@ export function readFileSafe(p: string): string {
   }
 }
 
-async function main(): Promise<void> {
-  let raw: string
-  try {
-    raw = await readStdin()
-  } catch {
-    process.exit(0)
-  }
-  if (!raw) {
-    process.exit(0)
-  }
-  let payload: ToolInput
-  try {
-    payload = JSON.parse(raw) as ToolInput
-  } catch {
-    process.exit(0)
-  }
-  if (payload.tool_name !== 'Edit' && payload.tool_name !== 'Write') {
-    process.exit(0)
-  }
-  const input = payload.tool_input
-  const filePath = input?.file_path
-  if (!filePath || !isPnpmWorkspaceYaml(filePath)) {
-    process.exit(0)
+// withEditGuard handles the stdin drain, tool_name gate, file_path narrow,
+// content extraction (new_string / content), and fail-open on any throw.
+await withEditGuard((filePath, content, payload) => {
+  if (!isPnpmWorkspaceYaml(filePath)) {
+    return
   }
 
   const currentText = readFileSafe(filePath)
   let afterText: string
   if (payload.tool_name === 'Write') {
-    afterText = input?.content ?? input?.new_string ?? ''
+    afterText = content ?? ''
   } else {
-    const oldStr = input?.old_string ?? ''
-    const newStr = input?.new_string ?? ''
+    const oldStr = (payload.tool_input?.old_string as string | undefined) ?? ''
+    const newStr = content ?? ''
     if (!oldStr) {
-      process.exit(0)
+      return
     }
     if (!currentText.includes(oldStr)) {
-      process.exit(0)
+      return
     }
     afterText = currentText.replace(oldStr, newStr)
   }
@@ -168,7 +142,7 @@ async function main(): Promise<void> {
     beforeEntries = parseExcludeEntries(currentText)
     afterEntries = parseExcludeEntries(afterText)
   } catch {
-    process.exit(0)
+    return
   }
 
   const offending: OffendingEntry[] = []
@@ -182,13 +156,13 @@ async function main(): Promise<void> {
     }
   }
   if (offending.length === 0) {
-    process.exit(0)
+    return
   }
   if (
     payload.transcript_path &&
     bypassPhrasePresent(payload.transcript_path, BYPASS_PHRASE)
   ) {
-    process.exit(0)
+    return
   }
 
   const lines: string[] = [
@@ -218,12 +192,6 @@ async function main(): Promise<void> {
     `  Bypass: type "${BYPASS_PHRASE}" in a new message, then retry.`,
     '',
   )
-  process.stderr.write(lines.join('\n'))
-  process.exit(2)
-}
-
-main().catch(e => {
-  process.stderr.write(
-    `[soak-exclude-scope-guard] hook error (allowing): ${(e as Error).message}\n`,
-  )
+  logger.error(lines.join('\n'))
+  process.exitCode = 2
 })

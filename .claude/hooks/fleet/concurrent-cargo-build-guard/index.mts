@@ -20,12 +20,15 @@
 // Fires only on cargo / build-prod commands, so a no-op in repos that
 // don't use cargo.
 
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
 import process from 'node:process'
 
 import { withBashGuard } from '../_shared/payload.mts'
 import { commandsFor } from '../_shared/shell-command.mts'
 import { bypassPhrasePresent } from '../_shared/transcript.mts'
+
+const logger = getDefaultLogger()
 
 const BYPASS_PHRASE = 'Allow concurrent-cargo-build bypass'
 
@@ -102,22 +105,22 @@ export function countInFlight(pgrepPattern: string): number {
 await withBashGuard((command, payload) => {
   const matched = commandMatchesBuild(command)
   if (!matched) {
-    process.exit(0)
+    return
   }
 
   const inFlight = countInFlight(matched.pgrepPattern)
   if (inFlight === 0) {
-    process.exit(0)
+    return
   }
 
   if (
     payload.transcript_path &&
     bypassPhrasePresent(payload.transcript_path, BYPASS_PHRASE)
   ) {
-    process.exit(0)
+    return
   }
 
-  process.stderr.write(
+  logger.error(
     [
       '[concurrent-cargo-build-guard] Blocked: release build already in flight',
       '',
@@ -136,5 +139,5 @@ await withBashGuard((command, payload) => {
       '',
     ].join('\n'),
   )
-  process.exit(2)
+  process.exitCode = 2
 })

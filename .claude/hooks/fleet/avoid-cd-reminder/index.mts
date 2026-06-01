@@ -31,9 +31,13 @@
 //
 // Disable via SOCKET_AVOID_CD_REMINDER_DISABLED.
 
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+
 import process from 'node:process'
 
 import { withBashGuard } from '../_shared/payload.mts'
+
+const logger = getDefaultLogger()
 
 // Matches `cd <something>` not preceded by `(` (subshell) and not
 // followed by anything that suggests evidence-capture.
@@ -87,7 +91,7 @@ await withBashGuard(command => {
   if (!detectsBareCd(command)) {
     return
   }
-  process.stderr.write(
+  logger.error(
     [
       '[avoid-cd-reminder] Bash command contains a bare `cd <path>`.',
       '',

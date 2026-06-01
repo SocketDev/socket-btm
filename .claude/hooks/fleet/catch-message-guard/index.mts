@@ -23,23 +23,14 @@
 // Fails open on regex / parse errors.
 
 import { readFileSync } from 'node:fs'
-import path from 'node:path'
 import process from 'node:process'
 
-import { bypassPhrasePresent, readStdin } from '../_shared/transcript.mts'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
-interface ToolInput {
-  readonly tool_name?: string | undefined
-  readonly tool_input?:
-    | {
-        readonly file_path?: string | undefined
-        readonly new_string?: string | undefined
-        readonly old_string?: string | undefined
-        readonly content?: string | undefined
-      }
-    | undefined
-  readonly transcript_path?: string | undefined
-}
+import { withEditGuard } from '../_shared/payload.mts'
+import { bypassPhrasePresent } from '../_shared/transcript.mts'
+
+const logger = getDefaultLogger()
 
 const BYPASS_PHRASE = 'Allow catch-message bypass'
 const BINDING_BYPASS_PHRASE = 'Allow catch-binding-name bypass'
@@ -276,43 +267,25 @@ export function readFileSafe(p: string): string {
   }
 }
 
-async function main(): Promise<void> {
-  let raw: string
-  try {
-    raw = await readStdin()
-  } catch {
-    process.exit(0)
-  }
-  if (!raw) {
-    process.exit(0)
-  }
-  let payload: ToolInput
-  try {
-    payload = JSON.parse(raw) as ToolInput
-  } catch {
-    process.exit(0)
-  }
-  if (payload.tool_name !== 'Edit' && payload.tool_name !== 'Write') {
-    process.exit(0)
-  }
-  const input = payload.tool_input
-  const filePath = input?.file_path
-  if (!filePath || !isJsOrTs(filePath) || isTestTree(filePath)) {
-    process.exit(0)
+// withEditGuard handles the stdin drain, tool_name gate, file_path narrow,
+// content extraction (new_string / content), and fail-open on any throw.
+await withEditGuard((filePath, content, payload) => {
+  if (!isJsOrTs(filePath) || isTestTree(filePath)) {
+    return
   }
 
   const currentText = readFileSafe(filePath)
   let afterText: string
   if (payload.tool_name === 'Write') {
-    afterText = input?.content ?? input?.new_string ?? ''
+    afterText = content ?? ''
   } else {
-    const oldStr = input?.old_string ?? ''
-    const newStr = input?.new_string ?? ''
+    const oldStr = (payload.tool_input?.old_string as string | undefined) ?? ''
+    const newStr = content ?? ''
     if (!oldStr) {
-      process.exit(0)
+      return
     }
     if (!currentText.includes(oldStr)) {
-      process.exit(0)
+      return
     }
     afterText = currentText.replace(oldStr, newStr)
   }
@@ -340,7 +313,7 @@ async function main(): Promise<void> {
   const hasMessage = newMessageFindings.length > 0
   const hasBinding = newBindingFindings.length > 0
   if (!hasMessage && !hasBinding) {
-    process.exit(0)
+    return
   }
 
   const transcript = payload.transcript_path
@@ -353,7 +326,7 @@ async function main(): Promise<void> {
       ? bypassPhrasePresent(transcript, BINDING_BYPASS_PHRASE)
       : false)
   if (messageBypassed && bindingBypassed) {
-    process.exit(0)
+    return
   }
 
   const lines: string[] = []
@@ -401,7 +374,9 @@ async function main(): Promise<void> {
       '',
     )
     for (const f of newBindingFindings) {
-      lines.push(`  • line ${f.line}: \`catch (${f.binding})\` — use \`e\` instead`)
+      lines.push(
+        `  • line ${f.line}: \`catch (${f.binding})\` — use \`e\` instead`,
+      )
     }
     lines.push(
       '',
@@ -420,12 +395,6 @@ async function main(): Promise<void> {
       '',
     )
   }
-  process.stderr.write(lines.join('\n'))
-  process.exit(2)
-}
-
-main().catch(e => {
-  process.stderr.write(
-    `[catch-message-guard] hook error (allowing): ${(e as Error).message}\n`,
-  )
+  logger.error(lines.join('\n'))
+  process.exitCode = 2
 })

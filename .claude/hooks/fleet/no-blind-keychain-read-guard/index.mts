@@ -48,10 +48,14 @@
 // Fails open on malformed payloads (exit 0 + stderr log) — the fleet's
 // hook contract.
 
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+
 import process from 'node:process'
 
 import { withBashGuard, type ToolCallPayload } from '../_shared/payload.mts'
 import { bypassPhrasePresent } from '../_shared/transcript.mts'
+
+const logger = getDefaultLogger()
 
 interface Hit {
   readonly tool: string
@@ -140,10 +144,10 @@ export function findKeychainReads(command: string): Hit[] {
 function checkCommand(command: string, payload: ToolCallPayload): void {
   const hits = findKeychainReads(command)
   if (hits.length === 0) {
-    process.exit(0)
+    return
   }
   if (bypassPhrasePresent(payload.transcript_path, BYPASS_PHRASE)) {
-    process.exit(0)
+    return
   }
   const lines: string[] = []
   lines.push(
@@ -180,8 +184,8 @@ function checkCommand(command: string, payload: ToolCallPayload): void {
   lines.push('  Bypass (e.g. operator-invoked diagnostics that need a fresh')
   lines.push('  keychain read):')
   lines.push(`    Type "${BYPASS_PHRASE}" in your next message.`)
-  process.stderr.write(lines.join('\n') + '\n')
-  process.exit(2)
+  logger.error(lines.join('\n') + '\n')
+  process.exitCode = 2
 }
 
 export { checkCommand }

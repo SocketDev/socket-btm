@@ -54,13 +54,16 @@ export async function publishArtifacts(
   const winReleaseDir = isWin ? `Release${path.sep}` : ''
   for (const art of PUBLISH_ARTIFACTS) {
     const resolved = substituteArtifact(art, placeholders)
+    // Match any `lib<name>.a` (crypto/ssl/decrepit and any future lib) so a
+    // newly published artifact can't silently miss the MSVC rename the way
+    // libdecrepit.a did when it was added after crypto/ssl.
     const from = resolved.from.replace(
-      /([\\/])lib(crypto|ssl)\.a$/,
+      /([\\/])lib([a-z0-9_]+)\.a$/,
       `$1${winReleaseDir}${libPrefix}$2${libSuffix}`,
     )
     const to = resolved.to.replace(
-      new RegExp(`lib${PREFIX}_(crypto|ssl)\\.a$`),
-      `${libPrefix}${PREFIX}_$1${libSuffix}`,
+      new RegExp(`lib(${PREFIX}_[a-z0-9_]+)\\.a$`),
+      `${libPrefix}$1${libSuffix}`,
     )
     if (!existsSync(from)) {
       throw new Error(`Expected build artifact not found: ${from}`)

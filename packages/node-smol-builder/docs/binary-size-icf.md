@@ -23,22 +23,24 @@ lower before any measurement.
 ICF is a linker flag, so the relevant question is which linker each platform
 actually uses, not which language the source is.
 
-| Platform | Linker in node-smol today | ICF available | Status |
-|----------|---------------------------|---------------|--------|
-| Linux x64 / arm64 | bfd `ld` (compiler default) | No — bfd has no ICF | Blocked without a linker switch |
+| Platform | Linker in node-smol | ICF | Status |
+|----------|---------------------|-----|--------|
+| Linux x64 / arm64 | gold (`-fuse-ld=gold`) | `--icf=safe` | Enabled — switched from bfd to gold |
 | macOS arm64 / x64 | Apple `ld64` / `ld-prime` | Folds in release by default | No explicit flag needed; no extra win |
 | Windows x64 | MSVC `link.exe` | `/OPT:ICF` | Implied by `/OPT:REF` in release; made explicit |
 
 Key findings from the build scripts (`scripts/binary-released/shared/build-released.mts`)
 and `upstream/node/common.gypi`:
 
-- **Linux does not use gold or lld.** `common.gypi` only switches to
-  `-fuse-ld=gold` when `node_section_ordering_info` is set, and node-smol
-  never sets it. No `LDFLAGS`/`--with-*` linker selection appears anywhere in
-  `scripts/` or `patches/`. The default link is bfd `ld`, which has no `--icf`.
-  Getting ICF on Linux therefore requires *first* forcing `-fuse-ld=gold` (or
-  lld) — a toolchain change, not a flag-add. That switch was deliberately
-  deferred (see "Deferred" below).
+- **Linux now links with gold.** Upstream `common.gypi` only switched to
+  `-fuse-ld=gold` when `node_section_ordering_info` was set, which node-smol
+  never sets — so the stock build used bfd `ld`, which has no `--icf`. Patch
+  `001-common-gypi-lto.patch` adds a sibling Linux-release block (active in the
+  default `node_section_ordering_info==""` case) that selects gold and passes
+  `-Wl,--icf=safe` + `-ffunction-sections`. gold is GCC's native companion
+  linker (node-smol builds with GCC, not Clang), so this needs no LLVM. The
+  builder images install it: `gcc-toolset-13-binutils-gold` on glibc
+  (AlmaLinux 8), `binutils-gold` on musl (Alpine).
 - **macOS already folds.** `ld64` / `ld-prime` perform ICF as part of a release
   link with `-dead_strip`, so there is no separate flag to add and little
   marginal gain. node-smol also runs ThinLTO (`LLVM_LTO=YES_THIN`) on macOS,
@@ -54,37 +56,38 @@ and `upstream/node/common.gypi`:
 
 ## What we applied
 
-`upstream/node/common.gypi`, Release `VCLinkerTool` (via patch
-`001-common-gypi-lto.patch`): explicit `OptimizeReferences` (`/OPT:REF`) +
-`EnableCOMDATFolding` (`/OPT:ICF`) on Windows release links. Debug keeps
-incremental linking untouched (the two are mutually exclusive).
+All via patch `001-common-gypi-lto.patch` (against `upstream/node/common.gypi`)
+plus the builder Dockerfiles:
 
-This is the only place ICF takes effect on the current toolchain without a
-linker switch. macOS needs nothing; Linux needs the deferred switch.
+- **Linux release** (`OS=="linux"`, default `node_section_ordering_info==""`):
+  `-fuse-ld=gold` + `-ffunction-sections` in cflags; `-fuse-ld=gold` +
+  `-Wl,--icf=safe` in ldflags. Applies to x64 and arm64, glibc and musl
+  (`--fully-static` is orthogonal to linker choice; gold links static
+  libstdc++ fine). gold installed in both builder images
+  (`Dockerfile.glibc-released` → `gcc-toolset-13-binutils-gold`;
+  `Dockerfile.musl-released` → `binutils-gold`).
+- **Windows release** `VCLinkerTool`: `OptimizeReferences` (`/OPT:REF`) +
+  `EnableCOMDATFolding` (`/OPT:ICF`). Release implies these already; explicit
+  keeps them durable. Debug keeps incremental linking untouched (the two are
+  mutually exclusive).
+- **macOS**: nothing — `ld64`/`ld-prime` already fold in release.
 
-## Deferred: Linux ICF via a linker switch
+Cache bumped (`node-smol` in `.github/cache-versions.json`) so CI rebuilds with
+the new linker rather than serving a pre-gold cached binary.
 
-To get ICF on Linux we would force gold or lld globally and add `--icf=safe`:
+### Why `--icf=safe`, not `--icf=all`
 
-```
-# common.gypi, Linux release ldflags
--fuse-ld=gold        # or lld
--Wl,--icf=safe
-```
+`safe` only folds functions whose address is not observable, preserving
+function-pointer identity (`&a != &b` stays true for distinct symbols). V8 and
+Node compare code/function pointers in several places, so `--icf=all` risks
+miscompilation. The size delta between `safe` and `all` is small; correctness
+wins.
 
-Risks that gate this:
+### Post-link steps are linker-agnostic
 
-- Switching the system linker affects every Linux build (musl `--fully-static`,
-  `objcopy --remove-section` post-link steps, section stripping). Needs a full
-  green build + SEA smoke test per arch.
-- gold is in maintenance; lld is the forward path but is another toolchain
-  dependency to pin and validate in CI.
-- The win is unproven on a C++ + ThinLTO binary. Measure stripped size with and
-  without before committing to the toolchain change.
-
-Decision: not worth the toolchain risk until a measurement justifies it. When
-revisiting, build both ways and compare stripped `node` size plus the `.text`
-section, the way Deno's PR reported it.
+`strip --strip-debug`, the ARM64-only `objcopy --remove-section`, and `sstrip`
+all operate on standard ELF sections that gold emits identically to bfd, so the
+existing `build-stripped.mts` pipeline needs no change.
 
 ## How to measure
 

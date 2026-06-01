@@ -19,18 +19,22 @@ RUN echo "Cache version: ${CACHE_VERSION}"
 
 # Install build dependencies.
 # Uses system Python 3.11 (meets minimum 3.9+ requirement).
+# binutils-gold supplies the gold linker (ld.gold), which the release build
+# selects via -fuse-ld=gold to enable --icf=safe (folds identical functions,
+# shrinking the binary).
 RUN apk add --no-cache \
-    python3 \
-    make \
-    g++ \
-    linux-headers \
-    git \
-    curl \
-    patch \
+    binutils-gold \
     ccache \
+    curl \
+    g++ \
+    git \
+    linux-headers \
+    make \
     ninja \
     openssl-dev \
     openssl-libs-static \
+    patch \
+    python3 \
     xz-dev \
     xz-static
 

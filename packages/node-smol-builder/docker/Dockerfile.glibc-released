@@ -48,7 +48,11 @@ RUN dnf -y update && \
         patch \
         && \
     # Enable GCC Toolset 13 (provides GCC 13 with C++20 support).
-    dnf -y install gcc-toolset-13 gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ gcc-toolset-13-libstdc++-devel && \
+    # gcc-toolset-13-binutils-gold supplies the gold linker (ld.gold), which
+    # the release build selects via -fuse-ld=gold to enable --icf=safe (folds
+    # identical functions, shrinking the binary). gold ships separately from
+    # gcc-toolset-13-binutils, which only carries ld.bfd.
+    dnf -y install gcc-toolset-13 gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ gcc-toolset-13-libstdc++-devel gcc-toolset-13-binutils-gold && \
     # Install Node.js from NodeSource (verifiable alternative to the
     # `curl … | bash` installer: import the GPG key and write the dnf
     # repo file directly, exactly as NodeSource's docs describe).

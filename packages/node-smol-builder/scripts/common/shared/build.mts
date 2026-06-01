@@ -118,6 +118,7 @@ import { buildRelease } from '../../binary-released/shared/build-released.mts'
 import { buildStripped } from '../../binary-stripped/shared/build-stripped.mts'
 import { finalizeBinary } from '../../finalized/shared/finalize-binary.mts'
 import { printBuildSummary } from '../../lib/build-summary.mts'
+import { getFeature } from '../../lib/smol-features.mts'
 import {
   BINJECT_DIR,
   BIN_INFRA_DIR,
@@ -150,6 +151,7 @@ const { values } = parseArgs({
     verify: { type: 'boolean' },
     'with-dawn': { type: 'boolean' },
     'with-lief': { type: 'boolean' },
+    'without-smol': { type: 'string' },
     yes: { short: 'y', type: 'boolean' },
   },
   strict: false,
@@ -224,6 +226,35 @@ const NODE_SHA = undefined
 const BUILD_MODE = IS_PROD_BUILD ? 'prod' : 'dev'
 const WITH_DAWN = Boolean(values['with-dawn'])
 const WITH_LIEF = Boolean(values['with-lief'])
+
+// Bundle-driven feature trimming. `--without-smol=quic,tui,ffi` (comma-separated
+// feature names OR raw --without-* flags) appends configure flags that drop those
+// subsystems. Normally supplied by compile-for-bundle.mts from the detector's
+// manifest, but usable by hand for one-off lean builds. Raw flags pass through;
+// bare feature names are mapped to their flag via the smol-features registry.
+const EXTRA_CONFIGURE_FLAGS = parseSmolDropArg(values['without-smol'])
+
+function parseSmolDropArg(raw) {
+  if (!raw || typeof raw !== 'string') {
+    return []
+  }
+  const flags = []
+  for (const tok of raw.split(',').map(s => s.trim()).filter(Boolean)) {
+    if (tok.startsWith('--')) {
+      flags.push(tok)
+    } else {
+      const f = getFeature(tok)
+      if (f?.configureFlagWhenDropped) {
+        flags.push(f.configureFlagWhenDropped)
+      } else {
+        logger.warn(
+          `--without-smol: "${tok}" is not a droppable feature (no configure flag); ignoring`,
+        )
+      }
+    }
+  }
+  return flags
+}
 
 // Set environment variable for tests to detect LIEF availability
 if (WITH_LIEF) {
@@ -571,6 +602,7 @@ async function main() {
         testFile,
         withDawn: WITH_DAWN,
         withLief: WITH_LIEF,
+        extraConfigureFlags: EXTRA_CONFIGURE_FLAGS,
       },
       { skipCheckpoint: BUILD_ONLY === CHECKPOINTS.BINARY_RELEASED },
     )
@@ -659,6 +691,7 @@ async function main() {
         platform: TARGET_PLATFORM,
         withDawn: WITH_DAWN,
         withLief: WITH_LIEF,
+        extraConfigureFlags: EXTRA_CONFIGURE_FLAGS,
       },
       { skipCheckpoint: BUILD_ONLY === CHECKPOINTS.BINARY_STRIPPED },
     )
@@ -714,6 +747,7 @@ async function main() {
         platform: TARGET_PLATFORM,
         withDawn: WITH_DAWN,
         withLief: WITH_LIEF,
+        extraConfigureFlags: EXTRA_CONFIGURE_FLAGS,
       },
       { skipCheckpoint: BUILD_ONLY === CHECKPOINTS.BINARY_COMPRESSED },
     )

@@ -32,11 +32,10 @@
 #
 --- a/configure.py
 +++ b/configure.py
-@@ -1058,13 +1058,55 @@
-     dest='without_ffi',
+@@ -1059,11 +1059,99 @@ parser.add_argument('--without-ffi',
      default=None,
      help='build without FFI (Foreign Function Interface) support')
-+
+ 
 +parser.add_argument('--with-postgres',
 +    action='store_true',
 +    dest='with_postgres',
@@ -54,14 +53,14 @@
 +    dest='with_dawn',
 +    default=None,
 +    help='build with Dawn WebGPU (enables WebGPU API, requires libwebgpu_dawn from dawn-builder)')
- 
++
  parser.add_argument('--experimental-quic',
      action='store_true',
      dest='experimental_quic',
      default=None,
 -    help='build with experimental QUIC support')
 +    help='alias for --with-node-quic (upstream ngtcp2 QUIC)')
- 
++
 +parser.add_argument('--with-node-quic',
 +    action='store_true',
 +    dest='with_node_quic',
@@ -86,10 +85,55 @@
 +    default=None,
 +    help='disable tui-infra + Yoga + node:smol-tui (default enabled)')
 +
++# Socket Security: per-subsystem smol toggles (all default enabled). The bundle
++# feature detector (node-smol-builder/scripts/detect-bundle-features.mts) emits
++# the matching flag to drop whatever a given SEA bundle does not reference. Each
++# gates the like-named node_use_smol_* gyp var in node.gyp (patch 004).
++parser.add_argument('--without-smol-http',
++    action='store_true',
++    dest='without_smol_http',
++    default=None,
++    help='disable uWebSockets server + node:smol-http (default enabled)')
++
++parser.add_argument('--without-smol-ffi',
++    action='store_true',
++    dest='without_smol_ffi',
++    default=None,
++    help='disable node:smol-ffi (default enabled)')
++
++parser.add_argument('--without-smol-ilp',
++    action='store_true',
++    dest='without_smol_ilp',
++    default=None,
++    help='disable node:smol-ilp (default enabled)')
++
++parser.add_argument('--without-smol-keymap',
++    action='store_true',
++    dest='without_smol_keymap',
++    default=None,
++    help='disable node:smol-keymap (default enabled)')
++
++parser.add_argument('--without-smol-qrcode',
++    action='store_true',
++    dest='without_smol_qrcode',
++    default=None,
++    help='disable node:smol-qrcode + libqrencode (default enabled)')
++
++parser.add_argument('--without-smol-markdown',
++    action='store_true',
++    dest='without_smol_markdown',
++    default=None,
++    help='disable node:smol-markdown + md4c (default enabled)')
++
++parser.add_argument('--without-smol-treesitter',
++    action='store_true',
++    dest='without_smol_treesitter',
++    default=None,
++    help='disable node:smol-tree-sitter (default enabled)')
+ 
  parser.add_argument('--ninja',
      action='store_true',
-     dest='use_ninja',
-@@ -1576,8 +1612,8 @@
+@@ -1576,8 +1664,8 @@ def check_compiler(o):
  
    o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else '0.0'
  
@@ -100,15 +144,14 @@
      # Minimum cargo and rustc versions should match values in BUILDING.md.
      min_cargo_ver_tuple = (1, 82)
      min_rustc_ver_tuple = (1, 82)
-@@ -2345,10 +2387,52 @@
-     return
-
+@@ -2349,9 +2437,63 @@ def configure_ffi(o):
+ 
    configure_library('ffi', o, pkgname='libffi')
-+
+ 
 +def configure_postgres(o):
 +  # Socket Security: PostgreSQL is disabled by default (requires libpq).
 +  o['variables']['node_use_postgres'] = b(options.with_postgres)
-
++
 +def configure_iouring(o):
 +  # Socket Security: io_uring is disabled by default (Linux only, requires liburing).
 +  o['variables']['node_use_iouring'] = b(options.with_iouring)
@@ -121,6 +164,18 @@
 +def configure_smol_tui(o):
 +  # Socket Security: tui-infra + Yoga + node:smol-tui (default enabled).
 +  o['variables']['node_use_smol_tui'] = b(not options.without_smol_tui)
++
++def configure_smol_extras(o):
++  # Socket Security: per-subsystem smol toggles (all default enabled). Each gates
++  # the like-named node_use_smol_* condition in node.gyp (patch 004). node.gyp
++  # references these unconditionally, so they MUST always be set here.
++  o['variables']['node_use_smol_http'] = b(not options.without_smol_http)
++  o['variables']['node_use_smol_ffi'] = b(not options.without_smol_ffi)
++  o['variables']['node_use_smol_ilp'] = b(not options.without_smol_ilp)
++  o['variables']['node_use_smol_keymap'] = b(not options.without_smol_keymap)
++  o['variables']['node_use_smol_qrcode'] = b(not options.without_smol_qrcode)
++  o['variables']['node_use_smol_markdown'] = b(not options.without_smol_markdown)
++  o['variables']['node_use_smol_treesitter'] = b(not options.without_smol_treesitter)
 +
  def configure_quic(o):
 -  o['variables']['node_use_quic'] = b(options.experimental_quic and
@@ -155,7 +210,7 @@
  
  def configure_static(o):
    if options.fully_static or options.partly_static:
-@@ -2802,6 +2885,10 @@
+@@ -2805,6 +2947,11 @@ configure_library('ngtcp2', output, pkgname='libngtcp2')
  configure_lief(output);
  configure_sqlite(output);
  configure_ffi(output);
@@ -163,6 +218,7 @@
 +configure_iouring(output);
 +configure_dawn(output);
 +configure_smol_tui(output);
++configure_smol_extras(output);
  configure_library('temporal_capi', output)
  configure_library('uvwasi', output)
  configure_library('zstd', output, pkgname='libzstd')

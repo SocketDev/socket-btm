@@ -138,6 +138,11 @@ export async function buildRelease(config, buildOptions = {}) {
     testFile,
     withDawn,
     withLief,
+    // Extra ./configure flags appended verbatim after the standard set. The
+    // bundle-driven compile (detect-bundle-features.mts → compile-for-bundle.mts)
+    // passes the detector's `--without-smol-*` / `--without-sqlite` flags here to
+    // drop subsystems a given SEA bundle doesn't use. Optional; defaults to none.
+    extraConfigureFlags = [],
   } = config
 
   // Validate required config properties
@@ -722,6 +727,25 @@ export async function buildRelease(config, buildOptions = {}) {
     )
     logger.log(`   Use a native ${arch} runner or add --allow-cross flag.`)
     throw new Error('Cross-compilation not supported')
+  }
+
+  // Bundle-driven feature trimming: append the detector's flags last, deduped,
+  // skipping any already present (e.g. --without-inspector in prod). Each
+  // --without-smol-* flips its node_use_smol_* gyp var off (patches 004+018);
+  // --without-sqlite uses upstream Node's existing gate.
+  if (extraConfigureFlags.length) {
+    const present = new Set(configureFlags)
+    const added = []
+    for (const flag of extraConfigureFlags) {
+      if (!present.has(flag)) {
+        configureFlags.push(flag)
+        present.add(flag)
+        added.push(flag)
+      }
+    }
+    if (added.length) {
+      logger.log(`Extra configure flags (bundle-driven): ${added.join(' ')}`)
+    }
   }
 
   // Collect build source files.

@@ -39,7 +39,29 @@
 #
 --- a/node.gyp
 +++ b/node.gyp
-@@ -69,6 +69,20 @@
+@@ -39,6 +39,21 @@
+     'node_use_quic%': 'false',
+     'node_use_sqlite%': 'true',
+     'node_use_ffi%': 'false',
++    # Socket Security: smol subsystem gates. Defaults here (mirroring
++    # node_use_sqlite above) make node.gyp self-sufficient when configure.py
++    # does not set them — notably the Windows vcbuild.bat path, which no-ops
++    # --without-* flags. configure.py (patch 018) overrides these from the
++    # --without-smol-* flags the bundle feature detector emits.
++    'node_use_smol_quic%': 'true',
++    'node_use_smol_http3%': 'true',
++    'node_use_smol_http%': 'true',
++    'node_use_smol_tui%': 'true',
++    'node_use_smol_keymap%': 'true',
++    'node_use_smol_ffi%': 'true',
++    'node_use_smol_ilp%': 'true',
++    'node_use_smol_treesitter%': 'true',
++    'node_use_smol_qrcode%': 'true',
++    'node_use_smol_markdown%': 'true',
+     'node_use_v8_platform%': 'true',
+     'node_v8_options%': '',
+     'node_write_snapshot_as_string_literals': 'true',
+@@ -69,6 +84,20 @@
        'deps/acorn/acorn/dist/acorn.js',
        'deps/acorn/acorn-walk/dist/walk.js',
        'deps/minimatch/index.js',
@@ -60,12 +82,10 @@
        '<@(node_builtin_shareable_builtins)',
      ],
      'node_sources': [
-@@ -730,6 +744,17 @@
-             'Dbghelp.lib',
-             'winmm.lib',
+@@ -732,6 +761,17 @@
              'Ws2_32.lib',
-+          ],
-+        }],
+           ],
+         }],
 +        ['OS=="win"', {
 +          'libraries': [
 +            'bcrypt.lib',
@@ -75,15 +95,15 @@
 +          'libraries': [
 +            '-lcompression',
 +            '-framework IOKit',
-           ],
-         }],
-         # Thin LTO for node_main.cc and linker (scoped to node_exe)
-@@ -1055,14 +1079,338 @@
-           ],
-           'dependencies': [
-             'deps/ncrypto/ncrypto.gyp:ncrypto',
 +          ],
 +        }],
+         # Thin LTO for node_main.cc and linker (scoped to node_exe)
+         ['node_with_ltcg=="true"', {
+           'msvs_settings': {
+@@ -1057,12 +1097,384 @@
+             'deps/ncrypto/ncrypto.gyp:ncrypto',
+           ],
+         }],
 +        ['1==1', {
 +          'sources': [
 +            # Socket Security: Runtime VFS binding.
@@ -105,7 +125,6 @@
 +            'src/socketsecurity/http/iouring_network.cc',
 +            'src/socketsecurity/http/smol_http_binding.cc',
 +            'src/socketsecurity/http/http_binding.cc',
-+            'src/socketsecurity/http/uws_server.cc',
 +            # uSockets: High-performance socket library (libuv backend).
 +            'deps/uSockets/src/bsd.c',
 +            'deps/uSockets/src/context.c',
@@ -121,13 +140,8 @@
 +            # Socket Security: ILP (InfluxDB Line Protocol) client.
 +            # Uses standard sockets by default. Define HAVE_IOURING for io_uring
 +            # acceleration (requires liburing-dev and node_use_iouring="true").
-+            'src/socketsecurity/ilp/ilp_encoder.cc',
-+            'src/socketsecurity/ilp/ilp_transport.cc',
-+            'src/socketsecurity/ilp/ilp_binding.cc',
 +            # Socket Security: FFI (Foreign Function Interface) binding.
 +            # Cross-platform dlopen/dlsym via libuv + V8 fast call trampolines.
-+            'src/socketsecurity/ffi/binding.cc',
-+            'src/socketsecurity/ffi/trampoline.cc',
 +            # Socket Security: smol-power binding (platform-agnostic glue).
 +            'src/socketsecurity/power/power_binding.cc',
 +            # Socket Security: smol-util binding (V8 uncurry / applyBind +
@@ -142,34 +156,18 @@
 +            # Socket Security: smol-manifest-native binding (lockfile parsers).
 +            'src/socketsecurity/manifest/manifest.cc',
 +            # Socket Security: smol-keymap binding (chord matcher).
-+            'src/socketsecurity/keymap/keymap_binding.cc',
 +            # Socket Security: smol-qrcode binding (libqrencode v4.1.1).
 +            # Source files copied from upstream/libqrencode/ by
 +            # prepare-external-sources.mts; qrenc.c (the CLI tool's
 +            # main()) is excluded from the build.
-+            'src/socketsecurity/deps/qrcode/qrcode_binding.cc',
-+            'src/socketsecurity/deps/qrcode/upstream/libqrencode/bitstream.c',
-+            'src/socketsecurity/deps/qrcode/upstream/libqrencode/mask.c',
-+            'src/socketsecurity/deps/qrcode/upstream/libqrencode/mmask.c',
-+            'src/socketsecurity/deps/qrcode/upstream/libqrencode/mqrspec.c',
-+            'src/socketsecurity/deps/qrcode/upstream/libqrencode/qrencode.c',
-+            'src/socketsecurity/deps/qrcode/upstream/libqrencode/qrinput.c',
-+            'src/socketsecurity/deps/qrcode/upstream/libqrencode/qrspec.c',
-+            'src/socketsecurity/deps/qrcode/upstream/libqrencode/rsecc.c',
-+            'src/socketsecurity/deps/qrcode/upstream/libqrencode/split.c',
 +            # Socket Security: smol-markdown binding (CommonMark + GFM via
 +            # md4c). md4c.c + entity.c are copied from
 +            # packages/node-smol-builder/upstream/md4c/src/ by
 +            # prepare-external-sources.mts at build time into the
 +            # `upstream/` subdir so **/upstream/** in .gitignore catches them.
-+            'src/socketsecurity/deps/markdown/markdown_binding.cc',
-+            'src/socketsecurity/deps/markdown/upstream/md4c.c',
-+            'src/socketsecurity/deps/markdown/upstream/entity.c',
 +            # Socket Security: smol-tree-sitter binding. tree-sitter's
 +            # lib.c is an umbrella that #includes every other lib/src/*.c
 +            # via relative path, so only lib.c needs listing here.
-+            'src/socketsecurity/deps/tree_sitter/tree_sitter_binding.cc',
-+            'src/socketsecurity/deps/tree_sitter/upstream/tree-sitter/src/lib.c',
 +            # Socket Security: smol-webgpu binding (stub). Exposes the
 +            # navigator.gpu surface so userland WebGPU code resolves the
 +            # require('node:smol-webgpu') import. Every method except
@@ -218,25 +216,13 @@
 +            # the ansi.cc writers — no allocations on the per-cell path.
 +            # The node:smol-tui binding consumes the Renderer surface
 +            # via V8 FastApi.
-+            'src/socketsecurity/tui/ansi.cc',
-+            'src/socketsecurity/tui/buffer.cc',
-+            'src/socketsecurity/tui/mouse.cc',
-+            'src/socketsecurity/tui/renderables.cc',
-+            'src/socketsecurity/tui/renderer.cc',
-+            'src/socketsecurity/tui/tui_binding.cc',
-+            'src/socketsecurity/tui/width.cc',
-+            'src/socketsecurity/tui/width_data.cc',
 +            # node:smol-quic — QUIC + UDP transport. lsquic v4.6.2 with
 +            # OpenSSL 3.5.6 as the TLS backend (matches bun). The
 +            # binding splits the engine/connection surface (quic_binding.cc)
 +            # from the stream + callback dispatcher (quic_stream_binding.cc)
 +            # so neither file exceeds the 1000-line hard cap. Shared
 +            # types in quic_internal.h.
-+            'src/socketsecurity/quic/quic_binding.cc',
-+            'src/socketsecurity/quic/quic_stream_binding.cc',
-+            'src/socketsecurity/quic/quic_settings_binding.cc',
-+            'src/socketsecurity/quic/quic_http3_binding.cc',
-           ],
++          ],
 +          'include_dirs': [
 +            'src',
 +            'include',
@@ -256,13 +242,95 @@
 +            'MICRO_VERSION=1',
 +            'VERSION="4.1.1"',
 +          ],
-+          'includes': [
-+            'deps/yoga.gypi',
-+            'deps/lsquic.gypi',
-+            'deps/ls-qpack.gypi',
-+          ],
 +          'dependencies': [
 +            'deps/boringssl/boringssl.gyp:boringssl',
++          ],
++          'conditions': [
++            # Socket Security: optional subsystems, each gated on its
++            # node_use_* var (configure.py sets them; smol-* default on).
++            # The bundle feature detector emits --without-smol-* to drop
++            # whatever a given SEA bundle does not reference.
++            ['node_use_smol_http=="true"', {
++              'sources': [
++                'src/socketsecurity/http/uws_server.cc',
++              ],
++            }],
++            ['node_use_smol_ilp=="true"', {
++              'sources': [
++                'src/socketsecurity/ilp/ilp_encoder.cc',
++                'src/socketsecurity/ilp/ilp_transport.cc',
++                'src/socketsecurity/ilp/ilp_binding.cc',
++              ],
++            }],
++            ['node_use_smol_ffi=="true"', {
++              'sources': [
++                'src/socketsecurity/ffi/binding.cc',
++                'src/socketsecurity/ffi/trampoline.cc',
++              ],
++            }],
++            ['node_use_smol_keymap=="true"', {
++              'sources': [
++                'src/socketsecurity/keymap/keymap_binding.cc',
++              ],
++            }],
++            ['node_use_smol_qrcode=="true"', {
++              'sources': [
++                'src/socketsecurity/deps/qrcode/qrcode_binding.cc',
++                'src/socketsecurity/deps/qrcode/upstream/libqrencode/bitstream.c',
++                'src/socketsecurity/deps/qrcode/upstream/libqrencode/mask.c',
++                'src/socketsecurity/deps/qrcode/upstream/libqrencode/mmask.c',
++                'src/socketsecurity/deps/qrcode/upstream/libqrencode/mqrspec.c',
++                'src/socketsecurity/deps/qrcode/upstream/libqrencode/qrencode.c',
++                'src/socketsecurity/deps/qrcode/upstream/libqrencode/qrinput.c',
++                'src/socketsecurity/deps/qrcode/upstream/libqrencode/qrspec.c',
++                'src/socketsecurity/deps/qrcode/upstream/libqrencode/rsecc.c',
++                'src/socketsecurity/deps/qrcode/upstream/libqrencode/split.c',
++              ],
++            }],
++            ['node_use_smol_markdown=="true"', {
++              'sources': [
++                'src/socketsecurity/deps/markdown/markdown_binding.cc',
++                'src/socketsecurity/deps/markdown/upstream/md4c.c',
++                'src/socketsecurity/deps/markdown/upstream/entity.c',
++              ],
++            }],
++            ['node_use_smol_treesitter=="true"', {
++              'sources': [
++                'src/socketsecurity/deps/tree_sitter/tree_sitter_binding.cc',
++                'src/socketsecurity/deps/tree_sitter/upstream/tree-sitter/src/lib.c',
++              ],
++            }],
++            ['node_use_smol_tui=="true"', {
++              'sources': [
++                'src/socketsecurity/tui/ansi.cc',
++                'src/socketsecurity/tui/buffer.cc',
++                'src/socketsecurity/tui/mouse.cc',
++                'src/socketsecurity/tui/renderables.cc',
++                'src/socketsecurity/tui/renderer.cc',
++                'src/socketsecurity/tui/tui_binding.cc',
++                'src/socketsecurity/tui/width.cc',
++                'src/socketsecurity/tui/width_data.cc',
++              ],
++              'includes': [
++                'deps/yoga.gypi',
++              ],
++            }],
++            ['node_use_smol_quic=="true"', {
++              'sources': [
++                'src/socketsecurity/quic/quic_binding.cc',
++                'src/socketsecurity/quic/quic_stream_binding.cc',
++                'src/socketsecurity/quic/quic_settings_binding.cc',
++              ],
++              'includes': [
++                'deps/lsquic.gypi',
++                'deps/ls-qpack.gypi',
++              ],
++            }],
++            ['node_use_smol_http3=="true"', {
++              'sources': [
++                'src/socketsecurity/quic/quic_http3_binding.cc',
++              ],
++            }],
 +          ],
 +          'direct_dependent_settings': {
 +            'include_dirs': [
@@ -271,7 +339,7 @@
 +              'deps/uWebSockets/src',
 +            ],
 +          },
-         }],
++        }],
 +        # Socket Security: per-OS smol-power implementations. The
 +        # binding glue above is platform-agnostic; each impl compiles
 +        # only on its target so platform headers stay isolated.
@@ -418,7 +486,8 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1084,7 +1401,7 @@
+@@ -1081,7 +1493,7 @@
+             }],
            ],
          }],
 -        [ 'node_use_quic=="true"', {
@@ -426,8 +495,7 @@
            'sources': [
              '<@(node_quic_sources)',
            ],
-         }],
-@@ -1406,7 +1723,7 @@
+@@ -1403,7 +1815,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -436,7 +504,7 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1447,6 +1764,17 @@
+@@ -1447,6 +1859,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -454,7 +522,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1521,6 +1848,17 @@
+@@ -1521,6 +1944,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -472,7 +540,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1744,6 +2081,17 @@
+@@ -1744,6 +2178,17 @@
              'Ws2_32.lib',
            ],
          }],

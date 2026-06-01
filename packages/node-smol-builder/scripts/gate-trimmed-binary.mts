@@ -98,18 +98,30 @@ export function checkBinaryFeatures(
   return findings
 }
 
-/** Default probe: spawn the binary and check isBuiltin. */
-function spawnProbe(binary: string, specifier: string): boolean {
+/**
+ * Default probe: spawn the binary and test whether the module actually LOADS,
+ * not merely whether isBuiltin() reports it. A trimmed feature's native binding
+ * is gated out of the build, but its JS wrapper (lib/smol-*.js) can linger in
+ * the builtins manifest — so isBuiltin('node:smol-quic') stays true while
+ * require() throws ERR_INVALID_MODULE (the wrapper can't reach its missing
+ * binding). Loadability is the truth: "present" = require() succeeds.
+ *
+ * Prints "1" on successful load, "0" otherwise. Fail-closed: any spawn error →
+ * "present" so an unprobeable binary can't silently satisfy an expect-absent.
+ */
+export function spawnProbe(binary: string, specifier: string): boolean {
   try {
     const r = spawnSync(
       binary,
-      ['-e', `process.stdout.write(String(require("node:module").isBuiltin("${specifier}")))`],
+      [
+        '-e',
+        `try { require(${JSON.stringify(specifier)}); process.stdout.write("1") } ` +
+          `catch { process.stdout.write("0") }`,
+      ],
       { encoding: 'utf8', timeout: 5000 },
     )
-    return String(r.stdout ?? '').trim() === 'true'
+    return String(r.stdout ?? '').trim() === '1'
   } catch {
-    // Treat a probe failure as "present" so it can't silently satisfy an
-    // expect-absent (fail-closed: an unprobeable binary shouldn't pass).
     return true
   }
 }
@@ -140,7 +152,7 @@ async function main(): Promise<void> {
     return
   }
 
-  let overrides: { keep?: string[]; drop?: string[] } | undefined
+  let overrides: { keep?: string[] | undefined; drop?: string[] | undefined } | undefined
   const overridesPath = values['overrides'] as string | undefined
   if (overridesPath) {
     try {
@@ -226,6 +238,6 @@ if (import.meta.url === toFileUrl(process.argv[1])) {
   })
 }
 
-function toFileUrl(p: string | undefined): string {
+export function toFileUrl(p: string | undefined): string {
   return p ? new URL(`file://${path.resolve(p)}`).href : ''
 }

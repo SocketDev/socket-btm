@@ -57,6 +57,12 @@ jobs:
           submodules: false
       - uses: SocketDev/socket-registry/.github/actions/setup@7c052ea027ec6cf975f96a2cd3c76ecc4e66803d # main (2026-06-01)
       - name: Check publish chain freshness
+        # Publish-chain freshness only matters when we intend to release.
+        # A dry-run is build-only and consumes none of these published
+        # artifacts at build time (dawn etc. are publish-chain deps, not
+        # node-smol build inputs), so skip the gate to let build-only runs
+        # proceed without the whole chain being published first.
+        if: ${{ !inputs['dry-run'] }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/check-publish-prereq.mts node-smol

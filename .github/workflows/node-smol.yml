@@ -506,7 +506,11 @@ jobs:
           # *_VERSION keys above only flip when cache-versions.json is
           # manually bumped — easy to forget. Belt-and-suspenders hash the
           # source content directly.
-          LIEF_SRC=$(hash_files packages/lief-builder/src -type f)
+          # lief-builder has no src/ (its source lives in lib/ + scripts/,
+          # hashed via LIEF_LIB_SCRIPTS below), so use the tolerant helper —
+          # the strict hash_files hard-fails the whole build on the absent
+          # path. stubs-builder/src does exist; keep it strict.
+          LIEF_SRC=$(hash_files_optional packages/lief-builder/src -type f)
           STUBS_SRC=$(hash_files packages/stubs-builder/src -type f)
 
           # Top-level scripts/ helpers used by every per-phase build.mts:

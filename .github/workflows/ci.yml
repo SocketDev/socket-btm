@@ -85,6 +85,16 @@ jobs:
         shell: bash
         run: pnpm run test:build-infra
 
+      # node-smol-builder's unit + patch-validation suites run on stock Node (no
+      # built binary needed — binary-dependent integration/e2e tests skipIf).
+      # Crucially this enforces validate-patches (auto-discovers every patch:
+      # format, zero-overlap, apply-in-any-order, no cross-references) + the
+      # bundle feature detector / gate / smol-features registry on every PR, so a
+      # malformed or untested patch can't merge.
+      - name: Run node-smol-builder unit + patch tests
+        shell: bash
+        run: pnpm run test:node-smol:ci
+
   # Platform-specific tests run on all platforms
   test:
     name: Test (${{ matrix.os }})

@@ -16,6 +16,7 @@
     "@socketsecurity/lib-stable": "catalog:",
     "bin-infra": "workspace:*",
     "build-infra": "workspace:*",
+    "glibc-shims-infra": "workspace:*",
     "lief-builder": "workspace:*"
   },
   "devDependencies": {

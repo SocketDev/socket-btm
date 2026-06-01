@@ -7,6 +7,7 @@ include ../build-infra/make/platform-linux.mk
 include ../lief-builder/make/lief.mk
 include ../bin-infra/make/zstd.mk
 include ../build-infra/make/crypto.mk
+include ../glibc-shims-infra/make/glibc-shims.mk
 
 TARGET = binpress
 SRC_DIR = src/socketsecurity/binpress
@@ -14,8 +15,8 @@ BINJECT_SRC = ../binject/src/socketsecurity/binject
 BINJECT_INCLUDE = ../binject/src
 
 # Source files.
-SRCS = $(SRC_DIR)/elf_compress.c $(SRC_DIR)/binpress_config.c $(SRC_DIR)/stub_selector.c $(BUILD_INFRA_SRC)/binary_format_finder.c $(BIN_INFRA_SRC)/compression_common.c $(BUILD_INFRA_SRC)/file_io_common.c $(BIN_INFRA_SRC)/smol_segment.c $(BIN_INFRA_SRC)/smol_segment_reader.c $(BIN_INFRA_SRC)/binary_format.c $(BUILD_INFRA_SRC)/file_utils.c $(BUILD_INFRA_SRC)/path_utils.c
-OBJS = $(BUILD_DIR)/elf_compress.o $(BUILD_DIR)/binpress_config.o $(BUILD_DIR)/stub_selector.o $(BUILD_DIR)/binary_format_finder.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o $(BUILD_DIR)/smol_segment.o $(BUILD_DIR)/smol_segment_reader.o $(BUILD_DIR)/binary_format.o $(BUILD_DIR)/file_utils.o $(BUILD_DIR)/path_utils.o
+SRCS = $(SRC_DIR)/elf_compress.c $(SRC_DIR)/binpress_config.c $(SRC_DIR)/stub_selector.c $(BUILD_INFRA_SRC)/binary_format_finder.c $(BIN_INFRA_SRC)/compression_common.c $(BUILD_INFRA_SRC)/file_io_common.c $(BIN_INFRA_SRC)/smol_segment.c $(BIN_INFRA_SRC)/smol_segment_reader.c $(BIN_INFRA_SRC)/binary_format.c $(BUILD_INFRA_SRC)/file_utils.c $(BUILD_INFRA_SRC)/path_utils.c $(GLIBC_SHIMS_SOURCES)
+OBJS = $(BUILD_DIR)/elf_compress.o $(BUILD_DIR)/binpress_config.o $(BUILD_DIR)/stub_selector.o $(BUILD_DIR)/binary_format_finder.o $(BUILD_DIR)/compression_common.o $(BUILD_DIR)/file_io_common.o $(BUILD_DIR)/smol_segment.o $(BUILD_DIR)/smol_segment_reader.o $(BUILD_DIR)/binary_format.o $(BUILD_DIR)/file_utils.o $(BUILD_DIR)/path_utils.o $(GLIBC_SHIMS_OBJECTS)
 
 # Embedded stubs.
 EMBEDDED_STUBS = $(BUILD_DIR)/embedded_stubs.c
@@ -31,9 +32,9 @@ ifneq (,$(wildcard $(LIEF_LIB)))
 endif
 
 # CFLAGS/CXXFLAGS/LDFLAGS can be set via environment (e.g., for musl include/lib paths).
-CFLAGS := -Wall -Wextra $(OPT_FLAGS) -std=c11 $(POSIX_MACROS) -Isrc $(COMMON_INCLUDES) -I$(BINJECT_INCLUDE) $(ZSTD_CFLAGS) -DVERSION=\"$(VERSION)\" $(CFLAGS)
-CXXFLAGS := -Wall -Wextra $(OPT_FLAGS) -std=c++17 -Isrc $(COMMON_INCLUDES) -I$(BINJECT_INCLUDE) $(LIEF_CFLAGS) $(ZSTD_CFLAGS) $(LIEF_DEFINES) $(CXXFLAGS)
-LDFLAGS := $(LDFLAGS_BASE) $(ZSTD_LDFLAGS) $(LIEF_LDFLAGS) $(CRYPTO_LDFLAGS) $(LDFLAGS)
+CFLAGS := -Wall -Wextra $(OPT_FLAGS) -std=c11 $(POSIX_MACROS) -Isrc $(COMMON_INCLUDES) -I$(BINJECT_INCLUDE) $(GLIBC_SHIMS_CFLAGS) $(ZSTD_CFLAGS) -DVERSION=\"$(VERSION)\" $(CFLAGS)
+CXXFLAGS := -Wall -Wextra $(OPT_FLAGS) -std=c++17 -Isrc $(COMMON_INCLUDES) -I$(BINJECT_INCLUDE) $(GLIBC_SHIMS_CFLAGS) $(LIEF_CFLAGS) $(ZSTD_CFLAGS) $(LIEF_DEFINES) $(CXXFLAGS)
+LDFLAGS := $(LDFLAGS_BASE) $(GLIBC_SHIMS_LDFLAGS) $(ZSTD_LDFLAGS) $(LIEF_LDFLAGS) $(CRYPTO_LDFLAGS) $(LDFLAGS)
 
 .PHONY: all check-tools clean install test
 

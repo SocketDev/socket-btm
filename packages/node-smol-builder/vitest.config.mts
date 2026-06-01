@@ -4,17 +4,15 @@
  */
 import { defineConfig, mergeConfig } from 'vitest/config'
 
-import baseConfig from '../../.config/vitest.config.mts'
+import baseConfig from '../../.config/repo/vitest.config.mts'
 
 // oxlint-disable-next-line socket/no-default-export -- vitest CLI auto-discovers config via default import.
 export default mergeConfig(
   baseConfig,
   defineConfig({
     test: {
-      // TEMP(validation): 20+ existing test files use bare describe/it/expect
-      // (written against the old globals:true base). Re-enable until the
-      // fleet decides globals true→false migration. See validation plan.
-      globals: true,
+      // globals (bare describe/it/expect, used by most of this package's test
+      // files) is provided by the repo base config (.config/repo/vitest.config.mts).
       exclude: [
         '**/build/**',
         '**/dist/**',

@@ -98,8 +98,8 @@ export function findBannedIdentifiers(text: string): Finding[] {
   const lines = text.split('\n')
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i]!
-    for (let i = 0, { length } = BANNED_DECL_PATTERNS; i < length; i += 1) {
-      const pattern = BANNED_DECL_PATTERNS[i]!
+    for (let pi = 0, { length } = BANNED_DECL_PATTERNS; pi < length; pi += 1) {
+      const pattern = BANNED_DECL_PATTERNS[pi]!
       pattern.lastIndex = 0
       let match: RegExpExecArray | null
       while ((match = pattern.exec(line)) !== null) {

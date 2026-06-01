@@ -27,13 +27,8 @@
 
 import process from 'node:process'
 
-import { bypassPhrasePresent, readStdin } from '../_shared/transcript.mts'
-
-interface PreToolUsePayload {
-  readonly tool_name?: string | undefined
-  readonly tool_input?: { readonly command?: unknown | undefined } | undefined
-  readonly transcript_path?: string | undefined
-}
+import { withBashGuard } from '../_shared/payload.mts'
+import { bypassPhrasePresent } from '../_shared/transcript.mts'
 
 const BYPASS_PHRASES = [
   'Allow default-branch bypass',
@@ -75,22 +70,10 @@ const SCRIPT_WRITE_RE =
 
 const TRIPLE_DOT_BRANCH_RE = /\b(?:main|master)\.{2,3}HEAD\b/
 
-async function main(): Promise<void> {
+// withBashGuard handles the stdin drain, tool_name gate, command narrow,
+// and fail-open on any throw.
+await withBashGuard((command, payload) => {
   if (process.env['SOCKET_DEFAULT_BRANCH_GUARD_DISABLED']) {
-    process.exit(0)
-  }
-  const payloadRaw = await readStdin()
-  let payload: PreToolUsePayload
-  try {
-    payload = JSON.parse(payloadRaw) as PreToolUsePayload
-  } catch {
-    process.exit(0)
-  }
-  if (payload.tool_name !== 'Bash') {
-    process.exit(0)
-  }
-  const command = payload.tool_input?.['command']
-  if (typeof command !== 'string') {
     process.exit(0)
   }
   if (bypassPhrasePresent(payload.transcript_path, BYPASS_PHRASES)) {
@@ -144,8 +127,4 @@ async function main(): Promise<void> {
   lines.push('')
   process.stderr.write(lines.join('\n') + '\n')
   process.exit(2)
-}
-
-main().catch(() => {
-  process.exit(0)
 })

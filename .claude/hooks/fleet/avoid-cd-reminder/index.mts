@@ -33,16 +33,7 @@
 
 import process from 'node:process'
 
-import { readStdin } from '../_shared/transcript.mts'
-
-interface PreToolUseInput {
-  readonly tool_name?: string | undefined
-  readonly tool_input?:
-    | {
-        readonly command?: string | undefined
-      }
-    | undefined
-}
+import { withBashGuard } from '../_shared/payload.mts'
 
 // Matches `cd <something>` not preceded by `(` (subshell) and not
 // followed by anything that suggests evidence-capture.
@@ -86,22 +77,11 @@ function detectsBareCd(command: string): boolean {
   return false
 }
 
-async function main(): Promise<void> {
+// withBashGuard handles the stdin drain, tool_name gate, command narrow,
+// and fail-open on any throw. The env-var disable and the bare-cd check
+// run inside the callback.
+await withBashGuard(command => {
   if (process.env['SOCKET_AVOID_CD_REMINDER_DISABLED']) {
-    return
-  }
-  const payloadRaw = await readStdin()
-  let payload: PreToolUseInput
-  try {
-    payload = JSON.parse(payloadRaw) as PreToolUseInput
-  } catch {
-    return
-  }
-  if (payload.tool_name !== 'Bash') {
-    return
-  }
-  const command = payload.tool_input?.command
-  if (typeof command !== 'string' || command.length === 0) {
     return
   }
   if (!detectsBareCd(command)) {
@@ -128,9 +108,4 @@ async function main(): Promise<void> {
       '',
     ].join('\n'),
   )
-}
-
-main().catch(() => {
-  // Fail-open: never block a session on this hook's own bug.
-  process.exitCode = 0
 })

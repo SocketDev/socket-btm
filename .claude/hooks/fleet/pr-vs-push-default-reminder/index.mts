@@ -19,14 +19,7 @@ import { spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
 import { readFileSync } from 'node:fs'
 import process from 'node:process'
 
-import { readStdin } from '../_shared/transcript.mts'
-
-interface ToolInput {
-  readonly tool_name?: string | undefined
-  readonly tool_input?: { readonly command?: string | undefined } | undefined
-  readonly transcript_path?: string | undefined
-  readonly cwd?: string | undefined
-}
+import { withBashGuard } from '../_shared/payload.mts'
 
 // Patterns that signal "I want a PR." Match against the FULL trimmed
 // text of any of the last N user turns.
@@ -119,26 +112,9 @@ export function readRecentUserTurnTexts(
   return turns.slice(-window)
 }
 
-async function main(): Promise<void> {
-  let raw: string
-  try {
-    raw = await readStdin()
-  } catch {
-    process.exit(0)
-  }
-  if (!raw) {
-    process.exit(0)
-  }
-  let payload: ToolInput
-  try {
-    payload = JSON.parse(raw) as ToolInput
-  } catch {
-    process.exit(0)
-  }
-  if (payload.tool_name !== 'Bash') {
-    process.exit(0)
-  }
-  const command = payload.tool_input?.command ?? ''
+// withBashGuard handles the stdin drain, tool_name gate, command narrow,
+// and fail-open on any throw.
+await withBashGuard((command, payload) => {
   if (!isGhPrCreate(command)) {
     process.exit(0)
   }
@@ -182,10 +158,4 @@ async function main(): Promise<void> {
     ].join('\n'),
   )
   process.exit(0)
-}
-
-main().catch(e => {
-  process.stderr.write(
-    `[pr-vs-push-default-reminder] hook error (allowing): ${(e as Error).message}\n`,
-  )
 })

@@ -42,14 +42,8 @@ import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 
-import { bypassPhrasePresent, readStdin } from '../_shared/transcript.mts'
-
-interface PreToolUsePayload {
-  readonly tool_name?: string | undefined
-  readonly tool_input?: { readonly command?: unknown | undefined } | undefined
-  readonly transcript_path?: string | undefined
-  readonly cwd?: string | undefined
-}
+import { withBashGuard } from '../_shared/payload.mts'
+import { bypassPhrasePresent } from '../_shared/transcript.mts'
 
 interface GitAuthor {
   readonly name?: string | undefined
@@ -177,22 +171,10 @@ export function readCheckoutAuthor(cwd: string | undefined): GitAuthor {
   return { name, email }
 }
 
-async function main(): Promise<void> {
+// withBashGuard handles the stdin drain, tool_name gate, command narrow,
+// and fail-open on any throw.
+await withBashGuard((command, payload) => {
   if (process.env[ENV_DISABLE]) {
-    process.exit(0)
-  }
-  const payloadRaw = await readStdin()
-  let payload: PreToolUsePayload
-  try {
-    payload = JSON.parse(payloadRaw) as PreToolUsePayload
-  } catch {
-    process.exit(0)
-  }
-  if (payload.tool_name !== 'Bash') {
-    process.exit(0)
-  }
-  const command = payload.tool_input?.['command']
-  if (typeof command !== 'string') {
     process.exit(0)
   }
   if (!isGitCommit(command)) {
@@ -249,8 +231,4 @@ async function main(): Promise<void> {
   lines.push('')
   process.stderr.write(lines.join('\n') + '\n')
   process.exit(2)
-}
-
-main().catch(() => {
-  process.exit(0)
 })

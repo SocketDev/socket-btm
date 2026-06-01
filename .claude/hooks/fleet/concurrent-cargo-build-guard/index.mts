@@ -23,14 +23,9 @@
 import { spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
 import process from 'node:process'
 
+import { withBashGuard } from '../_shared/payload.mts'
 import { commandsFor } from '../_shared/shell-command.mts'
-import { bypassPhrasePresent, readStdin } from '../_shared/transcript.mts'
-
-interface ToolInput {
-  readonly tool_name?: string | undefined
-  readonly tool_input?: { readonly command?: string | undefined } | undefined
-  readonly transcript_path?: string | undefined
-}
+import { bypassPhrasePresent } from '../_shared/transcript.mts'
 
 const BYPASS_PHRASE = 'Allow concurrent-cargo-build bypass'
 
@@ -102,30 +97,9 @@ export function countInFlight(pgrepPattern: string): number {
   return String(r.stdout).split('\n').filter(Boolean).length
 }
 
-async function main(): Promise<void> {
-  let raw: string
-  try {
-    raw = await readStdin()
-  } catch {
-    process.exit(0)
-  }
-  if (!raw) {
-    process.exit(0)
-  }
-  let payload: ToolInput
-  try {
-    payload = JSON.parse(raw) as ToolInput
-  } catch {
-    process.exit(0)
-  }
-  if (payload.tool_name !== 'Bash') {
-    process.exit(0)
-  }
-  const command = payload.tool_input?.command ?? ''
-  if (!command) {
-    process.exit(0)
-  }
-
+// withBashGuard handles the stdin drain, tool_name gate, command narrow,
+// and fail-open on any throw.
+await withBashGuard((command, payload) => {
   const matched = commandMatchesBuild(command)
   if (!matched) {
     process.exit(0)
@@ -163,10 +137,4 @@ async function main(): Promise<void> {
     ].join('\n'),
   )
   process.exit(2)
-}
-
-main().catch(e => {
-  process.stderr.write(
-    `[concurrent-cargo-build-guard] hook error (allowing): ${(e as Error).message}\n`,
-  )
 })

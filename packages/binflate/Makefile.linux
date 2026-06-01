@@ -6,15 +6,16 @@ include ../build-infra/make/common.mk
 include ../build-infra/make/platform-linux.mk
 include ../bin-infra/make/zstd.mk
 include ../build-infra/make/crypto.mk
+include ../glibc-shims-infra/make/glibc-shims.mk
 
 TARGET_CLI = binflate
-SOURCE_CLI = src/socketsecurity/binflate/extract_cli.c $(BUILD_INFRA_SRC)/binary_format_finder.c $(BIN_INFRA_SRC)/compression_common.c $(BIN_INFRA_SRC)/smol_segment.c $(BIN_INFRA_SRC)/smol_segment_reader.c $(BUILD_INFRA_SRC)/file_utils.c $(BUILD_INFRA_SRC)/path_utils.c
+SOURCE_CLI = src/socketsecurity/binflate/extract_cli.c $(BUILD_INFRA_SRC)/binary_format_finder.c $(BIN_INFRA_SRC)/compression_common.c $(BIN_INFRA_SRC)/smol_segment.c $(BIN_INFRA_SRC)/smol_segment_reader.c $(BUILD_INFRA_SRC)/file_utils.c $(BUILD_INFRA_SRC)/path_utils.c $(GLIBC_SHIMS_SOURCES)
 
 SRC_DIR = src
 
 # CFLAGS/LDFLAGS can be set via environment (e.g., for musl include/lib paths).
-CFLAGS := -Wall -Wextra $(OPT_FLAGS) -std=c11 $(POSIX_MACROS) $(COMMON_INCLUDES) $(ZSTD_CFLAGS) -DVERSION=\"$(VERSION)\" $(CFLAGS)
-LDFLAGS := $(LDFLAGS_BASE) $(ZSTD_LDFLAGS) $(CRYPTO_LDFLAGS) $(LDFLAGS)
+CFLAGS := -Wall -Wextra $(OPT_FLAGS) -std=c11 $(POSIX_MACROS) $(COMMON_INCLUDES) $(GLIBC_SHIMS_CFLAGS) $(ZSTD_CFLAGS) -DVERSION=\"$(VERSION)\" $(CFLAGS)
+LDFLAGS := $(LDFLAGS_BASE) $(GLIBC_SHIMS_LDFLAGS) $(ZSTD_LDFLAGS) $(CRYPTO_LDFLAGS) $(LDFLAGS)
 
 .PHONY: all check-tools clean install test
 

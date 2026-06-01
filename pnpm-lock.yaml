@@ -870,6 +870,9 @@ importers:
       build-infra:
         specifier: workspace:*
         version: link:../build-infra
+      glibc-shims-infra:
+        specifier: workspace:*
+        version: link:../glibc-shims-infra
     devDependencies:
       '@dotenvx/dotenvx':
         specifier: 'catalog:'

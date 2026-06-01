@@ -171,6 +171,18 @@ importers:
         specifier: 'catalog:'
         version: 24.9.2
 
+  .claude/hooks/fleet/bundle-flags-guard:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
+  .claude/hooks/fleet/catch-message-guard:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
   .claude/hooks/fleet/changelog-no-empty-sections-guard:
     devDependencies:
       '@types/node':
@@ -489,6 +501,19 @@ importers:
 
   .claude/hooks/fleet/no-structured-clone-prefer-json-guard: {}
 
+  .claude/hooks/fleet/no-tail-install-output-guard:
+    dependencies:
+      shell-quote:
+        specifier: 'catalog:'
+        version: 1.8.4
+    devDependencies:
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@6.0.5'
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
   .claude/hooks/fleet/no-token-in-dotenv-guard:
     devDependencies:
       '@types/node':
@@ -728,6 +753,12 @@ importers:
 
   .claude/hooks/fleet/soak-exclude-date-annotation-guard: {}
 
+  .claude/hooks/fleet/soak-exclude-scope-guard:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
   .claude/hooks/fleet/socket-token-minifier-start:
     dependencies:
       '@socketsecurity/lib-stable':
@@ -747,6 +778,12 @@ importers:
   .claude/hooks/fleet/stale-process-sweeper: {}
 
   .claude/hooks/fleet/sweep-ds-store:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
+  .claude/hooks/fleet/target-arch-env-guard:
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1199,6 +1236,9 @@ importers:
       curl-builder:
         specifier: workspace:*
         version: link:../curl-builder
+      glibc-shims-infra:
+        specifier: workspace:*
+        version: link:../glibc-shims-infra
     devDependencies:
       '@vitest/coverage-v8':
         specifier: 'catalog:'

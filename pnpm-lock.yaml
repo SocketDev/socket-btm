@@ -858,6 +858,16 @@ importers:
         specifier: 'catalog:'
         version: 24.9.2
 
+  .claude/hooks/repo/node-smol-patch-format-guard:
+    dependencies:
+      '@socketsecurity/lib-stable':
+        specifier: 'catalog:'
+        version: '@socketsecurity/lib@6.0.6'
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
   packages/bin-infra:
     dependencies:
       '@socketsecurity/lib-stable':

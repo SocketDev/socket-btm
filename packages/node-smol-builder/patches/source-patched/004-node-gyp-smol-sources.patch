@@ -100,7 +100,7 @@
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
          ['node_with_ltcg=="true"', {
            'msvs_settings': {
-@@ -1057,12 +1097,394 @@
+@@ -1057,12 +1097,400 @@
              'deps/ncrypto/ncrypto.gyp:ncrypto',
            ],
          }],
@@ -123,7 +123,6 @@
 +            'src/socketsecurity/http/http_object_pool.cc',
 +            'src/socketsecurity/http/mimalloc_allocator.cc',
 +            'src/socketsecurity/http/iouring_network.cc',
-+            'src/socketsecurity/http/smol_http_binding.cc',
 +            'src/socketsecurity/http/http_binding.cc',
 +            # uSockets: High-performance socket library (libuv backend).
 +            'deps/uSockets/src/bsd.c',
@@ -254,6 +253,13 @@
 +              'defines': [ 'HAVE_SMOL_HTTP=1' ],
 +              'sources': [
 +                'src/socketsecurity/http/uws_server.cc',
++                # The node:smol-http binding (registers smol_http, namespace
++                # smol_http) calls uws_server.cc's CreateUwsServer/UwsServerListen/
++                # AddRoute/Stop. It must be gated WITH the server — leaving it
++                # always-on (in the 1==1 block) dangles those 4 symbols when
++                # smol-http is trimmed. http_binding.cc (the always-on HTTP-accel /
++                # SIMD layer) is unrelated and stays unconditional.
++                'src/socketsecurity/http/smol_http_binding.cc',
 +              ],
 +            }],
 +            ['node_use_smol_ilp=="true"', {
@@ -496,7 +502,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1081,7 +1503,7 @@
+@@ -1081,7 +1509,7 @@
              }],
            ],
          }],
@@ -505,7 +511,7 @@
            'sources': [
              '<@(node_quic_sources)',
            ],
-@@ -1403,7 +1825,7 @@
+@@ -1403,7 +1831,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -514,7 +520,7 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1447,6 +1869,17 @@
+@@ -1447,6 +1875,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -532,7 +538,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1521,6 +1954,17 @@
+@@ -1521,6 +1960,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -550,7 +556,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1744,6 +2188,17 @@
+@@ -1744,6 +2194,17 @@
              'Ws2_32.lib',
            ],
          }],

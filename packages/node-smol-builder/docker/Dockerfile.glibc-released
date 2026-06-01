@@ -24,6 +24,11 @@ RUN echo "Cache version: ${CACHE_VERSION}"
 # blocks in this Dockerfile. The file is gitignored; it materializes
 # fresh for every CI run from socket-registry's pinned SHA.
 COPY .build-context/registry-tools.json /tmp/registry-tools.json
+# Pinned Node version for the toolchain install below. Read from the repo's
+# .node-version (single source of truth) rather than a NodeSource repo —
+# NodeSource's rpm gpg-key endpoint 404s and is fragile; nodejs.org/dist is
+# the stable, version-pinned source the btm-builder-glibc base image uses.
+COPY .node-version /tmp/.node-version
 
 # Install build dependencies.
 # AlmaLinux 8 has glibc 2.28, which is the minimum required by Node.js.
@@ -53,22 +58,14 @@ RUN dnf -y update && \
     # identical functions, shrinking the binary). gold ships separately from
     # gcc-toolset-13-binutils, which only carries ld.bfd.
     dnf -y install gcc-toolset-13 gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ gcc-toolset-13-libstdc++-devel gcc-toolset-13-binutils-gold && \
-    # Install Node.js from NodeSource (verifiable alternative to the
-    # `curl … | bash` installer: import the GPG key and write the dnf
-    # repo file directly, exactly as NodeSource's docs describe).
-    rpm --import https://rpm.nodesource.com/pub_current.x/nodesource-repo.gpg.key && \
-    printf '%s\n' \
-      '[nodesource-nodejs]' \
-      'name=Node.js Packages - $basearch' \
-      'baseurl=https://rpm.nodesource.com/pub_current.x/nodistro/nodejs/$basearch' \
-      'priority=9' \
-      'enabled=1' \
-      'gpgcheck=1' \
-      'gpgkey=https://rpm.nodesource.com/gpgkey/ns-operations-public.key' \
-      'module_hotfixes=1' \
-      > /etc/yum.repos.d/nodesource-nodejs.repo && \
-    dnf -y install nodejs && \
+    # Install Node.js directly from nodejs.org/dist (version pinned by the
+    # repo's .node-version). Replaces the NodeSource dnf repo, whose
+    # gpg-key endpoint now 404s. Matches the btm-builder-glibc base image.
     ARCH=$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/') && \
+    NODE_VERSION=$(tr -d '[:space:]' < /tmp/.node-version) && \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${ARCH}.tar.xz" \
+      | tar -xJ -C /usr/local --strip-components=1 && \
+    rm /tmp/.node-version && \
     PLATFORM="linux-${ARCH}" && \
     PNPM_VERSION=$(jq -r .pnpm.version /tmp/registry-tools.json) && \
     PNPM_ASSET=$(jq -r ".pnpm.platforms[\"${PLATFORM}\"].asset" /tmp/registry-tools.json) && \

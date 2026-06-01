@@ -39,7 +39,7 @@ import { getLatestFinalBinary, getLatestStrippedBinary } from '../test/paths.mts
 const __filename = fileURLToPath(import.meta.url)
 const logger = getDefaultLogger()
 
-function probeBuiltin(binary: string, specifier: string): boolean {
+export function probeBuiltin(binary: string, specifier: string): boolean {
   try {
     const r = spawnSync(
       binary,
@@ -109,6 +109,6 @@ if (import.meta.url === toFileUrl(process.argv[1])) {
   })
 }
 
-function toFileUrl(p: string | undefined): string {
+export function toFileUrl(p: string | undefined): string {
   return p ? new URL(`file://${path.resolve(p)}`).href : ''
 }

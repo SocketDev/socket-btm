@@ -100,8 +100,8 @@ describe('smol_manifest_native binding — sdxgen-bug-regressions equivalence', 
     const onDisk = readdirSync(FIXTURES_DIR, { withFileTypes: true })
       .filter(e => e.isDirectory())
       .map(e => e.name)
-      .sort()
-    expect(onDisk).toEqual([...EXPECTED_FIXTURE_NAMES].sort())
+      .toSorted()
+    expect(onDisk).toEqual([...EXPECTED_FIXTURE_NAMES].toSorted())
   })
 
   it.skipIf(!smolBinary)('live binding verifies all fixtures PASS', () => {

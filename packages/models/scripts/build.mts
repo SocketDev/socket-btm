@@ -235,7 +235,7 @@ async function main() {
     // Build MiniLM-L6 if requested.
     if (BUILD_MINILM) {
       logger.info('')
-      logger.info('Building MiniLM-L6...')
+      logger.info('Building MiniLM-L6…')
       logger.info('-'.repeat(60))
 
       await downloadModel('minilm-l6')
@@ -247,7 +247,7 @@ async function main() {
     // Build CodeT5 if requested.
     if (BUILD_CODET5) {
       logger.info('')
-      logger.info('Building CodeT5...')
+      logger.info('Building CodeT5…')
       logger.info('-'.repeat(60))
 
       await downloadModel('codet5')

@@ -45,7 +45,7 @@ export async function generateSync(options) {
   } = options
 
   logger.log(
-    'Creating CommonJS synchronous wrapper from ESM async WASM module...',
+    'Creating CommonJS synchronous wrapper from ESM async WASM module…',
   )
   logger.logNewline()
 

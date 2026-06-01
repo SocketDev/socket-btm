@@ -24,7 +24,7 @@ const logger = getDefaultLogger()
 export async function copySource() {
   const { buildDir, sourceCopiedDir } = getSharedBuildPaths()
 
-  logger.info('Copying OpenTUI source from upstream...')
+  logger.info('Copying OpenTUI source from upstream…')
 
   await safeMkdir(sourceCopiedDir, { recursive: true })
 

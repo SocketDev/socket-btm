@@ -12,7 +12,7 @@ import { checkBinaryFeatures } from '../../scripts/gate-trimmed-binary.mts'
 const BIN = '/fake/trimmed/node'
 
 // A probe driven by a fixed set of "present" specifiers.
-function probeFrom(present: Set<string>) {
+export function probeFrom(present: Set<string>) {
   return (_binary: string, specifier: string) => present.has(specifier)
 }
 

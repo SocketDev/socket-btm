@@ -17,7 +17,7 @@ import { SMOL_FEATURES } from '../../scripts/lib/smol-features.mts'
 
 const tmp = mkdtempSync(path.join(tmpdir(), 'detect-feat-'))
 
-function bundle(source: string, name = 'main.js'): string {
+export function bundle(source: string, name = 'main.js'): string {
   const p = path.join(tmp, `${name}-${Math.abs(hashName(source))}.js`)
   writeFileSync(p, source)
   return p
@@ -25,7 +25,7 @@ function bundle(source: string, name = 'main.js'): string {
 
 // Deterministic name suffix without Date.now/Math.random (banned in this env's
 // scripts; cheap string hash is fine for fixture filenames).
-function hashName(s: string): number {
+export function hashName(s: string): number {
   let h = 0
   for (let i = 0, { length } = s; i < length; i += 1) {
     h = (h * 31 + s.charCodeAt(i)) | 0

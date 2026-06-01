@@ -595,7 +595,7 @@ async function main(): Promise<void> {
   const allowSet = new Set(allowlist.map(e => e.upstream))
 
   if (!opts.quiet && !opts.json) {
-    logger.info('Checking external dependency version consistency...')
+    logger.info('Checking external dependency version consistency…')
   }
 
   const allMismatches = await collectMismatches()

@@ -559,9 +559,9 @@ export const LIBC_VALUES = {
  * Compression algorithm byte values.
  */
 export const COMPRESSION_VALUES = {
-  zstd: 0,
   lzma: 1,
   lzms: 2,
+  zstd: 0,
 }
 
 /**

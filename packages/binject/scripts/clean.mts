@@ -20,7 +20,7 @@ const logger = getDefaultLogger()
 
 async function main() {
   try {
-    logger.info('Cleaning binject...')
+    logger.info('Cleaning binject…')
     const makefile = selectMakefile()
     await runCommand('make', ['-f', makefile, 'clean'], packageRoot)
     logger.success('Clean complete')

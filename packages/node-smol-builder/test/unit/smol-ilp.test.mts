@@ -9,39 +9,39 @@
 
 describe('node:smol-ilp TimeUnit', () => {
   describe('timestamp conversion logic', () => {
-    const MS_TO_NS = 1000000n
+    const MS_TO_NS = 1_000_000n
     const MS_TO_US = 1000n
     const MS_TO_S_DIVISOR = 1000
 
     it('now() should convert Date.now() milliseconds to nanoseconds by default', () => {
-      const mockMs = 1699012345678
+      const mockMs = 1_699_012_345_678
       const expectedNs = BigInt(mockMs) * MS_TO_NS
-      expect(expectedNs).toBe(1699012345678000000n)
+      expect(expectedNs).toBe(1_699_012_345_678_000_000n)
     })
 
     it('now() with Microseconds unit should multiply by 1000', () => {
-      const mockMs = 1699012345678
+      const mockMs = 1_699_012_345_678
       const expectedUs = BigInt(mockMs) * MS_TO_US
-      expect(expectedUs).toBe(1699012345678000n)
+      expect(expectedUs).toBe(1_699_012_345_678_000n)
     })
 
     it('now() with Milliseconds unit should return milliseconds unchanged', () => {
-      const mockMs = 1699012345678
+      const mockMs = 1_699_012_345_678
       const expectedMs = BigInt(mockMs)
-      expect(expectedMs).toBe(1699012345678n)
+      expect(expectedMs).toBe(1_699_012_345_678n)
     })
 
     it('now() with Seconds unit should divide by 1000', () => {
-      const mockMs = 1699012345678
+      const mockMs = 1_699_012_345_678
       const expectedS = BigInt(Math.floor(mockMs / MS_TO_S_DIVISOR))
-      expect(expectedS).toBe(1699012345n)
+      expect(expectedS).toBe(1_699_012_345n)
     })
 
     it('fromDate() should convert Date milliseconds using same logic as now()', () => {
       const date = new Date('2023-11-03T12:05:45.678Z')
       const ms = date.getTime()
       // Test conversion logic works correctly (values derived from actual date)
-      expect(BigInt(ms) * MS_TO_NS).toBe(BigInt(ms) * 1000000n)
+      expect(BigInt(ms) * MS_TO_NS).toBe(BigInt(ms) * 1_000_000n)
       expect(BigInt(ms) * MS_TO_US).toBe(BigInt(ms) * 1000n)
       expect(BigInt(ms)).toBe(BigInt(ms))
       expect(BigInt(Math.floor(ms / MS_TO_S_DIVISOR))).toBe(
@@ -58,39 +58,39 @@ describe('node:smol-ilp TimeUnit', () => {
     })
 
     it('convert() from Nanoseconds to Microseconds should divide by 1000', () => {
-      const nanos = 1000000n
+      const nanos = 1_000_000n
       const micros = nanos / 1000n
       expect(micros).toBe(1000n)
     })
 
     it('convert() from Nanoseconds to Milliseconds should divide by 1000000', () => {
-      const nanos = 1000000000n
-      const millis = nanos / 1000000n
+      const nanos = 1_000_000_000n
+      const millis = nanos / 1_000_000n
       expect(millis).toBe(1000n)
     })
 
     it('convert() from Nanoseconds to Seconds should divide by 1000000000', () => {
-      const nanos = 5000000000n
-      const seconds = nanos / 1000000000n
+      const nanos = 5_000_000_000n
+      const seconds = nanos / 1_000_000_000n
       expect(seconds).toBe(5n)
     })
 
     it('convert() from Seconds to Nanoseconds should multiply by 1000000000', () => {
       const seconds = 5n
-      const nanos = seconds * 1000000000n
-      expect(nanos).toBe(5000000000n)
+      const nanos = seconds * 1_000_000_000n
+      expect(nanos).toBe(5_000_000_000n)
     })
 
     it('convert() should handle multi-step conversions via nanoseconds', () => {
       // Microseconds -> Seconds requires: micros * 1000 (to nanos) / 1000000000 (to seconds)
-      const micros = 5000000n
+      const micros = 5_000_000n
       const nanos = micros * 1000n
-      const seconds = nanos / 1000000000n
+      const seconds = nanos / 1_000_000_000n
       expect(seconds).toBe(5n)
     })
 
     it('convert() should use bigint for precision', () => {
-      const value = 123456789n
+      const value = 123_456_789n
       expect(typeof value).toBe('bigint')
     })
   })
@@ -117,8 +117,8 @@ describe('node:smol-ilp TimeUnit', () => {
       // Index 3 (Seconds): 1000000000x
       expect(1n).toBe(1n)
       expect(1000n).toBe(1000n)
-      expect(1000000n).toBe(1000000n)
-      expect(1000000000n).toBe(1000000000n)
+      expect(1_000_000n).toBe(1_000_000n)
+      expect(1_000_000_000n).toBe(1_000_000_000n)
     })
   })
 })
@@ -173,14 +173,14 @@ describe('node:smol-ilp API surface', () => {
       port: 9009, // QuestDB ILP default port
       connectTimeout: 10_000, // 10 seconds
       sendTimeout: 30_000, // 30 seconds
-      bufferSize: 65536, // 64 KB
-      maxBufferSize: 104857600, // 100 MB
+      bufferSize: 65_536, // 64 KB
+      maxBufferSize: 104_857_600, // 100 MB
       autoFlush: false,
       autoFlushRows: 1000,
       autoFlushInterval: 0, // Disabled
     }
     expect(defaults.port).toBe(9009)
-    expect(defaults.maxBufferSize).toBe(104857600)
+    expect(defaults.maxBufferSize).toBe(104_857_600)
   })
 
   it('should provide buffer pressure monitoring thresholds', () => {

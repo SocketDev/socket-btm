@@ -21,15 +21,15 @@ import { BORINGSSL_REQUIRED_FILES } from './required-files.mts'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PACKAGE_ROOT = path.resolve(__dirname, '..')
 
+export function getBoringsslLocalBuildDir(platformArch: string): string {
+  const buildDir = getPlatformBuildDir(PACKAGE_ROOT, platformArch)
+  return path.join(buildDir, 'out', BUILD_STAGES.FINAL)
+}
+
 export function getCurrentBoringsslPlatformArch(): string {
   const libc = detectLibc()
   const arch = process.env.TARGET_ARCH || process.arch
   return getAssetPlatformArch(process.platform, arch, libc)
-}
-
-export function getBoringsslLocalBuildDir(platformArch: string): string {
-  const buildDir = getPlatformBuildDir(PACKAGE_ROOT, platformArch)
-  return path.join(buildDir, 'out', BUILD_STAGES.FINAL)
 }
 
 const api = createPrebuiltApi({

@@ -234,7 +234,7 @@ const WITH_LIEF = Boolean(values['with-lief'])
 // bare feature names are mapped to their flag via the smol-features registry.
 const EXTRA_CONFIGURE_FLAGS = parseSmolDropArg(values['without-smol'])
 
-function parseSmolDropArg(raw) {
+export function parseSmolDropArg(raw) {
   if (!raw || typeof raw !== 'string') {
     return []
   }

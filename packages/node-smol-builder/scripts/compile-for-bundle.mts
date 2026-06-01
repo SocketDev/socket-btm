@@ -60,7 +60,7 @@ export function computeCacheKey(opts: {
   platformArch: string
   buildMode: string
 }): string {
-  const sorted = [...opts.configureFlags].sort()
+  const sorted = [...opts.configureFlags].toSorted()
   const material = JSON.stringify({
     sourceStage: SOURCE_PATCHED,
     flags: sorted,
@@ -93,7 +93,7 @@ async function main(): Promise<void> {
   }
   const vfsPath = values['vfs'] as string | undefined
 
-  let overrides: { keep?: string[]; drop?: string[] } | undefined
+  let overrides: { keep?: string[] | undefined; drop?: string[] | undefined } | undefined
   const overridesPath = values['overrides'] as string | undefined
   if (overridesPath) {
     try {
@@ -171,6 +171,6 @@ if (import.meta.url === toFileUrl(process.argv[1])) {
   })
 }
 
-function toFileUrl(p: string | undefined): string {
+export function toFileUrl(p: string | undefined): string {
   return p ? new URL(`file://${path.resolve(p)}`).href : ''
 }

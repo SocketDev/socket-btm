@@ -22,7 +22,7 @@ const PACKAGE_ROOT = path.resolve(HERE, '..')
 
 describe('GLIBC_SHIMS_WRAP_SYMBOLS', () => {
   it('is alphabetically sorted (stable diffs)', () => {
-    const sorted = [...GLIBC_SHIMS_WRAP_SYMBOLS].sort()
+    const sorted = [...GLIBC_SHIMS_WRAP_SYMBOLS].toSorted()
     expect(GLIBC_SHIMS_WRAP_SYMBOLS).toEqual(sorted)
   })
 

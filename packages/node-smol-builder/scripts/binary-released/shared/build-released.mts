@@ -282,7 +282,7 @@ export async function buildRelease(config, buildOptions = {}) {
     let allApplied = true
 
     // Check 1: V8 include paths.
-    logger.log('Checking V8 include paths...')
+    logger.log('Checking V8 include paths…')
     try {
       const content = await fs.readFile(testFile, 'utf8')
       if (content.includes('#include "src/base/iterator.h"')) {
@@ -303,7 +303,7 @@ export async function buildRelease(config, buildOptions = {}) {
 
     // Check 2: localeCompare polyfill.
     // The patch adds: require('internal/socketsecurity/polyfills/locale-compare')
-    logger.log('Checking polyfill in bootstrap/node.js...')
+    logger.log('Checking polyfill in bootstrap/node.js…')
     try {
       const content = await fs.readFile(bootstrapFile, 'utf8')
       const hasLocaleCompare = content.includes(
@@ -513,7 +513,7 @@ export async function buildRelease(config, buildOptions = {}) {
             'Press Ctrl+C now if you want to inspect the changes first',
           )
           logger.substep(
-            'Or wait 5 seconds to continue with automatic reset...',
+            'Or wait 5 seconds to continue with automatic reset…',
           )
           logger.logNewline()
 
@@ -544,7 +544,7 @@ export async function buildRelease(config, buildOptions = {}) {
   // This matches CI behavior where restore-checkpoint action walks backward.
   if (!existsSync(modeSourceDir)) {
     logger.step(`Extracting Node.js Source to ${buildMode} Build`)
-    logger.substep('Looking for source checkpoints...')
+    logger.substep('Looking for source checkpoints…')
     logger.log('')
 
     // Try source-patched first (mode-specific, already has patches applied)
@@ -562,7 +562,7 @@ export async function buildRelease(config, buildOptions = {}) {
       logger.log('')
     } else {
       // Fall back to source-copied (shared, pristine source)
-      logger.log('source-patched not found, trying source-copied...')
+      logger.log('source-patched not found, trying source-copied…')
       logger.log('')
 
       restored = await restoreCheckpoint(
@@ -773,7 +773,7 @@ export async function buildRelease(config, buildOptions = {}) {
     // Clean build directory.
     logger.step('Cleaning Build Directory')
     if (existsSync(outDir)) {
-      logger.log(`Removing ${outDir} to prevent ninja duplicate rules...`)
+      logger.log(`Removing ${outDir} to prevent ninja duplicate rules…`)
       await safeDelete(outDir)
       logger.success(`Cleaned ${outDir}`)
       logger.log('')
@@ -789,7 +789,7 @@ export async function buildRelease(config, buildOptions = {}) {
         const configDir = configDirs[i]
         const junctionPath = path.join(modeSourceDir, configDir)
         if (existsSync(junctionPath)) {
-          logger.log(`Removing stale ${configDir} directory/junction...`)
+          logger.log(`Removing stale ${configDir} directory/junction…`)
           await exec('cmd.exe', ['/c', `rd /S /Q "${configDir}"`], {
             cwd: modeSourceDir,
           })
@@ -869,7 +869,7 @@ export async function buildRelease(config, buildOptions = {}) {
       )
     }
     logger.log('')
-    logger.log('Starting build...')
+    logger.log('Starting build…')
     logger.log('')
 
     // Clean macOS AppleDouble files that may have been restored from checkpoints
@@ -974,7 +974,7 @@ export async function buildRelease(config, buildOptions = {}) {
   // Will automatically fall back to static verification if cross-compiled.
   logger.step('Testing Binary (Release)')
 
-  logger.log('Running comprehensive functionality tests...')
+  logger.log('Running comprehensive functionality tests…')
   logger.log('')
 
   const smokeTestPassed = await smokeTestBinary(
@@ -1001,7 +1001,7 @@ export async function buildRelease(config, buildOptions = {}) {
 
   // Copy to Release output.
   logger.step('Copying to Build Output (Release)')
-  logger.log('Copying unmodified binary to Release directory...')
+  logger.log('Copying unmodified binary to Release directory…')
   logger.logNewline()
 
   const outputReleaseNodeDir = path.dirname(outputReleaseBinary)
@@ -1020,7 +1020,7 @@ export async function buildRelease(config, buildOptions = {}) {
   // Clean Release directory before checkpoint to ensure only the release binary is archived
   // This removes any leftover files from previous builds
   if (!skipCheckpoint) {
-    logger.substep('Cleaning checkpoint directory...')
+    logger.substep('Cleaning checkpoint directory…')
     const releaseDirFiles = await fs.readdir(outputReleaseNodeDir)
     const releaseBinaryName = path.basename(outputReleaseBinary)
     for (let i = 0, { length } = releaseDirFiles; i < length; i += 1) {

@@ -90,7 +90,7 @@ export async function validateDockerfile(
 
 async function main(): Promise<void> {
   try {
-    logger.info('🔍 Validating Dockerfile.build export patterns...')
+    logger.info('🔍 Validating Dockerfile.build export patterns…')
     logger.error('')
 
     const dockerfiles = await findDockerfiles()

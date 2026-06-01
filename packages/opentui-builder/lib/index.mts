@@ -135,24 +135,24 @@ export const native = loadNativeModule()
 
 export const WidthMethod = {
   __proto__: null,
-  WCWIDTH: 0,
-  UNICODE: 1,
   NO_ZWJ: 2,
+  UNICODE: 1,
+  WCWIDTH: 0,
 }
 
-export const WrapMode = { __proto__: null, NONE: 0, CHAR: 1, WORD: 2 }
+export const WrapMode = { __proto__: null, CHAR: 1, NONE: 0, WORD: 2 }
 
 export const TextAttributes = {
   __proto__: null,
-  NONE: 0,
+  BLINK: 16,
   BOLD: 1,
   DIM: 2,
-  ITALIC: 4,
-  UNDERLINE: 8,
-  BLINK: 16,
-  INVERSE: 32,
   HIDDEN: 64,
+  INVERSE: 32,
+  ITALIC: 4,
+  NONE: 0,
   STRIKETHROUGH: 128,
+  UNDERLINE: 8,
 }
 
 export const ATTRIBUTE_BASE_BITS = 8
@@ -266,17 +266,17 @@ export class RGBA {
 
 export const DebugOverlayCorner = {
   __proto__: null,
-  TOP_LEFT: 0,
-  TOP_RIGHT: 1,
   BOTTOM_LEFT: 2,
   BOTTOM_RIGHT: 3,
+  TOP_LEFT: 0,
+  TOP_RIGHT: 1,
 }
 
 export const TargetChannel = {
   __proto__: null,
-  FG: 1,
   BG: 2,
   BOTH: 3,
+  FG: 1,
 }
 
 // ── Performance helpers ──

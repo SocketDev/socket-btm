@@ -502,7 +502,7 @@ async function main(): Promise<void> {
   }
 
   if (!opts.quiet && !opts.json) {
-    logger.info('Checking cross-package cascade completeness...')
+    logger.info('Checking cross-package cascade completeness…')
   }
 
   const allowlist = loadAllowlist()

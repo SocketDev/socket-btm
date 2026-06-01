@@ -64,12 +64,12 @@ export async function cloneNodeSource(options) {
     )
     if (checkpointData && checkpointData.nodeVersion !== nodeVersion) {
       logger.log(
-        `Node version changed from ${checkpointData.nodeVersion} to ${nodeVersion}, re-cloning...`,
+        `Node version changed from ${checkpointData.nodeVersion} to ${nodeVersion}, re-cloning…`,
       )
       versionMismatch = true
     } else if (checkpointData && checkpointData.nodeSha !== nodeSha) {
       logger.log(
-        `Node SHA changed from ${checkpointData.nodeSha?.slice(0, 8)} to ${nodeSha.slice(0, 8)}, re-cloning...`,
+        `Node SHA changed from ${checkpointData.nodeSha?.slice(0, 8)} to ${nodeSha.slice(0, 8)}, re-cloning…`,
       )
       versionMismatch = true
     }
@@ -87,7 +87,7 @@ export async function cloneNodeSource(options) {
   if (!existsSync(sharedSourceDir) || cleanBuild || versionMismatch) {
     if (existsSync(sharedSourceDir) && (cleanBuild || versionMismatch)) {
       logger.step('Clean Build Requested')
-      logger.log('Removing existing shared Node.js source directory...')
+      logger.log('Removing existing shared Node.js source directory…')
       await safeDelete(sharedSourceDir, { force: true, recursive: true })
       await cleanCheckpoint(sharedBuildDir, packageName)
       logger.success('Cleaned shared source directory')
@@ -118,7 +118,7 @@ export async function cloneNodeSource(options) {
     )
     logger.substep(`Source: ${upstreamPath}`)
     logger.log('')
-    logger.info('Copying pristine source from upstream to build directory...')
+    logger.info('Copying pristine source from upstream to build directory…')
     logger.log('')
 
     // Verify upstream commit matches expected SHA (if SHA is provided).
@@ -181,7 +181,7 @@ export async function cloneNodeSource(options) {
     logger.step('Recovering Missing Checkpoint')
     logger.substep('Source directory exists but checkpoint is missing')
     logger.log('')
-    logger.info('Validating existing source directory...')
+    logger.info('Validating existing source directory…')
 
     const configureScript = path.join(sharedSourceDir, 'configure')
     if (!existsSync(configureScript)) {
@@ -189,7 +189,7 @@ export async function cloneNodeSource(options) {
       logger.warn(
         'Existing source directory is invalid (missing configure script)',
       )
-      logger.info('Will re-copy from upstream...')
+      logger.info('Will re-copy from upstream…')
       await safeDelete(sharedSourceDir, { force: true, recursive: true })
 
       // Recursively call to handle the fresh clone
@@ -198,7 +198,7 @@ export async function cloneNodeSource(options) {
     }
 
     logger.success('Existing source directory is valid')
-    logger.log('Creating checkpoint from existing source...')
+    logger.log('Creating checkpoint from existing source…')
 
     await createCheckpoint(
       sharedBuildDir,

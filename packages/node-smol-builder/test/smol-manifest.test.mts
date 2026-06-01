@@ -840,8 +840,8 @@ importers:
       const onDisk = readdirSync(FIXTURES_DIR, { withFileTypes: true })
         .filter(e => e.isDirectory())
         .map(e => e.name)
-        .sort()
-      const inTable = FIXTURES.map(f => f.dir).sort()
+        .toSorted()
+      const inTable = FIXTURES.map(f => f.dir).toSorted()
       expect(onDisk).toEqual(inTable)
     })
 

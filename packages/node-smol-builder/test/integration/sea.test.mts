@@ -58,7 +58,7 @@ describe.skipIf(skipTests)('test with actual binject', () => {
     await makeExecutable(seaBinary)
 
     logger.log(
-      'About to call runBinject WITHOUT sentinelFuse/machoSegmentName...',
+      'About to call runBinject WITHOUT sentinelFuse/machoSegmentName…',
     )
     // Inject SEA blob - NO sentinelFuse or machoSegmentName
     const result = await runBinject(
@@ -74,7 +74,7 @@ describe.skipIf(skipTests)('test with actual binject', () => {
     expect(result.code).toBe(0)
 
     // Run binary
-    logger.log('About to execute binary...')
+    logger.log('About to execute binary…')
     const execResult = await spawn(seaBinary, [], { cwd: testDir })
     logger.log('Binary executed with exit code:', execResult.code)
 

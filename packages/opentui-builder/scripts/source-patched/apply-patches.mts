@@ -40,7 +40,7 @@ export async function applyPatches(platformArch, buildMode) {
   const { buildDir, sourcePatchedDir } = getBuildPaths(buildMode, platformArch)
   const patchesDir = path.join(PACKAGE_ROOT, 'patches')
 
-  logger.info('Applying OpenTUI patches...')
+  logger.info('Applying OpenTUI patches…')
 
   await safeMkdir(sourcePatchedDir, { recursive: true })
 
@@ -60,7 +60,7 @@ export async function applyPatches(platformArch, buildMode) {
   }
 
   // Inject our build files into the patched source
-  logger.info('Copying build files to patched source...')
+  logger.info('Copying build files to patched source…')
 
   // Copy our wrapper build.zig (replaces upstream build.zig)
   await fs.copyFile(BUILD_ZIG, path.join(sourcePatchedDir, 'build.zig'))

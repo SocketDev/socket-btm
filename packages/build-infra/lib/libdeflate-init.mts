@@ -31,7 +31,7 @@ export async function ensureLibdeflate({ packageDir }) {
     return
   }
 
-  logger.info('Initializing libdeflate submodule...')
+  logger.info('Initializing libdeflate submodule…')
   logger.log(
     'Running: git submodule update --init --recursive packages/binject/upstream/libdeflate',
   )

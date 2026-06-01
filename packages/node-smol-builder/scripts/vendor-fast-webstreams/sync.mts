@@ -261,7 +261,7 @@ export function convertToCommonJS(content, _filename) {
 
   // Add local exports
   // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
-  for (const name of Array.from(localExports).sort()) {
+  for (const name of Array.from(localExports).toSorted()) {
     exportLines.push(`exports.${name} = ${name};`)
   }
 
@@ -349,7 +349,7 @@ export async function processSourceFiles() {
 
   // Process each source file
   const files = readdirSync(srcDir).filter(f => f.endsWith('.js'))
-  logger.info(`Processing ${files.length} source files...`)
+  logger.info(`Processing ${files.length} source files…`)
 
   for (let i = 0, { length } = files; i < length; i += 1) {
     const file = files[i]

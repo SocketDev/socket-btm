@@ -122,7 +122,7 @@ export async function downloadPrebuiltStub(options = {}) {
     )
   }
 
-  logger.info('Checking for prebuilt stubs releases...')
+  logger.info('Checking for prebuilt stubs releases…')
 
   const assetName = `smol-stub-${resolvedPlatformArch}.tar.gz`
   const targetDir = path.join(
@@ -143,7 +143,7 @@ export async function downloadPrebuiltStub(options = {}) {
     })
 
     // Verify SHA256 checksum to detect corrupt/truncated downloads.
-    logger.info('Verifying archive checksum...')
+    logger.info('Verifying archive checksum…')
     const checksumResult = await verifyReleaseChecksum({
       assetName,
       filePath: tarballPath,
@@ -170,7 +170,7 @@ export async function downloadPrebuiltStub(options = {}) {
     await safeMkdir(targetDir)
 
     // Extract archive.
-    logger.info('Extracting stubs archive...')
+    logger.info('Extracting stubs archive…')
 
     // Path traversal protection: verify tarball contents before extraction.
     const listResult = await spawn('tar', ['-tzf', tarballPath], {
@@ -262,7 +262,7 @@ export async function ensureStubs(options = {}) {
 
   if (!canBuildFromSource) {
     // Download prebuilt.
-    logger.info('Makefile not found, downloading prebuilt stub...')
+    logger.info('Makefile not found, downloading prebuilt stub…')
     const downloadDir = await downloadPrebuiltStub({
       platformArch: resolvedPlatformArch,
     })
@@ -277,7 +277,7 @@ export async function ensureStubs(options = {}) {
   // Try to build from source.
   try {
     // Ensure curl libraries are available (required for HTTPS support in stubs).
-    logger.info('Ensuring curl libraries are available...')
+    logger.info('Ensuring curl libraries are available…')
     try {
       const curlDir = await ensureCurl()
       logger.success(`curl libraries ready at ${curlDir}`)
@@ -300,7 +300,7 @@ export async function ensureStubs(options = {}) {
       )
     }
 
-    logger.info('Falling back to prebuilt download...')
+    logger.info('Falling back to prebuilt download…')
 
     const downloadDir = await downloadPrebuiltStub({
       platformArch: resolvedPlatformArch,

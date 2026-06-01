@@ -31,7 +31,7 @@ export async function ensureCjson({ packageDir }) {
     return
   }
 
-  logger.info('Initializing cJSON submodule...')
+  logger.info('Initializing cJSON submodule…')
   logger.log(
     'Running: git submodule update --init --recursive packages/binject/upstream/cJSON',
   )

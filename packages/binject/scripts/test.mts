@@ -29,7 +29,7 @@ const packageRoot = path.join(__dirname, '..')
 async function main() {
   try {
     // Check and install required tools (including runtime dependencies)
-    logger.info('Checking required tools...')
+    logger.info('Checking required tools…')
     logger.error('')
     try {
       await runCommand(
@@ -54,7 +54,7 @@ async function main() {
     }
 
     // Ensure LIEF library is available for tests
-    logger.info('Ensuring LIEF library is available...')
+    logger.info('Ensuring LIEF library is available…')
     logger.error('')
     const buildMode = getBuildMode()
     await ensureLief({ buildMode })
@@ -85,7 +85,7 @@ async function main() {
 
     if (!binaryExists) {
       // Try to build (in case binary isn't built yet)
-      logger.info('Building binject...')
+      logger.info('Building binject…')
       logger.error('')
       try {
         await runCommand('make', ['-f', makefile, 'all'], packageRoot)
@@ -107,7 +107,7 @@ async function main() {
     }
 
     logger.info('')
-    logger.info('Running binject tests...')
+    logger.info('Running binject tests…')
     logger.error('')
     await runCommand('make', ['-f', makefile, 'test'], packageRoot)
     logger.info('')

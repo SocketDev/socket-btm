@@ -87,7 +87,7 @@ export async function cloneOnnxSource(options) {
     if (!allPatchesApplied) {
       // Source exists but patches not applied - need to re-clone.
       logger.warn('Source exists but patches not applied')
-      logger.substep('Removing old source to re-clone with patches...')
+      logger.substep('Removing old source to re-clone with patches…')
       await safeDelete(sharedSourceDir)
       logger.success('Old source removed')
     } else {
@@ -217,7 +217,7 @@ export async function cloneOnnxSource(options) {
 
   // Patch 2: Fix MLFloat16 build (see docs/patches.md).
   logger.substep(
-    'Patching onnxruntime_webassembly.cmake to fix MLFloat16 build...',
+    'Patching onnxruntime_webassembly.cmake to fix MLFloat16 build…',
   )
   const cmakePath = path.join(
     sharedSourceDir,
@@ -248,7 +248,7 @@ export async function cloneOnnxSource(options) {
   // 1. Patch source file (single source of truth)
   // 2. Delete cached build copy if present (forces CMake recopy from patched source)
   // 3. Clear CMake cache (ensures full reconfiguration)
-  logger.substep('Patching wasm_post_build.js to handle modern Emscripten...')
+  logger.substep('Patching wasm_post_build.js to handle modern Emscripten…')
   const postBuildSourcePath = path.join(
     sharedSourceDir,
     'js',

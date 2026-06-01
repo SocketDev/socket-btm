@@ -819,7 +819,7 @@ describe('text buffer view', () => {
   })
 
   it('manages tab indicator', () => {
-    native.textBufferViewSetTabIndicator(view, 0x2192)
+    native.textBufferViewSetTabIndicator(view, 0x21_92)
     native.textBufferViewSetTabIndicatorColor(view, 0.5, 0.5, 0.5, 0.3)
   })
 })
@@ -1209,7 +1209,7 @@ describe('editor view', () => {
   })
 
   it('manages tab indicator', () => {
-    native.editorViewSetTabIndicator(view, 0x2192)
+    native.editorViewSetTabIndicator(view, 0x21_92)
     native.editorViewSetTabIndicatorColor(view, 0.5, 0.5, 0.5, 0.3)
   })
 })

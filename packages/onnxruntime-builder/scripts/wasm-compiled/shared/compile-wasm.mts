@@ -72,7 +72,7 @@ export async function compileWasm(options) {
   // Clean stale cached files before build.
   // GitHub Actions may have restored old unpatched files from cache after clone step.
   // Delete them now to force CMake to recopy patched versions from source.
-  logger.substep('Checking for stale cached build files...')
+  logger.substep('Checking for stale cached build files…')
   const { buildCmakeCacheFile, buildPostBuildScriptFile, buildWasmFile } =
     buildOutputPaths
 

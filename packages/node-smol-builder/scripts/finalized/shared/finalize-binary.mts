@@ -86,7 +86,7 @@ export async function finalizeBinary(options) {
   const finalBinary = outputFinalBinary
 
   if (shouldUseCompression) {
-    logger.log('Copying self-extracting binary to Final directory...')
+    logger.log('Copying self-extracting binary to Final directory…')
     logger.logNewline()
 
     // Copy compressed binary to Final (self-extracting, no external decompressor needed).
@@ -104,7 +104,7 @@ export async function finalizeBinary(options) {
     logger.success('Final distribution created with self-extracting binary')
     logger.logNewline()
   } else {
-    logger.log('Copying stripped binary to Final directory...')
+    logger.log('Copying stripped binary to Final directory…')
     logger.logNewline()
 
     await fs.cp(outputStrippedBinary, finalBinary, {

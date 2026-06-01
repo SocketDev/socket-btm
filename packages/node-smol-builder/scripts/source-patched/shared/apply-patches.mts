@@ -309,5 +309,5 @@ export function findSocketPatches(patchesReleaseDir, buildPatchesDir) {
   }
 
   // Sort by name for consistent ordering
-  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name))
+  return [...byName.values()].toSorted((a, b) => a.name.localeCompare(b.name))
 }

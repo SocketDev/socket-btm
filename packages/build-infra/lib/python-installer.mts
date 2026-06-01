@@ -221,7 +221,7 @@ export async function initializeVenv({ quiet = false, venvDir } = {}) {
 
       // Upgrade pip in the venv to avoid warnings
       if (!quiet) {
-        logger.substep('Upgrading pip in venv...')
+        logger.substep('Upgrading pip in venv…')
       }
       await spawn(venvPipPath, ['install', '--upgrade', 'pip'], {
         stdio: quiet ? 'pipe' : 'inherit',
@@ -538,7 +538,7 @@ export async function installPythonPackage(
       // Retry without --only-binary to allow source builds as fallback.
       if (!quiet) {
         logger.warn(
-          `No binary wheel for ${packageName}, retrying with source build...`,
+          `No binary wheel for ${packageName}, retrying with source build…`,
         )
       }
       const retryArgs = args.filter(a => a !== '--only-binary=:all:')
@@ -635,7 +635,7 @@ export async function ensurePythonPackage(
         // Version mismatch - need to reinstall
         if (autoInstall) {
           if (!quiet) {
-            logger.substep(`Reinstalling ${packageName} with pinned version...`)
+            logger.substep(`Reinstalling ${packageName} with pinned version…`)
           }
           const installed = await installPythonPackage(packageName, {
             consumerPackageJsonPath,
@@ -663,7 +663,7 @@ export async function ensurePythonPackage(
   // Attempt to install.
   if (!quiet) {
     logger.substep(
-      `Python package '${packageName}' not found, attempting to install...`,
+      `Python package '${packageName}' not found, attempting to install…`,
     )
   }
 

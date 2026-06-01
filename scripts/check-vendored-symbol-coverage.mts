@@ -120,178 +120,13 @@ const VENDOR_PREFIXES: readonly VendorPrefix[] = [
   },
   {
     name: 'libqrencode',
-    callRegex: /\b(QR(?:input|spec|encode|code|cmTask|cmEval)[A-Za-z0-9_]*)\s*\(/g,
+    callRegex: /\b(QR(?:cmEval|cmTask|code|encode|input|spec)[A-Za-z0-9_]*)\s*\(/g,
   },
   {
     name: 'md4c',
     callRegex: /\b(md_parse|MD_[A-Z][A-Za-z0-9_]*)\s*\(/g,
   },
 ]
-
-interface BindingSymbol {
-  readonly binding: string
-  readonly vendor: string
-  readonly symbol: string
-}
-
-interface Finding {
-  readonly vendor: string
-  readonly symbol: string
-  readonly bindings: readonly string[]
-  readonly reason: string
-}
-
-/**
- * Walk a directory tree, returning all files matching `predicate`.
- */
-// oxlint-disable-next-line socket/sort-source-methods -- helpers grouped by topic (file walks, gyp parsing, symbol extraction); alphabetical interleave reads worse than topical clusters.
-// oxlint-disable-next-line socket/export-top-level-functions -- internal pure helper; not part of the script's external contract.
-function walkFiles(
-  root: string,
-  predicate: (p: string) => boolean,
-): readonly string[] {
-  const out: string[] = []
-  function walk(dir: string): void {
-    let entries: ReturnType<typeof readdirSync>
-    try {
-      entries = readdirSync(dir, { withFileTypes: true })
-    } catch {
-      return
-    }
-    for (let i = 0, { length } = entries; i < length; i += 1) {
-      const entry = entries[i]!
-      const full = path.join(dir, entry.name)
-      if (entry.isDirectory()) {
-        walk(full)
-        continue
-      }
-      if (entry.isFile() && predicate(full)) {
-        out.push(full)
-      }
-    }
-  }
-  walk(root)
-  out.sort()
-  return out
-}
-
-/**
- * Extract all (binding, vendor, symbol) triples for one binding file.
- */
-// oxlint-disable-next-line socket/sort-source-methods
-// oxlint-disable-next-line socket/export-top-level-functions
-function extractSymbols(bindingPath: string): readonly BindingSymbol[] {
-  let content: string
-  try {
-    content = readFileSync(bindingPath, 'utf8')
-  } catch {
-    return []
-  }
-  const out: BindingSymbol[] = []
-  const rel = path.relative(REPO_ROOT, bindingPath)
-  for (let i = 0, { length } = VENDOR_PREFIXES; i < length; i += 1) {
-    const vp = VENDOR_PREFIXES[i]!
-    // Reset lastIndex since callRegex is a /g pattern.
-    vp.callRegex.lastIndex = 0
-    let m: RegExpExecArray | null
-    while ((m = vp.callRegex.exec(content)) !== null) {
-      out.push({ binding: rel, vendor: vp.name, symbol: m[1]! })
-    }
-  }
-  return out
-}
-
-/**
- * Read a gypi file's 'sources': list. Returns each entry's relative
- * path as it appears in the gypi (gyp resolves these relative to the
- * gypi's location).
- */
-// oxlint-disable-next-line socket/sort-source-methods
-// oxlint-disable-next-line socket/export-top-level-functions
-function readGypiSources(gypiPath: string): readonly string[] {
-  if (!existsSync(gypiPath)) {
-    return []
-  }
-  const content = readFileSync(gypiPath, 'utf8')
-  const out: string[] = []
-  // Match 'path/to/file.c' inside a 'sources': [ ... ] block. We don't
-  // parse the full gypi (it's Python-ish dict literals); a single regex
-  // over the file is sufficient because the auto-generated gypi is
-  // strictly one sources block.
-  const re = /'([^']+\.(?:c|cpp|cc))'/g
-  let m: RegExpExecArray | null
-  while ((m = re.exec(content)) !== null) {
-    out.push(m[1]!)
-  }
-  return out
-}
-
-/**
- * Extract patch 004's inline 'sources': entries for files under
- * deps/<vendor>/. Used for vendors whose sources live in patch 004
- * directly (no auto-gypi).
- */
-// oxlint-disable-next-line socket/sort-source-methods
-// oxlint-disable-next-line socket/export-top-level-functions
-function readPatch004InlineSources(): readonly string[] {
-  if (!existsSync(PATCH_004_PATH)) {
-    return []
-  }
-  const content = readFileSync(PATCH_004_PATH, 'utf8')
-  const out: string[] = []
-  // Match added-line entries like `+            'src/.../foo.cc',` or
-  // `+            'deps/.../foo.c',`.
-  const re = /^\+\s+'(src\/[^']+\.(?:c|cpp|cc)|deps\/[^']+\.(?:c|cpp|cc))'/gm
-  let m: RegExpExecArray | null
-  while ((m = re.exec(content)) !== null) {
-    out.push(m[1]!)
-  }
-  return out
-}
-
-/**
- * Resolve a source path (as it appears in a gypi/patch) to its absolute
- * path on disk under additions/source-patched/. gypi-relative paths
- * resolve relative to the gypi's parent dir; patch-relative paths
- * resolve relative to additions/source-patched/ (which corresponds to
- * the node source root once additions are copied in).
- */
-// oxlint-disable-next-line socket/sort-source-methods
-// oxlint-disable-next-line socket/export-top-level-functions
-function resolveSourcePath(
-  sourceRef: string,
-  gypiDir: string | undefined,
-): string {
-  if (gypiDir !== undefined) {
-    return path.join(gypiDir, sourceRef)
-  }
-  return path.join(ADDITIONS_DIR, sourceRef)
-}
-
-/**
- * Check whether a source file (absolute path) contains a definition
- * matching `<symbol>(`. This is naive — it only catches the C/C++
- * call-shape, not declarations — but a defining occurrence in a .c/.cpp
- * is what gives the linker a symbol.
- */
-// oxlint-disable-next-line socket/sort-source-methods
-// oxlint-disable-next-line socket/export-top-level-functions
-function fileDefinesSymbol(filePath: string, symbol: string): boolean {
-  if (!existsSync(filePath)) {
-    return false
-  }
-  let content: string
-  try {
-    content = readFileSync(filePath, 'utf8')
-  } catch {
-    return false
-  }
-  // <symbol>( at the start of a line OR after `*`/`(` characters,
-  // preceded by a return-type token (very loose; catches `void foo(`,
-  // `int foo(`, `static foo(`, `template <T> Foo<T>::foo(`, etc.).
-  const re = new RegExp(`\\b${symbol}\\s*\\(`)
-  return re.test(content)
-}
 
 /**
  * Main coverage check.
@@ -375,6 +210,57 @@ function checkCoverage(): readonly Finding[] {
   return findings
 }
 
+/**
+ * Extract all (binding, vendor, symbol) triples for one binding file.
+ */
+// oxlint-disable-next-line socket/sort-source-methods
+// oxlint-disable-next-line socket/export-top-level-functions
+function extractSymbols(bindingPath: string): readonly BindingSymbol[] {
+  let content: string
+  try {
+    content = readFileSync(bindingPath, 'utf8')
+  } catch {
+    return []
+  }
+  const out: BindingSymbol[] = []
+  const rel = path.relative(REPO_ROOT, bindingPath)
+  for (let i = 0, { length } = VENDOR_PREFIXES; i < length; i += 1) {
+    const vp = VENDOR_PREFIXES[i]!
+    // Reset lastIndex since callRegex is a /g pattern.
+    vp.callRegex.lastIndex = 0
+    let m: RegExpExecArray | null
+    while ((m = vp.callRegex.exec(content)) !== null) {
+      out.push({ binding: rel, vendor: vp.name, symbol: m[1]! })
+    }
+  }
+  return out
+}
+
+/**
+ * Check whether a source file (absolute path) contains a definition
+ * matching `<symbol>(`. This is naive — it only catches the C/C++
+ * call-shape, not declarations — but a defining occurrence in a .c/.cpp
+ * is what gives the linker a symbol.
+ */
+// oxlint-disable-next-line socket/sort-source-methods
+// oxlint-disable-next-line socket/export-top-level-functions
+function fileDefinesSymbol(filePath: string, symbol: string): boolean {
+  if (!existsSync(filePath)) {
+    return false
+  }
+  let content: string
+  try {
+    content = readFileSync(filePath, 'utf8')
+  } catch {
+    return false
+  }
+  // <symbol>( at the start of a line OR after `*`/`(` characters,
+  // preceded by a return-type token (very loose; catches `void foo(`,
+  // `int foo(`, `static foo(`, `template <T> Foo<T>::foo(`, etc.).
+  const re = new RegExp(`\\b${symbol}\\s*\\(`)
+  return re.test(content)
+}
+
 interface ParsedArgs {
   readonly explain: boolean
   readonly json: boolean
@@ -403,6 +289,120 @@ function parseArgs(): ParsedArgs {
     }
   }
   return { explain, json }
+}
+
+/**
+ * Read a gypi file's 'sources': list. Returns each entry's relative
+ * path as it appears in the gypi (gyp resolves these relative to the
+ * gypi's location).
+ */
+// oxlint-disable-next-line socket/sort-source-methods
+// oxlint-disable-next-line socket/export-top-level-functions
+function readGypiSources(gypiPath: string): readonly string[] {
+  if (!existsSync(gypiPath)) {
+    return []
+  }
+  const content = readFileSync(gypiPath, 'utf8')
+  const out: string[] = []
+  // Match 'path/to/file.c' inside a 'sources': [ ... ] block. We don't
+  // parse the full gypi (it's Python-ish dict literals); a single regex
+  // over the file is sufficient because the auto-generated gypi is
+  // strictly one sources block.
+  const re = /'([^']+\.(?:c|cpp|cc))'/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(content)) !== null) {
+    out.push(m[1]!)
+  }
+  return out
+}
+
+/**
+ * Extract patch 004's inline 'sources': entries for files under
+ * deps/<vendor>/. Used for vendors whose sources live in patch 004
+ * directly (no auto-gypi).
+ */
+// oxlint-disable-next-line socket/sort-source-methods
+// oxlint-disable-next-line socket/export-top-level-functions
+function readPatch004InlineSources(): readonly string[] {
+  if (!existsSync(PATCH_004_PATH)) {
+    return []
+  }
+  const content = readFileSync(PATCH_004_PATH, 'utf8')
+  const out: string[] = []
+  // Match added-line entries like `+            'src/.../foo.cc',` or
+  // `+            'deps/.../foo.c',`.
+  const re = /^\+\s+'(src\/[^']+\.(?:c|cpp|cc)|deps\/[^']+\.(?:c|cpp|cc))'/gm
+  let m: RegExpExecArray | null
+  while ((m = re.exec(content)) !== null) {
+    out.push(m[1]!)
+  }
+  return out
+}
+
+/**
+ * Resolve a source path (as it appears in a gypi/patch) to its absolute
+ * path on disk under additions/source-patched/. gypi-relative paths
+ * resolve relative to the gypi's parent dir; patch-relative paths
+ * resolve relative to additions/source-patched/ (which corresponds to
+ * the node source root once additions are copied in).
+ */
+// oxlint-disable-next-line socket/sort-source-methods
+// oxlint-disable-next-line socket/export-top-level-functions
+function resolveSourcePath(
+  sourceRef: string,
+  gypiDir: string | undefined,
+): string {
+  if (gypiDir !== undefined) {
+    return path.join(gypiDir, sourceRef)
+  }
+  return path.join(ADDITIONS_DIR, sourceRef)
+}
+
+interface BindingSymbol {
+  readonly binding: string
+  readonly vendor: string
+  readonly symbol: string
+}
+
+interface Finding {
+  readonly vendor: string
+  readonly symbol: string
+  readonly bindings: readonly string[]
+  readonly reason: string
+}
+
+/**
+ * Walk a directory tree, returning all files matching `predicate`.
+ */
+// oxlint-disable-next-line socket/sort-source-methods -- helpers grouped by topic (file walks, gyp parsing, symbol extraction); alphabetical interleave reads worse than topical clusters.
+// oxlint-disable-next-line socket/export-top-level-functions -- internal pure helper; not part of the script's external contract.
+function walkFiles(
+  root: string,
+  predicate: (p: string) => boolean,
+): readonly string[] {
+  const out: string[] = []
+  function walk(dir: string): void {
+    let entries: ReturnType<typeof readdirSync>
+    try {
+      entries = readdirSync(dir, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (let i = 0, { length } = entries; i < length; i += 1) {
+      const entry = entries[i]!
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        walk(full)
+        continue
+      }
+      if (entry.isFile() && predicate(full)) {
+        out.push(full)
+      }
+    }
+  }
+  walk(root)
+  out.sort()
+  return out
 }
 
 const { explain, json } = parseArgs()

@@ -800,7 +800,7 @@ export async function smokeTestBinary(binaryPath, options = {}) {
         logger.log(
           '  Self-extracting binary detected (Windows PE stub may hang during extraction)',
         )
-        logger.log('  Using static verification instead...')
+        logger.log('  Using static verification instead…')
         logger.log('')
         return staticVerifyBinary(binaryPath, {
           arch: options.arch,
@@ -808,7 +808,7 @@ export async function smokeTestBinary(binaryPath, options = {}) {
         })
       }
 
-      logger.log('  Native binary detected - testing execution...')
+      logger.log('  Native binary detected - testing execution…')
       logger.log('')
 
       // If custom args provided, run single test (legacy behavior)
@@ -883,11 +883,11 @@ export async function smokeTestBinary(binaryPath, options = {}) {
     if (hostPlatform === 'linux' && isMusl) {
       const hasDocker = await isDockerAvailable()
       if (hasDocker) {
-        logger.log('  Using Docker for musl binary testing...')
+        logger.log('  Using Docker for musl binary testing…')
         logger.log('')
         return testBinaryWithDocker(binaryPath, options)
       }
-      logger.log('  Docker not available - using static verification...')
+      logger.log('  Docker not available - using static verification…')
       logger.log('')
       return staticVerifyBinary(binaryPath, {
         arch: options.arch,
@@ -904,7 +904,7 @@ export async function smokeTestBinary(binaryPath, options = {}) {
     if (isLinuxArm64CrossCompile) {
       const hasQemu = await isQemuAvailable('arm64')
       if (hasQemu) {
-        logger.log('  Using QEMU for ARM64 binary testing...')
+        logger.log('  Using QEMU for ARM64 binary testing…')
         logger.log('')
 
         // If legacy mode with custom args, run test and return
@@ -948,7 +948,7 @@ export async function smokeTestBinary(binaryPath, options = {}) {
         return true
       }
 
-      logger.log('  QEMU not available - using static verification...')
+      logger.log('  QEMU not available - using static verification…')
       logger.log('')
       return staticVerifyBinary(binaryPath, {
         arch: options.arch,
@@ -957,7 +957,7 @@ export async function smokeTestBinary(binaryPath, options = {}) {
     }
 
     // No emulation available for this cross-compile scenario
-    logger.log('  No emulation available - using static verification...')
+    logger.log('  No emulation available - using static verification…')
     logger.log('')
     return staticVerifyBinary(binaryPath, {
       arch: options.arch,

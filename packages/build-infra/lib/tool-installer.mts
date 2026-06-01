@@ -369,7 +369,7 @@ export async function ensurePinnedTool(tool, config, autoInstall) {
       return { available: true, installed: false, path: cachedBin }
     }
 
-    logger.substep(`${tool} ${requiredVersion} not found, downloading...`)
+    logger.substep(`${tool} ${requiredVersion} not found, downloading…`)
     const downloadedPath = await downloadAndCache(
       tool,
       artifact,
@@ -423,7 +423,7 @@ export async function ensureToolInstalled(
     // Tool exists but doesn't work - likely missing dependency.
     // Try to install dependencies first.
     if (config?.dependencies?.length) {
-      logger.warn(`${tool} exists but failed to run - checking dependencies...`)
+      logger.warn(`${tool} exists but failed to run - checking dependencies…`)
       // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
       for (const dep of config.dependencies) {
         // eslint-disable-next-line no-await-in-loop

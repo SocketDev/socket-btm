@@ -107,7 +107,7 @@ export async function ensureGccVersion({
   const { minVersion } = requirement
 
   if (!quiet) {
-    logger.substep('Checking GCC version...')
+    logger.substep('Checking GCC version…')
   }
 
   // Check current GCC version
@@ -168,7 +168,7 @@ export async function ensureGccVersion({
   }
 
   // Install GCC 12
-  logger.substep('Installing GCC 12...')
+  logger.substep('Installing GCC 12…')
   const targetMajorVersion = '12'
   const installed = await installGccApt(targetMajorVersion)
 
@@ -296,7 +296,7 @@ export async function installGccApt(version) {
     }
 
     // Set as default using update-alternatives
-    logger.info(`Setting GCC ${version} as default...`)
+    logger.info(`Setting GCC ${version} as default…`)
 
     const gccPath = `/usr/bin/gcc-${version}`
     const gxxPath = `/usr/bin/g++-${version}`

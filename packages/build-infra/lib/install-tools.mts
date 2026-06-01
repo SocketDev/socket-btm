@@ -257,7 +257,7 @@ export async function isToolInstalled(toolName) {
 export async function updatePackageCache() {
   const pkgMgr = await detectPackageManager()
   if (pkgMgr === 'apt') {
-    logger.log('Updating apt package cache...')
+    logger.log('Updating apt package cache…')
     try {
       await spawn('sudo', ['apt-get', 'update'], { stdio: 'inherit' })
       logger.success('Package cache updated')

@@ -167,7 +167,7 @@ export async function downloadAndCache(
       await downloadFile(resolverResult.url, archivePath)
 
       // Verify checksum
-      logger.substep('Verifying checksum...')
+      logger.substep('Verifying checksum…')
       const actualSha256 = await computeSha256(archivePath)
       if (actualSha256 !== resolverResult.sha256) {
         throw new Error(
@@ -179,7 +179,7 @@ export async function downloadAndCache(
       logger.substep('Checksum verified')
 
       // Extract
-      logger.substep('Extracting...')
+      logger.substep('Extracting…')
       await extractArchive(archivePath, tmpDir, resolverResult.archiveFormat)
 
       // Move extracted directory to cache (atomic rename)

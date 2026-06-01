@@ -137,7 +137,7 @@ export async function buildWithDocker(options) {
 
   const platform = getDockerPlatform(target)
 
-  printInfo(`Building ${packageName} for ${target} using Docker...`)
+  printInfo(`Building ${packageName} for ${target} using Docker…`)
 
   // Create output directory
   await fs.mkdir(outputDir, { recursive: true })

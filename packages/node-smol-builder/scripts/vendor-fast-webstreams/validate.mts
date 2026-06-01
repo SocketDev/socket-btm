@@ -264,7 +264,7 @@ async function runTests() {
 
   // Test 10: Async iteration
   console.log('\\nAsync Iteration:'); // socket-hook: allow console
-  await test('for await...of stream', async () => {
+  await test('for await…of stream', async () => {
     const rs = new ReadableStream({
       start(controller) {
         controller.enqueue(1);

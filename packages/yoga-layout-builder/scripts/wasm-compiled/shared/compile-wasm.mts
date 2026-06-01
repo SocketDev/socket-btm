@@ -47,7 +47,7 @@ export async function compileWasm(options) {
   const startTime = Date.now()
 
   // Build static library with CMake.
-  logger.substep('Compiling C++ to static library...')
+  logger.substep('Compiling C++ to static library…')
   const buildResult = await spawn(
     'emmake',
     ['cmake', '--build', cmakeBuildDir, '--target', 'yogacore'],
@@ -62,7 +62,7 @@ export async function compileWasm(options) {
   }
 
   // Link WASM module with Emscripten bindings.
-  logger.substep('Linking WASM module with Emscripten bindings...')
+  logger.substep('Linking WASM module with Emscripten bindings…')
 
   // Get linking optimization flags
   const { cxxFlags, linkerFlags } = getLinkingFlags(buildMode)

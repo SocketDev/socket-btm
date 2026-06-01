@@ -81,12 +81,12 @@ export async function runPnpm(args: string[]): Promise<void> {
 
 async function main(): Promise<void> {
   try {
-    logger.log('Building socket-btm monorepo...')
+    logger.log('Building socket-btm monorepo…')
     logger.log('')
 
     // curl + LIEF have no socket-btm prerequisites and both feed stubs
     // (LIEF is also linked into node-smol); build them concurrently.
-    logger.info('[1/6] Building curl + LIEF in parallel...')
+    logger.info('[1/6] Building curl + LIEF in parallel…')
     {
       const [curlResult, liefResult] = await Promise.allSettled([
         runPnpm(['--filter', 'curl-builder', 'build']),
@@ -118,7 +118,7 @@ async function main(): Promise<void> {
 
     // Binsuite (binpress embeds stubs) runs alongside the WASM builders,
     // which share no dependencies with the curl→stubs→binsuite chain.
-    logger.info('[3/6] Building binsuite and WASM packages in parallel...')
+    logger.info('[3/6] Building binsuite and WASM packages in parallel…')
     logger.log('  - Binsuite: binpress, binflate, binject')
     logger.log('  - WASM: onnxruntime, yoga')
     logger.log('')

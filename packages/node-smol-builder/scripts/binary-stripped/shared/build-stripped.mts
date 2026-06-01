@@ -115,7 +115,7 @@ export async function buildStripped(config, buildOptions = {}) {
   // This preserves the original unstripped binary in the Release directory.
   // Note: Copy from outputReleaseBinary (not nodeBinary) since source/out/ was cleaned up above
   logger.step('Copying to Build Output (Stripped)')
-  logger.log('Copying unstripped binary to Stripped directory...')
+  logger.log('Copying unstripped binary to Stripped directory…')
   logger.log('(will strip the copy to preserve original)')
   logger.logNewline()
 
@@ -139,7 +139,7 @@ export async function buildStripped(config, buildOptions = {}) {
   logger.step('Optimizing Binary Size')
   const sizeBeforeStrip = await getFileSize(outputStrippedBinary)
   logger.log(`Size before stripping: ${sizeBeforeStrip}`)
-  logger.log('Removing debug symbols and unnecessary sections...')
+  logger.log('Removing debug symbols and unnecessary sections…')
   logger.log('')
 
   // Platform-specific stripping with enhanced optimization:
@@ -314,7 +314,7 @@ export async function buildStripped(config, buildOptions = {}) {
   // Clean Stripped directory before checkpoint to ensure only the stripped binary is archived
   // This removes any leftover files from previous stages (e.g., release binary)
   if (!skipCheckpoint) {
-    logger.substep('Cleaning checkpoint directory...')
+    logger.substep('Cleaning checkpoint directory…')
     const strippedDirFiles = await fs.readdir(outputStrippedNodeDir)
     const strippedBinaryName = path.basename(outputStrippedBinary)
     for (let i = 0, { length } = strippedDirFiles; i < length; i += 1) {

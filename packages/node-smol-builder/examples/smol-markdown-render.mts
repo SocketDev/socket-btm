@@ -53,8 +53,8 @@ const events = parseMarkdown(text, 'github')
 That's the whole API.
 `
 
-const CATEGORY_MASK = 0xf000
-const VALUE_MASK = 0x0fff
+const CATEGORY_MASK = 0xf0_00
+const VALUE_MASK = 0x0f_ff
 
 interface RenderState {
   y: number

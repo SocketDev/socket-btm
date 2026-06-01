@@ -104,7 +104,7 @@ export async function rebuildBinsuite(): Promise<void> {
 
   for (let i = 0, { length } = tools; i < length; i += 1) {
     const tool = tools[i]!
-    logger.info(`Building ${tool} from source...`)
+    logger.info(`Building ${tool} from source…`)
     logger.log('')
 
     const result = await spawn('pnpm', ['--filter', tool, 'run', 'build'], {
@@ -149,7 +149,7 @@ export async function rebuildLief(): Promise<void> {
     throw new Error(`Script not found: ${liefScript}`)
   }
 
-  logger.info('Building LIEF from source...')
+  logger.info('Building LIEF from source…')
   logger.log('')
 
   const result = await spawn('node', [liefScript], {
@@ -183,7 +183,7 @@ export async function rebuildNodeSmol(): Promise<void> {
   logger.log('='.repeat(60))
   logger.log('')
 
-  logger.info('Building node-smol from source...')
+  logger.info('Building node-smol from source…')
   logger.log('')
 
   const result = await spawn(

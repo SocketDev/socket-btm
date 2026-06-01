@@ -372,7 +372,7 @@ export async function applyVendorPatches() {
     }
     const entries = (await fs.readdir(bundle.patchesDir))
       .filter(name => name.endsWith('.patch'))
-      .sort()
+      .toSorted()
     if (!entries.length) {
       logger.substep(`No .patch files in ${bundle.patchesDir}, skipping`)
       continue
@@ -595,7 +595,7 @@ export async function generateVendoredGypi(): Promise<void> {
  * the libdl link — node-smol's binary inherits the wrap flags and the
  * shim .cc files compile into the binary.
  */
-async function copyGlibcShimsInfra(): Promise<void> {
+export async function copyGlibcShimsInfra(): Promise<void> {
   logger.step('Staging glibc-shims-infra → deps/glibc-shims-infra/')
   const { safeMkdir } = await import('@socketsecurity/lib-stable/fs/safe')
   const depsDir = path.join(
@@ -623,7 +623,7 @@ async function copyGlibcShimsInfra(): Promise<void> {
   logger.substep(`staged glibc-shims-infra → ${depsDir}`)
 }
 
-async function copyBoringsslArtifacts(): Promise<void> {
+export async function copyBoringsslArtifacts(): Promise<void> {
   logger.step('Staging BoringSSL prebuilt → deps/boringssl/')
   const { ensureBoringssl, getCurrentBoringsslPlatformArch } = await import(
     path.join(BORINGSSL_BUILDER_DIR, 'lib', 'ensure-boringssl.mts')

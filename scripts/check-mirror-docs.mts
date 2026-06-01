@@ -265,7 +265,7 @@ async function main(): Promise<void> {
   const allowSet = new Set(allowlist.map(e => `${e.kind}|${e.path}`))
 
   if (!opts.quiet && !opts.json) {
-    logger.info('Checking mirror-doc sync...')
+    logger.info('Checking mirror-doc sync…')
   }
 
   const all: Finding[] = [...collectOrphanDocs(), ...collectMissingDocs()]

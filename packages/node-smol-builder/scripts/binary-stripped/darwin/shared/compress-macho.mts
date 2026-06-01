@@ -46,7 +46,7 @@ export async function buildTools() {
     return
   }
 
-  logger.log('Building compression tools...')
+  logger.log('Building compression tools…')
   logger.log(`  Directory: ${TOOLS_DIR}`)
   logger.log('')
 
@@ -83,7 +83,7 @@ export async function buildTools() {
  * Compress a Mach-O binary.
  */
 export async function compressBinary(inputPath, outputPath, quality = 'zstd') {
-  logger.log('Compressing binary...')
+  logger.log('Compressing binary…')
   logger.log(`  Input: ${inputPath}`)
   logger.log(`  Output: ${outputPath}`)
   logger.log(`  Quality: ${quality}`)

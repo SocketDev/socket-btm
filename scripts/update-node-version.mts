@@ -137,7 +137,7 @@ async function main(): Promise<void> {
       await fs.writeFile(gitmodulesPath, updated, 'utf8')
 
       // Initialize/update the submodule
-      logger.log('Updating submodule...')
+      logger.log('Updating submodule…')
       await spawn(
         'git',
         [

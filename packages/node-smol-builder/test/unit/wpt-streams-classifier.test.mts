@@ -202,7 +202,7 @@ describe('findStaleAllowlistEntries', () => {
       ['b.js:t2', 'cat'],
     ])
     const matched = new Set<string>()
-    expect(findStaleAllowlistEntries(allowlist, matched).sort()).toEqual([
+    expect(findStaleAllowlistEntries(allowlist, matched).toSorted()).toEqual([
       'a.js:t1',
       'b.js:t2',
     ])

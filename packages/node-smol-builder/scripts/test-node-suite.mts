@@ -554,13 +554,13 @@ async function main() {
   logger.log('')
 
   // Expand test patterns into actual file paths.
-  logger.step('Expanding test patterns...')
+  logger.step('Expanding test patterns…')
   const candidateTests = await expandTestPatterns(testDir, TEST_PATTERNS)
   logger.log(`Found ${candidateTests.length} candidate tests`)
   logger.log('')
 
   // Filter tests based on skip patterns.
-  logger.step('Filtering tests...')
+  logger.step('Filtering tests…')
   const { filtered, skipped, stats } = filterTests(
     candidateTests,
     SKIP_PATTERNS,
@@ -622,7 +622,7 @@ async function main() {
     args.push('--verbose')
   }
 
-  logger.step('Running Node.js tests...')
+  logger.step('Running Node.js tests…')
   logger.log('')
 
   // Run tests.

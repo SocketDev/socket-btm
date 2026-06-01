@@ -101,8 +101,8 @@ async function main() {
   }
 
   // Ensure CMake is installed.
-  logger.step('Checking build dependencies...')
-  logger.substep('Checking for CMake...')
+  logger.step('Checking build dependencies…')
+  logger.substep('Checking for CMake…')
 
   const cmakeResult = await ensureToolInstalled('cmake', { autoInstall: true })
 
@@ -123,7 +123,7 @@ async function main() {
   // Build and run tests using CMake/CTest.
   const buildDir = path.join(yogaSourcePath, 'build-test')
 
-  logger.step('Configuring Yoga tests with CMake...')
+  logger.step('Configuring Yoga tests with CMake…')
 
   const cmakeArgs = [
     '-S',
@@ -150,7 +150,7 @@ async function main() {
   logger.success('CMake configuration complete')
   logger.log('')
 
-  logger.step('Building Yoga tests...')
+  logger.step('Building Yoga tests…')
 
   const buildArgs = ['--build', buildDir, '--config', 'Debug']
 
@@ -171,7 +171,7 @@ async function main() {
   logger.success('Build complete')
   logger.log('')
 
-  logger.step('Running Yoga tests with CTest...')
+  logger.step('Running Yoga tests with CTest…')
   logger.log('')
 
   // Run tests using CTest.

@@ -194,7 +194,7 @@ main()
 export function verify(): void {
   // codepointWidth + stringWidth (Unicode 17.0 tables).
   console.assert(codepointWidth(0x61) === 1, 'codepointWidth(a) === 1')
-  console.assert(codepointWidth(0x4e2d) === 2, 'codepointWidth(中) === 2')
+  console.assert(codepointWidth(0x4e_2d) === 2, 'codepointWidth(中) === 2')
   console.assert(stringWidth('hello') === 5, 'stringWidth(hello) === 5')
   console.assert(stringWidth('中文') === 4, 'stringWidth(中文) === 4')
   console.assert(stringWidth('') === 0, 'stringWidth("") === 0')

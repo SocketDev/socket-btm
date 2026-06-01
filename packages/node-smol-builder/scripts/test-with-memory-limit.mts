@@ -179,7 +179,7 @@ vitestPromise
 // Handle Ctrl+C
 process.on('SIGINT', () => {
   logger.log('')
-  logger.log('Interrupted by user - cleaning up...')
+  logger.log('Interrupted by user - cleaning up…')
   killed = true
   killProcessTree(vitestProcess.pid)
   clearInterval(monitorInterval)

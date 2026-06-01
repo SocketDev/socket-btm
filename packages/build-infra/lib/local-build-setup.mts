@@ -185,7 +185,7 @@ export async function ensureBuildxBuilder() {
   }
 
   // Create new builder
-  printInfo('Creating Docker buildx builder...')
+  printInfo('Creating Docker buildx builder…')
   try {
     const createResult = await spawn(
       'docker',
@@ -390,7 +390,7 @@ export async function setupDockerBuilds(options = {}) {
   const results = {}
 
   // 1. Check Docker setup
-  printInfo('Checking Docker setup...')
+  printInfo('Checking Docker setup…')
   const { errors, ok } = await checkDockerSetup()
 
   if (!ok) {
@@ -425,7 +425,7 @@ export async function setupDockerBuilds(options = {}) {
   // 4. Build images for each target
   // Note: Sequential builds are intentional for clearer output and to avoid
   // overwhelming Docker daemon with parallel builds
-  printInfo(`Building images for ${targets.length} targets...`)
+  printInfo(`Building images for ${targets.length} targets…`)
 
   for (let i = 0, { length } = targets; i < length; i += 1) {
     const target = targets[i]
@@ -470,7 +470,7 @@ export async function setupDockerBuilds(options = {}) {
  * @returns {Promise<boolean>} True if setup succeeded
  */
 export async function setupQemuEmulation() {
-  printInfo('Setting up QEMU emulation for cross-architecture builds...')
+  printInfo('Setting up QEMU emulation for cross-architecture builds…')
 
   try {
     // Use tonistiigi/binfmt to install QEMU handlers

@@ -28,7 +28,7 @@ const packageRoot = path.join(__dirname, '..')
 async function main() {
   try {
     // Check and install required tools (including runtime dependencies)
-    logger.info('Checking required tools...')
+    logger.info('Checking required tools…')
     logger.error('')
     try {
       await runCommand(
@@ -77,7 +77,7 @@ async function main() {
 
     if (!binaryExists) {
       // Try to build (in case binary isn't built yet)
-      logger.info('Building binflate...')
+      logger.info('Building binflate…')
       logger.error('')
       try {
         const makefile = selectMakefile()
@@ -100,7 +100,7 @@ async function main() {
     }
 
     logger.info('')
-    logger.info('Running binflate tests...')
+    logger.info('Running binflate tests…')
     logger.error('')
     const makefile = selectMakefile()
     await runCommand('make', ['-f', makefile, 'test'], packageRoot)

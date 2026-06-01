@@ -44,7 +44,7 @@ export async function generateSync(options) {
     outputSyncDir,
   } = options
 
-  logger.log('Creating synchronous wrapper with wrapAssembly wrapper...')
+  logger.log('Creating synchronous wrapper with wrapAssembly wrapper…')
   logger.logNewline()
 
   await safeDelete(outputSyncDir)

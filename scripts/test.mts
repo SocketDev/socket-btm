@@ -57,15 +57,17 @@ const ESCALATION_PATTERNS = [
   /^tsconfig.*\.json$/,
   /^\.oxlintrc\.json$/,
   /^\.oxfmtrc\.json$/,
-  /^vitest\.config\.(js|mjs|mts|ts)$/,
+  /^vitest\.config\.(?:js|mjs|mts|ts)$/,
   /^package\.json$/,
   /^lockstep\.schema\.json$/,
 ]
 
-function log(msg: string): void {
-  if (!quiet) {
-    logger.log(msg)
-  }
+export function getModifiedFiles(): string[] {
+  return gitFiles(['diff', '--name-only', '--diff-filter=ACMR', 'HEAD'])
+}
+
+function getStagedFiles(): string[] {
+  return gitFiles(['diff', '--cached', '--name-only', '--diff-filter=ACMR'])
 }
 
 function gitFiles(args: string[]): string[] {
@@ -84,41 +86,10 @@ function gitFiles(args: string[]): string[] {
     .filter(s => s.length > 0)
 }
 
-function getStagedFiles(): string[] {
-  return gitFiles(['diff', '--cached', '--name-only', '--diff-filter=ACMR'])
-}
-
-function getModifiedFiles(): string[] {
-  return gitFiles(['diff', '--name-only', '--diff-filter=ACMR', 'HEAD'])
-}
-
-function shouldEscalate(files: string[]): boolean {
-  for (let i = 0, { length } = files; i < length; i += 1) {
-    const f = files[i]!
-    for (let i = 0, { length } = ESCALATION_PATTERNS; i < length; i += 1) {
-      const pattern = ESCALATION_PATTERNS[i]!
-      if (pattern.test(f)) {
-        return true
-      }
-    }
+function log(msg: string): void {
+  if (!quiet) {
+    logger.log(msg)
   }
-  return false
-}
-
-function runVitest(vitestArgs: string[], label: string): number {
-  log(`Test scope: ${label}`)
-  const r = spawnSync(
-    'pnpm',
-    ['exec', 'vitest', ...vitestArgs, '--config', '.config/vitest.config.mts'],
-    // Windows shell-shim rationale: see useShell at file top.
-    { shell: useShell, stdio },
-  )
-  if (r.status !== 0) {
-    log('Tests failed')
-    return 1
-  }
-  log('All tests passed')
-  return 0
 }
 
 function runAll(): number {
@@ -141,6 +112,35 @@ function runRelated(files: string[]): number {
     ['related', ...files, '--run', '--passWithNoTests'],
     `staged (${files.length} file(s))`,
   )
+}
+
+function runVitest(vitestArgs: string[], label: string): number {
+  log(`Test scope: ${label}`)
+  const r = spawnSync(
+    'pnpm',
+    ['exec', 'vitest', ...vitestArgs, '--config', '.config/vitest.config.mts'],
+    // Windows shell-shim rationale: see useShell at file top.
+    { shell: useShell, stdio },
+  )
+  if (r.status !== 0) {
+    log('Tests failed')
+    return 1
+  }
+  log('All tests passed')
+  return 0
+}
+
+function shouldEscalate(files: string[]): boolean {
+  for (let i = 0, { length } = files; i < length; i += 1) {
+    const f = files[i]!
+    for (let i = 0, { length } = ESCALATION_PATTERNS; i < length; i += 1) {
+      const pattern = ESCALATION_PATTERNS[i]!
+      if (pattern.test(f)) {
+        return true
+      }
+    }
+  }
+  return false
 }
 
 function main(): void {

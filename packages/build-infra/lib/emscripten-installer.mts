@@ -209,7 +209,7 @@ export async function ensureEmscripten({
   // Check if emsdk is installed but not activated.
   if (checkEmsdkInstalled(emsdkPath)) {
     if (!quiet) {
-      logger.substep('Emscripten SDK found, activating...')
+      logger.substep('Emscripten SDK found, activating…')
     }
     const activation = await activateEmscripten({
       emsdkPath,
@@ -229,7 +229,7 @@ export async function ensureEmscripten({
 
   // Install Emscripten SDK.
   if (!quiet) {
-    logger.substep('Emscripten not found, installing...')
+    logger.substep('Emscripten not found, installing…')
   }
 
   const installed = await installEmscripten({

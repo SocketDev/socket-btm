@@ -131,7 +131,7 @@ export async function buildNativeAddon(zigBin) {
       lastError = e
       if (attempt < 3) {
         logger.warn(
-          `Build attempt ${attempt}/3 failed, retrying in ${attempt * 2}s...`,
+          `Build attempt ${attempt}/3 failed, retrying in ${attempt * 2}s…`,
         )
         // eslint-disable-next-line no-await-in-loop
         await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
@@ -198,7 +198,7 @@ export async function buildNativeAddon(zigBin) {
  * Check if upstream submodule is initialized.
  */
 export async function checkUpstream() {
-  logger.substep('Checking OpenTUI submodule...')
+  logger.substep('Checking OpenTUI submodule…')
 
   const buildZigPath = path.join(
     UPSTREAM_PATH,
@@ -225,7 +225,7 @@ export async function checkUpstream() {
  * Returns the path to the zig binary.
  */
 export async function ensureZig() {
-  logger.substep('Checking for Zig toolchain...')
+  logger.substep('Checking for Zig toolchain…')
 
   const result = await ensureToolInstalled('zig', {
     autoInstall: true,

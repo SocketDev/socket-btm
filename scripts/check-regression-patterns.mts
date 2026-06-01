@@ -659,7 +659,7 @@ async function main(): Promise<void> {
   }
 
   if (!opts.quiet && !opts.json) {
-    logger.info('Scanning for known regression patterns...')
+    logger.info('Scanning for known regression patterns…')
   }
 
   const allMatches: Match[] = []

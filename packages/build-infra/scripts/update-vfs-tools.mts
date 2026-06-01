@@ -361,7 +361,7 @@ async function main() {
   const allTools = ['python', ...Object.keys(TOOL_CONFIGS)]
   const toolsToUpdate = specificTool ? [specificTool] : allTools
 
-  logger.info('Fetching latest releases for VFS tools...')
+  logger.info('Fetching latest releases for VFS tools…')
   logger.error('')
 
   const updates = {}

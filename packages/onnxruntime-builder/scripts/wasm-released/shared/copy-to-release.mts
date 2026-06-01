@@ -27,7 +27,7 @@ const logger = getDefaultLogger()
 export async function copyToRelease(options) {
   const { buildDir, buildMjsFile, buildWasmFile, outputReleaseDir } = options
 
-  logger.log('Copying WASM artifacts from source build to out/Release...')
+  logger.log('Copying WASM artifacts from source build to out/Release…')
   logger.logNewline()
 
   await safeDelete(outputReleaseDir)

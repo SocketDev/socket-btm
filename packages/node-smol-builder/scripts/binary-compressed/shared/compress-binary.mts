@@ -97,7 +97,7 @@ export async function compressBinary(
   // Get input file size.
   const inputSizeMB = await getFileSizeMB(inputPath)
 
-  logger.log(`Compressing ${config.binaryFormat} binary with zstd...`)
+  logger.log(`Compressing ${config.binaryFormat} binary with zstd…`)
   logger.log(`  Input: ${inputPath} (${inputSizeMB.toFixed(2)} MB)`)
   logger.log(`  Output: ${outputPath}`)
   logger.log('')
@@ -107,7 +107,7 @@ export async function compressBinary(
   // Use the downloaded binpress path (already validated in main()).
   const binpressPath = _toolPath
 
-  logger.log('Using binpress to compress binary with stub...')
+  logger.log('Using binpress to compress binary with stub…')
 
   // binpress handles compression + embedding in one call for all platforms.
   // Interface: binpress <input> -o <output> [--target-platform] [--target-arch] [--target-libc musl/glibc]

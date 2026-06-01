@@ -134,7 +134,7 @@ describe.skipIf(!allBinariesExist)('cross-package integration', () => {
       // Step 1: Compress Node.js binary using binpress
       const compressedNode = path.join(testDir, 'node_compressed')
 
-      logger.log('  Step 1: Compressing Node.js binary...')
+      logger.log('  Step 1: Compressing Node.js binary…')
       const compressResult = await execCommand(
         BINPRESS,
         [NODE_BINARY, '-o', compressedNode],
@@ -157,7 +157,7 @@ describe.skipIf(!allBinariesExist)('cross-package integration', () => {
 
       const finalBinary = path.join(testDir, 'node_final')
 
-      logger.log('  Step 2: Injecting SEA blob...')
+      logger.log('  Step 2: Injecting SEA blob…')
       const injectResult = await execCommand(BINJECT, [
         'inject',
         '-e',
@@ -172,7 +172,7 @@ describe.skipIf(!allBinariesExist)('cross-package integration', () => {
       expect(existsSync(finalBinary)).toBeTruthy()
 
       // Step 3: Execute final binary
-      logger.log('  Step 3: Executing final binary...')
+      logger.log('  Step 3: Executing final binary…')
       const finalExec = await execCommand(finalBinary, ['--version'])
 
       expect(finalExec.code).toBe(0)

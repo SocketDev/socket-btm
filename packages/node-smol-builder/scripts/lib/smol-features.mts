@@ -52,7 +52,7 @@ export type SmolFeature = {
    * member; a bare `object` with no `property` matches any access. These catch
    * usage that has no string specifier.
    */
-  memberSignals: { object: string; property?: string }[]
+  memberSignals: Array<{ object: string; property?: string }>
   /**
    * The exact ./configure argument to emit when this feature is dropped.
    * `null` for 'always' features (no flag). For features gated by an opt-IN
@@ -70,7 +70,7 @@ export type SmolFeature = {
   approxBinaryMb: number
 }
 
-function feature(f: Omit<SmolFeature, '__proto__'>): SmolFeature {
+export function feature(f: Omit<SmolFeature, '__proto__'>): SmolFeature {
   return { __proto__: null, ...f }
 }
 
@@ -86,7 +86,7 @@ export const SMOL_FEATURES: readonly SmolFeature[] = [
     stringSignals: ['node:smol-quic', 'smol-quic'],
     memberSignals: [],
     configureFlagWhenDropped: '--without-smol-quic',
-    optInFlag: null,
+    optInFlag: undefined,
     gypVar: 'node_use_smol_quic',
     policy: 'auto',
     approxBinaryMb: 9,
@@ -97,7 +97,7 @@ export const SMOL_FEATURES: readonly SmolFeature[] = [
     stringSignals: ['node:smol-http3', 'smol-http3'],
     memberSignals: [],
     configureFlagWhenDropped: '--without-smol-http3',
-    optInFlag: null,
+    optInFlag: undefined,
     gypVar: 'node_use_smol_http3',
     policy: 'auto',
     approxBinaryMb: 0.2,
@@ -108,7 +108,7 @@ export const SMOL_FEATURES: readonly SmolFeature[] = [
     stringSignals: ['node:smol-http', 'smol-http'],
     memberSignals: [],
     configureFlagWhenDropped: '--without-smol-http',
-    optInFlag: null,
+    optInFlag: undefined,
     gypVar: 'node_use_smol_http',
     policy: 'auto',
     approxBinaryMb: 1.5,
@@ -123,7 +123,7 @@ export const SMOL_FEATURES: readonly SmolFeature[] = [
     // Upstream Node already ships --without-sqlite + node_use_sqlite — no patch
     // work needed, the detector just emits the existing flag.
     configureFlagWhenDropped: '--without-sqlite',
-    optInFlag: null,
+    optInFlag: undefined,
     gypVar: 'node_use_sqlite',
     policy: 'auto',
     approxBinaryMb: 1.5,
@@ -134,7 +134,7 @@ export const SMOL_FEATURES: readonly SmolFeature[] = [
     stringSignals: ['node:smol-postgres', 'smol-postgres'],
     memberSignals: [],
     // Opt-in: dropping = not passing --with-postgres. Already off by default.
-    configureFlagWhenDropped: null,
+    configureFlagWhenDropped: undefined,
     optInFlag: '--with-postgres',
     gypVar: 'node_use_postgres',
     policy: 'auto',
@@ -145,7 +145,7 @@ export const SMOL_FEATURES: readonly SmolFeature[] = [
     description: 'WebGPU / Dawn (navigator.gpu)',
     stringSignals: ['node:smol-webgpu', 'smol-webgpu'],
     memberSignals: [{ object: 'navigator', property: 'gpu' }],
-    configureFlagWhenDropped: null,
+    configureFlagWhenDropped: undefined,
     optInFlag: '--with-dawn',
     gypVar: 'node_use_dawn',
     policy: 'auto',
@@ -157,7 +157,7 @@ export const SMOL_FEATURES: readonly SmolFeature[] = [
     stringSignals: ['node:smol-tui', 'smol-tui'],
     memberSignals: [],
     configureFlagWhenDropped: '--without-smol-tui',
-    optInFlag: null,
+    optInFlag: undefined,
     gypVar: 'node_use_smol_tui',
     policy: 'auto',
     approxBinaryMb: 2,
@@ -168,7 +168,7 @@ export const SMOL_FEATURES: readonly SmolFeature[] = [
     stringSignals: ['node:smol-keymap', 'smol-keymap'],
     memberSignals: [],
     configureFlagWhenDropped: '--without-smol-keymap',
-    optInFlag: null,
+    optInFlag: undefined,
     gypVar: 'node_use_smol_keymap',
     policy: 'auto',
     approxBinaryMb: 0.1,
@@ -179,7 +179,7 @@ export const SMOL_FEATURES: readonly SmolFeature[] = [
     stringSignals: ['node:smol-ffi', 'smol-ffi'],
     memberSignals: [],
     configureFlagWhenDropped: '--without-smol-ffi',
-    optInFlag: null,
+    optInFlag: undefined,
     gypVar: 'node_use_smol_ffi',
     policy: 'auto',
     approxBinaryMb: 0.5,
@@ -190,7 +190,7 @@ export const SMOL_FEATURES: readonly SmolFeature[] = [
     stringSignals: ['node:smol-ilp', 'smol-ilp'],
     memberSignals: [],
     configureFlagWhenDropped: '--without-smol-ilp',
-    optInFlag: null,
+    optInFlag: undefined,
     gypVar: 'node_use_smol_ilp',
     policy: 'auto',
     approxBinaryMb: 0.1,
@@ -201,7 +201,7 @@ export const SMOL_FEATURES: readonly SmolFeature[] = [
     stringSignals: ['node:smol-tree-sitter', 'smol-tree-sitter'],
     memberSignals: [],
     configureFlagWhenDropped: '--without-smol-treesitter',
-    optInFlag: null,
+    optInFlag: undefined,
     gypVar: 'node_use_smol_treesitter',
     policy: 'auto',
     approxBinaryMb: 2,
@@ -212,7 +212,7 @@ export const SMOL_FEATURES: readonly SmolFeature[] = [
     stringSignals: ['node:smol-qrcode', 'smol-qrcode'],
     memberSignals: [],
     configureFlagWhenDropped: '--without-smol-qrcode',
-    optInFlag: null,
+    optInFlag: undefined,
     gypVar: 'node_use_smol_qrcode',
     policy: 'auto',
     approxBinaryMb: 0.8,
@@ -225,7 +225,7 @@ export const SMOL_FEATURES: readonly SmolFeature[] = [
     stringSignals: ['node:smol-markdown', 'smol-markdown'],
     memberSignals: [],
     configureFlagWhenDropped: '--without-smol-markdown',
-    optInFlag: null,
+    optInFlag: undefined,
     gypVar: 'node_use_smol_markdown',
     policy: 'auto',
     approxBinaryMb: 0.4,
@@ -240,9 +240,9 @@ export const SMOL_FEATURES: readonly SmolFeature[] = [
     // blocks for ~0.05MB — not worth a gate. It stays always-on (harmless), so
     // the detector emits no flag for it. socket-cli probes it behind isBuiltin()
     // with a shellout fallback regardless.
-    configureFlagWhenDropped: null,
-    optInFlag: null,
-    gypVar: null,
+    configureFlagWhenDropped: undefined,
+    optInFlag: undefined,
+    gypVar: undefined,
     policy: 'always',
     approxBinaryMb: 0.05,
   }),
@@ -254,8 +254,8 @@ export const SMOL_FEATURES: readonly SmolFeature[] = [
     // Dropping Temporal means dropping --v8-enable-temporal-support and
     // unwiring patches 004/021 — high blast radius, ICU + V8 + mksnapshot
     // coupling. Never auto-dropped.
-    configureFlagWhenDropped: null,
-    optInFlag: null,
+    configureFlagWhenDropped: undefined,
+    optInFlag: undefined,
     gypVar: 'node_use_smol_temporal',
     policy: 'keep-unless-explicit',
     approxBinaryMb: 2.5,
@@ -272,8 +272,8 @@ export const SMOL_FEATURES: readonly SmolFeature[] = [
     // small-icu → none saves ~8MB but breaks all locale formatting + collation
     // and Temporal's calendar backend. Never auto-dropped.
     configureFlagWhenDropped: '--with-intl=none',
-    optInFlag: null,
-    gypVar: null,
+    optInFlag: undefined,
+    gypVar: undefined,
     policy: 'keep-unless-explicit',
     approxBinaryMb: 8,
   }),

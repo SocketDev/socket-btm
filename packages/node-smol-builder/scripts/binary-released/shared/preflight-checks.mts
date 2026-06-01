@@ -42,7 +42,7 @@ export async function checkBuildEnvironment(buildDir) {
   let allChecks = true
 
   // Check 1: Disk space.
-  logger.log('Checking available disk space...')
+  logger.log('Checking available disk space…')
   const diskSpace = await checkDiskSpace(buildDir)
   if (diskSpace.availableGB !== undefined) {
     if (diskSpace.sufficient) {
@@ -61,7 +61,7 @@ export async function checkBuildEnvironment(buildDir) {
   }
 
   // Check 2: Python version.
-  logger.log('Checking Python version...')
+  logger.log('Checking Python version…')
   const requiredPythonVersion = getMinPythonVersion()
   const python = await checkPythonVersion(requiredPythonVersion)
   if (python.available && python.sufficient) {
@@ -80,7 +80,7 @@ export async function checkBuildEnvironment(buildDir) {
   }
 
   // Check 3: C++ compiler.
-  logger.log('Checking C++ compiler...')
+  logger.log('Checking C++ compiler…')
   const compiler = await checkCompiler()
   if (compiler.available) {
     logger.success(`C++ compiler (${compiler.compiler}) is available`)
@@ -92,7 +92,7 @@ export async function checkBuildEnvironment(buildDir) {
 
   // Check 3b: GCC version (Linux only).
   if (process.platform === 'linux' && compiler.compiler === 'g++') {
-    logger.log('Checking GCC version...')
+    logger.log('Checking GCC version…')
     const gccCheck = await ensureGccVersion({
       autoInstall: true,
       quiet: false,
@@ -111,7 +111,7 @@ export async function checkBuildEnvironment(buildDir) {
 
   // Check 3c: Xcode version (macOS only).
   if (process.platform === 'darwin') {
-    logger.log('Checking Xcode version...')
+    logger.log('Checking Xcode version…')
     try {
       const result = await exec('xcodebuild', ['-version'], {
         encoding: 'utf8',
@@ -152,7 +152,7 @@ export async function checkBuildEnvironment(buildDir) {
   }
 
   // Check 4: Network connectivity.
-  logger.log('Checking network connectivity...')
+  logger.log('Checking network connectivity…')
   const network = await checkNetworkConnectivity()
   if (network.connected) {
     logger.success('Network connection to GitHub is working')

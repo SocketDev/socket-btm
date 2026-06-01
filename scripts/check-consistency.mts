@@ -111,11 +111,11 @@ type Suggestion = {
 const argv: string[] = process.argv
 const args = new Set(argv.slice(2))
 const CLI_FLAGS = {
-  fix: args.has('--fix'),
-  interactive: args.has('--interactive'),
   dryRun: args.has('--dry-run'),
-  suggest: args.has('--suggest'),
+  fix: args.has('--fix'),
   help: args.has('--help') || args.has('-h'),
+  interactive: args.has('--interactive'),
+  suggest: args.has('--suggest'),
 }
 
 const HELP_TEXT = `
@@ -291,7 +291,7 @@ export async function discoverPackages(): Promise<PackageInfo[]> {
 export async function checkRequiredFiles(
   packages: PackageInfo[],
 ): Promise<void> {
-  log('\n[1/8] Checking required files...', colors.blue)
+  log('\n[1/8] Checking required files…', colors.blue)
 
   for (let i = 0, { length } = packages; i < length; i += 1) {
     const pkg = packages[i]!
@@ -333,7 +333,7 @@ export async function checkRequiredFiles(
 export async function checkVitestConfig(
   packages: PackageInfo[],
 ): Promise<void> {
-  log('[2/8] Checking vitest configurations...', colors.blue)
+  log('[2/8] Checking vitest configurations…', colors.blue)
 
   const vitestPackages = packages.filter(pkg =>
     existsSync(path.join(pkg.path, 'vitest.config.mts')),
@@ -388,7 +388,7 @@ export default mergeConfig(baseConfig, {
 
 // oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover issues per category → batch fixes → report); alphabetizing would scatter the per-rule check flow.
 export async function checkTestScripts(packages: PackageInfo[]): Promise<void> {
-  log('[3/8] Checking test scripts...', colors.blue)
+  log('[3/8] Checking test scripts…', colors.blue)
 
   const PATTERNS = {
     envAware: 'dotenvx run --env-file=.env.test -- vitest run',
@@ -436,7 +436,7 @@ export async function checkTestScripts(packages: PackageInfo[]): Promise<void> {
 export async function checkCoverageScripts(
   packages: PackageInfo[],
 ): Promise<void> {
-  log('[4/8] Checking coverage scripts...', colors.blue)
+  log('[4/8] Checking coverage scripts…', colors.blue)
 
   const C_PACKAGES = new Set(['binflate', 'binject', 'binpress'])
   const jsPackages = packages.filter(pkg => !C_PACKAGES.has(pkg.name))
@@ -492,7 +492,7 @@ export async function checkCoverageScripts(
 export async function checkExternalTools(
   packages: PackageInfo[],
 ): Promise<void> {
-  log('[5/8] Checking external-tools.json...', colors.blue)
+  log('[5/8] Checking external-tools.json…', colors.blue)
 
   const C_PACKAGES: string[] = [
     'binflate',
@@ -566,7 +566,7 @@ export async function checkExternalTools(
 export async function checkBuildOutputStructure(
   packages: PackageInfo[],
 ): Promise<void> {
-  log('[6/8] Checking build output structure...', colors.blue)
+  log('[6/8] Checking build output structure…', colors.blue)
 
   for (let i = 0, { length } = packages; i < length; i += 1) {
     const pkg = packages[i]!
@@ -655,7 +655,7 @@ export async function checkBuildOutputStructure(
 export async function checkPackageJsonStructure(
   packages: PackageInfo[],
 ): Promise<void> {
-  log('[7/8] Checking package.json structure...', colors.blue)
+  log('[7/8] Checking package.json structure…', colors.blue)
 
   for (let i = 0, { length } = packages; i < length; i += 1) {
     const pkg = packages[i]!
@@ -782,7 +782,7 @@ export async function checkPackageJsonStructure(
 export async function checkWorkspaceDependencies(
   packages: PackageInfo[],
 ): Promise<void> {
-  log('[8/8] Checking workspace dependencies...', colors.blue)
+  log('[8/8] Checking workspace dependencies…', colors.blue)
 
   for (let i = 0, { length } = packages; i < length; i += 1) {
     const pkg = packages[i]!

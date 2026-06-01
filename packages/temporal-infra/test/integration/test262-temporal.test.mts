@@ -37,7 +37,7 @@ const RUNNER = path.resolve(
 const skipTests = !existsSync(getNodeSmolFinalBinary())
 
 // Runner walks ~3k Temporal tests × multiple scenarios. Budget generous.
-const TIMEOUT_MS = 30 * 60 * 1_000
+const TIMEOUT_MS = 30 * 60 * 1000
 
 describe.skipIf(skipTests)('Test262 Temporal conformance', () => {
   it('no unexpected failures vs test262.allowlist', async () => {

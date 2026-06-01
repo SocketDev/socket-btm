@@ -53,7 +53,7 @@ export async function generateWasmSyncWrapper(options) {
     throw new Error(`MJS glue code file not found: ${mjsFile}`)
   }
 
-  logger.substep('Generating synchronous wrappers with embedded WASM...')
+  logger.substep('Generating synchronous wrappers with embedded WASM…')
 
   // Read WASM binary and convert to base64
   const wasmBinary = await fs.readFile(wasmFile)

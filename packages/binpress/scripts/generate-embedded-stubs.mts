@@ -67,7 +67,7 @@ const LOCAL_STUB_PATH = getFinalBinaryPath(
   'smol_stub',
 )
 
-logger.info('Generating embedded stubs...')
+logger.info('Generating embedded stubs…')
 
 // Ensure build directory exists
 await safeMkdir(BUILD_DIR)
@@ -122,7 +122,7 @@ export async function downloadStub(
   const isCurrentPlatform =
     platform === currentPlatform && arch === currentArch && libc === currentLibc
   if (isCurrentPlatform && existsSync(LOCAL_STUB_PATH)) {
-    logger.info(`  Using local ${platformName} stub...`)
+    logger.info(`  Using local ${platformName} stub…`)
 
     // Copy local stub to build directory with platform-specific name
     const stubOut = path.join(
@@ -148,7 +148,7 @@ export async function downloadStub(
     return undefined
   }
 
-  logger.info(`  Downloading ${platformName} stub...`)
+  logger.info(`  Downloading ${platformName} stub…`)
 
   // Determine asset name (all hyphens, following lief convention)
   const assetName = `smol-stub-${platformName}.tar.gz`
@@ -261,7 +261,7 @@ let output = `/**
 `
 
 // Download all stubs in parallel (or use local stub for current platform)
-logger.info('Downloading stubs...')
+logger.info('Downloading stubs…')
 const stubConfigs = [
   { arch: 'arm64', libc: undefined, name: 'darwin-arm64', platform: 'darwin' },
   { arch: 'x64', libc: undefined, name: 'darwin-x64', platform: 'darwin' },
@@ -306,7 +306,7 @@ const [
 ] = stubFiles
 
 logger.error('')
-logger.info('Embedding stubs into C arrays...')
+logger.info('Embedding stubs into C arrays…')
 
 // Helper to generate empty stub placeholder
 export function emptyStubCArray(varName) {

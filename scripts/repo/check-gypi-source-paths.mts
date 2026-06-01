@@ -47,50 +47,6 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..')
 
 const logger = getDefaultLogger()
 
-interface Finding {
-  readonly gypi: string
-  readonly offendingPrefix: string
-  readonly sources: readonly string[]
-}
-
-// oxlint-disable-next-line socket/sort-source-methods -- script's main flow lives at the bottom; helpers above in topical order.
-// oxlint-disable-next-line socket/export-top-level-functions -- internal helpers; not part of the script's external contract.
-function walkGypiFiles(root: string): readonly string[] {
-  const out: string[] = []
-  function walk(dir: string): void {
-    let entries: ReturnType<typeof readdirSync>
-    try {
-      entries = readdirSync(dir, { withFileTypes: true })
-    } catch {
-      return
-    }
-    for (let i = 0, { length } = entries; i < length; i += 1) {
-      const entry = entries[i]!
-      const full = path.join(dir, entry.name)
-      if (entry.isDirectory()) {
-        // Skip node_modules + build outputs that contain irrelevant
-        // .gypi files from third-party packages.
-        if (
-          entry.name === 'node_modules' ||
-          entry.name === 'build' ||
-          entry.name === 'upstream' ||
-          entry.name === '.git'
-        ) {
-          continue
-        }
-        walk(full)
-        continue
-      }
-      if (entry.isFile() && entry.name.endsWith('.gypi')) {
-        out.push(full)
-      }
-    }
-  }
-  walk(root)
-  out.sort()
-  return out
-}
-
 // oxlint-disable-next-line socket/sort-source-methods
 // oxlint-disable-next-line socket/export-top-level-functions
 function checkOneGypi(absPath: string): Finding | undefined {
@@ -158,6 +114,50 @@ function parseArgs(): ParsedArgs {
     }
   }
   return { explain, json }
+}
+
+interface Finding {
+  readonly gypi: string
+  readonly offendingPrefix: string
+  readonly sources: readonly string[]
+}
+
+// oxlint-disable-next-line socket/sort-source-methods -- script's main flow lives at the bottom; helpers above in topical order.
+// oxlint-disable-next-line socket/export-top-level-functions -- internal helpers; not part of the script's external contract.
+function walkGypiFiles(root: string): readonly string[] {
+  const out: string[] = []
+  function walk(dir: string): void {
+    let entries: ReturnType<typeof readdirSync>
+    try {
+      entries = readdirSync(dir, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (let i = 0, { length } = entries; i < length; i += 1) {
+      const entry = entries[i]!
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        // Skip node_modules + build outputs that contain irrelevant
+        // .gypi files from third-party packages.
+        if (
+          entry.name === 'node_modules' ||
+          entry.name === 'build' ||
+          entry.name === 'upstream' ||
+          entry.name === '.git'
+        ) {
+          continue
+        }
+        walk(full)
+        continue
+      }
+      if (entry.isFile() && entry.name.endsWith('.gypi')) {
+        out.push(full)
+      }
+    }
+  }
+  walk(root)
+  out.sort()
+  return out
 }
 
 const { explain, json } = parseArgs()

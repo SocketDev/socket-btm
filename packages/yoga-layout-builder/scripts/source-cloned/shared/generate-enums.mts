@@ -107,7 +107,7 @@ export function parseEnumHeader(header: string): ParsedEnum[] {
       // Guard the auto-increment counter against silent 32-bit overflow.
       // The WASM-emitted enum is i32, so a JS Number > 2^31-1 here would
       // ABI-drift from the runtime value.
-      if (!eqMatch && nextValue > 0x7fffffff) {
+      if (!eqMatch && nextValue > 0x7f_ff_ff_ff) {
         throw new Error(
           `generate-enums: ${rawEnumName}.${memberName} would auto-increment past int32 (${nextValue}); pin an explicit value upstream`,
         )

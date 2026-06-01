@@ -26,7 +26,7 @@ const packageRoot = path.join(__dirname, '..')
 async function main() {
   try {
     // Check and install required tools (including runtime dependencies)
-    logger.info('Checking required tools...')
+    logger.info('Checking required tools…')
     logger.error('')
     try {
       await runCommand(
@@ -51,14 +51,14 @@ async function main() {
     }
 
     // Ensure LIEF library is available for tests
-    logger.info('Ensuring LIEF library is available...')
+    logger.info('Ensuring LIEF library is available…')
     logger.error('')
     const buildMode = getBuildMode()
     await ensureLief({ buildMode })
 
     // Always rebuild to ensure embedded stubs match the locally-built stub.
     // Checkpoint-restored binaries may embed stale stubs (e.g. LZFSE instead of ZSTD).
-    logger.info('Building binpress...')
+    logger.info('Building binpress…')
     logger.error('')
     try {
       const makefile = selectMakefile()
@@ -80,7 +80,7 @@ async function main() {
     }
 
     logger.info('')
-    logger.info('Running binpress tests...')
+    logger.info('Running binpress tests…')
     logger.error('')
     const makefile = selectMakefile()
     await runCommand('make', ['-f', makefile, 'test'], packageRoot)

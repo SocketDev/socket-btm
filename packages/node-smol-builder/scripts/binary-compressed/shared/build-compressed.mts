@@ -99,7 +99,7 @@ export async function buildCompressed(config, buildOptions = {}) {
 
   logger.step('Compressing Binary for Distribution')
   logger.log(
-    'Compressing stripped binary using platform-specific compression...',
+    'Compressing stripped binary using platform-specific compression…',
   )
   logger.logNewline()
 
@@ -116,7 +116,7 @@ export async function buildCompressed(config, buildOptions = {}) {
 
   const sizeBeforeCompress = await getFileSize(outputStrippedBinary)
   logger.log(`Size before compression: ${sizeBeforeCompress}`)
-  logger.log('Running compression tool...')
+  logger.log('Running compression tool…')
   logger.logNewline()
 
   // Run platform-specific compression.
@@ -143,7 +143,7 @@ export async function buildCompressed(config, buildOptions = {}) {
   // The stub needs to be signed so it can execute properly
   await adHocSign(outputCompressedBinary, async () => {
     logger.step('Signing Compressed Stub')
-    logger.log('Ad-hoc signing the self-extracting binary...')
+    logger.log('Ad-hoc signing the self-extracting binary…')
     logger.logNewline()
   })
 
@@ -151,7 +151,7 @@ export async function buildCompressed(config, buildOptions = {}) {
   // This removes any leftover files from previous stages (e.g., stripped binary).
   // Note: No external binflate is bundled - the stub has built-in decompression.
   if (!skipCheckpoint) {
-    logger.substep('Cleaning checkpoint directory...')
+    logger.substep('Cleaning checkpoint directory…')
     const compressedDirFiles = await fs.readdir(outputCompressedNodeDir)
     const compressedBinaryName = path.basename(outputCompressedBinary)
     for (let i = 0, { length } = compressedDirFiles; i < length; i += 1) {
@@ -179,7 +179,7 @@ export async function buildCompressed(config, buildOptions = {}) {
       async () => {
         // Smoke test: Verify compressed binary is executable.
         // Will automatically fall back to static verification if cross-compiled.
-        logger.log('Testing compressed binary...')
+        logger.log('Testing compressed binary…')
         const compressedSmokeTest = await smokeTestBinary(
           outputCompressedBinary,
           {

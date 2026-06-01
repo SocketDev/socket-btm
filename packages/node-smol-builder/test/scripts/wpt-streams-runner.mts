@@ -203,7 +203,7 @@ export function findTestFiles(dir: string): string[] {
       results.push(fullPath)
     }
   }
-  return results.sort()
+  return results.toSorted()
 }
 
 export function parseArgs(): CliOptions {

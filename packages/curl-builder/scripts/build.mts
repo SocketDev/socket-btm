@@ -183,7 +183,7 @@ export async function downloadCurl(options = {}) {
 
   // Extract archive to the same directory as the downloaded archive
   const extractDir = path.dirname(downloadedArchive)
-  logger.info('Extracting curl archive...')
+  logger.info('Extracting curl archive…')
 
   // Verify archive exists before extraction.
   if (!existsSync(downloadedArchive)) {
@@ -221,7 +221,7 @@ export async function downloadCurl(options = {}) {
   }
 
   // Verify SHA256 checksum to detect corrupt/truncated downloads.
-  logger.info('Verifying archive checksum...')
+  logger.info('Verifying archive checksum…')
   const checksumResult = await verifyArchiveChecksum(
     downloadedArchive,
     assetName,
@@ -336,7 +336,7 @@ export async function ensureCurl(options = {}) {
   }
 
   // 3. Download curl.
-  logger.info('curl not found locally, downloading...')
+  logger.info('curl not found locally, downloading…')
   return await downloadCurl({ force, platformArch: resolvedPlatformArch })
 }
 
@@ -415,7 +415,7 @@ export async function runCommand(command, args, cwd, env = {}) {
  */
 // oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function buildMbedTLS(mbedtlsBuildDir) {
-  logger.info('Building mbedTLS...')
+  logger.info('Building mbedTLS…')
 
   // Check if mbedTLS upstream exists.
   if (!existsSync(mbedtlsUpstream)) {
@@ -428,7 +428,7 @@ export async function buildMbedTLS(mbedtlsBuildDir) {
   await safeMkdir(mbedtlsBuildDir)
 
   // Configure mbedTLS with CMake.
-  logger.info('Configuring mbedTLS with CMake...')
+  logger.info('Configuring mbedTLS with CMake…')
   const cmakeArgs = [
     mbedtlsUpstream,
     '-DCMAKE_BUILD_TYPE=Release',
@@ -509,7 +509,7 @@ export async function buildMbedTLS(mbedtlsBuildDir) {
   // Use 90% of available CPUs for faster builds (CI environments can use full resources).
   const cpuCount = os.cpus().length
   const jobCount = Math.max(1, Math.floor(cpuCount * 0.9))
-  logger.info(`Building mbedTLS with ${jobCount} parallel jobs...`)
+  logger.info(`Building mbedTLS with ${jobCount} parallel jobs…`)
   const buildStart = Date.now()
   await runCommand(
     'cmake',
@@ -543,7 +543,7 @@ export async function buildMbedTLS(mbedtlsBuildDir) {
  */
 // oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function buildCurl(mbedtlsDir, curlBuildDir) {
-  logger.info('Building curl with mbedTLS...')
+  logger.info('Building curl with mbedTLS…')
 
   // Check if curl upstream exists.
   if (!existsSync(curlUpstream)) {
@@ -556,7 +556,7 @@ export async function buildCurl(mbedtlsDir, curlBuildDir) {
   await safeMkdir(curlBuildDir)
 
   // Configure curl with CMake.
-  logger.info('Configuring curl with CMake...')
+  logger.info('Configuring curl with CMake…')
   const mbedtlsIncludeDir = path.join(mbedtlsUpstream, 'include')
   const mbedtlsLibDir = path.join(mbedtlsDir, 'library')
 
@@ -682,7 +682,7 @@ export async function buildCurl(mbedtlsDir, curlBuildDir) {
   // Use 90% of available CPUs for faster builds (CI environments can use full resources).
   const cpuCount = os.cpus().length
   const jobCount = Math.max(1, Math.floor(cpuCount * 0.9))
-  logger.info(`Building curl with ${jobCount} parallel jobs...`)
+  logger.info(`Building curl with ${jobCount} parallel jobs…`)
   const buildStart = Date.now()
   await runCommand(
     'cmake',
@@ -798,7 +798,7 @@ async function main() {
       )
     }
 
-    logger.info('Building curl with mbedTLS for HTTPS support...')
+    logger.info('Building curl with mbedTLS for HTTPS support…')
     logger.error('')
 
     // Check if curl submodule is initialized.
@@ -807,7 +807,7 @@ async function main() {
 
     if (!isCurlBuild) {
       // Not building curl itself - ensure prebuilt is available.
-      logger.info('curl submodule not initialized, using prebuilt...')
+      logger.info('curl submodule not initialized, using prebuilt…')
       const curlDir = await ensureCurl()
       const curlLib = path.join(curlDir, 'libcurl.a')
       // oxlint-disable-next-line socket/prefer-exists-sync -- multiple fs.stat() calls consume stats.size for downloaded-archive / built-library size reporting and minimum-size quick checks.

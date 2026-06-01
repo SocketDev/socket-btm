@@ -177,7 +177,7 @@ export function createPrebuiltApi(config: PrebuiltConfig): PrebuiltApi {
     const targetDir = getDownloadedDirForArch(resolvedPlatformArch)
 
     try {
-      logger.info(`Checking for prebuilt ${name} releases...`)
+      logger.info(`Checking for prebuilt ${name} releases…`)
       await safeMkdir(targetDir)
       logger.info(`Downloading ${assetName}...`)
       const downloadedArchive = await downloadSocketBtmRelease(name, {
@@ -214,7 +214,7 @@ export function createPrebuiltApi(config: PrebuiltConfig): PrebuiltApi {
 
       // Verify SHA256 checksum — catches corrupted-but-magic-byte-valid
       // downloads.
-      logger.info('Verifying archive checksum...')
+      logger.info('Verifying archive checksum…')
       const checksumResult = await verifyReleaseChecksum({
         assetName,
         filePath: downloadedArchive,
@@ -342,7 +342,7 @@ export function createPrebuiltApi(config: PrebuiltConfig): PrebuiltApi {
     }
 
     // 3. Fetch prebuilt from gh releases.
-    logger.info(`${name} not found locally, downloading prebuilt...`)
+    logger.info(`${name} not found locally, downloading prebuilt…`)
     const extracted = await downloadPrebuilt({
       platformArch: resolvedPlatformArch,
     })

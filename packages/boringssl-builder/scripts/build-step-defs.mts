@@ -149,6 +149,14 @@ export const PUBLISH_HEADERS = {
 }
 
 /**
+ * Path-join helper that respects the bash emit (it stays as literal
+ * "$VAR/sub/path") AND the native build (resolves to a host path).
+ */
+export function joinUpstream(...parts: string[]): string {
+  return path.posix.join('$UPSTREAM_DIR', ...parts)
+}
+
+/**
  * Resolved path placeholders → real paths. Used by build.mts to
  * substitute placeholders in BUILD_STEPS.args / PUBLISH_ARTIFACTS.
  */
@@ -182,21 +190,6 @@ export function substitute(
 }
 
 /**
- * Substitute placeholders across a build step's args. Returns a new
- * step with resolved args; cmd and label are unchanged.
- */
-export function substituteStep(
-  step: BuildStep,
-  placeholders: Record<string, string>,
-): BuildStep {
-  return {
-    label: step.label,
-    cmd: step.cmd,
-    args: step.args.map(a => substitute(a, placeholders)),
-  }
-}
-
-/**
  * Substitute placeholders in an artifact entry.
  */
 export function substituteArtifact(
@@ -210,9 +203,16 @@ export function substituteArtifact(
 }
 
 /**
- * Path-join helper that respects the bash emit (it stays as literal
- * "$VAR/sub/path") AND the native build (resolves to a host path).
+ * Substitute placeholders across a build step's args. Returns a new
+ * step with resolved args; cmd and label are unchanged.
  */
-export function joinUpstream(...parts: string[]): string {
-  return path.posix.join('$UPSTREAM_DIR', ...parts)
+export function substituteStep(
+  step: BuildStep,
+  placeholders: Record<string, string>,
+): BuildStep {
+  return {
+    label: step.label,
+    cmd: step.cmd,
+    args: step.args.map(a => substitute(a, placeholders)),
+  }
 }

@@ -696,7 +696,7 @@ describe('createCheckpoint signature validation', () => {
         !f.includes('node_modules'),
     )
 
-    logger.log(`Validating ${scriptFiles.length} script files...`)
+    logger.log(`Validating ${scriptFiles.length} script files…`)
 
     // Validate each file
     const allErrors = []

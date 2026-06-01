@@ -490,7 +490,7 @@ export async function createGitHubRelease(
   logger.log(`Created draft release: ${release.html_url}`)
 
   // Upload assets.
-  logger.log('Uploading assets...')
+  logger.log('Uploading assets…')
   for (let i = 0, { length } = archives; i < length; i += 1) {
     const archive = archives[i]
     logger.log(`  Uploading ${archive.archiveName}...`)
@@ -510,7 +510,7 @@ export async function createGitHubRelease(
   }
 
   if (publish) {
-    logger.log('Promoting draft to published release...')
+    logger.log('Promoting draft to published release…')
     await octokit.rest.repos.updateRelease({
       draft: false,
       owner: OWNER,
@@ -542,7 +542,7 @@ async function main() {
   logger.log('')
 
   // Check prerequisites.
-  logger.log('Checking prerequisites...')
+  logger.log('Checking prerequisites…')
 
   const isAuthed = await checkGitHubAuth()
   if (!isAuthed) {
@@ -568,7 +568,7 @@ async function main() {
 
   // Create release archives.
   logger.log('')
-  logger.log('Creating release archives...')
+  logger.log('Creating release archives…')
 
   const archives = []
   // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured

@@ -265,7 +265,7 @@ export async function verifyMuslCompatibility(libPath) {
     return { compatible: true }
   }
 
-  logger.info('Verifying LIEF library for musl compatibility...')
+  logger.info('Verifying LIEF library for musl compatibility…')
 
   // Use nm to check for glibc-specific fortify symbols. These (__memcpy_chk,
   // __printf_chk, …) don't exist in musl. The check must default-deny:
@@ -353,7 +353,7 @@ export async function copyLiefSource(sourceDir) {
 
   await safeMkdir(path.dirname(sourceDir))
 
-  logger.info('Copying LIEF source to build directory...')
+  logger.info('Copying LIEF source to build directory…')
   if (WIN32) {
     // Windows: use robocopy
     // robocopy exit codes: 0=no change, 1=files copied, 2-7=other success states, 8+=errors
@@ -528,7 +528,7 @@ export async function downloadPrebuiltLIEF(options = {}) {
   const resolvedPlatformArch = platformArch ?? getCurrentLiefPlatformArch()
 
   try {
-    logger.info('Checking for prebuilt LIEF releases...')
+    logger.info('Checking for prebuilt LIEF releases…')
 
     const assetName = `lief-${resolvedPlatformArch}.tar.gz`
     const targetDir = path.join(
@@ -552,7 +552,7 @@ export async function downloadPrebuiltLIEF(options = {}) {
 
     // Extract archive to the same directory as the downloaded archive
     const extractDir = path.dirname(downloadedArchive)
-    logger.info('Extracting LIEF archive...')
+    logger.info('Extracting LIEF archive…')
 
     if (!existsSync(downloadedArchive)) {
       throw new Error(
@@ -592,7 +592,7 @@ export async function downloadPrebuiltLIEF(options = {}) {
 
     // Verify SHA256 checksum to detect corrupt/truncated downloads.
     // This catches issues where size/magic bytes pass but content is corrupted.
-    logger.info('Verifying archive checksum...')
+    logger.info('Verifying archive checksum…')
     const checksumResult = await verifyArchiveChecksum(
       downloadedArchive,
       assetName,
@@ -798,7 +798,7 @@ export async function ensureLiefImpl(options = {}) {
   }
 
   // 3. Download prebuilt LIEF.
-  logger.info('LIEF not found locally, downloading prebuilt...')
+  logger.info('LIEF not found locally, downloading prebuilt…')
   const downloadDir = await downloadPrebuiltLIEF({
     platformArch: resolvedPlatformArch,
   })
@@ -847,7 +847,7 @@ async function main() {
       )
     }
 
-    logger.info('🔨 Building LIEF library...')
+    logger.info('🔨 Building LIEF library…')
     logger.error('')
 
     // Check if LIEF submodule is initialized.
@@ -857,7 +857,7 @@ async function main() {
 
     if (!isLiefBuild) {
       // Not building LIEF itself - download prebuilt.
-      logger.info('LIEF submodule not initialized, downloading prebuilt...')
+      logger.info('LIEF submodule not initialized, downloading prebuilt…')
       const downloadDir = await downloadPrebuiltLIEF({ platformArch })
       if (downloadDir) {
         // Verify library exists after download.
@@ -957,7 +957,7 @@ async function main() {
     await safeMkdir(liefBuildDir)
 
     // Configure LIEF with CMake.
-    logger.info('Configuring LIEF with CMake...')
+    logger.info('Configuring LIEF with CMake…')
     const cmakeArgs = [
       liefPatchedDir,
       '-DCMAKE_BUILD_TYPE=Release',
@@ -1153,7 +1153,7 @@ async function main() {
     // Copy upstream headers to build directory for standalone distribution.
     // The checkpoint tarball needs to include all headers required for compilation,
     // not just the generated config.h and version.h from the CMake build.
-    logger.info('Copying upstream headers for standalone distribution...')
+    logger.info('Copying upstream headers for standalone distribution…')
     const upstreamIncludeDir = path.join(liefUpstream, 'include', 'LIEF')
     const buildIncludeDir = path.join(liefBuildDir, 'include', 'LIEF')
 

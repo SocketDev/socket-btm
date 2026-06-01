@@ -8,14 +8,14 @@
 
 export const Align = {
   Auto: 0,
-  FlexStart: 1,
+  Baseline: 5,
   Center: 2,
   FlexEnd: 3,
-  Stretch: 4,
-  Baseline: 5,
-  SpaceBetween: 6,
+  FlexStart: 1,
   SpaceAround: 7,
+  SpaceBetween: 6,
   SpaceEvenly: 8,
+  Stretch: 4,
 }
 
 export const BoxSizing = {
@@ -24,8 +24,8 @@ export const BoxSizing = {
 }
 
 export const Dimension = {
-  Width: 0,
   Height: 1,
+  Width: 0,
 }
 
 export const Direction = {
@@ -35,30 +35,30 @@ export const Direction = {
 }
 
 export const Display = {
+  Contents: 2,
   Flex: 0,
   None: 1,
-  Contents: 2,
 }
 
 export const Edge = {
-  Left: 0,
-  Top: 1,
-  Right: 2,
+  All: 8,
   Bottom: 3,
-  Start: 4,
   End: 5,
   Horizontal: 6,
+  Left: 0,
+  Right: 2,
+  Start: 4,
+  Top: 1,
   Vertical: 7,
-  All: 8,
 }
 
 export const Errata = {
-  None: 0,
-  StretchFlexBasis: 1,
-  AbsolutePositionWithoutInsetsExcludesPadding: 2,
   AbsolutePercentAgainstInnerSize: 4,
+  AbsolutePositionWithoutInsetsExcludesPadding: 2,
   All: 2147483647,
   Classic: 2147483646,
+  None: 0,
+  StretchFlexBasis: 1,
 }
 
 export const ExperimentalFeature = {
@@ -73,33 +73,33 @@ export const FlexDirection = {
 }
 
 export const Gutter = {
+  All: 2,
   Column: 0,
   Row: 1,
-  All: 2,
 }
 
 export const Justify = {
-  FlexStart: 0,
   Center: 1,
   FlexEnd: 2,
-  SpaceBetween: 3,
+  FlexStart: 0,
   SpaceAround: 4,
+  SpaceBetween: 3,
   SpaceEvenly: 5,
 }
 
 export const LogLevel = {
-  Error: 0,
-  Warn: 1,
-  Info: 2,
   Debug: 3,
-  Verbose: 4,
+  Error: 0,
   Fatal: 5,
+  Info: 2,
+  Verbose: 4,
+  Warn: 1,
 }
 
 export const MeasureMode = {
-  Undefined: 0,
-  Exactly: 1,
   AtMost: 2,
+  Exactly: 1,
+  Undefined: 0,
 }
 
 export const NodeType = {
@@ -108,22 +108,22 @@ export const NodeType = {
 }
 
 export const Overflow = {
-  Visible: 0,
   Hidden: 1,
   Scroll: 2,
+  Visible: 0,
 }
 
 export const PositionType = {
-  Static: 0,
-  Relative: 1,
   Absolute: 2,
+  Relative: 1,
+  Static: 0,
 }
 
 export const Unit = {
-  Undefined: 0,
-  Point: 1,
-  Percent: 2,
   Auto: 3,
+  Percent: 2,
+  Point: 1,
+  Undefined: 0,
 }
 
 export const Wrap = {
@@ -135,74 +135,74 @@ export const Wrap = {
 // Flat constant exports for compatibility with yoga-layout npm package API.
 const constants = {
   ALIGN_AUTO: Align.Auto,
-  ALIGN_FLEX_START: Align.FlexStart,
+  ALIGN_BASELINE: Align.Baseline,
   ALIGN_CENTER: Align.Center,
   ALIGN_FLEX_END: Align.FlexEnd,
-  ALIGN_STRETCH: Align.Stretch,
-  ALIGN_BASELINE: Align.Baseline,
-  ALIGN_SPACE_BETWEEN: Align.SpaceBetween,
+  ALIGN_FLEX_START: Align.FlexStart,
   ALIGN_SPACE_AROUND: Align.SpaceAround,
+  ALIGN_SPACE_BETWEEN: Align.SpaceBetween,
   ALIGN_SPACE_EVENLY: Align.SpaceEvenly,
+  ALIGN_STRETCH: Align.Stretch,
   BOX_SIZING_BORDER_BOX: BoxSizing.BorderBox,
   BOX_SIZING_CONTENT_BOX: BoxSizing.ContentBox,
-  DIMENSION_WIDTH: Dimension.Width,
   DIMENSION_HEIGHT: Dimension.Height,
+  DIMENSION_WIDTH: Dimension.Width,
   DIRECTION_INHERIT: Direction.Inherit,
   DIRECTION_LTR: Direction.LTR,
   DIRECTION_RTL: Direction.RTL,
+  DISPLAY_CONTENTS: Display.Contents,
   DISPLAY_FLEX: Display.Flex,
   DISPLAY_NONE: Display.None,
-  DISPLAY_CONTENTS: Display.Contents,
-  EDGE_LEFT: Edge.Left,
-  EDGE_TOP: Edge.Top,
-  EDGE_RIGHT: Edge.Right,
+  EDGE_ALL: Edge.All,
   EDGE_BOTTOM: Edge.Bottom,
-  EDGE_START: Edge.Start,
   EDGE_END: Edge.End,
   EDGE_HORIZONTAL: Edge.Horizontal,
+  EDGE_LEFT: Edge.Left,
+  EDGE_RIGHT: Edge.Right,
+  EDGE_START: Edge.Start,
+  EDGE_TOP: Edge.Top,
   EDGE_VERTICAL: Edge.Vertical,
-  EDGE_ALL: Edge.All,
-  ERRATA_NONE: Errata.None,
-  ERRATA_STRETCH_FLEX_BASIS: Errata.StretchFlexBasis,
-  ERRATA_ABSOLUTE_POSITION_WITHOUT_INSETS_EXCLUDES_PADDING: Errata.AbsolutePositionWithoutInsetsExcludesPadding,
   ERRATA_ABSOLUTE_PERCENT_AGAINST_INNER_SIZE: Errata.AbsolutePercentAgainstInnerSize,
+  ERRATA_ABSOLUTE_POSITION_WITHOUT_INSETS_EXCLUDES_PADDING: Errata.AbsolutePositionWithoutInsetsExcludesPadding,
   ERRATA_ALL: Errata.All,
   ERRATA_CLASSIC: Errata.Classic,
+  ERRATA_NONE: Errata.None,
+  ERRATA_STRETCH_FLEX_BASIS: Errata.StretchFlexBasis,
   EXPERIMENTAL_FEATURE_WEB_FLEX_BASIS: ExperimentalFeature.WebFlexBasis,
   FLEX_DIRECTION_COLUMN: FlexDirection.Column,
   FLEX_DIRECTION_COLUMN_REVERSE: FlexDirection.ColumnReverse,
   FLEX_DIRECTION_ROW: FlexDirection.Row,
   FLEX_DIRECTION_ROW_REVERSE: FlexDirection.RowReverse,
+  GUTTER_ALL: Gutter.All,
   GUTTER_COLUMN: Gutter.Column,
   GUTTER_ROW: Gutter.Row,
-  GUTTER_ALL: Gutter.All,
-  JUSTIFY_FLEX_START: Justify.FlexStart,
   JUSTIFY_CENTER: Justify.Center,
   JUSTIFY_FLEX_END: Justify.FlexEnd,
-  JUSTIFY_SPACE_BETWEEN: Justify.SpaceBetween,
+  JUSTIFY_FLEX_START: Justify.FlexStart,
   JUSTIFY_SPACE_AROUND: Justify.SpaceAround,
+  JUSTIFY_SPACE_BETWEEN: Justify.SpaceBetween,
   JUSTIFY_SPACE_EVENLY: Justify.SpaceEvenly,
-  LOG_LEVEL_ERROR: LogLevel.Error,
-  LOG_LEVEL_WARN: LogLevel.Warn,
-  LOG_LEVEL_INFO: LogLevel.Info,
   LOG_LEVEL_DEBUG: LogLevel.Debug,
-  LOG_LEVEL_VERBOSE: LogLevel.Verbose,
+  LOG_LEVEL_ERROR: LogLevel.Error,
   LOG_LEVEL_FATAL: LogLevel.Fatal,
-  MEASURE_MODE_UNDEFINED: MeasureMode.Undefined,
-  MEASURE_MODE_EXACTLY: MeasureMode.Exactly,
+  LOG_LEVEL_INFO: LogLevel.Info,
+  LOG_LEVEL_VERBOSE: LogLevel.Verbose,
+  LOG_LEVEL_WARN: LogLevel.Warn,
   MEASURE_MODE_AT_MOST: MeasureMode.AtMost,
+  MEASURE_MODE_EXACTLY: MeasureMode.Exactly,
+  MEASURE_MODE_UNDEFINED: MeasureMode.Undefined,
   NODE_TYPE_DEFAULT: NodeType.Default,
   NODE_TYPE_TEXT: NodeType.Text,
-  OVERFLOW_VISIBLE: Overflow.Visible,
   OVERFLOW_HIDDEN: Overflow.Hidden,
   OVERFLOW_SCROLL: Overflow.Scroll,
-  POSITION_TYPE_STATIC: PositionType.Static,
-  POSITION_TYPE_RELATIVE: PositionType.Relative,
+  OVERFLOW_VISIBLE: Overflow.Visible,
   POSITION_TYPE_ABSOLUTE: PositionType.Absolute,
-  UNIT_UNDEFINED: Unit.Undefined,
-  UNIT_POINT: Unit.Point,
-  UNIT_PERCENT: Unit.Percent,
+  POSITION_TYPE_RELATIVE: PositionType.Relative,
+  POSITION_TYPE_STATIC: PositionType.Static,
   UNIT_AUTO: Unit.Auto,
+  UNIT_PERCENT: Unit.Percent,
+  UNIT_POINT: Unit.Point,
+  UNIT_UNDEFINED: Unit.Undefined,
   WRAP_NO_WRAP: Wrap.NoWrap,
   WRAP_WRAP: Wrap.Wrap,
   WRAP_WRAP_REVERSE: Wrap.WrapReverse,

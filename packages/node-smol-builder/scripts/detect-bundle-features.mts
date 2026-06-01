@@ -53,7 +53,7 @@ type FeatureVerdict = {
   use: UsageKind
   drop: boolean
   reason: string
-  note?: string
+  note?: string | undefined
 }
 
 export type FeatureManifest = {
@@ -107,7 +107,7 @@ const TYPED_ARRAY_NAMES = [
  * Substring scan + computed-require + isBuiltin-guard detection over raw source.
  * Robust to minification because it matches string literals, not identifiers.
  */
-function scanSource(source: string, acc: ScanResult): void {
+export function scanSource(source: string, acc: ScanResult): void {
   for (const f of SMOL_FEATURES) {
     if (!acc.stringHits.has(f.name)) {
       for (const sig of f.stringSignals) {
@@ -149,7 +149,7 @@ function scanSource(source: string, acc: ScanResult): void {
   }
 }
 
-function countOccurrences(haystack: string, needle: string): number {
+export function countOccurrences(haystack: string, needle: string): number {
   let count = 0
   let idx = haystack.indexOf(needle)
   while (idx !== -1) {
@@ -165,7 +165,7 @@ function countOccurrences(haystack: string, needle: string): number {
  * default ecmaVersion rejects, so failures degrade gracefully — the string scan
  * already covers the specifier-based features.
  */
-function scanAst(source: string, acc: ScanResult): void {
+export function scanAst(source: string, acc: ScanResult): void {
   let ast: acorn.Node
   try {
     ast = acorn.parse(source, {
@@ -233,7 +233,7 @@ function scanAst(source: string, acc: ScanResult): void {
   })
 }
 
-function escapeRegExp(s: string): string {
+export function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
@@ -256,7 +256,7 @@ function escapeRegExp(s: string): string {
  */
 const COMPUTE_DENSITY_THRESHOLD = 8 // signals per MB above which we keep full JIT
 
-function v8LiteRecommendation(c: ComputeSignals): {
+export function v8LiteRecommendation(c: ComputeSignals): {
   recommended: boolean
   reason: string
 } {
@@ -288,13 +288,13 @@ function v8LiteRecommendation(c: ComputeSignals): {
  * first NUL byte. Operates on the buffer (not a decoded string) to avoid a
  * control character in a regex (oxlint no-control-regex).
  */
-function tarField(buf, start, end) {
+export function tarField(buf, start, end) {
   const nul = buf.indexOf(0, start)
   const stop = nul === -1 || nul > end ? end : nul
   return buf.toString('utf8', start, stop)
 }
 
-async function readVfsEntries(vfsPath) {
+export async function readVfsEntries(vfsPath) {
   // Minimal POSIX/ustar tar walker: 512-byte header blocks, name at 0..100,
   // size (octal) at 124..136, file data padded to 512. Good enough to pull JS
   // entries out of the SEA VFS tarball without extracting to disk.
@@ -308,7 +308,7 @@ async function readVfsEntries(vfsPath) {
     }
     const size = parseInt(tarField(buf, off + 124, off + 136).trim(), 8) || 0
     const dataStart = off + 512
-    if (/\.(?:js|mjs|cjs)$/.test(name)) {
+    if (/\.(?:cjs|js|mjs)$/.test(name)) {
       sources.push(buf.toString('utf8', dataStart, dataStart + size))
     }
     off = dataStart + Math.ceil(size / 512) * 512
@@ -316,14 +316,14 @@ async function readVfsEntries(vfsPath) {
   return sources
 }
 
-function hashSource(source: string): string {
+export function hashSource(source: string): string {
   return `sha256:${createHash('sha256').update(source).digest('hex')}`
 }
 
 export async function detectBundleFeatures(opts: {
   bundlePath: string
   vfsPath?: string | undefined
-  overrides?: { keep?: string[]; drop?: string[] } | undefined
+  overrides?: { keep?: string[] | undefined; drop?: string[] | undefined } | undefined
 }): Promise<FeatureManifest> {
   const { bundlePath, vfsPath, overrides } = opts
   const mainSource = await fs.readFile(bundlePath, 'utf8')
@@ -348,9 +348,11 @@ export async function detectBundleFeatures(opts: {
   if (vfsPath) {
     allSources.push(...(await readVfsEntries(vfsPath)))
   }
-  for (const src of allSources) {
+  for (let i = 0, { length } = allSources; i < length; i += 1) {
+    const src = allSources[i]!
     scanSource(src, acc)
     scanAst(src, acc)
+  
   }
 
   const keepSet = new Set(overrides?.keep ?? [])
@@ -373,7 +375,8 @@ export async function detectBundleFeatures(opts: {
 
   // Re-resolve drops after ambiguity: anything ambiguous becomes keep unless the
   // operator explicitly listed it in `drop`.
-  for (const name of ambiguous) {
+  for (let i = 0, { length } = ambiguous; i < length; i += 1) {
+    const name = ambiguous[i]!
     const v = features[name]!
     if (!dropSet.has(name)) {
       v.drop = false
@@ -381,6 +384,7 @@ export async function detectBundleFeatures(opts: {
         (v.note ? `${v.note}; ` : '') +
         'computed require() present — kept conservatively (override with smol.drop)'
     }
+  
   }
 
   // Derive configure flags from final drop decisions.
@@ -409,7 +413,7 @@ export async function detectBundleFeatures(opts: {
   }
 }
 
-function decideFeature(
+export function decideFeature(
   f: SmolFeature,
   acc: ScanResult,
   sets: { keepSet: Set<string>; dropSet: Set<string> },
@@ -439,7 +443,7 @@ function decideFeature(
   }
 
   // Never-auto-drop policies.
-  if (f.policy === 'keep-unless-explicit' || f.policy === 'always') {
+  if (f.policy === 'always' || f.policy === 'keep-unless-explicit') {
     return {
       __proto__: null,
       use: used ? 'hard' : 'none',
@@ -482,7 +486,7 @@ function decideFeature(
   }
 }
 
-function dedupe(xs: string[]): string[] {
+export function dedupe(xs: string[]): string[] {
   return [...new Set(xs)]
 }
 
@@ -517,7 +521,7 @@ async function main(): Promise<void> {
     return
   }
 
-  let overrides: { keep?: string[]; drop?: string[] } | undefined
+  let overrides: { keep?: string[] | undefined; drop?: string[] | undefined } | undefined
   const overridesPath = values['overrides'] as string | undefined
   if (overridesPath) {
     try {
@@ -568,7 +572,7 @@ async function main(): Promise<void> {
   logger.log(`Configure flags: ${manifest.configureFlags.join(' ') || '(none)'}`)
 }
 
-function replacerStripProto(_key: string, value: unknown): unknown {
+export function replacerStripProto(_key: string, value: unknown): unknown {
   return value
 }
 
@@ -580,7 +584,7 @@ if (import.meta.url === pathToFileURLString(process.argv[1])) {
   })
 }
 
-function pathToFileURLString(p: string | undefined): string {
+export function pathToFileURLString(p: string | undefined): string {
   if (!p) {
     return ''
   }

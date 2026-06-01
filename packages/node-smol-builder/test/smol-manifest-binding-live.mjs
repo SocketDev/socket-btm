@@ -95,8 +95,8 @@ const FIXTURES = [
   const onDisk = readdirSync(FIXTURES_DIR, { withFileTypes: true })
     .filter(e => e.isDirectory())
     .map(e => e.name)
-    .sort()
-  const inTable = FIXTURES.map(f => f.dir).sort()
+    .toSorted()
+  const inTable = FIXTURES.map(f => f.dir).toSorted()
   if (JSON.stringify(onDisk) !== JSON.stringify(inTable)) {
     logger.fail('FIXTURE-TABLE-MISMATCH')
     logger.fail('  on disk:', onDisk)

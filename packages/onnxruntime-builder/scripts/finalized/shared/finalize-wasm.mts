@@ -40,7 +40,7 @@ export async function finalizeWasm(options) {
     outputWasmFile,
   } = options
 
-  logger.log('Copying final artifacts to out/Final...')
+  logger.log('Copying final artifacts to out/Final…')
   logger.logNewline()
 
   const syncWasmFile = path.join(outputSyncDir, 'ort.wasm')
@@ -49,7 +49,7 @@ export async function finalizeWasm(options) {
   const syncEsmFile = path.join(outputSyncDir, 'ort-sync.mjs')
 
   if (!existsSync(syncWasmFile)) {
-    logger.log('Sync files not found, restoring from wasm-synced checkpoint...')
+    logger.log('Sync files not found, restoring from wasm-synced checkpoint…')
     const restored = await restoreCheckpoint(
       buildDir,
       '',

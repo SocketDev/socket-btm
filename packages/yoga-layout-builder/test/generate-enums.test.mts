@@ -55,8 +55,8 @@ describe('parseEnumHeader', () => {
       { name: 'None', value: 0 },
       { name: 'StretchFlexBasis', value: 1 },
       { name: 'AbsolutePercentAgainstInnerSize', value: 4 },
-      { name: 'All', value: 2147483647 },
-      { name: 'Classic', value: 2147483646 },
+      { name: 'All', value: 2_147_483_647 },
+      { name: 'Classic', value: 2_147_483_646 },
     ])
   })
 

@@ -193,7 +193,7 @@ export function uniqueSortedByVersion(rows: readonly SymbolRow[]): SymbolRow[] {
     seen.add(key)
     unique.push(row)
   }
-  return unique.sort((a, b) => {
+  return unique.toSorted((a, b) => {
     const cmp = compareTuples(a.tuple, b.tuple)
     return cmp !== 0 ? cmp : a.symbol.localeCompare(b.symbol)
   })

@@ -58,7 +58,7 @@ async function main() {
 
   const entries = Object.entries(j)
     .map(([k, v]) => ({ name: k.slice(1), chars: v.characters }))
-    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+    .toSorted((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
 
   const nameBuf: number[] = []
   const valBuf: number[] = []
@@ -85,7 +85,7 @@ async function main() {
     // a pool that crosses 65 535 bytes would silently truncate and corrupt
     // every later entity lookup at runtime. Fail loud at codegen instead so
     // a future WHATWG bump can trigger an intentional struct widening.
-    if (nameOff > 0xffff || valOff > 0xffff) {
+    if (nameOff > 0xff_ff || valOff > 0xff_ff) {
       throw new Error(
         `entity pool exceeds uint16_t range (nameOff=${nameOff}, valOff=${valOff}); widen EntityMeta offsets to uint32_t`,
       )

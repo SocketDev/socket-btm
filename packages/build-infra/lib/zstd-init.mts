@@ -45,7 +45,7 @@ export async function ensureZstd({ packageDir }) {
     )
   }
 
-  logger.info('Initializing zstd submodule...')
+  logger.info('Initializing zstd submodule…')
   logger.log(
     'Running: git submodule update --init packages/bin-infra/upstream/zstd',
   )

@@ -127,7 +127,7 @@ export async function buildBinSuitePackage(config) {
     logger.error('')
 
     // Check required build tools
-    logger.info('Checking required build tools...')
+    logger.info('Checking required build tools…')
     await runCommand(
       'node',
       [path.join(packageDir, 'scripts', 'check-tools.mts')],
@@ -175,7 +175,7 @@ export async function buildBinSuitePackage(config) {
 
     // Clean stale object files to avoid issues with renamed source files
     if (!skipClean) {
-      logger.info('Cleaning stale build artifacts...')
+      logger.info('Cleaning stale build artifacts…')
       await runMake(['-f', makefile, 'clean'])
       logger.info('')
     }

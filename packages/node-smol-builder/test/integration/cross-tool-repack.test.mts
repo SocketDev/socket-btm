@@ -131,7 +131,7 @@ describe.skipIf(!allBinariesExist)('cross-tool repacking', () => {
     it('should preserve SEA and VFS after binpress update', async () => {
       // Step 1: Compress Node.js binary
       const compressed1 = path.join(testDir, 'batch_repack_1')
-      logger.log('  Step 1: Initial compression...')
+      logger.log('  Step 1: Initial compression…')
 
       const compress1 = await execCommand(
         BINPRESS,
@@ -169,7 +169,7 @@ describe.skipIf(!allBinariesExist)('cross-tool repacking', () => {
       // binpress has no in-place "-u" flag; passing `<input> -o <output>`
       // recompresses, which is the same end state.
       const compressed2 = path.join(testDir, 'batch_repack_3')
-      logger.log('  Step 3: Recompressing with fresh pass...')
+      logger.log('  Step 3: Recompressing with fresh pass…')
 
       const update = await execCommand(
         BINPRESS,
@@ -181,7 +181,7 @@ describe.skipIf(!allBinariesExist)('cross-tool repacking', () => {
 
       // Step 4: Extract both SEA and VFS to verify they survived update
       const extractedSea = path.join(testDir, 'extracted.blob')
-      logger.log('  Step 4: Extracting SEA and VFS...')
+      logger.log('  Step 4: Extracting SEA and VFS…')
 
       const extractSea = await execCommand(BINJECT, [
         'extract',
@@ -217,7 +217,7 @@ describe.skipIf(!allBinariesExist)('cross-tool repacking', () => {
       expect(vfsContent).toBe('VFS_REPACK_TEST_DATA')
 
       // Step 5: Verify binary is still executable
-      logger.log('  Step 5: Verifying execution...')
+      logger.log('  Step 5: Verifying execution…')
       const exec = await execCommand(compressed2, ['--version'])
       expect(exec.code).toBe(0)
     }, 300_000)

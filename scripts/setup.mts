@@ -222,12 +222,12 @@ export async function setup(): Promise<void> {
   let allGood = true
 
   // Check prerequisites
-  log.step('Checking prerequisites...')
+  log.step('Checking prerequisites…')
   allGood = (await checkNodeVersion()) && allGood
   allGood = (await checkPnpmVersion()) && allGood
 
   // Check build toolchain
-  log.step('Checking build toolchain...')
+  log.step('Checking build toolchain…')
   const toolchainOk = await checkBuildToolchain()
   allGood = toolchainOk && allGood
 
@@ -242,7 +242,7 @@ export async function setup(): Promise<void> {
 
   // Install dependencies
   if (!quiet) {
-    log.step('Installing dependencies...')
+    log.step('Installing dependencies…')
     log.info('Run: pnpm install')
   }
 

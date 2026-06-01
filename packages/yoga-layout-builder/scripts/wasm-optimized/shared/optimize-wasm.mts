@@ -30,7 +30,7 @@ const logger = getDefaultLogger()
 export async function optimizeWasm(options) {
   const { buildDir, optimizedDir, releaseDir } = options
 
-  logger.log('Running wasm-opt for additional size reduction...')
+  logger.log('Running wasm-opt for additional size reduction…')
   logger.logNewline()
 
   await safeDelete(optimizedDir)
@@ -48,7 +48,7 @@ export async function optimizeWasm(options) {
 
   const sizeBeforeOpt = await getFileSize(inputWasmFile)
   logger.substep(`Size before optimization: ${sizeBeforeOpt}`)
-  logger.log('Running wasm-opt...')
+  logger.log('Running wasm-opt…')
 
   // MAXIMUM AGGRESSIVE FLAGS.
   // NO BACKWARDS COMPATIBILITY - Modern runtimes only (Node.js 25+)!

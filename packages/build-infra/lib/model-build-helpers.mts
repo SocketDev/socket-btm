@@ -96,7 +96,7 @@ export async function checkModelBuildPrerequisites(options) {
 
   // Ensure required Python packages are installed.
   if (!quiet) {
-    logger.substep('Checking Python packages...')
+    logger.substep('Checking Python packages…')
   }
 
   const packagesResult = await ensureAllPythonPackages(pythonPackages, {

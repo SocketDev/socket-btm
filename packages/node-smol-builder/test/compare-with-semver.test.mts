@@ -282,7 +282,7 @@ describe('Comparison with semver gold standard', () => {
     const versions = ['2.0.0', '1.0.0', '1.5.0', '1.0.0-alpha', '3.0.0']
 
     it('should sort versions identically to semver', () => {
-      const semverSorted = semver.sort([...versions])
+      const semverSorted = semver.toSorted([...versions])
       const ourSorted = sort([...versions])
       expect(ourSorted).toEqual(semverSorted)
     })

@@ -66,7 +66,7 @@ export function mergeRanges(input: Range[]): Range[] {
   if (input.length === 0) {
     return []
   }
-  const sorted = [...input].sort((a, b) => a[0] - b[0])
+  const sorted = [...input].toSorted((a, b) => a[0] - b[0])
   const merged: Range[] = [sorted[0]]
   for (let i = 1, { length } = sorted; i < length; i += 1) {
     const [lo, hi] = sorted[i]
@@ -144,19 +144,19 @@ async function main() {
   // This is the "covers 95% of zero-width in practice" set. The full
   // DerivedGeneralCategory pass is a future tightening.
   const zeroWidth: Range[] = mergeRanges([
-    [0x0000, 0x001f],
-    [0x007f, 0x009f],
-    [0x00ad, 0x00ad],
-    [0x0300, 0x036f],
-    [0x061c, 0x061c],
-    [0x180e, 0x180e],
-    [0x200b, 0x200f],
-    [0x202a, 0x202e],
-    [0x2060, 0x206f],
-    [0xfe00, 0xfe0f],
-    [0xfff9, 0xfffb],
-    [0xe0000, 0xe007f],
-    [0xe0100, 0xe01ef],
+    [0x00_00, 0x00_1f],
+    [0x00_7f, 0x00_9f],
+    [0x00_ad, 0x00_ad],
+    [0x03_00, 0x03_6f],
+    [0x06_1c, 0x06_1c],
+    [0x18_0e, 0x18_0e],
+    [0x20_0b, 0x20_0f],
+    [0x20_2a, 0x20_2e],
+    [0x20_60, 0x20_6f],
+    [0xfe_00, 0xfe_0f],
+    [0xff_f9, 0xff_fb],
+    [0xe_00_00, 0xe_00_7f],
+    [0xe_01_00, 0xe_01_ef],
   ])
 
   const rangesToCpp = (ranges: Range[], name: string) => {

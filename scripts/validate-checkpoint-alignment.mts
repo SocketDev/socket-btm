@@ -48,7 +48,7 @@ export function isPastTense(checkpoint: CheckpointName): boolean {
  * Validate models package checkpoints
  */
 export function validateModels(): void {
-  logger.info('Validating models package checkpoints...')
+  logger.info('Validating models package checkpoints…')
 
   const scriptsDir = path.join(MONOREPO_ROOT, 'packages/models/scripts')
   if (!existsSync(scriptsDir)) {
@@ -89,7 +89,7 @@ export function validateModels(): void {
  * Validate node-smol-builder checkpoints
  */
 export function validateNodeSmol(): void {
-  logger.info('Validating node-smol-builder checkpoints...')
+  logger.info('Validating node-smol-builder checkpoints…')
 
   const scriptsDir = path.join(
     MONOREPO_ROOT,
@@ -130,7 +130,7 @@ export function validateNodeSmol(): void {
  * Validate onnxruntime-builder checkpoints
  */
 export function validateOnnxruntime(): void {
-  logger.info('Validating onnxruntime-builder checkpoints...')
+  logger.info('Validating onnxruntime-builder checkpoints…')
 
   const scriptsDir = path.join(
     MONOREPO_ROOT,
@@ -178,7 +178,7 @@ export function validateOnnxruntime(): void {
  * Validate yoga-layout-builder checkpoints
  */
 export function validateYoga(): void {
-  logger.info('Validating yoga-layout-builder checkpoints...')
+  logger.info('Validating yoga-layout-builder checkpoints…')
 
   const scriptsDir = path.join(
     MONOREPO_ROOT,
@@ -224,7 +224,7 @@ export function validateYoga(): void {
 }
 
 // Run all validations.
-logger.info('Validating checkpoint alignment...')
+logger.info('Validating checkpoint alignment…')
 logger.error('')
 
 validateNodeSmol()

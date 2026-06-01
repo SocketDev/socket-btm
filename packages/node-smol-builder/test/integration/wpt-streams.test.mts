@@ -38,7 +38,7 @@ const skipTests = !finalBinary
 
 // Match the runner's own per-file timeout × estimated file count, with
 // headroom. 73 files × 30s = ~37 min in the worst case; budget 45 min.
-const WPT_TIMEOUT_MS = 45 * 60 * 1_000
+const WPT_TIMEOUT_MS = 45 * 60 * 1000
 
 describe.skipIf(skipTests)('WPT streams conformance', () => {
   it(

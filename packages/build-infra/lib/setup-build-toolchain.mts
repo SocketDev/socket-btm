@@ -137,7 +137,7 @@ export async function runSetupToolchain(options) {
 export async function setupDarwin(config, packageRoot, logger) {
   const tools = config.darwin || ['clang', 'make']
 
-  logger.log('Installing macOS build dependencies...')
+  logger.log('Installing macOS build dependencies…')
 
   const { failed, installed } = await installTools(tools, {
     packageRoot,
@@ -168,7 +168,7 @@ export async function setupDarwin(config, packageRoot, logger) {
 export async function setupLinux(config, packageRoot, logger) {
   const tools = config.linux || ['gcc', 'make']
 
-  logger.log('Installing Linux build dependencies...')
+  logger.log('Installing Linux build dependencies…')
   updatePackageCache()
 
   const { failed, installed } = await installTools(tools, {
@@ -196,7 +196,7 @@ export async function setupLinux(config, packageRoot, logger) {
 export async function setupWindows(config, packageRoot, logger) {
   const tools = config.win32 || ['mingw-w64', 'make']
 
-  logger.log('Installing Windows build dependencies...')
+  logger.log('Installing Windows build dependencies…')
 
   const { failed, installed } = await installTools(tools, {
     packageRoot,

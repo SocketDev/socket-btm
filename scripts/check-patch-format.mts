@@ -108,7 +108,7 @@ export function collectMultiplePatchesPerFileViolations(
   }
   const files = readdirSync(dir)
     .filter(f => f.endsWith('.patch'))
-    .sort(naturalCompare)
+    .toSorted(naturalCompare)
   // Map from touched-source-file path → list of patch filenames that
   // modify it. We read each patch, parse its `--- a/<file>` markers,
   // and accumulate.
@@ -620,7 +620,7 @@ async function main(): Promise<void> {
   const allowSet = new Set(allowlist.map(e => `${e.file}|${e.rule}`))
 
   if (!opts.quiet && !opts.json) {
-    logger.info('Validating patch format...')
+    logger.info('Validating patch format…')
   }
 
   const allViolations: Violation[] = []
@@ -635,7 +635,7 @@ async function main(): Promise<void> {
     try {
       files = readdirSync(absRoot)
         .filter(f => f.endsWith('.patch'))
-        .sort(naturalCompare)
+        .toSorted(naturalCompare)
     } catch {
       continue
     }

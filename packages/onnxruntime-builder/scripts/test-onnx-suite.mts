@@ -95,8 +95,8 @@ async function main() {
   logger.log('')
 
   // Ensure CMake is installed.
-  logger.step('Checking build dependencies...')
-  logger.substep('Checking for CMake...')
+  logger.step('Checking build dependencies…')
+  logger.substep('Checking for CMake…')
 
   const cmakeResult = await ensureToolInstalled('cmake', { autoInstall: true })
 
@@ -117,7 +117,7 @@ async function main() {
   // Build and run tests using CMake/CTest.
   const buildDir = path.join(onnxSourcePath, 'build-test')
 
-  logger.step('Configuring ONNX Runtime tests with CMake...')
+  logger.step('Configuring ONNX Runtime tests with CMake…')
 
   const cmakeArgs = [
     '-S',
@@ -146,7 +146,7 @@ async function main() {
   logger.success('CMake configuration complete')
   logger.log('')
 
-  logger.step('Building ONNX Runtime tests...')
+  logger.step('Building ONNX Runtime tests…')
 
   const buildArgs = [
     '--build',
@@ -174,7 +174,7 @@ async function main() {
   logger.success('Build complete')
   logger.log('')
 
-  logger.step('Running ONNX Runtime tests with CTest...')
+  logger.step('Running ONNX Runtime tests with CTest…')
   logger.log('')
 
   // Run tests using CTest.

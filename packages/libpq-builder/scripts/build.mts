@@ -173,7 +173,7 @@ export async function downloadLibpq(options = {}) {
 
   // Extract archive to the same directory as the downloaded archive
   const extractDir = path.dirname(downloadedArchive)
-  logger.info('Extracting libpq archive...')
+  logger.info('Extracting libpq archive…')
 
   // Verify archive exists before extraction.
   if (!existsSync(downloadedArchive)) {
@@ -210,7 +210,7 @@ export async function downloadLibpq(options = {}) {
   }
 
   // Verify SHA256 checksum to detect corrupt/truncated downloads.
-  logger.info('Verifying archive checksum...')
+  logger.info('Verifying archive checksum…')
   const checksumResult = await verifyArchiveChecksum(
     downloadedArchive,
     assetName,
@@ -314,7 +314,7 @@ export async function ensureLibpq(options = {}) {
   }
 
   // 3. Download libpq.
-  logger.info('libpq not found locally, downloading...')
+  logger.info('libpq not found locally, downloading…')
   return await downloadLibpq({ force, platformArch: resolvedPlatformArch })
 }
 
@@ -464,7 +464,7 @@ export function getOpenSSLPaths() {
  */
 // oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export async function buildLibpq(libpqBuildDir) {
-  logger.info('Building libpq from PostgreSQL source...')
+  logger.info('Building libpq from PostgreSQL source…')
 
   // Check if PostgreSQL upstream exists.
   if (!existsSync(postgresUpstream)) {
@@ -492,7 +492,7 @@ export async function buildLibpq(libpqBuildDir) {
 
   // Configure PostgreSQL for client-only build.
   // PostgreSQL uses autotools (configure), not CMake.
-  logger.info('Configuring PostgreSQL for libpq-only build...')
+  logger.info('Configuring PostgreSQL for libpq-only build…')
 
   const configureArgs = [
     // Only build client libraries (libpq)
@@ -551,7 +551,7 @@ export async function buildLibpq(libpqBuildDir) {
   // PostgreSQL Makefile supports building specific subdirectories
   const cpuCount = os.cpus().length
   const jobCount = Math.max(1, Math.floor(cpuCount * 0.9))
-  logger.info(`Building libpq with ${jobCount} parallel jobs...`)
+  logger.info(`Building libpq with ${jobCount} parallel jobs…`)
 
   const buildStart = Date.now()
 
@@ -739,13 +739,13 @@ async function main() {
       )
     }
 
-    logger.info('Building libpq PostgreSQL client library...')
+    logger.info('Building libpq PostgreSQL client library…')
     logger.error('')
 
     // Ensure PostgreSQL submodule is initialized.
     const postgresConfigure = path.join(postgresUpstream, 'configure')
     if (!existsSync(postgresConfigure)) {
-      logger.info('PostgreSQL submodule not initialized, initializing...')
+      logger.info('PostgreSQL submodule not initialized, initializing…')
       const initResult = await spawn(
         'git',
         [

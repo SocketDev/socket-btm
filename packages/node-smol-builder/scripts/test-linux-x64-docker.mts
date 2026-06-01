@@ -73,7 +73,7 @@ logger.info(`Using Dockerfile: ${dockerfile}`)
  * Build in Docker and extract artifacts.
  */
 export async function buildInDocker() {
-  logger.info('Building node-smol in Docker...')
+  logger.info('Building node-smol in Docker…')
 
   const buildArgs = [
     '--build-arg',
@@ -118,7 +118,7 @@ export async function buildInDocker() {
  * Run integration tests.
  */
 export async function runTests() {
-  logger.info('Running linux-x64 Docker integration tests...')
+  logger.info('Running linux-x64 Docker integration tests…')
 
   // Check if binary exists
   const binaryPath = path.join(
@@ -168,7 +168,7 @@ async function main() {
       await buildInDocker()
     } else {
       logger.warn('Skipping build on non-Linux platform without Docker')
-      logger.info('Checking if binary exists from previous build...')
+      logger.info('Checking if binary exists from previous build…')
     }
 
     await runTests()

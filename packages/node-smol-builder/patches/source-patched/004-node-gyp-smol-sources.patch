@@ -100,7 +100,7 @@
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
          ['node_with_ltcg=="true"', {
            'msvs_settings': {
-@@ -1057,12 +1097,384 @@
+@@ -1057,12 +1097,394 @@
              'deps/ncrypto/ncrypto.gyp:ncrypto',
            ],
          }],
@@ -251,11 +251,13 @@
 +            # The bundle feature detector emits --without-smol-* to drop
 +            # whatever a given SEA bundle does not reference.
 +            ['node_use_smol_http=="true"', {
++              'defines': [ 'HAVE_SMOL_HTTP=1' ],
 +              'sources': [
 +                'src/socketsecurity/http/uws_server.cc',
 +              ],
 +            }],
 +            ['node_use_smol_ilp=="true"', {
++              'defines': [ 'HAVE_SMOL_ILP=1' ],
 +              'sources': [
 +                'src/socketsecurity/ilp/ilp_encoder.cc',
 +                'src/socketsecurity/ilp/ilp_transport.cc',
@@ -263,17 +265,20 @@
 +              ],
 +            }],
 +            ['node_use_smol_ffi=="true"', {
++              'defines': [ 'HAVE_SMOL_FFI=1' ],
 +              'sources': [
 +                'src/socketsecurity/ffi/binding.cc',
 +                'src/socketsecurity/ffi/trampoline.cc',
 +              ],
 +            }],
 +            ['node_use_smol_keymap=="true"', {
++              'defines': [ 'HAVE_SMOL_KEYMAP=1' ],
 +              'sources': [
 +                'src/socketsecurity/keymap/keymap_binding.cc',
 +              ],
 +            }],
 +            ['node_use_smol_qrcode=="true"', {
++              'defines': [ 'HAVE_SMOL_QRCODE=1' ],
 +              'sources': [
 +                'src/socketsecurity/deps/qrcode/qrcode_binding.cc',
 +                'src/socketsecurity/deps/qrcode/upstream/libqrencode/bitstream.c',
@@ -288,6 +293,7 @@
 +              ],
 +            }],
 +            ['node_use_smol_markdown=="true"', {
++              'defines': [ 'HAVE_SMOL_MARKDOWN=1' ],
 +              'sources': [
 +                'src/socketsecurity/deps/markdown/markdown_binding.cc',
 +                'src/socketsecurity/deps/markdown/upstream/md4c.c',
@@ -295,12 +301,14 @@
 +              ],
 +            }],
 +            ['node_use_smol_treesitter=="true"', {
++              'defines': [ 'HAVE_SMOL_TREE_SITTER=1' ],
 +              'sources': [
 +                'src/socketsecurity/deps/tree_sitter/tree_sitter_binding.cc',
 +                'src/socketsecurity/deps/tree_sitter/upstream/tree-sitter/src/lib.c',
 +              ],
 +            }],
 +            ['node_use_smol_tui=="true"', {
++              'defines': [ 'HAVE_SMOL_TUI=1' ],
 +              'sources': [
 +                'src/socketsecurity/tui/ansi.cc',
 +                'src/socketsecurity/tui/buffer.cc',
@@ -316,6 +324,7 @@
 +              ],
 +            }],
 +            ['node_use_smol_quic=="true"', {
++              'defines': [ 'HAVE_SMOL_QUIC=1' ],
 +              'sources': [
 +                'src/socketsecurity/quic/quic_binding.cc',
 +                'src/socketsecurity/quic/quic_stream_binding.cc',
@@ -327,6 +336,7 @@
 +              ],
 +            }],
 +            ['node_use_smol_http3=="true"', {
++              'defines': [ 'HAVE_SMOL_HTTP3=1' ],
 +              'sources': [
 +                'src/socketsecurity/quic/quic_http3_binding.cc',
 +              ],
@@ -486,7 +496,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1081,7 +1493,7 @@
+@@ -1081,7 +1503,7 @@
              }],
            ],
          }],
@@ -495,7 +505,7 @@
            'sources': [
              '<@(node_quic_sources)',
            ],
-@@ -1403,7 +1815,7 @@
+@@ -1403,7 +1825,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -504,7 +514,7 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1447,6 +1859,17 @@
+@@ -1447,6 +1869,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -522,7 +532,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1521,6 +1944,17 @@
+@@ -1521,6 +1954,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -540,7 +550,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1744,6 +2178,17 @@
+@@ -1744,6 +2188,17 @@
              'Ws2_32.lib',
            ],
          }],

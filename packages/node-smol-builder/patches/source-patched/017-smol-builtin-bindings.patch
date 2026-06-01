@@ -10,7 +10,7 @@
 #
 --- a/src/node_binding.cc
 +++ b/src/node_binding.cc
-@@ -94,7 +94,8 @@
+@@ -94,12 +94,78 @@
    V(util)                                                                      \
    V(uv)                                                                        \
    V(v8)                                                                        \
@@ -20,25 +20,87 @@
    V(wasm_web_api)                                                              \
    V(watchdog)                                                                  \
    V(worker)                                                                    \
-@@ -108,7 +109,24 @@
+   V(zlib)
+ 
++// Socket Security: optional smol bindings, each gated on its HAVE_SMOL_*
++// compile-time define (emitted by node.gyp when the matching node_use_smol_*
++// configure flag is on; patches 004 + 018). When a feature is trimmed out, its
++// V(smol_X) entry vanishes so RegisterBuiltinBindings doesn't reference the
++// register_smol_X() symbol that was excluded from the build — mirrors how
++// upstream gates NODE_BUILTIN_{QUIC,SQLITE,FFI}_BINDINGS. Always-on smol
++// bindings (vfs/util/primordial/power/manifest/versions/webgpu/webstreams) stay
++// listed unconditionally in NODE_BUILTIN_BINDINGS below.
++#define NODE_BUILTIN_SMOL_OPTIONAL_BINDINGS(V)                                 \
++  NODE_SMOL_FFI_BINDING(V)                                                     \
++  NODE_SMOL_HTTP_BINDING(V)                                                    \
++  NODE_SMOL_ILP_BINDING(V)                                                     \
++  NODE_SMOL_KEYMAP_BINDING(V)                                                  \
++  NODE_SMOL_MARKDOWN_BINDING(V)                                                \
++  NODE_SMOL_QRCODE_BINDING(V)                                                  \
++  NODE_SMOL_QUIC_BINDING(V)                                                    \
++  NODE_SMOL_TREE_SITTER_BINDING(V)                                             \
++  NODE_SMOL_TUI_BINDING(V)
++
++#if defined(HAVE_SMOL_FFI)
++#define NODE_SMOL_FFI_BINDING(V) V(smol_ffi)
++#else
++#define NODE_SMOL_FFI_BINDING(V)
++#endif
++#if defined(HAVE_SMOL_HTTP)
++#define NODE_SMOL_HTTP_BINDING(V) V(smol_http)
++#else
++#define NODE_SMOL_HTTP_BINDING(V)
++#endif
++#if defined(HAVE_SMOL_ILP)
++#define NODE_SMOL_ILP_BINDING(V) V(smol_ilp)
++#else
++#define NODE_SMOL_ILP_BINDING(V)
++#endif
++#if defined(HAVE_SMOL_KEYMAP)
++#define NODE_SMOL_KEYMAP_BINDING(V) V(smol_keymap)
++#else
++#define NODE_SMOL_KEYMAP_BINDING(V)
++#endif
++#if defined(HAVE_SMOL_MARKDOWN)
++#define NODE_SMOL_MARKDOWN_BINDING(V) V(smol_markdown)
++#else
++#define NODE_SMOL_MARKDOWN_BINDING(V)
++#endif
++#if defined(HAVE_SMOL_QRCODE)
++#define NODE_SMOL_QRCODE_BINDING(V) V(smol_qrcode)
++#else
++#define NODE_SMOL_QRCODE_BINDING(V)
++#endif
++#if defined(HAVE_SMOL_QUIC)
++#define NODE_SMOL_QUIC_BINDING(V) V(smol_quic)
++#else
++#define NODE_SMOL_QUIC_BINDING(V)
++#endif
++#if defined(HAVE_SMOL_TREE_SITTER)
++#define NODE_SMOL_TREE_SITTER_BINDING(V) V(smol_tree_sitter)
++#else
++#define NODE_SMOL_TREE_SITTER_BINDING(V)
++#endif
++#if defined(HAVE_SMOL_TUI)
++#define NODE_SMOL_TUI_BINDING(V) V(smol_tui)
++#else
++#define NODE_SMOL_TUI_BINDING(V)
++#endif
++
+ #define NODE_BUILTIN_BINDINGS(V)                                               \
+   NODE_BUILTIN_STANDARD_BINDINGS(V)                                            \
+   NODE_BUILTIN_OPENSSL_BINDINGS(V)                                             \
+@@ -108,7 +174,16 @@
    NODE_BUILTIN_DEBUG_BINDINGS(V)                                               \
    NODE_BUILTIN_QUIC_BINDINGS(V)                                                \
    NODE_BUILTIN_SQLITE_BINDINGS(V)                                              \
 -  NODE_BUILTIN_FFI_BINDINGS(V)
 +  NODE_BUILTIN_POSTGRES_BINDINGS(V)                                            \
 +  NODE_BUILTIN_FFI_BINDINGS(V)                                                 \
-+  V(smol_ffi)                                                                  \
-+  V(smol_http)                                                                 \
-+  V(smol_ilp)                                                                  \
-+  V(smol_keymap)                                                               \
++  NODE_BUILTIN_SMOL_OPTIONAL_BINDINGS(V)                                       \
 +  V(smol_manifest_native)                                                      \
-+  V(smol_markdown)                                                             \
 +  V(smol_power)                                                                \
 +  V(smol_primordial)                                                           \
-+  V(smol_qrcode)                                                               \
-+  V(smol_quic)                                                                 \
-+  V(smol_tree_sitter)                                                          \
-+  V(smol_tui)                                                                  \
 +  V(smol_util)                                                                 \
 +  V(smol_versions_native)                                                      \
 +  V(smol_webgpu)                                                               \

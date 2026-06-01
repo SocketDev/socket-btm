@@ -839,6 +839,9 @@ jobs:
             packages/binject/upstream/libdeflate
             packages/node-smol-builder/upstream/uSockets
             packages/node-smol-builder/upstream/uWebSockets
+            packages/node-smol-builder/upstream/md4c
+            packages/node-smol-builder/upstream/tree-sitter
+            packages/node-smol-builder/upstream/libqrencode
             packages/lsquic-infra/upstream/lsquic
             packages/lsquic-infra/upstream/ls-qpack
             packages/yoga-layout-builder/upstream/yoga

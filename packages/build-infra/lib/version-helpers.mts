@@ -434,7 +434,15 @@ export async function fetchNodeChecksum(
 
   let checksums
   try {
-    checksums = await fetchChecksums(url, { timeout })
+    // Force an uncompressed response. nodejs.org serves SHASUMS256.txt with
+    // zstd content-encoding, which httpText/fetchChecksums does not decode —
+    // the parser then sees binary garbage and returns zero entries, so the
+    // real `node-vX.Y.Z.tar.gz` line is reported "not found". Requesting
+    // `identity` makes the body plain text the GNU-style parser can read.
+    checksums = await fetchChecksums(url, {
+      headers: { 'accept-encoding': 'identity' },
+      timeout,
+    })
   } catch (e) {
     return {
       __proto__: null,

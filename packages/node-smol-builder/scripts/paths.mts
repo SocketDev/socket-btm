@@ -10,7 +10,7 @@
  * Use getExistingPaths() to filter to only existing directories when needed.
  */
 
-export * from '../../../scripts/paths.mts'
+export * from '../../../scripts/fleet/paths.mts'
 
 import { existsSync } from 'node:fs'
 import path from 'node:path'

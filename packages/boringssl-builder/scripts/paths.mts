@@ -2,7 +2,7 @@
  * Centralized path resolution for boringssl-builder.
  */
 
-export * from '../../../scripts/paths.mts'
+export * from '../../../scripts/fleet/paths.mts'
 
 import path from 'node:path'
 import process from 'node:process'

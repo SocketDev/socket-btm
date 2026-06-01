@@ -13,7 +13,7 @@
 // Inherit canonical roots (REPO_ROOT, CONFIG_DIR, NODE_MODULES_CACHE_DIR,
 // etc.) from the repo-root paths module per fleet rule
 // `paths-mts-inherit-guard`.
-export * from '../../../scripts/paths.mts'
+export * from '../../../scripts/fleet/paths.mts'
 
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

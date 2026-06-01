@@ -58,7 +58,7 @@ jobs:
       PLATFORM_ARCH: linux-x64
 
     steps:
-      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@d041120a8bc80bb6dd67e67eb6f64007f74eb60f # main (2026-06-01)
+      - uses: SocketDev/socket-registry/.github/actions/setup-and-install@f58e7ae37e486876c326366668e1b2a90ce193c3 # main (2026-06-01)
       - name: Enable debug logging
         uses: ./.github/actions/enable-debug-logging
         with:

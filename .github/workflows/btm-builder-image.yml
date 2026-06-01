@@ -71,7 +71,7 @@ jobs:
         env:
           # SHA-pinned read of socket-registry/external-tools.json. Bumped
           # in lockstep with the setup-and-install action pin (c291a141).
-          REGISTRY_SHA: d041120a8bc80bb6dd67e67eb6f64007f74eb60f
+          REGISTRY_SHA: f58e7ae37e486876c326366668e1b2a90ce193c3
         run: |
           mkdir -p .build-context
           curl -fsSL \

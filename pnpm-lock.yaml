@@ -177,12 +177,6 @@ importers:
         specifier: 'catalog:'
         version: 24.9.2
 
-  .claude/hooks/fleet/c8-ignore-reason-guard:
-    devDependencies:
-      '@types/node':
-        specifier: 'catalog:'
-        version: 24.9.2
-
   .claude/hooks/fleet/catch-message-guard:
     devDependencies:
       '@types/node':
@@ -228,6 +222,12 @@ importers:
         version: 24.9.2
 
   .claude/hooks/fleet/codex-no-write-guard:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
+  .claude/hooks/fleet/comment-tone-reminder:
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -352,6 +352,12 @@ importers:
         version: 24.9.2
 
   .claude/hooks/fleet/gitmodules-comment-guard: {}
+
+  .claude/hooks/fleet/identifying-users-reminder:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
 
   .claude/hooks/fleet/immutable-release-pattern-guard:
     devDependencies:
@@ -576,6 +582,12 @@ importers:
         specifier: 'catalog:'
         version: 24.9.2
 
+  .claude/hooks/fleet/perfectionist-reminder:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.9.2
+
   .claude/hooks/fleet/plan-location-guard:
     dependencies:
       '@socketsecurity/lib-stable':
@@ -626,12 +638,6 @@ importers:
         specifier: 'catalog:'
         version: 24.9.2
 
-  .claude/hooks/fleet/prefer-pipx-over-pip-guard:
-    devDependencies:
-      '@types/node':
-        specifier: 'catalog:'
-        version: 24.9.2
-
   .claude/hooks/fleet/prefer-rebase-over-revert-guard:
     devDependencies:
       '@types/node':
@@ -639,24 +645,6 @@ importers:
         version: 24.9.2
 
   .claude/hooks/fleet/private-name-guard:
-    devDependencies:
-      '@types/node':
-        specifier: 'catalog:'
-        version: 24.9.2
-
-  .claude/hooks/fleet/programmatic-claude-lockdown-guard:
-    devDependencies:
-      '@types/node':
-        specifier: 'catalog:'
-        version: 24.9.2
-
-  .claude/hooks/fleet/prose-antipattern-reminder:
-    devDependencies:
-      '@types/node':
-        specifier: 'catalog:'
-        version: 24.9.2
-
-  .claude/hooks/fleet/prose-tone-reminder:
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -758,12 +746,6 @@ importers:
         version: '@socketsecurity/lib@6.0.5'
 
   .claude/hooks/fleet/setup-signing:
-    devDependencies:
-      '@types/node':
-        specifier: 'catalog:'
-        version: 24.9.2
-
-  .claude/hooks/fleet/skill-usage-logger:
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

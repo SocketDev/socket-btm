@@ -25,12 +25,21 @@
 
 import { existsSync } from 'node:fs'
 import path from 'node:path'
+import process from 'node:process'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { readStdin } from '../_shared/transcript.mts'
 
-import { withEditGuard } from '../_shared/payload.mts'
-
-const logger = getDefaultLogger()
+interface ToolInput {
+  readonly tool_name?: string | undefined
+  readonly tool_input?:
+    | {
+        readonly file_path?: string | undefined
+        readonly new_string?: string | undefined
+        readonly old_string?: string | undefined
+      }
+    | undefined
+  readonly cwd?: string | undefined
+}
 
 // Dirs that signal "this repo has consumers outside the repo root."
 // Match the same set as the untracked-by-default rule.
@@ -119,31 +128,47 @@ export function findRepoRoot(
   return cwd ?? path.dirname(filePath)
 }
 
-// withEditGuard handles the stdin drain, tool_name gate, file_path narrow,
-// and fail-open on any throw. Reminder-only: it logs and returns without
-// setting an exit code, so the Edit always proceeds.
-await withEditGuard((filePath, _content, payload) => {
-  // Only fires on Edit — Write is "create new file" semantically,
-  // not "delete things."
+async function main(): Promise<void> {
+  let raw: string
+  try {
+    raw = await readStdin()
+  } catch {
+    process.exit(0)
+  }
+  if (!raw) {
+    process.exit(0)
+  }
+  let payload: ToolInput
+  try {
+    payload = JSON.parse(raw) as ToolInput
+  } catch {
+    process.exit(0)
+  }
   if (payload.tool_name !== 'Edit') {
-    return
+    // Only fires on Edit — Write is "create new file" semantically,
+    // not "delete things."
+    process.exit(0)
   }
   const input = payload.tool_input
-  const oldStr = typeof input?.old_string === 'string' ? input.old_string : ''
-  const newStr = typeof input?.new_string === 'string' ? input.new_string : ''
+  const filePath = input?.file_path
+  if (!filePath) {
+    process.exit(0)
+  }
+  const oldStr = input?.old_string ?? ''
+  const newStr = input?.new_string ?? ''
   if (!oldStr || oldStr === newStr) {
-    return
+    process.exit(0)
   }
 
   const removed = findRemovedTokens(oldStr, newStr)
   if (removed.size === 0) {
-    return
+    process.exit(0)
   }
 
   const repoRoot = findRepoRoot(filePath, payload.cwd)
   const dirs = findConsumerDirs(repoRoot)
   if (dirs.length === 0) {
-    return
+    process.exit(0)
   }
 
   const lines: string[] = []
@@ -184,5 +209,12 @@ await withEditGuard((filePath, _content, payload) => {
   lines.push('  Reminder-only; not a block.')
   lines.push('')
 
-  logger.error(lines.join('\n'))
+  process.stderr.write(lines.join('\n'))
+  process.exit(0)
+}
+
+main().catch(e => {
+  process.stderr.write(
+    `[consumer-grep-reminder] hook error (allowing): ${(e as Error).message}\n`,
+  )
 })

@@ -31,16 +31,18 @@
 
 import process from 'node:process'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { isFleetRepo, slugFromRemoteUrl } from '../_shared/fleet-repos.mts'
 import { extractGitCwd } from '../_shared/git-cwd.mts'
-import { withBashGuard } from '../_shared/payload.mts'
 import { findInvocation } from '../_shared/shell-command.mts'
-import { bypassPhrasePresent } from '../_shared/transcript.mts'
+import { bypassPhrasePresent, readStdin } from '../_shared/transcript.mts'
 
-const logger = getDefaultLogger()
+interface ToolInput {
+  readonly tool_name?: string | undefined
+  readonly tool_input?: { readonly command?: string | undefined } | undefined
+  readonly transcript_path?: string | undefined
+}
 
 const BYPASS_PHRASE = 'Allow non-fleet-push bypass'
 
@@ -60,16 +62,38 @@ export function originSlug(dir: string): string | undefined {
   return slugFromRemoteUrl(out)
 }
 
-// withBashGuard handles the stdin drain, tool_name gate, command narrow,
-// and fail-open on any throw.
-await withBashGuard((command, payload) => {
+async function main(): Promise<void> {
+  let raw: string
+  try {
+    raw = await readStdin()
+  } catch {
+    process.exit(0)
+  }
+  if (!raw) {
+    process.exit(0)
+  }
+  let payload: ToolInput
+  try {
+    payload = JSON.parse(raw) as ToolInput
+  } catch {
+    process.exit(0)
+  }
+
+  if (payload.tool_name !== 'Bash') {
+    process.exit(0)
+  }
+  const command = payload.tool_input?.command
+  if (!command) {
+    process.exit(0)
+  }
+
   // Detect `git push` via the shell parser (not regex): it splits the
   // command line into segments, sees through `&&`/`|`/`;` chains and
   // `$(…)` substitution, and ignores `push` inside a quoted commit
   // message — so `git commit -m "git push later"` is correctly NOT a
   // push, while `cd /x && git push` and `git -C /x push` are.
   if (!findInvocation(command, { binary: 'git', subcommand: 'push' })) {
-    return
+    process.exit(0)
   }
 
   const dir = extractGitCwd(command)
@@ -77,20 +101,20 @@ await withBashGuard((command, payload) => {
 
   // Fail open: no resolvable origin slug → can't classify, allow.
   if (!slug) {
-    return
+    process.exit(0)
   }
   if (isFleetRepo(slug)) {
-    return
+    process.exit(0)
   }
 
   if (
     payload.transcript_path &&
     bypassPhrasePresent(payload.transcript_path, BYPASS_PHRASE)
   ) {
-    return
+    process.exit(0)
   }
 
-  logger.error(
+  process.stderr.write(
     [
       '[no-non-fleet-push-guard] Blocked: push to a non-fleet repository',
       '',
@@ -111,5 +135,11 @@ await withBashGuard((command, payload) => {
       '',
     ].join('\n'),
   )
-  process.exitCode = 2
+  process.exit(2)
+}
+
+main().catch(e => {
+  process.stderr.write(
+    `[no-non-fleet-push-guard] hook error (allowing): ${(e as Error).message}\n`,
+  )
 })

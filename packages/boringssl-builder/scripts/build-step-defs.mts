@@ -88,7 +88,7 @@ export const BUILD_STEPS: readonly BuildStep[] = [
     ],
   },
   {
-    label: 'cmake build crypto + ssl',
+    label: 'cmake build crypto + ssl + decrepit',
     cmd: 'cmake',
     args: [
       '--build',
@@ -100,6 +100,16 @@ export const BUILD_STEPS: readonly BuildStep[] = [
       'crypto',
       '--target',
       'ssl',
+      // BoringSSL's `crypto` cipher registry (crypto/cipher/get_cipher.cc
+      // kCiphers) references legacy ciphers — EVP_bf_{cbc,cfb,ecb},
+      // EVP_aes_{128,256}_cfb128 — whose implementations live in the separate
+      // `decrepit` library, not `crypto`. Without it, anything that links
+      // libcrypto.a (e.g. node-smol's node::crypto / ncrypto) fails with those
+      // 5 undefined symbols. decrepit inherits the global -DBORINGSSL_PREFIX so
+      // its symbols are smol_-prefixed to match. (Upstream links decrepit into
+      // crypto_test for the same reason.)
+      '--target',
+      'decrepit',
     ],
   },
 ]
@@ -120,6 +130,12 @@ export const PUBLISH_ARTIFACTS: readonly PublishArtifact[] = [
   {
     from: '$CMAKE_BUILD_DIR/libssl.a',
     to: `$OUT_LIB_DIR/lib${PREFIX}_ssl.a`,
+  },
+  {
+    // Legacy ciphers (Blowfish, CFB modes) that crypto's cipher registry
+    // references — see the build step comment above.
+    from: '$CMAKE_BUILD_DIR/libdecrepit.a',
+    to: `$OUT_LIB_DIR/lib${PREFIX}_decrepit.a`,
   },
 ]
 

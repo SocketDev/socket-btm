@@ -36,14 +36,10 @@
 
 import process from 'node:process'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
-
 import { findMemberCalls } from '../_shared/acorn/index.mts'
 import type { MemberCallSite } from '../_shared/acorn/index.mts'
 import { lineIsSuppressed } from '../_shared/markers.mts'
-import { withEditGuard } from '../_shared/payload.mts'
-
-const logger = getDefaultLogger()
+import { readStdin } from '../_shared/transcript.mts'
 
 const EXEMPT_PATH_PATTERNS: RegExp[] = [
   /\.claude\/hooks\//,
@@ -77,6 +73,17 @@ const FORBIDDEN_CALLS: Array<{
   { object: 'process.stdout', property: 'write', replacement: 'logger.info' },
 ]
 
+interface ToolInput {
+  tool_name?: string | undefined
+  tool_input?:
+    | {
+        file_path?: string | undefined
+        new_string?: string | undefined
+        content?: string | undefined
+      }
+    | undefined
+}
+
 export function emitBlock(filePath: string, hits: Hit[]): void {
   const out: string[] = []
   out.push('')
@@ -98,7 +105,7 @@ export function emitBlock(filePath: string, hits: Hit[]): void {
     '  Opt-out for one line (rare): append `// socket-hook: allow console`.',
   )
   out.push('')
-  logger.error(out.join('\n'))
+  process.stderr.write(out.join('\n'))
 }
 
 interface Hit {
@@ -157,13 +164,26 @@ export function scan(source: string): Hit[] {
   return hits
 }
 
-// withEditGuard handles the stdin drain, tool_name gate, file_path narrow,
-// content extraction, and fail-open on any throw.
-await withEditGuard((filePath, content) => {
+async function main(): Promise<void> {
+  const raw = await readStdin()
+  if (!raw) {
+    return
+  }
+  let payload: ToolInput
+  try {
+    payload = JSON.parse(raw) as ToolInput
+  } catch {
+    return
+  }
+  if (payload.tool_name !== 'Edit' && payload.tool_name !== 'Write') {
+    return
+  }
+  const filePath = payload.tool_input?.file_path ?? ''
   if (!isInScope(filePath)) {
     return
   }
-  const source = content ?? ''
+  const source =
+    payload.tool_input?.new_string ?? payload.tool_input?.content ?? ''
   if (!source) {
     return
   }
@@ -172,5 +192,14 @@ await withEditGuard((filePath, content) => {
     return
   }
   emitBlock(filePath, hits)
-  process.exitCode = 2
+  // Hard-exit on the block path so no later microtask / catch handler can
+  // reset the code. The .catch below fails open (exit 0) on a genuine
+  // hook error — that path must stay distinct from a real block.
+  process.exit(2)
+}
+
+main().catch(e => {
+  process.stderr.write(
+    `[logger-guard] hook error (continuing): ${(e as Error).message}\n`,
+  )
 })

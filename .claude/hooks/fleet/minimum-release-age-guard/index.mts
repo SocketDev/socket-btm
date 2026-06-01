@@ -26,12 +26,20 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
-import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { bypassPhrasePresent, readStdin } from '../_shared/transcript.mts'
 
-import { withEditGuard } from '../_shared/payload.mts'
-import { bypassPhrasePresent } from '../_shared/transcript.mts'
-
-const logger = getDefaultLogger()
+interface ToolInput {
+  readonly tool_name?: string | undefined
+  readonly tool_input?:
+    | {
+        readonly file_path?: string | undefined
+        readonly new_string?: string | undefined
+        readonly old_string?: string | undefined
+        readonly content?: string | undefined
+      }
+    | undefined
+  readonly transcript_path?: string | undefined
+}
 
 const BYPASS_PHRASE = 'Allow minimumReleaseAge bypass'
 
@@ -109,32 +117,59 @@ export function readFileSafe(p: string): string {
   }
 }
 
-// withEditGuard handles the stdin drain, tool_name gate, file_path narrow,
-// and fail-open on any throw.
-await withEditGuard((filePath, content, payload) => {
-  if (path.basename(filePath) !== 'pnpm-workspace.yaml') {
-    return
+async function main(): Promise<void> {
+  let raw: string
+  try {
+    raw = await readStdin()
+  } catch {
+    process.exit(0)
+  }
+  if (!raw) {
+    process.exit(0)
+  }
+  let payload: ToolInput
+  try {
+    payload = JSON.parse(raw) as ToolInput
+  } catch {
+    process.exit(0)
+  }
+
+  if (payload.tool_name !== 'Edit' && payload.tool_name !== 'Write') {
+    process.exit(0)
   }
   const input = payload.tool_input
+  const filePath = input?.file_path
+  if (!filePath || path.basename(filePath) !== 'pnpm-workspace.yaml') {
+    process.exit(0)
+  }
 
   const currentText = readFileSafe(filePath)
   let afterText: string
   if (payload.tool_name === 'Write') {
-    afterText = content ?? ''
+    afterText = input?.content ?? input?.new_string ?? ''
   } else {
-    const oldStr = typeof input?.old_string === 'string' ? input.old_string : ''
-    const newStr = typeof input?.new_string === 'string' ? input.new_string : ''
+    const oldStr = input?.old_string ?? ''
+    const newStr = input?.new_string ?? ''
     if (!oldStr) {
-      return
+      process.exit(0)
     }
     if (!currentText.includes(oldStr)) {
-      return
+      process.exit(0)
     }
     afterText = currentText.replace(oldStr, newStr)
   }
 
-  const beforeNames = extractExcludeNames(currentText)
-  const afterNames = extractExcludeNames(afterText)
+  let beforeNames: Set<string>
+  let afterNames: Set<string>
+  try {
+    beforeNames = extractExcludeNames(currentText)
+    afterNames = extractExcludeNames(afterText)
+  } catch (e) {
+    process.stderr.write(
+      `[minimum-release-age-guard] parse error (allowing): ${e}\n`,
+    )
+    process.exit(0)
+  }
 
   const added: string[] = []
   for (const name of afterNames) {
@@ -143,18 +178,18 @@ await withEditGuard((filePath, content, payload) => {
     }
   }
   if (added.length === 0) {
-    return
+    process.exit(0)
   }
 
   if (
     payload.transcript_path &&
     bypassPhrasePresent(payload.transcript_path, BYPASS_PHRASE)
   ) {
-    return
+    process.exit(0)
   }
 
   added.sort()
-  logger.error(
+  process.stderr.write(
     [
       '[minimum-release-age-guard] Blocked: minimumReleaseAge.exclude additions',
       '',
@@ -179,5 +214,11 @@ await withEditGuard((filePath, content, payload) => {
       '',
     ].join('\n'),
   )
-  process.exitCode = 2
+  process.exit(2)
+}
+
+main().catch(e => {
+  process.stderr.write(
+    `[minimum-release-age-guard] hook error (allowing): ${(e as Error).message}\n`,
+  )
 })

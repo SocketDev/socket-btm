@@ -1,5 +1,3 @@
-// node --test specs for the prose-antipattern-reminder hook.
-
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
@@ -8,8 +6,6 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { PROSE_PATTERNS } from '../patterns.mts'
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const HOOK_PATH = path.join(__dirname, '..', 'index.mts')
 
@@ -17,7 +13,7 @@ function makeTranscript(assistantText: string): {
   path: string
   cleanup: () => void
 } {
-  const dir = mkdtempSync(path.join(os.tmpdir(), 'prose-antipattern-'))
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'comment-tone-'))
   const transcriptPath = path.join(dir, 'session.jsonl')
   const lines = [
     JSON.stringify({ role: 'user', content: 'hi' }),
@@ -45,59 +41,45 @@ function runHook(transcriptPath: string): {
   }
 }
 
-test('flags an em-dash chain (2+ spans)', () => {
-  const { path: p, cleanup } = makeTranscript(
-    'We ship it now — the gate is green — and move on.',
-  )
+test('flags "first, we will" teacher-tone preamble', () => {
+  const { path: p, cleanup } = makeTranscript('First, we will parse the input.')
   try {
     const { stderr, exitCode } = runHook(p)
     assert.equal(exitCode, 0)
-    assert.match(stderr, /prose-antipattern-reminder/)
-    assert.match(stderr, /em-dash chain/)
+    assert.match(stderr, /comment-tone-reminder/)
+    assert.match(stderr, /first, we/)
   } finally {
     cleanup()
   }
 })
 
-test('flags a throat-clearing opener', () => {
+test('flags "note that" tutorial filler', () => {
   const { path: p, cleanup } = makeTranscript(
-    "Here's the thing about the cache layer.",
+    'Note that the parser caches results.',
   )
   try {
     const { stderr } = runHook(p)
-    assert.match(stderr, /throat-clearing opener/)
+    assert.match(stderr, /note that/)
   } finally {
     cleanup()
   }
 })
 
-test('flags a "not X, it\'s Y" contrast', () => {
+test('flags "in order to" wordiness', () => {
   const { path: p, cleanup } = makeTranscript(
-    "This is not slow, it's the network round-trip.",
+    'We use a cache in order to avoid recomputation.',
   )
   try {
     const { stderr } = runHook(p)
-    assert.match(stderr, /contrast/)
+    assert.match(stderr, /in order to/)
   } finally {
     cleanup()
   }
 })
 
-test('flags a hedging adverb', () => {
+test('does not flag plain prose', () => {
   const { path: p, cleanup } = makeTranscript(
-    'This is basically a thin wrapper around fetch.',
-  )
-  try {
-    const { stderr } = runHook(p)
-    assert.match(stderr, /hedging adverb/)
-  } finally {
-    cleanup()
-  }
-})
-
-test('does not flag clean prose', () => {
-  const { path: p, cleanup } = makeTranscript(
-    'The cache stores parsed results keyed by input path.',
+    'The cache stores parsed results keyed by input.',
   )
   try {
     const { stderr, exitCode } = runHook(p)
@@ -108,21 +90,9 @@ test('does not flag clean prose', () => {
   }
 })
 
-test('does not flag a single em-dash', () => {
+test('does not false-positive on phrases inside code fences', () => {
   const { path: p, cleanup } = makeTranscript(
-    'The gate is green — we can ship.',
-  )
-  try {
-    const { stderr } = runHook(p)
-    assert.equal(stderr, '')
-  } finally {
-    cleanup()
-  }
-})
-
-test('does not false-positive inside code fences', () => {
-  const { path: p, cleanup } = makeTranscript(
-    'Output below.\n```\nbasically just a stub — and another — chain\n```\nDone.',
+    'Plain output here.\n```\nnote that this is in code\n```\nMore prose.',
   )
   try {
     const { stderr } = runHook(p)
@@ -133,28 +103,15 @@ test('does not false-positive inside code fences', () => {
 })
 
 test('disabled env var short-circuits', () => {
-  const { path: p, cleanup } = makeTranscript('This is basically a wrapper.')
+  const { path: p, cleanup } = makeTranscript('Note that we should skip this.')
   try {
     const result = spawnSync('node', [HOOK_PATH], {
       input: JSON.stringify({ transcript_path: p }),
-      env: { ...process.env, SOCKET_PROSE_ANTIPATTERN_REMINDER_DISABLED: '1' },
+      env: { ...process.env, SOCKET_COMMENT_TONE_REMINDER_DISABLED: '1' },
     })
     assert.equal(result.status, 0)
     assert.equal(result.stderr, '')
   } finally {
     cleanup()
   }
-})
-
-test('exported patterns match their target shapes', () => {
-  const byLabel = new Map(PROSE_PATTERNS.map(p => [p.label, p.regex]))
-  assert.equal(byLabel.size, 4)
-  assert.match('a — b — c', byLabel.get('em-dash chain')!)
-  assert.doesNotMatch('a — b', byLabel.get('em-dash chain')!)
-  assert.match('Let me explain', byLabel.get('throat-clearing opener')!)
-  assert.match(
-    "not fast, it's slow",
-    byLabel.get('"not X, it\'s Y" contrast')!,
-  )
-  assert.match('essentially done', byLabel.get('hedging adverb')!)
 })

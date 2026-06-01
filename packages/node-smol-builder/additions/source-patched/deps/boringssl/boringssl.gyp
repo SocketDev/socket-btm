@@ -38,20 +38,31 @@
       # linker, so the .a files would be dropped and the smol_-prefixed symbols
       # would stay unresolved. link_settings is gyp's canonical channel for a
       # prebuilt lib to reach the executable's link line (same pattern as
-      # deps/crates/crates.gyp and deps/ngtcp2). smol_ssl is listed before
-      # smol_crypto: ssl references crypto symbols, and the linker resolves static
-      # archives left-to-right.
+      # deps/crates/crates.gyp and deps/ngtcp2).
+      #
+      # Order matters for order-strict linkers (GNU ld/gold on Linux): ssl needs
+      # crypto, and crypto+decrepit are MUTUALLY dependent — crypto's cipher
+      # registry (get_cipher.cc) references decrepit's EVP_bf_*/EVP_aes_*_cfb128,
+      # while decrepit uses crypto's EVP infrastructure. Listing crypto a second
+      # time after decrepit resolves the cycle without needing --start-group
+      # (repeating an archive is the portable way to satisfy a static circular
+      # dep). macOS ld64 resolves archives iteratively so order is forgiving
+      # there, but the repeat keeps the Linux link correct too.
       'link_settings': {
         'conditions': [
           ['OS=="win"', {
             'libraries': [
               '<(PRODUCT_DIR)/../../deps/boringssl/lib/smol_ssl.lib',
               '<(PRODUCT_DIR)/../../deps/boringssl/lib/smol_crypto.lib',
+              '<(PRODUCT_DIR)/../../deps/boringssl/lib/smol_decrepit.lib',
+              '<(PRODUCT_DIR)/../../deps/boringssl/lib/smol_crypto.lib',
             ],
           }],
           ['OS!="win"', {
             'libraries': [
               '<(PRODUCT_DIR)/../../deps/boringssl/lib/libsmol_ssl.a',
+              '<(PRODUCT_DIR)/../../deps/boringssl/lib/libsmol_crypto.a',
+              '<(PRODUCT_DIR)/../../deps/boringssl/lib/libsmol_decrepit.a',
               '<(PRODUCT_DIR)/../../deps/boringssl/lib/libsmol_crypto.a',
             ],
           }],

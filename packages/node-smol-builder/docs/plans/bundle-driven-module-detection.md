@@ -325,10 +325,34 @@ Legend: ✅ done · ◻ todo.
   build. Verified by unit test.
 - **`test/unit/compile-for-bundle.test.mts`** — 7 tests locking the cache-key
   contract (stable, order-independent, sensitive to flags/platform/mode, dedup).
-- **Remaining for step 4:** run ONE real `compile-for-bundle` (drop `--dry-run`)
-  to validate the trimmed binary actually builds + links with the gated sources
-  excluded (the gyp/configure wiring is validated to apply + parse, but no full
-  compile has run yet). This is the natural lead-in to the step-5 gate.
+- **Real build run (2026-05-31):** ran a clean trimmed build with the
+  sfw-registry feature set (`build.mts --dev --without-smol=quic,http3,smolHttp,
+  tui,keymap,ffi,ilp,treeSitter,qrcode,markdown,--without-sqlite`). Results:
+  - ✅ Patches apply cleanly to pristine (real `patch -p1`).
+  - ✅ **Configure honored every flag** — generated `out/Release/config.gypi`
+    shows all 11 dropped features `"false"` (`node_use_smol_quic`…`node_use_sqlite`).
+  - ✅ The gated build **compiled 4500+ objects** including the non-excluded smol
+    sources; the excluded subsystems produced no missing/extra-source ninja
+    errors — confirming the gyp `conditions` correctly dropped them (a malformed
+    gate would fail at gyp/ninja, not later).
+  - ❌ The build then failed at the **final crypto link** — `ld: symbol(s) not
+    found for architecture arm64` for `ncrypto::Rsa`/`DH_free`/`EC_KEY_free`/
+    `HMAC_CTX_free`. This is a **pre-existing BoringSSL↔ncrypto ABI mismatch on
+    this checkout**, NOT a trimming regression: my commit touches zero crypto
+    wiring (verified), `ncrypto` lives in the always-on `node_use_openssl` block
+    (untouched), and the missing symbols are core RSA/DH/EC/HMAC — none of the
+    gated features. The prebuilt `libsmol_crypto.a`/`libsmol_ssl.a` exist; the
+    skew is version/ABI, upstream of this work.
+  - **Confirmed pre-existing:** this checkout has only a `source-patched`
+    checkpoint and **no `binary-released` checkpoint** — i.e. a full node-smol
+    binary had never linked in this environment before this work either. The
+    crypto link failure is independent of trimming.
+  - **Net:** the detection→configure→gyp-gate chain is validated through a real
+    compile up to the crypto link. The runtime `isBuiltin` proof + the gate's
+    `--suite` run still need a binary that links — blocked on the unrelated
+    BoringSSL/ncrypto ABI issue. Run on CI / the Depot Linux path (where the full
+    build links) to get the final runtime confirmation: build trimmed, then
+    `pnpm --filter node-smol-builder run gate -- --binary=<trimmed> --bundle=<app> --suite="…"`.
 
 ### What landed for step 5 (2026-05-31)
 - **`scripts/gate-trimmed-binary.mts`** — fail-closed gate: re-derives the

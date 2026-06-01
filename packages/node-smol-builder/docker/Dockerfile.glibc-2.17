@@ -50,6 +50,10 @@ ARG CACHE_VERSION=unset
 # blocks in this Dockerfile. The file is gitignored; it materializes
 # fresh for every CI run from socket-registry's pinned SHA.
 COPY .build-context/registry-tools.json /tmp/registry-tools.json
+# Pinned Node version for the toolchain install below (read from
+# .node-version) — nodejs.org/dist replaces NodeSource, whose rpm gpg-key
+# endpoint 404s.
+COPY .node-version /tmp/.node-version
 
 # Install build dependencies.
 # NOTE: manylinux2014 ships WITH SCL preconfigured — no `centos-release-scl`
@@ -76,22 +80,14 @@ RUN yum -y install \
         devtoolset-11-gcc-c++ \
         devtoolset-11-libstdc++-devel \
         && \
-    # Install Node.js from NodeSource (verifiable alternative to the
-    # `curl … | bash` installer: import the GPG key and write the yum
-    # repo file directly, exactly as NodeSource's docs describe).
-    rpm --import https://rpm.nodesource.com/pub_current.x/nodesource-repo.gpg.key && \
-    printf '%s\n' \
-      '[nodesource-nodejs]' \
-      'name=Node.js Packages - $basearch' \
-      'baseurl=https://rpm.nodesource.com/pub_current.x/nodistro/nodejs/$basearch' \
-      'priority=9' \
-      'enabled=1' \
-      'gpgcheck=1' \
-      'gpgkey=https://rpm.nodesource.com/gpgkey/ns-operations-public.key' \
-      'module_hotfixes=1' \
-      > /etc/yum.repos.d/nodesource-nodejs.repo && \
-    yum -y install nodejs && \
+    # Install Node.js directly from nodejs.org/dist (pinned by the repo's
+    # .node-version). Replaces the NodeSource yum repo, whose gpg-key
+    # endpoint now 404s.
     ARCH=$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/') && \
+    NODE_VERSION=$(tr -d '[:space:]' < /tmp/.node-version) && \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${ARCH}.tar.xz" \
+      | tar -xJ -C /usr/local --strip-components=1 && \
+    rm /tmp/.node-version && \
     PLATFORM="linux-${ARCH}" && \
     PNPM_VERSION=$(jq -r .pnpm.version /tmp/registry-tools.json) && \
     PNPM_ASSET=$(jq -r ".pnpm.platforms[\"${PLATFORM}\"].asset" /tmp/registry-tools.json) && \

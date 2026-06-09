@@ -2,8 +2,8 @@
   "$schema": "./socket-wheelhouse-schema.json",
   "schemaVersion": 1,
   "repoName": "socket-btm",
-  "layout": "monorepo",
-  "native": "producer",
+  "repo": { "type": "monorepo" },
+  "build": { "from": "github-release", "type": "binary" },
   "capabilities": {
     "cargo": ["packages/*-builder"]
   }

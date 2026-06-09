@@ -29,6 +29,8 @@ import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 import { codeSignBinary, execCommand } from 'bin-infra/test/helpers/test-utils'
 
+import { afterAll, beforeAll, describe, expect, it, test } from 'vitest'
+
 const logger = getDefaultLogger()
 
 const __filename = fileURLToPath(import.meta.url)

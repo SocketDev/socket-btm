@@ -33,6 +33,8 @@ import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { getSocketDlxDir } from '@socketsecurity/lib-stable/paths/socket'
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
+import { afterAll, beforeAll, describe, expect, it, test } from 'vitest'
+
 const logger = getDefaultLogger()
 
 const __filename = fileURLToPath(import.meta.url)

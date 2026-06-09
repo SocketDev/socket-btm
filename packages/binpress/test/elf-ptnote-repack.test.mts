@@ -33,6 +33,8 @@ import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 
 import { execCommand } from 'bin-infra/test/helpers/test-utils'
 
+import { afterAll, beforeAll, describe, expect, it, test } from 'vitest'
+
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const PACKAGE_DIR = path.join(__dirname, '..')

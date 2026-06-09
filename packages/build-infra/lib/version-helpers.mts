@@ -10,7 +10,7 @@
 import { promises as fs, readFileSync } from 'node:fs'
 import path from 'node:path'
 
-import { fetchChecksums } from '@socketsecurity/lib-stable/http-request/checksums'
+import { fetchChecksumFile } from '@socketsecurity/lib-stable/http-request/checksum-file'
 
 import { NODE_VERSION_FILE, PACKAGE_ROOT } from './constants.mts'
 import { errorMessage } from './error-utils.mts'
@@ -435,11 +435,11 @@ export async function fetchNodeChecksum(
   let checksums
   try {
     // Force an uncompressed response. nodejs.org serves SHASUMS256.txt with
-    // zstd content-encoding, which httpText/fetchChecksums does not decode —
+    // zstd content-encoding, which httpText/fetchChecksumFile does not decode —
     // the parser then sees binary garbage and returns zero entries, so the
     // real `node-vX.Y.Z.tar.gz` line is reported "not found". Requesting
     // `identity` makes the body plain text the GNU-style parser can read.
-    checksums = await fetchChecksums(url, {
+    checksums = await fetchChecksumFile(url, {
       headers: { 'accept-encoding': 'identity' },
       timeout,
     })

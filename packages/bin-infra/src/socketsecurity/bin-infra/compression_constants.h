@@ -57,10 +57,10 @@
 #define PLATFORM_METADATA_LEN 3
 
 /**
- * Integrity hash length (SHA-256 of compressed data).
+ * Integrity hash length (SHA-512 of compressed data).
  * Appears after platform metadata, verified before decompression.
  */
-#define INTEGRITY_HASH_LEN 32
+#define INTEGRITY_HASH_LEN 64
 
 /**
  * Smol config format (appears after integrity hash):
@@ -82,8 +82,8 @@
 /**
  * Total metadata header size (appears after magic marker, before compressed data).
  * Calculation: SIZE_HEADER_LEN + CACHE_KEY_LEN + PLATFORM_METADATA_LEN + INTEGRITY_HASH_LEN + SMOL_CONFIG_FLAG_LEN
- * = 16 + 16 + 3 + 32 + 1 = 68 bytes (without smol config data)
- * = 68 + 1192 = 1260 bytes (with smol config data, SMFG v2)
+ * = 16 + 16 + 3 + 64 + 1 = 100 bytes (without smol config data)
+ * = 100 + 1192 = 1292 bytes (with smol config data, SMFG v2)
  *
  * Note: SMOL_CONFIG_FLAG_LEN is always present, SMOL_CONFIG_BINARY_LEN is conditional.
  */

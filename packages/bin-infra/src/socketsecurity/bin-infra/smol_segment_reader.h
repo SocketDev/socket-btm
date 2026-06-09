@@ -24,7 +24,7 @@ extern "C" {
  * - Sizes (compressed and uncompressed)
  * - Cache key (16 hex chars)
  * - Platform metadata (platform, arch, libc)
- * - Integrity hash (SHA-256 of compressed data)
+ * - Integrity hash (SHA-512 of compressed data)
  * - Offset to compressed data start
  */
 typedef struct {
@@ -32,7 +32,7 @@ typedef struct {
     uint64_t uncompressed_size;      /* Uncompressed data size in bytes. */
     char cache_key[17];              /* Cache key (16 hex chars + null). */
     uint8_t platform_metadata[PLATFORM_METADATA_LEN];  /* Platform metadata bytes. */
-    uint8_t integrity_hash[INTEGRITY_HASH_LEN];  /* SHA-256 of compressed data. */
+    uint8_t integrity_hash[INTEGRITY_HASH_LEN];  /* SHA-512 of compressed data. */
     int64_t data_offset;             /* Offset to compressed data start. */
 } smol_metadata_t;
 
@@ -44,7 +44,7 @@ typedef struct {
  * - Uncompressed size (8 bytes)
  * - Cache key (16 bytes)
  * - Platform metadata (3 bytes)
- * - Integrity hash (32 bytes, SHA-256 of compressed data)
+ * - Integrity hash (64 bytes, SHA-512 of compressed data)
  * - has_update_config flag (1 byte)
  * - [optional: update_config_binary (1192 bytes)]
  *

@@ -30,21 +30,27 @@
 #endif
 
 /**
- * Compute SHA-256 hash using platform-native crypto.
+ * Compute SHA-512 hash using platform-native crypto.
+ *
+ * Lock-step: the digest length is INTEGRITY_HASH_LEN (compression_constants.h);
+ * the producer (smol_build_section_data) and every verifier (smol_verify_integrity
+ * here, plus the elf/macho/pe stubs and binflate) must use the same algorithm +
+ * length or a produced SEA fails to load. SHA-512 is the fleet's OUR-side
+ * integrity algorithm.
  */
-int smol_compute_sha256(const uint8_t *data, size_t size, uint8_t *hash_out) {
+int smol_compute_sha512(const uint8_t *data, size_t size, uint8_t *hash_out) {
     if (!data || !hash_out || size == 0) {
         return -1;
     }
 
 #ifdef __APPLE__
-    CC_SHA256(data, (CC_LONG)size, hash_out);
+    CC_SHA512(data, (CC_LONG)size, hash_out);
 #elif defined(_WIN32)
     BCRYPT_ALG_HANDLE hAlg = NULL;
     BCRYPT_HASH_HANDLE hHash = NULL;
     int result = -1;
 
-    if (BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA256_ALGORITHM, NULL, 0) != 0) {
+    if (BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA512_ALGORITHM, NULL, 0) != 0) {
         fprintf(stderr, "Error: BCryptOpenAlgorithmProvider failed\n");
         return -1;
     }
@@ -56,24 +62,24 @@ int smol_compute_sha256(const uint8_t *data, size_t size, uint8_t *hash_out) {
     }
 
     if (BCryptHashData(hHash, (PUCHAR)data, (ULONG)size, 0) == 0 &&
-        BCryptFinishHash(hHash, hash_out, 32, 0) == 0) {
+        BCryptFinishHash(hHash, hash_out, INTEGRITY_HASH_LEN, 0) == 0) {
         result = 0;
     } else {
-        fprintf(stderr, "Error: BCrypt SHA-256 hash computation failed\n");
+        fprintf(stderr, "Error: BCrypt SHA-512 hash computation failed\n");
     }
 
     BCryptDestroyHash(hHash);
     BCryptCloseAlgorithmProvider(hAlg, 0);
     return result;
 #else
-    SHA256(data, size, hash_out);
+    SHA512(data, size, hash_out);
 #endif
 
     return 0;
 }
 
 /**
- * Verify SHA-256 integrity hash of compressed data.
+ * Verify SHA-512 integrity hash of compressed data.
  */
 int smol_verify_integrity(const uint8_t *data, size_t size, const uint8_t *expected_hash) {
     if (!data || !expected_hash || size == 0) {
@@ -81,7 +87,7 @@ int smol_verify_integrity(const uint8_t *data, size_t size, const uint8_t *expec
     }
 
     uint8_t computed_hash[INTEGRITY_HASH_LEN];
-    if (smol_compute_sha256(data, size, computed_hash) != 0) {
+    if (smol_compute_sha512(data, size, computed_hash) != 0) {
         return -1;
     }
 
@@ -104,7 +110,9 @@ int smol_verify_integrity(const uint8_t *data, size_t size, const uint8_t *expec
 
 /**
  * Calculate cache key from integrity hash.
- * Uses first 8 bytes of SHA-256 hash as 16 hex chars.
+ * Uses first 8 bytes of the integrity hash as 16 hex chars. The first 8 bytes of
+ * a SHA-512 are as good a bucket key as any; this follows whatever algorithm the
+ * integrity hash uses (it is a structural cache bucket, not an integrity value).
  */
 int smol_calculate_cache_key(const uint8_t *integrity_hash, size_t size, char *cache_key) {
     if (!integrity_hash || !cache_key || size == 0) {
@@ -141,9 +149,9 @@ int smol_build_section_data(
         return -1;
     }
 
-    /* Compute SHA-256 integrity hash of compressed data. */
+    /* Compute SHA-512 integrity hash of compressed data. */
     uint8_t integrity_hash[INTEGRITY_HASH_LEN];
-    if (smol_compute_sha256(compressed_data, compressed_size, integrity_hash) != 0) {
+    if (smol_compute_sha512(compressed_data, compressed_size, integrity_hash) != 0) {
         return -1;
     }
 

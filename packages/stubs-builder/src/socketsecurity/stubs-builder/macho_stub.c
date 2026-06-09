@@ -12,7 +12,7 @@
  *   [16-byte: cache key (hex string)]
  *   [3-byte: platform metadata (platform, arch, libc)]
  *   [1-byte: algorithm (1=ZSTD)]
- *   [32-byte: integrity hash (SHA-256 of compressed data)]
+ *   [64-byte: integrity hash (SHA-512 of compressed data)]
  *   [1-byte: has_smol_config flag (0=no, 1=yes)]
  *   [1192-byte: smol config binary (if has_smol_config=1)]
  *     - Magic: 0x534D4647 ("SMFG")

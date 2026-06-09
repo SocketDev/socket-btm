@@ -4,8 +4,8 @@
  *
  * Provides common functions for:
  * - Building SMOL section data (marker + sizes + cache_key + compressed_data)
- * - Cache key calculation (derived from SHA-256 integrity hash)
- * - SHA-256 integrity hash computation and verification
+ * - Cache key calculation (derived from SHA-512 integrity hash)
+ * - SHA-512 integrity hash computation and verification
  * - Platform metadata detection (platform, arch, libc)
  * - Ad-hoc code signing (macOS) and Authenticode signing (Windows)
  */
@@ -36,7 +36,7 @@ extern "C" {
  * - uncompressed_size (8 bytes): uint64_t little-endian
  * - cache_key (16 bytes): Hex string (not null-terminated in data)
  * - platform_metadata (3 bytes): platform, arch, libc
- * - integrity_hash (32 bytes): SHA-256 of compressed data
+ * - integrity_hash (64 bytes): SHA-512 of compressed data
  * - has_update_config (1 byte): 0=no config, 1=has config
  * - update_config_binary (1192 bytes if has_update_config=1): Update config data
  * - data (variable): Compressed zstd data bytes
@@ -48,25 +48,25 @@ typedef struct {
 } smol_section_t;
 
 /**
- * Compute SHA-256 hash of data using platform-native crypto.
+ * Compute SHA-512 hash of data using platform-native crypto.
  *
  * Uses CommonCrypto on macOS, BCrypt on Windows, OpenSSL on Linux.
  *
  * @param data Input data buffer.
  * @param size Size of input data.
- * @param hash_out Output buffer (must be at least 32 bytes).
+ * @param hash_out Output buffer (must be at least INTEGRITY_HASH_LEN bytes).
  * @return 0 on success, -1 on error.
  */
-int smol_compute_sha256(const uint8_t *data, size_t size, uint8_t *hash_out);
+int smol_compute_sha512(const uint8_t *data, size_t size, uint8_t *hash_out);
 
 /**
- * Verify SHA-256 integrity hash of compressed data.
+ * Verify SHA-512 integrity hash of compressed data.
  *
- * Computes SHA-256 of the data and compares against the expected hash.
+ * Computes SHA-512 of the data and compares against the expected hash.
  *
  * @param data Compressed data buffer.
  * @param size Size of compressed data.
- * @param expected_hash Expected SHA-256 hash (32 bytes).
+ * @param expected_hash Expected SHA-512 hash (INTEGRITY_HASH_LEN bytes).
  * @return 0 if hash matches, -1 on mismatch or error.
  */
 int smol_verify_integrity(const uint8_t *data, size_t size, const uint8_t *expected_hash);
@@ -74,10 +74,10 @@ int smol_verify_integrity(const uint8_t *data, size_t size, const uint8_t *expec
 /**
  * Calculate cache key from integrity hash.
  *
- * Takes the first 8 bytes of the SHA-256 integrity hash and converts
+ * Takes the first 8 bytes of the SHA-512 integrity hash and converts
  * to 16 hex characters for the cache key.
  *
- * @param integrity_hash SHA-256 hash (32 bytes).
+ * @param integrity_hash SHA-512 hash (INTEGRITY_HASH_LEN bytes).
  * @param size Size of hash buffer.
  * @param cache_key Output buffer for cache key (must be at least 17 bytes).
  * @return 0 on success, -1 on error.

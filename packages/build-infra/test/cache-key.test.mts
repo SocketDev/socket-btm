@@ -12,6 +12,8 @@ import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
 import { escapeRegExp } from '@socketsecurity/lib-stable/regexps/escape'
 import { nodeVersionRaw } from 'build-infra/lib/constants'
 
+import { describe, expect, it, test } from 'vitest'
+
 import {
   generateCacheKey,
   isCacheValid,

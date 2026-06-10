@@ -58,8 +58,9 @@ export function generateCacheKey({
   packageVersion,
   platform: targetPlatform = process.platform,
 }) {
-  // Hash content files.
-  const hash = crypto.createHash('sha256')
+  // Hash content files. sha512 per the fleet OUR-side integrity standard
+  // (this is an internal build-cache-invalidation key, not an interop value).
+  const hash = crypto.createHash('sha512')
 
   for (let i = 0, { length } = contentFiles; i < length; i += 1) {
     const file = contentFiles[i]

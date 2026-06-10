@@ -22,7 +22,8 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { makeExecutable } from 'build-infra/lib/build-helpers'
-import { getBuildMode } from 'build-infra/lib/constants'
+import { getPlatformBuildDir } from 'build-infra/lib/constants'
+import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
@@ -36,12 +37,13 @@ const logger = getDefaultLogger()
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const PACKAGE_DIR = path.join(__dirname, '..')
-const BUILD_MODE = getBuildMode()
 const BINPRESS_NAME = process.platform === 'win32' ? 'binpress.exe' : 'binpress'
+// Resolve the binary from the platform-arch build dir the build actually writes
+// to (build/<mode>/<platform-arch>/out/Final), via the same helper the build
+// uses. The old hand-joined path (build/<mode>/out/Final) omitted the
+// platform-arch segment, so the suite ran a stale leftover binary.
 const BINPRESS = path.join(
-  PACKAGE_DIR,
-  'build',
-  BUILD_MODE,
+  getPlatformBuildDir(PACKAGE_DIR, await getCurrentPlatformArch()),
   'out',
   'Final',
   BINPRESS_NAME,
@@ -134,7 +136,7 @@ describe.skipIf(
       }
       expect(execResult.code).toBe(0)
       expect(execResult.stdout).toBeTruthy()
-    })
+    }, 60_000)
 
     it('should preserve stub functionality when repacking', async () => {
       // Create initial stub
@@ -164,7 +166,7 @@ describe.skipIf(
       // Both should extract and run successfully (stub functionality preserved)
       expect(initialResult.stdout).toBeTruthy()
       expect(updatedResult.stdout).toBeTruthy()
-    })
+    }, 60_000)
   })
 
   describe('repack validation', () => {

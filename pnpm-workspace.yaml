@@ -2,6 +2,9 @@ packages:
   - packages/*
   - .claude/hooks/fleet/*
   - .claude/hooks/repo/*
+  - '.config/oxlint-plugin'
+  - '.config/oxlint-plugin/fleet/*'
+  - '.config/oxlint-plugin/repo/*'
 
 # Packages allowed to run build scripts (pnpm v11 strictDepBuilds default).
 allowBuilds:
@@ -95,8 +98,6 @@ minimumReleaseAgeExclude:
   # `.dockerignore` from package.json + the curated blacklist. Used to keep
   # the Docker build context lean across vendored upstream trees (LIEF, zstd,
   # etc.) that ship 100+ MB of markup files compile never reads.
-  # published: 2026-06-03 | removable: 2026-06-10
-  - 'untracked@1.6.1'
   - '@stuie/*'
   - '@ultrathink/*'
   - '@yuku-parser/*'

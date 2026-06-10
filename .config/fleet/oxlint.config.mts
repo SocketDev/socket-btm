@@ -30,8 +30,6 @@
 
 import { fileURLToPath } from 'node:url'
 
-import { defineConfig } from 'oxlint'
-
 import base from './oxlintrc.json' with { type: 'json' }
 
 export interface OxlintConfigOptions {
@@ -116,6 +114,4 @@ export function resolveFleetJsPlugin(entry: string): string {
 }
 
 // oxlint-disable-next-line socket/no-default-export -- oxlint loads the config from this module's default export.
-// Wrapped in defineConfig() per oxlint's loader requirement (it rejects a
-// bare default export); defineConfig is an identity-shaped validator.
-export default defineConfig(config())
+export default config()

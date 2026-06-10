@@ -5,5 +5,8 @@
   "main": "./index.mts",
   "exports": {
     ".": "./index.mts"
+  },
+  "dependencies": {
+    "regjsparser": "catalog:"
   }
 }

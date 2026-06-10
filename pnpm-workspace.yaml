@@ -55,6 +55,7 @@ catalog:
   'oxfmt': 0.48.0
   'oxlint': 1.63.0
   'playwright-core': 1.55.1
+  'regjsparser': 0.13.1
   'shell-quote': 1.8.4
   tar: 7.4.3
   'taze': 19.11.0
@@ -94,8 +95,6 @@ minimumReleaseAgeExclude:
   # `.dockerignore` from package.json + the curated blacklist. Used to keep
   # the Docker build context lean across vendored upstream trees (LIEF, zstd,
   # etc.) that ship 100+ MB of markup files compile never reads.
-  # published: 2026-06-03 | removable: 2026-06-10
-  - 'untracked@1.6.1'
   - '@stuie/*'
   - '@ultrathink/*'
   - '@yuku-parser/*'

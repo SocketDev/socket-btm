@@ -575,7 +575,7 @@ jobs:
           TITLE_SUFFIX="${TAG#yoga-layout-}"
           # Immutable-releases 3-step: draft → upload → publish.
           # Single-call form races the Sigstore attestation hash.
-          # See docs/claude.md/fleet/immutable-releases.md.
+          # See docs/agents.md/fleet/immutable-releases.md.
           gh release create "$TAG" \
             --draft \
             --title "yoga-layout ${TITLE_SUFFIX}" \

@@ -19,7 +19,7 @@
  *
  * Why it lives in scripts/repo/: this is a btm-only concern (only
  * socket-btm has the additions/source-patched/deps/*.gypi auto-gen
- * pipeline). The repo/ subdir mirrors docs/claude.md/repo/ + the
+ * pipeline). The repo/ subdir mirrors docs/agents.md/repo/ + the
  * planned hooks/repo/ — host-repo-only utilities that don't cascade
  * fleet-wide.
  *

@@ -592,7 +592,7 @@ jobs:
           TITLE_SUFFIX="${RELEASE_TAG#curl-}"
           # Immutable-releases 3-step: draft → upload → publish.
           # Single-call form races the Sigstore attestation hash.
-          # See docs/claude.md/fleet/immutable-releases.md.
+          # See docs/agents.md/fleet/immutable-releases.md.
           gh release create "${RELEASE_TAG}" \
             --draft \
             --title "curl ${TITLE_SUFFIX}" \

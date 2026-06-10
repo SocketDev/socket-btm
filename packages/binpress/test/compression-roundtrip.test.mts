@@ -305,6 +305,47 @@ describe.skipIf(!existsSync(BINPRESS))(
         expect(data.length).toBeGreaterThan(dataOffset)
       }, 60_000)
 
+      it('should write a 64-byte (SHA-512) integrity hash in the footer', async () => {
+        // Locks the footer integrity-hash width: SHA-512 is 64 bytes. A
+        // regression to SHA-256 (32 bytes) would shift every subsequent field
+        // and break the embedded stub's verify-on-launch. Behavioral check —
+        // parses a freshly-packed binary rather than reading source.
+        const inputBinary = path.join(testDir, 'integrity_width_input')
+        await fs.copyFile(process.execPath, inputBinary)
+        await makeExecutable(inputBinary)
+
+        const compressedBinary = path.join(testDir, 'integrity_width_output')
+        const compressResult = await execCommand(BINPRESS, [
+          inputBinary,
+          '--output',
+          compressedBinary,
+        ])
+        expect(compressResult.code).toBe(0)
+
+        const finalPath =
+          process.platform === 'win32'
+            ? `${compressedBinary}.exe`
+            : compressedBinary
+        const data = await fs.readFile(finalPath)
+
+        const marker = Buffer.from('__SMOL_PRESSED_DATA_MAGIC_MARKER', 'utf8')
+        const markerIndex = data.indexOf(marker)
+        expect(markerIndex).toBeGreaterThan(-1)
+
+        // Footer layout: marker(32) + sizes(16) + cache_key(16) +
+        // platform_metadata(3) + integrity_hash(INTEGRITY_HASH_LEN) +
+        // has_config(1) + [config]. The integrity hash must be 64 bytes
+        // (SHA-512); the has_config flag immediately after it must be 0 or 1,
+        // which only holds when the hash is exactly 64 bytes wide.
+        const INTEGRITY_HASH_LEN = 64
+        const integrityOffset = markerIndex + 32 + 8 + 8 + 16 + 3
+        const hasConfigOffset = integrityOffset + INTEGRITY_HASH_LEN
+
+        expect(data.length).toBeGreaterThan(hasConfigOffset)
+        // The has_config flag right after a 64-byte hash must be a valid 0/1.
+        expect([0, 1]).toContain(data[hasConfigOffset])
+      }, 60_000)
+
       it('should embed decompressor stub in compressed binary', async () => {
         const inputBinary = path.join(testDir, 'stub_test_input')
         await fs.copyFile(testBinary, inputBinary)

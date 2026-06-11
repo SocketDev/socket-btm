@@ -1,6 +1,12 @@
 /**
  * @file smol_segment.c
  * @brief Shared SMOL segment utilities implementation.
+ *
+ * The SEA stub footer integrity hash is SHA-512 (64-byte INTEGRITY_HASH_LEN);
+ * smol_verify_integrity() recomputes + memcmps it on load. For the full map of
+ * which digest each socket-btm subsystem uses and why (footer, cacache
+ * index-v5, build cache keys, release checksums), see
+ * docs/references/hash-algorithms.md.
  */
 
 #include <stdio.h>

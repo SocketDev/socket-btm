@@ -3,6 +3,13 @@
  *
  * Implements the npm cacache on-disk format (index-v5, content-v2).
  *
+ * Three digests, three jobs: SHA-512 = content integrity (the trust boundary,
+ * recomputed + memcmp'd on read); SHA-256 = index-v5 key→bucket path (npm
+ * format, addressing only); SHA-1 = per-index-line verify (npm format). Only
+ * SHA-512 is a trust gate — the sha256/sha1 are the npm format and must not be
+ * flipped (it breaks readers for zero gain). Full rationale + the cross-repo
+ * rule: docs/references/hash-algorithms.md.
+ *
  * 15 security and correctness checks:
  * Integrity on read    — SHA-512 recomputed + memcmp on every cacache_get
  * Symlink protection   — lstat from .socket onward via scache_verify_no_symlinks()

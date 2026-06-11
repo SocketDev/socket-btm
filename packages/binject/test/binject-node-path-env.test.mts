@@ -1,8 +1,10 @@
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
- * BINJECT_NODE_PATH Environment Variable Tests
+ * BINJECT_NODE_PATH Environment Variable Tests.
  *
  * Tests the BINJECT_NODE_PATH environment variable behavior:
+ *
  * 1. When set, uses the specified binary exclusively (no searching)
  * 2. If version doesn't match, disables code cache/bytecode but proceeds
  * 3. If path is invalid, fails with explicit error

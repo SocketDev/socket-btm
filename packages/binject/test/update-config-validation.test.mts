@@ -1,15 +1,12 @@
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
- * Update Config Validation Tests
+ * Update Config Validation Tests.
  *
- * Tests update-config.json validation and binary serialization.
- * Verifies:
- * 1. Valid configs serialize correctly
- * 2. Invalid configs throw appropriate errors
- * 3. String length limits are enforced
- * 4. Type checking works correctly
- * 5. URL validation works
- * 6. Binary format is correct (magic, version, sizes)
+ * Tests update-config.json validation and binary serialization. Verifies: 1.
+ * Valid configs serialize correctly 2. Invalid configs throw appropriate errors
+ * 3. String length limits are enforced 4. Type checking works correctly 5. URL
+ * validation works 6. Binary format is correct (magic, version, sizes)
  */
 
 import { promises as fs } from 'node:fs'

@@ -1,13 +1,15 @@
 /**
- * Signature Validation Tests
+ * Signature Validation Tests.
  *
  * Tests that binject automatically re-signs binaries with adhoc signatures
  * after modifying them with LIEF.
  *
- * When LIEF modifies a binary, it removes the existing code signature.
- * binject automatically re-signs the binary with an adhoc signature using
- * codesign to ensure the binary remains validly signed.
+ * When LIEF modifies a binary, it removes the existing code signature. binject
+ * automatically re-signs the binary with an adhoc signature using codesign to
+ * ensure the binary remains validly signed.
  */
+
+import { afterAll, beforeAll, describe, expect, it, test } from 'vitest'
 
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
@@ -113,7 +115,7 @@ export async function getSignatureInfo(binaryPath) {
 }
 
 /**
- * Helper to inject SEA resource and verify signature
+ * Helper to inject SEA resource and verify signature.
  */
 export async function injectAndVerify(
   binaryPath,
@@ -139,8 +141,8 @@ export async function injectAndVerify(
 }
 
 /**
- * Helper to prepare a test binary
- * Uses Node.js binary as consistent test input (not BINJECT which may vary between builds)
+ * Helper to prepare a test binary Uses Node.js binary as consistent test input
+ * (not BINJECT which may vary between builds)
  */
 export async function prepareTestBinary(name) {
   const binaryPath = path.join(testDir, name)

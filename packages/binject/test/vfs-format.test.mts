@@ -1,7 +1,17 @@
 /**
- * VFS Format Tests for binject
- * Tests VFS input format handling: directories, .tar, .tar.gz
+ * VFS Format Tests for binject Tests VFS input format handling: directories,
+ * .tar, .tar.gz.
  */
+
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  test,
+} from 'vitest'
 
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
@@ -23,7 +33,7 @@ let testDir: string
 let binjectExists = false
 
 /**
- * Helper to run binject commands
+ * Helper to run binject commands.
  */
 export async function runBinject(args, options = {}) {
   return new Promise(resolve => {
@@ -59,8 +69,10 @@ export async function runBinject(args, options = {}) {
 void runBinject
 
 /**
- * Create a simple TAR archive from a buffer map
- * @param {Map<string, Buffer>} files - Map of filename to content
+ * Create a simple TAR archive from a buffer map.
+ *
+ * @param {Map<string, Buffer>} files - Map of filename to content.
+ *
  * @returns {Buffer} TAR archive
  */
 // oxlint-disable-next-line socket/sort-source-methods -- test helpers grouped by workflow (runBinject first, then archive builders); alphabetizing would scatter the test setup flow.

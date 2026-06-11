@@ -1,17 +1,17 @@
+import { afterAll, beforeAll, describe, expect, it, test } from 'vitest'
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
- * @fileoverview CLI flag variation tests for binject
+ * @file CLI flag variation tests for binject Tests all commands (inject, list,
+ *   extract, verify) with both short and long flag forms. Uses parameterized
+ *   tests to ensure both `-e`/`--executable` and `-o`/`--output` work
+ *   correctly. Commands tested:
  *
- * Tests all commands (inject, list, extract, verify) with both short and long flag forms.
- * Uses parameterized tests to ensure both `-e`/`--executable` and `-o`/`--output` work correctly.
- *
- * Commands tested:
- * - inject: Test with -e/-o, --executable/--output, and mixed forms
- * - list: Test with executable as positional arg
- * - extract: Test with -e/-o, --executable/--output, and mixed forms
- * - verify: Test with -e/--executable
- * - --help: Test help flag
- * - --version: Test version flag
+ *   - inject: Test with -e/-o, --executable/--output, and mixed forms
+ *   - list: Test with executable as positional arg
+ *   - extract: Test with -e/-o, --executable/--output, and mixed forms
+ *   - verify: Test with -e/--executable
+ *   - --help: Test help flag
+ *   - --version: Test version flag
  */
 
 import { existsSync, promises as fs } from 'node:fs'
@@ -32,7 +32,7 @@ let testDir: string
 const binjectExists = existsSync(BINJECT)
 
 /**
- * Execute command and return result
+ * Execute command and return result.
  */
 export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {

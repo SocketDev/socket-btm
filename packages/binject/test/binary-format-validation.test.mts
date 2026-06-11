@@ -1,17 +1,17 @@
+import { afterAll, beforeAll, describe, expect, it, test } from 'vitest'
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
- * @fileoverview Binary format validation tests for binject
+ * @file Binary format validation tests for binject Validates that binaries
+ *   maintain valid format structure after injection:
  *
- * Validates that binaries maintain valid format structure after injection:
- * - Mach-O magic numbers and headers remain valid
- * - ELF magic numbers and headers remain valid
- * - PE magic numbers and headers remain valid
- * - Section/segment offsets are correctly updated
- * - Binary remains executable after modification
- * - No corruption of existing sections/segments
- *
- * These tests ensure binject doesn't produce corrupted binaries that
- * would fail to load or execute on the target platform.
+ *   - Mach-O magic numbers and headers remain valid
+ *   - ELF magic numbers and headers remain valid
+ *   - PE magic numbers and headers remain valid
+ *   - Section/segment offsets are correctly updated
+ *   - Binary remains executable after modification
+ *   - No corruption of existing sections/segments These tests ensure binject
+ *     doesn't produce corrupted binaries that would fail to load or execute on
+ *     the target platform.
  */
 
 import { existsSync, promises as fs } from 'node:fs'
@@ -37,7 +37,7 @@ let testDir: string
 let binjectExists = false
 
 /**
- * Execute command
+ * Execute command.
  */
 export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {

@@ -1,14 +1,21 @@
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  test,
+} from 'vitest'
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
- * SEA Config VFS Tests
+ * SEA Config VFS Tests.
  *
- * Tests VFS configuration in sea-config.json smol section.
- * Verifies that binject correctly handles VFS config from sea-config.json:
- * 1. Boolean shorthand (vfs: true)
- * 2. Empty object (vfs: {})
- * 3. Full configuration with mode and source
- * 4. CLI flag override priority
- * 5. Different source types (directory, .tar, .tar.gz)
+ * Tests VFS configuration in sea-config.json smol section. Verifies that
+ * binject correctly handles VFS config from sea-config.json: 1. Boolean
+ * shorthand (vfs: true) 2. Empty object (vfs: {}) 3. Full configuration with
+ * mode and source 4. CLI flag override priority 5. Different source types
+ * (directory, .tar, .tar.gz)
  */
 
 import { existsSync, promises as fs } from 'node:fs'

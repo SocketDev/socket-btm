@@ -1,18 +1,18 @@
+import { afterAll, beforeAll, describe, expect, it, test } from 'vitest'
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
- * @fileoverview Round-trip injection and extraction tests for binject
+ * @file Round-trip injection and extraction tests for binject Tests the
+ *   complete workflow:
  *
- * Tests the complete workflow:
- * 1. Inject resources (SEA blob, VFS archive) into binary
- * 2. Extract resources using binject extract command
- * 3. Verify extracted data matches original input
- * 4. Validate binary integrity after injection
+ *   1. Inject resources (SEA blob, VFS archive) into binary
+ *   2. Extract resources using binject extract command
+ *   3. Verify extracted data matches original input
+ *   4. Validate binary integrity after injection This ensures that:
  *
- * This ensures that:
- * - Resources are correctly embedded in binary
- * - Extraction logic correctly reads embedded resources
- * - No data corruption occurs during inject/extract cycle
- * - Binary format remains valid after modifications
+ *   - Resources are correctly embedded in binary
+ *   - Extraction logic correctly reads embedded resources
+ *   - No data corruption occurs during inject/extract cycle
+ *   - Binary format remains valid after modifications
  */
 
 import crypto from 'node:crypto'
@@ -37,7 +37,7 @@ let testDir: string
 let binjectExists = false
 
 /**
- * Execute command and return result
+ * Execute command and return result.
  */
 export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {
@@ -72,7 +72,7 @@ export async function execCommand(command, args = [], options = {}) {
 }
 
 /**
- * Calculate SHA-256 hash of file
+ * Calculate SHA-256 hash of file.
  */
 export async function hashFile(filePath) {
   const data = await fs.readFile(filePath)

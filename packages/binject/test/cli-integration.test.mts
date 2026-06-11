@@ -1,7 +1,16 @@
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  test,
+} from 'vitest'
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
- * CLI Integration Tests for binject
- * Tests all command-line flags, help output, and user-facing workflows
+ * CLI Integration Tests for binject Tests all command-line flags, help output,
+ * and user-facing workflows.
  */
 
 import { constants as FS_CONSTANTS, promises as fs } from 'node:fs'
@@ -36,17 +45,15 @@ let binjectExists = false
 let nodeBinary = undefined
 
 /**
- * Create a copy of the real Node.js binary for testing
+ * Create a copy of the real Node.js binary for testing.
  *
- * This ensures we test with valid, real binaries across all platforms.
- * The copy is created in tmpdir to avoid corrupting the source binary.
+ * This ensures we test with valid, real binaries across all platforms. The copy
+ * is created in tmpdir to avoid corrupting the source binary.
  *
- * For compressed node-smol binaries:
- * - Simply copies the stub to tmpdir
- * - Tests will inject into the stub, which will handle extraction/repacking internally
+ * For compressed node-smol binaries: - Simply copies the stub to tmpdir - Tests
+ * will inject into the stub, which will handle extraction/repacking internally.
  *
- * For regular Node binaries:
- * - Copies the binary directly to tmpdir
+ * For regular Node binaries: - Copies the binary directly to tmpdir.
  */
 export async function createTestBinary(name) {
   const filePath = path.join(testDir, name)
@@ -66,8 +73,8 @@ export async function createTestResource(name) {
 }
 
 /**
- * Download latest node-smol release from GitHub
- * Returns path to downloaded binary in a cache directory (can be copied repeatedly)
+ * Download latest node-smol release from GitHub Returns path to downloaded
+ * binary in a cache directory (can be copied repeatedly)
  */
 export async function downloadNodeSmolRelease() {
   try {
@@ -210,8 +217,8 @@ export async function execCommand(command, args = []) {
 }
 
 /**
- * Find a suitable Node.js binary for testing
- * Priority: local node-smol build > released node-smol > system Node.js
+ * Find a suitable Node.js binary for testing Priority: local node-smol build >
+ * released node-smol > system Node.js.
  */
 export async function findNodeBinary() {
   // Check for node-smol-builder output in the monorepo

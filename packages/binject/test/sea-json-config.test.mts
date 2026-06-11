@@ -1,12 +1,20 @@
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  test,
+} from 'vitest'
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
- * SEA JSON Config Tests
+ * SEA JSON Config Tests.
  *
- * Tests automatic SEA blob generation from JSON config files.
- * Verifies that binject correctly handles --sea with .json files by:
- * 1. Running node --experimental-sea-config
- * 2. Finding the generated blob
- * 3. Injecting it into the binary
+ * Tests automatic SEA blob generation from JSON config files. Verifies that
+ * binject correctly handles --sea with .json files by: 1. Running node
+ * --experimental-sea-config 2. Finding the generated blob 3. Injecting it into
+ * the binary.
  */
 
 import { existsSync, promises as fs } from 'node:fs'
@@ -37,8 +45,8 @@ let nodeBinary = undefined
 /**
  * Create a copy of BINJECT for a test to use as input (-e parameter)
  *
- * The injection process modifies the input binary in-place to remove signatures,
- * so each test needs its own copy to avoid affecting other tests.
+ * The injection process modifies the input binary in-place to remove
+ * signatures, so each test needs its own copy to avoid affecting other tests.
  */
 export async function createTestBinject(name = 'test-binject') {
   const testBinject = path.join(testDir, name)
@@ -48,8 +56,8 @@ export async function createTestBinject(name = 'test-binject') {
 }
 
 /**
- * Download latest node-smol release from GitHub
- * Returns path to downloaded binary in cache directory
+ * Download latest node-smol release from GitHub Returns path to downloaded
+ * binary in cache directory.
  */
 export async function downloadNodeSmolRelease() {
   try {
@@ -178,8 +186,8 @@ export async function execCommand(command, args = [], options = {}) {
 }
 
 /**
- * Find a suitable Node.js binary for testing
- * Priority: local node-smol build > released node-smol > system Node.js
+ * Find a suitable Node.js binary for testing Priority: local node-smol build >
+ * released node-smol > system Node.js.
  */
 export async function findNodeBinary() {
   // Local node-smol builds — paths come from node-smol-builder's paths.mts

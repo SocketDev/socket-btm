@@ -1,17 +1,18 @@
 /**
- * @fileoverview Resource size limit tests for binject
+ * @file Resource size limit tests for binject Validates that binject correctly
+ *   handles size boundaries:
  *
- * Validates that binject correctly handles size boundaries:
- * - MAX_SEA_BLOB_SIZE enforcement
- * - MAX_VFS_SIZE enforcement
- * - MAX_NODE_BINARY_SIZE enforcement
- * - Boundary conditions (max size, max size + 1, etc.)
- * - Memory allocation limits
- * - Graceful failure for oversized resources
- *
- * These tests ensure binject doesn't crash or corrupt data when
- * handling large files near the maximum supported sizes.
+ *   - MAX_SEA_BLOB_SIZE enforcement
+ *   - MAX_VFS_SIZE enforcement
+ *   - MAX_NODE_BINARY_SIZE enforcement
+ *   - Boundary conditions (max size, max size + 1, etc.)
+ *   - Memory allocation limits
+ *   - Graceful failure for oversized resources These tests ensure binject doesn't
+ *     crash or corrupt data when handling large files near the maximum
+ *     supported sizes.
  */
+
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
@@ -35,7 +36,7 @@ let testDir: string
 let binjectExists = false
 
 /**
- * Create a file of specified size with pattern data
+ * Create a file of specified size with pattern data.
  */
 export async function createTestFile(filePath, sizeBytes) {
   // 1MB chunks
@@ -61,7 +62,7 @@ export async function createTestFile(filePath, sizeBytes) {
 }
 
 /**
- * Execute command
+ * Execute command.
  */
 export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {

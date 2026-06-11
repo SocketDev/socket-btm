@@ -1,16 +1,16 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 /**
- * @fileoverview SMOL stub injection and repack workflow tests
+ * @file SMOL stub injection and repack workflow tests Tests binject's ability
+ *   to auto-detect SMOL stubs, extract the compressed binary, inject SEA/VFS
+ *   resources, and repack back into SMOL stub format. Test workflow:
  *
- * Tests binject's ability to auto-detect SMOL stubs, extract the compressed binary,
- * inject SEA/VFS resources, and repack back into SMOL stub format.
- *
- * Test workflow:
- * 1. Create SMOL compressed stub (binpress)
- * 2. Inject SEA resource into stub (binject auto-detects SMOL, extracts, injects, repacks)
- * 3. Verify output is still a valid SMOL stub
- * 4. Verify SEA resource was injected correctly
- * 5. Extract and verify the injected binary has correct NODE_SEA_FUSE marker
+ *   1. Create SMOL compressed stub (binpress)
+ *   2. Inject SEA resource into stub (binject auto-detects SMOL, extracts,
+ *      injects, repacks)
+ *   3. Verify output is still a valid SMOL stub
+ *   4. Verify SEA resource was injected correctly
+ *   5. Extract and verify the injected binary has correct NODE_SEA_FUSE marker
  */
 
 import crypto from 'node:crypto'
@@ -52,7 +52,7 @@ const binpressExists = existsSync(BINPRESS)
 const binflateExists = existsSync(BINFLATE)
 
 /**
- * Create a minimal SEA blob for testing
+ * Create a minimal SEA blob for testing.
  */
 export async function createTestSEABlob(outputPath) {
   // Create a simple JSON file as SEA blob
@@ -65,7 +65,7 @@ export async function createTestSEABlob(outputPath) {
 }
 
 /**
- * Execute command and return result
+ * Execute command and return result.
  */
 export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {
@@ -98,7 +98,7 @@ export async function execCommand(command, args = [], options = {}) {
 }
 
 /**
- * Calculate SHA-256 hash of file
+ * Calculate SHA-256 hash of file.
  */
 export async function hashFile(filePath) {
   const data = await fs.readFile(filePath)

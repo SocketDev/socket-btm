@@ -1,15 +1,17 @@
 /**
- * @fileoverview Extract and verify tests for binject with SMOL-compressed binaries
+ * @file Extract and verify tests for binject with SMOL-compressed binaries
+ *   Tests binject's ability to extract and verify SMOL segments from
+ *   binpress-compressed binaries. This validates the integration between
+ *   binpress (compression) and binject (extraction). Test scenarios:
  *
- * Tests binject's ability to extract and verify SMOL segments from binpress-compressed binaries.
- * This validates the integration between binpress (compression) and binject (extraction).
- *
- * Test scenarios:
- * 1. Extract SMOL segment from compressed binary created by binpress
- * 2. Verify SMOL segment integrity with binject verify
- * 3. List embedded resources and confirm SMOL segment appears
- * 4. Extract and decompress full workflow (binpress -> binject extract -> binflate decompress)
+ *   1. Extract SMOL segment from compressed binary created by binpress
+ *   2. Verify SMOL segment integrity with binject verify
+ *   3. List embedded resources and confirm SMOL segment appears
+ *   4. Extract and decompress full workflow (binpress -> binject extract ->
+ *      binflate decompress)
  */
+
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import crypto from 'node:crypto'
 import { existsSync, promises as fs } from 'node:fs'
@@ -42,7 +44,7 @@ let binpressExists = false
 let binflateExists = false
 
 /**
- * Execute command and return result
+ * Execute command and return result.
  */
 export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {
@@ -77,7 +79,7 @@ export async function execCommand(command, args = [], options = {}) {
 }
 
 /**
- * Calculate SHA-256 hash of file
+ * Calculate SHA-256 hash of file.
  */
 export async function hashFile(filePath) {
   const data = await fs.readFile(filePath)

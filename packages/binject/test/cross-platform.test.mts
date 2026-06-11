@@ -1,10 +1,12 @@
 /**
- * Cross-platform binary manipulation tests
- * Tests ability to inject into any binary format from any platform
+ * Cross-platform binary manipulation tests Tests ability to inject into any
+ * binary format from any platform.
  *
  * Note: Mach-O injection requires macOS (or LIEF library on other platforms).
  * Without LIEF, only native platform injection works for Mach-O.
  */
+
+import { beforeAll, describe, expect, test } from 'vitest'
 
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'

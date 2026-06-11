@@ -1,14 +1,14 @@
+import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 
 /**
- * E2E Tests for Signature Validation and Cache Management
+ * E2E Tests for Signature Validation and Cache Management.
  *
- * Tests the complete flow:
- * 1. Inject SEA+VFS into compressed stub -> stub should be signed
- * 2. Run stub -> extracted binary should be signed and cached
- * 3. Overwrite with new SEA+VFS -> stub should be signed
- * 4. Run new stub -> new extracted binary should be signed and cached in different location
- * 5. Old cache should be cleaned up
+ * Tests the complete flow: 1. Inject SEA+VFS into compressed stub -> stub
+ * should be signed 2. Run stub -> extracted binary should be signed and cached
+ * 3. Overwrite with new SEA+VFS -> stub should be signed 4. Run new stub -> new
+ * extracted binary should be signed and cached in different location 5. Old
+ * cache should be cleaned up.
  */
 
 import crypto from 'node:crypto'
@@ -38,7 +38,8 @@ const PLATFORM_ARCH = getPlatformArch(process.platform, process.arch, undefined)
 /**
  * Find any available node-smol binary for testing (compressed/final stub).
  * Tries multiple locations and build variants.
- * @returns {string|null} Path to binary or null if none found
+ *
+ * @returns {string | null} Path to binary or null if none found
  */
 export function findTestStub() {
   const platform = os.platform()
@@ -131,10 +132,11 @@ export function findTestStub() {
 }
 
 /**
- * Find uncompressed node-smol binary for SEA blob generation.
- * Uses Stripped or Release binary from build output (same Node.js version as stub).
- * This is more reliable than extracting from cache which can be inconsistent.
- * @returns {string|null} Path to uncompressed binary or null if none found
+ * Find uncompressed node-smol binary for SEA blob generation. Uses Stripped or
+ * Release binary from build output (same Node.js version as stub). This is more
+ * reliable than extracting from cache which can be inconsistent.
+ *
+ * @returns {string | null} Path to uncompressed binary or null if none found
  */
 // oxlint-disable-next-line socket/sort-source-methods -- test helpers ordered by signature-cache flow (build → sign → cache → verify → invalidate); alphabetizing would scatter the flow.
 export function findNodeSmolBinary() {
@@ -275,9 +277,9 @@ export async function getCachedBinaryPath(cacheKey) {
 }
 
 /**
- * Clean ALL cache entries before test to ensure fresh state.
- * This is necessary because the repack workflow modifies the cache state
- * in ways that break subsequent injections.
+ * Clean ALL cache entries before test to ensure fresh state. This is necessary
+ * because the repack workflow modifies the cache state in ways that break
+ * subsequent injections.
  */
 // oxlint-disable-next-line socket/sort-source-methods -- test helpers ordered by signature-cache flow (build → sign → cache → verify → invalidate); alphabetizing would scatter the flow.
 export async function cleanCacheBeforeTest() {
@@ -300,11 +302,14 @@ export async function cleanCacheBeforeTest() {
 }
 
 /**
- * Generate a valid SEA blob using binject blob command.
- * Creates a unique JS file and sea-config.json, then generates the blob.
- * @param baseDir - Directory to create files in
- * @param prefix - Unique prefix for file names
- * @param nodeBinaryPath - Optional path to Node.js binary for SEA generation (for version matching)
+ * Generate a valid SEA blob using binject blob command. Creates a unique JS
+ * file and sea-config.json, then generates the blob.
+ *
+ * @param baseDir - Directory to create files in.
+ * @param prefix - Unique prefix for file names.
+ * @param nodeBinaryPath - Optional path to Node.js binary for SEA generation
+ *   (for version matching)
+ *
  * @returns Path to the generated .blob file
  */
 // oxlint-disable-next-line socket/sort-source-methods -- test helpers ordered by signature-cache flow (build → sign → cache → verify → invalidate); alphabetizing would scatter the flow.
@@ -348,7 +353,8 @@ export async function generateValidSEABlob(
 }
 
 /**
- * Create unique VFS content using UUID to ensure each test creates a unique cache entry
+ * Create unique VFS content using UUID to ensure each test creates a unique
+ * cache entry.
  */
 // oxlint-disable-next-line socket/sort-source-methods -- test helpers ordered by signature-cache flow (build → sign → cache → verify → invalidate); alphabetizing would scatter the flow.
 export function createUniqueVFSContent(description: string) {

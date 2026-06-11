@@ -5,6 +5,8 @@
  * and have ZERO file overlaps (no sequential dependencies).
  */
 
+import { describe, expect, it, test } from 'vitest'
+
 import { existsSync, promises as fs, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

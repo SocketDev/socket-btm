@@ -7,6 +7,8 @@
  * 2. API structure validation via TypeScript definitions
  */
 
+import { describe, expect, it } from 'vitest'
+
 describe('node:smol-ilp TimeUnit', () => {
   describe('timestamp conversion logic', () => {
     const MS_TO_NS = 1_000_000n

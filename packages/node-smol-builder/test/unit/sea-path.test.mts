@@ -6,6 +6,8 @@
  * Single Executable Application, we test the path logic independently.
  */
 
+import { describe, expect, it } from 'vitest'
+
 /**
  * Simulate getSeaAssetKey logic
  */

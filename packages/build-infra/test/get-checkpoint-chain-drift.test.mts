@@ -13,6 +13,8 @@
  * fails CI instead of silently desynchronizing the cache chain.
  */
 
+import { describe, expect, it } from 'vitest'
+
 import path from 'node:path'
 import url, { fileURLToPath } from 'node:url'
 

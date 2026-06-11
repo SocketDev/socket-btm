@@ -6,6 +6,8 @@
  * the built smol binary.
  */
 
+import { describe, expect, it, test } from 'vitest'
+
 import { builtinModules, isBuiltin } from 'node:module'
 
 describe('node:smol-vfs (system Node)', () => {

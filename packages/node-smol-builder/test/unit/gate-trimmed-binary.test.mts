@@ -7,6 +7,8 @@
  * suite) needs a real trimmed binary and is exercised in CI once one is built.
  */
 
+import { describe, expect, it } from 'vitest'
+
 import { checkBinaryFeatures } from '../../scripts/gate-trimmed-binary.mts'
 
 const BIN = '/fake/trimmed/node'

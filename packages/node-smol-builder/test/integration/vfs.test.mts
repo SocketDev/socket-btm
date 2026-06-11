@@ -1,3 +1,4 @@
+import { afterAll, beforeAll, describe, expect, it, test } from 'vitest'
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
  * @fileoverview Tests for VFS (Virtual Filesystem) support with TAR/TAR.GZ archives.

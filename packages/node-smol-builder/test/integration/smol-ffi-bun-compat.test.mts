@@ -15,6 +15,8 @@
  * alongside in the same patch hunk).
  */
 
+import { describe, expect, it } from 'vitest'
+
 import {
   runOnSmolBinary,
   smolBuiltinIsAvailable,

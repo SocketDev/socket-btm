@@ -9,6 +9,8 @@
  *   - `default` aliased to `Sender`
  */
 
+import { describe, expect, it } from 'vitest'
+
 import {
   parseExportShape,
   printExportShapeScript,

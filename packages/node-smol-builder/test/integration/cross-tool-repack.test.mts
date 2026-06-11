@@ -1,3 +1,4 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 /**
  * @fileoverview Cross-tool repacking integration tests

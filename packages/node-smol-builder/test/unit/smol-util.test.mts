@@ -5,6 +5,8 @@
  * suite asserts the inverse on the built smol binary.
  */
 
+import { describe, expect, it } from 'vitest'
+
 import { builtinModules, isBuiltin } from 'node:module'
 
 describe('node:smol-util (system Node)', () => {

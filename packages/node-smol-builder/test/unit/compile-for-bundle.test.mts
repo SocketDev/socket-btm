@@ -10,6 +10,8 @@
  * detect→plan is exercised via --dry-run in the integration/manual path.
  */
 
+import { describe, expect, it } from 'vitest'
+
 import {
   buildBuildArgs,
   computeCacheKey,

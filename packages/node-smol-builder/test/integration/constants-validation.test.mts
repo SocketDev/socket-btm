@@ -11,6 +11,8 @@
  * - Platform/arch/libc value mappings are consistent
  */
 
+import { describe, expect, it } from 'vitest'
+
 import {
   ARCH_VALUES,
   HEADER_SIZES,

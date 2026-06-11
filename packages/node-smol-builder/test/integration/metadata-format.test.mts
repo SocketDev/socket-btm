@@ -7,6 +7,8 @@
  * - Libc byte (0=glibc, 1=musl, 255=n/a)
  */
 
+import { beforeAll, describe, expect, it } from 'vitest'
+
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 

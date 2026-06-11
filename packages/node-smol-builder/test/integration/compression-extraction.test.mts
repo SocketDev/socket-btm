@@ -18,6 +18,8 @@
  * Run with: pnpm build --dev or pnpm build --prod
  */
 
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+
 import crypto from 'node:crypto'
 import { existsSync, promises as fs, readFileSync } from 'node:fs'
 import os from 'node:os'

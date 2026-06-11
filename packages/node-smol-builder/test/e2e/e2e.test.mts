@@ -13,6 +13,8 @@
  * Run with: pnpm test:e2e
  */
 
+import { afterAll, beforeAll, describe, expect, it, test } from 'vitest'
+
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'

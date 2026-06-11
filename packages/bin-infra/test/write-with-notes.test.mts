@@ -10,6 +10,8 @@
  * for SEA injection via elf_inject_lief.cpp
  */
 
+import { afterAll, beforeAll, describe, expect, it, test } from 'vitest'
+
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'

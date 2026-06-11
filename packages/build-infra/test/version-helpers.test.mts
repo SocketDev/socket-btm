@@ -3,6 +3,8 @@
  * Validates .gitmodules version and checksum parsing.
  */
 
+import { describe, expect, it } from 'vitest'
+
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

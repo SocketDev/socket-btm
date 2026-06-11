@@ -2,6 +2,8 @@
  * @fileoverview Tests for build-helpers utilities (pure functions).
  */
 
+import { describe, expect, it } from 'vitest'
+
 import { estimateBuildTime, formatDuration } from '../lib/build-helpers.mts'
 
 describe('build-helpers', () => {

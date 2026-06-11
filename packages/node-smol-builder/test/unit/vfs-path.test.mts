@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest'
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
  * @fileoverview Tests for VFS path handling (/snapshot/* path prefix).

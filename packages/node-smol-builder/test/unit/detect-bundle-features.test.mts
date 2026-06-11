@@ -8,6 +8,8 @@
  * dependency on a real built bundle.
  */
 
+import { describe, expect, it } from 'vitest'
+
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'

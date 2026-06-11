@@ -12,6 +12,8 @@
  * unit suite just locks the schemeless-blocklist behavior.
  */
 
+import { describe, expect, it } from 'vitest'
+
 import { builtinModules, isBuiltin } from 'node:module'
 
 describe('node:smol-ffi/node (system Node)', () => {

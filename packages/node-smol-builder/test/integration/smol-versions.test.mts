@@ -7,6 +7,8 @@
  * (kept top-level only).
  */
 
+import { describe, expect, it } from 'vitest'
+
 import {
   parseExportShape,
   printExportShapeScript,

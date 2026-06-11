@@ -6,6 +6,8 @@
  * `default` aliased to `sql` (Bun-compat).
  */
 
+import { describe, expect, it } from 'vitest'
+
 import {
   parseExportShape,
   printExportShapeScript,

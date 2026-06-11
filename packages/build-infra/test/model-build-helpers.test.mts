@@ -2,6 +2,8 @@
  * @fileoverview Tests for model-build-helpers utilities (pure helpers).
  */
 
+import { describe, expect, it } from 'vitest'
+
 import { extractPythonPackages } from '../lib/model-build-helpers.mts'
 
 describe('model-build-helpers', () => {

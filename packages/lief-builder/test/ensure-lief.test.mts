@@ -2,6 +2,8 @@
  * @fileoverview Tests for lief-builder library exports.
  */
 
+import { describe, expect, it } from 'vitest'
+
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 

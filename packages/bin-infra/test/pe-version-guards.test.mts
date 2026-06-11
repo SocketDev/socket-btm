@@ -12,6 +12,8 @@
  * 4. Valid PE structure requirements (DOS magic, PE signature, etc.)
  */
 
+import { afterEach, describe, expect, it } from 'vitest'
+
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'

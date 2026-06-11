@@ -5,6 +5,8 @@
  * to ensure checkpoint archives are properly validated before caching.
  */
 
+import { afterEach, beforeEach, describe, expect, it, test } from 'vitest'
+
 import { writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'

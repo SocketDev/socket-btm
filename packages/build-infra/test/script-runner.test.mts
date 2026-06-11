@@ -3,6 +3,8 @@
  * Validates pnpm script execution, command sequencing, and parallel execution.
  */
 
+import { beforeEach, describe, expect, it, test, vi } from 'vitest'
+
 import * as binModule from '@socketsecurity/lib-stable/bin/which'
 import * as spawnModule from '@socketsecurity/lib-stable/process/spawn/child'
 

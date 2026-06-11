@@ -11,6 +11,8 @@
  * Skips entirely if the Final/ binary doesn't have smol-https wired in.
  */
 
+import { describe, expect, it, test } from 'vitest'
+
 import {
   parseExportShape,
   printExportShapeScript,

@@ -5,6 +5,8 @@
  * type definitions since the runtime code requires Node.js internals.
  */
 
+import { beforeAll, describe, expect, it } from 'vitest'
+
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

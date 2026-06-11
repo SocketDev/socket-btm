@@ -5,6 +5,8 @@
  * The C tests use the minunit-style test framework from bin-infra/test.h.
  */
 
+import { describe, expect, it, test } from 'vitest'
+
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

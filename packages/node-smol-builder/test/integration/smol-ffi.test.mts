@@ -18,6 +18,8 @@
  * binding wired in.
  */
 
+import { describe, expect, it } from 'vitest'
+
 import {
   parseExportShape,
   printExportShapeScript,

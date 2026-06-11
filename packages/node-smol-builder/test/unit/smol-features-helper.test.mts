@@ -8,6 +8,8 @@
  * integration suite when one is built.
  */
 
+import { describe, expect, it } from 'vitest'
+
 import { has, missingRequiredFeatures, smolBinary } from '../helpers/smol-features.mts'
 import { SMOL_FEATURES } from '../../scripts/lib/smol-features.mts'
 

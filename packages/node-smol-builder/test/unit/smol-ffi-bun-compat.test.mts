@@ -11,6 +11,8 @@
  * linkSymbols are deferred to Phase 2 and throw ENOTIMPL.
  */
 
+import { describe, expect, it } from 'vitest'
+
 import { builtinModules, isBuiltin } from 'node:module'
 
 describe('node:smol-ffi/bun (system Node)', () => {

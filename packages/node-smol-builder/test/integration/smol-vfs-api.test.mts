@@ -9,6 +9,8 @@
  * descriptors).
  */
 
+import { describe, expect, it, test } from 'vitest'
+
 import {
   parseExportShape,
   runOnSmolBinary,

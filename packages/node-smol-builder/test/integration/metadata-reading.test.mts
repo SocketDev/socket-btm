@@ -11,6 +11,8 @@
  * - Platform/arch/libc mappings match binary metadata bytes
  */
 
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'

@@ -20,6 +20,8 @@
  * exit from this test == a real spec regression that needs eyes.
  */
 
+import { describe, expect, it, test } from 'vitest'
+
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 

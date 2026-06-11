@@ -11,6 +11,8 @@
  * - Round-trip encoding/decoding consistency
  */
 
+import { beforeAll, describe, expect, it } from 'vitest'
+
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 

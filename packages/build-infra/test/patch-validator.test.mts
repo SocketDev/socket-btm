@@ -3,6 +3,8 @@
  * Validates patch file validation, application, and conflict detection.
  */
 
+import { beforeEach, describe, expect, it } from 'vitest'
+
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'

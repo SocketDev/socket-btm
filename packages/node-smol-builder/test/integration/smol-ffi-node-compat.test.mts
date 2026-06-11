@@ -16,6 +16,8 @@
  * smol-ffi, since the /node subpath ships in the same patch hunk).
  */
 
+import { describe, expect, it } from 'vitest'
+
 import {
   runOnSmolBinary,
   smolBuiltinIsAvailable,

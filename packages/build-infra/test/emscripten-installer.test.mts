@@ -2,6 +2,8 @@
  * @fileoverview Tests for emscripten-installer utilities.
  */
 
+import { describe, expect, it } from 'vitest'
+
 import {
   checkEmscriptenAvailable,
   checkEmsdkInstalled,

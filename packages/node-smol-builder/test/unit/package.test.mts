@@ -2,6 +2,8 @@
  * @fileoverview Tests for @socketbin/node-smol-builder package structure and configuration.
  */
 
+import { describe, expect, it } from 'vitest'
+
 import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

@@ -6,6 +6,8 @@
  * TLS-required error semantics encoded in the JS shim.
  */
 
+import { describe, expect, it } from 'vitest'
+
 import { builtinModules, isBuiltin } from 'node:module'
 
 describe('node:smol-https (system Node)', () => {

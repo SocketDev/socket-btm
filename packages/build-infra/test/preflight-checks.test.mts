@@ -3,6 +3,8 @@
  * Validates build environment validation and requirement checks.
  */
 
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import {
   runPreflightChecks,
   runPreflightChecksOrExit,

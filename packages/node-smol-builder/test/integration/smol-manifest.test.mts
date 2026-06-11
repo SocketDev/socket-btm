@@ -7,6 +7,8 @@
  * `ManifestError`, which is only on the top-level export).
  */
 
+import { describe, expect, it } from 'vitest'
+
 import {
   parseExportShape,
   printExportShapeScript,

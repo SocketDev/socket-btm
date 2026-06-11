@@ -9,6 +9,8 @@
  * null-prototype/no-bare-import invariants every smol-* module shares.
  */
 
+import { describe, expect, it } from 'vitest'
+
 import {
   parseExportShape,
   printExportShapeScript,

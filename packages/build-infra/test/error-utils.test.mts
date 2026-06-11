@@ -9,6 +9,8 @@
  * produces no message.
  */
 
+import { describe, expect, it } from 'vitest'
+
 import { UNKNOWN_ERROR } from '@socketsecurity/lib-stable/errors'
 
 import { errorMessage } from '../lib/error-utils.mts'

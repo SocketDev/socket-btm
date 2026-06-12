@@ -1,31 +1,32 @@
 /**
- * check-pin-soak — auditor for external pin soak compliance.
+ * Check-pin-soak — auditor for external pin soak compliance.
  *
  * Walks every pin surface in the repo and verifies the soak policy from
  * lib/soak-policy.mts:
  *
- *   - .gitmodules submodule SHA pins
- *   - .github/workflows/**\/*.yml + .github/actions/**\/*.yml uses: pins
- *   - **\/Dockerfile* FROM @sha256: digests
- *   - **\/external-tools.json `published` fields
- *   - pnpm-workspace.yaml minimumReleaseAgeExclude annotations
+ * - .gitmodules submodule SHA pins
+ * - `.github/workflows/**`/`*.yml` + `.github/actions/**`/`*.yml` uses: pins
+ * - `**`/`Dockerfile*` FROM @sha256: digests
+ * - `**`/`external-tools.json` `published` fields
+ * - Pnpm-workspace.yaml minimumReleaseAgeExclude annotations
  *
  * Pure annotation validation — no network. The hook
- * `.claude/hooks/fleet/pin-soak-guard/` probes the registry at edit time;
- * this script just re-confirms the math on every pin.
+ * `.claude/hooks/fleet/pin-soak-guard/` probes the registry at edit time; this
+ * script just re-confirms the math on every pin.
  *
  * A finding's `status` is one of:
- *   - soaked          — past the 7d floor.
- *   - in-soak         — inside the 7d window with an annotation (allowed).
- *   - unannotated     — no annotation; informational.
  *
- * Workflow `uses:` pins encode the publish date IN the pin line itself
- * (the SHA-pin trailing-date comment), so they never have a separate
- * "annotation to clean up" — they're filtered out of the cleanup bucket
- * automatically by the `hasSeparateAnnotation` flag on the finding.
+ * - Soaked — past the 7d floor.
+ * - In-soak — inside the 7d window with an annotation (allowed).
+ * - Unannotated — no annotation; informational.
  *
- * Exit 0 today (informational mode). Once the pin-soak-guard hook is
- * enforcing annotations at edit time, flip to fail on in-soak findings.
+ * Workflow `uses:` pins encode the publish date IN the pin line itself (the
+ * SHA-pin trailing-date comment), so they never have a separate "annotation to
+ * clean up" — they're filtered out of the cleanup bucket automatically by the
+ * `hasSeparateAnnotation` flag on the finding.
+ *
+ * Exit 0 today (informational mode). Once the pin-soak-guard hook is enforcing
+ * annotations at edit time, flip to fail on in-soak findings.
  */
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
@@ -60,14 +61,21 @@ export function auditDockerfiles() {
       if (!fromRe.test(lines[i])) {
         continue
       }
-      recordPinWithSeparateAnnotation(file, lines, i, lines[i].trim(), 'dockerfile-from')
+      recordPinWithSeparateAnnotation(
+        file,
+        lines,
+        i,
+        lines[i].trim(),
+        'dockerfile-from',
+      )
     }
   }
 }
 
 export function auditExternalToolsJson() {
-  for (const file of walk(REPO_ROOT, p =>
-    /external-tools\.json$/.test(p) && !p.includes('node_modules'),
+  for (const file of walk(
+    REPO_ROOT,
+    p => /external-tools\.json$/.test(p) && !p.includes('node_modules'),
   )) {
     let parsed
     try {
@@ -102,7 +110,14 @@ export function auditExternalToolsJson() {
         )
         continue
       }
-      pushFromSoak('external-tools', file, 0, identifier, entry.published, false)
+      pushFromSoak(
+        'external-tools',
+        file,
+        0,
+        identifier,
+        entry.published,
+        false,
+      )
     }
   }
 }
@@ -118,7 +133,13 @@ export function auditGitmodules() {
     if (submoduleMatch === null) {
       continue
     }
-    recordPinWithSeparateAnnotation(file, lines, i, submoduleMatch[1], 'gitmodules')
+    recordPinWithSeparateAnnotation(
+      file,
+      lines,
+      i,
+      submoduleMatch[1],
+      'gitmodules',
+    )
   }
 }
 
@@ -140,7 +161,14 @@ export function auditPnpmWorkspace() {
         break
       }
     }
-    pushFromSoak('pnpm-workspace', file, i + 1, pkgLine, annotation.published, true)
+    pushFromSoak(
+      'pnpm-workspace',
+      file,
+      i + 1,
+      pkgLine,
+      annotation.published,
+      true,
+    )
   }
 }
 
@@ -179,7 +207,9 @@ export function printBucket(label, items, alwaysList) {
   if (alwaysList || verbose) {
     for (let i = 0, { length } = items; i < length; i += 1) {
       const f = items[i]
-      logger.log(`  - [${f.surface}] ${f.identifier} (${f.file}:${f.lineNumber})`)
+      logger.log(
+        `  - [${f.surface}] ${f.identifier} (${f.file}:${f.lineNumber})`,
+      )
       logger.log(`    ${f.note}`)
     }
   }
@@ -286,7 +316,11 @@ const exitCode = 0
 
 if (jsonOutput) {
   logger.log(
-    JSON.stringify({ findings, inSoak, unannotated, soakedAnnotated }, undefined, 2),
+    JSON.stringify(
+      { findings, inSoak, unannotated, soakedAnnotated },
+      undefined,
+      2,
+    ),
   )
 } else {
   logger.log('')
@@ -302,7 +336,11 @@ if (jsonOutput) {
     }
   }
   printBucket('! pin(s) in 7-day soak (annotated; allowed)', inSoak, true)
-  printBucket('i pin(s) without annotation (backfill opportunity)', unannotated, false)
+  printBucket(
+    'i pin(s) without annotation (backfill opportunity)',
+    unannotated,
+    false,
+  )
   printBucket(
     'i pin(s) past soak with annotation (cleanup opportunity)',
     soakedAnnotated,

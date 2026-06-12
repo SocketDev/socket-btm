@@ -1,36 +1,28 @@
 #!/usr/bin/env node
 // max-file-lines: legitimate -- cascade-completeness gate: gather → analyze → report pipeline; splitting fractures the flow
 /**
- * @fileoverview Cascade-completeness checker.
+ * @file Cascade-completeness checker. Walks three sources of cross-package
+ *   build dependencies:
  *
- * Walks three sources of cross-package build dependencies:
  *   1. Makefile `include ../foo/make/...` directives
  *   2. TypeScript imports from `build-infra/...`, `bin-infra/...`,
  *      `curl-builder/...`, `lief-builder/...`, etc.
- *   3. Dockerfile `COPY packages/foo/...` directives
- *
- * And cross-checks each discovered dependency against:
- *   A. `scripts/validate-cache-versions.mts` CASCADE_RULES
- *   B. The consuming workflow's cache-key composition
- *
- * Reports every path that exists on disk AND is referenced by a
- * builder AND has no matching cascade rule OR workflow hash. This
- * catches the shape that was the bulk of R18-R27 scope creep —
- * R18 missed `build-infra/wasm-synced/`, R19 missed `curl-builder/
- * {docker,lib,scripts}/`, R20 missed `lief-builder/{lib,scripts}/`,
- * R24 missed root package.json + pnpm-workspace.yaml across 11
- * workflows, R27 missed LIEF in stubs.yml. All same shape: dependency
- * exists, builder uses it, cache doesn't know.
- *
- * Output mirrors check-regression-patterns.mts — file:line + why + fix +
- * what to do, plus a clean JSON mode for tooling.
- *
- * Usage:
- *   node scripts/check-cascade-completeness.mts
- *   node scripts/check-cascade-completeness.mts --explain
- *   node scripts/check-cascade-completeness.mts --json
- *
- * Allowlist at `.github/cascade-completeness-allowlist.yml`.
+ *   3. Dockerfile `COPY packages/foo/...` directives And cross-checks each
+ *      discovered dependency against: A. `scripts/validate-cache-versions.mts`
+ *      CASCADE_RULES B. The consuming workflow's cache-key composition Reports
+ *      every path that exists on disk AND is referenced by a builder AND has no
+ *      matching cascade rule OR workflow hash. This catches the shape that was
+ *      the bulk of R18-R27 scope creep — R18 missed `build-infra/wasm-synced/`,
+ *      R19 missed `curl-builder/ {docker,lib,scripts}/`, R20 missed
+ *      `lief-builder/{lib,scripts}/`, R24 missed root package.json +
+ *      pnpm-workspace.yaml across 11 workflows, R27 missed LIEF in stubs.yml.
+ *      All same shape: dependency exists, builder uses it, cache doesn't know.
+ *      Output mirrors check-regression-patterns.mts — file:line + why + fix +
+ *      what to do, plus a clean JSON mode for tooling. Usage: node
+ *      scripts/check-cascade-completeness.mts node
+ *      scripts/check-cascade-completeness.mts --explain node
+ *      scripts/check-cascade-completeness.mts --json Allowlist at
+ *      `.github/cascade-completeness-allowlist.yml`.
  */
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
@@ -116,10 +108,10 @@ type Options = {
 }
 
 /**
- * Walk every Dockerfile under packages/*\/docker/ and verify each
- * `COPY <src>` path is either implicitly hashed or textually present
- * in the consuming workflow's YAML. This is the audit that caught
- * R24's root-package.json gap and R27's stubs/LIEF gap.
+ * Walk every Dockerfile under `packages/*`/`docker/` and verify each `COPY
+ * <src>` path is either implicitly hashed or textually present in the consuming
+ * workflow's YAML. This is the audit that caught R24's root-package.json gap
+ * and R27's stubs/LIEF gap.
  */
 export function collectDockerfileCopies(): Finding[] {
   const findings: Finding[] = []
@@ -239,7 +231,9 @@ export function collectDockerfileCopies(): Finding[] {
   return findings
 }
 
-/** Walk every Makefile and collect `include ../<pkg>/make/<file>.mk` paths. */
+/**
+ * Walk every Makefile and collect `include ../<pkg>/make/<file>.mk` paths.
+ */
 export function collectMakefileIncludes(): Finding[] {
   const findings: Finding[] = []
   const cascadeKeys = loadCascadeRuleKeys()
@@ -307,7 +301,9 @@ const COLLECT_TS_IMPORTS_SKIP_DIRS = new Set([
   'upstream',
 ])
 
-/** Walk every .mts/.ts for cross-package imports and check cascade coverage. */
+/**
+ * Walk every .mts/.ts for cross-package imports and check cascade coverage.
+ */
 export function collectTypeScriptImports(): Finding[] {
   const findings: Finding[] = []
   const cascadeKeys = loadCascadeRuleKeys()
@@ -433,11 +429,8 @@ export function loadAllowlist(): AllowlistEntry[] {
 
 /**
  * Parse CASCADE_RULES out of validate-cache-versions.mts. The file is
- * hand-maintained and follows a strict shape — match
- *   'packages/some/path/': [...]
- * and
- *   'anything.json': [...]
- * patterns.
+ * hand-maintained and follows a strict shape — match 'packages/some/path/':
+ * [...] and 'anything.json': [...] patterns.
  */
 export function loadCascadeRuleKeys(): Set<string> {
   const content = readFileSync(CASCADE_RULES_PATH, 'utf8')

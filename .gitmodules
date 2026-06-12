@@ -86,10 +86,11 @@
 	url = https://github.com/uNetworking/uWebSockets.git
 	ignore = dirty
 	shallow = true
-# opentui-0.2.15
+# opentui-0.4.1 sha256:ba4b76e80e0488e1c069841084e700645d86929d58d8d67f821eadc60526654b
 [submodule "packages/opentui-builder/upstream/opentui"]
 	path = packages/opentui-builder/upstream/opentui
 	url = https://github.com/anomalyco/opentui.git
+	ref = b7e0bb9c3d2a75c2bc267d2af27b7237f734d13b
 	ignore = dirty
 	shallow = true
 # zstd-1.5.7

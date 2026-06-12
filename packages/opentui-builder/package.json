@@ -1,8 +1,8 @@
 {
   "name": "opentui-builder",
   "version": "0.0.0",
-  "description": "Native Node.js bindings for OpenTUI library via Zig node-api",
   "private": true,
+  "description": "Native Node.js bindings for OpenTUI library via Zig node-api",
   "license": "MIT",
   "type": "module",
   "main": "./lib/index.mts",
@@ -38,10 +38,10 @@
   },
   "sources": {
     "opentui": {
-      "version": "0.2.15",
+      "version": "0.4.1",
       "type": "git",
       "url": "https://github.com/anomalyco/opentui.git",
-      "ref": "f464acfcba0dde0ffcd6b2728811df787a72975c"
+      "ref": "b7e0bb9c3d2a75c2bc267d2af27b7237f734d13b"
     }
   }
 }

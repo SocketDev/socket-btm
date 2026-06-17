@@ -1,0 +1,181 @@
+name: SMOL 0. btm-builder-glibc image
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Dry run (build, push to ghcr.io NOT performed)'
+        type: boolean
+        default: true
+      platforms:
+        description: 'Comma-separated platforms (linux/amd64,linux/arm64)'
+        type: string
+        default: 'linux/amd64,linux/arm64'
+  schedule:
+    # First of the month at 09:00 UTC. Keeps the prebake fresh against
+    # upstream almalinux:8 security updates without manual nagging.
+    - cron: '0 9 1 * *'
+
+permissions:
+  contents: read
+
+env:
+  HOMEBREW_NO_ANALYTICS: '1'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: socketdev/btm-builder-glibc
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Org allowlist permits only depot/* + a narrow set of actions/* (no
+# docker/* actions). Everything Docker-related uses the pre-installed
+# `docker` CLI directly via `shell: bash`.
+#
+# Two-job shape: per-arch builds run on native hardware (ubuntu-24.04
+# for x64, ubuntu-24.04-arm for arm64), avoiding QEMU emulation entirely
+# (~3x faster on arm64). A final job assembles the multi-arch manifest
+# list from the per-arch tags.
+jobs:
+  build:
+    name: build ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            asset-key: x64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            asset-key: arm64
+    # Both arches always build. The `platforms:` input is retained
+    # for documentation but doesn't gate matrix expansion — GHA's
+    # job-level `if:` can't reference `matrix.*` (it's evaluated
+    # before matrix bindings). The cost of building both when only
+    # one was requested is small (~30s of runner startup) and the
+    # filtering complexity isn't worth it.
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (2026-05-15)
+        with:
+          submodules: false
+          persist-credentials: false
+
+      - name: Stage socket-registry external-tools.json
+        shell: bash
+        env:
+          # SHA-pinned read of socket-registry/external-tools.json. Bumped
+          # in lockstep with the setup-and-install action pin (c291a141).
+          REGISTRY_SHA: f58e7ae37e486876c326366668e1b2a90ce193c3
+        run: |
+          mkdir -p .build-context
+          curl -fsSL \
+            "https://raw.githubusercontent.com/SocketDev/socket-registry/${REGISTRY_SHA}/external-tools.json" \
+            -o .build-context/registry-tools.json
+          jq -e '.pnpm.version' .build-context/registry-tools.json >/dev/null
+
+      - name: Compute image tag + read metadata
+        id: meta
+        shell: bash
+        env:
+          GH_SHA: ${{ github.sha }}
+          ASSET_KEY: ${{ matrix.asset-key }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          SHA8=${GH_SHA:0:8}
+          NODE_VERSION=$(tr -d '[:space:]' < .node-version)
+          PNPM_VERSION=$(jq -r .pnpm.version .build-context/registry-tools.json)
+          PNPM_ASSET=$(jq -r ".pnpm.platforms[\"linux-${ASSET_KEY}\"].asset" .build-context/registry-tools.json)
+          PNPM_INTEGRITY=$(jq -r ".pnpm.platforms[\"linux-${ASSET_KEY}\"].integrity" .build-context/registry-tools.json)
+          PNPM_SHA256=$(echo "${PNPM_INTEGRITY#sha256-}" | base64 -d | od -An -tx1 | tr -d ' \n')
+          {
+            echo "tag=${DATE}-${SHA8}"
+            echo "node-version=${NODE_VERSION}"
+            echo "pnpm-version=${PNPM_VERSION}"
+            echo "pnpm-asset=${PNPM_ASSET}"
+            echo "pnpm-sha256=${PNPM_SHA256}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Login to ghcr.io
+        if: ${{ !inputs.dry-run }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_USER: ${{ github.actor }}
+        run: |
+          echo "${GH_TOKEN}" | docker login "${REGISTRY}" --username "${GH_USER}" --password-stdin
+
+      - name: Build
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+          IMAGE_TAG: ${{ steps.meta.outputs.tag }}
+          NODE_VERSION: ${{ steps.meta.outputs.node-version }}
+          PNPM_VERSION: ${{ steps.meta.outputs.pnpm-version }}
+          PNPM_ASSET: ${{ steps.meta.outputs.pnpm-asset }}
+          PNPM_SHA256: ${{ steps.meta.outputs.pnpm-sha256 }}
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          # Native build (matrix runner matches the arch). No QEMU.
+          TAG="${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}-${ARCH}"
+          if [ "${DRY_RUN}" = "true" ]; then
+            EXTRA_FLAGS="--output=type=docker"
+          else
+            EXTRA_FLAGS="--push"
+          fi
+          docker buildx build \
+            --platform "linux/${ARCH}" \
+            --file packages/build-infra/docker/btm-builder-glibc.Dockerfile \
+            --tag "${TAG}" \
+            --build-arg "NODE_VERSION=${NODE_VERSION}" \
+            --build-arg "PNPM_VERSION=${PNPM_VERSION}" \
+            --build-arg "PNPM_ASSET=${PNPM_ASSET}" \
+            --build-arg "PNPM_SHA256=${PNPM_SHA256}" \
+            --build-arg "CACHE_VERSION=${IMAGE_TAG}" \
+            --provenance=false \
+            ${EXTRA_FLAGS} \
+            .
+
+  manifest:
+    name: assemble multi-arch manifest
+    needs: build
+    if: ${{ !inputs.dry-run }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Compute image tag
+        id: tag
+        shell: bash
+        env:
+          GH_SHA: ${{ github.sha }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          SHA8=${GH_SHA:0:8}
+          echo "tag=${DATE}-${SHA8}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to ghcr.io
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_USER: ${{ github.actor }}
+        run: |
+          echo "${GH_TOKEN}" | docker login "${REGISTRY}" --username "${GH_USER}" --password-stdin
+
+      - name: Assemble multi-arch manifest list
+        shell: bash
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          BASE="${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+          docker buildx imagetools create \
+            --tag "${BASE}" \
+            "${BASE}-amd64" \
+            "${BASE}-arm64"
+          echo "Published: ${BASE} (multi-arch manifest)"

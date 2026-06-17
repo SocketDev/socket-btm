@@ -1,0 +1,9 @@
+{
+  "lockfileVersion": 1,
+  "dependencies": {
+    "string-width-cjs": {
+      "version": "npm:string-width@4.2.3",
+      "resolved": "https://registry.npmjs.org/string-width/-/string-width-4.2.3.tgz"
+    }
+  }
+}

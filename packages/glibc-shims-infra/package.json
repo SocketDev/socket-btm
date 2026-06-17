@@ -1,0 +1,23 @@
+{
+  "name": "glibc-shims-infra",
+  "version": "0.0.0",
+  "description": "glibc 2.17 compat shim layer for fleet Linux binaries (drop-in for binsuite, boringssl, curl, lief, lsquic, node-smol, onnxruntime, postgres, stubs, yoga)",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./lib/link-flags": "./lib/link-flags.mts",
+    "./gyp/glibc-shims-infra.gypi": "./gyp/glibc-shims-infra.gypi"
+  },
+  "scripts": {
+    "cover": "vitest run --coverage",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@socketsecurity/lib-stable": "catalog:"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "catalog:",
+    "vitest": "catalog:"
+  }
+}

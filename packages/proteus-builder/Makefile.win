@@ -1,0 +1,17 @@
+# proteus-builder Makefile for Windows.
+# Broker-only credential daemon fronting the Credential Manager.
+#
+# Placeholder: the current daemon source (src/.../proteus.c) is POSIX-only
+# (AF_UNIX sockets, SO_PEERCRED). The Windows port uses a named pipe
+# (\\.\pipe\proteus-sock) with the same NDJSON framing, and lands in a later
+# phase alongside the Credential Manager backend. Until then this target fails
+# loudly rather than emitting a non-functional binary.
+
+include ../build-infra/make/common.mk
+
+all:
+	@echo "ERROR: proteus win32 daemon is not implemented yet (named-pipe port pending)." >&2
+	@exit 1
+
+clean:
+	rm -rf build out

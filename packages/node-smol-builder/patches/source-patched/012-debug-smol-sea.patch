@@ -1,0 +1,16 @@
+# @node-versions: v26.2.0
+# @description: Add SMOL_SEA debug category to debug_utils.h
+#
+# Adds custom debug category for Socket Security SEA/smol extensions.
+# Enables debug logging with NODE_DEBUG_NATIVE=smol_sea.
+#
+--- a/src/debug_utils.h
++++ b/src/debug_utils.h
+@@ -54,6 +54,7 @@
+   V(INSPECTOR_PROFILER)                                                        \
+   V(CODE_CACHE)                                                                \
+   V(NGTCP2)                                                                    \
++  V(SMOL_SEA)                                                                  \
+   V(NGHTTP3)                                                                   \
+   V(SEA)                                                                       \
+   V(WASI)                                                                      \

@@ -1,0 +1,22 @@
+{
+  "name": "keychain-addon-builder",
+  "version": "0.0.0",
+  "description": "Builds keychain.node — the N-API addon exposing the shared keystore-infra core (macOS Keychain + Secure-Enclave biometric ACL) to regular Node consumers. Republished by socket-addon as @socketaddon/keychain-*. Direct-clang link of an N-API shim + keystore-infra; no node-gyp.",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mts",
+    "cover": "vitest run --coverage",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@socketsecurity/lib-stable": "catalog:",
+    "build-infra": "workspace:*",
+    "keystore-infra": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "catalog:",
+    "vitest": "catalog:"
+  }
+}

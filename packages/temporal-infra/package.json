@@ -1,0 +1,24 @@
+{
+  "name": "temporal-infra",
+  "version": "0.0.0",
+  "description": "Source-only C++ port of temporal_rs (boa-dev/temporal) for embedding into node-smol-builder. No binary release; consumers compile inline via additions/source-patched.",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./lib/paths": "./lib/paths.mts"
+  },
+  "scripts": {
+    "check:lockstep": "node scripts/check-lockstep.mts",
+    "clean": "node scripts/clean.mts",
+    "test262:temporal": "node test/scripts/test262-temporal-runner.mts"
+  },
+  "dependencies": {
+    "@socketsecurity/lib-stable": "catalog:",
+    "build-infra": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "vitest": "catalog:"
+  }
+}

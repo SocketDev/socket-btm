@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../../build-infra/lib/external-tools-schema.json",
+  "description": "External tools required for the wasm-optimized checkpoint phase",
+  "tools": {
+    "binaryen": {
+      "description": "Binaryen WebAssembly optimizer (wasm-opt)",
+      "version": "120"
+    }
+  }
+}

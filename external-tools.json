@@ -1,0 +1,73 @@
+{
+  "$schema": "./packages/build-infra/lib/external-tools-schema.json",
+  "description": "Socket-btm root manifest. Inherits the foundational tool set from packages/build-infra. Package-specific tools live in each packages/<name>/external-tools.json and are loaded alongside these via the hierarchical merging in packages/build-infra/lib/pinned-versions.mts.",
+  "extends": "./packages/build-infra/external-tools.json",
+  "tools": {
+    "sfw-free": {
+      "description": "Socket Firewall (free tier) — malware gate on dep installs. Wheelhouse-managed; bump in lockstep with socket-wheelhouse/template/external-tools.json.",
+      "version": "1.7.2",
+      "repository": "github:SocketDev/sfw-free",
+      "release": "asset",
+      "notes": [
+        "Used when SOCKET_API_TOKEN (or the deprecated SOCKET_API_KEY alias) is not set",
+        "Shims npm/yarn/pnpm so every install call passes through the firewall",
+        "Dev install: pnpm run install:sfw"
+      ],
+      "platforms": {
+        "darwin-arm64": {
+          "asset": "sfw-free-macos-arm64",
+          "integrity": "sha256-JI+1iOHhon5xkvewefc5/Cmp3mHwutfpCSg2MCLcVkM="
+        },
+        "darwin-x64": {
+          "asset": "sfw-free-macos-x86_64",
+          "integrity": "sha256-pUJ9R51EDwjjeJ+hkbpXWZvmSZcZba9C5n2WT+wDgrQ="
+        },
+        "linux-arm64": {
+          "asset": "sfw-free-linux-arm64",
+          "integrity": "sha256-hKBF5OG7MgzFwNOSnwLlPxmTmLW+BjfohG0C2e8AJ7E="
+        },
+        "linux-x64": {
+          "asset": "sfw-free-linux-x86_64",
+          "integrity": "sha256-k+LZ36JEuCp04BTcJrHGrxi0rewg81JUN4lD21/pFBE="
+        },
+        "win-x64": {
+          "asset": "sfw-free-windows-x86_64.exe",
+          "integrity": "sha256-bTM7TKydfFcS4umWd8pjSsijAg1VDGMIMSxgvql/Cig="
+        }
+      }
+    },
+    "sfw-enterprise": {
+      "description": "Socket Firewall (enterprise tier) — selected when SOCKET_API_TOKEN is set. Wheelhouse-managed; bump in lockstep with socket-wheelhouse/template/external-tools.json.",
+      "version": "1.7.2",
+      "repository": "github:SocketDev/firewall-release",
+      "release": "asset",
+      "notes": [
+        "Used when SOCKET_API_TOKEN is set (e.g. via repo secrets in CI). The deprecated SOCKET_API_KEY alias is also accepted for one cycle.",
+        "Same shims as sfw-free, broader ecosystem support (Ruby, .NET, Go on Linux)",
+        "Dev install: pnpm run install:sfw -- --enterprise"
+      ],
+      "platforms": {
+        "darwin-arm64": {
+          "asset": "sfw-macos-arm64",
+          "integrity": "sha256-sc3Dvb0qMWEke9XMIV6zxEqQuH/guACjOImhT2G7DW0="
+        },
+        "darwin-x64": {
+          "asset": "sfw-macos-x86_64",
+          "integrity": "sha256-2iUtKppdDtsnG7dx4NAbnNb6FjW212X2Hv1h7bZznxI="
+        },
+        "linux-arm64": {
+          "asset": "sfw-linux-arm64",
+          "integrity": "sha256-wkp5wn4aAaWbehYMFlkwrgKYFscrFB/PzbL3Pgd0iYo="
+        },
+        "linux-x64": {
+          "asset": "sfw-linux-x86_64",
+          "integrity": "sha256-RIK1LmNnvUYQUZv9V6EE1ZB+yH1TmRQu07s9Ii3h8z0="
+        },
+        "win-x64": {
+          "asset": "sfw-windows-x86_64.exe",
+          "integrity": "sha256-5SrYBqHEG0QPBAmOscfkB4RfA/V0Cmp5AGum/RcgVuw="
+        }
+      }
+    }
+  }
+}

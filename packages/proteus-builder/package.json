@@ -1,0 +1,22 @@
+{
+  "name": "proteus-builder",
+  "version": "0.0.0",
+  "description": "proteus — fleet credential broker daemon. Guards provider credentials in the OS keychain (Touch ID + Secure Enclave on macOS) and vends short-lived tokens over a local Unix socket. Builds per-platform binaries published as proteus-<platform> GitHub Release assets.",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mts",
+    "clean": "node scripts/clean.mts",
+    "cover": "vitest run --coverage",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@socketsecurity/lib-stable": "catalog:",
+    "build-infra": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "catalog:",
+    "vitest": "catalog:"
+  }
+}

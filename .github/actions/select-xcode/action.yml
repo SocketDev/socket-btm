@@ -1,0 +1,23 @@
+name: Select Xcode Version
+description: Selects the Xcode toolchain for macOS builds — macOS only
+
+inputs:
+  version:
+    description: 'Xcode version (e.g. "16.4")'
+    required: false
+    default: '16.4'
+
+runs:
+  using: composite
+  steps:
+    - name: Select Xcode
+      shell: bash
+      env:
+        XCODE_VERSION: ${{ inputs.version }}
+      run: |
+        # Both macOS 15 runners (depot-macos-15 ARM64, macos-15 Intel) default
+        # to Xcode 16.4; select explicitly so a runner-image bump does not
+        # silently change the toolchain.
+        sudo xcode-select -s "/Applications/Xcode_${XCODE_VERSION}.app"
+        xcodebuild -version
+        clang --version

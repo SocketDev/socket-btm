@@ -1,0 +1,63 @@
+# Build BoringSSL (prefixed: smol_*) for linux/amd64 + linux/arm64 musl.
+# Alpine 3.20 base; mirrors lief-builder/docker/Dockerfile.musl.
+
+FROM alpine:3.20 AS build
+
+# Install build dependencies.
+RUN apk add --no-cache \
+        g++ \
+        git \
+        ccache \
+        make \
+        ninja \
+        curl \
+        ca-certificates \
+        binutils \
+        patch \
+        perl \
+        go && \
+    apk add --no-cache cmake
+
+# Install Node.js from official musl binaries (Alpine packages lag behind).
+ARG NODE_VERSION=25.9.0
+RUN ARCH=$(uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/') && \
+    curl -fsSL "https://unofficial-builds.nodejs.org/download/release/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${ARCH}-musl.tar.xz" \
+      | tar -xJ -C /usr/local --strip-components=1
+
+# Socket-registry tool-checksums materialize per-run from socket-registry's
+# pinned SHA; the workflow `cp $SOCKET_TOOL_CHECKSUMS_FILE` before `docker
+# build`. No hardcoded pnpm version in this file.
+COPY .build-context/registry-tools.json /tmp/registry-tools.json
+
+# Install pnpm (native binary is glibc-only, use npm on musl).
+RUN apk add --no-cache jq && \
+    PNPM_VERSION=$(jq -r .pnpm.version /tmp/registry-tools.json) && \
+    npm install -g "pnpm@${PNPM_VERSION}" && \
+    rm /tmp/registry-tools.json
+
+WORKDIR /workspace
+
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .gitmodules .node-version ./
+COPY packages/build-infra ./packages/build-infra
+COPY packages/boringssl-builder ./packages/boringssl-builder
+
+ENV CI=true
+RUN pnpm install --frozen-lockfile --filter build-infra --filter boringssl-builder
+
+ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64
+ARG TARGETARCH
+ARG CACHE_VERSION=unset
+ENV BUILD_MODE=$BUILD_MODE
+ENV PLATFORM_ARCH=$PLATFORM_ARCH
+
+RUN echo "Cache version: ${CACHE_VERSION}" && \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        export CFLAGS="$CFLAGS -march=x86-64 -mtune=generic" && \
+        export CXXFLAGS="$CXXFLAGS -march=x86-64 -mtune=generic"; \
+    fi && \
+    cd packages/boringssl-builder && pnpm run build
+
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=build /workspace/packages/boringssl-builder/build /

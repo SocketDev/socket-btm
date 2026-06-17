@@ -1,0 +1,26 @@
+{
+  "name": "boringssl-builder",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Builds BoringSSL static libs (prefixed: BORINGSSL_PREFIX=smol) for lsquic + uWebSockets consumption",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./lib/ensure-boringssl": "./lib/ensure-boringssl.mts"
+  },
+  "scripts": {
+    "build": "node scripts/build.mts",
+    "clean": "node scripts/clean.mts",
+    "cover": "vitest run --coverage",
+    "emit-docker-build": "node scripts/emit-docker-build.mts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@socketsecurity/lib-stable": "catalog:",
+    "build-infra": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "catalog:",
+    "vitest": "catalog:"
+  }
+}

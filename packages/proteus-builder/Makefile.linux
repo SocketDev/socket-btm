@@ -1,0 +1,38 @@
+# proteus-builder Makefile for Linux.
+# Broker-only credential daemon fronting the Secret Service (libsecret). No
+# biometric path on Linux.
+
+# Include common definitions.
+include ../build-infra/make/common.mk
+include ../build-infra/make/platform-linux.mk
+
+TARGET = proteus
+# The keychain core is the source-only keystore-infra package, compiled inline.
+# Linux fronts the Secret Service via libsecret (broker-only, no biometric);
+# pkg-config supplies the libsecret-1 + glib include/link flags.
+KEYSTORE_INFRA_SRC = ../keystore-infra/src/socketsecurity/keystore-infra
+KEYSTORE_INFRA_INCLUDE = -I../keystore-infra/src
+LIBSECRET_CFLAGS = $(shell pkg-config --cflags libsecret-1)
+LIBSECRET_LDFLAGS = $(shell pkg-config --libs libsecret-1)
+SOURCES = src/socketsecurity/proteus-builder/proteus.c \
+          $(KEYSTORE_INFRA_SRC)/keystore_linux.c
+
+CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 -Isrc $(KEYSTORE_INFRA_INCLUDE) \
+         $(LIBSECRET_CFLAGS) -DVERSION=\"$(VERSION)\"
+LDFLAGS = $(LDFLAGS_BASE) $(LIBSECRET_LDFLAGS)
+
+all: check-tools $(OUT_DIR)/$(TARGET)
+
+$(OUT_DIR)/$(TARGET): $(SOURCES) | $(OUT_DIR)
+	$(CC) $(CFLAGS) -o $@ $(SOURCES) $(LDFLAGS)
+	@echo "Built: $(OUT_DIR)/$(TARGET)"
+
+$(OUT_DIR):
+	mkdir -p $@
+
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install build tools first."; exit 1; }
+	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
+
+clean:
+	rm -rf build out

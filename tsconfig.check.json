@@ -1,0 +1,23 @@
+{
+  "extends": "./.config/fleet/tsconfig.base.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "declaration": false,
+    "declarationMap": false,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "sourceMap": false
+  },
+  "include": ["**/*.ts", "**/*.mts", "**/*.cts"],
+  "exclude": [
+    "**/.cache/**",
+    "**/build/**",
+    "**/dist/**",
+    "**/node_modules/**",
+    "**/coverage/**",
+    "**/coverage-isolated/**",
+    "vendor/**",
+    "reports/**"
+  ]
+}

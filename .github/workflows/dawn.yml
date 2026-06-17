@@ -1,0 +1,585 @@
+name: SMOL 1. Dawn
+
+# Dawn (WebGPU) publish workflow. Builds libwebgpu_dawn.a + Tint +
+# SPIRV-Tools as a unified static lib across the SMOL platform
+# matrix. All-native CMake island-build via DAWN_FETCH_DEPENDENCIES
+# (no manual third-party checkout). No Dockerfile in dawn-builder.
+#
+# Templated from .github/workflows/libpq.yml — same CMake-native
+# shape, just swapped strings.
+#
+# Notes:
+#   - Dawn's first compile is hours + ~150 GB peak disk during the
+#     third-party FetchContent. Per-platform caching via the
+#     checkpoint cache is essential.
+#   - Submodule init pulls Dawn's tree (~436 MB cloned). Sparse-
+#     checkout config in .gitmodules limits the cost.
+#
+# Consumed by: node-smol-builder's smol_webgpu binding (after D3
+# wires HAVE_DAWN into configure.py + node.gyp).
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      build-mode:
+        description: 'Build mode'
+        type: choice
+        options:
+          - prod
+          - dev
+        default: prod
+      debug:
+        description: 'Debug (0|1|namespace[,...])'
+        type: string
+        default: '0'
+  workflow_call:
+    inputs:
+      dry-run:
+        type: boolean
+        default: true
+      force:
+        type: boolean
+        default: false
+      build-mode:
+        type: string
+        default: prod
+      debug:
+        type: string
+        default: '0'
+
+permissions:
+  contents: read
+
+env:
+  HOMEBREW_NO_ANALYTICS: '1'
+  # Dawn's Tint shader compiler regenerates sources via `go run`
+  # (see Setup Go step below). Socket Firewall intercepts proxy.golang.org
+  # and golang.org/x/<mod>?go-get=1 with its own CA which Go doesn't
+  # trust on Linux runners. Same mitigation as ultraviolet.yml: direct
+  # github fetches + skip cert verification for module discovery
+  # (integrity still guaranteed by Tint's own go.sum).
+  GOPROXY: direct
+  GOINSECURE: '*'
+  GOSUMDB: 'off'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-dawn:
+    permissions:
+      contents: read
+    name: dawn / ${{ matrix.platform }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS builds — depot-macos-15 = 8 vCPU M2, 24GB RAM. Dawn
+          # needs the extra RAM for the SPIRV-Tools + Tint linker pass.
+          - runner: depot-macos-15
+            platform: darwin
+            arch: arm64
+            os: macos
+          - runner: depot-macos-15
+            platform: darwin
+            arch: x64
+            os: macos
+          # Linux (glibc only — Dawn's deps may not all build clean on
+          # musl; that matrix can be added once verified).
+          - runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            os: linux
+            libc: glibc
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            os: linux
+            libc: glibc
+          # No Windows matrix — Dawn's D3D backend requires DirectX
+          # SDK headers (DXProgrammableCapture.h etc.) that ship with
+          # MSVC but not with mingw / clang-mingw. Building Dawn on
+          # Windows needs MSVC + Windows SDK; revisit when the build
+          # script grows MSVC support or when we ship Dawn via the
+          # Vulkan-only backend on Windows.
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (2026-05-15)
+        with:
+          persist-credentials: false
+          submodules: false
+
+      - name: Enable debug logging
+        uses: ./.github/actions/enable-debug-logging
+        with:
+          debug: ${{ inputs.debug }}
+
+      - uses: SocketDev/socket-registry/.github/actions/setup@f58e7ae37e486876c326366668e1b2a90ce193c3 # main (2026-06-01)
+      - uses: SocketDev/socket-registry/.github/actions/install@f58e7ae37e486876c326366668e1b2a90ce193c3 # main (2026-06-01)
+
+      - name: Load cache version from centralized config
+        id: cache-version
+        uses: ./.github/actions/load-cache-version
+        with:
+          package-name: dawn
+
+      - name: Generate dawn cache key
+        id: cache-key
+        env:
+          CACHE_VERSION: ${{ steps.cache-version.outputs.version }}
+        shell: bash
+        run: |
+          if command -v shasum &> /dev/null; then
+            hash_cmd="shasum -a 256"
+          elif command -v sha256sum &> /dev/null; then
+            hash_cmd="sha256sum"
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+
+          # No Dockerfile in dawn-builder; mirror libpq.yml composition.
+          BUILD_SCRIPTS_HASH=$(find packages/dawn-builder/scripts -type f 2>/dev/null | LC_COLLATE=C sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          BUILD_INFRA_LIB=$(find packages/build-infra/lib -type f 2>/dev/null | LC_COLLATE=C sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          BIN_INFRA_LIB=$(find packages/bin-infra/lib -type f 2>/dev/null | LC_COLLATE=C sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          BUILD_INFRA_EXTERNAL_TOOLS=$($hash_cmd packages/build-infra/external-tools.json 2>/dev/null | cut -d' ' -f1)
+          BUILD_INFRA_SCRIPTS=$(find packages/build-infra/scripts -type f 2>/dev/null | LC_COLLATE=C sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1)
+          # dawn-builder's external-tools.json pins cmake + ninja.
+          DAWN_EXTERNAL_TOOLS=$($hash_cmd packages/dawn-builder/external-tools.json 2>/dev/null | cut -d' ' -f1)
+          PNPM_LOCK_HASH=$($hash_cmd pnpm-lock.yaml 2>/dev/null | cut -d' ' -f1)
+          NODE_VERSION_HASH=$($hash_cmd .node-version 2>/dev/null | cut -d' ' -f1)
+          DAWN_SUBMODULE_SHA=$(git ls-tree HEAD packages/dawn-builder/upstream/dawn 2>/dev/null | awk '{print $3}')
+          ROOT_PACKAGE_JSON=$($hash_cmd package.json 2>/dev/null | cut -d' ' -f1)
+          PNPM_WORKSPACE=$($hash_cmd pnpm-workspace.yaml 2>/dev/null | cut -d' ' -f1)
+          DAWN_PACKAGE_JSON=$($hash_cmd packages/dawn-builder/package.json 2>/dev/null | cut -d' ' -f1)
+          WORKFLOW_FILE="${GITHUB_WORKFLOW_REF%@*}"
+          WORKFLOW_FILE="${WORKFLOW_FILE#${GITHUB_REPOSITORY}/}"
+          SOCKET_REGISTRY_SHA=$(grep -ohE 'SocketDev/socket-registry/[^@]+@[0-9a-f]{40}' "$WORKFLOW_FILE" 2>/dev/null | head -1 | grep -oE '[0-9a-f]{40}$' || echo "")
+
+          FINAL_HASH=$(echo "${CACHE_VERSION}${BUILD_SCRIPTS_HASH}${BUILD_INFRA_LIB}${BIN_INFRA_LIB}${BUILD_INFRA_EXTERNAL_TOOLS}${BUILD_INFRA_SCRIPTS}${DAWN_EXTERNAL_TOOLS}${PNPM_LOCK_HASH}${NODE_VERSION_HASH}${DAWN_SUBMODULE_SHA}${ROOT_PACKAGE_JSON}${PNPM_WORKSPACE}${DAWN_PACKAGE_JSON}${SOCKET_REGISTRY_SHA}" | $hash_cmd | cut -d' ' -f1)
+
+          echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
+          echo "final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
+          echo "Cache key hash: ${FINAL_HASH}"
+
+      - name: Set build mode
+        id: build-mode
+        uses: ./.github/actions/set-build-mode
+        with:
+          build-mode: ${{ inputs['build-mode'] }}
+
+      - name: Set platform-arch for cache
+        id: platform-arch-cache
+        uses: ./.github/actions/set-platform-arch
+        with:
+          platform: ${{ matrix.platform }}
+          arch: ${{ matrix.arch }}
+          libc: ${{ matrix.libc }}
+
+      - name: Compute dawn paths
+        id: paths
+        shell: bash
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          PLATFORM_ARCH: ${{ steps.platform-arch-cache.outputs.platform_arch }}
+        run: |
+          # Dawn's build layout differs slightly from lief/libpq:
+          # dawn-builder/build/<mode>/<platformArch>/out/
+          # (no Final/ subdir — Dawn's CMake output is staged in out/lib +
+          # out/include directly per dawn-builder/scripts/build.mts).
+          PACKAGE_DIR="packages/dawn-builder"
+          MODE_BUILD_DIR="${PACKAGE_DIR}/build/${BUILD_MODE}"
+          PLATFORM_BUILD_DIR="${MODE_BUILD_DIR}/${PLATFORM_ARCH}"
+          OUT_DIR="${PLATFORM_BUILD_DIR}/out"
+          CHECKPOINTS_DIR="${PLATFORM_BUILD_DIR}/checkpoints"
+          {
+            echo "package_dir=${PACKAGE_DIR}"
+            echo "mode_build_dir=${MODE_BUILD_DIR}"
+            echo "platform_build_dir=${PLATFORM_BUILD_DIR}"
+            echo "out_dir=${OUT_DIR}"
+            echo "checkpoints_dir=${CHECKPOINTS_DIR}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Restore dawn checkpoint cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5 (2026-05-15)
+        id: dawn-checkpoint-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: |
+            packages/dawn-builder/build/shared/checkpoints
+            ${{ steps.paths.outputs.checkpoints_dir }}
+          key: dawn-checkpoints-${{ steps.cache-key.outputs.cache_version }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.final_hash }}
+
+      - name: Set checkpoint chain for build mode
+        id: checkpoint-chain
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        shell: bash
+        run: |
+          CHAIN=$(node packages/dawn-builder/scripts/get-checkpoint-chain.mts --$BUILD_MODE)
+          echo "checkpoint_chain=$CHAIN" >> $GITHUB_OUTPUT
+          CHECKPOINTS=$(echo "$CHAIN" | tr ',' ' ')
+          echo "checkpoints=$CHECKPOINTS" >> $GITHUB_OUTPUT
+          echo "Checkpoint chain for $BUILD_MODE mode: $CHAIN"
+
+      - name: Validate checkpoint cache integrity
+        id: validate-cache
+        if: steps.dawn-checkpoint-cache.outputs.cache-hit == 'true'
+        uses: ./.github/actions/validate-checkpoints
+        with:
+          checkpoint-dirs: packages/dawn-builder/build/shared/checkpoints:${{ steps.paths.outputs.checkpoints_dir }}
+          checkpoints: ${{ steps.checkpoint-chain.outputs.checkpoints }}
+          package-name: dawn-builder
+
+      - name: Restore build output from checkpoint chain
+        id: restore-checkpoint
+        uses: ./.github/actions/restore-checkpoint
+        with:
+          package-name: 'dawn-builder'
+          build-mode: ${{ steps.build-mode.outputs.mode }}
+          checkpoint-chain: ${{ steps.checkpoint-chain.outputs.checkpoint_chain }}
+          cache-hit: ${{ steps.dawn-checkpoint-cache.outputs.cache-hit }}
+          cache-valid: ${{ steps.validate-cache.outputs.valid }}
+          platform-arch: ${{ steps.platform-arch-cache.outputs.platform_arch }}
+
+      - name: Initialize Dawn submodule
+        if: (steps.dawn-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') || steps.restore-checkpoint.outputs.build-required == 'true' || inputs.force
+        uses: ./.github/actions/init-submodules
+        with:
+          submodules: packages/dawn-builder/upstream/dawn
+
+      - name: Setup build toolchain (macOS)
+        if: |
+          matrix.os == 'macos' &&
+          ((steps.dawn-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true')
+        shell: bash
+        run: |
+          for i in 1 2 3; do
+            if brew install cmake ninja ccache; then
+              break
+            fi
+            if [ "$i" -eq 3 ]; then
+              echo "× brew install failed after 3 attempts"
+              exit 1
+            fi
+            echo "Attempt $i failed, retrying in 10 seconds..."
+            sleep 10
+          done
+
+      - name: Setup build toolchain (Linux)
+        if: |
+          matrix.os == 'linux' &&
+          ((steps.dawn-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true')
+        shell: bash
+        run: |
+          sudo apt-get update
+          # Dawn build pulls Tint (WGSL compiler) + SPIRV-Tools + GPU
+          # driver headers. The headers list mirrors Dawn's CI docs
+          # (https://dawn.googlesource.com/dawn/+/refs/heads/main/docs/dawn/building.md).
+          sudo apt-get install -y \
+            cmake ninja-build ccache build-essential clang \
+            libx11-xcb-dev libxcb-dri3-dev libxcb-present-dev \
+            libxcb-sync-dev libxshmfence-dev libxrandr-dev \
+            libwayland-dev wayland-protocols \
+            libxinerama-dev libxcursor-dev libxi-dev
+
+      - name: Setup Go (Dawn Tint code generator)
+        # Dawn's Tint shader compiler regenerates its enum / intrinsic /
+        # builtin source via `go run tools/src/cmd/gen/main.go` during
+        # CMake's build step. Without Go on PATH the build fails with
+        # "/bin/sh: go: command not found" at the first generated-file
+        # target. Match the ultraviolet pin (1.25.3).
+        if: |
+          (steps.dawn-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true'
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0 (2026-05-15)
+        with:
+          go-version: '1.25.3'
+          cache: false
+
+      - name: Pre-fetch Dawn Tint Go modules
+        # Pre-fetch from the dawn submodule's go.mod root (NOT
+        # tools/src/ — there's no go.mod there). go run during the
+        # build invokes the gen tool from the same module, so this
+        # populates the module cache that the build will use. Verbose
+        # output surfaces TLS / network errors that would otherwise be
+        # swallowed by CMake's add_custom_command or by `go run`'s
+        # silent fallthrough.
+        if: |
+          (steps.dawn-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true'
+        shell: bash
+        run: |
+          cd packages/dawn-builder/upstream/dawn
+          echo "::group::go version + env"
+          go version
+          go env GOPROXY GOINSECURE GOSUMDB GOMODCACHE
+          echo "::endgroup::"
+          echo "::group::go mod download (verbose)"
+          go mod download -x
+          echo "::endgroup::"
+          echo "::group::dry-run gen build"
+          # Verify the gen tool actually compiles + links. `go build`
+          # writes /dev/null but tries the same module graph that
+          # `go run` will use during the cmake build, surfacing any
+          # silent error here instead of mid-cmake-build.
+          go build -o /dev/null ./tools/src/cmd/gen
+          echo "::endgroup::"
+
+      - name: Build Dawn native
+        if: |
+          (steps.dawn-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true'
+        shell: bash
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          TARGET_ARCH: ${{ matrix.arch }}
+          # On Linux force clang. Dawn's source uses C++20 patterns
+          # that don't compile cleanly under GCC 13 (template
+          # instantiation issues with std::array<ApiObjectList, N>::==
+          # for types lacking operator==). Dawn's own CI uses clang on
+          # Linux. macOS already uses Apple Clang; Windows uses MSVC
+          # or clang-cl. ${{ matrix.os == 'linux' && '...' || '' }} sets
+          # CC/CXX only on Linux entries.
+          CC: ${{ matrix.os == 'linux' && 'clang' || '' }}
+          CXX: ${{ matrix.os == 'linux' && 'clang++' || '' }}
+        run: |
+          cd packages/dawn-builder
+          # Use prod or dev based on build mode; the build.mts wraps
+          # cmake + ninja with the mode-appropriate CMAKE_BUILD_TYPE.
+          if [ "$BUILD_MODE" = "prod" ]; then
+            pnpm run build:prod
+          else
+            pnpm run build:dev
+          fi
+
+      - name: Debug build output structure
+        if: |
+          (steps.dawn-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true'
+        shell: bash
+        env:
+          PLATFORM_BUILD_DIR: ${{ steps.paths.outputs.platform_build_dir }}
+          PACKAGE_DIR: ${{ steps.paths.outputs.package_dir }}
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "Checking build output structure..."
+          ls -lah "${PLATFORM_BUILD_DIR}/" || echo "Build directory does not exist"
+          echo "Searching for libwebgpu_dawn.a:"
+          find "${PACKAGE_DIR}/build/${BUILD_MODE}/" -name "libwebgpu_dawn.a" 2>/dev/null || echo "No libwebgpu_dawn.a found"
+
+      - name: Verify build output
+        shell: bash
+        env:
+          OUT_DIR: ${{ steps.paths.outputs.out_dir }}
+        run: |
+          if [ ! -f "${OUT_DIR}/lib/libwebgpu_dawn.a" ]; then
+            echo "× libwebgpu_dawn.a not found at ${OUT_DIR}/lib/libwebgpu_dawn.a"
+            exit 1
+          fi
+          echo "✅ libwebgpu_dawn.a found"
+          if [ ! -d "${OUT_DIR}/include/dawn" ]; then
+            echo "× Dawn headers not found at ${OUT_DIR}/include/dawn"
+            exit 1
+          fi
+          echo "✅ Dawn headers found"
+
+      - name: Create archive
+        shell: bash
+        env:
+          OUT_DIR: ${{ steps.paths.outputs.out_dir }}
+          PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          cd "$OUT_DIR"
+          ARCHIVE_NAME="dawn-${PLATFORM}-${ARCH}"
+          # cwd = <pkg>/build/<mode>/<platformArch>/out; climb 2
+          # levels (out → platformArch → mode) to land at MODE_BUILD_DIR
+          # where Verify archive exists looks.
+          OUTPUT_PATH="../../${ARCHIVE_NAME}.tar.gz"
+          echo "Creating archive: ${ARCHIVE_NAME}.tar.gz"
+          tar -czf "${OUTPUT_PATH}" \
+            lib/libwebgpu_dawn.a \
+            include/
+          echo "✅ Archive created"
+
+      - name: Set artifact name
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          ARTIFACT_NAME="dawn-${PLATFORM}-${ARCH}"
+          echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> $GITHUB_ENV
+
+      - name: Verify archive exists
+        shell: bash
+        env:
+          MODE_BUILD_DIR: ${{ steps.paths.outputs.mode_build_dir }}
+          ARTIFACT_NAME: ${{ env.ARTIFACT_NAME }}
+        run: |
+          ARCHIVE_PATH="${MODE_BUILD_DIR}/${ARTIFACT_NAME}.tar.gz"
+          if [ ! -f "$ARCHIVE_PATH" ]; then
+            echo "× Archive not found at: $ARCHIVE_PATH"
+            ls -lah "${MODE_BUILD_DIR}/" || echo "Build directory does not exist"
+            exit 1
+          fi
+          echo "✅ Archive found: $ARCHIVE_PATH"
+          ls -lh "$ARCHIVE_PATH"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (2026-05-15)
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ steps.paths.outputs.mode_build_dir }}/${{ env.ARTIFACT_NAME }}.tar.gz
+          retention-days: 30
+          if-no-files-found: error
+          compression-level: 0
+
+  release:
+    name: Release Dawn
+    needs: build-dawn
+    if: github.event_name == 'workflow_dispatch' && !inputs['dry-run']
+    environment: release
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (2026-05-15)
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .gitmodules
+            .github/scripts/generate-version.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 (2026-05-15)
+        with:
+          path: artifacts
+          pattern: dawn-*
+          merge-multiple: true
+
+      - name: Verify downloaded artifacts
+        shell: bash
+        run: |
+          if [ -d "artifacts" ] && [ -n "$(ls -A artifacts/*.tar.gz 2>/dev/null)" ]; then
+            echo "✅ Found $(ls artifacts/*.tar.gz 2>/dev/null | wc -l) tar.gz files"
+            ls -lah artifacts/
+          else
+            echo "× No artifacts found"
+            exit 1
+          fi
+
+      - name: Get Dawn version
+        id: version
+        shell: bash
+        run: |
+          # Extract version from .gitmodules comment.
+          DAWN_VERSION=$(grep -B 1 'packages/dawn-builder/upstream/dawn' .gitmodules | grep '# dawn-' | sed 's/.*# dawn-//')
+          if [ -z "$DAWN_VERSION" ]; then
+            echo "Error: Failed to extract dawn version from .gitmodules"
+            exit 1
+          fi
+          echo "version=${DAWN_VERSION}" >> $GITHUB_OUTPUT
+          echo "Dawn version: ${DAWN_VERSION}"
+
+      - name: Generate release tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          source .github/scripts/generate-version.sh
+          TAG="dawn-${VERSION}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Release tag: ${TAG}"
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, skipping."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        if: steps.tag.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          DAWN_VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          mkdir -p release
+          for file in artifacts/*.tar.gz; do
+            if [ -f "$file" ]; then
+              mv "$file" release/
+            fi
+          done
+
+          if [ -z "$(ls -A release/*.tar.gz 2>/dev/null)" ]; then
+            echo "Error: No .tar.gz files in release/ after move"
+            exit 1
+          fi
+
+          cd release
+          if command -v shasum &> /dev/null; then
+            shasum -a 256 *.tar.gz > checksums.txt
+          elif command -v sha256sum &> /dev/null; then
+            sha256sum *.tar.gz > checksums.txt
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+          cat checksums.txt
+          cd ..
+
+          TITLE_SUFFIX="${RELEASE_TAG#dawn-}"
+          # Immutable-releases 3-step: draft → upload → publish.
+          # Single-call form races the Sigstore attestation hash.
+          # See docs/agents.md/fleet/immutable-releases.md.
+          gh release create "${RELEASE_TAG}" \
+            --draft \
+            --title "dawn ${TITLE_SUFFIX}" \
+            --notes "Dawn (Chromium WebGPU implementation) ${DAWN_VERSION} static library for SMOL.
+
+          ## Platforms
+          - darwin-arm64
+          - darwin-x64
+          - linux-arm64
+          - linux-x64
+
+          ## Files
+          Each platform archive contains:
+          - Static library (\`lib/libwebgpu_dawn.a\`)
+          - Header files (\`include/dawn/\` directory)
+
+          Use \`checksums.txt\` to verify archive integrity."
+          gh release upload "${RELEASE_TAG}" \
+            release/*.tar.gz \
+            release/checksums.txt
+          gh release edit "${RELEASE_TAG}" --draft=false
+
+  update-release-assets:
+    needs: release
+    if: github.event_name == 'workflow_dispatch' && !inputs['dry-run']
+    permissions:
+      contents: write
+    uses: ./.github/workflows/update-release-assets.yml
+    secrets:
+      BOT_GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}

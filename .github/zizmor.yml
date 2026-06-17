@@ -1,0 +1,40 @@
+# Zizmor configuration
+# See: https://docs.zizmor.sh/configuration/
+
+rules:
+  secrets-outside-env:
+    disable: true
+
+  secrets-inherit:
+    ignore:
+      # orchestrate.yml is the SMOL chain orchestrator. Every `uses:`
+      # of a child workflow needs `secrets: inherit` so the called
+      # workflow can authenticate (GITHUB_TOKEN, depot OIDC, etc.).
+      # Listing each secret explicitly would duplicate every child
+      # workflow's secret needs in the orchestrator, and any new secret
+      # in a child would require parallel updates here. The inherit
+      # pattern is what makes the orchestrator generic.
+      - orchestrate.yml:128
+      - orchestrate.yml:145
+      - orchestrate.yml:157
+      - orchestrate.yml:169
+      - orchestrate.yml:188
+      - orchestrate.yml:204
+      - orchestrate.yml:219
+      - orchestrate.yml:249
+
+  template-injection:
+    ignore:
+      # False positive: Template expansion is in a comment, not executable code
+      # Line 469: Comment explaining GitHub Actions syntax
+      - node-smol.yml:469
+
+  github-env:
+    ignore:
+      # False positive: the path written to GITHUB_PATH is a literal
+      # string plus the pinned action input inputs.version (routed via
+      # the step's own env: block as LLVM_MINGW_VERSION). No external
+      # attacker can influence which directory gets prepended — the
+      # action exists to install the cross-compiler and put it first on
+      # PATH.
+      - action.yml:45

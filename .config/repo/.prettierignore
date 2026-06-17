@@ -1,0 +1,23 @@
+# Repo-specific format-ignore overlay. scripts/fleet/lint.mts concatenates this
+# with .config/fleet/.prettierignore and passes the result to oxfmt via
+# --ignore-path. Use it for socket-btm's OWN verbatim/synced trees that the
+# fleet file can't know about.
+
+# Node-internal sources synced verbatim into the smol Node build. They mirror
+# Node's lib/internal structure + style, not socket's — formatting them breaks
+# socket(sort-source-methods) (Node orders by concern, not alphabetically) and
+# risks the source-patched → node apply. Kept byte-faithful to their intent.
+**/additions/source-patched/**
+additions/source-patched/**
+
+# Test-corpus fixtures — intentional, exact content (e.g. pnpm/npm lockfile
+# inputs, regression `input.yaml`). Reformatting them can change the test input
+# and break regression tests.
+**/test/fixtures/**
+test/fixtures/**
+
+# Hand-authored reference doc with intentionally aligned embedded code (the
+# event-code table) and hard-wrapped inline type lists. oxfmt's markdown reflow
+# unaligns the table and rewraps the lists, degrading a hand-crafted reference.
+**/smol-markdown.js.md
+docs/additions/lib/smol-markdown.js.md

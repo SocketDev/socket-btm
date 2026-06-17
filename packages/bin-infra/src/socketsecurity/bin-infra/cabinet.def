@@ -1,0 +1,14 @@
+LIBRARY Cabinet
+EXPORTS
+CreateCompressor
+CreateDecompressor
+Compress
+Decompress
+CloseCompressor
+CloseDecompressor
+QueryCompressorInformation
+QueryDecompressorInformation
+SetCompressorInformation
+SetDecompressorInformation
+ResetCompressor
+ResetDecompressor

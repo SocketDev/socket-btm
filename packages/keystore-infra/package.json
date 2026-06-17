@@ -1,0 +1,16 @@
+{
+  "name": "keystore-infra",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Source-only C/Objective-C++ OS-keychain core (macOS Keychain + Secure-Enclave biometric ACL; libsecret / Credential Manager stubs). No binary release; consumers compile it inline: the proteus daemon (packages/proteus-builder), the node:smol-keychain builtin (node-smol-builder additions), and a .node addon. Mirrors tui-infra / temporal-infra.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "cover": "vitest run --coverage",
+    "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "catalog:",
+    "vitest": "catalog:"
+  }
+}

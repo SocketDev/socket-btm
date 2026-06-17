@@ -1,0 +1,86 @@
+# Build Node.js smol in container to offload compute from GitHub Actions.
+# Consumes the fleet-shared btm-builder-glibc prebake (almalinux:8 +
+# gcc-toolset-13 + Node + pnpm + python3.11 + every toolchain piece
+# node-smol's massive build script tree needs).
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+ARG BTM_BUILDER_TAG
+
+FROM ghcr.io/socketdev/btm-builder-glibc:${BTM_BUILDER_TAG} AS build
+
+ARG CACHE_VERSION=unset
+
+# Set Python 3.11 as default python3 (high priority overrides any system 3.x).
+# Node's configure.py needs python3 + the prebake ships python3.11; bind them.
+RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 100 && \
+    alternatives --set python3 /usr/bin/python3.11
+
+# Build static OpenSSL (the prebake ships openssl-devel for dynamic linking;
+# Node's static OpenSSL build needs libcrypto.a from source).
+COPY .github/scripts/build-static-openssl.sh .github/scripts/
+RUN source /opt/rh/gcc-toolset-13/enable && .github/scripts/build-static-openssl.sh
+
+WORKDIR /workspace
+
+# Explicit per-path copies — `node-smol-builder` consumes its own
+# package + every transitive workspace dep. Listing them keeps cache
+# invalidation precise (an unrelated repo edit doesn't blow the layer).
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .gitmodules .node-version ./
+COPY .github/scripts ./.github/scripts
+COPY packages/bin-infra ./packages/bin-infra
+COPY packages/binflate ./packages/binflate
+COPY packages/binject ./packages/binject
+COPY packages/binpress ./packages/binpress
+COPY packages/boringssl-builder ./packages/boringssl-builder
+COPY packages/build-infra ./packages/build-infra
+COPY packages/curl-builder ./packages/curl-builder
+COPY packages/glibc-shims-infra ./packages/glibc-shims-infra
+COPY packages/lief-builder ./packages/lief-builder
+COPY packages/node-smol-builder ./packages/node-smol-builder
+COPY packages/stubs-builder ./packages/stubs-builder
+
+# Install only what node-smol-builder needs (transitive workspace deps via `...`).
+# A full-workspace install would pull sibling builders' deps too —
+# notably codet5-models-builder → onnxruntime-node, whose postinstall
+# fetches a 100MB+ ONNX runtime binary from github.com on every build.
+ENV CI=true
+RUN pnpm install --frozen-lockfile --filter node-smol-builder...
+
+ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64
+ARG TARGETARCH
+ARG MATRIX_PLATFORM=linux
+ARG MATRIX_ARCH=x64
+ENV BUILD_MODE=$BUILD_MODE
+ENV PLATFORM_ARCH=$PLATFORM_ARCH
+ENV MATRIX_PLATFORM=$MATRIX_PLATFORM
+ENV MATRIX_ARCH=$MATRIX_ARCH
+
+# For amd64/x64 builds, target baseline x86-64 without AVX/AVX2 so the
+# binary stays portable across CPU generations.
+#
+# ccache on Node's ~40k-TU build is the largest single CI-time win in
+# the fleet — full cold builds take ~20-30min, cached re-runs after
+# small patch changes drop to ~3-5min. CCACHE_MAXSIZE bumped from the
+# 5G default to 20G so V8's TUs don't churn out at the boundary.
+ENV CCACHE_DIR=/root/.ccache
+ENV CCACHE_MAXSIZE=20G
+ENV CC="ccache gcc"
+ENV CXX="ccache g++"
+RUN --mount=type=cache,target=/root/.ccache \
+    echo "Cache version: ${CACHE_VERSION}" && \
+    source /opt/rh/gcc-toolset-13/enable && \
+    if [ "$MATRIX_ARCH" = "x64" ]; then \
+        export CFLAGS="$CFLAGS -march=x86-64 -mtune=generic" && \
+        export CXXFLAGS="$CXXFLAGS -march=x86-64 -mtune=generic"; \
+    fi && \
+    if [ "$BUILD_MODE" = "prod" ]; then \
+        pnpm --filter node-smol-builder build --prod --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}"; \
+    else \
+        pnpm --filter node-smol-builder build --dev --platform="${MATRIX_PLATFORM}" --arch="${MATRIX_ARCH}"; \
+    fi
+
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=build /workspace/packages/node-smol-builder/build /

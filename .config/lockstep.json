@@ -1,0 +1,859 @@
+{
+  "$schema": "./lockstep.schema.json",
+  "area": "socket-btm",
+  "description": "lockstep lock-step manifest for socket-btm \u2014 the Build Tree Manager. Every row is a `version-pin` since btm builds upstream source trees as-is (no forks). The harness surfaces new upstream releases so maintainers can decide whether to bump. criticality reflects production impact: 10 = Firewall-critical (node runtime, networking stack); 8 = user-facing TUI / ML inference; 6 = build tooling; 4 = aux/testing.",
+  "upstreams": {
+    "node": {
+      "submodule": "packages/node-smol-builder/upstream/node",
+      "repo": "https://github.com/nodejs/node"
+    },
+    "yoga": {
+      "submodule": "packages/yoga-layout-builder/upstream/yoga",
+      "repo": "https://github.com/facebook/yoga"
+    },
+    "onnxruntime": {
+      "submodule": "packages/onnxruntime-builder/upstream/onnxruntime",
+      "repo": "https://github.com/microsoft/onnxruntime"
+    },
+    "lief": {
+      "submodule": "packages/lief-builder/upstream/lief",
+      "repo": "https://github.com/lief-project/LIEF"
+    },
+    "cjson": {
+      "submodule": "packages/binject/upstream/cJSON",
+      "repo": "https://github.com/DaveGamble/cJSON"
+    },
+    "libdeflate": {
+      "submodule": "packages/binject/upstream/libdeflate",
+      "repo": "https://github.com/ebiggers/libdeflate"
+    },
+    "curl": {
+      "submodule": "packages/curl-builder/upstream/curl",
+      "repo": "https://github.com/curl/curl"
+    },
+    "mbedtls": {
+      "submodule": "packages/curl-builder/upstream/mbedtls",
+      "repo": "https://github.com/Mbed-TLS/mbedtls"
+    },
+    "wpt": {
+      "submodule": "packages/node-smol-builder/test/fixtures/wpt/streams",
+      "repo": "https://github.com/web-platform-tests/wpt"
+    },
+    "liburing": {
+      "submodule": "packages/node-smol-builder/upstream/liburing",
+      "repo": "https://github.com/axboe/liburing"
+    },
+    "postgres": {
+      "submodule": "packages/libpq-builder/upstream/postgres",
+      "repo": "https://github.com/postgres/postgres"
+    },
+    "usockets": {
+      "submodule": "packages/node-smol-builder/upstream/uSockets",
+      "repo": "https://github.com/uNetworking/uSockets"
+    },
+    "uwebsockets": {
+      "submodule": "packages/node-smol-builder/upstream/uWebSockets",
+      "repo": "https://github.com/uNetworking/uWebSockets"
+    },
+    "dawn": {
+      "submodule": "packages/dawn-builder/upstream/dawn",
+      "repo": "https://dawn.googlesource.com/dawn"
+    },
+    "libqrencode": {
+      "submodule": "packages/node-smol-builder/upstream/libqrencode",
+      "repo": "https://github.com/fukuchi/libqrencode"
+    },
+    "md4c": {
+      "submodule": "packages/node-smol-builder/upstream/md4c",
+      "repo": "https://github.com/mity/md4c"
+    },
+    "tree-sitter": {
+      "submodule": "packages/node-smol-builder/upstream/tree-sitter",
+      "repo": "https://github.com/tree-sitter/tree-sitter"
+    },
+    "opentui": {
+      "submodule": "packages/opentui-builder/upstream/opentui",
+      "repo": "https://github.com/anomalyco/opentui"
+    },
+    "ultraviolet": {
+      "submodule": "packages/ultraviolet-builder/upstream/ultraviolet",
+      "repo": "https://github.com/charmbracelet/ultraviolet"
+    },
+    "semver": {
+      "submodule": "packages/node-smol-builder/upstream/semver",
+      "repo": "https://github.com/npm/node-semver"
+    },
+    "zstd": {
+      "submodule": "packages/bin-infra/upstream/zstd",
+      "repo": "https://github.com/facebook/zstd"
+    },
+    "temporal-rs": {
+      "submodule": "packages/temporal-infra/upstream/temporal",
+      "repo": "https://github.com/boa-dev/temporal"
+    },
+    "lsquic": {
+      "submodule": "packages/lsquic-infra/upstream/lsquic",
+      "repo": "https://github.com/litespeedtech/lsquic"
+    },
+    "ls-qpack": {
+      "submodule": "packages/lsquic-infra/upstream/ls-qpack",
+      "repo": "https://github.com/litespeedtech/ls-qpack"
+    }
+  },
+  "rows": [
+    {
+      "kind": "version-pin",
+      "id": "node",
+      "upstream": "node",
+      "pinned_sha": "cfd7920d5a2d84905c4292362d01d07870047e93",
+      "pinned_tag": "v26.2.0",
+      "upgrade_policy": "major-gate",
+      "criticality": 10,
+      "notes": "node-smol-builder produces the slim Node.js runtime for Socket Firewall. Major bumps require wide testing (V8 API churn, perf regressions); patch/minor auto-track."
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-instant",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/instant.cc",
+      "upstream_path": "src/builtins/core/instant.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 9,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "C++ instead of Rust \u2014 port of `temporal_rs::Instant` to `node::socketsecurity::temporal::Instant`.",
+        "Uses C++ standard `std::chrono::system_clock::now()` (cast to nanoseconds) for the system clock instead of `std::time::SystemTime`. V8's `v8::base::Time::Now()` was the original choice but its declaration lives in V8 internal headers (`deps/v8/src/base/platform/time.h`) which gyp does not expose to `additions/source-patched/*` translation units, so chrono is portable and already-linked.",
+        "128-bit nanosecond storage via `Int128` shim (native `__int128` on GCC/Clang, `absl::int128` on MSVC) instead of Rust's `i128`. The MSVC fallback uses V8-vendored abseil at deps/v8/third_party/abseil-cpp/.",
+        "PARTIAL: only `Instant::Now()` and `Instant::IsValid()` are ported. `add`, `subtract`, `since`, `until`, `round`, `equals`, `toString`, `toJSON`, `compare`, `fromEpochMilliseconds`, `fromEpochNanoseconds`, `from`, `toZonedDateTimeISO` not yet ported."
+      ],
+      "notes": "First file in the temporal_rs \u2192 C++ port lock-step (1:1 module-by-module mapping, idiomatic C++ where C++ idioms are clearer; same shape as ultrathink/acorn's Rust\u2192C++ port). Implementation work tracked in task #217; this row records the contract for drift audit on bumps to the upstream parity submodule."
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-duration",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/duration.cc",
+      "upstream_path": "src/builtins/core/duration.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 9,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "C++ instead of Rust.",
+        "Plain C++ check (no Isolate) for `Duration::IsValid()`, mirroring spec's `IsValidDuration` directly. V8 also exposes `IsValidDuration(Isolate*, DurationRecord)` in `js-temporal-helpers.h`, but it requires an Isolate. Our path is callable from any context.",
+        "PARTIAL: only `IsValid()` is ported. `Duration::from`, `with`, `negated`, `abs`, `add`, `subtract`, `round`, `total`, `toString`, `toJSON`, `compare`, `valueOf`, `blank`, `sign` not yet ported."
+      ],
+      "notes": "Pairs with temporal-infra-instant. Same forked_at_sha. Tracks the same upstream submodule."
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-iso",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/iso.cc",
+      "upstream_path": "src/iso.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 9,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "C++ instead of Rust.",
+        "Sakamoto's day-of-week algorithm and Fliegel-Van Flandern JDN formula (well-known math), not a literal translation of upstream's date helpers \u2014 matches the same outputs but is shorter and more readable in C++.",
+        "PARTIAL: `IsLeapYear`, `ISODaysInMonth`, `ISODayOfWeek`, `ISODayOfYear`, `ISOWeekOfYear`, `BalanceISODate`, `RegulateISODateConstrain`, `AddISODate`, `DifferenceISODate(\"day\")` are ported. Spec helpers `BalanceISOYearMonth`, `IsoDateSurpasses`, `MoveRelativeDate`, `RoundRelativeDuration`, full `DifferenceISODate` with non-day largestUnit, and the comparison helpers are not yet ported."
+      ],
+      "notes": "Calendar-agnostic ISO 8601 math. Calendar-aware operations (non-Gregorian) defer to ICU via icu_calendar.cc (forthcoming, task #217)."
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-parse",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/parse.cc",
+      "upstream_path": "src/parsers.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 8,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "C++ recursive-descent parser instead of upstream's `ixdtf`-backed parser (a separate Rust crate at https://github.com/boa-dev/ixdtf).",
+        "Hand-rolled cursor-based reader rather than any parser-combinator library. KISS over reuse here \u2014 the grammar is small enough (~80 productions, ~30 of which are common shapes) that a 1k-LOC C++ parser is cleaner than ~5k LOC of generated FFI bindings to the Rust ixdtf crate.",
+        "PARTIAL: covers the common shapes (DateSpec, TimeSpec, DateTime, UTC offsets, sub-second precision). Missing: RFC 9557 calendar/timezone annotations (`[u-ca=\u2026]`, `[Etc/UTC]`, `[!America/New_York]`), signed expanded years (`\u00b1YYYYYY`), fractional second in offset.",
+        "Returns `ParseStatus::kUnsupported` for valid-but-unimplemented productions so callers can surface to the user instead of failing silently."
+      ],
+      "notes": "ixdtf upstream itself is a separate boa-dev crate (https://github.com/boa-dev/ixdtf). If the C++ port grows to need full RFC 9557 coverage, consider a separate lockstep row tracking that upstream rather than vendoring ixdtf alongside temporal_rs."
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-ixdtf-writer",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/ixdtf_writer.cc",
+      "upstream_path": "src/parsers.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 8,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-temporal.mjs",
+      "deviations": [
+        "C++ port of upstream's IXDTF *writer* half of `parsers.rs` — specifically `IxdtfStringBuilder`, `FormattableDate`, `FormattableTime`, `FormattableUtcOffset`, `FormattableTimeZone`, `FormattableCalendar`, `FormattableIxdtf`, `FormattableMonthDay`, `FormattableYearMonth`, plus the `WriteYear`/`WriteNanosecond`/`U32ToDigits` helpers. Pairs with `parse.cc` which holds the parser half.",
+        "Single-pass `WriteTo(std::string&)` instead of upstream's two-pass `Writeable::write_to` + `writeable_length_hint`. C++ std::string handles its own growth; length-hint exists in upstream only for no_std targets and hint-aware writers, neither relevant here.",
+        "`with_minute_offset` mirrors upstream's `second: 9` literal (Precision::Minute truncates before reaching seconds, so the value is harmless — keeping it 1:1 makes drift detection trivial).",
+        "Calendar identifier is passed as `string_view` rather than `&'static str`; the shim's Calendar accessor returns a static-storage string today, so behavior matches."
+      ],
+      "notes": "Used by all 7 temporal_rs::*::to_ixdtf_string and to_ixdtf_string_with_provider entry points (PlainDate, PlainTime, PlainDateTime, PlainYearMonth, PlainMonthDay, Instant, ZonedDateTime). Duration uses DurationToString in duration.cc instead (upstream pattern matches; `FormattableDuration` not ported because Duration's writer doesn't go through IxdtfStringBuilder)."
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-error",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/error.cc",
+      "upstream_path": "src/error.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 7,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "ErrorKind / TemporalError / TemporalResult<T> mirror upstream 1:1. Static factories (Generic/Type/Range/Syntax/Assert) replace upstream's free constructors.",
+        "TemporalResult<T> uses a hand-rolled discriminated-union template (mirroring absl::StatusOr's surface) instead of std::variant or std::expected (C++23, not yet usable in V8's libnode build).",
+        "From<ParseError> / From<icu_calendar::Error> conversions are deferred \u2014 V8's existing js-temporal-objects.cc raises its own RangeError/TypeError, so we pass `kind` through and let the V8 layer translate."
+      ],
+      "notes": "Pairs with all other temporal-infra-* rows. Same forked_at_sha. Tracks the same upstream submodule."
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-utils",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/utils.cc",
+      "upstream_path": "src/utils.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 6,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "Time-unit constants (kMsPerSecond/Hour/Day, kNsPerMicrosecond/Millisecond/Second/...) and the JDN \u2194 Gregorian helpers (EpochDaysFromGregorianDate / YmdFromEpochDays) are inlined here \u2014 upstream re-exports a few from `timezone_provider::utils`, which we don't port.",
+        "Implementation uses Fliegel-Van Flandern formula identically to upstream."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-host",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/host.cc",
+      "upstream_path": "src/host.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 6,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "Three-trait shape (HostClock + HostTimeZone + HostHooks) collapsed into a single `HostHooks` abstract class with two virtuals \u2014 C++ has no trait composition.",
+        "EmptyHostSystem \u2192 DefaultEmptyHostSystem: returns 0 epoch ns + a placeholder TimeZone error pending time_zone.cc."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-sys",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/sys.cc",
+      "upstream_path": "src/sys.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 6,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "Backed by `std::chrono::system_clock::now()` (cast to nanoseconds via `duration_cast<nanoseconds>`) instead of std::SystemTime + iana_time_zone crate. Originally used V8's `v8::base::Time::Now()`, but its declaration lives in V8 internal headers (`deps/v8/src/base/platform/time.h`) which gyp does not expose to `additions/source-patched/*` translation units, so chrono is portable and standard-library-resident.",
+        "LocalHostSystem's IANA detection delegates to V8's `Intl::DefaultTimeZone()` once time_zone.cc lands \u2014 pending."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-now",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/now.cc",
+      "upstream_path": "src/builtins/core/now.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 7,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "`Now<H: HostHooks>` template parameter replaced with a non-owning `HostHooks*` pointer (same flexibility, ABI-stable).",
+        "PARTIAL: methods that depend on PlainDate/PlainDateTime/ZonedDateTime/TimeZone return TemporalError until those classes land. InstantNow() is also pending Instant's ns-accepting constructor."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-parsed-intermediates",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/parsed_intermediates.cc",
+      "upstream_path": "src/parsed_intermediates.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 7,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "ParsedDate / ParsedDateTime mirror upstream 1:1. ParsedZonedDateTime is pending (depends on TimeZone class).",
+        "PARTIAL: YearMonthFromUtf8 / MonthDayFromUtf8 return TemporalError until parse.cc Phase 2 (RFC 9557 calendar annotations) lands."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-plain-time",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/plain_time.cc",
+      "upstream_path": "src/builtins/core/plain_time.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 8,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "PartialTime uses std::optional<T> instead of Rust's Option<T>.",
+        "Methods exposed as free functions (PlainTimeNew/PlainTimeTryNew/PlainTimeFromUtf8/PlainTimeWith) instead of member methods \u2014 keeps PlainTime POD-style (matches the rest of the temporal.h surface).",
+        "PARTIAL: Add/Subtract/Until/Since return TemporalError until duration normalization (TimeDuration) ports."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-plain-year-month",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/plain_year_month.cc",
+      "upstream_path": "src/builtins/core/plain_year_month.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 7,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "PARTIAL: ISO-only path. Calendar-aware methods (with, add, subtract, until, since, days_in_year, months_in_year) pending calendar.cc.",
+        "FromUtf8 falls back to '-01' day-pad until parse.cc Phase 2 supports the bare YYYY-MM grammar."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-plain-month-day",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/plain_month_day.cc",
+      "upstream_path": "src/builtins/core/plain_month_day.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 7,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "Reference year is 1972 (matches spec; leap year so Feb 29 is representable).",
+        "PARTIAL: ISO-only path. FromUtf8 falls back to '1972-' year-pad until parse.cc Phase 2 supports the bare MM-DD grammar."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-options",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/options.cc",
+      "upstream_path": "src/options.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 8,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "Combines src/options.rs and src/options/increment.rs into one .cc \u2014 both define options-layer types and there's no benefit to splitting them in C++.",
+        "Enums use C++ scoped enums (enum class) with explicit numeric values matching upstream's discriminants (Auto=0, Nanosecond=1, \u2026, Year=10) so that LargerOf operations can rely on direct comparison, same as upstream's Ord derive.",
+        "FromStr/Display impls become free FromString/ToString functions \u2014 no Rust trait machinery in C++.",
+        "RoundingIncrement uses an internal uint32_t (1..=10^9) with the invariant enforced at construction (matches upstream's NonZeroU32 newtype with the same range).",
+        "RelativeTo (src/options/relative_to.rs) NOT yet ported \u2014 depends on TimeZone class. Lands with zoned_date_time.cc.",
+        "Upstream's `Display` impl for `Unit::Millisecond` returns the typo \"millsecond\" \u2014 preserved here for byte-level parity. The Display impl is internal-only; user-visible error messages use \"millisecond\"."
+      ],
+      "notes": "Foundational \u2014 required by every file that consumes options (PlainDate, PlainTime, PlainDateTime, Duration, Instant, ZonedDateTime, etc.)."
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-rounding",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/rounding.h",
+      "upstream_path": "src/rounding.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 8,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "Header-only port \u2014 IncrementRounder<T> is a class template; no .cc.",
+        "Roundable Rust trait collapsed into free helpers in `rounding_internal::` namespace \u2014 one set for integral T, one for f64 (constexpr where possible).",
+        "Operates on int64_t instead of upstream's i128. Caller domain (nanosecond diffs \u2264 8.64e21) genuinely needs i128 only for the unusual extreme case; deferred until duration_normalized.cc forces the issue.",
+        "Negative dividend handling: emulates Rust's div_euclid (floor toward -inf) by adjusting the C++ truncating quotient when remainder is non-zero and signs disagree."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-plain-date",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/plain_date.cc",
+      "upstream_path": "src/builtins/core/plain_date.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 8,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "ISO-only path. PartialDate omits month_code / era / era_year (calendar-extension fields) \u2014 they are pending calendar.cc.",
+        "PlainDateAdd uses AddISODate (ISO calendar arithmetic). For non-ISO calendars upstream routes through Calendar::date_add; that path lands when calendar.cc lands.",
+        "PlainDateUntil/PlainDateSince emit days-only Durations (matching upstream's largestUnit=day default). Calendar-aware year/month/week breakdown is calendar.cc.",
+        "Subtract negates the input duration and routes to Add \u2014 same as upstream."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-plain-date-time",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/plain_date_time.cc",
+      "upstream_path": "src/builtins/core/plain_date_time.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 8,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "PartialDateTime decomposed into {date: PartialDate, time: PartialTime} \u2014 upstream uses a single DateTimeFields struct combining CalendarFields + PartialTime. Same shape, simpler C++ representation.",
+        "PlainDateTimeAdd / Subtract / Until / Since stub to TemporalError until duration_normalized.cc lands (depends on TimeDuration arithmetic).",
+        "FromUtf8 accepts strings with or without a UTC offset (the offset is permitted and ignored \u2014 the TZ-bearing variant is ZonedDateTime). Matches upstream."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-calendar",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/calendar.cc",
+      "upstream_path": "src/builtins/core/calendar.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 9,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "ARCHITECTURAL: upstream wraps ICU4X's `AnyCalendar` (a Rust calendar library); this port delegates to system ICU (`icu::Calendar` from deps/icu-small) which V8 already links. Public surface (Calendar, CalendarKind, MonthCode, CalendarFields, YearMonthCalendarFields) matches upstream 1:1.",
+        "SCAFFOLD: only the ISO calendar path is implemented today. Non-ISO calendars (Buddhist, Chinese, Coptic, Dangi, Ethiopian, Gregorian, Hebrew, Indian, Hijri family, Japanese, Persian, ROC) surface 'Unsupported' until the ICU C-API dispatch lands.",
+        "TryFromUtf8 accepts the Temporal-allowed identifiers including aliases (gregory\u2192Gregorian, islamic-civil\u2192HijriTabularFriday, ethioaa\u2192EthiopianAmeteAlem, etc.).",
+        "Identifier() returns the canonical lowercase IANA name."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-time-zone",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/time_zone.cc",
+      "upstream_path": "src/builtins/core/time_zone.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 9,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "ARCHITECTURAL: upstream consults the `timezone_provider` crate (bundled tzdata); this port delegates to V8's existing js-temporal-zoneinfo64.cc + system ICU (`icu::TimeZone`) \u2014 both already linked into libnode.",
+        "SCAFFOLD: offset-only zones work today (UtcOffset round-trip, \u00b1HH:MM[:SS[.fff]] parsing, ToString rendering). IANA-named zones (`America/New_York`, etc.) compile and round-trip the identifier but the actual offset/transition lookup is pending the V8 zoneinfo64 dispatch layer.",
+        "GetIsoDateTimeFor on offset zones is currently stubbed \u2014 the Int128 arithmetic for adding the offset to an Instant lands once the broader Int128 helpers settle (see temporal_int128.h)."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-zoned-date-time",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/zoned_date_time.cc",
+      "upstream_path": "src/builtins/core/zoned_date_time.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 9,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "SCAFFOLD: structural surface (ZonedDateTime { instant, time_zone, calendar }) plus thin field accessors and to_plain_*  conversions. Most operations route through TimeZone::GetIsoDateTimeFor which is itself scaffolded \u2014 full IANA path lands when V8 zoneinfo64 dispatch is wired up.",
+        "FromUtf8 currently handles only UTC-Z input (no [TimeZone]/[!TimeZone] annotation), defaulting to UTC zone + ISO calendar. Full RFC 9557 [TimeZone] annotation support is parse.cc Phase 2.",
+        "DST + offset disambiguation (the bulk of upstream's zoned_date_time.rs \u2014 ~2.5k LOC) is pending. Operations that need it (since/until/round/with) stub to TemporalError."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-relative-to",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/relative_to.cc",
+      "upstream_path": "src/options/relative_to.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 7,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "Tagged-union RelativeTo (PlainDate | ZonedDateTime). Mirrors upstream's `enum RelativeTo` 1:1.",
+        "TryFromUtf8 tries ZonedDateTime first then falls back to PlainDate. Today the ZonedDateTime path matches only UTC-Z input (parse.cc Phase 2 work); IANA-annotated paths surface 'Unsupported' for now."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-duration-normalized",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/duration_normalized.cc",
+      "upstream_path": "src/builtins/core/duration/normalized.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 9,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "SCAFFOLD: defines DateDuration / TimeDuration / InternalDurationRecord types + sign/abs/negate/from-components helpers. The full arithmetic pipeline (round / balance / total / normalize, ~1.5k LOC) is the hardest part of the port and lands in a separate phase \u2014 it depends on Int128 multiplication/division (added to temporal_int128.h here) and the rounding.h template instantiations being plumbed through.",
+        "DateDuration uses int64_t fields matching upstream exactly. TimeDuration wraps Int128 (via temporal_int128.h's wrapper).",
+        "Folds upstream's two files (duration/date.rs + duration/normalized.rs) into a single .cc \u2014 both define duration-record types and there's no benefit to splitting them in C++.",
+        "MAX_TIME_DURATION constant is computed at runtime via Int128 arithmetic (no constexpr i128 literals in standard C++)."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "temporal-infra-primitive",
+      "upstream": "temporal-rs",
+      "local": "packages/temporal-infra/src/socketsecurity/temporal/primitive.cc",
+      "upstream_path": "src/primitive.rs",
+      "forked_at_sha": "c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+      "criticality": 6,
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "deviations": [
+        "FiniteF64 + DoubleDouble live entirely inline / templated in primitive.h. The .cc is a stub translation unit anchoring the gyp source list and reserving a home for any future out-of-line definitions.",
+        "Numeric-conversion machinery (Rust's num_traits FromPrimitive / AsPrimitive / PrimInt traits) collapsed into C++ template member functions on FiniteF64 (AsIntegerIfIntegral<T>, AsIntegerWithTruncation<T>, AsPositiveIntegerWithTruncation<T>) \u2014 same surface, no trait machinery."
+      ]
+    },
+    {
+      "kind": "feature-parity",
+      "id": "temporal-infra-pending",
+      "upstream": "temporal-rs",
+      "criticality": 9,
+      "local_area": "packages/temporal-infra/src/socketsecurity/temporal",
+      "conformance_test": "packages/build-infra/test/fixtures/smoke-test-modules.mjs",
+      "notes": "Phase 9 closed the file-by-file 1:1 port AND activated the integration layer. Status is now:\n\n- TimeDuration arithmetic pipeline: full (round / balance / total / from_components / from_duration / from_nanosecond_difference / add_days / divide / negate / checked_add / checked_sub / checked_add_ns / round_to_fractional_days / seconds / subseconds / sign).\n- IsoTime helpers: full (BalanceIsoTime / DiffIsoTime / AddIsoTime / RoundIsoTime).\n- PlainTime: full (try_new / new_with_overflow / from_partial / from_utf8 / with / add / subtract / until / since / round).\n- PlainDateTime: full (try_new / new_with_overflow / from_partial / from_utf8 / with / accessors / to_plain_date / to_plain_time / add / subtract / until / since).\n- PlainDate: full (try_new_iso / new_with_overflow / from_partial / from_utf8 / with / accessors / add / subtract / until / since).\n- PlainYearMonth / PlainMonthDay: full (try_new_iso / from_utf8 / accessors).\n- IXDTF parser: full RFC 9557 coverage (signed expanded years, calendar annotations, time-zone annotations, sub-second offset fractions, critical `!` markers, bare YearMonth + MonthDay grammars).\n- ZonedDateTime: full FromUtf8 with [TimeZone]/[u-ca=\u2026] annotation support; conversion to Instant/PlainDate/PlainTime/PlainDateTime.\n- Now / Host / Sys: full \u2014 system clock via v8::base::Time::Now; UTC singleton + LocalHostSystem (TZ env var path).\n- TimeZone: full surface. Offset zones do GetIsoDateTimeFor inline via Int128. IANA zones delegate to the registered TimeZoneBackend.\n- Calendar: full surface. ISO arithmetic inline. Non-ISO calendars delegate to the registered CalendarBackend.\n\nWhat the hosting embedder must provide:\n1. A `TimeZoneBackend` impl (e.g. zoneinfo64-backed via deps/v8/src/objects/js-temporal-zoneinfo64.cc). Register via `SetTimeZoneBackend()`.\n2. A `CalendarBackend` impl (e.g. ICU-backed via deps/icu-small). Register via `SetCalendarBackend()`.\n3. (Optional) A custom `HostHooks` impl to override the system clock / system zone for tests.\n\nThese backends are the V8/Isolate-bound integration layer; temporal-infra is intentionally Isolate-free so the algorithmic core can be unit-tested without spinning V8.\n\nUpstream's `src/builtins/compiled/*` files are intentionally NOT ported \u2014 they are thin TZ_PROVIDER convenience wrappers. V8 plumbs the provider through Isolate; the convenience layer is unnecessary in the C++ embed.\n\nUpstream's `calendar/fields.rs` + `calendar/types.rs` internal helpers (FieldKeysToIgnore, ResolutionType, check_year_in_safe_arithmetical_range, month_to_month_code) live in the future ICU-backed CalendarBackend impl, not in temporal-infra itself.\n\nTotal upstream Rust LOC ported file-by-file: ~10k of ~14k non-test."
+    },
+    {
+      "kind": "version-pin",
+      "id": "liburing",
+      "upstream": "liburing",
+      "pinned_sha": "e3d35ea59d3ba09075ed4d7751e4bb9049cce64a",
+      "pinned_tag": "liburing-2.14",
+      "upgrade_policy": "major-gate",
+      "criticality": 10,
+      "notes": "Linux io_uring bindings compiled into node-smol. Security-sensitive kernel interface."
+    },
+    {
+      "kind": "version-pin",
+      "id": "usockets",
+      "upstream": "usockets",
+      "pinned_sha": "833497e8e0988f7fd8d33cd4f6f36056c68d225d",
+      "pinned_tag": "v0.8.8",
+      "upgrade_policy": "major-gate",
+      "criticality": 10,
+      "notes": "Low-level networking primitive underlying uWebSockets in node-smol."
+    },
+    {
+      "kind": "version-pin",
+      "id": "uwebsockets",
+      "upstream": "uwebsockets",
+      "pinned_sha": "e42d69ff338269a5b74d014046e3699e2f27734e",
+      "pinned_tag": "v20.76.0",
+      "upgrade_policy": "major-gate",
+      "criticality": 10,
+      "notes": "HTTP/WebSocket server in node-smol. API compatibility across majors is brittle."
+    },
+    {
+      "kind": "version-pin",
+      "id": "curl",
+      "upstream": "curl",
+      "pinned_sha": "8c908d2d0a6d32abdedda2c52e90bd56ec76c24d",
+      "pinned_tag": "curl-8_19_0",
+      "upgrade_policy": "track-latest",
+      "criticality": 9,
+      "notes": "libcurl statically linked. Frequent CVEs \u2014 prefer latest stable."
+    },
+    {
+      "kind": "version-pin",
+      "id": "mbedtls",
+      "upstream": "mbedtls",
+      "pinned_sha": "0bebf8b8c7f07abe3571ded48a11aa907a1ffb20",
+      "pinned_tag": "mbedtls-3.6.6",
+      "upgrade_policy": "track-latest",
+      "criticality": 9,
+      "notes": "TLS library under curl. Crypto/security sensitive."
+    },
+    {
+      "kind": "version-pin",
+      "id": "lsquic",
+      "upstream": "lsquic",
+      "pinned_sha": "3181911301b1aa4f54c1ed690901abc674ee08fb",
+      "pinned_tag": "v4.6.2",
+      "upgrade_policy": "locked",
+      "criticality": 9,
+      "notes": "LiteSpeed QUIC engine backing node:smol-quic + node:smol-http3 (replaces upstream Node's ngtcp2 stack at the build-graph level — files stay on disk but are not compiled unless --with-node-quic is passed). Pinned to v4.6.2 matching bun PR #29768 so we inherit a known-working combination with ls-qpack v2.6.2 + the 3 bun patches in packages/lsquic-infra/patches/lsquic/. Bumping requires re-validating against the bun PR head + verifying OpenSSL QUIC API compatibility (SSL_set_quic_tls_cbs)."
+    },
+    {
+      "kind": "version-pin",
+      "id": "ls-qpack",
+      "upstream": "ls-qpack",
+      "pinned_sha": "1e9c5b8e59f8161c54f168a570c8bfdc59ded0c3",
+      "pinned_tag": "v2.6.2",
+      "upgrade_policy": "locked",
+      "criticality": 9,
+      "notes": "HTTP/3 header compression (QPACK) sibling to lsquic v4.6.2. Pinned to v2.6.2 matching bun PR #29768. Bumps in lockstep with lsquic."
+    },
+    {
+      "kind": "file-fork",
+      "id": "lsquic-patches",
+      "upstream": "lsquic",
+      "local": "packages/lsquic-infra/patches/lsquic",
+      "upstream_path": "patches/lsquic",
+      "forked_at_sha": "3addffd8ced40f1f912deeb5558c4df4cddb63b4",
+      "criticality": 8,
+      "notes": "Three patches mirrored verbatim from bun's HTTP/3 PR (versions-to-string ships a pre-generated lsquic_versions_to_string.c so CI doesn't need Perl; allow-no-sni permits HTTP/3 connections to IP-literals; skip-priority-walk short-circuits the send-control hot path when no stream has a non-default priority). Applied against the copied vendor tree under additions/source-patched/deps/lsquic/ by prepare-external-sources.mts."
+    },
+    {
+      "kind": "version-pin",
+      "id": "onnxruntime",
+      "upstream": "onnxruntime",
+      "pinned_sha": "2d924974ef147392ced8409d36bd6d2e7fcc8a74",
+      "pinned_tag": "v1.24.4",
+      "upgrade_policy": "major-gate",
+      "criticality": 8,
+      "notes": "ML inference runtime for embedded models. Major bumps can break model compatibility."
+    },
+    {
+      "kind": "version-pin",
+      "id": "dawn",
+      "upstream": "dawn",
+      "pinned_sha": "e935a1b57eb859db0d00c522e198711a3f313a25",
+      "pinned_tag": "chromium/7852",
+      "upgrade_policy": "track-latest",
+      "criticality": 5,
+      "notes": "Dawn — Chromium's WebGPU implementation. Submodule pinned at packages/dawn-builder/upstream/dawn at chromium/7852 branch tip. Currently scaffolding only (D1+D2 of the integration plan at .claude/plans/dawn-webgpu-integration.md); build wiring lands in D3. Dawn has no semver releases — it tracks Chromium branch numbers (~6-week cadence with Chromium milestone cuts). The pin updates on each chromium/<N> branch advance via the future updating-dawn skill."
+    },
+    {
+      "kind": "version-pin",
+      "id": "libqrencode",
+      "upstream": "libqrencode",
+      "pinned_sha": "715e29fd4cd71b6e452ae0f4e36d917b43122ce8",
+      "pinned_tag": "v4.1.1",
+      "upgrade_policy": "track-latest",
+      "criticality": 5,
+      "notes": "fukuchi/libqrencode QR code encoder (C, ~6 KLOC, LGPL-2.1 with static-link allowance). Embedded into node-smol as src/socketsecurity/deps/qrcode/qrcode_binding.cc. Pulls upstream/libqrencode/*.c into the build via prepare-external-sources copying. Replaces userland `qrcode` npm package."
+    },
+    {
+      "kind": "version-pin",
+      "id": "md4c",
+      "upstream": "md4c",
+      "pinned_sha": "472c417005c2c71b8617de4f7b8d6b30411d78f4",
+      "pinned_tag": "release-0.5.3",
+      "upgrade_policy": "track-latest",
+      "criticality": 6,
+      "notes": "md4c CommonMark+GFM Markdown parser (C99, ~3 KLOC). Embedded into node-smol as src/socketsecurity/deps/markdown/markdown_binding.cc. Pulls upstream/md4c/src/{md4c.c,md4c.h,entity.c,entity.h} into the build. Replaces opentui's userland `marked` dep on the hot AI-output rendering path."
+    },
+    {
+      "kind": "version-pin",
+      "id": "tree-sitter",
+      "upstream": "tree-sitter",
+      "pinned_sha": "7f534862c3ec939c3a6ee147f7600ef5c1bf900f",
+      "pinned_tag": "v0.26.9",
+      "upgrade_policy": "track-latest",
+      "criticality": 6,
+      "notes": "tree-sitter incremental parser library (C, ~15 KLOC). Embedded into node-smol as src/socketsecurity/deps/tree_sitter/tree_sitter_binding.cc. Pulls upstream/tree-sitter/lib/src/*.c + lib/include/*.h into the build. Per-grammar `.wasm` / `.so` loading is supported at runtime via the binding's parser interface. Replaces opentui's userland `web-tree-sitter` WASM dep for the syntax-highlighting Code renderable."
+    },
+    {
+      "kind": "version-pin",
+      "id": "opentui",
+      "upstream": "opentui",
+      "pinned_sha": "f464acfcba0dde0ffcd6b2728811df787a72975c",
+      "pinned_tag": "v0.2.15",
+      "upgrade_policy": "track-latest",
+      "criticality": 7,
+      "notes": "Native opentui builder. Matches the pin in socket-tui's lockstep for consistency across the OpenTUI ecosystem."
+    },
+    {
+      "kind": "file-fork",
+      "id": "tui-infra-ansi",
+      "upstream": "opentui",
+      "local": "packages/tui-infra/src/socketsecurity/tui/ansi.cc",
+      "upstream_path": "packages/core/src/zig/ansi.zig",
+      "forked_at_sha": "f464acfcba0dde0ffcd6b2728811df787a72975c",
+      "criticality": 7,
+      "deviations": [
+        "C++ instead of Zig — 1:1 port of `ANSI` namespace to `tui::ANSI`.",
+        "RGBA stays as raw 8-bit channels (uint8_t fg_r/g/b + bg_r/g/b on `tui::Cell`) instead of upstream v0.2.15's packed `[4]u16` with intent metadata in the high bytes. The packed layout encodes ColorIntent (rgb / indexed / default) + an ANSI palette slot so the renderer can emit `38;5;n` or `39/49` instead of always `38;2;r;g;b`. The C++ port doesn't expose indexed/default-color modes to its JS callers yet — when that surface lands, port the packed RGBA encoding alongside it.",
+        "Cold-path builders return `std::string` (one-shot setup writes).",
+        "Hot-path writers (`WriteCursorPosition`, `WriteFgRgb`, `WriteBgRgb`, `WriteAttributes`) take a caller-provided char* buffer and return bytes written so V8 FastApi specializations can target them without per-call allocation."
+      ],
+      "notes": "Embedded into node-smol as the ANSI emit surface for `node:smol-tui` (per-frame flush path)."
+    },
+    {
+      "kind": "file-fork",
+      "id": "tui-infra-buffer",
+      "upstream": "opentui",
+      "local": "packages/tui-infra/src/socketsecurity/tui/buffer.cc",
+      "upstream_path": "packages/core/src/zig/buffer-methods.zig",
+      "forked_at_sha": "f464acfcba0dde0ffcd6b2728811df787a72975c",
+      "criticality": 7,
+      "deviations": [
+        "C++ instead of Zig.",
+        "Cell POD trimmed to the fields the diff renderer actually uses (codepoint + fg/bg RGB + attrs); upstream OptimizedBuffer carries extra fields (id, respectAlpha, scissor stack) not needed by the embedded renderer."
+      ],
+      "notes": "Embedded into node-smol as the cell-buffer storage backing the `node:smol-tui` renderer."
+    },
+    {
+      "kind": "file-fork",
+      "id": "tui-infra-renderer",
+      "upstream": "opentui",
+      "local": "packages/tui-infra/src/socketsecurity/tui/renderer.cc",
+      "upstream_path": "packages/core/src/zig/renderer.zig",
+      "forked_at_sha": "f464acfcba0dde0ffcd6b2728811df787a72975c",
+      "criticality": 7,
+      "deviations": [
+        "C++ instead of Zig — port of `CliRenderer` (next + prev double-buffer with diff flush) to `tui::Renderer`.",
+        "Single Flush(char*, size_t) entry point; caller supplies the output Uint8Array (zero allocation per frame).",
+        "kFlushOverflow sentinel return on buffer-too-small (caller retries with a bigger buffer); upstream Zig uses a fixed allocator instead."
+      ],
+      "notes": "Embedded into node-smol as the per-frame flush path of `node:smol-tui`."
+    },
+    {
+      "kind": "version-pin",
+      "id": "unicode-data",
+      "upstream": "opentui",
+      "pinned_sha": "17.0.0",
+      "pinned_tag": "17.0.0",
+      "upgrade_policy": "track-latest",
+      "criticality": 6,
+      "notes": "Unicode Character Database version embedded in tui-infra/src/socketsecurity/tui/width_data.cc (EastAsianWidth.txt + emoji-data.txt range tables). Re-run packages/node-smol-builder/scripts/generate-width-data.mts when bumping. Tracked under the `opentui` upstream key for cascade alignment, though the actual upstream is unicode.org. Fleet-wide alignment: ultrathink's acorn parser pins Unicode 17.0 across Go / C++ (ICU 78.2) / Rust (unicode-id-start 1.4.0) / TS (@unicode/unicode-17.0.0); we ride the same major version so emoji/CJK width is consistent across the fleet."
+    },
+    {
+      "kind": "file-fork",
+      "id": "tui-infra-renderables",
+      "upstream": "opentui",
+      "local": "packages/tui-infra/src/socketsecurity/tui/renderables.cc",
+      "upstream_path": "packages/core/src/lib/border.ts + packages/core/src/renderables/{Box,Text}.ts",
+      "forked_at_sha": "f464acfcba0dde0ffcd6b2728811df787a72975c",
+      "criticality": 7,
+      "deviations": [
+        "C++ instead of TypeScript — collapses the Renderable class hierarchy to pure drawing primitives `tui::DrawBox()` + `tui::DrawTextWrapped()`. JS commit phase passes a computed rectangle (Yoga layout already lives in the smol-tui Yoga binding).",
+        "Border glyph table uses an 11-slot codepoint array per BorderStyle, matching opentui's borderCharsToArray output. Junction glyphs (slots 6-10) are forward-compat for a future table renderer; DrawBox currently reads slots 0-5 only.",
+        "Word wrap uses ASCII space + tab boundaries; long-word overflow hard-splits at the cell boundary. Full Unicode word segmentation (UAX #29) is a future helper alongside the planned StringWidth port (Unicode 16.0.0 width tables).",
+        "Title / bottomTitle / titleAlignment slots from upstream BoxDrawOptions are not yet ported — the title slot is a separate DrawTextWrapped overlay call in the consumer."
+      ],
+      "notes": "Embedded into node-smol as `node:smol-tui.rendererDrawBox` / `.rendererDrawTextWrapped`. Forms the C++ hot path that React/Solid host-config callbacks dispatch into (B4/B5)."
+    },
+    {
+      "kind": "file-fork",
+      "id": "tui-infra-mouse",
+      "upstream": "opentui",
+      "local": "packages/tui-infra/src/socketsecurity/tui/mouse.cc",
+      "upstream_path": "packages/core/src/lib/parse.mouse.ts",
+      "forked_at_sha": "f464acfcba0dde0ffcd6b2728811df787a72975c",
+      "criticality": 7,
+      "deviations": [
+        "C++ instead of TypeScript — 1:1 port of the SGR + X10 mouse-sequence decoder including drag-state tracking (press → motion → release becomes DOWN → DRAG → DRAG_END + DROP).",
+        "Process-wide handle registry (`uint32_t` → `MouseParser*`) under a single mutex; upstream uses a per-process singleton object."
+      ],
+      "notes": "Embedded into node-smol as the mouse decode surface of `node:smol-tui`."
+    },
+    {
+      "kind": "version-pin",
+      "id": "ultraviolet",
+      "upstream": "ultraviolet",
+      "pinned_sha": "a0f1f21775f7139100064d65b0e31f6808d68501",
+      "upgrade_policy": "track-latest",
+      "criticality": 7,
+      "notes": "Charmbracelet Ultraviolet \u2014 terminal I/O + decoder foundation under Bubble Tea v2 / Lip Gloss v2. Pre-1.0, fast-moving, no release tags. ultraviolet-builder wraps it via napi-go. Consumed by socket-tui for kitty/fixterms/SGR keyboard + mouse decoding."
+    },
+    {
+      "kind": "version-pin",
+      "id": "yoga",
+      "upstream": "yoga",
+      "pinned_sha": "042f5013152eb81c1552dec945b88f7b95ca350f",
+      "pinned_tag": "v3.2.1",
+      "upgrade_policy": "major-gate",
+      "criticality": 7,
+      "notes": "Yoga layout WASM builder. Matches stuie's pin for cross-repo yoga consistency."
+    },
+    {
+      "kind": "version-pin",
+      "id": "lief",
+      "upstream": "lief",
+      "pinned_sha": "038b60671f12dbd86bf84d9f8a38395bd2a8176e",
+      "pinned_tag": "0.17.0",
+      "upgrade_policy": "major-gate",
+      "criticality": 6,
+      "notes": "Binary inspection library used by binject/binflate."
+    },
+    {
+      "kind": "version-pin",
+      "id": "libdeflate",
+      "upstream": "libdeflate",
+      "pinned_sha": "c8c56a20f8f621e6a966b716b31f1dedab6a41e3",
+      "pinned_tag": "v1.25",
+      "upgrade_policy": "track-latest",
+      "criticality": 6,
+      "notes": "DEFLATE compression in binject. Track-latest for speed/size improvements."
+    },
+    {
+      "kind": "version-pin",
+      "id": "cjson",
+      "upstream": "cjson",
+      "pinned_sha": "c859b25da02955fef659d658b8f324b5cde87be3",
+      "upgrade_policy": "track-latest",
+      "criticality": 5,
+      "notes": "JSON parser in binject. Small surface, stable API."
+    },
+    {
+      "kind": "version-pin",
+      "id": "zstd",
+      "upstream": "zstd",
+      "pinned_sha": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+      "pinned_tag": "v1.5.7",
+      "upgrade_policy": "track-latest",
+      "criticality": 6,
+      "notes": "Zstandard compression in bin-infra."
+    },
+    {
+      "kind": "version-pin",
+      "id": "postgres",
+      "upstream": "postgres",
+      "pinned_sha": "6d396980fc5aed4f1a525e0bd75cb16b25ed40ca",
+      "pinned_tag": "REL_17_9",
+      "upgrade_policy": "major-gate",
+      "criticality": 4,
+      "notes": "Source tree for libpq-builder. Only libpq client lib is extracted."
+    },
+    {
+      "kind": "version-pin",
+      "id": "wpt-streams",
+      "upstream": "wpt",
+      "pinned_sha": "3641ed2c4cc4728308c498e88f766c0c19bf410d",
+      "pinned_tag": "epochs/three_hourly/2026-02-24_21H",
+      "upgrade_policy": "track-latest",
+      "criticality": 3,
+      "notes": "Web Platform Tests for node-smol's fast-webstreams vendor. Epoch-based (rolling)."
+    },
+    {
+      "kind": "version-pin",
+      "id": "semver",
+      "upstream": "semver",
+      "pinned_sha": "c368af612e521767e960419e6388c5129c857984",
+      "pinned_tag": "v7.7.4",
+      "upgrade_policy": "track-latest",
+      "criticality": 6,
+      "notes": "Reference JS semver. We port the parser + comparators + range expander to C++ in src/socketsecurity/versions/ and expose the result as node:smol-versions. When semver bumps, re-run the cross-checked test corpus to confirm the C++ port still matches. See docs/ports/semver.md for the port mapping."
+    },
+    {
+      "kind": "file-fork",
+      "id": "semver-parser",
+      "upstream": "semver",
+      "local": "packages/node-smol-builder/additions/source-patched/src/socketsecurity/versions/versions.cc",
+      "upstream_path": "internal/parse.js",
+      "forked_at_sha": "c368af612e521767e960419e6388c5129c857984",
+      "deviations": [
+        "Single-pass byte scanner (upstream is regex-driven).",
+        "C++ struct stores prerelease/build as offsets into the source buffer; upstream stores arrays of strings.",
+        "Loose-mode whitespace is more conservative \u2014 leading 'v'/'=' and surrounding whitespace only; upstream's loose mode is broader."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "semver-compare",
+      "upstream": "semver",
+      "local": "packages/node-smol-builder/additions/source-patched/src/socketsecurity/versions/versions.cc",
+      "upstream_path": "internal/identifiers.js",
+      "forked_at_sha": "c368af612e521767e960419e6388c5129c857984",
+      "deviations": [
+        "Identifier comparison uses memcmp with explicit length-then-bytes tiebreak.",
+        "Numeric/alphanumeric distinction uses a single-pass digit predicate; upstream uses a regex test."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "semver-range",
+      "upstream": "semver",
+      "local": "packages/node-smol-builder/additions/source-patched/src/socketsecurity/versions/versions.cc",
+      "upstream_path": "classes/range.js",
+      "forked_at_sha": "c368af612e521767e960419e6388c5129c857984",
+      "deviations": [
+        "Caret/tilde/hyphen expansions emit comparators directly into a Range struct rather than going through string assembly + re-parse.",
+        "Comparator op is a uint8_t enum (0..6) instead of an operator string.",
+        "X-range / wildcard handling collapses 'x', 'X', and '*' into a single kXAny sentinel."
+      ]
+    },
+    {
+      "kind": "file-fork",
+      "id": "yoga-wrapassembly",
+      "upstream": "yoga",
+      "local": "packages/yoga-layout-builder/src/wrapper/wrapAssembly.mts",
+      "upstream_path": "javascript/src/wrapAssembly.ts",
+      "forked_at_sha": "042f5013152eb81c1552dec945b88f7b95ca350f",
+      "criticality": 7,
+      "conformance_test": "packages/yoga-layout-builder/test/build-output.test.mts",
+      "deviations": [
+        "1:1 port of Facebook's own JS convenience layer (TS -> our .mts conventions), NOT a reimplementation. Carries string-unit setters ('100%'/'auto'), measure/dirtied callback marshalling into embind, and the JS-GC vs yoga-manual-alloc memory reconciliation (Node.create/free/freeRecursive, Config.free).",
+        "On a yoga bump, re-port behavioral changes from the new upstream wrapAssembly.ts via the AI-assisted step in the updating-yoga skill (lib ai/spawn + AI_PROFILE.edit). The version marker in the file header is build-re-stamped from the verified submodule version.",
+        "The sibling YGEnums.mts is NOT a fork — it is GENERATED at build time from yoga/YGEnums.h by scripts/source-cloned/shared/generate-enums.mts, so only this behavioral wrapper needs a manual re-port."
+      ],
+      "notes": "Tracks the one hand-maintained yoga wrapper surface for drift audit on yoga bumps. Pairs with the version-pin 'yoga' row; bump forked_at_sha when re-ported."
+    }
+  ]
+}

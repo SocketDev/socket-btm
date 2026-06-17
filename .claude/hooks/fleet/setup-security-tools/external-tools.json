@@ -1,0 +1,347 @@
+{
+  "description": "Security tools for Claude Code hooks (self-contained, no external deps)",
+  "tools": {
+    "agentshield": {
+      "description": "Claude AI config security scanner (prompt injection, secrets)",
+      "purl": "pkg:npm/ecc-agentshield@1.4.0",
+      "integrity": "sha512-R98OO1Ujyk2lezDLb+iQmMhF6FwTJCHajy3G4FCB6x7wkSTqR9f8+eAelC5KDzYDsGSbc0sOZvjXOOPRBtMpDg=="
+    },
+    "cdxgen": {
+      "description": "CycloneDX SBOM generator — slim SEA binary (no bundled bun/deno; smaller + faster than the npm flavor). Consumed by `socket scan sbom`.",
+      "version": "12.4.1",
+      "repository": "github:CycloneDX/cdxgen",
+      "release": "asset",
+      "platforms": {
+        "darwin-arm64": {
+          "asset": "cdxgen-darwin-arm64-slim",
+          "integrity": "sha512-uR9tl7MLg8Bx14MhuR/lsVyRu0/MaAW/9jh5yy7Z9S/XsrQg/jQeFuo+MKVu23csWbXqT9dD7s+taB/JgfKmRw=="
+        },
+        "darwin-x64": {
+          "asset": "cdxgen-darwin-amd64-slim",
+          "integrity": "sha512-g4fJ3CDGqErA6Y549qJ7lNQ+bje37Hupy1Wm4rPbgWEEmRyEldqFBQ0YdYAB38S5TenkVpXJtW3ji9buhU6O4Q=="
+        },
+        "linux-arm64": {
+          "asset": "cdxgen-linux-arm64-slim",
+          "integrity": "sha512-E8iKW9fFJKHzTZ+0JKsORCTBCMnXvXoisPtQzMqOwe672oK7p55e+187BmUJUO6wRwhHETfWQ4kXoZUecNMYDQ=="
+        },
+        "linux-arm64-musl": {
+          "asset": "cdxgen-linux-arm64-musl-slim",
+          "integrity": "sha512-FTO6SmP6eE86fsDTH7yNSaeABEMS941t93FB6O7b2luFIkjNoV5kS/d3YZ2eZqtuXtGI+wDUJkg3xZGM/U+Zow=="
+        },
+        "linux-x64": {
+          "asset": "cdxgen-linux-amd64-slim",
+          "integrity": "sha512-DeQxOId+pfUTSpXjiQixDw68xx3WqxB+QgvDvCncOVquRRMTWGnT8206f4jxDTv/ii2p6j97QeoB9me4Ot77vQ=="
+        },
+        "linux-x64-musl": {
+          "asset": "cdxgen-linux-amd64-musl-slim",
+          "integrity": "sha512-N0YcXTtUTXUO0dqNVkf6PFfTslkdWG0IS/PdS0Z8tiSfwDmzjTLnAJ+XhtNmeLdUE3NS1UxdOTqL6Xq18aCZBA=="
+        },
+        "win-arm64": {
+          "asset": "cdxgen-windows-arm64-slim.exe",
+          "integrity": "sha512-c8GoYkeVSzOnFjxHHLrRLj7IU+y7cI5mcSgCS1S4KayE704WjmbeuKX811RPH/5Rh2FPbRApDqvut7Rav3YE1w=="
+        },
+        "win-x64": {
+          "asset": "cdxgen-windows-amd64-slim.exe",
+          "integrity": "sha512-OK2zTj2gSp3gAo3joVCKk1fHNfcQ5PdmCi6DIsL0XkD6PsIam3BtajMbXiuSRlnUoMcfD5zk99rOh7QscgXovQ=="
+        }
+      }
+    },
+    "synp": {
+      "description": "yarn.lock <-> package-lock.json converter (cross-PM interop)",
+      "purl": "pkg:npm/synp@1.9.14",
+      "integrity": "sha512-0e4u7KtrCrMqvuXvDN4nnHSEQbPlONtJuoolRWzut0PfuT2mEOvIFnYFHEpn5YPIOv7S5Ubher0b04jmYRQOzQ=="
+    },
+    "zizmor": {
+      "description": "GitHub Actions security scanner",
+      "version": "v1.25.2",
+      "repository": "github:zizmorcore/zizmor",
+      "release": "asset",
+      "platforms": {
+        "darwin-arm64": {
+          "asset": "zizmor-aarch64-apple-darwin.tar.gz",
+          "integrity": "sha512-LUPNdfltqkBiFfPSUAWJovrH4kaqOoFQgn1ISEKc6yOmsUD1cYmKvnnsYfDP/Y1KsMua+BKNWJ3B9IMb0D1lpg=="
+        },
+        "darwin-x64": {
+          "asset": "zizmor-x86_64-apple-darwin.tar.gz",
+          "integrity": "sha512-M/T9PX+FRG1VvfS34T3aXXJ95DjpnsxcJV767BHYfKhmy/oUecI4v3jIwDBGnDt52oDtZTHx9H0uMVKg9NaNOA=="
+        },
+        "linux-arm64": {
+          "asset": "zizmor-aarch64-unknown-linux-gnu.tar.gz",
+          "integrity": "sha512-SBFp8h++QWZEZ5SfkmPxElDUYy5u0JUkgbzlz90gmB3UPbKgOcYqKOn6mY1tha5+RriMmuNtZxtrAiihECMOFA=="
+        },
+        "linux-x64": {
+          "asset": "zizmor-x86_64-unknown-linux-gnu.tar.gz",
+          "integrity": "sha512-FSmYWvlOzySHwlI2IkoEQNHfRU/UitumuQJc+umYyYcDr50colg0Bzio74YS19sGH41leMdXu4KJtB5XM45eUg=="
+        },
+        "win-x64": {
+          "asset": "zizmor-x86_64-pc-windows-msvc.zip",
+          "integrity": "sha512-OhgPngI8gKygJFKa3VGk5y4S7KUuW5CPyBiI1WvfM58OHd5rUbdillfJeLsLhRbOMFAdigdUeZtNDyR6VPIs1A=="
+        }
+      }
+    },
+    "sfw-free": {
+      "description": "Socket Firewall (free tier)",
+      "version": "v1.12.0",
+      "repository": "github:SocketDev/sfw-free",
+      "release": "asset",
+      "platforms": {
+        "darwin-arm64": {
+          "asset": "sfw-free-macos-arm64",
+          "integrity": "sha512-lwh/AIf7HXVIrE28LDfvtJqnaGb7azC+Up8Hi/c9hIfn9wMRt55misCKx9b6CjYi+d3bHladYNYPlqVtlqNpcQ=="
+        },
+        "darwin-x64": {
+          "asset": "sfw-free-macos-x86_64",
+          "integrity": "sha512-iBLJ7bzrnnUPmUbN8FFzmXNYowWnahOD4DWzKYbneeCsvFa1xlHT4LaLWTysatd5npJIO7QOiRow6yw/tgjCWw=="
+        },
+        "linux-arm64": {
+          "asset": "sfw-free-linux-arm64",
+          "integrity": "sha512-TZ0hzAzPyNfi1PgqU5+TzkrlBcWXZlXaSHkx1/wzIck4vlZXFQI8i7CCvWYihrJQ3zgEwVI30MmrqsJ9W7xWQw=="
+        },
+        "linux-x64": {
+          "asset": "sfw-free-linux-x86_64",
+          "integrity": "sha512-Yuu+qoqxa0n7WIS9NMI3uuitUMoELbbUqJm3W6L2AsMJNZpVekXKmrZIhEjxWjJqvKt3mErKxK+izdP3/F+64Q=="
+        },
+        "win-x64": {
+          "asset": "sfw-free-windows-x86_64.exe",
+          "integrity": "sha512-tkZHeaxydBStW6SsCi5S2jLMtdj2UQ/PdZb/ch8W532UjFdZUJD0oygW/YWliK0HQkcyw5GQm2d1iZU0P/yElg=="
+        }
+      },
+      "ecosystems": [
+        "npm",
+        "yarn",
+        "pnpm",
+        "pip",
+        "pip3",
+        "uv",
+        "cargo"
+      ]
+    },
+    "sfw-enterprise": {
+      "description": "Socket Firewall (enterprise tier)",
+      "version": "v1.12.0",
+      "repository": "github:SocketDev/firewall-release",
+      "release": "asset",
+      "platforms": {
+        "darwin-arm64": {
+          "asset": "sfw-macos-arm64",
+          "integrity": "sha512-G7te2xB1Q+K/k/2Wijbn96eJZUZoNFlDNKURydLBLB69Jkuc1M1lNFbqxiyP8tfOlMIBKWxRwfZyeX9ipPy4Ew=="
+        },
+        "darwin-x64": {
+          "asset": "sfw-macos-x86_64",
+          "integrity": "sha512-/ogpJY01pDTEcvDPq09FNxGP5eXu4d+ab2RxT1r4he0ptfCOGOO3rQXfxTFqrOmS+OSz5RZe+4qPupM4nGriMQ=="
+        },
+        "linux-arm64": {
+          "asset": "sfw-linux-arm64",
+          "integrity": "sha512-oXhTWx/I/1yZRn0ik3DL5y2/4RZqv/msJpTi6m190jBGg/x7bgqJO4uCOUJe1+iudK3bNGsYB8zs6vIJTLwA7g=="
+        },
+        "linux-x64": {
+          "asset": "sfw-linux-x86_64",
+          "integrity": "sha512-91W90AOLI0RBN6lsPor2wf7wUvV3hzebXf0SM7SEzVPGM76Yjwj2D5E/jtJ8LjNNE7afggUDEtgMvFSTmgnZDg=="
+        },
+        "win-x64": {
+          "asset": "sfw-windows-x86_64.exe",
+          "integrity": "sha512-GXKV67rN0XTP+2v9VTfzz84N09x9UkEItj2wmcA7pmy5YoLPF/+Z/XkVGoUHzVSTTeivbYicRLAxl8BNkoUZ6w=="
+        }
+      },
+      "ecosystems": [
+        "npm",
+        "yarn",
+        "pnpm",
+        "pip",
+        "pip3",
+        "uv",
+        "cargo",
+        "gem",
+        "bundler",
+        "nuget"
+      ]
+    },
+    "skillspector": {
+      "description": "NVIDIA's third-party-skill security scanner (LangGraph-based; YARA + AST + OSV.dev CVE lookups + optional LLM analysis). No PyPI release / no GH tags upstream — pinned to a git SHA on main + installed via pipx. Sibling to AgentShield: AgentShield audits the operator's .claude/ config; SkillSpector audits untrusted upstream skills before install.",
+      "release": "pipx-git",
+      "repository": "github:NVIDIA/skillspector",
+      "version": "2eb84478",
+      "versionDate": "2026-05-18"
+    },
+    "trufflehog": {
+      "description": "TruffleHog — secrets scanner used by socket-basics SAST workflow.",
+      "version": "3.93.8",
+      "repository": "github:trufflesecurity/trufflehog",
+      "release": "asset",
+      "platforms": {
+        "darwin-arm64": {
+          "asset": "trufflehog_3.93.8_darwin_arm64.tar.gz",
+          "integrity": "sha512-w/yJQPNarWECddREDtGlJg00LjVl8zPECN07BG25e4sZpcMfLny+mDWsk+6NZtif2tDAJiXKo1O31qmZGUwICw=="
+        },
+        "darwin-x64": {
+          "asset": "trufflehog_3.93.8_darwin_amd64.tar.gz",
+          "integrity": "sha512-k4i7+STzV1bFCO+ShkaAsBWLO/qID/r398V9sv0LHruDbIgqaElQw43e3i3uxcLJKv/hkGGPNpSWqZl/Zs1YOg=="
+        },
+        "linux-arm64": {
+          "asset": "trufflehog_3.93.8_linux_arm64.tar.gz",
+          "integrity": "sha512-O6lRPj3UsI6pNlZiR3ADvm8QjhnYaTHPbwnc+uG7ch5hpislCHrH3TnwJc6cFYnf1sHLbcNlaSUkaUG+sQiyNg=="
+        },
+        "linux-x64": {
+          "asset": "trufflehog_3.93.8_linux_amd64.tar.gz",
+          "integrity": "sha512-6tCvQybIeP8CqaLScH8n7RllwynXQzlGA3i9F5JJ+JJVbiLYoyPPMuu0l/2eAZVnBmsI8vsSe7cmIYWUkjQBwQ=="
+        },
+        "win-x64": {
+          "asset": "trufflehog_3.93.8_windows_amd64.tar.gz",
+          "integrity": "sha512-OD8a1bZcaoSY/7K4mmN9W7vnMYz1CxFOpW1DZr7jPq4LdyxwEu2ehDdk8xyGI7m7xiw+mkQs/c8pSNenP+lPFQ=="
+        }
+      }
+    },
+    "trivy": {
+      "description": "Trivy — container/IaC/SBOM vuln scanner used by socket-basics.",
+      "version": "0.69.3",
+      "repository": "github:aquasecurity/trivy",
+      "release": "asset",
+      "platforms": {
+        "darwin-arm64": {
+          "asset": "trivy_0.69.3_macOS-ARM64.tar.gz",
+          "integrity": "sha512-CIBLlZzCUwRXgOLy3Xb49ydzJbVehFuzlNwCTTmDYXjGpIzleSyAmRS22vJ1lh/J6x110Wwu0HG25v7Mt6+H7g=="
+        },
+        "darwin-x64": {
+          "asset": "trivy_0.69.3_macOS-64bit.tar.gz",
+          "integrity": "sha512-noARMlxR2hlTP37YcPRoqfd9fPgBBPz6k2jB3rKVtPqg17IeN0MYXB8gKxvGdUIhUgV3xitbF4jZ2GbPfWu99g=="
+        },
+        "linux-arm64": {
+          "asset": "trivy_0.69.3_Linux-ARM64.tar.gz",
+          "integrity": "sha512-CP9LKXR0wMKtV4t2kT171ysHZksQ80ZrdrU2ck4cGJYw/QfTnzEDd2ePFDFmr0UFIgsqqmiEFCkl3jAeFIzV8A=="
+        },
+        "linux-x64": {
+          "asset": "trivy_0.69.3_Linux-64bit.tar.gz",
+          "integrity": "sha512-zbqLa0Ff1RFyg6BgXbb8shwSSTDnT1dn+dFcr3hjRMwZu01Tkabnrh5ZtPoeYUuR3f2RfitaWU9LJ/yB+9EtCg=="
+        },
+        "win-x64": {
+          "asset": "trivy_0.69.3_windows-64bit.zip",
+          "integrity": "sha512-K7FE54aVEAUNOWeG+lkrAhNgx9dfIG8PwTfqhmz/5eiPV3iyS7Gkz9b6jbM62du9OQqL+g0/fX2VrrrJSH4/mQ=="
+        }
+      }
+    },
+    "opengrep": {
+      "description": "OpenGrep — semgrep fork used by socket-basics SAST workflow.",
+      "version": "1.16.5",
+      "repository": "github:opengrep/opengrep",
+      "release": "asset",
+      "platforms": {
+        "darwin-arm64": {
+          "asset": "opengrep_osx_arm64",
+          "integrity": "sha512-Eehv4ZIlOO6wdrWOftdynKYWoMh3vOvwAVAQ2IXksebUdY1MVClN18woWeAMf3+W9Y4dqKfSrVQhDlrQmsO4kg=="
+        },
+        "darwin-x64": {
+          "asset": "opengrep_osx_x86",
+          "integrity": "sha512-i17GIRDVW1z39L+2tC5jpND7RhdOG283NK0fK9lKybJtOaE/bR8b4lcm0KUk/udxVOlcDsM/w9+MuMtJXKHKGw=="
+        },
+        "linux-arm64": {
+          "asset": "opengrep_manylinux_aarch64",
+          "integrity": "sha512-DKK5JbFfEjgV809KnLSsYm9q3RYqysaY14vuo/V9FWwflxS8H9euu0JNf2xGFvXvm0a4bSSBjldkS1foTiQ7xg=="
+        },
+        "linux-x64": {
+          "asset": "opengrep_manylinux_x86",
+          "integrity": "sha512-impvWxEdGfTYN7h9c0a3uUbGxHpSZSyF3BetGO41gdyATF1S0vVpcPNdVua2xLLlb6U99teN82dYJzc9XLRGTA=="
+        },
+        "win-x64": {
+          "asset": "opengrep-core_windows_x86.zip",
+          "integrity": "sha512-LvaCTQVg1OAxyvmD1TLkTd8grXckp+IBKy+PUhxv0qu58dbk/76lCxWFZJ5SHtIkQSBKHG6XQ+qdANCNyYuMGQ=="
+        }
+      }
+    },
+    "uv": {
+      "description": "uv — Python package manager (Astral). Used by socket-basics for Python project bootstrap.",
+      "version": "0.10.11",
+      "repository": "github:astral-sh/uv",
+      "release": "asset",
+      "platforms": {
+        "darwin-arm64": {
+          "asset": "uv-aarch64-apple-darwin.tar.gz",
+          "integrity": "sha512-PMc914k3+ke0GiQ8nEa8b0KBfwis75n3dHFFYhhiCt/oVbeEJBAZqGYI9E5ihvrgtGqY/+DOOMcJviuLJGPgJg=="
+        },
+        "darwin-x64": {
+          "asset": "uv-x86_64-apple-darwin.tar.gz",
+          "integrity": "sha512-xKQ/6Z/mrMZUMnwSpSzx3ROkLNHC+viNZKf0C7m1NiRy/F8hl+9rLaJ/7//8VgCPg2L5gdpxqtrV39xtrgZa/g=="
+        },
+        "linux-arm64": {
+          "asset": "uv-aarch64-unknown-linux-gnu.tar.gz",
+          "integrity": "sha512-hHxhwXD0GA1leTq5zHcuqyO9YpuRnYI94jz/p51oFlUI+CJZrhJzya7aLf7lcQIsTbe3PCDfh3C23Dt8JfF26Q=="
+        },
+        "linux-x64": {
+          "asset": "uv-x86_64-unknown-linux-gnu.tar.gz",
+          "integrity": "sha512-03h8yKykGXwBJBj893mQSre6J3D5WqIbylWgvv7W9EEnmE1ExiMb3SZItUwk/qrBZy5rvsoBuYYW8oyU6Jyayg=="
+        },
+        "win-x64": {
+          "asset": "uv-x86_64-pc-windows-msvc.zip",
+          "integrity": "sha512-XzcS4HF+W1hogkVvp5ZC3yu0vmqY+mPLCTXPeHHDl3m31MpCcxq33iTBn72zD2xRRlQSn3NJYbWdQJM/r+B8AA=="
+        }
+      }
+    },
+    "codedb": {
+      "description": "codedb — justrach/codedb Zig code-intelligence MCP server. Raw-binary release assets (the asset IS the executable). Telemetry MUST stay off (CODEDB_NO_TELEMETRY=1) at install + invocation. No Windows build. Integrity verified against the upstream checksums.sha256.",
+      "version": "v0.2.5825",
+      "repository": "github:justrach/codedb",
+      "release": "asset",
+      "installDir": "wheelhouse",
+      "soakBypass": {
+        "version": "v0.2.5825",
+        "published": "2026-06-12",
+        "removable": "2026-06-19"
+      },
+      "platforms": {
+        "darwin-arm64": {
+          "asset": "codedb-darwin-arm64",
+          "integrity": "sha512-dlDOa6MfpQxJHMIKI5M4C+2y6X14QpEHiMmmqfyAx9zxBML0Zz5xrmf1pS4oAgZIBJn2R6nRKFS/ppkT+TA0Xg=="
+        },
+        "darwin-x64": {
+          "asset": "codedb-darwin-x86_64",
+          "integrity": "sha512-bHdINGyi7A3xSeXLnh/UAFYE3Af6zgj602tL6bnsIwyb0j3r6yHb6AobecgCxD0qfUYsRRRQDbtlvJYi7aoA/A=="
+        },
+        "linux-arm64": {
+          "asset": "codedb-linux-arm64",
+          "integrity": "sha512-1ttAxL53tI57MqUHk33+6PHnYKEIoEgUuK8Y9mYygxPUq5LP9QG9Ja1cT3Br1E1ABcgBkb/abwsHBreEj3CMwg=="
+        },
+        "linux-x64": {
+          "asset": "codedb-linux-x86_64",
+          "integrity": "sha512-fNbPFko38kdrEokWqwsR0VBLdwBthgdp4gRFc/OrJ/khD0Np2r+lfhwflJwKEPi1Eg1QJ3MAm1LwmW1vWQGOiA=="
+        }
+      }
+    },
+    "h5i": {
+      "description": "h5i — h5i-dev/h5i provenance/handoff tool. Version-templated tarballs; arm64-only darwin (no darwin-x64), like janus. Binary is telemetry-free. Integrity verified against the upstream .sha256 sidecars.",
+      "version": "v0.1.7",
+      "repository": "github:h5i-dev/h5i",
+      "release": "asset",
+      "installDir": "wheelhouse",
+      "platforms": {
+        "darwin-arm64": {
+          "asset": "h5i-v0.1.7-aarch64-apple-darwin.tar.gz",
+          "integrity": "sha512-idolWWCucz/Yp4sy5lpKSa1ePlSJGPSoUW9WYFWVnWCOE6yxMSm/Kg+W2zXnE9o4RwBtUIPihNvUDTL4OelSRQ=="
+        },
+        "linux-arm64": {
+          "asset": "h5i-v0.1.7-aarch64-unknown-linux-musl.tar.gz",
+          "integrity": "sha512-RxhG5vZvcvArliOqUoSChlUiSZyr0pyMdZndzfXrGFesb5XJBVj3CBoszNWzJmVPCOxJ3KSogeSkNHmwJK8qZQ=="
+        },
+        "linux-x64": {
+          "asset": "h5i-v0.1.7-x86_64-unknown-linux-musl.tar.gz",
+          "integrity": "sha512-2/zreb6+haTjXcMbxeX2ZGnfRFYKoA2nT03ylklZkSmcEgwXnRTZ52pxLW16ZggQat9wj0FgNOc3XiM4di3tLA=="
+        },
+        "win-x64": {
+          "asset": "h5i-v0.1.7-x86_64-pc-windows-msvc.zip",
+          "integrity": "sha512-JUG6GXWnUfgfRawGltA97MXO4oy/xjKctwl2EKA0ICS/1fwslKkkgs2cZs8jyjKffXEZWJIhcLqJ0aKxzBVZfQ=="
+        }
+      }
+    },
+    "janus": {
+      "description": "janus — divmain/janus single-binary tool. Installed under the shared Socket Wheelhouse dir so every fleet member sees the same binary. Currently darwin-arm64 only; other platforms will be added as upstream ships builds.",
+      "version": "v1.23.1",
+      "repository": "github:divmain/janus",
+      "release": "asset",
+      "installDir": "wheelhouse",
+      "platforms": {
+        "darwin-arm64": {
+          "asset": "janus-aarch64-apple-darwin.tar.gz",
+          "integrity": "sha512-GkFaJcv3BkVAsOhEiijIDPbHNNo5d3mOwTfDMeuMAIt0ZaA7s5m/NDeWHTffCOhCwrJwJXWQK8RhbpkYmmI3xQ=="
+        }
+      }
+    }
+  }
+}

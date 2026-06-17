@@ -1,0 +1,41 @@
+name: Enable Debug Logging
+description: Enables GitHub Actions debug logging or sets a DEBUG env var for downstream scripts
+
+inputs:
+  debug:
+    description: '0 to disable, 1 for full Actions debug, or a DEBUG namespace string'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Apply debug configuration
+      if: inputs.debug != '0'
+      shell: bash
+      env:
+        DEBUG_INPUT: ${{ inputs.debug }}
+      run: |
+        # Validate DEBUG_INPUT contains only safe characters. Allow the
+        # full npm-debug namespace syntax: `:` for namespace separator
+        # (`socket:scan`), `*` for glob (`socket:*`), `.` for nested
+        # (`socket.sub`), `@` for scoped (`@socket/lib`), `/` for scope
+        # separators. Inputs are written via heredoc, so : and * are
+        # shell-safe for the env-export path below.
+        if [ "$DEBUG_INPUT" != "1" ] && ! echo "$DEBUG_INPUT" | grep -qE '^[a-zA-Z0-9,_:*.@/-]+$'; then
+          echo "Error: Invalid debug input format (allowed: alphanumeric and ,:*._@/-)"
+          exit 1
+        fi
+
+        if [ "$DEBUG_INPUT" = "1" ]; then
+          echo "ACTIONS_STEP_DEBUG=true" >> "$GITHUB_ENV"
+          echo "ACTIONS_RUNNER_DEBUG=true" >> "$GITHUB_ENV"
+          echo "Debug mode: full"
+        else
+          # Use heredoc syntax to prevent env var injection via newlines.
+          {
+            echo "DEBUG<<EOF"
+            echo "$DEBUG_INPUT"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+          echo "Debug mode: $DEBUG_INPUT"
+        fi

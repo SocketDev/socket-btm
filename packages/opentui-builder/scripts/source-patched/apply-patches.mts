@@ -16,20 +16,22 @@ import { safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import {
   BUILD_ZIG,
   BUILD_ZIG_ZON,
+  getBuildPaths,
+  getSharedBuildPaths,
   PACKAGE_ROOT,
   SRC_DIR,
   UUCODE_PATH,
   VENDOR_DIR,
-  getBuildPaths,
-  getSharedBuildPaths,
 } from '../paths.mts'
 
 const logger = getDefaultLogger()
 
 /**
  * Apply patches to OpenTUI source and inject our build files.
- * @param {string} platformArch - Platform-arch identifier
+ *
+ * @param {string} platformArch - Platform-arch identifier.
  * @param {string} buildMode - Build mode ('dev' or 'prod')
+ *
  * @returns {Promise<void>}
  */
 export async function applyPatches(platformArch, buildMode) {

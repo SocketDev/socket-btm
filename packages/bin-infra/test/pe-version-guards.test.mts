@@ -1,15 +1,13 @@
 /**
- * @fileoverview Tests for PE VS_VERSION_INFO reader scan guards
+ * @file Tests for PE VS_VERSION_INFO reader scan guards This tests the native
+ *   PE VS_VERSION_INFO extraction in smol_segment_reader.c to ensure it
+ *   properly validates inputs and handles malformed PE structures without
+ *   scanning the entire file. Guards being tested:
  *
- * This tests the native PE VS_VERSION_INFO extraction in smol_segment_reader.c
- * to ensure it properly validates inputs and handles malformed PE structures
- * without scanning the entire file.
- *
- * Guards being tested:
- * 1. Section limit (max 100 sections)
- * 2. Resource directory entry limits (max 100 entries per level)
- * 3. VS_VERSION_INFO data size limit (52 < size <= 65536)
- * 4. Valid PE structure requirements (DOS magic, PE signature, etc.)
+ *   1. Section limit (max 100 sections)
+ *   2. Resource directory entry limits (max 100 entries per level)
+ *   3. VS_VERSION_INFO data size limit (52 < size <= 65536)
+ *   4. Valid PE structure requirements (DOS magic, PE signature, etc.)
  */
 
 import { afterEach, describe, expect, it } from 'vitest'

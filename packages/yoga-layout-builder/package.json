@@ -1,8 +1,8 @@
 {
   "name": "yoga-layout-builder",
   "version": "0.0.0",
-  "description": "Custom Yoga Layout WASM build optimized for Socket CLI",
   "private": true,
+  "description": "Custom Yoga Layout WASM build optimized for Socket CLI",
   "license": "MIT",
   "type": "module",
   "exports": {

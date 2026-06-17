@@ -1,11 +1,10 @@
 /**
- * @fileoverview Unit tests for the SEA-bundle feature detector.
- *
- * Synthetic in-memory bundles (written to a temp file because the detector
- * reads from a path) exercise the decision matrix: drop-when-absent,
- * keep-when-used, sqlite both ways, soft-use isBuiltin guards, computed-require
- * ambiguity, package.json overrides, and the V8-lite density heuristic. No
- * dependency on a real built bundle.
+ * @file Unit tests for the SEA-bundle feature detector. Synthetic in-memory
+ *   bundles (written to a temp file because the detector reads from a path)
+ *   exercise the decision matrix: drop-when-absent, keep-when-used, sqlite both
+ *   ways, soft-use isBuiltin guards, computed-require ambiguity, package.json
+ *   overrides, and the V8-lite density heuristic. No dependency on a real built
+ *   bundle.
  */
 
 import { describe, expect, it } from 'vitest'
@@ -85,7 +84,9 @@ describe('detectBundleFeatures', () => {
   })
 
   it('never auto-drops Temporal or Intl (keep-unless-explicit)', async () => {
-    const p = bundle(`const x = Temporal.Now.instant(); const f = new Intl.NumberFormat()`)
+    const p = bundle(
+      `const x = Temporal.Now.instant(); const f = new Intl.NumberFormat()`,
+    )
     const m = await detectBundleFeatures({ bundlePath: p })
     expect(m.features['temporal']!.drop).toBe(false)
     expect(m.features['intl']!.drop).toBe(false)
@@ -133,7 +134,9 @@ describe('detectBundleFeatures', () => {
     // Dense TypedArray allocations + WASM in a small bundle ⇒ high signals/MB.
     const lines: string[] = []
     for (let i = 0, length = 40; i < length; i += 1) {
-      lines.push(`const a${i} = new Float64Array(1024); WebAssembly.instantiate(b${i});`)
+      lines.push(
+        `const a${i} = new Float64Array(1024); WebAssembly.instantiate(b${i});`,
+      )
     }
     const p = bundle(lines.join('\n'))
     const m = await detectBundleFeatures({ bundlePath: p })

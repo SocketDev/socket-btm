@@ -1,26 +1,20 @@
 #!/usr/bin/env node
 /**
- * @fileoverview Builder publish-state inspector.
+ * @file Builder publish-state inspector.
+ *   Reads .github/cache-versions.json + queries `gh release list` for each
+ *   builder in the publish dependency chain, then renders a table showing
+ *   each builder's freshness gate against its cache-version bump.
+ *   Output columns:
  *
- * Reads .github/cache-versions.json + queries `gh release list` for each
- * builder in the publish dependency chain, then renders a table showing
- * each builder's freshness gate against its cache-version bump.
- *
- * Output columns:
  *   - Builder name
  *   - Tier (1 = leaf, 2 = stubs, 3 = binsuite, 4 = node-smol)
  *   - cache-version current value (e.g. v75)
  *   - latest release (date + short SHA)
- *   - Gate (✓ fresh / ✗ stale / — never published / ? unknown)
- *
- * Stale rows include the recovery command (which workflow to dispatch).
- *
- * Read-only — no state changes, no workflow dispatches.
- *
- * Usage:
- *   node scripts/build-status.mts
- *   node scripts/build-status.mts --json     # machine-readable output
- *   node scripts/build-status.mts --filter=tier1   # only tier-1 leaves
+ *   - Gate (✓ fresh / ✗ stale / — never published / ? unknown) Stale rows include
+ *     the recovery command (which workflow to dispatch). Read-only — no state
+ *     changes, no workflow dispatches. Usage: node scripts/build-status.mts
+ *     node scripts/build-status.mts --json # machine-readable output node
+ *     scripts/build-status.mts --filter=tier1 # only tier-1 leaves
  */
 
 import { existsSync, readFileSync } from 'node:fs'
@@ -90,7 +84,9 @@ const BUILDERS: BuilderEntry[] = [
 ]
 
 // oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down pipeline (evaluate → render → main); alphabetizing would scatter the dataflow.
-export async function evaluateBuilder(entry: BuilderEntry): Promise<BuilderRow> {
+export async function evaluateBuilder(
+  entry: BuilderEntry,
+): Promise<BuilderRow> {
   const { dispatchWorkflow, pkg, tier } = entry
   const cacheVersion = cacheVersions.versions[pkg]
 
@@ -206,9 +202,7 @@ export function renderTable(rows: BuilderRow[]): void {
     r.pkg,
     `t${r.tier}`,
     r.cacheVersion ?? '-',
-    r.release
-      ? `${r.release.date} @ ${r.release.sha.slice(0, 8)}`
-      : '-',
+    r.release ? `${r.release.date} @ ${r.release.sha.slice(0, 8)}` : '-',
     gateSymbol(r.gate),
   ])
 

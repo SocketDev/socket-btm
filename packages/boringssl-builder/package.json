@@ -1,8 +1,8 @@
 {
   "name": "boringssl-builder",
   "version": "0.0.0",
-  "description": "Builds BoringSSL static libs (prefixed: BORINGSSL_PREFIX=smol) for lsquic + uWebSockets consumption",
   "private": true,
+  "description": "Builds BoringSSL static libs (prefixed: BORINGSSL_PREFIX=smol) for lsquic + uWebSockets consumption",
   "license": "MIT",
   "type": "module",
   "exports": {

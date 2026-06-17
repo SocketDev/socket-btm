@@ -1,8 +1,8 @@
 {
   "name": "libpq-builder",
   "version": "0.0.0",
-  "description": "Builds libpq PostgreSQL client library with OpenSSL support",
   "private": true,
+  "description": "Builds libpq PostgreSQL client library with OpenSSL support",
   "license": "MIT",
   "type": "module",
   "exports": {

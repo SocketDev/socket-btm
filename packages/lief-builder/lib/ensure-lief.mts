@@ -6,21 +6,23 @@
  * pattern.
  *
  * Downstream consumers (verified via grep):
- *   - binpress/scripts/build.mts + test.mts (ensureLief)
- *   - binject/scripts/build.mts + test.mts (ensureLief)
- *   - lief-builder/test/ensure-lief.test.mts (every export above)
+ *
+ * - Binpress/scripts/build.mts + test.mts (ensureLief)
+ * - Binject/scripts/build.mts + test.mts (ensureLief)
+ * - Lief-builder/test/ensure-lief.test.mts (every export above)
  *
  * All consume ensureLief() as a directory string. Factory's ensure()
  * also returns a directory string — behavior preserved.
  *
  * LIEF-specific wrinkles preserved:
- *   - Required-files manifest handles MSVC (LIEF.lib) vs Unix
- *     (libLIEF.a) naming alternation. The factory's verifyAt walks
- *     the alternation correctly because LIEF_REQUIRED_FILES uses the
- *     array-of-alternatives shape `[['libLIEF.a', 'LIEF.lib'], ...]`.
- *   - getLiefLibPath(arch) resolves to the actual lib path within
- *     the install dir (factory only resolves the dir; the lib name
- *     disambiguation is per-builder).
+ *
+ * - Required-files manifest handles MSVC (LIEF.lib) vs Unix (libLIEF.a) naming
+ *   alternation. The factory's verifyAt walks the alternation correctly because
+ *   LIEF_REQUIRED_FILES uses the array-of-alternatives shape `[['libLIEF.a',
+ *   'LIEF.lib'], ...]`.
+ * - GetLiefLibPath(arch) resolves to the actual lib path within the install dir
+ *   (factory only resolves the dir; the lib name disambiguation is
+ *   per-builder).
  *
  * Symbol compatibility: every export name retained — both legacy
  * names + factory-canonical names exposed (see end of file).

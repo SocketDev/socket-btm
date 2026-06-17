@@ -9,8 +9,8 @@
  * the regression fixtures all passed).
  *
  * Run with:
- *   build/dev/<platform-arch>/source/out/Release/node \
- *     test/smol-manifest-real-fixture.mjs
+ * build/dev/<platform-arch>/source/out/Release/node\
+ * test/smol-manifest-real-fixture.mjs
  *
  * Runs inside the built node-smol binary, which is compiled --without-amaro
  * (no TypeScript stripping), so it must stay .mjs. Do not convert to .mts —

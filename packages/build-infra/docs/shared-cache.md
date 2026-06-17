@@ -133,11 +133,11 @@ same behavior as npm's cacache — no data loss, no race conditions.
 
 Every key must be prefixed with the project name to avoid collisions:
 
-| Prefix               | Project             | Example                                  |
-| -------------------- | ------------------- | ---------------------------------------- |
-| `socket-ultrathink:` | ultrathink/acorn    | `socket-ultrathink:http:test262-sha256`  |
-| `socket-btm:`        | socket-btm          | `socket-btm:build:node-v22-darwin-arm64` |
-| `socket-sdk:`        | socket-sdk-js       | `socket-sdk:quota`                       |
+| Prefix               | Project                    | Example                                  |
+| -------------------- | -------------------------- | ---------------------------------------- |
+| `socket-ultrathink:` | ultrathink/acorn           | `socket-ultrathink:http:test262-sha256`  |
+| `socket-btm:`        | socket-btm                 | `socket-btm:build:node-v22-darwin-arm64` |
+| `socket-sdk:`        | socket-sdk-js              | `socket-sdk:quota`                       |
 | `github-refs:`       | @socketsecurity/lib-stable | `github-refs:main-sha`                   |
 
 Go and TypeScript implementations auto-prefix with `socket-ultrathink:`.

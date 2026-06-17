@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * @fileoverview Setup build toolchain for binpress
+ * @file Setup build toolchain for binpress
+ *   Installs required system dependencies:
  *
- * Installs required system dependencies:
- * - Linux: gcc, make (zstd compiled from submodule)
- * - macOS: clang (Xcode), make (system Compression framework)
- * - Windows: mingw-w64, make (Cabinet API)
+ *   - Linux: gcc, make (zstd compiled from submodule)
+ *   - macOS: clang (Xcode), make (system Compression framework)
+ *   - Windows: mingw-w64, make (Cabinet API)
  */
 
 import path from 'node:path'

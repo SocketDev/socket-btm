@@ -18,7 +18,10 @@ const HAS_LIB = existsSync(LIB_PATH)
 
 const load = HAS_LIB
   ? (await import('../lib/index.mts')).load
-  : (() => Promise.reject(new Error('lib/index.mts not built; run `pnpm run build` first')))
+  : () =>
+      Promise.reject(
+        new Error('lib/index.mts not built; run `pnpm run build` first'),
+      )
 
 describe.skipIf(!HAS_LIB)('ultraviolet decoder binding', () => {
   it('decodes the CSI up-arrow sequence', async () => {

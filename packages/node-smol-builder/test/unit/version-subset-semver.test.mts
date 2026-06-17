@@ -1,15 +1,15 @@
 /**
  * Tests for the inline `semver` helper in
- * additions/source-patched/lib/internal/socketsecurity/http/version_subset.js
+ * additions/source-patched/lib/internal/socketsecurity/http/version_subset.js.
  *
  * Gold standard: npm `node-semver` v7.x satisfies() behavior.
  *
  * The focus is on correctness of caret/tilde/comparator range handling,
  * especially the three distinct caret branches that semver requires:
  *
- *   ^X.Y.Z with X > 0      →  >= X.Y.Z  <(X+1).0.0
- *   ^0.Y.Z with Y > 0      →  >= 0.Y.Z  <0.(Y+1).0
- *   ^0.0.Z                 →  >= 0.0.Z  <0.0.(Z+1)   (i.e. only exact patch)
+ * ^X.Y.Z with X > 0      →  >= X.Y.Z  <(X+1).0.0
+ * ^0.Y.Z with Y > 0      →  >= 0.Y.Z  <0.(Y+1).0
+ * ^0.0.Z                 →  >= 0.0.Z  <0.0.(Z+1)   (i.e. only exact patch)
  *
  * Prior implementations collapsed the first two 0-major branches together,
  * so `^0.0.3` was accepted matching `0.0.4`, `0.0.5`, etc. The fix below

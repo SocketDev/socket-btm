@@ -1,5 +1,5 @@
 /**
- * @fileoverview Tests for build-helpers utilities (pure functions).
+ * @file Tests for build-helpers utilities (pure functions).
  */
 
 import { describe, expect, it } from 'vitest'

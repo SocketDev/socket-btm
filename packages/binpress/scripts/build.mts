@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Build script for binpress C package
- * Wraps the Makefile build target for pnpm integration
+ * Wraps the Makefile build target for pnpm integration.
  */
 
 import { promises as fs } from 'node:fs'

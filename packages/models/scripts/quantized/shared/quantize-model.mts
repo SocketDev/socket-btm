@@ -31,19 +31,22 @@ const QUANTIZE_PYTHON_DIR = path.resolve(
 /**
  * Apply quantization for compression.
  *
- * Supports two quantization levels:
- * - INT4: MatMul4BitsQuantizer with RTN weight-only quantization (maximum compression).
- * - INT8: Dynamic quantization (better compatibility, moderate compression).
+ * Supports two quantization levels: - INT4: MatMul4BitsQuantizer with RTN
+ * weight-only quantization (maximum compression). - INT8: Dynamic quantization
+ * (better compatibility, moderate compression).
  *
  * Results in significant size reduction with minimal accuracy loss.
  *
- * @param {Object} options - The options object
- * @param {string} options.modelKey - The model key (e.g., 'minilm-l6', 'codet5')
- * @param {string} options.quantLevel - The quantization level ('int4' or 'int8')
- * @param {string} options.buildDir - The build directory path
- * @param {string} options.packageName - The package name
- * @param {string} options.modelsDir - The models directory path
- * @param {boolean} options.forceRebuild - Whether to force rebuild
+ * @param {Object} options - The options object.
+ * @param {string} options.modelKey - The model key (e.g., 'minilm-l6',
+ *   'codet5')
+ * @param {string} options.quantLevel - The quantization level ('int4' or
+ *   'int8')
+ * @param {string} options.buildDir - The build directory path.
+ * @param {string} options.packageName - The package name.
+ * @param {string} options.modelsDir - The models directory path.
+ * @param {boolean} options.forceRebuild - Whether to force rebuild.
+ *
  * @returns {Promise<string[]>} Array of quantized model paths
  */
 export async function quantizeModel(options) {
@@ -54,7 +57,7 @@ export async function quantizeModel(options) {
     modelsDir,
     packageName,
     quantLevel,
-  } = options
+  } = { __proto__: null, ...options } as typeof options
 
   const suffix = quantLevel.toLowerCase()
   const checkpointKey = `${CHECKPOINTS.QUANTIZED}-${modelKey}-${suffix}`

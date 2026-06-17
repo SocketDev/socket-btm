@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
- * Update VFS Tools Script
+ * Update VFS Tools Script.
  *
- * Fetches the latest versions and SHA256 checksums for VFS tools (Trivy, TruffleHog, OpenGrep)
- * and updates the vfs-tools-downloader.mts file.
+ * Fetches the latest versions and SHA256 checksums for VFS tools (Trivy,
+ * TruffleHog, OpenGrep) and updates the vfs-tools-downloader.mts file.
  *
  * Usage:
- *   node scripts/update-vfs-tools.mts [--dry-run] [--tool=<name>]
+ * node scripts/update-vfs-tools.mts [--dry-run] [--tool=<name>]
  *
- * Options:
- *   --dry-run    Show what would be updated without making changes
- *   --tool=name  Update only the specified tool (trivy, trufflehog, opengrep, python)
+ * Options: --dry-run Show what would be updated without making changes
+ * --tool=name Update only the specified tool (trivy, trufflehog, opengrep,
+ * python)
  */
 
 import crypto from 'node:crypto'
@@ -23,10 +23,7 @@ import { fileURLToPath } from 'node:url'
 
 import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
 import { httpDownload } from '@socketsecurity/lib-stable/http-request/download'
-import {
-  httpJson,
-  httpText,
-} from '@socketsecurity/lib-stable/http-request'
+import { httpJson, httpText } from '@socketsecurity/lib-stable/http-request'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { escapeRegExp } from '@socketsecurity/lib-stable/regexps/escape'
 
@@ -35,17 +32,22 @@ import { errorMessage } from '../lib/error-utils.mts'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const logger = getDefaultLogger()
 
-/** GitHub API base URL */
+/**
+ * GitHub API base URL.
+ */
 const GITHUB_API = 'https://api.github.com'
 
-/** Version pattern for matching semver-like versions in filenames */
+/**
+ * Version pattern for matching semver-like versions in filenames.
+ */
 const VERSION_PATTERN = String.raw`[\d.]+`
 
 /**
  * Create a regex pattern from a filename template.
  * Use {version} as placeholder for version numbers.
  *
- * @param {string} template - Filename template with {version} placeholder
+ * @param {string} template - Filename template with {version} placeholder.
+ *
  * @returns {RegExp} Regex pattern matching the template
  */
 export function assetPattern(template) {
@@ -55,7 +57,9 @@ export function assetPattern(template) {
   return new RegExp(`${escaped}$`)
 }
 
-/** Python embeddable package configurations (not GitHub releases) */
+/**
+ * Python embeddable package configurations (not GitHub releases)
+ */
 const PYTHON_CONFIG = {
   baseUrl: 'https://www.python.org/ftp/python',
   // Check https://www.python.org/downloads/ for latest stable version
@@ -66,7 +70,9 @@ const PYTHON_CONFIG = {
   },
 }
 
-/** Tool configurations for fetching releases */
+/**
+ * Tool configurations for fetching releases.
+ */
 const TOOL_CONFIGS = {
   opengrep: {
     owner: 'opengrep',
@@ -161,7 +167,7 @@ export async function downloadAndHash(url) {
 }
 
 /**
- * Parse checksum file (format: "hash  filename" or "hash filename")
+ * Parse checksum file (format: "hash filename" or "hash filename")
  */
 export function parseChecksumFile(content) {
   const checksums = new Map()

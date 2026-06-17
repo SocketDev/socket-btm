@@ -1,5 +1,5 @@
 /**
- * Binary Signing Utilities
+ * Binary Signing Utilities.
  *
  * Provides utilities for code signing binaries on macOS.
  */
@@ -39,8 +39,10 @@ const MACH_O_MAGIC = Object.freeze({
  * Uses --force to replace invalid signatures (e.g., after stripping).
  * Only signs Mach-O binaries (verified by magic number).
  *
- * @param {string} binaryPath - Absolute path to binary to sign
- * @param {Function} [beforeSign] - Optional callback executed before signing (only on macOS when signing is needed)
+ * @param {string} binaryPath - Absolute path to binary to sign.
+ * @param {Function} [beforeSign] - Optional callback executed before signing
+ *   (only on macOS when signing is needed)
+ *
  * @returns {Promise<void>}
  */
 export async function adHocSign(binaryPath, beforeSign) {
@@ -85,6 +87,7 @@ export async function adHocSign(binaryPath, beforeSign) {
  * Check if file is a Mach-O binary by reading magic number.
  *
  * @param {string} filePath - Path to file to check.
+ *
  * @returns {Promise<boolean>} - True if file is a Mach-O binary.
  */
 export async function isMachOBinary(filePath) {

@@ -37,12 +37,12 @@ Two constraints come with the compression:
 platformatic/node-caged published the canonical pointer-compression
 benchmarks on Node 25 / 26:
 
-| Data structure | Standard Node | Pointer-compressed | Savings |
-|---|---|---|---|
-| Array of 1M objects | 40.47 MB | 20.24 MB | 50% |
-| 500K nested objects | 50.21 MB | 24.64 MB | 51% |
-| 500K-node linked list | 19.08 MB | 9.54 MB | 50% |
-| 500K array-of-arrays | 38.76 MB | 19.38 MB | 50% |
+| Data structure        | Standard Node | Pointer-compressed | Savings |
+| --------------------- | ------------- | ------------------ | ------- |
+| Array of 1M objects   | 40.47 MB      | 20.24 MB           | 50%     |
+| 500K nested objects   | 50.21 MB      | 24.64 MB           | 51%     |
+| 500K-node linked list | 19.08 MB      | 9.54 MB            | 50%     |
+| 500K array-of-arrays  | 38.76 MB      | 19.38 MB           | 50%     |
 
 E-commerce SSR workload (Trading Card Marketplace, Next.js + Postgres):
 ~50% memory at +2-4% latency. Hello-world SSR hits the worst case at

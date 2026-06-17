@@ -4,11 +4,11 @@
  * Zero external dependencies — safe to run before pnpm install.
  *
  * Usage:
- *   node get-tool-version.mts <tool-name> [version-key]
+ * node get-tool-version.mts <tool-name> [version-key]
  *
  * Examples:
- *   node get-tool-version.mts python version    # prints "3.11"
- *   node get-tool-version.mts ninja version     # prints "1.12.1"
+ * node get-tool-version.mts python version    # prints "3.11"
+ * node get-tool-version.mts ninja version     # prints "1.12.1"
  */
 
 import { readFileSync } from 'node:fs'

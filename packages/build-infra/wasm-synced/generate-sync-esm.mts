@@ -2,9 +2,10 @@
  * Generate ESM synchronous WASM wrapper.
  *
  * Transforms ESM async WASM module to ESM sync wrapper with:
- * - import.meta.url preserved (NOT transformed to __filename)
+ *
+ * - Import.meta.url preserved (NOT transformed to __filename)
  * - No 'use strict' directive (not needed in ESM)
- * - export default for ESM compatibility
+ * - Export default for ESM compatibility
  */
 
 import { promises as fs } from 'node:fs'
@@ -15,17 +16,18 @@ import { applyCommonTransforms } from './transform.mts'
 /**
  * Generate ESM synchronous wrapper.
  *
- * @param {object} options - Configuration options
- * @param {string} options.mtsContent - MJS glue code content
- * @param {string} options.base64Wasm - Base64-encoded WASM binary
- * @param {Uint8Array} options.wasmBinary - WASM binary
- * @param {string} options.mtsFile - Path to input MJS file
- * @param {string} options.outputSyncMjs - Path to output sync.mts file
- * @param {string} options.packageName - Package name
- * @param {string} options.initFunctionName - Init function name
- * @param {string} options.exportName - Export name
- * @param {string} [options.description] - Optional description
- * @param {object} options.logger - Logger instance
+ * @param {object} options - Configuration options.
+ * @param {string} options.mtsContent - MJS glue code content.
+ * @param {string} options.base64Wasm - Base64-encoded WASM binary.
+ * @param {Uint8Array} options.wasmBinary - WASM binary.
+ * @param {string} options.mtsFile - Path to input MJS file.
+ * @param {string} options.outputSyncMjs - Path to output sync.mts file.
+ * @param {string} options.packageName - Package name.
+ * @param {string} options.initFunctionName - Init function name.
+ * @param {string} options.exportName - Export name.
+ * @param {string} [options.description] - Optional description.
+ * @param {object} options.logger - Logger instance.
+ *
  * @returns {Promise<string>} Path to generated file
  */
 export async function generateSyncEsm(options) {
@@ -40,7 +42,7 @@ export async function generateSyncEsm(options) {
     outputSyncMjs,
     packageName,
     wasmBinary,
-  } = options
+  } = { __proto__: null, ...options } as typeof options
 
   let mjsContent = inputMjsContent
 

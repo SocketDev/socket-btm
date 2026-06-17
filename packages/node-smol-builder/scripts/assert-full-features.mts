@@ -1,22 +1,18 @@
 #!/usr/bin/env node
 
 /**
- * @fileoverview Assert a FULL-feature node-smol binary includes every gated
- * subsystem. The CI guard for the default (untrimmed) build.
- *
- * USAGE:
- *   pnpm --filter node-smol-builder run assert-full-features [--binary=PATH]
- *
- * The bundle feature detector + gates let per-bundle builds compile subsystems
- * out. The DEFAULT build must still ship them ALL — a gyp/configure regression
- * (e.g. a node_use_smol_* default flipped, or a gate condition mis-wired) would
- * silently drop a feature from the full build, and the per-feature test suites
- * would just `skipIf(!has(x))` past it. This script makes that a HARD failure:
- * for every feature with a `node:` specifier, assert it resolves on the binary.
- *
- * Wire into CI after the full build's smoke test. Exits non-zero on any missing
- * feature. With no binary built, exits 0 (nothing to assert) unless
- * --require-binary is passed.
+ * @file Assert a FULL-feature node-smol binary includes every gated subsystem.
+ *   The CI guard for the default (untrimmed) build. USAGE: pnpm --filter
+ *   node-smol-builder run assert-full-features [--binary=PATH] The bundle
+ *   feature detector + gates let per-bundle builds compile subsystems out. The
+ *   DEFAULT build must still ship them ALL — a gyp/configure regression (e.g. a
+ *   node_use_smol_* default flipped, or a gate condition mis-wired) would
+ *   silently drop a feature from the full build, and the per-feature test
+ *   suites would just `skipIf(!has(x))` past it. This script makes that a HARD
+ *   failure: for every feature with a `node:` specifier, assert it resolves on
+ *   the binary. Wire into CI after the full build's smoke test. Exits non-zero
+ *   on any missing feature. With no binary built, exits 0 (nothing to assert)
+ *   unless --require-binary is passed.
  */
 
 import { existsSync } from 'node:fs'
@@ -30,11 +26,11 @@ import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { parseArgs } from '@socketsecurity/lib-stable/argv/parse'
 import { spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
 
+import { featureBuiltinSpecifier, SMOL_FEATURES } from './lib/smol-features.mts'
 import {
-  SMOL_FEATURES,
-  featureBuiltinSpecifier,
-} from './lib/smol-features.mts'
-import { getLatestFinalBinary, getLatestStrippedBinary } from '../test/paths.mts'
+  getLatestFinalBinary,
+  getLatestStrippedBinary,
+} from '../test/paths.mts'
 
 const __filename = fileURLToPath(import.meta.url)
 const logger = getDefaultLogger()
@@ -43,7 +39,10 @@ export function probeBuiltin(binary: string, specifier: string): boolean {
   try {
     const r = spawnSync(
       binary,
-      ['-e', `process.stdout.write(String(require("node:module").isBuiltin("${specifier}")))`],
+      [
+        '-e',
+        `process.stdout.write(String(require("node:module").isBuiltin("${specifier}")))`,
+      ],
       { encoding: 'utf8', timeout: 5000 },
     )
     return String(r.stdout ?? '').trim() === 'true'
@@ -54,7 +53,10 @@ export function probeBuiltin(binary: string, specifier: string): boolean {
 
 async function main(): Promise<void> {
   const { values } = parseArgs({
-    args: process.argv.slice(2)[0] === '--' ? process.argv.slice(3) : process.argv.slice(2),
+    args:
+      process.argv.slice(2)[0] === '--'
+        ? process.argv.slice(3)
+        : process.argv.slice(2),
     options: {
       binary: { type: 'string' },
       'require-binary': { type: 'boolean' },
@@ -73,7 +75,9 @@ async function main(): Promise<void> {
       process.exitCode = 1
       return
     }
-    logger.warn('No node-smol binary built — nothing to assert (pass --require-binary to fail).')
+    logger.warn(
+      'No node-smol binary built — nothing to assert (pass --require-binary to fail).',
+    )
     return
   }
 

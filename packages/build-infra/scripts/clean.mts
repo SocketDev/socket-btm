@@ -1,10 +1,10 @@
 /**
- * build-infra Package Cleanup
+ * Build-infra Package Cleanup.
  *
  * Removes build artifacts and cached files.
  *
  * Usage:
- *   node scripts/clean.mts
+ * node scripts/clean.mts.
  */
 
 import path from 'node:path'

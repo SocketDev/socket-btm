@@ -2,10 +2,10 @@
  * Build ultraviolet-node — the napi-go-powered Node binding for
  * Charmbracelet Ultraviolet.
  *
- *   node scripts/build.mts            # normal build
- *   node scripts/build.mts --force    # force rebuild
- *   node scripts/build.mts --dev      # dev mode (default)
- *   node scripts/build.mts --prod     # prod mode
+ * Node scripts/build.mts            # normal build
+ * node scripts/build.mts --force    # force rebuild
+ * node scripts/build.mts --dev      # dev mode (default)
+ * node scripts/build.mts --prod     # prod mode.
  */
 
 import path from 'node:path'

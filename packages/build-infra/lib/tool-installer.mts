@@ -1,14 +1,14 @@
 // max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
 /**
- * Tool Installation Utilities
+ * Tool Installation Utilities.
  *
  * Provides utilities for automatically installing missing build tools
  * using platform-specific package managers (brew, apt, choco, etc.)
  * and direct downloads for version-pinned tools.
  *
- * Tool categories:
- * - "pinned": Exact version required, auto-downloaded with checksum verification
- * - All others: Any recent version, installed via package manager (default)
+ * Tool categories: - "pinned": Exact version required, auto-downloaded with
+ * checksum verification - All others: Any recent version, installed via package
+ * manager (default)
  */
 
 import { readFileSync } from 'node:fs'
@@ -48,10 +48,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
  * so dependent binaries can find the dylibs.
  *
  * Add a formula here only when:
- *   1. Brew lists it as keg-only (`brew info <name>` shows the warning),
- *   2. A tool we install (rust/cargo, postgres clients, etc.) needs to
- *      dlopen its dylib at runtime — without the link, the dependent
- *      binary errors out with "Library not loaded: libfoo.dylib".
+ *
+ * 1. Brew lists it as keg-only (`brew info <name>` shows the warning),
+ * 2. A tool we install (rust/cargo, postgres clients, etc.) needs to dlopen its
+ *    dylib at runtime — without the link, the dependent binary errors out with
+ *    "Library not loaded: libfoo.dylib".
  */
 const KEG_ONLY_FORMULAS: ReadonlySet<string> = new Set(['openssl@3'])
 
@@ -201,9 +202,15 @@ export function detectPackageManagers() {
  *
  * @param {string[]} tools - Array of tool names to check.
  * @param {object} options - Options.
- * @param {boolean} options.autoInstall - Attempt auto-installation (default: true).
+ * @param {boolean} options.autoInstall - Attempt auto-installation (default:
+ *   true).
  * @param {boolean} options.autoYes - Auto-yes to prompts (default: false).
- * @returns {Promise<{allAvailable: boolean, missing: string[], installed: string[]}>}
+ *
+ * @returns {Promise<{
+ *   allAvailable: boolean
+ *   missing: string[]
+ *   installed: string[]
+ * }>}
  */
 export async function ensureAllToolsInstalled(
   tools,
@@ -250,9 +257,15 @@ export async function ensureAllToolsInstalled(
  * Ensure a package manager is available, installing if needed.
  *
  * @param {object} options - Options.
- * @param {boolean} options.autoInstall - Attempt auto-installation (default: false).
+ * @param {boolean} options.autoInstall - Attempt auto-installation (default:
+ *   false).
  * @param {boolean} options.autoYes - Auto-yes to prompts (default: false).
- * @returns {Promise<{available: boolean, manager: string|undefined, installed: boolean}>}
+ *
+ * @returns {Promise<{
+ *   available: boolean
+ *   manager: string | undefined
+ *   installed: boolean
+ * }>}
  */
 export async function ensurePackageManagerAvailable({
   autoInstall = false,
@@ -302,10 +315,16 @@ export async function ensurePackageManagerAvailable({
  * Ensure a pinned tool is at the exact required version.
  * Checks system PATH first, then user-level cache, then downloads.
  *
- * @param {string} tool - Tool name
- * @param {object} config - Tool config from external-tools.json
- * @param {boolean} autoInstall - Whether to auto-download if missing
- * @returns {Promise<{available: boolean, installed: boolean, path: string|undefined, error: string|undefined}>}
+ * @param {string} tool - Tool name.
+ * @param {object} config - Tool config from external-tools.json.
+ * @param {boolean} autoInstall - Whether to auto-download if missing.
+ *
+ * @returns {Promise<{
+ *   available: boolean
+ *   installed: boolean
+ *   path: string | undefined
+ *   error: string | undefined
+ * }>}
  */
 export async function ensurePinnedTool(tool, config, autoInstall) {
   const requiredVersion = config.version
@@ -386,16 +405,26 @@ export async function ensurePinnedTool(tool, config, autoInstall) {
 }
 
 /**
- * Ensure a tool is installed, attempting auto-installation if needed.
- * Pinned tools (category: "pinned") are auto-downloaded with checksum verification.
+ * Ensure a tool is installed, attempting auto-installation if needed. Pinned
+ * tools (category: "pinned") are auto-downloaded with checksum verification.
  * All other tools use package manager installation (existing behavior).
  *
  * @param {string} tool - Tool name to check/install.
  * @param {object} options - Options.
- * @param {boolean} options.autoInstall - Attempt auto-installation if missing (default: true).
- * @param {boolean} options.autoYes - Automatically answer yes to prompts (default: false).
- * @param {object} options.toolOptions - Hierarchical loading options for external-tools.json.
- * @returns {Promise<{available: boolean, installed: boolean, path: string|undefined, packageManager: string|undefined, error: string|undefined}>}
+ * @param {boolean} options.autoInstall - Attempt auto-installation if missing
+ *   (default: true).
+ * @param {boolean} options.autoYes - Automatically answer yes to prompts
+ *   (default: false).
+ * @param {object} options.toolOptions - Hierarchical loading options for
+ *   external-tools.json.
+ *
+ * @returns {Promise<{
+ *   available: boolean
+ *   installed: boolean
+ *   path: string | undefined
+ *   packageManager: string | undefined
+ *   error: string | undefined
+ * }>}
  */
 export async function ensureToolInstalled(
   tool,
@@ -540,6 +569,7 @@ export async function ensureToolInstalled(
  * Get installation instructions for a tool.
  *
  * @param {string} tool - Tool name.
+ *
  * @returns {string[]} Array of installation instruction strings.
  */
 export function getInstallInstructions(tool) {
@@ -595,7 +625,7 @@ export function getPackageManagerInstructions() {
 /**
  * Get preferred package manager for current platform.
  *
- * @returns {string|undefined} Preferred package manager name or undefined.
+ * @returns {string | undefined} Preferred package manager name or undefined.
  */
 export function getPreferredPackageManager() {
   const platform = getPlatform()
@@ -610,6 +640,7 @@ export function getPreferredPackageManager() {
  * @param {string} managerName - Package manager to install.
  * @param {object} options - Installation options.
  * @param {boolean} options.autoYes - Auto-yes to prompts (default: false).
+ *
  * @returns {Promise<boolean>} True if installation succeeded.
  */
 export async function installPackageManager(
@@ -698,6 +729,7 @@ export async function installPackageManager(
  * @param {string} packageManager - Package manager to use.
  * @param {object} options - Installation options.
  * @param {boolean} options.autoYes - Automatically answer yes to prompts.
+ *
  * @returns {Promise<boolean>} True if installation succeeded.
  */
 export async function installTool(
@@ -863,12 +895,21 @@ export async function installTool(
 }
 
 /**
- * Resolve a pinned tool's artifact info from tool-checksums/<tool>-<version>.json.
- * No separate resolver module needed — the checksum JSON has everything.
+ * Resolve a pinned tool's artifact info from
+ * tool-checksums/<tool>-<version>.json. No separate resolver module needed —
+ * the checksum JSON has everything.
  *
- * @param {string} tool - Tool name
- * @param {string} version - Required version
- * @returns {{ url: string, sha256: string, extractDir: string, binary: string, archiveFormat: string }|undefined}
+ * @param {string} tool - Tool name.
+ * @param {string} version - Required version.
+ *
+ * @returns {{
+ *       url: string
+ *       sha256: string
+ *       extractDir: string
+ *       binary: string
+ *       archiveFormat: string
+ *     }
+ *   | undefined}
  */
 export function resolvePinnedArtifact(tool, version) {
   const archMap = { __proto__: null, arm64: 'aarch64', x64: 'x86_64' }
@@ -908,8 +949,10 @@ export function resolvePinnedArtifact(tool, version) {
  * This catches cases where the binary exists but has broken dependencies
  * (e.g., llvm-strip with missing z3 library on macOS).
  *
- * @param {string} tool - Tool name
- * @param {string[]} [verifyArgs] - Args to run for verification (default: ['--version'])
+ * @param {string} tool - Tool name.
+ * @param {string[]} [verifyArgs] - Args to run for verification (default:
+ *   ['--version'])
+ *
  * @returns {Promise<boolean>} True if tool runs successfully
  */
 export async function verifyToolWorks(tool, verifyArgs = ['--version']) {

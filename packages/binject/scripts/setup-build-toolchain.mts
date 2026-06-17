@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /**
- * @fileoverview Setup build toolchain for binject
+ * @file Setup build toolchain for binject
+ *   Installs required system dependencies:
  *
- * Installs required system dependencies:
- * - Linux: gcc, make, cmake (LIEF library)
- * - macOS: clang (Xcode), cmake, make (LIEF library, system Compression framework)
- * - Windows: mingw-w64 (gcc/g++), cmake, make (LIEF library, Cabinet API)
+ *   - Linux: gcc, make, cmake (LIEF library)
+ *   - macOS: clang (Xcode), cmake, make (LIEF library, system Compression
+ *     framework)
+ *   - Windows: mingw-w64 (gcc/g++), cmake, make (LIEF library, Cabinet API)
  */
 
 import path from 'node:path'

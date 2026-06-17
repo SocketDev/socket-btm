@@ -1,7 +1,8 @@
 /**
  * Paths used by binary-compressed checkpoint scripts.
  *
- * Re-exports infrastructure paths from root, and defines checkpoint-specific paths.
+ * Re-exports infrastructure paths from root, and defines checkpoint-specific
+ * paths.
  */
 
 import path from 'node:path'
@@ -10,8 +11,8 @@ import {
   BINFLATE_DIR,
   BINJECT_DIR,
   BINPRESS_DIR,
-  PACKAGE_ROOT,
   getBuildPaths,
+  PACKAGE_ROOT,
 } from '../../paths.mts'
 
 // Re-export infrastructure paths

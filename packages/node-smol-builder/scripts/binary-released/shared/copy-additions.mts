@@ -111,7 +111,7 @@ export async function copyDirectoryRecursive(source, dest, version) {
 /**
  * Copy build additions to Node.js source tree.
  *
- * @param {string} modeSourceDir - Target Node.js source directory
+ * @param {string} modeSourceDir - Target Node.js source directory.
  */
 /**
  * Process file content for placeholders.

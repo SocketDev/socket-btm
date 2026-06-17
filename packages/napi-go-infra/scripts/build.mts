@@ -3,10 +3,10 @@
  * the framework, not a published artifact. It exercises the same
  * buildNapiGoAddon path that downstream builders use.
  *
- *   node scripts/build.mts            # normal build
- *   node scripts/build.mts --force    # force rebuild
- *   node scripts/build.mts --dev      # dev mode (default)
- *   node scripts/build.mts --prod     # prod mode (optimized, stripped)
+ * Node scripts/build.mts            # normal build
+ * node scripts/build.mts --force    # force rebuild
+ * node scripts/build.mts --dev      # dev mode (default)
+ * node scripts/build.mts --prod     # prod mode (optimized, stripped)
  */
 
 import path from 'node:path'

@@ -8,7 +8,10 @@ import process from 'node:process'
 
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
-import { spawn, spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
+import {
+  spawn,
+  spawnSync,
+} from '@socketsecurity/lib-stable/process/spawn/child'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { isOnAcPower } from '../../../scripts/fleet/power-state.mts'

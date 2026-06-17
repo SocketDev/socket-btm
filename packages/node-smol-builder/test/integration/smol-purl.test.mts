@@ -1,10 +1,9 @@
 /**
- * @fileoverview Verify-build tests for node:smol-purl.
- *
- * Locks the public API surface from
- * additions/source-patched/lib/smol-purl.js: 11 named exports + a
- * `default` object containing every function (without `PurlError`,
- * which is only on the top-level export).
+ * @file Verify-build tests for node:smol-purl.
+ *   Locks the public API surface from
+ *   additions/source-patched/lib/smol-purl.js: 11 named exports + a
+ *   `default` object containing every function (without `PurlError`,
+ *   which is only on the top-level export).
  */
 
 import { describe, expect, it } from 'vitest'

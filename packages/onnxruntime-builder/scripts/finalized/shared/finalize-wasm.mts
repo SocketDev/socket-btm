@@ -1,5 +1,5 @@
 /**
- * WASM finalization phase for ONNX Runtime
+ * WASM finalization phase for ONNX Runtime.
  *
  * Copies final artifacts to Final directory for distribution.
  */
@@ -38,7 +38,7 @@ export async function finalizeWasm(options) {
     outputSyncDir,
     outputSyncMjsFile,
     outputWasmFile,
-  } = options
+  } = { __proto__: null, ...options } as typeof options
 
   logger.log('Copying final artifacts to out/Final…')
   logger.logNewline()

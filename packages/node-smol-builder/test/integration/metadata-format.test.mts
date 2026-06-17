@@ -1,10 +1,10 @@
 /**
- * @fileoverview Tests for binary metadata format validation
+ * @file Tests for binary metadata format validation
+ *   Validates that compressed binaries use the correct 3-byte metadata format:
  *
- * Validates that compressed binaries use the correct 3-byte metadata format:
- * - Platform byte (0=linux, 1=darwin, 2=win32)
- * - Architecture byte (0=x64, 1=arm64, 2=ia32, 3=arm)
- * - Libc byte (0=glibc, 1=musl, 255=n/a)
+ *   - Platform byte (0=linux, 1=darwin, 2=win32)
+ *   - Architecture byte (0=x64, 1=arm64, 2=ia32, 3=arm)
+ *   - Libc byte (0=glibc, 1=musl, 255=n/a)
  */
 
 import { beforeAll, describe, expect, it } from 'vitest'

@@ -1,11 +1,11 @@
 /**
- * @fileoverview Re-exports of compressed binary format constants.
- * Canonical definitions live in build-infra/lib/constants.mts so that
- * the C++ side (bin-infra/src/compression_constants.h) and both the
- * node-smol-builder scripts and build-infra helpers stay in lock-step.
- * The local `MAGIC_MARKER` alias preserves the naming callers have
- * always used; build-infra exports the same string as
- * SMOL_PRESSED_DATA_MAGIC_MARKER.
+ * @file Re-exports of compressed binary format constants.
+ *   Canonical definitions live in build-infra/lib/constants.mts so that
+ *   the C++ side (bin-infra/src/compression_constants.h) and both the
+ *   node-smol-builder scripts and build-infra helpers stay in lock-step.
+ *   The local `MAGIC_MARKER` alias preserves the naming callers have
+ *   always used; build-infra exports the same string as
+ *   SMOL_PRESSED_DATA_MAGIC_MARKER.
  */
 
 export {

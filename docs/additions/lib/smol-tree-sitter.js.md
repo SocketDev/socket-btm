@@ -25,11 +25,7 @@ Languages (grammars) are loaded at runtime via `dlopen` from a `.dylib`
 ## Public API
 
 ```ts
-import {
-  freeLanguage,
-  loadLanguage,
-  parse,
-} from 'node:smol-tree-sitter'
+import { freeLanguage, loadLanguage, parse } from 'node:smol-tree-sitter'
 
 // loadLanguage(path, symbol) -> handle | 0
 // dlopens `path` and resolves `symbol` (the language factory, typically

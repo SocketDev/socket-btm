@@ -1,15 +1,13 @@
 /**
- * @fileoverview Unit tests for node:smol-power.
+ * @file Unit tests for node:smol-power.
+ *   `node:smol-power` is a builtin only inside the smol binary. On
+ *   system Node these tests verify:
  *
- * `node:smol-power` is a builtin only inside the smol binary. On
- * system Node these tests verify:
- *   - `isBuiltin('node:smol-power')` returns false (not a system Node
- *     builtin)
+ *   - `isBuiltin('node:smol-power')` returns false (not a system Node builtin)
  *   - the module ID is NOT in `module.builtinModules`
- *   - the binding name is `smol_power` (matches our patches)
- *
- * Integration tests at test/integration/smol-power.test.mts run the
- * actual API against the built Final/ binary.
+ *   - the binding name is `smol_power` (matches our patches) Integration tests at
+ *     test/integration/smol-power.test.mts run the actual API against the built
+ *     Final/ binary.
  */
 
 import { describe, expect, it, test } from 'vitest'

@@ -1,8 +1,8 @@
 {
   "name": "temporal-infra",
   "version": "0.0.0",
-  "description": "Source-only C++ port of temporal_rs (boa-dev/temporal) for embedding into node-smol-builder. No binary release; consumers compile inline via additions/source-patched.",
   "private": true,
+  "description": "Source-only C++ port of temporal_rs (boa-dev/temporal) for embedding into node-smol-builder. No binary release; consumers compile inline via additions/source-patched.",
   "license": "MIT",
   "type": "module",
   "exports": {

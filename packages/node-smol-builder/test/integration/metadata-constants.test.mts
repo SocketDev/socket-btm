@@ -1,14 +1,13 @@
 /**
- * @fileoverview Tests for platform/arch/libc byte mappings
+ * @file Tests for platform/arch/libc byte mappings
+ *   Validates that the byte value mappings for platform, architecture, and libc
+ *   are correctly used when reading binaries and writing metadata.
+ *   Tests verify:
  *
- * Validates that the byte value mappings for platform, architecture, and libc
- * are correctly used when reading binaries and writing metadata.
- *
- * Tests verify:
- * - Platform byte encoding matches constants
- * - Architecture byte encoding matches constants
- * - Libc byte encoding matches constants
- * - Round-trip encoding/decoding consistency
+ *   - Platform byte encoding matches constants
+ *   - Architecture byte encoding matches constants
+ *   - Libc byte encoding matches constants
+ *   - Round-trip encoding/decoding consistency
  */
 
 import { beforeAll, describe, expect, it } from 'vitest'

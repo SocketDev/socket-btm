@@ -54,9 +54,12 @@ export function getSharedBuildPaths() {
 }
 
 /**
- * Get build directories for a specific mode (dev/prod) with REQUIRED platformArch.
+ * Get build directories for a specific mode (dev/prod) with REQUIRED
+ * platformArch.
+ *
  * @param {string} mode - Build mode ('dev' or 'prod')
- * @param {string} platformArch - Platform-arch (e.g., 'darwin-arm64') - REQUIRED
+ * @param {string} platformArch - Platform-arch (e.g., 'darwin-arm64') -
+ *   REQUIRED.
  */
 export function getBuildPaths(mode, platformArch) {
   if (!platformArch) {

@@ -1,9 +1,8 @@
 /**
- * @fileoverview Verify-build tests for node:smol-sql.
- *
- * Locks the public API surface from
- * additions/source-patched/lib/smol-sql.js — 28 named exports plus a
- * `default` aliased to `sql` (Bun-compat).
+ * @file Verify-build tests for node:smol-sql.
+ *   Locks the public API surface from
+ *   additions/source-patched/lib/smol-sql.js — 28 named exports plus a
+ *   `default` aliased to `sql` (Bun-compat).
  */
 
 import { describe, expect, it } from 'vitest'

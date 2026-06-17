@@ -1,10 +1,9 @@
 /**
- * @fileoverview Verify-build tests for node:smol-versions.
- *
- * Locks the public API surface from
- * additions/source-patched/lib/smol-versions.js: 24 named exports +
- * a `default` object that contains every function except VersionError
- * (kept top-level only).
+ * @file Verify-build tests for node:smol-versions.
+ *   Locks the public API surface from
+ *   additions/source-patched/lib/smol-versions.js: 24 named exports +
+ *   a `default` object that contains every function except VersionError
+ *   (kept top-level only).
  */
 
 import { describe, expect, it } from 'vitest'

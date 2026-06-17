@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * node:smol-markdown demo — render AI-style Markdown output to the
+ * Node:smol-markdown demo — render AI-style Markdown output to the
  * terminal using node:smol-tui as the renderer.
  *
  * Demonstrates the full Phase B integration: md4c parses input into
@@ -12,7 +12,6 @@
  */
 import {
   ATTRIBUTE_BASE_MASK,
-  TextAttributes,
   createRenderer,
   destroyRenderer,
   rendererClear,
@@ -21,6 +20,7 @@ import {
   rendererFlush,
   rendererSize,
   stringWidth,
+  TextAttributes,
 } from 'node:smol-tui'
 
 import {
@@ -56,7 +56,7 @@ That's the whole API.
 const CATEGORY_MASK = 0xf0_00
 const VALUE_MASK = 0x0f_ff
 
-interface RenderState {
+export interface RenderState {
   y: number
   attrs: number
   fgR: number
@@ -129,7 +129,7 @@ export function processEvents(
         state.fgR = 220
         state.fgG = 220
         state.fgB = 220
-        state.y += 1  // blank line after heading
+        state.y += 1 // blank line after heading
       } else if (val === blockType.CODE) {
         state.fgR = 220
         state.fgG = 220
@@ -204,7 +204,7 @@ function main(): void {
     0,
     width,
     height,
-    /* style */ 2,  // rounded
+    /* style */ 2, // rounded
     /* sidesBits */ 0xf,
     100,
     200,

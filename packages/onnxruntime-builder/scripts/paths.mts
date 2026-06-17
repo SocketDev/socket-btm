@@ -32,8 +32,9 @@ export const UPSTREAM_PATH = path.join(PACKAGE_ROOT, 'upstream/onnxruntime')
  * on macOS, build/Linux/Release on Linux). This is the official ONNX Runtime
  * build structure, not something we added.
  *
- * @param {string} sourceDir - Mode-specific source directory
+ * @param {string} sourceDir - Mode-specific source directory.
  * @param {string} platform - 'darwin' or 'linux'
+ *
  * @returns {object} Build output paths
  */
 export function getBuildOutputPaths(sourceDir, platform = process.platform) {
@@ -62,9 +63,12 @@ export function getBuildOutputPaths(sourceDir, platform = process.platform) {
 }
 
 /**
- * Get build directories for a specific mode (dev/prod) with REQUIRED platformArch.
+ * Get build directories for a specific mode (dev/prod) with REQUIRED
+ * platformArch.
+ *
  * @param {string} mode - Build mode ('dev' or 'prod')
- * @param {string} platformArch - Platform-arch (e.g., 'darwin-arm64') - REQUIRED
+ * @param {string} platformArch - Platform-arch (e.g., 'darwin-arm64') -
+ *   REQUIRED.
  */
 export function getBuildPaths(mode, platformArch) {
   if (!platformArch) {

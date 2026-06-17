@@ -1,6 +1,6 @@
 // max-file-lines: legitimate -- cohesive build-environment helper module — one tool family (emscripten/python/cmake setup); splitting scatters related setup
 /**
- * Build Helper Utilities
+ * Build Helper Utilities.
  *
  * Provides utilities for checking prerequisites, validating environment,
  * and testing built binaries.
@@ -43,8 +43,10 @@ const NODE_V24_WINDOWS_BUG_EXIT_CODE = 3_221_226_505
  * Check if compiler is available.
  * Tries multiple compilers if none specified.
  *
- * @param {string|string[]} [compilers] - Compiler command(s) to check (e.g., 'clang++', ['clang++', 'g++', 'c++'])
- * @returns {Promise<{available: boolean, compiler: string|undefined}>}
+ * @param {string | string[]} [compilers] - Compiler command(s) to check (e.g.,
+ *   'clang++', ['clang++', 'g++', 'c++'])
+ *
+ * @returns {Promise<{ available: boolean; compiler: string | undefined }>}
  */
 export async function checkCompiler(compilers) {
   const compilerList = Array.isArray(compilers)
@@ -69,9 +71,10 @@ export async function checkCompiler(compilers) {
 /**
  * Check available disk space.
  *
- * @param {string} dir - Directory to check
+ * @param {string} dir - Directory to check.
  * @param {number} [requiredGB=5] - Required GB (defaults to 5GB)
- * @returns {Promise<{availableGB: number|undefined, sufficient: boolean}>}
+ *
+ * @returns {Promise<{ availableGB: number | undefined; sufficient: boolean }>}
  */
 export async function checkDiskSpace(dir, requiredGB = 5) {
   logger.substep('Checking disk space')
@@ -157,8 +160,14 @@ export async function checkNetworkConnectivity() {
 /**
  * Check Python version.
  *
- * @param {string} [minVersion] - Minimum required version (defaults to external-tools.json minimumVersion)
- * @returns {Promise<{available: boolean, sufficient: boolean, version: string|undefined}>}
+ * @param {string} [minVersion] - Minimum required version (defaults to
+ *   external-tools.json minimumVersion)
+ *
+ * @returns {Promise<{
+ *   available: boolean
+ *   sufficient: boolean
+ *   version: string | undefined
+ * }>}
  */
 export async function checkPythonVersion(minVersion) {
   // Use single source of truth from external-tools.json if no version specified
@@ -239,9 +248,10 @@ export async function checkPythonVersion(minVersion) {
 /**
  * Helper to check spawn result for errors.
  *
- * @param {object} result - Spawn result
+ * @param {object} result - Spawn result.
  * @param {string} testName - Name of test (for error messages)
- * @param {string} binaryPath - Path to binary
+ * @param {string} binaryPath - Path to binary.
+ *
  * @returns {boolean} True if passed, false if failed
  */
 export function checkSpawnResult(result, testName, binaryPath) {
@@ -273,7 +283,8 @@ export function checkSpawnResult(result, testName, binaryPath) {
  * Clear the build log file (truncate to empty).
  * Call this at the start of each build to prevent log accumulation.
  *
- * @param {string} buildDir - Build directory
+ * @param {string} buildDir - Build directory.
+ *
  * @returns {Promise<void>}
  */
 export async function clearBuildLog(buildDir) {
@@ -289,7 +300,8 @@ export async function clearBuildLog(buildDir) {
  * Estimate build time based on CPU cores.
  *
  * @param {number} baseMinutes - Base time in minutes (single core)
- * @param {number} cores - Number of CPU cores
+ * @param {number} cores - Number of CPU cores.
+ *
  * @returns {number} Estimated minutes
  */
 export function estimateBuildTime(baseMinutes, cores) {
@@ -303,9 +315,10 @@ export function estimateBuildTime(baseMinutes, cores) {
 /**
  * Execute command using spawn.
  *
- * @param {string} command - Command to execute
- * @param {string[]} args - Command arguments
- * @param {object} options - Spawn options
+ * @param {string} command - Command to execute.
+ * @param {string[]} args - Command arguments.
+ * @param {object} options - Spawn options.
+ *
  * @returns {Promise<object>} Spawn result
  */
 export async function exec(command, args = [], options = {}) {
@@ -330,7 +343,8 @@ export async function exec(command, args = [], options = {}) {
 /**
  * Format duration in human-readable format.
  *
- * @param {number} milliseconds - Duration in milliseconds
+ * @param {number} milliseconds - Duration in milliseconds.
+ *
  * @returns {string} Formatted duration
  */
 export function formatDuration(milliseconds) {
@@ -352,10 +366,10 @@ export function formatDuration(milliseconds) {
 }
 
 /**
- * Free disk space by removing large unused packages.
- * Removes pre-installed packages on GitHub runners that are not needed.
- * Handles Linux, macOS, and Windows platforms.
- * Only runs in CI environments to avoid deleting packages on developer machines.
+ * Free disk space by removing large unused packages. Removes pre-installed
+ * packages on GitHub runners that are not needed. Handles Linux, macOS, and
+ * Windows platforms. Only runs in CI environments to avoid deleting packages on
+ * developer machines.
  *
  * @returns {Promise<void>}
  */
@@ -492,7 +506,8 @@ export async function freeDiskSpace() {
 /**
  * Get build log path.
  *
- * @param {string} buildDir - Build directory
+ * @param {string} buildDir - Build directory.
+ *
  * @returns {string} Log file path
  */
 export function getBuildLogPath(buildDir) {
@@ -502,7 +517,8 @@ export function getBuildLogPath(buildDir) {
 /**
  * Get file size in human-readable format.
  *
- * @param {string} filePath - Path to file
+ * @param {string} filePath - Path to file.
+ *
  * @returns {Promise<string>} Size string (e.g., '1.2 MB')
  */
 export async function getFileSize(filePath) {
@@ -528,9 +544,10 @@ export async function getFileSize(filePath) {
 /**
  * Get last N lines from build log.
  *
- * @param {string} buildDir - Build directory
- * @param {number} lines - Number of lines to get
- * @returns {Promise<string|undefined>} Last lines or undefined
+ * @param {string} buildDir - Build directory.
+ * @param {number} lines - Number of lines to get.
+ *
+ * @returns {Promise<string | undefined>} Last lines or undefined
  */
 export async function getLastLogLines(buildDir, lines = 50) {
   const logPath = getBuildLogPath(buildDir)
@@ -546,8 +563,9 @@ export async function getLastLogLines(buildDir, lines = 50) {
 /**
  * Checks if we're testing a cross-compiled binary.
  *
- * @param {object} options - Options object
- * @param {string} hostArch - Host architecture
+ * @param {object} options - Options object.
+ * @param {string} hostArch - Host architecture.
+ *
  * @returns {boolean} True if cross-compiled
  */
 export function isCrossCompiled(options, hostArch) {
@@ -573,12 +591,14 @@ export async function isDockerAvailable() {
 }
 
 /**
- * Check if exit code matches the known Node.js v24 Windows stack buffer overrun bug.
- * This bug causes node.exe to exit with STATUS_STACK_BUFFER_OVERRUN even when
- * the binary executes successfully. If stdout has valid output, treat as success.
+ * Check if exit code matches the known Node.js v24 Windows stack buffer overrun
+ * bug. This bug causes node.exe to exit with STATUS_STACK_BUFFER_OVERRUN even
+ * when the binary executes successfully. If stdout has valid output, treat as
+ * success.
  *
- * @param {number} exitCode - Process exit code
- * @param {Buffer|string} stdout - Process stdout
+ * @param {number} exitCode - Process exit code.
+ * @param {Buffer | string} stdout - Process stdout.
+ *
  * @returns {boolean} True if this matches the Node.js v24 Windows bug pattern
  */
 export function isNodeV24WindowsStackBufferOverrunBug(exitCode, stdout) {
@@ -593,6 +613,7 @@ export function isNodeV24WindowsStackBufferOverrunBug(exitCode, stdout) {
  * Check if QEMU user-mode emulation is available for cross-arch testing.
  *
  * @param {string} arch - Target architecture (arm64/x64)
+ *
  * @returns {Promise<boolean>}
  */
 export async function isQemuAvailable(arch) {
@@ -617,7 +638,8 @@ const SMOKE_TEST_TIMEOUT_MS = 30_000
  *
  * The Final binary is a copy of the Compressed binary, so we check for both.
  *
- * @param {string} binaryPath - Path to binary
+ * @param {string} binaryPath - Path to binary.
+ *
  * @returns {boolean}
  */
 export function isSelfExtractingBinary(binaryPath) {
@@ -626,12 +648,12 @@ export function isSelfExtractingBinary(binaryPath) {
 }
 
 /**
- * Make a file executable and sync to disk.
- * Prevents ETXTBSY ("Text file busy") errors in Docker/QEMU where the kernel
- * may not have fully flushed writes before execve(). Always use this instead
- * of raw fs.chmod(path, 0o755) when the file will be executed immediately after.
+ * Make a file executable and sync to disk. Prevents ETXTBSY ("Text file busy")
+ * errors in Docker/QEMU where the kernel may not have fully flushed writes
+ * before execve(). Always use this instead of raw fs.chmod(path, 0o755) when
+ * the file will be executed immediately after.
  *
- * @param {string} filePath - Path to binary file
+ * @param {string} filePath - Path to binary file.
  */
 export async function makeExecutable(filePath) {
   await fs.chmod(filePath, 0o755)
@@ -649,8 +671,9 @@ export async function makeExecutable(filePath) {
 /**
  * Read checkpoint.
  *
- * @param {string} buildDir - Build directory
- * @returns {Promise<object|undefined>} Checkpoint data or undefined
+ * @param {string} buildDir - Build directory.
+ *
+ * @returns {Promise<object | undefined>} Checkpoint data or undefined
  */
 export async function readCheckpoint(buildDir) {
   const checkpointFile = path.join(buildDir, 'build-checkpoint')
@@ -665,9 +688,10 @@ export async function readCheckpoint(buildDir) {
 /**
  * Run a single binary test with args.
  *
- * @param {string} binaryPath - Path to binary
- * @param {string[]} args - Arguments to pass
+ * @param {string} binaryPath - Path to binary.
+ * @param {string[]} args - Arguments to pass.
  * @param {string} testName - Name of test (for error messages)
+ *
  * @returns {Promise<boolean>} True if passed
  */
 export async function runBinaryTest(binaryPath, args, testName) {
@@ -733,8 +757,9 @@ export async function runBinaryTest(binaryPath, args, testName) {
 /**
  * Save build output to log file.
  *
- * @param {string} buildDir - Build directory
- * @param {string} content - Content to log
+ * @param {string} buildDir - Build directory.
+ * @param {string} content - Content to log.
+ *
  * @returns {Promise<void>}
  */
 export async function saveBuildLog(buildDir, content) {
@@ -753,12 +778,12 @@ export async function saveBuildLog(buildDir, content) {
  * - Native binaries: Execute directly (must succeed)
  * - Cross-compiled with Docker: Use Docker (must succeed)
  * - Cross-compiled with QEMU: Use QEMU (must succeed)
- * - Cross-compiled, no emulation: Static verification only
+ * - Cross-compiled, no emulation: Static verification only.
  *
  * Functional tests (when executable):
  * 1. Version check: Verify binary executes and reports version
  * 2. JavaScript execution: Verify V8 can execute code
- * 3. Built-in modules: Verify core modules load correctly
+ * 3. Built-in modules: Verify core modules load correctly.
  *
  * Static verification (when not executable):
  * 1. Binary size check
@@ -766,11 +791,15 @@ export async function saveBuildLog(buildDir, content) {
  * 3. Binary format validation
  * 4. Static linking check (musl)
  *
- * @param {string} binaryPath - Path to binary
- * @param {object} [options] - Additional options
- * @param {string[]} [options.args] - Arguments to pass (defaults to comprehensive tests)
- * @param {string} [options.arch] - Target architecture (defaults to host via getArch())
- * @param {string} [options.libc] - C library variant ('musl' or 'glibc', auto-detected via detectLibc())
+ * @param {string} binaryPath - Path to binary.
+ * @param {object} [options] - Additional options.
+ * @param {string[]} [options.args] - Arguments to pass (defaults to
+ *   comprehensive tests)
+ * @param {string} [options.arch] - Target architecture (defaults to host via
+ *   getArch())
+ * @param {string} [options.libc] - C library variant ('musl' or 'glibc',
+ *   auto-detected via detectLibc())
+ *
  * @returns {Promise<boolean>}
  */
 export async function smokeTestBinary(binaryPath, options = {}) {
@@ -989,11 +1018,12 @@ export {
  * 3. Valid binary format (Mach-O/ELF/PE)
  * 4. Static linking (for musl builds)
  *
- * @param {string} binaryPath - Path to binary
- * @param {object} options - Verification options
+ * @param {string} binaryPath - Path to binary.
+ * @param {object} options - Verification options.
  * @param {string} [options.arch] - Expected architecture (arm64/x64)
  * @param {string} [options.platform] - Target platform (darwin/linux/win32)
- * @param {boolean} [options.static] - Expect static linking
+ * @param {boolean} [options.static] - Expect static linking.
+ *
  * @returns {Promise<boolean>}
  */
 export async function staticVerifyBinary(binaryPath, options = {}) {
@@ -1091,9 +1121,10 @@ export async function staticVerifyBinary(binaryPath, options = {}) {
 /**
  * Test binary using Docker (for musl builds).
  *
- * @param {string} binaryPath - Path to binary
- * @param {object} options - Test options
- * @param {string} options.expectedArch - Expected architecture
+ * @param {string} binaryPath - Path to binary.
+ * @param {object} options - Test options.
+ * @param {string} options.expectedArch - Expected architecture.
+ *
  * @returns {Promise<boolean>}
  */
 export async function testBinaryWithDocker(binaryPath, options = {}) {

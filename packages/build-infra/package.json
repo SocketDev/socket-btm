@@ -1,8 +1,8 @@
 {
   "name": "build-infra",
   "version": "0.0.0",
-  "description": "Shared build infrastructure for building third-party dependencies from source",
   "private": true,
+  "description": "Shared build infrastructure for building third-party dependencies from source",
   "license": "MIT",
   "type": "module",
   "exports": {

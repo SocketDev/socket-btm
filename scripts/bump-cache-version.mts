@@ -4,13 +4,13 @@
  * Bump cache version for a package.
  *
  * Usage:
- *   node scripts/bump-cache-version.mts <package-name>
- *   node scripts/bump-cache-version.mts onnxruntime
- *   node scripts/bump-cache-version.mts --all
+ * node scripts/bump-cache-version.mts <package-name>
+ * node scripts/bump-cache-version.mts onnxruntime
+ * node scripts/bump-cache-version.mts --all.
  *
  * Examples:
- *   node scripts/bump-cache-version.mts node-smol       # v9 -> v10
- *   node scripts/bump-cache-version.mts --all            # Bump all packages
+ * node scripts/bump-cache-version.mts node-smol       # v9 -> v10
+ * node scripts/bump-cache-version.mts --all            # Bump all packages.
  */
 
 import { promises as fs } from 'node:fs'

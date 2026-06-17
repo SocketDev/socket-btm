@@ -1,30 +1,23 @@
 #!/usr/bin/env node
 /**
- * @fileoverview Verify upstream tier publishes are fresh before dispatching a
- * downstream builder. Hard-fails when a downstream workflow (stubs, binsuite,
- * node-smol) is about to consume STALE upstream artifacts because cache-versions
- * was bumped without re-publishing the upstream.
+ * @file Verify upstream tier publishes are fresh before dispatching a
+ *   downstream builder. Hard-fails when a downstream workflow (stubs, binsuite,
+ *   node-smol) is about to consume STALE upstream artifacts because
+ *   cache-versions was bumped without re-publishing the upstream. Publish
+ *   chain: (curl ∥ lief) → stubs → binsuite → node-smol Without this gate,
+ *   dispatching out of order silently pulls binaries from the prior
+ *   cache-version: no hard error, just wrong artifacts. This script makes the
+ *   staleness loud. Usage: node scripts/check-publish-prereq.mts <package>
+ *   Where <package> is one of: stubs, binsuite, node-smol. For each upstream
+ *   tier the chosen package depends on, the script:
  *
- * Publish chain:
- *   (curl ∥ lief) → stubs → binsuite → node-smol
- *
- * Without this gate, dispatching out of order silently pulls binaries from
- * the prior cache-version: no hard error, just wrong artifacts. This script
- * makes the staleness loud.
- *
- * Usage:
- *   node scripts/check-publish-prereq.mts <package>
- *
- * Where <package> is one of: stubs, binsuite, node-smol.
- *
- * For each upstream tier the chosen package depends on, the script:
- *  1. Reads .github/cache-versions.json to find the upstream's current version
- *  2. Walks `git log --oneline .github/cache-versions.json` to find the commit
- *     that introduced that version line
- *  3. Queries `gh release list` to find the most recent published release for
- *     the upstream (e.g. `curl-<date>-<sha>`)
- *  4. Verifies the release's commit SHA is >= the cache-version bump SHA in
- *     main's history. If not, exit 1 with a clear message.
+ *   1. Reads .github/cache-versions.json to find the upstream's current version
+ *   2. Walks `git log --oneline .github/cache-versions.json` to find the commit
+ *      that introduced that version line
+ *   3. Queries `gh release list` to find the most recent published release for the
+ *      upstream (e.g. `curl-<date>-<sha>`)
+ *   4. Verifies the release's commit SHA is >= the cache-version bump SHA in
+ *      main's history. If not, exit 1 with a clear message.
  */
 
 import { existsSync, readFileSync } from 'node:fs'

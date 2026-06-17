@@ -5,17 +5,15 @@
  *
  * These tests pin down the three subtle prerelease rules in npm semver:
  *
- * 1. Prereleases are only allowed into a range when some comparator in
- *    that range also carries a prerelease on the SAME [major, minor,
- *    patch] tuple. i.e. `^1.2.3-alpha.1` can match `1.2.3-alpha.2` but
- *    `^1.2.3` cannot match `1.2.4-beta.0`.
- *
- * 2. When the range is `^X.Y.Z-pre` and the candidate is `X.Y.Z-different
- *    -pre`, ordering follows prerelease identifier ordering (alpha <
- *    beta < rc, numeric < alphanumeric, etc.).
- *
- * 3. For caret, `^0.0.3-alpha.1` only accepts prereleases on 0.0.3 that
- *    sort >= alpha.1, because ^0.0.Z pins to exact patch.
+ * 1. Prereleases are only allowed into a range when some comparator in that range
+ *    also carries a prerelease on the SAME [major, minor, patch] tuple. i.e.
+ *    `^1.2.3-alpha.1` can match `1.2.3-alpha.2` but `^1.2.3` cannot match
+ *    `1.2.4-beta.0`.
+ * 2. When the range is `^X.Y.Z-pre` and the candidate is `X.Y.Z-different -pre`,
+ *    ordering follows prerelease identifier ordering (alpha < beta < rc,
+ *    numeric < alphanumeric, etc.).
+ * 3. For caret, `^0.0.3-alpha.1` only accepts prereleases on 0.0.3 that sort >=
+ *    alpha.1, because ^0.0.Z pins to exact patch.
  */
 
 import { describe, expect, it } from 'vitest'

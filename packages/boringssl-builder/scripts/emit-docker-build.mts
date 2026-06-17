@@ -1,20 +1,17 @@
 #!/usr/bin/env node
 /**
  * @file Generate docker/build.sh from build-step-defs.mts.
- *
- * Runs on the host (.mts), emits pure bash (.sh) that runs inside the
- * btm-builder-glibc prebake (gcc-toolset-13, cmake, perl, go,
- * ninja-build, libatomic — all in the shared prebake; see
- * packages/build-infra/docker/btm-builder-glibc.Dockerfile). The
- * container has Node + pnpm too but this build path doesn't use them.
- *
- * Output: docker/build.sh — tracked + committed so `docker build` sees
- * it. The vitest in test/build-defs-drift.test.mts re-runs this emit
- * step and asserts the result equals what's in docker/build.sh, so a
- * forgotten regen fails CI.
- *
- * Per fleet rule "1 path, 1 reference" — build-step-defs.mts is the
- * only place to edit build commands.
+ *   Runs on the host (.mts), emits pure bash (.sh) that runs inside the
+ *   btm-builder-glibc prebake (gcc-toolset-13, cmake, perl, go,
+ *   ninja-build, libatomic — all in the shared prebake; see
+ *   packages/build-infra/docker/btm-builder-glibc.Dockerfile). The
+ *   container has Node + pnpm too but this build path doesn't use them.
+ *   Output: docker/build.sh — tracked + committed so `docker build` sees
+ *   it. The vitest in test/build-defs-drift.test.mts re-runs this emit
+ *   step and asserts the result equals what's in docker/build.sh, so a
+ *   forgotten regen fails CI.
+ *   Per fleet rule "1 path, 1 reference" — build-step-defs.mts is the
+ *   only place to edit build commands.
  */
 
 import { promises as fs } from 'node:fs'
@@ -41,15 +38,16 @@ const logger = getDefaultLogger()
 /**
  * Bash-quote a single arg. Wraps in single quotes; escapes embedded
  * single quotes by closing + escaping + reopening.
- *   foo        → 'foo'
- *   it's       → 'it'\''s'
- *   $UPSTREAM  → '$UPSTREAM' — but we WANT this expanded by bash, so
- *                the caller passes the placeholder unquoted.
+ * foo        → 'foo'
+ * it's       → 'it'\''s'
+ * $UPSTREAM  → '$UPSTREAM' — but we WANT this expanded by bash, so
+ * the caller passes the placeholder unquoted.
  *
  * For our use, args fall into two categories:
- *   - Plain literals (e.g. -DBUILD_TESTING=OFF) → safe to single-quote.
- *   - Placeholder references ($UPSTREAM_DIR, etc.) → emit unquoted so
- *     bash expands them.
+ *
+ * - Plain literals (e.g. -DBUILD_TESTING=OFF) → safe to single-quote.
+ * - Placeholder references ($UPSTREAM_DIR, etc.) → emit unquoted so bash expands
+ *   them.
  *
  * The caller's responsibility: pass unquoted strings for things that
  * should be bash-interpreted, quoted strings for everything else.

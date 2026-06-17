@@ -7,7 +7,7 @@
  * It handles:
  * - Reading WASM binary and converting to base64
  * - Generating both CommonJS (.js) and ESM (.mts) synchronous wrappers
- * - Smoke testing the generated wrappers
+ * - Smoke testing the generated wrappers.
  */
 
 import { existsSync, promises as fs } from 'node:fs'
@@ -20,16 +20,23 @@ import { generateSyncEsm } from './generate-sync-esm.mts'
 /**
  * Generate a synchronous WASM wrapper with embedded base64 binary.
  *
- * @param {object} options - Configuration options
- * @param {string} options.wasmFile - Path to input WASM file
- * @param {string} options.mtsFile - Path to input MJS glue code file
- * @param {string} options.outputSyncJs - Path to output sync.js file
- * @param {string} options.packageName - Package name (e.g., 'onnxruntime', 'yoga-layout')
- * @param {string} options.initFunctionName - Name of the Emscripten init function (e.g., 'ortWasmThreaded', 'Module')
- * @param {string} options.exportName - Name of the exported object (e.g., 'ort', 'yoga')
- * @param {string} [options.description] - Optional description for the file header
- * @param {object} [options.logger] - Optional logger (defaults to build-output logger)
- * @param {Function} [options.customSmokeTest] - Optional custom smoke test function for sync.js
+ * @param {object} options - Configuration options.
+ * @param {string} options.wasmFile - Path to input WASM file.
+ * @param {string} options.mtsFile - Path to input MJS glue code file.
+ * @param {string} options.outputSyncJs - Path to output sync.js file.
+ * @param {string} options.packageName - Package name (e.g., 'onnxruntime',
+ *   'yoga-layout')
+ * @param {string} options.initFunctionName - Name of the Emscripten init
+ *   function (e.g., 'ortWasmThreaded', 'Module')
+ * @param {string} options.exportName - Name of the exported object (e.g.,
+ *   'ort', 'yoga')
+ * @param {string} [options.description] - Optional description for the file
+ *   header.
+ * @param {object} [options.logger] - Optional logger (defaults to build-output
+ *   logger)
+ * @param {Function} [options.customSmokeTest] - Optional custom smoke test
+ *   function for sync.js.
+ *
  * @returns {Promise<void>}
  */
 export async function generateWasmSyncWrapper(options) {

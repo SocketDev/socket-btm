@@ -1,15 +1,14 @@
 /**
- * @fileoverview Tests for SEA path handling (/sea/* path prefix).
- *
- * These tests verify the path parsing and normalization logic for SEA paths.
- * Since the actual SEA module (node:sea) is only available when running as a
- * Single Executable Application, we test the path logic independently.
+ * @file Tests for SEA path handling (/sea/* path prefix).
+ *   These tests verify the path parsing and normalization logic for SEA paths.
+ *   Since the actual SEA module (node:sea) is only available when running as a
+ *   Single Executable Application, we test the path logic independently.
  */
 
 import { describe, expect, it } from 'vitest'
 
 /**
- * Simulate getSeaAssetKey logic
+ * Simulate getSeaAssetKey logic.
  */
 export function getSeaAssetKey(filepath: string): string | undefined {
   const SEA_PREFIX = '/sea'
@@ -44,7 +43,7 @@ export function getSeaAssetKey(filepath: string): string | undefined {
 }
 
 /**
- * Simulate isSeaPath logic
+ * Simulate isSeaPath logic.
  */
 export function isSeaPath(filepath: string | undefined): boolean {
   if (!filepath || typeof filepath !== 'string') {

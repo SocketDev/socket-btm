@@ -1,16 +1,15 @@
 /**
- * @fileoverview PE section repacking validation tests
+ * @file PE section repacking validation tests Tests PE-specific .PRESSED_DATA
+ *   section replacement logic in smol_repack_lief_pe(). These tests validate
+ *   that:
  *
- * Tests PE-specific .PRESSED_DATA section replacement logic in smol_repack_lief_pe().
- * These tests validate that:
- * 1. PE sections are REPLACED (not appended) during repack
- * 2. PE section structure remains valid after repacking
- * 3. PE binary structure remains valid after repacking
- * 4. Edge cases are handled gracefully
- *
- * IMPORTANT: These tests only run on Windows platforms where PE is native.
- * They explicitly validate the PE section handling that mirrors the PT_NOTE
- * handling for ELF binaries and SMOL segment handling for Mach-O binaries.
+ *   1. PE sections are REPLACED (not appended) during repack
+ *   2. PE section structure remains valid after repacking
+ *   3. PE binary structure remains valid after repacking
+ *   4. Edge cases are handled gracefully IMPORTANT: These tests only run on
+ *      Windows platforms where PE is native. They explicitly validate the PE
+ *      section handling that mirrors the PT_NOTE handling for ELF binaries and
+ *      SMOL segment handling for Mach-O binaries.
  */
 
 import crypto from 'node:crypto'
@@ -22,8 +21,8 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import {
-  SMOL_PRESSED_DATA_MAGIC_MARKER,
   getBuildMode,
+  SMOL_PRESSED_DATA_MAGIC_MARKER,
 } from 'build-infra/lib/constants'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
@@ -55,8 +54,10 @@ const PRESSED_DATA_SECTION_NAME = '.PRESSED'
 const PRESSED_DATA_MAGIC_MARKER = SMOL_PRESSED_DATA_MAGIC_MARKER
 
 /**
- * Count .PRESSED_DATA sections in PE binary
- * @param {Buffer} peData - PE binary data
+ * Count .PRESSED_DATA sections in PE binary.
+ *
+ * @param {Buffer} peData - PE binary data.
+ *
  * @returns {number} Number of .PRESSED_DATA sections
  */
 export function countPressedDataSections(peData) {
@@ -65,8 +66,10 @@ export function countPressedDataSections(peData) {
 }
 
 /**
- * Find .PRESSED_DATA sections with their content
- * @param {Buffer} peData - PE binary data
+ * Find .PRESSED_DATA sections with their content.
+ *
+ * @param {Buffer} peData - PE binary data.
+ *
  * @returns {Array} Array of .PRESSED_DATA section info
  */
 export function findPressedDataSections(peData) {
@@ -75,9 +78,11 @@ export function findPressedDataSections(peData) {
 }
 
 /**
- * Search for magic marker in .pressed_data sections
- * @param {Buffer} peData - PE binary data
- * @param {string} marker - Marker string to search for
+ * Search for magic marker in .pressed_data sections.
+ *
+ * @param {Buffer} peData - PE binary data.
+ * @param {string} marker - Marker string to search for.
+ *
  * @returns {boolean} True if marker found
  */
 export function hasMarkerInPressedDataSection(peData, marker) {
@@ -95,8 +100,10 @@ export function hasMarkerInPressedDataSection(peData, marker) {
 }
 
 /**
- * Parse PE header and return basic information
- * @param {Buffer} peData - PE binary data
+ * Parse PE header and return basic information.
+ *
+ * @param {Buffer} peData - PE binary data.
+ *
  * @returns {Object} PE header information
  */
 export function parsePeHeader(peData) {
@@ -142,8 +149,10 @@ export function parsePeHeader(peData) {
 }
 
 /**
- * Parse section headers and return array of section info
- * @param {Buffer} peData - PE binary data
+ * Parse section headers and return array of section info.
+ *
+ * @param {Buffer} peData - PE binary data.
+ *
  * @returns {Array} Array of section information
  */
 export function parseSections(peData) {

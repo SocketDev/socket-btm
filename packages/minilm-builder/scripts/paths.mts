@@ -22,11 +22,14 @@ export const PYTHON_DIR = path.join(PACKAGE_ROOT, 'python')
 export const BUILD_ROOT = path.join(PACKAGE_ROOT, 'build')
 
 /**
- * Get build directories for a specific mode, platform-arch, and quantization level.
+ * Get build directories for a specific mode, platform-arch, and quantization
+ * level.
  *
  * @param {string} mode - Build mode ('dev' or 'prod')
- * @param {string} platformArch - Platform-arch (e.g., 'darwin-arm64') - REQUIRED
+ * @param {string} platformArch - Platform-arch (e.g., 'darwin-arm64') -
+ *   REQUIRED.
  * @param {string} quantLevel - 'int4' or 'int8'
+ *
  * @returns {object} Build paths
  */
 export function getBuildPaths(mode, platformArch, quantLevel) {
@@ -54,12 +57,15 @@ export async function getCurrentPlatform() {
 }
 
 /**
- * Get model-specific paths for a given model, mode, platform-arch, and quantization level.
+ * Get model-specific paths for a given model, mode, platform-arch, and
+ * quantization level.
  *
  * @param {string} mode - Build mode ('dev' or 'prod')
- * @param {string} platformArch - Platform-arch (e.g., 'darwin-arm64') - REQUIRED
+ * @param {string} platformArch - Platform-arch (e.g., 'darwin-arm64') -
+ *   REQUIRED.
  * @param {string} quantLevel - 'int4' or 'int8'
  * @param {string} modelName - Model output name (e.g., 'minilm')
+ *
  * @returns {object} Model paths
  */
 export function getModelPaths(mode, platformArch, quantLevel, modelName) {

@@ -1,13 +1,11 @@
 /**
- * @fileoverview WPT streams allowlist loader.
- *
- * Parses wpt-config/wpt-streams.allowlist (TSV: `<key>\t<category>`)
- * into the Map<key, category> shape the classifier consumes.
- *
- * The allowlist format is:
+ * @file WPT streams allowlist loader.
+ *   Parses wpt-config/wpt-streams.allowlist (TSV: `<key>\t<category>`)
+ *   into the Map<key, category> shape the classifier consumes.
+ *   The allowlist format is:
  *   <test-key>\t<category-text>
+ *   <test-key> is either:
  *
- * <test-key> is either:
  *   - 'file' (no colon) — the entire file is expected to fail
  *   - 'file:test name' — a specific named test is expected to fail
  */

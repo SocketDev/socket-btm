@@ -1,21 +1,23 @@
 #!/usr/bin/env node
 // max-file-lines: legitimate -- orchestration script — top-down pipeline (gather → validate → report); splitting fractures the flow
 /**
- * Sync fast-webstreams vendor from node_modules
+ * Sync fast-webstreams vendor from node_modules.
  *
- * Extracts experimental-fast-webstreams from node_modules, converts ES modules to CommonJS,
- * and places in the vendor directory for use in Node.js additions.
+ * Extracts experimental-fast-webstreams from node_modules, converts ES modules
+ * to CommonJS, and places in the vendor directory for use in Node.js
+ * additions.
  *
- * The package is managed as a devDependency for taze updates and grace period tracking.
+ * The package is managed as a devDependency for taze updates and grace period
+ * tracking.
  *
- * Usage: node scripts/vendor-fast-webstreams/sync.mjs
+ * Usage: node scripts/vendor-fast-webstreams/sync.mjs.
  */
 
 import {
   existsSync,
   mkdirSync,
-  readFileSync,
   readdirSync,
+  readFileSync,
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
@@ -43,12 +45,13 @@ const VENDOR_DIR = path.resolve(
 )
 
 /**
- * Add primordials protection to all fast-webstreams files
+ * Add primordials protection to all fast-webstreams files.
  *
  * Replaces direct Promise.* calls with primordials equivalents:
+ *
  * - Promise.resolve() → PromiseResolve()
  * - Promise.reject() → PromiseReject()
- * - new Promise() → new SafePromise()
+ * - New Promise() → new SafePromise()
  * - Promise.all() → SafePromiseAllReturnVoid() (pipe-to.js only)
  *
  * This protects against prototype pollution attacks on Promise methods.
@@ -126,13 +129,14 @@ export function addPrimordialsProtection(content, filename) {
 }
 
 /**
- * Convert ES module to CommonJS
+ * Convert ES module to CommonJS.
  *
- * IMPORTANT: Uses individual exports.X = X at the end to support circular dependencies.
- * In CommonJS circular deps, the key is that all exports must be assigned before
- * the module that depends on them tries to use them. For this library, functions
- * like _getDesiredSize are called at runtime (not at module load time), so as long
- * as exports are populated by the end of module execution, circular deps work.
+ * IMPORTANT: Uses individual exports.X = X at the end to support circular
+ * dependencies. In CommonJS circular deps, the key is that all exports must be
+ * assigned before the module that depends on them tries to use them. For this
+ * library, functions like _getDesiredSize are called at runtime (not at module
+ * load time), so as long as exports are populated by the end of module
+ * execution, circular deps work.
  */
 export function convertToCommonJS(content, _filename) {
   let result = content
@@ -275,7 +279,7 @@ export function convertToCommonJS(content, _filename) {
 /**
  * Fix circular dependency in patch.js
  * patch.js imports from index.js, but index.js re-exports from patch.js
- * Fix by making patch.js import directly from the source modules
+ * Fix by making patch.js import directly from the source modules.
  */
 export function fixPatchCircularDependency(content, filename) {
   if (filename !== 'patch.js') {
@@ -294,13 +298,15 @@ const { FastWritableStream } = require('internal/deps/fast-webstreams/writable')
 }
 
 /**
- * Fix circular dependency between writer.js and writable.js
+ * Fix circular dependency between writer.js and writable.js.
  *
- * Problem: writable.js imports from writer.js, and writer.js imports from writable.js.
- * In CommonJS, when writable.js requires writer.js, writer.js tries to destructure
- * from writable.js's exports - but writable.js hasn't finished executing yet.
+ * Problem: writable.js imports from writer.js, and writer.js imports from
+ * writable.js. In CommonJS, when writable.js requires writer.js, writer.js
+ * tries to destructure from writable.js's exports - but writable.js hasn't
+ * finished executing yet.
  *
  * Solution: In writer.js, don't destructure at the top. Instead:
+ *
  * 1. Get the module reference: const _writable = require('writable');
  * 2. Access exports at runtime when functions are called (not at module load)
  *
@@ -335,7 +341,7 @@ export function fixWriterWritableCycle(content, filename) {
 }
 
 /**
- * Process and convert source files from node_modules
+ * Process and convert source files from node_modules.
  */
 export async function processSourceFiles() {
   const srcDir = path.join(NODE_MODULES_PKG, 'src')
@@ -402,11 +408,12 @@ export async function processSourceFiles() {
 }
 
 /**
- * Convert relative paths to absolute internal paths
- * Node.js internal module system doesn't resolve relative paths like regular Node.js
- * It prepends 'internal/deps/' to the path, so './file' becomes 'internal/deps/./file'
- * We need to convert './file' to 'internal/deps/fast-webstreams/file' (absolute internal path)
- * Also strips .js extension since js2c strips it from module names
+ * Convert relative paths to absolute internal paths Node.js internal module
+ * system doesn't resolve relative paths like regular Node.js It prepends
+ * 'internal/deps/' to the path, so './file' becomes 'internal/deps/./file' We
+ * need to convert './file' to 'internal/deps/fast-webstreams/file' (absolute
+ * internal path) Also strips .js extension since js2c strips it from module
+ * names.
  */
 export function toInternalPath(source) {
   // Convert relative paths to absolute internal paths
@@ -519,7 +526,7 @@ export function wireNativeChunkPool(content, filename) {
 }
 
 /**
- * Main
+ * Main.
  */
 async function main() {
   try {

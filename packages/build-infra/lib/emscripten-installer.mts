@@ -1,7 +1,8 @@
 /**
- * Emscripten SDK Installation Utilities
+ * Emscripten SDK Installation Utilities.
  *
- * Provides utilities for automatically installing and activating Emscripten SDK.
+ * Provides utilities for automatically installing and activating Emscripten
+ * SDK.
  */
 
 import { existsSync, promises as fs, realpathSync } from 'node:fs'
@@ -23,10 +24,12 @@ const logger = getDefaultLogger()
  * Activate Emscripten SDK environment for current process.
  *
  * @param {object} options - Options.
- * @param {string} options.emsdkPath - Emscripten SDK path (default: auto-detect).
+ * @param {string} options.emsdkPath - Emscripten SDK path (default:
+ *   auto-detect).
  * @param {string} options.version - Version to activate (default: 'latest').
  * @param {boolean} options.quiet - Suppress output.
- * @returns {Promise<{activated: boolean, env: object}>}
+ *
+ * @returns {Promise<{ activated: boolean; env: object }>}
  */
 export async function activateEmscripten({
   emsdkPath,
@@ -139,6 +142,7 @@ export function checkEmscriptenAvailable() {
  * Check if Emscripten SDK is installed at the given path.
  *
  * @param {string} emsdkPath - Path to emsdk directory.
+ *
  * @returns {boolean} True if emsdk exists at path.
  */
 export function checkEmsdkInstalled(emsdkPath = getEmsdkPath()) {
@@ -153,10 +157,17 @@ export function checkEmsdkInstalled(emsdkPath = getEmsdkPath()) {
  *
  * @param {object} options - Options.
  * @param {string} options.version - Version to install (default: 'latest').
- * @param {string} options.installPath - Installation path (default: auto-detect).
- * @param {boolean} options.autoInstall - Attempt auto-installation (default: true).
+ * @param {string} options.installPath - Installation path (default:
+ *   auto-detect).
+ * @param {boolean} options.autoInstall - Attempt auto-installation (default:
+ *   true).
  * @param {boolean} options.quiet - Suppress output (default: false).
- * @returns {Promise<{available: boolean, installed: boolean, activated: boolean}>}
+ *
+ * @returns {Promise<{
+ *   available: boolean
+ *   installed: boolean
+ *   activated: boolean
+ * }>}
  */
 export async function ensureEmscripten({
   autoInstall = true,
@@ -267,6 +278,7 @@ export function getDefaultEmsdkPath() {
  *
  * @param {object} options - Options.
  * @param {string} options.installPath - Installation path suggestion.
+ *
  * @returns {string[]} Array of installation instruction strings.
  */
 export function getEmscriptenInstructions({ installPath } = {}) {
@@ -297,6 +309,7 @@ export function getEmsdkPath() {
  * @param {string} options.version - Version to install (default: 'latest').
  * @param {string} options.installPath - Installation path (default: ~/.emsdk).
  * @param {boolean} options.quiet - Suppress output.
+ *
  * @returns {Promise<boolean>} True if installation succeeded.
  */
 export async function installEmscripten({

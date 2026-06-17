@@ -3,10 +3,10 @@
  *
  * Yoga's build produces a WASM bundle + JS glue:
  *
- *   yoga.wasm       — Emscripten-compiled WASM module
- *   yoga.mjs        — async ESM glue
- *   yoga-sync.cjs   — sync CJS glue (bundled WASM bytes inline)
- *   yoga-sync.mjs   — sync ESM glue
+ * Yoga.wasm       — Emscripten-compiled WASM module
+ * yoga.mjs        — async ESM glue
+ * yoga-sync.cjs   — sync CJS glue (bundled WASM bytes inline)
+ * yoga-sync.mjs   — sync ESM glue.
  *
  * The sync variants are what node:smol-tui's yoga binding pulls in
  * (Node's bootstrap is sync; async glue would require an Init step).

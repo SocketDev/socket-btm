@@ -28,15 +28,18 @@ const logger = getDefaultLogger()
  * - Check disk space availability
  * - Install/verify Python
  * - Check Python version
- * - Install/verify Python packages from external-tools.json
+ * - Install/verify Python packages from external-tools.json.
  *
- * @param {object} options - Check options
- * @param {string} options.packageRoot - Package root directory (for loading external-tools.json)
- * @param {string} options.packageJsonPath - Path to package.json (for pip install context)
+ * @param {object} options - Check options.
+ * @param {string} options.packageRoot - Package root directory (for loading
+ *   external-tools.json)
+ * @param {string} options.packageJsonPath - Path to package.json (for pip
+ *   install context)
  * @param {string} [options.buildDir] - Build directory (for disk space check)
- * @param {number} [options.requiredDiskGB=1] - Required disk space in GB
- * @param {boolean} [options.quiet=false] - Suppress output
- * @returns {Promise<{pythonPackages: Array, externalTools: object}>}
+ * @param {number} [options.requiredDiskGB=1] - Required disk space in GB.
+ * @param {boolean} [options.quiet=false] - Suppress output.
+ *
+ * @returns {Promise<{ pythonPackages: Array; externalTools: object }>}
  */
 export async function checkModelBuildPrerequisites(options) {
   const {
@@ -45,7 +48,7 @@ export async function checkModelBuildPrerequisites(options) {
     packageRoot,
     quiet = false,
     requiredDiskGB = 1,
-  } = options
+  } = { __proto__: null, ...options } as typeof options
 
   if (!quiet) {
     logger.step('Pre-flight Checks')
@@ -141,7 +144,8 @@ export async function checkModelBuildPrerequisites(options) {
  * Extract Python packages from external-tools.json config.
  *
  * @param {object} externalTools - Tools config from loadAllTools()
- * @returns {Array<string|{name: string, importName: string}>} Python packages
+ *
+ * @returns {(string | { name: string; importName: string })[]} Python packages
  */
 export function extractPythonPackages(externalTools) {
   return Object.entries(externalTools)

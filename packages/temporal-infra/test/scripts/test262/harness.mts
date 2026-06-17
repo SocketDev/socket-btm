@@ -1,13 +1,12 @@
 /**
- * @fileoverview Test262 harness loader, script composer, and corpus
- * walker.
- *
- * Loads on-disk harness files (assert.js, sta.js, etc.) with a
- * memo cache, composes the script that's actually fed to the
- * binary, and walks the test-corpus tree yielding .js files.
+ * @file Test262 harness loader, script composer, and corpus
+ *   walker.
+ *   Loads on-disk harness files (assert.js, sta.js, etc.) with a
+ *   memo cache, composes the script that's actually fed to the
+ *   binary, and walks the test-corpus tree yielding .js files.
  */
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { TEST262_HARNESS_DIR } from '../../../lib/paths.mts'

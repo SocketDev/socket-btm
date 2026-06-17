@@ -1,11 +1,10 @@
 /**
- * @fileoverview Classifier — pure logic for bucketing a TestResult
- * against the allowlist.
- *
- * No I/O, no globals, no subprocesses. Exercised exhaustively by
- * test/unit/wpt-streams-classifier.test.mts. Get this wrong and the
- * runner either silently masks regressions (false-pass) or false-fails
- * the build. Cover every transition in unit tests.
+ * @file Classifier — pure logic for bucketing a TestResult
+ *   against the allowlist.
+ *   No I/O, no globals, no subprocesses. Exercised exhaustively by
+ *   test/unit/wpt-streams-classifier.test.mts. Get this wrong and the
+ *   runner either silently masks regressions (false-pass) or false-fails
+ *   the build. Cover every transition in unit tests.
  */
 
 import type { Classification, TestResult, UnexpectedFailure } from './types.mts'
@@ -13,16 +12,16 @@ import type { Classification, TestResult, UnexpectedFailure } from './types.mts'
 /**
  * Classify a single file's TestResult against the allowlist.
  *
- *   - `result`: the per-file outcome.
- *   - `allowlist`: Map<key, category>. Keys are either 'file' or
- *     'file:test name'.
+ * - `result`: the per-file outcome.
+ * - `allowlist`: Map<key, category>. Keys are either 'file' or 'file:test name'.
  *
  * Returns a Classification with:
- *   - matchedExpected: which allowlist keys this file matched (used by
- *     the runner to compute stale entries across the whole run).
- *   - unexpected: failures with NO allowlist match (regressions).
- *   - allExpected: true if every failure in this file had an allowlist
- *     match (drives the `~` yellow status row).
+ *
+ * - MatchedExpected: which allowlist keys this file matched (used by the runner
+ *   to compute stale entries across the whole run).
+ * - Unexpected: failures with NO allowlist match (regressions).
+ * - AllExpected: true if every failure in this file had an allowlist match
+ *   (drives the `~` yellow status row).
  */
 export function classifyResult(
   result: TestResult,
@@ -96,10 +95,16 @@ export function findStaleAllowlistEntries(
  * Format that runtimes produce: "testName: error message". When no
  * colon, the whole string is treated as the test name with no message.
  */
-export function splitErrorIntoTestName(err: string): { rest: string; testName: string } {
+export function splitErrorIntoTestName(err: string): {
+  rest: string
+  testName: string
+} {
   const colonIdx = err.indexOf(':')
   if (colonIdx <= 0) {
     return { rest: '', testName: err }
   }
-  return { rest: err.slice(colonIdx + 1).trim(), testName: err.slice(0, colonIdx) }
+  return {
+    rest: err.slice(colonIdx + 1).trim(),
+    testName: err.slice(0, colonIdx),
+  }
 }

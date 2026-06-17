@@ -1,20 +1,19 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 /**
- * @fileoverview Cross-tool repacking integration tests
+ * @file Cross-tool repacking integration tests Tests cyclic workflows where
+ *   binpress and binject operations are interleaved:
  *
- * Tests cyclic workflows where binpress and binject operations are interleaved:
- * 1. compress → inject (batch) → recompress (verify injection survives)
- * 2. inject (batch) → compress → reinject (batch) (alternating operations)
- * 3. compress → inject (batch) → update compression → extract (verify data integrity)
+ *   1. compress → inject (batch) → recompress (verify injection survives)
+ *   2. inject (batch) → compress → reinject (batch) (alternating operations)
+ *   3. compress → inject (batch) → update compression → extract (verify data
+ *      integrity) IMPORTANT: Injection is always BATCH (SEA + VFS together). We
+ *      do not support sequential injection (inject SEA, then inject VFS). This
+ *      validates that:
  *
- * IMPORTANT: Injection is always BATCH (SEA + VFS together).
- * We do not support sequential injection (inject SEA, then inject VFS).
- *
- * This validates that:
- * - binpress update preserves binject batch injections (SEA + VFS)
- * - binject batch reinject works on compressed binaries
- * - Both SEA and VFS data remain intact through multiple alternating operations
+ *   - binpress update preserves binject batch injections (SEA + VFS)
+ *   - binject batch reinject works on compressed binaries
+ *   - Both SEA and VFS data remain intact through multiple alternating operations
  */
 
 import { existsSync, promises as fs } from 'node:fs'

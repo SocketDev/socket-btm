@@ -1,6 +1,6 @@
 /**
- * @fileoverview Tests for minilm-builder model output files.
- * Validates that the build process generates correct model structure and formats.
+ * @file Tests for minilm-builder model output files. Validates that the build
+ *   process generates correct model structure and formats.
  */
 
 import { describe, expect, it } from 'vitest'

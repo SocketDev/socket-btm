@@ -27,6 +27,7 @@ a `pthread_key_t`. `pthread_setspecific(dtors_key, …)` makes pthreads
 invoke `RunDtors()` at thread exit, which drains the list LIFO.
 
 **Limitations of the fallback.**
+
 - `dso_symbol` is ignored. On glibc 2.17 no DSO unload path exists for
   `thread_local` dtors — `dlclose` after thread exit is unsafe. Acceptable
   because the fleet binaries are static-linked + don't `dlclose` C++ DSOs.
@@ -71,6 +72,7 @@ destructors). The pre-2.24 `@GLIBC_2.10` symbol erroneously ran them, see
 that symbol is also absent on glibc 2.17, so we don't reach it.
 
 **Fallback path.**
+
 1. Snapshot the at_quick_exit handler list under a mutex.
 2. Drain LIFO per C11 §7.22.4.3.
 3. `_exit(code)` to bypass atexit handlers + stream flushes.

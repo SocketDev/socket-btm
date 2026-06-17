@@ -1,6 +1,6 @@
 /**
- * @fileoverview Tests for preflight-checks utilities.
- * Validates build environment validation and requirement checks.
+ * @file Tests for preflight-checks utilities.
+ *   Validates build environment validation and requirement checks.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'

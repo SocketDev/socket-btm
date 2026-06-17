@@ -1,8 +1,8 @@
 {
   "name": "node-smol-builder",
   "version": "0.0.0",
-  "description": "Optimized Node.js binaries with SEA support and Socket security patches",
   "private": true,
+  "description": "Optimized Node.js binaries with SEA support and Socket security patches",
   "license": "MIT",
   "type": "module",
   "exports": {

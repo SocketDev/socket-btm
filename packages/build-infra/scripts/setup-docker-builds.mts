@@ -5,26 +5,31 @@
  *
  * This script initializes Docker images for building Linux targets locally.
  * On first run, it will:
+ *
  * 1. Check Docker is installed and running
  * 2. Setup Docker buildx for multi-platform builds
  * 3. Setup QEMU emulation for cross-architecture builds
  * 4. Build all Linux builder images
  *
  * Usage:
- *   node scripts/setup-docker-builds.mts [options]
+ * node scripts/setup-docker-builds.mts [options]
  *
  * Options:
- *   --force          Force rebuild of all images
- *   --targets=...    Comma-separated list of targets to build
- *   --skip-qemu      Skip QEMU emulation setup
- *   --help           Show help
+ * --force          Force rebuild of all images
+ * --targets=...    Comma-separated list of targets to build
+ * --skip-qemu      Skip QEMU emulation setup
+ * --help           Show help.
  *
  * Examples:
- *   # Setup all Linux targets
- *   node scripts/setup-docker-builds.mts
  *
- *   # Force rebuild specific targets
- *   node scripts/setup-docker-builds.mts --force --targets=linux-x64-glibc,linux-x64-musl
+ * # Setup all Linux targets
+ *
+ * Node scripts/setup-docker-builds.mts.
+ *
+ * # Force rebuild specific targets
+ *
+ * Node scripts/setup-docker-builds.mts --force
+ * --targets=linux-x64-glibc,linux-x64-musl.
  */
 import process from 'node:process'
 
@@ -34,10 +39,10 @@ import { printError, printInfo, printSuccess } from '../lib/build-output.mts'
 import { errorMessage } from '../lib/error-utils.mts'
 import {
   ALL_TARGETS,
-  LINUX_TARGETS,
   getBuildStrategy,
   getHostInfo,
   hasBuilderImage,
+  LINUX_TARGETS,
   setupDockerBuilds,
 } from '../lib/local-build-setup.mts'
 

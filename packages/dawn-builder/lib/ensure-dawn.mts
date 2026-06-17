@@ -13,26 +13,26 @@
  *
  * Surface:
  *
- *   ensureDawn(options?) -> Promise<string>
- *     Resolve the Dawn install dir. Throws if all three fall-through
- *     branches fail.
+ * EnsureDawn(options?) -> Promise<string>
+ * Resolve the Dawn install dir. Throws if all three fall-through
+ * branches fail.
  *
- *   dawnExists(platformArch?) -> boolean
- *     Quick check whether the local build is complete.
+ * DawnExists(platformArch?) -> boolean
+ * Quick check whether the local build is complete.
  *
- *   dawnExistsAt(dir) -> boolean
- *     Same shape as the LIEF / curl / libpq helpers.
+ * DawnExistsAt(dir) -> boolean
+ * Same shape as the LIEF / curl / libpq helpers.
  *
- *   downloadPrebuiltDawn(options?) -> Promise<string | undefined>
- *     Just the download leg of `ensureDawn`. Returns the extract dir
- *     on success, undefined on failure (caller decides whether to
- *     fall through to source build).
+ * DownloadPrebuiltDawn(options?) -> Promise<string | undefined>
+ * Just the download leg of `ensureDawn`. Returns the extract dir
+ * on success, undefined on failure (caller decides whether to
+ * fall through to source build).
  *
- *   verifyDawnAt(dir) -> { valid, missing }
- *     Required-files validation with the missing-files list.
+ * VerifyDawnAt(dir) -> { valid, missing }
+ * Required-files validation with the missing-files list.
  *
- *   getDownloadedDawnDir(platformArch) -> string
- *     Where downloaded tarballs land.
+ * GetDownloadedDawnDir(platformArch) -> string
+ * Where downloaded tarballs land.
  */
 
 import { createPrebuiltApi } from 'build-infra/lib/ensure-prebuilt'
@@ -41,7 +41,7 @@ import { getAssetPlatformArch } from 'build-infra/lib/platform-mappings'
 import { detectLibc } from '@socketsecurity/lib-stable/releases/socket-btm'
 
 import { DAWN_REQUIRED_FILES } from './required-files.mts'
-import { PACKAGE_ROOT, getBuildPaths } from '../scripts/paths.mts'
+import { getBuildPaths, PACKAGE_ROOT } from '../scripts/paths.mts'
 
 // Sync libc detection + sync platform-arch resolution (same shape as
 // lief-builder's getCurrentLiefPlatformArch). The async

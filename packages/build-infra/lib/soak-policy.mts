@@ -7,7 +7,7 @@
  *
  * Annotation shape:
  *
- *   # published: YYYY-MM-DD | removable: YYYY-MM-DD
+ * # published: YYYY-MM-DD | removable: YYYY-MM-DD
  *
  * `published` is the source of truth (registry publish time, GH commit
  * author date, container manifest `created`). `removable` is derived
@@ -24,7 +24,8 @@ const MS_PER_DAY = 86_400_000
 
 /**
  * Soak floor in days. Mirrors pnpm-workspace.yaml `minimumReleaseAge: 10080`
- * (10080 minutes = 7 days). Never reduce without `Allow trust-downgrade bypass`.
+ * (10080 minutes = 7 days). Never reduce without `Allow trust-downgrade
+ * bypass`.
  */
 export const SOAK_DAYS = 7
 
@@ -34,7 +35,7 @@ const SOAK_MS = SOAK_DAYS * MS_PER_DAY
  * Check whether a pin's `published` date satisfies the soak floor.
  *
  * @returns `{soaked, daysOld, removable}` — `removable` is undefined on
- * malformed input.
+ *   malformed input.
  */
 export function checkSoak(published, now = new Date()) {
   const publishedDate = parseIsoDate(published)

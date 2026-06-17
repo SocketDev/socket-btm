@@ -1,8 +1,7 @@
 /**
- * @fileoverview Test262 summary reporter.
- *
- * Prints the human-readable summary at end of run. Pure presentation
- * — no I/O beyond stdout via the fleet logger.
+ * @file Test262 summary reporter.
+ *   Prints the human-readable summary at end of run. Pure presentation
+ *   — no I/O beyond stdout via the fleet logger.
  */
 
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'

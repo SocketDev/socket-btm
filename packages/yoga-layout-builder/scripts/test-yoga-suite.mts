@@ -1,14 +1,13 @@
 #!/usr/bin/env node
 /**
- * @fileoverview Run Yoga Layout test suite against built WASM module
+ * @file Run Yoga Layout test suite against built WASM module
+ *   This script runs Yoga Layout's native test suite to verify that our
+ *   custom WASM build maintains compatibility with upstream.
+ *   Test Strategy:
  *
- * This script runs Yoga Layout's native test suite to verify that our
- * custom WASM build maintains compatibility with upstream.
- *
- * Test Strategy:
- * - Run Yoga's C++ tests (gentest)
- * - Validate layout calculation accuracy
- * - Ensure flexbox spec compliance
+ *   - Run Yoga's C++ tests (gentest)
+ *   - Validate layout calculation accuracy
+ *   - Ensure flexbox spec compliance
  */
 
 import { existsSync } from 'node:fs'
@@ -24,7 +23,7 @@ import { parseArgs } from '@socketsecurity/lib-stable/argv/parse'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
-import { UPSTREAM_PATH, getBuildPaths, getCurrentPlatform } from './paths.mts'
+import { getBuildPaths, getCurrentPlatform, UPSTREAM_PATH } from './paths.mts'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

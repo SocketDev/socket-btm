@@ -1,56 +1,43 @@
 #!/usr/bin/env node
 /* max-file-lines: legitimate — top-down checker pipeline with many small section helpers; splitting would scatter the linear flow that makes this script auditable. */
 /**
- * @fileoverview External dependency version consistency checker.
+ * @file External dependency version consistency checker.
+ *   Every upstream dependency in this monorepo has AT LEAST two places
+ *   where its version is declared:
  *
- * Every upstream dependency in this monorepo has AT LEAST two places
- * where its version is declared:
- *
- *   1. .gitmodules version comment — `# <pkg>-X.Y.Z [sha256:...]` on
- *      the line immediately before [submodule "..."]
- *   2. packages/<pkg-builder>/package.json sources.<upstream>.version
- *      (+ .ref, which should match the submodule gitlink commit SHA)
+ *   1. .gitmodules version comment — `# <pkg>-X.Y.Z [sha256:...]` on the line
+ *      immediately before [submodule "..."]
+ *   2. packages/<pkg-builder>/package.json sources.<upstream>.version (+ .ref,
+ *      which should match the submodule gitlink commit SHA)
  *   3. (optional) lockstep.json `packages.<name>.version`
- *   4. (optional) workflow env: pins (e.g. ZIG_VERSION in opentui.yml)
+ *   4. (optional) workflow env: pins (e.g. ZIG_VERSION in opentui.yml) When these
+ *      get out of sync — R31 found onnxruntime-builder pinned at 1.20.1 in
+ *      package.json but 1.24.4 in .gitmodules + lockstep.json — CI tags caches
+ *      and releases with the wrong version. The workflows read one source of
+ *      truth (package.json), the submodule checks out another (gitmodules
+ *      gitlink), and the release label says a third. This checker
+ *      cross-references all four sources and fails if any disagree. In addition
+ *      to cross-source consistency, the checker validates the `.gitmodules`
+ *      comment shape itself:
  *
- * When these get out of sync — R31 found onnxruntime-builder pinned at
- * 1.20.1 in package.json but 1.24.4 in .gitmodules + lockstep.json — CI
- * tags caches and releases with the wrong version. The workflows read
- * one source of truth (package.json), the submodule checks out another
- * (gitmodules gitlink), and the release label says a third.
- *
- * This checker cross-references all four sources and fails if any
- * disagree.
- *
- * In addition to cross-source consistency, the checker validates the
- * `.gitmodules` comment shape itself:
- *
- *   - `comment-missing`        — no "# name-version" comment above
- *                                the [submodule] section.
- *   - `comment-name-mismatch`  — the <name> slug doesn't appear in
- *                                the submodule path (catches typos
- *                                and stale comments on renamed paths).
- *   - `comment-version-format` — the <version> portion has no digit
- *                                (catches "rc1" or "main" pasted as
- *                                a placeholder).
- *   - `comment-sha256-format`  — optional sha256:<hex> isn't exactly
- *                                64 lowercase hex chars (catches
- *                                truncation, uppercase paste, or
- *                                non-hex contamination).
- *
- * Wired into `pnpm run check` via check.mts.
- *
- * Usage:
- *   node scripts/check-version-consistency.mts
- *   node scripts/check-version-consistency.mts --explain
- *   node scripts/check-version-consistency.mts --json
- *
- * Allowlist: `.github/version-consistency-allowlist.yml` for
- * intentional mismatches (e.g. a builder pinning an older API-compat
- * version while the submodule tracks newer).
+ *   - `comment-missing` — no "# name-version" comment above the [submodule]
+ *     section.
+ *   - `comment-name-mismatch` — the <name> slug doesn't appear in the submodule
+ *     path (catches typos and stale comments on renamed paths).
+ *   - `comment-version-format` — the <version> portion has no digit (catches
+ *     "rc1" or "main" pasted as a placeholder).
+ *   - `comment-sha256-format` — optional sha256:<hex> isn't exactly 64 lowercase
+ *     hex chars (catches truncation, uppercase paste, or non-hex
+ *     contamination). Wired into `pnpm run check` via check.mts. Usage: node
+ *     scripts/check-version-consistency.mts node
+ *     scripts/check-version-consistency.mts --explain node
+ *     scripts/check-version-consistency.mts --json Allowlist:
+ *     `.github/version-consistency-allowlist.yml` for intentional mismatches
+ *     (e.g. a builder pinning an older API-compat version while the submodule
+ *     tracks newer).
  */
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -135,7 +122,9 @@ type Submodule = {
   commentLine: string | undefined
 }
 
-/** Walk .gitmodules for submodules + their version comments. */
+/**
+ * Walk .gitmodules for submodules + their version comments.
+ */
 export function loadSubmodules(): Submodule[] {
   if (!existsSync(GITMODULES_PATH)) {
     return []
@@ -197,7 +186,9 @@ export function loadSubmodules(): Submodule[] {
   return submodules
 }
 
-/** Get the short gitlink commit SHA for a submodule path. */
+/**
+ * Get the short gitlink commit SHA for a submodule path.
+ */
 // oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (load configs → diff versions → report); alphabetizing would scatter the flow.
 export async function getSubmoduleSha(
   subPath: string,
@@ -494,8 +485,8 @@ type Options = {
   quiet: boolean
 }
 
-export function printMismatch(m: Mismatch, opts: Options): void {
-  if (opts.json) {
+export function printMismatch(m: Mismatch, options: Options): void {
+  if (options.json) {
     logger.log(JSON.stringify(m))
     return
   }
@@ -506,7 +497,7 @@ export function printMismatch(m: Mismatch, opts: Options): void {
     logger.log(`  ${loc.source}`)
     logger.log(`    → ${loc.value}`)
   }
-  if (opts.explain) {
+  if (options.explain) {
     logger.log('')
     switch (m.kind) {
       case 'version':

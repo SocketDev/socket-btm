@@ -1,16 +1,14 @@
 /**
- * @fileoverview End-to-end tests for complete build pipeline.
+ * @file End-to-end tests for complete build pipeline.
+ *   Tests the entire flow:
  *
- * Tests the entire flow:
- * 1. Build node-smol binary (all checkpoints)
- * 2. Create SEA application with VFS
- * 3. Inject dual resources (SEA + VFS)
- * 4. Execute and verify functionality
- * 5. Test VFS extraction to ~/.socket/_dlx/
- * 6. Verify compressed binary decompression
- *
- * Note: These are expensive tests that build the entire binary.
- * Run with: pnpm test:e2e
+ *   1. Build node-smol binary (all checkpoints)
+ *   2. Create SEA application with VFS
+ *   3. Inject dual resources (SEA + VFS)
+ *   4. Execute and verify functionality
+ *   5. Test VFS extraction to ~/.socket/_dlx/
+ *   6. Verify compressed binary decompression Note: These are expensive tests that
+ *      build the entire binary. Run with: pnpm test:e2e
  */
 
 import { afterAll, beforeAll, describe, expect, it, test } from 'vitest'
@@ -28,7 +26,7 @@ import { getSocketDlxDir } from '@socketsecurity/lib-stable/paths/socket'
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { MACHO_SEGMENT_NODE_SEA } from 'bin-infra/test/helpers/segment-names'
-import { SMOL_VFS_BLOB, runBinject } from '../helpers/binject.mts'
+import { runBinject, SMOL_VFS_BLOB } from '../helpers/binject.mts'
 import { getLatestFinalBinary, getPackageDir } from '../paths.mts'
 
 const logger = getDefaultLogger()

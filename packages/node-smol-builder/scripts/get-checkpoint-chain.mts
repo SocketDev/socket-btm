@@ -3,10 +3,10 @@
  * Get checkpoint chain for node-smol builds.
  *
  * Usage:
- *   node scripts/get-checkpoint-chain.mts
+ * node scripts/get-checkpoint-chain.mts.
  *
  * Output:
- *   Comma-separated checkpoint chain in reverse dependency order.
+ * Comma-separated checkpoint chain in reverse dependency order.
  *
  * Runs before `pnpm install` has linked node_modules in the CI
  * install step, so this script uses only `node:` built-ins. Source

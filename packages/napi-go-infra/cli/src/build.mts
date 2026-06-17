@@ -1,21 +1,21 @@
 /**
- * napi-go build driver.
+ * Napi-go build driver.
  *
  * Compiles a Go package as a `-buildmode=c-archive` static library,
  * then links it against the napi-go C shim plus the consumer's own
  * shim to produce a `.node` addon for the current platform-arch.
  *
  * Intended entry point for downstream builder packages:
- *   import { buildNapiGoAddon } from 'napi-go-infra/cli'
- *   await buildNapiGoAddon({
- *     packageRoot,      // absolute path to the consuming builder
- *     bindingName,      // output filename without .node suffix
- *     goDir,            // absolute path to Go source dir (contains *.go + go.mod)
- *     consumerShim,     // absolute path to consumer's C shim file
- *     outDir,           // where to write <bindingName>.node
- *     platformArch,     // e.g. 'darwin-arm64'
- *     mode,             // 'dev' | 'prod'
- *   })
+ * import { buildNapiGoAddon } from 'napi-go-infra/cli'
+ * await buildNapiGoAddon({
+ * packageRoot,      // absolute path to the consuming builder
+ * bindingName,      // output filename without .node suffix
+ * goDir,            // absolute path to Go source dir (contains *.go + go.mod)
+ * consumerShim,     // absolute path to consumer's C shim file
+ * outDir,           // where to write <bindingName>.node
+ * platformArch,     // e.g. 'darwin-arm64'
+ * mode,             // 'dev' | 'prod'
+ * })
  */
 
 import { existsSync, promises as fs } from 'node:fs'
@@ -46,20 +46,24 @@ const logger = getDefaultLogger()
 
 /**
  * @typedef BuildOptions
- * @property {string} packageRoot   Absolute path to the consuming package.
- * @property {string} bindingName   Output name without the .node suffix.
- * @property {string} goDir         Absolute path to the consumer's Go source directory.
- * @property {string} consumerShim  Absolute path to the consumer's C shim (contains NAPI_MODULE_INIT).
- * @property {string} outDir        Absolute path where <bindingName>.node is written.
- * @property {string} platformArch  Target platform-arch (must match host for initial build; cross-compile later).
- * @property {string} [mode]        'dev' (default) or 'prod'. prod uses -O2 and strips symbols.
+ *
+ * @property {string} packageRoot Absolute path to the consuming package.
+ * @property {string} bindingName Output name without the .node suffix.
+ * @property {string} goDir Absolute path to the consumer's Go source directory.
+ * @property {string} consumerShim Absolute path to the consumer's C shim
+ *   (contains NAPI_MODULE_INIT).
+ * @property {string} outDir Absolute path where <bindingName>.node is written.
+ * @property {string} platformArch Target platform-arch (must match host for
+ *   initial build; cross-compile later).
+ * @property {string} [mode] 'dev' (default) or 'prod'. prod uses -O2 and strips
+ *   symbols.
  */
 
 /**
  * Build the compiler argument list to link the final .node.
  *
  * @param {object} params
- * @param {{cmd: string, flavor: string}} params.cc
+ * @param {{ cmd: string; flavor: string }} params.cc
  * @param {string} params.platformArch
  * @param {string} params.nodeInclude
  * @param {string} params.napiGoInclude
@@ -135,9 +139,10 @@ export function buildLinkArgs({
  * Build a napi-go addon end-to-end.
  *
  * @param {BuildOptions} opts
+ *
  * @returns {Promise<string>} Absolute path to the built .node file.
  */
-export async function buildNapiGoAddon(opts) {
+export async function buildNapiGoAddon(options) {
   const {
     packageRoot,
     bindingName,
@@ -146,9 +151,9 @@ export async function buildNapiGoAddon(opts) {
     outDir,
     platformArch,
     mode = 'dev',
-  } = opts
+  } = options
 
-  validateOptions(opts)
+  validateOptions(options)
 
   const { goos, goarch } = getGoTarget(platformArch)
   const nodeInclude = resolveNodeIncludeDir()
@@ -287,6 +292,7 @@ export async function buildNapiGoAddon(opts) {
  * Classify a compiler command as clang / gcc / msvc based on its name.
  *
  * @param {string} cmd
+ *
  * @returns {'clang' | 'gcc' | 'msvc'}
  */
 export function classifyCompiler(cmd) {
@@ -334,7 +340,7 @@ export function macosSDKFallback() {
  * found`). xcrun points at the developer-tools clang which links
  * against the SDK correctly.
  *
- * @returns {Promise<{ cmd: string, flavor: 'clang' | 'gcc' | 'msvc' }>}
+ * @returns {Promise<{ cmd: string; flavor: 'clang' | 'gcc' | 'msvc' }>}
  */
 export async function resolveCompiler() {
   const override = process.env['NAPI_GO_CC']
@@ -387,7 +393,7 @@ export async function resolveXcrunClang() {
 /**
  * @param {BuildOptions} opts
  */
-export function validateOptions(opts) {
+export function validateOptions(options) {
   const required = [
     'packageRoot',
     'bindingName',
@@ -398,22 +404,22 @@ export function validateOptions(opts) {
   ]
   for (let i = 0, { length } = required; i < length; i += 1) {
     const key = required[i]
-    if (!opts[key]) {
+    if (!options[key]) {
       throw new Error(
         `napi-go.buildNapiGoAddon: missing required option '${key}'. ` +
           `All of { ${required.join(', ')} } must be provided.`,
       )
     }
   }
-  if (!existsSync(opts.goDir)) {
+  if (!existsSync(options.goDir)) {
     throw new Error(
-      `napi-go: goDir does not exist: ${opts.goDir}. ` +
+      `napi-go: goDir does not exist: ${options.goDir}. ` +
         `Point it at the directory containing the consumer's Go source files + go.mod.`,
     )
   }
-  if (!existsSync(opts.consumerShim)) {
+  if (!existsSync(options.consumerShim)) {
     throw new Error(
-      `napi-go: consumerShim does not exist: ${opts.consumerShim}. ` +
+      `napi-go: consumerShim does not exist: ${options.consumerShim}. ` +
         `Create a minimal C file that #includes <node_api.h> and <napi_go.h>, ` +
         `and registers NAPI_MODULE_INIT to forward to the consumer's Go //export init.`,
     )

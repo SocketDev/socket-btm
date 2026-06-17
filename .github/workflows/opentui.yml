@@ -365,7 +365,7 @@ jobs:
           name: opentui-${{ steps.platform-arch.outputs.platform_arch }}
           path: ${{ steps.paths.outputs.final_dir }}/
           retention-days: 30
-          compression-level: 0  # Already-compressed binary artifact
+          compression-level: 0 # Already-compressed binary artifact
           if-no-files-found: error
 
   release:

@@ -1,5 +1,5 @@
 /**
- * Docker Builder
+ * Docker Builder.
  *
  * Utilities for building packages inside Docker containers.
  * Handles running builds in containers, extracting artifacts,
@@ -18,10 +18,10 @@ import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { printError, printInfo, printSuccess } from './build-output.mts'
 import {
-  LINUX_TARGETS,
-  getBuildStrategy,
   getBuilderImageTag,
+  getBuildStrategy,
   hasBuilderImage,
+  LINUX_TARGETS,
 } from './local-build-setup.mts'
 
 const logger = getDefaultLogger()
@@ -32,15 +32,16 @@ const WORKSPACE_ROOT = path.resolve(__dirname, '..', '..', '..')
 /**
  * Build a package using the appropriate strategy (native, docker, or download).
  *
- * @param {object} options - Build options
- * @param {string} options.packageName - Package to build
- * @param {string} options.target - Build target
- * @param {string} options.outputDir - Output directory
- * @param {string} options.buildMode - Build mode
- * @param {boolean} options.force - Force rebuild
- * @param {Function} options.nativeBuild - Function to run native build
- * @param {Function} options.download - Function to download pre-built binary
- * @returns {Promise<{ok: boolean, strategy: string, artifactPath?: string}>}
+ * @param {object} options - Build options.
+ * @param {string} options.packageName - Package to build.
+ * @param {string} options.target - Build target.
+ * @param {string} options.outputDir - Output directory.
+ * @param {string} options.buildMode - Build mode.
+ * @param {boolean} options.force - Force rebuild.
+ * @param {Function} options.nativeBuild - Function to run native build.
+ * @param {Function} options.download - Function to download pre-built binary.
+ *
+ * @returns {Promise<{ ok: boolean; strategy: string; artifactPath?: string }>}
  */
 export async function buildForTarget(options) {
   const {
@@ -51,7 +52,7 @@ export async function buildForTarget(options) {
     outputDir,
     packageName,
     target,
-  } = options
+  } = { __proto__: null, ...options } as typeof options
 
   const strategy = getBuildStrategy(target)
 
@@ -103,13 +104,14 @@ export async function buildForTarget(options) {
 /**
  * Build a package for a specific target using Docker.
  *
- * @param {object} options - Build options
+ * @param {object} options - Build options.
  * @param {string} options.packageName - Package to build (e.g., 'binpress')
  * @param {string} options.target - Build target (e.g., 'linux-x64-glibc')
- * @param {string} options.outputDir - Directory to output build artifacts
+ * @param {string} options.outputDir - Directory to output build artifacts.
  * @param {string} options.buildMode - Build mode ('dev' or 'prod')
- * @param {boolean} options.force - Force rebuild
- * @returns {Promise<{ok: boolean, artifactPath?: string}>}
+ * @param {boolean} options.force - Force rebuild.
+ *
+ * @returns {Promise<{ ok: boolean; artifactPath?: string }>}
  */
 export async function buildWithDocker(options) {
   const {
@@ -118,7 +120,7 @@ export async function buildWithDocker(options) {
     outputDir,
     packageName,
     target,
-  } = options
+  } = { __proto__: null, ...options } as typeof options
 
   // Validate target is Docker-buildable
   if (!LINUX_TARGETS.includes(target)) {
@@ -226,7 +228,8 @@ export async function buildWithDocker(options) {
  * These files are created by macOS when copying to non-HFS+ filesystems
  * and cause compilation errors when mounted in Docker containers.
  *
- * @param {string} dir - Directory to clean
+ * @param {string} dir - Directory to clean.
+ *
  * @returns {Promise<number>} Number of files removed
  */
 export async function cleanAppleDoubleFiles(dir) {
@@ -286,7 +289,8 @@ export function getBuildableTargets() {
 /**
  * Get Docker platform string for a target.
  *
- * @param {string} target - Build target
+ * @param {string} target - Build target.
+ *
  * @returns {string} Docker platform string
  */
 export function getDockerPlatform(target) {
@@ -299,15 +303,16 @@ export function getDockerPlatform(target) {
 /**
  * Run a command inside a Docker container.
  *
- * @param {object} options - Run options
- * @param {string} options.image - Docker image to use
- * @param {string[]} options.command - Command to run
- * @param {string} options.workdir - Working directory inside container
- * @param {Record<string, string>} options.env - Environment variables
- * @param {string[]} options.volumes - Volume mounts
+ * @param {object} options - Run options.
+ * @param {string} options.image - Docker image to use.
+ * @param {string[]} options.command - Command to run.
+ * @param {string} options.workdir - Working directory inside container.
+ * @param {Record<string, string>} options.env - Environment variables.
+ * @param {string[]} options.volumes - Volume mounts.
  * @param {string} options.platform - Docker platform (e.g., 'linux/amd64')
- * @param {boolean} options.interactive - Run interactively
- * @returns {Promise<{code: number, stdout: string, stderr: string}>}
+ * @param {boolean} options.interactive - Run interactively.
+ *
+ * @returns {Promise<{ code: number; stdout: string; stderr: string }>}
  */
 export async function runInDocker(options) {
   const {
@@ -318,7 +323,7 @@ export async function runInDocker(options) {
     platform,
     volumes = [],
     workdir = '/workspace',
-  } = options
+  } = { __proto__: null, ...options } as typeof options
 
   const args = ['run', '--rm']
 
@@ -406,8 +411,9 @@ export async function runInDocker(options) {
 /**
  * Test a binary built for a specific target.
  *
- * @param {string} binaryPath - Path to binary
- * @param {string} target - Build target
+ * @param {string} binaryPath - Path to binary.
+ * @param {string} target - Build target.
+ *
  * @returns {Promise<boolean>}
  */
 export async function testBinaryForTarget(binaryPath, target) {

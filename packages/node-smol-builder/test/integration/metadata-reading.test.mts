@@ -1,14 +1,13 @@
 /**
- * @fileoverview Tests for metadata reading correctness
+ * @file Tests for metadata reading correctness
+ *   Validates that stubs correctly read metadata bytes from binaries and write
+ *   correct values to .dlx-metadata.json cache files.
+ *   Tests verify:
  *
- * Validates that stubs correctly read metadata bytes from binaries and write
- * correct values to .dlx-metadata.json cache files.
- *
- * Tests verify:
- * - Platform byte is correctly read and written to cache metadata
- * - Architecture byte is correctly read and written to cache metadata
- * - Libc byte is correctly read and written to cache metadata
- * - Platform/arch/libc mappings match binary metadata bytes
+ *   - Platform byte is correctly read and written to cache metadata
+ *   - Architecture byte is correctly read and written to cache metadata
+ *   - Libc byte is correctly read and written to cache metadata
+ *   - Platform/arch/libc mappings match binary metadata bytes
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

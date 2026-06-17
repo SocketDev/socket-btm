@@ -51,8 +51,11 @@ export const RELEASE_ARCH_MAP = Object.freeze({
  *
  * @param {string} platform - Node.js platform (darwin, linux, win32).
  * @param {string} arch - Node.js architecture (arm64, x64, ia32).
- * @param {string|undefined} [libc] - C library variant (musl, glibc) - Linux only.
+ * @param {string | undefined} [libc] - C library variant (musl, glibc) - Linux
+ *   only.
+ *
  * @returns {string} Platform-arch string (e.g., 'win32-x64', 'linux-x64-musl').
+ *
  * @throws {Error} If platform/arch is unsupported.
  */
 export function getPlatformArch(platform, arch, libc) {
@@ -87,8 +90,12 @@ export function getPlatformArch(platform, arch, libc) {
  *
  * @param {string} platform - Node.js platform (darwin, linux, win32).
  * @param {string} arch - Node.js architecture (arm64, x64, ia32).
- * @param {string|undefined} [libc] - C library variant (musl, glibc) - Linux only.
- * @returns {string} Platform-arch string for assets (e.g., 'win-x64', 'linux-x64-musl').
+ * @param {string | undefined} [libc] - C library variant (musl, glibc) - Linux
+ *   only.
+ *
+ * @returns {string} Platform-arch string for assets (e.g., 'win-x64',
+ *   'linux-x64-musl').
+ *
  * @throws {Error} If platform/arch is unsupported.
  */
 // oxlint-disable-next-line socket/sort-source-methods -- platform/arch mapping tables (const) and the helpers that read them are co-located; autofix bails on the const-interleaved layout.
@@ -155,13 +162,15 @@ export async function isMusl() {
  * Get platform-arch string for the current platform using shared mapping.
  *
  * Resolution order:
- *   1. `PLATFORM_ARCH` env — the explicit value the workflow/Dockerfile injected
- *      (set by .github/workflows/*.yml build-args and every Dockerfile).
- *   2. Cross-compile env (`TARGET_ARCH`, `LIBC`) applied on top of the host's
- *      platform/arch.
- *   3. Full auto-detect via `isMusl()` + `process.arch` + `process.platform`.
  *
- * @returns {Promise<string>} Platform-arch string (e.g., 'win-x64', 'linux-x64-musl').
+ * 1. `PLATFORM_ARCH` env — the explicit value the workflow/Dockerfile injected
+ *    (set by .github/workflows/*.yml build-args and every Dockerfile).
+ * 2. Cross-compile env (`TARGET_ARCH`, `LIBC`) applied on top of the host's
+ *    platform/arch.
+ * 3. Full auto-detect via `isMusl()` + `process.arch` + `process.platform`.
+ *
+ * @returns {Promise<string>} Platform-arch string (e.g., 'win-x64',
+ *   'linux-x64-musl').
  */
 // oxlint-disable-next-line socket/sort-source-methods -- platform/arch mapping tables (const) and the helpers that read them are co-located; autofix bails on the const-interleaved layout.
 export async function getCurrentPlatformArch() {
@@ -204,8 +213,11 @@ const ASSET_ARCH_TO_NODE = Object.freeze({
  * target metadata into createCheckpoint without falling back to `process.*`,
  * which would mis-tag cache entries under cross-compilation.
  *
- * @param {string} platformArch - e.g. 'linux-x64-musl', 'darwin-arm64', 'win-x86'
- * @returns {{platform: string, arch: string, libc: string|undefined}}
+ * @param {string} platformArch - E.g. 'linux-x64-musl', 'darwin-arm64',
+ *   'win-x86'
+ *
+ * @returns {{ platform: string; arch: string; libc: string | undefined }}
+ *
  * @throws {Error} If the string doesn't parse as a recognized platform-arch.
  */
 export function parsePlatformArch(platformArch) {
@@ -274,7 +286,8 @@ export function getRequestedGlibcFloor(): string | undefined {
 }
 
 /**
- * Check if tar supports --no-absolute-names (GNU tar has it, busybox tar doesn't).
+ * Check if tar supports --no-absolute-names (GNU tar has it, busybox tar
+ * doesn't).
  *
  * @returns {Promise<boolean>} True if tar supports --no-absolute-names.
  */

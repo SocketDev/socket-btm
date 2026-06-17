@@ -20,7 +20,7 @@
  * path provided, uses the dev Final binary.
  */
 
-import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 

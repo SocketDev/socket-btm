@@ -1,8 +1,8 @@
 {
   "name": "binpress",
   "version": "0.0.0",
-  "description": "Binary compression tool",
   "private": true,
+  "description": "Binary compression tool",
   "license": "MIT",
   "type": "module",
   "scripts": {

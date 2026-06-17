@@ -5,11 +5,11 @@
  * yoga-layout, codet5-models, minilm, ultraviolet) exposes the same
  * shape of public API:
  *
- *   ensureX(options?)        — local-build → downloaded → fetch-prebuilt
- *   existsAt(dir)            — required-files validation
- *   verifyAt(dir)            — same, with the missing-files list
- *   getDownloadedDir(arch)   — where downloads land
- *   downloadPrebuiltX(opts?) — pulls the latest gh release tarball
+ * EnsureX(options?)        — local-build → downloaded → fetch-prebuilt
+ * existsAt(dir)            — required-files validation
+ * verifyAt(dir)            — same, with the missing-files list
+ * getDownloadedDir(arch)   — where downloads land
+ * downloadPrebuiltX(opts?) — pulls the latest gh release tarball.
  *
  * Without this factory each builder reimplements ~200 LOC of
  * download/verify/extract logic. The factory centralizes the
@@ -117,11 +117,12 @@ export interface PrebuiltApi {
   }): Promise<string | undefined>
   /**
    * Orchestrates the lookup chain:
-   *   1. local build  — `<getLocalBuildDir(arch)>`
-   *   2. downloaded   — `<getDownloadedDir(arch)>`
-   *   3. fetch prebuilt — `downloadPrebuilt({ platformArch: arch })`
-   * Returns the resolved install dir, or throws if none of the
-   * three branches produced a valid install.
+   *
+   * 1. Local build — `<getLocalBuildDir(arch)>`
+   * 2. Downloaded — `<getDownloadedDir(arch)>`
+   * 3. Fetch prebuilt — `downloadPrebuilt({ platformArch: arch })` Returns the
+   *    resolved install dir, or throws if none of the three branches produced a
+   *    valid install.
    */
   ensure(options?: {
     force?: boolean | undefined
@@ -305,9 +306,8 @@ export function createPrebuiltApi(config: PrebuiltConfig): PrebuiltApi {
       // If lazy-load fails (e.g. the interop bug bites here too), we
       // skip the hint rather than mask the original error.
       try {
-        const { logTransientErrorHelp } = await import(
-          './github-error-utils.mts'
-        )
+        const { logTransientErrorHelp } =
+          await import('./github-error-utils.mts')
         await logTransientErrorHelp(e)
       } catch {
         // Hint module failed to load — original error already logged.

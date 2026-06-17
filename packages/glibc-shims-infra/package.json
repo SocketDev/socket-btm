@@ -1,8 +1,8 @@
 {
   "name": "glibc-shims-infra",
   "version": "0.0.0",
-  "description": "glibc 2.17 compat shim layer for fleet Linux binaries (drop-in for binsuite, boringssl, curl, lief, lsquic, node-smol, onnxruntime, postgres, stubs, yoga)",
   "private": true,
+  "description": "glibc 2.17 compat shim layer for fleet Linux binaries (drop-in for binsuite, boringssl, curl, lief, lsquic, node-smol, onnxruntime, postgres, stubs, yoga)",
   "license": "MIT",
   "type": "module",
   "exports": {

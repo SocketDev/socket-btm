@@ -421,10 +421,10 @@ export function colorBuf(color) {
 }
 
 export class Buffer {
-  constructor(width, height, opts) {
-    const widthMethod = opts?.widthMethod ?? WidthMethod.WCWIDTH
-    const id = opts?.id ?? ''
-    const respectAlpha = opts?.respectAlpha ?? false
+  constructor(width, height, options) {
+    const widthMethod = options?.widthMethod ?? WidthMethod.WCWIDTH
+    const id = options?.id ?? ''
+    const respectAlpha = options?.respectAlpha ?? false
     this._ptr = native.createOptimizedBuffer(
       width,
       height,
@@ -930,9 +930,9 @@ export class SyntaxStyle {
 }
 
 export class Renderer {
-  constructor(width, height, opts) {
-    const testing = opts?.testing ?? false
-    const remote = opts?.remote ?? false
+  constructor(width, height, options) {
+    const testing = options?.testing ?? false
+    const remote = options?.remote ?? false
     this._ptr = native.createRenderer(width, height, testing, remote)
     this._cursor = hasCursorInto ? new CursorState() : undefined
   }

@@ -5,7 +5,7 @@
  * IMPORTANT: Must use forks pool with singleFork=true because:
  * 1. Codesigning operations on macOS can leave file handles open
  * 2. Multiple concurrent test processes can cause race conditions
- * 3. Sequential execution in single fork prevents these issues
+ * 3. Sequential execution in single fork prevents these issues.
  */
 import { defineConfig, mergeConfig } from 'vitest/config'
 

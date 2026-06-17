@@ -1,30 +1,29 @@
 #!/usr/bin/env node
 
 /**
- * @fileoverview Fail-closed gate for a bundle-trimmed node-smol binary.
- *
- * USAGE:
- *   pnpm --filter node-smol-builder run gate -- \
- *     --binary=path/to/trimmed/node --bundle=path/to/main.js \
- *     [--vfs=path/to/vfs.tar] [--overrides=package.json] \
- *     [--suite="<shell command that runs the app's tests against $SMOL_BINARY>"]
- *
- * The detector is ADVISORY; this gate is what makes dropping features safe. After
- * compile-for-bundle.mts produces a trimmed binary, this verifies — and FAILS
- * THE BUILD (non-zero exit) on any problem — three things:
+ * @file Fail-closed gate for a bundle-trimmed node-smol binary.
+ *   USAGE:
+ *   pnpm --filter node-smol-builder run gate --\
+ *   --binary=path/to/trimmed/node --bundle=path/to/main.js\
+ *   [--vfs=path/to/vfs.tar] [--overrides=package.json]\
+ *   [--suite="<shell command that runs the app's tests against $SMOL_BINARY>"]
+ *   The detector is ADVISORY; this gate is what makes dropping features safe. After
+ *   compile-for-bundle.mts produces a trimmed binary, this verifies — and FAILS
+ *   THE BUILD (non-zero exit) on any problem — three things:
  *
  *   1. Absence probes: every feature the manifest marked `drop:true` is genuinely
- *      gone — `isBuiltin('node:<specifier>')` returns false on the trimmed binary.
- *      Catches a wiring bug where a flag was emitted but the gate didn't fire.
+ *      gone — `isBuiltin('node:<specifier>')` returns false on the trimmed
+ *      binary. Catches a wiring bug where a flag was emitted but the gate
+ *      didn't fire.
  *   2. Presence probes: every feature the manifest KEPT is still importable.
  *      Catches over-trimming (a flag that dropped more than intended).
  *   3. Soft-use fallback: for `soft` features that were dropped, the app must run
- *      its fallback path with the binding absent (handled by the app suite +, if
- *      provided, a fallback assertion). Plus the app's own suite must pass against
- *      the trimmed binary — a missed dynamic require dies here, not in production.
- *
- * Probe logic (checkBinaryFeatures) is pure and unit-tested against stock Node.
- * The app-suite run requires a real trimmed binary (built by compile-for-bundle).
+ *      its fallback path with the binding absent (handled by the app suite +,
+ *      if provided, a fallback assertion). Plus the app's own suite must pass
+ *      against the trimmed binary — a missed dynamic require dies here, not in
+ *      production. Probe logic (checkBinaryFeatures) is pure and unit-tested
+ *      against stock Node. The app-suite run requires a real trimmed binary
+ *      (built by compile-for-bundle).
  */
 
 import { existsSync } from 'node:fs'
@@ -36,13 +35,13 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { parseArgs } from '@socketsecurity/lib-stable/argv/parse'
-import { spawn, spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
+import {
+  spawn,
+  spawnSync,
+} from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { detectBundleFeatures } from './detect-bundle-features.mts'
-import {
-  SMOL_FEATURES,
-  featureBuiltinSpecifier,
-} from './lib/smol-features.mts'
+import { featureBuiltinSpecifier, SMOL_FEATURES } from './lib/smol-features.mts'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -52,7 +51,10 @@ const logger = getDefaultLogger()
 export type FeatureExpectation = {
   __proto__: null
   feature: string
-  /** What the manifest decided: true = should be ABSENT, false = should be PRESENT. */
+  /**
+   * What the manifest decided: true = should be ABSENT, false = should be
+   * PRESENT.
+   */
   expectDropped: boolean
 }
 
@@ -128,7 +130,10 @@ export function spawnProbe(binary: string, specifier: string): boolean {
 
 async function main(): Promise<void> {
   const { values } = parseArgs({
-    args: process.argv.slice(2)[0] === '--' ? process.argv.slice(3) : process.argv.slice(2),
+    args:
+      process.argv.slice(2)[0] === '--'
+        ? process.argv.slice(3)
+        : process.argv.slice(2),
     options: {
       binary: { type: 'string' },
       bundle: { type: 'string' },
@@ -142,23 +147,31 @@ async function main(): Promise<void> {
   const binary = values['binary'] as string | undefined
   const bundlePath = values['bundle'] as string | undefined
   if (!binary || !existsSync(binary)) {
-    logger.fail(`--binary is required and must exist (got: ${binary ?? '<none>'})`)
+    logger.fail(
+      `--binary is required and must exist (got: ${binary ?? '<none>'})`,
+    )
     process.exitCode = 1
     return
   }
   if (!bundlePath || !existsSync(bundlePath)) {
-    logger.fail(`--bundle is required and must exist (got: ${bundlePath ?? '<none>'})`)
+    logger.fail(
+      `--bundle is required and must exist (got: ${bundlePath ?? '<none>'})`,
+    )
     process.exitCode = 1
     return
   }
 
-  let overrides: { keep?: string[] | undefined; drop?: string[] | undefined } | undefined
+  let overrides:
+    | { keep?: string[] | undefined; drop?: string[] | undefined }
+    | undefined
   const overridesPath = values['overrides'] as string | undefined
   if (overridesPath) {
     try {
       const { promises: fs } = await import('node:fs')
       const pkg = JSON.parse(await fs.readFile(overridesPath, 'utf8'))
-      overrides = pkg?.smol ? { keep: pkg.smol.keep, drop: pkg.smol.drop } : undefined
+      overrides = pkg?.smol
+        ? { keep: pkg.smol.keep, drop: pkg.smol.drop }
+        : undefined
     } catch (e) {
       logger.warn(`could not read overrides: ${errorMessage(e)}`)
     }
@@ -224,7 +237,9 @@ async function main(): Promise<void> {
   }
 
   if (failed) {
-    logger.fail('GATE FAILED — trimmed binary did not pass. Build must not ship.')
+    logger.fail(
+      'GATE FAILED — trimmed binary did not pass. Build must not ship.',
+    )
     process.exitCode = 1
     return
   }

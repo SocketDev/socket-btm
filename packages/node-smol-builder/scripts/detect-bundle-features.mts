@@ -1,27 +1,26 @@
 #!/usr/bin/env node
 
 /**
- * @fileoverview Static feature detector for node-smol SEA bundles.
+ * @file Static feature detector for node-smol SEA bundles. USAGE: pnpm --filter
+ *   node-smol-builder run detect -- --bundle=path/to/main.js
+ *   [--vfs=path/to/vfs.tar] [--overrides=package.json] [--json] What it does:
  *
- * USAGE:
- *   pnpm --filter node-smol-builder run detect -- --bundle=path/to/main.js [--vfs=path/to/vfs.tar] [--overrides=package.json] [--json]
- *
- * What it does:
  *   1. Reads the consumer's bundled SEA main (esbuild output) and, if given, the
  *      VFS tarball entries.
  *   2. Scans for each registered feature's string signals (substring match,
- *      minification-robust) and AST member signals (Temporal./navigator.gpu/Intl.).
+ *      minification-robust) and AST member signals
+ *      (Temporal./navigator.gpu/Intl.).
  *   3. Detects computed require()/import() that static analysis can't resolve and
  *      marks affected features ambiguous (conservative keep).
  *   4. Applies per-bundle overrides from package.json `smol.keep` / `smol.drop`.
- *   5. Runs the V8-lite heuristic (recommend --v8-lite-mode for non-compute bundles).
+ *   5. Runs the V8-lite heuristic (recommend --v8-lite-mode for non-compute
+ *      bundles).
  *   6. Emits a feature-usage manifest (JSON) that drives the flag mapper, the
- *      fail-closed gate, and the flaggable test harness.
- *
- * This tool does NOT mutate the build or pick flags by itself beyond emitting the
- * recommended set — the build orchestration consumes the manifest. Drops are
- * always backstopped by the fail-closed gate that runs the app against the
- * trimmed binary, so a missed dynamic require cannot ship silently.
+ *      fail-closed gate, and the flaggable test harness. This tool does NOT
+ *      mutate the build or pick flags by itself beyond emitting the recommended
+ *      set — the build orchestration consumes the manifest. Drops are always
+ *      backstopped by the fail-closed gate that runs the app against the
+ *      trimmed binary, so a missed dynamic require cannot ship silently.
  */
 
 import { createHash } from 'node:crypto'
@@ -62,35 +61,57 @@ export type FeatureManifest = {
   features: { [name: string]: FeatureVerdict }
   ambiguous: string[]
   v8Lite: { recommended: boolean; reason: string }
-  /** The exact ./configure args the mapper derives from `features` + v8Lite. */
+  /**
+   * The exact ./configure args the mapper derives from `features` + v8Lite.
+   */
   configureFlags: string[]
 }
 
 type ScanResult = {
   __proto__: null
-  /** feature name → matched string signal (first hit). */
+  /**
+   * Feature name → matched string signal (first hit).
+   */
   stringHits: Map<string, string>
-  /** feature name → matched member signal description. */
+  /**
+   * Feature name → matched member signal description.
+   */
   memberHits: Map<string, string>
-  /** feature names guarded by isBuiltin(...) (soft use). */
+  /**
+   * Feature names guarded by isBuiltin(...) (soft use).
+   */
   guardedByIsBuiltin: Set<string>
-  /** true if a computed require()/import() was seen anywhere. */
+  /**
+   * True if a computed require()/import() was seen anywhere.
+   */
   hasComputedRequire: boolean
-  /** compute-intensity signals for the V8-lite heuristic. */
+  /**
+   * Compute-intensity signals for the V8-lite heuristic.
+   */
   compute: ComputeSignals
 }
 
 type ComputeSignals = {
   __proto__: null
-  /** Count of TypedArray allocations (AST NewExpression) — hot-loop proxy. */
+  /**
+   * Count of TypedArray allocations (AST NewExpression) — hot-loop proxy.
+   */
   typedArrayAllocs: number
-  /** WebAssembly.* references (string scan). */
+  /**
+   * WebAssembly.* references (string scan).
+   */
   wasm: number
-  /** BigInt literals + Atomics.* (AST). */
+  /**
+   * BigInt literals + Atomics.* (AST).
+   */
   bigint: number
-  /** crypto-hashing API references (string scan). */
+  /**
+   * Crypto-hashing API references (string scan).
+   */
   cryptoHashing: number
-  /** Total scanned source bytes, for density normalization. */
+  /**
+   * Total scanned source bytes, for density normalization.
+   */
   totalBytes: number
 }
 
@@ -104,8 +125,9 @@ const TYPED_ARRAY_NAMES = [
 ]
 
 /**
- * Substring scan + computed-require + isBuiltin-guard detection over raw source.
- * Robust to minification because it matches string literals, not identifiers.
+ * Substring scan + computed-require + isBuiltin-guard detection over raw
+ * source. Robust to minification because it matches string literals, not
+ * identifiers.
  */
 export function scanSource(source: string, acc: ScanResult): void {
   for (const f of SMOL_FEATURES) {
@@ -240,9 +262,9 @@ export function escapeRegExp(s: string): string {
 /**
  * V8-lite heuristic. --v8-lite-mode drops the optimizing JIT (TurboFan/Maglev),
  * keeping only the Ignition interpreter + Liftoff (WASM baseline). It saves
- * ~6-8MB and lowers RSS, at the cost of ~5-10x slower hot JS. The right call for
- * a network/IO-bound app (a proxy, a CLI that mostly shells out) where wall-clock
- * is dominated by syscalls/RTT, not JS compute.
+ * ~6-8MB and lowers RSS, at the cost of ~5-10x slower hot JS. The right call
+ * for a network/IO-bound app (a proxy, a CLI that mostly shells out) where
+ * wall-clock is dominated by syscalls/RTT, not JS compute.
  *
  * Why DENSITY, not presence: any nontrivial bundle contains createHash (a TLS
  * cache key), a stray TypedArray (a decoder in undici), or "WebAssembly" (a
@@ -261,8 +283,7 @@ export function v8LiteRecommendation(c: ComputeSignals): {
   reason: string
 } {
   const mb = Math.max(c.totalBytes / (1024 * 1024), 0.001)
-  const totalSignals =
-    c.typedArrayAllocs + c.wasm + c.bigint + c.cryptoHashing
+  const totalSignals = c.typedArrayAllocs + c.wasm + c.bigint + c.cryptoHashing
   const density = totalSignals / mb
   const breakdown =
     `TypedArray×${c.typedArrayAllocs}, WASM×${c.wasm}, ` +
@@ -320,12 +341,14 @@ export function hashSource(source: string): string {
   return `sha256:${createHash('sha256').update(source).digest('hex')}`
 }
 
-export async function detectBundleFeatures(opts: {
+export async function detectBundleFeatures(options: {
   bundlePath: string
   vfsPath?: string | undefined
-  overrides?: { keep?: string[] | undefined; drop?: string[] | undefined } | undefined
+  overrides?:
+    | { keep?: string[] | undefined; drop?: string[] | undefined }
+    | undefined
 }): Promise<FeatureManifest> {
-  const { bundlePath, vfsPath, overrides } = opts
+  const { bundlePath, vfsPath, overrides } = options
   const mainSource = await fs.readFile(bundlePath, 'utf8')
 
   const acc: ScanResult = {
@@ -352,7 +375,6 @@ export async function detectBundleFeatures(opts: {
     const src = allSources[i]!
     scanSource(src, acc)
     scanAst(src, acc)
-  
   }
 
   const keepSet = new Set(overrides?.keep ?? [])
@@ -365,7 +387,11 @@ export async function detectBundleFeatures(opts: {
   for (const f of SMOL_FEATURES) {
     const verdict = decideFeature(f, acc, { keepSet, dropSet })
     features[f.name] = verdict
-    if (verdict.use === 'none' && acc.hasComputedRequire && !dropSet.has(f.name)) {
+    if (
+      verdict.use === 'none' &&
+      acc.hasComputedRequire &&
+      !dropSet.has(f.name)
+    ) {
       // A computed require could be pulling this in; we can't prove it's unused.
       if (verdict.drop && f.policy !== 'soft') {
         ambiguous.push(f.name)
@@ -384,7 +410,6 @@ export async function detectBundleFeatures(opts: {
         (v.note ? `${v.note}; ` : '') +
         'computed require() present — kept conservatively (override with smol.drop)'
     }
-  
   }
 
   // Derive configure flags from final drop decisions.
@@ -510,7 +535,9 @@ async function main(): Promise<void> {
 
   const bundlePath = values['bundle'] as string | undefined
   if (!bundlePath || !existsSync(bundlePath)) {
-    logger.fail(`--bundle is required and must exist (got: ${bundlePath ?? '<none>'})`)
+    logger.fail(
+      `--bundle is required and must exist (got: ${bundlePath ?? '<none>'})`,
+    )
     process.exitCode = 1
     return
   }
@@ -521,7 +548,9 @@ async function main(): Promise<void> {
     return
   }
 
-  let overrides: { keep?: string[] | undefined; drop?: string[] | undefined } | undefined
+  let overrides:
+    | { keep?: string[] | undefined; drop?: string[] | undefined }
+    | undefined
   const overridesPath = values['overrides'] as string | undefined
   if (overridesPath) {
     try {
@@ -530,11 +559,17 @@ async function main(): Promise<void> {
         ? { keep: pkg.smol.keep, drop: pkg.smol.drop }
         : undefined
     } catch (e) {
-      logger.warn(`could not read overrides from ${overridesPath}: ${errorMessage(e)}`)
+      logger.warn(
+        `could not read overrides from ${overridesPath}: ${errorMessage(e)}`,
+      )
     }
   }
 
-  const manifest = await detectBundleFeatures({ bundlePath, vfsPath, overrides })
+  const manifest = await detectBundleFeatures({
+    bundlePath,
+    vfsPath,
+    overrides,
+  })
 
   // The operator may force the V8-lite recommendation into the emitted flags.
   if (values['v8-lite'] && manifest.v8Lite.recommended) {
@@ -564,12 +599,18 @@ async function main(): Promise<void> {
   logger.log(
     `Dropping ${dropped.length} feature(s) — est. ~${savedMb.toFixed(1)}MB binary reduction`,
   )
-  logger.log(`V8-lite: ${manifest.v8Lite.recommended ? 'RECOMMENDED' : 'no'} — ${manifest.v8Lite.reason}`)
+  logger.log(
+    `V8-lite: ${manifest.v8Lite.recommended ? 'RECOMMENDED' : 'no'} — ${manifest.v8Lite.reason}`,
+  )
   if (manifest.ambiguous.length) {
-    logger.warn(`Ambiguous (kept conservatively): ${manifest.ambiguous.join(', ')}`)
+    logger.warn(
+      `Ambiguous (kept conservatively): ${manifest.ambiguous.join(', ')}`,
+    )
   }
   logger.log('')
-  logger.log(`Configure flags: ${manifest.configureFlags.join(' ') || '(none)'}`)
+  logger.log(
+    `Configure flags: ${manifest.configureFlags.join(' ') || '(none)'}`,
+  )
 }
 
 export function replacerStripProto(_key: string, value: unknown): unknown {

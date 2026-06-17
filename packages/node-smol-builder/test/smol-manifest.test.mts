@@ -1,10 +1,11 @@
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
- * Manifest Tests for node:smol-manifest
+ * Manifest Tests for node:smol-manifest.
  *
  * Test cases aligned with socket-sbom-generator lockfile parsing behavior.
  *
- * Gold standard: socket-sbom-generator
+ * Gold standard: socket-sbom-generator.
+ *
  * @see /Users/<user>/projects/socket-sbom-generator
  *
  * Supported formats:
@@ -14,7 +15,7 @@
  * - pnpm-lock.yaml (v5, v6, v9)
  */
 
-import { readFileSync, readdirSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 

@@ -1,5 +1,5 @@
 /**
- * Yoga Layout Assembly Wrapper
+ * Yoga Layout Assembly Wrapper.
  *
  * Lock-step from upstream: yoga/javascript/src/wrapAssembly.ts @ yoga v3.2.1
  * (submodule packages/yoga-layout-builder/upstream/yoga, pinned in .gitmodules
@@ -19,7 +19,7 @@
  * - Node.create() factory method
  * - node.free() for cleanup
  * - Patched setters that accept strings like "100%" or "auto"
- * - calculateLayout with default parameters
+ * - calculateLayout with default parameters.
  */
 
 import {
@@ -47,7 +47,8 @@ import YGEnums from './YGEnums.mts'
 /**
  * Wrap raw Emscripten yoga module with convenience API.
  *
- * @param {object} lib - Raw Emscripten module
+ * @param {object} lib - Raw Emscripten module.
+ *
  * @returns {object} Wrapped Yoga API
  */
 export function wrapAssembly(lib) {

@@ -1,5 +1,5 @@
 /**
- * Patch Validation Utilities
+ * Patch Validation Utilities.
  *
  * Provides utilities for validating and applying patches to source code.
  */
@@ -21,7 +21,8 @@ const PATCH_NOT_FOUND_MSG = 'patch not found in PATH'
 /**
  * Analyze patch file content for specific modifications.
  *
- * @param {string} content - Patch file content
+ * @param {string} content - Patch file content.
+ *
  * @returns {object} Analysis result
  */
 export function analyzePatchContent(content) {
@@ -35,8 +36,9 @@ export function analyzePatchContent(content) {
 /**
  * Apply a patch file.
  *
- * @param {string} patchFile - Path to patch file
- * @param {string} targetDir - Directory to apply patch to
+ * @param {string} patchFile - Path to patch file.
+ * @param {string} targetDir - Directory to apply patch to.
+ *
  * @returns {Promise<void>}
  */
 export async function applyPatch(patchFile, targetDir) {
@@ -74,10 +76,12 @@ export async function applyPatch(patchFile, targetDir) {
 /**
  * Apply all patches in a directory.
  *
- * @param {string} patchDir - Directory containing patch files
- * @param {string} targetDir - Directory to apply patches to
- * @param {object} options - Options
- * @param {boolean} options.validate - Validate patches before applying (default: true)
+ * @param {string} patchDir - Directory containing patch files.
+ * @param {string} targetDir - Directory to apply patches to.
+ * @param {object} options - Options.
+ * @param {boolean} options.validate - Validate patches before applying
+ *   (default: true)
+ *
  * @returns {Promise<void>}
  */
 export async function applyPatchDirectory(
@@ -133,7 +137,9 @@ export async function applyPatchDirectory(
 /**
  * Check for conflicts between patches.
  *
- * @param {Array} patchData - Array of patch data objects with {name, path, content, analysis}
+ * @param {Array} patchData - Array of patch data objects with {name, path,
+ *   content, analysis}
+ *
  * @returns {Array} Array of conflict objects with {severity, message}
  */
 export function checkPatchConflicts(patchData) {
@@ -195,10 +201,12 @@ export function checkPatchConflicts(patchData) {
 /**
  * Create a patch file from git diff.
  *
- * @param {string} repoDir - Git repository directory
- * @param {string} outputFile - Output patch file path
- * @param {object} options - Options
- * @param {boolean} options.staged - Only include staged changes (default: false)
+ * @param {string} repoDir - Git repository directory.
+ * @param {string} outputFile - Output patch file path.
+ * @param {object} options - Options.
+ * @param {boolean} options.staged - Only include staged changes (default:
+ *   false)
+ *
  * @returns {Promise<void>}
  */
 export async function createPatchFromGit(
@@ -235,8 +243,10 @@ export async function createPatchFromGit(
 /**
  * Parse a patch file to extract file modifications and line ranges.
  *
- * @param {string} content - Patch file content
- * @returns {Map<string, Array<{start: number, end: number}>>} Map of file paths to modified line ranges
+ * @param {string} content - Patch file content.
+ *
+ * @returns {Map<string, { start: number; end: number }[]>} Map of file paths to
+ *   modified line ranges.
  */
 export function parsePatchFileModifications(content) {
   const fileModifications = new Map()
@@ -290,6 +300,7 @@ export function parsePatchFileModifications(content) {
  *
  * @param {object} range1 - First range {start, end}
  * @param {object} range2 - Second range {start, end}
+ *
  * @returns {boolean}
  */
 export function rangesOverlap(range1, range2) {
@@ -299,8 +310,9 @@ export function rangesOverlap(range1, range2) {
 /**
  * Revert a patch that has been applied.
  *
- * @param {string} patchFile - Path to patch file
- * @param {string} targetDir - Directory to revert patch from
+ * @param {string} patchFile - Path to patch file.
+ * @param {string} targetDir - Directory to revert patch from.
+ *
  * @returns {Promise<void>}
  */
 export async function revertPatch(patchFile, targetDir) {
@@ -338,8 +350,9 @@ export async function revertPatch(patchFile, targetDir) {
 /**
  * Test if a patch has already been applied.
  *
- * @param {string} patchFile - Path to patch file
- * @param {string} targetDir - Directory to check
+ * @param {string} patchFile - Path to patch file.
+ * @param {string} targetDir - Directory to check.
+ *
  * @returns {Promise<boolean>}
  */
 export async function testPatchApplication(patchFile, targetDir) {
@@ -377,8 +390,9 @@ export async function testPatchApplication(patchFile, targetDir) {
 /**
  * Validate a patch file can be applied cleanly.
  *
- * @param {string} patchFile - Path to patch file
- * @param {string} targetDir - Directory to apply patch to
+ * @param {string} patchFile - Path to patch file.
+ * @param {string} targetDir - Directory to apply patch to.
+ *
  * @returns {Promise<boolean>}
  */
 export async function validatePatch(patchFile, targetDir) {

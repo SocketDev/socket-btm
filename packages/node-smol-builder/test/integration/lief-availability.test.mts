@@ -2,15 +2,15 @@ import { describe, expect, it, test } from 'vitest'
 import process from 'node:process'
 
 /**
- * @fileoverview Tests LIEF support detection and silent exit behavior.
+ * @file Tests LIEF support detection and silent exit behavior.
+ *   Verifies that:
  *
- * Verifies that:
- * 1. LIEF detection works correctly
- * 2. When LIEF is disabled, --build-sea flag is silently ignored
- * 3. Debug logging works with NODE_DEBUG_NATIVE=smol_sea
- *
- * Note: These tests require a built smol binary at build/{dev,prod}/{platform-arch}/out/Final/node/.
- * Run `pnpm build --dev` first to create the binary.
+ *   1. LIEF detection works correctly
+ *   2. When LIEF is disabled, --build-sea flag is silently ignored
+ *   3. Debug logging works with NODE_DEBUG_NATIVE=smol_sea Note: These tests
+ *      require a built smol binary at
+ *      build/{dev,prod}/{platform-arch}/out/Final/node/. Run `pnpm build --dev`
+ *      first to create the binary.
  */
 
 import { existsSync } from 'node:fs'

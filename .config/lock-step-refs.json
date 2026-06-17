@@ -10,13 +10,8 @@
       "packages/temporal-infra/upstream/temporal/temporal_capi/src",
       "packages/temporal-infra/upstream/temporal"
     ],
-    "JS": [
-      "packages/temporal-infra/upstream/temporal/temporal_capi"
-    ]
+    "JS": ["packages/temporal-infra/upstream/temporal/temporal_capi"]
   },
-  "scan": [
-    "packages/temporal-infra/src",
-    "packages/temporal-infra/include"
-  ],
+  "scan": ["packages/temporal-infra/src", "packages/temporal-infra/include"],
   "extensions": [".cc", ".cpp", ".h", ".hpp"]
 }

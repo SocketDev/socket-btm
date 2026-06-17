@@ -5,12 +5,17 @@
  * to ensure consistency across the codebase and tests.
  *
  * Naming conventions:
- * - Mach-O segments: "SMOL", "NODE_SEA" (no underscores, following Node.js pattern)
- * - Mach-O sections: "__PRESSED_DATA", "__NODE_SEA_BLOB", "__SMOL_VFS_BLOB" (uppercase with __ prefix)
+ *
+ * - Mach-O segments: "SMOL", "NODE_SEA" (no underscores, following Node.js
+ *   pattern)
+ * - Mach-O sections: "__PRESSED_DATA", "__NODE_SEA_BLOB", "__SMOL_VFS_BLOB"
+ *   (uppercase with __ prefix)
  * - ELF sections: ".pressed_data" (lowercase with dot prefix, for binpress)
- * - ELF notes: "NODE_SEA_BLOB", "SMOL_VFS_BLOB", "pressed_data" (PT_NOTE segments, NO dot prefix)
+ * - ELF notes: "NODE_SEA_BLOB", "SMOL_VFS_BLOB", "pressed_data" (PT_NOTE
+ *   segments, NO dot prefix)
  * - PE sections: ".pressed_data" (lowercase with dot prefix, for binpress)
- * - PE resources: "NODE_SEA_BLOB", "SMOL_VFS_BLOB" (uppercase, NO dot prefix, RT_RCDATA type)
+ * - PE resources: "NODE_SEA_BLOB", "SMOL_VFS_BLOB" (uppercase, NO dot prefix,
+ *   RT_RCDATA type)
  */
 
 // Mach-O segment names (no underscores)

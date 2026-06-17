@@ -1,26 +1,23 @@
 /**
- * @fileoverview glibc floor enforcement test.
+ * @file Glibc floor enforcement test.
+ *   This test enforces an upper bound on the `GLIBC_2.x` symbols that the
+ *   built `node` binary imports. Invoke via vitest with the `GLIBC_FLOOR`
+ *   environment variable set to e.g. "2.17" or "2.28".
+ *   Behavior:
  *
- * This test enforces an upper bound on the `GLIBC_2.x` symbols that the
- * built `node` binary imports. Invoke via vitest with the `GLIBC_FLOOR`
- * environment variable set to e.g. "2.17" or "2.28".
+ *   - GLIBC_FLOOR unset: test is skipped (groundwork — no behavior change).
+ *   - GLIBC_FLOOR=2.17: fails if any imported symbol's version > 2.17.
+ *   - GLIBC_FLOOR=2.28: fails if any imported symbol's version > 2.28. Modeled on
+ *     Bun's oven-sh/bun `test/js/bun/symbols.test.ts`. Uses a plain
+ *     integer-tuple comparator because "2.17" is not valid semver (no patch
+ *     component) and npm semver libs either throw or return wrong ordering.
+ *     Wire-up (future work, once the floor is actually lowered):
  *
- * Behavior:
- *   - GLIBC_FLOOR unset:  test is skipped (groundwork — no behavior change).
- *   - GLIBC_FLOOR=2.17:   fails if any imported symbol's version > 2.17.
- *   - GLIBC_FLOOR=2.28:   fails if any imported symbol's version > 2.28.
- *
- * Modeled on Bun's oven-sh/bun `test/js/bun/symbols.test.ts`. Uses a plain
- * integer-tuple comparator because "2.17" is not valid semver (no patch
- * component) and npm semver libs either throw or return wrong ordering.
- *
- * Wire-up (future work, once the floor is actually lowered):
  *   1. Set `GLIBC_FLOOR=2.17` as a job-level env in `node-smol.yml`.
  *   2. Add this test to the post-build suite (already picked up by
  *      `test/integration/` glob).
- *   3. On regression, the audit script `glibc:audit` names the offenders.
- *
- * See: docs/plans/glibc-floor-lowering.md
+ *   3. On regression, the audit script `glibc:audit` names the offenders. See:
+ *      docs/plans/glibc-floor-lowering.md
  */
 
 import { existsSync } from 'node:fs'

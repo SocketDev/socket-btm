@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Validate checkpoint name alignment across codebase
+ * Validate checkpoint name alignment across codebase.
  *
  * Ensures:
  * - Checkpoint names match directory names
  * - Workflow hash variables match checkpoint names
- * - Consistent past-tense naming convention
+ * - Consistent past-tense naming convention.
  */
 
 import { existsSync, readdirSync } from 'node:fs'
@@ -28,7 +28,7 @@ let hasErrors = false
 type CheckpointName = string
 
 /**
- * Check if a checkpoint name follows past-tense convention
+ * Check if a checkpoint name follows past-tense convention.
  */
 export function isPastTense(checkpoint: CheckpointName): boolean {
   const pastTenseEndings: string[] = [
@@ -45,7 +45,7 @@ export function isPastTense(checkpoint: CheckpointName): boolean {
 }
 
 /**
- * Validate models package checkpoints
+ * Validate models package checkpoints.
  */
 export function validateModels(): void {
   logger.info('Validating models package checkpoints…')
@@ -86,7 +86,7 @@ export function validateModels(): void {
 }
 
 /**
- * Validate node-smol-builder checkpoints
+ * Validate node-smol-builder checkpoints.
  */
 export function validateNodeSmol(): void {
   logger.info('Validating node-smol-builder checkpoints…')
@@ -127,7 +127,7 @@ export function validateNodeSmol(): void {
 }
 
 /**
- * Validate onnxruntime-builder checkpoints
+ * Validate onnxruntime-builder checkpoints.
  */
 export function validateOnnxruntime(): void {
   logger.info('Validating onnxruntime-builder checkpoints…')
@@ -175,7 +175,7 @@ export function validateOnnxruntime(): void {
 }
 
 /**
- * Validate yoga-layout-builder checkpoints
+ * Validate yoga-layout-builder checkpoints.
  */
 export function validateYoga(): void {
   logger.info('Validating yoga-layout-builder checkpoints…')

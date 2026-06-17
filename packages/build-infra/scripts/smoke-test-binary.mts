@@ -2,20 +2,21 @@
  * Unified smoke test utility for binary tools.
  *
  * For C binaries (binpress, binflate, binject): runs --version check
- * For Node.js binaries (node-smol): runs comprehensive functional tests
+ * For Node.js binaries (node-smol): runs comprehensive functional tests.
  *
  * Provides automatic testing with fallback for cross-compiled binaries:
+ *
  * 1. Try native execution
  * 2. On cross-compile error, try QEMU/Docker emulation if available
  * 3. Fall back to static verification (architecture, format, linking)
  *
  * Usage:
- *   node smoke-test-binary.mts <binary-path> [--arch arm64|x64] [--musl]
+ * node smoke-test-binary.mts <binary-path> [--arch arm64|x64] [--musl]
  *
  * Examples:
- *   node smoke-test-binary.mts out/binpress
- *   node smoke-test-binary.mts out/binpress --arch arm64
- *   node smoke-test-binary.mts out/node-smol --musl
+ * node smoke-test-binary.mts out/binpress
+ * node smoke-test-binary.mts out/binpress --arch arm64
+ * node smoke-test-binary.mts out/node-smol --musl.
  */
 
 import path from 'node:path'

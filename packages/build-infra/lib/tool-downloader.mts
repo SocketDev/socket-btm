@@ -1,10 +1,10 @@
 /**
- * Tool Download + Cache Engine
+ * Tool Download + Cache Engine.
  *
  * Downloads pinned tool versions, verifies checksums, and caches them
  * in node_modules/.cache/external-tools/ (gitignored via node_modules/).
  *
- * Override: $EXTERNAL_TOOLS_CACHE
+ * Override: $EXTERNAL_TOOLS_CACHE.
  */
 
 import crypto from 'node:crypto'
@@ -28,8 +28,10 @@ const logger = getDefaultLogger()
 /**
  * Acquire a simple file-based lock to prevent concurrent downloads.
  * Returns a release function.
- * @param {string} lockPath - Path to lock file
- * @param {number} [timeoutMs=120_000] - Maximum wait time
+ *
+ * @param {string} lockPath - Path to lock file.
+ * @param {number} [timeoutMs=120_000] - Maximum wait time.
+ *
  * @returns {Promise<() => Promise<void>>} Release function
  */
 export async function acquireLock(lockPath, timeoutMs = 120_000) {
@@ -74,7 +76,9 @@ export async function acquireLock(lockPath, timeoutMs = 120_000) {
 
 /**
  * Compute SHA256 of a file.
+ *
  * @param {string} filePath
+ *
  * @returns {Promise<string>} Hex-encoded SHA256
  */
 export function computeSha256(filePath) {
@@ -98,14 +102,15 @@ export function computeSha256(filePath) {
  *
  * @param {string} tool - Tool name (e.g., "zig")
  * @param {object} resolverResult - From resolver.resolve()
- * @param {string} resolverResult.url - Download URL
- * @param {string} resolverResult.sha256 - Expected SHA256
- * @param {string} resolverResult.extractDir - Directory name inside archive
- * @param {string} resolverResult.binary - Binary filename
+ * @param {string} resolverResult.url - Download URL.
+ * @param {string} resolverResult.sha256 - Expected SHA256.
+ * @param {string} resolverResult.extractDir - Directory name inside archive.
+ * @param {string} resolverResult.binary - Binary filename.
  * @param {string} resolverResult.archiveFormat - "tar.xz" or "zip"
- * @param {string} version - Tool version
- * @param {string} platform - Node.js process.platform
- * @param {string} arch - Node.js process.arch
+ * @param {string} version - Tool version.
+ * @param {string} platform - Node.js process.platform.
+ * @param {string} arch - Node.js process.arch.
+ *
  * @returns {Promise<string>} Path to the tool binary
  */
 export async function downloadAndCache(
@@ -239,8 +244,9 @@ export async function downloadAndCache(
  * errors. Node's https module uses the bundled Mozilla root store and
  * is unaffected by host-level cert-bundle drift.
  *
- * @param {string} url - URL to download
- * @param {string} destPath - Destination file path
+ * @param {string} url - URL to download.
+ * @param {string} destPath - Destination file path.
+ *
  * @returns {Promise<void>}
  */
 export async function downloadFile(url, destPath) {
@@ -253,9 +259,11 @@ export async function downloadFile(url, destPath) {
 
 /**
  * Extract an archive to a directory.
- * @param {string} archivePath - Path to archive
- * @param {string} destDir - Destination directory
+ *
+ * @param {string} archivePath - Path to archive.
+ * @param {string} destDir - Destination directory.
  * @param {string} format - Archive format: "tar.xz" or "zip"
+ *
  * @returns {Promise<void>}
  */
 export async function extractArchive(archivePath, destDir, format) {
@@ -299,7 +307,9 @@ export async function extractArchive(archivePath, destDir, format) {
 
 /**
  * Format byte size for display.
+ *
  * @param {number} [bytes]
+ *
  * @returns {string}
  */
 export function formatSize(bytes) {
@@ -317,6 +327,7 @@ export function formatSize(bytes) {
 
 /**
  * Get the repo-local cache directory for downloaded tools.
+ *
  * @returns {string}
  */
 export function getCacheDir() {
@@ -329,13 +340,15 @@ export function getCacheDir() {
 
 /**
  * Get a cached tool binary path, or undefined if not cached/invalid.
- * @param {string} tool - Tool name
- * @param {string} version - Tool version
- * @param {string} platform - Node.js process.platform
- * @param {string} arch - Node.js process.arch
- * @param {string} binary - Binary filename
- * @param {string} expectedSha256 - Expected checksum
- * @returns {string|undefined} Path to binary if valid cache exists
+ *
+ * @param {string} tool - Tool name.
+ * @param {string} version - Tool version.
+ * @param {string} platform - Node.js process.platform.
+ * @param {string} arch - Node.js process.arch.
+ * @param {string} binary - Binary filename.
+ * @param {string} expectedSha256 - Expected checksum.
+ *
+ * @returns {string | undefined} Path to binary if valid cache exists
  */
 export function getCachedToolBinary(
   tool,
@@ -358,10 +371,12 @@ export function getCachedToolBinary(
 
 /**
  * Get the cache path for a specific tool version + platform.
+ *
  * @param {string} tool - Tool name (e.g., "zig")
  * @param {string} version - Tool version (e.g., "0.15.2")
- * @param {string} platform - Node.js process.platform
- * @param {string} arch - Node.js process.arch
+ * @param {string} platform - Node.js process.platform.
+ * @param {string} arch - Node.js process.arch.
+ *
  * @returns {string}
  */
 export function getToolCachePath(tool, version, platform, arch) {
@@ -373,7 +388,9 @@ export function getToolCachePath(tool, version, platform, arch) {
 
 /**
  * Check if a process is still alive.
+ *
  * @param {number} pid
+ *
  * @returns {boolean}
  */
 export function isProcessAlive(pid) {
@@ -387,8 +404,10 @@ export function isProcessAlive(pid) {
 
 /**
  * Verify the integrity of a cached tool by checking the stored checksum.
- * @param {string} cachePath - Path to the tool's cache directory
- * @param {string} expectedSha256 - Expected SHA256 of the original archive
+ *
+ * @param {string} cachePath - Path to the tool's cache directory.
+ * @param {string} expectedSha256 - Expected SHA256 of the original archive.
+ *
  * @returns {boolean}
  */
 export function verifyCacheIntegrity(cachePath, expectedSha256) {

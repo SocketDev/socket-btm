@@ -1,8 +1,8 @@
 {
   "name": "napi-go-infra",
   "version": "0.0.0",
-  "description": "Go → Node.js N-API framework. Source-distributed; consumed by downstream builders.",
   "private": true,
+  "description": "Go → Node.js N-API framework. Source-distributed; consumed by downstream builders.",
   "license": "MIT",
   "type": "module",
   "exports": {

@@ -2,12 +2,12 @@
 /**
  * Orchestrated build script for socket-btm monorepo.
  *
- * Build order:
- * 1. LIEF (lief-builder) - must be first
- * 2. Binsuite (binpress, binflate, binject) - depends on LIEF, builds in parallel
- * 3. Node-smol-builder (depends on binsuite) - builds sequentially after binsuite
- * 4. WASM builds (onnxruntime-builder, yoga-layout-builder) - independent, run in parallel with everything
- * 5. Models (depends on onnxruntime-builder) - builds after onnxruntime completes
+ * Build order: 1. LIEF (lief-builder) - must be first 2. Binsuite (binpress,
+ * binflate, binject) - depends on LIEF, builds in parallel 3. Node-smol-builder
+ * (depends on binsuite) - builds sequentially after binsuite 4. WASM builds
+ * (onnxruntime-builder, yoga-layout-builder) - independent, run in parallel
+ * with everything 5. Models (depends on onnxruntime-builder) - builds after
+ * onnxruntime completes.
  */
 import process from 'node:process'
 
@@ -26,8 +26,11 @@ type PnpmTask = {
 
 /**
  * Run multiple pnpm commands in parallel.
- * @param {Array<{filter: string, script: string}>} tasks - Tasks to run
+ *
+ * @param {{ filter: string; script: string }[]} tasks - Tasks to run.
+ *
  * @returns {Promise<void>}
+ *
  * @throws {Error} If any task fails
  */
 export async function runParallel(tasks: PnpmTask[]): Promise<void> {
@@ -59,7 +62,9 @@ export async function runParallel(tasks: PnpmTask[]): Promise<void> {
 
 /**
  * Run a pnpm command.
- * @param {string[]} args - Arguments to pass to pnpm
+ *
+ * @param {string[]} args - Arguments to pass to pnpm.
+ *
  * @returns {Promise<void>}
  */
 export async function runPnpm(args: string[]): Promise<void> {

@@ -9,17 +9,21 @@
  * re-export-from-scripts/build.mts shape so any downstream consumers
  * (currently zero in the fleet — verified via grep) stay buildable.
  *
- *   ensureLibpq(options?)        → Promise<string>  factory.ensure
- *   downloadLibpq(options?)      → Promise<string|undefined>  factory.downloadPrebuilt
- *   libpqExistsAt(dir)           → boolean          factory.existsAt
- *   getCheckpointChain()         → string[]         libpq-specific (here)
+ * EnsureLibpq(options?) → Promise<string> factory.ensure
+ * downloadLibpq(options?) → Promise<string|undefined> factory.downloadPrebuilt
+ * libpqExistsAt(dir) → boolean factory.existsAt getCheckpointChain() → string[]
+ * libpq-specific (here)
  */
 
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { createPrebuiltApi } from 'build-infra/lib/ensure-prebuilt'
-import { BUILD_STAGES, CHECKPOINTS, getPlatformBuildDir } from 'build-infra/lib/constants'
+import {
+  BUILD_STAGES,
+  CHECKPOINTS,
+  getPlatformBuildDir,
+} from 'build-infra/lib/constants'
 import { getAssetPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { detectLibc } from '@socketsecurity/lib-stable/releases/socket-btm'

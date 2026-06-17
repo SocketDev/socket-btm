@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * @fileoverview Clean temporal-infra build artifacts.
- *
- * Source-only package — almost nothing to clean except node_modules
- * and any local test output dirs. Mirrors the bin-infra/clean.mts
- * shape so the workspace `clean` script is uniform across packages.
+ * @file Clean temporal-infra build artifacts.
+ *   Source-only package — almost nothing to clean except node_modules
+ *   and any local test output dirs. Mirrors the bin-infra/clean.mts
+ *   shape so the workspace `clean` script is uniform across packages.
  */
 
 import path from 'node:path'

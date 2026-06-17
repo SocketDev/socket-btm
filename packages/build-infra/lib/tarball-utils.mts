@@ -19,18 +19,24 @@ import {
 } from './platform-mappings.mts'
 
 /**
- * Securely extract a tarball to a directory.
- * Validates paths before extraction and uses --no-absolute-names when supported.
+ * Securely extract a tarball to a directory. Validates paths before extraction
+ * and uses --no-absolute-names when supported.
  *
  * @param {string} tarballPath - Path to the tarball file.
  * @param {string} extractDir - Directory to extract to.
  * @param {object} options - Extraction options.
  * @param {boolean} [options.validate=true] - Validate paths before extraction.
- * @param {boolean} [options.createDir=true] - Create extraction directory if missing.
- * @param {'pipe' | 'inherit' | 'ignore'} [options.stdio='ignore'] - Stdio option for tar.
- * @param {number} [options.stripComponents=0] - Number of leading path components to strip.
- * @param {boolean} [options.overwrite=true] - Overwrite existing files/directories.
+ * @param {boolean} [options.createDir=true] - Create extraction directory if
+ *   missing.
+ * @param {'pipe' | 'inherit' | 'ignore'} [options.stdio='ignore'] - Stdio
+ *   option for tar.
+ * @param {number} [options.stripComponents=0] - Number of leading path
+ *   components to strip.
+ * @param {boolean} [options.overwrite=true] - Overwrite existing
+ *   files/directories.
+ *
  * @returns {Promise<string[]>} Array of extracted file paths.
+ *
  * @throws {Error} If extraction fails or paths are unsafe.
  */
 export async function extractTarball(tarballPath, extractDir, options = {}) {
@@ -91,7 +97,9 @@ export async function extractTarball(tarballPath, extractDir, options = {}) {
  * Throws if any file in the tarball has an unsafe path.
  *
  * @param {string} tarballPath - Path to the tarball file.
+ *
  * @returns {Promise<string[]>} Array of file paths in the tarball.
+ *
  * @throws {Error} If tarball contains unsafe paths.
  */
 export async function validateTarballPaths(tarballPath) {

@@ -1,17 +1,16 @@
 /**
- * @fileoverview test262 Temporal — unit tests covering the runner's
- * pure parts. Today this is the classifier; future additions (e.g.
- * frontmatter parser, harness composer) land here as more `describe`
- * blocks. Spawning, corpus walking, and binary I/O stay in the
- * runner itself and are exercised by running it; this file owns the
- * deterministic pieces.
- *
- * The classifier decides whether each test result belongs in an
- * allowed or disallowed bucket relative to an allowlist. Get it
- * wrong and the runner either silently masks regressions or
- * false-fails the build. Cover every transition (success / failure
- * / falsePositive / falseNegative — each in allowed vs disallowed
- * form) plus stale-allowlist + skipped-passthrough.
+ * @file Test262 Temporal — unit tests covering the runner's
+ *   pure parts. Today this is the classifier; future additions (e.g.
+ *   frontmatter parser, harness composer) land here as more `describe`
+ *   blocks. Spawning, corpus walking, and binary I/O stay in the
+ *   runner itself and are exercised by running it; this file owns the
+ *   deterministic pieces.
+ *   The classifier decides whether each test result belongs in an
+ *   allowed or disallowed bucket relative to an allowlist. Get it
+ *   wrong and the runner either silently masks regressions or
+ *   false-fails the build. Cover every transition (success / failure
+ *   / falsePositive / falseNegative — each in allowed vs disallowed
+ *   form) plus stale-allowlist + skipped-passthrough.
  */
 
 import { describe, expect, it } from 'vitest'

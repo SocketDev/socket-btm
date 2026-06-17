@@ -1,16 +1,14 @@
 /**
- * @fileoverview Mach-O SMOL segment repacking validation tests
+ * @file Mach-O SMOL segment repacking validation tests
+ *   Tests Mach-O-specific SMOL segment replacement logic in smol_repack_lief().
+ *   These tests validate that:
  *
- * Tests Mach-O-specific SMOL segment replacement logic in smol_repack_lief().
- * These tests validate that:
- * 1. SMOL segments are REPLACED (not appended) during repack
- * 2. SMOL segment structure remains valid after repacking
- * 3. Mach-O binary structure remains valid after repacking
- * 4. Edge cases are handled gracefully
- *
- * IMPORTANT: These tests only run on macOS platforms where Mach-O is native.
- * They explicitly validate the SMOL segment handling that mirrors the PT_NOTE
- * handling for ELF binaries.
+ *   1. SMOL segments are REPLACED (not appended) during repack
+ *   2. SMOL segment structure remains valid after repacking
+ *   3. Mach-O binary structure remains valid after repacking
+ *   4. Edge cases are handled gracefully IMPORTANT: These tests only run on macOS
+ *      platforms where Mach-O is native. They explicitly validate the SMOL
+ *      segment handling that mirrors the PT_NOTE handling for ELF binaries.
  */
 
 import crypto from 'node:crypto'
@@ -57,8 +55,10 @@ const BINPRESS = path.join(
 const NODE_BINARY = process.execPath
 
 /**
- * Count SMOL segments in Mach-O binary
- * @param {Buffer} machoData - Mach-O binary data
+ * Count SMOL segments in Mach-O binary.
+ *
+ * @param {Buffer} machoData - Mach-O binary data.
+ *
  * @returns {number} Number of SMOL segments
  */
 export function countSmolSegments(machoData) {
@@ -98,8 +98,10 @@ export function countSmolSegments(machoData) {
 }
 
 /**
- * Find SMOL segments with their content
- * @param {Buffer} machoData - Mach-O binary data
+ * Find SMOL segments with their content.
+ *
+ * @param {Buffer} machoData - Mach-O binary data.
+ *
  * @returns {Array} Array of SMOL segment info
  */
 export function findSmolSegments(machoData) {
@@ -167,9 +169,11 @@ export function findSmolSegments(machoData) {
 }
 
 /**
- * Search for magic marker in SMOL segments
- * @param {Buffer} machoData - Mach-O binary data
- * @param {string} marker - Marker string to search for
+ * Search for magic marker in SMOL segments.
+ *
+ * @param {Buffer} machoData - Mach-O binary data.
+ * @param {string} marker - Marker string to search for.
+ *
  * @returns {boolean} True if marker found
  */
 export function hasMarkerInSmolSegment(machoData, marker) {
@@ -187,11 +191,12 @@ export function hasMarkerInSmolSegment(machoData, marker) {
 }
 
 /**
- * Parse Mach-O header and return basic information
- * @param {Buffer} machoData - Mach-O binary data
- * @returns {Object} Mach-O header information
+ * Parse Mach-O header and return basic information.
  *
- * Note: We only support little-endian binaries.
+ * @param {Buffer} machoData - Mach-O binary data.
+ *
+ * @returns {Object} Mach-O header information
+ *   Note: We only support little-endian binaries.
  */
 export function parseMachoHeader(machoData) {
   const magic = machoData.readUInt32LE(0)

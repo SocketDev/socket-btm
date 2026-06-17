@@ -1,7 +1,7 @@
 /**
- * @fileoverview Verify-build tests for node:smol-ilp.
+ * @file Verify-build tests for node:smol-ilp.
+ *   Locks the public API surface from additions/source-patched/lib/smol-ilp.js:
  *
- * Locks the public API surface from additions/source-patched/lib/smol-ilp.js:
  *   - `Sender`, `BulkRowBuilder` classes
  *   - `TimeUnit` enum (Nanoseconds=0, Microseconds=1, Milliseconds=2, Seconds=3)
  *   - `ILPError` constructor

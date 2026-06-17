@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import process from 'node:process'
 
 /**
- * @fileoverview Tests for tool-installer utilities.
+ * @file Tests for tool-installer utilities.
  */
 
 import {

@@ -1,16 +1,20 @@
 /**
- * @fileoverview Unit tests for the flaggable-test helper (test/helpers/smol-features.mts).
- *
- * These run on stock Node in CI (no smol binary), so they assert the helper's
- * binary-absent contract + input validation. The runtime-config probe mechanism
- * itself is proven separately against stock Node's `process.config.variables`
- * (which exposes `node_use_sqlite`), and against a real smol binary in the
- * integration suite when one is built.
+ * @file Unit tests for the flaggable-test helper
+ *   (test/helpers/smol-features.mts). These run on stock Node in CI (no smol
+ *   binary), so they assert the helper's binary-absent contract + input
+ *   validation. The runtime-config probe mechanism itself is proven separately
+ *   against stock Node's `process.config.variables` (which exposes
+ *   `node_use_sqlite`), and against a real smol binary in the integration suite
+ *   when one is built.
  */
 
 import { describe, expect, it } from 'vitest'
 
-import { has, missingRequiredFeatures, smolBinary } from '../helpers/smol-features.mts'
+import {
+  has,
+  missingRequiredFeatures,
+  smolBinary,
+} from '../helpers/smol-features.mts'
 import { SMOL_FEATURES } from '../../scripts/lib/smol-features.mts'
 
 describe('smol-features test helper', () => {
@@ -25,20 +29,26 @@ describe('smol-features test helper', () => {
     }
   })
 
-  it.skipIf(smolBinary)('returns false for all features when no binary is built', () => {
-    // On stock-Node CI (no smol binary), every feature is reported absent so
-    // `skipIf(!smolBinary || !has(x))` short-circuits cleanly.
-    for (const f of SMOL_FEATURES) {
-      expect(has(f.name)).toBe(false)
-    }
-  })
+  it.skipIf(smolBinary)(
+    'returns false for all features when no binary is built',
+    () => {
+      // On stock-Node CI (no smol binary), every feature is reported absent so
+      // `skipIf(!smolBinary || !has(x))` short-circuits cleanly.
+      for (const f of SMOL_FEATURES) {
+        expect(has(f.name)).toBe(false)
+      }
+    },
+  )
 
-  it.skipIf(!smolBinary)('always-on features (no gypVar) are present when a binary exists', () => {
-    // power has no gypVar (always compiled); intl has none either.
-    for (const f of SMOL_FEATURES.filter(x => !x.gypVar)) {
-      expect(has(f.name)).toBe(true)
-    }
-  })
+  it.skipIf(!smolBinary)(
+    'always-on features (no gypVar) are present when a binary exists',
+    () => {
+      // power has no gypVar (always compiled); intl has none either.
+      for (const f of SMOL_FEATURES.filter(x => !x.gypVar)) {
+        expect(has(f.name)).toBe(true)
+      }
+    },
+  )
 
   it('missingRequiredFeatures() is empty unless SOCKET_REQUIRE_ALL_FEATURES is set', () => {
     const hadEnv = process.env['SOCKET_REQUIRE_ALL_FEATURES']

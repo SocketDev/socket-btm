@@ -1,9 +1,10 @@
 // max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
 /**
- * Python Package Installation Utilities
+ * Python Package Installation Utilities.
  *
  * Provides utilities for automatically installing Python packages using pip.
- * Supports virtual environments for PEP 668 compliant systems (Homebrew Python, etc).
+ * Supports virtual environments for PEP 668 compliant systems (Homebrew Python,
+ * etc).
  */
 
 import { existsSync, promises as fs, readdirSync } from 'node:fs'
@@ -18,9 +19,9 @@ import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 import { printError } from './build-output.mts'
 import { errorMessage } from './error-utils.mts'
 import {
-  PYTHON_VERSIONS,
   getPinnedPackage,
   loadPythonVersions,
+  PYTHON_VERSIONS,
 } from './pinned-versions.mts'
 
 const logger = getDefaultLogger()
@@ -102,7 +103,8 @@ export function checkPipAvailable() {
 /**
  * Get pip command (pip3 or pip).
  *
- * @returns {string|undefined} Resolved pip command path or undefined if not found.
+ * @returns {string | undefined} Resolved pip command path or undefined if not
+ *   found.
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.
 export function getPipCommand() {
@@ -152,6 +154,7 @@ export function getDefaultVenvPath() {
  * @param {object} options - Options.
  * @param {string} options.venvDir - Optional custom venv directory.
  * @param {boolean} options.quiet - Suppress output.
+ *
  * @returns {Promise<boolean>} True if venv is ready.
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.
@@ -258,7 +261,8 @@ let cachedPythonCommand
  * Otherwise derives Python path from `pip --version` output which shows the pip
  * installation path. From this path, we can find the corresponding Python.
  *
- * @returns {Promise<string|undefined>} Resolved python command path or undefined if not found.
+ * @returns {Promise<string | undefined>} Resolved python command path or
+ *   undefined if not found.
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.
 export async function getPythonCommand() {
@@ -357,6 +361,7 @@ export async function getPythonCommand() {
  * Check if a Python package is installed.
  *
  * @param {string} packageName - Package name to check.
+ *
  * @returns {Promise<boolean>} True if package is installed.
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.
@@ -378,7 +383,9 @@ export async function checkPythonPackage(packageName) {
  *
  * @param {string} packageName - Package name to check.
  * @param {string} expectedVersion - Expected version (e.g., '2.5.1').
- * @returns {Promise<boolean>} True if package is installed with correct version.
+ *
+ * @returns {Promise<boolean>} True if package is installed with correct
+ *   version.
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.
 export async function checkPythonPackageVersion(packageName, expectedVersion) {
@@ -410,10 +417,14 @@ export async function checkPythonPackageVersion(packageName, expectedVersion) {
  *
  * @param {string} packageName - Package name to install.
  * @param {object} options - Installation options.
- * @param {boolean} options.user - Install to user site-packages if no venv (--user flag).
- * @param {boolean} options.upgrade - Upgrade if already installed (--upgrade flag).
+ * @param {boolean} options.user - Install to user site-packages if no venv
+ *   (--user flag).
+ * @param {boolean} options.upgrade - Upgrade if already installed (--upgrade
+ *   flag).
  * @param {boolean} options.quiet - Suppress output.
- * @param {string} options.consumerPackageJsonPath - Optional path to consumer package.json for version overrides.
+ * @param {string} options.consumerPackageJsonPath - Optional path to consumer
+ *   package.json for version overrides.
+ *
  * @returns {Promise<boolean>} True if installation succeeded.
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.
@@ -579,11 +590,15 @@ export async function installPythonPackage(
  *
  * @param {string} packageName - Package name to check/install.
  * @param {object} options - Options.
- * @param {string} options.importName - Import name if different from package name.
- * @param {boolean} options.autoInstall - Attempt auto-installation if missing (default: true).
+ * @param {string} options.importName - Import name if different from package
+ *   name.
+ * @param {boolean} options.autoInstall - Attempt auto-installation if missing
+ *   (default: true).
  * @param {boolean} options.quiet - Suppress output (default: false).
- * @param {string} options.consumerPackageJsonPath - Optional path to consumer package.json for version overrides.
- * @returns {Promise<{available: boolean, installed: boolean}>}
+ * @param {string} options.consumerPackageJsonPath - Optional path to consumer
+ *   package.json for version overrides.
+ *
+ * @returns {Promise<{ available: boolean; installed: boolean }>}
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.
 export async function ensurePythonPackage(
@@ -681,12 +696,20 @@ export async function ensurePythonPackage(
 /**
  * Ensure all required Python packages are installed.
  *
- * @param {Array<string|{name: string, importName?: string}>} packages - Packages to check.
+ * @param {(string | { name: string; importName?: string })[]} packages -
+ *   Packages to check.
  * @param {object} options - Options.
- * @param {boolean} options.autoInstall - Attempt auto-installation (default: true).
+ * @param {boolean} options.autoInstall - Attempt auto-installation (default:
+ *   true).
  * @param {boolean} options.quiet - Suppress output (default: false).
- * @param {string} options.consumerPackageJsonPath - Optional path to consumer package.json for version overrides.
- * @returns {Promise<{allAvailable: boolean, missing: string[], installed: string[]}>}
+ * @param {string} options.consumerPackageJsonPath - Optional path to consumer
+ *   package.json for version overrides.
+ *
+ * @returns {Promise<{
+ *   allAvailable: boolean
+ *   missing: string[]
+ *   installed: string[]
+ * }>}
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.
 export async function ensureAllPythonPackages(
@@ -757,6 +780,7 @@ export async function ensureAllPythonPackages(
  * Get installation instructions for Python packages.
  *
  * @param {string[]} packages - Package names.
+ *
  * @returns {string[]} Array of installation instruction strings.
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is ordered by pip-install pipeline phase (detect → resolve → install → verify); alphabetizing across phases would scatter the install flow.

@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import process from 'node:process'
 
 /**
- * @fileoverview Tests for build-env utility.
- * Validates environment detection and setup logic.
+ * @file Tests for build-env utility.
+ *   Validates environment detection and setup logic.
  */
 
 import {

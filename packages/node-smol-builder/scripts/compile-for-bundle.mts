@@ -1,32 +1,30 @@
 #!/usr/bin/env node
 
 /**
- * @fileoverview Bundle-driven node-smol compile orchestrator (plan + invoke).
+ * @file Bundle-driven node-smol compile orchestrator (plan + invoke).
+ *   USAGE:
+ *   pnpm --filter node-smol-builder run compile-for-bundle --\
+ *   --bundle=path/to/main.js [--vfs=path/to/vfs.tar] [--overrides=package.json]\
+ *   [--v8-lite] [--prod] [--dry-run]
+ *   Pipeline (see docs/plans/bundle-driven-module-detection.md):
  *
- * USAGE:
- *   pnpm --filter node-smol-builder run compile-for-bundle -- \
- *     --bundle=path/to/main.js [--vfs=path/to/vfs.tar] [--overrides=package.json] \
- *     [--v8-lite] [--prod] [--dry-run]
- *
- * Pipeline (see docs/plans/bundle-driven-module-detection.md):
  *   1. Run the static detector on the SEA bundle → feature manifest + flags.
  *   2. Compute a cache key = sha256(SOURCE_PATCHED id + sorted flags + platform).
- *      Two bundles with the same feature set hit the same compiled cache entry.
+ *      Two bundles with the same feature set hit the same compiled cache
+ *      entry.
  *   3. Invoke the existing build with the detector's --without-smol-* flags via
- *      `build.mts --without-smol=…`. The flags take effect at the configure step
- *      inside Phase 1; build.mts's own checkpoint cache reuses the warm
+ *      `build.mts --without-smol=…`. The flags take effect at the configure
+ *      step inside Phase 1; build.mts's own checkpoint cache reuses the warm
  *      source-patched sub-phase, so the expensive clone/patch prefix is not
  *      repeated for an unchanged tree. (Note: `source-patched` is an internal
  *      sub-checkpoint, NOT a --from-checkpoint resume entry point — build.mts
- *      only accepts the four binary-stage checkpoints there.)
- *
- * --dry-run prints the resolved plan (manifest summary, flags, cache key, the
- * exact build command) WITHOUT building. The detector + flag mapping are fully
- * exercised; only the 30–60 min compile is skipped.
- *
- * This orchestrator does NOT itself trim the binary — it hands flags to the
- * build, whose output is then gated by the fail-closed step (run the app suite
- * + absence/fallback probes against the trimmed binary) before it ships.
+ *      only accepts the four binary-stage checkpoints there.) --dry-run prints
+ *      the resolved plan (manifest summary, flags, cache key, the exact build
+ *      command) WITHOUT building. The detector + flag mapping are fully
+ *      exercised; only the 30–60 min compile is skipped. This orchestrator does
+ *      NOT itself trim the binary — it hands flags to the build, whose output
+ *      is then gated by the fail-closed step (run the app suite +
+ *      absence/fallback probes against the trimmed binary) before it ships.
  */
 
 import { createHash } from 'node:crypto'
@@ -57,17 +55,17 @@ const SOURCE_PATCHED = 'source-patched'
  * configure+make+strip layer so identical flag sets on the same platform reuse
  * one compiled binary. Sorted so flag order doesn't matter.
  */
-export function computeCacheKey(opts: {
+export function computeCacheKey(options: {
   configureFlags: string[]
   platformArch: string
   buildMode: string
 }): string {
-  const sorted = [...opts.configureFlags].toSorted()
+  const sorted = [...options.configureFlags].toSorted()
   const material = JSON.stringify({
     sourceStage: SOURCE_PATCHED,
     flags: sorted,
-    platformArch: opts.platformArch,
-    buildMode: opts.buildMode,
+    platformArch: options.platformArch,
+    buildMode: options.buildMode,
   })
   return createHash('sha256').update(material).digest('hex').slice(0, 16)
 }
@@ -84,24 +82,27 @@ export function computeCacheKey(opts: {
  * build.mts's own checkpoint cache reuses the warm source-patched sub-phase, so
  * a plain build neither errors nor re-clones an unchanged tree.
  */
-export function buildBuildArgs(opts: {
+export function buildBuildArgs(options: {
   buildScriptPath: string
   buildMode: 'dev' | 'prod'
   flags: string[]
 }): string[] {
   const args = [
-    opts.buildScriptPath,
-    opts.buildMode === 'prod' ? '--prod' : '--dev',
+    options.buildScriptPath,
+    options.buildMode === 'prod' ? '--prod' : '--dev',
   ]
-  if (opts.flags.length) {
-    args.push(`--without-smol=${opts.flags.join(',')}`)
+  if (options.flags.length) {
+    args.push(`--without-smol=${options.flags.join(',')}`)
   }
   return args
 }
 
 async function main(): Promise<void> {
   const { values } = parseArgs({
-    args: process.argv.slice(2)[0] === '--' ? process.argv.slice(3) : process.argv.slice(2),
+    args:
+      process.argv.slice(2)[0] === '--'
+        ? process.argv.slice(3)
+        : process.argv.slice(2),
     options: {
       bundle: { type: 'string' },
       vfs: { type: 'string' },
@@ -115,26 +116,36 @@ async function main(): Promise<void> {
 
   const bundlePath = values['bundle'] as string | undefined
   if (!bundlePath || !existsSync(bundlePath)) {
-    logger.fail(`--bundle is required and must exist (got: ${bundlePath ?? '<none>'})`)
+    logger.fail(
+      `--bundle is required and must exist (got: ${bundlePath ?? '<none>'})`,
+    )
     process.exitCode = 1
     return
   }
   const vfsPath = values['vfs'] as string | undefined
 
-  let overrides: { keep?: string[] | undefined; drop?: string[] | undefined } | undefined
+  let overrides:
+    | { keep?: string[] | undefined; drop?: string[] | undefined }
+    | undefined
   const overridesPath = values['overrides'] as string | undefined
   if (overridesPath) {
     try {
       const { promises: fs } = await import('node:fs')
       const pkg = JSON.parse(await fs.readFile(overridesPath, 'utf8'))
-      overrides = pkg?.smol ? { keep: pkg.smol.keep, drop: pkg.smol.drop } : undefined
+      overrides = pkg?.smol
+        ? { keep: pkg.smol.keep, drop: pkg.smol.drop }
+        : undefined
     } catch (e) {
       logger.warn(`could not read overrides: ${errorMessage(e)}`)
     }
   }
 
   // 1. Detect.
-  const manifest = await detectBundleFeatures({ bundlePath, vfsPath, overrides })
+  const manifest = await detectBundleFeatures({
+    bundlePath,
+    vfsPath,
+    overrides,
+  })
   const wantV8Lite = Boolean(values['v8-lite']) && manifest.v8Lite.recommended
   const allFlags = [...manifest.configureFlags]
   if (wantV8Lite && !allFlags.includes('--v8-lite-mode')) {
@@ -171,7 +182,9 @@ async function main(): Promise<void> {
   logger.log(`Hash:        ${manifest.bundleHash}`)
   logger.log(`Platform:    ${platformArch} (${buildMode})`)
   logger.log(`Dropping:    ${dropped.join(', ') || '(none)'}`)
-  logger.log(`V8-lite:     ${v8Lite ? 'yes' : `no${manifest.v8Lite.recommended ? ' (recommended; pass --v8-lite to apply)' : ''}`}`)
+  logger.log(
+    `V8-lite:     ${v8Lite ? 'yes' : `no${manifest.v8Lite.recommended ? ' (recommended; pass --v8-lite to apply)' : ''}`}`,
+  )
   logger.log(`Flags:       ${allFlags.join(' ') || '(none)'}`)
   logger.log(`Cache key:   ${cacheKey}`)
   logger.log(`Build cmd:   node ${buildArgs.join(' ')}`)

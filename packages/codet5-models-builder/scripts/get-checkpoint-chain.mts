@@ -3,11 +3,11 @@
  * Get checkpoint chain for CodeT5 model builds.
  *
  * Usage:
- *   node scripts/get-checkpoint-chain.mts
+ * node scripts/get-checkpoint-chain.mts.
  *
  * Output:
- *   Comma-separated checkpoint chain in reverse dependency order.
- *   (finalized depends on optimized, optimized depends on quantized, etc.)
+ * Comma-separated checkpoint chain in reverse dependency order.
+ * (finalized depends on optimized, optimized depends on quantized, etc.)
  *
  * Model checkpoints are the same for dev and prod — the difference is
  * only in quantization level (INT8 vs INT4).

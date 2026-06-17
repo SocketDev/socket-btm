@@ -3,10 +3,11 @@
  *
  * Declarative manifest consumed by build-infra/lib/build-pipeline. The
  * orchestrator handles:
- *   - --prod / --dev / --force / --clean / --clean-stage / --from-stage
- *   - Unified cache key (external-tools.json + package.json sources)
- *   - Per-stage shouldRun() / createCheckpoint() wrapping
- *   - Missing-output clean-up
+ *
+ * - --prod / --dev / --force / --clean / --clean-stage / --from-stage
+ * - Unified cache key (external-tools.json + package.json sources)
+ * - Per-stage shouldRun() / createCheckpoint() wrapping
+ * - Missing-output clean-up
  *
  * Stage workers (./<stage>/shared/*.mts) return StageResult objects that
  * carry the smoke test + artifactPath instead of writing the checkpoint
@@ -25,10 +26,10 @@ import { getEmscriptenVersion } from 'build-infra/lib/version-helpers'
 import { runPipelineCli } from 'build-infra/lib/build-pipeline'
 
 import {
-  PACKAGE_ROOT,
   getBindingsPaths,
   getBuildPaths,
   getSharedBuildPaths,
+  PACKAGE_ROOT,
 } from './paths.mts'
 import { finalizeWasm } from './finalized/shared/finalize-wasm.mts'
 import { cloneYogaSource } from './source-cloned/shared/clone-source.mts'

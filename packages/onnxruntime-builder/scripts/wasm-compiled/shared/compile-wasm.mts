@@ -1,6 +1,5 @@
-
 /**
- * WASM compilation phase for ONNX Runtime
+ * WASM compilation phase for ONNX Runtime.
  *
  * Builds ONNX Runtime with Emscripten using official build script.
  */
@@ -31,15 +30,17 @@ const spinner = getDefaultSpinner()
 /**
  * Build ONNX Runtime with Emscripten.
  *
- * @param {object} options - Build options
- * @param {string} options.buildDir - Build directory
- * @param {string} options.modeSourceDir - Mode-specific source directory
- * @param {string} options.buildScriptFile - Build script file path
+ * @param {object} options - Build options.
+ * @param {string} options.buildDir - Build directory.
+ * @param {string} options.modeSourceDir - Mode-specific source directory.
+ * @param {string} options.buildScriptFile - Build script file path.
  * @param {string} options.buildMode - Build mode ('prod' or 'dev')
- * @param {boolean} options.isCI - Is running in CI environment
- * @param {object} options.buildOutputPaths - Build output paths (buildWasmFile, buildCmakeCacheFile, buildPostBuildScriptFile)
+ * @param {boolean} options.isCI - Is running in CI environment.
+ * @param {object} options.buildOutputPaths - Build output paths (buildWasmFile,
+ *   buildCmakeCacheFile, buildPostBuildScriptFile)
  * @param {boolean} options.forceRebuild - Force rebuild (ignore checkpoints)
- * @param {string} options.emscriptenVersion - Emscripten version to use (from build-infra package.json)
+ * @param {string} options.emscriptenVersion - Emscripten version to use (from
+ *   build-infra package.json)
  */
 export async function compileWasm(options) {
   const {
@@ -50,7 +51,7 @@ export async function compileWasm(options) {
     emscriptenVersion = 'latest',
     isCI,
     modeSourceDir,
-  } = options
+  } = { __proto__: null, ...options } as typeof options
 
   logger.step('Building ONNX Runtime with Emscripten')
 

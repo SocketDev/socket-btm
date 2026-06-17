@@ -1,16 +1,19 @@
 /**
- * @fileoverview Shared helpers for probing `node:smol-*` builtins on
- * the built smol binary. Every `node:smol-*` integration test uses the
- * same probe-and-skip pattern: if the Final/ binary doesn't have the
- * binding wired in (built before the relevant patches landed, or
- * built with that binding stripped), skip rather than fail — the
- * build itself is the contract under test, and a rebuild re-enables
- * the suite automatically.
+ * @file Shared helpers for probing `node:smol-*` builtins on
+ *   the built smol binary. Every `node:smol-*` integration test uses the
+ *   same probe-and-skip pattern: if the Final/ binary doesn't have the
+ *   binding wired in (built before the relevant patches landed, or
+ *   built with that binding stripped), skip rather than fail — the
+ *   build itself is the contract under test, and a rebuild re-enables
+ *   the suite automatically.
  */
 
 import { existsSync } from 'node:fs'
 
-import { spawn, spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
+import {
+  spawn,
+  spawnSync,
+} from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { getLatestFinalBinary } from '../paths.mts'
 
@@ -62,7 +65,9 @@ export function smolBuiltinIsAvailable(name: string): boolean {
 }
 
 export interface RunOptions {
-  /** Override the default 10s timeout for slow setup paths. */
+  /**
+   * Override the default 10s timeout for slow setup paths.
+   */
   timeoutMs?: number | undefined
 }
 

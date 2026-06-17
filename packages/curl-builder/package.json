@@ -1,8 +1,8 @@
 {
   "name": "curl-builder",
   "version": "0.0.0",
-  "description": "Builds libcurl with mbedTLS for HTTPS support in stub binaries",
   "private": true,
+  "description": "Builds libcurl with mbedTLS for HTTPS support in stub binaries",
   "license": "MIT",
   "type": "module",
   "exports": {

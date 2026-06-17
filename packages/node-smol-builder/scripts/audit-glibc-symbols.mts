@@ -1,20 +1,17 @@
 #!/usr/bin/env node
 
 /**
- * @fileoverview Enumerate GLIBC_2.x symbol versions pulled in by the built node binary.
+ * @file Enumerate GLIBC_2.x symbol versions pulled in by the built node binary.
+ *   USAGE: pnpm --filter node-smol-builder run glibc:audit [--binary=PATH]
+ *   [--floor=2.17] What it does:
  *
- * USAGE:
- *   pnpm --filter node-smol-builder run glibc:audit [--binary=PATH] [--floor=2.17]
- *
- * What it does:
  *   1. Locates the most recent built binary (or uses --binary).
  *   2. Runs `objdump -T` and extracts every `(GLIBC_2.x)` version reference.
  *   3. Sorts by version tuple, counts per version, prints a table.
- *   4. Exits non-zero if any symbol exceeds the `--floor` (default 2.17).
- *
- * This is a groundwork tool — it does not mutate the build. Use it to
- * (a) see what's currently pulled in on an existing glibc 2.28 build, and
- * (b) detect regressions if/when we lower the floor.
+ *   4. Exits non-zero if any symbol exceeds the `--floor` (default 2.17). This is
+ *      a groundwork tool — it does not mutate the build. Use it to (a) see
+ *      what's currently pulled in on an existing glibc 2.28 build, and (b)
+ *      detect regressions if/when we lower the floor.
  */
 
 import { existsSync, promises as fs } from 'node:fs'
@@ -137,11 +134,11 @@ export function parseVersionTuple(raw: string): readonly number[] {
 }
 
 /**
- * Parse `src/socketsecurity/glibc-2.17-compat/glibc_2_17_compat.h` to learn which symbols
- * the compat layer currently wraps. Used by --fallback-report to annotate
- * each violation with "wrapped?" yes/no, so an engineer extending the floor
- * can see at a glance which symbols already have a fallback and which need
- * new __wrap_ entries.
+ * Parse `src/socketsecurity/glibc-2.17-compat/glibc_2_17_compat.h` to learn
+ * which symbols the compat layer currently wraps. Used by --fallback-report to
+ * annotate each violation with "wrapped?" yes/no, so an engineer extending the
+ * floor can see at a glance which symbols already have a fallback and which
+ * need new __wrap_ entries.
  */
 export async function readWrappedSymbols(): Promise<ReadonlySet<string>> {
   const header = path.join(

@@ -1,62 +1,49 @@
 #!/usr/bin/env node
 /**
- * @fileoverview Vendored-symbol coverage gate.
+ * @file Vendored-symbol coverage gate.
+ *   Cross-checks every `*_binding.cc` under
+ *   `packages/node-smol-builder/additions/source-patched/src/socketsecurity/`
+ *   against the list of vendored sources gyp will actually compile, and
+ *   fails if a binding references an external symbol whose defining .c /
+ *   .cpp file isn't in any gyp source list.
+ *   Catches the class of failure that hit builds #9-#10:
  *
- * Cross-checks every `*_binding.cc` under
- * `packages/node-smol-builder/additions/source-patched/src/socketsecurity/`
- * against the list of vendored sources gyp will actually compile, and
- * fails if a binding references an external symbol whose defining .c /
- * .cpp file isn't in any gyp source list.
+ *   - tui/tui_binding.cc writes `YGConfigNew(...)`, expects libyoga to be linked,
+ *     but no yoga .cpp files were listed in patch 004's 'sources':. Link fails
+ *     with "_YGConfigNew not found".
+ *   - quic/quic_binding.cc writes `lsquic_engine_new(...)`, same shape: no lsquic
+ *     .c files listed, link fails on 30+ symbols. The check is necessary
+ *     because:
  *
- * Catches the class of failure that hit builds #9-#10:
- *   - tui/tui_binding.cc writes `YGConfigNew(...)`, expects libyoga to
- *     be linked, but no yoga .cpp files were listed in patch 004's
- *     'sources':. Link fails with "_YGConfigNew not found".
- *   - quic/quic_binding.cc writes `lsquic_engine_new(...)`, same shape:
- *     no lsquic .c files listed, link fails on 30+ symbols.
- *
- * The check is necessary because:
- *   1. Bindings reference vendored symbols via header includes — those
- *      resolve at compile time (so a missing include_dir surfaces as
- *      a clean error during preprocessing).
- *   2. The defining .c files only surface at LINK time, which is the
- *      LAST 5% of a 30-minute build. Catching it pre-build saves the
- *      30 minutes.
- *
- * Vendored libraries with auto-generated gypi (preferred form):
- *   yoga   → additions/source-patched/deps/yoga.gypi
- *   lsquic → additions/source-patched/deps/lsquic.gypi
- *   ls-qpack → additions/source-patched/deps/ls-qpack.gypi
- *
- * Vendored libraries with inline gyp source lists (legacy form, in
- * patch 004): qrcode (libqrencode), markdown (md4c), tree-sitter.
- *
- * Algorithm:
- *   1. Walk every `*_binding.cc` under the additions tree.
- *   2. Extract `<prefix>_<symbol>(` patterns whose prefix matches a
- *      known vendored-library prefix (YG, lsquic_, ts_, MD_, qrcode_,
- *      QR, lsqpack_).
- *   3. For each unique symbol, search:
- *        a. All `additions/source-patched/deps/<lib>.gypi` source
- *           manifests (auto-generated).
- *        b. Patch 004's inline 'sources': lists.
- *        c. All .c/.cpp files inside additions/source-patched/deps/
- *           whose path appears in (a) or (b).
- *   4. Confirm each symbol has at least one source listed AND that
- *      source contains a matching `<symbol>(` definition.
- *
- * Usage:
- *   node scripts/check-vendored-symbol-coverage.mts
- *   node scripts/check-vendored-symbol-coverage.mts --explain
- *   node scripts/check-vendored-symbol-coverage.mts --json
- *
- * Exit codes:
- *   0  — all binding symbols are covered by listed sources.
- *   1  — at least one symbol has no covering source.
- *   2  — usage / args error.
+ *   1. Bindings reference vendored symbols via header includes — those resolve at
+ *      compile time (so a missing include_dir surfaces as a clean error during
+ *      preprocessing).
+ *   2. The defining .c files only surface at LINK time, which is the LAST 5% of a
+ *      30-minute build. Catching it pre-build saves the 30 minutes. Vendored
+ *      libraries with auto-generated gypi (preferred form): yoga →
+ *      additions/source-patched/deps/yoga.gypi lsquic →
+ *      additions/source-patched/deps/lsquic.gypi ls-qpack →
+ *      additions/source-patched/deps/ls-qpack.gypi Vendored libraries with
+ *      inline gyp source lists (legacy form, in patch 004): qrcode
+ *      (libqrencode), markdown (md4c), tree-sitter. Algorithm:
+ *   3. Walk every `*_binding.cc` under the additions tree.
+ *   4. Extract `<prefix>_<symbol>(` patterns whose prefix matches a known
+ *      vendored-library prefix (YG, lsquic_, ts_, MD_, qrcode_, QR, lsqpack_).
+ *   5. For each unique symbol, search: a. All
+ *      `additions/source-patched/deps/<lib>.gypi` source manifests
+ *      (auto-generated). b. Patch 004's inline 'sources': lists. c. All .c/.cpp
+ *      files inside additions/source-patched/deps/ whose path appears in (a) or
+ *      (b).
+ *   6. Confirm each symbol has at least one source listed AND that source contains
+ *      a matching `<symbol>(` definition. Usage: node
+ *      scripts/check-vendored-symbol-coverage.mts node
+ *      scripts/check-vendored-symbol-coverage.mts --explain node
+ *      scripts/check-vendored-symbol-coverage.mts --json Exit codes: 0 — all
+ *      binding symbols are covered by listed sources. 1 — at least one symbol
+ *      has no covering source. 2 — usage / args error.
  */
 
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
@@ -120,7 +107,8 @@ const VENDOR_PREFIXES: readonly VendorPrefix[] = [
   },
   {
     name: 'libqrencode',
-    callRegex: /\b(QR(?:cmEval|cmTask|code|encode|input|spec)[A-Za-z0-9_]*)\s*\(/g,
+    callRegex:
+      /\b(QR(?:cmEval|cmTask|code|encode|input|spec)[A-Za-z0-9_]*)\s*\(/g,
   },
   {
     name: 'md4c',
@@ -195,7 +183,7 @@ function checkCoverage(): readonly Finding[] {
       findings.push({
         vendor,
         symbol,
-        bindings: [...new Set(bs.map(b => b.binding))].sort(),
+        bindings: [...new Set(bs.map(b => b.binding))].toSorted(),
         reason:
           gypiSources.length === 0
             ? `vendor "${vendor}" has no gypi manifest at additions/source-patched/deps/${vendor}.gypi and no patch-004 inline source defines ${symbol}()`
@@ -278,7 +266,7 @@ function parseArgs(): ParsedArgs {
       explain = true
     } else if (a === '--json') {
       json = true
-    } else if (a === '-h' || a === '--help') {
+    } else if (a === '--help' || a === '-h') {
       logger.log(
         'Usage: node scripts/check-vendored-symbol-coverage.mts [--explain] [--json]',
       )

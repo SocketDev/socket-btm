@@ -1,21 +1,19 @@
 /**
- * @fileoverview Integration tests for final binary extraction to ~/.socket/_dlx/
+ * @file Integration tests for final binary extraction to ~/.socket/_dlx/
+ *   Tests:
  *
- * Tests:
- * - Final binary decompression on first run
- * - Cache directory creation at ~/.socket/_dlx/<cache_key>/
- * - Cache hit detection on subsequent runs
- * - Metadata file generation and validation
- * - Cross-platform cache key calculation (SHA-512)
- *
- * Validates dlxBinary caching pattern compatibility:
- //github.com/SocketDev/socket-lib/blob/v5.0.0/src/dlx/cache.ts#L16
- * - generateCacheKey: https:
- //github.com/SocketDev/socket-lib/blob/v5.0.0/src/dlx/binary.ts#L49-L130
- * - DlxMetadata schema: https:
- *
- * Note: These tests require the final production binary at build/{dev,prod}/{platform-arch}/out/Final/node/.
- * Run with: pnpm build --dev or pnpm build --prod
+ *   - Final binary decompression on first run
+ *   - Cache directory creation at ~/.socket/_dlx/<cache_key>/
+ *   - Cache hit detection on subsequent runs
+ *   - Metadata file generation and validation
+ *   - Cross-platform cache key calculation (SHA-512) Validates dlxBinary caching
+ *     pattern compatibility:
+ *     //github.com/SocketDev/socket-lib/blob/v5.0.0/src/dlx/cache.ts#L16
+ *   - generateCacheKey: https:
+ *     //github.com/SocketDev/socket-lib/blob/v5.0.0/src/dlx/binary.ts#L49-L130
+ *   - DlxMetadata schema: https: Note: These tests require the final production
+ *     binary at build/{dev,prod}/{platform-arch}/out/Final/node/. Run with:
+ *     pnpm build --dev or pnpm build --prod
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

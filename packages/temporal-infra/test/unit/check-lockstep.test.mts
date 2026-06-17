@@ -1,16 +1,14 @@
 /**
- * @fileoverview Unit tests for check-lockstep's regex extractors.
- *
- * The audit's whole value is catching V8/upstream drift before
- * runtime. A regex bug could silently false-pass forever — these
- * tests pin the three patterns the audit depends on:
+ * @file Unit tests for check-lockstep's regex extractors.
+ *   The audit's whole value is catching V8/upstream drift before
+ *   runtime. A regex bug could silently false-pass forever — these
+ *   tests pin the three patterns the audit depends on:
  *
  *   1. V8 call-site extractor pulls `Class::method` out of a
  *      `temporal_rs::Class::method(` reference.
- *   2. Shim header parser finds declared methods, doesn't invent
- *      undeclared ones.
- *   3. Stub-pattern detection fires on live code, is filtered out
- *      on comment lines.
+ *   2. Shim header parser finds declared methods, doesn't invent undeclared ones.
+ *   3. Stub-pattern detection fires on live code, is filtered out on comment
+ *      lines.
  */
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -29,7 +27,9 @@ afterEach(() => {
   rmSync(fixtureRoot, { recursive: true, force: true })
 })
 
-/** Stage a synthetic shim header file with the given method names. */
+/**
+ * Stage a synthetic shim header file with the given method names.
+ */
 export function stageShimHeader(
   root: string,
   cls: string,
@@ -55,7 +55,9 @@ export function stageShimHeader(
   return file
 }
 
-/** Stage a synthetic V8 file with embedded temporal_rs call patterns. */
+/**
+ * Stage a synthetic V8 file with embedded temporal_rs call patterns.
+ */
 export function stageV8File(root: string, calls: string[]): string {
   const dir = path.join(
     root,

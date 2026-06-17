@@ -1,5 +1,5 @@
 /**
- * @fileoverview Tests for python-installer utilities.
+ * @file Tests for python-installer utilities.
  */
 
 import { describe, expect, it } from 'vitest'

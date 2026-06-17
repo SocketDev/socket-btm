@@ -1,24 +1,22 @@
 #!/usr/bin/env node
 // max-file-lines: legitimate -- orchestration script — top-down pipeline (gather → validate → report); splitting fractures the flow
 /**
- * @fileoverview Run Node.js test suite against node-smol binary
+ * @file Run Node.js test suite against node-smol binary
+ *   node-smol is built with these flags:
  *
- * node-smol is built with these flags:
- * - --with-intl=small-icu (limited ICU, English-only)
- * - --without-npm (no npm)
- * - --without-amaro (no TypeScript stripping)
- * - --without-node-options (no NODE_OPTIONS)
- * - --without-inspector (prod builds only, no debugger)
- * - --experimental-enable-pointer-compression (reduced memory usage)
- * - corepack not bundled in Node.js v25+ by default
+ *   - --with-intl=small-icu (limited ICU, English-only)
+ *   - --without-npm (no npm)
+ *   - --without-amaro (no TypeScript stripping)
+ *   - --without-node-options (no NODE_OPTIONS)
+ *   - --without-inspector (prod builds only, no debugger)
+ *   - --experimental-enable-pointer-compression (reduced memory usage)
+ *   - corepack not bundled in Node.js v25+ by default This script runs a curated
+ *     subset of Node.js tests that should work with the node-smol feature set.
+ *     Filtering Strategy:
  *
- * This script runs a curated subset of Node.js tests that should work
- * with the node-smol feature set.
- *
- * Filtering Strategy:
- * 1. Expand TEST_PATTERNS using glob to get candidate test files
- * 2. Filter out files matching SKIP_PATTERNS
- * 3. Pass filtered list to Node.js test.py
+ *   1. Expand TEST_PATTERNS using glob to get candidate test files
+ *   2. Filter out files matching SKIP_PATTERNS
+ *   3. Pass filtered list to Node.js test.py
  */
 
 import { existsSync, promises as fs } from 'node:fs'
@@ -34,9 +32,9 @@ import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 import { errorMessage } from 'build-infra/lib/error-utils'
 
 import {
-  UPSTREAM_PATH,
   getBuildPaths,
   getDefaultPlatformArch,
+  UPSTREAM_PATH,
 } from './paths.mts'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -65,6 +63,7 @@ const BUILD_MODE = values.prod || (!values.dev && IS_CI) ? 'prod' : 'dev'
  * 100% coverage of all Node.js functionality that node-smol supports.
  *
  * Included (complete coverage of node-smol features):
+ *
  * - Core JS: process, buffer, stream (1/2/3), timers, events, errors
  * - File system: all fs operations, File API, FileHandle, watch
  * - Crypto: crypto, webcrypto, hash algorithms, X509 certificates
@@ -77,7 +76,8 @@ const BUILD_MODE = values.prod || (!values.dev && IS_CI) ? 'prod' : 'dev'
  * - Compression: zlib (gzip, deflate, brotli)
  * - Database: SQLite (node:sqlite)
  * - System: OS utils, TTY, readline, signals, exit handling, stdio
- * - Stdlib: path, URL, URLPattern, querystring, punycode, util, string decoder, domain
+ * - Stdlib: path, URL, URLPattern, querystring, punycode, util, string decoder,
+ *   domain
  * - Dev: console, assert, diagnostics, trace events, test runner (node:test)
  * - Performance: measurement APIs
  * - Abort: AbortController/Signal
@@ -85,13 +85,15 @@ const BUILD_MODE = values.prod || (!values.dev && IS_CI) ? 'prod' : 'dev'
  * - Security: permission model
  * - SEA: Single Executable Application support
  * - Other: structuredClone, validators, unicode, warnings, reports, UV/libuv
- * - Test suites: parallel, sequential, es-module, message, async-hooks, module-hooks
+ * - Test suites: parallel, sequential, es-module, message, async-hooks,
+ *   module-hooks
  *
  * Excluded (disabled features in node-smol):
+ *
  * - Full ICU/Intl tests (we use small-icu, English-only)
- * - npm tests (disabled with --without-npm)
- * - corepack tests (not bundled in Node.js v25+)
- * - amaro/TypeScript tests (disabled with --without-amaro)
+ * - Npm tests (disabled with --without-npm)
+ * - Corepack tests (not bundled in Node.js v25+)
+ * - Amaro/TypeScript tests (disabled with --without-amaro)
  * - NODE_OPTIONS tests (disabled with --without-node-options)
  * - Inspector/debugger tests (disabled in prod with --without-inspector)
  * - REPL tests (may rely on disabled features)
@@ -367,8 +369,9 @@ const SKIP_PATTERNS = [
  * Compile skip patterns once for efficient reuse.
  * Pre-computes regex and stripped patterns to avoid repeated string operations.
  *
- * @param {string[]} skipPatterns - Raw skip patterns
- * @returns {Array<{regex: RegExp, stripped: string}>} Compiled patterns
+ * @param {string[]} skipPatterns - Raw skip patterns.
+ *
+ * @returns {{ regex: RegExp; stripped: string }[]} Compiled patterns
  */
 export function compileSkipPatterns(skipPatterns) {
   return skipPatterns.map(pattern => {
@@ -385,8 +388,9 @@ export function compileSkipPatterns(skipPatterns) {
 /**
  * Expand glob patterns into actual test file paths.
  *
- * @param {string} testDir - Node.js test directory
- * @param {string[]} patterns - Glob patterns to expand
+ * @param {string} testDir - Node.js test directory.
+ * @param {string[]} patterns - Glob patterns to expand.
+ *
  * @returns {Promise<string[]>} Array of absolute test file paths
  */
 export async function expandTestPatterns(testDir, patterns) {
@@ -441,8 +445,9 @@ export async function expandTestPatterns(testDir, patterns) {
 /**
  * Filter test files based on skip patterns.
  *
- * @param {string[]} testFiles - Array of test file paths
- * @param {string[]} skipPatterns - Patterns to skip
+ * @param {string[]} testFiles - Array of test file paths.
+ * @param {string[]} skipPatterns - Patterns to skip.
+ *
  * @returns {object} Filtered tests and statistics
  */
 export function filterTests(testFiles, skipPatterns) {
@@ -475,8 +480,10 @@ export function filterTests(testFiles, skipPatterns) {
 /**
  * Check if a test file path matches any skip pattern.
  *
- * @param {string} testPath - Absolute test file path
- * @param {Array<{regex: RegExp, stripped: string}>} compiledPatterns - Pre-compiled patterns
+ * @param {string} testPath - Absolute test file path.
+ * @param {{ regex: RegExp; stripped: string }[]} compiledPatterns -
+ *   Pre-compiled patterns.
+ *
  * @returns {boolean} True if should be skipped
  */
 export function shouldSkipTest(testPath, compiledPatterns) {

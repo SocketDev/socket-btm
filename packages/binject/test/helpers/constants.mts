@@ -1,7 +1,8 @@
 /**
- * Test constants for binject
+ * Test constants for binject.
  *
- * Re-exports shared constants from build-infra that match the limits defined in the C source code.
+ * Re-exports shared constants from build-infra that match the limits defined in
+ * the C source code.
  */
 
 export {

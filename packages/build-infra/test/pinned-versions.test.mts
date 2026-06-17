@@ -1,6 +1,6 @@
 /**
- * @fileoverview Tests for pinned-versions utility.
- * Validates version pinning and package specifier generation.
+ * @file Tests for pinned-versions utility.
+ *   Validates version pinning and package specifier generation.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -11,9 +11,6 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import {
-  PYTHON_PACKAGE_EXTRAS,
-  PYTHON_VERSIONS,
-  TOOL_VERSIONS,
   getPinnedPackage,
   getPinnedPackages,
   getToolConfig,
@@ -21,6 +18,9 @@ import {
   getToolVersion,
   loadAllTools,
   loadPythonVersions,
+  PYTHON_PACKAGE_EXTRAS,
+  PYTHON_VERSIONS,
+  TOOL_VERSIONS,
 } from '../lib/pinned-versions.mts'
 import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
 

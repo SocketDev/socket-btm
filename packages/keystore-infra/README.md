@@ -22,11 +22,11 @@ A small `extern "C"` interface (`keystore.h`) plus per-platform backends:
 
 ## Who compiles it
 
-| Consumer | Surface |
-| --- | --- |
-| `proteus-builder` | the proteus daemon (biometric broker with a warm TTL cache) |
+| Consumer            | Surface                                                                    |
+| ------------------- | -------------------------------------------------------------------------- |
+| `proteus-builder`   | the proteus daemon (biometric broker with a warm TTL cache)                |
 | `node-smol-builder` | the `node:smol-keychain` builtin (in-process keychain for the smol binary) |
-| a `.node` addon | `@socketaddon/proteus-keychain-*` for regular Node consumers |
+| a `.node` addon     | `@socketaddon/proteus-keychain-*` for regular Node consumers               |
 
 Consumers reference the source directly (`../keystore-infra/src/...` from a
 sibling Makefile, or via the node-smol `additions/source-patched` sync), exactly

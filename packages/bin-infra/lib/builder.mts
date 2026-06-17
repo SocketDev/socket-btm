@@ -1,9 +1,9 @@
 /**
- * bin-infra Builder
+ * Bin-infra Builder.
  *
  * Shared build infrastructure for binsuite tools (binpress, binflate, binject).
- * Provides common build logic including checkpoint management, platform detection,
- * Makefile selection, and smoke testing.
+ * Provides common build logic including checkpoint management, platform
+ * detection, Makefile selection, and smoke testing.
  */
 
 import { existsSync, promises as fs } from 'node:fs'
@@ -14,8 +14,8 @@ import { getFileSize } from 'build-infra/lib/build-helpers'
 import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import {
   BUILD_STAGES,
-  CHECKPOINTS,
   CHECKPOINT_CHAINS,
+  CHECKPOINTS,
   getBuildMode,
   getPlatformBuildDir,
 } from 'build-infra/lib/constants'
@@ -38,13 +38,19 @@ export { runCommand }
 /**
  * Build a C package with common infrastructure.
  *
- * @param {object} config - Build configuration
- * @param {string} config.packageName - Package name (e.g., 'binpress', 'binflate', 'binject')
- * @param {string} config.packageDir - Package root directory
- * @param {Function} [config.beforeBuild] - Optional async hook called before build
- * @param {Function} [config.smokeTest] - Optional async smoke test function (binaryPath) => Promise<void>
- * @param {boolean} [config.skipClean] - Skip cleaning stale build artifacts (default: false)
- * @param {boolean} [config.validateCheckpointWithBinary] - Validate checkpoint requires binary exists (default: false)
+ * @param {object} config - Build configuration.
+ * @param {string} config.packageName - Package name (e.g., 'binpress',
+ *   'binflate', 'binject')
+ * @param {string} config.packageDir - Package root directory.
+ * @param {Function} [config.beforeBuild] - Optional async hook called before
+ *   build.
+ * @param {Function} [config.smokeTest] - Optional async smoke test function
+ *   (binaryPath) => Promise<void>
+ * @param {boolean} [config.skipClean] - Skip cleaning stale build artifacts
+ *   (default: false)
+ * @param {boolean} [config.validateCheckpointWithBinary] - Validate checkpoint
+ *   requires binary exists (default: false)
+ *
  * @returns {Promise<void>}
  */
 export async function buildBinSuitePackage(config) {
@@ -231,8 +237,9 @@ export async function buildBinSuitePackage(config) {
 /**
  * Default smoke test that validates binary size and --version output.
  *
- * @param {string} binaryPath - Path to binary
- * @param {string} packageName - Package name to check in version output
+ * @param {string} binaryPath - Path to binary.
+ * @param {string} packageName - Package name to check in version output.
+ *
  * @returns {Promise<void>}
  */
 export async function defaultSmokeTest(binaryPath, packageName) {

@@ -1,6 +1,6 @@
 /**
- * @fileoverview Tests for onnxruntime-builder WASM output files.
- * Validates that the build process generates correct file structure and formats.
+ * @file Tests for onnxruntime-builder WASM output files. Validates that the
+ *   build process generates correct file structure and formats.
  */
 
 import { describe, expect, it } from 'vitest'

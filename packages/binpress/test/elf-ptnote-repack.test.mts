@@ -1,18 +1,18 @@
 /**
- * @fileoverview ELF PT_NOTE repacking validation tests
+ * @file ELF PT_NOTE repacking validation tests Tests ELF-specific PT_NOTE
+ *   segment replacement logic in smol_repack_lief_elf(). These tests validate
+ *   that:
  *
- * Tests ELF-specific PT_NOTE segment replacement logic in smol_repack_lief_elf().
- * These tests validate that:
- * 1. PT_NOTE segments are REPLACED (not appended) during repack
- * 2. PT_NOTE section names are correctly formatted (.note.PRESSED_DATA)
- * 3. ELF binary structure remains valid after repacking
- * 4. Edge cases are handled gracefully
+ *   1. PT_NOTE segments are REPLACED (not appended) during repack
+ *   2. PT_NOTE section names are correctly formatted (.note.PRESSED_DATA)
+ *   3. ELF binary structure remains valid after repacking
+ *   4. Edge cases are handled gracefully IMPORTANT: These tests only run on Linux
+ *      platforms where ELF is native. They explicitly validate the PT_NOTE
+ *      handling fixes in commits:
  *
- * IMPORTANT: These tests only run on Linux platforms where ELF is native.
- * They explicitly validate the PT_NOTE handling fixes in commits:
- * - 72e4f209: feat(binflate): add PT_NOTE search for ELF binaries
- * - 831c46e1: fix(binpress): use write() with config.notes=true
- * - 46736c6f: fix: correct ELF PT_NOTE section naming
+ *   - 72e4f209: feat(binflate): add PT_NOTE search for ELF binaries
+ *   - 831c46e1: fix(binpress): use write() with config.notes=true
+ *   - 46736c6f: fix: correct ELF PT_NOTE section naming
  */
 
 import crypto from 'node:crypto'
@@ -25,8 +25,8 @@ import { fileURLToPath } from 'node:url'
 
 import { makeExecutable } from 'build-infra/lib/build-helpers'
 import {
-  SMOL_PRESSED_DATA_MAGIC_MARKER,
   getBuildMode,
+  SMOL_PRESSED_DATA_MAGIC_MARKER,
 } from 'build-infra/lib/constants'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
@@ -57,8 +57,10 @@ const NODE_BINARY = process.execPath
 const PRESSED_DATA_MAGIC_MARKER = SMOL_PRESSED_DATA_MAGIC_MARKER
 
 /**
- * Count PT_NOTE segments in ELF binary
- * @param {Buffer} elfData - ELF binary data
+ * Count PT_NOTE segments in ELF binary.
+ *
+ * @param {Buffer} elfData - ELF binary data.
+ *
  * @returns {number} Number of PT_NOTE segments
  */
 export function countPTNoteSegments(elfData) {
@@ -83,8 +85,10 @@ export function countPTNoteSegments(elfData) {
 }
 
 /**
- * Find PT_NOTE segments with their content
- * @param {Buffer} elfData - ELF binary data
+ * Find PT_NOTE segments with their content.
+ *
+ * @param {Buffer} elfData - ELF binary data.
+ *
  * @returns {Array} Array of PT_NOTE segment info
  */
 export function findPTNoteSegments(elfData) {
@@ -123,9 +127,11 @@ export function findPTNoteSegments(elfData) {
 }
 
 /**
- * Search for magic marker in PT_NOTE segments
- * @param {Buffer} elfData - ELF binary data
- * @param {string} marker - Marker string to search for
+ * Search for magic marker in PT_NOTE segments.
+ *
+ * @param {Buffer} elfData - ELF binary data.
+ * @param {string} marker - Marker string to search for.
+ *
  * @returns {boolean} True if marker found
  */
 export function hasMarkerInPTNote(elfData, marker) {
@@ -143,8 +149,10 @@ export function hasMarkerInPTNote(elfData, marker) {
 }
 
 /**
- * Parse ELF header and return basic information
- * @param {Buffer} elfData - ELF binary data
+ * Parse ELF header and return basic information.
+ *
+ * @param {Buffer} elfData - ELF binary data.
+ *
  * @returns {Object} ELF header information
  */
 export function parseElfHeader(elfData) {

@@ -1,10 +1,8 @@
 /**
- * @fileoverview Tests for --build-sea flag behavior.
- *
- * The smol binary accepts --build-sea as a recognized flag (exits 0).
- * Actual SEA blob generation uses --experimental-sea-config (Node.js upstream).
- *
- * Note: Requires a built smol binary at build/{dev,prod}/{platform-arch}/out/Final/node/.
+ * @file Tests for --build-sea flag behavior. The smol binary accepts
+ *   --build-sea as a recognized flag (exits 0). Actual SEA blob generation uses
+ *   --experimental-sea-config (Node.js upstream). Note: Requires a built smol
+ *   binary at build/{dev,prod}/{platform-arch}/out/Final/node/.
  */
 
 import { describe, expect, it } from 'vitest'

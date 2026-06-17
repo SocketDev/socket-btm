@@ -60,26 +60,26 @@ If you're new to binary manipulation or Node.js customization, here are the key 
 
 ### Packages
 
-| Category            | Package                                                                | Purpose                                                           |
-| ------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| **Binary tools**    | [binject](packages/binject/)                                           | Binary injection (Mach-O, ELF, PE)                                |
-|                     | [binpress](packages/binpress/)                                         | Binary compression (zstd)                                         |
-|                     | [binflate](packages/binflate/)                                         | Binary decompression utility                                      |
-| **Infrastructure**  | [build-infra](packages/build-infra/)                                   | Shared build utilities (checkpoints, CMake, Rust, WASM)           |
-|                     | [bin-infra](packages/bin-infra/)                                       | Binary infrastructure (LIEF, compression, format handling)        |
-|                     | [stubs-builder](packages/stubs-builder/)                               | Self-extracting stub binaries for compressed executables          |
-|                     | [curl-builder](packages/curl-builder/)                                 | Curl static library builder                                       |
-|                     | [lief-builder](packages/lief-builder/)                                 | LIEF library builder                                              |
-|                     | [libpq-builder](packages/libpq-builder/)                               | libpq PostgreSQL client library with OpenSSL support              |
-| **Node.js**         | [node-smol-builder](packages/node-smol-builder/)                       | Custom Node.js v26 with Socket security patches                   |
-| **WASM builders**   | [onnxruntime-builder](packages/onnxruntime-builder/)                   | ONNX Runtime WASM module builder                                  |
-|                     | [yoga-layout-builder](packages/yoga-layout-builder/)                   | Yoga Layout WASM module builder                                   |
-| **UI libraries**    | [opentui-builder](packages/opentui-builder/)                           | Native Node.js bindings for OpenTUI library via Zig node-api      |
-|                     | [ultraviolet-builder](packages/ultraviolet-builder/)                   | Charmbracelet Ultraviolet terminal decoder (kitty/fixterms/SGR)   |
-| **N-API**           | [napi-go-infra](packages/napi-go-infra/)                               | Go → N-API framework (the napi-rs analog for Go)                  |
-| **ML models**       | [codet5-models-builder](packages/codet5-models-builder/)               | CodeT5 model quantization                                         |
-|                     | [minilm-builder](packages/minilm-builder/)                             | MiniLM model quantization                                         |
-|                     | [models](packages/models/)                                             | ML model distribution package                                     |
+| Category           | Package                                                  | Purpose                                                         |
+| ------------------ | -------------------------------------------------------- | --------------------------------------------------------------- |
+| **Binary tools**   | [binject](packages/binject/)                             | Binary injection (Mach-O, ELF, PE)                              |
+|                    | [binpress](packages/binpress/)                           | Binary compression (zstd)                                       |
+|                    | [binflate](packages/binflate/)                           | Binary decompression utility                                    |
+| **Infrastructure** | [build-infra](packages/build-infra/)                     | Shared build utilities (checkpoints, CMake, Rust, WASM)         |
+|                    | [bin-infra](packages/bin-infra/)                         | Binary infrastructure (LIEF, compression, format handling)      |
+|                    | [stubs-builder](packages/stubs-builder/)                 | Self-extracting stub binaries for compressed executables        |
+|                    | [curl-builder](packages/curl-builder/)                   | Curl static library builder                                     |
+|                    | [lief-builder](packages/lief-builder/)                   | LIEF library builder                                            |
+|                    | [libpq-builder](packages/libpq-builder/)                 | libpq PostgreSQL client library with OpenSSL support            |
+| **Node.js**        | [node-smol-builder](packages/node-smol-builder/)         | Custom Node.js v26 with Socket security patches                 |
+| **WASM builders**  | [onnxruntime-builder](packages/onnxruntime-builder/)     | ONNX Runtime WASM module builder                                |
+|                    | [yoga-layout-builder](packages/yoga-layout-builder/)     | Yoga Layout WASM module builder                                 |
+| **UI libraries**   | [opentui-builder](packages/opentui-builder/)             | Native Node.js bindings for OpenTUI library via Zig node-api    |
+|                    | [ultraviolet-builder](packages/ultraviolet-builder/)     | Charmbracelet Ultraviolet terminal decoder (kitty/fixterms/SGR) |
+| **N-API**          | [napi-go-infra](packages/napi-go-infra/)                 | Go → N-API framework (the napi-rs analog for Go)                |
+| **ML models**      | [codet5-models-builder](packages/codet5-models-builder/) | CodeT5 model quantization                                       |
+|                    | [minilm-builder](packages/minilm-builder/)               | MiniLM model quantization                                       |
+|                    | [models](packages/models/)                               | ML model distribution package                                   |
 
 ## Development
 

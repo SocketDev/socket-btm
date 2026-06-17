@@ -1,7 +1,8 @@
 /**
- * Versions Tests for node:smol-versions
+ * Versions Tests for node:smol-versions.
  *
  * Test cases derived from npm semver behavior (gold standard):
+ *
  * @see https://www.npmjs.com/package/semver
  * @see https://semver.org/
  *

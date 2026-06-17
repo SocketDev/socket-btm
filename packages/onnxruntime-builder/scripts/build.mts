@@ -21,10 +21,10 @@ import { runPipelineCli } from 'build-infra/lib/build-pipeline'
 import { generateSync as generateSyncShared } from 'build-infra/wasm-synced/generate-sync-phase'
 
 import {
-  PACKAGE_ROOT,
   getBuildOutputPaths,
   getBuildPaths,
   getSharedBuildPaths,
+  PACKAGE_ROOT,
 } from './paths.mts'
 import { finalizeWasm } from './finalized/shared/finalize-wasm.mts'
 import { cloneOnnxSource } from './source-cloned/shared/clone-source.mts'

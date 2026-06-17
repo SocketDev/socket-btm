@@ -16,8 +16,8 @@ import { fileURLToPath } from 'node:url'
 import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import {
   BUILD_STAGES,
-  CHECKPOINTS,
   CHECKPOINT_CHAINS,
+  CHECKPOINTS,
   getBuildMode,
   getPlatformBuildDir,
   validateCheckpointChain,
@@ -104,7 +104,9 @@ export async function buildStubFromSource(platformArch) {
  *
  * @param {object} [options] - Download options.
  * @param {string} [options.platformArch] - Override platform-arch.
- * @returns {Promise<string|null>} Path to downloaded stub directory, or null on failure.
+ *
+ * @returns {Promise<string | null>} Path to downloaded stub directory, or null
+ *   on failure.
  */
 export async function downloadPrebuiltStub(options = {}) {
   const { platformArch } = options
@@ -207,9 +209,8 @@ export async function downloadPrebuiltStub(options = {}) {
   } catch (e) {
     logger.info(`Failed to download prebuilt stub: ${errorMessage(e)}`)
     try {
-      const { logTransientErrorHelp } = await import(
-        'build-infra/lib/github-error-utils'
-      )
+      const { logTransientErrorHelp } =
+        await import('build-infra/lib/github-error-utils')
       await logTransientErrorHelp(e)
     } catch {
       // Hint module failed to load — original error already logged.
@@ -224,7 +225,9 @@ export async function downloadPrebuiltStub(options = {}) {
  *
  * @param {object} [options] - Options.
  * @param {boolean} [options.force] - Force rebuild even if stub exists.
- * @param {string} [options.platformArch] - Override platform-arch for downloads.
+ * @param {string} [options.platformArch] - Override platform-arch for
+ *   downloads.
+ *
  * @returns {Promise<string>} Path to stub binary.
  */
 export async function ensureStubs(options = {}) {
@@ -317,6 +320,7 @@ export async function ensureStubs(options = {}) {
 
 /**
  * Get checkpoint chain for CI workflows.
+ *
  * @returns {string[]} Checkpoint chain in reverse dependency order
  */
 export function getCheckpointChain() {
@@ -328,6 +332,7 @@ export function getCheckpointChain() {
 /**
  * Get current platform-arch for stubs.
  * Respects TARGET_ARCH environment variable for cross-compilation.
+ *
  * @returns {Promise<string>} Platform-arch identifier.
  */
 export async function getCurrentStubPlatformArch() {
@@ -341,6 +346,7 @@ export async function getCurrentStubPlatformArch() {
 
 /**
  * Get Makefile name for the current platform.
+ *
  * @returns {string} Makefile name
  */
 export function getMakefileName() {
@@ -359,6 +365,7 @@ export function getMakefileName() {
 
 /**
  * Get stub binary name for the current platform.
+ *
  * @returns {string} Stub binary name
  */
 export function getStubBinaryName() {
@@ -369,7 +376,9 @@ export function getStubBinaryName() {
  * Get stub output directory path for a given platform.
  * Uses platform-specific build directory for isolation.
  *
- * @param {string} platformArch - Platform-arch identifier (e.g., 'linux-x64', 'darwin-arm64').
+ * @param {string} platformArch - Platform-arch identifier (e.g., 'linux-x64',
+ *   'darwin-arm64').
+ *
  * @returns {string} Path to stub output directory.
  */
 export function getStubOutDir(platformArch) {
@@ -381,6 +390,7 @@ export function getStubOutDir(platformArch) {
  * Get stub binary path for a given platform.
  *
  * @param {string} platformArch - Platform-arch identifier.
+ *
  * @returns {string} Path to stub binary.
  */
 export function getStubPath(platformArch) {
@@ -391,6 +401,7 @@ export function getStubPath(platformArch) {
  * Check if stub binary exists for a given platform.
  *
  * @param {string} platformArch - Platform-arch identifier.
+ *
  * @returns {boolean} True if stub binary exists.
  */
 export function stubExists(platformArch) {
@@ -401,6 +412,7 @@ export function stubExists(platformArch) {
  * Check if stub binary exists at a given directory.
  *
  * @param {string} dir - Directory to check.
+ *
  * @returns {boolean} True if stub binary exists.
  */
 export function stubExistsAt(dir) {
@@ -496,9 +508,8 @@ async function main() {
     logger.info('')
     logger.fail(`Stub build failed: ${errorMessage(e)}`)
     try {
-      const { logTransientErrorHelp } = await import(
-        'build-infra/lib/github-error-utils'
-      )
+      const { logTransientErrorHelp } =
+        await import('build-infra/lib/github-error-utils')
       await logTransientErrorHelp(e)
     } catch {
       // Hint module failed to load — original error already logged.

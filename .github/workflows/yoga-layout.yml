@@ -110,7 +110,6 @@ jobs:
         with:
           package-name: yoga-layout
 
-
       - name: Generate Yoga cache key
         id: cache-key
         env:
@@ -427,7 +426,7 @@ jobs:
           name: yoga-layout-wasm
           path: ${{ steps.paths.outputs.final_dir }}/
           retention-days: 30
-          compression-level: 0  # Already-compressed binary artifact
+          compression-level: 0 # Already-compressed binary artifact
           if-no-files-found: error
 
       - name: Cleanup before cache save

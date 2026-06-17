@@ -1,6 +1,6 @@
 // max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
 /**
- * Shared helpers for loading tool versions from external-tools.json
+ * Shared helpers for loading tool versions from external-tools.json.
  *
  * This ensures consistent version loading across all packages.
  * All functions throw descriptive errors instead of defaulting to 'latest'
@@ -16,10 +16,12 @@ import { NODE_VERSION_FILE, PACKAGE_ROOT } from './constants.mts'
 import { errorMessage } from './error-utils.mts'
 
 /**
- * Load and parse external-tools.json synchronously
+ * Load and parse external-tools.json synchronously.
  *
- * @param {string} packageRoot - Absolute path to package root
+ * @param {string} packageRoot - Absolute path to package root.
+ *
  * @returns {object} Parsed external-tools.json
+ *
  * @throws {Error} If file doesn't exist or is malformed
  */
 export function loadExternalToolsSync(packageRoot: string) {
@@ -48,10 +50,12 @@ export function loadExternalToolsSync(packageRoot: string) {
 }
 
 /**
- * Load and parse external-tools.json
+ * Load and parse external-tools.json.
  *
- * @param {string} packageRoot - Absolute path to package root
+ * @param {string} packageRoot - Absolute path to package root.
+ *
  * @returns {Promise<object>} Parsed external-tools.json
+ *
  * @throws {Error} If file doesn't exist or is malformed
  */
 // oxlint-disable-next-line socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers.
@@ -81,14 +85,17 @@ export async function loadExternalTools(packageRoot: string) {
 }
 
 /**
- * Load Emscripten version from external-tools.json
+ * Load Emscripten version from external-tools.json.
  *
- * @param {string} packageRoot - Absolute path to package root
- * @returns {Promise<string>} Emscripten emsdk version (e.g., '4.0.20')
- * @throws {Error} If version not found or external-tools.json missing
  * @example
- * const version = await getEmscriptenVersion(PACKAGE_ROOT)
- * // Returns: '4.0.20'
+ *   const version = await getEmscriptenVersion(PACKAGE_ROOT)
+ *   // Returns: '4.0.20'
+ *
+ * @param {string} packageRoot - Absolute path to package root.
+ *
+ * @returns {Promise<string>} Emscripten emsdk version (e.g., '4.0.20')
+ *
+ * @throws {Error} If version not found or external-tools.json missing
  */
 // oxlint-disable-next-line socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers.
 export async function getEmscriptenVersion(
@@ -120,11 +127,13 @@ let nodeVersion: string | undefined
  * Load Node.js version from .node-version file at monorepo root.
  * Result is memoized for performance.
  *
- * @returns {string} Node.js version (e.g., '24.12.0')
- * @throws {Error} If .node-version file not found or empty
  * @example
- * const version = getNodeVersion()
- * // Returns: '24.12.0'
+ *   const version = getNodeVersion()
+ *   // Returns: '24.12.0'
+ *
+ * @returns {string} Node.js version (e.g., '24.12.0')
+ *
+ * @throws {Error} If .node-version file not found or empty
  */
 // oxlint-disable-next-line socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers.
 export function getNodeVersion(): string {
@@ -157,11 +166,13 @@ let minPythonVersion: string | undefined
  * Load minimum Python version from build-infra/external-tools.json.
  * Result is memoized for performance.
  *
- * @returns {string} Minimum Python version (e.g., '3.6')
- * @throws {Error} If version not found or external-tools.json missing
  * @example
- * const minVersion = getMinPythonVersion()
- * // Returns: '3.6'
+ *   const minVersion = getMinPythonVersion()
+ *   // Returns: '3.6'
+ *
+ * @returns {string} Minimum Python version (e.g., '3.6')
+ *
+ * @throws {Error} If version not found or external-tools.json missing
  */
 // oxlint-disable-next-line socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers.
 export function getMinPythonVersion(): string {
@@ -190,14 +201,17 @@ export function getMinPythonVersion(): string {
 }
 
 /**
- * Load CMake version from external-tools.json
+ * Load CMake version from external-tools.json.
  *
- * @param {string} packageRoot - Absolute path to package root
- * @returns {Promise<string>} CMake version (e.g., '3.28.1')
- * @throws {Error} If version not found or external-tools.json missing
  * @example
- * const version = await getCMakeVersion(PACKAGE_ROOT)
- * // Returns: '3.28.1'
+ *   const version = await getCMakeVersion(PACKAGE_ROOT)
+ *   // Returns: '3.28.1'
+ *
+ * @param {string} packageRoot - Absolute path to package root.
+ *
+ * @returns {Promise<string>} CMake version (e.g., '3.28.1')
+ *
+ * @throws {Error} If version not found or external-tools.json missing
  */
 // oxlint-disable-next-line socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers.
 export async function getCMakeVersion(packageRoot: string): Promise<string> {
@@ -223,15 +237,18 @@ export async function getCMakeVersion(packageRoot: string): Promise<string> {
 }
 
 /**
- * Generic tool version loader from external-tools.json
+ * Generic tool version loader from external-tools.json.
  *
- * @param {string} packageRoot - Absolute path to package root
- * @param {string} toolName - Tool name (e.g., 'emscripten', 'cmake', 'python')
- * @returns {Promise<string>} Tool version
- * @throws {Error} If version not found or external-tools.json missing
  * @example
- * const version = await getToolVersion(PACKAGE_ROOT, 'emscripten')
- * // Returns: '4.0.20'
+ *   const version = await getToolVersion(PACKAGE_ROOT, 'emscripten')
+ *   // Returns: '4.0.20'
+ *
+ * @param {string} packageRoot - Absolute path to package root.
+ * @param {string} toolName - Tool name (e.g., 'emscripten', 'cmake', 'python')
+ *
+ * @returns {Promise<string>} Tool version
+ *
+ * @throws {Error} If version not found or external-tools.json missing
  */
 // oxlint-disable-next-line socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers.
 export async function getToolVersion(
@@ -263,16 +280,24 @@ export async function getToolVersion(
 /**
  * Extract submodule version from .gitmodules version comment.
  *
- * Parses version comments in the format `# package-X.Y.Z` above submodule entries.
- * Expects consistent format: `# <package>-<version>` (version may be semver or other formats)
+ * Parses version comments in the format `# package-X.Y.Z` above submodule
+ * entries. Expects consistent format: `# <package>-<version>` (version may be
+ * semver or other formats)
  *
- * @param {string} submodulePath - Submodule path (e.g., "packages/lief-builder/upstream/lief")
- * @param {string} packageName - Package name (e.g., "lief")
- * @returns {string} Version string (e.g., "0.17.0")
- * @throws {Error} If version comment not found or malformed
  * @example
- * const version = getSubmoduleVersion('packages/lief-builder/upstream/lief', 'lief')
- * // Returns: '0.17.0'
+ *   const version = getSubmoduleVersion(
+ *     'packages/lief-builder/upstream/lief',
+ *     'lief',
+ *   )
+ *   // Returns: '0.17.0'
+ *
+ * @param {string} submodulePath - Submodule path (e.g.,
+ *   "packages/lief-builder/upstream/lief")
+ * @param {string} packageName - Package name (e.g., "lief")
+ *
+ * @returns {string} Version string (e.g., "0.17.0")
+ *
+ * @throws {Error} If version comment not found or malformed
  */
 // oxlint-disable-next-line socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers.
 export function getSubmoduleVersion(
@@ -344,15 +369,23 @@ export function getSubmoduleVersion(
 /**
  * Extract submodule checksum from .gitmodules version comment.
  *
- * Parses checksum annotations in the format `# package-X.Y.Z sha256:<hex>` above submodule entries.
- * Returns undefined if no checksum is present (checksum is optional).
+ * Parses checksum annotations in the format `# package-X.Y.Z sha256:<hex>`
+ * above submodule entries. Returns undefined if no checksum is present
+ * (checksum is optional).
  *
- * @param {string} submodulePath - Submodule path (e.g., "packages/node-smol-builder/upstream/node")
- * @param {string} packageName - Package name (e.g., "node")
- * @returns {{ algorithm: string, hash: string } | undefined} Checksum object or undefined
  * @example
- * const checksum = getSubmoduleChecksum('packages/node-smol-builder/upstream/node', 'node')
- * // Returns: { algorithm: 'sha256', hash: '10335f268f...' }
+ *   const checksum = getSubmoduleChecksum(
+ *     'packages/node-smol-builder/upstream/node',
+ *     'node',
+ *   )
+ *   // Returns: { algorithm: 'sha256', hash: '10335f268f...' }
+ *
+ * @param {string} submodulePath - Submodule path (e.g.,
+ *   "packages/node-smol-builder/upstream/node")
+ * @param {string} packageName - Package name (e.g., "node")
+ *
+ * @returns {{ algorithm: string; hash: string } | undefined} Checksum object or
+ *   undefined.
  */
 // oxlint-disable-next-line socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers.
 export function getSubmoduleChecksum(
@@ -410,15 +443,19 @@ export function getSubmoduleChecksum(
  * the checksum for `node-vX.Y.Z.tar.gz`. Used by the update-node skill to
  * store the checksum in .gitmodules during version updates.
  *
+ * @example
+ *   const result = await fetchNodeChecksum('1.2.3')
+ *   if ('hash' in result) {
+ *     // Write to .gitmodules: # node-1.2.3 sha256:<result.hash>
+ *   }
+ *
  * @param {string} version - Node.js version without 'v' prefix (e.g., '1.2.3')
  * @param {object} [options]
- * @param {number} [options.timeout=10_000] - Fetch timeout in milliseconds
- * @returns {Promise<{ hash: string, version: string } | { error: string, version: string }>}
- * @example
- * const result = await fetchNodeChecksum('1.2.3')
- * if ('hash' in result) {
- *   // Write to .gitmodules: # node-1.2.3 sha256:<result.hash>
- * }
+ * @param {number} [options.timeout=10_000] - Fetch timeout in milliseconds.
+ *
+ * @returns {Promise<
+ *   { hash: string; version: string } | { error: string; version: string }
+ * >}
  */
 // oxlint-disable-next-line socket/sort-source-methods -- helpers are co-located with their loader and consumer triplets; autofix bails on the const-table interleaving and alphabetizing would scatter related helpers.
 export async function fetchNodeChecksum(
@@ -427,6 +464,7 @@ export async function fetchNodeChecksum(
 ): Promise<
   { hash: string; version: string } | { error: string; version: string }
 > {
+  options = { __proto__: null, ...options } as typeof options
   const versionTag = `v${version}`
   const timeout = options?.timeout ?? 10_000
   const url = `https://nodejs.org/dist/${versionTag}/SHASUMS256.txt`
@@ -473,13 +511,25 @@ export async function fetchNodeChecksum(
  * it against the checksum stored in .gitmodules. This ensures the submodule
  * points to an authentic Node.js release.
  *
- * @param {object} [options]
- * @param {string} [options.version] - Node.js version to verify (default: from .node-version)
- * @param {number} [options.timeout=10_000] - Fetch timeout in milliseconds
- * @returns {Promise<{ valid: boolean, expected?: string, actual?: string, version: string, error?: string }>}
  * @example
- * const result = await verifyNodeChecksum()
- * if (!result.valid) throw new Error(`Checksum mismatch: ${result.expected} !== ${result.actual}`)
+ *   const result = await verifyNodeChecksum()
+ *   if (!result.valid)
+ *     throw new Error(
+ *       `Checksum mismatch: ${result.expected} !== ${result.actual}`,
+ *     )
+ *
+ * @param {object} [options]
+ * @param {string} [options.version] - Node.js version to verify (default: from
+ *   .node-version)
+ * @param {number} [options.timeout=10_000] - Fetch timeout in milliseconds.
+ *
+ * @returns {Promise<{
+ *   valid: boolean
+ *   expected?: string
+ *   actual?: string
+ *   version: string
+ *   error?: string
+ * }>}
  */
 export async function verifyNodeChecksum(options?: {
   version?: string | undefined
@@ -491,6 +541,7 @@ export async function verifyNodeChecksum(options?: {
   version: string
   error?: string | undefined
 }> {
+  options = { __proto__: null, ...options } as typeof options
   type VerifyResult = {
     valid: boolean
     expected?: string | undefined

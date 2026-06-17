@@ -1,5 +1,5 @@
 /**
- * @fileoverview Tests for model-build-helpers utilities (pure helpers).
+ * @file Tests for model-build-helpers utilities (pure helpers).
  */
 
 import { describe, expect, it } from 'vitest'

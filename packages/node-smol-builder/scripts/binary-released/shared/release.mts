@@ -2,18 +2,16 @@
 // max-file-lines: legitimate -- orchestration script — top-down pipeline (gather → validate → report); splitting fractures the flow
 
 /**
- * @fileoverview Deploy built smol binaries to GitHub Releases
+ * @file Deploy built smol binaries to GitHub Releases This script packages the
+ *   final binaries from build/${BUILD_MODE}/<platform-arch>/out/Final/ and
+ *   creates a GitHub release with platform-specific archives for download by
+ *   socket-cli. Release Strategy:
  *
- * This script packages the final binaries from build/${BUILD_MODE}/<platform-arch>/out/Final/ and creates
- * a GitHub release with platform-specific archives for download by socket-cli.
- *
- * Release Strategy:
  *   - Version: Generated from date and git SHA (e.g., 20251121-abc1234)
  *   - Tag: node-smol-{YYYYMMDD}-{sha} (e.g., node-smol-20251121-abc1234)
  *   - Assets: One per platform/arch combo
- *   - Format: tar.gz/zip with SMOL_SPEC embedded
- *
- * Release Assets (aligned with Node.js official naming):
+ *   - Format: tar.gz/zip with SMOL_SPEC embedded Release Assets (aligned with
+ *     Node.js official naming):
  *   - node-smol-{YYYYMMDD}-{sha}-darwin-arm64.tar.gz
  *   - node-smol-{YYYYMMDD}-{sha}-darwin-x64.tar.gz
  *   - node-smol-{YYYYMMDD}-{sha}-linux-arm64.tar.gz
@@ -21,18 +19,18 @@
  *   - node-smol-{YYYYMMDD}-{sha}-linux-arm64-musl.tar.gz
  *   - node-smol-{YYYYMMDD}-{sha}-linux-x64-musl.tar.gz
  *   - node-smol-{YYYYMMDD}-{sha}-win-arm64.zip
- *   - node-smol-{YYYYMMDD}-{sha}-win-x64.zip
- *
- * Usage (no root `pnpm release` script exists — invoke directly):
- *   node packages/node-smol-builder/scripts/binary-released/shared/release.mts            # Draft release from cached binaries
- *   node packages/node-smol-builder/scripts/binary-released/shared/release.mts --publish  # Create and publish release
- *   node packages/node-smol-builder/scripts/binary-released/shared/release.mts --force    # Overwrite existing release
- *
- * In CI this is driven by .github/workflows/node-smol.yml; direct invocation
- * above is for local debugging only.
- *
- * Prerequisites:
- *   - Built binaries in build/${BUILD_MODE}/<platform-arch>/out/Final/node/ (or build/${BUILD_MODE}/<platform-arch>/cache/node-*)
+ *   - node-smol-{YYYYMMDD}-{sha}-win-x64.zip Usage (no root `pnpm release` script
+ *     exists — invoke directly): node
+ *     packages/node-smol-builder/scripts/binary-released/shared/release.mts #
+ *     Draft release from cached binaries node
+ *     packages/node-smol-builder/scripts/binary-released/shared/release.mts
+ *     --publish # Create and publish release node
+ *     packages/node-smol-builder/scripts/binary-released/shared/release.mts
+ *     --force # Overwrite existing release In CI this is driven by
+ *     .github/workflows/node-smol.yml; direct invocation above is for local
+ *     debugging only. Prerequisites:
+ *   - Built binaries in build/${BUILD_MODE}/<platform-arch>/out/Final/node/ (or
+ *     build/${BUILD_MODE}/<platform-arch>/cache/node-*)
  *   - GITHUB_TOKEN environment variable with repo access
  */
 
@@ -69,7 +67,7 @@ const REPO = 'socket-btm'
 /**
  * Generate version string from date and git SHA.
  * Format: {YYYYMMDD}-{short-git-sha}
- * Example: 20251119-f245c0f
+ * Example: 20251119-f245c0f.
  */
 export async function generateVersion() {
   const now = new Date()
@@ -106,12 +104,10 @@ const VERSION = await generateVersion()
 const TAG = `${PACKAGE_NAME}-${VERSION}`
 
 /**
- * Platform configurations for release assets.
- * Internal platform names match Node.js os.platform(), transformed for archives.
- * Archive naming aligned with Node.js official releases:
- *   node-v{VERSION}-{PLATFORM}-{ARCH}.{EXT}
- *   node-v{VERSION}-linux-{ARCH}-musl.{EXT}
- *   node-v{VERSION}-win-{ARCH}.{EXT}
+ * Platform configurations for release assets. Internal platform names match
+ * Node.js os.platform(), transformed for archives. Archive naming aligned with
+ * Node.js official releases: node-v{VERSION}-{PLATFORM}-{ARCH}.{EXT}
+ * node-v{VERSION}-linux-{ARCH}-musl.{EXT} node-v{VERSION}-win-{ARCH}.{EXT}
  */
 const PLATFORMS = [
   { arch: 'arm64', ext: 'tar.gz', platform: 'darwin' },
@@ -125,10 +121,9 @@ const PLATFORMS = [
 ]
 
 /**
- * Transform platform name for archive naming to match Node.js official convention.
- * - win32 → win
- * - linux + musl libc + arch → linux-{arch}-musl
- * - others → unchanged
+ * Transform platform name for archive naming to match Node.js official
+ * convention. - win32 → win - linux + musl libc + arch → linux-{arch}-musl -
+ * others → unchanged.
  */
 export function getArchivePlatform(platform, arch, libc) {
   if (platform === 'win32') {
@@ -182,8 +177,11 @@ export async function calculateChecksum(filePath) {
  * Find binary for a given platform/arch/libc combination.
  *
  * Looks in:
- * 1. build/${BUILD_MODE}/<platform-arch>/out/Final/node/ (if building for current platform)
- * 2. build/${BUILD_MODE}/<platform-arch>/cache/node-{platform}-{arch} (from cached builds)
+ *
+ * 1. Build/${BUILD_MODE}/<platform-arch>/out/Final/node/ (if building for current
+ *    platform)
+ * 2. Build/${BUILD_MODE}/<platform-arch>/cache/node-{platform}-{arch} (from cached
+ *    builds)
  */
 // oxlint-disable-next-line socket/sort-source-methods -- release script ordered as a top-down pipeline (gather artifacts → checksum → assemble notes → upload → publish); alphabetizing would scatter the flow.
 export async function findBinary(platform, arch, libc) {
@@ -225,7 +223,8 @@ export async function findBinary(platform, arch, libc) {
  * Embed SMOL_SPEC marker in binary.
  *
  * Format: SMOL_SPEC:@socketbin/{packageName}-{version}-{archivePlatform}\n
- * Where archivePlatform matches Node.js official convention (e.g., win, linux-x64-musl).
+ * Where archivePlatform matches Node.js official convention (e.g., win,
+ * linux-x64-musl).
  *
  * This enables deterministic cache keys when the binary is used.
  */

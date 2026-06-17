@@ -18,7 +18,9 @@ const logger = getDefaultLogger()
  * Checks if cJSON upstream exists and initializes it if needed.
  *
  * @param {object} options - Initialization options.
- * @param {string} options.packageDir - Package directory path (binject package).
+ * @param {string} options.packageDir - Package directory path (binject
+ *   package).
+ *
  * @returns {Promise<void>}
  */
 export async function ensureCjson({ packageDir }) {

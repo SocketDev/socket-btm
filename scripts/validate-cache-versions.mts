@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * Cache Version Cascade Validator
+ * Cache Version Cascade Validator.
  *
- * Validates that cache versions are bumped correctly when source packages change.
- * This enforces the cascade dependencies documented in CLAUDE.md.
+ * Validates that cache versions are bumped correctly when source packages
+ * change. This enforces the cascade dependencies documented in CLAUDE.md.
  *
  * Run in CI to ensure developers don't forget to bump dependent cache versions.
  */

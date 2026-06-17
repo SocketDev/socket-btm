@@ -1,6 +1,6 @@
 /**
- * @fileoverview Preflight checks runner for build scripts.
- * Provides a DRY way to run common pre-build validation checks.
+ * @file Preflight checks runner for build scripts.
+ *   Provides a DRY way to run common pre-build validation checks.
  */
 
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
@@ -18,16 +18,19 @@ const logger = getDefaultLogger()
 /**
  * Run preflight checks for build scripts.
  *
- * @param {object} options - Check options
- * @param {boolean} [options.disk=true] - Check disk space
- * @param {number} [options.diskGB=5] - Required disk space in GB
- * @param {boolean} [options.compiler=false] - Check for C++ compiler
- * @param {string|string[]} [options.compilers] - Specific compiler(s) to check
- * @param {boolean} [options.python=false] - Check Python version
- * @param {string} [options.pythonVersion] - Minimum Python version (defaults to external-tools.json minimumVersion)
- * @param {boolean} [options.quiet=false] - Suppress output
- * @param {boolean} [options.failFast=true] - Exit on first failure
- * @returns {Promise<{passed: boolean, failures: string[]}>}
+ * @param {object} options - Check options.
+ * @param {boolean} [options.disk=true] - Check disk space.
+ * @param {number} [options.diskGB=5] - Required disk space in GB.
+ * @param {boolean} [options.compiler=false] - Check for C++ compiler.
+ * @param {string | string[]} [options.compilers] - Specific compiler(s) to
+ *   check.
+ * @param {boolean} [options.python=false] - Check Python version.
+ * @param {string} [options.pythonVersion] - Minimum Python version (defaults to
+ *   external-tools.json minimumVersion)
+ * @param {boolean} [options.quiet=false] - Suppress output.
+ * @param {boolean} [options.failFast=true] - Exit on first failure.
+ *
+ * @returns {Promise<{ passed: boolean; failures: string[] }>}
  */
 export async function runPreflightChecks(options = {}) {
   const {
@@ -117,7 +120,8 @@ export async function runPreflightChecks(options = {}) {
 /**
  * Run preflight checks and exit on failure.
  *
- * @param {object} options - Check options
+ * @param {object} options - Check options.
+ *
  * @returns {Promise<void>}
  */
 export async function runPreflightChecksOrExit(options = {}) {

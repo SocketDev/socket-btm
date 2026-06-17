@@ -22,13 +22,14 @@ const TARGET_ARCH = process.env.TARGET_ARCH || process.arch
 /**
  * Convert model to ONNX if needed.
  *
- * @param {Object} options - The options object
- * @param {string} options.modelKey - The model key (e.g., 'minilm-l6', 'codet5')
- * @param {Object} options.modelSources - The model sources configuration
- * @param {string} options.buildDir - The build directory path
- * @param {string} options.packageName - The package name
- * @param {string} options.modelsDir - The models directory path
- * @param {boolean} options.forceRebuild - Whether to force rebuild
+ * @param {Object} options - The options object.
+ * @param {string} options.modelKey - The model key (e.g., 'minilm-l6',
+ *   'codet5')
+ * @param {Object} options.modelSources - The model sources configuration.
+ * @param {string} options.buildDir - The build directory path.
+ * @param {string} options.packageName - The package name.
+ * @param {string} options.modelsDir - The models directory path.
+ * @param {boolean} options.forceRebuild - Whether to force rebuild.
  */
 export async function convertToOnnx(options) {
   const {
@@ -38,7 +39,7 @@ export async function convertToOnnx(options) {
     modelSources,
     modelsDir,
     packageName,
-  } = options
+  } = { __proto__: null, ...options } as typeof options
 
   if (
     !(await shouldRun(

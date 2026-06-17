@@ -1,6 +1,6 @@
 /**
  * Helper for downloading Node.js binaries for cross-platform testing
- * Downloads node-smol binaries or falls back to official Node.js releases
+ * Downloads node-smol binaries or falls back to official Node.js releases.
  */
 
 import { existsSync, promises as fs, readFileSync } from 'node:fs'
@@ -24,7 +24,7 @@ const CACHE_DIR = getDownloadedDir(PROJECT_ROOT)
 
 /**
  * Read Node.js version from .node-version file
- * Falls back to a default if not found
+ * Falls back to a default if not found.
  */
 export function getNodeVersion() {
   const nodeVersionPath = path.join(PROJECT_ROOT, '..', '..', '.node-version')
@@ -41,7 +41,7 @@ const NODE_VERSION = getNodeVersion()
 
 /**
  * Get platform/arch configuration for binary downloads
- * Uses lazy evaluation to ensure NODE_VERSION is resolved
+ * Uses lazy evaluation to ensure NODE_VERSION is resolved.
  */
 // oxlint-disable-next-line socket/sort-source-methods -- helpers ordered by download pipeline (resolve URL → fetch → extract → cache → return path); alphabetizing would scatter the flow.
 export function getBinaryConfig(platform, arch) {
@@ -85,7 +85,7 @@ export function getBinaryConfig(platform, arch) {
 }
 
 /**
- * Get all supported platform/arch keys
+ * Get all supported platform/arch keys.
  */
 const SUPPORTED_PLATFORMS = [
   'linux-x64',
@@ -96,8 +96,10 @@ const SUPPORTED_PLATFORMS = [
 ]
 
 /**
- * Download a binary from a URL
- * @param {string} url - URL to download from
+ * Download a binary from a URL.
+ *
+ * @param {string} url - URL to download from.
+ *
  * @returns {Promise<Buffer>} Binary data
  */
 // oxlint-disable-next-line socket/sort-source-methods -- helpers ordered by download pipeline (resolve URL → fetch → extract → cache → return path); alphabetizing would scatter the flow.
@@ -112,9 +114,11 @@ export async function downloadBinary(url) {
 }
 
 /**
- * Extract binary from tar.gz
- * @param {Buffer} tarGzData - Tar.gz archive data
- * @param {string} extractPath - Path within archive to extract
+ * Extract binary from tar.gz.
+ *
+ * @param {Buffer} tarGzData - Tar.gz archive data.
+ * @param {string} extractPath - Path within archive to extract.
+ *
  * @returns {Promise<Buffer>} Extracted binary data
  */
 // oxlint-disable-next-line socket/sort-source-methods -- helpers ordered by download pipeline (resolve URL → fetch → extract → cache → return path); alphabetizing would scatter the flow.
@@ -143,9 +147,11 @@ export async function extractFromTarGz(tarGzData, extractPath) {
 }
 
 /**
- * Extract binary from zip
- * @param {Buffer} zipData - Zip archive data
- * @param {string} extractPath - Path within archive to extract
+ * Extract binary from zip.
+ *
+ * @param {Buffer} zipData - Zip archive data.
+ * @param {string} extractPath - Path within archive to extract.
+ *
  * @returns {Promise<Buffer>} Extracted binary data
  */
 // oxlint-disable-next-line socket/sort-source-methods -- helpers ordered by download pipeline (resolve URL → fetch → extract → cache → return path); alphabetizing would scatter the flow.
@@ -160,11 +166,13 @@ export async function extractFromZip(zipData, extractPath) {
 
 /**
  * Get a Node.js binary for a specific platform/arch
- * Downloads from node-smol if available, falls back to official Node.js
+ * Downloads from node-smol if available, falls back to official Node.js.
  *
  * @param {string} platform - Platform (linux, darwin, win32)
  * @param {string} arch - Architecture (x64, arm64)
- * @returns {Promise<{path: string, format: string, version: string}>} Path to cached binary, its format, and version
+ *
+ * @returns {Promise<{ path: string; format: string; version: string }>} Path to
+ *   cached binary, its format, and version.
  */
 // oxlint-disable-next-line socket/sort-source-methods -- helpers ordered by download pipeline (resolve URL → fetch → extract → cache → return path); alphabetizing would scatter the flow.
 export async function getNodeBinary(platform, arch) {
@@ -241,8 +249,9 @@ export async function getNodeBinary(platform, arch) {
 }
 
 /**
- * Get all supported platform/arch combinations
- * @returns {Array<{platform: string, arch: string, format: string}>}
+ * Get all supported platform/arch combinations.
+ *
+ * @returns {{ platform: string; arch: string; format: string }[]}
  */
 export function getSupportedPlatforms() {
   return SUPPORTED_PLATFORMS.map(key => {
@@ -253,6 +262,6 @@ export function getSupportedPlatforms() {
 }
 
 /**
- * Export the NODE_VERSION for tests that need it
+ * Export the NODE_VERSION for tests that need it.
  */
 export { NODE_VERSION }

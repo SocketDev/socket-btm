@@ -19,20 +19,26 @@ const logger = getDefaultLogger()
 /**
  * Generate synchronous wrapper for WASM.
  *
- * @param {object} options - Sync generation options
- * @param {string} options.buildDir - Build directory
+ * @param {object} options - Sync generation options.
+ * @param {string} options.buildDir - Build directory.
  * @param {string} options.buildMode - Build mode ('prod' or 'dev')
- * @param {string} options.outputReleaseDir - Release output directory
- * @param {string} options.outputOptimizedDir - Optimized output directory
- * @param {string} options.outputSyncDir - Sync output directory
+ * @param {string} options.outputReleaseDir - Release output directory.
+ * @param {string} options.outputOptimizedDir - Optimized output directory.
+ * @param {string} options.outputSyncDir - Sync output directory.
  * @param {boolean} options.forceRebuild - Force rebuild (ignore checkpoints)
- * @param {object} options.packageConfig - Package-specific configuration
- * @param {string} options.packageConfig.packageName - Package name (e.g., 'yoga-layout', 'onnxruntime')
- * @param {string} options.packageConfig.exportName - Export name (e.g., 'yoga', 'ort')
- * @param {string} options.packageConfig.initFunctionName - Init function name (e.g., 'Module', 'ortWasmThreaded')
- * @param {string} options.packageConfig.description - Build description for wrapper
- * @param {number|function} options.packageConfig.expectedExports - Expected export count (number or function of buildMode)
- * @param {string} options.packageConfig.fileBaseName - Base file name (defaults to exportName)
+ * @param {object} options.packageConfig - Package-specific configuration.
+ * @param {string} options.packageConfig.packageName - Package name (e.g.,
+ *   'yoga-layout', 'onnxruntime')
+ * @param {string} options.packageConfig.exportName - Export name (e.g., 'yoga',
+ *   'ort')
+ * @param {string} options.packageConfig.initFunctionName - Init function name
+ *   (e.g., 'Module', 'ortWasmThreaded')
+ * @param {string} options.packageConfig.description - Build description for
+ *   wrapper.
+ * @param {number | function} options.packageConfig.expectedExports - Expected
+ *   export count (number or function of buildMode)
+ * @param {string} options.packageConfig.fileBaseName - Base file name (defaults
+ *   to exportName)
  */
 export async function generateSync(options) {
   const {
@@ -42,7 +48,7 @@ export async function generateSync(options) {
     outputReleaseDir,
     outputSyncDir,
     packageConfig,
-  } = options
+  } = { __proto__: null, ...options } as typeof options
 
   logger.log(
     'Creating CommonJS synchronous wrapper from ESM async WASM module…',

@@ -1,26 +1,21 @@
 #!/usr/bin/env node
 /**
- * @fileoverview Smoke-test each lib/ensure-X.mts public-API helper.
+ * @file Smoke-test each lib/ensure-X.mts public-API helper.
+ *   For every builder package that ships a lib/ensure-X.mts, verifies:
  *
- * For every builder package that ships a lib/ensure-X.mts, verifies:
- *   - The module imports without crashing (catches eager-loaded
- *     transitive deps that have ESM/CJS interop issues).
+ *   - The module imports without crashing (catches eager-loaded transitive deps
+ *     that have ESM/CJS interop issues).
  *   - Each expected export is present.
  *   - `getCurrentXPlatformArch()` returns a non-empty string.
  *   - `getXLocalBuildDir(arch)` returns a path containing the builder name.
  *   - `xExists()` returns a boolean (no throw).
- *   - `verifyXAt(packageRoot)` returns `{ valid, missing }` with
- *     missing-files list when no build artifacts are present.
- *
- * Does NOT call `ensureX()` itself — that would attempt a network
- * download. The factory's catch-around-import is exercised by the
- * lazy-load of logTransientErrorHelp, not the smoke-test path.
- *
- * Exit code: 0 on all pass, 1 on any failure.
- *
- * Usage:
- *   node scripts/smoke-test-ensures.mts
- *   node scripts/smoke-test-ensures.mts --json
+ *   - `verifyXAt(packageRoot)` returns `{ valid, missing }` with missing-files
+ *     list when no build artifacts are present. Does NOT call `ensureX()`
+ *     itself — that would attempt a network download. The factory's
+ *     catch-around-import is exercised by the lazy-load of
+ *     logTransientErrorHelp, not the smoke-test path. Exit code: 0 on all pass,
+ *     1 on any failure. Usage: node scripts/smoke-test-ensures.mts node
+ *     scripts/smoke-test-ensures.mts --json
  */
 
 import path from 'node:path'
@@ -175,7 +170,9 @@ export async function smokeTest(spec: EnsureSpec): Promise<CheckResult> {
     mod = (await import(fullPath)) as Record<string, unknown>
   } catch (e) {
     return {
-      errors: [`module import failed: ${e instanceof Error ? e.message : String(e)}`],
+      errors: [
+        `module import failed: ${e instanceof Error ? e.message : String(e)}`,
+      ],
       ok: false,
       spec,
     }
@@ -203,14 +200,19 @@ export async function smokeTest(spec: EnsureSpec): Promise<CheckResult> {
       errors.push(`${spec.getCurrent}() returned ${JSON.stringify(arch)}`)
     }
     const dir = (mod[spec.getLocalBuildDir] as (a: string) => string)(arch)
-    if (typeof dir !== 'string' || !dir.includes(spec.builderPath.split('/').pop()!)) {
+    if (
+      typeof dir !== 'string' ||
+      !dir.includes(spec.builderPath.split('/').pop()!)
+    ) {
       errors.push(
         `${spec.getLocalBuildDir}() returned ${JSON.stringify(dir)} (expected path under ${spec.builderPath})`,
       )
     }
     const exists = (mod[spec.exists] as () => boolean)()
     if (typeof exists !== 'boolean') {
-      errors.push(`${spec.exists}() returned ${typeof exists}, expected boolean`)
+      errors.push(
+        `${spec.exists}() returned ${typeof exists}, expected boolean`,
+      )
     }
     const builderRoot = path.join(repoRoot, spec.builderPath)
     const verify = (
@@ -222,9 +224,7 @@ export async function smokeTest(spec: EnsureSpec): Promise<CheckResult> {
       )
     }
   } catch (e) {
-    errors.push(
-      `runtime error: ${e instanceof Error ? e.message : String(e)}`,
-    )
+    errors.push(`runtime error: ${e instanceof Error ? e.message : String(e)}`)
   }
   return { errors, ok: errors.length === 0, spec }
 }

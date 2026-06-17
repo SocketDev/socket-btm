@@ -9,7 +9,8 @@ import { generateSync as generateSyncShared } from 'build-infra/wasm-synced/gene
 /**
  * Generate synchronous wrapper for ONNX Runtime WASM.
  *
- * @param {object} options - Sync generation options (see generate-sync-phase.mts)
+ * @param {object} options - Sync generation options (see
+ *   generate-sync-phase.mts)
  */
 export async function generateSync(options) {
   return generateSyncShared({

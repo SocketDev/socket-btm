@@ -1,25 +1,19 @@
 #!/usr/bin/env node
 /**
- * @fileoverview Test linux-x64 Docker build integration.
+ * @file Test linux-x64 Docker build integration.
+ *   This script:
  *
- * This script:
- * 1. Builds node-smol, binject, binpress, and stubs in Docker (linux-x64)
- * 2. Runs integration tests to verify:
- *    - node-smol extraction to ~/.socket/_dlx/<hash>/node
- *    - Basic execution (--version, --eval)
- *    - SEA creation with binject
- *    - Repacking without errors
+ *   1. Builds node-smol, binject, binpress, and stubs in Docker (linux-x64)
+ *   2. Runs integration tests to verify:
  *
- * Usage:
- *   node scripts/test-linux-x64-docker.mts [options]
- *
- * Options:
- *   --glibc     Use glibc Dockerfile (default)
- *   --musl      Use musl Dockerfile
- *   --dev       Build in dev mode (default)
- *   --prod      Build in prod mode
- *   --depot     Use depot for faster builds (default if available)
- *   --docker    Use docker buildx (slower but always available)
+ *   - node-smol extraction to ~/.socket/_dlx/<hash>/node
+ *   - Basic execution (--version, --eval)
+ *   - SEA creation with binject
+ *   - Repacking without errors Usage: node scripts/test-linux-x64-docker.mts
+ *     [options] Options: --glibc Use glibc Dockerfile (default) --musl Use musl
+ *     Dockerfile --dev Build in dev mode (default) --prod Build in prod mode
+ *     --depot Use depot for faster builds (default if available) --docker Use
+ *     docker buildx (slower but always available)
  */
 
 import { errorMessage } from 'build-infra/lib/error-utils'

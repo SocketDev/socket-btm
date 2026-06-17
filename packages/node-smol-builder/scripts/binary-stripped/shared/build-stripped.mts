@@ -1,16 +1,15 @@
 #!/usr/bin/env node
 
 /**
- * @fileoverview Stripped Binary Build Phase
+ * @file Stripped Binary Build Phase
+ *   This script handles the "Stripped" build phase:
  *
- * This script handles the "Stripped" build phase:
- * 1. Copy Release binary to Stripped directory
- * 2. Strip debug symbols (platform-specific)
- * 3. Re-sign binary if needed (macOS ARM64)
- * 4. Smoke test stripped binary
- * 5. Create stripped checkpoint
- *
- * This phase depends on the Release phase checkpoint.
+ *   1. Copy Release binary to Stripped directory
+ *   2. Strip debug symbols (platform-specific)
+ *   3. Re-sign binary if needed (macOS ARM64)
+ *   4. Smoke test stripped binary
+ *   5. Create stripped checkpoint This phase depends on the Release phase
+ *      checkpoint.
  */
 
 import { existsSync, promises as fs } from 'node:fs'
@@ -38,21 +37,21 @@ const logger = getDefaultLogger()
 /**
  * Build stripped binary phase.
  *
- * @param {object} config - Build configuration
- * @param {string} config.buildDir - Build directory
- * @param {string} config.packageName - Package name
- * @param {string} config.outputReleaseDir - Release directory
- * @param {string} config.outputReleaseBinary - Release binary path
- * @param {string} config.outputStrippedDir - Stripped directory
- * @param {string} config.outputStrippedBinary - Stripped binary path
+ * @param {object} config - Build configuration.
+ * @param {string} config.buildDir - Build directory.
+ * @param {string} config.packageName - Package name.
+ * @param {string} config.outputReleaseDir - Release directory.
+ * @param {string} config.outputReleaseBinary - Release binary path.
+ * @param {string} config.outputStrippedDir - Stripped directory.
+ * @param {string} config.outputStrippedBinary - Stripped binary path.
  * @param {string} config.outDir - Source out directory (to clean)
  * @param {string} config.platform - Target platform (darwin, linux, win32)
  * @param {string} config.arch - Target architecture (arm64, x64)
  * @param {string} config.binaryName - Binary name (node or node.exe)
- * @param {boolean} config.isCrossCompiling - Whether cross-compiling
- * @param {string[]} config.buildSourcePaths - Source paths for cache key
- * @param {object} [buildOptions] - Optional build options
- * @param {boolean} [buildOptions.skipCheckpoint] - Skip checkpoint creation
+ * @param {boolean} config.isCrossCompiling - Whether cross-compiling.
+ * @param {string[]} config.buildSourcePaths - Source paths for cache key.
+ * @param {object} [buildOptions] - Optional build options.
+ * @param {boolean} [buildOptions.skipCheckpoint] - Skip checkpoint creation.
  */
 export async function buildStripped(config, buildOptions = {}) {
   const { skipCheckpoint = false } = buildOptions

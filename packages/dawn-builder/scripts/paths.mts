@@ -5,7 +5,7 @@
  * Other dawn-builder scripts (build, clean, future test/check
  * scripts) import these instead of constructing paths themselves.
  *
- * node-smol-builder reads `BUILD_ROOT` + `UPSTREAM_DAWN_DIR` via the
+ * Node-smol-builder reads `BUILD_ROOT` + `UPSTREAM_DAWN_DIR` via the
  * workspace import `dawn-builder/scripts/paths` to find the prebuilt
  * libwebgpu_dawn.a + headers at link time.
  */
@@ -37,10 +37,10 @@ export const UPSTREAM_DAWN_DIR = path.join(PACKAGE_ROOT, 'upstream', 'dawn')
  * Per-mode (`dev` | `prod`) + per-platform-arch build paths.
  *
  * Output layout:
- *   build/<mode>/<platform-arch>/cmake/      — cmake configure output
- *   build/<mode>/<platform-arch>/out/
- *     lib/libwebgpu_dawn.a                   — static library
- *     include/                               — headers (dawn/, tint/, etc.)
+ * build/<mode>/<platform-arch>/cmake/      — cmake configure output
+ * build/<mode>/<platform-arch>/out/
+ * lib/libwebgpu_dawn.a                   — static library
+ * include/                               — headers (dawn/, tint/, etc.)
  */
 export function getBuildPaths(
   mode: 'dev' | 'prod',

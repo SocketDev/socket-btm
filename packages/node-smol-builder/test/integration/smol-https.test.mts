@@ -1,14 +1,12 @@
 /**
- * @fileoverview Verify-build tests for node:smol-https.
+ * @file Verify-build tests for node:smol-https. Locks the public API surface
+ *   from additions/source-patched/lib/smol-https.js:
  *
- * Locks the public API surface from additions/source-patched/lib/smol-https.js:
  *   - `serve(options)`: requires TLS opts, throws TypeError otherwise
- *   - `default.serve` alias
- *
- * Asserts the explicit error semantics encoded in the JS shim — calling
- * `serve({})` (no TLS) must throw TypeError with the documented message.
- *
- * Skips entirely if the Final/ binary doesn't have smol-https wired in.
+ *   - `default.serve` alias Asserts the explicit error semantics encoded in the
+ *     JS shim — calling `serve({})` (no TLS) must throw TypeError with the
+ *     documented message. Skips entirely if the Final/ binary doesn't have
+ *     smol-https wired in.
  */
 
 import { describe, expect, it, test } from 'vitest'

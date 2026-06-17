@@ -4,12 +4,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   BufferView,
   CursorState,
+  encodeText,
+  native,
   RGBA,
   TextAttributes,
   WidthMethod,
   WrapMode,
-  encodeText,
-  native,
 } from '../lib/index.mts'
 
 // ── Module Loading ──

@@ -9,18 +9,18 @@ import process from 'node:process'
  * a miss-or-stale. Single export so both sites read from one source.
  *
  * Includes:
- *   - Compiler / linker flag envs (CFLAGS, CXXFLAGS, LDFLAGS): affect
- *     the produced binary directly.
- *   - Compiler / toolchain selectors (CC, CXX, AR, RANLIB): switching
- *     CC=clang → CC=gcc produces a different binary; the cache must
- *     reflect this.
- *   - SDK / target selectors (SDKROOT, MACOSX_DEPLOYMENT_TARGET,
- *     DEVELOPER_DIR): macOS toolchain root, deployment target.
- *   - pkg-config / linker search (PKG_CONFIG_PATH, LD_LIBRARY_PATH):
- *     change which libraries the build picks up.
- *   - Runtime knobs that change build observers (NODE_OPTIONS,
- *     UV_THREADPOOL_SIZE, V8_OPTIONS, MAKEFLAGS): can affect
- *     deterministic-build output and parallelism choices.
+ *
+ * - Compiler / linker flag envs (CFLAGS, CXXFLAGS, LDFLAGS): affect the produced
+ *   binary directly.
+ * - Compiler / toolchain selectors (CC, CXX, AR, RANLIB): switching CC=clang →
+ *   CC=gcc produces a different binary; the cache must reflect this.
+ * - SDK / target selectors (SDKROOT, MACOSX_DEPLOYMENT_TARGET, DEVELOPER_DIR):
+ *   macOS toolchain root, deployment target.
+ * - Pkg-config / linker search (PKG_CONFIG_PATH, LD_LIBRARY_PATH): change which
+ *   libraries the build picks up.
+ * - Runtime knobs that change build observers (NODE_OPTIONS, UV_THREADPOOL_SIZE,
+ *   V8_OPTIONS, MAKEFLAGS): can affect deterministic-build output and
+ *   parallelism choices.
  *
  * Keep this list sorted by category, not alphabetically — readers can
  * scan it faster when related vars cluster.

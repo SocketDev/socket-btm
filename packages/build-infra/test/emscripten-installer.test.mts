@@ -1,5 +1,5 @@
 /**
- * @fileoverview Tests for emscripten-installer utilities.
+ * @file Tests for emscripten-installer utilities.
  */
 
 import { describe, expect, it } from 'vitest'

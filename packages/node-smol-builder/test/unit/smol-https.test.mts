@@ -1,9 +1,8 @@
 /**
- * @fileoverview Unit tests for node:smol-https (system Node baseline).
- *
- * On system Node, `node:smol-https` is NOT a builtin. The integration
- * suite asserts the inverse on the built smol binary plus the explicit
- * TLS-required error semantics encoded in the JS shim.
+ * @file Unit tests for node:smol-https (system Node baseline).
+ *   On system Node, `node:smol-https` is NOT a builtin. The integration
+ *   suite asserts the inverse on the built smol binary plus the explicit
+ *   TLS-required error semantics encoded in the JS shim.
  */
 
 import { describe, expect, it } from 'vitest'

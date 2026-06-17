@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Test script for binpress C package
- * Wraps the Makefile test target for pnpm integration
+ * Wraps the Makefile test target for pnpm integration.
  */
 
 import path from 'node:path'

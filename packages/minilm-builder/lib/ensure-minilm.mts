@@ -19,7 +19,7 @@ import { getAssetPlatformArch } from 'build-infra/lib/platform-mappings'
 import { detectLibc } from '@socketsecurity/lib-stable/releases/socket-btm'
 
 import { MINILM_REQUIRED_FILES } from './required-files.mts'
-import { PACKAGE_ROOT, getBuildPaths } from '../scripts/paths.mts'
+import { getBuildPaths, PACKAGE_ROOT } from '../scripts/paths.mts'
 
 // Sync libc detection + sync platform-arch resolution.
 export function getCurrentMinilmPlatformArch(): string {

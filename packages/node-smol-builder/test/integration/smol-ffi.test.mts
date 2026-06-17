@@ -1,21 +1,18 @@
 /**
- * @fileoverview Verify-build tests for node:smol-ffi.
- *
- * Locks the public API surface documented in
- * additions/source-patched/lib/smol-ffi.js: 34 named exports + the
- * `default` export aliased to `open`. Each export is asserted by name
- * and `typeof`. Drift in either direction (added/removed/renamed)
- * fails the suite.
- *
- * In addition to the surface-shape check, this suite exercises the
- * canonical wins (dlopen cache, structured FFIError.code, read.batch,
- * read namespace, lib.list(), dlopen.find, extended types) end-to-end
- * on the smol binary. Library-loading subtests are gated on
- * macOS-specific paths (libSystem.B.dylib); other platforms get the
- * surface-shape coverage only.
- *
- * Skips entirely if the Final/ binary doesn't have the smol_ffi
- * binding wired in.
+ * @file Verify-build tests for node:smol-ffi.
+ *   Locks the public API surface documented in
+ *   additions/source-patched/lib/smol-ffi.js: 34 named exports + the
+ *   `default` export aliased to `open`. Each export is asserted by name
+ *   and `typeof`. Drift in either direction (added/removed/renamed)
+ *   fails the suite.
+ *   In addition to the surface-shape check, this suite exercises the
+ *   canonical wins (dlopen cache, structured FFIError.code, read.batch,
+ *   read namespace, lib.list(), dlopen.find, extended types) end-to-end
+ *   on the smol binary. Library-loading subtests are gated on
+ *   macOS-specific paths (libSystem.B.dylib); other platforms get the
+ *   surface-shape coverage only.
+ *   Skips entirely if the Final/ binary doesn't have the smol_ffi
+ *   binding wired in.
  */
 
 import { describe, expect, it } from 'vitest'

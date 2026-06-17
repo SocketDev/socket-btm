@@ -34,7 +34,7 @@ const IS_MACOS = process.platform === 'darwin'
 /**
  * Check build environment.
  *
- * @param {string} buildDir - Build directory path
+ * @param {string} buildDir - Build directory path.
  */
 export async function checkBuildEnvironment(buildDir) {
   logger.step('Build Environment Checks')
@@ -186,9 +186,9 @@ export async function checkBuildEnvironment(buildDir) {
 /**
  * Check for required build tools.
  *
- * @param {object} options - Check options
- * @param {boolean} options.autoYes - Auto-confirm installations
- * @param {string} options.arch - Target architecture
+ * @param {object} options - Check options.
+ * @param {boolean} options.autoYes - Auto-confirm installations.
+ * @param {string} options.arch - Target architecture.
  */
 export async function checkRequiredTools({ arch, autoYes }) {
   logger.step('Pre-flight Checks')

@@ -19,31 +19,38 @@ import { cleanCheckpoint } from './checkpoint-manager.mts'
 /**
  * Clean build artifacts for a builder package.
  *
- * @param {string} packageName - Display name for logging (e.g., 'onnxruntime-builder')
- * @param {object} options - Configuration options
- * @param {string} options.packageDir - Absolute path to package root (default: caller's parent dir)
- * @param {string[]} options.cleanDirs - Directories to delete relative to packageDir (default: ['build'])
- * @param {string[]} options.checkpointModes - Modes to clean checkpoints for (default: ['prod', 'dev'])
- * @param {string} options.buildDir - Build directory name for checkpoints (default: 'build')
- * @param {object} options.logger - Custom logger instance (default: getDefaultLogger())
+ * @example
+ *   // Basic usage (cleans build/ and checkpoints for prod/dev)
+ *   await cleanBuilder('onnxruntime-builder')
+ *
+ * @example
+ *   // Custom directories
+ *   await cleanBuilder('models', {
+ *     cleanDirs: ['build', 'dist'],
+ *     packageDir: path.join(__dirname, '..'),
+ *   })
+ *
+ * @example
+ *   // No checkpoint cleaning
+ *   await cleanBuilder('node-smol-builder', {
+ *     checkpointModes: [],
+ *   })
+ *
+ * @param {string} packageName - Display name for logging (e.g.,
+ *   'onnxruntime-builder')
+ * @param {object} options - Configuration options.
+ * @param {string} options.packageDir - Absolute path to package root (default:
+ *   caller's parent dir)
+ * @param {string[]} options.cleanDirs - Directories to delete relative to
+ *   packageDir (default: ['build'])
+ * @param {string[]} options.checkpointModes - Modes to clean checkpoints for
+ *   (default: ['prod', 'dev'])
+ * @param {string} options.buildDir - Build directory name for checkpoints
+ *   (default: 'build')
+ * @param {object} options.logger - Custom logger instance (default:
+ *   getDefaultLogger())
+ *
  * @returns {Promise<void>}
- *
- * @example
- * // Basic usage (cleans build/ and checkpoints for prod/dev)
- * await cleanBuilder('onnxruntime-builder')
- *
- * @example
- * // Custom directories
- * await cleanBuilder('models', {
- *   cleanDirs: ['build', 'dist'],
- *   packageDir: path.join(__dirname, '..')
- * })
- *
- * @example
- * // No checkpoint cleaning
- * await cleanBuilder('node-smol-builder', {
- *   checkpointModes: []
- * })
  */
 export async function cleanBuilder(packageName, options = {}) {
   const logger = options.logger || getDefaultLogger()

@@ -5,9 +5,9 @@
  * Per fleet rule "1 path, 1 reference" — build-step-defs.mts is the
  * canonical source. If this test fails, run:
  *
- *   pnpm --filter boringssl-builder run emit-docker-build
+ * Pnpm --filter boringssl-builder run emit-docker-build.
  *
- * to regenerate docker/build.sh, then commit the regenerated file.
+ * To regenerate docker/build.sh, then commit the regenerated file.
  */
 
 import { readFileSync } from 'node:fs'

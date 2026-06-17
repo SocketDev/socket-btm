@@ -1,13 +1,11 @@
 /**
- * @fileoverview Unit tests for the WPT streams classifier.
- *
- * The classifier decides whether each per-file TestResult contains
- * (a) failures that match the allowlist (expected), (b) failures that
- * don't (unexpected regression), or (c) no failures at all. Get this
- * wrong and the runner either silently masks regressions or false-fails.
- * Cover every transition.
- *
- * Pure logic only — no spawning, no submodule walk, no I/O.
+ * @file Unit tests for the WPT streams classifier.
+ *   The classifier decides whether each per-file TestResult contains
+ *   (a) failures that match the allowlist (expected), (b) failures that
+ *   don't (unexpected regression), or (c) no failures at all. Get this
+ *   wrong and the runner either silently masks regressions or false-fails.
+ *   Cover every transition.
+ *   Pure logic only — no spawning, no submodule walk, no I/O.
  */
 
 import { describe, expect, it } from 'vitest'
@@ -18,7 +16,9 @@ import {
 } from '../scripts/wpt-streams/classifier.mts'
 import type { TestResult } from '../scripts/wpt-streams/types.mts'
 
-/** Build a TestResult with sane defaults; override only fields under test. */
+/**
+ * Build a TestResult with sane defaults; override only fields under test.
+ */
 export function makeResult(overrides: Partial<TestResult>): TestResult {
   return {
     errors: [],
@@ -87,7 +87,9 @@ describe('classifyResult', () => {
       failed: 2,
       total: 2,
     })
-    const allowlist = new Map([[result.file, 'runner error - file-level failure']])
+    const allowlist = new Map([
+      [result.file, 'runner error - file-level failure'],
+    ])
     const { allExpected, matchedExpected, unexpected } = classifyResult(
       result,
       allowlist,
@@ -160,9 +162,7 @@ describe('classifyResult', () => {
       failed: 1,
       total: 1,
     })
-    const allowlist = new Map([
-      ['other-file.any.js:some test', 'unrelated'],
-    ])
+    const allowlist = new Map([['other-file.any.js:some test', 'unrelated']])
     const { allExpected, unexpected, matchedExpected } = classifyResult(
       result,
       allowlist,

@@ -22,20 +22,27 @@ const TARGET_ARCH = process.env.TARGET_ARCH || process.arch
 // Helper Python scripts live at <package>/python/*.py — three levels up
 // from this file (scripts/downloaded/shared/). Resolving via import.meta.url
 // keeps the path correct regardless of cwd.
-const PACKAGE_ROOT = path.resolve(fileURLToPath(import.meta.url), '..', '..', '..', '..')
+const PACKAGE_ROOT = path.resolve(
+  fileURLToPath(import.meta.url),
+  '..',
+  '..',
+  '..',
+  '..',
+)
 
 const logger = getDefaultLogger()
 
 /**
  * Download model from Hugging Face.
  *
- * @param {Object} options - The options object
- * @param {string} options.modelKey - The model key (e.g., 'minilm-l6', 'codet5')
- * @param {Object} options.modelSources - The model sources configuration
- * @param {string} options.buildDir - The build directory path
- * @param {string} options.packageName - The package name
- * @param {string} options.modelsDir - The models directory path
- * @param {boolean} options.forceRebuild - Whether to force rebuild
+ * @param {Object} options - The options object.
+ * @param {string} options.modelKey - The model key (e.g., 'minilm-l6',
+ *   'codet5')
+ * @param {Object} options.modelSources - The model sources configuration.
+ * @param {string} options.buildDir - The build directory path.
+ * @param {string} options.packageName - The package name.
+ * @param {string} options.modelsDir - The models directory path.
+ * @param {boolean} options.forceRebuild - Whether to force rebuild.
  */
 export async function downloadModel(options) {
   const {
@@ -45,7 +52,7 @@ export async function downloadModel(options) {
     modelSources,
     modelsDir,
     packageName,
-  } = options
+  } = { __proto__: null, ...options } as typeof options
 
   if (
     !(await shouldRun(

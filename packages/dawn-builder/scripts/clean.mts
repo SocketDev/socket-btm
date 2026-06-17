@@ -3,7 +3,7 @@
  * Clean dawn-builder's build output.
  *
  * Removes everything under build/ but leaves upstream/ (submodule)
- * + scripts/ + lib/ + node_modules/ alone.
+ * \+ scripts/ + lib/ + node_modules/ alone.
  */
 
 import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'

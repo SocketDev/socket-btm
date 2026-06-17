@@ -1,5 +1,5 @@
 /**
- * Yoga Layout Enums
+ * Yoga Layout Enums.
  *
  * GENERATED from upstream yoga/YGEnums.h @ yoga v3.2.1 by
  * scripts/source-cloned/shared/generate-enums.mts — do not edit by hand.
@@ -55,8 +55,8 @@ export const Edge = {
 export const Errata = {
   AbsolutePercentAgainstInnerSize: 4,
   AbsolutePositionWithoutInsetsExcludesPadding: 2,
-  All: 2147483647,
-  Classic: 2147483646,
+  All: 2_147_483_647,
+  Classic: 2_147_483_646,
   None: 0,
   StretchFlexBasis: 1,
 }
@@ -162,8 +162,10 @@ const constants = {
   EDGE_START: Edge.Start,
   EDGE_TOP: Edge.Top,
   EDGE_VERTICAL: Edge.Vertical,
-  ERRATA_ABSOLUTE_PERCENT_AGAINST_INNER_SIZE: Errata.AbsolutePercentAgainstInnerSize,
-  ERRATA_ABSOLUTE_POSITION_WITHOUT_INSETS_EXCLUDES_PADDING: Errata.AbsolutePositionWithoutInsetsExcludesPadding,
+  ERRATA_ABSOLUTE_PERCENT_AGAINST_INNER_SIZE:
+    Errata.AbsolutePercentAgainstInnerSize,
+  ERRATA_ABSOLUTE_POSITION_WITHOUT_INSETS_EXCLUDES_PADDING:
+    Errata.AbsolutePositionWithoutInsetsExcludesPadding,
   ERRATA_ALL: Errata.All,
   ERRATA_CLASSIC: Errata.Classic,
   ERRATA_NONE: Errata.None,

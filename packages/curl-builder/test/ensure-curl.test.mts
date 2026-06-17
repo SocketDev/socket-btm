@@ -1,5 +1,5 @@
 /**
- * @fileoverview Tests for curl-builder library exports.
+ * @file Tests for curl-builder library exports.
  */
 
 import { describe, expect, it } from 'vitest'

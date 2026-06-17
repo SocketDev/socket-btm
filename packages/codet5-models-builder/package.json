@@ -1,8 +1,8 @@
 {
   "name": "codet5-models-builder",
   "version": "0.0.0",
-  "description": "CodeT5 model conversion and optimization for Socket CLI",
   "private": true,
+  "description": "CodeT5 model conversion and optimization for Socket CLI",
   "license": "MIT",
   "type": "module",
   "exports": {

@@ -1,8 +1,8 @@
 /**
  * Binary format structure constants for parsing binary files in tests.
  *
- * These constants define the layout of binary format structures (Mach-O, ELF, PE)
- * to enable consistent parsing across test files without magic numbers.
+ * These constants define the layout of binary format structures (Mach-O, ELF,
+ * PE) to enable consistent parsing across test files without magic numbers.
  */
 
 /* eslint-disable line-comment-position */
@@ -12,7 +12,7 @@
 // ============================================================================
 
 /**
- * Mach-O magic numbers
+ * Mach-O magic numbers.
  */
 export const MACHO_MAGIC = {
   MH_MAGIC: 0xfe_ed_fa_ce, // 32-bit little-endian
@@ -22,7 +22,7 @@ export const MACHO_MAGIC = {
 }
 
 /**
- * Mach-O load command types
+ * Mach-O load command types.
  */
 export const MACHO_LOAD_COMMAND = {
   LC_SEGMENT: 0x1, // 32-bit segment
@@ -30,7 +30,7 @@ export const MACHO_LOAD_COMMAND = {
 }
 
 /**
- * Mach-O header offsets
+ * Mach-O header offsets.
  */
 export const MACHO_HEADER_OFFSET = {
   MAGIC: 0,
@@ -44,7 +44,7 @@ export const MACHO_HEADER_OFFSET = {
 }
 
 /**
- * Mach-O header sizes
+ * Mach-O header sizes.
  */
 export const MACHO_HEADER_SIZE = {
   HEADER_32: 28,
@@ -60,7 +60,7 @@ export const MACHO_LOAD_COMMAND_OFFSET = {
 }
 
 /**
- * Mach-O LC_SEGMENT_64 offsets
+ * Mach-O LC_SEGMENT_64 offsets.
  */
 export const MACHO_LC_SEGMENT_64_OFFSET = {
   CMD: 0,
@@ -98,7 +98,7 @@ export const MACHO_LC_SEGMENT_OFFSET = {
 // ============================================================================
 
 /**
- * ELF magic numbers
+ * ELF magic numbers.
  */
 export const ELF_MAGIC = {
   MAGIC_0: 0x7f,
@@ -108,7 +108,7 @@ export const ELF_MAGIC = {
 }
 
 /**
- * ELF identification (e_ident) constants
+ * ELF identification (e_ident) constants.
  */
 export const ELF_IDENT = {
   EI_CLASS: 4, // 1=32-bit, 2=64-bit
@@ -168,7 +168,7 @@ export const ELF32_HEADER_OFFSET = {
 }
 
 /**
- * ELF program header types
+ * ELF program header types.
  */
 export const ELF_PROGRAM_HEADER_TYPE = {
   PT_NULL: 0,
@@ -214,7 +214,7 @@ export const ELF32_PROGRAM_HEADER_OFFSET = {
 // ============================================================================
 
 /**
- * PE (DOS) magic numbers
+ * PE (DOS) magic numbers.
  */
 export const PE_MAGIC = {
   DOS_MAGIC: 0x5a_4d, // 'MZ'
@@ -222,7 +222,7 @@ export const PE_MAGIC = {
 }
 
 /**
- * PE DOS header offsets
+ * PE DOS header offsets.
  */
 export const PE_DOS_HEADER_OFFSET = {
   E_MAGIC: 0, // 'MZ'
@@ -243,12 +243,12 @@ export const PE_COFF_HEADER_OFFSET = {
 }
 
 /**
- * PE COFF header size
+ * PE COFF header size.
  */
 export const PE_COFF_HEADER_SIZE = 20
 
 /**
- * PE section header offsets
+ * PE section header offsets.
  */
 export const PE_SECTION_HEADER_OFFSET = {
   NAME: 0, // 8 bytes
@@ -264,6 +264,6 @@ export const PE_SECTION_HEADER_OFFSET = {
 }
 
 /**
- * PE section header size
+ * PE section header size.
  */
 export const PE_SECTION_HEADER_SIZE = 40

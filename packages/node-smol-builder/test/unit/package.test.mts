@@ -1,5 +1,6 @@
 /**
- * @fileoverview Tests for @socketbin/node-smol-builder package structure and configuration.
+ * @file Tests for @socketbin/node-smol-builder package structure and
+ *   configuration.
  */
 
 import { describe, expect, it } from 'vitest'

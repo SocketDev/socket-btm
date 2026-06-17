@@ -1,12 +1,12 @@
 // max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
 /**
- * VFS External Tools Downloader
+ * VFS External Tools Downloader.
  *
  * Downloads pre-built security tools (Python, Trivy, TruffleHog, OpenGrep)
  * for bundling into VFS archives across all platforms.
  *
- * Usage: socket-cli and other consumers can use this to download platform-specific
- * tool binaries for VFS embedding.
+ * Usage: socket-cli and other consumers can use this to download
+ * platform-specific tool binaries for VFS embedding.
  */
 
 import crypto from 'node:crypto'
@@ -30,9 +30,9 @@ const logger = getDefaultLogger()
  * VFS tool download URLs for each platform with SHA256 checksums.
  * Windows uses official portable/embeddable distributions.
  *
- * SECURITY: All downloads MUST have SHA256 checksums for integrity verification.
- * Checksums should be obtained from official release pages or computed from
- * known-good downloads.
+ * SECURITY: All downloads MUST have SHA256 checksums for integrity
+ * verification. Checksums should be obtained from official release pages or
+ * computed from known-good downloads.
  */
 export const VFS_TOOL_URLS = {
   /**
@@ -58,7 +58,7 @@ export const VFS_TOOL_URLS = {
   /**
    * Trivy vulnerability scanner (Aqua Security)
    * GitHub releases provide pre-built binaries for all platforms
-   * Checksums from: https://github.com/aquasecurity/trivy/releases/tag/v0.50.4
+   * Checksums from: https://github.com/aquasecurity/trivy/releases/tag/v0.50.4.
    */
   trivy: {
     version: '0.69.3',
@@ -92,9 +92,9 @@ export const VFS_TOOL_URLS = {
   },
 
   /**
-   * TruffleHog secrets scanner (Truffle Security)
-   * GitHub releases provide pre-built binaries for all platforms
-   * Checksums from: https://github.com/trufflesecurity/trufflehog/releases/tag/v3.78.1
+   * TruffleHog secrets scanner (Truffle Security) GitHub releases provide
+   * pre-built binaries for all platforms Checksums from:
+   * https://github.com/trufflesecurity/trufflehog/releases/tag/v3.78.1.
    */
   trufflehog: {
     'darwin-arm64': {
@@ -133,7 +133,7 @@ export const VFS_TOOL_URLS = {
   /**
    * OpenGrep code scanner (Semgrep fork)
    * Note: OpenGrep releases may have different naming - verify URLs
-   * Checksums from: https://github.com/opengrep/opengrep/releases/tag/v1.64.0
+   * Checksums from: https://github.com/opengrep/opengrep/releases/tag/v1.64.0.
    */
   opengrep: {
     'darwin-arm64': {
@@ -170,6 +170,7 @@ export const VFS_TOOL_URLS = {
  *
  * @param {string} [platform] - Platform (darwin, linux, win32)
  * @param {string} [arch] - Architecture (x64, arm64)
+ *
  * @returns {string} Platform-arch key (e.g., "win32-x64")
  */
 export function getPlatformKey(
@@ -184,6 +185,7 @@ export function getPlatformKey(
  *
  * @param {string} [platform] - Platform (darwin, linux, win32)
  * @param {string} [arch] - Architecture (x64, arm64)
+ *
  * @returns {string[]} Array of tool names available for this platform
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is ordered by download pipeline phase (parse manifest → fetch → verify checksum → pack); alphabetizing across phases would scatter the download flow.
@@ -204,19 +206,26 @@ export function getAvailableTools(
   return tools
 }
 
-/** Default download timeout: 5 minutes */
+/**
+ * Default download timeout: 5 minutes.
+ */
 const DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1000
 
-/** Maximum retry attempts for transient errors */
+/**
+ * Maximum retry attempts for transient errors.
+ */
 const MAX_RETRIES = 3
 
-/** Delay between retries (exponential backoff base) */
+/**
+ * Delay between retries (exponential backoff base)
+ */
 const RETRY_DELAY_MS = 1000
 
 /**
  * Compute SHA256 hash of a file.
  *
- * @param {string} filePath - Path to file
+ * @param {string} filePath - Path to file.
+ *
  * @returns {Promise<string>} Hex-encoded SHA256 hash
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is ordered by download pipeline phase (parse manifest → fetch → verify checksum → pack); alphabetizing across phases would scatter the download flow.
@@ -240,8 +249,9 @@ export async function computeFileSha256(filePath) {
 /**
  * Verify file SHA256 hash matches expected value.
  *
- * @param {string} filePath - Path to file
+ * @param {string} filePath - Path to file.
  * @param {string} expectedHash - Expected SHA256 hash (hex)
+ *
  * @returns {Promise<boolean>} True if hash matches
  */
 export async function verifyFileSha256(filePath, expectedHash) {
@@ -252,11 +262,12 @@ export async function verifyFileSha256(filePath, expectedHash) {
 /**
  * Download a file from URL to destination with timeout and retry.
  *
- * @param {string} url - URL to download
- * @param {string} destPath - Destination file path
- * @param {object} [options] - Download options
+ * @param {string} url - URL to download.
+ * @param {string} destPath - Destination file path.
+ * @param {object} [options] - Download options.
  * @param {number} [options.timeout] - Timeout in ms (default: 5 minutes)
  * @param {number} [options.retries] - Max retries (default: 3)
+ *
  * @returns {Promise<void>}
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is ordered by download pipeline phase (parse manifest → fetch → verify checksum → pack); alphabetizing across phases would scatter the download flow.
@@ -278,8 +289,9 @@ export async function downloadFile(url, destPath, options = {}) {
  * Extract archive (tar.gz or zip) to destination directory.
  * Validates that extraction produced files.
  *
- * @param {string} archivePath - Path to archive file
- * @param {string} destDir - Destination directory
+ * @param {string} archivePath - Path to archive file.
+ * @param {string} destDir - Destination directory.
+ *
  * @returns {Promise<void>}
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is ordered by download pipeline phase (parse manifest → fetch → verify checksum → pack); alphabetizing across phases would scatter the download flow.
@@ -315,13 +327,15 @@ export async function extractArchive(archivePath, destDir) {
  * Download and extract a VFS tool for the specified platform.
  *
  * @param {string} toolName - Tool name (python, trivy, trufflehog, opengrep)
- * @param {object} options - Options
- * @param {string} options.destDir - Destination directory
+ * @param {object} options - Options.
+ * @param {string} options.destDir - Destination directory.
  * @param {string} [options.platform] - Target platform (defaults to current)
  * @param {string} [options.arch] - Target architecture (defaults to current)
- * @param {boolean} [options.force] - Force re-download even if exists
- * @param {boolean} [options.skipHashVerification] - Skip SHA256 verification (NOT RECOMMENDED)
- * @returns {Promise<{success: boolean, toolDir: string, version: string}>}
+ * @param {boolean} [options.force] - Force re-download even if exists.
+ * @param {boolean} [options.skipHashVerification] - Skip SHA256 verification
+ *   (NOT RECOMMENDED)
+ *
+ * @returns {Promise<{ success: boolean; toolDir: string; version: string }>}
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is ordered by download pipeline phase (parse manifest → fetch → verify checksum → pack); alphabetizing across phases would scatter the download flow.
 export async function downloadVfsTool(
@@ -416,13 +430,19 @@ export async function downloadVfsTool(
 /**
  * Download all available VFS tools for a platform.
  *
- * @param {object} options - Options
- * @param {string} options.destDir - Destination directory
+ * @param {object} options - Options.
+ * @param {string} options.destDir - Destination directory.
  * @param {string} [options.platform] - Target platform (defaults to current)
  * @param {string} [options.arch] - Target architecture (defaults to current)
- * @param {string[]} [options.tools] - Specific tools to download (defaults to all available)
- * @param {boolean} [options.force] - Force re-download even if exists
- * @returns {Promise<{success: boolean, downloaded: string[], failed: string[]}>}
+ * @param {string[]} [options.tools] - Specific tools to download (defaults to
+ *   all available)
+ * @param {boolean} [options.force] - Force re-download even if exists.
+ *
+ * @returns {Promise<{
+ *   success: boolean
+ *   downloaded: string[]
+ *   failed: string[]
+ * }>}
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is ordered by download pipeline phase (parse manifest → fetch → verify checksum → pack); alphabetizing across phases would scatter the download flow.
 export async function downloadAllVfsTools({
@@ -481,12 +501,13 @@ export async function downloadAllVfsTools({
 /**
  * Create a tarball of VFS tools for a platform.
  *
- * @param {object} options - Options
- * @param {string} options.sourceDir - Source directory containing tools
- * @param {string} options.outputPath - Output tarball path
- * @param {string} [options.platform] - Target platform
- * @param {string} [options.arch] - Target architecture
- * @returns {Promise<{success: boolean, size: number}>}
+ * @param {object} options - Options.
+ * @param {string} options.sourceDir - Source directory containing tools.
+ * @param {string} options.outputPath - Output tarball path.
+ * @param {string} [options.platform] - Target platform.
+ * @param {string} [options.arch] - Target architecture.
+ *
+ * @returns {Promise<{ success: boolean; size: number }>}
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is ordered by download pipeline phase (parse manifest → fetch → verify checksum → pack); alphabetizing across phases would scatter the download flow.
 export async function createVfsToolsTarball({

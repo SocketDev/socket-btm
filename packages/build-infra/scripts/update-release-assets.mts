@@ -6,12 +6,11 @@
  * and updates the embedded checksums in release-assets.json.
  *
  * Usage:
- *   node scripts/update-release-assets.mts [--tool=<tool>] [--force]
+ * node scripts/update-release-assets.mts [--tool=<tool>] [--force]
  *
- * Options:
- *   --tool=<name>  Only sync specific tool (lief, curl, stubs, binpress, binflate, binject)
- *   --force        Force update even if checksums haven't changed
- *   --dry-run      Show what would be updated without writing
+ * Options: --tool=<name> Only sync specific tool (lief, curl, stubs, binpress,
+ * binflate, binject) --force Force update even if checksums haven't changed
+ * --dry-run Show what would be updated without writing.
  */
 
 import { existsSync, promises as fs, readFileSync } from 'node:fs'
@@ -38,7 +37,9 @@ const packageRoot = path.join(__dirname, '..')
 
 const CHECKSUMS_FILE = path.join(packageRoot, 'release-assets.json')
 
-/** Tools to sync checksums for (only packages with GitHub releases). */
+/**
+ * Tools to sync checksums for (only packages with GitHub releases).
+ */
 const TOOLS = [
   'lief',
   'curl',
@@ -59,7 +60,10 @@ const TOOLS = [
  * Fetch checksums for a tool from GitHub release.
  *
  * @param {string} tool - Tool name.
- * @returns {Promise<{tag: string, checksums: Record<string, string>} | undefined>}
+ *
+ * @returns {Promise<
+ *   { tag: string; checksums: Record<string, string> } | undefined
+ * >}
  */
 export async function fetchToolChecksums(tool) {
   const toolPrefix = `${tool}-`

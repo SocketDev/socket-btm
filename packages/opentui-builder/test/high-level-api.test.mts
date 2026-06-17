@@ -4,14 +4,14 @@ import {
   Buffer,
   EditBuffer,
   EditorView,
-  RGBA,
+  native,
   Renderer,
+  RGBA,
   SyntaxStyle,
   TextAttributes,
   TextBuffer,
   WidthMethod,
   WrapMode,
-  native,
 } from '../lib/index.mts'
 
 const white = new RGBA(1, 1, 1, 1)

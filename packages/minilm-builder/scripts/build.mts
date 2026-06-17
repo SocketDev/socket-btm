@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // max-file-lines: legitimate -- single builder pipeline (fetch → patch → build → package) — splitting fractures the build sequence
 /**
- * MiniLM Model Builder
+ * MiniLM Model Builder.
  *
  * Converts and optimizes MiniLM models for Socket CLI:
  * 1. Download models from Hugging Face
@@ -9,12 +9,12 @@
  * 3. Apply INT4/INT8 mixed-precision quantization
  * 4. Optimize ONNX graphs
  * 5. Verify inference
- * 6. Export to distribution location
+ * 6. Export to distribution location.
  *
  * Usage:
- *   node scripts/build.mts          # Dev build (INT8 quantization, default)
- *   node scripts/build.mts --int4   # Prod build (INT4 quantization, smaller)
- *   node scripts/build.mts --force  # Force rebuild (ignore checkpoints)
+ * node scripts/build.mts          # Dev build (INT8 quantization, default)
+ * node scripts/build.mts --int4   # Prod build (INT4 quantization, smaller)
+ * node scripts/build.mts --force  # Force rebuild (ignore checkpoints)
  */
 
 import { existsSync, promises as fs, readFileSync } from 'node:fs'
@@ -36,10 +36,10 @@ import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import {
-  PYTHON_DIR,
   getBuildPaths,
   getCurrentPlatform,
   getModelPaths,
+  PYTHON_DIR,
 } from './paths.mts'
 
 const __filename = fileURLToPath(import.meta.url)

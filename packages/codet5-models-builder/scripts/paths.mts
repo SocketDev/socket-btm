@@ -22,11 +22,14 @@ export const BUILD_ROOT = path.join(PACKAGE_ROOT, 'build')
 export const MODELS_DIR = path.join(BUILD_ROOT, 'models')
 
 /**
- * Get build directories for a specific mode, platform-arch, and quantization level.
+ * Get build directories for a specific mode, platform-arch, and quantization
+ * level.
  *
  * @param {string} buildMode - 'dev' or 'prod'
- * @param {string} platformArch - Platform-arch (e.g., 'darwin-arm64') - REQUIRED
+ * @param {string} platformArch - Platform-arch (e.g., 'darwin-arm64') -
+ *   REQUIRED.
  * @param {string} quantLevel - 'int4' or 'int8'
+ *
  * @returns {object} Build paths
  */
 export function getBuildPaths(buildMode, platformArch, quantLevel) {

@@ -1,7 +1,8 @@
 import process from 'node:process'
 
 /**
- * Shared test utility functions for binary testing across binpress, binflate, and binject.
+ * Shared test utility functions for binary testing across binpress, binflate,
+ * and binject.
  *
  * This module provides common test helpers to avoid code duplication.
  */
@@ -12,8 +13,10 @@ import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
  * Ad-hoc code sign a binary for macOS execution.
  * Required for binaries modified after build to execute on macOS.
  *
- * @param {string} binaryPath - Path to binary to sign
+ * @param {string} binaryPath - Path to binary to sign.
+ *
  * @returns {Promise<void>}
+ *
  * @throws {Error} If code signing fails
  */
 export async function codeSignBinary(binaryPath) {
@@ -35,11 +38,13 @@ export async function codeSignBinary(binaryPath) {
 }
 
 /**
- * Execute a command and capture output
- * @param {string} command - Command to execute
- * @param {string[]} args - Command arguments
- * @param {Object} options - spawn options
- * @returns {Promise<{code: number|null, stdout: string, stderr: string}>}
+ * Execute a command and capture output.
+ *
+ * @param {string} command - Command to execute.
+ * @param {string[]} args - Command arguments.
+ * @param {Object} options - Spawn options.
+ *
+ * @returns {Promise<{ code: number | null; stdout: string; stderr: string }>}
  */
 export function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {

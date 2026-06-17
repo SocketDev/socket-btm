@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * boringssl-builder native build orchestrator. Used on macOS / Windows
+ * Boringssl-builder native build orchestrator. Used on macOS / Windows
  * AND Linux-native runs (where the container path is not taken).
  *
  * Linux-container builds run docker/build.sh inside manylinux2014 — that
@@ -8,9 +8,9 @@
  * the same build commands. See emit-docker-build.mts.
  *
  * Output:
- *   build/<mode>/<platform-arch>/out/Final/
- *   ├── lib/{libsmol_crypto.a, libsmol_ssl.a}  (or smol_*.lib on MSVC)
- *   └── include/openssl/...
+ * build/<mode>/<platform-arch>/out/Final/
+ * ├── lib/{libsmol_crypto.a, libsmol_ssl.a}  (or smol_*.lib on MSVC)
+ * └── include/openssl/...
  */
 
 import { existsSync, mkdirSync, promises as fs } from 'node:fs'
@@ -30,7 +30,7 @@ import {
   substituteArtifact,
   substituteStep,
 } from './build-step-defs.mts'
-import { PREFIX, UPSTREAM_DIR, getPaths } from './paths.mts'
+import { getPaths, PREFIX, UPSTREAM_DIR } from './paths.mts'
 
 const logger = getDefaultLogger()
 

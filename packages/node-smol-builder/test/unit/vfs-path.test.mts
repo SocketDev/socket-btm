@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest'
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
- * @fileoverview Tests for VFS path handling (/snapshot/* path prefix).
- *
- * These tests verify the path parsing and normalization logic for VFS paths.
- * Since the actual VFS is only available when running as a SEA, we test
- * the path logic independently.
+ * @file Tests for VFS path handling (/snapshot/* path prefix).
+ *   These tests verify the path parsing and normalization logic for VFS paths.
+ *   Since the actual VFS is only available when running as a SEA, we test
+ *   the path logic independently.
  */
 
 /**
@@ -36,7 +35,7 @@ export function findVFSKey(
 }
 
 /**
- * Simulate isVFSPrefixPath logic
+ * Simulate isVFSPrefixPath logic.
  */
 export function isVFSPrefixPath(
   filepath: string | null | undefined,
@@ -56,7 +55,7 @@ export function isVFSPrefixPath(
 }
 
 /**
- * Validate VFS prefix format
+ * Validate VFS prefix format.
  */
 export function isValidVFSPrefix(prefix: string): {
   valid: boolean

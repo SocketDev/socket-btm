@@ -1,12 +1,11 @@
 /**
- * @fileoverview Verify-build API-surface tests for node:smol-vfs.
- *
- * Distinct from `vfs.test.mts` which exercises the SEA + VFS injection
- * workflow. This suite locks the public API surface from
- * additions/source-patched/lib/smol-vfs.js — every named export plus
- * the lazy `SmolSqliteProvider` / `SmolPgProvider` getters that are
- * defined via ObjectDefineProperty (and thus appear as `accessor`
- * descriptors).
+ * @file Verify-build API-surface tests for node:smol-vfs.
+ *   Distinct from `vfs.test.mts` which exercises the SEA + VFS injection
+ *   workflow. This suite locks the public API surface from
+ *   additions/source-patched/lib/smol-vfs.js — every named export plus
+ *   the lazy `SmolSqliteProvider` / `SmolPgProvider` getters that are
+ *   defined via ObjectDefineProperty (and thus appear as `accessor`
+ *   descriptors).
  */
 
 import { describe, expect, it, test } from 'vitest'

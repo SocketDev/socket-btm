@@ -1,8 +1,8 @@
 {
   "name": "lief-builder",
   "version": "0.0.0",
-  "description": "Builds LIEF library for binary format manipulation",
   "private": true,
+  "description": "Builds LIEF library for binary format manipulation",
   "license": "MIT",
   "type": "module",
   "exports": {

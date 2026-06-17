@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * @fileoverview Setup build toolchain for yoga-layout-builder
+ * @file Setup build toolchain for yoga-layout-builder.
  *
- * - Initializes the upstream `yoga` submodule when missing.
- * - Installs C/C++ build deps (gcc/clang/make/cmake/python3) per
- *   the host platform via runSetupToolchain.
+ *   - Initializes the upstream `yoga` submodule when missing.
+ *   - Installs C/C++ build deps (gcc/clang/make/cmake/python3) per the host
+ *     platform via runSetupToolchain.
  */
 
 import path from 'node:path'

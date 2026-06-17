@@ -9,7 +9,7 @@
  * Key design decisions:
  * - Uses OpenSSL for TLS (same as Node.js, allows sharing)
  * - Builds only the client library (libpq), not the full PostgreSQL server
- * - Produces static library for embedding
+ * - Produces static library for embedding.
  */
 
 import { existsSync, promises as fs, readdirSync } from 'node:fs'
@@ -23,8 +23,8 @@ import { checkBuildSourceFlag } from 'build-infra/lib/build-env'
 import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import {
   BUILD_STAGES,
-  CHECKPOINTS,
   CHECKPOINT_CHAINS,
+  CHECKPOINTS,
   getPlatformBuildDir,
   validateCheckpointChain,
 } from 'build-infra/lib/constants'
@@ -54,6 +54,7 @@ const __dirname = path.dirname(__filename)
 
 /**
  * Get checkpoint chain for CI workflows.
+ *
  * @returns {string[]} Checkpoint chain in reverse dependency order
  */
 export function getCheckpointChain() {
@@ -82,7 +83,8 @@ delete process.env.TARGET_ARCH
  * Get build directories for a given platform-arch.
  *
  * @param {string} platformArch - Platform-arch identifier.
- * @returns {{ buildDir: string, libpqBuildDir: string }}
+ *
+ * @returns {{ buildDir: string; libpqBuildDir: string }}
  */
 // oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function getBuildDirs(platformArch) {
@@ -100,6 +102,7 @@ const LIBPQ_REQUIRED_FILES = ['libpq.a']
  * Check if libpq libraries exist at a given directory.
  *
  * @param {string} dir - Directory to check.
+ *
  * @returns {boolean} True if all required files exist.
  */
 export function libpqExistsAt(dir) {
@@ -112,7 +115,13 @@ export function libpqExistsAt(dir) {
  *
  * @param {string} archivePath - Path to archive file.
  * @param {string} assetName - Asset name for checksum lookup.
- * @returns {Promise<{valid: boolean, expected?: string, actual?: string, skipped?: boolean}>}
+ *
+ * @returns {Promise<{
+ *   valid: boolean
+ *   expected?: string
+ *   actual?: string
+ *   skipped?: boolean
+ * }>}
  */
 export async function verifyArchiveChecksum(archivePath, assetName) {
   return verifyReleaseChecksum({
@@ -129,6 +138,7 @@ export async function verifyArchiveChecksum(archivePath, assetName) {
  * @param {object} [options] - Download options.
  * @param {boolean} [options.force] - Force redownload even if cached.
  * @param {string} [options.platformArch] - Override platform-arch.
+ *
  * @returns {Promise<string>} Path to downloaded libpq directory.
  */
 // oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
@@ -285,6 +295,7 @@ export async function downloadLibpq(options = {}) {
  * @param {object} [options] - Options.
  * @param {boolean} [options.force] - Force redownload even if cached.
  * @param {string} [options.platformArch] - Override platform-arch.
+ *
  * @returns {Promise<string>} Path to directory containing libpq libraries.
  */
 // oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
@@ -323,6 +334,7 @@ const POSTGRES_VERSION = getPostgresVersion()
 
 /**
  * Extract PostgreSQL version from .gitmodules comment.
+ *
  * @returns {string} PostgreSQL version (e.g., "16.6")
  */
 // oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
@@ -378,7 +390,7 @@ export async function runCommand(command, args, cwd, env = {}) {
  * Get OpenSSL paths from node-smol-builder upstream.
  * Node.js bundles OpenSSL in deps/openssl.
  *
- * @returns {{ includeDir: string, libDir: string }} OpenSSL paths
+ * @returns {{ includeDir: string; libDir: string }} OpenSSL paths
  */
 // oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function getNodeOpenSSLPaths() {
@@ -874,9 +886,8 @@ async function main() {
     logger.log('')
     logger.fail(`libpq build failed: ${errorMessage(e)}`)
     try {
-      const { logTransientErrorHelp } = await import(
-        'build-infra/lib/github-error-utils'
-      )
+      const { logTransientErrorHelp } =
+        await import('build-infra/lib/github-error-utils')
       await logTransientErrorHelp(e)
     } catch {
       // Hint module failed to load — original error already logged.

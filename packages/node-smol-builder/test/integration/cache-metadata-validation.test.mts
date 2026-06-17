@@ -1,8 +1,6 @@
 /**
- * @fileoverview Tests for cache metadata validation
- *
- * Validates that .dlx-metadata.json always contains compression_algorithm="zstd"
- * for all platforms and stubs.
+ * @file Tests for cache metadata validation Validates that .dlx-metadata.json
+ *   always contains compression_algorithm="zstd" for all platforms and stubs.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

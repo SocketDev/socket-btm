@@ -1,11 +1,9 @@
 /**
- * @fileoverview Integration tests for node --build-sea with smol options.
- *
- * Tests the Socket Security smol extensions to Node.js SEA.
- * Based on: https://nodejs.org/api/single-executable-applications.html
- *
- * NOTE: --build-sea performs FULL injection (blob generation + binary injection),
- * not just blob generation. It uses the embedded binject functionality.
+ * @file Integration tests for node --build-sea with smol options. Tests the
+ *   Socket Security smol extensions to Node.js SEA. Based on:
+ *   https://nodejs.org/api/single-executable-applications.html NOTE:
+ *   --build-sea performs FULL injection (blob generation + binary injection),
+ *   not just blob generation. It uses the embedded binject functionality.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

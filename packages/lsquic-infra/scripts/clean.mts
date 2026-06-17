@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * @fileoverview Clean lsquic-infra build artifacts.
- *
- * Source-only package — almost nothing to clean except node_modules.
- * Mirrors temporal-infra/scripts/clean.mts and tui-infra/scripts/clean.mts
- * for fleet uniformity.
+ * @file Clean lsquic-infra build artifacts.
+ *   Source-only package — almost nothing to clean except node_modules.
+ *   Mirrors temporal-infra/scripts/clean.mts and tui-infra/scripts/clean.mts
+ *   for fleet uniformity.
  */
 
 import path from 'node:path'

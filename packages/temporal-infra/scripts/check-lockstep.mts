@@ -1,42 +1,29 @@
 #!/usr/bin/env node
 
 /**
- * @fileoverview Lockstep audit for the temporal-infra C++ port.
+ * @file Lockstep audit for the temporal-infra C++ port.
+ *   The contract: the port is "observable 1:1" with the JS Temporal
+ *   spec — every JS-visible Temporal entry point produces the
+ *   spec-defined result. Validated end-to-end via Test262 + smoke
+ *   tests at build time; this script is the static-time gate.
+ *   Three checks:
  *
- * The contract: the port is "observable 1:1" with the JS Temporal
- * spec — every JS-visible Temporal entry point produces the
- * spec-defined result. Validated end-to-end via Test262 + smoke
- * tests at build time; this script is the static-time gate.
- *
- * Three checks:
- *
- *   1. Live stub scan. Greps source for "not yet implemented" /
- *      "requires calendar" / "Stub:" patterns. Any hit means a
- *      method falls through to a runtime error rather than doing
- *      the work.
- *
- *   2. V8 call-site cross-check. Walks V8's js-temporal-objects.cc
- *      for `temporal_rs::Class::method(...)` references; confirms
- *      every required method is present in the shim. Mismatches
- *      (V8 calls a method we don't expose) are hard fails.
- *
- *   3. Upstream public-API drift report. Counts upstream `pub fn`
- *      entries; informational only — the shim is deliberately
- *      narrower than upstream's public API.
- *
- * Exit codes:
- *   0 — checks 1+2 pass (check 3 is informational)
- *   1 — at least one of checks 1+2 failed
- *   2 — script crashed (path missing, etc.)
- *
- * Run via:
- *   pnpm --filter temporal-infra run check:lockstep
- *
- * Or from this package's directory:
- *   node scripts/check-lockstep.mts
+ *   1. Live stub scan. Greps source for "not yet implemented" / "requires
+ *      calendar" / "Stub:" patterns. Any hit means a method falls through to a
+ *      runtime error rather than doing the work.
+ *   2. V8 call-site cross-check. Walks V8's js-temporal-objects.cc for
+ *      `temporal_rs::Class::method(...)` references; confirms every required
+ *      method is present in the shim. Mismatches (V8 calls a method we don't
+ *      expose) are hard fails.
+ *   3. Upstream public-API drift report. Counts upstream `pub fn` entries;
+ *      informational only — the shim is deliberately narrower than upstream's
+ *      public API. Exit codes: 0 — checks 1+2 pass (check 3 is informational) 1
+ *      — at least one of checks 1+2 failed 2 — script crashed (path missing,
+ *      etc.) Run via: pnpm --filter temporal-infra run check:lockstep Or from
+ *      this package's directory: node scripts/check-lockstep.mts
  */
 
-import { readFileSync, readdirSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 

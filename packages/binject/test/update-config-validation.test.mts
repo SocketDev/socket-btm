@@ -17,10 +17,10 @@ import { fileURLToPath } from 'node:url'
 import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
 
 import {
-  SmolConfigValidationError,
   parseAndSerialize,
   parseConfigFile,
   serializeUpdateConfig,
+  SmolConfigValidationError,
 } from '../scripts/update-config-binary.mts'
 
 const __filename = fileURLToPath(import.meta.url)

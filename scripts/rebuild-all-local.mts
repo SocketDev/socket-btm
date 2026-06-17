@@ -5,17 +5,17 @@
  * This script clears all caches and rebuilds:
  * - LIEF library from source
  * - Binsuite tools (binject, binflate, binpress) from source
- * - Node-smol binaries from source
+ * - Node-smol binaries from source.
  *
  * Usage:
- *   node scripts/rebuild-all-local.mts [options]
+ * node scripts/rebuild-all-local.mts [options]
  *
  * Options:
- *   --skip-clean     Skip cache/checkpoint cleaning
- *   --lief-only      Only rebuild LIEF
- *   --binsuite-only  Only rebuild binsuite tools
- *   --node-only      Only rebuild node-smol
- *   --help           Show this help message
+ * --skip-clean     Skip cache/checkpoint cleaning
+ * --lief-only      Only rebuild LIEF
+ * --binsuite-only  Only rebuild binsuite tools
+ * --node-only      Only rebuild node-smol
+ * --help           Show this help message.
  */
 
 import { existsSync } from 'node:fs'

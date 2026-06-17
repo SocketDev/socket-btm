@@ -1,5 +1,5 @@
 /**
- * Source extraction phase for Node.js
+ * Source extraction phase for Node.js.
  *
  * Extracts Node.js source from git upstream to build directory.
  */
@@ -29,13 +29,13 @@ const logger = getDefaultLogger()
 /**
  * Extract Node.js source code from upstream.
  *
- * @param {object} options - Extract options
- * @param {string} options.nodeVersion - Node.js version to extract
- * @param {string} options.nodeSha - Expected commit SHA
- * @param {string} options.sharedBuildDir - Shared build directory
- * @param {string} options.sharedSourceDir - Target source directory
- * @param {string} options.packageName - Package name
- * @param {boolean} options.cleanBuild - Force clean build
+ * @param {object} options - Extract options.
+ * @param {string} options.nodeVersion - Node.js version to extract.
+ * @param {string} options.nodeSha - Expected commit SHA.
+ * @param {string} options.sharedBuildDir - Shared build directory.
+ * @param {string} options.sharedSourceDir - Target source directory.
+ * @param {string} options.packageName - Package name.
+ * @param {boolean} options.cleanBuild - Force clean build.
  */
 export async function cloneNodeSource(options) {
   const {
@@ -45,7 +45,7 @@ export async function cloneNodeSource(options) {
     packageName,
     sharedBuildDir,
     sharedSourceDir,
-  } = options
+  } = { __proto__: null, ...options } as typeof options
 
   const needsClone = await shouldRun(
     sharedBuildDir,

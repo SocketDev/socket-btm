@@ -1,12 +1,12 @@
 /**
  * Postinstall toolchain check for ultraviolet-builder.
  *
- * - Initializes the upstream ultraviolet submodule if missing
- *   (fatal on a non-CI workstation; CI workflows init submodules
- *   themselves before reaching this script).
- * - Verifies Go >= 1.25 is available (advisory — postinstall must
- *   stay fail-soft so `pnpm install` across the whole monorepo
- *   doesn't break for unrelated workspaces).
+ * - Initializes the upstream ultraviolet submodule if missing (fatal on a non-CI
+ *   workstation; CI workflows init submodules themselves before reaching this
+ *   script).
+ * - Verifies Go >= 1.25 is available (advisory — postinstall must stay fail-soft
+ *   so `pnpm install` across the whole monorepo doesn't break for unrelated
+ *   workspaces).
  */
 
 import path from 'node:path'

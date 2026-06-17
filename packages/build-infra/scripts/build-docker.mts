@@ -3,19 +3,16 @@
  * Build a package for a specific target using Docker.
  *
  * Usage:
- *   node scripts/build-docker.mts --package=<name> --target=<target> [options]
+ * node scripts/build-docker.mts --package=<name> --target=<target> [options]
  *
- * Options:
- *   --package=...   Package to build (required)
- *   --target=...    Build target (required, linux-x64 defaults to linux-x64-glibc)
- *   --output=...    Output directory (default: ./build/docker/<target>)
- *   --mode=...      Build mode: 'dev' or 'prod' (default: prod)
- *   --force         Force rebuild
- *   --help          Show help
+ * Options: --package=... Package to build (required) --target=... Build target
+ * (required, linux-x64 defaults to linux-x64-glibc) --output=... Output
+ * directory (default: ./build/docker/<target>) --mode=... Build mode: 'dev' or
+ * 'prod' (default: prod) --force Force rebuild --help Show help.
  *
- * Examples:
- *   node scripts/build-docker.mts --package=binpress --target=linux-x64
- *   node scripts/build-docker.mts --package=binpress --target=linux-arm64-musl --mode=dev
+ * Examples: node scripts/build-docker.mts --package=binpress --target=linux-x64
+ * node scripts/build-docker.mts --package=binpress --target=linux-arm64-musl
+ * --mode=dev.
  */
 
 import path from 'node:path'
@@ -28,7 +25,7 @@ import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { printError, printInfo, printSuccess } from '../lib/build-output.mts'
 import { buildForTarget, getAllTargets } from '../lib/docker-builder.mts'
 import { errorMessage } from '../lib/error-utils.mts'
-import { LINUX_TARGETS, hasBuilderImage } from '../lib/local-build-setup.mts'
+import { hasBuilderImage, LINUX_TARGETS } from '../lib/local-build-setup.mts'
 
 const logger = getDefaultLogger()
 
@@ -38,7 +35,8 @@ const WORKSPACE_ROOT = path.resolve(__dirname, '..', '..', '..')
 /**
  * Normalize target name - linux-x64 becomes linux-x64-glibc (default libc).
  *
- * @param {string} target - Input target
+ * @param {string} target - Input target.
+ *
  * @returns {string} Normalized target
  */
 export function normalizeTarget(target) {

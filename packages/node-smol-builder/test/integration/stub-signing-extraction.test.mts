@@ -1,20 +1,20 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
- * @fileoverview Integration tests for stub signing, extraction, and execution flow
+ * @file Integration tests for stub signing, extraction, and execution flow
+ *   Tests the complete flow:
  *
- * Tests the complete flow:
- * 1. Stub binary has correct compressed data section
- * 2. Stub binary is code-signed (macOS only)
- * 3. Stub can execute basic commands (--version, --eval)
- * 4. Stub extracts node binary to correct ~/.socket/_dlx/<cache_key>/
- * 5. Extracted node binary is code-signed (macOS only)
- * 6. Stub forwards arguments correctly to extracted node
- * 7. Extracted node can run SQLite (native addon)
- * 8. Extracted node uses small-icu for internationalization
- *
- * Note: These tests require the final production binary at build/{dev,prod}/{platform-arch}/out/Final/node/.
- * Run with: pnpm build --dev or pnpm build --prod
+ *   1. Stub binary has correct compressed data section
+ *   2. Stub binary is code-signed (macOS only)
+ *   3. Stub can execute basic commands (--version, --eval)
+ *   4. Stub extracts node binary to correct ~/.socket/_dlx/<cache_key>/
+ *   5. Extracted node binary is code-signed (macOS only)
+ *   6. Stub forwards arguments correctly to extracted node
+ *   7. Extracted node can run SQLite (native addon)
+ *   8. Extracted node uses small-icu for internationalization Note: These tests
+ *      require the final production binary at
+ *      build/{dev,prod}/{platform-arch}/out/Final/node/. Run with: pnpm build
+ *      --dev or pnpm build --prod
  */
 
 import crypto from 'node:crypto'
@@ -26,8 +26,8 @@ import { fileURLToPath } from 'node:url'
 import {
   HEADER_SIZES,
   SMOL_PRESSED_DATA_MAGIC_MARKER,
-  TOTAL_HEADER_SIZE_WITHOUT_SMOL_CONFIG,
   TOTAL_HEADER_SIZE_WITH_SMOL_CONFIG,
+  TOTAL_HEADER_SIZE_WITHOUT_SMOL_CONFIG,
 } from 'build-infra/lib/constants'
 
 import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
@@ -59,7 +59,7 @@ const DLX_DIR = getSocketDlxDir()
 const testTmpDir = path.join(os.tmpdir(), 'socket-btm-stub-tests')
 
 /**
- * Extract compressed data portion from stub binary
+ * Extract compressed data portion from stub binary.
  */
 export function extractCompressedData(binaryData: Buffer) {
   const magicMarker = Buffer.from(SMOL_PRESSED_DATA_MAGIC_MARKER, 'utf8')

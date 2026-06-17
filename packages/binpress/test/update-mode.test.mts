@@ -1,16 +1,16 @@
 /**
- * @fileoverview Tests for binpress automatic repack detection
+ * @file Tests for binpress automatic repack detection Tests binpress's ability
+ *   to automatically detect and repack existing compressed stubs. When
+ *   compressing an already-compressed binary, binpress detects the SMOL segment
+ *   and repacks it with new compressed data without recompiling the stub. Test
+ *   scenarios:
  *
- * Tests binpress's ability to automatically detect and repack existing compressed stubs.
- * When compressing an already-compressed binary, binpress detects the SMOL segment
- * and repacks it with new compressed data without recompiling the stub.
- *
- * Test scenarios:
- * 1. Create initial stub with -o, then recompress (auto-detection triggers repack)
- * 2. Verify stub binary remains intact after repack
- * 3. Verify SMOL segment is correctly replaced
- * 4. Test repacking with different compression ratios
- * 5. Error handling for invalid scenarios
+ *   1. Create initial stub with -o, then recompress (auto-detection triggers
+ *      repack)
+ *   2. Verify stub binary remains intact after repack
+ *   3. Verify SMOL segment is correctly replaced
+ *   4. Test repacking with different compression ratios
+ *   5. Error handling for invalid scenarios
  */
 
 import crypto from 'node:crypto'
@@ -56,7 +56,7 @@ const TEST_INPUT = process.execPath
 let testDir: string
 
 /**
- * Helper to create stub path with correct extension
+ * Helper to create stub path with correct extension.
  */
 export function getStubPath(name) {
   const filename = process.platform === 'win32' ? `${name}.exe` : name
@@ -64,7 +64,7 @@ export function getStubPath(name) {
 }
 
 /**
- * Calculate SHA-256 hash of file
+ * Calculate SHA-256 hash of file.
  */
 export async function hashFile(filePath) {
   const data = await fs.readFile(filePath)

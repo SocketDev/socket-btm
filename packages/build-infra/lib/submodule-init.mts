@@ -26,12 +26,13 @@ const logger = getDefaultLogger()
  * @param {object} options
  * @param {string} options.name - Submodule name for log/error messages
  *   (e.g., "yoga", "ultraviolet").
- * @param {string} options.submodulePath - Path FROM the monorepo root
- *   to the submodule directory (e.g., "packages/yoga-layout-builder/upstream/yoga").
+ * @param {string} options.submodulePath - Path FROM the monorepo root to the
+ *   submodule directory (e.g., "packages/yoga-layout-builder/upstream/yoga").
  * @param {string} options.sentinelFile - Path INSIDE the submodule to a
  *   file whose existence proves it's checked out (e.g., "yoga/Yoga.h").
  * @param {string} options.monorepoRoot - Absolute path to the
  *   monorepo root containing .git and .gitmodules.
+ *
  * @returns {Promise<void>}
  */
 export async function ensureSubmodule({

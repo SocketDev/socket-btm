@@ -1,6 +1,6 @@
 /**
  * Test path helpers for binject
- * Provides consistent binary path resolution across all test files
+ * Provides consistent binary path resolution across all test files.
  */
 
 import path from 'node:path'
@@ -22,8 +22,10 @@ const BUILD_MODE = getBuildMode()
 const PLATFORM_ARCH = getPlatformArch(process.platform, process.arch, undefined)
 
 /**
- * Get the binflate binary path based on build mode
+ * Get the binflate binary path based on build mode.
+ *
  * @param {string} [platform] - Platform override (defaults to process.platform)
+ *
  * @returns {string} Path to binflate binary
  */
 export function getBinflatePath(platform = process.platform) {
@@ -37,8 +39,10 @@ export function getBinflatePath(platform = process.platform) {
 }
 
 /**
- * Get the binject binary path based on build mode
+ * Get the binject binary path based on build mode.
+ *
  * @param {string} [platform] - Platform override (defaults to process.platform)
+ *
  * @returns {string} Path to binject binary
  */
 export function getBinjectPath(platform = process.platform) {
@@ -47,8 +51,10 @@ export function getBinjectPath(platform = process.platform) {
 }
 
 /**
- * Get the binpress binary path based on build mode
+ * Get the binpress binary path based on build mode.
+ *
  * @param {string} [platform] - Platform override (defaults to process.platform)
+ *
  * @returns {string} Path to binpress binary
  */
 export function getBinpressPath(platform = process.platform) {

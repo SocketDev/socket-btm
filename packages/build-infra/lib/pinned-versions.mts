@@ -1,13 +1,17 @@
 /**
  * Pinned dependency versions for reproducible builds.
  *
- * All external dependencies (Python packages, tools, etc.) should be pinned
- * to specific versions to ensure reproducible builds and prevent supply chain attacks.
+ * All external dependencies (Python packages, tools, etc.) should be pinned to
+ * specific versions to ensure reproducible builds and prevent supply chain
+ * attacks.
  *
- * Tool configurations are now loaded from external-tools.json files in a hierarchical structure:
- * 1. build-infra/external-tools.json (core fundamentals: git, curl, patch, make)
+ * Tool configurations are now loaded from external-tools.json files in a
+ * hierarchical structure:
+ *
+ * 1. Build-infra/external-tools.json (core fundamentals: git, curl, patch, make)
  * 2. <package>/external-tools.json (package-level tools)
- * 3. <package>/scripts/<checkpoint>/shared/external-tools.json (checkpoint-specific tools)
+ * 3. <package>/scripts/<checkpoint>/shared/external-tools.json
+ *    (checkpoint-specific tools)
  */
 
 import { existsSync, readFileSync } from 'node:fs'
@@ -25,8 +29,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 /**
  * Load external tools from an external-tools.json file with extends support.
  *
- * @param {string} jsonPath - Path to external-tools.json
- * @param {Set<string>} [visited] - Set of visited paths to prevent circular dependencies
+ * @param {string} jsonPath - Path to external-tools.json.
+ * @param {Set<string>} [visited] - Set of visited paths to prevent circular
+ *   dependencies.
+ *
  * @returns {object} Tools configuration
  */
 export function loadExternalToolsJson(jsonPath, visited = new Set()) {
@@ -48,8 +54,9 @@ export function loadExternalToolsJson(jsonPath, visited = new Set()) {
     // Validate against schema.
     const validation = validateExternalTools(data)
     if (!validation.ok) {
-      const issueLines = validation.errors
-        .map(i => `  ${i.path.join('.') || '(root)'}: ${i.message}`)
+      const issueLines = validation.errors.map(
+        i => `  ${i.path.join('.') || '(root)'}: ${i.message}`,
+      )
       logger.warn(`Schema validation warnings in ${jsonPath}:`)
       for (const line of issueLines) {
         logger.warn(line)
@@ -93,13 +100,18 @@ export function loadExternalToolsJson(jsonPath, visited = new Set()) {
  * Load external tools configuration with hierarchical merging.
  *
  * Precedence (highest to lowest):
- * 1. Checkpoint-specific: <package>/scripts/<checkpoint>/shared/external-tools.json
+ *
+ * 1. Checkpoint-specific:
+ *    <package>/scripts/<checkpoint>/shared/external-tools.json
  * 2. Package-level: <package>/external-tools.json
  * 3. Core fundamentals: build-infra/external-tools.json
  *
- * @param {object} options - Loading options
- * @param {string} [options.packageRoot] - Package root directory (e.g., packages/node-smol-builder)
- * @param {string} [options.checkpointName] - Checkpoint name (e.g., 'binary-released')
+ * @param {object} options - Loading options.
+ * @param {string} [options.packageRoot] - Package root directory (e.g.,
+ *   packages/node-smol-builder)
+ * @param {string} [options.checkpointName] - Checkpoint name (e.g.,
+ *   'binary-released')
+ *
  * @returns {object} Merged external tools configuration
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file co-locates external-tools.json loaders with the version-resolution helpers that consume them; alphabetical reordering would split loader from consumer and obscure the hierarchical lookup flow.
@@ -142,13 +154,13 @@ export function loadExternalTools({ checkpointName, packageRoot } = {}) {
  *
  * Format:
  * {
- *   toolName: {
- *     description: 'Human-readable description',
- *     version: 'X.Y.Z',
- *     packageManager: 'pip' | 'pnpm' | undefined,
- *     notes: 'string or array',
- *     extras: ['extra1', 'extra2']  // for Python package extras
- *   }
+ * toolName: {
+ * description: 'Human-readable description',
+ * version: 'X.Y.Z',
+ * packageManager: 'pip' | 'pnpm' | undefined,
+ * notes: 'string or array',
+ * extras: ['extra1', 'extra2']  // for Python package extras
+ * }
  * }
  */
 export const TOOL_VERSIONS = loadExternalTools()
@@ -157,10 +169,10 @@ export const TOOL_VERSIONS = loadExternalTools()
  * Pinned Python package versions.
  * Loaded from external-tools.json files (type: "python").
  *
- * Version compatibility matrix (tested working combination):
- * - PyTorch 2.10.0 + transformers 5.3.0 (Python 3.14 compatible via abi3 wheels)
- * - ONNX 1.17.0 + ONNXRuntime 1.21.0 (latest stable)
- * - HuggingFace Hub 0.26.5 + Sentence Transformers 3.3.1
+ * Version compatibility matrix (tested working combination): - PyTorch 2.10.0 +
+ * transformers 5.3.0 (Python 3.14 compatible via abi3 wheels) - ONNX 1.17.0 +
+ * ONNXRuntime 1.21.0 (latest stable) - HuggingFace Hub 0.26.5 + Sentence
+ * Transformers 3.3.1.
  *
  * Format: { packageName: 'version' }
  */
@@ -199,9 +211,11 @@ export const PYTHON_PACKAGE_EXTRAS = (() => {
 /**
  * Get pinned package specifier for pip install.
  *
- * @param {string} packageName - Package name
- * @param {object} [options] - Loading options for hierarchical lookup
- * @returns {string} Package specifier with pinned version (e.g., 'torch==2.5.0')
+ * @param {string} packageName - Package name.
+ * @param {object} [options] - Loading options for hierarchical lookup.
+ *
+ * @returns {string} Package specifier with pinned version (e.g.,
+ *   'torch==2.5.0')
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file co-locates external-tools.json loaders with the version-resolution helpers that consume them; alphabetical reordering would split loader from consumer and obscure the hierarchical lookup flow.
 export function getPinnedPackage(packageName, options) {
@@ -228,8 +242,9 @@ export function getPinnedPackage(packageName, options) {
 /**
  * Get multiple pinned package specifiers.
  *
- * @param {string[]} packageNames - Array of package names
- * @param {object} [options] - Loading options for hierarchical lookup
+ * @param {string[]} packageNames - Array of package names.
+ * @param {object} [options] - Loading options for hierarchical lookup.
+ *
  * @returns {string[]} Array of package specifiers with pinned versions
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file co-locates external-tools.json loaders with the version-resolution helpers that consume them; alphabetical reordering would split loader from consumer and obscure the hierarchical lookup flow.
@@ -240,9 +255,10 @@ export function getPinnedPackages(packageNames, options) {
 /**
  * Get tool configuration (description and packages).
  *
- * @param {string} toolName - Tool name
- * @param {object} [options] - Loading options for hierarchical lookup
- * @returns {object|undefined} Tool configuration or undefined if not found
+ * @param {string} toolName - Tool name.
+ * @param {object} [options] - Loading options for hierarchical lookup.
+ *
+ * @returns {object | undefined} Tool configuration or undefined if not found
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file co-locates external-tools.json loaders with the version-resolution helpers that consume them; alphabetical reordering would split loader from consumer and obscure the hierarchical lookup flow.
 export function getToolConfig(toolName, options) {
@@ -253,10 +269,11 @@ export function getToolConfig(toolName, options) {
 /**
  * Get package specifier with version for tool installation.
  *
- * @param {string} toolName - Tool name
- * @param {string} packageName - Package name in the package manager
- * @param {string} packageManager - Package manager
- * @param {object} [options] - Loading options for hierarchical lookup
+ * @param {string} toolName - Tool name.
+ * @param {string} packageName - Package name in the package manager.
+ * @param {string} packageManager - Package manager.
+ * @param {object} [options] - Loading options for hierarchical lookup.
+ *
  * @returns {string} Package specifier (e.g., 'cmake@3.31.4' for brew)
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file co-locates external-tools.json loaders with the version-resolution helpers that consume them; alphabetical reordering would split loader from consumer and obscure the hierarchical lookup flow.
@@ -297,8 +314,9 @@ export function getToolPackageSpec(
  *
  * @param {string} toolName - Tool name (e.g., 'cmake', 'ninja', 'python')
  * @param {string} [_versionKey] - Ignored (kept for backward call-site compat)
- * @param {object} [options] - Loading options for hierarchical lookup
- * @returns {string|undefined} Pinned version or undefined if not found
+ * @param {object} [options] - Loading options for hierarchical lookup.
+ *
+ * @returns {string | undefined} Pinned version or undefined if not found
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file co-locates external-tools.json loaders with the version-resolution helpers that consume them; alphabetical reordering would split loader from consumer and obscure the hierarchical lookup flow.
 export function getToolVersion(toolName, _versionKey, options) {
@@ -316,10 +334,12 @@ export function getToolVersion(toolName, _versionKey, options) {
  * This allows checkpoints to have their own Python package versions
  * by creating checkpoint-specific external-tools.json files.
  *
- * @param {object} [options] - Loading options
- * @param {string} [options.packageRoot] - Package root directory
- * @param {string} [options.checkpointName] - Checkpoint name
- * @returns {{ PYTHON_VERSIONS: object, PYTHON_PACKAGE_EXTRAS: object }} Python configuration
+ * @param {object} [options] - Loading options.
+ * @param {string} [options.packageRoot] - Package root directory.
+ * @param {string} [options.checkpointName] - Checkpoint name.
+ *
+ * @returns {{ PYTHON_VERSIONS: object; PYTHON_PACKAGE_EXTRAS: object }} Python
+ *   configuration.
  */
 export function loadPythonVersions(options) {
   const tools = loadExternalTools(options || {})
@@ -347,9 +367,10 @@ export function loadPythonVersions(options) {
 /**
  * Load all tools with package/checkpoint context.
  *
- * @param {object} [options] - Loading options
- * @param {string} [options.packageRoot] - Package root directory
- * @param {string} [options.checkpointName] - Checkpoint name
+ * @param {object} [options] - Loading options.
+ * @param {string} [options.packageRoot] - Package root directory.
+ * @param {string} [options.checkpointName] - Checkpoint name.
+ *
  * @returns {object} All tools configuration
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file co-locates external-tools.json loaders with the version-resolution helpers that consume them; alphabetical reordering would split loader from consumer and obscure the hierarchical lookup flow.

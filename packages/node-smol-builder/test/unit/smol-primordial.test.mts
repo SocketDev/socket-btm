@@ -1,8 +1,7 @@
 /**
- * @fileoverview Unit tests for node:smol-primordial (system Node baseline).
- *
- * On system Node, `node:smol-primordial` is NOT a builtin. The
- * integration suite asserts the inverse on the built smol binary.
+ * @file Unit tests for node:smol-primordial (system Node baseline).
+ *   On system Node, `node:smol-primordial` is NOT a builtin. The
+ *   integration suite asserts the inverse on the built smol binary.
  */
 
 import { describe, expect, it } from 'vitest'

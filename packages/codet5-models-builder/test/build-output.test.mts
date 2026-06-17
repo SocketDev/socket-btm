@@ -1,6 +1,6 @@
 /**
- * @fileoverview Tests for codet5-models-builder model output files.
- * Validates that the build process generates correct encoder/decoder structure and formats.
+ * @file Tests for codet5-models-builder model output files. Validates that the
+ *   build process generates correct encoder/decoder structure and formats.
  */
 
 import { describe, expect, it } from 'vitest'

@@ -1,8 +1,8 @@
 {
   "name": "onnxruntime-builder",
   "version": "0.0.0",
-  "description": "Custom ONNX Runtime WASM build optimized for Socket CLI",
   "private": true,
+  "description": "Custom ONNX Runtime WASM build optimized for Socket CLI",
   "license": "MIT",
   "type": "module",
   "exports": {

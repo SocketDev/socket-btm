@@ -1,16 +1,14 @@
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
- * @fileoverview Segment and section validation tests for binpress
+ * @file Segment and section validation tests for binpress
+ *   Validates that compressed binaries have correct segment/section structure:
  *
- * Validates that compressed binaries have correct segment/section structure:
- * - SMOL segment creation on macOS (Mach-O)
- * - Correct section alignment and offsets
- * - Valid segment headers
- * - Compression metadata in segments
- * - Section size validation
- *
- * These tests ensure binpress creates valid Mach-O/ELF/PE structures
- * that loaders can correctly parse and execute.
+ *   - SMOL segment creation on macOS (Mach-O)
+ *   - Correct section alignment and offsets
+ *   - Valid segment headers
+ *   - Compression metadata in segments
+ *   - Section size validation These tests ensure binpress creates valid
+ *     Mach-O/ELF/PE structures that loaders can correctly parse and execute.
  */
 
 import crypto from 'node:crypto'
@@ -88,7 +86,7 @@ export async function execCommand(command, args = [], options = {}) {
 }
 
 /**
- * Parse Mach-O segments from binary data
+ * Parse Mach-O segments from binary data.
  */
 export function parseMachoSegments(binaryData) {
   const segments = []

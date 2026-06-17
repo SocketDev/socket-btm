@@ -18,7 +18,7 @@ import { promises as fs } from 'node:fs'
  * inode-stable shape flock() expects.
  */
 
-type LockableHandle = Awaited<ReturnType<typeof fs.open>> & {
+export type LockableHandle = Awaited<ReturnType<typeof fs.open>> & {
   lock?: ((mode: 'sh' | 'ex') => Promise<void>) | undefined
   tryLock?: ((mode: 'sh' | 'ex') => Promise<boolean>) | undefined
   unlock?: (() => Promise<void>) | undefined

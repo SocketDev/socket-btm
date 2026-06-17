@@ -1,11 +1,8 @@
 /**
- * @fileoverview Shared test directory helper.
- *
- * Creates isolated temp directories for integration tests with a symlinked
- * node_modules so spawned binaries can resolve devDependencies (e.g., snappy).
- *
- * Cross-platform: uses junction on Windows (no admin required) and symlink
- * on POSIX. Cleans up on dispose.
+ * @file Shared test directory helper. Creates isolated temp directories for
+ *   integration tests with a symlinked node_modules so spawned binaries can
+ *   resolve devDependencies (e.g., snappy). Cross-platform: uses junction on
+ *   Windows (no admin required) and symlink on POSIX. Cleans up on dispose.
  */
 
 import { existsSync, promises as fs } from 'node:fs'
@@ -23,7 +20,8 @@ const PACKAGE_ROOT = path.resolve(__dirname, '..', '..')
  * Create an isolated test directory with a symlinked node_modules.
  *
  * @param {string} name - Directory name suffix (e.g., 'vfs-tests')
- * @returns {Promise<{ dir: string, cleanup: () => Promise<void> }>}
+ *
+ * @returns {Promise<{ dir: string; cleanup: () => Promise<void> }>}
  */
 export async function createTestDir(name) {
   const dir = path.join(os.tmpdir(), `socket-btm-${name}-${Date.now()}`)

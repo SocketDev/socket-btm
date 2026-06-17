@@ -51,12 +51,12 @@ downstream gyp files.
 
 ## Symbols shimmed
 
-| Symbol | glibc added | Shim strategy |
-| --- | --- | --- |
-| `getrandom` | 2.25 | `dlsym(RTLD_NEXT)` → `syscall(SYS_getrandom)` |
-| `quick_exit` | 2.24 | `dlsym` → drain `__wrap_at_quick_exit` LIFO + `_exit()` |
-| `at_quick_exit` | 2.24 | `dlsym` → static array + `pthread_mutex_t` |
-| `__cxa_thread_atexit_impl` | 2.18 | `dlsym` → `pthread_key_t` per-thread dtor list |
+| Symbol                     | glibc added | Shim strategy                                           |
+| -------------------------- | ----------- | ------------------------------------------------------- |
+| `getrandom`                | 2.25        | `dlsym(RTLD_NEXT)` → `syscall(SYS_getrandom)`           |
+| `quick_exit`               | 2.24        | `dlsym` → drain `__wrap_at_quick_exit` LIFO + `_exit()` |
+| `at_quick_exit`            | 2.24        | `dlsym` → static array + `pthread_mutex_t`              |
+| `__cxa_thread_atexit_impl` | 2.18        | `dlsym` → `pthread_key_t` per-thread dtor list          |
 
 Per-symbol detail + fallback semantics: [`docs/shim-contract.md`](docs/shim-contract.md).
 

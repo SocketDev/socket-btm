@@ -3,14 +3,14 @@
  * Works on macOS, Linux, and Windows (with MinGW/MSYS).
  *
  * Runs coverage for both:
- *   - C packages (binject, binpress, binflate) via their platform Makefiles
- *   - node-smol-builder's own JS tests via vitest
+ * - C packages (binject, binpress, binflate) via their platform Makefiles
+ * - node-smol-builder's own JS tests via vitest.
  *
  * Usage:
- *   node scripts/cover.mts              # both C packages and vitest
- *   node scripts/cover.mts c            # only C packages
- *   node scripts/cover.mts vitest       # only vitest
- *   node scripts/cover.mts binject      # only the named C package
+ * node scripts/cover.mts              # both C packages and vitest
+ * node scripts/cover.mts c            # only C packages
+ * node scripts/cover.mts vitest       # only vitest
+ * node scripts/cover.mts binject      # only the named C package.
  */
 
 import { existsSync } from 'node:fs'

@@ -3,10 +3,10 @@
  * Get checkpoint chain for ONNX Runtime builds.
  *
  * Usage:
- *   node scripts/get-checkpoint-chain.mts [--dev|--prod]
+ * node scripts/get-checkpoint-chain.mts [--dev|--prod]
  *
  * Output:
- *   Comma-separated checkpoint chain in reverse dependency order.
+ * Comma-separated checkpoint chain in reverse dependency order.
  *
  * Prod includes wasm-optimized; dev skips it because optimization is
  * disabled in dev builds.

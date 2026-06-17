@@ -1,21 +1,16 @@
 /**
- * @file boringssl-builder canonical build definition.
+ * @file Boringssl-builder canonical build definition.
+ *   Single source of truth for what `pnpm run build` does. Consumed by:
  *
- * Single source of truth for what `pnpm run build` does. Consumed by:
- *
- *   - build.mts        — native macOS/Windows + Linux-native build path.
- *                        Iterates BUILD_STEPS and spawns each via
- *                        @socketsecurity/lib's spawn().
- *   - emit-docker-build.mts — generates docker/build.sh (pure bash,
- *                        runs inside manylinux2014 with NO Node).
- *
- * Updating a configure flag, compile target, or artifact rename touches
- * exactly this file. The vitest in test/build-defs-drift.test.mts asserts
- * docker/build.sh is in sync with what an emit run would produce.
- *
- * Per fleet rule "1 path, 1 reference" — never hand-edit docker/build.sh.
- * Run `pnpm --filter boringssl-builder run emit-docker-build` after
- * changing this file.
+ *   - build.mts — native macOS/Windows + Linux-native build path. Iterates
+ *     BUILD_STEPS and spawns each via @socketsecurity/lib's spawn().
+ *   - emit-docker-build.mts — generates docker/build.sh (pure bash, runs inside
+ *     manylinux2014 with NO Node). Updating a configure flag, compile target,
+ *     or artifact rename touches exactly this file. The vitest in
+ *     test/build-defs-drift.test.mts asserts docker/build.sh is in sync with
+ *     what an emit run would produce. Per fleet rule "1 path, 1 reference" —
+ *     never hand-edit docker/build.sh. Run `pnpm --filter boringssl-builder run
+ *     emit-docker-build` after changing this file.
  */
 
 import path from 'node:path'
@@ -61,8 +56,8 @@ export const EXTRA_YUM_PACKAGES: readonly string[] = [
 /**
  * Build steps run in declared order. Each step's args reference
  * placeholder env vars resolved by both consumers:
- *   - build.mts: substitutes via path.join() of getPaths() outputs
- *   - emit-docker-build.mts: emits literal "$VAR" for bash
+ * - build.mts: substitutes via path.join() of getPaths() outputs
+ * - emit-docker-build.mts: emits literal "$VAR" for bash.
  */
 export const BUILD_STEPS: readonly BuildStep[] = [
   {

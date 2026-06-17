@@ -1,14 +1,12 @@
 /**
- * @fileoverview Tests for stub metadata writing.
+ * @file Tests for stub metadata writing. Validates that stubs write correct
+ *   metadata to .dlx-metadata.json cache files. Tests verify:
  *
- * Validates that stubs write correct metadata to .dlx-metadata.json cache files.
- *
- * Tests verify:
- * - All required metadata fields are present
- * - SRI integrity hash is correct format
- * - Sizes are correct
- * - Timestamps are valid
- * - Source type is "extract"
+ *   - All required metadata fields are present
+ *   - SRI integrity hash is correct format
+ *   - Sizes are correct
+ *   - Timestamps are valid
+ *   - Source type is "extract"
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

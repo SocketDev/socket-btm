@@ -1,8 +1,8 @@
 /**
- * @fileoverview Utilities for detecting and reporting GitHub infrastructure errors.
- *
- * This module provides helpers to identify transient GitHub errors (502, 503, etc.)
- * and fetch GitHub status to help users understand if the issue is temporary.
+ * @file Utilities for detecting and reporting GitHub infrastructure errors.
+ *   This module provides helpers to identify transient GitHub errors (502, 503,
+ *   etc.) and fetch GitHub status to help users understand if the issue is
+ *   temporary.
  */
 
 import { errorMessage } from '@socketsecurity/lib-stable/errors'
@@ -28,7 +28,10 @@ const TRANSIENT_ERROR_PATTERNS = [
 
 /**
  * Fetch GitHub status and return a human-readable summary.
- * @returns {Promise<{status: string, description: string, url: string}|undefined>}
+ *
+ * @returns {Promise<
+ *   { status: string; description: string; url: string } | undefined
+ * >}
  */
 export async function checkGitHubStatus() {
   try {
@@ -52,7 +55,9 @@ export async function checkGitHubStatus() {
 
 /**
  * Check if an error indicates a transient GitHub/network issue.
- * @param {Error|string|unknown} error - The error to check.
+ *
+ * @param {Error | string | unknown} error - The error to check.
+ *
  * @returns {boolean} True if the error appears to be transient.
  */
 export function isTransientError(error) {
@@ -67,6 +72,7 @@ export function isTransientError(error) {
  * @param {Error} error - The original error.
  * @param {object} [options] - Options.
  * @param {boolean} [options.checkStatus=true] - Whether to check GitHub status.
+ *
  * @returns {Promise<void>}
  */
 export async function logTransientErrorHelp(

@@ -1,6 +1,6 @@
 /**
- * @fileoverview Tests for script-runner utilities.
- * Validates pnpm script execution, command sequencing, and parallel execution.
+ * @file Tests for script-runner utilities. Validates pnpm script execution,
+ *   command sequencing, and parallel execution.
  */
 
 import { beforeEach, describe, expect, it, test, vi } from 'vitest'

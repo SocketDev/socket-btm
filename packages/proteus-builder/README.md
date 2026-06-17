@@ -13,11 +13,11 @@ the socket in memory after a successful biometric prompt.
 
 ## Platform matrix
 
-| Platform | Build | Biometric | Keystore it fronts |
-| --- | --- | --- | --- |
-| darwin-arm64 / darwin-x64 | full | Touch ID + Secure Enclave | macOS Keychain |
-| linux-x64 / linux-arm64 (glibc + musl) | broker-only | none | Secret Service (libsecret) |
-| win32-x64 / win32-arm64 | broker-only | none (Hello later) | Credential Manager |
+| Platform                               | Build       | Biometric                 | Keystore it fronts         |
+| -------------------------------------- | ----------- | ------------------------- | -------------------------- |
+| darwin-arm64 / darwin-x64              | full        | Touch ID + Secure Enclave | macOS Keychain             |
+| linux-x64 / linux-arm64 (glibc + musl) | broker-only | none                      | Secret Service (libsecret) |
+| win32-x64 / win32-arm64                | broker-only | none (Hello later)        | Credential Manager         |
 
 Only the macOS targets get the Touch-ID / Secure-Enclave path, since that
 capability is Apple-only. The other six build the same daemon and front their

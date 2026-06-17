@@ -1,19 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it, test } from 'vitest'
 
 /**
- * @fileoverview Cross-package integration tests
+ * @file Cross-package integration tests
+ *   Tests the complete pipeline across multiple packages:
  *
- * Tests the complete pipeline across multiple packages:
- * 1. binpress: Compress a Node.js binary
- * 2. binject: Inject SEA/VFS resources into compressed binary
- * 3. Execute: Run the final binary and verify it works
- * 4. Cache: Verify decompression and caching behavior
- *
- * This validates the end-to-end workflow:
- * Node binary → binpress (compress) → binject (inject resources) → execute
- *
- * These tests ensure all packages work together correctly and that
- * binaries produced by the full pipeline are functional.
+ *   1. binpress: Compress a Node.js binary
+ *   2. binject: Inject SEA/VFS resources into compressed binary
+ *   3. Execute: Run the final binary and verify it works
+ *   4. Cache: Verify decompression and caching behavior This validates the
+ *      end-to-end workflow: Node binary → binpress (compress) → binject (inject
+ *      resources) → execute These tests ensure all packages work together
+ *      correctly and that binaries produced by the full pipeline are
+ *      functional.
  */
 
 import { existsSync, promises as fs } from 'node:fs'

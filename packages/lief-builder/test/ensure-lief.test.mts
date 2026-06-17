@@ -1,5 +1,5 @@
 /**
- * @fileoverview Tests for lief-builder library exports.
+ * @file Tests for lief-builder library exports.
  */
 
 import { describe, expect, it } from 'vitest'

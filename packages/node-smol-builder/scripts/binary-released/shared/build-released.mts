@@ -1,18 +1,17 @@
 // max-file-lines: legitimate -- orchestration script — top-down pipeline (gather → validate → report); splitting fractures the flow
 
 /**
- * @fileoverview Release Binary Build Phase
+ * @file Release Binary Build Phase
+ *   This script handles the "Release" build phase:
  *
- * This script handles the "Release" build phase:
- * 1. Pre-flight checks (tools, environment, compression tools)
- * 2. Source cloning/extraction
- * 3. Patch application
- * 4. Node.js configuration
- * 5. Compilation
- * 6. Binary testing
- * 7. Release checkpoint creation
- *
- * This is the most complex phase containing all the Node.js build logic.
+ *   1. Pre-flight checks (tools, environment, compression tools)
+ *   2. Source cloning/extraction
+ *   3. Patch application
+ *   4. Node.js configuration
+ *   5. Compilation
+ *   6. Binary testing
+ *   7. Release checkpoint creation This is the most complex phase containing all
+ *      the Node.js build logic.
  */
 
 import { existsSync, promises as fs } from 'node:fs'
@@ -40,8 +39,8 @@ import {
   shouldRun,
 } from 'build-infra/lib/checkpoint-manager'
 import {
-  CHECKPOINTS,
   CHECKPOINT_CHAINS,
+  CHECKPOINTS,
   nodeVersionRaw,
   validateCheckpointChain,
 } from 'build-infra/lib/constants'
@@ -78,34 +77,35 @@ const logger = getDefaultLogger()
 /**
  * Build Release binary phase.
  *
- * @param {object} options - Build options
- * @param {string} options.nodeVersion - Node.js version to build
- * @param {string} options.nodeSha - Node.js commit SHA
- * @param {string} options.nodeRepo - Node.js repository URL
- * @param {string} options.buildDir - Build directory
- * @param {string} options.packageName - Package name
- * @param {string} options.sharedBuildDir - Shared build directory
- * @param {string} options.sharedSourceDir - Shared source directory
- * @param {string} options.modeSourceDir - Mode-specific source directory
- * @param {string} options.buildPatchesDir - Build patches directory
- * @param {string} options.outDir - Build out directory
- * @param {string} options.nodeBinary - Node binary path
- * @param {string} options.outputReleaseDir - Release output directory
- * @param {string} options.outputReleaseBinary - Release binary path
- * @param {string} options.cacheDir - Cache directory
- * @param {string} options.testFile - Test file path
- * @param {string} options.bootstrapFile - Bootstrap file path
- * @param {string} options.patchedFile - Patched file path
- * @param {string} options.platform - Target platform
- * @param {string} options.arch - Target architecture
+ * @param {object} options - Build options.
+ * @param {string} options.nodeVersion - Node.js version to build.
+ * @param {string} options.nodeSha - Node.js commit SHA.
+ * @param {string} options.nodeRepo - Node.js repository URL.
+ * @param {string} options.buildDir - Build directory.
+ * @param {string} options.packageName - Package name.
+ * @param {string} options.sharedBuildDir - Shared build directory.
+ * @param {string} options.sharedSourceDir - Shared source directory.
+ * @param {string} options.modeSourceDir - Mode-specific source directory.
+ * @param {string} options.buildPatchesDir - Build patches directory.
+ * @param {string} options.outDir - Build out directory.
+ * @param {string} options.nodeBinary - Node binary path.
+ * @param {string} options.outputReleaseDir - Release output directory.
+ * @param {string} options.outputReleaseBinary - Release binary path.
+ * @param {string} options.cacheDir - Cache directory.
+ * @param {string} options.testFile - Test file path.
+ * @param {string} options.bootstrapFile - Bootstrap file path.
+ * @param {string} options.patchedFile - Patched file path.
+ * @param {string} options.platform - Target platform.
+ * @param {string} options.arch - Target architecture.
  * @param {string} options.buildMode - Build mode (dev/prod)
- * @param {boolean} options.cleanBuild - Whether this is a clean build
- * @param {boolean} options.autoYes - Auto-yes to prompts
- * @param {boolean} options.isCI - Whether running in CI
- * @param {boolean} options.isProdBuild - Whether this is a production build
+ * @param {boolean} options.cleanBuild - Whether this is a clean build.
+ * @param {boolean} options.autoYes - Auto-yes to prompts.
+ * @param {boolean} options.isCI - Whether running in CI.
+ * @param {boolean} options.isProdBuild - Whether this is a production build.
  * @param {boolean} options.allowCross - Allow cross-compilation (experimental)
- * @param {function} options.collectBuildSourceFiles - Function to collect build source files
- * @param {string} options.packageRoot - Package root directory
+ * @param {function} options.collectBuildSourceFiles - Function to collect build
+ *   source files.
+ * @param {string} options.packageRoot - Package root directory.
  */
 export async function buildRelease(config, buildOptions = {}) {
   const { skipCheckpoint = false } = buildOptions
@@ -512,9 +512,7 @@ export async function buildRelease(config, buildOptions = {}) {
           logger.substep(
             'Press Ctrl+C now if you want to inspect the changes first',
           )
-          logger.substep(
-            'Or wait 5 seconds to continue with automatic reset…',
-          )
+          logger.substep('Or wait 5 seconds to continue with automatic reset…')
           logger.logNewline()
 
           await new Promise(resolve => setTimeout(resolve, 5000))
@@ -665,7 +663,10 @@ export async function buildRelease(config, buildOptions = {}) {
   // + node.gyp patches land (D6), the gate's success flips
   // `node_use_dawn=true` into the configure flags below.
   if (withDawn) {
-    const dawnPaths = getDawnBuildPaths(buildMode, await getCurrentPlatformArch())
+    const dawnPaths = getDawnBuildPaths(
+      buildMode,
+      await getCurrentPlatformArch(),
+    )
     if (!existsSync(dawnPaths.outputLibFile)) {
       throw new Error(
         '--with-dawn requested but dawn-builder artifact is missing.\n\n' +
@@ -1078,10 +1079,12 @@ export async function buildRelease(config, buildOptions = {}) {
  * Get checkpoint chain for progressive restoration (newest → oldest).
  * Matches CI restore-checkpoint action chain.
  *
- * Uses centralized CHECKPOINT_CHAINS registry from build-infra.
- * CI workflows should use this same function to generate their checkpoint chain.
+ * Uses centralized CHECKPOINT_CHAINS registry from build-infra. CI workflows
+ * should use this same function to generate their checkpoint chain.
  *
- * @param {string} _buildMode - Build mode ('dev' or 'prod') - unused for node-smol but kept for API consistency
+ * @param {string} _buildMode - Build mode ('dev' or 'prod') - unused for
+ *   node-smol but kept for API consistency.
+ *
  * @returns {string[]} Checkpoint chain array
  */
 export function getCheckpointChain(_buildMode) {

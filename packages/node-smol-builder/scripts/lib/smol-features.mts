@@ -1,7 +1,7 @@
 /**
- * @fileoverview Authoritative registry of node-smol optional subsystems.
+ * @file Authoritative registry of node-smol optional subsystems.
+ *   Single source of truth shared by:
  *
- * Single source of truth shared by:
  *   - the bundle feature detector (scripts/detect-bundle-features.mts) — which
  *     `signals` prove a feature is used, so an unused one can be dropped;
  *   - the flag mapper — `configureFlagWhenDropped` is the exact ./configure arg
@@ -9,35 +9,34 @@
  *   - the gyp gating (patches 004 + 018) — `gypVar` is the node_use_* variable
  *     each subsystem's sources are gated on;
  *   - the flaggable test harness — `name` keys the `has(feature)` skip predicate.
- *
- * Adding a subsystem? Add one entry here, wire its `gypVar` in patch 004, its
- * configure flag in patch 018, and a skipIf in its test. The
- * project_additions_vs_patch_sync invariant means sources and gyp must stay in
- * lockstep — this registry is the checklist.
+ *     Adding a subsystem? Add one entry here, wire its `gypVar` in patch 004,
+ *     its configure flag in patch 018, and a skipIf in its test. The
+ *     project_additions_vs_patch_sync invariant means sources and gyp must stay
+ *     in lockstep — this registry is the checklist.
  */
 
 /**
  * Drop policy:
- *   'auto'        — droppable purely from static evidence (no signals ⇒ drop).
- *   'soft'        — usable behind an isBuiltin() guard with a runtime fallback;
- *                   droppable, but the gate must verify the fallback path.
- *   'keep-unless-explicit' — never auto-dropped (deep coupling / broad blast
- *                   radius); only an explicit override in the bundle's
- *                   package.json `smol.drop` list removes it.
- *   'always'      — core runtime; never gated, never dropped (listed for the
- *                   test harness + documentation, has no flag).
+ * 'auto'        — droppable purely from static evidence (no signals ⇒ drop).
+ * 'soft'        — usable behind an isBuiltin() guard with a runtime fallback;
+ * droppable, but the gate must verify the fallback path.
+ * 'keep-unless-explicit' — never auto-dropped (deep coupling / broad blast
+ * radius); only an explicit override in the bundle's
+ * package.json `smol.drop` list removes it.
+ * 'always'      — core runtime; never gated, never dropped (listed for the
+ * test harness + documentation, has no flag).
  */
-export type DropPolicy =
-  | 'auto'
-  | 'soft'
-  | 'keep-unless-explicit'
-  | 'always'
+export type DropPolicy = 'auto' | 'soft' | 'keep-unless-explicit' | 'always'
 
 export type SmolFeature = {
   __proto__: null
-  /** Stable key — used by has(feature) in tests and the manifest. */
+  /**
+   * Stable key — used by has(feature) in tests and the manifest.
+   */
   name: string
-  /** Human summary for reports. */
+  /**
+   * Human summary for reports.
+   */
   description: string
   /**
    * String literals whose presence in the bundle proves the feature is used.
@@ -52,7 +51,7 @@ export type SmolFeature = {
    * member; a bare `object` with no `property` matches any access. These catch
    * usage that has no string specifier.
    */
-  memberSignals: Array<{ object: string; property?: string }>
+  memberSignals: Array<{ object: string; property?: string | undefined }>
   /**
    * The exact ./configure argument to emit when this feature is dropped.
    * `null` for 'always' features (no flag). For features gated by an opt-IN
@@ -60,13 +59,21 @@ export type SmolFeature = {
    * and `optInFlag` carries the enable flag instead.
    */
   configureFlagWhenDropped: string | null
-  /** For opt-in features: the flag that ENABLES them (default off). */
+  /**
+   * For opt-in features: the flag that ENABLES them (default off).
+   */
   optInFlag: string | null
-  /** The node_use_* gyp variable gating this feature's sources in node.gyp. */
+  /**
+   * The node_use_* gyp variable gating this feature's sources in node.gyp.
+   */
   gypVar: string | null
-  /** Drop policy — see DropPolicy. */
+  /**
+   * Drop policy — see DropPolicy.
+   */
   policy: DropPolicy
-  /** Rough binary-size delta (MB) recovered by dropping, for report sorting. */
+  /**
+   * Rough binary-size delta (MB) recovered by dropping, for report sorting.
+   */
   approxBinaryMb: number
 }
 
@@ -267,7 +274,11 @@ export const SMOL_FEATURES: readonly SmolFeature[] = [
     // member and `toLocale*(` usage, never a `node:intl` specifier (which isn't
     // a real builtin). This keeps featureBuiltinSpecifier('intl') === undefined
     // so the gate doesn't probe a non-existent module.
-    stringSignals: ['toLocaleString', 'toLocaleDateString', 'toLocaleTimeString'],
+    stringSignals: [
+      'toLocaleString',
+      'toLocaleDateString',
+      'toLocaleTimeString',
+    ],
     memberSignals: [{ object: 'Intl' }],
     // small-icu → none saves ~8MB but breaks all locale formatting + collation
     // and Temporal's calendar backend. Never auto-dropped.
@@ -279,14 +290,16 @@ export const SMOL_FEATURES: readonly SmolFeature[] = [
   }),
 ] as const
 
-/** Features that can be auto-dropped from static evidence alone. */
+/**
+ * Features that can be auto-dropped from static evidence alone.
+ */
 export function autoDroppableFeatures(): SmolFeature[] {
-  return SMOL_FEATURES.filter(
-    f => f.policy === 'auto' || f.policy === 'soft',
-  )
+  return SMOL_FEATURES.filter(f => f.policy === 'auto' || f.policy === 'soft')
 }
 
-/** Look up a feature by name. */
+/**
+ * Look up a feature by name.
+ */
 export function getFeature(name: string): SmolFeature | undefined {
   return SMOL_FEATURES.find(f => f.name === name)
 }
@@ -294,8 +307,9 @@ export function getFeature(name: string): SmolFeature | undefined {
 /**
  * The canonical `node:`-prefixed builtin specifier for a feature (the first
  * `node:` string signal), or undefined for features with no importable module
- * (e.g. `intl`, `temporal` — reached via globals, not a `node:` import). Used by
- * the test harness to map a feature name to its `isBuiltin('node:…')` probe.
+ * (e.g. `intl`, `temporal` — reached via globals, not a `node:` import). Used
+ * by the test harness to map a feature name to its `isBuiltin('node:…')`
+ * probe.
  */
 export function featureBuiltinSpecifier(name: string): string | undefined {
   const f = getFeature(name)

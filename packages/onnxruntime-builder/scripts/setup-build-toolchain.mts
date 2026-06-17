@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * @fileoverview Setup build toolchain for onnxruntime-builder
+ * @file Setup build toolchain for onnxruntime-builder
+ *   Installs required system dependencies:
  *
- * Installs required system dependencies:
- * - Linux: gcc, make, cmake, python3
- * - macOS: clang (Xcode), make, cmake, python3
- * - Windows: mingw-w64, make, cmake, python3
+ *   - Linux: gcc, make, cmake, python3
+ *   - macOS: clang (Xcode), make, cmake, python3
+ *   - Windows: mingw-w64, make, cmake, python3
  */
 
 import path from 'node:path'

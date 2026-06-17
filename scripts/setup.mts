@@ -1,17 +1,14 @@
 #!/usr/bin/env node
 /**
- * @fileoverview Developer setup script for socket-btm monorepo.
+ * @file Developer setup script for socket-btm monorepo.
+ *   Checks and prepares build environment:
  *
- * Checks and prepares build environment:
- * - Node.js version (>=18.0.0)
- * - pnpm version (>=10.21.0)
- * - Build toolchain (cmake, ninja, python, rust, etc.)
- * - Optional Docker runtime (suggests OrbStack on macOS; non-fatal)
- *
- * Usage:
- *   pnpm run setup                # Check prerequisites
- *   pnpm run setup --install      # Check and auto-install missing tools
- *   pnpm run setup --quiet        # Minimal output
+ *   - Node.js version (>=18.0.0)
+ *   - pnpm version (>=10.21.0)
+ *   - Build toolchain (cmake, ninja, python, rust, etc.)
+ *   - Optional Docker runtime (suggests OrbStack on macOS; non-fatal) Usage: pnpm
+ *     run setup # Check prerequisites pnpm run setup --install # Check and
+ *     auto-install missing tools pnpm run setup --quiet # Minimal output
  */
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -156,7 +153,8 @@ export async function checkBuildToolchain(): Promise<boolean> {
 export function checkDockerRuntime(): void {
   let hasDocker = false
   try {
-    hasDocker = spawnSync('docker', ['--version'], { stdio: 'ignore' }).status === 0
+    hasDocker =
+      spawnSync('docker', ['--version'], { stdio: 'ignore' }).status === 0
   } catch {
     hasDocker = false
   }
@@ -173,7 +171,7 @@ export function checkDockerRuntime(): void {
     )
   } else {
     log.info(
-      'Docker not found (optional). Install your distro\'s Docker/Podman to ' +
+      "Docker not found (optional). Install your distro's Docker/Podman to " +
         'enable musl smoke tests; without it they fall back to static verification.',
     )
   }

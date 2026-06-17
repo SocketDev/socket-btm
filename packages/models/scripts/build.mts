@@ -2,24 +2,23 @@
 /**
  * Build script for @socketsecurity/models.
  *
- * Downloads AI models from Hugging Face, converts to ONNX, and applies quantization.
+ * Downloads AI models from Hugging Face, converts to ONNX, and applies
+ * quantization.
  *
  * Workflow:
+ *
  * 1. Download models from Hugging Face (with fallbacks)
  * 2. Convert to ONNX if needed
  * 3. Apply quantization (INT4 or INT8) for compression
  * 4. Output quantized ONNX models
  *
- * Options:
- * --dev    Development build (INT8 quantization, better compatibility, ~50% size reduction)
- * --prod   Production build (INT4 quantization, maximum compression, ~75% size reduction, default)
- * --int8   Alias for --dev (INT8 quantization)
- * --int4   Alias for --prod (INT4 quantization)
- * --minilm Build MiniLM-L6 model only
- * --codet5 Build CodeT5 model only
- * --all    Build all models
- * --force  Force rebuild even if checkpoints exist
- * --clean  Clean all checkpoints before building
+ * Options: --dev Development build (INT8 quantization, better compatibility,
+ * ~50% size reduction) --prod Production build (INT4 quantization, maximum
+ * compression, ~75% size reduction, default) --int8 Alias for --dev (INT8
+ * quantization) --int4 Alias for --prod (INT4 quantization) --minilm Build
+ * MiniLM-L6 model only --codet5 Build CodeT5 model only --all Build all models
+ * --force Force rebuild even if checkpoints exist --clean Clean all checkpoints
+ * before building.
  */
 
 import { existsSync, promises as fs } from 'node:fs'
@@ -43,7 +42,7 @@ import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 import { convertToOnnx as convertToOnnxImpl } from './converted/shared/convert-to-onnx.mts'
 import { downloadModel as downloadModelImpl } from './downloaded/shared/download-model.mts'
 import { getCheckpointChain } from './get-checkpoint-chain.mts'
-import { PACKAGE_ROOT, getBuildPaths, getCurrentPlatform } from './paths.mts'
+import { getBuildPaths, getCurrentPlatform, PACKAGE_ROOT } from './paths.mts'
 import { quantizeModel as quantizeModelImpl } from './quantized/shared/quantize-model.mts'
 
 // Parse arguments.
@@ -109,8 +108,8 @@ export async function convertToOnnx(modelKey) {
 }
 
 /**
- * Copy quantized models and tokenizers to build output directory.
- * Output structure: build/{mode}/{platform-arch}/out/Final/{modelKey}/model.onnx
+ * Copy quantized models and tokenizers to build output directory. Output
+ * structure: build/{mode}/{platform-arch}/out/Final/{modelKey}/model.onnx.
  */
 export async function copyToDist(modelKey, quantizedPaths, quantLevel) {
   logger.step('Copying models to build output')
@@ -179,9 +178,9 @@ export async function downloadModel(modelKey) {
 /**
  * Apply quantization for compression.
  *
- * Supports two quantization levels:
- * - INT4: MatMulNBitsQuantizer with RTN weight-only quantization (maximum compression).
- * - INT8: Dynamic quantization (better compatibility, moderate compression).
+ * Supports two quantization levels: - INT4: MatMulNBitsQuantizer with RTN
+ * weight-only quantization (maximum compression). - INT8: Dynamic quantization
+ * (better compatibility, moderate compression).
  *
  * Results in significant size reduction with minimal accuracy loss.
  */

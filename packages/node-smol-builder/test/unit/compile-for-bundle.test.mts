@@ -1,13 +1,13 @@
 /**
- * @fileoverview Unit tests for the cached-compile orchestrator's pure logic.
- *
- * The actual build is a 30–60 min native compile (not run here); these tests
- * cover the pure logic: (1) the cache-key contract that makes per-bundle builds
- * dedup correctly — identical flag sets → identical key (cache hit, build once),
- * any change → different key (rebuild); and (2) buildBuildArgs, which enforces
- * the "never --from-checkpoint=source-patched" invariant (build.mts throws on
- * that — it's an internal sub-checkpoint, not a resume entry point). End-to-end
- * detect→plan is exercised via --dry-run in the integration/manual path.
+ * @file Unit tests for the cached-compile orchestrator's pure logic. The actual
+ *   build is a 30–60 min native compile (not run here); these tests cover the
+ *   pure logic: (1) the cache-key contract that makes per-bundle builds dedup
+ *   correctly — identical flag sets → identical key (cache hit, build once),
+ *   any change → different key (rebuild); and (2) buildBuildArgs, which
+ *   enforces the "never --from-checkpoint=source-patched" invariant (build.mts
+ *   throws on that — it's an internal sub-checkpoint, not a resume entry
+ *   point). End-to-end detect→plan is exercised via --dry-run in the
+ *   integration/manual path.
  */
 
 import { describe, expect, it } from 'vitest'
@@ -62,11 +62,19 @@ describe('computeCacheKey', () => {
 
   it('two bundles with the same feature set share a key (dedup)', () => {
     // sfw-free and sfw-registry both "minimal" → same flags → one build.
-    const flagsA = ['--without-smol-quic', '--without-smol-ffi', '--without-sqlite']
-    const flagsB = ['--without-sqlite', '--without-smol-quic', '--without-smol-ffi']
-    expect(
-      computeCacheKey({ ...base, configureFlags: flagsA }),
-    ).toBe(computeCacheKey({ ...base, configureFlags: flagsB }))
+    const flagsA = [
+      '--without-smol-quic',
+      '--without-smol-ffi',
+      '--without-sqlite',
+    ]
+    const flagsB = [
+      '--without-sqlite',
+      '--without-smol-quic',
+      '--without-smol-ffi',
+    ]
+    expect(computeCacheKey({ ...base, configureFlags: flagsA })).toBe(
+      computeCacheKey({ ...base, configureFlags: flagsB }),
+    )
   })
 })
 
@@ -89,13 +97,21 @@ describe('buildBuildArgs', () => {
   })
 
   it('forwards the drop flags through the single --without-smol channel', () => {
-    const flags = ['--without-smol-quic', '--without-smol-tui', '--v8-lite-mode']
+    const flags = [
+      '--without-smol-quic',
+      '--without-smol-tui',
+      '--v8-lite-mode',
+    ]
     const args = buildBuildArgs({ buildScriptPath, buildMode: 'prod', flags })
     expect(args).toContain(`--without-smol=${flags.join(',')}`)
   })
 
   it('omits --without-smol entirely when there are no flags', () => {
-    const args = buildBuildArgs({ buildScriptPath, buildMode: 'dev', flags: [] })
+    const args = buildBuildArgs({
+      buildScriptPath,
+      buildMode: 'dev',
+      flags: [],
+    })
     expect(args.some(a => a.startsWith('--without-smol'))).toBe(false)
   })
 
@@ -109,7 +125,11 @@ describe('buildBuildArgs', () => {
   })
 
   it('puts the build script path first', () => {
-    const args = buildBuildArgs({ buildScriptPath, buildMode: 'prod', flags: [] })
+    const args = buildBuildArgs({
+      buildScriptPath,
+      buildMode: 'prod',
+      flags: [],
+    })
     expect(args[0]).toBe(buildScriptPath)
   })
 })

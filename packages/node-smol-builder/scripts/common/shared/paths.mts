@@ -1,7 +1,8 @@
 /**
  * Paths used by common scripts.
  *
- * Re-exports infrastructure paths from root that are actually used by common scripts.
+ * Re-exports infrastructure paths from root that are actually used by common
+ * scripts.
  */
 
 export {

@@ -1,6 +1,6 @@
 /**
- * @fileoverview Monorepo script runner utilities for common build operations.
- * Provides DRY helpers for running pnpm scripts, commands, and sequences.
+ * @file Monorepo script runner utilities for common build operations.
+ *   Provides DRY helpers for running pnpm scripts, commands, and sequences.
  */
 
 import { which } from '@socketsecurity/lib-stable/bin/which'
@@ -16,10 +16,12 @@ const PNPM_NOT_FOUND_MSG = 'pnpm not found in PATH'
  * Run a command with inherited stdio, throwing on non-zero exit.
  * This is the common pattern used across build/clean/test scripts.
  *
- * @param {string} command - Command to run
- * @param {string[]} args - Arguments
- * @param {string} [cwd] - Working directory
+ * @param {string} command - Command to run.
+ * @param {string[]} args - Arguments.
+ * @param {string} [cwd] - Working directory.
+ *
  * @returns {Promise<void>}
+ *
  * @throws {Error} If command exits with non-zero code
  */
 export async function runCommand(command, args = [], cwd = undefined) {
@@ -39,9 +41,12 @@ export async function runCommand(command, args = [], cwd = undefined) {
 /**
  * Run multiple commands in parallel.
  *
- * @param {Array<{command: string, args?: string[], options?: object}>} commands
- * @param {object} globalOptions - Options to merge into all commands
- * @returns {Promise<Array<{code: number, stdout?: string, stderr?: string, error?: Error}>>}
+ * @param {{ command: string; args?: string[]; options?: object }[]} commands
+ * @param {object} globalOptions - Options to merge into all commands.
+ *
+ * @returns {Promise<
+ *   { code: number; stdout?: string; stderr?: string; error?: Error }[]
+ * >}
  */
 export async function runParallel(commands, globalOptions = {}) {
   const promises = commands.map(({ args = [], command, options = {} }) =>
@@ -80,10 +85,11 @@ export async function runParallel(commands, globalOptions = {}) {
  * Run a pnpm script in a specific package.
  *
  * @param {string} packageName - Package name (e.g., '@socketsecurity/cli')
- * @param {string} scriptName - Script name from package.json
- * @param {string[]} args - Additional arguments
- * @param {object} options - Spawn options
- * @returns {Promise<{code: number, stdout?: string, stderr?: string}>}
+ * @param {string} scriptName - Script name from package.json.
+ * @param {string[]} args - Additional arguments.
+ * @param {object} options - Spawn options.
+ *
+ * @returns {Promise<{ code: number; stdout?: string; stderr?: string }>}
  */
 export async function runPnpmScript(
   packageName,
@@ -108,10 +114,11 @@ export async function runPnpmScript(
 /**
  * Run a pnpm script across all packages that have the script.
  *
- * @param {string} scriptName - Script name from package.json
- * @param {string[]} args - Additional arguments
- * @param {object} options - Spawn options
- * @returns {Promise<{code: number, stdout?: string, stderr?: string}>}
+ * @param {string} scriptName - Script name from package.json.
+ * @param {string[]} args - Additional arguments.
+ * @param {object} options - Spawn options.
+ *
+ * @returns {Promise<{ code: number; stdout?: string; stderr?: string }>}
  */
 export async function runPnpmScriptAll(scriptName, args = [], options = {}) {
   const pnpmPath = await which('pnpm', { nothrow: true })
@@ -131,10 +138,11 @@ export async function runPnpmScriptAll(scriptName, args = [], options = {}) {
 /**
  * Run a command quietly (capture output).
  *
- * @param {string} command - Command to run
- * @param {string[]} args - Arguments
- * @param {object} options - Spawn options
- * @returns {Promise<{code: number, stdout: string, stderr: string}>}
+ * @param {string} command - Command to run.
+ * @param {string[]} args - Arguments.
+ * @param {object} options - Spawn options.
+ *
+ * @returns {Promise<{ code: number; stdout: string; stderr: string }>}
  */
 export async function runQuiet(command, args = [], options = {}) {
   return spawn(command, args, {
@@ -146,9 +154,16 @@ export async function runQuiet(command, args = [], options = {}) {
 /**
  * Run multiple commands in sequence, stopping on first failure.
  *
- * @param {Array<{command: string, args?: string[], options?: object, description?: string}>} commands
- * @param {object} globalOptions - Options to merge into all commands
- * @returns {Promise<number>} Exit code of first failing command, or 0 if all succeed
+ * @param {{
+ *   command: string
+ *   args?: string[]
+ *   options?: object
+ *   description?: string
+ * }[]} commands
+ * @param {object} globalOptions - Options to merge into all commands.
+ *
+ * @returns {Promise<number>} Exit code of first failing command, or 0 if all
+ *   succeed.
  */
 export async function runSequence(commands, globalOptions = {}) {
   // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured

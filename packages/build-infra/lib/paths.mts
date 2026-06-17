@@ -21,6 +21,7 @@ import { BUILD_STAGES } from './constants.mts'
  * (per-tool, per-platformArch) on top of the base.
  *
  * @param {string} packageRoot - Absolute path to the package root.
+ *
  * @returns {string} Absolute path to the package's download cache directory.
  */
 export function getDownloadedDir(packageRoot) {
@@ -32,14 +33,18 @@ export function getDownloadedDir(packageRoot) {
  * (binpress, binflate, binject) for a specific build mode and platform.
  *
  * Mirrors the layout produced by `bin-infra/lib/builder.mts`'s
- * `buildBinSuitePackage`: `{packageRoot}/build/{mode}/{platformArch}/out/Final/{binaryName}`.
- * Use this whenever a non-builder consumer (script, test helper, sibling
- * package) needs to find the output of a binsuite build.
+ * `buildBinSuitePackage`:
+ * `{packageRoot}/build/{mode}/{platformArch}/out/Final/{binaryName}`. Use this
+ * whenever a non-builder consumer (script, test helper, sibling package) needs
+ * to find the output of a binsuite build.
  *
  * @param {string} packageRoot - Absolute path to the binsuite package root.
  * @param {string} mode - Build mode (`'dev'` or `'prod'`).
- * @param {string} platformArch - Platform-arch identifier (e.g. `'darwin-arm64'`).
- * @param {string} binaryName - Binary file name (e.g. `'binpress'`, `'binpress.exe'`).
+ * @param {string} platformArch - Platform-arch identifier (e.g.
+ *   `'darwin-arm64'`).
+ * @param {string} binaryName - Binary file name (e.g. `'binpress'`,
+ *   `'binpress.exe'`).
+ *
  * @returns {string} Absolute path to the final binary.
  */
 export function getFinalBinaryPath(

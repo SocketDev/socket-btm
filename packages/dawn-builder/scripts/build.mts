@@ -3,8 +3,9 @@
  * Build Dawn via the CMake island-build path.
  *
  * Dawn ships two build systems:
- *   - GN + depot_tools (Chromium's default; ~3 GB of tooling)
- *   - Self-contained CMake at upstream/dawn/CMakeLists.txt
+ *
+ * - GN + depot_tools (Chromium's default; ~3 GB of tooling)
+ * - Self-contained CMake at upstream/dawn/CMakeLists.txt
  *
  * We use the CMake form — same shape as yoga-layout-builder /
  * onnxruntime-builder. CMake fetches Dawn's third-party deps via
@@ -12,25 +13,25 @@
  * of abseil-cpp / spirv-tools / etc. is required.
  *
  * Output (per --mode = dev|prod, current platform-arch):
- *   build/<mode>/<platform-arch>/cmake/   — cmake configure artifacts
- *   build/<mode>/<platform-arch>/out/
- *     lib/libwebgpu_dawn.a                — static library node-smol links
- *     include/                            — public headers
+ * build/<mode>/<platform-arch>/cmake/   — cmake configure artifacts
+ * build/<mode>/<platform-arch>/out/
+ * lib/libwebgpu_dawn.a                — static library node-smol links
+ * include/                            — public headers.
  *
  * Flags:
- *   --mode=dev|prod   (default: dev)        debug vs release optimization
- *   --force                                  re-configure even if cached
- *   --jobs=N         (default: ncpu)        parallel ninja workers
+ * --mode=dev|prod   (default: dev)        debug vs release optimization
+ * --force                                  re-configure even if cached
+ * --jobs=N         (default: ncpu)        parallel ninja workers.
  *
  * Drift watch:
- *   - DAWN_BUILD_NODE_BINDINGS=OFF — we adapt the binding ourselves.
- *   - DAWN_BUILD_TESTS=OFF + TINT_BUILD_TESTS=OFF — Dawn's CMake
- *     pulls googletest when tests are on; we don't run them.
- *   - DAWN_BUILD_SAMPLES=OFF — sample apps would also pull GLFW.
- *   - BUILD_SHARED_LIBS=OFF + CMAKE_POSITION_INDEPENDENT_CODE=ON —
- *     we need a static lib that can be linked into node-smol's
- *     executable (PIC required for static libs included in the
- *     final relocatable link).
+ *
+ * - DAWN_BUILD_NODE_BINDINGS=OFF — we adapt the binding ourselves.
+ * - DAWN_BUILD_TESTS=OFF + TINT_BUILD_TESTS=OFF — Dawn's CMake pulls googletest
+ *   when tests are on; we don't run them.
+ * - DAWN_BUILD_SAMPLES=OFF — sample apps would also pull GLFW.
+ * - BUILD_SHARED_LIBS=OFF + CMAKE_POSITION_INDEPENDENT_CODE=ON — we need a static
+ *   lib that can be linked into node-smol's executable (PIC required for static
+ *   libs included in the final relocatable link).
  *
  * NOTE: this is the D3 scaffold. The full build will take 30-60 min
  * on first run + ~150 GB peak disk during the third-party fetch.
@@ -50,7 +51,7 @@ import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 import { errorMessage } from 'build-infra/lib/error-utils'
 import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 
-import { UPSTREAM_DAWN_DIR, getBuildPaths } from './paths.mts'
+import { getBuildPaths, UPSTREAM_DAWN_DIR } from './paths.mts'
 
 const logger = getDefaultLogger()
 
@@ -83,9 +84,10 @@ export function parseArgs(): BuildOptions {
     }
   }
   if (jobs === 0) {
-    jobs = (typeof os.availableParallelism === 'function'
-      ? os.availableParallelism()
-      : os.cpus().length) || 4
+    jobs =
+      (typeof os.availableParallelism === 'function'
+        ? os.availableParallelism()
+        : os.cpus().length) || 4
   }
   return { force, jobs, mode }
 }
@@ -98,10 +100,7 @@ export function parseArgs(): BuildOptions {
 // oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (parseArgs → recoverOrphanedDotGit → main); alphabetizing would scatter the flow.
 export async function recoverOrphanedDotGit(): Promise<void> {
   const dotGit = path.join(UPSTREAM_DAWN_DIR, '.git')
-  const dotGitMoved = path.join(
-    UPSTREAM_DAWN_DIR,
-    '.git.moved-for-tint-gen',
-  )
+  const dotGitMoved = path.join(UPSTREAM_DAWN_DIR, '.git.moved-for-tint-gen')
   if (existsSync(dotGitMoved) && !existsSync(dotGit)) {
     logger.warn(
       'Recovering .git after a previous interrupted build (was renamed aside for Tint gen workaround)',
@@ -196,7 +195,10 @@ async function main(): Promise<void> {
   // /<dawn>/DEPS as expected.
   const genBinDir = path.join(paths.cmakeDir, '.gen-bin')
   await safeMkdir(genBinDir, { recursive: true })
-  const genBin = path.join(genBinDir, process.platform === 'win32' ? 'gen.exe' : 'gen')
+  const genBin = path.join(
+    genBinDir,
+    process.platform === 'win32' ? 'gen.exe' : 'gen',
+  )
   logger.info(`Compiling gen → ${genBin}`)
   const buildBin = await spawn(
     goPath,
@@ -204,7 +206,9 @@ async function main(): Promise<void> {
     { cwd: UPSTREAM_DAWN_DIR, stdio: 'inherit' },
   )
   if (buildBin.code !== 0) {
-    throw new Error(`go build of Tint gen tool failed with exit code ${buildBin.code}.`)
+    throw new Error(
+      `go build of Tint gen tool failed with exit code ${buildBin.code}.`,
+    )
   }
   // Diagnostics — confirm what the gen binary will actually see.
   const depsPath = path.join(UPSTREAM_DAWN_DIR, 'DEPS')
@@ -221,11 +225,9 @@ async function main(): Promise<void> {
   // shell-quoting a path with whitespace would break it.
   logger.info('Embedded fileutils paths in binary:')
   try {
-    const stringsResult = await spawn(
-      'strings',
-      [genBin],
-      { stdio: ['ignore', 'pipe', 'inherit'] },
-    )
+    const stringsResult = await spawn('strings', [genBin], {
+      stdio: ['ignore', 'pipe', 'inherit'],
+    })
     const matches = (stringsResult.stdout ?? '')
       .split(/\r?\n/)
       .filter(
@@ -263,12 +265,13 @@ async function main(): Promise<void> {
     await fs.rename(dotGit, dotGitMoved)
   }
   try {
-    logger.info(`Running: ${genBin} sources ${genOutDir} (cwd=${UPSTREAM_DAWN_DIR})`)
-    const genResult = await spawn(
-      genBin,
-      ['sources', genOutDir],
-      { cwd: UPSTREAM_DAWN_DIR, stdio: 'inherit' },
+    logger.info(
+      `Running: ${genBin} sources ${genOutDir} (cwd=${UPSTREAM_DAWN_DIR})`,
     )
+    const genResult = await spawn(genBin, ['sources', genOutDir], {
+      cwd: UPSTREAM_DAWN_DIR,
+      stdio: 'inherit',
+    })
     logger.info(`gen exit code: ${genResult.code}`)
     if (genResult.code !== 0) {
       throw new Error(
@@ -284,7 +287,12 @@ async function main(): Promise<void> {
   // first-target output file. If empty, fileutils.DawnRoot() returned
   // "" (couldn't walk up to DEPS) and glob matched 0 templates.
   const enumsCc = path.join(
-    genOutDir, 'src', 'tint', 'lang', 'core', 'enums.cc',
+    genOutDir,
+    'src',
+    'tint',
+    'lang',
+    'core',
+    'enums.cc',
   )
   if (!existsSync(enumsCc)) {
     throw new Error(
@@ -318,7 +326,11 @@ async function main(): Promise<void> {
   // (node-smol's configure step that defines HAVE_DAWN) look at
   // paths.outputLibFile, so we land it there in one step.
   const builtLib = path.join(
-    paths.cmakeDir, 'src', 'dawn', 'native', 'libwebgpu_dawn.a',
+    paths.cmakeDir,
+    'src',
+    'dawn',
+    'native',
+    'libwebgpu_dawn.a',
   )
   if (!existsSync(builtLib)) {
     throw new Error(

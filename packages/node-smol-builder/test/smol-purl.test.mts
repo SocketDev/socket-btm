@@ -1,5 +1,5 @@
 /**
- * PURL Tests for node:smol-purl
+ * PURL Tests for node:smol-purl.
  *
  * Test cases derived from the official PURL spec test suite.
  * See `PURL_SPEC_URL` below for the upstream reference.

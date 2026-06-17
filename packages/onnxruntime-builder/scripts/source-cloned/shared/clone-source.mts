@@ -1,17 +1,15 @@
 /**
- * Source cloning phase for ONNX Runtime
+ * Source cloning phase for ONNX Runtime.
  *
- * Clones ONNX Runtime source from Git repository with SHA verification and applies patches.
+ * Clones ONNX Runtime source from Git repository with SHA verification and
+ * applies patches.
  */
 
 import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 
 import { WIN32 } from '@socketsecurity/lib-stable/constants/platform'
-import {
-  safeDelete,
-  safeMkdir,
-} from '@socketsecurity/lib-stable/fs/safe'
+import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { safeReadFile } from '@socketsecurity/lib-stable/fs/read-file'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
@@ -21,18 +19,20 @@ const logger = getDefaultLogger()
 /**
  * Clone ONNX Runtime source code with patches.
  *
- * @param {object} options - Clone options
+ * @param {object} options - Clone options.
  * @param {string} options.onnxVersion - ONNX version to clone (e.g., 'v1.19.0')
- * @param {string} options.onnxSha - Expected commit SHA
- * @param {string} options.onnxRepo - Git repository URL
- * @param {string} options.eigenCommit - Eigen commit hash
- * @param {string} options.eigenSha1 - Eigen SHA1 hash
- * @param {string} options.sharedBuildDir - Shared build directory
- * @param {string} options.sharedSourceDir - Target source directory
- * @param {string} options.sharedCmakeDepsFile - CMake deps.txt file path
- * @param {string} options.sharedCmakeWebassemblyFile - CMake webassembly file path
- * @param {string} options.sharedPostBuildSourceFile - Post-build script file path
- * @param {string} options.sharedCmakeListsFile - CMakeLists.txt file path
+ * @param {string} options.onnxSha - Expected commit SHA.
+ * @param {string} options.onnxRepo - Git repository URL.
+ * @param {string} options.eigenCommit - Eigen commit hash.
+ * @param {string} options.eigenSha1 - Eigen SHA1 hash.
+ * @param {string} options.sharedBuildDir - Shared build directory.
+ * @param {string} options.sharedSourceDir - Target source directory.
+ * @param {string} options.sharedCmakeDepsFile - CMake deps.txt file path.
+ * @param {string} options.sharedCmakeWebassemblyFile - CMake webassembly file
+ *   path.
+ * @param {string} options.sharedPostBuildSourceFile - Post-build script file
+ *   path.
+ * @param {string} options.sharedCmakeListsFile - CMakeLists.txt file path.
  */
 export async function cloneOnnxSource(options) {
   const {
@@ -46,7 +46,7 @@ export async function cloneOnnxSource(options) {
     sharedCmakeWebassemblyFile,
     sharedPostBuildSourceFile,
     sharedSourceDir,
-  } = options
+  } = { __proto__: null, ...options } as typeof options
 
   logger.step('Cloning ONNX Runtime Source')
 

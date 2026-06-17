@@ -1,5 +1,5 @@
 /**
- * Optimization flags for Emscripten builds
+ * Optimization flags for Emscripten builds.
  *
  * Provides CXX and linker flags for production and development builds.
  */
@@ -10,7 +10,8 @@ import { getCCRemapFlags } from 'build-infra/lib/path-remap-flags'
  * Get optimization flags for a build mode.
  *
  * @param {string} buildMode - 'prod' or 'dev'
- * @returns {{cxxFlags: string[], linkerFlags: string[]}}
+ *
+ * @returns {{ cxxFlags: string[]; linkerFlags: string[] }}
  */
 export function getOptimizationFlags(buildMode) {
   // Anonymize absolute build-host paths in DWARF and __FILE__ macros so

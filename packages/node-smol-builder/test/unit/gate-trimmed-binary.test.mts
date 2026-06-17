@@ -1,10 +1,10 @@
 /**
- * @fileoverview Unit tests for the fail-closed gate's pure probe logic.
- *
- * checkBinaryFeatures takes an injected `probe` so the fail-closed semantics are
- * tested without a real binary: a dropped feature that's still present FAILS, a
- * kept feature that's missing FAILS, matches pass. The full gate (inject + app
- * suite) needs a real trimmed binary and is exercised in CI once one is built.
+ * @file Unit tests for the fail-closed gate's pure probe logic.
+ *   checkBinaryFeatures takes an injected `probe` so the fail-closed semantics
+ *   are tested without a real binary: a dropped feature that's still present
+ *   FAILS, a kept feature that's missing FAILS, matches pass. The full gate
+ *   (inject + app suite) needs a real trimmed binary and is exercised in CI
+ *   once one is built.
  */
 
 import { describe, expect, it } from 'vitest'

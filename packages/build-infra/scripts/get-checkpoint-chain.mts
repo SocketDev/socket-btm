@@ -6,11 +6,11 @@
  * (binsuite packages: binpress, binflate, binject, stubs, libpq, lief).
  *
  * Usage:
- *   node scripts/get-checkpoint-chain.mts
+ * node scripts/get-checkpoint-chain.mts.
  *
- * Output:
- *   Comma-separated checkpoint chain (e.g., "finalized") — the comma separator
- *   is load-bearing: CI workflows capture this with $(node ...) and split on ',' .
+ * Output: Comma-separated checkpoint chain (e.g., "finalized") — the comma
+ * separator is load-bearing: CI workflows capture this with $(node ...) and
+ * split on ',' .
  */
 import path from 'node:path'
 import process from 'node:process'

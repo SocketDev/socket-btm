@@ -8,10 +8,10 @@
  * args set.
  *
  * Use:
- *   pnpm --filter build-infra run docker:builder-glibc
+ * pnpm --filter build-infra run docker:builder-glibc.
  *
- * The published image is `ghcr.io/socketdev/btm-builder-glibc:<tag>` —
- * tag format `YYYY-MM-DD-<sha8>`. Local builds tag as `btm-builder-glibc:local`.
+ * The published image is `ghcr.io/socketdev/btm-builder-glibc:<tag>` — tag
+ * format `YYYY-MM-DD-<sha8>`. Local builds tag as `btm-builder-glibc:local`.
  */
 
 import { existsSync, readFileSync } from 'node:fs'
@@ -58,14 +58,22 @@ async function main() {
     'docker',
     [
       'build',
-      '--platform', platform,
-      '--tag', tag,
-      '--file', DOCKERFILE,
-      '--build-arg', `NODE_VERSION=${nodeVersion}`,
-      '--build-arg', `PNPM_VERSION=${pnpmVersion}`,
-      '--build-arg', `PNPM_ASSET=${pnpmAsset}`,
-      '--build-arg', `PNPM_SHA256=${pnpmSha256}`,
-      '--build-arg', `CACHE_VERSION=local-${Date.now()}`,
+      '--platform',
+      platform,
+      '--tag',
+      tag,
+      '--file',
+      DOCKERFILE,
+      '--build-arg',
+      `NODE_VERSION=${nodeVersion}`,
+      '--build-arg',
+      `PNPM_VERSION=${pnpmVersion}`,
+      '--build-arg',
+      `PNPM_ASSET=${pnpmAsset}`,
+      '--build-arg',
+      `PNPM_SHA256=${pnpmSha256}`,
+      '--build-arg',
+      `CACHE_VERSION=local-${Date.now()}`,
       REPO_ROOT,
     ],
     { stdio: 'inherit' },
@@ -106,9 +114,14 @@ export function readPnpmTriple(platformSpec) {
   }
   const integrity = entry.integrity
   if (typeof integrity !== 'string' || !integrity.startsWith('sha256-')) {
-    throw new Error(`pnpm.platforms.${platKey}.integrity malformed: ${integrity}`)
+    throw new Error(
+      `pnpm.platforms.${platKey}.integrity malformed: ${integrity}`,
+    )
   }
-  const pnpmSha256 = Buffer.from(integrity.slice('sha256-'.length), 'base64').toString('hex')
+  const pnpmSha256 = Buffer.from(
+    integrity.slice('sha256-'.length),
+    'base64',
+  ).toString('hex')
   return {
     pnpmVersion: parsed.pnpm.version,
     pnpmAsset: entry.asset,

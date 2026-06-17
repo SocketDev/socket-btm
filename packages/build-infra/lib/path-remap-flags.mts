@@ -1,12 +1,13 @@
 /**
  * Path-remap flags for compiled artifacts.
  *
- * Compiled output (WASM, .node addons, .so/.dylib/.a, native binaries) routinely
- * embeds the absolute build-host paths of source files into:
- *   - DWARF debug info     (clang/gcc/rustc)
- *   - __FILE__ macros      (anything that calls assert(), and a lot of crates)
- *   - Rust panic messages  (file:line)
- *   - Cargo registry paths (~/.cargo/registry/src/index.crates.io-.../<crate>/...)
+ * Compiled output (WASM, .node addons, .so/.dylib/.a, native binaries)
+ * routinely embeds the absolute build-host paths of source files into:
+ *
+ * - DWARF debug info (clang/gcc/rustc)
+ * - **FILE** macros (anything that calls assert(), and a lot of crates)
+ * - Rust panic messages (file:line)
+ * - Cargo registry paths (~/.cargo/registry/src/index.crates.io-.../<crate>/...)
  *
  * That leaks usernames, project layouts, and home-directory structure into
  * artifacts we ship to the public. The fix is to pass path-prefix-map flags so
@@ -14,12 +15,13 @@
  * (/cargo, /home, /build) before they hit the artifact.
  *
  * This module is the canonical source for those flags. Consumers:
- *   - C/C++ builds (cmake, configure, raw cc/clang/clang++): use cflags/cxxflags
- *   - Emscripten builds: same flags work — clang accepts them
- *   - Rust/cargo builds: use rustflags joined into RUSTFLAGS or
- *     CARGO_ENCODED_RUSTFLAGS env var
- *   - Go builds: -trimpath already covers Go-side paths, but CGO needs the
- *     C/C++ flags via CGO_CFLAGS / CGO_CXXFLAGS
+ *
+ * - C/C++ builds (cmake, configure, raw cc/clang/clang++): use cflags/cxxflags
+ * - Emscripten builds: same flags work — clang accepts them
+ * - Rust/cargo builds: use rustflags joined into RUSTFLAGS or
+ *   CARGO_ENCODED_RUSTFLAGS env var
+ * - Go builds: -trimpath already covers Go-side paths, but CGO needs the C/C++
+ *   flags via CGO_CFLAGS / CGO_CXXFLAGS
  *
  * The mappings are deliberately fixed strings so the same source path produces
  * the same anonymized output regardless of which dev machine or CI runner did
@@ -130,10 +132,10 @@ export function getRemapPairs() {
 }
 
 /**
- * Rust flags (--remap-path-prefix). Each pair becomes its own `--remap-path-prefix`
- * argument; rustc reads them in order and applies them to source-file paths in
- * DWARF, panic messages, and any path-bearing diagnostics that survive into
- * the binary.
+ * Rust flags (--remap-path-prefix). Each pair becomes its own
+ * `--remap-path-prefix` argument; rustc reads them in order and applies them to
+ * source-file paths in DWARF, panic messages, and any path-bearing diagnostics
+ * that survive into the binary.
  */
 export function getRustcRemapFlags() {
   return getRemapPairs().map(

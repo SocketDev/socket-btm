@@ -1,40 +1,34 @@
 #!/usr/bin/env node
 /**
- * @fileoverview Lint gyp `.gypi` files for the double-prefix path bug.
- *
- * gyp resolves source paths inside an `'includes':`-d gypi file
- * RELATIVE TO THAT GYPI'S OWN LOCATION, not the parent .gyp. So a
- * .gypi at `<root>/deps/yoga.gypi` listing
+ * @file Lint gyp `.gypi` files for the double-prefix path bug.
+ *   gyp resolves source paths inside an `'includes':`-d gypi file
+ *   RELATIVE TO THAT GYPI'S OWN LOCATION, not the parent .gyp. So a
+ *   .gypi at `<root>/deps/yoga.gypi` listing
  *   'sources': [ 'deps/yoga/Foo.cpp' ]
- * resolves to
+ *   resolves to
  *   <root>/deps/deps/yoga/Foo.cpp        ← DOUBLE deps/ — file missing
- *
- * Build #10 wasted ~30 minutes on this exact bug. The check scans
- * every .gypi under packages/ for any source entry whose path starts
- * with the gypi's own parent-dir segment and reports it.
- *
- * Scope: only .gypi files under packages/. Skips .gyp files (those
- * ARE relative to themselves, but the bug pattern doesn't apply
- * because .gyp files are the top of the include chain).
- *
- * Why it lives in scripts/repo/: this is a btm-only concern (only
- * socket-btm has the additions/source-patched/deps/*.gypi auto-gen
- * pipeline). The repo/ subdir mirrors docs/agents.md/repo/ + the
- * planned hooks/repo/ — host-repo-only utilities that don't cascade
- * fleet-wide.
- *
- * Usage:
+ *   Build #10 wasted ~30 minutes on this exact bug. The check scans
+ *   every .gypi under packages/ for any source entry whose path starts
+ *   with the gypi's own parent-dir segment and reports it.
+ *   Scope: only .gypi files under packages/. Skips .gyp files (those
+ *   ARE relative to themselves, but the bug pattern doesn't apply
+ *   because .gyp files are the top of the include chain).
+ *   Why it lives in scripts/repo/: this is a btm-only concern (only
+ *   socket-btm has the additions/source-patched/deps/*.gypi auto-gen
+ *   pipeline). The repo/ subdir mirrors docs/agents.md/repo/ + the
+ *   planned hooks/repo/ — host-repo-only utilities that don't cascade
+ *   fleet-wide.
+ *   Usage:
  *   node scripts/repo/check-gypi-source-paths.mts
  *   node scripts/repo/check-gypi-source-paths.mts --explain
  *   node scripts/repo/check-gypi-source-paths.mts --json
- *
- * Exit codes:
+ *   Exit codes:
  *   0 — no double-prefix paths found.
  *   1 — at least one finding.
  *   2 — usage / args error.
  */
 
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
@@ -103,7 +97,7 @@ function parseArgs(): ParsedArgs {
       explain = true
     } else if (a === '--json') {
       json = true
-    } else if (a === '-h' || a === '--help') {
+    } else if (a === '--help' || a === '-h') {
       logger.log(
         'Usage: node scripts/repo/check-gypi-source-paths.mts [--explain] [--json]',
       )
@@ -140,10 +134,10 @@ function walkGypiFiles(root: string): readonly string[] {
         // Skip node_modules + build outputs that contain irrelevant
         // .gypi files from third-party packages.
         if (
-          entry.name === 'node_modules' ||
+          entry.name === '.git' ||
           entry.name === 'build' ||
-          entry.name === 'upstream' ||
-          entry.name === '.git'
+          entry.name === 'node_modules' ||
+          entry.name === 'upstream'
         ) {
           continue
         }

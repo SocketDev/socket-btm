@@ -1,14 +1,13 @@
 /**
- * @fileoverview Tests for header size constant validation
+ * @file Tests for header size constant validation
+ *   Validates that JavaScript constants in constants.mts match C constants
+ *   in compression_constants.h.
+ *   Tests verify:
  *
- * Validates that JavaScript constants in constants.mts match C constants
- * in compression_constants.h.
- *
- * Tests verify:
- * - HEADER_SIZES values match expected byte counts
- * - METADATA_HEADER_SIZE calculation is correct
- * - TOTAL_HEADER_SIZE_WITHOUT_SMOL_CONFIG calculation is correct
- * - Platform/arch/libc value mappings are consistent
+ *   - HEADER_SIZES values match expected byte counts
+ *   - METADATA_HEADER_SIZE calculation is correct
+ *   - TOTAL_HEADER_SIZE_WITHOUT_SMOL_CONFIG calculation is correct
+ *   - Platform/arch/libc value mappings are consistent
  */
 
 import { describe, expect, it } from 'vitest'

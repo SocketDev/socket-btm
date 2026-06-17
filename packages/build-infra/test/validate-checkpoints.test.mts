@@ -1,8 +1,7 @@
 /**
- * @fileoverview Unit tests for checkpoint validation logic.
- *
- * Tests the core validation logic used by .github/actions/validate-depot-checkpoints
- * to ensure checkpoint archives are properly validated before caching.
+ * @file Unit tests for checkpoint validation logic. Tests the core validation
+ *   logic used by .github/actions/validate-depot-checkpoints to ensure
+ *   checkpoint archives are properly validated before caching.
  */
 
 import { afterEach, beforeEach, describe, expect, it, test } from 'vitest'

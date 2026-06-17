@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Clean script for binflate C package
- * Wraps the Makefile clean target for pnpm integration
+ * Wraps the Makefile clean target for pnpm integration.
  */
 
 import path from 'node:path'

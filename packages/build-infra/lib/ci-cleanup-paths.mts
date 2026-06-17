@@ -2,7 +2,7 @@ import path from 'node:path'
 import process from 'node:process'
 
 /**
- * CI Disk Cleanup Paths
+ * CI Disk Cleanup Paths.
  *
  * Defines paths to clean up on CI runners to free disk space.
  * These paths contain pre-installed tools that are not needed for our builds.
@@ -12,12 +12,14 @@ import process from 'node:process'
 
 /**
  * @typedef {Object} CleanupTask
- * @property {string} path - Absolute path to remove
- * @property {string} desc - Human-readable description with size estimate
+ *
+ * @property {string} path - Absolute path to remove.
+ * @property {string} desc - Human-readable description with size estimate.
  */
 
 /**
  * Linux CI runner cleanup paths (~10GB total).
+ *
  * @type {CleanupTask[]}
  */
 export const LINUX_CLEANUP_PATHS = [
@@ -29,8 +31,9 @@ export const LINUX_CLEANUP_PATHS = [
 ]
 
 /**
- * macOS CI runner cleanup paths (~20GB total).
+ * MacOS CI runner cleanup paths (~20GB total).
  * Note: HOME-relative paths are resolved at runtime.
+ *
  * @type {CleanupTask[]}
  */
 export const MACOS_CLEANUP_PATHS = [
@@ -45,13 +48,14 @@ export const MACOS_CLEANUP_PATHS = [
 ]
 
 /**
- * macOS Android SDK path (HOME-relative).
+ * MacOS Android SDK path (HOME-relative).
  * Resolved at runtime with user's HOME directory.
  */
 export const MACOS_ANDROID_SDK_SUBPATH = 'Library/Android/sdk'
 
 /**
  * Windows CI runner cleanup paths (~15GB total).
+ *
  * @type {CleanupTask[]}
  */
 export const WINDOWS_CLEANUP_PATHS = [
@@ -63,8 +67,11 @@ export const WINDOWS_CLEANUP_PATHS = [
 
 /**
  * Get cleanup paths for the specified platform.
- * @param {'linux' | 'darwin' | 'win32'} platform - Target platform
- * @param {string} [homeDir] - Home directory for macOS (defaults to process.env.HOME)
+ *
+ * @param {'linux' | 'darwin' | 'win32'} platform - Target platform.
+ * @param {string} [homeDir] - Home directory for macOS (defaults to
+ *   process.env.HOME)
+ *
  * @returns {CleanupTask[]} Array of cleanup tasks
  */
 export function getCleanupPaths(platform, homeDir) {

@@ -8,7 +8,7 @@
  */
 
 import crypto from 'node:crypto'
-import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, lstatSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { safeMkdirSync } from '@socketsecurity/lib-stable/fs/safe'
@@ -21,10 +21,11 @@ const logger = getDefaultLogger()
  * Iteratively collect all files from a directory.
  * Uses a stack-based approach to avoid recursion limits on deep directories.
  *
- * Security: Skips symlinks to prevent infinite loops and directory traversal attacks.
- * Error handling: Logs and skips directories with permission errors.
+ * Security: Skips symlinks to prevent infinite loops and directory traversal
+ * attacks. Error handling: Logs and skips directories with permission errors.
  *
- * @param {string} dirPath - Directory path
+ * @param {string} dirPath - Directory path.
+ *
  * @returns {string[]} Array of file paths
  */
 export function collectFiles(dirPath) {
@@ -75,25 +76,30 @@ export function collectFiles(dirPath) {
  * 3. Hash the combined result (SHA256)
  *
  * Files are sorted to ensure stable hash values regardless of input order.
- * Supports both individual files and directories (recursively hashes all files within).
+ * Supports both individual files and directories (recursively hashes all files
+ * within).
  *
  * Two usage modes via `options.relativeTo`:
- *   - Omitted: path is hashed as-is (absolute). Use for source-cache hashes
- *     where rename detection across source roots matters — moving foo.ts
- *     between two source roots with unchanged content must change the hash.
- *   - Provided: path is hashed relative to `relativeTo`. Use for artifact-
- *     integrity hashes where the tarball gets extracted to different absolute
- *     paths at creation time (temp dir) vs restore time (final dir). The hash
- *     must stay stable across absolute-path changes, so only content and
- *     intra-artifact layout contribute.
+ * - Omitted: path is hashed as-is (absolute). Use for source-cache hashes
+ * where rename detection across source roots matters — moving foo.ts
+ * between two source roots with unchanged content must change the hash.
+ * - Provided: path is hashed relative to `relativeTo`. Use for artifact-
+ * integrity hashes where the tarball gets extracted to different absolute
+ * paths at creation time (temp dir) vs restore time (final dir). The hash
+ * must stay stable across absolute-path changes, so only content and
+ * intra-artifact layout contribute.
  *
- * @param {string[]} sourcePaths - Source file or directory paths to hash
- * @param {string} [platformMetadata] - Optional platform metadata (e.g., "linux-x64-glibc")
+ * @param {string[]} sourcePaths - Source file or directory paths to hash.
+ * @param {string} [platformMetadata] - Optional platform metadata (e.g.,
+ *   "linux-x64-glibc")
  * @param {object} [options]
- * @param {string} [options.relativeTo] - If set, hash each path relative to this root
+ * @param {string} [options.relativeTo] - If set, hash each path relative to
+ *   this root.
+ *
  * @returns {string} SHA256 hash (hex)
  */
 export function computeSourceHash(sourcePaths, platformMetadata, options) {
+  options = { __proto__: null, ...options } as typeof options
   const relativeTo = options?.relativeTo
   // Expand directories to individual files
   const expandedPaths = []
@@ -203,7 +209,7 @@ export function computeSourceHash(sourcePaths, platformMetadata, options) {
 /**
  * Ensure output directory exists.
  *
- * @param {string} outputPath - Output file path
+ * @param {string} outputPath - Output file path.
  */
 export function ensureOutputDir(outputPath) {
   safeMkdirSync(path.dirname(outputPath))
@@ -212,7 +218,8 @@ export function ensureOutputDir(outputPath) {
 /**
  * Generate source hash comment for embedding in output.
  *
- * @param {string|string[]} sourcePaths - Source file path(s)
+ * @param {string | string[]} sourcePaths - Source file path(s)
+ *
  * @returns {string} Comment with hash (e.g., "Source hash: abc123...")
  */
 export function generateHashComment(sourcePaths) {
@@ -227,11 +234,14 @@ export function generateHashComment(sourcePaths) {
  * Compares the SHA256 hash of the source file(s) against the hash
  * stored in the output file. Returns true if extraction is needed.
  *
- * @param {object} options - Extraction cache options
- * @param {string|string[]} options.sourcePaths - Source file path(s) to hash
- * @param {string} options.outputPath - Output file path to check
- * @param {RegExp} options.hashPattern - Pattern to extract hash from output (default: /Source hash: ([a-f0-9]{64})/)
- * @param {function} [options.validateOutput] - Optional function to validate output content
+ * @param {object} options - Extraction cache options.
+ * @param {string | string[]} options.sourcePaths - Source file path(s) to hash.
+ * @param {string} options.outputPath - Output file path to check.
+ * @param {RegExp} options.hashPattern - Pattern to extract hash from output
+ *   (default: /Source hash: ([a-f0-9]{64})/)
+ * @param {function} [options.validateOutput] - Optional function to validate
+ *   output content.
+ *
  * @returns {Promise<boolean>} True if extraction needed, false if cached
  */
 export async function shouldExtract({

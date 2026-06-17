@@ -1,18 +1,17 @@
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
- * @fileoverview Target flag tests for binpress
+ * @file Target flag tests for binpress
+ *   Tests target flag parsing and platform normalization:
  *
- * Tests target flag parsing and platform normalization:
- * 1. Combined --target flag (e.g., linux-x64-musl)
- * 2. Individual --target-platform, --target-arch, --target-libc flags
- * 3. Platform normalization: win → win32 (input to internal)
- * 4. Asset naming: win32 → win (internal to GitHub releases)
+ *   1. Combined --target flag (e.g., linux-x64-musl)
+ *   2. Individual --target-platform, --target-arch, --target-libc flags
+ *   3. Platform normalization: win → win32 (input to internal)
+ *   4. Asset naming: win32 → win (internal to GitHub releases) These tests ensure:
  *
- * These tests ensure:
- * - Target flags correctly override auto-detection
- * - Combined and individual flag formats work equivalently
- * - Platform naming consistency (win32 internal, win for assets)
- * - Cross-compilation scenarios work correctly
+ *   - Target flags correctly override auto-detection
+ *   - Combined and individual flag formats work equivalently
+ *   - Platform naming consistency (win32 internal, win for assets)
+ *   - Cross-compilation scenarios work correctly
  */
 
 import crypto from 'node:crypto'
@@ -63,7 +62,7 @@ let testDir: string
 let testBinary: string
 
 /**
- * Execute command and return result
+ * Execute command and return result.
  */
 export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {

@@ -1,20 +1,19 @@
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 
 /**
- * @fileoverview Compression round-trip tests for binpress
+ * @file Compression round-trip tests for binpress
+ *   Tests the complete compression workflow:
  *
- * Tests the complete compression workflow:
- * 1. Compress a binary using binpress
- * 2. Execute compressed binary (which auto-decompresses)
- * 3. Verify decompressed binary matches original functionality
- * 4. Validate compression algorithm (zstd universal)
- * 5. Check compression ratio and metadata
+ *   1. Compress a binary using binpress
+ *   2. Execute compressed binary (which auto-decompresses)
+ *   3. Verify decompressed binary matches original functionality
+ *   4. Validate compression algorithm (zstd universal)
+ *   5. Check compression ratio and metadata These tests ensure:
  *
- * These tests ensure:
- * - Compression doesn't corrupt binary data
- * - Decompression produces valid, executable binaries
- * - zstd compression works across all platforms
- * - Compressed binaries maintain original functionality
+ *   - Compression doesn't corrupt binary data
+ *   - Decompression produces valid, executable binaries
+ *   - zstd compression works across all platforms
+ *   - Compressed binaries maintain original functionality
  */
 
 import crypto from 'node:crypto'
@@ -74,7 +73,7 @@ let testDir: string
 let testBinary: string
 
 /**
- * Execute command and return result
+ * Execute command and return result.
  */
 export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {
@@ -110,7 +109,7 @@ export async function execCommand(command, args = [], options = {}) {
 }
 
 /**
- * Calculate file hash
+ * Calculate file hash.
  */
 export async function hashFile(filePath) {
   const data = await fs.readFile(filePath)

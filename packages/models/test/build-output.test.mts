@@ -1,6 +1,6 @@
 /**
- * @fileoverview Tests for models build output files.
- * Validates that the build process generates correct model structure and formats.
+ * @file Tests for models build output files. Validates that the build process
+ *   generates correct model structure and formats.
  */
 
 import { describe, expect, it } from 'vitest'
@@ -10,7 +10,7 @@ import path from 'node:path'
 
 import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 
-import { PACKAGE_ROOT, getBuildPaths } from '../scripts/paths.mts'
+import { getBuildPaths, PACKAGE_ROOT } from '../scripts/paths.mts'
 
 const platformArch = await getCurrentPlatformArch()
 const buildDevDir = getBuildPaths('dev', platformArch).outputFinalDir

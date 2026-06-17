@@ -1,44 +1,37 @@
 #!/usr/bin/env node
 // max-file-lines: legitimate -- patch-format gate: parse → validate → report pipeline; splitting fractures the flow
 /**
- * @fileoverview Patch format validator.
+ * @file Patch format validator.
+ *   Validates every `.patch` under `packages/*\/patches/` against the
+ *   conventions in CLAUDE.md's "Source Patches" section and the format
+ *   lessons from R14-R21 quality scans:
  *
- * Validates every `.patch` under `packages/*\/patches/` against the
- * conventions in CLAUDE.md's "Source Patches" section and the format
- * lessons from R14-R21 quality scans:
- *
- *   1. Starts with `# @<project>-versions: vX.Y.Z` header (allowed
- *      projects: node / lief / opentui)
+ *   1. Starts with `# @<project>-versions: vX.Y.Z` header (allowed projects: node
+ *      / lief / opentui)
  *   2. Has a `# @description: <one-liner>` header
- *   3. Uses standard unified diff format (`--- a/`, `+++ b/`), NOT
- *      `git format-patch` output (which starts with `From <sha>`)
- *   4. Hunk headers `@@ -A,B +C,D @@` have correct line counts:
- *        sum of context (space-prefixed) + minus lines == B
- *        sum of context (space-prefixed) + plus lines  == C
- *      Malformed counts make `patch --dry-run` silently reject; this
- *      validator actually counts the bytes.
- *   5. Touches exactly one file (per CLAUDE.md "Patch Rules"). The
- *      numbered-prefix series (001-, 002-, ...) enforces ordering.
- *   6. Numbered patches in a series have no gaps (e.g. 001, 002, 004
- *      without 003). Gaps are allowed if documented — add to the
- *      allowlist with a `gap-ok` entry.
- *   7. Each source file is touched by AT MOST ONE patch in the series
- *      (per CLAUDE.md "Patch Rules": 1 patch, 1 file). Two patches
- *      modifying the same file is a convention violation — fold them
- *      into a single patch. Allowlist with rule `multiple-patches-per-file`
- *      if the split is intentional and documented.
- *
- * Wired into `pnpm run check` so CI fails on any regression.
- *
- * Usage:
- *   node scripts/check-patch-format.mts
- *   node scripts/check-patch-format.mts --explain
- *   node scripts/check-patch-format.mts --json
- *
- * Allowlist: `.github/patch-format-allowlist.yml`.
+ *   3. Uses standard unified diff format (`--- a/`, `+++ b/`), NOT `git
+ *      format-patch` output (which starts with `From <sha>`)
+ *   4. Hunk headers `@@ -A,B +C,D @@` have correct line counts: sum of context
+ *      (space-prefixed) + minus lines == B sum of context (space-prefixed) +
+ *      plus lines == C Malformed counts make `patch --dry-run` silently reject;
+ *      this validator actually counts the bytes.
+ *   5. Touches exactly one file (per CLAUDE.md "Patch Rules"). The numbered-prefix
+ *      series (001-, 002-, ...) enforces ordering.
+ *   6. Numbered patches in a series have no gaps (e.g. 001, 002, 004 without 003).
+ *      Gaps are allowed if documented — add to the allowlist with a `gap-ok`
+ *      entry.
+ *   7. Each source file is touched by AT MOST ONE patch in the series (per
+ *      CLAUDE.md "Patch Rules": 1 patch, 1 file). Two patches modifying the
+ *      same file is a convention violation — fold them into a single patch.
+ *      Allowlist with rule `multiple-patches-per-file` if the split is
+ *      intentional and documented. Wired into `pnpm run check` so CI fails on
+ *      any regression. Usage: node scripts/check-patch-format.mts node
+ *      scripts/check-patch-format.mts --explain node
+ *      scripts/check-patch-format.mts --json Allowlist:
+ *      `.github/patch-format-allowlist.yml`.
  */
 
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -268,7 +261,9 @@ type ParsedPatch = {
   hunks: Hunk[]
 }
 
-/** Extract the filename-numeric-prefix (e.g. "001" from "001-foo.patch"). */
+/**
+ * Extract the filename-numeric-prefix (e.g. "001" from "001-foo.patch").
+ */
 export function numericPrefix(file: string): number | undefined {
   const match = path.basename(file).match(/^(\d+)-/)
   return match ? Number.parseInt(match[1]!, 10) : undefined
@@ -358,15 +353,15 @@ export function parsePatch(content: string): ParsedPatch {
   return { headerLines, hunks, minusFiles, plusFiles }
 }
 
-export function printViolation(v: Violation, opts: Options): void {
-  if (opts.json) {
+export function printViolation(v: Violation, options: Options): void {
+  if (options.json) {
     logger.log(JSON.stringify(v))
     return
   }
   logger.log('')
   logger.log(`[${v.rule}] ${v.file}:${v.line}`)
   logger.log(`  ${v.detail}`)
-  if (opts.explain && v.fix) {
+  if (options.explain && v.fix) {
     logger.log(`  Fix: ${v.fix}`)
   }
 }

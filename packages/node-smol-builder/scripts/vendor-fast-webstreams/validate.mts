@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Validate fast-webstreams integration in built Node.js binary
+ * Validate fast-webstreams integration in built Node.js binary.
  *
  * Tests that the patched global WebStreams work correctly.
  * Based on tests from experimental-fast-webstreams but adapted

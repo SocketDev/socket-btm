@@ -1,41 +1,35 @@
 #!/usr/bin/env node
 // max-file-lines: legitimate -- regression-patterns gate: scan → classify → report pipeline; splitting fractures the flow
 /**
- * @fileoverview Regression-pattern gate.
- *
- * Runs fast grep-based checks for the recurring bug *shapes* caught
- * during R14-R25 quality-scan rounds. Each pattern encodes a lesson
- * learned: the regex matches the shape of a real bug we've shipped
- * before. Note: "pattern" here means "regex pattern" / "code shape" —
- * nothing to do with JS/TS class definitions.
- *
- * Strict — no allowlist. A PR that introduces a new instance of any
- * pattern will fail this check; fix the code (apply the canonical
- * remediation in the rule's `fix:` field) rather than opting out.
- *
- * Usage:
+ * @file Regression-pattern gate.
+ *   Runs fast grep-based checks for the recurring bug _shapes_ caught
+ *   during R14-R25 quality-scan rounds. Each pattern encodes a lesson
+ *   learned: the regex matches the shape of a real bug we've shipped
+ *   before. Note: "pattern" here means "regex pattern" / "code shape" —
+ *   nothing to do with JS/TS class definitions.
+ *   Strict — no allowlist. A PR that introduces a new instance of any
+ *   pattern will fail this check; fix the code (apply the canonical
+ *   remediation in the rule's `fix:` field) rather than opting out.
+ *   Usage:
  *   node scripts/check-regression-patterns.mts             # Fail on any match
  *   node scripts/check-regression-patterns.mts --quiet     # No output if clean
  *   node scripts/check-regression-patterns.mts --json      # Machine-readable
  *   node scripts/check-regression-patterns.mts --explain   # Long-form output
+ *   Why a pattern-based check instead of "just more tests":
  *
- * Why a pattern-based check instead of "just more tests":
- *   - Tests check behavior. These checks catch *shapes* that have
- *     historically caused behavior bugs. They're strictly cheaper than
- *     writing a test for every abort-the-isolate path.
- *   - LLM-based scans found these patterns across 25 rounds. Codifying
- *     them turns one-time scan effort into permanent CI coverage.
- *   - Catches doc drift (skill docs referencing non-existent pnpm
- *     scripts) that escapes every other check.
- *
- * What it does NOT do:
- *   - Find NEW regression patterns. R27+ quality scans still need to
- *     run periodically to discover shapes we haven't seen yet.
- *   - Understand semantics. A match that's *obviously* safe still
- *     fails the check — fix the shape so the regex doesn't fire,
- *     usually by switching to the canonical safer form (e.g. the
- *     `has_room(length, capacity, needed)` helper for size_t bounds
- *     checks).
+ *   - Tests check behavior. These checks catch _shapes_ that have historically
+ *     caused behavior bugs. They're strictly cheaper than writing a test for
+ *     every abort-the-isolate path.
+ *   - LLM-based scans found these patterns across 25 rounds. Codifying them turns
+ *     one-time scan effort into permanent CI coverage.
+ *   - Catches doc drift (skill docs referencing non-existent pnpm scripts) that
+ *     escapes every other check. What it does NOT do:
+ *   - Find NEW regression patterns. R27+ quality scans still need to run
+ *     periodically to discover shapes we haven't seen yet.
+ *   - Understand semantics. A match that's _obviously_ safe still fails the check
+ *     — fix the shape so the regex doesn't fire, usually by switching to the
+ *     canonical safer form (e.g. the `has_room(length, capacity, needed)`
+ *     helper for size_t bounds checks).
  */
 
 import { existsSync, promises as fsPromises, readFileSync } from 'node:fs'
@@ -466,9 +460,9 @@ export async function findNonExistentPnpmScripts(
   return matches
 }
 
-export function printMatch(m: Match, opts: Options): void {
+export function printMatch(m: Match, options: Options): void {
   const { regression } = m
-  if (opts.json) {
+  if (options.json) {
     logger.log(
       JSON.stringify({
         column: m.column,
@@ -488,7 +482,7 @@ export function printMatch(m: Match, opts: Options): void {
   logger.log(`[${sev}] ${regression.title}`)
   logger.log(`  ${locator}`)
   logger.log(`    ${m.text}`)
-  if (opts.explain) {
+  if (options.explain) {
     logger.log('')
     logger.log(`  Why it matters:`)
     // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)

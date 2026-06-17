@@ -1,5 +1,5 @@
 /**
- * WASM compilation phase for Yoga Layout
+ * WASM compilation phase for Yoga Layout.
  *
  * Builds static library and links WASM module with Emscripten bindings.
  */
@@ -19,15 +19,15 @@ const logger = getDefaultLogger()
 /**
  * Build Yoga with Emscripten.
  *
- * @param {object} options - Build options
- * @param {string} options.buildDir - Build directory
- * @param {string} options.cmakeBuildDir - CMake build directory
- * @param {string} options.sourceDir - Source directory
- * @param {string} options.buildWasmFile - Output WASM file path
- * @param {string} options.buildJsFile - Output JS glue code file path
- * @param {string[]} options.bindingsFiles - Emscripten bindings file paths
- * @param {string} options.bindingsDir - Directory containing binding headers
- * @param {string} options.staticLibFile - Static library file path
+ * @param {object} options - Build options.
+ * @param {string} options.buildDir - Build directory.
+ * @param {string} options.cmakeBuildDir - CMake build directory.
+ * @param {string} options.sourceDir - Source directory.
+ * @param {string} options.buildWasmFile - Output WASM file path.
+ * @param {string} options.buildJsFile - Output JS glue code file path.
+ * @param {string[]} options.bindingsFiles - Emscripten bindings file paths.
+ * @param {string} options.bindingsDir - Directory containing binding headers.
+ * @param {string} options.staticLibFile - Static library file path.
  * @param {string} options.buildMode - Build mode ('prod' or 'dev')
  * @param {boolean} options.forceRebuild - Force rebuild (ignore checkpoints)
  */
@@ -42,7 +42,7 @@ export async function compileWasm(options) {
     cmakeBuildDir,
     sourceDir,
     staticLibFile,
-  } = options
+  } = { __proto__: null, ...options } as typeof options
 
   const startTime = Date.now()
 
@@ -117,10 +117,12 @@ export async function compileWasm(options) {
 }
 
 /**
- * Get linking optimization flags (different from configure flags due to bindings).
+ * Get linking optimization flags (different from configure flags due to
+ * bindings).
  *
  * @param {string} buildMode - 'prod' or 'dev'
- * @returns {{cxxFlags: string[], linkerFlags: string[]}}
+ *
+ * @returns {{ cxxFlags: string[]; linkerFlags: string[] }}
  */
 export function getLinkingFlags(buildMode) {
   // Note: Emscripten bindings require RTTI, so we can't use -fno-rtti here.

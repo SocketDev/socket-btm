@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Build script for binject C package
- * Wraps the Makefile build target for pnpm integration
+ * Wraps the Makefile build target for pnpm integration.
  */
 
 import path from 'node:path'

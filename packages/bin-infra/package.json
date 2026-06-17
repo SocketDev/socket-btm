@@ -1,8 +1,8 @@
 {
   "name": "bin-infra",
   "version": "0.0.0",
-  "description": "Shared binary infrastructure for binject, binpress, and binflate",
   "private": true,
+  "description": "Shared binary infrastructure for binject, binpress, and binflate",
   "license": "MIT",
   "type": "module",
   "exports": {

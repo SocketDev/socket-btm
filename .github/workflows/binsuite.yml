@@ -507,7 +507,7 @@ jobs:
           path: ${{ steps.paths.outputs.final_binary }}
           retention-days: 30
           if-no-files-found: error
-          compression-level: 0  # Already-compressed binary artifact
+          compression-level: 0 # Already-compressed binary artifact
 
   # Job group 2: binflate
   binflate:
@@ -895,7 +895,7 @@ jobs:
           path: ${{ steps.paths.outputs.final_binary }}
           retention-days: 30
           if-no-files-found: error
-          compression-level: 0  # Already-compressed binary artifact
+          compression-level: 0 # Already-compressed binary artifact
 
   # Job group 3: binject
   binject:
@@ -1337,7 +1337,7 @@ jobs:
           path: ${{ steps.paths.outputs.final_binary }}
           retention-days: 30
           if-no-files-found: error
-          compression-level: 0  # Already-compressed binary artifact
+          compression-level: 0 # Already-compressed binary artifact
 
   release:
     name: Release ${{ matrix.tool }}

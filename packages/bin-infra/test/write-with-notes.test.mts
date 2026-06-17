@@ -1,13 +1,12 @@
 /**
- * @fileoverview Tests for write_with_notes() function in elf_note_utils.hpp
+ * @file Tests for write_with_notes() function in elf_note_utils.hpp
+ *   This test verifies that write_with_notes() correctly:
  *
- * This test verifies that write_with_notes() correctly:
- * 1. Preserves PT_NOTE segments in both writes
- * 2. Removes ALLOC flag from sections with VirtAddr=0
- * 3. Produces binaries that execute without SIGSEGV
- *
- * The test uses binject as a test harness since it uses write_with_notes()
- * for SEA injection via elf_inject_lief.cpp
+ *   1. Preserves PT_NOTE segments in both writes
+ *   2. Removes ALLOC flag from sections with VirtAddr=0
+ *   3. Produces binaries that execute without SIGSEGV The test uses binject as a
+ *      test harness since it uses write_with_notes() for SEA injection via
+ *      elf_inject_lief.cpp
  */
 
 import { afterAll, beforeAll, describe, expect, it, test } from 'vitest'
@@ -53,7 +52,7 @@ let testBinarySea: string
 let testDataFile: string
 
 /**
- * Execute command and return result
+ * Execute command and return result.
  */
 export async function execCommand(
   command: string,

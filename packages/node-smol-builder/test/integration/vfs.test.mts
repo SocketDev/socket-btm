@@ -1,18 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it, test } from 'vitest'
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
- * @fileoverview Tests for VFS (Virtual Filesystem) support with TAR/TAR.GZ archives.
+ * @file Tests for VFS (Virtual Filesystem) support with TAR/TAR.GZ archives.
+ *   Tests:
  *
- * Tests:
- * - VFS initialization and node:smol-vfs module
- * - TAR archive parsing (USTAR, PAX, GNU)
- * - GZIP decompression
- * - SEA + VFS dual resource injection
- * - File extraction to ~/.socket/_dlx/<hash>/
- * - fs module integration
- *
- * Note: These tests require a built smol binary at build/{dev,prod}/{platform-arch}/out/Final/node/.
- * Run `pnpm build --dev` first to create the binary.
+ *   - VFS initialization and node:smol-vfs module
+ *   - TAR archive parsing (USTAR, PAX, GNU)
+ *   - GZIP decompression
+ *   - SEA + VFS dual resource injection
+ *   - File extraction to ~/.socket/_dlx/<hash>/
+ *   - fs module integration Note: These tests require a built smol binary at
+ *     build/{dev,prod}/{platform-arch}/out/Final/node/. Run `pnpm build --dev`
+ *     first to create the binary.
  */
 
 import { existsSync, promises as fs } from 'node:fs'
@@ -26,7 +25,7 @@ import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { MACHO_SEGMENT_NODE_SEA } from 'bin-infra/test/helpers/segment-names'
-import { SMOL_VFS_BLOB, runBinject } from '../helpers/binject.mts'
+import { runBinject, SMOL_VFS_BLOB } from '../helpers/binject.mts'
 import { getLatestFinalBinary } from '../paths.mts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))

@@ -1,5 +1,5 @@
 /**
- * C Unit Tests Runner
+ * C Unit Tests Runner.
  *
  * This Vitest test file builds and runs C unit tests from the test/ directory.
  * The C tests use the minunit-style test framework from bin-infra/test.h.

@@ -8,8 +8,8 @@
  * Run with a socket-built node (the regular Node.js binary doesn't
  * have `node:smol-tui`):
  *
- *   ./packages/node-smol-builder/build/dev/darwin-arm64/out/socket-node \
- *     packages/node-smol-builder/examples/smol-tui-hello.mts
+ * ./packages/node-smol-builder/build/dev/darwin-arm64/out/socket-node\
+ * packages/node-smol-builder/examples/smol-tui-hello.mts
  *
  * This file is the canonical reference for how userland TUI code
  * should wire the binding together — copy-paste this into your app
@@ -24,7 +24,6 @@
 // userland @opentui/core or skip the smol path entirely.
 import {
   ATTRIBUTE_BASE_MASK,
-  TextAttributes,
   codepointWidth,
   createRenderer,
   destroyRenderer,
@@ -35,6 +34,7 @@ import {
   rendererResize,
   rendererSize,
   stringWidth,
+  TextAttributes,
 } from 'node:smol-tui'
 
 // Constants matching tui::BorderStyle enum (see include/tui/renderables.hpp).
@@ -43,7 +43,7 @@ const BORDER_DOUBLE = 1
 const BORDER_ROUNDED = 2
 const BORDER_HEAVY = 3
 
-const SIDES_ALL = 0xf  // top | right | bottom | left
+const SIDES_ALL = 0xf // top | right | bottom | left
 
 // ANSI flush buffer: re-used frame-to-frame; one allocation per app.
 // 256 KB covers up to a 200×60 grid in the worst case (every cell
@@ -199,4 +199,4 @@ export function verify(): void {
   console.assert(stringWidth('中文') === 4, 'stringWidth(中文) === 4')
   console.assert(stringWidth('') === 0, 'stringWidth("") === 0')
 }
-void verify  // referenced for type-checking, not invoked in the demo
+void verify // referenced for type-checking, not invoked in the demo

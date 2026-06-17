@@ -4,11 +4,11 @@
  * This script builds OpenTUI from Zig source using node-api:
  * - Zig compilation to shared library
  * - node-api for Node.js bindings
- * - Cross-platform builds for 8 targets
+ * - Cross-platform builds for 8 targets.
  *
  * Usage:
- *   node scripts/build.mts          # Normal build with checkpoints
- *   node scripts/build.mts --force  # Force rebuild (ignore checkpoints)
+ * node scripts/build.mts          # Normal build with checkpoints
+ * node scripts/build.mts --force  # Force rebuild (ignore checkpoints)
  */
 
 import { existsSync, promises as fs } from 'node:fs'
@@ -36,13 +36,13 @@ import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 import { copySource } from './source-copied/copy-source.mts'
 import { applyPatches } from './source-patched/apply-patches.mts'
 import {
+  getBuildPaths,
+  getCurrentPlatform,
   LIBRARY_EXTENSIONS,
   LIBRARY_PREFIXES,
   PACKAGE_ROOT,
   UPSTREAM_PATH,
   ZIG_TARGETS,
-  getBuildPaths,
-  getCurrentPlatform,
 } from './paths.mts'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -92,7 +92,8 @@ const logger = getDefaultLogger()
 
 /**
  * Build the native addon using Zig.
- * @param {string} zigBin - Path to the zig binary
+ *
+ * @param {string} zigBin - Path to the zig binary.
  */
 export async function buildNativeAddon(zigBin) {
   logger.step('Building native addon')

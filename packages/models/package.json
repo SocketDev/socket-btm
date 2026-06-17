@@ -1,8 +1,8 @@
 {
   "name": "models",
   "version": "0.0.0",
-  "description": "Models for Socket CLI (MiniLM-L6, CodeT5)",
   "private": true,
+  "description": "Models for Socket CLI (MiniLM-L6, CodeT5)",
   "license": "MIT",
   "type": "module",
   "scripts": {

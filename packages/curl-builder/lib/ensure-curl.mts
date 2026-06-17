@@ -6,8 +6,8 @@
  * pattern.
  *
  * Downstream consumers (verified via grep):
- *   - bin-infra/lib/build-stubs.mts (1 ensureCurl() call)
- *   - stubs-builder/scripts/build.mts (1 ensureCurl() call)
+ * - bin-infra/lib/build-stubs.mts (1 ensureCurl() call)
+ * - stubs-builder/scripts/build.mts (1 ensureCurl() call)
  *
  * Both consume the return value as a directory string. Factory's
  * ensure() also returns a directory string; behavior preserved.
@@ -21,7 +21,11 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { createPrebuiltApi } from 'build-infra/lib/ensure-prebuilt'
-import { BUILD_STAGES, CHECKPOINTS, getPlatformBuildDir } from 'build-infra/lib/constants'
+import {
+  BUILD_STAGES,
+  CHECKPOINTS,
+  getPlatformBuildDir,
+} from 'build-infra/lib/constants'
 import { getAssetPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { detectLibc } from '@socketsecurity/lib-stable/releases/socket-btm'

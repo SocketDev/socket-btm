@@ -2,10 +2,11 @@
  * Generate CommonJS synchronous WASM wrapper.
  *
  * Transforms ESM async WASM module to CommonJS sync wrapper with:
- * - import.meta.url → require("node:url").pathToFileURL(__filename).href
+ *
+ * - Import.meta.url → require("node:url").pathToFileURL(__filename).href
  * - __filename and __dirname for path operations
  * - 'use strict' directive
- * - module.exports for CommonJS compatibility
+ * - Module.exports for CommonJS compatibility
  */
 
 import { promises as fs } from 'node:fs'
@@ -19,17 +20,18 @@ import { applyCommonTransforms } from './transform.mts'
 /**
  * Generate CommonJS synchronous wrapper.
  *
- * @param {object} options - Configuration options
- * @param {string} options.mtsContent - MJS glue code content
- * @param {string} options.base64Wasm - Base64-encoded WASM binary
- * @param {Uint8Array} options.wasmBinary - WASM binary
- * @param {string} options.mtsFile - Path to input MJS file
- * @param {string} options.outputSyncJs - Path to output sync.js file
- * @param {string} options.packageName - Package name
- * @param {string} options.initFunctionName - Init function name
- * @param {string} options.exportName - Export name
- * @param {string} [options.description] - Optional description
- * @param {object} options.logger - Logger instance
+ * @param {object} options - Configuration options.
+ * @param {string} options.mtsContent - MJS glue code content.
+ * @param {string} options.base64Wasm - Base64-encoded WASM binary.
+ * @param {Uint8Array} options.wasmBinary - WASM binary.
+ * @param {string} options.mtsFile - Path to input MJS file.
+ * @param {string} options.outputSyncJs - Path to output sync.js file.
+ * @param {string} options.packageName - Package name.
+ * @param {string} options.initFunctionName - Init function name.
+ * @param {string} options.exportName - Export name.
+ * @param {string} [options.description] - Optional description.
+ * @param {object} options.logger - Logger instance.
+ *
  * @returns {Promise<string>} Path to generated file
  */
 export async function generateSyncCjs(options) {
@@ -44,7 +46,7 @@ export async function generateSyncCjs(options) {
     outputSyncJs,
     packageName,
     wasmBinary,
-  } = options
+  } = { __proto__: null, ...options } as typeof options
 
   let mjsContent = inputMjsContent
 

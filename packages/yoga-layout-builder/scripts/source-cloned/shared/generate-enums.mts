@@ -4,21 +4,19 @@
  *   compiles from live in the SAME pinned submodule, so the generated enum
  *   values can never drift from the binary's ABI — a yoga bump moves the
  *   submodule and regenerates the enums from the new header in one step.
- *
  *   Replaces the hand-ported mirror that previously had to be re-synced by
  *   hand on every yoga bump (and which a lint autofix once corrupted).
- *
  *   Parsing target — the `YG_ENUM_DECL` macro form in YGEnums.h:
- *     YG_ENUM_DECL(
- *         YGAlign,
- *         YGAlignAuto,            // → Align.Auto = 0
- *         YGAlignFlexStart,       // → Align.FlexStart = 1
- *         ...)
- *     YG_ENUM_DECL(
- *         YGErrata,
- *         YGErrataNone = 0,       // explicit values honored (bitmask enum)
- *         YGErrataStretchFlexBasis = 1,
- *         YGErrataAll = 2147483647, ...)
+ *   YG_ENUM_DECL(
+ *   YGAlign,
+ *   YGAlignAuto,            // → Align.Auto = 0
+ *   YGAlignFlexStart,       // → Align.FlexStart = 1
+ *   ...)
+ *   YG_ENUM_DECL(
+ *   YGErrata,
+ *   YGErrataNone = 0,       // explicit values honored (bitmask enum)
+ *   YGErrataStretchFlexBasis = 1,
+ *   YGErrataAll = 2147483647, ...)
  */
 
 import { promises as fs } from 'node:fs'
@@ -144,7 +142,9 @@ export function renderEnumsModule(
   lines.push(
     ' * scripts/source-cloned/shared/generate-enums.mts — do not edit by hand.',
   )
-  lines.push(' * Copyright (c) Meta Platforms, Inc. and affiliates. MIT License.')
+  lines.push(
+    ' * Copyright (c) Meta Platforms, Inc. and affiliates. MIT License.',
+  )
   lines.push(' */')
   lines.push('')
 

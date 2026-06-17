@@ -3,21 +3,18 @@
  * Generate src/socketsecurity/util/entities_data.cc from the
  * canonical WHATWG named character reference table.
  *
- * Source of truth: https://html.spec.whatwg.org/entities.json
+ * Source of truth: https://html.spec.whatwg.org/entities.json.
  *
  * The output is a single C++ translation unit holding three flat
  * constexpr arrays:
  *
- *   - kNamePool  (uint8_t[]) — concatenated entity names, sans the
- *                              leading '&'. UTF-8 (== ASCII for every
- *                              named reference).
- *   - kValuePool (uint8_t[]) — concatenated UTF-8 codepoints each name
- *                              expands to (most are 1-2 codepoints, a
- *                              handful expand to two; max 6 UTF-8
- *                              bytes per entry).
- *   - kEntities  (EntityMeta[]) — (name_off, name_len, value_off,
- *                                  value_len) tuples. Sorted by name
- *                                  for O(log n) binary-search decode.
+ * - KNamePool (uint8_t[]) — concatenated entity names, sans the leading '&'.
+ *   UTF-8 (== ASCII for every named reference).
+ * - KValuePool (uint8_t[]) — concatenated UTF-8 codepoints each name expands to
+ *   (most are 1-2 codepoints, a handful expand to two; max 6 UTF-8 bytes per
+ *   entry).
+ * - KEntities (EntityMeta[]) — (name_off, name_len, value_off, value_len) tuples.
+ *   Sorted by name for O(log n) binary-search decode.
  *
  * Re-run when the WHATWG table changes. The output is tracked in git;
  * runtime fetches are not part of the build.
@@ -46,9 +43,8 @@ const logger = getDefaultLogger()
 
 async function main() {
   logger.info(`Fetching ${SOURCE_URL}`)
-  const response = await httpJson<Record<string, { characters: string }>>(
-    SOURCE_URL,
-  )
+  const response =
+    await httpJson<Record<string, { characters: string }>>(SOURCE_URL)
   if (!response.ok) {
     throw new Error(
       `Failed to fetch entities.json: ${response.statusCode} ${response.statusText}`,
@@ -109,7 +105,8 @@ async function main() {
   let out = ''
   out += '// Auto-generated from https://html.spec.whatwg.org/entities.json\n'
   out += '// (WHATWG HTML Living Standard named character references).\n'
-  out += '// Do not hand-edit; regenerate via scripts/generate-entities-data.mts.\n'
+  out +=
+    '// Do not hand-edit; regenerate via scripts/generate-entities-data.mts.\n'
   out += '//\n'
   out += `// ${entries.length} entries. Sorted by name for binary search.\n`
   out += '\n'
@@ -125,7 +122,8 @@ async function main() {
   out += '\n'
   out += 'struct EntityMeta {\n'
   out += '  uint16_t name_off;   // offset into kNamePool\n'
-  out += '  uint16_t name_len;   // length in bytes (UTF-8 == ASCII for entity names)\n'
+  out +=
+    '  uint16_t name_len;   // length in bytes (UTF-8 == ASCII for entity names)\n'
   out += '  uint16_t value_off;  // offset into kValuePool\n'
   out += '  uint8_t  value_len;  // length in bytes (UTF-8)\n'
   out += '};\n\n'

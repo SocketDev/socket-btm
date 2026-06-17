@@ -37,12 +37,14 @@ import {
 } from 'node:smol-keymap'
 
 // Parse rules JSON. Returns handle (>0) on success, 0 on parse error.
-const km = createKeymap(JSON.stringify({
-  'ctrl+a': 'select-all',
-  'ctrl+x ctrl+s': 'save',
-  'ctrl+x ctrl+c': 'exit',
-  'esc': 'cancel',
-}))
+const km = createKeymap(
+  JSON.stringify({
+    'ctrl+a': 'select-all',
+    'ctrl+x ctrl+s': 'save',
+    'ctrl+x ctrl+c': 'exit',
+    esc: 'cancel',
+  }),
+)
 
 // Match keystroke. Returns command string on a complete match, null
 // otherwise. Mid-chord steps (e.g. just `ctrl+x` of a `ctrl+x ctrl+s`
@@ -64,10 +66,10 @@ destroyKeymap(km)
 ### Modifier bits
 
 ```ts
-modifier.CTRL  // 1 << 0
+modifier.CTRL // 1 << 0
 modifier.SHIFT // 1 << 1
-modifier.ALT   // 1 << 2
-modifier.META  // 1 << 3
+modifier.ALT // 1 << 2
+modifier.META // 1 << 3
 ```
 
 ### Rules format
@@ -84,6 +86,7 @@ or more modifiers + a key, joined with `+`:
 ```
 
 Modifier name aliases (case-insensitive):
+
 - `ctrl` | `control` | `c`
 - `shift` | `s`
 - `alt` | `option` | `opt`
@@ -118,6 +121,7 @@ move to Fast API.
 ## Where the Real Work Happens
 
 Hot path in `keymap_binding.cc`'s `MatchKey`:
+
 - BuildMatchKey: ~20-byte string append (no allocation for keys
   shorter than std::string's SSO buffer, which is 15-22 bytes on
   current libc++/libstdc++).

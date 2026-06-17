@@ -1,12 +1,11 @@
 /**
- * @fileoverview Verify-build tests for node:smol-http.
- *
- * smol-http re-exports an internal barrel via `...httpModule`. Rather
- * than over-specify the surface here (which would duplicate the
- * barrel's internals and rot quickly), the suite locks the contract
- * the smol-https.js shim depends on — `serve` must exist as a
- * function — plus the standard isBuiltin/builtinModules/freeze/
- * null-prototype/no-bare-import invariants every smol-* module shares.
+ * @file Verify-build tests for node:smol-http.
+ *   smol-http re-exports an internal barrel via `...httpModule`. Rather
+ *   than over-specify the surface here (which would duplicate the
+ *   barrel's internals and rot quickly), the suite locks the contract
+ *   the smol-https.js shim depends on — `serve` must exist as a
+ *   function — plus the standard isBuiltin/builtinModules/freeze/
+ *   null-prototype/no-bare-import invariants every smol-* module shares.
  */
 
 import { describe, expect, it } from 'vitest'

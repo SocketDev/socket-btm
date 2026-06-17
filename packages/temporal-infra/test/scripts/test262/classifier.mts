@@ -1,9 +1,8 @@
 /**
- * @fileoverview Test262 result classifier.
- *
- * Buckets each Result into success/failure/falsePositive/falseNegative
- * cross allowed/disallowed and reports an overall Summary. Pure
- * functions — no I/O.
+ * @file Test262 result classifier.
+ *   Buckets each Result into success/failure/falsePositive/falseNegative
+ *   cross allowed/disallowed and reports an overall Summary. Pure
+ *   functions — no I/O.
  */
 
 import type { Result, ResultBuckets, Summary } from './types.mts'

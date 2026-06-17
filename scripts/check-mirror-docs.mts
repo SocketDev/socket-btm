@@ -1,36 +1,28 @@
 #!/usr/bin/env node
 /**
- * @fileoverview Mirror-doc sync checker.
+ * @file Mirror-doc sync checker.
+ *   CLAUDE.md "Documentation Policy" defines a special path pattern:
+ *   `docs/additions/<mirror-path>/<name>.md` mirrors a source file at
+ *   `packages/node-smol-builder/additions/source-patched/<mirror-path>/<name>`
+ *   (the docs name inherits the source filename verbatim, including the
+ *   trailing extension — e.g. `version_subset.js.md` for a JS module).
+ *   This checker verifies two invariants:
  *
- * CLAUDE.md "Documentation Policy" defines a special path pattern:
- * `docs/additions/<mirror-path>/<name>.md` mirrors a source file at
- * `packages/node-smol-builder/additions/source-patched/<mirror-path>/<name>`
- * (the docs name inherits the source filename verbatim, including the
- * trailing extension — e.g. `version_subset.js.md` for a JS module).
- *
- * This checker verifies two invariants:
  *   1. Every mirror doc has a corresponding source file.
- *   2. Every "user-facing" source file has a mirror doc, where
- *      "user-facing" means PUBLIC `lib/smol-*.js` modules that end
- *      users import, per CLAUDE.md.
- *
- * Invariant 1 catches orphaned docs from deleted source files.
- * Invariant 2 catches new public modules that shipped without docs.
- *
- * Wired into `pnpm run check` via check.mts.
- *
- * Usage:
- *   node scripts/check-mirror-docs.mts
- *   node scripts/check-mirror-docs.mts --explain
- *   node scripts/check-mirror-docs.mts --json
- *
- * Allowlist: `.github/mirror-docs-allowlist.yml` for source files that
- * are deliberately undocumented (internal one-off helpers, C++ bindings
- * where the source IS the spec, etc.) and mirror docs whose source
- * genuinely doesn't exist (transitional states).
+ *   2. Every "user-facing" source file has a mirror doc, where "user-facing" means
+ *      PUBLIC `lib/smol-*.js` modules that end users import, per CLAUDE.md.
+ *      Invariant 1 catches orphaned docs from deleted source files. Invariant 2
+ *      catches new public modules that shipped without docs. Wired into `pnpm
+ *      run check` via check.mts. Usage: node scripts/check-mirror-docs.mts node
+ *      scripts/check-mirror-docs.mts --explain node
+ *      scripts/check-mirror-docs.mts --json Allowlist:
+ *      `.github/mirror-docs-allowlist.yml` for source files that are
+ *      deliberately undocumented (internal one-off helpers, C++ bindings where
+ *      the source IS the spec, etc.) and mirror docs whose source genuinely
+ *      doesn't exist (transitional states).
  */
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import type { Dirent } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -107,7 +99,9 @@ export function loadAllowlist(): AllowlistEntry[] {
   return entries
 }
 
-/** Walk a tree returning relative file paths. */
+/**
+ * Walk a tree returning relative file paths.
+ */
 export function walk(
   root: string,
   filterFn: (relPath: string) => boolean,
@@ -230,8 +224,8 @@ type Options = {
 }
 
 // oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down checker pipeline (discover mirror pairs → diff content → report); alphabetizing would scatter the flow.
-export function printFinding(f: Finding, opts: Options): void {
-  if (opts.json) {
+export function printFinding(f: Finding, options: Options): void {
+  if (options.json) {
     logger.log(JSON.stringify(f))
     return
   }
@@ -240,7 +234,7 @@ export function printFinding(f: Finding, opts: Options): void {
   logger.log('')
   logger.log(`[${label}] ${f.path}`)
   logger.log(`  ${f.detail}`)
-  if (opts.explain) {
+  if (options.explain) {
     logger.log(`  Fix: ${f.fix}`)
   }
 }

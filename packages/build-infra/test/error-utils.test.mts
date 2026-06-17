@@ -1,12 +1,11 @@
 /**
- * @fileoverview Tests for the re-exported `errorMessage` helper.
- *
- * `../lib/error-utils.mts` is a thin re-export of
- * `@socketsecurity/lib-stable/errors#errorMessage`. Its spec: return the message
- * (with cause chain) for Errors; coerce primitives to string; fall back to
- * the shared `UNKNOWN_ERROR` sentinel ("Unknown error") for null,
- * undefined, empty string, `[object Object]`, and Errors whose chain
- * produces no message.
+ * @file Tests for the re-exported `errorMessage` helper.
+ *   `../lib/error-utils.mts` is a thin re-export of
+ *   `@socketsecurity/lib-stable/errors#errorMessage`. Its spec: return the
+ *   message (with cause chain) for Errors; coerce primitives to string; fall
+ *   back to the shared `UNKNOWN_ERROR` sentinel ("Unknown error") for null,
+ *   undefined, empty string, `[object Object]`, and Errors whose chain produces
+ *   no message.
  */
 
 import { describe, expect, it } from 'vitest'

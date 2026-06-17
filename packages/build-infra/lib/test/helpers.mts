@@ -5,9 +5,9 @@
  * test code across builder packages (onnxruntime-builder, yoga-layout-builder).
  *
  * Usage:
- *   import { createWasmTestHelpers } from 'build-infra/lib/test/helpers'
- *   const helpers = createWasmTestHelpers({ wasmDir, wasmName: 'ort', ... })
- *   helpers.testWasmMagicNumber()
+ * import { createWasmTestHelpers } from 'build-infra/lib/test/helpers'
+ * const helpers = createWasmTestHelpers({ wasmDir, wasmName: 'ort', ... })
+ * helpers.testWasmMagicNumber()
  */
 
 import { existsSync, promises as fs } from 'node:fs'
@@ -16,15 +16,22 @@ import path from 'node:path'
 /**
  * Create test helpers for a WASM builder package.
  *
- * @param {object} config - Configuration
- * @param {string} config.wasmDir - Directory containing WASM output files
- * @param {string} config.wasmName - Base name for WASM files (e.g., 'ort', 'yoga')
- * @param {object} [config.sizeExpectations] - Expected file size ranges
- * @param {object} [config.sizeExpectations.wasmMin] - Minimum WASM size in bytes
- * @param {object} [config.sizeExpectations.wasmMax] - Maximum WASM size in bytes
- * @param {object} [config.sizeExpectations.base64Min] - Minimum base64 string length
- * @param {string} [config.initFunctionName] - Emscripten init function name (e.g., 'ortWasmThreaded', 'Module')
- * @param {string} [config.exportName] - CommonJS export name (e.g., 'ort', 'yoga')
+ * @param {object} config - Configuration.
+ * @param {string} config.wasmDir - Directory containing WASM output files.
+ * @param {string} config.wasmName - Base name for WASM files (e.g., 'ort',
+ *   'yoga')
+ * @param {object} [config.sizeExpectations] - Expected file size ranges.
+ * @param {object} [config.sizeExpectations.wasmMin] - Minimum WASM size in
+ *   bytes.
+ * @param {object} [config.sizeExpectations.wasmMax] - Maximum WASM size in
+ *   bytes.
+ * @param {object} [config.sizeExpectations.base64Min] - Minimum base64 string
+ *   length.
+ * @param {string} [config.initFunctionName] - Emscripten init function name
+ *   (e.g., 'ortWasmThreaded', 'Module')
+ * @param {string} [config.exportName] - CommonJS export name (e.g., 'ort',
+ *   'yoga')
+ *
  * @returns {object} Test helper functions
  */
 export function createWasmTestHelpers(config) {

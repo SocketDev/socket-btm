@@ -1,10 +1,9 @@
 /**
- * @fileoverview Checkpoint validation logic for Depot Docker builds.
- *
- * Validates checkpoint archives exported from Depot Docker builds to ensure
- * they are valid and can be successfully read. This prevents silent cache
- * corruption by catching corrupted archives before they're cached for future
- * builds.
+ * @file Checkpoint validation logic for Depot Docker builds.
+ *   Validates checkpoint archives exported from Depot Docker builds to ensure
+ *   they are valid and can be successfully read. This prevents silent cache
+ *   corruption by catching corrupted archives before they're cached for future
+ *   builds.
  */
 
 import { accessSync, constants, readdirSync, statSync } from 'node:fs'

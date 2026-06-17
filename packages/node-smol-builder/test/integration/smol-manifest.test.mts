@@ -1,10 +1,9 @@
 /**
- * @fileoverview Verify-build tests for node:smol-manifest.
- *
- * Locks the public API surface from
- * additions/source-patched/lib/smol-manifest.js: 10 named exports +
- * a `default` object containing all functions (without
- * `ManifestError`, which is only on the top-level export).
+ * @file Verify-build tests for node:smol-manifest.
+ *   Locks the public API surface from
+ *   additions/source-patched/lib/smol-manifest.js: 10 named exports +
+ *   a `default` object containing all functions (without
+ *   `ManifestError`, which is only on the top-level export).
  */
 
 import { describe, expect, it } from 'vitest'

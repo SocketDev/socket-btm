@@ -2,7 +2,7 @@
 /**
  * Update Node.js version across the repository
  * Usage: node scripts/update-node-version.mts <new-version>
- * Example: node scripts/update-node-version.mts 24.12.0
+ * Example: node scripts/update-node-version.mts 24.12.0.
  */
 
 import { promises as fs } from 'node:fs'
@@ -24,7 +24,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.resolve(__dirname, '..')
 
 /**
- * Main update function
+ * Main update function.
  */
 async function main(): Promise<void> {
   const argv: string[] = process.argv

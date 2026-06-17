@@ -1,5 +1,5 @@
 /**
- * Compiler Installation and Version Management Utilities
+ * Compiler Installation and Version Management Utilities.
  *
  * Provides utilities for ensuring the correct compiler versions are installed
  * and configured for building native dependencies.
@@ -33,9 +33,14 @@ export const COMPILER_REQUIREMENTS = {
 /**
  * Check if GCC version meets minimum requirements.
  *
- * @param {string} gccPath - Path to GCC binary
- * @param {string} minVersion - Minimum required version
- * @returns {Promise<{installed: boolean, version: string|undefined, meetsRequirements: boolean}>}
+ * @param {string} gccPath - Path to GCC binary.
+ * @param {string} minVersion - Minimum required version.
+ *
+ * @returns {Promise<{
+ *   installed: boolean
+ *   version: string | undefined
+ *   meetsRequirements: boolean
+ * }>}
  */
 export async function checkGccVersion(gccPath, minVersion) {
   const version = await getGccVersion(gccPath)
@@ -66,9 +71,11 @@ export async function checkGccVersion(gccPath, minVersion) {
  * than relying on the old 0-fallback, which made `>= 0` silently pass
  * every unparseable input.
  *
- * @param {string} version1 - First version
- * @param {string} version2 - Second version
- * @returns {number} -1 if v1 < v2, 0 if equal, 1 if v1 > v2, NaN on parse failure
+ * @param {string} version1 - First version.
+ * @param {string} version2 - Second version.
+ *
+ * @returns {number} -1 if v1 < v2, 0 if equal, 1 if v1 > v2, NaN on parse
+ *   failure.
  */
 export function compareVersions(version1, version2) {
   const v1 = parseVersion(version1)
@@ -94,10 +101,16 @@ export function compareVersions(version1, version2) {
 /**
  * Ensure GCC meets minimum version requirements.
  *
- * @param {object} options - Options
- * @param {boolean} options.autoInstall - Attempt auto-installation if version too old (default: true)
+ * @param {object} options - Options.
+ * @param {boolean} options.autoInstall - Attempt auto-installation if version
+ *   too old (default: true)
  * @param {boolean} options.quiet - Suppress output (default: false)
- * @returns {Promise<{available: boolean, version: string|undefined, installed: boolean}>}
+ *
+ * @returns {Promise<{
+ *   available: boolean
+ *   version: string | undefined
+ *   installed: boolean
+ * }>}
  */
 export async function ensureGccVersion({
   autoInstall = true,
@@ -244,7 +257,9 @@ export function getGccInstructions() {
  * Get GCC version.
  *
  * @param {string} gccPath - Path to GCC binary (default: 'gcc')
- * @returns {Promise<string|undefined>} Version string or undefined if not found
+ *
+ * @returns {Promise<string | undefined>} Version string or undefined if not
+ *   found.
  */
 export async function getGccVersion(gccPath = 'gcc') {
   try {
@@ -266,6 +281,7 @@ export async function getGccVersion(gccPath = 'gcc') {
  * Install GCC on Linux using apt.
  *
  * @param {string} version - GCC major version (e.g., '12')
+ *
  * @returns {Promise<boolean>} True if installation succeeded
  */
 export async function installGccApt(version) {
@@ -341,8 +357,10 @@ export async function installGccApt(version) {
 /**
  * Parse semantic version string.
  *
- * @param {string} versionString - Version string (e.g., "12.2.0", "11.4.0-1ubuntu1~22.04")
- * @returns {{major: number, minor: number, patch: number}|undefined}
+ * @param {string} versionString - Version string (e.g., "12.2.0",
+ *   "11.4.0-1ubuntu1~22.04")
+ *
+ * @returns {{ major: number; minor: number; patch: number } | undefined}
  */
 export function parseVersion(versionString) {
   const match = versionString.match(/(\d+)\.(\d+)\.(\d+)/)

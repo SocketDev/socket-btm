@@ -1,12 +1,11 @@
 /**
- * @fileoverview Shared helpers for compression tool download and verification.
- * Provides DRY utilities for ensuring binpress tool availability.
+ * @file Shared helpers for compression tool download and verification. Provides
+ *   DRY utilities for ensuring binpress tool availability. Note: binflate
+ *   (decompressor) is no longer downloaded here because the self-extracting
+ *   stub has built-in decompression - no external binflate needed. Naming
+ *   convention:
  *
- * Note: binflate (decompressor) is no longer downloaded here because the
- * self-extracting stub has built-in decompression - no external binflate needed.
- *
- * Naming convention:
- * - ensure*: Download if missing, then verify
+ *   - ensure*: Download if missing, then verify
  */
 
 import { existsSync } from 'node:fs'
@@ -34,16 +33,21 @@ const logger = getDefaultLogger()
  * Download a compression tool if it doesn't exist.
  *
  * Environment variables:
- * - BUILD_TOOLS_FROM_SOURCE=true: Build binsuite tools (binpress/binflate/binject) from source
- *   instead of downloading from releases. Used in Docker builds to test local changes.
+ *
+ * - BUILD_TOOLS_FROM_SOURCE=true: Build binsuite tools
+ *   (binpress/binflate/binject) from source instead of downloading from
+ *   releases. Used in Docker builds to test local changes.
  * - BUILD_DEPS_FROM_SOURCE=true: Build LIEF from source during binsuite builds.
- *   Requires it to be pre-installed on the system. (Implemented in CMake build scripts)
- * - BUILD_ALL_FROM_SOURCE=true: Shortcut for both BUILD_TOOLS_FROM_SOURCE and BUILD_DEPS_FROM_SOURCE.
+ *   Requires it to be pre-installed on the system. (Implemented in CMake build
+ *   scripts)
+ * - BUILD_ALL_FROM_SOURCE=true: Shortcut for both BUILD_TOOLS_FROM_SOURCE and
+ *   BUILD_DEPS_FROM_SOURCE.
  *
  * @param {string} tool - Tool name (binpress)
- * @param {string} platform - Target platform
- * @param {string} arch - Target architecture
- * @param {string|undefined} libc - Target libc (musl, glibc, or undefined)
+ * @param {string} platform - Target platform.
+ * @param {string} arch - Target architecture.
+ * @param {string | undefined} libc - Target libc (musl, glibc, or undefined)
+ *
  * @returns {Promise<string>} Path to downloaded tool
  */
 export async function downloadToolIfMissing(tool, platform, arch, libc) {
@@ -123,9 +127,8 @@ export async function downloadToolIfMissing(tool, platform, arch, libc) {
     return binaryPath
   } catch (e) {
     try {
-      const { logTransientErrorHelp } = await import(
-        'build-infra/lib/github-error-utils'
-      )
+      const { logTransientErrorHelp } =
+        await import('build-infra/lib/github-error-utils')
       await logTransientErrorHelp(e)
     } catch {
       // Hint module failed to load — original error already logged.
@@ -139,10 +142,13 @@ export async function downloadToolIfMissing(tool, platform, arch, libc) {
  * Downloads binpress from GitHub releases if not found locally.
  *
  * @param {object} options - Options.
- * @param {string} options.hostPlatform - Host platform (where compression runs).
+ * @param {string} options.hostPlatform - Host platform (where compression
+ *   runs).
  * @param {string} options.hostArch - Host architecture.
- * @param {string} [options.hostLibc] - Host libc (musl, glibc, or undefined for auto-detect).
+ * @param {string} [options.hostLibc] - Host libc (musl, glibc, or undefined for
+ *   auto-detect).
  * @param {boolean} [options.silent] - Suppress logging (default: false).
+ *
  * @returns {Promise<string>} Path to binpress binary.
  */
 export async function ensureBinpress(options) {

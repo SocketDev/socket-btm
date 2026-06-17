@@ -1,6 +1,6 @@
 /**
- * @fileoverview Tests for version-helpers utilities.
- * Validates .gitmodules version and checksum parsing.
+ * @file Tests for version-helpers utilities.
+ *   Validates .gitmodules version and checksum parsing.
  */
 
 import { describe, expect, it } from 'vitest'

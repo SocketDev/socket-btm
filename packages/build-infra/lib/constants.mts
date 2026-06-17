@@ -1,8 +1,9 @@
 // max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
 /**
- * Shared constants for Socket BTM build infrastructure
+ * Shared constants for Socket BTM build infrastructure.
  *
- * Consolidated from: constants.mts, environment-constants.mts, paths.mts, node-version.mts
+ * Consolidated from: constants.mts, environment-constants.mts, paths.mts,
+ * node-version.mts.
  */
 
 import { readFileSync } from 'node:fs'
@@ -26,7 +27,7 @@ const __dirname = path.dirname(__filename)
 // =============================================================================
 
 /**
- * Byte conversion constants for consistent size calculations
+ * Byte conversion constants for consistent size calculations.
  */
 export const BYTES = {
   GB: 1024 * 1024 * 1024,
@@ -232,7 +233,8 @@ export const CHECKPOINT_CHAINS = {
  * Ensures all checkpoints in the chain are valid CHECKPOINTS constants.
  *
  * @param {string[]} chain - Checkpoint chain to validate (newest → oldest)
- * @param {string} packageName - Package name for error messages
+ * @param {string} packageName - Package name for error messages.
+ *
  * @throws {Error} If chain contains invalid checkpoint names
  */
 export function validateCheckpointChain(chain: string[], packageName: string) {
@@ -310,30 +312,30 @@ export const MAX_VFS_SIZE = 500 * BYTES.MB
 // =============================================================================
 
 /**
- * Container detection files
+ * Container detection files.
  */
 export const DOCKER_ENV_FILE = '/.dockerenv'
 export const PODMAN_ENV_FILE = '/run/.containerenv'
 export const ALPINE_RELEASE_FILE = '/etc/alpine-release'
 
 /**
- * Linux proc filesystem paths
+ * Linux proc filesystem paths.
  */
 export const PROC_CGROUP_FILE = '/proc/1/cgroup'
 export const PROC_SELF_EXE = '/proc/self/exe'
 
 /**
- * CI/Container workspace paths
+ * CI/Container workspace paths.
  */
 export const WORKSPACE_DIR = '/workspace'
 
 /**
- * Homebrew path patterns
+ * Homebrew path patterns.
  */
 export const HOMEBREW_CELLAR_EMSCRIPTEN_PATTERN = '/Cellar/emscripten/'
 
 /**
- * Emscripten SDK search paths by platform
+ * Emscripten SDK search paths by platform.
  */
 export const EMSDK_SEARCH_PATHS = {
   darwin: [
@@ -373,12 +375,12 @@ export const COMPILER_PATHS = {
 export const PACKAGE_ROOT = path.resolve(__dirname, '..')
 
 /**
- * Monorepo root directory
+ * Monorepo root directory.
  */
 export const MONOREPO_ROOT = path.resolve(PACKAGE_ROOT, '../..')
 
 /**
- * Node.js version file at monorepo root
+ * Node.js version file at monorepo root.
  */
 export const NODE_VERSION_FILE = path.join(MONOREPO_ROOT, '.node-version')
 
@@ -403,6 +405,7 @@ export const NODE_VERSION = `v${nodeVersionRaw}`
 /**
  * Get the BUILD_MODE from environment variable.
  * Defaults to 'prod' in CI, 'dev' otherwise.
+ *
  * @returns {string} The build mode ('dev' or 'prod')
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is grouped by section header banners ("Path Constants" / "Build Constants" / ...) with helpers co-located with their constants; autofix bails on the const-interleaved layout and reordering would scatter related declarations across sections.
@@ -426,15 +429,18 @@ export function getBuildMode(args?: string[] | Set<string>): string {
 }
 
 /**
- * Get platform-specific build directory path.
- * Returns build/${BUILD_MODE}/${platformArch} for complete isolation between platforms.
+ * Get platform-specific build directory path. Returns
+ * build/${BUILD_MODE}/${platformArch} for complete isolation between
+ * platforms.
  *
  * This prevents race conditions when multiple platforms build concurrently by
  * giving each platform its own build directory for checkpoints, object files,
  * and intermediate artifacts.
  *
- * @param {string} packageDir - The package directory path
- * @param {string} platformArch - Platform-arch string (e.g., 'linux-x64', 'darwin-arm64')
+ * @param {string} packageDir - The package directory path.
+ * @param {string} platformArch - Platform-arch string (e.g., 'linux-x64',
+ *   'darwin-arm64')
+ *
  * @returns {string} Platform-specific build directory path
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is grouped by section header banners ("Path Constants" / "Build Constants" / ...) with helpers co-located with their constants; autofix bails on the const-interleaved layout and reordering would scatter related declarations across sections.
@@ -448,7 +454,9 @@ export function getPlatformBuildDir(
 
 /**
  * Get Emscripten SDK search paths for the current or specified platform.
+ *
  * @param {string} [platform] - Platform override (darwin, linux, win32)
+ *
  * @returns {string[]} Array of paths to search for EMSDK
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is grouped by section header banners ("Path Constants" / "Build Constants" / ...) with helpers co-located with their constants; autofix bails on the const-interleaved layout and reordering would scatter related declarations across sections.
@@ -463,7 +471,9 @@ export function getEmsdkSearchPaths(
 
 /**
  * Get GCC path for a specific version.
- * @param {number} version - GCC version number
+ *
+ * @param {number} version - GCC version number.
+ *
  * @returns {string} Path to versioned GCC
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is grouped by section header banners ("Path Constants" / "Build Constants" / ...) with helpers co-located with their constants; autofix bails on the const-interleaved layout and reordering would scatter related declarations across sections.
@@ -473,7 +483,9 @@ export function getGccPath(version: number): string {
 
 /**
  * Get G++ path for a specific version.
- * @param {number} version - G++ version number
+ *
+ * @param {number} version - G++ version number.
+ *
  * @returns {string} Path to versioned G++
  */
 // oxlint-disable-next-line socket/sort-source-methods -- file is grouped by section header banners ("Path Constants" / "Build Constants" / ...) with helpers co-located with their constants; autofix bails on the const-interleaved layout and reordering would scatter related declarations across sections.
@@ -486,14 +498,15 @@ export function getGxxPath(version: number): string {
 // =============================================================================
 
 /**
- * Magic marker to identify the start of compressed data in self-extracting binaries.
- * The marker is 32 bytes long and must match EXACTLY with the C++ stub code.
+ * Magic marker to identify the start of compressed data in self-extracting
+ * binaries. The marker is 32 bytes long and must match EXACTLY with the C++
+ * stub code.
  *
  * C++ equivalent (split to prevent self-reference):
- *   MAGIC_MARKER_PART1 = "__SMOL"
- *   MAGIC_MARKER_PART2 = "_PRESSED_DATA"
- *   MAGIC_MARKER_PART3 = "_MAGIC_MARKER"
- *   MAGIC_MARKER_LEN = 32
+ * MAGIC_MARKER_PART1 = "__SMOL"
+ * MAGIC_MARKER_PART2 = "_PRESSED_DATA"
+ * MAGIC_MARKER_PART3 = "_MAGIC_MARKER"
+ * MAGIC_MARKER_LEN = 32.
  *
  * @type {string}
  */
@@ -501,22 +514,26 @@ export const SMOL_PRESSED_DATA_MAGIC_MARKER = '__SMOL_PRESSED_DATA_MAGIC_MARKER'
 
 /**
  * Binary format structure:
+ *
  * - Magic marker (32 bytes)
  * - Compressed size (8 bytes, uint64_t little-endian)
  * - Uncompressed size (8 bytes, uint64_t little-endian)
  * - Cache key (16 bytes, hex string)
  * - Platform metadata (3 bytes):
- *   - platform (1 byte): 0=linux, 1=darwin, 2=win32
- *   - arch (1 byte): 0=x64, 1=arm64, 2=ia32, 3=arm
- *   - libc (1 byte): 0=glibc, 1=musl, 255=n/a (for non-Linux)
+ *
+ *   - Platform (1 byte): 0=linux, 1=darwin, 2=win32
+ *   - Arch (1 byte): 0=x64, 1=arm64, 2=ia32, 3=arm
+ *   - Libc (1 byte): 0=glibc, 1=musl, 255=n/a (for non-Linux)
  * - Smol config present flag (1 byte): 0=no config, 1=has config
  * - Smol config binary (1192 bytes, if flag=1):
+ *
  *   - Magic (4 bytes): 0x534D4647 ("SMFG")
  *   - Version (2 bytes): 2
- *   - Config data (1186 bytes): update config + fakeArgvEnv + nodeVersion (validated at build time)
+ *   - Config data (1186 bytes): update config + fakeArgvEnv + nodeVersion
+ *     (validated at build time)
  * - Compressed data (variable length)
  *
- * Note: All platforms now use zstd compression exclusively
+ * Note: All platforms now use zstd compression exclusively.
  */
 export const HEADER_SIZES = {
   CACHE_KEY: 16,
@@ -565,8 +582,10 @@ export const COMPRESSION_VALUES = {
 }
 
 /**
- * Metadata header size (excluding magic marker, smol config, and compressed data).
- * compressed_size (8) + uncompressed_size (8) + cache_key (16) + platform_metadata (3) + integrity_hash (32) + smol_config_flag (1) = 68 bytes
+ * Metadata header size (excluding magic marker, smol config, and compressed
+ * data). compressed_size (8) + uncompressed_size (8) + cache_key (16) +
+ * platform_metadata (3) + integrity_hash (32) + smol_config_flag (1) = 68
+ * bytes.
  */
 export const METADATA_HEADER_SIZE =
   HEADER_SIZES.COMPRESSED_SIZE +
@@ -578,14 +597,14 @@ export const METADATA_HEADER_SIZE =
 
 /**
  * Total header size without smol config (excluding compressed data).
- * marker (32) + metadata (68) = 100 bytes
+ * marker (32) + metadata (68) = 100 bytes.
  */
 export const TOTAL_HEADER_SIZE_WITHOUT_SMOL_CONFIG =
   HEADER_SIZES.MAGIC_MARKER + METADATA_HEADER_SIZE
 
 /**
  * Total header size with smol config (excluding compressed data).
- * marker (32) + metadata (68) + smol_config (1192) = 1292 bytes
+ * marker (32) + metadata (68) + smol_config (1192) = 1292 bytes.
  */
 export const TOTAL_HEADER_SIZE_WITH_SMOL_CONFIG =
   TOTAL_HEADER_SIZE_WITHOUT_SMOL_CONFIG + HEADER_SIZES.SMOL_CONFIG_BINARY

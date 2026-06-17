@@ -1,17 +1,15 @@
 /**
- * @fileoverview Verify-build tests for node:smol-power.
+ * @file Verify-build tests for node:smol-power. Asserts the public API
+ *   documented in additions/source-patched/lib/smol-power.js:
  *
- * Asserts the public API documented in additions/source-patched/lib/smol-power.js:
  *   - `isOnAcPower(): boolean`
  *   - `isOnBatteryPower(): boolean`
  *   - module is frozen with a null prototype
  *   - bare `smol-power` (no node: prefix) is rejected (patch 024
  *     schemelessBlockList — bare require throws MODULE_NOT_FOUND)
- *   - `builtinModules` advertises the prefixed form `node:smol-power`
- *
- * Skips entirely if the Final/ binary hasn't been built or the
- * smol-power binding hasn't been wired in — run `pnpm build --dev` to
- * materialize one.
+ *   - `builtinModules` advertises the prefixed form `node:smol-power` Skips
+ *     entirely if the Final/ binary hasn't been built or the smol-power binding
+ *     hasn't been wired in — run `pnpm build --dev` to materialize one.
  */
 
 import { describe, expect, it } from 'vitest'

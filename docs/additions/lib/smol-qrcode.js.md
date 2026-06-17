@@ -45,10 +45,10 @@ for (let y = 0; y < width; y++) {
 ### EC levels
 
 ```ts
-ecLevel.L  // 0 — ~7% error recovery
-ecLevel.M  // 1 — ~15% (default)
-ecLevel.Q  // 2 — ~25%
-ecLevel.H  // 3 — ~30%
+ecLevel.L // 0 — ~7% error recovery
+ecLevel.M // 1 — ~15% (default)
+ecLevel.Q // 2 — ~25%
+ecLevel.H // 3 — ~30%
 ```
 
 ## Design Choices
@@ -68,10 +68,11 @@ alphanumeric mode or kanji mode, a future API addition would expose
 ~95% of TUI QR-code use cases (URLs, payment intents, configs).
 
 **JS owns the matrix buffer.** The binding allocates a V8 ArrayBuffer
-+ Uint8Array of `width*width` bytes, memcpys libqrencode's output
-into it, then frees the libqrencode QRcode struct. No per-cell
-crossings; JS-side render loops can iterate the matrix directly with
-typed-array access (~1 cycle per cell).
+
+- Uint8Array of `width*width` bytes, memcpys libqrencode's output
+  into it, then frees the libqrencode QRcode struct. No per-cell
+  crossings; JS-side render loops can iterate the matrix directly with
+  typed-array access (~1 cycle per cell).
 
 **No FastApi.** encode() is called once per QR code (not per frame).
 The slow-path dispatch cost is dwarfed by the encoder's actual work
@@ -82,6 +83,7 @@ The slow-path dispatch cost is dwarfed by the encoder's actual work
 libqrencode upstream: <https://github.com/fukuchi/libqrencode>
 
 The core encoder pipeline lives in:
+
 - `qrinput.c`: input encoding + segment splitting
 - `qrencode.c`: Reed-Solomon error correction + matrix layout
 - `mask.c`: mask pattern selection (the 8 standard QR masks)

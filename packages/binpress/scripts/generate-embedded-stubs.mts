@@ -1,18 +1,17 @@
-
 /**
- * @fileoverview Generate embedded stubs for binpress
+ * @file Generate embedded stubs for binpress
+ *   This script:
  *
- * This script:
- * 1. For the current platform: Uses local stub if available (for testing local changes)
- * 2. For other platforms: Downloads pre-built stubs from GitHub releases
- * 3. Extracts downloaded stubs from tarballs
- * 4. Converts all stubs to C arrays
- * 5. Generates embedded_stubs.c with all stub binaries
+ *   1. For the current platform: Uses local stub if available (for testing local
+ *      changes)
+ *   2. For other platforms: Downloads pre-built stubs from GitHub releases
+ *   3. Extracts downloaded stubs from tarballs
+ *   4. Converts all stubs to C arrays
+ *   5. Generates embedded_stubs.c with all stub binaries Stubs are needed for:
  *
- * Stubs are needed for:
- * - darwin-arm64, darwin-x64
- * - linux-arm64, linux-x64, linux-arm64-musl, linux-x64-musl
- * - win32-arm64, win32-x64
+ *   - darwin-arm64, darwin-x64
+ *   - linux-arm64, linux-x64, linux-arm64-musl, linux-x64-musl
+ *   - win32-arm64, win32-x64
  */
 
 import { existsSync, promises as fs } from 'node:fs'
@@ -104,7 +103,7 @@ if (stubsTag) {
 }
 
 /**
- * Download and extract a stub for a specific platform-arch
+ * Download and extract a stub for a specific platform-arch.
  */
 export async function downloadStub(
   platform,
@@ -205,9 +204,8 @@ export async function downloadStub(
 
     // Log helpful messages if this is a transient GitHub/network error.
     try {
-      const { logTransientErrorHelp } = await import(
-        'build-infra/lib/github-error-utils'
-      )
+      const { logTransientErrorHelp } =
+        await import('build-infra/lib/github-error-utils')
       await logTransientErrorHelp(e)
     } catch {
       // Hint module failed to load — original error already logged.
@@ -223,7 +221,7 @@ export async function downloadStub(
 }
 
 /**
- * Convert binary to C array
+ * Convert binary to C array.
  */
 // oxlint-disable-next-line socket/sort-source-methods -- script ordered as a top-down stub-generation pipeline (resolve platforms → fetch or build → embed → write); alphabetizing would scatter the flow.
 export async function binaryToCArray(stubPath, varName) {

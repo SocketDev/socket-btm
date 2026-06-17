@@ -3,11 +3,12 @@
 /**
  * Validates Dockerfile.build export patterns to prevent Depot nesting issues.
  *
- * Issue: When using Depot with `outputs: type=local,dest=<path>`, copying to `/build`
- * creates nested `dest/build/build/*` structure instead of `dest/build/*`.
+ * Issue: When using Depot with `outputs: type=local,dest=<path>`, copying to
+ * `/build` creates nested `dest/build/build/*` structure instead of
+ * `dest/build/*`.
  *
  * Correct pattern: COPY --from=build <source> /
- * Incorrect pattern: COPY --from=build <source> /build
+ * Incorrect pattern: COPY --from=build <source> /build.
  */
 
 import { existsSync, promises as fs } from 'node:fs'

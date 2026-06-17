@@ -1,32 +1,27 @@
 #!/usr/bin/env node
 /**
- * @fileoverview Test262 Temporal subset runner — CLI + main.
+ * @file Test262 Temporal subset runner — CLI + main. Drives
+ *   `packages/temporal-infra/test/fixtures/test262/test/built-ins/Temporal/` +
+ *   `test/intl402/Temporal/` through the built node-smol binary, classifies
+ *   each result against an allowlist of known-failures, and exits non-zero on
+ *   regression OR stale allowlist entry. Shape mirrors ultrathink's
+ *   `test262-parser-runner/report.mts` — same vocabulary
+ *   (`success/failure/falsePositive/falseNegative`), same `allowed/disallowed`
+ *   buckets, same allowlist semantics. This runner additionally handles
+ *   execution (vs ultrathink's parser-only model): harness composition,
+ *   strict/sloppy/raw scenarios, throw vs pass diff, negative-frontmatter phase
+ *   matching. Split into the `test262/` sibling folder:
  *
- * Drives `packages/temporal-infra/test/fixtures/test262/test/built-ins/Temporal/`
- * + `test/intl402/Temporal/` through the built node-smol binary,
- * classifies each result against an allowlist of known-failures, and
- * exits non-zero on regression OR stale allowlist entry.
- *
- * Shape mirrors ultrathink's `test262-parser-runner/report.mts` —
- * same vocabulary (`success/failure/falsePositive/falseNegative`),
- * same `allowed/disallowed` buckets, same allowlist semantics. This
- * runner additionally handles execution (vs ultrathink's parser-only
- * model): harness composition, strict/sloppy/raw scenarios, throw vs
- * pass diff, negative-frontmatter phase matching.
- *
- * Split into the `test262/` sibling folder:
- *   - types.mts       — result types (TestCase, Test, Summary, ...)
- *   - parser.mts      — frontmatter parser
- *   - classifier.mts  — interpret + emptyBuckets
- *   - harness.mts     — loadHarness, composeScript, walkTests
- *   - executor.mts    — resolveBinary, loadAllowlist, runOneTest, shouldSkip
- *   - report.mts      — report
- *
- * Usage:
- *   pnpm --filter temporal-infra run test262:temporal
- *   pnpm --filter temporal-infra run test262:temporal -- --no-intl
- *   node test/scripts/test262-temporal-runner.mts --include 'PlainDate.prototype.with'
- *   node test/scripts/test262-temporal-runner.mts --limit 100 --json /tmp/results.json
+ *   - types.mts — result types (TestCase, Test, Summary, ...)
+ *   - parser.mts — frontmatter parser
+ *   - classifier.mts — interpret + emptyBuckets
+ *   - harness.mts — loadHarness, composeScript, walkTests
+ *   - executor.mts — resolveBinary, loadAllowlist, runOneTest, shouldSkip
+ *   - report.mts — report Usage: pnpm --filter temporal-infra run
+ *     test262:temporal pnpm --filter temporal-infra run test262:temporal --
+ *     --no-intl node test/scripts/test262-temporal-runner.mts --include
+ *     'PlainDate.prototype.with' node test/scripts/test262-temporal-runner.mts
+ *     --limit 100 --json /tmp/results.json
  */
 
 import { readFileSync, writeFileSync } from 'node:fs'

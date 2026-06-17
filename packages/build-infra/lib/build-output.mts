@@ -8,6 +8,7 @@ const logger = getDefaultLogger()
 
 /**
  * Print an error message to stderr.
+ *
  * @param {string} message - Error message to print.
  */
 export function printError(message) {
@@ -16,6 +17,7 @@ export function printError(message) {
 
 /**
  * Print an info message to stdout.
+ *
  * @param {string} message - Info message to print.
  */
 export function printInfo(message) {
@@ -24,6 +26,7 @@ export function printInfo(message) {
 
 /**
  * Print a success message to stdout.
+ *
  * @param {string} message - Success message to print.
  */
 export function printSuccess(message) {
@@ -32,6 +35,7 @@ export function printSuccess(message) {
 
 /**
  * Print a warning message to stdout.
+ *
  * @param {string} message - Warning message to print.
  */
 export function printWarning(message) {

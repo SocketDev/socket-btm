@@ -1,8 +1,10 @@
 /**
  * Tests for node:smol-ilp module.
  *
- * NOTE: The node:smol-ilp module depends on internalBinding('smol_ilp') which only
- * exists inside SEA (Single Executable Application). These tests focus on:
+ * NOTE: The node:smol-ilp module depends on internalBinding('smol_ilp') which
+ * only exists inside SEA (Single Executable Application). These tests focus
+ * on:
+ *
  * 1. TimeUnit utility methods (pure JavaScript, testable outside SEA)
  * 2. API structure validation via TypeScript definitions
  */

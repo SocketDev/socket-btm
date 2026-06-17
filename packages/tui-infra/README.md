@@ -21,11 +21,11 @@ Higher-level surfaces (`@opentui/react`, `@opentui/keymap`,
 
 ## Three-tier port
 
-| Tier   | Surface                                       | Hot path?                           | Upstream                                                                                                                                                                                                                                                                                              | Status |
-| ------ | --------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| Tier 1 | ANSI emit (cursor moves, SGR, cell flushes)   | Yes — every frame                   | [`opentui/packages/core/src/zig/ansi.zig`](../opentui-builder/upstream/opentui/packages/core/src/zig/ansi.zig)                                                                                                                                                                                       | DONE   |
-| Tier 2 | Cell buffer + diff + render loop              | Yes — every frame                   | [`opentui/packages/core/src/zig/renderer.zig`](../opentui-builder/upstream/opentui/packages/core/src/zig/renderer.zig) + [`buffer-methods.zig`](../opentui-builder/upstream/opentui/packages/core/src/zig/buffer-methods.zig)                                                                        | DONE   |
-| Tier 3 | Yoga direct binding + mouse parser            | Per-event (mouse), per-frame (Yoga) | yoga 3.2.1 (C++ upstream) + [`opentui/packages/core/src/lib/parse.mouse.ts`](../opentui-builder/upstream/opentui/packages/core/src/lib/parse.mouse.ts)                                                                                                                                               | DONE   |
+| Tier   | Surface                                     | Hot path?                           | Upstream                                                                                                                                                                                                                      | Status |
+| ------ | ------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| Tier 1 | ANSI emit (cursor moves, SGR, cell flushes) | Yes — every frame                   | [`opentui/packages/core/src/zig/ansi.zig`](../opentui-builder/upstream/opentui/packages/core/src/zig/ansi.zig)                                                                                                                | DONE   |
+| Tier 2 | Cell buffer + diff + render loop            | Yes — every frame                   | [`opentui/packages/core/src/zig/renderer.zig`](../opentui-builder/upstream/opentui/packages/core/src/zig/renderer.zig) + [`buffer-methods.zig`](../opentui-builder/upstream/opentui/packages/core/src/zig/buffer-methods.zig) | DONE   |
+| Tier 3 | Yoga direct binding + mouse parser          | Per-event (mouse), per-frame (Yoga) | yoga 3.2.1 (C++ upstream) + [`opentui/packages/core/src/lib/parse.mouse.ts`](../opentui-builder/upstream/opentui/packages/core/src/lib/parse.mouse.ts)                                                                        | DONE   |
 
 The user-facing `packages/core/src/ansi.ts` (18 LOC) is a thin
 re-export of cursor/screen state primitives — NOT the per-cell hot
@@ -37,11 +37,11 @@ applyAttributesOutputWriter`).
 
 Three layers, same shape as `temporal-infra`:
 
-| Layer                     | Source                          | Notes                                                                                                                                |
-| ------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| **(1) Layout (Yoga)**     | yoga submodule (C++ upstream)   | Yoga is already C++ — `node:smol-tui.computeLayout()` wires it directly into node-smol, no JS bridge.                                |
-| **(2) Terminal I/O**      | Node's `process.stdout` + libuv | Raw I/O stays in Node. ANSI emit produces a `Buffer`; the JS layer writes it via the existing Node stream API.                        |
-| **(3) Render algorithms** | this package                    | Cell buffer, dirty diff, ANSI batch emit, SGR / X10 mouse decode, Yoga handle registry.                                              |
+| Layer                     | Source                          | Notes                                                                                                          |
+| ------------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **(1) Layout (Yoga)**     | yoga submodule (C++ upstream)   | Yoga is already C++ — `node:smol-tui.computeLayout()` wires it directly into node-smol, no JS bridge.          |
+| **(2) Terminal I/O**      | Node's `process.stdout` + libuv | Raw I/O stays in Node. ANSI emit produces a `Buffer`; the JS layer writes it via the existing Node stream API. |
+| **(3) Render algorithms** | this package                    | Cell buffer, dirty diff, ANSI batch emit, SGR / X10 mouse decode, Yoga handle registry.                        |
 
 ## Why source-only
 

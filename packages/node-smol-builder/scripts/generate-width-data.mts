@@ -4,20 +4,21 @@
  * East_Asian_Width + emoji-data data files.
  *
  * Two output tables:
- *   - kWideRanges: sorted [lo, hi] inclusive pairs of code-point ranges
- *     where width = 2 (East Asian F/W *or* Emoji_Presentation). Used by
- *     the StringWidth() fast path.
- *   - kZeroWidthRanges: sorted [lo, hi] inclusive pairs where width = 0
- *     (combining marks + default-ignorable + control chars). Used to
- *     adjust the width down for ZWJ-style sequences in the common case
- *     (combining marks attached to a base character).
+ *
+ * - KWideRanges: sorted [lo, hi] inclusive pairs of code-point ranges where width
+ *   = 2 (East Asian F/W _or_ Emoji_Presentation). Used by the StringWidth()
+ *   fast path.
+ * - KZeroWidthRanges: sorted [lo, hi] inclusive pairs where width = 0 (combining
+ *   marks + default-ignorable + control chars). Used to adjust the width down
+ *   for ZWJ-style sequences in the common case (combining marks attached to a
+ *   base character).
  *
  * Width returned by StringWidth:
- *   1 + Σ over codepoints in the string:
- *     +1 if codepoint is wide (lookup in kWideRanges)
- *     -1 if codepoint is zero-width (lookup in kZeroWidthRanges)
- *      0 otherwise
- *   ... minus 1 (the seeding "1" cancels out for empty strings).
+ * 1 + Σ over codepoints in the string:
+ * +1 if codepoint is wide (lookup in kWideRanges)
+ * -1 if codepoint is zero-width (lookup in kZeroWidthRanges)
+ * 0 otherwise
+ * ... minus 1 (the seeding "1" cancels out for empty strings).
  *
  * Re-run when Unicode bumps to a new major version.
  */

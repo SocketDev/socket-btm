@@ -6,12 +6,12 @@
  * - Downloads models from Hugging Face
  * - Converts to ONNX format
  * - Applies INT4/INT8 mixed-precision quantization
- * - Optimizes ONNX graphs
+ * - Optimizes ONNX graphs.
  *
  * Usage:
- *   node scripts/build.mts          # Dev build (INT8 quantization, default)
- *   node scripts/build.mts --int4   # Prod build (INT4 quantization, smaller)
- *   node scripts/build.mts --force  # Force rebuild (ignore checkpoints)
+ * node scripts/build.mts          # Dev build (INT8 quantization, default)
+ * node scripts/build.mts --int4   # Prod build (INT4 quantization, smaller)
+ * node scripts/build.mts --force  # Force rebuild (ignore checkpoints)
  */
 
 import { existsSync, promises as fs, readFileSync } from 'node:fs'
@@ -34,7 +34,7 @@ import { safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
-import { MODELS_DIR, getBuildPaths, getCurrentPlatform } from './paths.mts'
+import { getBuildPaths, getCurrentPlatform, MODELS_DIR } from './paths.mts'
 
 const logger = getDefaultLogger()
 
@@ -295,12 +295,13 @@ export async function exportModels() {
 }
 
 /**
- * Optimize ONNX graphs with transformer-specific optimizations (prod mode only).
+ * Optimize ONNX graphs with transformer-specific optimizations (prod mode
+ * only).
  *
  * Uses onnxruntime.transformers.optimizer to apply graph optimizations like:
  * - Fusing operations (LayerNorm, Attention)
  * - Constant folding
- * - Removing redundant nodes
+ * - Removing redundant nodes.
  *
  * In dev mode (int8), skip this for faster builds.
  * In prod mode (int4), apply optimizations for maximum performance.

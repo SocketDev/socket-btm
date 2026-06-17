@@ -18,7 +18,7 @@ import { getAssetPlatformArch } from 'build-infra/lib/platform-mappings'
 import { detectLibc } from '@socketsecurity/lib-stable/releases/socket-btm'
 
 import { CODET5_REQUIRED_FILES } from './required-files.mts'
-import { PACKAGE_ROOT, getBuildPaths } from '../scripts/paths.mts'
+import { getBuildPaths, PACKAGE_ROOT } from '../scripts/paths.mts'
 
 // Published quant level is int4 (smaller binaries). int8 is local-dev only.
 const CODET5_PUBLISHED_QUANT = 'int4'

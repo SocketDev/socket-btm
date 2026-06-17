@@ -6,10 +6,10 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  SOAK_DAYS,
   checkSoak,
   formatAnnotation,
   parseAnnotation,
+  SOAK_DAYS,
 } from '../lib/soak-policy.mts'
 
 const FROZEN_NOW = new Date('2026-05-28T12:00:00.000Z')
@@ -53,19 +53,25 @@ describe('checkSoak', () => {
 
 describe('parseAnnotation', () => {
   it('parses the canonical shape with `#` marker', () => {
-    expect(parseAnnotation('# published: 2026-05-21 | removable: 2026-05-28')).toEqual({
+    expect(
+      parseAnnotation('# published: 2026-05-21 | removable: 2026-05-28'),
+    ).toEqual({
       published: '2026-05-21',
       removable: '2026-05-28',
     })
   })
   it('parses with `//` marker', () => {
-    expect(parseAnnotation('// published: 2026-05-21 | removable: 2026-05-28')).toEqual({
+    expect(
+      parseAnnotation('// published: 2026-05-21 | removable: 2026-05-28'),
+    ).toEqual({
       published: '2026-05-21',
       removable: '2026-05-28',
     })
   })
   it('tolerates indentation', () => {
-    expect(parseAnnotation('    # published: 2026-05-21 | removable: 2026-05-28')).toEqual({
+    expect(
+      parseAnnotation('    # published: 2026-05-21 | removable: 2026-05-28'),
+    ).toEqual({
       published: '2026-05-21',
       removable: '2026-05-28',
     })
@@ -77,7 +83,9 @@ describe('parseAnnotation', () => {
   })
   it('returns undefined when the annotation is absent or malformed', () => {
     expect(parseAnnotation('just a regular comment')).toBeUndefined()
-    expect(parseAnnotation('# published: not-a-date | removable: also-bad')).toBeUndefined()
+    expect(
+      parseAnnotation('# published: not-a-date | removable: also-bad'),
+    ).toBeUndefined()
     expect(parseAnnotation('')).toBeUndefined()
     expect(parseAnnotation(undefined)).toBeUndefined()
   })

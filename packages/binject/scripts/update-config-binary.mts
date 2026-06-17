@@ -1,8 +1,9 @@
 /**
- * Smol Config Binary Serializer
+ * Smol Config Binary Serializer.
  *
- * Serializes smol config (update config + fakeArgvEnv) to binary format for embedding in node-smol binaries.
- * Validates all inputs at build time and throws errors for invalid data.
+ * Serializes smol config (update config + fakeArgvEnv) to binary format for
+ * embedding in node-smol binaries. Validates all inputs at build time and
+ * throws errors for invalid data.
  */
 
 import { readFileSync } from 'node:fs'
@@ -35,8 +36,11 @@ export class SmolConfigValidationError extends Error {
 
 /**
  * Parse smol config JSON string and serialize to binary.
- * @param {string} jsonString - JSON string
+ *
+ * @param {string} jsonString - JSON string.
+ *
  * @returns {Buffer} - Binary buffer (1192 bytes, SMFG v2)
+ *
  * @throws {SmolConfigValidationError} - If validation fails
  * @throws {SyntaxError} - If JSON parsing fails
  */
@@ -55,8 +59,11 @@ export function parseAndSerialize(jsonString) {
 
 /**
  * Parse smol config JSON file and serialize to binary.
- * @param {string} filePath - Path to smol-config.json file
+ *
+ * @param {string} filePath - Path to smol-config.json file.
+ *
  * @returns {Buffer} - Binary buffer (1192 bytes, SMFG v2)
+ *
  * @throws {SmolConfigValidationError} - If validation fails
  * @throws {Error} - If file read or JSON parsing fails
  */
@@ -86,8 +93,11 @@ export function parseConfigFile(filePath) {
 
 /**
  * Serialize smol config JSON to binary buffer with validation.
- * @param {object} config - Smol config JSON object
+ *
+ * @param {object} config - Smol config JSON object.
+ *
  * @returns {Buffer} - Binary buffer (1192 bytes, SMFG v2)
+ *
  * @throws {SmolConfigValidationError} - If validation fails
  */
 export function serializeSmolConfig(config) {

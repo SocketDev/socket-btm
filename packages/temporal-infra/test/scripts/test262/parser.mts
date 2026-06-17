@@ -1,10 +1,9 @@
 /**
- * @fileoverview Test262 frontmatter parser.
- *
- * Test262 metadata: /*--- ... ---*\/ YAML block. Hand-rolled
- * minimal parser — Temporal subset has no $INCLUDE expansion and a
- * stable frontmatter shape (description/esid/features/flags/includes/
- * negative). Full YAML is overkill.
+ * @file Test262 frontmatter parser.
+ *   Test262 metadata: /_--- ... ---_\/ YAML block. Hand-rolled
+ *   minimal parser — Temporal subset has no $INCLUDE expansion and a
+ *   stable frontmatter shape (description/esid/features/flags/includes/
+ *   negative). Full YAML is overkill.
  */
 
 import type { TestAttrs } from './types.mts'

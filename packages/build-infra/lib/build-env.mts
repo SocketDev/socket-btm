@@ -1,14 +1,14 @@
 // max-file-lines: legitimate -- cohesive build-environment helper module — one tool family (emscripten/python/cmake setup); splitting scatters related setup
 
 /**
- * Build Environment Detection and Setup
+ * Build Environment Detection and Setup.
  *
  * Provides utilities for detecting and activating build toolchains:
  * - Emscripten SDK detection and activation
  * - Rust toolchain verification
  * - Python version checking
  * - CI environment detection
- * - Auto-setup and error recovery
+ * - Auto-setup and error recovery.
  *
  * Used by all builder packages for consistent environment handling.
  */
@@ -24,9 +24,9 @@ import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import {
   DOCKER_ENV_FILE,
+  getEmsdkSearchPaths,
   HOMEBREW_CELLAR_EMSCRIPTEN_PATTERN,
   PODMAN_ENV_FILE,
-  getEmsdkSearchPaths,
 } from './constants.mts'
 import { errorMessage } from './error-utils.mts'
 import { getMinPythonVersion } from './version-helpers.mts'
@@ -117,13 +117,14 @@ export async function activateEmscriptenSDK() {
 }
 
 /**
- * Throw an error if download is blocked by BUILD_*_FROM_SOURCE flags.
- * Use this at the start of download functions to enforce build-from-source policy.
+ * Throw an error if download is blocked by BUILD_*_FROM_SOURCE flags. Use this
+ * at the start of download functions to enforce build-from-source policy.
  *
  * @param {string} toolName - Name of the tool being downloaded.
  * @param {'TOOLS' | 'DEPS'} flagType - The type of build flag to check.
  * @param {object} options - Options for customizing the error message.
  * @param {string} [options.buildCommand] - Custom build command suggestion.
+ *
  * @throws {Error} If download is blocked by environment flags.
  */
 export function checkBuildSourceFlag(toolName, flagType, options = {}) {
@@ -222,7 +223,9 @@ export async function checkRust() {
  * Check if command exists.
  *
  * @param {string} cmd - Command name to look up in PATH.
- * @returns {Promise<boolean>} True when the command resolves via `which`/`where`.
+ *
+ * @returns {Promise<boolean>} True when the command resolves via
+ *   `which`/`where`.
  */
 export async function commandExists(cmd) {
   try {
@@ -240,7 +243,7 @@ export async function commandExists(cmd) {
  *
  * Searches common locations and returns path if found.
  *
- * @returns {Promise<{ path: string, type: 'emsdk' | 'homebrew' } | undefined>}
+ * @returns {Promise<{ path: string; type: 'emsdk' | 'homebrew' } | undefined>}
  *   Resolved SDK info, or undefined when no installation is found.
  */
 export async function findEmscriptenSDK() {
@@ -338,7 +341,11 @@ export async function findEmscriptenSDK() {
 /**
  * Get all build source flags as an object.
  *
- * @returns {{buildAllFromSource: boolean, buildToolsFromSource: boolean, buildDepsFromSource: boolean}}
+ * @returns {{
+ *   buildAllFromSource: boolean
+ *   buildToolsFromSource: boolean
+ *   buildDepsFromSource: boolean
+ * }}
  */
 export function getBuildSourceFlags() {
   const buildAllFromSource = envAsBoolean(process.env.BUILD_ALL_FROM_SOURCE)
@@ -356,7 +363,9 @@ export function getBuildSourceFlags() {
  *
  * @param {string} cmd - Command to run.
  * @param {string[]} [args] - Command arguments.
- * @returns {Promise<string>} Trimmed stdout, or empty string if the spawn failed.
+ *
+ * @returns {Promise<string>} Trimmed stdout, or empty string if the spawn
+ *   failed.
  */
 export async function getCommandOutput(cmd, args = []) {
   try {
@@ -435,11 +444,14 @@ export function printSetupResults(results) {
  * Activates necessary toolchains and verifies prerequisites.
  * Returns object with status and any error messages.
  *
- * @param {Object} options - Setup options
- * @param {boolean} options.emscripten - Require Emscripten SDK
- * @param {boolean} options.rust - Require Rust with WASM support
- * @param {boolean} options.python - Require Python (version from external-tools.json)
- * @param {boolean} options.autoSetup - Automatically run setup script if tools missing
+ * @param {Object} options - Setup options.
+ * @param {boolean} options.emscripten - Require Emscripten SDK.
+ * @param {boolean} options.rust - Require Rust with WASM support.
+ * @param {boolean} options.python - Require Python (version from
+ *   external-tools.json)
+ * @param {boolean} options.autoSetup - Automatically run setup script if tools
+ *   missing.
+ *
  * @returns {Object} Setup result with status and messages
  */
 export async function setupBuildEnvironment(options = {}) {
@@ -544,6 +556,7 @@ export async function setupBuildEnvironment(options = {}) {
  * Check if building from source is required for a given flag type.
  *
  * @param {'TOOLS' | 'DEPS' | 'ALL'} flagType - The type of build flag to check.
+ *
  * @returns {boolean} True if building from source is required.
  */
 export function shouldBuildFromSource(flagType) {

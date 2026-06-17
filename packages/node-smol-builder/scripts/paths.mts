@@ -3,11 +3,12 @@
  *
  * Supports hierarchical organization:
  * - Phase: common, release, stripped, compressed, final
- * - Specificity: shared → platform/shared → platform/arch
+ * - Specificity: shared → platform/shared → platform/arch.
  *
- * Note: Path helpers return all potential paths regardless of whether they exist.
- * Non-existent paths are safe to use with find/glob operations (they're simply skipped).
- * Use getExistingPaths() to filter to only existing directories when needed.
+ * Note: Path helpers return all potential paths regardless of whether they
+ * exist. Non-existent paths are safe to use with find/glob operations (they're
+ * simply skipped). Use getExistingPaths() to filter to only existing
+ * directories when needed.
  */
 
 export * from '../../../scripts/fleet/paths.mts'
@@ -39,10 +40,13 @@ export const SOCKET_CACHE_DIR = getSocketHomePath()
 export const UPSTREAM_PATH = path.join(PACKAGE_ROOT, 'upstream/node')
 
 /**
- * Get build directories for a specific mode (dev/prod) with REQUIRED platformArch.
+ * Get build directories for a specific mode (dev/prod) with REQUIRED
+ * platformArch.
+ *
  * @param {string} mode - Build mode ('dev' or 'prod')
  * @param {string} platform - Target platform ('darwin', 'linux', 'win32')
- * @param {string} platformArch - Platform-arch (e.g., 'darwin-arm64') - REQUIRED
+ * @param {string} platformArch - Platform-arch (e.g., 'darwin-arm64') -
+ *   REQUIRED.
  */
 export function getBuildPaths(mode, platform = process.platform, platformArch) {
   if (!platformArch) {
@@ -114,20 +118,22 @@ export function getBuildPaths(mode, platform = process.platform, platformArch) {
  * Returns paths for scripts, patches, and additions that should be hashed
  * for cache key generation.
  *
- * @param {string} phase - 'binary-released' | 'binary-stripped' | 'binary-compressed' | 'finalized'
+ * @example
+ *   getBuildSourcePaths('stripped', 'darwin', 'arm64')
+ *   // Returns:
+ *   // {
+ *   //   common: [...common script paths],
+ *   //   scripts: [...stripped script paths],
+ *   //   patches: [...cumulative patch paths (release + stripped)],
+ *   //   additions: [...cumulative addition paths (release + stripped)]
+ *   // }
+ *
+ * @param {string} phase - 'binary-released' | 'binary-stripped' |
+ *   'binary-compressed' | 'finalized'
  * @param {string} platform - 'darwin' | 'linux' | 'win32'
  * @param {string} arch - 'arm64' | 'x64'
- * @returns {object} Object with scripts, patches, and additions paths
  *
- * @example
- * getBuildSourcePaths('stripped', 'darwin', 'arm64')
- * // Returns:
- * // {
- * //   common: [...common script paths],
- * //   scripts: [...stripped script paths],
- * //   patches: [...cumulative patch paths (release + stripped)],
- * //   additions: [...cumulative addition paths (release + stripped)]
- * // }
+ * @returns {object} Object with scripts, patches, and additions paths
  */
 export function getBuildSourcePaths(phase, platform, arch) {
   // Define phase dependencies.
@@ -190,6 +196,7 @@ export function getBuildSourcePaths(phase, platform, arch) {
  *
  * @param {string} platform - 'darwin' | 'linux' | 'win32'
  * @param {string} arch - 'arm64' | 'x64'
+ *
  * @returns {string[]} Array of common script paths
  */
 export function getCommonScriptsPaths(platform, arch) {
@@ -197,15 +204,19 @@ export function getCommonScriptsPaths(platform, arch) {
 }
 
 /**
- * Get all source file paths for cumulative cache hash (includes all dependencies).
+ * Get all source file paths for cumulative cache hash (includes all
+ * dependencies).
  *
  * For cache validation, we need to include all files from current phase and
  * all previous phases (cumulative).
  *
- * @param {string} phase - 'binary-released' | 'binary-stripped' | 'binary-compressed' | 'finalized'
+ * @param {string} phase - 'binary-released' | 'binary-stripped' |
+ *   'binary-compressed' | 'finalized'
  * @param {string} platform - 'darwin' | 'linux' | 'win32'
  * @param {string} arch - 'arm64' | 'x64'
- * @returns {object} Object with cumulative scripts, patches, and additions paths
+ *
+ * @returns {object} Object with cumulative scripts, patches, and additions
+ *   paths.
  */
 export function getCumulativeBuildSourcePaths(phase, platform, arch) {
   // Define phase dependencies.
@@ -271,23 +282,30 @@ export function getCumulativeBuildSourcePaths(phase, platform, arch) {
  * Each phase includes its own files plus all previous phases.
  * Returns all potential paths regardless of existence.
  *
+ * @example
+ *   getCumulativeHierarchicalPaths(
+ *     'patches',
+ *     ['release', 'stripped'],
+ *     'linux',
+ *     'x64',
+ *   )
+ *   // Returns:
+ *   // [
+ *   //   'patches/release/shared',
+ *   //   'patches/release/linux/shared',
+ *   //   'patches/release/linux/x64',
+ *   //   'patches/stripped/shared',
+ *   //   'patches/stripped/linux/shared',
+ *   //   'patches/stripped/linux/x64'
+ *   // ]
+ *
  * @param {string} category - 'scripts' | 'patches' | 'additions'
- * @param {string[]} phases - Array of phases to include (e.g., ['release', 'stripped'])
+ * @param {string[]} phases - Array of phases to include (e.g., ['release',
+ *   'stripped'])
  * @param {string} platform - 'darwin' | 'linux' | 'win32'
  * @param {string} arch - 'arm64' | 'x64'
- * @returns {string[]} Array of all paths for all phases
  *
- * @example
- * getCumulativeHierarchicalPaths('patches', ['release', 'stripped'], 'linux', 'x64')
- * // Returns:
- * // [
- * //   'patches/release/shared',
- * //   'patches/release/linux/shared',
- * //   'patches/release/linux/x64',
- * //   'patches/stripped/shared',
- * //   'patches/stripped/linux/shared',
- * //   'patches/stripped/linux/x64'
- * // ]
+ * @returns {string[]} Array of all paths for all phases
  */
 export function getCumulativeHierarchicalPaths(
   category,
@@ -315,7 +333,9 @@ export function getCumulativeHierarchicalPaths(
  * @param {string} [platform] - Target platform (defaults to process.platform)
  * @param {string} [arch] - Target architecture (defaults to process.arch)
  * @param {string} [libc] - C library variant ('musl' for Alpine Linux)
- * @returns {string} Platform-arch string (e.g., 'darwin-arm64', 'linux-x64-musl')
+ *
+ * @returns {string} Platform-arch string (e.g., 'darwin-arm64',
+ *   'linux-x64-musl')
  */
 export function getDefaultPlatformArch(
   platform = process.platform,
@@ -334,16 +354,22 @@ export function getDefaultPlatformArch(
  * CI workflows don't need this (find handles missing dirs gracefully),
  * but local builds do.
  *
- * @param {string[]} paths - Array of paths to filter
- * @returns {string[]} Array of paths that exist on the filesystem
- *
  * @example
- * const allPaths = getHierarchicalPaths('scripts', 'stripped', 'darwin', 'arm64')
- * const existingPaths = getExistingPaths(allPaths)
- * // Returns only paths that actually exist:
- * // [
- * //   'packages/node-smol-builder/scripts/stripped/darwin/shared'
- * // ]
+ *   const allPaths = getHierarchicalPaths(
+ *     'scripts',
+ *     'stripped',
+ *     'darwin',
+ *     'arm64',
+ *   )
+ *   const existingPaths = getExistingPaths(allPaths)
+ *   // Returns only paths that actually exist:
+ *   // [
+ *   //   'packages/node-smol-builder/scripts/stripped/darwin/shared'
+ *   // ]
+ *
+ * @param {string[]} paths - Array of paths to filter.
+ *
+ * @returns {string[]} Array of paths that exist on the filesystem
  */
 export function getExistingPaths(paths) {
   return paths.filter(p => existsSync(p))
@@ -352,29 +378,32 @@ export function getExistingPaths(paths) {
 /**
  * Get hierarchical paths for scripts/patches/additions.
  *
- * Returns all potential paths in priority order, regardless of whether they exist.
- * Non-existent paths are safe to use with find/glob operations (they're simply skipped).
+ * Returns all potential paths in priority order, regardless of whether they
+ * exist. Non-existent paths are safe to use with find/glob operations (they're
+ * simply skipped).
  *
  * For a given phase and platform/arch, returns paths in priority order:
  * 1. shared/ (all platforms)
  * 2. {platform}/shared/ (all archs of that platform)
  * 3. {platform}/{arch}/ (specific platform+arch)
  *
+ * @example
+ *   getHierarchicalPaths('scripts', 'stripped', 'darwin', 'arm64')
+ *   // Returns:
+ *   // [
+ *   //   'packages/node-smol-builder/scripts/stripped/shared',
+ *   //   'packages/node-smol-builder/scripts/stripped/darwin/shared',
+ *   //   'packages/node-smol-builder/scripts/stripped/darwin/arm64'
+ *   // ]
+ *   // Note: Paths are returned even if directories don't exist
+ *
  * @param {string} category - 'scripts' | 'patches' | 'additions'
- * @param {string} phase - 'common' | 'release' | 'stripped' | 'compressed' | 'final'
+ * @param {string} phase - 'common' | 'release' | 'stripped' | 'compressed' |
+ *   'final'
  * @param {string} platform - 'darwin' | 'linux' | 'win32'
  * @param {string} arch - 'arm64' | 'x64'
- * @returns {string[]} Array of paths in priority order (general to specific)
  *
- * @example
- * getHierarchicalPaths('scripts', 'stripped', 'darwin', 'arm64')
- * // Returns:
- * // [
- * //   'packages/node-smol-builder/scripts/stripped/shared',
- * //   'packages/node-smol-builder/scripts/stripped/darwin/shared',
- * //   'packages/node-smol-builder/scripts/stripped/darwin/arm64'
- * // ]
- * // Note: Paths are returned even if directories don't exist
+ * @returns {string[]} Array of paths in priority order (general to specific)
  */
 export function getHierarchicalPaths(category, phase, platform, arch) {
   const base = path.join(PACKAGE_ROOT, category, phase)

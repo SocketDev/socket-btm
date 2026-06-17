@@ -1,24 +1,22 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
- * @fileoverview Binflate decompression functional tests
+ * @file Binflate decompression functional tests
+ *   Tests the complete decompression workflow:
  *
- * Tests the complete decompression workflow:
- * 1. Use binpress to compress a binary
- * 2. Use binflate to decompress it
- * 3. Verify decompressed binary matches original
- * 4. Test error handling for corrupt/invalid data
- * 5. Validate CLI flags and options
+ *   1. Use binpress to compress a binary
+ *   2. Use binflate to decompress it
+ *   3. Verify decompressed binary matches original
+ *   4. Test error handling for corrupt/invalid data
+ *   5. Validate CLI flags and options These tests ensure:
  *
- * These tests ensure:
- * - Decompression produces byte-identical output
- * - zstd decompression works correctly
- * - Error handling for corrupt data
- * - CLI flags work as documented
- * - Cross-platform compatibility
- *
- * CRITICAL: These are P0 tests - binflate ships with NO functional tests
- * without this file. The shell tests only validate binary structure.
+ *   - Decompression produces byte-identical output
+ *   - zstd decompression works correctly
+ *   - Error handling for corrupt data
+ *   - CLI flags work as documented
+ *   - Cross-platform compatibility CRITICAL: These are P0 tests - binflate ships
+ *     with NO functional tests without this file. The shell tests only validate
+ *     binary structure.
  */
 
 import crypto from 'node:crypto'
@@ -84,7 +82,7 @@ const binflateExists = existsSync(BINFLATE)
 const binpressExists = existsSync(BINPRESS)
 
 /**
- * Create a test binary file with known content
+ * Create a test binary file with known content.
  */
 export async function createTestBinary(filePath, size = 1024 * 10) {
   // Create binary with repeated pattern (compresses well)
@@ -96,7 +94,7 @@ export async function createTestBinary(filePath, size = 1024 * 10) {
 }
 
 /**
- * Execute command and return result
+ * Execute command and return result.
  */
 export async function execCommand(command, args = [], options = {}) {
   return new Promise(resolve => {
@@ -131,7 +129,7 @@ export async function execCommand(command, args = [], options = {}) {
 }
 
 /**
- * Calculate file hash
+ * Calculate file hash.
  */
 export async function hashFile(filePath) {
   const data = await fs.readFile(filePath)

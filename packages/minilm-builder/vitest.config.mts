@@ -1,6 +1,6 @@
 /**
- * Extends shared vitest config.
- * Uses default 2-minute timeout from base config (sufficient for model builder tests).
+ * Extends shared vitest config. Uses default 2-minute timeout from base config
+ * (sufficient for model builder tests).
  */
 import { defineConfig, mergeConfig } from 'vitest/config'
 

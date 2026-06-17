@@ -1,9 +1,8 @@
 /**
- * @fileoverview Test262 binary resolver, allowlist loader, and per-
- * test executor.
- *
- * The only module here that actually spawns the binary. Pure I/O +
- * spawn — no classification logic.
+ * @file Test262 binary resolver, allowlist loader, and per-
+ *   test executor.
+ *   The only module here that actually spawns the binary. Pure I/O +
+ *   spawn — no classification logic.
  */
 
 import { existsSync, readFileSync } from 'node:fs'

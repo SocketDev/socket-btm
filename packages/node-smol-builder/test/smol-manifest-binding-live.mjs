@@ -9,8 +9,8 @@
  * mismatch.
  *
  * Run with:
- *   build/dev/<platform-arch>/source/out/Release/node \
- *     test/smol-manifest-binding-live.mjs
+ * build/dev/<platform-arch>/source/out/Release/node\
+ * test/smol-manifest-binding-live.mjs
  *
  * Runs inside the built node-smol binary, which is compiled --without-amaro
  * (no TypeScript stripping), so it must stay .mjs. Do not convert to .mts —
@@ -20,7 +20,7 @@
  * docs/plans/smol-manifest-native-full.md.
  */
 
-import { readFileSync, readdirSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 

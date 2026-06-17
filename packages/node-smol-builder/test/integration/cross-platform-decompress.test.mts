@@ -1,15 +1,13 @@
 /**
- * @fileoverview Tests for cross-platform decompression capability
+ * @file Tests for cross-platform decompression capability Validates that zstd
+ *   compression is universal and works across all platforms. Since all
+ *   platforms now use zstd exclusively, binaries compressed on any platform
+ *   should be decompressible on any other platform. Tests verify:
  *
- * Validates that zstd compression is universal and works across all platforms.
- * Since all platforms now use zstd exclusively, binaries compressed on any
- * platform should be decompressible on any other platform.
- *
- * Tests verify:
- * - All platforms use zstd compression
- * - Compression metadata indicates zstd
- * - Binaries are platform-independent (only stub differs)
- * - Decompression logic is universal
+ *   - All platforms use zstd compression
+ *   - Compression metadata indicates zstd
+ *   - Binaries are platform-independent (only stub differs)
+ *   - Decompression logic is universal
  */
 
 import { beforeAll, describe, expect, it } from 'vitest'

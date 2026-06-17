@@ -1,20 +1,16 @@
 /**
- * @fileoverview Compress macOS binaries using Apple's Compression framework.
+ * @file Compress macOS binaries using Apple's Compression framework. This
+ *   script integrates socket_macho_compress with the Node.js build process. It
+ *   provides an alternative to UPX that works with macOS code signing.
+ *   Features:
  *
- * This script integrates socket_macho_compress with the Node.js build process.
- * It provides an alternative to UPX that works with macOS code signing.
- *
- * Features:
  *   - Compresses Mach-O binaries using zstd
  *   - Preserves code signature compatibility
  *   - ~20-30% size reduction beyond stripping
- *   - Creates decompressor for runtime execution
- *
- * Usage:
- *   node compress-macho.mts <input_binary> [output_binary] [--quality=zstd]
- *
- * Example:
- *   node compress-macho.mts <build-dir>/out/Signed/node/node <build-dir>/out/Compressed/node/node
+ *   - Creates decompressor for runtime execution Usage: node compress-macho.mts
+ *     <input_binary> [output_binary] [--quality=zstd] Example: node
+ *     compress-macho.mts <build-dir>/out/Signed/node/node
+ *     <build-dir>/out/Compressed/node/node
  */
 
 import { existsSync } from 'node:fs'

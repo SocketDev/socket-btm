@@ -3,13 +3,16 @@
  * Cross-platform binary compression script.
  *
  * Uses zstd (Zstandard) compression across all platforms via binpress:
- * - macOS: zstd (bundled library)
+ *
+ * - MacOS: zstd (bundled library)
  * - Linux: zstd (bundled library)
  * - Windows: zstd (bundled library)
  *
  * Why This Approach Over UPX?
  *
- * UPX (Ultimate Packer for eXecutables) is a popular packer, but has critical issues:
+ * UPX (Ultimate Packer for eXecutables) is a popular packer, but has critical
+ * issues:
+ *
  * - 50-60% compression vs our 75-79% (20-30% worse)
  * - Breaks macOS code signing (Gatekeeper blocks)
  * - 15-30% antivirus false positive rate (denylisted packer signature)
@@ -17,6 +20,7 @@
  * - Windows Defender often flags UPX-packed binaries
  *
  * Our approach uses zstd compression:
+ *
  * - ~75% compression ratio across all platforms
  * - Works with macOS code signing (preserves both inner and outer signatures)
  * - Zero AV false positives (trusted compression library)
@@ -25,12 +29,13 @@
  * - Decompresses to memory/tmpfs (fast, no disk I/O)
  *
  * Distribution:
+ *
  * - Ship compressed binary + decompressor tool
  * - Total overhead: ~90 KB (vs UPX's self-extracting overhead)
  * - Example: 23 MB binary → 10 MB compressed + 90 KB tool = 10.09 MB
  *
- * Usage:
- *   node scripts/compress-binary.mts <input> <output> [--target-arch=x64|arm64] [--target-libc=glibc|musl]
+ * Usage: node scripts/compress-binary.mts <input> <output>
+ * [--target-arch=x64|arm64] [--target-libc=glibc|musl]
  */
 
 import { existsSync, promises as fs } from 'node:fs'
@@ -161,8 +166,10 @@ export async function compressBinary(
  * Detect libc variant (musl vs glibc) for a Linux binary.
  * Uses ldd to check which C library the binary is linked against.
  *
- * @param {string} binaryPath - Path to binary to analyze
- * @returns {Promise<number>} - LIBC_VALUES.musl, LIBC_VALUES.glibc, or LIBC_VALUES.na
+ * @param {string} binaryPath - Path to binary to analyze.
+ *
+ * @returns {Promise<number>} - LIBC_VALUES.musl, LIBC_VALUES.glibc, or
+ *   LIBC_VALUES.na.
  */
 export async function detectLibc(binaryPath) {
   try {
@@ -224,8 +231,10 @@ export function getPlatformConfig() {
 
 /**
  * Check if a binary is already compressed by looking for the magic marker.
- * @param {string} filePath - Path to binary to check
- * @returns {Promise<boolean>} true if binary is already compressed
+ *
+ * @param {string} filePath - Path to binary to check.
+ *
+ * @returns {Promise<boolean>} True if binary is already compressed
  */
 export async function isCompressedBinary(filePath) {
   try {

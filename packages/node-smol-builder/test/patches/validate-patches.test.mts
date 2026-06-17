@@ -1,5 +1,5 @@
 /**
- * Patch Validation Tests
+ * Patch Validation Tests.
  *
  * Validates all Socket Security patches for Node.js are well-formed
  * and have ZERO file overlaps (no sequential dependencies).
@@ -224,7 +224,10 @@ describe('zero File Overlaps', () => {
     // already guarantees no two patches touch the same file.
     for (const patchName of EXPECTED_PATCHES) {
       const actual = actualFileMap[patchName]
-      expect(actual.length, `${patchName} modifies no files`).toBeGreaterThanOrEqual(1)
+      expect(
+        actual.length,
+        `${patchName} modifies no files`,
+      ).toBeGreaterThanOrEqual(1)
     }
   })
 })

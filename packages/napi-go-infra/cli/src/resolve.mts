@@ -10,7 +10,7 @@ import process from 'node:process'
 /**
  * Platform-arch → Go GOOS/GOARCH triple.
  *
- * @type {Readonly<Record<string, { goos: string, goarch: string }>>}
+ * @type {Readonly<Record<string, { goos: string; goarch: string }>>}
  */
 // The canonical fleet form is win32-* (matches Node's process.platform);
 // win-* aliases are retained for any downstream that still uses the
@@ -33,7 +33,8 @@ export const GO_TARGETS = Object.freeze({
  * Get the Go GOOS/GOARCH pair for a platform-arch string.
  *
  * @param {string} platformArch
- * @returns {{ goos: string, goarch: string }}
+ *
+ * @returns {{ goos: string; goarch: string }}
  */
 export function getGoTarget(platformArch) {
   const entry = GO_TARGETS[platformArch]
@@ -87,7 +88,6 @@ export function getNodeIncludeDir() {
       }
       cur = parent
     }
-  
   }
   throw new Error(
     `napi-go: could not locate Node.js headers. Expected 'node_api.h' ` +

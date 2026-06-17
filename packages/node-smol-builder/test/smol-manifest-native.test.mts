@@ -13,11 +13,12 @@
  * smol-Node-aware test runner.
  *
  * Behavior:
- *  - When build/<mode>/<platform-arch>/source/out/Release/node exists,
- *    spawn it on the verifier and assert exit 0 + verify the output
- *    enumerates every expected fixture as PASS.
- *  - When it doesn't exist (clean checkout, CI lane that hasn't run
- *    `pnpm build`), skip the suite with a clear message.
+ *
+ * - When build/<mode>/<platform-arch>/source/out/Release/node exists, spawn it on
+ *   the verifier and assert exit 0 + verify the output enumerates every
+ *   expected fixture as PASS.
+ * - When it doesn't exist (clean checkout, CI lane that hasn't run `pnpm build`),
+ *   skip the suite with a clear message.
  */
 
 import { existsSync, readdirSync } from 'node:fs'

@@ -1,6 +1,6 @@
 /**
- * @fileoverview Tests for patch-validator utilities.
- * Validates patch file validation, application, and conflict detection.
+ * @file Tests for patch-validator utilities.
+ *   Validates patch file validation, application, and conflict detection.
  */
 
 import { beforeEach, describe, expect, it } from 'vitest'

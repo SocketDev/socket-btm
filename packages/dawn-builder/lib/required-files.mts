@@ -9,9 +9,9 @@
  * Each entry is a path relative to the install/extract dir. Dawn's
  * CMake island-build produces:
  *
- *   lib/libwebgpu_dawn.a        — static library node-smol links
- *   include/dawn/webgpu.h       — WebGPU C-API header
- *   include/dawn/webgpu_cpp.h   — WebGPU C++-API header
+ * Lib/libwebgpu_dawn.a        — static library node-smol links
+ * include/dawn/webgpu.h       — WebGPU C-API header
+ * include/dawn/webgpu_cpp.h   — WebGPU C++-API header.
  *
  * Only the static lib is universally required for the v0 link path;
  * the headers are needed for full Dawn-backed bindings (D7+).

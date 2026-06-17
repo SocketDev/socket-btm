@@ -18,8 +18,8 @@ import { checkBuildSourceFlag } from 'build-infra/lib/build-env'
 import { createCheckpoint, shouldRun } from 'build-infra/lib/checkpoint-manager'
 import {
   BUILD_STAGES,
-  CHECKPOINTS,
   CHECKPOINT_CHAINS,
+  CHECKPOINTS,
   getBuildMode,
   getPlatformBuildDir,
   validateCheckpointChain,
@@ -56,6 +56,7 @@ const __dirname = path.dirname(__filename)
 
 /**
  * Get checkpoint chain for CI workflows.
+ *
  * @returns {string[]} Checkpoint chain in reverse dependency order
  */
 export function getCheckpointChain() {
@@ -78,7 +79,12 @@ const TARGET_ARCH = process.env.TARGET_ARCH || process.arch
  * Get build directories for a given platform-arch.
  *
  * @param {string} platformArch - Platform-arch identifier.
- * @returns {{ buildDir: string, curlBuildDir: string, mbedtlsBuildDir: string }}
+ *
+ * @returns {{
+ *   buildDir: string
+ *   curlBuildDir: string
+ *   mbedtlsBuildDir: string
+ * }}
  */
 // oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function getBuildDirs(platformArch) {
@@ -107,6 +113,7 @@ const CURL_REQUIRED_FILES = [
  * Check if curl libraries exist at a given directory.
  *
  * @param {string} dir - Directory to check.
+ *
  * @returns {boolean} True if all required files exist.
  */
 // oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
@@ -120,7 +127,13 @@ export function curlExistsAt(dir) {
  *
  * @param {string} archivePath - Path to archive file.
  * @param {string} assetName - Asset name for checksum lookup.
- * @returns {Promise<{valid: boolean, expected?: string, actual?: string, skipped?: boolean}>}
+ *
+ * @returns {Promise<{
+ *   valid: boolean
+ *   expected?: string
+ *   actual?: string
+ *   skipped?: boolean
+ * }>}
  */
 export async function verifyArchiveChecksum(archivePath, assetName) {
   return verifyReleaseChecksum({
@@ -137,6 +150,7 @@ export async function verifyArchiveChecksum(archivePath, assetName) {
  * @param {object} [options] - Download options.
  * @param {boolean} [options.force] - Force redownload even if cached.
  * @param {string} [options.platformArch] - Override platform-arch.
+ *
  * @returns {Promise<string>} Path to downloaded curl directory.
  */
 // oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
@@ -307,6 +321,7 @@ export async function downloadCurl(options = {}) {
  * @param {object} [options] - Options.
  * @param {boolean} [options.force] - Force redownload even if cached.
  * @param {string} [options.platformArch] - Override platform-arch.
+ *
  * @returns {Promise<string>} Path to directory containing curl libraries.
  */
 // oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
@@ -348,6 +363,7 @@ const MBEDTLS_VERSION = getMbedTLSVersion()
 
 /**
  * Extract curl version from .gitmodules comment.
+ *
  * @returns {string} Curl version (e.g., "8.18.0")
  */
 // oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
@@ -362,7 +378,8 @@ export function getCurlVersion() {
 
 /**
  * Extract mbedTLS version from .gitmodules comment.
- * @returns {string} mbedTLS version (e.g., "3.6.5")
+ *
+ * @returns {string} MbedTLS version (e.g., "3.6.5")
  */
 // oxlint-disable-next-line socket/sort-source-methods -- build script is ordered as a top-down pipeline (download → extract → configure → build → install → smoke test); alphabetizing across pipeline phases would scatter the flow and break the checkpoint reading order.
 export function getMbedTLSVersion() {
@@ -964,9 +981,8 @@ async function main() {
     logger.log('')
     logger.fail(`curl build failed: ${errorMessage(e)}`)
     try {
-      const { logTransientErrorHelp } = await import(
-        'build-infra/lib/github-error-utils'
-      )
+      const { logTransientErrorHelp } =
+        await import('build-infra/lib/github-error-utils')
       await logTransientErrorHelp(e)
     } catch {
       // Hint module failed to load — original error already logged.

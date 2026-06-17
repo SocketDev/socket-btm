@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, test } from 'vitest'
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 /**
- * @fileoverview Tests for checkpoint-manager utilities.
+ * @file Tests for checkpoint-manager utilities.
  */
 
 import { existsSync, promises as fs } from 'node:fs'
@@ -546,7 +546,7 @@ describe('checkpoint-manager', () => {
 })
 
 /**
- * Recursively find all .mts files in a directory
+ * Recursively find all .mts files in a directory.
  */
 export async function findMjsFiles(dir, files = []) {
   const entries = await fs.readdir(dir, { withFileTypes: true })
@@ -572,7 +572,7 @@ export async function findMjsFiles(dir, files = []) {
 }
 
 /**
- * Check if a createCheckpoint call uses the correct signature
+ * Check if a createCheckpoint call uses the correct signature.
  */
 export function validateCreateCheckpointCall(fileContent, filePath) {
   const lines = fileContent.split('\n')

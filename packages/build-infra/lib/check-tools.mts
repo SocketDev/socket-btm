@@ -1,5 +1,5 @@
 /**
- * Shared tool checking utility for build packages
+ * Shared tool checking utility for build packages.
  */
 
 import { existsSync } from 'node:fs'
@@ -16,15 +16,22 @@ import { ensureAllToolsInstalled } from './tool-installer.mts'
 const logger = getDefaultLogger()
 
 /**
- * Check and optionally install required build tools
+ * Check and optionally install required build tools.
  *
- * @param {object} config - Tool configuration
- * @param {string} config.packageName - Package name for logging
- * @param {string[]} config.autoInstallableTools - Tools that can be auto-installed
- * @param {Array<{name: string, cmd: string, args?: string[], isLibrary?: boolean}>} config.manualTools - Tools that must be checked manually
- * @param {object} options - Options
- * @param {boolean} options.autoInstall - Attempt auto-installation
- * @param {boolean} options.autoYes - Auto-yes to prompts
+ * @param {object} config - Tool configuration.
+ * @param {string} config.packageName - Package name for logging.
+ * @param {string[]} config.autoInstallableTools - Tools that can be
+ *   auto-installed.
+ * @param {{
+ *   name: string
+ *   cmd: string
+ *   args?: string[]
+ *   isLibrary?: boolean
+ * }[]} config.manualTools
+ *   - Tools that must be checked manually
+ * @param {object} options - Options.
+ * @param {boolean} options.autoInstall - Attempt auto-installation.
+ * @param {boolean} options.autoYes - Auto-yes to prompts.
  */
 export async function checkTools(
   config,
@@ -158,7 +165,7 @@ export async function checkTools(
  * Run a package's check-tools entry-point end-to-end.
  *
  * Wraps the --no-auto-install / --yes CLI parsing + CI auto-yes detection
- * + error handling that every packages/<pkg>/scripts/check-tools.mts was
+ * \+ error handling that every packages/<pkg>/scripts/check-tools.mts was
  * hand-rolling.
  *
  * Sets process.exitCode = 1 on failure.

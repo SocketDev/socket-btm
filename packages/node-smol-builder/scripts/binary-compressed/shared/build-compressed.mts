@@ -1,16 +1,14 @@
 #!/usr/bin/env node
 /**
- * @fileoverview Compressed Binary Build Phase
+ * @file Compressed Binary Build Phase
+ *   This script handles the "Compressed" build phase:
  *
- * This script handles the "Compressed" build phase:
- * 1. Compress stripped binary using platform-specific compression
- * 2. Create self-extracting binary with built-in decompressor
- * 3. Smoke test compressed binary
- * 4. Create compressed checkpoint
- *
- * The self-extracting stub has decompression built-in (no external binflate needed).
- *
- * This phase depends on the Stripped phase checkpoint.
+ *   1. Compress stripped binary using platform-specific compression
+ *   2. Create self-extracting binary with built-in decompressor
+ *   3. Smoke test compressed binary
+ *   4. Create compressed checkpoint The self-extracting stub has decompression
+ *      built-in (no external binflate needed). This phase depends on the
+ *      Stripped phase checkpoint.
  */
 
 import crypto from 'node:crypto'
@@ -39,19 +37,19 @@ const logger = getDefaultLogger()
 /**
  * Build compressed binary phase.
  *
- * @param {object} config - Build configuration
- * @param {string} config.buildDir - Build directory
- * @param {string} config.packageName - Package name
- * @param {string} config.outputStrippedBinary - Stripped binary path
- * @param {string} config.outputCompressedDir - Compressed directory
- * @param {string} config.outputCompressedBinary - Compressed binary path
+ * @param {object} config - Build configuration.
+ * @param {string} config.buildDir - Build directory.
+ * @param {string} config.packageName - Package name.
+ * @param {string} config.outputStrippedBinary - Stripped binary path.
+ * @param {string} config.outputCompressedDir - Compressed directory.
+ * @param {string} config.outputCompressedBinary - Compressed binary path.
  * @param {string} config.platform - Target platform (darwin, linux, win32)
- * @param {string} [config.libc] - Target libc (musl, glibc) - Linux only
+ * @param {string} [config.libc] - Target libc (musl, glibc) - Linux only.
  * @param {string} config.arch - Target architecture (arm64, x64)
- * @param {boolean} config.isCrossCompiling - Whether cross-compiling
- * @param {string[]} config.buildSourcePaths - Source paths for cache key
- * @param {object} [buildOptions] - Optional build options
- * @param {boolean} [buildOptions.skipCheckpoint] - Skip checkpoint creation
+ * @param {boolean} config.isCrossCompiling - Whether cross-compiling.
+ * @param {string[]} config.buildSourcePaths - Source paths for cache key.
+ * @param {object} [buildOptions] - Optional build options.
+ * @param {boolean} [buildOptions.skipCheckpoint] - Skip checkpoint creation.
  */
 export async function buildCompressed(config, buildOptions = {}) {
   const { skipCheckpoint = false } = buildOptions
@@ -98,9 +96,7 @@ export async function buildCompressed(config, buildOptions = {}) {
   logger.substep('binpress ready')
 
   logger.step('Compressing Binary for Distribution')
-  logger.log(
-    'Compressing stripped binary using platform-specific compression…',
-  )
+  logger.log('Compressing stripped binary using platform-specific compression…')
   logger.logNewline()
 
   const outputCompressedNodeDir = path.dirname(outputCompressedBinary)

@@ -48,7 +48,10 @@ describe('GLIBC_SHIMS_WRAP_SYMBOLS', () => {
       const occurrences = (
         gypi.match(new RegExp(`-Wl,--wrap=${symbol}\\b`, 'g')) ?? []
       ).length
-      expect(occurrences, `gypi missing --wrap=${symbol}`).toBeGreaterThanOrEqual(2)
+      expect(
+        occurrences,
+        `gypi missing --wrap=${symbol}`,
+      ).toBeGreaterThanOrEqual(2)
     }
   })
 

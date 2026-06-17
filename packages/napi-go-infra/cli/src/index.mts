@@ -1,9 +1,9 @@
 /**
- * napi-go-infra CLI public surface.
+ * Napi-go-infra CLI public surface.
  *
  * Downstream builder packages import from `napi-go-infra/cli`:
  *
- *   import { buildNapiGoAddon } from 'napi-go-infra/cli'
+ * Import { buildNapiGoAddon } from 'napi-go-infra/cli'
  *
  * This entry re-exports the pieces a builder script needs.
  */

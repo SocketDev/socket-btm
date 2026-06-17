@@ -11,6 +11,7 @@ closed** in CI if the trimmed binary can't run the app. Unit tests for `node:smo
 modules become **flaggable** so a build that omits a module skips (not fails) its tests.
 
 Decisions locked (2026-05-31):
+
 - **Input:** static analysis of the SEA bundle.
 - **Action:** drive a custom Node compile (emit configure flags → build).
 - **Safety:** fail-closed CI gate (run the app suite against the trimmed binary).
@@ -58,6 +59,7 @@ harness (what to skip). One artifact, three consumers.
 ## Component 1 — the detector (static analysis of the SEA bundle)
 
 ### What it parses
+
 sfw's SEA blob is a **single esbuilt `main` file** + `useCodeCache: true`
 (`firewall/scripts/create-sea.ts`). socket-cli additionally ships a **VFS tar**
 (`additions/.../vfs/loader.js`, `tar_parser.js`). The detector must cover both:
@@ -67,32 +69,34 @@ sfw's SEA blob is a **single esbuilt `main` file** + `useCodeCache: true`
    in-tree `tar_parser.js` to walk entries without extracting to disk.
 
 ### What it looks for — the feature-signal table
+
 Detection keys off **module specifiers and global references** that map 1:1 to a
 node-smol subsystem. Because the bundle is post-bundler, prefer robust signals
 (string literals survive minification; identifiers may be mangled):
 
-| Subsystem | Positive signals (any ⇒ keep) |
-|---|---|
-| `smol-quic` / `smol-http3` | `'node:smol-quic'`, `'node:smol-http3'`, ALPN `'h3'` |
-| `smol-http` (uWS server) | `'node:smol-http'` |
-| sqlite | `'node:sqlite'`, `'node:smol-sqlite'` |
-| postgres | `'node:smol-postgres'`, `libpq` |
-| webgpu/dawn | `navigator.gpu`, `'node:smol-webgpu'` |
-| tui / keymap | `'node:smol-tui'`, `'node:smol-keymap'` |
-| ffi | `'node:smol-ffi'` (and `/bun` subpath) |
-| tree-sitter | `'node:smol-tree-sitter'` |
-| qrcode | `'node:smol-qrcode'` |
-| markdown | `'node:smol-markdown'` (NOT app-level JS "markdown" — must be the specifier) |
-| ilp | `'node:smol-ilp'` |
-| power | `'node:smol-power'` |
-| manifest | `'node:smol-manifest'` |
-| versions | `'node:smol-versions'` |
-| Temporal | `Temporal.` member access, `'@js-temporal'` |
-| Intl/ICU | `Intl.`, `toLocale*(`, `'node:intl'` |
+| Subsystem                  | Positive signals (any ⇒ keep)                                                |
+| -------------------------- | ---------------------------------------------------------------------------- |
+| `smol-quic` / `smol-http3` | `'node:smol-quic'`, `'node:smol-http3'`, ALPN `'h3'`                         |
+| `smol-http` (uWS server)   | `'node:smol-http'`                                                           |
+| sqlite                     | `'node:sqlite'`, `'node:smol-sqlite'`                                        |
+| postgres                   | `'node:smol-postgres'`, `libpq`                                              |
+| webgpu/dawn                | `navigator.gpu`, `'node:smol-webgpu'`                                        |
+| tui / keymap               | `'node:smol-tui'`, `'node:smol-keymap'`                                      |
+| ffi                        | `'node:smol-ffi'` (and `/bun` subpath)                                       |
+| tree-sitter                | `'node:smol-tree-sitter'`                                                    |
+| qrcode                     | `'node:smol-qrcode'`                                                         |
+| markdown                   | `'node:smol-markdown'` (NOT app-level JS "markdown" — must be the specifier) |
+| ilp                        | `'node:smol-ilp'`                                                            |
+| power                      | `'node:smol-power'`                                                          |
+| manifest                   | `'node:smol-manifest'`                                                       |
+| versions                   | `'node:smol-versions'`                                                       |
+| Temporal                   | `Temporal.` member access, `'@js-temporal'`                                  |
+| Intl/ICU                   | `Intl.`, `toLocale*(`, `'node:intl'`                                         |
 
 Always-keep core (never gated): vfs, primordial, util, webstreams, simd, boringssl.
 
 ### Detection method (deterministic, layered)
+
 1. **Specifier scan (primary):** regex/lexer pass for the exact `node:smol-*` /
    `node:sqlite` string literals. These survive minification because they're passed
    to `require`/`import`/`isBuiltin` as strings. High precision.
@@ -100,12 +104,14 @@ Always-keep core (never gated): vfs, primordial, util, webstreams, simd, borings
    (oxc/acorn already in the toolchain) to find `Temporal.*`, `navigator.gpu`,
    `Intl.*` member expressions that a string scan can't catch.
 3. **`isBuiltin()` awareness:** when code does `isBuiltin('node:smol-power')` as a
-   *guard* with a fallback (socket-cli's pattern), the feature is **optional** —
-   record it as `softUse` (works with or without). Soft-use features are *droppable*
+   _guard_ with a fallback (socket-cli's pattern), the feature is **optional** —
+   record it as `softUse` (works with or without). Soft-use features are _droppable_
    but flagged so the gate verifies the fallback path actually works without them.
 
 ### The dynamic-require escape hatch (the one real risk of static analysis)
+
 Static analysis can't see `require(someVariable)`. Mitigations, in order:
+
 - **Denylist/allowlist override** in the consumer's `package.json`
   (`"smol": { "keep": ["quic"], "drop": ["tui"] }`) — explicit wins over inferred.
 - **Computed-require detection:** if the detector sees `require(<non-literal>)` or
@@ -115,16 +121,26 @@ Static analysis can't see `require(someVariable)`. Mitigations, in order:
   as a runtime failure against the trimmed binary, failing the build.
 
 ### Output
+
 A JSON manifest, content-hashed (the hash becomes the build cache key, see C3):
+
 ```json
 {
   "bundleHash": "sha256:…",
   "features": {
-    "quic":   { "use": "none",  "drop": true },
-    "sqlite": { "use": "none",  "drop": true },
-    "power":  { "use": "soft",  "drop": true,  "note": "isBuiltin-guarded, fallback verified by gate" },
-    "manifest":{ "use": "hard", "drop": false },
-    "temporal":{ "use": "none", "drop": false, "note": "default-keep: ICU-coupled, requires explicit opt-in" }
+    "quic": { "use": "none", "drop": true },
+    "sqlite": { "use": "none", "drop": true },
+    "power": {
+      "use": "soft",
+      "drop": true,
+      "note": "isBuiltin-guarded, fallback verified by gate"
+    },
+    "manifest": { "use": "hard", "drop": false },
+    "temporal": {
+      "use": "none",
+      "drop": false,
+      "note": "default-keep: ICU-coupled, requires explicit opt-in"
+    }
   },
   "ambiguous": []
 }
@@ -137,16 +153,17 @@ A JSON manifest, content-hashed (the hash becomes the build cache key, see C3):
 The flag truth lives in `patches/source-patched/018-configure-postgres-iouring.patch`.
 Existing flags (verified):
 
-| Feature manifest key | Configure flag to emit when `drop:true` | gyp var | Default today |
-|---|---|---|---|
-| quic | `--without-smol-quic` (+ `--without-smol-http3`) | `node_use_smol_quic` | **on** (must add gyp gate — see §gaps) |
-| http3 | `--without-smol-http3` | `node_use_smol_http3` | on |
-| tui | `--without-smol-tui` | `node_use_smol_tui` | on (flag parsed; **gyp gate missing**) |
-| postgres | *(omit `--with-postgres`)* | `node_use_postgres` | **off** ✅ |
-| iouring | *(omit `--with-iouring`)* | `node_use_iouring` | off ✅ |
-| dawn/webgpu | *(omit `--with-dawn`)* | `node_use_dawn` | off ✅ |
+| Feature manifest key | Configure flag to emit when `drop:true`          | gyp var               | Default today                          |
+| -------------------- | ------------------------------------------------ | --------------------- | -------------------------------------- |
+| quic                 | `--without-smol-quic` (+ `--without-smol-http3`) | `node_use_smol_quic`  | **on** (must add gyp gate — see §gaps) |
+| http3                | `--without-smol-http3`                           | `node_use_smol_http3` | on                                     |
+| tui                  | `--without-smol-tui`                             | `node_use_smol_tui`   | on (flag parsed; **gyp gate missing**) |
+| postgres             | _(omit `--with-postgres`)_                       | `node_use_postgres`   | **off** ✅                             |
+| iouring              | _(omit `--with-iouring`)_                        | `node_use_iouring`    | off ✅                                 |
+| dawn/webgpu          | _(omit `--with-dawn`)_                           | `node_use_dawn`       | off ✅                                 |
 
 **Gaps the mapper depends on (must be built first):**
+
 - QUIC sources + `lsquic.gypi` + `ls-qpack.gypi` are in the unconditional
   `['1==1', {}]` block of patch 004 — the `--without-smol-quic` flag does NOT yet
   gate them. **Wire them to `node_use_smol_quic`.**
@@ -174,6 +191,7 @@ BINARY_STRIPPED → BINARY_COMPRESSED → FINALIZED`, and source-stage checkpoin
 **`PLATFORM_AGNOSTIC`** (shared, carry no compiled artifacts).
 
 ### Caching strategy
+
 - **Shared prefix (cache once, reuse for every bundle):** `SOURCE_CLONED` →
   `SOURCE_PATCHED`. Cloning ~1 GB of upstream + applying all patches is identical
   regardless of feature flags. This is the "build release" base — produce it once
@@ -188,6 +206,7 @@ BINARY_STRIPPED → BINARY_COMPRESSED → FINALIZED`, and source-stage checkpoin
   not the source layers.
 
 ### Practical effect
+
 - First "minimal" bundle: full `make` (~30–60 min), cached.
 - Every subsequent bundle with the same feature set: **checkpoint restore, seconds.**
 - A new feature combination: re-`make` from the shared `SOURCE_PATCHED` base (no
@@ -208,7 +227,7 @@ compile produces a trimmed `node`:
    tests; socket-cli: its CLI suite). Real workload, real code paths.
 3. **Absence probes:** for every `drop:true` feature, assert the binding is genuinely
    gone — `isBuiltin('node:smol-quic') === false`, `internalBinding('quic')` throws.
-   This catches a mapper bug that *thinks* it dropped a feature but didn't.
+   This catches a mapper bug that _thinks_ it dropped a feature but didn't.
 4. **Soft-use fallback probes:** for every `use:"soft"` dropped feature (e.g. power),
    run the code path that would have used it and assert the fallback works (e.g.
    `power-state.mts`'s shellout path returns a valid answer with no binding present).
@@ -227,12 +246,14 @@ dynamic `require` can't ship silently — it dies here.
 a build that omits a module skips its tests instead of failing.
 
 ### Current state (verified)
+
 Tests already gate on **binary presence** via `it.skipIf(!smolBinary)`
 (`test/smol-manifest-native.test.mts:107`, `test/paths.mts:56`). The `node:smol-ffi/bun`
-test asserts `isBuiltin(...) === false` on stock Node. So the *idiom* exists — it
+test asserts `isBuiltin(...) === false` on stock Node. So the _idiom_ exists — it
 just keys on "is there a smol binary," not "does this binary include feature X."
 
 ### The extension
+
 Introduce a single feature-aware predicate, fed by the build's feature manifest:
 
 ```ts
@@ -256,7 +277,7 @@ describe('node:smol-quic', () => {
 - A **full** build → runs everything.
 - Source-of-truth = the same manifest that drove the compile, so tests and binary
   can never disagree.
-- **Guard against false-green:** a CI lane that builds the *full* feature set must
+- **Guard against false-green:** a CI lane that builds the _full_ feature set must
   run with `--require-all-features`, turning `skipIf` into a hard failure if any
   expected feature is missing — so "skipped" can't mask a broken full build.
 
@@ -270,17 +291,18 @@ already exposes the `node_use_*` gyp vars at runtime as a cross-check.
 
 Legend: ✅ done · ◻ todo.
 
-| Step | Deliverable | Depends on | Risk | Status |
-|---|---|---|---|---|
-| 1 | Wire `--without-smol-*` flags to gyp gates (patches 004+018) for quic/http3/tui/keymap/ffi/ilp/http/qrcode/markdown/treesitter; `--without-sqlite` already upstream | — | low | ✅ |
-| 2 | **Detector**: specifier scan + AST pass + VFS-tar walk → feature manifest JSON + V8-lite heuristic | — | med | ✅ |
-| 3 | **Flag mapper**: manifest → configure args (pure fn) | 1, 2 | low | ✅ (in detector: `manifest.configureFlags`) |
-| 4 | **Cached compile** off `SOURCE_PATCHED`, flag-set in cache key | 1, 3 | low | ✅ orchestrator + flag passthrough landed; needs one real build to validate |
-| 5 | **Fail-closed gate**: inject + app suite + absence/fallback probes | 4 | med | ✅ gate + probe logic landed; app-suite run needs a real trimmed binary |
-| 6 | **Flaggable tests**: `has(feature)` helper + `SOCKET_REQUIRE_ALL_FEATURES` lane | 1 | low | ✅ helper+guard landed; CI-lane wiring deferred to step 4/5 |
-| 7 | Default-keep Temporal/ICU; require explicit `drop` + dedicated soak before either is auto-dropped | 5 | high | ◻ (policy enforced in registry) |
+| Step | Deliverable                                                                                                                                                         | Depends on | Risk | Status                                                                      |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---- | --------------------------------------------------------------------------- |
+| 1    | Wire `--without-smol-*` flags to gyp gates (patches 004+018) for quic/http3/tui/keymap/ffi/ilp/http/qrcode/markdown/treesitter; `--without-sqlite` already upstream | —          | low  | ✅                                                                          |
+| 2    | **Detector**: specifier scan + AST pass + VFS-tar walk → feature manifest JSON + V8-lite heuristic                                                                  | —          | med  | ✅                                                                          |
+| 3    | **Flag mapper**: manifest → configure args (pure fn)                                                                                                                | 1, 2       | low  | ✅ (in detector: `manifest.configureFlags`)                                 |
+| 4    | **Cached compile** off `SOURCE_PATCHED`, flag-set in cache key                                                                                                      | 1, 3       | low  | ✅ orchestrator + flag passthrough landed; needs one real build to validate |
+| 5    | **Fail-closed gate**: inject + app suite + absence/fallback probes                                                                                                  | 4          | med  | ✅ gate + probe logic landed; app-suite run needs a real trimmed binary     |
+| 6    | **Flaggable tests**: `has(feature)` helper + `SOCKET_REQUIRE_ALL_FEATURES` lane                                                                                     | 1          | low  | ✅ helper+guard landed; CI-lane wiring deferred to step 4/5                 |
+| 7    | Default-keep Temporal/ICU; require explicit `drop` + dedicated soak before either is auto-dropped                                                                   | 5          | high | ◻ (policy enforced in registry)                                             |
 
 ### What landed for step 6 (2026-05-31)
+
 - **`test/helpers/smol-features.mts`** — exports `has(feature)`, `smolBinary`,
   `missingRequiredFeatures()`. `has()` maps a registry feature name → its
   `node:smol-*` specifier (via `featureBuiltinSpecifier` in the registry) and
@@ -301,15 +323,16 @@ Legend: ✅ done · ◻ todo.
   `process.config.variables.node_use_sqlite`.
 - **Deferred:** wiring `SOCKET_REQUIRE_ALL_FEATURES=1` into the CI workflow
   (`.github/workflows/node-smol.yml`) is a no-op until step 4/5 produce
-  per-bundle *trimmed* binaries — the default full build always has every
+  per-bundle _trimmed_ binaries — the default full build always has every
   feature. Wire it alongside the gate (step 5) so the lane has trimmed builds to
   guard.
 
 ### What landed for step 4 (2026-05-31)
+
 - **`scripts/compile-for-bundle.mts`** — orchestrator: detects a bundle → builds
   the flag set → computes a 16-char cache key `sha256(SOURCE_PATCHED + sorted
-  flags + platform + mode)` → invokes `build.mts --from-checkpoint=source-patched
-  --without-smol=<flags>`. `--dry-run` prints the full plan (manifest summary,
+flags + platform + mode)` → invokes `build.mts --from-checkpoint=source-patched
+--without-smol=<flags>`. `--dry-run` prints the full plan (manifest summary,
   flags, cache key, exact build command) without building — verified against the
   real `firewall/dist/sfw-registry.js`.
 - **Flag passthrough wiring:** `build.mts` gained a `--without-smol=` option
@@ -327,7 +350,7 @@ Legend: ✅ done · ◻ todo.
   contract (stable, order-independent, sensitive to flags/platform/mode, dedup).
 - **Real build run (2026-05-31):** ran a clean trimmed build with the
   sfw-registry feature set (`build.mts --dev --without-smol=quic,http3,smolHttp,
-  tui,keymap,ffi,ilp,treeSitter,qrcode,markdown,--without-sqlite`). Results:
+tui,keymap,ffi,ilp,treeSitter,qrcode,markdown,--without-sqlite`). Results:
   - ✅ Patches apply cleanly to pristine (real `patch -p1`).
   - ✅ **Configure honored every flag** — generated `out/Release/config.gypi`
     shows all 11 dropped features `"false"` (`node_use_smol_quic`…`node_use_sqlite`).
@@ -336,7 +359,7 @@ Legend: ✅ done · ◻ todo.
     errors — confirming the gyp `conditions` correctly dropped them (a malformed
     gate would fail at gyp/ninja, not later).
   - ❌ The build then failed at the **final crypto link** — `ld: symbol(s) not
-    found for architecture arm64` for `ncrypto::Rsa`/`DH_free`/`EC_KEY_free`/
+found for architecture arm64` for `ncrypto::Rsa`/`DH_free`/`EC_KEY_free`/
     `HMAC_CTX_free`. This is a **pre-existing BoringSSL↔ncrypto ABI mismatch on
     this checkout**, NOT a trimming regression: my commit touches zero crypto
     wiring (verified), `ncrypto` lives in the always-on `node_use_openssl` block
@@ -355,6 +378,7 @@ Legend: ✅ done · ◻ todo.
     `pnpm --filter node-smol-builder run gate -- --binary=<trimmed> --bundle=<app> --suite="…"`.
 
 ### What landed for step 5 (2026-05-31)
+
 - **`scripts/gate-trimmed-binary.mts`** — fail-closed gate: re-derives the
   manifest from the bundle, then against the trimmed binary runs **absence
   probes** (every `drop:true` feature → `isBuiltin('node:…')` must be false),
@@ -378,15 +402,16 @@ Legend: ✅ done · ◻ todo.
   binary yet.
 
 ### What landed for steps 1–3 (2026-05-31)
+
 - **`patches/source-patched/004-node-gyp-smol-sources.patch`** — the unconditional
-  `['1==1', {}]` source block now keeps only always-on core (vfs, http_binding,
+  `['1==1', {}]` source block now keeps only always-on core (vfs, http*binding,
   simd, util, primordial, versions, manifest, webstreams, temporal, power) and
   moves the 10 optional subsystems into a nested gyp `conditions` array, each
   gated `['node_use_smol_X=="true"', {}]`. Feature-specific gypi includes moved
   with their owner (`yoga.gypi`→tui, `lsquic.gypi`+`ls-qpack.gypi`→quic). Added
-  `node_use_smol_*%` defaults (all `'true'`) to the top `variables` block,
-  mirroring `node_use_sqlite%` — this makes node.gyp self-sufficient on the
-  Windows `vcbuild.bat` path, which no-ops `--without-*` flags.
+  `node_use_smol*_%`defaults (all`'true'`) to the top `variables`block,
+mirroring`node_use_sqlite%`— this makes node.gyp self-sufficient on the
+Windows`vcbuild.bat`path, which no-ops`--without-_` flags.
 - **`patches/source-patched/018-configure-postgres-iouring.patch`** — added 7
   `--without-smol-{http,ffi,ilp,keymap,qrcode,markdown,treesitter}` argparse
   flags + a `configure_smol_extras()` that sets the matching `node_use_smol_*`

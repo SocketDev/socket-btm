@@ -1,19 +1,16 @@
 /**
- * @fileoverview Verify-build tests for node:smol-ffi/node.
- *
- * This is a drop-in compat layer for upstream node:ffi (Node v26.1.0+
- * experimental). On the smol Node binary, `require('node:smol-ffi/node')`
- * forwards verbatim to `require('node:ffi')` so callers can lift code
- * over without re-resolving the loader chain.
- *
- * The smol binary inherits Node 26.1.0's experimental --experimental-ffi
- * flag. When that flag is NOT passed, `require('node:ffi')` throws and
- * the /node compat layer surfaces `{ __notAvailable__: true }`. When
- * the flag IS passed, the layer exposes the full upstream surface.
- *
- * Skips entirely if the Final/ binary doesn't have the smol_ffi
- * binding wired in (gate via smolBuiltinIsAvailable on the canonical
- * smol-ffi, since the /node subpath ships in the same patch hunk).
+ * @file Verify-build tests for node:smol-ffi/node.
+ *   This is a drop-in compat layer for upstream node:ffi (Node v26.1.0+
+ *   experimental). On the smol Node binary, `require('node:smol-ffi/node')`
+ *   forwards verbatim to `require('node:ffi')` so callers can lift code
+ *   over without re-resolving the loader chain.
+ *   The smol binary inherits Node 26.1.0's experimental --experimental-ffi
+ *   flag. When that flag is NOT passed, `require('node:ffi')` throws and
+ *   the /node compat layer surfaces `{ __notAvailable__: true }`. When
+ *   the flag IS passed, the layer exposes the full upstream surface.
+ *   Skips entirely if the Final/ binary doesn't have the smol_ffi
+ *   binding wired in (gate via smolBuiltinIsAvailable on the canonical
+ *   smol-ffi, since the /node subpath ships in the same patch hunk).
  */
 
 import { describe, expect, it } from 'vitest'

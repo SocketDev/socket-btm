@@ -2,19 +2,17 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 // max-file-lines: legitimate -- integration test — one end-to-end scenario per file, splitting fractures the assertion narrative
 
 /**
- * @fileoverview Integration tests for linux-x64 Docker build validation.
+ * @file Integration tests for linux-x64 Docker build validation.
+ *   Tests the complete linux-x64 build pipeline:
  *
- * Tests the complete linux-x64 build pipeline:
- * 1. Node-smol extraction to ~/.socket/_dlx/<hash>/node
- * 2. Basic execution (--version, --eval)
- * 3. SEA creation with binject
- * 4. Repacking and re-execution without errors
- *
- * These tests validate that binject, binpress, stubs, and node-smol work correctly
- * in the linux-x64 Docker build environment.
- *
- * Note: These tests require a built Final binary at build/{dev,prod}/{platform-arch}/out/Final/node/.
- * Run `pnpm build --dev --platform=linux --arch=x64` first to create the binary.
+ *   1. Node-smol extraction to ~/.socket/_dlx/<hash>/node
+ *   2. Basic execution (--version, --eval)
+ *   3. SEA creation with binject
+ *   4. Repacking and re-execution without errors These tests validate that
+ *      binject, binpress, stubs, and node-smol work correctly in the linux-x64
+ *      Docker build environment. Note: These tests require a built Final binary
+ *      at build/{dev,prod}/{platform-arch}/out/Final/node/. Run `pnpm build
+ *      --dev --platform=linux --arch=x64` first to create the binary.
  */
 
 import crypto from 'node:crypto'
@@ -45,7 +43,9 @@ const DLX_DIR = getSocketDlxDir()
 
 /**
  * Calculate the content hash for a file (matches node-smol extraction logic).
- * @param {string} filePath - Path to the file
+ *
+ * @param {string} filePath - Path to the file.
+ *
  * @returns {Promise<string>} SHA-256 hash of the file contents
  */
 export async function calculateFileHash(filePath) {

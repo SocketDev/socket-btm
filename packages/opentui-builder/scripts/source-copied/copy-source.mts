@@ -12,13 +12,14 @@ import { CHECKPOINTS } from 'build-infra/lib/constants'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 
-import { UPSTREAM_PATH, getSharedBuildPaths } from '../paths.mts'
+import { getSharedBuildPaths, UPSTREAM_PATH } from '../paths.mts'
 
 const logger = getDefaultLogger()
 
 /**
- * Copy OpenTUI Zig source from upstream to shared build directory.
- * We copy only the Zig core (packages/core/src/zig/) since that's what we build.
+ * Copy OpenTUI Zig source from upstream to shared build directory. We copy only
+ * the Zig core (packages/core/src/zig/) since that's what we build.
+ *
  * @returns {Promise<void>}
  */
 export async function copySource() {

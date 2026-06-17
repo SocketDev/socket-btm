@@ -1,6 +1,6 @@
 /**
- * @fileoverview Tests for yoga-layout-builder WASM output files.
- * Validates that the build process generates correct file structure and formats.
+ * @file Tests for yoga-layout-builder WASM output files. Validates that the
+ *   build process generates correct file structure and formats.
  */
 
 import { describe, expect, it } from 'vitest'

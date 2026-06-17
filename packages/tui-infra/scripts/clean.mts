@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * @fileoverview Clean tui-infra build artifacts.
- *
- * Source-only package — almost nothing to clean except node_modules
- * and any local test output dirs. Mirrors temporal-infra/scripts/clean.mts
- * for fleet uniformity.
+ * @file Clean tui-infra build artifacts.
+ *   Source-only package — almost nothing to clean except node_modules
+ *   and any local test output dirs. Mirrors temporal-infra/scripts/clean.mts
+ *   for fleet uniformity.
  */
 
 import path from 'node:path'

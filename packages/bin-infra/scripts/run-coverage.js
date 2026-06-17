@@ -3,13 +3,13 @@
  * Works on macOS, Linux, and Windows (with MinGW/MSYS)
  *
  * Usage:
- *   node run-coverage.js [package-name]
+ * node run-coverage.js [package-name]
  *
  * Examples:
- *   node run-coverage.js binject
- *   node run-coverage.js binpress
- *   node run-coverage.js binflate
- *   node run-coverage.js all
+ * node run-coverage.js binject
+ * node run-coverage.js binpress
+ * node run-coverage.js binflate
+ * node run-coverage.js all.
  */
 
 const fs = require('node:fs')

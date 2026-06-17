@@ -1,8 +1,8 @@
 {
   "name": "binflate",
   "version": "0.0.0",
-  "description": "Binary decompression tool",
   "private": true,
+  "description": "Binary decompression tool",
   "license": "MIT",
   "type": "module",
   "scripts": {

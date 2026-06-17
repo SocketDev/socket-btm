@@ -1,6 +1,6 @@
 // max-file-lines: legitimate -- cohesive module — one tool/domain/phase; splitting along arbitrary line cap would fracture related logic
 /**
- * Local Build Setup
+ * Local Build Setup.
  *
  * Utilities for setting up Docker-based local builds.
  * Handles Docker availability checks, QEMU emulation setup,
@@ -11,9 +11,9 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import {
-  WIN32,
   getArch,
   getPlatform,
+  WIN32,
 } from '@socketsecurity/lib-stable/constants/platform'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
@@ -71,9 +71,10 @@ export const ALL_TARGETS = [
 /**
  * Build a specific builder image.
  *
- * @param {string} target - Build target
- * @param {object} options - Build options
- * @param {boolean} options.force - Force rebuild even if image exists
+ * @param {string} target - Build target.
+ * @param {object} options - Build options.
+ * @param {boolean} options.force - Force rebuild even if image exists.
+ *
  * @returns {Promise<boolean>}
  */
 export async function buildBuilderImage(target, options = {}) {
@@ -121,7 +122,7 @@ export async function buildBuilderImage(target, options = {}) {
 /**
  * Check Docker setup requirements.
  *
- * @returns {Promise<{ok: boolean, errors: string[]}>}
+ * @returns {Promise<{ ok: boolean; errors: string[] }>}
  */
 export async function checkDockerSetup() {
   const errors = []
@@ -221,7 +222,8 @@ export async function ensureBuildxBuilder() {
 /**
  * Determine build strategy for a target.
  *
- * @param {string} target - Build target
+ * @param {string} target - Build target.
+ *
  * @returns {'native' | 'docker' | 'download'}
  */
 export function getBuildStrategy(target) {
@@ -261,7 +263,9 @@ export function getBuildStrategy(target) {
  * Map target to Docker image tag.
  *
  * @param {string} target - Build target (e.g., 'linux-x64-glibc')
- * @returns {string|undefined} Docker image tag or undefined if not Docker-buildable
+ *
+ * @returns {string | undefined} Docker image tag or undefined if not
+ *   Docker-buildable.
  */
 export function getBuilderImageTag(target) {
   return BUILDER_IMAGE_TAGS[target]
@@ -270,8 +274,9 @@ export function getBuilderImageTag(target) {
 /**
  * Map target to docker-compose service name.
  *
- * @param {string} target - Build target
- * @returns {string|undefined} Service name or undefined
+ * @param {string} target - Build target.
+ *
+ * @returns {string | undefined} Service name or undefined
  */
 export function getComposeServiceName(target) {
   return COMPOSE_SERVICE_NAMES[target]
@@ -280,7 +285,7 @@ export function getComposeServiceName(target) {
 /**
  * Get current host information.
  *
- * @returns {{platform: string, arch: string, target: string|undefined}}
+ * @returns {{ platform: string; arch: string; target: string | undefined }}
  */
 export function getHostInfo() {
   const platform = getPlatform()
@@ -304,7 +309,8 @@ export function getHostInfo() {
 /**
  * Check if a builder image exists locally.
  *
- * @param {string} target - Build target
+ * @param {string} target - Build target.
+ *
  * @returns {Promise<boolean>}
  */
 export async function hasBuilderImage(target) {
@@ -378,11 +384,13 @@ export async function isDockerRunning() {
 /**
  * Setup Docker builds for specified targets.
  *
- * @param {object} options - Setup options
- * @param {string[]} options.targets - Targets to setup (defaults to all Linux targets)
- * @param {boolean} options.force - Force rebuild of images
- * @param {boolean} options.skipQemu - Skip QEMU setup
- * @returns {Promise<{ok: boolean, results: Record<string, boolean>}>}
+ * @param {object} options - Setup options.
+ * @param {string[]} options.targets - Targets to setup (defaults to all Linux
+ *   targets)
+ * @param {boolean} options.force - Force rebuild of images.
+ * @param {boolean} options.skipQemu - Skip QEMU setup.
+ *
+ * @returns {Promise<{ ok: boolean; results: Record<string, boolean> }>}
  */
 export async function setupDockerBuilds(options = {}) {
   const { force = false, skipQemu = false, targets = LINUX_TARGETS } = options
@@ -502,7 +510,8 @@ export async function setupQemuEmulation() {
 /**
  * Verify a builder image works correctly.
  *
- * @param {string} target - Build target
+ * @param {string} target - Build target.
+ *
  * @returns {Promise<boolean>}
  */
 export async function verifyBuilderImage(target) {

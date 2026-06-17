@@ -12,7 +12,8 @@ import { fileURLToPath } from 'node:url'
 const packageRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 
 /**
- * The addon's file name. socket-addon republishes it as
+ * The addon's file name. socket-addon republishes it as.
+ *
  * @socketaddon/keychain-*.
  */
 export const KEYCHAIN_ADDON_NAME = 'keychain.node'

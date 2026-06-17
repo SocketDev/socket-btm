@@ -1,18 +1,15 @@
 /**
- * @fileoverview Verify-build tests for node:smol-ffi/bun.
- *
- * Compatibility shim implementing the bun:ffi public surface
- * (https://bun.sh/docs/api/ffi) atop the canonical smol-ffi internals.
- *
- * The /bun layer is a pure-JS adapter — there is no bun runtime
- * involved. Tests assert the surface shape (FFIType, CString,
- * dlopen-by-defs, read namespace, suffix, etc.) and the Phase-2
- * deferral of JSCallback / CFunction / linkSymbols (each throws
- * FFIError(code=ENOTIMPL)).
- *
- * Skips entirely if the Final/ binary doesn't have smol_ffi wired in
- * (gate via the canonical smol-ffi binding, since /bun is registered
- * alongside in the same patch hunk).
+ * @file Verify-build tests for node:smol-ffi/bun.
+ *   Compatibility shim implementing the bun:ffi public surface
+ *   (https://bun.sh/docs/api/ffi) atop the canonical smol-ffi internals.
+ *   The /bun layer is a pure-JS adapter — there is no bun runtime
+ *   involved. Tests assert the surface shape (FFIType, CString,
+ *   dlopen-by-defs, read namespace, suffix, etc.) and the Phase-2
+ *   deferral of JSCallback / CFunction / linkSymbols (each throws
+ *   FFIError(code=ENOTIMPL)).
+ *   Skips entirely if the Final/ binary doesn't have smol_ffi wired in
+ *   (gate via the canonical smol-ffi binding, since /bun is registered
+ *   alongside in the same patch hunk).
  */
 
 import { describe, expect, it } from 'vitest'

@@ -7,7 +7,7 @@
  * - Remove async/await keywords
  * - Transform WebAssembly.instantiate to synchronous WebAssembly.Instance
  * - Clean up Promise patterns
- * - Handle Node.js module patterns
+ * - Handle Node.js module patterns.
  */
 
 import { builtinModules } from 'node:module'
@@ -22,11 +22,12 @@ const builtinModulesSet = new Set(builtinModules)
 /**
  * Apply common transformations to MJS content.
  *
- * @param {object} options - Transform options
- * @param {string} options.mtsContent - MJS content to transform
- * @param {string} options.initFunctionName - Init function name
- * @param {string} options.exportName - Export name
- * @param {object} options.logger - Logger instance
+ * @param {object} options - Transform options.
+ * @param {string} options.mtsContent - MJS content to transform.
+ * @param {string} options.initFunctionName - Init function name.
+ * @param {string} options.exportName - Export name.
+ * @param {object} options.logger - Logger instance.
+ *
  * @returns {Promise<string>} Transformed content
  */
 export async function applyCommonTransforms(options) {
@@ -35,7 +36,7 @@ export async function applyCommonTransforms(options) {
     initFunctionName,
     logger,
     mjsContent: inputContent,
-  } = options
+  } = { __proto__: null, ...options } as typeof options
 
   let mjsContent = inputContent
 

@@ -1,8 +1,7 @@
 /**
- * @fileoverview Tests for node:smol-sql testable components.
- *
- * The node:smol-sql module only works inside SEA. This file tests TypeScript
- * type definitions since the runtime code requires Node.js internals.
+ * @file Tests for node:smol-sql testable components.
+ *   The node:smol-sql module only works inside SEA. This file tests TypeScript
+ *   type definitions since the runtime code requires Node.js internals.
  */
 
 import { beforeAll, describe, expect, it } from 'vitest'

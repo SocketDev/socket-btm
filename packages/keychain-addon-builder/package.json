@@ -1,8 +1,8 @@
 {
   "name": "keychain-addon-builder",
   "version": "0.0.0",
-  "description": "Builds keychain.node — the N-API addon exposing the shared keystore-infra core (macOS Keychain + Secure-Enclave biometric ACL) to regular Node consumers. Republished by socket-addon as @socketaddon/keychain-*. Direct-clang link of an N-API shim + keystore-infra; no node-gyp.",
   "private": true,
+  "description": "Builds keychain.node — the N-API addon exposing the shared keystore-infra core (macOS Keychain + Secure-Enclave biometric ACL) to regular Node consumers. Republished by socket-addon as @socketaddon/keychain-*. Direct-clang link of an N-API shim + keystore-infra; no node-gyp.",
   "license": "MIT",
   "type": "module",
   "scripts": {

@@ -1,9 +1,8 @@
 /**
- * @fileoverview Unit tests for node:smol-ffi (system Node baseline).
- *
- * Mirrors the smol-power unit suite: on system Node, `node:smol-ffi`
- * is NOT a builtin. The integration suite asserts the inverse on the
- * built smol binary.
+ * @file Unit tests for node:smol-ffi (system Node baseline).
+ *   Mirrors the smol-power unit suite: on system Node, `node:smol-ffi`
+ *   is NOT a builtin. The integration suite asserts the inverse on the
+ *   built smol binary.
  */
 
 import { describe, expect, it } from 'vitest'

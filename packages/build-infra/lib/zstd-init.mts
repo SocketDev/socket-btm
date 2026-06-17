@@ -22,6 +22,7 @@ const logger = getDefaultLogger()
  *
  * @param {object} options - Initialization options.
  * @param {string} options.packageDir - Package directory path.
+ *
  * @returns {Promise<void>}
  */
 export async function ensureZstd({ packageDir }) {

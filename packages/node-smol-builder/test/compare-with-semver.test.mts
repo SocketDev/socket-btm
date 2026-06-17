@@ -1,6 +1,7 @@
 /**
  * Comprehensive comparison test between node:smol-versions and semver package
- * This validates that our implementation matches the gold standard in all aspects
+ * This validates that our implementation matches the gold standard in all
+ * aspects.
  */
 
 import { describe, expect, it } from 'vitest'
@@ -282,7 +283,7 @@ describe('Comparison with semver gold standard', () => {
     const versions = ['2.0.0', '1.0.0', '1.5.0', '1.0.0-alpha', '3.0.0']
 
     it('should sort versions identically to semver', () => {
-      const semverSorted = semver.sort([...versions])
+      const semverSorted = semver.toSorted([...versions])
       const ourSorted = sort([...versions])
       expect(ourSorted).toEqual(semverSorted)
     })

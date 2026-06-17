@@ -2,10 +2,10 @@
  * Get checkpoint chain for curl CI workflows.
  *
  * Usage:
- *   node scripts/get-checkpoint-chain.mts [--dev|--prod]
+ * node scripts/get-checkpoint-chain.mts [--dev|--prod]
  *
  * Output:
- *   Comma-separated checkpoint chain (e.g., "finalized,mbedtls")
+ * Comma-separated checkpoint chain (e.g., "finalized,mbedtls")
  */
 
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'

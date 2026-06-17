@@ -1,5 +1,5 @@
 /**
- * Binary finalization phase for Node.js
+ * Binary finalization phase for Node.js.
  *
  * Copies final artifacts to Final directory for distribution.
  * The compressed binary is self-extracting (has built-in decompression).
@@ -21,16 +21,19 @@ const logger = getDefaultLogger()
 /**
  * Copy final artifacts to Final directory for distribution.
  *
- * @param {object} options - Finalization options
- * @param {string} options.buildDir - Build directory
- * @param {string} options.outputStrippedBinary - Stripped binary path (source if uncompressed)
- * @param {string} options.outputCompressedBinary - Compressed binary path (source if compressed)
- * @param {string} options.outputFinalBinary - Final binary path (directory created from dirname)
- * @param {boolean} options.compressed - Whether compression is enabled
+ * @param {object} options - Finalization options.
+ * @param {string} options.buildDir - Build directory.
+ * @param {string} options.outputStrippedBinary - Stripped binary path (source
+ *   if uncompressed)
+ * @param {string} options.outputCompressedBinary - Compressed binary path
+ *   (source if compressed)
+ * @param {string} options.outputFinalBinary - Final binary path (directory
+ *   created from dirname)
+ * @param {boolean} options.compressed - Whether compression is enabled.
  * @param {boolean} options.forceRebuild - Force rebuild (ignore checkpoints)
  * @param {string} options.platform - Target platform (darwin, linux, win32)
  * @param {string} options.arch - Target architecture (x64, arm64)
- * @param {string} [options.libc] - C library (glibc, musl) for Linux
+ * @param {string} [options.libc] - C library (glibc, musl) for Linux.
  */
 export async function finalizeBinary(options) {
   const {
@@ -44,7 +47,7 @@ export async function finalizeBinary(options) {
     outputFinalBinary,
     outputStrippedBinary,
     platform,
-  } = options
+  } = { __proto__: null, ...options } as typeof options
 
   // Determine which source binary we'll use for finalization
   const shouldUseCompression = compressed && existsSync(outputCompressedBinary)

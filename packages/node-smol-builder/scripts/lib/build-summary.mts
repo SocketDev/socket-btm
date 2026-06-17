@@ -1,9 +1,8 @@
 /**
- * @fileoverview Build Summary Output
- *
- * Displays build completion summary with statistics, binary locations, and next steps.
- * This file is intentionally outside cache paths (scripts/common/, scripts/{phase}/)
- * so changes to the summary don't invalidate build caches.
+ * @file Build Summary Output Displays build completion summary with statistics,
+ *   binary locations, and next steps. This file is intentionally outside cache
+ *   paths (scripts/common/, scripts/{phase}/) so changes to the summary don't
+ *   invalidate build caches.
  */
 
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
@@ -13,16 +12,17 @@ const logger = getDefaultLogger()
 /**
  * Print build completion summary.
  *
- * @param {object} options - Summary options
- * @param {string} options.totalTime - Formatted total build time
- * @param {string} options.binarySize - Formatted binary size
- * @param {number} options.cpuCount - Number of CPU cores used
- * @param {string} options.nodeBinary - Source binary path
- * @param {string} options.outputReleaseBinary - Release binary path
- * @param {string} options.outputStrippedBinary - Stripped binary path
- * @param {string} options.outputCompressedBinary - Compressed binary path (optional)
- * @param {string} options.finalBinary - Final binary path
- * @param {boolean} options.compressed - Whether binary is compressed
+ * @param {object} options - Summary options.
+ * @param {string} options.totalTime - Formatted total build time.
+ * @param {string} options.binarySize - Formatted binary size.
+ * @param {number} options.cpuCount - Number of CPU cores used.
+ * @param {string} options.nodeBinary - Source binary path.
+ * @param {string} options.outputReleaseBinary - Release binary path.
+ * @param {string} options.outputStrippedBinary - Stripped binary path.
+ * @param {string} options.outputCompressedBinary - Compressed binary path
+ *   (optional)
+ * @param {string} options.finalBinary - Final binary path.
+ * @param {boolean} options.compressed - Whether binary is compressed.
  */
 export function printBuildSummary({
   binarySize,

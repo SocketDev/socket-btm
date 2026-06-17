@@ -16,8 +16,9 @@ import { errorMessage } from './error-utils.mts'
  * - File is not empty (minimum 100 bytes)
  * - Valid ONNX protobuf magic number (0x08 or 0x0a)
  *
- * @param {string} filePath - Path to ONNX model file
+ * @param {string} filePath - Path to ONNX model file.
  * @param {string} modelType - Description of model (e.g., 'encoder', 'decoder')
+ *
  * @throws {Error} If validation fails
  */
 export async function validateOnnxFile(filePath, modelType = 'model') {
@@ -40,7 +41,9 @@ export async function validateOnnxFile(filePath, modelType = 'model') {
 /**
  * Validate multiple ONNX model files.
  *
- * @param {Array<{path: string, type: string}>} models - Array of models to validate
+ * @param {{ path: string; type: string }[]} models - Array of models to
+ *   validate.
+ *
  * @throws {Error} If any validation fails
  */
 export async function validateOnnxFiles(models) {

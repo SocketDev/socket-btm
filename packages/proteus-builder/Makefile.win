@@ -1,17 +1,43 @@
 # proteus-builder Makefile for Windows.
-# Broker-only credential daemon fronting the Credential Manager.
-#
-# Placeholder: the current daemon source (src/.../proteus.c) is POSIX-only
-# (AF_UNIX sockets, SO_PEERCRED). The Windows port uses a named pipe
-# (\\.\pipe\proteus-sock) with the same NDJSON framing, and lands in a later
-# phase alongside the Credential Manager backend. Until then this target fails
-# loudly rather than emitting a non-functional binary.
+# Broker-only credential daemon fronting the Credential Manager (Cred* API) over
+# a named pipe (\\.\pipe\proteus-sock), with the same NDJSON framing as POSIX.
+# No biometric path on Windows yet (Windows Hello lands later).
 
+# Include common definitions + the Windows toolchain (mingw; arm64 cross via
+# llvm-mingw when TARGET_ARCH=arm64).
 include ../build-infra/make/common.mk
+include ../build-infra/make/platform-win.mk
 
-all:
-	@echo "ERROR: proteus win32 daemon is not implemented yet (named-pipe port pending)." >&2
-	@exit 1
+# Windows executables carry the .exe suffix (matches getProteusBinaryPath).
+TARGET = proteus.exe
+# The keychain core is the source-only keystore-infra package, compiled inline.
+# Windows fronts the Credential Manager via the Cred* API (broker-only).
+KEYSTORE_INFRA_SRC = ../keystore-infra/src/socketsecurity/keystore-infra
+KEYSTORE_INFRA_INCLUDE = -I../keystore-infra/src
+SOURCES = src/socketsecurity/proteus-builder/proteus.c \
+          $(KEYSTORE_INFRA_SRC)/keystore_win.c
+
+CFLAGS = -Wall -Wextra $(OPT_FLAGS) -std=c11 -Isrc $(KEYSTORE_INFRA_INCLUDE) \
+         -DVERSION=\"$(VERSION)\"
+# advapi32 = Credential Manager (CredRead/Write/Delete) + the token APIs
+# (OpenProcessToken/GetTokenInformation/EqualSid) the peer check uses. The
+# named-pipe + process APIs live in kernel32, linked by default. We deliberately
+# do NOT use platform-win.mk's LDFLAGS_BASE — it pulls in Cabinet.dll, which the
+# daemon doesn't need.
+LDFLAGS = -Wl,--gc-sections -ladvapi32
+
+all: check-tools $(OUT_DIR)/$(TARGET)
+
+$(OUT_DIR)/$(TARGET): $(SOURCES) | $(OUT_DIR)
+	$(CC) $(CFLAGS) -o $@ $(SOURCES) $(LDFLAGS)
+	@echo "Built: $(OUT_DIR)/$(TARGET)"
+
+$(OUT_DIR):
+	mkdir -p $@
+
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found. Install MinGW first."; exit 1; }
+	@command -v make >/dev/null 2>&1 || { echo "ERROR: make not found"; exit 1; }
 
 clean:
 	rm -rf build out

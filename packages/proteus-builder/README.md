@@ -78,9 +78,15 @@ and the lifecycle test covers ping, not-found, delete, and unknown-op. The
 write + biometric-read round-trip needs an interactive Touch ID prompt, so it is
 verified manually rather than in CI.
 
-Pending: the Windows named-pipe daemon port (proteus.c is POSIX-only today), the
-OAuth/PKCE runner, and the `proteus-<platform>` GitHub Release wiring. The
-keystore backends now all exist (macOS run-verified, Linux + Windows
+The daemon is now **cross-platform**: POSIX uses an AF_UNIX socket; Windows uses
+a named pipe (`\\.\pipe\proteus-sock`) with peer identity via
+`GetNamedPipeClientProcessId` + token-SID compare, `CREATE_NEW` pidfile lock, and
+an overlapped-connect idle timeout. macOS is run-verified (6/6 lifecycle tests);
+the Windows path compiles + links clean via mingw (`Makefile.win`); CI builds the
+real per-platform artifact.
+
+Pending: the OAuth/PKCE runner and the `proteus-<platform>` GitHub Release wiring.
+The keystore backends all exist (macOS run-verified, Linux + Windows
 compile-verified), as does the socket-lib broker tier.
 
 Design of record: `socket-lib/.claude/plans/proteus-credential-broker.md`.

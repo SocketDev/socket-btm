@@ -6,8 +6,11 @@
  * node:smol-keychain builtin use), so all three surfaces share one
  * implementation.
  *
- * Compiled with -fobjc-arc as Objective-C++ so it can link keystore_macos.mm
- * directly; N-API is a C ABI, so the napi_* calls work unchanged here.
+ * Pure C++ (N-API is a C ABI), so it compiles on every platform and links the
+ * platform keystore backend the build script selects: keystore_macos.mm
+ * (ObjC++, -fobjc-arc) on darwin, keystore_linux.c (libsecret) on linux,
+ * keystore_win.c (Credential Manager) on win32. No Objective-C lives here — the
+ * ObjC is confined to keystore_macos.mm — so this stays a `.cc`, not a `.mm`.
  */
 
 #include <node_api.h>

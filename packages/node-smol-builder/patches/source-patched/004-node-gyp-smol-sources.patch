@@ -101,7 +101,7 @@
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
          ['node_with_ltcg=="true"', {
            'msvs_settings': {
-@@ -1053,12 +1094,453 @@
+@@ -1053,12 +1094,462 @@
              'deps/ncrypto/ncrypto.gyp:ncrypto',
            ],
          }],
@@ -394,6 +394,15 @@
 +                'deps/ls-qpack',
 +                'deps/ls-qpack/deps/xxhash',
 +              ],
++              # Relax node's strict -Werror set for vendored third-party C
++              # (lsquic / ls-qpack / lshpack + their bundled xxhash): trailing
++              # semicolons in macros trip -Wextra-semi, and some inline funcs
++              # are referenced only cross-TU. These belong in the block, not the
++              # included .gypi — gyp drops `cflags` merged in via `includes`.
++              'cflags': [
++                '-Wno-error=extra-semi',
++                '-Wno-error=undefined-inline',
++              ],
 +            }],
 +            ['node_use_smol_http3=="true"', {
 +              'defines': [ 'HAVE_SMOL_HTTP3=1' ],
@@ -556,7 +565,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1077,7 +1559,7 @@
+@@ -1077,7 +1568,7 @@
              }],
            ],
          }],
@@ -565,7 +574,7 @@
            'sources': [
              '<@(node_quic_sources)',
            ],
-@@ -1399,7 +1881,7 @@
+@@ -1399,7 +1890,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -574,7 +583,7 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1443,6 +1925,17 @@
+@@ -1443,6 +1934,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -592,7 +601,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1517,6 +2010,17 @@
+@@ -1517,6 +2019,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -610,7 +619,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1740,6 +2244,17 @@
+@@ -1740,6 +2253,17 @@
              'Ws2_32.lib',
            ],
          }],

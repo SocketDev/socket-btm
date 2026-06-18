@@ -748,21 +748,27 @@ export async function prepareExternalSources() {
   // (`.gitignore`, `.gitattributes`, `.travis.yml`, …) still copy
   // through — they're cheap, harmless, and occasionally referenced by
   // upstream build scripts.
+  // Targets that receive vendor patches (applyVendorPatches) must be wiped to
+  // a pristine tree before each copy — see the clearing note below. Other
+  // targets are left to merge: some hold committed files the upstream copy
+  // doesn't restore (e.g. the tracked deps/libdeflate/libdeflate.gyp), which a
+  // blanket wipe would destroy. Patched targets (deps/lsquic) are gitignored
+  // vendored trees, so wiping them loses nothing.
+  const patchedTargets = new Set(VENDOR_PATCH_BUNDLES.map(b => b.targetDir))
   // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
   for (const { from, to } of EXTERNAL_SOURCES) {
     if (!existsSync(from)) {
       throw new Error(`External source directory not found: ${from}`)
     }
 
-    // Clear the target first so the copy is genuinely fresh. fs.cp with
-    // force only overwrites files present in the source; it never removes
-    // target files absent from it. Vendor patches (applyVendorPatches) can
-    // CREATE files not in the pristine submodule (e.g. bun's lsquic
-    // versions-to-string patch), which would otherwise persist across
-    // builds and get re-patched on top of themselves — stacking duplicate
-    // definitions. A clean target makes every create-patch apply exactly
-    // once.
-    await safeDelete(to)
+    // fs.cp with force only overwrites files present in the source; it never
+    // removes target files absent from it. For a patched target a stale
+    // patch-created file (e.g. bun's lsquic versions-to-string) would persist
+    // and get re-patched onto itself — stacking duplicate definitions. Wipe
+    // patched targets first so every create-patch applies exactly once.
+    if (patchedTargets.has(to)) {
+      await safeDelete(to)
+    }
 
     await fs.cp(from, to, {
       recursive: true,

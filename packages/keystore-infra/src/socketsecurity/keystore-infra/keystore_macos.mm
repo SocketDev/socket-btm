@@ -64,12 +64,18 @@ int keystore_get(const char* service, const char* account, char* out,
       return KEYSTORE_ERR_IO;
     }
 
-    NSData* data = (__bridge_transfer NSData*)result;
+    // SecItemCopyMatching follows the CF Create Rule (+1 retained), and this
+    // file is compiled without ARC, so __bridge_transfer would be a no-op and
+    // leak the plaintext secret. Use a non-owning __bridge cast and CFRelease
+    // the result explicitly on every return path.
+    NSData* data = (__bridge NSData*)result;
     if (data.length + 1 > out_len) {
+      CFRelease(result);
       return KEYSTORE_ERR_IO;
     }
     memcpy(out, data.bytes, data.length);
     out[data.length] = '\0';
+    CFRelease(result);
     return KEYSTORE_OK;
   }
 }

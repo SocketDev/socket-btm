@@ -78,6 +78,7 @@ packages/node-smol-builder/additions/source-patched/deps/ls-qpack/
 packages/node-smol-builder/additions/source-patched/deps/yoga/
 packages/node-smol-builder/additions/source-patched/deps/lsquic.gypi
 packages/node-smol-builder/additions/source-patched/deps/ls-qpack.gypi
+packages/node-smol-builder/additions/source-patched/deps/lshpack.gypi
 packages/node-smol-builder/additions/source-patched/deps/yoga.gypi
 
 # Firewall test/debug Dockerfiles and scripts

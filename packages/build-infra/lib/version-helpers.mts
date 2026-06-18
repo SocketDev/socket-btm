@@ -489,14 +489,23 @@ export async function fetchNodeChecksum(
     } as unknown as { error: string; version: string }
   }
 
-  const hash = checksums[tarballName]
-  if (!hash) {
+  const sri = checksums[tarballName]
+  if (!sri) {
     return {
       __proto__: null,
       version,
       error: `${tarballName} not found in SHASUMS256.txt`,
     } as unknown as { error: string; version: string }
   }
+
+  // fetchChecksumFile returns SRI ("sha256-<base64>"), but .gitmodules and this
+  // helper's documented contract use lowercase hex (`# node-X.Y.Z sha256:<hex>`).
+  // Decode to hex so both callers — verifyNodeChecksum's hex compare and the
+  // update-node skill's `sha256:<hex>` write — receive the format they expect.
+  // Same 32 bytes either way, so the integrity check is unchanged.
+  const hash = sri.startsWith('sha256-')
+    ? Buffer.from(sri.slice('sha256-'.length), 'base64').toString('hex')
+    : sri
 
   return { __proto__: null, hash, version } as unknown as {
     hash: string

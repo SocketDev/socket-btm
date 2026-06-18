@@ -34,6 +34,11 @@ const mode: 'staged' | 'all' | 'modified' = args.includes('--all')
     ? 'staged'
     : 'modified'
 const fix = args.includes('--fix')
+// Format-only: run oxfmt over the whole tree (with the merged --ignore-path)
+// and skip oxlint entirely. Backs `pnpm run format` / `format:check`, which
+// must not fail on lint findings or scan the verbatim source-patched / fixture
+// trees a bare `oxfmt --check .` would.
+const format = args.includes('--format')
 const quiet = args.includes('--quiet') || args.includes('--silent')
 const stdio: SpawnSyncOptions['stdio'] = quiet ? 'pipe' : 'inherit'
 // On Windows, `pnpm` is a .cmd shim that Node refuses to exec directly
@@ -407,7 +412,40 @@ function runFiles(files: string[]): number {
   return 0
 }
 
+// Format-only pass: oxfmt over the whole tree with the merged fleet + repo
+// --ignore-path, no oxlint. pickIgnorePath() concatenates
+// .config/fleet/.prettierignore + .config/repo/.prettierignore (oxfmt honors a
+// single --ignore-path and, in 0.48, ignores the rc-level ignorePatterns), so
+// the verbatim source-patched / fixture trees the repo overlay exempts are not
+// scanned.
+function runFormat(): number {
+  log(fix ? 'Formatting all files…' : 'Checking format on all files…')
+  const oxfmtArgs = [
+    'exec',
+    'oxfmt',
+    '-c',
+    pickConfig('oxfmtrc.json'),
+    '--ignore-path',
+    pickIgnorePath(),
+    fix ? '--write' : '--check',
+    '.',
+  ]
+  const fmtRes = spawnSync('pnpm', oxfmtArgs, { shell: useShell, stdio })
+  return fmtRes.status === 0 ? 0 : 1
+}
+
 function main(): void {
+  if (format) {
+    process.exitCode = runFormat()
+    log(
+      process.exitCode === 0
+        ? fix
+          ? 'Format complete'
+          : 'Format check passed'
+        : 'Format check failed',
+    )
+    return
+  }
   if (mode === 'all') {
     log('Lint scope: all')
     process.exitCode = runAll()

@@ -15,3 +15,9 @@ additions/source-patched/**
 # and break regression tests.
 **/test/fixtures/**
 test/fixtures/**
+
+# Hand-authored reference doc with intentionally aligned embedded code (the
+# event-code table) and hard-wrapped inline type lists. oxfmt's markdown reflow
+# unaligns the table and rewraps the lists, degrading a hand-crafted reference.
+**/smol-markdown.js.md
+docs/additions/lib/smol-markdown.js.md

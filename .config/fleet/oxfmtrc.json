@@ -12,19 +12,7 @@
   "bracketSameLine": false,
   "bracketSpacing": true,
   "singleAttributePerLine": false,
-  "jsdoc": {
-    "addDefaultToDescription": false,
-    "bracketSpacing": false,
-    "capitalizeDescriptions": true,
-    "commentLineStrategy": "multiline",
-    "descriptionTag": false,
-    "descriptionWithDot": true,
-    "keepUnparsableExampleIndent": false,
-    "lineWrappingStyle": "balance",
-    "preferCodeFences": false,
-    "separateReturnsFromParam": false,
-    "separateTagGroups": true
-  },
+  "jsdoc": false,
   "ignorePatterns": [
     "**/.agents",
     "**/.cache",

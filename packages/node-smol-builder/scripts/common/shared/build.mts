@@ -239,7 +239,10 @@ export function parseSmolDropArg(raw) {
     return []
   }
   const flags = []
-  for (const tok of raw.split(',').map(s => s.trim()).filter(Boolean)) {
+  for (const tok of raw
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)) {
     if (tok.startsWith('--')) {
       flags.push(tok)
     } else {

@@ -346,7 +346,9 @@ export async function checkVitestConfig(
 
     // Check if extending base config
     const needsMergeConfig = !config.includes('mergeConfig')
-    const needsBaseImport = !config.includes('../../.config/repo/vitest.config.mts')
+    const needsBaseImport = !config.includes(
+      '../../.config/repo/vitest.config.mts',
+    )
 
     if (needsMergeConfig || needsBaseImport) {
       reportIssue(

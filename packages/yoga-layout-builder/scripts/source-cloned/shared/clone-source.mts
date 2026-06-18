@@ -144,6 +144,8 @@ export async function regenerateEnums(
     yogaVersion,
   )
   if (stamped) {
-    logger.substep(`Re-stamped wrapAssembly.mts Lock-step → yoga ${yogaVersion}`)
+    logger.substep(
+      `Re-stamped wrapAssembly.mts Lock-step → yoga ${yogaVersion}`,
+    )
   }
 }

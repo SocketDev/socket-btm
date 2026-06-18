@@ -415,6 +415,12 @@ const VENDORED_GYPI_BUNDLES: ReadonlyArray<{
   // these. Used for non-compile data blobs that look like .c sources
   // but aren't listed by upstream's build manifest.
   readonly skipBasenames?: readonly string[] | undefined
+  // Preprocessor defines to emit into the gypi. gyp merges an `included`
+  // gypi's `'defines'` into the parent target, so these reach the dep's
+  // own translation units. Used where the dep's CMake build sets a define
+  // the gyp build otherwise omits (e.g. lsquic's HAVE_BORINGSSL, which
+  // selects its BoringSSL crypto branch over the OpenSSL one).
+  readonly defines?: readonly string[] | undefined
 }> = [
   {
     name: 'yoga',
@@ -435,6 +441,12 @@ const VENDORED_GYPI_BUNDLES: ReadonlyArray<{
     // them as sources surfaces `unknown type name 'size_t'` because they
     // intentionally have no preamble.
     skipBasenames: ['common_cert_set_2.c', 'common_cert_set_3.c'],
+    // node-smol links lsquic against BoringSSL. lsquic_crypto.c gates its
+    // HKDF call on HAVE_BORINGSSL (BoringSSL spells it EVP_PKEY_CTX_hkdf_mode;
+    // the OpenSSL #else branch's EVP_PKEY_CTX_set_hkdf_mode is absent from
+    // BoringSSL). CMake sets HAVE_BORINGSSL on detection; the gyp build must
+    // too or the compile fails with an undeclared-function error.
+    defines: ['HAVE_BORINGSSL'],
   },
   {
     name: 'ls-qpack',
@@ -563,6 +575,13 @@ export async function generateVendoredGypi(): Promise<void> {
       lines.push(`    '${relSources[j]}',`)
     }
     lines.push('  ],')
+    if (bundle.defines?.length) {
+      lines.push("  'defines': [")
+      for (const d of bundle.defines) {
+        lines.push(`    '${d}',`)
+      }
+      lines.push('  ],')
+    }
     lines.push('}')
     const outPath = path.join(ADDITIONS_SOURCE_PATCHED_DIR, bundle.gypiOut)
     await fs.mkdir(path.dirname(outPath), { recursive: true })

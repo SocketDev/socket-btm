@@ -564,7 +564,21 @@
            'sources': [
              '<@(node_quic_sources)',
            ],
-@@ -1399,7 +1880,7 @@
+@@ -1362,6 +1843,13 @@
+         'NODE_ARCH="<(target_arch)"',
+         'NODE_PLATFORM="<(OS)"',
+         'NODE_WANT_INTERNALS=1',
++        # cctest's own crypto tests (test_node_crypto*.cc) call BoringSSL
++        # directly. libnode gets BORINGSSL_PREFIX=smol via the boringssl
++        # dependency's direct_dependent_settings, but cctest doesn't depend on
++        # boringssl directly, so without this its calls stay unprefixed
++        # (ERR_peek_error, X509_STORE_free) and fail to link against the
++        # smol_-prefixed archives.
++        'BORINGSSL_PREFIX=smol',
+       ],
+ 
+       'sources': [ '<@(node_cctest_sources)' ],
+@@ -1399,7 +1887,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -573,7 +587,7 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1443,6 +1924,24 @@
+@@ -1443,6 +1931,24 @@
              'Ws2_32.lib',
            ],
          }],
@@ -598,7 +612,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1517,6 +2016,24 @@
+@@ -1517,6 +2023,24 @@
              'Ws2_32.lib',
            ],
          }],
@@ -623,7 +637,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1740,6 +2257,24 @@
+@@ -1740,6 +2264,24 @@
              'Ws2_32.lib',
            ],
          }],

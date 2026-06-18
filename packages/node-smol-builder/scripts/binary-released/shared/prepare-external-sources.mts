@@ -10,6 +10,7 @@ import path from 'node:path'
 import process from 'node:process'
 
 import { isDirSync } from '@socketsecurity/lib-stable/fs/inspect'
+import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
@@ -730,6 +731,16 @@ export async function prepareExternalSources() {
     if (!existsSync(from)) {
       throw new Error(`External source directory not found: ${from}`)
     }
+
+    // Clear the target first so the copy is genuinely fresh. fs.cp with
+    // force only overwrites files present in the source; it never removes
+    // target files absent from it. Vendor patches (applyVendorPatches) can
+    // CREATE files not in the pristine submodule (e.g. bun's lsquic
+    // versions-to-string patch), which would otherwise persist across
+    // builds and get re-patched on top of themselves — stacking duplicate
+    // definitions. A clean target makes every create-patch apply exactly
+    // once.
+    await safeDelete(to)
 
     await fs.cp(from, to, {
       recursive: true,

@@ -101,7 +101,7 @@
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
          ['node_with_ltcg=="true"', {
            'msvs_settings': {
-@@ -1053,12 +1094,462 @@
+@@ -1053,12 +1094,445 @@
              'deps/ncrypto/ncrypto.gyp:ncrypto',
            ],
          }],
@@ -378,30 +378,13 @@
 +                'src/socketsecurity/quic/quic_stream_binding.cc',
 +                'src/socketsecurity/quic/quic_settings_binding.cc',
 +              ],
-+              'includes': [
-+                'deps/lsquic.gypi',
-+                'deps/ls-qpack.gypi',
-+                'deps/lshpack.gypi',
-+              ],
-+              # lsquic's engine #includes "lshpack.h" (HTTP/2 HPACK) and
-+              # "lsqpack.h" (HTTP/3 QPACK) bare; their bundled xxhash is
-+              # consumed only by lshpack.c / lsqpack.c. ls-hpack lives in
-+              # lsquic's own src/lshpack submodule (no standalone vendor);
-+              # ls-qpack is vendored standalone under deps/ls-qpack.
-+              'include_dirs': [
-+                'deps/lsquic/src/lshpack',
-+                'deps/lsquic/src/lshpack/deps/xxhash',
-+                'deps/ls-qpack',
-+                'deps/ls-qpack/deps/xxhash',
-+              ],
-+              # Relax node's strict -Werror set for vendored third-party C
-+              # (lsquic / ls-qpack / lshpack + their bundled xxhash): trailing
-+              # semicolons in macros trip -Wextra-semi, and some inline funcs
-+              # are referenced only cross-TU. These belong in the block, not the
-+              # included .gypi — gyp drops `cflags` merged in via `includes`.
-+              'cflags': [
-+                '-Wno-error=extra-semi',
-+                '-Wno-error=undefined-inline',
++              # lsquic + ls-hpack + ls-qpack build as their own static library
++              # (deps/lsquic.gyp) so their vendored-C warning policy stays
++              # isolated from libnode's strict -Werror set. The binding .cc
++              # files above #include lsquic / lsqpack / lshpack headers, which
++              # that target supplies via its direct_dependent_settings.
++              'dependencies': [
++                'deps/lsquic.gyp:lsquic',
 +              ],
 +            }],
 +            ['node_use_smol_http3=="true"', {
@@ -565,7 +548,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1077,7 +1568,7 @@
+@@ -1077,7 +1551,7 @@
              }],
            ],
          }],
@@ -574,7 +557,7 @@
            'sources': [
              '<@(node_quic_sources)',
            ],
-@@ -1399,7 +1890,7 @@
+@@ -1399,7 +1873,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -583,7 +566,7 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1443,6 +1934,17 @@
+@@ -1443,6 +1917,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -601,7 +584,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1517,6 +2019,17 @@
+@@ -1517,6 +2002,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -619,7 +602,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1740,6 +2253,17 @@
+@@ -1740,6 +2236,17 @@
              'Ws2_32.lib',
            ],
          }],

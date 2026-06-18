@@ -10,7 +10,7 @@
 #
 --- a/src/node_binding.cc
 +++ b/src/node_binding.cc
-@@ -94,12 +94,78 @@
+@@ -94,12 +94,84 @@
    V(util)                                                                      \
    V(uv)                                                                        \
    V(v8)                                                                        \
@@ -34,6 +34,7 @@
 +  NODE_SMOL_FFI_BINDING(V)                                                     \
 +  NODE_SMOL_HTTP_BINDING(V)                                                    \
 +  NODE_SMOL_ILP_BINDING(V)                                                     \
++  NODE_SMOL_KEYCHAIN_BINDING(V)                                                \
 +  NODE_SMOL_KEYMAP_BINDING(V)                                                  \
 +  NODE_SMOL_MARKDOWN_BINDING(V)                                                \
 +  NODE_SMOL_QRCODE_BINDING(V)                                                  \
@@ -55,6 +56,11 @@
 +#define NODE_SMOL_ILP_BINDING(V) V(smol_ilp)
 +#else
 +#define NODE_SMOL_ILP_BINDING(V)
++#endif
++#if defined(HAVE_SMOL_KEYCHAIN)
++#define NODE_SMOL_KEYCHAIN_BINDING(V) V(smol_keychain)
++#else
++#define NODE_SMOL_KEYCHAIN_BINDING(V)
 +#endif
 +#if defined(HAVE_SMOL_KEYMAP)
 +#define NODE_SMOL_KEYMAP_BINDING(V) V(smol_keymap)
@@ -90,7 +96,7 @@
  #define NODE_BUILTIN_BINDINGS(V)                                               \
    NODE_BUILTIN_STANDARD_BINDINGS(V)                                            \
    NODE_BUILTIN_OPENSSL_BINDINGS(V)                                             \
-@@ -108,7 +174,16 @@
+@@ -108,7 +180,16 @@
    NODE_BUILTIN_DEBUG_BINDINGS(V)                                               \
    NODE_BUILTIN_QUIC_BINDINGS(V)                                                \
    NODE_BUILTIN_SQLITE_BINDINGS(V)                                              \

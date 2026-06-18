@@ -39,7 +39,7 @@
 #
 --- a/node.gyp
 +++ b/node.gyp
-@@ -39,6 +39,21 @@
+@@ -39,6 +39,22 @@
      'node_use_quic%': 'false',
      'node_use_sqlite%': 'true',
      'node_use_ffi%': 'false',
@@ -52,6 +52,7 @@
 +    'node_use_smol_http3%': 'true',
 +    'node_use_smol_http%': 'true',
 +    'node_use_smol_tui%': 'true',
++    'node_use_smol_keychain%': 'true',
 +    'node_use_smol_keymap%': 'true',
 +    'node_use_smol_ffi%': 'true',
 +    'node_use_smol_ilp%': 'true',
@@ -61,7 +62,7 @@
      'node_use_v8_platform%': 'true',
      'node_v8_options%': '',
      'node_write_snapshot_as_string_literals': 'true',
-@@ -69,6 +84,20 @@
+@@ -69,6 +85,20 @@
        'deps/acorn/acorn/dist/acorn.js',
        'deps/acorn/acorn-walk/dist/walk.js',
        'deps/minimatch/index.js',
@@ -82,7 +83,7 @@
        '<@(node_builtin_shareable_builtins)',
      ],
      'node_sources': [
-@@ -732,6 +761,17 @@
+@@ -732,6 +762,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -100,7 +101,7 @@
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
          ['node_with_ltcg=="true"', {
            'msvs_settings': {
-@@ -1057,12 +1097,400 @@
+@@ -1057,12 +1098,435 @@
              'deps/ncrypto/ncrypto.gyp:ncrypto',
            ],
          }],
@@ -275,6 +276,41 @@
 +              'sources': [
 +                'src/socketsecurity/ffi/binding.cc',
 +                'src/socketsecurity/ffi/trampoline.cc',
++              ],
++            }],
++            ['node_use_smol_keychain=="true"', {
++              'defines': [ 'HAVE_SMOL_KEYCHAIN=1' ],
++              'sources': [
++                'src/socketsecurity/keychain/keychain_binding.cc',
++              ],
++              'conditions': [
++                # Per-OS keystore backend + the link wiring it needs. The
++                # binding (keychain_binding.cc) is platform-agnostic; each
++                # backend compiles only on its target so platform headers
++                # stay isolated. Mirrors the smol-power per-OS split.
++                ['OS=="mac"', {
++                  'sources': [
++                    'src/socketsecurity/keystore-infra/keystore_macos.mm',
++                  ],
++                  'libraries': [
++                    '-framework Foundation',
++                    '-framework Security',
++                    '-framework LocalAuthentication',
++                  ],
++                }],
++                ['OS=="linux"', {
++                  'sources': [
++                    'src/socketsecurity/keystore-infra/keystore_linux.c',
++                  ],
++                  'cflags': [ '<!@(pkg-config --cflags libsecret-1)' ],
++                  'libraries': [ '<!@(pkg-config --libs libsecret-1)' ],
++                }],
++                ['OS=="win"', {
++                  'sources': [
++                    'src/socketsecurity/keystore-infra/keystore_win.c',
++                  ],
++                  'libraries': [ 'advapi32.lib' ],
++                }],
 +              ],
 +            }],
 +            ['node_use_smol_keymap=="true"', {
@@ -502,7 +538,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1081,7 +1509,7 @@
+@@ -1081,7 +1545,7 @@
              }],
            ],
          }],
@@ -511,7 +547,7 @@
            'sources': [
              '<@(node_quic_sources)',
            ],
-@@ -1403,7 +1831,7 @@
+@@ -1403,7 +1867,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -520,7 +556,7 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1447,6 +1875,17 @@
+@@ -1447,6 +1911,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -538,7 +574,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1521,6 +1960,17 @@
+@@ -1521,6 +1996,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -556,7 +592,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1744,6 +2194,17 @@
+@@ -1744,6 +2230,17 @@
              'Ws2_32.lib',
            ],
          }],

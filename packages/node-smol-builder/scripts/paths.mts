@@ -472,6 +472,11 @@ export const TEMPORAL_INFRA_DIR = path.join(
 )
 export const TUI_INFRA_DIR = path.join(PACKAGE_ROOT, '..', 'tui-infra')
 export const LSQUIC_INFRA_DIR = path.join(PACKAGE_ROOT, '..', 'lsquic-infra')
+export const KEYSTORE_INFRA_DIR = path.join(
+  PACKAGE_ROOT,
+  '..',
+  'keystore-infra',
+)
 
 // Build output directories
 export const BINJECTED_DIR = path.join(

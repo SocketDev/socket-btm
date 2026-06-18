@@ -16,7 +16,7 @@
 #
 --- a/lib/internal/bootstrap/realm.js
 +++ b/lib/internal/bootstrap/realm.js
-@@ -101,6 +101,7 @@
+@@ -101,6 +101,7 @@ const processBindingAllowList = new SafeSet([
    'os',
    'pipe_wrap',
    'process_wrap',
@@ -24,7 +24,7 @@
    'spawn_sync',
    'stream_wrap',
    'tcp_wrap',
-@@ -127,6 +128,27 @@
+@@ -127,6 +128,28 @@ const schemelessBlockList = new SafeSet([
    'ffi',
    'sea',
    'sqlite',
@@ -34,6 +34,7 @@
 +  'smol-http',
 +  'smol-https',
 +  'smol-ilp',
++  'smol-keychain',
 +  'smol-keymap',
 +  'smol-manifest',
 +  'smol-markdown',

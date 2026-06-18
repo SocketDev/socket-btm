@@ -7,8 +7,8 @@
 //
 // On macOS the read raises Touch ID inside keystore_get (Secure-Enclave ACL);
 // linux/win32 are broker-only (libsecret / Credential Manager). The JS module
-// (lib/internal/socketsecurity/keychain.js) wraps these into the
-// node:smol-keychain surface (get / set / del).
+// (lib/smol-keychain.js) wraps these into the node:smol-keychain surface
+// (get / set / del).
 //
 // Surface:
 //

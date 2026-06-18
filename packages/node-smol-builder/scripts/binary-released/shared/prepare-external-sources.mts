@@ -22,6 +22,7 @@ import {
   BORINGSSL_BUILDER_DIR,
   BUILD_INFRA_DIR,
   GLIBC_SHIMS_INFRA_DIR,
+  KEYSTORE_INFRA_DIR,
   LSQUIC_INFRA_DIR,
   PACKAGE_ROOT,
   TEMPORAL_INFRA_DIR,
@@ -138,6 +139,21 @@ export const MONOREPO_PACKAGE_SOURCES = [
   {
     from: path.join(BUILD_INFRA_DIR, 'src', 'socketsecurity', 'build-infra'),
     relativeTo: path.join('src', 'socketsecurity', 'build-infra'),
+  },
+  // keystore-infra: the shared OS-keychain core (extern "C" get/put/delete,
+  // per-OS backends — SecItem/.mm on macOS, libsecret on Linux, Cred* on
+  // Windows). The node:smol-keychain binding (keychain_binding.cc) and its
+  // node.gyp wiring (patch 004, gated on node_use_smol_keychain) compile the
+  // backend for the host OS; the same core also backs the proteus daemon and
+  // the @socketaddon/keychain .node addon.
+  {
+    from: path.join(
+      KEYSTORE_INFRA_DIR,
+      'src',
+      'socketsecurity',
+      'keystore-infra',
+    ),
+    relativeTo: path.join('src', 'socketsecurity', 'keystore-infra'),
   },
   {
     from: path.join(TEMPORAL_INFRA_DIR, 'src', 'socketsecurity', 'temporal'),

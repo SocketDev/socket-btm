@@ -32,7 +32,7 @@
 #
 --- a/configure.py
 +++ b/configure.py
-@@ -1059,11 +1059,99 @@ parser.add_argument('--without-ffi',
+@@ -1059,11 +1059,105 @@ parser.add_argument('--without-ffi',
      default=None,
      help='build without FFI (Foreign Function Interface) support')
  
@@ -107,6 +107,12 @@
 +    default=None,
 +    help='disable node:smol-ilp (default enabled)')
 +
++parser.add_argument('--without-smol-keychain',
++    action='store_true',
++    dest='without_smol_keychain',
++    default=None,
++    help='disable node:smol-keychain (default enabled)')
++
 +parser.add_argument('--without-smol-keymap',
 +    action='store_true',
 +    dest='without_smol_keymap',
@@ -133,7 +139,7 @@
  
  parser.add_argument('--ninja',
      action='store_true',
-@@ -1576,8 +1664,8 @@ def check_compiler(o):
+@@ -1576,8 +1670,8 @@ def check_compiler(o):
  
    o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else '0.0'
  
@@ -144,7 +150,7 @@
      # Minimum cargo and rustc versions should match values in BUILDING.md.
      min_cargo_ver_tuple = (1, 82)
      min_rustc_ver_tuple = (1, 82)
-@@ -1801,7 +1889,46 @@ def gcc_version_ge(version_checked):
+@@ -1801,7 +1895,47 @@ def gcc_version_ge(version_checked):
    return True
  
  def configure_node_lib_files(o):
@@ -168,6 +174,7 @@
 +    (not use_smol_quic,                      ['smol-quic']),
 +    (bool(options.without_smol_http),        ['smol-http']),
 +    (bool(options.without_smol_tui),         ['smol-tui']),
++    (bool(options.without_smol_keychain),    ['smol-keychain']),
 +    (bool(options.without_smol_keymap),      ['smol-keymap']),
 +    (bool(options.without_smol_ffi),         ['smol-ffi']),
 +    (bool(options.without_smol_ilp),         ['smol-ilp']),
@@ -192,7 +199,7 @@
  
  def configure_node_cctest_sources(o):
    o['variables']['node_cctest_sources'] = [ 'src/node_snapshot_stub.cc' ] + \
-@@ -2349,9 +2476,63 @@ def configure_ffi(o):
+@@ -2349,9 +2483,64 @@ def configure_ffi(o):
  
    configure_library('ffi', o, pkgname='libffi')
  
@@ -220,6 +227,7 @@
 +  o['variables']['node_use_smol_http'] = b(not options.without_smol_http)
 +  o['variables']['node_use_smol_ffi'] = b(not options.without_smol_ffi)
 +  o['variables']['node_use_smol_ilp'] = b(not options.without_smol_ilp)
++  o['variables']['node_use_smol_keychain'] = b(not options.without_smol_keychain)
 +  o['variables']['node_use_smol_keymap'] = b(not options.without_smol_keymap)
 +  o['variables']['node_use_smol_qrcode'] = b(not options.without_smol_qrcode)
 +  o['variables']['node_use_smol_markdown'] = b(not options.without_smol_markdown)
@@ -258,7 +266,7 @@
  
  def configure_static(o):
    if options.fully_static or options.partly_static:
-@@ -2805,6 +2986,11 @@ configure_library('ngtcp2', output, pkgname='libngtcp2')
+@@ -2805,6 +2994,11 @@ configure_library('ngtcp2', output, pkgname='libngtcp2')
  configure_lief(output);
  configure_sqlite(output);
  configure_ffi(output);

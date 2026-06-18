@@ -83,7 +83,7 @@
        '<@(node_builtin_shareable_builtins)',
      ],
      'node_sources': [
-@@ -733,6 +763,17 @@
+@@ -733,6 +763,24 @@
              'Ws2_32.lib',
            ],
          }],
@@ -96,12 +96,19 @@
 +          'libraries': [
 +            '-lcompression',
 +            '-framework IOKit',
++            # keystore_macos.mm (node:smol-keychain backend) uses NSString +
++            # SecItem + LocalAuthentication. gyp doesn't forward a static
++            # library's `libraries` to consumers, so every binary linking
++            # libnode.a mirrors these (same pattern as IOKit above).
++            '-framework Foundation',
++            '-framework Security',
++            '-framework LocalAuthentication',
 +          ],
 +        }],
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
          ['node_with_ltcg=="true"', {
            'msvs_settings': {
-@@ -1053,12 +1094,445 @@
+@@ -1053,12 +1101,445 @@
              'deps/ncrypto/ncrypto.gyp:ncrypto',
            ],
          }],
@@ -548,7 +555,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1077,7 +1551,7 @@
+@@ -1077,7 +1558,7 @@
              }],
            ],
          }],
@@ -557,7 +564,7 @@
            'sources': [
              '<@(node_quic_sources)',
            ],
-@@ -1399,7 +1873,7 @@
+@@ -1399,7 +1880,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -566,7 +573,7 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1443,6 +1917,17 @@
+@@ -1443,6 +1924,24 @@
              'Ws2_32.lib',
            ],
          }],
@@ -579,12 +586,19 @@
 +          'libraries': [
 +            '-lcompression',
 +            '-framework IOKit',
++            # keystore_macos.mm (node:smol-keychain backend) uses NSString +
++            # SecItem + LocalAuthentication. gyp doesn't forward a static
++            # library's `libraries` to consumers, so every binary linking
++            # libnode.a mirrors these (same pattern as IOKit above).
++            '-framework Foundation',
++            '-framework Security',
++            '-framework LocalAuthentication',
 +          ],
 +        }],
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1517,6 +2002,17 @@
+@@ -1517,6 +2016,24 @@
              'Ws2_32.lib',
            ],
          }],
@@ -597,12 +611,19 @@
 +          'libraries': [
 +            '-lcompression',
 +            '-framework IOKit',
++            # keystore_macos.mm (node:smol-keychain backend) uses NSString +
++            # SecItem + LocalAuthentication. gyp doesn't forward a static
++            # library's `libraries` to consumers, so every binary linking
++            # libnode.a mirrors these (same pattern as IOKit above).
++            '-framework Foundation',
++            '-framework Security',
++            '-framework LocalAuthentication',
 +          ],
 +        }],
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1740,6 +2236,17 @@
+@@ -1740,6 +2257,24 @@
              'Ws2_32.lib',
            ],
          }],
@@ -615,6 +636,13 @@
 +          'libraries': [
 +            '-lcompression',
 +            '-framework IOKit',
++            # keystore_macos.mm (node:smol-keychain backend) uses NSString +
++            # SecItem + LocalAuthentication. gyp doesn't forward a static
++            # library's `libraries` to consumers, so every binary linking
++            # libnode.a mirrors these (same pattern as IOKit above).
++            '-framework Foundation',
++            '-framework Security',
++            '-framework LocalAuthentication',
 +          ],
 +        }],
          # Avoid excessive LTO

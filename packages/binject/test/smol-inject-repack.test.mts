@@ -77,7 +77,7 @@ export async function execCommand(command, args = [], options = {}) {
     // Prevent unhandled rejection — we handle exit via proc.on('close')
     spawnPromise.catch(() => {})
 
-    // @socketsecurity/lib-stable/spawn returns a Promise with .process property
+    // @socketsecurity/lib-stable/process/spawn/child returns a Promise with .process property
     const proc = spawnPromise.process
 
     let stdout = ''

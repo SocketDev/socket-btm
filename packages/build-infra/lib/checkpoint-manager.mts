@@ -327,7 +327,7 @@ export async function createCheckpoint(
       //   This is non-fatal - tar still creates a valid archive with the file contents
       //   at the time of reading. We check the tarball validity below.
       // - Exit code 2+: Fatal errors
-      // Note: @socketsecurity/lib-stable/spawn throws on non-zero exit codes, so we catch
+      // Note: @socketsecurity/lib-stable/process/spawn/child throws on non-zero exit codes, so we catch
       // exit code 1 and check if it's the benign "file changed" warning.
       // Build tar args: default macOS-resource-fork exclude, plus any
       // caller-supplied excludes (e.g. `out` for source checkpoints to

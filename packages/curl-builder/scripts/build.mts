@@ -25,7 +25,7 @@ import {
   validateCheckpointChain,
 } from 'build-infra/lib/constants'
 // logTransientErrorHelp loaded lazily inside the catch block below.
-// Its transitive @socketsecurity/lib-stable/http-request/convenience
+// Its transitive @socketsecurity/lib-stable/http-request
 // import has an ESM/CJS interop issue that crashes module-load in
 // strict isolated environments (production CI works via root-hoisting).
 import { appendCCRemapFlags } from 'build-infra/lib/path-remap-flags'

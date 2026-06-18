@@ -65,7 +65,7 @@ export async function execCommand(
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
-    // @socketsecurity/lib-stable/spawn returns a Promise with .process property
+    // @socketsecurity/lib-stable/process/spawn/child returns a Promise with .process property
     const proc = spawnPromise.process
 
     let stdout = ''

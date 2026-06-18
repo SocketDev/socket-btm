@@ -438,6 +438,11 @@ const VENDORED_GYPI_BUNDLES: ReadonlyArray<{
   // the gyp build otherwise omits (e.g. lsquic's HAVE_BORINGSSL, which
   // selects its BoringSSL crypto branch over the OpenSSL one).
   readonly defines?: readonly string[] | undefined
+  // Compiler flags to emit into the gypi. Used to relax node's strict
+  // -Werror set for vendored third-party C we don't maintain (e.g.
+  // xxhash/lsquic/lsqpack trip -Werror=extra-semi on trailing semicolons
+  // in their macros). gyp merges these into the consuming target.
+  readonly cflags?: readonly string[] | undefined
 }> = [
   {
     name: 'yoga',
@@ -464,6 +469,10 @@ const VENDORED_GYPI_BUNDLES: ReadonlyArray<{
     // BoringSSL). CMake sets HAVE_BORINGSSL on detection; the gyp build must
     // too or the compile fails with an undeclared-function error.
     defines: ['HAVE_BORINGSSL'],
+    // Vendored third-party C: relax node's strict -Werror set rather than
+    // rewriting upstream style (trailing semicolons in macros via the
+    // bundled xxhash; inline funcs referenced only cross-TU).
+    cflags: ['-Wno-error=extra-semi', '-Wno-error=undefined-inline'],
   },
   {
     name: 'ls-qpack',
@@ -475,6 +484,9 @@ const VENDORED_GYPI_BUNDLES: ReadonlyArray<{
     // `/deps/` would match the walk root itself — keep substring
     // filters specific to subdirs under the walk root.
     skipSubstrings: ['/test/', '/tests/', '/fuzz/', '/bin/'],
+    // Vendored third-party C (lsqpack.c + its bundled xxhash): relax the
+    // strict -Werror set, same rationale as lsquic.
+    cflags: ['-Wno-error=extra-semi', '-Wno-error=undefined-inline'],
   },
   {
     // ls-hpack (HPACK) — lsquic's HTTP/2 header compression, consumed by
@@ -491,6 +503,9 @@ const VENDORED_GYPI_BUNDLES: ReadonlyArray<{
     extensions: ['.c'],
     skipSubstrings: ['/test/', '/tests/', '/bin/', '/lshpack/deps/'],
     defines: ['XXH_INLINE_ALL', 'XXH_HEADER_NAME="xxhash.h"'],
+    // Vendored third-party C (lshpack.c + inlined xxhash): relax the strict
+    // -Werror set, same rationale as lsquic.
+    cflags: ['-Wno-error=extra-semi', '-Wno-error=undefined-inline'],
   },
 ]
 
@@ -612,6 +627,13 @@ export async function generateVendoredGypi(): Promise<void> {
       lines.push("  'defines': [")
       for (const d of bundle.defines) {
         lines.push(`    '${d}',`)
+      }
+      lines.push('  ],')
+    }
+    if (bundle.cflags?.length) {
+      lines.push("  'cflags': [")
+      for (const c of bundle.cflags) {
+        lines.push(`    '${c}',`)
       }
       lines.push('  ],')
     }

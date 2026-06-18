@@ -83,7 +83,7 @@
        '<@(node_builtin_shareable_builtins)',
      ],
      'node_sources': [
-@@ -732,6 +762,17 @@
+@@ -733,6 +763,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -101,7 +101,7 @@
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
          ['node_with_ltcg=="true"', {
            'msvs_settings': {
-@@ -1057,12 +1098,435 @@
+@@ -1053,12 +1094,453 @@
              'deps/ncrypto/ncrypto.gyp:ncrypto',
            ],
          }],
@@ -292,6 +292,12 @@
 +                  'sources': [
 +                    'src/socketsecurity/keystore-infra/keystore_macos.mm',
 +                  ],
++                  # Promote the non-ARC bridge-cast warning to an error: a
++                  # __bridge_transfer here is a silent no-op (it leaks the
++                  # CF object the SecItem* Create/Copy rule hands back). This
++                  # block compiles only the .mm, so the flag never reaches the
++                  # C++ binding. (No global -Werror, so it is inert elsewhere.)
++                  'cflags': [ '-Werror=arc-bridge-casts-disallowed-in-nonarc' ],
 +                  'libraries': [
 +                    '-framework Foundation',
 +                    '-framework Security',
@@ -375,6 +381,18 @@
 +              'includes': [
 +                'deps/lsquic.gypi',
 +                'deps/ls-qpack.gypi',
++                'deps/lshpack.gypi',
++              ],
++              # lsquic's engine #includes "lshpack.h" (HTTP/2 HPACK) and
++              # "lsqpack.h" (HTTP/3 QPACK) bare; their bundled xxhash is
++              # consumed only by lshpack.c / lsqpack.c. ls-hpack lives in
++              # lsquic's own src/lshpack submodule (no standalone vendor);
++              # ls-qpack is vendored standalone under deps/ls-qpack.
++              'include_dirs': [
++                'deps/lsquic/src/lshpack',
++                'deps/lsquic/src/lshpack/deps/xxhash',
++                'deps/ls-qpack',
++                'deps/ls-qpack/deps/xxhash',
 +              ],
 +            }],
 +            ['node_use_smol_http3=="true"', {
@@ -538,7 +556,7 @@
          }],
          [ 'node_use_sqlite=="true"', {
            'sources': [
-@@ -1081,7 +1545,7 @@
+@@ -1077,7 +1559,7 @@
              }],
            ],
          }],
@@ -547,7 +565,7 @@
            'sources': [
              '<@(node_quic_sources)',
            ],
-@@ -1403,7 +1867,7 @@
+@@ -1399,7 +1881,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -556,7 +574,7 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1447,6 +1911,17 @@
+@@ -1443,6 +1925,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -574,7 +592,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1521,6 +1996,17 @@
+@@ -1517,6 +2010,17 @@
              'Ws2_32.lib',
            ],
          }],
@@ -592,7 +610,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1744,6 +2230,17 @@
+@@ -1740,6 +2244,17 @@
              'Ws2_32.lib',
            ],
          }],

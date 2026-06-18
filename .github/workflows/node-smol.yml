@@ -846,6 +846,16 @@ jobs:
             packages/lsquic-infra/upstream/ls-qpack
             packages/yoga-layout-builder/upstream/yoga
 
+      - name: Initialize lsquic's lshpack submodule (HTTP/2 HPACK)
+        # ls-hpack lives in lsquic's own src/lshpack submodule, not as a
+        # direct superproject submodule, so init-submodules (which runs
+        # `git submodule update` from the repo root) can't reach it.
+        # lsquic_frame_{reader,writer}.c + lsquic_full_conn.c #include
+        # "lshpack.h"; without this the smol-quic build fails to compile.
+        if: steps.restore-checkpoint.outputs.build-required != 'false' || inputs.force
+        shell: bash
+        run: git -C packages/lsquic-infra/upstream/lsquic submodule update --init --depth=1 --single-branch src/lshpack
+
       - name: Initialize liburing submodule (Linux only)
         if: matrix.os == 'linux' && (steps.restore-checkpoint.outputs.build-required != 'false' || inputs.force)
         uses: ./.github/actions/init-submodules

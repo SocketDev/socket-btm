@@ -475,6 +475,22 @@ const VENDORED_GYPI_BUNDLES: ReadonlyArray<{
     // filters specific to subdirs under the walk root.
     skipSubstrings: ['/test/', '/tests/', '/fuzz/', '/bin/'],
   },
+  {
+    // ls-hpack (HPACK) — lsquic's HTTP/2 header compression, consumed by
+    // lsquic_frame_{reader,writer}.c + lsquic_full_conn.c via `#include
+    // "lshpack.h"`. It lives in lsquic's own src/lshpack submodule (no
+    // standalone vendor like ls-qpack), so the walk root is inside the
+    // lsquic copy. Compile only lshpack.c; its test/, bin/, and bundled
+    // deps/xxhash are excluded — XXH_INLINE_ALL makes xxhash header-only
+    // for lshpack.c (XXH_HEADER_NAME is lshpack's own CMake default), so
+    // no separate xxhash.c object collides with zstd's namespaced copy.
+    name: 'lshpack',
+    walkRoot: 'deps/lsquic/src/lshpack',
+    gypiOut: 'deps/lshpack.gypi',
+    extensions: ['.c'],
+    skipSubstrings: ['/test/', '/tests/', '/bin/', '/lshpack/deps/'],
+    defines: ['XXH_INLINE_ALL', 'XXH_HEADER_NAME="xxhash.h"'],
+  },
 ]
 
 /**

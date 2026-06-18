@@ -30,6 +30,11 @@
             ]
           },
           "repository": { "type": "string" },
+          "source": {
+            "type": "string",
+            "description": "Source-of-truth repo for a tool whose prebuilt binaries ship from a different host than its source (e.g. zig: source on Codeberg, binaries on ziglang.org). Per-platform SHA-256s live in build-infra/tool-checksums/<tool>.json."
+          },
+          "sourceTag": { "type": "string" },
           "release": { "type": "string", "enum": ["asset", "archive"] },
           "tag": { "type": "string" },
           "platforms": {

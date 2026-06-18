@@ -105,6 +105,12 @@ export const ToolEntry = Type.Object(
     tag: Type.Optional(Type.String()),
     packageManager: Type.Optional(PackageManager),
     repository: Type.Optional(Type.String()),
+    // Source-of-truth repo + its tag for a tool whose prebuilt binaries ship
+    // from a different host than its source (e.g. zig: source on Codeberg,
+    // binaries on ziglang.org). Provenance — distinct from the binary host;
+    // the per-platform SHA-256s live in build-infra/tool-checksums/<tool>.json.
+    source: Type.Optional(Type.String()),
+    sourceTag: Type.Optional(Type.String()),
     release: Type.Optional(ReleaseKind),
     // npm SRI (sha512-…) or single-artifact SRI (sha256-…).
     integrity: Type.Optional(Type.String()),

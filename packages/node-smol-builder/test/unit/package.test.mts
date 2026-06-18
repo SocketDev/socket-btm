@@ -9,7 +9,7 @@ import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { readPackageJson } from '@socketsecurity/lib-stable/packages/operations'
+import { readPackageJson } from '@socketsecurity/lib-stable/packages/read'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const nodeSmolBuilderDir = path.resolve(__dirname, '..', '..')

@@ -27,7 +27,7 @@ import { parse as acornParse } from 'acorn'
 import { simple as acornWalkSimple } from 'acorn-walk'
 import { safeDeleteSync } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
-import { readPackageJson } from '@socketsecurity/lib-stable/packages/operations'
+import { readPackageJson } from '@socketsecurity/lib-stable/packages/read'
 import process from 'node:process'
 import { errorMessage } from 'build-infra/lib/error-utils'
 

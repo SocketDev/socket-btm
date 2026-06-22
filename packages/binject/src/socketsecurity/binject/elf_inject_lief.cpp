@@ -236,9 +236,15 @@ extern "C" int binject_elf_lief_batch(
     }
 
     if (vfs_config_data) {
-        // Note: Despite the name "VFS config", this stores the SMOL config (1192 bytes SMFG format)
-        printf("Preparing SMOL_VFS_CONFIG note with %d bytes...\n", SMOL_CONFIG_SIZE);
-        std::vector<uint8_t> vfs_config_vec(vfs_config_data, vfs_config_data + SMOL_CONFIG_SIZE);
+        // vfs_config_data is the 108-byte SVFG VFS config (mode + prefix), the
+        // same buffer serialize_vfs_config() hands to binject_batch(). Read
+        // VFS_CFG_SIZE here, NOT SMOL_CONFIG_SIZE (1192, the SMFG self-update
+        // config): that buffer is only 108 bytes, so reading 1192 over-reads
+        // the heap by 1084 bytes and bakes adjacent memory into the note. The
+        // runtime reader (node_vfs.cc DeserializeVFSConfig) and the Mach-O
+        // injector both use VFS_CFG_SIZE.
+        printf("Preparing SMOL_VFS_CONFIG note with %d bytes...\n", VFS_CFG_SIZE);
+        std::vector<uint8_t> vfs_config_vec(vfs_config_data, vfs_config_data + VFS_CFG_SIZE);
         notes.emplace_back(ELF_NOTE_SMOL_VFS_CONFIG, std::move(vfs_config_vec));
     }
 

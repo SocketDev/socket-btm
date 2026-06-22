@@ -451,12 +451,17 @@ extern "C" int binject_pe_lief_batch(
       }
     }
 
-    // Inject VFS config resource if provided (SMOL_CONFIG_SIZE bytes SMFG format)
-    // Note: Despite the name "VFS config", this stores the SMOL config (1192 bytes SMFG format)
+    // vfs_config_data is the 108-byte SVFG VFS config (mode + prefix), the same
+    // buffer serialize_vfs_config() hands to binject_batch(). Inject VFS_CFG_SIZE
+    // bytes, NOT SMOL_CONFIG_SIZE (1192, the SMFG self-update config): that
+    // buffer is only 108 bytes, so reading 1192 over-reads the heap by 1084
+    // bytes and bakes adjacent memory into the resource. The runtime reader
+    // (node_vfs.cc DeserializeVFSConfig) and the Mach-O injector both use
+    // VFS_CFG_SIZE.
     if (vfs_config_data) {
-      printf("Injecting VFS config resource: %s (%d bytes)\n", PE_RESOURCE_SMOL_VFS_CONFIG, SMOL_CONFIG_SIZE);
+      printf("Injecting VFS config resource: %s (%d bytes)\n", PE_RESOURCE_SMOL_VFS_CONFIG, VFS_CFG_SIZE);
       int result = inject_pe_resource(binary.get(), PE_RESOURCE_SMOL_VFS_CONFIG,
-                                       vfs_config_data, SMOL_CONFIG_SIZE, true);
+                                       vfs_config_data, VFS_CFG_SIZE, true);
       if (result != BINJECT_OK) {
         return result;
       }

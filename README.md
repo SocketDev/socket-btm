@@ -1,5 +1,8 @@
 # Socket BTM
 
+[![Follow @SocketSecurity](https://img.shields.io/twitter/follow/SocketSecurity?style=social)](https://twitter.com/SocketSecurity)
+[![Follow @socket.dev on Bluesky](https://img.shields.io/badge/Follow-@socket.dev-1DA1F2?style=social&logo=bluesky)](https://bsky.app/profile/socket.dev)
+
 Build infrastructure for Socket's binary artifacts and ML models.
 
 ## Why this repo exists

@@ -1,0 +1,59 @@
+# WPT streams — known-failure allowlist
+#
+# Format: <test-key>\t<category>
+#  - <test-key>: 'file' (full file expected to fail) OR
+#                'file:test name' (specific named test expected to fail).
+#  - <category>: short categorization comment. Loaded as the Map value.
+#                Free-form; not parsed.
+#
+# Blank lines and `# …` comments are ignored.
+#
+# A test listed here is expected to fail; if it starts passing, the
+# runner reports it under "✨ Tests that now PASS" and FAILS the run
+# (drift signal — confirm the fix, then remove the entry).
+#
+# A test NOT listed here that fails the run will be reported as an
+# UNEXPECTED FAILURE and fail the run.
+
+# === owning type not implemented (5 tests) ===
+# The 'owning' stream type is a newer WHATWG spec extension not in
+# Node.js — fast-webstreams doesn't implement it, and no consumer
+# requests it. Track upstream's stage.
+
+readable-streams/owning-type.any.js:ReadableStream can be constructed with owning type	owning type not implemented
+readable-streams/owning-type.any.js:ReadableStream of type owning should call start with a ReadableStreamDefaultController	owning type not implemented
+readable-streams/owning-type.any.js:ReadableStream should be able to call enqueue with an empty transfer list	owning type not implemented
+readable-streams/owning-type.any.js:ReadableStream should check transfer parameter	owning type not implemented
+readable-streams/owning-type.any.js:ReadableStream of type owning should transfer enqueued chunks	owning type not implemented
+
+# === Tee monkey-patching (8 tests) ===
+# WPT tests replace globalThis.ReadableStream with a throwing fake and
+# expect tee() not to use it. fast-webstreams' tee() uses the patched
+# global internally, so it fails when the test replaces it.
+
+readable-streams/tee.any.js:ReadableStream teeing	tee monkey-patching
+readable-streams/tee.any.js:ReadableStreamTee should not pull more chunks than can fit in the branch queue	tee monkey-patching
+readable-streams/tee.any.js:ReadableStreamTee should only pull enough to fill the emptiest queue	tee monkey-patching
+readable-streams/tee.any.js:ReadableStreamTee should not pull when original is already errored	tee monkey-patching
+readable-streams/tee.any.js:ReadableStreamTee stops pulling when original stream errors while branch 1 is reading	tee monkey-patching
+readable-streams/tee.any.js:ReadableStreamTee stops pulling when original stream errors while branch 2 is reading	tee monkey-patching
+readable-streams/tee.any.js:ReadableStreamTee stops pulling when original stream errors while both branches are reading	tee monkey-patching
+
+# === AsyncIteratorPrototype cross-realm (1 test) ===
+# VM context isolation causes cross-realm prototype mismatch.
+
+
+# === BYOB cancel (2 tests) ===
+# Byte stream edge cases with cancel propagation.
+
+readable-byte-streams/templated.any.js:ReadableStream with byte source (empty) BYOB reader	BYOB cancel edge case
+readable-byte-streams/bad-buffers-and-views.any.js	runner error - file-level failure
+
+# === Subclassing (1 test) ===
+# Subclassing fast-webstreams doesn't preserve extra methods on the
+# subclass.
+
+piping/close-propagation-forward.any.js:(unhandled rejection)	upstream fast-webstreams 0.0.19: pipeTo pump overwrites currentWrite without marking the prior write promise handled (src/pipe-to.js:443,467); all real subtests pass
+piping/multiple-propagation.any.js:(unhandled rejection)	upstream fast-webstreams 0.0.19: errored-source pre-check discards the dest._abortInternal() promise, later rejected by _finishErroring (src/writable.js:400); all real subtests pass
+readable-streams/general.any.js:Subclassing ReadableStream should work	subclassing not fully supported (upstream fast-webstreams 0.0.19; only reported once crash containment let the file run to completion)
+readable-streams/general.any.js:(unhandled rejection)	upstream fast-webstreams 0.0.19: cancel invoked as this._cancel(reason) instead of with underlyingSource as this (src/readable.js:1436); the WPT cancel-callback assert rejects unhandled

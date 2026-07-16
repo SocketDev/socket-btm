@@ -1,0 +1,21 @@
+{
+  "name": "smol-ai-builder",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Builds the llama.cpp-backed smol_ai.node N-API module",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mts",
+    "test": "node ../../scripts/repo/run-smol-ai-tests.mts smol-ai-builder"
+  },
+  "dependencies": {
+    "@socketsecurity/lib-stable": "catalog:",
+    "ai-infra": "workspace:*",
+    "build-infra": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "vitest": "catalog:"
+  }
+}

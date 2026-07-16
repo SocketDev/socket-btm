@@ -1,0 +1,21 @@
+{
+  "name": "tui-infra",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Source-only C++ TUI primitives (render loop + Yoga binding + mouse parser) for embedding into node-smol-builder as the `node:smol-tui` builtin. No binary release; consumers compile inline via additions/source-patched. Lockstep with socket-stuie's TS upstream (OpenTUI fork).",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./lib/paths": "./lib/paths.mts"
+  },
+  "scripts": {
+    "clean": "node scripts/clean.mts"
+  },
+  "dependencies": {
+    "@socketsecurity/lib-stable": "catalog:",
+    "build-infra": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

@@ -1,0 +1,41 @@
+# socket-keychain CLI for macOS: C++ command surface + Objective-C++ Keychain
+# backend, linked as one standalone executable.
+
+include ../build-infra/make/common.mk
+include ../build-infra/make/platform-macos.mk
+
+TARGET = socket-keychain
+SRC_DIR = src/socketsecurity/keychain-cli-builder
+KEYSTORE_DIR = ../keystore-infra/src/socketsecurity/keystore-infra
+KEYSTORE_INCLUDE = -I../keystore-infra/src
+OBJ_DIR = $(BUILD_DIR)/obj
+CLI_OBJ = $(OBJ_DIR)/socket_keychain.o
+BACKEND_OBJ = $(OBJ_DIR)/keystore_macos.o
+
+CXXFLAGS = -Wall -Wextra -Werror $(OPT_FLAGS) -std=c++17 $(KEYSTORE_INCLUDE) \
+           -DVERSION=\"$(VERSION)\"
+OBJCXXFLAGS = -Wall -Wextra -Werror $(OPT_FLAGS) -std=c++17 -fobjc-arc \
+              $(KEYSTORE_INCLUDE)
+LDFLAGS = -Wl,-dead_strip $(ARCH_FLAGS) -framework Foundation \
+          -framework Security -framework LocalAuthentication
+
+all: check-tools $(OUT_DIR)/$(TARGET)
+
+$(OUT_DIR)/$(TARGET): $(CLI_OBJ) $(BACKEND_OBJ) | $(OUT_DIR)
+	$(CXX) $(OPT_FLAGS) -o $@ $(CLI_OBJ) $(BACKEND_OBJ) $(LDFLAGS)
+	codesign -s - $@ 2>/dev/null || true
+
+$(CLI_OBJ): $(SRC_DIR)/socket_keychain.cc | $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+$(BACKEND_OBJ): $(KEYSTORE_DIR)/keystore_macos.mm | $(OBJ_DIR)
+	$(CXX) $(OBJCXXFLAGS) -c -o $@ $<
+
+$(OUT_DIR) $(OBJ_DIR):
+	mkdir -p $@
+
+check-tools:
+	@command -v $(CXX) >/dev/null 2>&1 || { echo "ERROR: $(CXX) not found"; exit 1; }
+
+clean:
+	rm -rf build out

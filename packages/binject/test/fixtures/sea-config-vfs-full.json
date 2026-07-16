@@ -1,0 +1,17 @@
+{
+  "output": "sea-blob.bin",
+  "main": "index.js",
+  "smol": {
+    "fakeArgvEnv": "MY_FAKE_ARGV",
+    "vfs": {
+      "mode": "on-disk",
+      "source": "dist/vfs.tar.gz"
+    },
+    "update": {
+      "binname": "my-cli",
+      "url": "https://api.github.com/repos/user/repo/releases",
+      "tag": "v*",
+      "skipEnv": "MY_CLI_SKIP_UPDATE_CHECK"
+    }
+  }
+}

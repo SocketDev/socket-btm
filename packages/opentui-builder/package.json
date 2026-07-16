@@ -1,0 +1,47 @@
+{
+  "name": "opentui-builder",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Native Node.js bindings for OpenTUI library via Zig node-api",
+  "license": "MIT",
+  "type": "module",
+  "main": "./lib/index.mts",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.mts"
+    },
+    "./lib/ensure-opentui": "./lib/ensure-opentui.mts",
+    "./native": {
+      "types": "./lib/native.d.ts"
+    },
+    "./scripts/paths": "./scripts/paths.mts"
+  },
+  "scripts": {
+    "build": "node scripts/build.mts",
+    "build:dev": "node scripts/build.mts --dev",
+    "build:force": "node scripts/build.mts --force",
+    "build:prod": "node scripts/build.mts --prod",
+    "clean": "node scripts/clean.mts",
+    "cover": "vitest run --coverage",
+    "postinstall": "node scripts/setup-build-toolchain.mts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@socketsecurity/lib-stable": "catalog:",
+    "build-infra": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "catalog:",
+    "vitest": "catalog:"
+  },
+  "sources": {
+    "opentui": {
+      "version": "0.4.1",
+      "type": "git",
+      "url": "https://github.com/anomalyco/opentui.git",
+      "ref": "b7e0bb9c3d2a75c2bc267d2af27b7237f734d13b"
+    }
+  }
+}

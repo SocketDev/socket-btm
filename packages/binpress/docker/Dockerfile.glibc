@@ -1,0 +1,77 @@
+# Build binpress in container to offload compute from GitHub Actions.
+# Consumes the fleet-shared btm-builder-glibc prebake.
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+ARG BTM_BUILDER_TAG
+
+FROM ghcr.io/socketdev/btm-builder-glibc:${BTM_BUILDER_TAG} AS build
+
+ARG CACHE_VERSION=unset
+
+# Build static OpenSSL (the prebake ships openssl-devel for dynamic linking;
+# binpress's static binary needs libcrypto.a from source).
+COPY .github/scripts/build-static-openssl.sh .github/scripts/
+RUN source /opt/rh/gcc-toolset-13/enable && .github/scripts/build-static-openssl.sh
+
+WORKDIR /workspace
+
+# Explicit per-path copies — tracks cache invalidation only for what
+# binpress consumes.
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .gitmodules .node-version ./
+COPY .github/scripts/ensure-zstd.sh .github/scripts/
+COPY packages/bin-infra ./packages/bin-infra
+COPY packages/binpress ./packages/binpress
+COPY packages/build-infra ./packages/build-infra
+COPY packages/lief-builder ./packages/lief-builder
+
+# Ensure vendored zstd source is available (submodule may not be in Docker context).
+RUN .github/scripts/ensure-zstd.sh
+
+ARG TARGETARCH
+
+# Install only what binpress needs (transitive workspace deps via explicit filters).
+# A full-workspace install would pull sibling builders' deps too —
+# notably codet5-models-builder → onnxruntime-node, whose postinstall
+# fetches a 100MB+ ONNX runtime binary from github.com on every build.
+ENV CI=true
+RUN pnpm install --frozen-lockfile --filter build-infra --filter bin-infra --filter lief-builder --filter binpress
+
+ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64
+ARG LIEF_CACHE_VERSION=unset
+ARG STUBS_CACHE_VERSION=unset
+ENV BUILD_MODE=$BUILD_MODE
+ENV PLATFORM_ARCH=$PLATFORM_ARCH
+
+# GH_TOKEN is mounted via BuildKit secret rather than passed through
+# ARG+ENV. ARG+ENV bakes the token into image-layer metadata visible
+# via `docker history --no-trunc` and persisted in Depot's build cache.
+# `CC="ccache gcc"` + `--mount=type=cache,target=/root/.ccache` routes
+# every compile through ccache, persisted across builds.
+ENV CCACHE_DIR=/root/.ccache
+ENV CC="ccache gcc"
+ENV CXX="ccache g++"
+RUN --mount=type=secret,id=gh_token,required=false \
+    --mount=type=cache,target=/root/.ccache \
+    source /opt/rh/gcc-toolset-13/enable && \
+    if [ -f /run/secrets/gh_token ]; then \
+      export GH_TOKEN="$(cat /run/secrets/gh_token)"; \
+      export GITHUB_TOKEN="$GH_TOKEN"; \
+    fi && \
+    echo "Cache: ${CACHE_VERSION}, LIEF: ${LIEF_CACHE_VERSION}, stubs: ${STUBS_CACHE_VERSION}" && \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        export CFLAGS="$CFLAGS -march=x86-64 -mtune=generic" && \
+        export CXXFLAGS="$CXXFLAGS -march=x86-64 -mtune=generic"; \
+    fi && \
+    cd packages/binpress && pnpm run build -- --force
+
+# Run tests inside container (same compiler/LIEF version as build).
+RUN --mount=type=cache,target=/root/.ccache \
+    source /opt/rh/gcc-toolset-13/enable && \
+    cd packages/binpress && pnpm run test
+
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=build /workspace/packages/binpress/build /binpress-build
+COPY --from=build /workspace/packages/lief-builder/build/downloaded /lief-builder-downloaded

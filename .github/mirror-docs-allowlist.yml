@@ -1,0 +1,14 @@
+# Mirror-docs allowlist.
+#
+# Sources that are deliberately undocumented (internal one-off helpers,
+# C++ bindings where the source IS the spec) or mirror docs whose
+# source genuinely doesn't exist (compat/cross-cutting docs).
+#
+# Format:
+#   - path: <relative path>
+#     kind: orphan-doc | missing-doc
+#     reason: <short reason>
+
+- path: docs/additions/lib/smol-ffi-compat.md
+  kind: orphan-doc
+  reason: Cross-cutting docs for the node:smol-ffi/node + node:smol-ffi/bun compat shims (not a single source file).

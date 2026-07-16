@@ -1,0 +1,15 @@
+{
+  "name": "ai-infra",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pinned llama.cpp source and the shared smol-ai native core",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "node ../../scripts/repo/run-smol-ai-tests.mts ai-infra"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "vitest": "catalog:"
+  }
+}

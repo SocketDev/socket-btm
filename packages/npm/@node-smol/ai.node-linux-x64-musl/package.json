@@ -1,0 +1,31 @@
+{
+  "name": "@node-smol/ai.node-linux-x64-musl",
+  "version": "0.0.0",
+  "description": "Native node:smol-ai backend for Linux x64 musl",
+  "license": "MIT",
+  "files": [
+    "smol_ai.node"
+  ],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "libc": [
+    "musl"
+  ],
+  "type": "commonjs",
+  "main": "./smol_ai.node",
+  "exports": {
+    ".": "./smol_ai.node"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "prepublishOnly": "node -e \"const fs=require('node:fs');if(!process.env.NODE_SMOL_PUBLISH_OK||!fs.existsSync('smol_ai.node'))process.exit(1)\""
+  },
+  "preferUnpacked": true
+}

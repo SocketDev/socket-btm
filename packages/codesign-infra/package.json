@@ -1,0 +1,24 @@
+{
+  "name": "codesign-infra",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Source-only C++ port of apple-codesign's Mach-O signing core (indygreg/apple-platform-rs) — ad-hoc and Developer-ID code signing, cross-platform host. Crypto via BoringSSL. No binary release; consumers compile inline.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./lib/paths": "./lib/paths.mts"
+  },
+  "scripts": {
+    "check:lockstep": "node scripts/check-lockstep.mts",
+    "clean": "node scripts/clean.mts"
+  },
+  "dependencies": {
+    "@socketsecurity/lib-stable": "catalog:",
+    "boringssl-builder": "workspace:*",
+    "build-infra": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "vitest": "catalog:"
+  }
+}

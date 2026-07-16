@@ -198,7 +198,7 @@ function setPipelining(depth, options) {
   setGlobalDispatcher(
     new Agent({
       pipelining: depth,
-      connections: options?.connections ?? null,
+      connections: options?.connections ?? undefined,
       keepAliveTimeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
       keepAliveMaxTimeout: DEFAULT_KEEP_ALIVE_MAX_TIMEOUT,
     }),

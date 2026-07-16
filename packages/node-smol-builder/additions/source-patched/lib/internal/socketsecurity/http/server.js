@@ -150,7 +150,7 @@ function serve(options) {
   const workerProcesses = []
   const entryScript = require('module')._resolveFilename(
     process.argv[1],
-    null,
+    undefined,
     true,
   )
 

@@ -8,7 +8,7 @@ export const repoRoot = path.dirname(path.dirname(packageRoot))
 export const languageModelInfraRoot = path.join(
   repoRoot,
   'packages',
-  'language-model-infra',
+  'ai-infra',
 )
 
 export function getBuildDir(mode: string, target: string): string {

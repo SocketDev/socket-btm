@@ -15,7 +15,7 @@ import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import {
   findMjsFiles,
   validateCreateCheckpointCall,
-} from './checkpoint-manager.test.mts'
+} from './checkpoint-signature-validation-helpers.mts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(__dirname, '../../..')

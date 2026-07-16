@@ -90,7 +90,7 @@ jobs:
         uses: ./.github/actions/fleet/setup-and-install
       - name: Initialize pinned native sources
         shell: bash
-        run: git submodule update --init --depth 1 packages/language-model-infra/upstream/llama.cpp packages/node-smol-builder/upstream/node
+        run: git submodule update --init --depth 1 packages/ai-infra/upstream/llama.cpp packages/node-smol-builder/upstream/node
       - name: Build native addon
         env:
           BUILD_MODE: prod
@@ -157,13 +157,13 @@ jobs:
       - name: Install build toolchain
         run: apk add --no-cache build-base cmake ninja nodejs nodejs-dev python3
       - name: Initialize pinned llama.cpp
-        run: git submodule update --init --depth 1 packages/language-model-infra/upstream/llama.cpp
+        run: git submodule update --init --depth 1 packages/ai-infra/upstream/llama.cpp
       - name: Build native addon
         env:
           NATIVE_TARGET: ${{ matrix.native-target }}
         run: |
           cmake \
-            -S packages/language-model-infra \
+            -S packages/ai-infra \
             -B "packages/smol-ai-builder/build/prod/$NATIVE_TARGET" \
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \

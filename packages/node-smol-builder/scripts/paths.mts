@@ -466,7 +466,7 @@ export const KEYSTORE_INFRA_DIR = path.join(
 export const LANGUAGE_MODEL_INFRA_DIR = path.join(
   PACKAGE_ROOT,
   '..',
-  'language-model-infra',
+  'ai-infra',
 )
 export const NODE_SMOL_AI_PACKAGE_DIR = path.join(
   PACKAGE_ROOT,

@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 
@@ -19,9 +18,6 @@ import {
   removeCheckpoint,
   shouldRun,
 } from '../lib/checkpoint-manager.mts'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT = path.resolve(__dirname, '../../..')
 
 // Binary-stage checkpoints require explicit {platform, arch}; these tests
 // exercise the checkpoint machinery generically, so any concrete target works.
@@ -350,157 +346,3 @@ describe('checkpoint-manager', () => {
     })
   })
 })
-
-/**
- * Recursively find all .mts files in a directory.
- */
-export async function findMjsFiles(
-  dir: string,
-  files: string[] = [],
-): Promise<string[]> {
-  const entries = await fs.readdir(dir, { withFileTypes: true })
-
-  for (let i = 0, { length } = entries; i < length; i += 1) {
-    const entry = entries[i]
-    if (!entry) {
-      continue
-    }
-    const fullPath = path.join(dir, entry.name)
-
-    // Skip node_modules and test directories
-    if (entry.name === 'node_modules' || entry.name.includes('.test.')) {
-      continue
-    }
-
-    if (entry.isDirectory()) {
-      // eslint-disable-next-line no-await-in-loop
-      await findMjsFiles(fullPath, files)
-    } else if (entry.name.endsWith('.mts')) {
-      files.push(fullPath)
-    }
-  }
-
-  return files
-}
-
-/**
- * Check if a createCheckpoint call uses the correct signature.
- */
-export interface CreateCheckpointCallError {
-  context: string
-  error: string
-  file: string
-  line: number
-}
-
-export function validateCreateCheckpointCall(
-  fileContent: string,
-  filePath: string,
-): CreateCheckpointCallError[] {
-  const lines = fileContent.split('\n')
-  const errors: CreateCheckpointCallError[] = []
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-    if (line === undefined) {
-      continue
-    }
-
-    // Find createCheckpoint calls
-    if (
-      line.includes('createCheckpoint(') &&
-      (line.includes('await') || line.trim().startsWith('createCheckpoint('))
-    ) {
-      // Get context (next 10 lines)
-      const context = lines.slice(i, Math.min(i + 10, lines.length)).join('\n')
-
-      // Check 1: Must have a third parameter that's either an inline async
-      // callback OR a referenced identifier (variable / property access).
-      // Accepts:
-      //   createCheckpoint(dir, 'name', async () => {}, {})         inline arrow
-      //   createCheckpoint(dir, 'name', async function () {}, {})   inline function
-      //   createCheckpoint(dir, 'name', smokeTest, {})              variable reference
-      //   createCheckpoint(dir, 'name', helpers.smoke, {})          property access
-      const hasAsyncCallback =
-        /async\s*\(\s*\)\s*=>/.test(context) ||
-        /async\s*\(\s*\)/.test(context) ||
-        /async\s*function/.test(context)
-
-      // Third positional param in the form `createCheckpoint(arg1, arg2, ident...`.
-      // We want to allow identifiers / property accesses (but not string literals
-      // — a string in position 3 means position 2 was probably the checkpoint
-      // name and the signature is an old one).
-      const identifierThirdParam =
-        /createCheckpoint\(\s*[^,]+,\s*[^,]+,\s*[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\s*[,)]/.test(
-          context,
-        )
-
-      if (!hasAsyncCallback && !identifierThirdParam) {
-        errors.push({
-          context: lines.slice(i, Math.min(i + 5, lines.length)).join('\n'),
-          error:
-            'Third parameter must be an inline async callback or a callback ' +
-            'identifier/property-access (e.g. smokeTest or ctx.smoke)',
-          file: path.relative(REPO_ROOT, filePath),
-          line: i + 1,
-        })
-        continue
-      }
-
-      // Check 2: Second parameter should be a string literal (checkpoint name), not a variable like "packageName"
-      // Get the lines that contain the parameters
-      const paramLines: string[] = []
-      let braceCount = 0
-      let foundStart = false
-
-      for (let j = i; j < Math.min(i + 15, lines.length); j++) {
-        const paramLine = lines[j]
-        if (paramLine === undefined) {
-          continue
-        }
-        if (paramLine.includes('createCheckpoint(')) {
-          foundStart = true
-        }
-        if (foundStart) {
-          paramLines.push(paramLine)
-          braceCount += (paramLine.match(/\(/g) || []).length
-          braceCount -= (paramLine.match(/\)/g) || []).length
-
-          if (braceCount === 0 && foundStart) {
-            break
-          }
-        }
-      }
-
-      const fullCall = paramLines.join('\n')
-
-      // Pattern: createCheckpoint(buildDir, packageName, 'checkpoint-name', async () => ...)
-      // This is WRONG - packageName should not be a positional parameter
-      const badPattern = /createCheckpoint\([^,]+,\s*packageName\s*,/
-      if (badPattern.test(fullCall)) {
-        errors.push({
-          context: fullCall.substring(0, 200),
-          error:
-            'Using old signature with packageName as second positional parameter',
-          file: path.relative(REPO_ROOT, filePath),
-          line: i + 1,
-        })
-      }
-
-      // Pattern: createCheckpoint(buildDir, '', 'checkpoint-name', ...)
-      // This is WRONG - empty string should not be a positional parameter
-      const emptyStringPattern = /createCheckpoint\([^,]+,\s*['"]{2}\s*,/
-      if (emptyStringPattern.test(fullCall)) {
-        errors.push({
-          context: fullCall.substring(0, 200),
-          error:
-            'Using old signature with empty string as second positional parameter',
-          file: path.relative(REPO_ROOT, filePath),
-          line: i + 1,
-        })
-      }
-    }
-  }
-
-  return errors
-}

@@ -197,9 +197,9 @@
 	ignore = dirty
 	shallow = true
 # llama.cpp-b9940 sha256:f3c0f8e2e9e21d527952042d71274e4f79b14bc0fe799144eb671c7163ef0f6d
-# full-checkout: language-model-infra compiles the complete CPU backend
-[submodule "packages/language-model-infra/upstream/llama.cpp"]
-	path = packages/language-model-infra/upstream/llama.cpp
+# full-checkout: ai-infra compiles the complete CPU backend
+[submodule "packages/ai-infra/upstream/llama.cpp"]
+	path = packages/ai-infra/upstream/llama.cpp
 	url = https://github.com/ggml-org/llama.cpp.git
 	branch = master
 	ref = 259f2e2a531af9ed3efa7f66adaa5eb5b53da95f

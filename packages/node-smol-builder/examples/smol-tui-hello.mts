@@ -50,34 +50,6 @@ const SIDES_ALL = 0xf // top | right | bottom | left
 // changes between frames).
 const FLUSH_BUF = new Uint8Array(256 * 1024)
 
-function main(): void {
-  const { width: initialWidth, height: initialHeight } = getTerminalSize()
-  const rendererId = createRenderer(initialWidth, initialHeight, false, false)
-
-  // Enter alt-screen + hide cursor.
-  stdoutWrite('\x1b[?1049h\x1b[?25l')
-
-  const exit = () => {
-    stdoutWrite('\x1b[?25h\x1b[?1049l')
-    destroyRenderer(rendererId)
-    process.exit(0)
-  }
-
-  process.on('SIGINT', exit)
-  process.on('SIGTERM', exit)
-
-  process.stdout.on('resize', () => {
-    const { width, height } = getTerminalSize()
-    rendererResize(rendererId, width, height)
-    drawFrame(rendererId)
-  })
-
-  drawFrame(rendererId)
-
-  // Keep the event loop alive.
-  setInterval(() => {}, 60_000)
-}
-
 export function drawFrame(rendererId: number): void {
   const { width, height } = rendererSize(rendererId)
   rendererClear(rendererId)
@@ -185,8 +157,6 @@ export function stdoutWrite(data: Uint8Array | string): void {
   process.stdout.write(data) // socket-hook: allow console
 }
 
-main()
-
 // Quick verification — these checks run before the render loop so a
 // broken binding surfaces with a clear error rather than a blank
 // screen. Each call exercises one of the C++ entry points landed in
@@ -200,3 +170,33 @@ export function verify(): void {
   console.assert(stringWidth('') === 0, 'stringWidth("") === 0')
 }
 void verify // referenced for type-checking, not invoked in the demo
+
+function main(): void {
+  const { width: initialWidth, height: initialHeight } = getTerminalSize()
+  const rendererId = createRenderer(initialWidth, initialHeight, false, false)
+
+  // Enter alt-screen + hide cursor.
+  stdoutWrite('\x1b[?1049h\x1b[?25l')
+
+  const exit = () => {
+    stdoutWrite('\x1b[?25h\x1b[?1049l')
+    destroyRenderer(rendererId)
+    process.exit(0)
+  }
+
+  process.on('SIGINT', exit)
+  process.on('SIGTERM', exit)
+
+  process.stdout.on('resize', () => {
+    const { width, height } = getTerminalSize()
+    rendererResize(rendererId, width, height)
+    drawFrame(rendererId)
+  })
+
+  drawFrame(rendererId)
+
+  // Keep the event loop alive.
+  setInterval(() => {}, 60_000)
+}
+
+main()

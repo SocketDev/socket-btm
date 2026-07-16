@@ -20,7 +20,7 @@ describe('smol-ai native build', () => {
     expect(args).not.toEqual(
       expect.arrayContaining([expect.stringContaining('NODE_IMPORT_LIBRARY')]),
     )
-    expect(path.basename(args[1]!)).toBe('language-model-infra')
+    expect(path.basename(args[1]!)).toBe('ai-infra')
   })
 
   it('passes the Node import library only for Windows callers', () => {

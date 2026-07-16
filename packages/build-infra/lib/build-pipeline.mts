@@ -48,198 +48,25 @@ import { getNodeVersion } from './version-helpers.mts'
 import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
 
 import type { ExternalToolsFile } from './external-tools-schema.mts'
+import type {
+  PipelineContext,
+  PipelinePackageJson,
+  PipelineSourceMeta,
+  RunPipelineOptions,
+} from './build-pipeline-types.mts'
+
+export type {
+  PipelineBuildPaths,
+  PipelineContext,
+  PipelineFlags,
+  PipelinePackageJson,
+  PipelineSourceMeta,
+  PipelineStage,
+  RunPipelineOptions,
+  StageResult,
+} from './build-pipeline-types.mts'
 
 const logger = getDefaultLogger()
-
-/**
- * Per-source metadata from package.json `sources`.
- */
-export interface PipelineSourceMeta {
-  ref?: string | undefined
-  url?: string | undefined
-  version?: string | undefined
-  [key: string]: unknown
-}
-
-/**
- * Path bag a package's getBuildPaths/getSharedBuildPaths resolver returns.
- */
-export interface PipelineBuildPaths {
-  buildDir: string
-  outputFinalDir?: string | undefined
-  [key: string]: unknown
-}
-
-/**
- * The package.json fields the pipeline reads.
- */
-export interface PipelinePackageJson {
-  sources?: Record<string, PipelineSourceMeta> | undefined
-  version?: string | undefined
-  [key: string]: unknown
-}
-
-/**
- * Parsed CLI flags for a pipeline run.
- */
-export interface PipelineFlags {
-  clean: boolean
-  cleanStage: string | undefined
-  force: boolean
-  fromStage: string | undefined
-  printCacheKey: boolean
-  raw: Set<string>
-}
-
-/**
- * What a stage worker returns to configure its checkpoint.
- */
-export interface StageResult {
-  /**
-   * Absolute path archived into the checkpoint tarball.
-   */
-  artifactPath?: string | undefined
-  /**
-   * Relative path (from buildDir) to a binary to codesign on macOS.
-   */
-  binaryPath?: string | undefined
-  /**
-   * Optional size metadata surfaced in checkpoint data.
-   */
-  binarySize?: string | number | undefined
-  /**
-   * Post-run validation. Runs before the checkpoint is committed.
-   */
-  smokeTest?: (() => Promise<void> | void) | undefined
-}
-
-/**
- * One declarative stage of a pipeline manifest.
- */
-export interface PipelineStage {
-  /**
-   * Checkpoint name (must appear in CHECKPOINTS).
-   */
-  name: string
-  /**
-   * Stage worker. Receives the shared context and optional per-stage params.
-   * Should perform the build work only — no shouldRun / createCheckpoint
-   * calls. Return a StageResult to configure the checkpoint (smoke test +
-   * artifact).
-   */
-  run: (
-    ctx: PipelineContext,
-    params?: Record<string, unknown>,
-  ) => Promise<StageResult | undefined | void>
-  /**
-   * Checkpoint lives at the shared build dir instead of per-platform (e.g.
-   * source-cloned, which is platform-agnostic).
-   */
-  shared?: boolean | undefined
-  /**
-   * Skip this stage entirely when buildMode === 'dev' (e.g. wasm-optimized).
-   */
-  skipInDev?: boolean | undefined
-  /**
-   * Extra file paths whose content contributes to this stage's cache hash.
-   * The orchestrator always includes package-wide inputs
-   * (external-tools.json, package.json); list stage-specific inputs here
-   * (e.g. an optimization flags module).
-   */
-  sourcePaths?: string[] | undefined
-}
-
-/**
- * Derived values shared by every stage of a pipeline run.
- */
-export interface PipelineContext {
-  /**
-   * 'dev' or 'prod'.
-   */
-  buildMode: string
-  /**
-   * Unified cache key for GH Actions.
-   */
-  cacheKey: string
-  /**
-   * Global --force flag.
-   */
-  forceRebuild: boolean
-  logger: typeof logger
-  /**
-   * Node version running the build.
-   */
-  nodeVersion: string
-  /**
-   * Friendly name used in logs.
-   */
-  packageName: string
-  /**
-   * Package root (absolute).
-   */
-  packageRoot: string
-  /**
-   * Result of the package's getBuildPaths(mode, platformArch).
-   */
-  paths: PipelineBuildPaths
-  /**
-   * Canonical platform-arch string.
-   */
-  platformArch: string
-  /**
-   * Result of the package's getSharedBuildPaths(), if any.
-   */
-  sharedPaths: PipelineBuildPaths | undefined
-  /**
-   * Contents of package.json `sources`.
-   */
-  sources: Record<string, PipelineSourceMeta>
-  /**
-   * Map of tool name -> pinned version.
-   */
-  toolVersions: Record<string, string>
-}
-
-/**
- * Manifest for one pipeline run.
- */
-export interface RunPipelineOptions {
-  /**
-   * Extra file paths whose content is mixed into the cache key. Package-wide
-   * inputs (external-tools.json + package.json) are already included.
-   */
-  extraCacheInputs?: string[] | undefined
-  /**
-   * Package's path resolver for mode + platformArch.
-   */
-  getBuildPaths: (mode: string, platformArch: string) => PipelineBuildPaths
-  /**
-   * Returns absolute paths to the artifacts the build is expected to emit.
-   * Missing files trigger a full-checkpoint clean to force a rebuild.
-   */
-  getOutputFiles?: ((paths: PipelineBuildPaths) => string[]) | undefined
-  /**
-   * Optional shared-path resolver (for source-cloned tarballs).
-   */
-  getSharedBuildPaths?: (() => PipelineBuildPaths) | undefined
-  /**
-   * Short name used in logs (e.g. 'yoga').
-   */
-  packageName: string
-  /**
-   * Absolute path to the package directory.
-   */
-  packageRoot: string
-  /**
-   * Optional pre-build check (tool probing, disk space). Runs once before
-   * the first stage. Throws to abort the build.
-   */
-  preflight?: (() => Promise<void>) | undefined
-  /**
-   * Stages in execution order.
-   */
-  stages: PipelineStage[]
-}
 
 export function buildCacheKey({
   buildMode,

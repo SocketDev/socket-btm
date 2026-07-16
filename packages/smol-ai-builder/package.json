@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@socketsecurity/lib-stable": "catalog:",
-    "build-infra": "workspace:*",
-    "language-model-infra": "workspace:*"
+    "ai-infra": "workspace:*",
+    "build-infra": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

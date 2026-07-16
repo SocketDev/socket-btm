@@ -58,26 +58,13 @@ jobs:
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
-      packages: write
+      packages: write # Push the per-architecture image to GHCR.
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (2026-05-15)
         with:
           submodules: false
           persist-credentials: false
-
-      - name: Stage socket-registry external-tools.json
-        shell: bash
-        env:
-          # SHA-pinned read of socket-registry/external-tools.json. Bumped
-          # in lockstep with the setup-and-install action pin (c291a141).
-          REGISTRY_SHA: f58e7ae37e486876c326366668e1b2a90ce193c3
-        run: |
-          mkdir -p .build-context
-          curl -fsSL \
-            "https://raw.githubusercontent.com/SocketDev/socket-registry/${REGISTRY_SHA}/external-tools.json" \
-            -o .build-context/registry-tools.json
-          jq -e '.pnpm.version' .build-context/registry-tools.json >/dev/null
 
       - name: Compute image tag + read metadata
         id: meta
@@ -89,16 +76,21 @@ jobs:
           DATE=$(date -u +%Y-%m-%d)
           SHA8=${GH_SHA:0:8}
           NODE_VERSION=$(tr -d '[:space:]' < .node-version)
-          PNPM_VERSION=$(jq -r .pnpm.version .build-context/registry-tools.json)
-          PNPM_ASSET=$(jq -r ".pnpm.platforms[\"linux-${ASSET_KEY}\"].asset" .build-context/registry-tools.json)
-          PNPM_INTEGRITY=$(jq -r ".pnpm.platforms[\"linux-${ASSET_KEY}\"].integrity" .build-context/registry-tools.json)
-          PNPM_SHA256=$(echo "${PNPM_INTEGRITY#sha256-}" | base64 -d | od -An -tx1 | tr -d ' \n')
+          PNPM_KEY="linux-${ASSET_KEY}"
+          PNPM_VERSION=$(jq -er '.tools.pnpm.version' external-tools.json)
+          PNPM_ASSET=$(jq -er --arg key "$PNPM_KEY" '.tools.pnpm.platforms[$key].asset' external-tools.json)
+          PNPM_INTEGRITY=$(jq -er --arg key "$PNPM_KEY" '.tools.pnpm.platforms[$key].integrity' external-tools.json)
+          case "$PNPM_INTEGRITY" in
+            sha512-*) ;;
+            *) echo "pnpm integrity must use sha512 SRI" >&2; exit 1 ;;
+          esac
+          PNPM_SHA512=$(printf '%s' "${PNPM_INTEGRITY#sha512-}" | base64 -d | od -An -tx1 | tr -d ' \n')
           {
             echo "tag=${DATE}-${SHA8}"
             echo "node-version=${NODE_VERSION}"
             echo "pnpm-version=${PNPM_VERSION}"
             echo "pnpm-asset=${PNPM_ASSET}"
-            echo "pnpm-sha256=${PNPM_SHA256}"
+            echo "pnpm-sha512=${PNPM_SHA512}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Login to ghcr.io
@@ -118,7 +110,7 @@ jobs:
           NODE_VERSION: ${{ steps.meta.outputs.node-version }}
           PNPM_VERSION: ${{ steps.meta.outputs.pnpm-version }}
           PNPM_ASSET: ${{ steps.meta.outputs.pnpm-asset }}
-          PNPM_SHA256: ${{ steps.meta.outputs.pnpm-sha256 }}
+          PNPM_SHA512: ${{ steps.meta.outputs.pnpm-sha512 }}
           DRY_RUN: ${{ inputs.dry-run }}
         run: |
           # Native build (matrix runner matches the arch). No QEMU.
@@ -135,7 +127,7 @@ jobs:
             --build-arg "NODE_VERSION=${NODE_VERSION}" \
             --build-arg "PNPM_VERSION=${PNPM_VERSION}" \
             --build-arg "PNPM_ASSET=${PNPM_ASSET}" \
-            --build-arg "PNPM_SHA256=${PNPM_SHA256}" \
+            --build-arg "PNPM_SHA512=${PNPM_SHA512}" \
             --build-arg "CACHE_VERSION=${IMAGE_TAG}" \
             --provenance=false \
             ${EXTRA_FLAGS} \
@@ -148,7 +140,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-      packages: write
+      packages: write # Publish the multi-architecture GHCR manifest.
     steps:
       - name: Compute image tag
         id: tag

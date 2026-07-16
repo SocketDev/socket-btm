@@ -34,13 +34,10 @@ import { errorMessage } from 'build-infra/lib/error-utils'
 
 import type { EditablePackageJson } from '@socketsecurity/lib-stable/packages/types'
 
+import { convertToCommonJS, toInternalPath } from './sync-commonjs.mts'
 import { addPrimordialsProtection } from './sync-primordials.mts'
 
-interface ReExportEntry {
-  names: Array<{ alias: string; original: string }>
-  source: string
-  tempVar: string
-}
+export { convertToCommonJS, toInternalPath } from './sync-commonjs.mts'
 
 const logger = getDefaultLogger()
 
@@ -54,164 +51,6 @@ const VENDOR_DIR = path.resolve(
   __dirname,
   '../../additions/source-patched/deps/fast-webstreams',
 )
-
-/**
- * Convert ES module to CommonJS.
- *
- * IMPORTANT: Uses individual exports.X = X at the end to support circular
- * dependencies. In CommonJS circular deps, the key is that all exports must be
- * assigned before the module that depends on them tries to use them. For this
- * library, functions like _getDesiredSize are called at runtime (not at module
- * load time), so as long as exports are populated by the end of module
- * execution, circular deps work.
- */
-export function convertToCommonJS(content: string, _filename: string) {
-  let result = content
-
-  // Add 'use strict' at the top
-  if (!result.startsWith("'use strict'")) {
-    result = `'use strict'\n\n${result}`
-  }
-
-  // Collect exports for individual exports.X = X at the end
-  const localExports = new Set<string>()
-  // Collect re-exports that need to be spread into module.exports
-  const reExports: ReExportEntry[] = []
-
-  // Handle: export { X, Y } from './file.js' (re-exports)
-  result = result.replace(
-    /export\s*\{\s*([^}]+)\s*\}\s*from\s*['"]([^'"]+)['"]/g,
-    (_match, items: string, source: string) => {
-      const normalizedSource = source.replace(/^node:/, '')
-      const names = items.split(',').map(item => {
-        const parts = item.trim().split(/\s+as\s+/)
-        const original = (parts[0] ?? '').trim()
-        const aliasPart = parts[1]
-        const alias =
-          parts.length > 1 && aliasPart !== undefined
-            ? aliasPart.trim()
-            : original
-        return { original, alias }
-      })
-      // Generate require + re-export
-      const tempVar = `_reexport_${reExports.length}`
-      const requirePath = toInternalPath(normalizedSource)
-      reExports.push({ tempVar, source: requirePath, names })
-      return `const ${tempVar} = require('${requirePath}')`
-    },
-  )
-
-  // Convert imports to requires
-  // Handle: import { X, Y } from './file.js'
-  // Convert 'as' to ':' for CJS destructuring (e.g., { pipeline as foo } → { pipeline: foo })
-  result = result.replace(
-    /import\s*\{\s*([^}]+)\s*\}\s*from\s*['"]([^'"]+)['"]/g,
-    (_match, imports: string, source: string) => {
-      const normalizedSource = source.replace(/^node:/, '')
-      // Convert 'X as Y' to 'X: Y' for CommonJS destructuring
-      const convertedImports = imports
-        .split(',')
-        .map(item => item.trim().replace(/\s+as\s+/g, ': '))
-        .join(', ')
-      return `const { ${convertedImports} } = require('${toInternalPath(normalizedSource)}')`
-    },
-  )
-
-  // Handle: import X from './file.js'
-  result = result.replace(
-    /import\s+(\w+)\s+from\s*['"]([^'"]+)['"]/g,
-    (_match, name: string, source: string) => {
-      const normalizedSource = source.replace(/^node:/, '')
-      return `const ${name} = require('${toInternalPath(normalizedSource)}')`
-    },
-  )
-
-  // Handle: import * as X from './file.js'
-  result = result.replace(
-    /import\s*\*\s*as\s+(\w+)\s+from\s*['"]([^'"]+)['"]/g,
-    (_match, name: string, source: string) => {
-      const normalizedSource = source.replace(/^node:/, '')
-      return `const ${name} = require('${toInternalPath(normalizedSource)}')`
-    },
-  )
-
-  // Convert: export const X = ...
-  result = result.replace(
-    /export\s+const\s+(\w+)\s*=/g,
-    (_match, name: string) => {
-      localExports.add(name)
-      return `const ${name} =`
-    },
-  )
-
-  // Convert: export function X(...) {
-  result = result.replace(
-    /export\s+function\s+(\w+)\s*\(/g,
-    (_match, name: string) => {
-      localExports.add(name)
-      return `function ${name}(`
-    },
-  )
-
-  // Convert: export async function X(...) {
-  result = result.replace(
-    /export\s+async\s+function\s+(\w+)\s*\(/g,
-    (_match, name: string) => {
-      localExports.add(name)
-      return `async function ${name}(`
-    },
-  )
-
-  // Convert: export class X {
-  result = result.replace(/export\s+class\s+(\w+)/g, (_match, name: string) => {
-    localExports.add(name)
-    return `class ${name}`
-  })
-
-  // Handle: export { X, Y } (local exports without from)
-  result = result.replace(
-    /export\s*\{\s*([^}]+)\s*\}(?!\s*from)/g,
-    (_match, items: string) => {
-      // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
-      for (const item of items.split(',')) {
-        const name = item
-          .trim()
-          .split(/\s+as\s+/)[0]
-          ?.trim()
-        if (name) {
-          localExports.add(name)
-        }
-      }
-      return '' // Remove the export statement
-    },
-  )
-
-  // Build individual exports at the end
-  // This works for circular deps because the exports are populated by module end,
-  // and the dependent module accesses them at function call time (not module load time)
-  const exportLines: string[] = []
-
-  // Add re-exports
-  // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
-  for (const { names, tempVar } of reExports) {
-    // oxlint-disable-next-line socket/prefer-cached-for-loop -- loop variable is destructured
-    for (const { alias, original } of names) {
-      exportLines.push(`exports.${alias} = ${tempVar}.${original};`)
-    }
-  }
-
-  // Add local exports
-  // oxlint-disable-next-line socket/prefer-cached-for-loop -- iterable is not a bare identifier (could be Map/Set/Generator/expression)
-  for (const name of Array.from(localExports).toSorted()) {
-    exportLines.push(`exports.${name} = ${name};`)
-  }
-
-  if (exportLines.length > 0) {
-    result += `\n\n${exportLines.join('\n')}\n`
-  }
-
-  return result
-}
 
 /**
  * Fix circular dependency in patch.js
@@ -353,28 +192,6 @@ export async function processSourceFiles() {
   )
 
   return files.length
-}
-
-/**
- * Convert relative paths to absolute internal paths Node.js internal module
- * system doesn't resolve relative paths like regular Node.js It prepends
- * 'internal/deps/' to the path, so './file' becomes 'internal/deps/./file' We
- * need to convert './file' to 'internal/deps/fast-webstreams/file' (absolute
- * internal path) Also strips .js extension since js2c strips it from module
- * names.
- */
-export function toInternalPath(source: string) {
-  // Convert relative paths to absolute internal paths
-  if (source.startsWith('./')) {
-    const basename = source.slice(2).replace(/\.js$/, '')
-    return `internal/deps/fast-webstreams/${basename}`
-  }
-  if (source.startsWith('../')) {
-    // Parent paths shouldn't occur within fast-webstreams, but handle gracefully
-    const basename = source.replace(/^\.\.\//, '').replace(/\.js$/, '')
-    return `internal/deps/${basename}`
-  }
-  return source
 }
 
 /**

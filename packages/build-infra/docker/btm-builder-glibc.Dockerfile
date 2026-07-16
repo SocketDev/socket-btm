@@ -17,7 +17,7 @@ FROM almalinux:8 AS build
 ARG CACHE_VERSION=unset
 ARG NODE_VERSION
 ARG PNPM_ASSET
-ARG PNPM_SHA256
+ARG PNPM_SHA512
 ARG PNPM_VERSION
 
 # Bash for `.` source + heredocs etc. Downstream RUN steps inherit /bin/sh
@@ -128,7 +128,7 @@ RUN set -euo pipefail && \
     curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${ARCH}.tar.xz" \
       | tar -xJ -C /usr/local --strip-components=1 && \
     curl -fsSL -o /tmp/pnpm.tar.gz "https://github.com/pnpm/pnpm/releases/download/v${PNPM_VERSION}/${PNPM_ASSET}" && \
-    echo "${PNPM_SHA256}  /tmp/pnpm.tar.gz" | sha256sum -c - && \
+    echo "${PNPM_SHA512}  /tmp/pnpm.tar.gz" | sha512sum -c - && \
     tar -xzf /tmp/pnpm.tar.gz -C /usr/local/bin && \
     rm /tmp/pnpm.tar.gz
     # DO NOT strip /usr/local/bin/{node,pnpm} — both are SEA bundles

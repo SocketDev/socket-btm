@@ -21,10 +21,7 @@ const repoRoot = path.resolve(
 
 const packageRoots = new Map([
   ['@node-smol/ai', path.join(repoRoot, 'packages', 'npm', '@node-smol', 'ai')],
-  [
-    'language-model-infra',
-    path.join(repoRoot, 'packages', 'language-model-infra'),
-  ],
+  ['ai-infra', path.join(repoRoot, 'packages', 'ai-infra')],
   ['smol-ai-builder', path.join(repoRoot, 'packages', 'smol-ai-builder')],
 ])
 

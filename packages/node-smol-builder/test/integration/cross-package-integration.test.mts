@@ -17,56 +17,25 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import process from 'node:process'
 
 import { makeExecutable } from 'build-infra/lib/build-helpers'
-import { getBuildMode } from 'build-infra/lib/constants'
-import { getCurrentPlatformArch } from 'build-infra/lib/platform-mappings'
 
 import { safeDelete, safeMkdir } from '@socketsecurity/lib-stable/fs/safe'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { getSocketDlxDir } from '@socketsecurity/lib-stable/paths/socket'
-import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
-
-import type { SpawnOptions } from '@socketsecurity/lib-stable/process/spawn/types'
 
 import { getLatestFinalBinary } from '../paths.mts'
-import { REPO_ROOT } from '../../scripts/paths.mts'
+import {
+  execCommand,
+  getBinaryPath,
+} from './cross-package-integration-helpers.mts'
+
+export {
+  execCommand,
+  getBinaryPath,
+} from './cross-package-integration-helpers.mts'
 
 const logger = getDefaultLogger()
-
-// Package binaries
-const BUILD_MODE = getBuildMode()
-
-export async function getBinaryPath(packageName: string, binaryName: string) {
-  const ext = process.platform === 'win32' ? '.exe' : ''
-  const platformArch = await getCurrentPlatformArch()
-  // Try platform-arch path first (includes -musl suffix on Alpine), then legacy path without it.
-  const withPlatform = path.join(
-    REPO_ROOT,
-    'packages',
-    packageName,
-    'build',
-    BUILD_MODE,
-    platformArch,
-    'out',
-    'Final',
-    binaryName + ext,
-  )
-  if (existsSync(withPlatform)) {
-    return withPlatform
-  }
-  return path.join(
-    REPO_ROOT,
-    'packages',
-    packageName,
-    'build',
-    BUILD_MODE,
-    'out',
-    'Final',
-    binaryName + ext,
-  )
-}
 
 const NODE_BINARY = getLatestFinalBinary() ?? ''
 
@@ -74,26 +43,6 @@ let testDir: string
 let allBinariesExist = false
 let BINPRESS: string
 let BINJECT: string
-
-/**
- * Execute command.
- */
-// oxlint-disable-next-line socket/sort-source-methods -- test helpers are ordered by the cross-package flow they exercise; alphabetizing would scatter them across the file.
-export async function execCommand(
-  command: string,
-  args: string[] = [],
-  options: SpawnOptions = {},
-) {
-  const result = await spawn(command, args, {
-    ...options,
-    stdio: 'pipe',
-  })
-  return {
-    code: result.code ?? 0,
-    stderr: result.stderr?.toString() ?? '',
-    stdout: result.stdout?.toString() ?? '',
-  }
-}
 
 beforeAll(async () => {
   BINPRESS = await getBinaryPath('binpress', 'binpress')

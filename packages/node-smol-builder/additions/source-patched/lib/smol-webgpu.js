@@ -1,6 +1,6 @@
 'use strict'
 
-// node:smol-webgpu — WebGPU (W3C draft) for socket-built node. STUB.
+// node:smol-webgpu — WebGPU (W3C draft) for socket-built node.
 //
 // The C++ binding currently throws on every entry except isAvailable().
 // Use `isAvailable()` to detect whether the underlying Dawn integration

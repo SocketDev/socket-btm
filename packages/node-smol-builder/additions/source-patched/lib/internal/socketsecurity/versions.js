@@ -132,21 +132,38 @@ const NUMERIC_IDENTIFIER = hardenRegExp(/^[0-9]+$/)
 
 // Hoisted regexes for Maven/PyPI/range parsing (avoids inline regex in hot paths)
 const MAVEN_SPLIT_REGEX = hardenRegExp(/[.\-]/)
+// Match a Maven qualifier like `alpha1`: `^([a-z]+)` a leading run of letters
+// (group 1, the qualifier name), `(\d+)$` a trailing run of digits to end
+// (group 2, the qualifier number). Whole string must be name-then-number.
 const MAVEN_QUALIFIER_REGEX = hardenRegExp(/^([a-z]+)(\d+)$/)
 const PYPI_RELEASE_SPLIT_REGEX = hardenRegExp(/[._-]/)
+// Match a PyPI version that starts with digits then a pre/post/dev word:
+// `^(\d+)` leading digits (group 1), then group 2 one of the tokens
+// (a/alpha/b/beta/c/rc/pre/preview/post/rev/r/dev); `i` flag = case-insensitive.
 const PYPI_NUM_PREFIX_REGEX = hardenRegExp(
   /^(\d+)(a|alpha|b|beta|c|rc|pre|preview|post|rev|r|dev)/i,
 )
+// Match a PyPI prerelease at the start: group 1 one of a/alpha/b/beta/c/rc/pre/
+// preview, `\.?` an optional dot separator, `(\d+)?` an optional number (group 2).
 const PYPI_PRE_REGEX = hardenRegExp(
   /^(a|alpha|b|beta|c|rc|pre|preview)\.?(\d+)?/,
 )
+// Match a PyPI post-release: `(?:^|[._-])` start or a `.`/`_`/`-` separator,
+// group 1 one of post/rev/r, `\.?` optional dot, `(\d+)?` optional number (group 2).
 const PYPI_POST_REGEX = hardenRegExp(/(?:^|[._-])(post|rev|r)\.?(\d+)?/)
+// Match a PyPI dev-release: `(?:^|[._-])` start or a `.`/`_`/`-` separator, the
+// literal `dev`, `\.?` optional dot, `(\d+)?` optional number (group 1).
 const PYPI_DEV_REGEX = hardenRegExp(/(?:^|[._-])dev\.?(\d+)?/)
 const GEM_DIGIT_SPLIT_REGEX = hardenRegExp(/(\d+)/)
 const RANGE_STARTS_WITH_DIGIT_REGEX = hardenRegExp(/^\d/)
+// Split a comparator into operator + version: group 1 one of `>=`/`<=`/`>`/`<`/`=`
+// anchored at start, `\s*` optional spaces, `(.+)$` the rest as the version (group 2).
 const RANGE_OPERATOR_REGEX = hardenRegExp(/^(>=|<=|>|<|=)\s*(.+)$/)
 const RANGE_CARET_REGEX = hardenRegExp(/^\^(.+)$/)
 const RANGE_TILDE_REGEX = hardenRegExp(/^~(.+)$/)
+// Match a wildcard range like `1.x` or `1.2.*`: `^(\d+)` major digits (group 1),
+// then two optional `.`-prefixed segments each a number or a wildcard `x`/`X`/`*`
+// (groups 2 and 3 = minor and patch), anchored to end with `$`.
 const RANGE_WILDCARD_REGEX = hardenRegExp(
   /^(\d+)(?:\.(\d+|x|X|\*))?(?:\.(\d+|x|X|\*))?$/,
 )
@@ -159,6 +176,9 @@ const RANGE_AND_SPLIT_REGEX = hardenRegExp(/\s+/)
 // undefined (empty operand), and satisfies returns false for every
 // version. npm semver accepts the space form; so must we.
 const RANGE_OPERATOR_SPACE_REGEX = hardenRegExp(/(>=?|<=?|\^|~|=)\s+/g)
+// Coerce the first version-like run anywhere in a string: `(\d+)` a run of
+// digits (group 1 = major), then two optional `.`-prefixed digit runs
+// (groups 2 and 3 = minor and patch). Unanchored, so it grabs the first match.
 const COERCE_VERSION_REGEX = hardenRegExp(/(\d+)(?:\.(\d+))?(?:\.(\d+))?/)
 
 // Parse prerelease identifiers

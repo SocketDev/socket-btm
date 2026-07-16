@@ -549,7 +549,7 @@ const copyProps = (src, dest) => {
  */
 const makeSafe = (unsafe, safe) => {
   if (SymbolIterator in unsafe.prototype) {
-    const dummy = new unsafe();
+    const sample = new unsafe();
     let next; // We can reuse the same `next` method.
 
     ArrayPrototypeForEach(ReflectOwnKeys(unsafe.prototype), (key) => {
@@ -558,10 +558,10 @@ const makeSafe = (unsafe, safe) => {
         if (
           typeof desc.value === 'function' &&
           desc.value.length === 0 &&
-          SymbolIterator in (FunctionPrototypeCall(desc.value, dummy) ?? {})
+          SymbolIterator in (FunctionPrototypeCall(desc.value, sample) ?? {})
         ) {
           const createIterator = uncurryThis(desc.value);
-          next ??= uncurryThis(createIterator(dummy).next);
+          next ??= uncurryThis(createIterator(sample).next);
           const SafeIterator = createSafeIterator(createIterator, next);
           desc.value = function() {
             return new SafeIterator(this);

@@ -484,7 +484,7 @@ const smolHandlers = {
     try {
       const result = smolHandlers.readFileSync(path, options)
       if (result !== undefined) {
-        ProcessNextTick(callback, null, result)
+        ProcessNextTick(callback, undefined, result)
         return true // Handled
       }
     } catch (err) {
@@ -502,7 +502,7 @@ const smolHandlers = {
     try {
       const result = smolHandlers.statSync(path, options)
       if (result !== undefined) {
-        ProcessNextTick(callback, null, result)
+        ProcessNextTick(callback, undefined, result)
         return true
       }
     } catch (err) {
@@ -520,7 +520,7 @@ const smolHandlers = {
     try {
       const result = smolHandlers.lstatSync(path, options)
       if (result !== undefined) {
-        ProcessNextTick(callback, null, result)
+        ProcessNextTick(callback, undefined, result)
         return true
       }
     } catch (err) {
@@ -538,7 +538,7 @@ const smolHandlers = {
     try {
       const result = smolHandlers.readdirSync(path, options)
       if (result !== undefined) {
-        ProcessNextTick(callback, null, result)
+        ProcessNextTick(callback, undefined, result)
         return true
       }
     } catch (err) {
@@ -556,7 +556,7 @@ const smolHandlers = {
     try {
       const result = smolHandlers.realpathSync(path, options)
       if (result !== undefined) {
-        ProcessNextTick(callback, null, result)
+        ProcessNextTick(callback, undefined, result)
         return true
       }
     } catch (err) {
@@ -574,7 +574,7 @@ const smolHandlers = {
     try {
       const result = smolHandlers.accessSync(path, mode)
       if (result !== undefined) {
-        ProcessNextTick(callback, null)
+        ProcessNextTick(callback, undefined)
         return true
       }
     } catch (err) {
@@ -601,7 +601,7 @@ const smolHandlers = {
     try {
       const result = smolHandlers.readlinkSync(path, options)
       if (result !== undefined) {
-        ProcessNextTick(callback, null, result)
+        ProcessNextTick(callback, undefined, result)
         return true
       }
     } catch (err) {

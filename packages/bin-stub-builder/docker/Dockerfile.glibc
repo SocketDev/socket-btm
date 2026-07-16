@@ -1,0 +1,59 @@
+# Build SMOL stubs in container to offload compute from GitHub Actions.
+# Consumes the fleet-shared btm-builder-glibc prebake.
+
+ARG BTM_BUILDER_TAG
+
+FROM ghcr.io/socketdev/btm-builder-glibc:${BTM_BUILDER_TAG} AS build
+
+# Build static OpenSSL (the prebake ships openssl-devel for dynamic linking;
+# stubs' static binary needs libcrypto.a from source).
+COPY .github/scripts/build-static-openssl.sh .github/scripts/
+RUN source /opt/rh/gcc-toolset-13/enable && .github/scripts/build-static-openssl.sh
+
+WORKDIR /workspace
+
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .gitmodules .node-version ./
+COPY packages/bin-infra ./packages/bin-infra
+COPY packages/build-infra ./packages/build-infra
+COPY packages/curl-builder ./packages/curl-builder
+COPY packages/lief-builder/make ./packages/lief-builder/make
+COPY packages/lief-builder/upstream ./packages/lief-builder/upstream
+COPY packages/node-smol-builder ./packages/node-smol-builder
+COPY packages/bin-stub-builder ./packages/bin-stub-builder
+COPY .github/scripts/ensure-zstd.sh .github/scripts/
+RUN .github/scripts/ensure-zstd.sh
+
+ENV CI=true
+RUN pnpm install --frozen-lockfile --filter build-infra --filter bin-infra --filter curl-builder --filter bin-stub-builder --filter node-smol-builder
+
+ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64
+ARG TARGETARCH
+ARG CACHE_VERSION=unset
+ENV BUILD_MODE=$BUILD_MODE
+ENV PLATFORM_ARCH=$PLATFORM_ARCH
+
+# Build stubs. Create symlink with TARGETARCH name for Docker COPY compatibility.
+# `CC="ccache gcc"` + `--mount=type=cache,target=/root/.ccache` routes
+# every compile through ccache, persisted across builds.
+ENV CCACHE_DIR=/root/.ccache
+ENV CC="ccache gcc"
+ENV CXX="ccache g++"
+RUN --mount=type=cache,target=/root/.ccache \
+    echo "Cache version: ${CACHE_VERSION}" && \
+    source /opt/rh/gcc-toolset-13/enable && \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        export TARGET_ARCH="x64"; \
+        export PLATFORM_ARCH="linux-x64"; \
+    else \
+        export TARGET_ARCH="arm64"; \
+        export PLATFORM_ARCH="linux-arm64"; \
+    fi && \
+    cd packages/bin-infra && \
+    node lib/build-stubs.mts && \
+    ln -s "${PLATFORM_ARCH}" "/workspace/packages/bin-stub-builder/build/${BUILD_MODE}/linux-${TARGETARCH}"
+
+FROM scratch AS export
+ARG BUILD_MODE=prod
+ARG TARGETARCH
+COPY --from=build /workspace/packages/bin-stub-builder/build/${BUILD_MODE}/linux-${TARGETARCH}/out/Final /

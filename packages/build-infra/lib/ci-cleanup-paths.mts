@@ -1,0 +1,125 @@
+import path from 'node:path'
+import process from 'node:process'
+
+/**
+ * CI Disk Cleanup Paths.
+ *
+ * Defines paths to clean up on CI runners to free disk space.
+ * These paths contain pre-installed tools that are not needed for our builds.
+ *
+ * Organized by platform with descriptions and approximate sizes.
+ */
+
+/**
+ * A single CI-runner cleanup target.
+ */
+export interface CleanupTask {
+  /**
+   * Human-readable description with size estimate.
+   */
+  desc: string
+  /**
+   * Absolute path to remove.
+   */
+  path: string
+}
+
+/**
+ * Linux CI runner cleanup paths (~10GB total).
+ *
+ * @type {CleanupTask[]}
+ */
+export const LINUX_CLEANUP_PATHS: CleanupTask[] = [
+  { desc: '.NET SDK (~3GB)', path: '/usr/share/dotnet' },
+  { desc: 'Android SDK (~4GB)', path: '/usr/local/lib/android' },
+  { desc: 'Haskell GHC (~1GB)', path: '/opt/ghc' },
+  { desc: 'CodeQL (~2GB)', path: '/opt/hostedtoolcache/CodeQL' },
+  { desc: 'Boost (~1GB)', path: '/usr/local/share/boost' },
+]
+
+/**
+ * MacOS CI runner cleanup paths (~20GB total).
+ * Note: HOME-relative paths are resolved at runtime.
+ *
+ * @type {CleanupTask[]}
+ */
+export const MACOS_CLEANUP_PATHS: CleanupTask[] = [
+  // HOME-relative path handled separately in cleanup function
+  { desc: '.NET SDK (~2GB)', path: '/usr/local/share/dotnet' },
+  {
+    desc: 'iOS Simulators (~5GB)',
+    path: '/Library/Developer/CoreSimulator/Profiles/Runtimes',
+  },
+  { desc: 'Boost (~1GB)', path: '/usr/local/share/boost' },
+  { desc: 'CodeQL (~2GB)', path: '/opt/hostedtoolcache/CodeQL' },
+]
+
+/**
+ * MacOS Android SDK path (HOME-relative).
+ * Resolved at runtime with user's HOME directory.
+ */
+export const MACOS_ANDROID_SDK_SUBPATH = 'Library/Android/sdk'
+
+/**
+ * Windows CI runner cleanup paths (~15GB total).
+ *
+ * @type {CleanupTask[]}
+ */
+export const WINDOWS_CLEANUP_PATHS: CleanupTask[] = [
+  { desc: 'Android SDK (~10GB)', path: 'C:\\Android' },
+  { desc: '.NET SDK (~2GB)', path: 'C:\\Program Files\\dotnet' },
+  { desc: 'CodeQL (~2GB)', path: 'C:\\hostedtoolcache\\windows\\CodeQL' },
+  { desc: 'Chocolatey cache (~1GB)', path: 'C:\\ProgramData\\chocolatey' },
+]
+
+/**
+ * Get cleanup paths for the specified platform.
+ *
+ * @param {'linux' | 'darwin' | 'win32'} platform - Target platform.
+ * @param {string} [homeDir] - Home directory for macOS (defaults to
+ *   process.env.HOME)
+ *
+ * @returns {CleanupTask[]} Array of cleanup tasks
+ */
+export function getCleanupPaths(
+  platform: NodeJS.Platform | 'darwin' | 'linux' | 'win32',
+  homeDir?: string | undefined,
+): CleanupTask[] {
+  switch (platform) {
+    case 'linux': {
+      return LINUX_CLEANUP_PATHS
+    }
+
+    case 'darwin': {
+      // Fail loud if no home directory is available. A prior
+      // '/Users/runner' fallback worked on GitHub-hosted runners but
+      // silently produced bogus cleanup paths on self-hosted runners,
+      // developer laptops, and non-Mac CI runs — the cleanup step
+      // would `rm -rf` against non-existent paths (or worse, a
+      // coincidentally-existing one).
+      const home = homeDir || process.env['HOME']
+      if (!home) {
+        throw new Error(
+          'getCleanupPaths: homeDir argument or $HOME env var ' +
+            'required for darwin cleanup (refusing to fall back to ' +
+            "'/Users/runner' — that path is GHA-runner-specific).",
+        )
+      }
+      return [
+        {
+          desc: 'Android SDK (~10GB)',
+          path: path.join(home, MACOS_ANDROID_SDK_SUBPATH),
+        },
+        ...MACOS_CLEANUP_PATHS,
+      ]
+    }
+
+    case 'win32': {
+      return WINDOWS_CLEANUP_PATHS
+    }
+
+    default: {
+      return []
+    }
+  }
+}

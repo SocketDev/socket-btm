@@ -1,0 +1,379 @@
+# ==============================================================================
+# Build Artifacts
+# ==============================================================================
+
+# All build artifacts are gitignored but used differently:
+#
+# - build/dev/                : Dev build workspace (isolated for concurrent builds)
+#   - build/dev/node-source/  : Dev Node.js source code
+#   - build/dev/out/          : Dev build outputs (Release, Stripped, Compressed, Final)
+#   - build/dev/cache/        : Dev compiled binary cache + cache-validation.hash
+#   - build/dev/build-checkpoint : Dev build resume checkpoint
+#
+# - build/prod/               : Prod build workspace (isolated for concurrent builds)
+#   - build/prod/node-source/ : Prod Node.js source code
+#   - build/prod/out/         : Prod build outputs (Release, Stripped, Compressed, Final)
+#   - build/prod/cache/       : Prod compiled binary cache + cache-validation.hash
+#   - build/prod/build-checkpoint : Prod build resume checkpoint
+#
+# - build/.release-temp/      : Temporary release packaging directory
+#                               (gitignored, created during release)
+#
+# CI Workflow:
+#   1. Build jobs: Upload build/{dev,prod}/out/Final/node as GitHub Actions artifacts
+#   2. Release job: Download artifacts to build/{dev,prod}/cache/node-{platform}-{arch}
+#   3. Release job: Run scripts/release.mjs to package and publish
+#
+# Local Workflow:
+#   1. First build: Compile and cache to build/{dev,prod}/cache/node-{platform}-{arch}
+#   2. Subsequent builds: Restore from cache if source unchanged
+#   3. Concurrent builds: Dev and prod builds fully isolated in separate directories
+#
+**/build/
+
+# Distribution binaries (E2E test artifacts, regenerated on each build)
+**/dist/
+
+# Rust build artifacts
+**/target/
+**/Cargo.lock
+
+# Non-pnpm lockfiles — this is a pnpm workspace; the root pnpm-lock.yaml
+# is the only lockfile that should be tracked.
+**/package-lock.json
+**/yarn.lock
+
+# Zig build artifacts
+**/.zig-cache/
+
+# Docker build output (from Dockerfile.local-dev)
+build-output/
+
+# Profiling artifacts (performance testing)
+profiling/
+
+# External source copies (build-time generated from monorepo packages).
+packages/node-smol-builder/additions/source-patched/src/socketsecurity/bin-infra/
+packages/node-smol-builder/additions/source-patched/src/socketsecurity/binject/
+packages/node-smol-builder/additions/source-patched/src/socketsecurity/build-infra/
+packages/node-smol-builder/additions/source-patched/src/socketsecurity/temporal/
+packages/node-smol-builder/additions/source-patched/include/temporal_rs/
+
+# Vendored npm packages (sync-time generated from node_modules).
+packages/node-smol-builder/additions/source-patched/deps/fast-webstreams/
+
+# WPT streams tests — managed as a sparse-checkout submodule at
+# packages/node-smol-builder/test/fixtures/wpt/streams.
+# scripts/git-partial-submodule.mts reads sparse-checkout = streams/
+# from .gitmodules. The streams/ working tree is tracked through the
+# submodule machinery, not ignored.
+packages/node-smol-builder/additions/source-patched/deps/lzfse/src/
+packages/node-smol-builder/additions/source-patched/deps/libdeflate/*
+!packages/node-smol-builder/additions/source-patched/deps/libdeflate/libdeflate.gyp
+# QUIC + HTTP/3 + layout source copied from lsquic-infra / yoga-layout-builder
+# upstream at build time, plus the auto-generated *.gypi source manifests
+# prepare-external-sources.mts emits next to them (one per vendored dep).
+packages/node-smol-builder/additions/source-patched/deps/lsquic/
+packages/node-smol-builder/additions/source-patched/deps/ls-qpack/
+packages/node-smol-builder/additions/source-patched/deps/yoga/
+packages/node-smol-builder/additions/source-patched/deps/lsquic.gypi
+packages/node-smol-builder/additions/source-patched/deps/ls-qpack.gypi
+packages/node-smol-builder/additions/source-patched/deps/lshpack.gypi
+packages/node-smol-builder/additions/source-patched/deps/yoga.gypi
+# CMake-built pinned llama.cpp archives. The tracked smol-ai.gyp wrapper links
+# these build outputs, but the archives themselves are rebuilt per target.
+packages/node-smol-builder/additions/source-patched/deps/smol-ai/lib/
+# Release staging copies verified native addons into their platform packages.
+# They exist only long enough to pack and are never source-controlled.
+packages/npm/@node-smol/ai.node-*/smol_ai.node
+# Models are acquired into a per-user content-addressed cache, never the repo.
+*.gguf
+
+# Firewall test/debug Dockerfiles and scripts
+Dockerfile.firewall-*-test
+test-firewall-*.sh
+
+# ==============================================================================
+# Dependencies
+# ==============================================================================
+
+**/node_modules/
+
+# ==============================================================================
+# Caches
+# ==============================================================================
+
+# Defensive — Node compile-cache, corepack, and other tools occasionally
+# drop scratch dirs into a project-local .cache/. Nothing in this repo
+# writes there intentionally; node_modules/.cache/ is the canonical home.
+**/.cache/
+
+# ==============================================================================
+# Logs
+# ==============================================================================
+
+**/*.log
+
+# ==============================================================================
+# Generated Files
+# ==============================================================================
+
+
+# ==============================================================================
+# Platform-Specific
+# ==============================================================================
+
+# macOS
+**/.DS_Store
+**/.AppleDouble
+**/.LSOverride
+
+# Windows
+**/Thumbs.db
+**/ehthumbs.db
+**/Desktop.ini
+
+# Linux
+**/.directory
+
+# ==============================================================================
+# Editor Files
+# ==============================================================================
+
+# Vim
+**/*.swp
+**/*.swo
+**/*~
+
+# VSCode
+**/.vscode/
+**/*.code-workspace
+
+# IntelliJ IDEA
+**/.idea/
+**/*.iml
+
+# Emacs
+# (**/*~ already covered above under Vim; keeping only Emacs-specific here)
+**/\#*\#
+**/.\#*
+
+# ==============================================================================
+# Environment
+# ==============================================================================
+
+**/.env
+**/.env.local
+**/.env.*.local
+
+# ==============================================================================
+# Python
+# ==============================================================================
+
+# Byte-compiled / optimized / DLL files
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/*.so
+
+# Distribution / packaging
+# (**/dist/ and **/build/ already covered under Build Artifacts at top)
+**/*.egg-info/
+
+# Virtual environments
+**/.venv/
+**/venv/
+**/ENV/
+**/env/
+
+# Testing and linting
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.coverage
+**/coverage/
+**/.tox/
+**/*.gcov
+**/*.gcda
+**/*.gcno
+
+# ==============================================================================
+# Temporary Files
+# ==============================================================================
+
+**/tmp/
+**/temp/
+**/*.tmp
+**/*.backup*
+
+# Quality-scan / audit output (timestamped reports written by skills).
+/reports/
+
+# Patch backup directories (created by regenerating-node-patches skill)
+**/patches/source-patched.backup-*/
+
+# Claude Code directory (except skills and commands)
+/.claude/*
+!/.claude/agents/
+!/.claude/commands/
+!/.claude/ops/
+!/.claude/rules/
+!/.claude/skills/
+!/.claude/hooks/
+!/.claude/settings.json
+
+# Archive directories
+**/docs/archive/
+
+# ==============================================================================
+# Upstream Source Code
+# ==============================================================================
+
+# Git submodule checkouts for third-party library sources
+**/upstream/
+
+# ==============================================================================
+# Build / Compiler Caches
+# ==============================================================================
+
+.ccache/
+
+# Ephemeral Docker build context staging. Workflows `cp` the
+# socket-registry tool-checksums file here before `depot buildx build`
+# so Dockerfiles can resolve pnpm via `COPY .build-context/...`. Never
+# committed.
+.build-context/
+
+# ==============================================================================
+# Guarded File Names (intentionally never committed)
+# ==============================================================================
+
+# Guard against accidentally committing a top-level ARCHITECTURE.md.
+# Project architecture docs live under docs/ (see feedback_docs_placement).
+ARCHITECTURE.md
+
+# ─── BEGIN fleet-canonical (managed by socket-wheelhouse sync) ──
+# Managed by socket-wheelhouse. Don't edit locally — edit upstream
+# in scripts/sync-scaffolding/checks/gitignore-fleet-block.mts and
+# re-cascade via `pnpm run sync`. Project-specific ignores stay
+# OUTSIDE this block; the fixer preserves them.
+# Per-machine Claude Code permission config + log dirs stay ignored;
+# the cascaded subdirs (agents, commands, hooks, settings.json, skills,
+# workflows) are explicitly re-included so the wheelhouse cascade can
+# ship them.
+/.claude/*
+!/.claude/agents/
+!/.claude/commands/
+!/.claude/hooks/
+!/.claude/settings.json
+!/.claude/skills/
+!/.claude/workflows/
+
+# OS noise
+.DS_Store
+._.DS_Store
+Thumbs.db
+
+# Build outputs — universal across the fleet. Project-specific
+# variants (e.g. a non-standard dist path) go OUTSIDE this block.
+**/build/
+**/coverage/
+**/dist/
+**/.cache/
+
+# Node
+node_modules/
+npm-debug.log
+pnpm-debug.log
+*.tgz
+# ─── END fleet-canonical ────────────────────────────────────────
+
+# <fleet-canonical>
+# Managed by socket-wheelhouse. Don't edit locally — edit upstream
+# in scripts/sync-scaffolding/checks/gitignore-fleet-block.mts and
+# re-cascade via `pnpm run sync`. Project-specific ignores stay
+# OUTSIDE this block; the fixer preserves them.
+# Per-machine Claude Code permission config + log dirs stay ignored;
+# the cascaded subdirs (agents, commands, hooks, settings.json, skills,
+# workflows) are explicitly re-included so the wheelhouse cascade can
+# ship them.
+/.claude/*
+!/.claude/agents/
+!/.claude/commands/
+!/.claude/hooks/
+!/.claude/rules/
+!/.claude/settings.json
+!/.claude/skills/
+!/.claude/workflows/
+# Release-only generated hook bundles (multi-MB rolldown output): shipped via
+# the GitHub-release bundle + rebuilt by `setup:3-hook-snapshot`, NEVER
+# committed to the cascade. Re-ignored even though /.claude/hooks/ is
+# re-included above. Unanchored (**/) so the wheelhouse template/base/ mirror
+# copies are ignored too, not just the repo-root live copy. Keep in lock-step
+# with RELEASE_ONLY_DIR_MIRROR_FILES (scripts/repo/sync-scaffolding/
+# dir-mirror-skip.mts). See docs/agents.md/fleet/release-vs-cascade.md.
+**/.claude/hooks/fleet/_dispatch/bundle.cjs
+**/.claude/hooks/fleet/_dispatch/excluded-bundle.cjs
+**/.claude/hooks/fleet/_dispatch/snapshot-bundle.cjs
+
+# Derived cross-harness rule adapters — generated per-repo, per-platform by
+# the multi-agent scaffolding (setup / init / sync) script from .claude/skills/
+# and CLAUDE.md, never committed. A tracked symlink checks out as a plain
+# pointer file on Windows, so each host gets a real symlink generated on its
+# own OS. Tracking them only produces churn + merge conflicts. Keep in sync
+# with ADAPTERS in scripts/fleet/gen-harness-adapters.mts + the .agents/ mirror.
+# Host dirs we own entirely are ignored wholesale; .github/ holds tracked
+# fleet files, so only its generated adapter file is named.
+/.agents/
+/.clinerules/
+/.cursor/
+/.github/copilot-instructions.md
+/.janus/
+/.kiro/
+/.windsurf/
+/AGENTS.md
+
+# VS Code: ignore the dir contents so a hidden tasks.json with a `folderOpen`
+# auto-run (a known npm supply-chain vector — runs on folder open, zero clicks)
+# cannot be committed. Re-include only the benign shared settings.json. Use the
+# `/.vscode/*` contents form (NOT `.vscode/`) so the re-include can take effect.
+# vscode-folder-open-task-guard backstops any explicitly-added auto-run task.
+/.vscode/*
+!/.vscode/settings.json
+
+# OS noise
+.DS_Store
+._.DS_Store
+Thumbs.db
+
+# Build outputs — universal across the fleet. Project-specific
+# variants (e.g. a non-standard dist path) go OUTSIDE this block.
+# The build/test-output + vendored-tree entries below are kept in
+# lock-step with GENERATED_GLOBS (scripts/fleet/constants/
+# generated-globs.mts) by generated-globs-are-consistent.mts.
+**/build/
+**/coverage/
+**/coverage-children/
+**/coverage-isolated/
+**/dist/
+**/out/
+**/.cache/
+**/.repo-map/
+
+# Vendored / upstream trees + conformance fixtures — untracked-by-default
+# (docs/agents.md/fleet/untracked-by-default.md): someone else's source or
+# synced corpora, restored by the owning sync/build step, never hand-edited.
+# A repo that must track a hand-written file inside one re-includes it
+# OUTSIDE this block (!<dir>/ then <dir>/* then !<dir>/<file>).
+**/external/
+**/test/fixtures/
+**/third_party/
+**/upstream/
+**/vendor/
+
+# Node
+node_modules/
+npm-debug.log
+pnpm-debug.log
+*.tgz
+# </fleet-canonical>

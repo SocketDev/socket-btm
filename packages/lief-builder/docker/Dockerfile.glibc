@@ -1,0 +1,47 @@
+# Build LIEF library in container to offload compute from GitHub Actions.
+# Consumes the fleet-shared btm-builder-glibc prebake (includes python3.11,
+# cmake, ninja, gcc-toolset-13 — everything LIEF needs).
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+ARG BTM_BUILDER_TAG
+
+FROM ghcr.io/socketdev/btm-builder-glibc:${BTM_BUILDER_TAG} AS build
+
+WORKDIR /workspace
+
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .gitmodules .node-version ./
+COPY packages/build-infra ./packages/build-infra
+COPY packages/lief-builder ./packages/lief-builder
+
+ENV CI=true
+RUN pnpm install --frozen-lockfile --filter build-infra --filter lief-builder
+
+ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64
+ARG TARGETARCH
+ARG CACHE_VERSION=unset
+ENV BUILD_MODE=$BUILD_MODE
+ENV PLATFORM_ARCH=$PLATFORM_ARCH
+
+# For amd64 builds, add -march=x86-64 -mtune=generic to ensure binary portability
+# across CPU generations (GitHub Actions runners without AVX/AVX2).
+#
+# `--mount=type=cache,target=/root/.ccache` persists ccache across builds
+# at the BuildKit layer. lief-builder/scripts/build.mts passes
+# -DCMAKE_C_COMPILER_LAUNCHER=ccache so every compile unit hits ccache.
+# Re-runs after source edits skip unchanged TUs entirely (~5-10x
+# speedup on incremental builds).
+ENV CCACHE_DIR=/root/.ccache
+RUN --mount=type=cache,target=/root/.ccache \
+    echo "Cache version: ${CACHE_VERSION}" && \
+    source /opt/rh/gcc-toolset-13/enable && \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        export CFLAGS="$CFLAGS -march=x86-64 -mtune=generic" && \
+        export CXXFLAGS="$CXXFLAGS -march=x86-64 -mtune=generic"; \
+    fi && \
+    cd packages/lief-builder && pnpm run build
+
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=build /workspace/packages/lief-builder/build /

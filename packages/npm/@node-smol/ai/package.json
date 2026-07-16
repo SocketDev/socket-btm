@@ -1,0 +1,48 @@
+{
+  "name": "@node-smol/ai",
+  "version": "0.0.0",
+  "description": "Chrome Prompt API-compatible on-device AI for Node.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SocketDev/socket-btm.git",
+    "directory": "packages/npm/@node-smol/ai"
+  },
+  "files": [
+    "README.md",
+    "index.d.cts",
+    "index.cjs",
+    "lib/*.js"
+  ],
+  "type": "commonjs",
+  "main": "./index.cjs",
+  "types": "./index.d.cts",
+  "exports": {
+    ".": {
+      "types": "./index.d.cts",
+      "import": "./index.cjs",
+      "require": "./index.cjs"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "prepublishOnly": "node -e \"if(!process.env.NODE_SMOL_PUBLISH_OK){console.error('ERROR: Publish only through the staged provenance workflow.');process.exit(1)}\"",
+    "test": "node ../../../../scripts/repo/run-smol-ai-tests.mts @node-smol/ai"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
+  },
+  "optionalDependencies": {
+    "@node-smol/ai.node-darwin-arm64": "workspace:*",
+    "@node-smol/ai.node-darwin-x64": "workspace:*",
+    "@node-smol/ai.node-linux-arm64-gnu": "workspace:*",
+    "@node-smol/ai.node-linux-arm64-musl": "workspace:*",
+    "@node-smol/ai.node-linux-x64-gnu": "workspace:*",
+    "@node-smol/ai.node-linux-x64-musl": "workspace:*",
+    "@node-smol/ai.node-win32-arm64-msvc": "workspace:*",
+    "@node-smol/ai.node-win32-x64-msvc": "workspace:*"
+  }
+}

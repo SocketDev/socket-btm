@@ -1,0 +1,920 @@
+// Compat shim: temporal_rs::PlainYearMonth.
+
+#ifndef TEMPORAL_RS_COMPAT_PLAINYEARMONTH_HPP_
+#define TEMPORAL_RS_COMPAT_PLAINYEARMONTH_HPP_
+
+#include <cmath>
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
+#include <string_view>
+
+#include "socketsecurity/temporal/plain_date.h"
+#include "socketsecurity/temporal/ixdtf_writer.h"
+#include "socketsecurity/temporal/plain_year_month.h"
+#include "socketsecurity/temporal/rounding.h"
+#include "temporal_rs/AnyCalendarKind.hpp"
+#include "temporal_rs/ArithmeticOverflow.hpp"
+#include "temporal_rs/Calendar.hpp"
+#include "temporal_rs/DifferenceSettings.hpp"
+#include "temporal_rs/DisplayCalendar.hpp"
+#include "temporal_rs/Duration.hpp"
+#include "temporal_rs/ParsedDate.hpp"
+#include "temporal_rs/PartialDate.hpp"
+#include "temporal_rs/PlainDate.hpp"
+#include "temporal_rs/Provider.hpp"
+#include "temporal_rs/TemporalError.hpp"
+#include "temporal_rs/diplomat_runtime.hpp"
+
+namespace temporal_rs {
+
+class PlainDate;
+
+class PlainYearMonth {
+ public:
+  static diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
+  try_new_iso(int32_t year, uint8_t month,
+                std::optional<uint8_t> reference_day) {
+    auto result = ::node::socketsecurity::temporal::PlainYearMonthTryNewIso(
+        year, month, reference_day);
+    if (!result.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(result.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
+        std::unique_ptr<PlainYearMonth>(new PlainYearMonth(result.value())));
+  }
+
+  static diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
+  from_utf8(std::string_view s) {
+    auto result = ::node::socketsecurity::temporal::PlainYearMonthFromUtf8(
+        reinterpret_cast<const uint8_t*>(s.data()), s.size());
+    if (!result.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(result.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
+        std::unique_ptr<PlainYearMonth>(new PlainYearMonth(result.value())));
+  }
+
+  // 1:1 from upstream plain_year_month.rs `from_partial`. ISO path:
+  // requires partial.year + partial.month (no defaults per spec; the
+  // ECMA-spec wraps this in ToTemporalYearMonth which validates).
+  // For non-ISO calendars this still Errs.
+  static diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
+  from_partial(PartialDate partial,
+               std::optional<ArithmeticOverflow> overflow) {
+    // PartialDate has no calendar field — for the V8-facing entry,
+    // ISO is the only path until the calendar backend lands.
+    if (!partial.year.has_value()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "PlainYearMonth.from requires year"});
+    }
+    uint8_t resolved_month = 0;
+    if (partial.month.has_value()) {
+      resolved_month = *partial.month;
+    } else if (!partial.month_code.empty()) {
+      if (partial.month_code.size() < 3 ||
+          partial.month_code.size() > 4) {
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range, "Invalid monthCode length"});
+      }
+      ::node::socketsecurity::temporal::MonthCode code{};
+      for (size_t i = 0; i < partial.month_code.size(); ++i) {
+        code.bytes[i] = static_cast<uint8_t>(partial.month_code[i]);
+      }
+      ::node::socketsecurity::temporal::Calendar cal(
+          partial.calendar.ToInfra());
+      auto r = ::node::socketsecurity::temporal::CalendarResolveMonthCode(
+          cal, *partial.year, code);
+      if (!r.ok()) {
+        return diplomat::Err<TemporalError>(
+            TemporalError::FromInfra(r.error()));
+      }
+      resolved_month = r.value();
+    } else {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "PlainYearMonth.from requires month or monthCode"});
+    }
+    const ArithmeticOverflow ov =
+        overflow.value_or(ArithmeticOverflow{});  // default kConstrain
+    return try_new_with_overflow(*partial.year, resolved_month,
+                                  partial.day, partial.calendar, ov);
+  }
+
+  // 1:1 from upstream plain_year_month.rs `try_new_with_overflow`.
+  // ISO path implemented inline; non-ISO calendars still Err until
+  // the calendar backend lands. Overflow='constrain' clamps an
+  // out-of-range reference_day to the month's max; 'reject' returns
+  // Range.
+  static diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
+  try_new_with_overflow(int32_t year, uint8_t month,
+                        std::optional<uint8_t> reference_day,
+                        AnyCalendarKind calendar,
+                        ArithmeticOverflow overflow) {
+    // ISO calendar arithmetic still happens on the proleptic Gregorian
+    // calendar here; non-ISO callers get the same ISO result with the
+    // calendar kind stashed on the POD so accessors route through the
+    // CalendarBackend at read time.
+    //
+    // 13-month calendars (Coptic, Ethiopian): PlainYearMonthTryNewIso
+    // rejects month==13 (ISO has only 12). Bypass strict ISO validation
+    // for these and assemble the POD directly — the calendar-aware
+    // accessors then interpret month==13 correctly via the backend.
+    const auto cal_kind = calendar.ToInfra();
+    const bool is_iso =
+        cal_kind == ::node::socketsecurity::temporal::CalendarKind::kIso;
+    // Non-ISO: route (calendar_year, ordinal_month, day) through
+    // IsoFromCalendarFields so the stored IsoDate is the real ISO
+    // projection. The 13-month calendars (Coptic, Ethiopian) and
+    // leap-month calendars (Hebrew, Chinese, Dangi) all work uniformly
+    // via the backend.
+    if (!is_iso) {
+      const uint8_t day = reference_day.value_or(1);
+      auto iso_result =
+          ::node::socketsecurity::temporal::GetCalendarBackend()
+              .IsoFromCalendarFields(cal_kind, year, month, day,
+                                      overflow.ToInfra());
+      if (!iso_result.ok()) {
+        return diplomat::Err<TemporalError>(
+            TemporalError::FromInfra(iso_result.error()));
+      }
+      ::node::socketsecurity::temporal::PlainYearMonth pym{};
+      pym.iso = iso_result.value();
+      pym.calendar = cal_kind;
+      return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
+          std::unique_ptr<PlainYearMonth>(new PlainYearMonth(pym)));
+    }
+    auto first_try =
+        ::node::socketsecurity::temporal::PlainYearMonthTryNewIso(
+            year, month, reference_day);
+    if (first_try.ok()) {
+      auto pym = first_try.value();
+      pym.calendar = calendar.ToInfra();
+      return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
+          std::unique_ptr<PlainYearMonth>(new PlainYearMonth(pym)));
+    }
+    if (overflow.ToInfra() !=
+        ::node::socketsecurity::temporal::Overflow::kConstrain) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(first_try.error()));
+    }
+    // Constrain: clamp month to [1, 12] then day to month's max.
+    const uint8_t clamped_month = month < 1 ? 1 : (month > 12 ? 12 : month);
+    const uint8_t max_day =
+        ::node::socketsecurity::temporal::ISODaysInMonth(year, clamped_month);
+    const uint8_t day = reference_day.value_or(1);
+    const uint8_t clamped_day = day < 1 ? 1 : (day > max_day ? max_day : day);
+    auto retry = ::node::socketsecurity::temporal::PlainYearMonthTryNewIso(
+        year, clamped_month, clamped_day);
+    if (!retry.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(retry.error()));
+    }
+    auto pym = retry.value();
+    pym.calendar = calendar.ToInfra();
+    return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
+        std::unique_ptr<PlainYearMonth>(new PlainYearMonth(pym)));
+  }
+
+  // Spec: Temporal.PlainYearMonth.prototype.with — TC39 §9.3.13
+  //   https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.with
+  // Polyfill: js-temporal/temporal-polyfill/tree/rebase-part3/lib/plainyearmonth.ts
+  //
+  // Spec algorithm:
+  //   1. Let plainYearMonth be the this value.
+  //   2. Perform ? RequireInternalSlot.
+  //   3. If ? IsPartialTemporalObject(temporalYearMonthLike) is false, throw TypeError.
+  //   4. Let calendar be plainYearMonth.[[Calendar]].
+  //   5. Let fields be ISODateToFields(calendar, plainYearMonth.[[ISODate]], year-month).
+  //   6. Let partialYearMonth be ? PrepareCalendarFields(calendar, temporalYearMonthLike,
+  //                                « year, month, month-code », « », partial).
+  //   7. Set fields to CalendarMergeFields(calendar, fields, partialYearMonth).
+  //   8. Let resolvedOptions be ? GetOptionsObject(options).
+  //   9. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+  //  10. Let isoDate be ? CalendarYearMonthFromFields(calendar, fields, overflow).
+  //  11. Return ! CreateTemporalYearMonth(isoDate, calendar).
+  //
+  // Note: PYM's input field set is « year, month, month-code » — `day`
+  // is NOT included. CalendarYearMonthFromFields step 1 sets fields.[[Day]]
+  // to 1 before projection.
+  diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
+  with(PartialDate partial,
+       std::optional<ArithmeticOverflow> overflow) const {
+    // Spec step 4: calendar.
+    const auto kind = inner_.calendar;
+    const bool is_iso =
+        kind == ::node::socketsecurity::temporal::CalendarKind::kIso;
+    // Spec step 5: ISODateToFields(calendar, isoDate, year-month) = CalendarISOToDate,
+    // copy MonthCode + Year (type=year-month skips Day; we read day anyway
+    // because try_new_with_overflow preserves a reference day in inner_.iso
+    // for PYM round-tripping — see divergence note below).
+    int32_t self_year = inner_.iso.year;
+    uint8_t self_month = inner_.iso.month;
+    uint8_t self_day = inner_.iso.day;
+    if (!is_iso) {
+      auto y = ::node::socketsecurity::temporal::GetCalendarBackend()
+                    .Year(kind, inner_.iso);
+      auto m = ::node::socketsecurity::temporal::GetCalendarBackend()
+                    .Month(kind, inner_.iso);
+      auto d = ::node::socketsecurity::temporal::GetCalendarBackend()
+                    .Day(kind, inner_.iso);
+      if (!y.ok() || !m.ok() || !d.ok()) {
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range,
+            "Calendar backend unavailable for PlainYearMonth.with"});
+      }
+      self_year = y.value();
+      self_month = m.value();
+      self_day = d.value();
+    }
+    // Spec steps 6 + 7: PrepareCalendarFields(« year, month, monthCode »)
+    // + CalendarMergeFields. Note `day` is NOT in PYM's input field set;
+    // we still pass `partial.day` if set because temporal_rs's PYM
+    // canonical form carries a reference day. Spec ignores it via the
+    // step 1 of CalendarYearMonthFromFields (fields.[[Day]] = 1).
+    const int32_t merged_year = partial.year.value_or(self_year);
+    uint8_t merged_month = self_month;
+    if (partial.month.has_value()) {
+      merged_month = *partial.month;
+    } else if (!partial.month_code.empty()) {
+      if (partial.month_code.size() < 3 ||
+          partial.month_code.size() > 4) {
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range, "Invalid monthCode length"});
+      }
+      ::node::socketsecurity::temporal::MonthCode code{};
+      for (size_t i = 0; i < partial.month_code.size(); ++i) {
+        code.bytes[i] = static_cast<uint8_t>(partial.month_code[i]);
+      }
+      ::node::socketsecurity::temporal::Calendar cal(kind);
+      auto r = ::node::socketsecurity::temporal::CalendarResolveMonthCode(
+          cal, merged_year, code);
+      if (!r.ok()) {
+        return diplomat::Err<TemporalError>(
+            TemporalError::FromInfra(r.error()));
+      }
+      merged_month = r.value();
+    }
+    const std::optional<uint8_t> merged_day =
+        partial.day.has_value() ? partial.day
+                                : std::optional<uint8_t>(self_day);
+    // Spec steps 8 + 9: GetOptionsObject + GetTemporalOverflowOption.
+    const ArithmeticOverflow ov =
+        overflow.value_or(ArithmeticOverflow{});
+    // Spec steps 10 + 11: CalendarYearMonthFromFields + CreateTemporalYearMonth.
+    // try_new_with_overflow routes non-ISO through IsoFromCalendarFields.
+    // KNOWN DIVERGENCE: spec sets fields.[[Day]] = 1 at the start of
+    // CalendarYearMonthFromFields (§9.3.13 step 10 → §12.3.13 step 1).
+    // We pass merged_day through. For ISO this only affects the stored
+    // reference day, which is invisible at the PYM API surface. For
+    // lunisolar calendars where day-of-month influences ICU back-
+    // projection of year/month, this could land on a different ISO date.
+    return try_new_with_overflow(
+        merged_year, merged_month, merged_day,
+        AnyCalendarKind::FromInfra(kind), ov);
+  }
+
+  diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
+  add(const Duration& duration, ArithmeticOverflow overflow) const {
+    return add_or_subtract(duration, overflow, /*negate=*/false);
+  }
+
+  diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
+  subtract(const Duration& duration, ArithmeticOverflow overflow) const {
+    return add_or_subtract(duration, overflow, /*negate=*/true);
+  }
+
+ private:
+  // ISO-only year-month arithmetic. PlainYearMonth.add/subtract apply
+  // only years/months from the duration (weeks/days/hours/etc are
+  // disallowed per spec). The day component stays at the original
+  // `reference_day` (preserved on the inner); when the resulting
+  // year-month has fewer days (e.g. Jan 31 + 1M → Feb), the spec
+  // default (overflow='constrain') clamps the day to the new month's
+  // length; overflow='reject' returns Range.
+  diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
+  add_or_subtract(const Duration& duration, ArithmeticOverflow overflow,
+                  bool negate) const {
+    // Reject non-finite duration fields before any double→int cast —
+    // `static_cast<int64_t>(NaN/Inf)` is UB per [conv.fpint]/4. The
+    // V8 caller normally validates via Duration::TryNew, but this is
+    // a `noexcept` boundary; belt-and-suspenders. Field accessors on
+    // the compat Duration are zero-arg getters (`years()` etc.).
+    const double dy = duration.years();
+    const double dM = duration.months();
+    if (std::isnan(dy) || std::isinf(dy) || std::isnan(dM) || std::isinf(dM)) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range, "Duration year/month component is not finite"});
+    }
+    if (duration.weeks() != 0 || duration.days() != 0 ||
+        duration.hours() != 0 || duration.minutes() != 0 ||
+        duration.seconds() != 0 || duration.milliseconds() != 0 ||
+        duration.microseconds() != 0 || duration.nanoseconds() != 0) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "PlainYearMonth arithmetic only accepts year + month durations"});
+    }
+    const double sign = negate ? -1.0 : 1.0;
+    const int64_t add_years = static_cast<int64_t>(dy * sign);
+    const int64_t add_months = static_cast<int64_t>(dM * sign);
+
+    int64_t total_months =
+        static_cast<int64_t>(inner_.iso.year) * 12 +
+        static_cast<int64_t>(inner_.iso.month - 1) +
+        add_years * 12 + add_months;
+    // Floor-divide by 12 without UB at INT64_MIN. `-((-x + 11)/12)` is
+    // UB if `x == INT64_MIN` because `-x` overflows; `(x - 11) / 12`
+    // computes floor(x/12) for negative x without the negation step.
+    const int64_t new_year = total_months >= 0
+                                 ? total_months / 12
+                                 : (total_months - 11) / 12;
+    const int64_t new_month_zero = total_months - new_year * 12;
+    if (new_year < -271820 || new_year > 275759) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "PlainYearMonth.add result outside representable range"});
+    }
+    const int32_t year_i32 = static_cast<int32_t>(new_year);
+    const uint8_t month_u8 = static_cast<uint8_t>(new_month_zero + 1);
+    auto first_try =
+        ::node::socketsecurity::temporal::PlainYearMonthTryNewIso(
+            year_i32, month_u8, inner_.iso.day);
+    if (first_try.ok()) {
+      return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
+          std::unique_ptr<PlainYearMonth>(new PlainYearMonth(first_try.value())));
+    }
+    if (overflow.ToInfra() !=
+        ::node::socketsecurity::temporal::Overflow::kConstrain) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(first_try.error()));
+    }
+    // Spec default (overflow='constrain'): clamp the reference day to
+    // the new month's max. `Jan 31 + 1M` → `Feb 28/29` per
+    // RegulateISOYearMonth.
+    const uint8_t clamped =
+        ::node::socketsecurity::temporal::ISODaysInMonth(year_i32, month_u8);
+    auto retry = ::node::socketsecurity::temporal::PlainYearMonthTryNewIso(
+        year_i32, month_u8, clamped);
+    if (!retry.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(retry.error()));
+    }
+    return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
+        std::unique_ptr<PlainYearMonth>(new PlainYearMonth(retry.value())));
+  }
+
+ public:
+
+  // 1:1 from upstream plain_year_month.rs:240-330 `diff`. Spec
+  // disallows `week`/`day` as largest/smallest_unit for YearMonth
+  // differences; everything else routes through CalendarDateUntil
+  // on day-1-normalized dates so the ICU-backed CalendarBackend
+  // services non-ISO calendars. Rounding tail (smallest != month
+  // or increment != 1) routes through IncrementRounder<int64_t>
+  // on the months-delta; upstream's `round_relative_duration`
+  // collapses to this case for YearMonth because there's no time
+  // or day component.
+  diplomat::result<std::unique_ptr<Duration>, TemporalError>
+  until(const PlainYearMonth& other, DifferenceSettings settings) const {
+    return diff_year_month(other, settings, /*negate=*/false);
+  }
+
+  diplomat::result<std::unique_ptr<Duration>, TemporalError>
+  since(const PlainYearMonth& other, DifferenceSettings settings) const {
+    return diff_year_month(other, settings, /*negate=*/true);
+  }
+
+ private:
+  diplomat::result<std::unique_ptr<Duration>, TemporalError>
+  diff_year_month(const PlainYearMonth& other, DifferenceSettings settings,
+                  bool negate) const {
+    // Spec: calendar-mismatch is a hard RangeError. ToInfra here
+    // because the inner CalendarKind is uint8_t — equality only.
+    if (inner_.calendar != other.inner_.calendar) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "Calendars for difference operation are not the same."});
+    }
+    // Spec disallows week/day units in YearMonth differences.
+    if (settings.largest_unit.has_value()) {
+      const auto u = *settings.largest_unit;
+      if (u == Unit::Week || u == Unit::Day) {
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range,
+            "Weeks and days are not allowed in this operation."});
+      }
+    }
+    if (settings.smallest_unit.has_value()) {
+      const auto u = *settings.smallest_unit;
+      if (u == Unit::Week || u == Unit::Day) {
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range,
+            "Weeks and days are not allowed in this operation."});
+      }
+    }
+    // Equal ISO date → zero duration (spec: line 273-276).
+    if (inner_.iso.year == other.inner_.iso.year &&
+        inner_.iso.month == other.inner_.iso.month) {
+      return diplomat::Ok<std::unique_ptr<Duration>>(
+          Duration::FromInfra(::node::socketsecurity::temporal::Duration{}));
+    }
+    // Spec: ISODateToFields with day=1 on both sides, then
+    // CalendarDateUntil with largestUnit. Defaults to Year for
+    // YearMonth differences (matches upstream).
+    const ::node::socketsecurity::temporal::IsoDate this_iso{
+        inner_.iso.year, inner_.iso.month, 1};
+    const ::node::socketsecurity::temporal::IsoDate other_iso{
+        other.inner_.iso.year, other.inner_.iso.month, 1};
+    const ::node::socketsecurity::temporal::Unit largest =
+        settings.largest_unit.has_value()
+            ? settings.largest_unit->ToInfra()
+            : ::node::socketsecurity::temporal::Unit::kYear;
+    ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+    auto diff = ::node::socketsecurity::temporal::CalendarDateUntil(
+        cal, this_iso, other_iso, largest);
+    if (!diff.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(diff.error()));
+    }
+    // YearMonth differences zero out weeks + days per upstream
+    // `result.date().adjust(0, Some(0), None)` (line 301).
+    auto d = diff.value();
+    d.weeks = 0;
+    d.days = 0;
+
+    // Rounding tail. Upstream gates on `smallest != Month ||
+    // increment != 1` (line 307). Spec's RoundRelativeDuration for
+    // YearMonth collapses to a months-delta rounding since the
+    // duration has only year + month components.
+    const ::node::socketsecurity::temporal::Unit smallest =
+        settings.smallest_unit.has_value()
+            ? settings.smallest_unit->ToInfra()
+            : ::node::socketsecurity::temporal::Unit::kMonth;
+    const uint32_t increment = settings.increment.value_or(1u);
+    const ::node::socketsecurity::temporal::RoundingMode mode =
+        settings.rounding_mode.has_value()
+            ? settings.rounding_mode->ToInfra()
+            : ::node::socketsecurity::temporal::RoundingMode::kTrunc;
+    if (smallest != ::node::socketsecurity::temporal::Unit::kMonth ||
+        increment != 1u) {
+      // Total months in d (years*12 + months). Both are doubles in the
+      // POD; for diff results they're integral and well within int64.
+      int64_t total_months = static_cast<int64_t>(d.years) * 12 +
+                              static_cast<int64_t>(d.months);
+      // Per spec: `since` negates the rounding mode (already applied
+      // upstream for `until`; for `since` we'll negate the final
+      // result, so apply the mode-negate here to mirror upstream's
+      // ResolvedRoundingOptions::from_diff_settings + since flip).
+      const ::node::socketsecurity::temporal::RoundingMode effective_mode =
+          negate
+              ? ::node::socketsecurity::temporal::RoundingModeNegate(mode)
+              : mode;
+      if (smallest == ::node::socketsecurity::temporal::Unit::kYear) {
+        // Round to multiples of (12 * increment) months.
+        const uint64_t step = 12ULL * static_cast<uint64_t>(increment);
+        auto r = ::node::socketsecurity::temporal::IncrementRounder<int64_t>
+                     ::FromSignedNum(total_months, step);
+        if (!r.ok()) {
+          return diplomat::Err<TemporalError>(
+              TemporalError::FromInfra(r.error()));
+        }
+        const int64_t rounded_months = r.value().Round(effective_mode);
+        d.years = static_cast<double>(rounded_months / 12);
+        d.months = static_cast<double>(rounded_months -
+                                         (rounded_months / 12) * 12);
+      } else {
+        // smallest == Month, increment != 1. Round months-delta to
+        // multiples of increment, preserving the years carry.
+        auto r = ::node::socketsecurity::temporal::IncrementRounder<int64_t>
+                     ::FromSignedNum(total_months,
+                                     static_cast<uint64_t>(increment));
+        if (!r.ok()) {
+          return diplomat::Err<TemporalError>(
+              TemporalError::FromInfra(r.error()));
+        }
+        const int64_t rounded_months = r.value().Round(effective_mode);
+        // Re-balance the rounded result back into years + months
+        // matching largestUnit's expectation. If largestUnit is Year
+        // the months may carry to years; if Month, keep as months.
+        if (largest == ::node::socketsecurity::temporal::Unit::kYear) {
+          d.years = static_cast<double>(rounded_months / 12);
+          d.months = static_cast<double>(rounded_months -
+                                           (rounded_months / 12) * 12);
+        } else {
+          d.years = 0;
+          d.months = static_cast<double>(rounded_months);
+        }
+      }
+    }
+
+    if (negate) {
+      d = ::node::socketsecurity::temporal::DurationNegated(d);
+    }
+    return diplomat::Ok<std::unique_ptr<Duration>>(Duration::FromInfra(d));
+  }
+
+ public:
+
+  // Spec: Temporal.PlainYearMonth.prototype.toPlainDate — TC39 §9.3.23
+  //   https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.toplaindate
+  // Polyfill: js-temporal/temporal-polyfill/tree/rebase-part3/lib/plainyearmonth.ts
+  //
+  // Spec algorithm:
+  //   1. Let plainYearMonth be the this value.
+  //   2. Perform ? RequireInternalSlot.
+  //   3. If item is not an Object, throw a TypeError exception.
+  //   4. Let calendar be plainYearMonth.[[Calendar]].
+  //   5. Let fields be ISODateToFields(calendar, plainYearMonth.[[ISODate]],
+  //                                     year-month).
+  //   6. Let inputFields be ? PrepareCalendarFields(calendar, item,
+  //                            « day », « », « »).
+  //   7. Let mergedFields be CalendarMergeFields(calendar, fields, inputFields).
+  //   8. Let isoDate be ? CalendarDateFromFields(calendar, mergedFields, constrain).
+  //   9. Return ! CreateTemporalDate(isoDate, calendar).
+  //
+  // For ISO PYM, ISODateToFields collapses to inner_.iso, so the path
+  // becomes PlainDateTryNewIso(iso.year, iso.month, resolved_day).
+  diplomat::result<std::unique_ptr<PlainDate>, TemporalError>
+  to_plain_date(std::optional<PartialDate> day) const {
+    // Spec step 4: calendar = self.[[Calendar]].
+    const auto kind = inner_.calendar;
+    // Spec steps 6 + 7: PrepareCalendarFields(« day ») + CalendarMergeFields.
+    // Input field set is « day » only; pull from override or fall back
+    // to self's stored ISO day (as PYM reference day).
+    const uint8_t resolved_day = (day.has_value() && day->day.has_value())
+                                     ? *day->day
+                                     : inner_.iso.day;
+    if (kind == ::node::socketsecurity::temporal::CalendarKind::kIso) {
+      // Spec steps 5 + 8 + 9 (ISO): CalendarISOToDate is identity for
+      // calendar=iso8601; CalendarDateFromFields → PlainDateTryNewIso.
+      auto result = ::node::socketsecurity::temporal::PlainDateTryNewIso(
+          inner_.iso.year, inner_.iso.month, resolved_day);
+      if (!result.ok()) {
+        return diplomat::Err<TemporalError>(
+            TemporalError::FromInfra(result.error()));
+      }
+      return diplomat::Ok<std::unique_ptr<PlainDate>>(
+          PlainDate::FromInfra(result.value()));
+    }
+    // Spec step 5 (non-ISO): ISODateToFields(calendar, isoDate, year-month) =
+    // CalendarISOToDate, copy MonthCode + Year. The PYM's inner_.iso.year/
+    // month are the IsoFromCalendarFields-projected ISO values; the
+    // calendar-native fields are what spec needs for the merge.
+    auto cal_year = ::node::socketsecurity::temporal::GetCalendarBackend()
+                        .Year(kind, inner_.iso);
+    auto cal_month = ::node::socketsecurity::temporal::GetCalendarBackend()
+                          .Month(kind, inner_.iso);
+    if (!cal_year.ok() || !cal_month.ok()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "Calendar backend unavailable for PlainYearMonth.toPlainDate"});
+    }
+    // Spec step 8: CalendarDateFromFields(calendar, mergedFields, constrain).
+    // ICU4C backend collapses CalendarResolveFields + CalendarDateToISO +
+    // ISODateWithinLimits into IsoFromCalendarFields.
+    auto iso = ::node::socketsecurity::temporal::GetCalendarBackend()
+                    .IsoFromCalendarFields(
+                        kind, cal_year.value(), cal_month.value(),
+                        resolved_day,
+                        ::node::socketsecurity::temporal::Overflow::kConstrain);
+    if (!iso.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(iso.error()));
+    }
+    // Spec step 9: CreateTemporalDate.
+    ::node::socketsecurity::temporal::PlainDate pd{};
+    pd.iso = iso.value();
+    pd.calendar = kind;
+    return diplomat::Ok<std::unique_ptr<PlainDate>>(PlainDate::FromInfra(pd));
+  }
+
+  // 1:1 from upstream plain_year_month.rs:602 `epoch_ns_for_with_provider`.
+  // Combines (iso.date, IsoTime::noon) and routes through
+  // TimeZone::GetEpochNanosecondsFor with Disambiguation::Compatible.
+  // Returns epoch *milliseconds* per V8's API; internal conversion
+  // divides epoch_ns by 1_000_000.
+  diplomat::result<int64_t, TemporalError>
+  epoch_ms_for_with_provider(TimeZone tz, const Provider& /*p*/) const {
+    ::node::socketsecurity::temporal::IsoDateTime iso{};
+    iso.date = inner_.iso;
+    iso.time.hour = 12;
+    iso.time.minute = 0;
+    iso.time.second = 0;
+    iso.time.millisecond = 0;
+    iso.time.microsecond = 0;
+    iso.time.nanosecond = 0;
+    auto ns = tz.ToInfra().GetEpochNanosecondsFor(
+        iso, ::node::socketsecurity::temporal::Disambiguation::kCompatible);
+    if (!ns.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(ns.error()));
+    }
+    // Floor-divide int128 ns by 1e6 to get ms. Spec: epochMilliseconds
+    // floors toward -infinity, not toward zero.
+    using NativeInt128 = decltype(ns.value().value);
+    const NativeInt128 ns_per_ms{1'000'000};
+    const NativeInt128 n = ns.value().value;
+    NativeInt128 ms;
+    if (n >= 0) {
+      ms = n / ns_per_ms;
+    } else {
+      NativeInt128 q = n / ns_per_ms;
+      NativeInt128 r = n % ns_per_ms;
+      ms = (r == 0) ? q : q - 1;
+    }
+    return diplomat::Ok<int64_t>(static_cast<int64_t>(ms));
+  }
+
+  // 1:1 from upstream plain_year_month.rs:630 / :638.
+  std::string to_ixdtf_string(DisplayCalendar display_calendar) const {
+    ::node::socketsecurity::temporal::FormattableYearMonth fym{
+        ::node::socketsecurity::temporal::FormattableDate{
+            inner_.iso.year, inner_.iso.month, inner_.iso.day},
+        ::node::socketsecurity::temporal::FormattableCalendar{
+            display_calendar.ToInfra(), "iso8601"}};
+    return fym.ToString();
+  }
+
+  static diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
+  from_utf16(std::u16string_view s) {
+    std::string narrow;
+    narrow.reserve(s.size());
+    for (char16_t c : s) {
+      if (c > 0x7F) {
+        return diplomat::Err<TemporalError>(TemporalError{
+            ErrorKind::Range,
+            "Non-ASCII character in PlainYearMonth string"});
+      }
+      narrow.push_back(static_cast<char>(c));
+    }
+    return from_utf8(narrow);
+  }
+
+  // Build a PlainYearMonth from a parsed-and-validated record. Try-new
+  // ignores calendar; overlay the parsed kind so [u-ca=...] survives.
+  static diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
+  from_parsed(const ParsedDate& parsed) {
+    auto r = ::node::socketsecurity::temporal::PlainYearMonthTryNewIso(
+        parsed.year(), parsed.month(), std::optional<uint8_t>{});
+    if (!r.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(r.error()));
+    }
+    ::node::socketsecurity::temporal::PlainYearMonth inner = r.value();
+    inner.calendar =
+        static_cast<::node::socketsecurity::temporal::CalendarKind>(
+            parsed.ToInfra().calendar_kind);
+    return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
+        std::unique_ptr<PlainYearMonth>(new PlainYearMonth(inner)));
+  }
+
+  int32_t year() const {
+    return ::node::socketsecurity::temporal::PlainYearMonthYear(inner_);
+  }
+  uint8_t month() const {
+    return ::node::socketsecurity::temporal::PlainYearMonthMonth(inner_);
+  }
+  uint8_t days_in_month() const {
+    ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+    return ::node::socketsecurity::temporal::CalendarDaysInMonth(cal,
+                                                                   inner_.iso);
+  }
+  bool in_leap_year() const {
+    ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+    return ::node::socketsecurity::temporal::CalendarInLeapYear(cal, inner_.iso);
+  }
+  bool is_valid() const { return inner_.IsValid(); }
+
+  // Calendar-aware accessors. Inner POD carries CalendarKind; non-ISO
+  // answers route through the active CalendarBackend.
+  Calendar calendar() const {
+    return Calendar(
+        ::node::socketsecurity::temporal::Calendar(inner_.calendar));
+  }
+  uint16_t days_in_year() const {
+    ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+    return ::node::socketsecurity::temporal::CalendarDaysInYear(cal, inner_.iso);
+  }
+  uint8_t months_in_year() const {
+    ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+    return ::node::socketsecurity::temporal::CalendarMonthsInYear(cal,
+                                                                    inner_.iso);
+  }
+  std::string month_code() const {
+    ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+    return ::node::socketsecurity::temporal::CalendarMonthCode(cal, inner_.iso);
+  }
+  std::string era() const {
+    ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+    return ::node::socketsecurity::temporal::CalendarEra(cal, inner_.iso);
+  }
+  std::optional<int32_t> era_year() const {
+    ::node::socketsecurity::temporal::Calendar cal(inner_.calendar);
+    return ::node::socketsecurity::temporal::CalendarEraYear(cal, inner_.iso);
+  }
+
+  // Spec: Temporal.PlainYearMonth.prototype.toPlainDate — TC39 §9.3.23
+  //   https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.toplaindate
+  // Polyfill: js-temporal/temporal-polyfill/tree/rebase-part3/lib/plainyearmonth.ts
+  //
+  // Templated overload — takes a reference_day_date PlainDate for type
+  // wiring; the day used comes from self's stored reference day, not
+  // from the parameter (V8 wrapper dispatches based on overload).
+  //
+  // Spec algorithm (steps 4-9, same as the (item) overload):
+  //   4. calendar = self.[[Calendar]].
+  //   5. fields = ISODateToFields(calendar, self.[[ISODate]], year-month).
+  //   6. inputFields = PrepareCalendarFields(calendar, item, « day »).
+  //   7. mergedFields = CalendarMergeFields(calendar, fields, inputFields).
+  //   8. isoDate = ? CalendarDateFromFields(calendar, mergedFields, constrain).
+  //   9. Return CreateTemporalDate(isoDate, calendar).
+  template <class PD>
+  diplomat::result<std::unique_ptr<PD>, TemporalError> to_plain_date(
+      const PD* /*reference_day_date*/) const {
+    // Spec step 4: calendar.
+    const auto kind = inner_.calendar;
+    if (kind == ::node::socketsecurity::temporal::CalendarKind::kIso) {
+      // Spec steps 5/7/8 (ISO path): CalendarISOToDate is identity;
+      // CalendarDateFromFields → PlainDateTryNewIso.
+      auto r = ::node::socketsecurity::temporal::PlainDateTryNewIso(
+          inner_.iso.year, inner_.iso.month, inner_.iso.day);
+      if (!r.ok()) {
+        return diplomat::Err<TemporalError>(
+            TemporalError::FromInfra(r.error()));
+      }
+      auto pd = r.value();
+      pd.calendar = inner_.calendar;
+      return diplomat::Ok<std::unique_ptr<PD>>(PD::FromInfra(pd));
+    }
+    // Spec step 5 (non-ISO): ISODateToFields(calendar, isoDate, year-month).
+    // PYM stores its reference day in inner_.iso.day (constructed via
+    // IsoFromCalendarFields); we read calendar-native (year, month, day)
+    // because the merge then runs CalendarDateFromFields which needs all 3.
+    auto cal_year = ::node::socketsecurity::temporal::GetCalendarBackend()
+                        .Year(kind, inner_.iso);
+    auto cal_month = ::node::socketsecurity::temporal::GetCalendarBackend()
+                          .Month(kind, inner_.iso);
+    auto cal_day = ::node::socketsecurity::temporal::GetCalendarBackend()
+                        .Day(kind, inner_.iso);
+    if (!cal_year.ok() || !cal_month.ok() || !cal_day.ok()) {
+      return diplomat::Err<TemporalError>(TemporalError{
+          ErrorKind::Range,
+          "Calendar backend unavailable for PlainYearMonth.toPlainDate"});
+    }
+    // Spec step 8: CalendarDateFromFields(calendar, mergedFields, constrain).
+    auto iso = ::node::socketsecurity::temporal::GetCalendarBackend()
+                    .IsoFromCalendarFields(
+                        kind, cal_year.value(), cal_month.value(),
+                        cal_day.value(),
+                        ::node::socketsecurity::temporal::Overflow::kConstrain);
+    if (!iso.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(iso.error()));
+    }
+    // Spec step 9: CreateTemporalDate.
+    ::node::socketsecurity::temporal::PlainDate pd{};
+    pd.iso = iso.value();
+    pd.calendar = kind;
+    return diplomat::Ok<std::unique_ptr<PD>>(PD::FromInfra(pd));
+  }
+
+  // 1:1 from upstream plain_year_month.rs:619 `epoch_ns_for_utc`.
+  // Combines (iso.date, IsoTime::noon) and returns epoch ms in UTC.
+  diplomat::result<int64_t, TemporalError> epoch_ms_for_with_provider(
+      const Provider& p) const {
+    auto utc = ::node::socketsecurity::temporal::TimeZone::Utc();
+    TimeZone tz = TimeZone::FromInfra(utc);
+    return epoch_ms_for_with_provider(tz, p);
+  }
+
+  std::unique_ptr<PlainYearMonth> clone() const {
+    return std::unique_ptr<PlainYearMonth>(new PlainYearMonth(inner_));
+  }
+
+  // ── Comparison ─────────────────────────────────────────────────
+
+  bool equals(const PlainYearMonth& other) const {
+    return inner_.iso.year == other.inner_.iso.year &&
+           inner_.iso.month == other.inner_.iso.month;
+  }
+
+  static int8_t compare(const PlainYearMonth& one,
+                         const PlainYearMonth& two) {
+    if (one.inner_.iso.year != two.inner_.iso.year) {
+      return one.inner_.iso.year < two.inner_.iso.year ? -1 : 1;
+    }
+    if (one.inner_.iso.month != two.inner_.iso.month) {
+      return one.inner_.iso.month < two.inner_.iso.month ? -1 : 1;
+    }
+    return 0;
+  }
+
+  // ── Bridges ────────────────────────────────────────────────────
+
+  const ::node::socketsecurity::temporal::PlainYearMonth& ToInfra() const {
+    return inner_;
+  }
+
+  static std::unique_ptr<PlainYearMonth> FromInfra(
+      const ::node::socketsecurity::temporal::PlainYearMonth& d) {
+    return std::unique_ptr<PlainYearMonth>(new PlainYearMonth(d));
+  }
+
+  PlainYearMonth() = delete;
+  PlainYearMonth(const PlainYearMonth&) = delete;
+  PlainYearMonth(PlainYearMonth&&) noexcept = delete;
+  PlainYearMonth& operator=(const PlainYearMonth&) = delete;
+  PlainYearMonth& operator=(PlainYearMonth&&) noexcept = delete;
+
+ private:
+  explicit PlainYearMonth(
+      ::node::socketsecurity::temporal::PlainYearMonth inner)
+      : inner_(inner) {}
+
+  ::node::socketsecurity::temporal::PlainYearMonth inner_;
+};
+
+// ── Cross-class out-of-line definitions ──────────────────────────────
+// PlainDate::to_plain_year_month's body lives here because
+// PlainYearMonth is forward-declared in PlainDate.hpp.
+
+inline diplomat::result<std::unique_ptr<PlainYearMonth>, TemporalError>
+PlainDate::to_plain_year_month() const {
+  // Spec: Temporal.PlainDate.prototype.toPlainYearMonth — TC39 §3.3.19
+  //   https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.toplainyearmonth
+  // Polyfill: js-temporal/temporal-polyfill/tree/rebase-part3/lib/plaindate.ts
+  //
+  // Spec algorithm:
+  //   1. Let plainDate be the this value.
+  //   2. Perform ? RequireInternalSlot.
+  //   3. Let calendar be plainDate.[[Calendar]].
+  //   4. Let fields be ISODateToFields(calendar, plainDate.[[ISODate]], date).
+  //   5. Let isoDate be ? CalendarYearMonthFromFields(calendar, fields, constrain).
+  //   6. Return ! CreateTemporalYearMonth(isoDate, calendar).
+  //   NOTE: CalendarYearMonthFromFields is necessary to set [[Day]] of the
+  //         [[ISODate]] internal slot correctly (sets it to 1).
+  //
+  // For ISO PlainDate, calendar-native == ISO and PlainYearMonthTryNewIso
+  // handles the day-1 reference internally.
+  // Spec step 3: calendar = self.[[Calendar]].
+  const auto kind = inner_.calendar;
+  if (kind == ::node::socketsecurity::temporal::CalendarKind::kIso) {
+    // Spec steps 4 + 5 (ISO): ISODateToFields → inner_.iso verbatim;
+    // CalendarYearMonthFromFields → PlainYearMonthTryNewIso.
+    auto result = ::node::socketsecurity::temporal::PlainYearMonthTryNewIso(
+        inner_.iso.year, inner_.iso.month, inner_.iso.day);
+    if (!result.ok()) {
+      return diplomat::Err<TemporalError>(
+          TemporalError::FromInfra(result.error()));
+    }
+    auto pym = result.value();
+    pym.calendar = kind;
+    // Spec step 6.
+    return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
+        PlainYearMonth::FromInfra(pym));
+  }
+  // Spec step 4 (non-ISO): ISODateToFields(calendar, isoDate, date) =
+  // CalendarISOToDate, copy MonthCode + Year + Day.
+  auto cal_year = ::node::socketsecurity::temporal::GetCalendarBackend()
+                      .Year(kind, inner_.iso);
+  auto cal_month = ::node::socketsecurity::temporal::GetCalendarBackend()
+                        .Month(kind, inner_.iso);
+  auto cal_day = ::node::socketsecurity::temporal::GetCalendarBackend()
+                      .Day(kind, inner_.iso);
+  if (!cal_year.ok() || !cal_month.ok() || !cal_day.ok()) {
+    return diplomat::Err<TemporalError>(TemporalError{
+        ErrorKind::Range,
+        "Calendar backend unavailable for PlainDate.toPlainYearMonth"});
+  }
+  // Spec step 5: CalendarYearMonthFromFields → CalendarResolveFields +
+  // step 1 sets fields.[[Day]] = 1 + CalendarDateToISO.
+  // KNOWN DIVERGENCE: spec step 1 of CalendarYearMonthFromFields sets
+  // fields.[[Day]] to 1; we pass cal_day through (so PYM's stored
+  // [[ISODate]].[[Day]] keeps the PD's day instead of being normalized
+  // to day-1). For most calendars this only affects the invisible
+  // reference day. For lunisolar calendars where day-of-month influences
+  // ICU back-projection, the result could land on a different ISO date.
+  auto iso = ::node::socketsecurity::temporal::GetCalendarBackend()
+                  .IsoFromCalendarFields(
+                      kind, cal_year.value(), cal_month.value(),
+                      cal_day.value(),
+                      ::node::socketsecurity::temporal::Overflow::kConstrain);
+  if (!iso.ok()) {
+    return diplomat::Err<TemporalError>(
+        TemporalError::FromInfra(iso.error()));
+  }
+  // Spec step 6: CreateTemporalYearMonth.
+  ::node::socketsecurity::temporal::PlainYearMonth pym{};
+  pym.iso = iso.value();
+  pym.calendar = kind;
+  return diplomat::Ok<std::unique_ptr<PlainYearMonth>>(
+      PlainYearMonth::FromInfra(pym));
+}
+
+}  // namespace temporal_rs
+
+#endif  // TEMPORAL_RS_COMPAT_PLAINYEARMONTH_HPP_

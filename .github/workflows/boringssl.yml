@@ -1,0 +1,722 @@
+name: SMOL 1. BoringSSL
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Dry run (build only, no release)'
+        type: boolean
+        default: true
+      force:
+        description: 'Force rebuild (ignore cache)'
+        type: boolean
+        default: false
+      build-mode:
+        description: 'Build mode'
+        type: choice
+        options:
+          - prod
+          - dev
+        default: prod
+      debug:
+        description: 'Debug (0|1|namespace[,...])'
+        type: string
+        default: '0'
+  workflow_call:
+    inputs:
+      dry-run:
+        type: boolean
+        default: true
+      force:
+        type: boolean
+        default: false
+      build-mode:
+        type: string
+        default: prod
+      debug:
+        type: string
+        default: '0'
+
+permissions:
+  contents: read
+
+env:
+  HOMEBREW_NO_ANALYTICS: '1'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-boringssl:
+    permissions:
+      contents: read
+      id-token: write # OIDC authentication for Depot builds
+    name: boringssl / ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.libc == 'musl' && '-musl' || '' }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS builds. Depot runner depot-macos-15 = 8 vCPU M2, 24GB RAM.
+          # darwin-x64 still uses depot-macos-15 (ARM64 host); the build
+          # runs natively under cmake's ARCH-aware codegen path that
+          # every other builder workflow uses for both arches.
+          - runner: depot-macos-15
+            platform: darwin
+            arch: arm64
+            os: macos
+          - runner: depot-macos-15
+            platform: darwin
+            arch: x64
+            os: macos
+          # Linux builds (glibc)
+          - runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            os: linux
+            libc: glibc
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            os: linux
+            libc: glibc
+          # Linux musl: pending Dockerfile.musl refactor to the pure-
+          # bash emit pattern. Alpine 3.20 uses apk + a different
+          # toolchain (musl libc, no devtoolset). Re-enable once
+          # setup-linux-build-musl.sh exists. Entries kept in arm/x64
+          # alpha order (the active glibc entries above are x64-first
+          # for historical fleet consistency; new commented entries
+          # follow alpha — `arm64` < `x64`).
+          # - runner: ubuntu-24.04-arm
+          #   platform: linux
+          #   arch: arm64
+          #   os: linux
+          #   libc: musl
+          # - runner: ubuntu-24.04
+          #   platform: linux
+          #   arch: x64
+          #   os: linux
+          #   libc: musl
+          # Windows builds
+          - runner: windows-2022
+            platform: win32
+            arch: x64
+            os: windows
+          - runner: windows-2022
+            platform: win32
+            arch: arm64
+            os: windows
+            cross_compile: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (2026-05-15)
+        with:
+          persist-credentials: false
+          # Only the boringssl submodule is initialized below.
+          submodules: false
+
+      - name: Enable debug logging
+        uses: ./.github/actions/repo/enable-debug-logging
+        with:
+          debug: ${{ inputs.debug }}
+
+      - uses: ./.github/actions/fleet/setup
+      - uses: ./.github/actions/fleet/install
+      - name: Load cache version from centralized config
+        id: cache-version
+        uses: ./.github/actions/repo/load-cache-version
+        with:
+          package-name: boringssl
+
+      - name: Load btm-builder-glibc prebake tag
+        id: btm-builder-tag
+        uses: ./.github/actions/repo/load-cache-version
+        with:
+          package-name: btm-builder-glibc
+
+      - name: Generate BoringSSL cache key
+        id: cache-key
+        env:
+          CACHE_VERSION: ${{ steps.cache-version.outputs.version }}
+          LIBC: ${{ matrix.libc || 'glibc' }}
+        shell: bash
+        run: |
+          # Cross-platform hash function.
+          if command -v shasum &> /dev/null; then
+            hash_cmd="shasum -a 256"
+          elif command -v sha256sum &> /dev/null; then
+            hash_cmd="sha256sum"
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+          # Hash a directory tree. Returns deterministic SHA over the
+          # concatenated file hashes. mkdir -p first so missing dirs
+          # (e.g. an empty patches/ that git didn't track) materialize
+          # rather than tripping set -e -o pipefail at the find call.
+          # Trailing || echo "" still covers the empty-tree case.
+          hash_dir() {
+            mkdir -p "$1"
+            (find "$1" -type f 2>/dev/null | LC_COLLATE=C sort -u | xargs $hash_cmd 2>/dev/null | $hash_cmd | cut -d' ' -f1) || echo ""
+          }
+          hash_file() {
+            ($hash_cmd "$1" 2>/dev/null | cut -d' ' -f1) || echo ""
+          }
+
+          # Use libc-specific Dockerfile (glibc or musl) for Linux only.
+          # macOS/Windows don't use Docker.
+          DOCKERFILE_NAME="Dockerfile.${LIBC}"
+          DOCKERFILE_PATH="packages/boringssl-builder/docker/${DOCKERFILE_NAME}"
+          if [ -f "$DOCKERFILE_PATH" ]; then
+            DOCKERFILE_HASH=$($hash_cmd "$DOCKERFILE_PATH" | cut -d' ' -f1)
+          else
+            DOCKERFILE_HASH="no-docker"
+          fi
+          BIN_INFRA_LIB=$(hash_dir packages/bin-infra/lib)
+          BORINGSSL_PACKAGE_JSON=$(hash_file packages/boringssl-builder/package.json)
+          BORINGSSL_SUBMODULE_SHA=$(git ls-tree HEAD packages/boringssl-builder/upstream/boringssl 2>/dev/null | awk '{print $3}' || echo "")
+          BUILD_INFRA_EXTERNAL_TOOLS=$(hash_file packages/build-infra/external-tools.json)
+          BUILD_INFRA_LIB=$(hash_dir packages/build-infra/lib)
+          BUILD_INFRA_SCRIPTS=$(hash_dir packages/build-infra/scripts)
+          BUILD_SCRIPTS_HASH=$(hash_dir packages/boringssl-builder/scripts)
+          MAKE_HASH=$(hash_dir packages/boringssl-builder/make)
+          NODE_VERSION_HASH=$(hash_file .node-version)
+          PATCHES_HASH=$(hash_dir packages/boringssl-builder/patches)
+          PNPM_LOCK_HASH=$(hash_file pnpm-lock.yaml)
+          PNPM_WORKSPACE=$(hash_file pnpm-workspace.yaml)
+          ROOT_PACKAGE_JSON=$(hash_file package.json)
+          # Tool-pin salt: hash the repo-root external-tools.json so the
+          # checkpoint cache invalidates when a pinned tool version
+          # (pnpm, zizmor, sfw) bumps.
+          EXTERNAL_TOOLS_SHA=$(hash_file external-tools.json)
+
+          FINAL_HASH=$(echo "${CACHE_VERSION}${DOCKERFILE_HASH}${BUILD_SCRIPTS_HASH}${PATCHES_HASH}${MAKE_HASH}${BUILD_INFRA_LIB}${BIN_INFRA_LIB}${BUILD_INFRA_EXTERNAL_TOOLS}${BUILD_INFRA_SCRIPTS}${PNPM_LOCK_HASH}${NODE_VERSION_HASH}${BORINGSSL_SUBMODULE_SHA}${LIBC}${ROOT_PACKAGE_JSON}${PNPM_WORKSPACE}${BORINGSSL_PACKAGE_JSON}${EXTERNAL_TOOLS_SHA}" | $hash_cmd | cut -d' ' -f1)
+
+          echo "cache_version=${CACHE_VERSION}" >> $GITHUB_OUTPUT
+          echo "final_hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
+          echo "Cache key hash: ${FINAL_HASH}"
+
+      - name: Set build mode
+        id: build-mode
+        uses: ./.github/actions/repo/set-build-mode
+        with:
+          build-mode: ${{ inputs['build-mode'] }}
+
+      - name: Set platform-arch for cache
+        id: platform-arch-cache
+        uses: ./.github/actions/repo/set-platform-arch
+        with:
+          platform: ${{ matrix.platform }}
+          arch: ${{ matrix.arch }}
+          libc: ${{ matrix.libc }}
+
+      - name: Compute boringssl paths
+        id: paths
+        shell: bash
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          PLATFORM_ARCH: ${{ steps.platform-arch-cache.outputs.platform_arch }}
+        run: |
+          PACKAGE_DIR="packages/boringssl-builder"
+          MODE_BUILD_DIR="${PACKAGE_DIR}/build/${BUILD_MODE}"
+          PLATFORM_BUILD_DIR="${MODE_BUILD_DIR}/${PLATFORM_ARCH}"
+          FINAL_DIR="${PLATFORM_BUILD_DIR}/out/Final"
+          BORINGSSL_DIR="${FINAL_DIR}"
+          CHECKPOINTS_DIR="${PLATFORM_BUILD_DIR}/checkpoints"
+          {
+            echo "package_dir=${PACKAGE_DIR}"
+            echo "mode_build_dir=${MODE_BUILD_DIR}"
+            echo "platform_build_dir=${PLATFORM_BUILD_DIR}"
+            echo "final_dir=${FINAL_DIR}"
+            echo "boringssl_dir=${BORINGSSL_DIR}"
+            echo "checkpoints_dir=${CHECKPOINTS_DIR}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Restore BoringSSL checkpoint cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5 (2026-05-15)
+        id: boringssl-checkpoint-cache
+        if: ${{ !inputs.force }}
+        with:
+          path: |
+            packages/boringssl-builder/build/shared/checkpoints
+            ${{ steps.paths.outputs.checkpoints_dir }}
+          key: boringssl-checkpoints-${{ steps.cache-key.outputs.cache_version }}-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.libc && format('-{0}', matrix.libc) || '' }}-${{ steps.build-mode.outputs.mode }}-${{ steps.cache-key.outputs.final_hash }}
+
+      - name: Set checkpoint chain for build mode
+        id: checkpoint-chain
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        shell: bash
+        run: |
+          CHAIN=$(node packages/boringssl-builder/scripts/get-checkpoint-chain.mts --$BUILD_MODE)
+          echo "checkpoint_chain=$CHAIN" >> $GITHUB_OUTPUT
+          CHECKPOINTS=$(echo "$CHAIN" | tr ',' ' ')
+          echo "checkpoints=$CHECKPOINTS" >> $GITHUB_OUTPUT
+          echo "Checkpoint chain for $BUILD_MODE mode: $CHAIN"
+
+      - name: Validate checkpoint cache integrity
+        id: validate-cache
+        if: steps.boringssl-checkpoint-cache.outputs.cache-hit == 'true'
+        uses: ./.github/actions/repo/validate-checkpoints
+        with:
+          checkpoint-dirs: packages/boringssl-builder/build/shared/checkpoints:${{ steps.paths.outputs.checkpoints_dir }}
+          checkpoints: ${{ steps.checkpoint-chain.outputs.checkpoints }}
+          package-name: boringssl-builder
+
+      - name: Restore build output from checkpoint chain
+        id: restore-checkpoint
+        uses: ./.github/actions/repo/restore-checkpoint
+        with:
+          package-name: 'boringssl-builder'
+          build-mode: ${{ steps.build-mode.outputs.mode }}
+          checkpoint-chain: ${{ steps.checkpoint-chain.outputs.checkpoint_chain }}
+          cache-hit: ${{ steps.boringssl-checkpoint-cache.outputs.cache-hit }}
+          cache-valid: ${{ steps.validate-cache.outputs.valid }}
+          platform-arch: ${{ steps.platform-arch-cache.outputs.platform_arch }}
+
+      - name: Initialize BoringSSL submodule
+        if: (steps.boringssl-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') || steps.restore-checkpoint.outputs.build-required == 'true' || inputs.force
+        uses: ./.github/actions/repo/init-submodules
+        with:
+          submodules: packages/boringssl-builder/upstream/boringssl
+
+      - name: Setup Depot CLI
+        if: matrix.os == 'linux' && (steps.boringssl-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true' || steps.restore-checkpoint.outputs.build-required != 'false' || inputs.force)
+        uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1 (2026-05-15)
+        with:
+          oidc: true
+
+      - name: Stage registry tool-checksums for Docker build context
+        if: |
+          matrix.os == 'linux' &&
+          ((steps.boringssl-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true')
+        shell: bash
+        run: |
+          mkdir -p .build-context
+          cp "$SOCKET_TOOL_CHECKSUMS_FILE" .build-context/registry-tools.json
+
+      - name: Build BoringSSL with Depot (Linux - offloads compute)
+        if: |
+          matrix.os == 'linux' &&
+          ((steps.boringssl-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true')
+        uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1.17.0 (2026-05-15)
+        with:
+          project: 8fpj9495vw
+          platforms: linux/${{ matrix.arch == 'x64' && 'amd64' || matrix.arch }}
+          build-args: |
+            BUILD_MODE=${{ steps.build-mode.outputs.mode }}
+            PLATFORM_ARCH=${{ steps.platform-arch-cache.outputs.platform_arch }}
+            CACHE_VERSION=${{ steps.cache-version.outputs.version }}
+            BTM_BUILDER_TAG=${{ steps.btm-builder-tag.outputs.version }}
+          no-cache: ${{ inputs.force == true }}
+          file: packages/boringssl-builder/docker/Dockerfile.${{ matrix.libc || 'glibc' }}
+          target: export
+          outputs: type=local,dest=packages/boringssl-builder/build
+          context: .
+
+      - name: Verify Depot build output (Linux)
+        if: |
+          matrix.os == 'linux' &&
+          ((steps.boringssl-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true')
+        shell: bash
+        env:
+          PLATFORM_BUILD_DIR: ${{ steps.paths.outputs.platform_build_dir }}
+          BORINGSSL_DIR: ${{ steps.paths.outputs.boringssl_dir }}
+          PACKAGE_DIR: ${{ steps.paths.outputs.package_dir }}
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "Verifying Depot build output structure..."
+          ls -lah "${PLATFORM_BUILD_DIR}/" || ls -lah "${PACKAGE_DIR}/build/${BUILD_MODE}/"
+
+          # Both libsmol_crypto.a + libsmol_ssl.a must be present.
+          if [ -f "${BORINGSSL_DIR}/lib/libsmol_crypto.a" ] && [ -f "${BORINGSSL_DIR}/lib/libsmol_ssl.a" ]; then
+            echo "✅ libsmol_crypto.a + libsmol_ssl.a found"
+          elif [ -f "${BORINGSSL_DIR}/lib/smol_crypto.lib" ] && [ -f "${BORINGSSL_DIR}/lib/smol_ssl.lib" ]; then
+            echo "✅ smol_crypto.lib + smol_ssl.lib found"
+          else
+            echo "× BoringSSL libs not found!"
+            echo "Contents of output directory:"
+            find "${PACKAGE_DIR}/build/${BUILD_MODE}/" -type f 2>/dev/null || echo "No files found"
+            exit 1
+          fi
+
+      - name: Setup build toolchain (macOS)
+        if: |
+          matrix.os == 'macos' &&
+          ((steps.boringssl-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true')
+        shell: bash
+        run: |
+          for i in 1 2 3; do
+            if brew install cmake ccache go; then
+              break
+            fi
+            if [ "$i" -eq 3 ]; then
+              echo "× brew install failed after 3 attempts"
+              exit 1
+            fi
+            echo "Attempt $i failed, retrying in 10 seconds..."
+            sleep 10
+          done
+
+      - name: Setup build toolchain (Windows x64)
+        if: |
+          matrix.os == 'windows' && !matrix.cross_compile &&
+          ((steps.boringssl-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true')
+        shell: bash
+        run: |
+          # Pin every choco package to the version from
+          # packages/build-infra/external-tools.json — bare `choco install`
+          # picks "latest" at install time which makes Windows builds
+          # non-reproducible. Bumping a version means bumping the entry
+          # in external-tools.json; this step reads it as the source of
+          # truth.
+          TOOLS_JSON=packages/build-infra/external-tools.json
+          CMAKE_VERSION=$(jq -r '.tools.cmake.version' "$TOOLS_JSON")
+          CCACHE_VERSION=$(jq -r '.tools.ccache.version' "$TOOLS_JSON")
+          MINGW_VERSION=$(jq -r '.tools["mingw-w64"].version' "$TOOLS_JSON")
+          GO_VERSION=$(jq -r '.tools.go.version' "$TOOLS_JSON")
+          NASM_VERSION=$(jq -r '.tools.nasm.version' "$TOOLS_JSON")
+          for i in 1 2 3; do
+            if choco install \
+              cmake --version="$CMAKE_VERSION" \
+              mingw --version="$MINGW_VERSION" \
+              ccache --version="$CCACHE_VERSION" \
+              golang --version="$GO_VERSION" \
+              nasm --version="$NASM_VERSION" \
+              -y; then
+              break
+            fi
+            echo "Attempt $i failed, retrying in 10 seconds..."
+            sleep 10
+          done
+          # choco installs nasm to `C:\Program Files\NASM` which isn't
+          # added to PATH automatically; cmake's enable_language(ASM_NASM)
+          # probes for `nasm` on PATH and dies if missing.
+          echo "C:\Program Files\NASM" >> $GITHUB_PATH
+
+      - name: Setup build toolchain (Windows ARM64 cross-compile)
+        if: |
+          matrix.os == 'windows' && matrix.cross_compile &&
+          ((steps.boringssl-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true')
+        shell: bash
+        run: |
+          # See Setup build toolchain (Windows x64) for the rationale on
+          # pinning choco versions to external-tools.json. ARM64
+          # cross-compile path uses llvm-mingw (separate step) instead of
+          # the standard mingw package; cmake + ccache + golang + nasm
+          # come from choco.
+          TOOLS_JSON=packages/build-infra/external-tools.json
+          CMAKE_VERSION=$(jq -r '.tools.cmake.version' "$TOOLS_JSON")
+          CCACHE_VERSION=$(jq -r '.tools.ccache.version' "$TOOLS_JSON")
+          GO_VERSION=$(jq -r '.tools.go.version' "$TOOLS_JSON")
+          NASM_VERSION=$(jq -r '.tools.nasm.version' "$TOOLS_JSON")
+          for i in 1 2 3; do
+            if choco install \
+              cmake --version="$CMAKE_VERSION" \
+              ccache --version="$CCACHE_VERSION" \
+              golang --version="$GO_VERSION" \
+              nasm --version="$NASM_VERSION" \
+              -y; then
+              break
+            fi
+            echo "Attempt $i failed, retrying in 10 seconds..."
+            sleep 10
+          done
+          # ARM64 cross-compile path also calls enable_language(ASM_NASM)
+          # at cmake configure time — PATH needs to include NASM here too.
+          echo "C:\Program Files\NASM" >> $GITHUB_PATH
+
+      - name: Install llvm-mingw (Windows ARM64 cross-compile)
+        if: |
+          matrix.os == 'windows' && matrix.cross_compile &&
+          ((steps.boringssl-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true')
+        uses: ./.github/actions/repo/install-llvm-mingw
+
+      - name: Build BoringSSL native (macOS/Windows)
+        if: |
+          matrix.os != 'linux' &&
+          ((steps.boringssl-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true')
+        shell: bash
+        env:
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: |
+          cd packages/boringssl-builder
+          pnpm run build
+
+      - name: Debug build output structure
+        if: |
+          (steps.boringssl-checkpoint-cache.outputs.cache-hit != 'true' || steps.validate-cache.outputs.valid != 'true') ||
+          steps.restore-checkpoint.outputs.build-required == 'true'
+        shell: bash
+        env:
+          PLATFORM_BUILD_DIR: ${{ steps.paths.outputs.platform_build_dir }}
+          PACKAGE_DIR: ${{ steps.paths.outputs.package_dir }}
+          BUILD_MODE: ${{ steps.build-mode.outputs.mode }}
+        run: |
+          echo "Checking build output structure..."
+          echo "Contents of ${PLATFORM_BUILD_DIR}/:"
+          ls -lah "${PLATFORM_BUILD_DIR}/" || echo "Build directory does not exist"
+          echo ""
+          echo "Searching for BoringSSL library files:"
+          find "${PACKAGE_DIR}/build/${BUILD_MODE}/" -name "libsmol_*.a" -o -name "smol_*.lib" 2>/dev/null || echo "No BoringSSL library files found"
+          echo ""
+          echo "Complete directory tree:"
+          find "${PACKAGE_DIR}/build/${BUILD_MODE}/" -type f 2>/dev/null || echo "No files found"
+
+      - name: Verify release artifacts
+        shell: bash
+        env:
+          BORINGSSL_DIR: ${{ steps.paths.outputs.boringssl_dir }}
+        run: |
+          node packages/boringssl-builder/scripts/verify-release.mts "$BORINGSSL_DIR"
+
+      - name: Create archive
+        shell: bash
+        env:
+          BORINGSSL_DIR: ${{ steps.paths.outputs.boringssl_dir }}
+          PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
+          LIBC: ${{ matrix.libc }}
+        run: |
+          cd "$BORINGSSL_DIR"
+
+          # Canonical pnpm-style platform string (`win32`, not `win`)
+          # matches every downstream consumer (lsquic-infra,
+          # ensure-boringssl, node-smol-builder).
+          ARCHIVE_NAME="boringssl-${PLATFORM}-${ARCH}"
+          if [ "${LIBC}" = "musl" ]; then
+            ARCHIVE_NAME="${ARCHIVE_NAME}-musl"
+          fi
+
+          # Verify both static libs are present.
+          if [ -f "lib/libsmol_crypto.a" ] && [ -f "lib/libsmol_ssl.a" ]; then
+            : # Unix / MinGW form
+          elif [ -f "lib/smol_crypto.lib" ] && [ -f "lib/smol_ssl.lib" ]; then
+            : # MSVC form
+          else
+            echo "× Error: BoringSSL libs not found in $BORINGSSL_DIR/lib"
+            ls -la "lib/" 2>/dev/null || echo "(lib/ does not exist)"
+            exit 1
+          fi
+
+          # Write the tar.gz up to the mode build dir. cwd is $BORINGSSL_DIR
+          # = build/<mode>/<platform-arch>/out/Final/; 3 ups → build/<mode>/.
+          # (lief uses 4 ups because LIEF_DIR is out/Final/lief — one deeper.)
+          OUTPUT_PATH="../../../${ARCHIVE_NAME}.tar.gz"
+          echo "Creating archive: ${ARCHIVE_NAME}.tar.gz"
+          tar -czf "${OUTPUT_PATH}" \
+            lib/ \
+            include/
+
+          echo "✅ Archive created successfully"
+
+      - name: Set artifact name
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
+          LIBC: ${{ matrix.libc }}
+        run: |
+          ARTIFACT_NAME="boringssl-${PLATFORM}-${ARCH}"
+          if [ "${LIBC}" = "musl" ]; then
+            ARTIFACT_NAME="${ARTIFACT_NAME}-musl"
+          fi
+          echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> $GITHUB_ENV
+
+      - name: Verify archive exists
+        shell: bash
+        env:
+          MODE_BUILD_DIR: ${{ steps.paths.outputs.mode_build_dir }}
+          ARTIFACT_NAME: ${{ env.ARTIFACT_NAME }}
+        run: |
+          ARCHIVE_PATH="${MODE_BUILD_DIR}/${ARTIFACT_NAME}.tar.gz"
+          if [ ! -f "$ARCHIVE_PATH" ]; then
+            echo "× Archive not found at: $ARCHIVE_PATH"
+            echo "Contents of build directory:"
+            ls -lah "${MODE_BUILD_DIR}/" || echo "Build directory does not exist"
+            exit 1
+          fi
+          echo "✅ Archive found: $ARCHIVE_PATH"
+          ls -lh "$ARCHIVE_PATH"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (2026-05-15)
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ steps.paths.outputs.mode_build_dir }}/${{ env.ARTIFACT_NAME }}.tar.gz
+          retention-days: 30
+          if-no-files-found: error
+          compression-level: 0
+
+  release:
+    name: Release BoringSSL
+    needs: build-boringssl
+    if: github.event_name == 'workflow_dispatch' && !inputs['dry-run']
+    environment: release
+    permissions:
+      contents: write # Required to create GitHub releases
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (2026-05-15)
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .gitmodules
+            .github/scripts/generate-version.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 (2026-05-15)
+        with:
+          path: artifacts
+          pattern: boringssl-*
+          merge-multiple: true
+
+      - name: Verify downloaded artifacts
+        shell: bash
+        run: |
+          echo "Checking for downloaded artifacts..."
+          if [ -d "artifacts" ]; then
+            echo "✅ Artifacts directory exists"
+            echo "Contents:"
+            ls -lah artifacts/
+            if [ -n "$(ls -A artifacts/*.tar.gz 2>/dev/null)" ]; then
+              echo "✅ Found $(ls artifacts/*.tar.gz 2>/dev/null | wc -l) tar.gz files"
+            else
+              echo "× No tar.gz files found in artifacts directory"
+              exit 1
+            fi
+          else
+            echo "× Artifacts directory does not exist"
+            echo "This means no artifacts were uploaded by the build jobs."
+            exit 1
+          fi
+
+      - name: Get BoringSSL version
+        id: version
+        shell: bash
+        run: |
+          # Extract version from .gitmodules comment (canonical source).
+          # Form is `# boringssl-YYYY-MM-DD via bun-vX.Y.Z` per the
+          # date-via-downstream extension to gitmodules-version-comments.
+          BORINGSSL_VERSION=$(grep -B 1 'packages/boringssl-builder/upstream/boringssl' .gitmodules | grep '# boringssl-' | sed 's/.*# boringssl-//' | sed 's/ via .*//')
+          if [ -z "$BORINGSSL_VERSION" ]; then
+            echo "Error: Failed to extract BoringSSL version from .gitmodules"
+            exit 1
+          fi
+          echo "version=${BORINGSSL_VERSION}" >> $GITHUB_OUTPUT
+          echo "BoringSSL version: ${BORINGSSL_VERSION}"
+
+      - name: Generate release tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          source .github/scripts/generate-version.sh
+          TAG="boringssl-${VERSION}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Release tag: ${TAG}"
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, skipping."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        if: steps.tag.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          BORINGSSL_VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          mkdir -p release
+          for file in artifacts/*.tar.gz; do
+            if [ -f "$file" ]; then
+              mv "$file" release/
+            fi
+          done
+
+          if [ -z "$(ls -A release/*.tar.gz 2>/dev/null)" ]; then
+            echo "Error: No .tar.gz files found in release directory after moving from artifacts"
+            exit 1
+          fi
+
+          echo "Found $(ls release/*.tar.gz | wc -l) archives to release"
+
+          cd release
+          if command -v shasum &> /dev/null; then
+            shasum -a 256 *.tar.gz > checksums.txt
+          elif command -v sha256sum &> /dev/null; then
+            sha256sum *.tar.gz > checksums.txt
+          else
+            echo "Error: No SHA-256 command found"
+            exit 1
+          fi
+          cat checksums.txt
+          cd ..
+
+          TITLE_SUFFIX="${RELEASE_TAG#boringssl-}"
+          # Immutable-releases 3-step: draft → upload → publish.
+          # Single-call form races the Sigstore attestation hash.
+          # See docs/agents.md/fleet/immutable-releases.md.
+          gh release create "${RELEASE_TAG}" \
+            --draft \
+            --title "boringssl ${TITLE_SUFFIX}" \
+            --notes "BoringSSL (prefixed: smol_*) static libraries for node:smol-http transport stack.
+
+          ## Platforms
+          - darwin-arm64
+          - darwin-x64
+          - linux-arm64
+          - linux-x64
+          - linux-arm64-musl
+          - linux-x64-musl
+          - win32-arm64
+          - win32-x64
+
+          ## Files
+          Each platform archive contains:
+          - Static libraries (\`lib/libsmol_crypto.a\` + \`lib/libsmol_ssl.a\`, or \`smol_crypto.lib\` + \`smol_ssl.lib\` on MSVC)
+          - Header files (\`include/openssl/*.h\`)
+          - \`checksums.txt\` - SHA256 checksums
+
+          Symbols are prefixed via \`-DBORINGSSL_PREFIX=smol\` so the libs link cleanly alongside Node's bundled OpenSSL with zero symbol collisions. Pinned to the same SHA Bun ships in v${BORINGSSL_VERSION}.
+
+          ## Usage
+          Download the appropriate archive for your platform and extract:
+
+          \`\`\`sh
+          tar -xzf boringssl-<platform>-<arch>.tar.gz
+          # Or for musl:
+          tar -xzf boringssl-<platform>-<arch>-musl.tar.gz
+          \`\`\`"
+          gh release upload "${RELEASE_TAG}" \
+            release/*.tar.gz \
+            release/checksums.txt
+          gh release edit "${RELEASE_TAG}" --draft=false
+
+  update-release-assets:
+    needs: release
+    if: github.event_name == 'workflow_dispatch' && !inputs['dry-run']
+    permissions:
+      contents: write # release-assets.json commit after publishing GitHub release
+    uses: ./.github/workflows/update-release-assets.yml
+    secrets:
+      BOT_GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}

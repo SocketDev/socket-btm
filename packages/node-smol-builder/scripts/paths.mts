@@ -1,0 +1,489 @@
+/**
+ * Centralized path resolution for node-smol-builder.
+ *
+ * Supports hierarchical organization:
+ * - Phase: common, release, stripped, compressed, final
+ * - Specificity: shared → platform/shared → platform/arch.
+ *
+ * Note: Path helpers return all potential paths regardless of whether they
+ * exist. Non-existent paths are safe to use with find/glob operations (they're
+ * simply skipped). Use getExistingPaths() to filter to only existing
+ * directories when needed.
+ */
+
+export * from '../../../scripts/fleet/paths.mts'
+
+import { existsSync } from 'node:fs'
+import path from 'node:path'
+import process from 'node:process'
+
+import { fileURLToPath } from 'node:url'
+
+import { BUILD_STAGES, CHECKPOINTS } from 'build-infra/lib/constants'
+import { getAssetPlatformArch } from 'build-infra/lib/platform-mappings'
+
+import { getSocketHomePath } from '@socketsecurity/lib-stable/paths/socket'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+// Package root: scripts/../
+export const PACKAGE_ROOT = path.resolve(__dirname, '..')
+
+// Monorepo root: packages/../..
+export const MONOREPO_ROOT = path.resolve(PACKAGE_ROOT, '..', '..')
+
+// Global cache directory (shared with socket-cli).
+export const SOCKET_CACHE_DIR = getSocketHomePath()
+
+// Upstream path
+export const UPSTREAM_PATH = path.join(PACKAGE_ROOT, 'upstream/node')
+
+// Phase dependencies: each checkpoint lists the checkpoints whose sources
+// feed its cumulative cache hash.
+const PHASE_DEPS: Partial<Record<string, string[]>> = {
+  [CHECKPOINTS.SOURCE_COPIED]: [CHECKPOINTS.SOURCE_COPIED],
+  [CHECKPOINTS.SOURCE_PATCHED]: [
+    CHECKPOINTS.SOURCE_COPIED,
+    CHECKPOINTS.SOURCE_PATCHED,
+  ],
+  [CHECKPOINTS.BINARY_RELEASED]: [
+    CHECKPOINTS.SOURCE_COPIED,
+    CHECKPOINTS.SOURCE_PATCHED,
+    CHECKPOINTS.BINARY_RELEASED,
+  ],
+  [CHECKPOINTS.BINARY_STRIPPED]: [
+    CHECKPOINTS.SOURCE_COPIED,
+    CHECKPOINTS.SOURCE_PATCHED,
+    CHECKPOINTS.BINARY_RELEASED,
+    CHECKPOINTS.BINARY_STRIPPED,
+  ],
+  [CHECKPOINTS.BINARY_COMPRESSED]: [
+    CHECKPOINTS.SOURCE_COPIED,
+    CHECKPOINTS.SOURCE_PATCHED,
+    CHECKPOINTS.BINARY_RELEASED,
+    CHECKPOINTS.BINARY_STRIPPED,
+    CHECKPOINTS.BINARY_COMPRESSED,
+  ],
+  [CHECKPOINTS.FINALIZED]: [
+    CHECKPOINTS.SOURCE_COPIED,
+    CHECKPOINTS.SOURCE_PATCHED,
+    CHECKPOINTS.BINARY_RELEASED,
+    CHECKPOINTS.BINARY_STRIPPED,
+    CHECKPOINTS.BINARY_COMPRESSED,
+    CHECKPOINTS.FINALIZED,
+  ],
+}
+
+/**
+ * Get build directories for a specific mode (dev/prod) with REQUIRED
+ * platformArch.
+ *
+ * @param {string} mode - Build mode ('dev' or 'prod')
+ * @param {string} platform - Target platform ('darwin', 'linux', 'win32')
+ * @param {string} platformArch - Platform-arch (e.g., 'darwin-arm64') -
+ *   REQUIRED.
+ */
+export function getBuildPaths(
+  mode: string,
+  platform: string = process.platform,
+  platformArch?: string,
+) {
+  if (!platformArch) {
+    throw new Error('platformArch is required for getBuildPaths()')
+  }
+
+  const buildDir = path.join(BUILD_ROOT, mode, platformArch)
+  const nodeSourceDir = path.join(buildDir, 'source')
+  const outDir = path.join(nodeSourceDir, 'out')
+  const releaseDir = path.join(outDir, BUILD_STAGES.RELEASE)
+  const buildPatchesDir = path.join(buildDir, 'patches')
+  const buildOutDir = path.join(buildDir, 'out')
+  const outputReleaseDir = path.join(buildOutDir, BUILD_STAGES.RELEASE)
+  const outputStrippedDir = path.join(buildOutDir, BUILD_STAGES.STRIPPED)
+  const outputCompressedDir = path.join(buildOutDir, BUILD_STAGES.COMPRESSED)
+  const outputFinalDir = path.join(buildOutDir, BUILD_STAGES.FINAL)
+  // The build cache lives next to build artifacts (build/<mode>/<plat>/
+  // .cache/), not in node_modules/.cache. It's keyed on the build mode
+  // + platform tuple that owns this build, so a node_modules-rooted
+  // cache would be wrong here (one node_modules feeds many builds).
+  // oxlint-disable-next-line socket/prefer-node-modules-dot-cache -- build cache is keyed on the build-mode/platform tuple, not a node_modules-rooted global cache
+  const cacheDir = path.join(buildDir, '.cache')
+
+  // Platform-specific binary name
+  const binaryName = platform === 'win32' ? 'node.exe' : 'node'
+
+  // Node output is a directory (like curl, mbedtls) containing the binary.
+  const outputReleaseNodeDir = path.join(outputReleaseDir, 'node')
+  const outputStrippedNodeDir = path.join(outputStrippedDir, 'node')
+  const outputCompressedNodeDir = path.join(outputCompressedDir, 'node')
+  const outputFinalNodeDir = path.join(outputFinalDir, 'node')
+
+  return {
+    buildDir,
+    nodeSourceDir,
+    outDir,
+    releaseDir,
+    buildPatchesDir,
+    buildOutDir,
+    outputReleaseDir,
+    outputReleaseNodeDir,
+    outputStrippedDir,
+    outputStrippedNodeDir,
+    outputCompressedDir,
+    outputCompressedNodeDir,
+    outputFinalDir,
+    outputFinalNodeDir,
+    cacheDir,
+    // Binary paths
+    binaryName,
+    nodeBinary: path.join(releaseDir, binaryName),
+    outputReleaseBinary: path.join(outputReleaseNodeDir, binaryName),
+    outputStrippedBinary: path.join(outputStrippedNodeDir, binaryName),
+    outputCompressedBinary: path.join(outputCompressedNodeDir, binaryName),
+    outputFinalBinary: path.join(outputFinalNodeDir, binaryName),
+    // Test and validation file paths
+    testFile: path.join(nodeSourceDir, 'deps/v8/src/heap/cppgc/heap-page.h'),
+    bootstrapFile: path.join(nodeSourceDir, 'lib/internal/bootstrap/node.js'),
+    patchedFile: path.join(nodeSourceDir, 'src/node_binding.cc'),
+    // Build config directories
+    releaseConfigDir: path.join(nodeSourceDir, 'Release'),
+    debugConfigDir: path.join(nodeSourceDir, 'Debug'),
+  }
+}
+
+/**
+ * Get all source file paths that affect a build phase.
+ *
+ * Returns paths for scripts, patches, and additions that should be hashed
+ * for cache key generation.
+ *
+ * @example
+ *   getBuildSourcePaths('stripped', 'darwin', 'arm64')
+ *   // Returns:
+ *   // {
+ *   //   common: [...common script paths],
+ *   //   scripts: [...stripped script paths],
+ *   //   patches: [...cumulative patch paths (release + stripped)],
+ *   //   additions: [...cumulative addition paths (release + stripped)]
+ *   // }
+ *
+ * @param {string} phase - 'binary-released' | 'binary-stripped' |
+ *   'binary-compressed' | 'finalized'
+ * @param {string} platform - 'darwin' | 'linux' | 'win32'
+ * @param {string} arch - 'arm64' | 'x64'
+ *
+ * @returns {object} Object with scripts, patches, and additions paths
+ */
+export function getBuildSourcePaths(
+  phase: string,
+  platform: string,
+  arch: string,
+) {
+  const phases = PHASE_DEPS[phase] || [phase]
+
+  return {
+    // Common scripts affect all phases
+    common: getCommonScriptsPaths(platform, arch),
+
+    // Phase-specific scripts (only current phase, not cumulative)
+    scripts: getHierarchicalPaths('scripts', phase, platform, arch),
+
+    // Patches and additions are cumulative (include all previous phases)
+    patches: getCumulativeHierarchicalPaths('patches', phases, platform, arch),
+    additions: getCumulativeHierarchicalPaths(
+      'additions',
+      phases,
+      platform,
+      arch,
+    ),
+  }
+}
+
+/**
+ * Get common scripts paths (used by all phases).
+ *
+ * @param {string} platform - 'darwin' | 'linux' | 'win32'
+ * @param {string} arch - 'arm64' | 'x64'
+ *
+ * @returns {string[]} Array of common script paths
+ */
+export function getCommonScriptsPaths(platform: string, arch: string) {
+  return getHierarchicalPaths('scripts', 'common', platform, arch)
+}
+
+/**
+ * Get all source file paths for cumulative cache hash (includes all
+ * dependencies).
+ *
+ * For cache validation, we need to include all files from current phase and
+ * all previous phases (cumulative).
+ *
+ * @param {string} phase - 'binary-released' | 'binary-stripped' |
+ *   'binary-compressed' | 'finalized'
+ * @param {string} platform - 'darwin' | 'linux' | 'win32'
+ * @param {string} arch - 'arm64' | 'x64'
+ *
+ * @returns {object} Object with cumulative scripts, patches, and additions
+ *   paths.
+ */
+export function getCumulativeBuildSourcePaths(
+  phase: string,
+  platform: string,
+  arch: string,
+) {
+  const phases = PHASE_DEPS[phase] || [phase]
+
+  return {
+    // Common scripts affect all phases
+    common: getCommonScriptsPaths(platform, arch),
+
+    // All scripts from all phases (cumulative)
+    scripts: getCumulativeHierarchicalPaths('scripts', phases, platform, arch),
+
+    // All patches from all phases (cumulative)
+    patches: getCumulativeHierarchicalPaths('patches', phases, platform, arch),
+
+    // All additions from all phases (cumulative)
+    additions: getCumulativeHierarchicalPaths(
+      'additions',
+      phases,
+      platform,
+      arch,
+    ),
+  }
+}
+
+/**
+ * Get all hierarchical paths for multiple phases (cumulative).
+ *
+ * Each phase includes its own files plus all previous phases.
+ * Returns all potential paths regardless of existence.
+ *
+ * @example
+ *   getCumulativeHierarchicalPaths(
+ *     'patches',
+ *     ['release', 'stripped'],
+ *     'linux',
+ *     'x64',
+ *   )
+ *   // Returns:
+ *   // [
+ *   //   'patches/release/shared',
+ *   //   'patches/release/linux/shared',
+ *   //   'patches/release/linux/x64',
+ *   //   'patches/stripped/shared',
+ *   //   'patches/stripped/linux/shared',
+ *   //   'patches/stripped/linux/x64'
+ *   // ]
+ *
+ * @param {string} category - 'scripts' | 'patches' | 'additions'
+ * @param {string[]} phases - Array of phases to include (e.g., ['release',
+ *   'stripped'])
+ * @param {string} platform - 'darwin' | 'linux' | 'win32'
+ * @param {string} arch - 'arm64' | 'x64'
+ *
+ * @returns {string[]} Array of all paths for all phases
+ */
+export function getCumulativeHierarchicalPaths(
+  category: string,
+  phases: string[],
+  platform: string,
+  arch: string,
+) {
+  const allPaths: string[] = []
+
+  for (let i = 0, { length } = phases; i < length; i += 1) {
+    const phase = phases[i]
+    if (phase === undefined) {
+      continue
+    }
+    const phasePaths = getHierarchicalPaths(category, phase, platform, arch)
+    allPaths.push(...phasePaths)
+  }
+
+  return allPaths
+}
+
+/**
+ * Get the default platform-arch string for the current system.
+ * Thin wrapper over build-infra's getAssetPlatformArch so the rest of
+ * node-smol-builder can keep its existing callsites while the shared
+ * helper remains the source of truth.
+ *
+ * @param {string} [platform] - Target platform (defaults to process.platform)
+ * @param {string} [arch] - Target architecture (defaults to process.arch)
+ * @param {string} [libc] - C library variant ('musl' for Alpine Linux)
+ *
+ * @returns {string} Platform-arch string (e.g., 'darwin-arm64',
+ *   'linux-x64-musl')
+ */
+export function getDefaultPlatformArch(
+  platform: string = process.platform,
+  arch: string = process.arch,
+  libc?: string | undefined,
+): string {
+  return getAssetPlatformArch(platform, arch, libc)
+}
+
+/**
+ * Filter paths to only those that exist.
+ *
+ * Essential for local build operations that use readdirSync/statSync
+ * (these throw errors on non-existent directories).
+ *
+ * CI workflows don't need this (find handles missing dirs gracefully),
+ * but local builds do.
+ *
+ * @example
+ *   const allPaths = getHierarchicalPaths(
+ *     'scripts',
+ *     'stripped',
+ *     'darwin',
+ *     'arm64',
+ *   )
+ *   const existingPaths = getExistingPaths(allPaths)
+ *   // Returns only paths that actually exist:
+ *   // [
+ *   //   'packages/node-smol-builder/scripts/stripped/darwin/shared'
+ *   // ]
+ *
+ * @param {string[]} paths - Array of paths to filter.
+ *
+ * @returns {string[]} Array of paths that exist on the filesystem
+ */
+export function getExistingPaths(paths: string[]): string[] {
+  return paths.filter(p => existsSync(p))
+}
+
+/**
+ * Get hierarchical paths for scripts/patches/additions.
+ *
+ * Returns all potential paths in priority order, regardless of whether they
+ * exist. Non-existent paths are safe to use with find/glob operations (they're
+ * simply skipped).
+ *
+ * For a given phase and platform/arch, returns paths in priority order:
+ * 1. shared/ (all platforms)
+ * 2. {platform}/shared/ (all archs of that platform)
+ * 3. {platform}/{arch}/ (specific platform+arch)
+ *
+ * @example
+ *   getHierarchicalPaths('scripts', 'stripped', 'darwin', 'arm64')
+ *   // Returns:
+ *   // [
+ *   //   'packages/node-smol-builder/scripts/stripped/shared',
+ *   //   'packages/node-smol-builder/scripts/stripped/darwin/shared',
+ *   //   'packages/node-smol-builder/scripts/stripped/darwin/arm64'
+ *   // ]
+ *   // Note: Paths are returned even if directories don't exist
+ *
+ * @param {string} category - 'scripts' | 'patches' | 'additions'
+ * @param {string} phase - 'common' | 'release' | 'stripped' | 'compressed' |
+ *   'final'
+ * @param {string} platform - 'darwin' | 'linux' | 'win32'
+ * @param {string} arch - 'arm64' | 'x64'
+ *
+ * @returns {string[]} Array of paths in priority order (general to specific)
+ */
+export function getHierarchicalPaths(
+  category: string,
+  phase: string,
+  platform: string,
+  arch: string,
+): string[] {
+  const base = path.join(PACKAGE_ROOT, category, phase)
+
+  return [
+    // Level 1: All platforms
+    path.join(base, 'shared'),
+    // Level 2: All archs of platform
+    path.join(base, platform, 'shared'),
+    // Level 3: Specific platform+arch
+    path.join(base, platform, arch),
+  ]
+}
+
+/**
+ * Get shared build directories for pristine artifacts (shared across dev/prod).
+ * Used for source-cloned checkpoint that both dev and prod extract from.
+ */
+export function getSharedBuildPaths() {
+  const buildDir = path.join(BUILD_ROOT, 'shared')
+  const nodeSourceDir = path.join(buildDir, 'source')
+  const checkpointsDir = path.join(buildDir, 'checkpoints')
+
+  return {
+    buildDir,
+    checkpointsDir,
+    configureScript: path.join(nodeSourceDir, 'configure'),
+    nodeSourceDir,
+  }
+}
+
+// Note: Checkpoint-specific paths have been moved to respective checkpoint paths.mts files:
+// - PATCHES_SOURCE_PATCHED_DIR, ADDITIONS_MAPPINGS → binary-released/shared/paths.mts
+// - COMPRESS_BINARY_SCRIPT → binary-compressed/shared/paths.mts
+// This ensures checkpoint-specific paths are tracked in cache keys appropriately.
+
+// External monorepo packages.
+//
+// Sibling packages that own their own scripts/paths.mts (dawn-builder,
+// yoga-layout-builder) get their PACKAGE_ROOT imported here; siblings
+// without a canonical paths.mts are re-derived (no other owner exists).
+import { PACKAGE_ROOT as YOGA_LAYOUT_BUILDER_DIR_FROM_OWNER } from 'yoga-layout-builder/scripts/paths'
+
+export const YOGA_LAYOUT_BUILDER_DIR = YOGA_LAYOUT_BUILDER_DIR_FROM_OWNER
+
+export const BINPRESS_DIR = path.join(PACKAGE_ROOT, '..', 'binpress')
+export const BINFLATE_DIR = path.join(PACKAGE_ROOT, '..', 'binflate')
+export const BINJECT_DIR = path.join(PACKAGE_ROOT, '..', 'binject')
+export const BIN_INFRA_DIR = path.join(PACKAGE_ROOT, '..', 'bin-infra')
+export const BUILD_INFRA_DIR = path.join(PACKAGE_ROOT, '..', 'build-infra')
+export const LIEF_BUILDER_DIR = path.join(PACKAGE_ROOT, '..', 'lief-builder')
+export const BORINGSSL_BUILDER_DIR = path.join(
+  PACKAGE_ROOT,
+  '..',
+  'boringssl-builder',
+)
+export const GLIBC_SHIMS_INFRA_DIR = path.join(
+  PACKAGE_ROOT,
+  '..',
+  'glibc-shims-infra',
+)
+export const TEMPORAL_INFRA_DIR = path.join(
+  PACKAGE_ROOT,
+  '..',
+  'temporal-infra',
+)
+export const TUI_INFRA_DIR = path.join(PACKAGE_ROOT, '..', 'tui-infra')
+export const LSQUIC_INFRA_DIR = path.join(PACKAGE_ROOT, '..', 'lsquic-infra')
+export const KEYSTORE_INFRA_DIR = path.join(
+  PACKAGE_ROOT,
+  '..',
+  'keystore-infra',
+)
+export const LANGUAGE_MODEL_INFRA_DIR = path.join(
+  PACKAGE_ROOT,
+  '..',
+  'language-model-infra',
+)
+export const NODE_SMOL_AI_PACKAGE_DIR = path.join(
+  PACKAGE_ROOT,
+  '..',
+  'npm',
+  '@node-smol',
+  'ai',
+)
+
+// Build output directories
+export const BINJECTED_DIR = path.join(
+  PACKAGE_ROOT,
+  'scripts',
+  'binary-compressed',
+  'shared',
+  'binjected',
+)
+
+// Build directories
+export const BUILD_ROOT = path.join(PACKAGE_ROOT, 'build')

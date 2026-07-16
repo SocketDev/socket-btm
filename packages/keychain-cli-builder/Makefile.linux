@@ -1,0 +1,44 @@
+# socket-keychain CLI for Linux: C++ command surface + C libsecret backend.
+
+include ../build-infra/make/common.mk
+include ../build-infra/make/platform-linux.mk
+
+TARGET = socket-keychain
+SRC_DIR = src/socketsecurity/keychain-cli-builder
+KEYSTORE_DIR = ../keystore-infra/src/socketsecurity/keystore-infra
+KEYSTORE_INCLUDE = -I../keystore-infra/src
+LIBSECRET_CFLAGS = $(shell pkg-config --cflags libsecret-1)
+LIBSECRET_LDFLAGS = $(shell pkg-config --libs libsecret-1)
+OBJ_DIR = $(BUILD_DIR)/obj
+CLI_OBJ = $(OBJ_DIR)/socket_keychain.o
+BACKEND_OBJ = $(OBJ_DIR)/keystore_linux.o
+
+CXXFLAGS = -Wall -Wextra -Werror $(OPT_FLAGS) -std=c++17 $(KEYSTORE_INCLUDE) \
+           -DVERSION=\"$(VERSION)\"
+CFLAGS = -Wall -Wextra -Werror $(OPT_FLAGS) -std=c11 $(KEYSTORE_INCLUDE) \
+         $(LIBSECRET_CFLAGS)
+# libsecret is a system shared library. Do not inherit platform-linux.mk's
+# fully-static LDFLAGS_BASE; common Linux desktops do not ship a static copy.
+LDFLAGS = -Wl,--gc-sections $(LIBSECRET_LDFLAGS)
+
+all: check-tools $(OUT_DIR)/$(TARGET)
+
+$(OUT_DIR)/$(TARGET): $(CLI_OBJ) $(BACKEND_OBJ) | $(OUT_DIR)
+	$(CXX) $(OPT_FLAGS) -o $@ $(CLI_OBJ) $(BACKEND_OBJ) $(LDFLAGS)
+
+$(CLI_OBJ): $(SRC_DIR)/socket_keychain.cc | $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+$(BACKEND_OBJ): $(KEYSTORE_DIR)/keystore_linux.c | $(OBJ_DIR)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(OUT_DIR) $(OBJ_DIR):
+	mkdir -p $@
+
+check-tools:
+	@command -v $(CC) >/dev/null 2>&1 || { echo "ERROR: $(CC) not found"; exit 1; }
+	@command -v $(CXX) >/dev/null 2>&1 || { echo "ERROR: $(CXX) not found"; exit 1; }
+	@pkg-config --exists libsecret-1 || { echo "ERROR: libsecret-1-dev not found"; exit 1; }
+
+clean:
+	rm -rf build out

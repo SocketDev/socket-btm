@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Schema for external-tools.json files",
+  "type": "object",
+  "properties": {
+    "$schema": { "type": "string" },
+    "description": { "type": "string" },
+    "extends": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ],
+      "description": "Path(s) to a base external-tools.json to inherit from. Mirrors ESLint: accepts a single string or an array of strings. Later entries in an array override earlier ones; the current file overrides all."
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "description": { "type": "string" },
+          "version": { "type": "string" },
+          "packageManager": {
+            "type": "string",
+            "enum": ["npm", "pip", "pnpm"]
+          },
+          "notes": {
+            "oneOf": [
+              { "type": "string" },
+              { "type": "array", "items": { "type": "string" } }
+            ]
+          },
+          "repository": { "type": "string" },
+          "source": {
+            "type": "string",
+            "description": "Source-of-truth repo for a tool whose prebuilt binaries ship from a different host than its source (e.g. zig: source on Codeberg, binaries on ziglang.org). Per-platform SHA-256s live in build-infra/tool-checksums/<tool>.json."
+          },
+          "sourceTag": { "type": "string" },
+          "release": { "type": "string", "enum": ["asset", "archive"] },
+          "tag": { "type": "string" },
+          "platforms": {
+            "type": "object",
+            "description": "Per-platform release assets keyed by <os>-<arch> (e.g. linux-x64, darwin-arm64, win-x64). Each entry pins the asset filename plus an SRI integrity string. Replaces the legacy `checksums` map (which keyed sha256 hex under `.sha256`).",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "asset": { "type": "string" },
+                "integrity": {
+                  "type": "string",
+                  "description": "SRI hash, e.g. sha256-<base64>. Decode the base64 to hex for `sha256sum -c`."
+                },
+                "source": { "type": "string" },
+                "binary": { "type": "string" },
+                "notes": { "type": "string" }
+              },
+              "required": ["asset", "integrity"]
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,91 @@
+# Build binject in container to offload compute from GitHub Actions.
+# Consumes the fleet-shared btm-builder-glibc prebake (almalinux:8 +
+# gcc-toolset-13 + Node + pnpm + toolchain + gh + wget).
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+ARG BTM_BUILDER_TAG
+
+FROM ghcr.io/socketdev/btm-builder-glibc:${BTM_BUILDER_TAG} AS build
+
+ARG CACHE_VERSION=unset
+
+# Build OpenSSL 1.1.1w from source (required for SHA512 in
+# dlx_cache_common.h). binject-specific — the prebake's openssl-devel
+# is 3.x and lacks the SHA512 SSE intrinsics binject's stub uses.
+WORKDIR /tmp/openssl-build
+RUN source /opt/rh/gcc-toolset-13/enable && \
+    wget https://www.openssl.org/source/openssl-1.1.1w.tar.gz && \
+    tar xzf openssl-1.1.1w.tar.gz && \
+    cd openssl-1.1.1w && \
+    ./config --prefix=/usr/local/ssl --openssldir=/usr/local/ssl no-shared && \
+    make -j"$(nproc)" && \
+    make install && \
+    cd / && \
+    rm -rf /tmp/openssl-build
+
+WORKDIR /workspace
+
+# Explicit per-path copies — tracks cache invalidation only for what
+# binject consumes.
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .gitmodules .node-version ./
+COPY .github/scripts/ensure-zstd.sh .github/scripts/
+COPY packages/bin-infra ./packages/bin-infra
+COPY packages/binject ./packages/binject
+COPY packages/build-infra ./packages/build-infra
+COPY packages/lief-builder ./packages/lief-builder
+COPY packages/node-smol-builder ./packages/node-smol-builder
+
+# Ensure vendored zstd source is available (submodule may not be in Docker context).
+RUN .github/scripts/ensure-zstd.sh
+
+ARG TARGETARCH
+
+# OpenSSL paths for SHA512 linking (fixes undefined reference to 'SHA512').
+ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH
+ENV LDFLAGS="-L/usr/local/ssl/lib -lcrypto"
+ENV CFLAGS="-I/usr/local/ssl/include"
+ENV CXXFLAGS=""
+
+ENV CI=true
+RUN pnpm install --frozen-lockfile --filter build-infra --filter bin-infra --filter lief-builder --filter node-smol-builder --filter binject
+
+ARG BUILD_MODE=prod
+ARG PLATFORM_ARCH=linux-x64
+ARG LIEF_CACHE_VERSION=unset
+ARG LIBDEFLATE_CACHE_VERSION=unset
+ARG STUBS_CACHE_VERSION=unset
+ENV BUILD_MODE=$BUILD_MODE
+ENV PLATFORM_ARCH=$PLATFORM_ARCH
+
+# Build binject (LIEF will be downloaded automatically if available in releases).
+# GH_TOKEN via BuildKit secret (no trace in image-layer metadata).
+# CCACHE_DIR + CC/CXX="ccache <compiler>" route every compile through
+# ccache. The `--mount=type=cache,target=/root/.ccache` persists the
+# cache across builds; incremental rebuilds skip unchanged TUs.
+ENV CCACHE_DIR=/root/.ccache
+ENV CC="ccache gcc"
+ENV CXX="ccache g++"
+RUN --mount=type=secret,id=gh_token,required=false \
+    --mount=type=cache,target=/root/.ccache \
+    source /opt/rh/gcc-toolset-13/enable && \
+    if [ -f /run/secrets/gh_token ]; then \
+      export GH_TOKEN="$(cat /run/secrets/gh_token)"; \
+      export GITHUB_TOKEN="$GH_TOKEN"; \
+    fi && \
+    echo "Cache: ${CACHE_VERSION}, LIEF: ${LIEF_CACHE_VERSION}, libdeflate: ${LIBDEFLATE_CACHE_VERSION}, stubs: ${STUBS_CACHE_VERSION}" && \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        export CFLAGS="$CFLAGS -march=x86-64 -mtune=generic" && \
+        export CXXFLAGS="$CXXFLAGS -march=x86-64 -mtune=generic"; \
+    fi && \
+    cd packages/binject && pnpm run build -- --force
+
+# Run tests inside container (same compiler/LIEF version as build).
+# Tests must run in the same environment to avoid LTO bytecode incompatibility.
+RUN --mount=type=cache,target=/root/.ccache \
+    source /opt/rh/gcc-toolset-13/enable && \
+    cd packages/binject && node scripts/test.mts
+
+FROM scratch AS export
+ARG BUILD_MODE=prod
+COPY --from=build /workspace/packages/binject/build /

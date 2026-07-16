@@ -1,0 +1,33 @@
+{
+  "type": "lockfile",
+  "lockVersion": "3",
+  "ecosystem": "npm",
+  "packages": [
+    {
+      "name": "@my-org/ui",
+      "version": "0.0.0",
+      "ecosystem": "npm",
+      "depType": "prod",
+      "isDev": false,
+      "isOptional": false,
+      "isPeer": false,
+      "isBundled": false,
+      "dependencies": []
+    },
+    {
+      "name": "regular-dep",
+      "version": "1.0.0",
+      "ecosystem": "npm",
+      "depType": "prod",
+      "isDev": false,
+      "isOptional": false,
+      "isPeer": false,
+      "isBundled": false,
+      "dependencies": []
+    }
+  ],
+  "_index": {
+    "@my-org/ui": 0,
+    "regular-dep": 1
+  }
+}

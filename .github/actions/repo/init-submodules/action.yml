@@ -1,0 +1,35 @@
+name: Initialize Submodules
+description: Initialize specific git submodules needed for the build
+
+inputs:
+  submodules:
+    description: 'Space-separated list of submodule paths to initialize'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Initialize submodules
+      shell: bash
+      env:
+        SUBMODULES: ${{ inputs.submodules }}
+      run: |
+        for sm in $SUBMODULES; do
+          # Defense-in-depth: validate path shape before passing to git.
+          # Sibling composite actions (setup-checkpoints, restore-
+          # checkpoint) validate their path inputs the same way; an
+          # input from a future workflow composed from untrusted data
+          # shouldn't reach `git submodule` without a shape check.
+          if ! [[ "$sm" =~ ^packages/[a-zA-Z0-9_/-]+$ ]]; then
+            echo "× Invalid submodule path: $sm"
+            exit 1
+          fi
+          echo "Initializing submodule: $sm (shallow, depth=1, single-branch)"
+          # Canonical fleet pattern (.gitmodules also has shallow=true as
+          # defense-in-depth for any caller that does plain
+          # `git submodule update`). `--depth=1` shallow-clones to the
+          # gitlink SHA. `--single-branch` skips fetching every branch
+          # tip. `--recommend-shallow` would be redundant — only honored
+          # when --depth is unset.
+          git submodule update --init --depth=1 --single-branch "$sm"
+        done

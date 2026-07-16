@@ -1,0 +1,182 @@
+/**
+ * @file Shared helpers for compression tool download and verification. Provides
+ *   DRY utilities for ensuring binpress tool availability. Note: binflate
+ *   (decompressor) is no longer downloaded here because the self-extracting
+ *   stub has built-in decompression - no external binflate needed. Naming
+ *   convention:
+ *
+ *   - ensure*: Download if missing, then verify
+ */
+
+import { existsSync } from 'node:fs'
+import path from 'node:path'
+import process from 'node:process'
+
+// logTransientErrorHelp loaded lazily inside the catch block below
+// (see curl-builder/scripts/build.mts for full rationale on the
+// http-request/convenience CJS/ESM interop crash).
+import { getDownloadedDir, getFinalBinaryPath } from 'build-infra/lib/paths'
+import { getPlatformArch } from 'build-infra/lib/platform-mappings'
+
+import { envAsBoolean } from '@socketsecurity/lib-stable/env/boolean'
+import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import {
+  detectLibc,
+  downloadSocketBtmRelease,
+} from '@socketsecurity/lib-stable/releases/socket-btm'
+
+import { BINPRESS_DIR, BUILD_INFRA_DIR } from '../../paths.mts'
+
+const logger = getDefaultLogger()
+
+/**
+ * Download a compression tool if it doesn't exist.
+ *
+ * Environment variables:
+ *
+ * - BUILD_TOOLS_FROM_SOURCE=true: Build binsuite tools
+ *   (binpress/binflate/binject) from source instead of downloading from
+ *   releases. Used in Docker builds to test local changes.
+ * - BUILD_DEPS_FROM_SOURCE=true: Build LIEF from source during binsuite builds.
+ *   Requires it to be pre-installed on the system. (Implemented in CMake build
+ *   scripts)
+ * - BUILD_ALL_FROM_SOURCE=true: Shortcut for both BUILD_TOOLS_FROM_SOURCE and
+ *   BUILD_DEPS_FROM_SOURCE.
+ *
+ * @param {string} tool - Tool name (binpress)
+ * @param {string} platform - Target platform.
+ * @param {string} arch - Target architecture.
+ * @param {string | undefined} libc - Target libc (musl, glibc, or undefined)
+ *
+ * @returns {Promise<string>} Path to downloaded tool
+ */
+export async function downloadToolIfMissing(tool, platform, arch, libc) {
+  const binaryName = platform === 'win32' ? `${tool}.exe` : tool
+  const platformArch = getPlatformArch(platform, arch, libc)
+  const buildAllFromSource = envAsBoolean(process.env['BUILD_ALL_FROM_SOURCE'])
+  const buildToolsFromSource =
+    buildAllFromSource || envAsBoolean(process.env['BUILD_TOOLS_FROM_SOURCE'])
+
+  // Check if the requested platform matches the current runtime platform.
+  // Local builds (packages/binpress/build/*/<platformArch>/out/Final/) are built
+  // for the host platform, so they can only be used when the runtime platform
+  // matches. Prevents using macOS-built binaries when running inside Linux Docker.
+  const isMatchingPlatform = process.platform === platform
+
+  // Always prefer local builds when available and platform matches.
+  // Local-build paths come from build-infra/lib/paths so the binsuite layout
+  // stays in one place; if bin-infra's builder ever changes the on-disk shape,
+  // this caller updates automatically.
+  if (isMatchingPlatform) {
+    const localToolPathDev = getFinalBinaryPath(
+      BINPRESS_DIR,
+      'dev',
+      platformArch,
+      binaryName,
+    )
+    if (existsSync(localToolPathDev)) {
+      return localToolPathDev
+    }
+
+    const localToolPathProd = getFinalBinaryPath(
+      BINPRESS_DIR,
+      'prod',
+      platformArch,
+      binaryName,
+    )
+    if (existsSync(localToolPathProd)) {
+      return localToolPathProd
+    }
+  }
+
+  // If BUILD_TOOLS_FROM_SOURCE is set but no local build found, error instead of downloading
+  if (buildToolsFromSource) {
+    const reason = isMatchingPlatform
+      ? 'not found locally'
+      : `local builds are for ${process.platform}, not ${platform}`
+    throw new Error(
+      `${tool} ${reason} for ${platformArch} and BUILD_TOOLS_FROM_SOURCE=true.\n` +
+        `Build ${tool} locally first:\n` +
+        `  pnpm --filter build-infra run build:docker --package=${tool} --target=${platformArch}\n` +
+        'Or unset BUILD_TOOLS_FROM_SOURCE to allow downloading from releases.',
+    )
+  }
+
+  // Check downloaded location (platform-specific, safe for cross-platform).
+  const downloadDir = getDownloadedDir(BUILD_INFRA_DIR)
+  const downloadedPath = path.join(downloadDir, tool, platformArch, binaryName)
+
+  if (existsSync(downloadedPath)) {
+    return downloadedPath
+  }
+
+  // Download from GitHub releases
+  logger.substep(`Downloading ${tool} for ${platformArch}...`)
+
+  try {
+    const binaryPath = await downloadSocketBtmRelease(tool, {
+      bin: tool,
+      cwd: BUILD_INFRA_DIR,
+      downloadDir,
+      libc: platform === 'linux' ? libc : undefined,
+      removeMacOSQuarantine: true,
+      targetArch: arch,
+      targetPlatform: platform,
+    })
+
+    return binaryPath
+  } catch (e) {
+    try {
+      const { logTransientErrorHelp } =
+        await import('build-infra/lib/github-error-utils')
+      await logTransientErrorHelp(e)
+    } catch {
+      // Hint module failed to load — original error already logged.
+    }
+    throw e
+  }
+}
+
+/**
+ * Ensure binpress binary is available, downloading if necessary.
+ * Downloads binpress from GitHub releases if not found locally.
+ *
+ * @param {object} options - Options.
+ * @param {string} options.hostPlatform - Host platform (where compression
+ *   runs).
+ * @param {string} options.hostArch - Host architecture.
+ * @param {string} [options.hostLibc] - Host libc (musl, glibc, or undefined for
+ *   auto-detect).
+ * @param {boolean} [options.silent] - Suppress logging (default: false).
+ *
+ * @returns {Promise<string>} Path to binpress binary.
+ */
+export async function ensureBinpress(options) {
+  const {
+    hostArch = process.arch,
+    hostLibc = detectLibc(),
+    hostPlatform = process.platform,
+    silent = false,
+  } = options || {}
+
+  if (!silent) {
+    logger.step('Ensuring binpress')
+  }
+
+  // Download binpress for host platform (compressor runs on host).
+  const binpressPath = await downloadToolIfMissing(
+    'binpress',
+    hostPlatform,
+    hostArch,
+    hostLibc,
+  )
+
+  if (!silent) {
+    const hostPlatformArch = getPlatformArch(hostPlatform, hostArch, hostLibc)
+    logger.success(`binpress ready (${hostPlatformArch})`)
+    logger.substep(`Path: ${binpressPath}`)
+    logger.logNewline()
+  }
+
+  return binpressPath
+}

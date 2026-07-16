@@ -1,0 +1,163 @@
+import crypto from 'node:crypto'
+import { existsSync } from 'node:fs'
+import process from 'node:process'
+
+import { computeSourceHash } from './extraction-cache.mts'
+
+/**
+ * Environment variables that participate in the build-checkpoint cache
+ * key. Touched by both `createCheckpoint` (write side) and `shouldRun`
+ * (read side). The two MUST stay byte-identical or the cache silently
+ * desyncs — writes hash one value, reads hash another, every build is
+ * a miss-or-stale. Single export so both sites read from one source.
+ *
+ * Includes:
+ *
+ * - Compiler / linker flag envs (CFLAGS, CXXFLAGS, LDFLAGS): affect the produced
+ *   binary directly.
+ * - Compiler / toolchain selectors (CC, CXX, AR, RANLIB): switching CC=clang →
+ *   CC=gcc produces a different binary; the cache must reflect this.
+ * - SDK / target selectors (SDKROOT, MACOSX_DEPLOYMENT_TARGET, DEVELOPER_DIR):
+ *   macOS toolchain root, deployment target.
+ * - Pkg-config / linker search (PKG_CONFIG_PATH, LD_LIBRARY_PATH): change which
+ *   libraries the build picks up.
+ * - Runtime knobs that change build observers (NODE_OPTIONS, UV_THREADPOOL_SIZE,
+ *   V8_OPTIONS, MAKEFLAGS): can affect deterministic-build output and
+ *   parallelism choices.
+ *
+ * Keep this list sorted by category, not alphabetically — readers can
+ * scan it faster when related vars cluster.
+ */
+export const BUILD_CACHE_ENV_VARS = [
+  // Build-output-affecting flags.
+  'CFLAGS',
+  'CXXFLAGS',
+  'LDFLAGS',
+  'MAKEFLAGS',
+  // Toolchain selectors.
+  'CC',
+  'CXX',
+  'AR',
+  'RANLIB',
+  // SDK / target selectors.
+  'SDKROOT',
+  'MACOSX_DEPLOYMENT_TARGET',
+  'DEVELOPER_DIR',
+  // pkg-config / linker search.
+  'PKG_CONFIG_PATH',
+  'LD_LIBRARY_PATH',
+  // Runtime knobs.
+  'NODE_OPTIONS',
+  'UV_THREADPOOL_SIZE',
+  'V8_OPTIONS',
+] as const
+
+/**
+ * Build the underscore-joined checkpoint metadata string from the
+ * standard segment list. Single source of truth for both the write
+ * side (createCheckpoint) and read side (shouldRun) — the two halves
+ * cannot drift the segment order or set if they both call this.
+ */
+export function composeCheckpointMetadata(segments: {
+  platform: string | undefined
+  version: string | undefined
+  env: string | undefined
+  buildMode: string | undefined
+  lief: string | undefined
+  configureFlags: string | undefined
+}): string {
+  return [
+    segments.platform,
+    segments.version,
+    segments.env,
+    segments.buildMode,
+    segments.lief,
+    segments.configureFlags,
+  ]
+    .filter(Boolean)
+    .join('_')
+}
+
+/**
+ * Compute the `env-<hash>` metadata segment of the checkpoint cache
+ * key, or `undefined` if every relevant env var is unset. Single
+ * source of truth — both `createCheckpoint` and `shouldRun` call this.
+ */
+export function computeBuildCacheEnvMetadata(): string | undefined {
+  const values = BUILD_CACHE_ENV_VARS.map(name => process.env[name] ?? 'unset')
+  if (!values.some(v => v !== 'unset')) {
+    return undefined
+  }
+  return `env-${values
+    .map(v => crypto.createHash('sha256').update(v).digest('hex').slice(0, 8))
+    .join('-')}`
+}
+
+/**
+ * Compute a stable sha256 fingerprint over a checkpoint's build inputs:
+ * every file under the given directories (path + content, recursively,
+ * missing directories skipped) plus the target Node.js version. Reuses
+ * `computeSourceHash` for the actual hashing (sorted file list, raw-byte
+ * reads, sentinel hashes for missing paths) so this stays a thin
+ * composition rather than a second hashing implementation.
+ *
+ * Pairs with `isCheckpointFingerprintCurrent`: a checkpoint is safe to
+ * restore only when its stored fingerprint equals the fingerprint
+ * computed here for the current inputs.
+ */
+export function computeBuildInputsFingerprint(options: {
+  dirs: string[]
+  nodeVersion: string
+}): string {
+  const { dirs, nodeVersion } = {
+    __proto__: null,
+    ...options,
+  } as typeof options
+  const existingDirs = dirs.filter(dir => existsSync(dir))
+  return computeSourceHash(existingDirs, `node-${nodeVersion}`)
+}
+
+/**
+ * Format the loud, actionable message logged when a checkpoint restore
+ * is refused because its build-inputs fingerprint is stale or missing.
+ * What/Where/Saw-vs-wanted/Fix, in order.
+ */
+export function formatStaleCheckpointMessage(options: {
+  checkpointFile: string
+  checkpointName: string
+  currentFingerprint: string
+  savedFingerprint: string | undefined
+}): string {
+  const {
+    checkpointFile,
+    checkpointName,
+    currentFingerprint,
+    savedFingerprint,
+  } = { __proto__: null, ...options } as typeof options
+  return [
+    `Stale checkpoint: build inputs changed since '${checkpointName}' was saved — refusing to restore it.`,
+    `Where: ${checkpointFile}`,
+    `Saw: ${savedFingerprint ?? '(missing — legacy checkpoint)'} — wanted: ${currentFingerprint}`,
+    'Fix: rebuilding from source. Delete build/.../checkpoints to reclaim space.',
+  ].join('\n')
+}
+
+/**
+ * Decide whether a checkpoint's stored build-inputs fingerprint matches
+ * the current one. A checkpoint with no stored fingerprint (a legacy
+ * checkpoint format) is treated as stale, not as a free pass — freshness
+ * must be proven, never assumed.
+ */
+export function isCheckpointFingerprintCurrent(options: {
+  checkpointData: { inputsFingerprint?: string | undefined } | undefined
+  currentFingerprint: string
+}): boolean {
+  const { checkpointData, currentFingerprint } = {
+    __proto__: null,
+    ...options,
+  } as typeof options
+  return (
+    checkpointData?.inputsFingerprint !== undefined &&
+    checkpointData.inputsFingerprint === currentFingerprint
+  )
+}

@@ -74,6 +74,18 @@ export async function hashFile(filePath: string) {
   return crypto.createHash('sha256').update(data).digest('hex')
 }
 
+/**
+ * Execute a generated stub against this file's isolated extraction cache.
+ */
+function execStub(binaryPath: string, args: string[]) {
+  return execCommand(binaryPath, args, {
+    env: {
+      ...process.env,
+      SOCKET_HOME: path.join(testDir, 'socket-home'),
+    },
+  })
+}
+
 beforeAll(async () => {
   // Create test directory
   testDir = path.join(os.tmpdir(), `binpress-update-${Date.now()}`)
@@ -129,7 +141,7 @@ describe.skipIf(
       await codeSignBinary(updatedStub)
 
       // Run the stub to verify it extracts and executes
-      const execResult = await execCommand(updatedStub, ['--version'])
+      const execResult = await execStub(updatedStub, ['--version'])
       if (execResult.code !== 0) {
         logger.fail(
           'Stub execution failed:',
@@ -150,7 +162,7 @@ describe.skipIf(
       await makeExecutable(initialStub)
       await codeSignBinary(initialStub)
 
-      const initialResult = await execCommand(initialStub, ['--version'])
+      const initialResult = await execStub(initialStub, ['--version'])
       expect(initialResult.code).toBe(0)
 
       // Recompress stub (triggers auto-repack)
@@ -162,7 +174,7 @@ describe.skipIf(
       await makeExecutable(updatedStub)
       await codeSignBinary(updatedStub)
 
-      const updatedResult = await execCommand(updatedStub, ['--version'])
+      const updatedResult = await execStub(updatedStub, ['--version'])
       expect(updatedResult.code).toBe(0)
 
       // Both should extract and run successfully (stub functionality preserved)

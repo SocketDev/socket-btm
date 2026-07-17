@@ -715,14 +715,7 @@ NODE_MODULE_CONTEXT_AWARE_INTERNAL(smol_manifest, Initialize)
 ```typescript
 declare module 'node:smol-manifest' {
   export type Ecosystem =
-    | 'npm'
-    | 'maven'
-    | 'pypi'
-    | 'cargo'
-    | 'gem'
-    | 'golang'
-    | 'composer'
-    | 'nuget'
+    'npm' | 'maven' | 'pypi' | 'cargo' | 'gem' | 'golang' | 'composer' | 'nuget'
 
   export type DepType = 'prod' | 'dev' | 'optional' | 'peer' | 'build' | 'test'
 

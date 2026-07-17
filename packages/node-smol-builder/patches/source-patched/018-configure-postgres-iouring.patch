@@ -1,4 +1,4 @@
-# @node-versions: v26.1.0
+# @node-versions: v26.5.0
 # @description: Add --with-postgres/--with-iouring/--with-dawn/--with-{node,smol}-quic/--with-smol-http3/--without-smol-tui configure options + drop cargo gate + gate trimmed smol JS wrappers out of the builtins snapshot
 #
 # Adds configure options for building Node.js with PostgreSQL support
@@ -32,10 +32,11 @@
 #
 --- a/configure.py
 +++ b/configure.py
-@@ -1059,11 +1059,111 @@ parser.add_argument('--without-ffi',
+@@ -1072,13 +1072,113 @@
+     dest='without_ffi',
      default=None,
      help='build without FFI (Foreign Function Interface) support')
- 
++
 +parser.add_argument('--with-postgres',
 +    action='store_true',
 +    dest='with_postgres',
@@ -53,6 +54,7 @@
 +    dest='with_dawn',
 +    default=None,
 +    help='build with Dawn WebGPU (enables WebGPU API, requires libwebgpu_dawn from dawn-builder)')
+-
 +
  parser.add_argument('--experimental-quic',
      action='store_true',
@@ -60,6 +62,7 @@
      default=None,
 -    help='build with experimental QUIC support')
 +    help='alias for --with-node-quic (upstream ngtcp2 QUIC)')
+-
 +
 +parser.add_argument('--with-node-quic',
 +    action='store_true',
@@ -142,10 +145,11 @@
 +    dest='without_smol_treesitter',
 +    default=None,
 +    help='disable node:smol-tree-sitter (default enabled)')
- 
++
  parser.add_argument('--ninja',
      action='store_true',
-@@ -1576,8 +1676,8 @@ def check_compiler(o):
+     dest='use_ninja',
+@@ -1590,8 +1690,8 @@
  
    o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else '0.0'
  
@@ -156,12 +160,13 @@
      # Minimum cargo and rustc versions should match values in BUILDING.md.
      min_cargo_ver_tuple = (1, 82)
      min_rustc_ver_tuple = (1, 82)
-@@ -1801,7 +1901,48 @@ def gcc_version_ge(version_checked):
+@@ -1815,8 +1915,49 @@
    return True
  
  def configure_node_lib_files(o):
 -  o['variables']['node_library_files'] = SearchFiles('lib', 'js')
 +  files = SearchFiles('lib', 'js')
+-
 +
 +  # Socket Security: when a smol subsystem is trimmed out (its native binding
 +  # gated off the build), also drop its JS wrapper(s) from the builtins snapshot.
@@ -203,13 +208,15 @@
 +    files = [f for f in files if keep(f)]
 +
 +  o['variables']['node_library_files'] = files
- 
++
  def configure_node_cctest_sources(o):
-   o['variables']['node_cctest_sources'] = [ 'src/node_snapshot_stub.cc' ] + \
-@@ -2349,9 +2490,65 @@ def configure_ffi(o):
+   o['variables']['node_cctest_sources'] = [] + \
+     SearchFiles('test/cctest', 'cc') + \
+@@ -2368,10 +2509,66 @@
+     return
  
    configure_library('ffi', o, pkgname='libffi')
- 
++
 +def configure_postgres(o):
 +  # Socket Security: PostgreSQL is disabled by default (requires libpq).
 +  o['variables']['node_use_postgres'] = b(options.with_postgres)
@@ -222,6 +229,7 @@
 +  # Socket Security: Dawn WebGPU is disabled by default (requires
 +  # libwebgpu_dawn from dawn-builder).
 +  o['variables']['node_use_dawn'] = b(options.with_dawn)
+-
 +
 +def configure_smol_tui(o):
 +  # Socket Security: tui-infra + Yoga + node:smol-tui (default enabled).
@@ -274,7 +282,7 @@
  
  def configure_static(o):
    if options.fully_static or options.partly_static:
-@@ -2805,6 +3002,11 @@ configure_library('ngtcp2', output, pkgname='libngtcp2')
+@@ -2825,6 +3022,11 @@
  configure_lief(output);
  configure_sqlite(output);
  configure_ffi(output);

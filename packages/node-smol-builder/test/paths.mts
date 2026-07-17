@@ -5,13 +5,17 @@
  *   build/{dev,prod}/{platform-arch}/out/Final/node/ (directory structure).
  */
 
-import { statSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
 import { fileURLToPath } from 'node:url'
 
-import { getBuildPaths, getDefaultPlatformArch } from '../scripts/paths.mts'
+import {
+  getBuildPaths,
+  getDefaultPlatformArch,
+  MONOREPO_ROOT,
+} from '../scripts/paths.mts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const packageDir = path.resolve(__dirname, '..')
@@ -19,6 +23,41 @@ const packageDir = path.resolve(__dirname, '..')
 export interface BinaryCandidate {
   mtime: number
   path: string
+}
+
+const CHECKPOINT_FILE_BY_STAGE: Readonly<Record<string, string>> = {
+  Compressed: 'binary-compressed.json',
+  Final: 'finalized.json',
+  Release: 'binary-released.json',
+  Stripped: 'binary-stripped.json',
+}
+
+const expectedNodeVersion = readFileSync(
+  path.join(MONOREPO_ROOT, '.node-version'),
+  'utf8',
+)
+  .trim()
+  .replace(/^v/, '')
+
+/**
+ * Return true when a build checkpoint targets the currently pinned Node.
+ */
+export function checkpointMatchesNodeVersion(
+  checkpointPath: string,
+  expectedVersion: string = expectedNodeVersion,
+): boolean {
+  try {
+    const checkpoint = JSON.parse(readFileSync(checkpointPath, 'utf8')) as {
+      nodeVersion?: unknown | undefined
+    }
+    return (
+      typeof checkpoint.nodeVersion === 'string' &&
+      checkpoint.nodeVersion.replace(/^v/, '') ===
+        expectedVersion.replace(/^v/, '')
+    )
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -30,7 +69,11 @@ export interface BinaryCandidate {
 export function addCandidate(
   candidates: BinaryCandidate[],
   binaryPath: string,
+  checkpointPath: string,
 ) {
+  if (!checkpointMatchesNodeVersion(checkpointPath)) {
+    return
+  }
   try {
     const stat = statSync(binaryPath)
     candidates.push({ mtime: stat.mtimeMs, path: binaryPath })
@@ -52,6 +95,8 @@ export function getBinaryPath(
   stage: string,
 ): string {
   switch (stage) {
+    case 'Release':
+      return buildPaths.outputReleaseBinary
     case 'Stripped':
       return buildPaths.outputStrippedBinary
     case 'Compressed':
@@ -83,7 +128,14 @@ export function getLatestBinary(stage: string): string | undefined {
   for (const mode of ['dev', 'prod']) {
     const buildPaths = getBuildPaths(mode, process.platform, platformArch)
     const binary = getBinaryPath(buildPaths, stage)
-    addCandidate(candidates, binary)
+    const checkpointFile = CHECKPOINT_FILE_BY_STAGE[stage]
+    if (checkpointFile) {
+      addCandidate(
+        candidates,
+        binary,
+        path.join(buildPaths.buildDir, 'checkpoints', checkpointFile),
+      )
+    }
   }
 
   if (candidates.length === 0) {
@@ -119,6 +171,13 @@ export function getLatestCompressedBinary() {
  */
 export function getLatestFinalBinary() {
   return getLatestBinary('Final')
+}
+
+/**
+ * Find the latest Release binary built for the currently pinned Node.
+ */
+export function getLatestReleaseBinary() {
+  return getLatestBinary('Release')
 }
 
 /**

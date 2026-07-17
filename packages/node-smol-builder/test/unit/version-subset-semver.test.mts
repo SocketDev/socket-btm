@@ -18,6 +18,8 @@
 
 import { describe, expect, it } from 'vitest'
 
+import '../helpers/primordials-shim.mts'
+
 import { semver } from '../../additions/source-patched/lib/internal/socketsecurity/http/version_subset.js'
 
 describe('version_subset semver.satisfies()', () => {

@@ -73,8 +73,10 @@ describe('smol-features test helper', () => {
       if (!smolBinary) {
         expect(missingRequiredFeatures()).toEqual([])
       } else {
-        // With a full-feature binary, nothing should be missing.
-        expect(missingRequiredFeatures()).toEqual([])
+        const expectedMissing = SMOL_FEATURES.filter(f => f.gypVar)
+          .filter(f => !has(f.name))
+          .map(f => f.name)
+        expect(missingRequiredFeatures()).toEqual(expectedMissing)
       }
     } finally {
       if (hadEnv === undefined) {

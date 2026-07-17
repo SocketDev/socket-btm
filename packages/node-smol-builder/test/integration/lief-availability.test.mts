@@ -1,4 +1,4 @@
-import { describe, expect, it, test } from 'vitest'
+import { describe, expect, expectTypeOf, it } from 'vitest'
 import process from 'node:process'
 
 /**

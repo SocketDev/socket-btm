@@ -410,8 +410,8 @@ found for architecture arm64` for `ncrypto::Rsa`/`DH_free`/`EC_KEY_free`/
   gated `['node_use_smol_X=="true"', {}]`. Feature-specific gypi includes moved
   with their owner (`yoga.gypi`→tui, `lsquic.gypi`+`ls-qpack.gypi`→quic). Added
   `node_use_smol*_%`defaults (all`'true'`) to the top `variables`block,
-mirroring`node_use_sqlite%`— this makes node.gyp self-sufficient on the
-Windows`vcbuild.bat`path, which no-ops`--without-_` flags.
+  mirroring`node_use_sqlite%`— this makes node.gyp self-sufficient on the
+  Windows`vcbuild.bat`path, which no-ops`--without-_` flags.
 - **`patches/source-patched/018-configure-postgres-iouring.patch`** — added 7
   `--without-smol-{http,ffi,ilp,keymap,qrcode,markdown,treesitter}` argparse
   flags + a `configure_smol_extras()` that sets the matching `node_use_smol_*`

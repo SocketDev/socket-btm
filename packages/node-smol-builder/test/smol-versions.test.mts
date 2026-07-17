@@ -15,6 +15,9 @@
  */
 
 import { describe, expect, it } from 'vitest'
+
+import './helpers/primordials-shim.mts'
+
 import {
   coerce,
   compare,

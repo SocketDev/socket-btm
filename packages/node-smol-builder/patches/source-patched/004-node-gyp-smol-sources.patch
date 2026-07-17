@@ -1,4 +1,4 @@
-# @node-versions: v26.1.0
+# @node-versions: v26.5.0
 # @description: Wire smol sources, libcompression/IOKit links, glibc compat, and QUIC gate flips into node.gyp
 #
 # Integrates Socket Security's source files into the Node.js build system
@@ -39,7 +39,7 @@
 #
 --- a/node.gyp
 +++ b/node.gyp
-@@ -39,6 +39,23 @@
+@@ -42,6 +42,23 @@
      'node_use_quic%': 'false',
      'node_use_sqlite%': 'true',
      'node_use_ffi%': 'false',
@@ -61,9 +61,9 @@
 +    'node_use_smol_qrcode%': 'true',
 +    'node_use_smol_markdown%': 'true',
      'node_use_v8_platform%': 'true',
+     'node_enable_v8_vtunejit%': 'false',
      'node_v8_options%': '',
-     'node_write_snapshot_as_string_literals': 'true',
-@@ -69,6 +86,20 @@
+@@ -73,6 +90,20 @@
        'deps/acorn/acorn/dist/acorn.js',
        'deps/acorn/acorn-walk/dist/walk.js',
        'deps/minimatch/index.js',
@@ -109,10 +109,12 @@
          # Thin LTO for node_main.cc and linker (scoped to node_exe)
          ['node_with_ltcg=="true"', {
            'msvs_settings': {
-@@ -1053,12 +1102,452 @@
-             'deps/ncrypto/ncrypto.gyp:ncrypto',
+@@ -971,16 +1020,456 @@
            ],
-         }],
+           'dependencies': [
+             'deps/ncrypto/ncrypto.gyp:ncrypto',
++          ],
++        }],
 +        ['1==1', {
 +          'sources': [
 +            # Socket Security: Runtime VFS binding.
@@ -408,7 +410,7 @@
 +                'src/socketsecurity/quic/quic_http3_binding.cc',
 +              ],
 +            }],
-+          ],
+           ],
 +          'direct_dependent_settings': {
 +            'include_dirs': [
 +              'src',
@@ -416,7 +418,7 @@
 +              'deps/uWebSockets/src',
 +            ],
 +          },
-+        }],
+         }],
 +        # Socket Security: per-OS smol-power implementations. The
 +        # binding glue above is platform-agnostic; each impl compiles
 +        # only on its target so platform headers stay isolated.
@@ -561,18 +563,12 @@
 +            ],
 +          },
          }],
-         [ 'node_use_sqlite=="true"', {
-           'sources': [
-@@ -1077,7 +1566,7 @@
-             }],
-           ],
-         }],
 -        [ 'node_use_quic=="true"', {
 +        [ 'node_use_node_quic=="true"', {
            'sources': [
              '<@(node_quic_sources)',
            ],
-@@ -1362,6 +1851,13 @@
+@@ -1399,6 +1888,13 @@
          'NODE_ARCH="<(target_arch)"',
          'NODE_PLATFORM="<(OS)"',
          'NODE_WANT_INTERNALS=1',
@@ -586,7 +582,7 @@
        ],
  
        'sources': [ '<@(node_cctest_sources)' ],
-@@ -1399,7 +1895,7 @@
+@@ -1436,7 +1932,7 @@
          }, {
            'sources!': [ '<@(node_cctest_openssl_sources)' ],
          }],
@@ -595,15 +591,17 @@
            'defines': [
              'HAVE_QUIC=1',
            ],
-@@ -1443,6 +1939,24 @@
+@@ -1478,8 +1974,26 @@
+             'Dbghelp.lib',
+             'winmm.lib',
              'Ws2_32.lib',
-           ],
-         }],
++          ],
++        }],
 +        ['OS=="win"', {
 +          'libraries': [
 +            'bcrypt.lib',
-+          ],
-+        }],
+           ],
+         }],
 +        ['OS=="mac"', {
 +          'libraries': [
 +            '-lcompression',
@@ -620,15 +618,17 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1517,6 +2031,24 @@
+@@ -1551,8 +2065,26 @@
+             'Dbghelp.lib',
+             'winmm.lib',
              'Ws2_32.lib',
-           ],
-         }],
++          ],
++        }],
 +        ['OS=="win"', {
 +          'libraries': [
 +            'bcrypt.lib',
-+          ],
-+        }],
+           ],
+         }],
 +        ['OS=="mac"', {
 +          'libraries': [
 +            '-lcompression',
@@ -645,7 +645,7 @@
          # Avoid excessive LTO
          ['enable_lto=="true"', {
            'ldflags': [ '-fno-lto' ],
-@@ -1740,6 +2272,24 @@
+@@ -1776,6 +2308,24 @@
              'Ws2_32.lib',
            ],
          }],

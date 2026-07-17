@@ -18,6 +18,8 @@
 
 import { describe, expect, it } from 'vitest'
 
+import '../helpers/primordials-shim.mts'
+
 import { satisfies } from '../../additions/source-patched/lib/internal/socketsecurity/versions.js'
 
 describe('versions.js satisfies() — caret + prerelease', () => {

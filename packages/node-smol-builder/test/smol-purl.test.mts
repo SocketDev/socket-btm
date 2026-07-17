@@ -12,6 +12,9 @@ const PURL_SPEC_URL =
 void PURL_SPEC_URL
 
 import { describe, expect, it } from 'vitest'
+
+import './helpers/primordials-shim.mts'
+
 import {
   build,
   equals,

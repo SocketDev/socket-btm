@@ -1,4 +1,4 @@
-# node-26.3.1 sha256:d38ec1c76d2651d2c597cffa46c8379b29e42baa5b82b7997981e8301b4b3387
+# node-26.5.0 sha256:b3db373d860129807d8e504eaad184f1f5cb0e970b7467c80595f7a4653cf977
 # full-checkout: full source build — the builder compiles/vendors the whole tree
 [submodule "packages/node-smol-builder/upstream/node"]
 	path = packages/node-smol-builder/upstream/node

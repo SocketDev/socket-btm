@@ -11,10 +11,12 @@ allowBuilds:
   '@anthropic-ai/claude-code': true
   cpu-features: false
   docsify: false
-  esbuild: true
   onnxruntime-node: true
   protobufjs: false
   ssh2: false
+
+ignoredOptionalDependencies:
+  - esbuild
 
 # Refuse to run if the pnpm version on PATH differs from the packageManager
 # field in package.json. Our setup action pins pnpm via external-tools.json;
@@ -56,7 +58,6 @@ catalog:
   'compromise': 14.15.1
   'dtu-github-actions': 0.16.2
   ecc-agentshield: 1.4.0
-  esbuild: 0.25.11
   magic-string: 0.30.21
   'markdownlint-cli2': 0.23.0
   'mdast-util-from-markdown': 2.0.3
@@ -94,30 +95,17 @@ minimumReleaseAgeExclude:
   - '@socketbin/*'
   - '@socketregistry/*'
   - '@socketsecurity/*'
-  # pnpm@11.5.0 — bumped via `Allow minimumReleaseAge bypass`. Fixes
-  # the runner-side setup-and-install version mismatch (socket-registry's
-  # pinned action ships 11.3.0, fleet packageManager was 11.4.0; aligning
-  # everyone at 11.5.0). Out of soak 2026-06-05.
-  # `pnpm` is the JS-only entry; `@pnpm/exe` is the SEA binary that
-  # `packageManager: pnpm@X` resolves through corepack. Both gate the
-  # shell-quote AST parser used by .claude/hooks/_shared/shell-command.mts
-  # — fleet hook needs it now; soak entry expires 2026-05-29.
-  - 'shell-quote'
   # compromise@14.15.1 is the attested re-publish that clears the
   # trust-downgrade flag on 14.15.0. Soak-bypass scoped to the exact
   # tag; future 14.15.2 still goes through normal 7-day soak.
   - '@redwoodjs/agent-ci'
-  - 'dtu-github-actions'
-  - 'ecc-agentshield'
   - 'sfw'
-  - 'socket-*'
   # untracked@1.6.1 — Kikobeats/untracked, dev-only tool for autogenerating
   # `.dockerignore` from package.json + the curated blacklist. Used to keep
   # the Docker build context lean across vendored upstream trees (LIEF, zstd,
   # etc.) that ship 100+ MB of markup files compile never reads.
   - '@stuie/*'
   - '@ultrathink/*'
-  - '@yuku-parser/*'
   - '@socketoverride/*'
   - 'socket'
   - '@sdxgen/*'
@@ -162,6 +150,7 @@ overrides:
   'mime-db': '1.54.0'
   'mime-types@>=3': '3.0.2'
   'minipass@>=4': '7.1.3'
+  'rolldown': 'catalog:'
   'safe-buffer': 'npm:@socketregistry/safe-buffer@1.0.9'
   'safer-buffer': 'npm:@socketregistry/safer-buffer@1.0.10'
   'semver@>=5.0.0 <7.6.0': '7.8.1'
@@ -170,26 +159,23 @@ overrides:
   'string-width@>=5': '8.1.0'
   'update-notifier@>=4.0.0': '7.3.1'
   'uuid': '11.1.1'
+  'vite': 'catalog:'
   'which': '7.0.0'
   'wrap-ansi@>=8': '9.0.2'
   'yaml@2': '2.9.0'
 
   # Repo-specific overrides below.
+  # ast-v8-to-istanbul@1.0.4 restores trusted-publisher evidence and has
+  # cleared the release-age window; 1.0.5 remains under soak.
+  'ast-v8-to-istanbul': '1.0.4'
   # advisory #23 (medium) — got 11.8.5 fix; bump to latest 11.x patch
   'got': '11.8.6'
   'postcss': '8.5.10'
   'tar': '7.5.11'
-  'vite': '7.3.2'
   'which@>=4': '7.0.0'
 
 trustPolicy: no-downgrade
 trustPolicyExclude:
-  # Transitive dep of @vitest/coverage-v8@4.1.6. Same maintainer
-  # (ariperkkio) + same repo + provenance attestation as earlier
-  # versions; the downgrade flag reflects a trusted-publisher ->
-  # provenance evidence-class change, not a takeover.
-  # published: 2026-05-25 | removable: 2026-06-01
-  - 'ast-v8-to-istanbul@1.0.2'
   - semver@6.3.1
   - 'compromise@14.15.0'
 

@@ -48,7 +48,7 @@ export interface AiCliProbe extends CliProbe {
 
 const LAUNCHER_BROKEN_RE = /native binary|claude install/i
 const TOOL_POLICY_RE =
-  /multiedit|unknown tool|invalid tool|tool (?:name )?not (?:found|recognized)/i
+  /multiedit|unknown (?:tool|option)|invalid tool|tool (?:name )?not (?:found|recognized)/i
 const WORKSPACE_TRUST_RE = /do you trust|trust the files|workspace.?trust/i
 
 export const FAILURE_REMEDY: Readonly<Record<CliFailureKind, string>> = {

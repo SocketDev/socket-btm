@@ -4,7 +4,7 @@
   "description": "Native node:smol-ai backend for Darwin x64",
   "license": "MIT",
   "files": [
-    "smol_ai.node"
+    "build/smol_ai.node"
   ],
   "os": [
     "darwin"
@@ -13,16 +13,16 @@
     "x64"
   ],
   "type": "commonjs",
-  "main": "./smol_ai.node",
+  "main": "./build/smol_ai.node",
   "exports": {
-    ".": "./smol_ai.node"
+    ".": "./build/smol_ai.node"
   },
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
   "scripts": {
-    "prepublishOnly": "node -e \"const fs=require('node:fs');if(!process.env.NODE_SMOL_PUBLISH_OK||!fs.existsSync('smol_ai.node'))process.exit(1)\""
+    "prepublishOnly": "node -e \"const fs=require('node:fs');if(!process.env.NODE_SMOL_PUBLISH_OK||!fs.existsSync('build/smol_ai.node'))process.exit(1)\""
   },
   "preferUnpacked": true
 }

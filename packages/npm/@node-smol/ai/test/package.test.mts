@@ -52,6 +52,9 @@ describe('@node-smol/ai package family', () => {
       )
       const manifestPath = path.join(directory, 'package.json')
       expect(existsSync(manifestPath), packageName).toBe(true)
+      expect(existsSync(path.join(directory, 'README.md')), packageName).toBe(
+        true,
+      )
       const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
         cpu: string[]
         libc?: string[] | undefined
@@ -62,7 +65,7 @@ describe('@node-smol/ai package family', () => {
       const [platform, arch, abi] = target.split('-')
       expect(manifest).toMatchObject({
         cpu: [arch],
-        main: './smol_ai.node',
+        main: './build/smol_ai.node',
         name: packageName,
         os: [platform],
       })

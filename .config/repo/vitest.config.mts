@@ -55,6 +55,10 @@ export interface VitestRepoConfig {
  */
 export function readConformanceExcludeGlobs(): string[] {
   for (const file of [
+    // Canonical settings home (matches paths.mts's resolver order). Omitting it
+    // — as this reader did — silently ignored `vitest.conformanceExclude` set
+    // in the repo's real settings file, so the conformance tier never dropped.
+    '.config/repo/socket-wheelhouse.json',
     '.config/socket-wheelhouse.json',
     '.socket-wheelhouse.json',
   ]) {
@@ -92,13 +96,33 @@ export function readVitestConfigTier(file: string): VitestRepoConfig {
 export function repoNodeTestExcludeGlobs(): string[] {
   return resolveVitestKey('nodeTestExclude')
 }
-export function resolveMaxWorkers(): number | undefined {
+export function resolveFallbackMaxWorkers(): number {
+  if (getCI()) {
+    return 4
+  }
+  return isCoverageEnabled ? 8 : 16
+}
+export function resolveConfiguredMaxWorkers(): number | undefined {
   const fleet = readVitestConfigTier('.config/fleet/vitest.json').maxWorkers
   const repo = readVitestConfigTier('.config/repo/vitest.json').maxWorkers
   const candidates = [fleet, repo].filter(
     (v): v is number => typeof v === 'number' && v > 0,
   )
   return candidates.length > 0 ? Math.min(...candidates) : undefined
+}
+export function capMaxWorkers(
+  configuredMaxWorkers: number | undefined,
+  fallbackMaxWorkers: number,
+): number {
+  return configuredMaxWorkers === undefined
+    ? fallbackMaxWorkers
+    : Math.min(configuredMaxWorkers, fallbackMaxWorkers)
+}
+export function resolveMaxWorkers(): number {
+  return capMaxWorkers(
+    resolveConfiguredMaxWorkers(),
+    resolveFallbackMaxWorkers(),
+  )
 }
 export function resolvePool(): 'forks' | 'threads' {
   const fleet = readVitestConfigTier('.config/fleet/vitest.json').pool
@@ -256,24 +280,21 @@ export default defineConfig({
           ],
         }
       : {}),
-    // Coverage forces serial (maxWorkers: 1). Parallel is ~2.5x faster (~236s
-    // vs the 600s cap) but currently ENOENTs coverage/.tmp/coverage-N.json — a
-    // nested vitest still cleans the shared coverage dir mid-run. Confirmed NOT
-    // a stale-node artifact (repro'd clean under the pinned 26.5.0), and NOT
-    // closed by the test.mts COVERAGE strip or the flag-precise isCoverageEnabled
-    // above. Serial hides it (the outer writes .tmp only at the end). Keep serial
-    // until the leaking spawner is bisected — serial-slow beats parallel-broken.
-    fileParallelism: !isCoverageEnabled,
-    maxWorkers: isCoverageEnabled
-      ? 1
-      : (resolveMaxWorkers() ?? (getCI() ? 4 : 16)),
-    // Coverage runs serial (maxWorkers: 1 above) with V8 instrumentation that
-    // spawned children inherit, so spawn-heavy tests (hook integration specs
-    // launch a node child per case) legitimately exceed 10s there. CI gets a
-    // 60s budget unconditionally: 2-core runners × parallel workers starve
-    // spawn-per-case suites (RuleTester spawns one oxlint child per case) —
-    // the 10s/30s ceilings killed lint-rule suites mid-queue on every OS while
-    // the same files pass locally.
+    // Keep coverage file-parallel. Worker setup removes the already-consumed
+    // COVERAGE flag before test code runs, so a nested Vitest child cannot turn
+    // coverage back on and clean the outer run's shared .tmp reports. Ordinary
+    // Node children still inherit NODE_V8_COVERAGE for subprocess merging.
+    // Local coverage caps at 8 workers because this spawn-heavy suite saturates
+    // there; 16 workers add filesystem/process contention. Ordinary local tests
+    // retain 16 workers, while CI matches its 4 available cores.
+    maxWorkers: resolveMaxWorkers(),
+    // Coverage runs with V8 instrumentation that spawned children inherit, so
+    // spawn-heavy tests (hook integration specs launch a node child per case)
+    // legitimately exceed 10s there. CI gets a 60s budget unconditionally:
+    // 2-core runners × parallel workers starve spawn-per-case suites
+    // (RuleTester spawns one oxlint child per case) — the 10s/30s ceilings
+    // killed lint-rule suites mid-queue on every OS while the same files pass
+    // locally.
     testTimeout: getCI() ? 60_000 : isCoverageEnabled ? 30_000 : 10_000,
     hookTimeout: getCI() ? 60_000 : isCoverageEnabled ? 30_000 : 10_000,
     bail: getCI() ? 1 : 0,

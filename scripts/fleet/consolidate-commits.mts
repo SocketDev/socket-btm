@@ -18,9 +18,11 @@
  *   Base default: the previous `chore: bump version to …` commit below the
  *   current tip (the "previous bump"), else the latest vX.Y.Z tag.
  *
- *   Usage: node scripts/fleet/consolidate-commits.mts [--base <ref>] [--dry-run]
+ *   Usage: node scripts/fleet/consolidate-commits.mts [--repo <path>]
+ *     [--base <ref>] [--dry-run]
  */
 
+import path from 'node:path'
 import process from 'node:process'
 
 import { parseArgs } from '@socketsecurity/lib-stable/argv/parse'
@@ -36,6 +38,7 @@ import { isMainModule } from './_shared/is-main-module.mts'
 const logger = getDefaultLogger()
 
 const BUMP_SUBJECT_RE = /^chore: bump version to \d+\.\d+\.\d+/
+let gitRoot = REPO_ROOT
 
 export interface GitResult {
   status: number
@@ -44,7 +47,7 @@ export interface GitResult {
 
 function git(args: readonly string[]): GitResult {
   const r = spawnSync('git', [...args], {
-    cwd: REPO_ROOT,
+    cwd: gitRoot,
     stdio: ['ignore', 'pipe', 'pipe'],
     stdioString: true,
   })
@@ -122,10 +125,14 @@ function main(): void {
       'allow-off-lineage-base': { type: 'boolean' },
       base: { type: 'string' },
       'dry-run': { type: 'boolean' },
+      repo: { type: 'string' },
     },
     strict: false,
   })
   const dryRun = !!values['dry-run']
+  if (typeof values['repo'] === 'string' && values['repo']) {
+    gitRoot = path.resolve(values['repo'])
+  }
 
   const dirty = gitOrDie(['status', '--porcelain'], 'status')
   if (dirty) {

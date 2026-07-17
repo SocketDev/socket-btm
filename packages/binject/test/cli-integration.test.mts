@@ -424,6 +424,7 @@ describe('binject CLI', () => {
       ])
 
       // Should not error - both flags are valid together
+      expect(result.code, result.output).toBe(0)
       expect(result.output).toMatch(/(?:Success|both|injected)/i)
       await expect(
         // oxlint-disable-next-line socket/prefer-exists-sync -- many access(X_OK) and access(F_OK) calls check executable permission / output-file readiness inside Promise.all races; existsSync (sync, no permission check) is not a substitute.

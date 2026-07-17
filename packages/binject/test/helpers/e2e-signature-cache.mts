@@ -6,7 +6,7 @@
  */
 
 import crypto from 'node:crypto'
-import { existsSync, promises as fs, statSync } from 'node:fs'
+import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -14,14 +14,14 @@ import process from 'node:process'
 import { safeDelete } from '@socketsecurity/lib-stable/fs/safe'
 import { getSocketDlxDir } from '@socketsecurity/lib-stable/paths/socket'
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
-import { getPlatformArch } from 'build-infra/lib/platform-mappings'
-
-import { REPO_ROOT } from '../../../../scripts/fleet/paths.mts'
+import {
+  getLatestFinalBinary,
+  getLatestReleaseBinary,
+  getLatestStrippedBinary,
+} from '../../../node-smol-builder/test/paths.mts'
 import { getBinjectPath } from './paths.mts'
 
-const PROJECT_ROOT = path.join(REPO_ROOT, 'packages', 'binject')
 export const BINJECT = getBinjectPath()
-const PLATFORM_ARCH = getPlatformArch(process.platform, process.arch, undefined)
 
 /**
  * Find any available node-smol binary for testing (compressed/final stub).
@@ -30,96 +30,7 @@ const PLATFORM_ARCH = getPlatformArch(process.platform, process.arch, undefined)
  * @returns {string | null} Path to binary or null if none found
  */
 export function findTestStub() {
-  const platform = os.platform()
-  const binaryName = platform === 'win32' ? 'node.exe' : 'node'
-
-  // Try various build output locations.
-  // Note: The build system creates output as either:
-  // - Final/<binaryName> (flat file structure)
-  // - Final/node/<binaryName> (directory structure for macOS bundles)
-  const candidates = [
-    // Final builds - directory structure (macOS app bundle layout).
-    path.join(
-      PROJECT_ROOT,
-      '../node-smol-builder/build/dev',
-      PLATFORM_ARCH,
-      'out/Final/node',
-      binaryName,
-    ),
-    path.join(
-      PROJECT_ROOT,
-      '../node-smol-builder/build/prod',
-      PLATFORM_ARCH,
-      'out/Final/node',
-      binaryName,
-    ),
-    // Final builds - flat structure (production-ready).
-    path.join(
-      PROJECT_ROOT,
-      '../node-smol-builder/build/dev',
-      PLATFORM_ARCH,
-      'out/Final',
-      binaryName,
-    ),
-    path.join(
-      PROJECT_ROOT,
-      '../node-smol-builder/build/prod',
-      PLATFORM_ARCH,
-      'out/Final',
-      binaryName,
-    ),
-    // Compressed builds - directory structure.
-    path.join(
-      PROJECT_ROOT,
-      '../node-smol-builder/build/dev',
-      PLATFORM_ARCH,
-      'out/Compressed/node',
-      binaryName,
-    ),
-    path.join(
-      PROJECT_ROOT,
-      '../node-smol-builder/build/prod',
-      PLATFORM_ARCH,
-      'out/Compressed/node',
-      binaryName,
-    ),
-    // Compressed builds - flat structure (for testing decompression).
-    path.join(
-      PROJECT_ROOT,
-      '../node-smol-builder/build/dev',
-      PLATFORM_ARCH,
-      'out/Compressed',
-      binaryName,
-    ),
-    path.join(
-      PROJECT_ROOT,
-      '../node-smol-builder/build/prod',
-      PLATFORM_ARCH,
-      'out/Compressed',
-      binaryName,
-    ),
-  ]
-
-  for (let i = 0, { length } = candidates; i < length; i += 1) {
-    const candidate = candidates[i]
-    if (!candidate) {
-      continue
-    }
-    // Only return if it's a file (not a directory)
-    if (existsSync(candidate)) {
-      try {
-        const stats = statSync(candidate)
-        if (stats.isFile()) {
-          // Return absolute path to avoid path traversal issues with binject
-          return path.resolve(candidate)
-        }
-      } catch {
-        // Skip if we can't stat
-      }
-    }
-  }
-
-  return undefined
+  return getLatestFinalBinary()
 }
 
 /**
@@ -131,61 +42,7 @@ export function findTestStub() {
  */
 // oxlint-disable-next-line socket/sort-source-methods -- test helpers ordered by signature-cache flow (build → sign → cache → verify → invalidate); alphabetizing would scatter the flow.
 export function findNodeSmolBinary() {
-  const platform = os.platform()
-  const binaryName = platform === 'win32' ? 'node.exe' : 'node'
-
-  // Prefer Stripped (smaller) over Release, dev over prod
-  const candidates = [
-    // Stripped builds (smaller, suitable for SEA generation)
-    path.join(
-      PROJECT_ROOT,
-      '../node-smol-builder/build/dev',
-      PLATFORM_ARCH,
-      'out/Stripped/node',
-      binaryName,
-    ),
-    path.join(
-      PROJECT_ROOT,
-      '../node-smol-builder/build/prod',
-      PLATFORM_ARCH,
-      'out/Stripped/node',
-      binaryName,
-    ),
-    // Release builds (full symbols, fallback)
-    path.join(
-      PROJECT_ROOT,
-      '../node-smol-builder/build/dev',
-      PLATFORM_ARCH,
-      'out/Release/node',
-      binaryName,
-    ),
-    path.join(
-      PROJECT_ROOT,
-      '../node-smol-builder/build/prod',
-      PLATFORM_ARCH,
-      'out/Release/node',
-      binaryName,
-    ),
-  ]
-
-  for (let i = 0, { length } = candidates; i < length; i += 1) {
-    const candidate = candidates[i]
-    if (!candidate) {
-      continue
-    }
-    if (existsSync(candidate)) {
-      try {
-        const stats = statSync(candidate)
-        if (stats.isFile()) {
-          return path.resolve(candidate)
-        }
-      } catch {
-        // Skip if we can't stat
-      }
-    }
-  }
-
-  return undefined
+  return getLatestStrippedBinary() ?? getLatestReleaseBinary()
 }
 
 export interface ExecCommandResult {

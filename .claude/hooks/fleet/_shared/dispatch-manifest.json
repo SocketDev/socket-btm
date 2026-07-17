@@ -99,6 +99,7 @@
           ]
         },
         "fleet/commit-size-nudge/index.mts",
+        "fleet/concurrent-cargo-build-guard/index.mts",
         {
           "path": "fleet/convo-prose-nudge/index.mts",
           "triggers": [

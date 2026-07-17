@@ -15,7 +15,7 @@ import { existsSync, readFileSync } from 'node:fs'
 // right pick.
 import { spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
 
-import { getNodeSmolFinalBinary } from '../../../lib/paths.mts'
+import { getLatestFinalBinary } from '../../../../node-smol-builder/test/paths.mts'
 
 import { composeScript } from './harness.mts'
 import type { Test, TestCase } from './types.mts'
@@ -37,10 +37,10 @@ export function resolveBinary(override?: string): string {
     }
     return override
   }
-  const candidate = getNodeSmolFinalBinary()
-  if (!existsSync(candidate)) {
+  const candidate = getLatestFinalBinary()
+  if (!candidate) {
     throw new Error(
-      `Built node-smol binary not found at ${candidate}\n` +
+      'A node-smol binary for the currently pinned Node version was not found.\n' +
         `Run \`pnpm --filter node-smol-builder run build\` first, ` +
         `or pass --binary <path>.`,
     )

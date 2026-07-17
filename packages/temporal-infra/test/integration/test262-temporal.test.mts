@@ -13,15 +13,14 @@
  *   the runner's own report does.
  */
 
-import { describe, expect, it, test } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
-import { getNodeSmolFinalBinary } from '../../lib/paths.mts'
+import { getLatestFinalBinary } from '../../../node-smol-builder/test/paths.mts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const RUNNER = path.resolve(
@@ -34,7 +33,7 @@ const RUNNER = path.resolve(
 // Gate the suite on the node-smol Final/ binary being present — the
 // runner spawns subprocesses against it for each test. CI / fresh
 // checkouts without a build will skip.
-const skipTests = !existsSync(getNodeSmolFinalBinary())
+const skipTests = !getLatestFinalBinary()
 
 // Runner walks ~3k Temporal tests × multiple scenarios. Budget generous.
 const TIMEOUT_MS = 30 * 60 * 1000

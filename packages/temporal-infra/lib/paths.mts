@@ -6,7 +6,6 @@
  */
 
 import path from 'node:path'
-import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -69,27 +68,3 @@ export const TEST262_TEMPORAL_INTL402_DIR = path.join(
   'intl402',
   'Temporal',
 )
-
-/**
- * Path to the built node-smol Final/ binary in dev mode.
- *
- * Matches build-released.mts Final/ output layout: a `node/` directory
- * containing the binary (plus signing metadata on darwin). The doubled
- * `node/node` is intentional — outer `node` is the dir, inner is the
- * binary.
- */
-export function getNodeSmolFinalBinary(): string {
-  const platformArch = `${process.platform}-${process.arch}`
-  return path.join(
-    PACKAGE_ROOT,
-    '..',
-    'node-smol-builder',
-    'build',
-    'dev',
-    platformArch,
-    'out',
-    'Final',
-    'node',
-    'node',
-  )
-}

@@ -97,7 +97,8 @@ describe('smol-ai N-API release staging', () => {
     expect(staged).toHaveLength(8)
     for (const item of staged) {
       expect(
-        readFileSync(path.join(item.packageDir, 'smol_ai.node')).length,
+        readFileSync(path.join(item.packageDir, 'build', 'smol_ai.node'))
+          .length,
       ).toBeGreaterThan(1000)
       expect(item.sha256).toMatch(/^[a-f0-9]{64}$/u)
     }

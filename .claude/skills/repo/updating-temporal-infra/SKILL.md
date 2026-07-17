@@ -1,6 +1,6 @@
 ---
 name: updating-temporal-infra
-description: Tracks the boa-dev/temporal submodule (temporal_rs Rust crate) at the latest tag, surfaces parity gaps in the local C++ port, and bumps the submodule SHA forward. Temporal is a Stage 3 emerging proposal — the upstream moves fast, and we want to ride that. Use when boa-dev/temporal cuts a new tag, or proactively on a regular cadence.
+description: Update boa-dev/temporal and audit the local C++ port for parity.
 user-invocable: true
 allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(diff:*), Read, Edit, Glob, Grep
 ---
@@ -124,7 +124,7 @@ check that ultrathink's parser tests still pass on a sample
 Temporal-using snippet (`Temporal.Now.zonedDateTimeISO('UTC')`,
 `Temporal.PlainDateTime.from('2026-05-06T12:00:00')`,
 duration arithmetic, etc.). If a future Temporal proposal change
-*does* introduce new syntax (none on the table), that becomes
+_does_ introduce new syntax (none on the table), that becomes
 a parser update across all 4 ultrathink lang impls.
 
 ## When to invoke

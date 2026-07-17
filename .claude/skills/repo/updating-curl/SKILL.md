@@ -1,8 +1,9 @@
 ---
 name: updating-curl
-description: Updates curl and mbedtls submodules to latest stable versions, bumps curl/stubs/binpress/node-smol caches. Use for TLS security patches, HTTP client fixes, or periodic maintenance.
+description: Update curl and mbedTLS pins and bump dependent build caches.
 user-invocable: true
-allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Glob, Grep---
+allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Glob, Grep
+---
 
 # updating-curl
 

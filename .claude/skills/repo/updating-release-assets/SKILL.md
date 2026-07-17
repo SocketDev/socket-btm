@@ -1,8 +1,9 @@
 ---
 name: updating-release-assets
-description: Syncs SHA-256 checksums from GitHub releases to release-assets.json for offline build integrity verification. Use after publishing new releases or when offline builds fail checksum verification.
+description: Refresh release-assets.json SHA-256 pins from GitHub releases.
 user-invocable: true
-allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit---
+allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit
+---
 
 # updating-release-assets
 

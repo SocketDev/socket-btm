@@ -1,8 +1,9 @@
 ---
 name: updating-node
-description: Updates Node.js submodule to latest stable tag, syncs .node-version, regenerates patches via autonomous agent, bumps node-smol cache. Use for new Node.js releases, security patches, or API updates.
+description: Update Node, patches, .node-version, and the node-smol cache.
 user-invocable: true
-allowed-tools: Task, Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Skill---
+allowed-tools: Task, Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Skill
+---
 
 # updating-node
 
@@ -100,13 +101,14 @@ full chain by dispatching `node-smol.yml`.
 **🚨 Dispatch policy**
 
 The `release-workflow-guard` hook risk-tiers each dispatch:
+
 - **Verifiable dry-run** (`-f dry-run=true` + workflow declares the
   input) — always allowed.
 - **GitHub-release-only workflow** (no `npm/pnpm/yarn publish` in
   the YAML; only `gh release create` / release action) — allowed
   live. node-smol, stubs, curl, LIEF, binsuite, etc. all qualify.
   Recovery for a bad release: `gh release delete <tag>
-  --cleanup-tag --yes`.
+--cleanup-tag --yes`.
 - **npm-publishing workflow** — always blocked. The user runs
   these themselves.
 - **Force-prod override** (`-f publish=true` etc.) — always blocked
@@ -134,7 +136,7 @@ The `release-workflow-guard` hook risk-tiers each dispatch:
    means node-smol builds against stale stubs/curl/LIEF and the
    failures surface in the wrong layer.
 
-**Dry-run policy** still applies for *validation* dispatches —
+**Dry-run policy** still applies for _validation_ dispatches —
 when you just want to see whether the source tree compiles. Pass
 `-f dry-run=true` and the hook lets it through.
 
@@ -163,6 +165,7 @@ done
 ```
 
 When a failure surfaces:
+
 1. **Cancel the run immediately** — `gh run cancel <id>`. Don't let
    sibling jobs finish; their outcome is moot.
 2. **Pull the actual compile error** — `gh api repos/.../actions/jobs/$JOB/logs | grep -E "error:|FAILED:"`.

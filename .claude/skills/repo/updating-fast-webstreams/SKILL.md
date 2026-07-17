@@ -1,8 +1,9 @@
 ---
 name: updating-fast-webstreams
-description: Vendors fast-webstreams from npm to additions/, converting ESM to CommonJS with primordials for Node.js bootstrap. Use when the WebStreams version needs update or builds fail with streams errors.
+description: Vendor fast-webstreams for Node bootstrap as CommonJS.
 user-invocable: true
-allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read---
+allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read
+---
 
 # updating-fast-webstreams
 
@@ -52,12 +53,12 @@ Two cycles require special handling (managed by `sync.mts`):
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `scripts/vendor-fast-webstreams/sync.mts` | ES-to-CJS conversion |
-| `scripts/vendor-fast-webstreams/validate.mts` | 15-test integration suite |
-| `test/scripts/wpt-streams-runner.mts` | WPT spec compliance (rich CLI runner) |
-| `test/integration/wpt-streams.test.mts` | WPT vitest wrapper (gates via `pnpm test`) |
-| `test/fixtures/wpt/streams/` | WPT sparse submodule (just `streams/` subtree) |
-| `test/fixtures/wpt/{harness,run-file}.mjs` | In-binary WPT harness + per-file runner |
-| `additions/source-patched/deps/fast-webstreams/` | Converted CommonJS (14 files) |
+| File                                             | Purpose                                        |
+| ------------------------------------------------ | ---------------------------------------------- |
+| `scripts/vendor-fast-webstreams/sync.mts`        | ES-to-CJS conversion                           |
+| `scripts/vendor-fast-webstreams/validate.mts`    | 15-test integration suite                      |
+| `test/scripts/wpt-streams-runner.mts`            | WPT spec compliance (rich CLI runner)          |
+| `test/integration/wpt-streams.test.mts`          | WPT vitest wrapper (gates via `pnpm test`)     |
+| `test/fixtures/wpt/streams/`                     | WPT sparse submodule (just `streams/` subtree) |
+| `test/fixtures/wpt/{harness,run-file}.mjs`       | In-binary WPT harness + per-file runner        |
+| `additions/source-patched/deps/fast-webstreams/` | Converted CommonJS (14 files)                  |

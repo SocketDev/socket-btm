@@ -1,6 +1,6 @@
 ---
 name: regenerating-patches
-description: Regenerates Node.js patches against pristine upstream source so each applies independently. Use after a Node.js version bump, when patches fail to apply, or when restructuring the patch chain.
+description: Regenerate Node patches after version or patch-chain drift.
 user-invocable: true
 allowed-tools: Agent, Read, Edit, Write, Glob, Grep, Bash(git:*), Bash(patch:*), Bash(diff:*), Bash(cp:*), Bash(rm:*), Bash(mkdir:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(awk:*), Bash(grep:*), Bash(sed:*), Bash(find:*), AskUserQuestion
 ---

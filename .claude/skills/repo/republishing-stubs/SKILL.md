@@ -1,6 +1,6 @@
 ---
 name: republishing-stubs
-description: Opt-in flow to rebuild + republish all 8 platform smol_stub artifacts via the stubs.yml GitHub Actions workflow (e.g. after the SEA footer integrity changed sha256→sha512, so the 7 downloaded prebuilts must be rebuilt to match). The model drives the automatable steps (prereq checks, dispatch, watch, verify) and PAUSES at the one human gate — the operator types the release-workflow-dispatch bypass phrase to opt in — then clicks the emitted GitHub Actions + Release browser links to watch / authenticate if gh prompts. Use when a stub-affecting source change (footer format, compression, platform metadata) needs every platform's prebuilt republished.
+description: Republish every platform smol_stub artifact through stubs.yml.
 user-invocable: true
 allowed-tools: Skill, Read, Grep, Glob, Bash(gh auth status:*), Bash(gh workflow run:*), Bash(gh run list:*), Bash(gh run view:*), Bash(gh run watch:*), Bash(gh release view:*), Bash(gh release list:*), Bash(git status:*), Bash(git log:*), Bash(git rev-list:*), Bash(rg:*), Bash(grep:*), Bash(node:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*)
 model: claude-sonnet-4-6
@@ -85,7 +85,8 @@ gh run list --workflow=stubs.yml --limit 1 --json databaseId,url \
 
 Print: `▶ Watch the run: <url>` so the operator can open it. If the dispatch
 returns an auth error, surface the gh login/device URL, ask the operator to open
-+ approve it, then retry the dispatch once.
+
+- approve it, then retry the dispatch once.
 
 ### Phase 3 — Watch to green (automatable)
 

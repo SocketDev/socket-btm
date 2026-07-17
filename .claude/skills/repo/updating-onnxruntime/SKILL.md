@@ -1,8 +1,9 @@
 ---
 name: updating-onnxruntime
-description: Updates ONNX Runtime submodule to latest stable version, initializes nested submodules, bumps onnxruntime and models caches. Use for new ML operators, inference performance, or security patches.
+description: Update ONNX Runtime, nested submodules, and dependent caches.
 user-invocable: true
-allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Glob, Grep---
+allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Glob, Grep
+---
 
 # updating-onnxruntime
 

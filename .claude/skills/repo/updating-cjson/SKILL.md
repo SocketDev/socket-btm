@@ -1,8 +1,9 @@
 ---
 name: updating-cjson
-description: Updates cJSON submodule to latest stable version, bumps binject and node-smol caches. Use when cJSON has security patches, JSON parsing bugs, or as part of binject updates.
+description: Update cJSON and bump the binject and node-smol caches.
 user-invocable: true
-allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Glob, Grep---
+allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Glob, Grep
+---
 
 # updating-cjson
 

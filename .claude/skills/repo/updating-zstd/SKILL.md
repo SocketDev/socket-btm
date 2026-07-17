@@ -1,8 +1,9 @@
 ---
 name: updating-zstd
-description: Updates zstd submodule to match Node.js deps version. Use after Node.js updates or when zstd version drifts from Node.js deps.
+description: Align the zstd submodule with Node's vendored version.
 user-invocable: true
-allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Grep---
+allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Grep
+---
 
 # updating-zstd
 
@@ -55,6 +56,7 @@ Update `.gitmodules` version comment: `# zstd-X.Y.Z`
 ### Phase 3: Bump Cache Versions
 
 Bump these in `.github/cache-versions.json`:
+
 - `stubs` (stubs embed zstd for decompression)
 - `binflate` (links vendored zstd)
 - `binject` (links vendored zstd)

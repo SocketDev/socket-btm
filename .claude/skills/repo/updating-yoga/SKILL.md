@@ -1,8 +1,9 @@
 ---
 name: updating-yoga
-description: Updates the Facebook Yoga layout library to a new version — bumps sources.yoga + the lockstep pin, rebuilds the WASM module (which regenerates YGEnums.mts from the C++ header), and AI-assists the wrapAssembly.mts re-port when upstream's JS layer changed. Use for Yoga version bumps, Flexbox/layout fixes, or periodic yoga maintenance.
+description: Update Yoga pins, WASM, generated enums, and JavaScript wrapper.
 user-invocable: true
-allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Glob, Grep---
+allowed-tools: Bash(pnpm:*), Bash(npm:*), Bash(git:*), Bash(node:*), Bash(rg:*), Bash(grep:*), Bash(find:*), Bash(ls:*), Bash(cat:*), Bash(head:*), Bash(tail:*), Bash(wc:*), Bash(diff:*), Read, Edit, Glob, Grep
+---
 
 # updating-yoga
 
@@ -16,6 +17,7 @@ Update the Yoga layout library to latest stable version.
 ## Build Architecture
 
 Produces the official yoga-layout npm API via WASM:
+
 - Uses official `embind.cpp`, `Node.cpp`, `Config.cpp` bindings from upstream
 - Wraps with `wrapAssembly.mts` for `Yoga.Node.create()`, `node.free()`, etc.
 - Sync wrapper generation uses AST-based transforms (acorn + MagicString)
@@ -39,7 +41,7 @@ Produces the official yoga-layout npm API via WASM:
   and the JS-GC ↔ yoga-manual-alloc memory reconciliation
   (`Node.create`/`free`/`freeRecursive`, `Config.free`). Carries a
   `Lock-step from upstream: yoga/javascript/src/wrapAssembly.ts @ yoga
-  <ver>` marker (build re-stamps the version). On a bump where upstream
+<ver>` marker (build re-stamps the version). On a bump where upstream
   `wrapAssembly.ts` CHANGED, it needs a behavioral re-port — step 5.
 
 ## Process

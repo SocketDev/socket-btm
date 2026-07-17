@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "entries"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": { "const": 1 },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sourcePath",
+          "sourcePackage",
+          "destinationRepo",
+          "destinationCrate",
+          "publicPackage",
+          "adapter",
+          "upstreamPath",
+          "lockstepTracker",
+          "removalStatus"
+        ],
+        "properties": {
+          "sourcePath": {
+            "pattern": "^packages/[a-z0-9-]+$",
+            "type": "string"
+          },
+          "sourcePackage": { "minLength": 1, "type": "string" },
+          "destinationRepo": {
+            "enum": ["decmpfs", "envrypt", "node-smol", "sockeye", "stuie"],
+            "type": "string"
+          },
+          "destinationCrate": { "minLength": 1, "type": "string" },
+          "publicPackage": { "minLength": 1, "type": "string" },
+          "adapter": {
+            "enum": [
+              "build-input",
+              "cpp-inverse-port",
+              "napi-addon",
+              "napi-addon-and-node-builtin",
+              "native-binary",
+              "node-builtin",
+              "node-smol-core",
+              "release-packaging"
+            ],
+            "type": "string"
+          },
+          "upstreamPath": { "minLength": 1, "type": "string" },
+          "lockstepTracker": { "minLength": 1, "type": "string" },
+          "removalStatus": { "enum": ["planned", "removed"], "type": "string" }
+        }
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    }
+  }
+}

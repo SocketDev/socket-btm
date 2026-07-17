@@ -26,6 +26,7 @@ import { fileURLToPath } from 'node:url'
 
 import { errorMessage } from '@socketsecurity/lib-stable/errors/message'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { normalizePath } from '@socketsecurity/lib-stable/paths/normalize'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
@@ -188,10 +189,8 @@ export async function smokeTest(spec: EnsureSpec): Promise<CheckResult> {
       errors.push(`${spec.getCurrent}() returned ${JSON.stringify(arch)}`)
     }
     const dir = (mod[spec.getLocalBuildDir] as (a: string) => string)(arch)
-    if (
-      typeof dir !== 'string' ||
-      !dir.includes(spec.builderPath.split('/').pop()!)
-    ) {
+    const builderName = path.basename(normalizePath(spec.builderPath))
+    if (typeof dir !== 'string' || !normalizePath(dir).includes(builderName)) {
       errors.push(
         `${spec.getLocalBuildDir}() returned ${JSON.stringify(dir)} (expected path under ${spec.builderPath})`,
       )

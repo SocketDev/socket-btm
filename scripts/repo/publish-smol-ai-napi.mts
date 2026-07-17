@@ -89,7 +89,7 @@ export function stageNapiArtifacts(
       `smol-ai-napi-${target.platform}`,
       'smol_ai.node',
     )
-    const destination = path.join(packageDir, 'smol_ai.node')
+    const destination = path.join(packageDir, 'build', 'smol_ai.node')
 
     if (!existsSync(source)) {
       throw new Error(
@@ -127,6 +127,7 @@ export function stageNapiArtifacts(
       )
     }
 
+    mkdirSync(path.dirname(destination), { recursive: true })
     copyFileSync(source, destination)
     staged.push({
       packageDir,

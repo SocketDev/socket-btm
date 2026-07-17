@@ -9,6 +9,7 @@ import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 
 import { errorMessage } from 'build-infra/lib/error-utils'
+import { getFinalOutputDir } from 'build-infra/lib/paths'
 
 import { colors, log, reportIssue } from './check-consistency-state.mts'
 import type {
@@ -136,7 +137,7 @@ export async function checkBuildOutputStructure(
 
     const hasFinalUnder = async (modeDir: string): Promise<boolean> => {
       // Cheap: check direct out/Final first (node-smol style).
-      if (existsSync(path.join(modeDir, 'out', 'Final'))) {
+      if (existsSync(getFinalOutputDir(modeDir))) {
         return true
       }
       // Fall back to per-platform subdirs (binsuite, wasm, and native-addon styles).
@@ -152,11 +153,11 @@ export async function checkBuildOutputStructure(
         }
         const archDir = path.join(modeDir, entry.name)
         // binsuite style: build/{mode}/{platform-arch}/out/Final/
-        if (existsSync(path.join(archDir, 'out', 'Final'))) {
+        if (existsSync(getFinalOutputDir(archDir))) {
           return true
         }
         // wasm style: build/{mode}/{platform-arch}/wasm/out/Final/
-        if (existsSync(path.join(archDir, 'wasm', 'out', 'Final'))) {
+        if (existsSync(getFinalOutputDir(path.join(archDir, 'wasm')))) {
           return true
         }
         // native-addon style: build/{mode}/{platform-arch}/out/{platform-arch}/

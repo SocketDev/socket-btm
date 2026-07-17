@@ -13,6 +13,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
+import { normalizePath } from '@socketsecurity/lib-stable/paths/normalize'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -261,7 +262,9 @@ export async function collectMismatches(): Promise<Mismatch[]> {
     // matches a path segment.
     if (sub.commentSlug) {
       const slug = sub.commentSlug.toLowerCase()
-      const segments = sub.path.split('/').map(s => s.toLowerCase())
+      const segments = normalizePath(sub.path)
+        .split('/')
+        .map(s => s.toLowerCase())
       const slugHead = slug.split('-')[0]!
       const matches =
         segments.includes(slug) ||

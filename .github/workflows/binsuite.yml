@@ -472,7 +472,7 @@ jobs:
           # Run full functional tests on native x64 platforms (non-Linux).
           # Linux glibc tests run inside Docker to avoid LTO bytecode incompatibility.
           echo "Running functional tests for binpress..."
-          pnpm run test
+          pnpm run test -- --all
 
       - name: Smoke test binary
         if: steps.build-enabled.outputs.build == 'true'
@@ -864,7 +864,7 @@ jobs:
           # Run full functional tests on native x64 platforms (non-Linux).
           # Linux glibc tests run inside Docker to avoid LTO bytecode incompatibility.
           echo "Running functional tests for binflate..."
-          pnpm run test
+          pnpm run test -- --all
 
       - name: Smoke test binary
         if: steps.build-enabled.outputs.build == 'true'

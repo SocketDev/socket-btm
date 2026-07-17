@@ -14,7 +14,7 @@
     "lief": "v75",
     "minilm": "v1",
     "models": "v34",
-    "node-smol": "v317",
+    "node-smol": "v318",
     "onnxruntime": "v33",
     "opentui": "v15",
     "stubs": "v107",

@@ -24,7 +24,7 @@ import { BUILD_STAGES } from './constants.mts'
  *
  * @returns {string} Absolute path to the package's download cache directory.
  */
-export function getDownloadedDir(packageRoot) {
+export function getDownloadedDir(packageRoot: string): string {
   return path.join(packageRoot, 'build', 'downloaded')
 }
 
@@ -48,18 +48,28 @@ export function getDownloadedDir(packageRoot) {
  * @returns {string} Absolute path to the final binary.
  */
 export function getFinalBinaryPath(
-  packageRoot,
-  mode,
-  platformArch,
-  binaryName,
-) {
+  packageRoot: string,
+  mode: string,
+  platformArch: string,
+  binaryName: string,
+): string {
   return path.join(
-    packageRoot,
-    'build',
-    mode,
-    platformArch,
-    'out',
-    BUILD_STAGES.FINAL,
+    getFinalOutputDir(path.join(packageRoot, 'build', mode, platformArch)),
     binaryName,
   )
+}
+
+/**
+ * Get the canonical `out/Final` directory below an existing build root.
+ *
+ * The root may be a mode directory, a platform directory, or a nested WASM
+ * build directory. Keeping the stage segments here prevents scanners and
+ * other generic consumers from reconstructing the same path.
+ *
+ * @param {string} buildRoot - Build directory that owns the `out` tree.
+ *
+ * @returns {string} Absolute path to its final output directory.
+ */
+export function getFinalOutputDir(buildRoot: string): string {
+  return path.join(buildRoot, 'out', BUILD_STAGES.FINAL)
 }

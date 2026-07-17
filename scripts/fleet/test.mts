@@ -49,7 +49,7 @@ import { spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
 import type { SpawnSyncOptions } from '@socketsecurity/lib-stable/process/spawn/types'
 
 import { hasLiveForeignActiveRun } from './_shared/active-run-marker.mts'
-import { resolveScopeMode } from './_shared/scope-flags.mts'
+import { isScopeFlag, resolveScopeMode } from './_shared/scope-flags.mts'
 import {
   firstPartyImports,
   isCheckByName,
@@ -97,7 +97,44 @@ const ROOT_WORKSPACE_MANIFEST = 'pnpm-workspace.yaml'
 // `pnpm test` in monorepos with no root config (UNRESOLVED_ENTRY).
 const ROOT_VITEST_CONFIG = '.config/repo/vitest.config.mts'
 
-const args = process.argv.slice(2)
+// Test LANES — a SPEED category orthogonal to scope. `--lane fast|mid|slow`
+// runs that lane (membership from `vitest.lanes` in the settings file); bare
+// `pnpm test` defaults to the fast lane. See .config/repo/vitest.config.mts.
+const VALID_LANES: ReadonlySet<string> = new Set(['fast', 'mid', 'slow'])
+// Pull the `--lane <value>` / `--lane=<value>` flag out of argv and return the
+// rest, so the scope/shard parsers never mistake the lane value for a file.
+function extractLane(argv: readonly string[]): {
+  lane: string | undefined
+  rest: string[]
+} {
+  const rest: string[] = []
+  let lane: string | undefined
+  for (let i = 0, { length } = argv; i < length; i += 1) {
+    const arg = argv[i]!
+    let value: string | undefined
+    if (arg === '--lane') {
+      i += 1
+      value = argv[i]
+    } else if (arg.startsWith('--lane=')) {
+      value = arg.slice('--lane='.length)
+    } else {
+      rest.push(arg)
+      continue
+    }
+    if (!value || !VALID_LANES.has(value)) {
+      throw new Error(
+        'Invalid --lane value.\n' +
+          '  Where: scripts/fleet/test.mts CLI argument parsing.\n' +
+          `  Saw: ${value ?? '(missing value)'}; wanted one of fast | mid | slow.\n` +
+          '  Fix: pass --lane fast (the bare `pnpm test` default), --lane mid, or --lane slow.',
+      )
+    }
+    lane = value
+  }
+  return { lane, rest }
+}
+
+const { lane: laneFlag, rest: args } = extractLane(process.argv.slice(2))
 const mode = resolveScopeMode(args)
 const quiet = args.includes('--quiet') || args.includes('--silent')
 const stdio: SpawnSyncOptions['stdio'] = quiet ? 'pipe' : 'inherit'
@@ -650,6 +687,22 @@ function main(): void {
     process.exitCode = 1
     return
   }
+  // Lane routing (a SPEED category, orthogonal to scope). `--lane fast|mid|slow`
+  // runs that lane; bare `pnpm test` (no scope flag, no explicit files) defaults
+  // to the fast lane for a quick local loop. --all / --staged / --changed and
+  // explicit files intentionally run EVERY lane (so editing a slow-lane test
+  // still runs it). The lane reaches the vitest config via FLEET_LANE, which
+  // shapes the config's include/exclude.
+  const hasScopeFlag = args.some(a => isScopeFlag(a))
+  const effectiveLane =
+    laneFlag ??
+    (!hasScopeFlag && parsedArgs.files.length === 0 ? 'fast' : undefined)
+  if (effectiveLane) {
+    process.env['FLEET_LANE'] = effectiveLane
+    process.exitCode = runVitest(['run'], `lane:${effectiveLane}`)
+    return
+  }
+
   // Explicit positional file paths take the fast file-scoped path. The parser
   // removes scope/runner flags and consumes the separate `--shard 1/4` value.
   const explicitFiles = parsedArgs.files

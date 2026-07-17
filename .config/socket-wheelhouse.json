@@ -3,5 +3,6 @@
   "schemaVersion": 1,
   "repoName": "socket-btm",
   "repo": { "type": "mono" },
-  "build": { "from": "github-release", "type": "binary" }
+  "build": { "from": "github-release", "type": "binary" },
+  "secondaries": [{ "from": "npm-registry", "type": "addon" }]
 }

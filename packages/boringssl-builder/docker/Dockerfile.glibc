@@ -27,9 +27,12 @@ ARG PLATFORM_ARCH=linux-x64
 ARG TARGETARCH
 ARG CACHE_VERSION=unset
 ENV UPSTREAM_DIR=/workspace/upstream
-ENV CMAKE_BUILD_DIR=/workspace/build/$BUILD_MODE/$PLATFORM_ARCH/cmake
-ENV OUT_LIB_DIR=/workspace/build/$BUILD_MODE/$PLATFORM_ARCH/out/Final/lib
-ENV OUT_INCLUDE_DIR=/workspace/build/$BUILD_MODE/$PLATFORM_ARCH/out/Final/include
+# Mirrors the single build-root construction in scripts/paths.mts getPaths().
+ENV BUILD_PLATFORM_DIR=/workspace/build/$BUILD_MODE/$PLATFORM_ARCH
+ENV CMAKE_BUILD_DIR=$BUILD_PLATFORM_DIR/cmake
+ENV OUT_FINAL_DIR=$BUILD_PLATFORM_DIR/out/Final
+ENV OUT_LIB_DIR=$OUT_FINAL_DIR/lib
+ENV OUT_INCLUDE_DIR=$OUT_FINAL_DIR/include
 
 # For amd64 builds, add -march=x86-64 -mtune=generic so the binary stays
 # portable across CPU generations.

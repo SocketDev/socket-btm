@@ -46,4 +46,4 @@ The release matrix covers macOS arm64/x64, Linux arm64/x64, and Windows x64.
 Windows arm64 uses the x64 addon under emulation until GitHub provides the
 matching native runner/toolchain lane.
 
-See [releasing.md](releasing.md) for the dry-run and gated release flow.
+See [the release guide](docs/releasing.md) for the dry-run and gated release flow.

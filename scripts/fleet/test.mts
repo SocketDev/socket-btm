@@ -47,7 +47,6 @@ import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 import { normalizePath } from '@socketsecurity/lib-stable/paths/normalize'
 import { spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
 import type { SpawnSyncOptions } from '@socketsecurity/lib-stable/process/spawn/types'
-import { whichLocalBin } from '@socketsecurity/lib-stable/bin/which'
 
 import { hasLiveForeignActiveRun } from './_shared/active-run-marker.mts'
 import { isScopeFlag, resolveScopeMode } from './_shared/scope-flags.mts'
@@ -73,12 +72,15 @@ const repoRoot = path.resolve(
   '..',
 )
 
-// Resolve the local vitest binary through the shared socket-lib helper so the
-// runner uses the installed bin directly instead of routing through
-// `pnpm exec vitest`.
-const VITEST_BIN =
-  whichLocalBin('vitest', { cwd: repoRoot }) ??
-  path.join(repoRoot, 'node_modules', '.bin', WIN32 ? 'vitest.cmd' : 'vitest')
+// Resolve the vitest binary from the repo-root node_modules/.bin instead of
+// `pnpm exec vitest` (fleet `no-pm-exec-guard`: `pnpm exec` is banned for its
+// wrapper overhead — call the bin directly).
+const VITEST_BIN = path.join(
+  repoRoot,
+  'node_modules',
+  '.bin',
+  WIN32 ? 'vitest.cmd' : 'vitest',
+)
 
 // Root package.json marks a monorepo workspace. When the full suite runs in a
 // workspace that has no root vitest config, a bare root `vitest run` discovers

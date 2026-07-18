@@ -65,8 +65,8 @@ export interface MigrationManifestRow {
   readonly currentDisposition: CurrentDisposition
   readonly plannedDestination: PlannedDestination
   readonly adapterKind: AdapterKind
-  readonly upstreamPin: string | null
-  readonly lockstepTracker: string | null
+  readonly upstreamPin: string | undefined
+  readonly lockstepTracker: string | undefined
   readonly removalStatus: RemovalStatus
 }
 

@@ -9,7 +9,18 @@ import { fileURLToPath } from 'node:url'
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const HOOK = path.join(here, '..', 'index.mts')
+const HOOK = path.join(
+  here,
+  '..',
+  '..',
+  '..',
+  '..',
+  '.claude',
+  'hooks',
+  'fleet',
+  'no-pm-exec-guard',
+  'index.mts',
+)
 
 type Result = { code: number; stderr: string }
 
@@ -99,7 +110,9 @@ test('bypass phrase allows a blocked command', async () => {
   const result = await runHook({
     tool_name: 'Bash',
     tool_input: { command: 'pnpm exec vitest run foo.test.mts' },
-    transcript_path: makeTranscript('Please Allow pm-exec bypass for this run.'),
+    transcript_path: makeTranscript(
+      'Please Allow pm-exec bypass for this run.',
+    ),
   })
   assert.strictEqual(result.code, 0)
   assert.strictEqual(result.stderr, '')

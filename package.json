@@ -121,6 +121,7 @@
     "docsify": false,
     "onnxruntime-node": true,
     "protobufjs": false,
+    "puppeteer": false,
     "ssh2": false
   },
   "npm-run-all2": {

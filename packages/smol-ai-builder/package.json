@@ -5,6 +5,10 @@
   "description": "Builds the llama.cpp-backed smol_ai.node N-API module",
   "license": "MIT",
   "type": "module",
+  "exports": {
+    "./lib/ensure-smol-ai": "./lib/ensure-smol-ai.mts",
+    "./scripts/paths": "./scripts/paths.mts"
+  },
   "scripts": {
     "build": "node scripts/build.mts",
     "test": "node ../../scripts/repo/run-smol-ai-tests.mts smol-ai-builder"

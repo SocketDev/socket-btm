@@ -18,12 +18,14 @@ in the package manager's startup + (in this fleet) the Socket Firewall
 interception layer on every call — pure overhead. During the 2026-06-03 slowdown
 investigation, bare `node_modules/.bin/tsgo` ran in 422ms vs the multi-second
 `pnpm exec tsgo`. Run the bin directly (`node_modules/.bin/<tool>`) or via
-`pnpm run <script>`.
+`pnpm run <script>`. In `.mts` code, resolve the installed binary with the
+shared local-bin helper instead of shelling through `pnpm exec`.
 
 **`npx` / `dlx`** FETCH + execute unpinned code — a supply-chain risk. The
 `socket/no-npx-dlx` oxlint rule already bans these in committed source, but a
 Claude Bash invocation runs before any lint, so this hook is the run-time block.
-Add the dep and run it installed, or use `pipx` / `node_modules/.bin`.
+Add the dep and run it installed, or use `pipx` / `node_modules/.bin`. In
+`.mts` code, resolve the installed binary with the shared local-bin helper.
 
 ## Bypass
 

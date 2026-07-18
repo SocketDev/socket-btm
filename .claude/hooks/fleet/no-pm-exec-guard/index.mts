@@ -8,14 +8,16 @@
 //      (in this fleet) the Socket Firewall interception layer on every call —
 //      pure overhead. `bare node_modules/.bin/tsgo` ran in 422ms vs the
 //      multi-second `pnpm exec tsgo` wrapper (2026-06-03 slowdown investigation).
-//      Fix: run the bin directly (`node_modules/.bin/<tool>`) or `pnpm run <x>`.
+//      Fix: run the bin directly (`node_modules/.bin/<tool>`) or, in `.mts`
+//      code, resolve it with the shared local-bin helper instead of `pnpm exec`.
 //
 //   2. `npx` / `pnpm dlx` / `yarn dlx` — FETCH + execute unpinned code, a
 //      supply-chain risk. The `socket/no-npx-dlx` oxlint rule already bans these
 //      in committed SOURCE, but a Claude Bash invocation runs before any lint —
 //      so this hook is the run-time block (2026-06-06: round-2 code-is-law scan
 //      found dlx/npx had no Bash-time gate, only the source lint rule).
-//      Fix: add the dep + run it installed, or `pipx`/`node_modules/.bin`.
+//      Fix: add the dep + run it installed, or `pipx` / the shared local-bin
+//      helper / `node_modules/.bin`.
 //
 // AST-parses the command via shell-command.mts/findInvocation (per the
 // no-command-regex-in-hooks rule) — never a raw regex on the command string.
@@ -89,6 +91,7 @@ export const check = bashGuard(
           '',
           '  Add the dep and run it installed, or use pipx / node_modules/.bin:',
           `    pnpm add -D <pkg> && node_modules/.bin/<tool>   not  ${fetchLabel} <pkg>`,
+          '    or resolve the local bin in .mts code with the shared local-bin helper',
           '',
           `  Bypass: type \`${BYPASS_PHRASE}\` if this is genuinely intended.`,
           '',
@@ -104,6 +107,7 @@ export const check = bashGuard(
         '',
         '  Run the bin directly, or via a script:',
         `    node_modules/.bin/<tool>      not  ${execLabel} <tool>`,
+        '    or resolve the local bin in .mts code with the shared local-bin helper',
         '    pnpm run <script>',
         '',
         `  Bypass: type \`${BYPASS_PHRASE}\` if this is genuinely intended.`,

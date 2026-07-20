@@ -10,10 +10,9 @@
  * 5. Verify inference
  * 6. Export to distribution location.
  *
- * Usage:
- * node scripts/build.mts          # Dev build (INT8 quantization, default)
- * node scripts/build.mts --int4   # Prod build (INT4 quantization, smaller)
- * node scripts/build.mts --force  # Force rebuild (ignore checkpoints)
+ * Usage: node scripts/repo/build.mts # Dev build (INT8 quantization, default)
+ * node scripts/repo/build.mts --int4 # Prod build (INT4 quantization, smaller)
+ * node scripts/repo/build.mts --force # Force rebuild (ignore checkpoints)
  *
  * Phase workers (download/convert/quantize/optimize/verify/export) live in
  * `./build-phases.mts`; this file resolves the shared build context and

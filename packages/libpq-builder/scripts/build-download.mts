@@ -128,7 +128,7 @@ export async function downloadLibpq(options = {}) {
 
   // Check if download is blocked by BUILD_DEPS_FROM_SOURCE environment flag.
   checkBuildSourceFlag('libpq', 'DEPS', {
-    buildCommand: 'node scripts/build.mts',
+    buildCommand: 'node scripts/repo/build.mts',
   })
 
   const targetDir = path.join(

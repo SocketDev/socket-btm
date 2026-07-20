@@ -7,10 +7,9 @@
  * - Applies INT4/INT8 mixed-precision quantization
  * - Optimizes ONNX graphs.
  *
- * Usage:
- * node scripts/build.mts          # Dev build (INT8 quantization, default)
- * node scripts/build.mts --int4   # Prod build (INT4 quantization, smaller)
- * node scripts/build.mts --force  # Force rebuild (ignore checkpoints)
+ * Usage: node scripts/repo/build.mts # Dev build (INT8 quantization, default)
+ * node scripts/repo/build.mts --int4 # Prod build (INT4 quantization, smaller)
+ * node scripts/repo/build.mts --force # Force rebuild (ignore checkpoints)
  *
  * Phase workers (download/convert/quantize/optimize/export) live in
  * `./build-phases.mts`; this file resolves the shared build context and

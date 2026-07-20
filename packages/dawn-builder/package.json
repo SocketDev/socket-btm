@@ -10,10 +10,10 @@
     "./scripts/paths": "./scripts/paths.mts"
   },
   "scripts": {
-    "build": "node scripts/build.mts",
-    "build:dev": "node scripts/build.mts --mode=dev",
-    "build:force": "node scripts/build.mts --force",
-    "build:prod": "node scripts/build.mts --mode=prod",
+    "build": "node scripts/repo/build.mts",
+    "build:dev": "node scripts/repo/build.mts --mode=dev",
+    "build:force": "node scripts/repo/build.mts --force",
+    "build:prod": "node scripts/repo/build.mts --mode=prod",
     "clean": "node scripts/clean.mts"
   },
   "dependencies": {

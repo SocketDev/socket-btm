@@ -51,7 +51,7 @@ once the build matrix is green the release publishes automatically.
    (or whatever invariant this republish is for). If the source still shows the
    old value, STOP — the republish would ship the old artifacts.
 3. **gh ready.** `gh auth status` reports `(keyring)` and a `workflow` scope.
-4. **Publish prereqs fresh.** `node scripts/check-publish-prereq.mts stubs`
+4. **Publish prereqs fresh.** `node scripts/repo/check-publish-prereq.mts stubs`
    (the same check the workflow's `verify-prereqs` job runs) — catches stale
    upstream publishes before burning a matrix run.
 5. **Local pre-flight (recommended).** Validate the workflow in local containers

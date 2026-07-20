@@ -72,7 +72,7 @@ carry the why.
 
 ## Enforcement
 
-`scripts/check-patch-format.mts` enforces: `one-file-per-patch`, `multiple-patches-per-file`, `numbered-series-gap`, header presence and form, unified-diff form, and hunk-count integrity (`@@ -A,B +C,D @@` matches actual body line counts).
+`scripts/repo/check-patch-format.mts` enforces: `one-file-per-patch`, `multiple-patches-per-file`, `numbered-series-gap`, header presence and form, unified-diff form, and hunk-count integrity (`@@ -A,B +C,D @@` matches actual body line counts).
 
 ## Generation workflow
 

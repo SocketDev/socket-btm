@@ -9,7 +9,7 @@
     "./lib/ensure-boringssl": "./lib/ensure-boringssl.mts"
   },
   "scripts": {
-    "build": "node scripts/build.mts",
+    "build": "node scripts/repo/build.mts",
     "clean": "node scripts/clean.mts",
     "cover": "vitest run --coverage",
     "emit-docker-build": "node scripts/emit-docker-build.mts",

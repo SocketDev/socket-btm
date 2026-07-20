@@ -13,7 +13,7 @@ import path from 'node:path'
 import process from 'node:process'
 
 // logTransientErrorHelp loaded lazily inside the catch block below
-// (see curl-builder/scripts/build.mts for full rationale on the
+// (see curl-builder/scripts/repo/build.mts for full rationale on the
 // http-request/convenience CJS/ESM interop crash).
 import { getDownloadedDir, getFinalBinaryPath } from 'build-infra/lib/paths'
 import { getPlatformArch } from 'build-infra/lib/platform-mappings'

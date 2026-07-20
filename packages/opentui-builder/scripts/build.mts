@@ -7,8 +7,8 @@
  * - Cross-platform builds for 8 targets.
  *
  * Usage:
- * node scripts/build.mts          # Normal build with checkpoints
- * node scripts/build.mts --force  # Force rebuild (ignore checkpoints)
+ * node scripts/repo/build.mts          # Normal build with checkpoints
+ * node scripts/repo/build.mts --force  # Force rebuild (ignore checkpoints)
  */
 
 import { existsSync, promises as fs } from 'node:fs'

@@ -29,7 +29,7 @@ import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { getBuildMode, getPlatformBuildDir } from 'build-infra/lib/constants'
 // logTransientErrorHelp loaded lazily inside catch block below (see
-// curl-builder/scripts/build.mts for full rationale on the
+// curl-builder/scripts/repo/build.mts for full rationale on the
 // http-request/convenience CJS/ESM interop crash).
 import { errorMessage } from 'build-infra/lib/error-utils'
 import { getDownloadedDir, getFinalBinaryPath } from 'build-infra/lib/paths'

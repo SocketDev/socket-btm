@@ -10,8 +10,8 @@
     "./scripts/paths": "./scripts/paths.mts"
   },
   "scripts": {
-    "build": "node scripts/build.mts",
-    "build:force": "node scripts/build.mts --force",
+    "build": "node scripts/repo/build.mts",
+    "build:force": "node scripts/repo/build.mts --force",
     "clean": "node scripts/clean.mts",
     "cover": "vitest run --coverage",
     "postinstall": "node scripts/setup-build-toolchain.mts",

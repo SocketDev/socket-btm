@@ -21,7 +21,7 @@ import {
 } from 'build-infra/lib/constants'
 import { errorMessage } from 'build-infra/lib/error-utils'
 // logTransientErrorHelp loaded lazily inside catch block below (see
-// curl-builder/scripts/build.mts for full rationale on the
+// curl-builder/scripts/repo/build.mts for full rationale on the
 // http-request/convenience CJS/ESM interop crash).
 import { tarSupportsNoAbsoluteNames } from 'build-infra/lib/platform-mappings'
 import { verifyReleaseChecksum } from 'build-infra/lib/release-checksums/core'

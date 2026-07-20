@@ -391,7 +391,7 @@ jobs:
           CROSS_COMPILE: ${{ matrix.cross_compile && '1' || '' }}
         run: |
           cd packages/curl-builder
-          node scripts/build.mts
+          node scripts/repo/build.mts
 
       - name: Create archive
         if: steps.curl-checkpoint-cache.outputs.cache-hit != 'true' || inputs.force

@@ -65,7 +65,7 @@ jobs:
         if: ${{ !inputs['dry-run'] }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/check-publish-prereq.mts node-smol
+        run: node scripts/repo/check-publish-prereq.mts node-smol
 
   build:
     needs: verify-prereqs

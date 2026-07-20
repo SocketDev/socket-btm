@@ -75,7 +75,7 @@ sha256/sha1 must stay (flipping = format break, zero gain).
 ### 7. `.gitmodules` submodule pins — SHA-256 hex (structural / GitHub-format)
 
 - `scripts/fleet/gen-gitmodules-hash.mts:157` — `sha256(codeload tarball)`;
-  parsed by `scripts/check-version-consistency.mts`. Format:
+  parsed by `scripts/repo/check-version-consistency.mts`. Format:
   `# <package>-X.Y.Z sha256:<64hex>`. Mirrors GitHub's archive hash — a shape, not
   a Socket trust choice.
 

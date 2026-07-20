@@ -123,7 +123,7 @@ jobs:
 
           COMMON=$(hash_dir packages/onnxruntime-builder/scripts/common)
           PACKAGE_JSON=$($hash_cmd packages/onnxruntime-builder/package.json | cut -d' ' -f1)
-          BUILD_MJS=$($hash_cmd packages/onnxruntime-builder/scripts/build.mts | cut -d' ' -f1)
+          BUILD_MJS=$($hash_cmd packages/onnxruntime-builder/scripts/repo/build.mts | cut -d' ' -f1)
 
           # Shared TS helpers used by all phases + pnpm-lock + .node-version.
           BUILD_INFRA_LIB=$(hash_dir packages/build-infra/lib)

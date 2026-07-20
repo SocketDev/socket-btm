@@ -199,7 +199,7 @@ jobs:
           # Dawn's build layout differs slightly from lief/libpq:
           # dawn-builder/build/<mode>/<platformArch>/out/
           # (no Final/ subdir — Dawn's CMake output is staged in out/lib +
-          # out/include directly per dawn-builder/scripts/build.mts).
+          # out/include directly per dawn-builder/scripts/repo/build.mts).
           PACKAGE_DIR="packages/dawn-builder"
           MODE_BUILD_DIR="${PACKAGE_DIR}/build/${BUILD_MODE}"
           PLATFORM_BUILD_DIR="${MODE_BUILD_DIR}/${PLATFORM_ARCH}"

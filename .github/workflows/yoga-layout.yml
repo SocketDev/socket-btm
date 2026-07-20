@@ -149,7 +149,7 @@ jobs:
           # Common scripts (used by all checkpoints)
           COMMON=$(hash_dir packages/yoga-layout-builder/scripts/common)
           PACKAGE_JSON=$($hash_cmd packages/yoga-layout-builder/package.json | cut -d' ' -f1)
-          BUILD_MJS=$($hash_cmd packages/yoga-layout-builder/scripts/build.mts | cut -d' ' -f1)
+          BUILD_MJS=$($hash_cmd packages/yoga-layout-builder/scripts/repo/build.mts | cut -d' ' -f1)
 
           # Shared TS helpers used by all phases + pnpm-lock + .node-version.
           BUILD_INFRA_LIB=$(hash_dir packages/build-infra/lib)

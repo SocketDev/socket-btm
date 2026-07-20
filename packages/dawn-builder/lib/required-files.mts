@@ -1,6 +1,6 @@
 /**
  * Required-files manifest for a Dawn install — source of truth
- * shared by scripts/build.mts (drives checkpoint validation) and
+ * shared by scripts/repo/build.mts (drives checkpoint validation) and
  * scripts/verify-release.mts (runs in CI before archiving). Kept in
  * its own file with zero imports so verify-release can stay
  * standalone and avoid workspace-resolution failures on runners

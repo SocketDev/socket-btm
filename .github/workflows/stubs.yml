@@ -52,7 +52,7 @@ jobs:
       - name: Check publish chain freshness
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/check-publish-prereq.mts stubs
+        run: node scripts/repo/check-publish-prereq.mts stubs
 
   build-stubs:
     needs: verify-prereqs
@@ -428,7 +428,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           # Build script handles curl dependency download and stub compilation.
-          node scripts/build.mts
+          node scripts/repo/build.mts
 
       # Hoist canonical stub paths into step outputs so the verify and
       # artifact steps share one source of truth. Binary location differs

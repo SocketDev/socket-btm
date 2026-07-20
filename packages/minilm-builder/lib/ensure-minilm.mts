@@ -10,7 +10,7 @@
  *
  * Canonical published artifact: prod build with int4 quantization
  * (smaller models). Build mode and quant level are coupled in minilm
- * (int4 -> prod, int8 -> dev) per scripts/build.mts:70-71.
+ * (int4 -> prod, int8 -> dev) per scripts/repo/build.mts:70-71.
  */
 
 import { createPrebuiltApi } from 'build-infra/lib/ensure-prebuilt'

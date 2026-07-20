@@ -6,7 +6,7 @@
  * pattern. Per-builder customization lives in this file's config block.
  *
  * Symbol compatibility: every export name retained from the prior
- * re-export-from-scripts/build.mts shape so any downstream consumers
+ * re-export-from-scripts/repo/build.mts shape so any downstream consumers
  * (currently zero in the fleet — verified via grep) stay buildable.
  *
  * EnsureLibpq(options?) → Promise<string> factory.ensure
@@ -33,7 +33,7 @@ import { LIBPQ_REQUIRED_FILES } from './required-files.mts'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // libpq-builder doesn't ship a scripts/paths.mts (unlike dawn/yoga/
 // opentui), so compute PACKAGE_ROOT locally — matches the pattern in
-// scripts/build.mts at line 64.
+// scripts/repo/build.mts at line 64.
 const PACKAGE_ROOT = path.resolve(__dirname, '..')
 
 // libpq has no dependencies on other socket-btm packages, so the
@@ -46,7 +46,7 @@ export function getCheckpointChain(): string[] {
 
 // Sync libc detection + sync platform-arch resolution (mirrors
 // lief-builder's getCurrentLiefPlatformArch and matches what
-// scripts/build.mts:getAssetPlatformArch(...) did inline).
+// scripts/repo/build.mts:getAssetPlatformArch(...) did inline).
 export function getCurrentLibpqPlatformArch(): string {
   const libc = detectLibc()
   const arch = process.env['TARGET_ARCH'] || process.arch
@@ -54,7 +54,7 @@ export function getCurrentLibpqPlatformArch(): string {
 }
 
 // libpq's CMake island-build produces libpq.a at
-// <buildDir>/out/<FINAL>/libpq/. Mirrors scripts/build.mts:getBuildDirs().
+// <buildDir>/out/<FINAL>/libpq/. Mirrors scripts/repo/build.mts:getBuildDirs().
 export function getLibpqLocalBuildDir(platformArch: string): string {
   const buildDir = getPlatformBuildDir(PACKAGE_ROOT, platformArch)
   return path.join(buildDir, 'out', BUILD_STAGES.FINAL, 'libpq')
@@ -71,7 +71,7 @@ const api = createPrebuiltApi({
 // Public API exports.
 //
 // Two naming conventions are exposed simultaneously:
-//   - Legacy (preserved from the original scripts/build.mts re-exports):
+//   - Legacy (preserved from the original scripts/repo/build.mts re-exports):
 //     downloadLibpq, ensureLibpq, libpqExistsAt
 //   - Factory-canonical (uniform across all builders via the
 //     build-infra/lib/ensure-prebuilt factory):

@@ -7,13 +7,13 @@
  *
  * Downstream consumers (verified via grep):
  * - bin-infra/lib/build-stubs.mts (1 ensureCurl() call)
- * - bin-stub-builder/scripts/build.mts (1 ensureCurl() call)
+ * - bin-stub-builder/scripts/repo/build.mts (1 ensureCurl() call)
  *
  * Both consume the return value as a directory string. Factory's
  * ensure() also returns a directory string; behavior preserved.
  *
  * Symbol compatibility: every export name retained from the prior
- * re-export-from-scripts/build.mts shape — both legacy + factory-
+ * re-export-from-scripts/repo/build.mts shape — both legacy + factory-
  * canonical names exposed (see end of file).
  */
 
@@ -35,7 +35,7 @@ import { CURL_REQUIRED_FILES } from './required-files.mts'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // curl-builder doesn't ship a scripts/paths.mts (unlike dawn/yoga/
 // opentui), so compute PACKAGE_ROOT locally — matches the pattern in
-// scripts/build.mts.
+// scripts/repo/build.mts.
 const PACKAGE_ROOT = path.resolve(__dirname, '..')
 
 // curl-builder has no upstream dependencies on other socket-btm
@@ -47,7 +47,7 @@ export function getCheckpointChain(): string[] {
 }
 
 // curl's CMake build produces libcurl.a + mbedTLS at
-// <buildDir>/out/<FINAL>/curl/dist/. Mirrors scripts/build.mts:
+// <buildDir>/out/<FINAL>/curl/dist/. Mirrors scripts/repo/build.mts:
 // `const localDir = path.join(curlBuildDir, 'dist')` where
 // curlBuildDir = getBuildDirs(arch).curlBuildDir.
 export function getCurlLocalBuildDir(platformArch: string): string {
@@ -56,7 +56,7 @@ export function getCurlLocalBuildDir(platformArch: string): string {
 }
 
 // Sync libc detection + sync platform-arch resolution. The existing
-// scripts/build.mts:ensureCurl() called the async
+// scripts/repo/build.mts:ensureCurl() called the async
 // getCurrentPlatformArch() from platform-mappings; here we use the
 // sync detectLibc() + getAssetPlatformArch() pair so the factory's
 // sync config signature is satisfied. Result is byte-identical for
@@ -78,7 +78,7 @@ const api = createPrebuiltApi({
 // Public API exports.
 //
 // Two naming conventions are exposed simultaneously:
-//   - Legacy (preserved from the original scripts/build.mts re-exports;
+//   - Legacy (preserved from the original scripts/repo/build.mts re-exports;
 //     in-use by bin-infra/lib/build-stubs.mts + bin-stub-builder/scripts/
 //     build.mts as `ensureCurl`):
 //     curlExistsAt, downloadCurl, ensureCurl

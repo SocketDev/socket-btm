@@ -1,10 +1,13 @@
-name: 📦 Publish @node-smol/ai npm packages
+name: 📦 npm publish
 
-# @node-smol/ai loads one of eight target-specific N-API packages. Build every
-# target from the same pinned llama.cpp gitlink, validate each executable header,
-# and stage the native packages before the public Prompt API wrapper. A manual
-# dispatch is a dry run unless publish=true. Real publishing uses npm's
-# reversible OIDC staging area and still requires separate human approval.
+# PRESET — seeded once from template/presets/ (onboarding or first cascade),
+# then repo-owned: customize what + how THIS repo publishes. The inlined
+# per-repo replacement for the socket-registry reusable publish workflow.
+#
+# Default flow: manual dispatch, DRY-RUN unless `publish: true`; publishes the
+# workspace's publishable packages via the fleet staged-publish script with
+# npm provenance (OIDC trusted publishing — id-token: write, no long-lived
+# npm token).
 
 on:
   workflow_dispatch:
@@ -17,226 +20,70 @@ on:
         description: 'npm dist-tag to publish under.'
         type: string
         default: 'latest'
+      release-as:
+        description: >-
+          Force the bump level. MAJOR is never derived from commits — the
+          bump script stops on breaking commits unless a human selects
+          major here.
+        type: choice
+        options:
+          - ''
+          - major
+          - minor
+          - patch
+        default: ''
 
 permissions:
   contents: read
 
-concurrency:
-  group: smol-ai-npm-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
-  build-native:
-    name: smol-ai N-API / ${{ matrix.target }}
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - {
-              runner: macos-15,
-              target: darwin-arm64,
-              native-target: darwin-arm64,
-            }
-          - {
-              runner: macos-15-intel,
-              target: darwin-x64,
-              native-target: darwin-x64,
-            }
-          - {
-              runner: ubuntu-24.04-arm,
-              target: linux-arm64-gnu,
-              native-target: linux-arm64,
-            }
-          - {
-              runner: ubuntu-24.04,
-              target: linux-x64-gnu,
-              native-target: linux-x64,
-            }
-          - {
-              runner: windows-11-arm,
-              target: win32-arm64-msvc,
-              native-target: win32-arm64,
-            }
-          - {
-              runner: windows-2022,
-              target: win32-x64-msvc,
-              native-target: win32-x64,
-            }
-    steps:
-      - name: Bootstrap checkout
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          SERVER_URL: ${{ github.server_url }}
-          REPOSITORY: ${{ github.repository }}
-          TRIGGER_REF: ${{ github.ref }}
-        run: |
-          set -euo pipefail
-          git init -q
-          git config --local advice.detachedHead false
-          git remote remove origin 2>/dev/null || true
-          git remote add origin "${SERVER_URL}/${REPOSITORY}"
-          FETCH_ARGS=(--no-tags --prune --depth 1 origin "${TRIGGER_REF}")
-          if [ -n "${GITHUB_TOKEN}" ]; then
-            AUTH_B64="$(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 | tr -d '\n')"
-            git -c "http.${SERVER_URL}/.extraheader=AUTHORIZATION: basic ${AUTH_B64}" fetch "${FETCH_ARGS[@]}"
-          else
-            git fetch "${FETCH_ARGS[@]}"
-          fi
-          git checkout -q --detach FETCH_HEAD
-      - name: Setup + install
-        uses: ./.github/actions/fleet/setup-and-install
-      - name: Initialize pinned native sources
-        shell: bash
-        run: git submodule update --init --depth 1 packages/ai-infra/upstream/llama.cpp packages/node-smol-builder/upstream/node
-      - name: Build native addon
-        env:
-          BUILD_MODE: prod
-          SMOL_AI_NODE_INCLUDE_DIR: ${{ github.workspace }}/packages/node-smol-builder/upstream/node/src
-        run: pnpm --filter smol-ai-builder build
-      - name: Load-test native addon
-        shell: bash
-        env:
-          NATIVE_TARGET: ${{ matrix.native-target }}
-        run: |
-          node -e 'const p=`./packages/smol-ai-builder/build/prod/${process.env.NATIVE_TARGET}/smol_ai.node`;const b=require(p);if(b.runtimeId!=="llama.cpp-b9940"||typeof b.createSession!=="function"||typeof b.prompt!=="function")process.exit(1)'
-      - name: Upload verified native addon
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (2026-05-15)
-        with:
-          name: smol-ai-napi-${{ matrix.target }}
-          path: packages/smol-ai-builder/build/prod/${{ matrix.native-target }}/smol_ai.node
-          if-no-files-found: error
-          retention-days: 7
-          compression-level: 0
-
-  build-musl:
-    name: smol-ai N-API / ${{ matrix.target }}
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 45
-    container:
-      image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - {
-              runner: ubuntu-24.04-arm,
-              target: linux-arm64-musl,
-              native-target: linux-arm64,
-            }
-          - {
-              runner: ubuntu-24.04,
-              target: linux-x64-musl,
-              native-target: linux-x64,
-            }
-    steps:
-      - name: Install bootstrap Git
-        run: apk add --no-cache git
-      - name: Bootstrap checkout
-        shell: sh
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          SERVER_URL: ${{ github.server_url }}
-          REPOSITORY: ${{ github.repository }}
-          TRIGGER_REF: ${{ github.ref }}
-        run: |
-          set -eu
-          git init -q
-          git config --local advice.detachedHead false
-          git remote remove origin 2>/dev/null || true
-          git remote add origin "${SERVER_URL}/${REPOSITORY}"
-          if [ -n "${GITHUB_TOKEN}" ]; then
-            AUTH_B64="$(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 | tr -d '\n')"
-            git -c "http.${SERVER_URL}/.extraheader=AUTHORIZATION: basic ${AUTH_B64}" fetch --no-tags --prune --depth 1 origin "${TRIGGER_REF}"
-          else
-            git fetch --no-tags --prune --depth 1 origin "${TRIGGER_REF}"
-          fi
-          git checkout -q --detach FETCH_HEAD
-      - name: Install build toolchain
-        run: apk add --no-cache build-base cmake ninja nodejs nodejs-dev python3
-      - name: Initialize pinned llama.cpp
-        run: git submodule update --init --depth 1 packages/ai-infra/upstream/llama.cpp
-      - name: Build native addon
-        env:
-          NATIVE_TARGET: ${{ matrix.native-target }}
-        run: |
-          cmake \
-            -S packages/ai-infra \
-            -B "packages/smol-ai-builder/build/prod/$NATIVE_TARGET" \
-            -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DNODE_INCLUDE_DIR=/usr/include/node
-          cmake \
-            --build "packages/smol-ai-builder/build/prod/$NATIVE_TARGET" \
-            --target smol_ai \
-            --parallel
-      - name: Load-test native addon
-        env:
-          NATIVE_TARGET: ${{ matrix.native-target }}
-        run: |
-          node -e 'const p=`./packages/smol-ai-builder/build/prod/${process.env.NATIVE_TARGET}/smol_ai.node`;const b=require(p);if(b.runtimeId!=="llama.cpp-b9940"||typeof b.createSession!=="function"||typeof b.prompt!=="function")process.exit(1)'
-      - name: Upload verified native addon
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (2026-05-15)
-        with:
-          name: smol-ai-napi-${{ matrix.target }}
-          path: packages/smol-ai-builder/build/prod/${{ matrix.native-target }}/smol_ai.node
-          if-no-files-found: error
-          retention-days: 7
-          compression-level: 0
-
   publish:
-    name: Validate, pack, and stage @node-smol/ai
-    needs:
-      - build-musl
-      - build-native
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    # npm's trusted-publisher config pins this GitHub environment name; the
+    # OIDC token exchange 404s if the job runs outside it.
+    environment: npm-publish
     permissions:
       contents: read
-      id-token: write # npm trusted publishing mints a short-lived provenance token.
+      # npm provenance / trusted publishing mints its OIDC token here.
+      id-token: write
     env:
+      # Socket Firewall + CLI auth for the sfw-wrapped setup + pnpm install —
+      # sfw and socket-cli read SOCKET_API_KEY from the org-wide secret.
       SOCKET_API_KEY: ${{ secrets.SOCKET_API_TOKEN_FOR_CLI_AND_SFW }}
     steps:
-      - name: Bootstrap checkout
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          SERVER_URL: ${{ github.server_url }}
-          REPOSITORY: ${{ github.repository }}
-          TRIGGER_REF: ${{ github.ref }}
-        run: |
-          set -euo pipefail
-          git init -q
-          git config --local advice.detachedHead false
-          git remote remove origin 2>/dev/null || true
-          git remote add origin "${SERVER_URL}/${REPOSITORY}"
-          FETCH_ARGS=(--no-tags --prune --depth 1 origin "${TRIGGER_REF}")
-          if [ -n "${GITHUB_TOKEN}" ]; then
-            AUTH_B64="$(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 | tr -d '\n')"
-            git -c "http.${SERVER_URL}/.extraheader=AUTHORIZATION: basic ${AUTH_B64}" fetch "${FETCH_ARGS[@]}"
-          else
-            git fetch "${FETCH_ARGS[@]}"
-          fi
-          git checkout -q --detach FETCH_HEAD
+      # First step must be the third-party actions/checkout (GitHub fetches it
+      # independently) to populate the workspace so the LOCAL
+      # ./.github/actions/* composite resolves; setup-and-install re-checks-out
+      # at its own deeper default.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (2026-05-15)
+        with:
+          fetch-depth: 1
+          persist-credentials: false
       - name: Setup + install
         uses: ./.github/actions/fleet/setup-and-install
-      - name: Download native artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 (2026-05-15)
+      # Build dist/ before publishing — the staged-publish script imports the
+      # package's own built output (`@socketsecurity/lib/stdio/prompts` self-
+      # resolves to dist/), and `files` ships dist/, so the tarball needs it.
+      - name: Build
+        run: pnpm run build
+      # The release App signs the bump commit via the GitHub API — the
+      # workflow's own GITHUB_TOKEN stays contents: read.
+      - name: Mint release App token
+        id: release-app
+        uses: ./.github/actions/fleet/github-release-app-token
         with:
-          path: artifacts
-          pattern: smol-ai-napi-*
-      - name: Validate, pack, and stage npm packages
+          client-id: ${{ vars.SOCKET_RELEASE_CLIENT_ID }}
+          private-key: ${{ secrets.SOCKET_RELEASE_APP_PRIVATE_KEY }}
+      # --bump consumes the committed version hint (X.Y.Z-prerelease →
+      # X.Y.Z), writes CHANGELOG, and commits via the release App (verified,
+      # signed) onto a throwaway npm-publish-v<version> branch — main is
+      # fast-forwarded to it only after the publish succeeds, and it is nuked on
+      # a rejected publish, so a failed stage never creeps the version. The
+      # version decision stays with the human: it is whatever the committed hint
+      # names.
+      - name: Publish
         env:
           DIST_TAG: ${{ inputs.dist-tag }}
-          PUBLISH_MODE: ${{ inputs.publish == true && '--staged' || '--dry-run' }}
-        run: node scripts/repo/publish-smol-ai-napi.mts --artifacts-dir artifacts --bundle-dir release-bundle --tag "$DIST_TAG" "$PUBLISH_MODE"
-      - name: Retain exact release tarballs for human review
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (2026-05-15)
-        with:
-          name: smol-ai-napi-release-bundle
-          path: release-bundle
-          if-no-files-found: warn
-          retention-days: 7
+          RELEASE_AS: ${{ inputs.release-as }}
+          RELEASE_APP_TOKEN: ${{ steps.release-app.outputs.token }}
+        run: node scripts/fleet/npm-publish.mts --staged --bump --tag "$DIST_TAG" ${RELEASE_AS:+--release-as "$RELEASE_AS"} ${{ inputs.publish != true && '--dry-run' || '' }}

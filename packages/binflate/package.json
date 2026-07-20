@@ -6,7 +6,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "node scripts/build.mts",
+    "build": "node scripts/repo/build.mts",
     "clean": "node scripts/clean.mts",
     "cover": "node ../bin-infra/scripts/run-coverage.js binflate",
     "postinstall": "node scripts/setup-build-toolchain.mts",

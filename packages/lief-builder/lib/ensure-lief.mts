@@ -7,8 +7,8 @@
  *
  * Downstream consumers (verified via grep):
  *
- * - Binpress/scripts/build.mts + test.mts (ensureLief)
- * - Binject/scripts/build.mts + test.mts (ensureLief)
+ * - Binpress/scripts/repo/build.mts + test.mts (ensureLief)
+ * - Binject/scripts/repo/build.mts + test.mts (ensureLief)
  * - Lief-builder/test/ensure-lief.test.mts (every export above)
  *
  * All consume ensureLief() as a directory string. Factory's ensure()
@@ -46,7 +46,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PACKAGE_ROOT = path.resolve(__dirname, '..')
 
 // Sync libc detection + sync platform-arch resolution. The existing
-// scripts/build.mts:getCurrentLiefPlatformArch used the same pair.
+// scripts/repo/build.mts:getCurrentLiefPlatformArch used the same pair.
 export function getCurrentLiefPlatformArch(): string {
   const libc = detectLibc()
   const arch = process.env['TARGET_ARCH'] || process.arch
@@ -54,7 +54,7 @@ export function getCurrentLiefPlatformArch(): string {
 }
 
 // Return the LIEF lib path for the current (or specified) platform-arch.
-// Mirrors scripts/build.mts:getLiefLibPath.
+// Mirrors scripts/repo/build.mts:getLiefLibPath.
 export function getLiefLibPath(platformArch?: string): string | undefined {
   const resolvedPlatformArch = platformArch ?? getCurrentLiefPlatformArch()
   return getLiefLibPathAt(getLiefLocalBuildDir(resolvedPlatformArch))
@@ -78,7 +78,7 @@ export function getLiefLibPathAt(dir: string): string | undefined {
 }
 
 // LIEF's CMake build produces the static library at
-// <buildDir>/out/<FINAL>/lief/. Mirrors scripts/build.mts:
+// <buildDir>/out/<FINAL>/lief/. Mirrors scripts/repo/build.mts:
 // getLiefBuildDirs(arch).liefBuildDir.
 export function getLiefLocalBuildDir(platformArch: string): string {
   const buildDir = getPlatformBuildDir(PACKAGE_ROOT, platformArch)
@@ -96,7 +96,7 @@ const api = createPrebuiltApi({
 // Public API exports.
 //
 // Two naming conventions are exposed simultaneously:
-//   - Legacy (preserved from the original scripts/build.mts re-exports;
+//   - Legacy (preserved from the original scripts/repo/build.mts re-exports;
 //     in-use by binpress + binject scripts as `ensureLief`):
 //     ensureLief, liefExists, liefExistsAt, verifyLiefAt, getLiefLibPath
 //   - Factory-canonical (uniform across all builders):

@@ -1,7 +1,7 @@
 /**
  * @file Unit tests for the cache-version cascade rules. Regression coverage
  *   for the gap where `packages/*\/upstream/` submodule bumps were invisible
- *   to scripts/validate-cache-versions.mts's check gate: every lockstep
+ *   to scripts/repo/validate-cache-versions.mts's check gate: every lockstep
  *   version-pin row backed by a real submodule that feeds a
  *   `.github/cache-versions.json` key must have a matching CASCADE_RULES
  *   entry, and a sample changed path under each covered submodule must
@@ -13,7 +13,7 @@ import path from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { CASCADE_RULES } from '../../scripts/validate-cache-versions.mts'
+import { CASCADE_RULES } from '../../scripts/repo/validate-cache-versions.mts'
 import { CONFIG_DIR } from '../../scripts/fleet/paths.mts'
 
 interface UpstreamEntry {

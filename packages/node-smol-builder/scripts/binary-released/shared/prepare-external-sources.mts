@@ -34,7 +34,7 @@ import {
 } from '../../paths.mts'
 
 // dawn-builder ships the prebuilt libwebgpu_dawn.a + headers (built
-// by packages/dawn-builder/scripts/build.mts) that node:smol-webgpu
+// by packages/dawn-builder/scripts/repo/build.mts) that node:smol-webgpu
 // links against. We DON'T copy Dawn's source tree into the patched
 // node source — instead we link the prebuilt static lib at the
 // node.gyp level (wired in D5+).

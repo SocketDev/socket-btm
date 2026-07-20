@@ -25,7 +25,7 @@ A downstream builder wires in napi-go-infra by:
 1. Adding `"napi-go-infra": "workspace:*"` to `dependencies`.
 2. Declaring a Go entry file (`//export`s for each N-API function) plus
    a C shim that calls `napi_go_register` to bind them.
-3. Calling `buildNapiGoAddon({ ... })` from `scripts/build.mts` — the
+3. Calling `buildNapiGoAddon({ ... })` from `scripts/repo/build.mts` — the
    same helper that builds `examples/hello` here.
 
 See `examples/hello/` for the minimal shape and `cli/src/build.mts` for

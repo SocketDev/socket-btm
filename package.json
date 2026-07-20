@@ -82,6 +82,7 @@
     "chrome-devtools-mcp": "catalog:",
     "docsify-cli": "4.4.4",
     "ecc-agentshield": "catalog:",
+    "fast-check": "catalog:",
     "magic-string": "catalog:",
     "markdownlint-cli2": "catalog:",
     "mdast-util-from-markdown": "catalog:",

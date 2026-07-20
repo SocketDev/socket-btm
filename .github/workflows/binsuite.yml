@@ -67,7 +67,7 @@ jobs:
       - name: Check publish chain freshness
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/check-publish-prereq.mts binsuite
+        run: node scripts/repo/check-publish-prereq.mts binsuite
 
   # Job group 1: binpress
   binpress:
@@ -212,7 +212,7 @@ jobs:
           FINAL_DIR="${PACKAGE_DIR}/${FINAL_DIR_REL}"
           # LIEF output (cross-package): cleanup steps below reach into
           # lief-builder's Final dir before Docker rebuilds. Mirrors
-          # lief-builder/scripts/build.mts:getLiefBuildDirs().
+          # lief-builder/scripts/repo/build.mts:getLiefBuildDirs().
           LIEF_FINAL_DIR="packages/lief-builder/${PLATFORM_BUILD_DIR_REL}/out/Final/lief"
           if [ "${OS_TYPE}" = "windows" ]; then
             BINARY_NAME="binpress.exe"
@@ -654,7 +654,7 @@ jobs:
           FINAL_DIR="${PACKAGE_DIR}/${FINAL_DIR_REL}"
           # LIEF output (cross-package): cleanup steps below reach into
           # lief-builder's Final dir before Docker rebuilds. Mirrors
-          # lief-builder/scripts/build.mts:getLiefBuildDirs().
+          # lief-builder/scripts/repo/build.mts:getLiefBuildDirs().
           LIEF_FINAL_DIR="packages/lief-builder/${PLATFORM_BUILD_DIR_REL}/out/Final/lief"
           if [ "${OS_TYPE}" = "windows" ]; then
             BINARY_NAME="binflate.exe"
@@ -1046,7 +1046,7 @@ jobs:
           FINAL_DIR="${PACKAGE_DIR}/${FINAL_DIR_REL}"
           # LIEF output (cross-package): cleanup steps below reach into
           # lief-builder's Final dir before Docker rebuilds. Mirrors
-          # lief-builder/scripts/build.mts:getLiefBuildDirs().
+          # lief-builder/scripts/repo/build.mts:getLiefBuildDirs().
           LIEF_FINAL_DIR="packages/lief-builder/${PLATFORM_BUILD_DIR_REL}/out/Final/lief"
           if [ "${OS_TYPE}" = "windows" ]; then
             BINARY_NAME="binject.exe"

@@ -25,7 +25,7 @@ The mirrored subdirectories under `additions/source-patched/src/socketsecurity/{
 
 ## Cache-version cascade
 
-When modifying source, bump `.github/cache-versions.json` for all dependents. The full path → consumer mapping lives in `scripts/validate-cache-versions.mts` (`CASCADE_RULES`); the gate runs in `pnpm check` and CI, so missed bumps fail the build instead of leaking into a release.
+When modifying source, bump `.github/cache-versions.json` for all dependents. The full path → consumer mapping lives in `scripts/repo/validate-cache-versions.mts` (`CASCADE_RULES`); the gate runs in `pnpm check` and CI, so missed bumps fail the build instead of leaking into a release.
 
 ## Linker & binary-size optimization (ICF)
 

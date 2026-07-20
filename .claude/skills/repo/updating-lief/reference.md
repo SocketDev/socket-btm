@@ -1625,7 +1625,7 @@ Bump cache versions in .github/cache-versions.json for all packages that use LIE
 
 **If LIEF was updated:** Read current cache versions and bump all four
 versions (binflate does NOT link LIEF — matches CASCADE_RULES in
-`scripts/validate-cache-versions.mts`):
+`scripts/repo/validate-cache-versions.mts`):
 - `lief`: vN → v(N+1)
 - `binject`: vN → v(N+1)
 - `binpress`: vN → v(N+1)

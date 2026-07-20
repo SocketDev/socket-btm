@@ -10,7 +10,7 @@
     "./scripts/paths": "./scripts/paths.mts"
   },
   "scripts": {
-    "build": "node scripts/build.mts",
+    "build": "node scripts/repo/build.mts",
     "test": "node ../../scripts/repo/run-smol-ai-tests.mts smol-ai-builder"
   },
   "dependencies": {

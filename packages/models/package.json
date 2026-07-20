@@ -6,10 +6,10 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "node scripts/build.mts",
-    "build:codet5": "node scripts/build.mts --codet5",
-    "build:force": "node scripts/build.mts --force",
-    "build:minilm": "node scripts/build.mts --minilm",
+    "build": "node scripts/repo/build.mts",
+    "build:codet5": "node scripts/repo/build.mts --codet5",
+    "build:force": "node scripts/repo/build.mts --force",
+    "build:minilm": "node scripts/repo/build.mts --minilm",
     "clean": "node scripts/clean.mts",
     "cover": "vitest run --coverage",
     "test": "vitest run"

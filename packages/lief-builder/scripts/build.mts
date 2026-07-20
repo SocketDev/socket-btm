@@ -20,7 +20,7 @@ import {
   getPlatformBuildDir,
 } from 'build-infra/lib/constants'
 // logTransientErrorHelp loaded lazily inside catch blocks below (see
-// curl-builder/scripts/build.mts for full rationale on the
+// curl-builder/scripts/repo/build.mts for full rationale on the
 // http-request/convenience CJS/ESM interop crash).
 import { appendCCRemapFlags } from 'build-infra/lib/path-remap-flags'
 import { getDownloadedDir } from 'build-infra/lib/paths'

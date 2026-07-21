@@ -389,3 +389,18 @@ npm-debug.log
 pnpm-debug.log
 *.tgz
 # </fleet-canonical>
+
+# ─── repo-local (socket-wheelhouse): keep hand-authored files that the
+# fleet-canonical globs would otherwise ignore (untrack-ignored-files fix) ───
+!/packages/binject/test/fixtures/
+!/packages/build-infra/test/fixtures/
+!/packages/node-smol-builder/additions/source-patched/deps/yoga/
+!/packages/node-smol-builder/test/fixtures/
+!/packages/opentui-builder/vendor/
+!/vendor/
+# re-ignore generated/junk that lives under a re-included dir
+/vendor/acorn-wasm/acorn.wasm
+# re-ignore on-demand submodule worktrees nested under re-included fixture dirs
+# (their pin lives in .gitmodules; the checkout is materialized, not tracked)
+/packages/node-smol-builder/test/fixtures/wpt/streams/
+/packages/temporal-infra/test/fixtures/test262/

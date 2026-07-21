@@ -1,68 +1,78 @@
 # node-26.5.0 sha256:b3db373d860129807d8e504eaad184f1f5cb0e970b7467c80595f7a4653cf977
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# node-v26.5.0 sha256:7dac3f90e50bbe2db37c3f41bee807be3b1c0fe59ab8f7c9b99d2c517fa79f95
 [submodule "packages/node-smol-builder/upstream/node"]
+	ref = bebd1b8d92bf4cc917844d6335ed1ecf9c2a75fb
 	path = packages/node-smol-builder/upstream/node
 	url = https://github.com/nodejs/node.git
 	ignore = dirty
 	shallow = true
 # yoga-3.2.1
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# yoga-v3.2.1 sha256:4742f41722a16f181e3da37abf943390db1e928f00f26402cb154662ae7f110f
 [submodule "packages/yoga-layout-builder/upstream/yoga"]
+	ref = 042f5013152eb81c1552dec945b88f7b95ca350f
 	path = packages/yoga-layout-builder/upstream/yoga
 	url = https://github.com/facebook/yoga.git
 	ignore = dirty
 	shallow = true
 # onnxruntime-1.24.4
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# onnxruntime-v1.24.4 sha256:7e4a0dbd8b75059c4b82325b6de8428bc58058d0f8b15234724fa29cae492075
 [submodule "packages/onnxruntime-builder/upstream/onnxruntime"]
+	ref = 2d924974ef147392ced8409d36bd6d2e7fcc8a74
 	path = packages/onnxruntime-builder/upstream/onnxruntime
 	url = https://github.com/microsoft/onnxruntime.git
 	ignore = dirty
 	shallow = true
 # lief-0.17.0
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# lief-0.17.0 sha256:ad6ea452ca14e2e59a381e3f1dff11e3a38a279bc4035a492708ce2a7de9f5db
 [submodule "packages/lief-builder/upstream/lief"]
+	ref = 038b60671f12dbd86bf84d9f8a38395bd2a8176e
 	path = packages/lief-builder/upstream/lief
 	url = https://github.com/lief-project/LIEF.git
 	ignore = dirty
 	shallow = true
 # boringssl-2026-04-15 via bun-v1.3.14
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# boringssl-0c5fce4 sha256:a414b1d105fef105697b7428c0be5f7fc67489849eaa276931ae8344d78a99b8
 [submodule "packages/boringssl-builder/upstream/boringssl"]
+	ref = 0c5fce43b7ed5eb6001487ee48ac65766f5ddcd1
 	path = packages/boringssl-builder/upstream/boringssl
 	url = https://github.com/oven-sh/boringssl.git
 	ignore = dirty
 	shallow = true
 # cjson-1.7.19
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# cJSON-v1.7.19 sha256:880a86445ad5cf38f877bac31198268d8fac5d2ce996ebf55d3066a4109ddd8d
 [submodule "packages/binject/upstream/cJSON"]
+	ref = c859b25da02955fef659d658b8f324b5cde87be3
 	path = packages/binject/upstream/cJSON
 	url = https://github.com/DaveGamble/cJSON.git
 	ignore = dirty
 	shallow = true
 # libdeflate-1.25
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# libdeflate-v1.25 sha256:1e5cc06bdbf3e1245d8b89c9e3588f507e3c8bc53fe8b8229770a9e8661dea81
 [submodule "packages/binject/upstream/libdeflate"]
+	ref = c8c56a20f8f621e6a966b716b31f1dedab6a41e3
 	path = packages/binject/upstream/libdeflate
 	url = https://github.com/ebiggers/libdeflate.git
 	ignore = dirty
 	shallow = true
 # curl-8.19.0
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# curl-curl-8_19_0 sha256:905a45930dc0a9c3954fb483be38ad4e4bf60805ad61eccbcb605b33976758b5
 [submodule "packages/curl-builder/upstream/curl"]
+	ref = 8c908d2d0a6d32abdedda2c52e90bd56ec76c24d
 	path = packages/curl-builder/upstream/curl
 	url = https://github.com/curl/curl.git
 	ignore = dirty
 	shallow = true
 # mbedtls-3.6.6
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# mbedtls-v3.6.6 sha256:61ac65f6362f898677b2a4cf2a769b41e4aee0985cb45f046d3b719388e5be59
 [submodule "packages/curl-builder/upstream/mbedtls"]
+	ref = 0bebf8b8c7f07abe3571ded48a11aa907a1ffb20
 	path = packages/curl-builder/upstream/mbedtls
 	url = https://github.com/Mbed-TLS/mbedtls.git
 	ignore = dirty
 	shallow = true
-# wpt-epochs/three_hourly/2026-02-24_21H
+# streams-epochs/daily/2026-02-25_03H sha256:8a097481e63527c3034e83e2dea266c576f2892f74a4231cf3beb70f3e6f6d0d
 [submodule "packages/node-smol-builder/scripts/vendor-fast-webstreams/wpt/streams"]
+	ref = 3641ed2c4cc4728308c498e88f766c0c19bf410d
 	path = packages/node-smol-builder/test/fixtures/wpt/streams
 	url = https://github.com/web-platform-tests/wpt.git
 	ignore = dirty
@@ -73,29 +83,33 @@
 	sparse-checkout = streams/
 	verify = pnpm --filter node-smol-builder wpt:streams
 # liburing-2.14
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# liburing-liburing-2.14 sha256:3de6beb63ec279192e07863ca5edbdcf83686b470f6066cdaaf4bfb2192fee46
 [submodule "packages/node-smol-builder/upstream/liburing"]
+	ref = e3d35ea59d3ba09075ed4d7751e4bb9049cce64a
 	path = packages/node-smol-builder/upstream/liburing
 	url = https://github.com/axboe/liburing.git
 	ignore = dirty
 	shallow = true
 # postgres-17.9
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# postgres-REL_17_9 sha256:7bb8ebb12cf47e98c4a1c8a80a6262a4b209a8388f262e014464e9d159f902f2
 [submodule "packages/libpq-builder/upstream/postgres"]
+	ref = 6d396980fc5aed4f1a525e0bd75cb16b25ed40ca
 	path = packages/libpq-builder/upstream/postgres
 	url = https://github.com/postgres/postgres.git
 	ignore = dirty
 	shallow = true
 # usockets-0.8.8
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# uSockets-v0.8.8 sha256:c57bfd8150afea91eabbc05231f215436b3500f046adb634ac48ce9f6c46d909
 [submodule "packages/node-smol-builder/upstream/uSockets"]
+	ref = 833497e8e0988f7fd8d33cd4f6f36056c68d225d
 	path = packages/node-smol-builder/upstream/uSockets
 	url = https://github.com/uNetworking/uSockets.git
 	ignore = dirty
 	shallow = true
 # uwebsockets-20.76.0
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# uWebSockets-v20.76.0 sha256:6f84515e3b09370a824c8d3d752f3fa7090aa47e7ad2adb01c19b5907e70b3f7
 [submodule "packages/node-smol-builder/upstream/uWebSockets"]
+	ref = e42d69ff338269a5b74d014046e3699e2f27734e
 	path = packages/node-smol-builder/upstream/uWebSockets
 	url = https://github.com/uNetworking/uWebSockets.git
 	ignore = dirty
@@ -109,42 +123,48 @@
 	ignore = dirty
 	shallow = true
 # zstd-1.5.7
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# zstd-v1.5.7 sha256:4b0bd1f0cfb25e61b9103c35f27395530ff5b4c0d2513a00fd745849e85ea52c
 [submodule "packages/bin-infra/upstream/zstd"]
+	ref = f8745da6ff1ad1e7bab384bd1f9d742439278e99
 	path = packages/bin-infra/upstream/zstd
 	url = https://github.com/facebook/zstd.git
 	ignore = dirty
 	shallow = true
 # uucode-0.1.0
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# uucode-84ceda8 sha256:4a7f194ad1f583ffae00bf625986527df89ddd55309ff30314d2d17539a7b011
 [submodule "packages/opentui-builder/upstream/uucode"]
+	ref = 84ceda8561a17ba4a9b96ac5c583f779660bbd4e
 	path = packages/opentui-builder/upstream/uucode
 	url = https://github.com/jacobsandlund/uucode.git
 	ignore = dirty
 	shallow = true
 # semver-7.7.4
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# semver-c368af6 sha256:6dfad80c8d7fb46c50f74ee37bc98fa7701f281789a83808619dbc57eb58cd96
 [submodule "packages/node-smol-builder/upstream/semver"]
+	ref = c368af612e521767e960419e6388c5129c857984
 	path = packages/node-smol-builder/upstream/semver
 	url = https://github.com/npm/node-semver.git
 	ignore = dirty
 	shallow = true
 # temporal-v0.2.3 (canonical temporal submodule; track-latest, bumped via /updating-temporal-infra and the /updating-node cascade)
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# temporal-v0.2.3 sha256:5b3ff7902dbac8675f95157f6c5afdf853bc22e6d71736a4dab059c9b6a1957d
 [submodule "packages/temporal-infra/upstream/temporal"]
+	ref = c003cc92325e19b26f8ee2f85e4a47d98cbcc781
 	path = packages/temporal-infra/upstream/temporal
 	url = https://github.com/boa-dev/temporal.git
 	ignore = dirty
 	shallow = true
 # icu4x-zoneinfo64-v0.3.0 (track-latest: hosts the zoneinfo64 + resb crates that temporal_rs uses for IANA TZ resolution; bump via updating-temporal-infra)
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# icu4x-f89b1f2 sha256:e1664183970f95d68c8db99088455e40e1547eacdffb63ebaebd12317df89fc9
 [submodule "packages/temporal-infra/upstream/icu4x"]
+	ref = f89b1f22c07ccb78676e75f5f35f33c25e50d5a4
 	path = packages/temporal-infra/upstream/icu4x
 	url = https://github.com/unicode-org/icu4x.git
 	ignore = dirty
 	shallow = true
-# test262-2026.05.21 (track-latest: tc39/test262 corpus for Temporal subset; bump independently via updating-temporal-infra)
+# test262-9b127c19 sha256:3458736def3058cb253e065eaa0261b08a87eb93bb2671cbb316656d7c3e3d23
 [submodule "packages/temporal-infra/upstream/test262"]
+	ref = 9b127c190cd418b2451c556784aae3d0ac7e9bcf
 	path = packages/temporal-infra/test/fixtures/test262
 	url = https://github.com/tc39/test262.git
 	ignore = dirty
@@ -155,47 +175,54 @@
 	sparse-checkout = test/built-ins/Temporal/ test/intl402/Temporal/ harness/
 	verify = pnpm --filter temporal-infra test262:temporal
 # lsquic-4.6.2
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# lsquic-v4.6.2 sha256:f8cb90fb327eb91597c23163bf596c0d1882560be35b661d9ba84891cc461735
 [submodule "packages/lsquic-infra/upstream/lsquic"]
+	ref = 3181911301b1aa4f54c1ed690901abc674ee08fb
 	path = packages/lsquic-infra/upstream/lsquic
 	url = https://github.com/litespeedtech/lsquic.git
 	ignore = dirty
 	shallow = true
 # ls-qpack-2.6.2
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# ls-qpack-v2.6.2 sha256:e9d8abe5b7c1e35b9908a9521e2acd7c1d17547babc01d73c7297e02aebbcc2d
 [submodule "packages/lsquic-infra/upstream/ls-qpack"]
+	ref = 1e9c5b8e59f8161c54f168a570c8bfdc59ded0c3
 	path = packages/lsquic-infra/upstream/ls-qpack
 	url = https://github.com/litespeedtech/ls-qpack.git
 	ignore = dirty
 	shallow = true
 # md4c-0.5.3
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# md4c-release-0.5.3 sha256:ecbd85292465df929839897e314d809b5c8b267e20c4e5e24d51a1602d16d99a
 [submodule "packages/node-smol-builder/upstream/md4c"]
+	ref = 472c417005c2c71b8617de4f7b8d6b30411d78f4
 	path = packages/node-smol-builder/upstream/md4c
 	url = https://github.com/mity/md4c
 	ignore = dirty
 	shallow = true
 # tree-sitter-0.26.9
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# tree-sitter-v0.26.9 sha256:3bd3c89502182fd9f930749dcaabc0f39e6b88cc39a3cba9898e46cd04a7810c
 [submodule "packages/node-smol-builder/upstream/tree-sitter"]
+	ref = 7f534862c3ec939c3a6ee147f7600ef5c1bf900f
 	path = packages/node-smol-builder/upstream/tree-sitter
 	url = https://github.com/tree-sitter/tree-sitter
 	ignore = dirty
 	shallow = true
 # libqrencode-4.1.1
-# full-checkout: full source build — the builder compiles/vendors the whole tree
+# libqrencode-v4.1.1 sha256:7777a49d6b838347ccc35dadd78e47bcf3962536da1b047ccd06a432cf796db9
 [submodule "packages/node-smol-builder/upstream/libqrencode"]
+	ref = 715e29fd4cd71b6e452ae0f4e36d917b43122ce8
 	path = packages/node-smol-builder/upstream/libqrencode
 	url = https://github.com/fukuchi/libqrencode
 	ignore = dirty
 	shallow = true
 # dawn-chromium/7852
 # full-checkout: full source build — the builder compiles/vendors the whole tree
+# dawn-e935a1b5 sha256:9ab41be7122b73a8484b5bd76d79e5ce5af90611dbf10485f34cf209440ecb43
 [submodule "packages/dawn-builder/upstream/dawn"]
 	path = packages/dawn-builder/upstream/dawn
 	url = https://dawn.googlesource.com/dawn
 	ignore = dirty
 	shallow = true
+	ref = e935a1b57eb859db0d00c522e198711a3f313a25
 # llama.cpp-b9940 sha256:f3c0f8e2e9e21d527952042d71274e4f79b14bc0fe799144eb671c7163ef0f6d
 # full-checkout: ai-infra compiles the complete CPU backend
 [submodule "packages/ai-infra/upstream/llama.cpp"]

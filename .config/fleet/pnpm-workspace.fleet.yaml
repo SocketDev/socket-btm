@@ -36,17 +36,17 @@ catalog:
   # istanbul-org converter for raw NODE_V8_COVERAGE output — cover.mts turns
   # spawned-child coverage into the children merge tier with `c8 report`.
   # Soaked (11.0.0 published 2026-02-22).
-  c8: 11.0.0
+  c8: 12.0.0
   # chrome-devtools-mcp — Puppeteer-based browser-automation MCP server. Drives
   # Chrome for HTML/design-system rendering + page-JS/console/network inspection
   # and MV3 extension load+eval (socket-webext). Enabled by default via .mcp.json
   # (`pnpm exec chrome-devtools-mcp`). Soaked (1.5.0 published 2026-07-03; 1.6.0
   # published 2026-07-14 is still inside the 7-day cooldown).
-  'chrome-devtools-mcp': 1.5.0
+  'chrome-devtools-mcp': 1.6.0
   # compromise.js NLP — the judgment-nudge hook's modal-verb (POS) detector.
   # 14.15.1 is the attested re-publish that cleared the 14.15.0
   # trust-downgrade flag.
-  'compromise': 14.15.1
+  'compromise': 14.16.0
   # fast-check — property-based testing (QuickCheck for JS) for pure fleet-script
   # logic; runs standalone in vitest. Soaked (4.9.0 published 2026-07-08). See
   # .claude/skills/fleet/property-and-fuzz-testing.
@@ -62,7 +62,7 @@ catalog:
   # accidentally"); bump to the stabilized 15.x when it ships.
   'nock': 15.0.0
   'npm-run-all2': 9.0.2
-  'oxfmt': 0.58.0
+  'oxfmt': 0.59.0
   'oxlint': 1.73.0
   # playwright-core — headless Chromium driver for the rendering-chromium-to-png
   # skill (render a page or a real unpacked MV3 extension popup to PNG so an

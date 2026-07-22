@@ -28,7 +28,7 @@
 //   - Never blocks. Hook is informational; the breadcrumb in stderr is
 //     the next-turn nudge. The blocking layer is the CI gate in
 //     `pnpm check`.
-//   - Opt-in per repo: when `.config/lock-step-refs.json` is absent,
+//   - Opt-in per repo: when `.config/repo/lock-step-refs.json` is absent,
 //     STALE checks are skipped (the gate is disabled at the repo
 //     level). MALFORMED checks always run — they detect typos
 //     regardless of whether the repo has opted into validation.
@@ -246,8 +246,13 @@ export function findNoteLines(content: string): Set<number> {
 }
 
 export function loadConfig(repoRoot: string): LockStepConfig | undefined {
-  const configFile = path.join(repoRoot, '.config', 'lock-step-refs.json')
-  if (!existsSync(configFile)) {
+  // Segregated (repo-owned) location first, then the legacy loose path for
+  // repos not yet migrated.
+  const configFile = [
+    path.join(repoRoot, '.config', 'repo', 'lock-step-refs.json'),
+    path.join(repoRoot, '.config', 'lock-step-refs.json'),
+  ].find(p => existsSync(p))
+  if (!configFile) {
     return undefined
   }
   let raw: string
@@ -316,7 +321,7 @@ export const check = editGuard((filePath, content, payload) => {
       const h = stale[i]!
       const tag =
         h.reason === 'unknown-lang'
-          ? `unknown <Lang> "${h.lang}" (add to .config/lock-step-refs.json roots)`
+          ? `unknown <Lang> "${h.lang}" (add to .config/repo/lock-step-refs.json roots)`
           : `path not found: ${h.refPath}`
       out.push(`    • line ${h.lineNumber}: ${tag}`)
       out.push(`      "${h.preview}"`)

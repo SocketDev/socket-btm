@@ -1,5 +1,5 @@
 {
-  "$schema": "./lockstep.schema.json",
+  "$schema": "../fleet/lockstep.schema.json",
   "area": "socket-btm",
   "description": "lockstep lock-step manifest for socket-btm \u2014 the Build Tree Manager. Every row is a `version-pin` since btm builds upstream source trees as-is (no forks). The harness surfaces new upstream releases so maintainers can decide whether to bump. criticality reflects production impact: 10 = Firewall-critical (node runtime, networking stack); 8 = user-facing TUI / ML inference; 6 = build tooling; 4 = aux/testing.",
   "upstreams": {

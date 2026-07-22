@@ -54,9 +54,9 @@ catalog:
   acorn: 8.14.0
   acorn-walk: 8.3.4
   adm-zip: 0.5.16
-  'c8': 11.0.0
-  'chrome-devtools-mcp': 1.5.0
-  'compromise': 14.15.1
+  'c8': 12.0.0
+  'chrome-devtools-mcp': 1.6.0
+  'compromise': 14.16.0
   'dtu-github-actions': 0.17.1
   ecc-agentshield: 1.4.0
   'fast-check': 4.9.0
@@ -68,8 +68,8 @@ catalog:
   'nock': 15.0.0
   'npm-run-all2': 9.0.2
   octokit: 5.0.5
-  'oxfmt': 0.58.0
-  'oxlint': 1.73.0
+  'oxfmt': 0.59.0
+  'oxlint': 1.74.0
   'playwright-core': 1.61.1
   'portless': 0.15.4
   'regjsparser': 0.13.2
@@ -112,10 +112,6 @@ minimumReleaseAgeExclude:
   - '@sdxgen/*'
   - 'sdxgen'
   - 'stuie'
-  # published: 2026-07-14 | removable: 2026-07-21
-  - '@redwoodjs/agent-ci@0.17.1'
-  # published: 2026-07-14 | removable: 2026-07-21
-  - 'dtu-github-actions@0.17.1'
   # published: 2026-07-16 | removable: 2026-07-23
   - 'magic-string@1.0.0'
   # published: 2026-07-16 | removable: 2026-07-23

@@ -1,8 +1,18 @@
 {
-  "$schema": "../socket-wheelhouse-schema.json",
+  "$schema": "./socket-wheelhouse-schema.json",
   "schemaVersion": 1,
   "repoName": "socket-btm",
-  "repo": { "type": "mono" },
-  "build": { "from": "github-release", "type": "binary" },
-  "secondaries": [{ "from": "npm-registry", "type": "addon" }]
+  "repo": {
+    "type": "mono"
+  },
+  "build": {
+    "from": "github-release",
+    "type": "binary"
+  },
+  "secondaries": [
+    {
+      "from": "npm-registry",
+      "type": "addon"
+    }
+  ]
 }

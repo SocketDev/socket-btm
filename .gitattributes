@@ -51,7 +51,6 @@
 
 # Vendored binary assets (mirrors socket-sdxgen conventions)
 vendor/** -diff linguist-generated
-vendor/acorn-wasm/*.wasm binary
 
 # ─── BEGIN fleet-canonical (managed by socket-wheelhouse sync) ──
 # Cascaded from socket-wheelhouse/template/. Don't edit locally —

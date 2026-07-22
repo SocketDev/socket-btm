@@ -403,8 +403,6 @@ pnpm-debug.log
 !/packages/node-smol-builder/test/fixtures/
 !/packages/opentui-builder/vendor/
 !/vendor/
-# re-ignore generated/junk that lives under a re-included dir
-/vendor/acorn-wasm/acorn.wasm
 # re-ignore on-demand submodule worktrees nested under re-included fixture dirs
 # (their pin lives in .gitmodules; the checkout is materialized, not tracked)
 /packages/node-smol-builder/test/fixtures/wpt/streams/

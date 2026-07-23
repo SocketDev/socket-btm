@@ -19,11 +19,11 @@ catalog:
   'dtu-github-actions': 0.17.1
   '@sinclair/typebox': 0.34.52
   '@socketregistry/packageurl-js': 1.4.4
-  '@socketsecurity/lib': 6.1.0
+  '@socketsecurity/lib': 6.2.0
   '@socketsecurity/registry': 2.0.2
   '@socketsecurity/sdk': 4.0.1
   '@socketregistry/packageurl-js-stable': 'npm:@socketregistry/packageurl-js@1.4.4'
-  '@socketsecurity/lib-stable': 'npm:@socketsecurity/lib@6.1.0'
+  '@socketsecurity/lib-stable': 'npm:@socketsecurity/lib@6.2.0'
   '@socketsecurity/registry-stable': 'npm:@socketsecurity/registry@2.0.2'
   '@socketsecurity/sdk-stable': 'npm:@socketsecurity/sdk@4.0.1'
   '@types/mdast': 4.0.4
@@ -63,7 +63,9 @@ catalog:
   'nock': 15.0.0
   'npm-run-all2': 9.0.2
   'oxfmt': 0.59.0
-  'oxlint': 1.73.0
+  'oxlint': 1.75.0
+  # oxlint-tsgolint — tsgolint sidecar for oxlint --type-aware (same oxc release train).
+  'oxlint-tsgolint': 7.0.2001
   # playwright-core — headless Chromium driver for the rendering-chromium-to-png
   # skill (render a page or a real unpacked MV3 extension popup to PNG so an
   # agent can SEE it). Browser binary via `node_modules/.bin/playwright install chromium`.
@@ -73,7 +75,7 @@ catalog:
   'regjsparser': 0.13.2
   'semver': 7.8.5
   'shell-quote': 1.10.0
-  'taze': 19.14.1
+  'taze': 19.16.0
   # TypeScript 7 NATIVE (the Go `tsc`). Track the highest available 7.x
   # PRE-RELEASE — the RC line is intentional. npm's `latest` dist-tag points at
   # 6.x stable, so "latest" is a DOWNGRADE off the native compiler: never follow

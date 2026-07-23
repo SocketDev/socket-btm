@@ -37,10 +37,10 @@ import { parseArgs } from '@socketsecurity/lib-stable/argv/parse'
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 // The release-checksums producer (writeChecksumsFile + updateReleaseAssets)
-// lives at a repo-shape-specific location — `packages/build-infra/lib/
+// lives at a repo-shape-specific location — `scripts/fleet/build-infra/lib/
 // release-checksums/producer.mts` in a monorepo, elsewhere for a single-
 // package producer. A static import here would hard-code the monorepo
-// layout and break in any repo without `packages/build-infra/`. Instead each
+// layout and break in any repo without `scripts/fleet/build-infra/`. Instead each
 // producing repo provides a thin `scripts/repo/release-producer.mts`
 // re-export, dynamically loaded by loadProducer() below — mirroring the
 // per-repo release-assets.config.mts pattern. Non-producing repos simply
@@ -251,7 +251,7 @@ async function loadConfig(): Promise<ReleaseAssetsConfig> {
 /**
  * The producer functions this orchestrator needs. Structurally typed so the
  * shared script doesn't statically depend on the monorepo-only
- * packages/build-infra path — each producing repo wires the impl via a
+ * scripts/fleet/build-infra path — each producing repo wires the impl via a
  * repo-local scripts/repo/release-producer.mts.
  */
 interface ReleaseProducer {
@@ -271,7 +271,7 @@ interface ReleaseProducer {
 /**
  * Dynamic-import the repo-local producer re-export at
  * `<repo-root>/scripts/repo/release-producer.mts`. Keeps create-release.mts
- * layout-agnostic: a monorepo re-exports from packages/build-infra/lib/
+ * layout-agnostic: a monorepo re-exports from scripts/fleet/build-infra/lib/
  * release-checksums/producer.mts; a single-package producer points at its own
  * impl. The file is repo-local (not cascaded).
  */
@@ -282,7 +282,7 @@ async function loadProducer(): Promise<ReleaseProducer> {
       `Missing scripts/repo/release-producer.mts at repo root.\n` +
         `  Path:   ${producerPath}\n` +
         `  Action: create a repo-local re-export of the release-checksums producer. ` +
-        `In a monorepo: \`export { writeChecksumsFile, updateReleaseAssets } from '../../packages/build-infra/lib/release-checksums/producer.mts'\`.`,
+        `In a monorepo: \`export { writeChecksumsFile, updateReleaseAssets } from '../../scripts/fleet/build-infra/lib/release-checksums/producer.mts'\`.`,
     )
     process.exit(1)
   }

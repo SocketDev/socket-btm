@@ -45,11 +45,11 @@
 
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
-import process from 'node:process'
 
 import { normalizePath } from '@socketsecurity/lib-stable/paths/normalize'
 
 import { defineHook, editGuard, notify, runHook } from '../_shared/guard.mts'
+import { resolveProjectDir } from '../_shared/project-dir.mts'
 
 interface LockStepConfig {
   readonly roots: Readonly<Record<string, readonly string[]>>
@@ -245,37 +245,47 @@ export function findNoteLines(content: string): Set<number> {
   return out
 }
 
-export function loadConfig(repoRoot: string): LockStepConfig | undefined {
-  // Segregated (repo-owned) location first, then the legacy loose path for
-  // repos not yet migrated.
-  const configFile = [
-    path.join(repoRoot, '.config', 'repo', 'lock-step-refs.json'),
-    path.join(repoRoot, '.config', 'lock-step-refs.json'),
-  ].find(p => existsSync(p))
-  if (!configFile) {
-    return undefined
-  }
+function readJsonObject(file: string): Record<string, unknown> | undefined {
   let raw: string
   try {
-    raw = readFileSync(configFile, 'utf8')
+    raw = readFileSync(file, 'utf8')
   } catch {
     return undefined
   }
   try {
     const parsed = JSON.parse(raw) as unknown
-    if (
-      parsed &&
-      typeof parsed === 'object' &&
-      'roots' in parsed &&
-      'scan' in parsed &&
-      'extensions' in parsed
-    ) {
-      return parsed as LockStepConfig
-    }
+    return parsed && typeof parsed === 'object'
+      ? (parsed as Record<string, unknown>)
+      : undefined
   } catch {
-    // Malformed config — let the CI gate report it; hook stays silent.
+    // Malformed — the CI gate reports it; the hook stays silent.
+    return undefined
   }
-  return undefined
+}
+
+function asLockStepConfig(value: unknown): LockStepConfig | undefined {
+  return value &&
+    typeof value === 'object' &&
+    'roots' in value &&
+    'scan' in value &&
+    'extensions' in value
+    ? (value as LockStepConfig)
+    : undefined
+}
+
+export function loadConfig(repoRoot: string): LockStepConfig | undefined {
+  // Per-repo config lives in ONE member-owned file (no-new-config-guard): the
+  // `lockstep` section of `.config/repo/socket-wheelhouse.json`.
+  const settings = path.join(
+    repoRoot,
+    '.config',
+    'repo',
+    'socket-wheelhouse.json',
+  )
+  if (!existsSync(settings)) {
+    return undefined
+  }
+  return asLockStepConfig(readJsonObject(settings)?.['lockstep'])
 }
 
 export const check = editGuard((filePath, content, payload) => {
@@ -297,7 +307,7 @@ export const check = editGuard((filePath, content, payload) => {
   const noteLines = findNoteLines(content)
   const malformed = findMalformed(content, refs, noteLines)
 
-  const repoRoot = payload.cwd ?? process.cwd()
+  const repoRoot = resolveProjectDir(payload.cwd)
   const config = loadConfig(repoRoot)
   const stale = config ? checkStale(refs, config, repoRoot) : []
 

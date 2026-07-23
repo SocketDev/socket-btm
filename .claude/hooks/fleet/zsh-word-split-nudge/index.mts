@@ -46,9 +46,9 @@ const LITERAL_ASSIGN_RE =
 // file-enumerating command anywhere in the pipeline.
 function looksLikeListRhs(rhs: string): boolean {
   return (
-    /tr\s+(?:'\\n'|"\\n"|\\n)\s+/.test(rhs) ||
-    /(?:^|[\s;&|(])(?:find|ls|fd)\s/.test(rhs) ||
-    /(?:grep|rg)\s+(?:-\w*l|--files-with-matches)/.test(rhs)
+    /tr\s+(?:"\\n"|'\\n'|\\n)\s+/.test(rhs) ||
+    /(?:^|[\s;&|(])(?:fd|find|ls)\s/.test(rhs) ||
+    /(?:grep|rg)\s+(?:--files-with-matches|-\w*l)/.test(rhs)
   )
 }
 
@@ -63,7 +63,10 @@ function looksLikeListLiteral(val: string): boolean {
   }
   return tokens.some(
     t =>
-      t.includes('/') || t.startsWith('-') || /\.\w+$/.test(t) || /^\$/.test(t),
+      t.includes('/') ||
+      t.startsWith('-') ||
+      /\.\w+$/.test(t) ||
+      t.startsWith('$'),
   )
 }
 

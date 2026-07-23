@@ -94,8 +94,6 @@ minimumReleaseAgeExclude:
   # ahead of the soak by owner directive (out of RC). The main package + its
   # 20-package per-platform binding family are pinned to the exact version
   # (a scope glob would blanket-bypass any future @typescript publish).
-  - '@socketaddon/*'
-  - '@socketbin/*'
   - '@socketregistry/*'
   - '@socketsecurity/*'
   # compromise@14.15.1 is the attested re-publish that clears the

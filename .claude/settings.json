@@ -30,15 +30,6 @@
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/fleet/skill-usage-logger/index.mts"
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/repo/node-smol-patch-format-guard/index.mts"
-          }
-        ],
-        "matcher": "Edit|Write"
       }
     ],
     "SessionStart": [

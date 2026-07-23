@@ -1,10 +1,8 @@
 {
-  "$schema": "./packages/build-infra/lib/external-tools-schema.json",
-  "description": "Socket-btm root manifest. Inherits the foundational tool set from packages/build-infra. Package-specific tools live in each packages/<name>/external-tools.json and are loaded alongside these via the hierarchical merging in packages/build-infra/lib/pinned-versions.mts.",
-  "extends": "./packages/build-infra/external-tools.json",
+  "description": "Socket-btm root manifest of pinned external tools, installed/verified by the fleet security tooling.",
   "tools": {
     "sfw-free": {
-      "description": "Socket Firewall (free tier) — malware gate on dep installs.",
+      "description": "Socket Firewall (free tier) \u2014 malware gate on dep installs.",
       "version": "1.13.1",
       "repository": "github:SocketDev/sfw-free",
       "release": "asset",
@@ -37,7 +35,7 @@
       }
     },
     "sfw-enterprise": {
-      "description": "Socket Firewall (enterprise tier) — selected when SOCKET_API_KEY (or SOCKET_API_TOKEN) is set.",
+      "description": "Socket Firewall (enterprise tier) \u2014 selected when SOCKET_API_KEY (or SOCKET_API_TOKEN) is set.",
       "version": "1.13.1",
       "repository": "github:SocketDev/firewall-release",
       "release": "asset",
@@ -70,7 +68,7 @@
       }
     },
     "zizmor": {
-      "description": "GitHub Actions security linter — audits .github/ for workflow-injection / credential-leak patterns.",
+      "description": "GitHub Actions security linter \u2014 audits .github/ for workflow-injection / credential-leak patterns.",
       "version": "1.26.1",
       "repository": "github:zizmorcore/zizmor",
       "release": "asset",
@@ -102,7 +100,7 @@
       }
     },
     "pnpm": {
-      "description": "pnpm — the fleet's package manager.",
+      "description": "pnpm \u2014 the fleet's package manager.",
       "version": "11.8.0",
       "packageManager": "pnpm",
       "repository": "github:pnpm/pnpm",

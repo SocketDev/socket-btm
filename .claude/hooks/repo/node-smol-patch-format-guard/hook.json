@@ -1,4 +1,0 @@
-{
-  "event": "PreToolUse",
-  "matcher": "Edit|Write"
-}

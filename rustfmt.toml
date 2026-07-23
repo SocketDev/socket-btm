@@ -1,4 +1,0 @@
-# Fleet Rust style — 2-space indent, matching the fleet JS/TS style so mixed
-# repos read uniformly. Cascaded to cargo-capability repos (CONDITIONAL_FILES
-# `cargo` group); reformat via `node scripts/fleet/fmt-rust.mts`.
-tab_spaces = 2

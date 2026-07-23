@@ -112,10 +112,6 @@ minimumReleaseAgeExclude:
   - '@sdxgen/*'
   - 'sdxgen'
   - 'stuie'
-  # published: 2026-07-14 | removable: 2026-07-21
-  - '@redwoodjs/agent-ci@0.17.1'
-  # published: 2026-07-14 | removable: 2026-07-21
-  - 'dtu-github-actions@0.17.1'
   # published: 2026-07-16 | removable: 2026-07-23
   - 'magic-string@1.0.0'
   # published: 2026-07-16 | removable: 2026-07-23

@@ -1,8 +1,5 @@
 packages:
-  - packages/*
-  - packages/npm/@node-smol/*
   - .claude/hooks/fleet/*
-  - .claude/hooks/repo/*
   - '.config/fleet/oxlint-plugin'
   - '.config/fleet/oxlint-plugin/fleet/*'
 
@@ -10,8 +7,6 @@ packages:
 allowBuilds:
   '@anthropic-ai/claude-code': true
   cpu-features: false
-  docsify: false
-  onnxruntime-node: true
   protobufjs: false
   puppeteer: false
   ssh2: false
@@ -70,6 +65,8 @@ catalog:
   octokit: 5.0.5
   'oxfmt': 0.59.0
   'oxlint': 1.74.0
+  # oxlint-tsgolint — tsgolint sidecar for oxlint --type-aware (same oxc release train).
+  'oxlint-tsgolint': 7.0.2001
   'playwright-core': 1.61.1
   'portless': 0.15.4
   'regjsparser': 0.13.2
@@ -114,6 +111,20 @@ minimumReleaseAgeExclude:
   - 'magic-string@1.0.0'
   # published: 2026-07-16 | removable: 2026-07-23
   - 'portless@0.15.4'
+  # published: 2026-07-21 | removable: 2026-07-28
+  - 'oxlint-tsgolint@7.0.2001'
+  # published: 2026-07-21 | removable: 2026-07-28
+  - '@oxlint-tsgolint/darwin-arm64@7.0.2001'
+  # published: 2026-07-21 | removable: 2026-07-28
+  - '@oxlint-tsgolint/darwin-x64@7.0.2001'
+  # published: 2026-07-21 | removable: 2026-07-28
+  - '@oxlint-tsgolint/linux-arm64@7.0.2001'
+  # published: 2026-07-21 | removable: 2026-07-28
+  - '@oxlint-tsgolint/linux-x64@7.0.2001'
+  # published: 2026-07-21 | removable: 2026-07-28
+  - '@oxlint-tsgolint/win32-arm64@7.0.2001'
+  # published: 2026-07-21 | removable: 2026-07-28
+  - '@oxlint-tsgolint/win32-x64@7.0.2001'
 
 # Refuse transitive dependencies declared via git/tarball/local-tarball
 # specs — an npm package shouldn't be allowed to drag in a git URL we

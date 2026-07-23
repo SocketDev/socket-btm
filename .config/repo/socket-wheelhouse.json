@@ -14,5 +14,9 @@
       "from": "npm-registry",
       "type": "addon"
     }
-  ]
+  ],
+  "fuzz": {
+    "exempt": true,
+    "reason": "Descoped repo: build lanes moved to node-smol/stuie/decmpfs/sockeye/envrypt and @socketbin/@socketaddon are discontinued. Only fleet scaffolding remains \u2014 no untrusted-input parser boundary to fuzz."
+  }
 }

@@ -97,8 +97,4 @@
 
 ## 🏗️ BTM-Specific
 
-socket-btm builds Socket's customized Node.js binary ("smol Node") with embedded C++ acceleration (`node:smol-*`), packs it into a SEA, and publishes per-platform artifacts. Downstream fleet (socket-cli, socket-addon) consumes via SHA-pinned trusted-publisher releases.
-
-🚨 **Hot-path invariants** + per-tier deep references in [`docs/agents.md/repo/architecture.md`](docs/agents.md/repo/architecture.md).
-
-🚨 `upstream`-Node patches in `packages/node-smol-builder/patches/source-patched/*.patch` need the `# @node-versions:` + `# @description:` header, must touch only their own files (the suite enforces zero file-overlap so patches apply in any order), and must NOT reference another patch by number in comments/descriptions (describe the wiring instead — a `patch NNN` mention implies an ordering dependency). The directory is auto-discovered by `test/patches/validate-patches.test.mts` (run via `pnpm test:node-smol` on every PR); a new patch is covered the moment it lands (enforced by `.claude/hooks/repo/node-smol-patch-format-guard/`).
+socket-btm is descoped. The build lanes it carried moved to their own repos — node-smol, stuie, decmpfs, sockeye, envrypt — and the `@socketbin/*` / `@socketaddon/*` packages are discontinued. See README.md for the map. What remains is fleet scaffolding kept green; do not add new build lanes here.

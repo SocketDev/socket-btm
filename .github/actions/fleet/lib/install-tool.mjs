@@ -76,11 +76,11 @@ function parseIntegrity(s) {
       expected: Buffer.from(s, 'hex').toString('base64'),
     }
   }
-  // oxlint-disable-next-line socket/no-console-prefer-logger -- pre-setup-node action; @socketsecurity/lib-stable not installed yet.
-  console.error(
+  // Uncaught throw exits non-zero — same failure contract as process.exit(1),
+  // and it satisfies consistent-return (every path returns or throws).
+  throw new Error(
     `× unrecognized integrity format: ${s}\n  Expected SRI (e.g. sha256-base64=)`,
   )
-  process.exit(1)
 }
 
 const { algo, expected } = parseIntegrity(integrityArg)

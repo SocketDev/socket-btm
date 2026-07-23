@@ -1,7 +1,0 @@
-/**
- * Paths used by finalized checkpoint scripts.
- *
- * Re-exports infrastructure paths needed for finalization.
- */
-
-export { getBuildPaths } from '../../paths.mts'

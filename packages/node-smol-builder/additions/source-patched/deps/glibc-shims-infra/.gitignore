@@ -1,4 +1,0 @@
-# Staged copies of packages/glibc-shims-infra/{gyp,src}/ — produced by
-# prepare-external-sources.mts via copyGlibcShimsInfra(). Never committed.
-glibc-shims-infra.gypi
-src/

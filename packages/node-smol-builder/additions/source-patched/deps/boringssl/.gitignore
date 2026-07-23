@@ -1,5 +1,0 @@
-# Staged build artifacts (libsmol_*.a + prefixed headers) are produced
-# by boringssl-builder and copied here at prepare-time. Never committed.
-include/openssl/
-lib/*.a
-lib/*.lib

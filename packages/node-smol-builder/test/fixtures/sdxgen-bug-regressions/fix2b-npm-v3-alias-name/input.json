@@ -1,9 +1,0 @@
-{
-  "lockfileVersion": 3,
-  "packages": {
-    "node_modules/sw-cjs": {
-      "name": "string-width",
-      "version": "4.2.3"
-    }
-  }
-}

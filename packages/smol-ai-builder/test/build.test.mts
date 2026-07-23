@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import {
   cmakeConfigureArgs,
   nodeDevelopmentCandidates,
-} from '../scripts/repo/build.mts'
+} from '../scripts/build.mts'
 
 describe('smol-ai native build', () => {
   it('pins an explicit build mode and Node header boundary', () => {

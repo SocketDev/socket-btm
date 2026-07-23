@@ -14,7 +14,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { CASCADE_RULES } from '../../scripts/repo/validate-cache-versions.mts'
-import { CONFIG_DIR } from '../../scripts/fleet/paths.mts'
+import { CONFIG_REPO_DIR } from '../../scripts/fleet/paths.mts'
 
 interface UpstreamEntry {
   repo: string
@@ -28,7 +28,7 @@ interface LockstepManifest {
 const RULES = CASCADE_RULES as Record<string, readonly string[]>
 
 function readLockstepManifest(): LockstepManifest {
-  const manifestPath = path.join(CONFIG_DIR, 'lockstep.json')
+  const manifestPath = path.join(CONFIG_REPO_DIR, 'lockstep.json')
   return JSON.parse(readFileSync(manifestPath, 'utf8')) as LockstepManifest
 }
 
@@ -86,7 +86,7 @@ describe('CASCADE_RULES upstream submodule coverage', () => {
       const upstreamId = EXPECTED_CASCADE_UPSTREAMS[i]!
       expect(
         manifest.upstreams[upstreamId],
-        `missing upstreams.${upstreamId} in .config/lockstep.json`,
+        `missing upstreams.${upstreamId} in .config/repo/lockstep.json`,
       ).toBeDefined()
     }
   })

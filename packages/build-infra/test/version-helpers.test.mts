@@ -105,9 +105,11 @@ describe('version-helpers', () => {
     })
 
     it('should return undefined for submodules without checksum', () => {
+      // Every real submodule annotation now carries a sha256, so exercise
+      // the no-annotation path with a package that has none.
       const checksum = getSubmoduleChecksum(
         'packages/lief-builder/upstream/lief',
-        'lief',
+        'not-a-real-package',
       )
 
       expect(checksum).toBeUndefined()

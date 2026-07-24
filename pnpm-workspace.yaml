@@ -6,6 +6,7 @@ packages:
 # Packages allowed to run build scripts (pnpm v11 strictDepBuilds default).
 allowBuilds:
   '@anthropic-ai/claude-code': true
+  '@socketsecurity/sdk': false
   cpu-features: false
   protobufjs: false
   puppeteer: false
@@ -35,8 +36,8 @@ catalog:
   '@socketsecurity/lib-stable': npm:@socketsecurity/lib@6.2.2
   '@socketsecurity/registry': 2.0.2
   '@socketsecurity/registry-stable': npm:@socketsecurity/registry@2.0.2
-  '@socketsecurity/sdk': 4.0.1
-  '@socketsecurity/sdk-stable': npm:@socketsecurity/sdk@4.0.1
+  '@socketsecurity/sdk': 4.0.2
+  '@socketsecurity/sdk-stable': npm:@socketsecurity/sdk@4.0.2
   '@types/adm-zip': 0.5.7
   '@types/mdast': 4.0.4
   '@types/node': 26.1.1

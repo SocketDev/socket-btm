@@ -267,6 +267,7 @@ pnpm-debug.log
 # mirror — the fleet keeps ignores in this root block, not nested per-dir
 # files. Keep in lock-step with RELEASE_ONLY_DIR_MIRROR_FILES (scripts/repo/
 # sync-scaffolding/dir-mirror-skip.mts). See docs/agents.md/fleet/release-vs-cascade.md.
+**/.claude/hooks/fleet/_dist/bundle.cjs
 **/.claude/hooks/fleet/_dispatch/acorn-bindgen.cjs
 **/.claude/hooks/fleet/_dispatch/acorn.wasm
 **/.claude/hooks/fleet/_dispatch/bundle.cjs

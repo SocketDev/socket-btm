@@ -1,6 +1,0 @@
-{
-  "$schema": "../fleet/lockstep.schema.json",
-  "area": "socket-btm",
-  "description": "Lock-step manifest. socket-btm carries no submodule upstreams or sibling language ports after the descope — empty rows is the expected state.",
-  "rows": []
-}

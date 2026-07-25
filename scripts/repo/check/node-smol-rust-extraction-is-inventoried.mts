@@ -18,9 +18,10 @@ const REPO_ROOT = path.resolve(
   '..',
   '..',
 )
-const MANIFEST_PATH = '.config/node-smol-rust-extraction.json'
+const MANIFEST_PATH = '.config/repo/node-smol-rust-extraction.json'
 
 export interface MigrationEntry {
+  removalStatus: string
   sourcePath: string
 }
 
@@ -46,7 +47,9 @@ export function isMigrationManifest(
       !!entry &&
       typeof entry === 'object' &&
       'sourcePath' in entry &&
-      typeof entry.sourcePath === 'string',
+      typeof entry.sourcePath === 'string' &&
+      'removalStatus' in entry &&
+      typeof entry.removalStatus === 'string',
   )
 }
 
@@ -54,10 +57,6 @@ export function findInventoryDrift(repoRoot: string): string[] {
   const manifestPath = path.join(repoRoot, MANIFEST_PATH)
   if (!existsSync(manifestPath)) {
     return [`missing ${MANIFEST_PATH}`]
-  }
-  const packagesPath = path.join(repoRoot, 'packages')
-  if (!existsSync(packagesPath)) {
-    return ['missing packages directory']
   }
   let parsed: unknown
   try {
@@ -67,6 +66,19 @@ export function findInventoryDrift(repoRoot: string): string[] {
   }
   if (!isMigrationManifest(parsed)) {
     return [`invalid ${MANIFEST_PATH} structure`]
+  }
+  const packagesPath = path.join(repoRoot, 'packages')
+  if (!existsSync(packagesPath)) {
+    // The drop landed (refactor(btm)!: 40b7e82a) — packages/ is gone, so the
+    // manifest is the frozen relocation record: every entry must acknowledge
+    // its source removal or the record misstates what this repo still owns.
+    return parsed.entries
+      .filter(entry => entry.removalStatus !== 'removed')
+      .map(
+        entry =>
+          `entry ${entry.sourcePath} says removalStatus ${JSON.stringify(entry.removalStatus)} but its source directory no longer exists — mark it removed`,
+      )
+      .toSorted()
   }
   const expected = readdirSync(packagesPath, { withFileTypes: true })
     .filter(entry => entry.isDirectory())

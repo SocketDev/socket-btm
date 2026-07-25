@@ -10,12 +10,16 @@ import { expect, test } from 'vitest'
 import { findInventoryDrift } from '../../scripts/repo/check/node-smol-rust-extraction-is-inventoried.mts'
 import { makeRepo } from './repo-checks-helpers.mts'
 
-function writeManifest(root: string, entries: string[]): void {
-  mkdirSync(path.join(root, '.config'), { recursive: true })
+function writeManifest(
+  root: string,
+  entries: string[],
+  removalStatus = 'planned',
+): void {
+  mkdirSync(path.join(root, '.config', 'repo'), { recursive: true })
   writeFileSync(
-    path.join(root, '.config', 'node-smol-rust-extraction.json'),
+    path.join(root, '.config', 'repo', 'node-smol-rust-extraction.json'),
     JSON.stringify({
-      entries: entries.map(sourcePath => ({ sourcePath })),
+      entries: entries.map(sourcePath => ({ removalStatus, sourcePath })),
       schemaVersion: 1,
     }),
   )
@@ -41,4 +45,18 @@ test('findInventoryDrift: reports missing, unknown, and duplicate entries', () =
     'missing entry: packages/node-smol-builder',
     'unknown entry: packages/decmpfs',
   ])
+})
+
+test('findInventoryDrift: absent packages/ requires every entry removed', () => {
+  const root = makeRepo()
+  writeManifest(root, ['packages/node-smol-builder'])
+  expect(findInventoryDrift(root)).toEqual([
+    'entry packages/node-smol-builder says removalStatus "planned" but its source directory no longer exists — mark it removed',
+  ])
+})
+
+test('findInventoryDrift: absent packages/ passes once every entry is removed', () => {
+  const root = makeRepo()
+  writeManifest(root, ['packages/node-smol-builder'], 'removed')
+  expect(findInventoryDrift(root)).toEqual([])
 })

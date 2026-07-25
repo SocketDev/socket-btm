@@ -11,7 +11,7 @@
       "adapter": "node-builtin",
       "upstreamPath": "not-applicable",
       "lockstepTracker": "docs/ports/smol-ai-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/bin-infra",
@@ -22,7 +22,7 @@
       "adapter": "napi-addon",
       "upstreamPath": "packages/node-smol-builder/upstream/decmpfs",
       "lockstepTracker": "docs/ports/decmpfs-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/bin-stub-builder",
@@ -33,7 +33,7 @@
       "adapter": "napi-addon",
       "upstreamPath": "packages/node-smol-builder/upstream/decmpfs",
       "lockstepTracker": "docs/ports/decmpfs-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/binflate",
@@ -44,7 +44,7 @@
       "adapter": "cpp-inverse-port",
       "upstreamPath": "packages/node-smol-builder/upstream/decmpfs",
       "lockstepTracker": "docs/ports/decmpfs-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/binject",
@@ -55,7 +55,7 @@
       "adapter": "cpp-inverse-port",
       "upstreamPath": "packages/node-smol-builder/upstream/decmpfs",
       "lockstepTracker": "docs/ports/decmpfs-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/binpress",
@@ -66,7 +66,7 @@
       "adapter": "cpp-inverse-port",
       "upstreamPath": "packages/node-smol-builder/upstream/decmpfs",
       "lockstepTracker": "docs/ports/decmpfs-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/boringssl-builder",
@@ -77,7 +77,7 @@
       "adapter": "build-input",
       "upstreamPath": "not-applicable",
       "lockstepTracker": "not-applicable",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/build-infra",
@@ -88,7 +88,7 @@
       "adapter": "build-input",
       "upstreamPath": "not-applicable",
       "lockstepTracker": "not-applicable",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/codesign-infra",
@@ -99,7 +99,7 @@
       "adapter": "napi-addon",
       "upstreamPath": "packages/node-smol-builder/upstream/envrypt",
       "lockstepTracker": "docs/ports/codesign-infra-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/codet5-models-builder",
@@ -110,7 +110,7 @@
       "adapter": "node-builtin",
       "upstreamPath": "not-applicable",
       "lockstepTracker": "docs/ports/smol-ai-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/curl-builder",
@@ -121,7 +121,7 @@
       "adapter": "build-input",
       "upstreamPath": "not-applicable",
       "lockstepTracker": "not-applicable",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/dawn-builder",
@@ -132,7 +132,7 @@
       "adapter": "node-builtin",
       "upstreamPath": "not-applicable",
       "lockstepTracker": "docs/ports/smol-webgpu-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/glibc-shims-infra",
@@ -143,7 +143,7 @@
       "adapter": "build-input",
       "upstreamPath": "not-applicable",
       "lockstepTracker": "not-applicable",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/keychain-addon-builder",
@@ -154,7 +154,7 @@
       "adapter": "napi-addon",
       "upstreamPath": "packages/node-smol-builder/upstream/sockeye",
       "lockstepTracker": "docs/ports/smol-keychain-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/keychain-cli-builder",
@@ -165,7 +165,7 @@
       "adapter": "native-binary",
       "upstreamPath": "packages/node-smol-builder/upstream/sockeye",
       "lockstepTracker": "docs/ports/smol-keychain-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/keystore-infra",
@@ -176,7 +176,7 @@
       "adapter": "napi-addon-and-node-builtin",
       "upstreamPath": "packages/node-smol-builder/upstream/sockeye",
       "lockstepTracker": "docs/ports/smol-keychain-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/libpq-builder",
@@ -187,7 +187,7 @@
       "adapter": "build-input",
       "upstreamPath": "not-applicable",
       "lockstepTracker": "not-applicable",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/lief-builder",
@@ -198,7 +198,7 @@
       "adapter": "build-input",
       "upstreamPath": "not-applicable",
       "lockstepTracker": "not-applicable",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/lsquic-infra",
@@ -209,7 +209,7 @@
       "adapter": "node-builtin",
       "upstreamPath": "not-applicable",
       "lockstepTracker": "docs/ports/smol-quic-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/minilm-builder",
@@ -220,7 +220,7 @@
       "adapter": "node-builtin",
       "upstreamPath": "not-applicable",
       "lockstepTracker": "docs/ports/smol-ai-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/models",
@@ -231,7 +231,7 @@
       "adapter": "node-builtin",
       "upstreamPath": "not-applicable",
       "lockstepTracker": "docs/ports/smol-ai-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/napi-go-infra",
@@ -242,7 +242,7 @@
       "adapter": "build-input",
       "upstreamPath": "not-applicable",
       "lockstepTracker": "not-applicable",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/node-smol-builder",
@@ -253,7 +253,7 @@
       "adapter": "node-smol-core",
       "upstreamPath": "not-applicable",
       "lockstepTracker": "not-applicable",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/npm",
@@ -264,7 +264,7 @@
       "adapter": "release-packaging",
       "upstreamPath": "not-applicable",
       "lockstepTracker": "not-applicable",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/onnxruntime-builder",
@@ -275,7 +275,7 @@
       "adapter": "node-builtin",
       "upstreamPath": "not-applicable",
       "lockstepTracker": "docs/ports/smol-ai-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/opentui-builder",
@@ -286,7 +286,7 @@
       "adapter": "napi-addon",
       "upstreamPath": "packages/node-smol-builder/upstream/stuie",
       "lockstepTracker": "docs/ports/stuie-tui-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/proteus-builder",
@@ -297,7 +297,7 @@
       "adapter": "native-binary",
       "upstreamPath": "packages/node-smol-builder/upstream/sockeye",
       "lockstepTracker": "docs/ports/smol-keychain-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/smol-ai-builder",
@@ -308,7 +308,7 @@
       "adapter": "napi-addon",
       "upstreamPath": "not-applicable",
       "lockstepTracker": "docs/ports/smol-ai-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/temporal-infra",
@@ -319,7 +319,7 @@
       "adapter": "node-builtin",
       "upstreamPath": "not-applicable",
       "lockstepTracker": "docs/ports/temporal-infra-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/tui-infra",
@@ -330,7 +330,7 @@
       "adapter": "cpp-inverse-port",
       "upstreamPath": "packages/node-smol-builder/upstream/stuie",
       "lockstepTracker": "docs/ports/stuie-tui-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     },
     {
       "sourcePath": "packages/yoga-layout-builder",
@@ -341,7 +341,7 @@
       "adapter": "napi-addon",
       "upstreamPath": "packages/node-smol-builder/upstream/stuie",
       "lockstepTracker": "docs/ports/stuie-tui-lockstep.md",
-      "removalStatus": "planned"
+      "removalStatus": "removed"
     }
   ]
 }

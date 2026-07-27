@@ -23,22 +23,22 @@ managePackageManagerVersions: false
 pmOnFail: warn
 
 catalog:
-  '@anthropic-ai/claude-code': 2.1.205
-  '@babel/core': 7.28.4
-  '@babel/types': 7.28.5
-  '@biomejs/biome': 2.2.4
-  '@dotenvx/dotenvx': 1.31.0
+  '@anthropic-ai/claude-code': 2.1.215
+  '@babel/core': 7.29.7
+  '@babel/types': 7.29.7
+  '@biomejs/biome': 2.5.4
+  '@dotenvx/dotenvx': 1.75.1
   '@redwoodjs/agent-ci': 0.17.1
   '@sinclair/typebox': 0.34.52
   '@socketregistry/packageurl-js': 1.4.7
   '@socketregistry/packageurl-js-stable': npm:@socketregistry/packageurl-js@1.4.7
   '@socketsecurity/lib': 6.2.3
   '@socketsecurity/lib-stable': npm:@socketsecurity/lib@6.2.3
-  '@socketsecurity/registry': 2.0.2
-  '@socketsecurity/registry-stable': npm:@socketsecurity/registry@2.0.2
-  '@socketsecurity/sdk': 4.0.3
-  '@socketsecurity/sdk-stable': npm:@socketsecurity/sdk@4.0.3
-  '@types/adm-zip': 0.5.7
+  '@socketsecurity/registry': 2.0.4
+  '@socketsecurity/registry-stable': npm:@socketsecurity/registry@2.0.4
+  '@socketsecurity/sdk': 4.1.1
+  '@socketsecurity/sdk-stable': npm:@socketsecurity/sdk@4.1.1
+  '@types/adm-zip': 0.5.8
   '@types/mdast': 4.0.4
   '@types/node': 26.1.1
   '@types/semver': 7.7.1
@@ -47,9 +47,9 @@ catalog:
   '@ultrathink/acorn.wasm': 'npm:@ultrathink/acorn-wasm@0.0.1'
   '@vitest/coverage-v8': 4.1.10
   '@vitest/ui': 4.1.10
-  acorn: 8.14.0
-  acorn-walk: 8.3.4
-  adm-zip: 0.5.16
+  acorn: 8.17.0
+  acorn-walk: 8.3.5
+  adm-zip: 0.5.18
   'c8': 12.0.0
   'chrome-devtools-mcp': 1.6.0
   'compromise': 14.16.0
@@ -57,7 +57,7 @@ catalog:
   ecc-agentshield: 1.4.0
   'fast-check': 4.9.0
   magic-string: 1.0.0
-  'markdownlint-cli2': 0.23.0
+  'markdownlint-cli2': 0.23.1
   'mdast-util-from-markdown': 2.0.3
   'micromark': 4.0.2
   'neosanitize': 0.3.0
@@ -74,12 +74,12 @@ catalog:
   'rolldown': 1.1.4
   'semver': 7.8.5
   'shell-quote': 1.10.0
-  'svgo': 4.0.1
+  'svgo': 4.0.2
   tar: 7.4.3
   'taze': 19.16.0
   'typescript': 7.0.2
-  untracked: 1.6.1
-  'vite': 8.1.0
+  untracked: 1.6.5
+  'vite': 8.1.5
   vitest: 4.1.10
   yoctocolors-cjs: 2.1.3
 # Resolve to the highest version that satisfies the range, fleet-wide.
@@ -169,10 +169,10 @@ overrides:
   'has-symbols': 'npm:@socketregistry/has-symbols@1.0.7'
   'has-tostringtag': 'npm:@socketregistry/has-tostringtag@1.0.7'
   'hasown': 'npm:@socketregistry/hasown@1.0.7'
-  'iconv-lite': '0.7.2'
+  'iconv-lite': '0.7.3'
   'isexe@>=3': '4.0.0'
   'js-yaml@>=5.0.0 <5.2.2': '5.2.2'
-  'lru-cache@>=10': '11.3.6'
+  'lru-cache@>=10': '11.5.2'
   'magic-string': '1.0.0'
   'mime-db': '1.54.0'
   'mime-types@>=3': '3.0.2'
@@ -182,7 +182,7 @@ overrides:
   'semver@>=5.0.0 <7.6.0': '7.8.1'
   'side-channel': 'npm:@socketregistry/side-channel@1.0.10'
   'ssri@>=12': '13.0.1'
-  'string-width@>=5': '8.1.0'
+  'string-width@>=5': '8.2.2'
   'update-notifier@>=4.0.0': '7.3.1'
   'uuid': '11.1.1'
   'which': '7.0.0'
@@ -192,12 +192,12 @@ overrides:
   # Repo-specific overrides below.
   # ast-v8-to-istanbul@1.0.4 restores trusted-publisher evidence and has
   # cleared the release-age window; 1.0.5 remains under soak.
-  'ast-v8-to-istanbul': '1.0.4'
+  'ast-v8-to-istanbul': '1.0.5'
   # advisory #23 (medium) — got 11.8.5 fix; bump to latest 11.x patch
   'got': '11.8.6'
-  'postcss': '8.5.10'
+  'postcss': '8.5.20'
   'rolldown': 'catalog:'
-  'tar': '7.5.11'
+  'tar': '7.5.20'
   'vite': 'catalog:'
   'which@>=4': '7.0.0'
 

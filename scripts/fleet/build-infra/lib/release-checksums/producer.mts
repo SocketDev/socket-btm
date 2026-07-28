@@ -84,7 +84,7 @@ export interface UpdateAssetsConfig {
  * `tag` + `checksums` (re-encoded to SRI via `parseHash().sri`), and writes
  * the result back. Other tool blocks are preserved untouched.
  *
- * The manifest's $schema field (if present) is preserved.
+ * The manifest's $schema field, if present, is preserved.
  */
 export function updateReleaseAssets(config: UpdateAssetsConfig): void {
   const { checksums, description, manifestPath, tag, tool } = {
@@ -132,7 +132,7 @@ export interface WriteChecksumsConfig {
    */
   order?: 'alphabetical' | readonly string[] | undefined
   /**
-   * Suppress info logging (errors still log).
+   * Suppress info logging, errors still log.
    */
   quiet?: boolean | undefined
 }

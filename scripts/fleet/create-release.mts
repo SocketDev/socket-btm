@@ -16,9 +16,9 @@
  *      `release-checksums/consumer.mts`) can verify what they download against
  *      a checked-in expected value. The pin IS the cross-repo trust contract.
  *      Per-repo config — drop a `release-assets.config.mts` at the repo root
- *      that exports `config` of type `ReleaseAssetsConfig` (see below). The
+ *      that exports `config` of type `ReleaseAssetsConfig`, see below. The
  *      orchestrator imports it via dynamic import; the config file is per-repo
- *      (not cascaded), the orchestrator is fleet-canonical.
+ *      not cascaded, the orchestrator is fleet-canonical.
  *
  *   CLI (`node scripts/fleet/create-release.mts`): default cuts a release;
  *   `--dry-run` hashes + simulates the `gh release`; `--no-pin` skips the
@@ -273,7 +273,7 @@ interface ReleaseProducer {
  * `<repo-root>/scripts/repo/release-producer.mts`. Keeps create-release.mts
  * layout-agnostic: a monorepo re-exports from scripts/fleet/build-infra/lib/
  * release-checksums/producer.mts; a single-package producer points at its own
- * impl. The file is repo-local (not cascaded).
+ * impl. The file is repo-local, not cascaded.
  */
 async function loadProducer(): Promise<ReleaseProducer> {
   const producerPath = path.join(rootPath, 'scripts/repo/release-producer.mts')

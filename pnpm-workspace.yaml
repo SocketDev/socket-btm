@@ -45,6 +45,7 @@ catalog:
   '@types/shell-quote': 1.7.5
   '@typescript/native-preview': 7.0.0-dev.20260510.1
   '@ultrathink/acorn.wasm': 'npm:@ultrathink/acorn-wasm@0.0.1'
+  '@ultrathink/acorn.rs.wasm': 0.1.1
   '@vitest/coverage-v8': 4.1.10
   '@vitest/ui': 4.1.10
   acorn: 8.17.0

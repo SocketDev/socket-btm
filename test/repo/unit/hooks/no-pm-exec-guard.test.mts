@@ -1,9 +1,14 @@
-import assert from 'node:assert/strict'
+/**
+ * @file Contract coverage for the no-pm-exec-guard hook. Each case drives the
+ *   hook as a real subprocess — a JSON payload on stdin, a verdict on stderr
+ *   and in the exit code (0 = allow, 2 = block).
+ */
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+
+import { describe, expect, it } from 'vitest'
 // prefer-async-spawn: streaming-stdio-required — the hook is exercised as a
 // real subprocess so we observe its stdin/stdout/stderr contract.
 import { spawn } from '@socketsecurity/lib-stable/process/spawn/child'
@@ -55,58 +60,56 @@ async function runHookRaw(raw: string): Promise<number> {
   })
 }
 
-test('non-Bash tool calls pass through', async () => {
+it('non-Bash tool calls pass through', async () => {
   const result = await runHook({
     tool_name: 'Edit',
     tool_input: { file_path: 'foo.ts', new_string: 'bar' },
   })
-  assert.strictEqual(result.code, 0)
-  assert.strictEqual(result.stderr, '')
+  expect(result.code).toBe(0)
+  expect(result.stderr).toBe('')
 })
 
-for (const command of [
-  'pnpm exec vitest run foo.test.mts',
-  'npm exec vitest run foo.test.mts',
-  'yarn exec vitest run foo.test.mts',
-] as const) {
-  test(`blocks wrapper exec form: ${command}`, async () => {
+describe('wrapper exec form', () => {
+  it.each([
+    'pnpm exec vitest run foo.test.mts',
+    'npm exec vitest run foo.test.mts',
+    'yarn exec vitest run foo.test.mts',
+  ])('blocks %s', async command => {
     const result = await runHook({
       tool_name: 'Bash',
       tool_input: { command },
     })
-    assert.strictEqual(result.code, 2)
-    assert.match(result.stderr, /Blocked: `(?:pnpm|npm|yarn) exec`/)
-    assert.match(result.stderr, /shared local-bin helper/)
+    expect(result.code).toBe(2)
+    expect(result.stderr).toMatch(/Blocked: `(?:pnpm|npm|yarn) exec`/)
+    expect(result.stderr).toMatch(/node_modules\/\.bin\/<tool>/)
   })
-}
+})
 
-for (const command of [
-  'pnpm dlx vitest',
-  'yarn dlx vitest',
-  'npx vitest',
-  'pnx vitest',
-] as const) {
-  test(`blocks fetch-and-run form: ${command}`, async () => {
-    const result = await runHook({
-      tool_name: 'Bash',
-      tool_input: { command },
-    })
-    assert.strictEqual(result.code, 2)
-    assert.match(result.stderr, /FETCHES \+ executes unpinned code/)
-    assert.match(result.stderr, /shared local-bin helper/)
-  })
-}
+describe('fetch-and-run form', () => {
+  it.each(['pnpm dlx vitest', 'yarn dlx vitest', 'npx vitest', 'pnx vitest'])(
+    'blocks %s',
+    async command => {
+      const result = await runHook({
+        tool_name: 'Bash',
+        tool_input: { command },
+      })
+      expect(result.code).toBe(2)
+      expect(result.stderr).toMatch(/FETCHES \+ executes unpinned code/)
+      expect(result.stderr).toMatch(/node_modules\/\.bin\/<tool>/)
+    },
+  )
+})
 
-test('direct local bin invocation passes', async () => {
+it('direct local bin invocation passes', async () => {
   const result = await runHook({
     tool_name: 'Bash',
     tool_input: { command: 'node_modules/.bin/vitest run foo.test.mts' },
   })
-  assert.strictEqual(result.code, 0)
-  assert.strictEqual(result.stderr, '')
+  expect(result.code).toBe(0)
+  expect(result.stderr).toBe('')
 })
 
-test('bypass phrase allows a blocked command', async () => {
+it('bypass phrase allows a blocked command', async () => {
   const result = await runHook({
     tool_name: 'Bash',
     tool_input: { command: 'pnpm exec vitest run foo.test.mts' },
@@ -114,11 +117,11 @@ test('bypass phrase allows a blocked command', async () => {
       'Please Allow pm-exec bypass for this run.',
     ),
   })
-  assert.strictEqual(result.code, 0)
-  assert.strictEqual(result.stderr, '')
+  expect(result.code).toBe(0)
+  expect(result.stderr).toBe('')
 })
 
-test('malformed payload fails open', async () => {
+it('malformed payload fails open', async () => {
   const code = await runHookRaw('{ not json')
-  assert.strictEqual(code, 0)
+  expect(code).toBe(0)
 })

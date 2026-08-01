@@ -86,11 +86,11 @@
     "socket/prefer-lib-versions-over-semver": "error",
     "socket/prefer-mock-import": "error",
     "socket/prefer-node-builtin-imports": "error",
-    "socket/prefer-node-modules-dot-cache": "error",
     "socket/prefer-non-capturing-group": "error",
     "socket/prefer-normalize-path": "error",
     "socket/prefer-optional-chain": "error",
     "socket/prefer-pure-call-form": "error",
+    "socket/prefer-repo-root-dot-cache": "error",
     "socket/prefer-safe-delete": "error",
     "socket/prefer-separate-type-import": "error",
     "socket/prefer-shell-win32": "error",
@@ -239,6 +239,25 @@
       "files": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
       "rules": {
         "eslint/no-unused-vars": "off"
+      }
+    },
+    {
+      "files": [
+        "**/scripts/fleet/build-hook-bundle.mts",
+        "**/scripts/fleet/build-hook-snapshot.mts",
+        "**/scripts/fleet/build-snapshot-launcher.mts",
+        "**/scripts/fleet/fetch-fleet-pack.mts",
+        "**/scripts/fleet/gen/hook-dispatch.mts",
+        "**/scripts/fleet/lib/stable-alias.mts",
+        "**/scripts/fleet/lockstep/emit-mirror-globs.mts",
+        "**/scripts/fleet/sync-oxlint-rules.mts",
+        "**/scripts/fleet/update.mts",
+        "**/scripts/fleet/update/fleet-pins.mts",
+        "**/scripts/repo/dogfood.mts",
+        "**/scripts/repo/sync-scaffolding/fixers/mirror-mode.mts"
+      ],
+      "rules": {
+        "socket/prefer-mirror-lock-write": "error"
       }
     }
   ],

@@ -87,13 +87,14 @@ import preferFindRepoRoot from './fleet/prefer-find-repo-root/index.mts'
 import preferFindUpPackageJson from './fleet/prefer-find-up-package-json/index.mts'
 import preferFunctionDeclaration from './fleet/prefer-function-declaration/index.mts'
 import preferLibVersionsOverSemver from './fleet/prefer-lib-versions-over-semver/index.mts'
+import preferMirrorLockWrite from './fleet/prefer-mirror-lock-write/index.mts'
 import preferMockImport from './fleet/prefer-mock-import/index.mts'
 import preferNodeBuiltinImports from './fleet/prefer-node-builtin-imports/index.mts'
-import preferNodeModulesDotCache from './fleet/prefer-node-modules-dot-cache/index.mts'
 import preferNonCapturingGroup from './fleet/prefer-non-capturing-group/index.mts'
 import preferNormalizePath from './fleet/prefer-normalize-path/index.mts'
 import preferOptionalChain from './fleet/prefer-optional-chain/index.mts'
 import preferPureCallForm from './fleet/prefer-pure-call-form/index.mts'
+import preferRepoRootDotCache from './fleet/prefer-repo-root-dot-cache/index.mts'
 import preferSafeDelete from './fleet/prefer-safe-delete/index.mts'
 import preferSeparateTypeImport from './fleet/prefer-separate-type-import/index.mts'
 import preferShellWin32 from './fleet/prefer-shell-win32/index.mts'
@@ -202,13 +203,14 @@ const plugin = {
     'prefer-find-up-package-json': preferFindUpPackageJson,
     'prefer-function-declaration': preferFunctionDeclaration,
     'prefer-lib-versions-over-semver': preferLibVersionsOverSemver,
+    'prefer-mirror-lock-write': preferMirrorLockWrite,
     'prefer-mock-import': preferMockImport,
     'prefer-node-builtin-imports': preferNodeBuiltinImports,
-    'prefer-node-modules-dot-cache': preferNodeModulesDotCache,
     'prefer-non-capturing-group': preferNonCapturingGroup,
     'prefer-normalize-path': preferNormalizePath,
     'prefer-optional-chain': preferOptionalChain,
     'prefer-pure-call-form': preferPureCallForm,
+    'prefer-repo-root-dot-cache': preferRepoRootDotCache,
     'prefer-safe-delete': preferSafeDelete,
     'prefer-separate-type-import': preferSeparateTypeImport,
     'prefer-shell-win32': preferShellWin32,

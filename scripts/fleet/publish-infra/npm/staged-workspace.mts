@@ -16,13 +16,7 @@
  */
 
 import crypto from 'node:crypto'
-import {
-  existsSync,
-  promises as fs,
-  readFileSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs'
+import { existsSync, promises as fs, readFileSync, statSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -53,6 +47,7 @@ import {
   requiredPayloadFiles,
 } from './workspace-plan.mts'
 import { tarExecutable } from '../../_shared/tar-executable.mts'
+import { writeThroughMirrorLock } from '../../_shared/mirror-lock.mts'
 
 import type { StageListEntry } from './shared.mts'
 import type { NpmWorkspaceLayout, WorkspacePackage } from './workspace.mts'
@@ -288,7 +283,7 @@ export async function verifyStagedPlatformEntry(
           `  Saw vs wanted: the staged tarball's manifest reads ` +
           `${String(staged.name)}@${String(staged.version)}; wanted ` +
           `${name}@${version}.\n` +
-          `  Fix: reject the staged publish (pnpm stage reject ${stageId}) ` +
+          `  Fix: reject the staged publish (node scripts/fleet/npm-web-auth.mts stage reject ${stageId}) ` +
           `and re-stage.`,
       )
       return false
@@ -316,7 +311,7 @@ export async function verifyStagedPlatformEntry(
           `  Saw vs wanted: missing/empty payload file(s) ` +
           `${hollow.join(', ')}; wanted every declared platform payload ` +
           `present and non-empty.\n` +
-          `  Fix: reject the staged publish (pnpm stage reject ${stageId}) ` +
+          `  Fix: reject the staged publish (node scripts/fleet/npm-web-auth.mts stage reject ${stageId}) ` +
           `and re-stage from a CI run whose build artifacts landed.`,
       )
       return false
@@ -369,7 +364,7 @@ export async function packWorkspaceReleaseAssets(
   }
   if (assets.length > 0) {
     const checksumsPath = path.join(layout.rootPath, 'checksums.txt')
-    writeFileSync(checksumsPath, `${checksumLines.join('\n')}\n`)
+    writeThroughMirrorLock(checksumsPath, `${checksumLines.join('\n')}\n`)
     assets.push(checksumsPath)
   }
   return assets

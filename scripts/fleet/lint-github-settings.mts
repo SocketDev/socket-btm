@@ -29,7 +29,7 @@
  *   500-line soft cap.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -51,6 +51,7 @@ import type {
   RepoApiPayload,
 } from './lint-github-settings/types.mts'
 import { isMainModule } from './_shared/is-main-module.mts'
+import { writeThroughMirrorLock } from './_shared/mirror-lock.mts'
 
 // Inline path equivalent of the wheelhouse template's paths.mts helper.
 // `lint-github-settings.mts` cascades into fleet repos whose per-package
@@ -59,9 +60,9 @@ import { isMainModule } from './_shared/is-main-module.mts'
 // constant from `./paths.mts` would force every consumer to widen their
 // paths.mts surface — wrong direction. Keep the per-package paths.mts
 // narrow; carry the standalone constant here.
-const FLEET_CACHE_DIR = path.join(REPO_ROOT, 'node_modules', '.cache', 'fleet')
+const FLEET_CACHE_DIR = path.join(REPO_ROOT, '.cache', 'fleet')
 
-// Cache lives at `node_modules/.cache/fleet/` — the fleet segment of the
+// Cache lives at `.cache/fleet/` — the fleet segment of the
 // runtime-state convention (segment = the writing code's tier; this script
 // is cascaded fleet code), auto-ignored everywhere via pnpm/npm's gitignore
 // + the fleet's `**/.cache/` rule. Path constructed once.
@@ -141,7 +142,7 @@ export function writeCache(
   if (!existsSync(cacheDir)) {
     mkdirSync(cacheDir, { recursive: true })
   }
-  writeFileSync(cacheFile, JSON.stringify(entry, null, 2) + '\n')
+  writeThroughMirrorLock(cacheFile, JSON.stringify(entry, null, 2) + '\n')
 }
 
 export function applyFixes(repo: string, findings: readonly Finding[]): number {

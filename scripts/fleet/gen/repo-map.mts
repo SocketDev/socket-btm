@@ -31,12 +31,12 @@ import {
   readdirSync,
   readFileSync,
   statSync,
-  writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
 import { isMainModule } from '../_shared/is-main-module.mts'
+import { writeThroughMirrorLock } from '../_shared/mirror-lock.mts'
 import { REPO_ROOT } from '../paths.mts'
 
 // Default on-disk cache directory (repo-root-relative). Gitignored + treated as
@@ -52,8 +52,8 @@ const TOP_DECL_RE =
 
 const SOURCE_EXTS = new Set<string>(['.cjs', '.cts', '.mjs', '.mts', '.ts'])
 const SKIP_DIRS = new Set<string>([
-  '_dispatch',
   '_dist',
+  '_shared',
   '.git',
   '.repo-map',
   'build',
@@ -240,7 +240,7 @@ export function writeCache(
     skeletonTotal += skeletonBytes
     const skelPath = path.join(repoRoot, cacheRelPath(repoRoot, file, outDir))
     mkdirSync(path.dirname(skelPath), { recursive: true })
-    writeFileSync(skelPath, `${text}\n`)
+    writeThroughMirrorLock(skelPath, `${text}\n`)
     indexRows.push(text.split('\n')[0]!)
   }
   if (cfg.writeIndex) {
@@ -253,7 +253,7 @@ export function writeCache(
       '',
     ]
     mkdirSync(path.join(repoRoot, outDir), { recursive: true })
-    writeFileSync(
+    writeThroughMirrorLock(
       path.join(repoRoot, outDir, 'index.txt'),
       `${[...header, ...indexRows].join('\n')}\n`,
     )

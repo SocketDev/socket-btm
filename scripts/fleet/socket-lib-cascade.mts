@@ -42,7 +42,7 @@
  *   the published-version gates, and the USER-gate stops.
  *
  *   Receipts live in a state file under
- *   node_modules/.cache/fleet/socket-lib-cascade/ — never the tracked tree — so
+ *   .cache/fleet/socket-lib-cascade/ — never the tracked tree — so
  *   a re-run resumes at the first incomplete stage. It coordinates rather than
  *   races: when another session is mid-release on a downstream repo the
  *   orchestrator detects the in-flight state from that repo's release-pipeline
@@ -54,7 +54,7 @@
  *     [--status] [--reset] [--dry-run]
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -75,6 +75,7 @@ import { REPO_ROOT } from './paths.mts'
 import { fetchLatestPublishedVersionChecked } from './publish-infra/npm/registry.mts'
 import { runInherit } from './publish-infra/shared.mts'
 import { isMainModule } from './_shared/is-main-module.mts'
+import { writeThroughMirrorLock } from './_shared/mirror-lock.mts'
 
 import type { ObligationReading } from './lib/release-cascade.mts'
 
@@ -274,14 +275,7 @@ const DOWNSTREAM_PIPELINE_DIR = 'socket-release-pipeline'
  * Resolve the cascade state-file path for a repo root.
  */
 export function statePath(repoRoot: string): string {
-  return path.join(
-    repoRoot,
-    'node_modules',
-    '.cache',
-    'fleet',
-    STATE_DIR_NAME,
-    STATE_FILE_NAME,
-  )
+  return path.join(repoRoot, '.cache', 'fleet', STATE_DIR_NAME, STATE_FILE_NAME)
 }
 
 /**
@@ -396,7 +390,7 @@ export function loadState(filePath: string): CascadeState | undefined {
  */
 export function saveState(filePath: string, state: CascadeState): void {
   mkdirSync(path.dirname(filePath), { recursive: true })
-  writeFileSync(filePath, `${JSON.stringify(state, null, 2)}\n`, 'utf8')
+  writeThroughMirrorLock(filePath, `${JSON.stringify(state, null, 2)}\n`)
 }
 
 /**
@@ -624,7 +618,6 @@ export function siblingRepoDir(projectsDir: string, repo: string): string {
 export function downstreamStatePath(repoDir: string): string {
   return path.join(
     repoDir,
-    'node_modules',
     '.cache',
     'fleet',
     DOWNSTREAM_PIPELINE_DIR,

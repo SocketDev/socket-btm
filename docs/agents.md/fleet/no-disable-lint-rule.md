@@ -5,9 +5,8 @@
 Lint rules exist to catch real classes of bug or style drift. Adding `"some-rule": "off"` (or `"warn"`) to any of these files weakens the gate **for every file matching that selector**, not just the one violation that triggered the temptation:
 
 - `.config/fleet/oxlintrc.json`
-- `.config/fleet/oxlintrc.dogfood.json`
-- `template/.config/oxlintrc.json`
-- `template/.config/oxlintrc.dogfood.json`
+- `.config/repo/oxlintrc.dogfood.json`
+- `template/base/.config/fleet/oxlintrc.json`
 - Any `.eslintrc*` or `eslint.config.*`
 
 The fleet rule: **fix the underlying code**. The lint config is reserved for fleet-wide policy changes; individual call-site exemptions belong in code.
@@ -93,3 +92,7 @@ The per-line comment with a reason is the audit trail. Global disables don't hav
 - `oxlint-disable-next-line` is allowed only with a `-- <reason>` suffix (enforced by the `no-file-scope-oxlint-disable` rule).
 - Bypass phrases follow the canonical `Allow <X> bypass` format; see [`bypass-phrases.md`](./bypass-phrases.md).
 - `Fix it, don't defer` (in CLAUDE.md): see a lint error? Fix the code, not the rule.
+
+## Enforcement
+
+`.claude/hooks/fleet/no-disable-lint-rule-guard/` blocks an edit that sets `"off"` or `"warn"` on any rule inside a fleet oxlint config (`.config/fleet/oxlintrc.json`, `.config/repo/oxlintrc.dogfood.json`, `template/base/.config/fleet/oxlintrc.json`, any `.eslintrc*` / `eslint.config.*`). Bypass: `Allow disable-lint-rule bypass`.

@@ -18,7 +18,7 @@ A common anti-pattern: sending the entire commit body + every prior message in t
 Agent calls run on someone else's clock. A model that decides to "think harder" can park your conversation for ten minutes while you wait on a one-line verdict. Every delegation must carry an explicit time budget so a stuck or thinky agent doesn't drag the main session down.
 
 - **Subagents (`Agent(...)` calls):** state the expected response shape AND a wall-clock budget in the prompt itself. "Reply in under 200 words within ~2 minutes" gives the agent permission to short-circuit deep investigation. Use `Bash(timeout 120 ...)` when shelling out to `codex` / `claude` / `opencode` CLIs directly. The shell-level timeout is non-negotiable because the CLIs themselves don't always honor cancellation cleanly.
-- **Skill-driven CLI subprocesses (Surface 1):** the orchestrator MUST pass `timeout: <ms>` to `spawn(...)` from `@socketsecurity/lib/spawn` so the child is killed when the budget expires. Canonical examples: `scripts/fleet/ai-lint-fix/cli.mts` ships a 5-minute per-spawn cap (per-file AI fix is a focused job); `reviewing-code/run.mts` caps heavyweight passes (discovery / discovery-secondary / remediation) at 15 minutes and the verify pass at 5 minutes. The verify pass is a sanity check on an already-written report, so the shorter budget matches the work. New skills pick from the same three tiers below. Anything that needs longer is a manual operation, not a sanity check.
+- **Skill-driven CLI subprocesses (Surface 1):** the orchestrator MUST pass `timeout: <ms>` to `spawn(...)` from `@socketsecurity/lib/spawn` so the child is killed when the budget expires. Canonical examples: `scripts/fleet/ai-lint-fix.mts` ships a 5-minute per-spawn cap (per-file AI fix is a focused job); `.claude/skills/fleet/reviewing-code/run.mts` caps heavyweight passes (discovery / discovery-secondary / remediation) at 15 minutes and the verify pass at 5 minutes. The verify pass is a sanity check on an already-written report, so the shorter budget matches the work. New skills pick from the same three tiers below. Anything that needs longer is a manual operation, not a sanity check.
 - **Picking the budget:** sanity checks should answer in ~2 minutes; second-implementation passes in ~5; deep rescue work in ~15. Pick the smallest budget that's likely to succeed and let the orchestrator surface a "timed out" failure cleanly. A skipped verdict (with the agent's name and the timeout you used) is more useful than a 20-minute wait that ends in a long, unstructured answer.
 - **Failure handling:** treat a timeout as a no-op signal, not an error. The main session continues with its own judgment and reports "asked Codex, no response within budget". The user can re-invoke with a longer budget if the question needs it.
 
@@ -100,7 +100,7 @@ There are two delegation surfaces in this fleet. They look similar but are used 
 
 ## Surface 1: CLI subprocess delegation (skills)
 
-Skills that need multi-model output spawn the agent CLIs (`codex`, `claude`, `kimi`, `opencode`) as subprocesses and fold the results into a report. The contract (backend registry, detection policy, fallback order, attribution) lives in [`_shared/multi-agent-backends.md`](../../.claude/skills/fleet/_shared/multi-agent-backends.md), and the registry itself is `@socketsecurity/lib/ai/backends`. The canonical implementation is [`reviewing-code/run.mts`](../../.claude/skills/fleet/reviewing-code/run.mts).
+Skills that need multi-model output spawn the agent CLIs (`codex`, `claude`, `kimi`, `opencode`) as subprocesses and fold the results into a report. The contract (backend registry, detection policy, fallback order, attribution) lives in [`multi-agent-backends.md`](../../.claude/skills/fleet/_shared/multi-agent-backends.md), and the registry itself is `@socketsecurity/lib/ai/backends`. The canonical implementation is [`.claude/skills/fleet/reviewing-code/run.mts`](../../.claude/skills/fleet/reviewing-code/run.mts).
 
 Use this surface when _the skill itself_ is the orchestrator (multi-pass review, parallel scans, fleet-wide runs).
 
@@ -293,6 +293,17 @@ Work handed to a subagent, or done in a delegated session, meets the same bar as
 4. **Keep worktree discipline.** Never switch a shared checkout's branch; work in a worktree off `origin/<ref>`. Enforcers: `primary-checkout-branch-guard`, `primary-checkout-on-default-stop-guard`, `no-pr-from-default-checkout-guard`, and `worktree-remove-relink-nudge` (`.claude/hooks/fleet/{primary-checkout-branch-guard,primary-checkout-on-default-stop-guard,no-pr-from-default-checkout-guard,worktree-remove-relink-nudge}/`).
 
 5. **No AI attribution in commits or PRs.** Commits and every GitHub prose surface carry no `Co-Authored-By`, `Assisted-by`, or "Generated with" attribution line. Enforcers: `no-commit-ai-attribution-guard` and `no-github-ai-attribution-guard` (`.claude/hooks/fleet/{no-commit-ai-attribution-guard,no-github-ai-attribution-guard}/`).
+
+## Variant analysis: don't close a High/Critical finding alone
+
+A High- or Critical-severity finding reaches you as a security scan result, a review comment, or a bug report. Closing it out covers the one instance in front of you. The same bug shape often repeats elsewhere in the repo: the same unsafe pattern copy-pasted into a sibling function, the same missing check in a parallel code path. Before marking the finding closed, search the repo for the same shape and fix every instance you find, not only the reported one.
+
+Four hooks reinforce different slices of this discipline:
+
+- `.claude/hooks/fleet/variant-analysis-nudge/` reminds to search for repeats when a High/Critical finding is about to be closed.
+- `.claude/hooks/fleet/excuse-detector/` catches labeling a repeat instance "out of scope" instead of fixing it.
+- `.claude/hooks/fleet/parallel-agent-spawn-nudge/` steers a repo-wide variant search toward a fan-out (see [Fanning out EDITING subagents](#fanning-out-editing-subagents-isolate-scope-to-one-unit-collect-deliberately) above) instead of one slow serial pass.
+- `.claude/hooks/fleet/clone-reviewed-repo-nudge/` (documented in [tooling](tooling.md#external-repo-clones)) nudges a local clone when the variant search reaches into an external repo.
 
 ## Compatibility note
 

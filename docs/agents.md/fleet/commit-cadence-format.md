@@ -1,6 +1,6 @@
 # Commit cadence & message format
 
-Companion to the `### Commit cadence & message format` rule in `template/CLAUDE.md`. The inline section gives the headline. This file holds the spec, the cadence rationale, and the bypass surface.
+Companion to the `### Commit cadence & message format` rule in `template/base/CLAUDE.md`. The inline section gives the headline. This file holds the spec, the cadence rationale, and the bypass surface.
 
 ## Cadence: small chunks, committed often
 
@@ -19,6 +19,10 @@ Pairs with _Don't leave the worktree dirty_ and _Smallest chunks, land ASAP_. Ca
 Keep a PR small — a rule of thumb is under ~200 changed lines overall. Large refactors and new features won't always fit, so decompose a large changeset into separately reviewable commits split along logical boundaries: modules, packages, whatever maps cleanly to the work. Agents are good at this — tell one to break a change into small commits right before opening the PR. GitHub stacked PRs, currently in preview, are another option that keeps each link small and review sharp.
 
 The fleet direct-pushes to main, so it realizes this doctrine primarily as small commits landed fast — the `commit-cadence-nudge` + land-fast cadence above. A PR happens only on push-rejection or for external / cross-repo work. On that rare PR path, `small-pr-nudge` enforces the size ceiling. It fires on `gh pr create`, computes the three-dot diff (`git diff --shortstat <base>...HEAD`), and reminds you to decompose or stack when the change exceeds ~200 lines. Reminder-only, never a block; it fails open when the diff can't be computed.
+
+## Never open a PR from the default branch
+
+A PR needs a branch to diff against the base; opening one with the PR head or the cwd checkout on `main`/`master`/the resolved default produces a no-op or a self-referential PR. `gh pr create` hard-blocks in that case, enforced by `.claude/hooks/fleet/no-pr-from-default-checkout-guard/`. Cut a branch (or work in a `git worktree` off the default) before running `gh pr create`.
 
 ## Conventional Commits 1.0
 
@@ -71,8 +75,10 @@ Where:
 ## No AI attribution
 
 The fleet forbids AI-attribution markers in commit messages, PR
-descriptions, and inline review replies. The patterns blocked by
-`commit-message-format-guard` and reminded by `commit-pr-nudge`:
+descriptions, external MCP surfaces (Linear, Slack), and inline review
+replies. The patterns blocked by `no-github-ai-attribution-guard` (the
+GitHub-prose surface), `commit-message-format-guard` (the commit-message
+surface), and reminded by `commit-pr-nudge`:
 
 - `Generated with Claude` / `Generated with Anthropic` (any case)
 - `Co-Authored-By: Claude` / `Co-Authored-By:Claude`
@@ -80,6 +86,12 @@ descriptions, and inline review replies. The patterns blocked by
 - `<noreply@anthropic.com>` footer references
 
 The rule applies at draft time too. Rewrite the message to omit the strings before you run `git commit`.
+
+A commit subject also can't be a content-free placeholder: `no-placeholder-commit-subject-guard` blocks subjects like `wip`, `test`, `initial`, or `fixup` with no descriptive text.
+
+## Non-fleet repos: push and PR/issue/release creation need explicit confirmation
+
+Pushing to, or opening a PR/issue/release against, a repo outside the fleet roster is a different risk than doing the same inside a fleet member: there's no fleet git-side pre-push hook installed there, and a posted PR/issue/release goes out under the user's own `gh` identity where closing it doesn't fully un-publish it. `no-non-fleet-push-guard` blocks `git push` (resolved via `-C`/leading `cd`/cwd, same priority order both hooks share) when the target repo isn't in the fleet roster. `non-fleet-pr-issue-ask-guard` blocks `gh pr create` / `gh issue create` / `gh release create` against a non-fleet repo. Neither is lifted by a batched "do all N tasks" directive or captured plan text — each needs its own per-action confirmation.
 
 ## Bypass phrases
 
@@ -97,9 +109,9 @@ Per the fleet's _Hook bypasses require the canonical phrase_ rule
 - **Replying to Cursor Bugbot**: reply on the inline review-comment thread, not as a detached PR comment: `gh api repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies -X POST -f body=…`.
 - **Backing out an unpushed commit**: prefer `git reset --soft HEAD~1` (or `git rebase -i HEAD~N`) over `git revert`. Revert commits are for changes already on origin; for local-only commits they just pollute history (enforced by `.claude/hooks/fleet/prefer-rebase-over-revert-nudge/`).
 - **No empty commits.** Never use `git commit --allow-empty`, `git cherry-pick --allow-empty`, or `--keep-redundant-commits`. Anchor releases on the actual version-bump commit + move the tag forward with `git tag -f vX.Y.Z` instead. Empty commits pollute `git log` and break CHANGELOG generators / `git log -p` / blame. Bypass: `Allow empty-commit bypass` (enforced by `.claude/hooks/fleet/no-empty-commit-guard/`).
-- **Commit author + subject**: a commit's author/committer must not be a denied placeholder identity (`test@example.com`, `Test`, empty — the universal denylist in `.config/fleet/git-authors.json`), and when a repo declares an allowlist (`.config/repo/git-authors.json`: `canonical` + `aliases[]`) the email must be on it. The allowlist is per-repo; the cascaded fleet default ships only the denylist (no machine-local `~/` source). The commit subject must not be a content-free placeholder (`initial`/`wip`/`test`). Two surfaces each: `.claude/hooks/fleet/commit-author-guard/` + `commit-message-format-guard/` gate Claude `git commit` tool calls; the `.git-hooks/fleet/commit-msg` git-stage backstop catches subprocess / worktree / CI commits the tool layer never sees — a batch of `test@example.com` `initial` commits once reached a fleet repo's main exactly this way. Bypass: `Allow commit-author bypass`.
+- **Commit author + subject**: a commit's author/committer must not be a denied placeholder identity (`test@example.com`, `Test`, empty — the universal denylist in `.config/fleet/git-authors.json`), and when a repo declares an allowlist in a per-repo `.config/repo/git-authors.json` with `canonical` + `aliases[]`, the email must be on it. The allowlist is per-repo; the cascaded fleet default ships only the denylist (no machine-local `~/` source). The commit subject must not be a content-free placeholder (`initial`/`wip`/`test`). Two surfaces each: `.claude/hooks/fleet/commit-author-guard/` + `commit-message-format-guard/` gate Claude `git commit` tool calls; the `.git-hooks/fleet/commit-msg` git-stage backstop catches subprocess / worktree / CI commits the tool layer never sees — a batch of `test@example.com` `initial` commits once reached a fleet repo's main exactly this way. Bypass: `Allow commit-author bypass`.
 - **Scan-internal labels stay out of commits**: `B1` / `M9` / `H3` / `L4` codes from `/fleet:scanning-quality` / `/fleet:scanning-security` reports are scaffolding. Inline the finding text in the commit body instead. Bypass: `Allow scan-label-in-commit bypass` (enforced by `.claude/hooks/fleet/scan-label-in-commit-guard/`).
-- **Push policy: push, fall back to PR.** Default to `git push origin <branch>` (typically `main`). On rejection: open a PR via `gh pr create` against the default base. Don't pre-open PRs "to be safe"; don't force-push to recover. Reminder fires when `gh pr create` is invoked without an explicit user directive (enforced by `.claude/hooks/fleet/pr-vs-push-default-nudge/`). Enterprise-ruleset push rejections are unblocked via the repo's `temporarily-doesnt-touch-customers` custom property (`canSkipReviewGate()` in `scripts/_shared/repo-properties.mts`); Stop-time reminder surfaces this when the error pattern fires (enforced by `.claude/hooks/fleet/enterprise-push-nudge/`). Full rationale: [`docs/agents.md/fleet/push-policy.md`](push-policy.md).
+- **Push policy: push, fall back to PR.** Default to `git push origin <branch>` (typically `main`). On rejection: open a PR via `gh pr create` against the default base. Don't pre-open PRs "to be safe"; don't force-push to recover. Reminder fires when `gh pr create` is invoked without an explicit user directive (enforced by `.claude/hooks/fleet/pr-vs-push-default-nudge/`). Enterprise-ruleset push rejections are unblocked via the repo's `temporarily-doesnt-touch-customers` custom property (`canSkipReviewGate()` in `scripts/repo/_shared/repo-properties.mts`); Stop-time reminder surfaces this when the error pattern fires (enforced by `.claude/hooks/fleet/enterprise-push-nudge/`). Full rationale: [`docs/agents.md/fleet/push-policy.md`](push-policy.md).
 
 ## Enforcement surface
 
@@ -114,3 +126,5 @@ Defense in depth:
   carries the bad message.
 
 Two surfaces by design. A draft can sneak past the Stop hook because it only sees the most recent assistant turn. The PreToolUse gate sees every command at commit time.
+
+Adjacent hooks: `no-github-ai-attribution-guard` (AI attribution on GitHub prose surfaces), `no-placeholder-commit-subject-guard` (content-free commit subjects), `no-non-fleet-push-guard` (push to a non-fleet repo), `non-fleet-pr-issue-ask-guard` (PR/issue/release creation on a non-fleet repo).

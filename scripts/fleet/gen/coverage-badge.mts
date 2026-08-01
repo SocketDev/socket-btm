@@ -2,7 +2,7 @@
 /**
  * @file Regenerate the repo-local coverage badge from the latest coverage run.
  *   Reads the line-coverage total from
- *   `node_modules/.cache/fleet/coverage/coverage-summary.json` (the vitest
+ *   `.cache/fleet/coverage/coverage-summary.json` (the vitest
  *   `json-summary` reporter), renders the optimized badge SVG to
  *   `assets/repo/badges/coverage.svg`, and migrates a README still carrying the
  *   retired shields.io badge line — or the legacy pre-badges/ asset path — to
@@ -18,7 +18,7 @@
  *   --check) the badge is stale.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -33,6 +33,7 @@ import {
 } from '../lib/coverage-badge.mts'
 import { REPO_ROOT } from '../paths.mts'
 import { isMainModule } from '../_shared/is-main-module.mts'
+import { writeThroughMirrorLock } from '../_shared/mirror-lock.mts'
 
 const logger = getDefaultLogger()
 
@@ -67,8 +68,7 @@ export function makeCoverageBadge(config: MakeCoverageBadgeConfig): number {
   const pct = readCoveragePct(cfg.repoRoot)
   if (pct === undefined) {
     logger.error(
-      // oxlint-disable-next-line socket/prefer-node-modules-dot-cache -- socket-lint FP: the string already targets node_modules/.cache/ — it's a human-facing message, and the rule's string matcher can't see the node_modules/ prefix on the same path.
-      'gen/coverage-badge: no coverage data at node_modules/.cache/fleet/coverage/coverage-summary.json. Run `pnpm run cover` first (the json-summary reporter emits it), then re-run.',
+      'gen/coverage-badge: no coverage data at .cache/fleet/coverage/coverage-summary.json. Run `pnpm run cover` first (the json-summary reporter emits it), then re-run.',
     )
     return 1
   }
@@ -93,9 +93,9 @@ export function makeCoverageBadge(config: MakeCoverageBadgeConfig): number {
     return 1
   }
   mkdirSync(path.dirname(svgPath), { recursive: true })
-  writeFileSync(svgPath, nextSvg)
+  writeThroughMirrorLock(svgPath, nextSvg)
   if (nextReadme !== readme) {
-    writeFileSync(readmePath, nextReadme)
+    writeThroughMirrorLock(readmePath, nextReadme)
     logger.success(
       'gen/coverage-badge: migrated the README badge line to the local asset reference.',
     )

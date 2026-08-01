@@ -20,15 +20,31 @@
  *      -c '<cmd>' /dev/null` is the Linux form. We stream npm's output straight
  *      through to the caller AND watch the RAW process stream for the auth URL.
  *      Reading the URL off the raw stream sidesteps the harness masking
- *      entirely: the URL flows only into the platform opener as an argument and
- *      is never printed by us. On first match we spawn `open` / `xdg-open` /
- *      `start` on it, then keep the process alive until npm exits and propagate
- *      npm's exit code. NO-OP PASSTHROUGH. When a real TTY is present npm
+ *      entirely: the URL flows into the platform opener as an argument, and is
+ *      ALSO printed — the opener fails silently on some setups, the sessions
+ *      expire in minutes, and an operator fishing the URL out of task files by
+ *      hand loses that race (2026-07-31). A harness may mask the displayed
+ *      form; the operator's terminal and task files carry it whole. On first
+ *      match we spawn `open` / `xdg-open` / `start` on it, then keep the
+ *      process alive until npm exits and propagate npm's exit code. NO-OP PASSTHROUGH. When a real TTY is present npm
  *      handles its own flow, and when `--otp=<code>` is already supplied no
- *      browser is needed, so in both cases this wrapper execs npm directly with
- *      inherited stdio and does nothing else. Usage: node
+ *      browser is needed, so in both cases this wrapper execs the tool directly
+ *      with inherited stdio and does nothing else. TOOL SELECTION. `login` and
+ *      `adduser` run through `pnpm login` when pnpm is on PATH: pnpm 11 drives
+ *      the SAME browser web-auth flow (verified 2026-07-28 — it prints
+ *      "Authenticate your account at:" + an npmjs.com/login URL this watcher
+ *      already matches) and, being pnpm, it passes the `devEngines` gate that
+ *      makes bare `npm login` fail EBADDEVENGINES inside every pnpm-enforced
+ *      fleet repo (the odai 0.0.1 release hit exactly that). The tokens SPLIT,
+ *      though: pnpm 11's web login keeps its token in pnpm's own config, and
+ *      bare npm keeps reading ~/.npmrc — a green pnpm login can leave every
+ *      npm op 401ing minutes later (three trust-sweep rounds, 2026-07-31).
+ *      The split-token guard below makes one `login` mean BOTH tools hold a
+ *      live token. `--npm` forces npm (stripped before exec), and an
+ *      `--otp` run stays on npm since pnpm login takes no OTP flag. Every
+ *      other operation stays on npm. Usage: node
  *      scripts/fleet/npm-web-auth.mts
- *      <publish|login|deprecate|owner|access|...> [args]
+ *      <publish|login|deprecate|owner|access|...> [args] [--npm]
  */
 
 // oxlint-disable-next-line socket/prefer-async-spawn -- PTY streaming + detached opener + exact exit-code propagation need raw child_process control; see the per-call rationale on runUnderPty/runInherit/openInBrowser.
@@ -36,11 +52,46 @@ import { spawn as nodeSpawn } from 'node:child_process'
 import process from 'node:process'
 
 import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
+import { spawnSync } from '@socketsecurity/lib-stable/process/spawn/child'
 
 import { isMainModule } from './_shared/is-main-module.mts'
 import { runMain } from './_shared/run-main.mts'
+import { npmScratchCwd } from './publish-infra/npm/shared.mts'
 
 const logger = getDefaultLogger()
+
+// Operations that carry NO package/repo context — auth and registry-settings
+// ops that work identically from any directory. These default to
+// npmScratchCwd(): run from a fleet repo they otherwise die on the
+// devEngines pnpm veto before ever reaching auth (burned two sweep rounds,
+// 2026-07-31). Package-context ops (publish, deprecate, access, owner…) keep
+// the caller's cwd — publish MUST run where the package lives.
+const CWD_FREE_OPS: ReadonlySet<string> = new Set([
+  'adduser',
+  'login',
+  'logout',
+  'stage',
+  'token',
+  'trust',
+  'whoami',
+])
+
+/**
+ * The cwd an operation runs from: an explicit caller cwd always wins; a
+ * cwd-free op falls back to the scratch dir; package-context ops keep the
+ * process cwd. Pure; exported for tests.
+ */
+export function resolveOpCwd(
+  operation: string | undefined,
+  injected: string | undefined,
+): string | undefined {
+  if (injected !== undefined) {
+    return injected
+  }
+  return operation !== undefined && CWD_FREE_OPS.has(operation)
+    ? npmScratchCwd()
+    : undefined
+}
 
 // The npm subcommands whose write path triggers the 2FA web-auth flow. Used by
 // --help text and the sibling npm-2fa-needs-pty-guard; kept here so the one list
@@ -108,6 +159,46 @@ export function hasOtpFlag(args: readonly string[]): boolean {
   return args.some(a => a === '--otp' || a.startsWith('--otp='))
 }
 
+export interface AuthToolPlan {
+  readonly tool: 'npm' | 'pnpm'
+  readonly args: readonly string[]
+}
+
+/**
+ * Pick the tool that runs this operation. `login`/`adduser` and the staged-
+ * publish ops (`stage list|approve|reject`) go through pnpm when it is
+ * available — same browser web-auth flow, and pnpm 11 keeps its OWN valid
+ * token in config.yaml while a stale ~/.npmrc entry can leave bare npm
+ * 401ing (the odai 0.0.1 release hit exactly that: pnpm whoami answered
+ * while npm whoami failed). pnpm is also immune to the `devEngines` gate
+ * that fails bare npm inside a fleet repo. `--npm` forces npm, stripped
+ * from the args before exec, and an `--otp` run stays on npm, which owns
+ * that flag. Everything else stays npm. Pure; exported for tests.
+ */
+export function resolveAuthTool(
+  argv: readonly string[],
+  config: { pnpmAvailable: boolean },
+): AuthToolPlan {
+  const opts = { __proto__: null, ...config } as { pnpmAvailable: boolean }
+  const forceNpm = argv.includes('--npm')
+  const args = argv.filter(a => a !== '--npm')
+  const operation = args[0]
+  const isLogin = operation === 'adduser' || operation === 'login'
+  const isStage = operation === 'stage'
+  if (
+    (isLogin || isStage) &&
+    opts.pnpmAvailable &&
+    !forceNpm &&
+    !hasOtpFlag(args)
+  ) {
+    return {
+      tool: 'pnpm',
+      args: isLogin ? ['login', ...args.slice(1)] : args,
+    }
+  }
+  return { tool: 'npm', args }
+}
+
 export interface PtyInvocation {
   readonly command: string
   readonly args: readonly string[]
@@ -123,16 +214,17 @@ export interface PtyInvocation {
 export function buildPtyInvocation(
   platform: NodeJS.Platform,
   npmArgs: readonly string[],
+  tool: 'npm' | 'pnpm' = 'npm',
 ): PtyInvocation | undefined {
   if (platform === 'win32') {
     return undefined
   }
   if (platform === 'linux') {
-    const inner = ['npm', ...npmArgs].map(quoteForShell).join(' ')
+    const inner = [tool, ...npmArgs].map(quoteForShell).join(' ')
     return { command: 'script', args: ['-q', '-c', inner, '/dev/null'] }
   }
-  // macOS + the BSDs: `script -q /dev/null npm <args...>`.
-  return { command: 'script', args: ['-q', '/dev/null', 'npm', ...npmArgs] }
+  // macOS + the BSDs: `script -q /dev/null <tool> <args...>`.
+  return { command: 'script', args: ['-q', '/dev/null', tool, ...npmArgs] }
 }
 
 // Minimal single-quote shell escaping for the Linux `script -c` command string.
@@ -225,6 +317,15 @@ function runUnderPty(pty: PtyInvocation, config: RunConfig): Promise<number> {
       if (url) {
         opened = true
         openInBrowser(url, config.platform)
+        // ALSO print the URL. The opener fails silently on some setups (no
+        // tab ever surfaced, 2026-07-31), and these login sessions expire in
+        // minutes — the operator manually fishing the URL out of task-output
+        // files lost the race repeatedly. An agent harness may MASK the
+        // displayed form (auth/cli/***), but the operator's own terminal and
+        // task files carry it whole, and a masked print still tells the
+        // human a URL exists and where to find it.
+        logger.log(`Auth page (if no tab appeared, open this yourself): ${url}`)
+        logger.log('These sessions expire in minutes — open it promptly.')
       }
     }
     child.stdout?.on('data', watch)
@@ -240,15 +341,109 @@ function runUnderPty(pty: PtyInvocation, config: RunConfig): Promise<number> {
  * state / env. Resolves with the exit code to propagate.
  */
 export async function runNpmWebAuth(config: RunConfig): Promise<number> {
-  const args = [...config.argv]
-  if (isPassthrough({ isTty: config.isTty, args })) {
-    return runInherit('npm', args, config.env, config.cwd)
+  const plan = resolveAuthTool(config.argv, { pnpmAvailable: pnpmOnPath() })
+  const args = [...plan.args]
+  const cwd = resolveOpCwd(args[0], config.cwd)
+  const cfg = { __proto__: null, ...config, cwd } as RunConfig
+  let code: number
+  if (isPassthrough({ isTty: cfg.isTty, args })) {
+    code = await runInherit(plan.tool, args, cfg.env, cfg.cwd)
+  } else {
+    const pty = buildPtyInvocation(cfg.platform, args, plan.tool)
+    code = pty
+      ? await runUnderPty(pty, cfg)
+      : await runInherit(plan.tool, args, cfg.env, cfg.cwd)
   }
-  const pty = buildPtyInvocation(config.platform, args)
-  if (!pty) {
-    return runInherit('npm', args, config.env, config.cwd)
+  // SPLIT-TOKEN GUARD. A pnpm-routed login keeps its token in pnpm's own
+  // config while bare npm keeps reading ~/.npmrc — a "successful" login can
+  // leave every npm op (whoami, trust, publish) 401ing minutes later, which
+  // burned three trust-sweep rounds on 2026-07-31. One `login` must mean
+  // BOTH tools hold a live token. The tokens are interchangeable bearer
+  // tokens, so the fix is a BRIDGE, not a second login: copy pnpm's token
+  // into the user npmrc and re-probe. npm's own web login stays the last
+  // resort — its /login/cli handshake was observed rejecting fresh sessions
+  // outright ("Invalid or Expired Token" seconds after mint, 2026-07-31)
+  // while pnpm's flow completed fine in the same browser.
+  if (
+    code === 0 &&
+    plan.tool === 'pnpm' &&
+    plan.args[0] === 'login' &&
+    !npmWhoamiAlive(cfg.env)
+  ) {
+    if (bridgePnpmTokenToNpm(cfg.env) && npmWhoamiAlive(cfg.env)) {
+      logger.log(
+        "bridged pnpm's registry token into the user npmrc — bare npm is " +
+          'live without a second login.',
+      )
+      return 0
+    }
+    logger.log(
+      'pnpm login is live, but bare npm still 401s (split tokens) and the ' +
+        "token bridge did not take — running npm's own web login.",
+    )
+    return runNpmWebAuth({ ...cfg, argv: ['login', '--npm'] })
   }
-  return runUnderPty(pty, config)
+  return code
+}
+
+// Copy pnpm's registry bearer token into npm's user config. The token value
+// flows process-to-process as an argument and is never logged. Sync by
+// design: one cheap hop on the login path.
+function bridgePnpmTokenToNpm(env: NodeJS.ProcessEnv | undefined): boolean {
+  try {
+    // oxlint-disable-next-line socket/prefer-async-spawn -- one-shot sync config read on the login path.
+    const read = spawnSync(
+      'pnpm',
+      ['config', 'get', '//registry.npmjs.org/:_authToken'],
+      { cwd: npmScratchCwd(), env },
+    )
+    const token = String(read.stdout ?? '').trim()
+    if (read.status !== 0 || !token || token === 'undefined') {
+      return false
+    }
+    // oxlint-disable-next-line socket/prefer-async-spawn -- one-shot sync config write on the login path.
+    const write = spawnSync(
+      'npm',
+      [
+        'config',
+        'set',
+        `//registry.npmjs.org/:_authToken=${token}`,
+        '--location=user',
+      ],
+      { cwd: npmScratchCwd(), env, stdio: 'ignore' },
+    )
+    return write.status === 0
+  } catch {
+    return false
+  }
+}
+
+// True when bare npm can answer whoami — the post-login liveness probe for
+// the split-token guard. Sync by design: one cheap gate on the login path.
+function npmWhoamiAlive(env: NodeJS.ProcessEnv | undefined): boolean {
+  try {
+    // oxlint-disable-next-line socket/prefer-async-spawn -- one-shot sync liveness probe on the login path.
+    const result = spawnSync('npm', ['whoami'], {
+      cwd: npmScratchCwd(),
+      env,
+      stdio: 'ignore',
+    })
+    return result.status === 0
+  } catch {
+    return false
+  }
+}
+
+// True when pnpm resolves on PATH — the impure availability probe behind
+// resolveAuthTool's pure planning. A miss quietly keeps the npm path.
+function pnpmOnPath(): boolean {
+  try {
+    // oxlint-disable-next-line socket/prefer-async-spawn -- one-shot sync availability probe before the exec path is chosen.
+    const result = spawnSync('pnpm', ['--version'], { stdio: 'ignore' })
+    return result.status === 0
+  } catch {
+    return false
+  }
 }
 
 function usage(): string {

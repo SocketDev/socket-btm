@@ -6,9 +6,9 @@ A real incident drove this rule: a fleet repo ended up with 4 stranded local cas
 
 ## How auto-cleanup works
 
-The wheelhouse cascade runs `scripts/fleet/cleanup-stranded.mts --target <repo>` against each fleet repo **before** creating that wave's `chore/wheelhouse-<sha>` worktree. Default mode is **fix**:
+The wheelhouse cascade runs `scripts/repo/cleanup-stranded.mts --target <repo>` against each fleet repo **before** creating that wave's `chore/wheelhouse-<sha>` worktree. Default mode is **fix**:
 
-- Stranded commits are removed via `git reset --hard origin/<base>`.
+- Stranded commits are removed. The **preferred** remedy is a surgical `git rebase -i origin/<base>` that drops exactly the superseded commit(s) and replays every other local-ahead commit unchanged — see "Surgical drop" below. The whole-branch `git reset --hard origin/<base>` is the **fallback**, used only for a non-squash-history repo, where resetting to origin can't discard anything canonical.
 - Stranded worktrees are removed via `git worktree remove --force` followed by `git branch -D chore/wheelhouse-<sha>`.
 
 Pass `--dry-run` to report without acting. Pass `--all` instead of `--target <path>` to sweep every fleet repo from `fleet-repos.json`.
@@ -42,11 +42,18 @@ The script will refuse to auto-clean if:
 - A cascade commit modifies a file outside the cascade-allowlist (e.g. source code under `src/`, vendored deps, test fixtures).
 - Origin has no cascade commits at all. There's nothing to prove supersession against.
 
-## Squash-history repos are exempt from the commit reset
+## Squash-history repos: a per-commit surgical rebase
 
-🚨 A repo carrying the `squash-history` roster opt-in (`fleet-repos.json`) has a **canonical local `<base>`**: origin holds the pre-squash history and is reconciled FORWARD via `SQUASH_HISTORY=1 git push --force-with-lease`, never reset backward. So origin advancing to a newer template SHA does **not** strand a local-ahead cascade commit whose SHA is a strict ancestor of it — that commit is canonical work awaiting the next squash+push, and the supersession rail above would otherwise pass and drive a `git reset --hard origin/<base>` that discards the local lineage.
+🚨 **A superseded cascade commit is rot regardless of the repo's history cadence.** The cadence only decides HOW the repo clears it, never whether.
 
-`cleanup-stranded.mts` detects the opt-in via `isSquashOptIn` and, for such a repo, **holds** the local-ahead cascade commits — they are surfaced (`squashHeldCommits`, logged "held — squash-history cadence") but never reset — and still prunes scratch worktrees, which are disposable in any cadence. This mirrors the "local main is canonical, reconcile forward" rule the divergence hooks enforce.
+A repo carrying the `squash-history` roster opt-in (`fleet-repos.json`) has a **canonical local `<base>`**: origin holds the pre-squash history and is reconciled FORWARD via `SQUASH_HISTORY=1 git push --force-with-lease`, never reset backward. A whole-branch `git reset --hard origin/<base>` can't run here; it would discard that canonical local lineage along with the superseded commit. That constraint rules out ONE mechanism. It does not grant the superseded commit an exemption.
+
+`cleanup-stranded.mts` detects the opt-in via `isSquashOptIn` and, for such a repo, runs every local-ahead cascade commit through the same four safety rails and splits the result:
+
+- **`supersededDrops`**: a commit that passes all four rails is provably disposable. It is cleared via a surgical, non-interactive `git rebase -i origin/<base>`. A generated `GIT_SEQUENCE_EDITOR` script deletes exactly the `pick` lines for the target set from the rebase todo, so every OTHER local-ahead commit (including held ones) replays unchanged. On conflict the rebase is aborted and the repo is left exactly as found; a conflict means the target set was wrong and needs a human, never an auto-resolution attempt. The same TOCTOU guard as the reset path re-reads HEAD immediately before the rewrite and bails if it moved since the plan snapshot.
+- **`squashHeldCommits`**: a commit that fails a rail may be canonical work. It is surfaced (logged "held — squash-history cadence") and never touched.
+
+Worktree cleanup falls through either way; worktrees are disposable scratch in any cadence. This mirrors the "local main is canonical, reconcile forward" rule the divergence hooks enforce: reconciling forward past a superseded commit, not carrying it forever.
 
 ## Stranded worktree detection
 
@@ -59,19 +66,19 @@ Only worktrees that match both conditions are removed. Other worktrees (task bra
 
 ## Manual invocation
 
-The script lives at `scripts/fleet/cleanup-stranded.mts`. You don't normally run it directly — the cascade does that — but it's safe to invoke ad-hoc:
+The script lives at `scripts/repo/cleanup-stranded.mts`. You don't normally run it directly — the cascade does that — but it's safe to invoke ad-hoc:
 
 ```bash
 # Dry-run against one repo (substitute the actual repo path).
-node $PROJECTS/scripts/fleet/cleanup-stranded.mts \
+node $PROJECTS/scripts/repo/cleanup-stranded.mts \
   --target $PROJECTS/<repo> --dry-run
 
 # Sweep the whole fleet, reporting only.
-node $PROJECTS/scripts/fleet/cleanup-stranded.mts \
+node $PROJECTS/scripts/repo/cleanup-stranded.mts \
   --all --dry-run
 
 # Apply the fix.
-node $PROJECTS/scripts/fleet/cleanup-stranded.mts --all
+node $PROJECTS/scripts/repo/cleanup-stranded.mts --all
 ```
 
 ## Recovery when auto-cleanup bails
@@ -79,13 +86,13 @@ node $PROJECTS/scripts/fleet/cleanup-stranded.mts --all
 If the script reports `not cleaning up: <reason>`, the repo has at least one local commit that doesn't fit the auto-removable profile. Decide per-case:
 
 1. **Real work ahead of origin** (e.g. a one-off fix you committed to `main` locally without pushing): push it, or move it to a feature branch (`git switch -c feat/x && git push -u origin feat/x`). Then re-run cleanup.
-2. **Cascade commit touching unexpected files**: inspect with `git show <sha>`. If the cascade should have written that path, lift the path into the cascade allowlist (in `scripts/fleet/cleanup-stranded.mts`) and re-run. If the file shouldn't be cascade-touched at all, this is an authoring bug in `sync-scaffolding/manifest.mts`.
+2. **Cascade commit touching unexpected files**: inspect with `git show <sha>`. If the cascade should have written that path, lift the path into the cascade allowlist (in `scripts/repo/cleanup-stranded.mts`) and re-run. If the file shouldn't be cascade-touched at all, this is an authoring bug in `scripts/repo/sync-scaffolding/manifest.mts`.
 3. **Cascade commit from an untrusted author**: usually means another agent / contributor authored it. Validate the commit by hand, then either trust the author (add to `~/.claude/git-authors.json` aliases) or rebase the commit out manually.
 4. **Template SHA that's not a strict ancestor**: the local commit may be from a branch of `template/` that was never merged. Confirm by inspecting the SHA in the fleet source repo's history (`git log <sha>` from its checkout). If it's orphan / abandoned, `git reset --hard origin/<base>` manually after backing up the SHA in case it's wanted later.
 
 ## Dogfood cascade sweeps parallel-session work: inspect before push
 
-A dogfood cascade (`sync-scaffolding/cli.mts --target . --fix`) reconciles the **entire** repo against the template, not only the file you edited, and commits everything it fixes in one `chore(wheelhouse): cascade template@<sha>` commit. When a parallel session has landed (or is mid-flight on) other fleet work, that single commit captures THEIR files (new hooks, soak entries, oxlint rules) under YOUR authorship, and can pull an un-annotated `pnpm-workspace.yaml` soak entry that blocks your push at the soak-date gate.
+A dogfood cascade (`scripts/repo/sync-scaffolding/cli.mts --target . --fix`) reconciles the **entire** repo against the template, not only the file you edited, and commits everything it fixes in one `chore(wheelhouse): cascade template@<sha>` commit. When a parallel session has landed (or is mid-flight on) other fleet work, that single commit captures THEIR files (new hooks, soak entries, oxlint rules) under YOUR authorship, and can pull an un-annotated `pnpm-workspace.yaml` soak entry that blocks your push at the soak-date gate.
 
 The trap: you edit one `template/` file, cascade to sync its live copy, and land a 9-to-17-file commit dominated by another session's work, plus an un-pushable workspace file.
 
@@ -97,7 +104,7 @@ Discipline:
 
 ## What this rule does NOT do
 
-- It does **not** sync the cascade's actual content. That's `sync-scaffolding/cli.mts`'s job.
+- It does **not** sync the cascade's actual content. That's `scripts/repo/sync-scaffolding/cli.mts`'s job.
 - It does **not** push anything. Cleanup only mutates local state.
 - It does **not** delete uncommitted working-tree changes. `git reset --hard origin/<base>` does discard tracked-but-uncommitted changes, so the cascade-template flow runs cleanup before any worktree state is at risk; the worktree for the new wave hasn't been created yet.
 - It does **not** clean up stranded artifacts in branches other than the repo's default branch. v1.x release branches keep their own cascade history.

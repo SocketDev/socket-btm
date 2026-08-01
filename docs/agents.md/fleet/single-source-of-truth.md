@@ -18,7 +18,7 @@ ships before anyone notices.
   duplication, and bundle code never reads the file at runtime.
 
 - **The DRY violation is hand-maintained copies, not the bundler.** "Three lists
-  that happen to match" is the bug. "One JSON the bundler bakes into `bundle.cjs`"
+  that happen to match" is the bug. "One JSON the bundler bakes into `fleet-pack.cjs`"
   is correct and preferred. Inlining into a bundle is fine.
 
 - **Settle the canonical location before you cascade.** Decide where the one
@@ -32,19 +32,29 @@ ships before anyone notices.
 
 ## The fleet roster, worked
 
-`cascading-fleet/lib/fleet-repos.json` is the one roster of fleet repos. It was
+`.claude/skills/fleet/cascading-fleet/lib/fleet-repos.json` is the one roster of fleet repos. It was
 shadowed by three hand-maintained copies: `CANONICAL_FLEET_NAMES` in
-`discover.mts`, `FLEET_REPO_NAMES` in `_shared/fleet-repos.mts`, and a stale
+`discover.mts`, `FLEET_REPO_NAMES` in `.claude/hooks/fleet/_shared/fleet-repos.mts`, and a stale
 `fleet-repos.txt` (12 names where the JSON had 16). They drifted.
 
 Now every consumer derives from the JSON:
 
 - `discover.mts` (a script) reads it and re-applies the cascade order.
-- `_shared/fleet-repos.mts` (loaded as a per-hook `.mts`, not bundled)
+- `.claude/hooks/fleet/_shared/fleet-repos.mts` (loaded as a per-hook `.mts`, not bundled)
   static-imports it; Node resolves the import at load.
 - The cascade order in `discover.mts` (wheelhouse first, registry second, rest
   alphabetical) is the one thing not stored in the JSON, because it is cascade
   execution order, not roster data. It is re-applied, not re-listed.
+
+## Membership resolution: origin remote, not location
+
+Fleet tooling writes ONLY into roster members. Membership is not "lives under
+`~/projects`" — it is the destination repo's `origin` remote resolved against the
+roster JSON. A repo cloned to an unusual path is still a member if its `origin`
+matches an entry; a repo sitting under `~/projects` that isn't in the roster is
+not a member no matter where it's checked out. Resolving by remote instead of
+path keeps the roster the single source of truth for "is this a fleet repo,"
+instead of a second, path-shaped notion of membership drifting alongside it.
 
 ## Why
 
@@ -52,3 +62,11 @@ A copy you keep in sync is a copy that falls out of sync. The cost lands later
 and somewhere else: a guard that stops matching, a cascade that skips a member, a
 release that ships the wrong list. One source removes the sync step. Nothing is
 left to keep in agreement.
+
+## Enforcement
+
+- `.claude/hooks/fleet/no-fleet-scope-in-non-member-guard/` — blocks fleet
+  tooling from writing into a repo whose `origin` remote doesn't resolve
+  against the roster.
+- `scripts/fleet/_shared/fleet-membership.mts` — the shared membership resolver
+  every fleet script and hook imports, so membership is decided in one place.

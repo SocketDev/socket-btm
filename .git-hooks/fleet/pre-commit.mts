@@ -18,6 +18,7 @@ import {
   checkOxlintRuleWiringStaged,
   git,
   gitLines,
+  isStructuredDataFile,
   mergeInProgress,
   normalizePath,
   readFileForScan,
@@ -34,6 +35,7 @@ import {
   scanSoakExcludeDateAnnotations,
   scanSocketApiKeys,
   shouldSkipFile,
+  shouldSkipSourceScan,
   socketLintMarkerFor,
   stagedIndexIsEmpty,
   stripTemplateLayer,
@@ -208,11 +210,16 @@ const main = (): number => {
     errors++
   }
 
-  // Hardcoded personal paths.
+  // Hardcoded personal paths. SOURCE-ONLY, via the shared predicate the
+  // `private-paths-are-absent` check gate also imports — markdown, docs, JSON,
+  // and YAML reference these patterns legitimately, and a generated detector
+  // table whose regexes spell `/Users/` is data, not a leak. Scanning it here
+  // while the gate ignored it stranded operators between a red hook and a
+  // green check, with a suggested fix that would corrupt the payload.
   logger.info('Checking for hardcoded personal paths…')
   for (let k = 0, { length: klen } = stagedFiles; k < klen; k += 1) {
     const file = stagedFiles[k]!
-    if (shouldSkipFile(file)) {
+    if (shouldSkipSourceScan(file)) {
       continue
     }
     const text = readFileForScan(file)
@@ -369,6 +376,13 @@ const main = (): number => {
     if (shouldSkipFile(file)) {
       continue
     }
+    // A generated rule table or detector corpus DESCRIBES npx risk in its own
+    // data; rewriting those strings would corrupt the payload. Markdown docs
+    // and package.json scripts stay in scope — an `npx` there is a real
+    // command, which is what this rule is for.
+    if (isStructuredDataFile(file)) {
+      continue
+    }
     if (
       file.endsWith('pnpm-lock.yaml') ||
       // CHANGELOG entries discuss npx ecosystem *behavior* (cache
@@ -381,8 +395,8 @@ const main = (): number => {
       // real `npx <pkg>` examples. Their SOURCES are scanned; the built
       // artifact is exempt (flagging it blocks every cascade that ships
       // a rebuilt bundle).
-      normalizePath(file).endsWith('/hooks/fleet/_dist/bundle.cjs') ||
-      normalizePath(file).endsWith('/_dispatch/snapshot-bundle.cjs')
+      normalizePath(file).endsWith('/hooks/fleet/_dist/fleet-pack.cjs') ||
+      normalizePath(file).endsWith('/_shared/snapshot-fleet-pack.cjs')
     ) {
       continue
     }
@@ -643,8 +657,9 @@ const main = (): number => {
     return 1
   }
 
-  // Staged tests are run ONCE, by the shell hook's bounded `run_step_bounded
-  // test pnpm test --staged` step (PRECOMMIT_STEP_BUDGET_S) — not here. Running
+  // Staged tests are run ONCE, by the shell hook's bounded
+  // `run_pkg_step_bounded test --staged` step (PRECOMMIT_STEP_BUDGET_S) — not
+  // here. Running
   // them in this security pass too meant the staged delta was tested twice, and
   // this pass used the old 60s ceiling, which is what blew the ≤10s pre-commit
   // budget. The single bounded shell step keeps the commit fast.

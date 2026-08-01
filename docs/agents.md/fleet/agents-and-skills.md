@@ -37,8 +37,8 @@ The **code-security loop** is four chained skills, each leg resumable (see [`sec
 - `/fleet:triaging-findings`: N blind verifiers per finding → `TRIAGE.json` (verify, dedupe, exploitability re-rank, owner routing; read-only)
 - `/fleet:patching-findings`: per true-positive, patch agent + blind reviewer → applied commits (mutating; `--dry-run` previews)
 
-- Shared subskills in `.claude/skills/_shared/`
-- **Handing off to another agent**: see [`agent-delegation.md`](agent-delegation.md) for when to reach for the `delegate` subagent (OpenCode → Fireworks/Synthetic/Kimi), `Explore`, `Plan`, vs. driving the skill CLIs directly. The CLI-subprocess contract used by skills lives in [`_shared/multi-agent-backends.md`](../../.claude/skills/fleet/_shared/multi-agent-backends.md).
+- Shared subskills in `.claude/skills/fleet/_shared/`
+- **Handing off to another agent**: see [`agent-delegation.md`](agent-delegation.md) for when to reach for the `delegate` subagent (OpenCode → Fireworks/Synthetic/Kimi), `Explore`, `Plan`, vs. driving the skill CLIs directly. The CLI-subprocess contract used by skills lives in [`multi-agent-backends.md`](../../.claude/skills/fleet/_shared/multi-agent-backends.md).
 
 ## Skill scope: fleet vs partial vs unique
 
@@ -50,13 +50,24 @@ Every skill under `.claude/skills/` falls into one of three tiers. Surface this 
 
 Audit the current classification with `node scripts/run-skill-fleet.mts --list-skills`.
 
+## Skills and commands are thin wrappers
+
+A `SKILL.md` or `.claude/commands/**/*.md` file is a thin wrapper over a
+backing script, not a place to inline substantial logic. Inline logic in a
+markdown file is untested, unlinted, and not reusable outside that one
+invocation; move it to a `scripts/**/*.mts` file and have the skill/command
+invoke that script. `.claude/hooks/fleet/defer-to-script-nudge/`
+(PreToolUse, non-blocking) fires when an edit to a skill or command file
+leaves a fenced code block over 12 lines with no reference to a backing
+`scripts/**.mts` file.
+
 ## `updating` umbrella + `updating-*` siblings
 
 `updating` is the canonical fleet umbrella that runs `pnpm run update` then discovers and runs every `updating-*` sibling skill the host repo registers. The umbrella is fleet-shared; the siblings are per-repo (or partial: `updating-lockstep` lives in every repo with `lockstep.json`). To add a new repo-specific update step, drop a new `.claude/skills/updating-<domain>/SKILL.md` and the umbrella picks it up automatically. No edits to `updating` itself.
 
 ## Running skills across the fleet
 
-`scripts/run-skill-fleet.mts` (in the fleet source repo) spawns one headless `claude --print` agent per fleet repo, in parallel (concurrency 4 by default), with the four lockdown flags set per the _Programmatic Claude calls_ rule above. Per-skill profile table maps known skills to sensible tool/allow/disallow lists; override with `--tools` / `--allow` / `--disallow`. Per-repo logs land in `node_modules/.cache/repo/fleet-skill/<timestamp>-<skill>/<repo>.log`. Uses `Promise.allSettled` semantics; one repo's failure doesn't abort the rest.
+`scripts/repo/run-skill-fleet.mts` (in the fleet source repo) spawns one headless `claude --print` agent per fleet repo, in parallel (concurrency 4 by default), with the four lockdown flags set per the _Programmatic Claude calls_ rule above. Per-skill profile table maps known skills to sensible tool/allow/disallow lists; override with `--tools` / `--allow` / `--disallow`. Per-repo logs land in `.cache/repo/fleet-skill/<timestamp>-<skill>/<repo>.log`. Uses `Promise.allSettled` semantics; one repo's failure doesn't abort the rest.
 
 ```bash
 # Run from inside the fleet source repo:

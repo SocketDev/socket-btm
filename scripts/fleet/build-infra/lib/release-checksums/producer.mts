@@ -19,13 +19,18 @@
  * `scripts/fleet/build-infra/lib/release-checksums/`.
  */
 
-import { promises as fs, readFileSync, writeFileSync } from 'node:fs'
+import { promises as fs, readFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { parseHash } from '@socketsecurity/lib/integrity'
 import { getDefaultLogger } from '@socketsecurity/lib/logger/default'
 
 import { computeFileHash } from './core.mts'
+import {
+  withMirrorLockLifted,
+  writeThroughMirrorLock,
+} from '../../../_shared/mirror-lock.mts'
+
 import type { EmbeddedChecksums } from './core.mts'
 
 const logger = getDefaultLogger()
@@ -115,7 +120,7 @@ export function updateReleaseAssets(config: UpdateAssetsConfig): void {
     checksums: sriChecksums,
   }
 
-  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8')
+  writeThroughMirrorLock(manifestPath, JSON.stringify(manifest, null, 2) + '\n')
 }
 
 export interface WriteChecksumsConfig {
@@ -171,7 +176,9 @@ export async function writeChecksumsFile(
     lines.push(`${hash}  ${name}`)
   }
   // POSIX-style trailing newline.
-  await fs.writeFile(outputPath, lines.join('\n') + '\n', 'utf8')
+  await withMirrorLockLifted(outputPath, () =>
+    fs.writeFile(outputPath, lines.join('\n') + '\n', 'utf8'),
+  )
   if (!quiet) {
     logger.info(`Wrote ${lines.length} checksums to ${outputPath}`)
   }

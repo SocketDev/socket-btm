@@ -8,7 +8,7 @@
     "build": "node -e \"console.log('nothing to build: socket-btm is descoped')\"",
     "check": "node scripts/fleet/check.mts",
     "check:paths": "node scripts/fleet/check/paths-are-canonical.mts",
-    "clean": "node -e \"require('node:fs').rmSync('node_modules/.cache', { recursive: true, force: true })\"",
+    "clean": "node scripts/fleet/clean.mts",
     "cover": "node scripts/fleet/cover.mts",
     "fix": "node scripts/fleet/fix.mts",
     "format": "node scripts/fleet/format.mts",
@@ -42,7 +42,8 @@
     "npm:publish": "node scripts/fleet/publish-pipeline.mts",
     "prepublishOnly": "echo 'ERROR: Use GitHub Actions workflow for publishing' && exit 1",
     "socket-wheelhouse:emit-schema": "node scripts/fleet/socket-wheelhouse-emit-schema.mts",
-    "mcp:reset": "node scripts/fleet/mcp-reset.mts"
+    "mcp:reset": "node scripts/fleet/mcp-reset.mts",
+    "setup:sfw-ca": "node scripts/fleet/setup/sfw-ca.mts"
   },
   "devDependencies": {
     "@anthropic-ai/claude-code": "catalog:",
@@ -72,6 +73,7 @@
     "micromark": "catalog:",
     "neosanitize": "catalog:",
     "nock": "catalog:",
+    "npm-high-impact": "catalog:",
     "npm-run-all2": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",

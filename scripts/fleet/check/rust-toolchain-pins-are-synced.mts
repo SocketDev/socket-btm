@@ -19,7 +19,7 @@
  *      scripts/fleet/check/rust-toolchain-pins-are-synced.mts [--fix]
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -28,6 +28,7 @@ import { getDefaultLogger } from '@socketsecurity/lib-stable/logger/default'
 
 import { REPO_ROOT } from '../paths.mts'
 import { isMainModule } from '../_shared/is-main-module.mts'
+import { writeThroughMirrorLock } from '../_shared/mirror-lock.mts'
 
 const logger = getDefaultLogger()
 
@@ -144,20 +145,37 @@ export function runCheck(
       })
     }
   }
-  // Derived copy 2: the cargo soak updater's nightly.
-  const cargoMts = path.join(
+  // Derived copy 2: the cargo soak updater's nightly. Template-first, matching
+  // the canonical lookup above — in the wheelhouse the live scripts/fleet tree
+  // is a cascade mirror written read-only (0444), so a fix aimed there dies on
+  // EACCES; and even where it could write, the next cascade would replace the
+  // file from the template and silently undo the sync. A member repo ships no
+  // template/, so it falls back to its own copy.
+  const templateCargoMts = path.join(
+    repoRoot,
+    'template',
+    'base',
+    'scripts',
+    'fleet',
+    'update',
+    'cargo.mts',
+  )
+  const rootCargoMts = path.join(
     repoRoot,
     'scripts',
     'fleet',
     'update',
     'cargo.mts',
   )
+  const cargoMts = existsSync(templateCargoMts)
+    ? templateCargoMts
+    : rootCargoMts
   if (existsSync(cargoMts)) {
     const content = readFileSync(cargoMts, 'utf8')
     const saw = parseUpdaterToolchain(content)
     if (saw && saw !== canonical) {
       drifts.push({
-        where: 'RUST_UPDATER_TOOLCHAIN (scripts/fleet/update/cargo.mts)',
+        where: `RUST_UPDATER_TOOLCHAIN (${path.relative(repoRoot, cargoMts)})`,
         saw,
         next: withUpdaterToolchain(content, canonical),
         path: cargoMts,
@@ -169,7 +187,7 @@ export function runCheck(
   }
   if (fix) {
     for (let i = 0, { length } = drifts; i < length; i += 1) {
-      writeFileSync(drifts[i]!.path, drifts[i]!.next)
+      writeThroughMirrorLock(drifts[i]!.path, drifts[i]!.next)
     }
     logger.success(
       `[rust-toolchain-pins-are-synced] Synced ${drifts.length} Rust pin(s) to "${canonical}".`,

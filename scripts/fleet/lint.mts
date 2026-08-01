@@ -7,7 +7,9 @@
  *   Lint files modified in the working tree vs HEAD. --staged Lint files in the
  *   git index (used by .git-hooks/pre-commit). --all Lint the entire workspace.
  *   Flags: --fix Auto-fix issues. --quiet Suppress progress output. If the
- *   chosen scope has no lintable files, the script is a no-op. Config or
+ *   chosen scope has no lintable files, the run checks nothing and says so ("0
+ *   files checked — this is NOT a pass") instead of reporting "Lint passed";
+ *   the whole-tree verdict comes only from --all. Config or
  *   infrastructure changes (.config/fleet/oxlintrc.json,
  *   .config/fleet/oxfmtrc.json, tsconfig*.json, pnpm-lock.yaml, .config/**,
  *   scripts/**, package.json) escalate to `--all` automatically, since they can
@@ -42,9 +44,18 @@ import {
 } from './_shared/format-scope.mts'
 import { createLintRunners } from './_shared/lint-runners.mts'
 import { REPO_ROOT } from './paths.mts'
-import { resolveScopeMode } from './_shared/scope-flags.mts'
+import {
+  resolveExplicitFiles,
+  resolveScopeMode,
+} from './_shared/scope-flags.mts'
 import type { ScopeMode } from './_shared/scope-flags.mts'
 import { isMainModule } from './_shared/is-main-module.mts'
+
+// Re-exported for existing consumers (test/repo/unit/lint.test.mts) — the
+// canonical definition lives in _shared/scope-flags.mts so fix.mts can reuse
+// it without importing this CLI module and its top-level argv/runner side
+// effects.
+export { resolveExplicitFiles }
 
 const logger = getDefaultLogger()
 
@@ -111,18 +122,33 @@ function filterLintable(files: string[]): string[] {
   return files.filter(f => LINTABLE_EXTS.has(path.extname(f)) && existsSync(f))
 }
 
-// Explicit positional file paths → linted unconditionally, tracked or not.
-// `getModifiedFiles`/`getStagedFiles` resolve through `git diff`, which never
-// surfaces an untracked (never-`git add`ed) file, so a brand-new file passed
-// explicitly on the argv (`pnpm run fix <new-file>`) was silently dropped from
-// the git-diff-derived scope while the scope-count log still reported success.
-// Positional args (anything not starting with `-`) win over the git-diff scope
-// entirely, matching `scripts/fleet/test.mts`'s `fileArgs()` convention: flags
-// (scope flags, `--fix`, `--quiet`/`--silent`) are filtered out, and what
-// remains is treated as file paths (existence + lintable-extension filtered
-// downstream by `filterLintable`, same as the git-diff-derived scope).
-export function resolveExplicitFiles(argv: readonly string[]): string[] {
-  return argv.filter(a => !a.startsWith('-'))
+/**
+ * The zero-scope verdict. A run whose scope resolves to NO lintable files
+ * checked nothing, so it is not a pass — but a bare "No modified files;
+ * skipping lint." line reads exactly like a green gate, and a clean-tree run
+ * hid 15 lint errors and a type error behind that reading. Every zero-scope
+ * exit prints this line INSTEAD of "Lint passed", so the operator can tell
+ * "nothing was wrong" apart from "nothing was checked".
+ */
+export function zeroScopeNotice(scopeMode: string): string {
+  return (
+    `0 files checked — this is NOT a pass. ` +
+    `Scope ${scopeMode.toUpperCase()} resolved to no lintable files.\n` +
+    'For the whole-tree verdict: pnpm run lint --all'
+  )
+}
+
+/**
+ * Emit the zero-scope verdict. Routed through `logger.warn`, not `log`, so
+ * `--quiet` cannot swallow it: the flag suppresses progress, and this is the
+ * verdict. The exit code stays 0 — `.git-hooks/fleet/pre-commit`
+ * (`lint --staged`), the pre-push chain, and the worktree land re-assert
+ * (explicit file args) all run this over sets that legitimately hold nothing
+ * lintable, and a non-zero exit would red-light every docs-only commit. `--all`
+ * never reaches a zero scope, so it needs no exit-code change to stay honest.
+ */
+function warnZeroScope(scopeMode: string): void {
+  logger.warn(zeroScopeNotice(scopeMode))
 }
 
 /**
@@ -160,6 +186,15 @@ function lintFileSet(scopeLabel: string, files: string[]): void {
   log(
     `Lint scope: ${scopeLabel} (${lintable.length} of ${files.length} files lintable)`,
   )
+  // Nothing lintable survived the filters: say so as the verdict rather than
+  // letting runFiles() return 0 and print "Lint passed" over an empty set.
+  if (lintable.length === 0) {
+    warnZeroScope(scopeLabel)
+    if (fix) {
+      log(fixScopeReminder(scopeLabel))
+    }
+    return
+  }
   process.exitCode = runFiles(lintable)
   if (process.exitCode === 0) {
     log('Lint passed')
@@ -220,7 +255,7 @@ function runLint(): void {
   const files = mode === 'staged' ? getStagedFiles() : getModifiedFiles()
 
   if (files.length === 0) {
-    log(`No ${mode} files; skipping lint.`)
+    warnZeroScope(mode)
     if (fix) {
       log(fixScopeReminder(mode))
     }

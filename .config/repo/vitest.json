@@ -1,0 +1,4 @@
+{
+  "maxWorkers": 4,
+  "pool": "forks"
+}

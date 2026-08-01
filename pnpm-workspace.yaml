@@ -1,0 +1,213 @@
+packages:
+  - .claude/hooks/fleet/*
+  - '.config/fleet/oxlint-plugin'
+  - '.config/fleet/oxlint-plugin/fleet/*'
+
+# Packages allowed to run build scripts (pnpm v11 strictDepBuilds default).
+allowBuilds:
+  '@anthropic-ai/claude-code': true
+  '@socketsecurity/sdk': false
+  cpu-features: false
+  protobufjs: false
+  puppeteer: false
+  ssh2: false
+
+ignoredOptionalDependencies:
+  - esbuild
+
+# Refuse to run if the pnpm version on PATH differs from the packageManager
+# field in package.json. Our setup action pins pnpm via external-tools.json;
+# any drift should fail fast, not silently auto-download via @pnpm/exe
+# (which in rc.5 leaves a placeholder launcher that errors at runtime).
+managePackageManagerVersions: false
+pmOnFail: warn
+
+catalog:
+  '@anthropic-ai/claude-code': 2.1.216
+  '@babel/core': 7.29.7
+  '@babel/types': 7.29.7
+  '@biomejs/biome': 2.5.4
+  '@dotenvx/dotenvx': 1.75.1
+  '@redwoodjs/agent-ci': 0.17.1
+  '@shadscan/cli': 0.2.0
+  '@sinclair/typebox': 0.34.52
+  '@socketregistry/packageurl-js': 1.5.0
+  '@socketregistry/packageurl-js-stable': npm:@socketregistry/packageurl-js@1.4.8
+  '@socketsecurity/lib': 6.5.2
+  '@socketsecurity/lib-stable': npm:@socketsecurity/lib@6.5.2
+  '@socketsecurity/registry': 2.0.5
+  '@socketsecurity/registry-stable': npm:@socketsecurity/registry@2.0.5
+  '@socketsecurity/sdk': 4.1.3
+  '@socketsecurity/sdk-stable': npm:@socketsecurity/sdk@4.1.2
+  '@types/adm-zip': 0.5.8
+  '@types/mdast': 4.0.4
+  '@types/node': 26.1.1
+  '@types/semver': 7.7.1
+  '@types/shell-quote': 1.7.5
+  '@typescript/native-preview': 7.0.0-dev.20260510.1
+  '@ultrathink/acorn.wasm': 'npm:@ultrathink/acorn-wasm@0.0.1'
+  '@ultrathink/acorn.rs.wasm': 0.1.1
+  '@vitest/coverage-v8': 4.1.10
+  '@vitest/ui': 4.1.10
+  acorn: 8.17.0
+  acorn-walk: 8.3.5
+  adm-zip: 0.5.18
+  'c8': 12.0.0
+  'chrome-devtools-mcp': 1.6.0
+  'compromise': 14.16.0
+  'dtu-github-actions': 0.17.1
+  ecc-agentshield: 1.4.0
+  'fast-check': 4.9.0
+  magic-string: 1.1.0
+  'markdownlint-cli2': 0.23.1
+  'mdast-util-from-markdown': 2.0.3
+  'micromark': 4.0.2
+  'neosanitize': 0.3.0
+  'nock': 14.0.16
+  'npm-high-impact': 1.13.0
+  'npm-run-all2': 9.0.2
+  octokit: 5.0.5
+  'oxfmt': 0.60.0
+  'oxlint': 1.75.0
+  # oxlint-tsgolint — tsgolint sidecar for oxlint --type-aware (same oxc release train).
+  'oxlint-tsgolint': 7.0.2001
+  'playwright-core': 1.62.0
+  'portless': 0.15.4
+  'regjsparser': 0.13.2
+  'rolldown': 1.1.4
+  'semver': 7.8.5
+  'shell-quote': 1.10.0
+  'svgo': 4.0.2
+  tar: 7.4.3
+  'taze': 19.16.0
+  'typescript': 7.0.2
+  untracked: 1.6.5
+  'vite': 8.1.5
+  vitest: 4.1.10
+  yoctocolors-cjs: 2.1.3
+# Resolve to the highest version that satisfies the range, fleet-wide.
+resolutionMode: highest
+
+# Wait 7 days (10080 minutes) before installing newly published packages.
+minimumReleaseAge: 10080
+minimumReleaseAgeExclude:
+  # typescript 7.0.2 — first stable of the native 7.x compiler line, pulled
+  # ahead of the soak by owner directive (out of RC). The main package + its
+  # 20-package per-platform binding family are pinned to the exact version
+  # (a scope glob would blanket-bypass any future @typescript publish).
+  - '@socketregistry/*'
+  - '@socketsecurity/*'
+  # compromise@14.15.1 is the attested re-publish that clears the
+  # trust-downgrade flag on 14.15.0. Soak-bypass scoped to the exact
+  - 'sfw'
+  # untracked@1.6.1 — Kikobeats/untracked, dev-only tool for autogenerating
+  # `.dockerignore` from package.json + the curated blacklist. Used to keep
+  # the Docker build context lean across vendored upstream trees (LIEF, zstd,
+  # etc.) that ship 100+ MB of markup files compile never reads.
+  - '@stuie/*'
+  - '@ultrathink/*'
+  - '@socketoverride/*'
+  - 'socket'
+  - '@sdxgen/*'
+  - 'sdxgen'
+  - 'stuie'
+  # taze 19.16.0 — the dep updater itself; forced ahead of the soak by owner
+  # directive so the regenerated single-registry patch (patchedDependencies)
+  # tracks the current release. Exact-pinned so a future version re-soaks.
+  # verkit — new dev-only transitive of taze 19.16.0 (same owner directive);
+  # exact-pinned so future versions re-soak.
+
+# Refuse transitive dependencies declared via git/tarball/local-tarball
+# specs — an npm package shouldn't be allowed to drag in a git URL we
+# don't control (bypasses npm registry validation, no provenance, no
+# soak window). Direct git deps are still allowed (the test suite at
+# pnpm/pkg-manager/core/test/install/blockExoticSubdeps.ts confirms
+# this). pnpm's current default is `false`; declared explicitly so a
+# future flip can't silently change install behavior.
+blockExoticSubdeps: true
+confirmModulesPurge: false
+
+# Dependency overrides (migrated from package.json pnpm.overrides).
+# Force every consumer of Socket's own packages to resolve through the
+# catalog-pinned published versions. The `catalog:` form rewrites
+# `workspace:*`, `^x.y.z`, and bare-version specs alike to the version
+# in the default `catalog:` block above. This defeats accidental
+# local-checkout resolution when a sibling repo is on disk.
+overrides:
+  # Fleet-canonical overrides (managed by socket-wheelhouse sync; do not edit).
+  '@socketregistry/packageurl-js': 'catalog:'
+  '@socketsecurity/lib': 'catalog:'
+  '@socketsecurity/registry': 'catalog:'
+  '@socketsecurity/sdk': 'catalog:'
+  'chalk@>=5': '5.6.2'
+  'es-define-property': 'npm:@socketregistry/es-define-property@1.0.7'
+  'es-set-tostringtag': 'npm:@socketregistry/es-set-tostringtag@1.0.10'
+  'function-bind': 'npm:@socketregistry/function-bind@1.0.7'
+  'glob': '13.0.6'
+  'gopd': 'npm:@socketregistry/gopd@1.0.7'
+  'has-symbols': 'npm:@socketregistry/has-symbols@1.0.7'
+  'has-tostringtag': 'npm:@socketregistry/has-tostringtag@1.0.7'
+  'hasown': 'npm:@socketregistry/hasown@1.0.7'
+  'iconv-lite': '0.7.3'
+  'isexe@>=3': '4.0.0'
+  'js-yaml@>=5.0.0 <5.2.2': '5.2.2'
+  'lru-cache@>=10': '11.5.2'
+  'magic-string': '1.1.0'
+  'mime-db': '1.54.0'
+  'mime-types@>=3': '3.0.2'
+  'minipass@>=4': '7.1.3'
+  'safe-buffer': 'npm:@socketregistry/safe-buffer@1.0.9'
+  'safer-buffer': 'npm:@socketregistry/safer-buffer@1.0.10'
+  'semver@>=5.0.0 <7.6.0': '7.8.5'
+  'side-channel': 'npm:@socketregistry/side-channel@1.0.10'
+  'ssri@>=12': '13.0.1'
+  'string-width@>=5': '8.2.2'
+  'update-notifier@>=4.0.0': '7.3.1'
+  'uuid': '11.1.1'
+  'which': '7.0.0'
+  'wrap-ansi@>=8': '9.0.2'
+  'yaml@2': '2.9.0'
+
+  # Repo-specific overrides below.
+  # ast-v8-to-istanbul@1.0.4 restores trusted-publisher evidence and has
+  # cleared the release-age window; 1.0.5 remains under soak.
+  'ast-v8-to-istanbul': '1.0.5'
+  # advisory #23 (medium) — got 11.8.5 fix; bump to latest 11.x patch
+  'got': '11.8.6'
+  'postcss': '8.5.20'
+  'rolldown': 'catalog:'
+  'tar': '7.5.20'
+  'vite': 'catalog:'
+  'which@>=4': '7.0.0'
+
+patchedDependencies:
+  # single-registry: routes taze version resolution through its own bundled
+  # direct-registry client (getVersionsFromRegistry — full packument with
+  # publish times, .npmrc/auth-aware) for EVERY registry, instead of the
+  # fast-npm-meta hosted endpoint it uses when the registry is the npm
+  # default. That third-party hop leaks our dependency names,
+  # violates the fleet single-registry posture, and is blocked by egress
+  # policy here — every lookup then hits taze's request timeout while taze
+  # still exits 0 ("Already up to date" false green; update.mts now fails
+  # loud on it). The former 5s->30s timeout half of this patch retired in
+  # 19.16.0: `requestTimeout` is config-wired now, set in
+  # .config/fleet/taze.config.mts.
+  # TEMPORARY: remove if taze grows a supported flag to force direct-registry
+  # resolution (or we swap to our own metadata client, see socket-lib plan).
+  taze@19.16.0: patches/taze@19.16.0.patch
+
+trustPolicy: no-downgrade
+trustPolicyExclude:
+  - semver@6.3.1
+  - 'compromise@14.15.0'
+
+# Auto-install missing peer deps (pnpm default). Declared explicitly
+# so a future default flip can't silently change install behavior.
+autoInstallPeers: true
+
+# Pin pnpm's default of running root pre/post lifecycle scripts.
+enablePrePostScripts: true
+
+# Pin exact versions on `pnpm add`. Catalog and overrides should
+# also be exact pins (5.24.0, not ^5.24.0).
+saveExact: true

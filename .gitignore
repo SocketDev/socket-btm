@@ -205,7 +205,7 @@ profiling/
 # Project architecture docs live under docs/ (see feedback_docs_placement).
 ARCHITECTURE.md
 
-# <fleet-canonical>
+# <fleet>
 # Managed by socket-wheelhouse. Don't edit locally — edit upstream
 # in scripts/sync-scaffolding/checks/gitignore-fleet-block.mts and
 # re-cascade via `pnpm run sync`. Project-specific ignores stay
@@ -331,4 +331,4 @@ node_modules/
 npm-debug.log
 pnpm-debug.log
 *.tgz
-# </fleet-canonical>
+# </fleet>

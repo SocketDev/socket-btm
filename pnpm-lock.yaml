@@ -206,8 +206,8 @@ settings:
 catalogs:
   default:
     '@anthropic-ai/claude-code':
-      specifier: 2.1.216
-      version: 2.1.216
+      specifier: 2.1.220
+      version: 2.1.220
     '@redwoodjs/agent-ci':
       specifier: 0.17.1
       version: 0.17.1
@@ -218,14 +218,14 @@ catalogs:
       specifier: 0.34.52
       version: 0.34.52
     '@socketregistry/packageurl-js-stable':
-      specifier: npm:@socketregistry/packageurl-js@1.4.8
-      version: 1.4.8
+      specifier: npm:@socketregistry/packageurl-js@1.5.0
+      version: 1.5.0
     '@socketsecurity/lib-stable':
       specifier: npm:@socketsecurity/lib@6.5.2
       version: 6.5.2
     '@socketsecurity/sdk-stable':
-      specifier: npm:@socketsecurity/sdk@4.1.2
-      version: 4.1.2
+      specifier: npm:@socketsecurity/sdk@4.1.3
+      version: 4.1.3
     '@types/mdast':
       specifier: 4.0.4
       version: 4.0.4
@@ -364,9 +364,9 @@ overrides:
   yaml@2: 2.9.0
   ast-v8-to-istanbul: 1.0.5
   got: 11.8.6
-  postcss: 8.5.20
+  postcss: 8.5.23
   rolldown: 1.1.4
-  tar: 7.5.20
+  tar: 7.5.22
   vite: 8.1.5
   which@>=4: 7.0.0
 
@@ -379,7 +379,7 @@ importers:
     devDependencies:
       '@anthropic-ai/claude-code':
         specifier: 'catalog:'
-        version: 2.1.216
+        version: 2.1.220
       '@redwoodjs/agent-ci':
         specifier: 'catalog:'
         version: 0.17.1(supports-color@7.2.0)
@@ -394,7 +394,7 @@ importers:
         version: 1.5.0
       '@socketregistry/packageurl-js-stable':
         specifier: 'catalog:'
-        version: '@socketregistry/packageurl-js@1.4.8'
+        version: '@socketregistry/packageurl-js@1.5.0'
       '@socketsecurity/lib':
         specifier: 6.5.2
         version: 6.5.2(typescript@7.0.2)
@@ -406,7 +406,7 @@ importers:
         version: 4.1.3
       '@socketsecurity/sdk-stable':
         specifier: 'catalog:'
-        version: '@socketsecurity/sdk@4.1.2'
+        version: '@socketsecurity/sdk@4.1.3'
       '@types/mdast':
         specifier: 'catalog:'
         version: 4.0.4
@@ -717,13 +717,13 @@ importers:
     dependencies:
       '@socketregistry/packageurl-js-stable':
         specifier: 'catalog:'
-        version: '@socketregistry/packageurl-js@1.4.8'
+        version: '@socketregistry/packageurl-js@1.5.0'
       '@socketsecurity/lib-stable':
         specifier: 'catalog:'
         version: '@socketsecurity/lib@6.5.2(typescript@7.0.2)'
       '@socketsecurity/sdk-stable':
         specifier: 'catalog:'
-        version: '@socketsecurity/sdk@4.1.2'
+        version: '@socketsecurity/sdk@4.1.3'
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -2232,7 +2232,7 @@ importers:
         version: 0.34.52
       '@socketregistry/packageurl-js-stable':
         specifier: 'catalog:'
-        version: '@socketregistry/packageurl-js@1.4.8'
+        version: '@socketregistry/packageurl-js@1.5.0'
       '@socketsecurity/lib-stable':
         specifier: 'catalog:'
         version: '@socketsecurity/lib@6.5.2(typescript@7.0.2)'
@@ -2752,52 +2752,52 @@ packages:
     engines: {node: '>=20.19.0'}
     hasBin: true
 
-  '@anthropic-ai/claude-code-darwin-arm64@2.1.216':
-    resolution: {integrity: sha512-Gm0AShldYRsrkdW3lskH0QwsDvU93sATZXjv7HtmGisZlq3YcBV/UwJbi1F5wA/b+cVeptvznjG7A3faaPjz4Q==}
+  '@anthropic-ai/claude-code-darwin-arm64@2.1.220':
+    resolution: {integrity: sha512-rmtd41Bf+n+YnhjSjtQ8WG5qy8KKogUp3YRfQrkLsTgPUD0H3j869rBInBJT3SHrKQ0hLghQLGM73CC1C+USLQ==}
     cpu: [arm64]
     os: [darwin]
 
-  '@anthropic-ai/claude-code-darwin-x64@2.1.216':
-    resolution: {integrity: sha512-Kn9PGMoA1cCIo98HbRbrC3wfLZPE1NVCHMf6axCYeQK4oUyTz8Jb/Hyg9+BpwFgHVOCsR3+bnSMEhrzj7yS3Jg==}
+  '@anthropic-ai/claude-code-darwin-x64@2.1.220':
+    resolution: {integrity: sha512-hbuoG+YCo37VzSKzKJ47ymRmt/YjASc3dRcsZtCcftLYdopv8KL889x/IbCl3cfp/VqV2rRDZ0f3aUDpHUFweQ==}
     cpu: [x64]
     os: [darwin]
 
-  '@anthropic-ai/claude-code-linux-arm64-musl@2.1.216':
-    resolution: {integrity: sha512-ortjlgDBu+BZ2NQuqQwQ43oU9mNxhN67uAUVGZNmgLCjzEfnjdYzXZU7On2De9pu8WBfTsAVdb0WqtbnfVaZCA==}
+  '@anthropic-ai/claude-code-linux-arm64-musl@2.1.220':
+    resolution: {integrity: sha512-m37ALw8jcbSknuyG7xDQjGPY7Gth3eX8iFY1XFEWABVq1iUMVAUn96WC9eqwi8/JSqyG2t3oNRiqHdi2ZNKFGQ==}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
 
-  '@anthropic-ai/claude-code-linux-arm64@2.1.216':
-    resolution: {integrity: sha512-g2/K+v6MiIKY65SlPoFv8cRbRvroHxhvHPCf8lPDMMyRLG9fpHGGLZSR21W8OPjbqTZK8GcFcOaKrjQJrWveZw==}
+  '@anthropic-ai/claude-code-linux-arm64@2.1.220':
+    resolution: {integrity: sha512-VHFI8mKruIntKn7eq81sbyS19/KWmQcmJQsS/C+j9M/E+w0s4UytgsL7DADPjBE/GByNiKoRtLYDMntCjRlOdA==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@anthropic-ai/claude-code-linux-x64-musl@2.1.216':
-    resolution: {integrity: sha512-GBEdZ0Bi6qziIcxG4chVoYKrC30tphmm5hneUfDjmR8sZqMOn0T44mL2ON1lYaT5jn02Y3zMUCK3GyJt8Bm/kw==}
+  '@anthropic-ai/claude-code-linux-x64-musl@2.1.220':
+    resolution: {integrity: sha512-+QyT1KikOdMRKReWFaBYGsroYx2vEjjx54DwhMoC24oE1DxjC+SlKjeOTRXAKiu0fr0O549Lkhg2tuT5xtQpAQ==}
     cpu: [x64]
     os: [linux]
     libc: [musl]
 
-  '@anthropic-ai/claude-code-linux-x64@2.1.216':
-    resolution: {integrity: sha512-BMf+Z3QM4Aj9qjA/qSYrl/JvajKxSgJUMRBnlSR4RP1qrUNWiAcWe7mljj3Au/zEv9Ahh/oi679rcqA6cTtwuQ==}
+  '@anthropic-ai/claude-code-linux-x64@2.1.220':
+    resolution: {integrity: sha512-3CGFCnI0gpgsqNeJruFALBDGJaKXOuok3alQEg56ty2yOPpIrOx/r2Y0+T4uhJl7kP5Hzw4IFkxo4DZKWvzQ7Q==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@anthropic-ai/claude-code-win32-arm64@2.1.216':
-    resolution: {integrity: sha512-eiGj4hSzVqf3f6RSdpGtPnT9mk5m9/cgyW07O4ztVBAckL/lh3TAZ6w3cxMozaZZ7rdz0TX3BLqx8wa8FJ8eng==}
+  '@anthropic-ai/claude-code-win32-arm64@2.1.220':
+    resolution: {integrity: sha512-APqZwFBn38DBUwB65uUTetW7lbtUqFfAfOWKvkmOyqFDswDEsInaINuIwqMCl44WYcch10SaHhEZdXJU9MG3aQ==}
     cpu: [arm64]
     os: [win32]
 
-  '@anthropic-ai/claude-code-win32-x64@2.1.216':
-    resolution: {integrity: sha512-wS3SS+M0RiRM76Cg7OYrdvL7qHO80tEX9OVH5zZ1FsZ2nZGMZzERNpONcaahtPWOSbWWrjb0ez39K24tkZFIWQ==}
+  '@anthropic-ai/claude-code-win32-x64@2.1.220':
+    resolution: {integrity: sha512-UGrjH8cGhC6PzhTyZSdgf/RpKxpfk9XJZ/RT/wsG2AJg9yEJLjLg6/TrnlL8RFbEv6Zahu0Quytc02UOpA/GiA==}
     cpu: [x64]
     os: [win32]
 
-  '@anthropic-ai/claude-code@2.1.216':
-    resolution: {integrity: sha512-UH4XncIO6ceNZMq2HxphEn9YR7uu5NGVJMcogGSPvu0nXRw8ubEjbu5cD3Dhvx3vXxizwFA82tmk6mVXjhr/dw==}
+  '@anthropic-ai/claude-code@2.1.220':
+    resolution: {integrity: sha512-ogBrvwkqF9f8okmnXKxmRNHuvtFxFEffe5pWdqOV3iQDxlUOKirFqnyWC7NGXXnDA4WkkbPH8pvSbwyCR2Auyw==}
     engines: {node: '>=22.0.0'}
     hasBin: true
 
@@ -3358,10 +3358,6 @@ packages:
     resolution: {integrity: sha512-MZ5dyXOtiEc7q3801T+2EmKkxrd55BOSQnG8z/8/IkIJzDxqBxGGBKVyixqFm3W657TyUEBfIT9iWgSB6ipFsA==}
     engines: {node: '>=18'}
 
-  '@socketregistry/packageurl-js@1.4.8':
-    resolution: {integrity: sha512-u9Mlg3zeiCr8FHdG6Sxd4T8dWS/zVzW270tS67JdDra2hrzPfgsmbWr7itlQc/0P9uWX6gslISs88YQvi3Z5SQ==}
-    engines: {node: '>=24', npm: '>=12.0.0', pnpm: '>=11.0.5'}
-
   '@socketregistry/packageurl-js@1.5.0':
     resolution: {integrity: sha512-Yqnq50McfKVqKCUKRIhW3XcnjxzFoysBDkUktOuLzOdy4cWi0smVqvLNSkS3f4sdDJYpRBjcxTlb2ajHr+cURQ==}
     engines: {node: '>=24', npm: '>=12.0.1', pnpm: '>=11.0.5'}
@@ -3387,10 +3383,6 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
-
-  '@socketsecurity/sdk@4.1.2':
-    resolution: {integrity: sha512-CZ9EjVf6M5MDfkG8eIZ1WGmSnQDB4VdT76QbOHticVEQW4LnU4cJ9Uev6SSDsAVECw1KkNtU0ZkDngI4XQUWOg==}
-    engines: {node: '>=18.20.8', npm: '>=12.0.0', pnpm: '>=11.0.5'}
 
   '@socketsecurity/sdk@4.1.3':
     resolution: {integrity: sha512-iaUkTWdBvUt5SMkfdhIOdt66sxZ0TakW/Ni533YbuHJpe1qQN3gq7KHCjEqEQUeL4o6YRsJ2G/XoUrwrXx+jvQ==}
@@ -4687,8 +4679,8 @@ packages:
     os: [darwin, linux, win32]
     hasBin: true
 
-  postcss@8.5.20:
-    resolution: {integrity: sha512-lW616l85ucIQL+FocMmL7pQFPqBmwejrCMg+iPxyImlrANNJG9NHq/RkyCZopDhd8C3LA03PHRJDjkbGu8vvug==}
+  postcss@8.5.23:
+    resolution: {integrity: sha512-g50586zr4bZmwFiTlflMu8E0bDTb5I5gertgwAKmsdUlTQIhZtunzUlD1WSzwcVWPoAVpsrA6vlfCD7oXvRwgg==}
     engines: {node: ^10 || ^12 || >=14}
 
   propagate@2.0.1:
@@ -5201,40 +5193,40 @@ snapshots:
       tinyexec: 1.2.4
       tinyglobby: 0.2.17
 
-  '@anthropic-ai/claude-code-darwin-arm64@2.1.216':
+  '@anthropic-ai/claude-code-darwin-arm64@2.1.220':
     optional: true
 
-  '@anthropic-ai/claude-code-darwin-x64@2.1.216':
+  '@anthropic-ai/claude-code-darwin-x64@2.1.220':
     optional: true
 
-  '@anthropic-ai/claude-code-linux-arm64-musl@2.1.216':
+  '@anthropic-ai/claude-code-linux-arm64-musl@2.1.220':
     optional: true
 
-  '@anthropic-ai/claude-code-linux-arm64@2.1.216':
+  '@anthropic-ai/claude-code-linux-arm64@2.1.220':
     optional: true
 
-  '@anthropic-ai/claude-code-linux-x64-musl@2.1.216':
+  '@anthropic-ai/claude-code-linux-x64-musl@2.1.220':
     optional: true
 
-  '@anthropic-ai/claude-code-linux-x64@2.1.216':
+  '@anthropic-ai/claude-code-linux-x64@2.1.220':
     optional: true
 
-  '@anthropic-ai/claude-code-win32-arm64@2.1.216':
+  '@anthropic-ai/claude-code-win32-arm64@2.1.220':
     optional: true
 
-  '@anthropic-ai/claude-code-win32-x64@2.1.216':
+  '@anthropic-ai/claude-code-win32-x64@2.1.220':
     optional: true
 
-  '@anthropic-ai/claude-code@2.1.216':
+  '@anthropic-ai/claude-code@2.1.220':
     optionalDependencies:
-      '@anthropic-ai/claude-code-darwin-arm64': 2.1.216
-      '@anthropic-ai/claude-code-darwin-x64': 2.1.216
-      '@anthropic-ai/claude-code-linux-arm64': 2.1.216
-      '@anthropic-ai/claude-code-linux-arm64-musl': 2.1.216
-      '@anthropic-ai/claude-code-linux-x64': 2.1.216
-      '@anthropic-ai/claude-code-linux-x64-musl': 2.1.216
-      '@anthropic-ai/claude-code-win32-arm64': 2.1.216
-      '@anthropic-ai/claude-code-win32-x64': 2.1.216
+      '@anthropic-ai/claude-code-darwin-arm64': 2.1.220
+      '@anthropic-ai/claude-code-darwin-x64': 2.1.220
+      '@anthropic-ai/claude-code-linux-arm64': 2.1.220
+      '@anthropic-ai/claude-code-linux-arm64-musl': 2.1.220
+      '@anthropic-ai/claude-code-linux-x64': 2.1.220
+      '@anthropic-ai/claude-code-linux-x64-musl': 2.1.220
+      '@anthropic-ai/claude-code-win32-arm64': 2.1.220
+      '@anthropic-ai/claude-code-win32-x64': 2.1.220
 
   '@anthropic-ai/sdk@0.39.0':
     dependencies:
@@ -5608,8 +5600,6 @@ snapshots:
 
   '@socketregistry/hasown@1.0.7': {}
 
-  '@socketregistry/packageurl-js@1.4.8': {}
-
   '@socketregistry/packageurl-js@1.5.0': {}
 
   '@socketregistry/safe-buffer@1.0.9': {}
@@ -5621,8 +5611,6 @@ snapshots:
   '@socketsecurity/lib@6.5.2(typescript@7.0.2)':
     optionalDependencies:
       typescript: 7.0.2
-
-  '@socketsecurity/sdk@4.1.2': {}
 
   '@socketsecurity/sdk@4.1.3': {}
 
@@ -6924,7 +6912,7 @@ snapshots:
 
   portless@0.15.4: {}
 
-  postcss@8.5.20:
+  postcss@8.5.23:
     dependencies:
       nanoid: 3.3.16
       picocolors: 1.1.1
@@ -7309,7 +7297,7 @@ snapshots:
     dependencies:
       lightningcss: 1.32.0
       picomatch: 4.0.5
-      postcss: 8.5.20
+      postcss: 8.5.23
       rolldown: 1.1.4
       tinyglobby: 0.2.17
     optionalDependencies:
